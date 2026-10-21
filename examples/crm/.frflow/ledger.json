@@ -1,0 +1,68 @@
+{
+  "nodes": {
+    "Accounts": {
+      "check": {
+        "hash": "c5ef0e4163c9776aa1cb8e0f893a4d0e785a3ad83dfee67b684a7f25ff4db259",
+        "status": "proven",
+        "at": "2026-10-21T17:59:12.277940267Z",
+        "obligations": [],
+        "messages": [],
+        "axioms": [
+          "Classical.choice",
+          "Quot.sound",
+          "propext"
+        ]
+      }
+    },
+    "ReadApi": {
+      "check": {
+        "hash": "4d294e3ea96996127b0507c003f5623c93caab560d50d9de4cfabf410e294f9e",
+        "status": "proven",
+        "at": "2026-10-21T17:59:10.296481143Z",
+        "obligations": [
+          {
+            "name": "link",
+            "status": "proven",
+            "detail": "auto"
+          }
+        ],
+        "messages": [],
+        "axioms": [
+          "Classical.choice",
+          "Quot.sound",
+          "propext"
+        ]
+      }
+    },
+    "ReadContract": {
+      "check": {
+        "hash": "51c9bd528f6cb13f1c0611909f766f37bbd618e795d7ee69ce1410baa27c3880",
+        "status": "proven",
+        "at": "2026-10-21T17:59:16.284698110Z",
+        "obligations": [
+          {
+            "name": "link",
+            "status": "proven",
+            "detail": "auto"
+          }
+        ],
+        "messages": [],
+        "axioms": [
+          "Classical.choice",
+          "Quot.sound",
+          "propext"
+        ]
+      }
+    },
+    "TenantIsolation": {
+      "check": {
+        "hash": "c47bc4e273454edbd6e645e3b287b1f65f31d880927d4c7ce3d2583b35f551bb",
+        "status": "proven",
+        "at": "2026-10-21T17:59:06.381508196Z",
+        "obligations": [],
+        "messages": [],
+        "axioms": []
+      }
+    }
+  }
+}

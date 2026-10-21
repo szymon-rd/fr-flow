@@ -4,7 +4,7 @@ import frflow.Json.*
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.{Files, Path}
 
-/** Result of one obligation (`proven`, `open` or `failed`) or one scenario (`ok` or `failed`). */
+/** Result of one obligation: `proven`, `open` or `failed`. */
 final case class Result(name: String, status: String, detail: String = "")
 
 /** The outcome of checking one node. `status` is `proven`, `open`, `failed`,
@@ -14,7 +14,6 @@ final case class NodeCheck(
     hash: String,
     status: String,
     obligations: List[Result],
-    scenarios: List[Result],
     messages: List[String],
     axioms: List[String],
     at: String
@@ -38,7 +37,7 @@ final case class Ledger(nodes: Map[String, LedgerEntry]):
           e.check.toSeq.map(c =>
             "check" -> obj(
               "hash" -> str(c.hash), "status" -> str(c.status), "at" -> str(c.at),
-              "obligations" -> results(c.obligations), "scenarios" -> results(c.scenarios),
+              "obligations" -> results(c.obligations),
               "messages" -> JArr(c.messages.map(str)), "axioms" -> JArr(c.axioms.map(str))
             )
           )
@@ -65,7 +64,7 @@ object Ledger:
         e("approval").map(a => Approval(s(a, "hash"), s(a, "by"), s(a, "at"))),
         e("check").map(c =>
           NodeCheck(
-            s(c, "hash"), s(c, "status"), results(c("obligations")), results(c("scenarios")),
+            s(c, "hash"), s(c, "status"), results(c("obligations")),
             c("messages").map(_.arr).getOrElse(Nil).flatMap(_.str).toList,
             c("axioms").map(_.arr).getOrElse(Nil).flatMap(_.str).toList, s(c, "at")
           )

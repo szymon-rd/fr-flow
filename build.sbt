@@ -3,14 +3,12 @@ ThisBuild / scalacOptions ++= Seq("-deprecation", "-feature", "-Werror")
 
 val munit = "org.scalameta" %% "munit" % "1.1.1" % Test
 
-lazy val root = project.in(file(".")).aggregate(core, wallet).settings(publish / skip := true)
+lazy val root = project.in(file(".")).aggregate(core, auth, crm).settings(publish / skip := true)
 
 /** The FrFlow library: nodes, the Scala-to-Lean translation, the checker, the CLI. */
 lazy val core = project.in(file("core")).settings(name := "frflow", libraryDependencies += munit)
 
-/** Example: a wallet, from the developer's idea to a proven chain of nodes. */
-lazy val wallet = project
-  .in(file("examples/wallet"))
+def example(name: String) = Project(name, file(s"examples/$name"))
   .dependsOn(core)
   .settings(
     libraryDependencies += munit,
@@ -20,3 +18,9 @@ lazy val wallet = project
     Test / fork := true,
     Test / baseDirectory := (ThisBuild / baseDirectory).value
   )
+
+/** Access control: no unauthorized access, from the generic idea to an enforced implementation. */
+lazy val auth = example("auth")
+
+/** A multi-tenant CRM: tenant isolation, from the generic idea to an enforced implementation. */
+lazy val crm = example("crm")

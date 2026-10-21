@@ -1,0 +1,130 @@
+package frflow
+
+/** A type with no assumed structure. In Lean it is a type parameter of every
+  * definition and theorem that mentions it.
+  *
+  * {{{
+  * val User = Opaque("User")      // use the type as User.T
+  * }}}
+  */
+final class Opaque(val name: String):
+  type T
+
+  /** Fixes this type, in `instantiate`. */
+  def :=(t: LeanType): Subst = Subst(name, t.lean, t.types, None, isType = true)
+
+/** A value of a known type that the model leaves open. In Lean it is a
+  * parameter: everything proven holds for every value of it.
+  *
+  * {{{
+  * val authorized = Param[(User.T, Resource.T) => Boolean]("authorized")
+  * }}}
+  */
+final class Param[A](val name: String, val assumption: Option[Lifted[A => Boolean]] = None):
+
+  /** The value bound at run time (see `Node.enforce`). */
+  def value: A = Bindings.get(this)
+
+  /** States what is assumed of this parameter; it becomes a hypothesis of every theorem that uses it. */
+  inline def assuming(inline p: A => Boolean): Param[A] = Param(name, Some(Lifted(p)))
+
+  /** Gives this parameter a definition, in `instantiate`. */
+  inline def :=[B](inline v: B): Subst = Subst.param(name, Lifted(v))
+
+  /** A run-time value of this parameter; evaluated on every use. */
+  def bind(v: => A): Binding = Binding(this, () => v)
+
+extension [A, R](p: Param[A => R]) def apply(a: A): R = p.value(a)
+extension [A, B, R](p: Param[(A, B) => R]) def apply(a: A, b: B): R = p.value(a, b)
+extension [A, B, C, R](p: Param[(A, B, C) => R]) def apply(a: A, b: B, c: C): R = p.value(a, b, c)
+
+/** A substitution of `instantiate`: an opaque type by a type, or a parameter by a term. */
+final case class Subst(name: String, lean: String, types: List[TypeDecl], term: Option[Lifted[?]], isType: Boolean)
+
+object Subst:
+  def param(name: String, l: Lifted[?]): Subst = Subst(name, l.lean, l.types, Some(l), isType = false)
+
+/** A Scala type, as a Lean type. */
+final case class LeanType(lean: String, types: List[TypeDecl])
+
+/** The Lean translation of a Scala type: `User := of[UserId]`. */
+inline def of[T]: LeanType = ${ Lift.leanType[T] }
+
+final case class Binding(param: Param[?], value: () => Any)
+
+/** Run-time values of parameters, for the code that evaluates node predicates. */
+object Bindings:
+  private val current = ThreadLocal.withInitial[Map[String, () => Any]](() => Map.empty)
+
+  def get[A](p: Param[A]): A =
+    current.get.get(p.name) match
+      case Some(v) => v().asInstanceOf[A]
+      case None    => throw IllegalStateException(s"parameter ${p.name} is not bound")
+
+  def within[T](bs: Seq[Binding])(body: => T): T =
+    val saved = current.get
+    current.set(saved ++ bs.map(b => b.param.name -> b.value))
+    try body
+    finally current.set(saved)
+
+/** A Lean declaration of a domain type, produced from a Scala case class or enum. */
+final case class TypeDecl(name: String, lean: String, uses: List[String])
+
+/** A Scala lambda or value together with its Lean translation. Both come from one source.
+  *
+  * @param params   Lean names and types of the lambda's parameters
+  * @param body     the Lean term; `⟦f⟧` marks a call of the defined function `f`
+  * @param opaques  opaque types it mentions
+  * @param paramRefs parameters it uses, with their Lean types
+  */
+final class Lifted[+F](
+    val value: F,
+    val params: List[(String, String)],
+    val result: String,
+    val body: String,
+    val source: String,
+    val types: List[TypeDecl],
+    val opaques: List[String],
+    val paramRefs: List[(String, String)],
+    defsThunk: () => List[Def[?]],
+    paramsThunk: () => List[Param[?]]
+):
+  def defs: List[Def[?]] = defsThunk()
+  def paramObjects: List[Param[?]] = paramsThunk()
+
+  def lean: String =
+    if params.isEmpty then body else s"fun ${params.map((n, t) => s"($n : $t)").mkString(" ")} => $body"
+
+  def leanType: String = (params.map(_._2) :+ result).mkString(" → ")
+
+object Lifted:
+  /** Translates a Scala lambda over the domain. Unsupported Scala is a compile error. */
+  inline def apply[F](inline f: F): Lifted[F] = ${ Lift.lifted('f) }
+
+/** A named function of the domain, defined once in Scala: it becomes a Lean
+  * definition, can be called from other definitions and nodes, and runs as Scala.
+  * Its Lean name is the name of the `val` it is assigned to.
+  */
+final class Def[F](val name: String, val lifted: Lifted[F]):
+  def fn: F = lifted.value
+
+inline def define[F](inline f: F): Def[F] = ${ Lift.define('f) }
+
+extension [A, R](d: Def[A => R]) def apply(a: A): R = d.fn(a)
+extension [A, B, R](d: Def[(A, B) => R]) def apply(a: A, b: B): R = d.fn(a, b)
+extension [A, B, C, R](d: Def[(A, B, C) => R]) def apply(a: A, b: B, c: C): R = d.fn(a, b, c)
+
+/** Raised when specification-only logic is executed. */
+final class NotExecutable(what: String) extends RuntimeException(s"$what cannot be executed")
+
+/** For every value (specification only). */
+def forall[A](p: A => Boolean): Boolean = throw NotExecutable("forall")
+def forall[A, B](p: (A, B) => Boolean): Boolean = throw NotExecutable("forall")
+
+/** For some value (specification only). */
+def exists[A](p: A => Boolean): Boolean = throw NotExecutable("exists")
+def exists[A, B](p: (A, B) => Boolean): Boolean = throw NotExecutable("exists")
+
+extension (a: Boolean)
+  /** Implication. */
+  infix def ==>(b: => Boolean): Boolean = !a || b

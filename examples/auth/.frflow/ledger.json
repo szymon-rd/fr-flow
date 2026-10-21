@@ -1,0 +1,68 @@
+{
+  "nodes": {
+    "Authenticated": {
+      "check": {
+        "hash": "1d9d4fd12eaea23949b63590a675aeef5630353ec9f4d7bb3ce09b0319797b1f",
+        "status": "proven",
+        "at": "2026-10-21T17:58:56.758323264Z",
+        "obligations": [
+          {
+            "name": "link",
+            "status": "proven",
+            "detail": "auto"
+          }
+        ],
+        "messages": [],
+        "axioms": [
+          "Classical.choice",
+          "Quot.sound",
+          "propext"
+        ]
+      }
+    },
+    "DecisionContract": {
+      "check": {
+        "hash": "bae3c744867822e1081ef54e8596b44b11499a1125f2256655a177b5a0095f22",
+        "status": "proven",
+        "at": "2026-10-21T17:59:02.922632628Z",
+        "obligations": [
+          {
+            "name": "link",
+            "status": "proven",
+            "detail": "auto"
+          }
+        ],
+        "messages": [],
+        "axioms": [
+          "Classical.choice",
+          "Quot.sound",
+          "propext"
+        ]
+      }
+    },
+    "GrantBased": {
+      "check": {
+        "hash": "370fbe04c0b56eaad560f9338b1414bb73a29e91ed6e21b7e15916fba7c3cd6b",
+        "status": "proven",
+        "at": "2026-10-21T17:58:59.084976179Z",
+        "obligations": [],
+        "messages": [],
+        "axioms": [
+          "Classical.choice",
+          "Quot.sound",
+          "propext"
+        ]
+      }
+    },
+    "NoUnauthorizedAccess": {
+      "check": {
+        "hash": "075988f9814056a63755a2e730d2b2ccfc83d3375ece3d5a63bc83b25a76709f",
+        "status": "proven",
+        "at": "2026-10-21T17:58:53.069435239Z",
+        "obligations": [],
+        "messages": [],
+        "axioms": []
+      }
+    }
+  }
+}

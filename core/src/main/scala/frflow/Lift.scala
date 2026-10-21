@@ -9,7 +9,8 @@ import scala.quoted.*
   * `Boolean` (as `Prop`), `Int`/`Long` (as `Int`), `String`, `List`, `Option`,
   * tuples; constructors, field access, `copy`, `match`, `if`, `val`s;
   * `==`, `!=`, `&&`, `||`, `!`, `==>`, integer arithmetic and comparison; a few
-  * `List`/`Option` operations; `forall`/`exists`; calls to `define`d functions.
+  * `List`/`Option` operations; `forall`/`exists`; calls to `define`d functions;
+  * opaque types (`User.T`) and parameters (`authorized(u, r)`, `shares.value`).
   * Anything else is a compile error at its position.
   */
 private[frflow] object Lift:
@@ -22,6 +23,8 @@ private[frflow] object Lift:
     val l = t.lift(f)
     '{ new Def[F](${ Expr(name) }, $l) }
 
+  def leanType[T: Type](using Quotes): Expr[LeanType] = Translator().leanType[T]
+
 private final class Translator(using val quotes: Quotes):
   import quotes.reflect.*
 
@@ -29,6 +32,9 @@ private final class Translator(using val quotes: Quotes):
   private val types = mutable.LinkedHashMap.empty[String, TypeDecl]
   private val inProgress = mutable.Set.empty[String]
   private val deps = mutable.ListBuffer.empty[Term]
+  private val paramTerms = mutable.ListBuffer.empty[Term]
+  private val opaques = mutable.LinkedHashSet.empty[String]
+  private val paramRefs = mutable.LinkedHashMap.empty[String, String]
 
   private def fail(msg: String, pos: Position): Nothing = report.errorAndAbort(s"FrFlow: $msg", pos)
   private def unsupported(t: Tree): Nothing = fail(s"not supported in a model: ${t.show}", t.pos)
@@ -45,9 +51,19 @@ private final class Translator(using val quotes: Quotes):
         (ps.map(p => ident(p.name) -> tpe(p.tpt.tpe, p.pos)), expr(b, ps.map(p => p.symbol -> ident(p.name)).toMap))
       case other => (Nil, expr(other, Map.empty))
     val result = tpe(if ft.isFunctionType then ft.typeArgs.last else ft, term.pos)
-    val typeList = Expr.ofList(types.values.toList.map(d => '{ TypeDecl(${ Expr(d.name) }, ${ Expr(d.lean) }, ${ Expr(d.uses) }) }))
     val depList = Expr.ofList(deps.toList.map(_.asExprOf[Def[?]]))
-    '{ new Lifted[F]($f, ${ Expr(params) }, ${ Expr(result) }, ${ Expr(body) }, ${ Expr(source(term.pos)) }, $typeList, () => $depList) }
+    val paramList = Expr.ofList(paramTerms.toList.map(_.asExprOf[Param[?]]))
+    '{
+      new Lifted[F]($f, ${ Expr(params) }, ${ Expr(result) }, ${ Expr(body) }, ${ Expr(source(term.pos)) }, $typeList,
+        ${ Expr(opaques.toList) }, ${ Expr(paramRefs.toList) }, () => $depList, () => $paramList)
+    }
+
+  def leanType[T: Type]: Expr[LeanType] =
+    val lean: String = tpe(TypeRepr.of[T], Position.ofMacroExpansion)
+    '{ LeanType(${ Expr(lean) }, $typeList) }
+
+  def typeList: Expr[List[TypeDecl]] =
+    Expr.ofList(types.values.toList.map(d => '{ TypeDecl(${ Expr(d.name) }, ${ Expr(d.lean) }, ${ Expr(d.uses) }) }))
 
   /** Lean name of the `val` a `define` is assigned to. */
   def defName: String =
@@ -116,6 +132,10 @@ private final class Translator(using val quotes: Quotes):
     val t = norm(t0)
     def arg(cls: Symbol) = tpe(t.baseType(cls).typeArgs.head, pos)
     if t =:= TypeRepr.of[Nothing] then fail("cannot infer the type here; add a type ascription", pos)
+    else if isOpaque(t) then
+      val n = opaqueName(t, pos)
+      opaques += n
+      n
     else if t =:= TypeRepr.of[Boolean] then "Prop"
     else if isInt(t) then "Int"
     else if t =:= TypeRepr.of[String] then "String"
@@ -123,8 +143,18 @@ private final class Translator(using val quotes: Quotes):
     else if t.derivesFrom(ListSym) then s"(List ${arg(ListSym)})"
     else if t.derivesFrom(OptionSym) then s"(Option ${arg(OptionSym)})"
     else if defn.isTupleClass(t.typeSymbol) then t.typeArgs.map(tpe(_, pos)).mkString("(", " × ", ")")
+    else if t.isFunctionType then "(" + t.typeArgs.map(tpe(_, pos)).mkString(" → ") + ")"
     else if isAdt(t.typeSymbol) && t.typeArgs.isEmpty then declare(t.typeSymbol, pos)
     else fail(s"type ${t.show} is not supported; model the domain with case classes and enums", pos)
+
+  /** `User.T` for `val User = Opaque("User")`. */
+  private def isOpaque(t: TypeRepr): Boolean = t match
+    case TypeRef(_, "T") => t.typeSymbol.owner.fullName == "frflow.Opaque"
+    case _               => false
+
+  private def opaqueName(t: TypeRepr, pos: Position): String = t match
+    case TypeRef(prefix: TermRef, _) => ident(prefix.termSymbol.name)
+    case _                           => fail(s"refer to an opaque type through its val, as in `User.T`", pos)
 
   private def adtRefs(t: TypeRepr): List[Symbol] =
     val n = norm(t)
@@ -278,21 +308,26 @@ private final class Translator(using val quotes: Quotes):
     if argss.isEmpty && env.contains(sym) then return env(sym)
     if Set("int2long")(name) && args.size == 1 then return e(args.head)
 
-    // calls of defined functions: `d(a, b)` is the `apply` extension of `frflow`
+    // calls of defined functions and parameters: `d(a, b)` is an `apply` extension of `frflow`
     if name == "apply" && sym.owner.fullName.startsWith("frflow") && argss.size == 2 then
       val d = argss.head.head
-      if !d.symbol.isValDef then fail("call a defined function through the val it is assigned to", d.pos)
-      deps += d
-      return p((qualifiedName(d.symbol) :: argss(1).map(e)).mkString(" "))
+      if !d.symbol.isValDef then fail("call a defined function or parameter through the val it is assigned to", d.pos)
+      val head =
+        if norm(d.tpe).typeSymbol.fullName == "frflow.Param" then paramRef(d)
+        else { deps += d; s"⟦${qualifiedName(d.symbol)}⟧" }
+      return p((head :: argss(1).map(e)).mkString(" "))
+    if name == "value" && argss.isEmpty && recv.exists(q => norm(q.tpe).typeSymbol.fullName == "frflow.Param") then
+      return paramRef(recv.get)
 
     // specification logic
     if sym.fullName.startsWith("frflow.") then
       (name, argss) match
         case ("forall" | "exists", List(List(f))) =>
           strip(f) match
-            case Lambda(List(v), b) =>
+            case Lambda(vs, b) =>
               val q = if name == "forall" then "∀" else "∃"
-              return p(s"$q (${ident(v.name)} : ${tpe(v.tpt.tpe, v.pos)}), ${expr(b, env + (v.symbol -> ident(v.name)))}")
+              val binders = vs.map(v => s"(${ident(v.name)} : ${tpe(v.tpt.tpe, v.pos)})").mkString(" ")
+              return p(s"$q $binders, ${expr(b, env ++ vs.map(v => v.symbol -> ident(v.name)))}")
             case _ => fail(s"$name expects a lambda", f.pos)
         case ("==>", List(List(a), List(b))) => return p(s"${e(a)} → ${e(b)}")
         case _                               => ()
@@ -338,8 +373,18 @@ private final class Translator(using val quotes: Quotes):
             if v == s"$recvText.${ident(f.name)}" then None else Some(s"${ident(f.name)} := $v")
           }
           return if updates.isEmpty then recvText else s"{ $recvText with ${updates.mkString(", ")} }"
-        builtin(q, qt, name, args, env).getOrElse(unsupported(t))
+        if qt.isFunctionType && name == "apply" then p((e(q) :: args.map(e)).mkString(" "))
+        else builtin(q, qt, name, args, env).getOrElse(unsupported(t))
       case None => unsupported(t)
+
+  /** A reference to a parameter: a Lean variable of the same name. */
+  private def paramRef(d: Term): String =
+    if !d.symbol.isValDef then fail("refer to a parameter through the val it is assigned to", d.pos)
+    val n = ident(d.symbol.name)
+    if !paramRefs.contains(n) then
+      paramRefs(n) = tpe(norm(d.tpe).typeArgs.head, d.pos)
+      paramTerms += d
+    n
 
   private def builtin(q: Term, qt: TypeRepr, name: String, args: List[Term], env: Env): Option[String] =
     def e(x: Term) = expr(x, env)
@@ -375,6 +420,12 @@ private final class Translator(using val quotes: Quotes):
       case ("exists", 1) if qt.derivesFrom(ListSym) =>
         val (x, b) = lam(args.head); Some(p(s"∃ $x ∈ $r, $b"))
       case ("map", 1) if qt.derivesFrom(ListSym)         => Some(p(s"List.map ${e(args.head)} $r"))
+      case ("filter", 1) if qt.derivesFrom(ListSym) =>
+        val (x, b) = lam(args.head); Some(p(s"List.filter (fun $x => decide $b) $r"))
+      case ("forall", 1) if qt.derivesFrom(OptionSym) =>
+        val (x, b) = lam(args.head); Some(p(s"∀ $x, $r = some $x → $b"))
+      case ("exists", 1) if qt.derivesFrom(OptionSym) =>
+        val (x, b) = lam(args.head); Some(p(s"∃ $x, $r = some $x ∧ $b"))
       case ("contains", 1) if qt.derivesFrom(OptionSym)  => Some(p(s"$r = some ${e(args.head)}"))
       case ("isDefined" | "nonEmpty", 0) if qt.derivesFrom(OptionSym) => Some(p(s"$r ≠ none"))
       case ("isEmpty", 0) if qt.derivesFrom(OptionSym)   => Some(p(s"$r = none"))

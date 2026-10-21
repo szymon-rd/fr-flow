@@ -19,7 +19,7 @@ final class Lake(dir: Path, timeoutSeconds: Long = 900):
   def build(target: String): Run = run(Seq(lake, "build", target))
   def elaborate(file: String): Run = run(Seq(lake, "env", "lean", file))
   def available: Boolean =
-    try run(Seq(lake, "--version")).ok
+    try ProcessBuilder(lake, "--version").redirectErrorStream(true).start().waitFor() == 0
     catch case _: java.io.IOException => false
 
   private def run(cmd: Seq[String]): Run =
@@ -64,7 +64,7 @@ object Lean:
       case NoAxioms(t)    => t -> Nil
     }.toMap
 
-  val allowedAxioms: Set[String] = Set("propext", "Classical.choice", "Quot.sound")
+  val allowedAxioms: Set[String] = Set("propext", "Classical.choice", "choice", "Quot.sound")
 
   /** A theorem in a Lean file, with the range of lines it spans. */
   final case class Decl(name: String, statement: String, from: Int, to: Int)
