@@ -207,10 +207,13 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   // Snapshot and event log: what the browser and agents read
   // ---------------------------------------------------------------------------
 
-  /** Appends an event to `.frflow/events.jsonl`: the history of the process. */
+  /** Appends an event to `.frflow/events.jsonl`: the history of the process.
+    * `FRFLOW_ACTOR` (for example `agent` or `ui`) is recorded as who triggered it.
+    */
   def record(action: String, node: String, fields: (String, Json)*): Unit =
     Files.createDirectories(ws.eventsFile.getParent)
-    val e = obj((Seq("at" -> str(java.time.Instant.now.toString), "action" -> str(action), "node" -> str(node)) ++ fields)*)
+    val actor = sys.env.get("FRFLOW_ACTOR").filter(_.nonEmpty).map("actor" -> str(_))
+    val e = obj((Seq("at" -> str(java.time.Instant.now.toString), "action" -> str(action), "node" -> str(node)) ++ actor ++ fields)*)
     Files.writeString(ws.eventsFile, e.compact + "\n", UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND)
 
   /** The state of a node's link to its parent: `proven` (by `auto`, `authored`, or `instantiation`),

@@ -123,7 +123,8 @@ Requirements: JDK 17+, sbt, and Lean 4.35.0 (`lake` on the PATH, or `FRFLOW_LAKE
 
 ```sh
 sbt test                               # unit tests, and Lean tests when lake is available
-sbt "auth/run check"                   # generate Lean, prove the links, record the results
+sbt "auth/run render"                  # generate Lean and the snapshot .frflow/kb.json
+sbt "auth/run check"                   # render, prove the links, record the results
 sbt "auth/run status"                  # the tree, with approval and verification state
 sbt "auth/run context Authenticated"   # the idea, the path from the root, the obligation
 sbt "auth/run approve Authenticated --by <name>"
@@ -134,6 +135,60 @@ Approvals are bound to a hash of what was reviewed: the statement, the Scala
 sources, the generated Lean, and, for the root, the idea. A change shows the
 node as `changed` until it is approved again.
 
+## Browser
+
+```sh
+python3 tools/frflow/server.py examples     # http://127.0.0.1:8765
+```
+
+The browser shows each knowledge base as a tree of nodes.
+
+- **Edges** are the links to the parent. They are colored by status:
+  - green: proven, labelled `auto`, `proof` (authored) or `instantiation`;
+  - amber: open;
+  - red: failed;
+  - grey: not checked, or stale.
+- **Selecting a node** highlights its path to the root. The panel shows the link
+  side by side:
+  - the parent's statement and spec;
+  - this node's `abs` and `spec`, its substitutions, or its contract;
+  - the obligation in Lean, and the authored proof if there is one;
+  - the root theorem;
+  - the generated Lean and the axioms.
+- **Other tabs** show the idea, the domain (opaque types, parameters, domain
+  types, definitions) and the history of renders, checks, approvals and
+  scaffolds, with who triggered them.
+- **Actions:** Render, Check, Create proof file, and Approve. Approval is the
+  developer's.
+
+The tree is never built in the browser. `render` runs the knowledge base's CLI,
+which writes `.frflow/kb.json` from the Scala definitions. Open pages update
+when the snapshot or the event log changes. A banner appears when sources are
+newer than the snapshot.
+
+A project is a directory with a `frflow.json` that says how to run its CLI:
+
+```json
+{ "name": "Auth", "run": ["sbt", "auth/run {args}"], "cwd": "../..", "sources": ["src/main/scala", "IDEA.md", "lean/Proofs"] }
+```
+
+## Agents
+
+- `.mcp.json` registers the MCP server `frflow` (`tools/frflow/mcp_server.py`).
+  - Tools: `render`, `check`, `status`, `context`, `scaffold`, `tree`, `node`
+    and `history`.
+  - There is no `approve` tool.
+  - An agent's `render` or `check` updates the open browser pages. The history
+    records the action as the agent's.
+- `.claude/skills/frflow/SKILL.md` teaches an agent the workflow:
+  - from the idea to the root, then one decision per node;
+  - the Scala subset of node lambdas;
+  - how to prove a link that automation leaves open;
+  - what not to do: edit generated Lean, approve, or weaken the root.
+
+The browser and the MCP server need only Python 3.10+. Their tests run against
+a fake CLI: `python3 -m unittest discover -s tools/frflow/tests`.
+
 ## Layout
 
 ```
@@ -143,7 +198,9 @@ core/                 the Scala library
   Lift.scala          the macro: Scala lambdas to Lean
   Node.scala          nodes, the knowledge base, enforce
   Generate.scala      Lean generation
-  Workflow.scala      check, approve, status, context
+  Workflow.scala      check, approve, status, context, snapshot, event log
 examples/auth/        access control: idea, model, implementation, generated Lean, ledger
 examples/crm/         multi-tenant CRM, the same
+tools/frflow/         browser (server.py, ui/index.html) and MCP server (mcp_server.py)
+.claude/skills/frflow the agent skill
 ```

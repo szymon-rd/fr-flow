@@ -11,3 +11,6 @@ project/project/
 # FrFlow: derived from the Scala definitions, and local history
 **/.frflow/kb.json
 **/.frflow/events.jsonl
+**/.frflow/run.lock
+**/.frflow/running.json
+__pycache__/

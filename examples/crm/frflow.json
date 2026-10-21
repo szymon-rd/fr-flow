@@ -1,0 +1,6 @@
+{
+  "name": "Crm",
+  "run": ["sbt", "crm/run {args}"],
+  "cwd": "../..",
+  "sources": ["src/main/scala", "IDEA.md", "lean/Proofs"]
+}

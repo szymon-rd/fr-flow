@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FrFlow Browser</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --ink: #1c2330; --muted: #5d6878; --line: #dde2ea; --soft: #eef1f5;
+  --accent: #3d5afe; --accent-soft: #e8ecff;
+  --proven: #13854b; --proven-soft: #e3f5ea; --open: #b86e00; --open-soft: #fff3dc;
+  --failed: #c62f2f; --failed-soft: #fde7e7; --none: #8a94a3; --none-soft: #eef0f3;
+  --code: #f3f5f8; --shadow: 0 1px 2px rgba(20,30,50,.06), 0 4px 14px rgba(20,30,50,.06);
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f131a; --panel: #161b24; --ink: #e5e9f0; --muted: #98a2b3; --line: #29313e; --soft: #1d2430;
+    --accent: #8c9eff; --accent-soft: #232b48;
+    --proven: #4cc38a; --proven-soft: #15302a; --open: #f0b44c; --open-soft: #33290f;
+    --failed: #ff7b7b; --failed-soft: #3a1a1d; --none: #7d8696; --none-soft: #1f252f;
+    --code: #10151d; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f131a; --panel: #161b24; --ink: #e5e9f0; --muted: #98a2b3; --line: #29313e; --soft: #1d2430;
+  --accent: #8c9eff; --accent-soft: #232b48;
+  --proven: #4cc38a; --proven-soft: #15302a; --open: #f0b44c; --open-soft: #33290f;
+  --failed: #ff7b7b; --failed-soft: #3a1a1d; --none: #7d8696; --none-soft: #1f252f;
+  --code: #10151d; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+button, input, select { font: inherit; color: inherit; }
+code, pre, .mono { font-family: var(--mono); font-size: 12.5px; }
+pre { background: var(--code); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 6px 0 0;
+      overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
+
+header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--panel);
+         border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.brand { font-weight: 700; letter-spacing: .2px; }
+.brand span { color: var(--accent); }
+select, input[type=text] { background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; }
+.btn { background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 5px 12px; cursor: pointer; }
+.btn:hover:not(:disabled) { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+:root[data-theme="dark"] .btn.primary { color: #0f131a; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn.primary { color: #0f131a; } }
+.btn:disabled { opacity: .5; cursor: default; }
+.spacer { flex: 1; }
+.summary { color: var(--muted); font-size: 13px; }
+.banner { display: none; align-items: center; gap: 8px; background: var(--open-soft); color: var(--open);
+          border: 1px solid color-mix(in srgb, var(--open) 40%, transparent); border-radius: 7px; padding: 3px 10px; font-size: 13px; }
+.banner.show { display: inline-flex; }
+.running { display: none; align-items: center; gap: 6px; color: var(--accent); font-size: 13px; }
+.running.show { display: inline-flex; }
+.dot-pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 1.1s infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+
+main { display: grid; grid-template-columns: minmax(0, 1fr) 480px; height: calc(100% - 55px); }
+#canvasWrap { position: relative; overflow: auto; }
+#canvas { position: relative; margin: 28px auto; }
+.pane a, .chain a { color: var(--accent); text-decoration: none; cursor: pointer; }
+.pane a:hover { text-decoration: underline; }
+#edges { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+aside { background: var(--panel); border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+.tabs { display: flex; border-bottom: 1px solid var(--line); padding: 0 8px; }
+.tab { border: 0; background: none; padding: 10px 12px; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; }
+.tab.active { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+.pane { overflow: auto; padding: 16px 18px 40px; flex: 1; }
+@media (max-width: 900px) {
+  main { grid-template-columns: 1fr; height: auto; }
+  #canvasWrap { height: 60vh; }
+  aside { border-left: 0; border-top: 1px solid var(--line); }
+  .legend { position: static; }
+}
+
+/* tree */
+.card { position: absolute; width: 220px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+        padding: 9px 11px; box-shadow: var(--shadow); cursor: pointer; transition: opacity .15s, border-color .15s; }
+.card:hover { border-color: var(--accent); }
+.card.selected { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow); }
+.card.dim { opacity: .55; }
+.card .top { display: flex; align-items: center; gap: 6px; }
+.card .id { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card .stmt { color: var(--muted); font-size: 12.5px; margin: 4px 0 6px; display: -webkit-box; -webkit-line-clamp: 2;
+              -webkit-box-orient: vertical; overflow: hidden; min-height: 37px; }
+.chips { display: flex; gap: 4px; flex-wrap: wrap; }
+.kind { font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; padding: 1px 6px; border-radius: 4px;
+        background: var(--soft); color: var(--muted); flex: none; }
+.kind.root { background: var(--accent-soft); color: var(--accent); }
+.chip { font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid transparent; white-space: nowrap; }
+.s-proven { background: var(--proven-soft); color: var(--proven); }
+.s-open, .s-waiting, .s-changed { background: var(--open-soft); color: var(--open); }
+.s-failed, .s-model-error { background: var(--failed-soft); color: var(--failed); }
+.s-not-checked, .s-stale, .s-unapproved { background: var(--none-soft); color: var(--none); }
+.s-approved { background: var(--proven-soft); color: var(--proven); }
+path.edge { fill: none; stroke-width: 2.2; transition: opacity .15s; }
+path.edge.proven { stroke: var(--proven); }
+path.edge.open { stroke: var(--open); stroke-dasharray: 7 5; }
+path.edge.failed { stroke: var(--failed); stroke-dasharray: 3 4; }
+path.edge.not-checked, path.edge.stale { stroke: var(--none); stroke-dasharray: 2 5; }
+path.edge.onpath { stroke-width: 4; }
+path.glow { fill: none; stroke: var(--proven); stroke-width: 10; opacity: .14; }
+path.edge.dim, path.glow.dim { opacity: .3; }
+.elabel { position: absolute; transform: translate(-50%, -50%); font-size: 11px; font-weight: 600; padding: 1px 8px;
+          border-radius: 999px; border: 1px solid var(--line); background: var(--panel); white-space: nowrap; pointer-events: none; }
+.elabel.proven { color: var(--proven); border-color: color-mix(in srgb, var(--proven) 45%, transparent); }
+.elabel.open { color: var(--open); border-color: color-mix(in srgb, var(--open) 45%, transparent); }
+.elabel.failed { color: var(--failed); border-color: color-mix(in srgb, var(--failed) 45%, transparent); }
+.elabel.not-checked, .elabel.stale { color: var(--none); }
+.elabel.dim { opacity: .45; }
+.legend { position: sticky; left: 12px; bottom: 12px; display: inline-flex; gap: 14px; flex-wrap: wrap; background: var(--panel);
+          border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 12px; color: var(--muted); margin: 0 12px 12px; }
+.legend i { display: inline-block; width: 22px; height: 0; border-top: 3px solid; vertical-align: middle; margin-right: 5px; }
+.empty { color: var(--muted); padding: 40px; }
+
+/* panel */
+h2 { font-size: 18px; margin: 0; }
+h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin: 22px 0 6px; }
+.lead { font-size: 15px; margin: 8px 0 0; }
+.muted { color: var(--muted); }
+.link-box { border: 1px solid var(--line); border-left-width: 4px; border-radius: 10px; padding: 12px 14px; margin-top: 8px; }
+.link-box.proven { border-color: color-mix(in srgb, var(--proven) 45%, transparent); border-left-color: var(--proven); background: color-mix(in srgb, var(--proven-soft) 55%, transparent); }
+.link-box.open { border-left-color: var(--open); background: color-mix(in srgb, var(--open-soft) 55%, transparent); }
+.link-box.failed { border-left-color: var(--failed); background: color-mix(in srgb, var(--failed-soft) 55%, transparent); }
+.link-box.not-checked, .link-box.stale { border-left-color: var(--none); }
+.verdict { font-weight: 650; }
+.verdict.proven { color: var(--proven); } .verdict.open { color: var(--open); } .verdict.failed { color: var(--failed); }
+.verdict.not-checked, .verdict.stale { color: var(--none); }
+.side { margin-top: 10px; }
+.side .label { font-size: 12px; color: var(--muted); }
+.side .label b { color: var(--ink); }
+.chain { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 6px; }
+.chain a { color: var(--ink) !important; text-decoration: none !important; border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; font-size: 12px; cursor: pointer; }
+.chain .arrow { font-size: 12px; font-weight: 700; }
+.chain .arrow.proven { color: var(--proven); } .chain .arrow.open { color: var(--open); } .chain .arrow.failed { color: var(--failed); }
+.chain .arrow.not-checked, .chain .arrow.stale { color: var(--none); }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+td, th { text-align: left; border-bottom: 1px solid var(--line); padding: 6px 6px 6px 0; vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 12px; }
+details summary { cursor: pointer; color: var(--muted); margin-top: 18px; }
+.event { display: grid; grid-template-columns: 14px 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.event .d { width: 9px; height: 9px; border-radius: 50%; margin-top: 6px; background: var(--none); }
+.event .d.proven, .event .d.approve { background: var(--proven); } .event .d.open { background: var(--open); }
+.event .d.failed, .event .d.model-error { background: var(--failed); } .event .d.render { background: var(--accent); }
+.event .when { color: var(--muted); font-size: 12px; }
+.md h1 { font-size: 20px; } .md h2 { font-size: 16px; margin-top: 18px; } .md p { margin: 8px 0; }
+#job { display: none; position: absolute; right: 16px; bottom: 16px; width: min(560px, calc(100% - 32px)); background: var(--panel);
+       border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 10px 12px; }
+#job.show { display: block; }
+#job pre { max-height: 240px; overflow: auto; }
+#job .head { display: flex; align-items: center; gap: 8px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Fr<span>Flow</span></div>
+  <select id="project" aria-label="Project"></select>
+  <span class="summary" id="summary"></span>
+  <span class="banner" id="stale">Sources changed since the last render <button class="btn" data-run="render">Render</button></span>
+  <span class="running" id="running"><span class="dot-pulse"></span><span id="runningText"></span></span>
+  <span class="spacer"></span>
+  <button class="btn" data-run="render" title="Rebuild the tree and the Lean from the Scala definitions">Render</button>
+  <button class="btn primary" data-run="check" title="Prove every link in Lean">Check all</button>
+</header>
+<main>
+  <div id="canvasWrap">
+    <div id="canvas"><svg id="edges"></svg></div>
+    <div class="legend">
+      <span><i style="border-color:var(--proven)"></i>link proven</span>
+      <span><i style="border-color:var(--open);border-top-style:dashed"></i>open</span>
+      <span><i style="border-color:var(--failed);border-top-style:dotted"></i>failed</span>
+      <span><i style="border-color:var(--none);border-top-style:dotted"></i>not checked / stale</span>
+    </div>
+    <div id="job"><div class="head"><b id="jobTitle"></b><span class="spacer"></span><button class="btn" id="jobClose">Close</button></div><pre id="jobOut"></pre></div>
+  </div>
+  <aside>
+    <nav class="tabs">
+      <button class="tab active" data-tab="node">Node</button>
+      <button class="tab" data-tab="idea">Idea</button>
+      <button class="tab" data-tab="domain">Domain</button>
+      <button class="tab" data-tab="history">History</button>
+    </nav>
+    <div class="pane" id="pane"></div>
+  </aside>
+</main>
+<script>
+"use strict";
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+const state = { projects: [], project: null, data: null, events: [], job: null, selected: null, tab: "node", jobOpen: false };
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  const body = await r.json().catch(() => null);
+  if (!r.ok) throw new Error(body?.error || r.statusText);
+  return body;
+}
+
+// --- loading ----------------------------------------------------------------
+
+async function loadProjects() {
+  state.projects = await api("/api/projects");
+  const sel = $("#project");
+  sel.innerHTML = state.projects.map(p => `<option>${esc(p.name)}</option>`).join("");
+  const [hashProject, hashNode] = decodeURIComponent(location.hash.slice(1)).split("/");
+  state.project = state.projects.some(p => p.name === hashProject) ? hashProject
+    : state.projects.some(p => p.name === store.get("frflow.project")) ? store.get("frflow.project") : state.projects[0]?.name;
+  state.selected = hashNode || null;
+  sel.value = state.project;
+}
+
+let loading = null;
+async function refresh() {
+  if (!state.project) return;
+  if (loading) return loading;
+  loading = (async () => {
+    const p = encodeURIComponent(state.project);
+    const [data, events, job] = await Promise.all([api(`/api/p/${p}/kb`), api(`/api/p/${p}/events?limit=300`), api(`/api/p/${p}/job`)]);
+    state.data = data; state.events = events; state.job = job;
+    const nodes = data.snapshot?.nodes || [];
+    if (!nodes.some(n => n.id === state.selected)) state.selected = data.snapshot?.root || null;
+    render();
+  })().finally(() => { loading = null; });
+  return loading;
+}
+
+function listen() {
+  const es = new EventSource("/api/stream");
+  let t = null;
+  es.onmessage = () => { clearTimeout(t); t = setTimeout(refresh, 120); };
+}
+
+// --- model helpers ----------------------------------------------------------
+
+const snap = () => state.data?.snapshot;
+const byId = id => snap()?.nodes.find(n => n.id === id);
+const children = id => snap().nodes.filter(n => n.parent === id);
+function pathTo(id) { const out = []; let n = byId(id); while (n) { out.unshift(n); n = n.parent ? byId(n.parent) : null; } return out; }
+const linkStatus = n => n.link?.status || "not-checked";
+function linkLabel(n) {
+  const s = linkStatus(n), d = n.link?.detail;
+  if (s === "proven") return "✓ " + (d === "instantiation" ? "instantiation" : d === "authored" ? "proof" : "auto");
+  return { open: "open", failed: "✗ failed", stale: "stale", "not-checked": "not checked" }[s] || s;
+}
+
+// --- rendering --------------------------------------------------------------
+
+function render() {
+  const s = snap();
+  const sc = state.data?.sourcesChanged || [];
+  $("#stale").classList.toggle("show", !!s && sc.length > 0);
+  $("#stale").title = sc.join("\n");
+  const running = state.data?.running || (state.job?.running ? { args: state.job.args, actor: "ui" } : null);
+  $("#running").classList.toggle("show", !!running);
+  $("#runningText").textContent = running ? `${running.actor === "agent" ? "agent" : "running"}: ${running.args.join(" ")}` : "";
+  document.querySelectorAll("[data-run]").forEach(b => b.disabled = !!running);
+  if (!s) {
+    $("#summary").textContent = "";
+    $("#canvas").innerHTML = `<svg id="edges"></svg><div class="empty">No snapshot yet. Press Render to build the tree from the Scala definitions.</div>`;
+    $("#pane").innerHTML = "";
+    renderJob();
+    return;
+  }
+  const links = s.nodes.filter(n => n.parent);
+  const proven = links.filter(n => linkStatus(n) === "proven").length;
+  const approved = s.nodes.filter(n => n.approval === "approved").length;
+  $("#summary").textContent = `${s.name} · ${s.nodes.length} nodes · ${proven}/${links.length} links proven · ${approved}/${s.nodes.length} approved · rendered ${ago(s.exportedAt)}`;
+  renderTree();
+  renderPane();
+  renderJob();
+  history.replaceState(null, "", `#${encodeURIComponent(state.project)}/${encodeURIComponent(state.selected || "")}`);
+}
+
+function ago(iso) {
+  const sec = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
+  if (sec < 60) return "just now";
+  if (sec < 3600) return `${Math.round(sec / 60)} min ago`;
+  if (sec < 86400) return `${Math.round(sec / 3600)} h ago`;
+  return new Date(iso).toLocaleString();
+}
+
+const W = 220, H = 104, GX = 24, GY = 70;
+
+function renderTree() {
+  const s = snap(), canvas = $("#canvas");
+  const pos = {}; let slot = 0;
+  (function place(n, depth) {
+    const cs = children(n.id);
+    cs.forEach(c => place(c, depth + 1));
+    const x = cs.length ? (pos[cs[0].id].x + pos[cs[cs.length - 1].id].x) / 2 : (slot++) * (W + GX);
+    pos[n.id] = { x, y: depth * (H + GY) };
+  })(byId(s.root), 0);
+  const width = Math.max(...Object.values(pos).map(p => p.x)) + W, height = Math.max(...Object.values(pos).map(p => p.y)) + H;
+  const onPath = new Set(state.selected ? pathTo(state.selected).map(n => n.id) : []);
+  const dimOthers = onPath.size > 1;
+
+  let svg = "", labels = "", cards = "";
+  for (const n of s.nodes) {
+    if (!n.parent || !pos[n.parent]) continue;
+    const a = pos[n.parent], b = pos[n.id];
+    const x1 = a.x + W / 2, y1 = a.y + H, x2 = b.x + W / 2, y2 = b.y, my = (y1 + y2) / 2;
+    const d = `M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`;
+    const st = linkStatus(n), on = onPath.has(n.id), dim = dimOthers && !on ? " dim" : "";
+    if (st === "proven") svg += `<path class="glow${dim}" d="${d}"/>`;
+    svg += `<path class="edge ${st}${on ? " onpath" : ""}${dim}" d="${d}"><title>${esc(n.parent)} → ${esc(n.id)}: ${esc(st)}</title></path>`;
+    labels += `<div class="elabel ${st}${dim}" style="left:${(x1 + x2) / 2}px;top:${my}px">${esc(linkLabel(n))}</div>`;
+  }
+  for (const n of s.nodes) {
+    const p = pos[n.id]; if (!p) continue;
+    const cls = ["card", n.id === state.selected ? "selected" : "", dimOthers && !onPath.has(n.id) ? "dim" : ""].join(" ");
+    cards += `<div class="${cls}" data-node="${esc(n.id)}" style="left:${p.x}px;top:${p.y}px;height:${H}px">
+      <div class="top"><span class="kind ${n.kind}">${esc(n.kind)}</span><span class="id" title="${esc(n.id)}">${esc(n.id)}</span></div>
+      <div class="stmt" title="${esc(n.statement)}">${esc(n.statement)}</div>
+      <div class="chips"><span class="chip s-${n.verification}">${esc(n.verification)}</span><span class="chip s-${n.approval}">${esc(n.approval)}</span></div>
+    </div>`;
+  }
+  canvas.style.width = width + "px"; canvas.style.height = height + "px";
+  canvas.innerHTML = `<svg id="edges" width="${width}" height="${height}">${svg}</svg>${labels}${cards}`;
+}
+
+function renderJob() {
+  const j = state.job, box = $("#job");
+  box.classList.toggle("show", !!j && state.jobOpen);
+  if (!j) return;
+  const st = j.running ? "running…" : j.exitCode === 0 ? "done" : `exit ${j.exitCode}`;
+  $("#jobTitle").textContent = `${j.args.join(" ")} — ${st}`;
+  $("#jobOut").textContent = j.running ? "Running the knowledge base's CLI…" : j.output;
+}
+
+function renderPane() {
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === state.tab));
+  const pane = $("#pane");
+  pane.innerHTML = { node: nodePane, idea: ideaPane, domain: domainPane, history: historyPane }[state.tab]();
+}
+
+function code(label, src) { return src ? `<div class="side"><div class="label">${label}</div><pre>${esc(src)}</pre></div>` : ""; }
+
+function modelOf(n) {
+  if (n.kind === "instantiate") {
+    return `<div class="side"><div class="label">substitutions</div><pre>${esc(n.substitutions.map(s => `${s.name} := ${s.value}`).join("\n"))}</pre></div>`;
+  }
+  return code("abs — maps this model to the parent's", n.sources.abs) + code("spec", n.sources.spec) + code("post — every call (a, b) ⇒ r satisfies", n.sources.post);
+}
+
+function verdict(n) {
+  const s = linkStatus(n), d = n.link?.detail || "";
+  if (s === "proven") {
+    if (d === "instantiation") return "Proven by instantiation: the parent's theorems apply with these substitutions.";
+    if (d === "authored") return `Proven by an authored proof (${esc(n.proof?.file || "lean/Proofs")}).`;
+    return "Proven automatically by frflow_auto.";
+  }
+  if (s === "open") return `Open: ${esc(d)}`;
+  if (s === "failed") return `Failed: ${esc(d)}`;
+  if (s === "stale") return "Stale: the definitions changed since the last check.";
+  return "Not checked yet.";
+}
+
+function nodePane() {
+  const n = byId(state.selected);
+  if (!n) return `<p class="muted">Select a node.</p>`;
+  const parent = n.parent ? byId(n.parent) : null;
+  const path = pathTo(n.id);
+  const ls = linkStatus(n);
+  const evs = state.events.filter(e => e.node === n.id).slice(-8).reverse();
+  let h = `<div style="display:flex;align-items:center;gap:8px"><span class="kind ${n.kind}">${esc(n.kind)}</span><h2>${esc(n.id)}</h2></div>
+    <div class="chips" style="margin-top:6px"><span class="chip s-${n.verification}">${esc(n.verification)}</span>
+    <span class="chip s-${n.approval}">${esc(n.approval)}${n.approvedBy ? " by " + esc(n.approvedBy) : ""}</span></div>
+    <p class="lead">${esc(n.statement)}</p>`;
+
+  if (!parent) {
+    h += `<h3>Root</h3><div class="link-box"><div class="muted">The idea stated as a theorem. Every other node is proven to imply it.</div>
+      ${code("spec", n.sources.spec)}</div>`;
+  } else {
+    h += `<h3>Link to parent</h3><div class="link-box ${ls}">
+      <div class="verdict ${ls}">${verdict(n)}</div>
+      <div class="side"><div class="label">parent <b><a href="#" data-goto="${esc(parent.id)}">${esc(parent.id)}</a></b> (${esc(parent.kind)})</div>
+        <div style="margin-top:2px">${esc(parent.statement)}</div>
+        ${parent.sources.spec ? `<pre>${esc(parent.sources.spec)}</pre>` : parent.kind === "instantiate" ? `<div class="muted" style="font-size:12px">its spec is its parent's, instantiated</div>` : ""}</div>
+      <div class="side"><div class="label">this node <b>${esc(n.id)}</b></div>${modelOf(n)}</div>
+      ${n.obligation ? `<div class="side"><div class="label">obligation — ${esc(n.obligation.description)}</div><pre>${esc(n.obligation.statement)}</pre></div>` : ""}
+      ${n.proof ? `<details><summary>authored proof — ${esc(n.proof.file)}</summary><pre>${esc(n.proof.source)}</pre></details>` : ""}
+    </div>`;
+  }
+
+  const allProven = path.slice(1).every(p => linkStatus(p) === "proven");
+  h += `<h3>Root theorem</h3><div class="muted" style="font-size:13px">${
+    n.verification === "proven" ? "Holds: every link from the root to this node is proven, and the theorem builds."
+    : allProven && path.length > 1 ? "Every link on the path is proven; the node itself is " + esc(n.verification) + "."
+    : "Holds once every link on the path is proven."}</div>
+    <div class="chain">${path.map((p, i) => (i ? `<span class="arrow ${linkStatus(p)}" title="${esc(linkStatus(p))}">${linkStatus(p) === "proven" ? "⟵✓" : "⟵?"}</span>` : "") +
+      `<a data-goto="${esc(p.id)}">${esc(p.id)}</a>`).join("")}</div>
+    <pre>${esc(n.rootTheorem)}</pre>`;
+
+  if (n.axioms.length) h += `<h3>Axioms</h3><div class="chips">${n.axioms.map(a => `<span class="chip s-not-checked mono">${esc(a)}</span>`).join("")}</div>`;
+  if (n.messages.length) h += `<h3>Messages</h3><pre>${esc(n.messages.join("\n\n"))}</pre>`;
+
+  h += `<div class="actions">
+    <button class="btn" data-run="check" data-arg="${esc(n.id)}">Check this node</button>
+    ${ls === "open" && !n.proof && n.obligation ? `<button class="btn" data-run="scaffold" data-arg="${esc(n.id)}">Create proof file</button>` : ""}
+    <span class="spacer"></span>
+    <input type="text" id="approver" placeholder="your name" value="${esc(store.get("frflow.approver") || "")}" size="10" aria-label="Approver">
+    <button class="btn" id="approve" ${n.approval === "approved" ? "disabled" : ""}>Approve</button>
+  </div>`;
+  h += `<details><summary>Generated Lean</summary><pre>${esc(n.lean)}</pre></details>`;
+  if (evs.length) h += `<h3>Recent</h3>${evs.map(eventRow).join("")}`;
+  return h;
+}
+
+function markdown(src) {
+  const out = []; let list = null, para = [], fence = null;
+  const inline = s => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/\*([^*]+)\*/g, "<i>$1</i>");
+  const flush = () => { if (para.length) out.push(`<p>${inline(para.join(" "))}</p>`); para = []; if (list) { out.push(`<ul>${list.join("")}</ul>`); list = null; } };
+  for (const line of src.split("\n")) {
+    if (fence !== null) { if (line.startsWith("```")) { out.push(`<pre>${esc(fence.join("\n"))}</pre>`); fence = null; } else fence.push(line); continue; }
+    if (line.startsWith("```")) { flush(); fence = []; continue; }
+    const hd = line.match(/^(#{1,4})\s+(.*)/), li = line.match(/^\s*[-*]\s+(.*)/);
+    if (hd) { flush(); out.push(`<h${hd[1].length}>${inline(hd[2])}</h${hd[1].length}>`); }
+    else if (li) { if (para.length) { out.push(`<p>${inline(para.join(" "))}</p>`); para = []; } (list ||= []).push(`<li>${inline(li[1])}</li>`); }
+    else if (!line.trim()) flush();
+    else para.push(line.trim());
+  }
+  flush();
+  return out.join("");
+}
+
+function ideaPane() {
+  const s = snap();
+  return `<div class="muted" style="font-size:12px">IDEA.md — the root, <a href="#" data-goto="${esc(s.root)}">${esc(s.root)}</a>, states it as a theorem.</div>
+    <div class="md">${markdown(s.idea || "*No idea file.*")}</div>`;
+}
+
+function domainPane() {
+  const s = snap();
+  return `<h3 style="margin-top:0">Opaque types</h3><div class="muted" style="font-size:13px">Types with no assumed structure; type parameters in Lean.</div>
+    <div class="chips" style="margin-top:6px">${s.opaques.map(o => `<span class="chip s-not-checked mono">${esc(o)}</span>`).join("") || "<span class='muted'>none</span>"}</div>
+    <h3>Parameters</h3><div class="muted" style="font-size:13px">Values left open: everything proven holds for every value of them.</div>
+    <table><tr><th>name</th><th>Lean type</th><th>assumption</th></tr>${s.params.map(p =>
+      `<tr><td class="mono">${esc(p.name)}</td><td class="mono">${esc(p.type)}</td><td class="mono">${esc(p.assumption ?? "—")}</td></tr>`).join("")}</table>
+    <h3>Domain types</h3>${s.types.map(t => `<pre>${esc(t.lean)}</pre>`).join("") || "<span class='muted'>none</span>"}
+    <h3>Definitions</h3>${s.defs.map(d => `<div class="side"><div class="label"><b>${esc(d.name)}</b></div><pre>${esc(d.source)}</pre></div>`).join("") || "<span class='muted'>none</span>"}`;
+}
+
+function eventRow(e) {
+  const extra = e.status ? ` → <span class="chip s-${esc(e.status)}">${esc(e.status)}</span>` : e.by ? ` by ${esc(e.by)}` : e.changed !== undefined ? ` (${esc(e.changed)} files changed)` : "";
+  const dot = e.status || e.action;
+  const target = e.action === "render" ? "" : ` <a href="#" data-goto="${esc(e.node)}">${esc(e.node)}</a>`;
+  return `<div class="event"><span class="d ${esc(dot)}"></span><div><b>${esc(e.action)}</b>${target}${extra}
+    <div class="when">${new Date(e.at).toLocaleString()}${e.actor ? " · " + esc(e.actor) : ""}</div></div></div>`;
+}
+
+function historyPane() {
+  const evs = state.events.slice().reverse();
+  return evs.length ? evs.map(eventRow).join("") : `<p class="muted">No events yet.</p>`;
+}
+
+// --- actions ----------------------------------------------------------------
+
+async function run(args) {
+  try {
+    state.jobOpen = true;
+    state.job = await api(`/api/p/${encodeURIComponent(state.project)}/run`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ args }) });
+    render();
+  } catch (e) { alert(e.message); }
+}
+
+document.addEventListener("click", e => {
+  const go = e.target.closest("[data-goto]");
+  if (go) { e.preventDefault(); state.selected = go.dataset.goto; state.tab = "node"; render(); return; }
+  const card = e.target.closest(".card");
+  if (card) { state.selected = card.dataset.node; state.tab = "node"; render(); return; }
+  const r = e.target.closest("[data-run]");
+  if (r) { run([r.dataset.run, ...(r.dataset.arg ? [r.dataset.arg] : [])]); return; }
+  const tab = e.target.closest(".tab");
+  if (tab) { state.tab = tab.dataset.tab; renderPane(); return; }
+  if (e.target.id === "approve") {
+    const who = $("#approver").value.trim();
+    if (!who) { $("#approver").focus(); return; }
+    store.set("frflow.approver", who);
+    run(["approve", state.selected, "--by", who]);
+  }
+});
+$("#jobClose").onclick = () => { state.jobOpen = false; renderJob(); };
+$("#project").onchange = e => { state.project = e.target.value; store.set("frflow.project", state.project); state.selected = null; state.jobOpen = false; refresh(); };
+
+loadProjects().then(refresh).then(listen).catch(e => { $("#canvas").innerHTML = `<div class="empty">${esc(e.message)}</div>`; });
+</script>
+</body>
+</html>
