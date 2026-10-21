@@ -23,13 +23,15 @@ final case class NodeCheck(
   *
   * @param action   `accept` (the developer chose the node, as seen), `confirm` (it still holds after
   *                 something above it or its code moved), `reject` (an alternative not chosen, as it
-  *                 was proposed) or `remove` (the developer agreed that a decided node is gone)
+  *                 was proposed), `revisit` (the developer said a change above may affect it, so it is
+  *                 reviewed again) or `remove` (the developer agreed that a decided node is gone)
   * @param content  the node as the developer saw it; the decision is bound to its hash
   * @param chain    the content of the ancestors, as decided; when it changes, the node is reviewed
   * @param reason   why: kept as part of the theory
   * @param rejected for `accept`, the alternatives rejected by this choice
   * @param code     the fingerprint of the source files the node governs, when decided
-  * @param commit   the git commit checked out when deciding, to show how the code changed since
+  * @param commit   the code as decided, written to git (a tree; older entries hold the commit then
+  *                 checked out), to show how the code changed since
   */
 final case class Decision(action: String, content: Json, chain: String, by: String, at: String, reason: String,
     rejected: List[String] = Nil, code: String = "", commit: String = ""):
@@ -45,10 +47,17 @@ object Decision:
 final case class Ledger(decisions: Map[String, List[Decision]]):
   def history(id: String): List[Decision] = decisions.getOrElse(id, Nil)
   def current(id: String): Option[Decision] = history(id).lastOption
-  /** The developer's choice of the node: the reason it was chosen. */
-  def accepted(id: String): Option[Decision] = history(id).reverse.find(_.action == "accept")
-  /** What the node is bound to now: its last acceptance or confirmation. */
-  def binding(id: String): Option[Decision] = current(id).filter(d => d.action == "accept" || d.action == "confirm")
+  /** The developer's choice of the node: the acceptance that chose it (the first since it was last
+    * rejected or removed), which carries the reason it was chosen. Later acceptances are of changes.
+    */
+  def chosen(id: String): Option[Decision] =
+    history(id).reverse.takeWhile(d => d.action != "reject" && d.action != "remove").reverse.find(_.action == "accept")
+  /** What the node is bound to now: its last acceptance or confirmation (also while the developer
+    * has asked to revisit it).
+    */
+  def binding(id: String): Option[Decision] = current(id) match
+    case Some(d) if d.action == "revisit" => history(id).reverse.find(x => x.action == "accept" || x.action == "confirm")
+    case c => c.filter(d => d.action == "accept" || d.action == "confirm")
   def add(id: String, d: Decision): Ledger = Ledger(decisions.updated(id, history(id) :+ d))
 
   /** The alternatives ever rejected in favour of a node, as they were proposed. */
@@ -92,6 +101,18 @@ object Ledger:
           d("rejected").map(_.arr).getOrElse(Nil).flatMap(_.str).toList, s(d, "code"), s(d, "commit"))
       }
     }.toMap)
+
+  /** Warnings when any committed version of the ledger, or the ledger now, changed or removed
+    * decisions recorded in the version before it: the ledger only grows. A commit that deletes the
+    * ledger starts a new record, visibly, in git.
+    */
+  def rewrites(root: Path, file: Path, now: Ledger): List[String] =
+    val versions = Git.versions(root, root.relativize(file).toString)
+    val committed = versions.drop(versions.lastIndexOf(None) + 1).flatten.map(t => fromJson(Json.parse(t)))
+    (committed :+ now).sliding(2).toList.flatMap {
+      case List(before, after) => rewrittenSince(before, after)
+      case _                   => Nil
+    }.distinct.map("the ledger was rewritten: " + _)
 
   /** Decisions present at an earlier version of the ledger (for example the committed one) that are
     * missing or different now: the ledger is append-only, so these mean it was rewritten.

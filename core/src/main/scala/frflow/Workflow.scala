@@ -82,6 +82,13 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val params = (used.flatMap(_.paramObjects) ++ kb.params.filter(p => named(p.name))).distinctBy(_.name)
     (opaques.map(o => s"${o.name}: ${o.means}") ++ params.map(p => s"${p.name}: ${p.means}")).sorted
 
+  /** The terms a node is the first on its path to use: their meaning is decided there, and reaches
+    * the nodes below through the chain.
+    */
+  def introduced(n: Node[?]): List[String] =
+    val above = kb.path(n).dropRight(1).flatMap(vocabulary).map(_.takeWhile(_ != ':')).toSet
+    vocabulary(n).filterNot(t => above(t.takeWhile(_ != ':')))
+
   /** The node as the developer sees it and decides it. A decision is bound to its hash. */
   def content(n: Node[?]): Json = JObj(Seq(
     "parent" -> n.parent.fold(JNull)(p => str(p.id)),
@@ -90,10 +97,11 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     "sources" -> JObj(Seq("spec" -> n.spec, "abs" -> n.abs, "post" -> n.post).collect { case (k, Some(l)) => k -> str(l.source) }),
     "substitutions" -> JArr(n.substs.map(s => str(s"${s.name} := ${s.term.fold(s.lean)(_.source)}"))),
     "examples" -> JArr(n.cases.map(e => str(e.describe))),
-    "vocabulary" -> JArr(vocabulary(n).map(str)),
+    "vocabulary" -> JArr(introduced(n).map(str)),
     "uses" -> JArr(generate.declarationsUsedBy(n).map(str)),
     "governs" -> JArr(n.governs.map(str))
-  ) ++ (if n.kind == NodeKind.Root then Seq("idea" -> str(ideaDecided), "notModelled" -> str(notModelled)) else Nil))
+  ) ++ kb.implementation(n).filter(_.wiring.nonEmpty).map(i => "implementation" -> str(i.wiring)).toList
+    ++ (if n.kind == NodeKind.Root then Seq("idea" -> str(ideaDecided), "notModelled" -> str(notModelled)) else Nil))
 
   def hash(n: Node[?]): String = Decision.hash(content(n))
 
@@ -190,12 +198,12 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
 
   /** The source files a node governs: a contract's implementation, a design decision's files. */
   def code(n: Node[?]): Option[Code] =
-    // An implementation governs the files of its package: the directories of the code it refers to,
-    // except the model's file and files another node governs explicitly.
+    // An implementation governs the files of its package: the directories of the code it refers to
+    // and everything below them, except the model's file and files another node governs explicitly.
     val impl = kb.implementation(n).toList.flatMap { i =>
       val model = i.modelFile.map(f => Path.of(f).toAbsolutePath.normalize)
       i.sources.map(f => Path.of(f).toAbsolutePath.normalize.getParent).distinct.flatMap { dir =>
-        if Files.isDirectory(dir) then Files.list(dir).iterator.asScala.toList.filter(_.toString.endsWith(".scala")) else Nil
+        if Files.isDirectory(dir) then Files.walk(dir).iterator.asScala.toList.filter(_.toString.endsWith(".scala")) else Nil
       }.map(_.toAbsolutePath.normalize).filterNot(p => model.contains(p) || governedExplicitly(p))
     }
     val files = n.governs.map(ws.root.resolve) ++ impl
@@ -221,16 +229,26 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
 
   /** Applies a developer's decision (see `Decisions.decide`) and records it in the ledger. */
   def decide(r: Decisions.Request): Either[String, Unit] =
-    Decisions.decide(baseSnapshot, ledger, r, java.time.Instant.now.toString, Git.head(ws.root)).map(Ledger.save(ws.ledgerFile, _))
+    val files = kb.nodes.flatMap(code).flatMap(_.files).distinct
+    Decisions.decide(baseSnapshot, ledger, r, java.time.Instant.now.toString, Git.snapshot(ws.root, files)).map(Ledger.save(ws.ledgerFile, _))
 
   /** Warnings about the record itself: decisions committed earlier and since rewritten, and
     * governed files that do not exist.
     */
   def integrity: List[String] =
-    val rel = ws.root.relativize(ws.ledgerFile)
-    val rewritten = Git.show(ws.root, rel.toString).map(t => Ledger.rewrittenSince(Ledger.fromJson(Json.parse(t)), ledger)).getOrElse(Nil)
+    val rewritten = Ledger.rewrites(ws.root, ws.ledgerFile, ledger)
     val missing = kb.nodes.flatMap(n => n.governs.filterNot(f => Files.exists(ws.root.resolve(f))).map(f => s"${n.id} governs $f, which does not exist"))
-    rewritten.map("the ledger was rewritten: " + _) ++ missing
+    rewritten ++ missing ++ ungoverned.map(f => s"$f is governed by no node: govern it (.governing or a design node) or move it")
+
+  /** Source files no node governs, other than the model's own: code that can change unnoticed. */
+  def ungoverned: List[String] =
+    val src = ws.root.resolve("src/main")
+    val abs = (p: Path) => p.toAbsolutePath.normalize
+    val governed = kb.nodes.flatMap(code).flatMap(_.files).map(f => abs(ws.root.resolve(f))).toSet ++
+      kb.implementations.flatMap(_.modelFile).map(f => abs(Path.of(f)))
+    if !Files.isDirectory(src) then Nil
+    else Files.walk(src).iterator.asScala.toList.filter(p => Files.isRegularFile(p) && p.toString.endsWith(".scala"))
+      .map(abs).filterNot(governed).map(p => abs(ws.root).relativize(p).toString).sorted
 
   /** Where the developer stands on each node (see `Decisions`). */
   def state(n: Node[?]): String =
@@ -248,12 +266,14 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
 
   def tree(mark: Option[String] = None): String = Decisions.tree(annotated, mark)
 
-  def status: String =
+  /** The tree and its warnings, and whether everything is settled (the CI gate). */
+  def status: (String, Boolean) =
     val a = annotated
     val warnings = integrity
-    Decisions.tree(a) + "\n\n" + warnings.map("warning: " + _ + "\n").mkString +
-      (if Decisions.settled(a) && warnings.isEmpty then "Every node is accepted, proven, and its examples pass."
-       else "Not every node is accepted, proven, and passing its examples.") + "\n"
+    val ok = Decisions.settled(a) && warnings.isEmpty
+    (Decisions.tree(a) + "\n\n" + warnings.map("warning: " + _ + "\n").mkString +
+      (if ok then "Every node is accepted, proven, and its examples pass."
+       else "Not every node is accepted, proven, and passing its examples, or there are warnings.") + "\n", ok)
 
   /** Open requests from the developer (written by the browser). */
   def requests: List[Json] =
@@ -277,7 +297,13 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     sb ++= s"```\n${Decisions.tree(ann, Some(n.id))}\n```\n\n## Path from the root\n\n"
     kb.path(n).foreach { a =>
       sb ++= s"### ${a.id} (${a.kind.toString.toLowerCase}) [${st(a.id)}]\n\n${a.statement}\n\nWhy: ${a.why}\n\n"
-      l.history(a.id).filter(_.action == "accept").foreach(d => sb ++= s"Accepted by ${d.by}: ${d.reason}\n\n")
+      l.history(a.id).foreach { d =>
+        d.action match
+          case "accept"  => sb ++= s"Accepted by ${d.by}: ${d.reason}\n\n"
+          case "confirm" => sb ++= s"Confirmed by ${d.by}: ${d.reason}\n\n"
+          case "revisit" => sb ++= s"To revisit (${d.by}): ${d.reason}\n\n"
+          case _         => ()
+      }
       val alts = l.alternatives(a.id)
       def f(c: Json, k: String) = c(k).flatMap(_.str).getOrElse("")
       alts.foreach((id, c) => sb ++= s"- Rejected alternative $id: ${f(c, "statement")} (why: ${f(c, "why")})\n")
@@ -294,6 +320,14 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       code(a).foreach(c => sb ++= s"- governs: ${c.files.mkString(", ")}\n")
       sb ++= "\n"
     }
+    val children = kb.nodes.filter(_.parent.exists(_.id == n.id))
+    if children.nonEmpty then
+      sb ++= s"## Below ${n.id} (a change here may affect them)\n\n"
+      children.foreach { c =>
+        sb ++= s"- ${c.id} (${c.kind.toString.toLowerCase}) [${st(c.id)}]: ${c.statement} Why: ${c.why}\n"
+        l.chosen(c.id).foreach(d => sb ++= s"  Accepted by ${d.by}: ${d.reason}\n")
+      }
+      sb ++= "\n"
     g.obligation(n).foreach { o =>
       val stl = current(n).flatMap(_.obligations.headOption).fold("not checked")(r => s"${r.status}${if r.detail.nonEmpty then s" (${r.detail})" else ""}")
       sb ++= s"## Obligation of ${n.id} [$stl]\n\n${o.description}\n\n```lean\n${o.statement}\n```\n\n"

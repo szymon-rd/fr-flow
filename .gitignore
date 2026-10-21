@@ -8,15 +8,12 @@ project/project/
 .vscode/
 .lake/
 
-# FrFlow: derived from the Scala definitions, and local history
+# FrFlow: derived from the Scala definitions and Lean, or local to a run. The ledger and the
+# requests (with the agent's answers) are committed.
 **/.frflow/kb.json
-**/.frflow/run.lock
-**/.frflow/running.json
-**/.frflow/requests.json
-**/.frflow/requests.lock
-**/.frflow/requests.json.tmp
-# Derived from the Scala model by render; not committed
 **/.frflow/checks.json
+**/.frflow/running.json
 **/.frflow/*.lock
+**/.frflow/*.tmp
 examples/*/lean/FrFlowGen/
 examples/*/lean/FrFlowAudit/

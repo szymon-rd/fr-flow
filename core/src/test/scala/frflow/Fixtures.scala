@@ -29,6 +29,7 @@ val pick = books.contract[List[Book], Int, List[Book]]("Pick", "Picking returns 
   (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages.value))
   .examples(minPages.bind(100))(
     expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
+    expect(List(Book("Short", 20)), 5, Nil, "no book is long enough: none is picked"),
     reject(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Short", 20)), "a short book is never picked"))
 
 val shelfKb = KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, pick)

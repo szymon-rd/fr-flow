@@ -104,24 +104,38 @@ object Lean:
       else if c == '-' && n == '-' then { line = true; sb ++= "  "; i += 2 }
       else if c == '/' && n == '-' then { depth = 1; sb ++= "  "; i += 2 }
       else if c == '"' then { string = true; sb += ' '; i += 1 }
+      else if c == '\'' && !(i > 0 && (src(i - 1).isLetterOrDigit || src(i - 1) == '_' || src(i - 1) == '\'')) && charLiteral(src, i) > 0 then
+        val len = charLiteral(src, i); sb ++= " " * len; i += len
       else { sb += c; i += 1 }
     sb.result()
+
+  /** The length of a char literal ('x' or '\x') starting at i, or 0. */
+  private def charLiteral(src: String, i: Int): Int =
+    if i + 2 < src.length && src(i + 1) != '\\' && src(i + 2) == '\'' then 3
+    else if i + 3 < src.length && src(i + 1) == '\\' && src(i + 3) == '\'' then 4
+    else 0
 
   /** Lean commands; a proof file may contain only the allowed ones. */
   private val Commands: Set[String] = Set("import", "set_option", "open", "namespace", "end", "section", "noncomputable",
     "theorem", "lemma", "def", "abbrev", "instance", "example", "axiom", "structure", "inductive", "class", "variable",
     "universe", "attribute", "notation", "infix", "infixl", "infixr", "prefix", "postfix", "macro", "macro_rules", "syntax",
     "elab", "elab_rules", "run_cmd", "run_meta", "run_elab", "#eval", "#print", "#check", "#reduce", "#exit", "initialize",
-    "builtin_initialize", "opaque", "mutual", "private", "protected", "partial", "unsafe", "local", "scoped", "@[", "deriving")
+    "builtin_initialize", "opaque", "mutual", "private", "protected", "partial", "unsafe", "local", "scoped", "@[", "deriving",
+    "simproc", "dsimproc", "declare_syntax_cat", "declare_simp_like_tactic", "register_simp_attr", "omit", "include", "export",
+    "add_decl_doc", "termination_by", "decreasing_by", "precedence", "binder_predicate")
 
   /** Commands a proof file may contain. */
   val allowedCommands: Set[String] = Set("import", "set_option", "open", "namespace", "end", "section", "noncomputable", "theorem")
 
+  /** Hygiene, not the guarantee (that is the kernel replay and the axiom audit): a line at the
+    * start of a line must begin an allowed command, and no line may begin any other command or a
+    * `#` command (Lean ignores indentation, so the tactic lines are checked too).
+    */
   def violations(src: String): List[(Int, String)] =
     code(src).linesIterator.zipWithIndex.toList.flatMap { (l, i) =>
-      // Lean ignores indentation for commands, so any line may start one.
       val word = l.trim.takeWhile(c => !c.isWhitespace)
-      val command = if Commands(word) && !allowedCommands(word) then List((i + 1, s"command ${word.take(30)}")) else Nil
+      val top = l.nonEmpty && !l.head.isWhitespace && !allowedCommands(word)
+      val command = if top || ((Commands(word) || word.startsWith("#")) && !allowedCommands(word)) then List((i + 1, s"command ${word.take(30)}")) else Nil
       command ++ forbidden.collect { case (what, re) if re.findFirstIn(l).isDefined => (i + 1, what) }
     }
 

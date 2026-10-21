@@ -293,12 +293,12 @@ function pathTo(id) { const out = []; let n = byId(id); while (n) { out.unshift(
 const linkStatus = n => n.link?.status || (n.kind === "design" ? "design" : n.parent ? "unchecked" : "root");
 const waitingForYou = () => live().filter(n => n.state === "proposed" || n.state === "review");
 const gone = () => snap()?.gone || [];
-const siblings = n => live().filter(m => m.parent === n.parent && m.id !== n.id && m.kind !== "design");
+const siblings = n => live().filter(m => m.parent === n.parent && m.id !== n.id && (m.kind === "design") === (n.kind === "design"));
 const requests = () => state.data?.requests || [];
 const me = () => $("#me").value.trim();
 const examplesBad = n => (n.examples || []).filter(e => e.contract !== "ok" || (e.implementation && e.implementation !== "ok"));
 const pathProven = n => pathTo(n.id).slice(1).every(p => ["proven", "design"].includes(linkStatus(p)));
-const causeText = { self: "it changed", above: "something above it changed", code: "the code it governs changed" };
+const causeText = { self: "it changed", above: "the meaning of something above it changed", code: "the code it governs changed", revisit: "a change above may affect it" };
 function linkLabel(n) {
   const s = linkStatus(n), d = n.link?.detail;
   if (s === "proven") return "✓ " + (d === "instantiation" ? "instantiation" : d === "authored" ? "proof" : "auto");
@@ -415,14 +415,14 @@ function code(label, src) { return src ? `<div class="side"><div class="label">$
 function modelOf(n) {
   const c = C(n), src = c.sources || {};
   if (n.kind === "instantiate") return `<div class="side"><div class="label">substitutions</div><pre>${esc((c.substitutions || []).join("\n"))}</pre></div>`;
-  return code("abs — maps this model to the parent's", src.abs) + code("spec", src.spec) + code("post — every call (a, b) ⇒ r satisfies", src.post);
+  return code("abs — maps this model to the parent's", src.abs) + code("spec", src.spec) + code("post — every call (a, b) ⇒ r satisfies", src.post) + code("implementation — built by", C(n).implementation);
 }
 
 function verdict(n) {
   const s = linkStatus(n), d = n.link?.detail || "";
   if (s === "proven") {
     if (d === "instantiation") return "Proven by instantiation: the parent's theorems apply with these substitutions.";
-    if (d === "authored") return "Proven by an authored proof, replayed through the Lean kernel.";
+    if (d === "authored") return "Proven by a proof the agent wrote, replayed through the Lean kernel. Read it before accepting: a proof can also go through because the node contradicts itself, which the automatic check does not always catch.";
     return "Proven automatically by frflow_auto.";
   }
   if (s === "open") return `Open: ${esc(d)}`;
@@ -452,7 +452,7 @@ function diff(old, cur) {
     parent: c.parent, statement: c.statement, why: c.why, idea: c.idea, "not modelled": c.notModelled,
     ...Object.fromEntries(Object.entries(c.sources || {})),
     substitutions: (c.substitutions || []).join("\n"), examples: (c.examples || []).join("\n"),
-    vocabulary: (c.vocabulary || []).join("\n"), "definitions used": (c.uses || []).join("\n\n"), governs: (c.governs || []).join("\n"),
+    implementation: c.implementation, vocabulary: (c.vocabulary || []).join("\n"), "definitions used": (c.uses || []).join("\n\n"), governs: (c.governs || []).join("\n"),
   });
   const a = flat(old || {}), b = flat(cur || {});
   const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])].filter(k => (a[k] || "") !== (b[k] || ""));
@@ -483,11 +483,11 @@ function whatMoved(n) {
   let h = "";
   for (const c of n.causes || []) {
     if (c === "self") h += `<div class="side"><div class="label">${esc(n.id)} changed since it was accepted</div>${diff(d?.content, n.content) || `<div class="muted small">No difference in what was decided.</div>`}</div>`;
-    if (c === "above") {
-      const changed = pathTo(n.id).slice(0, -1).reverse().find(a => a.state === "review" || (a.decision && d && a.history?.slice(-1)[0]?.at > d.at));
-      const ad = changed?.history?.filter(x => x.action === "accept" || x.action === "confirm");
-      const before = ad && ad.length > 1 && changed.state !== "review" ? ad[ad.length - 2].content : ad?.slice(-1)[0]?.content;
-      h += `<div class="side"><div class="label">${changed ? `<a data-goto="${esc(changed.id)}">${esc(changed.id)}</a> changed` : "an ancestor changed"}</div>${changed ? diff(before, changed.content) : ""}</div>`;
+    if (c === "above") for (const m of n.moved || [])
+      h += `<div class="side"><div class="label"><a data-goto="${esc(m.id)}">${esc(m.id)}</a> changed in meaning since this was decided</div>${diff(m.before, C(byId(m.id))) || ""}</div>`;
+    if (c === "revisit") {
+      const r = (n.history || []).filter(x => x.action === "revisit").slice(-1)[0];
+      h += `<div class="side"><div class="label">${esc(r?.by || "")} asked to revisit it</div>${esc(r?.reason || "")}</div>`;
     }
     if (c === "code") {
       loadCodeDiff(n.id);
@@ -504,9 +504,10 @@ function decisionBox(n) {
   const d = n.decision;
   const parent = n.parent ? byId(n.parent) : null;
   const blocked = parent && parent.state !== "accepted";
-  const confirms = (n.history || []).filter(h => h.action === "confirm" && (!d || h.at > d.at));
+  const later = d ? (n.history || []).filter(h => ["accept", "confirm", "revisit"].includes(h.action) && h.at > d.at) : [];
+  const verb = { accept: "change accepted", confirm: "re-confirmed", revisit: "asked to revisit" };
   const chosen = d ? `<div class="why"><div class="label">chosen by ${esc(d.by)} because</div>${esc(d.reason)}</div>
-    ${confirms.map(c => `<div class="muted small">re-confirmed by ${esc(c.by)}: ${esc(c.reason)}</div>`).join("")}` : "";
+    ${later.map(c => `<div class="muted small">${verb[c.action]} by ${esc(c.by)}: ${esc(c.reason)}</div>`).join("")}` : "";
   const alts = n.alternatives || [];
   const altList = alts.length ? `<div class="side"><div class="label">rejected alternatives</div>${alts.map(r =>
     `<div class="option"><b>${esc(r.id)}</b> — ${esc(r.content?.statement)}<div class="muted small">${esc(r.content?.why)}</div></div>`).join("")}</div>` : "";
@@ -523,15 +524,23 @@ function decisionBox(n) {
         <label><input type="checkbox" class="rej" value="${esc(o.id)}" ${o.state === "proposed" ? "checked" : ""}> reject ${esc(o.id)}${o.state === "accepted" ? " (replaces an accepted node)" : ""}</label></div>`).join("")}</div>` : ""}
       ${warn.length ? `<div class="warn-text">Note: ${esc(warn.join("; "))}.</div>` : ""}
       ${altList}
-      ${reasonBox("Why this one? What would make you revisit it?")}
-      ${button(`Accept ${esc(n.id)}`)}</div>`;
+      ${reasonBox("Why this one (or why not)? What would make you revisit it?")}
+      ${button(`Accept ${esc(n.id)}`)}<div class="actions"><button class="btn small" data-reject-self="1">Reject ${esc(n.id)}</button></div></div>`;
   }
   if (n.state === "review") {
-    const onlyAbove = (n.causes || []).length === 1 && n.causes[0] === "above";
     const below = children(n.id).length > 0;
+    const decidedBelow = n => children(n.id).flatMap(c => [c, ...decidedBelow(c)]);
+    const affected = (n.causes || []).includes("self") ? decidedBelow(n).filter(c => c.state === "accepted" && c.decision) : [];
+    const revisitList = affected.length ? `<div class="side"><div class="label">${n.parent ? "decisions below" : "decisions below (the idea is what they rest on)"} — tick those this change may affect; they are reviewed again</div>${affected.map(c => `<div class="option">
+        <div class="head"><a data-goto="${esc(c.id)}"><b>${esc(c.id)}</b></a></div>
+        <div class="small" style="margin-top:4px">${esc(C(c).statement)}</div>
+        <div class="muted small">chosen because: ${esc(c.decision.reason)}</div>
+        <label><input type="checkbox" class="rev" value="${esc(c.id)}"> revisit ${esc(c.id)}</label></div>`).join("")}</div>` : "";
+    const warn = warnings(n);
     return `<div class="box review"><div class="verdict review">To review: ${esc((n.causes || []).map(c => causeText[c]).join("; "))}</div>
-      ${chosen}${whatMoved(n)}${altList}
-      ${reasonBox((n.causes || []).includes("self") ? "Why is the change right?" : "Why does it still hold?", onlyAbove ? "Still holds: " : "")}
+      ${warn.length ? `<div class="warn-text">Note: ${esc(warn.join("; "))}.</div>` : ""}
+      ${chosen}${whatMoved(n)}${altList}${revisitList}
+      ${reasonBox((n.causes || []).includes("self") ? "Why is the change right?" : "Why does it still hold, given what changed?")}
       ${button("Accept", "")}${!blocked && below ? `<div class="actions"><button class="btn small" data-accept="1" data-subtree="1">Accept, with what below only moved because of this</button></div>` : ""}</div>`;
   }
   return `<div class="box accepted"><div class="verdict accepted">Accepted</div>
@@ -591,7 +600,7 @@ function nodePane() {
         ${(C(parent).sources || {}).spec ? `<pre>${esc(C(parent).sources.spec)}</pre>` : parent.kind === "instantiate" ? `<div class="muted small">its spec is its parent's, instantiated</div>` : ""}</div>
       <div class="side"><div class="label">this node <b>${esc(n.id)}</b></div>${modelOf(n)}</div>
       ${n.code ? `<div class="side"><div class="label">governs</div><div class="mono small">${esc(n.code.files.join(", "))}</div></div>` : ""}
-      ${n.proof ? `<details><summary>authored proof — ${esc(n.proof.file)}</summary><pre>${esc(n.proof.source)}</pre></details>` : ""}
+      ${n.proof ? `<details ${n.state !== "accepted" ? "open" : ""}><summary>authored proof — ${esc(n.proof.file)}</summary><pre>${esc(n.proof.source)}</pre></details>` : ""}
     </div>`;
   }
   h += `<h3>Decision</h3>${decisionBox(n)}`;
@@ -709,12 +718,20 @@ document.addEventListener("click", async e => {
   if (acc) {
     const who = needName(); if (!who) return;
     const reason = $("#reason")?.value.trim() || "";
-    if (!reason || reason === "Still holds:") { $("#reason")?.focus(); alert("Give your reason: it is kept as part of the theory."); return; }
+    if (reason.split(/\s+/).filter(w => /\p{L}/u.test(w)).length < 3) { $("#reason")?.focus(); alert("Give your reason in a few words: it is kept as part of the theory."); return; }
     const n = byId(state.selected);
     const reject = [...document.querySelectorAll(".rej:checked")].map(x => x.value);
-    const warn = n.state === "proposed" ? warnings(n) : [];
+    const revisit = [...document.querySelectorAll(".rev:checked")].map(x => x.value);
+    const warn = warnings(n);
     if (warn.length && !confirm(`${n.id}: ${warn.join("; ")}. Accept it anyway?`)) return;
-    decide({ node: n.id, by: who, reason, reject, subtree: !!acc.dataset.subtree });
+    decide({ node: n.id, by: who, reason, reject, revisit, subtree: !!acc.dataset.subtree });
+    return;
+  }
+  if (t.closest("[data-reject-self]")) {
+    const who = needName(); if (!who) return;
+    const reason = $("#reason")?.value.trim() || "";
+    if (reason.split(/\s+/).filter(w => /\p{L}/u.test(w)).length < 3) { $("#reason")?.focus(); alert("Say why not, in a few words: it is kept as part of the theory."); return; }
+    decide({ node: state.selected, by: who, reason, reject: [state.selected] });
     return;
   }
   const gn = t.closest("[data-gone]");

@@ -114,8 +114,4 @@ val readContract = accounts.contract[Account, Search, List[CrmRecord]](
 val knowledge = KnowledgeBase("Crm", idea = "IDEA.md")(isolation, readApi, accounts, readContract)
   .implement(readContract)(InMemoryCrm(store.value, shares.value).search)
 
-/** The running read side: the registered implementation, every result checked against the contract. */
-def readSide(records: List[CrmRecord], shareTable: List[Share]): (Account, Search) => List[CrmRecord] =
-  knowledge.service(readContract)(store.bind(records), shares.bind(shareTable))
-
 @main def crmCli(args: String*): Unit = sys.exit(knowledge.cli(args, root = "examples/crm"))

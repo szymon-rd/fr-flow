@@ -62,12 +62,12 @@ class ToolsSuite extends munit.FunSuite:
     p.run(List("render"), actor = "ui")
     import frflow.Decisions.Request
     assert(p.decide(Request("Inst", "dev", "")).left.exists(_.contains("reason")))
-    assertEquals(p.decide(Request("Inst", "dev", "Simpler.", List("Inst2"))), Right(()))
+    assertEquals(p.decide(Request("Inst", "dev", "It is simpler.", List("Inst2"))), Right(()))
     val st = p.annotated.get("nodes").get.arr.map(n => s(n, "id") -> s(n, "state")).toMap
     assertEquals((st("Inst"), st("Inst2")), ("accepted", "rejected"))
     assertEquals(p.history.arr.take(2).flatMap(_("node").flatMap(_.str)).toSet, Set("Inst", "Inst2"))
     Files.setLastModifiedTime(p.root.resolve("model.txt"), java.nio.file.attribute.FileTime.fromMillis(System.currentTimeMillis + 5000))
-    assert(p.decide(Request("Failed", "dev", "Still right.")).left.exists(_.contains("render first")))
+    assert(p.decide(Request("Failed", "dev", "It is still right.")).left.exists(_.contains("render first")))
   }
 
   test("requests") {

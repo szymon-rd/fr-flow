@@ -39,8 +39,8 @@ this way. It also keeps the code from drifting away from it.
    - A reader must be able to tell a deliberate choice from an accident.
 4. **The statement must say in plain words what the predicate says.**
 5. **Every contract gets examples** (the build requires it).
-   - At least one `expect` that returns something, so an implementation doing
-     nothing fails it.
+   - Expects with different results, so an implementation that always
+     returns the same value fails one of them (the build requires it).
    - At least one `reject` showing what is ruled out.
    - Read the contract's "does not promise" list, and say in your answer what
      it means for the developer.
@@ -89,8 +89,14 @@ this way. It also keeps the code from drifting away from it.
      developer can reject the old one when choosing.
    - **A change to an implementation or a governed file** puts the node up for
      review (cause `code`), with a git diff. Make sure the examples still pass.
-     An implementation governs its package directory. Use `.governing(paths*)`
-     for anything else it depends on.
+     An implementation governs its package directory and everything below it.
+     Use `.governing(paths*)` for anything else it depends on. `status` warns
+     about source files no node governs: govern them, or say why not.
+   - **Keep production wiring** (the call to `service`) in a file a design
+     node governs, so a change to it is reviewed.
+   - **When you change the idea or what is not modelled,** say in your answer
+     which decisions below rest on it (their reasons say), so the developer
+     can tick them for revisiting.
    - **Formal work on several alternatives** can be expensive. You may first
      describe the options in your `answer`, and formalize the one the developer
      picks.
@@ -198,3 +204,6 @@ The macro supports:
    kernel.
 4. `check` also rejects a link that is **vacuous**: one where `abs` alone makes
    the parent hold, whatever the node's spec says.
+5. **Never prove a link from a contradiction in the node** (for example by
+   deriving `False` from its spec). The automatic unsatisfiability check does
+   not catch every contradiction; the developer reads authored proofs.

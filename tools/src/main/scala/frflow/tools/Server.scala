@@ -20,7 +20,7 @@ import java.util.concurrent.Executors
   * GET  /api/p/NAME/history                  every decision, newest first
   * GET  /api/p/NAME/job                      the last command started here
   * POST /api/p/NAME/run      {"args": [...]} render / check / scaffold
-  * POST /api/p/NAME/decide   {"node", "by", "reason", "reject", "subtree"}   the developer's decision
+  * POST /api/p/NAME/decide   {"node", "by", "reason", "reject", "revisit", "subtree"}   the developer's decision
   * POST /api/p/NAME/requests {"node", "text", "by"}
   * POST /api/p/NAME/requests/ID {"status", "answer"}
   * POST /api/p/NAME/idea     {"text"}        saves IDEA.md (the snapshot follows without a build)
@@ -136,8 +136,9 @@ final class Server(projects: List[Project]):
               case None =>
                 try json(ex, start(p, args).json, 202) catch case e: IllegalStateException => error(ex, 409, e.getMessage)
           case List("decide") =>
-            val req = frflow.Decisions.Request(field("node"), field("by"), field("reason"),
-              body("reject").map(_.arr.toList).getOrElse(Nil).flatMap(_.str), body("subtree").contains(JBool(true)))
+            def ids(k: String) = body(k).map(_.arr.toList).getOrElse(Nil).flatMap(_.str)
+            val req = frflow.Decisions.Request(field("node"), field("by"), field("reason"), ids("reject"),
+              body("subtree").contains(JBool(true)), ids("revisit"))
             if !Project.Ident.matches(req.node) then error(ex, 400, "expected a node id")
             else p.decide(req) match
               case Left(why) => error(ex, 409, why)

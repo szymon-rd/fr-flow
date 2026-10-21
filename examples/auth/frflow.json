@@ -1,6 +1,6 @@
 {
   "name": "Auth",
-  "run": ["sbt", "auth/run {args}"],
+  "run": ["sbt", "--client", "auth/run {args}"],
   "cwd": "../..",
   "sources": ["src/main/scala", "IDEA.md", "lean/Proofs"]
 }

@@ -41,7 +41,7 @@ class NodeSuite extends munit.FunSuite:
 
   test("examples are checked against the contract and the registered implementation") {
     val rs = shelfKb.exampleResults(pick)
-    assertEquals(rs.map(r => (r.contract, r.implementation)), List(("ok", Some("ok")), ("ok", Some("ok"))))
+    assertEquals(rs.map(r => (r.contract, r.implementation)), List(("ok", Some("ok")), ("ok", Some("ok")), ("ok", Some("ok"))))
     // a useless implementation: proven contract, but it does not do what was decided
     val lazyKb = KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, pick).implement(pick)((_, _) => Nil)
     assertEquals(lazyKb.exampleResults(pick).head.implementation, Some("returned List()"))
@@ -94,8 +94,8 @@ class NodeSuite extends munit.FunSuite:
     assert(errs.contains("structural equality"), errs)
   }
 
-  test("a contract needs an expect that returns something") {
+  test("a contract's examples must tell a constant implementation apart") {
     val lazyPick = books.contract[List[Book], Int, List[Book]]("LazyPick", "s", "w")((_, _, picked) => picked.isEmpty)
       .examples(minPages.bind(100))(expect(Nil, 1, Nil, "nothing"), reject(List(Book("L", 300)), 1, List(Book("L", 300)), "x"))
-    assert(KnowledgeBase("K", "IDEA.md")(onlyGood, listed, books, lazyPick).problems.exists(_.contains("must return something")))
+    assert(KnowledgeBase("K", "IDEA.md")(onlyGood, listed, books, lazyPick).problems.exists(_.contains("always returns it")))
   }

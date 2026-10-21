@@ -42,6 +42,41 @@
           ],
           "governs": []
         }
+      },
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-21T21:57:32.126260391Z",
+        "reason": "Format change only: terms are now listed at the node that first uses them; the meaning is unchanged.",
+        "commit": "79d5d92ad9783b8d12890dd8ed6baeb07d5ac38a",
+        "chain": "108bf66b1c5d483d2a3e0809867720f1bc44f31a6e2bfe0552476d2d934c5685",
+        "content": {
+          "parent": "ReadApi",
+          "statement": "Users are accounts of a company, records are contacts and deals, and sharing is a table of shares.",
+          "why": "A record belongs to the company stored on it, and a user to the company of their account. This trusts the record, so ReadContract requires returned records to be the stored ones; it also trusts the account, which authentication provides (not modelled).",
+          "sources": {},
+          "substitutions": [
+            "Tenant := TenantId",
+            "User := Account",
+            "Record := CrmRecord",
+            "Query := Search",
+            "tenantOf := (a: Account) => a.tenant",
+            "owner := (r: CrmRecord) => r.tenant",
+            "sharedWith := (r: CrmRecord, t: TenantId) => shares.value.contains(Share(r.id, t))"
+          ],
+          "examples": [],
+          "vocabulary": [
+            "shares: the share table as stored when the search runs"
+          ],
+          "uses": [
+            "structure TenantId where\n  value : String",
+            "structure Account where\n  email : String\n  tenant : TenantId",
+            "inductive Kind where\n  | Contact\n  | Deal",
+            "structure CrmRecord where\n  id : Int\n  tenant : TenantId\n  kind : Kind\n  title : String",
+            "structure Share where\n  record : Int\n  to : TenantId"
+          ],
+          "governs": []
+        }
       }
     ],
     "ReadApi": [
@@ -70,6 +105,32 @@
             "owner: the company a record belongs to",
             "sharedWith: whether the record's company shared it with the given company",
             "tenantOf: the company a user works for"
+          ],
+          "uses": [
+            "fun (u : User) (r : Record) => (((owner r) = (tenantOf u)) ∨ (sharedWith r (tenantOf u)))"
+          ],
+          "governs": []
+        }
+      },
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-21T21:57:30.605223279Z",
+        "reason": "Format change only: terms are now listed at the node that first uses them; the meaning is unchanged.",
+        "commit": "79d5d92ad9783b8d12890dd8ed6baeb07d5ac38a",
+        "chain": "651c8691c58c9a21a55dfec1aa0f4bd683e08ad7391ca3d4e890a36ca51872e1",
+        "content": {
+          "parent": "TenantIsolation",
+          "statement": "Records are shown only as query results, and a query returns only records the user may see.",
+          "why": "Users find records by searching, so what a user sees is what their queries return. abs: a user is shown a record when some query of theirs returns it.",
+          "sources": {
+            "spec": "run => forall((u: User.T, q: Query.T) => run(u, q).forall(r => visible(u, r)))",
+            "abs": "run => (u, r) => exists((q: Query.T) => run(u, q).contains(r))"
+          },
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [
+            "Query: a search a user runs"
           ],
           "uses": [
             "fun (u : User) (r : Record) => (((owner r) = (tenantOf u)) ∨ (sharedWith r (tenantOf u)))"
@@ -118,6 +179,56 @@
           ],
           "governs": []
         }
+      },
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-21T21:57:33.580481739Z",
+        "reason": "Format change only: terms are now listed at the node that first uses them; the meaning is unchanged. Format change only: the contract now shows how its implementation is built; same code as before.",
+        "code": "4d6273444d62f1cf038bd423e207048281b0d3a155490c8179cd3157ea040c80",
+        "commit": "79d5d92ad9783b8d12890dd8ed6baeb07d5ac38a",
+        "chain": "6aef0d242154b20fde3206befa2e7ab2b4417e7bd5a4cc5f0076468c568337dc",
+        "content": {
+          "parent": "Accounts",
+          "statement": "A search returns only stored records that match it, each of the user's company or shared with it.",
+          "why": "Accounts, stated for one call, plus what a search asks for. A returned record must be one of the stored records, so an implementation cannot relabel another company's record as the user's.",
+          "sources": {
+            "post": "(user, query, result) => result.forall(r => store.value.contains(r) && matches(query, r) && (r.tenant == user.tenant || shares.value.contains(Share(r.id, user.tenant))))"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (Account(\"ann@acme\", TenantId(\"acme\")), Everything) ⇒ List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"))  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List()  — Ann lists everything she can see: Acme's deal",
+            "expect (Account(\"ann@acme\", TenantId(\"acme\")), ById(2)) ⇒ List()  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List()  — Globex's contact is not shared with Acme",
+            "reject (Account(\"ann@acme\", TenantId(\"acme\")), ById(2)) ⇒ List(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\"))  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List()  — another company's record is never returned",
+            "reject (Account(\"ann@acme\", TenantId(\"acme\")), Everything) ⇒ List(CrmRecord(2, TenantId(\"acme\"), Contact, \"Globex contact\"))  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List()  — a record relabelled as Acme's is not a stored record",
+            "reject (Account(\"ann@acme\", TenantId(\"acme\")), OfKind(Contact)) ⇒ List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"))  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List()  — a search for contacts does not return deals",
+            "expect (Account(\"ann@acme\", TenantId(\"acme\")), OfKind(Contact)) ⇒ List(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\"))  given store = List(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List(Share(2, TenantId(\"acme\")))  — Globex shared its contact with Acme, so Ann finds it by kind"
+          ],
+          "vocabulary": [
+            "store: the records as stored when the search runs; a record id is unique across all companies"
+          ],
+          "uses": [
+            "structure TenantId where\n  value : String",
+            "structure Account where\n  email : String\n  tenant : TenantId",
+            "inductive Kind where\n  | Contact\n  | Deal",
+            "inductive Search where\n  | ById (id : Int)\n  | OfKind (kind : Kind)\n  | Everything",
+            "structure CrmRecord where\n  id : Int\n  tenant : TenantId\n  kind : Kind\n  title : String",
+            "structure Share where\n  record : Int\n  to : TenantId",
+            "fun (q : Search) (r : CrmRecord) => (match q with | Search.ById id => (r.id = id) | Search.OfKind k => (r.kind = k) | Search.Everything => True)"
+          ],
+          "governs": [],
+          "implementation": "impl"
+        }
+      },
+      {
+        "action": "confirm",
+        "by": "claude-example-data",
+        "at": "2026-10-21T22:00:24.764346977Z",
+        "reason": "Production wiring moved out of the model file into ReadSide.scala, in the implementation's package, so a change to it is reviewed.",
+        "code": "4df87a9ddd47de95fa871399fa26998adc3d201195e63cce92d16d1fc89740ed",
+        "commit": "eca4cd5f8575fe71fa56d93b3c2bbf0396ba0514",
+        "chain": "6aef0d242154b20fde3206befa2e7ab2b4417e7bd5a4cc5f0076468c568337dc",
+        "content": "same"
       }
     ],
     "TenantIsolation": [

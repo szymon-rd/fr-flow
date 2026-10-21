@@ -16,7 +16,7 @@ final case class RunResult(command: List[String], exitCode: Int, output: String)
 /** A FrFlow project: a directory with a `frflow.json`.
   *
   * {{{
-  * { "name": "Auth", "run": ["sbt", "auth/run {args}"], "cwd": "../..",
+  * { "name": "Auth", "run": ["sbt", "--client", "auth/run {args}"], "cwd": "../..",
   *   "sources": ["src/main/scala", "IDEA.md", "lean/Proofs"] }
   * }}}
   *
@@ -49,8 +49,7 @@ final class Project(dir: Path):
     */
   def annotated: Option[Json] = snapshot.map { s =>
     val l = ledger
-    val committed = frflow.Git.show(root, root.relativize(ledgerFile).toString).map(t => frflow.Ledger.fromJson(Json.parse(t)))
-    val rewritten = committed.map(frflow.Ledger.rewrittenSince(_, l)).getOrElse(Nil).map("the ledger was rewritten: " + _)
+    val rewritten = frflow.Ledger.rewrites(root, ledgerFile, l)
     val a = frflow.Decisions.annotate(s, l)
     val warnings = (a("warnings").map(_.arr.toList).getOrElse(Nil) ++ rewritten.map(str)).distinct
     JObj(a.obj.filterNot(_._1 == "warnings") :+ ("warnings" -> JArr(warnings)))
@@ -80,7 +79,8 @@ final class Project(dir: Path):
       case Some(_) if sourcesChanged.nonEmpty => Left(s"the sources changed since the last render (${sourcesChanged.take(3).mkString(", ")}): render first")
       case Some(snap) =>
         Project.locked(state.resolve("ledger.lock")) {
-          frflow.Decisions.decide(snap, ledger, r, java.time.Instant.now.toString, frflow.Git.head(root)).map(frflow.Ledger.save(ledgerFile, _))
+          val files = snap("nodes").map(_.arr.toList).getOrElse(Nil).flatMap(_("code")).flatMap(_("files")).flatMap(_.arr).flatMap(_.str).distinct
+          frflow.Decisions.decide(snap, ledger, r, java.time.Instant.now.toString, frflow.Git.snapshot(root, files)).map(frflow.Ledger.save(ledgerFile, _))
         }
 
   /** The command running now, if any (from this or another process). */
@@ -201,11 +201,12 @@ object Project:
     else "\"" + arg.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
   private val Noise =
-    """^(Picked up JAVA_TOOL_OPTIONS|(\[info\] )?(welcome to sbt|loading |set current project|running \(fork\)|compiling |done compiling|Fetching)|\[success\] Total time).*""".r
+    """^(Picked up JAVA_TOOL_OPTIONS|> |(\[info\] )?(welcome to sbt|loading |set current project|running \(fork\)|compiling |done compiling|Fetching|entering \*experimental\* thin client|server was not detected|terminate the server with)|\[success\] Total time).*""".r
+  private val Ansi = """\u001b\[[0-9;]*m""".r
 
   /** The CLI's output without sbt's noise and prefixes. */
   def clean(text: String): String =
-    text.linesIterator.map(l => if l.startsWith("[info] ") then l.drop(7) else if l.startsWith("[error] ") then l.drop(8) else l)
+    Ansi.replaceAllIn(text, "").linesIterator.map(l => if l.startsWith("[info] ") then l.drop(7) else if l.startsWith("[error] ") then l.drop(8) else l)
       .filterNot(l => Noise.matches(l)).mkString("\n").stripPrefix("\n").stripSuffix("\n")
 
   private def s(j: Json, k: String): String = j(k).flatMap(_.str).getOrElse("")

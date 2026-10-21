@@ -34,6 +34,7 @@ The developer writes the idea in `IDEA.md`. The project's knowledge is a
 | per contract: examples (`expect` / `reject`) | the Scala source | what it means in concrete cases |
 | per contract: what it does *not* promise, found mechanically | shown with the node | nobody believes it says more than it does |
 | per node: who chose it, their reason, the alternatives rejected | `.frflow/ledger.json`, append-only | the decisions behind the design |
+| the developer's requests and the agent's answers | `.frflow/requests.json` | the trade-offs discussed on the way |
 
 **The theory is built by deciding.** The developer works in the browser.
 1. They ask for a next step.
@@ -50,34 +51,52 @@ review.** A node under review says why:
 
 | Cause | What moved | Shown as |
 |---|---|---|
-| `self` | the node: statement, `why`, sources, examples (by value), the meaning of the terms it uses, the definitions and types it uses, its parent; for a root, the idea | a word-level diff against what was decided |
-| `above` | the *meaning* of an ancestor: its statement, model, vocabulary, definitions (rewording a `why`, adding an example or editing the idea does not cascade) | the ancestor's diff |
-| `code` | the code it governs: a contract's implementation (its package directory) or a design node's files | a git diff since the decision |
+| `self` | the node: statement, `why`, sources, examples (by value), the meaning of the terms it is the first to use, the definitions and types it uses, its parent, how its implementation is built; for a root, the idea and what is not modelled | a word-level diff against what was decided |
+| `above` | the *meaning* of an ancestor: its statement, model, vocabulary, definitions (rewording a `why`, adding an example or editing the idea does not cascade) | the diff of the ancestor that moved |
+| `code` | the code it governs: a contract's implementation (its package directory, subdirectories included) or a design node's files | a git diff against the code as it was decided |
+| `revisit` | the developer said a change above may affect it | the reason they gave |
 | `gone` | it was removed from the model | listed until the developer agrees |
 
-There is one verb, **accept**:
+A change of meaning cascades by itself. A change that does not, such as an
+edit of the idea or of what is not modelled, may still break a reason written
+below ("revisit if we add exports"). So when accepting a change, the browser
+lists the decisions below with their reasons, and the developer ticks those
+the change may affect: they go back to review (`revisit`). The reasons are
+where the conditions for revisiting are written; this is where they are read.
+
+The developer **accepts** or **rejects**:
 - accepting a proposal chooses it, and rejects the alternatives ticked;
-- accepting a node under review says it holds as it now is. When only
-  something above it or its code moved, this is recorded as a confirmation,
-  so the reason it was chosen stays;
+  rejecting a proposal on its own chooses nothing instead;
+- accepting a node under review says it holds as it now is. The reason it was
+  chosen stays; when only something above it or its code moved, this is
+  recorded as a confirmation;
 - one acceptance can also confirm everything below that moved only because of
-  it.
+  it, as long as each node's parent is accepted;
+- a reason, of a few words at least, is required for every decision.
 
 The levels are kept honest by Lean:
 - **Every link is proven:** each node implies its parent.
 - **A vacuous link fails:** one where the parent holds whatever the node says.
-- **An unsatisfiable node fails:** a contradictory node would make every link
-  below it hold and say nothing.
+- **An unsatisfiable node fails, when `frflow_auto` finds the contradiction:**
+  a contradictory node would make every link below it hold and say nothing. A
+  proof the agent wrote may rest on a contradiction automation did not find,
+  so the browser asks the developer to read such proofs.
 
 Behaviour is kept honest by examples and run-time checks:
-- **Examples** run against the contract and the implementation. A contract
-  needs one `expect` that returns something.
+- **Examples** run against the contract and the implementation. An
+  implementation that always returns the same value must fail one of them.
 - **Each contract lists what it does not promise**, found mechanically: inputs
   it never looks at, or the fact that an empty result always satisfies it.
 - **In production,** `service` checks every result against the contract.
 
-`status` and the browser also warn when committed decisions were rewritten.
-The ledger is append-only, and git is the record.
+`status` and the browser also warn:
+- when any committed version of the ledger, or the ledger now, changed or
+  removed decisions recorded before it (the ledger only grows; a commit that
+  deletes it starts a new record, visibly);
+- when a source file is governed by no node: code that could change unnoticed.
+
+`status` exits 1 unless every node is accepted, proven and passing, with no
+warning, so CI can require it.
 
 ## Example: access control (`examples/auth`)
 
@@ -133,7 +152,9 @@ themselves with tokens; a client's own claim about who it is proves nothing.
 Revisit if requests come only from trusted services."* The ledger keeps that
 reason and the rejected option.
 
-`examples/crm` does the same for a multi-tenant CRM.
+`examples/crm` does the same for a multi-tenant CRM. (The example ledgers
+were written by an agent, to show the method; in a real project only the
+developer decides.)
 
 ## The node kinds
 
@@ -177,13 +198,17 @@ bin/frflow serve examples     # http://127.0.0.1:8765
    and what the contract does not promise;
 3. the link to the parent, side by side with the parent;
 4. **the decision**:
-   - choose between alternatives (an accepted node can be replaced);
-   - or, for a node under review, see what moved (a word diff, the ancestor's
-     diff, or the code's git diff) and accept it;
+   - choose between alternatives (an accepted node can be replaced), or
+     reject a proposal;
+   - or, for a node under review, see what moved (a word diff, the diff of
+     the ancestor that moved, or the code's git diff) and accept it, ticking
+     the decisions below that the change may affect;
 5. a box to **ask the agent** for something.
 
 A reason is required for every decision. Decisions are recorded at once, with
-no build. Saving the idea needs no build either.
+no build. Saving the idea needs no build either. Render and check run the CLI
+through `sbt --client` (see `frflow.json`), so they take seconds once the sbt
+server is up; `sbt --client shutdown` stops it.
 
 **Inbox.** What waits for your decision, removed nodes to confirm, and the
 agent's answers to your requests.
@@ -198,8 +223,10 @@ agent's answers to your requests.
 - **MCP server.** `.mcp.json` registers `frflow` (`bin/frflow mcp examples`).
   - Tools: `inbox`, `context`, `render`, `check`, `answer` and `scaffold`.
   - It has no tool for deciding. Decisions are the developer's, in the
-    browser. An agent could still run the CLI's `accept` from a shell; only
-    the skill tells it not to.
+    browser.
+  - **Decisions run on trust.** An agent with a shell could still run the
+    CLI's `accept`, or post to the local server; only the skill tells it not
+    to. Review the ledger's diff in git as you review code.
 - **Skill.** `.claude/skills/frflow/SKILL.md` gives the agent its loop:
   1. Read the inbox.
   2. Propose alternatives with reasons and examples.
@@ -223,15 +250,19 @@ agent's answers to your requests.
   - the Scala-to-Lean translation;
   - `Int` read as unbounded;
   - parameters bound to the data the vocabulary says they mean;
-  - every path to the data goes through `service`;
-  - the ledger, a plain file under version control.
+  - every path to the data goes through `service` (keep the wiring in a file
+    a design node governs);
+  - the ledger, a plain file under version control;
+  - authored proof files, which Lean runs on your machine when checking: the
+    filter on them is hygiene; the guarantee is the kernel replay and the
+    axiom audit.
 - **Not covered:**
   - properties over time or state, such as revocation or expiry;
-  - feasibility of a contract beyond its examples, unless Lean shows it is
-    unsatisfiable;
+  - feasibility of a contract beyond its examples, unless `frflow_auto` shows
+    it is unsatisfiable;
   - effectful or asynchronous code, except a pure core behind `service`;
   - code an implementation reaches outside its package directory, unless
-    governed explicitly.
+    governed explicitly (`status` lists source files no node governs).
 
 ## Usage
 
@@ -241,14 +272,17 @@ Requirements: JDK 17+, sbt, and Lean 4.35.0 (`lake` on the PATH, or `FRFLOW_LAKE
 sbt test                                  # unit tests, and Lean tests when lake is available
 sbt "auth/run render"                     # Lean and the snapshot .frflow/kb.json, from the Scala definitions
 sbt "auth/run check"                      # prove the changed links, record the results
-sbt "auth/run status"                     # decisions, proofs and examples
+sbt "auth/run status"                     # decisions, proofs and examples; exits 1 unless settled (CI)
 sbt "auth/run context Authenticated"      # everything known about a node, for agents and people
-sbt "auth/run accept Authenticated --by <name> --reason <text> [--reject ClientAsserted] [--subtree]"
+sbt "auth/run accept Authenticated --by <name> --reason <text> [--reject ClientAsserted] [--revisit ID,ID] [--subtree]"
+sbt "auth/run reject ClientAsserted --by <name> --reason <text>"
 bin/frflow serve examples                 # the browser
 bin/frflow mcp examples                   # the MCP server
 ```
 
-Committed: the Scala, `IDEA.md`, `.frflow/ledger.json` and `lean/Proofs`.
+Committed: the Scala, `IDEA.md`, `.frflow/ledger.json`, `.frflow/requests.json`
+and `lean/Proofs`. (sbt splits commands at `;`, so avoid it in a reason given
+on the command line.)
 Everything else is derived and git-ignored: the generated Lean, the check
 results and the snapshot.
 
@@ -264,7 +298,7 @@ core/                 the Scala library
   Ledger.scala        the decision record
   Generate.scala      Lean generation
   Workflow.scala      render, check, context, snapshot
-  Git.scala           the commit a decision was made at, and code diffs since
+  Git.scala           the code a decision saw, code diffs since, the ledger's history
 examples/auth/        access control: idea, model, implementation, decisions
 examples/crm/         multi-tenant CRM, the same
 tools/                the browser server and UI, and the MCP server

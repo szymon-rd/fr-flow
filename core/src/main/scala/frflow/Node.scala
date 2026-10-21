@@ -199,9 +199,10 @@ extension [A, B, R](n: Node[(A, B) => R])
     }
 
 /** A plain Scala implementation registered for a contract: its examples run against it, production
-  * runs it through `KnowledgeBase.service`, and a change to its source files is noticed.
+  * runs it through `KnowledgeBase.service`, and a change to its source files is noticed. `wiring` is
+  * the source of the expression that builds it, kept in the contract's content.
   */
-final case class Implementation(contract: String, factory: () => Any, files: List[String]):
+final case class Implementation(contract: String, factory: () => Any, files: List[String], wiring: String = ""):
   /** The implementation's source files; the last one listed is the model's file, where it is attached. */
   def sources: List[String] = files.dropRight(1)
   def modelFile: Option[String] = files.lastOption
@@ -220,7 +221,7 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     * each example and of each production call, so it can read them (`grants.value`).
     */
   inline def implement[A, B, R](contract: Node[(A, B) => R])(inline impl: (A, B) => R): KnowledgeBase =
-    withImplementation(Implementation(contract.id, () => impl, Lifted.sourceFiles(impl)))
+    withImplementation(Implementation(contract.id, () => impl, Lifted.sourceFiles(impl), Lifted.sources(impl).mkString))
 
   def withImplementation(i: Implementation): KnowledgeBase =
     KnowledgeBase(name, idea, implementations.filterNot(_.contract == i.contract) :+ i)(nodes*)
@@ -314,9 +315,13 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
 
       nodes.filter(n => n.kind == NodeKind.Contract && !(n.cases.exists(_.expected) && n.cases.exists(!_.expected)))
         .map(n => s"${n.id}: a contract needs examples: at least one expect (what it must allow) and one reject"),
-      nodes.filter(n => n.kind == NodeKind.Contract && n.cases.exists(_.expected) &&
-        !n.cases.exists(e => e.expected && (e.result match { case None | Nil => false; case _ => true })))
-        .map(n => s"${n.id}: at least one expect must return something; an implementation that returns nothing would pass the others"),
+      nodes.filter(_.kind == NodeKind.Contract).flatMap { n =>
+        // An implementation that always returns the same value must fail some example.
+        n.cases.filter(_.expected).map(_.result).distinct match
+          case List(v) if !n.cases.exists(e => !e.expected && e.result == v) =>
+            List(s"${n.id}: every expect returns ${Example.show(v)}, so an implementation that always returns it would pass the examples; add an expect with another result")
+          case _ => Nil
+      },
       (params.filter(_.means.trim.isEmpty).map(_.name) ++ opaques.filter(_.means.trim.isEmpty).map(_.name))
         .map(n => s"$n: say what it means in the world"),
       opaques.map(_.name).filterNot((allLifted ++ defs.map(_.lifted)).flatMap(_.opaques).contains)
