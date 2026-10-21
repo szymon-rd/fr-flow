@@ -79,7 +79,8 @@ this way. It also keeps the code from drifting away from it.
    Authenticated. Expiring is simpler; Sliding keeps active users signed in.
    Choose in the browser."
 5. **After the developer decides,** delete the rejected nodes from the Scala
-   code. Their statements and reasons are kept with the decision. Then
+   code (`status` fails while they remain). If a rejected node had nodes below
+   it, move them under the node chosen instead: they are reviewed again. Their statements and reasons are kept with the decision. Then
    `render`.
 6. **If you change an accepted node,** it goes back to `review` (cause
    `self`), with a diff. If its meaning changed, its descendants go to
@@ -93,7 +94,10 @@ this way. It also keeps the code from drifting away from it.
      Use `.governing(paths*)` for anything else it depends on. `status` warns
      about source files no node governs: govern them, or say why not.
    - **Keep production wiring** (the call to `service`) in a file a design
-     node governs, so a change to it is reviewed.
+     node or the implementation governs, so a change to it is reviewed.
+   - **The model's file holds only the model:** nodes, `Opaque`, `Param`,
+     `define`, domain types without methods, and the `@main`. Helpers go next
+     to the implementation; `status` warns otherwise.
    - **When you change the idea or what is not modelled,** say in your answer
      which decisions below rest on it (their reasons say), so the developer
      can tick them for revisiting.
@@ -109,7 +113,7 @@ The MCP server `frflow` (`bin/frflow mcp examples`, see `.mcp.json`) works on ev
 | tool | use |
 |---|---|
 | `inbox` | Start here: requests, clean-up, waiting decisions, and the tree. |
-| `context(node)` | The idea, the vocabulary, the roots, the path from the root with every decision, reason and rejected alternative, examples, the obligation, and open requests. |
+| `context(node)` | The idea, the vocabulary, the roots, the path from the root with every decision, reason and rejected alternative, what moved since the node was decided (with the code diff), the decisions directly below, examples, the obligation, and the developer's requests. |
 | `render` | Rebuild from the Scala definitions; the browser updates. Compile errors in the model come back here. |
 | `check(node?)` | Prove the links that changed in Lean. Slow. |
 | `answer(request, text)` | Reply to a request; the reply is shown in the browser. |
@@ -203,7 +207,8 @@ The macro supports:
    imports, and so on. Accepted proofs are also replayed through the Lean
    kernel.
 4. `check` also rejects a link that is **vacuous**: one where `abs` alone makes
-   the parent hold, whatever the node's spec says.
+   the parent hold, whatever the node's spec says, when `frflow_auto` shows it.
+   Never write a proof that does not use the node's spec.
 5. **Never prove a link from a contradiction in the node** (for example by
    deriving `False` from its spec). The automatic unsatisfiability check does
    not catch every contradiction; the developer reads authored proofs.

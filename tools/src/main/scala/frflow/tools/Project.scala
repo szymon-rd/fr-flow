@@ -59,16 +59,13 @@ final class Project(dir: Path):
   def codeDiff(node: String): String =
     val n = snapshot.flatMap(_("nodes")).map(_.arr).getOrElse(Nil).find(_("id").flatMap(_.str).contains(node))
     val files = n.flatMap(_("code")).flatMap(_("files")).map(_.arr.toList.flatMap(_.str)).getOrElse(Nil)
-    val commit = ledger.binding(node).map(_.commit).getOrElse("")
-    if commit.isEmpty || files.isEmpty then "" else frflow.Git.diff(root, commit, files)
+    // Against the code as decided; a clone without that tree falls back to the commit checked out then.
+    val since = ledger.binding(node).map(d => if frflow.Git.has(root, d.tree) then d.tree else d.commit).getOrElse("")
+    if since.isEmpty || files.isEmpty then "" else frflow.Git.diff(root, since, files)
 
-  /** Saves IDEA.md and updates the snapshot without rebuilding the model: only the idea changed. */
+  /** Saves IDEA.md; a render brings the snapshot up to date. */
   def saveIdea(text: String): Unit =
     Files.writeString(ideaFile, if text.endsWith("\n") then text else text + "\n", UTF_8)
-    snapshot.foreach { s =>
-      val before = sourcesChanged.filterNot(_ == root.relativize(ideaFile).toString)
-      if before.isEmpty then Files.writeString(snapshotFile, frflow.Decisions.withIdea(s, Files.readString(ideaFile, UTF_8)).render() + "\n", UTF_8)
-    }
 
   /** Records a developer's decision without running the CLI: the snapshot carries what is decided.
     * Refused when the sources changed since the snapshot, since the decision would bind to stale content.
@@ -80,7 +77,8 @@ final class Project(dir: Path):
       case Some(snap) =>
         Project.locked(state.resolve("ledger.lock")) {
           val files = snap("nodes").map(_.arr.toList).getOrElse(Nil).flatMap(_("code")).flatMap(_("files")).flatMap(_.arr).flatMap(_.str).distinct
-          frflow.Decisions.decide(snap, ledger, r, java.time.Instant.now.toString, frflow.Git.snapshot(root, files)).map(frflow.Ledger.save(ledgerFile, _))
+          frflow.Decisions.decide(snap, ledger, r, java.time.Instant.now.toString, frflow.Git.head(root), frflow.Git.snapshot(root, files))
+            .map(frflow.Ledger.save(ledgerFile, _))
         }
 
   /** The command running now, if any (from this or another process). */

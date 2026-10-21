@@ -22,12 +22,19 @@ object Git:
   /** A file as committed at HEAD, relative to `dir`. */
   def show(dir: Path, file: String): Option[String] = run(dir, "show", s"HEAD:./$file")
 
-  /** A file as committed in each of the last `n` commits that changed it, oldest first; None where
-    * a commit deleted it.
+  /** The last `n` commits that changed a file, oldest first, with their parents in that history
+    * (a merge has two) and the file as committed.
     */
-  def versions(dir: Path, file: String, n: Int = 50): List[Option[String]] =
-    run(dir, "log", "--format=%H", s"-n$n", "--", file).toList.flatMap(_.linesIterator.map(_.trim).filter(_.nonEmpty)).reverse
-      .map(c => run(dir, "show", s"$c:./$file"))
+  def versions(dir: Path, file: String, n: Int = 50): List[Version] =
+    run(dir, "log", "--parents", "--format=%H %P", s"-n$n", "--", file).toList
+      .flatMap(_.linesIterator.map(_.trim).filter(_.nonEmpty)).reverse
+      .map(_.split(" ").toList).collect { case c :: parents => Version(c, parents, run(dir, "show", s"$c:./$file")) }
+
+  /** A commit that changed a file, its parents among such commits, and the file there (None if deleted). */
+  final case class Version(commit: String, parents: List[String], text: Option[String])
+
+  /** Whether an object (a recorded tree) is in this clone. */
+  def has(dir: Path, obj: String): Boolean = obj.nonEmpty && run(dir, "cat-file", "-e", obj).isDefined
 
   /** The files as they are now, written to git as a tree (HEAD's, with these files replaced), without
     * touching the index or the working tree: what a decision saw, to diff against later. "" outside git.

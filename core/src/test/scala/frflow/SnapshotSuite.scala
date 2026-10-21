@@ -98,9 +98,39 @@ class SnapshotSuite extends munit.FunSuite:
     val w = workflow(KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, alt, books, pick))
     assert(accept(w, onlyGood, "ok").left.exists(_.contains("few words")))
     ok(accept(w, onlyGood, "it is the idea"))
-    ok(w.decide(Decisions.Request("Bounded", "dev", "Readers want every good book.", List("Bounded"))))
+    ok(w.decide(Decisions.Request("Bounded", "dev", "Readers want every good book.", verb = "reject")))
     assertEquals((w.state(alt), w.state(listed)), ("rejected", "proposed"))
-    assert(w.decide(Decisions.Request("OnlyGood", "dev", "The root is not a proposal.", List("OnlyGood"))).left.exists(_.contains("only a proposal")))
+    assert(w.decide(Decisions.Request("OnlyGood", "dev", "The root is not a proposal.", verb = "reject")).left.exists(_.contains("only a proposal")))
+  }
+
+  test("rejecting a node puts what rests on it up for review, and status fails until it is moved") {
+    val alt = onlyGood.refine[(List[Item.T], Int) => List[Item.T]]("Bounded", "At most n good items are picked.", why = "Readers want few books.")(
+      abs = pick => pick, spec = pick => forall((l: List[Item.T], n: Int) => pick(l, n).forall(x => good(x))))
+    val w = workflow(KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, alt, books, pick))
+    List(onlyGood, listed, books, pick).foreach(n => ok(accept(w, n, s"${n.id} is right")))
+    ok(accept(w, alt, "Readers want fewer books now.", List(listed)))
+    assertEquals(w.state(listed), "rejected")
+    assertEquals(nodes(w.annotated)("Books")("causes").get.arr.flatMap(_.str), Seq("above"))
+    assert(accept(w, books, "Books still hold here.").left.exists(_.contains("accept Listed first")))
+    val (text, settled) = w.status
+    assert(!settled)
+    assert(text.contains("Listed (refine)  [rejected: remove it from the model"), text)
+  }
+
+  test("a decision is refused when the node moved since the developer looked at it") {
+    val w = workflow()
+    assert(w.decide(Decisions.Request("OnlyGood", "dev", "It is the idea.", seen = "stale")).left.exists(_.contains("changed since")))
+    val seen = field(nodes(w.annotated)("OnlyGood"), "version").get
+    ok(w.decide(Decisions.Request("OnlyGood", "dev", "It is the idea.", seen = seen)))
+  }
+
+  test("the ledger only grows; a merge may interleave both sides' decisions") {
+    def d(r: String) = Decision("accept", Json.JNull, "", "dev", r, r)
+    val base = Ledger(Map("A" -> List(d("1"))))
+    val merged = Ledger(Map("A" -> List(d("1"), d("2a"), d("2b"))))
+    assertEquals(Ledger.rewrittenSince(Ledger(Map("A" -> List(d("1"), d("2b")))), merged), Nil)
+    assertEquals(Ledger.rewrittenSince(base, merged), Nil)
+    assert(Ledger.rewrittenSince(merged, base).nonEmpty)
   }
 
   test("a subtree is confirmed only below nodes that are accepted") {
@@ -157,7 +187,7 @@ class SnapshotSuite extends munit.FunSuite:
 
   test("a change to the implementation's code shows on its contract") {
     val ws = workspace()
-    val impl = Files.createTempFile("impl", ".scala")
+    val impl = Files.createTempDirectory("impl").resolve("Impl.scala")
     Files.writeString(impl, "class Impl")
     val kb = shelfKb.withImplementation(Implementation("Pick", () => (s: List[Book], n: Int) => s.filter(_.pages >= 100).take(n), List(impl.toString, "Model.scala")))
     val w = workflow(kb, ws)
@@ -213,13 +243,4 @@ class SnapshotSuite extends munit.FunSuite:
     assertEquals(Ledger.rewrittenSince(committed, committed.add("Pick", committed.history("Pick").head)), Nil)
   }
 
-  test("an idea edit can be applied to the snapshot without rebuilding the model") {
-    val ws = workspace()
-    val w = workflow(shelfKb, ws)
-    val idea2 = "# Shelf\n\nPick good items, quickly.\n\n## Not modelled\n\n- Prices.\n"
-    val patched = Decisions.withIdea(w.baseSnapshot, idea2)
-    Files.writeString(ws.root.resolve("IDEA.md"), idea2)
-    def hashes(j: Json) = j("nodes").get.arr.map(n => (n("hash"), n("chain")))
-    assertEquals(hashes(patched), hashes(w.baseSnapshot))
-  }
 

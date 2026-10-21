@@ -157,8 +157,15 @@ extension [A, B, R](n: Node[(A, B) => R])
       // Each parameter is read once per call: the implementation and the contract see the same values
       // (a parameter that is a function answers each question once).
       val fixed = bindings.map { b =>
+        def lambda(f: AnyRef) = f.getClass.getName.contains("Lambda")
         val v = b.value() match
-          case f: Function1[?, ?] if f.getClass.getName.contains("Lambda") => Example.memo(f.asInstanceOf[Any => Any])
+          case f: Function1[?, ?] if lambda(f) => Example.memo(f.asInstanceOf[Any => Any])
+          case f: Function2[?, ?, ?] if lambda(f) =>
+            val g = f.asInstanceOf[(Any, Any) => Any]
+            val m = Example.memo { case (x, y) => g(x, y) }; (x: Any, y: Any) => m((x, y))
+          case f: Function3[?, ?, ?, ?] if lambda(f) =>
+            val g = f.asInstanceOf[(Any, Any, Any) => Any]
+            val m = Example.memo { case (x, y, z) => g(x, y, z) }; (x: Any, y: Any, z: Any) => m((x, y, z))
           case other => other
         Binding(b.param, () => v)
       }

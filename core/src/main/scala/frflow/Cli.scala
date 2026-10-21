@@ -68,7 +68,7 @@ object Cli:
             println(s"accepted $id by ${req.by}${if req.reject.nonEmpty then s"; rejected ${req.reject.mkString(", ")}" else ""}")
             0
       case "reject" :: id :: "--by" :: by :: "--reason" :: reason :: Nil =>
-        w.decide(Decisions.Request(id, by, reason, List(id))) match
+        w.decide(Decisions.Request(id, by, reason, verb = "reject")) match
           case Left(why) => System.err.println(why); 1
           case Right(()) => w.writeSnapshot(); println(s"rejected $id by $by"); 0
       case "scaffold" :: id :: Nil =>

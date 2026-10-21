@@ -85,6 +85,7 @@ aside { background: var(--panel); border-left: 1px solid var(--line); display: f
 .card.proposed { border-style: dashed; border-width: 2px; border-color: var(--accent); background: color-mix(in srgb, var(--accent-soft) 45%, var(--panel)); }
 .card.review { border-color: var(--open); border-width: 2px; }
 .card.design { background: var(--soft); }
+.card.rejected { opacity: .55; border-style: dotted; }
 .card.selected { box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow); border-color: var(--accent); }
 .card.dim { opacity: .55; }
 .card .top { display: flex; align-items: center; gap: 6px; }
@@ -285,7 +286,8 @@ document.addEventListener("focusout", () => setTimeout(() => { if (pendingRefres
 
 const snap = () => state.data?.snapshot;
 const all = () => snap()?.nodes || [];
-const live = () => all().filter(n => n.state !== "rejected");
+// Rejected nodes are hidden, unless something still rests on them: then the subtree is shown under them.
+const live = () => all().filter(n => n.state !== "rejected" || all().some(c => c.parent === n.id));
 const byId = id => all().find(n => n.id === id);
 const C = n => n.content || {};
 const children = id => live().filter(n => n.parent === id);
@@ -293,7 +295,7 @@ function pathTo(id) { const out = []; let n = byId(id); while (n) { out.unshift(
 const linkStatus = n => n.link?.status || (n.kind === "design" ? "design" : n.parent ? "unchecked" : "root");
 const waitingForYou = () => live().filter(n => n.state === "proposed" || n.state === "review");
 const gone = () => snap()?.gone || [];
-const siblings = n => live().filter(m => m.parent === n.parent && m.id !== n.id && (m.kind === "design") === (n.kind === "design"));
+const siblings = n => live().filter(m => m.parent === n.parent && m.id !== n.id && m.state !== "rejected" && (m.kind === "design") === (n.kind === "design"));
 const requests = () => state.data?.requests || [];
 const me = () => $("#me").value.trim();
 const examplesBad = n => (n.examples || []).filter(e => e.contract !== "ok" || (e.implementation && e.implementation !== "ok"));
@@ -301,7 +303,7 @@ const pathProven = n => pathTo(n.id).slice(1).every(p => ["proven", "design"].in
 const causeText = { self: "it changed", above: "the meaning of something above it changed", code: "the code it governs changed", revisit: "a change above may affect it" };
 function linkLabel(n) {
   const s = linkStatus(n), d = n.link?.detail;
-  if (s === "proven") return "✓ " + (d === "instantiation" ? "instantiation" : d === "authored" ? "proof" : "auto");
+  if (s === "proven") return d === "instantiation" ? "instantiation" : "✓ " + (d === "authored" ? "proof" : "auto");
   return { open: "open", failed: "✗ failed", unchecked: "unchecked", design: "design" }[s] || s;
 }
 
@@ -431,7 +433,7 @@ function modelOf(n) {
 function verdict(n) {
   const s = linkStatus(n), d = n.link?.detail || "";
   if (s === "proven") {
-    if (d === "instantiation") return "Proven by instantiation: the parent's theorems apply with these substitutions.";
+    if (d === "instantiation") return "Nothing to prove: the parent's theorems apply with these substitutions. Whether they mean the right things in the world is your decision.";
     if (d === "authored") return "Proven by a proof the agent wrote, replayed through the Lean kernel. Read it before accepting: a proof can also go through because the node contradicts itself, which the automatic check does not always catch.";
     return "Proven automatically by frflow_auto.";
   }
@@ -493,6 +495,8 @@ function whatMoved(n) {
   let h = "";
   for (const c of n.causes || []) {
     if (c === "self") h += `<div class="side"><div class="label">${esc(n.id)} changed since it was accepted</div>${diff(d?.content, n.content) || `<div class="muted small">No difference in what was decided.</div>`}</div>`;
+    if (c === "above" && byId(n.parent)?.state === "rejected")
+      h += `<div class="side"><div class="label"><a data-goto="${esc(n.parent)}">${esc(n.parent)}</a>, which it rests on, was rejected</div><div class="muted small">The agent moves it under the node chosen instead, or removes it.</div></div>`;
     if (c === "above") for (const m of n.moved || [])
       h += `<div class="side"><div class="label"><a data-goto="${esc(m.id)}">${esc(m.id)}</a> changed in meaning since this was decided</div>${diff(m.before, C(byId(m.id))) || ""}</div>`;
     if (c === "revisit") {
@@ -513,7 +517,8 @@ function whatMoved(n) {
 function decisionBox(n) {
   const d = n.decision;
   const parent = n.parent ? byId(n.parent) : null;
-  const blocked = parent && parent.state !== "accepted";
+  // As in core: a proposal, or a node whose parent moved, waits for its parent.
+  const blocked = parent && parent.state !== "accepted" && (n.state === "proposed" || (n.causes || []).includes("above"));
   const later = d ? (n.history || []).filter(h => ["accept", "confirm", "revisit"].includes(h.action) && h.at > d.at) : [];
   const verb = { accept: "change accepted", confirm: "re-confirmed", revisit: "asked to revisit" };
   const chosen = d ? `<div class="why"><div class="label">chosen by ${esc(d.by)} because</div>${esc(d.reason)}</div>
@@ -692,7 +697,7 @@ function vocabularyPane() {
 
 function historyPane() {
   const hs = state.history || [];
-  const verb = { accept: "accepted", confirm: "re-confirmed", reject: "rejected", remove: "agreed is gone" };
+  const verb = { accept: "accepted", confirm: "re-confirmed", reject: "rejected", remove: "agreed is gone", revisit: "to revisit" };
   return hs.length ? `<div class="muted small">Every decision, from the ledger (committed with the code).</div>` + hs.map(e =>
     `<div class="event"><span class="d ${esc(e.action)}"></span><div><a data-goto="${esc(e.node)}"><b>${esc(e.node)}</b></a> ${esc(verb[e.action] || e.action)} by ${esc(e.by)}${(e.rejected || []).length ? `, rejecting ${esc(e.rejected.join(", "))}` : ""}
       <div class="small">${esc(e.reason)}</div><div class="when">${new Date(e.at).toLocaleString()}</div></div></div>`).join("") : `<p class="muted">No decisions yet.</p>`;
@@ -734,21 +739,21 @@ document.addEventListener("click", async e => {
     const revisit = [...document.querySelectorAll(".rev:checked")].map(x => x.value);
     const warn = warnings(n);
     if (warn.length && !confirm(`${n.id}: ${warn.join("; ")}. Accept it anyway?`)) return;
-    decide({ node: n.id, by: who, reason, reject, revisit, subtree: !!acc.dataset.subtree });
+    decide({ node: n.id, by: who, reason, reject, revisit, subtree: !!acc.dataset.subtree, seen: n.version });
     return;
   }
   if (t.closest("[data-reject-self]")) {
     const who = needName(); if (!who) return;
     const reason = $("#reason")?.value.trim() || "";
     if (reason.split(/\s+/).filter(w => /\p{L}/u.test(w)).length < 3) { $("#reason")?.focus(); alert("Say why not, in a few words: it is kept as part of the theory."); return; }
-    decide({ node: state.selected, by: who, reason, reject: [state.selected] });
+    decide({ node: state.selected, by: who, reason, action: "reject", seen: byId(state.selected).version });
     return;
   }
   const gn = t.closest("[data-gone]");
   if (gn) {
     const who = needName(); if (!who) return;
     const reason = document.querySelector(`.removal[data-node="${gn.dataset.gone}"]`)?.value.trim();
-    if (!reason) { alert("Say why it is gone."); return; }
+    if ((reason || "").split(/\s+/).filter(w => /\p{L}/u.test(w)).length < 3) { alert("Say why it is gone, in a few words."); return; }
     decide({ node: gn.dataset.gone, by: who, reason });
     return;
   }

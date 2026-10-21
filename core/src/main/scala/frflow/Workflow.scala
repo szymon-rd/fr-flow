@@ -77,7 +77,11 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   /** The open terms a node relies on, with what they mean in the world. */
   def vocabulary(n: Node[?]): List[String] =
     val named = n.substs.map(_.name).toSet
-    val used = n.lifted ++ n.lifted.flatMap(_.defs).map(_.lifted)
+    // Through every definition it uses, however nested, as for the Lean it depends on.
+    val defs = scala.collection.mutable.LinkedHashMap.empty[String, Def[?]]
+    def visit(d: Def[?]): Unit = if !defs.contains(d.name) then { defs(d.name) = d; d.lifted.defs.foreach(visit) }
+    n.lifted.flatMap(_.defs).foreach(visit)
+    val used = n.lifted ++ defs.values.map(_.lifted)
     val opaques = (used.flatMap(_.opaqueObjects) ++ kb.opaques.filter(o => named(o.name))).distinctBy(_.name)
     val params = (used.flatMap(_.paramObjects) ++ kb.params.filter(p => named(p.name))).distinctBy(_.name)
     (opaques.map(o => s"${o.name}: ${o.means}") ++ params.map(p => s"${p.name}: ${p.means}")).sorted
@@ -203,7 +207,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val impl = kb.implementation(n).toList.flatMap { i =>
       val model = i.modelFile.map(f => Path.of(f).toAbsolutePath.normalize)
       i.sources.map(f => Path.of(f).toAbsolutePath.normalize.getParent).distinct.flatMap { dir =>
-        if Files.isDirectory(dir) then Files.walk(dir).iterator.asScala.toList.filter(_.toString.endsWith(".scala")) else Nil
+        if Files.isDirectory(dir) then Files.walk(dir).iterator.asScala.toList.filter(Files.isRegularFile(_)) else Nil
       }.map(_.toAbsolutePath.normalize).filterNot(p => model.contains(p) || governedExplicitly(p))
     }
     val files = n.governs.map(ws.root.resolve) ++ impl
@@ -230,7 +234,8 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   /** Applies a developer's decision (see `Decisions.decide`) and records it in the ledger. */
   def decide(r: Decisions.Request): Either[String, Unit] =
     val files = kb.nodes.flatMap(code).flatMap(_.files).distinct
-    Decisions.decide(baseSnapshot, ledger, r, java.time.Instant.now.toString, Git.snapshot(ws.root, files)).map(Ledger.save(ws.ledgerFile, _))
+    Decisions.decide(baseSnapshot, ledger, r, java.time.Instant.now.toString, Git.head(ws.root), Git.snapshot(ws.root, files))
+      .map(Ledger.save(ws.ledgerFile, _))
 
   /** Warnings about the record itself: decisions committed earlier and since rewritten, and
     * governed files that do not exist.
@@ -238,7 +243,35 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   def integrity: List[String] =
     val rewritten = Ledger.rewrites(ws.root, ws.ledgerFile, ledger)
     val missing = kb.nodes.flatMap(n => n.governs.filterNot(f => Files.exists(ws.root.resolve(f))).map(f => s"${n.id} governs $f, which does not exist"))
-    rewritten ++ missing ++ ungoverned.map(f => s"$f is governed by no node: govern it (.governing or a design node) or move it")
+    rewritten ++ missing ++ ungoverned.map(f => s"$f is governed by no node: govern it (.governing or a design node) or move it") ++
+      modelCode
+
+  /** Code in the model's file that is not the model: no node governs it, so it could change
+    * unnoticed. The model's file holds vals (nodes, opaque types, parameters, definitions), domain
+    * types without methods, and the `@main` of the CLI; anything else belongs next to the code.
+    */
+  def modelCode: List[String] =
+    val skip = Set("final", "private", "protected", "sealed", "abstract", "lazy", "override", "inline", "opaque", "transparent")
+    kb.implementations.flatMap(_.modelFile).distinct.map(f => Path.of(f)).filter(Files.isRegularFile(_)).flatMap { p =>
+      val rel = ws.root.toAbsolutePath.normalize.relativize(p.toAbsolutePath.normalize)
+      var inEnum = false
+      Files.readAllLines(p).asScala.toList.zipWithIndex.flatMap { (l, i) =>
+        val t = l.trim
+        val top = l.nonEmpty && !l.head.isWhitespace
+        val words = t.split("\\s+").toList.dropWhile(skip)
+        val word = words.headOption.getOrElse("")
+        val withBody = t.endsWith(":") || t.contains("{")
+        if top then inEnum = word == "enum"
+        val bad =
+          if top then
+            !t.startsWith("@main") && !t.startsWith("//") && !t.startsWith("/*") && !t.startsWith("*") && (
+              Set("def", "class", "object", "given", "extension", "implicit", "type", "var")(word) ||
+              (word == "trait" && withBody) || (word == "case" && withBody))
+          else word == "def" || (inEnum && word != "case" && word.nonEmpty && !word.startsWith("//"))
+        if bad then List(s"$rel:${i + 1}: `${t.take(50)}` is code in the model's file, which no node governs; move it next to the implementation")
+        else Nil
+      }
+    }
 
   /** Source files no node governs, other than the model's own: code that can change unnoticed. */
   def ungoverned: List[String] =
@@ -247,7 +280,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val governed = kb.nodes.flatMap(code).flatMap(_.files).map(f => abs(ws.root.resolve(f))).toSet ++
       kb.implementations.flatMap(_.modelFile).map(f => abs(Path.of(f)))
     if !Files.isDirectory(src) then Nil
-    else Files.walk(src).iterator.asScala.toList.filter(p => Files.isRegularFile(p) && p.toString.endsWith(".scala"))
+    else Files.walk(src).iterator.asScala.toList.filter(Files.isRegularFile(_))
       .map(abs).filterNot(governed).map(p => abs(ws.root).relativize(p).toString).sorted
 
   /** Where the developer stands on each node (see `Decisions`). */
@@ -271,13 +304,14 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val a = annotated
     val warnings = integrity
     val ok = Decisions.settled(a) && warnings.isEmpty
-    (Decisions.tree(a) + "\n\n" + warnings.map("warning: " + _ + "\n").mkString +
+    val notes = Ledger.restarts(ws.root, ws.ledgerFile)
+    (Decisions.tree(a) + "\n\n" + notes.map("note: " + _ + "\n").mkString + warnings.map("warning: " + _ + "\n").mkString +
       (if ok then "Every node is accepted, proven, and its examples pass."
        else "Not every node is accepted, proven, and passing its examples, or there are warnings.") + "\n", ok)
 
   /** Open requests from the developer (written by the browser). */
-  def requests: List[Json] =
-    read(ws.requestsFile).map(Json.parse(_).arr.toList).getOrElse(Nil).filter(_("status").flatMap(_.str).contains("open"))
+  def requests: List[Json] = allRequests.filter(_("status").flatMap(_.str).contains("open"))
+  def allRequests: List[Json] = read(ws.requestsFile).map(Json.parse(_).arr.toList).getOrElse(Nil)
 
   /** Everything known about a node: the idea, the vocabulary, the roots, the path from the root
     * with every decision, reason and rejected alternative, the node's state, and what the
@@ -320,6 +354,17 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       code(a).foreach(c => sb ++= s"- governs: ${c.files.mkString(", ")}\n")
       sb ++= "\n"
     }
+    val me = ann("nodes").get.arr.find(_("id").flatMap(_.str).contains(n.id)).get
+    val causes = me("causes").map(_.arr.flatMap(_.str).toList).getOrElse(Nil)
+    if causes.nonEmpty then
+      sb ++= s"## What moved since ${n.id} was decided: ${causes.mkString(", ")}\n\n"
+      me("moved").map(_.arr.toList).getOrElse(Nil).flatMap(_("id").flatMap(_.str)).foreach(a => sb ++= s"- the meaning of $a changed\n")
+      n.parent.filter(p => st(p.id) == "rejected").foreach(p => sb ++= s"- its parent ${p.id} was rejected: move it under the node chosen instead\n")
+      if causes.contains("code") then
+        val since = l.binding(n.id).map(d => if Git.has(ws.root, d.tree) then d.tree else d.commit).getOrElse("")
+        val d = code(n).fold("")(c => Git.diff(ws.root, since, c.files))
+        sb ++= (if d.nonEmpty then s"- the code it governs changed:\n```diff\n$d```\n" else "- the code it governs changed (no git diff available)\n")
+      sb ++= "\n"
     val children = kb.nodes.filter(_.parent.exists(_.id == n.id))
     if children.nonEmpty then
       sb ++= s"## Below ${n.id} (a change here may affect them)\n\n"
@@ -332,10 +377,13 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       val stl = current(n).flatMap(_.obligations.headOption).fold("not checked")(r => s"${r.status}${if r.detail.nonEmpty then s" (${r.detail})" else ""}")
       sb ++= s"## Obligation of ${n.id} [$stl]\n\n${o.description}\n\n```lean\n${o.statement}\n```\n\n"
     }
-    val asks = requests.filter(_("node").flatMap(_.str).contains(n.id))
+    val asks = allRequests.filter(_("node").flatMap(_.str).contains(n.id))
     if asks.nonEmpty then
-      sb ++= "## Open requests from the developer\n\n"
-      asks.foreach(r => sb ++= s"- [${r("id").flatMap(_.str).getOrElse("")}] ${r("text").flatMap(_.str).getOrElse("")}\n")
+      sb ++= "## Requests from the developer\n\n"
+      asks.foreach { r =>
+        def f(k: String) = r(k).flatMap(_.str).getOrElse("")
+        sb ++= s"- [${f("id")}, ${f("status")}] ${f("text")}${if f("answer").nonEmpty then s"\n  Answer: ${f("answer")}" else ""}\n"
+      }
       sb ++= "\n"
     sb ++= s"The developer decides; you propose. The rules are in the frflow skill (.claude/skills/frflow/SKILL.md).\n"
     sb.result()

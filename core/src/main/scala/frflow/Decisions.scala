@@ -56,38 +56,27 @@ object Decisions:
       val (section, rest) = lines.drop(i + 1).span(l => !l.startsWith("#"))
       ((lines.take(i) ++ rest).mkString("\n").trim, section.mkString("\n").trim)
 
-  /** The snapshot after an edit of IDEA.md: the roots' content, and every hash and chain, updated
-    * without rebuilding the model (the idea is the only input that changed).
+  /** What moved under a node's decision. A node whose parent was rejected is reviewed as if its
+    * parent's meaning moved: what it rests on is no longer chosen.
     */
-  def withIdea(snapshot: Json, idea: String): Json =
-    val (decided, notModelled) = splitIdea(idea)
-    val ns = nodes(snapshot)
-    val updated = scala.collection.mutable.Map.empty[String, Json]
-    def put(k: String, v: Json)(j: Json) = JObj(j.obj.filterNot(_._1 == k) :+ (k -> v))
-    def visit(n: Json, pc: String): Unit =
-      val content0 = n("content").getOrElse(obj())
-      val content = if s(n, "kind") == "root" then put("notModelled", str(notModelled))(put("idea", str(decided))(content0)) else content0
-      val ch = chain(content, pc)
-      updated(s(n, "id")) = put("chain", str(ch))(put("hash", str(Decision.hash(content)))(put("content", content)(n)))
-      ns.filter(_("parent").flatMap(_.str).contains(s(n, "id"))).foreach(visit(_, ch))
-    ns.filter(_("parent").forall(_ == JNull)).foreach(visit(_, ""))
-    put("idea", str(idea))(put("nodes", JArr(ns.map(n => updated.getOrElse(s(n, "id"), n))))(snapshot))
-
-  /** What moved under a node's decision. */
-  def causes(ledger: Ledger, n: Json, parentChain: String): List[String] =
+  def causes(snapshot: Json, ledger: Ledger, n: Json): List[String] =
     val id = s(n, "id")
     val revisit = ledger.current(id).exists(_.action == "revisit")
+    val parentRejected = n("parent").flatMap(_.str).flatMap(byId(snapshot).get).exists(p => state(snapshot, ledger, p) == "rejected")
     ledger.binding(id).fold(Nil) { d =>
-        List("self" -> (d.hash != s(n, "hash")), "above" -> (d.chain != parentChain), "code" -> (d.code != code(n)),
-          "revisit" -> revisit).collect { case (c, true) => c }
-      }
+      List("self" -> (d.hash != s(n, "hash")), "above" -> (d.chain != parentChain(snapshot, n) || parentRejected),
+        "code" -> (d.code != code(n)), "revisit" -> revisit).collect { case (c, true) => c }
+    }
 
-  def state(ledger: Ledger, n: Json, parentChain: String): String =
+  def state(snapshot: Json, ledger: Ledger, n: Json): String =
     ledger.current(s(n, "id")) match
       case Some(d) if d.action == "reject" => if d.hash == s(n, "hash") then "rejected" else "proposed"
       case Some(d) if d.action == "accept" || d.action == "confirm" || d.action == "revisit" =>
-        if causes(ledger, n, parentChain).isEmpty then "accepted" else "review"
+        if causes(snapshot, ledger, n).isEmpty then "accepted" else "review"
       case _ => "proposed"
+
+  /** What the developer saw of a node: a decision sent with it is refused if the node moved since. */
+  def version(snapshot: Json, n: Json): String = sha(s(n, "hash"), parentChain(snapshot, n), code(n)).take(16)
 
   private def decisionJson(id: String, d: Decision) = obj(
     "node" -> str(id), "action" -> str(d.action), "by" -> str(d.by), "at" -> str(d.at), "reason" -> str(d.reason),
@@ -100,10 +89,10 @@ object Decisions:
     val ids = byId(snapshot)
     val annotated = nodes(snapshot).map { n =>
       val id = s(n, "id")
-      val pc = parentChain(snapshot, n)
       val fields = Seq(
-        "state" -> str(state(ledger, n, pc)),
-        "causes" -> JArr(causes(ledger, n, pc).map(str)),
+        "state" -> str(state(snapshot, ledger, n)),
+        "causes" -> JArr(causes(snapshot, ledger, n).map(str)),
+        "version" -> str(version(snapshot, n)),
         "moved" -> JArr(moved(snapshot, ledger, n)),
         "decision" -> ledger.chosen(id).fold(JNull)(decisionJson(id, _)),
         "history" -> JArr(ledger.history(id).map(decisionJson(id, _))),
@@ -134,41 +123,48 @@ object Decisions:
   /** Every decision, newest first: the history of the theory. */
   def history(ledger: Ledger): Json = JArr(ledger.all.map(decisionJson(_, _)))
 
-  /** A decision: `accept` the node, rejecting the given alternatives (or, when `reject` names only
-    * the node itself, reject it); with `subtree`, also every
-    * node below it that is under review only because something above it moved.
+  /** A decision. `verb` is `accept` (choose the node, rejecting the alternatives in `reject`;
+    * accept it again after something moved; agree that a gone node is gone) or `reject` (reject a
+    * proposal, choosing nothing instead). With `subtree`, also confirm every node below that is under
+    * review only because something above it moved; `revisit` puts decisions below up for review.
+    * `seen` is the node's `version` as the developer saw it; the decision is refused if it moved since.
     */
   final case class Request(node: String, by: String, reason: String, reject: List[String] = Nil, subtree: Boolean = false,
-      revisit: List[String] = Nil)
+      revisit: List[String] = Nil, verb: String = "accept", seen: String = "")
 
   /** Applies a decision; the new ledger, or why it is refused. */
-  def decide(snapshot: Json, ledger: Ledger, r: Request, at: String, commit: String = ""): Either[String, Ledger] =
+  def decide(snapshot: Json, ledger: Ledger, r: Request, at: String, commit: String = "", tree: String = ""): Either[String, Ledger] =
     val ids = byId(snapshot)
-    def st(l: Ledger, id: String) = state(l, ids(id), parentChain(snapshot, ids(id)))
+    def st(l: Ledger, id: String) = state(snapshot, l, ids(id))
     def make(action: String, n: Json, rejected: List[String], reason: String) =
-      Decision(action, n("content").getOrElse(JNull), parentChain(snapshot, n), r.by, at, reason, rejected, code(n), commit)
+      Decision(action, n("content").getOrElse(JNull), parentChain(snapshot, n), r.by, at, reason, rejected, code(n), commit, tree)
     if r.by.trim.isEmpty then Left("say who decides")
+    else if !Set("accept", "reject")(r.verb) then Left(s"unknown decision ${r.verb}")
     else if r.reason.trim.split("\\s+").count(_.exists(_.isLetter)) < 3 then
       Left("give the reason for the decision in a few words: it is kept as part of the theory")
+    else if ids.get(r.node).exists(n => r.seen.nonEmpty && r.seen != version(snapshot, n)) then
+      Left(s"${r.node} changed since you looked at it: look again before deciding")
     else if !ids.contains(r.node) then
       ledger.current(r.node) match
         case Some(last) if ledger.binding(r.node).isDefined =>
-          Right(ledger.add(r.node, last.copy(action = "remove", by = r.by, at = at, reason = r.reason, rejected = Nil, commit = commit)))
+          Right(ledger.add(r.node, last.copy(action = "remove", by = r.by, at = at, reason = r.reason, rejected = Nil, commit = commit, tree = tree)))
         case _ => Left(s"unknown node ${r.node}")
     else
       val n = ids(r.node)
       val parent = n("parent").flatMap(_.str)
       val bad = r.reject.filter(x => x == r.node || !ids.get(x).exists(_("parent").flatMap(_.str) == parent))
-      // Rejecting a proposal on its own: no alternative is chosen.
-      if r.reject == List(r.node) then
+      // What rests on the parent (a proposal, or a node whose parent moved) waits for the parent.
+      val restsOnParent = st(ledger, r.node) == "proposed" || causes(snapshot, ledger, n).contains("above")
+      if r.verb == "reject" then
         if st(ledger, r.node) != "proposed" then Left(s"${r.node} is ${st(ledger, r.node)}: only a proposal is rejected on its own")
         else Right(ledger.add(r.node, make("reject", n, Nil, r.reason)))
-      else if parent.exists(p => st(ledger, p) != "accepted") then Left(s"accept ${parent.get} first: the tree is decided from the root down")
+      else if restsOnParent && parent.exists(p => st(ledger, p) != "accepted") then
+        Left(s"accept ${parent.get} first: what rests on it is decided after it")
       else if bad.nonEmpty then Left(s"not an alternative to ${r.node}: ${bad.mkString(", ")}")
       else if st(ledger, r.node) == "accepted" && r.reject.isEmpty && !r.subtree && r.revisit.isEmpty then Left(s"${r.node} is already accepted")
       else
         // Choosing (or accepting a change to the node itself) is an acceptance; otherwise a confirmation.
-        val cs = causes(ledger, n, parentChain(snapshot, n))
+        val cs = causes(snapshot, ledger, n)
         val action = if st(ledger, r.node) == "review" && !cs.contains("self") && r.reject.isEmpty then "confirm" else "accept"
         val chosen = if st(ledger, r.node) == "accepted" && r.reject.isEmpty then ledger else ledger.add(r.node, make(action, n, r.reject, r.reason))
         val withRejected = r.reject.foldLeft(chosen)((l, x) => l.add(x, make("reject", ids(x), Nil, s"${r.node} was chosen instead: ${r.reason}")))
@@ -180,7 +176,7 @@ object Decisions:
         val confirmed = if !r.subtree then withRejected else under.foldLeft(withRejected) { (l, id) =>
           val c = ids(id)
           val parentAccepted = c("parent").flatMap(_.str).forall(p => st(l, p) == "accepted")
-          if parentAccepted && st(l, id) == "review" && causes(l, c, parentChain(snapshot, c)) == List("above") then
+          if parentAccepted && st(l, id) == "review" && causes(snapshot, l, c) == List("above") then
             l.add(id, make("confirm", c, Nil, s"still holds after ${r.node} changed: ${r.reason}"))
           else l
         }
@@ -198,10 +194,11 @@ object Decisions:
 
   /** The tree as text: each node's state (and what moved), its link to the parent, its examples. */
   def tree(annotated: Json, mark: Option[String] = None): String =
-    val ns = nodes(annotated).filterNot(n => s(n, "state") == "rejected")
+    val ns = nodes(annotated)
     def go(n: Json, depth: Int): List[String] =
       val cs = n("causes").map(_.arr.flatMap(_.str)).getOrElse(Nil)
-      val st = if cs.isEmpty then s(n, "state") else s"review: ${cs.mkString(", ")}"
+      val st = if cs.nonEmpty then s"review: ${cs.mkString(", ")}"
+        else if s(n, "state") == "rejected" then "rejected: remove it from the model" else s(n, "state")
       val link = n("link").filter(_ != JNull).fold("") { l => s", link ${s(l, "status")}${if s(l, "detail").nonEmpty then s" (${s(l, "detail")})" else ""}" }
       val (ok, total) = examples(n)
       val ex = if total == 0 then "" else s", examples $ok/$total"
@@ -221,9 +218,11 @@ object Decisions:
     val agent = ns.filter(n => s(n, "state") == "rejected").map(n => s"${s(n, "id")}: rejected; remove it from the Scala model")
     (dev, agent)
 
-  /** Whether every node is accepted, every link proven, and every example passing. */
+  /** Whether every node is accepted, every link proven, and every example passing; rejected nodes
+    * must be removed from the model, so that nothing still rests on them or is governed by them.
+    */
   def settled(annotated: Json): Boolean =
-    val ns = nodes(annotated).filterNot(n => s(n, "state") == "rejected")
+    val ns = nodes(annotated)
     annotated("gone").forall(_.arr.isEmpty) && ns.forall { n =>
       val (ok, total) = examples(n)
       s(n, "state") == "accepted" && n("link").forall(l => l == JNull || s(l, "status") == "proven") && ok == total

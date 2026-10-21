@@ -72,15 +72,23 @@ The developer **accepts** or **rejects**:
   recorded as a confirmation;
 - one acceptance can also confirm everything below that moved only because of
   it, as long as each node's parent is accepted;
-- a reason, of a few words at least, is required for every decision.
+- rejecting a node that was accepted (by choosing a replacement) puts what
+  rests on it up for review (`above`); it stays drawn under the rejected node
+  until the agent moves it under the replacement;
+- what rests on a parent (a proposal, or a node whose parent moved) is decided
+  after the parent; other reviews can be decided in any order;
+- a reason, of a few words at least, is required for every decision, and a
+  decision is refused if the node moved since the developer looked at it.
 
 The levels are kept honest by Lean:
 - **Every link is proven:** each node implies its parent.
-- **A vacuous link fails:** one where the parent holds whatever the node says.
+- **A vacuous link fails, when `frflow_auto` shows it:** one where the parent
+  holds whatever the node says.
 - **An unsatisfiable node fails, when `frflow_auto` finds the contradiction:**
   a contradictory node would make every link below it hold and say nothing. A
-  proof the agent wrote may rest on a contradiction automation did not find,
-  so the browser asks the developer to read such proofs.
+  proof the agent wrote may be vacuous, or rest on a contradiction, in ways
+  automation did not find, so the browser asks the developer to read such
+  proofs.
 
 Behaviour is kept honest by examples and run-time checks:
 - **Examples** run against the contract and the implementation. An
@@ -90,10 +98,13 @@ Behaviour is kept honest by examples and run-time checks:
 - **In production,** `service` checks every result against the contract.
 
 `status` and the browser also warn:
-- when any committed version of the ledger, or the ledger now, changed or
-  removed decisions recorded before it (the ledger only grows; a commit that
-  deletes it starts a new record, visibly);
-- when a source file is governed by no node: code that could change unnoticed.
+- when a committed version of the ledger, or the ledger now, changed or
+  removed decisions recorded in the version it follows (the ledger only grows;
+  a merge may interleave both sides' decisions; a commit that deletes it
+  starts a new record, and `status` notes it);
+- when a source file of any kind under `src/main` is governed by no node, or
+  the model's file holds code other than the model (helpers, classes, methods
+  on domain types): code that could change unnoticed.
 
 `status` exits 1 unless every node is accepted, proven and passing, with no
 warning, so CI can require it.
@@ -206,7 +217,7 @@ bin/frflow serve examples     # http://127.0.0.1:8765
 5. a box to **ask the agent** for something.
 
 A reason is required for every decision. Decisions are recorded at once, with
-no build. Saving the idea needs no build either. Render and check run the CLI
+no build. Saving the idea starts a render. Render and check run the CLI
 through `sbt --client` (see `frflow.json`), so they take seconds once the sbt
 server is up; `sbt --client shutdown` stops it.
 
@@ -236,18 +247,22 @@ agent's answers to your requests.
 
 ## What is proven, checked, and trusted
 
-- **Proven by Lean:** every link that is not vacuous, from a node that is not
-  unsatisfiable, and so every node's root theorem. In short, the levels of the
+- **Proven by Lean:** every link, and so every node's root theorem; links
+  `frflow_auto` shows vacuous, and nodes it shows unsatisfiable, fail. In short, the levels of the
   theory are consistent with each other. It does not say they are the right
   theory.
 - **Checked by the examples:** that a contract means what its statement says,
   and that the implementation does what was decided, in those cases.
 - **Enforced at run time:** every result of `service` meets the contract, or
-  `ContractViolation` is raised. Each parameter is read once per call.
+  `ContractViolation` is raised. Each parameter is read once per call (a
+  parameter that is a function of up to three arguments answers each question
+  once).
 - **Decided by the developer:** every node, with its reasons. Examples, the
   diff and the side-by-side link are there to make that reading possible.
 - **Trusted:**
-  - the Scala-to-Lean translation;
+  - the Scala-to-Lean translation (it refuses what it cannot translate
+    faithfully, such as a local name that shadows a parameter; division by
+    zero is 0 in Lean and an exception in Scala);
   - `Int` read as unbounded;
   - parameters bound to the data the vocabulary says they mean;
   - every path to the data goes through `service` (keep the wiring in a file
@@ -261,8 +276,8 @@ agent's answers to your requests.
   - feasibility of a contract beyond its examples, unless `frflow_auto` shows
     it is unsatisfiable;
   - effectful or asynchronous code, except a pure core behind `service`;
-  - code an implementation reaches outside its package directory, unless
-    governed explicitly (`status` lists source files no node governs).
+  - code outside `src/main` of the project, such as other sbt modules it
+    depends on.
 
 ## Usage
 

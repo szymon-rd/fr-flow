@@ -68,6 +68,15 @@ private final class Translator(using val quotes: Quotes):
   private val opaqueTerms = mutable.LinkedHashMap.empty[String, Term]
   private val opaques = mutable.LinkedHashSet.empty[String]
   private val paramRefs = mutable.LinkedHashMap.empty[String, String]
+  /** Names bound locally (lambdas, quantifiers, patterns, lets): none may shadow a parameter, which
+    * is a Lean variable of the same name.
+    */
+  private val binders = mutable.LinkedHashMap.empty[String, Position]
+  private def bound(n: String, pos: Position): String = { binders.getOrElseUpdate(n, pos); n }
+  private def checkCapture(): Unit =
+    binders.find((n, _) => paramRefs.contains(n) || opaques.contains(n)).foreach { (n, pos) =>
+      fail(s"`$n` names both a parameter or opaque type and a local variable here; rename the local one", pos)
+    }
 
   private def fail(msg: String, pos: Position): Nothing = report.errorAndAbort(s"FrFlow: $msg", pos)
   private def unsupported(t: Tree): Nothing = fail(s"not supported in a model: ${t.show}", t.pos)
@@ -81,8 +90,9 @@ private final class Translator(using val quotes: Quotes):
     val ft = TypeRepr.of[F].dealias
     val (params, body) = term match
       case Lambda(ps, b) =>
-        (ps.map(p => ident(p.name) -> tpe(p.tpt.tpe, p.pos)), expr(b, ps.map(p => p.symbol -> ident(p.name)).toMap))
+        (ps.map(p => bound(ident(p.name), p.pos) -> tpe(p.tpt.tpe, p.pos)), expr(b, ps.map(p => p.symbol -> ident(p.name)).toMap))
       case other => (Nil, expr(other, Map.empty))
+    checkCapture()
     val result = tpe(if ft.isFunctionType then ft.typeArgs.last else ft, term.pos)
     val depList = Expr.ofList(deps.toList.map(_.asExprOf[Def[?]]))
     val paramList = Expr.ofList(paramTerms.toList.map(_.asExprOf[Param[?]]))
@@ -249,8 +259,8 @@ private final class Translator(using val quotes: Quotes):
     case Typed(e, _)          => expr(e, env)
     case NamedArg(_, e)       => expr(e, env)
     case Lambda(ps, b) =>
-      val binders = ps.map(v => s"(${ident(v.name)} : ${tpe(v.tpt.tpe, v.pos)})").mkString(" ")
-      p(s"fun $binders => ${expr(b, env ++ ps.map(v => v.symbol -> ident(v.name)))}")
+      val bs = ps.map(v => s"(${bound(ident(v.name), v.pos)} : ${tpe(v.tpt.tpe, v.pos)})").mkString(" ")
+      p(s"fun $bs => ${expr(b, env ++ ps.map(v => v.symbol -> ident(v.name)))}")
     case Block(stats, e)      => block(stats, e, env)
     case Literal(c)           => literal(c, t.pos)
     case If(c, a, b)          => p(s"if ${expr(c, env)} then ${expr(a, env)} else ${expr(b, env)}")
@@ -264,7 +274,7 @@ private final class Translator(using val quotes: Quotes):
       if v.symbol.flags.is(Flags.Mutable) then fail("`var` is not supported", v.pos)
       val value = expr(rhs, env)
       if v.symbol.flags.is(Flags.Synthetic) || name.contains('$') then block(rest, e, env + (v.symbol -> value))
-      else p(s"let ${ident(name)} : ${tpe(tpt.tpe, v.pos)} := $value; ${block(rest, e, env + (v.symbol -> ident(name)))}")
+      else p(s"let ${bound(ident(name), v.pos)} : ${tpe(tpt.tpe, v.pos)} := $value; ${block(rest, e, env + (v.symbol -> ident(name)))}")
     case other :: _ => fail("only `val` definitions are supported in blocks", other.pos)
 
   private def literal(c: Constant, pos: Position): String = c.value match
@@ -282,10 +292,10 @@ private final class Translator(using val quotes: Quotes):
 
   private def pattern(t: Tree): (String, Env) = t match
     case Wildcard() => ("_", Map.empty)
-    case b @ Bind(n, Wildcard()) => (ident(n), Map(b.symbol -> ident(n)))
+    case b @ Bind(n, Wildcard()) => (bound(ident(n), b.pos), Map(b.symbol -> ident(n)))
     case b @ Bind(n, inner) =>
       val (ip, bs) = pattern(inner)
-      (s"${ident(n)}@${p(ip)}", bs + (b.symbol -> ident(n)))
+      (s"${bound(ident(n), b.pos)}@${p(ip)}", bs + (b.symbol -> ident(n)))
     case TypedOrTest(inner, _) => pattern(inner)
     case Unapply(fun, _, pats) =>
       val subs = pats.map(pattern)
@@ -373,8 +383,8 @@ private final class Translator(using val quotes: Quotes):
           strip(f) match
             case Lambda(vs, b) =>
               val q = if name == "forall" then "∀" else "∃"
-              val binders = vs.map(v => s"(${ident(v.name)} : ${tpe(v.tpt.tpe, v.pos)})").mkString(" ")
-              return p(s"$q $binders, ${expr(b, env ++ vs.map(v => v.symbol -> ident(v.name)))}")
+              val bs = vs.map(v => s"(${bound(ident(v.name), v.pos)} : ${tpe(v.tpt.tpe, v.pos)})").mkString(" ")
+              return p(s"$q $bs, ${expr(b, env ++ vs.map(v => v.symbol -> ident(v.name)))}")
             case _ => fail(s"$name expects a lambda", f.pos)
         case ("==>", List(List(a), List(b))) => return p(s"${e(a)} → ${e(b)}")
         case _                               => ()
@@ -440,8 +450,8 @@ private final class Translator(using val quotes: Quotes):
     def free(x: String) = !(s"(?<![\\w'.])${java.util.regex.Pattern.quote(x)}(?![\\w'])").r.findFirstIn(r).isDefined
     def fresh(x: String) = (Iterator(x) ++ Iterator.from(1).map(i => s"${x}_$i")).find(free).get
     def lam(f: Term): (String, String) = strip(f) match
-      case Lambda(List(v), b) => val x = fresh(ident(v.name)); (x, expr(b, env + (v.symbol -> x)))
-      case other              => val x = fresh("x"); (x, s"${e(other)} $x")
+      case Lambda(List(v), b) => val x = bound(fresh(ident(v.name)), v.pos); (x, expr(b, env + (v.symbol -> x)))
+      case other              => val x = bound(fresh("x"), other.pos); (x, s"${e(other)} $x")
     def bin(op: String) = Some(p(s"$r $op ${e(args.head)}"))
     (name, args.size) match
       case ("&&", 1) if qt =:= TypeRepr.of[Boolean]      => bin("∧")
@@ -480,6 +490,8 @@ private final class Translator(using val quotes: Quotes):
       case ("isDefined" | "nonEmpty", 0) if qt.derivesFrom(OptionSym) => Some(p(s"$r ≠ none"))
       case ("isEmpty", 0) if qt.derivesFrom(OptionSym)   => Some(p(s"$r = none"))
       case ("getOrElse", 1) if qt.derivesFrom(OptionSym) => Some(p(s"Option.getD $r ${e(args.head)}"))
-      case ("_1", 0) if defn.isTupleClass(qt.typeSymbol) => Some(s"$r.1")
-      case ("_2", 0) if defn.isTupleClass(qt.typeSymbol) => Some(s"$r.2")
+      // Lean's A × B × C is A × (B × C): the k-th of n is k-1 steps right, then left (but the last).
+      case (s"_$k", 0) if defn.isTupleClass(qt.typeSymbol) && k.toIntOption.exists(i => i >= 1 && i <= qt.typeArgs.size) =>
+        val i = k.toInt
+        Some(r + ".2" * (i - 1) + (if i == qt.typeArgs.size then "" else ".1"))
       case _                                             => None

@@ -20,10 +20,10 @@ import java.util.concurrent.Executors
   * GET  /api/p/NAME/history                  every decision, newest first
   * GET  /api/p/NAME/job                      the last command started here
   * POST /api/p/NAME/run      {"args": [...]} render / check / scaffold
-  * POST /api/p/NAME/decide   {"node", "by", "reason", "reject", "revisit", "subtree"}   the developer's decision
+  * POST /api/p/NAME/decide   {"node", "by", "reason", "action", "seen", "reject", "revisit", "subtree"}   the developer's decision
   * POST /api/p/NAME/requests {"node", "text", "by"}
   * POST /api/p/NAME/requests/ID {"status", "answer"}
-  * POST /api/p/NAME/idea     {"text"}        saves IDEA.md (the snapshot follows without a build)
+  * POST /api/p/NAME/idea     {"text"}        saves IDEA.md and starts a render
   * GET  /api/p/NAME/codediff?node=N          how the code a node governs changed since it was decided
   * GET  /api/stream                          server-sent events on every change
   * }}}
@@ -138,7 +138,8 @@ final class Server(projects: List[Project]):
           case List("decide") =>
             def ids(k: String) = body(k).map(_.arr.toList).getOrElse(Nil).flatMap(_.str)
             val req = frflow.Decisions.Request(field("node"), field("by"), field("reason"), ids("reject"),
-              body("subtree").contains(JBool(true)), ids("revisit"))
+              body("subtree").contains(JBool(true)), ids("revisit"), body("action").flatMap(_.str).getOrElse("accept"),
+              body("seen").flatMap(_.str).getOrElse(""))
             if !Project.Ident.matches(req.node) then error(ex, 400, "expected a node id")
             else p.decide(req) match
               case Left(why) => error(ex, 409, why)
@@ -155,6 +156,8 @@ final class Server(projects: List[Project]):
             if text.trim.isEmpty then error(ex, 400, "expected text")
             else
               p.saveIdea(text)
+              // The roots' content follows from a render, as for any other source.
+              try start(p, List("render")) catch case _: IllegalStateException => ()
               signal()
               json(ex, obj("ok" -> JBool(true)))
           case _ => error(ex, 404, "not found")

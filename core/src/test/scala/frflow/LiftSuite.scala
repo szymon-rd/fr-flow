@@ -30,6 +30,18 @@ class LiftSuite extends munit.FunSuite:
     assertEquals(c.paramObjects.map(_.name), List("good"))
   }
 
+  test("tuple fields follow Lean's nesting: A × B × C is A × (B × C)") {
+    val c = Lifted((t: (Int, Int, Int)) => t._2 * 10 + t._3)
+    assertEquals(c.body, "((t.2.1 * 10) + t.2.2)")
+    assertEquals(c.value((1, 2, 3)), 23)
+    assertEquals(Lifted((t: (Int, Int)) => t._1 - t._2).body, "(t.1 - t.2)")
+  }
+
+  test("a local name may not shadow a parameter, which is a Lean variable of the same name") {
+    assert(compileErrors("frflow.Lifted((minPages: Int) => minPages > frflow.fixtures.minPages.value)")
+      .contains("names both a parameter"))
+  }
+
   test("calls of defined functions are marked for the generator") {
     val c = Lifted((b: Book) => long(b))
     assertEquals(c.body, "(⟦long⟧ b)")

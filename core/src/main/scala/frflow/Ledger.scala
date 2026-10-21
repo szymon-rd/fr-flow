@@ -30,11 +30,12 @@ final case class NodeCheck(
   * @param reason   why: kept as part of the theory
   * @param rejected for `accept`, the alternatives rejected by this choice
   * @param code     the fingerprint of the source files the node governs, when decided
-  * @param commit   the code as decided, written to git (a tree; older entries hold the commit then
-  *                 checked out), to show how the code changed since
+  * @param commit   the git commit checked out when deciding
+  * @param tree     the code as decided, written to git as a tree, to show how the code changed since
+  *                 (a clone without it falls back to `commit`)
   */
 final case class Decision(action: String, content: Json, chain: String, by: String, at: String, reason: String,
-    rejected: List[String] = Nil, code: String = "", commit: String = ""):
+    rejected: List[String] = Nil, code: String = "", commit: String = "", tree: String = ""):
   def hash: String = Decision.hash(content)
 
 object Decision:
@@ -76,6 +77,7 @@ final case class Ledger(decisions: Map[String, List[Decision]]):
         (if d.rejected.isEmpty then Nil else Seq("rejected" -> JArr(d.rejected.map(str)))) ++
         (if d.code.isEmpty then Nil else Seq("code" -> str(d.code))) ++
         (if d.commit.isEmpty then Nil else Seq("commit" -> str(d.commit))) ++
+        (if d.tree.isEmpty then Nil else Seq("tree" -> str(d.tree))) ++
         Seq("chain" -> str(d.chain), "content" -> (if i > 0 && ds(i - 1).content == d.content then str("same") else d.content)))))
     }))
 
@@ -98,29 +100,44 @@ object Ledger:
           case Some(JStr("same")) => acc.lastOption.fold(JNull)(_.content)
           case other              => other.getOrElse(JNull)
         acc :+ Decision(s(d, "action"), content, s(d, "chain"), s(d, "by"), s(d, "at"), s(d, "reason"),
-          d("rejected").map(_.arr).getOrElse(Nil).flatMap(_.str).toList, s(d, "code"), s(d, "commit"))
+          d("rejected").map(_.arr).getOrElse(Nil).flatMap(_.str).toList, s(d, "code"), s(d, "commit"), s(d, "tree"))
       }
     }.toMap)
 
-  /** Warnings when any committed version of the ledger, or the ledger now, changed or removed
-    * decisions recorded in the version before it: the ledger only grows. A commit that deletes the
-    * ledger starts a new record, visibly, in git.
+  /** Warnings when a committed version of the ledger, or the ledger now, changed or removed
+    * decisions recorded in a version it follows (its parents in git; a merge keeps both sides'). The
+    * ledger only grows. A commit that deletes it starts a new record, shown by `restarts`.
     */
   def rewrites(root: Path, file: Path, now: Ledger): List[String] =
-    val versions = Git.versions(root, root.relativize(file).toString)
-    val committed = versions.drop(versions.lastIndexOf(None) + 1).flatten.map(t => fromJson(Json.parse(t)))
-    (committed :+ now).sliding(2).toList.flatMap {
-      case List(before, after) => rewrittenSince(before, after)
-      case _                   => Nil
-    }.distinct.map("the ledger was rewritten: " + _)
+    val all = Git.versions(root, root.relativize(file).toString)
+    val versions = all.drop(all.lastIndexWhere(_.text.isEmpty) + 1) // since the last restart
+    def parse(t: String) = fromJson(Json.parse(t))
+    val text = versions.map(v => v.commit -> v.text).toMap
+    val committed = versions.flatMap { v =>
+      v.text.toList.flatMap(t => v.parents.flatMap(text.get).flatten.flatMap(pt => rewrittenSince(parse(pt), parse(t))))
+    }
+    val head = versions.lastOption.flatMap(_.text).toList.flatMap(t => rewrittenSince(parse(t), now))
+    (committed ++ head).distinct.map("the ledger was rewritten: " + _)
+
+  /** The commits that deleted the ledger: each started a new record, and is shown, since a reset
+    * could also hide a rewrite.
+    */
+  def restarts(root: Path, file: Path): List[String] =
+    Git.versions(root, root.relativize(file).toString).collect { case v if v.text.isEmpty =>
+      s"the ledger was restarted in commit ${v.commit.take(10)}; earlier decisions are in git history" }
 
   /** Decisions present at an earlier version of the ledger (for example the committed one) that are
     * missing or different now: the ledger is append-only, so these mean it was rewritten.
     */
   def rewrittenSince(earlier: Ledger, now: Ledger): List[String] =
+    // Every earlier decision is still there, in order (a merge may interleave both sides').
+    def kept(ds: List[Decision], cur: List[Decision]): Boolean = ds match
+      case Nil     => true
+      case d :: tl => cur.dropWhile(_ != d) match
+        case Nil       => false
+        case _ :: rest => kept(tl, rest)
     earlier.decisions.toList.sortBy(_._1).flatMap { (id, ds) =>
-      val cur = now.history(id)
-      if cur.take(ds.size) == ds then Nil else List(s"$id: decisions recorded earlier were changed or removed")
+      if kept(ds, now.history(id)) then Nil else List(s"$id: decisions recorded earlier were changed or removed")
     }
 
 /** Check results, derived from the model and Lean; kept in `.frflow/checks.json`, not committed. */
