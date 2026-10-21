@@ -1,6 +1,7 @@
 package frflow.ledger
 
-import frflow.ledger.Json.*
+import frflow.json.Json
+import frflow.json.Json.*
 import frflow.workspace.{Files2, Workspace}
 import java.nio.file.Path
 

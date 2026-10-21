@@ -1,8 +1,11 @@
 package frflow
 
+import frflow.check.ProofAuditor
+import frflow.dsl
 import frflow.lint.{LintIssue, Lints}
 import frflow.model.*
-import frflow.render.LeanRenderer
+import frflow.obligation.Obligation
+import frflow.render.{LeanRenderer, Nodes}
 import frflow.workspace.{Files2, Hashing, Workspace}
 import java.nio.file.Files
 
@@ -11,20 +14,44 @@ object Kernel:
   val toolchain: String = "leanprover/lean4:v4.35.0"
   val defaultAllowedAxioms: Set[String] = Set("propext", "Classical.choice", "Quot.sound")
 
-/** Content hashes of a node.
+/** Content hashes of a node (the theory or a layer).
   *
-  * @param spec  statement, rationale, assumptions used and rendered model:
-  *              what a human approves
-  * @param check everything verification depends on: spec, obligations, assembly,
-  *              proof file, the parent's check hash and the kernel sources
+  * @param spec  what a human approves: statement, rationale, the Scala sources
+  *              of the node and the Lean they translate to, cited assumptions
+  * @param check everything verification depends on: spec, obligations,
+  *              automation, assembly, authored proofs, the parent's check hash
+  *              and the kernel sources
   */
 final case class NodeHashes(spec: String, check: String)
 
-/** A theory bound to a workspace on disk. */
+/** A model bound to a workspace on disk. */
 final class Project(val theory: TheoryModel, val ws: Workspace):
-  val renderer = LeanRenderer(theory)
+
+  def this(model: dsl.Model, ws: Workspace) = this(TheoryModel.from(model), ws)
+
+  val TheoryId: String = Nodes.TheoryId
+
+  /** Obligations with an authored proof, per node, read from the proof files. */
+  def authored: Map[String, Set[String]] =
+    val base = LeanRenderer(theory)
+    base.nodeIds.flatMap { id =>
+      Files2.read(ws.lean(base.proofsPath(id))).map { src =>
+        val names = base.obligations(id).map(_.name).toSet
+        id -> ProofAuditor.declarations(src).map(_.name).filter(names).toSet
+      }
+    }.toMap
+
+  /** The renderer, aware of which obligations have authored proofs. */
+  def renderer: LeanRenderer = LeanRenderer(theory, authored)
 
   def lint(): Seq[LintIssue] = Lints.run(theory)
+
+  def nodeIds: List[String] = renderer.nodeIds
+  def obligations(id: String): List[Obligation] = renderer.obligations(id)
+
+  /** Parent node in verification order: layers wait for their parent layer. */
+  def parentNode(id: String): Option[String] =
+    if id == TheoryId then None else theory.layerOrFail(id).parent
 
   // ---------------------------------------------------------------------------
   // Rendering
@@ -41,12 +68,13 @@ final class Project(val theory: TheoryModel, val ws: Workspace):
       Files2.writeIfChanged(ws.lean("lean-toolchain"), Kernel.toolchain + "\n")
       created += "lean-toolchain"
 
-    val files = renderer.renderAll
+    val r = renderer
+    val files = r.renderAll
     val written = files.toSeq.sortBy(_._1).collect {
       case (rel, content) if Files2.writeIfChanged(ws.lean(rel), content) => rel
     }
     val keep = files.keySet.map(ws.lean(_).normalize())
-    val removed = renderer.generatedDirs.flatMap(d => Files2.listFiles(ws.lean(d))).filterNot(p => keep(p.normalize()))
+    val removed = r.generatedDirs.flatMap(d => Files2.listFiles(ws.lean(d))).filterNot(p => keep(p.normalize()))
     removed.foreach(Files.delete)
     RenderResult(written, removed.map(p => ws.leanDir.relativize(p).toString), created.result())
 
@@ -77,41 +105,58 @@ final class Project(val theory: TheoryModel, val ws: Workspace):
       .filterNot(_.toString.contains("/.lake/")).sortBy(_.toString)
     Hashing.sha256(sources.map(p => Files2.read(p).getOrElse("")).mkString("\u0000"))
 
+  /** What a human reviews for a node: Scala sources and the Lean they become. */
+  def specText(id: String): String =
+    val r = renderer
+    if id == TheoryId then
+      val defs = theory.theoryDefs.map(n => sourceOf(n) + "\n" + r.renderDef(n))
+      val laws = theory.laws.map(l => s"${l.name}|${l.statement}|${l.lifted.source}")
+      val assumptions = theory.assumptions.map(a => s"${a.id}|${a.name}|${a.statement}|${a.justification}")
+      (Seq(theory.name) ++ defs ++ laws ++ assumptions).mkString("\u0000")
+    else
+      val l = theory.layerOrFail(id)
+      val defs = theory.layerDefs(l).map(n => r.renderDef(n))
+      val used = l.assumptionsUsed.sorted.flatMap(theory.assumption).map(a => s"${a.id}|${a.statement}|${a.justification}")
+      (Seq(l.id, l.name, l.kind.label, l.statement, l.rationale, r.renderModel(l)) ++ l.lifted.map(_.source) ++ defs ++ used)
+        .mkString("\u0000")
+
+  private def sourceOf(name: String): String =
+    theory.defs.adts.get(name).map(_.source).orElse(theory.defs.funs.get(name).map(_.source)).getOrElse("")
+
   def hashes: Map[String, NodeHashes] =
-    theory.topological.foldLeft(Map.empty[String, NodeHashes]) { (acc, n) =>
-      val usedAssumptions = n.spec.events.flatMap(_.assumes.map(_.assumptionId)).distinct.sorted
-        .flatMap(theory.assumption).map(a => s"${a.id}|${a.statement}|${a.justification}")
-      val spec = Hashing.sha256(
-        Seq(n.id, n.name, n.statement, n.rationale, renderer.renderModel(n), usedAssumptions.mkString("\n"))
-          .mkString("\u0000")
-      )
-      val proofs = Files2.read(ws.lean(renderer.proofsPath(n))).getOrElse("")
-      val parentCheck = n.parent.flatMap(acc.get).map(_.check).getOrElse("")
-      val check = Hashing.sha256(
-        Seq(spec, renderer.renderObligations(n), renderer.renderAssembly(n), proofs, parentCheck, kernelHash)
-          .mkString("\u0000")
-      )
-      acc.updated(n.id, NodeHashes(spec, check))
+    val r = renderer
+    nodeIds.foldLeft(Map.empty[String, NodeHashes]) { (acc, id) =>
+      val spec = Hashing.sha256(specText(id))
+      val proofs = Files2.read(ws.lean(r.proofsPath(id))).getOrElse("")
+      val parentCheck = parentNode(id).flatMap(acc.get).map(_.check).getOrElse("")
+      val generated =
+        if id == TheoryId then Seq(r.renderDomain, r.renderTheoryObligations, r.renderAuto(id), r.renderTheoryAssembly)
+        else
+          val l = theory.layerOrFail(id)
+          Seq(r.renderDomain, r.renderObligations(l), r.renderAuto(id), r.renderAssembly(l))
+      val check = Hashing.sha256((Seq(spec) ++ generated ++ Seq(proofs, parentCheck, kernelHash)).mkString("\u0000"))
+      acc.updated(id, NodeHashes(spec, check))
     }
 
   // ---------------------------------------------------------------------------
-  // Proof scaffolding
+  // Authored proof files
   // ---------------------------------------------------------------------------
 
-  /** Creates the proof file of a node, or appends stubs for obligations that
-    * have no theorem yet. Never modifies existing theorems. Returns added names.
+  /** Creates the proof file of a node or appends stubs for `names` that have no
+    * theorem yet. Never modifies existing theorems. Returns the added names.
     */
-  def scaffold(n: Node): Seq[String] =
-    val path = ws.lean(renderer.proofsPath(n))
+  def scaffold(id: String, names: Seq[String]): Seq[String] =
+    val r = renderer
+    val path = ws.lean(r.proofsPath(id))
     val existing = Files2.read(path)
-    val declared = existing.toSeq.flatMap(src => check.ProofAuditor.declarations(src).map(_.name)).toSet
-    val missing = renderer.obligations(n).filterNot(o => declared(o.name))
-    if missing.isEmpty && existing.isDefined then Nil
+    val declared = existing.toSeq.flatMap(src => ProofAuditor.declarations(src).map(_.name)).toSet
+    val missing = r.obligations(id).filter(o => names.contains(o.name) && !declared(o.name))
+    if missing.isEmpty then Nil
     else
-      val stubs = missing.map(renderer.proofStub).mkString
-      val footer = renderer.proofFileFooter(n)
+      val stubs = missing.map(r.proofStub).mkString
+      val footer = r.proofFileFooter(id)
       val content = existing match
-        case None => renderer.proofFileHeader(n) + stubs + footer
+        case None => r.proofFileHeader(id) + stubs + footer
         case Some(src) =>
           val idx = src.lastIndexOf(footer.trim)
           if idx >= 0 then src.substring(0, idx) + stubs + src.substring(idx)

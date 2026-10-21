@@ -1,120 +1,95 @@
 package frflow.obligation
 
 import frflow.model.*
+import frflow.render.LeanPrinter
 
 enum ObligationKind:
+  /** A law of the theory. */
+  case Law
   /** Initial states establish an invariant. */
   case InitInvariant
-  /** An event preserves an invariant. */
-  case EventInvariant
-  /** Initial states map to abstract initial states. */
+  /** An operation preserves an invariant. */
+  case OpInvariant
+  /** Initial states map to initial states of the parent. */
   case InitAbs
-  /** Guard strengthening: the concrete guard implies the abstract guard. */
+  /** Guard strengthening: the guard implies the parent operation's guard. */
   case Guard
-  /** Action simulation: the concrete action maps to the abstract action. */
+  /** Simulation: the effect, seen through the abstraction, is the parent operation's effect. */
   case Simulation
-  /** A new event leaves the abstract state unchanged. */
+  /** A new operation leaves the parent state unchanged. */
   case Skip
 
-/** One proof obligation. `statement` is the Lean proposition; it is rendered as
-  * `def <name> : Prop := <statement>` in the node's `Obl` namespace and must be
-  * proven by `theorem <name> : Obl.<name>` in the node's proof file.
+/** One proof obligation. `statement` is a Lean proposition, rendered as
+  * `def <name> : Prop := <statement>` in the node's `Obl` namespace. It is proven
+  * by `frflow_auto` in the generated `Auto` module, or by an authored
+  * `theorem <name> : Obl.<name>` in the node's proof file.
   */
 final case class Obligation(
     name: String,
     kind: ObligationKind,
-    event: Option[String],
+    operation: Option[String],
     invariant: Option[String],
     statement: String,
     description: String
 )
 
 /** An invariant as it enters obligation generation. The gluing invariant of the
-  * link is treated as an invariant named `glue`.
+  * link is the invariant named `glue`.
   */
-final case class EffectiveInvariant(name: String, leanRef: String, fromLink: Boolean)
+final case class EffectiveInvariant(name: String, fromLink: Boolean)
 
 object Obligations:
 
   val GlueName = "glue"
 
-  def effectiveInvariants(node: Node): Seq[EffectiveInvariant] =
-    val glue = node.link.flatMap(_.glue).map(_ => EffectiveInvariant(GlueName, GlueName, fromLink = true))
-    glue.toSeq ++ node.spec.invariants.map(i => EffectiveInvariant(i.name, i.name, fromLink = false))
+  def effectiveInvariants(l: LayerModel): List[EffectiveInvariant] =
+    l.link.flatMap(_.glue).map(_ => EffectiveInvariant(GlueName, fromLink = true)).toList ++
+      l.invariants.map(i => EffectiveInvariant(i.name, fromLink = false))
 
-  /** All obligations of a node, in a stable order. */
-  def forNode(theory: TheoryModel, node: Node): Seq[Obligation] =
-    val invs = effectiveInvariants(node)
-    val parentNs = theory.parentOf(node).map(_.id)
+  /** Obligations of the theory: one per law. */
+  def forTheory(m: TheoryModel): List[Obligation] =
+    m.laws.map { law =>
+      val body = LeanPrinter.expr(law.lifted.body)
+      val stmt = if law.lifted.params.isEmpty then body else s"∀ ${LeanPrinter.binders(law.lifted.params)}, $body"
+      Obligation(law.name, ObligationKind.Law, None, None, stmt, law.statement)
+    }
+
+  /** All obligations of a layer, in a stable order. */
+  def forLayer(m: TheoryModel, l: LayerModel): List[Obligation] =
+    val invs = effectiveInvariants(l)
+    val parent = m.parentOf(l).map(_.id)
 
     val initInvs = invs.map { i =>
-      Obligation(
-        name = s"init_${i.name}",
-        kind = ObligationKind.InitInvariant,
-        event = None,
-        invariant = Some(i.name),
-        statement = s"∀ s, Init s → ${i.leanRef} s",
-        description = s"Every initial state of ${node.id} satisfies ${i.name}."
-      )
+      Obligation(s"init_${i.name}", ObligationKind.InitInvariant, None, Some(i.name),
+        s"∀ s, Init s → ${i.name} s", s"Every initial state of ${l.id} satisfies ${i.name}.")
     }
-
-    val initAbs = parentNs.toSeq.map { p =>
-      Obligation(
-        name = "init_abs",
-        kind = ObligationKind.InitAbs,
-        event = None,
-        invariant = None,
-        statement = s"∀ s, Init s → $p.Init (abs s)",
-        description = s"Every initial state of ${node.id} maps to an initial state of $p."
-      )
+    val initAbs = parent.toList.map { p =>
+      Obligation("init_abs", ObligationKind.InitAbs, None, None,
+        s"∀ s, Init s → $p.Init (abs s)", s"Every initial state of ${l.id} maps to an initial state of $p.")
     }
-
-    val perEvent = node.spec.events.flatMap { e =>
-      val ev = e.name
-      val hyp = s"∀ s p, Obl.Hyp s → $ev.guard s p →"
+    val perOp = l.ops.flatMap { op =>
+      val o = op.name
+      val hyp = s"∀ s p, Obl.Hyp s → $o.guard s p →"
       val invObls = invs.map { i =>
-        Obligation(
-          name = s"${ev}_inv_${i.name}",
-          kind = ObligationKind.EventInvariant,
-          event = Some(ev),
-          invariant = Some(i.name),
-          statement = s"$hyp ${i.leanRef} ($ev.act s p)",
-          description = s"Event $ev preserves ${i.name}."
-        )
+        Obligation(s"${o}_inv_${i.name}", ObligationKind.OpInvariant, Some(o), Some(i.name),
+          s"$hyp ${i.name} ($o.act s p)", s"Operation $o preserves ${i.name}.")
       }
-      val linkObls = (parentNs, e.target) match
-        case (Some(p), EventTarget.Refines(ae, _)) =>
-          Seq(
-            Obligation(
-              name = s"${ev}_grd",
-              kind = ObligationKind.Guard,
-              event = Some(ev),
-              invariant = None,
-              statement = s"$hyp $p.$ae.guard (abs s) ($ev.witness s p)",
-              description = s"Whenever $ev is enabled in ${node.id}, $p.$ae is enabled for the witness parameters."
-            ),
-            Obligation(
-              name = s"${ev}_sim",
-              kind = ObligationKind.Simulation,
-              event = Some(ev),
-              invariant = None,
-              statement = s"$hyp abs ($ev.act s p) = $p.$ae.act (abs s) ($ev.witness s p)",
-              description = s"The effect of $ev, seen through abs, is the effect of $p.$ae."
-            )
+      val linkObls = (parent, op.target) match
+        case (Some(p), TargetModel.Refines(_, ao, _)) =>
+          List(
+            Obligation(s"${o}_grd", ObligationKind.Guard, Some(o), None,
+              s"$hyp $p.$ao.guard (abs s) ($o.witness s p)",
+              s"Whenever $o is enabled in ${l.id}, $p.$ao is enabled for the witness parameters."),
+            Obligation(s"${o}_sim", ObligationKind.Simulation, Some(o), None,
+              s"$hyp abs ($o.act s p) = $p.$ao.act (abs s) ($o.witness s p)",
+              s"The effect of $o, seen through abs, is the effect of $p.$ao.")
           )
-        case (Some(p), EventTarget.Skip) =>
-          Seq(
-            Obligation(
-              name = s"${ev}_skip",
-              kind = ObligationKind.Skip,
-              event = Some(ev),
-              invariant = None,
-              statement = s"$hyp abs ($ev.act s p) = abs s",
-              description = s"Event $ev does not change the state of $p (it refines skip)."
-            )
+        case (Some(p), TargetModel.Skip) =>
+          List(
+            Obligation(s"${o}_skip", ObligationKind.Skip, Some(o), None,
+              s"$hyp abs ($o.act s p) = abs s", s"Operation $o does not change the state of $p (it refines skip).")
           )
         case _ => Nil
       invObls ++ linkObls
     }
-
-    initInvs ++ initAbs ++ perEvent
+    initInvs ++ initAbs ++ perOp

@@ -1,5 +1,6 @@
 package frflow
 
+import frflow.json.Json
 import frflow.ledger.*
 
 class JsonSuite extends munit.FunSuite:
