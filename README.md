@@ -1,8 +1,9 @@
 # FrFlow: formal refinement flow for agentic software development
 
-FrFlow develops a program as a layered theory written in Scala. The theory starts
-with a domain and requirements and is refined, one proven step at a time, down to
-an implementation that runs.
+FrFlow applies the refinement discipline of formal hardware design to software
+built with AI agents. It develops a program as a layered theory written in Scala.
+The theory starts with a domain and requirements and is refined, one proven step
+at a time, down to an implementation that runs.
 
 - **The model is Scala.** Domain concepts are Scala ADTs (case classes and enums)
   with pure methods. Requirements, design steps and the implementation are layers
@@ -17,6 +18,36 @@ an implementation that runs.
 - **Proofs are tried automatically first.** Every obligation is attempted with
   `frflow_auto`. Only the obligations automation cannot prove need a proof, which
   an agent writes in a separate Lean file, never in the model.
+
+## Problem
+
+- **Uncontrolled refinement.** Agents add logic incrementally, without an
+  explicit relation to the intent, so correctness and design coherence cannot
+  be tracked. In FrFlow, every operation of a refining layer, down to the
+  executable implementation, must say which parent operation it refines, or that
+  it refines `skip`. It is accepted only with proofs that it does so.
+- **Lost theory** (Naur, *Programming as Theory Building*, 1985). The program
+  is the visible part of a theory held by its programmers. With agents, the
+  human often never builds that theory, and the agent loses it when its context
+  is compressed. In FrFlow, the theory is explicit and persistent:
+  - the domain as Scala ADTs, with laws and assumptions;
+  - layers with short statements and rationale;
+  - humans approve each node, and an approval is bound to a hash of what was reviewed;
+  - agents receive a bounded **slice** of the model for each piece of work.
+
+The underlying division of labor is this:
+- **The domain, statements, layers and links** are the theory. They are small,
+  reviewed by people, and change rarely.
+- **Proofs** are only checked. Any valid proof is acceptable, so automation and
+  agents may produce them freely.
+
+Current coverage. The guarantees apply to code inside the model. These are not
+covered yet (see Next steps):
+- Code outside the model, such as I/O adapters, is not checked.
+- Nothing enforces the check on every change.
+- Only safety is proven: a layer whose guards never hold still refines its parent.
+- An implementation layer's approval also covers its operation bodies, so changing
+  the implementation requires a new review.
 
 ## The layered model
 
@@ -238,12 +269,21 @@ examples/authz/          domain, theory, layers R0/D1/I2, service, tests,
 
 ## Next steps
 
-1. Bounded integers: model `Int` and `Long` with wrap-around, or generate
+1. Enforcement: a CI gate that builds Lean, runs `check`, and fails when a node
+   is not proven or not approved.
+2. Code outside the model: run operations only through `Service` (make
+   `Operation.apply` internal), and detect logic that no layer justifies.
+3. Enabledness and liveness: require a refining operation to be enabled whenever
+   its parent operation is, and variants for new operations, so that refinement
+   cannot only stutter.
+4. Approval scope: bind an implementation layer's approval to its statement,
+   state, abstraction and assumptions rather than its operation bodies, which the
+   refinement proofs already constrain.
+5. Bounded integers: model `Int` and `Long` with wrap-around, or generate
    no-overflow obligations.
-2. Laws as lemmas for automation: let `frflow_auto` use proven laws.
-3. Sealed trait hierarchies and recursive functions, with termination.
-4. Agent interface: an MCP server with role-restricted operations (propose a
+6. Laws as lemmas for automation: let `frflow_auto` use proven laws.
+7. Sealed trait hierarchies and recursive functions, with termination.
+8. Agent interface: an MCP server with role-restricted operations (propose a
    layer, submit a proof, request a model change), gated by the checker and by
    approvals.
-5. Decomposition: several implementation leaves (components) refining one design.
-6. Liveness: variants for new operations, so that refinement cannot only stutter.
+9. Decomposition: several implementation leaves (components) refining one design.
