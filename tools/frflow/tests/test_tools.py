@@ -48,8 +48,9 @@ class ToolsTest(FakeProject):
     def test_arguments_are_quoted_for_sbt(self):
         self.assertEqual(ft.quote("Node"), "Node")
         self.assertEqual(ft.quote("Ada Lovelace"), '"Ada Lovelace"')
-        self.assertEqual(self.project.command(["approve", "Root", "--by", "Ada L"]),
-                         ["python3", "fake_cli.py", 'approve Root --by "Ada L"'])
+        self.assertEqual(self.project.command(["accept", "Root", "--by", "Ada L"]),
+                         ["python3", "fake_cli.py", 'accept Root --by "Ada L"'])
+        self.assertEqual(ft.quote("a;b"), '"a;b"')
 
     def test_sources_changed_after_the_snapshot(self):
         self.assertEqual(self.project.sources_changed(), ["(no snapshot yet)"])
@@ -62,9 +63,18 @@ class ToolsTest(FakeProject):
     def test_tree_text_shows_links(self):
         self.project.run(["render"], actor="ui")
         tree = ft.node_tree(self.project.snapshot())
-        self.assertIn("Root (root)  [proven, approved]", tree)
-        self.assertIn("  Auto (refine)  [link proven (auto), proven, unapproved]", tree)
-        self.assertIn("    Failed (refine)  [link failed (must state exactly Obl.link), failed, unapproved]", tree)
+        self.assertIn("Root (root)  [accepted, proven]", tree)
+        self.assertIn("  Auto (refine)  [accepted, link proven (auto), proven]", tree)
+        self.assertIn("    Failed (refine)  [parent-changed, link failed (must state exactly Obl.link), failed]", tree)
+        self.assertIn("Contract (contract)  [changed, link proven (authored), proven, examples 2/3]", tree)
+
+    def test_requests(self):
+        r = self.project.add_request("Auto", "Propose an alternative", "dev")
+        self.assertEqual((r["id"], r["status"]), ("R1", "open"))
+        self.project.answer_request("R1", "Proposed Alt")
+        self.assertEqual(self.project.requests()[0]["answer"], "Proposed Alt")
+        with self.assertRaises(KeyError):
+            self.project.answer_request("R9", "x")
 
 
 class McpTest(FakeProject):
@@ -77,8 +87,22 @@ class McpTest(FakeProject):
         self.assertEqual(init["serverInfo"]["name"], "frflow")
         self.assertIsNone(srv.handle({"jsonrpc": "2.0", "method": "notifications/initialized"}))
         names = [t["name"] for t in self.call(srv, "tools/list")["result"]["tools"]]
-        self.assertEqual(names, ["render", "check", "status", "context", "scaffold", "tree", "node", "history"])
-        self.assertNotIn("approve", names)
+        self.assertEqual(names, ["render", "check", "status", "context", "scaffold", "tree", "node", "history", "inbox", "answer"])
+        self.assertNotIn("accept", names)
+
+    def test_inbox_and_answer(self):
+        srv = mcp_server.Server([self.project])
+        self.project.run(["render"], actor="ui")
+        self.project.add_request("Auto", "Propose an alternative to Auto", "dev")
+        text = self.call(srv, "tools/call", {"name": "inbox", "arguments": {}})["result"]["content"][0]["text"]
+        self.assertIn("[R1] on Auto: Propose an alternative to Auto", text)
+        self.assertIn("Stale: rejected; remove it", text)
+        self.assertIn("Inst: proposed", text)
+        r = self.call(srv, "tools/call", {"name": "answer", "arguments": {"request": "R1", "text": "Proposed Alt"}})["result"]
+        self.assertFalse(r["isError"])
+        self.assertEqual(self.project.requests()[0]["status"], "answered")
+        r = self.call(srv, "tools/call", {"name": "context", "arguments": {"node": "A;B"}})["result"]
+        self.assertTrue(r["isError"])
         self.assertEqual(self.call(srv, "nope")["error"]["code"], -32601)
 
     def test_render_then_read_the_tree(self):
@@ -157,13 +181,35 @@ class ServerTest(FakeProject):
             time.sleep(0.05)
         self.assertEqual(job["exitCode"], 0)
         kb = json.loads(self.get("/api/p/Fake/kb")[1])
-        self.assertEqual(len(kb["snapshot"]["nodes"]), 7)
+        self.assertEqual(len(kb["snapshot"]["nodes"]), 8)
         self.assertEqual(json.loads(self.get("/api/p/Fake/events")[1])[-1]["actor"], "ui")
 
     def test_commands_are_restricted(self):
         self.assertEqual(self.post("/api/p/Fake/run", {"args": ["status"]})[0], 400)
-        self.assertEqual(self.post("/api/p/Fake/run", {"args": ["approve", "Root"]})[0], 400)
+        self.assertEqual(self.post("/api/p/Fake/run", {"args": ["accept", "Root"]})[0], 400)
+        self.assertEqual(self.post("/api/p/Fake/run", {"args": ["accept", "Root;x", "--by", "me"]})[0], 400)
+        self.assertEqual(self.post("/api/p/Fake/run", {"args": ["accept", "Root", "--by", "me", "--reject", "a b"]})[0], 400)
         self.assertEqual(self.post("/api/p/Nope/run", {"args": ["render"]})[0], 404)
+
+    def test_other_sites_cannot_post(self):
+        req = urllib.request.Request(self.base + "/api/p/Fake/run", json.dumps({"args": ["render"]}).encode(),
+                                     {"Content-Type": "application/json", "Origin": "http://evil.example"})
+        with self.assertRaises(urllib.error.HTTPError) as e:
+            urllib.request.urlopen(req)
+        self.assertEqual(e.exception.code, 403)
+        req = urllib.request.Request(self.base + "/api/p/Fake/run", json.dumps({"args": ["render"]}).encode(), {"Content-Type": "text/plain"})
+        with self.assertRaises(urllib.error.HTTPError) as e:
+            urllib.request.urlopen(req)
+        self.assertEqual(e.exception.code, 415)
+
+    def test_requests_and_idea(self):
+        status, r = self.post("/api/p/Fake/requests", {"node": "Auto", "text": "Propose another", "by": "dev"})
+        self.assertEqual((status, r["id"]), (201, "R1"))
+        self.assertEqual(json.loads(self.get("/api/p/Fake/kb")[1])["requests"][0]["text"], "Propose another")
+        self.assertEqual(self.post("/api/p/Fake/requests/R1", {"status": "closed"})[1]["status"], "closed")
+        status, _ = self.post("/api/p/Fake/idea", {"text": "# New idea"})
+        self.assertEqual(status, 202)
+        self.assertEqual((self.dir / "IDEA.md").read_text(), "# New idea\n")
 
 
 if __name__ == "__main__":

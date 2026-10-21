@@ -35,7 +35,7 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
 body { background: var(--bg); color: var(--ink); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
-button, input, select { font: inherit; color: inherit; }
+button, input, select, textarea { font: inherit; color: inherit; }
 code, pre, .mono { font-family: var(--mono); font-size: 12.5px; }
 pre { background: var(--code); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 6px 0 0;
       overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
@@ -44,49 +44,51 @@ header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; back
          border-bottom: 1px solid var(--line); flex-wrap: wrap; }
 .brand { font-weight: 700; letter-spacing: .2px; }
 .brand span { color: var(--accent); }
-select, input[type=text] { background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; }
+select, input[type=text], textarea { background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; }
+textarea { width: 100%; resize: vertical; }
 .btn { background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 5px 12px; cursor: pointer; }
 .btn:hover:not(:disabled) { border-color: var(--accent); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 :root[data-theme="dark"] .btn.primary { color: #0f131a; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn.primary { color: #0f131a; } }
 .btn:disabled { opacity: .5; cursor: default; }
+.btn.small { padding: 2px 9px; font-size: 12.5px; }
 .spacer { flex: 1; }
 .summary { color: var(--muted); font-size: 13px; }
-.banner { display: none; align-items: center; gap: 8px; background: var(--open-soft); color: var(--open);
-          border: 1px solid color-mix(in srgb, var(--open) 40%, transparent); border-radius: 7px; padding: 3px 10px; font-size: 13px; }
-.banner.show { display: inline-flex; }
+.summary b { color: var(--ink); font-weight: 600; }
+.pill { display: none; align-items: center; gap: 8px; border-radius: 7px; padding: 3px 10px; font-size: 13px; }
+.pill.show { display: inline-flex; }
+.pill.warn { background: var(--open-soft); color: var(--open); border: 1px solid color-mix(in srgb, var(--open) 40%, transparent); }
+.pill.you { background: var(--accent-soft); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); cursor: pointer; }
 .running { display: none; align-items: center; gap: 6px; color: var(--accent); font-size: 13px; }
 .running.show { display: inline-flex; }
 .dot-pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 1.1s infinite; }
 @keyframes pulse { 50% { opacity: .25; } }
 
-main { display: grid; grid-template-columns: minmax(0, 1fr) 480px; height: calc(100% - 55px); }
+main { display: grid; grid-template-columns: minmax(0, 1fr) 500px; height: calc(100% - 55px); }
 #canvasWrap { position: relative; overflow: auto; }
 #canvas { position: relative; margin: 28px auto; }
-.pane a, .chain a { color: var(--accent); text-decoration: none; cursor: pointer; }
-.pane a:hover { text-decoration: underline; }
-#edges { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
 aside { background: var(--panel); border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
 .tabs { display: flex; border-bottom: 1px solid var(--line); padding: 0 8px; }
 .tab { border: 0; background: none; padding: 10px 12px; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; }
 .tab.active { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+.tab .n { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 4px; border-radius: 999px; font-size: 11px;
+          background: var(--accent); color: #fff; text-align: center; }
 .pane { overflow: auto; padding: 16px 18px 40px; flex: 1; }
-@media (max-width: 900px) {
-  main { grid-template-columns: 1fr; height: auto; }
-  #canvasWrap { height: 60vh; }
-  aside { border-left: 0; border-top: 1px solid var(--line); }
-  .legend { position: static; }
-}
+.pane a { color: var(--accent); text-decoration: none; cursor: pointer; }
+.pane a:hover { text-decoration: underline; }
 
 /* tree */
 .card { position: absolute; width: 220px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
         padding: 9px 11px; box-shadow: var(--shadow); cursor: pointer; transition: opacity .15s, border-color .15s; }
 .card:hover { border-color: var(--accent); }
-.card.selected { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow); }
+.card.proposed { border-style: dashed; border-width: 2px; border-color: var(--accent); background: color-mix(in srgb, var(--accent-soft) 45%, var(--panel)); }
+.card.changed, .card.parent-changed { border-color: var(--open); }
+.card.selected { box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow); border-color: var(--accent); }
 .card.dim { opacity: .55; }
 .card .top { display: flex; align-items: center; gap: 6px; }
 .card .id { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card .chips { flex-wrap: nowrap; overflow: hidden; }
 .card .stmt { color: var(--muted); font-size: 12.5px; margin: 4px 0 6px; display: -webkit-box; -webkit-line-clamp: 2;
               -webkit-box-orient: vertical; overflow: hidden; min-height: 37px; }
 .chips { display: flex; gap: 4px; flex-wrap: wrap; }
@@ -94,11 +96,12 @@ aside { background: var(--panel); border-left: 1px solid var(--line); display: f
         background: var(--soft); color: var(--muted); flex: none; }
 .kind.root { background: var(--accent-soft); color: var(--accent); }
 .chip { font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid transparent; white-space: nowrap; }
-.s-proven { background: var(--proven-soft); color: var(--proven); }
-.s-open, .s-waiting, .s-changed { background: var(--open-soft); color: var(--open); }
-.s-failed, .s-model-error { background: var(--failed-soft); color: var(--failed); }
-.s-not-checked, .s-stale, .s-unapproved { background: var(--none-soft); color: var(--none); }
-.s-approved { background: var(--proven-soft); color: var(--proven); }
+.s-proven, .s-accepted, .s-ok { background: var(--proven-soft); color: var(--proven); }
+.s-open, .s-waiting, .s-changed, .s-parent-changed { background: var(--open-soft); color: var(--open); }
+.s-failed, .s-model-error, .s-bad { background: var(--failed-soft); color: var(--failed); }
+.s-not-checked, .s-stale, .s-rejected { background: var(--none-soft); color: var(--none); }
+.s-proposed { background: var(--accent-soft); color: var(--accent); }
+svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
 path.edge { fill: none; stroke-width: 2.2; transition: opacity .15s; }
 path.edge.proven { stroke: var(--proven); }
 path.edge.open { stroke: var(--open); stroke-dasharray: 7 5; }
@@ -117,6 +120,7 @@ path.edge.dim, path.glow.dim { opacity: .3; }
 .legend { position: sticky; left: 12px; bottom: 12px; display: inline-flex; gap: 14px; flex-wrap: wrap; background: var(--panel);
           border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 12px; color: var(--muted); margin: 0 12px 12px; }
 .legend i { display: inline-block; width: 22px; height: 0; border-top: 3px solid; vertical-align: middle; margin-right: 5px; }
+.legend .box { display: inline-block; width: 16px; height: 11px; border: 2px dashed var(--accent); border-radius: 3px; vertical-align: middle; margin-right: 5px; }
 .empty { color: var(--muted); padding: 40px; }
 
 /* panel */
@@ -124,38 +128,56 @@ h2 { font-size: 18px; margin: 0; }
 h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin: 22px 0 6px; }
 .lead { font-size: 15px; margin: 8px 0 0; }
 .muted { color: var(--muted); }
-.link-box { border: 1px solid var(--line); border-left-width: 4px; border-radius: 10px; padding: 12px 14px; margin-top: 8px; }
-.link-box.proven { border-color: color-mix(in srgb, var(--proven) 45%, transparent); border-left-color: var(--proven); background: color-mix(in srgb, var(--proven-soft) 55%, transparent); }
-.link-box.open { border-left-color: var(--open); background: color-mix(in srgb, var(--open-soft) 55%, transparent); }
-.link-box.failed { border-left-color: var(--failed); background: color-mix(in srgb, var(--failed-soft) 55%, transparent); }
-.link-box.not-checked, .link-box.stale { border-left-color: var(--none); }
+.small { font-size: 12.5px; }
+.why { border-left: 3px solid var(--accent); padding: 4px 0 4px 12px; margin-top: 10px; }
+.why .label, .side .label { font-size: 12px; color: var(--muted); }
+.box { border: 1px solid var(--line); border-left-width: 4px; border-radius: 10px; padding: 12px 14px; margin-top: 8px; }
+.box.proven, .box.accepted { border-color: color-mix(in srgb, var(--proven) 45%, transparent); border-left-color: var(--proven); background: color-mix(in srgb, var(--proven-soft) 55%, transparent); }
+.box.open, .box.changed, .box.parent-changed { border-left-color: var(--open); background: color-mix(in srgb, var(--open-soft) 55%, transparent); }
+.box.failed { border-left-color: var(--failed); background: color-mix(in srgb, var(--failed-soft) 55%, transparent); }
+.box.proposed { border-left-color: var(--accent); background: color-mix(in srgb, var(--accent-soft) 55%, transparent); }
+.box.not-checked, .box.stale { border-left-color: var(--none); }
 .verdict { font-weight: 650; }
-.verdict.proven { color: var(--proven); } .verdict.open { color: var(--open); } .verdict.failed { color: var(--failed); }
-.verdict.not-checked, .verdict.stale { color: var(--none); }
+.verdict.proven, .verdict.accepted { color: var(--proven); } .verdict.open, .verdict.changed, .verdict.parent-changed { color: var(--open); }
+.verdict.failed { color: var(--failed); } .verdict.not-checked, .verdict.stale { color: var(--none); } .verdict.proposed { color: var(--accent); }
 .side { margin-top: 10px; }
-.side .label { font-size: 12px; color: var(--muted); }
 .side .label b { color: var(--ink); }
+.option { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-top: 8px; background: var(--panel); }
+.option.this { border-color: var(--accent); }
+.option .head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.diff { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.diff pre.old { border-color: color-mix(in srgb, var(--failed) 35%, transparent); }
+.diff pre.new { border-color: color-mix(in srgb, var(--proven) 35%, transparent); }
 .chain { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 6px; }
-.chain a { color: var(--ink) !important; text-decoration: none !important; border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; font-size: 12px; cursor: pointer; }
+.chain a { color: var(--ink) !important; text-decoration: none !important; border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; font-size: 12px; }
 .chain .arrow { font-size: 12px; font-weight: 700; }
 .chain .arrow.proven { color: var(--proven); } .chain .arrow.open { color: var(--open); } .chain .arrow.failed { color: var(--failed); }
 .chain .arrow.not-checked, .chain .arrow.stale { color: var(--none); }
-.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
 table { border-collapse: collapse; width: 100%; font-size: 13px; }
 td, th { text-align: left; border-bottom: 1px solid var(--line); padding: 6px 6px 6px 0; vertical-align: top; }
 th { color: var(--muted); font-weight: 600; font-size: 12px; }
 details summary { cursor: pointer; color: var(--muted); margin-top: 18px; }
 .event { display: grid; grid-template-columns: 14px 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); }
 .event .d { width: 9px; height: 9px; border-radius: 50%; margin-top: 6px; background: var(--none); }
-.event .d.proven, .event .d.approve { background: var(--proven); } .event .d.open { background: var(--open); }
+.event .d.proven, .event .d.accept { background: var(--proven); } .event .d.open { background: var(--open); }
 .event .d.failed, .event .d.model-error { background: var(--failed); } .event .d.render { background: var(--accent); }
 .event .when { color: var(--muted); font-size: 12px; }
+.req { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-top: 6px; }
+.req .answer { margin-top: 6px; padding-left: 10px; border-left: 3px solid var(--proven); }
 .md h1 { font-size: 20px; } .md h2 { font-size: 16px; margin-top: 18px; } .md p { margin: 8px 0; }
 #job { display: none; position: absolute; right: 16px; bottom: 16px; width: min(560px, calc(100% - 32px)); background: var(--panel);
-       border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 10px 12px; }
+       border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 10px 12px; z-index: 3; }
 #job.show { display: block; }
 #job pre { max-height: 240px; overflow: auto; }
 #job .head { display: flex; align-items: center; gap: 8px; }
+@media (max-width: 900px) {
+  main { grid-template-columns: 1fr; height: auto; }
+  #canvasWrap { height: 60vh; }
+  aside { border-left: 0; border-top: 1px solid var(--line); }
+  .legend { position: static; }
+  .diff { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>
@@ -163,26 +185,30 @@ details summary { cursor: pointer; color: var(--muted); margin-top: 18px; }
   <div class="brand">Fr<span>Flow</span></div>
   <select id="project" aria-label="Project"></select>
   <span class="summary" id="summary"></span>
-  <span class="banner" id="stale">Sources changed since the last render <button class="btn" data-run="render">Render</button></span>
+  <span class="pill you" id="waitingPill" title="Decisions waiting for you"></span>
+  <span class="pill warn" id="stale">Sources changed since the last render <button class="btn small" data-run="render">Render</button></span>
   <span class="running" id="running"><span class="dot-pulse"></span><span id="runningText"></span></span>
   <span class="spacer"></span>
+  <input type="text" id="me" placeholder="your name" size="10" aria-label="Your name" title="Recorded with your decisions and requests">
   <button class="btn" data-run="render" title="Rebuild the tree and the Lean from the Scala definitions">Render</button>
   <button class="btn primary" data-run="check" title="Prove every link in Lean">Check all</button>
 </header>
 <main>
   <div id="canvasWrap">
-    <div id="canvas"><svg id="edges"></svg></div>
+    <div id="canvas"></div>
     <div class="legend">
+      <span><span class="box"></span>proposed: waiting for your decision</span>
       <span><i style="border-color:var(--proven)"></i>link proven</span>
       <span><i style="border-color:var(--open);border-top-style:dashed"></i>open</span>
       <span><i style="border-color:var(--failed);border-top-style:dotted"></i>failed</span>
       <span><i style="border-color:var(--none);border-top-style:dotted"></i>not checked / stale</span>
     </div>
-    <div id="job"><div class="head"><b id="jobTitle"></b><span class="spacer"></span><button class="btn" id="jobClose">Close</button></div><pre id="jobOut"></pre></div>
+    <div id="job"><div class="head"><b id="jobTitle"></b><span class="spacer"></span><button class="btn small" id="jobClose">Close</button></div><pre id="jobOut"></pre></div>
   </div>
   <aside>
     <nav class="tabs">
       <button class="tab active" data-tab="node">Node</button>
+      <button class="tab" data-tab="inbox">Inbox</button>
       <button class="tab" data-tab="idea">Idea</button>
       <button class="tab" data-tab="domain">Domain</button>
       <button class="tab" data-tab="history">History</button>
@@ -198,7 +224,7 @@ const store = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch {} },
 };
-const state = { projects: [], project: null, data: null, events: [], job: null, selected: null, tab: "node", jobOpen: false };
+const state = { projects: [], project: null, data: null, events: [], job: null, selected: null, tab: "node", jobOpen: false, editingIdea: false };
 
 async function api(path, opts) {
   const r = await fetch(path, opts);
@@ -206,6 +232,8 @@ async function api(path, opts) {
   if (!r.ok) throw new Error(body?.error || r.statusText);
   return body;
 }
+const post = (path, body) => api(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+const P = () => `/api/p/${encodeURIComponent(state.project)}`;
 
 // --- loading ----------------------------------------------------------------
 
@@ -218,6 +246,7 @@ async function loadProjects() {
     : state.projects.some(p => p.name === store.get("frflow.project")) ? store.get("frflow.project") : state.projects[0]?.name;
   state.selected = hashNode || null;
   sel.value = state.project;
+  $("#me").value = store.get("frflow.me") || "";
 }
 
 let loading = null;
@@ -225,11 +254,10 @@ async function refresh() {
   if (!state.project) return;
   if (loading) return loading;
   loading = (async () => {
-    const p = encodeURIComponent(state.project);
-    const [data, events, job] = await Promise.all([api(`/api/p/${p}/kb`), api(`/api/p/${p}/events?limit=300`), api(`/api/p/${p}/job`)]);
+    const [data, events, job] = await Promise.all([api(`${P()}/kb`), api(`${P()}/events?limit=300`), api(`${P()}/job`)]);
     state.data = data; state.events = events; state.job = job;
-    const nodes = data.snapshot?.nodes || [];
-    if (!nodes.some(n => n.id === state.selected)) state.selected = data.snapshot?.root || null;
+    const nodes = live();
+    if (!nodes.some(n => n.id === state.selected)) state.selected = (firstWaiting() || nodes[0])?.id || null;
     render();
   })().finally(() => { loading = null; });
   return loading;
@@ -238,21 +266,36 @@ async function refresh() {
 function listen() {
   const es = new EventSource("/api/stream");
   let t = null;
-  es.onmessage = () => { clearTimeout(t); t = setTimeout(refresh, 120); };
+  es.onmessage = () => { clearTimeout(t); t = setTimeout(() => { if (!typing()) refresh(); else pendingRefresh = true; }, 150); };
 }
+// do not re-render under the developer's cursor
+let pendingRefresh = false;
+const typing = () => ["TEXTAREA", "INPUT"].includes(document.activeElement?.tagName) && document.activeElement.id !== "me" && document.activeElement.value;
+document.addEventListener("focusout", () => setTimeout(() => { if (pendingRefresh && !typing()) { pendingRefresh = false; refresh(); } }, 200));
 
 // --- model helpers ----------------------------------------------------------
 
 const snap = () => state.data?.snapshot;
-const byId = id => snap()?.nodes.find(n => n.id === id);
-const children = id => snap().nodes.filter(n => n.parent === id);
+const all = () => snap()?.nodes || [];
+const live = () => all().filter(n => n.decision !== "rejected");
+const byId = id => all().find(n => n.id === id);
+const children = id => live().filter(n => n.parent === id);
 function pathTo(id) { const out = []; let n = byId(id); while (n) { out.unshift(n); n = n.parent ? byId(n.parent) : null; } return out; }
 const linkStatus = n => n.link?.status || "not-checked";
+const waitingForYou = () => live().filter(n => ["proposed", "changed", "parent-changed"].includes(n.decision));
+const firstWaiting = () => waitingForYou()[0];
+const alternatives = n => live().filter(m => m.parent === n.parent && m.id !== n.id && m.decision === "proposed");
+const requests = () => state.data?.requests || [];
+const openRequests = () => requests().filter(r => r.status === "open");
+const me = () => $("#me").value.trim();
+const examplesBad = n => (n.examples || []).filter(e => e.contract !== "ok" || (e.implementation && e.implementation !== "ok"));
 function linkLabel(n) {
   const s = linkStatus(n), d = n.link?.detail;
   if (s === "proven") return "✓ " + (d === "instantiation" ? "instantiation" : d === "authored" ? "proof" : "auto");
   return { open: "open", failed: "✗ failed", stale: "stale", "not-checked": "not checked" }[s] || s;
 }
+const decisionLabel = { proposed: "proposed", accepted: "accepted", changed: "changed since accepted", "parent-changed": "parent changed", rejected: "rejected" };
+const shortLabel = { proposed: "proposed", accepted: "accepted", changed: "changed", "parent-changed": "parent changed", rejected: "rejected" };
 
 // --- rendering --------------------------------------------------------------
 
@@ -265,20 +308,20 @@ function render() {
   $("#running").classList.toggle("show", !!running);
   $("#runningText").textContent = running ? `${running.actor === "agent" ? "agent" : "running"}: ${running.args.join(" ")}` : "";
   document.querySelectorAll("[data-run]").forEach(b => b.disabled = !!running);
+  const w = waitingForYou().length;
+  $("#waitingPill").classList.toggle("show", w > 0);
+  $("#waitingPill").textContent = `${w} waiting for your decision`;
   if (!s) {
     $("#summary").textContent = "";
-    $("#canvas").innerHTML = `<svg id="edges"></svg><div class="empty">No snapshot yet. Press Render to build the tree from the Scala definitions.</div>`;
-    $("#pane").innerHTML = "";
-    renderJob();
+    $("#canvas").innerHTML = `<div class="empty">No snapshot yet. Press Render to build the tree from the Scala definitions.</div>`;
+    renderPane(); renderJob();
     return;
   }
-  const links = s.nodes.filter(n => n.parent);
+  const nodes = live(), links = nodes.filter(n => n.parent);
   const proven = links.filter(n => linkStatus(n) === "proven").length;
-  const approved = s.nodes.filter(n => n.approval === "approved").length;
-  $("#summary").textContent = `${s.name} · ${s.nodes.length} nodes · ${proven}/${links.length} links proven · ${approved}/${s.nodes.length} approved · rendered ${ago(s.exportedAt)}`;
-  renderTree();
-  renderPane();
-  renderJob();
+  const accepted = nodes.filter(n => n.decision === "accepted").length;
+  $("#summary").innerHTML = `${esc(s.name)} · <b>${accepted}/${nodes.length}</b> accepted · <b>${proven}/${links.length}</b> links proven · rendered ${ago(s.exportedAt)}`;
+  renderTree(); renderPane(); renderJob();
   history.replaceState(null, "", `#${encodeURIComponent(state.project)}/${encodeURIComponent(state.selected || "")}`);
 }
 
@@ -293,40 +336,46 @@ function ago(iso) {
 const W = 220, H = 104, GX = 24, GY = 70;
 
 function renderTree() {
-  const s = snap(), canvas = $("#canvas");
+  const canvas = $("#canvas");
   const pos = {}; let slot = 0;
-  (function place(n, depth) {
+  function place(n, depth) {
     const cs = children(n.id);
     cs.forEach(c => place(c, depth + 1));
     const x = cs.length ? (pos[cs[0].id].x + pos[cs[cs.length - 1].id].x) / 2 : (slot++) * (W + GX);
     pos[n.id] = { x, y: depth * (H + GY) };
-  })(byId(s.root), 0);
-  const width = Math.max(...Object.values(pos).map(p => p.x)) + W, height = Math.max(...Object.values(pos).map(p => p.y)) + H;
+  }
+  live().filter(n => !n.parent).forEach(r => { place(r, 0); slot += 0.4; });
+  const ps = Object.values(pos);
+  if (!ps.length) { canvas.innerHTML = `<div class="empty">No nodes.</div>`; return; }
+  const width = Math.max(...ps.map(p => p.x)) + W, height = Math.max(...ps.map(p => p.y)) + H;
   const onPath = new Set(state.selected ? pathTo(state.selected).map(n => n.id) : []);
   const dimOthers = onPath.size > 1;
 
   let svg = "", labels = "", cards = "";
-  for (const n of s.nodes) {
-    if (!n.parent || !pos[n.parent]) continue;
+  for (const n of live()) {
+    if (!n.parent || !pos[n.parent] || !pos[n.id]) continue;
     const a = pos[n.parent], b = pos[n.id];
     const x1 = a.x + W / 2, y1 = a.y + H, x2 = b.x + W / 2, y2 = b.y, my = (y1 + y2) / 2;
     const d = `M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`;
     const st = linkStatus(n), on = onPath.has(n.id), dim = dimOthers && !on ? " dim" : "";
     if (st === "proven") svg += `<path class="glow${dim}" d="${d}"/>`;
-    svg += `<path class="edge ${st}${on ? " onpath" : ""}${dim}" d="${d}"><title>${esc(n.parent)} → ${esc(n.id)}: ${esc(st)}</title></path>`;
+    svg += `<path class="edge ${st}${on ? " onpath" : ""}${dim}" d="${d}"/>`;
     labels += `<div class="elabel ${st}${dim}" style="left:${(x1 + x2) / 2}px;top:${my}px">${esc(linkLabel(n))}</div>`;
   }
-  for (const n of s.nodes) {
+  for (const n of live()) {
     const p = pos[n.id]; if (!p) continue;
-    const cls = ["card", n.id === state.selected ? "selected" : "", dimOthers && !onPath.has(n.id) ? "dim" : ""].join(" ");
+    const bad = examplesBad(n).length, ex = (n.examples || []).length;
+    const cls = ["card", n.decision, n.id === state.selected ? "selected" : "", dimOthers && !onPath.has(n.id) ? "dim" : ""].join(" ");
     cards += `<div class="${cls}" data-node="${esc(n.id)}" style="left:${p.x}px;top:${p.y}px;height:${H}px">
       <div class="top"><span class="kind ${n.kind}">${esc(n.kind)}</span><span class="id" title="${esc(n.id)}">${esc(n.id)}</span></div>
       <div class="stmt" title="${esc(n.statement)}">${esc(n.statement)}</div>
-      <div class="chips"><span class="chip s-${n.verification}">${esc(n.verification)}</span><span class="chip s-${n.approval}">${esc(n.approval)}</span></div>
+      <div class="chips"><span class="chip s-${n.decision}">${esc(shortLabel[n.decision])}</span>
+        <span class="chip s-${n.verification}">${esc(n.verification)}</span>
+        ${ex ? `<span class="chip ${bad ? "s-bad" : "s-ok"}" title="examples">ex ${ex - bad}/${ex}</span>` : ""}</div>
     </div>`;
   }
   canvas.style.width = width + "px"; canvas.style.height = height + "px";
-  canvas.innerHTML = `<svg id="edges" width="${width}" height="${height}">${svg}</svg>${labels}${cards}`;
+  canvas.innerHTML = `<svg width="${width}" height="${height}">${svg}</svg>${labels}${cards}`;
 }
 
 function renderJob() {
@@ -339,17 +388,21 @@ function renderJob() {
 }
 
 function renderPane() {
-  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === state.tab));
-  const pane = $("#pane");
-  pane.innerHTML = { node: nodePane, idea: ideaPane, domain: domainPane, history: historyPane }[state.tab]();
+  const counts = { inbox: waitingForYou().length + requests().filter(r => r.status === "answered").length };
+  document.querySelectorAll(".tab").forEach(t => {
+    t.classList.toggle("active", t.dataset.tab === state.tab);
+    const n = counts[t.dataset.tab];
+    t.innerHTML = t.dataset.tab[0].toUpperCase() + t.dataset.tab.slice(1) + (n ? `<span class="n">${n}</span>` : "");
+  });
+  if (!snap() && state.tab !== "idea") { $("#pane").innerHTML = ""; return; }
+  $("#pane").innerHTML = { node: nodePane, inbox: inboxPane, idea: ideaPane, domain: domainPane, history: historyPane }[state.tab]();
 }
 
 function code(label, src) { return src ? `<div class="side"><div class="label">${label}</div><pre>${esc(src)}</pre></div>` : ""; }
 
 function modelOf(n) {
-  if (n.kind === "instantiate") {
+  if (n.kind === "instantiate")
     return `<div class="side"><div class="label">substitutions</div><pre>${esc(n.substitutions.map(s => `${s.name} := ${s.value}`).join("\n"))}</pre></div>`;
-  }
   return code("abs — maps this model to the parent's", n.sources.abs) + code("spec", n.sources.spec) + code("post — every call (a, b) ⇒ r satisfies", n.sources.post);
 }
 
@@ -366,55 +419,153 @@ function verdict(n) {
   return "Not checked yet.";
 }
 
+function chips(n) {
+  const bad = examplesBad(n).length, ex = (n.examples || []).length;
+  return `<span class="chip s-${n.decision}">${esc(decisionLabel[n.decision])}</span>
+    <span class="chip s-${n.verification}">${esc(n.verification)}</span>
+    ${ex ? `<span class="chip ${bad ? "s-bad" : "s-ok"}">examples ${ex - bad}/${ex}</span>` : ""}`;
+}
+
+// The decision: the heart of the page. The developer chooses, the reason is kept.
+function decisionBox(n) {
+  const d = n.decided, alts = alternatives(n);
+  const nameField = `<input type="text" class="who" placeholder="your name" value="${esc(me())}" size="10">`;
+  if (n.decision === "proposed") {
+    const opts = [n, ...alts];
+    return `<div class="box proposed"><div class="verdict proposed">${alts.length ? `Choose one of ${opts.length} proposals` : "Proposed: accept it, or ask for changes"}</div>
+      <div class="muted small">Your choice and your reason are kept. ${alts.length ? "The others are kept as rejected alternatives." : ""}</div>
+      ${opts.map(o => `<div class="option ${o.id === n.id ? "this" : ""}">
+        <div class="head"><b><a data-goto="${esc(o.id)}">${esc(o.id)}</a></b>${chips(o)}</div>
+        <div style="margin-top:4px">${esc(o.statement)}</div>
+        <div class="why"><div class="label">why</div>${esc(o.why)}</div>
+        <div class="actions"><button class="btn small primary" data-accept="${esc(o.id)}" data-reject="${esc(opts.filter(x => x.id !== o.id).map(x => x.id).join(","))}">${alts.length ? "Choose" : "Accept"} ${esc(o.id)}</button></div>
+      </div>`).join("")}
+      <div class="side"><div class="label">your reason (kept with the decision)</div><textarea id="note" rows="2" placeholder="Why this one?"></textarea></div>
+    </div>`;
+  }
+  if (n.decision === "changed") {
+    return `<div class="box changed"><div class="verdict changed">Changed since ${esc(d.by)} accepted it</div>
+      <div class="muted small">Accepted ${new Date(d.at).toLocaleString()}${d.note ? ` — “${esc(d.note)}”` : ""}. What changed:</div>
+      ${diff(d.content, n.content)}
+      <div class="side"><div class="label">your reason for the change</div><textarea id="note" rows="2"></textarea></div>
+      <div class="actions"><button class="btn small primary" data-accept="${esc(n.id)}" data-reject="">Accept the change</button>
+        <span class="muted small">or ask the agent below to revert or rework it</span></div></div>`;
+  }
+  if (n.decision === "parent-changed") {
+    const changed = pathTo(n.id).slice(0, -1).find(a => a.decision !== "accepted");
+    return `<div class="box parent-changed"><div class="verdict parent-changed">${changed ? `<a data-goto="${esc(changed.id)}">${esc(changed.id)}</a> changed` : "An ancestor changed"} since this was accepted</div>
+      <div class="muted small">Is this node still the right specialization? Accepted by ${esc(d.by)}${d.note ? ` — “${esc(d.note)}”` : ""}.</div>
+      <div class="actions"><button class="btn small primary" data-accept="${esc(n.id)}" data-reject="" data-keepnote="1">Still valid</button>
+        <span class="muted small">or ask the agent to rework it</span></div></div>`;
+  }
+  // accepted
+  return `<div class="box accepted"><div class="verdict accepted">Accepted by ${esc(d.by)}</div>
+    <div class="muted small">${new Date(d.at).toLocaleString()}</div>
+    ${d.note ? `<div class="why"><div class="label">reason for the choice</div>${esc(d.note)}</div>` : ""}
+    ${d.rejected.length ? `<div class="side"><div class="label">rejected alternatives</div>${d.rejected.map(r =>
+      `<div class="option"><b>${esc(r.id)}</b> — ${esc(r.statement)}<div class="muted small">${esc(r.why)}</div></div>`).join("")}</div>` : ""}
+  </div>`;
+}
+
+function diff(old, cur) {
+  const flat = c => ({
+    statement: c.statement, why: c.why,
+    ...Object.fromEntries(Object.entries(c.sources || {}).map(([k, v]) => [k, v])),
+    substitutions: (c.substitutions || []).join("\n"), examples: (c.examples || []).join("\n"),
+  });
+  const a = flat(old || {}), b = flat(cur || {});
+  const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])].filter(k => (a[k] || "") !== (b[k] || ""));
+  if (!keys.length) return `<div class="muted small">Only the generated Lean or a definition it uses changed.</div>`;
+  return keys.map(k => `<div class="side"><div class="label">${esc(k)}</div><div class="diff">
+    <pre class="old">${esc(a[k] || "—")}</pre><pre class="new">${esc(b[k] || "—")}</pre></div></div>`).join("");
+}
+
+function examplesTable(n) {
+  if (!(n.examples || []).length) return n.kind === "contract"
+    ? `<h3>Examples</h3><div class="muted small">No examples yet. Without them, a contract that refuses everything looks as good as a useful one. Ask the agent for some below.</div>` : "";
+  const res = r => r === "ok" ? `<span class="chip s-ok">ok</span>` : r ? `<span class="chip s-bad">${esc(r)}</span>` : `<span class="muted small">no implementation</span>`;
+  let rows = "", given = null;
+  for (const e of n.examples) {
+    const g = e.given.join(", ");
+    if (g !== given) { given = g; rows += `<tr><td colspan="4" class="mono muted small" style="padding-top:10px">given ${esc(g)}</td></tr>`; }
+    rows += `<tr><td><span class="chip ${e.expected ? "s-ok" : "s-not-checked"}">${e.expected ? "expect" : "reject"}</span></td>
+      <td>${esc(e.note)}<div class="mono muted">${esc(e.call)}</div></td>
+      <td>${res(e.contract)}</td><td>${e.expected ? res(e.implementation) : `<span class="muted small">—</span>`}</td></tr>`;
+  }
+  return `<h3>Examples</h3><div class="muted small">What this node means in concrete cases. "expect": the contract accepts it and the implementation returns it. "reject": the contract refuses it.</div>
+    <table><tr><th></th><th>case</th><th>contract</th><th>impl.</th></tr>${rows}</table>`;
+}
+
+function requestsFor(node) {
+  const rs = requests().filter(r => r.node === node && r.status !== "closed");
+  return rs.map(r => `<div class="req"><div class="small"><b>${esc(r.by)}</b> <span class="muted">${new Date(r.at).toLocaleString()} · ${esc(r.status)}</span></div>
+    <div>${esc(r.text)}</div>
+    ${r.answer ? `<div class="answer small"><span class="muted">agent:</span> ${esc(r.answer)}</div>` : ""}
+    ${r.status === "answered" ? `<div class="actions"><button class="btn small" data-close="${esc(r.id)}">Done</button></div>` : ""}</div>`).join("");
+}
+
+function askBox(node, placeholder) {
+  return `<textarea id="ask" rows="2" placeholder="${esc(placeholder)}"></textarea>
+    <div class="actions"><button class="btn small" data-ask="${esc(node)}">Send to the agent</button>
+    <span class="muted small">The agent sees it in its inbox and answers with proposals.</span></div>`;
+}
+
 function nodePane() {
   const n = byId(state.selected);
   if (!n) return `<p class="muted">Select a node.</p>`;
   const parent = n.parent ? byId(n.parent) : null;
-  const path = pathTo(n.id);
-  const ls = linkStatus(n);
-  const evs = state.events.filter(e => e.node === n.id).slice(-8).reverse();
+  const path = pathTo(n.id), ls = linkStatus(n);
   let h = `<div style="display:flex;align-items:center;gap:8px"><span class="kind ${n.kind}">${esc(n.kind)}</span><h2>${esc(n.id)}</h2></div>
-    <div class="chips" style="margin-top:6px"><span class="chip s-${n.verification}">${esc(n.verification)}</span>
-    <span class="chip s-${n.approval}">${esc(n.approval)}${n.approvedBy ? " by " + esc(n.approvedBy) : ""}</span></div>
-    <p class="lead">${esc(n.statement)}</p>`;
+    <div class="chips" style="margin-top:6px">${chips(n)}</div>
+    <p class="lead">${esc(n.statement)}</p>
+    <div class="why"><div class="label">why (the agent's reason for this node)</div>${esc(n.why)}</div>
+    <h3>Decision</h3>${decisionBox(n)}
+    ${examplesTable(n)}`;
 
   if (!parent) {
-    h += `<h3>Root</h3><div class="link-box"><div class="muted">The idea stated as a theorem. Every other node is proven to imply it.</div>
-      ${code("spec", n.sources.spec)}</div>`;
+    h += `<h3>Root</h3><div class="box"><div class="muted">The idea stated as a theorem. Every node below is proven to imply it.</div>${code("spec", n.sources.spec)}</div>`;
   } else {
-    h += `<h3>Link to parent</h3><div class="link-box ${ls}">
+    h += `<h3>Link to parent</h3><div class="box ${ls}">
       <div class="verdict ${ls}">${verdict(n)}</div>
-      <div class="side"><div class="label">parent <b><a href="#" data-goto="${esc(parent.id)}">${esc(parent.id)}</a></b> (${esc(parent.kind)})</div>
+      <div class="side"><div class="label">parent <b><a data-goto="${esc(parent.id)}">${esc(parent.id)}</a></b> (${esc(parent.kind)})</div>
         <div style="margin-top:2px">${esc(parent.statement)}</div>
-        ${parent.sources.spec ? `<pre>${esc(parent.sources.spec)}</pre>` : parent.kind === "instantiate" ? `<div class="muted" style="font-size:12px">its spec is its parent's, instantiated</div>` : ""}</div>
+        ${parent.sources.spec ? `<pre>${esc(parent.sources.spec)}</pre>` : parent.kind === "instantiate" ? `<div class="muted small">its spec is its parent's, instantiated</div>` : ""}</div>
       <div class="side"><div class="label">this node <b>${esc(n.id)}</b></div>${modelOf(n)}</div>
       ${n.obligation ? `<div class="side"><div class="label">obligation — ${esc(n.obligation.description)}</div><pre>${esc(n.obligation.statement)}</pre></div>` : ""}
       ${n.proof ? `<details><summary>authored proof — ${esc(n.proof.file)}</summary><pre>${esc(n.proof.source)}</pre></details>` : ""}
     </div>`;
   }
-
-  const allProven = path.slice(1).every(p => linkStatus(p) === "proven");
-  h += `<h3>Root theorem</h3><div class="muted" style="font-size:13px">${
-    n.verification === "proven" ? "Holds: every link from the root to this node is proven, and the theorem builds."
-    : allProven && path.length > 1 ? "Every link on the path is proven; the node itself is " + esc(n.verification) + "."
-    : "Holds once every link on the path is proven."}</div>
-    <div class="chain">${path.map((p, i) => (i ? `<span class="arrow ${linkStatus(p)}" title="${esc(linkStatus(p))}">${linkStatus(p) === "proven" ? "⟵✓" : "⟵?"}</span>` : "") +
+  h += `<h3>Root theorem</h3><div class="muted small">${n.verification === "proven" ? "Holds: every link from the root to this node is proven."
+      : "Holds once every link on the path is proven."}</div>
+    <div class="chain">${path.map((p, i) => (i ? `<span class="arrow ${linkStatus(p)}">${linkStatus(p) === "proven" ? "⟵✓" : "⟵?"}</span>` : "") +
       `<a data-goto="${esc(p.id)}">${esc(p.id)}</a>`).join("")}</div>
     <pre>${esc(n.rootTheorem)}</pre>`;
-
-  if (n.axioms.length) h += `<h3>Axioms</h3><div class="chips">${n.axioms.map(a => `<span class="chip s-not-checked mono">${esc(a)}</span>`).join("")}</div>`;
   if (n.messages.length) h += `<h3>Messages</h3><pre>${esc(n.messages.join("\n\n"))}</pre>`;
-
-  h += `<div class="actions">
-    <button class="btn" data-run="check" data-arg="${esc(n.id)}">Check this node</button>
-    ${ls === "open" && !n.proof && n.obligation ? `<button class="btn" data-run="scaffold" data-arg="${esc(n.id)}">Create proof file</button>` : ""}
-    <span class="spacer"></span>
-    <input type="text" id="approver" placeholder="your name" value="${esc(store.get("frflow.approver") || "")}" size="10" aria-label="Approver">
-    <button class="btn" id="approve" ${n.approval === "approved" ? "disabled" : ""}>Approve</button>
-  </div>`;
-  h += `<details><summary>Generated Lean</summary><pre>${esc(n.lean)}</pre></details>`;
-  if (evs.length) h += `<h3>Recent</h3>${evs.map(eventRow).join("")}`;
+  h += `<h3>Ask the agent</h3>${requestsFor(n.id)}
+    ${askBox(n.id, n.kind === "contract" ? "e.g. Add an example: a revoked grant refuses access." : "e.g. Propose how to refine this: tokens expire after an hour.")}
+    <div class="actions">
+      <button class="btn small" data-run="check" data-arg="${esc(n.id)}">Check this node</button>
+      ${ls === "open" && !n.proof && n.obligation ? `<button class="btn small" data-run="scaffold" data-arg="${esc(n.id)}">Create proof file</button>` : ""}
+    </div>
+    <details><summary>Generated Lean</summary><pre>${esc(n.lean)}</pre></details>
+    ${n.axioms.length ? `<details><summary>Axioms</summary><pre>${esc(n.axioms.join("\n"))}</pre></details>` : ""}`;
   return h;
+}
+
+function inboxPane() {
+  const w = waitingForYou();
+  const answered = requests().filter(r => r.status === "answered");
+  const open = openRequests();
+  const rejected = all().filter(n => n.decision === "rejected");
+  return `<h3 style="margin-top:0">Waiting for your decision</h3>${w.length ? w.map(n =>
+      `<div class="req"><a data-goto="${esc(n.id)}"><b>${esc(n.id)}</b></a> <span class="chip s-${n.decision}">${esc(decisionLabel[n.decision])}</span>
+       <div class="small">${esc(n.statement)}</div></div>`).join("") : `<div class="muted small">Nothing. Every node is accepted.</div>`}
+    <h3>Answered by the agent</h3>${answered.length ? answered.map(r => `<div class="req"><div class="small">on ${r.node ? `<a data-goto="${esc(r.node)}">${esc(r.node)}</a>` : "the idea"}</div>
+      <div>${esc(r.text)}</div><div class="answer small"><span class="muted">agent:</span> ${esc(r.answer)}</div>
+      <div class="actions"><button class="btn small" data-close="${esc(r.id)}">Done</button></div></div>`).join("") : `<div class="muted small">None.</div>`}
+    <h3>Waiting for the agent</h3>${open.length ? open.map(r => `<div class="req"><div class="small">on ${r.node ? `<a data-goto="${esc(r.node)}">${esc(r.node)}</a>` : "the idea"} · ${esc(r.by)}</div><div>${esc(r.text)}</div></div>`).join("") : `<div class="muted small">None.</div>`}
+    ${rejected.length ? `<div class="muted small" style="margin-top:8px">${rejected.length} rejected node(s) still in the Scala model; the agent removes them.</div>` : ""}
+    <h3>Ask about the whole idea</h3>${askBox("", "e.g. Propose a second root: users can always find the records they may see.")}`;
 }
 
 function markdown(src) {
@@ -436,26 +587,33 @@ function markdown(src) {
 
 function ideaPane() {
   const s = snap();
-  return `<div class="muted" style="font-size:12px">IDEA.md — the root, <a href="#" data-goto="${esc(s.root)}">${esc(s.root)}</a>, states it as a theorem.</div>
-    <div class="md">${markdown(s.idea || "*No idea file.*")}</div>`;
+  if (state.editingIdea) return `<div class="muted small">IDEA.md. Saving renders again; every root is then re-checked against the new idea, and its decision must be confirmed.</div>
+    <textarea id="ideaText" rows="22" class="mono">${esc(s?.idea || "")}</textarea>
+    <div class="actions"><button class="btn small primary" id="saveIdea">Save and render</button><button class="btn small" id="cancelIdea">Cancel</button></div>`;
+  const roots = live().filter(n => !n.parent);
+  return `<div class="actions" style="margin-top:0"><span class="muted small">Roots: ${roots.map(r => `<a data-goto="${esc(r.id)}">${esc(r.id)}</a>`).join(", ") || "none"}</span>
+      <span class="spacer"></span><button class="btn small" id="editIdea">Edit</button></div>
+    <div class="md">${markdown(s?.idea || "*No idea file.*")}</div>
+    <div class="muted small">List what the tree deliberately leaves out under a “Not modelled” heading, so the limits of the theory are explicit.</div>`;
 }
 
 function domainPane() {
   const s = snap();
-  return `<h3 style="margin-top:0">Opaque types</h3><div class="muted" style="font-size:13px">Types with no assumed structure; type parameters in Lean.</div>
+  return `<h3 style="margin-top:0">Opaque types</h3><div class="muted small">Types with no assumed structure; type parameters in Lean.</div>
     <div class="chips" style="margin-top:6px">${s.opaques.map(o => `<span class="chip s-not-checked mono">${esc(o)}</span>`).join("") || "<span class='muted'>none</span>"}</div>
-    <h3>Parameters</h3><div class="muted" style="font-size:13px">Values left open: everything proven holds for every value of them.</div>
-    <table><tr><th>name</th><th>Lean type</th><th>assumption</th></tr>${s.params.map(p =>
-      `<tr><td class="mono">${esc(p.name)}</td><td class="mono">${esc(p.type)}</td><td class="mono">${esc(p.assumption ?? "—")}</td></tr>`).join("")}</table>
+    <h3>Parameters</h3><div class="muted small">Values left open: everything proven holds for every value of them.</div>
+    <table><tr><th>name</th><th>Lean type</th></tr>${s.params.map(p =>
+      `<tr><td class="mono">${esc(p.name)}</td><td class="mono">${esc(p.type)}</td></tr>`).join("")}</table>
     <h3>Domain types</h3>${s.types.map(t => `<pre>${esc(t.lean)}</pre>`).join("") || "<span class='muted'>none</span>"}
     <h3>Definitions</h3>${s.defs.map(d => `<div class="side"><div class="label"><b>${esc(d.name)}</b></div><pre>${esc(d.source)}</pre></div>`).join("") || "<span class='muted'>none</span>"}`;
 }
 
 function eventRow(e) {
-  const extra = e.status ? ` → <span class="chip s-${esc(e.status)}">${esc(e.status)}</span>` : e.by ? ` by ${esc(e.by)}` : e.changed !== undefined ? ` (${esc(e.changed)} files changed)` : "";
-  const dot = e.status || e.action;
-  const target = e.action === "render" ? "" : ` <a href="#" data-goto="${esc(e.node)}">${esc(e.node)}</a>`;
-  return `<div class="event"><span class="d ${esc(dot)}"></span><div><b>${esc(e.action)}</b>${target}${extra}
+  const extra = e.status ? ` → <span class="chip s-${esc(e.status)}">${esc(e.status)}</span>`
+    : e.action === "accept" ? ` by ${esc(e.by)}${(e.rejected || []).length ? `, rejecting ${esc(e.rejected.join(", "))}` : ""}${e.note ? ` — “${esc(e.note)}”` : ""}`
+    : e.changed !== undefined ? ` (${esc(e.changed)} files changed)` : "";
+  const target = e.node ? ` <a data-goto="${esc(e.node)}">${esc(e.node)}</a>` : "";
+  return `<div class="event"><span class="d ${esc(e.status || e.action)}"></span><div><b>${esc(e.action)}</b>${target}${extra}
     <div class="when">${new Date(e.at).toLocaleString()}${e.actor ? " · " + esc(e.actor) : ""}</div></div></div>`;
 }
 
@@ -469,27 +627,58 @@ function historyPane() {
 async function run(args) {
   try {
     state.jobOpen = true;
-    state.job = await api(`/api/p/${encodeURIComponent(state.project)}/run`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ args }) });
+    state.job = await post(`${P()}/run`, { args });
     render();
   } catch (e) { alert(e.message); }
 }
 
-document.addEventListener("click", e => {
-  const go = e.target.closest("[data-goto]");
+function needName() {
+  if (me()) return me();
+  const w = document.querySelector(".who")?.value.trim();
+  if (w) { $("#me").value = w; store.set("frflow.me", w); return w; }
+  $("#me").focus(); alert("Enter your name at the top right: it is recorded with your decisions and requests.");
+  return null;
+}
+
+document.addEventListener("click", async e => {
+  const t = e.target;
+  const go = t.closest("[data-goto]");
   if (go) { e.preventDefault(); state.selected = go.dataset.goto; state.tab = "node"; render(); return; }
-  const card = e.target.closest(".card");
+  const card = t.closest(".card");
   if (card) { state.selected = card.dataset.node; state.tab = "node"; render(); return; }
-  const r = e.target.closest("[data-run]");
+  const r = t.closest("[data-run]");
   if (r) { run([r.dataset.run, ...(r.dataset.arg ? [r.dataset.arg] : [])]); return; }
-  const tab = e.target.closest(".tab");
+  const tab = t.closest(".tab");
   if (tab) { state.tab = tab.dataset.tab; renderPane(); return; }
-  if (e.target.id === "approve") {
-    const who = $("#approver").value.trim();
-    if (!who) { $("#approver").focus(); return; }
-    store.set("frflow.approver", who);
-    run(["approve", state.selected, "--by", who]);
+  const acc = t.closest("[data-accept]");
+  if (acc) {
+    const who = needName(); if (!who) return;
+    const n = byId(acc.dataset.accept);
+    const note = acc.dataset.keepnote ? (n.decided?.note || "") : ($("#note")?.value.trim() || "");
+    const args = ["accept", acc.dataset.accept, "--by", who];
+    if (note) args.push("--note", note);
+    if (acc.dataset.reject) args.push("--reject", acc.dataset.reject);
+    state.selected = acc.dataset.accept;
+    run(args); return;
   }
+  const ask = t.closest("[data-ask]");
+  if (ask) {
+    const who = needName(); if (!who) return;
+    const text = $("#ask").value.trim(); if (!text) { $("#ask").focus(); return; }
+    try { await post(`${P()}/requests`, { node: ask.dataset.ask, text, by: who }); $("#ask").value = ""; refresh(); } catch (err) { alert(err.message); }
+    return;
+  }
+  const close = t.closest("[data-close]");
+  if (close) { try { await post(`${P()}/requests/${encodeURIComponent(close.dataset.close)}`, { status: "closed" }); refresh(); } catch (err) { alert(err.message); } return; }
+  if (t.id === "editIdea") { state.editingIdea = true; renderPane(); return; }
+  if (t.id === "cancelIdea") { state.editingIdea = false; renderPane(); return; }
+  if (t.id === "saveIdea") {
+    try { state.jobOpen = true; state.job = await post(`${P()}/idea`, { text: $("#ideaText").value }); state.editingIdea = false; render(); } catch (err) { alert(err.message); }
+    return;
+  }
+  if (t.id === "waitingPill") { const n = firstWaiting(); if (n) { state.selected = n.id; state.tab = "node"; render(); } }
 });
+$("#me").addEventListener("change", e => store.set("frflow.me", e.target.value.trim()));
 $("#jobClose").onclick = () => { state.jobOpen = false; renderJob(); };
 $("#project").onchange = e => { state.project = e.target.value; store.set("frflow.project", state.project); state.selected = null; state.jobOpen = false; refresh(); };
 

@@ -73,7 +73,11 @@ object Lean:
   val forbidden: List[(String, Regex)] = List(
     "axiom" -> """\baxiom\b""".r, "admit" -> """\badmit\b""".r, "unsafe" -> """\bunsafe\b""".r,
     "opaque" -> """\bopaque\b""".r, "implemented_by" -> """\bimplemented_by\b""".r, "extern" -> """@\[\s*extern\b""".r,
-    "native_decide" -> """\bnative_decide\b""".r, "debug option" -> """set_option\s+debug\.""".r
+    "native_decide" -> """\bnative_decide\b""".r,
+    "set_option" -> """\bset_option\s+(?!maxHeartbeats\b|maxRecDepth\b|autoImplicit\b|linter\.)""".r,
+    "metaprogram" -> """(#eval|#exit|\brun_cmd\b|\brun_tac\b|\belab\b|\bmacro\b|\bmacro_rules\b|\bsyntax\b|\binitialize\b|\bbuiltin_initialize\b|\belab_rules\b)""".r,
+    "attribute" -> """\battribute\b""".r,
+    "import" -> """^\s*import\s+(?!FrFlowGen\.|FrFlow\b|Std\b|Init\b)""".r
   )
 
   /** Comments and strings replaced by spaces, keeping lines. */

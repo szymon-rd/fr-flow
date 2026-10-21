@@ -1,10 +1,35 @@
 {
   "nodes": {
     "Authenticated": {
+      "decision": {
+        "hash": "f8c29a0786f68ee99e53d3c30d8693f1b21c1e8ebcaa3e0b2565f290102e51c4",
+        "chain": "a502ebb864bc5d22e563545354a39de6e85078f43aa3f378c09aa800f02ca330",
+        "by": "demo",
+        "at": "2026-10-21T20:07:08.126287179Z",
+        "note": "The idea says users identify themselves with tokens; a client's own claim is not proof.",
+        "rejected": [
+          {
+            "id": "ClientAsserted",
+            "hash": "cb211fa2b4be4c2bcfea3faaabdbb585becd76a68f0f614943c05d3aae6b5a27",
+            "statement": "A request names its user, and is granted when that user is authorized.",
+            "why": "Simplest: the client says who it is. abs is the identity. It trusts the client's claim about its identity."
+          }
+        ],
+        "content": {
+          "statement": "A request is granted on behalf of a user only if its token belongs to that user and the user is authorized.",
+          "why": "Users identify themselves with tokens they receive at login, so a decision sees a token, not a user. abs: a user is allowed a resource when some token of theirs is granted it.",
+          "sources": {
+            "spec": "decide => forall((t: Token.T, r: Resource.T) => decide(t, r).forall(u => holder(t) == Some(u) && authorized(u, r)))",
+            "abs": "decide => (u, r) => exists((t: Token.T) => decide(t, r) == Some(u))"
+          },
+          "substitutions": [],
+          "examples": []
+        }
+      },
       "check": {
-        "hash": "1d9d4fd12eaea23949b63590a675aeef5630353ec9f4d7bb3ce09b0319797b1f",
+        "hash": "69631f624ed3abfdca9e1b9113df47aa1b79bdf67f0b26446fa901a93a17508e",
         "status": "proven",
-        "at": "2026-10-21T18:10:53.197470553Z",
+        "at": "2026-10-21T20:05:55.023685335Z",
         "obligations": [
           {
             "name": "link",
@@ -20,11 +45,52 @@
         ]
       }
     },
-    "DecisionContract": {
+    "ClientAsserted": {
       "check": {
-        "hash": "bae3c744867822e1081ef54e8596b44b11499a1125f2256655a177b5a0095f22",
+        "hash": "f6d10bd40b885fc2e4707bd8ed7cad68f94c55eb5fd47e9050469c517c55a738",
         "status": "proven",
-        "at": "2026-10-21T18:10:59.715845465Z",
+        "at": "2026-10-21T20:05:58.763646328Z",
+        "obligations": [
+          {
+            "name": "link",
+            "status": "proven",
+            "detail": "auto"
+          }
+        ],
+        "messages": [],
+        "axioms": [
+          "Quot.sound",
+          "propext"
+        ]
+      }
+    },
+    "DecisionContract": {
+      "decision": {
+        "hash": "69ff11a23bdf636d9de74ced0543bee4ad06f2b207c93db48abd1053b64a730c",
+        "chain": "3d29446b1b96637a9950c06e0f97ad526cce0ef28c55bea70e27c66790c93b1e",
+        "by": "demo",
+        "at": "2026-10-21T20:07:19.755976153Z",
+        "note": "Checked on every call; the examples show it grants and refuses as intended.",
+        "rejected": [],
+        "content": {
+          "statement": "A decision names the user its token belongs to, and only when a grant covers the path.",
+          "why": "GrantBased, stated for one call, so every result of the running system can be checked.",
+          "sources": {
+            "post": "(token, path, decision) => decision.forall(u => sessions(token) == Some(u) && grants.value.contains(Grant(u, path)))"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (\"t1\", Path(\"/a\")) ⇒ Some(UserId(\"alice\"))  given grants.bind(List(Grant(UserId(\"alice\"), Path(\"/a\")))), sessions.bind(Map(\"t1\" -> UserId(\"alice\")).get)  — Alice's token and a grant for /a: she gets in",
+            "expect (\"t1\", Path(\"/b\")) ⇒ None  given grants.bind(List(Grant(UserId(\"alice\"), Path(\"/a\")))), sessions.bind(Map(\"t1\" -> UserId(\"alice\")).get)  — no grant for /b: refused",
+            "reject (\"t1\", Path(\"/b\")) ⇒ Some(UserId(\"alice\"))  given grants.bind(List(Grant(UserId(\"alice\"), Path(\"/a\")))), sessions.bind(Map(\"t1\" -> UserId(\"alice\")).get)  — access without a grant is never given",
+            "reject (\"t2\", Path(\"/a\")) ⇒ Some(UserId(\"alice\"))  given grants.bind(List(Grant(UserId(\"alice\"), Path(\"/a\")))), sessions.bind(Map(\"t1\" -> UserId(\"alice\")).get)  — a token that is not Alice's never acts for her"
+          ]
+        }
+      },
+      "check": {
+        "hash": "3cd88d55b9c552e3072b75a9f6d0c4f095f63854e1c002901c48170e26c1e157",
+        "status": "proven",
+        "at": "2026-10-21T20:06:04.879348480Z",
         "obligations": [
           {
             "name": "link",
@@ -41,10 +107,31 @@
       }
     },
     "GrantBased": {
+      "decision": {
+        "hash": "72d156b0de63df01d5610df14b09e37c8b1524295e7e133d0c6d54dd440ca42d",
+        "chain": "02ffe56c3d2a72fe6eed79e8ff01e4a020bd0ae120b3f87c7429428196b2a35b",
+        "by": "demo",
+        "at": "2026-10-21T20:06:26.349219733Z",
+        "note": "Exactly the grant table the idea describes.",
+        "rejected": [],
+        "content": {
+          "statement": "Users are ids, resources are paths, tokens are strings, and a user is authorized for a path when a grant names both.",
+          "why": "The idea defines authorization as a table of grants. The token's holder is whatever the session table says; issuing tokens is not modelled.",
+          "sources": {},
+          "substitutions": [
+            "User := UserId",
+            "Resource := Path",
+            "Token := String",
+            "authorized := (u: UserId, p: Path) => grants.value.contains(Grant(u, p))",
+            "holder := (t: String) => sessions(t)"
+          ],
+          "examples": []
+        }
+      },
       "check": {
-        "hash": "370fbe04c0b56eaad560f9338b1414bb73a29e91ed6e21b7e15916fba7c3cd6b",
+        "hash": "999af71572fabd7e5dc8be9d9ab233e42d4030ff6ee621bd6e8e85e61128890c",
         "status": "proven",
-        "at": "2026-10-21T18:10:55.569005369Z",
+        "at": "2026-10-21T20:06:00.576906176Z",
         "obligations": [],
         "messages": [],
         "axioms": [
@@ -55,10 +142,27 @@
       }
     },
     "NoUnauthorizedAccess": {
+      "decision": {
+        "hash": "30755c2da7bc32463e23076bab3ef075341229584ccfc876de1d4f426807f1ec",
+        "chain": "",
+        "by": "demo",
+        "at": "2026-10-21T20:06:15.222196882Z",
+        "note": "This is the sentence of the idea that must never be broken.",
+        "rejected": [],
+        "content": {
+          "statement": "A user is never granted access to a resource they are not authorized to access.",
+          "why": "This is the one thing the idea says must never happen. What 'authorized' means is left open: the idea only fixes it later, as grants.",
+          "sources": {
+            "spec": "allows => forall((u: User.T, r: Resource.T) => allows(u, r) ==> authorized(u, r))"
+          },
+          "substitutions": [],
+          "examples": []
+        }
+      },
       "check": {
-        "hash": "075988f9814056a63755a2e730d2b2ccfc83d3375ece3d5a63bc83b25a76709f",
+        "hash": "22d5dbaec0a2e8926a205d859ed659f13be53832ade13514a9b1e5ee61bd224b",
         "status": "proven",
-        "at": "2026-10-21T18:10:49.120193733Z",
+        "at": "2026-10-21T20:05:50.970057173Z",
         "obligations": [],
         "messages": [],
         "axioms": []

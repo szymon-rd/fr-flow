@@ -27,8 +27,8 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-# CLI commands, and whether they may be run by an agent. `approve` is the developer's.
-COMMANDS = {"render": True, "check": True, "status": True, "context": True, "scaffold": True, "approve": False}
+# CLI commands, and whether they may be run by an agent. Deciding (`accept`) is the developer's.
+COMMANDS = {"render": True, "check": True, "status": True, "context": True, "scaffold": True, "accept": False}
 
 _NOISE = re.compile(
     r"^(Picked up JAVA_TOOL_OPTIONS|\[info\] (welcome to sbt|loading |set current project|running \(fork\)|compiling |done compiling)"
@@ -53,7 +53,7 @@ def clean_output(text: str) -> str:
 
 def quote(arg: str) -> str:
     """An argument as sbt's input parser reads it."""
-    if arg and not re.search(r'[\s"\\]', arg):
+    if arg and not re.search(r'[\s"\\;]', arg):
         return arg
     return '"' + arg.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
@@ -92,6 +92,50 @@ class Project:
     @property
     def running_file(self) -> Path:
         return self.state / "running.json"
+
+    @property
+    def requests_file(self) -> Path:
+        return self.state / "requests.json"
+
+    @property
+    def idea_file(self) -> Path:
+        return self.root / self.config.get("idea", "IDEA.md")
+
+    # -- requests: what the developer asks the agent for -----------------------
+
+    def requests(self) -> list[dict]:
+        try:
+            return json.loads(self.requests_file.read_text())
+        except (FileNotFoundError, json.JSONDecodeError):
+            return []
+
+    def _update_requests(self, change) -> dict:
+        self.state.mkdir(parents=True, exist_ok=True)
+        with open(self.state / "requests.lock", "w") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            reqs = self.requests()
+            out = change(reqs)
+            tmp = self.requests_file.with_suffix(".tmp")
+            tmp.write_text(json.dumps(reqs, indent=2))
+            tmp.replace(self.requests_file)
+        return out
+
+    def add_request(self, node: str, text: str, by: str) -> dict:
+        def add(reqs: list[dict]) -> dict:
+            r = {"id": f"R{len(reqs) + 1}", "node": node, "text": text, "by": by,
+                 "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "status": "open", "answer": ""}
+            reqs.append(r)
+            return r
+        return self._update_requests(add)
+
+    def answer_request(self, rid: str, answer: str, status: str = "answered") -> dict:
+        def upd(reqs: list[dict]) -> dict:
+            for r in reqs:
+                if r["id"] == rid:
+                    r["status"], r["answer"] = status, answer
+                    return r
+            raise KeyError(f"unknown request {rid}")
+        return self._update_requests(upd)
 
     def snapshot(self) -> dict | None:
         try:
@@ -141,7 +185,7 @@ class Project:
     def version(self) -> str:
         """Changes whenever anything the browser shows changes."""
         parts = []
-        for f in [self.snapshot_file, self.events_file, self.running_file, *self.source_files()]:
+        for f in [self.snapshot_file, self.events_file, self.running_file, self.requests_file, *self.source_files()]:
             try:
                 st = f.stat()
                 parts.append(f"{f}:{st.st_mtime_ns}:{st.st_size}")
@@ -190,13 +234,25 @@ def node_tree(snapshot: dict) -> str:
     def go(n: dict, depth: int) -> None:
         link = n.get("link")
         edge = "" if link is None else f"link {link['status']}{' (' + link['detail'] + ')' if link.get('detail') else ''}, "
-        lines.append(f"{'  ' * depth}{n['id']} ({n['kind']})  [{edge}{n['verification']}, {n['approval']}]")
+        ex = n.get("examples") or []
+        bad = [e for e in ex if e["contract"] != "ok" or e.get("implementation") not in (None, "ok")]
+        exs = f", examples {len(ex) - len(bad)}/{len(ex)}" if ex else ""
+        lines.append(f"{'  ' * depth}{n['id']} ({n['kind']})  [{n['decision']}, {edge}{n['verification']}{exs}]")
         for c in children.get(n["id"], []):
             go(c, depth + 1)
 
     for r in children.get(None, []):
         go(r, 0)
     return "\n".join(lines)
+
+
+def waiting(snapshot: dict) -> dict[str, list[str]]:
+    """What waits on whom: decisions for the developer, clean-up for the agent."""
+    nodes = snapshot.get("nodes", [])
+    return {
+        "developer": [f"{n['id']}: {n['decision']}" for n in nodes if n["decision"] in ("proposed", "changed", "parent-changed")],
+        "agent": [f"{n['id']}: rejected; remove it from the Scala model" for n in nodes if n["decision"] == "rejected"],
+    }
 
 
 def find_projects(paths: list[str]) -> list[Project]:

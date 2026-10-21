@@ -11,26 +11,26 @@ namespace Crm.ReadContract
 
 /-! # ReadContract
 
-A search returns only records of the user's company or shared with it.
+A search returns stored records only, each of the user's company or shared with it.
 -/
 
-@[frflow_defs] def post (shares : (List Share)) : Account → Search → (List CrmRecord) → Prop :=
-  fun (user : Account) (query : Search) (result : (List CrmRecord)) => (∀ r ∈ result, ((r.tenant = user.tenant) ∨ ((Share.mk r.id user.tenant) ∈ shares)))
+@[frflow_defs] def post (store : (List CrmRecord)) (shares : (List Share)) : Account → Search → (List CrmRecord) → Prop :=
+  fun (user : Account) (query : Search) (result : (List CrmRecord)) => (∀ r ∈ result, ((r ∈ store) ∧ ((r.tenant = user.tenant) ∨ ((Share.mk r.id user.tenant) ∈ shares))))
 
-@[frflow_defs] def spec (shares : (List Share)) : (Account → Search → (List CrmRecord)) → Prop :=
-  fun (f : Account → Search → (List CrmRecord)) => ∀ (x0 : Account) (x1 : Search), post shares x0 x1 (f x0 x1)
+@[frflow_defs] def spec (store : (List CrmRecord)) (shares : (List Share)) : (Account → Search → (List CrmRecord)) → Prop :=
+  fun (f : Account → Search → (List CrmRecord)) => ∀ (x0 : Account) (x1 : Search), post store shares x0 x1 (f x0 x1)
 
-@[frflow_defs] def toRoot (shares : (List Share)) :=
+@[frflow_defs] def toRoot (store : (List CrmRecord)) (shares : (List Share)) :=
   fun (m : Account → Search → (List CrmRecord)) => (Crm.Accounts.toRoot shares) m
 
-@[frflow_defs] def rootSpec (shares : (List Share)) :=
+@[frflow_defs] def rootSpec (store : (List CrmRecord)) (shares : (List Share)) :=
   (Crm.Accounts.rootSpec shares)
 
 namespace Obl
 
 /-- Every model that meets ReadContract meets Accounts. -/
 @[frflow_defs] def link : Prop :=
-  ∀ (shares : (List Share)), ∀ (m : Account → Search → (List CrmRecord)), spec shares m → Crm.Accounts.spec shares m
+  ∀ (store : (List CrmRecord)) (shares : (List Share)), ∀ (m : Account → Search → (List CrmRecord)), spec store shares m → Crm.Accounts.spec shares m
 
 end Obl
 

@@ -26,6 +26,11 @@ class AuthSuite extends munit.FunSuite:
     intercept[ContractViolation](decide("t-1", Path("/admin")))
   }
 
+  test("the examples pass against the contract and the implementation") {
+    assert(knowledge.exampleResults(decisionContract).forall(r => r.contract == "ok" && r.implementation.contains("ok")),
+      knowledge.exampleResults(decisionContract))
+  }
+
   test("the knowledge base is proven, from the root to the contract") {
     val lake = Lake(Paths.get("."))
     assume(lake.available, "lake is not available")

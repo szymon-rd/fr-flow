@@ -25,6 +25,13 @@ private[frflow] object Lift:
 
   def leanType[T: Type](using Quotes): Expr[LeanType] = Translator().leanType[T]
 
+  def sources(xs: Expr[Seq[Any]])(using Quotes): Expr[List[String]] =
+    import quotes.reflect.*
+    def text(e: Expr[Any]) = e.asTerm.pos.sourceCode.getOrElse(e.show)
+    xs match
+      case Varargs(es) => Expr(es.map(text).toList)
+      case other       => Expr(List(text(other)))
+
 private final class Translator(using val quotes: Quotes):
   import quotes.reflect.*
 
@@ -388,10 +395,13 @@ private final class Translator(using val quotes: Quotes):
 
   private def builtin(q: Term, qt: TypeRepr, name: String, args: List[Term], env: Env): Option[String] =
     def e(x: Term) = expr(x, env)
-    def lam(f: Term): (String, String) = strip(f) match
-      case Lambda(List(v), b) => (ident(v.name), expr(b, env + (v.symbol -> ident(v.name))))
-      case other              => ("x", s"${e(other)} x")
     lazy val r = e(q)
+    // A binder must not capture a variable of the receiver: `∀ x ∈ r, b` puts `r` in scope of `x`.
+    def free(x: String) = !(s"(?<![\\w'.])${java.util.regex.Pattern.quote(x)}(?![\\w'])").r.findFirstIn(r).isDefined
+    def fresh(x: String) = (Iterator(x) ++ Iterator.from(1).map(i => s"${x}_$i")).find(free).get
+    def lam(f: Term): (String, String) = strip(f) match
+      case Lambda(List(v), b) => val x = fresh(ident(v.name)); (x, expr(b, env + (v.symbol -> x)))
+      case other              => val x = fresh("x"); (x, s"${e(other)} $x")
     def bin(op: String) = Some(p(s"$r $op ${e(args.head)}"))
     (name, args.size) match
       case ("&&", 1) if qt =:= TypeRepr.of[Boolean]      => bin("∧")

@@ -11,11 +11,11 @@ open Classical
 namespace Crm.ReadContract
 
 /-- Every model that meets ReadContract meets Accounts. -/
-theorem link (shares : (List Share)) : ∀ (m : Account → Search → (List CrmRecord)), (spec shares) m → (Crm.Accounts.spec shares) m :=
-  Crm.ReadContract.Auto.link shares
+theorem link (store : (List CrmRecord)) (shares : (List Share)) : ∀ (m : Account → Search → (List CrmRecord)), (spec store shares) m → (Crm.Accounts.spec shares) m :=
+  Crm.ReadContract.Auto.link store shares
 
 /-- The root theorem holds for every model of ReadContract: A user sees a record only if it belongs to their company or was shared with their company. -/
-theorem root (shares : (List Share)) : ∀ (m : Account → Search → (List CrmRecord)), (spec shares) m → (rootSpec shares) ((toRoot shares) m) :=
-  fun m h => (Crm.Accounts.root shares) m ((link shares) m h)
+theorem root (store : (List CrmRecord)) (shares : (List Share)) : ∀ (m : Account → Search → (List CrmRecord)), (spec store shares) m → (rootSpec store shares) ((toRoot store shares) m) :=
+  fun m h => (Crm.Accounts.root shares) m ((link store shares) m h)
 
 end Crm.ReadContract

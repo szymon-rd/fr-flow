@@ -20,13 +20,10 @@ final class Opaque(val name: String):
   * val authorized = Param[(User.T, Resource.T) => Boolean]("authorized")
   * }}}
   */
-final class Param[A](val name: String, val assumption: Option[Lifted[A => Boolean]] = None):
+final class Param[A](val name: String):
 
   /** The value bound at run time (see `Node.enforce`). */
   def value: A = Bindings.get(this)
-
-  /** States what is assumed of this parameter; it becomes a hypothesis of every theorem that uses it. */
-  inline def assuming(inline p: A => Boolean): Param[A] = Param(name, Some(Lifted(p)))
 
   /** Gives this parameter a definition, in `instantiate`. */
   inline def :=[B](inline v: B): Subst = Subst.param(name, Lifted(v))
@@ -100,6 +97,9 @@ final class Lifted[+F](
 object Lifted:
   /** Translates a Scala lambda over the domain. Unsupported Scala is a compile error. */
   inline def apply[F](inline f: F): Lifted[F] = ${ Lift.lifted('f) }
+
+  /** The source text of each argument (used for what examples are given). */
+  inline def sources(inline xs: Any*): List[String] = ${ Lift.sources('xs) }
 
 /** A named function of the domain, defined once in Scala: it becomes a Lean
   * definition, can be called from other definitions and nodes, and runs as Scala.

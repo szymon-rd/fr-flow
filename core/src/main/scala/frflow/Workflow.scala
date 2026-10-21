@@ -11,7 +11,7 @@ import scala.jdk.CollectionConverters.*
   * {{{
   * <root>/IDEA.md               the developer's idea (the project's `idea` file)
   * <root>/lean/                 Lean workspace: FrFlowGen/ (generated), Proofs/ (authored)
-  * <root>/.frflow/ledger.json   approvals and check results
+  * <root>/.frflow/ledger.json   decisions and check results
   * }}}
   *
   * @param kernelPath path of the FrFlow Lean kernel, relative to `lean/`
@@ -21,8 +21,9 @@ final case class Workspace(root: Path, kernelPath: String):
   def ledgerFile: Path = root.resolve(".frflow/ledger.json")
   def snapshotFile: Path = root.resolve(".frflow/kb.json")
   def eventsFile: Path = root.resolve(".frflow/events.jsonl")
+  def requestsFile: Path = root.resolve(".frflow/requests.json")
 
-/** The FrFlow workflow on one knowledge base: render, check, approve, report. */
+/** The FrFlow workflow on one knowledge base: render, check, decide, report. */
 final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
 
   private def read(p: Path): Option[String] = if Files.isRegularFile(p) then Some(Files.readString(p, UTF_8)) else None
@@ -57,7 +58,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     changed
 
   // ---------------------------------------------------------------------------
-  // Hashes: what the developer approves, and what a check depends on
+  // Hashes: what the developer decides, and what a check depends on
   // ---------------------------------------------------------------------------
 
   private lazy val kernelHash: String =
@@ -65,11 +66,15 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val files = if Files.isDirectory(dir) then Files.list(dir).iterator.asScala.toList.sortBy(_.toString) else Nil
     sha(files.flatMap(read)*)
 
-  /** What the developer reviews: statement, Scala sources, the Lean they become, and the idea for the root. */
+  /** What the developer decides: statement, reason, Scala sources, examples, the Lean they become, and the idea for a root. */
   def specHash(n: Node[?]): String =
     val g = generate
-    sha((Seq(n.id, n.statement, g.spec(n)) ++ g.declarationsUsedBy(n) ++ n.lifted.map(_.source) ++ n.substs.map(s => s"${s.name}:=${s.lean}") ++
+    sha((Seq(n.id, n.statement, n.why, g.spec(n)) ++ g.declarationsUsedBy(n) ++ n.lifted.map(_.source) ++
+      n.substs.map(s => s"${s.name}:=${s.lean}") ++ n.cases.map(_.describe) ++
       (if n.kind == NodeKind.Root then Seq(idea) else Nil))*)
+
+  /** The decided state of a node and its ancestors: a change anywhere above shows below. */
+  def chainHash(n: Node[?]): String = sha(specHash(n), n.parent.fold("")(chainHash))
 
   def checkHash(n: Node[?]): String =
     val g = generate
@@ -112,7 +117,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
         case None => Result(o.name, "open", s"no theorem ${o.name} in $rel")
         case Some(d) =>
           def in(l: Int) = l >= d.from && l <= d.to
-          val bad = Lean.violations(src).filter(v => in(v._1))
+          val bad = Lean.violations(src)
           if d.statement != s"Obl.${o.name}" then Result(o.name, "failed", s"must state exactly Obl.${o.name}")
           else if bad.nonEmpty then Result(o.name, "failed", s"forbidden: ${bad.map(_._2).mkString(", ")}")
           else diags.find(x => x.isError && in(x.line)) match
@@ -141,9 +146,14 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   // Approve, scaffold, report
   // ---------------------------------------------------------------------------
 
-  def approve(n: Node[?], by: String): Unit =
-    Ledger.save(ws.ledgerFile, ledger.updated(n.id)(_.copy(approval = Some(Approval(specHash(n), by, java.time.Instant.now.toString)))))
-    record("approve", n.id, "by" -> str(by))
+  /** Accepts a node: the developer's decision, with a note, rejecting proposed siblings. */
+  def accept(n: Node[?], by: String, note: String, rejecting: List[Node[?]]): Unit =
+    val wrong = rejecting.filter(r => r.parent != n.parent || (r eq n))
+    require(wrong.isEmpty, s"not an alternative to ${n.id}: ${wrong.map(_.id).mkString(", ")}")
+    val d = Decision(specHash(n), n.parent.fold("")(chainHash), by, java.time.Instant.now.toString, note, content(n),
+      rejecting.map(r => Alternative(r.id, specHash(r), r.statement, r.why)))
+    Ledger.save(ws.ledgerFile, ledger.updated(n.id)(_.copy(decision = Some(d))))
+    record("accept", n.id, "by" -> str(by), "note" -> str(note), "rejected" -> JArr(rejecting.map(r => str(r.id))))
 
   /** Creates the proof file of a node with a stub for its obligation. */
   def scaffold(n: Node[?]): Boolean =
@@ -154,10 +164,33 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       record("scaffold", n.id)
       write(path, g.proofFile(n))
 
-  def approvalState(n: Node[?]): String = ledger.entry(n.id).approval match
-    case None                             => "unapproved"
-    case Some(a) if a.hash == specHash(n) => "approved"
-    case Some(_)                          => "changed"
+  /** Where the developer stands on a node:
+    *   - `accepted`: decided, and nothing changed since;
+    *   - `changed`: the node changed since it was decided;
+    *   - `parent-changed`: an ancestor changed since; the decision must be confirmed;
+    *   - `rejected`: not chosen when an alternative was accepted;
+    *   - `proposed`: waiting for a decision.
+    */
+  def decision(n: Node[?]): String =
+    val l = ledger
+    l.entry(n.id).decision match
+      case Some(d) if d.hash != specHash(n)                      => "changed"
+      case Some(d) if d.chain != n.parent.fold("")(chainHash)     => "parent-changed"
+      case Some(_)                                               => "accepted"
+      case None if l.nodes.values.flatMap(_.decision).exists(_.rejected.exists(a => a.id == n.id && a.hash == specHash(n))) => "rejected"
+      case None                                                  => "proposed"
+
+  /** The node as the developer decides it, kept with the decision. */
+  def content(n: Node[?]): Json = obj(
+    "statement" -> str(n.statement),
+    "why" -> str(n.why),
+    "sources" -> JObj(Seq("spec" -> n.spec, "abs" -> n.abs, "post" -> n.post).collect { case (k, Some(l)) => k -> str(l.source) }),
+    "substitutions" -> JArr(n.substs.map(s => str(s"${s.name} := ${s.term.fold(s.lean)(_.source)}"))),
+    "examples" -> JArr(n.cases.map(e => str(e.describe)))
+  )
+
+  def examplesFailing(n: Node[?]): List[ExampleResult] =
+    kb.exampleResults(n).filter(r => r.contract != "ok" || r.implementation.exists(_ != "ok"))
 
   def verification(n: Node[?]): String = ledger.entry(n.id).check match
     case None                              => "not-checked"
@@ -167,39 +200,61 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   def tree(mark: Option[String] = None): String =
     def go(n: Node[?], depth: Int): List[String] =
       val here = if mark.contains(n.id) then "   ← this node" else ""
-      s"${"  " * depth}${n.id} (${n.kind.toString.toLowerCase})  [${approvalState(n)}, ${verification(n)}]$here" ::
+      val ex = if n.cases.isEmpty then "" else s", examples ${n.cases.size - examplesFailing(n).size}/${n.cases.size}"
+      s"${"  " * depth}${n.id} (${n.kind.toString.toLowerCase})  [${decision(n)}, ${verification(n)}$ex]$here" ::
         kb.children(n).flatMap(go(_, depth + 1))
-    go(kb.root, 0).mkString("\n")
+    kb.roots.flatMap(go(_, 0)).mkString("\n")
 
   def status: String =
-    val ok = kb.nodes.forall(n => approvalState(n) == "approved" && verification(n) == "proven")
-    tree() + "\n\n" + (if ok then "Every node is approved and proven." else "Not every node is approved and proven.") + "\n"
+    val live = kb.nodes.filterNot(decision(_) == "rejected")
+    val ok = live.forall(n => decision(n) == "accepted" && verification(n) == "proven" && examplesFailing(n).isEmpty)
+    tree() + "\n\n" + (if ok then "Every node is accepted, proven, and its examples pass." else "Not every node is accepted, proven, and passing its examples.") + "\n"
 
-  /** Everything needed to work on a node: the idea, the path from the root, and the node's state. */
+  /** Open requests from the developer (written by the browser). */
+  def requests: List[Json] =
+    read(ws.requestsFile).map(Json.parse(_).arr.toList).getOrElse(Nil).filter(_("status").flatMap(_.str).contains("open"))
+
+  /** Everything needed to work on a node: the idea, the path from the root with every
+    * decision and its reasons, the node's state, and what the developer asked for.
+    */
   def context(n: Node[?]): String =
     val g = generate
     val sb = StringBuilder()
     sb ++= s"# ${kb.name} / ${n.id}\n\n## Idea\n\n${idea.trim}\n\n## Knowledge base\n\n```\n${tree(Some(n.id))}\n```\n\n"
     sb ++= "## Path from the root\n\n"
     kb.path(n).foreach { a =>
-      sb ++= s"### ${a.id} (${a.kind.toString.toLowerCase})\n\n${a.statement}\n\n"
+      sb ++= s"### ${a.id} (${a.kind.toString.toLowerCase}) [${decision(a)}]\n\n${a.statement}\n\nWhy: ${a.why}\n\n"
+      ledger.entry(a.id).decision.foreach { d =>
+        sb ++= s"Decided by ${d.by}${if d.note.nonEmpty then s": ${d.note}" else ""}\n\n"
+        d.rejected.foreach(r => sb ++= s"- Rejected ${r.id}: ${r.statement} (${r.why})\n")
+        if d.rejected.nonEmpty then sb ++= "\n"
+      }
       def code(label: String, l: Lifted[?]) = sb ++= s"$label:\n```scala\n${l.source}\n```\n"
       a.spec.foreach(code("spec", _))
       a.abs.foreach(code("abs", _))
       a.post.foreach(code("post", _))
       a.substs.foreach(s => sb ++= s"- `${s.name} := ${s.term.fold(s.lean)(_.source)}`\n")
+      kb.exampleResults(a).foreach { r =>
+        sb ++= s"- example: ${r.example.describe} [contract ${r.contract}${r.implementation.fold("")(i => s", implementation $i")}]\n"
+      }
       sb ++= "\n"
     }
     g.obligation(n).foreach { o =>
       val st = current(n).flatMap(_.obligations.headOption).fold("not checked")(r => s"${r.status}${if r.detail.nonEmpty then s" (${r.detail})" else ""}")
       sb ++= s"## Obligation of ${n.id} [$st]\n\n${o.description}\n\n```lean\n${o.statement}\n```\n\n"
     }
+    val asks = requests.filter(_("node").flatMap(_.str).contains(n.id))
+    if asks.nonEmpty then
+      sb ++= "## Open requests from the developer\n\n"
+      asks.foreach(r => sb ++= s"- [${r("id").flatMap(_.str).getOrElse("")}] ${r("text").flatMap(_.str).getOrElse("")}\n")
+      sb ++= "\n"
     sb ++= s"""## Rules
        |
+       |- The developer decides; you propose. Offer alternatives as sibling nodes, each with its reason (`why`).
        |- The model is the Scala code. Change it there; the Lean in `lean/FrFlowGen` is generated.
+       |- A changed node needs a new decision. Say what changed and why.
        |- If `frflow_auto` does not prove an obligation, prove it in `lean/${g.proofsPath(n.id)}`, stating exactly `Obl.link`.
        |- If an obligation is false, the node is wrong: fix it, or propose a change to it.
-       |- A node is accepted when it is proven and the developer has approved it.
        |""".stripMargin
     sb.result()
 
@@ -226,6 +281,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       current(n) match
         case None => st(verification(n), "")
         case Some(c) => c.obligations.headOption match
+          case Some(r) if r.status == "proven" && c.status == "failed" => st("failed", c.messages.headOption.getOrElse("the node's theorems do not build"))
           case Some(r) => st(r.status, r.detail)
           case None if c.status == "model-error" => st("failed", "the model does not build")
           case None => st(if c.status == "failed" then "failed" else "proven", "instantiation")
@@ -236,11 +292,12 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     def strs(xs: Seq[String]) = JArr(xs.map(str))
     def node(n: Node[?]): Json =
       val check = current(n)
-      val approval = ledger.entry(n.id).approval
+      val decided = ledger.entry(n.id).decision
       obj(
         "id" -> str(n.id),
         "kind" -> str(n.kind.toString.toLowerCase),
         "statement" -> str(n.statement),
+        "why" -> str(n.why),
         "parent" -> n.parent.fold(JNull)(p => str(p.id)),
         "sources" -> JObj(Seq("spec" -> n.spec, "abs" -> n.abs, "post" -> n.post).collect { case (k, Some(l)) => k -> str(l.source) }),
         "substitutions" -> JArr(n.substs.map(s => obj("name" -> str(s.name), "value" -> str(s.term.fold(s.lean)(_.source))))),
@@ -249,8 +306,15 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
         "proof" -> read(ws.lean.resolve(g.proofsPath(n.id))).fold(JNull)(src => obj("file" -> str("lean/" + g.proofsPath(n.id)), "source" -> str(src))),
         "rootTheorem" -> str(g.rootTheorem(n)),
         "lean" -> str(g.spec(n)),
-        "approval" -> str(approvalState(n)),
-        "approvedBy" -> approval.fold(JNull)(a => str(a.by)),
+        "examples" -> JArr(kb.exampleResults(n).map(r => obj(
+          "note" -> str(r.example.note), "given" -> strs(r.example.givenSource), "call" -> str(r.example.call),
+          "expected" -> Json.JBool(r.example.expected), "contract" -> str(r.contract),
+          "implementation" -> r.implementation.fold(JNull)(str)))),
+        "decision" -> str(decision(n)),
+        "decided" -> decided.fold(JNull)(d => obj(
+          "by" -> str(d.by), "at" -> str(d.at), "note" -> str(d.note), "content" -> d.content,
+          "rejected" -> JArr(d.rejected.map(a => obj("id" -> str(a.id), "statement" -> str(a.statement), "why" -> str(a.why)))))),
+        "content" -> content(n),
         "verification" -> str(verification(n)),
         "messages" -> strs(check.toList.flatMap(_.messages)),
         "axioms" -> strs(check.toList.flatMap(_.axioms))
@@ -258,13 +322,12 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     obj(
       "name" -> str(kb.name),
       "idea" -> str(idea),
-      "root" -> str(kb.root.id),
+      "roots" -> JArr(kb.roots.map(r => str(r.id))),
       "exportedAt" -> str(java.time.Instant.now.toString),
       "opaques" -> strs(kb.nodes.flatMap(_.lifted).flatMap(_.opaques).distinct),
       "params" -> JArr(kb.params.map(p => obj(
         "name" -> str(p.name),
-        "type" -> str(kb.nodes.flatMap(_.lifted).flatMap(_.paramRefs).toMap.getOrElse(p.name, "")),
-        "assumption" -> p.assumption.fold(JNull)(a => str(a.source))
+        "type" -> str(kb.nodes.flatMap(_.lifted).flatMap(_.paramRefs).toMap.getOrElse(p.name, ""))
       ))),
       "types" -> JArr(kb.types.map(t => obj("name" -> str(t.name), "lean" -> str(t.lean)))),
       "defs" -> JArr(kb.defs.map(d => obj("name" -> str(d.name), "source" -> str(d.lifted.source)))),

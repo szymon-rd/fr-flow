@@ -13,9 +13,10 @@ object Cli:
       |
       |  render                  generate Lean and the snapshot .frflow/kb.json from the Scala definitions
       |  check [NODE]            render, prove the links, record the results
-      |  status                  the knowledge base with approval and verification state
+      |  status                  the knowledge base with decision and verification state
       |  context NODE            everything needed to work on NODE (for agents and people)
-      |  approve NODE --by NAME  record the developer's approval of NODE
+      |  accept NODE --by NAME [--note TEXT] [--reject ID,ID]
+      |                          the developer's decision: accept NODE, rejecting proposed alternatives
       |  scaffold NODE           a proof file for an obligation automation did not prove
       |""".stripMargin
 
@@ -44,13 +45,27 @@ object Cli:
         if results.forall(_._2.status == "proven") then 0 else 1
       case "render" :: Nil =>
         val changed = w.render()
-        w.record("render", kb.root.id, "changed" -> Json.JNum(changed.size.toDouble))
+        w.record("render", "", "changed" -> Json.JNum(changed.size.toDouble))
         println(s"rendered ${changed.size} changed file(s); wrote ${ws.root.relativize(w.writeSnapshot())}")
         0
       case "status" :: Nil => print(w.status); 0
       case "context" :: id :: Nil => node(id) { n => print(w.context(n)); 0 }
-      case "approve" :: id :: "--by" :: who :: Nil =>
-        node(id) { n => w.approve(n, who); w.writeSnapshot(); println(s"approved ${n.id} by $who"); 0 }
+      case "accept" :: id :: rest =>
+        val opts = rest.grouped(2).collect { case List(k, v) if k.startsWith("--") => k.drop(2) -> v }.toMap
+        if rest.size % 2 != 0 || !opts.contains("by") || opts.keySet.exists(!Set("by", "note", "reject")(_)) then
+          System.err.println(usage); return 2
+        node(id) { n =>
+          val ids = opts.get("reject").toList.flatMap(_.split(",")).map(_.trim).filter(_.nonEmpty)
+          ids.find(kb.node(_).isEmpty) match
+            case Some(bad) => System.err.println(s"unknown node $bad"); 1
+            case None =>
+              try
+                w.accept(n, opts("by"), opts.getOrElse("note", ""), ids.flatMap(kb.node))
+                w.writeSnapshot()
+                println(s"accepted ${n.id} by ${opts("by")}${if ids.nonEmpty then s"; rejected ${ids.mkString(", ")}" else ""}")
+                0
+              catch case e: IllegalArgumentException => { System.err.println(e.getMessage); 1 }
+        }
       case "scaffold" :: id :: Nil =>
         node(id) { n =>
           println(if w.scaffold(n) then s"created lean/${w.generate.proofsPath(n.id)}" else "nothing to create")

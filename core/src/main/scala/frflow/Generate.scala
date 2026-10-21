@@ -14,10 +14,15 @@ final case class Obligation(name: String, statement: String, description: String
   *   - `FrFlowAudit/<KB>/<Node>.lean`       axioms of `root`
   *
   * Every declaration of a node takes the node's parameters, explicitly: its
-  * opaque types, its parameters and the hypotheses of their assumptions.
+  * opaque types and its parameters.
   *
   * @param authored nodes whose obligation has an authored proof in `Proofs/<KB>/<Node>.lean`
   */
+object Generate:
+  /** Names the generated Lean binds itself; a parameter or opaque type with one of them would be captured. */
+  val reserved: Set[String] =
+    Set("m", "f", "h", "spec", "abs", "post", "toRoot", "rootSpec", "link", "root", "Obl", "Type", "Prop") ++ (0 to 9).map(i => s"x$i")
+
 final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
   private val K = kb.name
 
@@ -47,8 +52,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
     val empty: Ctx = Ctx(Nil, Nil)
 
   private val paramTypes: Map[String, String] =
-    (kb.nodes.flatMap(_.lifted) ++ kb.defs.map(_.lifted) ++ kb.params.flatMap(_.assumption)).flatMap(_.paramRefs).toMap
-  private val paramByName: Map[String, Param[?]] = kb.params.map(p => p.name -> p).toMap
+    (kb.nodes.flatMap(_.lifted) ++ kb.defs.map(_.lifted)).flatMap(_.paramRefs).toMap
   private val defByName: Map[String, Def[?]] = kb.defs.map(d => d.name -> d).toMap
 
   private val defCtxCache = mutable.Map.empty[String, Ctx]
@@ -59,23 +63,18 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
       ctx(d.lifted, Set(d.name))
     })
 
-  /** Context of a lifted expression: what it mentions, what the functions it calls need, and assumptions. */
+  /** Context of a lifted expression: what it mentions, and what the functions it calls need. */
   def ctx(l: Lifted[?], self: Set[String] = Set.empty): Ctx =
     val own = Ctx(l.opaques, l.paramRefs.map(_._1))
     val viaDefs = l.defs.filterNot(d => self(d.name)).map(defCtx).foldLeft(Ctx.empty)(_ ++ _)
-    val base = own ++ viaDefs
-    val viaAssumptions = base.params.flatMap(paramByName.get).flatMap(_.assumption).map(ctx(_)).foldLeft(Ctx.empty)(_ ++ _)
-    viaAssumptions ++ base
-
-  private def hyps(c: Ctx): List[Param[?]] = c.params.flatMap(paramByName.get).filter(_.assumption.isDefined)
+    own ++ viaDefs
 
   def binders(c: Ctx): String =
     val ts = if c.opaques.isEmpty then Nil else List(s"(${c.opaques.mkString(" ")} : Type)")
     val ps = c.params.map(p => s"($p : ${paramTypes.getOrElse(p, "_")})")
-    val hs = hyps(c).map(p => s"(h_${p.name} : (${resolve(p.assumption.get.lean)}) ${p.name})")
-    (ts ++ ps ++ hs).mkString(" ")
+    (ts ++ ps).mkString(" ")
 
-  def args(c: Ctx): String = (c.opaques ++ c.params ++ hyps(c).map("h_" + _.name)).mkString(" ")
+  def args(c: Ctx): String = (c.opaques ++ c.params).mkString(" ")
 
   private def app(f: String, c: Ctx): String = if args(c).isEmpty then f else s"($f ${args(c)})"
 
@@ -200,8 +199,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
         case Some(t) => s"($p := ${app(s"s_$p", ctx(t))})"
         case None    => s"($p := $p)"
     }
-    val hs = hyps(pc).filterNot(p => byName.contains(p.name)).map(p => s"(h_${p.name} := h_${p.name})")
-    (types ++ params ++ hs).mkString(" ")
+    (types ++ params).mkString(" ")
 
   def auto(n: Node[?]): String =
     val body = obligation(n).filterNot(_ => authored(n.id)).fold("") { o =>
@@ -233,7 +231,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
         sb ++= s"/-- ${obligation(n).get.description} -/\n"
         sb ++= s"theorem link$b : ∀ $m, ${at("spec")} m → ${pat("spec")} $target :=\n  ${if a.isEmpty then ref else s"$ref $a"}\n\n"
         s"fun m h => ${pat("root")} $target (${at("link")} m h)"
-    sb ++= s"/-- The root theorem holds for every model of ${n.id}: ${kb.root.statement.replace("-/", "- /")} -/\n"
+    sb ++= s"/-- The root theorem holds for every model of ${n.id}: ${kb.rootOf(n).statement.replace("-/", "- /")} -/\n"
     sb ++= s"theorem root$b : $rootStatement :=\n  $proofOfRoot\n\nend $K.${n.id}\n"
     sb.result()
 

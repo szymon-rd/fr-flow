@@ -13,14 +13,18 @@ API (all JSON):
     GET  /api/p/NAME/kb                    the snapshot, plus `sourcesChanged`
     GET  /api/p/NAME/events?limit=N        the event log
     GET  /api/p/NAME/job                   the last command started here, with its output
-    POST /api/p/NAME/run  {"args": [...]}  starts render / check / scaffold / approve
-    GET  /api/stream                       server-sent events: {"project": NAME} on every change
+    POST /api/p/NAME/run  {"args": [...]}  starts render / check / scaffold / accept
+    POST /api/p/NAME/requests {"node", "text", "by"}   asks the agent for something
+    POST /api/p/NAME/requests/ID {"status", "answer"}  closes a request
+    POST /api/p/NAME/idea {"text"}         saves the idea, then renders
+    GET  /api/stream                       server-sent events on every change
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import threading
 import time
 from http import HTTPStatus
@@ -31,7 +35,27 @@ from urllib.parse import parse_qs, urlparse
 from frflow_tools import Project, find_projects
 
 UI = Path(__file__).resolve().parent / "ui" / "index.html"
-UI_COMMANDS = {"render", "check", "scaffold", "approve"}
+UI_COMMANDS = {"render", "check", "scaffold", "accept"}
+IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def valid_run(args: list[str]) -> str | None:
+    """Why a command from the browser is refused, or None."""
+    if not args or args[0] not in UI_COMMANDS:
+        return f"command must be one of {sorted(UI_COMMANDS)}"
+    if args[0] in ("scaffold", "accept") and (len(args) < 2 or not IDENT.match(args[1])):
+        return f"{args[0]} NODE ..."
+    if args[0] == "check" and len(args) > 1 and (len(args) > 2 or not IDENT.match(args[1])):
+        return "check [NODE]"
+    if args[0] == "accept":
+        opts = dict(zip(args[2::2], args[3::2]))
+        if len(args) % 2 != 0 or "--by" not in opts or not opts["--by"].strip() or set(opts) - {"--by", "--note", "--reject"}:
+            return "accept NODE --by NAME [--note TEXT] [--reject ID,ID]"
+        if not all(IDENT.match(i) for i in opts.get("--reject", "").split(",") if i):
+            return "--reject takes node ids"
+    if args[0] in ("render",) and len(args) > 1:
+        return "render takes no arguments"
+    return None
 
 
 class Job:
@@ -137,7 +161,8 @@ def handler(app: App):
                     return
                 if parts[3] == "kb":
                     snap = p.snapshot()
-                    return self.json({"snapshot": snap, "sourcesChanged": p.sources_changed(), "running": p.running()})
+                    return self.json({"snapshot": snap, "sourcesChanged": p.sources_changed(), "running": p.running(),
+                                      "requests": p.requests()})
                 if parts[3] == "events":
                     limit = int(query.get("limit", ["500"])[0])
                     return self.json(p.events(limit))
@@ -146,25 +171,62 @@ def handler(app: App):
                     return self.json(job.json() if job else None)
             self.error(HTTPStatus.NOT_FOUND, "not found")
 
+        def body(self) -> dict:
+            data = json.loads(self.rfile.read(int(self.headers.get("Content-Length", "0"))) or b"{}")
+            if not isinstance(data, dict):
+                raise ValueError("expected an object")
+            return data
+
         def do_POST(self) -> None:
+            # Only this page may change things: refuse requests sent by other sites.
+            origin = self.headers.get("Origin")
+            if origin and urlparse(origin).netloc != self.headers.get("Host"):
+                return self.error(HTTPStatus.FORBIDDEN, "cross-origin request")
+            if self.headers.get("Content-Type", "").split(";")[0] != "application/json":
+                return self.error(HTTPStatus.UNSUPPORTED_MEDIA_TYPE, "expected application/json")
             parts = [s for s in urlparse(self.path).path.split("/") if s]
-            if len(parts) == 4 and parts[:2] == ["api", "p"] and parts[3] == "run":
-                p = self.project(parts[2])
-                if p is None:
-                    return
-                try:
-                    body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", "0"))) or b"{}")
-                    args = [str(a) for a in body.get("args", [])]
-                except (ValueError, AttributeError):
-                    return self.error(HTTPStatus.BAD_REQUEST, "expected {\"args\": [...]}")
-                if not args or args[0] not in UI_COMMANDS:
-                    return self.error(HTTPStatus.BAD_REQUEST, f"command must be one of {sorted(UI_COMMANDS)}")
-                if args[0] == "approve" and (len(args) != 4 or args[2] != "--by" or not args[3].strip()):
-                    return self.error(HTTPStatus.BAD_REQUEST, "approve NODE --by NAME")
+            if len(parts) < 4 or parts[:2] != ["api", "p"]:
+                return self.error(HTTPStatus.NOT_FOUND, "not found")
+            p = self.project(parts[2])
+            if p is None:
+                return
+            try:
+                body = self.body()
+            except ValueError as e:
+                return self.error(HTTPStatus.BAD_REQUEST, f"bad JSON: {e}")
+            what = parts[3:]
+            if what == ["run"]:
+                args = [str(a) for a in body.get("args", [])]
+                problem = valid_run(args)
+                if problem:
+                    return self.error(HTTPStatus.BAD_REQUEST, problem)
                 try:
                     return self.json(app.start(p.name, args).json(), HTTPStatus.ACCEPTED)
                 except RuntimeError as e:
                     return self.error(HTTPStatus.CONFLICT, str(e))
+            if what == ["requests"]:
+                node, text, by = str(body.get("node", "")), str(body.get("text", "")).strip(), str(body.get("by", "")).strip()
+                if not text or not by or (node and not IDENT.match(node)):
+                    return self.error(HTTPStatus.BAD_REQUEST, "expected node, text and by")
+                r = p.add_request(node, text, by)
+                app.notify()
+                return self.json(r, HTTPStatus.CREATED)
+            if len(what) == 2 and what[0] == "requests":
+                try:
+                    r = p.answer_request(what[1], str(body.get("answer", "")), str(body.get("status", "closed")))
+                except KeyError as e:
+                    return self.error(HTTPStatus.NOT_FOUND, str(e))
+                app.notify()
+                return self.json(r)
+            if what == ["idea"]:
+                text = body.get("text")
+                if not isinstance(text, str) or not text.strip():
+                    return self.error(HTTPStatus.BAD_REQUEST, "expected text")
+                p.idea_file.write_text(text if text.endswith("\n") else text + "\n")
+                try:
+                    return self.json(app.start(p.name, ["render"]).json(), HTTPStatus.ACCEPTED)
+                except RuntimeError as e:
+                    return self.error(HTTPStatus.CONFLICT, f"saved; {e}")
             self.error(HTTPStatus.NOT_FOUND, "not found")
 
         def stream(self) -> None:

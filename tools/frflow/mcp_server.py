@@ -15,7 +15,9 @@ import json
 import sys
 import traceback
 
-from frflow_tools import Project, find_projects, node_tree
+import re
+
+from frflow_tools import Project, find_projects, node_tree, waiting
 
 PROTOCOL_VERSION = "2025-06-18"
 
@@ -44,7 +46,7 @@ TOOLS = [
     },
     {
         "name": "status",
-        "description": "The tree with each node's approval and verification state, computed from the current definitions.",
+        "description": "The tree with each node's decision and verification state, computed from the current definitions.",
         "inputSchema": _schema({"project": _project}),
     },
     {
@@ -67,13 +69,27 @@ TOOLS = [
     {
         "name": "node",
         "description": "One node from the last snapshot as JSON: statement, sources, substitutions, obligation, "
-                       "link status, root theorem, generated Lean, approval, axioms.",
+                       "link status, examples, the developer's decision with rejected alternatives, root theorem, generated Lean.",
         "inputSchema": _schema({"project": _project, "node": _node}, ["node"]),
     },
     {
         "name": "history",
-        "description": "The latest events of the process (render, check, approve, scaffold), with who triggered them.",
+        "description": "The latest events of the process (render, check, accept, scaffold), with who triggered them.",
         "inputSchema": _schema({"project": _project, "limit": {"type": "integer", "minimum": 1, "maximum": 500}}),
+    },
+    {
+        "name": "inbox",
+        "description": "What waits: the developer's open requests (answer them by proposing nodes, then `answer`), "
+                       "rejected nodes to remove from the Scala model, and decisions the developer has not made yet. "
+                       "Start here.",
+        "inputSchema": _schema({"project": _project}),
+    },
+    {
+        "name": "answer",
+        "description": "Reply to a developer's request once you have done it, e.g. 'Proposed Expiring and Sliding under "
+                       "Authenticated; choose in the browser.' The reply is shown in the browser.",
+        "inputSchema": _schema({"project": _project, "request": {"type": "string"}, "text": {"type": "string"}},
+                               ["request", "text"]),
     },
 ]
 
@@ -107,6 +123,8 @@ class Server:
     def call(self, name: str, args: dict) -> tuple[str, bool]:
         p = self.project(args)
         node = args.get("node")
+        if node is not None and not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", str(node)):
+            raise ToolError(f"not a node id: {node}")
         if name == "render":
             out, err = self.run(p, ["render"])
             if err:
@@ -122,7 +140,24 @@ class Server:
                 raise ToolError("node is required")
             return self.run(p, [name, node])
         snap = p.snapshot()
-        if name == "history":
+        if name == "answer":
+            try:
+                r = p.answer_request(str(args.get("request", "")), str(args.get("text", "")))
+            except KeyError as e:
+                raise ToolError(str(e))
+            return f"answered {r['id']}", False
+        if name == "inbox":
+            reqs = [r for r in p.requests() if r["status"] == "open"]
+            out = ["Open requests from the developer:"] + [f"- [{r['id']}] on {r['node'] or '(the idea)'}: {r['text']}" for r in reqs]
+            if not reqs:
+                out = ["No open requests."]
+            if snap:
+                w = waiting(snap)
+                if w["agent"]:
+                    out += ["", "For you:"] + [f"- {x}" for x in w["agent"]]
+                if w["developer"]:
+                    out += ["", "Waiting for the developer's decision (in the browser):"] + [f"- {x}" for x in w["developer"]]
+            return "\n".join(out) + (self.staleness(p) if snap else "\n\nNo snapshot yet; call render."), False
             return "\n".join(json.dumps(e) for e in p.events(int(args.get("limit", 30)))) or "(no events yet)", False
         if snap is None:
             raise ToolError("no snapshot yet; call render")

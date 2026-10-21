@@ -1,205 +1,222 @@
 # FrFlow
 
-FrFlow keeps a software project connected to its idea, formally.
-
-1. The developer writes the idea in `IDEA.md`.
-2. An agent states it as the **root** of a knowledge base: a Scala predicate over
-   generic types, which becomes a Lean theorem.
-3. The root is **specialized** step by step: more concrete models, concrete types,
-   and finally a **contract** for the implementation. Lean proves every step,
-   and every node gets a theorem stating that the root holds for it.
-4. The implementation is ordinary Scala, attached to the contract. Every result
-   is checked against the contract, so the root holds for what the running
-   system returns.
+FrFlow keeps the theory of a software project — what it must do and why it is
+built this way — explicit, decided by a person, and connected to the code. It
+also shows when anything drifts from it.
 
 ## Problem
 
 - **Uncontrolled refinement.** Agents add logic incrementally, without an
   explicit relation to the intent, so correctness and design coherence cannot
-  be tracked. In FrFlow, every step from the idea to the implementation is a
-  node with a proven link to its parent.
+  be tracked.
 - **Lost theory** (Naur, *Programming as Theory Building*, 1985). The program
-  is the visible part of a theory held by its programmers. With agents, the
-  human often never builds that theory, and the agent loses it when its context
-  is compressed. In FrFlow, the theory is explicit and persistent: the idea, a
-  tree of nodes with statements and formal models, and human approvals. Agents
-  work from a node's context.
+  is the visible part of a theory held by its programmers: why it is the way it
+  is, how it maps to the world, what would have to change if the world did.
+  With agents, the human often never builds that theory, and the agent loses
+  it when its context is compressed.
 
-## The core idea
+## The method
 
-A node specifies a **model**: a Scala value, usually a function, describing what
-the system does at that level. The node's **spec** says which models are acceptable.
+The developer writes the idea in `IDEA.md`. The project's knowledge is a
+**tree**:
 
-| Step | Written as | Meaning | Proof |
-|---|---|---|---|
-| root | `Node.root[M](id, statement)(spec)` | the idea | none: it is the statement |
-| refine | `parent.refine[M2](id, statement)(abs, spec)` | a more concrete model; `abs` maps it to the parent's model | Lean: `spec m → parent.spec (abs m)` |
-| instantiate | `parent.instantiate[M2](id, statement)(T := of[X], p := ...)` | fixes opaque types and parameters | none: the generic results are applied |
-| contract | `parent.contract[A, B, R](id, statement)(post)` | what every call `(a, b) => r` of an implementation satisfies | Lean: the contract implies the parent |
+- each **root** states one concern of the idea;
+- each node below **specializes its parent**, one design decision at a time;
+- at the bottom, a **contract** is what the implementation must satisfy on
+  every call.
 
-Generic parts are values:
+| A node has | It answers | Kept by |
+|---|---|---|
+| a statement | what holds at this level, in plain words | the Scala source |
+| `why` | why this step: the reason, and what it assumes about the world | the Scala source |
+| a formal model | the same, precisely (Scala, translated to Lean) | the Scala source |
+| examples (contracts) | what it means in concrete cases | the Scala source |
+| a decision | who chose it, why, and which alternatives were rejected | `.frflow/ledger.json` |
 
-- `Opaque("User")`: a type with no assumed structure, used as `User.T`. In Lean,
-  a type parameter.
-- `Param[A]("authorized")`: a value left open. In Lean, a parameter: everything
-  proven holds for every value of it. `.assuming(p)` adds a hypothesis.
-- `define { ... }`: a named function of the domain, translated once to Lean.
+**The theory is built by deciding.**
+1. The developer asks for a next step in the browser.
+2. The agent proposes one or more alternative nodes, each with its reason and
+   examples.
+3. The developer compares them and chooses one, with a reason of their own.
+4. The decision keeps that reason and the rejected alternatives.
 
-The domain is Scala case classes and enums. A small macro translates the
-lambdas of nodes to Lean: fields, constructors, `copy`, `match`, `if`, Boolean
-and integer operators, some `List` and `Option` operations, `forall` and
-`exists`. Anything else is a compile error.
+The developer does not just approve what the agent wrote: they make every
+choice. An agent picking up the work later reads the same record through
+`context`.
+
+**Drift is caught in three ways.**
+
+- **The design drifts from its decisions.** A decision is bound to a hash of
+  the node as decided, chained to its ancestors.
+  - If the node changes, it shows as `changed`, with a diff against what was
+    decided.
+  - If anything above it changes, it shows as `parent-changed`, and the
+    developer confirms it still holds.
+  - Nothing changes silently.
+- **The levels drift from each other.** Lean proves that each node implies its
+  parent, so every node, down to the contract, satisfies the root.
+- **The behaviour drifts from what was decided.** The contract's examples run
+  against the contract and against the implementation.
+  - An implementation that stops doing what was decided fails its examples.
+  - So does a contract that refuses everything, even though it is trivially
+    "safe".
+  - In production, `enforce` checks every result against the contract.
+
+**The tree states its own limits.** What the idea says but the tree does not
+model is listed under `## Not modelled` in `IDEA.md`.
 
 ## Example: access control (`examples/auth`)
 
 ```scala
-val User       = Opaque("User")
+val User       = Opaque("User")       // a type the idea leaves open
 val Resource   = Opaque("Resource")
-val authorized = Param[(User.T, Resource.T) => Boolean]("authorized")
+val authorized = Param[(User.T, Resource.T) => Boolean]("authorized")   // a value it leaves open
 
 val noUnauthorizedAccess = Node.root[(User.T, Resource.T) => Boolean](
   "NoUnauthorizedAccess",
-  "A user is never granted access to a resource they are not authorized to access."
+  "A user is never granted access to a resource they are not authorized to access.",
+  why = "This is the one thing the idea says must never happen."
 )(allows => forall((u: User.T, r: Resource.T) => allows(u, r) ==> authorized(u, r)))
 
-val Token  = Opaque("Token")
-val holder = Param[Token.T => Option[User.T]]("holder")
-
 val authenticated = noUnauthorizedAccess.refine[(Token.T, Resource.T) => Option[User.T]](
-  "Authenticated", "A request is granted on behalf of a user only if its token belongs to that user and the user is authorized."
+  "Authenticated",
+  "A request is granted on behalf of a user only if its token belongs to that user and the user is authorized.",
+  why = "Users identify themselves with tokens they receive at login, so a decision sees a token, not a user."
 )(
   abs  = decide => (u, r) => exists((t: Token.T) => decide(t, r) == Some(u)),
-  spec = decide => forall((t: Token.T, r: Resource.T) => decide(t, r).forall(u => holder(t) == Some(u) && authorized(u, r)))
-)
+  spec = decide => forall((t: Token.T, r: Resource.T) => decide(t, r).forall(u => holder(t) == Some(u) && authorized(u, r))))
 
-val grantBased = authenticated.instantiate[(String, Path) => Option[UserId]]("GrantBased", "...")(
+val grantBased = authenticated.instantiate[(String, Path) => Option[UserId]]("GrantBased", "...", why = "...")(
   User := of[UserId], Resource := of[Path], Token := of[String],
   authorized := ((u: UserId, p: Path) => grants.value.contains(Grant(u, p))),
-  holder     := ((t: String) => sessions(t))
-)
+  holder     := ((t: String) => sessions(t)))
 
-val decisionContract = grantBased.contract[String, Path, Option[UserId]]("DecisionContract", "...")(
+val decisionContract = grantBased.contract[String, Path, Option[UserId]]("DecisionContract", "...", why = "...")(
   (token, path, decision) => decision.forall(u => sessions(token) == Some(u) && grants.value.contains(Grant(u, path))))
+  .examples(grants.bind(List(Grant(alice, Path("/a")))), sessions.bind(Map("t1" -> alice).get))(
+    expect("t1", Path("/a"), Some(alice), "Alice's token and a grant for /a: she gets in"),
+    reject("t1", Path("/b"), Some(alice), "access without a grant is never given"))
 
-// The implementation is plain Scala; every result is checked against the contract.
-final class SessionStore(grantTable: Set[Grant], tokens: Map[String, UserId]):
-  def decide(token: String, path: Path): Option[UserId] = tokens.get(token).filter(u => grantTable.contains(Grant(u, path)))
+val knowledge = KnowledgeBase("Auth", idea = "IDEA.md")(noUnauthorizedAccess, authenticated, grantBased, decisionContract)
+  .implement(decisionContract)(SessionStore(grants.value.toSet, sessions.value).decide)
 
+// In production: plain Scala, every result checked against the contract.
 def service(grantTable: List[Grant], tokens: Map[String, UserId]) =
-  decisionContract.enforce(SessionStore(grantTable.toSet, tokens).decide)(grants.bind(grantTable), sessions.bind(tokens.get))
+  decisionContract.enforce(SessionStore(grantTable.toSet, tokens.get).decide)(grants.bind(grantTable), sessions.bind(tokens.get))
 ```
 
-Lean proves `Authenticated` once, for all users, resources, tokens and meanings
-of "authorized". For the contract it proves, for every grant table and session
-table: if every decision meets the contract, no user is granted access a grant
-does not allow.
+When this tree was built, the agent proposed two ways to go below the root:
+- `Authenticated`: requests carry tokens;
+- `ClientAsserted`: the client names its user.
 
-`examples/crm` has the same shape for a multi-tenant CRM. Its root is tenant
-isolation: a user sees a record only if it belongs to their company or was
-shared with it.
+The developer chose `Authenticated`: *"The idea says users identify
+themselves with tokens; a client's own claim is not proof."* The rejected
+option and that reason live in the ledger and show in the browser and in
+`context`.
 
-## Proofs
+`examples/crm` does the same for a multi-tenant CRM.
 
-Every link obligation is first attempted by the tactic `frflow_auto`. In both
-examples, automation proves all of them. If automation fails, `scaffold NODE`
-creates `lean/Proofs/<KB>/<NODE>.lean`, where the proof is written. A proof
-must state exactly `Obl.link`. The checker rejects `axiom`, `sorry` and similar
-constructs, and audits the axioms of every node's `root` theorem.
+## The node kinds
 
-## What is proven and what is trusted
+| Kind | Written as | Proof |
+|---|---|---|
+| root | `Node.root[M](id, statement, why)(spec)` | none: it is the statement |
+| refine | `parent.refine[M2](id, statement, why)(abs, spec)` | Lean: `spec m → parent.spec (abs m)` |
+| instantiate | `parent.instantiate[M2](id, statement, why)(T := of[X], p := ...)` | none: the generic results apply |
+| contract | `parent.contract[A, B, R](id, statement, why)(post)` | Lean: the contract implies the parent |
 
-- **Proven by Lean:** every link, and therefore every node's `root` theorem.
-- **Enforced at run time:** that the implementation's results meet the contract.
-  A result that breaks it raises `ContractViolation`, so the system fails closed.
-- **Trusted:**
-  - the Scala-to-Lean translation (`Lift.scala`) and the generator;
-  - `Int` and `Long` are read as unbounded integers in Lean;
-  - parameter values bound at run time are the ones the theorems talk about;
-  - every path to the data goes through the enforced implementation.
+- `Opaque("User")` is a type with no assumed structure. In Lean, it is a type
+  parameter.
+- `Param[A]("authorized")` is a value left open. In Lean, it is a parameter:
+  everything proven holds for every value of it.
+- `define { ... }` is a named function of the domain.
+- The domain is Scala case classes and enums.
 
-## Usage
+A small macro translates node lambdas to Lean. Anything it does not support is
+a compile error. Links are proven by the tactic `frflow_auto`, or, failing
+that, by a proof the agent writes in `lean/Proofs/<KB>/<NODE>.lean`. That
+proof must state exactly `Obl.link` and may contain only tactics.
 
-Requirements: JDK 17+, sbt, and Lean 4.35.0 (`lake` on the PATH, or `FRFLOW_LAKE`).
-
-```sh
-sbt test                               # unit tests, and Lean tests when lake is available
-sbt "auth/run render"                  # generate Lean and the snapshot .frflow/kb.json
-sbt "auth/run check"                   # render, prove the links, record the results
-sbt "auth/run status"                  # the tree, with approval and verification state
-sbt "auth/run context Authenticated"   # the idea, the path from the root, the obligation
-sbt "auth/run approve Authenticated --by <name>"
-sbt "auth/run scaffold Authenticated"  # a proof file, if automation leaves the link open
-```
-
-Approvals are bound to a hash of what was reviewed: the statement, the Scala
-sources, the generated Lean, and, for the root, the idea. A change shows the
-node as `changed` until it is approved again.
-
-## Browser
+## The browser: where decisions are made
 
 ```sh
 python3 tools/frflow/server.py examples     # http://127.0.0.1:8765
 ```
 
-The browser shows each knowledge base as a tree of nodes.
-
-- **Edges** are the links to the parent. They are colored by status:
-  - green: proven, labelled `auto`, `proof` (authored) or `instantiation`;
-  - amber: open;
-  - red: failed;
-  - grey: not checked, or stale.
-- **Selecting a node** highlights its path to the root. The panel shows the link
-  side by side:
-  - the parent's statement and spec;
-  - this node's `abs` and `spec`, its substitutions, or its contract;
-  - the obligation in Lean, and the authored proof if there is one;
+- **Tree.** The tree is drawn from the Scala definitions. Each link to a parent
+  is green when proven. Proposals have a dashed outline.
+- **Node.** For each node:
+  - its statement and `why`;
+  - **the decision**: choose between proposals with your reason, accept a
+    change after seeing its diff, or confirm a node whose parent changed;
+  - its examples, with results against the contract and the implementation;
+  - the link to the parent, side by side with the parent;
   - the root theorem;
-  - the generated Lean and the axioms.
-- **Other tabs** show the idea, the domain (opaque types, parameters, domain
-  types, definitions) and the history of renders, checks, approvals and
-  scaffolds, with who triggered them.
-- **Actions:** Render, Check, Create proof file, and Approve. Approval is the
-  developer's.
-
-The tree is never built in the browser. `render` runs the knowledge base's CLI,
-which writes `.frflow/kb.json` from the Scala definitions. Open pages update
-when the snapshot or the event log changes. A banner appears when sources are
-newer than the snapshot.
-
-A project is a directory with a `frflow.json` that says how to run its CLI:
-
-```json
-{ "name": "Auth", "run": ["sbt", "auth/run {args}"], "cwd": "../..", "sources": ["src/main/scala", "IDEA.md", "lean/Proofs"] }
-```
+  - a box to **ask the agent** for something.
+- **Inbox.** What waits for your decision, and the agent's answers to your
+  requests.
+- **Idea.** `IDEA.md`, editable. Saving re-renders, and the roots then need
+  confirming.
+- **Domain, History.** The types and parameters of the model, and every
+  render, check and decision, with who made it.
 
 ## Agents
 
-- `.mcp.json` registers the MCP server `frflow` (`tools/frflow/mcp_server.py`).
-  - Tools: `render`, `check`, `status`, `context`, `scaffold`, `tree`, `node`
-    and `history`.
-  - There is no `approve` tool.
-  - An agent's `render` or `check` updates the open browser pages. The history
-    records the action as the agent's.
-- `.claude/skills/frflow/SKILL.md` teaches an agent the workflow:
-  - from the idea to the root, then one decision per node;
-  - the Scala subset of node lambdas;
-  - how to prove a link that automation leaves open;
-  - what not to do: edit generated Lean, approve, or weaken the root.
+- **MCP server.** `.mcp.json` registers `frflow` (`tools/frflow/mcp_server.py`).
+  - Tools: `inbox`, `context`, `render`, `check`, `answer`, `scaffold`, `tree`,
+    `node`, `status` and `history`.
+  - An agent cannot accept nodes.
+- **Skill.** `.claude/skills/frflow/SKILL.md` gives the agent its loop:
+  1. Read the inbox.
+  2. Propose alternatives with reasons and examples.
+  3. Render and check.
+  4. Answer the request.
+  5. Remove the rejected nodes once the developer has decided.
 
-The browser and the MCP server need only Python 3.10+. Their tests run against
-a fake CLI: `python3 -m unittest discover -s tools/frflow/tests`.
+## What is proven, checked, and trusted
+
+- **Proven by Lean:** every link, and so every node's root theorem.
+- **Checked by the examples:** that the contract means what its statement says,
+  and that the implementation does what was decided, in those cases.
+- **Enforced at run time:** every result meets the contract, or
+  `ContractViolation` is raised.
+- **Decided by the developer:** every node, with its reasons. The decision is
+  only as good as their reading. Examples and the side-by-side link are there
+  to make that reading possible.
+- **Trusted:**
+  - the Scala-to-Lean translation;
+  - `Int` read as unbounded;
+  - run-time parameter values are the data the theorems talk about;
+  - every path to the data goes through the enforced implementation.
+- **Not covered:** properties over time or state, such as revocation or
+  expiry. Contracts are per call.
+
+## Usage
+
+Requirements: JDK 17+, sbt, Lean 4.35.0 (`lake` on the PATH, or `FRFLOW_LAKE`),
+and Python 3.10+ for the browser and the MCP server.
+
+```sh
+sbt test                                  # unit tests, and Lean tests when lake is available
+sbt "auth/run render"                     # Lean and the snapshot .frflow/kb.json, from the Scala definitions
+sbt "auth/run check"                      # render, prove the links, record the results
+sbt "auth/run status"                     # decisions, proofs and examples
+sbt "auth/run context Authenticated"      # everything known about a node, for agents and people
+sbt "auth/run accept Authenticated --by <name> --note <reason> [--reject ClientAsserted]"
+python3 -m unittest discover -s tools/frflow/tests
+```
 
 ## Layout
 
 ```
 lean/FrFlow/          the Lean side of the library: the frflow_auto tactic
 core/                 the Scala library
-  Model.scala         Opaque, Param, Lifted, define
+  Model.scala         Opaque, Param, define
   Lift.scala          the macro: Scala lambdas to Lean
-  Node.scala          nodes, the knowledge base, enforce
+  Node.scala          nodes, examples, the knowledge base, enforce
   Generate.scala      Lean generation
-  Workflow.scala      check, approve, status, context, snapshot, event log
-examples/auth/        access control: idea, model, implementation, generated Lean, ledger
+  Workflow.scala      check, decisions, status, context, snapshot, event log
+examples/auth/        access control: idea, model, implementation, ledger
 examples/crm/         multi-tenant CRM, the same
 tools/frflow/         browser (server.py, ui/index.html) and MCP server (mcp_server.py)
 .claude/skills/frflow the agent skill

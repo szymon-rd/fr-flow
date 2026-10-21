@@ -19,10 +19,20 @@ final case class NodeCheck(
     at: String
 )
 
-/** A developer's approval of a node, bound to the hash of what was reviewed. */
-final case class Approval(hash: String, by: String, at: String)
+/** An option the developer did not choose, kept as part of the theory. */
+final case class Alternative(id: String, hash: String, statement: String, why: String)
 
-final case class LedgerEntry(approval: Option[Approval], check: Option[NodeCheck])
+/** The developer's decision to accept a node.
+  *
+  * @param hash     what was decided: the node's statement, reason, sources, examples and Lean
+  * @param chain    the decided state of its ancestors; when they change, the decision must be confirmed
+  * @param note     the developer's reason for the choice
+  * @param content  the node as it was decided, to show what changed since
+  * @param rejected the alternatives proposed with it and not chosen
+  */
+final case class Decision(hash: String, chain: String, by: String, at: String, note: String, content: Json, rejected: List[Alternative])
+
+final case class LedgerEntry(decision: Option[Decision], check: Option[NodeCheck])
 
 /** Approvals and check results of every node, kept in `.frflow/ledger.json`. */
 final case class Ledger(nodes: Map[String, LedgerEntry]):
@@ -33,7 +43,11 @@ final case class Ledger(nodes: Map[String, LedgerEntry]):
     def results(rs: List[Result]) = JArr(rs.map(r => obj("name" -> str(r.name), "status" -> str(r.status), "detail" -> str(r.detail))))
     obj("nodes" -> JObj(nodes.toSeq.sortBy(_._1).map { (id, e) =>
       id -> JObj(
-        e.approval.toSeq.map(a => "approval" -> obj("hash" -> str(a.hash), "by" -> str(a.by), "at" -> str(a.at))) ++
+        e.decision.toSeq.map(d => "decision" -> obj(
+          "hash" -> str(d.hash), "chain" -> str(d.chain), "by" -> str(d.by), "at" -> str(d.at), "note" -> str(d.note),
+          "rejected" -> JArr(d.rejected.map(a => obj("id" -> str(a.id), "hash" -> str(a.hash), "statement" -> str(a.statement), "why" -> str(a.why)))),
+          "content" -> d.content
+        )) ++
           e.check.toSeq.map(c =>
             "check" -> obj(
               "hash" -> str(c.hash), "status" -> str(c.status), "at" -> str(c.at),
@@ -61,7 +75,8 @@ object Ledger:
   def fromJson(j: Json): Ledger =
     Ledger(j("nodes").map(_.obj).getOrElse(Nil).map { (id, e) =>
       id -> LedgerEntry(
-        e("approval").map(a => Approval(s(a, "hash"), s(a, "by"), s(a, "at"))),
+        e("decision").map(d => Decision(s(d, "hash"), s(d, "chain"), s(d, "by"), s(d, "at"), s(d, "note"), d("content").getOrElse(JNull),
+          d("rejected").map(_.arr).getOrElse(Nil).map(a => Alternative(s(a, "id"), s(a, "hash"), s(a, "statement"), s(a, "why"))).toList)),
         e("check").map(c =>
           NodeCheck(
             s(c, "hash"), s(c, "status"), results(c("obligations")),

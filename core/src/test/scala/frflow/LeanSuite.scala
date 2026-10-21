@@ -61,14 +61,16 @@ class LeanSuite extends munit.FunSuite:
     assertEquals(w.check(Some("Squares")).head._2.obligations.head.status, "failed")
   }
 
-  test("approvals are bound to what was reviewed") {
+  test("decisions are bound to what was decided, and to the decided parent") {
     val w = workflow(shelfKb)
-    shelfKb.nodes.foreach(w.approve(_, "dev"))
-    assert(shelfKb.nodes.forall(w.approvalState(_) == "approved"))
-    val reworded = onlyGood.refine[(List[Item.T], Int) => List[Item.T]]("Listed", "Every picked item is in the list and is good.")(
+    shelfKb.nodes.foreach(w.accept(_, "dev", "", Nil))
+    assert(shelfKb.nodes.forall(w.decision(_) == "accepted"))
+    val reworded = onlyGood.refine[(List[Item.T], Int) => List[Item.T]]("Listed", "Every picked item is in the list and is good.", why = "Same.")(
       abs = pick => pick,
       spec = pick => forall((l: List[Item.T], n: Int) => pick(l, n).forall(x => l.contains(x) && good(x))))
-    val w2 = Workflow(KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, reworded), w.ws)
-    assertEquals(w2.approvalState(onlyGood), "approved")
-    assertEquals(w2.approvalState(reworded), "changed")
+    val books2 = reworded.instantiate[(List[Book], Int) => List[Book]]("Books", books.statement, books.why)(books.substs*)
+    val w2 = Workflow(KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, reworded, books2), w.ws)
+    assertEquals(w2.decision(onlyGood), "accepted")
+    assertEquals(w2.decision(reworded), "changed")
+    assertEquals(w2.decision(books2), "parent-changed")
   }
