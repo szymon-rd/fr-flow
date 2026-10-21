@@ -37,6 +37,13 @@ class LiftSuite extends munit.FunSuite:
     assertEquals(Lifted((t: (Int, Int)) => t._1 - t._2).body, "(t.1 - t.2)")
   }
 
+  test("patterns Lean would read as catch-alls are refused") {
+    assert(compileErrors("frflow.Lifted((o: Option[Boolean]) => o match { case Some(true) => 1; case _ => 2 })")
+      .contains("matching on true or false"))
+    assert(compileErrors("frflow.Lifted((s: frflow.fixtures.Shelf) => s match { case b: frflow.fixtures.Shelf.Box => 1; case _ => 2 })")
+      .contains("type test"))
+  }
+
   test("a local name may not shadow a parameter, which is a Lean variable of the same name") {
     assert(compileErrors("frflow.Lifted((minPages: Int) => minPages > frflow.fixtures.minPages.value)")
       .contains("names both a parameter"))

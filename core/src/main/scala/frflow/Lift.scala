@@ -308,7 +308,11 @@ private final class Translator(using val quotes: Quotes):
     case b @ Bind(n, inner) =>
       val (ip, bs) = pattern(inner)
       (s"${bound(ident(n), b.pos)}@${p(ip)}", bs + (b.symbol -> ident(n)))
-    case TypedOrTest(inner, _) => pattern(inner)
+    // A type test would match anything in Lean: refused, unless the type says nothing new.
+    case TypedOrTest(inner, tpt) =>
+      inner match
+        case _: Unapply => pattern(inner) // a constructor pattern: Lean matches the constructor itself
+        case _ => fail(s"a type test in a pattern is not supported in a model: match on the case itself (as in `case Shape.Circle(r)`)", t.pos)
     case Unapply(fun, _, pats) =>
       val subs = pats.map(pattern)
       val args = subs.map((s, _) => if s.contains(' ') && !s.startsWith("(") then p(s) else s)
@@ -324,6 +328,8 @@ private final class Translator(using val quotes: Quotes):
         else if !fun.symbol.flags.is(Flags.Synthetic) then fail("custom extractors are not supported", fun.pos)
         else (ctorName(cls, fun.pos) :: args).mkString(" ")
       (text, subs.flatMap(_._2).toMap)
+    // true and false are not constructors in Lean (a Boolean is a Prop there): they would bind a variable.
+    case Literal(c) if c.value.isInstanceOf[Boolean] => fail("matching on true or false is not supported in a model: use if", t.pos)
     case Literal(c) => (literal(c, t.pos), Map.empty)
     case r: Term if isEnumValue(r.symbol) => (enumValue(r.symbol, r.pos), Map.empty)
     case r: Term if isNamed(r.symbol, "None") => ("none", Map.empty)

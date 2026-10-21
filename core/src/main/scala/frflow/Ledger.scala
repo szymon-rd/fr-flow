@@ -21,7 +21,9 @@ final case class NodeCheck(
 
 /** A decision of the developer about a node.
   *
-  * @param action   `accept` (the developer chose the node, as seen), `confirm` (it still holds after
+  * @param action   `accept` (the developer chose the node, as seen), `settle` (the agent settled a
+  *                 mechanical node: no alternative, no new term, every check passing; the developer
+  *                 spot-checks it), `confirm` (it still holds after
   *                 something above it or its code moved), `reject` (an alternative not chosen, as it
   *                 was proposed), `revisit` (the developer said a change above may affect it, so it is
   *                 reviewed again) or `remove` (the developer agreed that a decided node is gone)
@@ -30,12 +32,14 @@ final case class NodeCheck(
   * @param reason   why: kept as part of the theory
   * @param rejected for `accept`, the alternatives rejected by this choice
   * @param code     the fingerprint of the source files the node governs, when decided
+  * @param held     the decisions below that were shown with this one and left as they are:
+  *                 considered, and still holding
   * @param commit   the git commit checked out when deciding
   * @param tree     the code as decided, written to git as a tree, to show how the code changed since
   *                 (a clone without it falls back to `commit`)
   */
 final case class Decision(action: String, content: Json, chain: String, by: String, at: String, reason: String,
-    rejected: List[String] = Nil, code: String = "", commit: String = "", tree: String = ""):
+    rejected: List[String] = Nil, code: String = "", commit: String = "", tree: String = "", held: List[String] = Nil):
   def hash: String = Decision.hash(content)
 
 object Decision:
@@ -61,19 +65,26 @@ final case class Ledger(decisions: Map[String, List[Decision]]):
     * rejected or removed), which carries the reason it was chosen. Later acceptances are of changes.
     */
   def chosen(id: String): Option[Decision] =
-    history(id).reverse.takeWhile(d => d.action != "reject" && d.action != "remove").reverse.find(_.action == "accept")
+    history(id).reverse.takeWhile(d => d.action != "reject" && d.action != "remove").reverse
+      .find(d => d.action == "accept" || d.action == "settle")
   /** What the node is bound to now: its last acceptance or confirmation (also while the developer
     * has asked to revisit it).
     */
   def binding(id: String): Option[Decision] = current(id) match
-    case Some(d) if d.action == "revisit" => history(id).reverse.find(x => x.action == "accept" || x.action == "confirm")
-    case c => c.filter(d => d.action == "accept" || d.action == "confirm")
+    case Some(d) if d.action == "revisit" => history(id).reverse.find(x => Ledger.binds(x.action))
+    case c => c.filter(d => Ledger.binds(d.action))
+
+  /** Whether the agent settled the node and the developer has not endorsed it since. */
+  def settledByAgent(id: String): Option[Decision] = binding(id).filter(_.action == "settle")
   def add(id: String, d: Decision): Ledger = Ledger(decisions.updated(id, history(id) :+ d))
 
   /** The alternatives ever rejected in favour of a node, as they were proposed. */
   def alternatives(id: String): List[(String, Json)] =
     history(id).filter(_.action == "accept").flatMap(_.rejected).distinct
       .flatMap(r => history(r).reverse.find(_.action == "reject").map(d => r -> d.content))
+
+  /** The decisions where `id` was shown and left as it is (considered, still holding). */
+  def considered(id: String): List[(String, Decision)] = all.filter(_._2.held.contains(id))
 
   /** Every decision, newest first. */
   def all: List[(String, Decision)] = decisions.toList.flatMap((id, ds) => ds.map(id -> _)).sortBy(_._2.at).reverse
@@ -86,6 +97,7 @@ final case class Ledger(decisions: Map[String, List[Decision]]):
       id -> JArr(ds.zipWithIndex.map((d, i) => JObj(Seq(
         "action" -> str(d.action), "by" -> str(d.by), "at" -> str(d.at), "reason" -> str(d.reason)) ++
         (if d.rejected.isEmpty then Nil else Seq("rejected" -> JArr(d.rejected.map(str)))) ++
+        (if d.held.isEmpty then Nil else Seq("held" -> JArr(d.held.map(str)))) ++
         (if d.code.isEmpty then Nil else Seq("code" -> str(d.code))) ++
         (if d.commit.isEmpty then Nil else Seq("commit" -> str(d.commit))) ++
         (if d.tree.isEmpty then Nil else Seq("tree" -> str(d.tree))) ++
@@ -94,6 +106,11 @@ final case class Ledger(decisions: Map[String, List[Decision]]):
 
 object Ledger:
   val empty: Ledger = Ledger(Map.empty)
+
+  /** Actions a node is bound to: the developer's acceptance or confirmation, or the agent settling
+    * a mechanical node.
+    */
+  def binds(action: String): Boolean = action == "accept" || action == "confirm" || action == "settle"
 
   /** A short reference to a content exactly as recorded. */
   private[frflow] def ref(content: Json): String =
@@ -117,7 +134,8 @@ object Ledger:
             acc.reverse.find(x => Ledger.ref(x.content) == ref.stripPrefix("same:")).fold(JNull)(_.content)
           case other => other.getOrElse(JNull)
         acc :+ Decision(s(d, "action"), content, s(d, "chain"), s(d, "by"), s(d, "at"), s(d, "reason"),
-          d("rejected").map(_.arr).getOrElse(Nil).flatMap(_.str).toList, s(d, "code"), s(d, "commit"), s(d, "tree"))
+          d("rejected").map(_.arr).getOrElse(Nil).flatMap(_.str).toList, s(d, "code"), s(d, "commit"), s(d, "tree"),
+          d("held").map(_.arr).getOrElse(Nil).flatMap(_.str).toList)
       }
     }.toMap)
 

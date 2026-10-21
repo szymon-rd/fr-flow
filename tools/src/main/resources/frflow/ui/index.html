@@ -295,7 +295,8 @@ const children = id => live().filter(n => n.parent === id);
 function pathTo(id) { const out = []; let n = byId(id); while (n) { out.unshift(n); n = n.parent ? byId(n.parent) : null; } return out; }
 const linkStatus = n => n.link?.status || (n.kind === "design" ? "design" : n.parent ? "unchecked" : "root");
 // A node resting on a rejected node waits for the agent to move it, not for you.
-const waitingForYou = () => live().filter(n => (n.state === "proposed" || n.state === "review") && byId(n.parent)?.state !== "rejected");
+const waitingForYou = () => live().filter(n => (n.state === "proposed" || n.state === "review") && byId(n.parent)?.state !== "rejected" && !n.settleable);
+const settledByAgent = () => live().filter(n => n.settledByAgent);
 const gone = () => snap()?.gone || [];
 const siblings = n => live().filter(m => m.parent === n.parent && m.id !== n.id && m.state !== "rejected" && (m.kind === "design") === (n.kind === "design"));
 const requests = () => state.data?.requests || [];
@@ -522,7 +523,7 @@ function decisionBox(n) {
   const d = n.decision;
   const blocked = !!n.waitsFor; // from core: a proposal, or a node whose parent moved, waits for its parent
   const later = d ? (n.history || []).filter(h => ["accept", "confirm", "revisit"].includes(h.action) && h.at > d.at) : [];
-  const verb = { accept: "change accepted", confirm: "re-confirmed", revisit: "asked to revisit" };
+  const verb = { accept: "change accepted", confirm: "re-confirmed", revisit: "asked to revisit", settle: "settled by the agent" };
   const chosen = d ? `<div class="why"><div class="label">chosen by ${esc(d.by)} because</div>${esc(d.reason)}</div>
     ${later.map(c => `<div class="muted small">${verb[c.action]} by ${esc(c.by)}: ${esc(c.reason)}</div>`).join("")}` : "";
   const alts = n.alternatives || [];
@@ -545,22 +546,29 @@ function decisionBox(n) {
       ${button(`Accept ${esc(n.id)}`)}<div class="actions"><button class="btn small" data-reject-self="1">Reject ${esc(n.id)}</button></div></div>`;
   }
   if (n.state === "review") {
-    // The decisions below, with their reasons: where the conditions for revisiting them are written.
-    const decidedBelow = n => children(n.id).flatMap(c => [c, ...decidedBelow(c)]);
-    const onlyAbove = c => c.state === "review" && (c.causes || []).length === 1 && c.causes[0] === "above";
-    const listed = decidedBelow(n).filter(c => c.decision && (c.state === "accepted" || onlyAbove(c)));
-    const show = (n.causes || []).includes("self") || listed.some(onlyAbove);
-    const belowList = show && listed.length ? `<div class="side"><div class="label">decisions below, with their reasons — tick those this change may affect: they are reviewed again. The others still hold${listed.some(onlyAbove) ? "; those that moved only because of this are confirmed with your reason" : ""}.</div>${listed.map(c => `<div class="option">
-        <div class="head"><a data-goto="${esc(c.id)}"><b>${esc(c.id)}</b></a>${onlyAbove(c) ? ` <span class="muted small">(moved with this)</span>` : ""}</div>
-        <div class="small" style="margin-top:4px">${esc(C(c).statement)}</div>
-        <div class="muted small">chosen because: ${esc(c.decision.reason)}</div>
-        <label><input type="checkbox" class="rev" value="${esc(c.id)}" data-moved="${onlyAbove(c) ? 1 : ""}"> revisit ${esc(c.id)}</label></div>`).join("")}</div>` : "";
+    // The decisions below that this decision acts on, from core, with their reasons: where the
+    // conditions for revisiting them are written.
+    const listed = n.below || [];
+    const moved = listed.some(b => b.kind === "moved");
+    const belowList = ((n.causes || []).includes("self") || moved) && listed.length ? `<div class="side"><div class="label">decisions below, with their reasons — tick those this change may affect: they are reviewed again. The others still hold${moved ? "; those that moved only because of this are confirmed with your reason" : ""}.</div>${listed.map(b => `<div class="option">
+        <div class="head"><a data-goto="${esc(b.id)}"><b>${esc(b.id)}</b></a>${b.kind === "moved" ? ` <span class="muted small">(moved with this)</span>` : ""}</div>
+        <div class="small" style="margin-top:4px">${esc(b.statement)}</div>
+        <div class="muted small">chosen because: ${esc(b.reason)}</div>
+        <label><input type="checkbox" class="rev" value="${esc(b.id)}" data-moved="${b.kind === "moved" ? 1 : ""}"> revisit ${esc(b.id)}</label></div>`).join("")}</div>` : "";
     const warn = warnings(n);
     return `<div class="box review"><div class="verdict review">To review: ${esc((n.causes || []).map(c => causeText[c]).join("; "))}</div>
       ${warn.length ? `<div class="warn-text">Note: ${esc(warn.join("; "))}.</div>` : ""}
       ${chosen}${whatMoved(n)}${altList}${belowList}
       ${reasonBox((n.causes || []).includes("self") ? "Why is the change right?" : "Why does it still hold, given what changed?")}
       ${button("Accept", "")}</div>`;
+  }
+  if (n.settledByAgent) {
+    const a = n.settledByAgent;
+    return `<div class="box review"><div class="verdict review">Settled by the agent — spot-check</div>
+      <div class="muted small">The agent settled this as mechanical: no alternative, no new term, its checks pass. Endorse it, or ask the agent to change it.</div>
+      <div class="why"><div class="label">the agent's reason</div>${esc(a.reason)}</div>${chosen && d && d.action !== "settle" ? chosen : ""}${altList}
+      ${reasonBox("Why does it hold?")}
+      <div class="actions"><button class="btn small primary" data-accept="1">Endorse</button></div></div>`;
   }
   return `<div class="box accepted"><div class="verdict accepted">Accepted</div>
     <div class="muted small">${d ? new Date(d.at).toLocaleString() : ""}</div>${chosen}${altList}</div>`;
@@ -638,6 +646,13 @@ function nodePane() {
   return h;
 }
 
+// A review caused only by an ancestor's change that is itself waiting is decided with it: grouped under it.
+function followers(n, w) {
+  if ((n.causes || []).join() !== "above") return null;
+  const m = (n.moved || []).map(x => x.id).find(id => w.some(x => x.id === id));
+  return m || null;
+}
+
 function inboxPane() {
   const w = waitingForYou();
   const answered = requests().filter(r => r.status === "answered");
@@ -645,13 +660,17 @@ function inboxPane() {
   const rejected = all().filter(n => n.state === "rejected");
   const warns = snap()?.warnings || [];
   return `${warns.length ? `<div class="box failed" style="margin-top:0"><div class="verdict failed">Warnings</div>${warns.map(x => `<div class="small">${esc(x)}</div>`).join("")}</div>` : ""}
-    <h3 style="margin-top:0">Waiting for you</h3>${w.length ? w.map(n =>
-      `<div class="req"><a data-goto="${esc(n.id)}"><b>${esc(n.id)}</b></a> ${chips(n)}<div class="small">${esc(C(n).statement)}</div></div>`).join("")
+    <h3 style="margin-top:0">Waiting for you</h3>${w.length ? w.filter(n => !followers(n, w)).map(n =>
+      `<div class="req"><a data-goto="${esc(n.id)}"><b>${esc(n.id)}</b></a> ${chips(n)}<div class="small">${esc(C(n).statement)}</div>
+      ${w.filter(f => followers(f, w) === n.id).map(f => `<div class="muted small">↳ <a data-goto="${esc(f.id)}">${esc(f.id)}</a> moved with it: decided together, from its review</div>`).join("")}</div>`).join("")
       : gone().length ? "" : `<div class="muted small">Nothing. Every node is accepted.</div>`}
     ${gone().map(r => `<div class="req"><b>${esc(r.id)}</b> <span class="chip s-review">gone from the model</span>
       <div class="small">${esc(r.decision?.content?.statement)}</div>
       <textarea class="removal" data-node="${esc(r.id)}" rows="1" placeholder="Why is it gone?"></textarea>
       <div class="actions"><button class="btn small primary" data-gone="${esc(r.id)}">Accept that it is gone</button></div></div>`).join("")}
+    ${settledByAgent().length ? `<h3>Settled by the agent — spot-check</h3>${settledByAgent().map(n => `<div class="req"><a data-goto="${esc(n.id)}"><b>${esc(n.id)}</b></a>
+      <div class="small">${esc(C(n).statement)}</div><div class="answer small"><span class="muted">agent:</span> ${esc(n.settledByAgent.reason)}</div></div>`).join("")}` : ""}
+    ${live().some(n => n.settleable) ? `<div class="muted small" style="margin-top:8px">${live().filter(n => n.settleable).length} mechanical decision(s) left to the agent: ${live().filter(n => n.settleable).map(n => `<a data-goto="${esc(n.id)}">${esc(n.id)}</a>`).join(", ")}.</div>` : ""}
     <h3>Answered by the agent</h3>${answered.length ? answered.map(r => `<div class="req"><div class="small">on ${r.node ? `<a data-goto="${esc(r.node)}">${esc(r.node)}</a>` : "the idea"}</div>
       <div>${esc(r.text)}</div><div class="answer small"><span class="muted">agent:</span> ${esc(r.answer)}</div>
       <div class="actions"><button class="btn small" data-close="${esc(r.id)}">Done</button></div></div>`).join("") : `<div class="muted small">None.</div>`}
@@ -701,7 +720,7 @@ function vocabularyPane() {
 
 function historyPane() {
   const hs = state.history || [];
-  const verb = { accept: "accepted", confirm: "re-confirmed", reject: "rejected", remove: "agreed is gone", revisit: "to revisit" };
+  const verb = { accept: "accepted", confirm: "re-confirmed", reject: "rejected", remove: "agreed is gone", revisit: "to revisit", settle: "settled by the agent" };
   return hs.length ? `<div class="muted small">Every decision, from the ledger (committed with the code).</div>` + hs.map(e =>
     `<div class="event"><span class="d ${esc(e.action)}"></span><div><a data-goto="${esc(e.node)}"><b>${esc(e.node)}</b></a> ${esc(verb[e.action] || e.action)} by ${esc(e.by)}${(e.rejected || []).length ? `, rejecting ${esc(e.rejected.join(", "))}` : ""}
       <div class="small">${esc(e.reason)}</div><div class="when">${new Date(e.at).toLocaleString()}</div></div></div>`).join("") : `<p class="muted">No decisions yet.</p>`;

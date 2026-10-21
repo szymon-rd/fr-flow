@@ -57,7 +57,7 @@ object Git:
     if since.isEmpty then ""
     else
       // Files that are new since then (not in that tree, not yet added) are shown whole.
-      val known = run(dir, ("ls-tree" :: "-r" :: "--name-only" :: since :: "--" :: files)*).toList.flatMap(_.linesIterator).toSet
+      val known = run(dir, ("ls-tree" :: "-r" :: "--name-only" :: "--full-name" :: since :: "--" :: files)*).toList.flatMap(_.linesIterator).toSet
       val prefix = run(dir, "rev-parse", "--show-prefix").map(_.trim).getOrElse("")
       val added = files.filterNot(f => known(prefix + f)).filter(f => java.nio.file.Files.isRegularFile(dir.resolve(f)))
         .flatMap(f => runAny(dir, "diff", "--no-index", "--", "/dev/null", f))

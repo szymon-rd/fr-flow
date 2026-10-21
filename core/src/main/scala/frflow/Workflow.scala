@@ -269,12 +269,18 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
         // A top-level val must be part of the model: an opaque type, a parameter, a definition, a node
         // or the knowledge base.
         val modelVal = """val\s+\w+\s*(:[^=]*)?=\s*(Opaque\b|Param\b|define\b|Node\.|KnowledgeBase\b|\w+\s*\.\s*(refine|instantiate|contract|design)\b).*""".r
+        // ...and a definition, parameter or opaque type no node uses is code no node governs.
+        val termVal = """val\s+(\w+)\s*(:[^=]*)?=\s*(Opaque|Param|define)\b.*""".r
+        val used = kb.defs.map(_.name).toSet ++ kb.params.map(_.name) ++ kb.opaques.map(_.name)
         val bad =
           if top then
             !t.startsWith("@main") && !t.startsWith("//") && !t.startsWith("/*") && !t.startsWith("*") && (
               Set("def", "class", "object", "given", "extension", "implicit", "type", "var")(word) ||
               (word == "trait" && withBody) || (word == "case" && withBody) ||
-              (word == "val" && !modelVal.matches(words.mkString(" "))))
+              (word == "val" && !modelVal.matches(words.mkString(" "))) ||
+              (word == "val" && (words.mkString(" ") match
+                case termVal(name, _, _) => !used(name)
+                case _                   => false)))
           else word == "def" || (inEnum && word != "case" && word.nonEmpty && !word.startsWith("//"))
         if bad then List(s"$rel:${i + 1}: `${t.take(50)}` is code in the model's file, which no node governs; move it next to the implementation")
         else Nil
@@ -341,11 +347,14 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       sb ++= s"### ${a.id} (${a.kind.toString.toLowerCase}) [${st(a.id)}]\n\n${a.statement}\n\nWhy: ${a.why}\n\n"
       l.history(a.id).foreach { d =>
         d.action match
-          case "accept"  => sb ++= s"Accepted by ${d.by}: ${d.reason}\n\n"
+          case "accept" if l.chosen(a.id).contains(d) => sb ++= s"Chosen by ${d.by} because: ${d.reason}\n\n"
+          case "accept"  => sb ++= s"Change accepted by ${d.by}: ${d.reason}\n\n"
           case "confirm" => sb ++= s"Confirmed by ${d.by}: ${d.reason}\n\n"
           case "revisit" => sb ++= s"To revisit (${d.by}): ${d.reason}\n\n"
+          case "settle"  => sb ++= s"Settled by the agent: ${d.reason}\n\n"
           case _         => ()
       }
+      l.considered(a.id).take(3).foreach((by, d) => sb ++= s"Considered when $by changed (${d.by}): still holds\n\n")
       val alts = l.alternatives(a.id)
       def f(c: Json, k: String) = c(k).flatMap(_.str).getOrElse("")
       alts.foreach((id, c) => sb ++= s"- Rejected alternative $id: ${f(c, "statement")} (why: ${f(c, "why")})\n")
@@ -397,6 +406,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
         val pad = "  " * depth
         sb ++= s"$pad- ${c.id} (${c.kind.toString.toLowerCase}) [${st(c.id)}]: ${c.statement} Why: ${c.why}\n"
         l.chosen(c.id).foreach(d => sb ++= s"$pad  Chosen by ${d.by} because: ${d.reason}\n")
+        l.considered(c.id).take(3).foreach((by, d) => sb ++= s"$pad  Considered when $by changed (${d.by}): still holds\n")
       }
       sb ++= "\n"
     g.obligation(n).foreach { o =>

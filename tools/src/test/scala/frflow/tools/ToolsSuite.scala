@@ -87,13 +87,21 @@ class ToolsSuite extends munit.FunSuite:
       "params" -> obj("name" -> str(tool), "arguments" -> JObj(args)))).get("result").get
     (r("content").get.arr.head("text").flatMap(_.str).get, r("isError").contains(JBool(true)))
 
-  test("MCP: protocol, and no tool to accept") {
-    val m = Mcp(List(fake()))
+  test("MCP: protocol; the agent settles only what involves no choice, and finds where a change belongs") {
+    val p = fake()
+    p.run(List("render"), actor = "ui")
+    val m = Mcp(List(p))
     val init = m.handle(obj("jsonrpc" -> str("2.0"), "id" -> JNum(1), "method" -> str("initialize"), "params" -> obj())).get
     assertEquals(init("result").flatMap(_("serverInfo")).map(s(_, "name")), Some("frflow"))
     assertEquals(m.handle(obj("jsonrpc" -> str("2.0"), "method" -> str("notifications/initialized"))), None)
     val names = m.tools.map(s(_, "name"))
-    assertEquals(names, List("inbox", "context", "render", "check", "answer", "scaffold"))
+    assertEquals(names, List("inbox", "context", "render", "check", "answer", "settle", "find", "scaffold"))
+    assert(!names.contains("accept"))
+    // a root is the developer's to decide
+    val (refused, isErr) = call(m, "settle", "node" -> str("Root"), "reason" -> str("It is mechanical enough."))
+    assert(isErr && refused.contains("developer"), refused)
+    val (found, _) = call(m, "find", "query" -> str("Stale statement"))
+    assert(found.contains("Stale"), found)
     val err = m.handle(obj("jsonrpc" -> str("2.0"), "id" -> JNum(2), "method" -> str("nope"))).get
     assertEquals(err("error").flatMap(_("code")), Some(JNum(-32601)))
   }

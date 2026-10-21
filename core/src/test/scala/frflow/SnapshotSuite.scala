@@ -83,7 +83,7 @@ class SnapshotSuite extends munit.FunSuite:
     acceptAll(w)
     Files.writeString(ws.root.resolve("IDEA.md"), "# Shelf\n\nPick good items, quickly.\n\n## Not modelled\n\n- Prices.\n")
     ok(w.decide(Decisions.Request("OnlyGood", "dev", "Picking must be quick now.", revisit = List("Pick"))))
-    assert(w.decide(Decisions.Request("Listed", "dev", "OnlyGood is not below it.", revisit = List("OnlyGood"))).left.exists(_.contains("revisited")))
+    assert(w.decide(Decisions.Request("Listed", "dev", "OnlyGood is not below it.", revisit = List("OnlyGood"))).left.exists(_.contains("not among")))
     assertEquals(w.kb.ordered.map(w.state), List("accepted", "accepted", "accepted", "review"))
     assertEquals(nodes(w.annotated)("Pick")("causes").get.arr.flatMap(_.str), Seq("revisit"))
     ok(accept(w, pick, "Filtering a list is quick enough."))
@@ -181,7 +181,10 @@ class SnapshotSuite extends munit.FunSuite:
       abs = pick => pick, spec = pick => forall((l: List[Item.T], n: Int) => pick(l, n).forall(x => l.contains(x) && good(x))))
     val books2 = listed2.instantiate[(List[Book], Int) => List[Book]]("Books", books.statement, books.why)(books.substs*)
     val w = workflow(KnowledgeBase("Shelf", idea = "IDEA.md")(root2, listed2, books2), ws)
-    ok(accept(w, root2, "Clearer with 'ever' added.", confirm = List(listed2, books2)))
+    // Listed changed itself, so it is decided on its own; nothing below it is listed with the root
+    assert(accept(w, root2, "Clearer with 'ever' added.", confirm = List(listed2, books2)).left.exists(_.contains("not among")))
+    assertEquals(nodes(w.annotated)("OnlyGood")("below").get.arr, Seq())
+    ok(accept(w, root2, "Clearer with 'ever' added."))
     assertEquals(w.kb.ordered.map(w.state), List("accepted", "review", "review"))
   }
 
@@ -198,14 +201,12 @@ class SnapshotSuite extends munit.FunSuite:
     val ns = nodes(w.annotated)
     assertEquals(ns("OnlyGood")("causes").get.arr.flatMap(_.str), Seq("self"))
     assertEquals(ns("Books")("causes").get.arr.flatMap(_.str), Seq("above"))
-    ok(accept(w, root2, "Clearer with 'ever' added."))
-    // nothing below is confirmed unless named
-    ok(accept(w, listed2, "Unaffected by the rewording."))
-    assertEquals(w.state(books2), "review")
-    ok(accept(w, listed2, "Books are unaffected by the rewording.", confirm = List(books2)))
+    // the decisions below that moved only with the root are listed with it, and confirmed by name
+    assertEquals(nodes(w.annotated)("OnlyGood")("below").get.arr.flatMap(_("id").flatMap(_.str)), Seq("Listed", "Books"))
+    ok(accept(w, root2, "Clearer with 'ever' added.", confirm = List(listed2, books2)))
     assert(w.kb.nodes.forall(w.state(_) == "accepted"), w.kb.nodes.map(w.state))
     assertEquals(w.ledger.history("Books").map(_.action), List("accept", "confirm"))
-    assert(w.context(books2).contains("Accepted by dev: Books is right"))
+    assert(w.context(books2).contains("Chosen by dev because: Books is right"))
   }
 
   test("what is not modelled can change without disturbing decisions") {

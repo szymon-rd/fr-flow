@@ -8,8 +8,9 @@ import java.nio.charset.StandardCharsets.UTF_8
 /** The FrFlow MCP server (stdio): how an agent works on a knowledge base.
   *
   * Tools run the knowledge base's CLI, which builds everything from the Scala
-  * definitions. The agent proposes nodes and answers the developer's requests;
-  * deciding is the developer's, in the browser, so there is no tool to accept a node.
+  * definitions. The agent proposes nodes and answers the developer's requests. Choices are the
+  * developer's, in the browser; the agent may only settle what involves none (`settle`), and the
+  * developer spot-checks it.
   */
 final class Mcp(projects: List[Project]):
   private val byName = projects.map(p => p.name -> p).toMap
@@ -35,6 +36,14 @@ final class Mcp(projects: List[Project]):
     tool("answer", "Reply to a developer's request once done, e.g. 'Proposed Expiring and Sliding under Authenticated; " +
       "Expiring is simpler, Sliding keeps active users signed in. Choose in the browser.'",
       schema(project, "request" -> obj("type" -> str("string")), "text" -> obj("type" -> str("string")))("request", "text")),
+    tool("settle", "Settle a mechanical decision yourself: a node with no alternative beside it and no new term whose link " +
+      "holds and examples pass, or a change to the code a node governs. Refused otherwise: choices, terms and changes to what " +
+      "a node says are the developer's. First read its context, including the reasons above and below it; do not settle if any " +
+      "'revisit if' condition there may be met. Your reason is kept and the developer spot-checks it.",
+      schema(project, node, "reason" -> obj("type" -> str("string"), "description" -> str("Why it holds, in a sentence.")))("node", "reason")),
+    tool("find", "Where a change belongs: the nodes that govern a file (pass a path relative to the project), or the nodes " +
+      "whose id, statement or reason mention some words. Extend those nodes rather than adding a near-duplicate.",
+      schema(project, "query" -> obj("type" -> str("string")))("query")),
     tool("scaffold", "Create lean/Proofs/<KB>/<NODE>.lean for an obligation frflow_auto did not prove. The proof must state " +
       "exactly `Obl.link` and contain only tactics.", schema(project, node)("node"))
   )
@@ -68,6 +77,14 @@ final class Mcp(projects: List[Project]):
           val r = p.answerRequest(args("request").flatMap(_.str).getOrElse(""), args("text").flatMap(_.str).getOrElse(""))
           (s"answered ${r("id").flatMap(_.str).getOrElse("")}", false)
         catch case e: java.util.NoSuchElementException => throw ToolError(e.getMessage)
+      case "settle" =>
+        p.decide(frflow.Decisions.Request(need, "agent", args("reason").flatMap(_.str).getOrElse(""), action = "settle")) match
+          case Left(why) => throw ToolError(why)
+          case Right(()) => (s"settled $need; the developer will spot-check it", false)
+      case "find" =>
+        val q = args("query").flatMap(_.str).getOrElse("").trim
+        if q.isEmpty then throw ToolError("query is required")
+        p.annotated.fold(("No snapshot yet; call render.", true))(s => (frflow.Decisions.find(s, q), false))
       case "inbox" =>
         val open = p.requests.filter(_("status").flatMap(_.str).contains("open"))
         def f(r: Json, k: String) = r(k).flatMap(_.str).getOrElse("")
