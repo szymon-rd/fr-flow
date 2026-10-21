@@ -8,9 +8,10 @@ project/project/
 .vscode/
 .lake/
 
-# FrFlow: derived from the Scala definitions and Lean, or local to a run. The ledger and the
-# requests (with the agent's answers) are committed.
+# FrFlow: derived from the Scala definitions and Lean, or local to a run. Only the ledger is
+# committed; requests to the agent are a work queue.
 **/.frflow/kb.json
+**/.frflow/requests.json
 **/.frflow/checks.json
 **/.frflow/running.json
 **/.frflow/*.lock

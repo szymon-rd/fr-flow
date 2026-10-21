@@ -15,14 +15,9 @@ object Cli:
       |  check [NODE]            render, prove the links, record the results
       |  status                  the tree: decisions, links, examples; exits 1 unless all is settled (for CI)
       |  context NODE            everything needed to work on NODE (for agents and people)
-      |  accept NODE --by NAME --reason TEXT [--reject ID,ID] [--revisit ID,ID] [--subtree]
-      |                          the developer's decision: choose NODE (rejecting alternatives), or
-      |                          accept it again after something moved under it, or agree it is gone;
-      |                          --revisit puts decisions below that the change may affect up for review;
-      |                          --subtree also accepts the nodes below that moved only because it did
-      |  reject NODE --by NAME --reason TEXT
-      |                          the developer's decision: reject a proposal, choosing nothing instead
       |  scaffold NODE           a proof file for an obligation automation did not prove
+      |
+      |Decisions are the developer's, and are made in the browser (bin/frflow serve).
       |""".stripMargin
 
   def run(kb: KnowledgeBase, ws: Workspace, args: Seq[String]): Int =
@@ -54,23 +49,6 @@ object Cli:
         0
       case "status" :: Nil => val (text, ok) = w.status; print(text); if ok then 0 else 1
       case "context" :: id :: Nil => node(id) { n => print(w.context(n)); 0 }
-      case "accept" :: id :: rest =>
-        val flags = Set("--subtree")
-        val opts = rest.filterNot(flags).grouped(2).collect { case List(k, v) if k.startsWith("--") => k.drop(2) -> v }.toMap
-        if rest.filterNot(flags).size % 2 != 0 || !opts.contains("by") || opts.keySet.exists(!Set("by", "reason", "reject", "revisit")(_)) then
-          System.err.println(usage); return 2
-        def ids(k: String) = opts.get(k).toList.flatMap(_.split(",")).map(_.trim).filter(_.nonEmpty)
-        val req = Decisions.Request(id, opts("by"), opts.getOrElse("reason", ""), ids("reject"), rest.contains("--subtree"), ids("revisit"))
-        w.decide(req) match
-          case Left(why) => System.err.println(why); 1
-          case Right(()) =>
-            w.writeSnapshot()
-            println(s"accepted $id by ${req.by}${if req.reject.nonEmpty then s"; rejected ${req.reject.mkString(", ")}" else ""}")
-            0
-      case "reject" :: id :: "--by" :: by :: "--reason" :: reason :: Nil =>
-        w.decide(Decisions.Request(id, by, reason, verb = "reject")) match
-          case Left(why) => System.err.println(why); 1
-          case Right(()) => w.writeSnapshot(); println(s"rejected $id by $by"); 0
       case "scaffold" :: id :: Nil =>
         node(id) { n =>
           println(if w.scaffold(n) then s"created lean/${w.generate.proofsPath(n.id)}" else "nothing to create")

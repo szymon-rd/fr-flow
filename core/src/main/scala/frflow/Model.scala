@@ -69,7 +69,7 @@ object Bindings:
     finally current.set(saved)
 
 /** A Lean declaration of a domain type, produced from a Scala case class or enum. */
-final case class TypeDecl(name: String, lean: String, uses: List[String])
+final case class TypeDecl(name: String, lean: String, uses: List[String], scala: String = "")
 
 /** A Scala lambda or value together with its Lean translation. Both come from one source.
   *
@@ -103,6 +103,14 @@ final class Lifted[+F](
 object Lifted:
   /** Translates a Scala lambda over the domain. Unsupported Scala is a compile error. */
   inline def apply[F](inline f: F): Lifted[F] = ${ Lift.lifted('f) }
+
+  /** A lambda kept as Scala only, with its source text: for a node that opts out of Lean. */
+  inline def informal[F](inline f: F): Lifted[F] =
+    new Lifted[F](f, Nil, "", "", sources(f).head, Nil, Nil, Nil, () => Nil, () => Nil)
+
+  /** Translated when `formal`, kept as Scala only otherwise. */
+  inline def of[F](inline formal: Boolean, inline f: F): Lifted[F] =
+    inline if formal then apply(f) else informal(f)
 
   /** The project source files an expression refers to (used to notice implementation changes). */
   inline def sourceFiles(inline x: Any): List[String] = ${ Lift.sourceFiles('x) }

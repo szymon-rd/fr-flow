@@ -15,8 +15,8 @@ class SnapshotSuite extends munit.FunSuite:
   private def nodes(j: Json) = j("nodes").get.arr.map(n => n("id").flatMap(_.str).get -> n).toMap
   private def field(n: Json, path: String*) = path.foldLeft(Option(n))((j, k) => j.flatMap(_(k))).flatMap(_.str)
   private def ok(e: Either[String, Unit]): Unit = assert(e.isRight, e)
-  private def accept(w: Workflow, n: Node[?], reason: String, rejecting: List[Node[?]] = Nil, subtree: Boolean = false) =
-    w.decide(Decisions.Request(n.id, "dev", reason, rejecting.map(_.id), subtree))
+  private def accept(w: Workflow, n: Node[?], reason: String, rejecting: List[Node[?]] = Nil, confirm: List[Node[?]] = Nil) =
+    w.decide(Decisions.Request(n.id, "dev", reason, rejecting.map(_.id), confirm = confirm.map(_.id)))
   private def acceptAll(w: Workflow): Unit =
     w.kb.ordered.foreach(n => ok(accept(w, n, s"${n.id} is right")))
 
@@ -98,9 +98,9 @@ class SnapshotSuite extends munit.FunSuite:
     val w = workflow(KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, alt, books, pick))
     assert(accept(w, onlyGood, "ok").left.exists(_.contains("few words")))
     ok(accept(w, onlyGood, "it is the idea"))
-    ok(w.decide(Decisions.Request("Bounded", "dev", "Readers want every good book.", verb = "reject")))
+    ok(w.decide(Decisions.Request("Bounded", "dev", "Readers want every good book.", action = "reject")))
     assertEquals((w.state(alt), w.state(listed)), ("rejected", "proposed"))
-    assert(w.decide(Decisions.Request("OnlyGood", "dev", "The root is not a proposal.", verb = "reject")).left.exists(_.contains("only a proposal")))
+    assert(w.decide(Decisions.Request("OnlyGood", "dev", "The root is not a proposal.", action = "reject")).left.exists(_.contains("only a proposal")))
   }
 
   test("rejecting a node puts what rests on it up for review, and status fails until it is moved") {
@@ -117,11 +117,50 @@ class SnapshotSuite extends munit.FunSuite:
     assert(text.contains("Listed (refine)  [rejected: remove it from the model"), text)
   }
 
+  test("a node can opt out of Lean: Scala only, decided by reading, examples still run") {
+    // `mkString` is outside the Scala the macro translates; an informal node may use any Scala.
+    val titled = books.contract[List[Book], Int, List[Book]]("Titled", "Picked books have a title.",
+        why = "Titles are free text; not worth a proof.", formal = false)(
+      (shelf, n, picked) => picked.forall(b => b.title.mkString.nonEmpty))
+      .examples(minPages.bind(100))(
+        expect(List(Book("Long", 300)), 1, List(Book("Long", 300)), "a titled book"),
+        expect(Nil, 1, Nil, "nothing to pick"),
+        reject(List(Book("", 300)), 1, List(Book("", 300)), "a book without a title"))
+    val kb = KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, titled)
+    assertEquals(kb.problems, Nil)
+    val w = workflow(kb)
+    val n = nodes(w.annotated)("Titled")
+    assertEquals(field(n, "link", "status"), Some("informal"))
+    assertEquals(n("content").flatMap(_("formal")), Some(Json.JBool(false)))
+    assertEquals(n("examples").get.arr.flatMap(_("contract").flatMap(_.str)), Seq("ok", "ok", "ok"))
+    assert(!w.generate.formal(titled))
+    assert(field(n, "content", "sources", "post").exists(_.contains("mkString")), n)
+    // below an informal node there is nothing formal to prove against
+    val below = titled.contract[List[Book], Int, List[Book]]("Below", "s", "w")((s, n, p) => true)
+    assert(KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, titled, below).problems
+      .exists(_.contains("Titled is not formal")))
+  }
+
+  test("how the implementation is built is part of the contract's content") {
+    assertEquals(shelfKb.implementation(pick).map(_.wiring), Some("(shelf, n) => shelf.filter(_.pages >= minPages.value).take(n)"))
+    val w = workflow()
+    assertEquals(field(nodes(w.annotated)("Pick"), "content", "implementation"), Some("(shelf, n) => shelf.filter(_.pages >= minPages.value).take(n)"))
+  }
+
   test("a decision is refused when the node moved since the developer looked at it") {
     val w = workflow()
     assert(w.decide(Decisions.Request("OnlyGood", "dev", "It is the idea.", seen = "stale")).left.exists(_.contains("changed since")))
     val seen = field(nodes(w.annotated)("OnlyGood"), "version").get
     ok(w.decide(Decisions.Request("OnlyGood", "dev", "It is the idea.", seen = seen)))
+  }
+
+  test("repeated content is written once and survives a merge that interleaves entries") {
+    val c1 = Json.obj("statement" -> Json.str("one"))
+    val c2 = Json.obj("statement" -> Json.str("two"))
+    def d(c: Json, r: String) = Decision("accept", c, "", "dev", r, r)
+    val l = Ledger(Map("A" -> List(d(c1, "1"), d(c2, "2"), d(c1, "3"))))
+    assert(l.toJson.render().contains("same:"))
+    assertEquals(Ledger.fromJson(Json.parse(l.toJson.render())), l)
   }
 
   test("the ledger only grows; a merge may interleave both sides' decisions") {
@@ -133,7 +172,7 @@ class SnapshotSuite extends munit.FunSuite:
     assert(Ledger.rewrittenSince(merged, base).nonEmpty)
   }
 
-  test("a subtree is confirmed only below nodes that are accepted") {
+  test("decisions below are confirmed by name, only below nodes that are accepted") {
     val ws = workspace()
     acceptAll(workflow(shelfKb, ws))
     val root2 = Node.root[(List[Item.T], Int) => List[Item.T]]("OnlyGood", "Only good items are ever picked.", onlyGood.why)(
@@ -142,11 +181,11 @@ class SnapshotSuite extends munit.FunSuite:
       abs = pick => pick, spec = pick => forall((l: List[Item.T], n: Int) => pick(l, n).forall(x => l.contains(x) && good(x))))
     val books2 = listed2.instantiate[(List[Book], Int) => List[Book]]("Books", books.statement, books.why)(books.substs*)
     val w = workflow(KnowledgeBase("Shelf", idea = "IDEA.md")(root2, listed2, books2), ws)
-    ok(accept(w, root2, "Clearer with 'ever' added.", subtree = true))
+    ok(accept(w, root2, "Clearer with 'ever' added.", confirm = List(listed2, books2)))
     assertEquals(w.kb.ordered.map(w.state), List("accepted", "review", "review"))
   }
 
-  test("a change to a node's meaning shows below, and is confirmed for a whole subtree at once") {
+  test("a change to a node's meaning shows below, and what still holds is confirmed by name") {
     val ws = workspace()
     acceptAll(workflow(shelfKb, ws))
     val root2 = Node.root[(List[Item.T], Int) => List[Item.T]]("OnlyGood", "Only good items are ever picked.", onlyGood.why)(
@@ -160,7 +199,10 @@ class SnapshotSuite extends munit.FunSuite:
     assertEquals(ns("OnlyGood")("causes").get.arr.flatMap(_.str), Seq("self"))
     assertEquals(ns("Books")("causes").get.arr.flatMap(_.str), Seq("above"))
     ok(accept(w, root2, "Clearer with 'ever' added."))
-    ok(accept(w, listed2, "Unaffected by the rewording.", subtree = true))
+    // nothing below is confirmed unless named
+    ok(accept(w, listed2, "Unaffected by the rewording."))
+    assertEquals(w.state(books2), "review")
+    ok(accept(w, listed2, "Books are unaffected by the rewording.", confirm = List(books2)))
     assert(w.kb.nodes.forall(w.state(_) == "accepted"), w.kb.nodes.map(w.state))
     assertEquals(w.ledger.history("Books").map(_.action), List("accept", "confirm"))
     assert(w.context(books2).contains("Accepted by dev: Books is right"))

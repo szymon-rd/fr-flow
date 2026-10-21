@@ -25,9 +25,9 @@ this way. It also keeps the code from drifting away from it.
 ## Rules
 
 1. **You propose; the developer decides.**
-   - Never accept nodes. There is no tool for it. Do not run `accept` from a
-     shell, and do not edit `.frflow/ledger.json`. Rewriting committed
-     decisions shows as a warning.
+   - Never decide nodes. There is no tool or command for it. Do not post to
+     the browser's server, and do not edit `.frflow/ledger.json`. Rewriting
+     committed decisions shows as a warning.
 2. **Offer real alternatives.** When a step has more than one reasonable
    design, propose each as a sibling node, with its own `why` covering its
    trade-off. One proposal is fine when the step is obvious.
@@ -148,6 +148,13 @@ types and parameters. It has no obligation.
 
 **`contract(id, statement, why)(post)`** is for a model `(A, B) => R`. `post`
 must hold for every call.
+
+**`formal = false`** (on `Node.root`, `refine`, `instantiate`, `contract`)
+opts a node out of Lean. Its model stays Scala and may use any Scala; a
+contract still runs its examples and `service` still checks it. Its link is
+decided by reading, and everything below it must opt out too. Formal is the
+default: opt out only when a proof costs more than it gives, or the subset
+cannot express it (state, time, effects), and say so in `why`.
 
 **`design(id, statement, why)(files*)`** is a decision with no formal model.
 It has nothing to prove, and its files are tracked for change.

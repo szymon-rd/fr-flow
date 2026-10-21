@@ -69,6 +69,17 @@ class LeanSuite extends munit.FunSuite:
     assert(r(1)._2.obligations.head.detail.startsWith("vacuous"), r(1)._2.obligations)
   }
 
+  test("a node whose abs alone makes the root hold is reported, though its link to the parent is real") {
+    // abs keeps only good items (what the root asks); the spec only says items come from the list.
+    val filtered = listed.refine[(List[Item.T], Int) => List[Item.T]]("Filtered", "Picked items come from the list.", why = "w")(
+      abs = pick => (l, n) => pick(l, n).filter(x => good(x)),
+      spec = pick => forall((l: List[Item.T], n: Int) => pick(l, n).forall(x => l.contains(x))))
+    val r = workflow(KnowledgeBase("RootTriv", idea = "IDEA.md")(onlyGood, listed, filtered)).check()
+    val c = r.find(_._1.id == "Filtered").get._2
+    assertEquals(c.status, "failed", c)
+    assert(c.obligations.head.detail.contains("the root holds"), c.obligations)
+  }
+
   test("a node no model meets is reported, so it cannot make everything below it hold") {
     val never = onlyGood.refine[(List[Item.T], Int) => List[Item.T]]("Never", "Nothing is ever picked.", why = "w")(
       abs = pick => pick, spec = pick => false)

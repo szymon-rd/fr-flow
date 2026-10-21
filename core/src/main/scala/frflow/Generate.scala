@@ -35,6 +35,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
   def theoremsPath(id: String) = s"FrFlowGen/$K/$id/Theorems.lean"
   def vacuityPath(id: String) = s"FrFlowGen/$K/$id/Vacuity.lean"
   def unsatPath(id: String) = s"FrFlowGen/$K/$id/Unsat.lean"
+  def rootTrivialPath(id: String) = s"FrFlowGen/$K/$id/RootTrivial.lean"
   def proofsPath(id: String) = s"Proofs/$K/$id.lean"
   def auditPath(id: String) = s"FrFlowAudit/$K/$id.lean"
   def generatedDirs = List(s"FrFlowGen/$K", s"FrFlowAudit/$K")
@@ -102,7 +103,8 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
   def files: Map[String, String] =
     val perNode = kb.nodes.filter(formal).flatMap { n =>
       List(specPath(n.id) -> spec(n), autoPath(n.id) -> auto(n), theoremsPath(n.id) -> theorems(n), auditPath(n.id) -> audit(n)) ++
-        vacuity(n).map(vacuityPath(n.id) -> _) ++ unsatFile(n).map(unsatPath(n.id) -> _)
+        vacuity(n).map(vacuityPath(n.id) -> _) ++ unsatFile(n).map(unsatPath(n.id) -> _) ++
+        rootTrivialFile(n).map(rootTrivialPath(n.id) -> _)
     }
     (s"FrFlowGen/$K/Domain.lean" -> domain :: perNode).toMap
 
@@ -114,6 +116,17 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
     val ls = n.lifted ++ defs.values.map(_.lifted)
     ls.flatMap(_.types).map(_.lean).distinct ++ defs.values.map(d => resolve(d.lifted.lean))
 
+  /** What a node uses, as written in Scala: the domain types (theirs, and those it substitutes) and
+    * the definitions, however nested. Part of what a decision is bound to; unlike the generated Lean,
+    * it does not change when FrFlow's translation does.
+    */
+  def sourcesUsedBy(n: Node[?]): List[String] =
+    val defs = mutable.LinkedHashMap.empty[String, Def[?]]
+    def visit(d: Def[?]): Unit = if !defs.contains(d.name) then { defs(d.name) = d; d.lifted.defs.foreach(visit) }
+    n.lifted.flatMap(_.defs).foreach(visit)
+    val types = (n.lifted ++ defs.values.map(_.lifted)).flatMap(_.types) ++ n.substs.flatMap(_.types)
+    types.map(t => if t.scala.nonEmpty then t.scala else t.lean).distinct ++ defs.values.map(d => s"${d.name} = ${d.lifted.source}")
+
   def domain: String =
     val defs = kb.defs.map { d =>
       val b = binders(defCtx(d))
@@ -122,7 +135,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
     Header + "import FrFlow\n\n" + Preamble + s"namespace $K\n\n" + (kb.types.map(_.lean) ++ defs).mkString("\n\n") + s"\n\nend $K\n"
 
   /** Nodes with a formal model, which get Lean. */
-  def formal(n: Node[?]): Boolean = n.kind != NodeKind.Design
+  def formal(n: Node[?]): Boolean = n.kind != NodeKind.Design && n.formal
 
   private def modelType(n: Node[?]): String = n.kind match
     case NodeKind.Design                 => "Unit"
@@ -173,12 +186,27 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
       Obligation("unsat", s"$forallCtx∀ (m : ${modelType(n)}), ¬ ${at("spec")} m", s"No model meets ${n.id}.")
     }
 
+  /** The root holds for every model of this node, whatever its spec says: what is mapped to the
+    * root (by an `abs` or a substitution above) decides it alone. If provable, the node's root
+    * theorem says nothing about it. (For a child of the root this is `trivial`.)
+    */
+  def rootTrivial(n: Node[?]): Option[Obligation] =
+    n.parent.filter(p => p.kind != NodeKind.Root && (n.kind == NodeKind.Refine || n.kind == NodeKind.Contract)).map { _ =>
+      val c = nodeCtx(n)
+      val a = args(c)
+      def at(f: String) = if a.isEmpty then f else s"$f $a"
+      val forallCtx = if binders(c).isEmpty then "" else s"∀ ${binders(c)}, "
+      Obligation("rootTrivial", s"$forallCtx∀ (m : ${modelType(n)}), ${at("rootSpec")} (${at("toRoot")} m)",
+        s"The root holds for every model of ${n.id}, whatever ${n.id} says.")
+    }
+
   private def attempt(n: Node[?], o: Obligation, ns: String): String =
     Header + s"import ${specModule(n.id)}\n\n" + Preamble + s"namespace $K.${n.id}.$ns\nopen $K.${n.id}\n\n" +
       s"theorem ${o.name} : Obl.${o.name} := by\n  unfold Obl.${o.name}\n  frflow_auto\n\nend $K.${n.id}.$ns\n"
 
   def vacuity(n: Node[?]): Option[String] = trivial(n).map(attempt(n, _, "Vacuity"))
   def unsatFile(n: Node[?]): Option[String] = unsat(n).map(attempt(n, _, "Unsat"))
+  def rootTrivialFile(n: Node[?]): Option[String] = rootTrivial(n).map(attempt(n, _, "RootTrivial"))
 
   def spec(n: Node[?]): String =
     val c = nodeCtx(n)
@@ -227,7 +255,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
         d("spec", "", s"${q(p, "spec")} $th")
         d("toRoot", "", s"${q(p, "toRoot")} $th")
         d("rootSpec", "", s"${q(p, "rootSpec")} $th")
-    (obligation(n) ++ trivial(n) ++ unsat(n)).foreach { o =>
+    (obligation(n) ++ trivial(n) ++ unsat(n) ++ rootTrivial(n)).foreach { o =>
       sb ++= s"namespace Obl\n\n/-- ${o.description} -/\n@[frflow_defs] def ${o.name} : Prop :=\n  ${o.statement}\n\nend Obl\n\n"
     }
     sb ++= s"end $K.${n.id}\n"

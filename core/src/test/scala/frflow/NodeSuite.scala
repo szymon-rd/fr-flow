@@ -39,6 +39,32 @@ class NodeSuite extends munit.FunSuite:
 
   private def kb(k: KnowledgeBase) = k.nodes
 
+  test("the implementation is also run on combinations of the examples' inputs") {
+    val two = books.contract[List[Book], Int, List[Book]]("Two", "Picking returns only long enough books.", "w")(
+      (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages.value))
+      .examples(minPages.bind(100))(
+        expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
+        expect(List(Book("Short", 20)), 1, Nil, "no long book"),
+        reject(List(Book("Short", 20)), 1, List(Book("Short", 20)), "never a short one"))
+    // passes every example, but returns the whole shelf when asked for one book from several
+    val kb = KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, two)
+      .implement(two)((s, n) => if s.size > 1 && n == 1 then s else s.filter(_.pages >= minPages.value).take(n))
+    val rs = kb.exampleResults(two)
+    assertEquals(rs.take(3).flatMap(_.implementation), List("ok", "ok", "ok"))
+    val generated = rs.drop(3)
+    assertEquals(generated.size, 1)
+    assert(generated.head.implementation.exists(_.contains("breaks the contract")), generated)
+  }
+
+  test("a spec condition that does not mention the model is shown as an assumption about the world") {
+    val assumed = onlyGood.refine[(List[Item.T], Int) => List[Item.T]]("Assumed", "s", "w")(
+      abs = pick => pick, spec = pick => forall((x: Item.T) => good(x)) && forall((l: List[Item.T], n: Int) => pick(l, n).forall(x => l.contains(x))))
+    val kb = KnowledgeBase("A", idea = "IDEA.md")(onlyGood, assumed)
+    assertEquals(kb.limits(assumed).size, 1, kb.limits(assumed))
+    assert(kb.limits(assumed).head.contains("assumes about the world"))
+    assertEquals(kb.limits(listed), Nil)
+  }
+
   test("examples are checked against the contract and the registered implementation") {
     val rs = shelfKb.exampleResults(pick)
     assertEquals(rs.map(r => (r.contract, r.implementation)), List(("ok", Some("ok")), ("ok", Some("ok")), ("ok", Some("ok"))))

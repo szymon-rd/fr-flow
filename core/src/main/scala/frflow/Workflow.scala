@@ -102,9 +102,9 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     "substitutions" -> JArr(n.substs.map(s => str(s"${s.name} := ${s.term.fold(s.lean)(_.source)}"))),
     "examples" -> JArr(n.cases.map(e => str(e.describe))),
     "vocabulary" -> JArr(introduced(n).map(str)),
-    "uses" -> JArr(generate.declarationsUsedBy(n).map(str)),
+    "uses" -> JArr(generate.sourcesUsedBy(n).map(str)),
     "governs" -> JArr(n.governs.map(str))
-  ) ++ kb.implementation(n).filter(_.wiring.nonEmpty).map(i => "implementation" -> str(i.wiring)).toList
+  ) ++ (if n.formal then Nil else List("formal" -> JBool(false))) ++ kb.implementation(n).filter(_.wiring.nonEmpty).map(i => "implementation" -> str(i.wiring)).toList
     ++ (if n.kind == NodeKind.Root then Seq("idea" -> str(ideaDecided), "notModelled" -> str(notModelled)) else Nil))
 
   def hash(n: Node[?]): String = Decision.hash(content(n))
@@ -122,7 +122,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   /** What a check depends on: the formal parts only, so rewording a statement does not re-run Lean. */
   def checkHash(n: Node[?]): String =
     val g = generate
-    sha((Seq(g.spec(n), g.auto(n), g.theorems(n), g.vacuity(n).getOrElse(""), g.unsatFile(n).getOrElse(""), read(ws.lean.resolve(g.proofsPath(n.id))).getOrElse(""),
+    sha((Seq(g.spec(n), g.auto(n), g.theorems(n), g.vacuity(n).getOrElse(""), g.unsatFile(n).getOrElse(""), g.rootTrivialFile(n).getOrElse(""), read(ws.lean.resolve(g.proofsPath(n.id))).getOrElse(""),
       n.parent.fold("")(checkHash), kernelHash) ++ g.declarationsUsedBy(n))*)
 
   // ---------------------------------------------------------------------------
@@ -182,6 +182,9 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     if g.unsatFile(n).isDefined && lake.elaborate(g.unsatPath(n.id)).ok then
       return done("failed", results.map(_.copy(status = "failed", detail = s"unsatisfiable: no model meets ${n.id}")),
         List(s"${n.id} is contradictory: no model meets it, so every link below it holds and says nothing"))
+    if g.rootTrivialFile(n).isDefined && lake.elaborate(g.rootTrivialPath(n.id)).ok then
+      return done("failed", results.map(_.copy(status = "failed", detail = s"the root holds whatever ${n.id} says")),
+        List(s"the root holds for every model of ${n.id}, whatever its spec: an abs or a substitution above decides it, so the root theorem says nothing about ${n.id}"))
     if parentStatus.exists(_ != "proven") then return done("waiting", results, List(s"waiting for ${n.parent.get.id}"))
 
     val thms = lake.build(g.theoremsModule(n.id))
@@ -207,7 +210,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val impl = kb.implementation(n).toList.flatMap { i =>
       val model = i.modelFile.map(f => Path.of(f).toAbsolutePath.normalize)
       i.sources.map(f => Path.of(f).toAbsolutePath.normalize.getParent).distinct.flatMap { dir =>
-        if Files.isDirectory(dir) then Files.walk(dir).iterator.asScala.toList.filter(Files.isRegularFile(_)) else Nil
+        if Files.isDirectory(dir) then Files.walk(dir, java.nio.file.FileVisitOption.FOLLOW_LINKS).iterator.asScala.toList.filter(Files.isRegularFile(_)) else Nil
       }.map(_.toAbsolutePath.normalize).filterNot(p => model.contains(p) || governedExplicitly(p))
     }
     val files = n.governs.map(ws.root.resolve) ++ impl
@@ -219,6 +222,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   def link(n: Node[?]): Json =
     def st(status: String, detail: String) = obj("status" -> str(status), "detail" -> str(detail))
     if n.parent.isEmpty || n.kind == NodeKind.Design then JNull
+    else if !n.formal then st("informal", "not formalized: decided by reading")
     else current(n) match
       case None => st("unchecked", if checks.contains(n.id) then "changed since the last check" else "not checked yet")
       case Some(c) => c.obligations.headOption match
@@ -247,7 +251,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       modelCode
 
   /** Code in the model's file that is not the model: no node governs it, so it could change
-    * unnoticed. The model's file holds vals (nodes, opaque types, parameters, definitions), domain
+    * unnoticed. The model's file holds the model's vals (nodes, opaque types, parameters, definitions), domain
     * types without methods, and the `@main` of the CLI; anything else belongs next to the code.
     */
   def modelCode: List[String] =
@@ -262,11 +266,15 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
         val word = words.headOption.getOrElse("")
         val withBody = t.endsWith(":") || t.contains("{")
         if top then inEnum = word == "enum"
+        // A top-level val must be part of the model: an opaque type, a parameter, a definition, a node
+        // or the knowledge base.
+        val modelVal = """val\s+\w+\s*(:[^=]*)?=\s*(Opaque\b|Param\b|define\b|Node\.|KnowledgeBase\b|\w+\s*\.\s*(refine|instantiate|contract|design)\b).*""".r
         val bad =
           if top then
             !t.startsWith("@main") && !t.startsWith("//") && !t.startsWith("/*") && !t.startsWith("*") && (
               Set("def", "class", "object", "given", "extension", "implicit", "type", "var")(word) ||
-              (word == "trait" && withBody) || (word == "case" && withBody))
+              (word == "trait" && withBody) || (word == "case" && withBody) ||
+              (word == "val" && !modelVal.matches(words.mkString(" "))))
           else word == "def" || (inEnum && word != "case" && word.nonEmpty && !word.startsWith("//"))
         if bad then List(s"$rel:${i + 1}: `${t.take(50)}` is code in the model's file, which no node governs; move it next to the implementation")
         else Nil
@@ -280,7 +288,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val governed = kb.nodes.flatMap(code).flatMap(_.files).map(f => abs(ws.root.resolve(f))).toSet ++
       kb.implementations.flatMap(_.modelFile).map(f => abs(Path.of(f)))
     if !Files.isDirectory(src) then Nil
-    else Files.walk(src).iterator.asScala.toList.filter(Files.isRegularFile(_))
+    else Files.walk(src, java.nio.file.FileVisitOption.FOLLOW_LINKS).iterator.asScala.toList.filter(Files.isRegularFile(_))
       .map(abs).filterNot(governed).map(p => abs(ws.root).relativize(p).toString).sorted
 
   /** Where the developer stands on each node (see `Decisions`). */
@@ -358,19 +366,37 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val causes = me("causes").map(_.arr.flatMap(_.str).toList).getOrElse(Nil)
     if causes.nonEmpty then
       sb ++= s"## What moved since ${n.id} was decided: ${causes.mkString(", ")}\n\n"
-      me("moved").map(_.arr.toList).getOrElse(Nil).flatMap(_("id").flatMap(_.str)).foreach(a => sb ++= s"- the meaning of $a changed\n")
+      def fields(before: Json, now: Json): String =
+        def flat(c: Json): Map[String, String] = c.obj.map((k, v) => k -> (v match
+          case JStr(x) => x
+          case JArr(xs) => xs.map(x => x.str.getOrElse(x.compact)).mkString("\n")
+          case other    => other.compact)).toMap
+        val (b, a) = (flat(before), flat(now))
+        (b.keySet ++ a.keySet).toList.sorted.filter(k => b.get(k) != a.get(k)).map { k =>
+          s"  - $k\n    was: ${b.getOrElse(k, "").replace("\n", "\n         ")}\n    now: ${a.getOrElse(k, "").replace("\n", "\n         ")}\n"
+        }.mkString
+      if causes.contains("self") then
+        l.binding(n.id).foreach(d => sb ++= s"- ${n.id} itself changed:\n${fields(d.content, me("content").getOrElse(JNull))}")
+      me("moved").map(_.arr.toList).getOrElse(Nil).foreach { m =>
+        val a = m("id").flatMap(_.str).getOrElse("")
+        val now = ann("nodes").get.arr.find(_("id").flatMap(_.str).contains(a)).flatMap(_("content")).getOrElse(JNull)
+        sb ++= s"- the meaning of $a changed:\n${fields(m("before").getOrElse(JNull), now)}"
+      }
       n.parent.filter(p => st(p.id) == "rejected").foreach(p => sb ++= s"- its parent ${p.id} was rejected: move it under the node chosen instead\n")
       if causes.contains("code") then
         val since = l.binding(n.id).map(d => if Git.has(ws.root, d.tree) then d.tree else d.commit).getOrElse("")
         val d = code(n).fold("")(c => Git.diff(ws.root, since, c.files))
         sb ++= (if d.nonEmpty then s"- the code it governs changed:\n```diff\n$d```\n" else "- the code it governs changed (no git diff available)\n")
       sb ++= "\n"
-    val children = kb.nodes.filter(_.parent.exists(_.id == n.id))
-    if children.nonEmpty then
-      sb ++= s"## Below ${n.id} (a change here may affect them)\n\n"
-      children.foreach { c =>
-        sb ++= s"- ${c.id} (${c.kind.toString.toLowerCase}) [${st(c.id)}]: ${c.statement} Why: ${c.why}\n"
-        l.chosen(c.id).foreach(d => sb ++= s"  Accepted by ${d.by}: ${d.reason}\n")
+    def below(x: Node[?], depth: Int): List[(Node[?], Int)] =
+      kb.nodes.filter(_.parent.exists(_.id == x.id)).flatMap(c => (c, depth) :: below(c, depth + 1))
+    val under = below(n, 0)
+    if under.nonEmpty then
+      sb ++= s"## Below ${n.id}, with their reasons (a change here may affect them)\n\n"
+      under.foreach { (c, depth) =>
+        val pad = "  " * depth
+        sb ++= s"$pad- ${c.id} (${c.kind.toString.toLowerCase}) [${st(c.id)}]: ${c.statement} Why: ${c.why}\n"
+        l.chosen(c.id).foreach(d => sb ++= s"$pad  Chosen by ${d.by} because: ${d.reason}\n")
       }
       sb ++= "\n"
     g.obligation(n).foreach { o =>
@@ -423,6 +449,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     obj(
       "name" -> str(kb.name),
       "idea" -> str(idea),
+      "format" -> JNum(Workflow.ContentFormat),
       "ideaFile" -> str(kb.idea),
       "warnings" -> JArr(integrity.map(str)),
       "roots" -> JArr(kb.roots.map(r => str(r.id))),
@@ -444,3 +471,9 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     Files.createDirectories(ws.snapshotFile.getParent)
     Files.writeString(ws.snapshotFile, baseSnapshot.render() + "\n", UTF_8)
     ws.snapshotFile
+
+object Workflow:
+  /** The shape of a node's content, which decisions are bound to. A snapshot of another shape is
+    * not decided on: it was written by another version of FrFlow, and must be rendered again.
+    */
+  val ContentFormat: Int = 2

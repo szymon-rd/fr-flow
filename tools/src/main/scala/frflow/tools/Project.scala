@@ -74,12 +74,24 @@ final class Project(dir: Path):
     snapshot match
       case None => Left("no snapshot yet: render first")
       case Some(_) if sourcesChanged.nonEmpty => Left(s"the sources changed since the last render (${sourcesChanged.take(3).mkString(", ")}): render first")
+      case Some(snap) if !snap("format").contains(JNum(frflow.Workflow.ContentFormat)) =>
+        Left("the snapshot was written by another version of FrFlow: render first")
+      case Some(snap) if codeMoved(snap, r.node) =>
+        Left(s"the code ${r.node} governs changed since the last render: render first")
       case Some(snap) =>
         Project.locked(state.resolve("ledger.lock")) {
           val files = snap("nodes").map(_.arr.toList).getOrElse(Nil).flatMap(_("code")).flatMap(_("files")).flatMap(_.arr).flatMap(_.str).distinct
           frflow.Decisions.decide(snap, ledger, r, java.time.Instant.now.toString, frflow.Git.head(root), frflow.Git.snapshot(root, files))
             .map(frflow.Ledger.save(ledgerFile, _))
         }
+
+  /** Whether the files a node governs differ from what the snapshot saw (file times can lie). */
+  private def codeMoved(snap: Json, node: String): Boolean =
+    snap("nodes").map(_.arr.toList).getOrElse(Nil).find(_("id").flatMap(_.str).contains(node)).flatMap(_("code")).filter(_ != JNull)
+      .exists { c =>
+        val files = c("files").map(_.arr.toList.flatMap(_.str)).getOrElse(Nil)
+        frflow.Code.of(root, files.map(root.resolve)).fingerprint != c("fingerprint").flatMap(_.str).getOrElse("")
+      }
 
   /** The command running now, if any (from this or another process). */
   def running: Option[Json] = readJson(runningFile)
@@ -155,6 +167,9 @@ final class Project(dir: Path):
       try
         val pb = ProcessBuilder(cmd*).directory(cwd.toFile).redirectErrorStream(true)
           .redirectInput(ProcessBuilder.Redirect.from(java.io.File("/dev/null")))
+        // The CLI's output is read as UTF-8; make sure it writes UTF-8 whatever the locale.
+        if !Option(pb.environment.get("LC_ALL")).exists(_.toUpperCase.contains("UTF")) then pb.environment.put("LC_ALL", "C.UTF-8")
+        pb.environment.put("JAVA_TOOL_OPTIONS", (Option(pb.environment.get("JAVA_TOOL_OPTIONS")).getOrElse("") + " -Dstdout.encoding=UTF-8 -Dfile.encoding=UTF-8").trim)
         val proc = pb.start()
         val out = java.io.ByteArrayOutputStream()
         val pump = Thread(() => { proc.getInputStream.transferTo(out); () })

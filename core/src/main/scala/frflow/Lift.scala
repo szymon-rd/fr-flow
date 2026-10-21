@@ -52,7 +52,13 @@ private[frflow] object Lift:
 
   def sources(xs: Expr[Seq[Any]])(using Quotes): Expr[List[String]] =
     import quotes.reflect.*
-    def text(e: Expr[Any]) = e.asTerm.pos.sourceCode.getOrElse(e.show)
+    // Through inline calls the argument arrives wrapped; its own position is the caller's text.
+    def unwrap(t: Term): Term = t match
+      case Inlined(_, _, b) => unwrap(b)
+      case Typed(b, _)      => unwrap(b)
+      case Block(Nil, b)    => unwrap(b)
+      case _                => t
+    def text(e: Expr[Any]) = unwrap(e.asTerm).pos.sourceCode.getOrElse(e.show)
     xs match
       case Varargs(es) => Expr(es.map(text).toList)
       case other       => Expr(List(text(other)))
@@ -107,7 +113,7 @@ private final class Translator(using val quotes: Quotes):
     '{ LeanType(${ Expr(lean) }, $typeList) }
 
   def typeList: Expr[List[TypeDecl]] =
-    Expr.ofList(types.values.toList.map(d => '{ TypeDecl(${ Expr(d.name) }, ${ Expr(d.lean) }, ${ Expr(d.uses) }) }))
+    Expr.ofList(types.values.toList.map(d => '{ TypeDecl(${ Expr(d.name) }, ${ Expr(d.lean) }, ${ Expr(d.uses) }, ${ Expr(d.scala) }) }))
 
   /** Lean name of the `val` a `define` is assigned to. */
   def defName: String =
@@ -228,6 +234,12 @@ private final class Translator(using val quotes: Quotes):
       }
       inProgress += name
       def field(cls: Symbol, f: Symbol): (String, TypeRepr) = (ident(f.name), cls.typeRef.memberType(f))
+      // The Scala shape of the type, as written: what a decision depends on (the Lean may change with FrFlow).
+      def shape(fs: List[(String, TypeRepr)]) = if fs.isEmpty then "" else fs.map((n, t) => s"$n: ${t.show(using Printer.TypeReprShortCode)}").mkString("(", ", ", ")")
+      val scala =
+        if sym.flags.is(Flags.Enum) then
+          s"enum ${sym.name}: " + sym.children.map(c => "case " + c.name + shape(if c.isClassDef then c.caseFields.map(field(c, _)) else Nil)).mkString(", ")
+        else s"case class ${sym.name}${shape(sym.caseFields.map(field(sym, _)))}"
       val (lean, refs) =
         if sym.flags.is(Flags.Enum) then
           val cases = sym.children.map { c =>
@@ -240,7 +252,7 @@ private final class Translator(using val quotes: Quotes):
           val body = if fs.isEmpty then "" else " where\n" + fs.map((n, t) => s"  $n : ${tpe(t, pos)}").mkString("\n")
           (s"${doc(sym)}structure $name$body", fs.map(_._2))
       val uses = refs.flatMap(adtRefs).map(qualifiedName).distinct.filterNot(_ == name)
-      types(name) = TypeDecl(name, lean, uses)
+      types(name) = TypeDecl(name, lean, uses, scala)
       inProgress -= name
     name
 

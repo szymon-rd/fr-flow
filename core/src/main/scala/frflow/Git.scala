@@ -54,4 +54,19 @@ object Git:
 
   /** How files changed since a decision: the working tree against the tree (or commit) it recorded. */
   def diff(dir: Path, since: String, files: List[String]): String =
-    if since.isEmpty then "" else run(dir, ("diff" :: since :: "--" :: files)*).getOrElse("")
+    if since.isEmpty then ""
+    else
+      // Files that are new since then (not in that tree, not yet added) are shown whole.
+      val known = run(dir, ("ls-tree" :: "-r" :: "--name-only" :: since :: "--" :: files)*).toList.flatMap(_.linesIterator).toSet
+      val prefix = run(dir, "rev-parse", "--show-prefix").map(_.trim).getOrElse("")
+      val added = files.filterNot(f => known(prefix + f)).filter(f => java.nio.file.Files.isRegularFile(dir.resolve(f)))
+        .flatMap(f => runAny(dir, "diff", "--no-index", "--", "/dev/null", f))
+      run(dir, ("diff" :: since :: "--" :: files)*).getOrElse("") + added.mkString
+
+  /** Like `run`, but also keeps the output of a command that exits 1 (`diff --no-index` with differences). */
+  private def runAny(dir: Path, args: String*): Option[String] =
+    try
+      val p = ProcessBuilder(("git" +: args)*).directory(dir.toFile).start()
+      val out = String(p.getInputStream.readAllBytes(), "UTF-8")
+      if p.waitFor(20, TimeUnit.SECONDS) && p.exitValue <= 1 then Some(out) else None
+    catch case _: java.io.IOException => None

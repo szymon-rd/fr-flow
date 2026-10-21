@@ -110,7 +110,8 @@ path.edge.proven { stroke: var(--proven); }
 path.edge.open { stroke: var(--open); stroke-dasharray: 7 5; }
 path.edge.failed { stroke: var(--failed); stroke-dasharray: 3 4; }
 path.edge.unchecked { stroke: var(--none); stroke-dasharray: 2 5; }
-path.edge.design { stroke: var(--line); stroke-width: 2; }
+path.edge.design, path.edge.informal { stroke: var(--line); stroke-width: 2; }
+path.edge.informal { stroke-dasharray: 2 4; }
 path.edge.onpath { stroke-width: 4; }
 path.glow { fill: none; stroke: var(--proven); stroke-width: 10; opacity: .14; }
 path.edge.dim, path.glow.dim { opacity: .3; }
@@ -119,7 +120,7 @@ path.edge.dim, path.glow.dim { opacity: .3; }
 .elabel.proven { color: var(--proven); border-color: color-mix(in srgb, var(--proven) 45%, transparent); }
 .elabel.open { color: var(--open); border-color: color-mix(in srgb, var(--open) 45%, transparent); }
 .elabel.failed { color: var(--failed); border-color: color-mix(in srgb, var(--failed) 45%, transparent); }
-.elabel.unchecked, .elabel.design { color: var(--none); }
+.elabel.unchecked, .elabel.design, .elabel.informal { color: var(--none); }
 .elabel.dim { opacity: .45; }
 .legend { position: sticky; left: 12px; bottom: 12px; display: inline-flex; gap: 14px; flex-wrap: wrap; background: var(--panel);
           border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 12px; color: var(--muted); margin: 0 12px 12px; }
@@ -293,18 +294,19 @@ const C = n => n.content || {};
 const children = id => live().filter(n => n.parent === id);
 function pathTo(id) { const out = []; let n = byId(id); while (n) { out.unshift(n); n = n.parent ? byId(n.parent) : null; } return out; }
 const linkStatus = n => n.link?.status || (n.kind === "design" ? "design" : n.parent ? "unchecked" : "root");
-const waitingForYou = () => live().filter(n => n.state === "proposed" || n.state === "review");
+// A node resting on a rejected node waits for the agent to move it, not for you.
+const waitingForYou = () => live().filter(n => (n.state === "proposed" || n.state === "review") && byId(n.parent)?.state !== "rejected");
 const gone = () => snap()?.gone || [];
 const siblings = n => live().filter(m => m.parent === n.parent && m.id !== n.id && m.state !== "rejected" && (m.kind === "design") === (n.kind === "design"));
 const requests = () => state.data?.requests || [];
 const me = () => $("#me").value.trim();
 const examplesBad = n => (n.examples || []).filter(e => e.contract !== "ok" || (e.implementation && e.implementation !== "ok"));
-const pathProven = n => pathTo(n.id).slice(1).every(p => ["proven", "design"].includes(linkStatus(p)));
+const pathProven = n => pathTo(n.id).slice(1).every(p => ["proven", "design", "informal"].includes(linkStatus(p)));
 const causeText = { self: "it changed", above: "the meaning of something above it changed", code: "the code it governs changed", revisit: "a change above may affect it" };
 function linkLabel(n) {
   const s = linkStatus(n), d = n.link?.detail;
   if (s === "proven") return d === "instantiation" ? "instantiation" : "✓ " + (d === "authored" ? "proof" : "auto");
-  return { open: "open", failed: "✗ failed", unchecked: "unchecked", design: "design" }[s] || s;
+  return { open: "open", failed: "✗ failed", unchecked: "unchecked", design: "design", informal: "not formalized" }[s] || s;
 }
 
 // --- rendering --------------------------------------------------------------
@@ -376,8 +378,9 @@ function renderTree() {
     const d = `M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`;
     const st = linkStatus(n), on = onPath.has(n.id), dim = dimOthers && !on ? " dim" : "";
     if (st === "proven") svg += `<path class="glow${dim}" d="${d}"/>`;
-    svg += `<path class="edge ${st}${on ? " onpath" : ""}${dim}" d="${d}"/>`;
-    labels += `<div class="elabel ${st}${dim}" style="left:${(x1 + x2) / 2}px;top:${my}px">${esc(linkLabel(n))}</div>`;
+    const cls = n.link?.detail === "instantiation" ? "design" : st; // nothing to prove: drawn neutral
+    svg += `<path class="edge ${cls}${on ? " onpath" : ""}${dim}" d="${d}"/>`;
+    labels += `<div class="elabel ${cls}${dim}" style="left:${(x1 + x2) / 2}px;top:${my}px">${esc(linkLabel(n))}</div>`;
   }
   for (const n of live()) {
     const p = pos[n.id]; if (!p) continue;
@@ -437,6 +440,7 @@ function verdict(n) {
     if (d === "authored") return "Proven by a proof the agent wrote, replayed through the Lean kernel. Read it before accepting: a proof can also go through because the node contradicts itself, which the automatic check does not always catch.";
     return "Proven automatically by frflow_auto.";
   }
+  if (s === "informal") return "Not formalized: this node opted out of Lean (formal = false). Read its model against its parent; that reading is your decision. A contract's examples and run-time check still apply.";
   if (s === "open") return `Open: ${esc(d)}`;
   if (s === "failed") return `Failed: ${esc(d)}`;
   return `Unchecked: ${esc(d || "not checked yet")}.`;
@@ -484,7 +488,7 @@ const reasonBox = (placeholder, value = "") =>
 
 function warnings(n) {
   const w = [];
-  if (n.kind !== "design" && n.parent && linkStatus(n) !== "proven") w.push(`its link is ${linkStatus(n)}`);
+  if (n.kind !== "design" && n.parent && !["proven", "informal"].includes(linkStatus(n))) w.push(`its link is ${linkStatus(n)}`);
   if (examplesBad(n).length) w.push(`${examplesBad(n).length} example(s) fail`);
   return w;
 }
@@ -516,9 +520,7 @@ function whatMoved(n) {
 // The decision: where the theory is built. The developer chooses, with a reason.
 function decisionBox(n) {
   const d = n.decision;
-  const parent = n.parent ? byId(n.parent) : null;
-  // As in core: a proposal, or a node whose parent moved, waits for its parent.
-  const blocked = parent && parent.state !== "accepted" && (n.state === "proposed" || (n.causes || []).includes("above"));
+  const blocked = !!n.waitsFor; // from core: a proposal, or a node whose parent moved, waits for its parent
   const later = d ? (n.history || []).filter(h => ["accept", "confirm", "revisit"].includes(h.action) && h.at > d.at) : [];
   const verb = { accept: "change accepted", confirm: "re-confirmed", revisit: "asked to revisit" };
   const chosen = d ? `<div class="why"><div class="label">chosen by ${esc(d.by)} because</div>${esc(d.reason)}</div>
@@ -527,7 +529,7 @@ function decisionBox(n) {
   const altList = alts.length ? `<div class="side"><div class="label">rejected alternatives</div>${alts.map(r =>
     `<div class="option"><b>${esc(r.id)}</b> — ${esc(r.content?.statement)}<div class="muted small">${esc(r.content?.why)}</div></div>`).join("")}</div>` : "";
   const button = (label, extra = "") => blocked
-    ? `<div class="muted small">Accept <a data-goto="${esc(parent.id)}">${esc(parent.id)}</a> first: the tree is decided from the root down.</div>`
+    ? `<div class="muted small">Accept <a data-goto="${esc(n.waitsFor)}">${esc(n.waitsFor)}</a> first: what rests on it is decided after it.</div>`
     : `<div class="actions"><button class="btn small primary" data-accept="1" ${extra}>${label}</button></div>`;
   if (n.state === "proposed") {
     const others = siblings(n), warn = warnings(n);
@@ -543,20 +545,22 @@ function decisionBox(n) {
       ${button(`Accept ${esc(n.id)}`)}<div class="actions"><button class="btn small" data-reject-self="1">Reject ${esc(n.id)}</button></div></div>`;
   }
   if (n.state === "review") {
-    const below = children(n.id).length > 0;
+    // The decisions below, with their reasons: where the conditions for revisiting them are written.
     const decidedBelow = n => children(n.id).flatMap(c => [c, ...decidedBelow(c)]);
-    const affected = (n.causes || []).includes("self") ? decidedBelow(n).filter(c => c.state === "accepted" && c.decision) : [];
-    const revisitList = affected.length ? `<div class="side"><div class="label">${n.parent ? "decisions below" : "decisions below (the idea is what they rest on)"} — tick those this change may affect; they are reviewed again</div>${affected.map(c => `<div class="option">
-        <div class="head"><a data-goto="${esc(c.id)}"><b>${esc(c.id)}</b></a></div>
+    const onlyAbove = c => c.state === "review" && (c.causes || []).length === 1 && c.causes[0] === "above";
+    const listed = decidedBelow(n).filter(c => c.decision && (c.state === "accepted" || onlyAbove(c)));
+    const show = (n.causes || []).includes("self") || listed.some(onlyAbove);
+    const belowList = show && listed.length ? `<div class="side"><div class="label">decisions below, with their reasons — tick those this change may affect: they are reviewed again. The others still hold${listed.some(onlyAbove) ? "; those that moved only because of this are confirmed with your reason" : ""}.</div>${listed.map(c => `<div class="option">
+        <div class="head"><a data-goto="${esc(c.id)}"><b>${esc(c.id)}</b></a>${onlyAbove(c) ? ` <span class="muted small">(moved with this)</span>` : ""}</div>
         <div class="small" style="margin-top:4px">${esc(C(c).statement)}</div>
         <div class="muted small">chosen because: ${esc(c.decision.reason)}</div>
-        <label><input type="checkbox" class="rev" value="${esc(c.id)}"> revisit ${esc(c.id)}</label></div>`).join("")}</div>` : "";
+        <label><input type="checkbox" class="rev" value="${esc(c.id)}" data-moved="${onlyAbove(c) ? 1 : ""}"> revisit ${esc(c.id)}</label></div>`).join("")}</div>` : "";
     const warn = warnings(n);
     return `<div class="box review"><div class="verdict review">To review: ${esc((n.causes || []).map(c => causeText[c]).join("; "))}</div>
       ${warn.length ? `<div class="warn-text">Note: ${esc(warn.join("; "))}.</div>` : ""}
-      ${chosen}${whatMoved(n)}${altList}${revisitList}
+      ${chosen}${whatMoved(n)}${altList}${belowList}
       ${reasonBox((n.causes || []).includes("self") ? "Why is the change right?" : "Why does it still hold, given what changed?")}
-      ${button("Accept", "")}${!blocked && below ? `<div class="actions"><button class="btn small" data-accept="1" data-subtree="1">Accept, with what below only moved because of this</button></div>` : ""}</div>`;
+      ${button("Accept", "")}</div>`;
   }
   return `<div class="box accepted"><div class="verdict accepted">Accepted</div>
     <div class="muted small">${d ? new Date(d.at).toLocaleString() : ""}</div>${chosen}${altList}</div>`;
@@ -565,7 +569,7 @@ function decisionBox(n) {
 function examplesTable(n) {
   const limits = n.limits || [];
   const lim = limits.length ? `<div class="limits"><b>Does not promise:</b><ul style="margin:4px 0 0 18px;padding:0">${limits.map(l => `<li>${esc(l)}</li>`).join("")}</ul></div>` : "";
-  if (!(n.examples || []).length) return lim ? `<h3>Examples</h3>${lim}` : "";
+  if (!(n.examples || []).length) return lim ? `<h3>Limits</h3>${lim}` : "";
   const res = (r, expected) => r === "ok" ? `<span class="chip s-ok">${expected ? "allows ✓" : "refuses ✓"}</span>` : r ? `<span class="chip s-bad">${esc(r)}</span>` : `<span class="muted small">—</span>`;
   let rows = "", given = null;
   for (const e of n.examples) {
@@ -737,9 +741,13 @@ document.addEventListener("click", async e => {
     const n = byId(state.selected);
     const reject = [...document.querySelectorAll(".rej:checked")].map(x => x.value);
     const revisit = [...document.querySelectorAll(".rev:checked")].map(x => x.value);
+    const confirmBelow = [...document.querySelectorAll(".rev:not(:checked)")].filter(x => x.dataset.moved).map(x => x.value);
     const warn = warnings(n);
     if (warn.length && !confirm(`${n.id}: ${warn.join("; ")}. Accept it anyway?`)) return;
-    decide({ node: n.id, by: who, reason, reject, revisit, subtree: !!acc.dataset.subtree, seen: n.version });
+    // Leaving every decision below as it is, is a choice too: ask for it explicitly.
+    const listedBelow = document.querySelectorAll(".rev").length;
+    if (listedBelow && !revisit.length && !confirm(`None of the ${listedBelow} decision(s) below is affected by this change: their reasons still hold?`)) return;
+    decide({ node: n.id, by: who, reason, reject, revisit, confirm: confirmBelow, seen: n.version });
     return;
   }
   if (t.closest("[data-reject-self]")) {

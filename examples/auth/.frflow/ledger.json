@@ -152,6 +152,39 @@
           "governs": [],
           "implementation": "impl"
         }
+      },
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-21T23:17:29.549065814Z",
+        "reason": "Format change only: decisions are now bound to the Scala a node uses rather than generated Lean, ignore whitespace, and record how the implementation is built. The meaning is unchanged.",
+        "code": "945683e2a0ae0caddb95a65d3faa270ad3d5a9ada7d4507531215023b1791b18",
+        "commit": "dcb0d33b59cc517b50431d9a807394cfa552ba15",
+        "tree": "77e1426f8f0a70e9f535c5df50e63582598ecd1d",
+        "chain": "faab4fea8465dd522f53a47575a9086f32c7da7cc011163d780dff4cbc40145c",
+        "content": {
+          "parent": "GrantBased",
+          "statement": "A decision names the user its token belongs to, and only when a grant covers the path.",
+          "why": "GrantBased, stated for one call, so every result of the running system can be checked.",
+          "sources": {
+            "post": "(token, path, decision) => decision.forall(u => sessions(token) == Some(u) && grants.value.contains(Grant(u, path)))"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (\"t1\", Path(\"/a\")) ⇒ Some(UserId(\"alice\"))  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bind(Map(\"t1\" -> UserId(\"alice\")).get)  — Alice's token and a grant for /a: she gets in",
+            "expect (\"t1\", Path(\"/b\")) ⇒ None  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bind(Map(\"t1\" -> UserId(\"alice\")).get)  — no grant for /b: refused",
+            "reject (\"t1\", Path(\"/b\")) ⇒ Some(UserId(\"alice\"))  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bind(Map(\"t1\" -> UserId(\"alice\")).get)  — access without a grant is never given",
+            "reject (\"t2\", Path(\"/a\")) ⇒ Some(UserId(\"alice\"))  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bind(Map(\"t1\" -> UserId(\"alice\")).get)  — a token that is not Alice's never acts for her"
+          ],
+          "vocabulary": [],
+          "uses": [
+            "case class Path(value: String)",
+            "case class UserId(name: String)",
+            "case class Grant(user: UserId, path: Path)"
+          ],
+          "governs": [],
+          "implementation": "SessionStore(grants.value.toSet, sessions.value).decide"
+        }
       }
     ],
     "GrantBased": [
@@ -223,6 +256,39 @@
           ],
           "governs": []
         }
+      },
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-21T23:17:26.425572044Z",
+        "reason": "Format change only: decisions are now bound to the Scala a node uses rather than generated Lean, ignore whitespace, and record how the implementation is built. The meaning is unchanged.",
+        "commit": "dcb0d33b59cc517b50431d9a807394cfa552ba15",
+        "tree": "77e1426f8f0a70e9f535c5df50e63582598ecd1d",
+        "chain": "21373aa9109a318073af1be8b371aaab60003154e9a5efaa57553e27a71ffb24",
+        "content": {
+          "parent": "Authenticated",
+          "statement": "Users are ids, resources are paths, tokens are strings, and a user is authorized for a path when a grant names both.",
+          "why": "The idea defines authorization as a table of grants. The token's holder is whatever the session table says; issuing tokens is not modelled.",
+          "sources": {},
+          "substitutions": [
+            "User := UserId",
+            "Resource := Path",
+            "Token := String",
+            "authorized := (u: UserId, p: Path) => grants.value.contains(Grant(u, p))",
+            "holder := (t: String) => sessions(t)"
+          ],
+          "examples": [],
+          "vocabulary": [
+            "grants: the grant table as stored when the request is decided",
+            "sessions: the session table as stored when the request is decided: token to user"
+          ],
+          "uses": [
+            "case class UserId(name: String)",
+            "case class Path(value: String)",
+            "case class Grant(user: UserId, path: Path)"
+          ],
+          "governs": []
+        }
       }
     ],
     "InMemorySessions": [
@@ -256,7 +322,18 @@
         "code": "52539509c7da06d579e8542609d85bfea0994e4a98a959dfd4295233580fa151",
         "commit": "79d5d92ad9783b8d12890dd8ed6baeb07d5ac38a",
         "chain": "8e4b8cd9fd7375679c072580424b249eb81d5ad463e9adffb500ee55f3fcaf1d",
-        "content": "same"
+        "content": "same:71d1739ff1b3762f"
+      },
+      {
+        "action": "confirm",
+        "by": "claude-example-data",
+        "at": "2026-10-21T23:17:29.549065814Z",
+        "reason": "still holds after DecisionContract changed: Format change only: decisions are now bound to the Scala a node uses rather than generated Lean, ignore whitespace, and record how the implementation is built. The meaning is unchanged.",
+        "code": "52539509c7da06d579e8542609d85bfea0994e4a98a959dfd4295233580fa151",
+        "commit": "dcb0d33b59cc517b50431d9a807394cfa552ba15",
+        "tree": "77e1426f8f0a70e9f535c5df50e63582598ecd1d",
+        "chain": "3588f946e54103be7a3365f7d10f26312d0f405bee36e05efc85209de5f52f6c",
+        "content": "same:71d1739ff1b3762f"
       }
     ],
     "NoUnauthorizedAccess": [

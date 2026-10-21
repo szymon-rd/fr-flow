@@ -39,8 +39,17 @@ final case class Decision(action: String, content: Json, chain: String, by: Stri
   def hash: String = Decision.hash(content)
 
 object Decision:
+  /** The hash a decision is bound to. Runs of whitespace count as one space, so reformatting
+    * changes nothing that was decided.
+    */
   def hash(content: Json): String =
-    java.security.MessageDigest.getInstance("SHA-256").digest(content.compact.getBytes(UTF_8)).map("%02x".format(_)).mkString
+    java.security.MessageDigest.getInstance("SHA-256").digest(normal(content).compact.getBytes(UTF_8)).map("%02x".format(_)).mkString
+
+  private def normal(j: Json): Json = j match
+    case JStr(s)  => JStr(s.trim.replaceAll("\\s+", " "))
+    case JArr(xs) => JArr(xs.map(normal))
+    case JObj(fs) => JObj(fs.map((k, v) => k -> normal(v)))
+    case other    => other
 
 /** The developer's decisions, per node, oldest first: the record of the theory and its history.
   * Kept in `.frflow/ledger.json` and committed. Nothing in it is ever overwritten.
@@ -69,7 +78,9 @@ final case class Ledger(decisions: Map[String, List[Decision]]):
   /** Every decision, newest first. */
   def all: List[(String, Decision)] = decisions.toList.flatMap((id, ds) => ds.map(id -> _)).sortBy(_._2.at).reverse
 
-  /** Content repeated from the node's previous decision is written once ("content": "same"). */
+  /** Content already recorded for the node is written once, then referred to by its hash
+    * ("content": "same:<hash>"), which stays right when a merge interleaves two branches' decisions.
+    */
   def toJson: Json =
     obj("decisions" -> JObj(decisions.toSeq.sortBy(_._1).map { (id, ds) =>
       id -> JArr(ds.zipWithIndex.map((d, i) => JObj(Seq(
@@ -78,11 +89,15 @@ final case class Ledger(decisions: Map[String, List[Decision]]):
         (if d.code.isEmpty then Nil else Seq("code" -> str(d.code))) ++
         (if d.commit.isEmpty then Nil else Seq("commit" -> str(d.commit))) ++
         (if d.tree.isEmpty then Nil else Seq("tree" -> str(d.tree))) ++
-        Seq("chain" -> str(d.chain), "content" -> (if i > 0 && ds(i - 1).content == d.content then str("same") else d.content)))))
+        Seq("chain" -> str(d.chain), "content" -> (if ds.take(i).exists(_.content == d.content) then str("same:" + Ledger.ref(d.content)) else d.content)))))
     }))
 
 object Ledger:
   val empty: Ledger = Ledger(Map.empty)
+
+  /** A short reference to a content exactly as recorded. */
+  private[frflow] def ref(content: Json): String =
+    java.security.MessageDigest.getInstance("SHA-256").digest(content.compact.getBytes(UTF_8)).take(8).map("%02x".format(_)).mkString
 
   def load(file: Path): Ledger =
     if !Files.isRegularFile(file) then empty else fromJson(Json.parse(Files.readString(file, UTF_8)))
@@ -97,8 +112,10 @@ object Ledger:
     Ledger(j("decisions").map(_.obj).getOrElse(Nil).map { (id, ds) =>
       id -> ds.arr.foldLeft(List.empty[Decision]) { (acc, d) =>
         val content = d("content") match
-          case Some(JStr("same")) => acc.lastOption.fold(JNull)(_.content)
-          case other              => other.getOrElse(JNull)
+          case Some(JStr("same")) => acc.lastOption.fold(JNull)(_.content) // the earlier form: the previous entry's
+          case Some(JStr(ref)) if ref.startsWith("same:") =>
+            acc.reverse.find(x => Ledger.ref(x.content) == ref.stripPrefix("same:")).fold(JNull)(_.content)
+          case other => other.getOrElse(JNull)
         acc :+ Decision(s(d, "action"), content, s(d, "chain"), s(d, "by"), s(d, "at"), s(d, "reason"),
           d("rejected").map(_.arr).getOrElse(Nil).flatMap(_.str).toList, s(d, "code"), s(d, "commit"), s(d, "tree"))
       }
