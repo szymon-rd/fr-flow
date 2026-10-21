@@ -78,13 +78,21 @@ val accounts = readApi.instantiate[(Account, Search) => List[CrmRecord]](
 // Contract for implementations
 // ============================================================================
 
-val store = Param[List[CrmRecord]]("store", "the records as stored when the search runs")
+val store = Param[List[CrmRecord]]("store", "the records as stored when the search runs; a record id is unique across all companies")
+
+/** Whether a record is one a search asks for. */
+val matches = define { (q: Search, r: CrmRecord) =>
+  q match
+    case Search.ById(id)  => r.id == id
+    case Search.OfKind(k) => r.kind == k
+    case Search.Everything => true
+}
 
 val readContract = accounts.contract[Account, Search, List[CrmRecord]](
   "ReadContract",
-  "A search returns stored records only, each of the user's company or shared with it.",
-  why = "Accounts, stated for one call. A returned record must be one of the stored records, so an implementation cannot relabel another company's record as the user's."
-)((user, query, result) => result.forall(r => store.value.contains(r) && (r.tenant == user.tenant || shares.value.contains(Share(r.id, user.tenant)))))
+  "A search returns only stored records that match it, each of the user's company or shared with it.",
+  why = "Accounts, stated for one call, plus what a search asks for. A returned record must be one of the stored records, so an implementation cannot relabel another company's record as the user's."
+)((user, query, result) => result.forall(r => store.value.contains(r) && matches(query, r) && (r.tenant == user.tenant || shares.value.contains(Share(r.id, user.tenant)))))
   .examples(
     store.bind(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal"), CrmRecord(2, TenantId("globex"), Kind.Contact, "Globex contact"))),
     shares.bind(Nil))(
@@ -94,7 +102,9 @@ val readContract = accounts.contract[Account, Search, List[CrmRecord]](
     reject(Account("ann@acme", TenantId("acme")), Search.ById(2), List(CrmRecord(2, TenantId("globex"), Kind.Contact, "Globex contact")),
       "another company's record is never returned"),
     reject(Account("ann@acme", TenantId("acme")), Search.Everything, List(CrmRecord(2, TenantId("acme"), Kind.Contact, "Globex contact")),
-      "a record relabelled as Acme's is not a stored record"))
+      "a record relabelled as Acme's is not a stored record"),
+    reject(Account("ann@acme", TenantId("acme")), Search.OfKind(Kind.Contact), List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")),
+      "a search for contacts does not return deals"))
   .examples(
     store.bind(List(CrmRecord(2, TenantId("globex"), Kind.Contact, "Globex contact"))),
     shares.bind(List(Share(2, TenantId("acme")))))(

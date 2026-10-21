@@ -9,4 +9,6 @@ everything they can see.
 
 - Who may create or remove a share.
 - That the account a search runs for is the caller's own (authentication).
+- That a search returns every matching record the user may see: only what it
+  must not return is modelled.
 - Writing records.

@@ -17,13 +17,14 @@ import java.util.concurrent.Executors
   * {{{
   * GET  /api/projects
   * GET  /api/p/NAME/kb                       snapshot, sourcesChanged, running, requests
-  * GET  /api/p/NAME/events?limit=N
+  * GET  /api/p/NAME/history                  every decision, newest first
   * GET  /api/p/NAME/job                      the last command started here
   * POST /api/p/NAME/run      {"args": [...]} render / check / scaffold
-  * POST /api/p/NAME/decide   {"action", "node", "by", "reason", "reject", "subtree"}   the developer's decision
+  * POST /api/p/NAME/decide   {"node", "by", "reason", "reject", "subtree"}   the developer's decision
   * POST /api/p/NAME/requests {"node", "text", "by"}
   * POST /api/p/NAME/requests/ID {"status", "answer"}
-  * POST /api/p/NAME/idea     {"text"}        saves IDEA.md, then renders
+  * POST /api/p/NAME/idea     {"text"}        saves IDEA.md (the snapshot follows without a build)
+  * GET  /api/p/NAME/codediff?node=N          how the code a node governs changed since it was decided
   * GET  /api/stream                          server-sent events on every change
   * }}}
   */
@@ -107,16 +108,18 @@ final class Server(projects: List[Project]):
         case Some(p) => what match
           case "kb" => json(ex, obj("snapshot" -> p.annotated.getOrElse(JNull), "sourcesChanged" -> JArr(p.sourcesChanged.map(str)),
               "running" -> p.running.getOrElse(JNull), "requests" -> JArr(p.requests)))
-          case "events" => json(ex, JArr(p.events(query.get("limit").flatMap(_.toIntOption).getOrElse(500))))
+          case "history" => json(ex, p.history)
+          case "codediff" => json(ex, obj("diff" -> str(p.codeDiff(query.getOrElse("node", "")))))
           case "job"    => json(ex, jobs.get(p.name).fold(JNull)(_.json))
           case _        => error(ex, 404, "not found")
     case _ => error(ex, 404, "not found")
 
   private def post(ex: HttpExchange, parts: List[String]): Unit =
-    // Only this page may change things: refuse requests sent by other sites.
+    // Only this page may change things: refuse requests sent by other sites, or through other host names.
     val origin = Option(ex.getRequestHeaders.getFirst("Origin"))
     val host = Option(ex.getRequestHeaders.getFirst("Host")).getOrElse("")
-    if origin.exists(o => URI(o).getAuthority != host) then return error(ex, 403, "cross-origin request")
+    val local = host.takeWhile(_ != ':') match { case "127.0.0.1" | "localhost" | "[::1]" => true; case _ => false }
+    if !local || origin.exists(o => URI(o).getAuthority != host) then return error(ex, 403, "cross-origin request")
     if !Option(ex.getRequestHeaders.getFirst("Content-Type")).exists(_.startsWith("application/json")) then
       return error(ex, 415, "expected application/json")
     val body = try Json.parse(String(ex.getRequestBody.readAllBytes(), UTF_8)) catch case e: Exception => return error(ex, 400, s"bad JSON: ${e.getMessage}")
@@ -133,10 +136,10 @@ final class Server(projects: List[Project]):
               case None =>
                 try json(ex, start(p, args).json, 202) catch case e: IllegalStateException => error(ex, 409, e.getMessage)
           case List("decide") =>
-            val req = frflow.Decisions.Request(field("action"), field("node"), field("by"), field("reason"),
+            val req = frflow.Decisions.Request(field("node"), field("by"), field("reason"),
               body("reject").map(_.arr.toList).getOrElse(Nil).flatMap(_.str), body("subtree").contains(JBool(true)))
             if !Project.Ident.matches(req.node) then error(ex, 400, "expected a node id")
-            else p.decide(req, actor = "ui") match
+            else p.decide(req) match
               case Left(why) => error(ex, 409, why)
               case Right(()) => signal(); json(ex, obj("ok" -> JBool(true)))
           case List("requests") =>
@@ -150,8 +153,9 @@ final class Server(projects: List[Project]):
             val text = field("text")
             if text.trim.isEmpty then error(ex, 400, "expected text")
             else
-              Files.writeString(p.ideaFile, if text.endsWith("\n") then text else text + "\n", UTF_8)
-              try json(ex, start(p, List("render")).json, 202) catch case e: IllegalStateException => error(ex, 409, s"saved; ${e.getMessage}")
+              p.saveIdea(text)
+              signal()
+              json(ex, obj("ok" -> JBool(true)))
           case _ => error(ex, 404, "not found")
       case _ => error(ex, 404, "not found")
 

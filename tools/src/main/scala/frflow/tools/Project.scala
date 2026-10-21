@@ -22,7 +22,7 @@ final case class RunResult(command: List[String], exitCode: Int, output: String)
   *
   * The knowledge base is defined in Scala. Its CLI (`render`, `check`, ...) writes
   * `.frflow/kb.json`, the snapshot of the definitions and the ledger, and appends to
-  * `.frflow/events.jsonl`. The tools never build the tree themselves: they run the
+  * `.frflow/ledger.json` holds the developer's decisions. The tools never build the tree themselves: they run the
   * CLI and read what it wrote. Requests (developer to agent) are kept here, in
   * `.frflow/requests.json`.
   */
@@ -33,11 +33,10 @@ final class Project(dir: Path):
   val state: Path = root.resolve(".frflow")
 
   def snapshotFile: Path = state.resolve("kb.json")
-  def eventsFile: Path = state.resolve("events.jsonl")
   def runningFile: Path = state.resolve("running.json")
   def requestsFile: Path = state.resolve("requests.json")
   def ledgerFile: Path = state.resolve("ledger.json")
-  def ideaFile: Path = root.resolve(config("idea").flatMap(_.str).getOrElse("IDEA.md"))
+  def ideaFile: Path = root.resolve(snapshot.flatMap(_("ideaFile")).flatMap(_.str).getOrElse("IDEA.md"))
 
   private def readJson(p: Path): Option[Json] =
     try Some(Json.parse(Files.readString(p, UTF_8))) catch case _: Exception => None
@@ -45,32 +44,50 @@ final class Project(dir: Path):
   def snapshot: Option[Json] = readJson(snapshotFile)
   def ledger: frflow.Ledger = frflow.Ledger.load(ledgerFile)
 
-  /** The snapshot with the developer's decisions, read now (see `frflow.Decisions`). */
-  def annotated: Option[Json] = snapshot.map(frflow.Decisions.annotate(_, ledger))
+  /** The snapshot with the developer's decisions, read now (see `frflow.Decisions`), and warnings
+    * if committed decisions were rewritten since.
+    */
+  def annotated: Option[Json] = snapshot.map { s =>
+    val l = ledger
+    val committed = frflow.Git.show(root, root.relativize(ledgerFile).toString).map(t => frflow.Ledger.fromJson(Json.parse(t)))
+    val rewritten = committed.map(frflow.Ledger.rewrittenSince(_, l)).getOrElse(Nil).map("the ledger was rewritten: " + _)
+    val a = frflow.Decisions.annotate(s, l)
+    val warnings = (a("warnings").map(_.arr.toList).getOrElse(Nil) ++ rewritten.map(str)).distinct
+    JObj(a.obj.filterNot(_._1 == "warnings") :+ ("warnings" -> JArr(warnings)))
+  }
+
+  /** How the code a node governs changed since it was decided (a git diff). */
+  def codeDiff(node: String): String =
+    val n = snapshot.flatMap(_("nodes")).map(_.arr).getOrElse(Nil).find(_("id").flatMap(_.str).contains(node))
+    val files = n.flatMap(_("code")).flatMap(_("files")).map(_.arr.toList.flatMap(_.str)).getOrElse(Nil)
+    val commit = ledger.binding(node).map(_.commit).getOrElse("")
+    if commit.isEmpty || files.isEmpty then "" else frflow.Git.diff(root, commit, files)
+
+  /** Saves IDEA.md and updates the snapshot without rebuilding the model: only the idea changed. */
+  def saveIdea(text: String): Unit =
+    Files.writeString(ideaFile, if text.endsWith("\n") then text else text + "\n", UTF_8)
+    snapshot.foreach { s =>
+      val before = sourcesChanged.filterNot(_ == root.relativize(ideaFile).toString)
+      if before.isEmpty then Files.writeString(snapshotFile, frflow.Decisions.withIdea(s, Files.readString(ideaFile, UTF_8)).render() + "\n", UTF_8)
+    }
 
   /** Records a developer's decision without running the CLI: the snapshot carries what is decided.
     * Refused when the sources changed since the snapshot, since the decision would bind to stale content.
     */
-  def decide(r: frflow.Decisions.Request, actor: String): Either[String, Unit] =
+  def decide(r: frflow.Decisions.Request): Either[String, Unit] =
     snapshot match
       case None => Left("no snapshot yet: render first")
       case Some(_) if sourcesChanged.nonEmpty => Left(s"the sources changed since the last render (${sourcesChanged.take(3).mkString(", ")}): render first")
       case Some(snap) =>
         Project.locked(state.resolve("ledger.lock")) {
-          frflow.Decisions.decide(snap, ledger, r, java.time.Instant.now.toString).map { (l, events) =>
-            frflow.Ledger.save(ledgerFile, l)
-            val lines = events.map(e => JObj(e.obj :+ ("actor" -> str(actor))).compact + "\n").mkString
-            Files.writeString(eventsFile, lines, UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND)
-            ()
-          }
+          frflow.Decisions.decide(snap, ledger, r, java.time.Instant.now.toString, frflow.Git.head(root)).map(frflow.Ledger.save(ledgerFile, _))
         }
+
+  /** The command running now, if any (from this or another process). */
   def running: Option[Json] = readJson(runningFile)
 
-  def events(limit: Int = 0): List[Json] =
-    val all =
-      if !Files.isRegularFile(eventsFile) then Nil
-      else Files.readAllLines(eventsFile, UTF_8).asScala.toList.flatMap(l => try Some(Json.parse(l)) catch case _: Exception => None)
-    if limit > 0 then all.takeRight(limit) else all
+  /** Every decision, newest first. */
+  def history: Json = frflow.Decisions.history(ledger)
 
   // -- requests: what the developer asks the agent for --------------------------
 
@@ -119,7 +136,7 @@ final class Project(dir: Path):
 
   /** Changes whenever anything the browser shows changes. */
   def version: String =
-    (List(snapshotFile, eventsFile, runningFile, requestsFile, ledgerFile) ++ sourceFiles).map { f =>
+    (List(snapshotFile, runningFile, requestsFile, ledgerFile) ++ sourceFiles).map { f =>
       if Files.exists(f) then s"$f:${Files.getLastModifiedTime(f).toMillis}:${Files.size(f)}" else s"$f:-"
     }.mkString("|")
 
@@ -140,7 +157,6 @@ final class Project(dir: Path):
       try
         val pb = ProcessBuilder(cmd*).directory(cwd.toFile).redirectErrorStream(true)
           .redirectInput(ProcessBuilder.Redirect.from(java.io.File("/dev/null")))
-        pb.environment.put("FRFLOW_ACTOR", actor)
         val proc = pb.start()
         val out = java.io.ByteArrayOutputStream()
         val pump = Thread(() => { proc.getInputStream.transferTo(out); () })
@@ -156,9 +172,8 @@ final class Project(dir: Path):
     }
 
 object Project:
-  /** CLI commands, and whether an agent may run them. Deciding (`accept`) is the developer's. */
-  val Commands: Map[String, Boolean] =
-    Map("render" -> true, "check" -> true, "status" -> true, "context" -> true, "scaffold" -> true)
+  /** The CLI commands the tools run. Deciding (`accept`) is the developer's, through `decide`. */
+  val Commands: Set[String] = Set("render", "check", "status", "context", "scaffold")
 
   val Ident: scala.util.matching.Regex = "[A-Za-z_][A-Za-z0-9_]*".r
 
@@ -194,33 +209,6 @@ object Project:
       .filterNot(l => Noise.matches(l)).mkString("\n").stripPrefix("\n").stripSuffix("\n")
 
   private def s(j: Json, k: String): String = j(k).flatMap(_.str).getOrElse("")
-
-  /** A compact text tree of an annotated snapshot: decision state, link to parent, examples. */
-  def tree(snapshot: Json): String =
-    val nodes = snapshot("nodes").map(_.arr.toList).getOrElse(Nil)
-    def parent(n: Json) = n("parent").flatMap(_.str)
-    def go(n: Json, depth: Int): List[String] =
-      val link = n("link").filter(_ != JNull).fold("") { l =>
-        val d = s(l, "detail")
-        s"link ${s(l, "status")}${if d.nonEmpty then s" ($d)" else ""}, "
-      }
-      val ex = n("examples").map(_.arr.toList).getOrElse(Nil)
-      val bad = ex.count(e => s(e, "contract") != "ok" || e("implementation").exists(i => i != JNull && !i.str.contains("ok")))
-      val exs = if ex.isEmpty then "" else s", examples ${ex.size - bad}/${ex.size}"
-      val code = if n("codeChanged").contains(JBool(true)) then ", code changed" else ""
-      s"${"  " * depth}${s(n, "id")} (${s(n, "kind")})  [${s(n, "state")}$code${if link.isEmpty then "" else ", " + link.stripSuffix(", ")}$exs]" ::
-        nodes.filter(c => parent(c).contains(s(n, "id"))).flatMap(go(_, depth + 1))
-    val removed = snapshot("removed").map(_.arr.toList).getOrElse(Nil).map(r => s"${s(r, "id")}  [removed from the model]")
-    (nodes.filter(parent(_).isEmpty).flatMap(go(_, 0)) ++ removed).mkString("\n")
-
-  /** What waits on whom, in an annotated snapshot: decisions for the developer, clean-up for the agent. */
-  def waiting(snapshot: Json): (List[String], List[String]) =
-    val nodes = snapshot("nodes").map(_.arr.toList).getOrElse(Nil)
-    val dev = nodes.filter(n => Set("proposed", "changed", "parent-changed")(s(n, "state"))).map(n => s"${s(n, "id")}: ${s(n, "state")}") ++
-      nodes.filter(_("codeChanged").contains(JBool(true))).map(n => s"${s(n, "id")}: its code changed since it was decided") ++
-      snapshot("removed").map(_.arr.toList).getOrElse(Nil).map(r => s"${s(r, "id")}: removed from the model; confirm the removal")
-    val agent = nodes.filter(n => s(n, "state") == "rejected").map(n => s"${s(n, "id")}: rejected; remove it from the Scala model")
-    (dev, agent)
 
   /** Projects at the given paths; a directory without `frflow.json` is searched one level down. */
   def find(paths: List[String]): List[Project] =

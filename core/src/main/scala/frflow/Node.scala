@@ -21,11 +21,18 @@ enum NodeKind:
 final case class Code(files: List[String], fingerprint: String)
 
 object Code:
-  def of(paths: List[java.nio.file.Path]): Code =
-    val text = paths.map(_.toAbsolutePath.normalize).sortBy(_.toString).map { p =>
-      p.toString + "\u0000" + (if java.nio.file.Files.isRegularFile(p) then java.nio.file.Files.readString(p) else "<missing>")
-    }.mkString("\u0000")
-    Code(paths.map(_.toString), java.security.MessageDigest.getInstance("SHA-256").digest(text.getBytes("UTF-8")).map("%02x".format(_)).mkString)
+  /** The files under `paths` (directories are walked), named relative to `base`, so the fingerprint
+    * is the same in every checkout.
+    */
+  def of(base: java.nio.file.Path, paths: List[java.nio.file.Path]): Code =
+    import scala.jdk.CollectionConverters.*
+    val files = paths.map(_.toAbsolutePath.normalize).flatMap { p =>
+      if java.nio.file.Files.isDirectory(p) then java.nio.file.Files.walk(p).iterator.asScala.filter(java.nio.file.Files.isRegularFile(_)).toList
+      else List(p)
+    }.distinct.map(p => base.toAbsolutePath.normalize.relativize(p).toString -> p).sortBy(_._1)
+    val text = files.map((rel, p) => rel + "\u0000" + (if java.nio.file.Files.isRegularFile(p) then java.nio.file.Files.readString(p) else "<missing>"))
+      .mkString("\u0000")
+    Code(files.map(_._1), java.security.MessageDigest.getInstance("SHA-256").digest(text.getBytes("UTF-8")).map("%02x".format(_)).mkString)
 
 /** A node of the knowledge base. It specifies a model of type `M`: a Scala value
   * (usually a function) describing what the system does at this level.
@@ -36,7 +43,7 @@ object Code:
   *   - instantiate: fixes opaque types and parameters of the parent.
   *   - contract: `post(a, b, result)` for every call of an implementation;
   *     proven to imply the parent's spec. Implementations are plain Scala,
-  *     attached with `enforce`.
+  *     attached with `KnowledgeBase.implement`.
   *
   * Every node gets a Lean theorem `root`: the root's spec holds for its models.
   */
@@ -72,6 +79,12 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
   private[frflow] def withExamples(es: List[Example]): Node[M] =
     Node(id, statement, why, kind, parent, spec, abs, post, substs, cases ++ es, governs)
 
+  /** Source files (or directories) this node also governs, relative to the project: a change to
+    * them puts the node up for review. A contract already governs its implementation's files.
+    */
+  def governing(files: String*): Node[M] =
+    Node(id, statement, why, kind, parent, spec, abs, post, substs, cases, governs ++ files)
+
   /** A design decision below this node, with no formal model: an architecture choice or a
     * convention. `governs` are the source files it is about (relative to the project), so a
     * change to them is noticed.
@@ -104,8 +117,16 @@ final case class Example(note: String, bindings: List[Binding], givenSource: Lis
   def describe: String = s"${if expected then "expect" else "reject"} $call  given ${givens.mkString(", ")}  — $note"
 
 object Example:
+  def memo(f: Any => Any): Any => Any =
+    val seen = scala.collection.mutable.Map.empty[Any, Any]
+    a => seen.getOrElseUpdate(a, f(a))
+
   def show(v: Any): String = v match
     case s: String => "\"" + s + "\""
+    case None      => "None"
+    case Some(x)   => s"Some(${show(x)})"
+    case l: List[?] => l.map(show).mkString("List(", ", ", ")")
+    case m: Map[?, ?] => m.map((k, x) => s"${show(k)} -> ${show(x)}").mkString("Map(", ", ", ")")
     case p: Product if p.productArity > 0 =>
       p.productPrefix + p.productIterator.map(show).mkString("(", ", ", ")")
     case other => String.valueOf(other)
@@ -126,16 +147,21 @@ final case class ExampleResult(example: Example, contract: String, implementatio
 final class ContractViolation(node: String, detail: String) extends RuntimeException(s"$node: $detail")
 
 extension [A, B, R](n: Node[(A, B) => R])
-  /** Attaches a plain Scala implementation to a contract. Every call checks the
-    * contract on its result and fails closed: a result that breaks it is never
-    * returned.
+  /** A plain Scala implementation with every call checked against the contract: a result that
+    * breaks it is never returned. Used by `KnowledgeBase.service`, which is how code is attached.
     */
-  def enforce(impl: (A, B) => R)(bindings: Binding*): (A, B) => R =
+  private[frflow] def enforce(impl: (A, B) => R)(bindings: Binding*): (A, B) => R =
     require(n.kind == NodeKind.Contract, s"${n.id} is not a contract")
     val post = n.post.get.value.asInstanceOf[(A, B, R) => Boolean]
     (a, b) =>
-      // Each parameter is read once per call: the implementation and the contract see the same values.
-      val fixed = bindings.map { b => val v = b.value(); Binding(b.param, () => v) }
+      // Each parameter is read once per call: the implementation and the contract see the same values
+      // (a parameter that is a function answers each question once).
+      val fixed = bindings.map { b =>
+        val v = b.value() match
+          case f: Function1[?, ?] if f.getClass.getName.contains("Lambda") => Example.memo(f.asInstanceOf[Any => Any])
+          case other => other
+        Binding(b.param, () => v)
+      }
       Bindings.within(fixed) {
         val r = impl(a, b)
         if post(a, b, r) then r else throw ContractViolation(n.id, s"result $r for ($a, $b) breaks the contract")
@@ -154,6 +180,8 @@ extension [A, B, R](n: Node[(A, B) => R])
   def checkExamples(impl: Option[() => (A, B) => R]): List[ExampleResult] =
     val post = n.post.get.value.asInstanceOf[(A, B, R) => Boolean]
     def attempt(f: => String) = try f catch case e: Exception => s"error: ${e.getMessage}"
+    // The implementation is built once per set of given values, as a running system would be.
+    val built = scala.collection.mutable.Map.empty[List[Binding], Option[(A, B) => R]]
     n.cases.map { e =>
       val (a, b, r) = (e.a.asInstanceOf[A], e.b.asInstanceOf[B], e.result.asInstanceOf[R])
       Bindings.within(e.bindings) {
@@ -162,7 +190,8 @@ extension [A, B, R](n: Node[(A, B) => R])
           if ok == e.expected then "ok" else if e.expected then "the contract refuses it" else "the contract accepts it"
         }
         val i = impl.map(mk => attempt {
-          val got = mk()(a, b)
+          val f = built.getOrElseUpdate(e.bindings, Some(mk())).get
+          val got = f(a, b)
           if e.expected == (got == r) then "ok" else s"returned ${Example.show(got)}"
         })
         ExampleResult(e, c, i)
@@ -172,7 +201,10 @@ extension [A, B, R](n: Node[(A, B) => R])
 /** A plain Scala implementation registered for a contract: its examples run against it, production
   * runs it through `KnowledgeBase.service`, and a change to its source files is noticed.
   */
-final case class Implementation(contract: String, factory: () => Any, files: List[String])
+final case class Implementation(contract: String, factory: () => Any, files: List[String]):
+  /** The implementation's source files; the last one listed is the model's file, where it is attached. */
+  def sources: List[String] = files.dropRight(1)
+  def modelFile: Option[String] = files.lastOption
 
 /** A knowledge base: the developer's idea (a Markdown file) and the nodes derived from it.
   * `name` is the Lean namespace.
@@ -207,6 +239,27 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
   def exampleResults(n: Node[?]): List[ExampleResult] =
     if n.cases.isEmpty then Nil
     else n.asInstanceOf[Node[(Any, Any) => Any]].checkExamples(implementation(n).map(_.factory.asInstanceOf[() => (Any, Any) => Any]))
+
+  /** What a contract does not promise, found mechanically: inputs its `post` never looks at, and
+    * whether an empty result (`None`, `Nil`) satisfies it for every example input. Shown next to
+    * the decision, so nobody believes a contract says more than it does.
+    */
+  def limits(n: Node[?]): List[String] =
+    if n.kind != NodeKind.Contract then Nil
+    else
+      val post = n.post.get
+      val unused = post.params.init.map(_._1).filterNot(p => (s"(?<![\\w'])${java.util.regex.Pattern.quote(p)}(?![\\w'])").r.findFirstIn(post.body).isDefined)
+      val f = post.value.asInstanceOf[(Any, Any, Any) => Boolean]
+      val empties = n.cases.flatMap { e =>
+        val empty = e.result match
+          case _: Option[?] => Some(None)
+          case _: List[?]   => Some(Nil)
+          case _            => None
+        empty.map(v => try Bindings.within(e.bindings)(f(e.a, e.b, v)) catch case _: Exception => false)
+      }
+      unused.map(p => s"the result may not depend on `$p`: the contract never looks at it") ++
+        (if empties.nonEmpty && empties.forall(identity) then
+          List("an empty result (None or Nil) always satisfies it: it never requires the system to return anything") else Nil)
 
   /** The opaque types used anywhere. */
   def opaques: List[Opaque] =
@@ -261,6 +314,9 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
 
       nodes.filter(n => n.kind == NodeKind.Contract && !(n.cases.exists(_.expected) && n.cases.exists(!_.expected)))
         .map(n => s"${n.id}: a contract needs examples: at least one expect (what it must allow) and one reject"),
+      nodes.filter(n => n.kind == NodeKind.Contract && n.cases.exists(_.expected) &&
+        !n.cases.exists(e => e.expected && (e.result match { case None | Nil => false; case _ => true })))
+        .map(n => s"${n.id}: at least one expect must return something; an implementation that returns nothing would pass the others"),
       (params.filter(_.means.trim.isEmpty).map(_.name) ++ opaques.filter(_.means.trim.isEmpty).map(_.name))
         .map(n => s"$n: say what it means in the world"),
       opaques.map(_.name).filterNot((allLifted ++ defs.map(_.lifted)).flatMap(_.opaques).contains)

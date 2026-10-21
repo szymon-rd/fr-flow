@@ -19,47 +19,55 @@ final case class NodeCheck(
     at: String
 )
 
-/** An option the developer did not choose: the node as it was proposed. */
-final case class Alternative(id: String, content: Json):
-  def statement: String = content("statement").flatMap(_.str).getOrElse("")
-  def why: String = content("why").flatMap(_.str).getOrElse("")
-
 /** A decision of the developer about a node.
   *
-  * @param action   `accept`, or `remove` (the node was deleted from the model)
-  * @param content  the node as the developer saw it when deciding; its hash is what the decision is bound to
-  * @param chain    the decided content of the ancestors; when it changes, the decision must be confirmed
-  * @param reason   why the developer chose it
-  * @param rejected the alternatives not chosen, as they were proposed
+  * @param action   `accept` (the developer chose the node, as seen), `confirm` (it still holds after
+  *                 something above it or its code moved), `reject` (an alternative not chosen, as it
+  *                 was proposed) or `remove` (the developer agreed that a decided node is gone)
+  * @param content  the node as the developer saw it; the decision is bound to its hash
+  * @param chain    the content of the ancestors, as decided; when it changes, the node is reviewed
+  * @param reason   why: kept as part of the theory
+  * @param rejected for `accept`, the alternatives rejected by this choice
   * @param code     the fingerprint of the source files the node governs, when decided
+  * @param commit   the git commit checked out when deciding, to show how the code changed since
   */
 final case class Decision(action: String, content: Json, chain: String, by: String, at: String, reason: String,
-    rejected: List[Alternative], code: String = ""):
+    rejected: List[String] = Nil, code: String = "", commit: String = ""):
   def hash: String = Decision.hash(content)
 
 object Decision:
   def hash(content: Json): String =
     java.security.MessageDigest.getInstance("SHA-256").digest(content.compact.getBytes(UTF_8)).map("%02x".format(_)).mkString
 
-/** The developer's decisions, per node, oldest first: the record of the theory.
+/** The developer's decisions, per node, oldest first: the record of the theory and its history.
   * Kept in `.frflow/ledger.json` and committed. Nothing in it is ever overwritten.
   */
 final case class Ledger(decisions: Map[String, List[Decision]]):
   def history(id: String): List[Decision] = decisions.getOrElse(id, Nil)
   def current(id: String): Option[Decision] = history(id).lastOption
+  /** The developer's choice of the node: the reason it was chosen. */
+  def accepted(id: String): Option[Decision] = history(id).reverse.find(_.action == "accept")
+  /** What the node is bound to now: its last acceptance or confirmation. */
+  def binding(id: String): Option[Decision] = current(id).filter(d => d.action == "accept" || d.action == "confirm")
   def add(id: String, d: Decision): Ledger = Ledger(decisions.updated(id, history(id) :+ d))
 
-  /** Every alternative ever rejected for a node, latest version of each. */
-  def rejected(id: String): List[Alternative] =
-    history(id).flatMap(_.rejected).foldLeft(List.empty[Alternative])((acc, a) => acc.filterNot(_.id == a.id) :+ a)
+  /** The alternatives ever rejected in favour of a node, as they were proposed. */
+  def alternatives(id: String): List[(String, Json)] =
+    history(id).filter(_.action == "accept").flatMap(_.rejected).distinct
+      .flatMap(r => history(r).reverse.find(_.action == "reject").map(d => r -> d.content))
 
+  /** Every decision, newest first. */
+  def all: List[(String, Decision)] = decisions.toList.flatMap((id, ds) => ds.map(id -> _)).sortBy(_._2.at).reverse
+
+  /** Content repeated from the node's previous decision is written once ("content": "same"). */
   def toJson: Json =
     obj("decisions" -> JObj(decisions.toSeq.sortBy(_._1).map { (id, ds) =>
-      id -> JArr(ds.map(d => obj(
-        "action" -> str(d.action), "by" -> str(d.by), "at" -> str(d.at), "reason" -> str(d.reason),
-        "rejected" -> JArr(d.rejected.map(a => obj("id" -> str(a.id), "content" -> a.content))),
-        "chain" -> str(d.chain), "code" -> str(d.code), "content" -> d.content
-      )))
+      id -> JArr(ds.zipWithIndex.map((d, i) => JObj(Seq(
+        "action" -> str(d.action), "by" -> str(d.by), "at" -> str(d.at), "reason" -> str(d.reason)) ++
+        (if d.rejected.isEmpty then Nil else Seq("rejected" -> JArr(d.rejected.map(str)))) ++
+        (if d.code.isEmpty then Nil else Seq("code" -> str(d.code))) ++
+        (if d.commit.isEmpty then Nil else Seq("commit" -> str(d.commit))) ++
+        Seq("chain" -> str(d.chain), "content" -> (if i > 0 && ds(i - 1).content == d.content then str("same") else d.content)))))
     }))
 
 object Ledger:
@@ -76,10 +84,23 @@ object Ledger:
 
   def fromJson(j: Json): Ledger =
     Ledger(j("decisions").map(_.obj).getOrElse(Nil).map { (id, ds) =>
-      id -> ds.arr.map(d => Decision(s(d, "action"), d("content").getOrElse(JNull), s(d, "chain"), s(d, "by"), s(d, "at"), s(d, "reason"),
-        d("rejected").map(_.arr).getOrElse(Nil).map(a => Alternative(s(a, "id"), a("content").getOrElse(JNull))).toList,
-        s(d, "code"))).toList
+      id -> ds.arr.foldLeft(List.empty[Decision]) { (acc, d) =>
+        val content = d("content") match
+          case Some(JStr("same")) => acc.lastOption.fold(JNull)(_.content)
+          case other              => other.getOrElse(JNull)
+        acc :+ Decision(s(d, "action"), content, s(d, "chain"), s(d, "by"), s(d, "at"), s(d, "reason"),
+          d("rejected").map(_.arr).getOrElse(Nil).flatMap(_.str).toList, s(d, "code"), s(d, "commit"))
+      }
     }.toMap)
+
+  /** Decisions present at an earlier version of the ledger (for example the committed one) that are
+    * missing or different now: the ledger is append-only, so these mean it was rewritten.
+    */
+  def rewrittenSince(earlier: Ledger, now: Ledger): List[String] =
+    earlier.decisions.toList.sortBy(_._1).flatMap { (id, ds) =>
+      val cur = now.history(id)
+      if cur.take(ds.size) == ds then Nil else List(s"$id: decisions recorded earlier were changed or removed")
+    }
 
 /** Check results, derived from the model and Lean; kept in `.frflow/checks.json`, not committed. */
 object Checks:

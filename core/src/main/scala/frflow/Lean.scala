@@ -66,7 +66,7 @@ object Lean:
       case NoAxioms(t)    => t -> Nil
     }.toMap
 
-  val allowedAxioms: Set[String] = Set("propext", "Classical.choice", "choice", "Quot.sound")
+  val allowedAxioms: Set[String] = Set("propext", "Classical.choice", "Quot.sound")
 
   /** A theorem in a Lean file, with the range of lines it spans. */
   final case class Decl(name: String, statement: String, from: Int, to: Int)
@@ -77,7 +77,7 @@ object Lean:
     "opaque" -> """\bopaque\b""".r, "implemented_by" -> """\bimplemented_by\b""".r, "extern" -> """@\[\s*extern\b""".r,
     "native_decide" -> """\bnative_decide\b""".r,
     "set_option" -> """\bset_option\b(?!\s+(maxHeartbeats\b|maxRecDepth\b|autoImplicit\b|linter\.))""".r,
-    "metaprogram" -> """(#eval|#exit|\brun_cmd\b|\brun_tac\b|\belab\b|\bmacro\b|\bmacro_rules\b|\bsyntax\b|\binitialize\b|\bbuiltin_initialize\b|\belab_rules\b)""".r,
+    "metaprogram" -> """(#eval|#exit|\brun_cmd\b|\brun_tac\b|\brun_meta\b|\brun_elab\b|\bby_elab\b|\belab\b|\bmacro\b|\bmacro_rules\b|\bsyntax\b|\binitialize\b|\bbuiltin_initialize\b|\belab_rules\b|\bLean\.)""".r,
     "attribute" -> """\battribute\b|@\[""".r,
     "import" -> """^\s*import\s+(?!FrFlowGen\.|FrFlow\b|Std\b|Init\b)""".r
   )
@@ -107,13 +107,21 @@ object Lean:
       else { sb += c; i += 1 }
     sb.result()
 
-  /** Commands a proof file may contain; anything else starting a line is rejected. */
+  /** Lean commands; a proof file may contain only the allowed ones. */
+  private val Commands: Set[String] = Set("import", "set_option", "open", "namespace", "end", "section", "noncomputable",
+    "theorem", "lemma", "def", "abbrev", "instance", "example", "axiom", "structure", "inductive", "class", "variable",
+    "universe", "attribute", "notation", "infix", "infixl", "infixr", "prefix", "postfix", "macro", "macro_rules", "syntax",
+    "elab", "elab_rules", "run_cmd", "run_meta", "run_elab", "#eval", "#print", "#check", "#reduce", "#exit", "initialize",
+    "builtin_initialize", "opaque", "mutual", "private", "protected", "partial", "unsafe", "local", "scoped", "@[", "deriving")
+
+  /** Commands a proof file may contain. */
   val allowedCommands: Set[String] = Set("import", "set_option", "open", "namespace", "end", "section", "noncomputable", "theorem")
 
   def violations(src: String): List[(Int, String)] =
     code(src).linesIterator.zipWithIndex.toList.flatMap { (l, i) =>
-      val word = l.takeWhile(c => !c.isWhitespace)
-      val command = if l.nonEmpty && !l.head.isWhitespace && !allowedCommands(word) then List((i + 1, s"command ${word.take(30)}")) else Nil
+      // Lean ignores indentation for commands, so any line may start one.
+      val word = l.trim.takeWhile(c => !c.isWhitespace)
+      val command = if Commands(word) && !allowedCommands(word) then List((i + 1, s"command ${word.take(30)}")) else Nil
       command ++ forbidden.collect { case (what, re) if re.findFirstIn(l).isDefined => (i + 1, what) }
     }
 

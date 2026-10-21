@@ -21,7 +21,7 @@ class AuthSuite extends munit.FunSuite:
 
   test("an implementation that ignores the grant table is stopped by its contract") {
     val careless: (String, Path) => Option[UserId] = (t, _) => tokens.get(t)
-    val decide = decisionContract.enforce(careless)(grants.bind(grantTable), sessions.bind(t => tokens.get(t)))
+    val decide = knowledge.implement(decisionContract)(careless).service(decisionContract)(grants.bind(grantTable), sessions.bind(t => tokens.get(t)))
     assertEquals(decide("t-1", report), Some(alice))
     intercept[ContractViolation](decide("t-1", Path("/admin")))
   }

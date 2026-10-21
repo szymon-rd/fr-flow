@@ -1,6 +1,6 @@
 ---
 name: frflow
-description: Develop a system with FrFlow, where the developer decides, in a browser, a tree of Scala nodes that specialize the project's idea, and Lean proves each node against its parent. Use when turning an idea into a root, proposing or changing nodes (refine, instantiate, contract), adding examples, answering the developer's requests, proving a link, or attaching an implementation. Also use when the work touches IDEA.md, frflow.json, `Node.root`, `.refine`, `.instantiate`, `.contract`, `.examples`, `.implement` or `.enforce`.
+description: Develop a system with FrFlow, where the developer decides, in a browser, a tree of Scala nodes that keeps the theory of the system (what holds, why, and what was rejected) and shows when code or design drifts from it. Use when turning an idea into a root, proposing or changing nodes (refine, instantiate, contract, design), adding examples, answering the developer's requests, proving a link, or attaching an implementation. Also use when the work touches IDEA.md, frflow.json, `Node.root`, `.refine`, `.instantiate`, `.contract`, `.design`, `.examples`, `.implement`, `.governing` or `service`.
 ---
 
 # Developing with FrFlow
@@ -14,9 +14,10 @@ this way. It also keeps the code from drifting away from it.
   examples.
 - **The developer decides every node in the browser.** You propose. They
   choose, and their reason is kept along with the alternatives they rejected.
-- A decision is bound to what was decided. If the node changes, or anything
-  above it changes, the browser asks the developer again. This is how drift
-  shows.
+- A decision is bound to what was decided. If the node changes, the meaning of
+  something above it changes, or the code it governs changes, the node goes
+  back to **review** and the browser asks the developer again, showing what
+  moved. This is how drift shows.
 - Lean proves each node implies its parent, so the idea holds all the way
   down.
 - Examples check that the contract and the implementation do what was decided.
@@ -25,7 +26,8 @@ this way. It also keeps the code from drifting away from it.
 
 1. **You propose; the developer decides.**
    - Never accept nodes. There is no tool for it. Do not run `accept` from a
-     shell, and do not edit `.frflow/ledger.json`.
+     shell, and do not edit `.frflow/ledger.json`. Rewriting committed
+     decisions shows as a warning.
 2. **Offer real alternatives.** When a step has more than one reasonable
    design, propose each as a sibling node, with its own `why` covering its
    trade-off. One proposal is fine when the step is obvious.
@@ -37,8 +39,11 @@ this way. It also keeps the code from drifting away from it.
    - A reader must be able to tell a deliberate choice from an accident.
 4. **The statement must say in plain words what the predicate says.**
 5. **Every contract gets examples** (the build requires it).
-   - At least one `expect` that an implementation doing nothing would fail.
+   - At least one `expect` that returns something, so an implementation doing
+     nothing fails it.
    - At least one `reject` showing what is ruled out.
+   - Read the contract's "does not promise" list, and say in your answer what
+     it means for the developer.
    - Examples are how the developer checks that a predicate means what its
      statement says.
 6. **Every `Opaque` and `Param` says what it means in the world**, and where a
@@ -81,8 +86,10 @@ this way. It also keeps the code from drifting away from it.
    or in the node's `why`.
    - **Replacing an accepted node:** propose the new node as its sibling. The
      developer can reject the old one when choosing.
-   - **A change to an implementation or a governed file** shows as "code
-     changed" on its node. Make sure the examples still pass.
+   - **A change to an implementation or a governed file** puts the node up for
+     review (cause `code`), with a git diff. Make sure the examples still pass.
+     An implementation governs its package directory. Use `.governing(paths*)`
+     for anything else it depends on.
    - **Formal work on several alternatives** can be expensive. You may first
      describe the options in your `answer`, and formalize the one the developer
      picks.

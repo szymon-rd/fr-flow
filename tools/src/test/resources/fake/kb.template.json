@@ -5,6 +5,8 @@
   "Root"
  ],
  "exportedAt": "2026-01-01T00:00:00Z",
+ "ideaFile": "IDEA.md",
+ "warnings": [],
  "opaques": [
   {
    "name": "T",
@@ -39,6 +41,7 @@
    "examples": [],
    "code": null,
    "content": {
+    "parent": null,
     "statement": "Root statement, long enough to wrap onto a second line of the card.",
     "why": "Because Root is the right step.",
     "sources": {
@@ -49,8 +52,8 @@
     "uses": [],
     "governs": []
    },
-   "hash": "a9aa04a1d2f673e93f57d23764ae0a4718a4a849204302277813b10b776d3412",
-   "chain": "582b817e786c5c2f0a538b9ee7357afe13ede8c9041ebef0313868620310ce4a",
+   "hash": "709241121b7684b6e183f5883d522961e9bafe777d9a876e4b02d59ff7a55ee1",
+   "chain": "e877f476abb928eca1ebaf48dbb71f60d6c73de4bdcaea05121e5d0ba2e6b583",
    "link": null,
    "obligation": null,
    "proof": null,
@@ -74,6 +77,7 @@
    "examples": [],
    "code": null,
    "content": {
+    "parent": "Root",
     "statement": "Auto statement, long enough to wrap onto a second line of the card.",
     "why": "Because Auto is the right step.",
     "sources": {
@@ -84,8 +88,8 @@
     "uses": [],
     "governs": []
    },
-   "hash": "13d383823e9dba1e5a36c32c8a796fef49e6fdc1faeeb7b52a3cfeca28438423",
-   "chain": "d4a31a1d2b757224e28beb4d891dec4dd614d74752b65dc995d49cf12a37a958",
+   "hash": "37ddd4824f2ecda68e48a3093a16e0e1a4b39357504665413061aef4235f60f6",
+   "chain": "15907f31737dbfcbe3562306dcc6b7ab9db082425ce420689eb0447b053fb957",
    "link": {
     "status": "proven",
     "detail": "auto"
@@ -120,6 +124,7 @@
    "examples": [],
    "code": null,
    "content": {
+    "parent": "Auto",
     "statement": "Inst statement, long enough to wrap onto a second line of the card.",
     "why": "Because Inst is the right step.",
     "sources": {
@@ -130,8 +135,8 @@
     "uses": [],
     "governs": []
    },
-   "hash": "d67436cb90575ca35a9ec0a6a789a02a2fd8e942d0c6cddd0588b093b7be32ae",
-   "chain": "70d2fb68cdb6604dd3fb95a76c70bced64c041e2c13ec0c2817e856645b9ab3d",
+   "hash": "62d0781b35d2220599f98b3c9c50de482a1fad3e0f5f33de2e79476f033588ad",
+   "chain": "dd0079dc4dcab7d2cc2fad8f81e2659cd9f94fb58d119f7ecc9cd744a67d0615",
    "link": {
     "status": "proven",
     "detail": "instantiation"
@@ -163,6 +168,7 @@
    "examples": [],
    "code": null,
    "content": {
+    "parent": "Auto",
     "statement": "Inst2 statement, long enough to wrap onto a second line of the card.",
     "why": "Because Inst2 is the right step.",
     "sources": {
@@ -173,8 +179,8 @@
     "uses": [],
     "governs": []
    },
-   "hash": "aa52b74eae5249fa23d51826d908619eb32489ca7b5b95c84d4a46e83e82d503",
-   "chain": "c0df348b1394421989381ad9e0d1ef71bd3797b589fb58c6eceeaf671f813266",
+   "hash": "355d2e637081dc4733ceb9aaabef128d2a529030062e06d10915095a9a73459e",
+   "chain": "7ae4d245c25d8e1c9501dc831a78e6809b6230e42046f2acc4f91c6f22c71fe5",
    "link": {
     "status": "proven",
     "detail": "instantiation"
@@ -237,6 +243,7 @@
     "fingerprint": "f2"
    },
    "content": {
+    "parent": "Inst",
     "statement": "Contract statement, long enough to wrap onto a second line of the card.",
     "why": "Because Contract is the right step.",
     "sources": {
@@ -247,8 +254,8 @@
     "uses": [],
     "governs": []
    },
-   "hash": "37d4660b83fe2aebabfb8374fee6f8daead9bf37e3292fe45ee119e00dc7de4a",
-   "chain": "555ab85231032d0f652713a15e3592a66cac5626ebf64dc21294c46ea9408433",
+   "hash": "965f4f4a105b9ce82088e6f0a95c23b510247fc2c4dc9a3a094c38f37100fc2b",
+   "chain": "c845cb4ab06c01e69a8002750948ada87f7baca3e2d7512b5b65b4a95467ea00",
    "link": {
     "status": "proven",
     "detail": "authored"
@@ -266,6 +273,9 @@
    "messages": [],
    "axioms": [
     "propext"
+   ],
+   "limits": [
+    "an empty result (None or Nil) always satisfies it: it never requires the system to return anything"
    ]
   },
   {
@@ -281,6 +291,7 @@
    "examples": [],
    "code": null,
    "content": {
+    "parent": "Root",
     "statement": "Open statement, long enough to wrap onto a second line of the card.",
     "why": "Because Open is the right step.",
     "sources": {
@@ -291,8 +302,8 @@
     "uses": [],
     "governs": []
    },
-   "hash": "3dd36b4c52a78c1d87bd3da4345d8b6c623f11c6ae16b753cb45ed41188575aa",
-   "chain": "97ac23e3da1d1e636cab89b69c38dc2f9a98f742ff7ab16c4baebd6597fb0545",
+   "hash": "0be7e39e4baf1b794fcc49524b01a2c2a3abee0a39060a931ad4356b9587cf14",
+   "chain": "696a58c6ecb06862a124d73d6197738dd2befc439bf565b92a4f526299e52488",
    "link": {
     "status": "open",
     "detail": "frflow_auto found no proof"
@@ -324,6 +335,7 @@
    "examples": [],
    "code": null,
    "content": {
+    "parent": "Auto",
     "statement": "Failed statement, long enough to wrap onto a second line of the card.",
     "why": "Because Failed is the right step.",
     "sources": {
@@ -334,8 +346,8 @@
     "uses": [],
     "governs": []
    },
-   "hash": "3af91f2fa0c5b6da05b0efa1cc10524b6a7b37ec5e6fa7b071f5e6782f8f3773",
-   "chain": "0ef7ebe976d63a70796db5a10a0a0d52fb88c5fd55b0b5337b01c64ea8fd3f35",
+   "hash": "a9f740ff46e28978e7f106175b93670fdeaebff3f4f8db952820d86a0d556ddf",
+   "chain": "f3fdbc8a5d9d286fcce0f62d8c7c376efc351c130fd7b046e78f2bd319503ffc",
    "link": {
     "status": "failed",
     "detail": "must state exactly Obl.link"
@@ -365,6 +377,7 @@
    "examples": [],
    "code": null,
    "content": {
+    "parent": "Root",
     "statement": "Stale statement, long enough to wrap onto a second line of the card.",
     "why": "Because Stale is the right step.",
     "sources": {
@@ -375,11 +388,11 @@
     "uses": [],
     "governs": []
    },
-   "hash": "88e6609e56575766cef8eb26071a9e36b0a1a6c43e8c2d35fb865b832a79ab8d",
-   "chain": "3bd258bf1504aac0782a6b7c6f9fed2cbac36da2e5c802f8c8180e59e510b0ce",
+   "hash": "31a708baaf9559fca7aecc4bc068171588f3c0c206d65ff06cd048bac8a49ca1",
+   "chain": "e7740c3c257cb2f4ef336c1a5ae00bd900a0a2f70b8c4eb5f70a4b0796023980",
    "link": {
-    "status": "stale",
-    "detail": ""
+    "status": "unchecked",
+    "detail": "changed since the last check"
    },
    "obligation": {
     "statement": "∀ m, spec m → Root.spec (abs m)",

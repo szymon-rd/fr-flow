@@ -60,7 +60,7 @@ final class Mcp(projects: List[Project]):
     name match
       case "render" =>
         val (out, err) = run(p, List("render"))
-        if err then (out, true) else (out + p.annotated.fold("")(s => "\n\n" + Project.tree(s)), false)
+        if err then (out, true) else (out + p.annotated.fold("")(s => "\n\n" + frflow.Decisions.tree(s)), false)
       case "check"              => run(p, "check" :: nodeArg.toList)
       case "context" | "scaffold" => run(p, List(name, need))
       case "answer" =>
@@ -76,11 +76,11 @@ final class Mcp(projects: List[Project]):
           else "Open requests from the developer:" :: open.map(r =>
             s"- [${f(r, "id")}] on ${if f(r, "node").isEmpty then "(the idea)" else f(r, "node")}: ${f(r, "text")}")
         val rest = p.annotated.fold(List("", "No snapshot yet; call render.")) { s =>
-          val (dev, agent) = Project.waiting(s)
+          val (dev, agent) = frflow.Decisions.waiting(s)
           (if agent.isEmpty then Nil else "" :: "For you:" :: agent.map("- " + _)) ++
             (if dev.isEmpty then Nil else "" :: "Waiting for the developer's decision (in the browser):" :: dev.map("- " + _))
         }
-        val tree = p.annotated.fold("")(s => "\n\nThe tree:\n" + Project.tree(s))
+        val tree = p.annotated.fold("")(s => "\n\nThe tree:\n" + frflow.Decisions.tree(s))
         ((reqs ++ rest).mkString("\n") + tree + staleness(p), false)
       case other => throw ToolError(s"unknown tool $other")
 

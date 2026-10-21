@@ -78,9 +78,9 @@ val decisionContract = grantBased.contract[String, Path, Option[UserId]](
 
 val inMemorySessions = decisionContract.design(
   "InMemorySessions",
-  "Sessions and grants are held in memory, in one process; a decision is one map lookup and one set lookup.",
+  "Sessions and grants are loaded into memory, in one process that decides every request.",
   why = "One service decides access, and the tables fit in memory. A shared store would only be needed with several instances."
-)("src/main/scala/auth/SessionStore.scala")
+)("src/main/scala/auth/Server.scala")
 
 val knowledge = KnowledgeBase("Auth", idea = "IDEA.md")(
   noUnauthorizedAccess,
@@ -90,8 +90,5 @@ val knowledge = KnowledgeBase("Auth", idea = "IDEA.md")(
   inMemorySessions
 ).implement(decisionContract)(SessionStore(grants.value.toSet, sessions.value).decide)
 
-/** The running decision: the registered implementation, every result checked against the contract. */
-def service(grantTable: List[Grant], tokens: Map[String, UserId]): (String, Path) => Option[UserId] =
-  knowledge.service(decisionContract)(grants.bind(grantTable), sessions.bind(t => tokens.get(t)))
 
 @main def authCli(args: String*): Unit = sys.exit(knowledge.cli(args, root = "examples/auth"))

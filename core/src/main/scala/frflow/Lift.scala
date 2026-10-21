@@ -43,7 +43,12 @@ private[frflow] object Lift:
     T.traverseTree(e.asTerm)(Symbol.spliceOwner)
     add(e.asTerm.tpe.widen.typeSymbol)
     val own = Some(java.nio.file.Paths.get(Position.ofMacroExpansion.sourceFile.path).toAbsolutePath.normalize.toString)
-    Expr(files.toList.filterNot(f => f.contains("/frflow/") && f.contains("/core/src/") || own.contains(f) && files.size > 1))
+    // Relative to the build's directory, so the paths hold in any checkout.
+    val base = java.nio.file.Paths.get("").toAbsolutePath.normalize
+    val kept = files.toList.filterNot(f => f.contains("/core/src/main/scala/frflow/") || own.contains(f) && files.size > 1)
+    def rel(f: String) = { val p = java.nio.file.Paths.get(f); if p.startsWith(base) then base.relativize(p).toString else f }
+    // The model's own file comes last: it is where the implementation is attached, not part of it.
+    Expr(kept.map(rel) ++ own.filter(o => !kept.contains(o)).map(rel))
 
   def sources(xs: Expr[Seq[Any]])(using Quotes): Expr[List[String]] =
     import quotes.reflect.*
@@ -123,7 +128,10 @@ private final class Translator(using val quotes: Quotes):
   private val Keywords = Set(
     "at", "by", "do", "else", "end", "fun", "have", "if", "in", "let", "match", "then", "with", "from", "show",
     "where", "open", "namespace", "section", "def", "theorem", "structure", "inductive", "instance", "import",
-    "forall", "exists", "Type", "Prop", "Sort", "this", "deriving", "mut", "return", "for", "try", "catch"
+    "forall", "exists", "Type", "Prop", "Sort", "this", "deriving", "mut", "return", "for", "try", "catch",
+    "matches", "variable", "universe", "axiom", "example", "abbrev", "class", "extends", "local", "private",
+    "protected", "partial", "unsafe", "macro", "syntax", "notation", "calc", "suffices", "obtain", "using",
+    "fun", "λ", "nomatch", "nofun", "termination_by", "decreasing_by", "mutual", "opaque", "noncomputable"
   )
 
   def ident(n: String): String =
@@ -201,9 +209,13 @@ private final class Translator(using val quotes: Quotes):
   private def declare(sym: Symbol, pos: Position): String =
     val name = qualifiedName(sym)
     if !types.contains(name) && !inProgress(name) then
-      // Lean equality is structural; a class that redefines equality would mean something else at run time.
-      List("equals", "hashCode").flatMap(sym.declaredMethod).filterNot(_.flags.is(Flags.Synthetic)).foreach(m =>
-        fail(s"${sym.name} overrides ${m.name}: domain types must keep structural equality", pos))
+      // Lean equality is structural; a class that redefines equality, itself or through a trait,
+      // would mean something else at run time.
+      val standard = Set("scala.Any", "java.lang.Object", "scala.AnyRef", "scala.Product", "scala.Equals", "scala.reflect.Enum")
+      sym.typeRef.baseClasses.filterNot(b => standard(b.fullName)).foreach { b =>
+        List("equals", "hashCode").flatMap(b.declaredMethod).filterNot(_.flags.is(Flags.Synthetic)).foreach(m =>
+          fail(s"${sym.name} redefines ${m.name} (in ${b.name}): domain types must keep structural equality", pos))
+      }
       inProgress += name
       def field(cls: Symbol, f: Symbol): (String, TypeRepr) = (ident(f.name), cls.typeRef.memberType(f))
       val (lean, refs) =

@@ -26,7 +26,6 @@ class ToolsSuite extends munit.FunSuite:
     assert(r.ok, r.output)
     assertEquals(r.output, "ran render")
     assertEquals(p.snapshot.flatMap(_("roots")).map(_.arr.flatMap(_.str)), Some(Seq("Root")))
-    assertEquals(s(p.events().last, "actor"), "agent")
     assertEquals(p.running, None)
     intercept[IllegalArgumentException](p.run(List("rm"), actor = "agent"))
   }
@@ -49,26 +48,26 @@ class ToolsSuite extends munit.FunSuite:
   test("the text tree shows decisions (from the ledger), links and examples") {
     val p = fake()
     p.run(List("render"), actor = "ui")
-    val t = Project.tree(p.annotated.get)
+    val t = frflow.Decisions.tree(p.annotated.get)
     assert(t.contains("Root (root)  [accepted]"), t)
     assert(t.contains("  Auto (refine)  [accepted, link proven (auto)]"), t)
-    assert(t.contains("    Failed (refine)  [parent-changed, link failed (must state exactly Obl.link)]"), t)
-    assert(t.contains("Contract (contract)  [changed, link proven (authored), examples 2/3]"), t)
-    assert(t.contains("  Stale (refine)  [rejected, link stale]"), t)
-    assert(t.contains("Gone  [removed from the model]"), t)
+    assert(t.contains("    Failed (refine)  [review: above, link failed (must state exactly Obl.link)]"), t)
+    assert(t.contains("Contract (contract)  [review: self, code, link proven (authored), examples 2/3]"), t)
+    assert(!t.contains("Stale"), t)
+    assert(t.contains("Gone  [review: gone]"), t)
   }
 
   test("decisions are recorded without running the CLI, and refused on stale sources") {
     val p = fake()
     p.run(List("render"), actor = "ui")
     import frflow.Decisions.Request
-    assert(p.decide(Request("accept", "Inst", "dev", ""), "ui").left.exists(_.contains("reason")))
-    assertEquals(p.decide(Request("accept", "Inst", "dev", "Simpler.", List("Inst2")), "ui"), Right(()))
+    assert(p.decide(Request("Inst", "dev", "")).left.exists(_.contains("reason")))
+    assertEquals(p.decide(Request("Inst", "dev", "Simpler.", List("Inst2"))), Right(()))
     val st = p.annotated.get("nodes").get.arr.map(n => s(n, "id") -> s(n, "state")).toMap
     assertEquals((st("Inst"), st("Inst2")), ("accepted", "rejected"))
-    assertEquals(s(p.events().last, "actor"), "ui")
+    assertEquals(p.history.arr.take(2).flatMap(_("node").flatMap(_.str)).toSet, Set("Inst", "Inst2"))
     Files.setLastModifiedTime(p.root.resolve("model.txt"), java.nio.file.attribute.FileTime.fromMillis(System.currentTimeMillis + 5000))
-    assert(p.decide(Request("confirm", "Failed", "dev", "Still right."), "ui").left.exists(_.contains("render first")))
+    assert(p.decide(Request("Failed", "dev", "Still right.")).left.exists(_.contains("render first")))
   }
 
   test("requests") {
@@ -110,7 +109,7 @@ class ToolsSuite extends munit.FunSuite:
     assert(inbox.contains(s"[$id] on Auto: Propose an alternative to Auto"), inbox)
     assert(inbox.contains("Stale: rejected; remove it"), inbox)
     assert(inbox.contains("Inst: proposed"), inbox)
-    assert(inbox.contains("Gone: removed from the model"), inbox)
+    assert(inbox.contains("Gone: gone from the model"), inbox)
     assert(!call(m, "answer", "request" -> str(id), "text" -> str("Proposed Alt"))._2)
     assertEquals(s(p.requests.head, "status"), "answered")
     assert(call(m, "context", "node" -> str("A;B"))._2)
@@ -146,7 +145,7 @@ class ToolsSuite extends munit.FunSuite:
       while job("running").contains(JBool(true)) && n < 100 do { Thread.sleep(50); n += 1; job = Json.parse(get(base + "/api/p/Fake/job")._2) }
       assertEquals(job("exitCode"), Some(JNum(0)), job("output"))
       assertEquals(Json.parse(get(base + "/api/p/Fake/kb")._2)("snapshot").flatMap(_("nodes")).map(_.arr.size), Some(8))
-      assertEquals(s(Json.parse(get(base + "/api/p/Fake/events")._2).arr.last, "actor"), "ui")
+      assertEquals(Json.parse(get(base + "/api/p/Fake/history")._2).arr.size, 7)
     }
   }
 
@@ -171,7 +170,7 @@ class ToolsSuite extends munit.FunSuite:
       assertEquals(st, 201)
       assertEquals(Json.parse(get(base + "/api/p/Fake/kb")._2)("requests").map(_.arr.map(s(_, "text"))), Some(Seq("Propose another")))
       assertEquals(s(post(base + s"/api/p/Fake/requests/${s(r, "id")}", obj("status" -> str("closed")))._2, "status"), "closed")
-      assertEquals(post(base + "/api/p/Fake/idea", obj("text" -> str("# New idea")))._1, 202)
+      assertEquals(post(base + "/api/p/Fake/idea", obj("text" -> str("# New idea")))._1, 200)
       assertEquals(Files.readString(p.root.resolve("IDEA.md")), "# New idea\n")
     }
   }

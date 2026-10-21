@@ -68,3 +68,12 @@ class LeanSuite extends munit.FunSuite:
     assertEquals(statuses(r), List("OnlyGood" -> "proven", "NoPick" -> "failed"))
     assert(r(1)._2.obligations.head.detail.startsWith("vacuous"), r(1)._2.obligations)
   }
+
+  test("a node no model meets is reported, so it cannot make everything below it hold") {
+    val never = onlyGood.refine[(List[Item.T], Int) => List[Item.T]]("Never", "Nothing is ever picked.", why = "w")(
+      abs = pick => pick, spec = pick => false)
+    val r = workflow(KnowledgeBase("Unsat", idea = "IDEA.md")(onlyGood, never)).check()
+    assertEquals(statuses(r), List("OnlyGood" -> "proven", "Never" -> "failed"))
+    assert(r(1)._2.obligations.head.detail.startsWith("unsatisfiable"), r(1)._2.obligations)
+  }
+

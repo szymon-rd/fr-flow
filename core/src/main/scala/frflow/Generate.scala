@@ -34,6 +34,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
   def autoPath(id: String) = s"FrFlowGen/$K/$id/Auto.lean"
   def theoremsPath(id: String) = s"FrFlowGen/$K/$id/Theorems.lean"
   def vacuityPath(id: String) = s"FrFlowGen/$K/$id/Vacuity.lean"
+  def unsatPath(id: String) = s"FrFlowGen/$K/$id/Unsat.lean"
   def proofsPath(id: String) = s"Proofs/$K/$id.lean"
   def auditPath(id: String) = s"FrFlowAudit/$K/$id.lean"
   def generatedDirs = List(s"FrFlowGen/$K", s"FrFlowAudit/$K")
@@ -101,7 +102,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
   def files: Map[String, String] =
     val perNode = kb.nodes.filter(formal).flatMap { n =>
       List(specPath(n.id) -> spec(n), autoPath(n.id) -> auto(n), theoremsPath(n.id) -> theorems(n), auditPath(n.id) -> audit(n)) ++
-        vacuity(n).map(vacuityPath(n.id) -> _)
+        vacuity(n).map(vacuityPath(n.id) -> _) ++ unsatFile(n).map(unsatPath(n.id) -> _)
     }
     (s"FrFlowGen/$K/Domain.lean" -> domain :: perNode).toMap
 
@@ -144,25 +145,40 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
         s"Every model that meets ${n.id} meets ${p.id}.")
     }
 
-  /** For a refinement: the parent holds for every model mapped by `abs`, whatever its spec. If this
-    * is provable, the link proves nothing: `abs` alone makes the parent true.
+  /** The parent holds for every model, whatever this node's spec says (for a refinement, every
+    * model mapped by `abs`). If this is provable, the link proves nothing.
     */
   def trivial(n: Node[?]): Option[Obligation] =
-    n.parent.filter(_ => n.kind == NodeKind.Refine).map { p =>
+    n.parent.filter(_ => n.kind == NodeKind.Refine || n.kind == NodeKind.Contract).map { p =>
       val c = nodeCtx(n)
       val a = args(c)
       def at(f: String) = if a.isEmpty then f else s"$f $a"
       val pa = args(nodeCtx(p))
       def pat(f: String) = if pa.isEmpty then q(p, f) else s"${q(p, f)} $pa"
+      val target = if n.kind == NodeKind.Refine then s"(${at("abs")} m)" else "m"
       val forallCtx = if binders(c).isEmpty then "" else s"∀ ${binders(c)}, "
-      Obligation("trivial", s"$forallCtx∀ (m : ${modelType(n)}), ${pat("spec")} (${at("abs")} m)",
-        s"abs alone makes ${p.id} hold, for every model of ${n.id}.")
+      Obligation("trivial", s"$forallCtx∀ (m : ${modelType(n)}), ${pat("spec")} $target",
+        s"${p.id} holds for every model of ${n.id}, whatever ${n.id} says.")
     }
 
-  def vacuity(n: Node[?]): Option[String] = trivial(n).map { o =>
-    Header + s"import ${specModule(n.id)}\n\n" + Preamble + s"namespace $K.${n.id}.Vacuity\nopen $K.${n.id}\n\n" +
-      s"theorem trivial : Obl.trivial := by\n  unfold Obl.trivial\n  frflow_auto\n\nend $K.${n.id}.Vacuity\n"
-  }
+  /** No model meets this node's spec. If this is provable, the node is contradictory: every link
+    * below it holds, and says nothing.
+    */
+  def unsat(n: Node[?]): Option[Obligation] =
+    Option.when(n.kind == NodeKind.Refine || n.kind == NodeKind.Contract) {
+      val c = nodeCtx(n)
+      val a = args(c)
+      def at(f: String) = if a.isEmpty then f else s"$f $a"
+      val forallCtx = if binders(c).isEmpty then "" else s"∀ ${binders(c)}, "
+      Obligation("unsat", s"$forallCtx∀ (m : ${modelType(n)}), ¬ ${at("spec")} m", s"No model meets ${n.id}.")
+    }
+
+  private def attempt(n: Node[?], o: Obligation, ns: String): String =
+    Header + s"import ${specModule(n.id)}\n\n" + Preamble + s"namespace $K.${n.id}.$ns\nopen $K.${n.id}\n\n" +
+      s"theorem ${o.name} : Obl.${o.name} := by\n  unfold Obl.${o.name}\n  frflow_auto\n\nend $K.${n.id}.$ns\n"
+
+  def vacuity(n: Node[?]): Option[String] = trivial(n).map(attempt(n, _, "Vacuity"))
+  def unsatFile(n: Node[?]): Option[String] = unsat(n).map(attempt(n, _, "Unsat"))
 
   def spec(n: Node[?]): String =
     val c = nodeCtx(n)
@@ -211,7 +227,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
         d("spec", "", s"${q(p, "spec")} $th")
         d("toRoot", "", s"${q(p, "toRoot")} $th")
         d("rootSpec", "", s"${q(p, "rootSpec")} $th")
-    (obligation(n) ++ trivial(n)).foreach { o =>
+    (obligation(n) ++ trivial(n) ++ unsat(n)).foreach { o =>
       sb ++= s"namespace Obl\n\n/-- ${o.description} -/\n@[frflow_defs] def ${o.name} : Prop :=\n  ${o.statement}\n\nend Obl\n\n"
     }
     sb ++= s"end $K.${n.id}\n"

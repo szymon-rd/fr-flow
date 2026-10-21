@@ -32,6 +32,7 @@ The developer writes the idea in `IDEA.md`. The project's knowledge is a
 | the vocabulary: what each open term means in the world | `Opaque("User", "a person who uses the system")`, `Param(..., means)` | how the model maps to the world |
 | per node: statement, `why`, formal model | the Scala source | what holds at each level, and the reasoning behind it |
 | per contract: examples (`expect` / `reject`) | the Scala source | what it means in concrete cases |
+| per contract: what it does *not* promise, found mechanically | shown with the node | nobody believes it says more than it does |
 | per node: who chose it, their reason, the alternatives rejected | `.frflow/ledger.json`, append-only | the decisions behind the design |
 
 **The theory is built by deciding.** The developer works in the browser.
@@ -43,18 +44,40 @@ The developer writes the idea in `IDEA.md`. The project's knowledge is a
 The tree is decided from the root down. An agent picking up the work later
 reads the whole record through `context`.
 
-**Drift is caught in four ways.**
+**Drift is caught by one rule: a decision binds a person's reason to the hash
+of what they saw, and whatever moves under it puts the node back up for
+review.** A node under review says why:
 
-| Drift | How it shows |
-|---|---|
-| A node changes after it was decided | `changed`, with a diff against what was decided. A decision is bound to a hash of exactly what the developer saw: statement, `why`, sources, examples (by value), the definitions and types it uses, the files it governs, and, for a root, the idea. |
-| Something above it changes | `parent-changed`. The developer confirms that it still holds, for one node or for a whole subtree at once. |
-| The code a node governs changes | "code changed", until the developer confirms. The code is a contract's implementation, or a design node's files. |
-| A level stops implying its parent | Lean proves every link. A link that holds whatever the node says is reported as **vacuous**, so a meaningless abstraction cannot turn the tree green. |
-| The behaviour stops matching what was decided | Contract examples run against the contract and against the implementation. In production, `service` checks every result against the contract. |
+| Cause | What moved | Shown as |
+|---|---|---|
+| `self` | the node: statement, `why`, sources, examples (by value), the meaning of the terms it uses, the definitions and types it uses, its parent; for a root, the idea | a word-level diff against what was decided |
+| `above` | the *meaning* of an ancestor: its statement, model, vocabulary, definitions (rewording a `why`, adding an example or editing the idea does not cascade) | the ancestor's diff |
+| `code` | the code it governs: a contract's implementation (its package directory) or a design node's files | a git diff since the decision |
+| `gone` | it was removed from the model | listed until the developer agrees |
 
-A decided node that disappears from the model is listed as removed until the
-developer confirms the removal.
+There is one verb, **accept**:
+- accepting a proposal chooses it, and rejects the alternatives ticked;
+- accepting a node under review says it holds as it now is. When only
+  something above it or its code moved, this is recorded as a confirmation,
+  so the reason it was chosen stays;
+- one acceptance can also confirm everything below that moved only because of
+  it.
+
+The levels are kept honest by Lean:
+- **Every link is proven:** each node implies its parent.
+- **A vacuous link fails:** one where the parent holds whatever the node says.
+- **An unsatisfiable node fails:** a contradictory node would make every link
+  below it hold and say nothing.
+
+Behaviour is kept honest by examples and run-time checks:
+- **Examples** run against the contract and the implementation. A contract
+  needs one `expect` that returns something.
+- **Each contract lists what it does not promise**, found mechanically: inputs
+  it never looks at, or the fact that an empty result always satisfies it.
+- **In production,** `service` checks every result against the contract.
+
+`status` and the browser also warn when committed decisions were rewritten.
+The ledger is append-only, and git is the record.
 
 ## Example: access control (`examples/auth`)
 
@@ -90,13 +113,13 @@ val decisionContract = grantBased.contract[String, Path, Option[UserId]]("Decisi
     reject("t1", Path("/b"), Some(alice), "access without a grant is never given"))
 
 val inMemorySessions = decisionContract.design("InMemorySessions",
-  "Sessions and grants are held in memory, in one process.", why = "One service decides access; the tables fit in memory."
-)("src/main/scala/auth/SessionStore.scala")
+  "Sessions and grants are loaded into memory, in one process.", why = "One service decides access; the tables fit in memory."
+)("src/main/scala/auth/Server.scala")
 
 val knowledge = KnowledgeBase("Auth", idea = "IDEA.md")(noUnauthorizedAccess, authenticated, grantBased, decisionContract, inMemorySessions)
   .implement(decisionContract)(SessionStore(grants.value.toSet, sessions.value).decide)
 
-// Production: the registered implementation, with every result checked against the contract.
+// Production (Server.scala): the registered implementation, every result checked against the contract.
 def service(grantTable: List[Grant], tokens: Map[String, UserId]) =
   knowledge.service(decisionContract)(grants.bind(grantTable), sessions.bind(t => tokens.get(t)))
 ```
@@ -120,7 +143,9 @@ reason and the rejected option.
 | refine | `parent.refine[M2](id, statement, why)(abs, spec)` | Lean: `spec m → parent.spec (abs m)`, and not vacuous |
 | instantiate | `parent.instantiate[M2](id, statement, why)(T := of[X], p := ...)` | none: the generic results apply |
 | contract | `parent.contract[A, B, R](id, statement, why)(post).examples(...)(...)` | Lean: the contract implies the parent |
-| design | `parent.design(id, statement, why)(files*)` or `Node.design(...)` | none: decided and tracked |
+| design | `parent.design(id, statement, why)(files*)` or `Node.design(...)` | none: decided and tracked; its files are what it depends on |
+
+Any node can also govern extra files or directories with `.governing(paths*)`.
 
 The building blocks:
 - **The domain** is Scala case classes and enums. They must keep structural
@@ -130,8 +155,10 @@ The building blocks:
 - **Proofs.** Links are proven by `frflow_auto`. Failing that, the agent writes
   a proof in `lean/Proofs/<KB>/<NODE>.lean`:
   - it states exactly `Obl.link`;
-  - it contains only a tactic proof;
-  - it is replayed through the Lean kernel.
+  - it may contain only a few commands (no metaprograms, attributes or other
+    imports);
+  - its module is replayed through the Lean kernel, and its axioms are
+    audited.
 
 ## The browser: where decisions are made
 
@@ -145,16 +172,18 @@ bin/frflow serve examples     # http://127.0.0.1:8765
 - nodes to review have an amber outline.
 
 **Node.** In order:
-1. the statement and the agent's reason ("proposed because");
-2. the examples, with results against the contract and the implementation;
+1. the statement and its `why`;
+2. the examples, with results against the contract and the implementation,
+   and what the contract does not promise;
 3. the link to the parent, side by side with the parent;
-4. **the decision**: choose between alternatives (an accepted node can be
-   replaced), accept a change after seeing its diff, or confirm that a node
-   still holds after something above it or its code changed;
+4. **the decision**:
+   - choose between alternatives (an accepted node can be replaced);
+   - or, for a node under review, see what moved (a word diff, the ancestor's
+     diff, or the code's git diff) and accept it;
 5. a box to **ask the agent** for something.
 
 A reason is required for every decision. Decisions are recorded at once, with
-no build.
+no build. Saving the idea needs no build either.
 
 **Inbox.** What waits for your decision, removed nodes to confirm, and the
 agent's answers to your requests.
@@ -162,7 +191,7 @@ agent's answers to your requests.
 **Idea, Vocabulary, History.**
 - `IDEA.md` is editable here.
 - Vocabulary lists the open terms and what they mean.
-- History lists every render, check and decision, with who made it.
+- History lists every decision, read from the ledger.
 
 ## Agents
 
@@ -180,9 +209,10 @@ agent's answers to your requests.
 
 ## What is proven, checked, and trusted
 
-- **Proven by Lean:** every link that is not vacuous, and so every node's root
-  theorem. In short, the levels of the theory are consistent with each other.
-  It does not say they are the right theory.
+- **Proven by Lean:** every link that is not vacuous, from a node that is not
+  unsatisfiable, and so every node's root theorem. In short, the levels of the
+  theory are consistent with each other. It does not say they are the right
+  theory.
 - **Checked by the examples:** that a contract means what its statement says,
   and that the implementation does what was decided, in those cases.
 - **Enforced at run time:** every result of `service` meets the contract, or
@@ -197,8 +227,11 @@ agent's answers to your requests.
   - the ledger, a plain file under version control.
 - **Not covered:**
   - properties over time or state, such as revocation or expiry;
-  - feasibility of a contract beyond its examples;
-  - effectful or asynchronous code, except a pure core behind `service`.
+  - feasibility of a contract beyond its examples, unless Lean shows it is
+    unsatisfiable;
+  - effectful or asynchronous code, except a pure core behind `service`;
+  - code an implementation reaches outside its package directory, unless
+    governed explicitly.
 
 ## Usage
 
@@ -210,15 +243,14 @@ sbt "auth/run render"                     # Lean and the snapshot .frflow/kb.jso
 sbt "auth/run check"                      # prove the changed links, record the results
 sbt "auth/run status"                     # decisions, proofs and examples
 sbt "auth/run context Authenticated"      # everything known about a node, for agents and people
-sbt "auth/run accept Authenticated --by <name> --reason <text> [--reject ClientAsserted]"
-sbt "auth/run confirm GrantBased --by <name> --reason <text> [--subtree]"
+sbt "auth/run accept Authenticated --by <name> --reason <text> [--reject ClientAsserted] [--subtree]"
 bin/frflow serve examples                 # the browser
 bin/frflow mcp examples                   # the MCP server
 ```
 
 Committed: the Scala, `IDEA.md`, `.frflow/ledger.json` and `lean/Proofs`.
-Everything else is derived and git-ignored: generated Lean, check results,
-the snapshot and the event log.
+Everything else is derived and git-ignored: the generated Lean, the check
+results and the snapshot.
 
 ## Layout
 
@@ -232,6 +264,7 @@ core/                 the Scala library
   Ledger.scala        the decision record
   Generate.scala      Lean generation
   Workflow.scala      render, check, context, snapshot
+  Git.scala           the commit a decision was made at, and code diffs since
 examples/auth/        access control: idea, model, implementation, decisions
 examples/crm/         multi-tenant CRM, the same
 tools/                the browser server and UI, and the MCP server

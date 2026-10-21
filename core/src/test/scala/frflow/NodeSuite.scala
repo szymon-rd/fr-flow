@@ -84,3 +84,18 @@ class NodeSuite extends munit.FunSuite:
       Set("import", "command run_cmd", "metaprogram", "set_option", "command attribute", "attribute", "command #eval"))
     assert(Lean.violations("set_option\n  debug.skipKernelTC true\n").nonEmpty)
   }
+
+  test("domain types keep structural equality, even through a trait") {
+    val errs = compileErrors("""
+      trait CaseInsensitive { override def equals(o: Any): Boolean = true; override def hashCode: Int = 0 }
+      final case class PathCI(v: String) extends CaseInsensitive
+      frflow.Lifted((p: PathCI, q: PathCI) => p == q)
+    """)
+    assert(errs.contains("structural equality"), errs)
+  }
+
+  test("a contract needs an expect that returns something") {
+    val lazyPick = books.contract[List[Book], Int, List[Book]]("LazyPick", "s", "w")((_, _, picked) => picked.isEmpty)
+      .examples(minPages.bind(100))(expect(Nil, 1, Nil, "nothing"), reject(List(Book("L", 300)), 1, List(Book("L", 300)), "x"))
+    assert(KnowledgeBase("K", "IDEA.md")(onlyGood, listed, books, lazyPick).problems.exists(_.contains("must return something")))
+  }

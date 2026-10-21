@@ -4,28 +4,15 @@
       {
         "action": "accept",
         "by": "demo",
-        "at": "2026-10-21T20:46:15.551287635Z",
+        "at": "2026-10-21T21:23:10.944182074Z",
         "reason": "The idea says users identify themselves with tokens; a client's own claim about who it is proves nothing. Revisit if requests come only from trusted services.",
         "rejected": [
-          {
-            "id": "ClientAsserted",
-            "content": {
-              "statement": "A request names its user, and is granted when that user is authorized.",
-              "why": "Simplest: the client says who it is, and abs is the identity. It trusts the client's claim about its identity.",
-              "sources": {
-                "spec": "decide => forall((u: User.T, r: Resource.T) => decide(u, r) ==> authorized(u, r))",
-                "abs": "decide => decide"
-              },
-              "substitutions": [],
-              "examples": [],
-              "uses": [],
-              "governs": []
-            }
-          }
+          "ClientAsserted"
         ],
-        "chain": "b3558d873a0bde39958faf83c9918b433eb98b8f44f3813904eefff08a540aad",
-        "code": "",
+        "commit": "482da37551c63ed8cdc20d043b70c3d78b44116a",
+        "chain": "5a68cbbb8e6fc9e8dc241543898bb8e427df957285b8885e89433220d1e7d546",
         "content": {
+          "parent": "NoUnauthorizedAccess",
           "statement": "A request is granted on behalf of a user only if its token belongs to that user and the user is authorized.",
           "why": "Users identify themselves with tokens they receive at login, so a decision sees a token, not a user. abs: a user is allowed a resource when some token of theirs is granted it.",
           "sources": {
@@ -34,6 +21,13 @@
           },
           "substitutions": [],
           "examples": [],
+          "vocabulary": [
+            "Resource: something a user may want to access",
+            "Token: what a user presents with a request, received at login",
+            "User: a person who uses the system",
+            "authorized: whether the user is allowed the resource, by whatever rule the system adopts",
+            "holder: the user a token was issued to, if it is a valid token"
+          ],
           "uses": [],
           "governs": []
         }
@@ -43,12 +37,12 @@
       {
         "action": "reject",
         "by": "demo",
-        "at": "2026-10-21T20:46:15.551287635Z",
-        "reason": "Authenticated was chosen: The idea says users identify themselves with tokens; a client's own claim about who it is proves nothing. Revisit if requests come only from trusted services.",
-        "rejected": [],
-        "chain": "b3558d873a0bde39958faf83c9918b433eb98b8f44f3813904eefff08a540aad",
-        "code": "",
+        "at": "2026-10-21T21:23:10.944182074Z",
+        "reason": "Authenticated was chosen instead: The idea says users identify themselves with tokens; a client's own claim about who it is proves nothing. Revisit if requests come only from trusted services.",
+        "commit": "482da37551c63ed8cdc20d043b70c3d78b44116a",
+        "chain": "5a68cbbb8e6fc9e8dc241543898bb8e427df957285b8885e89433220d1e7d546",
         "content": {
+          "parent": "NoUnauthorizedAccess",
           "statement": "A request names its user, and is granted when that user is authorized.",
           "why": "Simplest: the client says who it is, and abs is the identity. It trusts the client's claim about its identity.",
           "sources": {
@@ -57,6 +51,11 @@
           },
           "substitutions": [],
           "examples": [],
+          "vocabulary": [
+            "Resource: something a user may want to access",
+            "User: a person who uses the system",
+            "authorized: whether the user is allowed the resource, by whatever rule the system adopts"
+          ],
           "uses": [],
           "governs": []
         }
@@ -66,12 +65,13 @@
       {
         "action": "accept",
         "by": "demo",
-        "at": "2026-10-21T20:46:16.288129197Z",
+        "at": "2026-10-21T21:23:11.649257294Z",
         "reason": "Checked on every call; the examples show it grants and refuses as the idea says.",
-        "rejected": [],
-        "chain": "557a4fe1a00770e94f2cd10fb4d856e15a5c98e85569dbed6f4ee6e5b2b686db",
-        "code": "ba4f83778fa01f2b2d17ad6596a016a2fab0932472d7147fd474d0aa4c0ae85f",
+        "code": "945683e2a0ae0caddb95a65d3faa270ad3d5a9ada7d4507531215023b1791b18",
+        "commit": "482da37551c63ed8cdc20d043b70c3d78b44116a",
+        "chain": "0befa200887291c21734f3c286b23cd318e1db2b1c53a875b0cca42bc62787d5",
         "content": {
+          "parent": "GrantBased",
           "statement": "A decision names the user its token belongs to, and only when a grant covers the path.",
           "why": "GrantBased, stated for one call, so every result of the running system can be checked.",
           "sources": {
@@ -79,10 +79,14 @@
           },
           "substitutions": [],
           "examples": [
-            "expect (\"t1\", Path(\"/a\")) ⇒ Some(UserId(\"alice\"))  given grants = ::(Grant(UserId(\"alice\"), Path(\"/a\")), List()), sessions.bind(Map(\"t1\" -> UserId(\"alice\")).get)  — Alice's token and a grant for /a: she gets in",
-            "expect (\"t1\", Path(\"/b\")) ⇒ None  given grants = ::(Grant(UserId(\"alice\"), Path(\"/a\")), List()), sessions.bind(Map(\"t1\" -> UserId(\"alice\")).get)  — no grant for /b: refused",
-            "reject (\"t1\", Path(\"/b\")) ⇒ Some(UserId(\"alice\"))  given grants = ::(Grant(UserId(\"alice\"), Path(\"/a\")), List()), sessions.bind(Map(\"t1\" -> UserId(\"alice\")).get)  — access without a grant is never given",
-            "reject (\"t2\", Path(\"/a\")) ⇒ Some(UserId(\"alice\"))  given grants = ::(Grant(UserId(\"alice\"), Path(\"/a\")), List()), sessions.bind(Map(\"t1\" -> UserId(\"alice\")).get)  — a token that is not Alice's never acts for her"
+            "expect (\"t1\", Path(\"/a\")) ⇒ Some(UserId(\"alice\"))  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bind(Map(\"t1\" -> UserId(\"alice\")).get)  — Alice's token and a grant for /a: she gets in",
+            "expect (\"t1\", Path(\"/b\")) ⇒ None  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bind(Map(\"t1\" -> UserId(\"alice\")).get)  — no grant for /b: refused",
+            "reject (\"t1\", Path(\"/b\")) ⇒ Some(UserId(\"alice\"))  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bind(Map(\"t1\" -> UserId(\"alice\")).get)  — access without a grant is never given",
+            "reject (\"t2\", Path(\"/a\")) ⇒ Some(UserId(\"alice\"))  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bind(Map(\"t1\" -> UserId(\"alice\")).get)  — a token that is not Alice's never acts for her"
+          ],
+          "vocabulary": [
+            "grants: the grant table as stored when the request is decided",
+            "sessions: the session table as stored when the request is decided: token to user"
           ],
           "uses": [
             "structure Path where\n  value : String",
@@ -97,12 +101,12 @@
       {
         "action": "accept",
         "by": "demo",
-        "at": "2026-10-21T20:46:15.918771544Z",
+        "at": "2026-10-21T21:23:11.293187067Z",
         "reason": "Exactly the grant table the idea describes; revisit if roles are introduced.",
-        "rejected": [],
-        "chain": "100ef46dd5e246f52060c4e7e8b76adac5b4e16e7ef6cebc2c4b239fd1e50bd5",
-        "code": "",
+        "commit": "482da37551c63ed8cdc20d043b70c3d78b44116a",
+        "chain": "47da31a4f76da3f91ab347bf813b08c612086637a75572bd9a083183072db4ca",
         "content": {
+          "parent": "Authenticated",
           "statement": "Users are ids, resources are paths, tokens are strings, and a user is authorized for a path when a grant names both.",
           "why": "The idea defines authorization as a table of grants. The token's holder is whatever the session table says; issuing tokens is not modelled.",
           "sources": {},
@@ -114,6 +118,15 @@
             "holder := (t: String) => sessions(t)"
           ],
           "examples": [],
+          "vocabulary": [
+            "Resource: something a user may want to access",
+            "Token: what a user presents with a request, received at login",
+            "User: a person who uses the system",
+            "authorized: whether the user is allowed the resource, by whatever rule the system adopts",
+            "grants: the grant table as stored when the request is decided",
+            "holder: the user a token was issued to, if it is a valid token",
+            "sessions: the session table as stored when the request is decided: token to user"
+          ],
           "uses": [
             "structure UserId where\n  name : String",
             "structure Path where\n  value : String",
@@ -127,20 +140,22 @@
       {
         "action": "accept",
         "by": "demo",
-        "at": "2026-10-21T20:46:16.636110019Z",
+        "at": "2026-10-21T21:23:11.999356873Z",
         "reason": "One instance today; revisit when we scale out.",
-        "rejected": [],
-        "chain": "02a230598be6aea039104fba451366bbbc16de503b04cba6d67880480b8f3fcc",
-        "code": "ba4f83778fa01f2b2d17ad6596a016a2fab0932472d7147fd474d0aa4c0ae85f",
+        "code": "52539509c7da06d579e8542609d85bfea0994e4a98a959dfd4295233580fa151",
+        "commit": "482da37551c63ed8cdc20d043b70c3d78b44116a",
+        "chain": "",
         "content": {
-          "statement": "Sessions and grants are held in memory, in one process; a decision is one map lookup and one set lookup.",
+          "parent": "DecisionContract",
+          "statement": "Sessions and grants are loaded into memory, in one process that decides every request.",
           "why": "One service decides access, and the tables fit in memory. A shared store would only be needed with several instances.",
           "sources": {},
           "substitutions": [],
           "examples": [],
+          "vocabulary": [],
           "uses": [],
           "governs": [
-            "src/main/scala/auth/SessionStore.scala"
+            "src/main/scala/auth/Server.scala"
           ]
         }
       }
@@ -149,12 +164,12 @@
       {
         "action": "accept",
         "by": "demo",
-        "at": "2026-10-21T20:46:14.771044381Z",
+        "at": "2026-10-21T21:23:10.201438987Z",
         "reason": "This is the sentence of the idea that must never be broken.",
-        "rejected": [],
+        "commit": "482da37551c63ed8cdc20d043b70c3d78b44116a",
         "chain": "",
-        "code": "",
         "content": {
+          "parent": null,
           "statement": "A user is never granted access to a resource they are not authorized to access.",
           "why": "This is the one thing the idea says must never happen. What 'authorized' means is left open: the idea only fixes it later, as grants.",
           "sources": {
@@ -162,9 +177,15 @@
           },
           "substitutions": [],
           "examples": [],
+          "vocabulary": [
+            "Resource: something a user may want to access",
+            "User: a person who uses the system",
+            "authorized: whether the user is allowed the resource, by whatever rule the system adopts"
+          ],
           "uses": [],
           "governs": [],
-          "idea": "# Auth\n\nA system decides which users may access which resources. No user may ever\naccess a resource they are not authorized to access.\n\nUsers identify themselves with tokens they receive at login. Authorization is\ngiven by a table of grants: a user may access a path when a grant names that\nuser and that path."
+          "idea": "# Auth\n\nA system decides which users may access which resources. No user may ever\naccess a resource they are not authorized to access.\n\nUsers identify themselves with tokens they receive at login. Authorization is\ngiven by a table of grants: a user may access a path when a grant names that\nuser and that path.",
+          "notModelled": "- How tokens are issued at login, and when they expire.\n- Who may change the table of grants."
         }
       }
     ]

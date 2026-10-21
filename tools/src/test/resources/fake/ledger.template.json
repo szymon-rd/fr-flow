@@ -10,6 +10,7 @@
     "chain": "",
     "code": "",
     "content": {
+     "parent": null,
      "statement": "Root statement, long enough to wrap onto a second line of the card.",
      "why": "Because Root is the right step.",
      "sources": {
@@ -29,17 +30,12 @@
     "at": "2026-01-01T00:00:00Z",
     "reason": "Simplest.",
     "rejected": [
-     {
-      "id": "Discarded",
-      "content": {
-       "statement": "Discarded statement",
-       "why": "Discarded why"
-      }
-     }
+     "Discarded"
     ],
-    "chain": "582b817e786c5c2f0a538b9ee7357afe13ede8c9041ebef0313868620310ce4a",
+    "chain": "e877f476abb928eca1ebaf48dbb71f60d6c73de4bdcaea05121e5d0ba2e6b583",
     "code": "",
     "content": {
+     "parent": "Root",
      "statement": "Auto statement, long enough to wrap onto a second line of the card.",
      "why": "Because Auto is the right step.",
      "sources": {
@@ -59,9 +55,10 @@
     "at": "2026-01-01T00:00:00Z",
     "reason": "first version",
     "rejected": [],
-    "chain": "70d2fb68cdb6604dd3fb95a76c70bced64c041e2c13ec0c2817e856645b9ab3d",
+    "chain": "dd0079dc4dcab7d2cc2fad8f81e2659cd9f94fb58d119f7ecc9cd744a67d0615",
     "code": "f1",
     "content": {
+     "parent": "Inst",
      "statement": "old statement",
      "why": "Because Contract is the right step.",
      "sources": {
@@ -84,6 +81,7 @@
     "chain": "stale-chain",
     "code": "",
     "content": {
+     "parent": "Auto",
      "statement": "Failed statement, long enough to wrap onto a second line of the card.",
      "why": "Because Failed is the right step.",
      "sources": {
@@ -103,9 +101,10 @@
     "at": "2026-01-01T00:00:00Z",
     "reason": "Open was chosen",
     "rejected": [],
-    "chain": "582b817e786c5c2f0a538b9ee7357afe13ede8c9041ebef0313868620310ce4a",
+    "chain": "e877f476abb928eca1ebaf48dbb71f60d6c73de4bdcaea05121e5d0ba2e6b583",
     "code": "",
     "content": {
+     "parent": "Root",
      "statement": "Stale statement, long enough to wrap onto a second line of the card.",
      "why": "Because Stale is the right step.",
      "sources": {
@@ -115,6 +114,21 @@
      "examples": [],
      "uses": [],
      "governs": []
+    }
+   }
+  ],
+  "Discarded": [
+   {
+    "action": "reject",
+    "by": "dev",
+    "at": "2026-01-01T00:00:00Z",
+    "reason": "Auto was chosen",
+    "rejected": [],
+    "chain": "",
+    "code": "",
+    "content": {
+     "statement": "Discarded statement",
+     "why": "Discarded why"
     }
    }
   ],

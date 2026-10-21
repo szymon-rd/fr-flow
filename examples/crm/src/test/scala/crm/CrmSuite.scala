@@ -26,12 +26,12 @@ class CrmSuite extends munit.FunSuite:
 
   test("an implementation that leaks another company's records is stopped by its contract") {
     val leaky: (Account, Search) => List[CrmRecord] = (_, _) => records
-    intercept[ContractViolation](readContract.enforce(leaky)(store.bind(records), shares.bind(shareTable))(ann, Search.Everything))
+    intercept[ContractViolation](knowledge.implement(readContract)(leaky).service(readContract)(store.bind(records), shares.bind(shareTable))(ann, Search.Everything))
   }
 
   test("an implementation that relabels another company's records is stopped by its contract") {
     val relabel: (Account, Search) => List[CrmRecord] = (u, _) => records.map(_.copy(tenant = u.tenant))
-    intercept[ContractViolation](readContract.enforce(relabel)(store.bind(records), shares.bind(shareTable))(ann, Search.Everything))
+    intercept[ContractViolation](knowledge.implement(readContract)(relabel).service(readContract)(store.bind(records), shares.bind(shareTable))(ann, Search.Everything))
   }
 
   test("the examples pass against the contract and the implementation") {

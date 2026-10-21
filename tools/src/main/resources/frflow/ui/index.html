@@ -79,11 +79,11 @@ aside { background: var(--panel); border-left: 1px solid var(--line); display: f
 .pane a:hover { text-decoration: underline; }
 
 /* tree */
-.card { position: absolute; width: 220px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+.card { position: absolute; width: 230px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
         padding: 9px 11px; box-shadow: var(--shadow); cursor: pointer; transition: opacity .15s, border-color .15s; }
 .card:hover { border-color: var(--accent); }
 .card.proposed { border-style: dashed; border-width: 2px; border-color: var(--accent); background: color-mix(in srgb, var(--accent-soft) 45%, var(--panel)); }
-.card.changed, .card.parent-changed, .card.code { border-color: var(--open); }
+.card.review { border-color: var(--open); border-width: 2px; }
 .card.design { background: var(--soft); }
 .card.selected { box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow); border-color: var(--accent); }
 .card.dim { opacity: .55; }
@@ -98,7 +98,7 @@ aside { background: var(--panel); border-left: 1px solid var(--line); display: f
 .kind.root { background: var(--accent-soft); color: var(--accent); }
 .chip { font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid transparent; white-space: nowrap; }
 .s-proven, .s-accepted, .s-ok { background: var(--proven-soft); color: var(--proven); }
-.s-open, .s-waiting, .s-changed, .s-parent-changed { background: var(--open-soft); color: var(--open); }
+.s-open, .s-waiting, .s-review { background: var(--open-soft); color: var(--open); }
 .s-failed, .s-model-error, .s-bad { background: var(--failed-soft); color: var(--failed); }
 .s-not-checked, .s-stale, .s-rejected { background: var(--none-soft); color: var(--none); }
 .s-proposed { background: var(--accent-soft); color: var(--accent); }
@@ -108,7 +108,7 @@ path.edge { fill: none; stroke-width: 2.2; transition: opacity .15s; }
 path.edge.proven { stroke: var(--proven); }
 path.edge.open { stroke: var(--open); stroke-dasharray: 7 5; }
 path.edge.failed { stroke: var(--failed); stroke-dasharray: 3 4; }
-path.edge.not-checked, path.edge.stale { stroke: var(--none); stroke-dasharray: 2 5; }
+path.edge.unchecked { stroke: var(--none); stroke-dasharray: 2 5; }
 path.edge.design { stroke: var(--line); stroke-width: 2; }
 path.edge.onpath { stroke-width: 4; }
 path.glow { fill: none; stroke: var(--proven); stroke-width: 10; opacity: .14; }
@@ -118,7 +118,7 @@ path.edge.dim, path.glow.dim { opacity: .3; }
 .elabel.proven { color: var(--proven); border-color: color-mix(in srgb, var(--proven) 45%, transparent); }
 .elabel.open { color: var(--open); border-color: color-mix(in srgb, var(--open) 45%, transparent); }
 .elabel.failed { color: var(--failed); border-color: color-mix(in srgb, var(--failed) 45%, transparent); }
-.elabel.not-checked, .elabel.stale, .elabel.design { color: var(--none); }
+.elabel.unchecked, .elabel.design { color: var(--none); }
 .elabel.dim { opacity: .45; }
 .legend { position: sticky; left: 12px; bottom: 12px; display: inline-flex; gap: 14px; flex-wrap: wrap; background: var(--panel);
           border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 12px; color: var(--muted); margin: 0 12px 12px; }
@@ -136,13 +136,13 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: va
 .why .label, .side .label { font-size: 12px; color: var(--muted); }
 .box { border: 1px solid var(--line); border-left-width: 4px; border-radius: 10px; padding: 12px 14px; margin-top: 8px; }
 .box.proven, .box.accepted { border-color: color-mix(in srgb, var(--proven) 45%, transparent); border-left-color: var(--proven); background: color-mix(in srgb, var(--proven-soft) 55%, transparent); }
-.box.open, .box.changed, .box.parent-changed { border-left-color: var(--open); background: color-mix(in srgb, var(--open-soft) 55%, transparent); }
+.box.open, .box.review { border-left-color: var(--open); background: color-mix(in srgb, var(--open-soft) 55%, transparent); }
 .box.failed { border-left-color: var(--failed); background: color-mix(in srgb, var(--failed-soft) 55%, transparent); }
 .box.proposed { border-left-color: var(--accent); background: color-mix(in srgb, var(--accent-soft) 55%, transparent); }
 .box.not-checked, .box.stale { border-left-color: var(--none); }
 .verdict { font-weight: 650; }
 .verdict.proven, .verdict.accepted { color: var(--proven); } .verdict.open, .verdict.changed, .verdict.parent-changed { color: var(--open); }
-.verdict.failed { color: var(--failed); } .verdict.not-checked, .verdict.stale { color: var(--none); } .verdict.proposed { color: var(--accent); }
+.verdict.failed { color: var(--failed); } .verdict.unchecked { color: var(--none); } .verdict.proposed { color: var(--accent); } .verdict.review { color: var(--open); }
 .side { margin-top: 10px; }
 .side .label b { color: var(--ink); }
 .option { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-top: 8px; background: var(--panel); }
@@ -157,7 +157,11 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: va
 .chain a { color: var(--ink) !important; text-decoration: none !important; border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; font-size: 12px; }
 .chain .arrow { font-size: 12px; font-weight: 700; }
 .chain .arrow.proven { color: var(--proven); } .chain .arrow.open { color: var(--open); } .chain .arrow.failed { color: var(--failed); }
-.chain .arrow.not-checked, .chain .arrow.stale { color: var(--none); }
+.chain .arrow.unchecked { color: var(--none); }
+del.w { background: var(--failed-soft); color: var(--failed); text-decoration: line-through; }
+ins.w { background: var(--proven-soft); color: var(--proven); text-decoration: none; }
+pre.worddiff { white-space: pre-wrap; }
+.limits { margin-top: 8px; border: 1px dashed var(--open); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; color: var(--open); }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
 table { border-collapse: collapse; width: 100%; font-size: 13px; }
 td, th { text-align: left; border-bottom: 1px solid var(--line); padding: 6px 6px 6px 0; vertical-align: top; }
@@ -196,18 +200,18 @@ details summary { cursor: pointer; color: var(--muted); margin-top: 18px; }
   <span class="spacer"></span>
   <input type="text" id="me" placeholder="your name" size="10" aria-label="Your name" title="Recorded with your decisions and requests">
   <button class="btn" data-run="render" title="Rebuild the tree and the Lean from the Scala definitions">Render</button>
-  <button class="btn primary" data-run="check" title="Prove every link in Lean">Check all</button>
+  <button class="btn primary" data-run="check" title="Prove the links that changed, in Lean">Check</button>
 </header>
 <main>
   <div id="canvasWrap">
     <div id="canvas"></div>
     <div class="legend">
       <span><span class="box"></span>proposed: waiting for your decision</span>
-      <span><span class="box" style="border-style:solid;border-color:var(--open)"></span>changed: review it</span>
+      <span><span class="box" style="border-style:solid;border-color:var(--open)"></span>review: something moved under it</span>
       <span><i style="border-color:var(--proven)"></i>link proven</span>
       <span><i style="border-color:var(--open);border-top-style:dashed"></i>open</span>
       <span><i style="border-color:var(--failed);border-top-style:dotted"></i>failed</span>
-      <span><i style="border-color:var(--none);border-top-style:dotted"></i>not checked / stale</span>
+      <span><i style="border-color:var(--none);border-top-style:dotted"></i>unchecked</span>
     </div>
     <div id="job"><div class="head"><b id="jobTitle"></b><span class="spacer"></span><button class="btn small" id="jobClose">Close</button></div><pre id="jobOut"></pre></div>
   </div>
@@ -216,7 +220,7 @@ details summary { cursor: pointer; color: var(--muted); margin-top: 18px; }
       <button class="tab active" data-tab="node">Node</button>
       <button class="tab" data-tab="inbox">Inbox</button>
       <button class="tab" data-tab="idea">Idea</button>
-      <button class="tab" data-tab="domain">Domain</button>
+      <button class="tab" data-tab="vocabulary">Vocabulary</button>
       <button class="tab" data-tab="history">History</button>
     </nav>
     <div class="pane" id="pane"></div>
@@ -230,7 +234,7 @@ const store = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch {} },
 };
-const state = { projects: [], project: null, data: null, events: [], job: null, selected: null, tab: "node", jobOpen: false, editingIdea: false };
+const state = { projects: [], project: null, data: null, history: [], job: null, selected: null, tab: "node", jobOpen: false, editingIdea: false, codeDiffs: {} };
 
 async function api(path, opts) {
   const r = await fetch(path, opts);
@@ -260,8 +264,8 @@ async function refresh() {
   if (!state.project) return;
   if (loading) return loading;
   loading = (async () => {
-    const [data, events, job] = await Promise.all([api(`${P()}/kb`), api(`${P()}/events?limit=300`), api(`${P()}/job`)]);
-    state.data = data; state.events = events; state.job = job;
+    const [data, history, job] = await Promise.all([api(`${P()}/kb`), api(`${P()}/history`), api(`${P()}/job`)]);
+    state.data = data; state.history = history; state.job = job; state.codeDiffs = {};
     if (!live().some(n => n.id === state.selected)) state.selected = (waitingForYou()[0] || live()[0])?.id || null;
     render();
   })().finally(() => { loading = null; });
@@ -283,23 +287,23 @@ const snap = () => state.data?.snapshot;
 const all = () => snap()?.nodes || [];
 const live = () => all().filter(n => n.state !== "rejected");
 const byId = id => all().find(n => n.id === id);
+const C = n => n.content || {};
 const children = id => live().filter(n => n.parent === id);
 function pathTo(id) { const out = []; let n = byId(id); while (n) { out.unshift(n); n = n.parent ? byId(n.parent) : null; } return out; }
-const linkStatus = n => n.link?.status || (n.parent ? "not-checked" : "root");
-const needsYou = n => ["proposed", "changed", "parent-changed"].includes(n.state) || n.codeChanged;
-const waitingForYou = () => live().filter(needsYou);
-const removed = () => snap()?.removed || [];
+const linkStatus = n => n.link?.status || (n.kind === "design" ? "design" : n.parent ? "unchecked" : "root");
+const waitingForYou = () => live().filter(n => n.state === "proposed" || n.state === "review");
+const gone = () => snap()?.gone || [];
 const siblings = n => live().filter(m => m.parent === n.parent && m.id !== n.id && m.kind !== "design");
 const requests = () => state.data?.requests || [];
 const me = () => $("#me").value.trim();
 const examplesBad = n => (n.examples || []).filter(e => e.contract !== "ok" || (e.implementation && e.implementation !== "ok"));
 const pathProven = n => pathTo(n.id).slice(1).every(p => ["proven", "design"].includes(linkStatus(p)));
+const causeText = { self: "it changed", above: "something above it changed", code: "the code it governs changed" };
 function linkLabel(n) {
   const s = linkStatus(n), d = n.link?.detail;
   if (s === "proven") return "✓ " + (d === "instantiation" ? "instantiation" : d === "authored" ? "proof" : "auto");
-  return { open: "open", failed: "✗ failed", stale: "stale", "not-checked": "not checked", design: "design" }[s] || s;
+  return { open: "open", failed: "✗ failed", unchecked: "unchecked", design: "design" }[s] || s;
 }
-const stateLabel = { proposed: "proposed", accepted: "accepted", changed: "changed", "parent-changed": "parent changed", rejected: "rejected" };
 
 // --- rendering --------------------------------------------------------------
 
@@ -312,9 +316,9 @@ function render() {
   $("#running").classList.toggle("show", !!running);
   $("#runningText").textContent = running ? `${running.actor === "agent" ? "agent" : "running"}: ${running.args.join(" ")}` : "";
   document.querySelectorAll("[data-run]").forEach(b => b.disabled = !!running);
-  const w = waitingForYou().length + removed().length;
+  const w = waitingForYou().length + gone().length;
   $("#waitingPill").classList.toggle("show", w > 0);
-  $("#waitingPill").textContent = `${w} waiting for your decision`;
+  $("#waitingPill").textContent = `${w} waiting for you`;
   if (!s) {
     $("#summary").textContent = "";
     $("#canvas").innerHTML = `<div class="empty">No snapshot yet. Press Render to build the tree from the Scala definitions.</div>`;
@@ -323,8 +327,9 @@ function render() {
   }
   const nodes = live(), links = nodes.filter(n => n.parent && n.kind !== "design");
   const proven = links.filter(n => linkStatus(n) === "proven").length;
-  const accepted = nodes.filter(n => n.state === "accepted").length;
-  $("#summary").innerHTML = `${esc(s.name)} · <b>${accepted}/${nodes.length}</b> decided · <b>${proven}/${links.length}</b> links proven · rendered ${ago(s.exportedAt)}`;
+  const accepted = nodes.filter(n => n.state === "accepted").length, review = nodes.filter(n => n.state === "review").length;
+  const warn = (s.warnings || []).length;
+  $("#summary").innerHTML = `${esc(s.name)} · <b>${accepted}</b> accepted · <b>${review}</b> to review · <b>${proven}/${links.length}</b> links proven${warn ? ` · <b style="color:var(--failed)">${warn} warning(s)</b>` : ""} · rendered ${ago(s.exportedAt)}`;
   renderTree(); renderPane(); renderJob();
   history.replaceState(null, "", `#${encodeURIComponent(state.project)}/${encodeURIComponent(state.selected || "")}`);
 }
@@ -337,12 +342,12 @@ function ago(iso) {
   return new Date(iso).toLocaleString();
 }
 
-const W = 220, H = 104, GX = 24, GY = 70;
+const W = 230, H = 104, GX = 24, GY = 70;
 
 function chips(n) {
   const bad = examplesBad(n).length, ex = (n.examples || []).length;
-  return `<span class="chip s-${n.state}">${esc(stateLabel[n.state])}</span>
-    ${n.codeChanged ? `<span class="chip s-changed" title="the code it governs changed">code changed</span>` : ""}
+  const st = n.state === "review" ? `review: ${(n.causes || []).join(", ")}` : n.state;
+  return `<span class="chip s-${n.state}" title="${esc((n.causes || []).map(c => causeText[c]).join("; "))}">${esc(st)}</span>
     ${ex ? `<span class="chip ${bad ? "s-bad" : "s-ok"}" title="examples">examples ${ex - bad}/${ex}</span>` : ""}`;
 }
 
@@ -374,10 +379,10 @@ function renderTree() {
   }
   for (const n of live()) {
     const p = pos[n.id]; if (!p) continue;
-    const cls = ["card", n.state, n.kind === "design" ? "design" : "", n.codeChanged ? "code" : "", n.id === state.selected ? "selected" : "", dimOthers && !onPath.has(n.id) ? "dim" : ""].join(" ");
+    const cls = ["card", n.state, n.kind === "design" ? "design" : "", n.id === state.selected ? "selected" : "", dimOthers && !onPath.has(n.id) ? "dim" : ""].join(" ");
     cards += `<div class="${cls}" data-node="${esc(n.id)}" style="left:${p.x}px;top:${p.y}px;height:${H}px">
       <div class="top"><span class="kind ${n.kind}">${esc(n.kind)}</span><span class="id" title="${esc(n.id)}">${esc(n.id)}</span></div>
-      <div class="stmt" title="${esc(n.statement)}">${esc(n.statement)}</div>
+      <div class="stmt" title="${esc(C(n).statement)}">${esc(C(n).statement)}</div>
       <div class="chips">${chips(n)}</div>
     </div>`;
   }
@@ -395,53 +400,75 @@ function renderJob() {
 }
 
 function renderPane() {
-  const counts = { inbox: waitingForYou().length + removed().length + requests().filter(r => r.status === "answered").length };
+  const counts = { inbox: waitingForYou().length + gone().length + requests().filter(r => r.status === "answered").length };
   document.querySelectorAll(".tab").forEach(t => {
     t.classList.toggle("active", t.dataset.tab === state.tab);
     const n = counts[t.dataset.tab];
     t.innerHTML = t.dataset.tab[0].toUpperCase() + t.dataset.tab.slice(1) + (n ? `<span class="n">${n}</span>` : "");
   });
   if (!snap() && state.tab !== "idea") { $("#pane").innerHTML = ""; return; }
-  $("#pane").innerHTML = { node: nodePane, inbox: inboxPane, idea: ideaPane, domain: domainPane, history: historyPane }[state.tab]();
+  $("#pane").innerHTML = { node: nodePane, inbox: inboxPane, idea: ideaPane, vocabulary: vocabularyPane, history: historyPane }[state.tab]();
 }
 
 function code(label, src) { return src ? `<div class="side"><div class="label">${label}</div><pre>${esc(src)}</pre></div>` : ""; }
 
 function modelOf(n) {
-  if (n.kind === "instantiate")
-    return `<div class="side"><div class="label">substitutions</div><pre>${esc(n.substitutions.map(s => `${s.name} := ${s.value}`).join("\n"))}</pre></div>`;
-  return code("abs — maps this model to the parent's", n.sources.abs) + code("spec", n.sources.spec) + code("post — every call (a, b) ⇒ r satisfies", n.sources.post);
+  const c = C(n), src = c.sources || {};
+  if (n.kind === "instantiate") return `<div class="side"><div class="label">substitutions</div><pre>${esc((c.substitutions || []).join("\n"))}</pre></div>`;
+  return code("abs — maps this model to the parent's", src.abs) + code("spec", src.spec) + code("post — every call (a, b) ⇒ r satisfies", src.post);
 }
 
 function verdict(n) {
   const s = linkStatus(n), d = n.link?.detail || "";
   if (s === "proven") {
     if (d === "instantiation") return "Proven by instantiation: the parent's theorems apply with these substitutions.";
-    if (d === "authored") return `Proven by an authored proof (${esc(n.proof?.file || "lean/Proofs")}).`;
+    if (d === "authored") return "Proven by an authored proof, replayed through the Lean kernel.";
     return "Proven automatically by frflow_auto.";
   }
   if (s === "open") return `Open: ${esc(d)}`;
   if (s === "failed") return `Failed: ${esc(d)}`;
-  if (s === "stale") return "Stale: the definitions changed since the last check.";
-  return "Not checked yet.";
+  return `Unchecked: ${esc(d || "not checked yet")}.`;
 }
 
-const reasonBox = (placeholder, value = "") =>
-  `<div class="side"><div class="label">your reason (required; kept as part of the theory)</div><textarea id="reason" rows="2" placeholder="${esc(placeholder)}">${esc(value)}</textarea></div>`;
+// A word-level diff: what was decided, against what is there now.
+function wordDiff(a, b) {
+  const x = (a || "").split(/(\s+)/), y = (b || "").split(/(\s+)/);
+  if (x.length * y.length > 250000) return `<del class="w">${esc(a)}</del>\n<ins class="w">${esc(b)}</ins>`;
+  const m = x.length, n = y.length, L = Array.from({ length: m + 1 }, () => new Int32Array(n + 1));
+  for (let i = m - 1; i >= 0; i--) for (let j = n - 1; j >= 0; j--) L[i][j] = x[i] === y[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  let i = 0, j = 0, out = "";
+  while (i < m && j < n) {
+    if (x[i] === y[j]) { out += esc(x[i]); i++; j++; }
+    else if (L[i + 1][j] >= L[i][j + 1]) { out += `<del class="w">${esc(x[i++])}</del>`; }
+    else { out += `<ins class="w">${esc(y[j++])}</ins>`; }
+  }
+  while (i < m) out += `<del class="w">${esc(x[i++])}</del>`;
+  while (j < n) out += `<ins class="w">${esc(y[j++])}</ins>`;
+  return out;
+}
 
 function diff(old, cur) {
   const flat = c => ({
-    statement: c.statement, why: c.why, idea: c.idea,
+    parent: c.parent, statement: c.statement, why: c.why, idea: c.idea, "not modelled": c.notModelled,
     ...Object.fromEntries(Object.entries(c.sources || {})),
     substitutions: (c.substitutions || []).join("\n"), examples: (c.examples || []).join("\n"),
-    "definitions used": (c.uses || []).join("\n\n"), governs: (c.governs || []).join("\n"),
+    vocabulary: (c.vocabulary || []).join("\n"), "definitions used": (c.uses || []).join("\n\n"), governs: (c.governs || []).join("\n"),
   });
   const a = flat(old || {}), b = flat(cur || {});
   const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])].filter(k => (a[k] || "") !== (b[k] || ""));
-  if (!keys.length) return `<div class="muted small">No difference in what was decided.</div>`;
-  return keys.map(k => `<div class="side"><div class="label">${esc(k)}: before → now</div><div class="diff">
-    <pre class="old">${esc(a[k] || "—")}</pre><pre class="new">${esc(b[k] || "—")}</pre></div></div>`).join("");
+  if (!keys.length) return "";
+  return keys.map(k => `<div class="side"><div class="label">${esc(k)}</div><pre class="worddiff">${wordDiff(a[k], b[k])}</pre></div>`).join("");
 }
+
+async function loadCodeDiff(id) {
+  if (state.codeDiffs[id] !== undefined) return;
+  state.codeDiffs[id] = null;
+  try { state.codeDiffs[id] = (await api(`${P()}/codediff?node=${encodeURIComponent(id)}`)).diff; } catch { state.codeDiffs[id] = ""; }
+  if (state.selected === id && state.tab === "node") renderPane();
+}
+
+const reasonBox = (placeholder, value = "") =>
+  `<div class="side"><div class="label">your reason (kept as part of the theory)</div><textarea id="reason" rows="2" placeholder="${esc(placeholder)}">${esc(value)}</textarea></div>`;
 
 function warnings(n) {
   const w = [];
@@ -450,65 +477,72 @@ function warnings(n) {
   return w;
 }
 
+// What moved since the decision, shown whether or not it can be accepted yet.
+function whatMoved(n) {
+  const d = n.history?.filter(h => h.action === "accept" || h.action === "confirm").slice(-1)[0];
+  let h = "";
+  for (const c of n.causes || []) {
+    if (c === "self") h += `<div class="side"><div class="label">${esc(n.id)} changed since it was accepted</div>${diff(d?.content, n.content) || `<div class="muted small">No difference in what was decided.</div>`}</div>`;
+    if (c === "above") {
+      const changed = pathTo(n.id).slice(0, -1).reverse().find(a => a.state === "review" || (a.decision && d && a.history?.slice(-1)[0]?.at > d.at));
+      const ad = changed?.history?.filter(x => x.action === "accept" || x.action === "confirm");
+      const before = ad && ad.length > 1 && changed.state !== "review" ? ad[ad.length - 2].content : ad?.slice(-1)[0]?.content;
+      h += `<div class="side"><div class="label">${changed ? `<a data-goto="${esc(changed.id)}">${esc(changed.id)}</a> changed` : "an ancestor changed"}</div>${changed ? diff(before, changed.content) : ""}</div>`;
+    }
+    if (c === "code") {
+      loadCodeDiff(n.id);
+      const cd = state.codeDiffs[n.id];
+      h += `<div class="side"><div class="label">the code it governs changed: ${esc((n.code?.files || []).join(", "))}</div>
+        ${cd === null || cd === undefined ? `<div class="muted small">loading the diff…</div>` : cd ? `<pre class="mono">${esc(cd)}</pre>` : `<div class="muted small">No diff available (the change was made before the decision was committed, or outside git). The examples ${examplesBad(n).length ? "fail" : "still pass"}.</div>`}</div>`;
+    }
+  }
+  return h;
+}
+
 // The decision: where the theory is built. The developer chooses, with a reason.
 function decisionBox(n) {
   const d = n.decision;
-  const parent = n.parent ? byId(n.parent) : null;
-  if (parent && parent.state !== "accepted" && n.state !== "accepted")
-    return `<div class="box"><div class="muted">Decide <a data-goto="${esc(parent.id)}">${esc(parent.id)}</a> first: the tree is decided from the root down.</div></div>`;
+  const parent = n.parent && n.kind !== "design" ? byId(n.parent) : null;
+  const blocked = parent && parent.state !== "accepted";
+  const confirms = (n.history || []).filter(h => h.action === "confirm" && (!d || h.at > d.at));
+  const chosen = d ? `<div class="why"><div class="label">chosen by ${esc(d.by)} because</div>${esc(d.reason)}</div>
+    ${confirms.map(c => `<div class="muted small">re-confirmed by ${esc(c.by)}: ${esc(c.reason)}</div>`).join("")}` : "";
+  const alts = n.alternatives || [];
+  const altList = alts.length ? `<div class="side"><div class="label">rejected alternatives</div>${alts.map(r =>
+    `<div class="option"><b>${esc(r.id)}</b> — ${esc(r.content?.statement)}<div class="muted small">${esc(r.content?.why)}</div></div>`).join("")}</div>` : "";
+  const button = (label, extra = "") => blocked
+    ? `<div class="muted small">Accept <a data-goto="${esc(parent.id)}">${esc(parent.id)}</a> first: the tree is decided from the root down.</div>`
+    : `<div class="actions"><button class="btn small primary" data-accept="1" ${extra}>${label}</button></div>`;
   if (n.state === "proposed") {
-    const others = siblings(n);
-    const warn = warnings(n);
+    const others = siblings(n), warn = warnings(n);
     return `<div class="box proposed"><div class="verdict proposed">${others.some(o => o.state === "proposed") ? "Choose between the proposals" : "Proposed"}</div>
-      <div class="muted small">Read the statement, the reason and the examples above. Choosing keeps your reason; what you reject is kept as an alternative.</div>
-      ${others.length ? `<div class="side"><div class="label">alternatives at this level — tick the ones this choice replaces</div>${others.map(o => `<div class="option">
+      <div class="muted small">Choosing keeps your reason; what you reject is kept as an alternative.</div>
+      ${others.length ? `<div class="side"><div class="label">other nodes at this level — tick the ones this choice replaces</div>${others.map(o => `<div class="option">
         <div class="head"><a data-goto="${esc(o.id)}"><b>${esc(o.id)}</b></a>${chips(o)}</div>
-        <div class="small" style="margin-top:4px">${esc(o.statement)}</div><div class="muted small">${esc(o.why)}</div>
+        <div class="small" style="margin-top:4px">${esc(C(o).statement)}</div><div class="muted small">${esc(C(o).why)}</div>
         <label><input type="checkbox" class="rej" value="${esc(o.id)}" ${o.state === "proposed" ? "checked" : ""}> reject ${esc(o.id)}${o.state === "accepted" ? " (replaces an accepted node)" : ""}</label></div>`).join("")}</div>` : ""}
       ${warn.length ? `<div class="warn-text">Note: ${esc(warn.join("; "))}.</div>` : ""}
+      ${altList}
       ${reasonBox("Why this one? What would make you revisit it?")}
-      <div class="actions"><button class="btn small primary" data-decide="accept">Choose ${esc(n.id)}</button>
-        <span class="muted small">or ask the agent below for something else</span></div></div>`;
+      ${button(`Accept ${esc(n.id)}`)}</div>`;
   }
-  if (n.state === "changed") {
-    return `<div class="box changed"><div class="verdict changed">Changed since ${esc(d?.by)} chose it</div>
-      <div class="muted small">Chosen ${d ? new Date(d.at).toLocaleString() : ""}${d?.reason ? ` because “${esc(d.reason)}”` : ""}.</div>
-      ${diff(d?.content, n.content)}
-      ${reasonBox("Why is the change right?")}
-      <div class="actions"><button class="btn small primary" data-decide="accept">Accept the change</button>
-        <span class="muted small">or ask the agent below to revert or rework it</span></div></div>`;
+  if (n.state === "review") {
+    const onlyAbove = (n.causes || []).length === 1 && n.causes[0] === "above";
+    const below = children(n.id).length > 0;
+    return `<div class="box review"><div class="verdict review">To review: ${esc((n.causes || []).map(c => causeText[c]).join("; "))}</div>
+      ${chosen}${whatMoved(n)}${altList}
+      ${reasonBox((n.causes || []).includes("self") ? "Why is the change right?" : "Why does it still hold?", onlyAbove ? "Still holds: " : "")}
+      ${button("Accept", "")}${!blocked && below ? `<div class="actions"><button class="btn small" data-accept="1" data-subtree="1">Accept, with what below only moved because of this</button></div>` : ""}</div>`;
   }
-  if (n.state === "parent-changed") {
-    const changed = pathTo(n.id).slice(0, -1).reverse().find(a => a.state !== "accepted" || (a.decision && d && a.decision.at > d.at)) || parent;
-    const prev = (changed?.history || []).filter(h => h.action === "accept" || h.action === "confirm");
-    const before = prev.length > 1 ? prev[prev.length - 2].content : null;
-    return `<div class="box parent-changed"><div class="verdict parent-changed">${changed ? `<a data-goto="${esc(changed.id)}">${esc(changed.id)}</a> changed` : "An ancestor changed"} since this was chosen</div>
-      <div class="muted small">Does ${esc(n.id)} still specialize it as intended? Chosen by ${esc(d?.by)}${d?.reason ? ` because “${esc(d.reason)}”` : ""}.</div>
-      ${before ? diff(before, changed.content) : ""}
-      ${reasonBox("Why does it still hold?", "")}
-      <div class="actions"><button class="btn small primary" data-decide="confirm">Still valid</button>
-        <button class="btn small" data-decide="confirm" data-subtree="1">Still valid, with everything below</button></div></div>`;
-  }
-  // accepted
-  const alts = n.alternatives || [];
-  const hist = (n.history || []).slice(0, -1);
-  return `<div class="box accepted"><div class="verdict accepted">Chosen by ${esc(d?.by)}</div>
-    <div class="muted small">${d ? new Date(d.at).toLocaleString() : ""}</div>
-    ${d?.reason ? `<div class="why"><div class="label">chosen because</div>${esc(d.reason)}</div>` : ""}
-    ${alts.length ? `<div class="side"><div class="label">rejected alternatives</div>${alts.map(r =>
-      `<div class="option"><b>${esc(r.id)}</b> — ${esc(r.content?.statement)}<div class="muted small">${esc(r.content?.why)}</div></div>`).join("")}</div>` : ""}
-    ${n.codeChanged ? `<div class="box changed" style="margin-top:10px"><div class="verdict changed">The code it governs changed since it was chosen</div>
-      <div class="muted small">${esc((n.code?.files || []).join(", "))}. The examples ${examplesBad(n).length ? "fail" : "still pass"}.</div>
-      ${reasonBox("Why does the decision still hold?")}
-      <div class="actions"><button class="btn small primary" data-decide="confirm">Still valid</button></div></div>` : ""}
-    ${hist.length ? `<details><summary>${hist.length} earlier decision(s)</summary>${hist.map(h =>
-      `<div class="small" style="margin-top:6px"><b>${esc(h.action)}</b> by ${esc(h.by)} — ${esc(h.reason)} <span class="muted">${new Date(h.at).toLocaleString()}</span></div>`).join("")}</details>` : ""}
-  </div>`;
+  return `<div class="box accepted"><div class="verdict accepted">Accepted</div>
+    <div class="muted small">${d ? new Date(d.at).toLocaleString() : ""}</div>${chosen}${altList}</div>`;
 }
 
 function examplesTable(n) {
-  if (!(n.examples || []).length) return "";
-  const res = (r, expected) => r === "ok" ? `<span class="chip s-ok">${expected ? "accepted ✓" : "refused ✓"}</span>` : r ? `<span class="chip s-bad">${esc(r)}</span>` : `<span class="muted small">—</span>`;
+  const limits = n.limits || [];
+  const lim = limits.length ? `<div class="limits"><b>Does not promise:</b><ul style="margin:4px 0 0 18px;padding:0">${limits.map(l => `<li>${esc(l)}</li>`).join("")}</ul></div>` : "";
+  if (!(n.examples || []).length) return lim ? `<h3>Examples</h3>${lim}` : "";
+  const res = (r, expected) => r === "ok" ? `<span class="chip s-ok">${expected ? "allows ✓" : "refuses ✓"}</span>` : r ? `<span class="chip s-bad">${esc(r)}</span>` : `<span class="muted small">—</span>`;
   let rows = "", given = null;
   for (const e of n.examples) {
     const g = e.given.join(", ");
@@ -518,7 +552,7 @@ function examplesTable(n) {
       <td>${res(e.contract, e.expected)}</td><td>${e.expected ? (e.implementation === "ok" ? `<span class="chip s-ok">returns it ✓</span>` : res(e.implementation, true)) : `<span class="muted small">—</span>`}</td></tr>`;
   }
   return `<h3>Examples</h3><div class="muted small">What this contract means in concrete cases, checked against the contract and against the implementation.</div>
-    <table><tr><th></th><th>case</th><th>contract</th><th>implementation</th></tr>${rows}</table>`;
+    <table><tr><th></th><th>case</th><th>contract</th><th>implementation</th></tr>${rows}</table>${lim}`;
 }
 
 function requestsFor(node) {
@@ -538,31 +572,30 @@ function askBox(node, placeholder) {
 function nodePane() {
   const n = byId(state.selected);
   if (!n) return `<p class="muted">Select a node.</p>`;
-  const parent = n.parent ? byId(n.parent) : null;
-  const ls = linkStatus(n);
+  const c = C(n), parent = n.parent ? byId(n.parent) : null, ls = linkStatus(n);
   let h = `<div style="display:flex;align-items:center;gap:8px"><span class="kind ${n.kind}">${esc(n.kind)}</span><h2>${esc(n.id)}</h2></div>
     <div class="chips" style="margin-top:6px">${chips(n)}</div>
-    <p class="lead">${esc(n.statement)}</p>
-    <div class="why"><div class="label">proposed because</div>${esc(n.why)}</div>
+    <p class="lead">${esc(c.statement)}</p>
+    <div class="why"><div class="label">why</div>${esc(c.why)}</div>
     ${examplesTable(n)}`;
   if (n.kind === "design") {
     h += `<h3>Design decision</h3><div class="box"><div class="muted small">No formal model: decided and tracked like the rest. It governs:</div>
       <pre>${esc((n.code?.files || []).join("\n") || "—")}</pre></div>`;
   } else if (!parent) {
-    h += `<h3>Root</h3><div class="box"><div class="muted">One concern of the idea, stated as a theorem. Every node below is proven to imply it.</div>${code("spec", n.sources.spec)}</div>`;
+    h += `<h3>Root</h3><div class="box"><div class="muted">One concern of the idea, stated as a theorem. Every node below is proven to imply it.</div>${code("spec", (c.sources || {}).spec)}</div>`;
   } else {
     h += `<h3>Link to parent</h3><div class="box ${ls}">
       <div class="verdict ${ls}">${verdict(n)}</div>
       <div class="side"><div class="label">parent <b><a data-goto="${esc(parent.id)}">${esc(parent.id)}</a></b> (${esc(parent.kind)})</div>
-        <div style="margin-top:2px">${esc(parent.statement)}</div>
-        ${parent.sources.spec ? `<pre>${esc(parent.sources.spec)}</pre>` : parent.kind === "instantiate" ? `<div class="muted small">its spec is its parent's, instantiated</div>` : ""}</div>
+        <div style="margin-top:2px">${esc(C(parent).statement)}</div>
+        ${(C(parent).sources || {}).spec ? `<pre>${esc(C(parent).sources.spec)}</pre>` : parent.kind === "instantiate" ? `<div class="muted small">its spec is its parent's, instantiated</div>` : ""}</div>
       <div class="side"><div class="label">this node <b>${esc(n.id)}</b></div>${modelOf(n)}</div>
-      ${n.code ? `<div class="side"><div class="label">implementation</div><div class="mono small">${esc(n.code.files.join(", "))}</div></div>` : ""}
+      ${n.code ? `<div class="side"><div class="label">governs</div><div class="mono small">${esc(n.code.files.join(", "))}</div></div>` : ""}
       ${n.proof ? `<details><summary>authored proof — ${esc(n.proof.file)}</summary><pre>${esc(n.proof.source)}</pre></details>` : ""}
     </div>`;
   }
   h += `<h3>Decision</h3>${decisionBox(n)}`;
-  if (n.messages.length) h += `<h3>Messages</h3><pre>${esc(n.messages.join("\n\n"))}</pre>`;
+  if (n.messages?.length) h += `<h3>Messages</h3><pre>${esc(n.messages.join("\n\n"))}</pre>`;
   h += `<h3>Ask the agent</h3>${requestsFor(n.id)}
     ${askBox(n.id, n.kind === "contract" ? "e.g. Add an example: a revoked grant refuses access." : "e.g. Propose how to refine this: tokens expire after an hour.")}
     <div class="actions">
@@ -582,13 +615,15 @@ function inboxPane() {
   const answered = requests().filter(r => r.status === "answered");
   const open = requests().filter(r => r.status === "open");
   const rejected = all().filter(n => n.state === "rejected");
-  return `<h3 style="margin-top:0">Waiting for your decision</h3>${w.length ? w.map(n =>
-      `<div class="req"><a data-goto="${esc(n.id)}"><b>${esc(n.id)}</b></a> ${chips(n)}<div class="small">${esc(n.statement)}</div></div>`).join("")
-      : removed().length ? "" : `<div class="muted small">Nothing. Every node is decided.</div>`}
-    ${removed().map(r => `<div class="req"><b>${esc(r.id)}</b> <span class="chip s-removed">removed from the model</span>
+  const warns = snap()?.warnings || [];
+  return `${warns.length ? `<div class="box failed" style="margin-top:0"><div class="verdict failed">Warnings</div>${warns.map(x => `<div class="small">${esc(x)}</div>`).join("")}</div>` : ""}
+    <h3 style="margin-top:0">Waiting for you</h3>${w.length ? w.map(n =>
+      `<div class="req"><a data-goto="${esc(n.id)}"><b>${esc(n.id)}</b></a> ${chips(n)}<div class="small">${esc(C(n).statement)}</div></div>`).join("")
+      : gone().length ? "" : `<div class="muted small">Nothing. Every node is accepted.</div>`}
+    ${gone().map(r => `<div class="req"><b>${esc(r.id)}</b> <span class="chip s-review">gone from the model</span>
       <div class="small">${esc(r.decision?.content?.statement)}</div>
       <textarea class="removal" data-node="${esc(r.id)}" rows="1" placeholder="Why is it gone?"></textarea>
-      <div class="actions"><button class="btn small primary" data-remove="${esc(r.id)}">Confirm the removal</button></div></div>`).join("")}
+      <div class="actions"><button class="btn small primary" data-gone="${esc(r.id)}">Accept that it is gone</button></div></div>`).join("")}
     <h3>Answered by the agent</h3>${answered.length ? answered.map(r => `<div class="req"><div class="small">on ${r.node ? `<a data-goto="${esc(r.node)}">${esc(r.node)}</a>` : "the idea"}</div>
       <div>${esc(r.text)}</div><div class="answer small"><span class="muted">agent:</span> ${esc(r.answer)}</div>
       <div class="actions"><button class="btn small" data-close="${esc(r.id)}">Done</button></div></div>`).join("") : `<div class="muted small">None.</div>`}
@@ -616,9 +651,9 @@ function markdown(src) {
 
 function ideaPane() {
   const s = snap();
-  if (state.editingIdea) return `<div class="muted small">IDEA.md. Saving renders again. A change to the idea above “## Not modelled” asks you to confirm the roots; the list of what is not modelled can change freely.</div>
+  if (state.editingIdea) return `<div class="muted small">IDEA.md. A change above “## Not modelled” puts the roots up for review; a change to what is not modelled puts only the roots up, since it narrows nothing below them.</div>
     <textarea id="ideaText" rows="22" class="mono">${esc(s?.idea || "")}</textarea>
-    <div class="actions"><button class="btn small primary" id="saveIdea">Save and render</button><button class="btn small" id="cancelIdea">Cancel</button></div>`;
+    <div class="actions"><button class="btn small primary" id="saveIdea">Save</button><button class="btn small" id="cancelIdea">Cancel</button></div>`;
   const roots = live().filter(n => !n.parent && n.kind === "root");
   return `<div class="actions" style="margin-top:0"><span class="muted small">Roots, one concern each: ${roots.map(r => `<a data-goto="${esc(r.id)}">${esc(r.id)}</a>`).join(", ") || "none"}</span>
       <span class="spacer"></span><button class="btn small" id="editIdea">Edit</button></div>
@@ -626,9 +661,9 @@ function ideaPane() {
     <div class="muted small">List what the tree deliberately leaves out under “## Not modelled”, so the limits of the theory are explicit.</div>`;
 }
 
-function domainPane() {
+function vocabularyPane() {
   const s = snap();
-  return `<h3 style="margin-top:0">Vocabulary</h3><div class="muted small">The open terms of the model and what they mean in the world. Everything proven holds for every meaning a term could have; instantiations fix them.</div>
+  return `<h3 style="margin-top:0">Vocabulary</h3><div class="muted small">The open terms of the model and what they mean in the world. A change to a meaning puts the nodes that use the term up for review.</div>
     <table><tr><th>term</th><th>means</th><th>Lean type</th></tr>
     ${s.opaques.map(o => `<tr><td class="mono">${esc(o.name)}</td><td>${esc(o.means)}</td><td class="mono muted">Type</td></tr>`).join("")}
     ${s.params.map(p => `<tr><td class="mono">${esc(p.name)}</td><td>${esc(p.means)}</td><td class="mono muted">${esc(p.type)}</td></tr>`).join("")}</table>
@@ -636,18 +671,12 @@ function domainPane() {
     <h3>Definitions</h3>${s.defs.map(d => `<div class="side"><div class="label"><b>${esc(d.name)}</b></div><pre>${esc(d.source)}</pre></div>`).join("") || "<span class='muted'>none</span>"}`;
 }
 
-function eventRow(e) {
-  const extra = e.status ? ` → <span class="chip s-${esc(e.status)}">${esc(e.status)}</span>`
-    : ["accept", "confirm", "reject", "remove"].includes(e.action) ? ` by ${esc(e.by)}${(e.rejected || []).length ? `, rejecting ${esc(e.rejected.join(", "))}` : ""}${e.reason ? ` — “${esc(e.reason)}”` : ""}`
-    : e.changed !== undefined ? ` (${esc(e.changed)} files changed)` : "";
-  const target = e.node ? ` <a data-goto="${esc(e.node)}">${esc(e.node)}</a>` : "";
-  return `<div class="event"><span class="d ${esc(e.status || e.action)}"></span><div><b>${esc(e.action)}</b>${target}${extra}
-    <div class="when">${new Date(e.at).toLocaleString()}${e.actor ? " · " + esc(e.actor) : ""}</div></div></div>`;
-}
-
 function historyPane() {
-  const evs = state.events.slice().reverse();
-  return evs.length ? evs.map(eventRow).join("") : `<p class="muted">No events yet.</p>`;
+  const hs = state.history || [];
+  const verb = { accept: "accepted", confirm: "re-confirmed", reject: "rejected", remove: "agreed is gone" };
+  return hs.length ? `<div class="muted small">Every decision, from the ledger (committed with the code).</div>` + hs.map(e =>
+    `<div class="event"><span class="d ${esc(e.action)}"></span><div><a data-goto="${esc(e.node)}"><b>${esc(e.node)}</b></a> ${esc(verb[e.action] || e.action)} by ${esc(e.by)}${(e.rejected || []).length ? `, rejecting ${esc(e.rejected.join(", "))}` : ""}
+      <div class="small">${esc(e.reason)}</div><div class="when">${new Date(e.at).toLocaleString()}</div></div></div>`).join("") : `<p class="muted">No decisions yet.</p>`;
 }
 
 // --- actions ----------------------------------------------------------------
@@ -676,24 +705,24 @@ document.addEventListener("click", async e => {
   if (r) { run([r.dataset.run, ...(r.dataset.arg ? [r.dataset.arg] : [])]); return; }
   const tab = t.closest(".tab");
   if (tab) { state.tab = tab.dataset.tab; renderPane(); return; }
-  const dec = t.closest("[data-decide]");
-  if (dec) {
+  const acc = t.closest("[data-accept]");
+  if (acc) {
     const who = needName(); if (!who) return;
     const reason = $("#reason")?.value.trim() || "";
-    if (!reason) { $("#reason")?.focus(); alert("Give your reason: it is kept as part of the theory."); return; }
+    if (!reason || reason === "Still holds:") { $("#reason")?.focus(); alert("Give your reason: it is kept as part of the theory."); return; }
     const n = byId(state.selected);
     const reject = [...document.querySelectorAll(".rej:checked")].map(x => x.value);
-    const warn = dec.dataset.decide === "accept" ? warnings(n) : [];
-    if (warn.length && !confirm(`${n.id}: ${warn.join("; ")}. Choose it anyway?`)) return;
-    decide({ action: dec.dataset.decide, node: n.id, by: who, reason, reject, subtree: !!dec.dataset.subtree });
+    const warn = n.state === "proposed" ? warnings(n) : [];
+    if (warn.length && !confirm(`${n.id}: ${warn.join("; ")}. Accept it anyway?`)) return;
+    decide({ node: n.id, by: who, reason, reject, subtree: !!acc.dataset.subtree });
     return;
   }
-  const rem = t.closest("[data-remove]");
-  if (rem) {
+  const gn = t.closest("[data-gone]");
+  if (gn) {
     const who = needName(); if (!who) return;
-    const reason = document.querySelector(`.removal[data-node="${rem.dataset.remove}"]`)?.value.trim();
+    const reason = document.querySelector(`.removal[data-node="${gn.dataset.gone}"]`)?.value.trim();
     if (!reason) { alert("Say why it is gone."); return; }
-    decide({ action: "remove", node: rem.dataset.remove, by: who, reason });
+    decide({ node: gn.dataset.gone, by: who, reason });
     return;
   }
   const ask = t.closest("[data-ask]");
@@ -708,7 +737,7 @@ document.addEventListener("click", async e => {
   if (t.id === "editIdea") { state.editingIdea = true; renderPane(); return; }
   if (t.id === "cancelIdea") { state.editingIdea = false; renderPane(); return; }
   if (t.id === "saveIdea") {
-    try { state.jobOpen = true; state.job = await post(`${P()}/idea`, { text: $("#ideaText").value }); state.editingIdea = false; render(); } catch (err) { alert(err.message); }
+    try { await post(`${P()}/idea`, { text: $("#ideaText").value }); state.editingIdea = false; await refresh(); } catch (err) { alert(err.message); }
     return;
   }
   if (t.id === "waitingPill") { const n = waitingForYou()[0]; if (n) { state.selected = n.id; state.tab = "node"; render(); } else { state.tab = "inbox"; renderPane(); } }

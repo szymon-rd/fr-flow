@@ -4,12 +4,12 @@
       {
         "action": "accept",
         "by": "demo",
-        "at": "2026-10-21T20:46:17.617536784Z",
+        "at": "2026-10-21T21:23:13.043060994Z",
         "reason": "Records carry their company; so the contract must only return stored records.",
-        "rejected": [],
-        "chain": "5675b2eeefdb4a601c22f412802a4409c5a3c9a512e65061c25e9cbffaf9da4a",
-        "code": "",
+        "commit": "482da37551c63ed8cdc20d043b70c3d78b44116a",
+        "chain": "2009b07636a78f4fa737cde4911b841aefc2a979d9a1284e8912adced19e3d0a",
         "content": {
+          "parent": "ReadApi",
           "statement": "Users are accounts of a company, records are contacts and deals, and sharing is a table of shares.",
           "why": "A record belongs to the company stored on it, and a user to the company of their account. This trusts the record, so ReadContract requires returned records to be the stored ones; it also trusts the account, which authentication provides (not modelled).",
           "sources": {},
@@ -23,6 +23,16 @@
             "sharedWith := (r: CrmRecord, t: TenantId) => shares.value.contains(Share(r.id, t))"
           ],
           "examples": [],
+          "vocabulary": [
+            "Query: a search a user runs",
+            "Record: a contact or a deal kept in the CRM",
+            "Tenant: a company that uses the CRM",
+            "User: a person who works for a company",
+            "owner: the company a record belongs to",
+            "sharedWith: whether the record's company shared it with the given company",
+            "shares: the share table as stored when the search runs",
+            "tenantOf: the company a user works for"
+          ],
           "uses": [
             "structure TenantId where\n  value : String",
             "structure Account where\n  email : String\n  tenant : TenantId",
@@ -38,12 +48,12 @@
       {
         "action": "accept",
         "by": "demo",
-        "at": "2026-10-21T20:46:17.268713567Z",
+        "at": "2026-10-21T21:23:12.710310365Z",
         "reason": "Users only see records through searches; revisit if we add exports.",
-        "rejected": [],
-        "chain": "6289d0f1317d97349a8049ffac0f979ee10773aedbc4138dae9b138c3a30d8b3",
-        "code": "",
+        "commit": "482da37551c63ed8cdc20d043b70c3d78b44116a",
+        "chain": "651c8691c58c9a21a55dfec1aa0f4bd683e08ad7391ca3d4e890a36ca51872e1",
         "content": {
+          "parent": "TenantIsolation",
           "statement": "Records are shown only as query results, and a query returns only records the user may see.",
           "why": "Users find records by searching, so what a user sees is what their queries return. abs: a user is shown a record when some query of theirs returns it.",
           "sources": {
@@ -52,6 +62,15 @@
           },
           "substitutions": [],
           "examples": [],
+          "vocabulary": [
+            "Query: a search a user runs",
+            "Record: a contact or a deal kept in the CRM",
+            "Tenant: a company that uses the CRM",
+            "User: a person who works for a company",
+            "owner: the company a record belongs to",
+            "sharedWith: whether the record's company shared it with the given company",
+            "tenantOf: the company a user works for"
+          ],
           "uses": [
             "fun (u : User) (r : Record) => (((owner r) = (tenantOf u)) ∨ (sharedWith r (tenantOf u)))"
           ],
@@ -63,24 +82,30 @@
       {
         "action": "accept",
         "by": "demo",
-        "at": "2026-10-21T20:46:17.949088690Z",
-        "reason": "Covers search by id, by kind and everything, as the idea lists.",
-        "rejected": [],
-        "chain": "2e8829cd693bb4b59cb44b59a55fb2a353fb7954109facf71e0d5ae46bb4544b",
-        "code": "b4f00609680cd0eac4982be68e91e7dc06085f70f026b9ab1ee1a9c51a465713",
+        "at": "2026-10-21T21:23:13.463212848Z",
+        "reason": "Returns only stored, matching records the user may see. It does not promise to return all of them; that is listed as not modelled.",
+        "code": "4d6273444d62f1cf038bd423e207048281b0d3a155490c8179cd3157ea040c80",
+        "commit": "482da37551c63ed8cdc20d043b70c3d78b44116a",
+        "chain": "9b902ef9090ba46737fde23deb9c85268d2b347bad39d124b021d5267477745c",
         "content": {
-          "statement": "A search returns stored records only, each of the user's company or shared with it.",
-          "why": "Accounts, stated for one call. A returned record must be one of the stored records, so an implementation cannot relabel another company's record as the user's.",
+          "parent": "Accounts",
+          "statement": "A search returns only stored records that match it, each of the user's company or shared with it.",
+          "why": "Accounts, stated for one call, plus what a search asks for. A returned record must be one of the stored records, so an implementation cannot relabel another company's record as the user's.",
           "sources": {
-            "post": "(user, query, result) => result.forall(r => store.value.contains(r) && (r.tenant == user.tenant || shares.value.contains(Share(r.id, user.tenant))))"
+            "post": "(user, query, result) => result.forall(r => store.value.contains(r) && matches(query, r) && (r.tenant == user.tenant || shares.value.contains(Share(r.id, user.tenant))))"
           },
           "substitutions": [],
           "examples": [
-            "expect (Account(\"ann@acme\", TenantId(\"acme\")), Everything) ⇒ ::(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), List())  given store = ::(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), ::(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\"), List())), shares = List()  — Ann lists everything she can see: Acme's deal",
-            "expect (Account(\"ann@acme\", TenantId(\"acme\")), ById(2)) ⇒ List()  given store = ::(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), ::(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\"), List())), shares = List()  — Globex's contact is not shared with Acme",
-            "reject (Account(\"ann@acme\", TenantId(\"acme\")), ById(2)) ⇒ ::(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\"), List())  given store = ::(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), ::(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\"), List())), shares = List()  — another company's record is never returned",
-            "reject (Account(\"ann@acme\", TenantId(\"acme\")), Everything) ⇒ ::(CrmRecord(2, TenantId(\"acme\"), Contact, \"Globex contact\"), List())  given store = ::(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), ::(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\"), List())), shares = List()  — a record relabelled as Acme's is not a stored record",
-            "expect (Account(\"ann@acme\", TenantId(\"acme\")), OfKind(Contact)) ⇒ ::(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\"), List())  given store = ::(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\"), List()), shares = ::(Share(2, TenantId(\"acme\")), List())  — Globex shared its contact with Acme, so Ann finds it by kind"
+            "expect (Account(\"ann@acme\", TenantId(\"acme\")), Everything) ⇒ List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"))  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List()  — Ann lists everything she can see: Acme's deal",
+            "expect (Account(\"ann@acme\", TenantId(\"acme\")), ById(2)) ⇒ List()  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List()  — Globex's contact is not shared with Acme",
+            "reject (Account(\"ann@acme\", TenantId(\"acme\")), ById(2)) ⇒ List(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\"))  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List()  — another company's record is never returned",
+            "reject (Account(\"ann@acme\", TenantId(\"acme\")), Everything) ⇒ List(CrmRecord(2, TenantId(\"acme\"), Contact, \"Globex contact\"))  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List()  — a record relabelled as Acme's is not a stored record",
+            "reject (Account(\"ann@acme\", TenantId(\"acme\")), OfKind(Contact)) ⇒ List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"))  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List()  — a search for contacts does not return deals",
+            "expect (Account(\"ann@acme\", TenantId(\"acme\")), OfKind(Contact)) ⇒ List(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\"))  given store = List(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List(Share(2, TenantId(\"acme\")))  — Globex shared its contact with Acme, so Ann finds it by kind"
+          ],
+          "vocabulary": [
+            "shares: the share table as stored when the search runs",
+            "store: the records as stored when the search runs; a record id is unique across all companies"
           ],
           "uses": [
             "structure TenantId where\n  value : String",
@@ -88,7 +113,8 @@
             "inductive Kind where\n  | Contact\n  | Deal",
             "inductive Search where\n  | ById (id : Int)\n  | OfKind (kind : Kind)\n  | Everything",
             "structure CrmRecord where\n  id : Int\n  tenant : TenantId\n  kind : Kind\n  title : String",
-            "structure Share where\n  record : Int\n  to : TenantId"
+            "structure Share where\n  record : Int\n  to : TenantId",
+            "fun (q : Search) (r : CrmRecord) => (match q with | Search.ById id => (r.id = id) | Search.OfKind k => (r.kind = k) | Search.Everything => True)"
           ],
           "governs": []
         }
@@ -98,12 +124,12 @@
       {
         "action": "accept",
         "by": "demo",
-        "at": "2026-10-21T20:46:16.915291345Z",
+        "at": "2026-10-21T21:23:12.361784464Z",
         "reason": "Isolation between companies is the promise of a shared CRM.",
-        "rejected": [],
+        "commit": "482da37551c63ed8cdc20d043b70c3d78b44116a",
         "chain": "",
-        "code": "",
         "content": {
+          "parent": null,
           "statement": "A user sees a record only if it belongs to their company or was shared with their company.",
           "why": "Isolation between companies is what the idea says must hold. Companies, users, records and sharing are left open.",
           "sources": {
@@ -111,11 +137,20 @@
           },
           "substitutions": [],
           "examples": [],
+          "vocabulary": [
+            "Record: a contact or a deal kept in the CRM",
+            "Tenant: a company that uses the CRM",
+            "User: a person who works for a company",
+            "owner: the company a record belongs to",
+            "sharedWith: whether the record's company shared it with the given company",
+            "tenantOf: the company a user works for"
+          ],
           "uses": [
             "fun (u : User) (r : Record) => (((owner r) = (tenantOf u)) ∨ (sharedWith r (tenantOf u)))"
           ],
           "governs": [],
-          "idea": "# CRM\n\nMany companies use one CRM. Each company's users manage contacts and deals.\nA user may see a record only if it belongs to their company, or if the record's\ncompany has shared it with theirs. Users find records by id, by kind, or list\neverything they can see."
+          "idea": "# CRM\n\nMany companies use one CRM. Each company's users manage contacts and deals.\nA user may see a record only if it belongs to their company, or if the record's\ncompany has shared it with theirs. Users find records by id, by kind, or list\neverything they can see.",
+          "notModelled": "- Who may create or remove a share.\n- That the account a search runs for is the caller's own (authentication).\n- That a search returns every matching record the user may see: only what it\n  must not return is modelled.\n- Writing records."
         }
       }
     ]
