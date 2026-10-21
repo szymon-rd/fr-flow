@@ -1,7 +1,8 @@
 package frflow
 
 import java.nio.charset.StandardCharsets.UTF_8
-import java.nio.file.{Files, Path}
+import frflow.Json.*
+import java.nio.file.{Files, Path, StandardOpenOption}
 import java.security.MessageDigest
 import scala.jdk.CollectionConverters.*
 
@@ -18,6 +19,8 @@ import scala.jdk.CollectionConverters.*
 final case class Workspace(root: Path, kernelPath: String):
   def lean: Path = root.resolve("lean")
   def ledgerFile: Path = root.resolve(".frflow/ledger.json")
+  def snapshotFile: Path = root.resolve(".frflow/kb.json")
+  def eventsFile: Path = root.resolve(".frflow/events.jsonl")
 
 /** The FrFlow workflow on one knowledge base: render, check, approve, report. */
 final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
@@ -87,6 +90,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       acc :+ (n -> checkNode(n, g, lake, parentStatus))
     }
     Ledger.save(ws.ledgerFile, results.foldLeft(ledger)((l, r) => l.updated(r._1.id)(_.copy(check = Some(r._2)))))
+    results.foreach((n, c) => record("check", n.id, "status" -> str(c.status)))
     results
 
   private def checkNode(n: Node[?], g: Generate, lake: Lake, parentStatus: Option[String]): NodeCheck =
@@ -139,12 +143,16 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
 
   def approve(n: Node[?], by: String): Unit =
     Ledger.save(ws.ledgerFile, ledger.updated(n.id)(_.copy(approval = Some(Approval(specHash(n), by, java.time.Instant.now.toString)))))
+    record("approve", n.id, "by" -> str(by))
 
   /** Creates the proof file of a node with a stub for its obligation. */
   def scaffold(n: Node[?]): Boolean =
     val g = generate
     val path = ws.lean.resolve(g.proofsPath(n.id))
-    if g.obligation(n).isEmpty || Files.exists(path) then false else write(path, g.proofFile(n))
+    if g.obligation(n).isEmpty || Files.exists(path) then false
+    else
+      record("scaffold", n.id)
+      write(path, g.proofFile(n))
 
   def approvalState(n: Node[?]): String = ledger.entry(n.id).approval match
     case None                             => "unapproved"
@@ -194,3 +202,74 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
        |- A node is accepted when it is proven and the developer has approved it.
        |""".stripMargin
     sb.result()
+
+  // ---------------------------------------------------------------------------
+  // Snapshot and event log: what the browser and agents read
+  // ---------------------------------------------------------------------------
+
+  /** Appends an event to `.frflow/events.jsonl`: the history of the process. */
+  def record(action: String, node: String, fields: (String, Json)*): Unit =
+    Files.createDirectories(ws.eventsFile.getParent)
+    val e = obj((Seq("at" -> str(java.time.Instant.now.toString), "action" -> str(action), "node" -> str(node)) ++ fields)*)
+    Files.writeString(ws.eventsFile, e.compact + "\n", UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND)
+
+  /** The state of a node's link to its parent: `proven` (by `auto`, `authored`, or `instantiation`),
+    * `open`, `failed`, `not-checked` or `stale`. None for the root.
+    */
+  def link(n: Node[?]): Json =
+    def st(status: String, detail: String) = obj("status" -> str(status), "detail" -> str(detail))
+    if n.parent.isEmpty then JNull
+    else
+      current(n) match
+        case None => st(verification(n), "")
+        case Some(c) => c.obligations.headOption match
+          case Some(r) => st(r.status, r.detail)
+          case None if c.status == "model-error" => st("failed", "the model does not build")
+          case None => st(if c.status == "failed" then "failed" else "proven", "instantiation")
+
+  /** The knowledge base as data, built from the Scala definitions and the ledger. */
+  def snapshot: Json =
+    val g = generate
+    def strs(xs: Seq[String]) = JArr(xs.map(str))
+    def node(n: Node[?]): Json =
+      val check = current(n)
+      val approval = ledger.entry(n.id).approval
+      obj(
+        "id" -> str(n.id),
+        "kind" -> str(n.kind.toString.toLowerCase),
+        "statement" -> str(n.statement),
+        "parent" -> n.parent.fold(JNull)(p => str(p.id)),
+        "sources" -> JObj(Seq("spec" -> n.spec, "abs" -> n.abs, "post" -> n.post).collect { case (k, Some(l)) => k -> str(l.source) }),
+        "substitutions" -> JArr(n.substs.map(s => obj("name" -> str(s.name), "value" -> str(s.term.fold(s.lean)(_.source))))),
+        "obligation" -> g.obligation(n).fold(JNull)(o => obj("statement" -> str(o.statement), "description" -> str(o.description))),
+        "link" -> link(n),
+        "proof" -> read(ws.lean.resolve(g.proofsPath(n.id))).fold(JNull)(src => obj("file" -> str("lean/" + g.proofsPath(n.id)), "source" -> str(src))),
+        "rootTheorem" -> str(g.rootTheorem(n)),
+        "lean" -> str(g.spec(n)),
+        "approval" -> str(approvalState(n)),
+        "approvedBy" -> approval.fold(JNull)(a => str(a.by)),
+        "verification" -> str(verification(n)),
+        "messages" -> strs(check.toList.flatMap(_.messages)),
+        "axioms" -> strs(check.toList.flatMap(_.axioms))
+      )
+    obj(
+      "name" -> str(kb.name),
+      "idea" -> str(idea),
+      "root" -> str(kb.root.id),
+      "exportedAt" -> str(java.time.Instant.now.toString),
+      "opaques" -> strs(kb.nodes.flatMap(_.lifted).flatMap(_.opaques).distinct),
+      "params" -> JArr(kb.params.map(p => obj(
+        "name" -> str(p.name),
+        "type" -> str(kb.nodes.flatMap(_.lifted).flatMap(_.paramRefs).toMap.getOrElse(p.name, "")),
+        "assumption" -> p.assumption.fold(JNull)(a => str(a.source))
+      ))),
+      "types" -> JArr(kb.types.map(t => obj("name" -> str(t.name), "lean" -> str(t.lean)))),
+      "defs" -> JArr(kb.defs.map(d => obj("name" -> str(d.name), "source" -> str(d.lifted.source)))),
+      "nodes" -> JArr(kb.ordered.map(node))
+    )
+
+  /** Writes the snapshot to `.frflow/kb.json`. */
+  def writeSnapshot(): Path =
+    Files.createDirectories(ws.snapshotFile.getParent)
+    Files.writeString(ws.snapshotFile, snapshot.render() + "\n", UTF_8)
+    ws.snapshotFile

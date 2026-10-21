@@ -237,6 +237,12 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
     sb ++= s"theorem root$b : $rootStatement :=\n  $proofOfRoot\n\nend $K.${n.id}\n"
     sb.result()
 
+  /** The statement of the node's `root` theorem, as Lean source. */
+  def rootTheorem(n: Node[?]): String =
+    val t = theorems(n)
+    val from = t.indexOf("theorem root")
+    t.substring(from, t.indexOf(" :=", from))
+
   def auditedTheorems(n: Node[?]): List[String] = List(q(n, "root"))
 
   def audit(n: Node[?]): String =

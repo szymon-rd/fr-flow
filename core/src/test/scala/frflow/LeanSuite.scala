@@ -24,6 +24,8 @@ class LeanSuite extends munit.FunSuite:
     assertEquals(statuses(r), List("OnlyGood" -> "proven", "Listed" -> "proven", "Books" -> "proven", "Pick" -> "proven"))
     assert(r.flatMap(_._2.obligations).forall(_.detail == "auto"))
     assert(r.flatMap(_._2.axioms).forall(Lean.allowedAxioms))
+    val links = w.snapshot("nodes").get.arr.map(n => n("id").flatMap(_.str).get -> n("link").flatMap(_("detail")).flatMap(_.str))
+    assertEquals(links.toList, List("OnlyGood" -> None, "Listed" -> Some("auto"), "Books" -> Some("instantiation"), "Pick" -> Some("auto")))
   }
 
   test("a refinement that does not imply its parent is not accepted") {
