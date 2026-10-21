@@ -23,15 +23,13 @@ import frflow.Json.*
   * under review says it holds as it now is (recorded as a confirmation when only something above
   * it or its code moved, so the reason it was chosen stays); accepting a gone node agrees that it
   * is gone.
-  *
-  * A design decision depends on its own content and files, not on its ancestors.
   */
 object Decisions:
   private def s(j: Json, k: String): String = j(k).flatMap(_.str).getOrElse("")
   private def nodes(snapshot: Json): List[Json] = snapshot("nodes").map(_.arr.toList).getOrElse(Nil)
   private def byId(snapshot: Json): Map[String, Json] = nodes(snapshot).map(n => s(n, "id") -> n).toMap
   private def parentChain(snapshot: Json, n: Json): String =
-    if s(n, "kind") == "design" then "" else n("parent").flatMap(_.str).flatMap(byId(snapshot).get).fold("")(s(_, "chain"))
+    n("parent").flatMap(_.str).flatMap(byId(snapshot).get).fold("")(s(_, "chain"))
   private def code(n: Json): String = n("code").flatMap(_("fingerprint")).flatMap(_.str).getOrElse("")
   private def sha(parts: String*): String =
     java.security.MessageDigest.getInstance("SHA-256").digest(parts.mkString("\u0000").getBytes("UTF-8")).map("%02x".format(_)).mkString
@@ -64,7 +62,7 @@ object Decisions:
     def visit(n: Json, pc: String): Unit =
       val content0 = n("content").getOrElse(obj())
       val content = if s(n, "kind") == "root" then put("notModelled", str(notModelled))(put("idea", str(decided))(content0)) else content0
-      val ch = chain(content, if s(n, "kind") == "design" then "" else pc)
+      val ch = chain(content, pc)
       updated(s(n, "id")) = put("chain", str(ch))(put("hash", str(Decision.hash(content)))(put("content", content)(n)))
       ns.filter(_("parent").flatMap(_.str).contains(s(n, "id"))).foreach(visit(_, ch))
     ns.filter(_("parent").forall(_ == JNull)).foreach(visit(_, ""))

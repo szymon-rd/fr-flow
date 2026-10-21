@@ -11,7 +11,7 @@ import java.util.concurrent.Executors
 /** The FrFlow browser: where the developer reads the tree and makes decisions.
   *
   * The tree comes from `.frflow/kb.json`, written by the knowledge base's CLI from the
-  * Scala definitions. Open pages update when the snapshot, the event log, the
+  * Scala definitions. Open pages update when the snapshot, the ledger, the
   * requests or the sources change.
   *
   * {{{

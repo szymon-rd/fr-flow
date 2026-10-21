@@ -81,9 +81,10 @@ this way. It also keeps the code from drifting away from it.
 5. **After the developer decides,** delete the rejected nodes from the Scala
    code. Their statements and reasons are kept with the decision. Then
    `render`.
-6. **If you change an accepted node,** it shows as `changed`, with a diff, and
-   its descendants show as `parent-changed`. Explain the change in an answer
-   or in the node's `why`.
+6. **If you change an accepted node,** it goes back to `review` (cause
+   `self`), with a diff. If its meaning changed, its descendants go to
+   `review` too (cause `above`); rewording a `why` or adding an example does
+   not reach them. Explain the change in an answer or in the node's `why`.
    - **Replacing an accepted node:** propose the new node as its sibling. The
      developer can reject the old one when choosing.
    - **A change to an implementation or a governed file** puts the node up for

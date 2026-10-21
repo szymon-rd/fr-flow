@@ -101,7 +101,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     * What is not modelled is reviewed at the roots only: it narrows no node below them.
     */
   def chainHash(n: Node[?]): String =
-    Decisions.chain(content(n), if n.kind == NodeKind.Design then "" else n.parent.fold("")(chainHash))
+    Decisions.chain(content(n), n.parent.fold("")(chainHash))
 
   /** Files governed explicitly by some node. */
   private lazy val governedExplicitly: Set[Path] =

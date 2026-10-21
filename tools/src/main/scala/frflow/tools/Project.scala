@@ -21,9 +21,9 @@ final case class RunResult(command: List[String], exitCode: Int, output: String)
   * }}}
   *
   * The knowledge base is defined in Scala. Its CLI (`render`, `check`, ...) writes
-  * `.frflow/kb.json`, the snapshot of the definitions and the ledger, and appends to
-  * `.frflow/ledger.json` holds the developer's decisions. The tools never build the tree themselves: they run the
-  * CLI and read what it wrote. Requests (developer to agent) are kept here, in
+  * `.frflow/kb.json`, the snapshot of the definitions. `.frflow/ledger.json` holds the
+  * developer's decisions. The tools never build the tree themselves: they run the CLI
+  * and read what it wrote. Requests (developer to agent) are kept here, in
   * `.frflow/requests.json`.
   */
 final class Project(dir: Path):

@@ -100,7 +100,7 @@ aside { background: var(--panel); border-left: 1px solid var(--line); display: f
 .s-proven, .s-accepted, .s-ok { background: var(--proven-soft); color: var(--proven); }
 .s-open, .s-waiting, .s-review { background: var(--open-soft); color: var(--open); }
 .s-failed, .s-model-error, .s-bad { background: var(--failed-soft); color: var(--failed); }
-.s-not-checked, .s-stale, .s-rejected { background: var(--none-soft); color: var(--none); }
+.s-not-checked, .s-rejected { background: var(--none-soft); color: var(--none); }
 .s-proposed { background: var(--accent-soft); color: var(--accent); }
 .s-design, .s-removed { background: var(--none-soft); color: var(--muted); }
 svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
@@ -139,9 +139,9 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: va
 .box.open, .box.review { border-left-color: var(--open); background: color-mix(in srgb, var(--open-soft) 55%, transparent); }
 .box.failed { border-left-color: var(--failed); background: color-mix(in srgb, var(--failed-soft) 55%, transparent); }
 .box.proposed { border-left-color: var(--accent); background: color-mix(in srgb, var(--accent-soft) 55%, transparent); }
-.box.not-checked, .box.stale { border-left-color: var(--none); }
+.box.not-checked { border-left-color: var(--none); }
 .verdict { font-weight: 650; }
-.verdict.proven, .verdict.accepted { color: var(--proven); } .verdict.open, .verdict.changed, .verdict.parent-changed { color: var(--open); }
+.verdict.proven, .verdict.accepted { color: var(--proven); } .verdict.open { color: var(--open); }
 .verdict.failed { color: var(--failed); } .verdict.unchecked { color: var(--none); } .verdict.proposed { color: var(--accent); } .verdict.review { color: var(--open); }
 .side { margin-top: 10px; }
 .side .label b { color: var(--ink); }
@@ -502,7 +502,7 @@ function whatMoved(n) {
 // The decision: where the theory is built. The developer chooses, with a reason.
 function decisionBox(n) {
   const d = n.decision;
-  const parent = n.parent && n.kind !== "design" ? byId(n.parent) : null;
+  const parent = n.parent ? byId(n.parent) : null;
   const blocked = parent && parent.state !== "accepted";
   const confirms = (n.history || []).filter(h => h.action === "confirm" && (!d || h.at > d.at));
   const chosen = d ? `<div class="why"><div class="label">chosen by ${esc(d.by)} because</div>${esc(d.reason)}</div>
