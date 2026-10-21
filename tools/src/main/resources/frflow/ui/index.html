@@ -407,7 +407,17 @@ function renderPane() {
     t.innerHTML = t.dataset.tab[0].toUpperCase() + t.dataset.tab.slice(1) + (n ? `<span class="n">${n}</span>` : "");
   });
   if (!snap() && state.tab !== "idea") { $("#pane").innerHTML = ""; return; }
+  // A redraw (for example after a live update) keeps what the developer is typing or ticking.
+  const keep = state.tab === "node" && $("#reason") ? { node: state.selected, reason: $("#reason").value,
+    ticks: [...document.querySelectorAll("#pane input[type=checkbox]")].map(x => [x.className, x.value, x.checked]) } : null;
   $("#pane").innerHTML = { node: nodePane, inbox: inboxPane, idea: ideaPane, vocabulary: vocabularyPane, history: historyPane }[state.tab]();
+  if (keep && keep.node === state.selected) {
+    if ($("#reason")) $("#reason").value = keep.reason;
+    for (const [c, v, on] of keep.ticks) {
+      const el = [...document.querySelectorAll("#pane input[type=checkbox]")].find(x => x.className === c && x.value === v);
+      if (el) el.checked = on;
+    }
+  }
 }
 
 function code(label, src) { return src ? `<div class="side"><div class="label">${label}</div><pre>${esc(src)}</pre></div>` : ""; }
@@ -660,7 +670,7 @@ function markdown(src) {
 
 function ideaPane() {
   const s = snap();
-  if (state.editingIdea) return `<div class="muted small">IDEA.md. A change above “## Not modelled” puts the roots up for review; a change to what is not modelled puts only the roots up, since it narrows nothing below them.</div>
+  if (state.editingIdea) return `<div class="muted small">IDEA.md. A change puts the roots up for review. When you accept a root, tick the decisions below whose reasons the change may affect: they are reviewed again.</div>
     <textarea id="ideaText" rows="22" class="mono">${esc(s?.idea || "")}</textarea>
     <div class="actions"><button class="btn small primary" id="saveIdea">Save</button><button class="btn small" id="cancelIdea">Cancel</button></div>`;
   const roots = live().filter(n => !n.parent && n.kind === "root");
