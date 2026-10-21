@@ -36,13 +36,7 @@ final class Mcp(projects: List[Project]):
       "Expiring is simpler, Sliding keeps active users signed in. Choose in the browser.'",
       schema(project, "request" -> obj("type" -> str("string")), "text" -> obj("type" -> str("string")))("request", "text")),
     tool("scaffold", "Create lean/Proofs/<KB>/<NODE>.lean for an obligation frflow_auto did not prove. The proof must state " +
-      "exactly `Obl.link` and contain only tactics.", schema(project, node)("node")),
-    tool("tree", "The tree from the last snapshot, without running anything. Says if sources changed since.", schema(project)()),
-    tool("node", "One node from the last snapshot as JSON: statement, why, sources, examples and their results, decision " +
-      "with rejected alternatives, link, root theorem, generated Lean.", schema(project, node)("node")),
-    tool("status", "The tree with decisions, proofs and examples, computed from the current definitions.", schema(project)()),
-    tool("history", "The latest events (render, check, accept, scaffold), with who triggered them.",
-      schema(project, "limit" -> obj("type" -> str("integer")))())
+      "exactly `Obl.link` and contain only tactics.", schema(project, node)("node"))
   )
 
   private def projectOf(args: Json): Project = args("project").flatMap(_.str) match
@@ -63,13 +57,11 @@ final class Mcp(projects: List[Project]):
     val nodeArg = args("node").flatMap(_.str)
     nodeArg.filterNot(Project.Ident.matches).foreach(n => throw ToolError(s"not a node id: $n"))
     def need = nodeArg.getOrElse(throw ToolError("node is required"))
-    def snap = p.snapshot.getOrElse(throw ToolError("no snapshot yet; call render"))
     name match
       case "render" =>
         val (out, err) = run(p, List("render"))
-        if err then (out, true) else (out + p.snapshot.fold("")(s => "\n\n" + Project.tree(s)), false)
+        if err then (out, true) else (out + p.annotated.fold("")(s => "\n\n" + Project.tree(s)), false)
       case "check"              => run(p, "check" :: nodeArg.toList)
-      case "status"             => run(p, List("status"))
       case "context" | "scaffold" => run(p, List(name, need))
       case "answer" =>
         try
@@ -83,20 +75,13 @@ final class Mcp(projects: List[Project]):
           if open.isEmpty then List("No open requests.")
           else "Open requests from the developer:" :: open.map(r =>
             s"- [${f(r, "id")}] on ${if f(r, "node").isEmpty then "(the idea)" else f(r, "node")}: ${f(r, "text")}")
-        val rest = p.snapshot.fold(List("", "No snapshot yet; call render.")) { s =>
+        val rest = p.annotated.fold(List("", "No snapshot yet; call render.")) { s =>
           val (dev, agent) = Project.waiting(s)
           (if agent.isEmpty then Nil else "" :: "For you:" :: agent.map("- " + _)) ++
             (if dev.isEmpty then Nil else "" :: "Waiting for the developer's decision (in the browser):" :: dev.map("- " + _))
         }
-        ((reqs ++ rest).mkString("\n") + staleness(p), false)
-      case "tree" => (s"${snap("name").flatMap(_.str).getOrElse("")}\n\n${Project.tree(snap)}${staleness(p)}", false)
-      case "node" =>
-        val n = snap("nodes").map(_.arr).getOrElse(Nil).find(_("id").flatMap(_.str).contains(need))
-          .getOrElse(throw ToolError(s"unknown node $need"))
-        (n.render() + staleness(p), false)
-      case "history" =>
-        val es = p.events(args("limit").collect { case JNum(n) => n.toInt }.getOrElse(30))
-        (if es.isEmpty then "(no events yet)" else es.map(_.compact).mkString("\n"), false)
+        val tree = p.annotated.fold("")(s => "\n\nThe tree:\n" + Project.tree(s))
+        ((reqs ++ rest).mkString("\n") + tree + staleness(p), false)
       case other => throw ToolError(s"unknown tool $other")
 
   /** Handles one JSON-RPC message; None for notifications. */

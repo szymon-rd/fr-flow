@@ -36,12 +36,34 @@ final class Project(dir: Path):
   def eventsFile: Path = state.resolve("events.jsonl")
   def runningFile: Path = state.resolve("running.json")
   def requestsFile: Path = state.resolve("requests.json")
+  def ledgerFile: Path = state.resolve("ledger.json")
   def ideaFile: Path = root.resolve(config("idea").flatMap(_.str).getOrElse("IDEA.md"))
 
   private def readJson(p: Path): Option[Json] =
     try Some(Json.parse(Files.readString(p, UTF_8))) catch case _: Exception => None
 
   def snapshot: Option[Json] = readJson(snapshotFile)
+  def ledger: frflow.Ledger = frflow.Ledger.load(ledgerFile)
+
+  /** The snapshot with the developer's decisions, read now (see `frflow.Decisions`). */
+  def annotated: Option[Json] = snapshot.map(frflow.Decisions.annotate(_, ledger))
+
+  /** Records a developer's decision without running the CLI: the snapshot carries what is decided.
+    * Refused when the sources changed since the snapshot, since the decision would bind to stale content.
+    */
+  def decide(r: frflow.Decisions.Request, actor: String): Either[String, Unit] =
+    snapshot match
+      case None => Left("no snapshot yet: render first")
+      case Some(_) if sourcesChanged.nonEmpty => Left(s"the sources changed since the last render (${sourcesChanged.take(3).mkString(", ")}): render first")
+      case Some(snap) =>
+        Project.locked(state.resolve("ledger.lock")) {
+          frflow.Decisions.decide(snap, ledger, r, java.time.Instant.now.toString).map { (l, events) =>
+            frflow.Ledger.save(ledgerFile, l)
+            val lines = events.map(e => JObj(e.obj :+ ("actor" -> str(actor))).compact + "\n").mkString
+            Files.writeString(eventsFile, lines, UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND)
+            ()
+          }
+        }
   def running: Option[Json] = readJson(runningFile)
 
   def events(limit: Int = 0): List[Json] =
@@ -65,7 +87,7 @@ final class Project(dir: Path):
     }
 
   def addRequest(node: String, text: String, by: String): Json = updateRequests { rs =>
-    val r = obj("id" -> str(s"R${rs.size + 1}"), "node" -> str(node), "text" -> str(text), "by" -> str(by),
+    val r = obj("id" -> str(s"R${java.lang.Long.toString(System.currentTimeMillis, 36)}"), "node" -> str(node), "text" -> str(text), "by" -> str(by),
       "at" -> str(java.time.Instant.now.toString.take(19) + "Z"), "status" -> str("open"), "answer" -> str(""))
     (rs :+ r, r)
   }
@@ -97,7 +119,7 @@ final class Project(dir: Path):
 
   /** Changes whenever anything the browser shows changes. */
   def version: String =
-    (List(snapshotFile, eventsFile, runningFile, requestsFile) ++ sourceFiles).map { f =>
+    (List(snapshotFile, eventsFile, runningFile, requestsFile, ledgerFile) ++ sourceFiles).map { f =>
       if Files.exists(f) then s"$f:${Files.getLastModifiedTime(f).toMillis}:${Files.size(f)}" else s"$f:-"
     }.mkString("|")
 
@@ -136,7 +158,7 @@ final class Project(dir: Path):
 object Project:
   /** CLI commands, and whether an agent may run them. Deciding (`accept`) is the developer's. */
   val Commands: Map[String, Boolean] =
-    Map("render" -> true, "check" -> true, "status" -> true, "context" -> true, "scaffold" -> true, "accept" -> false)
+    Map("render" -> true, "check" -> true, "status" -> true, "context" -> true, "scaffold" -> true)
 
   val Ident: scala.util.matching.Regex = "[A-Za-z_][A-Za-z0-9_]*".r
 
@@ -173,7 +195,7 @@ object Project:
 
   private def s(j: Json, k: String): String = j(k).flatMap(_.str).getOrElse("")
 
-  /** A compact text tree of a snapshot: decision, link to parent, verification, examples. */
+  /** A compact text tree of an annotated snapshot: decision state, link to parent, examples. */
   def tree(snapshot: Json): String =
     val nodes = snapshot("nodes").map(_.arr.toList).getOrElse(Nil)
     def parent(n: Json) = n("parent").flatMap(_.str)
@@ -185,15 +207,19 @@ object Project:
       val ex = n("examples").map(_.arr.toList).getOrElse(Nil)
       val bad = ex.count(e => s(e, "contract") != "ok" || e("implementation").exists(i => i != JNull && !i.str.contains("ok")))
       val exs = if ex.isEmpty then "" else s", examples ${ex.size - bad}/${ex.size}"
-      s"${"  " * depth}${s(n, "id")} (${s(n, "kind")})  [${s(n, "decision")}, $link${s(n, "verification")}$exs]" ::
+      val code = if n("codeChanged").contains(JBool(true)) then ", code changed" else ""
+      s"${"  " * depth}${s(n, "id")} (${s(n, "kind")})  [${s(n, "state")}$code${if link.isEmpty then "" else ", " + link.stripSuffix(", ")}$exs]" ::
         nodes.filter(c => parent(c).contains(s(n, "id"))).flatMap(go(_, depth + 1))
-    nodes.filter(parent(_).isEmpty).flatMap(go(_, 0)).mkString("\n")
+    val removed = snapshot("removed").map(_.arr.toList).getOrElse(Nil).map(r => s"${s(r, "id")}  [removed from the model]")
+    (nodes.filter(parent(_).isEmpty).flatMap(go(_, 0)) ++ removed).mkString("\n")
 
-  /** What waits on whom: decisions for the developer, clean-up for the agent. */
+  /** What waits on whom, in an annotated snapshot: decisions for the developer, clean-up for the agent. */
   def waiting(snapshot: Json): (List[String], List[String]) =
     val nodes = snapshot("nodes").map(_.arr.toList).getOrElse(Nil)
-    val dev = nodes.filter(n => Set("proposed", "changed", "parent-changed")(s(n, "decision"))).map(n => s"${s(n, "id")}: ${s(n, "decision")}")
-    val agent = nodes.filter(n => s(n, "decision") == "rejected").map(n => s"${s(n, "id")}: rejected; remove it from the Scala model")
+    val dev = nodes.filter(n => Set("proposed", "changed", "parent-changed")(s(n, "state"))).map(n => s"${s(n, "id")}: ${s(n, "state")}") ++
+      nodes.filter(_("codeChanged").contains(JBool(true))).map(n => s"${s(n, "id")}: its code changed since it was decided") ++
+      snapshot("removed").map(_.arr.toList).getOrElse(Nil).map(r => s"${s(r, "id")}: removed from the model; confirm the removal")
+    val agent = nodes.filter(n => s(n, "state") == "rejected").map(n => s"${s(n, "id")}: rejected; remove it from the Scala model")
     (dev, agent)
 
   /** Projects at the given paths; a directory without `frflow.json` is searched one level down. */

@@ -25,6 +25,26 @@ private[frflow] object Lift:
 
   def leanType[T: Type](using Quotes): Expr[LeanType] = Translator().leanType[T]
 
+  /** The source files of the project code an expression refers to (an implementation's classes). */
+  def sourceFiles(e: Expr[Any])(using Quotes): Expr[List[String]] =
+    import quotes.reflect.*
+    val files = mutable.LinkedHashSet.empty[String]
+    def add(s: Symbol): Unit =
+      if !s.isNoSymbol then
+        s.pos.map(p => java.nio.file.Paths.get(p.sourceFile.path)).filter(java.nio.file.Files.isRegularFile(_))
+          .map(_.toAbsolutePath.normalize.toString).filter(_.endsWith(".scala")).foreach(files += _)
+    object T extends TreeTraverser:
+      override def traverseTree(t: Tree)(owner: Symbol): Unit =
+        t match
+          case r: Ref => add(r.symbol); add(r.symbol.owner)
+          case n: New => add(n.tpe.typeSymbol)
+          case _      => ()
+        super.traverseTree(t)(owner)
+    T.traverseTree(e.asTerm)(Symbol.spliceOwner)
+    add(e.asTerm.tpe.widen.typeSymbol)
+    val own = Some(java.nio.file.Paths.get(Position.ofMacroExpansion.sourceFile.path).toAbsolutePath.normalize.toString)
+    Expr(files.toList.filterNot(f => f.contains("/frflow/") && f.contains("/core/src/") || own.contains(f) && files.size > 1))
+
   def sources(xs: Expr[Seq[Any]])(using Quotes): Expr[List[String]] =
     import quotes.reflect.*
     def text(e: Expr[Any]) = e.asTerm.pos.sourceCode.getOrElse(e.show)
@@ -40,6 +60,7 @@ private final class Translator(using val quotes: Quotes):
   private val inProgress = mutable.Set.empty[String]
   private val deps = mutable.ListBuffer.empty[Term]
   private val paramTerms = mutable.ListBuffer.empty[Term]
+  private val opaqueTerms = mutable.LinkedHashMap.empty[String, Term]
   private val opaques = mutable.LinkedHashSet.empty[String]
   private val paramRefs = mutable.LinkedHashMap.empty[String, String]
 
@@ -60,9 +81,10 @@ private final class Translator(using val quotes: Quotes):
     val result = tpe(if ft.isFunctionType then ft.typeArgs.last else ft, term.pos)
     val depList = Expr.ofList(deps.toList.map(_.asExprOf[Def[?]]))
     val paramList = Expr.ofList(paramTerms.toList.map(_.asExprOf[Param[?]]))
+    val opaqueList = Expr.ofList(opaqueTerms.values.toList.map(_.asExprOf[Opaque]))
     '{
       new Lifted[F]($f, ${ Expr(params) }, ${ Expr(result) }, ${ Expr(body) }, ${ Expr(source(term.pos)) }, $typeList,
-        ${ Expr(opaques.toList) }, ${ Expr(paramRefs.toList) }, () => $depList, () => $paramList)
+        ${ Expr(opaques.toList) }, ${ Expr(paramRefs.toList) }, () => $depList, () => $paramList, () => $opaqueList)
     }
 
   def leanType[T: Type]: Expr[LeanType] =
@@ -142,6 +164,9 @@ private final class Translator(using val quotes: Quotes):
     else if isOpaque(t) then
       val n = opaqueName(t, pos)
       opaques += n
+      t match
+        case TypeRef(prefix: TermRef, _) if !opaqueTerms.contains(n) => opaqueTerms(n) = Ref.term(prefix)
+        case _ => ()
       n
     else if t =:= TypeRepr.of[Boolean] then "Prop"
     else if isInt(t) then "Int"
@@ -176,6 +201,9 @@ private final class Translator(using val quotes: Quotes):
   private def declare(sym: Symbol, pos: Position): String =
     val name = qualifiedName(sym)
     if !types.contains(name) && !inProgress(name) then
+      // Lean equality is structural; a class that redefines equality would mean something else at run time.
+      List("equals", "hashCode").flatMap(sym.declaredMethod).filterNot(_.flags.is(Flags.Synthetic)).foreach(m =>
+        fail(s"${sym.name} overrides ${m.name}: domain types must keep structural equality", pos))
       inProgress += name
       def field(cls: Symbol, f: Symbol): (String, TypeRepr) = (ident(f.name), cls.typeRef.memberType(f))
       val (lean, refs) =

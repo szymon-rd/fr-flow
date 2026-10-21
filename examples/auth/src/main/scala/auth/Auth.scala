@@ -6,9 +6,9 @@ import frflow.*
 // Root: the idea, with nothing assumed about users, resources or authorization
 // ============================================================================
 
-val User       = Opaque("User")
-val Resource   = Opaque("Resource")
-val authorized = Param[(User.T, Resource.T) => Boolean]("authorized")
+val User       = Opaque("User", "a person who uses the system")
+val Resource   = Opaque("Resource", "something a user may want to access")
+val authorized = Param[(User.T, Resource.T) => Boolean]("authorized", "whether the user is allowed the resource, by whatever rule the system adopts")
 
 /** Model: which users the system allows to access which resources. */
 val noUnauthorizedAccess = Node.root[(User.T, Resource.T) => Boolean](
@@ -21,8 +21,8 @@ val noUnauthorizedAccess = Node.root[(User.T, Resource.T) => Boolean](
 // Users are known only through tokens (still generic)
 // ============================================================================
 
-val Token  = Opaque("Token")
-val holder = Param[Token.T => Option[User.T]]("holder")
+val Token  = Opaque("Token", "what a user presents with a request, received at login")
+val holder = Param[Token.T => Option[User.T]]("holder", "the user a token was issued to, if it is a valid token")
 
 /** Model: the decision on a request, naming the user it grants access to, if any. */
 val authenticated = noUnauthorizedAccess.refine[(Token.T, Resource.T) => Option[User.T]](
@@ -42,8 +42,8 @@ final case class UserId(name: String)
 final case class Path(value: String)
 final case class Grant(user: UserId, path: Path)
 
-val grants   = Param[List[Grant]]("grants")
-val sessions = Param[String => Option[UserId]]("sessions")
+val grants   = Param[List[Grant]]("grants", "the grant table as stored when the request is decided")
+val sessions = Param[String => Option[UserId]]("sessions", "the session table as stored when the request is decided: token to user")
 
 val grantBased = authenticated.instantiate[(String, Path) => Option[UserId]](
   "GrantBased",
@@ -72,27 +72,26 @@ val decisionContract = grantBased.contract[String, Path, Option[UserId]](
     reject("t1", Path("/b"), Some(UserId("alice")), "access without a grant is never given"),
     reject("t2", Path("/a"), Some(UserId("alice")), "a token that is not Alice's never acts for her"))
 
+// ============================================================================
+// A design decision: no formal model, but decided and tracked like the rest
+// ============================================================================
+
+val inMemorySessions = decisionContract.design(
+  "InMemorySessions",
+  "Sessions and grants are held in memory, in one process; a decision is one map lookup and one set lookup.",
+  why = "One service decides access, and the tables fit in memory. A shared store would only be needed with several instances."
+)("src/main/scala/auth/SessionStore.scala")
+
 val knowledge = KnowledgeBase("Auth", idea = "IDEA.md")(
   noUnauthorizedAccess,
   authenticated,
   grantBased,
-  decisionContract
+  decisionContract,
+  inMemorySessions
 ).implement(decisionContract)(SessionStore(grants.value.toSet, sessions.value).decide)
 
-// ============================================================================
-// Implementation: plain Scala, attached to the contract
-// ============================================================================
-
-/** Any code and any data structures. */
-final class SessionStore(grantTable: Set[Grant], tokens: String => Option[UserId]):
-  def decide(token: String, path: Path): Option[UserId] =
-    tokens(token).filter(u => grantTable.contains(Grant(u, path)))
-
-/** The running decision: the implementation, with every result checked against the contract. */
+/** The running decision: the registered implementation, every result checked against the contract. */
 def service(grantTable: List[Grant], tokens: Map[String, UserId]): (String, Path) => Option[UserId] =
-  decisionContract.enforce(SessionStore(grantTable.toSet, tokens.get).decide)(
-    grants.bind(grantTable),
-    sessions.bind(t => tokens.get(t))
-  )
+  knowledge.service(decisionContract)(grants.bind(grantTable), sessions.bind(t => tokens.get(t)))
 
 @main def authCli(args: String*): Unit = sys.exit(knowledge.cli(args, root = "examples/auth"))

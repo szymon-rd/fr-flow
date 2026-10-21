@@ -3,8 +3,8 @@ package frflow.fixtures
 import frflow.*
 
 /** A small generic knowledge base: an opaque item with a parameter, refined, instantiated, contracted. */
-val Item = Opaque("Item")
-val good = Param[Item.T => Boolean]("good")
+val Item = Opaque("Item", "a thing that can be picked")
+val good = Param[Item.T => Boolean]("good", "whether an item is worth picking")
 
 /** Model: picking up to `n` items from a list. */
 val onlyGood = Node.root[(List[Item.T], Int) => List[Item.T]]("OnlyGood", "Only good items are picked.", why = "Picking a bad item is the failure the idea rules out.")(
@@ -19,7 +19,7 @@ enum Shelf:
   case Top, Bottom
   case Box(label: String)
 
-val minPages = Param[Int]("minPages")
+val minPages = Param[Int]("minPages", "the length readers asked for, from the settings")
 
 val books = listed.instantiate[(List[Book], Int) => List[Book]]("Books", "Items are books; a book is good when it is long enough.", why = "The shelf holds books, and length is what readers asked for.")(
   Item := of[Book],

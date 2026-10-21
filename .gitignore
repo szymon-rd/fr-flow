@@ -17,3 +17,8 @@ __pycache__/
 **/.frflow/requests.json
 **/.frflow/requests.lock
 **/.frflow/requests.json.tmp
+# Derived from the Scala model by render; not committed
+**/.frflow/checks.json
+**/.frflow/*.lock
+examples/*/lean/FrFlowGen/
+examples/*/lean/FrFlowAudit/

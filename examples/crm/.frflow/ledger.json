@@ -1,16 +1,17 @@
 {
-  "nodes": {
-    "Accounts": {
-      "decision": {
-        "hash": "d07d01fbacf2ac02104814bb818682632aeccd2b590c2c1e27b6ed05ef1c6f0a",
-        "chain": "088410e3980e8f33f343cab7e2b7f3f836cb15482c854797f109e11160243e26",
+  "decisions": {
+    "Accounts": [
+      {
+        "action": "accept",
         "by": "demo",
-        "at": "2026-10-21T20:07:30.707728726Z",
-        "note": "Records carry their company; the contract must therefore only return stored records.",
+        "at": "2026-10-21T20:46:17.617536784Z",
+        "reason": "Records carry their company; so the contract must only return stored records.",
         "rejected": [],
+        "chain": "5675b2eeefdb4a601c22f412802a4409c5a3c9a512e65061c25e9cbffaf9da4a",
+        "code": "",
         "content": {
           "statement": "Users are accounts of a company, records are contacts and deals, and sharing is a table of shares.",
-          "why": "A record belongs to the company stored on it, and a user to the company of their account. This trusts the record: ReadContract therefore requires returned records to be the stored ones.",
+          "why": "A record belongs to the company stored on it, and a user to the company of their account. This trusts the record, so ReadContract requires returned records to be the stored ones; it also trusts the account, which authentication provides (not modelled).",
           "sources": {},
           "substitutions": [
             "Tenant := TenantId",
@@ -21,30 +22,27 @@
             "owner := (r: CrmRecord) => r.tenant",
             "sharedWith := (r: CrmRecord, t: TenantId) => shares.value.contains(Share(r.id, t))"
           ],
-          "examples": []
+          "examples": [],
+          "uses": [
+            "structure TenantId where\n  value : String",
+            "structure Account where\n  email : String\n  tenant : TenantId",
+            "inductive Kind where\n  | Contact\n  | Deal",
+            "structure CrmRecord where\n  id : Int\n  tenant : TenantId\n  kind : Kind\n  title : String",
+            "structure Share where\n  record : Int\n  to : TenantId"
+          ],
+          "governs": []
         }
-      },
-      "check": {
-        "hash": "cb7c820ade5ede15fcf4e92428fba9b8bbefe3f3ace28be30784c54be2eaa917",
-        "status": "proven",
-        "at": "2026-10-21T20:03:46.820762527Z",
-        "obligations": [],
-        "messages": [],
-        "axioms": [
-          "Classical.choice",
-          "Quot.sound",
-          "propext"
-        ]
       }
-    },
-    "ReadApi": {
-      "decision": {
-        "hash": "a71c1c4b62d36219f2e64eec8f3fbf0ec92f2290624cc5e1b32da0a12cea58de",
-        "chain": "ad067a05a081d5e1394defead97ce03e7476ea198a581f9bf5361d12207b0ad7",
+    ],
+    "ReadApi": [
+      {
+        "action": "accept",
         "by": "demo",
-        "at": "2026-10-21T20:06:47.726478343Z",
-        "note": "Users only see records through searches.",
+        "at": "2026-10-21T20:46:17.268713567Z",
+        "reason": "Users only see records through searches; revisit if we add exports.",
         "rejected": [],
+        "chain": "6289d0f1317d97349a8049ffac0f979ee10773aedbc4138dae9b138c3a30d8b3",
+        "code": "",
         "content": {
           "statement": "Records are shown only as query results, and a query returns only records the user may see.",
           "why": "Users find records by searching, so what a user sees is what their queries return. abs: a user is shown a record when some query of theirs returns it.",
@@ -53,36 +51,23 @@
             "abs": "run => (u, r) => exists((q: Query.T) => run(u, q).contains(r))"
           },
           "substitutions": [],
-          "examples": []
+          "examples": [],
+          "uses": [
+            "fun (u : User) (r : Record) => (((owner r) = (tenantOf u)) ∨ (sharedWith r (tenantOf u)))"
+          ],
+          "governs": []
         }
-      },
-      "check": {
-        "hash": "3641aabfe13953f4d9bfbc68d0d6489aa21656445a7cf6c209c692ee4c36b079",
-        "status": "proven",
-        "at": "2026-10-21T20:03:45.014244955Z",
-        "obligations": [
-          {
-            "name": "link",
-            "status": "proven",
-            "detail": "auto"
-          }
-        ],
-        "messages": [],
-        "axioms": [
-          "Classical.choice",
-          "Quot.sound",
-          "propext"
-        ]
       }
-    },
-    "ReadContract": {
-      "decision": {
-        "hash": "1258520fbd1a5aee551ffb4fd347a301bfee3dd63cf6d56e48949f53fd60c4dd",
-        "chain": "1dfeb1e68cd2d90af50f90b6a237602f5d17595dbb509f4367cd3125c5e3e0da",
+    ],
+    "ReadContract": [
+      {
+        "action": "accept",
         "by": "demo",
-        "at": "2026-10-21T20:06:58.170388480Z",
-        "note": "Covers search by id, kind and everything, as the idea lists.",
+        "at": "2026-10-21T20:46:17.949088690Z",
+        "reason": "Covers search by id, by kind and everything, as the idea lists.",
         "rejected": [],
+        "chain": "2e8829cd693bb4b59cb44b59a55fb2a353fb7954109facf71e0d5ae46bb4544b",
+        "code": "b4f00609680cd0eac4982be68e91e7dc06085f70f026b9ab1ee1a9c51a465713",
         "content": {
           "statement": "A search returns stored records only, each of the user's company or shared with it.",
           "why": "Accounts, stated for one call. A returned record must be one of the stored records, so an implementation cannot relabel another company's record as the user's.",
@@ -91,41 +76,33 @@
           },
           "substitutions": [],
           "examples": [
-            "expect (Account(\"ann@acme\", TenantId(\"acme\")), Everything) ⇒ ::(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), List())  given store.bind(List(CrmRecord(1, TenantId(\"acme\"), Kind.Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Kind.Contact, \"Globex contact\"))), shares.bind(Nil)  — Ann lists everything she can see: Acme's deal",
-            "expect (Account(\"ann@acme\", TenantId(\"acme\")), ById(2)) ⇒ List()  given store.bind(List(CrmRecord(1, TenantId(\"acme\"), Kind.Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Kind.Contact, \"Globex contact\"))), shares.bind(Nil)  — Globex's contact is not shared with Acme",
-            "reject (Account(\"ann@acme\", TenantId(\"acme\")), ById(2)) ⇒ ::(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\"), List())  given store.bind(List(CrmRecord(1, TenantId(\"acme\"), Kind.Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Kind.Contact, \"Globex contact\"))), shares.bind(Nil)  — another company's record is never returned",
-            "reject (Account(\"ann@acme\", TenantId(\"acme\")), Everything) ⇒ ::(CrmRecord(2, TenantId(\"acme\"), Contact, \"Globex contact\"), List())  given store.bind(List(CrmRecord(1, TenantId(\"acme\"), Kind.Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Kind.Contact, \"Globex contact\"))), shares.bind(Nil)  — a record relabelled as Acme's is not a stored record",
-            "expect (Account(\"ann@acme\", TenantId(\"acme\")), OfKind(Contact)) ⇒ ::(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\"), List())  given store.bind(List(CrmRecord(2, TenantId(\"globex\"), Kind.Contact, \"Globex contact\"))), shares.bind(List(Share(2, TenantId(\"acme\"))))  — Globex shared its contact with Acme, so Ann finds it by kind"
-          ]
+            "expect (Account(\"ann@acme\", TenantId(\"acme\")), Everything) ⇒ ::(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), List())  given store = ::(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), ::(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\"), List())), shares = List()  — Ann lists everything she can see: Acme's deal",
+            "expect (Account(\"ann@acme\", TenantId(\"acme\")), ById(2)) ⇒ List()  given store = ::(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), ::(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\"), List())), shares = List()  — Globex's contact is not shared with Acme",
+            "reject (Account(\"ann@acme\", TenantId(\"acme\")), ById(2)) ⇒ ::(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\"), List())  given store = ::(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), ::(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\"), List())), shares = List()  — another company's record is never returned",
+            "reject (Account(\"ann@acme\", TenantId(\"acme\")), Everything) ⇒ ::(CrmRecord(2, TenantId(\"acme\"), Contact, \"Globex contact\"), List())  given store = ::(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), ::(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\"), List())), shares = List()  — a record relabelled as Acme's is not a stored record",
+            "expect (Account(\"ann@acme\", TenantId(\"acme\")), OfKind(Contact)) ⇒ ::(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\"), List())  given store = ::(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\"), List()), shares = ::(Share(2, TenantId(\"acme\")), List())  — Globex shared its contact with Acme, so Ann finds it by kind"
+          ],
+          "uses": [
+            "structure TenantId where\n  value : String",
+            "structure Account where\n  email : String\n  tenant : TenantId",
+            "inductive Kind where\n  | Contact\n  | Deal",
+            "inductive Search where\n  | ById (id : Int)\n  | OfKind (kind : Kind)\n  | Everything",
+            "structure CrmRecord where\n  id : Int\n  tenant : TenantId\n  kind : Kind\n  title : String",
+            "structure Share where\n  record : Int\n  to : TenantId"
+          ],
+          "governs": []
         }
-      },
-      "check": {
-        "hash": "6ab78bbcc125141b19597a3cd855726ff740062b1c1741fd83b72f06ed7ad194",
-        "status": "proven",
-        "at": "2026-10-21T20:03:55.611747568Z",
-        "obligations": [
-          {
-            "name": "link",
-            "status": "proven",
-            "detail": "auto"
-          }
-        ],
-        "messages": [],
-        "axioms": [
-          "Classical.choice",
-          "Quot.sound",
-          "propext"
-        ]
       }
-    },
-    "TenantIsolation": {
-      "decision": {
-        "hash": "a19abc24672fa1d41493f68a2ee5827d479ce13e709b5c1569b189c5c74ac6af",
-        "chain": "",
+    ],
+    "TenantIsolation": [
+      {
+        "action": "accept",
         "by": "demo",
-        "at": "2026-10-21T20:06:37.331463883Z",
-        "note": "Isolation between companies is the promise of a shared CRM.",
+        "at": "2026-10-21T20:46:16.915291345Z",
+        "reason": "Isolation between companies is the promise of a shared CRM.",
         "rejected": [],
+        "chain": "",
+        "code": "",
         "content": {
           "statement": "A user sees a record only if it belongs to their company or was shared with their company.",
           "why": "Isolation between companies is what the idea says must hold. Companies, users, records and sharing are left open.",
@@ -133,17 +110,14 @@
             "spec": "shows => forall((u: User.T, r: Record.T) => shows(u, r) ==> visible(u, r))"
           },
           "substitutions": [],
-          "examples": []
+          "examples": [],
+          "uses": [
+            "fun (u : User) (r : Record) => (((owner r) = (tenantOf u)) ∨ (sharedWith r (tenantOf u)))"
+          ],
+          "governs": [],
+          "idea": "# CRM\n\nMany companies use one CRM. Each company's users manage contacts and deals.\nA user may see a record only if it belongs to their company, or if the record's\ncompany has shared it with theirs. Users find records by id, by kind, or list\neverything they can see."
         }
-      },
-      "check": {
-        "hash": "3b91e48ba0ed7fdef83ee939f20dd53ba3eca5c21adc7f1abef4a51a9c41b1ba",
-        "status": "proven",
-        "at": "2026-10-21T20:03:40.877534955Z",
-        "obligations": [],
-        "messages": [],
-        "axioms": []
       }
-    }
+    ]
   }
 }

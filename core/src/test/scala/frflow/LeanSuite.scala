@@ -24,7 +24,7 @@ class LeanSuite extends munit.FunSuite:
     assertEquals(statuses(r), List("OnlyGood" -> "proven", "Listed" -> "proven", "Books" -> "proven", "Pick" -> "proven"))
     assert(r.flatMap(_._2.obligations).forall(_.detail == "auto"))
     assert(r.flatMap(_._2.axioms).forall(Lean.allowedAxioms))
-    val links = w.snapshot("nodes").get.arr.map(n => n("id").flatMap(_.str).get -> n("link").flatMap(_("detail")).flatMap(_.str))
+    val links = w.baseSnapshot("nodes").get.arr.map(n => n("id").flatMap(_.str).get -> n("link").flatMap(_("detail")).flatMap(_.str))
     assertEquals(links.toList, List("OnlyGood" -> None, "Listed" -> Some("auto"), "Books" -> Some("instantiation"), "Pick" -> Some("auto")))
   }
 
@@ -61,16 +61,10 @@ class LeanSuite extends munit.FunSuite:
     assertEquals(w.check(Some("Squares")).head._2.obligations.head.status, "failed")
   }
 
-  test("decisions are bound to what was decided, and to the decided parent") {
-    val w = workflow(shelfKb)
-    shelfKb.nodes.foreach(w.accept(_, "dev", "", Nil))
-    assert(shelfKb.nodes.forall(w.decision(_) == "accepted"))
-    val reworded = onlyGood.refine[(List[Item.T], Int) => List[Item.T]]("Listed", "Every picked item is in the list and is good.", why = "Same.")(
-      abs = pick => pick,
-      spec = pick => forall((l: List[Item.T], n: Int) => pick(l, n).forall(x => l.contains(x) && good(x))))
-    val books2 = reworded.instantiate[(List[Book], Int) => List[Book]]("Books", books.statement, books.why)(books.substs*)
-    val w2 = Workflow(KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, reworded, books2), w.ws)
-    assertEquals(w2.decision(onlyGood), "accepted")
-    assertEquals(w2.decision(reworded), "changed")
-    assertEquals(w2.decision(books2), "parent-changed")
+  test("a refinement whose abs alone makes the parent hold is vacuous") {
+    val vacuous = onlyGood.refine[(List[Item.T], Int) => List[Item.T]]("NoPick", "Nothing is ever wrong.", why = "w")(
+      abs = pick => (l, n) => Nil, spec = pick => true)
+    val r = workflow(KnowledgeBase("Vac", idea = "IDEA.md")(onlyGood, vacuous)).check()
+    assertEquals(statuses(r), List("OnlyGood" -> "proven", "NoPick" -> "failed"))
+    assert(r(1)._2.obligations.head.detail.startsWith("vacuous"), r(1)._2.obligations)
   }

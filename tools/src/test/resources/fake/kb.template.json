@@ -1,18 +1,21 @@
 {
  "name": "Fake",
  "idea": "# Fake\n\nAn idea with **bold** and `code`.\n\n- one\n- two\n",
- "root": "Root",
- "exportedAt": "2026-01-01T00:00:00Z",
  "roots": [
   "Root"
  ],
+ "exportedAt": "2026-01-01T00:00:00Z",
  "opaques": [
-  "T"
+  {
+   "name": "T",
+   "means": "a thing"
+  }
  ],
  "params": [
   {
    "name": "p",
-   "type": "(T → Prop)"
+   "means": "a number from the settings",
+   "type": "Int"
   }
  ],
  "types": [
@@ -27,44 +30,32 @@
    "id": "Root",
    "kind": "root",
    "statement": "Root statement, long enough to wrap onto a second line of the card.",
+   "why": "Because Root is the right step.",
    "parent": null,
    "sources": {
     "spec": "m => spec_Root(m)"
    },
    "substitutions": [],
-   "obligation": null,
-   "link": null,
-   "proof": null,
-   "rootTheorem": "theorem root : ∀ m, spec m → rootSpec (toRoot m)",
-   "lean": "-- generated",
-   "why": "Because Root is the right step.",
-   "decision": "accepted",
-   "decided": {
-    "by": "dev",
-    "at": "2026-01-01T00:00:00Z",
-    "note": "The idea's one rule.",
-    "content": {
-     "statement": "old statement",
-     "why": "old why",
-     "sources": {
-      "spec": "m => old(m)"
-     },
-     "substitutions": [],
-     "examples": []
-    },
-    "rejected": []
-   },
+   "examples": [],
+   "code": null,
    "content": {
-    "statement": "Root statement",
-    "why": "Because Root.",
+    "statement": "Root statement, long enough to wrap onto a second line of the card.",
+    "why": "Because Root is the right step.",
     "sources": {
      "spec": "m => spec_Root(m)"
     },
     "substitutions": [],
-    "examples": []
+    "examples": [],
+    "uses": [],
+    "governs": []
    },
-   "examples": [],
-   "verification": "proven",
+   "hash": "a9aa04a1d2f673e93f57d23764ae0a4718a4a849204302277813b10b776d3412",
+   "chain": "582b817e786c5c2f0a538b9ee7357afe13ede8c9041ebef0313868620310ce4a",
+   "link": null,
+   "obligation": null,
+   "proof": null,
+   "rootTheorem": "theorem root : ∀ m, spec m → rootSpec (toRoot m)",
+   "lean": "-- generated",
    "messages": [],
    "axioms": [
     "propext"
@@ -74,57 +65,38 @@
    "id": "Auto",
    "kind": "refine",
    "statement": "Auto statement, long enough to wrap onto a second line of the card.",
+   "why": "Because Auto is the right step.",
    "parent": "Root",
    "sources": {
-    "spec": "m => spec_Auto(m)",
-    "abs": "m => m"
+    "spec": "m => spec_Auto(m)"
    },
    "substitutions": [],
-   "obligation": {
-    "statement": "∀ m, spec m → Root.spec (abs m)",
-    "description": "Every model that meets Auto meets Root."
-   },
-   "link": {
-    "status": "proven",
-    "detail": "auto"
-   },
-   "proof": null,
-   "rootTheorem": "theorem root : ∀ m, spec m → rootSpec (toRoot m)",
-   "lean": "-- generated",
-   "why": "Because Auto is the right step.",
-   "decision": "accepted",
-   "decided": {
-    "by": "dev",
-    "at": "2026-01-01T00:00:00Z",
-    "note": "Simplest.",
-    "content": {
-     "statement": "old statement",
-     "why": "old why",
-     "sources": {
-      "spec": "m => old(m)"
-     },
-     "substitutions": [],
-     "examples": []
-    },
-    "rejected": [
-     {
-      "id": "Discarded",
-      "statement": "Discarded statement",
-      "why": "Discarded why"
-     }
-    ]
-   },
+   "examples": [],
+   "code": null,
    "content": {
-    "statement": "Auto statement",
-    "why": "Because Auto.",
+    "statement": "Auto statement, long enough to wrap onto a second line of the card.",
+    "why": "Because Auto is the right step.",
     "sources": {
      "spec": "m => spec_Auto(m)"
     },
     "substitutions": [],
-    "examples": []
+    "examples": [],
+    "uses": [],
+    "governs": []
    },
-   "examples": [],
-   "verification": "proven",
+   "hash": "13d383823e9dba1e5a36c32c8a796fef49e6fdc1faeeb7b52a3cfeca28438423",
+   "chain": "d4a31a1d2b757224e28beb4d891dec4dd614d74752b65dc995d49cf12a37a958",
+   "link": {
+    "status": "proven",
+    "detail": "auto"
+   },
+   "obligation": {
+    "statement": "∀ m, spec m → Root.spec (abs m)",
+    "description": "Every model that meets Auto meets Root."
+   },
+   "proof": null,
+   "rootTheorem": "theorem root : ∀ m, spec m → rootSpec (toRoot m)",
+   "lean": "-- generated",
    "messages": [],
    "axioms": [
     "propext"
@@ -134,6 +106,7 @@
    "id": "Inst",
    "kind": "instantiate",
    "statement": "Inst statement, long enough to wrap onto a second line of the card.",
+   "why": "Because Inst is the right step.",
    "parent": "Auto",
    "sources": {
     "spec": "m => spec_Inst(m)"
@@ -144,28 +117,72 @@
      "value": "of[Int]"
     }
    ],
-   "obligation": null,
-   "link": {
-    "status": "proven",
-    "detail": "instantiation"
-   },
-   "proof": null,
-   "rootTheorem": "theorem root : ∀ m, spec m → rootSpec (toRoot m)",
-   "lean": "-- generated",
-   "why": "Because Inst is the right step.",
-   "decision": "proposed",
-   "decided": null,
+   "examples": [],
+   "code": null,
    "content": {
-    "statement": "Inst statement",
-    "why": "Because Inst.",
+    "statement": "Inst statement, long enough to wrap onto a second line of the card.",
+    "why": "Because Inst is the right step.",
     "sources": {
      "spec": "m => spec_Inst(m)"
     },
     "substitutions": [],
-    "examples": []
+    "examples": [],
+    "uses": [],
+    "governs": []
    },
+   "hash": "d67436cb90575ca35a9ec0a6a789a02a2fd8e942d0c6cddd0588b093b7be32ae",
+   "chain": "70d2fb68cdb6604dd3fb95a76c70bced64c041e2c13ec0c2817e856645b9ab3d",
+   "link": {
+    "status": "proven",
+    "detail": "instantiation"
+   },
+   "obligation": null,
+   "proof": null,
+   "rootTheorem": "theorem root : ∀ m, spec m → rootSpec (toRoot m)",
+   "lean": "-- generated",
+   "messages": [],
+   "axioms": [
+    "propext"
+   ]
+  },
+  {
+   "id": "Inst2",
+   "kind": "instantiate",
+   "statement": "Inst2 statement, long enough to wrap onto a second line of the card.",
+   "why": "Because Inst2 is the right step.",
+   "parent": "Auto",
+   "sources": {
+    "spec": "m => spec_Inst2(m)"
+   },
+   "substitutions": [
+    {
+     "name": "T",
+     "value": "of[Int]"
+    }
+   ],
    "examples": [],
-   "verification": "proven",
+   "code": null,
+   "content": {
+    "statement": "Inst2 statement, long enough to wrap onto a second line of the card.",
+    "why": "Because Inst2 is the right step.",
+    "sources": {
+     "spec": "m => spec_Inst2(m)"
+    },
+    "substitutions": [],
+    "examples": [],
+    "uses": [],
+    "governs": []
+   },
+   "hash": "aa52b74eae5249fa23d51826d908619eb32489ca7b5b95c84d4a46e83e82d503",
+   "chain": "c0df348b1394421989381ad9e0d1ef71bd3797b589fb58c6eceeaf671f813266",
+   "link": {
+    "status": "proven",
+    "detail": "instantiation"
+   },
+   "obligation": null,
+   "proof": null,
+   "rootTheorem": "theorem root : ∀ m, spec m → rootSpec (toRoot m)",
+   "lean": "-- generated",
    "messages": [],
    "axioms": [
     "propext"
@@ -175,56 +192,17 @@
    "id": "Contract",
    "kind": "contract",
    "statement": "Contract statement, long enough to wrap onto a second line of the card.",
+   "why": "Because Contract is the right step.",
    "parent": "Inst",
    "sources": {
     "spec": "m => spec_Contract(m)"
    },
    "substitutions": [],
-   "obligation": {
-    "statement": "∀ m, spec m → Inst.spec (abs m)",
-    "description": "Every model that meets Contract meets Inst."
-   },
-   "link": {
-    "status": "proven",
-    "detail": "authored"
-   },
-   "proof": {
-    "file": "lean/Proofs/Fake/Contract.lean",
-    "source": "theorem link : Obl.link := by\n  simp"
-   },
-   "rootTheorem": "theorem root : ∀ m, spec m → rootSpec (toRoot m)",
-   "lean": "-- generated",
-   "why": "Because Contract is the right step.",
-   "decision": "changed",
-   "decided": {
-    "by": "dev",
-    "at": "2026-01-01T00:00:00Z",
-    "note": "first version",
-    "content": {
-     "statement": "old statement",
-     "why": "old why",
-     "sources": {
-      "spec": "m => old(m)"
-     },
-     "substitutions": [],
-     "examples": []
-    },
-    "rejected": []
-   },
-   "content": {
-    "statement": "Contract statement",
-    "why": "Because Contract.",
-    "sources": {
-     "spec": "m => spec_Contract(m)"
-    },
-    "substitutions": [],
-    "examples": []
-   },
    "examples": [
     {
      "note": "a good case",
      "given": [
-      "p.bind(1)"
+      "p = 1"
      ],
      "call": "(1, 2) ⇒ 3",
      "expected": true,
@@ -234,7 +212,7 @@
     {
      "note": "a bad case",
      "given": [
-      "p.bind(1)"
+      "p = 1"
      ],
      "call": "(1, 2) ⇒ 4",
      "expected": false,
@@ -244,7 +222,7 @@
     {
      "note": "lazy implementation",
      "given": [
-      "p.bind(1)"
+      "p = 1"
      ],
      "call": "(2, 2) ⇒ 4",
      "expected": true,
@@ -252,7 +230,39 @@
      "implementation": "returned 0"
     }
    ],
-   "verification": "proven",
+   "code": {
+    "files": [
+     "src/Impl.scala"
+    ],
+    "fingerprint": "f2"
+   },
+   "content": {
+    "statement": "Contract statement, long enough to wrap onto a second line of the card.",
+    "why": "Because Contract is the right step.",
+    "sources": {
+     "spec": "m => spec_Contract(m)"
+    },
+    "substitutions": [],
+    "examples": [],
+    "uses": [],
+    "governs": []
+   },
+   "hash": "37d4660b83fe2aebabfb8374fee6f8daead9bf37e3292fe45ee119e00dc7de4a",
+   "chain": "555ab85231032d0f652713a15e3592a66cac5626ebf64dc21294c46ea9408433",
+   "link": {
+    "status": "proven",
+    "detail": "authored"
+   },
+   "obligation": {
+    "statement": "∀ m, spec m → Inst.spec (abs m)",
+    "description": "Every model that meets Contract meets Inst."
+   },
+   "proof": {
+    "file": "lean/Proofs/Fake/Contract.lean",
+    "source": "theorem link : Obl.link := by\n  simp"
+   },
+   "rootTheorem": "theorem root : ∀ m, spec m → rootSpec (toRoot m)",
+   "lean": "-- generated",
    "messages": [],
    "axioms": [
     "propext"
@@ -262,37 +272,38 @@
    "id": "Open",
    "kind": "refine",
    "statement": "Open statement, long enough to wrap onto a second line of the card.",
+   "why": "Because Open is the right step.",
    "parent": "Root",
    "sources": {
-    "spec": "m => spec_Open(m)",
-    "abs": "m => m"
+    "spec": "m => spec_Open(m)"
    },
    "substitutions": [],
-   "obligation": {
-    "statement": "∀ m, spec m → Root.spec (abs m)",
-    "description": "Every model that meets Open meets Root."
-   },
-   "link": {
-    "status": "open",
-    "detail": "frflow_auto found no proof"
-   },
-   "proof": null,
-   "rootTheorem": "theorem root : ∀ m, spec m → rootSpec (toRoot m)",
-   "lean": "-- generated",
-   "why": "Because Open is the right step.",
-   "decision": "proposed",
-   "decided": null,
+   "examples": [],
+   "code": null,
    "content": {
-    "statement": "Open statement",
-    "why": "Because Open.",
+    "statement": "Open statement, long enough to wrap onto a second line of the card.",
+    "why": "Because Open is the right step.",
     "sources": {
      "spec": "m => spec_Open(m)"
     },
     "substitutions": [],
-    "examples": []
+    "examples": [],
+    "uses": [],
+    "governs": []
    },
-   "examples": [],
-   "verification": "open",
+   "hash": "3dd36b4c52a78c1d87bd3da4345d8b6c623f11c6ae16b753cb45ed41188575aa",
+   "chain": "97ac23e3da1d1e636cab89b69c38dc2f9a98f742ff7ab16c4baebd6597fb0545",
+   "link": {
+    "status": "open",
+    "detail": "frflow_auto found no proof"
+   },
+   "obligation": {
+    "statement": "∀ m, spec m → Root.spec (abs m)",
+    "description": "Every model that meets Open meets Root."
+   },
+   "proof": null,
+   "rootTheorem": "theorem root : ∀ m, spec m → rootSpec (toRoot m)",
+   "lean": "-- generated",
    "messages": [
     "prove it in lean/Proofs/Fake/Open.lean"
    ],
@@ -304,51 +315,38 @@
    "id": "Failed",
    "kind": "refine",
    "statement": "Failed statement, long enough to wrap onto a second line of the card.",
+   "why": "Because Failed is the right step.",
    "parent": "Auto",
    "sources": {
-    "spec": "m => spec_Failed(m)",
-    "abs": "m => m"
+    "spec": "m => spec_Failed(m)"
    },
    "substitutions": [],
-   "obligation": {
-    "statement": "∀ m, spec m → Auto.spec (abs m)",
-    "description": "Every model that meets Failed meets Auto."
-   },
-   "link": {
-    "status": "failed",
-    "detail": "must state exactly Obl.link"
-   },
-   "proof": null,
-   "rootTheorem": "theorem root : ∀ m, spec m → rootSpec (toRoot m)",
-   "lean": "-- generated",
-   "why": "Because Failed is the right step.",
-   "decision": "parent-changed",
-   "decided": {
-    "by": "dev",
-    "at": "2026-01-01T00:00:00Z",
-    "note": "",
-    "content": {
-     "statement": "old statement",
-     "why": "old why",
-     "sources": {
-      "spec": "m => old(m)"
-     },
-     "substitutions": [],
-     "examples": []
-    },
-    "rejected": []
-   },
+   "examples": [],
+   "code": null,
    "content": {
-    "statement": "Failed statement",
-    "why": "Because Failed.",
+    "statement": "Failed statement, long enough to wrap onto a second line of the card.",
+    "why": "Because Failed is the right step.",
     "sources": {
      "spec": "m => spec_Failed(m)"
     },
     "substitutions": [],
-    "examples": []
+    "examples": [],
+    "uses": [],
+    "governs": []
    },
-   "examples": [],
-   "verification": "failed",
+   "hash": "3af91f2fa0c5b6da05b0efa1cc10524b6a7b37ec5e6fa7b071f5e6782f8f3773",
+   "chain": "0ef7ebe976d63a70796db5a10a0a0d52fb88c5fd55b0b5337b01c64ea8fd3f35",
+   "link": {
+    "status": "failed",
+    "detail": "must state exactly Obl.link"
+   },
+   "obligation": {
+    "statement": "∀ m, spec m → Auto.spec (abs m)",
+    "description": "Every model that meets Failed meets Auto."
+   },
+   "proof": null,
+   "rootTheorem": "theorem root : ∀ m, spec m → rootSpec (toRoot m)",
+   "lean": "-- generated",
    "messages": [],
    "axioms": [
     "propext"
@@ -358,78 +356,38 @@
    "id": "Stale",
    "kind": "refine",
    "statement": "Stale statement, long enough to wrap onto a second line of the card.",
+   "why": "Because Stale is the right step.",
    "parent": "Root",
    "sources": {
-    "spec": "m => spec_Stale(m)",
-    "abs": "m => m"
+    "spec": "m => spec_Stale(m)"
    },
    "substitutions": [],
-   "obligation": {
-    "statement": "∀ m, spec m → Root.spec (abs m)",
-    "description": "Every model that meets Stale meets Root."
-   },
-   "link": {
-    "status": "stale",
-    "detail": ""
-   },
-   "proof": null,
-   "rootTheorem": "theorem root : ∀ m, spec m → rootSpec (toRoot m)",
-   "lean": "-- generated",
-   "why": "Because Stale is the right step.",
-   "decision": "rejected",
-   "decided": null,
+   "examples": [],
+   "code": null,
    "content": {
-    "statement": "Stale statement",
-    "why": "Because Stale.",
+    "statement": "Stale statement, long enough to wrap onto a second line of the card.",
+    "why": "Because Stale is the right step.",
     "sources": {
      "spec": "m => spec_Stale(m)"
     },
     "substitutions": [],
-    "examples": []
+    "examples": [],
+    "uses": [],
+    "governs": []
    },
-   "examples": [],
-   "verification": "stale",
-   "messages": [],
-   "axioms": [
-    "propext"
-   ]
-  },
-  {
-   "id": "Inst2",
-   "kind": "instantiate",
-   "statement": "Inst2 statement, long enough to wrap onto a second line of the card.",
-   "parent": "Auto",
-   "sources": {
-    "spec": "m => spec_Inst2(m)"
-   },
-   "substitutions": [
-    {
-     "name": "T",
-     "value": "of[Int]"
-    }
-   ],
-   "obligation": null,
+   "hash": "88e6609e56575766cef8eb26071a9e36b0a1a6c43e8c2d35fb865b832a79ab8d",
+   "chain": "3bd258bf1504aac0782a6b7c6f9fed2cbac36da2e5c802f8c8180e59e510b0ce",
    "link": {
-    "status": "proven",
-    "detail": "instantiation"
+    "status": "stale",
+    "detail": ""
+   },
+   "obligation": {
+    "statement": "∀ m, spec m → Root.spec (abs m)",
+    "description": "Every model that meets Stale meets Root."
    },
    "proof": null,
    "rootTheorem": "theorem root : ∀ m, spec m → rootSpec (toRoot m)",
    "lean": "-- generated",
-   "why": "Because Inst2 is the right step.",
-   "decision": "proposed",
-   "decided": null,
-   "content": {
-    "statement": "Inst2 statement",
-    "why": "Because Inst2.",
-    "sources": {
-     "spec": "m => spec_Inst2(m)"
-    },
-    "substitutions": [],
-    "examples": []
-   },
-   "examples": [],
-   "verification": "proven",
    "messages": [],
    "axioms": [
     "propext"

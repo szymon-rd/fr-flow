@@ -8,4 +8,5 @@ everything they can see.
 ## Not modelled
 
 - Who may create or remove a share.
+- That the account a search runs for is the caller's own (authentication).
 - Writing records.

@@ -56,7 +56,7 @@ class NodeSuite extends munit.FunSuite:
     assert(KnowledgeBase("K", "IDEA.md")(onlyGood, noWhy).problems.exists(_.contains("say why")))
     val other = Node.root[Int => Int]("Other", "s", "w")(f => true)
     assertEquals(KnowledgeBase("K", "IDEA.md")(onlyGood, other).problems, Nil)
-    val m = Param[Int]("m")
+    val m = Param[Int]("m", "a bound")
     val clash = Node.root[Int => Int]("Clash", "s", "w")(f => forall((x: Int) => f(x) >= m.value))
     assert(KnowledgeBase("K", "IDEA.md")(clash).problems.exists(_.contains("reserved")))
   }
@@ -80,5 +80,7 @@ class NodeSuite extends munit.FunSuite:
     val ok = Generate(squareKb).proofFile(squares).replace("sorry", "simp")
     assertEquals(Lean.violations(ok), Nil)
     val bad = "import Lean\nrun_cmd do pure ()\nset_option debug.skipKernelTC true\nattribute [simp] foo\n#eval 1\ntheorem link : Obl.link := by simp\n"
-    assertEquals(Lean.violations(bad).map(_._2), List("import", "metaprogram", "set_option", "attribute", "metaprogram"))
+    assertEquals(Lean.violations(bad).map(_._2).toSet,
+      Set("import", "command run_cmd", "metaprogram", "set_option", "command attribute", "attribute", "command #eval"))
+    assert(Lean.violations("set_option\n  debug.skipKernelTC true\n").nonEmpty)
   }

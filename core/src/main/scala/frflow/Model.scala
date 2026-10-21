@@ -4,10 +4,12 @@ package frflow
   * definition and theorem that mentions it.
   *
   * {{{
-  * val User = Opaque("User")      // use the type as User.T
+  * val User = Opaque("User", "a person with an account")      // use the type as User.T
   * }}}
+  *
+  * @param means what it stands for in the world: part of the theory
   */
-final class Opaque(val name: String):
+final class Opaque(val name: String, val means: String):
   type T
 
   /** Fixes this type, in `instantiate`. */
@@ -17,10 +19,12 @@ final class Opaque(val name: String):
   * parameter: everything proven holds for every value of it.
   *
   * {{{
-  * val authorized = Param[(User.T, Resource.T) => Boolean]("authorized")
+  * val authorized = Param[(User.T, Resource.T) => Boolean]("authorized", "whether the user may access the resource")
   * }}}
+  *
+  * @param means what it stands for in the world, and where its value comes from: part of the theory
   */
-final class Param[A](val name: String):
+final class Param[A](val name: String, val means: String):
 
   /** The value bound at run time (see `Node.enforce`). */
   def value: A = Bindings.get(this)
@@ -84,10 +88,12 @@ final class Lifted[+F](
     val opaques: List[String],
     val paramRefs: List[(String, String)],
     defsThunk: () => List[Def[?]],
-    paramsThunk: () => List[Param[?]]
+    paramsThunk: () => List[Param[?]],
+    opaquesThunk: () => List[Opaque] = () => Nil
 ):
   def defs: List[Def[?]] = defsThunk()
   def paramObjects: List[Param[?]] = paramsThunk()
+  def opaqueObjects: List[Opaque] = opaquesThunk()
 
   def lean: String =
     if params.isEmpty then body else s"fun ${params.map((n, t) => s"($n : $t)").mkString(" ")} => $body"
@@ -97,6 +103,9 @@ final class Lifted[+F](
 object Lifted:
   /** Translates a Scala lambda over the domain. Unsupported Scala is a compile error. */
   inline def apply[F](inline f: F): Lifted[F] = ${ Lift.lifted('f) }
+
+  /** The project source files an expression refers to (used to notice implementation changes). */
+  inline def sourceFiles(inline x: Any): List[String] = ${ Lift.sourceFiles('x) }
 
   /** The source text of each argument (used for what examples are given). */
   inline def sources(inline xs: Any*): List[String] = ${ Lift.sources('xs) }

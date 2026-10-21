@@ -18,6 +18,8 @@ final class Lake(dir: Path, timeoutSeconds: Long = 900):
 
   def build(target: String): Run = run(Seq(lake, "build", target))
   def elaborate(file: String): Run = run(Seq(lake, "env", "lean", file))
+  /** Replays a built module's declarations through the kernel. */
+  def replay(module: String): Run = run(Seq(lake, "env", "leanchecker", module))
   def available: Boolean =
     try ProcessBuilder(lake, "--version").redirectErrorStream(true).start().waitFor() == 0
     catch case _: java.io.IOException => false
@@ -74,9 +76,9 @@ object Lean:
     "axiom" -> """\baxiom\b""".r, "admit" -> """\badmit\b""".r, "unsafe" -> """\bunsafe\b""".r,
     "opaque" -> """\bopaque\b""".r, "implemented_by" -> """\bimplemented_by\b""".r, "extern" -> """@\[\s*extern\b""".r,
     "native_decide" -> """\bnative_decide\b""".r,
-    "set_option" -> """\bset_option\s+(?!maxHeartbeats\b|maxRecDepth\b|autoImplicit\b|linter\.)""".r,
+    "set_option" -> """\bset_option\b(?!\s+(maxHeartbeats\b|maxRecDepth\b|autoImplicit\b|linter\.))""".r,
     "metaprogram" -> """(#eval|#exit|\brun_cmd\b|\brun_tac\b|\belab\b|\bmacro\b|\bmacro_rules\b|\bsyntax\b|\binitialize\b|\bbuiltin_initialize\b|\belab_rules\b)""".r,
-    "attribute" -> """\battribute\b""".r,
+    "attribute" -> """\battribute\b|@\[""".r,
     "import" -> """^\s*import\s+(?!FrFlowGen\.|FrFlow\b|Std\b|Init\b)""".r
   )
 
@@ -105,9 +107,14 @@ object Lean:
       else { sb += c; i += 1 }
     sb.result()
 
+  /** Commands a proof file may contain; anything else starting a line is rejected. */
+  val allowedCommands: Set[String] = Set("import", "set_option", "open", "namespace", "end", "section", "noncomputable", "theorem")
+
   def violations(src: String): List[(Int, String)] =
     code(src).linesIterator.zipWithIndex.toList.flatMap { (l, i) =>
-      forbidden.collect { case (what, re) if re.findFirstIn(l).isDefined => (i + 1, what) }
+      val word = l.takeWhile(c => !c.isWhitespace)
+      val command = if l.nonEmpty && !l.head.isWhitespace && !allowedCommands(word) then List((i + 1, s"command ${word.take(30)}")) else Nil
+      command ++ forbidden.collect { case (what, re) if re.findFirstIn(l).isDefined => (i + 1, what) }
     }
 
   private val Command = """(?m)^(?:@\[[^\]]*\]\s*)?(?:private\s+|protected\s+|noncomputable\s+)*(theorem|lemma|def|abbrev|instance|example|axiom|structure|inductive|namespace|section|end|open|variable|set_option|attribute|#\w+)\b""".r

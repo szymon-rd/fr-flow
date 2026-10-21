@@ -83,7 +83,8 @@ aside { background: var(--panel); border-left: 1px solid var(--line); display: f
         padding: 9px 11px; box-shadow: var(--shadow); cursor: pointer; transition: opacity .15s, border-color .15s; }
 .card:hover { border-color: var(--accent); }
 .card.proposed { border-style: dashed; border-width: 2px; border-color: var(--accent); background: color-mix(in srgb, var(--accent-soft) 45%, var(--panel)); }
-.card.changed, .card.parent-changed { border-color: var(--open); }
+.card.changed, .card.parent-changed, .card.code { border-color: var(--open); }
+.card.design { background: var(--soft); }
 .card.selected { box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow); border-color: var(--accent); }
 .card.dim { opacity: .55; }
 .card .top { display: flex; align-items: center; gap: 6px; }
@@ -101,12 +102,14 @@ aside { background: var(--panel); border-left: 1px solid var(--line); display: f
 .s-failed, .s-model-error, .s-bad { background: var(--failed-soft); color: var(--failed); }
 .s-not-checked, .s-stale, .s-rejected { background: var(--none-soft); color: var(--none); }
 .s-proposed { background: var(--accent-soft); color: var(--accent); }
+.s-design, .s-removed { background: var(--none-soft); color: var(--muted); }
 svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
 path.edge { fill: none; stroke-width: 2.2; transition: opacity .15s; }
 path.edge.proven { stroke: var(--proven); }
 path.edge.open { stroke: var(--open); stroke-dasharray: 7 5; }
 path.edge.failed { stroke: var(--failed); stroke-dasharray: 3 4; }
 path.edge.not-checked, path.edge.stale { stroke: var(--none); stroke-dasharray: 2 5; }
+path.edge.design { stroke: var(--line); stroke-width: 2; }
 path.edge.onpath { stroke-width: 4; }
 path.glow { fill: none; stroke: var(--proven); stroke-width: 10; opacity: .14; }
 path.edge.dim, path.glow.dim { opacity: .3; }
@@ -115,7 +118,7 @@ path.edge.dim, path.glow.dim { opacity: .3; }
 .elabel.proven { color: var(--proven); border-color: color-mix(in srgb, var(--proven) 45%, transparent); }
 .elabel.open { color: var(--open); border-color: color-mix(in srgb, var(--open) 45%, transparent); }
 .elabel.failed { color: var(--failed); border-color: color-mix(in srgb, var(--failed) 45%, transparent); }
-.elabel.not-checked, .elabel.stale { color: var(--none); }
+.elabel.not-checked, .elabel.stale, .elabel.design { color: var(--none); }
 .elabel.dim { opacity: .45; }
 .legend { position: sticky; left: 12px; bottom: 12px; display: inline-flex; gap: 14px; flex-wrap: wrap; background: var(--panel);
           border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 12px; color: var(--muted); margin: 0 12px 12px; }
@@ -144,6 +147,8 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: va
 .side .label b { color: var(--ink); }
 .option { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-top: 8px; background: var(--panel); }
 .option.this { border-color: var(--accent); }
+.option label { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+.warn-text { color: var(--open); font-size: 12.5px; margin-top: 6px; }
 .option .head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .diff { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .diff pre.old { border-color: color-mix(in srgb, var(--failed) 35%, transparent); }
@@ -198,6 +203,7 @@ details summary { cursor: pointer; color: var(--muted); margin-top: 18px; }
     <div id="canvas"></div>
     <div class="legend">
       <span><span class="box"></span>proposed: waiting for your decision</span>
+      <span><span class="box" style="border-style:solid;border-color:var(--open)"></span>changed: review it</span>
       <span><i style="border-color:var(--proven)"></i>link proven</span>
       <span><i style="border-color:var(--open);border-top-style:dashed"></i>open</span>
       <span><i style="border-color:var(--failed);border-top-style:dotted"></i>failed</span>
@@ -256,46 +262,44 @@ async function refresh() {
   loading = (async () => {
     const [data, events, job] = await Promise.all([api(`${P()}/kb`), api(`${P()}/events?limit=300`), api(`${P()}/job`)]);
     state.data = data; state.events = events; state.job = job;
-    const nodes = live();
-    if (!nodes.some(n => n.id === state.selected)) state.selected = (firstWaiting() || nodes[0])?.id || null;
+    if (!live().some(n => n.id === state.selected)) state.selected = (waitingForYou()[0] || live()[0])?.id || null;
     render();
   })().finally(() => { loading = null; });
   return loading;
 }
 
+let pendingRefresh = false;
+const typing = () => ["TEXTAREA", "INPUT"].includes(document.activeElement?.tagName) && document.activeElement.id !== "me" && document.activeElement.value;
 function listen() {
   const es = new EventSource("/api/stream");
   let t = null;
   es.onmessage = () => { clearTimeout(t); t = setTimeout(() => { if (!typing()) refresh(); else pendingRefresh = true; }, 150); };
 }
-// do not re-render under the developer's cursor
-let pendingRefresh = false;
-const typing = () => ["TEXTAREA", "INPUT"].includes(document.activeElement?.tagName) && document.activeElement.id !== "me" && document.activeElement.value;
 document.addEventListener("focusout", () => setTimeout(() => { if (pendingRefresh && !typing()) { pendingRefresh = false; refresh(); } }, 200));
 
 // --- model helpers ----------------------------------------------------------
 
 const snap = () => state.data?.snapshot;
 const all = () => snap()?.nodes || [];
-const live = () => all().filter(n => n.decision !== "rejected");
+const live = () => all().filter(n => n.state !== "rejected");
 const byId = id => all().find(n => n.id === id);
 const children = id => live().filter(n => n.parent === id);
 function pathTo(id) { const out = []; let n = byId(id); while (n) { out.unshift(n); n = n.parent ? byId(n.parent) : null; } return out; }
-const linkStatus = n => n.link?.status || "not-checked";
-const waitingForYou = () => live().filter(n => ["proposed", "changed", "parent-changed"].includes(n.decision));
-const firstWaiting = () => waitingForYou()[0];
-const alternatives = n => live().filter(m => m.parent === n.parent && m.id !== n.id && m.decision === "proposed");
+const linkStatus = n => n.link?.status || (n.parent ? "not-checked" : "root");
+const needsYou = n => ["proposed", "changed", "parent-changed"].includes(n.state) || n.codeChanged;
+const waitingForYou = () => live().filter(needsYou);
+const removed = () => snap()?.removed || [];
+const siblings = n => live().filter(m => m.parent === n.parent && m.id !== n.id && m.kind !== "design");
 const requests = () => state.data?.requests || [];
-const openRequests = () => requests().filter(r => r.status === "open");
 const me = () => $("#me").value.trim();
 const examplesBad = n => (n.examples || []).filter(e => e.contract !== "ok" || (e.implementation && e.implementation !== "ok"));
+const pathProven = n => pathTo(n.id).slice(1).every(p => ["proven", "design"].includes(linkStatus(p)));
 function linkLabel(n) {
   const s = linkStatus(n), d = n.link?.detail;
   if (s === "proven") return "✓ " + (d === "instantiation" ? "instantiation" : d === "authored" ? "proof" : "auto");
-  return { open: "open", failed: "✗ failed", stale: "stale", "not-checked": "not checked" }[s] || s;
+  return { open: "open", failed: "✗ failed", stale: "stale", "not-checked": "not checked", design: "design" }[s] || s;
 }
-const decisionLabel = { proposed: "proposed", accepted: "accepted", changed: "changed since accepted", "parent-changed": "parent changed", rejected: "rejected" };
-const shortLabel = { proposed: "proposed", accepted: "accepted", changed: "changed", "parent-changed": "parent changed", rejected: "rejected" };
+const stateLabel = { proposed: "proposed", accepted: "accepted", changed: "changed", "parent-changed": "parent changed", rejected: "rejected" };
 
 // --- rendering --------------------------------------------------------------
 
@@ -308,7 +312,7 @@ function render() {
   $("#running").classList.toggle("show", !!running);
   $("#runningText").textContent = running ? `${running.actor === "agent" ? "agent" : "running"}: ${running.args.join(" ")}` : "";
   document.querySelectorAll("[data-run]").forEach(b => b.disabled = !!running);
-  const w = waitingForYou().length;
+  const w = waitingForYou().length + removed().length;
   $("#waitingPill").classList.toggle("show", w > 0);
   $("#waitingPill").textContent = `${w} waiting for your decision`;
   if (!s) {
@@ -317,10 +321,10 @@ function render() {
     renderPane(); renderJob();
     return;
   }
-  const nodes = live(), links = nodes.filter(n => n.parent);
+  const nodes = live(), links = nodes.filter(n => n.parent && n.kind !== "design");
   const proven = links.filter(n => linkStatus(n) === "proven").length;
-  const accepted = nodes.filter(n => n.decision === "accepted").length;
-  $("#summary").innerHTML = `${esc(s.name)} · <b>${accepted}/${nodes.length}</b> accepted · <b>${proven}/${links.length}</b> links proven · rendered ${ago(s.exportedAt)}`;
+  const accepted = nodes.filter(n => n.state === "accepted").length;
+  $("#summary").innerHTML = `${esc(s.name)} · <b>${accepted}/${nodes.length}</b> decided · <b>${proven}/${links.length}</b> links proven · rendered ${ago(s.exportedAt)}`;
   renderTree(); renderPane(); renderJob();
   history.replaceState(null, "", `#${encodeURIComponent(state.project)}/${encodeURIComponent(state.selected || "")}`);
 }
@@ -334,6 +338,13 @@ function ago(iso) {
 }
 
 const W = 220, H = 104, GX = 24, GY = 70;
+
+function chips(n) {
+  const bad = examplesBad(n).length, ex = (n.examples || []).length;
+  return `<span class="chip s-${n.state}">${esc(stateLabel[n.state])}</span>
+    ${n.codeChanged ? `<span class="chip s-changed" title="the code it governs changed">code changed</span>` : ""}
+    ${ex ? `<span class="chip ${bad ? "s-bad" : "s-ok"}" title="examples">examples ${ex - bad}/${ex}</span>` : ""}`;
+}
 
 function renderTree() {
   const canvas = $("#canvas");
@@ -350,7 +361,6 @@ function renderTree() {
   const width = Math.max(...ps.map(p => p.x)) + W, height = Math.max(...ps.map(p => p.y)) + H;
   const onPath = new Set(state.selected ? pathTo(state.selected).map(n => n.id) : []);
   const dimOthers = onPath.size > 1;
-
   let svg = "", labels = "", cards = "";
   for (const n of live()) {
     if (!n.parent || !pos[n.parent] || !pos[n.id]) continue;
@@ -364,14 +374,11 @@ function renderTree() {
   }
   for (const n of live()) {
     const p = pos[n.id]; if (!p) continue;
-    const bad = examplesBad(n).length, ex = (n.examples || []).length;
-    const cls = ["card", n.decision, n.id === state.selected ? "selected" : "", dimOthers && !onPath.has(n.id) ? "dim" : ""].join(" ");
+    const cls = ["card", n.state, n.kind === "design" ? "design" : "", n.codeChanged ? "code" : "", n.id === state.selected ? "selected" : "", dimOthers && !onPath.has(n.id) ? "dim" : ""].join(" ");
     cards += `<div class="${cls}" data-node="${esc(n.id)}" style="left:${p.x}px;top:${p.y}px;height:${H}px">
       <div class="top"><span class="kind ${n.kind}">${esc(n.kind)}</span><span class="id" title="${esc(n.id)}">${esc(n.id)}</span></div>
       <div class="stmt" title="${esc(n.statement)}">${esc(n.statement)}</div>
-      <div class="chips"><span class="chip s-${n.decision}">${esc(shortLabel[n.decision])}</span>
-        <span class="chip s-${n.verification}">${esc(n.verification)}</span>
-        ${ex ? `<span class="chip ${bad ? "s-bad" : "s-ok"}" title="examples">ex ${ex - bad}/${ex}</span>` : ""}</div>
+      <div class="chips">${chips(n)}</div>
     </div>`;
   }
   canvas.style.width = width + "px"; canvas.style.height = height + "px";
@@ -388,7 +395,7 @@ function renderJob() {
 }
 
 function renderPane() {
-  const counts = { inbox: waitingForYou().length + requests().filter(r => r.status === "answered").length };
+  const counts = { inbox: waitingForYou().length + removed().length + requests().filter(r => r.status === "answered").length };
   document.querySelectorAll(".tab").forEach(t => {
     t.classList.toggle("active", t.dataset.tab === state.tab);
     const n = counts[t.dataset.tab];
@@ -419,81 +426,99 @@ function verdict(n) {
   return "Not checked yet.";
 }
 
-function chips(n) {
-  const bad = examplesBad(n).length, ex = (n.examples || []).length;
-  return `<span class="chip s-${n.decision}">${esc(decisionLabel[n.decision])}</span>
-    <span class="chip s-${n.verification}">${esc(n.verification)}</span>
-    ${ex ? `<span class="chip ${bad ? "s-bad" : "s-ok"}">examples ${ex - bad}/${ex}</span>` : ""}`;
-}
-
-// The decision: the heart of the page. The developer chooses, the reason is kept.
-function decisionBox(n) {
-  const d = n.decided, alts = alternatives(n);
-  const nameField = `<input type="text" class="who" placeholder="your name" value="${esc(me())}" size="10">`;
-  if (n.decision === "proposed") {
-    const opts = [n, ...alts];
-    return `<div class="box proposed"><div class="verdict proposed">${alts.length ? `Choose one of ${opts.length} proposals` : "Proposed: accept it, or ask for changes"}</div>
-      <div class="muted small">Your choice and your reason are kept. ${alts.length ? "The others are kept as rejected alternatives." : ""}</div>
-      ${opts.map(o => `<div class="option ${o.id === n.id ? "this" : ""}">
-        <div class="head"><b><a data-goto="${esc(o.id)}">${esc(o.id)}</a></b>${chips(o)}</div>
-        <div style="margin-top:4px">${esc(o.statement)}</div>
-        <div class="why"><div class="label">why</div>${esc(o.why)}</div>
-        <div class="actions"><button class="btn small primary" data-accept="${esc(o.id)}" data-reject="${esc(opts.filter(x => x.id !== o.id).map(x => x.id).join(","))}">${alts.length ? "Choose" : "Accept"} ${esc(o.id)}</button></div>
-      </div>`).join("")}
-      <div class="side"><div class="label">your reason (kept with the decision)</div><textarea id="note" rows="2" placeholder="Why this one?"></textarea></div>
-    </div>`;
-  }
-  if (n.decision === "changed") {
-    return `<div class="box changed"><div class="verdict changed">Changed since ${esc(d.by)} accepted it</div>
-      <div class="muted small">Accepted ${new Date(d.at).toLocaleString()}${d.note ? ` — “${esc(d.note)}”` : ""}. What changed:</div>
-      ${diff(d.content, n.content)}
-      <div class="side"><div class="label">your reason for the change</div><textarea id="note" rows="2"></textarea></div>
-      <div class="actions"><button class="btn small primary" data-accept="${esc(n.id)}" data-reject="">Accept the change</button>
-        <span class="muted small">or ask the agent below to revert or rework it</span></div></div>`;
-  }
-  if (n.decision === "parent-changed") {
-    const changed = pathTo(n.id).slice(0, -1).find(a => a.decision !== "accepted");
-    return `<div class="box parent-changed"><div class="verdict parent-changed">${changed ? `<a data-goto="${esc(changed.id)}">${esc(changed.id)}</a> changed` : "An ancestor changed"} since this was accepted</div>
-      <div class="muted small">Is this node still the right specialization? Accepted by ${esc(d.by)}${d.note ? ` — “${esc(d.note)}”` : ""}.</div>
-      <div class="actions"><button class="btn small primary" data-accept="${esc(n.id)}" data-reject="" data-keepnote="1">Still valid</button>
-        <span class="muted small">or ask the agent to rework it</span></div></div>`;
-  }
-  // accepted
-  return `<div class="box accepted"><div class="verdict accepted">Accepted by ${esc(d.by)}</div>
-    <div class="muted small">${new Date(d.at).toLocaleString()}</div>
-    ${d.note ? `<div class="why"><div class="label">reason for the choice</div>${esc(d.note)}</div>` : ""}
-    ${d.rejected.length ? `<div class="side"><div class="label">rejected alternatives</div>${d.rejected.map(r =>
-      `<div class="option"><b>${esc(r.id)}</b> — ${esc(r.statement)}<div class="muted small">${esc(r.why)}</div></div>`).join("")}</div>` : ""}
-  </div>`;
-}
+const reasonBox = (placeholder, value = "") =>
+  `<div class="side"><div class="label">your reason (required; kept as part of the theory)</div><textarea id="reason" rows="2" placeholder="${esc(placeholder)}">${esc(value)}</textarea></div>`;
 
 function diff(old, cur) {
   const flat = c => ({
-    statement: c.statement, why: c.why,
-    ...Object.fromEntries(Object.entries(c.sources || {}).map(([k, v]) => [k, v])),
+    statement: c.statement, why: c.why, idea: c.idea,
+    ...Object.fromEntries(Object.entries(c.sources || {})),
     substitutions: (c.substitutions || []).join("\n"), examples: (c.examples || []).join("\n"),
+    "definitions used": (c.uses || []).join("\n\n"), governs: (c.governs || []).join("\n"),
   });
   const a = flat(old || {}), b = flat(cur || {});
   const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])].filter(k => (a[k] || "") !== (b[k] || ""));
-  if (!keys.length) return `<div class="muted small">Only the generated Lean or a definition it uses changed.</div>`;
-  return keys.map(k => `<div class="side"><div class="label">${esc(k)}</div><div class="diff">
+  if (!keys.length) return `<div class="muted small">No difference in what was decided.</div>`;
+  return keys.map(k => `<div class="side"><div class="label">${esc(k)}: before → now</div><div class="diff">
     <pre class="old">${esc(a[k] || "—")}</pre><pre class="new">${esc(b[k] || "—")}</pre></div></div>`).join("");
 }
 
+function warnings(n) {
+  const w = [];
+  if (n.kind !== "design" && n.parent && linkStatus(n) !== "proven") w.push(`its link is ${linkStatus(n)}`);
+  if (examplesBad(n).length) w.push(`${examplesBad(n).length} example(s) fail`);
+  return w;
+}
+
+// The decision: where the theory is built. The developer chooses, with a reason.
+function decisionBox(n) {
+  const d = n.decision;
+  const parent = n.parent ? byId(n.parent) : null;
+  if (parent && parent.state !== "accepted" && n.state !== "accepted")
+    return `<div class="box"><div class="muted">Decide <a data-goto="${esc(parent.id)}">${esc(parent.id)}</a> first: the tree is decided from the root down.</div></div>`;
+  if (n.state === "proposed") {
+    const others = siblings(n);
+    const warn = warnings(n);
+    return `<div class="box proposed"><div class="verdict proposed">${others.some(o => o.state === "proposed") ? "Choose between the proposals" : "Proposed"}</div>
+      <div class="muted small">Read the statement, the reason and the examples above. Choosing keeps your reason; what you reject is kept as an alternative.</div>
+      ${others.length ? `<div class="side"><div class="label">alternatives at this level — tick the ones this choice replaces</div>${others.map(o => `<div class="option">
+        <div class="head"><a data-goto="${esc(o.id)}"><b>${esc(o.id)}</b></a>${chips(o)}</div>
+        <div class="small" style="margin-top:4px">${esc(o.statement)}</div><div class="muted small">${esc(o.why)}</div>
+        <label><input type="checkbox" class="rej" value="${esc(o.id)}" ${o.state === "proposed" ? "checked" : ""}> reject ${esc(o.id)}${o.state === "accepted" ? " (replaces an accepted node)" : ""}</label></div>`).join("")}</div>` : ""}
+      ${warn.length ? `<div class="warn-text">Note: ${esc(warn.join("; "))}.</div>` : ""}
+      ${reasonBox("Why this one? What would make you revisit it?")}
+      <div class="actions"><button class="btn small primary" data-decide="accept">Choose ${esc(n.id)}</button>
+        <span class="muted small">or ask the agent below for something else</span></div></div>`;
+  }
+  if (n.state === "changed") {
+    return `<div class="box changed"><div class="verdict changed">Changed since ${esc(d?.by)} chose it</div>
+      <div class="muted small">Chosen ${d ? new Date(d.at).toLocaleString() : ""}${d?.reason ? ` because “${esc(d.reason)}”` : ""}.</div>
+      ${diff(d?.content, n.content)}
+      ${reasonBox("Why is the change right?")}
+      <div class="actions"><button class="btn small primary" data-decide="accept">Accept the change</button>
+        <span class="muted small">or ask the agent below to revert or rework it</span></div></div>`;
+  }
+  if (n.state === "parent-changed") {
+    const changed = pathTo(n.id).slice(0, -1).reverse().find(a => a.state !== "accepted" || (a.decision && d && a.decision.at > d.at)) || parent;
+    const prev = (changed?.history || []).filter(h => h.action === "accept" || h.action === "confirm");
+    const before = prev.length > 1 ? prev[prev.length - 2].content : null;
+    return `<div class="box parent-changed"><div class="verdict parent-changed">${changed ? `<a data-goto="${esc(changed.id)}">${esc(changed.id)}</a> changed` : "An ancestor changed"} since this was chosen</div>
+      <div class="muted small">Does ${esc(n.id)} still specialize it as intended? Chosen by ${esc(d?.by)}${d?.reason ? ` because “${esc(d.reason)}”` : ""}.</div>
+      ${before ? diff(before, changed.content) : ""}
+      ${reasonBox("Why does it still hold?", "")}
+      <div class="actions"><button class="btn small primary" data-decide="confirm">Still valid</button>
+        <button class="btn small" data-decide="confirm" data-subtree="1">Still valid, with everything below</button></div></div>`;
+  }
+  // accepted
+  const alts = n.alternatives || [];
+  const hist = (n.history || []).slice(0, -1);
+  return `<div class="box accepted"><div class="verdict accepted">Chosen by ${esc(d?.by)}</div>
+    <div class="muted small">${d ? new Date(d.at).toLocaleString() : ""}</div>
+    ${d?.reason ? `<div class="why"><div class="label">chosen because</div>${esc(d.reason)}</div>` : ""}
+    ${alts.length ? `<div class="side"><div class="label">rejected alternatives</div>${alts.map(r =>
+      `<div class="option"><b>${esc(r.id)}</b> — ${esc(r.content?.statement)}<div class="muted small">${esc(r.content?.why)}</div></div>`).join("")}</div>` : ""}
+    ${n.codeChanged ? `<div class="box changed" style="margin-top:10px"><div class="verdict changed">The code it governs changed since it was chosen</div>
+      <div class="muted small">${esc((n.code?.files || []).join(", "))}. The examples ${examplesBad(n).length ? "fail" : "still pass"}.</div>
+      ${reasonBox("Why does the decision still hold?")}
+      <div class="actions"><button class="btn small primary" data-decide="confirm">Still valid</button></div></div>` : ""}
+    ${hist.length ? `<details><summary>${hist.length} earlier decision(s)</summary>${hist.map(h =>
+      `<div class="small" style="margin-top:6px"><b>${esc(h.action)}</b> by ${esc(h.by)} — ${esc(h.reason)} <span class="muted">${new Date(h.at).toLocaleString()}</span></div>`).join("")}</details>` : ""}
+  </div>`;
+}
+
 function examplesTable(n) {
-  if (!(n.examples || []).length) return n.kind === "contract"
-    ? `<h3>Examples</h3><div class="muted small">No examples yet. Without them, a contract that refuses everything looks as good as a useful one. Ask the agent for some below.</div>` : "";
-  const res = r => r === "ok" ? `<span class="chip s-ok">ok</span>` : r ? `<span class="chip s-bad">${esc(r)}</span>` : `<span class="muted small">no implementation</span>`;
+  if (!(n.examples || []).length) return "";
+  const res = (r, expected) => r === "ok" ? `<span class="chip s-ok">${expected ? "accepted ✓" : "refused ✓"}</span>` : r ? `<span class="chip s-bad">${esc(r)}</span>` : `<span class="muted small">—</span>`;
   let rows = "", given = null;
   for (const e of n.examples) {
     const g = e.given.join(", ");
     if (g !== given) { given = g; rows += `<tr><td colspan="4" class="mono muted small" style="padding-top:10px">given ${esc(g)}</td></tr>`; }
     rows += `<tr><td><span class="chip ${e.expected ? "s-ok" : "s-not-checked"}">${e.expected ? "expect" : "reject"}</span></td>
       <td>${esc(e.note)}<div class="mono muted">${esc(e.call)}</div></td>
-      <td>${res(e.contract)}</td><td>${e.expected ? res(e.implementation) : `<span class="muted small">—</span>`}</td></tr>`;
+      <td>${res(e.contract, e.expected)}</td><td>${e.expected ? (e.implementation === "ok" ? `<span class="chip s-ok">returns it ✓</span>` : res(e.implementation, true)) : `<span class="muted small">—</span>`}</td></tr>`;
   }
-  return `<h3>Examples</h3><div class="muted small">What this node means in concrete cases. "expect": the contract accepts it and the implementation returns it. "reject": the contract refuses it.</div>
-    <table><tr><th></th><th>case</th><th>contract</th><th>impl.</th></tr>${rows}</table>`;
+  return `<h3>Examples</h3><div class="muted small">What this contract means in concrete cases, checked against the contract and against the implementation.</div>
+    <table><tr><th></th><th>case</th><th>contract</th><th>implementation</th></tr>${rows}</table>`;
 }
 
 function requestsFor(node) {
@@ -514,16 +539,17 @@ function nodePane() {
   const n = byId(state.selected);
   if (!n) return `<p class="muted">Select a node.</p>`;
   const parent = n.parent ? byId(n.parent) : null;
-  const path = pathTo(n.id), ls = linkStatus(n);
+  const ls = linkStatus(n);
   let h = `<div style="display:flex;align-items:center;gap:8px"><span class="kind ${n.kind}">${esc(n.kind)}</span><h2>${esc(n.id)}</h2></div>
     <div class="chips" style="margin-top:6px">${chips(n)}</div>
     <p class="lead">${esc(n.statement)}</p>
-    <div class="why"><div class="label">why (the agent's reason for this node)</div>${esc(n.why)}</div>
-    <h3>Decision</h3>${decisionBox(n)}
+    <div class="why"><div class="label">proposed because</div>${esc(n.why)}</div>
     ${examplesTable(n)}`;
-
-  if (!parent) {
-    h += `<h3>Root</h3><div class="box"><div class="muted">The idea stated as a theorem. Every node below is proven to imply it.</div>${code("spec", n.sources.spec)}</div>`;
+  if (n.kind === "design") {
+    h += `<h3>Design decision</h3><div class="box"><div class="muted small">No formal model: decided and tracked like the rest. It governs:</div>
+      <pre>${esc((n.code?.files || []).join("\n") || "—")}</pre></div>`;
+  } else if (!parent) {
+    h += `<h3>Root</h3><div class="box"><div class="muted">One concern of the idea, stated as a theorem. Every node below is proven to imply it.</div>${code("spec", n.sources.spec)}</div>`;
   } else {
     h += `<h3>Link to parent</h3><div class="box ${ls}">
       <div class="verdict ${ls}">${verdict(n)}</div>
@@ -531,35 +557,38 @@ function nodePane() {
         <div style="margin-top:2px">${esc(parent.statement)}</div>
         ${parent.sources.spec ? `<pre>${esc(parent.sources.spec)}</pre>` : parent.kind === "instantiate" ? `<div class="muted small">its spec is its parent's, instantiated</div>` : ""}</div>
       <div class="side"><div class="label">this node <b>${esc(n.id)}</b></div>${modelOf(n)}</div>
-      ${n.obligation ? `<div class="side"><div class="label">obligation — ${esc(n.obligation.description)}</div><pre>${esc(n.obligation.statement)}</pre></div>` : ""}
+      ${n.code ? `<div class="side"><div class="label">implementation</div><div class="mono small">${esc(n.code.files.join(", "))}</div></div>` : ""}
       ${n.proof ? `<details><summary>authored proof — ${esc(n.proof.file)}</summary><pre>${esc(n.proof.source)}</pre></details>` : ""}
     </div>`;
   }
-  h += `<h3>Root theorem</h3><div class="muted small">${n.verification === "proven" ? "Holds: every link from the root to this node is proven."
-      : "Holds once every link on the path is proven."}</div>
-    <div class="chain">${path.map((p, i) => (i ? `<span class="arrow ${linkStatus(p)}">${linkStatus(p) === "proven" ? "⟵✓" : "⟵?"}</span>` : "") +
-      `<a data-goto="${esc(p.id)}">${esc(p.id)}</a>`).join("")}</div>
-    <pre>${esc(n.rootTheorem)}</pre>`;
+  h += `<h3>Decision</h3>${decisionBox(n)}`;
   if (n.messages.length) h += `<h3>Messages</h3><pre>${esc(n.messages.join("\n\n"))}</pre>`;
   h += `<h3>Ask the agent</h3>${requestsFor(n.id)}
     ${askBox(n.id, n.kind === "contract" ? "e.g. Add an example: a revoked grant refuses access." : "e.g. Propose how to refine this: tokens expire after an hour.")}
     <div class="actions">
-      <button class="btn small" data-run="check" data-arg="${esc(n.id)}">Check this node</button>
+      ${n.kind !== "design" ? `<button class="btn small" data-run="check" data-arg="${esc(n.id)}">Check this node</button>` : ""}
       ${ls === "open" && !n.proof && n.obligation ? `<button class="btn small" data-run="scaffold" data-arg="${esc(n.id)}">Create proof file</button>` : ""}
-    </div>
-    <details><summary>Generated Lean</summary><pre>${esc(n.lean)}</pre></details>
-    ${n.axioms.length ? `<details><summary>Axioms</summary><pre>${esc(n.axioms.join("\n"))}</pre></details>` : ""}`;
+    </div>`;
+  if (n.kind !== "design") h += `<details><summary>Root theorem — ${pathProven(n) ? "holds: every link from the root is proven" : "holds once every link on the path is proven"}</summary>
+      <div class="chain">${pathTo(n.id).map((p, i) => (i ? `<span class="arrow ${linkStatus(p)}">${linkStatus(p) === "proven" ? "⟵✓" : "⟵?"}</span>` : "") +
+        `<a data-goto="${esc(p.id)}">${esc(p.id)}</a>`).join("")}</div><pre>${esc(n.rootTheorem)}</pre></details>
+    ${n.obligation ? `<details><summary>Obligation in Lean</summary><pre>${esc(n.obligation.statement)}</pre></details>` : ""}
+    <details><summary>Generated Lean</summary><pre>${esc(n.lean)}</pre></details>`;
   return h;
 }
 
 function inboxPane() {
   const w = waitingForYou();
   const answered = requests().filter(r => r.status === "answered");
-  const open = openRequests();
-  const rejected = all().filter(n => n.decision === "rejected");
+  const open = requests().filter(r => r.status === "open");
+  const rejected = all().filter(n => n.state === "rejected");
   return `<h3 style="margin-top:0">Waiting for your decision</h3>${w.length ? w.map(n =>
-      `<div class="req"><a data-goto="${esc(n.id)}"><b>${esc(n.id)}</b></a> <span class="chip s-${n.decision}">${esc(decisionLabel[n.decision])}</span>
-       <div class="small">${esc(n.statement)}</div></div>`).join("") : `<div class="muted small">Nothing. Every node is accepted.</div>`}
+      `<div class="req"><a data-goto="${esc(n.id)}"><b>${esc(n.id)}</b></a> ${chips(n)}<div class="small">${esc(n.statement)}</div></div>`).join("")
+      : removed().length ? "" : `<div class="muted small">Nothing. Every node is decided.</div>`}
+    ${removed().map(r => `<div class="req"><b>${esc(r.id)}</b> <span class="chip s-removed">removed from the model</span>
+      <div class="small">${esc(r.decision?.content?.statement)}</div>
+      <textarea class="removal" data-node="${esc(r.id)}" rows="1" placeholder="Why is it gone?"></textarea>
+      <div class="actions"><button class="btn small primary" data-remove="${esc(r.id)}">Confirm the removal</button></div></div>`).join("")}
     <h3>Answered by the agent</h3>${answered.length ? answered.map(r => `<div class="req"><div class="small">on ${r.node ? `<a data-goto="${esc(r.node)}">${esc(r.node)}</a>` : "the idea"}</div>
       <div>${esc(r.text)}</div><div class="answer small"><span class="muted">agent:</span> ${esc(r.answer)}</div>
       <div class="actions"><button class="btn small" data-close="${esc(r.id)}">Done</button></div></div>`).join("") : `<div class="muted small">None.</div>`}
@@ -587,30 +616,29 @@ function markdown(src) {
 
 function ideaPane() {
   const s = snap();
-  if (state.editingIdea) return `<div class="muted small">IDEA.md. Saving renders again; every root is then re-checked against the new idea, and its decision must be confirmed.</div>
+  if (state.editingIdea) return `<div class="muted small">IDEA.md. Saving renders again. A change to the idea above “## Not modelled” asks you to confirm the roots; the list of what is not modelled can change freely.</div>
     <textarea id="ideaText" rows="22" class="mono">${esc(s?.idea || "")}</textarea>
     <div class="actions"><button class="btn small primary" id="saveIdea">Save and render</button><button class="btn small" id="cancelIdea">Cancel</button></div>`;
-  const roots = live().filter(n => !n.parent);
-  return `<div class="actions" style="margin-top:0"><span class="muted small">Roots: ${roots.map(r => `<a data-goto="${esc(r.id)}">${esc(r.id)}</a>`).join(", ") || "none"}</span>
+  const roots = live().filter(n => !n.parent && n.kind === "root");
+  return `<div class="actions" style="margin-top:0"><span class="muted small">Roots, one concern each: ${roots.map(r => `<a data-goto="${esc(r.id)}">${esc(r.id)}</a>`).join(", ") || "none"}</span>
       <span class="spacer"></span><button class="btn small" id="editIdea">Edit</button></div>
     <div class="md">${markdown(s?.idea || "*No idea file.*")}</div>
-    <div class="muted small">List what the tree deliberately leaves out under a “Not modelled” heading, so the limits of the theory are explicit.</div>`;
+    <div class="muted small">List what the tree deliberately leaves out under “## Not modelled”, so the limits of the theory are explicit.</div>`;
 }
 
 function domainPane() {
   const s = snap();
-  return `<h3 style="margin-top:0">Opaque types</h3><div class="muted small">Types with no assumed structure; type parameters in Lean.</div>
-    <div class="chips" style="margin-top:6px">${s.opaques.map(o => `<span class="chip s-not-checked mono">${esc(o)}</span>`).join("") || "<span class='muted'>none</span>"}</div>
-    <h3>Parameters</h3><div class="muted small">Values left open: everything proven holds for every value of them.</div>
-    <table><tr><th>name</th><th>Lean type</th></tr>${s.params.map(p =>
-      `<tr><td class="mono">${esc(p.name)}</td><td class="mono">${esc(p.type)}</td></tr>`).join("")}</table>
+  return `<h3 style="margin-top:0">Vocabulary</h3><div class="muted small">The open terms of the model and what they mean in the world. Everything proven holds for every meaning a term could have; instantiations fix them.</div>
+    <table><tr><th>term</th><th>means</th><th>Lean type</th></tr>
+    ${s.opaques.map(o => `<tr><td class="mono">${esc(o.name)}</td><td>${esc(o.means)}</td><td class="mono muted">Type</td></tr>`).join("")}
+    ${s.params.map(p => `<tr><td class="mono">${esc(p.name)}</td><td>${esc(p.means)}</td><td class="mono muted">${esc(p.type)}</td></tr>`).join("")}</table>
     <h3>Domain types</h3>${s.types.map(t => `<pre>${esc(t.lean)}</pre>`).join("") || "<span class='muted'>none</span>"}
     <h3>Definitions</h3>${s.defs.map(d => `<div class="side"><div class="label"><b>${esc(d.name)}</b></div><pre>${esc(d.source)}</pre></div>`).join("") || "<span class='muted'>none</span>"}`;
 }
 
 function eventRow(e) {
   const extra = e.status ? ` → <span class="chip s-${esc(e.status)}">${esc(e.status)}</span>`
-    : e.action === "accept" ? ` by ${esc(e.by)}${(e.rejected || []).length ? `, rejecting ${esc(e.rejected.join(", "))}` : ""}${e.note ? ` — “${esc(e.note)}”` : ""}`
+    : ["accept", "confirm", "reject", "remove"].includes(e.action) ? ` by ${esc(e.by)}${(e.rejected || []).length ? `, rejecting ${esc(e.rejected.join(", "))}` : ""}${e.reason ? ` — “${esc(e.reason)}”` : ""}`
     : e.changed !== undefined ? ` (${esc(e.changed)} files changed)` : "";
   const target = e.node ? ` <a data-goto="${esc(e.node)}">${esc(e.node)}</a>` : "";
   return `<div class="event"><span class="d ${esc(e.status || e.action)}"></span><div><b>${esc(e.action)}</b>${target}${extra}
@@ -625,19 +653,17 @@ function historyPane() {
 // --- actions ----------------------------------------------------------------
 
 async function run(args) {
-  try {
-    state.jobOpen = true;
-    state.job = await post(`${P()}/run`, { args });
-    render();
-  } catch (e) { alert(e.message); }
+  try { state.jobOpen = true; state.job = await post(`${P()}/run`, { args }); render(); } catch (e) { alert(e.message); }
 }
 
 function needName() {
   if (me()) return me();
-  const w = document.querySelector(".who")?.value.trim();
-  if (w) { $("#me").value = w; store.set("frflow.me", w); return w; }
   $("#me").focus(); alert("Enter your name at the top right: it is recorded with your decisions and requests.");
   return null;
+}
+
+async function decide(body) {
+  try { await post(`${P()}/decide`, body); await refresh(); } catch (e) { alert(e.message); }
 }
 
 document.addEventListener("click", async e => {
@@ -650,16 +676,25 @@ document.addEventListener("click", async e => {
   if (r) { run([r.dataset.run, ...(r.dataset.arg ? [r.dataset.arg] : [])]); return; }
   const tab = t.closest(".tab");
   if (tab) { state.tab = tab.dataset.tab; renderPane(); return; }
-  const acc = t.closest("[data-accept]");
-  if (acc) {
+  const dec = t.closest("[data-decide]");
+  if (dec) {
     const who = needName(); if (!who) return;
-    const n = byId(acc.dataset.accept);
-    const note = acc.dataset.keepnote ? (n.decided?.note || "") : ($("#note")?.value.trim() || "");
-    const args = ["accept", acc.dataset.accept, "--by", who];
-    if (note) args.push("--note", note);
-    if (acc.dataset.reject) args.push("--reject", acc.dataset.reject);
-    state.selected = acc.dataset.accept;
-    run(args); return;
+    const reason = $("#reason")?.value.trim() || "";
+    if (!reason) { $("#reason")?.focus(); alert("Give your reason: it is kept as part of the theory."); return; }
+    const n = byId(state.selected);
+    const reject = [...document.querySelectorAll(".rej:checked")].map(x => x.value);
+    const warn = dec.dataset.decide === "accept" ? warnings(n) : [];
+    if (warn.length && !confirm(`${n.id}: ${warn.join("; ")}. Choose it anyway?`)) return;
+    decide({ action: dec.dataset.decide, node: n.id, by: who, reason, reject, subtree: !!dec.dataset.subtree });
+    return;
+  }
+  const rem = t.closest("[data-remove]");
+  if (rem) {
+    const who = needName(); if (!who) return;
+    const reason = document.querySelector(`.removal[data-node="${rem.dataset.remove}"]`)?.value.trim();
+    if (!reason) { alert("Say why it is gone."); return; }
+    decide({ action: "remove", node: rem.dataset.remove, by: who, reason });
+    return;
   }
   const ask = t.closest("[data-ask]");
   if (ask) {
@@ -676,7 +711,7 @@ document.addEventListener("click", async e => {
     try { state.jobOpen = true; state.job = await post(`${P()}/idea`, { text: $("#ideaText").value }); state.editingIdea = false; render(); } catch (err) { alert(err.message); }
     return;
   }
-  if (t.id === "waitingPill") { const n = firstWaiting(); if (n) { state.selected = n.id; state.tab = "node"; render(); } }
+  if (t.id === "waitingPill") { const n = waitingForYou()[0]; if (n) { state.selected = n.id; state.tab = "node"; render(); } else { state.tab = "inbox"; renderPane(); } }
 });
 $("#me").addEventListener("change", e => store.set("frflow.me", e.target.value.trim()));
 $("#jobClose").onclick = () => { state.jobOpen = false; renderJob(); };

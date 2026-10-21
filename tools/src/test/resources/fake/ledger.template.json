@@ -1,0 +1,137 @@
+{
+ "decisions": {
+  "Root": [
+   {
+    "action": "accept",
+    "by": "dev",
+    "at": "2026-01-01T00:00:00Z",
+    "reason": "The idea's one rule.",
+    "rejected": [],
+    "chain": "",
+    "code": "",
+    "content": {
+     "statement": "Root statement, long enough to wrap onto a second line of the card.",
+     "why": "Because Root is the right step.",
+     "sources": {
+      "spec": "m => spec_Root(m)"
+     },
+     "substitutions": [],
+     "examples": [],
+     "uses": [],
+     "governs": []
+    }
+   }
+  ],
+  "Auto": [
+   {
+    "action": "accept",
+    "by": "dev",
+    "at": "2026-01-01T00:00:00Z",
+    "reason": "Simplest.",
+    "rejected": [
+     {
+      "id": "Discarded",
+      "content": {
+       "statement": "Discarded statement",
+       "why": "Discarded why"
+      }
+     }
+    ],
+    "chain": "582b817e786c5c2f0a538b9ee7357afe13ede8c9041ebef0313868620310ce4a",
+    "code": "",
+    "content": {
+     "statement": "Auto statement, long enough to wrap onto a second line of the card.",
+     "why": "Because Auto is the right step.",
+     "sources": {
+      "spec": "m => spec_Auto(m)"
+     },
+     "substitutions": [],
+     "examples": [],
+     "uses": [],
+     "governs": []
+    }
+   }
+  ],
+  "Contract": [
+   {
+    "action": "accept",
+    "by": "dev",
+    "at": "2026-01-01T00:00:00Z",
+    "reason": "first version",
+    "rejected": [],
+    "chain": "70d2fb68cdb6604dd3fb95a76c70bced64c041e2c13ec0c2817e856645b9ab3d",
+    "code": "f1",
+    "content": {
+     "statement": "old statement",
+     "why": "Because Contract is the right step.",
+     "sources": {
+      "spec": "m => spec_Contract(m)"
+     },
+     "substitutions": [],
+     "examples": [],
+     "uses": [],
+     "governs": []
+    }
+   }
+  ],
+  "Failed": [
+   {
+    "action": "accept",
+    "by": "dev",
+    "at": "2026-01-01T00:00:00Z",
+    "reason": "x",
+    "rejected": [],
+    "chain": "stale-chain",
+    "code": "",
+    "content": {
+     "statement": "Failed statement, long enough to wrap onto a second line of the card.",
+     "why": "Because Failed is the right step.",
+     "sources": {
+      "spec": "m => spec_Failed(m)"
+     },
+     "substitutions": [],
+     "examples": [],
+     "uses": [],
+     "governs": []
+    }
+   }
+  ],
+  "Stale": [
+   {
+    "action": "reject",
+    "by": "dev",
+    "at": "2026-01-01T00:00:00Z",
+    "reason": "Open was chosen",
+    "rejected": [],
+    "chain": "582b817e786c5c2f0a538b9ee7357afe13ede8c9041ebef0313868620310ce4a",
+    "code": "",
+    "content": {
+     "statement": "Stale statement, long enough to wrap onto a second line of the card.",
+     "why": "Because Stale is the right step.",
+     "sources": {
+      "spec": "m => spec_Stale(m)"
+     },
+     "substitutions": [],
+     "examples": [],
+     "uses": [],
+     "governs": []
+    }
+   }
+  ],
+  "Gone": [
+   {
+    "action": "accept",
+    "by": "dev",
+    "at": "2026-01-01T00:00:00Z",
+    "reason": "It was needed then.",
+    "rejected": [],
+    "chain": "",
+    "code": "",
+    "content": {
+     "statement": "Gone statement",
+     "why": "w"
+    }
+   }
+  ]
+ }
+}

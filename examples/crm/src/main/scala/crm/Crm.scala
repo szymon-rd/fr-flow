@@ -6,13 +6,13 @@ import frflow.*
 // Root: tenant isolation, generic
 // ============================================================================
 
-val Tenant = Opaque("Tenant")
-val User   = Opaque("User")
-val Record = Opaque("Record")
+val Tenant = Opaque("Tenant", "a company that uses the CRM")
+val User   = Opaque("User", "a person who works for a company")
+val Record = Opaque("Record", "a contact or a deal kept in the CRM")
 
-val tenantOf   = Param[User.T => Tenant.T]("tenantOf")
-val owner      = Param[Record.T => Tenant.T]("owner")
-val sharedWith = Param[(Record.T, Tenant.T) => Boolean]("sharedWith")
+val tenantOf   = Param[User.T => Tenant.T]("tenantOf", "the company a user works for")
+val owner      = Param[Record.T => Tenant.T]("owner", "the company a record belongs to")
+val sharedWith = Param[(Record.T, Tenant.T) => Boolean]("sharedWith", "whether the record's company shared it with the given company")
 
 /** A user may see a record of their own company, or one shared with it. */
 val visible = define { (u: User.T, r: Record.T) => owner(r) == tenantOf(u) || sharedWith(r, tenantOf(u)) }
@@ -28,7 +28,7 @@ val isolation = Node.root[(User.T, Record.T) => Boolean](
 // Users see records only through queries
 // ============================================================================
 
-val Query = Opaque("Query")
+val Query = Opaque("Query", "a search a user runs")
 
 /** Model: what a query returns to a user. */
 val readApi = isolation.refine[(User.T, Query.T) => List[Record.T]](
@@ -58,12 +58,12 @@ enum Search:
   case OfKind(kind: Kind)
   case Everything
 
-val shares = Param[List[Share]]("shares")
+val shares = Param[List[Share]]("shares", "the share table as stored when the search runs")
 
 val accounts = readApi.instantiate[(Account, Search) => List[CrmRecord]](
   "Accounts",
   "Users are accounts of a company, records are contacts and deals, and sharing is a table of shares.",
-  why = "A record belongs to the company stored on it, and a user to the company of their account. This trusts the record: ReadContract therefore requires returned records to be the stored ones."
+  why = "A record belongs to the company stored on it, and a user to the company of their account. This trusts the record, so ReadContract requires returned records to be the stored ones; it also trusts the account, which authentication provides (not modelled)."
 )(
   Tenant     := of[TenantId],
   User       := of[Account],
@@ -78,7 +78,7 @@ val accounts = readApi.instantiate[(Account, Search) => List[CrmRecord]](
 // Contract for implementations
 // ============================================================================
 
-val store = Param[List[CrmRecord]]("store")
+val store = Param[List[CrmRecord]]("store", "the records as stored when the search runs")
 
 val readContract = accounts.contract[Account, Search, List[CrmRecord]](
   "ReadContract",
@@ -104,22 +104,8 @@ val readContract = accounts.contract[Account, Search, List[CrmRecord]](
 val knowledge = KnowledgeBase("Crm", idea = "IDEA.md")(isolation, readApi, accounts, readContract)
   .implement(readContract)(InMemoryCrm(store.value, shares.value).search)
 
-// ============================================================================
-// Implementation: plain Scala, attached to the contract
-// ============================================================================
-
-final class InMemoryCrm(records: List[CrmRecord], shareTable: List[Share]):
-  def search(user: Account, query: Search): List[CrmRecord] =
-    val sharedIds = shareTable.filter(_.to == user.tenant).map(_.record).toSet
-    records
-      .filter(r => r.tenant == user.tenant || sharedIds(r.id))
-      .filter(r => query match
-        case Search.ById(id)   => r.id == id
-        case Search.OfKind(k)  => r.kind == k
-        case Search.Everything => true)
-
-/** The running read side: the implementation, with every result checked against the contract. */
+/** The running read side: the registered implementation, every result checked against the contract. */
 def readSide(records: List[CrmRecord], shareTable: List[Share]): (Account, Search) => List[CrmRecord] =
-  readContract.enforce(InMemoryCrm(records, shareTable).search)(store.bind(records), shares.bind(shareTable))
+  knowledge.service(readContract)(store.bind(records), shares.bind(shareTable))
 
 @main def crmCli(args: String*): Unit = sys.exit(knowledge.cli(args, root = "examples/crm"))

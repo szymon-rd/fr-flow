@@ -19,7 +19,8 @@ import java.util.concurrent.Executors
   * GET  /api/p/NAME/kb                       snapshot, sourcesChanged, running, requests
   * GET  /api/p/NAME/events?limit=N
   * GET  /api/p/NAME/job                      the last command started here
-  * POST /api/p/NAME/run      {"args": [...]} render / check / scaffold / accept
+  * POST /api/p/NAME/run      {"args": [...]} render / check / scaffold
+  * POST /api/p/NAME/decide   {"action", "node", "by", "reason", "reject", "subtree"}   the developer's decision
   * POST /api/p/NAME/requests {"node", "text", "by"}
   * POST /api/p/NAME/requests/ID {"status", "answer"}
   * POST /api/p/NAME/idea     {"text"}        saves IDEA.md, then renders
@@ -91,13 +92,7 @@ final class Server(projects: List[Project]):
       case "render" :: Nil                                => None
       case "check" :: rest if rest.size <= 1 && rest.forall(id) => None
       case "scaffold" :: n :: Nil if id(n)                => None
-      case "accept" :: n :: opts if id(n) =>
-        val kv = opts.grouped(2).collect { case List(k, v) => k -> v }.toMap
-        if opts.size % 2 != 0 || !kv.get("--by").exists(_.trim.nonEmpty) || (kv.keySet -- Set("--by", "--note", "--reject")).nonEmpty then
-          Some("accept NODE --by NAME [--note TEXT] [--reject ID,ID]")
-        else if !kv.get("--reject").forall(_.split(",").filter(_.nonEmpty).forall(id)) then Some("--reject takes node ids")
-        else None
-      case _ => Some("expected render, check [NODE], scaffold NODE or accept NODE --by NAME ...")
+      case _ => Some("expected render, check [NODE] or scaffold NODE")
 
   private def get(ex: HttpExchange, parts: List[String], query: Map[String, String]): Unit = parts match
     case Nil | List("index.html") =>
@@ -110,7 +105,7 @@ final class Server(projects: List[Project]):
       byName.get(name) match
         case None => error(ex, 404, s"unknown project $name")
         case Some(p) => what match
-          case "kb" => json(ex, obj("snapshot" -> p.snapshot.getOrElse(JNull), "sourcesChanged" -> JArr(p.sourcesChanged.map(str)),
+          case "kb" => json(ex, obj("snapshot" -> p.annotated.getOrElse(JNull), "sourcesChanged" -> JArr(p.sourcesChanged.map(str)),
               "running" -> p.running.getOrElse(JNull), "requests" -> JArr(p.requests)))
           case "events" => json(ex, JArr(p.events(query.get("limit").flatMap(_.toIntOption).getOrElse(500))))
           case "job"    => json(ex, jobs.get(p.name).fold(JNull)(_.json))
@@ -137,6 +132,13 @@ final class Server(projects: List[Project]):
               case Some(why) => error(ex, 400, why)
               case None =>
                 try json(ex, start(p, args).json, 202) catch case e: IllegalStateException => error(ex, 409, e.getMessage)
+          case List("decide") =>
+            val req = frflow.Decisions.Request(field("action"), field("node"), field("by"), field("reason"),
+              body("reject").map(_.arr.toList).getOrElse(Nil).flatMap(_.str), body("subtree").contains(JBool(true)))
+            if !Project.Ident.matches(req.node) then error(ex, 400, "expected a node id")
+            else p.decide(req, actor = "ui") match
+              case Left(why) => error(ex, 409, why)
+              case Right(()) => signal(); json(ex, obj("ok" -> JBool(true)))
           case List("requests") =>
             val (node, text, by) = (field("node"), field("text").trim, field("by").trim)
             if text.isEmpty || by.isEmpty || (node.nonEmpty && !Project.Ident.matches(node)) then error(ex, 400, "expected node, text and by")

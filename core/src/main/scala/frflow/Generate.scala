@@ -33,6 +33,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
   def specPath(id: String) = s"FrFlowGen/$K/$id/Spec.lean"
   def autoPath(id: String) = s"FrFlowGen/$K/$id/Auto.lean"
   def theoremsPath(id: String) = s"FrFlowGen/$K/$id/Theorems.lean"
+  def vacuityPath(id: String) = s"FrFlowGen/$K/$id/Vacuity.lean"
   def proofsPath(id: String) = s"Proofs/$K/$id.lean"
   def auditPath(id: String) = s"FrFlowAudit/$K/$id.lean"
   def generatedDirs = List(s"FrFlowGen/$K", s"FrFlowAudit/$K")
@@ -88,6 +89,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
     case NodeKind.Root     => ctx(n.spec.get)
     case NodeKind.Refine   => ctx(n.spec.get) ++ ctx(n.abs.get) ++ nodeCtx(n.parent.get)
     case NodeKind.Contract => ctx(n.post.get) ++ nodeCtx(n.parent.get)
+    case NodeKind.Design   => Ctx.empty
     case NodeKind.Instantiate =>
       val substituted = n.substs.map(_.name).toSet
       n.substs.flatMap(_.term).map(ctx(_)).foldLeft(nodeCtx(n.parent.get).without(substituted))(_ ++ _)
@@ -97,8 +99,9 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
   // ---------------------------------------------------------------------------
 
   def files: Map[String, String] =
-    val perNode = kb.nodes.flatMap { n =>
-      List(specPath(n.id) -> spec(n), autoPath(n.id) -> auto(n), theoremsPath(n.id) -> theorems(n), auditPath(n.id) -> audit(n))
+    val perNode = kb.nodes.filter(formal).flatMap { n =>
+      List(specPath(n.id) -> spec(n), autoPath(n.id) -> auto(n), theoremsPath(n.id) -> theorems(n), auditPath(n.id) -> audit(n)) ++
+        vacuity(n).map(vacuityPath(n.id) -> _)
     }
     (s"FrFlowGen/$K/Domain.lean" -> domain :: perNode).toMap
 
@@ -117,7 +120,11 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
     }
     Header + "import FrFlow\n\n" + Preamble + s"namespace $K\n\n" + (kb.types.map(_.lean) ++ defs).mkString("\n\n") + s"\n\nend $K\n"
 
+  /** Nodes with a formal model, which get Lean. */
+  def formal(n: Node[?]): Boolean = n.kind != NodeKind.Design
+
   private def modelType(n: Node[?]): String = n.kind match
+    case NodeKind.Design                 => "Unit"
     case NodeKind.Root | NodeKind.Refine => n.spec.get.params.head._2
     case NodeKind.Contract           => n.post.get.params.map(_._2).mkString(" → ")
     case NodeKind.Instantiate        => "_"
@@ -137,6 +144,26 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
         s"Every model that meets ${n.id} meets ${p.id}.")
     }
 
+  /** For a refinement: the parent holds for every model mapped by `abs`, whatever its spec. If this
+    * is provable, the link proves nothing: `abs` alone makes the parent true.
+    */
+  def trivial(n: Node[?]): Option[Obligation] =
+    n.parent.filter(_ => n.kind == NodeKind.Refine).map { p =>
+      val c = nodeCtx(n)
+      val a = args(c)
+      def at(f: String) = if a.isEmpty then f else s"$f $a"
+      val pa = args(nodeCtx(p))
+      def pat(f: String) = if pa.isEmpty then q(p, f) else s"${q(p, f)} $pa"
+      val forallCtx = if binders(c).isEmpty then "" else s"∀ ${binders(c)}, "
+      Obligation("trivial", s"$forallCtx∀ (m : ${modelType(n)}), ${pat("spec")} (${at("abs")} m)",
+        s"abs alone makes ${p.id} hold, for every model of ${n.id}.")
+    }
+
+  def vacuity(n: Node[?]): Option[String] = trivial(n).map { o =>
+    Header + s"import ${specModule(n.id)}\n\n" + Preamble + s"namespace $K.${n.id}.Vacuity\nopen $K.${n.id}\n\n" +
+      s"theorem trivial : Obl.trivial := by\n  unfold Obl.trivial\n  frflow_auto\n\nend $K.${n.id}.Vacuity\n"
+  }
+
   def spec(n: Node[?]): String =
     val c = nodeCtx(n)
     val b = if binders(c).isEmpty then "" else " " + binders(c)
@@ -144,11 +171,12 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
     def at(f: String) = if a.isEmpty then f else s"$f $a"
     val sb = StringBuilder()
     sb ++= Header + s"import ${n.parent.fold(s"FrFlowGen.$K.Domain")(p => specModule(p.id))}\n\n" + Preamble
-    sb ++= s"namespace $K.${n.id}\n\n/-! # ${n.id}\n\n${n.statement.replace("-/", "- /")}\n-/\n\n"
+    sb ++= s"namespace $K.${n.id}\n\n"
     def d(name: String, tpe: String, body: String) =
       sb ++= s"@[frflow_defs] def $name$b${if tpe.isEmpty then "" else s" : $tpe"} :=\n  $body\n\n"
     val m = modelType(n)
     n.kind match
+      case NodeKind.Design => ()
       case NodeKind.Root =>
         d("spec", s"$m → Prop", resolve(n.spec.get.lean))
         d("toRoot", "", s"fun (m : $m) => m")
@@ -183,7 +211,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
         d("spec", "", s"${q(p, "spec")} $th")
         d("toRoot", "", s"${q(p, "toRoot")} $th")
         d("rootSpec", "", s"${q(p, "rootSpec")} $th")
-    obligation(n).foreach { o =>
+    (obligation(n) ++ trivial(n)).foreach { o =>
       sb ++= s"namespace Obl\n\n/-- ${o.description} -/\n@[frflow_defs] def ${o.name} : Prop :=\n  ${o.statement}\n\nend Obl\n\n"
     }
     sb ++= s"end $K.${n.id}\n"
@@ -220,7 +248,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
     val m = if n.kind == NodeKind.Instantiate then "m" else s"(m : ${modelType(n)})"
     val rootStatement = s"∀ $m, ${at("spec")} m → ${at("rootSpec")} (${at("toRoot")} m)"
     val proofOfRoot = n.kind match
-      case NodeKind.Root => "fun m h => h"
+      case NodeKind.Root | NodeKind.Design => "fun m h => h"
       case NodeKind.Instantiate => s"${q(n.parent.get, "root")} ${theta(n)}"
       case _ =>
         val p = n.parent.get
@@ -231,7 +259,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
         sb ++= s"/-- ${obligation(n).get.description} -/\n"
         sb ++= s"theorem link$b : ∀ $m, ${at("spec")} m → ${pat("spec")} $target :=\n  ${if a.isEmpty then ref else s"$ref $a"}\n\n"
         s"fun m h => ${pat("root")} $target (${at("link")} m h)"
-    sb ++= s"/-- The root theorem holds for every model of ${n.id}: ${kb.rootOf(n).statement.replace("-/", "- /")} -/\n"
+    sb ++= s"/-- The root theorem holds for every model of ${n.id}. -/\n"
     sb ++= s"theorem root$b : $rootStatement :=\n  $proofOfRoot\n\nend $K.${n.id}\n"
     sb.result()
 

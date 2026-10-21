@@ -15,8 +15,12 @@ object Cli:
       |  check [NODE]            render, prove the links, record the results
       |  status                  the knowledge base with decision and verification state
       |  context NODE            everything needed to work on NODE (for agents and people)
-      |  accept NODE --by NAME [--note TEXT] [--reject ID,ID]
-      |                          the developer's decision: accept NODE, rejecting proposed alternatives
+      |  accept NODE --by NAME --reason TEXT [--reject ID,ID]
+      |                          the developer chooses NODE (rejecting alternatives), with the reason
+      |  confirm NODE --by NAME --reason TEXT [--subtree]
+      |                          NODE still holds after an ancestor or its code changed
+      |  remove NODE --by NAME --reason TEXT
+      |                          agree that a decided node is gone from the model
       |  scaffold NODE           a proof file for an obligation automation did not prove
       |""".stripMargin
 
@@ -50,22 +54,19 @@ object Cli:
         0
       case "status" :: Nil => print(w.status); 0
       case "context" :: id :: Nil => node(id) { n => print(w.context(n)); 0 }
-      case "accept" :: id :: rest =>
-        val opts = rest.grouped(2).collect { case List(k, v) if k.startsWith("--") => k.drop(2) -> v }.toMap
-        if rest.size % 2 != 0 || !opts.contains("by") || opts.keySet.exists(!Set("by", "note", "reject")(_)) then
+      case (action @ ("accept" | "confirm" | "remove")) :: id :: rest =>
+        val flags = Set("--subtree")
+        val opts = rest.filterNot(flags).grouped(2).collect { case List(k, v) if k.startsWith("--") => k.drop(2) -> v }.toMap
+        if rest.filterNot(flags).size % 2 != 0 || !opts.contains("by") || opts.keySet.exists(!Set("by", "reason", "reject")(_)) then
           System.err.println(usage); return 2
-        node(id) { n =>
-          val ids = opts.get("reject").toList.flatMap(_.split(",")).map(_.trim).filter(_.nonEmpty)
-          ids.find(kb.node(_).isEmpty) match
-            case Some(bad) => System.err.println(s"unknown node $bad"); 1
-            case None =>
-              try
-                w.accept(n, opts("by"), opts.getOrElse("note", ""), ids.flatMap(kb.node))
-                w.writeSnapshot()
-                println(s"accepted ${n.id} by ${opts("by")}${if ids.nonEmpty then s"; rejected ${ids.mkString(", ")}" else ""}")
-                0
-              catch case e: IllegalArgumentException => { System.err.println(e.getMessage); 1 }
-        }
+        val req = Decisions.Request(action, id, opts("by"), opts.getOrElse("reason", ""),
+          opts.get("reject").toList.flatMap(_.split(",")).map(_.trim).filter(_.nonEmpty), rest.contains("--subtree"))
+        w.decide(req) match
+          case Left(why) => System.err.println(why); 1
+          case Right(()) =>
+            w.writeSnapshot()
+            println(s"${Map("accept" -> "accepted", "confirm" -> "confirmed", "remove" -> "removed")(action)} ${id} by ${req.by}${if req.reject.nonEmpty then s"; rejected ${req.reject.mkString(", ")}" else ""}")
+            0
       case "scaffold" :: id :: Nil =>
         node(id) { n =>
           println(if w.scaffold(n) then s"created lean/${w.generate.proofsPath(n.id)}" else "nothing to create")

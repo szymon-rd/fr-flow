@@ -33,7 +33,7 @@ class ToolsSuite extends munit.FunSuite:
 
   test("arguments are quoted for sbt") {
     val p = fake()
-    assertEquals(p.command(List("accept", "Root", "--by", "Ada L")), List("sh", "fake_cli.sh", "accept Root --by \"Ada L\""))
+    assertEquals(p.command(List("context", "Root", "Ada L")), List("sh", "fake_cli.sh", "context Root \"Ada L\""))
     assertEquals(Project.quote("a;b"), "\"a;b\"")
   }
 
@@ -46,21 +46,37 @@ class ToolsSuite extends munit.FunSuite:
     assertEquals(p.sourcesChanged, List("model.txt"))
   }
 
-  test("the text tree shows decisions, links and examples") {
+  test("the text tree shows decisions (from the ledger), links and examples") {
     val p = fake()
     p.run(List("render"), actor = "ui")
-    val t = Project.tree(p.snapshot.get)
-    assert(t.contains("Root (root)  [accepted, proven]"), t)
-    assert(t.contains("  Auto (refine)  [accepted, link proven (auto), proven]"), t)
-    assert(t.contains("Contract (contract)  [changed, link proven (authored), proven, examples 2/3]"), t)
+    val t = Project.tree(p.annotated.get)
+    assert(t.contains("Root (root)  [accepted]"), t)
+    assert(t.contains("  Auto (refine)  [accepted, link proven (auto)]"), t)
+    assert(t.contains("    Failed (refine)  [parent-changed, link failed (must state exactly Obl.link)]"), t)
+    assert(t.contains("Contract (contract)  [changed, link proven (authored), examples 2/3]"), t)
+    assert(t.contains("  Stale (refine)  [rejected, link stale]"), t)
+    assert(t.contains("Gone  [removed from the model]"), t)
+  }
+
+  test("decisions are recorded without running the CLI, and refused on stale sources") {
+    val p = fake()
+    p.run(List("render"), actor = "ui")
+    import frflow.Decisions.Request
+    assert(p.decide(Request("accept", "Inst", "dev", ""), "ui").left.exists(_.contains("reason")))
+    assertEquals(p.decide(Request("accept", "Inst", "dev", "Simpler.", List("Inst2")), "ui"), Right(()))
+    val st = p.annotated.get("nodes").get.arr.map(n => s(n, "id") -> s(n, "state")).toMap
+    assertEquals((st("Inst"), st("Inst2")), ("accepted", "rejected"))
+    assertEquals(s(p.events().last, "actor"), "ui")
+    Files.setLastModifiedTime(p.root.resolve("model.txt"), java.nio.file.attribute.FileTime.fromMillis(System.currentTimeMillis + 5000))
+    assert(p.decide(Request("confirm", "Failed", "dev", "Still right."), "ui").left.exists(_.contains("render first")))
   }
 
   test("requests") {
     val p = fake()
-    assertEquals(s(p.addRequest("Auto", "Propose an alternative", "dev"), "id"), "R1")
-    p.answerRequest("R1", "Proposed Alt")
+    val id = s(p.addRequest("Auto", "Propose an alternative", "dev"), "id")
+    p.answerRequest(id, "Proposed Alt")
     assertEquals((s(p.requests.head, "answer"), s(p.requests.head, "status")), ("Proposed Alt", "answered"))
-    p.answerRequest("R1", "", "closed")
+    p.answerRequest(id, "", "closed")
     assertEquals((s(p.requests.head, "answer"), s(p.requests.head, "status")), ("Proposed Alt", "closed"))
     intercept[java.util.NoSuchElementException](p.answerRequest("R9", "x"))
   }
@@ -78,7 +94,7 @@ class ToolsSuite extends munit.FunSuite:
     assertEquals(init("result").flatMap(_("serverInfo")).map(s(_, "name")), Some("frflow"))
     assertEquals(m.handle(obj("jsonrpc" -> str("2.0"), "method" -> str("notifications/initialized"))), None)
     val names = m.tools.map(s(_, "name"))
-    assertEquals(names, List("inbox", "context", "render", "check", "answer", "scaffold", "tree", "node", "status", "history"))
+    assertEquals(names, List("inbox", "context", "render", "check", "answer", "scaffold"))
     val err = m.handle(obj("jsonrpc" -> str("2.0"), "id" -> JNum(2), "method" -> str("nope"))).get
     assertEquals(err("error").flatMap(_("code")), Some(JNum(-32601)))
   }
@@ -86,19 +102,18 @@ class ToolsSuite extends munit.FunSuite:
   test("MCP: render, inbox, answer") {
     val p = fake()
     val m = Mcp(List(p))
-    assert(call(m, "tree")._2)
+    assert(call(m, "inbox")._1.contains("No snapshot yet"))
     val (out, err) = call(m, "render")
     assert(!err && out.contains("Contract (contract)"), out)
-    p.addRequest("Auto", "Propose an alternative to Auto", "dev")
+    val id = s(p.addRequest("Auto", "Propose an alternative to Auto", "dev"), "id")
     val inbox = call(m, "inbox")._1
-    assert(inbox.contains("[R1] on Auto: Propose an alternative to Auto"), inbox)
+    assert(inbox.contains(s"[$id] on Auto: Propose an alternative to Auto"), inbox)
     assert(inbox.contains("Stale: rejected; remove it"), inbox)
     assert(inbox.contains("Inst: proposed"), inbox)
-    assert(!call(m, "answer", "request" -> str("R1"), "text" -> str("Proposed Alt"))._2)
+    assert(inbox.contains("Gone: removed from the model"), inbox)
+    assert(!call(m, "answer", "request" -> str(id), "text" -> str("Proposed Alt"))._2)
     assertEquals(s(p.requests.head, "status"), "answered")
     assert(call(m, "context", "node" -> str("A;B"))._2)
-    val node = Json.parse(call(m, "node", "node" -> str("Open"))._1.split("\n\nSources").head)
-    assertEquals(node("link").map(s(_, "status")), Some("open"))
   }
 
   // -- the browser server -----------------------------------------------------
@@ -139,9 +154,9 @@ class ToolsSuite extends munit.FunSuite:
     withServer { (base, _) =>
       def run(args: String*) = post(base + "/api/p/Fake/run", obj("args" -> JArr(args.map(str))))._1
       assertEquals(run("status"), 400)
-      assertEquals(run("accept", "Root"), 400)
-      assertEquals(run("accept", "Root;x", "--by", "me"), 400)
-      assertEquals(run("accept", "Root", "--by", "me", "--reject", "a b"), 400)
+      assertEquals(run("accept", "Root", "--by", "me"), 400)
+      assertEquals(run("scaffold", "Root;x"), 400)
+      assertEquals(post(base + "/api/p/Fake/decide", obj("action" -> str("accept"), "node" -> str("Root;x"), "by" -> str("me"), "reason" -> str("r")))._1, 400)
       assertEquals(post(base + "/api/p/Nope/run", obj("args" -> JArr(Seq(str("render")))))._1, 404)
       assertEquals(post(base + "/api/p/Fake/run", obj("args" -> JArr(Seq(str("render")))), "Origin" -> "http://evil.example")._1, 403)
       val plain = HttpRequest.newBuilder(URI(base + "/api/p/Fake/run")).header("Content-Type", "text/plain")
@@ -153,9 +168,9 @@ class ToolsSuite extends munit.FunSuite:
   test("server: requests and the idea") {
     withServer { (base, p) =>
       val (st, r) = post(base + "/api/p/Fake/requests", obj("node" -> str("Auto"), "text" -> str("Propose another"), "by" -> str("dev")))
-      assertEquals((st, s(r, "id")), (201, "R1"))
+      assertEquals(st, 201)
       assertEquals(Json.parse(get(base + "/api/p/Fake/kb")._2)("requests").map(_.arr.map(s(_, "text"))), Some(Seq("Propose another")))
-      assertEquals(s(post(base + "/api/p/Fake/requests/R1", obj("status" -> str("closed")))._2, "status"), "closed")
+      assertEquals(s(post(base + s"/api/p/Fake/requests/${s(r, "id")}", obj("status" -> str("closed")))._2, "status"), "closed")
       assertEquals(post(base + "/api/p/Fake/idea", obj("text" -> str("# New idea")))._1, 202)
       assertEquals(Files.readString(p.root.resolve("IDEA.md")), "# New idea\n")
     }

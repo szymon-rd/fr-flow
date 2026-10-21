@@ -36,24 +36,34 @@ this way. It also keeps the code from drifting away from it.
      the world.
    - A reader must be able to tell a deliberate choice from an accident.
 4. **The statement must say in plain words what the predicate says.**
-5. **Every contract gets examples.**
+5. **Every contract gets examples** (the build requires it).
    - At least one `expect` that an implementation doing nothing would fail.
    - At least one `reject` showing what is ruled out.
    - Examples are how the developer checks that a predicate means what its
      statement says.
-6. **The model is the Scala code.**
+6. **Every `Opaque` and `Param` says what it means in the world**, and where a
+   parameter's value comes from. For example:
+   `Param[List[Grant]]("grants", "the grant table as stored when the request is decided")`.
+   That is the vocabulary of the theory.
+7. **Record design decisions that have no formal model as `design` nodes.**
+   Storage, caching, conventions and the like go in a `design` node, with its
+   `why` and the files it governs.
+8. **The model is the Scala code.**
    - Never edit `lean/FrFlowGen/` or `lean/FrFlowAudit/`.
    - Lean you write goes only in `lean/Proofs/<KB>/<NODE>.lean`.
-7. **Never weaken a node to make a proof go through.** A false link means the
+9. **Never weaken a node to make a proof go through.** A false link means the
    child is wrong. If you think the idea or a decided node is wrong, say so in
    your answer and propose a change.
-8. **Keep the tree honest about its limits.** When part of the idea is not
+10. **Keep the tree honest about its limits.** When part of the idea is not
    modelled, propose adding it to the `## Not modelled` section of `IDEA.md`.
 
 ## The loop
 
-1. **`inbox`.** It shows the developer's open requests, rejected nodes you must
-   delete from the Scala model, and decisions still waiting for the developer.
+1. **`inbox`.** It shows:
+   - the developer's open requests;
+   - rejected nodes you must delete from the Scala model;
+   - decisions still waiting for the developer;
+   - the tree.
 2. **For each request,** read `context(node)`. Then write the proposals as
    Scala nodes, with `why` and examples. Add them to the `KnowledgeBase(...)`
    list.
@@ -69,6 +79,13 @@ this way. It also keeps the code from drifting away from it.
 6. **If you change an accepted node,** it shows as `changed`, with a diff, and
    its descendants show as `parent-changed`. Explain the change in an answer
    or in the node's `why`.
+   - **Replacing an accepted node:** propose the new node as its sibling. The
+     developer can reject the old one when choosing.
+   - **A change to an implementation or a governed file** shows as "code
+     changed" on its node. Make sure the examples still pass.
+   - **Formal work on several alternatives** can be expensive. You may first
+     describe the options in your `answer`, and formalize the one the developer
+     picks.
 
 ## Tools
 
@@ -77,13 +94,12 @@ The MCP server `frflow` (`bin/frflow mcp examples`, see `.mcp.json`) works on ev
 
 | tool | use |
 |---|---|
-| `inbox` | Start here: requests, clean-up, waiting decisions. |
-| `context(node)` | The idea, the path from the root with every decision, reason and rejected alternative, examples, the obligation, and open requests. |
+| `inbox` | Start here: requests, clean-up, waiting decisions, and the tree. |
+| `context(node)` | The idea, the vocabulary, the roots, the path from the root with every decision, reason and rejected alternative, examples, the obligation, and open requests. |
 | `render` | Rebuild from the Scala definitions; the browser updates. Compile errors in the model come back here. |
-| `check(node?)` | Prove the links in Lean. Slow (minutes). |
+| `check(node?)` | Prove the links that changed in Lean. Slow. |
 | `answer(request, text)` | Reply to a request; the reply is shown in the browser. |
 | `scaffold(node)` | A proof file for an obligation `frflow_auto` did not prove. |
-| `tree`, `node(node)`, `status`, `history` | Read the current state. |
 
 Without MCP, use the CLI from the repository root: `sbt "auth/run render"`,
 `check [NODE]`, `status`, `context NODE`, `scaffold NODE`.
@@ -115,6 +131,9 @@ types and parameters. It has no obligation.
 **`contract(id, statement, why)(post)`** is for a model `(A, B) => R`. `post`
 must hold for every call.
 
+**`design(id, statement, why)(files*)`** is a decision with no formal model.
+It has nothing to prove, and its files are tracked for change.
+
 **Examples:**
 
 ```scala
@@ -123,12 +142,16 @@ must hold for every call.
     reject("t1", Path("/b"), Some(alice), "access without a grant is never given"))
 ```
 
-**The implementation** is plain Scala.
-- Register it so the examples run against it:
+**The implementation** is plain Scala, preferably in its own file.
+- Register it once:
   `KnowledgeBase(...)(...).implement(contract)(MyImpl(grants.value.toSet, sessions.value).decide)`
-- In production, wrap it with
-  `contract.enforce(impl)(grants.bind(...), ...)`. A result that breaks the
-  contract raises `ContractViolation`.
+  - The examples run against it.
+  - A change to its source file shows on the contract.
+- Production uses the same registration:
+  `knowledge.service(contract)(grants.bind(...), ...)`. Each result is checked
+  against the contract; one that breaks it raises `ContractViolation`.
+- **A write is a contract that returns a change, not the new state.** For
+  example, `(Account, Share) => Change` with `enum Change { case AddShare(s); case Denied }`.
 - In a contract, the facts that decide access (ownership, identity) must come
   from bound parameters over the system's own data, never from fields of the
   result. The implementation controls the result.
@@ -161,6 +184,9 @@ The macro supports:
 2. If it is true, run `scaffold(node)` and prove `theorem link : Obl.link` in
    the proof file. Start with `unfold Obl.link`, then `intro m h`, then
    `simp only [frflow_defs] at *`.
-3. Use only tactics and lemmas. Anything else in the file is rejected:
-   `sorry`, `axiom`, `run_cmd`, `#eval`, `elab`, `macro`, extra imports, and
-   so on.
+3. The file may contain only the theorem and its tactic proof. Anything else
+   is rejected: `sorry`, `axiom`, `run_cmd`, `#eval`, attributes, extra
+   imports, and so on. Accepted proofs are also replayed through the Lean
+   kernel.
+4. `check` also rejects a link that is **vacuous**: one where `abs` alone makes
+   the parent hold, whatever the node's spec says.
