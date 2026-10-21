@@ -1,0 +1,439 @@
+{
+ "name": "Fake",
+ "idea": "# Fake\n\nAn idea with **bold** and `code`.\n\n- one\n- two\n",
+ "root": "Root",
+ "exportedAt": "2026-01-01T00:00:00Z",
+ "roots": [
+  "Root"
+ ],
+ "opaques": [
+  "T"
+ ],
+ "params": [
+  {
+   "name": "p",
+   "type": "(T → Prop)"
+  }
+ ],
+ "types": [
+  {
+   "name": "Box",
+   "lean": "structure Box where\n  n : Int"
+  }
+ ],
+ "defs": [],
+ "nodes": [
+  {
+   "id": "Root",
+   "kind": "root",
+   "statement": "Root statement, long enough to wrap onto a second line of the card.",
+   "parent": null,
+   "sources": {
+    "spec": "m => spec_Root(m)"
+   },
+   "substitutions": [],
+   "obligation": null,
+   "link": null,
+   "proof": null,
+   "rootTheorem": "theorem root : ∀ m, spec m → rootSpec (toRoot m)",
+   "lean": "-- generated",
+   "why": "Because Root is the right step.",
+   "decision": "accepted",
+   "decided": {
+    "by": "dev",
+    "at": "2026-01-01T00:00:00Z",
+    "note": "The idea's one rule.",
+    "content": {
+     "statement": "old statement",
+     "why": "old why",
+     "sources": {
+      "spec": "m => old(m)"
+     },
+     "substitutions": [],
+     "examples": []
+    },
+    "rejected": []
+   },
+   "content": {
+    "statement": "Root statement",
+    "why": "Because Root.",
+    "sources": {
+     "spec": "m => spec_Root(m)"
+    },
+    "substitutions": [],
+    "examples": []
+   },
+   "examples": [],
+   "verification": "proven",
+   "messages": [],
+   "axioms": [
+    "propext"
+   ]
+  },
+  {
+   "id": "Auto",
+   "kind": "refine",
+   "statement": "Auto statement, long enough to wrap onto a second line of the card.",
+   "parent": "Root",
+   "sources": {
+    "spec": "m => spec_Auto(m)",
+    "abs": "m => m"
+   },
+   "substitutions": [],
+   "obligation": {
+    "statement": "∀ m, spec m → Root.spec (abs m)",
+    "description": "Every model that meets Auto meets Root."
+   },
+   "link": {
+    "status": "proven",
+    "detail": "auto"
+   },
+   "proof": null,
+   "rootTheorem": "theorem root : ∀ m, spec m → rootSpec (toRoot m)",
+   "lean": "-- generated",
+   "why": "Because Auto is the right step.",
+   "decision": "accepted",
+   "decided": {
+    "by": "dev",
+    "at": "2026-01-01T00:00:00Z",
+    "note": "Simplest.",
+    "content": {
+     "statement": "old statement",
+     "why": "old why",
+     "sources": {
+      "spec": "m => old(m)"
+     },
+     "substitutions": [],
+     "examples": []
+    },
+    "rejected": [
+     {
+      "id": "Discarded",
+      "statement": "Discarded statement",
+      "why": "Discarded why"
+     }
+    ]
+   },
+   "content": {
+    "statement": "Auto statement",
+    "why": "Because Auto.",
+    "sources": {
+     "spec": "m => spec_Auto(m)"
+    },
+    "substitutions": [],
+    "examples": []
+   },
+   "examples": [],
+   "verification": "proven",
+   "messages": [],
+   "axioms": [
+    "propext"
+   ]
+  },
+  {
+   "id": "Inst",
+   "kind": "instantiate",
+   "statement": "Inst statement, long enough to wrap onto a second line of the card.",
+   "parent": "Auto",
+   "sources": {
+    "spec": "m => spec_Inst(m)"
+   },
+   "substitutions": [
+    {
+     "name": "T",
+     "value": "of[Int]"
+    }
+   ],
+   "obligation": null,
+   "link": {
+    "status": "proven",
+    "detail": "instantiation"
+   },
+   "proof": null,
+   "rootTheorem": "theorem root : ∀ m, spec m → rootSpec (toRoot m)",
+   "lean": "-- generated",
+   "why": "Because Inst is the right step.",
+   "decision": "proposed",
+   "decided": null,
+   "content": {
+    "statement": "Inst statement",
+    "why": "Because Inst.",
+    "sources": {
+     "spec": "m => spec_Inst(m)"
+    },
+    "substitutions": [],
+    "examples": []
+   },
+   "examples": [],
+   "verification": "proven",
+   "messages": [],
+   "axioms": [
+    "propext"
+   ]
+  },
+  {
+   "id": "Contract",
+   "kind": "contract",
+   "statement": "Contract statement, long enough to wrap onto a second line of the card.",
+   "parent": "Inst",
+   "sources": {
+    "spec": "m => spec_Contract(m)"
+   },
+   "substitutions": [],
+   "obligation": {
+    "statement": "∀ m, spec m → Inst.spec (abs m)",
+    "description": "Every model that meets Contract meets Inst."
+   },
+   "link": {
+    "status": "proven",
+    "detail": "authored"
+   },
+   "proof": {
+    "file": "lean/Proofs/Fake/Contract.lean",
+    "source": "theorem link : Obl.link := by\n  simp"
+   },
+   "rootTheorem": "theorem root : ∀ m, spec m → rootSpec (toRoot m)",
+   "lean": "-- generated",
+   "why": "Because Contract is the right step.",
+   "decision": "changed",
+   "decided": {
+    "by": "dev",
+    "at": "2026-01-01T00:00:00Z",
+    "note": "first version",
+    "content": {
+     "statement": "old statement",
+     "why": "old why",
+     "sources": {
+      "spec": "m => old(m)"
+     },
+     "substitutions": [],
+     "examples": []
+    },
+    "rejected": []
+   },
+   "content": {
+    "statement": "Contract statement",
+    "why": "Because Contract.",
+    "sources": {
+     "spec": "m => spec_Contract(m)"
+    },
+    "substitutions": [],
+    "examples": []
+   },
+   "examples": [
+    {
+     "note": "a good case",
+     "given": [
+      "p.bind(1)"
+     ],
+     "call": "(1, 2) ⇒ 3",
+     "expected": true,
+     "contract": "ok",
+     "implementation": "ok"
+    },
+    {
+     "note": "a bad case",
+     "given": [
+      "p.bind(1)"
+     ],
+     "call": "(1, 2) ⇒ 4",
+     "expected": false,
+     "contract": "ok",
+     "implementation": null
+    },
+    {
+     "note": "lazy implementation",
+     "given": [
+      "p.bind(1)"
+     ],
+     "call": "(2, 2) ⇒ 4",
+     "expected": true,
+     "contract": "ok",
+     "implementation": "returned 0"
+    }
+   ],
+   "verification": "proven",
+   "messages": [],
+   "axioms": [
+    "propext"
+   ]
+  },
+  {
+   "id": "Open",
+   "kind": "refine",
+   "statement": "Open statement, long enough to wrap onto a second line of the card.",
+   "parent": "Root",
+   "sources": {
+    "spec": "m => spec_Open(m)",
+    "abs": "m => m"
+   },
+   "substitutions": [],
+   "obligation": {
+    "statement": "∀ m, spec m → Root.spec (abs m)",
+    "description": "Every model that meets Open meets Root."
+   },
+   "link": {
+    "status": "open",
+    "detail": "frflow_auto found no proof"
+   },
+   "proof": null,
+   "rootTheorem": "theorem root : ∀ m, spec m → rootSpec (toRoot m)",
+   "lean": "-- generated",
+   "why": "Because Open is the right step.",
+   "decision": "proposed",
+   "decided": null,
+   "content": {
+    "statement": "Open statement",
+    "why": "Because Open.",
+    "sources": {
+     "spec": "m => spec_Open(m)"
+    },
+    "substitutions": [],
+    "examples": []
+   },
+   "examples": [],
+   "verification": "open",
+   "messages": [
+    "prove it in lean/Proofs/Fake/Open.lean"
+   ],
+   "axioms": [
+    "propext"
+   ]
+  },
+  {
+   "id": "Failed",
+   "kind": "refine",
+   "statement": "Failed statement, long enough to wrap onto a second line of the card.",
+   "parent": "Auto",
+   "sources": {
+    "spec": "m => spec_Failed(m)",
+    "abs": "m => m"
+   },
+   "substitutions": [],
+   "obligation": {
+    "statement": "∀ m, spec m → Auto.spec (abs m)",
+    "description": "Every model that meets Failed meets Auto."
+   },
+   "link": {
+    "status": "failed",
+    "detail": "must state exactly Obl.link"
+   },
+   "proof": null,
+   "rootTheorem": "theorem root : ∀ m, spec m → rootSpec (toRoot m)",
+   "lean": "-- generated",
+   "why": "Because Failed is the right step.",
+   "decision": "parent-changed",
+   "decided": {
+    "by": "dev",
+    "at": "2026-01-01T00:00:00Z",
+    "note": "",
+    "content": {
+     "statement": "old statement",
+     "why": "old why",
+     "sources": {
+      "spec": "m => old(m)"
+     },
+     "substitutions": [],
+     "examples": []
+    },
+    "rejected": []
+   },
+   "content": {
+    "statement": "Failed statement",
+    "why": "Because Failed.",
+    "sources": {
+     "spec": "m => spec_Failed(m)"
+    },
+    "substitutions": [],
+    "examples": []
+   },
+   "examples": [],
+   "verification": "failed",
+   "messages": [],
+   "axioms": [
+    "propext"
+   ]
+  },
+  {
+   "id": "Stale",
+   "kind": "refine",
+   "statement": "Stale statement, long enough to wrap onto a second line of the card.",
+   "parent": "Root",
+   "sources": {
+    "spec": "m => spec_Stale(m)",
+    "abs": "m => m"
+   },
+   "substitutions": [],
+   "obligation": {
+    "statement": "∀ m, spec m → Root.spec (abs m)",
+    "description": "Every model that meets Stale meets Root."
+   },
+   "link": {
+    "status": "stale",
+    "detail": ""
+   },
+   "proof": null,
+   "rootTheorem": "theorem root : ∀ m, spec m → rootSpec (toRoot m)",
+   "lean": "-- generated",
+   "why": "Because Stale is the right step.",
+   "decision": "rejected",
+   "decided": null,
+   "content": {
+    "statement": "Stale statement",
+    "why": "Because Stale.",
+    "sources": {
+     "spec": "m => spec_Stale(m)"
+    },
+    "substitutions": [],
+    "examples": []
+   },
+   "examples": [],
+   "verification": "stale",
+   "messages": [],
+   "axioms": [
+    "propext"
+   ]
+  },
+  {
+   "id": "Inst2",
+   "kind": "instantiate",
+   "statement": "Inst2 statement, long enough to wrap onto a second line of the card.",
+   "parent": "Auto",
+   "sources": {
+    "spec": "m => spec_Inst2(m)"
+   },
+   "substitutions": [
+    {
+     "name": "T",
+     "value": "of[Int]"
+    }
+   ],
+   "obligation": null,
+   "link": {
+    "status": "proven",
+    "detail": "instantiation"
+   },
+   "proof": null,
+   "rootTheorem": "theorem root : ∀ m, spec m → rootSpec (toRoot m)",
+   "lean": "-- generated",
+   "why": "Because Inst2 is the right step.",
+   "decision": "proposed",
+   "decided": null,
+   "content": {
+    "statement": "Inst2 statement",
+    "why": "Because Inst2.",
+    "sources": {
+     "spec": "m => spec_Inst2(m)"
+    },
+    "substitutions": [],
+    "examples": []
+   },
+   "examples": [],
+   "verification": "proven",
+   "messages": [],
+   "axioms": [
+    "propext"
+   ]
+  }
+ ]
+}

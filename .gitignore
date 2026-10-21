@@ -14,3 +14,6 @@ project/project/
 **/.frflow/run.lock
 **/.frflow/running.json
 __pycache__/
+**/.frflow/requests.json
+**/.frflow/requests.lock
+**/.frflow/requests.json.tmp

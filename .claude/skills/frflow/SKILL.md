@@ -72,7 +72,7 @@ this way. It also keeps the code from drifting away from it.
 
 ## Tools
 
-The MCP server `frflow` (see `.mcp.json`) works on every project under
+The MCP server `frflow` (`bin/frflow mcp examples`, see `.mcp.json`) works on every project under
 `examples/`. Pass `project` when there is more than one.
 
 | tool | use |

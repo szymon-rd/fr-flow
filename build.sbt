@@ -3,10 +3,15 @@ ThisBuild / scalacOptions ++= Seq("-deprecation", "-feature", "-Werror")
 
 val munit = "org.scalameta" %% "munit" % "1.1.1" % Test
 
-lazy val root = project.in(file(".")).aggregate(core, auth, crm).settings(publish / skip := true)
+lazy val root = project.in(file(".")).aggregate(core, tools, auth, crm).settings(publish / skip := true)
 
 /** The FrFlow library: nodes, the Scala-to-Lean translation, the checker, the CLI. */
 lazy val core = project.in(file("core")).settings(name := "frflow", libraryDependencies += munit)
+
+/** The browser (where the developer decides) and the MCP server (how agents work). Run with `bin/frflow`. */
+lazy val tools = project.in(file("tools"))
+  .dependsOn(core)
+  .settings(name := "frflow-tools", libraryDependencies += munit, publish / skip := true, Test / fork := true)
 
 def example(name: String) = Project(name, file(s"examples/$name"))
   .dependsOn(core)

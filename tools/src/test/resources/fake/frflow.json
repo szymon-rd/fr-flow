@@ -1,6 +1,6 @@
 {
   "name": "Fake",
-  "run": ["python3", "fake_cli.py", "{args}"],
+  "run": ["sh", "fake_cli.sh", "{args}"],
   "cwd": ".",
   "sources": ["model.txt"]
 }

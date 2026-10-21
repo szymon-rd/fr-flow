@@ -140,7 +140,7 @@ proof must state exactly `Obl.link` and may contain only tactics.
 ## The browser: where decisions are made
 
 ```sh
-python3 tools/frflow/server.py examples     # http://127.0.0.1:8765
+bin/frflow serve examples     # http://127.0.0.1:8765
 ```
 
 - **Tree.** The tree is drawn from the Scala definitions. Each link to a parent
@@ -162,7 +162,7 @@ python3 tools/frflow/server.py examples     # http://127.0.0.1:8765
 
 ## Agents
 
-- **MCP server.** `.mcp.json` registers `frflow` (`tools/frflow/mcp_server.py`).
+- **MCP server.** `.mcp.json` registers `frflow` (`bin/frflow mcp examples`).
   - Tools: `inbox`, `context`, `render`, `check`, `answer`, `scaffold`, `tree`,
     `node`, `status` and `history`.
   - An agent cannot accept nodes.
@@ -193,8 +193,9 @@ python3 tools/frflow/server.py examples     # http://127.0.0.1:8765
 
 ## Usage
 
-Requirements: JDK 17+, sbt, Lean 4.35.0 (`lake` on the PATH, or `FRFLOW_LAKE`),
-and Python 3.10+ for the browser and the MCP server.
+Requirements: JDK 17+, sbt, and Lean 4.35.0 (`lake` on the PATH, or `FRFLOW_LAKE`).
+`bin/frflow` runs the browser and the MCP server; it computes their classpath
+with sbt once and caches it.
 
 ```sh
 sbt test                                  # unit tests, and Lean tests when lake is available
@@ -203,7 +204,6 @@ sbt "auth/run check"                      # render, prove the links, record the 
 sbt "auth/run status"                     # decisions, proofs and examples
 sbt "auth/run context Authenticated"      # everything known about a node, for agents and people
 sbt "auth/run accept Authenticated --by <name> --note <reason> [--reject ClientAsserted]"
-python3 -m unittest discover -s tools/frflow/tests
 ```
 
 ## Layout
@@ -218,6 +218,7 @@ core/                 the Scala library
   Workflow.scala      check, decisions, status, context, snapshot, event log
 examples/auth/        access control: idea, model, implementation, ledger
 examples/crm/         multi-tenant CRM, the same
-tools/frflow/         browser (server.py, ui/index.html) and MCP server (mcp_server.py)
+tools/                the browser server (Server.scala, ui/index.html) and the MCP server (Mcp.scala)
+bin/frflow            runs them
 .claude/skills/frflow the agent skill
 ```

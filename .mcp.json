@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "frflow": {
-      "command": "python3",
-      "args": ["tools/frflow/mcp_server.py", "examples"]
+      "command": "bin/frflow",
+      "args": ["mcp", "examples"]
     }
   }
 }
