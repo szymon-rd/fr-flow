@@ -1,0 +1,6 @@
+name = "frflow"
+version = "0.1.0"
+defaultTargets = ["FrFlow"]
+
+[[lean_lib]]
+name = "FrFlow"

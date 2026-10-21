@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "nodes": {
+    "T0": {
+      "lastCheck": {
+        "checkHash": "0e9b29117b981af8c98f45d7e5bb3a5434b479e3b8aa3ad919af3bddda0f5e0a",
+        "verification": "proven",
+        "checkedAt": "2026-10-21T14:45:17.233626850Z",
+        "obligations": [
+          {
+            "name": "init_Safe",
+            "status": "proven",
+            "detail": ""
+          },
+          {
+            "name": "access_inv_Safe",
+            "status": "proven",
+            "detail": ""
+          },
+          {
+            "name": "setPolicy_inv_Safe",
+            "status": "proven",
+            "detail": ""
+          }
+        ],
+        "axioms": {
+          "Authz.T0.Safe_holds": [
+            "Quot.sound",
+            "propext"
+          ],
+          "Authz.T0.invariant": [
+            "Quot.sound",
+            "propext"
+          ]
+        },
+        "messages": []
+      }
+    },
+    "T1": {
+      "lastCheck": {
+        "checkHash": "6bc89185ae3c037f6cdf109f11b3432e6c276ad3408acfa2b467a4cb5f971ee9",
+        "verification": "proven",
+        "checkedAt": "2026-10-21T14:45:17.233626850Z",
+        "obligations": [
+          {
+            "name": "init_abs",
+            "status": "proven",
+            "detail": ""
+          },
+          {
+            "name": "access_grd",
+            "status": "proven",
+            "detail": ""
+          },
+          {
+            "name": "access_sim",
+            "status": "proven",
+            "detail": ""
+          },
+          {
+            "name": "login_skip",
+            "status": "proven",
+            "detail": ""
+          },
+          {
+            "name": "logout_skip",
+            "status": "proven",
+            "detail": ""
+          },
+          {
+            "name": "setPolicy_grd",
+            "status": "proven",
+            "detail": ""
+          },
+          {
+            "name": "setPolicy_sim",
+            "status": "proven",
+            "detail": ""
+          }
+        ],
+        "axioms": {
+          "Authz.T1.inherits_T0_Safe": [
+            "Quot.sound",
+            "propext"
+          ],
+          "Authz.T1.refinement": [
+            "propext"
+          ]
+        },
+        "messages": []
+      }
+    }
+  }
+}
