@@ -40,6 +40,8 @@
         "at": "2026-10-21T21:56:45.434952068Z",
         "reason": "Format change only: terms are now listed at the node that first uses them; the meaning is unchanged.",
         "commit": "79d5d92ad9783b8d12890dd8ed6baeb07d5ac38a",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "jQvgL+GLZNJs2ot0yhA/wexkj6DqTHIeiq9cM8crkvrgSZAp0oVbPYU1fwvPoIQVeMa91n6WPnSflfmTD1KGBg==",
         "chain": "5a68cbbb8e6fc9e8dc241543898bb8e427df957285b8885e89433220d1e7d546",
         "content": {
           "parent": "NoUnauthorizedAccess",
@@ -134,6 +136,8 @@
         "reason": "Format change only: terms are now listed at the node that first uses them; the meaning is unchanged. Format change only: the contract now shows how its implementation is built; same code as before.",
         "code": "945683e2a0ae0caddb95a65d3faa270ad3d5a9ada7d4507531215023b1791b18",
         "commit": "79d5d92ad9783b8d12890dd8ed6baeb07d5ac38a",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "gtDBpGKOSnuuMSKSnnUv4jqbE+ZxGk2wAv4pmTHrNYNIhC/0Efp3yqzo1FoAIhoVj/JjvJPDNCvpl+YL6LCsBw==",
         "chain": "4e5e5ff2b28e93ee3baef6f2030ed4d28a2301f34ff656a4eb70a5558cf0b091",
         "content": {
           "parent": "GrantBased",
@@ -167,6 +171,8 @@
         "code": "945683e2a0ae0caddb95a65d3faa270ad3d5a9ada7d4507531215023b1791b18",
         "commit": "dcb0d33b59cc517b50431d9a807394cfa552ba15",
         "tree": "77e1426f8f0a70e9f535c5df50e63582598ecd1d",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "a51AkLnwKj6K/tJbkz/NOTVxT+c0QvNqmGgvh9+LA2WQbcBcr9S2qLq4AD1c4NyDAxi5aI2PSUHdglCpdyaGAw==",
         "chain": "faab4fea8465dd522f53a47575a9086f32c7da7cc011163d780dff4cbc40145c",
         "content": {
           "parent": "GrantBased",
@@ -239,6 +245,8 @@
         "at": "2026-10-21T21:56:46.996177828Z",
         "reason": "Format change only: terms are now listed at the node that first uses them; the meaning is unchanged.",
         "commit": "79d5d92ad9783b8d12890dd8ed6baeb07d5ac38a",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "a5qW6Rk2EdM1wl8nKK/Nr1BSptv2k1CRth+gh7rmdylD0YCTTz3IFqkJPq8ydBl4kakoWucJaeIRho4ududkCw==",
         "chain": "21373aa9109a318073af1be8b371aaab60003154e9a5efaa57553e27a71ffb24",
         "content": {
           "parent": "Authenticated",
@@ -272,6 +280,8 @@
         "reason": "Format change only: decisions are now bound to the Scala a node uses rather than generated Lean, ignore whitespace, and record how the implementation is built. The meaning is unchanged.",
         "commit": "dcb0d33b59cc517b50431d9a807394cfa552ba15",
         "tree": "77e1426f8f0a70e9f535c5df50e63582598ecd1d",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "IShqxfOrLSNzUKe/ybwJaKmkZIBSZ0fERvEMGZ9w54nGvliFNidcC4O9gb/PFaefAjfwiCw+Pc9ExbwDjwwsAw==",
         "chain": "21373aa9109a318073af1be8b371aaab60003154e9a5efaa57553e27a71ffb24",
         "content": {
           "parent": "Authenticated",
@@ -406,6 +416,18 @@
         "sig": "xnXaC6NlZJbl0O5LuLUv91Ld9JZwjrECb5Cll6aE2opveKyJaYDgDk0JR1xhyyrP5FTXSZweiXXe7dw2ib/XCQ==",
         "chain": "",
         "content": null
+      },
+      {
+        "action": "acknowledge",
+        "by": "claude-example-data",
+        "at": "2026-10-22T02:56:47.428462587Z",
+        "reason": "Example data: acceptances that only recorded FrFlow format changes are now recorded as migrations, which is what they were.",
+        "after": "240d8820bce09515",
+        "commit": "3a834d0cc39ca1c0909d7533998706eed27fae81",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "kh2FWrK416kI+bmPmgFYqhRiiBbvEtY7X1l7EoQIRkQcv4denGXlUKqDMfmDZEZ69HFn5Ea4NAVIX8q1dvHdCg==",
+        "chain": "",
+        "content": "same:74234e98afe7498f"
       }
     ]
   }
