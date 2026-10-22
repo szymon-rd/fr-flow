@@ -11,7 +11,7 @@ val writesTakeEffect = Node.claim("WritesTakeEffect",
   why = "What the idea says users can do with their company's records. It is about what the database holds after the write, not only what the write computes: a write that is not stored has not happened.",
   idea = "Writing records"
 )(forall((s: CrmStore, w: WriteCmd) => takesEffect(s, w, afterSave(s, w))))
-  .under(sharedCrm)
+  .under(sharedCrm, addedAreFound)
 
 val writesInCompany = Node.claim("WritesInCompany",
   "In every store the CRM reaches, a write leaves every other company's records, and whom they are shared with until when, as they were.",
@@ -28,19 +28,27 @@ val storeConsistent = Node.claim("StoreConsistent",
 )(forall((es: List[Event]) => idsUnique(runOf(es))))
   .under(writesInCompany)
 
+val recordsKept = Node.claim("RecordsKept",
+  "No write and no run of the expiry job removes a record: after each, the CRM holds every record it held before.",
+  why = "Editing or removing records is not modelled, so a record once stored stays: a write changes shares or adds a record, and the job ends shares only. This is what makes an added record found from then on, not only right after its write.",
+  idea = "Writing records"
+)(forall((s: CrmStore, e: Event) => s.records.forall(r => stepOf(s, e).records.contains(r))))
+  .under(addedAreFound)
+
 // ============================================================================
 // Contracts: one write, and the write side that stores it
 // ============================================================================
 
 val writeContract = Node.contract(write)("WriteContract",
-  "A write leaves the records of other companies as they were, does what its author asked of their company's records, and on a store with unique ids keeps them unique and leaves other companies' shares and expiries as they were.",
-  why = "The writing rules, stated for one write on a store: what the user asked takes effect, and nothing of another company's changes. A write the author's company may not make changes nothing.",
+  "A write keeps every record, leaves the records of other companies as they were, does what its author asked of their company's records, and on a store with unique ids keeps them unique and leaves other companies' shares and expiries as they were.",
+  why = "The writing rules, stated for one write on a store: what the user asked takes effect, no record is lost, and nothing of another company's changes. A write the author's company may not make changes nothing.",
   idea = "Writing records"
-)((s, w, t) => t.records.filter(r => r.tenant != w.by.tenant) == s.records.filter(r => r.tenant != w.by.tenant) && takesEffect(s, w, t) &&
+)((s, w, t) => s.records.forall(r => t.records.contains(r)) &&
+  t.records.filter(r => r.tenant != w.by.tenant) == s.records.filter(r => r.tenant != w.by.tenant) && takesEffect(s, w, t) &&
   (idsUnique(s) ==> (idsUnique(t) && s.records.forall(r => (r.tenant != w.by.tenant) ==> rowsAlike(s, t, r.id)))))
-  .under(writesTakeEffect, writesInCompany, storeConsistent)
+  .under(writesTakeEffect, writesInCompany, storeConsistent, recordsKept)
   // Per call, in time linear in the store: the write took effect, and other companies' records are as they were.
-  // The rest (unique ids, other companies' shares) is proven of the code, and would read every pair of rows.
+  // The rest (no record lost, unique ids, other companies' shares) is proven of the code, and would read every pair of rows.
   .checkedBy((s, w, t) => takesEffect(s, w, t) && t.records.filter(r => r.tenant != w.by.tenant) == s.records.filter(r => r.tenant != w.by.tenant))
   .examples()(
     expect(CrmStore(Nil, Nil, Nil), WriteCmd(Account("ann@acme", TenantId("acme")), Change.Add(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact"))), CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact")), Nil, Nil),
@@ -77,10 +85,10 @@ val applyWrite = define { (s: CrmStore, w: WriteCmd) =>
 
 val saveWrite = Node.contract(save)("SaveWrite",
   "Saving a write stores, and returns as read back, what the store the write leads to holds about the written record.",
-  why = "A write changes only its own record's rows, so storing those rows stores the write, whatever the size of the store: the database then holds what Saving says. The rows are read back, so a write the database dropped or changed is seen on the call.",
+  why = "A write changes only its own record's rows, so storing those rows stores the write, whatever the size of the store: the database then holds what CrmRun says. The rows are read back, so a write the database dropped or changed is seen on the call.",
   idea = "Writing records"
 )((s, w, back) => back == aboutRecord(write(s, w), about(w)))
-  .under(writesTakeEffect, writesInCompany, storeConsistent)
+  .under(writesTakeEffect, writesInCompany, storeConsistent, recordsKept)
   // Per call: the rows read back are about the written record. That they are the write's is proven of the
   // code, from StoreEdits; checking it would run the write twice.
   .checkedBy((s, w, back) => back.records.forall(r => r.id == about(w)) && back.shares.forall(sh => sh.record == about(w)) &&
@@ -107,7 +115,7 @@ val saved = define { (s: CrmStore, w: WriteCmd) => storeRows(about(w), write(s, 
 /** What the database is trusted to do with a write: store what a store holds about one record. */
 val storeEdits = Node.assumption(storeRows)("StoreEdits",
   "Storing what a store holds about one record replaces what the database holds about it, and nothing else; read back, the rows about it are what the store holds about it.",
-  why = "The database is outside the proofs: the write side is proven from this promise. The rows are read back after storing, and checked: a write the database dropped or changed is seen on the call. That it changes nothing else is trusted (Saving)."
+  why = "The database is outside the proofs: the write side is proven from this promise. The rows are read back after storing, and checked: a write the database dropped or changed is seen on the call. That it changes nothing else is trusted (CrmRun)."
 )((id, t, back) => back == aboutRecord(t, id))
   .examples(database.bind(Db.of(Nil, Nil)))(
     expect(BigInt(1), CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal"), CrmRecord(2, TenantId("globex"), Kind.Deal, "Globex deal")), List(Share(1, TenantId("globex"))), Nil),
@@ -122,8 +130,8 @@ val storedAbout = define { (id: BigInt, t: CrmStore) => aboutRecord(t, id) }
 /** The production wiring of writes, owned as a design decision: changes to it are reviewed. */
 val writeSideWiring = Node.design(
   "WriteSideWiring",
-  "The write side saves each write through service, on the store loaded from the database, one write at a time.",
-  why = "Every write must go through service, which checks what each step returns; one write at a time, so each starts from the store the last one left. Keeping the wiring in one governed file makes a change to it visible."
-)("src/main/scala/crm/WriteSide.scala")
+  "The write side saves each write through service, on the store loaded from the database, one write at a time, and logs it in the event log.",
+  why = "Every write must go through service, which checks what each step returns; one write at a time, so each starts from the store the last one left. The event log is the CRM's history (CrmRun): the write side and the expiry job each log their event after storing it. Keeping the wiring in governed files makes a change to it visible."
+)("src/main/scala/crm/WriteSide.scala", "src/main/scala/crm/EventLog.scala")
   .under(saveWrite)
   .exempt(noCrossTenantRead, "the write side hands rows to storage and returns them to its caller, never records to a reader")

@@ -54,3 +54,15 @@ object Db:
     val db = Db(DriverManager.getConnection("jdbc:sqlite::memory:"))
     db.synchronized(db.insert(records, shares, expiries))
     db
+
+  /** An in-memory database holding what a history led to, as CrmRun says (each write applied by
+    * WriteContract's code and its record's rows replaced, each run by SharesExpire's code), with the
+    * history in its event log: for examples and tests.
+    */
+  def replaying(es: List[Event]): Db =
+    val s = es.foldLeft(CrmStore(Nil, Nil, Nil))((s, e) => e match
+      case Event.Wrote(w)     => replaceAbout.fn(s, about.fn(w), aboutRecord.fn(applyWrite.fn(s, w), about.fn(w)))
+      case Event.Expired(now) => expireCode.fn(s, now))
+    val db = of(s.records, s.shares, s.expiries)
+    es.foreach(db.logEvent)
+    db

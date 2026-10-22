@@ -12,10 +12,10 @@ val httpApi = Node.design(
   .exempt(noCrossTenantRead, "it returns only what the records screen and the sales screen return, which keep the rule")
 
 val knowledge = KnowledgeBase("Crm", idea = "IDEA.md")(
-  sharedCrm,
-  companies, recordTable, sharesById, searches, stores, saving, asked, companyRecords, history, expiryRuns,
-  visibility, noCrossTenantRead, findRecords, salesScreen, readContract, dealSearch, recordsByQuery, readSideWiring,
-  writesTakeEffect, writesInCompany, storeConsistent, writeContract, saveWrite, storeEdits, writeSideWiring,
+  sharedCrm, addedAreFound,
+  companies, searches, crmRun, liveShares, adding,
+  visibility, noCrossTenantRead, searchesMatch, readContract, dealSearch, recordsByQuery, readSideWiring,
+  writesTakeEffect, writesInCompany, storeConsistent, recordsKept, writeContract, saveWrite, storeEdits, writeSideWiring,
   sharesExpire, expiryJobWiring,
   httpApi)
   .implementProven(recordsByQuery)(storedMatching, (u, q) => database.value.recordsMatching(q))

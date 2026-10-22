@@ -10,35 +10,14 @@ val User    = Opaque("User", "a person who works for one of the companies that u
 val Company = Opaque("Company", "a company that uses the CRM")
 val Record  = Opaque("Record", "a contact or a deal kept in the CRM")
 val Query   = Opaque("Query", "a search a user runs")
-val Store   = Opaque("Store", "what the CRM holds at a moment")
-val Write   = Opaque("Write", "a change a user asks of the CRM")
-val Time    = Opaque("Time", "a moment, as the expiry job reads the clock")
 
 val companyOf  = Param[User.T => Company.T]("companyOf", "the company a user works for")
 val owner      = Param[Record.T => Company.T]("owner", "the company a record belongs to")
-val stored     = Param[Record.T => Boolean]("stored", "whether the record is stored when the search runs")
-val sharedWith = Param[(Record.T, Company.T) => Boolean]("sharedWith", "whether the record is shared with the company when the search runs")
+val stored     = Param[Record.T => Boolean]("stored", "whether the CRM holds the record now")
+val sharedWith = Param[(Record.T, Company.T) => Boolean]("sharedWith", "whether the record is shared with the company now")
 val asksFor    = Param[(Query.T, Record.T) => Boolean]("asksFor", "whether the record is one the search asks for")
-val finds      = Param[(User.T, Query.T, Record.T) => Boolean]("finds", "whether the user's search returns the record")
-val author     = Param[Write.T => User.T]("author", "the user who asks for the write")
-val storeAfter = Param[(Store.T, Write.T) => Store.T]("storeAfter", "what the CRM holds after a write, when it held the given store")
-val obeys      = Param[(Store.T, Write.T, Store.T) => Boolean]("obeys",
-  "whether the second store holds what the write asked of the first, as far as its author's company may ask it")
-val alike      = Param[(Store.T, Store.T, Company.T) => Boolean]("alike",
-  "whether two stores hold the company's records alike: the same records, shared with the same companies until the same times")
-val reached    = Param[Store.T => Boolean]("reached", "whether the CRM can come to hold the store, from its start, by users' writes and runs of the expiry job")
-val expiryRun  = Param[(Store.T, Time.T) => Store.T]("expiryRun", "what the CRM holds after the expiry job runs at the time, when it held the given store")
-val endsDue    = Param[(Store.T, Time.T, Store.T) => Boolean]("endsDue",
-  "whether the second store is the first with exactly the shares given until the time, or earlier, ended")
-
-val sharedCrm = Node.claim("SharedCrm",
-  "Each user finds by search exactly the stored records of their company and those currently shared with it, and can add their company's records and share or unshare them; a share given until a time ends then, and nothing a user does changes another company's records.",
-  why = "The idea in one sentence, stated as exactly: what users can do (find, add, share, unshare) and what must never happen (seeing, or changing, another company's records), so a system that does nothing does not meet it. Companies, users, records, storing, sharing and searching are left open here; the definitions below fix them."
-)(forall((u: User.T, q: Query.T) => forall((r: Record.T) =>
-    finds(u, q, r) == (stored(r) && asksFor(q, r) && (owner(r) == companyOf(u) || sharedWith(r, companyOf(u)))))) &&
-  forall((s: Store.T, w: Write.T) => obeys(s, w, storeAfter(s, w))) &&
-  forall((s: Store.T, t: Time.T) => endsDue(s, t, expiryRun(s, t))) &&
-  forall((s: Store.T, w: Write.T) => reached(s) ==> forall((c: Company.T) => (c != companyOf(author(w))) ==> alike(s, storeAfter(s, w), c))))
+val finds      = Param[(User.T, Query.T, Record.T) => Boolean]("finds", "whether the user's search, run now, returns the record")
+val added      = Param[(User.T, Record.T) => Boolean]("added", "whether the user has added the record to the CRM")
 
 // ============================================================================
 // The domain: companies, records, shares, searches, writes, the expiry job
@@ -81,10 +60,14 @@ enum Event:
   case Wrote(cmd: WriteCmd)
   case Expired(now: BigInt)
 
-// The data, as stored when a search runs, and the database
-val store    = Param[List[CrmRecord]]("store", "the record table as stored when the search runs")
-val shares   = Param[List[Share]]("shares", "the share table as stored when the search runs")
-val database = Param[Db]("database", "the SQLite database the CRM keeps its records, shares and expiries in")
+// What the CRM holds now, its history, the clock, and the database
+val history  = Param[List[Event]]("history",
+  "the CRM's history since it started empty: every write the write side saved and every run of the expiry job, in order (its event log)")
+val store    = Param[List[CrmRecord]]("store", "the records the CRM holds now")
+val shares   = Param[List[Share]]("shares", "the shares the CRM holds now")
+val expiries = Param[List[Expiry]]("expiries", "the times until which the CRM's shares are given, as it holds them now")
+val clock    = Param[BigInt]("clock", "the time now, in seconds, by the server's clock: when a search runs")
+val database = Param[Db]("database", "the SQLite database the CRM keeps its records, shares, expiries and event log in")
 
 // The operations: what the system does, each implemented by code
 val read      = Param[(Account, Search) => List[CrmRecord]]("read", "the records screen: the records a user's search returns")
@@ -105,8 +88,15 @@ val matches = define { (q: Search, r: CrmRecord) =>
     case Search.Everything => true
 }
 
-/** Whether a reader may see a record: it is their company's, or shared with it. */
-val mayRead = define { (reader: Account, r: CrmRecord) => r.tenant == reader.tenant || shares.value.contains(Share(r.id, reader.tenant)) }
+/** Whether the CRM holds a share of the record with that id with the company now, and the share's time,
+  * if it was given until one, has not come by the clock.
+  */
+val sharedNow = define { (id: BigInt, c: TenantId) =>
+  shares.value.contains(Share(id, c)) && !expiries.value.exists(e => e.record == id && e.to == c && e.until <= clock.value)
+}
+
+/** Whether a reader may see a record: it is their company's, or shared with it now. */
+val mayRead = define { (reader: Account, r: CrmRecord) => r.tenant == reader.tenant || sharedNow(r.id, reader.tenant) }
 
 /** Whether a record is one a search on a screen asks for: the sales screen asks for deals only. */
 val askMatches = define { (q: Ask, r: CrmRecord) =>
@@ -190,6 +180,49 @@ val stepOf = define { (s: CrmStore, e: Event) =>
 /** The store a history of events leads to, from the empty store the CRM starts with. */
 val runOf = define { (es: List[Event]) => es.foldLeft(CrmStore(Nil, Nil, Nil))((s, e) => stepOf(s, e)) }
 
+/** Whether a history holds a write of the user's adding the record, of their company, under an id no
+  * record the CRM held before it had.
+  */
+val addedIn = define { (es: List[Event], u: Account, r: CrmRecord) =>
+  r.tenant == u.tenant && exists((pre: List[Event], post: List[Event]) =>
+    es == pre ++ (Event.Wrote(WriteCmd(u, Change.Add(r))) :: post) && !runOf(pre).records.exists(x => x.id == r.id))
+}
+
+// ============================================================================
+// The root: what users find, add, share and unshare, and what never happens
+// ============================================================================
+
+val sharedCrm = Node.claim("SharedCrm",
+  "Each user finds by search exactly the stored records of their company and those currently shared with it, and can add their company's records and share or unshare them; a share given until a time ends then, and nothing a user does changes another company's records.",
+  why = "The idea in one sentence, stated as exactly: what users can do (find, add, share, unshare) and what must never happen (seeing, or changing, another company's records), so a system that does nothing does not meet it. Finding is said in general terms, fixed by the definitions below, of what the CRM holds now, which is what its history of writes and job runs led to (CrmRun): so a record a user adds is then found. Writing is said in the domain's own terms, of a history and the write after it. A share is current until its time (LiveShares), so a share given until a time ends then, whatever the job has done."
+)(forall((u: User.T, q: Query.T) => forall((r: Record.T) =>
+    finds(u, q, r) == (stored(r) && asksFor(q, r) && (owner(r) == companyOf(u) || sharedWith(r, companyOf(u)))))) &&
+  forall((u: User.T, r: Record.T) => added(u, r) ==> forall((q: Query.T) => asksFor(q, r) ==> finds(u, q, r))) &&
+  forall((es: List[Event], w: WriteCmd) => takesEffect(runOf(es), w, runOf(es ++ List(Event.Wrote(w))))) &&
+  forall((es: List[Event], w: WriteCmd) => forall((c: TenantId) =>
+    (c != w.by.tenant) ==> holdsAlike(runOf(es), runOf(es ++ List(Event.Wrote(w))), c))))
+  .expects("When the CRM holds Acme's contact, and Globex's deal shared with Acme until 100: at 50 Ann at Acme finds both, at 150 only her contact, and Gil at Globex never finds Ann's contact")(
+    (runOf(history.value) == CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact"), CrmRecord(2, TenantId("globex"), Kind.Deal, "Globex deal")),
+      List(Share(2, TenantId("acme"))), List(Expiry(2, TenantId("acme"), 100)))) ==>
+    (((clock.value == BigInt(50)) ==>
+        (results(Account("ann@acme", TenantId("acme")), Ask(Screen.Records, Search.Everything)).contains(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact")) &&
+         results(Account("ann@acme", TenantId("acme")), Ask(Screen.Records, Search.Everything)).contains(CrmRecord(2, TenantId("globex"), Kind.Deal, "Globex deal")))) &&
+     ((clock.value == BigInt(150)) ==>
+        (results(Account("ann@acme", TenantId("acme")), Ask(Screen.Records, Search.Everything)).contains(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact")) &&
+         !results(Account("ann@acme", TenantId("acme")), Ask(Screen.Records, Search.Everything)).contains(CrmRecord(2, TenantId("globex"), Kind.Deal, "Globex deal")))) &&
+     !results(Account("gil@globex", TenantId("globex")), Ask(Screen.Records, Search.Everything)).contains(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact"))))
+  .expects("When Ann's adding her contact is all the CRM's history, her search for contacts finds it")(
+    (history.value == List(Event.Wrote(WriteCmd(Account("ann@acme", TenantId("acme")), Change.Add(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact")))))) ==>
+      results(Account("ann@acme", TenantId("acme")), Ask(Screen.Records, Search.OfKind(Kind.Contact))).contains(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact")))
+
+/** What links writing to finding: one store, so what a user adds is what their searches then find. */
+val addedAreFound = Node.claim("AddedAreFound",
+  "A record a user adds to their company, under an id no record has, is found from then on by each of their searches that asks for it.",
+  why = "What the idea means by users adding records: the write is stored (WritesTakeEffect), nothing later removes it (RecordsKept), and searches read what the CRM holds now (Visibility, CrmRun), so the record is found whatever the CRM does after the write.",
+  idea = "Writing records"
+)(forall((u: Account, r: CrmRecord) => addedIn(history.value, u, r) ==> forall((q: Ask) => askMatches(q, r) ==> results(u, q).contains(r))))
+  .under(sharedCrm)
+
 // ============================================================================
 // Definitions: the domain, introduced step by step
 // ============================================================================
@@ -200,48 +233,23 @@ val companies = Node.definition("Companies",
 )(Company := of[TenantId], User := of[Account], Record := of[CrmRecord],
   companyOf := ((a: Account) => a.tenant), owner := ((r: CrmRecord) => r.tenant))
 
-val recordTable = Node.definition("RecordTable",
-  "A record is stored when the record table holds it, as stored when the search runs.",
-  why = "Records live in a table of the database; what a search can find is what that table holds when it runs."
-)(stored := ((r: CrmRecord) => store.value.contains(r)))
-
-val sharesById = Node.definition("SharesById",
-  "A record is shared with a company when the share table holds a share of its id with that company.",
-  why = "A share names a record by its id, the way a company refers to its records; so a share shows every record with that id, and ids must be unique across companies (StoreConsistent)."
-)(sharedWith := ((r: CrmRecord, c: TenantId) => shares.value.contains(Share(r.id, c))))
-
 val searches = Node.definition("Searches",
   "A user searches by id, by kind or for everything, on the records screen or on the sales screen, which asks for deals only, and finds what the search returns.",
   why = "The idea's two ways of finding records: the records screen, and the sales team's screen of deals. What a user finds is what the screen returns, so the screens' code is what the purpose is about."
 )(Query := of[Ask], asksFor := ((q: Ask, r: CrmRecord) => askMatches(q, r)), finds := ((u: Account, q: Ask, r: CrmRecord) => results(u, q).contains(r)))
 
-val stores = Node.definition("Stores",
-  "The CRM holds records, shares and share expiries; a write is a user's change: adding a record, sharing one until a time or for good, or unsharing one.",
-  why = "The idea's writes: users add records and share or unshare them, a share possibly until a given time. Editing or removing records is not modelled."
-)(Store := of[CrmStore], Write := of[WriteCmd], author := ((w: WriteCmd) => w.by))
+val crmRun = Node.definition("CrmRun",
+  "What the CRM holds now, its records, their shares and the shares' expiries, is what its history led to: from empty, each write saved by the write side, the rows about its record replaced by those it stored, and each run of the expiry job, in turn.",
+  why = "Nothing else changes the CRM: users write through the write side, and the job ends shares, one at a time, each on what the last left (WriteSideWiring, ExpiryJobWiring); the database replaces the rows about the written record and nothing else (StoreEdits). So the store searches read is the one writes made, and a record a user adds is then found (AddedAreFound). The running read side reads these tables from the database, and the event log is this history (ReadSideWiring)."
+)(stored := ((r: CrmRecord) => runOf(history.value).records.contains(r)),
+  store := runOf(history.value).records, shares := runOf(history.value).shares, expiries := runOf(history.value).expiries)
 
-val saving = Node.definition("Saving",
-  "After a write, the CRM holds what it held, with the rows about the written record replaced by those the write side saved.",
-  why = "The database holds the store; the write side stores only the rows about the record a write is about, so a write costs the same whatever the size of the store. That nothing else changes the database is trusted (StoreEdits)."
-)(storeAfter := ((s: CrmStore, w: WriteCmd) => afterSave(s, w)))
+val liveShares = Node.definition("LiveShares",
+  "A record is shared with a company now when the CRM holds a share of its id with that company, and the share's time, if it was given until one, has not come.",
+  why = "A share given until a time ends at that time, whatever the expiry job has done: a search compares the share's expiry with the clock, so a share never outlives its time, and the job only clears rows that have ended. A share names a record by its id (StoreConsistent keeps ids unique)."
+)(sharedWith := ((r: CrmRecord, c: TenantId) => sharedNow(r.id, c)))
 
-val asked = Node.definition("Asked",
-  "A write obeys its author when it stores a new record of their company, makes a share of their company's record (until the time given, or for good), or removes one, as asked.",
-  why = "What users can do with their company's records, in the idea's words. A write of another company's record, or of a record with a taken id, may do nothing."
-)(obeys := ((s: CrmStore, w: WriteCmd, t: CrmStore) => takesEffect(s, w, t)))
-
-val companyRecords = Node.definition("CompanyRecords",
-  "Two stores hold a company's records alike when they hold the same records of it, with the same shares and expiries.",
-  why = "A company's records are its records and whom they are shared with until when: changing any of them changes what other users can see of the company."
-)(alike := ((s: CrmStore, t: CrmStore, c: TenantId) => holdsAlike(s, t, c)))
-
-val history = Node.definition("History",
-  "The CRM starts empty, and reaches a store by writes, each saved by the write side, and runs of the expiry job, one after another.",
-  why = "Nothing else changes the store: users write, and the job ends shares. A property kept by every write and every run then holds of every store the CRM reaches."
-)(reached := ((s: CrmStore) => exists((es: List[Event]) => runOf(es) == s)))
-
-val expiryRuns = Node.definition("ExpiryRuns",
-  "Time is counted in seconds; a run of the expiry job at a time ends exactly the shares given until then or earlier, and keeps the records.",
-  why = "A share given until a time must end then; a job that runs every minute ends it, so a share outlives its time by a minute at most. The job touches nothing else."
-)(Time := of[BigInt], expiryRun := ((s: CrmStore, now: BigInt) => expire(s, now)),
-  endsDue := ((s: CrmStore, now: BigInt, t: CrmStore) => endsDueAt(s, now, t)))
+val adding = Node.definition("Adding",
+  "A user has added a record when a write of theirs in the CRM's history asked to add it, of their company, under an id no record the CRM held then had.",
+  why = "What the idea calls adding a record: the write side refuses a record of another company or one with a taken id, and such a write adds nothing."
+)(added := ((u: Account, r: CrmRecord) => addedIn(history.value, u, r)))

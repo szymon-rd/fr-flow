@@ -454,3 +454,16 @@ now linear (about 0.85 s a node). The causes, and what changed:
   implementation is "checked by running"; code only design nodes govern is "reviewed only" (`status`,
   the tree). Invariants show as `invariant` in the tree and `context`.
 - **`answer` in the CLI** (`<kb>/run answer REQUEST|NODE TEXT`), as MCP's, for agents without MCP.
+
+### The CRM's one store (after the r16 review)
+
+- **The CRM's root says what its sentence says.** Reads and writes share one store: `store`, `shares`
+  and `expiries` are defined from `runOf(history)` (CrmRun, as keycloak's ServerRun; before, they were
+  open terms apart from the writes' stores), so the root proves that a record a user adds is then found
+  by their searches (AddedAreFound: `FrFlow.always` over the events after the add, with RecordsKept). A
+  share ends at its time whether or not the job ran: a search compares its expiry with the clock
+  (LiveShares; ShareRows, which would trust the job's schedule, is rejected in the ledger). Two root
+  expectations check the sentence on a concrete store and history. Gone: the one-part chains
+  FindRecords and SalesScreen (now SearchesMatch, over both screens) and the seven root terms a
+  definition fixed one-to-one (ten definitions became five). The running read side binds the tables
+  directly and the new event log as `history`; a test replays the log against the tables.
