@@ -64,19 +64,24 @@ with one reason.
 kept outside the repository (`~/.config/frflow/signing.key`, or `FRFLOW_KEY`).
 Every public key in `.frflow/keys/` is a developer key. A decision not signed
 by one is a warning, so `status` fails; the browser lists it, to decide again
-or sign. Decisions with no key at all are a warning too: start `frflow serve`
-(it creates the key) and commit `.frflow/keys/`.
+or sign. Decisions with no key at all are a warning too: start `frflow serve
+--as NAME` (it creates the key, filed as `.frflow/keys/NAME.pub`) and commit
+`.frflow/keys/`. Its decisions are recorded as NAME's, whatever the page says;
+one signed with a named key that says someone else decided it is a warning.
 
 **Owners.** A root may name its owner (`Node.root(..., owner = "ana")`): only
-they decide that concern, every node below it included; others see its
+they decide that concern, every node below it included (a decision in it by
+anyone else is a warning; with named keys, the name is the key's); others see its
 decisions waiting in their inbox under "Waiting for other owners". `status`
 and the inbox count what waits, mechanical or to judge, by owner.
 
 **Other knowledge bases.** A project reuses another's contracts with
 `kb.uses(other, "../other")(contracts*)`: they come with the nodes above them,
 the invariants they keep and their code, for Lean and for running. They are
-decided and checked in their own project; here their decisions are read from
-its ledger and checked against its keys, a node below one of them is refused
+decided in their own project: here their decisions are read from its ledger
+and checked against its keys. They are proven here too (the proofs written for
+them there are copied in, under this project's names), so `status` does not
+rest on the other project's results. A node below one of them is refused
 (call it or rely on it instead), and a change there reviews what rests on it
 here.
 
@@ -207,8 +212,11 @@ returning nothing on every call (`idle`) is listed as unproven: it guards, and
 asks for nothing.
 
 `ci` is what CI runs: `check` (a node whose formal parts did not change keeps
-its result), then `status`. The results (`.frflow/checks.json`) are not
-committed, so a fresh clone checks everything once (about 3 s a node). Keep
+its result), then `status`, and it fails when a decision in the ledger where the
+branch left its base (`FRFLOW_BASE`, by default `origin/HEAD`) is gone: the
+ledger only grows. `status` notes a clone without the ledger's merge driver.
+The results (`.frflow/checks.json`) are not
+committed, so a fresh clone checks everything once. Keep
 them and Lean's build between CI runs with the CI's cache, keyed by branch
 (`<kb>/.frflow/checks.json`, `lean/.lake`, `<kb>/lean/.lake`): each result is
 recorded with the hash of what it proved, so only what changed is proven again.
@@ -244,7 +252,8 @@ the previous one's, and every tenth concern has a link proven by hand
 A cold check proves each level in one Lean build (about 1.4 s a node); after
 that, only what a change reaches is proven again (a root change: its concern
 and the callers of its contract). `ci` also proves again a random 5% of the
-results it reads from the cache (`FRFLOW_VERIFY`), so a bad cache is found.
+results it reads from the cache (`FRFLOW_VERIFY`), with their Lean build
+removed first, so a bad results file or build cache is found.
 
 ## What is trusted, and the limits
 

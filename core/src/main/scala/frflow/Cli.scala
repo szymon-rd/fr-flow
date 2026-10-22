@@ -72,9 +72,15 @@ object Cli:
         untrue.foreach((n, c) => println(s"${n.id}: recorded as proven, but proven again it is ${c.status}: the recorded results are not to be trusted; check without them"))
         if again.nonEmpty then println(s"Proven again from scratch, to verify the recorded results: ${again.toList.sorted.mkString(", ")}")
         results.filter(_._2.status != "proven").foreach((n, c) => println(s"${n.id}: ${c.status}"))
+        // The ledger only grows: nothing decided where this branch left its base (FRFLOW_BASE, by
+        // default origin's default branch) may be missing now.
+        val base = sys.env.get("FRFLOW_BASE").orElse(Some("origin/HEAD")).flatMap(Git.mergeBase(ws.root, _))
+        val lost = base.flatMap(b => Git.show(ws.root, b, ws.root.relativize(ws.ledgerFile).toString)).toList
+          .flatMap(t => Ledger.lost(Ledger.fromJson(Json.parse(t)), Ledger.load(ws.ledgerFile)))
+        lost.foreach((id, d) => println(s"$id: the ${d.action} of ${d.at} by ${d.by}, in the ledger at ${base.get.take(12)}, is gone from it: restore it (merge the ledger with `frflow merge-ledger`)"))
         val (text, ok) = w.status
         print(text)
-        if ok && results.forall(_._2.status == "proven") then 0 else 1
+        if ok && lost.isEmpty && results.forall(_._2.status == "proven") then 0 else 1
       case "render" :: Nil =>
         val changed = w.render()
         println(s"rendered ${changed.size} changed file(s); wrote ${ws.root.relativize(w.writeSnapshot())}")

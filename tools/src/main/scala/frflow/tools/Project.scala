@@ -112,7 +112,7 @@ final class Project(dir: Path):
     */
   private def signed(before: frflow.Ledger, now: frflow.Ledger): frflow.Ledger =
     Project.signingKey.fold(now) { (priv, pub) =>
-      frflow.Signing.publish(pub, state.resolve("keys"))
+      frflow.Signing.publish(pub, state.resolve("keys"), Project.developer.getOrElse(""))
       frflow.Signing.signNew(before, now, priv, pub)
     }
 
@@ -128,7 +128,7 @@ final class Project(dir: Path):
       case None => Left("this process holds no developer key")
       case Some((priv, pub)) =>
         Project.locked(state.resolve("ledger.lock")) {
-          frflow.Signing.publish(pub, state.resolve("keys"))
+          frflow.Signing.publish(pub, state.resolve("keys"), Project.developer.getOrElse(""))
           frflow.Ledger.save(ledgerFile, frflow.Signing.signEntries(ownLedger, entries, priv, pub))
         }
         Right(())
@@ -235,6 +235,8 @@ final class Project(dir: Path):
 object Project:
   /** The developer's signing key, held by the browser server only (see `frflow.Signing`). */
   @volatile var signingKey: Option[(java.security.PrivateKey, java.security.PublicKey)] = None
+  /** The developer the key belongs to (`serve --as NAME`): every decision made here is theirs. */
+  @volatile var developer: Option[String] = None
 
   /** Where the browser server keeps the developer's key: outside every repository. */
   def keyFile: Path = sys.env.get("FRFLOW_KEY").map(Path.of(_))

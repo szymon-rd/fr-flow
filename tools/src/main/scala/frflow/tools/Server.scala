@@ -109,7 +109,7 @@ final class Server(projects: List[Project], val token: String = Server.newToken(
         case None => error(ex, 404, s"unknown project $name")
         case Some(p) => what match
           case "kb" => json(ex, obj("snapshot" -> p.annotated.getOrElse(JNull), "sourcesChanged" -> JArr(p.sourcesChanged.map(str)),
-              "running" -> p.running.getOrElse(JNull), "requests" -> JArr(p.requests),
+              "running" -> p.running.getOrElse(JNull), "requests" -> JArr(p.requests), "developer" -> Project.developer.fold(JNull)(str),
               // IDEA.md as it is now (the snapshot holds it as last rendered): what the editor starts from.
               "ideaNow" -> (try str(Files.readString(p.ideaFile, UTF_8)) catch case _: java.io.IOException => JNull)))
           case "history" => json(ex, p.history)
@@ -144,7 +144,8 @@ final class Server(projects: List[Project], val token: String = Server.newToken(
                 try json(ex, start(p, args).json, 202) catch case e: IllegalStateException => error(ex, 409, e.getMessage)
           case List("decide") =>
             def ids(k: String) = body(k).map(_.arr.toList).getOrElse(Nil).flatMap(_.str)
-            val req = frflow.Decisions.Request(field("node"), field("by"), field("reason"), ids("reject"),
+            // With a named developer, decisions are theirs whatever the page says.
+            val req = frflow.Decisions.Request(field("node"), Project.developer.getOrElse(field("by")), field("reason"), ids("reject"),
               ids("revisit"), ids("confirm"), body("action").flatMap(_.str).getOrElse("accept"),
               body("seen").flatMap(_.str).getOrElse(""), ids("held"), field("from"))
             // A batch: the same reason for several nodes (`nodes`: [{node, seen}]), all or none.

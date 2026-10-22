@@ -2,6 +2,7 @@ package frflow
 
 import frflow.fixtures.*
 import java.nio.file.{Files, Path, Paths}
+import scala.jdk.CollectionConverters.*
 
 /** End to end against Lean. Skipped when `lake` is not available. */
 class LeanSuite extends munit.FunSuite:
@@ -307,6 +308,27 @@ class LeanSuite extends munit.FunSuite:
     assertEquals(w.current(sloppy).map(_.status), Some("proven"))
     assertEquals(w.sample(1.0), Set("OnlyGood", "Sloppy"))
     assertNotEquals(w.check(verify = Set("Sloppy")).find(_._1.id == "Sloppy").get._2.status, "proven")
+  }
+
+  test("a node proven again is elaborated again, not taken from Lean's build cache") {
+    val w = workflow(shelfKb)
+    w.check()
+    def built() = scala.util.Using.resource(Files.walk(w.ws.lean.resolve(".lake/build")))(_.iterator.asScala.toList)
+      .filter(p => Files.isRegularFile(p) && p.toString.contains("FrFlowGen/Shelf/Listed/")).map(p => p -> Files.getLastModifiedTime(p)).toMap
+    val before = built()
+    assert(before.nonEmpty)
+    Thread.sleep(1100)
+    assertEquals(w.check(verify = Set("Listed")).find(_._1.id == "Listed").get._2.status, "proven")
+    val after = built()
+    assert(before.keySet.forall(p => after.get(p).exists(_.compareTo(before(p)) > 0)), (before, after))
+  }
+
+  test("another project's contract is proven here too, as it stands here") {
+    val shelf = workflow(shelfKb)
+    val reader = Workflow(readerKb(shelf.ws.root.toString), Workspace(Files.createTempDirectory("reader"), kernel.toString))
+    val r = reader.check()
+    assertEquals(r.map((n, c) => n.id -> c.status).toMap.get("Pick"), Some("proven"), r)
+    assertEquals(r.map((n, c) => n.id -> c.status).toMap.get("ReadingList"), Some("proven"), r)
   }
 
   test("a root doing nothing meets is unproven, unless it says why it only forbids") {

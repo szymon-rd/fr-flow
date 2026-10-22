@@ -291,6 +291,8 @@ async function refresh() {
     const [data, history, job] = await Promise.all([api(`${base}/kb`), api(`${base}/history`), api(`${base}/job`)]);
     if (!current(gen)) return;
     state.data = data; state.history = history; state.job = job; state.codeDiffs = {};
+    // A server started for a named developer decides as them: the name is not typed.
+    if (data.developer) { $("#me").value = data.developer; $("#me").readOnly = true; }
     if (!live().some(n => n.id === state.selected)) state.selected = (waitingForYou()[0] || live()[0])?.id || null;
     render();
   })().finally(() => { if (loading?.done === done) loading = null; });

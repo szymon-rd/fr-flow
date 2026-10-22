@@ -42,16 +42,28 @@ object Signing:
       catch case _: Exception => false
     }
 
-  /** The developer keys: every public key in `dir` (`<id>.pub`). */
-  def keys(dir: Path): Map[String, PublicKey] =
+  /** The developer keys: every public key in `dir`. */
+  def keys(dir: Path): Map[String, PublicKey] = named(dir).view.mapValues(_._1).toMap
+
+  /** Every public key in `dir`, with the name of the developer it is (`<name>.pub`), or "" for a key
+    * filed by its id (`<id>.pub`), which names no one.
+    */
+  def named(dir: Path): Map[String, (PublicKey, String)] =
     if !Files.isDirectory(dir) then Map.empty
     else Files.list(dir).iterator.asScala.toList.filter(_.toString.endsWith(".pub")).sortBy(_.toString).flatMap { f =>
       try
         val line = Files.readString(f, UTF_8).linesIterator.map(_.trim).find(_.nonEmpty).get
         val pub = KeyFactory.getInstance("Ed25519").generatePublic(X509EncodedKeySpec(Base64.getDecoder.decode(line)))
-        Some(keyId(pub) -> pub)
+        val stem = f.getFileName.toString.stripSuffix(".pub")
+        Some(keyId(pub) -> (pub, if stem == keyId(pub) then "" else stem))
       catch case _: Exception => None
     }.toMap
+
+  /** Decisions signed by a named developer's key that say another developer decided them. */
+  def misnamed(l: Ledger, dir: Path): List[(String, Decision, String)] =
+    val names = named(dir)
+    l.decisions.toList.sortBy(_._1).flatMap((id, ds) => ds.flatMap(d =>
+      names.get(d.key).map(_._2).filter(n => n.nonEmpty && !n.equalsIgnoreCase(d.by.trim) && verify(keys(dir), id, d)).map(n => (id, d, n))))
 
   /** The developer's decisions not signed by a developer key; none while the project has never had a key. */
   def unsigned(l: Ledger, dir: Path): List[(String, Decision)] =
@@ -73,12 +85,13 @@ object Signing:
       catch case _: Exception => ()
       (kp.getPrivate, kp.getPublic)
 
-  /** Writes the public key into a project's `.frflow/keys`, if it is not there. */
-  def publish(pub: PublicKey, dir: Path): Unit =
-    val f = dir.resolve(s"${keyId(pub)}.pub")
-    if !Files.exists(f) then
+  /** Writes the public key into a project's `.frflow/keys` as `<name>.pub` (`<id>.pub` with no name),
+    * if it is not there under any name.
+    */
+  def publish(pub: PublicKey, dir: Path, name: String = ""): Unit =
+    if !named(dir).contains(keyId(pub)) then
       Files.createDirectories(dir)
-      Files.writeString(f, b64(pub.getEncoded) + "\n", UTF_8)
+      Files.writeString(dir.resolve(s"${if name.trim.isEmpty then keyId(pub) else name.trim}.pub"), b64(pub.getEncoded) + "\n", UTF_8)
 
   /** Signs the decisions of the developer's in `now` that `before` did not have. */
   def signNew(before: Ledger, now: Ledger, priv: PrivateKey, pub: PublicKey): Ledger =

@@ -591,3 +591,28 @@ class SnapshotSuite extends munit.FunSuite:
     val again = decide(merged, "NonNeg0", "dev0", "Concern 0 is what users asked for, both branches agree.", "2030-01-06T00:00:00Z")
     assertEquals(states(again)("NonNeg0"), "accepted")
   }
+
+  test("a decision signed with a named developer's key says that developer decided it; an owned concern is its owner's") {
+    val w = workflow(ownedKb)
+    ok(w.decide(Decisions.Request("Owned", "ana", "negative results are meaningless")))
+    val kp = java.security.KeyPairGenerator.getInstance("Ed25519").generateKeyPair()
+    val keys = w.ws.ledgerFile.getParent.resolve("keys")
+    Signing.publish(kp.getPublic, keys, "bob")
+    assert(Files.exists(keys.resolve("bob.pub")))
+    // bob's key signs a decision that says ana made it
+    Ledger.save(w.ws.ledgerFile, Signing.signNew(Ledger.empty, Ledger.load(w.ws.ledgerFile), kp.getPrivate, kp.getPublic))
+    assert(w.integrity.exists(_.contains("signed with bob's key")), w.integrity)
+    // a decision in ana's concern written as bob's
+    val l = Ledger.load(w.ws.ledgerFile)
+    Ledger.save(w.ws.ledgerFile, l.add("OwnedSquares", l.history("Owned").head.copy(by = "bob")))
+    assert(w.integrity.exists(_.contains("ana owns the concern")), w.integrity)
+  }
+
+  test("decisions the ledger lost since the base are found") {
+    val w = workflow()
+    acceptAll(w)
+    val before = w.ledger
+    val now = Ledger(before.decisions - "Pick")
+    assertEquals(Ledger.lost(before, now).map(_._1), List("Pick"))
+    assertEquals(Ledger.lost(before, Ledger.merge(now, before)), Nil)
+  }

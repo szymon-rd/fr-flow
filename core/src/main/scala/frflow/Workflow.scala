@@ -65,10 +65,25 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       .map(f => s"${f.getFileName}:${Files.size(f)}:${Files.getLastModifiedTime(f).toMillis}").mkString(",")
   private var cached: Option[(String, Generate, scala.collection.concurrent.TrieMap[String, String])] = None
   private def cache: (Generate, scala.collection.concurrent.TrieMap[String, String]) = synchronized {
+    importProofs()
     val stamp = proofStamp
     cached.filter(_._1 == stamp).fold { val c = (stamp, Generate(kb, proofs), scala.collection.concurrent.TrieMap.empty[String, String]); cached = Some(c); (c._2, c._3) }(c => (c._2, c._3))
   }
   def generate: Generate = cache._1
+
+  /** The proofs another knowledge base wrote for the nodes this one imports, copied beside this one's
+    * (its names in place of the other's): imported nodes are proven here too, as they stand here.
+    */
+  private def importProofs(): Unit =
+    kb.imports.foreach { (id, i) =>
+      val dir = ws.root.resolve(i.root).normalize
+      val src = Option(dir.resolve(s"lean/Proofs/${i.kb}/$id.lean")).filter(Files.isRegularFile(_)).map(Files.readString(_, UTF_8))
+      val dst = ws.lean.resolve(baseGenerate.proofsPath(id))
+      src.fold(if Files.isRegularFile(dst) && read(dst).exists(_.startsWith(Workflow.CopiedProof)) then Files.delete(dst)) { text =>
+        write(dst, s"${Workflow.CopiedProof} ${i.kb}: edit it there.\n" +
+          text.replaceAll(s"\\b${java.util.regex.Pattern.quote(i.kb)}\\.", java.util.regex.Matcher.quoteReplacement(kb.name + ".")))
+      }
+    }
 
   /** Writes the generated Lean; returns the files that changed. */
   def render(): List[String] =
@@ -252,8 +267,9 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     render()
     val lake = Lake(ws.lean)
     val g = generate
-    // Another knowledge base's nodes are checked there.
-    val todo = kb.ordered.filter(g.formal).filter(n => !kb.imports.contains(n.id) && only.forall(_ == n.id))
+    val todo = kb.ordered.filter(g.formal).filter(n => only.forall(_ == n.id))
+    // A node proven again: its compiled modules are forgotten first, so Lean elaborates it, not a build cache.
+    verify.flatMap(kb.node).foreach(forgetBuild)
     // A node is checked after what its proofs import (its parent, what it keeps, what it relies on);
     // the nodes of one level are checked side by side.
     val levels = scala.collection.mutable.Map.empty[String, Int]
@@ -291,6 +307,16 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     Checks.save(ws.checksFile, all)
     synchronized { checksCache = None }
     results
+
+  /** Removes what Lake built of a node (its model, theorems, proof), so that it is elaborated again. */
+  private def forgetBuild(n: Node[?]): Unit =
+    val build = ws.lean.resolve(".lake/build")
+    val k = kb.name
+    if Files.isDirectory(build) then
+      val mine = (p: Path) =>
+        val u = build.relativize(p).toString.replace('\\', '/')
+        u.contains(s"FrFlowGen/$k/${n.id}/") || u.matches(s".*Proofs/$k/${java.util.regex.Pattern.quote(n.id)}\\.[^/]+")
+      scala.util.Using.resource(Files.walk(build))(_.iterator.asScala.toList).filter(p => Files.isRegularFile(p) && mine(p)).foreach(Files.delete)
 
   /** Some of the results recorded and still current, chosen at random (at least one when there are
     * any): `ci` proves them again, so a cache that says "proven" of what Lean no longer proves is found.
@@ -467,7 +493,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
         .filterNot(p => governedExplicitly.exists(g => p == g || p.startsWith(g)))
     }
     // Another knowledge base's code, as its project names it.
-    val base = kb.imports.get(n.id).fold(ws.root)(i => Path.of(i.root))
+    val base = kb.imports.get(n.id).fold(ws.root)(i => ws.root.resolve(i.root).normalize)
     val files = n.governs.map(base.resolve) ++ impl
     if files.isEmpty then None else Some(Code.of(base, files))
 
@@ -478,7 +504,6 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     def st(status: String, detail: String) = obj("status" -> str(status), "detail" -> str(detail))
     if n.parent.isEmpty || n.kind == NodeKind.Design then JNull
     else if !n.formal then st("informal", "not formalized: decided by reading")
-    else if kb.imports.contains(n.id) then st("imported", s"checked in ${kb.imports(n.id).kb}")
     else current(n) match
       case None => st("unchecked", if checks.contains(n.id) then "changed since the last check" else "not checked yet")
       case Some(c) => c.obligations.find(_.name == "link") match
@@ -510,7 +535,17 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       .map(l => Ledger.save(ws.ledgerFile, Ledger(l.decisions -- kb.imports.keySet)))
 
   /** Warnings about the record (decisions not signed by the developer) and the code. */
-  def integrity: List[String] = Ledger.warnings(ws.ledgerFile, Ledger.load(ws.ledgerFile)) ++ importWarnings ++ codeWarnings
+  def integrity: List[String] = Ledger.warnings(ws.ledgerFile, Ledger.load(ws.ledgerFile)) ++ ownerWarnings ++ importWarnings ++ codeWarnings
+
+  /** Decisions in a concern with an owner made by someone else (with named keys, `by` is the key's name). */
+  private def ownerWarnings: List[String] =
+    val own = Ledger.load(ws.ledgerFile)
+    kb.nodes.filterNot(n => kb.imports.contains(n.id)).flatMap { n =>
+      val owner = kb.rootOf(n).owner
+      if owner.isEmpty then Nil
+      else own.decisions.getOrElse(n.id, Nil).filter(d => d.action != "revisit" && !d.by.trim.equalsIgnoreCase(owner))
+        .map(d => s"${n.id}: the ${d.action} of ${d.at} is by ${d.by}, but $owner owns the concern: $owner decides it again")
+    }
 
   /** Decisions of another knowledge base's nodes, checked against its own keys. */
   private def importWarnings: List[String] =
@@ -658,7 +693,10 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val notes = kb.nodes.filter(_.kind == NodeKind.Invariant).flatMap { i =>
         val out = kb.nodes.filter(c => c.kind == NodeKind.Contract && !kb.inScope(i).contains(c))
         Option.when(out.nonEmpty)(s"${i.id} does not reach ${out.map(c => s"${c.id} (returns ${c.post.flatMap(_.params.lastOption).fold("?")(_._2)})").mkString(", ")}: its rule is about none of what they return")
-      }
+      } ++
+      // Without the merge driver, git merges the ledger as text, and a conflict resolved by hand can drop decisions.
+      Option.when(Files.isRegularFile(ws.ledgerFile) && Git.head(ws.root).nonEmpty && Git.config(ws.root, "merge.frflow-ledger.driver").isEmpty)(
+        "the ledger's merge driver is not set in this clone: git config merge.frflow-ledger.driver \"bin/frflow merge-ledger %O %A %B\"")
     (Decisions.tree(a) + "\n\n" + coverage + "\n" + Decisions.load(a) + notes.map("note: " + _ + "\n").mkString + warnings.map("warning: " + _ + "\n").mkString +
       (if ok then "Every node is accepted, proven (or decided by reading, where it opted out of Lean), and its examples pass."
        else "Not every node is accepted, proven, and passing its examples, or there are warnings.") + "\n", ok)
@@ -1031,6 +1069,8 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     ws.snapshotFile
 
 object Workflow:
+  /** The first line of a proof copied from another knowledge base. */
+  val CopiedProof = "-- Copied by FrFlow from"
   /** A ledger with the decisions of the nodes other knowledge bases decide (id -> their project's directory). */
   def withImports(own: Ledger, imports: Map[String, String]): Ledger =
     imports.groupBy(_._2).foldLeft(own) { case (l, (root, ids)) =>

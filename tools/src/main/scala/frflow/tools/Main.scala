@@ -10,7 +10,7 @@ import java.nio.charset.StandardCharsets.UTF_8
   * A PATH is a project (a directory with `frflow.json`) or a directory of projects.
   */
 object Main:
-  val usage = "usage: frflow serve [--host 127.0.0.1] [--port 8765] PATH... | frflow mcp PATH... | frflow merge-ledger BASE OURS THEIRS"
+  val usage = "usage: frflow serve [--host 127.0.0.1] [--port 8765] [--as NAME] PATH... | frflow mcp PATH... | frflow merge-ledger BASE OURS THEIRS"
 
   def main(args: Array[String]): Unit = args.toList match
     case "serve" :: rest =>
@@ -22,6 +22,8 @@ object Main:
       if projects.isEmpty then { System.err.println("no project found (a project is a directory with frflow.json)"); sys.exit(2) }
       // The browser is where the developer decides: it signs their decisions with their key.
       Project.signingKey = Some(frflow.Signing.loadOrCreate(Project.keyFile))
+      // Who the key is: their decisions are recorded under this name, and their key filed under it.
+      Project.developer = opt("--as").orElse(sys.env.get("FRFLOW_NAME")).map(_.trim).filter(_.nonEmpty)
       val host = opt("--host").getOrElse("127.0.0.1")
       val srv = Server(projects)
       val server = srv.serve(host, opt("--port").map(_.toInt).getOrElse(8765))

@@ -165,6 +165,13 @@ object Ledger:
   private[frflow] def ref(content: Json): String =
     Sha(content.compact).take(16)
 
+  /** The decisions of `before` that `now` lost: the ledger only grows, so each is a merge gone wrong
+    * (a text merge, a conflict resolved by hand) or an edit.
+    */
+  def lost(before: Ledger, now: Ledger): List[(String, Decision)] =
+    val kept = now.decisions.values.flatten.map(entry).toSet
+    before.decisions.toList.sortBy(_._1).flatMap((id, ds) => ds.filterNot(d => kept(entry(d))).map(id -> _))
+
   def load(file: Path): Ledger =
     if !Files.isRegularFile(file) then empty else fromJson(Json.parse(Files.readString(file, UTF_8)))
 
@@ -196,7 +203,9 @@ object Ledger:
     (if now.decisions.nonEmpty && Signing.keys(keys).isEmpty then
       List("no developer key: start the browser (`frflow serve`), which creates your key, and commit .frflow/keys/") else Nil) ++
     Signing.unsigned(now, keys).map((id, d) =>
-      s"$id: the ${d.action} of ${d.at} by ${d.by} is not signed by a developer key: decide it again in the browser, or sign it there if it is yours")
+      s"$id: the ${d.action} of ${d.at} by ${d.by} is not signed by a developer key: decide it again in the browser, or sign it there if it is yours") ++
+    Signing.misnamed(now, keys).map((id, d, name) =>
+      s"$id: the ${d.action} of ${d.at} says ${d.by} decided it, but it is signed with $name's key")
 
 /** Check results, derived from the model and Lean; kept in `.frflow/checks.json`, not committed. */
 object Checks:

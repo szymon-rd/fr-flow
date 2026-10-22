@@ -686,8 +686,6 @@ object Decisions:
 
   /** What of a node is not proven (or decided by reading) or fails: the one list the browser and `status` use. */
   def unproven(n: Json): List[String] =
-    // An imported node is checked in its own knowledge base; here only its signed decisions are.
-    if n("imported").exists(_ != JNull) then return Nil
     def bad(k: String, ok: Set[String]) = n(k).map(_.arr.toList).getOrElse(Nil).filterNot(x => ok(s(x, "status")))
     val fine = Set("proven", "informal")
     val (ok, total) = examples(n)
