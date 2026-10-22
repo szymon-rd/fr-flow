@@ -434,8 +434,10 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
         val rel = if authored(n.id) then g.proofsPath(n.id) else g.autoPath(n.id)
         val r = judge(o.name, rel, lake.elaborate(rel), authored(n.id))
         // Automation is tried only while no proof file proves it: what to do next comes first.
-        if authored(n.id) || r.status != "open" then r
-        else r.copy(detail = s"automation gave up: write theorem complete : Obl.complete in lean/${g.proofsPath(n.id)} (run `scaffold ${n.id}`)\nLean: ${r.detail}")
+        if authored(n.id) && r.status == "open" then r.copy(detail = binderNote(n, g, "complete") + r.detail)
+        else if authored(n.id) || r.status != "open" then r
+        else r.copy(detail = s"automation gave up: write theorem complete : Obl.complete in lean/${g.proofsPath(n.id)} (run `scaffold ${n.id}`)\n" +
+          proofState(n, "complete", g, lake).fold(s"Lean: ${r.detail}")(stateText("complete", _)))
     }
     // Its code meets it, from what the contracts it calls promise.
     var implAxioms: List[String] = Nil
@@ -451,12 +453,13 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
           implAxioms = Lean.axioms(run.output).collectFirst { case (t, as) if t.endsWith("Impl.impl") => as }.getOrElse(List("<no audit result>"))
           if run.ok && !implAxioms.contains("sorryAx") then Result("impl", "proven", "authored")
           else if run.ok then Result("impl", "open", "uses sorry")
-          else Result("impl", "open", s"not proven (authored): " + errors(run).take(3).mkString("\n").take(20000))
+          else Result("impl", "open", s"not proven (authored): " + binderNote(n, g, "impl") + errors(run).take(3).mkString("\n").take(20000))
       else
         val run = lake.build(g.implModule(n.id))
         implAxioms = Lean.axioms(run.output).collectFirst { case (t, as) if t.endsWith("Impl.impl") => as }.getOrElse(List("<no audit result>"))
         if run.ok then Result("impl", "proven", "auto")
-        else Result("impl", "open", s"not proven (auto): prove theorem impl : Obl.impl in lean/${g.proofsPath(n.id)}\nLean: " + errors(run).take(3).mkString("\n").take(20000))
+        else Result("impl", "open", s"not proven (auto): prove theorem impl : Obl.impl in lean/${g.proofsPath(n.id)} (run `scaffold ${n.id}`)\n" +
+          proofState(n, "impl", g, lake).fold("Lean: " + errors(run).take(3).mkString("\n").take(20000))(stateText("impl", _)))
     }
     val results = split ++ implemented
     if results.exists(_.status == "failed") then return done("failed", results, Nil)
@@ -773,13 +776,56 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val wanted = if open.nonEmpty then open else g.obligation(n, "complete").map(_.name).toList
     val existing = read(path).fold(List.empty[String])(src => Lean.theorems(src).map(_.name))
     val add = wanted.filterNot(existing.contains)
+    // Each stub shows, as a comment, the goal its first steps leave: the state `check` prints.
+    val lake = Lake(ws.lean)
+    val built = add.nonEmpty && lake.available && lake.build(g.specModule(n.id)).ok
+    def state(o: String) = Option.when(built)(proofState(n, o, g, lake)).flatten.fold("") { st =>
+      s"  /- The goal here (as `check` prints it when automation gives up):\n${st.replace("-/", "- /").linesIterator.map("     " + _).mkString("\n")}\n  -/\n"
+    }
     if add.isEmpty then false
     else read(path) match
-      case None => write(path, g.proofFile(n, add))
+      case None => write(path, g.proofFile(n, add, state))
       case Some(src) =>
         val end = s"end ${kb.name}.${n.id}.Proofs"
         val i = src.lastIndexOf(end)
-        if i < 0 then false else write(path, src.substring(0, i) + g.stubs(add) + src.substring(i))
+        if i < 0 then false else write(path, src.substring(0, i) + g.stubs(add, state) + src.substring(i))
+
+  /** The goal an obligation leaves after the first steps of a proof by hand (`Generate.recipe`), as
+    * Lean prints it: what `scaffold` writes in a stub, and `check` prints when automation gave up, so
+    * the agent starts from the state its own first steps give. None when Lean cannot say.
+    */
+  def proofState(n: Node[?], o: String, g: Generate, lake: Lake): Option[String] =
+    val file = Files.createTempFile("frflow-state", ".lean")
+    try
+      val ns = s"${kb.name}.${n.id}"
+      Files.writeString(file, s"import ${g.specModule(n.id)}\n\nset_option autoImplicit false\nset_option linter.unusedVariables false\n" +
+        s"noncomputable section\nopen Classical\n\nnamespace $ns.State\nopen $ns\n\ntheorem state : Obl.$o := by\n  " +
+        Generate.recipe(o).mkString("\n  ") + s"\n  done\n\nend $ns.State\n")
+      val run = lake.elaborate(file.toString)
+      val errs = Lean.diagnostics(run.output).filter(d => d.isError && d.file.endsWith(file.getFileName.toString))
+      errs.find(_.message.startsWith("unsolved goals")).map(_.message.stripPrefix("unsolved goals").trim)
+        .orElse(Option.when(errs.isEmpty && run.ok)("no goals: these steps prove it"))
+    finally Files.deleteIfExists(file)
+
+  private def stateText(o: String, state: String): String =
+    s"After `${Generate.recipe(o).mkString("; ")}` (the first steps the stub has), the goal is:\n$state"
+
+  /** For an authored proof that fails: the obligation's binders, in order, when the proof introduces
+    * them by position under other names; and, when a name it introduces now stands at another place,
+    * that the obligation changed since the proof was written (a part or a term added or removed).
+    */
+  private def binderNote(n: Node[?], g: Generate, o: String): String =
+    val now = g.obligation(n, o).fold(List.empty[String])(x => Workflow.binderNames(x.statement))
+    val src = read(ws.lean.resolve(g.proofsPath(n.id))).getOrElse("")
+    val body = Lean.theorems(src).find(_.name == o).fold("")(d => Lean.code(src).linesIterator.slice(d.from - 1, d.to).mkString("\n"))
+    val Ident = """[\p{L}_][\p{L}\p{N}_'!?]*""".r
+    val intro = """(?m)^\s*intro\s+(.+)$""".r.findFirstMatchIn(body).toList
+      .flatMap(_.group(1).trim.split("\\s+").toList.takeWhile(Ident.matches))
+    val moved = intro.zipWithIndex.exists((x, i) => now.contains(x) && now.indexOf(x) != i)
+    if now.isEmpty || intro.isEmpty || intro == now.take(intro.size) then ""
+    else if moved then s"the obligation of ${n.id} changed since this proof was written: its binders are now ${now.mkString(" ")}; " +
+      "introduce them with `frflow_intro`, which names them so, and refer to them by name\n"
+    else s"(the binders of Obl.$o, in order: ${now.mkString(" ")}; `frflow_intro` introduces them by these names)\n"
 
   def tree(mark: Option[String] = None): String = Decisions.tree(annotated, mark)
 
@@ -805,11 +851,12 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val g = generate
     kb.root.filter(g.formal).fold("") { r =>
       val st = current(r).flatMap(_.obligations.find(_.name == "root_impl")).fold("not checked")(_.status)
-      s"Trusted (the hypotheses of root_impl, $st): ${if g.trusted.isEmpty then "nothing" else g.trusted.map(t => s"${t.id} (${Workflow.kindName(t)})").mkString(", ")}.\n"
+      s"Trusted (the hypotheses of root_impl, $st): ${if g.trusted.isEmpty then "nothing" else g.trusted.map(t => s"${t.id} (${Workflow.shownKind(t)})").mkString(", ")}.\n"
     }
 
-  /** How far the proofs reach: splits proven, splits out of Lean, and contracts whose code is
-    * proven, checked on examples only, or missing. What the experiment measures.
+  /** How far the proofs reach: splits proven, splits out of Lean, and contracts proven down to their
+    * code (a proven define, with any running code checked against it), checked by running only, or
+    * reviewed only. What the experiment measures.
     */
   def coverage: String =
     val splits = kb.nodes.filter(n => kb.isStatement(n) && kb.parts(n).nonEmpty)
@@ -820,35 +867,34 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val formalSplits = splits.filter(n => generate.splitParts(n).isDefined)
     val proven = formalSplits.filter(provenSplit)
     val contracts = kb.nodes.filter(_.kind == NodeKind.Contract)
-    val code = provenCode
+    val down = provenDown
     val plain = contracts.filter(c => kb.implementation(c).exists(_.proven.isEmpty))
-    val beside = contracts.filter(c => kb.implementation(c).exists(i => i.proven.isDefined && !i.provenCode))
+    val beside = down.flatMap(c => kb.implementation(c).filter(_.wiring.nonEmpty).map(i =>
+      s"${c.id}: proven define ${i.proven.get.name}; running code ${Decisions.runningCode(i.wiring)} checked against it"))
     val designs = kb.nodes.filter(_.kind == NodeKind.Design)
     s"Proofs: ${proven.size} of ${splits.size} splits proven in Lean" +
       s"${if formalSplits.diff(proven).nonEmpty then s" (${formalSplits.diff(proven).map(_.id).mkString(", ")} not proven yet)" else ""}" +
       s"${if splits.diff(formalSplits).nonEmpty then s" (${splits.diff(formalSplits).map(_.id).mkString(", ")} out of Lean)" else ""}; " +
-      s"code proven to meet its contract for ${code.size} of ${contracts.size} contracts" +
-      (if plain.nonEmpty then s", checked on examples only for ${plain.map(_.id).mkString(", ")}" else "") +
-      (if beside.nonEmpty then s", and of a proven define the code is checked against for ${beside.map(_.id).mkString(", ")}" else "") +
-      (if designs.nonEmpty then s"; ${designs.size} design decision(s) govern code no proof covers (${designs.map(_.id).mkString(", ")})" else "") +
+      s"${down.size} of ${contracts.size} contracts proven down to their code" +
+      (if beside.nonEmpty then s" (${beside.mkString("; ")})" else "") +
+      (if plain.nonEmpty then s", checked by running for ${plain.map(_.id).mkString(", ")}" else "") +
+      (if designs.nonEmpty then s"; ${designs.size} design decision(s) govern code reviewed only (${designs.map(_.id).mkString(", ")})" else "") +
       evaluated + ".\n" + lines
 
   private def lines: String =
     def count(f: String) = read(ws.root.resolve(f)).fold(0)(_.linesIterator.count(_.trim.nonEmpty))
-    val provenDefs = Def.closure(kb.nodes.flatMap(c => kb.implementation(c).filter(_.provenCode).flatMap(_.proven)))
+    val provenDefs = Def.closure(kb.nodes.flatMap(c => kb.implementation(c).flatMap(_.proven)))
     val proven = provenDefs.map(_.lifted.source.linesIterator.count(_.trim.nonEmpty)).sum
-    val contracts = kb.nodes.filter(_.kind == NodeKind.Contract)
-    // Plain implementations: their files. Production code beside a proven define: only the adapter's
-    // methods it calls (and the private ones they call), not the rest of the adapter's file.
-    val plain = contracts.filter(c => kb.implementation(c).exists(i => !i.provenCode && i.wiring.isEmpty)).flatMap(c => code(c).toList.flatMap(_.files)).distinct
-    val adapted = adapters.flatMap((_, i, files) => files.map(f => f -> """\.(\w+)""".r.findAllMatchIn(i.wiring).map(_.group(1)).toSet))
-      .groupMapReduce(_._1)(_._2)(_ ++ _).toList.filterNot((f, _) => plain.contains(f))
-    val checkedFiles = plain ++ adapted.map(_._1)
-    val reviewedFiles = kb.nodes.filter(_.kind == NodeKind.Design).flatMap(d => code(d).toList.flatMap(_.files)).distinct.filterNot(checkedFiles.contains)
-    val checked = plain.map(count).sum + adapted.map((f, names) => read(ws.root.resolve(f)).fold(0)(t => Workflow.linesOf(t, names))).sum
-    val reviewed = reviewedFiles.map(count).sum
-    if proven + checked + reviewed == 0 then ""
-    else s"Code: $proven line(s) proven (define), $checked checked by running (plain implementations), $reviewed reviewed only (${reviewedFiles.size} file(s) design nodes govern).\n"
+    // Running code: only the methods it calls (and the private ones they call), not the rest of its
+    // file; checked against a proven define, or, a plain implementation, by running only.
+    val running = adapters.flatMap((_, i, files) => files.map(f => (f, i.proven.isDefined) -> """\.(\w+)""".r.findAllMatchIn(i.wiring).map(_.group(1)).toSet))
+      .groupMapReduce(_._1)(_._2)(_ ++ _).toList
+    def linesOf(against: Boolean) = running.filter(_._1._2 == against).map { case ((f, _), names) => read(ws.root.resolve(f)).fold(0)(t => Workflow.linesOf(t, names)) }.sum
+    val runningFiles = running.map(_._1._1).toSet
+    val reviewedFiles = kb.nodes.filter(_.kind == NodeKind.Design).flatMap(d => code(d).toList.flatMap(_.files)).distinct.filterNot(runningFiles)
+    val (against, plain, reviewed) = (linesOf(true), linesOf(false), reviewedFiles.map(count).sum)
+    if proven + against + plain + reviewed == 0 then ""
+    else s"Code: $proven line(s) in proven defines, $against of running code checked against them, $plain checked by running (plain implementations), $reviewed reviewed only (${reviewedFiles.size} file(s) design nodes govern).\n"
 
   /** How many examples Lean evaluated as Scala does (the translation's cross-check), and where none. */
   private def evaluated: String =
@@ -863,9 +909,11 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       s"; examples evaluated in Lean as in Scala: ${per.map(_._2).sum} of ${per.map(_._3).sum}, and $probes probe(s) near them" +
         (if none.nonEmpty then s" (none for ${none.mkString(", ")}: unchecked, or its parameters are functions)" else "")
 
-  /** The contracts whose code is the proven define, and proven to meet them. */
-  def provenCode: List[Node[?]] =
-    kb.nodes.filter(c => c.kind == NodeKind.Contract && generate.provenImpl(c).isDefined && kb.implementation(c).exists(_.provenCode) &&
+  /** The contracts proven down to their code: their implementation is a proven define, proven to meet
+    * them (running code beside it, if any, is checked against it).
+    */
+  def provenDown: List[Node[?]] =
+    kb.nodes.filter(c => c.kind == NodeKind.Contract && generate.provenImpl(c).isDefined &&
       current(c).exists(k => k.status == "proven" && k.obligations.exists(o => o.name == "impl" && o.status == "proven")))
 
   /** Formal contracts whose translation no example cross-checks: checked, and none of their examples
@@ -896,7 +944,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val ideaText = Decisions.ideaSections(ideaDecided)._1 + section.fold("")(s => "\n\n" + ideaOf(s)) +
       (if notModelledOfText(notModelled, section.getOrElse(n)).nonEmpty then s"\n\n## Not modelled\n\n${notModelledOfText(notModelled, section.getOrElse(n))}" else "")
     sb ++= s"# ${kb.name} / ${n.id}\n\n## Idea (${section.fold("its purpose")(s => s"the section ${s.ideaSection}")})\n\n${ideaText.trim}\n\n"
-    def kind(x: Node[?]) = Workflow.kindName(x)
+    def kind(x: Node[?]) = Workflow.shownKind(x)
     // The decision that binds a node now, first; every accepted change to the node, newest first (each
     // marked if given for an earlier version of what it says); confirmations, briefly.
     def reasons(a: Node[?]): Unit =
@@ -908,6 +956,8 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
         case "accept"  => s"Change accepted by ${d.by}: ${d.reason}${ver(d)}"
         case "confirm" => s"Confirmed by ${d.by}: ${d.reason}"
         case _         => s"To revisit (${d.by}): ${d.reason}"
+      // A rejection is the developer's last word on the node: its reason may ask for something in its place.
+      l.current(a.id).filter(_.action == "reject").foreach(d => sb ++= s"Rejected by ${d.by} at ${d.at}: ${d.reason}\n\n")
       ds.lastOption.foreach(d => sb ++= s"Latest: ${line(d)}\n\n")
       val accepts = ds.dropRight(1).filter(_.action == "accept").reverse
       // The latest few changes, and how it was chosen; the rest is in the ledger's history.
@@ -987,7 +1037,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     if invs.nonEmpty then
       sb ++= "## Invariants that apply here (every contract in their scope keeps them, or says why not)\n\n"
       invs.foreach { i =>
-        sb ++= s"### ${i.id} [${st.getOrElse(i.id, "?")}]\n\n${i.statement}\n\nWhy: ${i.why}\n\n"
+        sb ++= s"### ${i.id} (invariant) [${st.getOrElse(i.id, "?")}]\n\n${i.statement}\n\nWhy: ${i.why}\n\n"
         i.rule.foreach(r => sb ++= s"rule:\n```scala\n${r.source}\n```\n")
         kb.nodes.flatMap(c => c.kept.filter(_.invariant eq i).map(c -> _)).foreach { (c, k) =>
           sb ++= k.view.fold(s"- ${c.id} is exempt: ${k.exempt}\n")(v => s"- kept by ${c.id}, showing the rule: `${v.source}`\n")
@@ -1240,8 +1290,31 @@ object Workflow:
       val theirs = Ledger.load(Path.of(root).resolve(".frflow/ledger.json"))
       Ledger(l.decisions ++ theirs.decisions.filter((id, _) => ids.contains(id)))
     }
+  /** The binders an obligation's statement introduces, in order: its open terms, then its hypotheses
+    * (`∀ (A B : Type) (x : T), ∀ (h_P : ...), goal`).
+    */
+  def binderNames(statement: String): List[String] =
+    def groups(s: String): (List[String], String) =
+      val t = s.dropWhile(_ == ' ')
+      if !t.startsWith("(") then (Nil, t)
+      else
+        var depth = 0
+        val end = t.indices.find { i => if t(i) == '(' then depth += 1 else if t(i) == ')' then depth -= 1; depth == 0 }.getOrElse(t.length - 1)
+        val names = t.substring(1, end).split(" : ", 2).head.trim.split("\\s+").toList
+        val (more, rest) = groups(t.substring(end + 1))
+        (names ++ more, rest)
+    def block(s: String): Option[(List[String], String)] =
+      Option.when(s.startsWith("∀ ("))(groups(s.stripPrefix("∀ "))).collect { case (ns, rest) if ns.nonEmpty && rest.startsWith(",") => (ns, rest.drop(1).trim) }
+    block(statement.trim) match
+      case None => Nil
+      case Some((first, rest)) =>
+        // A second block is the hypotheses (`h_<Part>`, or `h`), not a quantifier of the goal.
+        first ++ block(rest).map(_._1).filter(_.forall(_.startsWith("h"))).getOrElse(Nil)
+
   /** A node's kind as the snapshot names it. */
   def kindName(n: Node[?]): String = n.kind.toString.toLowerCase
+  /** A node's kind as people read it: an invariant is a claim with a rule. */
+  def shownKind(n: Node[?]): String = if n.isInvariant then "invariant" else kindName(n)
   /** The lines removed (`- `) and added (`+ `) from `a` to `b`, in order (a longest common subsequence). */
   def lineDiff(a: String, b: String): List[String] =
     val (x, y) = (a.split("\n", -1).toVector, b.split("\n", -1).toVector)

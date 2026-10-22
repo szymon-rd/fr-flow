@@ -62,7 +62,7 @@ class SnapshotSuite extends munit.FunSuite:
     assertEquals(ns("Pick")("code"), Some(Json.JNull)) // its implementation lives in the model's own file
     // the model's files are where its nodes are written; a model may span several
     assertEquals(shelfKb.modelFiles.map(f => java.nio.file.Paths.get(f).getFileName.toString), List("Fixtures.scala"))
-    assert(Decisions.tree(j).contains("Pick (contract)  [proposed, unchecked, examples 4/4] (also under OnlyLong, EveryLong)"), Decisions.tree(j))
+    assert(Decisions.tree(j).contains("Pick (contract)  [proposed, unchecked, examples 4/4, code checked by running] (also under OnlyLong, EveryLong)"), Decisions.tree(j))
   }
 
   test("the DAG is decided from the root down; a part waits for all its parents and the definitions it uses") {
@@ -147,6 +147,10 @@ class SnapshotSuite extends munit.FunSuite:
     assert(!settled)
     assert(text.contains("FromList (claim)  [rejected: remove it from the model"), text)
     assert(Decisions.inbox(Some(w.annotated), Nil).contains("Pick: rests on rejected FromList"))
+    // The agent reads why: the reason may ask for something in the node's place.
+    val inbox = Decisions.inbox(Some(w.annotated), Nil)
+    assert(inbox.contains("FromList: rejected by dev: Bounded was chosen instead: Readers want fewer books now; propose what the reason asks for"), inbox)
+    assert(w.context(fromList).contains("Rejected by dev at "), w.context(fromList))
   }
 
   test("a node can opt out of Lean: Scala only, decided by reading, examples still run") {
@@ -872,4 +876,32 @@ class SnapshotSuite extends munit.FunSuite:
     val gone = l.decisions.values.head.last.copy(action = "remove")
     Ledger.save(w.ws.ledgerFile, l.add("Sessions", gone).add("Listing", gone))
     assert(!w.staleNames.exists(_.contains("Sessions")), w.staleNames)
+  }
+
+  test("the code a decision saw, diffed: a file git does not track is compared as it is, not shown as deleted") {
+    val repo = Files.createTempDirectory("frflow-git")
+    def git(args: String*) =
+      val p = ProcessBuilder(("git" +: args)*).directory(repo.toFile).redirectErrorStream(true).start()
+      p.getInputStream.readAllBytes(); assertEquals(p.waitFor(), 0, args)
+    git("init", "-q"); git("config", "user.email", "t@example.com"); git("config", "user.name", "t")
+    val dir = Files.createDirectories(repo.resolve("project"))
+    Files.writeString(repo.resolve("README"), "x\n")
+    git("add", "README"); git("commit", "-q", "-m", "first")
+    // Untracked: the project's files, before its first commit.
+    Files.writeString(dir.resolve("Desk.scala"), "val desk = 1\n")
+    val tree = Git.snapshot(dir, List("Desk.scala", "New.scala"))
+    assert(tree.nonEmpty)
+    Files.writeString(dir.resolve("Desk.scala"), "val desk = 1\nval members = 2\n")
+    Files.writeString(dir.resolve("New.scala"), "val added = 3\n")
+    val d = Git.diff(dir, tree, List("Desk.scala", "New.scala"))
+    assert(!d.contains("deleted file"), d)
+    assert(d.contains("+val members = 2") && !d.contains("-val desk = 1"), d)
+    assert(d.contains("new file") && d.contains("+val added = 3"), d)
+    // Removed from the working tree: shown as deleted.
+    Files.delete(dir.resolve("Desk.scala"))
+    assert(Git.diff(dir, tree, List("Desk.scala")).contains("-val desk = 1"))
+    // Nothing changed: no diff; and the repository's own index is untouched.
+    Files.writeString(dir.resolve("Desk.scala"), "val desk = 1\n")
+    assertEquals(Git.diff(dir, tree, List("Desk.scala")), "")
+    assert(!Git.tracked(dir, "Desk.scala"))
   }

@@ -193,7 +193,30 @@ private final class Translator(using val quotes: Quotes):
     }
 
   private def fail(msg: String, pos: Position): Nothing = report.errorAndAbort(s"FrFlow: $msg", pos)
-  private def unsupported(t: Tree): Nothing = fail(s"not supported in a model: ${t.show}", t.pos)
+  private def unsupported(t: Tree): Nothing =
+    fail(s"not supported in a model: ${t.pos.sourceCode.filter(_.length <= 200).getOrElse(t.show)}${hint(t).fold("")(h => s"\n$h")}", t.pos)
+
+  /** The usual rewrite into the subset, for the calls most often written outside it. */
+  private def hint(t: Tree): Option[String] =
+    def call(x: Tree): Option[(Term, String)] = x match
+      case Apply(f, _)      => call(f)
+      case TypeApply(f, _)  => call(f)
+      case Inlined(_, _, b) => call(b)
+      case Select(q, n)     => Some((q, n))
+      case _                => None
+    call(t).flatMap { (q, name) =>
+      val qt = norm(q.tpe)
+      def on(sym: Symbol) = qt.derivesFrom(sym)
+      (name, on(ListSym), on(OptionSym), on(MapSym) || on(SetSym)) match
+        case ("count", true, _, _)                    => Some("write it `xs.filter(p).length` (and `BigInt(xs.filter(p).length)` to compare it with a BigInt)")
+        case ("sum" | "product", true, _, _)          => Some(s"write it with foldLeft: `xs.foldLeft(BigInt(${if name == "sum" then 0 else 1}))((a, x) => a ${if name == "sum" then "+" else "*"} x)`")
+        case ("apply" | "last" | "head", true, _, _)  => Some("it throws on a short list: use `xs.drop(i).headOption`, or `headOption`")
+        case ("toList", _, true, _)                   => Some("match on it: `o match { case Some(x) => List(x); case None => Nil }`")
+        case ("map" | "flatMap" | "filter" | "fold" | "get" | "orElse", _, true, _) => Some("match on it: `o match { case Some(x) => ...; case None => ... }` (`get` throws on None)")
+        case ("size" | "keys" | "values" | "toList" | "foreach" | "forall" | "exists" | "filter" | "map", _, _, true) =>
+          Some("maps and sets are functions in Lean: what needs iterating them (sizes, every key) cannot be said; keep the data in a List")
+        case _ => None
+    }
 
   // ---------------------------------------------------------------------------
   // Entry points

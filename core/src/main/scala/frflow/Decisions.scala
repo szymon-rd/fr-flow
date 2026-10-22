@@ -628,6 +628,30 @@ object Decisions:
     val ex = n("examples").map(_.arr.toList).getOrElse(Nil)
     (ex.count(e => s(e, "contract") == "ok" && e("implementation").forall(i => i == JNull || i.str.contains("ok"))), ex.size)
 
+  /** A node's kind as people read it: an invariant is a claim with a rule. */
+  def kindOf(n: Json): String = if n("rule").contains(JBool(true)) then "invariant" else s(n, "kind")
+
+  /** Running code as named in a summary: `LoanIndex(...).borrow` as `LoanIndex.borrow`. */
+  def runningCode(wiring: String): String =
+    val body = wiring.trim.replaceFirst("""^\([^()]*\)\s*=>\s*|^\w+\s*=>\s*""", "")
+    val flat = StringBuilder()
+    var depth = 0
+    body.foreach(c => if c == '(' then depth += 1 else if c == ')' then depth -= 1 else if depth == 0 then flat += c)
+    val name = flat.result().replace(".value", "").replaceAll("\\s+", " ").trim
+    if name.nonEmpty && name.length <= 60 then name else body.take(57) + "…"
+
+  /** How a contract's code is proven, in the words every summary uses: "proven down to its code"
+    * (a proven define, any running code checked against it), or "checked by running".
+    */
+  private def codeOf(n: Json): String =
+    val impl = n("content").flatMap(_("implementation")).flatMap(_.str).getOrElse("")
+    val runs = impl.linesIterator.find(_.startsWith("runs: ")).map(r => s"; running code ${runningCode(r.stripPrefix("runs: "))} checked against it").getOrElse("")
+    n("implementationProof").filter(_ != JNull) match
+      case Some(p) if s(p, "status") == "proven" => s", proven down to its code (define ${s(p, "name")}$runs)"
+      case Some(p) => s", define ${s(p, "name")} ${s(p, "status")}$runs"
+      case None if impl.nonEmpty => ", code checked by running"
+      case None => ""
+
   /** The tree as text, from the root: each node under its first parent (and "also under" the others),
     * with its state (and what moved), how its parts make it, its examples; then the definitions, and
     * the nodes under no parent besides the root.
@@ -654,14 +678,14 @@ object Decisions:
       val (exempt, kept) = all.partition(i => s(i, "status") == "exempt")
       val keeps = (if kept.isEmpty then "" else s", keeps ${kept.map(i => s"${s(i, "id")} ${s(i, "status")}").mkString(", ")}") +
         (if exempt.isEmpty then "" else s", exempt from ${exempt.map(s(_, "id")).mkString(", ")}")
-      val impl = n("implementationProof").filter(_ != JNull).fold("")(p => s", implementation ${s(p, "status")}")
+      val impl = codeOf(n)
       val exps = n("expectations").map(_.arr.toList).getOrElse(Nil).filter(e => s(e, "status") != "informal")
       val notProven = exps.filter(e => s(e, "status") != "proven")
       val expects = if exps.isEmpty then "" else if notProven.isEmpty then s", expectations ${exps.size}/${exps.size} proven"
         else s", expectations ${exps.size - notProven.size}/${exps.size} proven (${notProven.map(e => s"${s(e, "status")}: \"${{ val t = s(e, "statement"); if t.length > 80 then t.take(79) + "…" else t }}\"").mkString("; ")})"
       val also = parents(n).filter(ids).drop(1)
       val here = if mark.contains(s(n, "id")) then "   ← this node" else ""
-      s"${"  " * depth}${s(n, "id")} (${s(n, "kind")})  [$st$check$split$ex$expects$keeps$impl]${if also.isEmpty then "" else s" (also under ${also.mkString(", ")})"}$here" ::
+      s"${"  " * depth}${s(n, "id")} (${kindOf(n)})  [$st$check$split$ex$expects$keeps$impl]${if also.isEmpty then "" else s" (also under ${also.mkString(", ")})"}$here" ::
         ns.filter(c => parents(c).filter(ids).headOption.contains(s(n, "id"))).flatMap(go(_, depth + 1))
     val gone = annotated("gone").map(_.arr.toList).getOrElse(Nil).map(g => s"${s(g, "id")}  [review: gone]")
     val tops = ns.filter(n => parents(n).forall(p => !ids(p)))
@@ -675,7 +699,7 @@ object Decisions:
   def find(annotated: Json, query: String): String =
     val ns = nodes(annotated)
     def files(n: Json) = n("code").filter(_ != JNull).flatMap(_("files")).map(_.arr.flatMap(_.str).toList).getOrElse(Nil)
-    def line(n: Json) = s"- ${s(n, "id")} (${s(n, "kind")}, ${s(n, "state")}): ${n("content").flatMap(_("statement")).flatMap(_.str).getOrElse("")}"
+    def line(n: Json) = s"- ${s(n, "id")} (${kindOf(n)}, ${s(n, "state")}): ${n("content").flatMap(_("statement")).flatMap(_.str).getOrElse("")}"
     val q = query.stripPrefix("./")
     val governing = ns.filter(n => files(n).exists(f => f == q || f.startsWith(q.stripSuffix("/") + "/") || q.startsWith(f.stripSuffix("/") + "/")))
     if governing.nonEmpty then ("Governed by:" :: governing.map(line)).mkString("\n")
@@ -762,7 +786,11 @@ object Decisions:
       val why = n("history").map(_.arr.toList).getOrElse(Nil).reverse.find(h => s(h, "action") == "revisit").fold("")(h => s(h, "reason"))
       s"${s(n, "id")}: the developer asked to revisit it ($why): propose a change, or answer on the node (answer with node) why it still holds"
     }
-    val agent = ns.filter(n => s(n, "state") == "rejected").map(n => s"${s(n, "id")}: rejected; remove it from the Scala model") ++ revisits ++
+    // The developer's reason may ask for something in its place: the agent reads it before removing the node.
+    def rejection(n: Json) =
+      n("history").map(_.arr.toList).getOrElse(Nil).reverse.find(h => s(h, "action") == "reject")
+        .fold("rejected")(h => s"rejected by ${s(h, "by")}: ${s(h, "reason").trim.stripSuffix(".")}")
+    val agent = ns.filter(n => s(n, "state") == "rejected").map(n => s"${s(n, "id")}: ${rejection(n)}; propose what the reason asks for in its place, or remove it from the Scala model") ++ revisits ++
       ns.filter(orphan).map(n => s"${s(n, "id")}: rests on rejected ${parents(n).filter(p => ids.get(p).exists(x => s(x, "state") == "rejected")).mkString(", ")}; move it under the node chosen instead")
     (dev, agent)
 
