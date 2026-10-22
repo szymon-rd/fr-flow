@@ -11,6 +11,7 @@
   --proven: #13854b; --proven-soft: #e3f5ea; --open: #b86e00; --open-soft: #fff3dc;
   --failed: #c62f2f; --failed-soft: #fde7e7; --none: #8a94a3; --none-soft: #eef0f3;
   --code: #f3f5f8; --shadow: 0 1px 2px rgba(20,30,50,.06), 0 4px 14px rgba(20,30,50,.06);
+  --def: #7445c2; --def-soft: #f1eafc; --inv: #0b7a83; --inv-soft: #e0f4f5;
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
   color-scheme: light;
 }
@@ -21,6 +22,7 @@
     --proven: #4cc38a; --proven-soft: #15302a; --open: #f0b44c; --open-soft: #33290f;
     --failed: #ff7b7b; --failed-soft: #3a1a1d; --none: #7d8696; --none-soft: #1f252f;
     --code: #10151d; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+    --def: #b99af5; --def-soft: #2a2140; --inv: #5fd0d8; --inv-soft: #14302f;
     color-scheme: dark;
   }
 }
@@ -30,6 +32,7 @@
   --proven: #4cc38a; --proven-soft: #15302a; --open: #f0b44c; --open-soft: #33290f;
   --failed: #ff7b7b; --failed-soft: #3a1a1d; --none: #7d8696; --none-soft: #1f252f;
   --code: #10151d; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+  --def: #b99af5; --def-soft: #2a2140; --inv: #5fd0d8; --inv-soft: #14302f;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -68,7 +71,7 @@ textarea { width: 100%; resize: vertical; }
 
 main { display: grid; grid-template-columns: minmax(0, 1fr) 500px; height: calc(100% - 55px); }
 #canvasWrap { position: relative; overflow: auto; }
-#canvas { position: relative; margin: 28px auto; }
+#canvas { position: relative; margin: 28px auto 110px; }
 aside { background: var(--panel); border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
 .tabs { display: flex; border-bottom: 1px solid var(--line); padding: 0 8px; }
 .tab { border: 0; background: none; padding: 10px 12px; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; }
@@ -98,6 +101,16 @@ aside { background: var(--panel); border-left: 1px solid var(--line); display: f
 .kind { font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; padding: 1px 6px; border-radius: 4px;
         background: var(--soft); color: var(--muted); flex: none; }
 .kind.root { background: var(--accent-soft); color: var(--accent); }
+.kind.contract { background: var(--proven-soft); color: var(--proven); }
+.kind.assumption { background: var(--open-soft); color: var(--open); }
+.kind.definition { background: var(--def-soft); color: var(--def); }
+.kind.invariant { background: var(--inv-soft); color: var(--inv); }
+.card.definition { border-left: 4px solid var(--def); }
+.card .also { font-size: 11.5px; color: var(--muted); margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card .also a { color: var(--accent); text-decoration: none; }
+.card .also a:hover { text-decoration: underline; }
+.rowlabel { position: absolute; font-size: 11.5px; font-weight: 650; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+.s-trusted { background: var(--open-soft); color: var(--open); border-color: color-mix(in srgb, var(--open) 45%, transparent); }
 .chip { font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid transparent; white-space: nowrap; }
 .s-proven, .s-accepted, .s-ok { background: var(--proven-soft); color: var(--proven); }
 .s-open, .s-waiting, .s-review { background: var(--open-soft); color: var(--open); }
@@ -114,6 +127,7 @@ path.edge.unchecked { stroke: var(--none); stroke-dasharray: 2 5; }
 path.edge.design, path.edge.informal { stroke: var(--line); stroke-width: 2; }
 path.edge.informal { stroke-dasharray: 2 4; }
 path.edge.onpath { stroke-width: 4; }
+path.edge.also { stroke: var(--accent); stroke-width: 1.6; stroke-dasharray: 4 4; opacity: .8; }
 path.glow { fill: none; stroke: var(--proven); stroke-width: 10; opacity: .14; }
 path.edge.dim, path.glow.dim { opacity: .3; }
 .elabel { position: absolute; transform: translate(-50%, -50%); font-size: 11px; font-weight: 600; padding: 1px 8px;
@@ -174,6 +188,10 @@ pre.worddiff { white-space: pre-wrap; }
 tr.lean-failed td { background: color-mix(in srgb, var(--failed-soft) 60%, transparent); }
 tr.lean-failed td:first-child { box-shadow: inset 3px 0 0 var(--failed); }
 .limits { margin-top: 8px; border: 1px dashed var(--open); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; color: var(--open); }
+table.parts td:first-child { white-space: nowrap; }
+.result { display: flex; gap: 8px; align-items: baseline; margin-top: 6px; font-size: 13px; }
+.result .chip { flex: none; min-width: 64px; text-align: center; }
+.option .head .kind { font-size: 9.5px; }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
 table { border-collapse: collapse; width: 100%; font-size: 13px; }
 td, th { text-align: left; border-bottom: 1px solid var(--line); padding: 6px 6px 6px 0; vertical-align: top; }
@@ -214,7 +232,7 @@ details.full > summary { color: var(--ink); font-weight: 600; }
   <span class="spacer"></span>
   <input type="text" id="me" placeholder="your name" size="10" aria-label="Your name" title="Recorded with your decisions and requests">
   <button class="btn" data-run="render" title="Rebuild the tree and the Lean from the Scala definitions">Render</button>
-  <button class="btn primary" data-run="check" title="Prove the links that changed, in Lean">Check</button>
+  <button class="btn primary" data-run="check" title="Prove, in Lean, that the parts of each node that changed make it">Check</button>
 </header>
 <main>
   <div id="canvasWrap">
@@ -222,10 +240,11 @@ details.full > summary { color: var(--ink); font-weight: 600; }
     <div class="legend">
       <span><span class="box"></span>proposed: waiting for your decision</span>
       <span><span class="box" style="border-style:solid;border-color:var(--open)"></span>review: something moved under it</span>
-      <span><i style="border-color:var(--proven)"></i>link proven</span>
+      <span><i style="border-color:var(--proven)"></i>parts proven to make it</span>
       <span><i style="border-color:var(--open);border-top-style:dashed"></i>open</span>
-      <span><i style="border-color:var(--failed);border-top-style:dotted"></i>failed</span>
+      <span><i style="border-color:var(--failed);border-top-style:dotted"></i>failed, or a part not needed</span>
       <span><i style="border-color:var(--none);border-top-style:dotted"></i>unchecked</span>
+      <span><i style="border-color:var(--accent);border-top-style:dashed"></i>other parents of the selected node</span>
     </div>
     <div id="job"><div class="head"><b id="jobTitle"></b><span class="spacer"></span><button class="btn small" id="jobClose">Close</button></div><pre id="jobOut"></pre></div>
   </div>
@@ -293,7 +312,7 @@ async function refresh() {
     state.data = data; state.history = history; state.job = job; state.codeDiffs = {};
     // A server started for a named developer decides as them: the name is not typed.
     if (data.developer) { $("#me").value = data.developer; $("#me").readOnly = true; }
-    if (!live().some(n => n.id === state.selected)) state.selected = (waitingForYou()[0] || live()[0])?.id || null;
+    if (!live().some(n => n.id === state.selected)) state.selected = (waitingForYou()[0] || byId(snap()?.root) || live()[0])?.id || null;
     render();
   })().finally(() => { if (loading?.done === done) loading = null; });
   loading = { gen, done };
@@ -313,34 +332,82 @@ document.addEventListener("focusout", () => setTimeout(() => { if (pendingRefres
 
 const snap = () => state.data?.snapshot;
 const all = () => snap()?.nodes || [];
-// Rejected nodes are hidden, unless something still rests on them: then the subtree is shown under them.
-const live = () => all().filter(n => n.state !== "rejected" || all().some(c => c.parent === n.id));
-const byId = id => all().find(n => n.id === id);
+// An index of the snapshot, rebuilt when the snapshot changes: nodes by id, and memoized depths.
+let idx = { snap: undefined, map: new Map(), depth: {} };
+const index = () => { const s = snap(); if (idx.snap !== s) idx = { snap: s, map: new Map((s?.nodes || []).map(n => [n.id, n])), depth: {}, live: null, kids: null }; return idx; };
+const byId = id => index().map.get(id);
 const C = n => n.content || {};
+const parentsOf = n => (n?.parents || []).filter(p => byId(p));
+// Rejected nodes are hidden, unless something still rests on them: then what rests on them is shown under them.
+const live = () => { const i = index(); if (!i.live) {
+  const restedOn = new Set(all().filter(c => c.state !== "rejected").flatMap(c => c.parents || []));
+  i.live = all().filter(n => n.state !== "rejected" || restedOn.has(n.id)); i.liveIds = new Set(i.live.map(n => n.id)); }
+  return i.live; };
+const isLive = n => !!n && (live(), index().liveIds.has(n.id));
+const isDef = n => n?.kind === "definition";
+const isRoot = n => !!n && n.id === snap()?.root;
+// The kind shown: the root and invariants are claims, named for what they are.
+const kindOf = n => n.kind === "claim" && isRoot(n) ? "root" : n.kind === "claim" && n.rule ? "invariant" : n.kind;
+// What root_impl takes as hypotheses: assumptions, and claims nothing below proves yet.
+const trusted = n => (snap()?.trusted || []).includes(n.id) || n.kind === "assumption";
+// Where a node is drawn: under its first parent that is drawn.
+const firstParent = n => parentsOf(n).find(p => isLive(byId(p)) && !isDef(byId(p))) || null;
+// Its parts, in the model's order (design nodes under it included): the nodes drawn under it.
+const treeChildren = id => { const i = index();
+  if (!i.kids) { i.kids = new Map(); for (const c of live()) { const p = firstParent(c); if (p) (i.kids.get(p) || i.kids.set(p, []).get(p)).push(c); } }
+  const order = byId(id)?.parts || [];
+  return [...(i.kids.get(id) || [])].sort((a, b) => (order.indexOf(a.id) + 1 || 1e9) - (order.indexOf(b.id) + 1 || 1e9)); };
+// Its parts in Lean's sense: the statements that together make it (design nodes are not).
+const splitParts = n => (n?.split?.needed || []).map(x => x.id);
+// The longest way down from a node with no parents: every parent of a node is above it.
+function depth(n) {
+  const d = index().depth;
+  if (!n) return 0;
+  if (d[n.id] !== undefined) return d[n.id];
+  d[n.id] = 0; // a cycle (a problem the model reports) stops here
+  const ps = parentsOf(n).map(byId);
+  return d[n.id] = ps.length ? 1 + Math.max(...ps.map(depth)) : 0;
+}
+// Every node above it, through every parent, once each: the root first.
+function ancestors(id) {
+  const seen = new Set(), out = [], q = [...parentsOf(byId(id))];
+  while (q.length) { const p = q.shift(); if (seen.has(p)) continue; seen.add(p); const a = byId(p); if (!a) continue; out.push(a); q.push(...parentsOf(a)); }
+  return out.sort((a, b) => depth(a) - depth(b));
+}
+// The definitions in force a node uses, and the nodes that use a definition.
+const usesOf = n => (n?.uses || []).map(byId).filter(Boolean);
+const usersOf = d => live().filter(n => (n.uses || []).includes(d.id));
+// Alternatives (as core decides them): one replaces the other, or both define a term. Parts under one parent never are.
+const alternative = (a, b) => a.id !== b.id && (a.replaces === b.id || b.replaces === a.id ||
+  (a.defines || []).some(t => (b.defines || []).includes(t)));
+const liveAlts = n => {
+  const fromCore = (n.alternatives || []).map(x => typeof x === "string" ? x : x?.id).map(byId).filter(Boolean);
+  return [...new Set([...all().filter(m => alternative(n, m)), ...fromCore])].filter(m => m.id !== n.id && m.state !== "rejected");
+};
+// The alternatives rejected for it (from the ledger, with their content then).
+const rejectedAlts = n => (n.alternatives || []).map(x => typeof x === "string" ? { id: x, content: C(byId(x) || {}) } : x)
+  .filter(x => x && (!byId(x.id) || byId(x.id).state === "rejected"));
 const VERB = { accept: "accepted", confirm: "re-confirmed", reject: "rejected", remove: "agreed it is gone", revisit: "asked to revisit", migrate: "recorded again by a new FrFlow" };
-const children = id => live().filter(n => n.parent === id);
-function pathTo(id) { const out = []; let n = byId(id); while (n) { out.unshift(n); n = n.parent ? byId(n.parent) : null; } return out; }
-const linkStatus = n => n.link?.status || (n.kind === "design" ? "design" : n.parent ? "unchecked" : "root");
 // A node resting on a rejected node waits for the agent to move it, not for you.
-// Mechanical decisions (Lean proves them again, nothing in them is a choice) come last: risk-sorted.
-// In the order core gives: each after what it rests on, so each can be decided when it comes.
 // A concern with an owner waits for its owner (the name at the top right); the others are listed apart.
 const yours = n => !n.imported && (!n.owner || (me() || "").trim().toLowerCase() === n.owner.toLowerCase());
-const waitingAll = () => live().filter(n => (n.state === "proposed" || n.state === "review") && byId(n.parent)?.state !== "rejected");
+const restsOnRejected = n => parentsOf(n).some(p => byId(p)?.state === "rejected");
+const waitingAll = () => live().filter(n => (n.state === "proposed" || n.state === "review") && !restsOnRejected(n));
+const rank = n => { const i = (snap()?.order || []).indexOf(n.id); return i < 0 ? 1e9 : i; };
+// Ready first (every parent decided), by depth; within a depth, a node shared by more parents first.
+// The mechanical batch next; what waits for a decision above it last.
+const byReadiness = (a, b) => depth(a) - depth(b) || parentsOf(b).length - parentsOf(a).length || rank(a) - rank(b);
+// What a node waits for: core's answer (it cannot be decided before), else a parent or a definition it uses not accepted yet.
+const waitsOn = n => n.waitsFor || parentsOf(n).find(p => byId(p)?.state !== "accepted") || usesOf(n).find(d => d.state !== "accepted")?.id || null;
 const waitingForYou = () => {
-  const rank = n => { const i = (snap()?.order || []).indexOf(n.id); return i < 0 ? 1e9 : i; };
-  const w = waitingAll().filter(yours).sort((a, b) => rank(a) - rank(b));
-  // What can be decided now first; the mechanical batch next; what waits for another decision last.
-  return [...w.filter(n => !n.mechanical && !n.waitsFor), ...w.filter(n => n.mechanical), ...w.filter(n => !n.mechanical && n.waitsFor)];
+  const w = waitingAll().filter(yours);
+  return [...w.filter(n => !n.mechanical && !waitsOn(n)).sort(byReadiness), ...w.filter(n => n.mechanical).sort((a, b) => rank(a) - rank(b)),
+    ...w.filter(n => !n.mechanical && waitsOn(n)).sort(byReadiness)];
 };
 // Everything the inbox asks of you, counted once, the same everywhere.
 const waitingCount = () => waitingForYou().length + gone().length + requests().filter(r => r.status === "answered").length +
   (snap()?.unsigned || []).length;
 const gone = () => snap()?.gone || [];
-// Alternatives: nodes under one parent, or roots of one section of the idea (never a port or an invariant).
-const section = n => C(n).ideaSection || "";
-const siblings = n => live().filter(m => m.parent === n.parent && m.id !== n.id && m.state !== "rejected" && (m.kind === "design") === (n.kind === "design") &&
-  (n.parent || (n.kind === "root" && m.kind === "root" && section(n) && section(n) === section(m))));
 const requests = () => state.data?.requests || [];
 // What Lean said: a short line inline; a goal (several lines) folded, as Lean prints it.
 const leanText = d => !d ? "" : (d.includes("\n") || d.length > 160)
@@ -349,12 +416,40 @@ const me = () => $("#me").value.trim();
 // Lean disagreeing with Scala on an example means the translation is wrong: the example fails too.
 const leanFailed = e => e.lean?.status === "failed" || e.leanImplementation?.status === "failed";
 const examplesBad = n => (n.examples || []).filter(e => e.contract !== "ok" || (e.implementation && e.implementation !== "ok") || leanFailed(e));
-const pathProven = n => pathTo(n.id).slice(1).every(p => ["proven", "design", "informal"].includes(linkStatus(p)));
-const causeText = { self: "it changed", above: "the meaning of something above it changed", code: "the code it governs changed", revisit: "a change above may affect it", merged: "two branches decided it and both were kept: decide it again" };
-function linkLabel(n) {
-  const s = linkStatus(n), d = n.link?.detail;
-  if (s === "proven") return d === "instantiation" ? "instantiation" : "✓ " + (d === "authored" ? "proof" : "auto");
-  return { open: "open", failed: "✗ failed", unchecked: "unchecked", design: "design", informal: "not formalized" }[s] || s;
+const causeText = { self: "it changed", above: "the meaning of a parent, or of a definition it uses, changed", parts: "its list of parts changed",
+  code: "the code it governs changed", revisit: "a change above may affect it", merged: "two branches decided it and both were kept: decide it again" };
+
+// How a node's parts make it (its split): one word for it, and a label.
+const fine = s => s === "proven" || s === "informal";
+function splitStatus(n) {
+  const sp = n?.split; if (!sp) return null;
+  const c = sp.complete?.status || "unchecked";
+  if (c === "informal") return "informal";
+  if (c === "failed" || sp.clash?.status === "failed") return "failed";
+  if ((sp.needed || []).some(x => x.status === "open")) return "open"; // a part is not needed: unproven
+  if (c === "proven") return (sp.needed || []).every(x => fine(x.status)) && fine(sp.clash?.status || "proven") ? "proven" : "open";
+  return c === "timeout" ? "open" : c === "waiting" ? "unchecked" : c;
+}
+function splitLabel(n) {
+  const sp = n.split, st = splitStatus(n);
+  if (!sp) return "";
+  const notNeeded = (sp.needed || []).filter(x => x.status === "open").map(x => x.id);
+  if (st === "proven") return "✓ parts make it" + (sp.complete?.detail === "authored" ? " (proof)" : "");
+  if (st === "informal") return "decided by reading";
+  if (sp.clash?.status === "failed") return "✗ parts clash";
+  if (st === "failed") return "✗ failed";
+  if (notNeeded.length) return `${notNeeded.length > 1 ? notNeeded.length + " parts" : notNeeded[0]} not needed`;
+  if (sp.complete?.status === "timeout") return "timed out";
+  return { open: "parts: open", unchecked: "unchecked" }[st] || st;
+}
+const chipClass = st => ({ proven: "s-proven", open: "s-open", timeout: "s-open", failed: "s-failed", informal: "s-not-checked" }[st] || "s-not-checked");
+const splitChip = n => n?.split ? `<span class="chip ${chipClass(splitStatus(n))}" title="${esc(n.split.complete?.detail || "")}">${esc(splitLabel(n))}</span>` : "";
+// Whether one part is needed for its parent: Lean does not show the parent without it.
+function neededChip(x) {
+  if (!x) return "";
+  const t = { proven: ["s-proven", "needed ✓"], open: ["s-open", "not needed"], informal: ["s-not-checked", "by reading"], failed: ["s-failed", "failed"],
+    timeout: ["s-open", "timed out"] }[x.status] || ["s-not-checked", x.status === "unchecked" ? "unchecked" : x.status];
+  return `<span class="chip ${t[0]}" title="${esc(x.detail || "")}">${esc(t[1])}</span>`;
 }
 
 // --- rendering --------------------------------------------------------------
@@ -377,15 +472,25 @@ function render() {
     renderPane(); renderJob();
     return;
   }
-  const nodes = live(), links = nodes.filter(n => n.parent && n.kind !== "design");
-  const proven = links.filter(n => linkStatus(n) === "proven").length;
+  const nodes = live();
   const accepted = nodes.filter(n => n.state === "accepted").length, review = nodes.filter(n => n.state === "review").length;
+  const proposed = nodes.filter(n => n.state === "proposed").length;
   const warn = (s.warnings || []).length;
+  // Splits: the nodes with parts in Lean; proven when the parts make it, each is needed, and they do not clash.
+  const splits = nodes.filter(n => n.split && splitStatus(n) !== "informal");
+  const splitsProven = splits.filter(n => splitStatus(n) === "proven").length;
+  const root = byId(s.root), ri = root?.rootImpl, tr = s.trusted || [];
   const impls = nodes.filter(n => n.kind === "contract");
   const implProven = impls.filter(n => n.implementationProof?.status === "proven").length;
   const openNodes = nodes.filter(n => warnings(n).length).length;
-  $("#summary").innerHTML = `${esc(s.name)} · <b>${accepted}</b> accepted · <b>${review}</b> to review · <b>${proven}/${links.length}</b> links proven${impls.length ? ` · <b ${implProven < impls.length ? 'style="color:var(--failed)"' : ""}>${implProven}/${impls.length}</b> contracts proven down to their code` : ""}${openNodes ? ` · <b style="color:var(--failed)">${openNodes}</b> node(s) with something unproven or failing` : ""}${warn ? ` · <b style="color:var(--failed)">${warn} warning(s)</b>` : ""} · rendered ${ago(s.exportedAt)}`;
-  $("#summary").title = $("#summary").textContent;
+  const red = x => `<b style="color:var(--failed)">${x}</b>`;
+  $("#summary").innerHTML = `${esc(s.name)} · <b>${accepted}</b> accepted${proposed ? ` · <b>${proposed}</b> proposed` : ""} · <b>${review}</b> to review` +
+    ` · ${splitsProven < splits.length ? red(`${splitsProven}/${splits.length}`) : `<b>${splitsProven}/${splits.length}</b>`} splits proven` +
+    (ri ? ` · root_impl ${ri.status === "proven" ? "<b>✓ proven</b>" : ri.status === "unchecked" ? "<b>unchecked</b>" : red(esc(ri.status))}` : "") +
+    (ri ? ` · trusted: <b>${tr.length ? tr.length : "nothing"}</b>` : "") +
+    (impls.length ? ` · <b ${implProven < impls.length ? 'style="color:var(--failed)"' : ""}>${implProven}/${impls.length}</b> contracts proven down to their code` : "") +
+    (openNodes ? ` · ${red(openNodes)} node(s) with something unproven or failing` : "") + (warn ? ` · ${red(`${warn} warning(s)`)}` : "") + ` · rendered ${ago(s.exportedAt)}`;
+  $("#summary").title = $("#summary").textContent + (root?.rootImpl ? `\nTrusted (the hypotheses of root_impl): ${(s.trusted || []).join(", ") || "nothing"}` : "");
   renderTree(); renderPane(); renderJob();
   history.replaceState(null, "", `#${encodeURIComponent(state.project)}/${encodeURIComponent(state.selected || "")}`);
 }
@@ -398,50 +503,95 @@ function ago(iso) {
   return new Date(iso).toLocaleString();
 }
 
-const W = 230, H = 104, GX = 24, GY = 70;
+const W = 230, H = 130, GX = 24, GY = 70;
 
 function chips(n) {
   const bad = examplesBad(n).length, ex = (n.examples || []).length;
   const st = n.state === "review" ? `review: ${(n.causes || []).join(", ")}` : n.state;
   return `<span class="chip s-${n.state}" title="${esc((n.causes || []).map(c => causeText[c]).join("; "))}">${esc(st)}</span>
+    ${trusted(n) ? `<span class="chip s-trusted" title="Trusted, not proven: a hypothesis of root_impl">trusted</span>` : ""}
     ${ex ? `<span class="chip ${bad ? "s-bad" : "s-ok"}" title="examples">examples ${ex - bad}/${ex}</span>` : ""}
     `;
 }
 
+// The line under a card's chips: the other parents of a node (it is drawn under its first), or what a definition fixes.
+function alsoLine(n) {
+  if (isDef(n)) {
+    const users = usersOf(n);
+    return `<div class="also" title="${esc(`defines ${(n.defines || []).join(", ")}; used by ${users.map(u => u.id).join(", ") || "nothing yet"}`)}">defines ${esc((n.defines || []).join(", "))}${users.length ? ` · used by ${users.map(u => `<a data-goto="${esc(u.id)}">${esc(u.id)}</a>`).join(", ")}` : ""}</div>`;
+  }
+  const others = parentsOf(n).filter(p => p !== firstParent(n));
+  return others.length ? `<div class="also" title="also a part of ${esc(others.join(", "))}">also under ${others.map(p => `<a data-goto="${esc(p)}">${esc(p)}</a>`).join(", ")}</div>` : "";
+}
+
+// The colour of the edge from a parent to one of its parts: how the parent's parts make it, and whether this one is needed.
+function edgeStatus(parent, child) {
+  if (child.kind === "design") return "design";
+  const st = splitStatus(parent);
+  if (!st) return "unchecked";
+  const need = (parent.split.needed || []).find(x => x.id === child.id);
+  if (need?.status === "open") return "failed";
+  return st;
+}
+
 function renderTree() {
   const canvas = $("#canvas");
-  const pos = {}; let slot = 0;
-  function place(n, depth) {
-    const cs = children(n.id);
-    cs.forEach(c => place(c, depth + 1));
-    const x = cs.length ? (pos[cs[0].id].x + pos[cs[cs.length - 1].id].x) / 2 : (slot++) * (W + GX);
-    pos[n.id] = { x, y: depth * (H + GY) };
+  const nodes = live(), pos = {}, placed = new Set(); let slot = 0;
+  function place(n, d) {
+    placed.add(n.id);
+    const cs = treeChildren(n.id).filter(c => !placed.has(c.id));
+    cs.forEach(c => place(c, d + 1));
+    const xs = cs.map(c => pos[c.id]).filter(Boolean);
+    const x = xs.length ? (xs[0].x + xs[xs.length - 1].x) / 2 : (slot++) * (W + GX);
+    pos[n.id] = { x, y: d * (H + GY) };
   }
-  live().filter(n => !n.parent).forEach(r => { place(r, 0); slot += 0.4; });
+  // The root's tree; then the nodes under no parent (operations code calls, imported contracts); then the definitions.
+  const root = byId(snap().root);
+  const tops = [...(isLive(root) ? [root] : []), ...nodes.filter(n => !isDef(n) && n !== root && !firstParent(n))];
+  tops.forEach(t => { if (!placed.has(t.id)) { place(t, 0); slot += 0.4; } });
+  let labels = "";
+  const defs = nodes.filter(isDef);
+  if (defs.length) {
+    const treeW = Math.max(0, ...Object.values(pos).map(p => p.x + W));
+    const perRow = Math.max(3, Math.floor((treeW + GX) / (W + GX)));
+    const top = (Object.values(pos).length ? Math.max(...Object.values(pos).map(p => p.y)) + H + GY : 0) + 26;
+    labels += `<div class="rowlabel" style="left:0;top:${top - 24}px">Definitions — they fix terms of the vocabulary: decided, not proven</div>`;
+    defs.forEach((d, i) => pos[d.id] = { x: (i % perRow) * (W + GX), y: top + Math.floor(i / perRow) * (H + 18) });
+  }
   const ps = Object.values(pos);
   if (!ps.length) { canvas.innerHTML = `<div class="empty">No nodes.</div>`; return; }
   const width = Math.max(...ps.map(p => p.x)) + W, height = Math.max(...ps.map(p => p.y)) + H;
-  const onPath = new Set(state.selected ? pathTo(state.selected).map(n => n.id) : []);
+  // The selected node with everything above it (through every parent) and the definitions it uses; a definition with its users.
+  const sel = byId(state.selected);
+  const onPath = new Set(sel ? [sel.id, ...ancestors(sel.id).map(a => a.id), ...(isDef(sel) ? usersOf(sel) : usesOf(sel)).map(x => x.id)] : []);
   const dimOthers = onPath.size > 1;
-  let svg = "", labels = "", cards = "";
-  for (const n of live()) {
-    if (!n.parent || !pos[n.parent] || !pos[n.id]) continue;
-    const a = pos[n.parent], b = pos[n.id];
-    const x1 = a.x + W / 2, y1 = a.y + H, x2 = b.x + W / 2, y2 = b.y, my = (y1 + y2) / 2;
-    const d = `M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`;
-    const st = linkStatus(n), on = onPath.has(n.id), dim = dimOthers && !on ? " dim" : "";
+  let svg = "", cards = "";
+  const curve = (a, b) => { const x1 = a.x + W / 2, y1 = a.y + H, x2 = b.x + W / 2, y2 = b.y, my = (y1 + y2) / 2; return `M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`; };
+  for (const n of nodes) {
+    const fp = firstParent(n);
+    if (!fp || !pos[fp] || !pos[n.id]) continue;
+    const st = edgeStatus(byId(fp), n), on = onPath.has(n.id) && onPath.has(fp), dim = dimOthers && !on ? " dim" : "";
+    const d = curve(pos[fp], pos[n.id]);
     if (st === "proven") svg += `<path class="glow${dim}" d="${d}"/>`;
-    const cls = n.link?.detail === "instantiation" ? "design" : st; // nothing to prove: drawn neutral
-    svg += `<path class="edge ${cls}${on ? " onpath" : ""}${dim}" d="${d}"/>`;
-    labels += `<div class="elabel ${cls}${dim}" style="left:${(x1 + x2) / 2}px;top:${my}px">${esc(linkLabel(n))}</div>`;
+    svg += `<path class="edge ${st}${on ? " onpath" : ""}${dim}" d="${d}"/>`;
+    // The other parents of the selected node: drawn too, dashed, so the DAG is seen where it matters.
+    if (n.id === state.selected) for (const p of parentsOf(n).filter(p => p !== fp && pos[p])) svg += `<path class="edge also" d="${curve(pos[p], pos[n.id])}"/>`;
   }
-  for (const n of live()) {
+  // One label per node with parts, where its edges leave it: how its parts make it.
+  for (const n of nodes) {
+    const p = pos[n.id];
+    if (!p || !n.split || !treeChildren(n.id).length) continue;
+    const st = splitStatus(n), dim = dimOthers && !onPath.has(n.id) ? " dim" : "";
+    labels += `<div class="elabel ${st}${dim}" style="left:${p.x + W / 2}px;top:${p.y + H + 18}px" title="${esc(n.split.complete?.detail || "")}">${esc(splitLabel(n))}</div>`;
+  }
+  for (const n of nodes) {
     const p = pos[n.id]; if (!p) continue;
-    const cls = ["card", n.state, n.kind === "design" ? "design" : "", n.id === state.selected ? "selected" : "", dimOthers && !onPath.has(n.id) ? "dim" : ""].join(" ");
+    const k = kindOf(n);
+    const cls = ["card", n.state, n.kind === "design" ? "design" : "", isDef(n) ? "definition" : "", n.id === state.selected ? "selected" : "", dimOthers && !onPath.has(n.id) ? "dim" : ""].join(" ");
     cards += `<div class="${cls}" data-node="${esc(n.id)}" style="left:${p.x}px;top:${p.y}px;height:${H}px">
-      <div class="top"><span class="kind ${n.kind}">${esc(n.kind)}</span><span class="id" title="${esc(n.id)}">${esc(n.id)}</span></div>
+      <div class="top"><span class="kind ${k}">${esc(k)}</span><span class="id" title="${esc(n.id)}">${esc(n.id)}</span></div>
       <div class="stmt" title="${esc(C(n).statement)}">${esc(C(n).statement)}</div>
-      <div class="chips">${chips(n)}</div>
+      <div class="chips">${chips(n)}</div>${alsoLine(n)}
     </div>`;
   }
   canvas.style.width = width + "px"; canvas.style.height = height + "px";
@@ -488,28 +638,16 @@ function renderPane() {
 
 function code(label, src) { return src ? `<div class="side"><div class="label">${label}</div><pre>${esc(src)}</pre></div>` : ""; }
 
-function modelOf(n) {
-  const c = C(n), src = c.sources || {};
-  if (n.kind === "instantiate") return `<div class="side"><div class="label">substitutions</div><pre>${esc((c.substitutions || []).join("\n"))}</pre></div>`;
-  return code("abs — maps this model to the parent's", src.abs) + code("spec", src.spec) + code("post — every call (a, b) ⇒ r satisfies", src.post) + code("implementation — built by", C(n).implementation);
-}
-
-function verdict(n) {
-  const s = linkStatus(n), d = n.link?.detail || "";
-  if (s === "proven") {
-    if (d === "instantiation") return "Nothing to prove: the parent's theorems apply with these substitutions. Whether they mean the right things in the world is your decision.";
-    if (d === "authored") return "Proven by a proof the agent wrote, checked by Lean with its axioms audited. Read it before accepting: a proof can also go through because the node contradicts itself, which the automatic check does not always catch.";
-    return "Proven automatically by frflow_auto.";
-  }
-  if (s === "informal") return "Not formalized: this node opted out of Lean (formal = false). Read its model against its parent; that reading is your decision. A contract's examples and run-time check still apply.";
-  if (s === "open") return `Open: ${esc(d)}`;
-  if (s === "failed") return `Failed: ${esc(d)}`;
-  return `Unchecked: ${esc(d || "not checked yet")}.`;
+// What a node says formally, as written in Scala.
+const SOURCE_LABEL = { formula: "formula", post: "post — every call (a, b) ⇒ r satisfies", rule: "rule", spec: "spec" };
+function sourcesOf(n) {
+  const src = C(n).sources || {};
+  return Object.entries(src).map(([k, v]) => code(k === "post" && n.op ? `post — every call of <span class="mono">${esc(n.op)}</span>, (a, b) ⇒ r, satisfies` : SOURCE_LABEL[k] || esc(k), v)).join("");
 }
 
 // A word-level diff: what was decided, against what is there now.
 // Code and lists compare by line, so a change reads as the lines it touched; prose by word.
-const byLine = new Set(["implementation", "definitions used", "examples", "substitutions", "spec", "abs", "post", "definition (as written)"]);
+const byLine = new Set(["implementation", "definitions used", "examples", "substitutions", "spec", "formula", "rule", "post", "definition (as written)", "parts"]);
 function wordDiff(a, b, lines = false) {
   if (lines) return lineDiff(a, b);
   const x = (a || "").split(/(\s+)/), y = (b || "").split(/(\s+)/);
@@ -564,7 +702,8 @@ function exampleLines(es) {
 
 function diff(old, cur) {
   const flat = c => ({
-    parent: c.parent, statement: c.statement, why: c.why, idea: c.idea, "not modelled": c.notModelled,
+    kind: c.kind, parents: (c.parents || (c.parent ? [c.parent] : [])).join(", "), parts: (c.parts || []).join("\n"), replaces: c.replaces, operation: c.op,
+    statement: c.statement, why: c.why, idea: c.idea, "not modelled": c.notModelled,
     ...Object.fromEntries(Object.entries(c.sources || {})),
     substitutions: (c.substitutions || []).join("\n"), examples: exampleLines(c.examples),
     implementation: c.implementation, vocabulary: (c.vocabulary || []).join("\n"), "definitions used": (c.uses || []).join("\n\n"), governs: (c.governs || []).join("\n"),
@@ -575,7 +714,7 @@ function diff(old, cur) {
   const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])].filter(k => (a[k] || "") !== (b[k] || ""));
   if (!keys.length) return "";
   // What it says formally moved, and the words did not: do they still say it?
-  const formal = keys.filter(k => ["spec", "abs", "post", "rule"].includes(k));
+  const formal = keys.filter(k => ["spec", "formula", "post", "rule"].includes(k));
   const stale = formal.length && !keys.includes("statement")
     ? `<div class="warn-text small">Its ${formal.join(", ")} changed, and its statement did not: does the statement still say what it now means?</div>` : "";
   return stale + keys.map(k => `<div class="side"><div class="label">${esc(k)}</div><pre class="worddiff">${wordDiff(a[k], b[k], byLine.has(k))}</pre></div>`).join("");
@@ -605,8 +744,17 @@ function whatMoved(n) {
   let h = "";
   for (const c of n.causes || []) {
     if (c === "self") h += `<div class="side"><div class="label">${esc(n.id)} changed since it was accepted</div>${diff(d?.content, n.content) || `<div class="muted small">No difference in what was decided.</div>`}</div>`;
-    if (c === "above" && byId(n.parent)?.state === "rejected")
-      h += `<div class="side"><div class="label"><a data-goto="${esc(n.parent)}">${esc(n.parent)}</a>, which it rests on, was rejected</div><div class="muted small">The agent moves it under the node chosen instead, or removes it.</div></div>`;
+    if (c === "above") for (const p of parentsOf(n).filter(p => byId(p)?.state === "rejected"))
+      h += `<div class="side"><div class="label"><a data-goto="${esc(p)}">${esc(p)}</a>, which it rests on, was rejected</div><div class="muted small">The agent moves it under the node chosen instead, or removes it.</div></div>`;
+    if (c === "parts") {
+      // Its parts are part of what was decided: a part added or removed puts it up for review.
+      const before = d?.content?.parts, now = n.parts || [];
+      const added = before ? now.filter(x => !before.includes(x)) : [], removed = before ? before.filter(x => !now.includes(x)) : [];
+      h += `<div class="side"><div class="label">its parts changed since it was decided</div>${before
+        ? `${added.length ? `<div class="small">added: ${added.map(x => `<a data-goto="${esc(x)}">${esc(x)}</a>`).join(", ")}</div>` : ""}${removed.length ? `<div class="small">removed: ${removed.map(x => `<b>${esc(x)}</b>`).join(", ")}</div>` : ""}${!added.length && !removed.length ? `<div class="small">reordered: ${now.map(esc).join(", ")}</div>` : ""}`
+        : `<div class="small">now: ${now.map(x => `<a data-goto="${esc(x)}">${esc(x)}</a>`).join(", ") || "none"}</div>`}
+        <div class="muted small">Do these parts, together, still make it? The table below says what Lean shows.</div></div>`;
+    }
     if (c === "above") for (const m of n.moved || []) {
       const a = byId(m.id);
       // A change above that the developer has already accepted: one line, the diff folded away.
@@ -643,7 +791,7 @@ const conditional = b => !!b.conditional;
 
 // The decisions above a new node, with their reasons: where "revisit if …" is written.
 function aboveReasons(n) {
-  const above = pathTo(n.id).slice(0, -1).filter(a => a.decision);
+  const above = [...ancestors(n.id), ...usesOf(n).filter(d => !ancestors(n.id).includes(d))].filter(a => a.decision);
   const invs = (n.invariants || []).filter(i => byId(i.id));
   const like = (n.resembles || []).map(x => `<div class="warn-text">It says what <a data-goto="${esc(x.id)}">${esc(x.id)}</a> said, which was rejected: ${esc(x.reason)}</div>`).join("") +
     // The options turned down here before, with why: a new proposal may be one of them in other words.
@@ -659,14 +807,6 @@ function aboveReasons(n) {
     ${above.map(a => `<div class="small"><a data-goto="${esc(a.id)}"><b>${esc(a.id)}</b></a>: ${esc(a.reasonNow || a.decision?.reason || "")}${ask(a.id)}</div>`).join("")}
     ${invs.map(i => `<div class="small"><a data-goto="${esc(i.id)}"><b>${esc(i.id)}</b></a>: ${i.status === "exempt" ? `exempt, because ${esc(i.detail)} — still true?` : esc(byId(i.id).reasonNow || byId(i.id).decision?.reason || "")}${ask(i.id)}</div>`).join("")}
     ${relied.filter(r => !above.some(a => a.id === r.id)).map(r => `<div class="small">relies on <a data-goto="${esc(r.id)}"><b>${esc(r.id)}</b></a>: ${esc(r.reasonNow || r.decision?.reason || "")}${ask(r.id)}</div>`).join("")}</div>`;
-}
-
-// What an instantiation says: the spec above it, with what each open term now is.
-function instantiatedSpec(p) {
-  const subs = []; let a = p;
-  while (a && a.kind === "instantiate") { subs.push(...(C(a).substitutions || [])); a = byId(a.parent); }
-  const spec = a && (C(a).sources || {}).spec;
-  return spec ? `<div class="muted small">its spec is ${esc(a.id)}'s, where</div><pre>${esc(subs.join("\n"))}</pre><pre>${esc(spec)}</pre>` : "";
 }
 
 // Back to the agent, with what to change: a request on the node.
@@ -690,33 +830,76 @@ function reasons(n) {
 
 const mechanicalNote = n => n.mechanical ? `<div class="muted small">Mechanical: Lean proves it again and nothing in it is a choice. Accept it here, or with the other mechanical decisions in the Inbox, with one reason.</div>` : "";
 
+// The parts of a node, decided with it: each needed or not, and whether together they make it.
+function partsTable(n) {
+  const sp = n.split;
+  if (!sp) return "";
+  const rows = (sp.needed || []).map(x => { const p = byId(x.id);
+    const check = p?.status && !fine(p.status) ? `<div class="muted tiny">its check: ${esc(p.status)}</div>` : "";
+    return `<tr><td><a data-goto="${esc(x.id)}"><b>${esc(x.id)}</b></a>${p ? `<div><span class="kind ${kindOf(p)}">${esc(kindOf(p))}</span></div>` : ""}</td>
+      <td class="small">${esc(p ? C(p).statement : "(not in the model)")}</td><td>${neededChip(x)}</td><td>${p ? `<span class="chip s-${p.state}">${esc(p.state)}</span>` : ""}${check}</td></tr>`; }).join("");
+  const c = sp.complete || {}, k = sp.clash || {};
+  const complete = { proven: c.detail === "authored" ? "The parts make it, by a proof the agent wrote (checked by Lean, axioms audited): read it before accepting."
+      : "The parts make it: proven automatically.", open: `Not shown that the parts make it: ${c.detail || "open"}.`, failed: `Failed: ${c.detail || ""}`,
+    unchecked: `Not checked yet: ${c.detail || "press Check"}.`, timeout: "Lean timed out: run Check again.", informal: "Not formalized: whether the parts make it is decided by reading them." }[c.status] || `${c.status}: ${c.detail || ""}`;
+  const clash = { proven: "The parts do not contradict each other, as far as Lean shows.", failed: `The parts contradict each other: ${k.detail || ""}`,
+    informal: "Not formalized.", unchecked: "Not checked yet." }[k.status] || `${k.status}: ${k.detail || ""}`;
+  const notNeeded = (sp.needed || []).filter(x => x.status === "open");
+  const one = (sp.needed || []).length === 1;
+  return `<table class="parts"><tr><th>part</th><th>statement</th><th>needed</th><th>status</th></tr>${rows}</table>
+    <div class="result"><span class="chip ${chipClass(c.status)}">complete</span><span>${esc(complete)}</span></div>
+    ${notNeeded.length ? `<div class="result"><span class="chip s-open">needed</span><span>${one
+      ? `Lean shows ${esc(n.id)} without its part: it says nothing its part adds (${esc(notNeeded[0].detail || "")}).`
+      : `Lean shows ${esc(n.id)} without ${notNeeded.map(x => esc(x.id)).join(", ")}: ${notNeeded.length > 1 ? "they are" : "it is"} not needed for it.`}</span></div>` : ""}
+    <div class="result"><span class="chip ${k.status === "proven" ? "s-proven" : k.status === "failed" ? "s-failed" : "s-not-checked"}">clash</span><span>${esc(clash)}</span></div>`;
+}
+
+// What the root says of the code: doing nothing does not meet it (idle), and root_impl from what is trusted.
+function rootBlock(n) {
+  if (!isRoot(n)) return "";
+  const ri = n.rootImpl, tr = (snap()?.trusted || []).map(id => byId(id) || { id, kind: "?", content: {} });
+  const idle = n.idle ? `<div class="result"><span class="chip s-failed">idle</span><span>Lean shows doing nothing meets it (${esc(n.idle)}): it says only what must not happen. State what users can do, so it says <i>exactly</i>.</span></div>`
+    : `<div class="result"><span class="chip ${n.status && n.status !== "unchecked" ? "s-proven" : "s-not-checked"}">idle</span><span>${n.status && n.status !== "unchecked" ? "Doing nothing does not meet it, as far as Lean shows." : "Not checked yet: whether doing nothing meets it."}</span></div>`;
+  const impl = ri ? `<div class="result"><span class="chip ${chipClass(ri.status)}">root_impl</span><span>${ri.status === "proven" ? "Proven: the root holds of the code, from what is trusted below." : `${esc(ri.status)}${ri.detail ? ": " + esc(ri.detail) : ""}`}</span></div>` : "";
+  return `${idle}${impl}
+    <div class="side"><div class="label">trusted — the hypotheses of root_impl: assumptions, and claims nothing below proves yet</div>${tr.length
+      ? tr.map(t => `<div class="small"><a data-goto="${esc(t.id)}"><b>${esc(t.id)}</b></a> <span class="muted">(${esc(t.kind)})</span> ${esc(C(t).statement || "")}</div>`).join("")
+      : `<div class="small">Nothing: the root is proven of the code without an assumption.</div>`}</div>`;
+}
+
 // The decision: where the theory is built. The developer chooses, with a reason.
 function decisionBox(n) {
   // Another knowledge base's node: decided and checked there; here its decisions are read.
   if (n.imported) return `<div class="box ${n.state === "accepted" ? "accepted" : "proposed"}"><div class="verdict ${n.state === "accepted" ? "accepted" : "proposed"}">${n.state === "accepted" ? "Accepted" : "Waiting"} in ${esc(n.imported)}</div>
     <div class="muted small">${esc(n.id)} is decided in ${esc(n.imported)}, the project it comes from; this project reads its decisions there.</div></div>`;
-  const blocked = !!n.waitsFor; // from core: a proposal, or a node whose parent moved, waits for its parent
+  const blocked = !!n.waitsFor; // from core: a proposal, or a node whose parent moved, waits for its parents and the definitions it uses
   const chosen = reasons(n);
-  const alts = n.alternatives || [];
-  const altList = alts.length ? `<div class="side"><div class="label">rejected alternatives</div>${alts.map(r =>
+  const gone = rejectedAlts(n);
+  const altList = gone.length ? `<div class="side"><div class="label">rejected alternatives</div>${gone.map(r =>
     `<div class="option"><b>${esc(r.id)}</b> — ${esc(r.content?.statement)}<div class="muted small">${esc(r.content?.why)}</div></div>`).join("")}</div>` : "";
-  const button = (label, extra = "") => blocked
+  // Its alternatives: one replaces the other, or both define a term. Accepting this one rejects them.
+  const alts = liveAlts(n);
+  const altBox = alts.length ? `<div class="side"><div class="label">${alts.length > 1 ? "alternatives" : "an alternative"} to it — accepting ${esc(n.id)} rejects ${alts.map(a => esc(a.id)).join(", ")} (kept, with your reason); to keep ${alts.length > 1 ? "one of them" : "it"} instead, accept it there</div>${alts.map(o => `<div class="option">
+      <div class="head"><span class="kind ${kindOf(o)}">${esc(kindOf(o))}</span><a data-goto="${esc(o.id)}"><b>${esc(o.id)}</b></a>${chips(o)}${o.replaces === n.id ? ` <span class="muted small">replaces ${esc(n.id)}</span>` : n.replaces === o.id ? ` <span class="muted small">${esc(n.id)} replaces it</span>` : ""}</div>
+      <div class="small" style="margin-top:4px">${esc(C(o).statement)}</div><div class="muted small">${esc(C(o).why)}</div>
+      ${(o.defines || []).some(t => (n.defines || []).includes(t)) ? `<div class="muted tiny">both define ${esc((o.defines || []).filter(t => (n.defines || []).includes(t)).join(", "))}</div>` : ""}</div>`).join("")}</div>` : "";
+  const parts = splitParts(n);
+  const partsBox = parts.length ? `<div class="side"><div class="label">its ${parts.length} part${parts.length > 1 ? "s" : ""} — decided with it: do these parts make it?</div>${partsTable(n)}</div>` : "";
+  const label = `Accept ${esc(n.id)}${parts.length ? `: ${parts.length > 1 ? "these parts make it" : "this part makes it"}` : ""}${alts.length ? `, rejecting ${alts.map(a => esc(a.id)).join(", ")}` : ""}`;
+  const button = blocked
     ? `<div class="muted small">Accept <a data-goto="${esc(n.waitsFor)}">${esc(n.waitsFor)}</a> first: what rests on it is decided after it.</div>`
-    : `<div class="actions"><button class="btn small primary" data-accept="1" ${extra}>${label}</button></div>`;
+    : `<div class="actions"><button class="btn small primary" data-accept="1">${label}</button></div>`;
+  const warn = warnings(n);
   if (n.state === "proposed") {
-    const others = siblings(n), warn = warnings(n);
-    return `<div class="box proposed"><div class="verdict proposed">${others.some(o => o.state === "proposed") ? "Choose between the proposals" : "Proposed"}</div>
+    return `<div class="box proposed"><div class="verdict proposed">${alts.some(o => o.state === "proposed") ? "Choose between the alternatives" : "Proposed"}</div>
       <div class="muted small">Choosing keeps your reason; what you reject is kept as an alternative.</div>${mechanicalNote(n)}
-      ${others.length ? `<div class="side"><div class="label">other nodes beside it, under the same parent — each is its own part of the parent unless you tick it: a ticked node is replaced by this one</div>${others.map(o => `<div class="option">
-        <div class="head"><a data-goto="${esc(o.id)}"><b>${esc(o.id)}</b></a>${chips(o)}</div>
-        <div class="small" style="margin-top:4px">${esc(C(o).statement)}</div><div class="muted small">${esc(C(o).why)}</div>
-        <label><input type="checkbox" class="rej" value="${esc(o.id)}"> reject ${esc(o.id)}${o.state === "accepted" ? " (replaces a decided node)" : ""}</label></div>`).join("")}</div>` : ""}
+      ${partsBox}${rootBlock(n)}${altBox}
       ${warn.length ? `<div class="warn-text">Note: ${esc(warn.join("; "))}.</div>` : ""}
       ${aboveReasons(n)}
       ${n.code ? governedFiles(n) : ""}
       ${altList}
-      ${reasonBox("Why this one (or why not)?", "", n)}
-      ${button(`Accept ${esc(n.id)}`)}<div class="actions"><button class="btn small" data-reject-self="1">Reject ${esc(n.id)}</button> ${sendBack(n)}</div></div>`;
+      ${reasonBox(parts.length ? "Why do these parts make it (and say it in the domain's words)?" : "Why this one (or why not)?", "", n)}
+      ${button}<div class="actions"><button class="btn small" data-reject-self="1">Reject ${esc(n.id)}</button> ${sendBack(n)}</div></div>`;
   }
   if (n.state === "review") {
     // The decisions below that this decision acts on, from core, with their reasons: where the
@@ -734,12 +917,11 @@ function decisionBox(n) {
              <label><input type="radio" class="ans" name="ans-${esc(b.id)}" value="held" data-id="${esc(b.id)}"> still holds</label>
              <label><input type="radio" class="ans" name="ans-${esc(b.id)}" value="revisit" data-id="${esc(b.id)}"> revisit ${esc(b.id)}</label>`
           : `<label><input type="checkbox" class="rev" value="${esc(b.id)}" data-moved="${b.kind === "moved" ? 1 : ""}"> revisit ${esc(b.id)}</label>`}</div>`).join("")}</div>` : "";
-    const warn = warnings(n);
-    return `<div class="box review"><div class="verdict review">To review: ${esc((n.causes || []).map(c => causeText[c]).join("; "))}</div>${mechanicalNote(n)}
+    return `<div class="box review"><div class="verdict review">To review: ${esc((n.causes || []).map(c => causeText[c] || c).join("; "))}</div>${mechanicalNote(n)}
       ${warn.length ? `<div class="warn-text">Note: ${esc(warn.join("; "))}.</div>` : ""}
-      ${chosen}${whatMoved(n)}${aboveReasons(n)}${altList}${belowList}
-      ${reasonBox((n.causes || []).includes("self") ? "Why is the change right?" : "Why does it still hold, given what changed?", "", n)}
-      ${button("Accept", "")}<div class="actions">${sendBack(n)}</div></div>`;
+      ${chosen}${whatMoved(n)}${partsBox}${rootBlock(n)}${altBox}${aboveReasons(n)}${altList}${belowList}
+      ${reasonBox((n.causes || []).includes("self") ? "Why is the change right?" : (n.causes || []).includes("parts") ? "Why do these parts still make it?" : "Why does it still hold, given what changed?", "", n)}
+      ${button}<div class="actions">${sendBack(n)}</div></div>`;
   }
   return `<div class="box accepted"><div class="verdict accepted">Accepted</div>
     ${chosen}${altList}</div>`;
@@ -786,79 +968,140 @@ function askBox(node, placeholder) {
     <span class="muted small">The agent sees it in its inbox and answers with proposals.</span></div>`;
 }
 
+// Its parents: it is a part of each. With each parent's split, whether it is needed there, and its co-parts.
+function parentsSection(n) {
+  const ps = parentsOf(n).map(byId);
+  if (isDef(n)) {
+    const users = usersOf(n);
+    return `<h3>Used by</h3>${users.length ? users.map(u => `<div class="small"><span class="kind ${kindOf(u)}">${esc(kindOf(u))}</span> <a data-goto="${esc(u.id)}"><b>${esc(u.id)}</b></a> ${esc(C(u).statement)}</div>`).join("")
+      : `<div class="muted small">No node uses it yet.</div>`}<div class="muted small" style="margin-top:4px">A definition has no parents: its place is where the terms it fixes are used. A change to it puts those nodes up for review.</div>`;
+  }
+  if (!ps.length) {
+    if (isRoot(n)) return `<h3>Parents</h3><div class="muted small">None: it is the root, the idea's purpose. Every other node refines it.</div>`;
+    const callers = live().filter(c => (c.relies || []).includes(n.id));
+    return `<h3>Parents</h3><div class="muted small">None${callers.length ? `: code calls its operation (${callers.map(c => `<a data-goto="${esc(c.id)}">${esc(c.id)}</a>`).join(", ")})` : n.imported ? `: it comes from ${esc(n.imported)}` : ""}.</div>`;
+  }
+  return `<h3>Parents — it is a part of ${ps.length > 1 ? `each of these ${ps.length}` : "it"}</h3>` + ps.map(p => {
+    const need = (p.split?.needed || []).find(x => x.id === n.id);
+    const co = splitParts(p).filter(id => id !== n.id && !(byId(id) && alternative(n, byId(id))));
+    return `<div class="option"><div class="head"><span class="kind ${kindOf(p)}">${esc(kindOf(p))}</span><a data-goto="${esc(p.id)}"><b>${esc(p.id)}</b></a>
+        <span class="chip s-${p.state}">${esc(p.state)}</span>${splitChip(p)}${need ? neededChip(need) : ""}</div>
+      <div class="small" style="margin-top:4px">${esc(C(p).statement)}</div>
+      ${n.kind === "design" ? `<div class="muted tiny">it governs code of ${esc(p.id)} no proof covers</div>`
+        : `<div class="muted tiny">${co.length ? `with ${co.map(x => `<a data-goto="${esc(x)}">${esc(x)}</a>`).join(", ")}, together they make it` : "its only part"}${need?.status === "open" && need.detail ? ` — not needed: ${esc(need.detail)}` : ""}</div>`}</div>`;
+  }).join("");
+}
+
+// The terms it mentions, with their meanings and the definition that fixes each (if one does).
+function vocabularyOf(n) {
+  const terms = [...(snap()?.opaques || []), ...(snap()?.params || [])];
+  const rows = (C(n).vocabulary || []).map(v => { const i = v.indexOf(":"); const name = i < 0 ? v : v.slice(0, i).trim(), means = i < 0 ? "" : v.slice(i + 1).trim();
+    const t = terms.find(x => x.name === name);
+    return `<tr><td class="mono">${esc(name)}${t?.operation ? ` <span class="muted tiny">operation</span>` : ""}</td><td>${esc(means)}</td><td>${t?.definedBy ? `<a data-goto="${esc(t.definedBy)}">${esc(t.definedBy)}</a>` : `<span class="muted small">open</span>`}</td></tr>`; }).join("");
+  const defs = usesOf(n);
+  return (rows ? `<div class="side"><div class="label">the vocabulary it uses</div><table><tr><th>term</th><th>means</th><th>defined by</th></tr>${rows}</table></div>` : "") +
+    (defs.length ? `<div class="side"><div class="label">definitions in force it uses</div>${defs.map(d => `<div class="small"><a data-goto="${esc(d.id)}"><b>${esc(d.id)}</b></a> <span class="chip s-${d.state}">${esc(d.state)}</span> ${esc(C(d).statement)} <span class="muted">— fixes ${esc((d.defines || []).join(", "))}</span></div>`).join("")}</div>` : "");
+}
+
+// The node itself, by kind: what it says formally, and what it governs or keeps.
+function nodeSection(n) {
+  const c = C(n), k = kindOf(n);
+  const tail = () => `${vocabularyOf(n)}
+    ${n.code ? `<div class="side"><div class="label">governs</div><div class="mono small">${esc(n.code.files.join(", "))}</div></div>` : ""}
+    ${(n.expectations || []).map(e => `<div class="side"><div class="label">expected of it — ${esc(e.status)}${e.detail ? ": " + esc(e.detail) : ""}</div>
+      <div class="small">${esc(e.statement)}</div><pre>${esc(e.source)}</pre></div>`).join("")}
+    ${(n.relies || []).length ? `<div class="side"><div class="label">its code calls</div>${n.relies.map(id => `<div class="small"><a data-goto="${esc(id)}"><b>${esc(id)}</b></a> ${esc(C(byId(id) || {}).statement || "")}</div>`).join("")}<div class="muted tiny">proven from their promises alone, not from their code</div></div>` : ""}
+    ${(() => { const by = live().filter(x => (x.relies || []).includes(n.id)); return by.length ? `<div class="side"><div class="label">called by the code of</div><div class="small">${by.map(x => `<a data-goto="${esc(x.id)}">${esc(x.id)}</a>`).join(", ")}: a change to what this node means puts them up for review</div></div>` : ""; })()}
+    ${n.proof ? `<details ${n.state !== "accepted" ? "open" : ""}><summary>authored proof — ${esc(n.proof.file)}</summary><pre>${esc(n.proof.source)}</pre></details>` : ""}`;
+  if (n.kind === "design")
+    return `<h3>Design decision</h3><div class="box"><div class="muted small">No formal model: decided and tracked like the rest, and every change to the files it governs is yours to review:</div>
+      <pre>${esc((n.code?.files || []).join("\n") || "—")}</pre></div>`;
+  if (isDef(n)) {
+    const terms = [...(snap()?.opaques || []), ...(snap()?.params || [])];
+    return `<h3>Definition — decided, not proven</h3><div class="box"><div class="muted small">It fixes terms of the vocabulary: every node that mentions them is checked with this meaning.</div>
+      <table style="margin-top:6px"><tr><th>term</th><th>means</th><th>is now</th></tr>${(n.defines || []).map(t => { const x = terms.find(y => y.name === t);
+        const sub = (c.substitutions || []).find(v => v.startsWith(t + " :=") || v.startsWith(t + " ="));
+        return `<tr><td class="mono">${esc(t)}</td><td>${esc(x?.means || "")}</td><td class="mono small">${esc(sub ? sub.slice(sub.indexOf("=") + 1).trim() : "")}</td></tr>`; }).join("")}</table>
+      ${(c.uses || []).length ? `<div class="side"><div class="label">types it uses</div><pre>${esc(c.uses.join("\n"))}</pre></div>` : ""}
+      ${c.definition ? `<details><summary class="small">as written</summary><pre>${esc(c.definition)}</pre></details>` : ""}</div>`;
+  }
+  if (k === "invariant")
+    return `<h3>Invariant</h3><div class="box"><div class="muted small">One rule, stated once. Every contract in its scope keeps it, listing the pairs a call exposes to the rule (proven from the contract's post in Lean, and checked on its examples and at run time), or says why it does not apply. The contracts that keep it are its parts.</div>
+      ${sourcesOf(n)}
+      ${(n.covers || []).map(id => { const kp = (byId(id)?.invariants || []).find(i => i.id === n.id) || {};
+        return `<div class="side"><div class="label">kept by <a data-goto="${esc(id)}">${esc(id)}</a> — ${esc(kp.status || "")}${kp.detail ? ": " + esc(kp.detail) : ""}</div><pre>${esc(kp.view || "")}</pre></div>`; }).join("")}
+      ${(n.exempts || []).map(id => { const kp = (byId(id)?.invariants || []).find(i => i.id === n.id) || {};
+        return `<div class="side"><div class="label"><a data-goto="${esc(id)}">${esc(id)}</a> is exempt</div><div class="small">${esc(kp.detail || "")}</div></div>`; }).join("")}
+      ${tail()}</div>`;
+  const head = {
+    root: ["The root — the idea's purpose", "Stated as <i>exactly</i>: what users can do and what must never happen, together. Every node below is proven to imply it."],
+    claim: ["Claim", "A property over the vocabulary, in one sentence. Its parts, together, are proven to make it."],
+    contract: [`Contract on <span class="mono">${esc(n.op || "")}</span>`, "Every call of the operation meets its post. Proven of its code where the code is a define; checked on its examples and at run time otherwise."],
+    assumption: ["Assumption — trusted, not proven", "What the outside does (a port), or a fact of the world. It is a hypothesis of root_impl: listed among what the root rests on."],
+  }[k] || [esc(k), ""];
+  return `<h3>${head[0]}</h3><div class="box"><div class="muted small">${head[1]}</div>
+    ${sourcesOf(n)}
+    ${n.kind === "contract" ? `<div class="side"><div class="label">implementation</div><div class="small">${n.implementationProof
+      ? `${esc(n.implementationProof.name)}: ${esc(n.implementationProof.status)}${leanText(n.implementationProof.detail)}`
+      : C(n).implementation ? `plain Scala, checked on its ${(n.examples || []).length} examples, every combination of their inputs, and at run time by service: not proven` : "none registered"}</div>
+      ${C(n).implementation ? `<details><summary class="small">the code</summary><pre>${esc(C(n).implementation)}</pre></details>` : ""}</div>` : ""}
+    ${(n.invariants || []).map(i => i.status === "exempt"
+      ? `<div class="side"><div class="label">exempt from <a data-goto="${esc(i.id)}">${esc(i.id)}</a></div><div class="small">${esc(i.detail)}</div></div>`
+      : `<div class="side"><div class="label">keeps <a data-goto="${esc(i.id)}">${esc(i.id)}</a> — ${esc(i.status)}${i.detail ? ": " + esc(i.detail) : ""}</div>
+        <div class="muted small">the pairs a call shows to the rule:</div><pre>${esc(i.view)}</pre><div class="muted small">the rule:</div><pre>${esc(i.rule)}</pre></div>`).join("")}
+    ${n.leaf ? `<div class="warn-text">Nothing below proves it yet: it is trusted as it stands (a hypothesis of root_impl). Add the parts that make it, or a contract.</div>` : ""}
+    ${tail()}</div>`;
+}
+
+// Its parts, when they are not already in the decision above.
+function partsSection(n) {
+  const designs = treeChildren(n.id).filter(c => c.kind === "design");
+  const h = splitParts(n).length ? `<h3>Parts — together they make it</h3>${partsTable(n)}` : "";
+  const r = isRoot(n) ? `<h3>The root, of the code</h3>${rootBlock(n)}` : "";
+  return h + r + (designs.length ? `<h3>Design decisions under it</h3>${designs.map(d => `<div class="small"><a data-goto="${esc(d.id)}"><b>${esc(d.id)}</b></a> ${esc(C(d).statement)}</div>`).join("")}` : "");
+}
+
 function nodePane() {
   const n = byId(state.selected);
   if (!n) return `<p class="muted">Select a node.</p>`;
-  const c = C(n), parent = n.parent ? byId(n.parent) : null, ls = linkStatus(n);
-  let h = `<div style="display:flex;align-items:center;gap:8px"><span class="kind ${n.kind}">${esc(n.kind)}</span><h2>${esc(n.id)}</h2></div>
-    <div class="chips" style="margin-top:6px">${chips(n)}</div>
+  const c = C(n), k = kindOf(n);
+  let h = `<div style="display:flex;align-items:center;gap:8px"><span class="kind ${k}">${esc(k)}</span><h2>${esc(n.id)}</h2></div>
+    <div class="chips" style="margin-top:6px">${chips(n)}${n.replaces ? `<span class="chip s-not-checked">replaces ${esc(n.replaces)}</span>` : ""}</div>
     <p class="lead">${esc(c.statement)}</p>
     <div class="why"><div class="label">why</div>${esc(c.why)}</div>
     ${needsYou(n) ? `<h3>Decision</h3>${decisionBox(n)}` : ""}`;
   // Under review, what changed is in the decision above: the rest of the node is there to look up.
   const folded = n.state === "review";
-  if (folded) h += `<details class="full"><summary>The node in full: its examples, model and link</summary>`;
+  // Its parents always: what it is a part of is what a decision on it is about.
+  h += parentsSection(n);
+  if (folded) h += `<details class="full"><summary>The node in full: its model, examples and parts</summary>`;
+  h += nodeSection(n);
+  // The parts are in the decision while it waits for you; below the node otherwise.
+  if (!needsYou(n)) h += partsSection(n);
+  else { const designs = treeChildren(n.id).filter(x => x.kind === "design"); if (designs.length) h += `<h3>Design decisions under it</h3>${designs.map(d => `<div class="small"><a data-goto="${esc(d.id)}"><b>${esc(d.id)}</b></a> ${esc(C(d).statement)}</div>`).join("")}`; }
   h += examplesTable(n);
-  if (n.kind === "design") {
-    h += `<h3>Design decision</h3><div class="box"><div class="muted small">No formal model: decided and tracked like the rest, and every change to the files it governs is yours to review:</div>
-      <pre>${esc((n.code?.files || []).join("\n") || "—")}</pre></div>`;
-  } else if (n.kind === "invariant") {
-    h += `<h3>Invariant</h3><div class="box"><div class="muted small">One rule, stated once. Every contract in its scope keeps it, listing the pairs a call exposes to the rule (proven from the contract's post in Lean, and checked on its examples and at run time), or says why it does not apply.</div>
-      ${code("rule", (c.sources || {}).spec)}
-      ${(n.covers || []).map(id => { const k = (byId(id)?.invariants || []).find(i => i.id === n.id) || {};
-        return `<div class="side"><div class="label">kept by <a data-goto="${esc(id)}">${esc(id)}</a> — ${esc(k.status || "")}${k.detail ? ": " + esc(k.detail) : ""}</div><pre>${esc(k.view || "")}</pre></div>`; }).join("")}
-      ${(n.exempts || []).map(id => { const k = (byId(id)?.invariants || []).find(i => i.id === n.id) || {};
-        return `<div class="side"><div class="label"><a data-goto="${esc(id)}">${esc(id)}</a> is exempt</div><div class="small">${esc(k.detail || "")}</div></div>`; }).join("")}</div>`;
-  } else if (!parent && n.kind === "contract") {
-    h += `<h3>Port</h3><div class="box"><div class="muted">What the outside (a database, a service, a clock) is trusted to do, stated per call. The proven code calls it by this promise; its adapter is checked against it on its examples and on every call.</div>${code("post", (c.sources || {}).post)}</div>`;
-  } else if (!parent) {
-    h += `<h3>Root</h3><div class="box"><div class="muted">One concern of the idea, stated as a theorem. Every node below is proven to imply it.</div>${code("spec", (c.sources || {}).spec)}</div>`;
-  } else {
-    h += `<h3>Link to parent</h3><div class="box ${ls}">
-      <div class="verdict ${ls}">${verdict(n)}</div>
-      <div class="side"><div class="label">parent <b><a data-goto="${esc(parent.id)}">${esc(parent.id)}</a></b> (${esc(parent.kind)})</div>
-        <div style="margin-top:2px">${esc(C(parent).statement)}</div>
-        ${(C(parent).sources || {}).spec ? `<pre>${esc(C(parent).sources.spec)}</pre>` : parent.kind === "instantiate" ? instantiatedSpec(parent) : ""}</div>
-      <div class="side"><div class="label">this node <b>${esc(n.id)}</b></div>${modelOf(n)}</div>
-      ${n.code ? `<div class="side"><div class="label">governs</div><div class="mono small">${esc(n.code.files.join(", "))}</div></div>` : ""}
-      ${(n.expectations || []).map(e => `<div class="side"><div class="label">expected of it — ${esc(e.status)}${e.detail ? ": " + esc(e.detail) : ""}</div>
-        <div class="small">${esc(e.statement)}</div><pre>${esc(e.source)}</pre></div>`).join("")}
-      ${n.kind === "contract" ? `<div class="side"><div class="label">implementation</div><div class="small">${n.implementationProof
-        ? `${esc(n.implementationProof.name)}: ${esc(n.implementationProof.status)}${leanText(n.implementationProof.detail)}`
-        : C(n).implementation ? `plain Scala, checked on its ${(n.examples || []).length} examples, every combination of their inputs, and at run time by service: not proven` : "none registered"}</div></div>` : ""}
-      ${(n.invariants || []).map(i => i.status === "exempt"
-        ? `<div class="side"><div class="label">exempt from <a data-goto="${esc(i.id)}">${esc(i.id)}</a></div><div class="small">${esc(i.detail)}</div></div>`
-        : `<div class="side"><div class="label">keeps <a data-goto="${esc(i.id)}">${esc(i.id)}</a> — ${esc(i.status)}${i.detail ? ": " + esc(i.detail) : ""}</div>
-          <div class="muted small">the pairs a call shows to the rule:</div><pre>${esc(i.view)}</pre><div class="muted small">the rule:</div><pre>${esc(i.rule)}</pre></div>`).join("")}
-      ${(C(n).relies || []).map(r => `<div class="side"><div class="label">relies on <a data-goto="${esc(r.split(":")[0])}">${esc(r.split(":")[0])}</a></div><div class="small">${esc(r.split(":").slice(1).join(":").trim())}</div></div>`).join("")}
-      ${(n.reliedOnBy || []).length ? `<div class="side"><div class="label">relied on by</div><div class="small">${n.reliedOnBy.map(id => `<a data-goto="${esc(id)}">${esc(id)}</a>`).join(", ")}: a change to what this node means puts them up for review</div></div>` : ""}
-      ${n.proof ? `<details ${n.state !== "accepted" ? "open" : ""}><summary>authored proof — ${esc(n.proof.file)}</summary><pre>${esc(n.proof.source)}</pre></details>` : ""}
-    </div>`;
-  }
   if (folded) h += `</details>`;
   if (!needsYou(n)) h += `<h3>Decision</h3>${decisionBox(n)}`;
   if (n.messages?.length) h += `<h3>Messages</h3><pre>${esc(n.messages.join("\n\n"))}</pre>`;
+  const openProof = ["open", "failed"].includes(n.split?.complete?.status) || n.implementationProof?.status === "open" || n.rootImpl?.status === "open";
   h += `<h3>Ask the agent</h3>${requestsFor(n.id)}
-    ${askBox(n.id, n.kind === "contract" ? "e.g. Add an example: a revoked grant refuses access." : "e.g. Propose how to refine this: tokens expire after an hour.")}
+    ${askBox(n.id, n.kind === "contract" ? "e.g. Add an example: a revoked grant refuses access." : isDef(n) ? "e.g. Propose another definition: sessions expire after an hour." : "e.g. Propose the parts that make it: tokens expire after an hour.")}
     <div class="actions">
-      ${n.kind !== "design" ? `<button class="btn small" data-run="check" data-arg="${esc(n.id)}">Check this node</button>` : ""}
-      ${ls === "open" && !n.proof && n.obligation ? `<button class="btn small" data-run="scaffold" data-arg="${esc(n.id)}">Create proof file</button>` : ""}
+      ${n.kind !== "design" && !isDef(n) ? `<button class="btn small" data-run="check" data-arg="${esc(n.id)}">Check this node</button>` : ""}
+      ${openProof && !n.proof && (n.obligations || []).length ? `<button class="btn small" data-run="scaffold" data-arg="${esc(n.id)}">Create proof file</button>` : ""}
     </div>`;
-  const read = pathTo(n.id).slice(1).filter(p => ["informal"].includes(linkStatus(p))).length;
-  if (n.kind !== "design" && n.kind !== "invariant") h += `<details><summary>Root theorem — ${!pathProven(n) ? "holds once every link on the path is proven" : read ? `holds as far as Lean goes: ${read} link(s) on the path are decided by reading, not proven` : "holds: every link from the root is proven"}</summary>
-      <div class="chain">${pathTo(n.id).map((p, i) => (i ? `<span class="arrow ${linkStatus(p)}">${linkStatus(p) === "proven" ? "⟵✓" : "⟵?"}</span>` : "") +
-        `<a data-goto="${esc(p.id)}">${esc(p.id)}</a>`).join("")}</div><pre>${esc(n.rootTheorem)}</pre></details>
-    ${n.obligation ? `<details><summary>Obligation in Lean</summary><pre>${esc(n.obligation.statement)}</pre></details>` : ""}
-    <details><summary>Generated Lean</summary><pre>${esc(n.lean)}</pre></details>`;
+  if (n.holds) h += `<details><summary>Theorem holds — ${esc(n.id)} from the leaves below it (contracts, assumptions, claims with no parts)</summary><pre>${esc(n.holds)}</pre></details>`;
+  if ((n.obligations || []).length) h += `<details><summary>Obligations in Lean (${n.obligations.length})</summary>${n.obligations.map(o =>
+    `<div class="side"><div class="label"><b>${esc(o.name)}</b>${o.description ? ` — ${esc(o.description)}` : ""}</div><pre>${esc(o.statement)}</pre></div>`).join("")}</details>`;
+  if (n.lean) h += `<details><summary>Generated Lean</summary><pre>${esc(n.lean)}</pre></details>`;
   return h;
 }
 
 // Nodes decided at once with one reason: one accept each, parents first (each with the version seen).
 function batchBox(ns, title, note, placeholder) {
-  const depth = n => pathTo(n.id).length;
-  // In the order core gives: each after what it rests on (its parent, what it relies on, what it keeps).
-  const rank = id => { const i = (snap()?.order || []).indexOf(id); return i < 0 ? 1e9 + depth(byId(id)) : i; };
-  const ids = [...ns].sort((a, b) => rank(a.id) - rank(b.id)).map(n => n.id).join(",");
+  // In the order core gives: each after what it rests on (its parents, the definitions it uses, what its code calls).
+  const at = n => { const i = rank(n); return i < 1e9 ? i : 1e9 + depth(n); };
+  const ids = [...ns].sort((a, b) => at(a) - at(b)).map(n => n.id).join(",");
   return `<div class="box review" style="margin-top:0"><div class="verdict review">${title}</div>
     <div class="small">${ns.map(n => `<a data-goto="${esc(n.id)}">${esc(n.id)}</a>`).join(", ")} — ${note}</div>
     <textarea data-batchreason="${esc(ids)}" rows="1" placeholder="${esc(placeholder)}"></textarea>
@@ -874,6 +1117,14 @@ function followers(n, w) {
 
 function inboxPane() {
   const waiting = waitingForYou(), w = waiting.filter(n => !n.mechanical), mech = waiting.filter(n => n.mechanical);
+  const ready = w.filter(n => !waitsOn(n)), later = w.filter(n => waitsOn(n));
+  // One line per node: its chips, and what makes it ready or not.
+  const row = (n, all) => `<div class="req"><span class="kind ${kindOf(n)}">${esc(kindOf(n))}</span> <a data-goto="${esc(n.id)}"><b>${esc(n.id)}</b></a> ${chips(n)}
+      ${parentsOf(n).length > 1 ? `<span class="chip s-not-checked" title="a part of ${esc(parentsOf(n).join(", "))}">${parentsOf(n).length} parents</span>` : ""}
+      ${splitParts(n).length ? `<span class="chip s-not-checked">${splitParts(n).length} part${splitParts(n).length > 1 ? "s" : ""}</span>${splitChip(n)}` : ""}
+      <div class="small">${esc(C(n).statement)}</div>
+      ${waitsOn(n) ? `<div class="muted tiny">after <a data-goto="${esc(waitsOn(n))}">${esc(waitsOn(n))}</a>: what it rests on is decided first</div>` : ""}
+      ${all.filter(f => followers(f, all) === n.id).map(f => `<div class="muted small">↳ <a data-goto="${esc(f.id)}">${esc(f.id)}</a> moved with it: decided together, from its review</div>`).join("")}</div>`;
   const answered = requests().filter(r => r.status === "answered");
   const open = requests().filter(r => r.status === "open");
   const rejected = all().filter(n => n.state === "rejected");
@@ -883,12 +1134,11 @@ function inboxPane() {
       <div class="muted small">Each decision you make here is signed with your key; these are not. One you did not make was written into the ledger by someone else: decide that node again. Sign only the ones that are yours.</div>
       ${snap().unsigned.map(u => `<label class="small" style="display:block"><input type="checkbox" class="unsigned" value="${esc(u.entry)}"> <a data-goto="${esc(u.node)}">${esc(u.node)}</a>: ${esc(u.action)} by ${esc(u.by)}, ${new Date(u.at).toLocaleString()} — ${esc(u.reason)}</label>`).join("")}
       <div class="actions"><button class="btn small" data-sign="1">These are mine: sign them</button></div></div>` : ""}
-    <h3 style="margin-top:0">Waiting for you</h3>${w.length ? w.filter(n => !followers(n, w)).map(n =>
-      `<div class="req"><a data-goto="${esc(n.id)}"><b>${esc(n.id)}</b></a> ${chips(n)}<div class="small">${esc(C(n).statement)}</div>
-      ${w.filter(f => followers(f, w) === n.id).map(f => `<div class="muted small">↳ <a data-goto="${esc(f.id)}">${esc(f.id)}</a> moved with it: decided together, from its review</div>`).join("")}</div>`).join("")
-      : gone().length || mech.length ? "" : `<div class="muted small">Nothing. Every node is accepted.</div>`}
+    <h3 style="margin-top:0">Waiting for you — ready: everything above it is decided</h3>${ready.length ? ready.filter(n => !followers(n, w)).map(n => row(n, w)).join("")
+      : gone().length || mech.length || later.length ? `<div class="muted small">None ready.</div>` : `<div class="muted small">Nothing. Every node is accepted.</div>`}
     ${mech.length ? `<h3>Mechanical — Lean proves these again; nothing in them is a choice</h3>
       ${batchBox(mech, `${mech.length} mechanical decision${mech.length > 1 ? "s" : ""}`, "nothing you decided in them changed (only the types they use, a proven implementation, or something above them), and Lean proves them again. Open one to read what moved.", "Why do they hold? e.g. a new field no rule reads")}` : ""}
+    ${later.length ? `<h3>After the decisions above them</h3>${later.filter(n => !followers(n, w)).map(n => row(n, w)).join("")}` : ""}
     ${gone().map(r => `<div class="req"><b>${esc(r.id)}</b> <span class="chip s-review">gone from the model</span>
       <div class="small">${esc(r.decision?.content?.statement)}</div>
       ${(r.renamedTo || []).length ? `<div class="small">Says what ${(r.renamedTo).map(x => `<a data-goto="${esc(x)}">${esc(x)}</a>`).join(", ")} says, under another name: if it was renamed, its history (its choice, reasons, rejected alternatives) carries over.</div>` : ""}
@@ -903,7 +1153,7 @@ function inboxPane() {
       <div class="actions"><button class="btn small" data-close="${esc(r.id)}">Done</button></div></div>`).join("") : `<div class="muted small">None.</div>`}
     <h3>Waiting for the agent</h3>${open.length ? open.map(r => `<div class="req"><div class="small">on ${r.node ? `<a data-goto="${esc(r.node)}">${esc(r.node)}</a>` : "the idea"} · ${esc(r.by)}</div><div>${esc(r.text)}</div></div>`).join("") : `<div class="muted small">None.</div>`}
     ${rejected.length ? `<div class="muted small" style="margin-top:8px">${rejected.length} rejected node(s) still in the Scala model; the agent removes them.</div>` : ""}
-    <h3>Ask about the whole idea</h3>${askBox("", "e.g. Propose a second root: users can always find the records they may see.")}`;
+    <h3>Ask about the whole idea</h3>${askBox("", "e.g. Users can also see who accessed their records: propose where it belongs.")}`;
 }
 
 function markdown(src) {
@@ -927,12 +1177,12 @@ function markdown(src) {
 
 function ideaPane() {
   const s = snap();
-  if (state.editingIdea) return `<div class="muted small">IDEA.md. A change puts the roots up for review. When you accept a root, tick the decisions below whose reasons the change may affect: they are reviewed again.</div>
+  if (state.editingIdea) return `<div class="muted small">IDEA.md. Its title and lead paragraph are the root: a change puts the root (or the nodes naming a changed section) up for review. When you accept it, tick the decisions below whose reasons the change may affect: they are reviewed again.</div>
     <textarea id="ideaText" rows="22" class="mono">${esc(state.ideaDraft ?? state.ideaBase ?? "")}</textarea>
     ${state.ideaError ? `<div class="err-text">${esc(state.ideaError)}</div>` : ""}
     <div class="actions"><button class="btn small primary" id="saveIdea">Save</button><button class="btn small" id="cancelIdea">Cancel</button></div>`;
-  const roots = live().filter(n => !n.parent && n.kind === "root");
-  return `<div class="actions" style="margin-top:0"><span class="muted small">Roots, one concern each: ${roots.map(r => `<a data-goto="${esc(r.id)}">${esc(r.id)}</a>`).join(", ") || "none"}</span>
+  const root = byId(s?.root);
+  return `<div class="actions" style="margin-top:0"><span class="muted small">The root, the idea's purpose: ${root ? `<a data-goto="${esc(root.id)}">${esc(root.id)}</a>` : "none yet"}</span>
       <span class="spacer"></span><button class="btn small" id="editIdea">Edit</button></div>
     <div class="md">${markdown(s?.idea || "*No idea file.*")}</div>
     <div class="muted small">List what the tree deliberately leaves out under “## Not modelled”, so the limits of the theory are explicit.</div>`;
@@ -940,12 +1190,15 @@ function ideaPane() {
 
 function vocabularyPane() {
   const s = snap();
-  return `<h3 style="margin-top:0">Vocabulary</h3><div class="muted small">The open terms of the model and what they mean in the world. A change to a meaning puts the nodes that use the term up for review.</div>
-    <table><tr><th>term</th><th>means</th><th>Lean type</th></tr>
-    ${s.opaques.map(o => `<tr><td class="mono">${esc(o.name)}</td><td>${esc(o.means)}</td><td class="mono muted">Type</td></tr>`).join("")}
-    ${s.params.map(p => `<tr><td class="mono">${esc(p.name)}</td><td>${esc(p.means)}</td><td class="mono muted">${esc(p.type)}</td></tr>`).join("")}</table>
-    <h3>Domain types</h3>${s.types.map(t => `<pre>${esc(t.lean)}</pre>`).join("") || "<span class='muted'>none</span>"}
-    <h3>Definitions</h3>${s.defs.map(d => `<div class="side"><div class="label"><b>${esc(d.name)}</b></div><pre>${esc(d.source)}</pre></div>`).join("") || "<span class='muted'>none</span>"}`;
+  const by = t => t.definedBy ? `<a data-goto="${esc(t.definedBy)}">${esc(t.definedBy)}</a>` : `<span class="muted small">open</span>`;
+  const defs = live().filter(isDef);
+  return `<h3 style="margin-top:0">Vocabulary</h3><div class="muted small">The terms of the model and what they mean in the world: the project's ubiquitous language. An open term is anything that meets what is proven; a definition fixes it. A change to a meaning puts the nodes that use the term up for review.</div>
+    <table><tr><th>term</th><th>means</th><th>Lean type</th><th>defined by</th></tr>
+    ${(s.opaques || []).map(o => `<tr><td class="mono">${esc(o.name)}</td><td>${esc(o.means)}</td><td class="mono muted">Type</td><td>${by(o)}</td></tr>`).join("")}
+    ${(s.params || []).map(p => `<tr><td class="mono">${esc(p.name)}${p.operation ? ` <span class="muted tiny">operation</span>` : ""}</td><td>${esc(p.means)}</td><td class="mono muted">${esc(p.type)}</td><td>${by(p)}</td></tr>`).join("")}</table>
+    <h3>Definitions</h3>${defs.map(d => `<div class="small" style="margin-top:4px"><a data-goto="${esc(d.id)}"><b>${esc(d.id)}</b></a> <span class="chip s-${d.state}">${esc(d.state)}</span> fixes ${esc((d.defines || []).join(", "))}: ${esc(C(d).statement)}</div>`).join("") || "<span class='muted'>none</span>"}
+    <h3>Domain types</h3>${(s.types || []).map(t => `<pre>${esc(t.lean)}</pre>`).join("") || "<span class='muted'>none</span>"}
+    <h3>Functions (define)</h3>${(s.defs || []).map(d => `<div class="side"><div class="label"><b>${esc(d.name)}</b></div><pre>${esc(d.source)}</pre></div>`).join("") || "<span class='muted'>none</span>"}`;
 }
 
 function historyPane() {
@@ -1001,7 +1254,8 @@ document.addEventListener("click", async e => {
     const reason = $("#reason")?.value.trim() || "";
     if (words(reason) < 3) { $("#reason")?.focus(); say(acc, "Give your reason in a few words: it is kept as part of the theory."); return; }
     const n = byId(state.selected);
-    const reject = [...document.querySelectorAll(".rej:checked")].map(x => x.value);
+    // Accepting a node rejects its alternatives (what replaces it, what it replaces, another definition of a term it defines).
+    const reject = liveAlts(n).map(x => x.id);
     const answers = [...document.querySelectorAll(".ans:checked")];
     const unanswered = [...new Set([...document.querySelectorAll(".ans")].map(x => x.dataset.id))].filter(id => !answers.some(a => a.dataset.id === id));
     if (unanswered.length) { say(acc, `Say for ${unanswered.join(", ")} whether it still holds or is revisited: its reason says when to revisit it.`); return; }
@@ -1011,13 +1265,15 @@ document.addEventListener("click", async e => {
     // What needs saying yes to explicitly: accepting despite a warning, and leaving every decision
     // below as it is (a choice too). Asked in place: the button turns into "Confirm: …"; a second click decides.
     const warn = warnings(n), listedBelow = document.querySelectorAll(".rev").length;
+    const decided = liveAlts(n).filter(x => x.state !== "proposed").map(x => x.id);
     const ask = [warn.length ? `accept although ${warn.join("; ")}` : "",
+      decided.length ? `reject ${decided.join(", ")}, which you decided before` : "",
       listedBelow && !revisit.length && !held.length ? `none of the ${listedBelow} decision(s) below is affected: their reasons still hold` : ""].filter(Boolean);
     const key = JSON.stringify([n.version, ask]);
     if (ask.length && acc.dataset.armed !== key) {
       acc.dataset.armed = key;
       if (!acc.dataset.label) acc.dataset.label = acc.textContent;
-      acc.textContent = `Confirm: ${ask.length > 1 ? "both" : warn.length ? "accept anyway" : "none affected"}`;
+      acc.textContent = `Confirm: ${ask.length > 1 ? "all of it" : warn.length ? "accept anyway" : decided.length ? "reject it" : "none affected"}`;
       say(acc, `${n.id}: ${ask.join("; and ")}. Click “${acc.textContent}” to decide, or change your ticks.`, "confirm-text");
       return;
     }

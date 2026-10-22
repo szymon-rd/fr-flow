@@ -2,9 +2,6 @@
  "format": 4,
  "name": "Fake",
  "idea": "# Fake\n\nAn idea with **bold** and `code`.\n\n- one\n- two\n",
- "roots": [
-  "Root"
- ],
  "exportedAt": "2026-01-01T00:00:00Z",
  "ideaFile": "IDEA.md",
  "warnings": [],
@@ -64,7 +61,12 @@
    "axioms": [
     "propext"
    ],
-   "parentChain": ""
+   "parentChain": "",
+   "parts": [
+    "Auto",
+    "Open",
+    "Stale"
+   ]
   },
   {
    "id": "Auto",
@@ -99,7 +101,23 @@
      "status": "proven",
      "detail": "auto"
     },
-    "needed": [],
+    "needed": [
+     {
+      "id": "Inst",
+      "status": "proven",
+      "detail": "needed: Lean does not show the node without it"
+     },
+     {
+      "id": "Inst2",
+      "status": "proven",
+      "detail": "needed: Lean does not show the node without it"
+     },
+     {
+      "id": "Failed",
+      "status": "proven",
+      "detail": "needed: Lean does not show the node without it"
+     }
+    ],
     "clash": {
      "status": "proven",
      "detail": "not shown"
@@ -116,7 +134,12 @@
    "axioms": [
     "propext"
    ],
-   "parentChain": "e877f476abb928eca1ebaf48dbb71f60d6c73de4bdcaea05121e5d0ba2e6b583"
+   "parentChain": "e877f476abb928eca1ebaf48dbb71f60d6c73de4bdcaea05121e5d0ba2e6b583",
+   "parts": [
+    "Inst",
+    "Inst2",
+    "Failed"
+   ]
   },
   {
    "id": "Inst",
@@ -156,7 +179,13 @@
      "status": "proven",
      "detail": "instantiation"
     },
-    "needed": [],
+    "needed": [
+     {
+      "id": "Contract",
+      "status": "proven",
+      "detail": "needed: Lean does not show the node without it"
+     }
+    ],
     "clash": {
      "status": "proven",
      "detail": "not shown"
@@ -170,7 +199,10 @@
    "axioms": [
     "propext"
    ],
-   "parentChain": "15907f31737dbfcbe3562306dcc6b7ab9db082425ce420689eb0447b053fb957"
+   "parentChain": "15907f31737dbfcbe3562306dcc6b7ab9db082425ce420689eb0447b053fb957",
+   "parts": [
+    "Contract"
+   ]
   },
   {
    "id": "Inst2",
@@ -225,7 +257,8 @@
     "propext"
    ],
    "parentChain": "15907f31737dbfcbe3562306dcc6b7ab9db082425ce420689eb0447b053fb957",
-   "replaces": "Inst"
+   "replaces": "Inst",
+   "parts": []
   },
   {
    "id": "Contract",
@@ -319,7 +352,8 @@
    "limits": [
     "an empty result (None or Nil) always satisfies it: it never requires the system to return anything"
    ],
-   "parentChain": "dd0079dc4dcab7d2cc2fad8f81e2659cd9f94fb58d119f7ecc9cd744a67d0615"
+   "parentChain": "dd0079dc4dcab7d2cc2fad8f81e2659cd9f94fb58d119f7ecc9cd744a67d0615",
+   "parts": []
   },
   {
    "id": "Open",
@@ -373,7 +407,8 @@
    "axioms": [
     "propext"
    ],
-   "parentChain": "e877f476abb928eca1ebaf48dbb71f60d6c73de4bdcaea05121e5d0ba2e6b583"
+   "parentChain": "e877f476abb928eca1ebaf48dbb71f60d6c73de4bdcaea05121e5d0ba2e6b583",
+   "parts": []
   },
   {
    "id": "Failed",
@@ -425,7 +460,8 @@
    "axioms": [
     "propext"
    ],
-   "parentChain": "15907f31737dbfcbe3562306dcc6b7ab9db082425ce420689eb0447b053fb957"
+   "parentChain": "15907f31737dbfcbe3562306dcc6b7ab9db082425ce420689eb0447b053fb957",
+   "parts": []
   },
   {
    "id": "Stale",
@@ -477,7 +513,8 @@
    "axioms": [
     "propext"
    ],
-   "parentChain": "e877f476abb928eca1ebaf48dbb71f60d6c73de4bdcaea05121e5d0ba2e6b583"
+   "parentChain": "e877f476abb928eca1ebaf48dbb71f60d6c73de4bdcaea05121e5d0ba2e6b583",
+   "parts": []
   }
  ],
  "root": "Root",
