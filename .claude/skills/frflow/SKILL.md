@@ -1,6 +1,6 @@
 ---
 name: frflow
-description: Develop a system with FrFlow, where the developer decides, in a browser, a tree of Scala nodes, each proven in Lean to refine its parent, that keeps the theory of the system (what holds, why, and what was rejected) and shows when code or design drifts from it. Use when turning an idea into a root, proposing or changing nodes (refine, instantiate, contract, design, invariant), adding examples, answering the developer's requests, proving a link, or attaching an implementation. Also use when the work touches IDEA.md, frflow.json, `Node.root`, `.refine`, `.instantiate`, `.contract`, `.design`, `Node.invariant`, `.keeps`, `.exempt`, `.examples`, `.implement`, `.implementProven`, `.governing`, `.relies` or `service`.
+description: Develop a system with FrFlow, where the developer decides, in a browser, a tree of Scala nodes, each proven in Lean to refine its parent, that keeps the theory of the system (what holds, why, and what was rejected) and shows when code or design drifts from it. Use when turning an idea into a root, proposing or changing nodes (refine, instantiate, contract, design, invariant), adding examples, answering the developer's requests, proving a link, or attaching an implementation. Also use when the work touches IDEA.md, frflow.json, `Node.root`, `.refine`, `.instantiate`, `.contract`, `.design`, `Node.invariant`, `.keeps`, `.exempt`, `.examples`, `.implement`, `.implementProven`, `.implementChecked`, `.governing`, `.relies`, `.reliesThat` or `service`.
 ---
 
 # Developing with FrFlow
@@ -36,8 +36,10 @@ this way. It also keeps the code from drifting away from it.
      browser, commit `.frflow/keys/` and sign there.
    - Mechanical decisions (no choice in them, Lean proves them again; see the
      README's "Who decides") are the developer's too: the browser offers them
-     in one batch. In your `answer`, say which waiting nodes are mechanical,
-     and whether a "revisit if" in a reason around them may be met.
+     in one batch. In your `answer`, say which waiting nodes are mechanical.
+   - A decision below a change whose reason or `why` says when to revisit it
+     ("revisit if", "unless", "until"...) is answered by the developer by
+     name. In your `answer`, say whether each such condition may be met.
 2. **Offer real alternatives.** When a step has more than one reasonable
    design, propose each as a sibling node, with its own `why` covering its
    trade-off. One proposal is fine when the step is obvious.
@@ -87,6 +89,8 @@ this way. It also keeps the code from drifting away from it.
    examples. Add them to the `KnowledgeBase(...)` list.
 3. **`render`, then `check`.** Fix compile errors and links that do not hold.
    Proposals should reach the developer proven, with passing examples.
+   `check` lists failing examples first: the code or the contract is wrong;
+   fix that, not the proof. Then what is not proven besides the link.
 4. **`answer(request, text)`.** Name the proposals, the trade-off between them,
    and anything left open. For example: "Proposed Expiring and Sliding under
    Authenticated. Expiring is simpler; Sliding keeps active users signed in.
@@ -103,13 +107,16 @@ this way. It also keeps the code from drifting away from it.
      developer can reject the old one when choosing.
    - **A change to an implementation or a governed file** puts the node up for
      review (cause `code`), with a git diff, and no proof covers it: make
-     sure the examples still pass, and say what changed in your answer.
+     sure the examples still pass, and say what changed in your answer. The
+     review notes the invariants whose domain types the diff names and the
+     parameters it binds anew: say in your answer why each still holds.
      An implementation governs the files its expression refers to. Code it
      relies on elsewhere needs an owner: `.governing(paths*)`, or a design
      node owning a directory. `status` fails on a source file no node governs:
      anything under `src/main`, any source file elsewhere in the project (not
-     `src/test`), and anything the build compiles (keep the build passing
-     `-Dfrflow.sources`).
+     `src/test`; `target` folders in the sources, `project/*.scala` and
+     `*.sbt` count), and anything the build compiles (keep the build passing
+     `-Dfrflow.sources`). Never declare `package frflow` in the project.
    - **A rule that applies to several contracts** (tenant isolation,
      authorization, auditing) is an **invariant**, stated once over pairs:
      `Node.invariant[Account, CrmRecord](id, statement, why)((reader, r) => ...)`.
@@ -121,9 +128,11 @@ this way. It also keeps the code from drifting away from it.
      no proof covers.
      A view lists every pair the result shows: for a rule about a domain or
      opaque type, Lean proves it lists every such value the result holds,
-     with the caller (`cover_X`). A view that leaves something out, however
-     the filter is hidden, fails; so does one that keeps the rule in name
-     only (`vacuous_inv_X`).
+     with the caller (`cover_X`). When several inputs have the rule's first
+     type, name the one the pairs are about: `.keeps(inv, reader = 1)(...)`
+     (from 0); otherwise `cover_X` fails. A view that leaves something out,
+     however the filter is hidden, fails; so does one that keeps the rule in
+     name only (`vacuous_inv_X`).
    - **Keep production wiring** (the call to `service`) in a file a design
      node governs. Every change to it is the developer's.
    - **Prefer a proven implementation.** When the implementation fits the
@@ -131,11 +140,12 @@ this way. It also keeps the code from drifting away from it.
      `implementProven(contract)(impl)`: Lean proves it meets the contract, and
      the chain reaches the code. When the code must be faster than the
      subset allows, keep the `define` as its oracle:
-     `implementChecked(contract)(fast)(define)` (the fast code must return
-     what the proven `define` does on the examples' inputs; it is not proven
-     code). If IDEA.md says `Proven code: N%`, `status`
-     fails while fewer contracts than that are proven down to their code; the
-     line is the developer's (it is part of the idea), never lower it.
+     `implementChecked(contract)(fast)(define)`: the fast code runs and must
+     return what the `define` returns on every example and every combination
+     of their inputs. It is not proven code (nor counted as such), and a
+     change to it is never mechanical. If IDEA.md says `Proven code: N%`,
+     `status` fails while fewer contracts are proven down to the code that
+     runs; the line is the developer's (part of the idea), never lower it.
    - **Name the idea's section** a root is decided against
      (`Node.root(..., idea = "Sharing")`) when `IDEA.md` has `## ` sections,
      so editing one section reviews only its root. What only one concern
@@ -146,6 +156,10 @@ this way. It also keeps the code from drifting away from it.
      reach")`. `context` lists other concerns calling the same definitions:
      check whether you rely on them. A change to the relied node's meaning
      then reviews yours. A reliance that leads back to the node is refused.
+     A property of the parameters you rely on is stated with a definition
+     the relied node (or one above it) uses, so it is what is proven there:
+     `.reliesThat(crmWrites, why)(() => consistentStore(CrmStore(store.value, shares.value)))`.
+     Every example and `service` call checks it.
    - **The model's file holds only the model:** nodes, `Opaque`, `Param`,
      `define`, domain types without methods, and the `@main`. Helpers go next
      to the implementation; `status` warns otherwise.
@@ -167,15 +181,16 @@ The MCP server `frflow` (`bin/frflow mcp examples`, see `.mcp.json`) works on ev
 | tool | use |
 |---|---|
 | `inbox` | Start here: requests, clean-up, waiting decisions, and the tree. |
-| `context(node)` | What bears on the node: its root's idea section (with its Not modelled), the vocabulary its path and reliances use, the roots in one line, the path from the root with each node's latest reason first (earlier ones marked superseded), what stands beside it and what was rejected there with the reasons, what it relies on and what relies on it, other concerns calling the same definitions, invariants, what moved (with diffs), the decisions below, the obligation, the last check's failures with Lean's full message, and the developer's requests. |
+| `context(node)` | What bears on the node: its root's idea section (with its Not modelled), the vocabulary its path and reliances use, the roots in one line, the path from the root with each node's latest binding reason first, then every accepted change to it, newest first (marked "[given for an earlier version of it]" when the node changed since), then confirmations briefly, what stands beside it and what was rejected there with the reasons, what it relies on and what relies on it, other concerns calling the same definitions, invariants, what moved (with diffs, including nodes its ancestors rely on; a code diff with notes on invariants and parameters it touches), the decisions below, the obligation, the last check's failures with Lean's full message, and the developer's requests. |
 | `render` | Rebuild from the Scala definitions; the browser updates. Compile errors in the model come back here. |
-| `check(node?)` | Prove what changed in Lean, and evaluate the examples there. Prints Lean's full message for what fails. Slow. |
+| `check(node?)` | Prove what changed in Lean, and evaluate the examples there. Prints Lean's full message for what fails, once. Slow. |
 | `answer(request, text)` | Reply to a request; the reply is shown in the browser. With `node` and no `request`, it answers the developer's open request on that node, or tells them about work they did not ask for. |
-| `find(query)` | Which nodes govern a file, or mention a concern: where a change belongs. |
-| `scaffold(node)` | A proof file for an obligation `frflow_auto` did not prove. |
+| `find(query)` | Which nodes govern a file; or what mentions a concern, best first, with the matching sentence: nodes and all their reasons, rejected options (also those removed from the model), gone nodes, lines of Not modelled. Where a change belongs, and what was already rejected. |
+| `scaffold(node)` | Stubs, in the node's proof file (created or added to), for exactly the obligations the last check left open; before any check, the link with `feasible` and `nontrivial`. |
 
 Without MCP, use the CLI from the repository root: `sbt "auth/run render"`,
-`check [NODE]`, `status`, `context NODE`, `scaffold NODE`.
+`check [NODE]`, `status`, `context NODE`, `scaffold NODE`. `ci` is what CI
+runs (everything proven afresh, then `status`); you do not need it.
 
 ## Writing nodes
 
@@ -274,8 +289,12 @@ The macro supports:
 - `define`d functions.
 
 Arithmetic is on `BigInt` (exact in Scala and in Lean); `+ - *` on `Int` or
-`Long` is refused, since Scala wraps around. Divide only by a literal. Fields
-of domain types are data: a field of function type is refused.
+`Long` is refused, since Scala wraps around; so is `exists` over a type holding
+an `Int` or `Long` however deep, or fixing to such a type an opaque type said
+to exist above (Lean may find a value Scala cannot hold). Use `BigInt`. A
+`forall` over `Int` or `Long` left of `==>` ranges over more in Lean. Divide
+only by a literal. Fields of domain types are data: a field of function type
+is refused, as is a type redefining `equals`, `hashCode` or `canEqual`.
 
 **State.** Model a stateful part as a step `(State, Event) => State` whose root
 says an invariant holds initially and every step keeps it
@@ -288,8 +307,8 @@ says an invariant holds initially and every step keeps it
    ask whether the obligation is true. Usually it is not, and the node is
    wrong.
 2. If it is true, run `scaffold(node)` and prove `theorem link : Obl.link` in
-   the proof file. Start with `unfold Obl.link`, then `intro m h`, then
-   `simp only [frflow_defs] at *`.
+   the proof file (it stubs each obligation the last check left open). Start
+   with `unfold Obl.link`, then `intro m h`, then `simp only [frflow_defs] at *`.
 3. The file may contain only theorems and their tactic proofs. Anything else
    is rejected: `sorry`, `axiom`, `run_cmd`, `#eval`, attributes, and so on.
    It may import only `FrFlowGen.<KB>.Domain`, `FrFlowGen.<KB>.<Node>.Spec`,
@@ -299,11 +318,15 @@ says an invariant holds initially and every step keeps it
    link's axiom may stand only under `root` and `root_impl`. Lemmas several
    proofs use go in `lean/Proofs/<KB>/Lemmas.lean` (same rules).
 4. An authored link also needs `theorem feasible : Obl.feasible` (some model
-   meets the node; the scaffold has a stub), unless a proven implementation at
-   or below it is one: until its `root_impl` is proven (through no assumed
-   link), the link shows open. `check` also rejects a claim that says nothing
-   when `frflow_auto` shows it (`vacuous_*`, `unsat`, `rootTrivial`; see the
-   README). Never write a proof that does not use the node's spec.
+   meets the node), unless a proven implementation at or below it is one
+   (its `root_impl` proven, through no assumed link), and `theorem
+   nontrivial : Obl.nontrivial` (some model fails the root under the meanings
+   fixed so far; see the CRM's `StepByStep`). The scaffold stubs both; until
+   they are proven, the link shows open. `check` also rejects a claim that
+   says nothing when `frflow_auto` shows it (`vacuous_*`, `unsat`,
+   `rootTrivial`), and lists as a limit a clause of the root the meanings
+   above decide (`clause_i`): say so in your answer. Never write a proof that
+   does not use the node's spec.
 5. **Never prove a link from a contradiction in the node** (for example by
    deriving `False` from its spec). The automatic unsatisfiability check does
    not catch every contradiction; the developer reads authored proofs.

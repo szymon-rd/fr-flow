@@ -61,7 +61,7 @@ object Cli:
         val ci = Workflow(kb, ws, fresh = true)
         val results = ci.check()
         results.filter(_._2.status != "proven").foreach((n, c) => println(s"${n.id}: ${c.status}"))
-        println(s"kernel: ${ci.kernelId.take(16)} (pin it with FRFLOW_KERNEL_HASH)")
+        println(s"kernel: ${ci.kernelId} (pin it with FRFLOW_KERNEL_HASH)")
         val (text, ok) = ci.status
         print(text)
         if ok && results.forall(_._2.status == "proven") then 0 else 1
