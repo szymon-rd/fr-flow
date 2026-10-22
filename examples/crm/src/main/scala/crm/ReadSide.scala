@@ -6,3 +6,7 @@ package crm
   */
 def readSide(records: List[CrmRecord], shareTable: List[Share]): (Account, Search) => List[CrmRecord] =
   knowledge.service(readContract)(store.bind(records), shares.bind(shareTable))
+
+/** The deals screen: DealSearch's code, calling the read side above for its records. */
+def dealSide(records: List[CrmRecord], shareTable: List[Share]): (Account, Search) => List[CrmRecord] =
+  knowledge.service(dealSearch)(store.bind(records), shares.bind(shareTable))

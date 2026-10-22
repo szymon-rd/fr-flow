@@ -51,11 +51,10 @@ examples; the developer chooses one, with a reason of their own. The agent
 works through MCP and the CLI, and no tool of the agent's decides.
 
 **Mechanical decisions.** One rule (`Decisions.mechanical`): a node under
-review (never a proposal), of a kind that holds no choice of meaning (refine,
-contract, invariant), where nothing the developer decided changed (only the
-types it uses, a proven implementation, how its examples print, or something
-above it moved), and Lean proves it again. Roots, instantiations and design
-nodes are never mechanical. The browser offers them as one batch, accepted
+review (never a proposal), not a root or a design node, where nothing the
+developer decided changed (only the types it uses, a proven implementation, how
+its examples print, or something above it moved), and Lean proves it again. An
+instantiation's choice is what it substitutes, which is part of what it says. The browser offers them as one batch, accepted
 with one reason.
 
 **Signing.** The browser server signs each decision with the developer's key,
@@ -112,8 +111,12 @@ the history, reasons and rejected alternatives.
   `(State, Event) => State`; the link is proven by induction (`FrFlow.always`).
 - **Composition.** Code calls another contract through `contract.caller`: Lean
   proves it assuming only the callee's `post`, so each contract is proven once
-  and a caller does not depend on the callee's code. The caller rests on the
-  callee: a change to the callee's meaning reviews it.
+  and a caller does not depend on the callee's code. Only a callee with proven
+  code is assumed (its code shows the promise can be kept), and the callee's
+  parameters the caller does not read are bound once, beside the caller's (one
+  store for every call). Examples and `service` run the callee's registered
+  code for the call. The caller rests on the callee: a change to the callee's
+  meaning reviews it. `DealSearch` in `examples/crm` is built on `ReadContract`.
 - **Seams.** In `.relies(other, why, guarantee)(sees)`, Lean proves
   `guarantee` of every state `other`'s concern reaches (`rely_<Other>`); at
   run time it is checked on what `sees` returns.
@@ -140,8 +143,9 @@ and everything below it is out of Lean too.
 
 **Checked by running.** Examples run against the contract and the
 implementation, and the implementation also runs on every combination of the
-examples' inputs. In production, `service` checks every result against the
-contract, its invariants and the guarantees relied on, or raises
+examples' inputs. In production, `service` checks every result of plain code
+against the contract and its invariants (proven code is not checked again), and
+the guarantees relied on whenever a value it reads changes, or raises
 `ContractViolation`; it refuses to start if a parameter it reads is unbound.
 
 ## Status and CI

@@ -245,6 +245,23 @@ class LeanSuite extends munit.FunSuite:
     assertEquals(w.restsOn(again).map(_.id), List("Pick"))
   }
 
+  test("a callee's parameters the caller does not read are bound once, beside the caller's; its examples need no wiring") {
+    val kb = KnowledgeBase("Capped", idea = "IDEA.md")(onlyGood, listed, books, capped, longPick)
+      .implementProven(capped)(cappedOnes).implementProven(longPick)(viaCapped)
+    val w = workflow(kb)
+    val impl = w.generate.obligations(longPick).find(_.name == "impl").get.statement
+    // one cap for every call: not a cap per call, which no single function could meet
+    assert(impl.contains("(maxPages : Int) (h_cappedCall : ∀ (y0"), impl)
+    val c = w.check().find(_._1.id == "LongPick").get._2
+    assertEquals(c.obligations.filter(o => Set("impl", "root_impl")(o.name)).map(_.status), List("proven", "proven"), c)
+    assert(c.obligations.filter(_.name.startsWith("eval_")).forall(_.status == "proven"), c)
+    // in Scala the examples run Capped's code for the call
+    assert(kb.exampleResults(longPick).forall(r => r.contract == "ok" && r.implementation.forall(_ == "ok")), kb.exampleResults(longPick))
+    // a running service calls Capped's service, and proven code is not checked again on each call
+    val s = kb.service(longPick)(minPages.bind(100), maxPages.bind(500))
+    assertEquals(s(List(Book("Long", 300), Book("Huge", 900)), 5), List(Book("Long", 300)))
+  }
+
   test("state kept in a Map is proven, down to the code, and its examples are evaluated in Lean") {
     val w = workflow(KnowledgeBase("Counter", idea = "IDEA.md")(counts, bump).implementProven(bump)(bumped))
     val c = w.check().find(_._1.id == "Bump").get._2

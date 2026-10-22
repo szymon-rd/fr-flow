@@ -317,7 +317,7 @@ class SnapshotSuite extends munit.FunSuite:
     assert(Decisions.mechanical(snap, l1, ids("OnlyGood")).exists(_.contains("root nodes hold a choice")))
     // a proposal is the developer's choice; so is what the terms mean
     assert(Decisions.mechanical(snap, l1, ids("Listed")).exists(_.contains("only a node under review")))
-    assert(Decisions.mechanical(snap, l1, ids("Books")).exists(_.contains("instantiate nodes hold a choice")))
+    assert(Decisions.mechanical(snap, l1, ids("Books")).exists(_.contains("only a node under review")))
     // there is no agent's decision
     assert(decide(l1, "Listed", "settle", 2, "agent").left.exists(_.contains("unknown decision")))
   }

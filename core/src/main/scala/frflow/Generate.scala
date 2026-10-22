@@ -316,14 +316,19 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
   def callees(n: Node[?]): List[(String, Node[?])] =
     nodeCtx(n).params.flatMap(p => paramObject.get(p).flatMap(_.implementing).map(f => p -> f())).filter((_, c) => formal(c))
 
-  /** What the code may assume of the contracts it calls: each meets its contract (a binder named `h_<p>`). */
+  /** What the code may assume of the contracts it calls: each meets its contract (a binder named `h_<p>`).
+    * Only a callee with proven code is assumed: its code witnesses that the promise can be kept for
+    * every call. The callee's own parameters the caller does not read are bound once, beside the
+    * caller's (one store for every call), each entry being the names it binds and its binder.
+    */
   private def assumed(n: Node[?]): List[(String, String)] =
     val mine = nodeCtx(n)
-    callees(n).map { (p, c) =>
+    val cs = callees(n).filter((_, c) => provenImpl(c).isDefined)
+    val extra = cs.map((_, c) => nodeCtx(c)).foldLeft(Ctx.empty)(_ ++ _).without((mine.opaques ++ mine.params).toSet)
+    Option.when(args(extra).nonEmpty)(args(extra) -> binders(extra)).toList ++ cs.map { (p, c) =>
       val ts = c.post.get.params.init.map(_._2)
       val ys = ts.indices.map(i => s"y$i").mkString(" ")
-      val extra = binders(nodeCtx(c).without((mine.opaques ++ mine.params).toSet))
-      s"h_$p" -> s"(h_$p : ∀ ${if extra.isEmpty then "" else extra + " "}${ts.zipWithIndex.map((t, i) => s"(y$i : $t)").mkString(" ")}, ${pat(c)("post")} $ys ($p $ys))"
+      s"h_$p" -> s"(h_$p : ∀ ${ts.zipWithIndex.map((t, i) => s"(y$i : $t)").mkString(" ")}, ${pat(c)("post")} $ys ($p $ys))"
     }
 
   /** What a formal node must prove: its link, the invariants it keeps, its proven implementation. */
@@ -465,7 +470,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
       val out = n.cases.zipWithIndex.map { (e, i) =>
         val label = s"example ${i + 1} (${e.note})"
         def valueOf(p: String): Either[String, String] =
-          paramObject.get(p).flatMap(po => e.bindings.find(_.param eq po)) match
+          paramObject.get(p).flatMap(po => e.bindings.find(_.param eq po).orElse(po.implementing.map(_ => Binding(po, () => ())))) match
             case None => Left(s"it gives no value for $p")
             case Some(b) if b.table.isDefined =>
               // A finite table: a function that looks it up.
@@ -486,7 +491,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
           _ <- Either.cond(c.opaques.isEmpty, (), s"the contract leaves ${c.opaques.mkString(", ")} open")
           ps <- c.params.foldRight(Right(Nil): Either[String, List[(String, String)]])((p, acc) => for { v <- valueOf(p); r <- acc } yield (p, v) :: r)
           vals = ps.toMap
-          ran <- scala.util.Try(Bindings.within(e.bindings) {
+          ran <- scala.util.Try(Bindings.within(kb.callerCode ++ e.bindings) {
               (post(e.a, e.b, e.result), impl.map(d => d.fn.asInstanceOf[(Any, Any) => Any](e.a, e.b)))
             }).toEither.left.map(x => s"Scala cannot evaluate it: ${x.getMessage}")
           ta <- term(e.a).toRight("Lean has no value for its input")

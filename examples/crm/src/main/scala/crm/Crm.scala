@@ -145,6 +145,29 @@ val search = define { (user: Account, query: Search) =>
   store.value.filter(r => matches(query, r) && mayRead(user, r))
 }
 
+/** Code built on another contract: `rc` stands for any code meeting ReadContract. DealSearch is
+  * proven from ReadContract's promise alone; at run time `rc` is ReadContract's service.
+  */
+val rc = readContract.caller("rc")
+
+val dealSearch = accounts.contract[Account, Search, List[CrmRecord]](
+  "DealSearch",
+  "A deal search returns only deals the user may see.",
+  why = "The sales screen lists deals only. It is built on ReadContract, so it shows only what ReadContract may show."
+)((user, query, result) => result.forall(r => r.kind == Kind.Deal && mayRead(user, r)))
+  .examples(
+    store.bind(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal"), CrmRecord(2, TenantId("acme"), Kind.Contact, "Acme contact"))),
+    shares.bind(Nil))(
+    expect(Account("ann@acme", TenantId("acme")), Search.Everything, List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")),
+      "Ann's deal search lists Acme's deal, not its contact"),
+    expect(Account("ann@acme", TenantId("acme")), Search.OfKind(Kind.Contact), Nil, "a search for contacts finds no deal"),
+    reject(Account("ann@acme", TenantId("acme")), Search.Everything, List(CrmRecord(2, TenantId("acme"), Kind.Contact, "Acme contact")),
+      "a contact is never listed as a deal"))
+  .keeps(noCrossTenantRead)((user, query, result) => result.map(r => (user, r)))
+
+/** Deals: what ReadContract returns, keeping only deals. */
+val deals = define { (user: Account, query: Search) => rc(user, query).filter(r => r.kind == Kind.Deal) }
+
 // ============================================================================
 // Root: writes keep the store consistent, and touch only the author's company
 // ============================================================================
@@ -256,8 +279,9 @@ val writeSideWiring = writeContract.design(
   .exempt(noCrossTenantRead, "the write side hands the new store to storage and returns nothing to a reader: no record leaves it")
 
 val knowledge = KnowledgeBase("Crm", idea = "IDEA.md")(isolation, readApi, accounts, readContract, readSideWiring, noCrossTenantRead,
-  writesKeepStore, stepByStep, crmWrites, writeContract, writeSideWiring)
+  writesKeepStore, stepByStep, crmWrites, writeContract, writeSideWiring, dealSearch)
   .implementProven(readContract)(search)
+  .implementProven(dealSearch)(deals)
   .implementProven(writeContract)(applyWrite)
 
 @main def crmCli(args: String*): Unit = sys.exit(knowledge.cli(args, root = "examples/crm"))

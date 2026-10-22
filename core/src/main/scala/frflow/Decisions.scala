@@ -310,7 +310,8 @@ object Decisions:
     // What the developer decided, without what follows from elsewhere.
     def decided(c: Json) = Decision.hash(JObj(c.obj.filterNot(f => f._1 == "uses" || f._1 == "examples" || (provenImpl && f._1 == "implementation")) :+
       ("examples" -> JArr(c("examples").map(_.arr.toList.flatMap(_.str)).getOrElse(Nil).map(e => str(e.takeWhile(_ != ' ') + " — " + e.split(" — ").lastOption.getOrElse("")))))))
-    if !Set("refine", "contract", "invariant")(kind) then Some(s"$kind nodes hold a choice")
+    // An instantiation's choice is what it substitutes, part of what it says: unchanged, it still holds.
+    if kind == "root" || kind == "design" then Some(s"$kind nodes hold a choice")
     else if v.state(n) != "review" then Some(s"$id is ${v.state(n)}: only a node under review can be mechanical")
     else if cs.exists(c => c != "self" && c != "above") then Some(s"$id is under review for ${cs.mkString(", ")}: the developer decides")
     else if ledger.binding(id).forall(d => decided(d.content) != decided(n("content").getOrElse(JNull))) then Some(s"what $id says changed: the developer decides")

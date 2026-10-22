@@ -83,6 +83,22 @@ val again = books.contract[List[Book], Int, List[Book]]("Again", "Picking again,
     expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
     reject(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
 
+/** A callee reading a parameter its caller does not (the cap): the caller is proven for one cap, any cap. */
+val maxPages = Param[Int]("maxPages", "the longest book the shelf may hold")
+val capped = books.contract[List[Book], Int, List[Book]]("Capped", "Picking returns long books no longer than the cap.", why = "The shelf has a cap.")(
+  (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages.value && b.pages <= maxPages.value))
+  .examples(minPages.bind(100), maxPages.bind(500))(
+    expect(List(Book("Long", 300), Book("Huge", 900)), 5, List(Book("Long", 300)), "only the long book under the cap"),
+    reject(List(Book("Huge", 900)), 5, List(Book("Huge", 900)), "never one over the cap"))
+val cappedOnes = define { (shelf: List[Book], n: Int) => shelf.filter(b => b.pages >= minPages.value && b.pages <= maxPages.value) }
+val cappedCall = capped.caller("cappedCall")
+val viaCapped = define { (shelf: List[Book], n: Int) => cappedCall(shelf, n).filter(b => shelf.contains(b)) }
+val longPick = books.contract[List[Book], Int, List[Book]]("LongPick", "Picking through Capped returns only long books from the shelf.", why = "It reuses Capped.")(
+  (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages.value))
+  .examples(minPages.bind(100), maxPages.bind(500))(
+    expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
+    reject(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
+
 /** State kept in a map: counts by name, each bump adding one to its own count only. */
 val counts = Node.root[(Map[String, BigInt], String) => Map[String, BigInt]]("Counts", "A bump adds one to its name's count, and leaves the others.", why = "Counting.")(
   f => forall((m: Map[String, BigInt], k: String) => f(m, k).get(k) == Some(m.getOrElse(k, BigInt(0)) + 1)) &&

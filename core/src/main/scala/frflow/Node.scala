@@ -258,9 +258,11 @@ extension [A, B, R](n: Node[(A, B) => R])
   /** A plain Scala implementation with every call checked against the contract: a result that
     * breaks it is never returned. Used by `KnowledgeBase.service`, which is how code is attached.
     */
-  private[frflow] def enforce(impl: (A, B) => R, assumes: List[(String, () => Boolean)] = Nil)(bindings: Binding*): (A, B) => R =
+  private[frflow] def enforce(impl: (A, B) => R, assumes: List[(String, () => Boolean)] = Nil, proven: Boolean = false)(bindings: Binding*): (A, B) => R =
     require(n.kind == NodeKind.Contract, s"${n.id} is not a contract")
     val post = n.post.get.value.asInstanceOf[(A, B, R) => Boolean]
+    // What the relied-on guarantees were last found to hold of: checked again only when a value changes.
+    @volatile var held: List[Any] = null
     (a, b) =>
       // Each parameter is read once per call: the implementation and the contract see the same values
       // (a parameter that is a function answers each question once).
@@ -275,13 +277,18 @@ extension [A, B, R](n: Node[(A, B) => R])
             val g = f.asInstanceOf[(Any, Any, Any) => Any]
             val m = Example.memo { case (x, y, z) => g(x, y, z) }; (x: Any, y: Any, z: Any) => m((x, y, z))
           case other => other
-        Binding(b.param, () => v)
+        (Binding(b.param, () => v), v)
       }
-      Bindings.within(fixed) {
-        assumes.find((_, p) => !p()).foreach((what, _) => throw ContractViolation(n.id, s"the values it runs with break what $what"))
+      val seen = fixed.map(_._2).toList
+      Bindings.within(fixed.map(_._1)) {
+        if held == null || held.length != seen.length || held.zip(seen).exists((x, y) => !(x.asInstanceOf[AnyRef] eq y.asInstanceOf[AnyRef])) then
+          assumes.find((_, p) => !p()).foreach((what, _) => throw ContractViolation(n.id, s"the values it runs with break what $what"))
+          held = seen
         val r = impl(a, b)
-        if !post(a, b, r) then throw ContractViolation(n.id, s"result $r for ($a, $b) breaks the contract")
-        n.broken(a, b, r).foreach(i => throw ContractViolation(n.id, s"result $r for ($a, $b) breaks the invariant $i"))
+        // Lean proved that proven code meets the contract and the invariants it keeps: not checked again.
+        if !proven then
+          if !post(a, b, r) then throw ContractViolation(n.id, s"result $r for ($a, $b) breaks the contract")
+          n.broken(a, b, r).foreach(i => throw ContractViolation(n.id, s"result $r for ($a, $b) breaks the invariant $i"))
         r
       }
 
@@ -400,15 +407,28 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     * values, with every result checked against the contract (see `enforce`).
     */
   def service[A, B, R](contract: Node[(A, B) => R])(bindings: Binding*): (A, B) => R =
-    val f = implementation(contract).getOrElse(throw IllegalStateException(s"no implementation of ${contract.id}"))
-      .factory.asInstanceOf[() => (A, B) => R]
+    val i = implementation(contract).getOrElse(throw IllegalStateException(s"no implementation of ${contract.id}"))
+    val f = i.factory.asInstanceOf[() => (A, B) => R]
     // Fail when wired, not on the first call: every parameter the contract or its examples read
     // must be bound (a contract that starts reading a new parameter breaks old wiring here).
     val needed = (contract.post.toList.flatMap(_.paramObjects) ++ contract.cases.flatMap(_.bindings.map(_.param))).map(_.name).distinct
     val missing = needed.filterNot(bindings.map(_.param.name).contains)
     if missing.nonEmpty then
       throw IllegalStateException(s"${contract.id}: bind ${missing.mkString(", ")} (the contract reads them)")
-    contract.enforce((a, b) => f()(a, b), assumptionsOf(contract))(bindings*)
+    // A `caller` the code reads runs the service of its contract, under the same values.
+    val calls = callers { (c, _) =>
+      lazy val s = service(c.asInstanceOf[Node[(Any, Any) => Any]])(bindings*)
+      val g = (x: Any, y: Any) => s(x, y)
+      () => g
+    }
+    contract.enforce((a, b) => f()(a, b), assumptionsOf(contract), i.provenCode)((calls ++ bindings)*)
+
+  /** Each `caller` bound to its contract's registered code, as examples run it. */
+  def callerCode: List[Binding] = callers((_, i) => () => i.factory())
+
+  /** Each `caller` parameter of the model whose contract has registered code, bound by `bind`. */
+  private def callers(bind: (Node[?], Implementation) => () => Any): List[Binding] =
+    params.flatMap(p => p.implementing.map(_()).flatMap(c => implementation(c).map(i => Binding(p, bind(c, i)))))
 
   /** The guarantees the nodes on a contract's path rely on (see `relies`), to check where it runs. */
   def assumptionsOf(n: Node[?]): List[(String, () => Boolean)] =
@@ -416,9 +436,10 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
 
   /** The results of a node's examples, against the implementation when one is registered. */
   def exampleResults(n: Node[?]): List[ExampleResult] =
+    // An example need not bind a `caller`: it runs its contract's registered code, under the example's values.
     if n.cases.isEmpty then Nil
-    else n.asInstanceOf[Node[(Any, Any) => Any]].checkExamples(implementation(n).map(_.factory.asInstanceOf[() => (Any, Any) => Any]), assumptionsOf(n)) ++
-      generated(n)
+    else Bindings.within(callerCode) { n.asInstanceOf[Node[(Any, Any) => Any]].checkExamples(implementation(n).map(_.factory.asInstanceOf[() => (Any, Any) => Any]), assumptionsOf(n)) ++
+      generated(n) }
 
   /** The contract holds for every call, not only the examples: the implementation also runs on
     * every combination of the examples' inputs, under each example's parameter values. Calls whose
