@@ -120,7 +120,11 @@ val authenticated = noUnauthorizedAccess.refine[(Token.T, Resource.T) => Option[
   **`contractVia(...)(abs)(post)`** for a signature of its own. Say what a
   call must return, not only what it must not: a contract met by returning
   nothing (`idle`) fails `status`. Each "users can …" of the idea is a clause
-  of some post (or an `expects`), so dropping the feature breaks a proof.
+  of some post (or an `expects`), so dropping the feature breaks a proof. A
+  root that doing nothing meets (shown as a limit) says only what must not
+  happen; where the idea says what users can do, prefer a root that says it
+  (a capability: "shown exactly when visible"), so every contract below is
+  proven to deliver it.
 - **`Node.invariant[A, B](id, statement, why, scope = ...)(rule)`**: a rule for
   several contracts, over pairs. Declare it before the contracts.
   - Each contract in scope keeps it, listing the pairs a call shows:

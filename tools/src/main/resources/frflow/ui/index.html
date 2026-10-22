@@ -563,7 +563,11 @@ function diff(old, cur) {
   const a = flat(old || {}), b = flat(cur || {});
   const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])].filter(k => (a[k] || "") !== (b[k] || ""));
   if (!keys.length) return "";
-  return keys.map(k => `<div class="side"><div class="label">${esc(k)}</div><pre class="worddiff">${wordDiff(a[k], b[k], byLine.has(k))}</pre></div>`).join("");
+  // What it says formally moved, and the words did not: do they still say it?
+  const formal = keys.filter(k => ["spec", "abs", "post", "rule"].includes(k));
+  const stale = formal.length && !keys.includes("statement")
+    ? `<div class="warn-text small">Its ${formal.join(", ")} changed, and its statement did not: does the statement still say what it now means?</div>` : "";
+  return stale + keys.map(k => `<div class="side"><div class="label">${esc(k)}</div><pre class="worddiff">${wordDiff(a[k], b[k], byLine.has(k))}</pre></div>`).join("");
 }
 
 async function loadCodeDiff(id) {

@@ -82,8 +82,10 @@ final class Project(dir: Path):
   def decide(r: frflow.Decisions.Request): Either[String, Unit] = decideAll(List(r))
 
   /** Several decisions, in order, all or none (a batch refused part way records nothing). */
-  def decideAll(rs: List[frflow.Decisions.Request]): Either[String, Unit] =
-    val r = rs.head
+  def decideAll(requests: List[frflow.Decisions.Request]): Either[String, Unit] =
+    // In the order decisions are taken (each after what it rests on), whatever order they came in.
+    val order = snapshot.map(frflow.Decisions.order).getOrElse(Nil)
+    val rs = requests.sortBy(r => order.indexOf(r.node) match { case -1 => Int.MaxValue; case i => i })
     snapshot match
       case None => Left("no snapshot yet: render first")
       case Some(snap) if !snap("format").contains(JNum(frflow.Workflow.ContentFormat)) =>

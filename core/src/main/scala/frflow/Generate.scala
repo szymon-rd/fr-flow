@@ -403,6 +403,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
     * call, as `frflow_auto` may show: what it then leaves to the examples.
     */
   def idle(n: Node[?]): Option[(Obligation, String)] =
+    if formal(n) && n.kind == NodeKind.Root then rootIdle(n) else
     Option.when(formal(n) && n.kind == NodeKind.Contract)(n.post.get.params.map(_._2)).flatMap { ts =>
       val r = ts.last
       val ins = ts.init
@@ -413,6 +414,30 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
         else ins.indexOf(r) match { case -1 => None; case i => Some(s"x$i" -> "returning its input unchanged") }
       nothing.map((v, what) => (Obligation("idle", stated(n, vars, None, s"${at(n)("post")} $xs $v"), s"${n.id} is met by $what."), what))
     }
+
+  /** A root met by the model that does nothing (allows, shows or returns nothing): it says only what
+    * must not happen.
+    */
+  private def rootIdle(n: Node[?]): Option[(Obligation, String)] =
+    def strip(t: String) = if t.startsWith("(") && t.endsWith(")") && depth(t.init.tail) then t.init.tail else t
+    def depth(t: String) = t.scanLeft(0)((d, c) => if c == '(' then d + 1 else if c == ')' then d - 1 else d).forall(_ >= 0)
+    def arrows(t: String): List[String] =
+      val out = scala.collection.mutable.ListBuffer.empty[String]; var d = 0; var from = 0
+      t.indices.foreach { i =>
+        if t(i) == '(' then d += 1 else if t(i) == ')' then d -= 1
+        else if d == 0 && t.startsWith(" → ", i) then { out += t.substring(from, i); from = i + 3 }
+      }
+      (out += t.substring(from)).toList.map(_.trim)
+    val parts = arrows(strip(modelType(n).trim))
+    val r = parts.last
+    val nothing =
+      if parts.size < 2 then None
+      else if r == "Prop" then Some("False" -> "allowing nothing")
+      else if r.startsWith("(List ") || r.startsWith("List ") then Some("[]" -> "returning nothing")
+      else if r.startsWith("(Option ") || r.startsWith("Option ") then Some("none" -> "returning None")
+      else None
+    nothing.map((v, what) => (Obligation("idle", stated(n, "", None, s"${at(n)("spec")} (fun ${parts.init.map(_ => "_").mkString(" ")} => $v)"),
+      s"${n.id} is met by $what."), what))
 
   // ---------------------------------------------------------------------------
   // Examples, evaluated in Lean

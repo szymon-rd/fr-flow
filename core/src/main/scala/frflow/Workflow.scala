@@ -483,8 +483,27 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       else Files.list(proofsDir).iterator.asScala.map(_.getFileName.toString).filter(_.endsWith(".lean")).map(_.stripSuffix(".lean"))
         .filterNot(id => id == "Lemmas" || kb.node(id).isDefined).toList.sorted
         .map(id => s"lean/Proofs/${kb.name}/$id.lean is the proof file of no node: move it with its node's new id (and its namespace), or remove it")
-    missing ++ owners ++ ideaCoverage ++ staleNames ++ orphans ++
+    missing ++ owners ++ ideaCoverage ++ staleNames ++ orphans ++ modelCode ++
       ungoverned.map(f => s"$f is governed by no node: govern it (.governing or a design node) or move it")
+
+  /** What doing nothing is, when it meets the node (Lean proved it). */
+  def idleOf(n: Node[?]): Option[String] = current(n).flatMap(_.obligations.find(o => o.name == "idle" && o.status == "proven")).map(_.detail)
+
+  /** Top-level code in a model file that is none of the model (a node, a `define`, an open term, a type,
+    * the knowledge base, a `@main`): it would run unseen by any node, next to the model.
+    */
+  def modelCode: List[String] =
+    val ValName = """^\s*(?:lazy\s+)?val\s+([A-Za-z_]\w*)""".r.unanchored
+    val known = (kb.nodes.flatMap(n => ValName.findFirstMatchIn(definition(n)).map(_.group(1))) ++ kb.defs.map(_.name) ++
+      kb.params.map(_.name) ++ kb.opaques.map(_.name)).toSet
+    val Top = """^(?:(?:private|protected|final|lazy|implicit|inline|override|abstract)\s+)*(val|var|def|object|class|given|extension)\b\s*([A-Za-z_]\w*)?(.*)$""".r
+    kb.modelFiles.distinct.flatMap { f =>
+      read(Path.of(f)).orElse(read(ws.root.resolve(f))).toList.flatMap(_.linesIterator.zipWithIndex.collect {
+        case (Top(kw, name, rest), i) if !(kw == "val" && (known(Option(name).getOrElse("")) ||
+            Seq("= KnowledgeBase(", "= define", "= Opaque(", "= Param[", "= Param(").exists(rest.trim.startsWith) || rest.contains(".caller("))) =>
+          s"${Path.of(f).getFileName}:${i + 1}: `$kw ${Option(name).getOrElse("")}` is code in the model's file that no node governs: make it a `define` (proven), or move it to a governed file"
+      })
+    }
 
   /** Statements and reasons that name a node no longer chosen (rejected, or removed): the text
     * still rests on it.
@@ -662,7 +681,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val root = kb.rootOf(n)
     val ideaText = if root.ideaSection.trim.nonEmpty then ideaOf(root) + (if notModelledOf(root).nonEmpty then s"\n\n## Not modelled\n\n${notModelledOf(root)}" else "") else idea.trim
     sb ++= s"# ${kb.name} / ${n.id}\n\n## Idea (${if root.ideaSection.trim.nonEmpty then s"the section ${root.ideaSection}" else "all of it"})\n\n${ideaText.trim}\n\n"
-    val near = (kb.path(n) ++ n.reliesOn.map(_._1)).distinct
+    val near = (kb.path(n) ++ restsOn(n)).distinct
     val usedOpaques = near.flatMap(_.referenced).flatMap(_.opaques).toSet
     val usedParams = near.flatMap(_.referenced).flatMap(x => x.paramObjects ++ x.defs.flatMap(_.lifted.paramObjects)).map(_.name).toSet
     sb ++= "## Vocabulary it uses (what the model's open terms mean in the world)\n\n"
@@ -702,6 +721,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       a.post.foreach(src("post", _))
       a.substs.foreach(s => sb ++= s"- `${s.name} := ${s.term.fold(s.lean)(_.source)}`\n")
       kb.limits(a).foreach(x => sb ++= s"- does not promise: $x\n")
+      if a.kind == NodeKind.Root then idleOf(a).foreach(w => sb ++= s"- doing nothing meets it ($w): it says only what must not happen; what users can do is said by the contracts below\n")
       kb.exampleResults(a).foreach { r =>
         sb ++= s"- example: ${r.example.describe} [${r.verdict}]\n"
       }
@@ -720,20 +740,27 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
         sb ++= "\n"
     }
     // What it relies on outside its path, and what relies on it: a change to either crosses concerns.
-    if n.reliesOn.nonEmpty then
+    // ... and the contracts its code calls, proven from their promise alone.
+    val calls = g.callees(n)
+    if restsOn(n).nonEmpty then
       sb ++= "## It relies on\n\n"
       n.reliesOn.foreach { (o, why) =>
         sb ++= s"### ${o.id} (${o.kind.toString.toLowerCase}, under ${kb.rootOf(o).id}) [${st(o.id)}]\n\nRelied on for: $why\n\n${o.statement}\n\nWhy: ${o.why}\n\n"
         n.reliedProperties.find(_._1 eq o).foreach((_, _, r) => sb ++= s"Guarantee (Lean proves it of every state ${o.id}'s concern reaches; it is checked wherever this runs, of the state it sees):\n```scala\n${r.guarantee.source}\nsees: ${r.sees.source}\n```\n\n")
         reasons(o)
       }
-    val dependents = kb.nodes.filter(_.reliesOn.exists(_._1 eq n))
+      calls.foreach { (p, o) =>
+        sb ++= s"### ${o.id} (contract, under ${kb.rootOf(o).id}) [${st(o.id)}]\n\nIts code calls it as `$p`, and is proven from this promise alone (not from its code):\n\n${o.statement}\n\n"
+        o.post.foreach(x => sb ++= s"```scala\n${x.source}\n```\n\n")
+        reasons(o)
+      }
+    val dependents = kb.nodes.filter(c => restsOn(c).exists(_ eq n))
     if dependents.nonEmpty then
       sb ++= "## Relied on by (a change to its meaning puts them up for review)\n\n"
-      dependents.foreach(c => sb ++= s"- ${c.id} [${st(c.id)}], for: ${c.reliesOn.find(_._1 eq n).get._2}\n")
+      dependents.foreach(c => sb ++= s"- ${c.id} [${st(c.id)}], ${c.reliesOn.find(_._1 eq n).fold("its code calls it: proven from its promise")(r => s"for: ${r._2}")}\n")
       sb ++= "\n"
     // What the terms of the path mean: every definition its specs, substitutions and reliances call, as written.
-    val used = Def.closure((kb.path(n) ++ n.reliesOn.map(_._1) ++ n.kept.map(_.invariant)).distinct.flatMap(_.referenced).flatMap(_.defs))
+    val used = Def.closure((kb.path(n) ++ restsOn(n) ++ n.kept.map(_.invariant)).distinct.flatMap(_.referenced).flatMap(_.defs))
     if used.nonEmpty then
       sb ++= "## Definitions it uses (what the specs' terms mean)\n\n"
       used.foreach(d => sb ++= s"```scala\n${d.name} = ${d.lifted.source}\n```\n")
@@ -835,9 +862,10 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
         "id" -> str(n.id),
         "kind" -> str(n.kind.toString.toLowerCase),
         "parent" -> n.parent.fold(JNull)(p => str(p.id)),
-        "limits" -> JArr(kb.limits(n).map(str)),
-        // Met by doing nothing on every call: it guards, and asks for nothing (see `Decisions.unproven`).
-        "idle" -> check.flatMap(_.obligations.find(o => o.name == "idle" && o.status == "proven")).fold(JNull)(o => str(o.detail)),
+        "limits" -> JArr((kb.limits(n) ++ Option.when(n.kind == NodeKind.Root)(idleOf(n)).flatten.map(what =>
+          s"Doing nothing meets it ($what): it says only what must not happen; what users can do must be said by the contracts below (each says what it returns)")).map(str)),
+        // A contract met by doing nothing on every call: it guards, and asks for nothing (see `Decisions.unproven`).
+        "idle" -> Option.when(n.kind == NodeKind.Contract)(idleOf(n)).flatten.fold(JNull)(str),
         "examples" -> JArr(kb.exampleResults(n).zipWithIndex.map { (r, i) =>
           // What Lean computes of the example, against what Scala does (the examples written, not generated ones).
           def lean(name: String) =

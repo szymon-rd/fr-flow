@@ -307,7 +307,12 @@ object Decisions:
     * answered by name, still holds or revisit, never left to a default.
     */
   def conditional(text: String): Boolean =
-    """(?i)\b(revisit|reconsider)\b(\s+\w+){0,3}\s+(if|when|once|unless|until|as long as)\b""".r.findFirstIn(text).isDefined
+    // In one sentence: "revisit" (or "reconsider") and a condition, in either order; or a reason that
+    // says it holds only so long ("fine until …", "holds as long as …").
+    text.split("""(?<=[.;!?])\s+""").exists(sentence =>
+      ("""(?i)\b(revisit|reconsider)\b""".r.findFirstIn(sentence).isDefined &&
+        """(?i)\b(if|when|once|unless|until|as long as)\b""".r.findFirstIn(sentence).isDefined) ||
+      """(?i)\b(fine|holds?|ok|enough|good|valid|right|works?)\s+(only\s+)?(until|as long as|while|unless)\b""".r.findFirstIn(sentence).isDefined)
 
   private val DefinitionUse = """(?s)^[A-Za-z_]\w* = .*""".r
 
@@ -560,7 +565,7 @@ object Decisions:
       val exps = n("expectations").map(_.arr.toList).getOrElse(Nil).filter(e => s(e, "status") != "informal")
       val notProven = exps.filter(e => s(e, "status") != "proven")
       val expects = if exps.isEmpty then "" else if notProven.isEmpty then s", expectations ${exps.size}/${exps.size} proven"
-        else s", expectations ${exps.size - notProven.size}/${exps.size} proven (${notProven.map(e => s"${s(e, "status")}: \"${s(e, "statement").take(80)}\"").mkString("; ")})"
+        else s", expectations ${exps.size - notProven.size}/${exps.size} proven (${notProven.map(e => s"${s(e, "status")}: \"${{ val t = s(e, "statement"); if t.length > 80 then t.take(79) + "…" else t }}\"").mkString("; ")})"
       val here = if mark.contains(s(n, "id")) then "   ← this node" else ""
       s"${"  " * depth}${s(n, "id")} (${s(n, "kind")})  [$st$link$ex$expects$keeps$impl$covers]$here" ::
         ns.filter(_("parent").flatMap(_.str).contains(s(n, "id"))).flatMap(go(_, depth + 1))

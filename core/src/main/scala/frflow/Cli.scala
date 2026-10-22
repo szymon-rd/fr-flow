@@ -50,7 +50,9 @@ object Cli:
             failing.take(5).foreach(r => println(s"    ${r.example.describe}: ${r.verdict}"))
           // `idle` is not an obligation: proven, it is a limit of the contract (it allows doing nothing).
           c.obligations.filter(r => !r.isLimit && r.status != "proven").foreach(r => println(s"  ${r.status} ${r.name}: ${r.detail.linesIterator.mkString("\n    ")}"))
-          c.obligations.filter(r => r.name == "idle" && r.status == "proven").foreach(r => println(s"  ! it is met by ${r.detail} on every call: say in its post what it must return (status fails until then)"))
+          c.obligations.filter(r => r.name == "idle" && r.status == "proven").foreach(r => println(
+            if n.kind == NodeKind.Root then s"  limit: doing nothing meets it (${r.detail}): it says only what must not happen; the contracts below say what users can do"
+            else s"  ! it is met by ${r.detail} on every call: say in its post what it must return (status fails until then)"))
           // With an example failing, the link may be false: no hint to prove it.
           c.messages.filterNot(m => failing.nonEmpty && m.startsWith("prove it in")).foreach(m => println(s"  ! ${m.linesIterator.mkString("\n    ")}"))
         }
@@ -69,7 +71,8 @@ object Cli:
         val changed = w.render()
         println(s"rendered ${changed.size} changed file(s); wrote ${ws.root.relativize(w.writeSnapshot())}")
         0
-      case "status" :: Nil => val (text, ok) = w.status; print(text); if ok then 0 else 1
+      // The snapshot is written too, so the browser shows what status says.
+      case "status" :: Nil => w.writeSnapshot(); val (text, ok) = w.status; print(text); if ok then 0 else 1
       case "inbox" :: Nil => println(Decisions.inbox(Some(w.annotated), w.requests)); 0
       case "context" :: id :: Nil => node(id) { n => print(w.context(n)); 0 }
       case "find" :: query if query.nonEmpty => println(Decisions.find(w.annotated, query.mkString(" "))); 0

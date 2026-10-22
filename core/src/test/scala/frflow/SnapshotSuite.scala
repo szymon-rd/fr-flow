@@ -526,3 +526,11 @@ class SnapshotSuite extends munit.FunSuite:
     val redefined = withUses(_ :+ Json.str("long = (b: Book) => b.pages >= 10"))
     assert(Decisions.mechanical(redefined, w.ledger, nodes(redefined)("Pick")).exists(_.contains("changed")))
   }
+
+  test("a reason that says when to revisit it, in the usual words; a statement of fact is not one") {
+    for t <- List("Fine until we add a second server.", "If grants move to LDAP, revisit this.", "Revisit if we add exports.",
+        "Reconsider once the store is shared.", "It holds as long as one process decides.") do
+      assert(Decisions.conditional(t), t)
+    for t <- List("A record stays private until its company shares it.", "Accounts are users of a company.", "Revisit later.") do
+      assert(!Decisions.conditional(t), t)
+  }
