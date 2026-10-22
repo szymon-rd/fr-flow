@@ -697,7 +697,11 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val dropped = l.decisions.keySet.filter(id =>
       (l.current(id).exists(_.action == "remove") || l.current(id).exists(_.action == "reject"))).toSet
     kb.nodes.filterNot(n => l.current(n.id).exists(_.action == "reject")).flatMap { n =>
-      dropped.toList.sorted.filter(d => d != n.id && s"\\b${java.util.regex.Pattern.quote(d)}\\b".r.findFirstIn(n.statement + " " + n.why).isDefined)
+      // An id that is also a plain word ("Sessions") counts only where it is written as a name (`Sessions`).
+      def names(d: String) =
+        val q = java.util.regex.Pattern.quote(d)
+        (if d.matches("[A-Z][a-z]+") then s"`$q`" else s"\\b$q\\b").r.findFirstIn(n.statement + " " + n.why).isDefined
+      dropped.toList.sorted.filter(d => d != n.id && names(d))
         .map(d => s"${n.id}: its statement or why names $d, which is ${if ids(d) then "rejected" else "removed"}")
     }
 

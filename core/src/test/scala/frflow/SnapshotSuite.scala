@@ -864,3 +864,12 @@ class SnapshotSuite extends munit.FunSuite:
     val fixed = Json.JObj(reworded.obj.map { case ("hash", _) => "hash" -> str(Decision.hash(reworded("content").get)); case f => f })
     assertEquals(Decisions.causes(obj("nodes" -> JArr(List(fixed))), ledger, fixed), List("self"))
   }
+
+  test("a removed node whose id is a plain word is stale only where it is written as a name") {
+    val w = workflow()
+    acceptAll(w)
+    val l = w.ledger
+    val gone = l.decisions.values.head.last.copy(action = "remove")
+    Ledger.save(w.ws.ledgerFile, l.add("Sessions", gone).add("Listing", gone))
+    assert(!w.staleNames.exists(_.contains("Sessions")), w.staleNames)
+  }

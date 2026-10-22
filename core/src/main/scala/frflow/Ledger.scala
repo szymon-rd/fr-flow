@@ -183,9 +183,13 @@ object Ledger:
   def load(file: Path): Ledger =
     if !Files.isRegularFile(file) then empty else fromJson(Json.parse(Files.readString(file, UTF_8)))
 
+  /** Written whole, then moved into place: a reader (the browser polls it) never sees half a ledger. */
   def save(file: Path, l: Ledger): Unit =
-    Option(file.toAbsolutePath.getParent).foreach(Files.createDirectories(_))
-    Files.writeString(file, l.toJson.render() + "\n", UTF_8)
+    val dir = file.toAbsolutePath.getParent
+    Files.createDirectories(dir)
+    val tmp = Files.createTempFile(dir, ".ledger", ".tmp")
+    Files.writeString(tmp, l.toJson.render() + "\n", UTF_8)
+    Files.move(tmp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE)
 
   import Json.text as s
 
