@@ -1,6 +1,6 @@
 ---
 name: frflow
-description: Develop a system with FrFlow, where the developer decides, in a browser, a tree of Scala nodes that keeps the theory of the system (what holds, why, and what was rejected) and shows when code or design drifts from it. Use when turning an idea into a root, proposing or changing nodes (refine, instantiate, contract, design), adding examples, answering the developer's requests, proving a link, or attaching an implementation. Also use when the work touches IDEA.md, frflow.json, `Node.root`, `.refine`, `.instantiate`, `.contract`, `.design`, `.examples`, `.implement`, `.governing` or `service`.
+description: Develop a system with FrFlow, where the developer decides, in a browser, a tree of Scala nodes, each proven in Lean to refine its parent, that keeps the theory of the system (what holds, why, and what was rejected) and shows when code or design drifts from it. Use when turning an idea into a root, proposing or changing nodes (refine, instantiate, contract, design, invariant), adding examples, answering the developer's requests, proving a link, or attaching an implementation. Also use when the work touches IDEA.md, frflow.json, `Node.root`, `.refine`, `.instantiate`, `.contract`, `.design`, `Node.invariant`, `.keeps`, `.exempt`, `.examples`, `.implement`, `.implementProven`, `.governing` or `service`.
 ---
 
 # Developing with FrFlow
@@ -28,13 +28,16 @@ this way. It also keeps the code from drifting away from it.
    - Never choose for the developer. There is no tool or command for it. Do
      not post to the browser's server, and do not edit `.frflow/ledger.json`.
      Rewriting committed decisions shows as a warning.
-   - You may **settle** (`settle`) what involves no choice: a node with no
-     alternative beside it and no new term, whose link holds and examples
-     pass, or a change to the code a node governs once its checks pass. Read
-     its `context` first, with the reasons above and below it; if a "revisit
-     if" condition there may be met, do not settle: ask in your `answer`. The
-     tool refuses anything else, and the developer spot-checks what you
-     settled.
+   - You may **settle** (`settle`) only where a check re-runs on it: a
+     refinement or contract whose link Lean proves, with no proposal beside
+     it, no new term and no invariant to keep; a review where only something
+     above it (or a definition it uses) moved and Lean proves the link again;
+     or a change to the code of a contract with a formal post, once its
+     examples pass. Read its `context` first, with the reasons above and
+     below it; if a "revisit if" condition there may be met, do not settle:
+     ask in your `answer`. The tool refuses anything else. `status` fails
+     until the developer endorses what you settled, so say what you settled
+     in your answer.
 2. **Offer real alternatives.** When a step has more than one reasonable
    design, propose each as a sibling node, with its own `why` covering its
    trade-off. One proposal is fine when the step is obvious.
@@ -58,6 +61,8 @@ this way. It also keeps the code from drifting away from it.
    `Param[List[Grant]]("grants", "the grant table as stored when the request is decided")`.
    That is the vocabulary of the theory.
 7. **Record design decisions that have no formal model as `design` nodes.**
+   Prefer a formal node where the subset can say it: the proven chain is the
+   point.
    Storage, caching, conventions and the like go in a `design` node, with its
    `why` and the files it governs.
 8. **The model is the Scala code.**
@@ -97,18 +102,30 @@ this way. It also keeps the code from drifting away from it.
    - **Replacing an accepted node:** propose the new node as its sibling. The
      developer can reject the old one when choosing.
    - **A change to an implementation or a governed file** puts the node up for
-     review (cause `code`), with a git diff. Make sure the examples still pass;
-     then you may `settle` it.
+     review (cause `code`), with a git diff. For a contract with a formal
+     post, make sure the examples still pass; then you may `settle` it. A
+     change to a design node's files is the developer's.
      An implementation governs the files its expression refers to. Code it
-     relies on elsewhere needs an owner: `.governing(paths*)`, or a
-     **component** (a design node owning a directory). `status` fails on a
-     source file no node governs.
+     relies on elsewhere needs an owner: `.governing(paths*)`, or a design
+     node owning a directory. `status` fails on a source file no node governs.
    - **A rule that applies to several contracts** (tenant isolation,
-     authorization, auditing) is an **invariant**: `Node.invariant(id,
-     statement, why)`, kept by each contract it applies to with
-     `.holds(inv)(rule)`. Do not repeat it in every subtree.
+     authorization, auditing) is an **invariant**, stated once over pairs:
+     `Node.invariant[Account, CrmRecord](id, statement, why)((reader, r) => ...)`.
+     Declare it before the contracts. Every contract in its `scope` (all by
+     default) either keeps it, listing the pairs a call shows the rule,
+     `.keeps(inv)((user, query, result) => result.map(r => (user, r)))`, or
+     says why it does not apply, `.exempt(inv, "it returns no records")`.
+     Never write a view that hides what the rule would refuse (filtering the
+     result by the rule): Lean reports it as kept in name only.
    - **Keep production wiring** (the call to `service`) in a file a design
-     node or the implementation governs, so a change to it is reviewed.
+     node governs. Every change to it is the developer's.
+   - **Prefer a proven implementation.** When the implementation fits the
+     Scala subset, write it as a `define` and register it with
+     `implementProven(contract)(impl)`: Lean proves it meets the contract, and
+     the chain reaches the code.
+   - **Name the idea's section** a root is decided against
+     (`Node.root(..., idea = "Sharing")`) when `IDEA.md` has `## ` sections,
+     so editing one section reviews only its root.
    - **The model's file holds only the model:** nodes, `Opaque`, `Param`,
      `define`, domain types without methods, and the `@main`. Helpers go next
      to the implementation; `status` warns otherwise.
@@ -131,7 +148,7 @@ The MCP server `frflow` (`bin/frflow mcp examples`, see `.mcp.json`) works on ev
 | `render` | Rebuild from the Scala definitions; the browser updates. Compile errors in the model come back here. |
 | `check(node?)` | Prove the links that changed in Lean. Slow. |
 | `answer(request, text)` | Reply to a request; the reply is shown in the browser. |
-| `settle(node, reason)` | Settle a mechanical decision (see rule 1); refused for choices. |
+| `settle(node, reason)` | Settle a mechanical decision (see rule 1); refused for choices; the developer endorses it. |
 | `find(query)` | Which nodes govern a file, or mention a concern: where a change belongs. |
 | `scaffold(node)` | A proof file for an obligation `frflow_auto` did not prove. |
 
@@ -151,7 +168,7 @@ val authenticated = noUnauthorizedAccess.refine[(Token.T, Resource.T) => Option[
   spec = decide => forall((t: Token.T, r: Resource.T) => decide(t, r).forall(u => holder(t) == Some(u) && authorized(u, r))))
 ```
 
-**`Node.root(id, statement, why)(spec)`** states one concern of the idea over
+**`Node.root(id, statement, why, idea = "Section")(spec)`** states one concern of the idea over
 generic types. It may have several roots, one per concern. Make every concept
 the idea does not define generic: `Opaque` for types, `Param` for relations and
 values.
@@ -215,7 +232,8 @@ The macro supports:
 - params, applied or as `.value`;
 - `define`d functions.
 
-`Int` is an unbounded integer in Lean. Do not rely on overflow.
+`Int` and `Long` are unbounded integers in Lean. Do not rely on overflow.
+Fields of domain types are data: a field of function type is refused.
 
 ## Proving a link
 

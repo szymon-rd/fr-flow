@@ -36,10 +36,12 @@ final class Mcp(projects: List[Project]):
     tool("answer", "Reply to a developer's request once done, e.g. 'Proposed Expiring and Sliding under Authenticated; " +
       "Expiring is simpler, Sliding keeps active users signed in. Choose in the browser.'",
       schema(project, "request" -> obj("type" -> str("string")), "text" -> obj("type" -> str("string")))("request", "text")),
-    tool("settle", "Settle a mechanical decision yourself: a node with no alternative beside it and no new term whose link " +
-      "holds and examples pass, or a change to the code a node governs. Refused otherwise: choices, terms and changes to what " +
-      "a node says are the developer's. First read its context, including the reasons above and below it; do not settle if any " +
-      "'revisit if' condition there may be met. Your reason is kept and the developer spot-checks it.",
+    tool("settle", "Settle a mechanical decision yourself, where a check re-runs on it: a refinement or contract whose link " +
+      "Lean proves, with no proposal beside it, no new term and no invariant to keep; a review where only something above it " +
+      "(or a definition it uses) moved and Lean proves the link again; or a change to the code of a contract with a formal post. " +
+      "Refused otherwise: roots, instantiations, designs, invariants, nodes out of Lean, nodes the developer once rejected, and " +
+      "changes to what a node says are the developer's. First read its context, including the reasons above and below it; do " +
+      "not settle if any 'revisit if' condition there may be met. Status fails until the developer endorses what you settled.",
       schema(project, node, "reason" -> obj("type" -> str("string"), "description" -> str("Why it holds, in a sentence.")))("node", "reason")),
     tool("find", "Where a change belongs: the nodes that govern a file (pass a path relative to the project), or the nodes " +
       "whose id, statement or reason mention some words. Extend those nodes rather than adding a near-duplicate.",
@@ -80,7 +82,7 @@ final class Mcp(projects: List[Project]):
       case "settle" =>
         p.decide(frflow.Decisions.Request(need, "agent", args("reason").flatMap(_.str).getOrElse(""), action = "settle")) match
           case Left(why) => throw ToolError(why)
-          case Right(()) => (s"settled $need; the developer will spot-check it", false)
+          case Right(()) => (s"settled $need; status fails until the developer endorses it in the browser", false)
       case "find" =>
         val q = args("query").flatMap(_.str).getOrElse("").trim
         if q.isEmpty then throw ToolError("query is required")

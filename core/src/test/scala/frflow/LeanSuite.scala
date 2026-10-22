@@ -81,14 +81,29 @@ class LeanSuite extends munit.FunSuite:
   }
 
   test("an invariant a contract keeps is proven from its post, or left open") {
-    val fromShelf = Node.invariant("FromShelf", "Only books on the shelf are picked.", "w")
-    val atMostN = Node.invariant("AtMostN", "No more books are picked than asked for.", "w")
-    val kept = pick.holds(fromShelf)((shelf, n, picked) => picked.forall(b => shelf.contains(b)))
-      .holds(atMostN)((shelf, n, picked) => picked.length <= n)
-    val r = workflow(KnowledgeBase("Inv", idea = "IDEA.md")(onlyGood, listed, books, kept, fromShelf, atMostN)).check()
+    val fromShelf = Node.invariant[List[Book], Book]("FromShelf", "Only books on the shelf are picked.", "w")((shelf, b) => shelf.contains(b))
+    val atMostN = Node.invariant[Int, Int]("AtMostN", "No more books are picked than asked for.", "w")((asked, picked) => picked <= asked)
+    val inName = Node.invariant[List[Book], Book]("InName", "Only books on the shelf are picked.", "w")((shelf, b) => shelf.contains(b))
+    val kept = pick.keeps(fromShelf)((shelf, n, picked) => picked.map(b => (shelf, b)))
+      .keeps(atMostN)((shelf, n, picked) => List((n, picked.length)))
+      // a view that shows the rule only what it accepts keeps nothing
+      .keeps(inName)((shelf, n, picked) => picked.filter(b => shelf.contains(b)).map(b => (shelf, b)))
+    val r = workflow(KnowledgeBase("Inv", idea = "IDEA.md")(onlyGood, listed, books, kept, fromShelf, atMostN, inName)).check()
     val c = r.find(_._1.id == "Pick").get._2
     assertEquals(c.obligations.find(_.name == "inv_FromShelf").map(_.status), Some("proven"), c)
     assertEquals(c.obligations.find(_.name == "inv_AtMostN").map(_.status), Some("open"), c)
+    assertEquals(c.obligations.find(_.name == "inv_InName").map(_.status), Some("failed"), c)
+  }
+
+  test("an implementation written as a define is proven to keep its contract") {
+    val kb = KnowledgeBase("Impl", idea = "IDEA.md")(onlyGood, listed, books, pick).implementProven(pick)(longOnes)
+    assert(kb.exampleResults(pick).forall(_.implementation.contains("ok")), kb.exampleResults(pick))
+    val r = workflow(kb).check()
+    val c = r.find(_._1.id == "Pick").get._2
+    assertEquals(c.obligations.find(_.name == "impl").map(_.status), Some("proven"), c)
+    // one that can return a short book is not proven
+    val bad = workflow(KnowledgeBase("Impl2", idea = "IDEA.md")(onlyGood, listed, books, pick).implementProven(pick)(anyOnes)).check()
+    assertEquals(bad.find(_._1.id == "Pick").get._2.obligations.find(_.name == "impl").map(_.status), Some("open"))
   }
 
   test("a node no model meets is reported, so it cannot make everything below it hold") {

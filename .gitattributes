@@ -1,0 +1,3 @@
+# The decision ledger is merged by FrFlow, which keeps both sides' decisions. Enable it once per clone:
+#   git config merge.frflow-ledger.driver "bin/frflow merge-ledger %O %A %B"
+**/.frflow/ledger.json merge=frflow-ledger

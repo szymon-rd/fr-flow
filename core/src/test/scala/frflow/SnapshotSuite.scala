@@ -299,4 +299,83 @@ class SnapshotSuite extends munit.FunSuite:
     assertEquals(Ledger.rewrittenSince(committed, committed.add("Pick", committed.history("Pick").head)), Nil)
   }
 
+  // Lean is not run here: these mark every link as Lean would.
+  private def proven(j: Json): Json = Json.JObj(j.obj.map {
+    case ("nodes", Json.JArr(ns)) => "nodes" -> Json.JArr(ns.map(n => Json.JObj(n.obj.map {
+      case ("link", l) if l != Json.JNull => "link" -> Json.obj("status" -> Json.str("proven"), "detail" -> Json.str("auto"))
+      case f => f
+    })))
+    case f => f
+  })
 
+  test("the agent settles only where Lean proves the link, and status waits for the developer to endorse it") {
+    val w = workflow()
+    val snap = proven(w.baseSnapshot)
+    def ids = nodes(snap)
+    def at(i: Int) = f"2026-01-01T00:00:$i%02dZ"
+    def decide(l: Ledger, id: String, action: String, i: Int, by: String = "dev") =
+      Decisions.decide(snap, l, Decisions.Request(id, by, s"$id holds for this reason", action = action), at(i))
+    val l1 = decide(Ledger.empty, "OnlyGood", "accept", 1).toOption.get
+    assert(Decisions.settleable(snap, l1, ids("OnlyGood")).exists(_.contains("root nodes are the developer's")))
+    val l2 = decide(l1, "Listed", "settle", 2, "agent").fold(e => fail(e), identity)
+    // what the terms mean is the developer's, however mechanical it looks
+    assert(decide(l2, "Books", "settle", 3, "agent").left.exists(_.contains("instantiate nodes are the developer's")))
+    val a2 = Decisions.annotate(snap, l2)
+    assertEquals(Decisions.unendorsed(a2), List("Listed"))
+    assert(!Decisions.settled(a2))
+    assert(Decisions.tree(a2).contains("Listed (refine)  [settled by the agent, not endorsed yet"), Decisions.tree(a2))
+    assert(Decisions.waiting(a2)._1.exists(_.startsWith("Listed: settled by the agent")))
+    // the developer endorses it by accepting it
+    val l3 = decide(l2, "Listed", "accept", 4).fold(e => fail(e), identity)
+    assertEquals(Decisions.unendorsed(Decisions.annotate(snap, l3)), Nil)
+    // a node the developer rejected once is theirs to decide again
+    val l4 = decide(l3, "Books", "reject", 5).fold(e => fail(e), identity)
+    assert(Decisions.settleable(snap, l4, ids("Books")).isDefined)
+    // a link that is not proven is not settled by the agent
+    assert(Decisions.settleable(w.baseSnapshot, l1, nodes(w.baseSnapshot)("Listed")).exists(_.contains("only a link Lean proves")))
+  }
+
+  test("a merged ledger keeps both branches' decisions, and git's full history notices a merge that drops one side") {
+    val ws = workspace()
+    val w = workflow(shelfKb, ws)
+    acceptAll(w)
+    val base = w.ledger
+    val ours = base.add("Pick", base.history("Pick").last.copy(action = "revisit", reason = "ours", at = "2030-01-01T00:00:00Z"))
+    val theirs = base.add("Listed", base.history("Listed").last.copy(action = "revisit", reason = "theirs", at = "2030-01-02T00:00:00Z"))
+    val merged = Ledger.merge(ours, theirs)
+    assertEquals(Ledger.rewrittenSince(ours, merged), Nil)
+    assertEquals(Ledger.rewrittenSince(theirs, merged), Nil)
+    assertEquals(merged.current("Pick").map(_.reason), Some("ours"))
+    assertEquals(merged.current("Listed").map(_.reason), Some("theirs"))
+    // in git: a merge that keeps only one side's ledger (`-s ours`) is a rewrite of the other's
+    def git(args: String*) =
+      val p = ProcessBuilder(("git" +: args)*).directory(ws.root.toFile).redirectErrorStream(true).start()
+      val out = String(p.getInputStream.readAllBytes()); assert(p.waitFor() == 0, out)
+    git("init", "-q", "-b", "main"); git("config", "user.email", "t@t"); git("config", "user.name", "t")
+    Ledger.save(ws.ledgerFile, base); git("add", "-A"); git("commit", "-qm", "base")
+    git("checkout", "-qb", "side"); Ledger.save(ws.ledgerFile, theirs); git("commit", "-qam", "side decides")
+    git("checkout", "-q", "main"); git("merge", "-q", "-s", "ours", "side", "-m", "drop side")
+    assert(Ledger.rewrites(ws.root, ws.ledgerFile, base).nonEmpty)
+  }
+
+
+  test("deciding a large tree stays fast: each node's state is computed once") {
+    import Json.*
+    // 800 nodes, eight children per node, all accepted
+    val ns = (0 until 800).map { i =>
+      obj("id" -> str(s"N$i"), "kind" -> str(if i == 0 then "root" else "refine"), "parent" -> (if i == 0 then JNull else str(s"N${(i - 1) / 8}")),
+        "hash" -> str(Decision.hash(obj("statement" -> str(s"node $i")))), "chain" -> str(s"c$i"),
+        "content" -> obj("statement" -> str(s"node $i")), "link" -> JNull)
+    }
+    val snap = obj("nodes" -> JArr(ns))
+    val ledger = ns.foldLeft(Ledger.empty) { (l, n) =>
+      val id = n("id").flatMap(_.str).get
+      val parent = n("parent").flatMap(_.str).fold("")(p => s"c${p.drop(1)}")
+      l.add(id, Decision("accept", n("content").get, parent, "dev", "2026-01-01T00:00:00Z", "it is right"))
+    }
+    val t = System.nanoTime
+    val a = Decisions.annotate(snap, ledger)
+    val seconds = (System.nanoTime - t) / 1e9
+    assert(a("nodes").get.arr.forall(_("state").flatMap(_.str).contains("accepted")), a("nodes").get.arr.head)
+    assert(seconds < 5, s"$seconds s")
+  }

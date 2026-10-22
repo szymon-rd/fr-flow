@@ -354,7 +354,7 @@ function chips(n) {
   const st = n.state === "review" ? `review: ${(n.causes || []).join(", ")}` : n.state;
   return `<span class="chip s-${n.state}" title="${esc((n.causes || []).map(c => causeText[c]).join("; "))}">${esc(st)}</span>
     ${ex ? `<span class="chip ${bad ? "s-bad" : "s-ok"}" title="examples">examples ${ex - bad}/${ex}</span>` : ""}
-    ${n.settledByAgent ? `<span class="chip s-review" title="settled by the agent: spot-check it">agent-settled</span>` : ""}`;
+    ${n.settledByAgent ? `<span class="chip s-review" title="settled by the agent: status fails until you endorse it">agent-settled</span>` : ""}`;
 }
 
 function renderTree() {
@@ -471,6 +471,7 @@ function diff(old, cur) {
     ...Object.fromEntries(Object.entries(c.sources || {})),
     substitutions: (c.substitutions || []).join("\n"), examples: (c.examples || []).join("\n"),
     implementation: c.implementation, vocabulary: (c.vocabulary || []).join("\n"), "definitions used": (c.uses || []).join("\n\n"), governs: (c.governs || []).join("\n"),
+    "invariants kept": (c.keeps || []).join("\n"), "out of Lean": c.formal === false ? "yes" : "",
   });
   const a = flat(old || {}), b = flat(cur || {});
   const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])].filter(k => (a[k] || "") !== (b[k] || ""));
@@ -546,7 +547,7 @@ function decisionBox(n) {
     const others = siblings(n), warn = warnings(n);
     return `<div class="box proposed"><div class="verdict proposed">${others.some(o => o.state === "proposed") ? "Choose between the proposals" : "Proposed"}</div>
       <div class="muted small">Choosing keeps your reason; what you reject is kept as an alternative.</div>
-      ${others.length ? `<div class="side"><div class="label">other nodes at this level — tick the ones this choice replaces</div>${others.map(o => `<div class="option">
+      ${others.length ? `<div class="side"><div class="label">other nodes beside it, under the same parent — each is its own part of the parent unless you tick it: a ticked node is replaced by this one</div>${others.map(o => `<div class="option">
         <div class="head"><a data-goto="${esc(o.id)}"><b>${esc(o.id)}</b></a>${chips(o)}</div>
         <div class="small" style="margin-top:4px">${esc(C(o).statement)}</div><div class="muted small">${esc(C(o).why)}</div>
         <label><input type="checkbox" class="rej" value="${esc(o.id)}" ${o.state === "proposed" ? "checked" : ""}> reject ${esc(o.id)}${o.state === "accepted" ? " (replaces an accepted node)" : ""}</label></div>`).join("")}</div>` : ""}
@@ -574,10 +575,17 @@ function decisionBox(n) {
       ${button("Accept", "")}</div>`;
   }
   if (n.settledByAgent) {
-    const a = n.settledByAgent;
-    return `<div class="box review"><div class="verdict review">Settled by the agent — spot-check</div>
-      <div class="muted small">The agent settled this as mechanical: no alternative, no new term, its checks pass. Endorse it, or ask the agent to change it.</div>
-      <div class="why"><div class="label">the agent's reason</div>${esc(a.reason)}</div>${chosen && d && d.action !== "settle" ? chosen : ""}${altList}
+    const a = n.settledByAgent, mine = n.developerDecision;
+    if (n.code) loadCodeDiff(n.id);
+    const cd = n.code ? state.codeDiffs[n.id] : "";
+    return `<div class="box review"><div class="verdict review">Settled by the agent — endorse it, or ask for a change</div>
+      <div class="muted small">The agent settled this as mechanical: Lean proves its link, its examples pass, and it introduces no term and no choice. Status fails until you endorse it. What it changed since your last decision is below.</div>
+      <div class="why"><div class="label">the agent's reason</div>${esc(a.reason)}</div>
+      ${mine ? `<div class="side"><div class="label">changed since you decided it (${new Date(mine.at).toLocaleString()})</div>${diff(mine.content, n.content) || `<div class="muted small">Nothing in what it says.</div>`}</div>`
+        : `<div class="side"><div class="label">you have not decided it before: all of it is new</div></div>`}
+      ${n.code ? `<div class="side"><div class="label">the code it governs, ${mine ? "changed since your decision" : "in full"}: ${esc((n.code.files || []).join(", "))}</div>
+        ${cd === null || cd === undefined ? `<div class="muted small">loading…</div>` : cd ? `<pre class="mono">${esc(cd)}</pre>` : `<div class="muted small">No change in the code since your decision.</div>`}</div>` : ""}
+      ${chosen && d && d.action !== "settle" ? chosen : ""}${altList}
       ${reasonBox("Why does it hold?")}
       <div class="actions"><button class="btn small primary" data-accept="1">Endorse</button></div></div>`;
   }
@@ -626,12 +634,15 @@ function nodePane() {
     <div class="why"><div class="label">why</div>${esc(c.why)}</div>
     ${examplesTable(n)}`;
   if (n.kind === "design") {
-    h += `<h3>Design decision</h3><div class="box"><div class="muted small">No formal model: decided and tracked like the rest. It governs (a component when it owns a directory: changes inside it are the agent's to settle, and you spot-check them):</div>
+    h += `<h3>Design decision</h3><div class="box"><div class="muted small">No formal model: decided and tracked like the rest, and every change to the files it governs is yours to review:</div>
       <pre>${esc((n.code?.files || []).join("\n") || "—")}</pre></div>`;
   } else if (n.kind === "invariant") {
-    h += `<h3>Invariant</h3><div class="box"><div class="muted small">One rule, stated once. Each contract that keeps it gives the rule for its own calls; it is proven from the contract's post in Lean (unless that contract opted out), and checked on its examples and at run time.</div>
+    h += `<h3>Invariant</h3><div class="box"><div class="muted small">One rule, stated once. Every contract in its scope keeps it, listing the pairs a call exposes to the rule (proven from the contract's post in Lean, and checked on its examples and at run time), or says why it does not apply.</div>
+      ${code("rule", (c.sources || {}).spec)}
       ${(n.covers || []).map(id => { const k = (byId(id)?.invariants || []).find(i => i.id === n.id) || {};
-        return `<div class="side"><div class="label"><a data-goto="${esc(id)}">${esc(id)}</a> — ${esc(k.status || "")}${k.detail ? ": " + esc(k.detail) : ""}</div><pre>${esc(k.rule || "")}</pre></div>`; }).join("")}</div>`;
+        return `<div class="side"><div class="label">kept by <a data-goto="${esc(id)}">${esc(id)}</a> — ${esc(k.status || "")}${k.detail ? ": " + esc(k.detail) : ""}</div><pre>${esc(k.view || "")}</pre></div>`; }).join("")}
+      ${(n.exempts || []).map(id => { const k = (byId(id)?.invariants || []).find(i => i.id === n.id) || {};
+        return `<div class="side"><div class="label"><a data-goto="${esc(id)}">${esc(id)}</a> is exempt</div><div class="small">${esc(k.detail || "")}</div></div>`; }).join("")}</div>`;
   } else if (!parent) {
     h += `<h3>Root</h3><div class="box"><div class="muted">One concern of the idea, stated as a theorem. Every node below is proven to imply it.</div>${code("spec", (c.sources || {}).spec)}</div>`;
   } else {
@@ -642,7 +653,10 @@ function nodePane() {
         ${(C(parent).sources || {}).spec ? `<pre>${esc(C(parent).sources.spec)}</pre>` : parent.kind === "instantiate" ? `<div class="muted small">its spec is its parent's, instantiated</div>` : ""}</div>
       <div class="side"><div class="label">this node <b>${esc(n.id)}</b></div>${modelOf(n)}</div>
       ${n.code ? `<div class="side"><div class="label">governs</div><div class="mono small">${esc(n.code.files.join(", "))}</div></div>` : ""}
-      ${(n.invariants || []).map(i => `<div class="side"><div class="label">keeps <a data-goto="${esc(i.id)}">${esc(i.id)}</a> — ${esc(i.status)}${i.detail ? ": " + esc(i.detail) : ""}</div><pre>${esc(i.rule)}</pre></div>`).join("")}
+      ${(n.invariants || []).map(i => i.status === "exempt"
+        ? `<div class="side"><div class="label">exempt from <a data-goto="${esc(i.id)}">${esc(i.id)}</a></div><div class="small">${esc(i.detail)}</div></div>`
+        : `<div class="side"><div class="label">keeps <a data-goto="${esc(i.id)}">${esc(i.id)}</a> — ${esc(i.status)}${i.detail ? ": " + esc(i.detail) : ""}</div>
+          <div class="muted small">the pairs a call shows to the rule:</div><pre>${esc(i.view)}</pre><div class="muted small">the rule:</div><pre>${esc(i.rule)}</pre></div>`).join("")}
       ${n.proof ? `<details ${n.state !== "accepted" ? "open" : ""}><summary>authored proof — ${esc(n.proof.file)}</summary><pre>${esc(n.proof.source)}</pre></details>` : ""}
     </div>`;
   }
@@ -689,7 +703,7 @@ function inboxPane() {
       <div class="small">${esc(r.decision?.content?.statement)}</div>
       <textarea class="removal" data-node="${esc(r.id)}" rows="1" placeholder="Why is it gone?"></textarea>
       <div class="actions"><button class="btn small primary" data-gone="${esc(r.id)}">Accept that it is gone</button></div></div>`).join("")}
-    ${settledByAgent().length ? `<h3>Settled by the agent — spot-check</h3>${settledByAgent().map(n => `<div class="req"><a data-goto="${esc(n.id)}"><b>${esc(n.id)}</b></a>
+    ${settledByAgent().length ? `<h3>Settled by the agent — waits for your endorsement</h3>${settledByAgent().map(n => `<div class="req"><a data-goto="${esc(n.id)}"><b>${esc(n.id)}</b></a>
       <div class="small">${esc(C(n).statement)}</div><div class="answer small"><span class="muted">agent:</span> ${esc(n.settledByAgent.reason)}</div></div>`).join("")}` : ""}
     ${live().some(n => n.settleable) ? `<div class="muted small" style="margin-top:8px">${live().filter(n => n.settleable).length} mechanical decision(s) left to the agent: ${live().filter(n => n.settleable).map(n => `<a data-goto="${esc(n.id)}">${esc(n.id)}</a>`).join(", ")}.</div>` : ""}
     <h3>Answered by the agent</h3>${answered.length ? answered.map(r => `<div class="req"><div class="small">on ${r.node ? `<a data-goto="${esc(r.node)}">${esc(r.node)}</a>` : "the idea"}</div>

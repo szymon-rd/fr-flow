@@ -77,8 +77,18 @@ final case class Ledger(decisions: Map[String, List[Decision]]):
     case Some(d) if d.action == "revisit" => history(id).reverse.find(x => Ledger.binds(x.action))
     case c => c.filter(d => Ledger.binds(d.action))
 
-  /** Whether the agent settled the node and the developer has not endorsed it since. */
-  def settledByAgent(id: String): Option[Decision] = binding(id).filter(_.action == "settle")
+  /** The agent's last settle of the node, if the developer has not accepted the node since: a
+    * confirmation of something else (a change above it) does not endorse it.
+    */
+  def settledByAgent(id: String): Option[Decision] =
+    if binding(id).isEmpty then None
+    else history(id).reverse.takeWhile(d => !Set("accept", "reject", "remove")(d.action)).find(_.action == "settle")
+
+  /** The developer's last decision binding the node: what a review compares with, so whatever the
+    * agent settled since is shown too.
+    */
+  def developerBinding(id: String): Option[Decision] =
+    history(id).reverse.takeWhile(d => !Set("reject", "remove")(d.action)).find(d => d.action == "accept" || d.action == "confirm")
   def add(id: String, d: Decision): Ledger =
     Ledger(decisions.updated(id, history(id) :+ d.copy(after = current(id).fold("")(Ledger.entry))))
 
@@ -120,6 +130,17 @@ final case class Ledger(decisions: Map[String, List[Decision]]):
 
 object Ledger:
   val empty: Ledger = Ledger(Map.empty)
+
+  /** Two branches' ledgers merged: every decision of either, each node's in order (this side's,
+    * then the other's that this one lacks). Nothing is dropped, so the merge passes `rewrites`; a
+    * node both sides decided is `forked`, and decided again. Git's merge driver for the ledger.
+    */
+  def merge(ours: Ledger, theirs: Ledger): Ledger =
+    Ledger((ours.decisions.keySet ++ theirs.decisions.keySet).toList.map { id =>
+      val mine = ours.history(id)
+      val seen = mine.map(entry).toSet
+      id -> (mine ++ theirs.history(id).filterNot(d => seen(entry(d))))
+    }.toMap)
 
   /** Actions a node is bound to: the developer's acceptance or confirmation, or the agent settling
     * a mechanical node.

@@ -26,7 +26,8 @@ object Git:
     * (a merge has two) and the file as committed.
     */
   def versions(dir: Path, file: String, n: Int = 50): List[Version] =
-    run(dir, "log", "--parents", "--format=%H %P", s"-n$n", "--", file).toList
+    // Full history: a merge that kept one side's file (as `-s ours` does) is compared with each parent.
+    run(dir, "log", "--full-history", "--parents", "--format=%H %P", s"-n$n", "--", file).toList
       .flatMap(_.linesIterator.map(_.trim).filter(_.nonEmpty)).reverse
       .map(_.split(" ").toList).collect { case c :: parents => Version(c, parents, run(dir, "show", s"$c:./$file")) }
 

@@ -88,12 +88,12 @@ val matches = define { (q: Search, r: CrmRecord) =>
     case Search.Everything => true
 }
 
-/** One rule for every read path: each contract that returns records keeps it. */
-val noCrossTenantRead = Node.invariant(
+/** One rule for every read path, stated once: a reader is shown a record only if their company may see it. */
+val noCrossTenantRead = Node.invariant[Account, CrmRecord](
   "NoCrossTenantRead",
   "No read returns a record of another company unless that company shared it with the reader's.",
-  why = "The isolation every read path of the CRM must keep, stated once: each contract that returns records names it, so a new read path (an export, an admin view) cannot leave it out unnoticed."
-)
+  why = "The isolation every read path of the CRM must keep, stated once. Every contract keeps it, listing the records a call shows to whom, or says why it shows none; so a new read path (an export, an admin view) cannot leave it out unnoticed."
+)((reader, r) => r.tenant == reader.tenant || shares.value.contains(Share(r.id, reader.tenant)))
 
 val readContract = accounts.contract[Account, Search, List[CrmRecord]](
   "ReadContract",
@@ -117,8 +117,7 @@ val readContract = accounts.contract[Account, Search, List[CrmRecord]](
     shares.bind(List(Share(2, TenantId("acme")))))(
     expect(Account("ann@acme", TenantId("acme")), Search.OfKind(Kind.Contact), List(CrmRecord(2, TenantId("globex"), Kind.Contact, "Globex contact")),
       "Globex shared its contact with Acme, so Ann finds it by kind"))
-  .holds(noCrossTenantRead)((user, query, result) =>
-    result.forall(r => r.tenant == user.tenant || shares.value.contains(Share(r.id, user.tenant))))
+  .keeps(noCrossTenantRead)((user, query, result) => result.map(r => (user, r)))
 
 /** The production wiring, owned as a component: changes to it are reviewed. */
 val readSideWiring = readContract.design(
@@ -127,7 +126,16 @@ val readSideWiring = readContract.design(
   why = "Every path to the records must go through service; keeping the wiring in one governed file makes a change to it visible."
 )("src/main/scala/crm/ReadSide.scala")
 
+// ============================================================================
+// Implementation, in the Scala Lean translates: proven to keep ReadContract
+// ============================================================================
+
+/** A search: the stored records it asks for, of the user's company or shared with it. */
+val search = define { (user: Account, query: Search) =>
+  store.value.filter(r => matches(query, r) && (r.tenant == user.tenant || shares.value.contains(Share(r.id, user.tenant))))
+}
+
 val knowledge = KnowledgeBase("Crm", idea = "IDEA.md")(isolation, readApi, accounts, readContract, readSideWiring, noCrossTenantRead)
-  .implement(readContract)(InMemoryCrm(store.value, shares.value).search)
+  .implementProven(readContract)(search)
 
 @main def crmCli(args: String*): Unit = sys.exit(knowledge.cli(args, root = "examples/crm"))

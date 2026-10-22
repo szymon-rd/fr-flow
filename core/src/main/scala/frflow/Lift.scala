@@ -161,6 +161,9 @@ private final class Translator(using val quotes: Quotes):
     while !s.isNoSymbol && (s.flags.is(Flags.Synthetic) || s.name.startsWith("$") || s.name == "macro" || !s.isTerm) do
       s = s.owner
     if s.isNoSymbol || !s.isValDef then fail("`define` must be assigned to a val", Position.ofMacroExpansion)
+    // Its Lean name comes from where it is declared: a val inside a method or a lambda has none.
+    def inBody(o: Symbol): Boolean = !o.isNoSymbol && !o.isPackageDef && (o.isDefDef || inBody(o.owner))
+    if inBody(s.owner) then fail("`define` must be a top-level val, or a val of an object", Position.ofMacroExpansion)
     qualifiedName(s)
 
   private def strip(t: Term): Term = t match
@@ -273,7 +276,11 @@ private final class Translator(using val quotes: Quotes):
           fail(s"${sym.name} redefines ${m.name} (in ${b.name}): domain types must keep structural equality", pos))
       }
       inProgress += name
-      def field(cls: Symbol, f: Symbol): (String, TypeRepr) = (ident(f.name), cls.typeRef.memberType(f))
+      def field(cls: Symbol, f: Symbol): (String, TypeRepr) =
+        val t = cls.typeRef.memberType(f)
+        // Scala compares a function field by reference, Lean by its values: they would disagree.
+        if t.widen.dealias.isFunctionType then fail(s"${cls.name}.${f.name} is a function: a domain type's fields must be data", pos)
+        (ident(f.name), t)
       // The Scala shape of the type, as written: what a decision depends on (the Lean may change with FrFlow).
       def shape(fs: List[(String, TypeRepr)]) = if fs.isEmpty then "" else fs.map((n, t) => s"$n: ${t.show(using Printer.TypeReprShortCode)}").mkString("(", ", ", ")")
       val scala =

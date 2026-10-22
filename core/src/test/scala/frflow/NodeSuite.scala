@@ -66,14 +66,15 @@ class NodeSuite extends munit.FunSuite:
   }
 
   test("a cross-cutting invariant is kept by the contracts that name it, on examples, generated calls and at run time") {
-    val atMostN = Node.invariant("AtMostN", "No more books are picked than asked for.", "Readers carry what they asked for.")
+    val atMostN = Node.invariant[Int, Int]("AtMostN", "No more books are picked than asked for.", "Readers carry what they asked for.")(
+      (asked, picked) => picked <= asked)
     val kept = books.contract[List[Book], Int, List[Book]]("Kept", "Picking returns only long enough books.", "w")(
       (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages.value))
       .examples(minPages.bind(100))(
         expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
         expect(List(Book("Short", 20)), 1, Nil, "no long book"),
         reject(List(Book("Short", 20)), 1, List(Book("Short", 20)), "never a short one"))
-      .holds(atMostN)((shelf, n, picked) => picked.length <= n)
+      .keeps(atMostN)((shelf, n, picked) => List((n, picked.length)))
     val kb = KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, kept, atMostN)
       .implement(kept)((s, n) => s.filter(_.pages >= minPages.value).take(n))
     assertEquals(kb.problems, Nil)
@@ -83,8 +84,22 @@ class NodeSuite extends munit.FunSuite:
     assert(bad.exampleResults(kept).flatMap(_.implementation).exists(_.contains("breaks the invariant AtMostN")), bad.exampleResults(kept))
     val run = bad.service(kept)(minPages.bind(100))
     intercept[ContractViolation](run(List(Book("Long", 300)), 1))
-    // an invariant nobody keeps is a problem
-    assert(KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, pick, atMostN).problems.exists(_.contains("no contract keeps")))
+    // every contract in its scope keeps it or says why not; an invariant nobody keeps is a problem
+    val unkept = KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, pick, atMostN).problems
+    assert(unkept.exists(_.contains("no contract keeps")), unkept)
+    assert(unkept.exists(_.startsWith("Pick: keep AtMostN")), unkept)
+    val exempt = KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, pick.exempt(atMostN, "picking has no limit to keep"), kept, atMostN)
+    assertEquals(exempt.problems, Nil)
+    // an invariant scoped to another subtree does not apply
+    val scoped = Node.invariant[Int, Int]("Scoped", "s", "w", scope = List(onlyGood))((a, b) => b <= a)
+    assert(KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, pick, scoped).problems.exists(_.startsWith("Pick: keep Scoped")))
+  }
+
+  test("two different parameters with one name are a problem") {
+    val other = Param[Int]("minPages", "the pages a reader can carry")
+    val c = books.contract[List[Book], Int, List[Book]]("Clash", "s", "w")((shelf, n, picked) => picked.length <= other.value)
+    val ps = KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, c).problems
+    assert(ps.exists(_.startsWith("two different parameters are named minPages")), ps)
   }
 
   test("examples are checked against the contract and the registered implementation") {

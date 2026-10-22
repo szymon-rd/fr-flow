@@ -93,7 +93,9 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty, autho
   def nodeCtx(n: Node[?]): Ctx = n.kind match
     case NodeKind.Root     => ctx(n.spec.get)
     case NodeKind.Refine   => ctx(n.spec.get) ++ ctx(n.abs.get) ++ nodeCtx(n.parent.get)
-    case NodeKind.Contract => (ctx(n.post.get) :: formalKeeps(n).map(k => ctx(k._2))).reduce(_ ++ _) ++ nodeCtx(n.parent.get)
+    case NodeKind.Contract =>
+      (ctx(n.post.get) :: formalKeeps(n).flatMap((i, v) => List(ctx(i.spec.get), ctx(v))) ++ provenImpl(n).map(defCtx)).reduce(_ ++ _) ++
+        nodeCtx(n.parent.get)
     case NodeKind.Design | NodeKind.Invariant => Ctx.empty
     case NodeKind.Instantiate =>
       val substituted = n.substs.map(_.name).toSet
@@ -108,7 +110,8 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty, autho
       List(specPath(n.id) -> spec(n), autoPath(n.id) -> auto(n), theoremsPath(n.id) -> theorems(n), auditPath(n.id) -> audit(n)) ++
         vacuity(n).map(vacuityPath(n.id) -> _) ++ unsatFile(n).map(unsatPath(n.id) -> _) ++
         rootTrivialFile(n).map(rootTrivialPath(n.id) -> _) ++
-        invariantObligations(n).map(o => invPath(n.id, o.name) -> invFile(n, o))
+        extraObligations(n).map(o => invPath(n.id, o.name) -> invFile(n, o)) ++
+        keepsNothing(n).map(o => invPath(n.id, o.name) -> attempt(n, o, o.name.capitalize))
     }
     (s"FrFlowGen/$K/Domain.lean" -> domain :: perNode).toMap
 
@@ -141,23 +144,55 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty, autho
   /** Nodes with a formal model, which get Lean. */
   def formal(n: Node[?]): Boolean = n.kind != NodeKind.Design && n.kind != NodeKind.Invariant && n.formal
 
-  /** The invariants a contract keeps whose rules are translated to Lean. */
-  def formalKeeps(n: Node[?]): List[(Node[?], Lifted[?])] = if !n.formal then Nil else n.keeps.filter(_._2.body.nonEmpty)
+  /** The invariants a contract keeps in Lean, each with the contract's view of a call. */
+  def formalKeeps(n: Node[?]): List[(Node[?], Lifted[?])] =
+    if !n.formal then Nil
+    else n.kept.collect { case Keep(i, Some(v), _) if i.formal && v.body.nonEmpty && i.spec.exists(_.body.nonEmpty) => (i, v) }
 
   def invPath(id: String, name: String) = s"FrFlowGen/$K/$id/${name.capitalize}.lean"
 
-  /** For each invariant the contract keeps formally: every result its post allows keeps the rule. */
+  private def keepStatement(n: Node[?], inv: Node[?], premise: Boolean): String =
+    val c = nodeCtx(n)
+    val a = args(c)
+    def at(f: String) = if a.isEmpty then f else s"$f $a"
+    val forallCtx = if binders(c).isEmpty then "" else s"∀ ${binders(c)}, "
+    val ts = n.post.get.params.map(_._2)
+    val xs = ts.indices.map(i => s"x$i").mkString(" ")
+    val kept = s"∀ p, p ∈ ${at(s"view_${inv.id}")} $xs → ${at(s"rule_${inv.id}")} p.1 p.2"
+    s"$forallCtx∀ ${ts.zipWithIndex.map((t, i) => s"(x$i : $t)").mkString(" ")}, ${if premise then s"${at("post")} $xs → " else ""}$kept"
+
+  /** For each invariant the contract keeps formally: every pair a call its post allows exposes meets the invariant's rule. */
   def invariantObligations(n: Node[?]): List[Obligation] =
-    formalKeeps(n).map { (inv, l) =>
-      val c = nodeCtx(n)
-      val a = args(c)
-      def at(f: String) = if a.isEmpty then f else s"$f $a"
-      val forallCtx = if binders(c).isEmpty then "" else s"∀ ${binders(c)}, "
-      val ts = n.post.get.params.map(_._2)
-      val xs = ts.indices.map(i => s"x$i")
-      Obligation(s"inv_${inv.id}", s"$forallCtx∀ ${ts.zip(xs).map((t, x) => s"($x : $t)").mkString(" ")}, ${at("post")} ${xs.mkString(" ")} → ${at(s"rule_${inv.id}")} ${xs.mkString(" ")}",
-        s"Every result ${n.id} allows keeps ${inv.id}.")
-    }
+    formalKeeps(n).map((inv, _) => Obligation(s"inv_${inv.id}", keepStatement(n, inv, premise = true), s"Every call ${n.id} allows keeps ${inv.id}."))
+
+  /** The pairs the view exposes meet the rule whatever the call returns: if provable, the contract
+    * keeps the invariant only in name (its view shows nothing the rule could refuse).
+    */
+  def keepsNothing(n: Node[?]): List[Obligation] =
+    formalKeeps(n).map((inv, _) => Obligation(s"nothing_${inv.id}", keepStatement(n, inv, premise = false),
+      s"Every call keeps ${inv.id}, whatever ${n.id} says."))
+
+  /** The implementation of a contract, when it is a `define` Lean can prove things about. */
+  def provenImpl(n: Node[?]): Option[Def[?]] =
+    if !n.formal || n.kind != NodeKind.Contract then None else kb.implementation(n).flatMap(_.proven)
+
+  /** The implementation keeps the contract: every result it returns meets the post (and so every
+    * invariant the post implies).
+    */
+  def implObligation(n: Node[?]): Option[Obligation] = provenImpl(n).map { d =>
+    val c = nodeCtx(n)
+    val a = args(c)
+    def at(f: String) = if a.isEmpty then f else s"$f $a"
+    val forallCtx = if binders(c).isEmpty then "" else s"∀ ${binders(c)}, "
+    val ins = n.post.get.params.init.map(_._2)
+    val xs = ins.indices.map(i => s"x$i")
+    val call = s"(${resolve(s"⟦${d.name}⟧")} ${xs.mkString(" ")})"
+    Obligation("impl", s"$forallCtx∀ ${ins.zip(xs).map((t, x) => s"($x : $t)").mkString(" ")}, ${at("post")} ${xs.mkString(" ")} $call",
+      s"Every result of ${d.name} meets ${n.id}.")
+  }
+
+  /** Obligations proven in files of their own: kept invariants, and a proven implementation. */
+  def extraObligations(n: Node[?]): List[Obligation] = invariantObligations(n) ++ implObligation(n)
 
   /** The proof of an invariant: the theorem of that name in the authored proof file, if any, else frflow_auto. */
   def invFile(n: Node[?], o: Obligation): String =
@@ -269,7 +304,10 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty, autho
         val post = n.post.get
         val ins = post.params.init
         d("post", post.leanType, resolve(post.lean))
-        formalKeeps(n).foreach((inv, l) => d(s"rule_${inv.id}", l.leanType, resolve(l.lean)))
+        formalKeeps(n).foreach { (inv, v) =>
+          d(s"rule_${inv.id}", inv.spec.get.leanType, resolve(inv.spec.get.lean))
+          d(s"view_${inv.id}", v.leanType, resolve(v.lean))
+        }
         val vars = ins.indices.map(i => s"x$i").mkString(" ")
         d("spec", s"($m) → Prop", s"fun (f : $m) => ∀ ${ins.zipWithIndex.map((t, i) => s"(x$i : ${t._2})").mkString(" ")}, ${at("post")} $vars (f $vars)")
         d("toRoot", "", s"fun (m : $m) => ${pat("toRoot")} m")
@@ -285,7 +323,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty, autho
         d("spec", "", s"${q(p, "spec")} $th")
         d("toRoot", "", s"${q(p, "toRoot")} $th")
         d("rootSpec", "", s"${q(p, "rootSpec")} $th")
-    (obligation(n) ++ trivial(n) ++ unsat(n) ++ rootTrivial(n) ++ invariantObligations(n)).foreach { o =>
+    (obligation(n) ++ trivial(n) ++ unsat(n) ++ rootTrivial(n) ++ extraObligations(n) ++ keepsNothing(n)).foreach { o =>
       sb ++= s"namespace Obl\n\n/-- ${o.description} -/\n@[frflow_defs] def ${o.name} : Prop :=\n  ${o.statement}\n\nend Obl\n\n"
     }
     sb ++= s"end $K.${n.id}\n"

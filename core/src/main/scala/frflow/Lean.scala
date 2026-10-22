@@ -62,7 +62,9 @@ object Lean:
     val Depends = """^'(.+?)' depends on axioms: \[(.*)\]\s*$""".r
     val NoAxioms = """^'(.+?)' does not depend on any axioms\s*$""".r
     output.linesIterator.collect {
-      case Depends(t, as) => t -> as.split(",").map(_.trim).filter(_.nonEmpty).toList
+      // Generated files `open Classical`, so Lean prints `Classical.choice` as `choice`; proof files
+      // cannot declare axioms, so the short name is that one.
+      case Depends(t, as) => t -> as.split(",").map(_.trim).filter(_.nonEmpty).map(a => if a == "choice" then "Classical.choice" else a).toList
       case NoAxioms(t)    => t -> Nil
     }.toMap
 
