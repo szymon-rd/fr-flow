@@ -200,6 +200,52 @@
           ],
           "governs": []
         }
+      },
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-22T04:19:37.455007931Z",
+        "reason": "Accounts now states that it relies on CrmWrites for unique record ids: a share names one record only because every store the writes reach keeps ids unique, so a change to that definition must come back here.",
+        "held": [
+          "ReadSideWiring"
+        ],
+        "after": "defb2b9dd5cc9203",
+        "commit": "86c2d20485bce6c735aad883a89a7fc4dfb8f217",
+        "tree": "e62bdf60d44b65f6114f0a0ad3976326ed0475fc",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "Kgc4EQlHUIA/j+r5zufEi8wUrcoTINYu1NkLca7+6uONDgBkjWHj+D7EOaOIPmHSeQCZdEgds830MTA+QEQ6Ag==",
+        "chain": "7cce4897e3d0449ddd82842615fd3e9b78a8f59c6b445e83e4735e4081c411c0",
+        "content": {
+          "parent": "ReadApi",
+          "statement": "Users are accounts of a company, records are contacts and deals, and sharing is a table of shares.",
+          "why": "A record belongs to the company stored on it, and a user to the company of their account. This trusts the record, so ReadContract requires returned records to be the stored ones; it also trusts the account, which authentication provides (not modelled).",
+          "sources": {},
+          "substitutions": [
+            "Tenant := TenantId",
+            "User := Account",
+            "Record := CrmRecord",
+            "Query := Search",
+            "tenantOf := (a: Account) => a.tenant",
+            "owner := (r: CrmRecord) => r.tenant",
+            "sharedWith := (r: CrmRecord, t: TenantId) => shares.value.contains(Share(r.id, t))"
+          ],
+          "examples": [],
+          "vocabulary": [
+            "shares: the share table as stored when the search runs; a share names a record by its id, which is unique across all companies in every store writes reach (Accounts relies on CrmWrites for it)"
+          ],
+          "uses": [
+            "case class TenantId(value: String)",
+            "case class Account(email: String, tenant: TenantId)",
+            "enum Kind: case Contact, case Deal",
+            "case class CrmRecord(id_: Long, tenant: TenantId, kind: Kind, title: String)",
+            "case class Share(record: Long, to: TenantId)",
+            "enum Search: case ById(id_: Long), case OfKind(kind: Kind), case Everything"
+          ],
+          "governs": [],
+          "relies": [
+            "CrmWrites: a share names one record by its id: ids are unique in every store the writes reach, so a share never shows another company's record with the same id"
+          ]
+        }
       }
     ],
     "CrmWrites": [
@@ -395,6 +441,44 @@
           "examples": [],
           "vocabulary": [
             "shares: the share table as stored when the search runs; a share names a record by its id, which is unique across all companies (in every store writes reach: WritesKeepStore)"
+          ],
+          "uses": [
+            "case class TenantId(value: String)",
+            "case class Account(email: String, tenant: TenantId)",
+            "enum Kind: case Contact, case Deal",
+            "case class CrmRecord(id_: Long, tenant: TenantId, kind: Kind, title: String)",
+            "case class Share(record: Long, to: TenantId)",
+            "mayRead = (reader: Account, r: CrmRecord) => r.tenant == reader.tenant || shares.value.contains(Share(r.id, reader.tenant))"
+          ],
+          "governs": []
+        }
+      },
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-22T04:19:37.003984560Z",
+        "reason": "Only the meaning of shares was reworded to name where uniqueness of ids comes from (CrmWrites, through Accounts); the rule is unchanged.",
+        "held": [
+          "ReadSideWiring",
+          "WriteContract"
+        ],
+        "after": "9d751e6dee5ba3c2",
+        "commit": "86c2d20485bce6c735aad883a89a7fc4dfb8f217",
+        "tree": "e62bdf60d44b65f6114f0a0ad3976326ed0475fc",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "BbJ4L8zDwexqndeHE0NjnuuocK25mIVNcdZszSWUZr2FTubn7lTanoMF2kkviG4J9a/YY8PCqSZxuJOe6NkQAQ==",
+        "chain": "",
+        "content": {
+          "parent": null,
+          "statement": "No read returns a record of another company unless that company shared it with the reader's.",
+          "why": "The isolation every read path of the CRM must keep, stated once. Every contract keeps it, listing the records a call shows to whom, or says why it shows none; so a new read path (an export, an admin view) cannot leave it out unnoticed.",
+          "sources": {
+            "spec": "(reader, r) => mayRead(reader, r)"
+          },
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [
+            "shares: the share table as stored when the search runs; a share names a record by its id, which is unique across all companies in every store writes reach (Accounts relies on CrmWrites for it)"
           ],
           "uses": [
             "case class TenantId(value: String)",
@@ -832,6 +916,19 @@
           ],
           "implementation": "proven: search\nsearch = (user: Account, query: Search) =>\n  store.value.filter(r => matches(query, r) && mayRead(user, r))\n«matches» = (q: Search, r: CrmRecord) =>\n  q match\n    case Search.ById(id)  => r.id == id\n    case Search.OfKind(k) => r.kind == k\n    case Search.Everything => true\nmayRead = (reader: Account, r: CrmRecord) => r.tenant == reader.tenant || shares.value.contains(Share(r.id, reader.tenant))"
         }
+      },
+      {
+        "action": "confirm",
+        "by": "claude-example-data",
+        "at": "2026-10-22T04:19:37.455007931Z",
+        "reason": "still holds after Accounts changed: Accounts now states that it relies on CrmWrites for unique record ids: a share names one record only because every store the writes reach keeps ids unique, so a change to that definition must come back here.",
+        "after": "f484aabdf9b748d4",
+        "commit": "86c2d20485bce6c735aad883a89a7fc4dfb8f217",
+        "tree": "e62bdf60d44b65f6114f0a0ad3976326ed0475fc",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "pCypfecAS+6gD8ppeq/BLQD5KP8h8j1M/My1jdZW9tDzWAV0Qnruk+c4oC152rtFJmIu/MumrNxliqmw/KLABQ==",
+        "chain": "7ff98dc5e57ca76fffefbd9cbb34a14bee99e1180730196f64ee92f130907201",
+        "content": "same:dd3f6abb17d2b049"
       }
     ],
     "ReadSideWiring": [
@@ -1082,6 +1179,46 @@
           "ideaSection": "Reading records",
           "notModelled": "- That the account a search or a write runs for is the caller's own\n  (authentication).\n- Editing or removing records."
         }
+      },
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-22T04:19:35.912685039Z",
+        "reason": "The idea now asks that every read and write path be proven down to its code (Proven code: 100%); the reading concern itself is unchanged.",
+        "held": [
+          "ReadApi"
+        ],
+        "after": "29520d29130a5641",
+        "commit": "86c2d20485bce6c735aad883a89a7fc4dfb8f217",
+        "tree": "e62bdf60d44b65f6114f0a0ad3976326ed0475fc",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "Wk8kQ1AdY+SRo4cCnaVIHFccXQ/daZJFNhwSnQh+fXYReth/TuGUe99zBCcu9B3FwYhyYQab4z5SjUt3WUkvCg==",
+        "chain": "",
+        "content": {
+          "parent": null,
+          "statement": "A user sees a record only if it belongs to their company or was shared with their company.",
+          "why": "Isolation between companies is what the idea says must hold. Companies, users, records and sharing are left open.",
+          "sources": {
+            "spec": "shows => forall((u: User.T, r: Record.T) => shows(u, r) ==> visible(u, r))"
+          },
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [
+            "Record: a contact or a deal kept in the CRM",
+            "Tenant: a company that uses the CRM",
+            "User: a person who works for a company",
+            "owner: the company a record belongs to",
+            "sharedWith: whether the record's company shared it with the given company",
+            "tenantOf: the company a user works for"
+          ],
+          "uses": [
+            "visible = (u: User.T, r: Record.T) => owner(r) == tenantOf(u) || sharedWith(r, tenantOf(u))"
+          ],
+          "governs": [],
+          "idea": "# CRM\n\nMany companies use one CRM. Each company's users manage contacts and deals.\n\nProven code: 100%. Every read and write path is proven down to its code.\n\n## Reading records\n\nA user may see a record only if it belongs to their company, or if the record's\ncompany has shared it with theirs. Users find records by id, by kind, or list\neverything they can see.",
+          "ideaSection": "Reading records",
+          "notModelled": "- That the account a search or a write runs for is the caller's own\n  (authentication)."
+        }
       }
     ],
     "WriteContract": [
@@ -1297,6 +1434,45 @@
           "idea": "# CRM\n\nMany companies use one CRM. Each company's users manage contacts and deals.\n\n## Writing records\n\nA user adds records for their company, and shares or unshares their company's\nrecords with other companies. No write changes another company's records, or\nadds or removes a share of a record the author's company does not own. Every\nshare is of a stored record.",
           "ideaSection": "Writing records",
           "notModelled": "- That the account a search or a write runs for is the caller's own\n  (authentication).\n- Editing or removing records."
+        }
+      },
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-22T04:19:36.486106236Z",
+        "reason": "The idea now asks for every path proven to its code, and editing or removing records is listed as not modelled for writes only; the writing concern is unchanged.",
+        "held": [
+          "CrmWrites",
+          "StepByStep",
+          "WriteContract",
+          "WriteSideWiring"
+        ],
+        "after": "16d527385ac14ce2",
+        "commit": "86c2d20485bce6c735aad883a89a7fc4dfb8f217",
+        "tree": "e62bdf60d44b65f6114f0a0ad3976326ed0475fc",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "3LKmG3bMPglHaeLy39Zr4HJk3Zv0F6k2gu6hIOBw68YSUuQAHDrhV5eO94HqGywuyQKXuR898ktDFkGNSpJJAA==",
+        "chain": "",
+        "content": {
+          "parent": null,
+          "statement": "Every store the CRM reaches by writes is consistent, and every write changes only what its author's company may change.",
+          "why": "The idea's rules for writing, over every sequence of writes from the initial store: consistency of every store reached, and authority of each write. What consistency and authority mean is left open.",
+          "sources": {
+            "spec": "run => forall((ws: List[Write.T]) => consistent(run(ws))) &&\n  forall((ws: List[Write.T], w: Write.T) => permitted(run(ws), w, run(ws ++ List(w))))"
+          },
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [
+            "Store: the records and shares as stored",
+            "Write: a change a user asks for: adding a record, or sharing or unsharing one",
+            "consistent: whether every share is of a stored record, and no two records have one id",
+            "permitted: whether the change from the first store to the second is one the write's author may make: it touches only their company's records and shares"
+          ],
+          "uses": [],
+          "governs": [],
+          "idea": "# CRM\n\nMany companies use one CRM. Each company's users manage contacts and deals.\n\nProven code: 100%. Every read and write path is proven down to its code.\n\n## Writing records\n\nA user adds records for their company, and shares or unshares their company's\nrecords with other companies. No write changes another company's records, or\nadds or removes a share of a record the author's company does not own. Every\nshare is of a stored record.",
+          "ideaSection": "Writing records",
+          "notModelled": "- That the account a search or a write runs for is the caller's own\n  (authentication).\n\n### Writing records\n\n- Editing or removing records."
         }
       }
     ],
