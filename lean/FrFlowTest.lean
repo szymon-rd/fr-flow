@@ -96,3 +96,14 @@ example (ss : List Session) (h : (ss.map Session.token).Nodup) (s : Session)
   FrFlow.nodup_map_snoc h fresh
 
 end FrFlowTest
+
+/-! ## frflow_intro -/
+
+set_option linter.unusedVariables false in
+def Obl (P : Nat → Prop) : Prop := ∀ (x y : Nat) (h_Pos : 0 < x) (h_Le : x ≤ y), P y
+
+/-- The binders come in by their names, whatever their position. -/
+example : Obl (fun y => 0 < y) := by
+  unfold Obl
+  frflow_intro
+  exact Nat.lt_of_lt_of_le h_Pos h_Le
