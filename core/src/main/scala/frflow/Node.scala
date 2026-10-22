@@ -82,8 +82,19 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
     val ideaSection: String = "",
     val file: String = "",
     val expected: List[(String, Lifted[?])] = Nil,
-    val assumed: Boolean = false
+    val assumed: Boolean = false,
+    relied: List[(() => Node[?], String)] = Nil
 ):
+  /** The nodes this one relies on besides its parent (see `relies`), with what it relies on. */
+  def reliesOn: List[(Node[?], String)] = relied.map((f, why) => (f(), why))
+
+  /** This node relies on what another node says (often of another concern: the read side on what
+    * every write keeps); `why` says what. A change to that node's meaning puts this one up for review,
+    * as a change above it does, and accepting such a change lists this one among the decisions it may
+    * affect. The other node may be declared later.
+    */
+  def relies(on: => Node[?], why: String): Node[M] = copy(relied = relied :+ (() => on, why))
+
   /** Whether Lean checks this node: it did not opt out, and neither did anything above it. */
   def formal: Boolean = declaredFormal && parent.forall(_.formal)
 
@@ -119,16 +130,17 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
       assumed = assume)
 
   private def copy(cases: List[Example] = cases, governs: List[String] = governs, kept: List[Keep] = kept,
-      expected: List[(String, Lifted[?])] = expected): Node[M] =
-    Node(id, statement, why, kind, parent, spec, abs, post, substs, cases, governs, declaredFormal, kept, scope, ideaSection, file, expected, assumed)
+      expected: List[(String, Lifted[?])] = expected, relied: List[(() => Node[?], String)] = relied): Node[M] =
+    Node(id, statement, why, kind, parent, spec, abs, post, substs, cases, governs, declaredFormal, kept, scope, ideaSection, file, expected, assumed,
+      relied)
 
   /** A contract with a signature of its own: `abs` says what an implementation is as the parent's
     * model (a new read path below an existing instantiation, say). Proven: `spec f → parent.spec (abs f)`.
     */
-  inline def contractVia[A, B, R](id: String, statement: String, why: String, inline formal: Boolean = true)(
+  inline def contractVia[A, B, R](id: String, statement: String, why: String, inline formal: Boolean = true, assume: Boolean = false)(
       inline abs: ((A, B) => R) => M)(inline post: (A, B, R) => Boolean): Node[(A, B) => R] =
     Node(id, statement, why, NodeKind.Contract, Some(this), None, Some(Lifted.of(formal, abs)), Some(Lifted.of(formal, post)), Nil,
-      declaredFormal = formal, file = Lifted.here)
+      declaredFormal = formal, file = Lifted.here, assumed = assume)
 
   private[frflow] def withExamples(es: List[Example]): Node[M] =
     copy(cases = cases ++ es)
@@ -545,6 +557,17 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
 
       nodes.filter(i => i.kind == NodeKind.Invariant && !nodes.exists(_.kept.exists(k => (k.invariant eq i) && k.view.nonEmpty)))
         .map(i => s"${i.id}: no contract keeps this invariant"),
+      nodes.flatMap(n => n.reliesOn.collect {
+        case (null, _) => s"${n.id} relies on a node that is not initialized: refer to its val"
+        case (o, _) if !nodes.contains(o) => s"${n.id} relies on ${o.id}, which is not in the knowledge base"
+        case (o, why) if why.trim.split("\\s+").count(_.exists(_.isLetter)) < 3 => s"${n.id}: say in a few words what it relies on in ${o.id}"
+      }),
+      // What a node rests on (its parent, what it relies on, the invariants it keeps) must not lead back to it.
+      nodes.filter { n =>
+        def on(x: Node[?]): List[Node[?]] = x.parent.toList ++ x.reliesOn.map(_._1).filter(_ != null) ++ x.kept.filter(_.view.nonEmpty).map(_.invariant)
+        def reaches(from: List[Node[?]], seen: Set[Node[?]]): Boolean = from.exists(x => (x eq n) || (!seen(x) && reaches(on(x), seen + x)))
+        reaches(n.reliesOn.map(_._1).filter(_ != null), Set.empty)
+      }.map(n => s"${n.id} relies on a node that rests on it: what each rests on must not lead back to it"),
       nodes.filter(i => i.kind == NodeKind.Invariant).flatMap(i => i.scope.filterNot(nodes.contains).map(s => s"${i.id}: its scope ${s.id} is not in the knowledge base")),
       // Two different parameters (or opaque types) with one name would be one in Lean and at run time.
       (nodes.flatMap(_.referenced) ++ defs.map(_.lifted)).flatMap(_.paramObjects).distinctBy(System.identityHashCode).groupBy(_.name)

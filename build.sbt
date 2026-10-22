@@ -21,6 +21,8 @@ def example(name: String) = Project(name, file(s"examples/$name"))
     run / fork := true,
     // The CLI's output (read by the browser and agents) is UTF-8 whatever the locale.
     run / javaOptions ++= Seq("-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "-Dfile.encoding=UTF-8"),
+    // Every source the build compiles, so code in a source directory added here is governed too.
+    run / javaOptions += "-Dfrflow.sources=" + (Compile / sources).value.map(_.getAbsolutePath).mkString(java.io.File.pathSeparator),
     run / baseDirectory := (ThisBuild / baseDirectory).value,
     Test / fork := true,
     Test / baseDirectory := (ThisBuild / baseDirectory).value

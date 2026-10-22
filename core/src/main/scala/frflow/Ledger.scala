@@ -93,6 +93,13 @@ final case class Ledger(decisions: Map[String, List[Decision]]):
     history(id).filter(_.action == "accept").flatMap(_.rejected).distinct
       .flatMap(r => history(r).reverse.find(_.action == "reject").map(d => r -> d.content))
 
+  /** The nodes rejected under `parent` (now or once), each with its content and the reason: the
+    * options already turned down where a new proposal stands.
+    */
+  def rejectedUnder(parent: String): List[(String, Json, String)] =
+    decisions.toList.sortBy(_._1).flatMap((id, ds) => ds.lastOption.filter(d => d.action == "reject" &&
+      d.content("parent").flatMap(_.str).contains(parent)).map(d => (id, d.content, d.reason)))
+
   /** The decisions where `id` was shown and left as it is (considered, still holding). */
   def considered(id: String): List[(String, Decision)] = all.filter(_._2.held.contains(id))
 

@@ -50,6 +50,11 @@ object Git:
     else run(dir, "log", "--diff-filter=A", "--reverse", "--name-only", "--relative", "--format=", "--", ".").toList
       .flatMap(_.linesIterator.map(_.trim).filter(_.endsWith(".pub"))).headOption
 
+  /** Who added a file (in `dir`) to git, and in which commit. */
+  def addedBy(dir: Path, file: String): Option[String] =
+    if !java.nio.file.Files.isDirectory(dir) then None
+    else run(dir, "log", "--diff-filter=A", "--reverse", "--format=%an <%ae> in %h", "--", file).flatMap(_.linesIterator.map(_.trim).find(_.nonEmpty))
+
   /** Whether a file is tracked by git. */
   def tracked(dir: Path, file: String): Boolean = run(dir, "ls-files", "--error-unmatch", "--", file).isDefined
 

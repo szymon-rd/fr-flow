@@ -403,3 +403,61 @@ class SnapshotSuite extends munit.FunSuite:
     assert(Decisions.mechanical(reworded, all, nodes(reworded)("Listed")).isDefined)
     assert(Decisions.causes(reworded, all, nodes(reworded)("Books")).isEmpty) // a why does not cascade
   }
+
+  test("a node relying on another concern is reviewed when that concern's meaning changes") {
+    val ws = workspace()
+    val pickR = pick.relies(nonNegative, "the page counts it reads are never negative")
+    acceptAll(workflow(KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, pickR, nonNegative), ws))
+    val nonNeg2 = Node.root[BigInt => BigInt]("NonNegative", "Results are never below zero.", why = nonNegative.why)(f => forall((x: BigInt) => f(x) >= 0))
+    val pickR2 = pick.relies(nonNeg2, "the page counts it reads are never negative")
+    val w = workflow(KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, pickR2, nonNeg2), ws)
+    assertEquals(w.state(pickR2), "review")
+    val ns = nodes(w.annotated)
+    assertEquals(ns("Pick")("causes").get.arr.flatMap(_.str), Seq("above"))
+    // accepting the change lists it among the decisions it may affect
+    assertEquals(ns("NonNegative")("below").get.arr.find(_("id").flatMap(_.str).contains("Pick")).flatMap(_("kind")).flatMap(_.str), Some("moved"))
+    assert(w.context(pickR2).contains("## It relies on"), w.context(pickR2))
+    assert(w.context(nonNeg2).contains("Relied on by"), w.context(nonNeg2))
+    // a reliance that leads back to the node itself is refused
+    lazy val l: Node[(List[Item.T], Int) => List[Item.T]] = onlyGood.refine[(List[Item.T], Int) => List[Item.T]]("L", "s", "w")(
+      abs = pick => pick, spec = pick => forall((xs: List[Item.T], n: Int) => pick(xs, n).forall(x => good(x)))).relies(b, "the books are what it lists")
+    lazy val b: Node[(List[Book], Int) => List[Book]] = l.instantiate[(List[Book], Int) => List[Book]]("B", "s", "w")(books.substs*)
+    val loop = KnowledgeBase("Loop", idea = "IDEA.md")(onlyGood, l, b)
+    assert(loop.problems.exists(_.contains("rests on it")), loop.problems)
+  }
+
+  test("a rejected proposal is recognised again with its variables renamed") {
+    def a(src: String) = Decisions.alpha(Json.str(src))
+    assertEquals(a("pick => forall((l: List[Item.T], n: Int) => pick(l, n).forall(x => good(x)))"),
+      a("f => forall((xs: List[Item.T], k: Int) => f(xs, k).forall(y  =>  good(y)))"))
+    assertNotEquals(a("f => forall((xs: List[Item.T], k: Int) => f(xs, k).forall(y => good(y)))"),
+      a("f => forall((xs: List[Item.T], k: Int) => f(xs, k).forall(y => bad(y)))"))
+  }
+
+  test("source files no node governs are found outside src/main too; tests are not production code") {
+    val ws = workspace()
+    Files.createDirectories(ws.root.resolve("src/fast/scala"))
+    Files.writeString(ws.root.resolve("src/fast/scala/Leak.scala"), "object Leak")
+    Files.createDirectories(ws.root.resolve("src/test/scala"))
+    Files.writeString(ws.root.resolve("src/test/scala/T.scala"), "object T")
+    val u = workflow(shelfKb, ws).ungoverned
+    assert(u.contains("src/fast/scala/Leak.scala"), u)
+    assert(!u.exists(_.contains("src/test")), u)
+  }
+
+  test("what is not modelled may be split by section, each root decided against its own") {
+    val ws = workspace()
+    Files.writeString(ws.root.resolve("IDEA.md"),
+      "# Shelf\n\n## Picking\n\nPick good items.\n\n## Not modelled\n\n- Prices.\n\n### Picking\n\n- Covers.\n\n### Selling\n\n- Taxes.\n")
+    val r = Node.root[(List[Item.T], Int) => List[Item.T]]("OnlyGood", onlyGood.statement, onlyGood.why, idea = "Picking")(
+      pick => forall((l: List[Item.T], n: Int) => pick(l, n).forall(x => good(x))))
+    val nm = workflow(KnowledgeBase("Shelf", idea = "IDEA.md")(r), ws).notModelledOf(r)
+    assert(nm.contains("Prices") && nm.contains("Covers") && !nm.contains("Taxes"), nm)
+  }
+
+  test("with no developer key, no decision counts") {
+    val w = workflow()
+    acceptAll(w)
+    assert(w.integrity.exists(_.startsWith("no developer key")), w.integrity)
+    assert(!w.status._2)
+  }

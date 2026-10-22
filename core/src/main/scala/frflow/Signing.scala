@@ -78,6 +78,16 @@ object Signing:
     val committed = Git.firstAdded(dir).flatMap(f => all.find(k => f.endsWith(s"${k.id}.pub")))
     committed.orElse(all.filter(_.certifiedBy.isEmpty) match { case List(only) if Git.firstAdded(dir).isEmpty => Some(only); case _ => None })
 
+  /** Who the developer key is, for `status` to show: pinned by CI, or the first committed (and by whom:
+    * an agent that commits a key before the developer does would be it, so CI should pin it).
+    */
+  def firstKey(root: Path, dir: Path): Option[String] =
+    sys.env.get("FRFLOW_DEVELOPER_KEYS").map(k => s"pinned by FRFLOW_DEVELOPER_KEYS ($k)").orElse {
+      first(dir, keyFiles(dir)).map { k =>
+        Git.addedBy(dir, s"${k.id}.pub").fold(s"${k.id} (not committed yet)")(by => s"${k.id}, first committed by $by; pin it in CI with FRFLOW_DEVELOPER_KEYS=${k.id}")
+      }
+    }
+
   /** Keys in `dir` that are not developer keys: each is a warning. */
   def untrusted(dir: Path): List[String] =
     val all = keyFiles(dir)

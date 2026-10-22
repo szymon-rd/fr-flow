@@ -37,7 +37,7 @@ object Cli:
         results.foreach { (n, c) =>
           println(s"${n.id}: ${c.status}")
           // `idle` is not an obligation: proven, it is a limit of the contract (it allows doing nothing).
-          c.obligations.filter(r => r.name != "idle" && r.status != "proven").foreach(r => println(s"  ${r.status} ${r.name}: ${r.detail}"))
+          c.obligations.filter(r => r.name != "idle" && r.status != "proven").foreach(r => println(s"  ${r.status} ${r.name}: ${r.detail.linesIterator.mkString("\n    ")}"))
           c.obligations.filter(r => r.name == "idle" && r.status == "proven").foreach(r => println(s"  limit: it is met by ${r.detail} on every call"))
           c.messages.foreach(m => println(s"  ! ${m.linesIterator.mkString("\n    ")}"))
         }
