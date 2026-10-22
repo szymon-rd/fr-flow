@@ -172,6 +172,93 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
     val b = binders(nodeCtx(n))
     (if b.isEmpty then "" else s"∀ $b, ") + (if vars.isEmpty then "" else s"∀ $vars, ") + premise.fold("")(_ + " → ") + conclusion
 
+  // ---------------------------------------------------------------------------
+  // What a result holds: for the coverage of an invariant's view
+  // ---------------------------------------------------------------------------
+
+  /** A Lean type, read back from its text. */
+  private enum LT:
+    case Name(n: String)
+    case ListOf(t: LT)
+    case OptionOf(t: LT)
+    case Prod(a: LT, b: LT)
+    case Fun
+
+  private def parseType(t0: String): LT =
+    val t = t0.trim
+    def depthZero(sym: String): Option[Int] =
+      var d = 0
+      (0 until t.length).find { i =>
+        val c = t(i)
+        if c == '(' then d += 1 else if c == ')' then d -= 1
+        d == 0 && t.startsWith(sym, i)
+      }
+    def closes(i: Int): Int =
+      var d = 0
+      (i until t.length).find { j => if t(j) == '(' then d += 1 else if t(j) == ')' then d -= 1; d == 0 }.getOrElse(-1)
+    if t.startsWith("(") && closes(0) == t.length - 1 then parseType(t.substring(1, t.length - 1))
+    else if depthZero("→").isDefined then LT.Fun
+    else depthZero("×") match
+      case Some(i) => LT.Prod(parseType(t.take(i)), parseType(t.drop(i + 1)))
+      case None if t.startsWith("List ") => LT.ListOf(parseType(t.drop(5)))
+      case None if t.startsWith("Option ") => LT.OptionOf(parseType(t.drop(7)))
+      case None => LT.Name(t)
+
+  private val typeDecls: Map[String, TypeDecl] = kb.types.map(t => t.name -> t).toMap
+
+  /** `y` occurs in `x` of type `t`, as a Lean proposition: None if a value of `t` can never hold one of
+    * `target`; Left for a type FrFlow cannot unfold (a recursive one).
+    */
+  private def occurs(y: String, x: String, t: LT, target: LT, seen: Set[String] = Set.empty): Either[String, Option[String]] =
+    val fresh = s"z${seen.size}_${x.count(_ == '.')}${x.length}'"
+    def any(parts: List[Either[String, Option[String]]]): Either[String, Option[String]] =
+      parts.collectFirst { case Left(w) => w }.toLeft {
+        val ps = parts.collect { case Right(Some(p)) => p }
+        Option.when(ps.nonEmpty)(ps.mkString("(", " ∨ ", ")"))
+      }
+    if t == target then Right(Some(s"$y = $x"))
+    else t match
+      case LT.ListOf(e)   => occurs(y, fresh, e, target, seen).map(_.map(b => s"(∃ $fresh ∈ $x, $b)"))
+      case LT.OptionOf(e) => occurs(y, fresh, e, target, seen).map(_.map(b => s"(∃ $fresh, $x = some $fresh ∧ $b)"))
+      case LT.Prod(a, b)  => any(List(occurs(y, s"$x.1", a, target, seen), occurs(y, s"$x.2", b, target, seen)))
+      case LT.Fun         => Right(None)
+      case LT.Name(n) => typeDecls.get(n) match
+        case None => Right(None)
+        case Some(_) if seen(n) => Left(s"$n is recursive")
+        case Some(d) if d.ctors.size == 1 && d.ctors.head._1 == "mk" =>
+          any(d.ctors.head._2.map((f, ft) => occurs(y, s"$x.$f", parseType(ft), target, seen + n)))
+        case Some(d) =>
+          val cases = d.ctors.map { (c, fs) =>
+            val vars = fs.indices.map(i => s"${fresh}$i").toList
+            (c, vars, any(fs.zip(vars).map { case ((_, ft), v) => occurs(y, v, parseType(ft), target, seen + n) }))
+          }
+          cases.collectFirst { case (_, _, Left(w)) => w }.toLeft {
+            Option.when(cases.exists(_._3.exists(_.isDefined)))(cases.map { (c, vs, b) =>
+              s"| $n.$c${vs.map(" " + _).mkString} => ${b.toOption.flatten.getOrElse("False")}"
+            }.mkString(s"(match $x with ", " ", ")"))
+          }
+
+  /** That a contract's view of an invariant lists every value of the rule's type the result holds,
+    * each paired with the call's input of the rule's first type (when exactly one input has it): a view
+    * cannot leave out, or pair with someone else, what the result shows. Left when it cannot be stated.
+    */
+  def coverage(n: Node[?], inv: Node[?]): Either[String, Option[String]] =
+    val ts = n.post.get.params.map(_._2)
+    val rule = inv.spec.get.params.map(_._2)
+    val target = parseType(rule(1))
+    // About a value of the domain (a record, an opaque thing), not a number or a string, which every
+    // result may hold for other reasons.
+    val domain = target match
+      case LT.Name(t) => typeDecls.contains(t) || nodeCtx(n).opaques.contains(t)
+      case _          => false
+    if !domain then Right(None) else occurs("y'", s"x${ts.size - 1}", parseType(ts.last), target).map(_.map { occ =>
+      val readers = ts.init.zipWithIndex.filter((t, _) => parseType(t) == parseType(rule(0))).map(_._2)
+      val pair = readers match
+        case List(i) => s"p.1 = x$i ∧ p.2 = y'"
+        case _       => "p.2 = y'"
+      s"∀ (y' : ${rule(1)}), $occ → ∃ p ∈ ${at(n)(s"view_${inv.id}")} ${ts.indices.map(i => s"x$i").mkString(" ")}, $pair"
+    })
+
   /** What a node claims, from what it says (`premise`): its link, each invariant it keeps, its proven
     * implementation. `vacuous` is why the claim says nothing if it holds without the premise.
     */
@@ -185,11 +272,13 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
         s"Every model that meets ${n.id} meets ${p.id}.", s"vacuous: ${p.id} holds whatever ${n.id} says")
     }
     def call(ts: List[String]) = (ts.zipWithIndex.map((t, i) => s"(x$i : $t)").mkString(" "), ts.indices.map(i => s"x$i").mkString(" "))
-    val keeps = formalKeeps(n).map { (inv, _) =>
+    val keeps = formalKeeps(n).flatMap { (inv, _) =>
       val (vars, xs) = call(n.post.get.params.map(_._2))
       Claim(s"inv_${inv.id}", vars, Some(s"${at(n)("post")} $xs"),
         s"∀ p, p ∈ ${at(n)(s"view_${inv.id}")} $xs → ${at(n)(s"rule_${inv.id}")} p.1 p.2", s"Every call ${n.id} allows keeps ${inv.id}.",
-        s"kept in name only: the pairs the view lists meet ${inv.id}'s rule whatever the call returns")
+        s"kept in name only: the pairs the view lists meet ${inv.id}'s rule whatever the call returns") ::
+      coverage(n, inv).toOption.flatten.map(c =>
+        Claim(s"cover_${inv.id}", vars, None, c, s"The view of ${inv.id} lists all the result holds of it, each with the caller.")).toList
     }
     val impl = provenImpl(n).map { d =>
       val (vars, xs) = call(n.post.get.params.init.map(_._2))
@@ -355,7 +444,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
     val mine = isAuthored(n, o.name)
     val proof = if mine then s"$K.${n.id}.Proofs.${o.name}" else s"by\n  unfold Obl.${o.name}\n  frflow_auto"
     Header + s"import ${specModule(n.id)}\n" + (if mine then s"import ${proofsModule(n.id)}\n" else "") + "\n" + Preamble +
-      s"namespace $ns\nopen $K.${n.id}\n\ntheorem ${o.name} : Obl.${o.name} := $proof\n\n#print axioms ${o.name}\n\nend $ns\n"
+      s"namespace $ns\nopen $K.${n.id}\n\ntheorem ${o.name} : Obl.${o.name} := $proof\n\nend $ns\n\n#print axioms $ns.${o.name}\n"
 
   def oblModule(id: String, name: String) = s"FrFlowGen.$K.$id.${name.capitalize}"
 
@@ -370,7 +459,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
     Header + s"import ${theoremsModule(n.id)}\nimport ${oblModule(n.id, "impl")}\n\n" + Preamble +
       s"namespace $K.${n.id}.RootImpl\nopen $K.${n.id}\n\n/-- The root holds of ${d.name}, the code. -/\n" +
       s"theorem root_impl : $statement := by\n$intro  exact ${if a.isEmpty then "root" else s"root $a"} _ ($K.${n.id}.Impl.impl${if a.isEmpty then "" else s" $a"})\n\n" +
-      s"#print axioms root_impl\n\nend $K.${n.id}.RootImpl\n"
+      s"end $K.${n.id}.RootImpl\n\n#print axioms $K.${n.id}.RootImpl.root_impl\n"
   }
 
   /** What frflow_auto tries for a check that the node says nothing. */

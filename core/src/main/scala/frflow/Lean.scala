@@ -83,7 +83,9 @@ object Lean:
     "set_option" -> """\bset_option\b(?!\s+(maxHeartbeats\b|maxRecDepth\b|autoImplicit\b|linter\.))""".r,
     "metaprogram" -> """(#eval|#exit|\brun_cmd\b|\brun_tac\b|\brun_meta\b|\brun_elab\b|\bby_elab\b|\belab\b|\bmacro\b|\bmacro_rules\b|\bsyntax\b|\binitialize\b|\bbuiltin_initialize\b|\belab_rules\b|\bLean\.)""".r,
     "attribute" -> """\battribute\b|@\[""".r,
-    "import" -> """^\s*import\s+(?!FrFlowGen\.|FrFlow\b|Std\b|Init\b|Proofs\.\w+\.Lemmas\b)""".r
+    // Only what states things: the domain, the nodes' specs, FrFlow's kernel, the shared lemmas. Never
+    // a node's theorems or its Auto module, which holds an assumed link's axiom.
+    "import" -> """^\s*import\s+(?!FrFlowGen\.\w+\.Domain\s*$|FrFlowGen\.\w+\.\w+\.Spec\s*$|FrFlow\b|Std\b|Init\b|Proofs\.\w+\.Lemmas\s*$)""".r
   )
 
   /** The lemma modules a proof file imports (`Proofs.<KB>.Lemmas`). */

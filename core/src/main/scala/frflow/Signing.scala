@@ -10,13 +10,10 @@ import scala.jdk.CollectionConverters.*
 /** Decisions signed by the developer's key, so one an agent wrote into the ledger shows.
   *
   * The browser server holds the private key, outside the repository (where agents do not run);
-  * the public keys are committed in `.frflow/keys/<id>.pub`, so adding one shows in git. Once a
-  * project has a key, every decision of the developer's (all but the agent's `settle`) must be
-  * signed by one of them, or `status` warns.
+  * the public keys are committed in `.frflow/keys/<id>.pub`, so adding one shows in git. Every
+  * decision must be signed by one of them, or `status` warns; with no key, no decision counts.
   */
 object Signing:
-  /** What the agent records; it needs no signature, and never passes the gate alone. */
-  def byAgent(action: String): Boolean = action == "settle"
 
   private def b64(bytes: Array[Byte]) = Base64.getEncoder.encodeToString(bytes)
 
@@ -112,12 +109,10 @@ object Signing:
 
   /** The developer's decisions not signed by a developer key; none while the project has never had a key. */
   def unsigned(l: Ledger, dir: Path): List[(String, Decision)] =
-    // A project signs once it has (or had, or CI names) a key: then no key means nothing is signed.
-    val signs = keyFiles(dir).nonEmpty || sys.env.contains("FRFLOW_DEVELOPER_KEYS") ||
-      Option(dir.getParent).flatMap(p => Option(p.getParent)).exists(root => Git.removed(root, root.relativize(dir).toString).nonEmpty)
+    // Every decision is signed, from the first: with no developer key yet, none counts (anyone who can
+    // write the ledger could have written it).
     val keys = this.keys(dir)
-    if !signs then Nil
-    else l.decisions.toList.sortBy(_._1).flatMap((id, ds) => ds.filterNot(d => byAgent(d.action) || verify(keys, id, d)).map(id -> _))
+    l.decisions.toList.sortBy(_._1).flatMap((id, ds) => ds.filterNot(d => verify(keys, id, d)).map(id -> _))
 
   /** The signing key at `file` (created if missing), with its public key. */
   def loadOrCreate(file: Path): (PrivateKey, PublicKey) =
@@ -145,9 +140,9 @@ object Signing:
   def signNew(before: Ledger, now: Ledger, priv: PrivateKey, pub: PublicKey): Ledger =
     Ledger(now.decisions.map { (id, ds) =>
       val old = before.history(id).map(_.unsigned).toSet
-      id -> ds.map(d => if !byAgent(d.action) && !old(d.unsigned) then sign(priv, pub, id, d) else d)
+      id -> ds.map(d => if !old(d.unsigned) then sign(priv, pub, id, d) else d)
     })
 
   /** Signs the named decisions (by `Ledger.entry`), the developer vouching for them. */
   def signEntries(l: Ledger, entries: Set[String], priv: PrivateKey, pub: PublicKey): Ledger =
-    Ledger(l.decisions.map((id, ds) => id -> ds.map(d => if entries(Ledger.entry(d)) && !byAgent(d.action) then sign(priv, pub, id, d) else d)))
+    Ledger(l.decisions.map((id, ds) => id -> ds.map(d => if entries(Ledger.entry(d)) then sign(priv, pub, id, d) else d)))

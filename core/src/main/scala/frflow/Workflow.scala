@@ -71,7 +71,9 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   private lazy val kernelHash: String =
     val dir = ws.lean.resolve(ws.kernelPath).normalize.resolve("FrFlow")
     val files = if Files.isDirectory(dir) then Files.list(dir).iterator.asScala.toList.sortBy(_.toString) else Nil
-    sha(files.flatMap(read)*)
+    // The kernel's modules, its root module, and the Lean toolchain of the kernel and the project.
+    val kernel = ws.lean.resolve(ws.kernelPath).normalize
+    sha((files.flatMap(read) ++ List(kernel.resolve("FrFlow.lean"), kernel.resolve("lean-toolchain"), ws.lean.resolve("lean-toolchain")).map(p => read(p).getOrElse("")))*)
 
   /** The idea a root is decided against: IDEA.md without its `## Not modelled` section. */
   def ideaDecided: String = Decisions.splitIdea(idea)._1
@@ -305,12 +307,26 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     }.toList
     // What the contract leaves to the examples: whether doing nothing meets it.
     val idle = g.idle(n).map((o, what) => Result("idle", if lake.elaborate(g.oblPath(n.id, o.name)).ok then "proven" else "open", what)).toList
-    val invRunsAll = invRuns ++ rootImpl
+    // A view whose coverage cannot be stated keeps nothing proven.
+    val uncovered = g.formalKeeps(n).flatMap((i, _) => g.coverage(n, i).left.toOption.map(w =>
+      (Result(s"cover_${i.id}", "failed", s"what the view must list cannot be stated: $w"), Nil)))
+    val invRunsAll = invRuns ++ uncovered ++ rootImpl
     val used = (g.auditedTheorems(n).flatMap(t => ax.getOrElse(t, List("<no audit result>"))) ++ invRunsAll.flatMap(_._2)).distinct.sorted
-    val extra = used.filterNot(a => Lean.allowedAxioms(a) || g.assumptions(n).contains(a))
+    // An assumed link may stand under the root theorems only; what is proven of the node itself (its
+    // invariants, implementation, expectations) rests on Lean's axioms alone.
+    val rootAxioms = (g.auditedTheorems(n).flatMap(t => ax.getOrElse(t, Nil)) ++ rootImpl.flatMap(_._2)).toSet
+    val extra = used.filterNot(a => Lean.allowedAxioms(a) || (g.assumptions(n).contains(a) && rootAxioms(a) && !invRuns.exists(_._2.contains(a))))
     val all = results ++ invRunsAll.map(_._1) ++ idle
     if extra.nonEmpty then done("failed", all, List(s"disallowed axioms: ${extra.mkString(", ")}"), used)
     else done("proven", all, invRunsAll.collect { case (r, _) if r.status != "proven" => r.detail }, used)
+
+  /** A proven implementation at or below `n`, reached through no assumed link: something meets `n`. */
+  private def witnessed(n: Node[?]): Boolean =
+    kb.nodes.exists { c =>
+      val path = kb.path(c)
+      generate.provenImpl(c).isDefined && path.exists(_ eq n) && !path.dropWhile(p => !(p eq n)).exists(_.assumed) &&
+        current(c).exists(k => k.status == "proven" && k.obligations.exists(o => o.name == "root_impl" && o.status == "proven"))
+    }
 
   /** The recorded check of a node, if still current. */
   def current(n: Node[?]): Option[NodeCheck] =
@@ -348,6 +364,10 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
         // An authored link counts once something is shown to meet the node.
         case Some(r) if r.status == "proven" && c.obligations.exists(o => o.name == "feasible" && o.status != "proven") =>
           st("open", "the link is proven by hand: prove `feasible` too (some model meets the node), or give a proven implementation")
+        // Without `feasible`, the witness is the proven implementation below: it must be proven, and
+        // reached through no assumed link.
+        case Some(r) if r.status == "proven" && r.detail == "authored" && !generate.obligations(n).exists(_.name == "feasible") && !witnessed(n) =>
+          st("open", "the link is proven by hand, and nothing shown meets the node yet: the implementation below must be proven (through no assumed link), or prove `feasible`")
         case Some(r) => st(r.status, r.detail)
         case None if c.status == "model-error" => st("failed", "the model does not build: " + c.messages.headOption.getOrElse(""))
         case None if c.status == "failed" && n.kind != NodeKind.Instantiate => st("failed", c.messages.headOption.getOrElse("the check failed"))
@@ -467,9 +487,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val ok = Decisions.complete(a) && warnings.isEmpty
     val notes = Ledger.restarts(ws.root, ws.ledgerFile).filter(c => ledger.acknowledged.exists(c.startsWith))
       .map(c => s"the ledger was restarted in commit ${c.take(10)} (acknowledged); earlier decisions are in git history")
-    val pending = Decisions.unendorsed(a)
     (Decisions.tree(a) + "\n\n" + coverage + "\n" + notes.map("note: " + _ + "\n").mkString + warnings.map("warning: " + _ + "\n").mkString +
-      (if pending.nonEmpty then s"The agent settled ${pending.mkString(", ")}: the developer endorses it in the browser before this passes.\n" else "") +
       (if ok then "Every node is accepted, proven (or decided by reading, where it opted out of Lean), and its examples pass."
        else "Not every node is accepted, proven, and passing its examples, or there are warnings.") + "\n", ok)
 
@@ -482,7 +500,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val formal = links.filter(l => l.formal && !l.assumed)
     val assumedLinks = links.filter(l => l.formal && l.assumed)
     val contracts = kb.nodes.filter(_.kind == NodeKind.Contract)
-    val proven = contracts.filter(c => g.provenImpl(c).isDefined && current(c).exists(_.obligations.exists(o => o.name == "root_impl" && o.status == "proven")))
+    val proven = contracts.filter(c => g.provenImpl(c).isDefined && current(c).exists(k => k.status == "proven" && k.obligations.exists(o => o.name == "root_impl" && o.status == "proven")))
     val plain = contracts.filter(c => kb.implementation(c).exists(_.proven.isEmpty))
     val designs = kb.nodes.filter(_.kind == NodeKind.Design)
     s"Proofs: ${formal.size} of ${links.size} links proven in Lean${if assumedLinks.nonEmpty then s" (${assumedLinks.map(_.id).mkString(", ")} assumed: decided by reading, named by every root theorem that rests on them)" else ""}" +
@@ -519,7 +537,6 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
           case "accept"  => sb ++= s"Change accepted by ${d.by}: ${d.reason}\n\n"
           case "confirm" => sb ++= s"Confirmed by ${d.by}: ${d.reason}\n\n"
           case "revisit" => sb ++= s"To revisit (${d.by}): ${d.reason}\n\n"
-          case "settle"  => sb ++= s"Settled by the agent: ${d.reason}\n\n"
           case "migrate" => () // a new FrFlow recorded the same decision in a new shape
           case _         => ()
       }
@@ -600,7 +617,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
           }
         }
       if causes.contains("code") then
-        val since = l.developerBinding(n.id).orElse(l.binding(n.id)).map(d => if Git.has(ws.root, d.tree) then d.tree else d.commit).getOrElse("")
+        val since = l.binding(n.id).map(d => if Git.has(ws.root, d.tree) then d.tree else d.commit).getOrElse("")
         val d = code(n).fold("")(c => Git.diff(ws.root, since, c.files))
         sb ++= (if d.nonEmpty then s"- the code it governs changed:\n```diff\n$d```\n" else "- the code it governs changed (no git diff available)\n")
       sb ++= "\n"
@@ -671,7 +688,12 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
           val (st, detail) =
             if k.view.isEmpty then ("exempt", k.exempt)
             else if !g.formalKeeps(n).exists(_._1 eq k.invariant) then ("informal", "checked on the examples and at run time; not formalized")
-            else check.flatMap(_.obligations.find(_.name == name)).fold(("unchecked", "not checked yet"))(r => (r.status, r.detail))
+            else check.fold(("unchecked", "not checked yet")) { c =>
+              // Kept: the rule holds of every pair the view lists, and the view lists all the result holds.
+              val rs = c.obligations.filter(o => o.name == name || o.name == s"cover_${k.invariant.id}")
+              rs.find(_.status == "failed").orElse(rs.find(_.status != "proven")).orElse(rs.find(_.name == name))
+                .fold(("unchecked", "not checked yet"))(r => (r.status, if r.name == name then r.detail else s"coverage: ${r.detail}"))
+            }
           obj("id" -> str(k.invariant.id), "view" -> str(k.view.fold("")(_.source)),
             "rule" -> str(k.invariant.spec.fold("")(_.source)), "status" -> str(st), "detail" -> str(detail))
         }),
@@ -684,7 +706,8 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
           val (st, detail) =
             if !g.formal(n) then ("informal", "the contract is out of Lean: checked on the examples and at run time")
             else check.flatMap(c => c.obligations.find(_.name == "impl").map(r =>
-              c.obligations.find(_.name == "root_impl").filter(_ => r.status == "proven").fold((r.status, r.detail))(ri => (ri.status, ri.detail))))
+              if c.status == "failed" && r.status == "proven" then ("failed", c.messages.headOption.getOrElse("the node's check failed"))
+              else c.obligations.find(_.name == "root_impl").filter(_ => r.status == "proven").fold((r.status, r.detail))(ri => (ri.status, ri.detail))))
               .getOrElse(("unchecked", "not checked yet"))
           obj("name" -> str(d.name), "status" -> str(st), "detail" -> str(detail))
         },

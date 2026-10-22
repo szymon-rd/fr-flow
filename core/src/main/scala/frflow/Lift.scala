@@ -160,6 +160,19 @@ private final class Translator(using val quotes: Quotes):
     */
   private val binders = mutable.LinkedHashMap.empty[String, Position]
   private def bound(n: String, pos: Position): String = { binders.getOrElseUpdate(n, pos); n }
+  /** Every local binder gets a Lean name of its own, used by no other binder in the expression: an
+    * inner binder can then never capture an outer variable, whatever the Scala names (`x` and `x_1`,
+    * a placeholder `_$1`, the same name in two scopes).
+    */
+  private val taken = mutable.Map.empty[String, AnyRef]
+  private def unique(owner: AnyRef, base: String, pos: Position, ok: String => Boolean = _ => true): String =
+    // Nor a name a domain type starts with: `Share.mk` would read a field of a variable `Share`.
+    val n = (Iterator(base) ++ Iterator.from(1).map(i => s"${base}_$i"))
+      .find(c => taken.get(c).forall(_ eq owner) && !paramRefs.contains(c) && !opaques.contains(c) &&
+        !types.keys.exists(t => t == c || t.startsWith(c + ".")) && ok(c)).get
+    taken(n) = owner
+    bound(n, pos)
+  private def local(sym: Symbol, pos: Position): String = unique(sym, ident(sym.name), pos)
   private def checkCapture(): Unit =
     binders.find((n, _) => paramRefs.contains(n) || opaques.contains(n)).foreach { (n, pos) =>
       fail(s"`$n` names both a parameter or opaque type and a local variable here; rename the local one", pos)
@@ -177,7 +190,8 @@ private final class Translator(using val quotes: Quotes):
     val ft = TypeRepr.of[F].dealias
     val (params, body) = term match
       case Lambda(ps, b) =>
-        (ps.map(p => bound(ident(p.name), p.pos) -> tpe(p.tpt.tpe, p.pos)), expr(b, ps.map(p => p.symbol -> ident(p.name)).toMap))
+        val names = ps.map(p => local(p.symbol, p.pos))
+        (ps.zip(names).map((p, n) => n -> tpe(p.tpt.tpe, p.pos)), expr(b, ps.map(_.symbol).zip(names).toMap))
       case other => (Nil, expr(other, Map.empty))
     checkCapture()
     val result = tpe(if ft.isFunctionType then ft.typeArgs.last else ft, term.pos)
@@ -194,7 +208,7 @@ private final class Translator(using val quotes: Quotes):
     '{ LeanType(${ Expr(lean) }, $typeList) }
 
   def typeList: Expr[List[TypeDecl]] =
-    Expr.ofList(types.values.toList.map(d => '{ TypeDecl(${ Expr(d.name) }, ${ Expr(d.lean) }, ${ Expr(d.uses) }, ${ Expr(d.scala) }) }))
+    Expr.ofList(types.values.toList.map(d => '{ TypeDecl(${ Expr(d.name) }, ${ Expr(d.lean) }, ${ Expr(d.uses) }, ${ Expr(d.scala) }, ${ Expr(d.ctors) }) }))
 
   /** Lean name of the `val` a `define` is assigned to. */
   def defName: String =
@@ -328,19 +342,19 @@ private final class Translator(using val quotes: Quotes):
         if sym.flags.is(Flags.Enum) then
           s"enum ${sym.name}: " + sym.children.map(c => "case " + c.name + shape(if c.isClassDef then c.caseFields.map(field(c, _)) else Nil)).mkString(", ")
         else s"case class ${sym.name}${shape(sym.caseFields.map(field(sym, _)))}"
-      val (lean, refs) =
+      val ctors: List[(String, List[(String, TypeRepr)])] =
+        if sym.flags.is(Flags.Enum) then sym.children.map(c => ident(c.name) -> (if c.isClassDef then c.caseFields.map(field(c, _)) else Nil))
+        else List("mk" -> sym.caseFields.map(field(sym, _)))
+      val leanCtors = ctors.map((c, fs) => c -> fs.map((n, t) => n -> tpe(t, pos)))
+      val lean =
         if sym.flags.is(Flags.Enum) then
-          val cases = sym.children.map { c =>
-            val fs = if c.isClassDef then c.caseFields.map(field(c, _)) else Nil
-            (s"  | ${ident(c.name)}${fs.map((n, t) => s" ($n : ${tpe(t, pos)})").mkString}", fs.map(_._2))
-          }
-          (s"${doc(sym)}inductive $name where\n${cases.map(_._1).mkString("\n")}", cases.flatMap(_._2))
+          s"${doc(sym)}inductive $name where\n" + leanCtors.map((c, fs) => s"  | $c${fs.map((n, t) => s" ($n : $t)").mkString}").mkString("\n")
         else
-          val fs = sym.caseFields.map(field(sym, _))
-          val body = if fs.isEmpty then "" else " where\n" + fs.map((n, t) => s"  $n : ${tpe(t, pos)}").mkString("\n")
-          (s"${doc(sym)}structure $name$body", fs.map(_._2))
+          val fs = leanCtors.head._2
+          s"${doc(sym)}structure $name" + (if fs.isEmpty then "" else " where\n" + fs.map((n, t) => s"  $n : $t").mkString("\n"))
+      val refs = ctors.flatMap(_._2.map(_._2))
       val uses = refs.flatMap(adtRefs).map(qualifiedName).distinct.filterNot(_ == name)
-      types(name) = TypeDecl(name, lean, uses, scala)
+      types(name) = TypeDecl(name, lean, uses, scala, leanCtors)
       inProgress -= name
     name
 
@@ -359,8 +373,9 @@ private final class Translator(using val quotes: Quotes):
     case Typed(e, _)          => expr(e, env)
     case NamedArg(_, e)       => expr(e, env)
     case Lambda(ps, b) =>
-      val bs = ps.map(v => s"(${bound(ident(v.name), v.pos)} : ${tpe(v.tpt.tpe, v.pos)})").mkString(" ")
-      p(s"fun $bs => ${expr(b, env ++ ps.map(v => v.symbol -> ident(v.name)))}")
+      val names = ps.map(v => local(v.symbol, v.pos))
+      val bs = ps.zip(names).map((v, n) => s"($n : ${tpe(v.tpt.tpe, v.pos)})").mkString(" ")
+      p(s"fun $bs => ${expr(b, env ++ ps.map(_.symbol).zip(names))}")
     case Block(stats, e)      => block(stats, e, env)
     case Literal(c)           => literal(c, t.pos)
     case If(c, a, b)          => p(s"if ${expr(c, env)} then ${expr(a, env)} else ${expr(b, env)}")
@@ -374,7 +389,9 @@ private final class Translator(using val quotes: Quotes):
       if v.symbol.flags.is(Flags.Mutable) then fail("`var` is not supported", v.pos)
       val value = expr(rhs, env)
       if v.symbol.flags.is(Flags.Synthetic) || name.contains('$') then block(rest, e, env + (v.symbol -> value))
-      else p(s"let ${bound(ident(name), v.pos)} : ${tpe(tpt.tpe, v.pos)} := $value; ${block(rest, e, env + (v.symbol -> ident(name)))}")
+      else
+        val n = local(v.symbol, v.pos)
+        p(s"let $n : ${tpe(tpt.tpe, v.pos)} := $value; ${block(rest, e, env + (v.symbol -> n))}")
     case other :: _ => fail("only `val` definitions are supported in blocks", other.pos)
 
   private def literal(c: Constant, pos: Position): String = c.value match
@@ -393,10 +410,11 @@ private final class Translator(using val quotes: Quotes):
 
   private def pattern(t: Tree): (String, Env) = t match
     case Wildcard() => ("_", Map.empty)
-    case b @ Bind(n, Wildcard()) => (bound(ident(n), b.pos), Map(b.symbol -> ident(n)))
-    case b @ Bind(n, inner) =>
+    case b @ Bind(_, Wildcard()) => val n = local(b.symbol, b.pos); (n, Map(b.symbol -> n))
+    case b @ Bind(_, inner) =>
       val (ip, bs) = pattern(inner)
-      (s"${bound(ident(n), b.pos)}@${p(ip)}", bs + (b.symbol -> ident(n)))
+      val n = local(b.symbol, b.pos)
+      (s"$n@${p(ip)}", bs + (b.symbol -> n))
     // A type test would match anything in Lean: refused, unless the type says nothing new.
     case TypedOrTest(inner, tpt) =>
       inner match
@@ -490,8 +508,9 @@ private final class Translator(using val quotes: Quotes):
           strip(f) match
             case Lambda(vs, b) =>
               val q = if name == "forall" then "∀" else "∃"
-              val bs = vs.map(v => s"(${bound(ident(v.name), v.pos)} : ${tpe(v.tpt.tpe, v.pos)})").mkString(" ")
-              return p(s"$q $bs, ${expr(b, env ++ vs.map(v => v.symbol -> ident(v.name)))}")
+              val names = vs.map(v => local(v.symbol, v.pos))
+              val bs = vs.zip(names).map((v, n) => s"($n : ${tpe(v.tpt.tpe, v.pos)})").mkString(" ")
+              return p(s"$q $bs, ${expr(b, env ++ vs.map(_.symbol).zip(names))}")
             case _ => fail(s"$name expects a lambda", f.pos)
         case ("==>", List(List(a), List(b))) => return p(s"${e(a)} → ${e(b)}")
         case _                               => ()
@@ -556,10 +575,9 @@ private final class Translator(using val quotes: Quotes):
     lazy val r = e(q)
     // A binder must not capture a variable of the receiver: `∀ x ∈ r, b` puts `r` in scope of `x`.
     def free(x: String) = !(s"(?<![\\w'.])${java.util.regex.Pattern.quote(x)}(?![\\w'])").r.findFirstIn(r).isDefined
-    def fresh(x: String) = (Iterator(x) ++ Iterator.from(1).map(i => s"${x}_$i")).find(free).get
     def lam(f: Term): (String, String) = strip(f) match
-      case Lambda(List(v), b) => val x = bound(fresh(ident(v.name)), v.pos); (x, expr(b, env + (v.symbol -> x)))
-      case other              => val x = bound(fresh("x"), other.pos); (x, s"${e(other)} $x")
+      case Lambda(List(v), b) => val x = unique(v.symbol, ident(v.name), v.pos, free); (x, expr(b, env + (v.symbol -> x)))
+      case other              => val x = unique(new Object, "x", other.pos, free); (x, s"${e(other)} $x")
     def bin(op: String) = Some(p(s"$r $op ${e(args.head)}"))
     (name, args.size) match
       case ("&&", 1) if qt =:= TypeRepr.of[Boolean]      => bin("∧")

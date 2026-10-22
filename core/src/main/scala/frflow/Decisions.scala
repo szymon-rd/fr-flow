@@ -14,8 +14,6 @@ import frflow.Json.*
   * States:
   *   - `proposed`: not decided yet (or rejected, then reworked);
   *   - `accepted`: decided by the developer, and nothing moved since;
-  *   - `settled`: settled by the agent (see `settleable`), and not endorsed by the developer yet;
-  *     what rests on it may go on, but the knowledge base is not `complete`;
   *   - `review`: something moved since it was decided; `causes` say what:
   *     `self` (the node changed), `above` (the meaning of an ancestor changed), `code` (the code
   *     it governs changed), `revisit` (the developer said a change above, such as an edit of the
@@ -59,7 +57,7 @@ object Decisions:
       ledger.current(s(n, "id")) match
         case Some(d) if d.action == "reject" => if d.hash == s(n, "hash") then "rejected" else "proposed"
         case Some(d) if Ledger.binds(d.action) || d.action == "revisit" =>
-          if causes(n).nonEmpty then "review" else if ledger.settledByAgent(s(n, "id")).isDefined then "settled" else "accepted"
+          if causes(n).nonEmpty then "review" else "accepted"
         case _ => "proposed")
 
   private var last: View = View(JObj(Nil), Ledger.empty)
@@ -70,8 +68,8 @@ object Decisions:
     last
   }
 
-  /** The node holds as decided: accepted by the developer, or settled by the agent (until endorsed). */
-  private def holds(state: String): Boolean = state == "accepted" || state == "settled"
+  /** The node holds as decided. */
+  private def holds(state: String): Boolean = state == "accepted"
 
   /** What a node rests on: its parent's chain, with the chains of the invariants it keeps. A design
     * decision rests on its parent's place, not its meaning: a change above lists it below, to revisit.
@@ -147,9 +145,7 @@ object Decisions:
         "waitsFor" -> waitsFor(snapshot, ledger, n).fold(JNull)(str),
         "moved" -> JArr(moved(snapshot, ledger, n)),
         "decision" -> ledger.chosen(id).fold(JNull)(decisionJson(id, _)),
-        "settledByAgent" -> ledger.settledByAgent(id).fold(JNull)(decisionJson(id, _)),
-        "developerDecision" -> ledger.developerBinding(id).fold(JNull)(decisionJson(id, _)),
-        "settleable" -> JBool(settleable(snapshot, ledger, n).isEmpty),
+        "mechanical" -> JBool(mechanical(snapshot, ledger, n).isEmpty),
         "resembles" -> JArr(resembles(ledger, n)),
         "below" -> JArr(if state(snapshot, ledger, n) == "accepted" then Nil else below(snapshot, ledger, n)),
         "history" -> JArr(ledger.history(id).map(decisionJson(id, _))),
@@ -207,17 +203,16 @@ object Decisions:
   final case class Request(node: String, by: String, reason: String, reject: List[String] = Nil,
       revisit: List[String] = Nil, confirm: List[String] = Nil, action: String = "accept", seen: String = "")
 
-  /** Why the agent may not settle `n`, or None if it may. The developer decides every choice: roots,
-    * instantiations (what the terms mean), design decisions, invariants and how a
-    * contract keeps one, a node with alternatives beside it, a node that introduces terms, a node
-    * out of Lean (its link is decided by reading), a node the developer once rejected, and any change
-    * to what a node says. The agent may settle what is left, where a check re-runs on it: a refinement
-    * or contract whose link Lean proves and whose examples pass, a review where only something above it
-    * moved and Lean proves the link again, or a new proven implementation (a `define` Lean proves to
-    * meet the contract). Plain code is the developer's: its examples are checks, not proofs.
-    * Whatever the agent settles waits for the developer's endorsement: `status` fails until then.
+  /** Why `n` is not mechanical, or None if it is: a decision with no choice in it, where Lean proves
+    * again all there is to prove, which the developer can accept with others in one batch. Not
+    * mechanical: roots, instantiations (what the terms mean), design decisions, invariants and how a
+    * contract keeps one, a node with alternatives beside it, a node that introduces terms, a node out
+    * of Lean, a node the developer once rejected or one resembling a rejected one, a changed reason
+    * (the theory), and any change to what a node says. Mechanical: a refinement or contract whose link
+    * Lean proves and whose examples pass, a review where only something above it moved and Lean proves
+    * the link again, or a new proven implementation. Plain code is not: its examples are checks, not proofs.
     */
-  def settleable(snapshot: Json, ledger: Ledger, n: Json): Option[String] =
+  def mechanical(snapshot: Json, ledger: Ledger, n: Json): Option[String] =
     val v = view(snapshot, ledger)
     val id = s(n, "id")
     val kind = s(n, "kind")
@@ -234,26 +229,13 @@ object Decisions:
     def without(c: Json) = JObj(c.obj.filterNot(_._1 == "implementation"))
     val implOnly = cs.contains("self") && n("implementationProof").exists(p => p != JNull && s(p, "status") == "proven") &&
       ledger.binding(id).exists(d => Decision.hash(without(d.content)) == Decision.hash(without(n("content").getOrElse(JNull))))
-    // Only its reason was reworded: nothing Lean checks moved, and the developer reads it when endorsing.
-    def onlyWhy(c: Json) = JObj(c.obj.filterNot(_._1 == "why"))
-    val whyOnly = cs == List("self") && ledger.binding(id).exists(d => Decision.hash(onlyWhy(d.content)) == Decision.hash(onlyWhy(n("content").getOrElse(JNull))))
-    // Only the shape of a domain type it uses changed (a field added, say), and how its examples print:
-    // no definition, nothing it says. A changed definition stays the developer's: it can carry meaning.
-    def strs(c: Json, k: String) = c(k).map(_.arr.flatMap(_.str).toSet).getOrElse(Set.empty)
-    def isType(u: String) = u.startsWith("case class ") || u.startsWith("enum ")
-    val typesOnly = cs == List("self") && ledger.binding(id).exists { d =>
-      val (was, now) = (d.content, n("content").getOrElse(JNull))
-      def rest(c: Json) = JObj(c.obj.filterNot(f => f._1 == "uses" || f._1 == "examples"))
-      Decision.hash(rest(was)) == Decision.hash(rest(now)) && ((strs(was, "uses") diff strs(now, "uses")) ++ (strs(now, "uses") diff strs(was, "uses"))).forall(isType)
-    }
-    val reproven = st == "review" && cs.nonEmpty && cs.forall(c => c == "above" || (c == "self" && (implOnly || whyOnly || typesOnly)))
-    if !Set("refine", "contract")(kind) && !(kind == "instantiate" && st == "review" && typesOnly) then Some(s"$kind nodes are the developer's to decide")
+    val reproven = st == "review" && cs.nonEmpty && cs.forall(c => c == "above" || (c == "self" && implOnly))
+    if !Set("refine", "contract")(kind) then Some(s"$kind nodes hold a choice")
     else if st == "accepted" then Some(s"$id is already accepted")
-    else if st == "settled" then Some(s"$id is already settled: the developer endorses it")
     else if st == "rejected" then Some(s"$id was rejected")
     else if ledger.history(id).exists(_.action == "reject") then Some(s"the developer rejected $id once: they decide it again")
     else if resembles(ledger, n).nonEmpty then Some(s"$id says what the rejected ${resembles(ledger, n).map(s(_, "id")).mkString(", ")} said: the developer decides")
-    else if !link.contains("proven") then Some(s"$id's link is ${link.getOrElse("unchecked")}: only a link Lean proves is settled by the agent")
+    else if !link.contains("proven") then Some(s"$id's link is ${link.getOrElse("unchecked")}: only a link Lean proves is mechanical")
     else if cs.contains("code") then Some(s"the code $id governs changed, and no proof covers it: the developer decides")
     else if st == "review" && !reproven then Some(s"what $id says changed: the developer decides")
     else if st == "proposed" && siblings.nonEmpty then Some(s"$id stands beside ${siblings.map(s(_, "id")).mkString(", ")}: an alternative or a part, the developer decides")
@@ -304,7 +286,9 @@ object Decisions:
           holds(state(snapshot, ledger, c)) && ledger.binding(cid).isDefined
       }.map(c => obj("id" -> str(s(c, "id")), "kind" -> str("accepted"),
         "statement" -> c("content").flatMap(_("statement")).getOrElse(str("")), "reason" -> str(ledger.chosen(s(c, "id")).fold("")(_.reason))))
-    own ++ elsewhere
+    // With each its why: the theory a change may undo is often written there, not in the reason.
+    val all = byId(snapshot)
+    (own ++ elsewhere).map(b => JObj(b.obj :+ ("why" -> all.get(s(b, "id")).flatMap(_("content")).flatMap(_("why")).getOrElse(str("")))))
 
   private def isBelow(snapshot: Json, id: String, ancestor: String): Boolean =
     structure(snapshot).ids.get(id).flatMap(_("parent").flatMap(_.str)).exists(p => p == ancestor || isBelow(snapshot, p, ancestor))
@@ -329,10 +313,7 @@ object Decisions:
     def make(action: String, n: Json, rejected: List[String], reason: String) =
       Decision(action, n("content").getOrElse(JNull), parentChain(snapshot, n), r.by, at, reason, rejected, code(n), commit, tree)
     if r.by.trim.isEmpty then Left("say who decides")
-    else if !Set("accept", "reject", "settle", "acknowledge", "migrate")(r.action) then Left(s"unknown decision ${r.action}")
-    // Whether the agent may settle it at all comes first.
-    else if r.action == "settle" && ids.get(r.node).flatMap(settleable(snapshot, ledger, _)).isDefined then
-      Left(s"the agent may not settle this: ${settleable(snapshot, ledger, ids(r.node)).get}")
+    else if !Set("accept", "reject", "acknowledge", "migrate")(r.action) then Left(s"unknown decision ${r.action}")
     else if r.reason.trim.split("\\s+").count(_.exists(_.isLetter)) < 3 then
       Left("give the reason for the decision in a few words: it is kept as part of the theory")
     else if r.action == "acknowledge" then
@@ -354,10 +335,6 @@ object Decisions:
         // Only the shape of what FrFlow records changed (a new FrFlow), not what the node says.
         if st(ledger, r.node) != "review" || causes(snapshot, ledger, n) != List("self") then Left(s"only a node whose own content changed shape is migrated")
         else Right(ledger.add(r.node, make("migrate", n, Nil, r.reason)))
-      else if r.action == "settle" then
-        settleable(snapshot, ledger, n) match
-          case Some(why) => Left(s"the agent may not settle this: $why")
-          case None => Right(ledger.add(r.node, make("settle", n, Nil, r.reason)))
       else if r.action == "reject" then
         if st(ledger, r.node) != "proposed" then Left(s"${r.node} is ${st(ledger, r.node)}: only a proposal is rejected on its own")
         else
@@ -374,11 +351,8 @@ object Decisions:
       else
         // Choosing (or accepting a change to the node itself) is an acceptance; otherwise a confirmation.
         val cs = causes(snapshot, ledger, n)
-        // What the agent settled is endorsed only by an acceptance.
-        val action = if st(ledger, r.node) == "review" && !cs.contains("self") && r.reject.isEmpty && ledger.settledByAgent(r.node).isEmpty then "confirm" else "accept"
-        // Accepting what the agent settled endorses it.
-        val endorse = st(ledger, r.node) == "settled"
-        val chosen = if st(ledger, r.node) == "accepted" && r.reject.isEmpty && !endorse then ledger
+        val action = if st(ledger, r.node) == "review" && !cs.contains("self") && r.reject.isEmpty then "confirm" else "accept"
+        val chosen = if st(ledger, r.node) == "accepted" && r.reject.isEmpty then ledger
           else ledger.add(r.node, make(action, n, r.reject, r.reason))
         val withRejected = r.reject.foldLeft(chosen)((l, x) => l.add(x, make("reject", ids(x), Nil, s"${r.node} was chosen instead: ${r.reason}")))
         // Parents first, as listed below the node.
@@ -418,7 +392,7 @@ object Decisions:
       val cs = n("causes").map(_.arr.flatMap(_.str)).getOrElse(Nil)
       val st = if cs.nonEmpty then s"review: ${cs.mkString(", ")}"
         else if s(n, "state") == "rejected" then "rejected: remove it from the model"
-        else if s(n, "state") == "settled" then "settled by the agent, not endorsed yet" else s(n, "state")
+        else s(n, "state")
       val link = n("link").filter(_ != JNull).fold("") { l => s", link ${s(l, "status")}${if s(l, "detail").nonEmpty then s" (${s(l, "detail")})" else ""}" }
       val (ok, total) = examples(n)
       val ex = if total == 0 then "" else s", examples $ok/$total"
@@ -460,20 +434,17 @@ object Decisions:
     val ids = byId(annotated)
     // A node resting on a rejected node waits for the agent to move it, not for the developer.
     val orphan = (n: Json) => n("parent").flatMap(_.str).flatMap(ids.get).exists(p => s(p, "state") == "rejected")
-    val agentMay = (n: Json) => n("settleable").contains(JBool(true))
-    val dev = ns.filter(n => Set("proposed", "review")(s(n, "state")) && !orphan(n) && !agentMay(n)).map { n =>
+    val dev = ns.filter(n => Set("proposed", "review")(s(n, "state")) && !orphan(n)).map { n =>
       val cs = n("causes").map(_.arr.flatMap(_.str)).getOrElse(Nil)
-      s"${s(n, "id")}: ${if cs.isEmpty then "proposed" else s"review (${cs.mkString(", ")})"}"
-    } ++ ns.filter(n => s(n, "state") == "settled")
-      .map(n => s"${s(n, "id")}: settled by the agent; endorse it, or ask for a change") ++
+      s"${s(n, "id")}: ${if cs.isEmpty then "proposed" else s"review (${cs.mkString(", ")})"}${if n("mechanical").contains(JBool(true)) then ", mechanical" else ""}"
+    } ++
       annotated("gone").map(_.arr.toList).getOrElse(Nil).map(g => s"${s(g, "id")}: gone from the model; accept that it is gone")
     val revisits = ns.filter(n => n("causes").exists(_.arr.flatMap(_.str).contains("revisit"))).map { n =>
       val why = n("history").map(_.arr.toList).getOrElse(Nil).reverse.find(h => s(h, "action") == "revisit").fold("")(h => s(h, "reason"))
       s"${s(n, "id")}: the developer asked to revisit it ($why): propose a change, or answer on the node (answer with node) why it still holds"
     }
     val agent = ns.filter(n => s(n, "state") == "rejected").map(n => s"${s(n, "id")}: rejected; remove it from the Scala model") ++ revisits ++
-      ns.filter(orphan).map(n => s"${s(n, "id")}: rests on rejected ${s(n, "parent")}; move it under the node chosen instead") ++
-      ns.filter(agentMay).map(n => s"${s(n, "id")}: mechanical; settle it (settle tool) once you have read its reasons and those around it")
+      ns.filter(orphan).map(n => s"${s(n, "id")}: rests on rejected ${s(n, "parent")}; move it under the node chosen instead")
     (dev, agent)
 
   /** The CI gate: every node accepted by the developer, every link proven, every example passing; rejected nodes
@@ -489,6 +460,3 @@ object Decisions:
         n("expectations").forall(_.arr.forall(e => Set("proven", "informal")(s(e, "status"))))
     }
 
-  /** The nodes the agent settled that the developer has not endorsed yet. */
-  def unendorsed(annotated: Json): List[String] =
-    nodes(annotated).filter(n => s(n, "state") == "settled").map(s(_, "id"))

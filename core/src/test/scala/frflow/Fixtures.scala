@@ -62,3 +62,6 @@ val squareKb = KnowledgeBase("Square", idea = "IDEA.md")(nonNegative, squares)
 /** Implementations written as definitions, for proven implementations. */
 val longOnes = define { (shelf: List[Book], n: Int) => shelf.filter(b => b.pages >= minPages.value) }
 val anyOnes = define { (shelf: List[Book], n: Int) => shelf }
+
+/** A filter, hidden in a definition. */
+val onShelf = define { (shelf: List[Book], picked: List[Book]) => picked.filter(b => shelf.contains(b)) }

@@ -30,6 +30,17 @@ class LiftSuite extends munit.FunSuite:
     assertEquals(c.paramObjects.map(_.name), List("good"))
   }
 
+  test("no binder captures another variable, whatever the Scala names") {
+    // `x` inside would become `x_1` if names were made fresh only against the receiver: `x_1 = x_1`.
+    val c = Lifted((l: List[Book], x_1: Book) => l.forall(x => x == x_1))
+    assertEquals(c.body, "(∀ x ∈ l, (x = x_1))")
+    val d = Lifted((l: List[Book], x: Book) => l.forall(x_1 => l.exists(x => x == x_1)))
+    assert(!d.body.contains("(x = x)") && !d.body.contains("(x_1 = x_1)"), d.body)
+    // the same name in two scopes: two Lean names
+    val e = Lifted((l: List[Book]) => l.forall(b => b.pages > 0) && l.exists(b => b.pages > 1))
+    assertEquals(e.body, "((∀ b ∈ l, (b.pages > 0)) ∧ (∃ b_1 ∈ l, (b_1.pages > 1)))")
+  }
+
   test("tuple fields follow Lean's nesting: A × B × C is A × (B × C)") {
     val c = Lifted((t: (BigInt, BigInt, BigInt)) => t._2 * 10 + t._3)
     assertEquals(c.body, "((t.2.1 * 10) + t.2.2)")

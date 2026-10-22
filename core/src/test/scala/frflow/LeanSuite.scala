@@ -123,6 +123,10 @@ class LeanSuite extends munit.FunSuite:
     val w = workflow(KnowledgeBase("Inv", idea = "IDEA.md")(onlyGood, listed, books, kept, fromShelf, atMostN, inName))
     val c = w.check().find(_._1.id == "Pick").get._2
     assertEquals(c.obligations.find(_.name == "inv_FromShelf").map(_.status), Some("proven"), c)
+    // the view lists every book picked, with the shelf it was asked of
+    assertEquals(c.obligations.find(_.name == "cover_FromShelf").map(_.status), Some("proven"), c)
+    // a rule about numbers is not about what the result holds
+    assertEquals(c.obligations.find(_.name == "cover_AtMostN"), None, c)
     assertEquals(c.obligations.find(_.name == "inv_AtMostN").map(_.status), Some("open"), c)
     assertEquals(c.obligations.find(_.name == "inv_InName").map(_.status), Some("failed"), c)
     // an authored proof that uses sorry is not a proof, however Lean prints its axioms
@@ -145,6 +149,13 @@ class LeanSuite extends munit.FunSuite:
         |""".stripMargin)
     val sorried = w.check(Some("Pick")).head._2
     assertEquals(sorried.obligations.find(_.name == "inv_AtMostN").map(r => (r.status, r.detail)), Some(("open", "uses sorry")), sorried)
+  }
+
+  test("a view that leaves out what the result holds keeps nothing, however it hides the condition") {
+    val fromShelf = Node.invariant[List[Book], Book]("FromShelf", "Only books on the shelf are picked.", "w")((shelf, b) => shelf.contains(b))
+    val hidden = pick.keeps(fromShelf)((shelf, n, picked) => onShelf(shelf, picked).map(b => (shelf, b)))
+    val c = workflow(KnowledgeBase("Hidden", idea = "IDEA.md")(onlyGood, listed, books, hidden, fromShelf)).check().find(_._1.id == "Pick").get._2
+    assertEquals(c.obligations.find(_.name == "cover_FromShelf").map(_.status), Some("open"), c)
   }
 
   test("Lean evaluates each example as Scala does, and a disagreement fails the node") {

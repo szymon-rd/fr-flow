@@ -87,7 +87,7 @@ class ToolsSuite extends munit.FunSuite:
       "params" -> obj("name" -> str(tool), "arguments" -> JObj(args)))).get("result").get
     (r("content").get.arr.head("text").flatMap(_.str).get, r("isError").contains(JBool(true)))
 
-  test("MCP: protocol; the agent settles only what involves no choice, and finds where a change belongs") {
+  test("MCP: protocol; the agent decides nothing, and finds where a change belongs") {
     val p = fake()
     p.run(List("render"), actor = "ui")
     val m = Mcp(List(p))
@@ -95,11 +95,7 @@ class ToolsSuite extends munit.FunSuite:
     assertEquals(init("result").flatMap(_("serverInfo")).map(s(_, "name")), Some("frflow"))
     assertEquals(m.handle(obj("jsonrpc" -> str("2.0"), "method" -> str("notifications/initialized"))), None)
     val names = m.tools.map(s(_, "name"))
-    assertEquals(names, List("inbox", "context", "render", "check", "answer", "settle", "find", "scaffold"))
-    assert(!names.contains("accept"))
-    // a root is the developer's to decide
-    val (refused, isErr) = call(m, "settle", "node" -> str("Root"), "reason" -> str("It is mechanical enough."))
-    assert(isErr && refused.contains("developer"), refused)
+    assertEquals(names, List("inbox", "context", "render", "check", "answer", "find", "scaffold"))
     val (found, _) = call(m, "find", "query" -> str("Stale statement"))
     assert(found.contains("Stale"), found)
     val err = m.handle(obj("jsonrpc" -> str("2.0"), "id" -> JNum(2), "method" -> str("nope"))).get
@@ -180,7 +176,11 @@ class ToolsSuite extends munit.FunSuite:
       assertEquals(st, 201)
       assertEquals(Json.parse(get(base + "/api/p/Fake/kb")._2)("requests").map(_.arr.map(s(_, "text"))), Some(Seq("Propose another")))
       assertEquals(s(post(base + s"/api/p/Fake/requests/${s(r, "id")}", obj("status" -> str("closed")))._2, "status"), "closed")
-      assertEquals(post(base + "/api/p/Fake/idea", obj("text" -> str("# New idea")))._1, 200)
+      val before = if Files.exists(p.root.resolve("IDEA.md")) then Files.readString(p.root.resolve("IDEA.md")) else ""
+      assertEquals(post(base + "/api/p/Fake/idea", obj("text" -> str("# New idea"), "base" -> str(before)))._1, 200)
+      assertEquals(Files.readString(p.root.resolve("IDEA.md")), "# New idea\n")
+      // a save over a file that changed since the editor opened it is refused
+      assertEquals(post(base + "/api/p/Fake/idea", obj("text" -> str("# Mine"), "base" -> str(before)))._1, 409)
       assertEquals(Files.readString(p.root.resolve("IDEA.md")), "# New idea\n")
     }
   }

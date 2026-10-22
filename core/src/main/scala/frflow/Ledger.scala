@@ -21,8 +21,7 @@ final case class NodeCheck(
 
 /** A decision of the developer about a node.
   *
-  * @param action   `accept` (the developer chose the node, as seen), `settle` (the agent settled a
-  *                 node Lean proves again, with no choice in it; the developer endorses it), `confirm`
+  * @param action   `accept` (the developer chose the node, as seen), `confirm`
   *                 (it still holds after something above it moved), `reject` (an alternative not
   *                 chosen, as it was proposed), `revisit` (the developer said a change above may affect
   *                 it, so it is reviewed again), `remove` (the developer agreed that a decided node is
@@ -72,7 +71,7 @@ final case class Ledger(decisions: Map[String, List[Decision]]):
     */
   def chosen(id: String): Option[Decision] =
     history(id).reverse.takeWhile(d => d.action != "reject" && d.action != "remove").reverse
-      .find(d => d.action == "accept" || d.action == "settle")
+      .find(_.action == "accept")
   /** What the node is bound to now: its last acceptance or confirmation (also while the developer
     * has asked to revisit it).
     */
@@ -80,18 +79,6 @@ final case class Ledger(decisions: Map[String, List[Decision]]):
     case Some(d) if d.action == "revisit" => history(id).reverse.find(x => Ledger.binds(x.action))
     case c => c.filter(d => Ledger.binds(d.action))
 
-  /** The agent's last settle of the node, if the developer has not accepted the node since: a
-    * confirmation of something else (a change above it) does not endorse it.
-    */
-  def settledByAgent(id: String): Option[Decision] =
-    if binding(id).isEmpty then None
-    else history(id).reverse.takeWhile(d => !Set("accept", "reject", "remove")(d.action)).find(_.action == "settle")
-
-  /** The developer's last decision binding the node: what a review compares with, so whatever the
-    * agent settled since is shown too.
-    */
-  def developerBinding(id: String): Option[Decision] =
-    history(id).reverse.takeWhile(d => !Set("reject", "remove")(d.action)).find(d => Set("accept", "confirm", "migrate")(d.action))
   def add(id: String, d: Decision): Ledger =
     Ledger(decisions.updated(id, history(id) :+ d.copy(after = current(id).fold("")(Ledger.entry))))
 
@@ -149,7 +136,7 @@ object Ledger:
   /** Actions a node is bound to: the developer's acceptance or confirmation, or the agent settling
     * a mechanical node.
     */
-  def binds(action: String): Boolean = Set("accept", "confirm", "settle", "migrate")(action)
+  def binds(action: String): Boolean = Set("accept", "confirm", "migrate")(action)
 
   /** A short reference to a decision: what was decided, by whom, when and why. */
   private[frflow] def entry(d: Decision): String =
@@ -184,8 +171,8 @@ object Ledger:
     }.toMap)
 
   /** What `status` and the browser warn about the record itself: decisions committed earlier and
-    * since rewritten, restarts of the ledger the developer has not acknowledged, and, once the
-    * project has a developer key, decisions of the developer's not signed with one.
+    * since rewritten, restarts of the ledger the developer has not acknowledged, and decisions of the
+    * developer's not signed with a developer key (with no key yet, none is).
     */
   def warnings(root: Path, file: Path, now: Ledger): List[String] =
     rewrites(root, file, now).collect { case ("", why) => s"the ledger was rewritten: $why" } ++
@@ -193,6 +180,9 @@ object Ledger:
       Signing.untrusted(file.getParent.resolve("keys")).map(k => s"the key $k") ++
       Git.removed(root, root.relativize(file.getParent.resolve("keys")).toString).map((c, f) =>
         s"a developer key ($f) was removed in commit ${c.take(10)}: decisions it signed no longer count; restore it") ++
+      (if now.decisions.nonEmpty && Signing.keys(file.getParent.resolve("keys")).isEmpty then
+        List("no developer key: no decision counts until one signs it. Start the browser (`frflow serve`), which creates your key, commit .frflow/keys/, and sign the decisions there; CI should pin the key with FRFLOW_DEVELOPER_KEYS")
+      else Nil) ++
       Signing.unsigned(now, file.getParent.resolve("keys")).map((id, d) =>
         s"$id: the ${d.action} of ${d.at} by ${d.by} is not signed by a developer key: decide it again in the browser, or sign it there if it is yours")
 

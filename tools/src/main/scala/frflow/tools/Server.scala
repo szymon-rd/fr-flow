@@ -25,7 +25,7 @@ import java.util.concurrent.Executors
   * POST /api/p/NAME/certify  {"key"}         makes another key a developer key of the project
   * POST /api/p/NAME/requests {"node", "text", "by"}
   * POST /api/p/NAME/requests/ID {"status", "answer"}
-  * POST /api/p/NAME/idea     {"text"}        saves IDEA.md and starts a render
+  * POST /api/p/NAME/idea     {"text","base"} saves IDEA.md (refused if it changed since `base`) and starts a render
   * GET  /api/p/NAME/codediff?node=N          how the code a node governs changed since it was decided
   * GET  /api/stream                          server-sent events on every change
   * }}}
@@ -146,7 +146,6 @@ final class Server(projects: List[Project], val token: String = Server.newToken(
               ids("revisit"), ids("confirm"), body("action").flatMap(_.str).getOrElse("accept"),
               body("seen").flatMap(_.str).getOrElse(""))
             if !Project.Ident.matches(req.node) then error(ex, 400, "expected a node id")
-            else if req.action == "settle" then error(ex, 403, "the browser is where the developer decides; the agent settles through MCP")
             else if Set("accept", "reject", "migrate")(req.action) && req.seen.isEmpty then
               error(ex, 400, "send the version of the node you looked at (seen), so a decision on a node that moved is refused")
             else p.decide(req) match
@@ -173,7 +172,12 @@ final class Server(projects: List[Project], val token: String = Server.newToken(
             catch case e: java.util.NoSuchElementException => error(ex, 404, e.getMessage)
           case List("idea") =>
             val text = field("text")
+            // The text the editor started from: a save over a file that changed since is refused.
+            val base = body("base").flatMap(_.str)
+            val now = try Files.readString(p.ideaFile, UTF_8) catch case _: java.io.IOException => ""
             if text.trim.isEmpty then error(ex, 400, "expected text")
+            else if base.isEmpty then error(ex, 400, "send the text you started from (base)")
+            else if base.get.trim != now.trim then error(ex, 409, s"${p.ideaFile.getFileName} changed since you opened it (by the agent, or in another tab): copy your text, reload, and edit again")
             else
               p.saveIdea(text)
               // The roots' content follows from a render, as for any other source.

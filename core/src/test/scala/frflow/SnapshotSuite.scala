@@ -310,7 +310,7 @@ class SnapshotSuite extends munit.FunSuite:
     case f => f
   })
 
-  test("the agent settles only where Lean proves the link, and status waits for the developer to endorse it") {
+  test("a decision is mechanical only where Lean proves it again and nothing in it is a choice; the agent decides nothing") {
     val w = workflow()
     val snap = proven(w.baseSnapshot)
     def ids = nodes(snap)
@@ -318,24 +318,20 @@ class SnapshotSuite extends munit.FunSuite:
     def decide(l: Ledger, id: String, action: String, i: Int, by: String = "dev") =
       Decisions.decide(snap, l, Decisions.Request(id, by, s"$id holds for this reason", action = action), at(i))
     val l1 = decide(Ledger.empty, "OnlyGood", "accept", 1).toOption.get
-    assert(Decisions.settleable(snap, l1, ids("OnlyGood")).exists(_.contains("root nodes are the developer's")))
-    val l2 = decide(l1, "Listed", "settle", 2, "agent").fold(e => fail(e), identity)
-    // what the terms mean is the developer's, however mechanical it looks
-    assert(decide(l2, "Books", "settle", 3, "agent").left.exists(_.contains("instantiate nodes are the developer's")))
-    val a2 = Decisions.annotate(snap, l2)
-    assertEquals(Decisions.unendorsed(a2), List("Listed"))
-    assert(!Decisions.complete(a2))
-    assertEquals(nodes(a2)("Listed")("state").flatMap(_.str), Some("settled"))
-    assert(Decisions.tree(a2).contains("Listed (refine)  [settled by the agent, not endorsed yet"), Decisions.tree(a2))
-    assert(Decisions.waiting(a2)._1.exists(_.startsWith("Listed: settled by the agent")))
-    // the developer endorses it by accepting it
-    val l3 = decide(l2, "Listed", "accept", 4).fold(e => fail(e), identity)
-    assertEquals(Decisions.unendorsed(Decisions.annotate(snap, l3)), Nil)
+    assert(Decisions.mechanical(snap, l1, ids("OnlyGood")).exists(_.contains("root nodes hold a choice")))
+    assertEquals(Decisions.mechanical(snap, l1, ids("Listed")), None)
+    // what the terms mean is a choice, however mechanical it looks
+    assert(Decisions.mechanical(snap, l1, ids("Books")).exists(_.contains("instantiate nodes hold a choice")))
+    val a1 = Decisions.annotate(snap, l1)
+    assertEquals(nodes(a1)("Listed")("mechanical"), Some(Json.JBool(true)))
+    assert(Decisions.waiting(a1)._1.contains("Listed: proposed, mechanical"), Decisions.waiting(a1))
+    // there is no agent's decision
+    assert(decide(l1, "Listed", "settle", 2, "agent").left.exists(_.contains("unknown decision")))
     // a node the developer rejected once is theirs to decide again
-    val l4 = decide(l3, "Books", "reject", 5).fold(e => fail(e), identity)
-    assert(Decisions.settleable(snap, l4, ids("Books")).isDefined)
-    // a link that is not proven is not settled by the agent
-    assert(Decisions.settleable(w.baseSnapshot, l1, nodes(w.baseSnapshot)("Listed")).exists(_.contains("only a link Lean proves")))
+    val l4 = decide(l1, "Listed", "reject", 5).fold(e => fail(e), identity)
+    assert(Decisions.mechanical(snap, l4, ids("Listed")).isDefined)
+    // a link that is not proven is not mechanical
+    assert(Decisions.mechanical(w.baseSnapshot, l1, nodes(w.baseSnapshot)("Listed")).exists(_.contains("only a link Lean proves")))
   }
 
   test("a merged ledger keeps both branches' decisions, and git's full history notices a merge that drops one side") {
@@ -383,7 +379,7 @@ class SnapshotSuite extends munit.FunSuite:
     assert(seconds < 5, s"$seconds s")
   }
 
-  test("rejecting a proposal rejects what rests on it; a reworded why is the agent's to settle, for the developer to endorse") {
+  test("rejecting a proposal rejects what rests on it; a reworded why is the theory, not mechanical, and does not cascade") {
     val w = workflow()
     val snap = proven(w.baseSnapshot)
     def at(i: Int) = f"2026-01-01T00:01:$i%02dZ"
@@ -404,6 +400,6 @@ class SnapshotSuite extends munit.FunSuite:
       case f => f
     })
     assertEquals(Decisions.causes(reworded, all, nodes(reworded)("Listed")), List("self"))
-    assertEquals(Decisions.settleable(reworded, all, nodes(reworded)("Listed")), None)
+    assert(Decisions.mechanical(reworded, all, nodes(reworded)("Listed")).isDefined)
     assert(Decisions.causes(reworded, all, nodes(reworded)("Books")).isEmpty) // a why does not cascade
   }

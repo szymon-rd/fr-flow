@@ -57,15 +57,13 @@ final class Project(dir: Path):
       ("keys" -> keyState))
   }
 
-  /** How the code a node governs changed since the developer decided it (a git diff), so what the
-    * agent settled since is shown too.
-    */
+  /** How the code a node governs changed since the developer decided it (a git diff). */
   def codeDiff(node: String): String =
     val n = snapshot.flatMap(_("nodes")).map(_.arr).getOrElse(Nil).find(_("id").flatMap(_.str).contains(node))
     val files = n.flatMap(_("code")).flatMap(_("files")).map(_.arr.toList.flatMap(_.str)).getOrElse(Nil)
     // Against the code as decided; a clone without that tree falls back to the commit checked out then.
     // Never decided: the whole of each file, so what is accepted is seen.
-    ledger.developerBinding(node) match
+    ledger.binding(node) match
       case None => files.map(f => root.resolve(f)).filter(Files.isRegularFile(_))
           .map(f => s"--- ${root.relativize(f)} (in full)\n" + Files.readString(f, UTF_8)).mkString("\n")
       case Some(d) =>

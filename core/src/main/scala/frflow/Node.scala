@@ -542,9 +542,7 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
       nodes.filter(_.kind == NodeKind.Invariant).flatMap(i => inScope(i).filterNot(_.kept.exists(_.invariant eq i))
         .map(c => if c.kind == NodeKind.Design then s"${c.id}: say why ${i.id} does not apply to the code it governs (.exempt): a design decision in its scope does"
           else s"${c.id}: keep ${i.id} (.keeps) or say why it does not apply (.exempt): every contract in its scope does one")),
-      // A view lists what a call shows; one that chooses by a condition could hide what the rule refuses.
-      nodes.flatMap(n => n.kept.flatMap(k => k.view.filter(v => """\bif\b|\bmatch\b|List\.filter""".r.findFirstIn(v.body).isDefined)
-        .map(_ => s"${n.id}: its view of ${k.invariant.id} chooses by a condition (if, match or filter); list every pair the call shows"))),
+
       nodes.filter(i => i.kind == NodeKind.Invariant && !nodes.exists(_.kept.exists(k => (k.invariant eq i) && k.view.nonEmpty)))
         .map(i => s"${i.id}: no contract keeps this invariant"),
       nodes.filter(i => i.kind == NodeKind.Invariant).flatMap(i => i.scope.filterNot(nodes.contains).map(s => s"${i.id}: its scope ${s.id} is not in the knowledge base")),

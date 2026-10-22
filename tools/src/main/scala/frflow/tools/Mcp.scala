@@ -9,8 +9,7 @@ import java.nio.charset.StandardCharsets.UTF_8
   *
   * Tools run the knowledge base's CLI, which builds everything from the Scala
   * definitions. The agent proposes nodes and answers the developer's requests. Choices are the
-  * developer's, in the browser; the agent may only settle what involves none (`settle`), and the
-  * developer endorses it.
+  * developer's, in the browser: the agent never writes the ledger.
   */
 final class Mcp(projects: List[Project]):
   private val byName = projects.map(p => p.name -> p).toMap
@@ -37,10 +36,6 @@ final class Mcp(projects: List[Project]):
       "Expiring is simpler, Sliding keeps active users signed in. Choose in the browser.' Without a request, pass `node` " +
       "to tell the developer about work they did not ask for (a node to revisit, a change you made).",
       schema(project, "request" -> obj("type" -> str("string")), "node" -> obj("type" -> str("string")), "text" -> obj("type" -> str("string")))("text")),
-    tool("settle", "Settle a decision that involves no choice, where Lean proves it again (the rules are in the frflow skill, " +
-      "rule 1; the tool refuses anything else). First read its context, with the reasons above and below it; do not settle if " +
-      "a 'revisit if' condition there may be met. Status fails until the developer endorses what you settled.",
-      schema(project, node, "reason" -> obj("type" -> str("string"), "description" -> str("Why it holds, in a sentence.")))("node", "reason")),
     tool("find", "Where a change belongs: the nodes that govern a file (pass a path relative to the project), or the nodes " +
       "whose id, statement or reason mention some words. Extend those nodes rather than adding a near-duplicate.",
       schema(project, "query" -> obj("type" -> str("string")))("query")),
@@ -80,14 +75,12 @@ final class Mcp(projects: List[Project]):
             case None =>
               val node = args("node").flatMap(_.str).getOrElse("")
               if node.nonEmpty && !Project.Ident.matches(node) then throw ToolError("expected a node id")
-              val q = p.addRequest(node, "(from the agent)", "agent")
+              // The developer's open request on the node, if there is one, is what this answers.
+              val open = p.requests.find(q => q("node").flatMap(_.str).contains(node) && q("status").flatMap(_.str).contains("open"))
+              val q = open.getOrElse(p.addRequest(node, "(from the agent)", "agent"))
               p.answerRequest(q("id").flatMap(_.str).get, text)
           (s"answered ${r("id").flatMap(_.str).getOrElse("")}", false)
         catch case e: java.util.NoSuchElementException => throw ToolError(e.getMessage)
-      case "settle" =>
-        p.decide(frflow.Decisions.Request(need, "agent", args("reason").flatMap(_.str).getOrElse(""), action = "settle")) match
-          case Left(why) => throw ToolError(why)
-          case Right(()) => (s"settled $need; status fails until the developer endorses it in the browser", false)
       case "find" =>
         val q = args("query").flatMap(_.str).getOrElse("").trim
         if q.isEmpty then throw ToolError("query is required")

@@ -68,8 +68,13 @@ object Bindings:
     try body
     finally current.set(saved)
 
-/** A Lean declaration of a domain type, produced from a Scala case class or enum. */
-final case class TypeDecl(name: String, lean: String, uses: List[String], scala: String = "")
+/** A Lean declaration of a domain type, produced from a Scala case class or enum.
+  *
+  * @param ctors its constructors (`mk` for a case class, the cases of an enum), each with its fields'
+  *              names and Lean types
+  */
+final case class TypeDecl(name: String, lean: String, uses: List[String], scala: String = "",
+    ctors: List[(String, List[(String, String)])] = Nil)
 
 /** A Scala lambda or value together with its Lean translation. Both come from one source.
   *
