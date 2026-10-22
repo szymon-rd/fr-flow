@@ -265,6 +265,8 @@ private final class Translator(using val quotes: Quotes):
 
   private lazy val ListSym = TypeRepr.of[List[Any]].typeSymbol
   private lazy val OptionSym = TypeRepr.of[Option[Any]].typeSymbol
+  private lazy val MapSym = TypeRepr.of[Map[Any, Any]].typeSymbol
+  private lazy val SetSym = TypeRepr.of[Set[Any]].typeSymbol
 
   private def norm(t: TypeRepr): TypeRepr = t.widenTermRefByName.widen.dealias
 
@@ -313,6 +315,11 @@ private final class Translator(using val quotes: Quotes):
     else if isInt(t) then "Int"
     else if t =:= TypeRepr.of[String] then "String"
     else if t =:= TypeRepr.of[Unit] then "Unit"
+    // A map is the function from its keys to what each is bound to; a set, its membership.
+    else if t.derivesFrom(MapSym) then
+      val List(k, v) = t.baseType(MapSym).typeArgs
+      s"(${tpe(k, pos)} → Option ${tpe(v, pos)})"
+    else if t.derivesFrom(SetSym) then s"(${arg(SetSym)} → Prop)"
     else if t.derivesFrom(ListSym) then s"(List ${arg(ListSym)})"
     else if t.derivesFrom(OptionSym) then s"(Option ${arg(OptionSym)})"
     else if defn.isTupleClass(t.typeSymbol) then t.typeArgs.map(tpe(_, pos)).mkString("(", " × ", ")")
@@ -494,6 +501,14 @@ private final class Translator(using val quotes: Quotes):
       case Inlined(_, Nil, b) => unwrap(b)
       case _                 => t
 
+  /** A key and its value: `k -> v`, or a pair. */
+  private def pair(t: Term, env: Env): (String, String) = strip(t) match
+    case Apply(TypeApply(Select(Apply(TypeApply(arrow, _), List(k)), "->"), _), List(v)) if arrow.symbol.name == "ArrowAssoc" =>
+      (expr(k, env), expr(v, env))
+    case other =>
+      val x = expr(other, env)
+      (s"($x).1", s"($x).2")
+
   private def varargs(as: List[Term]): List[Term] = as match
     case List(Typed(Repeated(es, _), _)) => es
     case List(Repeated(es, _))           => es
@@ -555,9 +570,17 @@ private final class Translator(using val quotes: Quotes):
       if isEnumValue(sym) then return enumValue(sym, t.pos)
     head match
       case Select(q, "empty") if norm(q.tpe).typeSymbol.companionClass == ListSym => return "[]"
+      case Select(q, "empty") if norm(q.tpe).typeSymbol.companionClass == MapSym => return "(fun _ => none)"
+      case Select(q, "empty") if norm(q.tpe).typeSymbol.companionClass == SetSym => return "(fun _ => False)"
       case Select(q, "apply") if norm(q.tpe).typeSymbol.flags.is(Flags.Module) =>
         val c = norm(q.tpe).typeSymbol.companionClass
         if c == ListSym then return varargs(args).map(e).mkString("[", ", ", "]")
+        if c == MapSym then
+          val k = unique(new Object, "k", t.pos)
+          return p(s"fun $k => " + varargs(args).map(pair(_, env)).foldRight("none")((kv, rest) => s"if $k = ${kv._1} then some ${kv._2} else $rest"))
+        if c == SetSym then
+          val y = unique(new Object, "y", t.pos)
+          return p(s"fun $y => " + (varargs(args).map(x => s"$y = ${e(x)}") :+ "False").mkString(" ∨ "))
         if c == TypeRepr.of[Some[Any]].typeSymbol then return p(s"some ${e(args.head)}")
         if c == TypeRepr.of[BigInt].typeSymbol && args.size == 1 && isInt(args.head.tpe) then return e(args.head)
         if defn.isTupleClass(c) then return args.map(e).mkString("(", ", ", ")")
@@ -635,6 +658,31 @@ private final class Translator(using val quotes: Quotes):
       case ("foldLeft", 2) if qt.derivesFrom(ListSym)    => Some(p(s"List.foldl ${e(args(1))} ${e(args.head)} $r"))
       case ("filter", 1) if qt.derivesFrom(ListSym) =>
         val (x, b) = lam(args.head); Some(p(s"List.filter (fun $x => decide $b) $r"))
+      // Maps and sets, as functions: what can be said of every key needs iterating, which Lean's
+      // functions do not; `m(k)` throws in Scala for a missing key.
+      case ("get", 1) if qt.derivesFrom(MapSym)          => Some(p(s"$r ${e(args.head)}"))
+      case ("contains", 1) if qt.derivesFrom(MapSym)     => Some(p(s"$r ${e(args.head)} ≠ none"))
+      case ("getOrElse", 2) if qt.derivesFrom(MapSym)    => Some(p(s"Option.getD ($r ${e(args.head)}) ${e(args(1))}"))
+      case ("updated", 2) if qt.derivesFrom(MapSym) =>
+        val x = unique(new Object, "k", q.pos, free); Some(p(s"fun $x => if $x = ${e(args.head)} then some ${e(args(1))} else $r $x"))
+      case ("+", 1) if qt.derivesFrom(MapSym) =>
+        val x = unique(new Object, "k", q.pos, free); val (k, v) = pair(args.head, env)
+        Some(p(s"fun $x => if $x = $k then some $v else $r $x"))
+      case ("removed" | "-", 1) if qt.derivesFrom(MapSym) =>
+        val x = unique(new Object, "k", q.pos, free); Some(p(s"fun $x => if $x = ${e(args.head)} then none else $r $x"))
+      case ("apply", 1) if qt.derivesFrom(MapSym) =>
+        fail("m(k) throws in Scala when k is missing: use m.get(k) or m.getOrElse(k, default)", q.pos)
+      case ("contains" | "apply", 1) if qt.derivesFrom(SetSym) => Some(p(s"$r ${e(args.head)}"))
+      case ("incl" | "+", 1) if qt.derivesFrom(SetSym) =>
+        val y = unique(new Object, "y", q.pos, free); Some(p(s"fun $y => $y = ${e(args.head)} ∨ $r $y"))
+      case ("excl" | "-", 1) if qt.derivesFrom(SetSym) =>
+        val y = unique(new Object, "y", q.pos, free); Some(p(s"fun $y => $y ≠ ${e(args.head)} ∧ $r $y"))
+      case ("union" | "++" | "|", 1) if qt.derivesFrom(SetSym) =>
+        val y = unique(new Object, "y", q.pos, free); Some(p(s"fun $y => $r $y ∨ ${e(args.head)} $y"))
+      case ("intersect" | "&", 1) if qt.derivesFrom(SetSym) =>
+        val y = unique(new Object, "y", q.pos, free); Some(p(s"fun $y => $r $y ∧ ${e(args.head)} $y"))
+      case ("subsetOf", 1) if qt.derivesFrom(SetSym) =>
+        val y = unique(new Object, "y", q.pos, free); Some(p(s"∀ $y, $r $y → ${e(args.head)} $y"))
       case ("forall", 1) if qt.derivesFrom(OptionSym) =>
         val (x, b) = lam(args.head); Some(p(s"∀ $x, $r = some $x → $b"))
       case ("exists", 1) if qt.derivesFrom(OptionSym) =>

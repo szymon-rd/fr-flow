@@ -155,8 +155,8 @@ the project but tests, build output, `lean` and `.frflow`); a section of the
 idea no root names; a statement or `why` naming a rejected or removed node; a
 formal contract with no example evaluated in Lean.
 
-`ci` is what CI runs: it proves everything afresh, reading no recorded result,
-then runs `status`.
+`ci` is what CI runs: `check` (a node whose formal parts did not change keeps
+its result), then `status`.
 
 ## Large projects
 
@@ -196,7 +196,9 @@ Limits: the "says nothing" checks are one-sided; examples with function-valued
 parameters (other than `bindTable`) are not evaluated in Lean; running covers
 the examples and their combinations, not every input; an `idle` contract
 promises nothing beyond its examples; ordering, liveness and effects outside a
-pure core behind `service` are not covered.
+pure core behind `service` are not covered. Maps and sets are functions in
+Lean: what needs iterating them (sizes, all keys) cannot be said, and an example
+whose maps differ at a key it does not name may be left unevaluated.
 
 ## Example: a multi-tenant CRM (`examples/crm`)
 
@@ -237,7 +239,7 @@ sbt test                              # unit tests, and Lean tests when lake is 
 sbt "crm/run render"                  # Lean and the snapshot .frflow/kb.json
 sbt "crm/run check"                   # prove what changed, record the results
 sbt "crm/run status"                  # exits 1 unless decided, proven and passing
-sbt "crm/run ci"                      # what CI runs: everything proven afresh, then status
+sbt "crm/run ci"                      # what CI runs: check, then status
 ```
 
 The browser shows each node with its examples (and whether Lean agrees), its
@@ -246,10 +248,9 @@ what waits. The agent's rules are in
 [`.claude/skills/frflow/SKILL.md`](.claude/skills/frflow/SKILL.md).
 
 Committed: the Scala, `IDEA.md`, `.frflow/` (ledger, keys, requests) and
-`lean/Proofs`; the rest is derived. Content format 3 includes the node's
-definition text; a decision recorded in an older format shows as review
-(`self`), and when only the format changed the browser records it again
-(`migrate`).
+`lean/Proofs`; the rest is derived. What a newer FrFlow adds to a node's
+content (its definition text, in format 3) is not a change: decisions recorded
+before need no new decision.
 
 ## Layout
 

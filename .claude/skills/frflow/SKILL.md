@@ -176,7 +176,12 @@ class constructors, `copy`, `match`, `if`; `==`, `!=`, `&&`, `||`, `!`, `==>`;
 `forall`/`exists` over one or two typed binders; on `List`: `contains`,
 `exists`, `forall`, `filter`, `map`, `length`/`size`, `isEmpty`/`nonEmpty`,
 `++`; on `Option`: `forall`, `exists`, `contains`, `isDefined`, `isEmpty`,
-`getOrElse`; params (applied or `.value`); `define`d functions.
+`getOrElse`; on `Map` (a function from keys to `Option` values in Lean): `get`,
+`getOrElse`, `contains`, `updated`, `removed`, `+`, `-`, `==`, `Map(k -> v)`,
+`Map.empty`; on `Set` (its membership): `contains`, `+`, `-`, `++`,
+`intersect`, `subsetOf`, `Set(...)`. Not `m(k)` (it throws), nor iterating a map
+or a set. Params (applied or `.value`); `define`d functions; a caller of
+another contract (`contract.caller`).
 
 Use `BigInt`: `Int`/`Long` arithmetic is refused, as is `exists` (or a negated
 `forall`) over a type holding one. Divide only by a literal. No function-typed

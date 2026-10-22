@@ -48,13 +48,13 @@ object Decisions:
       val revisit = ledger.current(id).exists(_.action == "revisit")
       val parentRejected = n("parent").flatMap(_.str).flatMap(ids.get).exists(p => state(p) == "rejected")
       ledger.binding(id).fold(Nil) { d =>
-        List("self" -> (d.hash != s(n, "hash")), "above" -> (d.chain != parentChain(n) || parentRejected),
+        List("self" -> changed(d, n), "above" -> (d.chain != parentChain(n) || parentRejected),
           "code" -> (d.code != code(n)), "revisit" -> revisit, "merged" -> ledger.forked(id)).collect { case (c, true) => c }
       }
     })
     def state(n: Json): String = states.getOrElseUpdate(s(n, "id"),
       ledger.current(s(n, "id")) match
-        case Some(d) if d.action == "reject" => if d.hash == s(n, "hash") then "rejected" else "proposed"
+        case Some(d) if d.action == "reject" => if !changed(d, n) then "rejected" else "proposed"
         case Some(d) if Ledger.binds(d.action) || d.action == "revisit" =>
           if causes(n).nonEmpty then "review" else "accepted"
         case _ => "proposed")
@@ -66,6 +66,17 @@ object Decisions:
     if !(last.snapshot eq snapshot) || !(last.ledger eq ledger) then last = View(snapshot, ledger)
     last
   }
+
+  /** What FrFlow added to a node's content in later formats: a decision recorded before has none of
+    * it, and is not reviewed for it (a new FrFlow needs no decision again).
+    */
+  private val addedByFormat = Set("definition")
+
+  /** Whether the node says something else than what was decided. */
+  private def changed(d: Decision, n: Json): Boolean =
+    val missing = addedByFormat.filter(k => d.content(k).isEmpty)
+    if missing.isEmpty then d.hash != s(n, "hash")
+    else d.hash != Decision.hash(JObj(n("content").map(_.obj).getOrElse(Nil).filterNot(f => missing(f._1))))
 
   /** The node holds as decided. */
   private def holds(state: String): Boolean = state == "accepted"
@@ -414,7 +425,7 @@ object Decisions:
     def make(action: String, n: Json, rejected: List[String], reason: String) =
       Decision(action, n("content").getOrElse(JNull), parentChain(snapshot, n), r.by, at, reason, rejected, code(n), commit, tree)
     if r.by.trim.isEmpty then Left("say who decides")
-    else if !Set("accept", "reject", "migrate", "rename")(r.action) then Left(s"unknown decision ${r.action}")
+    else if !Set("accept", "reject", "rename")(r.action) then Left(s"unknown decision ${r.action}")
     else if Words.tooFew(r.reason) then
       Left("give the reason for the decision in a few words: it is kept as part of the theory")
     else if ids.get(r.node).exists(n => r.seen.nonEmpty && r.seen != version(snapshot, n)) then
@@ -437,11 +448,7 @@ object Decisions:
       val n = ids(r.node)
       val parent = n("parent").flatMap(_.str)
       val bad = r.reject.filter(x => x == r.node || !ids.get(x).exists(_("parent").flatMap(_.str) == parent))
-      if r.action == "migrate" then
-        // Only the shape of what FrFlow records changed (a new FrFlow), not what the node says.
-        if st(ledger, r.node) != "review" || causes(snapshot, ledger, n) != List("self") then Left(s"only a node whose own content changed shape is migrated")
-        else Right(ledger.add(r.node, make("migrate", n, Nil, r.reason)))
-      else if r.action == "reject" then
+      if r.action == "reject" then
         if st(ledger, r.node) != "proposed" then Left(s"${r.node} is ${st(ledger, r.node)}: only a proposal is rejected on its own")
         else
           // The proposals below it rested on it: they go with it.

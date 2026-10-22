@@ -438,6 +438,10 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
       case None       => Some("none")
       case Some(x)    => term(x).map(t => s"(some $t)")
       case l: List[?] => all(l.iterator).map(_.mkString("[", ", ", "]"))
+      // A map, as the function Lean has for it (see `Lift.tpe`); a set, as its membership.
+      case m: Map[?, ?] => all(m.iterator.flatMap((k, v) => List(k, v))).map(_.grouped(2).toList
+        .foldRight("none")((kv, rest) => s"if k' = ${kv(0)} then some ${kv(1)} else $rest")).map(b => s"(fun k' => $b)")
+      case st: Set[?] => all(st.iterator).map(xs => s"(fun y' => ${(xs.map(x => s"y' = $x") :+ "False").mkString(" ∨ ")})")
       case t: Product if t.getClass.getName.startsWith("scala.Tuple") => all(t.productIterator).map(_.mkString("(", ", ", ")"))
       case e: scala.reflect.Enum =>
         val c = if typeNames(leanName(e.getClass)) then e.getClass else e.getClass.getSuperclass
@@ -507,8 +511,8 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
     val es = evals(n)._1
     Option.when(es.nonEmpty) {
       Header + s"import ${specModule(n.id)}\n\n" + Preamble + s"namespace $K.${n.id}.Eval\n\n" + es.map { e =>
-        s"/-- ${e.what.replace("-/", "- /")} -/\ntheorem ${e.name} : ${e.claim} := by\n  simp [frflow_defs]\n\n" +
-          s"theorem ${e.name}_opposite : ${e.opposite} := by\n  simp [frflow_defs]\n\n"
+        s"/-- ${e.what.replace("-/", "- /")} -/\ntheorem ${e.name} : ${e.claim} := by\n  frflow_eval\n\n" +
+          s"theorem ${e.name}_opposite : ${e.opposite} := by\n  frflow_eval\n\n"
       }.mkString + s"end $K.${n.id}.Eval\n"
     }
 

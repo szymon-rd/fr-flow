@@ -14,6 +14,17 @@ class LiftSuite extends munit.FunSuite:
     assert(!c.value(Book("x", 5)))
   }
 
+  test("maps and sets are functions: a map from keys to what each is bound to, a set its membership") {
+    val c = Lifted((m: Map[String, BigInt], k: String) => m.updated(k, BigInt(1)).get(k) == Some(BigInt(1)) && !m.removed(k).contains(k))
+    assertEquals(c.params, List("m" -> "(String → Option Int)", "k" -> "String"))
+    assert(c.body.contains("if k_1 = k then some 1 else m k_1") || c.body.contains("then some 1 else m"), c.body)
+    assert(c.value(Map("a" -> BigInt(2)), "a"))
+    val s = Lifted((xs: Set[String], x: String) => (xs + x).contains(x) && xs.subsetOf(xs ++ Set(x)))
+    assertEquals(s.params.head, "xs" -> "(String → Prop)")
+    assert(s.value(Set("a"), "b"))
+    assert(compileErrors("frflow.Lifted((m: Map[String, BigInt], k: String) => m(k) > 0)").contains("m(k) throws"))
+  }
+
   test("enums and match") {
     assertEquals(where.lifted.body,
       "(match s with | Shelf.Top => \"top\" | Shelf.Bottom => \"bottom\" | Shelf.Box l => l)")

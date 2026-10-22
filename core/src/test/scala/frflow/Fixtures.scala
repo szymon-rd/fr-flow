@@ -82,3 +82,15 @@ val again = books.contract[List[Book], Int, List[Book]]("Again", "Picking again,
   .examples(minPages.bind(100), pickCall.bind((s: List[Book], k: Int) => s.filter(b => b.pages >= minPages.value)))(
     expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
     reject(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
+
+/** State kept in a map: counts by name, each bump adding one to its own count only. */
+val counts = Node.root[(Map[String, BigInt], String) => Map[String, BigInt]]("Counts", "A bump adds one to its name's count, and leaves the others.", why = "Counting.")(
+  f => forall((m: Map[String, BigInt], k: String) => f(m, k).get(k) == Some(m.getOrElse(k, BigInt(0)) + 1)) &&
+    forall((m: Map[String, BigInt], k: String) => forall((j: String) => j == k || f(m, k).get(j) == m.get(j))))
+val bump = counts.contract[Map[String, BigInt], String, Map[String, BigInt]]("Bump", "A bump adds one to its name's count, and leaves the others.", why = "Per call.")(
+  (m, k, r) => r.get(k) == Some(m.getOrElse(k, BigInt(0)) + 1) && r.removed(k) == m.removed(k))
+  .examples()(
+    expect(Map("a" -> BigInt(1)), "a", Map("a" -> BigInt(2)), "a counted twice"),
+    expect(Map("a" -> BigInt(1)), "b", Map("a" -> BigInt(1), "b" -> BigInt(1)), "b counted once, a left"),
+    reject(Map("a" -> BigInt(1)), "b", Map("b" -> BigInt(1)), "a lost"))
+val bumped = define { (m: Map[String, BigInt], k: String) => m.updated(k, m.getOrElse(k, BigInt(0)) + 1) }

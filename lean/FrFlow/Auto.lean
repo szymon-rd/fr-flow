@@ -18,4 +18,17 @@ macro_rules
         | done
         | grind
         | (simp only [forall_and] at *; grind)
+        -- maps and sets are functions: equal when equal at every key
+        | (simp only [funext_iff] at *; grind)
         | fail "frflow_auto found no proof; prove this obligation in the node's proof file"))
+
+/-- `frflow_eval`: decides an example. `simp` computes it; a map or a set (a function) is compared
+key by key, splitting on the keys the example names. -/
+syntax "frflow_eval" : tactic
+
+macro_rules
+  | `(tactic| frflow_eval) => `(tactic| (
+      first
+        | (simp [frflow_defs]; done)
+        | (simp [frflow_defs, funext_iff]; done)
+        | (simp [frflow_defs, funext_iff] <;> grind)))

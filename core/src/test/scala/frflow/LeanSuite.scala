@@ -245,3 +245,12 @@ class LeanSuite extends munit.FunSuite:
     assertEquals(w.restsOn(again).map(_.id), List("Pick"))
   }
 
+  test("state kept in a Map is proven, down to the code, and its examples are evaluated in Lean") {
+    val w = workflow(KnowledgeBase("Counter", idea = "IDEA.md")(counts, bump).implementProven(bump)(bumped))
+    val c = w.check().find(_._1.id == "Bump").get._2
+    assertEquals(c.status, "proven", c)
+    assertEquals(c.obligations.filter(o => Set("link", "impl", "root_impl")(o.name)).map(_.status), List("proven", "proven", "proven"), c)
+    // maps compared key by key; one that differs at a key the call does not name is not found
+    assertEquals(c.obligations.filter(_.name.startsWith("eval_")).map(_.status), List("proven", "proven", "unevaluated"), c)
+  }
+

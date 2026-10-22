@@ -14,7 +14,7 @@ object Cli:
       |  render                  generate Lean and the snapshot .frflow/kb.json from the Scala definitions
       |  check [NODE]            render, prove the links, record the results
       |  status                  the tree: decisions, links, examples; exits 1 unless the knowledge base is complete
-      |  ci                      for CI: proves everything afresh (reads no recorded result), then status
+      |  ci                      for CI: check, then status; exits 1 unless everything is proven and decided
       |  context NODE            everything needed to work on NODE (for agents and people)
       |  find WORDS|PATH         the nodes that govern a file, or what mentions some words (nodes, reasons, rejected options, the idea)
       |  scaffold NODE           a proof file for an obligation automation did not prove
@@ -54,12 +54,11 @@ object Cli:
         print(w.status._1)
         if results.forall(_._2.status == "proven") then 0 else 1
       case "ci" :: Nil =>
-        // What CI runs: every proof from this run (no recorded result is read), then status.
+        // What CI runs: check (a node whose formal parts did not change keeps its result), then status.
         if !Lake(ws.lean).available then { System.err.println("lake not found (set FRFLOW_LAKE)"); return 3 }
-        val ci = Workflow(kb, ws, fresh = true)
-        val results = ci.check()
+        val results = w.check()
         results.filter(_._2.status != "proven").foreach((n, c) => println(s"${n.id}: ${c.status}"))
-        val (text, ok) = ci.status
+        val (text, ok) = w.status
         print(text)
         if ok && results.forall(_._2.status == "proven") then 0 else 1
       case "render" :: Nil =>

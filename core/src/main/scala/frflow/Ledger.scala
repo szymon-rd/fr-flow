@@ -32,7 +32,7 @@ final case class NodeCheck(
   *                 (it still holds after something above it moved), `reject` (an alternative not
   *                 chosen, as it was proposed), `revisit` (the developer said a change above may affect
   *                 it, so it is reviewed again), `remove` (the developer agreed that a decided node is
-  *                 gone) or `migrate` (a new FrFlow recorded the same decision in a new shape)
+  *                 gone), or `migrate` (recorded by an earlier FrFlow when its format changed)
   * @param content  the node as the developer saw it; the decision is bound to its hash
   * @param chain    the content of the ancestors, as decided; when it changes, the node is reviewed
   * @param reason   why: kept as part of the theory

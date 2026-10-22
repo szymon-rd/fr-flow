@@ -24,7 +24,7 @@ final case class Workspace(root: Path, kernelPath: String):
   def requestsFile: Path = root.resolve(".frflow/requests.json")
 
 /** The FrFlow workflow on one knowledge base: render, check, decide, report. */
-final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolean = false):
+final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
 
   private def read(p: Path): Option[String] = if Files.isRegularFile(p) then Some(Files.readString(p, UTF_8)) else None
   private def write(p: Path, s: String): Boolean =
@@ -34,9 +34,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
 
   def idea: String = read(ws.root.resolve(kb.idea)).getOrElse("")
   def ledger: Ledger = Ledger.load(ws.ledgerFile)
-  // Fresh (CI): proofs come from this run only; no recorded result is read, whoever wrote it.
-  private var inMemory: Map[String, NodeCheck] = Map.empty
-  def checks: Map[String, NodeCheck] = if fresh then inMemory else Checks.load(ws.checksFile)
+  def checks: Map[String, NodeCheck] = Checks.load(ws.checksFile)
 
   /** The obligations proven by a theorem of their name in the node's proof file: (node, obligation). */
   def proofs: Set[(String, String)] =
@@ -240,7 +238,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
     val results = todo.map(n => n -> done(n.id))
     val kept = checks.filter((id, _) => kb.node(id).isDefined)
     val all = results.foldLeft(kept)((m, r) => m.updated(r._1.id, r._2))
-    if fresh then inMemory = all else Checks.save(ws.checksFile, all)
+    Checks.save(ws.checksFile, all)
     results
 
   private def checkNode(n: Node[?], g: Generate, lake: Lake, parentStatus: Option[String]): NodeCheck =
@@ -286,7 +284,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
           case (true, false) => Result(e.name, "proven", s"Lean agrees: ${e.claim}")
           case (false, true) => Result(e.name, "failed", s"${e.what}: Scala computes ${e.claim}, Lean proves ${e.opposite}")
           case (true, true)  => Result(e.name, "failed", s"${e.what}: Lean proves both ${e.claim} and its opposite")
-          case (false, false) => Result(e.name, "unevaluated", s"${e.what}: simp decides neither ${e.claim} nor its opposite")
+          case (false, false) => Result(e.name, "unevaluated", s"${e.what}: Lean decides neither ${e.claim} nor its opposite")
       }
     evaluated ++= notEvaluated.map((name, why) => Result(name, "unevaluated", why))
     val disagree = evaluated.filter(_.status == "failed")
@@ -342,7 +340,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
       case None => Some(s"no theorem $name")
       case Some(d) =>
         def in(l: Int) = l >= d.from && l <= d.to
-        diags.find(x => x.isError && in(x.line)).map(_.message.take(20000))
+        diags.find(x => x.isError && in(x.line)).map(_.message.linesIterator.filterNot(_.contains("depends on axioms")).mkString("\n").take(20000))
           .orElse(Option.when(diags.exists(x => x.isSorry && in(x.line)) || axiomsOf(name).forall(_.contains("sorryAx")))("uses sorry"))
     def holds(name: String) = why(name).isEmpty
     // What would make the node say nothing: a claim holding without its premise, no model, the root by itself.
@@ -356,6 +354,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
         case Some(w) => (Result(o.name, "failed", w), Nil)
         case None => why(o.name) match
           case None => (Result(o.name, "proven", how), axiomsOf(o.name).getOrElse(List("<no audit result>")))
+          case Some("uses sorry") => (Result(o.name, "open", "uses sorry"), Nil)
           case Some(w) => (Result(o.name, "open", s"not proven ($how): prove theorem ${o.name} : Obl.${o.name} in lean/${g.proofsPath(n.id)}\nLean: $w"), Nil)
     }
     // With a proven implementation, the root theorem of the code itself.
