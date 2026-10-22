@@ -1,0 +1,51 @@
+package keycloak
+
+import frflow.*
+
+class KeycloakSuite extends munit.FunSuite:
+
+  test("the model is well formed: one root, refined by a DAG of parts; Introspect serves five parents") {
+    assertEquals(knowledge.problems, Nil)
+    assertEquals(knowledge.root.map(_.id), Some("RealmAccess"))
+    assertEquals(knowledge.parentsOf(introspectContract).map(_.id),
+      List("AnswersNameASession", "DisabledHaveNoAccess", "RolesAsGranted", "SignedInAreAccepted", "RealmIsolation"))
+    assertEquals(knowledge.parts(realmAccess).map(_.id), List("NoUnauthorizedAccess", "SignedInAreAccepted"))
+  }
+
+  test("every example passes, against its node and its code") {
+    for n <- List(handleRequest, introspectContract, sessionLookup, storeKeepsState) do
+      val bad = knowledge.exampleResults(n).filter(r => r.contract != "ok" || r.implementation.exists(_ != "ok"))
+      assert(bad.isEmpty, s"${n.id}: ${bad.map(r => r.example.describe + ": " + r.verdict).mkString("\n")}")
+  }
+
+  test("the running server: sign in, introspect in each realm, disable, sign out") {
+    val realms = Realms(atStart, SessionDb.loaded(atStart))
+    val opened = realms.handle(AuthRequest.SignIn(acme, "alice", "h-alice", "t1"))
+    assert(opened.sessions.contains(Session("t1", acme, "alice")))
+    assertEquals(realms.introspect(acme, "t1"), Some(Claims(acme, "alice", List("admin", "user"))))
+    assertEquals(realms.introspect(globex, "t1"), None)
+    assertEquals(realms.handle(AuthRequest.SignIn(acme, "bob", "h-bob", "t1")).sessions.count(_.token == "t1"), 1)
+    assert(realms.setEnabled(acme, "alice", false))
+    assertEquals(realms.introspect(acme, "t1"), None)
+    assert(realms.setEnabled(acme, "alice", true))
+    realms.handle(AuthRequest.SignOut(acme, "t1"))
+    assertEquals(realms.introspect(acme, "t1"), None)
+    assertEquals(realms.db.events().size, 5)
+  }
+
+  test("a store that drops a write is seen on the call: StoreKeepsState reads it back") {
+    val dropping = knowledge.implementProven(storeKeepsState)(storedAs, (q, t) => ServerState(t.accounts, Nil))
+    val handleSide = dropping.service(handleRequest)(sessionDb.bind(SessionDb.loaded(atStart)))
+    val e = intercept[ContractViolation](handleSide(ServerState(atStart, Nil), AuthRequest.SignIn(acme, "alice", "h-alice", "t1")))
+    assert(e.getMessage.contains("StoreKeepsState"), e.getMessage)
+  }
+
+  test("an index that answers with another realm's session is seen on the call: SessionLookup checks each answer") {
+    val leaky = knowledge.implementProven(sessionLookup)(storedSession, (realm, token) => Some(Session(token, globex, "carol")))
+    val db = SessionDb.loaded(atStart)
+    val introspectSide = leaky.service(introspectContract)(sessionDb.bind(db), seed.bind(atStart), history.bind(db.events()),
+      sessions.bind((r: RealmId) => db.load().sessions.filter(_.realm == r)),
+      account.bind((r: RealmId, u: String) => accountOf(db.load().accounts, r, u)))
+    val e = intercept[ContractViolation](introspectSide(acme, "t9"))
+    assert(e.getMessage.contains("SessionLookup"), e.getMessage)
+  }

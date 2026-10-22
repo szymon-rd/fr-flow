@@ -1,24 +1,28 @@
 package keycloak
 
-/** The running server's core: every request goes through `service`, which checks each result
-  * against its contract (and the invariants it keeps). ServiceWiring governs this file.
+import frflow.*
+
+/** The running server's core: every request goes through `service`, which checks each result against
+  * its contract (and the invariants it keeps), and every state change is stored through the store's
+  * `storeAfter`, read back and checked against StoreKeepsState. ServiceWiring governs this file.
   */
-final class Realms(initialAccounts: List[UserAccount], val db: SessionDb):
-  private val accounts = java.util.concurrent.atomic.AtomicReference(initialAccounts)
-  private val signInOutSide = knowledge.service(signInOut)(users.bind(accounts.get))
+final class Realms(atStart: List[UserAccount], val db: SessionDb):
+  private val handleSide = knowledge.service(handleRequest)(sessionDb.bind(db))
   private val introspectSide = knowledge.service(introspectContract)(
-    users.bind(accounts.get), sessionsByToken.bind((t: String) => db.byToken(t)), sessionDb.bind(db))
+    sessionDb.bind(db), seed.bind(atStart), history.bind(db.events()),
+    sessions.bind((r: RealmId) => db.load().sessions.filter(_.realm == r)),
+    account.bind((r: RealmId, u: String) => accountOf(db.load().accounts, r, u)))
 
-  /** An administrator enables or disables a user (Not modelled: managing users); the next request sees it. */
-  def setEnabled(realm: RealmId, user: String, on: Boolean): Boolean =
-    val before = accounts.getAndUpdate(_.map(a => if a.realm == realm && a.username == user then a.copy(enabled = on) else a))
-    before.exists(a => a.realm == realm && a.username == user)
+  /** One sign-in, sign-out or administrator's change, on the stored state, one at a time: the state
+    * stored afterwards.
+    */
+  def handle(q: AuthRequest): ServerState = db.synchronized { handleSide(db.load(), q) }
 
-  /** One sign-in or sign-out: the proven step on the stored sessions, stored back in one go. */
-  def handle(q: AuthRequest): SessionStore = db.synchronized {
-    val t = signInOutSide(db.load(), q)
-    db.save(t)
-    t
+  /** An administrator enables or disables a user: whether the realm has that user. */
+  def setEnabled(realm: RealmId, user: String, on: Boolean): Boolean = db.synchronized {
+    val known = db.load().accounts.exists(a => a.realm == realm && a.username == user)
+    if known then handle(AuthRequest.SetEnabled(realm, user, on))
+    known
   }
 
   /** What an application of `realm` learns about `token`. */

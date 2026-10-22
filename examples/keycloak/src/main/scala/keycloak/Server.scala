@@ -46,7 +46,7 @@ object AuthServer:
             val salt = salts.getOrElse((realm, user), "no-such-user")
             val token = freshToken()
             val opened = realms.handle(AuthRequest.SignIn(realm, user, hash(form.getOrElse("password", ""), salt), token))
-              .open.contains(Session(token, realm, user))
+              .sessions.contains(Session(token, realm, user))
             if opened then reply(ex, 200, s"""{"access_token":${str(token)},"token_type":"Bearer"}""")
             else reply(ex, 401, """{"error":"invalid_grant","error_description":"Invalid user credentials"}""")
           case ("POST", Path(r, "token/introspect")) =>
@@ -80,17 +80,17 @@ object AuthServer:
     ex.close()
 
 /** The realms loaded at start (Not modelled: creating them): username, password, enabled, roles. */
-private val seed = List(
+private val realmsAtStart = List(
   ("acme", "alice", "wonderland", true, List("admin", "user")),
   ("acme", "bob", "builder", true, List("user")),
   ("globex", "carol", "secret", true, List("viewer")))
 
-/** Serves the realms: `sbt "keycloak/runMain keycloak.serveRealms 8080"`. Disabling a user (as an
-  * administrator would) is `serveRealms 8080 bob`: Bob is loaded disabled.
+/** Serves the realms: `sbt "keycloak/runMain keycloak.serveRealms 8080"`. `serveRealms 8080 bob` loads
+  * Bob disabled; an administrator enables or disables a user with the admin endpoint.
   */
 @main def serveRealms(port: Int, disabled: String*): Unit =
-  val salts = seed.map((r, u, _, _, _) => (RealmId(r), u) -> s"$r/$u/salt").toMap
-  val accounts = seed.map((r, u, pw, on, roles) =>
+  val salts = realmsAtStart.map((r, u, _, _, _) => (RealmId(r), u) -> s"$r/$u/salt").toMap
+  val accounts = realmsAtStart.map((r, u, pw, on, roles) =>
     UserAccount(RealmId(r), u, AuthServer.hash(pw, salts((RealmId(r), u))), on && !disabled.contains(u), roles))
-  AuthServer.start(Realms(accounts, SessionDb.of(Nil)), salts, port)
-  println(s"Realms on http://127.0.0.1:$port: ${seed.map(_._1).distinct.mkString(", ")}")
+  AuthServer.start(Realms(accounts, SessionDb.loaded(accounts)), salts, port)
+  println(s"Realms on http://127.0.0.1:$port: ${realmsAtStart.map(_._1).distinct.mkString(", ")}")

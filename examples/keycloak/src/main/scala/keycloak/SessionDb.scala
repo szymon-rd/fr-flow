@@ -1,30 +1,44 @@
 package keycloak
 
-import java.util.concurrent.atomic.AtomicReference
+import frflow.*
 
-/** The server's session store, in memory: the open sessions, and an index by realm and token. The
-  * adapter behind the SessionLookup port: what `find` returns is checked against the port on every
-  * call (`checkedBy`), and against the define the port is decided with on the port's examples.
+/** The server's store, in memory: the accounts, the open sessions with an index by realm and token, and
+  * the event log (the requests handled, in order). The adapter behind SessionLookup: every session `find`
+  * returns is checked to be of the realm and token asked, and on the examples it is checked against the
+  * define the assumption is decided with. Writes are in SessionWrites.scala.
   */
-final class SessionDb private (initial: List[Session]):
-  private val state = AtomicReference(SessionStore(initial))
-  @volatile private var index: Map[(RealmId, String), Session] = indexOf(initial)
+final class SessionDb private (initial: ServerState):
+  private var state = initial
+  private var index: Map[(RealmId, String), Session] = indexOf(initial.sessions)
+  private var log: Vector[AuthRequest] = Vector.empty
 
   private def indexOf(open: List[Session]) = open.map(s => (s.realm, s.token) -> s).toMap
 
   /** The realm's open session of a token, from the index. */
-  def find(realm: RealmId, token: String): Option[Session] = index.get((realm, token))
+  def find(realm: RealmId, token: String): Option[Session] = synchronized { index.get((realm, token)) }
 
-  /** The open session a token names, in any realm. */
-  def byToken(token: String): Option[Session] = state.get.open.find(_.token == token)
+  /** The state stored now. */
+  def load(): ServerState = synchronized { state }
 
-  def load(): SessionStore = state.get
+  /** The requests stored so far, in order. */
+  def events(): List[AuthRequest] = synchronized { log.toList }
 
-  /** Stores `t` in place of what is stored. */
-  def save(t: SessionStore): Unit = synchronized {
-    state.set(t)
-    index = indexOf(t.open)
+  /** Appends a request to the log, and puts a state in place of the stored one. */
+  private[keycloak] def replaceWith(q: AuthRequest, after: ServerState): Unit = synchronized {
+    log = log :+ q
+    state = after
+    index = indexOf(after.sessions)
   }
 
 object SessionDb:
-  def of(open: List[Session]): SessionDb = SessionDb(open)
+  /** An empty store: no account, no session. */
+  def empty: SessionDb = SessionDb(ServerState(Nil, Nil))
+
+  /** A store holding the accounts loaded at start, and no session. */
+  def loaded(atStart: List[UserAccount]): SessionDb = SessionDb(ServerState(atStart, Nil))
+
+  /** A store holding what the requests led to from the accounts loaded at start (for the examples). */
+  def replaying(atStart: List[UserAccount], requests: List[AuthRequest]): SessionDb =
+    val db = loaded(atStart)
+    requests.foreach(q => db.replaceWith(q, next(db.load(), q)))
+    db
