@@ -26,6 +26,6 @@ theorem complete : Obl.complete := by
   simp only [Crm.WriteContract.post] at hw
   simp only [Crm.afterSave]
   rw [hsv]
-  exact Crm.Lemmas.holdsAlike_replace s (write s w) (Crm.about w) w.«by».tenant c hc hw.1.1 (hw.2 hu).2
+  exact Crm.Lemmas.holdsAlike_replace s (write s w) (Crm.about w) w.«by».tenant c hc hw.1.1.2 (hw.2 hu).2
 
 end Crm.WritesInCompany.Proofs

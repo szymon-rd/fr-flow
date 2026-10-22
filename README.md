@@ -320,11 +320,14 @@ and the two assumptions on the store the code calls, `StoreKeepsState` and
 
 **`examples/crm`**: a multi-tenant CRM on SQLite, with an HTTP API and an
 expiry job. Its root (`SharedCrm`) says what users find, add, share and
-unshare, and that nothing a user does changes another company's records; ten
-definitions introduce the domain. Its parts: `Visibility` (the two screens and
-the invariant `NoCrossTenantRead`), `WritesTakeEffect`, `WritesInCompany` (with
-`StoreConsistent`, by `FrFlow.always`), and `SharesExpire`. `root_impl` trusts
-the two assumptions on the database.
+unshare, of one store, what the history of writes and job runs led to
+(`CrmRun`), and that nothing a user does changes another company's records;
+five definitions introduce the domain. Its parts: `Visibility` (the two screens
+and the invariant `NoCrossTenantRead`), `AddedAreFound` (an added record is
+found from then on, by `FrFlow.always`), `WritesTakeEffect` and
+`WritesInCompany` (with `StoreConsistent`). A share ends at its time whether or
+not the job ran (`LiveShares`; the alternative that relied on the job is
+rejected in the ledger). `root_impl` trusts the two assumptions on the database.
 
 The example ledgers are decided by an agent playing the developer.
 

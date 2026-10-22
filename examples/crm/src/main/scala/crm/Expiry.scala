@@ -3,15 +3,15 @@ package crm
 import frflow.*
 
 // ============================================================================
-// Expiring shares: a share given until a time ends then, by a job
+// Expiring shares: a job clears the shares whose time has come
 // ============================================================================
 
 val sharesExpire = Node.contract(expire)("SharesExpire",
-  "A run of the expiry job at a time ends exactly the shares given until then or earlier, and keeps every record.",
-  why = "The idea lets a company share a record until a given time; the job is what ends such shares, and it touches nothing else. Keeping the records is also what keeps their ids unique when the job runs (StoreConsistent).",
+  "A run of the expiry job at a time removes exactly the shares given until then or earlier, and keeps every record.",
+  why = "The idea lets a company share a record until a given time. A search already ignores a share past its time (LiveShares): the job clears such shares from the tables, and it touches nothing else. Keeping the records is what keeps them found (RecordsKept) and their ids unique (StoreConsistent) when the job runs.",
   idea = "Expiring shares"
 )((s, now, t) => endsDueAt(s, now, t))
-  .under(sharedCrm, storeConsistent)
+  .under(storeConsistent, recordsKept)
   .examples()(
     expect(CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("globex")), Share(1, TenantId("initech"))), List(Expiry(1, TenantId("globex"), 100))), 150,
       CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("initech"))), Nil), "Globex's share ended at 100; Initech's stays"),
@@ -31,7 +31,7 @@ val expireCode = define { (s: CrmStore, now: BigInt) =>
 /** The job's wiring, owned as a design decision. */
 val expiryJobWiring = Node.design(
   "ExpiryJobWiring",
-  "The expiry job runs every minute through service, on the stored records, shares and expiries, and stores the rows of each record it changed through StoreEdits.",
+  "The expiry job runs every minute through service, on the stored records, shares and expiries, stores the rows of each record it changed through StoreEdits, and logs its run in the event log.",
   why = "Every change to the store goes through a proven contract and a checked port; keeping the job's wiring in one governed file makes a change to it visible.",
   idea = "Expiring shares"
 )("src/main/scala/crm/Job.scala")

@@ -25,7 +25,8 @@ package crm
   // The same proven code with no checks: what the checks add.
   val unchecked: (Account, Search) => List[CrmRecord] = (u, q) =>
     val ss = db.shares()
-    frflow.Bindings.within(List(shares.bind(ss), database.bind(db), fetch.bind((u: Account, q: Search) => db.recordsMatching(q))))(
+    frflow.Bindings.within(List(shares.bind(ss), expiries.bind(Nil), clock.bind(BigInt(0)), database.bind(db),
+        fetch.bind((u: Account, q: Search) => db.recordsMatching(q))))(
       search.lifted.value.asInstanceOf[(Account, Search) => List[CrmRecord]](u, q))
   for q <- List(Search.ById(4207), Search.OfKind(Kind.Deal)) do
     val a = time(s"read side, checked, $q", () => read(ann, q))

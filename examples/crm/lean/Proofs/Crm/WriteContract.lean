@@ -1,7 +1,7 @@
 import FrFlowGen.Crm.WriteContract.Spec
 
 /-! Authored proof that `applyWrite` meets WriteContract: case by case on the change, and on whether
-its author's company may make it. A share or unshare of the author's record touches only the rows of
+its author's company may make it. No case removes a record: an add appends one, the others keep them. A share or unshare of the author's record touches only the rows of
 that record's id; with unique ids, no record of another company has that id. -/
 
 set_option autoImplicit false
@@ -33,7 +33,7 @@ theorem impl : Obl.impl := by
     simp only [Crm.WriteContract.post, Crm.applyWrite, Crm.takesEffect]
     by_cases hc : r.tenant = a.tenant ∧ ¬∃ x ∈ s.records, x.id_ = r.id_
     · rw [ite_eq_left hc]
-      refine ⟨⟨?_, fun _ => by simp⟩, fun hu => ⟨?_, fun r' _ _ => rowsAlike_self s _ r'.id_⟩⟩
+      refine ⟨⟨⟨fun x hx => List.mem_append_left _ hx, ?_⟩, fun _ => by simp⟩, fun hu => ⟨?_, fun r' _ _ => rowsAlike_self s _ r'.id_⟩⟩
       · simp [List.filter_append, hc.1]
       · simp only [Crm.idsUnique] at hu ⊢
         intro x hx y hy hxy
@@ -44,13 +44,13 @@ theorem impl : Obl.impl := by
         · exact absurd ⟨y, hy, hxy.symm⟩ hc.2
         · rfl
     · rw [ite_eq_right hc]
-      exact ⟨⟨rfl, fun h => absurd h hc⟩, fun hu => ⟨hu, fun r' _ _ => rowsAlike_self s s.records r'.id_⟩⟩
+      exact ⟨⟨⟨fun _ h => h, rfl⟩, fun h => absurd h hc⟩, fun hu => ⟨hu, fun r' _ _ => rowsAlike_self s s.records r'.id_⟩⟩
   | ShareWith id_ to u =>
     simp only [Crm.WriteContract.post, Crm.applyWrite, Crm.takesEffect]
     by_cases hc : ∃ x ∈ s.records, x.id_ = id_ ∧ x.tenant = a.tenant
     · rw [ite_eq_left hc]
       obtain ⟨x, hx, hxi, hxa⟩ := hc
-      refine ⟨⟨rfl, fun _ => ⟨by simp, ?_⟩⟩, fun hu => ⟨hu, fun r hr hra => ?_⟩⟩
+      refine ⟨⟨⟨fun _ h => h, rfl⟩, fun _ => ⟨by simp, ?_⟩⟩, fun hu => ⟨hu, fun r hr hra => ?_⟩⟩
       · cases u with
         | some u => simp
         | none =>
@@ -75,13 +75,13 @@ theorem impl : Obl.impl := by
             subst he
             exact absurd her.symm hne
     · rw [ite_eq_right hc]
-      exact ⟨⟨rfl, fun h => absurd h hc⟩, fun hu => ⟨hu, fun r' _ _ => rowsAlike_self s s.records r'.id_⟩⟩
+      exact ⟨⟨⟨fun _ h => h, rfl⟩, fun h => absurd h hc⟩, fun hu => ⟨hu, fun r' _ _ => rowsAlike_self s s.records r'.id_⟩⟩
   | Unshare id_ to =>
     simp only [Crm.WriteContract.post, Crm.applyWrite, Crm.takesEffect]
     by_cases hc : ∃ x ∈ s.records, x.id_ = id_ ∧ x.tenant = a.tenant
     · rw [ite_eq_left hc]
       obtain ⟨x, hx, hxi, hxa⟩ := hc
-      refine ⟨⟨rfl, fun _ => by simp⟩, fun hu => ⟨hu, fun r hr hra => ?_⟩⟩
+      refine ⟨⟨⟨fun _ h => h, rfl⟩, fun _ => by simp⟩, fun hu => ⟨hu, fun r hr hra => ?_⟩⟩
       have hne : r.id_ ≠ id_ := hxi ▸ other_id s hu x r hx hr (hxa ▸ hra)
       simp only [Crm.rowsAlike]
       refine ⟨⟨⟨fun sh hsh hshr => ?_, fun sh hsh hshr => ?_⟩, fun e he her => ?_⟩, fun e he her => ?_⟩
@@ -92,6 +92,6 @@ theorem impl : Obl.impl := by
         exact ⟨he, fun h => hne (her ▸ h.1)⟩
       · exact (List.mem_filter.1 he).1
     · rw [ite_eq_right hc]
-      exact ⟨⟨rfl, fun h => absurd h hc⟩, fun hu => ⟨hu, fun r' _ _ => rowsAlike_self s s.records r'.id_⟩⟩
+      exact ⟨⟨⟨fun _ h => h, rfl⟩, fun h => absurd h hc⟩, fun hu => ⟨hu, fun r' _ _ => rowsAlike_self s s.records r'.id_⟩⟩
 
 end Crm.WriteContract.Proofs
