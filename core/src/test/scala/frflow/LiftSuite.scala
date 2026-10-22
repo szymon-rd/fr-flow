@@ -94,6 +94,12 @@ class LiftSuite extends munit.FunSuite:
     assertEquals(Lifted((b: Book) => four(b, 1, 2, "x")).body, "(four b 1 2 \"x\")")
   }
 
+  test("a list's elements as a set: its membership in Lean") {
+    assertEquals(Lifted((l: List[Book], b: Book) => l.toSet.contains(b)).body, "((fun y => y ∈ l) b)")
+    assertEquals(keptOnce.lifted.body, "(let there : (Book → Prop) := (fun y => y ∈ shelf); (List.filter (fun b => decide (there b)) picked))")
+    assertEquals(keptOnce(List(Book("A", 1)), List(Book("A", 1), Book("B", 2))), List(Book("A", 1)))
+  }
+
   test("specification logic") {
     val c = Lifted((l: List[Book]) => forall((a: Book, b: Book) => (l.contains(a) && l.contains(b)) ==> a.pages <= b.pages))
     assertEquals(c.body, "(∀ (a : Book) (b : Book), (((a ∈ l) ∧ (b ∈ l)) → (a.pages ≤ b.pages)))")

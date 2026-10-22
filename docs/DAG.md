@@ -323,3 +323,16 @@ What the migrations of `examples/keycloak` and `examples/crm` found in the core,
   `Generate.calls`), not of those a term it reads is defined with; `callees` (that too) still orders the
   composition of `root_impl`, and is what a node's code rests on (`relies`, `parentChain`), so no decision
   moves. Keycloak's authored `impl` of Introspect no longer introduces HandleRequest's promise.
+- **End-to-end tests reuse what is current.** The CRM's and Auth's "proven" tests check the example's own
+  workspace (`examples/<x>`, kernel `../../../lean`), as `run check` does: its Lean build and recorded
+  results are reused while current, so after a check they take seconds. `LeanSuite` still checks small
+  knowledge bases from scratch. Automation is not tried on an obligation the proof file proves (the
+  `Auto` module is then empty); when it is tried and fails, `complete`'s detail starts with "automation
+  gave up: write theorem complete : Obl.complete in lean/Proofs/<KB>/<N>.lean (run `scaffold <N>`)". Its
+  budget stays Lean's default (200000 heartbeats): measured, a `complete` automation proves takes up to
+  72000 (Keycloak's root; the CRM's 69000), and one it cannot prove gives up after 8000 to 200000 (the
+  CRM's WritesTakeEffect and WritesInCompany use all of it, about 20 s each); a smaller budget would save
+  seconds and could lose proofs a model needs.
+- **A list's elements as a set.** `xs.toSet` translates to the list's membership (`fun y => y ∈ xs`, the
+  shape of a `Set` in Lean), so code can build a hash set once and test membership in constant time
+  (`val there = shelf.toSet; picked.filter(b => there.contains(b))`), proven like `xs.contains`.

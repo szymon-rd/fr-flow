@@ -9,7 +9,7 @@ import scala.quoted.*
   * `Boolean` (as `Prop`), `Int`/`Long` (as `Int`), `String`, `List`, `Option`,
   * tuples; constructors, field access, `copy`, `match`, `if`, `val`s;
   * `==`, `!=`, `&&`, `||`, `!`, `==>`, integer arithmetic and comparison; a few
-  * `List`/`Option` operations; `forall`/`exists`; calls to `define`d functions;
+  * `List`/`Option`/`Map`/`Set` operations (`xs.toSet`: a list's membership); `forall`/`exists`; calls to `define`d functions;
   * opaque types (`User.T`) and parameters (`authorized(u, r)`, `shares.value`).
   * Anything else is a compile error at its position.
   */
@@ -673,6 +673,9 @@ private final class Translator(using val quotes: Quotes):
       case ("find", 1) if qt.derivesFrom(ListSym) =>
         val (x, b) = lam(args.head); Some(p(s"List.find? (fun $x => decide $b) $r"))
       case ("headOption", 0) if qt.derivesFrom(ListSym)  => Some(p(s"List.head? $r"))
+      // A list's elements as a set (its membership): built once, a hash set answers `contains` at once.
+      case ("toSet", 0) if qt.derivesFrom(ListSym) =>
+        val y = unique(new Object, "y", q.pos, free); Some(p(s"fun $y => $y ∈ $r"))
       // A negative count takes nothing and drops nothing, in both.
       case ("take" | "drop", 1) if qt.derivesFrom(ListSym) && isInt(args.head.tpe.widen) =>
         Some(p(s"List.$name (Int.toNat ${e(args.head)}) $r"))
