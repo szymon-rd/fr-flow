@@ -5,7 +5,8 @@ import java.net.InetSocketAddress
 import java.nio.charset.StandardCharsets.UTF_8
 
 /** The CRM over HTTP. Who calls is the account in the headers `X-User` and `X-Tenant` (authentication
-  * is not modelled). Every request reaches the records through the read, deal or write side.
+  * is not modelled). Every request reaches the records through the records screen, the sales screen or the
+  * write side; a write's answer is read from the rows the write side stored about its record.
   *
   *   GET  /records?id=N | ?kind=Contact|Deal      records the caller may see (everything by default)
   *   GET  /deals                                  the sales screen

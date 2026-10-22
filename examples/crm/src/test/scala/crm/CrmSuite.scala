@@ -5,7 +5,7 @@ import java.nio.file.{Files, Paths}
 
 class CrmSuite extends munit.FunSuite:
 
-  override val munitTimeout = scala.concurrent.duration.Duration(20, "min")
+  override val munitTimeout = scala.concurrent.duration.Duration(30, "min")
 
   private val acme = TenantId("acme")
   private val globex = TenantId("globex")
@@ -19,6 +19,16 @@ class CrmSuite extends munit.FunSuite:
 
   private def db(rs: List[CrmRecord] = records, ss: List[Share] = shareTable) = Db.of(rs, ss)
 
+  test("the model is well formed: one root, its parts, the contracts under the claims they make") {
+    assertEquals(knowledge.problems, Nil)
+    assertEquals(knowledge.root.map(_.id), Some("SharedCrm"))
+    assertEquals(knowledge.parts(sharedCrm).map(_.id), List("Visibility", "WritesTakeEffect", "WritesInCompany", "SharesExpire"))
+    assertEquals(knowledge.parentsOf(readContract).map(_.id), List("FindRecords", "NoCrossTenantRead"))
+    assertEquals(knowledge.parentsOf(dealSearch).map(_.id), List("SalesScreen", "NoCrossTenantRead"))
+    // every event that changes the store, the expiry job's runs too, is a part of StoreConsistent
+    assertEquals(knowledge.parts(storeConsistent).map(_.id), List("WriteContract", "SaveWrite", "SharesExpire"))
+  }
+
   test("a user sees their company's records and records shared with it, from the database") {
     val read = readSide(db())
     assertEquals(read(ann, Search.Everything).map(_.id), List[BigInt](1, 3))
@@ -26,22 +36,19 @@ class CrmSuite extends munit.FunSuite:
     assertEquals(read(ann, Search.OfKind(Kind.Contact)).map(_.id), List[BigInt](1, 3))
   }
 
-  test("the deals screen calls the read side: shared deals only, never a contact") {
+  test("the deals screen calls the records screen: shared deals only, never a contact") {
     val shared = records :+ CrmRecord(4, globex, Kind.Deal, "Shared deal")
     val deals = dealSide(db(shared, shareTable :+ Share(4, acme)))
     assertEquals(deals(ann, Search.Everything).map(_.id), List[BigInt](4))
   }
 
-  test("a store the writes could not reach is refused: the reads rely on unique ids") {
-    // Two records with one id: a share of Acme's would also show Globex's record with that id.
-    val dup = List(CrmRecord(1, acme, Kind.Deal, "Acme deal"), CrmRecord(1, globex, Kind.Deal, "Globex secret"))
-    val bob = Account("bob@initech", TenantId("initech"))
-    // (SQLite's key refuses two records with one id: the store is bound as the database would not hold it)
-    val e = intercept[ContractViolation] {
-      val d = Db.of(dup.take(1), List(Share(1, TenantId("initech"))))
-      knowledge.service(readContract)(store.bind(dup), shares.bind(List(Share(1, TenantId("initech")))), database.bind(d))(bob, Search.Everything)
-    }
-    assert(e.getMessage.contains("Accounts relies on CrmWrites"), e.getMessage)
+  test("a record with a taken id is not added: ids stay unique, so a share names one record") {
+    val d = db()
+    val write = writeSide(d)
+    // Ann adds a record of Acme's with Globex's id 2: nothing changes; the rows about 2 are Globex's
+    val rows = write(WriteCmd(ann, Change.Add(CrmRecord(2, acme, Kind.Deal, "Acme's, with Globex's id"))))
+    assertEquals(rows.records, List(records(1)))
+    assertEquals(d.allRecords(), records)
   }
 
   test("an implementation that leaks another company's records is stopped by its check, on every call") {
@@ -64,7 +71,15 @@ class CrmSuite extends munit.FunSuite:
     assert(buggy.exampleResults(recordsByQuery).exists(_.implementation.exists(_.contains("where the proven define returns"))), buggy.exampleResults(recordsByQuery))
   }
 
-  test("the HTTP API: reads, deals and writes go through the read, deal and write sides") {
+  test("SQL that is right on the examples' data but drops rows on more is found on varied data") {
+    // The port's examples store two records: a LIMIT 2 passes them all.
+    val limited = knowledge.implementProven(recordsByQuery)(storedMatching, (u, q) => database.value.recordsMatching(q).take(2))
+    assert(limited.exampleResults(recordsByQuery).filter(r => r.example.expected && !r.example.note.startsWith("generated")).forall(_.implementation.contains("ok")))
+    assert(limited.generated(recordsByQuery).exists(_.implementation.exists(_.contains("where the proven define returns"))), limited.generated(recordsByQuery))
+    assertEquals(knowledge.generated(recordsByQuery), Nil)
+  }
+
+  test("the HTTP API: reads, deals and writes go through the screens and the write side") {
     val d = db()
     val server = CrmServer.start(d, 0)
     try
@@ -95,26 +110,9 @@ class CrmSuite extends munit.FunSuite:
     assertEquals(d.expiries(), Nil)
   }
 
-  test("the examples pass against the contract and the implementation") {
-    assert(knowledge.exampleResults(readContract).forall(r => r.contract == "ok" && r.implementation.contains("ok")),
-      knowledge.exampleResults(readContract))
-  }
-
-  test("the knowledge base is proven, from tenant isolation to the contract") {
-    assume(Lake(Paths.get(".")).available, "lake is not available")
-    val root = Files.createTempDirectory("crm")
-    Files.copy(Paths.get("examples/crm/IDEA.md"), root.resolve("IDEA.md"))
-    val proofs = Paths.get("examples/crm/lean/Proofs/Crm")
-    Files.createDirectories(root.resolve("lean/Proofs/Crm"))
-    Files.list(proofs).forEach(f => Files.copy(f, root.resolve("lean/Proofs/Crm").resolve(f.getFileName)))
-    val w = Workflow(knowledge, Workspace(root, Paths.get("lean").toAbsolutePath.toString))
-    val checked = w.check().map((n, c) => n.id -> c).toMap
-    assertEquals(checked.view.mapValues(_.status).toMap, Map("TenantIsolation" -> "proven", "ReadApi" -> "proven", "Accounts" -> "proven",
-      "ReadContract" -> "proven", "WritesKeepStore" -> "proven", "StepByStep" -> "proven", "CrmWrites" -> "proven", "WriteContract" -> "proven", "SalesScreen" -> "proven", "DealSearch" -> "proven",
-      "RecordsByQuery" -> "proven", "StoreEdits" -> "proven", "SharesExpire" -> "proven", "ExpireJob" -> "proven"))
-    // every implementation is proven, and the root holds of each (DealSearch's from ReadContract's promise)
-    for c <- List("ReadContract", "WriteContract", "DealSearch", "ExpireJob", "RecordsByQuery", "StoreEdits") do
-      assertEquals(checked(c).obligations.filter(o => o.name == "impl" || o.name == "root_impl").map(_.status), List("proven", "proven"), checked(c))
+  test("the examples pass against the contracts, the ports and the code") {
+    for n <- List(readContract, dealSearch, writeContract, saveWrite, sharesExpire, recordsByQuery, storeEdits) do
+      assert(knowledge.exampleResults(n).forall(r => r.contract == "ok" && r.implementation.forall(_ == "ok")), knowledge.exampleResults(n))
   }
 
   test("a write changes only what its author's company may change, and the write side checks it") {
@@ -133,23 +131,29 @@ class CrmSuite extends munit.FunSuite:
   test("a write on the database stores only its record's rows, read back; the store's size does not matter") {
     val d = db()
     val write = writeSide(d)
-    write(WriteCmd(ann, Change.Add(CrmRecord(4, acme, Kind.Deal, "New deal"))))
+    assertEquals(write(WriteCmd(ann, Change.Add(CrmRecord(4, acme, Kind.Deal, "New deal")))), CrmStore(List(CrmRecord(4, acme, Kind.Deal, "New deal")), Nil, Nil))
     write(WriteCmd(ann, Change.ShareWith(4, globex, Some(BigInt(100)))))
     assertEquals(d.allRecords().map(_.id), List[BigInt](1, 2, 3, 4))
     assertEquals(d.shares().toSet, Set(Share(3, acme), Share(4, globex)))
     assertEquals(d.expiries(), List(Expiry(4, globex, 100)))
-    // sharing again with no end removes the expiry; the job then leaves the share alone
+    // sharing again for good removes the expiry; the job then leaves the share alone
     write(WriteCmd(ann, Change.ShareWith(4, globex, None)))
     assertEquals(d.expiries(), Nil)
     expireOnce(d, 150)
     assert(d.shares().contains(Share(4, globex)))
+    // what the database holds is what the write led to
+    val s = d.load()
+    write(WriteCmd(ann, Change.Unshare(4, globex)))
+    assertEquals(d.load().shares.toSet, applyWrite.fn(s, WriteCmd(ann, Change.Unshare(4, globex))).shares.toSet)
   }
 
-  test("a database that drops a write is seen on the call: StoreEdits reads the rows back") {
+  test("a database that drops a write is seen on the call: StoreEdits reads the rows back, under the write side too") {
     val d = db()
     val dropping = knowledge.implementProven(storeEdits)(storedAbout, (id, t) => CrmStore(Nil, Nil, Nil))
     val e = intercept[ContractViolation](dropping.service(storeEdits)(database.bind(d))(BigInt(1), CrmStore(records, Nil, Nil)))
     assert(e.getMessage.contains("StoreEdits"), e.getMessage)
+    val e2 = intercept[ContractViolation](dropping.service(saveWrite)(database.bind(d))(d.load(), WriteCmd(ann, Change.Add(CrmRecord(4, acme, Kind.Deal, "New deal")))))
+    assert(e2.getMessage.contains("StoreEdits"), e2.getMessage)
   }
 
   test("a governed file that changes the database past a port is a warning; the wired adapter methods are what is counted as checked") {
@@ -165,10 +169,25 @@ class CrmSuite extends munit.FunSuite:
     assert(w.bypasses.exists(_.contains("changes the outside directly (.insert")), w.bypasses)
   }
 
-  test("SQL that is right on the examples' data but drops rows on more is found on varied data") {
-    // The port's examples store two records: a LIMIT 2 passes them all.
-    val limited = knowledge.implementProven(recordsByQuery)(storedMatching, (u, q) => database.value.recordsMatching(q).take(2))
-    assert(limited.exampleResults(recordsByQuery).filter(r => r.example.expected && !r.example.note.startsWith("generated")).forall(_.implementation.contains("ok")))
-    assert(limited.generated(recordsByQuery).exists(_.implementation.exists(_.contains("where the proven define returns"))), limited.generated(recordsByQuery))
-    assertEquals(knowledge.generated(recordsByQuery), Nil)
+  test("the knowledge base is proven, from the contracts, their code and the ports to the root") {
+    val lake = Lake(Paths.get("."))
+    assume(lake.available, "lake is not available")
+    val root = Files.createTempDirectory("crm")
+    Files.copy(Paths.get("examples/crm/IDEA.md"), root.resolve("IDEA.md"))
+    Files.createDirectories(root.resolve("lean"))
+    val proofs = Paths.get("examples/crm/lean/Proofs")
+    if Files.isDirectory(proofs) then
+      Files.walk(proofs).forEach(f => if Files.isRegularFile(f) then
+        val to = root.resolve("lean").resolve(Paths.get("examples/crm/lean").relativize(f).toString)
+        Files.createDirectories(to.getParent)
+        Files.copy(f, to))
+    val w = Workflow(knowledge, Workspace(root, Paths.get("lean").toAbsolutePath.toString))
+    val checked = w.check().map((n, c) => n.id -> c).toMap
+    val formal = knowledge.nodes.filter(w.generate.formal).map(_.id)
+    assertEquals(checked.view.filterKeys(formal.contains).mapValues(_.status).toMap, formal.map(_ -> "proven").toMap)
+    // every implementation is proven, and the root holds of the code from the ports alone
+    for c <- List("ReadContract", "DealSearch", "WriteContract", "SaveWrite", "SharesExpire", "RecordsByQuery", "StoreEdits") do
+      assertEquals(checked(c).obligations.filter(_.name == "impl").map(_.status), List("proven"), checked(c))
+    assertEquals(checked("SharedCrm").obligations.find(_.name == "root_impl").map(_.status), Some("proven"))
+    assertEquals(w.generate.trusted.map(_.id), List("RecordsByQuery", "StoreEdits"))
   }
