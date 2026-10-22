@@ -126,7 +126,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     "governs" -> JArr(n.governs.map(str))
   ) ++ (if n.formal then Nil else List("formal" -> JBool(false))) ++ (if n.assumed then List("assumed" -> JBool(true)) else Nil) ++
     (if n.kept.isEmpty then Nil else List("keeps" -> JArr(n.kept.map(k => str(k.describe))))) ++
-    (if n.reliesOn.isEmpty then Nil else List("relies" -> JArr(n.reliesOn.map((o, why) => str(s"${o.id}: $why"))))) ++
+    (if n.reliesOn.isEmpty then Nil else List("relies" -> JArr(n.relied.map((o, why, p) => str(s"${o().id}: $why${p.fold("")(l => s" (checked: ${l.source})")}"))))) ++
     (if n.expected.isEmpty then Nil else List("expects" -> JArr(n.expected.map((st, l) => str(s"$st: ${l.source}"))))) ++
     kb.implementation(n).flatMap(_.proven).map { d =>
       val all = scala.collection.mutable.LinkedHashMap.empty[String, Def[?]]
@@ -171,7 +171,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   /** What a check depends on: the formal parts only, so rewording a statement does not re-run Lean. */
   def checkHash(n: Node[?]): String =
     val g = generate
-    sha((Seq(g.spec(n), g.auto(n), g.theorems(n), g.extraObligations(n).map(g.oblFile(n, _)).mkString, g.rootImplFile(n).getOrElse(""), g.idle(n).fold("")(_._1.statement), g.saysNothing(n).map(_.obligation.statement).mkString, g.evalFile(n).getOrElse(""), read(ws.lean.resolve(g.proofsPath(n.id))).getOrElse(""),
+    sha((Seq(g.spec(n), g.auto(n), g.theorems(n), g.extraObligations(n).map(g.oblFile(n, _)).mkString, g.rootImplFile(n).getOrElse(""), g.idle(n).fold("")(_._1.statement), g.saysNothing(n).map(_.obligation.statement).mkString, g.clauseChecks(n).map(_._1.statement).mkString, g.evalFile(n).getOrElse(""), read(ws.lean.resolve(g.proofsPath(n.id))).getOrElse(""),
       read(ws.lean.resolve(g.proofsPath(n.id))).filter(Lean.lemmaImports(_).nonEmpty).flatMap(_ => read(ws.lean.resolve(g.lemmasPath))).getOrElse(""),
       n.parent.fold("")(checkHash), kernelHash, Workflow.CheckerVersion.toString) ++ g.declarationsUsedBy(n))*)
 
@@ -322,7 +322,9 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       else (Result("root_impl", "failed", "the root theorem of the implementation does not build: " + errors(run).mkString("; ").take(300)), Nil)
     }.toList
     // What the contract leaves to the examples: whether doing nothing meets it.
-    val idle = g.idle(n).map((o, what) => Result("idle", if lake.elaborate(g.oblPath(n.id, o.name)).ok then "proven" else "open", what)).toList
+    val idle = g.idle(n).map((o, what) => Result("idle", if lake.elaborate(g.oblPath(n.id, o.name)).ok then "proven" else "open", what)).toList ++
+      // A clause of the root that holds of every model of this node, decided by the meanings fixed above it.
+      g.clauseChecks(n).map((o, c) => Result(o.name, if lake.elaborate(g.oblPath(n.id, o.name)).ok then "proven" else "open", c))
     // A view whose coverage cannot be stated keeps nothing proven.
     val uncovered = g.formalKeeps(n).flatMap((i, _) => g.coverage(n, i).left.toOption.map(w =>
       (Result(s"cover_${i.id}", "failed", s"what the view must list cannot be stated: $w"), Nil)))
@@ -773,7 +775,9 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
         "kind" -> str(n.kind.toString.toLowerCase),
         "parent" -> n.parent.fold(JNull)(p => str(p.id)),
         "limits" -> JArr((kb.limits(n) ++ check.toList.flatMap(_.obligations.filter(o => o.name == "idle" && o.status == "proven"))
-          .map(o => s"Lean shows it is met by ${o.detail} on every call: only the examples ask for more; say what it must do, or list it as not modelled")).map(str)),
+          .map(o => s"Lean shows it is met by ${o.detail} on every call: only the examples ask for more; say what it must do, or list it as not modelled") ++
+          check.toList.flatMap(_.obligations.filter(o => o.name.startsWith("clause_") && o.status == "proven"))
+            .map(o => s"Lean shows the root's clause `${o.detail}` holds of every model of ${n.id}, whatever it says: the meanings fixed on the way decide it, so nothing below is proven about it")).map(str)),
         "examples" -> JArr(kb.exampleResults(n).zipWithIndex.map { (r, i) =>
           // What Lean computes of the example, against what Scala does (the examples written, not generated ones).
           def lean(name: String) =

@@ -217,6 +217,18 @@ class LeanSuite extends munit.FunSuite:
     assert(off.exampleResults(pick).exists(_.implementation.exists(_.contains("where the proven longOnes returns"))), off.exampleResults(pick))
   }
 
+  test("a clause of the root that the meanings fixed below make true of every model is shown") {
+    val both = Node.root[(List[Item.T], Int) => List[Item.T]]("Both", "Picked items are good and from the list.", why = "w")(
+      pick => forall((l: List[Item.T], n: Int) => pick(l, n).forall(x => good(x))) && forall((l: List[Item.T], n: Int) => pick(l, n).forall(x => l.contains(x))))
+    val step = both.refine[(List[Item.T], Int) => List[Item.T]]("Step", "The same, as one spec.", why = "w")(
+      abs = pick => pick, spec = pick => forall((l: List[Item.T], n: Int) => pick(l, n).forall(x => good(x) && l.contains(x))))
+    // every book is good: the root's first clause says nothing any more
+    val anyBook = step.instantiate[(List[Book], Int) => List[Book]]("AnyBook", "Items are books; every book is good.", why = "w")(
+      Item := of[Book], good := ((b: Book) => true))
+    val c = workflow(KnowledgeBase("Clauses", idea = "IDEA.md")(both, step, anyBook)).check().find(_._1.id == "AnyBook").get._2
+    assertEquals(c.obligations.filter(_.name.startsWith("clause_")).map(o => o.name -> o.status), List("clause_0" -> "proven", "clause_1" -> "open"), c)
+  }
+
   test("an assumed link is decided by reading, and every root theorem resting on it names it") {
     val assumedSquares = nonNegative.refine[BigInt => BigInt]("Squares", "The result is the square of the input.", why = "Squares are never negative.",
       assume = true)(abs = f => f, spec = f => forall((x: BigInt) => f(x) == x * x))

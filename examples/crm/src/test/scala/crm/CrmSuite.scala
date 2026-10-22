@@ -24,6 +24,14 @@ class CrmSuite extends munit.FunSuite:
     assertEquals(read(ann, Search.OfKind(Kind.Contact)).map(_.id), List(1L, 3L))
   }
 
+  test("a store the writes could not reach is refused: the reads rely on unique ids") {
+    // Two records with one id: a share of Acme's would also show Globex's record with that id.
+    val dup = List(CrmRecord(1, acme, Kind.Deal, "Acme deal"), CrmRecord(1, globex, Kind.Deal, "Globex secret"))
+    val bob = Account("bob@initech", TenantId("initech"))
+    val e = intercept[ContractViolation](readSide(dup, List(Share(1, TenantId("initech"))))(bob, Search.Everything))
+    assert(e.getMessage.contains("Accounts relies on CrmWrites"), e.getMessage)
+  }
+
   test("an implementation that leaks another company's records is stopped by its contract") {
     val leaky: (Account, Search) => List[CrmRecord] = (_, _) => records
     intercept[ContractViolation](knowledge.implement(readContract)(leaky).service(readContract)(store.bind(records), shares.bind(shareTable))(ann, Search.Everything))

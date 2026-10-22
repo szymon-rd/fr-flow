@@ -116,6 +116,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
         saysNothing(n).map(e => oblPath(n.id, e.obligation.name) -> attempt(n, e.obligation)) ++
         rootImplFile(n).map(oblPath(n.id, "rootImpl") -> _) ++
         idle(n).map((o, _) => oblPath(n.id, o.name) -> attempt(n, o)) ++
+        clauseChecks(n).map((o, _) => oblPath(n.id, o.name) -> attempt(n, o)) ++
         evalFile(n).map(evalPath(n.id) -> _)
     }
     (s"FrFlowGen/$K/Domain.lean" -> domain :: perNode).toMap
@@ -330,6 +331,47 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
     ).getOrElse(Nil)
     vacuous ++ node
 
+  /** The clauses of a root's spec that mention its model: its top-level conjuncts, with `∀` spread
+    * over `∧` (`∀ x, A ∧ B` gives `∀ x, A` and `∀ x, B`). One may be made to hold of every model by
+    * the meanings fixed below (an instantiation that says nothing about it), which the root theorem
+    * as a whole does not show.
+    */
+  def rootClauses(root: Node[?]): List[String] =
+    root.spec.filter(_ => root.kind == NodeKind.Root).toList.flatMap { sp =>
+      val m = sp.params.headOption.map(_._1).getOrElse("")
+      def closes(t: String, i: Int): Int =
+        var d = 0
+        (i until t.length).find { j => val c = t(j); if c == '(' || c == '[' then d += 1 else if c == ')' || c == ']' then d -= 1; d == 0 }.getOrElse(-1)
+      def atZero(t: String, sym: String): Option[Int] =
+        var d = 0
+        (0 until t.length).find { i => val c = t(i); if c == '(' || c == '[' then d += 1 else if c == ')' || c == ']' then d -= 1; d == 0 && t.startsWith(sym, i) }
+      def strip(t: String): String = if t.startsWith("(") && closes(t, 0) == t.length - 1 then strip(t.substring(1, t.length - 1).trim) else t
+      def split(t0: String): List[String] =
+        val t = strip(t0.trim)
+        if t.startsWith("∀ ") then atZero(t, ",").fold(List(t)) { i =>
+          val head = t.take(i + 1)
+          split(t.drop(i + 1)) match
+            case List(_) => List(t)
+            case parts   => parts.map(c => s"($head $c)")
+        }
+        else atZero(t, " ∧ ").fold(List(t))(i => split(t.take(i)) ++ split(t.drop(i + 3)))
+      val cs = split(sp.body)
+      if cs.size < 2 then Nil
+      else cs.filter(c => s"(?<![\\w'.])${java.util.regex.Pattern.quote(m)}(?![\\w'])".r.findFirstIn(c).isDefined)
+    }
+
+  /** For a node below the root's children: each clause of the root holding of every model of the node,
+    * whatever the node says. Tried by frflow_auto; when proven, the clause is a limit of the node.
+    */
+  def clauseChecks(n: Node[?]): List[(Obligation, String)] =
+    if !formal(n) || n.parent.forall(_.kind == NodeKind.Root) || n.kind == NodeKind.Design || n.kind == NodeKind.Invariant then Nil
+    else
+      val root = kb.rootOf(n)
+      rootClauses(root).zipWithIndex.map { (c, i) =>
+        (Obligation(s"clause_$i", stated(n, s"(m : ${modelType(n)})", None, s"${at(n)(s"rootClause_$i")} (${at(n)("toRoot")} m)"),
+          s"The root's clause $c holds of every model of ${n.id}, whatever ${n.id} says."), c)
+      }
+
   /** The contract met by doing nothing (returning `[]` or `none`, or the input unchanged) on every
     * call, as `frflow_auto` may show: what it then leaves to the examples.
     */
@@ -494,6 +536,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
         d("spec", s"$m → Prop", resolve(n.spec.get.lean))
         d("toRoot", "", s"fun (m : $m) => m")
         d("rootSpec", "", at("spec"))
+        rootClauses(n).zipWithIndex.foreach((c, i) => d(s"rootClause_$i", s"$m → Prop", s"fun (${n.spec.get.params.head._1} : $m) => ${resolve(c)}"))
       case NodeKind.Refine =>
         val p = n.parent.get
         val pa = args(nodeCtx(p))
@@ -502,6 +545,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
         d("abs", n.abs.get.leanType, resolve(n.abs.get.lean))
         d("toRoot", "", s"fun (m : $m) => ${pat("toRoot")} (${at("abs")} m)")
         d("rootSpec", "", pat("rootSpec"))
+        rootClauses(kb.rootOf(n)).indices.foreach(i => d(s"rootClause_$i", "", pat(s"rootClause_$i")))
       case NodeKind.Contract =>
         val p = n.parent.get
         val pa = args(nodeCtx(p))
@@ -519,6 +563,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
         n.abs.foreach(a => d("abs", a.leanType, resolve(a.lean)))
         d("toRoot", "", if n.abs.isDefined then s"fun (m : $m) => ${pat("toRoot")} (${at("abs")} m)" else s"fun (m : $m) => ${pat("toRoot")} m")
         d("rootSpec", "", pat("rootSpec"))
+        rootClauses(kb.rootOf(n)).indices.foreach(i => d(s"rootClause_$i", "", pat(s"rootClause_$i")))
       case NodeKind.Instantiate =>
         n.substs.filterNot(_.isType).foreach { s =>
           val t = s.term.get
@@ -530,9 +575,10 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
         d("spec", "", s"${q(p, "spec")} $th")
         d("toRoot", "", s"${q(p, "toRoot")} $th")
         d("rootSpec", "", s"${q(p, "rootSpec")} $th")
+        rootClauses(kb.rootOf(n)).indices.foreach(i => d(s"rootClause_$i", "", s"${q(p, s"rootClause_$i")} $th"))
     if n.kind == NodeKind.Root || n.kind == NodeKind.Refine || n.kind == NodeKind.Contract then
       n.expected.zipWithIndex.foreach { case ((_, l), i) => d(s"expected_$i", l.leanType, resolve(l.lean)) }
-    (obligations(n) ++ saysNothing(n).map(_.obligation) ++ idle(n).map(_._1)).foreach { o =>
+    (obligations(n) ++ saysNothing(n).map(_.obligation) ++ idle(n).map(_._1) ++ clauseChecks(n).map(_._1)).foreach { o =>
       sb ++= s"namespace Obl\n\n/-- ${o.description} -/\n@[frflow_defs] def ${o.name} : Prop :=\n  ${o.statement}\n\nend Obl\n\n"
     }
     sb ++= s"end $K.${n.id}\n"

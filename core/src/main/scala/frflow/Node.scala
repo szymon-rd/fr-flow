@@ -83,17 +83,28 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
     val file: String = "",
     val expected: List[(String, Lifted[?])] = Nil,
     val assumed: Boolean = false,
-    relied: List[(() => Node[?], String)] = Nil
+    val relied: List[(() => Node[?], String, Option[Lifted[() => Boolean]])] = Nil
 ):
   /** The nodes this one relies on besides its parent (see `relies`), with what it relies on. */
-  def reliesOn: List[(Node[?], String)] = relied.map((f, why) => (f(), why))
+  def reliesOn: List[(Node[?], String)] = relied.map((f, why, _) => (f(), why))
+
+  /** What it relies on that is stated as a property of the parameters, checked wherever it runs. */
+  def reliedProperties: List[(Node[?], String, Lifted[() => Boolean])] = relied.collect { case (f, why, Some(p)) => (f(), why, p) }
 
   /** This node relies on what another node says (often of another concern: the read side on what
     * every write keeps); `why` says what. A change to that node's meaning puts this one up for review,
     * as a change above it does, and accepting such a change lists this one among the decisions it may
     * affect. The other node may be declared later.
     */
-  def relies(on: => Node[?], why: String): Node[M] = copy(relied = relied :+ (() => on, why))
+  def relies(on: => Node[?], why: String): Node[M] = copy(relied = relied :+ (() => on, why, None))
+
+  /** Relies on `on` for a property of the parameters, `that`, stated with a definition `on` proves
+    * something about (CRM's reads rely on `consistentStore(...)`, which every write keeps): besides
+    * the review, every example and every call through `service` checks it, and refuses values that
+    * break it.
+    */
+  inline def reliesThat(on: => Node[?], why: String)(inline that: () => Boolean): Node[M] =
+    copy(relied = relied :+ (() => on, why, Some(Lifted(that))))
 
   /** Whether Lean checks this node: it did not opt out, and neither did anything above it. */
   def formal: Boolean = declaredFormal && parent.forall(_.formal)
@@ -105,7 +116,7 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
     * is known either way, so a change to them reaches it.
     */
   def referenced: List[Lifted[?]] = spec.toList ++ abs.toList ++ post.toList ++ substs.flatMap(_.term) ++ kept.flatMap(_.view) ++
-    expected.map(_._2)
+    expected.map(_._2) ++ relied.flatMap(_._3)
 
   /** A consequence the developer expects of every model of this node, stated as a check of their
     * understanding (Lean proves it from the node's spec): "Acme never sees Globex's unshared contact".
@@ -130,7 +141,7 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
       assumed = assume)
 
   private def copy(cases: List[Example] = cases, governs: List[String] = governs, kept: List[Keep] = kept,
-      expected: List[(String, Lifted[?])] = expected, relied: List[(() => Node[?], String)] = relied): Node[M] =
+      expected: List[(String, Lifted[?])] = expected, relied: List[(() => Node[?], String, Option[Lifted[() => Boolean]])] = relied): Node[M] =
     Node(id, statement, why, kind, parent, spec, abs, post, substs, cases, governs, declaredFormal, kept, scope, ideaSection, file, expected, assumed,
       relied)
 
@@ -240,7 +251,7 @@ extension [A, B, R](n: Node[(A, B) => R])
   /** A plain Scala implementation with every call checked against the contract: a result that
     * breaks it is never returned. Used by `KnowledgeBase.service`, which is how code is attached.
     */
-  private[frflow] def enforce(impl: (A, B) => R)(bindings: Binding*): (A, B) => R =
+  private[frflow] def enforce(impl: (A, B) => R, assumes: List[(String, () => Boolean)] = Nil)(bindings: Binding*): (A, B) => R =
     require(n.kind == NodeKind.Contract, s"${n.id} is not a contract")
     val post = n.post.get.value.asInstanceOf[(A, B, R) => Boolean]
     (a, b) =>
@@ -260,6 +271,7 @@ extension [A, B, R](n: Node[(A, B) => R])
         Binding(b.param, () => v)
       }
       Bindings.within(fixed) {
+        assumes.find((_, p) => !p()).foreach((what, _) => throw ContractViolation(n.id, s"the values it runs with break what $what"))
         val r = impl(a, b)
         if !post(a, b, r) then throw ContractViolation(n.id, s"result $r for ($a, $b) breaks the contract")
         n.broken(a, b, r).foreach(i => throw ContractViolation(n.id, s"result $r for ($a, $b) breaks the invariant $i"))
@@ -296,7 +308,7 @@ extension [A, B, R](n: Node[(A, B) => R])
   /** Each example, checked against the contract and, if given, against an implementation
     * built under the example's parameter values.
     */
-  def checkExamples(impl: Option[() => (A, B) => R]): List[ExampleResult] =
+  def checkExamples(impl: Option[() => (A, B) => R], assumes: List[(String, () => Boolean)] = Nil): List[ExampleResult] =
     val post = n.post.get.value.asInstanceOf[(A, B, R) => Boolean]
     def attempt(f: => String) = try f catch case e: Exception => s"error: ${e.getMessage}"
     // The implementation is built once per set of given values, as a running system would be.
@@ -306,7 +318,9 @@ extension [A, B, R](n: Node[(A, B) => R])
       Bindings.within(e.bindings) {
         val c = attempt {
           val ok = post(a, b, r)
-          if ok != e.expected then (if e.expected then "the contract refuses it" else "the contract accepts it")
+          val broken = assumes.find((_, p) => !p())
+          if broken.isDefined then s"the values it gives break what ${broken.get._1}"
+          else if ok != e.expected then (if e.expected then "the contract refuses it" else "the contract accepts it")
           else if e.expected then n.broken(a, b, r).fold("ok")(i => s"the invariant $i refuses it")
           else "ok"
         }
@@ -389,12 +403,16 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     val missing = needed.filterNot(bindings.map(_.param.name).contains)
     if missing.nonEmpty then
       throw IllegalStateException(s"${contract.id}: bind ${missing.mkString(", ")} (the contract reads them)")
-    contract.enforce((a, b) => f()(a, b))(bindings*)
+    contract.enforce((a, b) => f()(a, b), assumptionsOf(contract))(bindings*)
+
+  /** The properties the nodes on a contract's path rely on (see `reliesThat`), to check where it runs. */
+  def assumptionsOf(n: Node[?]): List[(String, () => Boolean)] =
+    path(n).flatMap(x => x.reliedProperties.map((o, why, p) => (s"${x.id} relies on ${o.id} for (${why}): `${p.source}`", p.value)))
 
   /** The results of a node's examples, against the implementation when one is registered. */
   def exampleResults(n: Node[?]): List[ExampleResult] =
     if n.cases.isEmpty then Nil
-    else n.asInstanceOf[Node[(Any, Any) => Any]].checkExamples(implementation(n).map(_.factory.asInstanceOf[() => (Any, Any) => Any])) ++
+    else n.asInstanceOf[Node[(Any, Any) => Any]].checkExamples(implementation(n).map(_.factory.asInstanceOf[() => (Any, Any) => Any]), assumptionsOf(n)) ++
       generated(n)
 
   /** The contract holds for every call, not only the examples: the implementation also runs on
@@ -577,6 +595,11 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
 
       nodes.filter(i => i.kind == NodeKind.Invariant && !nodes.exists(_.kept.exists(k => (k.invariant eq i) && k.view.nonEmpty)))
         .map(i => s"${i.id}: no contract keeps this invariant"),
+      // A property relied on is stated with what the other node proves something about.
+      nodes.flatMap(n => n.reliedProperties.collect {
+        case (o, _, p) if o != null && nodes.contains(o) && !p.defs.map(_.name).exists(d => path(o).flatMap(_.referenced).flatMap(_.defs).exists(_.name == d)) =>
+          s"${n.id}: what it relies on ${o.id} for must be stated with a definition ${o.id} (or a node above it) uses, so it is what is proven there: `${p.source}` names none"
+      }),
       nodes.flatMap(n => n.reliesOn.collect {
         case (null, _) => s"${n.id} relies on a node that is not initialized: refer to its val"
         case (o, _) if !nodes.contains(o) => s"${n.id} relies on ${o.id}, which is not in the knowledge base"

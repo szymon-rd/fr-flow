@@ -73,7 +73,8 @@ val accounts = readApi.instantiate[(Account, Search) => List[CrmRecord]](
   tenantOf   := ((a: Account) => a.tenant),
   owner      := ((r: CrmRecord) => r.tenant),
   sharedWith := ((r: CrmRecord, t: TenantId) => shares.value.contains(Share(r.id, t)))
-).relies(crmWrites, "a share names one record by its id: ids are unique in every store the writes reach, so a share never shows another company's record with the same id")
+).reliesThat(crmWrites, "a share names one record by its id: ids are unique in every store the writes reach, so a share never shows another company's record with the same id")(
+  () => consistentStore(CrmStore(store.value, shares.value)))
 
 // ============================================================================
 // Contract for implementations
