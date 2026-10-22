@@ -311,7 +311,7 @@ const siblings = n => live().filter(m => m.parent === n.parent && m.id !== n.id 
 const requests = () => state.data?.requests || [];
 const me = () => $("#me").value.trim();
 const examplesBad = n => (n.examples || []).filter(e => e.contract !== "ok" || (e.implementation && e.implementation !== "ok"));
-const pathProven = n => pathTo(n.id).slice(1).every(p => ["proven", "design", "informal"].includes(linkStatus(p)));
+const pathProven = n => pathTo(n.id).slice(1).every(p => ["proven", "design", "informal", "assumed"].includes(linkStatus(p)));
 const causeText = { self: "it changed", above: "the meaning of something above it changed", code: "the code it governs changed", revisit: "a change above may affect it", merged: "two branches decided it and both were kept: decide it again" };
 function linkLabel(n) {
   const s = linkStatus(n), d = n.link?.detail;
@@ -451,6 +451,7 @@ function verdict(n) {
     if (d === "authored") return "Proven by a proof the agent wrote, replayed through the Lean kernel. Read it before accepting: a proof can also go through because the node contradicts itself, which the automatic check does not always catch.";
     return "Proven automatically by frflow_auto.";
   }
+  if (s === "assumed") return "Assumed: you decide this link by reading; its spec stays formal, so everything below is proven against it, and every root theorem resting on it names it.";
   if (s === "informal") return "Not formalized: this node opted out of Lean (formal = false). Read its model against its parent; that reading is your decision. A contract's examples and run-time check still apply.";
   if (s === "open") return `Open: ${esc(d)}`;
   if (s === "failed") return `Failed: ${esc(d)}`;
@@ -502,7 +503,7 @@ const reasonBox = (placeholder, value = "") =>
 
 function warnings(n) {
   const w = [];
-  if (n.kind !== "design" && n.parent && !["proven", "informal"].includes(linkStatus(n))) w.push(`its link is ${linkStatus(n)}`);
+  if (n.kind !== "design" && n.parent && !["proven", "informal", "assumed"].includes(linkStatus(n))) w.push(`its link is ${linkStatus(n)}`);
   if (examplesBad(n).length) w.push(`${examplesBad(n).length} example(s) fail`);
   (n.invariants || []).filter(i => !["proven", "informal"].includes(i.status)).forEach(i => w.push(`invariant ${i.id} is ${i.status}`));
   return w;
@@ -715,7 +716,7 @@ function nodePane() {
       ${n.kind !== "design" ? `<button class="btn small" data-run="check" data-arg="${esc(n.id)}">Check this node</button>` : ""}
       ${ls === "open" && !n.proof && n.obligation ? `<button class="btn small" data-run="scaffold" data-arg="${esc(n.id)}">Create proof file</button>` : ""}
     </div>`;
-  const read = pathTo(n.id).slice(1).filter(p => linkStatus(p) === "informal").length;
+  const read = pathTo(n.id).slice(1).filter(p => ["informal", "assumed"].includes(linkStatus(p))).length;
   if (n.kind !== "design" && n.kind !== "invariant") h += `<details><summary>Root theorem — ${!pathProven(n) ? "holds once every link on the path is proven" : read ? `holds as far as Lean goes: ${read} link(s) on the path are decided by reading, not proven` : "holds: every link from the root is proven"}</summary>
       <div class="chain">${pathTo(n.id).map((p, i) => (i ? `<span class="arrow ${linkStatus(p)}">${linkStatus(p) === "proven" ? "⟵✓" : "⟵?"}</span>` : "") +
         `<a data-goto="${esc(p.id)}">${esc(p.id)}</a>`).join("")}</div><pre>${esc(n.rootTheorem)}</pre></details>

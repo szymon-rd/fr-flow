@@ -192,6 +192,11 @@ contract that doing nothing meets is listed as such.
 every model of a node, proven from its spec. Propose some when a node is new:
 they let the developer test their understanding.
 
+**`assume = true`** (on `refine`, `contract`) keeps the node's spec in Lean but
+assumes its link instead of proving it: the developer decides it by reading,
+and every root theorem resting on it names the assumption. Prefer it to
+`formal = false` when only the proof is the problem.
+
 **`formal = false`** (on `Node.root`, `refine`, `instantiate`, `contract`)
 opts a node out of Lean. Its model stays Scala and may use any Scala; a
 contract still runs its examples and `service` still checks it. Its link is

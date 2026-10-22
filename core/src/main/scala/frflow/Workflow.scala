@@ -109,7 +109,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     "vocabulary" -> JArr(introduced(n).map(str)),
     "uses" -> JArr(generate.sourcesUsedBy(n).map(str)),
     "governs" -> JArr(n.governs.map(str))
-  ) ++ (if n.formal then Nil else List("formal" -> JBool(false))) ++
+  ) ++ (if n.formal then Nil else List("formal" -> JBool(false))) ++ (if n.assumed then List("assumed" -> JBool(true)) else Nil) ++
     (if n.kept.isEmpty then Nil else List("keeps" -> JArr(n.kept.map(k => str(k.describe))))) ++
     (if n.expected.isEmpty then Nil else List("expects" -> JArr(n.expected.map((st, l) => str(s"$st: ${l.source}"))))) ++
     kb.implementation(n).flatMap(_.proven).map { d =>
@@ -202,7 +202,8 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       val replay = lake.replay(g.lemmasModule)
       if !replay.ok then return done("failed", Nil, List("the kernel rejects the lemmas: " + replay.output.linesIterator.toList.takeRight(5).mkString("\n")))
 
-    val results = g.obligation(n).toList.map { o =>
+    val results = if n.assumed then g.obligation(n).toList.map(o => Result(o.name, "assumed", "decided by reading: Lean assumes it"))
+    else g.obligation(n).toList.map { o =>
       val rel = if authored(n.id) then g.proofsPath(n.id) else g.autoPath(n.id)
       val src = read(ws.lean.resolve(rel)).getOrElse("")
       val run = lake.elaborate(rel)
@@ -281,7 +282,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val idle = g.idle(n).map((o, what) => Result("idle", if lake.elaborate(g.oblPath(n.id, o.name)).ok then "proven" else "open", what)).toList
     val invRunsAll = invRuns ++ rootImpl
     val used = (g.auditedTheorems(n).flatMap(t => ax.getOrElse(t, List("<no audit result>"))) ++ invRunsAll.flatMap(_._2)).distinct.sorted
-    val extra = used.filterNot(Lean.allowedAxioms)
+    val extra = used.filterNot(a => Lean.allowedAxioms(a) || g.assumptions(n).contains(a))
     val all = results ++ invRunsAll.map(_._1) ++ idle
     if extra.nonEmpty then done("failed", all, List(s"disallowed axioms: ${extra.mkString(", ")}"), used)
     else done("proven", all, invRunsAll.collect { case (r, _) if r.status != "proven" => r.detail }, used)
@@ -318,6 +319,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       case None => st("unchecked", if checks.contains(n.id) then "changed since the last check" else "not checked yet")
       case Some(c) => c.obligations.headOption match
         case Some(r) if r.status == "proven" && c.status == "failed" => st("failed", c.messages.headOption.getOrElse("the node's theorems do not build"))
+        case Some(r) if r.status == "assumed" && c.status == "failed" => st("failed", c.messages.headOption.getOrElse("the node's theorems do not build"))
         // An authored link counts once something is shown to meet the node.
         case Some(r) if r.status == "proven" && c.obligations.exists(o => o.name == "feasible" && o.status != "proven") =>
           st("open", "the link is proven by hand: prove `feasible` too (some model meets the node), or give a proven implementation")
@@ -451,12 +453,14 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   def coverage: String =
     val g = generate
     val links = kb.nodes.filter(n => n.parent.nonEmpty && n.kind != NodeKind.Design && n.kind != NodeKind.Invariant)
-    val formal = links.filter(_.formal)
+    val formal = links.filter(l => l.formal && !l.assumed)
+    val assumedLinks = links.filter(l => l.formal && l.assumed)
     val contracts = kb.nodes.filter(_.kind == NodeKind.Contract)
     val proven = contracts.filter(c => g.provenImpl(c).isDefined && current(c).exists(_.obligations.exists(o => o.name == "root_impl" && o.status == "proven")))
     val plain = contracts.filter(c => kb.implementation(c).exists(_.proven.isEmpty))
     val designs = kb.nodes.filter(_.kind == NodeKind.Design)
-    s"Proofs: ${formal.size} of ${links.size} links in Lean${if formal.size < links.size then s" (${(links.diff(formal)).map(_.id).mkString(", ")} decided by reading)" else ""}; " +
+    s"Proofs: ${formal.size} of ${links.size} links proven in Lean${if assumedLinks.nonEmpty then s" (${assumedLinks.map(_.id).mkString(", ")} assumed: decided by reading, named by every root theorem that rests on them)" else ""}" +
+      s"${if links.diff(formal).diff(assumedLinks).nonEmpty then s" (${links.diff(formal).diff(assumedLinks).map(_.id).mkString(", ")} out of Lean)" else ""}; " +
       s"the root proven of the code for ${proven.size} of ${contracts.size} contracts" +
       (if plain.nonEmpty then s", checked on examples only for ${plain.map(_.id).mkString(", ")}" else "") +
       (if designs.nonEmpty then s"; ${designs.size} design decision(s) govern code no proof covers (${designs.map(_.id).mkString(", ")})" else "") + ".\n"
@@ -656,7 +660,9 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
         "rootTheorem" -> str(if g.formal(n) then g.rootTheorem(n) else ""),
         "lean" -> str(if g.formal(n) then g.spec(n) else ""),
         "messages" -> strs(check.toList.flatMap(_.messages)),
-        "axioms" -> strs(check.toList.flatMap(_.axioms))
+        "axioms" -> strs(check.toList.flatMap(_.axioms)),
+        // The assumed links the node's root theorem rests on, as Lean's audit lists them.
+        "restsOn" -> strs(check.toList.flatMap(_.axioms).flatMap(g.assumptions(n).get))
       )
     obj(
       "name" -> str(kb.name),

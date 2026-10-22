@@ -94,7 +94,7 @@ object Decisions:
 
   /** What a node's content means, without its reason, examples or idea. */
   def meaning(content: Json): String =
-    val parts = Set("parent", "statement", "sources", "substitutions", "vocabulary", "uses", "governs", "formal")
+    val parts = Set("parent", "statement", "sources", "substitutions", "vocabulary", "uses", "governs", "formal", "assumed")
     Decision.hash(JObj(content.obj.filter(f => parts(f._1))))
 
   /** The `## ` sections of the idea (without Not modelled), by heading, after the text before the
@@ -483,7 +483,7 @@ object Decisions:
     val ns = nodes(annotated)
     annotated("gone").forall(_.arr.isEmpty) && ns.forall { n =>
       val (ok, total) = examples(n)
-      s(n, "state") == "accepted" && n("link").forall(l => l == JNull || Set("proven", "informal")(s(l, "status"))) && ok == total &&
+      s(n, "state") == "accepted" && n("link").forall(l => l == JNull || Set("proven", "informal", "assumed")(s(l, "status"))) && ok == total &&
         n("invariants").forall(_.arr.forall(i => Set("proven", "informal", "exempt")(s(i, "status")))) &&
         n("implementationProof").forall(p => p == JNull || Set("proven", "informal")(s(p, "status"))) &&
         n("expectations").forall(_.arr.forall(e => Set("proven", "informal")(s(e, "status"))))

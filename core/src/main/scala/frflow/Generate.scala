@@ -369,7 +369,8 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
 
   def auto(n: Node[?]): String =
     val body = obligation(n).filterNot(_ => authoredLink(n.id)).fold("") { o =>
-      s"theorem ${o.name} : Obl.${o.name} := by\n  unfold Obl.${o.name}\n  frflow_auto\n\n"
+      if n.assumed then s"/-- Assumed: the developer decided this link by reading; every root theorem resting on it names it. -/\naxiom ${o.name} : Obl.${o.name}\n\n"
+      else s"theorem ${o.name} : Obl.${o.name} := by\n  unfold Obl.${o.name}\n  frflow_auto\n\n"
     }
     Header + s"import ${specModule(n.id)}\n\n" + Preamble + s"namespace $K.${n.id}.Auto\nopen $K.${n.id}\n\n$body" + s"end $K.${n.id}.Auto\n"
 
@@ -408,6 +409,10 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
     t.substring(from, t.indexOf(" :=", from))
 
   def auditedTheorems(n: Node[?]): List[String] = List(q(n, "root"))
+
+  /** The axioms standing for the assumed links on a node's path, by node. */
+  def assumptions(n: Node[?]): Map[String, String] =
+    kb.path(n).filter(a => a.assumed && formal(a)).map(a => s"$K.${a.id}.Auto.link" -> a.id).toMap
 
   def audit(n: Node[?]): String =
     Header + s"import ${theoremsModule(n.id)}\n\n" + auditedTheorems(n).map(t => s"#print axioms $t\n").mkString

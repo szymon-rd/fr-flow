@@ -151,10 +151,13 @@ from the link it printed (a session token).
 - **Assumptions about the world are shown:** a top-level condition of a spec
   that never mentions the model.
 
-Lean is the default. A node can opt out with `formal = false`, where a proof
-costs more than it gives or the translated subset cannot say it: its model
-stays Scala, its examples and `service` still run, and its link is decided by
-reading. Everything below it is out of Lean too.
+Lean is the default. Where a link's proof costs more than it gives, it can be
+**assumed** (`assume = true` on a refine or contract): its spec stays formal,
+so everything below is still proven against it, and Lean takes the link as an
+axiom that every root theorem resting on it names (`status` lists them).
+Where the translated subset cannot say a node at all, it opts out with
+`formal = false`: its model stays Scala, its examples and `service` still run,
+its link is decided by reading, and everything below it is out of Lean too.
 
 ## Checked by running
 

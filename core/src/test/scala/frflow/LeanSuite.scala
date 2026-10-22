@@ -158,6 +158,16 @@ class LeanSuite extends munit.FunSuite:
     assertEquals(bad.find(_._1.id == "Pick").get._2.obligations.find(_.name == "impl").map(_.status), Some("open"))
   }
 
+  test("an assumed link is decided by reading, and every root theorem resting on it names it") {
+    val assumedSquares = nonNegative.refine[BigInt => BigInt]("Squares", "The result is the square of the input.", why = "Squares are never negative.",
+      assume = true)(abs = f => f, spec = f => forall((x: BigInt) => f(x) == x * x))
+    val r = workflow(KnowledgeBase("Assumed", idea = "IDEA.md")(nonNegative, assumedSquares)).check()
+    val c = r.find(_._1.id == "Squares").get._2
+    assertEquals(c.status, "proven", c)
+    assertEquals(c.obligations.head.status, "assumed")
+    assert(c.axioms.contains("Assumed.Squares.Auto.link"), c.axioms)
+  }
+
   test("a contract with a signature of its own is proven through its abs") {
     // the best book alone, by title: as the parent's model, the list of that one book
     val best = books.contractVia[List[Book], String, Option[Book]]("Best", "The book named is picked, if it is long enough.", why = "w")(

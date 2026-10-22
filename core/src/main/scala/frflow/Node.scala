@@ -57,8 +57,10 @@ object Code:
   *     proven to imply the parent's spec. Implementations are plain Scala,
   *     attached with `KnowledgeBase.implement`.
   *
-  * Every node gets a Lean theorem `root`: the root's spec holds for its models. A node can opt
-  * out with `formal = false`: its model stays Scala (a contract's post still runs its examples
+  * Every node gets a Lean theorem `root`: the root's spec holds for its models. A link can be
+  * assumed (`assume = true`): its spec stays formal, so the nodes below are proven against it, and Lean
+  * takes the link as an axiom the developer decided by reading; every root theorem that rests on it
+  * names it. A node can opt out with `formal = false`: its model stays Scala (a contract's post still runs its examples
   * and `service`), nothing is translated to Lean, and its link is decided by reading. Everything
   * below it is out of Lean too, since there is nothing formal above it to prove against.
   */
@@ -79,7 +81,8 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
     val scope: List[Node[?]] = Nil,
     val ideaSection: String = "",
     val file: String = "",
-    val expected: List[(String, Lifted[?])] = Nil
+    val expected: List[(String, Lifted[?])] = Nil,
+    val assumed: Boolean = false
 ):
   /** Whether Lean checks this node: it did not opt out, and neither did anything above it. */
   def formal: Boolean = declaredFormal && parent.forall(_.formal)
@@ -100,23 +103,24 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
     copy(expected = expected :+ (statement -> Lifted.of(true, consequence)))
 
   /** A more concrete model. `why` is the reason for this step, including why `abs` maps it faithfully. */
-  inline def refine[M2](id: String, statement: String, why: String, inline formal: Boolean = true)(
+  inline def refine[M2](id: String, statement: String, why: String, inline formal: Boolean = true, assume: Boolean = false)(
       inline abs: M2 => M, inline spec: M2 => Boolean): Node[M2] =
     Node(id, statement, why, NodeKind.Refine, Some(this), Some(Lifted.of(formal, spec)), Some(Lifted.of(formal, abs)), None, Nil,
-      declaredFormal = formal, file = Lifted.here)
+      declaredFormal = formal, file = Lifted.here, assumed = assume)
 
   /** Fixes opaque types and parameters. `why` says why these are the right meanings in the world. */
   inline def instantiate[M2](id: String, statement: String, why: String, formal: Boolean = true)(substs: Subst*): Node[M2] =
     Node(id, statement, why, NodeKind.Instantiate, Some(this), None, None, None, substs.toList, declaredFormal = formal, file = Lifted.here)
 
   /** A contract for implementations with two inputs: `post(a, b, result)` holds for every call. */
-  inline def contract[A, B, R](id: String, statement: String, why: String, inline formal: Boolean = true)(
+  inline def contract[A, B, R](id: String, statement: String, why: String, inline formal: Boolean = true, assume: Boolean = false)(
       inline post: (A, B, R) => Boolean)(using M =:= ((A, B) => R)): Node[(A, B) => R] =
-    Node(id, statement, why, NodeKind.Contract, Some(this), None, None, Some(Lifted.of(formal, post)), Nil, declaredFormal = formal, file = Lifted.here)
+    Node(id, statement, why, NodeKind.Contract, Some(this), None, None, Some(Lifted.of(formal, post)), Nil, declaredFormal = formal, file = Lifted.here,
+      assumed = assume)
 
   private def copy(cases: List[Example] = cases, governs: List[String] = governs, kept: List[Keep] = kept,
       expected: List[(String, Lifted[?])] = expected): Node[M] =
-    Node(id, statement, why, kind, parent, spec, abs, post, substs, cases, governs, declaredFormal, kept, scope, ideaSection, file, expected)
+    Node(id, statement, why, kind, parent, spec, abs, post, substs, cases, governs, declaredFormal, kept, scope, ideaSection, file, expected, assumed)
 
   /** A contract with a signature of its own: `abs` says what an implementation is as the parent's
     * model (a new read path below an existing instantiation, say). Proven: `spec f → parent.spec (abs f)`.
