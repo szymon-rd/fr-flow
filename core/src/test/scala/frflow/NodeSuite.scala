@@ -242,6 +242,27 @@ class NodeSuite extends munit.FunSuite:
     assertEquals(Workflow.paramsOf("val sessionDb = Param[SessionDb](\"sessionDb\", \"the store\")\nval n = Param[Int](\"n\", \"x\")", Set("SessionDb")), List("sessionDb"))
   }
 
+  test("an assumption names its idea section and owner, on a fact or on an operation") {
+    val fact = Node.assumption("LongShelf", "Readers ask for books of at least a page.", why = "An empty book is not a book.",
+      idea = "Picking", owner = "ana")(minPages.value >= 1)
+    val port = Node.assumption(fetch)("Port", "The service returns books of the shelf.", why = "Books come from a service.", idea = "Picking")(
+      (shelf, n, r) => r.forall(b => shelf.contains(b)))
+    assertEquals((fact.ideaSection, fact.owner, port.ideaSection, port.owner), ("Picking", "ana", "Picking", ""))
+    assertEquals(port.op.map(_.name), Some("fetch"))
+  }
+
+  test("impl is proven from the promises of the operations its code calls, not those a term it reads is defined with") {
+    // Again's code reads pickedFrom, defined by the shelf service's operation: it depends on PickPromise, calls nothing
+    val g = Generate(readsKb)
+    assertEquals(g.callees(againC).map(_.id), List("PickPromise"))
+    assertEquals(g.calls(againC), Nil)
+    assert(!g.obligation(againC, "impl").get.statement.contains("h_PickPromise"), g.obligation(againC, "impl"))
+    // code calling the operation itself is proven from its promise
+    val c = Generate(callsKb)
+    assertEquals(c.calls(againC).map(_.id), List("PickPromise"))
+    assert(c.obligation(againC, "impl").get.statement.contains("h_PickPromise"), c.obligation(againC, "impl"))
+  }
+
   test("proof files may contain only tactic proofs") {
     val ok = Generate(squareKb).proofFile(nonNegative).replace("sorry", "simp")
     assertEquals(Lean.violations(ok), Nil)

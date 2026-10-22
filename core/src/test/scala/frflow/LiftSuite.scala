@@ -85,6 +85,15 @@ class LiftSuite extends munit.FunSuite:
     assertEquals(long.name, "long")
   }
 
+  test("defined functions of four and five arguments are called, in Scala and in Lean") {
+    assertEquals(Lifted((b: Book) => pagesBetween(b, 1, 500, "x")).body, "(⟦pagesBetween⟧ b 1 500 \"x\")")
+    assertEquals(Lifted((b: Book) => pagesBetweenOn(b, 1, 500, "x", Shelf.Top)).body, "(⟦pagesBetweenOn⟧ b 1 500 \"x\" Shelf.Top)")
+    assertEquals(pagesBetween(Book("A", 300), 100, 500, "B"), true)
+    assertEquals(pagesBetweenOn(Book("A", 300), 100, 500, "top", Shelf.Top), false)
+    val four = Param[(Book, Int, Int, String) => Boolean]("four", "a test of four arguments")
+    assertEquals(Lifted((b: Book) => four(b, 1, 2, "x")).body, "(four b 1 2 \"x\")")
+  }
+
   test("specification logic") {
     val c = Lifted((l: List[Book]) => forall((a: Book, b: Book) => (l.contains(a) && l.contains(b)) ==> a.pages <= b.pages))
     assertEquals(c.body, "(∀ (a : Book) (b : Book), (((a ∈ l) ∧ (b ∈ l)) → (a.pages ≤ b.pages)))")

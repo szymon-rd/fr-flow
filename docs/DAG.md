@@ -316,3 +316,10 @@ What the migrations of `examples/keycloak` and `examples/crm` found in the core,
   `idle` on the root is unchanged (what doing nothing is, when Lean shows it meets the root; else null),
   and a kept invariant's status stays in its own words (`proven` when the contract is needed, `open` when
   not). `CheckerVersion` is 5: results recorded before are checked again.
+- **Small API gaps.** `Node.assumption` takes `idea` and `owner`, on a fact and on an operation (the latter
+  through `AssumptionOn`, so both overloads may have defaults: `Node.assumption(op)(id, statement, why,
+  idea = "...")(post)` reads as before). `Def` and `Param` apply to four and five arguments. `impl` is proven
+  from the promises of the operations the code calls (itself, or through the `define`s it calls:
+  `Generate.calls`), not of those a term it reads is defined with; `callees` (that too) still orders the
+  composition of `root_impl`, and is what a node's code rests on (`relies`, `parentChain`), so no decision
+  moves. Keycloak's authored `impl` of Introspect no longer introduces HandleRequest's promise.

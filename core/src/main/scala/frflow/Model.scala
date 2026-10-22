@@ -45,6 +45,8 @@ final class Param[A](val name: String, val means: String):
 extension [A, R](p: Param[A => R]) def apply(a: A): R = p.value(a)
 extension [A, B, R](p: Param[(A, B) => R]) def apply(a: A, b: B): R = p.value(a, b)
 extension [A, B, C, R](p: Param[(A, B, C) => R]) def apply(a: A, b: B, c: C): R = p.value(a, b, c)
+extension [A, B, C, D, R](p: Param[(A, B, C, D) => R]) def apply(a: A, b: B, c: C, e: D): R = p.value(a, b, c, e)
+extension [A, B, C, D, E, R](p: Param[(A, B, C, D, E) => R]) def apply(a: A, b: B, c: C, e: D, f: E): R = p.value(a, b, c, e, f)
 
 /** What a definition fixes: an opaque type by a type, or a parameter by a term. `target` is the
   * `Opaque` or `Param` it defines.
@@ -165,6 +167,8 @@ inline def define[F](inline f: F): Def[F] = ${ Lift.define('f) }
 extension [A, R](d: Def[A => R]) def apply(a: A): R = d.fn(a)
 extension [A, B, R](d: Def[(A, B) => R]) def apply(a: A, b: B): R = d.fn(a, b)
 extension [A, B, C, R](d: Def[(A, B, C) => R]) def apply(a: A, b: B, c: C): R = d.fn(a, b, c)
+extension [A, B, C, D, R](d: Def[(A, B, C, D) => R]) def apply(a: A, b: B, c: C, e: D): R = d.fn(a, b, c, e)
+extension [A, B, C, D, E, R](d: Def[(A, B, C, D, E) => R]) def apply(a: A, b: B, c: C, e: D, f: E): R = d.fn(a, b, c, e, f)
 
 /** Raised when specification-only logic is executed. */
 final class NotExecutable(what: String) extends RuntimeException(s"$what cannot be executed")

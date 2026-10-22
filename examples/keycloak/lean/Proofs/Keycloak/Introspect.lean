@@ -14,7 +14,7 @@ open Keycloak
 
 theorem impl : Obl.impl := by
   unfold Obl.impl
-  intro history step seed lookup hLook hStep
+  intro history step seed lookup hLook
   simp only [Keycloak.SessionLookup.claim, Keycloak.SessionLookup.post] at hLook
   simp only [Keycloak.Introspect.claim, Keycloak.Introspect.post, Keycloak.introspection]
   intro realm token

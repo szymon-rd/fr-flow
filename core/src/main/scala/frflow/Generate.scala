@@ -292,9 +292,19 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
   /** The open terms of a node's split: its own and its parts'. */
   private def splitOpens(n: Node[?], parts: List[Node[?]]): Ctx = claim(n)._2 ++ Ctx.all(hyps(parts).map(_._2))
 
-  /** The contracts (and assumptions) whose operations a node's code calls: what its code is proven from. */
+  /** The contracts (and assumptions) whose operations a node's code reads, itself or through the definitions
+    * in force of the terms it reads: what its code depends on (and is composed after, in `root_impl`).
+    */
   def callees(n: Node[?]): List[Node[?]] =
     provenImpl(n).toList.flatMap(d => app(s"$K.${d.name}", defCtx(d))._2.params).filterNot(n.op.map(_.name).contains)
+      .flatMap(p => kb.onOp.getOrElse(p, Nil)).filter(formal).distinct
+
+  /** The contracts (and assumptions) whose operations a node's code calls itself (or through the `define`s
+    * it calls): what its code is proven from, the hypotheses of `impl`. An operation a term it reads is
+    * defined with is not one: the definition is in the statement, not a promise the proof uses.
+    */
+  def calls(n: Node[?]): List[Node[?]] =
+    provenImpl(n).toList.flatMap(d => defCtx(d).params).filterNot(n.op.map(_.name).contains)
       .flatMap(p => kb.onOp.getOrElse(p, Nil)).filter(formal).distinct
 
   /** The code of a node, as Lean, with the open terms it mentions (its callees' operations among them). */
@@ -333,9 +343,9 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
     val implementation = provenImpl(n).map { d =>
       val (c, o) = code(n)
       val (concl, co) = claim(n, Map(opOf(n) -> (c, o)))
-      val hs = hyps(callees(n))
+      val hs = hyps(calls(n))
       Obligation("impl", stated(co ++ Ctx.all(hs.map(_._2)), hs.map(_._1), concl),
-        s"Every result of ${d.name} meets ${n.id}${if hs.isEmpty then "" else s", given what ${callees(n).map(_.id).mkString(", ")} promise"}.")
+        s"Every result of ${d.name} meets ${n.id}${if hs.isEmpty then "" else s", given what ${calls(n).map(_.id).mkString(", ")} promise"}.")
     }
     val check = n.local.filter(_ => n.post.isDefined && formal(n)).map { l =>
       val (vars, xs) = call(n.post.get.params.map(_._2))
@@ -447,7 +457,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
     kb.root.filter(formal).toList.flatMap { r =>
       def need(n: Node[?], seen: Set[String]): List[Node[?]] =
         if seen(n.id) then Nil
-        else if implementing(n) then callees(n).flatMap(need(_, seen + n.id))
+        else if implementing(n) then calls(n).flatMap(need(_, seen + n.id))
         else List(n)
       leaves(r).flatMap(need(_, Set.empty)).distinctBy(_.id)
     }
@@ -460,8 +470,8 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
       def implProof(n: Node[?]): String =
         val (c, o) = code(n)
         val (_, co) = claim(n, Map(opOf(n) -> (c, o)))
-        val opens = co ++ Ctx.all(hyps(callees(n)).map(_._2))
-        s"(${q(n, "Impl.impl")} ${named(opens, codeEnv)} ${callees(n).map(c => s"(h_${c.id} := ${proofIn(c)})").mkString(" ")})"
+        val opens = co ++ Ctx.all(hyps(calls(n)).map(_._2))
+        s"(${q(n, "Impl.impl")} ${named(opens, codeEnv)} ${calls(n).map(c => s"(h_${c.id} := ${proofIn(c)})").mkString(" ")})"
       def proofIn(n: Node[?]): String = if implementing(n) then implProof(n) else s"h_${n.id}"
       val hs = hyps(trusted, codeEnv)
       val (concl, co) = claim(r, codeEnv)
@@ -469,7 +479,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
       val implOpens = kb.nodes.filter(implementing).map { n =>
         val (c, o) = code(n)
         val (_, cco) = claim(n, Map(opOf(n) -> (c, o)))
-        Ctx.all((cco ++ Ctx.all(hyps(callees(n)).map(_._2))).names.map(term(_, codeEnv)._2))
+        Ctx.all((cco ++ Ctx.all(hyps(calls(n)).map(_._2))).names.map(term(_, codeEnv)._2))
       }
       val opens = co ++ Ctx.all(hs.map(_._2)) ++ holdsOpens(r, codeEnv) ++ Ctx.all(implOpens)
       val statement = stated(opens, hs.map(_._1), concl)

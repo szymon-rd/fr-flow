@@ -201,3 +201,17 @@ def teamConcern(i: Int, owner: String): List[Node[?]] =
   List(r, Node.claim(s"Abs$i", "The result is the absolute value of the input.", why = "It is never negative.")(
     forall((x: BigInt) => sq(x) == (if x >= 0 then x else -x))).under(r))
 val teamKb = KnowledgeBase("Team", idea = "IDEA.md")((team :: (0 until 5).toList.flatMap(i => teamConcern(i, s"dev$i")))*)
+
+/** Defined functions of four and five arguments, called like the others. */
+val pagesBetween = define { (b: Book, lo: Int, hi: Int, title: String) => b.pages >= lo && b.pages <= hi && b.title != title }
+val pagesBetweenOn = define { (b: Book, lo: Int, hi: Int, title: String, s: Shelf) => pagesBetween(b, lo, hi, title) && where(s) != title }
+
+/** Code reading a defined term whose definition calls the shelf service: it does not call the service
+  * itself, so the service's promise is no hypothesis of its proof.
+  */
+val pickedFrom = Param[(List[Book], Book) => Boolean]("pickedFrom", "whether the shelf service picks the book from the shelf")
+val pickedFromDef = Node.definition("PickedFrom", "A book is picked from a shelf when the service picks it, asked for the whole shelf.",
+  why = "The service is how books leave the shelf.")(pickedFrom := ((l: List[Book], b: Book) => picks(l, l.length).contains(b)))
+val viaPickedFrom = define { (shelf: List[Book], n: Int) => shelf.filter(b => pickedFrom(shelf, b) && b.pages >= minPages.value) }
+val readsKb = KnowledgeBase("Reads", idea = "IDEA.md")(pickedAgain, againC, pickPromise, pickedFromDef)
+  .implementProven(pickPromise)(longOnes).implementProven(againC)(viaPickedFrom)
