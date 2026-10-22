@@ -81,11 +81,11 @@ object Decisions:
   /** The node holds as decided. */
   private def holds(state: String): Boolean = state == "accepted"
 
-  /** What a node rests on: its parent's chain, with the chains of the invariants it keeps and the nodes it relies on. A design
+  /** What a node rests on: its parents' chains, with the chains of the definitions it uses and the contracts its code calls. A design
     * decision rests on its parent's place, not its meaning: a change above lists it below, to revisit.
     */
-  def above(parentChain: String, invariantChains: List[String]): String =
-    if invariantChains.isEmpty then parentChain else sha((parentChain :: invariantChains.sorted)*)
+  def above(parentChain: String, otherChains: List[String]): String =
+    if otherChains.isEmpty then parentChain else sha((parentChain :: otherChains.sorted)*)
 
   /** The parents of a node, in the snapshot. */
   def parents(n: Json): List[String] = n("parents").map(_.arr.flatMap(_.str).toList).getOrElse(Nil)
@@ -297,8 +297,8 @@ object Decisions:
       c("content").flatMap(_("why")).flatMap(_.str).toList).exists(conditional)))
   extension (j: Json) private def ++(fs: Seq[(String, Json)]): Json = JObj(j.obj ++ fs)
 
-  /** Above a proposal: the accepted decisions it rests on (its path, what it relies on, the invariants
-    * it keeps) whose reason says when to revisit them. Accepting it answers each by name.
+  /** Above a proposal: the accepted decisions it rests on (its ancestors, the definitions it uses, the contracts its code
+    * calls) whose reason says when to revisit them. Accepting it answers each by name.
     */
   def conditionsAbove(snapshot: Json, ledger: Ledger, n: Json): List[String] =
     val ids = byId(snapshot)
@@ -346,7 +346,6 @@ object Decisions:
     val (ok, total) = examples(n)
     val provenImpl = Decisions.provenImpl(n)
     def decided(c: Json) = decidedHash(c, provenImpl)
-    // An instantiation's choice is what it substitutes, part of what it says: unchanged, it still holds.
     if isRoot(n) || kind == "design" || kind == "definition" then Some(s"${if isRoot(n) then "root" else kind} nodes hold a choice")
     else if v.state(n) != "review" then Some(s"$id is ${v.state(n)}: only a node under review can be mechanical")
     else if cs.exists(c => c != "self" && c != "above") then Some(s"$id is under review for ${cs.mkString(", ")}: the developer decides")
@@ -706,7 +705,7 @@ object Decisions:
       ns.filter(orphan).map(n => s"${s(n, "id")}: rests on rejected ${parents(n).filter(p => ids.get(p).exists(x => s(x, "state") == "rejected")).mkString(", ")}; move it under the node chosen instead")
     (dev, agent)
 
-  /** The CI gate: every node accepted by the developer, every link proven, every example passing; rejected nodes
+  /** The CI gate: every node accepted by the developer, every node proven, every example passing; rejected nodes
     * must be removed from the model, so that nothing still rests on them or is governed by them.
     */
   def complete(annotated: Json): Boolean =

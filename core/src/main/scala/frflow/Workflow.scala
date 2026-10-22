@@ -138,11 +138,6 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val terms = kb.termsOf(n).toSet ++ n.defines
     (kb.opaques.filter(o => terms(o.name)).map(o => s"${o.name}: ${o.means}") ++ kb.params.filter(p => terms(p.name)).map(p => s"${p.name}: ${p.means}")).sorted
 
-  /** The terms a node is the first to use, of the nodes above it: their meaning is decided there. */
-  def introduced(n: Node[?]): List[String] =
-    val above = kb.ancestors(n).flatMap(vocabulary).map(_.takeWhile(_ != ':')).toSet
-    vocabulary(n).filterNot(t => above(t.takeWhile(_ != ':')))
-
   /** The node as the developer sees it and decides it. A decision is bound to its hash. */
   def content(n: Node[?]): Json = JObj(Seq(
     "kind" -> str(Workflow.kindName(n)),
@@ -637,7 +632,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       wired.filterNot(files.contains).flatMap(f => read(ws.root.resolve(f)).toList.flatMap { text =>
         def calls(m: String) = s"\\.$m\\(".r.findFirstIn(text).isDefined
         called.toList.sorted.filter(calls).map(m => s"$f calls ${c.id}'s code directly (.$m): go through service(${c.id}), so what it returns is checked") ++
-          effects.filter((m, _) => calls(m)).map((m, af) => s"$f changes the outside directly (.$m, in $af): go through a port, so the change is checked")
+          effects.filter((m, _) => calls(m)).map((m, af) => s"$f changes the outside directly (.$m, in $af): go through an assumption on an operation, so the change is checked")
       })
     }.distinct
 
@@ -662,7 +657,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     kb.modelFiles.distinct.flatMap { f =>
       read(Path.of(f)).orElse(read(ws.root.resolve(f))).toList.flatMap(_.linesIterator.zipWithIndex.collect {
         case (Top(kw, name, rest), i) if !(kw == "val" && (known(Option(name).getOrElse("")) ||
-            Seq("= KnowledgeBase(", "= define", "= Opaque(", "= Param[", "= Param(").exists(rest.trim.startsWith) || rest.contains(".caller(") ||
+            Seq("= KnowledgeBase(", "= define", "= Opaque(", "= Param[", "= Param(").exists(rest.trim.startsWith) ||
             rest.contains("KnowledgeBase") || Workflow.isData(rest))) =>
           s"${Path.of(f).getFileName}:${i + 1}: `$kw ${Option(name).getOrElse("")}` is code in the model's file that no node governs: make it a `define` (proven), or move it to a governed file"
       })

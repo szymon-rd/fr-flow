@@ -59,7 +59,11 @@ private[frflow] object Lift:
         super.traverseTree(t)(owner)
     refs.traverseTree(term)(Symbol.spliceOwner)
     def of[T: Type](k: String): Expr[List[T]] = Expr.ofList(found.values.collect { case (`k`, r) => r.asExprOf[T] }.toList)
-    val text = term.pos.sourceCode.getOrElse(term.show)
+    // A formula (`() => formula`, built by `Node.claim`) reads as the caller's expression.
+    val shown = term match
+      case Lambda(Nil, b) => unwrap(b)
+      case t              => t
+    val text = shown.pos.sourceCode.getOrElse(shown.show)
     val defs = of[Def[?]]("frflow.Def")
     val params = of[Param[?]]("frflow.Param")
     val opaques = of[Opaque]("frflow.Opaque")
@@ -212,7 +216,7 @@ private final class Translator(using val quotes: Quotes):
     // may not exceed 64 KB; the construction is the bulk of each node's expansion.
     '{
       def liftedNode(): Lifted[F] =
-        new Lifted[F]($f, ${ Expr(params) }, ${ Expr(result) }, ${ Expr(body) }, ${ Expr(source(term.pos)) }, $typeList,
+        new Lifted[F]($f, ${ Expr(params) }, ${ Expr(result) }, ${ Expr(body) }, ${ Expr(source(term match { case Lambda(Nil, b) => strip(b).pos; case t => t.pos })) }, $typeList,
           ${ Expr(opaques.toList) }, ${ Expr(paramRefs.toList) }, () => $depList, () => $paramList, () => $opaqueList)
       liftedNode()
     }
