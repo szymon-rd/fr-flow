@@ -26,6 +26,11 @@ final case class Obligation(name: String, statement: String, description: String
   * @param chosen   the definitions decided among alternatives (two definitions of one term)
   */
 object Generate:
+  /** The first steps of a proof by hand (the skill's recipe): the obligation unfolded, its binders
+    * introduced by their generated names, the generated definitions unfolded everywhere.
+    */
+  def recipe(o: String): List[String] = List(s"unfold Obl.$o", "frflow_intro", "simp only [frflow_defs] at *")
+
   /** Names the generated Lean binds itself; a parameter or opaque type with one of them would be captured. */
   val reserved: Set[String] =
     Set("m", "f", "h", "p", "claim", "post", "rule", "holds", "complete", "impl", "Obl", "Type", "Prop",
@@ -936,14 +941,16 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
   /** Obligations proven in the Checks file: all but `complete` and `impl`. */
   def extraObligations(n: Node[?]): List[Obligation] = obligations(n).filterNot(o => o.name == "complete" || o.name == "impl")
 
-  /** A stub for each obligation, to prove in its place. */
-  def stubs(names: List[String]): String =
-    names.map(o => s"theorem $o : Obl.$o := by\n  unfold Obl.$o\n  sorry\n\n").mkString
+  /** A stub for each obligation, to prove in its place: the first steps of a proof by hand, what they
+    * leave (`state`, as a comment, when known), then `sorry`.
+    */
+  def stubs(names: List[String], state: String => String = _ => ""): String =
+    names.map(o => s"theorem $o : Obl.$o := by\n  ${Generate.recipe(o).mkString("\n  ")}\n${state(o)}  sorry\n\n").mkString
 
   /** A proof file with a stub for each of `names` (and for `feasible` with `complete`, unless a proven
     * implementation below witnesses the node).
     */
-  def proofFile(n: Node[?], names: List[String] = List("complete")): String =
+  def proofFile(n: Node[?], names: List[String] = List("complete"), state: String => String = _ => ""): String =
     val all = names ++ Option.when(names.contains("complete") && !witnessed(n) && !names.contains("feasible"))("feasible")
     s"""import ${specModule(n.id)}
        |
@@ -953,8 +960,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
        |namespace $K.${n.id}.Proofs
        |open $K.${n.id}
        |
-       |${stubs(all)}end $K.${n.id}.Proofs
-       |""".stripMargin
+       |""".stripMargin + stubs(all, state) + s"end $K.${n.id}.Proofs\n"
 
   def lakefile(kernelPath: String): String =
     s"""name = "${K.toLowerCase}"

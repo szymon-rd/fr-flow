@@ -356,11 +356,39 @@ rules are in [`.claude/skills/frflow/SKILL.md`](.claude/skills/frflow/SKILL.md).
 Committed: the Scala, `IDEA.md`, `.frflow/` (ledger, keys, requests) and
 `lean/Proofs`; the rest is derived.
 
+### New project
+
+A project is a directory beside the examples (here `examples/library`, its
+knowledge base `Library`):
+
+1. `IDEA.md`: a title, a lead paragraph (the purpose), `## ` sections, and
+   `## Not modelled`.
+2. `frflow.json`, which tells the browser and MCP how to run its CLI and which
+   files are its sources:
+   ```json
+   { "name": "Library", "run": ["sbt", "--client", "library/run {args}"], "cwd": "../..",
+     "sources": ["src/main/scala", "IDEA.md", "lean/Proofs"] }
+   ```
+3. A line in `build.sbt` (and the project in `root`'s `aggregate`), then
+   `sbt reload`:
+   ```scala
+   lazy val library = example("library")
+   ```
+4. The model in `src/main/scala/library/`, ending with the knowledge base and
+   its command line (with several `@main`s, set `Compile / run / mainClass`):
+   ```scala
+   val knowledge = KnowledgeBase("Library", idea = "IDEA.md")(lendsExactly, ...)
+   @main def libraryCli(args: String*): Unit = sys.exit(knowledge.cli(args, root = "examples/library"))
+   ```
+5. `sbt "library/run render"` creates `lean/` (its `lakefile.toml`, toolchain
+   and the generated Lean); then `check`, and `bin/frflow serve examples` shows
+   it beside the others.
+
 ## Layout
 
 ```
 docs/DAG.md             the design: one root, parts, the vocabulary, obligations, decisions
-lean/FrFlow/            the Lean side: frflow_auto; run and list lemmas (always, simulates, tracks)
+lean/FrFlow/            the Lean side: frflow_auto, frflow_intro; run and list lemmas (always, simulates, tracks)
 core/                   the Scala library
   Node, Model, Lift     nodes and knowledge bases; Opaque, Param, define; the macro from Scala to Lean
   Generate, Lean        Lean generation; running lake, axiom audits, the proof-file filter

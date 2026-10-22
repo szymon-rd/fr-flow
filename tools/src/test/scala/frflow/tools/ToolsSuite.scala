@@ -117,7 +117,7 @@ class ToolsSuite extends munit.FunSuite:
     val id = s(p.addRequest("Auto", "Propose an alternative to Auto", "dev"), "id")
     val inbox = call(m, "inbox")._1
     assert(inbox.contains(s"[$id] on Auto: Propose an alternative to Auto"), inbox)
-    assert(inbox.contains("Stale: rejected; remove it"), inbox)
+    assert(inbox.contains("Stale: rejected by dev: Open was chosen; propose"), inbox)
     assert(inbox.contains("Inst: proposed"), inbox)
     assert(inbox.contains("Gone: gone from the model"), inbox)
     assert(!call(m, "answer", "request" -> str(id), "text" -> str("Proposed Alt"))._2)

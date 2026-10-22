@@ -433,3 +433,24 @@ now linear (about 0.85 s a node). The causes, and what changed:
   down to its code: proven define D; running code R checked against it", or "checked by running". An
   authored `complete` says which parts the proof refers to (by name, outside comments) and whether it
   needed `feasible`; the Lean is folded.
+
+### Agent loop (after the r16 developer review)
+
+- **The agent reads why a node was rejected.** `inbox` lists each rejected node with who rejected it
+  and their reason, and `context` prints the rejection: a reason that asks for something is answered
+  by a node in its place, not only by removing the rejected one.
+- **Authored proofs introduce binders by name.** `scaffold` starts each stub with `unfold Obl.X`,
+  `frflow_intro` (FrFlow's tactic: every binder by its generated name, the open terms and `h_<Part>`)
+  and `simp only [frflow_defs] at *`, then the goal they leave as a comment; `check` prints that same
+  goal when automation gives up (before, `frflow_auto`'s normal form, which the recipe does not reach).
+  A proof using the names survives a part or a term added. A failing authored proof whose `intro`
+  puts a generated name at another place is reported as written for an earlier obligation, with its
+  binders now.
+- **Code diffs use an index of their own.** `Git.diff` compares the decision's tree with the files as
+  they are through a temporary index, so a file git does not track (a new project before its first
+  commit) is diffed as it is, not shown as deleted.
+- **One wording for code**: a contract is "proven down to its code" when its implementation is a
+  proven `define`, with any running code beside it named as "checked against it"; a plain
+  implementation is "checked by running"; code only design nodes govern is "reviewed only" (`status`,
+  the tree). Invariants show as `invariant` in the tree and `context`.
+- **`answer` in the CLI** (`<kb>/run answer REQUEST|NODE TEXT`), as MCP's, for agents without MCP.

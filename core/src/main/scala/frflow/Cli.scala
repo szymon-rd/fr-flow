@@ -1,6 +1,7 @@
 package frflow
 
-import java.nio.file.Paths
+import java.nio.channels.FileChannel
+import java.nio.file.{Files, Paths, StandardCopyOption, StandardOpenOption}
 
 /** Command line of a kb:
   * {{{
@@ -19,6 +20,7 @@ object Cli:
       |  context NODE            everything needed to work on NODE (for agents and people)
       |  find WORDS|PATH         the nodes that govern a file, or what mentions some words (nodes, reasons, rejected options, the idea)
       |  scaffold NODE           a proof file for an obligation automation did not prove
+      |  answer REQUEST TEXT     reply to the developer's request; with a NODE instead, tell them about work they did not ask for
       |
       |Decisions are the developer's, and are made in the browser (bin/frflow serve).
       |""".stripMargin
@@ -94,7 +96,42 @@ object Cli:
           w.writeSnapshot()
           0
         }
+      case "answer" :: to :: text if text.nonEmpty =>
+        answer(ws, to, text.mkString(" "), kb.node(_).isDefined) match
+          case Right(id) => println(s"answered $id"); 0
+          case Left(e) => System.err.println(e); 1
       case _ => System.err.println(usage); 2
+
+  /** What MCP's `answer` does: the request is answered with the text; given a node, the developer's open
+    * request on it, or a new one from the agent. Locked as the browser server locks the file.
+    */
+  private def answer(ws: Workspace, to: String, text: String, isNode: String => Boolean): Either[String, String] =
+    import Json.{obj, str}
+    Files.createDirectories(ws.requestsFile.getParent)
+    val ch = FileChannel.open(ws.requestsFile.resolveSibling("requests.lock"), StandardOpenOption.CREATE, StandardOpenOption.WRITE)
+    try
+      val lock = ch.lock()
+      try
+        val rs = (if Files.isRegularFile(ws.requestsFile) then Json.parse(Files.readString(ws.requestsFile)).arr.toList else Nil)
+        def f(r: Json, k: String) = r(k).flatMap(_.str).getOrElse("")
+        val i = rs.indexWhere(r => f(r, "id") == to) match
+          case -1 => rs.indexWhere(r => f(r, "node") == to && f(r, "status") == "open")
+          case i => i
+        val all =
+          if i >= 0 then rs
+          else if !isNode(to) then return Left(s"no request or node $to")
+          else rs :+ obj("id" -> str(s"R${java.lang.Long.toString(System.currentTimeMillis, 36)}"), "node" -> str(to), "text" -> str("(from the agent)"),
+            "by" -> str("agent"), "at" -> str(java.time.Instant.now.toString.take(19) + "Z"), "status" -> str("open"), "answer" -> str(""))
+        val k = if i >= 0 then i else all.size - 1
+        def set(j: Json, key: String, v: String) =
+          if j(key).isDefined then Json.JObj(j.obj.map((x, y) => x -> (if x == key then str(v) else y))) else Json.JObj(j.obj :+ (key -> str(v)))
+        val next = all.updated(k, set(set(all(k), "status", "answered"), "answer", text))
+        val tmp = ws.requestsFile.resolveSibling("requests.json.tmp")
+        Files.writeString(tmp, Json.JArr(next).render() + "\n")
+        Files.move(tmp, ws.requestsFile, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+        Right(f(next(k), "id"))
+      finally lock.release()
+    finally ch.close()
 
   /** The workspace at `FRFLOW_ROOT`, or `default`; `kernelPath` is relative to its `lean/`. */
   def workspace(default: String, kernelPath: String): Workspace =

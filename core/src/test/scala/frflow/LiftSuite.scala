@@ -136,6 +136,10 @@ class LiftSuite extends munit.FunSuite:
   test("unsupported Scala is a compile error") {
     assert(compileErrors("frflow.Lifted((x: Int) => { var y = x; y })").contains("FrFlow: `var` is not supported"))
     assert(compileErrors("frflow.Lifted((x: Int) => println(x))").contains("FrFlow:"))
+    // with the usual rewrite, for what is often written outside the subset
+    assert(compileErrors("frflow.Lifted((xs: List[BigInt]) => xs.count(x => x > 0))").contains("xs.filter(p).length"))
+    assert(compileErrors("frflow.Lifted((xs: List[BigInt]) => xs.sum)").contains("foldLeft"))
+    assert(compileErrors("frflow.Lifted((o: Option[BigInt]) => o.toList)").contains("match on it"))
   }
 
   // Roots and refinements are not run, so no example or probe checks their translation: their forms are pinned here.

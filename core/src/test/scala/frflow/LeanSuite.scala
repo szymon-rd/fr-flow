@@ -98,7 +98,9 @@ class LeanSuite extends munit.FunSuite:
   test("parts that do not make their parent are not accepted") {
     val r = workflow(sloppyKb).check()
     assertEquals(statuses(r), List("OnlyGood" -> "open", "Sloppy" -> "proven"))
-    assert(result(of(r, "OnlyGood"), "complete").exists(_.detail.contains("frflow_auto found no proof")), of(r, "OnlyGood").obligations)
+    // with the goal a proof by hand starts from: after the stub's first steps, the parts by their names
+    assert(result(of(r, "OnlyGood"), "complete").exists(d => d.detail.contains("the goal is:") && d.detail.contains("h_Sloppy :") && d.detail.contains("⊢")),
+      of(r, "OnlyGood").obligations)
   }
 
   test("a part the parent holds without is not needed: the split is unproven") {
@@ -145,6 +147,9 @@ class LeanSuite extends munit.FunSuite:
   }
 
   private val feasible = "  unfold Obl.feasible\n  exact ⟨fun x => x * x, by simp [frflow_defs]⟩"
+  /** A scaffolded stub (its first steps, the goal they leave, `sorry`) replaced by a proof. */
+  private def fill(src: String, o: String, proof: String) =
+    src.replaceFirst(s"(?s)  unfold Obl\\.$o\n.*?  sorry\n", java.util.regex.Matcher.quoteReplacement(proof + "\n"))
 
   test("an obligation automation cannot prove is proven in the node's proof file, with a witness") {
     val w = workflow(squareKb)
@@ -153,17 +158,28 @@ class LeanSuite extends munit.FunSuite:
     // automation gave up: what to write, and where, first
     assert(result(of(first, "NonNegative"), "complete").exists(_.detail.startsWith(
       "automation gave up: write theorem complete : Obl.complete in lean/Proofs/Square/NonNegative.lean (run `scaffold NonNegative`)")), of(first, "NonNegative"))
+    // the goal check prints is the one the stub's first steps leave, written in the stub too
+    val gaveUp = result(of(first, "NonNegative"), "complete").get.detail
+    assert(gaveUp.contains("After `unfold Obl.complete; frflow_intro; simp only [frflow_defs] at *`") && gaveUp.contains("h_Squares : ∀ (x : Int), sq x = x * x"), gaveUp)
     assert(w.scaffold(nonNegative))
+    val file = w.ws.lean.resolve(w.generate.proofsPath("NonNegative"))
+    val stub = Files.readString(file)
+    assert(stub.contains("  unfold Obl.complete\n  frflow_intro\n  simp only [frflow_defs] at *\n  /- The goal here") &&
+      stub.contains("h_Squares : ∀ (x : Int), sq x = x * x"), stub)
     assertEquals(result(w.check(Some("NonNegative")).head._2, "complete").map(_.detail), Some("uses sorry"))
 
-    val file = w.ws.lean.resolve(w.generate.proofsPath("NonNegative"))
     def edit(f: String => String) = Files.writeString(file, f(Files.readString(file)))
-    edit(_.replace("  unfold Obl.complete\n  sorry",
+    // a proof by position, under names the obligation does not have there: said in plain words
+    Files.writeString(file, fill(stub, "complete", "  unfold Obl.complete\n  intro h_Squares sq\n  exact h_Squares"))
+    val moved = result(w.check(Some("NonNegative")).head._2, "complete").get
+    assert(moved.detail.startsWith("the obligation of NonNegative changed since this proof was written: its binders are now sq h_Squares"), moved)
+    // from the stub's first steps, the binders by their names
+    Files.writeString(file, fill(stub, "complete",
       """  unfold Obl.complete
-        |  intro sq h
+        |  frflow_intro
         |  simp only [frflow_defs] at *
         |  intro x
-        |  rw [h x]
+        |  rw [h_Squares x]
         |  rcases Int.le_total 0 x with hx | hx
         |  · exact Int.mul_nonneg hx hx
         |  · have := Int.mul_nonneg (Int.neg_nonneg_of_nonpos hx) (Int.neg_nonneg_of_nonpos hx)
@@ -172,7 +188,7 @@ class LeanSuite extends munit.FunSuite:
     val noWitness = w.check(Some("NonNegative")).head._2
     assertEquals(result(noWitness, "feasible").map(_.status), Some("open"), noWitness)
     assertEquals(st(splitOf(w, nonNegative), "complete"), Some("open"))
-    edit(_.replace("  unfold Obl.feasible\n  sorry", feasible))
+    edit(fill(_, "feasible", feasible))
     val proven = w.check(Some("NonNegative")).head._2
     assertEquals(st(splitOf(w, nonNegative), "complete"), Some("proven"))
     assertEquals((proven.status, result(proven, "complete").map(_.detail)), ("proven", Some("authored")), proven)
@@ -196,9 +212,9 @@ class LeanSuite extends munit.FunSuite:
             |  · have := Int.mul_nonneg (Int.neg_nonneg_of_nonpos hx) (Int.neg_nonneg_of_nonpos hx)
             |    simpa [Int.neg_mul_neg] using this""".stripMargin)
     val src = Files.readString(file)
-    Files.writeString(file, src.replaceFirst("import ", "import Proofs.Square.Lemmas\nimport ")
-      .replace("  unfold Obl.complete\n  sorry", "  unfold Obl.complete\n  intro sq h\n  simp only [frflow_defs] at *\n  intro x\n  rw [h x]\n  exact Square.Lemmas.sq x")
-      .replace("  unfold Obl.feasible\n  sorry", feasible))
+    Files.writeString(file, fill(fill(src.replaceFirst("import ", "import Proofs.Square.Lemmas\nimport "),
+      "complete", "  unfold Obl.complete\n  intro sq h\n  simp only [frflow_defs] at *\n  intro x\n  rw [h x]\n  exact Square.Lemmas.sq x"),
+      "feasible", feasible))
     val proven = w.check(Some("NonNegative")).head._2
     assertEquals((proven.status, result(proven, "complete").map(_.detail)), ("proven", Some("authored")), proven)
     // a lemma file gets the same filter as a proof file
