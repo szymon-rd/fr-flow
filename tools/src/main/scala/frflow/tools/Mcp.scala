@@ -25,7 +25,7 @@ final class Mcp(projects: List[Project]):
 
   val tools: List[Json] = List(
     tool("inbox", "Start here. The developer's open requests (answer them by proposing nodes, then `answer`), rejected nodes " +
-      "to remove from the Scala model, decisions the developer has not made yet, and the tree from the root (each node under its " +
+      "with who rejected them and why (propose what a reason asks for, or remove the node), decisions the developer has not made yet, and the tree from the root (each node under its " +
       "first parent, \"also under\" its others; the definitions apart).", schema(project)()),
     tool("context", "Everything known about a node: its idea section, the vocabulary it uses (terms, meanings, definitions in force), " +
       "the nodes above it through every parent with every decision, reason and rejected alternative, for each parent its co-parts, its parts, " +
