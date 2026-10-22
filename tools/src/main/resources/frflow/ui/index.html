@@ -457,7 +457,7 @@ const splitChip = n => n?.split ? `<span class="chip ${chipClass(splitStatus(n))
 // Whether one part is needed for its parent: Lean does not show the parent without it.
 function neededChip(x) {
   if (!x) return "";
-  const t = { needed: ["s-proven", "needed ✓"], "not-needed": ["s-open", "not needed"], informal: ["s-not-checked", "by reading"], failed: ["s-failed", "failed"],
+  const t = { needed: ["s-not-checked", "not shown redundant"], "not-needed": ["s-open", "not needed"], informal: ["s-not-checked", "by reading"], failed: ["s-failed", "failed"],
     timeout: ["s-open", "timed out"] }[x.status] || ["s-not-checked", x.status === "unchecked" ? "unchecked" : x.status];
   return `<span class="chip ${t[0]}" title="${esc(x.detail || "")}">${esc(t[1])}</span>`;
 }
