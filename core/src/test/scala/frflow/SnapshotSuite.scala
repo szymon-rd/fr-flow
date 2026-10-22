@@ -616,3 +616,17 @@ class SnapshotSuite extends munit.FunSuite:
     assertEquals(Ledger.lost(before, now).map(_._1), List("Pick"))
     assertEquals(Ledger.lost(before, Ledger.merge(now, before)), Nil)
   }
+
+  test("the methods of a file: which change something (Unit), and the lines of those named with the private ones they call") {
+    val text = """final class Db:
+                 |  private def rows(sql: String): List[Int] =
+                 |    List(1)
+                 |  def find(q: String): List[Int] = rows(q)
+                 |  def save(x: Int): Unit = synchronized {
+                 |    println(x)
+                 |  }
+                 |""".stripMargin
+    val ms = Workflow.methods(text)
+    assertEquals(ms.map(m => m.name -> m.unit), List("rows" -> false, "find" -> false, "save" -> true))
+    assertEquals(Workflow.linesOf(text, Set("find")), 3)
+  }

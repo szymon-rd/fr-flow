@@ -576,13 +576,23 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     * checked): a file a design node governs naming a method the registered code calls.
     */
   def bypasses: List[String] =
-    val wired = kb.nodes.filter(_.kind == NodeKind.Design).flatMap(d => code(d).toList.flatMap(_.files))
-    kb.nodes.flatMap(c => kb.implementation(c).filter(_.wiring.nonEmpty).map(c -> _)).flatMap { (c, i) =>
-      val methods = """\.(\w+)\(""".r.findAllMatchIn(i.wiring).map(_.group(1)).toSet -- Set("value", "apply", "filter", "map", "contains", "toSet", "toList")
-      wired.distinct.flatMap(f => read(ws.root.resolve(f)).toList.flatMap(text =>
-        methods.toList.sorted.filter(m => text.contains(s".$m(")).map(m =>
-          s"$f calls ${c.id}'s code directly (.$m): go through service(${c.id}), so what it returns is checked")))
-    }
+    val wired = kb.nodes.filter(_.kind == NodeKind.Design).flatMap(d => code(d).toList.flatMap(_.files)).distinct
+    adapters.flatMap { (c, i, files) =>
+      val called = """\.(\w+)\(""".r.findAllMatchIn(i.wiring).map(_.group(1)).toSet
+      // An adapter's methods that change the outside: those returning Unit.
+      val effects = files.flatMap(f => read(ws.root.resolve(f)).toList.flatMap(Workflow.methods).filter(_.unit).map(m => m.name -> f))
+      wired.filterNot(files.contains).flatMap(f => read(ws.root.resolve(f)).toList.flatMap { text =>
+        def calls(m: String) = s"\\.$m\\(".r.findFirstIn(text).isDefined
+        called.toList.sorted.filter(calls).map(m => s"$f calls ${c.id}'s code directly (.$m): go through service(${c.id}), so what it returns is checked") ++
+          effects.filter((m, _) => calls(m)).map((m, af) => s"$f changes the outside directly (.$m, in $af): go through a port, so the change is checked")
+      })
+    }.distinct
+
+  /** The ports' adapters: the contract, its implementation with production code, and the files that code is in. */
+  private def adapters: List[(Node[?], Implementation, List[String])] =
+    val model = kb.modelFiles.map(f => ws.root.resolve(f).toAbsolutePath.normalize).toSet
+    kb.nodes.flatMap(c => kb.implementation(c).filter(_.wiring.nonEmpty).map(i =>
+      (c, i, code(c).toList.flatMap(_.files).filterNot(f => model(ws.root.resolve(f).toAbsolutePath.normalize)))))
 
   /** What doing nothing is, when it meets the node (Lean proved it). */
   def idleOf(n: Node[?]): Option[String] = current(n).flatMap(_.obligations.find(o => o.name == "idle" && o.status == "proven")).map(_.detail)
@@ -733,9 +743,14 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val provenDefs = Def.closure(kb.nodes.flatMap(c => kb.implementation(c).filter(_.provenCode).flatMap(_.proven)))
     val proven = provenDefs.map(_.lifted.source.linesIterator.count(_.trim.nonEmpty)).sum
     val contracts = kb.nodes.filter(_.kind == NodeKind.Contract)
-    val checkedFiles = contracts.filter(c => kb.implementation(c).exists(!_.provenCode)).flatMap(c => code(c).toList.flatMap(_.files)).distinct
+    // Plain implementations: their files. Production code beside a proven define: only the adapter's
+    // methods it calls (and the private ones they call), not the rest of the adapter's file.
+    val plain = contracts.filter(c => kb.implementation(c).exists(i => !i.provenCode && i.wiring.isEmpty)).flatMap(c => code(c).toList.flatMap(_.files)).distinct
+    val adapted = adapters.flatMap((_, i, files) => files.map(f => f -> """\.(\w+)\(""".r.findAllMatchIn(i.wiring).map(_.group(1)).toSet))
+      .groupMapReduce(_._1)(_._2)(_ ++ _).toList.filterNot((f, _) => plain.contains(f))
+    val checkedFiles = plain ++ adapted.map(_._1)
     val reviewedFiles = kb.nodes.filter(_.kind == NodeKind.Design).flatMap(d => code(d).toList.flatMap(_.files)).distinct.filterNot(checkedFiles.contains)
-    val checked = checkedFiles.map(count).sum
+    val checked = plain.map(count).sum + adapted.map((f, names) => read(ws.root.resolve(f)).fold(0)(t => Workflow.linesOf(t, names))).sum
     val reviewed = reviewedFiles.map(count).sum
     if proven + checked + reviewed == 0 then ""
     else s"Code: $proven line(s) proven (define), $checked checked by running (plain implementations), $reviewed reviewed only (${reviewedFiles.size} file(s) design nodes govern).\n"
@@ -1069,6 +1084,32 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     ws.snapshotFile
 
 object Workflow:
+  /** A method in a Scala file: its name, whether it returns Unit (it changes something), its lines, and its body. */
+  final case class Method(name: String, unit: Boolean, lines: Int, body: String, priv: Boolean)
+
+  /** The methods of a file, by indentation: a `def` and the lines indented under it. */
+  def methods(text: String): List[Method] =
+    val ls = text.linesIterator.toVector
+    val Def = """^(\s*)((?:private(?:\[\w+\])?|protected|override|final|inline)\s+)*def\s+(\w+)(.*)$""".r
+    def indent(l: String) = l.takeWhile(_ == ' ').length
+    ls.indices.toList.flatMap(i => ls(i) match
+      case Def(sp, mods, name, rest) =>
+        val end = ls.indices.drop(i + 1).find(j => ls(j).trim.nonEmpty && indent(ls(j)) <= sp.length).getOrElse(ls.size)
+        val body = ls.slice(i, end).filter(_.trim.nonEmpty)
+        val header = (rest + " " + ls.slice(i + 1, end).takeWhile(!_.contains("=")).mkString(" ")).takeWhile(_ != '=')
+        Some(Method(name, """\)\s*:\s*Unit\s*$""".r.findFirstIn(header.trim).isDefined || header.trim.endsWith(": Unit"),
+          body.size, body.mkString("\n"), Option(mods).exists(_.contains("private"))))
+      case _ => None)
+
+  /** The lines of the named methods of a file, with the private methods they call, however deep. */
+  def linesOf(text: String, names: Set[String]): Int =
+    val ms = methods(text)
+    val byName = ms.groupBy(_.name)
+    def close(seen: Set[String]): Set[String] =
+      val more = seen.flatMap(n => byName.getOrElse(n, Nil)).flatMap(m => ms.filter(p => p.priv && !seen(p.name) && s"\\b${p.name}\\b".r.findFirstIn(m.body).isDefined).map(_.name))
+      if more.isEmpty then seen else close(seen ++ more)
+    close(names.filter(byName.contains)).toList.flatMap(byName).map(_.lines).sum
+
   /** The first line of a proof copied from another knowledge base. */
   val CopiedProof = "-- Copied by FrFlow from"
   /** A ledger with the decisions of the nodes other knowledge bases decide (id -> their project's directory). */

@@ -81,7 +81,7 @@ val accounts = readApi.instantiate[(Account, Search) => List[CrmRecord]](
   stored     := ((r: CrmRecord) => store.value.contains(r)),
   everything := Search.Everything
 ).relies(crmWrites, "a share names one record by its id: ids are unique in every store the writes reach, so a share never shows another company's record with the same id",
-  (s: CrmStore) => consistentStore(s))(() => CrmStore(store.value, shares.value))
+  (s: CrmStore) => consistentStore(s))(() => CrmStore(store.value, shares.value, Nil))
 
 // ============================================================================
 // Contract for implementations
@@ -247,45 +247,75 @@ val stepByStep = writesKeepStore.refine[(Store.T, Write.T) => Store.T](
   abs = apply => ws => ws.foldLeft(initial.value)((s, w) => apply(s, w)),
   spec = apply => consistent(initial.value) && forall((s: Store.T, w: Write.T) => (consistent(s) ==> consistent(apply(s, w))) && permitted(s, w, apply(s, w)) && effect(s, w, apply(s, w))))
 
-final case class CrmStore(records: List[CrmRecord], shares: List[Share])
+/** Until when a share holds (a time in seconds); a share with none holds until it is unshared. */
+final case class Expiry(record: BigInt, to: TenantId, until: BigInt)
+
+final case class CrmStore(records: List[CrmRecord], shares: List[Share], expiries: List[Expiry])
 
 enum Change:
   case Add(record: CrmRecord)
-  case ShareWith(record: BigInt, to: TenantId)
+  case ShareWith(record: BigInt, to: TenantId, until: Option[BigInt])
   case Unshare(record: BigInt, to: TenantId)
 
 final case class WriteCmd(by: Account, change: Change)
 
-/** A consistent store: every share is of a stored record, and no two records have one id. */
+/** The record a write is about. */
+val about = define { (w: WriteCmd) =>
+  w.change match
+    case Change.Add(r) => r.id
+    case Change.ShareWith(id, _, _) => id
+    case Change.Unshare(id, _) => id
+}
+
+/** What a store holds about one record: the record (by its id), its shares and their expiries. */
+val aboutRecord = define { (s: CrmStore, id: BigInt) =>
+  CrmStore(s.records.filter(r => r.id == id), s.shares.filter(sh => sh.record == id), s.expiries.filter(e => e.record == id))
+}
+
+/** A write changes only what the store holds about its record: every row about another record is kept, and none is added. */
+val touchesOnly = define { (s: CrmStore, w: WriteCmd, t: CrmStore) =>
+  s.records.forall(r => r.id == about(w) || t.records.contains(r)) && t.records.forall(r => r.id == about(w) || s.records.contains(r)) &&
+  s.shares.forall(sh => sh.record == about(w) || t.shares.contains(sh)) && t.shares.forall(sh => sh.record == about(w) || s.shares.contains(sh)) &&
+  s.expiries.forall(e => e.record == about(w) || t.expiries.contains(e)) && t.expiries.forall(e => e.record == about(w) || s.expiries.contains(e))
+}
+
+/** A consistent store: every share is of a stored record, no two records have one id, and every expiry is of a share. */
 val consistentStore = define { (s: CrmStore) =>
-  s.shares.forall(sh => s.records.exists(r => r.id == sh.record)) && s.records.forall(a => s.records.forall(b => (a.id == b.id) ==> (a == b)))
+  s.shares.forall(sh => s.records.exists(r => r.id == sh.record)) && s.records.forall(a => s.records.forall(b => (a.id == b.id) ==> (a == b))) &&
+  s.expiries.forall(e => s.shares.contains(Share(e.record, e.to)))
 }
 
 /** What a permitted write does: an Add of a record of the author's company with a fresh id stores it; a
-  * share or unshare of a record of the author's company is made.
+  * share of a record of the author's company is made (until the time given, or with no end); an unshare
+  * removes it.
   */
 val takesEffect = define { (s: CrmStore, w: WriteCmd, t: CrmStore) =>
   w.change match
     case Change.Add(r) => (r.tenant == w.by.tenant && !s.records.exists(x => x.id == r.id)) ==> t.records.contains(r)
-    case Change.ShareWith(id, to) => s.records.exists(x => x.id == id && x.tenant == w.by.tenant) ==> t.shares.contains(Share(id, to))
+    case Change.ShareWith(id, to, until) => s.records.exists(x => x.id == id && x.tenant == w.by.tenant) ==>
+      (t.shares.contains(Share(id, to)) && (until match
+        case Some(u) => t.expiries.contains(Expiry(id, to, u))
+        case None    => !t.expiries.exists(e => e.record == id && e.to == to)))
     case Change.Unshare(id, to) => s.records.exists(x => x.id == id && x.tenant == w.by.tenant) ==> !t.shares.contains(Share(id, to))
 }
 
-/** What a write may change: only its author's company's records, and only shares of their company's records. */
+/** What a write may change: only its author's company's records, and only shares and expiries of their company's records. */
 val permittedWrite = define { (s: CrmStore, w: WriteCmd, t: CrmStore) =>
   t.records.filter(r => r.tenant != w.by.tenant) == s.records.filter(r => r.tenant != w.by.tenant) &&
   t.shares.forall(sh => s.shares.contains(sh) || t.records.exists(r => r.id == sh.record && r.tenant == w.by.tenant)) &&
-  s.shares.forall(sh => t.shares.contains(sh) || s.records.exists(r => r.id == sh.record && r.tenant == w.by.tenant))
+  s.shares.forall(sh => t.shares.contains(sh) || s.records.exists(r => r.id == sh.record && r.tenant == w.by.tenant)) &&
+  t.expiries.forall(e => s.expiries.contains(e) || t.records.exists(r => r.id == e.record && r.tenant == w.by.tenant)) &&
+  s.expiries.forall(e => t.expiries.contains(e) || s.records.exists(r => r.id == e.record && r.tenant == w.by.tenant))
 }
 
 val crmWrites = stepByStep.instantiate[(CrmStore, WriteCmd) => CrmStore](
   "CrmWrites",
-  "The store is the CRM's records and shares; a write is a user's change; a store is consistent when every share is of a stored record and record ids are unique; a write may change only its author's company's records, and add or remove only shares of their company's records.",
-  why = "A share names a record by its id: a share of a record that is not stored would show the next record stored with that id, and two records with one id would both be shared by it, across companies. Authority is by the author's account, which authentication provides (not modelled). Records of other companies must come out of a write exactly as they went in."
+  "The store is the CRM's records, shares and share expiries; a write is a user's change; a store is consistent when every share is of a stored record, record ids are unique and every expiry is of a share; a write may change only its author's company's records, and add or remove only shares and expiries of their company's records.",
+  why = "A share names a record by its id: a share of a record that is not stored would show the next record stored with that id, and two records with one id would both be shared by it, across companies; an expiry of no share would end a share made later. Authority is by the author's account, which authentication provides (not modelled). Records of other companies must come out of a write exactly as they went in."
 )(
   Store      := of[CrmStore],
   Write      := of[WriteCmd],
-  initial    := CrmStore(Nil, Nil),
+  initial    := CrmStore(Nil, Nil, Nil),
   consistent := ((s: CrmStore) => consistentStore(s)),
   permitted  := ((s: CrmStore, w: WriteCmd, t: CrmStore) => permittedWrite(s, w, t)),
   effect     := ((s: CrmStore, w: WriteCmd, t: CrmStore) => takesEffect(s, w, t))
@@ -293,37 +323,66 @@ val crmWrites = stepByStep.instantiate[(CrmStore, WriteCmd) => CrmStore](
 
 val writeContract = crmWrites.contract[CrmStore, WriteCmd, CrmStore](
   "WriteContract",
-  "A write keeps every share of a stored record and record ids unique, changes only the author's company's records and only shares of their company's records, and a write its author's company may make takes effect.",
-  why = "CrmWrites, stated for one call, plus what the idea promises a user can do: add records for their company, and share or unshare them. A write the company may not make changes nothing."
-)((s, w, t) => (consistentStore(s) ==> consistentStore(t)) && permittedWrite(s, w, t) && takesEffect(s, w, t))
+  "A write keeps the store consistent, changes only the author's company's records and only shares of their company's records, takes effect when its author's company may make it, and changes nothing about other records than its own.",
+  why = "CrmWrites, stated for one call, plus what the idea promises a user can do: add records for their company, and share (until a time, or with no end) or unshare them. A write the company may not make changes nothing. That a write touches only its own record is what lets the write side store only that record's rows."
+)((s, w, t) => (consistentStore(s) ==> consistentStore(t)) && permittedWrite(s, w, t) && takesEffect(s, w, t) && touchesOnly(s, w, t))
+  // Per call, in time linear in the store: the write took effect, and other companies' records are as they were.
+  // The rest (consistency, what it touches) is proven of the code, and would read every pair of rows.
+  .checkedBy((s, w, t) => takesEffect(s, w, t) && t.records.filter(r => r.tenant != w.by.tenant) == s.records.filter(r => r.tenant != w.by.tenant))
   .examples()(
-    expect(CrmStore(Nil, Nil), WriteCmd(Account("ann@acme", TenantId("acme")), Change.Add(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact"))), CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact")), Nil),
+    expect(CrmStore(Nil, Nil, Nil), WriteCmd(Account("ann@acme", TenantId("acme")), Change.Add(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact"))), CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact")), Nil, Nil),
       "Ann adds a contact of Acme's"),
-    expect(CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact"), CrmRecord(2, TenantId("globex"), Kind.Deal, "Globex deal")), Nil), WriteCmd(Account("ann@acme", TenantId("acme")), Change.ShareWith(1, TenantId("globex"))),
-      CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact"), CrmRecord(2, TenantId("globex"), Kind.Deal, "Globex deal")), List(Share(1, TenantId("globex")))), "Ann shares Acme's contact with Globex"),
-    reject(CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact"), CrmRecord(2, TenantId("globex"), Kind.Deal, "Globex deal")), Nil), WriteCmd(Account("ann@acme", TenantId("acme")), Change.ShareWith(2, TenantId("acme"))),
-      CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact"), CrmRecord(2, TenantId("globex"), Kind.Deal, "Globex deal")), List(Share(2, TenantId("acme")))), "Ann cannot share Globex's deal with herself"),
-    reject(CrmStore(List(CrmRecord(2, TenantId("globex"), Kind.Deal, "Globex deal")), Nil), WriteCmd(Account("ann@acme", TenantId("acme")), Change.Add(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact"))), CrmStore(Nil, Nil),
+    expect(CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact"), CrmRecord(2, TenantId("globex"), Kind.Deal, "Globex deal")), Nil, Nil), WriteCmd(Account("ann@acme", TenantId("acme")), Change.ShareWith(1, TenantId("globex"), None)),
+      CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact"), CrmRecord(2, TenantId("globex"), Kind.Deal, "Globex deal")), List(Share(1, TenantId("globex"))), Nil), "Ann shares Acme's contact with Globex"),
+    expect(CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact")), Nil, Nil), WriteCmd(Account("ann@acme", TenantId("acme")), Change.ShareWith(1, TenantId("globex"), Some(100))),
+      CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact")), List(Share(1, TenantId("globex"))), List(Expiry(1, TenantId("globex"), 100))), "Ann shares it with Globex until 100"),
+    reject(CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact"), CrmRecord(2, TenantId("globex"), Kind.Deal, "Globex deal")), Nil, Nil), WriteCmd(Account("ann@acme", TenantId("acme")), Change.ShareWith(2, TenantId("acme"), None)),
+      CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact"), CrmRecord(2, TenantId("globex"), Kind.Deal, "Globex deal")), List(Share(2, TenantId("acme"))), Nil), "Ann cannot share Globex's deal with herself"),
+    reject(CrmStore(List(CrmRecord(2, TenantId("globex"), Kind.Deal, "Globex deal")), Nil, Nil), WriteCmd(Account("ann@acme", TenantId("acme")), Change.Add(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact"))), CrmStore(Nil, Nil, Nil),
       "a write never removes another company's record"),
-    reject(CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact")), List(Share(1, TenantId("globex")))), WriteCmd(Account("ann@acme", TenantId("acme")), Change.Unshare(1, TenantId("globex"))),
-      CrmStore(Nil, List(Share(1, TenantId("globex")))), "a share is never left without its record"))
+    reject(CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact")), List(Share(1, TenantId("globex"))), Nil), WriteCmd(Account("ann@acme", TenantId("acme")), Change.Unshare(1, TenantId("globex"))),
+      CrmStore(Nil, List(Share(1, TenantId("globex"))), Nil), "a share is never left without its record"))
   .exempt(noCrossTenantRead, "the store a write returns goes to the write side's storage, never to a reader: reads go through ReadContract")
 
 /** A write: the change, when its author's company may make it; otherwise nothing changes. */
 val applyWrite = define { (s: CrmStore, w: WriteCmd) =>
   w.change match
     case Change.Add(r) =>
-      if r.tenant == w.by.tenant && !s.records.exists(x => x.id == r.id) then s.copy(records = s.records ++ List(r)) else s
-    case Change.ShareWith(id, to) =>
-      if s.records.exists(x => x.id == id && x.tenant == w.by.tenant) then s.copy(shares = s.shares ++ List(Share(id, to))) else s
+      if r.tenant == w.by.tenant && !s.records.exists(x => x.id == r.id) then CrmStore(s.records ++ List(r), s.shares, s.expiries) else s
+    case Change.ShareWith(id, to, until) =>
+      if s.records.exists(x => x.id == id && x.tenant == w.by.tenant) then
+        CrmStore(s.records, s.shares.filter(sh => sh != Share(id, to)) ++ List(Share(id, to)),
+          s.expiries.filter(e => !(e.record == id && e.to == to)) ++ (until match
+            case Some(u) => List(Expiry(id, to, u))
+            case None    => Nil))
+      else s
     case Change.Unshare(id, to) =>
-      if s.records.exists(x => x.id == id && x.tenant == w.by.tenant) then s.copy(shares = s.shares.filter(sh => sh != Share(id, to))) else s
+      if s.records.exists(x => x.id == id && x.tenant == w.by.tenant) then
+        CrmStore(s.records, s.shares.filter(sh => sh != Share(id, to)), s.expiries.filter(e => !(e.record == id && e.to == to)))
+      else s
 }
+
+/** What the database is trusted to do with a write: store what a store holds about one record. */
+val storeEdits = Node.port[BigInt, CrmStore, CrmStore](
+  "StoreEdits",
+  "Storing what a store holds about one record replaces what is stored about it: read back, the rows about it are what the store holds about it.",
+  why = "A write changes only its own record's rows (WriteContract), so storing those rows is storing the write, whatever the size of the store. The rows are read back after storing: a write the database dropped or changed is seen on the call."
+)((id, t, back) => back == aboutRecord(t, id))
+  .examples(database.bind(Db.of(Nil, Nil)))(
+    expect(BigInt(1), CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal"), CrmRecord(2, TenantId("globex"), Kind.Deal, "Globex deal")), List(Share(1, TenantId("globex"))), Nil),
+      CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("globex"))), Nil), "the record and its share, not the other record"),
+    expect(BigInt(3), CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), Nil, Nil), CrmStore(Nil, Nil, Nil), "nothing is held about record 3"),
+    reject(BigInt(1), CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("globex"))), Nil),
+      CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), Nil, Nil), "a share the database dropped is seen"))
+  .exempt(noCrossTenantRead, "it returns the rows it stored to the write side, never to a reader")
+
+/** The rows about a record, as the port promises them: what the SQL is checked against. */
+val storedAbout = define { (id: BigInt, t: CrmStore) => aboutRecord(t, id) }
 
 /** The production wiring of writes, owned as a design decision: changes to it are reviewed. */
 val writeSideWiring = writeContract.design(
   "WriteSideWiring",
-  "The write side applies every write through service, which checks each new store against WriteContract.",
+  "The write side applies every write through service, which checks each new store against WriteContract, and stores the written record's rows through StoreEdits.",
   why = "Every write must go through service; keeping the wiring in one governed file makes a change to it visible."
 )("src/main/scala/crm/WriteSide.scala")
   .exempt(noCrossTenantRead, "the write side hands the new store to storage and returns nothing to a reader: no record leaves it")
@@ -332,12 +391,8 @@ val writeSideWiring = writeContract.design(
 // Root: shares given until a time end then, by a job
 // ============================================================================
 
-final case class Expiry(record: BigInt, to: TenantId, until: BigInt)
-
-val expiries = Param[List[Expiry]]("expiries", "until when each limited share holds (a time in seconds), as stored when the job runs")
-
-/** Whether a share has ended by `now`. */
-val ended = define { (sh: Share, now: BigInt) => expiries.value.exists(e => e.record == sh.record && e.to == sh.to && e.until <= now) }
+/** Whether a share has ended by `now`, by the store's expiries. */
+val ended = define { (sh: Share, s: CrmStore, now: BigInt) => s.expiries.exists(e => e.record == sh.record && e.to == sh.to && e.until <= now) }
 
 /** Model: what a run of the expiry job, at a time, does to the store. */
 val sharesExpire = Node.root[(CrmStore, BigInt) => CrmStore](
@@ -345,29 +400,31 @@ val sharesExpire = Node.root[(CrmStore, BigInt) => CrmStore](
   "When the expiry job runs, exactly the shares that have ended are removed; the records and the other shares stay.",
   why = "The idea lets a company share a record until a given time; the job is what ends such shares, and it touches nothing else.",
   idea = "Expiring shares"
-)(run => forall((s: CrmStore, now: BigInt) => run(s, now).records == s.records && run(s, now).shares == s.shares.filter(sh => !ended(sh, now))))
+)(run => forall((s: CrmStore, now: BigInt) => run(s, now).records == s.records && run(s, now).shares == s.shares.filter(sh => !ended(sh, s, now))))
 
 val expireJob = sharesExpire.contract[CrmStore, BigInt, CrmStore](
   "ExpireJob",
   "A run removes exactly the shares that have ended, keeps the records, and keeps a consistent store consistent.",
   why = "SharesExpire, for one run. Keeping the store consistent matters because the read side relies on it (Accounts relies on CrmWrites), and the job changes the store besides the writes."
-)((s, now, t) => t.records == s.records && t.shares == s.shares.filter(sh => !ended(sh, now)) && (consistentStore(s) ==> consistentStore(t)))
-  .examples(expiries.bind(List(Expiry(1, TenantId("globex"), 100))))(
-    expect(CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("globex")), Share(1, TenantId("initech")))), 150,
-      CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("initech")))), "Globex's share ended at 100; Initech's stays"),
-    expect(CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("globex")))), 50,
-      CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("globex")))), "before 100 nothing ends"),
-    reject(CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("globex")), Share(1, TenantId("initech")))), 150,
-      CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), Nil), "a share that has not ended is never removed"))
+)((s, now, t) => t.records == s.records && t.shares == s.shares.filter(sh => !ended(sh, s, now)) && (consistentStore(s) ==> consistentStore(t)))
+  .examples()(
+    expect(CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("globex")), Share(1, TenantId("initech"))), List(Expiry(1, TenantId("globex"), 100))), 150,
+      CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("initech"))), Nil), "Globex's share ended at 100; Initech's stays"),
+    expect(CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("globex"))), List(Expiry(1, TenantId("globex"), 100))), 50,
+      CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("globex"))), List(Expiry(1, TenantId("globex"), 100))), "before 100 nothing ends"),
+    reject(CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("globex")), Share(1, TenantId("initech"))), List(Expiry(1, TenantId("globex"), 100))), 150,
+      CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), Nil, Nil), "a share that has not ended is never removed"))
   .exempt(noCrossTenantRead, "the store it returns goes to storage, never to a reader")
 
 /** A run: the shares that have not ended. */
-val expire = define { (s: CrmStore, now: BigInt) => s.copy(shares = s.shares.filter(sh => !ended(sh, now))) }
+val expire = define { (s: CrmStore, now: BigInt) =>
+  CrmStore(s.records, s.shares.filter(sh => !ended(sh, s, now)), s.expiries.filter(e => !ended(Share(e.record, e.to), s, now)))
+}
 
 /** The job's wiring, owned as a design decision. */
 val expiryJobWiring = expireJob.design(
   "ExpiryJobWiring",
-  "The expiry job runs every minute through service, on the stored records and shares, and stores what it returns.",
+  "The expiry job runs every minute through service, on the stored records, shares and expiries, and stores what it changed through StoreEdits.",
   why = "Every change to the store goes through a proven contract; keeping the job's wiring in one governed file makes a change to it visible."
 )("src/main/scala/crm/Job.scala")
   .exempt(noCrossTenantRead, "it hands the new store to storage and returns nothing to a reader")
@@ -381,9 +438,10 @@ val httpApi = readContract.design(
   .exempt(noCrossTenantRead, "it returns only what the read and deal sides return, which keep the rule")
 
 val knowledge = KnowledgeBase("Crm", idea = "IDEA.md")(isolation, readApi, accounts, readContract, readSideWiring, noCrossTenantRead,
-  recordsByQuery, writesKeepStore, stepByStep, crmWrites, writeContract, writeSideWiring, salesScreen, dealSearch,
+  recordsByQuery, writesKeepStore, stepByStep, crmWrites, writeContract, storeEdits, writeSideWiring, salesScreen, dealSearch,
   sharesExpire, expireJob, expiryJobWiring, httpApi)
   .implementProven(recordsByQuery)(storedMatching, (u, q) => database.value.recordsMatching(q))
+  .implementProven(storeEdits)(storedAbout, (id, t) => database.value.storeAbout(id, t))
   .implementProven(expireJob)(expire)
   .implementProven(readContract)(search)
   .implementProven(dealSearch)(deals)

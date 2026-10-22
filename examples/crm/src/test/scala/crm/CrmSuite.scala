@@ -86,13 +86,13 @@ class CrmSuite extends munit.FunSuite:
   }
 
   test("the expiry job ends shares whose time is up, and nothing else") {
-    val d = db(records, List(Share(3, acme), Share(1, globex)))
-    d.setExpiry(Expiry(3, acme, 100))
+    val d = Db.of(records, List(Share(3, acme), Share(1, globex)), List(Expiry(3, acme, 100)))
     expireOnce(d, 50)
     assertEquals(d.shares().size, 2)
     expireOnce(d, 150)
     assertEquals(d.shares(), List(Share(1, globex)))
     assertEquals(d.allRecords(), records)
+    assertEquals(d.expiries(), Nil)
   }
 
   test("the examples pass against the contract and the implementation") {
@@ -111,21 +111,56 @@ class CrmSuite extends munit.FunSuite:
     val checked = w.check().map((n, c) => n.id -> c).toMap
     assertEquals(checked.view.mapValues(_.status).toMap, Map("TenantIsolation" -> "proven", "ReadApi" -> "proven", "Accounts" -> "proven",
       "ReadContract" -> "proven", "WritesKeepStore" -> "proven", "StepByStep" -> "proven", "CrmWrites" -> "proven", "WriteContract" -> "proven", "SalesScreen" -> "proven", "DealSearch" -> "proven",
-      "RecordsByQuery" -> "proven", "SharesExpire" -> "proven", "ExpireJob" -> "proven"))
+      "RecordsByQuery" -> "proven", "StoreEdits" -> "proven", "SharesExpire" -> "proven", "ExpireJob" -> "proven"))
     // every implementation is proven, and the root holds of each (DealSearch's from ReadContract's promise)
-    for c <- List("ReadContract", "WriteContract", "DealSearch", "ExpireJob", "RecordsByQuery") do
+    for c <- List("ReadContract", "WriteContract", "DealSearch", "ExpireJob", "RecordsByQuery", "StoreEdits") do
       assertEquals(checked(c).obligations.filter(o => o.name == "impl" || o.name == "root_impl").map(_.status), List("proven", "proven"), checked(c))
   }
 
   test("a write changes only what its author's company may change, and the write side checks it") {
-    val write = writeSide()
-    val start = CrmStore(records, shareTable)
+    val write = knowledge.service(writeContract)()
+    val start = CrmStore(records, shareTable, Nil)
     val added = write(start, WriteCmd(ann, Change.Add(CrmRecord(4, acme, Kind.Deal, "New deal"))))
     assertEquals(added.records.map(_.id), List[BigInt](1, 2, 3, 4))
     // Ann cannot share Globex's deal, nor add a record for Globex: nothing changes
-    assertEquals(write(start, WriteCmd(ann, Change.ShareWith(2, acme))), start)
+    assertEquals(write(start, WriteCmd(ann, Change.ShareWith(2, acme, None))), start)
     assertEquals(write(start, WriteCmd(ann, Change.Add(CrmRecord(5, globex, Kind.Deal, "Not hers")))), start)
     // an implementation that drops another company's record is stopped by the contract
     val careless: (CrmStore, WriteCmd) => CrmStore = (s, _) => s.copy(records = s.records.filter(_.tenant == acme))
     intercept[ContractViolation](knowledge.implement(writeContract)(careless).service(writeContract)()(start, WriteCmd(ann, Change.Unshare(1, globex))))
+  }
+
+  test("a write on the database stores only its record's rows, read back; the store's size does not matter") {
+    val d = db()
+    val write = writeSide(d)
+    write(WriteCmd(ann, Change.Add(CrmRecord(4, acme, Kind.Deal, "New deal"))))
+    write(WriteCmd(ann, Change.ShareWith(4, globex, Some(BigInt(100)))))
+    assertEquals(d.allRecords().map(_.id), List[BigInt](1, 2, 3, 4))
+    assertEquals(d.shares().toSet, Set(Share(3, acme), Share(4, globex)))
+    assertEquals(d.expiries(), List(Expiry(4, globex, 100)))
+    // sharing again with no end removes the expiry; the job then leaves the share alone
+    write(WriteCmd(ann, Change.ShareWith(4, globex, None)))
+    assertEquals(d.expiries(), Nil)
+    expireOnce(d, 150)
+    assert(d.shares().contains(Share(4, globex)))
+  }
+
+  test("a database that drops a write is seen on the call: StoreEdits reads the rows back") {
+    val d = db()
+    val dropping = knowledge.implementProven(storeEdits)(storedAbout, (id, t) => CrmStore(Nil, Nil, Nil))
+    val e = intercept[ContractViolation](dropping.service(storeEdits)(database.bind(d))(BigInt(1), CrmStore(records, Nil, Nil)))
+    assert(e.getMessage.contains("StoreEdits"), e.getMessage)
+  }
+
+  test("a governed file that changes the database past a port is a warning; the wired adapter methods are what is counted as checked") {
+    val root = Files.createTempDirectory("crm-bypass")
+    Files.copy(Paths.get("examples/crm/IDEA.md"), root.resolve("IDEA.md"))
+    val src = Paths.get("examples/crm/src/main/scala/crm")
+    Files.createDirectories(root.resolve("src/main/scala/crm"))
+    Files.list(src).forEach(f => Files.copy(f, root.resolve("src/main/scala/crm").resolve(f.getFileName)))
+    val w = Workflow(knowledge, Workspace(root, Paths.get("lean").toAbsolutePath.toString))
+    assertEquals(w.bypasses, Nil)
+    val server = root.resolve("src/main/scala/crm/Server.scala")
+    Files.writeString(server, Files.readString(server).replace("server.start()", "db.insert(Nil, Nil, Nil)\n    server.start()"))
+    assert(w.bypasses.exists(_.contains("changes the outside directly (.insert")), w.bypasses)
   }

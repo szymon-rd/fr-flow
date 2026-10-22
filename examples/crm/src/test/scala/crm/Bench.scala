@@ -32,3 +32,16 @@ package crm
     val b = time(s"same code, unchecked, $q", () => unchecked(ann, q))
     val c = time(s"hand-written SQL and filter, $q", () => plain(ann, q))
     println(f"  the checks add ${(a - b) / b * 100}%.0f%%; the proven code against hand-written: ${(b - c) / c * 100}%.0f%%")
+
+/** What a write and the read side's start cost as the store grows: `sbt "crm/Test/runMain crm.benchWrites 32000"`. */
+@main def benchWrites(n: Int): Unit =
+  val tenants = (0 until 100).map(i => TenantId(s"t$i"))
+  val records = (1 to n).toList.map(i => CrmRecord(i, tenants(i % 100), Kind.Deal, s"record $i"))
+  val db = Db.of(records, (1 to n by 50).toList.map(i => Share(i, tenants((i + 1) % 100))))
+  val ann = Account("ann@t7", tenants(7))
+  val write = writeSide(db)
+  def ms(f: => Any) = { val t0 = System.nanoTime; f; (System.nanoTime - t0) / 1e6 }
+  (1 to 3).foreach(i => write(WriteCmd(ann, Change.Add(CrmRecord(n + i, tenants(7), Kind.Deal, "warm")))))
+  val w = (1 to 10).map(i => ms(write(WriteCmd(ann, Change.Add(CrmRecord(n + 100 + i, tenants(7), Kind.Deal, "new")))))).sum / 10
+  val s = ms(readSide(db)(ann, Search.ById(7)))
+  println(f"$n%7d records: a write $w%8.1f ms; the read side's start and first read $s%8.1f ms")

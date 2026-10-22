@@ -18,7 +18,7 @@ import java.nio.charset.StandardCharsets.UTF_8
 object CrmServer:
   def start(db: Db, port: Int): HttpServer =
     val server = HttpServer.create(InetSocketAddress("127.0.0.1", port), 0)
-    val (read, deals) = (readSide(db), dealSide(db))
+    val (read, deals, write) = (readSide(db), dealSide(db), writeSide(db))
     server.createContext("/", (ex: HttpExchange) =>
       try
         val user = Account(Option(ex.getRequestHeaders.getFirst("X-User")).getOrElse(""), TenantId(Option(ex.getRequestHeaders.getFirst("X-Tenant")).getOrElse("")))
@@ -31,15 +31,13 @@ object CrmServer:
           case ("POST", "/records") =>
             val b = body(ex)
             val r = CrmRecord(BigInt(field(b, "id")), user.tenant, Kind.valueOf(field(b, "kind")), field(b, "title"))
-            changed(ex, writeTo(db, WriteCmd(user, Change.Add(r))).records.contains(r))
+            changed(ex, write(WriteCmd(user, Change.Add(r))).records.contains(r))
           case ("POST", "/shares") =>
             val b = body(ex)
             val sh = Share(BigInt(field(b, "record")), TenantId(field(b, "to")))
-            val ok = writeTo(db, WriteCmd(user, Change.ShareWith(sh.record, sh.to))).shares.contains(sh)
-            if ok then optional(b, "until").foreach(u => db.setExpiry(Expiry(sh.record, sh.to, BigInt(u))))
-            changed(ex, ok)
+            changed(ex, write(WriteCmd(user, Change.ShareWith(sh.record, sh.to, optional(b, "until").map(BigInt(_))))).shares.contains(sh))
           case ("DELETE", "/shares") =>
-            changed(ex, !writeTo(db, WriteCmd(user, Change.Unshare(BigInt(q("record")), TenantId(q("to"))))).shares.contains(Share(BigInt(q("record")), TenantId(q("to")))))
+            changed(ex, !write(WriteCmd(user, Change.Unshare(BigInt(q("record")), TenantId(q("to"))))).shares.contains(Share(BigInt(q("record")), TenantId(q("to")))))
           case _ => reply(ex, 404, "{\"error\":\"not found\"}")
       catch
         case e: frflow.ContractViolation => reply(ex, 500, s"{\"error\":${str(e.getMessage)}}")

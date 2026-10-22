@@ -188,15 +188,21 @@ trusted to do. The proven core calls it (`port.caller`) and is proven from that
 promise; its adapter (SQL) is plain code with a proven `define` as its
 reference (`implementProven(port)(define, sql)`), checked against the define
 on the port's examples and by the port's check on every call. A file a design
-node governs that calls an adapter directly, past `service`, is a warning. In
-`examples/crm`, the read side is proven from `RecordsByQuery` (SQLite), the
+node governs that calls an adapter's code past `service`, or an adapter method
+returning `Unit` (a change to the outside) past a port, is a warning.
+
+In `examples/crm`, reads are proven from `RecordsByQuery` and writes store
+through `StoreEdits`: `WriteContract` proves a write changes only its own
+record's rows, so the write side stores just those and reads them back. The
 HTTP API (`Server.scala`) and an expiry job (`Job.scala`, its own root) are
-design nodes, and a seeded SQL bug (a dropped `WHERE`) is stopped by the
-port's check while every proof still holds. With 100,000 records in SQLite
-(`sbt "crm/Test/runMain crm.benchReads 100000"`), the checks add about 1% to a
-request; the proven code itself (lists, as Lean reads them) is slower than
-hand-written SQL on large results, and production code can run beside it
-(`implementProven(contract)(define, fast)`).
+design nodes. A seeded SQL bug (a dropped `WHERE`) is stopped by the port's
+check while every proof still holds, and so is a write the database drops.
+Measured (`crm/Test/runMain crm.benchReads 100000`, `crm.benchWrites N`): the
+checks add about 1% to a read at 100,000 records; a write takes 19 ms at 8,000
+records and 69 ms at 32,000 (it loads the store, linear). Starting the read
+side checks the guarantee it relies on (record ids unique) over every pair of
+records: 0.9 s at 8,000, 14 s at 32,000. A linear check needs sets in the
+translation; until then that start-up cost is a limit.
 
 ## Status and CI
 
