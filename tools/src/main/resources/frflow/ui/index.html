@@ -380,10 +380,9 @@ const usersOf = d => live().filter(n => (n.uses || []).includes(d.id));
 // Alternatives (as core decides them): one replaces the other, or both define a term. Parts under one parent never are.
 const alternative = (a, b) => a.id !== b.id && (a.replaces === b.id || b.replaces === a.id ||
   (a.defines || []).some(t => (b.defines || []).includes(t)));
-const liveAlts = n => {
-  const fromCore = (n.alternatives || []).map(x => typeof x === "string" ? x : x?.id).map(byId).filter(Boolean);
-  return [...new Set([...all().filter(m => alternative(n, m)), ...fromCore])].filter(m => m.id !== n.id && m.state !== "rejected");
-};
+// Core's `rivals` are what a decision may reject; the rule above is the fallback for an older snapshot.
+const liveAlts = n => (n.rivals ? n.rivals.map(byId).filter(Boolean) : all().filter(m => alternative(n, m)))
+  .filter(m => m.id !== n.id && m.state !== "rejected");
 // The alternatives rejected for it (from the ledger, with their content then).
 const rejectedAlts = n => (n.alternatives || []).map(x => typeof x === "string" ? { id: x, content: C(byId(x) || {}) } : x)
   .filter(x => x && (!byId(x.id) || byId(x.id).state === "rejected"));

@@ -214,6 +214,54 @@ Minimal departures from the above, each kept to what the code needed; none from 
   statement), `relies` (the contracts its code calls). Gone: `parent`, `link`, `obligation`,
   `rootTheorem`, `reliances`, `reliedOnBy`, `roots`. The content of a node carries `kind`, `parents`,
   `op`, `replaces`; `vocabulary` lists every term it mentions (not only those first used on its path).
+  `ContentFormat` and `CheckerVersion` are 4 (phase 2a adds `parts` to the content without changing
+  `ContentFormat`: a snapshot without it decides as before, and decisions without it are not reviewed for it).
+
+### As built in phase 2a (decisions)
+
+- **Content.** A statement's content (claim, contract, assumption, invariant) carries `parts`: the ids
+  of its statement parts, in the model's order (a design node under it is not a part of what it
+  says: it governs code). Definitions and design nodes have no `parts` in their content. An imported
+  node carries the parts its decision there recorded. In the annotated snapshot, `content.parts` is the
+  parts now, and the content each decision bound is in `history` (entries with `binds: true`; the last
+  is what the node is bound to, `decision` being the choice): their `parts` against `content.parts` are
+  the parts added and removed under the cause `parts`. A decision recorded before (no `parts` in its
+  content) is not reviewed for its parts, as for any field a later format added: old ledgers load as
+  they are, and a decided node no longer in the model is listed under `gone`, as before.
+- **Causes.** `self`: what the node says itself changed, that is its content without `parts` and
+  `parents`, and with the calls that place it (`.under(...)`) taken out of its `definition` source; a
+  design node rests on its parents' place, so for it `parents` stays part of what it says. `parts`: the
+  set of its parts changed (order aside; a part renamed is the same part). `above`: the node's
+  `parentChain` changed. `parentChain` is unchanged from phase 1: the sorted chains of its parents, of the
+  definitions in force it uses and of the contracts its code calls, each chain hashing the meaning of
+  that node with its own `parentChain`; a node's meaning has no `parts` or `parents`, so a sibling added
+  reviews the parent only, and a change above a diamond moves the shared node's `parentChain` once: one
+  cause, whatever the number of paths. A node placed under another parent is reviewed for `above` (it
+  rests on more), and that parent for `parts`; it does not say anything else (`self` is not set).
+- **Accepting.** Accepting a node under review whose own content did not change (only `above`, `parts`,
+  what follows from elsewhere) is recorded as a `confirm`: the reason it was chosen stays, and the new
+  parts are bound with it. A node named to `confirm` is confirmed only once all it rests on (its
+  parents, the definitions it uses, the contracts its code calls) is accepted, parents first.
+- **Mechanical.** Any node under review but a definition or a design node (the root included) whose
+  causes are among `self`, `above` and `parts`, whose own content (as for `self`, without what follows
+  from elsewhere: the types it uses, how its examples print, a proven implementation) did not change,
+  that `unproven` says nothing of (a leaf claim aside), whose examples pass, and, under `parts`, whose
+  `split` has `complete` proven, every `needed` proven (each part needed) and no `clash` failed.
+- **Below.** `below` (what accepting a change can act on) follows everything that rests on the node,
+  however far down: its parts, the nodes using a definition, the callers of a contract, the keepers of an
+  invariant, and what rests on those, through the decisions listed only; each once, sorted parents first
+  (the snapshot's `order`). The root's change also lists the decisions outside it, as before.
+- **Alternatives.** `Decisions.alternatives(a, b)` (one replaces the other, or both define one term) is
+  the one rule: `decide` refuses anything else in `reject`, and the annotated snapshot gives each node
+  `rivals` (new): the ids of the nodes of the model that are its alternatives (in `order`). The field
+  `alternatives` is unchanged: the alternatives the ledger says were rejected for it, as objects
+  `{id, content}`. No other annotated field was renamed or removed.
+- **Unchanged.** `waitsFor` (a proposal, or a node whose `above` moved, waits for the first of its
+  parents, then of the definitions it uses and the contracts its code calls, that is not accepted; any
+  node waits for a parent proposed or rejected), `conditionsAbove` (all ancestors, each once), the owner
+  (its own, else its first parent's, recursively; others are refused), signing, the ledger format and its
+  merge driver. `unproven` keeps "nothing below proves it" on a leaf claim: a claim is proven by parts
+  or trusted as an assumption, so the CI gate (`complete`) fails on it; `status` lists it as trusted.
   `ContentFormat` and `CheckerVersion` are 4.
 - **Decisions (phase 1 only).** `waitsFor` is the first parent not accepted, else the first definition
   used or contract called not accepted; alternatives are `replaces` and two definitions of one term;

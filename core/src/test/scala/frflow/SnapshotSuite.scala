@@ -237,7 +237,7 @@ class SnapshotSuite extends munit.FunSuite:
     assertEquals(ns("FromList")("causes").get.arr.flatMap(_.str), Seq("above"))
     assertEquals(ns("Pick")("causes").get.arr.flatMap(_.str), Seq("above"))
     assertEquals(ns("OnlyGood")("below").get.arr.map(b => b("id").flatMap(_.str).get -> b("kind").flatMap(_.str).get).toList,
-      List("FromList" -> "moved", "Pick" -> "moved", "OnlyLong" -> "moved", "Books" -> "accepted", "Picking" -> "accepted"))
+      List("FromList" -> "moved", "OnlyLong" -> "moved", "Pick" -> "moved", "Books" -> "accepted", "Picking" -> "accepted")) // parents first
     ok(accept(w, r2, "Clearer with 'only then' added.", confirm = List(now(3), now(4), now(5))))
     assert(w.kb.nodes.forall(w.state(_) == "accepted"), w.kb.nodes.map(w.state))
     assertEquals(w.ledger.history("Pick").map(_.action), List("accept", "confirm"))
@@ -364,7 +364,6 @@ class SnapshotSuite extends munit.FunSuite:
     def decide(l: Ledger, id: String, action: String, i: Int, by: String = "dev") =
       Decisions.decide(snap, l, Decisions.Request(id, by, s"$id holds for this reason", action = action), at(i))
     val l1 = List("Books", "Picking", "OnlyGood").zipWithIndex.foldLeft(Ledger.empty)((l, x) => decide(l, x._1, "accept", x._2 + 1).toOption.get)
-    assert(Decisions.mechanical(snap, l1, ids("OnlyGood")).exists(_.contains("root nodes hold a choice")))
     assert(Decisions.mechanical(snap, l1, ids("Books")).exists(_.contains("definition nodes hold a choice")))
     // a proposal is the developer's choice
     assert(Decisions.mechanical(snap, l1, ids("FromList")).exists(_.contains("only a node under review")))
@@ -692,4 +691,176 @@ class SnapshotSuite extends munit.FunSuite:
       assert(Workflow.isData(r), r)
     for r <- List(""" = records.filter(_.ok)""", """ = (x: Int) => x + 1""", """ = { compute() }""", """ = Db.open("x")""") do
       assert(!Workflow.isData(r), r)
+  }
+
+  // -- decisions on the DAG (docs/DAG.md §5) ----------------------------------------------------
+
+  private def causesOf(w: Workflow, id: String) = nodes(w.annotated)(id)("causes").get.arr.flatMap(_.str).toList
+  private def ids(j: Json, k: String) = j(k).get.arr.flatMap(_("id").flatMap(_.str)).toList
+  private def kbOf(ns: Seq[Node[?]]) = KnowledgeBase("Shelf", idea = "IDEA.md")(ns*)
+  /** The shelf's nodes and more, with Pick implemented as in `shelfKb`. */
+  private def shelfAnd(ns: Node[?]*) = kbOf(shelfNodes ++ ns).implement(pick)((shelf, n) => shelf.filter(_.pages >= minPages.value))
+
+  /** A diamond: D is a part of B and of C, both parts of A. Without `dUnderC`, D is a part of B only. */
+  private def diamond(top: String = "Results are never negative.", dUnderC: Boolean = true): List[Node[?]] =
+    val a = Node.claim("A", top, why = "The purpose.")(forall((x: BigInt) => sq(x) >= 0))
+    val b = Node.claim("B", "Results are at least zero.", why = "Zero is the floor.")(forall((x: BigInt) => sq(x) >= 0)).under(a)
+    val c = Node.claim("C", "Results are zero or more.", why = "Said otherwise.")(forall((x: BigInt) => sq(x) >= 0)).under(a)
+    val d = if dUnderC then squaresOf(b, c) else squaresOf(b)
+    List(a, b, c, d)
+  private def squaresOf(ps: Node[?]*) =
+    Node.claim("D", "The result is the square of the input.", why = "Squares are never negative.")(forall((x: BigInt) => sq(x) == x * x)).under(ps*)
+  private val newPart = Node.claim("Bounded", "At most n books are picked.", why = "Readers want few books.")(
+    forall((l: List[Book], n: Int) => picks(l, n).length <= n)).under(fromList)
+
+  test("a part added puts its parent up for review, with the cause `parts`, and nothing else; the new part waits for it") {
+    val ws = workspace()
+    acceptAll(workflow(shelfKb, ws))
+    val w = workflow(shelfAnd(pick, newPart), ws)
+    assertEquals(causesOf(w, "FromList"), List("parts"))
+    assertEquals(w.kb.ordered.map(n => n.id -> w.state(n)).filter(_._2 != "accepted"), List("FromList" -> "review", "Bounded" -> "proposed"))
+    assertEquals(field(nodes(w.annotated)("Bounded"), "waitsFor"), Some("FromList"))
+    // these parts make it: a confirmation, which keeps the reason it was chosen and binds the parts
+    ok(accept(w, fromList, "FromList is still made by its parts."))
+    assertEquals(w.ledger.history("FromList").map(_.action), List("accept", "confirm"))
+    assertEquals(field(nodes(w.annotated)("FromList"), "decision", "reason"), Some("FromList is right"))
+    assertEquals(w.ledger.binding("FromList").get.content("parts").get.arr.flatMap(_.str), Seq("Pick", "Bounded"))
+    ok(accept(w, newPart, "A bound helps readers."))
+    assertEquals(w.kb.nodes.map(w.state).distinct, List("accepted"))
+    // and removed: the parent again
+    val back = workflow(shelfKb, ws)
+    assertEquals(back.kb.ordered.map(n => n.id -> back.state(n)).filter(_._2 != "accepted"), List("FromList" -> "review"))
+    assertEquals(causesOf(back, "FromList"), List("parts"))
+    assertEquals(back.gone, List("Bounded"))
+  }
+
+  test("a parent's parts are decided by its owner") {
+    val ws = workspace()
+    val w0 = workflow(ownedKb, ws)
+    ok(w0.decide(Decisions.Request("Owned", "ana", "negative results are meaningless")))
+    ok(w0.decide(Decisions.Request("OwnedSquares", "ana", "squares are never negative")))
+    val abs = Node.claim("OwnedAbs", "The result is the absolute value of the input.", why = "Never negative.", owner = "bob")(
+      forall((x: BigInt) => sq(x) == (if x >= 0 then x else -x))).under(owned)
+    val w = workflow(KnowledgeBase("Owned", idea = "IDEA.md")(owned, ownedSquares, abs), ws)
+    assertEquals(causesOf(w, "Owned"), List("parts"))
+    assert(w.decide(Decisions.Request("Owned", "bob", "my part makes it too")).left.exists(_.contains("ana's to decide")))
+    ok(w.decide(Decisions.Request("Owned", "ana", "both parts make it")))
+    assertEquals(w.state(owned), "accepted")
+  }
+
+  test("a change of parts is mechanical when Lean proves the parts make it, each needed; not otherwise") {
+    val ws = workspace()
+    acceptAll(workflow(shelfKb, ws))
+    val w = workflow(shelfAnd(pick, newPart), ws)
+    val snap = proven(w.baseSnapshot)
+    assertEquals(Decisions.causes(snap, w.ledger, nodes(snap)("FromList")), List("parts"))
+    assertEquals(Decisions.mechanical(snap, w.ledger, nodes(snap)("FromList")), None)
+    def withSplit(complete: String, needed: String) = Json.JObj(snap.obj.map {
+      case ("nodes", Json.JArr(ns)) => "nodes" -> Json.JArr(ns.map(n => if !field(n, "id").contains("FromList") then n else Json.JObj(n.obj.map {
+        case ("split", _) => "split" -> Json.obj("complete" -> Json.obj("status" -> Json.str(complete), "detail" -> Json.str("")),
+          "needed" -> Json.JArr(List("Pick", "Bounded").map(p => Json.obj("id" -> Json.str(p), "status" -> Json.str(needed), "detail" -> Json.str("")))),
+          "clash" -> Json.obj("status" -> Json.str("proven"), "detail" -> Json.str("")))
+        case f => f })))
+      case f => f })
+    assertEquals(Decisions.mechanical(withSplit("proven", "proven"), w.ledger, nodes(snap)("FromList")), None)
+    // a part not needed (Lean shows the parent without it), or the parts not shown to make it: the developer decides
+    assert(Decisions.mechanical(withSplit("proven", "open"), w.ledger, nodes(withSplit("proven", "open"))("FromList")).isDefined)
+    assert(Decisions.mechanical(withSplit("open", "proven"), w.ledger, nodes(withSplit("open", "proven"))("FromList")).isDefined)
+    // a proposal is never mechanical
+    assert(Decisions.mechanical(snap, w.ledger, nodes(snap)("Bounded")).exists(_.contains("proposed")))
+  }
+
+  test("a diamond: the node under two parents is reviewed once, listed once after both, and confirmed once") {
+    val ws = workspace()
+    acceptAll(workflow(kbOf(diamond()), ws))
+    val now = diamond("Results are never negative, whatever the input.")
+    val w = workflow(kbOf(now), ws)
+    assertEquals(List("A", "B", "C", "D").map(causesOf(w, _)), List(List("self"), List("above"), List("above"), List("above")))
+    val below = nodes(w.annotated)("A")("below").get.arr.toList
+    assertEquals(below.map(b => field(b, "id").get), List("B", "C", "D"))
+    // D waits for its parents, which wait for A
+    assert(accept(w, now(3), "D still holds.").left.exists(_.contains("accept B first")))
+    assert(accept(w, now(2), "C still holds.").left.exists(_.contains("accept A first")))
+    ok(accept(w, now(0), "Clearer about every input.", confirm = now.drop(1)))
+    assertEquals(w.kb.nodes.map(w.state).distinct, List("accepted"))
+    assertEquals(w.ledger.history("D").map(_.action), List("accept", "confirm"))
+  }
+
+  test("a proposal waits for all of its parents") {
+    val w = workflow(kbOf(diamond()))
+    List("A", "B").foreach(id => ok(w.decide(Decisions.Request(id, "dev", s"$id is right"))))
+    assertEquals(field(nodes(w.annotated)("D"), "waitsFor"), Some("C"))
+    assert(w.decide(Decisions.Request("D", "dev", "D is right")).left.exists(_.contains("accept C first")))
+    ok(w.decide(Decisions.Request("C", "dev", "C is right")))
+    ok(w.decide(Decisions.Request("D", "dev", "D is right")))
+  }
+
+  test("a node placed under a second parent: that parent reviews its parts; the node rests on more, and says the same") {
+    val ws = workspace()
+    acceptAll(workflow(kbOf(diamond(dUnderC = false)), ws))
+    val w = workflow(kbOf(diamond()), ws)
+    assertEquals(List("A", "B", "C", "D").map(causesOf(w, _)), List(Nil, Nil, List("parts"), List("above")))
+    val snap = proven(w.baseSnapshot)
+    // both mechanical: Lean proves C's parts make it, and D says what it said
+    assertEquals(List("C", "D").map(id => Decisions.mechanical(snap, w.ledger, nodes(snap)(id))), List(None, None))
+  }
+
+  test("a change to a definition lists what rests on it, however far down, each once, to confirm by name") {
+    val ws = workspace()
+    acceptAll(workflow(shelfKb, ws))
+    val thick = Node.definition("Books", "Items are books; a book is good when it is thick.", why = books.why)(
+      Item := of[Book], good := ((b: Book) => b.pages >= 500))
+    val now = (thick :: shelfNodes.filterNot(_ eq books)) :+ pick
+    val w = workflow(kbOf(now).implement(pick)((shelf, n) => shelf.filter(_.pages >= minPages.value)), ws)
+    assertEquals(ids(nodes(w.annotated)("Books"), "below"), List("OnlyGood", "FromList", "OnlyLong", "EveryLong", "Pick"))
+    ok(accept(w, thick, "Readers want thick books now.", confirm = now.filter(n => Set("OnlyGood", "FromList", "OnlyLong", "EveryLong", "Pick")(n.id))))
+    assertEquals(w.kb.nodes.map(w.state).distinct, List("accepted"))
+  }
+
+  test("the alternatives of each node in the model: what it replaces or is replaced by, other definitions of its terms; never its siblings") {
+    val alt = Node.claim("Bounded", "Picked books come from the shelf, at most n of them.", why = "Readers want few books.")(
+      forall((l: List[Book], n: Int) => picks(l, n).forall(b => l.contains(b)))).under(onlyGood).replaces(fromList)
+    val thick = Node.definition("Thick", "A book is good when it is thick.", why = "Readers want long reads.")(good := ((b: Book) => b.pages >= 500))
+    val ns = nodes(workflow(shelfWith(pick, alt, thick)).annotated)
+    def rivals(id: String) = strs(ns(id), "rivals")
+    assertEquals(List("FromList", "Bounded", "Books", "Thick", "OnlyLong").map(rivals), List(List("Bounded"), List("FromList"), List("Thick"), List("Books"), Nil))
+  }
+
+  test("an owner is the node's own, else its first parent's, however far up") {
+    val nn = (1 to 2).map(i => teamKb.node(s"NonNeg$i").get)
+    val shared = Node.claim("Shared", "The result is the square of the input.", why = "Both concerns.")(forall((x: BigInt) => sq(x) == x * x)).under(nn*)
+    val below = Node.claim("Deeper", "The result is a square.", why = "Below the shared part.")(forall((x: BigInt) => sq(x) == x * x)).under(shared)
+    val ns = nodes(workflow(KnowledgeBase("Team", idea = "IDEA.md")((teamKb.nodes :+ shared :+ below)*)).annotated)
+    assertEquals(List("Shared", "Deeper", "Team").map(id => field(ns(id), "owner")), List(Some("dev1"), Some("dev1"), Some("")))
+  }
+
+  test("a ledger recorded before parts were part of a node's content loads, and nothing is reviewed for it") {
+    val ws = workspace()
+    acceptAll(workflow(shelfKb, ws))
+    val l = Ledger.load(ws.ledgerFile)
+    val old = Ledger(l.decisions.view.mapValues(_.map(d => d.copy(content = Json.JObj(d.content.obj.filterNot(_._1 == "parts"))))).toMap)
+    Ledger.save(ws.ledgerFile, old)
+    val w = workflow(shelfKb, ws)
+    assertEquals(w.kb.nodes.map(w.state).distinct, List("accepted"))
+    // a decided node gone from the model shows as gone
+    val w2 = workflow(KnowledgeBase("Shelf", idea = "IDEA.md")(shelfNodes*), ws)
+    assertEquals(w2.gone, List("Pick"))
+  }
+
+  test("placing a node under another parent changes where it rests, not what it says") {
+    import Json.*
+    def node(parents: List[String], under: String) =
+      val c = obj("kind" -> str("claim"), "parents" -> JArr(parents.map(str)), "parts" -> JArr(Nil), "statement" -> str("The result is a square."),
+        "definition" -> str(s"val d = Node.claim(\"D\", \"The result is a square.\", why = \"w\")(f)\n  .under($under)\n  .examples()()"))
+      obj("id" -> str("D"), "kind" -> str("claim"), "parents" -> JArr(parents.map(str)), "content" -> c, "hash" -> str(Decision.hash(c)), "parentChain" -> str("p"))
+    val before = node(List("B"), "b")
+    val ledger = Ledger.empty.add("D", Decision("accept", before("content").get, "p", "dev", "2026-01-01T00:00:00Z", "it is right"))
+    val now = node(List("B", "C"), "b, c")
+    assertEquals(Decisions.causes(obj("nodes" -> JArr(List(now))), ledger, now), Nil)
+    // what it says, changed beside the call that places it: itself
+    val reworded = Json.JObj(now.obj.map { case ("content", c) => "content" -> Json.JObj(c.obj.map {
+      case ("definition", JStr(d)) => "definition" -> str(d.replace(".examples()()", ".examples()(expect(1))")); case f => f })
+      case ("hash", _) => "hash" -> str("rehashed below"); case f => f })
+    val fixed = Json.JObj(reworded.obj.map { case ("hash", _) => "hash" -> str(Decision.hash(reworded("content").get)); case f => f })
+    assertEquals(Decisions.causes(obj("nodes" -> JArr(List(fixed))), ledger, fixed), List("self"))
   }
