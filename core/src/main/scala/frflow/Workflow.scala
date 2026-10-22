@@ -303,7 +303,10 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val built = java.util.concurrent.ConcurrentHashMap.newKeySet[String]()
     def batch(targets: Seq[String]): Unit =
       if targets.size > 1 && lake.buildAll(targets).ok then targets.foreach(built.add)
-    batch(pending.filter(g.waitsForDefinition(_).isEmpty).map(n => g.specModule(n.id)))
+    // The proofs of the code too (each imports only models): one at a time, they were most of a cold
+    // check. Each node's own build of it then replays it, with its messages (the axioms it rests on).
+    val ready = pending.filter(g.waitsForDefinition(_).isEmpty)
+    batch(ready.map(n => g.specModule(n.id)) ++ ready.filter(g.obligation(_, "impl").isDefined).map(n => g.implModule(n.id)))
     val threads = sys.env.get("FRFLOW_THREADS").flatMap(_.toIntOption).getOrElse(Runtime.getRuntime.availableProcessors.min(4)).max(1)
     val pool = java.util.concurrent.Executors.newFixedThreadPool(threads)
     val done = scala.collection.concurrent.TrieMap.empty[String, NodeCheck]
