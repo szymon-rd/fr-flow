@@ -1,6 +1,6 @@
 package frflow
 
-import java.nio.file.Path
+import java.nio.file.{Files, Path}
 import java.util.concurrent.TimeUnit
 
 /** The little FrFlow asks of git: the current commit, a file as committed, and the code a decision saw. */
@@ -40,32 +40,26 @@ object Git:
     */
   def snapshot(dir: Path, files: List[String]): String =
     if files.isEmpty || head(dir).isEmpty then ""
-    else
-      val index = java.nio.file.Files.createTempDirectory("frflow").resolve("index")
-      val env = Map("GIT_INDEX_FILE" -> index.toString)
-      try
-        val ok = runWith(dir, env, "read-tree", "HEAD").isDefined &&
-          runWith(dir, env, ("add" :: "-f" :: "--" :: files.filter(f => java.nio.file.Files.exists(dir.resolve(f))))*).isDefined
-        if ok then runWith(dir, env, "write-tree").map(_.trim).getOrElse("") else ""
-      finally
-        java.nio.file.Files.deleteIfExists(index)
-        java.nio.file.Files.deleteIfExists(index.getParent)
+    else withIndex(dir, files)(env => runWith(dir, env, "write-tree").map(_.trim)).getOrElse("")
 
-  /** How files changed since a decision: the working tree against the tree (or commit) it recorded. */
+  /** How files changed since a decision: the working tree against the tree (or commit) it recorded.
+    * The diff runs on an index of its own holding the files as they are, so a file git does not track
+    * (a new project's, before its first commit) is compared as it is, not shown as deleted.
+    */
   def diff(dir: Path, since: String, files: List[String]): String =
-    if since.isEmpty then ""
-    else
-      // Files that are new since then (not in that tree, not yet added) are shown whole.
-      val known = run(dir, ("ls-tree" :: "-r" :: "--name-only" :: "--full-name" :: since :: "--" :: files)*).toList.flatMap(_.linesIterator).toSet
-      val prefix = run(dir, "rev-parse", "--show-prefix").map(_.trim).getOrElse("")
-      val added = files.filterNot(f => known(prefix + f)).filter(f => java.nio.file.Files.isRegularFile(dir.resolve(f)))
-        .flatMap(f => runAny(dir, "diff", "--no-index", "--", "/dev/null", f))
-      run(dir, ("diff" :: since :: "--" :: files)*).getOrElse("") + added.mkString
+    if since.isEmpty || files.isEmpty then ""
+    else withIndex(dir, files)(env => runWith(dir, env, ("diff" :: since :: "--" :: files)*)).getOrElse("")
 
-  /** Like `run`, but also keeps the output of a command that exits 1 (`diff --no-index` with differences). */
-  private def runAny(dir: Path, args: String*): Option[String] =
+  /** `f` run with a fresh index: HEAD's (empty before the first commit), with these files added as
+    * they are now. Neither the repository's index nor the working tree is touched.
+    */
+  private def withIndex[A](dir: Path, files: List[String])(f: Map[String, String] => Option[A]): Option[A] =
+    val index = Files.createTempDirectory("frflow").resolve("index")
+    val env = Map("GIT_INDEX_FILE" -> index.toString)
     try
-      val p = ProcessBuilder(("git" +: args)*).directory(dir.toFile).start()
-      val out = String(p.getInputStream.readAllBytes(), "UTF-8")
-      if p.waitFor(20, TimeUnit.SECONDS) && p.exitValue <= 1 then Some(out) else None
-    catch case _: java.io.IOException => None
+      val base = if head(dir).isEmpty then runWith(dir, env, "read-tree", "--empty") else runWith(dir, env, "read-tree", "HEAD")
+      val present = files.filter(x => Files.exists(dir.resolve(x)))
+      if base.isDefined && (present.isEmpty || runWith(dir, env, ("add" :: "-f" :: "--" :: present)*).isDefined) then f(env) else None
+    finally
+      Files.deleteIfExists(index)
+      Files.deleteIfExists(index.getParent)
