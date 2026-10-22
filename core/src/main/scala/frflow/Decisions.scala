@@ -420,7 +420,7 @@ object Decisions:
   /** Lean proves the node's parts make it (`complete`), each is needed, and they do not clash. */
   private def partsMake(n: Json): Boolean = n("split").filter(_ != JNull).exists { sp =>
     sp("complete").exists(c => s(c, "status") == "proven") &&
-      sp("needed").forall(_.arr.forall(x => s(x, "status") == "proven")) && sp("clash").forall(c => c == JNull || s(c, "status") != "failed")
+      sp("needed").forall(_.arr.forall(x => s(x, "status") == "needed")) && sp("clash").forall(c => c == JNull || s(c, "status") != "clash")
   }
 
   /** The decisions below `n` that accepting it can act on, with their reasons, parents first: those
@@ -642,8 +642,8 @@ object Decisions:
         else s(n, "state")
       val split = n("split").filter(_ != JNull).fold("") { sp =>
         val c = sp("complete").getOrElse(JNull)
-        val notNeeded = sp("needed").map(_.arr.toList).getOrElse(Nil).filter(x => s(x, "status") == "open").map(s(_, "id"))
-        val clash = sp("clash").filter(x => x != JNull && s(x, "status") == "failed")
+        val notNeeded = sp("needed").map(_.arr.toList).getOrElse(Nil).filter(x => s(x, "status") == "not-needed").map(s(_, "id"))
+        val clash = sp("clash").filter(x => x != JNull && s(x, "status") == "clash")
         s", parts ${s(c, "status")}${if s(c, "detail").nonEmpty then s" (${s(c, "detail")})" else ""}" +
           (if notNeeded.nonEmpty then s", not needed: ${notNeeded.mkString(", ")}" else "") + clash.fold("")(_ => ", parts clash")
       }
@@ -780,8 +780,8 @@ object Decisions:
     val split = n("split").filter(_ != JNull)
     n("status").flatMap(_.str).filterNot(fine).map(st => s"its check is $st${n("messages").flatMap(_.arr.headOption).flatMap(_.str).fold("")(m => s": ${m.linesIterator.next()}")}").toList ++
       split.flatMap(_("complete")).filter(c => !fine(s(c, "status"))).map(c => s"its parts are not proven to make it (${s(c, "status")}: ${s(c, "detail")})") ++
-      split.toList.flatMap(_("needed").map(_.arr.toList).getOrElse(Nil)).filter(x => s(x, "status") == "open").map(x => s"${s(x, "id")} is not needed for it: ${s(x, "detail")}") ++
-      split.flatMap(_("clash")).filter(c => s(c, "status") == "failed").map(_ => "its parts contradict each other") ++
+      split.toList.flatMap(_("needed").map(_.arr.toList).getOrElse(Nil)).filter(x => s(x, "status") == "not-needed").map(x => s"${s(x, "id")} is not needed for it: ${s(x, "detail")}") ++
+      split.flatMap(_("clash")).filter(c => s(c, "status") == "clash").map(_ => "its parts contradict each other") ++
       Option.when(n("leaf").contains(JBool(true)))("nothing below proves it: add the parts that make it, or a contract") ++
       Option.when(ok != total)(s"${total - ok} example(s) fail") ++
       bad("invariants", fine + "exempt").map(i => s"invariant ${s(i, "id")} is ${s(i, "status")}") ++

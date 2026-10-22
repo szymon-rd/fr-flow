@@ -196,6 +196,21 @@ class NodeSuite extends munit.FunSuite:
     intercept[IllegalStateException](kb.service(byTerm)())
   }
 
+  test("a term defined by an expression, not a function, is evaluated where it is used, under the bindings in force") {
+    val shelfNow = Param[List[Book]]("shelfNow", "the books on the shelf now")
+    val onShelf = Param[Int]("onShelf", "how many books the shelf holds")
+    // Evaluated when the model loads, the definition would read shelfNow before anything binds it.
+    val counting = Node.definition("Counting", "The shelf holds as many books as are on it.", "w")(onShelf := shelfNow.value.length)
+    val term = counting.substs.head.term.get
+    assertEquals(term.body, "((shelfNow).length : Int)")
+    assertEquals(Bindings.within(Seq(shelfNow.bind(List(Book("A", 100), Book("B", 200)))))(term.value), 2)
+    assertEquals(Bindings.within(Seq(shelfNow.bind(Nil)))(term.value), 0)
+    // As service and the examples bind it: the defined term, under the values bound with it.
+    val kb = shelfWith(pick, counting)
+    assertEquals(Bindings.within(shelfNow.bind(List(Book("A", 100))) +: kb.definitionBindings)(onShelf.value), 1)
+    intercept[IllegalStateException](Bindings.within(kb.definitionBindings)(onShelf.value))
+  }
+
   test("an assumption whose terms are bound is checked when the service starts, and when its values change") {
     val positive = Node.assumption("PositiveLength", "Readers ask for books of at least one page.", why = "A length of zero would let empty books in.")(
       minPages.value > 0).under(onlyLong)
@@ -211,6 +226,41 @@ class NodeSuite extends munit.FunSuite:
     // an assumption over a quantifier cannot be computed: it is trusted only
     val world = Node.assumption("Shelved", "Every book has a title.", why = "The library labels books.")(forall((b: Book) => b.title != "")).under(onlyLong)
     assert(shelfWith(pick, world).implement(pick)((shelf, n) => shelf).runtimeAssumptions.head.holds())
+  }
+
+  test("a call past service is a call on the adapter: a name bound to its class, the class, or a parameter of its type") {
+    def calls(text: String) = Workflow.adapterCalls(text, Set("SessionDb"), Set("sessionDb"))
+    // the same method names on something else
+    assertEquals(calls("def first(accounts: List[UserAccount]) = accounts.find(a => a.enabled)"), Set.empty[String])
+    assertEquals(calls("ex.getResponseBody.write(b); ex.close()"), Set.empty[String])
+    assertEquals(calls("val db = 1\nprintln(\"db.find(r, t)\") // db.find(r, t)"), Set.empty[String])
+    // on the adapter
+    assertEquals(calls("final class Realms(val db: SessionDb):\n  def get(r: RealmId, t: String) = db.find(r, t)"), Set("find"))
+    assertEquals(calls("val store = SessionDb.loaded(Nil)\nstore.replaceWith(q, s)"), Set("loaded", "replaceWith"))
+    assertEquals(calls("val got = sessionDb.value.find(r, t)"), Set("find"))
+    assertEquals(Workflow.classesOf("final class SessionDb private (x: Int):\n  def a = 1\nobject SessionDb:\n  def empty = 1"), List("SessionDb", "SessionDb"))
+    assertEquals(Workflow.paramsOf("val sessionDb = Param[SessionDb](\"sessionDb\", \"the store\")\nval n = Param[Int](\"n\", \"x\")", Set("SessionDb")), List("sessionDb"))
+  }
+
+  test("an assumption names its idea section and owner, on a fact or on an operation") {
+    val fact = Node.assumption("LongShelf", "Readers ask for books of at least a page.", why = "An empty book is not a book.",
+      idea = "Picking", owner = "ana")(minPages.value >= 1)
+    val port = Node.assumption(fetch)("Port", "The service returns books of the shelf.", why = "Books come from a service.", idea = "Picking")(
+      (shelf, n, r) => r.forall(b => shelf.contains(b)))
+    assertEquals((fact.ideaSection, fact.owner, port.ideaSection, port.owner), ("Picking", "ana", "Picking", ""))
+    assertEquals(port.op.map(_.name), Some("fetch"))
+  }
+
+  test("impl is proven from the promises of the operations its code calls, not those a term it reads is defined with") {
+    // Again's code reads pickedFrom, defined by the shelf service's operation: it depends on PickPromise, calls nothing
+    val g = Generate(readsKb)
+    assertEquals(g.callees(againC).map(_.id), List("PickPromise"))
+    assertEquals(g.calls(againC), Nil)
+    assert(!g.obligation(againC, "impl").get.statement.contains("h_PickPromise"), g.obligation(againC, "impl"))
+    // code calling the operation itself is proven from its promise
+    val c = Generate(callsKb)
+    assertEquals(c.calls(againC).map(_.id), List("PickPromise"))
+    assert(c.obligation(againC, "impl").get.statement.contains("h_PickPromise"), c.obligation(againC, "impl"))
   }
 
   test("proof files may contain only tactic proofs") {

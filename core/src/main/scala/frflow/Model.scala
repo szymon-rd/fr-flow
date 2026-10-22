@@ -45,6 +45,8 @@ final class Param[A](val name: String, val means: String):
 extension [A, R](p: Param[A => R]) def apply(a: A): R = p.value(a)
 extension [A, B, R](p: Param[(A, B) => R]) def apply(a: A, b: B): R = p.value(a, b)
 extension [A, B, C, R](p: Param[(A, B, C) => R]) def apply(a: A, b: B, c: C): R = p.value(a, b, c)
+extension [A, B, C, D, R](p: Param[(A, B, C, D) => R]) def apply(a: A, b: B, c: C, e: D): R = p.value(a, b, c, e)
+extension [A, B, C, D, E, R](p: Param[(A, B, C, D, E) => R]) def apply(a: A, b: B, c: C, e: D, f: E): R = p.value(a, b, c, e, f)
 
 /** What a definition fixes: an opaque type by a type, or a parameter by a term. `target` is the
   * `Opaque` or `Param` it defines.
@@ -92,9 +94,12 @@ final case class TypeDecl(name: String, lean: String, uses: List[String], scala:
   * @param body     the Lean term; `⟦f⟧` marks a call of the defined function `f`
   * @param opaques  opaque types it mentions
   * @param paramRefs parameters it uses, with their Lean types
+  * @param valueThunk the Scala value, evaluated on each use (`value`): a term defined by an expression
+  *                   over parameters (`sessions := stateAfter(history.value).sessions`) is evaluated
+  *                   where it is used, under the bindings in force, not when the model loads
   */
 final class Lifted[+F](
-    val value: F,
+    valueThunk: () => F,
     val params: List[(String, String)],
     val result: String,
     val body: String,
@@ -106,6 +111,8 @@ final class Lifted[+F](
     paramsThunk: () => List[Param[?]],
     opaquesThunk: () => List[Opaque] = () => Nil
 ):
+  /** The Scala value, evaluated now (under the bindings in force). */
+  def value: F = valueThunk()
   def defs: List[Def[?]] = defsThunk()
   def paramObjects: List[Param[?]] = paramsThunk()
   def opaqueObjects: List[Opaque] = opaquesThunk()
@@ -160,6 +167,8 @@ inline def define[F](inline f: F): Def[F] = ${ Lift.define('f) }
 extension [A, R](d: Def[A => R]) def apply(a: A): R = d.fn(a)
 extension [A, B, R](d: Def[(A, B) => R]) def apply(a: A, b: B): R = d.fn(a, b)
 extension [A, B, C, R](d: Def[(A, B, C) => R]) def apply(a: A, b: B, c: C): R = d.fn(a, b, c)
+extension [A, B, C, D, R](d: Def[(A, B, C, D) => R]) def apply(a: A, b: B, c: C, e: D): R = d.fn(a, b, c, e)
+extension [A, B, C, D, E, R](d: Def[(A, B, C, D, E) => R]) def apply(a: A, b: B, c: C, e: D, f: E): R = d.fn(a, b, c, e, f)
 
 /** Raised when specification-only logic is executed. */
 final class NotExecutable(what: String) extends RuntimeException(s"$what cannot be executed")

@@ -9,7 +9,7 @@ import scala.quoted.*
   * `Boolean` (as `Prop`), `Int`/`Long` (as `Int`), `String`, `List`, `Option`,
   * tuples; constructors, field access, `copy`, `match`, `if`, `val`s;
   * `==`, `!=`, `&&`, `||`, `!`, `==>`, integer arithmetic and comparison; a few
-  * `List`/`Option` operations; `forall`/`exists`; calls to `define`d functions;
+  * `List`/`Option`/`Map`/`Set` operations (`xs.toSet`: a list's membership); `forall`/`exists`; calls to `define`d functions;
   * opaque types (`User.T`) and parameters (`authorized(u, r)`, `shares.value`).
   * Anything else is a compile error at its position.
   */
@@ -67,7 +67,7 @@ private[frflow] object Lift:
     val defs = of[Def[?]]("frflow.Def")
     val params = of[Param[?]]("frflow.Param")
     val opaques = of[Opaque]("frflow.Opaque")
-    '{ def liftedNode(): Lifted[F] = new Lifted[F]($f, Nil, "", "", ${ Expr(text) }, Nil, Nil, Nil, () => $defs, () => $params, () => $opaques); liftedNode() }
+    '{ def liftedNode(): Lifted[F] = new Lifted[F](() => $f, Nil, "", "", ${ Expr(text) }, Nil, Nil, Nil, () => $defs, () => $params, () => $opaques); liftedNode() }
 
   /** The source files of the project code an expression refers to (an implementation's classes). */
   def sourceFiles(e: Expr[Any])(using Quotes): Expr[List[String]] =
@@ -216,7 +216,7 @@ private final class Translator(using val quotes: Quotes):
     // may not exceed 64 KB; the construction is the bulk of each node's expansion.
     '{
       def liftedNode(): Lifted[F] =
-        new Lifted[F]($f, ${ Expr(params) }, ${ Expr(result) }, ${ Expr(body) }, ${ Expr(source(term match { case Lambda(Nil, b) => strip(b).pos; case t => t.pos })) }, $typeList,
+        new Lifted[F](() => $f, ${ Expr(params) }, ${ Expr(result) }, ${ Expr(body) }, ${ Expr(source(term match { case Lambda(Nil, b) => strip(b).pos; case t => t.pos })) }, $typeList,
           ${ Expr(opaques.toList) }, ${ Expr(paramRefs.toList) }, () => $depList, () => $paramList, () => $opaqueList)
       liftedNode()
     }
@@ -673,6 +673,9 @@ private final class Translator(using val quotes: Quotes):
       case ("find", 1) if qt.derivesFrom(ListSym) =>
         val (x, b) = lam(args.head); Some(p(s"List.find? (fun $x => decide $b) $r"))
       case ("headOption", 0) if qt.derivesFrom(ListSym)  => Some(p(s"List.head? $r"))
+      // A list's elements as a set (its membership): built once, a hash set answers `contains` at once.
+      case ("toSet", 0) if qt.derivesFrom(ListSym) =>
+        val y = unique(new Object, "y", q.pos, free); Some(p(s"fun $y => $y ∈ $r"))
       // A negative count takes nothing and drops nothing, in both.
       case ("take" | "drop", 1) if qt.derivesFrom(ListSym) && isInt(args.head.tpe.widen) =>
         Some(p(s"List.$name (Int.toNat ${e(args.head)}) $r"))

@@ -350,7 +350,7 @@ class SnapshotSuite extends munit.FunSuite:
     case ("nodes", Json.JArr(ns)) => "nodes" -> Json.JArr(ns.map(n => Json.JObj(n.obj.map {
       case ("status", s) if s != Json.JNull => "status" -> Json.str("proven")
       case ("split", s) if s != Json.JNull => "split" -> Json.obj("complete" -> Json.obj("status" -> Json.str("proven"), "detail" -> Json.str("auto")),
-        "needed" -> Json.JArr(Nil), "clash" -> Json.obj("status" -> Json.str("proven"), "detail" -> Json.str("")))
+        "needed" -> Json.JArr(Nil), "clash" -> Json.obj("status" -> Json.str("no-clash"), "detail" -> Json.str("")))
       case f => f
     })))
     case f => f
@@ -759,13 +759,13 @@ class SnapshotSuite extends munit.FunSuite:
       case ("nodes", Json.JArr(ns)) => "nodes" -> Json.JArr(ns.map(n => if !field(n, "id").contains("FromList") then n else Json.JObj(n.obj.map {
         case ("split", _) => "split" -> Json.obj("complete" -> Json.obj("status" -> Json.str(complete), "detail" -> Json.str("")),
           "needed" -> Json.JArr(List("Pick", "Bounded").map(p => Json.obj("id" -> Json.str(p), "status" -> Json.str(needed), "detail" -> Json.str("")))),
-          "clash" -> Json.obj("status" -> Json.str("proven"), "detail" -> Json.str("")))
+          "clash" -> Json.obj("status" -> Json.str("no-clash"), "detail" -> Json.str("")))
         case f => f })))
       case f => f })
-    assertEquals(Decisions.mechanical(withSplit("proven", "proven"), w.ledger, nodes(snap)("FromList")), None)
+    assertEquals(Decisions.mechanical(withSplit("proven", "needed"), w.ledger, nodes(snap)("FromList")), None)
     // a part not needed (Lean shows the parent without it), or the parts not shown to make it: the developer decides
-    assert(Decisions.mechanical(withSplit("proven", "open"), w.ledger, nodes(withSplit("proven", "open"))("FromList")).isDefined)
-    assert(Decisions.mechanical(withSplit("open", "proven"), w.ledger, nodes(withSplit("open", "proven"))("FromList")).isDefined)
+    assert(Decisions.mechanical(withSplit("proven", "not-needed"), w.ledger, nodes(withSplit("proven", "not-needed"))("FromList")).isDefined)
+    assert(Decisions.mechanical(withSplit("open", "needed"), w.ledger, nodes(withSplit("open", "needed"))("FromList")).isDefined)
     // a proposal is never mechanical
     assert(Decisions.mechanical(snap, w.ledger, nodes(snap)("Bounded")).exists(_.contains("proposed")))
   }

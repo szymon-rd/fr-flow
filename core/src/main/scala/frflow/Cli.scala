@@ -49,8 +49,8 @@ object Cli:
             println(s"  ${failing.size} example(s) fail: the code or the contract is wrong; fix that, not the proof")
             failing.take(5).foreach(r => println(s"    ${r.example.describe}: ${r.verdict}"))
           // `idle` is not an obligation: proven, it says the root is met by doing nothing.
-          c.obligations.filter(r => !r.isLimit && r.status != "proven").foreach(r => println(s"  ${r.status} ${r.name}: ${r.detail.linesIterator.mkString("\n    ")}"))
-          c.obligations.filter(r => r.name == "idle" && r.status == "proven").foreach(r => println(
+          c.obligations.filter(r => !r.fine).foreach(r => println(s"  ${r.status} ${r.name}: ${r.detail.linesIterator.mkString("\n    ")}"))
+          c.obligations.filter(r => r.name == "idle" && r.status == "idle").foreach(r => println(
             s"  ! doing nothing meets it (${r.detail}): state what users can do, so it says exactly what the system does (status fails until then)"))
           // With an example failing, the node may be false: no hint to prove it.
           c.messages.filterNot(m => failing.nonEmpty && m.startsWith("prove it in")).foreach(m => println(s"  ! ${m.linesIterator.mkString("\n    ")}"))

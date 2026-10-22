@@ -201,3 +201,33 @@ def teamConcern(i: Int, owner: String): List[Node[?]] =
   List(r, Node.claim(s"Abs$i", "The result is the absolute value of the input.", why = "It is never negative.")(
     forall((x: BigInt) => sq(x) == (if x >= 0 then x else -x))).under(r))
 val teamKb = KnowledgeBase("Team", idea = "IDEA.md")((team :: (0 until 5).toList.flatMap(i => teamConcern(i, s"dev$i")))*)
+
+/** Defined functions of four and five arguments, called like the others. */
+val pagesBetween = define { (b: Book, lo: Int, hi: Int, title: String) => b.pages >= lo && b.pages <= hi && b.title != title }
+val pagesBetweenOn = define { (b: Book, lo: Int, hi: Int, title: String, s: Shelf) => pagesBetween(b, lo, hi, title) && where(s) != title }
+
+/** Code reading a defined term whose definition calls the shelf service: it does not call the service
+  * itself, so the service's promise is no hypothesis of its proof.
+  */
+val pickedFrom = Param[(List[Book], Book) => Boolean]("pickedFrom", "whether the shelf service picks the book from the shelf")
+val pickedFromDef = Node.definition("PickedFrom", "A book is picked from a shelf when the service picks it, asked for the whole shelf.",
+  why = "The service is how books leave the shelf.")(pickedFrom := ((l: List[Book], b: Book) => picks(l, l.length).contains(b)))
+val viaPickedFrom = define { (shelf: List[Book], n: Int) => shelf.filter(b => pickedFrom(shelf, b) && b.pages >= minPages.value) }
+val readsKb = KnowledgeBase("Reads", idea = "IDEA.md")(pickedAgain, againC, pickPromise, pickedFromDef)
+  .implementProven(pickPromise)(longOnes).implementProven(againC)(viaPickedFrom)
+
+/** Membership through a set built once (`toSet`): a hash set in Scala, the list's membership in Lean. */
+val kept = Param[(List[Book], List[Book]) => List[Book]]("kept", "the picked books a check keeps, those on the shelf")
+val keptOnShelf = Node.claim("KeptOnShelf", "A book is kept exactly when it was picked and is on the shelf.", why = "Only books of the shelf leave it.")(
+  forall((s: List[Book], p: List[Book]) => forall((b: Book) => kept(s, p).contains(b) == (p.contains(b) && s.contains(b)))))
+val keep = Node.contract(kept)("Keep", "A call keeps exactly the picked books that are on the shelf.", why = "KeptOnShelf, for one call.")(
+  (s, p, r) => r.forall(b => p.contains(b) && s.toSet.contains(b)) && p.forall(b => s.toSet.contains(b) ==> r.contains(b))).under(keptOnShelf)
+  .examples()(
+    expect(List(Book("A", 100)), List(Book("A", 100), Book("B", 200)), List(Book("A", 100)), "the book on the shelf"),
+    reject(List(Book("A", 100)), List(Book("B", 200)), List(Book("B", 200)), "never a book off the shelf"),
+    reject(List(Book("A", 100)), List(Book("A", 100)), Nil, "never drops a book on the shelf"))
+val keptOnce = define { (shelf: List[Book], picked: List[Book]) =>
+  val there = shelf.toSet
+  picked.filter(b => there.contains(b))
+}
+val keepKb = KnowledgeBase("Keep", idea = "IDEA.md")(keptOnShelf, keep).implementProven(keep)(keptOnce)

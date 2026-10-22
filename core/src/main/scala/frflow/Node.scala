@@ -166,18 +166,15 @@ object Node:
     * proven, a hypothesis of `root_impl`. Code calling the operation is proven from it; its adapter is
     * checked against it at run time (give it a cheap `checkedBy`).
     */
-  inline def assumption[A, B, R](op: Param[(A, B) => R])(id: String, statement: String, why: String)(
-      inline post: (A, B, R) => Boolean): Node[(A, B) => R] =
-    def node(): Node[(A, B) => R] =
-      Node(id, statement, why, NodeKind.Assumption, post = Some(Lifted.of(true, post)), op = Some(op), file = Lifted.here, at = Lifted.at)
-    node()
+  def assumption[A, B, R](op: Param[(A, B) => R]): AssumptionOn[A, B, R] = AssumptionOn(op)
 
   /** A fact of the world, trusted (a hypothesis of `root_impl`); checked at run time wherever the
     * terms it reads are bound, when it can be computed.
     */
-  inline def assumption(id: String, statement: String, why: String)(inline formula: Boolean): Node[Unit] =
+  inline def assumption(id: String, statement: String, why: String, idea: String = "", owner: String = "")(inline formula: Boolean): Node[Unit] =
     def node(): Node[Unit] =
-      Node(id, statement, why, NodeKind.Assumption, formula = Some(Lifted.of(true, () => formula)), file = Lifted.here, at = Lifted.at)
+      Node(id, statement, why, NodeKind.Assumption, formula = Some(Lifted.of(true, () => formula)), ideaSection = idea, owner = owner,
+        file = Lifted.here, at = Lifted.at)
     node()
 
   /** Fixes terms of the vocabulary: `User := of[UserId]`, `authorized := (u, p) => ...`. Decided, not
@@ -206,6 +203,17 @@ object Node:
   inline def design(id: String, statement: String, why: String, idea: String = "", owner: String = "")(governs: String*): Node[Unit] =
     def node(): Node[Unit] =
       Node(id, statement, why, NodeKind.Design, governs = governs.toList, ideaSection = idea, owner = owner, file = Lifted.here, at = Lifted.at)
+    node()
+
+/** `Node.assumption(op)(id, statement, why, idea, owner)(post)`: an assumption on an operation. (A step of
+  * its own, so that it and the assumption on a fact both take `idea` and `owner` with defaults.)
+  */
+final class AssumptionOn[A, B, R](val op: Param[(A, B) => R]):
+  inline def apply(id: String, statement: String, why: String, idea: String = "", owner: String = "")(
+      inline post: (A, B, R) => Boolean): Node[(A, B) => R] =
+    def node(): Node[(A, B) => R] =
+      Node(id, statement, why, NodeKind.Assumption, post = Some(Lifted.of(true, post)), op = Some(op), ideaSection = idea, owner = owner,
+        file = Lifted.here, at = Lifted.at)
     node()
 
 /** A concrete case of a contract, under given parameter values: the call `(a, b)`

@@ -421,7 +421,10 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       if prebuilt.isDefined then Result(o.name, "proven", "auto")
       else
         val rel = if authored(n.id) then g.proofsPath(n.id) else g.autoPath(n.id)
-        judge(o.name, rel, lake.elaborate(rel), authored(n.id))
+        val r = judge(o.name, rel, lake.elaborate(rel), authored(n.id))
+        // Automation is tried only while no proof file proves it: what to do next comes first.
+        if authored(n.id) || r.status != "open" then r
+        else r.copy(detail = s"automation gave up: write theorem complete : Obl.complete in lean/${g.proofsPath(n.id)} (run `scaffold ${n.id}`)\nLean: ${r.detail}")
     }
     // Its code meets it, from what the contracts it calls promise.
     var implAxioms: List[String] = Nil
@@ -488,12 +491,15 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     // The tries: what Lean proves of them says the node or its split says nothing, or too much.
     val tried = g.tries(n).map(t => (t, holds(t.obligation.name)))
     val fatal = tried.collect { case (t, true) if Set("unsat", "clash")(t.obligation.name) => t.means }
+    // Each in plain words: what Lean shows (see `Result`).
     val tryResults = tried.map { (t, proven) =>
       val name = t.obligation.name
-      if name == "idle" then Result("idle", if proven then "proven" else "open", g.idleWhat(n))
-      else if name.startsWith("vacuous_expect_") then Result(name, if proven then "failed" else "proven", if proven then t.means else "")
-      else if name == "unsat" || name == "clash" then Result(name, if proven then "failed" else "proven", if proven then t.means else "not shown")
-      else Result(name, if proven then "open" else "proven", if proven then t.means else "needed: Lean does not show the node without it")
+      def says(yes: String, no: String, otherwise: String) = Result(name, if proven then yes else no, if proven then t.means else otherwise)
+      if name == "idle" then Result("idle", if proven then "idle" else "not-idle", g.idleWhat(n))
+      else if name.startsWith("vacuous_expect_") then says("vacuous", "not-vacuous", "")
+      else if name == "unsat" then says("unsat", "not-unsat", "Lean does not show it contradictory")
+      else if name == "clash" then says("clash", "no-clash", "Lean does not show the parts contradict each other")
+      else says("not-needed", "needed", "Lean does not show the node without it")
     }
     val extra = g.extraObligations(n).map { o =>
       val how = if g.isAuthored(n, o.name) then "authored" else "auto"
@@ -545,8 +551,9 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     if files.isEmpty then None else Some(Code.of(base, files))
 
   /** How a node's parts make it (docs/DAG.md §4): `complete`, each part `needed`, and `clash`, each with a
-    * status (`proven`, `open`, `failed`, `unchecked`, `timeout`, `informal`) and a detail. Null for a node
-    * with no parts.
+    * status and a detail. `complete`: `proven`, `open`, `failed`; each part: `needed` or `not-needed`;
+    * `clash`: `no-clash` or `clash`; any of them `unchecked`, `timeout` or `informal` when not checked. Null
+    * for a node with no parts.
     */
   def split(n: Node[?]): Json =
     def st(status: String, detail: String) = obj("status" -> str(status), "detail" -> str(detail))
@@ -632,16 +639,23 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       ungoverned.map(f => s"$f is governed by no node: govern it (a design node) or move it")
 
   /** Wiring that calls a contract's code directly, past `service` (so what it returns is not
-    * checked): a file a design node governs naming a method the registered code calls.
+    * checked): a file a design node governs calling, on the adapter, a method the registered code calls.
+    * On the adapter: on a name the file binds to one of the adapter's classes (`db: Db`, `val db =
+    * Db.open(...)`), on such a class itself, or on the value of a parameter of that type (`database.value`,
+    * a `Param[Db]` of the model); a method of the same name on anything else (a list's `find`) is not it.
     */
   def bypasses: List[String] =
     val wired = kb.nodes.filter(_.kind == NodeKind.Design).flatMap(d => code(d).toList.flatMap(_.files)).distinct
+    val modelTexts = kb.modelFiles.distinct.flatMap(f => read(Path.of(f)).orElse(read(ws.root.resolve(f))))
     adapters.flatMap { (c, i, files) =>
       val called = """\.(\w+)\(""".r.findAllMatchIn(i.wiring).map(_.group(1)).toSet
       // An adapter's methods that change the outside: those returning Unit.
       val effects = files.flatMap(f => read(ws.root.resolve(f)).toList.flatMap(Workflow.methods).filter(_.unit).map(m => m.name -> f))
+      val classes = files.flatMap(f => read(ws.root.resolve(f)).toList.flatMap(Workflow.classesOf)).toSet
+      val params = modelTexts.flatMap(Workflow.paramsOf(_, classes)).toSet
       wired.filterNot(files.contains).flatMap(f => read(ws.root.resolve(f)).toList.flatMap { text =>
-        def calls(m: String) = s"\\.$m\\(".r.findFirstIn(text).isDefined
+        val onAdapter = Workflow.adapterCalls(text, classes, params)
+        def calls(m: String) = onAdapter(m)
         called.toList.sorted.filter(calls).map(m => s"$f calls ${c.id}'s code directly (.$m): go through service(${c.id}), so what it returns is checked") ++
           effects.filter((m, _) => calls(m)).map((m, af) => s"$f changes the outside directly (.$m, in $af): go through an assumption on an operation, so the change is checked")
       })
@@ -655,7 +669,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
 
   /** What doing nothing is, when it meets the node (Lean proved it). */
   /** What doing nothing is, when it meets the root (Lean proved it). */
-  def idleOf(n: Node[?]): Option[String] = current(n).flatMap(_.obligations.find(o => o.name == "idle" && o.status == "proven")).map(_.detail)
+  def idleOf(n: Node[?]): Option[String] = current(n).flatMap(_.obligations.find(o => o.name == "idle" && o.status == "idle")).map(_.detail)
 
   /** Top-level code in a model file that is none of the model (a node, a `define`, an open term, a type,
     * the knowledge base, a `@main`): it would run unseen by any node, next to the model.
@@ -784,7 +798,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     */
   def coverage: String =
     val splits = kb.nodes.filter(n => kb.isStatement(n) && kb.parts(n).nonEmpty)
-    def fine(j: Json) = j("status").flatMap(_.str).exists(Set("proven", "informal"))
+    def fine(j: Json) = j("status").flatMap(_.str).exists(Result.Fine + "informal")
     def provenSplit(n: Node[?]) =
       val s = split(n)
       s("complete").exists(c => c("status").flatMap(_.str).contains("proven")) && s("needed").exists(_.arr.forall(fine)) && s("clash").exists(fine)
@@ -1082,8 +1096,10 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
               val inv = split(k.invariant)
               val cover = res(s"cover_${k.invariant.id}").map(r => (r.status, s"coverage: ${r.detail}"))
               val complete = inv("complete").map(c => (c("status").flatMap(_.str).getOrElse(""), c("detail").flatMap(_.str).getOrElse("")))
+              // (In the invariant's words: kept, `proven`, when the contract is needed; `open` when it is not.)
               val needed = inv("needed").flatMap(_.arr.find(_("id").flatMap(_.str).contains(n.id)))
-                .map(c => (c("status").flatMap(_.str).getOrElse(""), c("detail").flatMap(_.str).getOrElse("")))
+                .map(c => (c("status").flatMap(_.str).map { case "needed" => "proven"; case "not-needed" => "open"; case x => x }.getOrElse(""),
+                  c("detail").flatMap(_.str).getOrElse("")))
               val all = cover.toList ++ complete ++ needed
               all.find(_._1 != "proven").orElse(complete).getOrElse(("unchecked", "not checked yet"))
           obj("id" -> str(k.invariant.id), "view" -> str(k.view.fold("")(_.source)),
@@ -1177,6 +1193,30 @@ object Workflow:
       if more.isEmpty then seen else close(seen ++ more)
     close(names.filter(byName.contains)).toList.flatMap(byName).map(_.lines).sum
 
+  /** The classes, objects and traits a Scala file declares. */
+  def classesOf(text: String): List[String] =
+    """(?m)^\s*(?:(?:final|sealed|abstract|private(?:\[\w+\])?|case)\s+)*(?:class|object|trait)\s+(\w+)""".r.findAllMatchIn(text).map(_.group(1)).toList
+
+  /** The parameters a model file declares of one of `classes` (`val database = Param[Db](...)`). */
+  def paramsOf(text: String, classes: Set[String]): List[String] =
+    """\bval\s+(\w+)\s*=\s*Param\[\s*(\w+)\s*\]""".r.findAllMatchIn(text).filter(m => classes(m.group(2))).map(_.group(1)).toList
+
+  /** The methods a file calls on a value of one of `classes`: on a name it declares of such a class (`db: Db`)
+    * or binds to one (`val db = Db.open(...)`, `new Db(...)`), on the class itself, or on the value of one of
+    * `params` (`database.value`). A method of the same name on anything else is not one.
+    */
+  def adapterCalls(text: String, classes: Set[String], params: Set[String]): Set[String] =
+    if classes.isEmpty then Set.empty
+    else
+      val code = text.replaceAll("\"(?:[^\"\\\\\n]|\\\\.)*\"", "\"\"").replaceAll("//[^\n]*", "")
+      val cls = classes.toList.sorted.map(java.util.regex.Pattern.quote).mkString("|")
+      val typed = s"""\\b(\\w+)\\s*:\\s*(?:$cls)\\b(?!\\s*[.\\[])""".r.findAllMatchIn(code).map(_.group(1))
+      val bound = s"""\\b(?:val|var)\\s+(\\w+)\\s*(?::[^=]*)?=\\s*(?:new\\s+)?(?:$cls)\\b""".r.findAllMatchIn(code).map(_.group(1))
+      val receivers = (typed ++ bound).map(java.util.regex.Pattern.quote).toList ++ classes.toList.map(java.util.regex.Pattern.quote) ++
+        params.toList.map(p => java.util.regex.Pattern.quote(p) + "\\s*\\.\\s*value")
+      if receivers.isEmpty then Set.empty
+      else s"""(?<![\\w.])(?:${receivers.distinct.mkString("|")})\\s*\\.\\s*(\\w+)\\s*\\(""".r.findAllMatchIn(code).map(_.group(1)).toSet
+
   /** The first line of a proof copied from another knowledge base. */
   val CopiedProof = "-- Copied by FrFlow from"
   /** A ledger with the decisions of the nodes other knowledge bases decide (id -> their project's directory). */
@@ -1207,4 +1247,4 @@ object Workflow:
   val ContentFormat: Int = 4
 
   /** How checks are run and read: a change to it re-runs every check. */
-  val CheckerVersion: Int = 4
+  val CheckerVersion: Int = 5

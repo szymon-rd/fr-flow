@@ -418,24 +418,26 @@ const examplesBad = n => (n.examples || []).filter(e => e.contract !== "ok" || (
 const causeText = { self: "it changed", above: "the meaning of a parent, or of a definition it uses, changed", parts: "its list of parts changed",
   code: "the code it governs changed", revisit: "a change above may affect it", merged: "two branches decided it and both were kept: decide it again" };
 
-// How a node's parts make it (its split): one word for it, and a label.
+// How a node's parts make it (its split): one word for it, and a label. A split's statuses are plain
+// (core's Workflow.split): `complete` proven/open/failed, each part needed/not-needed, `clash` no-clash/clash.
 const fine = s => s === "proven" || s === "informal";
 function splitStatus(n) {
   const sp = n?.split; if (!sp) return null;
   const c = sp.complete?.status || "unchecked";
   if (c === "informal") return "informal";
-  if (c === "failed" || sp.clash?.status === "failed") return "failed";
-  if ((sp.needed || []).some(x => x.status === "open")) return "open"; // a part is not needed: unproven
-  if (c === "proven") return (sp.needed || []).every(x => fine(x.status)) && fine(sp.clash?.status || "proven") ? "proven" : "open";
+  if (c === "failed" || sp.clash?.status === "clash") return "failed";
+  if ((sp.needed || []).some(x => x.status === "not-needed")) return "open"; // a part is not needed: unproven
+  if (c === "proven") return (sp.needed || []).every(x => x.status === "needed" || x.status === "informal") &&
+    ["no-clash", "informal"].includes(sp.clash?.status || "no-clash") ? "proven" : "open";
   return c === "timeout" ? "open" : c === "waiting" ? "unchecked" : c;
 }
 function splitLabel(n) {
   const sp = n.split, st = splitStatus(n);
   if (!sp) return "";
-  const notNeeded = (sp.needed || []).filter(x => x.status === "open").map(x => x.id);
+  const notNeeded = (sp.needed || []).filter(x => x.status === "not-needed").map(x => x.id);
   if (st === "proven") return "✓ parts make it" + (sp.complete?.detail === "authored" ? " (proof)" : "");
   if (st === "informal") return "decided by reading";
-  if (sp.clash?.status === "failed") return "✗ parts clash";
+  if (sp.clash?.status === "clash") return "✗ parts clash";
   if (st === "failed") return "✗ failed";
   if (notNeeded.length) return `${notNeeded.length > 1 ? notNeeded.length + " parts" : notNeeded[0]} not needed`;
   if (sp.complete?.status === "timeout") return "timed out";
@@ -446,7 +448,7 @@ const splitChip = n => n?.split ? `<span class="chip ${chipClass(splitStatus(n))
 // Whether one part is needed for its parent: Lean does not show the parent without it.
 function neededChip(x) {
   if (!x) return "";
-  const t = { proven: ["s-proven", "needed ✓"], open: ["s-open", "not needed"], informal: ["s-not-checked", "by reading"], failed: ["s-failed", "failed"],
+  const t = { needed: ["s-proven", "needed ✓"], "not-needed": ["s-open", "not needed"], informal: ["s-not-checked", "by reading"], failed: ["s-failed", "failed"],
     timeout: ["s-open", "timed out"] }[x.status] || ["s-not-checked", x.status === "unchecked" ? "unchecked" : x.status];
   return `<span class="chip ${t[0]}" title="${esc(x.detail || "")}">${esc(t[1])}</span>`;
 }
@@ -529,7 +531,7 @@ function edgeStatus(parent, child) {
   const st = splitStatus(parent);
   if (!st) return "unchecked";
   const need = (parent.split.needed || []).find(x => x.id === child.id);
-  if (need?.status === "open") return "failed";
+  if (need?.status === "not-needed") return "failed";
   return st;
 }
 
@@ -841,16 +843,16 @@ function partsTable(n) {
   const complete = { proven: c.detail === "authored" ? "The parts make it, by a proof the agent wrote (checked by Lean, axioms audited): read it before accepting."
       : "The parts make it: proven automatically.", open: `Not shown that the parts make it: ${c.detail || "open"}.`, failed: `Failed: ${c.detail || ""}`,
     unchecked: `Not checked yet: ${c.detail || "press Check"}.`, timeout: "Lean timed out: run Check again.", informal: "Not formalized: whether the parts make it is decided by reading them." }[c.status] || `${c.status}: ${c.detail || ""}`;
-  const clash = { proven: "The parts do not contradict each other, as far as Lean shows.", failed: `The parts contradict each other: ${k.detail || ""}`,
+  const clash = { "no-clash": "The parts do not contradict each other, as far as Lean shows.", clash: `The parts contradict each other: ${k.detail || ""}`,
     informal: "Not formalized.", unchecked: "Not checked yet." }[k.status] || `${k.status}: ${k.detail || ""}`;
-  const notNeeded = (sp.needed || []).filter(x => x.status === "open");
+  const notNeeded = (sp.needed || []).filter(x => x.status === "not-needed");
   const one = (sp.needed || []).length === 1;
   return `<table class="parts"><tr><th>part</th><th>statement</th><th>needed</th><th>status</th></tr>${rows}</table>
     <div class="result"><span class="chip ${chipClass(c.status)}">complete</span><span>${esc(complete)}</span></div>
     ${notNeeded.length ? `<div class="result"><span class="chip s-open">needed</span><span>${one
       ? `Lean shows ${esc(n.id)} without its part: it says nothing its part adds (${esc(notNeeded[0].detail || "")}).`
       : `Lean shows ${esc(n.id)} without ${notNeeded.map(x => esc(x.id)).join(", ")}: ${notNeeded.length > 1 ? "they are" : "it is"} not needed for it.`}</span></div>` : ""}
-    <div class="result"><span class="chip ${k.status === "proven" ? "s-proven" : k.status === "failed" ? "s-failed" : "s-not-checked"}">clash</span><span>${esc(clash)}</span></div>`;
+    <div class="result"><span class="chip ${k.status === "no-clash" ? "s-proven" : k.status === "clash" ? "s-failed" : "s-not-checked"}">clash</span><span>${esc(clash)}</span></div>`;
 }
 
 // What the root says of the code: doing nothing does not meet it (idle), and root_impl from what is trusted.
@@ -987,7 +989,7 @@ function parentsSection(n) {
         <span class="chip s-${p.state}">${esc(p.state)}</span>${splitChip(p)}${need ? neededChip(need) : ""}</div>
       <div class="small" style="margin-top:4px">${esc(C(p).statement)}</div>
       ${n.kind === "design" ? `<div class="muted tiny">it governs code of ${esc(p.id)} no proof covers</div>`
-        : `<div class="muted tiny">${co.length ? `with ${co.map(x => `<a data-goto="${esc(x)}">${esc(x)}</a>`).join(", ")}, together they make it` : "its only part"}${need?.status === "open" && need.detail ? ` — not needed: ${esc(need.detail)}` : ""}</div>`}</div>`;
+        : `<div class="muted tiny">${co.length ? `with ${co.map(x => `<a data-goto="${esc(x)}">${esc(x)}</a>`).join(", ")}, together they make it` : "its only part"}${need?.status === "not-needed" && need.detail ? ` — not needed: ${esc(need.detail)}` : ""}</div>`}</div>`;
   }).join("");
 }
 

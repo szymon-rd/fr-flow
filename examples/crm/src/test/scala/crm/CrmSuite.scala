@@ -165,6 +165,9 @@ class CrmSuite extends munit.FunSuite:
     val w = Workflow(knowledge, Workspace(root, Paths.get("lean").toAbsolutePath.toString))
     assertEquals(w.bypasses, Nil)
     val server = root.resolve("src/main/scala/crm/Server.scala")
+    // A method of the adapter's name on something else is not the adapter (a builder's insert).
+    Files.writeString(server, Files.readString(server).replace("server.start()", "val note = new StringBuilder(\"x\"); note.insert(0, \"crm \")\n    server.start()"))
+    assertEquals(w.bypasses, Nil)
     Files.writeString(server, Files.readString(server).replace("server.start()", "db.insert(Nil, Nil, Nil)\n    server.start()"))
     assert(w.bypasses.exists(_.contains("changes the outside directly (.insert")), w.bypasses)
   }
@@ -172,16 +175,10 @@ class CrmSuite extends munit.FunSuite:
   test("the knowledge base is proven, from the contracts, their code and the ports to the root") {
     val lake = Lake(Paths.get("."))
     assume(lake.available, "lake is not available")
-    val root = Files.createTempDirectory("crm")
-    Files.copy(Paths.get("examples/crm/IDEA.md"), root.resolve("IDEA.md"))
-    Files.createDirectories(root.resolve("lean"))
-    val proofs = Paths.get("examples/crm/lean/Proofs")
-    if Files.isDirectory(proofs) then
-      Files.walk(proofs).forEach(f => if Files.isRegularFile(f) then
-        val to = root.resolve("lean").resolve(Paths.get("examples/crm/lean").relativize(f).toString)
-        Files.createDirectories(to.getParent)
-        Files.copy(f, to))
-    val w = Workflow(knowledge, Workspace(root, Paths.get("lean").toAbsolutePath.toString))
+    // In the example's own workspace, as `crm/run check` checks it: its Lean build and the results it
+    // recorded are reused while current (a node whose Lean changed is checked again). The core's LeanSuite
+    // checks from scratch.
+    val w = Workflow(knowledge, Workspace(Paths.get("examples/crm").toAbsolutePath.normalize, "../../../lean"))
     val checked = w.check().map((n, c) => n.id -> c).toMap
     val formal = knowledge.nodes.filter(w.generate.formal).map(_.id)
     assertEquals(checked.view.filterKeys(formal.contains).mapValues(_.status).toMap, formal.map(_ -> "proven").toMap)

@@ -246,7 +246,7 @@ Minimal departures from the above, each kept to what the code needed; none from 
   causes are among `self`, `above` and `parts`, whose own content (as for `self`, without what follows
   from elsewhere: the types it uses, how its examples print, a proven implementation) did not change,
   that `unproven` says nothing of (a leaf claim aside), whose examples pass, and, under `parts`, whose
-  `split` has `complete` proven, every `needed` proven (each part needed) and no `clash` failed.
+  `split` has `complete` proven, every part `needed` and `clash` not `clash` (see "Fixes after the migrations").
 - **Below.** `below` (what accepting a change can act on) follows everything that rests on the node,
   however far down: its parts, the nodes using a definition, the callers of a contract, the keepers of an
   invariant, and what rests on those, through the decisions listed only; each once, sorted parents first
@@ -285,3 +285,54 @@ Minimal departures from the above, each kept to what the code needed; none from 
   batch next; the rest under "After the decisions above them", each with what it waits on. Header:
   splits proven (of the formal splits), `root_impl`, the size of the trusted list. Cause `parts` shows the
   parts added and removed when the decided content records `parts`.
+
+### Fixes after the migrations
+
+What the migrations of `examples/keycloak` and `examples/crm` found in the core, fixed:
+
+- **Equations of a `match`, made where it is declared.** Lean 4.35 makes the equations of a `match` (and,
+  for one with overlapping patterns, an auxiliary `_sparseCasesOn` named after them) in the first module
+  that uses them (`grind`, `simp`); two modules that both did failed in a third importing them
+  ("environment already contains `f.match_1.congr_eq_1._sparseCasesOn_2`"). The kernel's command
+  `frflow_match_eqns` (`lean/FrFlow/MatchEqns.lean`) makes them in the module that declares the `match`,
+  and the vocabulary module and every `Spec` end with it: the modules that use them import them. The
+  translation is unchanged: expanding a wildcard into the remaining constructors would cover an enum only,
+  not `Option`, `List`, a literal or a nested pattern, which clash the same way.
+- **A defined term is evaluated where it is used.** `param := expr` keeps its Scala value as a thunk
+  (`Lifted.value` evaluates it on each use, under the bindings in force), so a term defined by an
+  expression over parameters (`sessions := stateAfter(history.value).sessions`) no longer reads them when
+  the model loads.
+- **A bypass is a call on the adapter.** `bypasses` (a governed file calling an adapter's method past
+  `service`) flags a call only on the adapter: on a name the file declares of one of the adapter file's
+  classes (`db: Db`) or binds to one (`val db = Db.open(...)`, `new Db(...)`), on such a class, or on the
+  value of a model parameter of that type (`database.value`). A list's `find` or a response's `write` is no
+  longer taken for the adapter's method of that name.
+- **Tries in plain words.** A try's result (in `checks.json`, the snapshot's `split`, `check`'s output and
+  the browser) says what Lean showed, no longer read backwards: each part `needed` or `not-needed` (with
+  one part, `vacuous` gives the same two), `clash` or `no-clash`, `unsat` or `not-unsat`, the root's `idle`
+  or `not-idle`, an expectation's `vacuous_expect_i` `vacuous` or `not-vacuous`; `unchecked`, `timeout`
+  and `informal` as before when there is no result. `complete` and the obligations stay `proven`, `open`,
+  `failed`. `Result.fine` (nothing to do) is `proven` or a try showing nothing wrong. The snapshot's
+  `idle` on the root is unchanged (what doing nothing is, when Lean shows it meets the root; else null),
+  and a kept invariant's status stays in its own words (`proven` when the contract is needed, `open` when
+  not). `CheckerVersion` is 5: results recorded before are checked again.
+- **Small API gaps.** `Node.assumption` takes `idea` and `owner`, on a fact and on an operation (the latter
+  through `AssumptionOn`, so both overloads may have defaults: `Node.assumption(op)(id, statement, why,
+  idea = "...")(post)` reads as before). `Def` and `Param` apply to four and five arguments. `impl` is proven
+  from the promises of the operations the code calls (itself, or through the `define`s it calls:
+  `Generate.calls`), not of those a term it reads is defined with; `callees` (that too) still orders the
+  composition of `root_impl`, and is what a node's code rests on (`relies`, `parentChain`), so no decision
+  moves. Keycloak's authored `impl` of Introspect no longer introduces HandleRequest's promise.
+- **End-to-end tests reuse what is current.** The CRM's and Auth's "proven" tests check the example's own
+  workspace (`examples/<x>`, kernel `../../../lean`), as `run check` does: its Lean build and recorded
+  results are reused while current, so after a check they take seconds. `LeanSuite` still checks small
+  knowledge bases from scratch. Automation is not tried on an obligation the proof file proves (the
+  `Auto` module is then empty); when it is tried and fails, `complete`'s detail starts with "automation
+  gave up: write theorem complete : Obl.complete in lean/Proofs/<KB>/<N>.lean (run `scaffold <N>`)". Its
+  budget stays Lean's default (200000 heartbeats): measured, a `complete` automation proves takes up to
+  72000 (Keycloak's root; the CRM's 69000), and one it cannot prove gives up after 8000 to 200000 (the
+  CRM's WritesTakeEffect and WritesInCompany use all of it, about 20 s each); a smaller budget would save
+  seconds and could lose proofs a model needs.
+- **A list's elements as a set.** `xs.toSet` translates to the list's membership (`fun y => y ∈ xs`, the
+  shape of a `Set` in Lean), so code can build a hash set once and test membership in constant time
+  (`val there = shelf.toSet; picked.filter(b => there.contains(b))`), proven like `xs.contains`.
