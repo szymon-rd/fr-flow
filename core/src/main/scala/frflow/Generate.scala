@@ -268,7 +268,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
   def declarationsUsedBy(n: Node[?]): List[String] =
     val defs = Def.closure((n.lifted ++ formalKeeps(n).flatMap(_._1.rule)).flatMap(_.defs) ++ provenImpl(n))
     val ls = n.lifted ++ formalKeeps(n).flatMap(_._1.rule) ++ defs.map(_.lifted)
-    ls.flatMap(_.types).map(_.lean).distinct ++ defs.map(d => resolve(d.lifted.lean)) ++
+    ls.flatMap(_.types).map(_.body).distinct ++ defs.map(d => resolve(d.lifted.lean)) ++
       kb.definitionsUsed(n, inForce).flatMap(_.substs).map(s => s"${s.name} := ${s.lean}")
 
   /** What a node uses, as written in Scala: the domain types and the `define`s, however nested. Part of

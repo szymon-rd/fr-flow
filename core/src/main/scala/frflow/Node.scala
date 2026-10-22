@@ -764,7 +764,8 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
   /** Domain types used anywhere, dependencies first. */
   lazy val types: List[TypeDecl] =
     val all = (nodes.flatMap(_.lifted) ++ defs.map(_.lifted)).flatMap(_.types) ++ definitions.flatMap(_.substs).flatMap(_.types)
-    val byName = all.groupBy(_.name).view.mapValues(_.head).toMap
+    // The same type as seen with and without its doc comment: the one with it.
+    val byName = all.groupBy(_.name).view.mapValues(ds => ds.maxBy(_.lean.length)).toMap
     val out = scala.collection.mutable.LinkedHashMap.empty[String, TypeDecl]
     def visit(n: String): Unit =
       if !out.contains(n) then byName.get(n).foreach { d => d.uses.foreach(visit); out(n) = d }
@@ -884,7 +885,7 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
       nodes.flatMap(_.lifted).flatMap(_.paramRefs).map(_._1).distinct.filterNot(n => params.exists(_.name == n))
         .map(n => s"parameter $n: the val name and the name given to Param differ"),
       (nodes.flatMap(_.lifted) ++ defs.map(_.lifted)).flatMap(_.types).groupBy(_.name).collect {
-        case (n, ds) if ds.map(_.lean).distinct.size > 1 => s"two different Scala types are named $n"
+        case (n, ds) if ds.map(_.body).distinct.size > 1 => s"two different Scala types are named $n"
       }.toList
     ).flatten
 

@@ -86,7 +86,9 @@ object Bindings:
   *              names and Lean types
   */
 final case class TypeDecl(name: String, lean: String, uses: List[String], scala: String = "",
-    ctors: List[(String, List[(String, String)])] = Nil)
+    ctors: List[(String, List[(String, String)])] = Nil):
+  /** The declaration without its doc comment: a file compiled on its own may not see the comment. */
+  def body: String = if lean.startsWith("/--") then lean.drop(lean.indexOf("-/\n") + 3) else lean
 
 /** A Scala lambda or value together with its Lean translation. Both come from one source.
   *
