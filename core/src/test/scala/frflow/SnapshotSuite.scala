@@ -630,3 +630,20 @@ class SnapshotSuite extends munit.FunSuite:
     assertEquals(ms.map(m => m.name -> m.unit), List("rows" -> false, "find" -> false, "save" -> true))
     assertEquals(Workflow.linesOf(text, Set("find")), 3)
   }
+
+  test("alternatives are nodes under one parent, or roots of one section of the idea; a port or another concern's root is not one") {
+    val a = Json.parse("""{"id":"A","kind":"root","parent":null,"content":{"ideaSection":"Reading"}}""")
+    val b = Json.parse("""{"id":"B","kind":"root","parent":null,"content":{"ideaSection":"Reading"}}""")
+    val c = Json.parse("""{"id":"C","kind":"root","parent":null,"content":{"ideaSection":"Writing"}}""")
+    val port = Json.parse("""{"id":"P","kind":"contract","parent":null,"content":{}}""")
+    val (x, y) = (Json.parse("""{"id":"X","kind":"refine","parent":"A","content":{}}"""), Json.parse("""{"id":"Y","kind":"refine","parent":"A","content":{}}"""))
+    assert(Decisions.alternatives(a, b) && Decisions.alternatives(x, y))
+    assert(!Decisions.alternatives(a, c) && !Decisions.alternatives(a, port) && !Decisions.alternatives(a, x))
+  }
+
+  test("example data in a model file is not code: a constructor applied to values") {
+    for r <- List(""" = RealmId("acme")""", """ = Account("ann@acme", TenantId("acme"))""", """: BigInt = 42""", """ = List(Share(1, TenantId("x")))""") do
+      assert(Workflow.isData(r), r)
+    for r <- List(""" = records.filter(_.ok)""", """ = (x: Int) => x + 1""", """ = { compute() }""", """ = Db.open("x")""") do
+      assert(!Workflow.isData(r), r)
+  }

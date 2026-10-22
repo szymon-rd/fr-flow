@@ -1,0 +1,11 @@
+[
+  {
+    "id": "Rmvjmmb4j",
+    "node": "Introspect",
+    "text": "A disabled user's token must not be active: keep the enabled check. A faster lookup is welcome if Lean still proves it.",
+    "by": "dev (demo)",
+    "at": "2026-10-22T14:18:32Z",
+    "status": "closed",
+    "answer": "Restored the enabled check in introspect: the code is again the version you accepted, so Introspect is accepted as it was; Lean proves it again and its 8 examples pass. No faster lookup is proposed: the find over the realm users is what Lean proves."
+  }
+]

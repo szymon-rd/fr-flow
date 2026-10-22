@@ -164,3 +164,11 @@ class CrmSuite extends munit.FunSuite:
     Files.writeString(server, Files.readString(server).replace("server.start()", "db.insert(Nil, Nil, Nil)\n    server.start()"))
     assert(w.bypasses.exists(_.contains("changes the outside directly (.insert")), w.bypasses)
   }
+
+  test("SQL that is right on the examples' data but drops rows on more is found on varied data") {
+    // The port's examples store two records: a LIMIT 2 passes them all.
+    val limited = knowledge.implementProven(recordsByQuery)(storedMatching, (u, q) => database.value.recordsMatching(q).take(2))
+    assert(limited.exampleResults(recordsByQuery).filter(r => r.example.expected && !r.example.note.startsWith("generated")).forall(_.implementation.contains("ok")))
+    assert(limited.generated(recordsByQuery).exists(_.implementation.exists(_.contains("where the proven define returns"))), limited.generated(recordsByQuery))
+    assertEquals(knowledge.generated(recordsByQuery), Nil)
+  }

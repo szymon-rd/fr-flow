@@ -122,3 +122,13 @@ class LiftSuite extends munit.FunSuite:
     assert(compileErrors("frflow.Lifted((x: Int) => { var y = x; y })").contains("FrFlow: `var` is not supported"))
     assert(compileErrors("frflow.Lifted((x: Int) => println(x))").contains("FrFlow:"))
   }
+
+  // Roots and refinements are not run, so no example or probe checks their translation: their forms are pinned here.
+  test("the quantifier forms of roots: nested binders, an implication inside, an existential over a case class") {
+    val nested = Lifted((f: (BigInt, BigInt) => Boolean) => forall((x: BigInt, y: BigInt) => forall((z: BigInt) => f(x, z) ==> f(y, z))))
+    assertEquals(nested.body, "(∀ (x : Int) (y : Int), (∀ (z : Int), ((f x z) → (f y z))))")
+    val ex = Lifted((name: String) => exists((s: Shelf) => where(s) == name))
+    assertEquals(ex.body, "(∃ (s : Shelf), ((⟦«where»⟧ s) = name))")
+    val inList = Lifted((xs: List[Book]) => xs.forall(b => xs.exists(c => c.title == b.title && c.pages >= b.pages)))
+    assertEquals(inList.body, "(∀ b ∈ xs, (∃ c ∈ xs, ((c.title = b.title) ∧ (c.pages ≥ b.pages))))")
+  }

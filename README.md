@@ -94,7 +94,7 @@ Whatever moves under it puts the node back up for review, with the cause:
 |---|---|---|
 | `self` | the node: its definition as written, statement, `why`, examples, terms, the definitions and types it uses, kept invariants, implementation source; for a root, its section of the idea | a word diff |
 | `above` | the meaning of an ancestor, of a kept invariant, or of a node it relies on | the diff of what moved |
-| `code` | the files it governs: a plain implementation, a design node's files, `.governing` paths | a git diff since the decision |
+| `code` | the files it governs: a plain implementation, a design node's files | a git diff since the decision |
 | `revisit` | the developer said a change above may affect it | their reason |
 | `merged` | two branches decided it, and the merge kept both | both decisions |
 
@@ -316,7 +316,12 @@ a permitted write takes effect. `Accounts` relies on the writes for unique ids
 proven from `ReadContract`'s promise (`contract.caller`).
 `examples/auth` does access control with a plain implementation; its ledger
 keeps the rejected `ClientAsserted` and a reason that says when to revisit.
-(The example ledgers were written by an agent, to show the method.)
+`examples/keycloak` is a small Keycloak-like server (realms, sign-in, token
+introspection, sign-out), grown from its root in five stages: a root met by
+doing nothing rejected, an induction proven by hand, two token designs
+proposed side by side and one rejected, a session-store port, and an HTTP API
+(`sbt "keycloak/runMain keycloak.serveRealms 8080"`).
+(The example ledgers were written by an agent playing the developer, to show the method.)
 
 ## Usage
 

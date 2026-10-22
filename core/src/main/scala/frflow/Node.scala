@@ -177,12 +177,6 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
 
   private[frflow] def withLocal(l: Lifted[?]): Node[M] = copy(local = Some(l))
 
-  /** Source files (or directories) this node also governs, relative to the project: a change to
-    * them puts the node up for review. A contract already governs its implementation's files.
-    */
-  def governing(files: String*): Node[M] =
-    copy(governs = governs ++ files)
-
   /** A design decision below this node, with no formal model: an architecture choice or a
     * convention. `governs` are the source files it is about (relative to the project), so a
     * change to them is noticed.
@@ -562,8 +556,25 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
       val as = n.cases.map(_.a).distinct
       val bs = n.cases.map(_.b).distinct
       val known = n.cases.map(e => (e.bindings, e.a, e.b)).toSet
-      // Once per set of parameter values (examples giving the same values are one group).
-      n.cases.map(e => (e.bindings, e.givenSource)).distinctBy(_._1.map(b => (b.param.name, scala.util.Try(b.value()).toOption))).flatMap { (bindings, src) =>
+      // Once per set of parameter values: examples giving them in the same words are one group (a value
+      // with no structural equality, a database, is never equal to another).
+      val groups = n.cases.map(e => (e.bindings, e.givenSource)).distinctBy(_._2)
+      // Production code beside a proven define is also run on varied data: each parameter value the
+      // examples give (a stored table, say) with a row dropped, repeated or changed (`Generate.near`),
+      // so a query that drops rows or reads the wrong column is found where the examples' data hides it.
+      val varied = if i.proven.isEmpty || i.provenCode then Nil else
+        val nums = n.cases.flatMap(e => Generate.numbers(e.a) ++ Generate.numbers(e.b)).distinct
+        groups.flatMap { (bindings, src) =>
+          bindings.flatMap(b => scala.util.Try(Bindings.within(bindings)(b.value())).toOption.toList
+            .flatMap(v => Generate.near(v, nums ++ Generate.numbers(v)).take(8))
+            .map(v2 => (bindings.map(x => if x eq b then Binding(b.param, () => v2) else x), src.map(_ + s" (${b.param.name} varied: ${Example.show(v2)})"), true)))
+        }
+      // On varied data, a result in another order than the define's is the same result, and data the
+      // outside cannot hold (two rows with one key) is no finding.
+      def same(x: Any, y: Any, loose: Boolean) = (x, y) match
+        case (xs: List[?], ys: List[?]) if loose => xs.size == ys.size && xs.groupBy(identity).view.mapValues(_.size).toMap == ys.groupBy(identity).view.mapValues(_.size).toMap
+        case _ => x == y
+      (groups.map((b, s) => (b, s, false)) ++ varied).flatMap { (bindings, src, loose) =>
         Bindings.within(bindings) {
           val f = try Some(i.factory.asInstanceOf[() => (Any, Any) => Any]()) catch case _: Exception => None
           // Code that runs beside a proven define returns what the define returns, examples included.
@@ -574,15 +585,15 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
                 try
                   val r = impl(a, b)
                   val keeps = n.asInstanceOf[Node[(Any, Any) => Any]].broken(a, b, r)
-                  val expected = reference.map(_(a, b)).filter(_ != r)
+                  val expected = reference.map(_(a, b)).filterNot(same(_, r, loose))
                   (r, if expected.isDefined then Some(s"returned ${Example.show(r)}, where the proven define returns ${Example.show(expected.get)}")
                       else if !post(a, b, r) then Some(s"returned ${Example.show(r)}, which breaks the contract")
                       else keeps.map(i => s"returned ${Example.show(r)}, which breaks the invariant $i"))
-                catch case e: Exception => (null, Some(s"error: ${e.getMessage}"))
+                catch case e: Exception => (null, Option.when(!loose)(s"error: ${e.getMessage}"))
               broken.map(why => ExampleResult(Example("generated from the examples' inputs: the contract holds for every call", bindings, src, a, b, r, true), "ok", Some(why)))
           }.flatten
         }
-      }.take(10)
+      }.distinctBy(r => (r.example.a, r.example.b, r.implementation)).take(10)
     }
 
   /** What a contract does not promise, found mechanically: inputs its `post` never looks at, and

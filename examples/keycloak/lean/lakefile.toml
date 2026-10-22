@@ -1,0 +1,14 @@
+name = "keycloak"
+defaultTargets = ["FrFlowGen"]
+
+[[require]]
+name = "frflow"
+path = "../../../lean"
+
+[[lean_lib]]
+name = "FrFlowGen"
+globs = ["FrFlowGen.+"]
+
+[[lean_lib]]
+name = "Proofs"
+globs = ["Proofs.+"]

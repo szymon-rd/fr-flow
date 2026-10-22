@@ -337,8 +337,14 @@ const waitingForYou = () => {
 const waitingCount = () => waitingForYou().length + gone().length + requests().filter(r => r.status === "answered").length +
   (snap()?.unsigned || []).length;
 const gone = () => snap()?.gone || [];
-const siblings = n => live().filter(m => m.parent === n.parent && m.id !== n.id && m.state !== "rejected" && (m.kind === "design") === (n.kind === "design"));
+// Alternatives: nodes under one parent, or roots of one section of the idea (never a port or an invariant).
+const section = n => C(n).ideaSection || "";
+const siblings = n => live().filter(m => m.parent === n.parent && m.id !== n.id && m.state !== "rejected" && (m.kind === "design") === (n.kind === "design") &&
+  (n.parent || (n.kind === "root" && m.kind === "root" && section(n) && section(n) === section(m))));
 const requests = () => state.data?.requests || [];
+// What Lean said: a short line inline; a goal (several lines) folded, as Lean prints it.
+const leanText = d => !d ? "" : (d.includes("\n") || d.length > 160)
+  ? `<details><summary class="small">what Lean says (${d.split("\n").length} lines)</summary><pre class="mono">${esc(d)}</pre></details>` : " — " + esc(d);
 const me = () => $("#me").value.trim();
 // Lean disagreeing with Scala on an example means the translation is wrong: the example fails too.
 const leanFailed = e => e.lean?.status === "failed" || e.leanImplementation?.status === "failed";
@@ -704,7 +710,7 @@ function decisionBox(n) {
       ${others.length ? `<div class="side"><div class="label">other nodes beside it, under the same parent — each is its own part of the parent unless you tick it: a ticked node is replaced by this one</div>${others.map(o => `<div class="option">
         <div class="head"><a data-goto="${esc(o.id)}"><b>${esc(o.id)}</b></a>${chips(o)}</div>
         <div class="small" style="margin-top:4px">${esc(C(o).statement)}</div><div class="muted small">${esc(C(o).why)}</div>
-        <label><input type="checkbox" class="rej" value="${esc(o.id)}" ${o.state === "proposed" ? "checked" : ""}> reject ${esc(o.id)}${o.state === "accepted" ? " (replaces a decided node)" : ""}</label></div>`).join("")}</div>` : ""}
+        <label><input type="checkbox" class="rej" value="${esc(o.id)}"> reject ${esc(o.id)}${o.state === "accepted" ? " (replaces a decided node)" : ""}</label></div>`).join("")}</div>` : ""}
       ${warn.length ? `<div class="warn-text">Note: ${esc(warn.join("; "))}.</div>` : ""}
       ${aboveReasons(n)}
       ${n.code ? governedFiles(n) : ""}
@@ -803,6 +809,8 @@ function nodePane() {
         return `<div class="side"><div class="label">kept by <a data-goto="${esc(id)}">${esc(id)}</a> — ${esc(k.status || "")}${k.detail ? ": " + esc(k.detail) : ""}</div><pre>${esc(k.view || "")}</pre></div>`; }).join("")}
       ${(n.exempts || []).map(id => { const k = (byId(id)?.invariants || []).find(i => i.id === n.id) || {};
         return `<div class="side"><div class="label"><a data-goto="${esc(id)}">${esc(id)}</a> is exempt</div><div class="small">${esc(k.detail || "")}</div></div>`; }).join("")}</div>`;
+  } else if (!parent && n.kind === "contract") {
+    h += `<h3>Port</h3><div class="box"><div class="muted">What the outside (a database, a service, a clock) is trusted to do, stated per call. The proven code calls it by this promise; its adapter is checked against it on its examples and on every call.</div>${code("post", (c.sources || {}).post)}</div>`;
   } else if (!parent) {
     h += `<h3>Root</h3><div class="box"><div class="muted">One concern of the idea, stated as a theorem. Every node below is proven to imply it.</div>${code("spec", (c.sources || {}).spec)}</div>`;
   } else {
@@ -816,7 +824,7 @@ function nodePane() {
       ${(n.expectations || []).map(e => `<div class="side"><div class="label">expected of it — ${esc(e.status)}${e.detail ? ": " + esc(e.detail) : ""}</div>
         <div class="small">${esc(e.statement)}</div><pre>${esc(e.source)}</pre></div>`).join("")}
       ${n.kind === "contract" ? `<div class="side"><div class="label">implementation</div><div class="small">${n.implementationProof
-        ? `${esc(n.implementationProof.name)}: ${esc(n.implementationProof.status)}${n.implementationProof.detail ? " — " + esc(n.implementationProof.detail) : ""}`
+        ? `${esc(n.implementationProof.name)}: ${esc(n.implementationProof.status)}${leanText(n.implementationProof.detail)}`
         : C(n).implementation ? `plain Scala, checked on its ${(n.examples || []).length} examples, every combination of their inputs, and at run time by service: not proven` : "none registered"}</div></div>` : ""}
       ${(n.invariants || []).map(i => i.status === "exempt"
         ? `<div class="side"><div class="label">exempt from <a data-goto="${esc(i.id)}">${esc(i.id)}</a></div><div class="small">${esc(i.detail)}</div></div>`

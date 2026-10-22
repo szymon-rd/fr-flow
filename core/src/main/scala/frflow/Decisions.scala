@@ -453,6 +453,15 @@ object Decisions:
       // A contract rests on the invariants it keeps, and a node on what it relies on, as on its parent.
       if !restsOnParent then None else (kept(n) ++ relies(n)).find(i => byId(snapshot).get(i).exists(x => !holds(state(snapshot, ledger, x)))))
 
+  /** Whether two nodes are alternatives to each other: under one parent, or two roots of one section of
+    * the idea. Parentless nodes of different concerns (roots of other sections, ports, invariants) are not.
+    */
+  def alternatives(a: Json, b: Json): Boolean =
+    val pa = a("parent").flatMap(_.str)
+    def section(n: Json) = n("content").flatMap(_("ideaSection")).flatMap(_.str).getOrElse("")
+    pa == b("parent").flatMap(_.str) &&
+      (pa.nonEmpty || (s(a, "kind") == "root" && s(b, "kind") == "root" && section(a).nonEmpty && section(a) == section(b)))
+
   /** Applies a decision; the new ledger, or why it is refused. */
   def decide(snapshot: Json, ledger: Ledger, r: Request, at: String, commit: String = "", tree: String = ""): Either[String, Ledger] =
     val ids = byId(snapshot)
@@ -489,7 +498,7 @@ object Decisions:
     else
       val n = ids(r.node)
       val parent = n("parent").flatMap(_.str)
-      val bad = r.reject.filter(x => x == r.node || !ids.get(x).exists(_("parent").flatMap(_.str) == parent))
+      val bad = r.reject.filter(x => x == r.node || !ids.get(x).exists(alternatives(n, _)))
       if r.action == "reject" then
         if st(ledger, r.node) != "proposed" then Left(s"${r.node} is ${st(ledger, r.node)}: only a proposal is rejected on its own")
         else
@@ -592,7 +601,7 @@ object Decisions:
     val governing = ns.filter(n => files(n).exists(f => f == q || f.startsWith(q.stripSuffix("/") + "/") || q.startsWith(f.stripSuffix("/") + "/")))
     if governing.nonEmpty then ("Governed by:" :: governing.map(line)).mkString("\n")
     else if q.contains('/') || q.endsWith(".scala") then
-      s"No node governs $q: code there changes unnoticed (status fails on it). Give it an owner: the contract whose implementation it is, `.governing`, or a design node."
+      s"No node governs $q: code there changes unnoticed (status fails on it). Give it an owner: the contract whose implementation it is, or a design node."
     else
       // Everything the theory says, as entries: the nodes (with their reasons), the options rejected
       // (gone from the model or not), the gone nodes, and the lines of what is not modelled.

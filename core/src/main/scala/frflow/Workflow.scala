@@ -486,7 +486,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   /** The source files a node governs: a contract's implementation, a design decision's files. */
   def code(n: Node[?]): Option[Code] =
     // An implementation governs the files of the code its expression refers to (not the model's
-    // file); anything else it depends on is governed explicitly (.governing, or a design node owning a
+    // file); anything else it depends on is governed explicitly (a design node owning a
     // directory), or `status` reports it as governed by no node.
     val impl = kb.implementation(n).toList.flatMap { i =>
       i.sources.filterNot(kb.modelFiles.contains).map(f => Path.of(f).toAbsolutePath.normalize)
@@ -570,7 +570,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
         .filterNot(id => id == "Lemmas" || kb.node(id).isDefined).toList.sorted
         .map(id => s"lean/Proofs/${kb.name}/$id.lean is the proof file of no node: move it with its node's new id (and its namespace), or remove it")
     missing ++ owners ++ ideaCoverage ++ staleNames ++ orphans ++ modelCode ++ bypasses ++
-      ungoverned.map(f => s"$f is governed by no node: govern it (.governing or a design node) or move it")
+      ungoverned.map(f => s"$f is governed by no node: govern it (a design node) or move it")
 
   /** Wiring that calls a contract's code directly, past `service` (so what it returns is not
     * checked): a file a design node governs naming a method the registered code calls.
@@ -609,7 +609,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       read(Path.of(f)).orElse(read(ws.root.resolve(f))).toList.flatMap(_.linesIterator.zipWithIndex.collect {
         case (Top(kw, name, rest), i) if !(kw == "val" && (known(Option(name).getOrElse("")) ||
             Seq("= KnowledgeBase(", "= define", "= Opaque(", "= Param[", "= Param(").exists(rest.trim.startsWith) || rest.contains(".caller(") ||
-            rest.contains("KnowledgeBase"))) =>
+            rest.contains("KnowledgeBase") || Workflow.isData(rest))) =>
           s"${Path.of(f).getFileName}:${i + 1}: `$kw ${Option(name).getOrElse("")}` is code in the model's file that no node governs: make it a `define` (proven), or move it to a governed file"
       })
     }
@@ -1084,6 +1084,15 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     ws.snapshotFile
 
 object Workflow:
+  /** The right side of a `val` that is a value, not code: literals, and constructors applied to values
+    * (`= Account("ann@acme", TenantId("acme"))`, `= List(…)`), with no lambda, block or method call.
+    */
+  def isData(rest: String): Boolean =
+    val r = rest.trim.stripPrefix(":").trim
+    val rhs = r.drop(r.indexOf('=') + 1).trim
+    r.contains("=") && rhs.nonEmpty && !rhs.contains("=>") && !rhs.contains("{") &&
+      """\.[a-z]\w*""".r.findFirstIn(rhs.replaceAll("\"[^\"]*\"", "\"\"").replaceAll("""\d+\.\d+""", "0")).isEmpty &&
+      """^[A-Z"0-9(\-]""".r.findFirstIn(rhs).isDefined
   /** A method in a Scala file: its name, whether it returns Unit (it changes something), its lines, and its body. */
   final case class Method(name: String, unit: Boolean, lines: Int, body: String, priv: Boolean)
 

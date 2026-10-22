@@ -40,7 +40,7 @@ object Generate:
     case _          => Nil
 
   /** Values of the same type near `v`: a number at the boundaries (`nums`, and next to it), a list
-    * emptied, shortened, reversed or with its head again, a string emptied, an option empty, a case
+    * emptied, shortened, reversed, with its head again or with a row like its head added, a string emptied, an option empty, a case
     * class or tuple with one field changed so. What the examples do not reach, the translation is
     * checked on.
     */
@@ -52,7 +52,7 @@ object Generate:
       case b: BigInt  => nums ++ List(BigInt(0), b + 1, b - 1, -b)
       case s: String  => List("", s + s)
       case Some(x)    => None :: near(x, nums).take(2).map(Some(_))
-      case l: List[?] => if l.isEmpty then Nil else List(Nil, l.tail, l.reverse, l.head :: l)
+      case l: List[?] => if l.isEmpty then Nil else List(Nil, l.tail, l.reverse, l.head :: l) ++ near(l.head, nums).take(2).map(x => l :+ x)
       case p: Product if p.productArity > 0 =>
         val fields = p.productIterator.toList
         val make = p.getClass.getConstructors.find(_.getParameterCount == fields.size)
@@ -339,8 +339,13 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
     // must meet the node. A proven implementation at or below it is that witness (the links between
     // prove it meets the node, under the meanings fixed on the way).
     val witnessed = witnessedIds(n.id)
-    val feasible = Option.when(authoredLink(n.id) && !witnessed && link.isDefined)(
-      Claim("feasible", "", None, s"∃ (m : ${modelType(n)}), ${at(n)("spec")} m", s"Some model meets ${n.id}: its authored link does not rest on a contradiction."))
+    // For some meaning of what is left open (as `nontrivial`): a node over a generic root is met only
+    // where its parameters allow it, and a witness for every meaning would be too much to ask.
+    val feasible = Option.when(authoredLink(n.id) && !witnessed && link.isDefined) {
+      val b = binders(nodeCtx(n))
+      Claim("feasible", "", None, s"${if b.isEmpty then "" else s"∃ $b, "}∃ (m : ${modelType(n)}), ${at(n)("spec")} m",
+        s"Some model meets ${n.id}, for some meaning of what it leaves open: its authored link does not rest on a contradiction.")
+    }
     // What the developer expects of every model of the node: their understanding, checked.
     val expects = Option.when(n.kind == NodeKind.Root || n.kind == NodeKind.Refine || n.kind == NodeKind.Contract)(n.expected).toList.flatten
       .zipWithIndex.map { case ((statement, _), i) =>
@@ -377,8 +382,8 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
 
   /** What a formal node must prove: its link, the invariants it keeps, its proven implementation. */
   def obligations(n: Node[?]): List[Obligation] =
-    // (`nontrivial` binds the parameters itself, with ∃.)
-    claims(n).map(c => Obligation(c.name, if c.name == "nontrivial" then c.conclusion else stated(n, c.vars, c.premise, c.conclusion), c.description))
+    // (`nontrivial` and `feasible` bind the parameters themselves, with ∃.)
+    claims(n).map(c => Obligation(c.name, if c.name == "nontrivial" || c.name == "feasible" then c.conclusion else stated(n, c.vars, c.premise, c.conclusion), c.description))
   def obligation(n: Node[?]): Option[Obligation] = obligations(n).find(_.name == "link")
   /** Obligations proven in files of their own: all but the link. */
   def extraObligations(n: Node[?]): List[Obligation] = obligations(n).filterNot(_.name == "link")

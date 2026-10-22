@@ -168,7 +168,7 @@ final class Server(projects: List[Project], val token: String = Server.newToken(
             if text.isEmpty || by.isEmpty || (node.nonEmpty && !Project.Ident.matches(node)) then error(ex, 400, "expected node, text and by")
             else { val r = p.addRequest(node, text, by); signal(); json(ex, r, 201) }
           case List("requests", id) =>
-            try { val r = p.answerRequest(id, field("answer"), body("status").flatMap(_.str).getOrElse("closed")); signal(); json(ex, r) }
+            try { val r = p.answerRequest(id, field("answer"), body("status").flatMap(_.str).getOrElse(if field("answer").trim.isEmpty then "closed" else "answered")); signal(); json(ex, r) }
             catch case e: java.util.NoSuchElementException => error(ex, 404, e.getMessage)
           case List("idea") =>
             val text = field("text")

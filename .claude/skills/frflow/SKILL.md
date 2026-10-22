@@ -41,10 +41,10 @@ explains the method; this file holds your rules.
 8. **Never edit generated Lean** (`lean/FrFlowGen/`, `lean/FrFlowAudit/`).
    Lean you write goes only in `lean/Proofs/<KB>/`.
 9. **Every source file has one owner.** An implementation governs the files
-   its expression refers to; other code needs `.governing(paths*)` or a design
+   its expression refers to; other code needs a design
    node. Keep production wiring (the call to `service`) in a design node's file.
-10. **One model file per concern.** The compiler fails at about 30 nodes in
-    one file.
+10. **One model file per concern**, so an agent reads one concern at a time
+    and a change to one does not recompile the others.
 11. **Say what is not modelled**: propose it for `## Not modelled` in
     `IDEA.md` (a `### Section` subsection when it concerns one root).
 12. **Say what waits.** In your `answer`, name the waiting nodes that are
