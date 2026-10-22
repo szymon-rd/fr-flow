@@ -37,6 +37,7 @@ object Cli:
         if rest.headOption.exists(kb.node(_).isEmpty) then { System.err.println(s"unknown node ${rest.head}"); return 1 }
         val results = w.check(rest.headOption)
         w.writeSnapshot()
+        var examplesFail = false
         results.foreach { (n, c) =>
           // The link's status is the node's; what else is open is said with it, and failing examples first:
           // they show the code (or the contract) is wrong, which no proof fixes.
@@ -44,17 +45,18 @@ object Cli:
           println(s"${n.id}: ${c.status}${if c.status == "proven" && open.nonEmpty then s" (the link; not proven: ${open.map(_.name).mkString(", ")})" else ""}")
           val failing = kb.exampleResults(n).filter(r => r.contract != "ok" || r.implementation.exists(_ != "ok"))
           if failing.nonEmpty then
+            examplesFail = true
             println(s"  ${failing.size} example(s) fail: the code or the contract is wrong; fix that, not the proof")
             failing.take(5).foreach(r => println(s"    ${r.example.describe}: ${r.verdict}"))
           // `idle` is not an obligation: proven, it is a limit of the contract (it allows doing nothing).
           c.obligations.filter(r => !r.isLimit && r.status != "proven").foreach(r => println(s"  ${r.status} ${r.name}: ${r.detail.linesIterator.mkString("\n    ")}"))
-          c.obligations.filter(r => r.name == "idle" && r.status == "proven").foreach(r => println(s"  limit: it is met by ${r.detail} on every call"))
+          c.obligations.filter(r => r.name == "idle" && r.status == "proven").foreach(r => println(s"  ! it is met by ${r.detail} on every call: say in its post what it must return (status fails until then)"))
           // With an example failing, the link may be false: no hint to prove it.
           c.messages.filterNot(m => failing.nonEmpty && m.startsWith("prove it in")).foreach(m => println(s"  ! ${m.linesIterator.mkString("\n    ")}"))
         }
         println()
         print(w.status._1)
-        if results.forall(_._2.status == "proven") then 0 else 1
+        if results.forall(_._2.status == "proven") && !examplesFail then 0 else 1
       case "ci" :: Nil =>
         // What CI runs: check (a node whose formal parts did not change keeps its result), then status.
         if !Lake(ws.lean).available then { System.err.println("lake not found (set FRFLOW_LAKE)"); return 3 }

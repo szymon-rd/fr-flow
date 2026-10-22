@@ -53,7 +53,8 @@ works through MCP and the CLI, and no tool of the agent's decides.
 **Mechanical decisions.** One rule (`Decisions.mechanical`): a node under
 review (never a proposal), not a root or a design node, where nothing the
 developer decided changed (only the types it uses, a proven implementation, how
-its examples print, or something above it moved), and Lean proves it again. An
+its examples print, or something above it moved; not a definition it calls),
+and Lean proves it again. An
 instantiation's choice is what it substitutes, which is part of what it says. The browser offers them as one batch, accepted
 with one reason.
 
@@ -81,9 +82,9 @@ Rewording a `why` or adding an example does not cascade below. A change that
 does not cascade may still break a reason written below. So accepting a change
 lists the decisions below, each with the reason it holds by now; the developer
 marks those it may affect (`revisit`), and confirms by name those that moved
-only because of it. A decision whose reason or `why` says when it stops
-holding ("revisit if", "reconsider when", "unless", "until", "as long as",
-"only while") must be answered by name: still holds, or revisit. So must such
+only because of it. A decision whose reason or `why` says when to revisit
+it ("revisit if …", "reconsider when …", "revisit once …", "until …")
+must be answered by name: still holds, or revisit. So must such
 a decision above a new node (on its path, what it relies on, what it keeps):
 the new node may be what the condition was about.
 
@@ -136,7 +137,7 @@ the history, reasons and rejected alternatives.
 | `vacuous_<claim>` | a link, kept invariant or expectation that holds without the node's own statement | the claim fails |
 | `unsat` | a refinement or contract no model meets | the link fails |
 | `rootTrivial` | a root that holds of every model, by an `abs` or substitution above | the link fails |
-| `idle` | doing nothing meets the contract | shown as a limit |
+| `idle` | doing nothing meets the contract | `status` fails: a contract says what a call must return, not only what it must not |
 
 Lean is the default. Where the Lean subset cannot say a node, or a proof costs
 more than it gives, the node opts out with `formal = false`: its model stays
@@ -159,10 +160,17 @@ there is no warning. Warnings: a decision not signed by a developer key, or
 decisions with no key; a file governed by two nodes, or by none (any source in
 the project but tests, build output, `lean` and `.frflow`); a section of the
 idea no root names; a statement or `why` naming a rejected or removed node; a
-formal contract with no example evaluated in Lean.
+formal contract with no example evaluated in Lean. A contract met by
+returning nothing on every call (`idle`) is listed as unproven: it guards, and
+asks for nothing.
 
 `ci` is what CI runs: `check` (a node whose formal parts did not change keeps
-its result), then `status`.
+its result), then `status`. The results (`.frflow/checks.json`) are not
+committed, so a fresh clone checks everything once (about 3 s a node). Keep
+them and Lean's build between CI runs with the CI's cache, keyed by branch
+(`<kb>/.frflow/checks.json`, `lean/.lake`, `<kb>/lean/.lake`): each result is
+recorded with the hash of what it proved, so only what changed is proven again.
+A result read from the cache is as trusted as the cache.
 
 ## Large projects
 
@@ -214,8 +222,7 @@ the right theory. That is the developer's decision. Trusted:
 
 Limits: the "says nothing" checks are one-sided; examples with function-valued
 parameters (other than `bindTable`) are not evaluated in Lean; running covers
-the examples and their combinations, not every input; an `idle` contract
-promises nothing beyond its examples; ordering, liveness and effects outside a
+the examples and their combinations, not every input; ordering, liveness and effects outside a
 pure core behind `service` are not covered. Maps and sets are functions in
 Lean: what needs iterating them (sizes, all keys) cannot be said, and an example
 whose maps differ at a key it does not name may be left unevaluated.

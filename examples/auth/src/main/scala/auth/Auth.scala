@@ -63,14 +63,16 @@ val grantBased = authenticated.instantiate[(String, Path) => Option[UserId]](
 
 val decisionContract = grantBased.contract[String, Path, Option[UserId]](
   "DecisionContract",
-  "A decision names the user its token belongs to, and only when a grant covers the path.",
-  why = "GrantBased, stated for one call, so every result of the running system can be checked."
-)((token, path, decision) => decision.forall(u => sessions(token) == Some(u) && grants.value.contains(Grant(u, path))))
+  "A decision names the user its token belongs to, exactly when a grant covers the path.",
+  why = "GrantBased, stated for one call, so every result of the running system can be checked; and a user with a grant gets in, since the idea says a grant lets them."
+)((token, path, decision) => decision.forall(u => sessions(token) == Some(u) && grants.value.contains(Grant(u, path))) &&
+  (decision.isDefined || sessions(token).forall(u => !grants.value.contains(Grant(u, path)))))
   .examples(grants.bind(List(Grant(UserId("alice"), Path("/a")))), sessions.bindTable(Map("t1" -> UserId("alice"))))(
     expect("t1", Path("/a"), Some(UserId("alice")), "Alice's token and a grant for /a: she gets in"),
     expect("t1", Path("/b"), None, "no grant for /b: refused"),
     reject("t1", Path("/b"), Some(UserId("alice")), "access without a grant is never given"),
-    reject("t2", Path("/a"), Some(UserId("alice")), "a token that is not Alice's never acts for her"))
+    reject("t2", Path("/a"), Some(UserId("alice")), "a token that is not Alice's never acts for her"),
+    reject("t1", Path("/a"), None, "Alice with a grant for /a is not turned away"))
 
 // ============================================================================
 // A design decision: no formal model, but decided and tracked like the rest

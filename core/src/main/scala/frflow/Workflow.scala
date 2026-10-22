@@ -835,8 +835,9 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
         "id" -> str(n.id),
         "kind" -> str(n.kind.toString.toLowerCase),
         "parent" -> n.parent.fold(JNull)(p => str(p.id)),
-        "limits" -> JArr((kb.limits(n) ++ check.toList.flatMap(_.obligations.filter(o => o.name == "idle" && o.status == "proven"))
-          .map(o => s"Lean shows it is met by ${o.detail} on every call: only the examples ask for more; say what it must do, or list it as not modelled")).map(str)),
+        "limits" -> JArr(kb.limits(n).map(str)),
+        // Met by doing nothing on every call: it guards, and asks for nothing (see `Decisions.unproven`).
+        "idle" -> check.flatMap(_.obligations.find(o => o.name == "idle" && o.status == "proven")).fold(JNull)(o => str(o.detail)),
         "examples" -> JArr(kb.exampleResults(n).zipWithIndex.map { (r, i) =>
           // What Lean computes of the example, against what Scala does (the examples written, not generated ones).
           def lean(name: String) =

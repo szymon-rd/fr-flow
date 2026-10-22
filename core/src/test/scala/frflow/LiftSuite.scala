@@ -100,6 +100,13 @@ class LiftSuite extends munit.FunSuite:
     assert(compileErrors("frflow.Lifted((x: BigInt, y: BigInt) => x / y)").contains("may be zero"))
   }
 
+  test("lists: flatMap, find, headOption, take and drop, zip, filterNot") {
+    val c = Lifted((l: List[BigInt], n: Int) =>
+      l.flatMap(x => List(x, x)).take(n).drop(1).headOption == l.find(x => x > 0) && l.zip(l).filterNot(p => p._1 > p._2).nonEmpty)
+    assert(c.body.contains("List.flatMap") && c.body.contains("List.take (Int.toNat n)") && c.body.contains("List.find?") && c.body.contains("List.zip l l"), c.body)
+    assert(c.value(List(BigInt(1), BigInt(2)), 3))
+  }
+
   test("a fold over a list: what a sequence of steps leads to") {
     val c = Lifted((l: List[BigInt]) => l.foldLeft(BigInt(0))((acc, x) => acc + x) >= 0)
     assertEquals(c.body, "((List.foldl (fun (acc : Int) (x : Int) => (acc + x)) 0 l) ≥ 0)")

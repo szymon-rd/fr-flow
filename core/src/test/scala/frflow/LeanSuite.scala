@@ -262,6 +262,12 @@ class LeanSuite extends munit.FunSuite:
     assertEquals(s(List(Book("Long", 300), Book("Huge", 900)), 5), List(Book("Long", 300)))
   }
 
+  test("code using flatMap and take is proven to meet its contract, and evaluated in Lean") {
+    val c = workflow(KnowledgeBase("Firsts", idea = "IDEA.md")(onlyGood, listed, books, pick).implementProven(pick)(firstLong)).check().find(_._1.id == "Pick").get._2
+    assertEquals(c.obligations.filter(o => Set("impl", "root_impl")(o.name)).map(_.status), List("proven", "proven"), c)
+    assert(c.obligations.filter(_.name.startsWith("eval_")).forall(_.status == "proven"), c)
+  }
+
   test("state kept in a Map is proven, down to the code, and its examples are evaluated in Lean") {
     val w = workflow(KnowledgeBase("Counter", idea = "IDEA.md")(counts, bump).implementProven(bump)(bumped))
     val c = w.check().find(_._1.id == "Bump").get._2

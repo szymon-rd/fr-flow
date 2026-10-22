@@ -152,9 +152,10 @@ val rc = readContract.caller("rc")
 
 val dealSearch = accounts.contract[Account, Search, List[CrmRecord]](
   "DealSearch",
-  "A deal search returns only deals the user may see.",
-  why = "The sales screen lists deals only. It is built on ReadContract, so it shows only what ReadContract may show."
-)((user, query, result) => result.forall(r => r.kind == Kind.Deal && mayRead(user, r)))
+  "A deal search returns exactly the stored deals that match it and the user may see.",
+  why = "The sales screen lists deals only, all of them. It is built on ReadContract, so it shows only what ReadContract may show."
+)((user, query, result) => result.forall(r => r.kind == Kind.Deal && mayRead(user, r)) &&
+  store.value.forall(r => (r.kind == Kind.Deal && matches(query, r) && mayRead(user, r)) ==> result.contains(r)))
   .examples(
     store.bind(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal"), CrmRecord(2, TenantId("acme"), Kind.Contact, "Acme contact"))),
     shares.bind(Nil))(
@@ -162,7 +163,8 @@ val dealSearch = accounts.contract[Account, Search, List[CrmRecord]](
       "Ann's deal search lists Acme's deal, not its contact"),
     expect(Account("ann@acme", TenantId("acme")), Search.OfKind(Kind.Contact), Nil, "a search for contacts finds no deal"),
     reject(Account("ann@acme", TenantId("acme")), Search.Everything, List(CrmRecord(2, TenantId("acme"), Kind.Contact, "Acme contact")),
-      "a contact is never listed as a deal"))
+      "a contact is never listed as a deal"),
+    reject(Account("ann@acme", TenantId("acme")), Search.Everything, Nil, "a deal Ann may see is never left out"))
   .keeps(noCrossTenantRead)((user, query, result) => result.map(r => (user, r)))
 
 /** Deals: what ReadContract returns, keeping only deals. */

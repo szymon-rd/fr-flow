@@ -48,13 +48,13 @@ object Decisions:
       val revisit = ledger.current(id).exists(_.action == "revisit")
       val parentRejected = n("parent").flatMap(_.str).flatMap(ids.get).exists(p => state(p) == "rejected")
       ledger.binding(id).fold(Nil) { d =>
-        List("self" -> changed(d, n), "above" -> (d.chain != parentChain(n) || parentRejected),
+        List("self" -> changed(d, n, ledger), "above" -> (d.chain != parentChain(n) || parentRejected),
           "code" -> (d.code != code(n)), "revisit" -> revisit, "merged" -> ledger.forked(id)).collect { case (c, true) => c }
       }
     })
     def state(n: Json): String = states.getOrElseUpdate(s(n, "id"),
       ledger.current(s(n, "id")) match
-        case Some(d) if d.action == "reject" => if !changed(d, n) then "rejected" else "proposed"
+        case Some(d) if d.action == "reject" => if !changed(d, n, ledger) then "rejected" else "proposed"
         case Some(d) if Ledger.binds(d.action) || d.action == "revisit" =>
           if causes(n).nonEmpty then "review" else "accepted"
         case _ => "proposed")
@@ -72,11 +72,11 @@ object Decisions:
     */
   private val addedByFormat = Set("definition")
 
-  /** Whether the node says something else than what was decided. */
-  private def changed(d: Decision, n: Json): Boolean =
+  /** Whether the node says something else than what was decided (a node renamed since is the same node). */
+  private def changed(d: Decision, n: Json, ledger: Ledger): Boolean =
     val missing = addedByFormat.filter(k => d.content(k).isEmpty)
-    if missing.isEmpty then d.hash != s(n, "hash")
-    else d.hash != Decision.hash(JObj(n("content").map(_.obj).getOrElse(Nil).filterNot(f => missing(f._1))))
+    val now = JObj(n("content").map(_.obj).getOrElse(Nil).filterNot(f => missing(f._1)))
+    d.hash != (if missing.isEmpty then s(n, "hash") else Decision.hash(now)) && !sameRenamed(ledger, JObj(d.content.obj.filterNot(f => missing(f._1))), now)
 
   /** The node holds as decided. */
   private def holds(state: String): Boolean = state == "accepted"
@@ -101,9 +101,11 @@ object Decisions:
     */
   def chain(content: Json, parentChain: String): String = sha(meaning(content), parentChain)
 
-  /** What a node's content means, without its reason, examples or idea. */
+  /** What a node's content means, without its reason, examples or idea; and without its parent's
+    * name (the chain holds the parent's meaning), so renaming a node reviews nothing below it.
+    */
   def meaning(content: Json): String =
-    val parts = Set("parent", "statement", "sources", "substitutions", "vocabulary", "uses", "governs", "formal")
+    val parts = Set("statement", "sources", "substitutions", "vocabulary", "uses", "governs", "formal")
     Decision.hash(JObj(content.obj.filter(f => parts(f._1))))
 
   /** The `## ` sections of the idea (without Not modelled), by heading, after the text before the
@@ -305,23 +307,34 @@ object Decisions:
     * answered by name, still holds or revisit, never left to a default.
     */
   def conditional(text: String): Boolean =
-    """(?i)\b(revisit|reconsider)\b(\s+\w+){0,3}\s+(if|when|once)\b|\bunless\b|\buntil\b|\bas long as\b|\bonly while\b""".r.findFirstIn(text).isDefined
+    """(?i)\b(revisit|reconsider)\b(\s+\w+){0,3}\s+(if|when|once|unless|until|as long as)\b""".r.findFirstIn(text).isDefined
 
-  /** Why `n` is not mechanical, or None if it is. One rule: a node under review (not a proposal) of a
-    * kind that holds no choice of meaning (a refinement, a contract, an invariant), where nothing the
-    * developer decided changed (only what follows from elsewhere moved: the types it uses, a proven
-    * implementation, how its examples print, or something above it), and Lean proves it again.
+  private val DefinitionUse = """(?s)^[A-Za-z_]\w* = .*""".r
+
+  /** What the developer decided of a node's content, without what follows from elsewhere: the types
+    * it uses (`uses` also lists the definitions it calls, `name = body`, which it says), how its
+    * examples print, and a proven implementation.
     */
+  private def decidedHash(c: Json, provenImpl: Boolean): String =
+    def definitions = "definitions" -> JArr(c("uses").map(_.arr.toList).getOrElse(Nil).filter(u => u.str.exists(DefinitionUse.matches)))
+    Decision.hash(JObj(c.obj.filterNot(f => f._1 == "uses" || f._1 == "examples" || (provenImpl && f._1 == "implementation")) :+ definitions :+
+      ("examples" -> JArr(c("examples").map(_.arr.toList.flatMap(_.str)).getOrElse(Nil).map(e => str(e.takeWhile(_ != ' ') + " — " + e.split(" — ").lastOption.getOrElse("")))))))
+  private def provenImpl(n: Json) = n("implementationProof").exists(p => p != JNull && s(p, "status") == "proven")
+
+  /** Why `n` is not mechanical, or None if it is. One rule: a node under review (not a proposal), not
+    * a root or a design node, where nothing the developer decided changed (only what follows from
+    * elsewhere moved: the types it uses, a proven implementation, how its examples print, or
+    * something above it; a definition it calls is part of what it says), and Lean proves it again.
+    */
+
   def mechanical(snapshot: Json, ledger: Ledger, n: Json): Option[String] =
     val v = view(snapshot, ledger)
     val id = s(n, "id")
     val kind = s(n, "kind")
     val cs = v.causes(n)
     val (ok, total) = examples(n)
-    val provenImpl = n("implementationProof").exists(p => p != JNull && s(p, "status") == "proven")
-    // What the developer decided, without what follows from elsewhere.
-    def decided(c: Json) = Decision.hash(JObj(c.obj.filterNot(f => f._1 == "uses" || f._1 == "examples" || (provenImpl && f._1 == "implementation")) :+
-      ("examples" -> JArr(c("examples").map(_.arr.toList.flatMap(_.str)).getOrElse(Nil).map(e => str(e.takeWhile(_ != ' ') + " — " + e.split(" — ").lastOption.getOrElse("")))))))
+    val provenImpl = Decisions.provenImpl(n)
+    def decided(c: Json) = decidedHash(c, provenImpl)
     // An instantiation's choice is what it substitutes, part of what it says: unchanged, it still holds.
     if kind == "root" || kind == "design" then Some(s"$kind nodes hold a choice")
     else if v.state(n) != "review" then Some(s"$id is ${v.state(n)}: only a node under review can be mechanical")
@@ -407,12 +420,14 @@ object Decisions:
       .map(p => s"it binds ${s(p, "name")}, which means: ${s(p, "means")} — does the new value still mean that?")
     invs ++ params
 
-  /** The reason a node holds now: of its latest acceptance (a confirmation adds to it, so with it). */
+  /** The reason a node holds now: of its latest change of meaning accepted (the reason it was chosen,
+    * if none since); a confirmation (nothing it says changed) adds to it, and never replaces it.
+    */
   private def reasonNow(ledger: Ledger, id: String): String =
-    // The reason it was chosen first: a later change accepted (a batch of type changes, say) adds to it.
     val accepts = ledger.sinceChosen(id).filter(_.action == "accept")
-    val chosen = accepts.headOption.fold("")(_.reason)
-    val last = accepts.lastOption.map(_.reason).filter(_ != chosen).fold(chosen)(l => s"$chosen (latest change: $l)")
+    // A rename says nothing new either: it adds to the reason.
+    val last = accepts.filter(_.from.isEmpty).lastOption.orElse(accepts.headOption).fold("")(_.reason) +
+      accepts.lastOption.filter(_.from.nonEmpty).fold("")(d => s" (${d.reason})")
     ledger.binding(id).filter(_.action == "confirm").fold(last)(c => s"$last (since confirmed: ${c.reason})")
 
   private def isBelow(snapshot: Json, id: String, ancestor: String): Boolean =
@@ -477,7 +492,10 @@ object Decisions:
       else
         // Choosing (or accepting a change to the node itself) is an acceptance; otherwise a confirmation.
         val cs = causes(snapshot, ledger, n)
-        val action = if st(ledger, r.node) == "review" && !cs.contains("self") && r.reject.isEmpty then "confirm" else "accept"
+        // A change only of what follows from elsewhere (types, printing, proven code) is confirmed: its reason does not replace the node's.
+        val meaningMoved = cs.contains("self") && ledger.binding(r.node).forall(d =>
+          decidedHash(d.content, provenImpl(n)) != decidedHash(n("content").getOrElse(JNull), provenImpl(n)))
+        val action = if st(ledger, r.node) == "review" && !meaningMoved && r.reject.isEmpty then "confirm" else "accept"
         val chosen = if st(ledger, r.node) == "accepted" && r.reject.isEmpty then ledger
           else ledger.add(r.node, make(action, n, r.reject, r.reason))
         val withRejected = r.reject.foldLeft(chosen)((l, x) => l.add(x, make("reject", ids(x), Nil, s"${r.node} was chosen instead: ${r.reason}")))
@@ -646,5 +664,7 @@ object Decisions:
       bad("invariants", fine + "exempt").map(i => s"invariant ${s(i, "id")} is ${s(i, "status")}") ++
       n("implementationProof").filter(p => p != JNull && !fine(s(p, "status"))).map(p => s"its implementation ${s(p, "name")} is ${s(p, "status")}: not proven to meet the contract") ++
       bad("expectations", fine).map(e => s"an expectation is ${s(e, "status")}") ++
-      bad("reliances", fine).map(r => s"the guarantee it relies on from ${s(r, "id")} is ${s(r, "status")}")
+      bad("reliances", fine).map(r => s"the guarantee it relies on from ${s(r, "id")} is ${s(r, "status")}") ++
+      // A contract only guarding (what it must never return) lets the code drop the feature unnoticed.
+      n("idle").flatMap(_.str).map(what => s"Lean shows it is met by $what on every call: say in its post what it must return")
 

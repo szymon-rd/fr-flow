@@ -100,6 +100,9 @@ val longPick = books.contract[List[Book], Int, List[Book]]("LongPick", "Picking 
     expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
     reject(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
 
+/** Code using flatMap and take: proven like a filter. */
+val firstLong = define { (shelf: List[Book], n: Int) => shelf.flatMap(b => if b.pages >= minPages.value then List(b) else Nil).take(n) }
+
 /** State kept in a map: counts by name, each bump adding one to its own count only. */
 val counts = Node.root[(Map[String, BigInt], String) => Map[String, BigInt]]("Counts", "A bump adds one to its name's count, and leaves the others.", why = "Counting.")(
   f => forall((m: Map[String, BigInt], k: String) => f(m, k).get(k) == Some(m.getOrElse(k, BigInt(0)) + 1)) &&

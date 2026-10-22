@@ -90,6 +90,22 @@
           "governs": [],
           "definition": "val authenticated = noUnauthorizedAccess.refine[(Token.T, Resource.T) => Option[User.T]](\n  \"Authenticated\",\n  \"A request is granted on behalf of a user only if its token belongs to that user and the user is authorized.\",\n  why = \"Users identify themselves with tokens they receive at login, so a decision sees a token, not a user. abs: a user is allowed a resource when some token of theirs is granted it.\"\n)(\n  abs  = decide => (u, r) => exists((t: Token.T) => decide(t, r) == Some(u)),\n  spec = decide => forall((t: Token.T, r: Resource.T) => decide(t, r).forall(u => holder(t) == Some(u) && authorized(u, r)))\n)"
         }
+      },
+      {
+        "action": "confirm",
+        "by": "claude-example-data",
+        "at": "2026-10-22T11:24:52.308718587Z",
+        "reason": "FrFlow no longer hashes the parent's name into a node's meaning; nothing it says changed.",
+        "held": [
+          "InMemorySessions"
+        ],
+        "after": "c60434f2e27a1dbb",
+        "commit": "d22ff4da28bb831f81bf94dac08348f64991b439",
+        "tree": "d61484d88132615f8441f8af7a5caa708e08d84e",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "S081cd2ODEG/IUx+ZVHyuhMgHrWNtuzBAIec29X4eeSdPu/loHGqPsCRwkto77nOj7bTQK35sZyrf0arR/9uBQ==",
+        "chain": "c332b134e4931efa7216afdbfee703bfcc448ae5fa17b9eb96b3b73dcb975afd",
+        "content": "same:1ccbaab152edc6e0"
       }
     ],
     "ClientAsserted": [
@@ -264,6 +280,61 @@
           "definition": "val decisionContract = grantBased.contract[String, Path, Option[UserId]](\n  \"DecisionContract\",\n  \"A decision names the user its token belongs to, and only when a grant covers the path.\",\n  why = \"GrantBased, stated for one call, so every result of the running system can be checked.\"\n)((token, path, decision) => decision.forall(u => sessions(token) == Some(u) && grants.value.contains(Grant(u, path))))\n  .examples(grants.bind(List(Grant(UserId(\"alice\"), Path(\"/a\")))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\"))))(\n    expect(\"t1\", Path(\"/a\"), Some(UserId(\"alice\")), \"Alice's token and a grant for /a: she gets in\"),\n    expect(\"t1\", Path(\"/b\"), None, \"no grant for /b: refused\"),\n    reject(\"t1\", Path(\"/b\"), Some(UserId(\"alice\")), \"access without a grant is never given\"),\n    reject(\"t2\", Path(\"/a\"), Some(UserId(\"alice\")), \"a token that is not Alice's never acts for her\"))",
           "implementation": "SessionStore(grants.value.toSet, sessions.value).decide"
         }
+      },
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-22T11:22:26.582002956Z",
+        "reason": "A user with a grant must get in: the idea says a grant lets them, and a contract that may always refuse lets the code drop access unnoticed.",
+        "held": [
+          "InMemorySessions"
+        ],
+        "after": "675d13145cefd987",
+        "code": "945683e2a0ae0caddb95a65d3faa270ad3d5a9ada7d4507531215023b1791b18",
+        "commit": "d22ff4da28bb831f81bf94dac08348f64991b439",
+        "tree": "d61484d88132615f8441f8af7a5caa708e08d84e",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "saocjvxDYjMPuZJ4rpPurWhMbTSwyJD2EOSNU9Z8StBo+lPBsnin+orergtd6oacFYVHzRbPkCPfFAl7HzxEDQ==",
+        "chain": "faab4fea8465dd522f53a47575a9086f32c7da7cc011163d780dff4cbc40145c",
+        "content": {
+          "parent": "GrantBased",
+          "statement": "A decision names the user its token belongs to, exactly when a grant covers the path.",
+          "why": "GrantBased, stated for one call, so every result of the running system can be checked; and a user with a grant gets in, since the idea says a grant lets them.",
+          "sources": {
+            "post": "(token, path, decision) => decision.forall(u => sessions(token) == Some(u) && grants.value.contains(Grant(u, path))) &&\n  (decision.isDefined || sessions(token).forall(u => !grants.value.contains(Grant(u, path))))"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (\"t1\", Path(\"/a\")) ⇒ Some(UserId(\"alice\"))  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\")))  — Alice's token and a grant for /a: she gets in",
+            "expect (\"t1\", Path(\"/b\")) ⇒ None  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\")))  — no grant for /b: refused",
+            "reject (\"t1\", Path(\"/b\")) ⇒ Some(UserId(\"alice\"))  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\")))  — access without a grant is never given",
+            "reject (\"t2\", Path(\"/a\")) ⇒ Some(UserId(\"alice\"))  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\")))  — a token that is not Alice's never acts for her",
+            "reject (\"t1\", Path(\"/a\")) ⇒ None  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\")))  — Alice with a grant for /a is not turned away"
+          ],
+          "vocabulary": [],
+          "uses": [
+            "case class Path(value: String)",
+            "case class UserId(name: String)",
+            "case class Grant(user: UserId, path: Path)"
+          ],
+          "governs": [],
+          "definition": "val decisionContract = grantBased.contract[String, Path, Option[UserId]](\n  \"DecisionContract\",\n  \"A decision names the user its token belongs to, exactly when a grant covers the path.\",\n  why = \"GrantBased, stated for one call, so every result of the running system can be checked; and a user with a grant gets in, since the idea says a grant lets them.\"\n)((token, path, decision) => decision.forall(u => sessions(token) == Some(u) && grants.value.contains(Grant(u, path))) &&\n  (decision.isDefined || sessions(token).forall(u => !grants.value.contains(Grant(u, path)))))\n  .examples(grants.bind(List(Grant(UserId(\"alice\"), Path(\"/a\")))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\"))))(\n    expect(\"t1\", Path(\"/a\"), Some(UserId(\"alice\")), \"Alice's token and a grant for /a: she gets in\"),\n    expect(\"t1\", Path(\"/b\"), None, \"no grant for /b: refused\"),\n    reject(\"t1\", Path(\"/b\"), Some(UserId(\"alice\")), \"access without a grant is never given\"),\n    reject(\"t2\", Path(\"/a\"), Some(UserId(\"alice\")), \"a token that is not Alice's never acts for her\"),\n    reject(\"t1\", Path(\"/a\"), None, \"Alice with a grant for /a is not turned away\"))",
+          "implementation": "SessionStore(grants.value.toSet, sessions.value).decide"
+        }
+      },
+      {
+        "action": "confirm",
+        "by": "claude-example-data",
+        "at": "2026-10-22T11:24:52.308718587Z",
+        "reason": "still holds after Authenticated changed: FrFlow no longer hashes the parent's name into a node's meaning; nothing it says changed.",
+        "after": "275da62f6711e887",
+        "code": "945683e2a0ae0caddb95a65d3faa270ad3d5a9ada7d4507531215023b1791b18",
+        "commit": "d22ff4da28bb831f81bf94dac08348f64991b439",
+        "tree": "d61484d88132615f8441f8af7a5caa708e08d84e",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "sEWLPzYVTLoU5Qb5ns9gP7Hys0VWGKx1CrRcLTpEU95lOe3dtEHA89ah+eaG4Oq4wSLxrjtPUq4WjQ4n5eomDQ==",
+        "chain": "abf66adacf2ffc88e7e44f7a36440d521a964779962ed365a1703187d3bfed7e",
+        "content": "same:96767e39858a1080"
       }
     ],
     "GrantBased": [
@@ -411,6 +482,19 @@
           "governs": [],
           "definition": "val grantBased = authenticated.instantiate[(String, Path) => Option[UserId]](\n  \"GrantBased\",\n  \"Users are ids, resources are paths, tokens are strings, and a user is authorized for a path when a grant names both.\",\n  why = \"The idea defines authorization as a table of grants. The token's holder is whatever the session table says; issuing tokens is not modelled.\"\n)(\n  User       := of[UserId],\n  Resource   := of[Path],\n  Token      := of[String],\n  authorized := ((u: UserId, p: Path) => grants.value.contains(Grant(u, p))),\n  holder     := ((t: String) => sessions(t))\n)"
         }
+      },
+      {
+        "action": "confirm",
+        "by": "claude-example-data",
+        "at": "2026-10-22T11:24:52.308718587Z",
+        "reason": "still holds after Authenticated changed: FrFlow no longer hashes the parent's name into a node's meaning; nothing it says changed.",
+        "after": "6062ec5c50e10e6a",
+        "commit": "d22ff4da28bb831f81bf94dac08348f64991b439",
+        "tree": "d61484d88132615f8441f8af7a5caa708e08d84e",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "lCztKnV5i7i6rscBYGzSjicx39R7PQMiJ62R8Ga9YPjWJxaooaHyxFr8iAQTIo8PqsLliQsHEXrvLQr8EDTrBA==",
+        "chain": "f544eadc1942b9e25478e76afbd57792dbc6b3012ec1252da829d66d7c417d28",
+        "content": "same:542b71a5413ed0ad"
       }
     ],
     "InMemorySessions": [

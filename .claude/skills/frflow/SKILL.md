@@ -118,7 +118,9 @@ val authenticated = noUnauthorizedAccess.refine[(Token.T, Resource.T) => Option[
   terms; holds by substitution.
 - **`contract(id, statement, why)(post)`** for a model `(A, B) => R`;
   **`contractVia(...)(abs)(post)`** for a signature of its own. Say what a
-  call must do, not only what it must not: doing nothing is listed (`idle`).
+  call must return, not only what it must not: a contract met by returning
+  nothing (`idle`) fails `status`. Each "users can …" of the idea is a clause
+  of some post (or an `expects`), so dropping the feature breaks a proof.
 - **`Node.invariant[A, B](id, statement, why, scope = ...)(rule)`**: a rule for
   several contracts, over pairs. Declare it before the contracts.
   - Each contract in scope keeps it, listing the pairs a call shows:
@@ -179,8 +181,9 @@ Unsupported Scala is a compile error, `FrFlow: not supported in a model`:
 rewrite the expression, or make it a `define { ... }`. Supported: fields, case
 class constructors, `copy`, `match`, `if`; `==`, `!=`, `&&`, `||`, `!`, `==>`;
 `forall`/`exists` over one or two typed binders; on `List`: `contains`,
-`exists`, `forall`, `filter`, `map`, `length`/`size`, `isEmpty`/`nonEmpty`,
-`++`; on `Option`: `forall`, `exists`, `contains`, `isDefined`, `isEmpty`,
+`exists`, `forall`, `filter`, `filterNot`, `map`, `flatMap`, `foldLeft`,
+`find`, `headOption`, `take`, `drop`, `zip`, `length`/`size`,
+`isEmpty`/`nonEmpty`, `::`, `++`; on `Option`: `forall`, `exists`, `contains`, `isDefined`, `isEmpty`,
 `getOrElse`; on `Map` (a function from keys to `Option` values in Lean): `get`,
 `getOrElse`, `contains`, `updated`, `removed`, `+`, `-`, `==`, `Map(k -> v)`,
 `Map.empty`; on `Set` (its membership): `contains`, `+`, `-`, `++`,

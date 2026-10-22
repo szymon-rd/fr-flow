@@ -390,6 +390,19 @@
             "CrmWrites: a share names one record by its id: ids are unique in every store the writes reach, so a share never shows another company's record with the same id (guarantee: (s: CrmStore) => consistentStore(s), of: () => CrmStore(store.value, shares.value))"
           ]
         }
+      },
+      {
+        "action": "confirm",
+        "by": "claude-example-data",
+        "at": "2026-10-22T11:24:52.884842670Z",
+        "reason": "still holds after ReadApi changed: FrFlow no longer hashes the parent's name into a node's meaning; nothing it says changed.",
+        "after": "9bc0997f661e2d18",
+        "commit": "d22ff4da28bb831f81bf94dac08348f64991b439",
+        "tree": "d61484d88132615f8441f8af7a5caa708e08d84e",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "834qv3UeVQj0jhCZ6M5+0CrpixahrJ/McREOJxkkhauYKoSbJBmVVJrQKU5dC5lN/Prm+8bG78JImhrciuOGAA==",
+        "chain": "17027dc6b7328bfdac494c8224540b57d2c88538a9e3e4648b49bada6a893577",
+        "content": "same:76d0831219d223f3"
       }
     ],
     "CrmWrites": [
@@ -550,6 +563,19 @@
           "governs": [],
           "definition": "val crmWrites = stepByStep.instantiate[(CrmStore, WriteCmd) => CrmStore](\n  \"CrmWrites\",\n  \"The store is the CRM's records and shares; a write is a user's change; a store is consistent when every share is of a stored record and record ids are unique; a write may change only its author's company's records, and add or remove only shares of their company's records.\",\n  why = \"A share names a record by its id: a share of a record that is not stored would show the next record stored with that id, and two records with one id would both be shared by it, across companies. Authority is by the author's account, which authentication provides (not modelled). Records of other companies must come out of a write exactly as they went in.\"\n)(\n  Store      := of[CrmStore],\n  Write      := of[WriteCmd],\n  initial    := CrmStore(Nil, Nil),\n  consistent := ((s: CrmStore) => consistentStore(s)),\n  permitted  := ((s: CrmStore, w: WriteCmd, t: CrmStore) => permittedWrite(s, w, t))\n)"
         }
+      },
+      {
+        "action": "confirm",
+        "by": "claude-example-data",
+        "at": "2026-10-22T11:24:53.149841986Z",
+        "reason": "still holds after StepByStep changed: FrFlow no longer hashes the parent's name into a node's meaning; nothing it says changed.",
+        "after": "afd3e56596dcad01",
+        "commit": "d22ff4da28bb831f81bf94dac08348f64991b439",
+        "tree": "d61484d88132615f8441f8af7a5caa708e08d84e",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "PR3lE1jDboth4avxUkwvh/VOCrHdb+9R1PWnFsOMKnFAMFMYEtTy4tp81l3NsVWzlnayjCAdCdEH0IXwSQiUAQ==",
+        "chain": "76eeb11db2ab4b6f48d47ee366bc072d83bec5d5839da74cbd9a8163889fa598",
+        "content": "same:a99670272340fbe6"
       }
     ],
     "DealSearch": [
@@ -593,6 +619,63 @@
           ],
           "implementation": "proven: deals\ndeals = (user: Account, query: Search) => rc(user, query).filter(r => r.kind == Kind.Deal)"
         }
+      },
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-22T11:22:28.073714928Z",
+        "reason": "The sales screen must list every deal the user may see, not only never a wrong one: a search that returns nothing would otherwise pass.",
+        "after": "92047413fc922b69",
+        "commit": "d22ff4da28bb831f81bf94dac08348f64991b439",
+        "tree": "d61484d88132615f8441f8af7a5caa708e08d84e",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "/YW6m9Ejf2TTd6Yvz/1YYWm0Pkj2NKZXWhIjUaDqIhfO5LH3WyttrA5tI38zOBs/9tJ9QuaD/xX3FXiB6tINCQ==",
+        "chain": "b8d127473b8b412b9b42c8fba8729a80fb03ca957225a2a8243708efe2638187",
+        "content": {
+          "parent": "Accounts",
+          "statement": "A deal search returns exactly the stored deals that match it and the user may see.",
+          "why": "The sales screen lists deals only, all of them. It is built on ReadContract, so it shows only what ReadContract may show.",
+          "sources": {
+            "post": "(user, query, result) => result.forall(r => r.kind == Kind.Deal && mayRead(user, r)) &&\n  store.value.forall(r => (r.kind == Kind.Deal && matches(query, r) && mayRead(user, r)) ==> result.contains(r))"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (Account(\"ann@acme\", TenantId(\"acme\")), Everything) ⇒ List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"))  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"acme\"), Contact, \"Acme contact\")), shares = List()  — Ann's deal search lists Acme's deal, not its contact",
+            "expect (Account(\"ann@acme\", TenantId(\"acme\")), OfKind(Contact)) ⇒ List()  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"acme\"), Contact, \"Acme contact\")), shares = List()  — a search for contacts finds no deal",
+            "reject (Account(\"ann@acme\", TenantId(\"acme\")), Everything) ⇒ List(CrmRecord(2, TenantId(\"acme\"), Contact, \"Acme contact\"))  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"acme\"), Contact, \"Acme contact\")), shares = List()  — a contact is never listed as a deal",
+            "reject (Account(\"ann@acme\", TenantId(\"acme\")), Everything) ⇒ List()  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"acme\"), Contact, \"Acme contact\")), shares = List()  — a deal Ann may see is never left out"
+          ],
+          "vocabulary": [],
+          "uses": [
+            "case class TenantId(value: String)",
+            "case class Account(email: String, tenant: TenantId)",
+            "enum Kind: case Contact, case Deal",
+            "enum Search: case ById(id: BigInt), case OfKind(kind: Kind), case Everything",
+            "case class CrmRecord(id: BigInt, tenant: TenantId, kind: Kind, title: String)",
+            "case class Share(record: BigInt, to: TenantId)",
+            "mayRead = (reader: Account, r: CrmRecord) => r.tenant == reader.tenant || shares.value.contains(Share(r.id, reader.tenant))",
+            "«matches» = (q: Search, r: CrmRecord) =>\n  q match\n    case Search.ById(id)  => r.id == id\n    case Search.OfKind(k) => r.kind == k\n    case Search.Everything => true"
+          ],
+          "governs": [],
+          "definition": "val dealSearch = accounts.contract[Account, Search, List[CrmRecord]](\n  \"DealSearch\",\n  \"A deal search returns exactly the stored deals that match it and the user may see.\",\n  why = \"The sales screen lists deals only, all of them. It is built on ReadContract, so it shows only what ReadContract may show.\"\n)((user, query, result) => result.forall(r => r.kind == Kind.Deal && mayRead(user, r)) &&\n  store.value.forall(r => (r.kind == Kind.Deal && matches(query, r) && mayRead(user, r)) ==> result.contains(r)))\n  .examples(\n    store.bind(List(CrmRecord(1, TenantId(\"acme\"), Kind.Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"acme\"), Kind.Contact, \"Acme contact\"))),\n    shares.bind(Nil))(\n    expect(Account(\"ann@acme\", TenantId(\"acme\")), Search.Everything, List(CrmRecord(1, TenantId(\"acme\"), Kind.Deal, \"Acme deal\")),\n      \"Ann's deal search lists Acme's deal, not its contact\"),\n    expect(Account(\"ann@acme\", TenantId(\"acme\")), Search.OfKind(Kind.Contact), Nil, \"a search for contacts finds no deal\"),\n    reject(Account(\"ann@acme\", TenantId(\"acme\")), Search.Everything, List(CrmRecord(2, TenantId(\"acme\"), Kind.Contact, \"Acme contact\")),\n      \"a contact is never listed as a deal\"),\n    reject(Account(\"ann@acme\", TenantId(\"acme\")), Search.Everything, Nil, \"a deal Ann may see is never left out\"))\n  .keeps(noCrossTenantRead)((user, query, result) => result.map(r => (user, r)))",
+          "keeps": [
+            "NoCrossTenantRead: (user, query, result) => result.map(r => (user, r))"
+          ],
+          "implementation": "proven: deals\ndeals = (user: Account, query: Search) => rc(user, query).filter(r => r.kind == Kind.Deal)"
+        }
+      },
+      {
+        "action": "confirm",
+        "by": "claude-example-data",
+        "at": "2026-10-22T11:24:52.884842670Z",
+        "reason": "still holds after ReadApi changed: FrFlow no longer hashes the parent's name into a node's meaning; nothing it says changed.",
+        "after": "0714242bb16f388e",
+        "commit": "d22ff4da28bb831f81bf94dac08348f64991b439",
+        "tree": "d61484d88132615f8441f8af7a5caa708e08d84e",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "hGeoccqFxAe5X1JopVA70yXEwwzgI00tvCFcpJa2YA6jkQH0XURDONjzOX2y0cVN7oiG+4rMcKJ3zcNzVcTwCg==",
+        "chain": "f6572d0ad38ae37dcc433639f24279754ab2dc236d8712acdcc6de445242c1a4",
+        "content": "same:cfc471f2b3d88682"
       }
     ],
     "NoCrossTenantRead": [
@@ -954,6 +1037,22 @@
           "governs": [],
           "definition": "val readApi = isolation.refine[(User.T, Query.T) => List[Record.T]](\n  \"ReadApi\",\n  \"Records are shown only as query results, and a query returns only records the user may see.\",\n  why = \"Users find records by searching, so what a user sees is what their queries return. abs: a user is shown a record when some query of theirs returns it.\"\n)(\n  abs  = run => (u, r) => exists((q: Query.T) => run(u, q).contains(r)),\n  spec = run => forall((u: User.T, q: Query.T) => run(u, q).forall(r => visible(u, r)))\n)"
         }
+      },
+      {
+        "action": "confirm",
+        "by": "claude-example-data",
+        "at": "2026-10-22T11:24:52.884842670Z",
+        "reason": "FrFlow no longer hashes the parent's name into a node's meaning; nothing it says changed.",
+        "held": [
+          "ReadSideWiring"
+        ],
+        "after": "d63434d844b799ae",
+        "commit": "d22ff4da28bb831f81bf94dac08348f64991b439",
+        "tree": "d61484d88132615f8441f8af7a5caa708e08d84e",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "ySYgkw9jHvl4f5jf+btjI5GjL+nk9R3NaCZqCojmObFb+jx9h9HD3xGQ4HuAKcMvcORi6w95gJfIA+znsMVcBw==",
+        "chain": "d03bf918912f0c3f5416c4d4a6de9a6ccc6c812ebdef7d923ed6b02f6909c183",
+        "content": "same:06bb488f380feb1d"
       }
     ],
     "ReadContract": [
@@ -1400,6 +1499,19 @@
           ],
           "implementation": "proven: search\nsearch = (user: Account, query: Search) =>\n  store.value.filter(r => matches(query, r) && mayRead(user, r))\n«matches» = (q: Search, r: CrmRecord) =>\n  q match\n    case Search.ById(id)  => r.id == id\n    case Search.OfKind(k) => r.kind == k\n    case Search.Everything => true\nmayRead = (reader: Account, r: CrmRecord) => r.tenant == reader.tenant || shares.value.contains(Share(r.id, reader.tenant))"
         }
+      },
+      {
+        "action": "confirm",
+        "by": "claude-example-data",
+        "at": "2026-10-22T11:24:52.884842670Z",
+        "reason": "still holds after ReadApi changed: FrFlow no longer hashes the parent's name into a node's meaning; nothing it says changed.",
+        "after": "1c16bb556104a3eb",
+        "commit": "d22ff4da28bb831f81bf94dac08348f64991b439",
+        "tree": "d61484d88132615f8441f8af7a5caa708e08d84e",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "Bb2qvatUWGCKx2IOMzxpdes+7PPZyC3b8Cz0hztdVhywcoUig1izVnQ3Lp+IkpG34adimJ6KTSMJHILZtSiyCw==",
+        "chain": "51d29a2a556518d51d13f3f5b1edff0ebc2cc93cd8273375a4401af4df06ac5f",
+        "content": "same:10f85d3e5057396b"
       }
     ],
     "ReadSideWiring": [
@@ -1572,6 +1684,22 @@
           "governs": [],
           "definition": "val stepByStep = writesKeepStore.refine[(Store.T, Write.T) => Store.T](\n  \"StepByStep\",\n  \"The CRM starts consistent, a write keeps a consistent store consistent, and every write is permitted.\",\n  why = \"A store is reached by applying writes one at a time from the initial store, so it is enough that the initial store is consistent and that each write keeps consistency (by induction over the writes) and is permitted. abs: the store after a sequence of writes is the writes applied in turn.\"\n)(\n  abs = apply => ws => ws.foldLeft(initial.value)((s, w) => apply(s, w)),\n  spec = apply => consistent(initial.value) && forall((s: Store.T, w: Write.T) => (consistent(s) ==> consistent(apply(s, w))) && permitted(s, w, apply(s, w))))"
         }
+      },
+      {
+        "action": "confirm",
+        "by": "claude-example-data",
+        "at": "2026-10-22T11:24:53.149841986Z",
+        "reason": "FrFlow no longer hashes the parent's name into a node's meaning; nothing it says changed.",
+        "held": [
+          "WriteSideWiring"
+        ],
+        "after": "cfbc08ca0e33d7c4",
+        "commit": "d22ff4da28bb831f81bf94dac08348f64991b439",
+        "tree": "d61484d88132615f8441f8af7a5caa708e08d84e",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "8mD4KoQnU4PDr6vhygUvG/ax2aWbQAroG1HmGK2h9ie9uGQZuKZSjVlHzO+sI0IGXHQcCaFXqxhi79iTRR7cBQ==",
+        "chain": "1406ca392c02c1ec09d8843e8e11e22bd72f42376e4ff73cfd1f0d6fae6d24ce",
+        "content": "same:5e39229d10fe98f4"
       }
     ],
     "TenantIsolation": [
@@ -2035,6 +2163,19 @@
           ],
           "implementation": "proven: applyWrite\napplyWrite = (s: CrmStore, w: WriteCmd) =>\n  w.change match\n    case Change.Add(r) =>\n      if r.tenant == w.by.tenant && !s.records.exists(x => x.id == r.id) then s.copy(records = s.records ++ List(r)) else s\n    case Change.ShareWith(id, to) =>\n      if s.records.exists(x => x.id == id && x.tenant == w.by.tenant) then s.copy(shares = s.shares ++ List(Share(id, to))) else s\n    case Change.Unshare(id, to) =>\n      if s.records.exists(x => x.id == id && x.tenant == w.by.tenant) then s.copy(shares = s.shares.filter(sh => sh != Share(id, to))) else s"
         }
+      },
+      {
+        "action": "confirm",
+        "by": "claude-example-data",
+        "at": "2026-10-22T11:24:53.149841986Z",
+        "reason": "still holds after StepByStep changed: FrFlow no longer hashes the parent's name into a node's meaning; nothing it says changed.",
+        "after": "53af713fdef1dc94",
+        "commit": "d22ff4da28bb831f81bf94dac08348f64991b439",
+        "tree": "d61484d88132615f8441f8af7a5caa708e08d84e",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "9rZZDwcSTzReeoJD7WY+W3r80EpNVpfW/VEZqUteyz0xA2Wi7M8MSO1nj2Bc3dT3XRFbOpg7OmdECdBvpl3mCw==",
+        "chain": "cacf3b5f5f287519c1f76e85ead13457313987e3ed9cb96a5877964f419e23b1",
+        "content": "same:ba657630f0360d94"
       }
     ],
     "WriteSideWiring": [

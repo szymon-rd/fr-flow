@@ -509,17 +509,20 @@ class SnapshotSuite extends munit.FunSuite:
     val w = workflow()
     acceptAll(w)
     val snap = proven(w.baseSnapshot)
-    // Book gains a field: only the types Pick uses changed, and how its examples print
-    val changed = Json.JObj(snap.obj.map {
+    def withUses(f: Seq[Json] => Seq[Json]) = Json.JObj(snap.obj.map {
       case ("nodes", Json.JArr(ns)) => "nodes" -> Json.JArr(ns.map { n =>
         if field(n, "id").contains("Pick") then
           val c = n("content").get
-          val uses = c("uses").get.arr.map(u => if u.str.exists(_.startsWith("case class Book")) then Json.str("case class Book(title: String, pages: Int, author: String)") else u)
-          val c2 = Json.JObj(c.obj.map { case ("uses", _) => "uses" -> Json.JArr(uses); case f => f })
+          val c2 = Json.JObj(c.obj.map { case ("uses", u) => "uses" -> Json.JArr(f(u.arr)); case f => f })
           Json.JObj(n.obj.map { case ("content", _) => "content" -> c2; case ("hash", _) => "hash" -> Json.str(Decision.hash(c2)); case f => f })
         else n })
       case f => f })
+    // Book gains a field: only the types Pick uses changed, and how its examples print
+    val changed = withUses(_.map(u => if u.str.exists(_.startsWith("case class Book")) then Json.str("case class Book(title: String, pages: Int, author: String)") else u))
     val pickNode = nodes(changed)("Pick")
     assertEquals(Decisions.state(changed, w.ledger, pickNode), "review")
     assertEquals(Decisions.mechanical(changed, w.ledger, pickNode), None)
+    // a definition it calls is part of what it says: not mechanical
+    val redefined = withUses(_ :+ Json.str("long = (b: Book) => b.pages >= 10"))
+    assert(Decisions.mechanical(redefined, w.ledger, nodes(redefined)("Pick")).exists(_.contains("changed")))
   }

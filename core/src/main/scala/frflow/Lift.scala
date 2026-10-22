@@ -658,6 +658,16 @@ private final class Translator(using val quotes: Quotes):
       case ("foldLeft", 2) if qt.derivesFrom(ListSym)    => Some(p(s"List.foldl ${e(args(1))} ${e(args.head)} $r"))
       case ("filter", 1) if qt.derivesFrom(ListSym) =>
         val (x, b) = lam(args.head); Some(p(s"List.filter (fun $x => decide $b) $r"))
+      case ("filterNot", 1) if qt.derivesFrom(ListSym) =>
+        val (x, b) = lam(args.head); Some(p(s"List.filter (fun $x => decide (¬$b)) $r"))
+      case ("flatMap", 1) if qt.derivesFrom(ListSym)     => Some(p(s"List.flatMap ${e(args.head)} $r"))
+      case ("find", 1) if qt.derivesFrom(ListSym) =>
+        val (x, b) = lam(args.head); Some(p(s"List.find? (fun $x => decide $b) $r"))
+      case ("headOption", 0) if qt.derivesFrom(ListSym)  => Some(p(s"List.head? $r"))
+      // A negative count takes nothing and drops nothing, in both.
+      case ("take" | "drop", 1) if qt.derivesFrom(ListSym) && isInt(args.head.tpe.widen) =>
+        Some(p(s"List.$name (Int.toNat ${e(args.head)}) $r"))
+      case ("zip", 1) if qt.derivesFrom(ListSym) && args.head.tpe.widen.derivesFrom(ListSym) => Some(p(s"List.zip $r ${e(args.head)}"))
       // Maps and sets, as functions: what can be said of every key needs iterating, which Lean's
       // functions do not; `m(k)` throws in Scala for a missing key.
       case ("get", 1) if qt.derivesFrom(MapSym)          => Some(p(s"$r ${e(args.head)}"))
