@@ -603,7 +603,27 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
       (if checked.nonEmpty then s", of a proven oracle for ${checked.map(_.id).mkString(", ")} (its plain implementation is checked against it on the examples' inputs)" else "") +
       (if plain.nonEmpty then s", checked on examples only for ${plain.map(_.id).mkString(", ")}" else "") +
       (if designs.nonEmpty then s"; ${designs.size} design decision(s) govern code no proof covers (${designs.map(_.id).mkString(", ")})" else "") +
-      evaluated + ".\n"
+      evaluated + ".\n" + lines
+
+  /** The code by how it is known to be right: proven (`define`s Lean proves of their contract, and what
+    * they call), checked by running (plain implementations and their files, against the contract on
+    * every call and the examples), reviewed only (files design nodes govern).
+    */
+  private def lines: String =
+    def count(f: String) = read(ws.root.resolve(f)).fold(0)(_.linesIterator.count(_.trim.nonEmpty))
+    val provenDefs = kb.nodes.flatMap(c => kb.implementation(c).filter(_.provenCode).flatMap(_.proven).toList.flatMap { d =>
+      val all = scala.collection.mutable.LinkedHashMap.empty[String, Def[?]]
+      def visit(x: Def[?]): Unit = if !all.contains(x.name) then { all(x.name) = x; x.lifted.defs.foreach(visit) }
+      visit(d); all.values.toList
+    }).distinctBy(_.name)
+    val proven = provenDefs.map(_.lifted.source.linesIterator.count(_.trim.nonEmpty)).sum
+    val contracts = kb.nodes.filter(_.kind == NodeKind.Contract)
+    val checkedFiles = contracts.filter(c => kb.implementation(c).exists(!_.provenCode)).flatMap(c => code(c).toList.flatMap(_.files)).distinct
+    val reviewedFiles = kb.nodes.filter(_.kind == NodeKind.Design).flatMap(d => code(d).toList.flatMap(_.files)).distinct.filterNot(checkedFiles.contains)
+    val checked = checkedFiles.map(count).sum
+    val reviewed = reviewedFiles.map(count).sum
+    if proven + checked + reviewed == 0 then ""
+    else s"Code: $proven line(s) proven (define), $checked checked by running (plain implementations), $reviewed reviewed only (${reviewedFiles.size} file(s) design nodes govern).\n"
 
   /** How many examples Lean evaluated as Scala does (the translation's cross-check), and where none. */
   private def evaluated: String =
