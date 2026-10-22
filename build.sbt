@@ -3,8 +3,8 @@ ThisBuild / scalacOptions ++= Seq("-deprecation", "-feature", "-Werror")
 
 val munit = "org.scalameta" %% "munit" % "1.1.1" % Test
 
-// crm and keycloak are migrated to the DAG later (docs/DAG.md §8, step 3): built on their own until then.
-lazy val root = project.in(file(".")).aggregate(core, tools, auth).settings(publish / skip := true)
+// crm is migrated to the DAG later (docs/DAG.md §8, step 3): built on its own until then.
+lazy val root = project.in(file(".")).aggregate(core, tools, auth, keycloak).settings(publish / skip := true)
 
 /** The FrFlow library: nodes, the Scala-to-Lean translation, the checker, the CLI. */
 lazy val core = project.in(file("core")).settings(name := "frflow", libraryDependencies += munit)
