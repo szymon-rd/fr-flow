@@ -4,14 +4,22 @@ import frflow.Json.*
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.{Files, Path}
 
-/** Result of one obligation: `proven`, `open` or `failed`. */
+/** Result of one obligation: `proven`, `open` or `failed`. A try (a statement Lean is asked whether it
+  * can prove, see `Generate.tries`) has a plain status instead, saying what Lean shows: `needed` or
+  * `not-needed` (a part, and `vacuous` with one part), `no-clash` or `clash`, `not-unsat` or `unsat`,
+  * `not-idle` or `idle`, `not-vacuous` or `vacuous` (an expectation).
+  */
 final case class Result(name: String, status: String, detail: String = ""):
-  /** A limit of what the node says, not an obligation: proven, `idle` means doing nothing meets the contract. */
+  /** A limit of what the node says, not an obligation: `idle` means doing nothing meets the root. */
   def isLimit: Boolean = name == "idle"
   /** Lean evaluating an example as Scala does: the translation's cross-check. */
   def isEvaluation: Boolean = name.startsWith("eval") || name.startsWith("probe")
-  /** Nothing to do about it: an obligation proven, or a limit. */
-  def fine: Boolean = isLimit || status == "proven"
+  /** Nothing to do about it: an obligation proven, a try that shows nothing wrong, or a limit. */
+  def fine: Boolean = isLimit || Result.Fine(status)
+
+object Result:
+  /** The statuses that leave nothing to do: an obligation proven, a try showing nothing wrong. */
+  val Fine: Set[String] = Set("proven", "needed", "no-clash", "not-unsat", "not-idle", "not-vacuous")
 
 
 /** The outcome of checking one node. `status` is `proven`, `open`, `failed`,

@@ -104,22 +104,22 @@
     "needed": [
      {
       "id": "Inst",
-      "status": "proven",
+      "status": "needed",
       "detail": "needed: Lean does not show the node without it"
      },
      {
       "id": "Inst2",
-      "status": "proven",
+      "status": "needed",
       "detail": "needed: Lean does not show the node without it"
      },
      {
       "id": "Failed",
-      "status": "proven",
+      "status": "needed",
       "detail": "needed: Lean does not show the node without it"
      }
     ],
     "clash": {
-     "status": "proven",
+     "status": "no-clash",
      "detail": "not shown"
     }
    },
@@ -182,12 +182,12 @@
     "needed": [
      {
       "id": "Contract",
-      "status": "proven",
+      "status": "needed",
       "detail": "needed: Lean does not show the node without it"
      }
     ],
     "clash": {
-     "status": "proven",
+     "status": "no-clash",
      "detail": "not shown"
     }
    },
@@ -244,7 +244,7 @@
     },
     "needed": [],
     "clash": {
-     "status": "proven",
+     "status": "no-clash",
      "detail": "not shown"
     }
    },
@@ -331,7 +331,7 @@
     },
     "needed": [],
     "clash": {
-     "status": "proven",
+     "status": "no-clash",
      "detail": "not shown"
     }
    },
@@ -390,7 +390,7 @@
     },
     "needed": [],
     "clash": {
-     "status": "proven",
+     "status": "no-clash",
      "detail": "not shown"
     }
    },
@@ -445,7 +445,7 @@
     },
     "needed": [],
     "clash": {
-     "status": "proven",
+     "status": "no-clash",
      "detail": "not shown"
     }
    },
@@ -498,7 +498,7 @@
     },
     "needed": [],
     "clash": {
-     "status": "proven",
+     "status": "no-clash",
      "detail": "not shown"
     }
    },

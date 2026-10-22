@@ -246,7 +246,7 @@ Minimal departures from the above, each kept to what the code needed; none from 
   causes are among `self`, `above` and `parts`, whose own content (as for `self`, without what follows
   from elsewhere: the types it uses, how its examples print, a proven implementation) did not change,
   that `unproven` says nothing of (a leaf claim aside), whose examples pass, and, under `parts`, whose
-  `split` has `complete` proven, every `needed` proven (each part needed) and no `clash` failed.
+  `split` has `complete` proven, every part `needed` and `clash` not `clash` (see "Fixes after the migrations").
 - **Below.** `below` (what accepting a change can act on) follows everything that rests on the node,
   however far down: its parts, the nodes using a definition, the callers of a contract, the keepers of an
   invariant, and what rests on those, through the decisions listed only; each once, sorted parents first
@@ -307,3 +307,12 @@ What the migrations of `examples/keycloak` and `examples/crm` found in the core,
   classes (`db: Db`) or binds to one (`val db = Db.open(...)`, `new Db(...)`), on such a class, or on the
   value of a model parameter of that type (`database.value`). A list's `find` or a response's `write` is no
   longer taken for the adapter's method of that name.
+- **Tries in plain words.** A try's result (in `checks.json`, the snapshot's `split`, `check`'s output and
+  the browser) says what Lean showed, no longer read backwards: each part `needed` or `not-needed` (with
+  one part, `vacuous` gives the same two), `clash` or `no-clash`, `unsat` or `not-unsat`, the root's `idle`
+  or `not-idle`, an expectation's `vacuous_expect_i` `vacuous` or `not-vacuous`; `unchecked`, `timeout`
+  and `informal` as before when there is no result. `complete` and the obligations stay `proven`, `open`,
+  `failed`. `Result.fine` (nothing to do) is `proven` or a try showing nothing wrong. The snapshot's
+  `idle` on the root is unchanged (what doing nothing is, when Lean shows it meets the root; else null),
+  and a kept invariant's status stays in its own words (`proven` when the contract is needed, `open` when
+  not). `CheckerVersion` is 5: results recorded before are checked again.

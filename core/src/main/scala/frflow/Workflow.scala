@@ -488,12 +488,15 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     // The tries: what Lean proves of them says the node or its split says nothing, or too much.
     val tried = g.tries(n).map(t => (t, holds(t.obligation.name)))
     val fatal = tried.collect { case (t, true) if Set("unsat", "clash")(t.obligation.name) => t.means }
+    // Each in plain words: what Lean shows (see `Result`).
     val tryResults = tried.map { (t, proven) =>
       val name = t.obligation.name
-      if name == "idle" then Result("idle", if proven then "proven" else "open", g.idleWhat(n))
-      else if name.startsWith("vacuous_expect_") then Result(name, if proven then "failed" else "proven", if proven then t.means else "")
-      else if name == "unsat" || name == "clash" then Result(name, if proven then "failed" else "proven", if proven then t.means else "not shown")
-      else Result(name, if proven then "open" else "proven", if proven then t.means else "needed: Lean does not show the node without it")
+      def says(yes: String, no: String, otherwise: String) = Result(name, if proven then yes else no, if proven then t.means else otherwise)
+      if name == "idle" then Result("idle", if proven then "idle" else "not-idle", g.idleWhat(n))
+      else if name.startsWith("vacuous_expect_") then says("vacuous", "not-vacuous", "")
+      else if name == "unsat" then says("unsat", "not-unsat", "Lean does not show it contradictory")
+      else if name == "clash" then says("clash", "no-clash", "Lean does not show the parts contradict each other")
+      else says("not-needed", "needed", "Lean does not show the node without it")
     }
     val extra = g.extraObligations(n).map { o =>
       val how = if g.isAuthored(n, o.name) then "authored" else "auto"
@@ -545,8 +548,9 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     if files.isEmpty then None else Some(Code.of(base, files))
 
   /** How a node's parts make it (docs/DAG.md §4): `complete`, each part `needed`, and `clash`, each with a
-    * status (`proven`, `open`, `failed`, `unchecked`, `timeout`, `informal`) and a detail. Null for a node
-    * with no parts.
+    * status and a detail. `complete`: `proven`, `open`, `failed`; each part: `needed` or `not-needed`;
+    * `clash`: `no-clash` or `clash`; any of them `unchecked`, `timeout` or `informal` when not checked. Null
+    * for a node with no parts.
     */
   def split(n: Node[?]): Json =
     def st(status: String, detail: String) = obj("status" -> str(status), "detail" -> str(detail))
@@ -662,7 +666,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
 
   /** What doing nothing is, when it meets the node (Lean proved it). */
   /** What doing nothing is, when it meets the root (Lean proved it). */
-  def idleOf(n: Node[?]): Option[String] = current(n).flatMap(_.obligations.find(o => o.name == "idle" && o.status == "proven")).map(_.detail)
+  def idleOf(n: Node[?]): Option[String] = current(n).flatMap(_.obligations.find(o => o.name == "idle" && o.status == "idle")).map(_.detail)
 
   /** Top-level code in a model file that is none of the model (a node, a `define`, an open term, a type,
     * the knowledge base, a `@main`): it would run unseen by any node, next to the model.
@@ -791,7 +795,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     */
   def coverage: String =
     val splits = kb.nodes.filter(n => kb.isStatement(n) && kb.parts(n).nonEmpty)
-    def fine(j: Json) = j("status").flatMap(_.str).exists(Set("proven", "informal"))
+    def fine(j: Json) = j("status").flatMap(_.str).exists(Result.Fine + "informal")
     def provenSplit(n: Node[?]) =
       val s = split(n)
       s("complete").exists(c => c("status").flatMap(_.str).contains("proven")) && s("needed").exists(_.arr.forall(fine)) && s("clash").exists(fine)
@@ -1089,8 +1093,10 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
               val inv = split(k.invariant)
               val cover = res(s"cover_${k.invariant.id}").map(r => (r.status, s"coverage: ${r.detail}"))
               val complete = inv("complete").map(c => (c("status").flatMap(_.str).getOrElse(""), c("detail").flatMap(_.str).getOrElse("")))
+              // (In the invariant's words: kept, `proven`, when the contract is needed; `open` when it is not.)
               val needed = inv("needed").flatMap(_.arr.find(_("id").flatMap(_.str).contains(n.id)))
-                .map(c => (c("status").flatMap(_.str).getOrElse(""), c("detail").flatMap(_.str).getOrElse("")))
+                .map(c => (c("status").flatMap(_.str).map { case "needed" => "proven"; case "not-needed" => "open"; case x => x }.getOrElse(""),
+                  c("detail").flatMap(_.str).getOrElse("")))
               val all = cover.toList ++ complete ++ needed
               all.find(_._1 != "proven").orElse(complete).getOrElse(("unchecked", "not checked yet"))
           obj("id" -> str(k.invariant.id), "view" -> str(k.view.fold("")(_.source)),
@@ -1238,4 +1244,4 @@ object Workflow:
   val ContentFormat: Int = 4
 
   /** How checks are run and read: a change to it re-runs every check. */
-  val CheckerVersion: Int = 4
+  val CheckerVersion: Int = 5
