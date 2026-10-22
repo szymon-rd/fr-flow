@@ -484,7 +484,7 @@ function verdict(n) {
 
 // A word-level diff: what was decided, against what is there now.
 // Code and lists compare by line, so a change reads as the lines it touched; prose by word.
-const byLine = new Set(["implementation", "definitions used", "examples", "substitutions", "spec", "abs", "post"]);
+const byLine = new Set(["implementation", "definitions used", "examples", "substitutions", "spec", "abs", "post", "definition (as written)"]);
 function wordDiff(a, b, lines = false) {
   const x = (a || "").split(lines ? /(\n)/ : /(\s+)/), y = (b || "").split(lines ? /(\n)/ : /(\s+)/);
   if (x.length * y.length > 250000) return `<del class="w">${esc(a)}</del>\n<ins class="w">${esc(b)}</ins>`;
@@ -508,6 +508,7 @@ function diff(old, cur) {
     substitutions: (c.substitutions || []).join("\n"), examples: (c.examples || []).join("\n"),
     implementation: c.implementation, vocabulary: (c.vocabulary || []).join("\n"), "definitions used": (c.uses || []).join("\n\n"), governs: (c.governs || []).join("\n"),
     "invariants kept": (c.keeps || []).join("\n"), "relies on": (c.relies || []).join("\n"), "out of Lean": c.formal === false ? "yes" : "",
+    "definition (as written)": c.definition,
   });
   const a = flat(old || {}), b = flat(cur || {});
   const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])].filter(k => (a[k] || "") !== (b[k] || ""));

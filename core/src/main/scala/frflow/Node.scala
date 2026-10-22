@@ -87,7 +87,8 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
     val file: String = "",
     val expected: List[(String, Lifted[?])] = Nil,
     val assumed: Boolean = false,
-    val relied: List[(() => Node[?], String, Option[Lifted[() => Boolean]])] = Nil
+    val relied: List[(() => Node[?], String, Option[Lifted[() => Boolean]])] = Nil,
+    val at: Int = -1
 ):
   /** The nodes this one relies on besides its parent (see `relies`), with what it relies on. */
   def reliesOn: List[(Node[?], String)] = relied.map((f, why, _) => (f(), why))
@@ -132,22 +133,22 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
   inline def refine[M2](id: String, statement: String, why: String, inline formal: Boolean = true, assume: Boolean = false)(
       inline abs: M2 => M, inline spec: M2 => Boolean): Node[M2] =
     Node(id, statement, why, NodeKind.Refine, Some(this), Some(Lifted.of(formal, spec)), Some(Lifted.of(formal, abs)), None, Nil,
-      declaredFormal = formal, file = Lifted.here, assumed = assume)
+      declaredFormal = formal, file = Lifted.here, at = Lifted.at, assumed = assume)
 
   /** Fixes opaque types and parameters. `why` says why these are the right meanings in the world. */
   inline def instantiate[M2](id: String, statement: String, why: String, formal: Boolean = true)(substs: Subst*): Node[M2] =
-    Node(id, statement, why, NodeKind.Instantiate, Some(this), None, None, None, substs.toList, declaredFormal = formal, file = Lifted.here)
+    Node(id, statement, why, NodeKind.Instantiate, Some(this), None, None, None, substs.toList, declaredFormal = formal, file = Lifted.here, at = Lifted.at)
 
   /** A contract for implementations with two inputs: `post(a, b, result)` holds for every call. */
   inline def contract[A, B, R](id: String, statement: String, why: String, inline formal: Boolean = true, assume: Boolean = false)(
       inline post: (A, B, R) => Boolean)(using M =:= ((A, B) => R)): Node[(A, B) => R] =
-    Node(id, statement, why, NodeKind.Contract, Some(this), None, None, Some(Lifted.of(formal, post)), Nil, declaredFormal = formal, file = Lifted.here,
+    Node(id, statement, why, NodeKind.Contract, Some(this), None, None, Some(Lifted.of(formal, post)), Nil, declaredFormal = formal, file = Lifted.here, at = Lifted.at,
       assumed = assume)
 
   private def copy(cases: List[Example] = cases, governs: List[String] = governs, kept: List[Keep] = kept,
       expected: List[(String, Lifted[?])] = expected, relied: List[(() => Node[?], String, Option[Lifted[() => Boolean]])] = relied): Node[M] =
     Node(id, statement, why, kind, parent, spec, abs, post, substs, cases, governs, declaredFormal, kept, scope, ideaSection, file, expected, assumed,
-      relied)
+      relied, at)
 
   /** A contract with a signature of its own: `abs` says what an implementation is as the parent's
     * model (a new read path below an existing instantiation, say). Proven: `spec f → parent.spec (abs f)`.
@@ -155,7 +156,7 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
   inline def contractVia[A, B, R](id: String, statement: String, why: String, inline formal: Boolean = true, assume: Boolean = false)(
       inline abs: ((A, B) => R) => M)(inline post: (A, B, R) => Boolean): Node[(A, B) => R] =
     Node(id, statement, why, NodeKind.Contract, Some(this), None, Some(Lifted.of(formal, abs)), Some(Lifted.of(formal, post)), Nil,
-      declaredFormal = formal, file = Lifted.here, assumed = assume)
+      declaredFormal = formal, file = Lifted.here, at = Lifted.at, assumed = assume)
 
   private[frflow] def withExamples(es: List[Example]): Node[M] =
     copy(cases = cases ++ es)
@@ -174,7 +175,7 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
     * change to them is noticed.
     */
   inline def design(id: String, statement: String, why: String)(governs: String*): Node[Unit] =
-    Node(id, statement, why, NodeKind.Design, Some(this), None, None, None, Nil, Nil, governs.toList, file = Lifted.here)
+    Node(id, statement, why, NodeKind.Design, Some(this), None, None, None, Nil, Nil, governs.toList, file = Lifted.here, at = Lifted.at)
 
   /** The invariant does not apply to this contract or design decision, for the reason given (part of
     * what the node says, so the developer reads it).
@@ -193,7 +194,7 @@ object Node:
   inline def root[M](id: String, statement: String, why: String, inline formal: Boolean = true, idea: String = "")(
       inline spec: M => Boolean): Node[M] =
     Node(id, statement, why, NodeKind.Root, None, Some(Lifted.of(formal, spec)), None, None, Nil, declaredFormal = formal, ideaSection = idea,
-      file = Lifted.here)
+      file = Lifted.here, at = Lifted.at)
 
   /** A cross-cutting invariant: `rule(a, b)` holds for every pair a call exposes (such as a reader
     * and a record returned to them), stated once. Every contract below the `scope` nodes (every
@@ -202,11 +203,11 @@ object Node:
   inline def invariant[A, B](id: String, statement: String, why: String, scope: List[Node[?]] = Nil, inline formal: Boolean = true)(
       inline rule: (A, B) => Boolean): Node[(A, B) => Boolean] =
     Node(id, statement, why, NodeKind.Invariant, None, Some(Lifted.of(formal, rule)), None, None, Nil, declaredFormal = formal, scope = scope,
-      file = Lifted.here)
+      file = Lifted.here, at = Lifted.at)
 
   /** A design decision on its own, with no formal model (see `Node.design`). */
   inline def design(id: String, statement: String, why: String)(governs: String*): Node[Unit] =
-    Node(id, statement, why, NodeKind.Design, None, None, None, None, Nil, Nil, governs.toList, file = Lifted.here)
+    Node(id, statement, why, NodeKind.Design, None, None, None, None, Nil, Nil, governs.toList, file = Lifted.here, at = Lifted.at)
 
 /** A concrete case of a contract, under given parameter values: the call `(a, b)`
   * with `result`. An `expect`ed case must be accepted by the contract and returned by

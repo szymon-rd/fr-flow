@@ -97,6 +97,10 @@ private[frflow] object Lift:
     val p = java.nio.file.Paths.get(Position.ofMacroExpansion.sourceFile.path).toAbsolutePath.normalize
     Expr(if p.startsWith(base) then base.relativize(p).toString else p.toString)
 
+  def at(using Quotes): Expr[Int] =
+    import quotes.reflect.*
+    Expr(Position.ofMacroExpansion.start)
+
   def sources(xs: Expr[Seq[Any]])(using Quotes): Expr[List[String]] =
     import quotes.reflect.*
     // Through inline calls the argument arrives wrapped; its own position is the caller's text.

@@ -215,12 +215,14 @@ class SnapshotSuite extends munit.FunSuite:
     assertEquals(w.kb.ordered.map(w.state), List("review", "review", "review"))
     val ns = nodes(w.annotated)
     assertEquals(ns("OnlyGood")("causes").get.arr.flatMap(_.str), Seq("self"))
-    assertEquals(ns("Books")("causes").get.arr.flatMap(_.str), Seq("above"))
-    // the decisions below that moved only with the root are listed with it, and confirmed by name
-    assertEquals(nodes(w.annotated)("OnlyGood")("below").get.arr.flatMap(_("id").flatMap(_.str)), Seq("Listed", "Books"))
-    ok(accept(w, root2, "Clearer with 'ever' added.", confirm = List(listed2, books2)))
+    // (written anew here, as other vals: what they say as written changed too)
+    assertEquals(ns("Books")("causes").get.arr.flatMap(_.str), Seq("self", "above"))
+    assert(field(ns("Books"), "content", "definition").exists(_.startsWith("val books2 = listed2.instantiate")), ns("Books"))
+    ok(accept(w, root2, "Clearer with 'ever' added."))
+    ok(accept(w, listed2, "Listed still holds under the clearer root."))
+    ok(accept(w, books2, "Books still hold under the clearer root."))
     assert(w.kb.nodes.forall(w.state(_) == "accepted"), w.kb.nodes.map(w.state))
-    assertEquals(w.ledger.history("Books").map(_.action), List("accept", "confirm"))
+    assertEquals(w.ledger.history("Books").map(_.action), List("accept", "accept"))
     assert(w.context(books2).contains("Chosen by dev because: Books is right"))
   }
 

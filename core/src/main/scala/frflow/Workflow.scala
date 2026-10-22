@@ -73,7 +73,8 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
     val files = if Files.isDirectory(dir) then Files.list(dir).iterator.asScala.toList.sortBy(_.toString) else Nil
     // The kernel's modules, its root module, and the Lean toolchain of the kernel and the project.
     val kernel = ws.lean.resolve(ws.kernelPath).normalize
-    sha((files.flatMap(read) ++ List(kernel.resolve("FrFlow.lean"), kernel.resolve("lean-toolchain"), ws.lean.resolve("lean-toolchain")).map(p => read(p).getOrElse("")))*)
+    sha((files.flatMap(read) ++ List(kernel.resolve("FrFlow.lean"), kernel.resolve("lean-toolchain"), ws.lean.resolve("lean-toolchain"),
+      ws.lean.resolve("lakefile.toml"), ws.lean.resolve("lake-manifest.json")).map(p => read(p).getOrElse("")))*)
 
   /** The idea a root is decided against: IDEA.md without its `## Not modelled` section. */
   def ideaDecided: String = Decisions.splitIdea(idea)._1
@@ -125,7 +126,8 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
     "examples" -> JArr(n.cases.map(e => str(e.describe))),
     "vocabulary" -> JArr(introduced(n).map(str)),
     "uses" -> JArr(generate.sourcesUsedBy(n).map(str)),
-    "governs" -> JArr(n.governs.map(str))
+    "governs" -> JArr(n.governs.map(str)),
+    "definition" -> str(definition(n))
   ) ++ (if n.formal then Nil else List("formal" -> JBool(false))) ++ (if n.assumed then List("assumed" -> JBool(true)) else Nil) ++
     (if n.kept.isEmpty then Nil else List("keeps" -> JArr(n.kept.map(k => str(k.describe))))) ++
     (if n.reliesOn.isEmpty then Nil else List("relies" -> JArr(n.relied.map((o, why, p) => str(s"${o().id}: $why${p.fold("")(l => s" (checked: ${l.source})")}"))))) ++
@@ -140,6 +142,30 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
     ++ (if n.kind != NodeKind.Root then Nil
         else if n.ideaSection.isEmpty then Seq("idea" -> str(ideaDecided), "notModelled" -> str(notModelled))
         else Seq("idea" -> str(ideaOf(n)), "ideaSection" -> str(n.ideaSection), "notModelled" -> str(notModelledOf(n)))))
+
+  /** The source of the top-level definition a node is written in (the `val` with every call chained on
+    * it, its arguments, its examples): what the developer decides is what is written, so nothing hidden in
+    * an argument (a block that runs code before giving a `why`) escapes review.
+    */
+  def definition(n: Node[?]): String =
+    read(Path.of(n.file)).orElse(read(ws.root.resolve(n.file))).filter(_ => n.at >= 0).fold("") { text =>
+      val lines = text.split("\n", -1).toList
+      val starts = lines.scanLeft(0)(_ + _.length + 1)
+      val k = starts.lastIndexWhere(_ <= n.at).min(lines.size - 1).max(0)
+      def indent(l: String) = l.takeWhile(_ == ' ').length
+      val Statement = """^\s*(?:(?:private|protected|final|lazy|override|inline)\s+)*(?:val|def|given|var)\b.*""".r
+      // The statement holding the call: the nearest `val`/`def` above it, no deeper than its line...
+      val from = (k to 0 by -1).find(j => lines(j).trim.nonEmpty && indent(lines(j)) <= indent(lines(k)) && Statement.matches(lines(j))).getOrElse(k)
+      // ...to the next line as shallow as it that does not continue it (a closing bracket, a chained call).
+      val to = ((from + 1) until lines.size).find { j =>
+        val t = lines(j).trim
+        t.nonEmpty && indent(lines(j)) <= indent(lines(from)) && !Seq(")", "}", "]", ".").exists(t.startsWith)
+      }.getOrElse(lines.size)
+      val body = lines.slice(from, to).map(_.stripTrailing).reverse.dropWhile(_.isEmpty).reverse
+      // Dedented: moving the statement into or out of a block is not a change of what it says.
+      val margin = body.filter(_.trim.nonEmpty).map(indent).minOption.getOrElse(0)
+      body.map(_.drop(margin)).mkString("\n")
+    }
 
   /** The part of the idea a root is decided against: its section, after the text before the first. */
   def ideaOf(root: Node[?]): String =
@@ -424,6 +450,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
       staleNames ++
       (if checksCommitted then List(".frflow/checks.json is committed: proof results must come from running check, so it is ignored; remove it from git") else Nil) ++ ungoverned.map(f => s"$f is governed by no node: govern it (.governing or a design node) or move it") ++
       shadowing.map(f => s"$f declares a package of FrFlow (frflow): it would replace FrFlow's own classes, its checks among them") ++
+      leanStrays.map(f => s"lean/$f is neither generated nor a proof: Lake may run it as code (a lakefile.lean does); remove it") ++
       modelCode
 
   /** Statements and reasons that name a node no longer chosen (rejected, or removed): the text
@@ -519,7 +546,8 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
         val name = p.getFileName.toString
         if Files.isDirectory(p) then
           val parent = abs(p).getParent
-          if name.startsWith(".") || (skipDirs(name) && parent == root) || root.relativize(abs(p)).toString == "src/test" ||
+          // Hidden directories are code like any other, but the tools' own at the root (.git, .bsp, ...).
+          if (name.startsWith(".") && parent == root) || (skipDirs(name) && parent == root) || root.relativize(abs(p)).toString == "src/test" ||
             ((name == "target" || name == "project") && parent == root.resolve("project")) then Nil else walk(p)
         else if root.relativize(abs(p)).startsWith("src/main") || codeExt(name.reverse.takeWhile(_ != '.').reverse) then List(p)
         else Nil
@@ -527,6 +555,18 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
     val fromBuild = sys.props.get("frflow.sources").toList.flatMap(_.split(java.io.File.pathSeparator)).filter(_.nonEmpty)
       .map(Path.of(_)).filterNot(p => abs(p).startsWith(root.resolve("target")))
     (walk(root) ++ fromBuild).filter(Files.isRegularFile(_)).map(abs).distinct
+
+  /** Files in the project's Lean workspace that are neither generated, nor proofs, nor its configuration
+    * as rendered: Lake runs a `lakefile.lean` as code, and anything else there is code no node governs.
+    */
+  def leanStrays: List[String] =
+    val lean = ws.lean.toAbsolutePath.normalize
+    val allowed = Set("lakefile.toml", "lean-toolchain", "lake-manifest.json")
+    if !Files.isDirectory(lean) then Nil
+    else Files.walk(lean).iterator.asScala.toList.filter(Files.isRegularFile(_)).map(p => lean.relativize(p.toAbsolutePath.normalize).toString)
+      .filterNot(r => r.startsWith(".lake/") || r.startsWith("FrFlowGen/") || r.startsWith("FrFlowAudit/") || allowed(r) ||
+        (r.startsWith("Proofs/") && r.endsWith(".lean")))
+      .sorted
 
   /** Project sources that declare a package of FrFlow's own: they would replace its classes (the
     * run-time checks among them) on the classpath.
@@ -959,7 +999,7 @@ object Workflow:
   /** The shape of a node's content, which decisions are bound to. A snapshot of another shape is
     * not decided on: it was written by another version of FrFlow, and must be rendered again.
     */
-  val ContentFormat: Int = 2
+  val ContentFormat: Int = 3
 
   /** How checks are run and read: a change to it re-runs every check. */
   val CheckerVersion: Int = 3

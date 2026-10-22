@@ -120,6 +120,8 @@ object Lifted:
   inline def sourceFiles(inline x: Any): List[String] = ${ Lift.sourceFiles('x) }
   /** The file this is written in. */
   inline def here: String = ${ Lift.here }
+  /** Where in its file this is written (an offset): the definition it is part of is found from it. */
+  inline def at: Int = ${ Lift.at }
 
   /** The source text of each argument (used for what examples are given). */
   inline def sources(inline xs: Any*): List[String] = ${ Lift.sources('xs) }
