@@ -292,6 +292,53 @@
             "CrmWrites: a share names one record by its id: ids are unique in every store the writes reach, so a share never shows another company's record with the same id (checked: () => consistentStore(CrmStore(store.value, shares.value)))"
           ]
         }
+      },
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-22T07:44:04.428397973Z",
+        "reason": "The reads rely on the writes for a consistent store, now as a guarantee Lean proves of every state the writes reach (rely_CrmWrites); ids are BigInt.",
+        "after": "019c5a3e56bc57d9",
+        "commit": "c9ac980931aec5bbe699559fb2627747a8ed65e4",
+        "tree": "f7e8b1ab03f6c6504c91d3cd92c911f5f2133248",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "zsHrCKuF4Q3PSu/kTCVFd6O3tPhh/Vl5iJgMo5IeSK5cxnSJeFqRRUm+NQVdr9a6kyeen/ermWyWx9M+ajUEBg==",
+        "chain": "619b21ae01917d1fec452d0ca85526893c02c6bd3b414f64e03a29a8b21a9710",
+        "content": {
+          "parent": "ReadApi",
+          "statement": "Users are accounts of a company, records are contacts and deals, and sharing is a table of shares.",
+          "why": "A record belongs to the company stored on it, and a user to the company of their account. This trusts the record, so ReadContract requires returned records to be the stored ones; it also trusts the account, which authentication provides (not modelled).",
+          "sources": {},
+          "substitutions": [
+            "Tenant := TenantId",
+            "User := Account",
+            "Record := CrmRecord",
+            "Query := Search",
+            "tenantOf := (a: Account) => a.tenant",
+            "owner := (r: CrmRecord) => r.tenant",
+            "sharedWith := (r: CrmRecord, t: TenantId) => shares.value.contains(Share(r.id, t))"
+          ],
+          "examples": [],
+          "vocabulary": [
+            "shares: the share table as stored when the search runs; a share names a record by its id, which is unique across all companies in every store writes reach (Accounts relies on CrmWrites for it)",
+            "store: the records as stored when the search runs"
+          ],
+          "uses": [
+            "case class TenantId(value: String)",
+            "case class Account(email: String, tenant: TenantId)",
+            "enum Kind: case Contact, case Deal",
+            "case class CrmRecord(id: BigInt, tenant: TenantId, kind: Kind, title: String)",
+            "case class Share(record: BigInt, to: TenantId)",
+            "case class CrmStore(records: List[CrmRecord], shares: List[Share])",
+            "enum Search: case ById(id: BigInt), case OfKind(kind: Kind), case Everything",
+            "consistentStore = (s: CrmStore) =>\n  s.shares.forall(sh => s.records.exists(r => r.id == sh.record)) && s.records.forall(a => s.records.forall(b => (a.id == b.id) ==> (a == b)))"
+          ],
+          "governs": [],
+          "definition": "val accounts = readApi.instantiate[(Account, Search) => List[CrmRecord]](\n  \"Accounts\",\n  \"Users are accounts of a company, records are contacts and deals, and sharing is a table of shares.\",\n  why = \"A record belongs to the company stored on it, and a user to the company of their account. This trusts the record, so ReadContract requires returned records to be the stored ones; it also trusts the account, which authentication provides (not modelled).\"\n)(\n  Tenant     := of[TenantId],\n  User       := of[Account],\n  Record     := of[CrmRecord],\n  Query      := of[Search],\n  tenantOf   := ((a: Account) => a.tenant),\n  owner      := ((r: CrmRecord) => r.tenant),\n  sharedWith := ((r: CrmRecord, t: TenantId) => shares.value.contains(Share(r.id, t)))\n).reliesThat(crmWrites, \"a share names one record by its id: ids are unique in every store the writes reach, so a share never shows another company's record with the same id\")(\n  (s: CrmStore) => consistentStore(s))(() => CrmStore(store.value, shares.value))",
+          "relies": [
+            "CrmWrites: a share names one record by its id: ids are unique in every store the writes reach, so a share never shows another company's record with the same id (guarantee: (s: CrmStore) => consistentStore(s), of: () => CrmStore(store.value, shares.value))"
+          ]
+        }
       }
     ],
     "CrmWrites": [
@@ -410,6 +457,47 @@
             "permittedWrite = (s: CrmStore, w: WriteCmd, t: CrmStore) =>\n  t.records.filter(r => r.tenant != w.by.tenant) == s.records.filter(r => r.tenant != w.by.tenant) &&\n  t.shares.forall(sh => s.shares.contains(sh) || t.records.exists(r => r.id == sh.record && r.tenant == w.by.tenant)) &&\n  s.shares.forall(sh => t.shares.contains(sh) || s.records.exists(r => r.id == sh.record && r.tenant == w.by.tenant))"
           ],
           "governs": []
+        }
+      },
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-22T07:44:04.188027333Z",
+        "reason": "Record ids are BigInt now: Lean integers are unbounded, so the model no longer quantifies over values Scala cannot hold.",
+        "after": "caad898612e7ed16",
+        "commit": "c9ac980931aec5bbe699559fb2627747a8ed65e4",
+        "tree": "f7e8b1ab03f6c6504c91d3cd92c911f5f2133248",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "4b2wdDhZ6ZnBD9kH55Np56exXLovRk12fS8poDIOIaegOyixOw83/gT6Dii/mWuCmTqyWtyVIuBQjodQQQYdDg==",
+        "chain": "b6de6bd2fc7b87fd071930264f76c2b25d1d74c56d19dcc3bb1d22d59fb3a99a",
+        "content": {
+          "parent": "StepByStep",
+          "statement": "The store is the CRM's records and shares; a write is a user's change; a store is consistent when every share is of a stored record and record ids are unique; a write may change only its author's company's records, and add or remove only shares of their company's records.",
+          "why": "A share names a record by its id: a share of a record that is not stored would show the next record stored with that id, and two records with one id would both be shared by it, across companies. Authority is by the author's account, which authentication provides (not modelled). Records of other companies must come out of a write exactly as they went in.",
+          "sources": {},
+          "substitutions": [
+            "Store := CrmStore",
+            "Write := WriteCmd",
+            "initial := CrmStore(Nil, Nil)",
+            "consistent := (s: CrmStore) => consistentStore(s)",
+            "permitted := (s: CrmStore, w: WriteCmd, t: CrmStore) => permittedWrite(s, w, t)"
+          ],
+          "examples": [],
+          "vocabulary": [],
+          "uses": [
+            "case class TenantId(value: String)",
+            "enum Kind: case Contact, case Deal",
+            "case class CrmRecord(id: BigInt, tenant: TenantId, kind: Kind, title: String)",
+            "case class Share(record: BigInt, to: TenantId)",
+            "case class CrmStore(records: List[CrmRecord], shares: List[Share])",
+            "case class Account(email: String, tenant: TenantId)",
+            "enum Change: case Add(record: CrmRecord), case ShareWith(record: BigInt, to: TenantId), case Unshare(record: BigInt, to: TenantId)",
+            "case class WriteCmd(by: Account, change: Change)",
+            "consistentStore = (s: CrmStore) =>\n  s.shares.forall(sh => s.records.exists(r => r.id == sh.record)) && s.records.forall(a => s.records.forall(b => (a.id == b.id) ==> (a == b)))",
+            "permittedWrite = (s: CrmStore, w: WriteCmd, t: CrmStore) =>\n  t.records.filter(r => r.tenant != w.by.tenant) == s.records.filter(r => r.tenant != w.by.tenant) &&\n  t.shares.forall(sh => s.shares.contains(sh) || t.records.exists(r => r.id == sh.record && r.tenant == w.by.tenant)) &&\n  s.shares.forall(sh => t.shares.contains(sh) || s.records.exists(r => r.id == sh.record && r.tenant == w.by.tenant))"
+          ],
+          "governs": [],
+          "definition": "val crmWrites = stepByStep.instantiate[(CrmStore, WriteCmd) => CrmStore](\n  \"CrmWrites\",\n  \"The store is the CRM's records and shares; a write is a user's change; a store is consistent when every share is of a stored record and record ids are unique; a write may change only its author's company's records, and add or remove only shares of their company's records.\",\n  why = \"A share names a record by its id: a share of a record that is not stored would show the next record stored with that id, and two records with one id would both be shared by it, across companies. Authority is by the author's account, which authentication provides (not modelled). Records of other companies must come out of a write exactly as they went in.\"\n)(\n  Store      := of[CrmStore],\n  Write      := of[WriteCmd],\n  initial    := CrmStore(Nil, Nil),\n  consistent := ((s: CrmStore) => consistentStore(s)),\n  permitted  := ((s: CrmStore, w: WriteCmd, t: CrmStore) => permittedWrite(s, w, t))\n)"
         }
       }
     ],
@@ -613,6 +701,41 @@
           ],
           "governs": []
         }
+      },
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-22T07:44:03.092473902Z",
+        "reason": "Record ids are BigInt now, as everywhere in the model; the rule about who may read a record is unchanged.",
+        "after": "99e7e022e2df988a",
+        "commit": "c9ac980931aec5bbe699559fb2627747a8ed65e4",
+        "tree": "f7e8b1ab03f6c6504c91d3cd92c911f5f2133248",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "m6X1tH2ndxOf8i3YQERydIoLi/LpqnO0ZCwpBv6E/jDZ6+jBHvIU97OOcMyHklqKFZsCCXSEOYhe2tVNpf8QCw==",
+        "chain": "",
+        "content": {
+          "parent": null,
+          "statement": "No read returns a record of another company unless that company shared it with the reader's.",
+          "why": "The isolation every read path of the CRM must keep, stated once. Every contract keeps it, listing the records a call shows to whom, or says why it shows none; so a new read path (an export, an admin view) cannot leave it out unnoticed.",
+          "sources": {
+            "spec": "(reader, r) => mayRead(reader, r)"
+          },
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [
+            "shares: the share table as stored when the search runs; a share names a record by its id, which is unique across all companies in every store writes reach (Accounts relies on CrmWrites for it)"
+          ],
+          "uses": [
+            "case class TenantId(value: String)",
+            "case class Account(email: String, tenant: TenantId)",
+            "enum Kind: case Contact, case Deal",
+            "case class CrmRecord(id: BigInt, tenant: TenantId, kind: Kind, title: String)",
+            "case class Share(record: BigInt, to: TenantId)",
+            "mayRead = (reader: Account, r: CrmRecord) => r.tenant == reader.tenant || shares.value.contains(Share(r.id, reader.tenant))"
+          ],
+          "governs": [],
+          "definition": "val noCrossTenantRead = Node.invariant[Account, CrmRecord](\n  \"NoCrossTenantRead\",\n  \"No read returns a record of another company unless that company shared it with the reader's.\",\n  why = \"The isolation every read path of the CRM must keep, stated once. Every contract keeps it, listing the records a call shows to whom, or says why it shows none; so a new read path (an export, an admin view) cannot leave it out unnoticed.\"\n)((reader, r) => mayRead(reader, r))"
+        }
       }
     ],
     "ReadApi": [
@@ -705,6 +828,37 @@
             "visible = (u: User.T, r: Record.T) => owner(r) == tenantOf(u) || sharedWith(r, tenantOf(u))"
           ],
           "governs": []
+        }
+      },
+      {
+        "action": "migrate",
+        "by": "claude-example-data",
+        "at": "2026-10-22T07:44:03.625638951Z",
+        "reason": "FrFlow 3 records the definition as written with the node; nothing the node says changed.",
+        "after": "f3afb5b9fe1ba60f",
+        "commit": "c9ac980931aec5bbe699559fb2627747a8ed65e4",
+        "tree": "f7e8b1ab03f6c6504c91d3cd92c911f5f2133248",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "gEpqJF0/8NKnFrBAVlPOdRprWQ70vZFo3UfB0djZLevEAqvrmgM0n/ZYSaP/ezbnS/TlzsHFoQ0xnhk1TQlBCQ==",
+        "chain": "7e8bd31887ae911a72c98ccdd3ba7441972599edc8b4066eff79a28459afe87b",
+        "content": {
+          "parent": "TenantIsolation",
+          "statement": "Records are shown only as query results, and a query returns only records the user may see.",
+          "why": "Users find records by searching, so what a user sees is what their queries return. abs: a user is shown a record when some query of theirs returns it.",
+          "sources": {
+            "spec": "run => forall((u: User.T, q: Query.T) => run(u, q).forall(r => visible(u, r)))",
+            "abs": "run => (u, r) => exists((q: Query.T) => run(u, q).contains(r))"
+          },
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [
+            "Query: a search a user runs"
+          ],
+          "uses": [
+            "visible = (u: User.T, r: Record.T) => owner(r) == tenantOf(u) || sharedWith(r, tenantOf(u))"
+          ],
+          "governs": [],
+          "definition": "val readApi = isolation.refine[(User.T, Query.T) => List[Record.T]](\n  \"ReadApi\",\n  \"Records are shown only as query results, and a query returns only records the user may see.\",\n  why = \"Users find records by searching, so what a user sees is what their queries return. abs: a user is shown a record when some query of theirs returns it.\"\n)(\n  abs  = run => (u, r) => exists((q: Query.T) => run(u, q).contains(r)),\n  spec = run => forall((u: User.T, q: Query.T) => run(u, q).forall(r => visible(u, r)))\n)"
         }
       }
     ],
@@ -1103,6 +1257,55 @@
           ],
           "implementation": "proven: search\nsearch = (user: Account, query: Search) =>\n  store.value.filter(r => matches(query, r) && mayRead(user, r))\n«matches» = (q: Search, r: CrmRecord) =>\n  q match\n    case Search.ById(id)  => r.id == id\n    case Search.OfKind(k) => r.kind == k\n    case Search.Everything => true\nmayRead = (reader: Account, r: CrmRecord) => r.tenant == reader.tenant || shares.value.contains(Share(r.id, reader.tenant))"
         }
+      },
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-22T07:44:04.709105545Z",
+        "reason": "Ids are BigInt, as in the types above; what a reader may see is unchanged.",
+        "after": "08889d2291aae911",
+        "commit": "c9ac980931aec5bbe699559fb2627747a8ed65e4",
+        "tree": "f7e8b1ab03f6c6504c91d3cd92c911f5f2133248",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "ujRV6a537YZNAOlq298dko/b/ou0BQXKuXx0qSfKkTDMBZgX4Xpj48O7mCWwyeQhHx/1KPdf7ksQ2WJONbOKCA==",
+        "chain": "2753e412749eb29cc827740a4aa3d21c86fae757449110fecbd245dcfd2cb1a4",
+        "content": {
+          "parent": "Accounts",
+          "statement": "A search returns exactly the stored records that match it and the user may see: each of the user's company or shared with it.",
+          "why": "Accounts, stated for one call, plus what a search asks for. A returned record must be one of the stored records, so an implementation cannot relabel another company's record as the user's; and every such record is returned, since the idea says users find records.",
+          "sources": {
+            "post": "(user, query, result) => result.forall(r => store.value.contains(r) && matches(query, r) && mayRead(user, r)) &&\n  store.value.forall(r => (matches(query, r) && mayRead(user, r)) ==> result.contains(r))"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (Account(\"ann@acme\", TenantId(\"acme\")), Everything) ⇒ List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"))  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List()  — Ann lists everything she can see: Acme's deal",
+            "expect (Account(\"ann@acme\", TenantId(\"acme\")), ById(2)) ⇒ List()  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List()  — Globex's contact is not shared with Acme",
+            "reject (Account(\"ann@acme\", TenantId(\"acme\")), ById(2)) ⇒ List(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\"))  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List()  — another company's record is never returned",
+            "reject (Account(\"ann@acme\", TenantId(\"acme\")), Everything) ⇒ List(CrmRecord(2, TenantId(\"acme\"), Contact, \"Globex contact\"))  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List()  — a record relabelled as Acme's is not a stored record",
+            "reject (Account(\"ann@acme\", TenantId(\"acme\")), OfKind(Contact)) ⇒ List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"))  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List()  — a search for contacts does not return deals",
+            "expect (Account(\"ann@acme\", TenantId(\"acme\")), OfKind(Contact)) ⇒ List(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\"))  given store = List(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List(Share(2, TenantId(\"acme\")))  — Globex shared its contact with Acme, so Ann finds it by kind"
+          ],
+          "vocabulary": [],
+          "uses": [
+            "case class TenantId(value: String)",
+            "case class Account(email: String, tenant: TenantId)",
+            "enum Kind: case Contact, case Deal",
+            "enum Search: case ById(id: BigInt), case OfKind(kind: Kind), case Everything",
+            "case class CrmRecord(id: BigInt, tenant: TenantId, kind: Kind, title: String)",
+            "case class Share(record: BigInt, to: TenantId)",
+            "«matches» = (q: Search, r: CrmRecord) =>\n  q match\n    case Search.ById(id)  => r.id == id\n    case Search.OfKind(k) => r.kind == k\n    case Search.Everything => true",
+            "mayRead = (reader: Account, r: CrmRecord) => r.tenant == reader.tenant || shares.value.contains(Share(r.id, reader.tenant))"
+          ],
+          "governs": [],
+          "definition": "val readContract = accounts.contract[Account, Search, List[CrmRecord]](\n  \"ReadContract\",\n  \"A search returns exactly the stored records that match it and the user may see: each of the user's company or shared with it.\",\n  why = \"Accounts, stated for one call, plus what a search asks for. A returned record must be one of the stored records, so an implementation cannot relabel another company's record as the user's; and every such record is returned, since the idea says users find records.\"\n)((user, query, result) => result.forall(r => store.value.contains(r) && matches(query, r) && mayRead(user, r)) &&\n  store.value.forall(r => (matches(query, r) && mayRead(user, r)) ==> result.contains(r)))\n  .examples(\n    store.bind(List(CrmRecord(1, TenantId(\"acme\"), Kind.Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Kind.Contact, \"Globex contact\"))),\n    shares.bind(Nil))(\n    expect(Account(\"ann@acme\", TenantId(\"acme\")), Search.Everything, List(CrmRecord(1, TenantId(\"acme\"), Kind.Deal, \"Acme deal\")),\n      \"Ann lists everything she can see: Acme's deal\"),\n    expect(Account(\"ann@acme\", TenantId(\"acme\")), Search.ById(2), Nil, \"Globex's contact is not shared with Acme\"),\n    reject(Account(\"ann@acme\", TenantId(\"acme\")), Search.ById(2), List(CrmRecord(2, TenantId(\"globex\"), Kind.Contact, \"Globex contact\")),\n      \"another company's record is never returned\"),\n    reject(Account(\"ann@acme\", TenantId(\"acme\")), Search.Everything, List(CrmRecord(2, TenantId(\"acme\"), Kind.Contact, \"Globex contact\")),\n      \"a record relabelled as Acme's is not a stored record\"),\n    reject(Account(\"ann@acme\", TenantId(\"acme\")), Search.OfKind(Kind.Contact), List(CrmRecord(1, TenantId(\"acme\"), Kind.Deal, \"Acme deal\")),\n      \"a search for contacts does not return deals\"))\n  .examples(\n    store.bind(List(CrmRecord(2, TenantId(\"globex\"), Kind.Contact, \"Globex contact\"))),\n    shares.bind(List(Share(2, TenantId(\"acme\")))))(\n    expect(Account(\"ann@acme\", TenantId(\"acme\")), Search.OfKind(Kind.Contact), List(CrmRecord(2, TenantId(\"globex\"), Kind.Contact, \"Globex contact\")),\n      \"Globex shared its contact with Acme, so Ann finds it by kind\"))\n  .keeps(noCrossTenantRead)((user, query, result) => result.map(r => (user, r)))\n  .expects(\"Someone at Acme never sees a Globex record that Globex did not share with Acme, whatever they search for\")(run =>\n    forall((u: Account, q: Search) => (u.tenant == TenantId(\"acme\")) ==>\n      run(u, q).forall(r => (r.tenant == TenantId(\"globex\")) ==> shares.value.contains(Share(r.id, TenantId(\"acme\"))))))",
+          "keeps": [
+            "NoCrossTenantRead: (user, query, result) => result.map(r => (user, r))"
+          ],
+          "expects": [
+            "Someone at Acme never sees a Globex record that Globex did not share with Acme, whatever they search for: run =>\n    forall((u: Account, q: Search) => (u.tenant == TenantId(\"acme\")) ==>\n      run(u, q).forall(r => (r.tenant == TenantId(\"globex\")) ==> shares.value.contains(Share(r.id, TenantId(\"acme\")))))"
+          ],
+          "implementation": "proven: search\nsearch = (user: Account, query: Search) =>\n  store.value.filter(r => matches(query, r) && mayRead(user, r))\n«matches» = (q: Search, r: CrmRecord) =>\n  q match\n    case Search.ById(id)  => r.id == id\n    case Search.OfKind(k) => r.kind == k\n    case Search.Everything => true\nmayRead = (reader: Account, r: CrmRecord) => r.tenant == reader.tenant || shares.value.contains(Share(r.id, reader.tenant))"
+        }
       }
     ],
     "ReadSideWiring": [
@@ -1173,6 +1376,36 @@
             "NoCrossTenantRead: exempt, because it returns no records itself: every read goes through service, which checks each result against ReadContract and the invariant"
           ]
         }
+      },
+      {
+        "action": "migrate",
+        "by": "claude-example-data",
+        "at": "2026-10-22T07:44:05.238701721Z",
+        "reason": "FrFlow 3 records the definition as written with the node; nothing the node says changed.",
+        "after": "89bf8bbd2a70e338",
+        "code": "b6c0538013441545a2e55e5b5a9592866691834a105a605b3ed07ea418a14cb1",
+        "commit": "c9ac980931aec5bbe699559fb2627747a8ed65e4",
+        "tree": "f7e8b1ab03f6c6504c91d3cd92c911f5f2133248",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "8KVDvURH1N9uVe7KZ7Yib/RMWBLFphCsmwflV2mdNVCLIBt8xfiP/EErpu5rbNpSRtD5o27C/XoDb4OhyxmUCg==",
+        "chain": "",
+        "content": {
+          "parent": "ReadContract",
+          "statement": "The read side serves searches through service, which checks every result against ReadContract and the invariants it keeps.",
+          "why": "Every path to the records must go through service; keeping the wiring in one governed file makes a change to it visible.",
+          "sources": {},
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [],
+          "uses": [],
+          "governs": [
+            "src/main/scala/crm/ReadSide.scala"
+          ],
+          "definition": "val readSideWiring = readContract.design(\n  \"ReadSideWiring\",\n  \"The read side serves searches through service, which checks every result against ReadContract and the invariants it keeps.\",\n  why = \"Every path to the records must go through service; keeping the wiring in one governed file makes a change to it visible.\"\n)(\"src/main/scala/crm/ReadSide.scala\")\n  .exempt(noCrossTenantRead, \"it returns no records itself: every read goes through service, which checks each result against ReadContract and the invariant\")",
+          "keeps": [
+            "NoCrossTenantRead: exempt, because it returns no records itself: every read goes through service, which checks each result against ReadContract and the invariant"
+          ]
+        }
       }
     ],
     "StepByStep": [
@@ -1201,6 +1434,35 @@
           ],
           "uses": [],
           "governs": []
+        }
+      },
+      {
+        "action": "migrate",
+        "by": "claude-example-data",
+        "at": "2026-10-22T07:44:03.922468183Z",
+        "reason": "FrFlow 3 records the definition as written with the node; nothing the node says changed.",
+        "after": "5f7feb7fefc6b8d8",
+        "commit": "c9ac980931aec5bbe699559fb2627747a8ed65e4",
+        "tree": "f7e8b1ab03f6c6504c91d3cd92c911f5f2133248",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "xYaezyI3VUVNoAQPwwUMpqcTPW+F8VljZ+tjz/HlpgZo8Q0VbCWkUJ6aEZ/M2SPjWc1ymlED/0g7tl+e6BSxAQ==",
+        "chain": "d6131e84adc966b1d65f8889ecd06f35c830d54854953be8087fa4eaf159cc56",
+        "content": {
+          "parent": "WritesKeepStore",
+          "statement": "The CRM starts consistent, a write keeps a consistent store consistent, and every write is permitted.",
+          "why": "A store is reached by applying writes one at a time from the initial store, so it is enough that the initial store is consistent and that each write keeps consistency (by induction over the writes) and is permitted. abs: the store after a sequence of writes is the writes applied in turn.",
+          "sources": {
+            "spec": "apply => consistent(initial.value) && forall((s: Store.T, w: Write.T) => (consistent(s) ==> consistent(apply(s, w))) && permitted(s, w, apply(s, w)))",
+            "abs": "apply => ws => ws.foldLeft(initial.value)((s, w) => apply(s, w))"
+          },
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [
+            "initial: the store the CRM starts with"
+          ],
+          "uses": [],
+          "governs": [],
+          "definition": "val stepByStep = writesKeepStore.refine[(Store.T, Write.T) => Store.T](\n  \"StepByStep\",\n  \"The CRM starts consistent, a write keeps a consistent store consistent, and every write is permitted.\",\n  why = \"A store is reached by applying writes one at a time from the initial store, so it is enough that the initial store is consistent and that each write keeps consistency (by induction over the writes) and is permitted. abs: the store after a sequence of writes is the writes applied in turn.\"\n)(\n  abs = apply => ws => ws.foldLeft(initial.value)((s, w) => apply(s, w)),\n  spec = apply => consistent(initial.value) && forall((s: Store.T, w: Write.T) => (consistent(s) ==> consistent(apply(s, w))) && permitted(s, w, apply(s, w))))"
         }
       }
     ],
@@ -1393,6 +1655,44 @@
           "ideaSection": "Reading records",
           "notModelled": "- That the account a search or a write runs for is the caller's own\n  (authentication)."
         }
+      },
+      {
+        "action": "migrate",
+        "by": "claude-example-data",
+        "at": "2026-10-22T07:44:02.821016719Z",
+        "reason": "FrFlow 3 records the definition as written with the node; nothing the node says changed.",
+        "after": "51711f7c27e4d80d",
+        "commit": "c9ac980931aec5bbe699559fb2627747a8ed65e4",
+        "tree": "f7e8b1ab03f6c6504c91d3cd92c911f5f2133248",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "mYZVkSV+j2WXYyQaPt+2Vr2Ui+OKc8F6G8D2IyKr3NBahIqjpNMlNUsKdjSBQhjSnw7zxF8o2dRLhAxSOtEOCA==",
+        "chain": "",
+        "content": {
+          "parent": null,
+          "statement": "A user sees a record only if it belongs to their company or was shared with their company.",
+          "why": "Isolation between companies is what the idea says must hold. Companies, users, records and sharing are left open.",
+          "sources": {
+            "spec": "shows => forall((u: User.T, r: Record.T) => shows(u, r) ==> visible(u, r))"
+          },
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [
+            "Record: a contact or a deal kept in the CRM",
+            "Tenant: a company that uses the CRM",
+            "User: a person who works for a company",
+            "owner: the company a record belongs to",
+            "sharedWith: whether the record's company shared it with the given company",
+            "tenantOf: the company a user works for"
+          ],
+          "uses": [
+            "visible = (u: User.T, r: Record.T) => owner(r) == tenantOf(u) || sharedWith(r, tenantOf(u))"
+          ],
+          "governs": [],
+          "definition": "val isolation = Node.root[(User.T, Record.T) => Boolean](\n  \"TenantIsolation\",\n  \"A user sees a record only if it belongs to their company or was shared with their company.\",\n  why = \"Isolation between companies is what the idea says must hold. Companies, users, records and sharing are left open.\",\n  idea = \"Reading records\"\n)(shows => forall((u: User.T, r: Record.T) => shows(u, r) ==> visible(u, r)))",
+          "idea": "# CRM\n\nMany companies use one CRM. Each company's users manage contacts and deals.\n\nProven code: 100%. Every read and write path is proven down to its code.\n\n## Reading records\n\nA user may see a record only if it belongs to their company, or if the record's\ncompany has shared it with theirs. Users find records by id, by kind, or list\neverything they can see.",
+          "ideaSection": "Reading records",
+          "notModelled": "- That the account a search or a write runs for is the caller's own\n  (authentication)."
+        }
       }
     ],
     "WriteContract": [
@@ -1535,6 +1835,54 @@
           ],
           "implementation": "proven: applyWrite\napplyWrite = (s: CrmStore, w: WriteCmd) =>\n  w.change match\n    case Change.Add(r) =>\n      if r.tenant == w.by.tenant && !s.records.exists(x => x.id == r.id) then s.copy(records = s.records ++ List(r)) else s\n    case Change.ShareWith(id, to) =>\n      if s.records.exists(x => x.id == id && x.tenant == w.by.tenant) then s.copy(shares = s.shares ++ List(Share(id, to))) else s\n    case Change.Unshare(id, to) =>\n      if s.records.exists(x => x.id == id && x.tenant == w.by.tenant) then s.copy(shares = s.shares.filter(sh => sh != Share(id, to))) else s"
         }
+      },
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-22T07:44:04.973824097Z",
+        "reason": "Ids are BigInt, as in the types above; what a write may change is unchanged.",
+        "after": "c982b6c9d63a11bb",
+        "commit": "c9ac980931aec5bbe699559fb2627747a8ed65e4",
+        "tree": "f7e8b1ab03f6c6504c91d3cd92c911f5f2133248",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "daplNcBcrQlHo2L3ZTteJzrR71bwYNJno1QqXv1i6Ui0YNjTBrJoJmfQVsTCHulByQH/THOGYbFpIoqSTGwLAw==",
+        "chain": "f73376493a9ed366988012c45bf36554fd248587f65b9d09eb3858c5572ca705",
+        "content": {
+          "parent": "CrmWrites",
+          "statement": "A write keeps every share of a stored record and record ids unique, changes only the author's company's records and only shares of their company's records, and a write its author's company may make takes effect.",
+          "why": "CrmWrites, stated for one call, plus what the idea promises a user can do: add records for their company, and share or unshare them. A write the company may not make changes nothing.",
+          "sources": {
+            "post": "(s, w, t) => (consistentStore(s) ==> consistentStore(t)) && permittedWrite(s, w, t) && takesEffect(s, w, t)"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (CrmStore(List(), List()), WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), Add(CrmRecord(1, TenantId(\"acme\"), Contact, \"Acme contact\")))) ⇒ CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Contact, \"Acme contact\")), List())  given   — Ann adds a contact of Acme's",
+            "expect (CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Contact, \"Acme contact\"), CrmRecord(2, TenantId(\"globex\"), Deal, \"Globex deal\")), List()), WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), ShareWith(1, TenantId(\"globex\")))) ⇒ CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Contact, \"Acme contact\"), CrmRecord(2, TenantId(\"globex\"), Deal, \"Globex deal\")), List(Share(1, TenantId(\"globex\"))))  given   — Ann shares Acme's contact with Globex",
+            "reject (CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Contact, \"Acme contact\"), CrmRecord(2, TenantId(\"globex\"), Deal, \"Globex deal\")), List()), WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), ShareWith(2, TenantId(\"acme\")))) ⇒ CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Contact, \"Acme contact\"), CrmRecord(2, TenantId(\"globex\"), Deal, \"Globex deal\")), List(Share(2, TenantId(\"acme\"))))  given   — Ann cannot share Globex's deal with herself",
+            "reject (CrmStore(List(CrmRecord(2, TenantId(\"globex\"), Deal, \"Globex deal\")), List()), WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), Add(CrmRecord(1, TenantId(\"acme\"), Contact, \"Acme contact\")))) ⇒ CrmStore(List(), List())  given   — a write never removes another company's record",
+            "reject (CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Contact, \"Acme contact\")), List(Share(1, TenantId(\"globex\")))), WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), Unshare(1, TenantId(\"globex\")))) ⇒ CrmStore(List(), List(Share(1, TenantId(\"globex\"))))  given   — a share is never left without its record"
+          ],
+          "vocabulary": [],
+          "uses": [
+            "case class TenantId(value: String)",
+            "enum Kind: case Contact, case Deal",
+            "case class CrmRecord(id: BigInt, tenant: TenantId, kind: Kind, title: String)",
+            "case class Share(record: BigInt, to: TenantId)",
+            "case class CrmStore(records: List[CrmRecord], shares: List[Share])",
+            "case class Account(email: String, tenant: TenantId)",
+            "enum Change: case Add(record: CrmRecord), case ShareWith(record: BigInt, to: TenantId), case Unshare(record: BigInt, to: TenantId)",
+            "case class WriteCmd(by: Account, change: Change)",
+            "consistentStore = (s: CrmStore) =>\n  s.shares.forall(sh => s.records.exists(r => r.id == sh.record)) && s.records.forall(a => s.records.forall(b => (a.id == b.id) ==> (a == b)))",
+            "permittedWrite = (s: CrmStore, w: WriteCmd, t: CrmStore) =>\n  t.records.filter(r => r.tenant != w.by.tenant) == s.records.filter(r => r.tenant != w.by.tenant) &&\n  t.shares.forall(sh => s.shares.contains(sh) || t.records.exists(r => r.id == sh.record && r.tenant == w.by.tenant)) &&\n  s.shares.forall(sh => t.shares.contains(sh) || s.records.exists(r => r.id == sh.record && r.tenant == w.by.tenant))",
+            "takesEffect = (s: CrmStore, w: WriteCmd, t: CrmStore) =>\n  w.change match\n    case Change.Add(r) => (r.tenant == w.by.tenant && !s.records.exists(x => x.id == r.id)) ==> t.records.contains(r)\n    case Change.ShareWith(id, to) => s.records.exists(x => x.id == id && x.tenant == w.by.tenant) ==> t.shares.contains(Share(id, to))\n    case Change.Unshare(id, to) => s.records.exists(x => x.id == id && x.tenant == w.by.tenant) ==> !t.shares.contains(Share(id, to))"
+          ],
+          "governs": [],
+          "definition": "val writeContract = crmWrites.contract[CrmStore, WriteCmd, CrmStore](\n  \"WriteContract\",\n  \"A write keeps every share of a stored record and record ids unique, changes only the author's company's records and only shares of their company's records, and a write its author's company may make takes effect.\",\n  why = \"CrmWrites, stated for one call, plus what the idea promises a user can do: add records for their company, and share or unshare them. A write the company may not make changes nothing.\"\n)((s, w, t) => (consistentStore(s) ==> consistentStore(t)) && permittedWrite(s, w, t) && takesEffect(s, w, t))\n  .examples()(\n    expect(CrmStore(Nil, Nil), WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), Change.Add(CrmRecord(1, TenantId(\"acme\"), Kind.Contact, \"Acme contact\"))), CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Kind.Contact, \"Acme contact\")), Nil),\n      \"Ann adds a contact of Acme's\"),\n    expect(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Kind.Contact, \"Acme contact\"), CrmRecord(2, TenantId(\"globex\"), Kind.Deal, \"Globex deal\")), Nil), WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), Change.ShareWith(1, TenantId(\"globex\"))),\n      CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Kind.Contact, \"Acme contact\"), CrmRecord(2, TenantId(\"globex\"), Kind.Deal, \"Globex deal\")), List(Share(1, TenantId(\"globex\")))), \"Ann shares Acme's contact with Globex\"),\n    reject(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Kind.Contact, \"Acme contact\"), CrmRecord(2, TenantId(\"globex\"), Kind.Deal, \"Globex deal\")), Nil), WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), Change.ShareWith(2, TenantId(\"acme\"))),\n      CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Kind.Contact, \"Acme contact\"), CrmRecord(2, TenantId(\"globex\"), Kind.Deal, \"Globex deal\")), List(Share(2, TenantId(\"acme\")))), \"Ann cannot share Globex's deal with herself\"),\n    reject(CrmStore(List(CrmRecord(2, TenantId(\"globex\"), Kind.Deal, \"Globex deal\")), Nil), WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), Change.Add(CrmRecord(1, TenantId(\"acme\"), Kind.Contact, \"Acme contact\"))), CrmStore(Nil, Nil),\n      \"a write never removes another company's record\"),\n    reject(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Kind.Contact, \"Acme contact\")), List(Share(1, TenantId(\"globex\")))), WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), Change.Unshare(1, TenantId(\"globex\"))),\n      CrmStore(Nil, List(Share(1, TenantId(\"globex\")))), \"a share is never left without its record\"))\n  .exempt(noCrossTenantRead, \"the store a write returns goes to the write side's storage, never to a reader: reads go through ReadContract\")",
+          "keeps": [
+            "NoCrossTenantRead: exempt, because the store a write returns goes to the write side's storage, never to a reader: reads go through ReadContract"
+          ],
+          "implementation": "proven: applyWrite\napplyWrite = (s: CrmStore, w: WriteCmd) =>\n  w.change match\n    case Change.Add(r) =>\n      if r.tenant == w.by.tenant && !s.records.exists(x => x.id == r.id) then s.copy(records = s.records ++ List(r)) else s\n    case Change.ShareWith(id, to) =>\n      if s.records.exists(x => x.id == id && x.tenant == w.by.tenant) then s.copy(shares = s.shares ++ List(Share(id, to))) else s\n    case Change.Unshare(id, to) =>\n      if s.records.exists(x => x.id == id && x.tenant == w.by.tenant) then s.copy(shares = s.shares.filter(sh => sh != Share(id, to))) else s"
+        }
       }
     ],
     "WriteSideWiring": [
@@ -1589,6 +1937,36 @@
           "uses": [],
           "governs": [
             "src/main/scala/crm/WriteSide.scala"
+          ]
+        }
+      },
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-22T07:44:05.523094211Z",
+        "reason": "The write side returns nothing to a reader, so the no cross-tenant read rule does not apply to it; saying so is now required of a design node in the rule scope.",
+        "after": "8d1de65b804da35b",
+        "code": "966e343ac05be00bebff95b81180ddebfa1d9cc5259287b86c75b69bf75833a3",
+        "commit": "c9ac980931aec5bbe699559fb2627747a8ed65e4",
+        "tree": "f7e8b1ab03f6c6504c91d3cd92c911f5f2133248",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "e/aK+0HGwcYoNS2S54giRiNPmT4CgwJ22byt3k82xf6HUpEog1cA8cacoBCVfrKo+kg694VSOgegPm4vVqqACg==",
+        "chain": "",
+        "content": {
+          "parent": "WriteContract",
+          "statement": "The write side applies every write through service, which checks each new store against WriteContract.",
+          "why": "Every write must go through service; keeping the wiring in one governed file makes a change to it visible.",
+          "sources": {},
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [],
+          "uses": [],
+          "governs": [
+            "src/main/scala/crm/WriteSide.scala"
+          ],
+          "definition": "val writeSideWiring = writeContract.design(\n  \"WriteSideWiring\",\n  \"The write side applies every write through service, which checks each new store against WriteContract.\",\n  why = \"Every write must go through service; keeping the wiring in one governed file makes a change to it visible.\"\n)(\"src/main/scala/crm/WriteSide.scala\")\n  .exempt(noCrossTenantRead, \"the write side hands the new store to storage and returns nothing to a reader: no record leaves it\")",
+          "keeps": [
+            "NoCrossTenantRead: exempt, because the write side hands the new store to storage and returns nothing to a reader: no record leaves it"
           ]
         }
       }
@@ -1694,6 +2072,40 @@
           ],
           "uses": [],
           "governs": [],
+          "idea": "# CRM\n\nMany companies use one CRM. Each company's users manage contacts and deals.\n\nProven code: 100%. Every read and write path is proven down to its code.\n\n## Writing records\n\nA user adds records for their company, and shares or unshares their company's\nrecords with other companies. No write changes another company's records, or\nadds or removes a share of a record the author's company does not own. Every\nshare is of a stored record.",
+          "ideaSection": "Writing records",
+          "notModelled": "- That the account a search or a write runs for is the caller's own\n  (authentication).\n\n### Writing records\n\n- Editing or removing records."
+        }
+      },
+      {
+        "action": "migrate",
+        "by": "claude-example-data",
+        "at": "2026-10-22T07:44:03.382747957Z",
+        "reason": "FrFlow 3 records the definition as written with the node; nothing the node says changed.",
+        "after": "2a04673dc977ab57",
+        "commit": "c9ac980931aec5bbe699559fb2627747a8ed65e4",
+        "tree": "f7e8b1ab03f6c6504c91d3cd92c911f5f2133248",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "NtViUoeCKgXafJ60YIPWgwCREs0k+7zIPbVpJzSuVmyc0ZkZg+J1O1ncsfb8f9Y+LWc9up1vGcWiLhRvWeD6Bw==",
+        "chain": "",
+        "content": {
+          "parent": null,
+          "statement": "Every store the CRM reaches by writes is consistent, and every write changes only what its author's company may change.",
+          "why": "The idea's rules for writing, over every sequence of writes from the initial store: consistency of every store reached, and authority of each write. What consistency and authority mean is left open.",
+          "sources": {
+            "spec": "run => forall((ws: List[Write.T]) => consistent(run(ws))) &&\n  forall((ws: List[Write.T], w: Write.T) => permitted(run(ws), w, run(ws ++ List(w))))"
+          },
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [
+            "Store: the records and shares as stored",
+            "Write: a change a user asks for: adding a record, or sharing or unsharing one",
+            "consistent: whether every share is of a stored record, and no two records have one id",
+            "permitted: whether the change from the first store to the second is one the write's author may make: it touches only their company's records and shares"
+          ],
+          "uses": [],
+          "governs": [],
+          "definition": "val writesKeepStore = Node.root[List[Write.T] => Store.T](\n  \"WritesKeepStore\",\n  \"Every store the CRM reaches by writes is consistent, and every write changes only what its author's company may change.\",\n  why = \"The idea's rules for writing, over every sequence of writes from the initial store: consistency of every store reached, and authority of each write. What consistency and authority mean is left open.\",\n  idea = \"Writing records\"\n)(run => forall((ws: List[Write.T]) => consistent(run(ws))) &&\n  forall((ws: List[Write.T], w: Write.T) => permitted(run(ws), w, run(ws ++ List(w)))))",
           "idea": "# CRM\n\nMany companies use one CRM. Each company's users manage contacts and deals.\n\nProven code: 100%. Every read and write path is proven down to its code.\n\n## Writing records\n\nA user adds records for their company, and shares or unshares their company's\nrecords with other companies. No write changes another company's records, or\nadds or removes a share of a record the author's company does not own. Every\nshare is of a stored record.",
           "ideaSection": "Writing records",
           "notModelled": "- That the account a search or a write runs for is the caller's own\n  (authentication).\n\n### Writing records\n\n- Editing or removing records."
