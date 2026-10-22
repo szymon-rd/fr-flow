@@ -43,5 +43,8 @@ package crm
   def ms(f: => Any) = { val t0 = System.nanoTime; f; (System.nanoTime - t0) / 1e6 }
   (1 to 3).foreach(i => write(WriteCmd(ann, Change.Add(CrmRecord(n + i, tenants(7), Kind.Deal, "warm")))))
   val w = (1 to 10).map(i => ms(write(WriteCmd(ann, Change.Add(CrmRecord(n + 100 + i, tenants(7), Kind.Deal, "new")))))).sum / 10
-  val s = ms(readSide(db)(ann, Search.ById(7)))
-  println(f"$n%7d records: a write $w%8.1f ms; the read side's start and first read $s%8.1f ms")
+  var read: (Account, Search) => List[CrmRecord] = null
+  val start = ms { read = readSide(db) }
+  val first = ms(read(ann, Search.ById(7)))
+  val next = (1 to 10).map(_ => ms(read(ann, Search.ById(7)))).sum / 10
+  println(f"$n%7d records: a write $w%8.1f ms; the read side's start $start%8.1f ms, its first read $first%8.1f ms, a read after $next%8.1f ms")
