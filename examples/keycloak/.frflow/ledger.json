@@ -1,5 +1,288 @@
 {
   "decisions": {
+    "Accounts": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:30.544967166Z",
+        "reason": "IDEA.md, Administering users: realms and users are loaded at start and only an administrator enables or disables a user, seen by the next request. Reading enabled and roles from the loaded accounts with those changes applied is exactly that; creating users and changing roles stay out, as Not modelled says.",
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "xt9ULorYKOc/uKygsrsC1FVromNTCwm6AwU/QdseMEKoolJW2VxSJHXWFwKnYkibSFazjcpHZr0Nfcq3c3BiAw==",
+        "chain": "",
+        "content": {
+          "kind": "definition",
+          "parents": [],
+          "statement": "A user is enabled, and has the roles, that their account in the realm says, as loaded at start and as administrators have set it since.",
+          "why": "Realms and users are loaded at start (managing them is not modelled); an administrator can enable or disable a user, and the next request sees it.",
+          "sources": {},
+          "substitutions": [
+            "enabled := (r: RealmId, u: String) => isEnabled(accountOf(accountsAfter(history.value), r, u))",
+            "rolesOf := (r: RealmId, u: String) => rolesIn(accountOf(accountsAfter(history.value), r, u))"
+          ],
+          "examples": [],
+          "vocabulary": [
+            "enabled: whether the user's account in the realm is enabled now",
+            "history: the requests the server has handled since it started, in order: sign-ins, sign-outs and administrators' changes (the server's event log)",
+            "rolesOf: the roles the realm gives the user now",
+            "seed: every realm's accounts as loaded at start: username, salted password hash, whether enabled, realm roles"
+          ],
+          "uses": [
+            "case class RealmId(name: String)",
+            "enum AuthRequest: case SignIn(realm: RealmId, user: String, passwordHash: String, token: String), case SignOut(realm: RealmId, token: String), case SetEnabled(realm: RealmId, user: String, on: Boolean)",
+            "case class UserAccount(realm: RealmId, username: String, passwordHash: String, enabled: Boolean, roles: List[String])",
+            "isEnabled = (a: Option[UserAccount]) => a.exists(x => x.enabled)",
+            "accountOf = (as: List[UserAccount], r: RealmId, u: String) => as.find(a => a.realm == r && a.username == u)",
+            "accountsAfter = (hs: List[AuthRequest]) => hs.foldLeft(seed.value)((as, q) => administer(as, q))",
+            "administer = (as: List[UserAccount], q: AuthRequest) =>\n  q match\n    case AuthRequest.SetEnabled(r, u, on) => as.map(a => if a.realm == r && a.username == u then a.copy(enabled = on) else a)\n    case AuthRequest.SignIn(_, _, _, _)   => as\n    case AuthRequest.SignOut(_, _)        => as",
+            "rolesIn = (a: Option[UserAccount]) =>\n  a match\n    case Some(x) => x.roles\n    case None    => Nil"
+          ],
+          "governs": [],
+          "definition": "val accounts = Node.definition(\"Accounts\",\n  \"A user is enabled, and has the roles, that their account in the realm says, as loaded at start and as administrators have set it since.\",\n  why = \"Realms and users are loaded at start (managing them is not modelled); an administrator can enable or disable a user, and the next request sees it.\"\n)(enabled := ((r: RealmId, u: String) => isEnabled(accountOf(accountsAfter(history.value), r, u))),\n  rolesOf := ((r: RealmId, u: String) => rolesIn(accountOf(accountsAfter(history.value), r, u))))"
+        }
+      }
+    ],
+    "AccountsAsAdministered": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:38.159004951Z",
+        "reason": "Enabled and roles are read from the accounts the server holds, so those must be the loaded accounts with each administrator's change applied in turn. That one fact serves disabling, roles and letting enabled users in, hence its three parents.",
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "vA9c0VNbaGjdhVXcHQ0t8y+t8dNreruUoWOpU6K7nDTWcUQ0AVvbQS4/ndMZlQC8Jp5odHa8qU+9IDX8aNhDCw==",
+        "chain": "cadcd8ce5e582da4943a392c1c87f2fd1fcdba02a6d607df4932eeb4a828d46f",
+        "content": {
+          "kind": "claim",
+          "parents": [
+            "DisabledHaveNoAccess",
+            "RolesAsGranted",
+            "SignedInAreAccepted"
+          ],
+          "parts": [
+            "HandleRequest"
+          ],
+          "statement": "The server holds every user's account as loaded at start, with each administrator's change applied in turn.",
+          "why": "Whether a user is enabled is read from the accounts the server holds: they must be the ones administrators set, so disabling a user takes effect at the next request.",
+          "sources": {
+            "formula": "forall((r: RealmId, u: String) => account(r, u) == accountOf(accountsAfter(history.value), r, u))"
+          },
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [
+            "account: the user's account in a realm, as the server holds it now",
+            "history: the requests the server has handled since it started, in order: sign-ins, sign-outs and administrators' changes (the server's event log)",
+            "seed: every realm's accounts as loaded at start: username, salted password hash, whether enabled, realm roles"
+          ],
+          "uses": [
+            "case class RealmId(name: String)",
+            "case class UserAccount(realm: RealmId, username: String, passwordHash: String, enabled: Boolean, roles: List[String])",
+            "enum AuthRequest: case SignIn(realm: RealmId, user: String, passwordHash: String, token: String), case SignOut(realm: RealmId, token: String), case SetEnabled(realm: RealmId, user: String, on: Boolean)",
+            "accountOf = (as: List[UserAccount], r: RealmId, u: String) => as.find(a => a.realm == r && a.username == u)",
+            "accountsAfter = (hs: List[AuthRequest]) => hs.foldLeft(seed.value)((as, q) => administer(as, q))",
+            "administer = (as: List[UserAccount], q: AuthRequest) =>\n  q match\n    case AuthRequest.SetEnabled(r, u, on) => as.map(a => if a.realm == r && a.username == u then a.copy(enabled = on) else a)\n    case AuthRequest.SignIn(_, _, _, _)   => as\n    case AuthRequest.SignOut(_, _)        => as"
+          ],
+          "governs": [],
+          "definition": "val accountsAsAdministered = Node.claim(\"AccountsAsAdministered\",\n  \"The server holds every user's account as loaded at start, with each administrator's change applied in turn.\",\n  why = \"Whether a user is enabled is read from the accounts the server holds: they must be the ones administrators set, so disabling a user takes effect at the next request.\",\n  idea = \"Administering users\"\n)(forall((r: RealmId, u: String) => account(r, u) == accountOf(accountsAfter(history.value), r, u)))\n  .under(disabledHaveNoAccess, rolesAsGranted, signedInAreAccepted)",
+          "idea": "## Administering users\n\nRealms and their users are loaded at start. An administrator can enable or\ndisable a user; the next request sees it, and a disabled user's tokens stop\nbeing accepted at once.",
+          "ideaSection": "Administering users",
+          "notModelled": "- How passwords are hashed: the server compares stored hashes, computed with\n  each user's salt before a request reaches the core.\n- How tokens are drawn: 256 random bits each, trusted to be new.\n- Token expiry and refresh tokens.\n- Which applications may ask (client authentication), consent, and the\n  OpenID Connect discovery documents.\n- Creating realms and users, and changing passwords or roles."
+        }
+      }
+    ],
+    "AnswersNameASession": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:36.082995937Z",
+        "reason": "A token is a reference to a session (ReferenceTokens), so an introspection may only answer with the realm and user of a session the server holds under that token; with SessionsMirrorSignIns this gives only the signed-in.",
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "HJ43Gkmptp8I7sAvX3tNIvdKsRGPxTyoMXROygCucgZsli6QRBq3LF9/gAYAy7T0ceT2LIEla12aRTmese1OBg==",
+        "chain": "b44b40ae629f23dc16f9775fb2c7e8aed3fbb39130941f00f09c53f84ca14fcd",
+        "content": {
+          "kind": "claim",
+          "parents": [
+            "OnlyTheSignedIn"
+          ],
+          "parts": [
+            "Introspect"
+          ],
+          "statement": "An introspection answers only with the realm and user of a session the server holds under the token.",
+          "why": "A token is a reference to a session: what the server says about it must come from that session, not from the token or the request.",
+          "sources": {
+            "formula": "forall((r: RealmId, t: String) => introspect(r, t).forall(c => sessions(c.realm).contains(Session(t, c.realm, c.user))))"
+          },
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [
+            "introspect: the server's answer to a realm's application asking about a token: the claims it is active with, or none (not active)",
+            "sessions: the sessions a realm has open, as the server holds them now"
+          ],
+          "uses": [
+            "case class RealmId(name: String)",
+            "case class Claims(realm: RealmId, user: String, roles: List[String])",
+            "case class Session(token: String, realm: RealmId, user: String)"
+          ],
+          "governs": [],
+          "definition": "val answersNameASession = Node.claim(\"AnswersNameASession\",\n  \"An introspection answers only with the realm and user of a session the server holds under the token.\",\n  why = \"A token is a reference to a session: what the server says about it must come from that session, not from the token or the request.\",\n  idea = \"Checking tokens\"\n)(forall((r: RealmId, t: String) => introspect(r, t).forall(c => sessions(c.realm).contains(Session(t, c.realm, c.user)))))\n  .under(onlyTheSignedIn)",
+          "idea": "## Checking tokens\n\nAn application of a realm can ask the server whose a token is. The server\nanswers with the user and their roles in that realm when the token's session\nis open in that realm and the user is enabled; otherwise the token is not\nactive.",
+          "ideaSection": "Checking tokens",
+          "notModelled": "- How passwords are hashed: the server compares stored hashes, computed with\n  each user's salt before a request reaches the core.\n- How tokens are drawn: 256 random bits each, trusted to be new.\n- Token expiry and refresh tokens.\n- Which applications may ask (client authentication), consent, and the\n  OpenID Connect discovery documents.\n- Creating realms and users, and changing passwords or roles."
+        }
+      }
+    ],
+    "DisabledHaveNoAccess": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:35.360419036Z",
+        "reason": "IDEA.md: a disabled user's tokens stop being accepted at once, also for sessions opened before. It is its own part because it holds whenever the sign-in happened, which OnlyTheSignedIn does not say.",
+        "held": [
+          "ReferenceTokens"
+        ],
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "kw1iL5XyJdKjj8RP7+kFWJDiJRZ+M3dpQOgKBhOcFw7Uo32kiMjcTID3q32u39VSLOTuNS9F+33XPLTmNjbbDg==",
+        "chain": "84fcb76280f4b70973dd885471016ec4fb43fc96e360adf389ee92312d8f7c21",
+        "content": {
+          "kind": "claim",
+          "parents": [
+            "NoUnauthorizedAccess"
+          ],
+          "parts": [
+            "AccountsAsAdministered",
+            "Introspect"
+          ],
+          "statement": "A token is never accepted as a user who is disabled now, whenever they signed in.",
+          "why": "Disabling a user is how an administrator takes access away: it must hold at once, for the sessions the user already has too.",
+          "sources": {
+            "formula": "forall((r: Realm.T, t: Token.T) => accepted(r, t).forall(a => enabled(r, a._1)))"
+          },
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [
+            "Realm: an organisation using the server, with its own users and applications",
+            "Role: what a realm lets a user do in its applications, such as admin",
+            "Token: what a user gets when signing in, and hands to a realm's applications",
+            "User: a person with an account in a realm",
+            "accepted: whom a realm's application accepts a token as, now: the user, and the roles it is told they have, if it accepts the token at all",
+            "enabled: whether the user's account in the realm is enabled now"
+          ],
+          "uses": [],
+          "governs": [],
+          "definition": "val disabledHaveNoAccess = Node.claim(\"DisabledHaveNoAccess\",\n  \"A token is never accepted as a user who is disabled now, whenever they signed in.\",\n  why = \"Disabling a user is how an administrator takes access away: it must hold at once, for the sessions the user already has too.\",\n  idea = \"Administering users\"\n)(forall((r: Realm.T, t: Token.T) => accepted(r, t).forall(a => enabled(r, a._1))))\n  .under(noUnauthorizedAccess)",
+          "idea": "## Administering users\n\nRealms and their users are loaded at start. An administrator can enable or\ndisable a user; the next request sees it, and a disabled user's tokens stop\nbeing accepted at once.",
+          "ideaSection": "Administering users",
+          "notModelled": "- How passwords are hashed: the server compares stored hashes, computed with\n  each user's salt before a request reaches the core.\n- How tokens are drawn: 256 random bits each, trusted to be new.\n- Token expiry and refresh tokens.\n- Which applications may ask (client authentication), consent, and the\n  OpenID Connect discovery documents.\n- Creating realms and users, and changing passwords or roles."
+        }
+      }
+    ],
+    "FreshTokens": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:41.449501990Z",
+        "reason": "Trusted, not proven: IDEA.md's Not modelled says tokens are 256 random bits each, trusted to be new, and a repeat does not happen in practice. It is the one fact about the outside the history needs, for a token naming one sign-in and for sessions mirroring sign-ins.",
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "1QC7uNjU3a0bne87XNa7vjybyWamxL7rhKq6fwPk2EGN/XyN3Esgd0++r+EL2jQibsq8e+8lTY/D09el0phxDg==",
+        "chain": "2d40876747c199f50eae64d97c2aa877bec44cceb9257f507ab1c7452cc6522b",
+        "content": {
+          "kind": "assumption",
+          "parents": [
+            "OneSignInPerToken",
+            "SessionsMirrorSignIns"
+          ],
+          "parts": [],
+          "statement": "Every sign-in carries a token no earlier sign-in carried.",
+          "why": "The server draws 256 random bits for each sign-in (HttpApi): a repeat does not happen in practice. Trusted, not proven; the server also refuses a token an open session holds.",
+          "sources": {
+            "formula": "forall((pre: List[AuthRequest], post: List[AuthRequest]) => forall((q: AuthRequest) =>\n  (history.value == pre ++ (q :: post)) ==> fresh(pre, q)))"
+          },
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [
+            "history: the requests the server has handled since it started, in order: sign-ins, sign-outs and administrators' changes (the server's event log)"
+          ],
+          "uses": [
+            "case class RealmId(name: String)",
+            "enum AuthRequest: case SignIn(realm: RealmId, user: String, passwordHash: String, token: String), case SignOut(realm: RealmId, token: String), case SetEnabled(realm: RealmId, user: String, on: Boolean)",
+            "fresh = (pre: List[AuthRequest], q: AuthRequest) =>\n  tokenOf(q).forall(t => !pre.exists(p => tokenOf(p) == Some(t)))",
+            "tokenOf = (q: AuthRequest) =>\n  q match\n    case AuthRequest.SignIn(_, _, _, t)  => Some(t)\n    case AuthRequest.SignOut(_, _)       => None\n    case AuthRequest.SetEnabled(_, _, _) => None"
+          ],
+          "governs": [],
+          "definition": "val freshTokens = Node.assumption(\"FreshTokens\",\n  \"Every sign-in carries a token no earlier sign-in carried.\",\n  why = \"The server draws 256 random bits for each sign-in (HttpApi): a repeat does not happen in practice. Trusted, not proven; the server also refuses a token an open session holds.\"\n)(forall((pre: List[AuthRequest], post: List[AuthRequest]) => forall((q: AuthRequest) =>\n  (history.value == pre ++ (q :: post)) ==> fresh(pre, q))))\n  .under(oneSignInPerToken, sessionsMirrorSignIns)"
+        }
+      }
+    ],
+    "HandleRequest": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:43.218810747Z",
+        "reason": "One request at a time: a sign-in opens a session only for an enabled user with their password and a token no open session holds, a sign-out ends its realm's session, an administrator changes accounts only. Induction turns this per-step promise into SessionsMirrorSignIns and AccountsAsAdministered.",
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "danaUq6xhduMIWd9Af+rjkteg5ftVt8GGGNwLxpxHRJSjpn0p5Kcn8bL+aNJNmuzaM/yzULE4jEAXtHfrymXBg==",
+        "chain": "d519162b5beebe331c26eb52087ab8b31d0fc28d4b3031004afce70a5b9e8e2c",
+        "content": {
+          "kind": "contract",
+          "parents": [
+            "SessionsMirrorSignIns",
+            "AccountsAsAdministered"
+          ],
+          "parts": [],
+          "statement": "A request opens the session a sign-in asks for when the user is enabled, the password theirs and no session holds the token; ends the sessions its sign-out names in its realm; changes accounts only as an administrator's change sets them; and changes nothing else.",
+          "why": "One request at a time, so each result of the running server is checked; the history's meaning (SignInHistory, Accounts) follows by induction over the requests. Refusing a token an open session holds keeps a token naming one session even if a token were ever drawn twice.",
+          "sources": {
+            "post": "(s, q, t) => t.accounts == administer(s.accounts, q) &&\n  t.sessions.forall(x => (s.sessions.contains(x) && !endedBy(q, x)) || opened(s, q) == Some(x)) &&\n  s.sessions.forall(x => endedBy(q, x) || t.sessions.contains(x)) &&\n  opened(s, q).forall(x => t.sessions.contains(x))"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", false, List(\"user\"))), List()), SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t1\")) ⇒ ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", false, List(\"user\"))), List(Session(\"t1\", RealmId(\"acme\"), \"alice\")))  given sessionDb.bind(SessionDb.empty)  — Alice signs in to acme with her password: a session under t1",
+            "expect (ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", false, List(\"user\"))), List()), SignIn(RealmId(\"acme\"), \"bob\", \"h-bob\", \"t2\")) ⇒ ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", false, List(\"user\"))), List())  given sessionDb.bind(SessionDb.empty)  — Bob is disabled: no session, even with his password",
+            "expect (ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", false, List(\"user\"))), List(Session(\"t1\", RealmId(\"acme\"), \"alice\"))), SignOut(RealmId(\"acme\"), \"t1\")) ⇒ ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", false, List(\"user\"))), List())  given sessionDb.bind(SessionDb.empty)  — Alice signs out: her session ends",
+            "expect (ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", false, List(\"user\"))), List(Session(\"t1\", RealmId(\"acme\"), \"alice\"))), SetEnabled(RealmId(\"acme\"), \"alice\", false)) ⇒ ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", false, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", false, List(\"user\"))), List(Session(\"t1\", RealmId(\"acme\"), \"alice\")))  given sessionDb.bind(SessionDb.empty)  — an administrator disables Alice; her session stays, and is no longer accepted",
+            "reject (ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", false, List(\"user\"))), List()), SignIn(RealmId(\"acme\"), \"alice\", \"wrong\", \"t1\")) ⇒ ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", false, List(\"user\"))), List(Session(\"t1\", RealmId(\"acme\"), \"alice\")))  given sessionDb.bind(SessionDb.empty)  — a wrong password never opens a session",
+            "reject (ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", false, List(\"user\"))), List()), SignIn(RealmId(\"globex\"), \"alice\", \"h-alice\", \"t1\")) ⇒ ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", false, List(\"user\"))), List(Session(\"t1\", RealmId(\"globex\"), \"alice\")))  given sessionDb.bind(SessionDb.empty)  — Alice is a user of acme, not of globex",
+            "reject (ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", true, List(\"user\"))), List(Session(\"t1\", RealmId(\"acme\"), \"alice\"))), SignIn(RealmId(\"acme\"), \"bob\", \"h-bob\", \"t1\")) ⇒ ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", true, List(\"user\"))), List(Session(\"t1\", RealmId(\"acme\"), \"alice\"), Session(\"t1\", RealmId(\"acme\"), \"bob\")))  given sessionDb.bind(SessionDb.empty)  — a token an open session holds never opens another",
+            "reject (ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", false, List(\"user\"))), List(Session(\"t1\", RealmId(\"acme\"), \"alice\"))), SignOut(RealmId(\"globex\"), \"t1\")) ⇒ ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", false, List(\"user\"))), List())  given sessionDb.bind(SessionDb.empty)  — globex cannot end acme's session",
+            "reject (ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", false, List(\"user\"))), List(Session(\"t1\", RealmId(\"acme\"), \"alice\"))), SignOut(RealmId(\"acme\"), \"t1\")) ⇒ ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", false, List(\"user\"))), List(Session(\"t1\", RealmId(\"acme\"), \"alice\")))  given sessionDb.bind(SessionDb.empty)  — a sign-out is never ignored",
+            "reject (ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", false, List(\"user\"))), List()), SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t1\")) ⇒ ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", false, List(\"user\"))), List())  given sessionDb.bind(SessionDb.empty)  — Alice with her password is not turned away",
+            "reject (ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", false, List(\"user\"))), List()), SetEnabled(RealmId(\"acme\"), \"bob\", true)) ⇒ ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", false, List(\"user\"))), List())  given sessionDb.bind(SessionDb.empty)  — an administrator's change is never ignored"
+          ],
+          "vocabulary": [
+            "step: the server's handling of one request: the state it stores, from the state before it"
+          ],
+          "uses": [
+            "case class RealmId(name: String)",
+            "case class UserAccount(realm: RealmId, username: String, passwordHash: String, enabled: Boolean, roles: List[String])",
+            "case class Session(token: String, realm: RealmId, user: String)",
+            "case class ServerState(accounts: List[UserAccount], sessions: List[Session])",
+            "enum AuthRequest: case SignIn(realm: RealmId, user: String, passwordHash: String, token: String), case SignOut(realm: RealmId, token: String), case SetEnabled(realm: RealmId, user: String, on: Boolean)",
+            "administer = (as: List[UserAccount], q: AuthRequest) =>\n  q match\n    case AuthRequest.SetEnabled(r, u, on) => as.map(a => if a.realm == r && a.username == u then a.copy(enabled = on) else a)\n    case AuthRequest.SignIn(_, _, _, _)   => as\n    case AuthRequest.SignOut(_, _)        => as",
+            "endedBy = (q: AuthRequest, x: Session) =>\n  q match\n    case AuthRequest.SignOut(r, t)       => x.token == t && x.realm == r\n    case AuthRequest.SignIn(_, _, _, _)  => false\n    case AuthRequest.SetEnabled(_, _, _) => false",
+            "opened = (s: ServerState, q: AuthRequest) =>\n  grantedBy(s.accounts, q) match\n    case Some(x) => if s.sessions.exists(y => y.token == x.token) then None else Some(x)\n    case None    => None",
+            "grantedBy = (as: List[UserAccount], q: AuthRequest) =>\n  q match\n    case AuthRequest.SignIn(r, u, h, t) => if accountOf(as, r, u).exists(a => a.enabled && a.passwordHash == h) then Some(Session(t, r, u)) else None\n    case AuthRequest.SignOut(_, _)       => None\n    case AuthRequest.SetEnabled(_, _, _) => None",
+            "accountOf = (as: List[UserAccount], r: RealmId, u: String) => as.find(a => a.realm == r && a.username == u)"
+          ],
+          "governs": [],
+          "definition": "val handleRequest = Node.contract(step)(\"HandleRequest\",\n  \"A request opens the session a sign-in asks for when the user is enabled, the password theirs and no session holds the token; ends the sessions its sign-out names in its realm; changes accounts only as an administrator's change sets them; and changes nothing else.\",\n  why = \"One request at a time, so each result of the running server is checked; the history's meaning (SignInHistory, Accounts) follows by induction over the requests. Refusing a token an open session holds keeps a token naming one session even if a token were ever drawn twice.\",\n  idea = \"Signing in and out\"\n)((s, q, t) => t.accounts == administer(s.accounts, q) &&\n  t.sessions.forall(x => (s.sessions.contains(x) && !endedBy(q, x)) || opened(s, q) == Some(x)) &&\n  s.sessions.forall(x => endedBy(q, x) || t.sessions.contains(x)) &&\n  opened(s, q).forall(x => t.sessions.contains(x)))\n  .under(sessionsMirrorSignIns, accountsAsAdministered)\n  .examples(sessionDb.bind(SessionDb.empty))(\n    expect(ServerState(loaded, Nil), AuthRequest.SignIn(acme, \"alice\", \"h-alice\", \"t1\"), ServerState(loaded, List(Session(\"t1\", acme, \"alice\"))),\n      \"Alice signs in to acme with her password: a session under t1\"),\n    expect(ServerState(loaded, Nil), AuthRequest.SignIn(acme, \"bob\", \"h-bob\", \"t2\"), ServerState(loaded, Nil),\n      \"Bob is disabled: no session, even with his password\"),\n    expect(ServerState(loaded, List(Session(\"t1\", acme, \"alice\"))), AuthRequest.SignOut(acme, \"t1\"), ServerState(loaded, Nil),\n      \"Alice signs out: her session ends\"),\n    expect(ServerState(loaded, List(Session(\"t1\", acme, \"alice\"))), AuthRequest.SetEnabled(acme, \"alice\", false),\n      ServerState(List(alice.copy(enabled = false), bob), List(Session(\"t1\", acme, \"alice\"))), \"an administrator disables Alice; her session stays, and is no longer accepted\"),\n    reject(ServerState(loaded, Nil), AuthRequest.SignIn(acme, \"alice\", \"wrong\", \"t1\"), ServerState(loaded, List(Session(\"t1\", acme, \"alice\"))),\n      \"a wrong password never opens a session\"),\n    reject(ServerState(loaded, Nil), AuthRequest.SignIn(globex, \"alice\", \"h-alice\", \"t1\"), ServerState(loaded, List(Session(\"t1\", globex, \"alice\"))),\n      \"Alice is a user of acme, not of globex\"),\n    reject(ServerState(List(alice, bobOn), List(Session(\"t1\", acme, \"alice\"))), AuthRequest.SignIn(acme, \"bob\", \"h-bob\", \"t1\"),\n      ServerState(List(alice, bobOn), List(Session(\"t1\", acme, \"alice\"), Session(\"t1\", acme, \"bob\"))), \"a token an open session holds never opens another\"),\n    reject(ServerState(loaded, List(Session(\"t1\", acme, \"alice\"))), AuthRequest.SignOut(globex, \"t1\"), ServerState(loaded, Nil),\n      \"globex cannot end acme's session\"),\n    reject(ServerState(loaded, List(Session(\"t1\", acme, \"alice\"))), AuthRequest.SignOut(acme, \"t1\"), ServerState(loaded, List(Session(\"t1\", acme, \"alice\"))),\n      \"a sign-out is never ignored\"),\n    reject(ServerState(loaded, Nil), AuthRequest.SignIn(acme, \"alice\", \"h-alice\", \"t1\"), ServerState(loaded, Nil),\n      \"Alice with her password is not turned away\"),\n    reject(ServerState(loaded, Nil), AuthRequest.SetEnabled(acme, \"bob\", true), ServerState(loaded, Nil),\n      \"an administrator's change is never ignored\"))",
+          "op": "step",
+          "implementation": "proven: handle\nhandle = (s: ServerState, q: AuthRequest) => record(q, next(s, q))\nnext = (s: ServerState, q: AuthRequest) =>\n  ServerState(administer(s.accounts, q), opened(s, q) match\n    case Some(x) => s.sessions ++ List(x)\n    case None    => s.sessions.filter(y => !endedBy(q, y)))\nadminister = (as: List[UserAccount], q: AuthRequest) =>\n  q match\n    case AuthRequest.SetEnabled(r, u, on) => as.map(a => if a.realm == r && a.username == u then a.copy(enabled = on) else a)\n    case AuthRequest.SignIn(_, _, _, _)   => as\n    case AuthRequest.SignOut(_, _)        => as\nopened = (s: ServerState, q: AuthRequest) =>\n  grantedBy(s.accounts, q) match\n    case Some(x) => if s.sessions.exists(y => y.token == x.token) then None else Some(x)\n    case None    => None\ngrantedBy = (as: List[UserAccount], q: AuthRequest) =>\n  q match\n    case AuthRequest.SignIn(r, u, h, t) => if accountOf(as, r, u).exists(a => a.enabled && a.passwordHash == h) then Some(Session(t, r, u)) else None\n    case AuthRequest.SignOut(_, _)       => None\n    case AuthRequest.SetEnabled(_, _, _) => None\naccountOf = (as: List[UserAccount], r: RealmId, u: String) => as.find(a => a.realm == r && a.username == u)\nendedBy = (q: AuthRequest, x: Session) =>\n  q match\n    case AuthRequest.SignOut(r, t)       => x.token == t && x.realm == r\n    case AuthRequest.SignIn(_, _, _, _)  => false\n    case AuthRequest.SetEnabled(_, _, _) => false",
+          "idea": "## Signing in and out\n\nA user of a realm can sign in with their username and password. If the user\nis enabled and the password is theirs, the server opens a session and gives\nback its token, a value no other session has. Anyone else gets no session.\n\nA user can sign out with their token: its session ends at once.",
+          "ideaSection": "Signing in and out",
+          "notModelled": "- How passwords are hashed: the server compares stored hashes, computed with\n  each user's salt before a request reaches the core.\n- How tokens are drawn: 256 random bits each, trusted to be new.\n- Token expiry and refresh tokens.\n- Which applications may ask (client authentication), consent, and the\n  OpenID Connect discovery documents.\n- Creating realms and users, and changing passwords or roles."
+        }
+      }
+    ],
     "HttpApi": [
       {
         "action": "accept",
@@ -31,6 +314,78 @@
           "keeps": [
             "RealmIsolation: exempt, because it returns only what Introspect returns, which keeps the rule"
           ]
+        }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:46.929967658Z",
+        "reason": "Keycloak's own endpoints, so existing applications keep working; hashing and drawing tokens stay at this edge, outside the proofs, as Not modelled says. It is under FreshTokens too because this is where the 256 random bits are drawn.",
+        "after": "2a6f69ec85679b6d",
+        "code": "c30aa49af16fff82d6f0c77e36d095307a478c530f04d932aed4a18a6837278e",
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "LkJ0qMJ2f7pr0Nd06/yDaRTrt4CSWbOGqP0VZD211tnyrbJKbpnUXEqqPeNrsOU3uqztyRU6+++VLm0ZgM7iBg==",
+        "chain": "",
+        "content": {
+          "kind": "design",
+          "parents": [
+            "ServiceWiring",
+            "FreshTokens"
+          ],
+          "statement": "The HTTP API serves Keycloak's token, introspection and logout endpoints for each realm, and lets an administrator enable or disable a user; it hashes the password with the user's salt and draws each token from a secure random source before calling the wiring.",
+          "why": "Applications already speak Keycloak's OpenID Connect endpoints, so the paths and answers are Keycloak's. Hashing and drawing tokens happen here, outside the proven core (Not modelled): 256 random bits per token is what FreshTokens trusts, and the core refuses a token an open session holds.",
+          "sources": {},
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [],
+          "uses": [],
+          "governs": [
+            "src/main/scala/keycloak/Server.scala"
+          ],
+          "definition": "val httpApi = Node.design(\"HttpApi\",\n  \"The HTTP API serves Keycloak's token, introspection and logout endpoints for each realm, and lets an administrator enable or disable a user; it hashes the password with the user's salt and draws each token from a secure random source before calling the wiring.\",\n  why = \"Applications already speak Keycloak's OpenID Connect endpoints, so the paths and answers are Keycloak's. Hashing and drawing tokens happen here, outside the proven core (Not modelled): 256 random bits per token is what FreshTokens trusts, and the core refuses a token an open session holds.\"\n)(\"src/main/scala/keycloak/Server.scala\")\n  .under(serviceWiring, freshTokens)\n  .exempt(realmIsolation, \"it returns only what Introspect returns, which keeps the rule\")",
+          "keeps": [
+            "RealmIsolation: exempt, because it returns only what Introspect returns, which keeps the rule"
+          ]
+        }
+      }
+    ],
+    "Identities": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:25.828340634Z",
+        "reason": "IDEA.md: each realm has its own users, so the same username in two realms is two users and a user is always named with their realm. Tokens and roles stay plain strings because the core only compares them.",
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "WQyzS8CL72s5TI3PcPry3pDABpcae7ttfoy8sL/DAgiYwuvJmh3pPwZ25FMNOHC1jxpjLaU8XMFz9viunJXTBA==",
+        "chain": "",
+        "content": {
+          "kind": "definition",
+          "parents": [],
+          "statement": "Realms are named; a user is named by their username in a realm; tokens and roles are strings.",
+          "why": "The same username in two realms is two users: a user is always looked up with the realm. A token is an opaque random string, a role a name the realm's applications know.",
+          "sources": {},
+          "substitutions": [
+            "Realm := RealmId",
+            "User := String",
+            "Token := String",
+            "Role := String"
+          ],
+          "examples": [],
+          "vocabulary": [
+            "Realm: an organisation using the server, with its own users and applications",
+            "Role: what a realm lets a user do in its applications, such as admin",
+            "Token: what a user gets when signing in, and hands to a realm's applications",
+            "User: a person with an account in a realm"
+          ],
+          "uses": [
+            "case class RealmId(name: String)"
+          ],
+          "governs": [],
+          "definition": "val identities = Node.definition(\"Identities\",\n  \"Realms are named; a user is named by their username in a realm; tokens and roles are strings.\",\n  why = \"The same username in two realms is two users: a user is always looked up with the realm. A token is an opaque random string, a role a name the realm's applications know.\"\n)(Realm := of[RealmId], User := of[String], Token := of[String], Role := of[String])"
         }
       }
     ],
@@ -86,6 +441,123 @@
           ],
           "implementation": "proven: introspect\nintrospect = (realm: RealmId, token: String) =>\n  lookup(realm, token) match\n    case Some(s) =>\n      users.value.find(a => a.realm == realm && a.username == s.user && a.enabled) match\n        case Some(a) => Some(Claims(realm, a.username, a.roles))\n        case None    => None\n    case None => None"
         }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:45.263392281Z",
+        "reason": "Keycloak's introspection for one call, checked on every answer: the realm asking, an enabled user with their current roles, a session held under the token; and it does answer when the user is enabled and the token is theirs. One call serves its five parents at once and keeps RealmIsolation; the define is proven to meet it and the 12 examples pass.",
+        "after": "cb8e01ac420067ed",
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "vwNUbKcyf6Z2VFPNqrcP2igQXvhqbpgg1wuDadG6GMEpXc52YthL97mIWB9rJOF0PTzF7mEI+QCkJ+7joXkXCQ==",
+        "chain": "8bb1e4fc569805362033ff775319b409dc0bcece6807f99bcc7bc887146d9ad4",
+        "content": {
+          "kind": "contract",
+          "parents": [
+            "AnswersNameASession",
+            "DisabledHaveNoAccess",
+            "RolesAsGranted",
+            "SignedInAreAccepted",
+            "RealmIsolation"
+          ],
+          "parts": [],
+          "statement": "An introspection names the realm asking, and a user enabled there with their roles, only for a session that realm holds under the token; and it names that session's user whenever the user is enabled and the token names no other session there.",
+          "why": "Keycloak's introspection endpoint, for one request, so each answer of the running server is checked. The claims carry the user's realm roles, which applications use to authorise.",
+          "sources": {
+            "post": "(realm, token, res) =>\n  res.forall(c => c.realm == realm && sessions(c.realm).contains(Session(token, c.realm, c.user)) &&\n    isEnabled(account(realm, c.user)) && c.roles == rolesIn(account(realm, c.user))) &&\n  sessions(realm).forall(x => (x.token == token && isEnabled(account(realm, x.user)) && onlyOne(sessions(realm), x)) ==>\n    (res == Some(Claims(realm, x.user, rolesIn(account(realm, x.user))))))"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (RealmId(\"acme\"), \"t1\") ⇒ Some(Claims(RealmId(\"acme\"), \"alice\", List(\"admin\", \"user\")))  given history = List(SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t1\"), SignIn(RealmId(\"acme\"), \"bob\", \"h-bob\", \"t2\"), SignIn(RealmId(\"globex\"), \"carol\", \"h-carol\", \"t4\"), SetEnabled(RealmId(\"acme\"), \"bob\", false), SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t3\"), SignOut(RealmId(\"acme\"), \"t3\")), seed = List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", true, List(\"user\")), UserAccount(RealmId(\"globex\"), \"carol\", \"h-carol\", true, List(\"viewer\"))), sessionDb.bind(SessionDb.replaying(seed.value, history.value))  — Alice's token at acme: accepted as hers, with her roles",
+            "expect (RealmId(\"globex\"), \"t4\") ⇒ Some(Claims(RealmId(\"globex\"), \"carol\", List(\"viewer\")))  given history = List(SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t1\"), SignIn(RealmId(\"acme\"), \"bob\", \"h-bob\", \"t2\"), SignIn(RealmId(\"globex\"), \"carol\", \"h-carol\", \"t4\"), SetEnabled(RealmId(\"acme\"), \"bob\", false), SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t3\"), SignOut(RealmId(\"acme\"), \"t3\")), seed = List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", true, List(\"user\")), UserAccount(RealmId(\"globex\"), \"carol\", \"h-carol\", true, List(\"viewer\"))), sessionDb.bind(SessionDb.replaying(seed.value, history.value))  — Carol's token at globex: accepted as hers",
+            "expect (RealmId(\"globex\"), \"t1\") ⇒ None  given history = List(SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t1\"), SignIn(RealmId(\"acme\"), \"bob\", \"h-bob\", \"t2\"), SignIn(RealmId(\"globex\"), \"carol\", \"h-carol\", \"t4\"), SetEnabled(RealmId(\"acme\"), \"bob\", false), SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t3\"), SignOut(RealmId(\"acme\"), \"t3\")), seed = List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", true, List(\"user\")), UserAccount(RealmId(\"globex\"), \"carol\", \"h-carol\", true, List(\"viewer\"))), sessionDb.bind(SessionDb.replaying(seed.value, history.value))  — acme's token is not good at globex",
+            "expect (RealmId(\"acme\"), \"t2\") ⇒ None  given history = List(SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t1\"), SignIn(RealmId(\"acme\"), \"bob\", \"h-bob\", \"t2\"), SignIn(RealmId(\"globex\"), \"carol\", \"h-carol\", \"t4\"), SetEnabled(RealmId(\"acme\"), \"bob\", false), SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t3\"), SignOut(RealmId(\"acme\"), \"t3\")), seed = List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", true, List(\"user\")), UserAccount(RealmId(\"globex\"), \"carol\", \"h-carol\", true, List(\"viewer\"))), sessionDb.bind(SessionDb.replaying(seed.value, history.value))  — Bob was disabled after signing in: his token is no longer accepted",
+            "expect (RealmId(\"acme\"), \"t3\") ⇒ None  given history = List(SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t1\"), SignIn(RealmId(\"acme\"), \"bob\", \"h-bob\", \"t2\"), SignIn(RealmId(\"globex\"), \"carol\", \"h-carol\", \"t4\"), SetEnabled(RealmId(\"acme\"), \"bob\", false), SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t3\"), SignOut(RealmId(\"acme\"), \"t3\")), seed = List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", true, List(\"user\")), UserAccount(RealmId(\"globex\"), \"carol\", \"h-carol\", true, List(\"viewer\"))), sessionDb.bind(SessionDb.replaying(seed.value, history.value))  — Alice signed out with t3",
+            "expect (RealmId(\"acme\"), \"t9\") ⇒ None  given history = List(SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t1\"), SignIn(RealmId(\"acme\"), \"bob\", \"h-bob\", \"t2\"), SignIn(RealmId(\"globex\"), \"carol\", \"h-carol\", \"t4\"), SetEnabled(RealmId(\"acme\"), \"bob\", false), SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t3\"), SignOut(RealmId(\"acme\"), \"t3\")), seed = List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", true, List(\"user\")), UserAccount(RealmId(\"globex\"), \"carol\", \"h-carol\", true, List(\"viewer\"))), sessionDb.bind(SessionDb.replaying(seed.value, history.value))  — a token no sign-in got",
+            "reject (RealmId(\"globex\"), \"t1\") ⇒ Some(Claims(RealmId(\"globex\"), \"alice\", List(\"admin\", \"user\")))  given history = List(SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t1\"), SignIn(RealmId(\"acme\"), \"bob\", \"h-bob\", \"t2\"), SignIn(RealmId(\"globex\"), \"carol\", \"h-carol\", \"t4\"), SetEnabled(RealmId(\"acme\"), \"bob\", false), SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t3\"), SignOut(RealmId(\"acme\"), \"t3\")), seed = List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", true, List(\"user\")), UserAccount(RealmId(\"globex\"), \"carol\", \"h-carol\", true, List(\"viewer\"))), sessionDb.bind(SessionDb.replaying(seed.value, history.value))  — a token is never good in another realm",
+            "reject (RealmId(\"acme\"), \"t4\") ⇒ Some(Claims(RealmId(\"acme\"), \"carol\", List(\"viewer\")))  given history = List(SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t1\"), SignIn(RealmId(\"acme\"), \"bob\", \"h-bob\", \"t2\"), SignIn(RealmId(\"globex\"), \"carol\", \"h-carol\", \"t4\"), SetEnabled(RealmId(\"acme\"), \"bob\", false), SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t3\"), SignOut(RealmId(\"acme\"), \"t3\")), seed = List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", true, List(\"user\")), UserAccount(RealmId(\"globex\"), \"carol\", \"h-carol\", true, List(\"viewer\"))), sessionDb.bind(SessionDb.replaying(seed.value, history.value))  — nor is globex's token good at acme",
+            "reject (RealmId(\"acme\"), \"t2\") ⇒ Some(Claims(RealmId(\"acme\"), \"bob\", List(\"user\")))  given history = List(SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t1\"), SignIn(RealmId(\"acme\"), \"bob\", \"h-bob\", \"t2\"), SignIn(RealmId(\"globex\"), \"carol\", \"h-carol\", \"t4\"), SetEnabled(RealmId(\"acme\"), \"bob\", false), SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t3\"), SignOut(RealmId(\"acme\"), \"t3\")), seed = List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", true, List(\"user\")), UserAccount(RealmId(\"globex\"), \"carol\", \"h-carol\", true, List(\"viewer\"))), sessionDb.bind(SessionDb.replaying(seed.value, history.value))  — a disabled user's token is never accepted",
+            "reject (RealmId(\"acme\"), \"t3\") ⇒ Some(Claims(RealmId(\"acme\"), \"alice\", List(\"admin\", \"user\")))  given history = List(SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t1\"), SignIn(RealmId(\"acme\"), \"bob\", \"h-bob\", \"t2\"), SignIn(RealmId(\"globex\"), \"carol\", \"h-carol\", \"t4\"), SetEnabled(RealmId(\"acme\"), \"bob\", false), SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t3\"), SignOut(RealmId(\"acme\"), \"t3\")), seed = List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", true, List(\"user\")), UserAccount(RealmId(\"globex\"), \"carol\", \"h-carol\", true, List(\"viewer\"))), sessionDb.bind(SessionDb.replaying(seed.value, history.value))  — a token signed out with is never accepted again",
+            "reject (RealmId(\"acme\"), \"t1\") ⇒ Some(Claims(RealmId(\"acme\"), \"alice\", List(\"admin\", \"user\", \"owner\")))  given history = List(SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t1\"), SignIn(RealmId(\"acme\"), \"bob\", \"h-bob\", \"t2\"), SignIn(RealmId(\"globex\"), \"carol\", \"h-carol\", \"t4\"), SetEnabled(RealmId(\"acme\"), \"bob\", false), SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t3\"), SignOut(RealmId(\"acme\"), \"t3\")), seed = List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", true, List(\"user\")), UserAccount(RealmId(\"globex\"), \"carol\", \"h-carol\", true, List(\"viewer\"))), sessionDb.bind(SessionDb.replaying(seed.value, history.value))  — roles are never made up",
+            "reject (RealmId(\"acme\"), \"t1\") ⇒ None  given history = List(SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t1\"), SignIn(RealmId(\"acme\"), \"bob\", \"h-bob\", \"t2\"), SignIn(RealmId(\"globex\"), \"carol\", \"h-carol\", \"t4\"), SetEnabled(RealmId(\"acme\"), \"bob\", false), SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t3\"), SignOut(RealmId(\"acme\"), \"t3\")), seed = List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", true, List(\"user\")), UserAccount(RealmId(\"globex\"), \"carol\", \"h-carol\", true, List(\"viewer\"))), sessionDb.bind(SessionDb.replaying(seed.value, history.value))  — Alice's token is not turned away"
+          ],
+          "vocabulary": [
+            "account: the user's account in a realm, as the server holds it now",
+            "introspect: the server's answer to a realm's application asking about a token: the claims it is active with, or none (not active)",
+            "sessions: the sessions a realm has open, as the server holds them now"
+          ],
+          "uses": [
+            "case class RealmId(name: String)",
+            "case class Claims(realm: RealmId, user: String, roles: List[String])",
+            "case class Session(token: String, realm: RealmId, user: String)",
+            "case class UserAccount(realm: RealmId, username: String, passwordHash: String, enabled: Boolean, roles: List[String])",
+            "isEnabled = (a: Option[UserAccount]) => a.exists(x => x.enabled)",
+            "rolesIn = (a: Option[UserAccount]) =>\n  a match\n    case Some(x) => x.roles\n    case None    => Nil",
+            "onlyOne = (ss: List[Session], x: Session) => ss.forall(y => (y.token == x.token) ==> (y == x))"
+          ],
+          "governs": [],
+          "definition": "val introspectContract = Node.contract(introspect)(\"Introspect\",\n  \"An introspection names the realm asking, and a user enabled there with their roles, only for a session that realm holds under the token; and it names that session's user whenever the user is enabled and the token names no other session there.\",\n  why = \"Keycloak's introspection endpoint, for one request, so each answer of the running server is checked. The claims carry the user's realm roles, which applications use to authorise.\",\n  idea = \"Checking tokens\"\n)((realm, token, res) =>\n  res.forall(c => c.realm == realm && sessions(c.realm).contains(Session(token, c.realm, c.user)) &&\n    isEnabled(account(realm, c.user)) && c.roles == rolesIn(account(realm, c.user))) &&\n  sessions(realm).forall(x => (x.token == token && isEnabled(account(realm, x.user)) && onlyOne(sessions(realm), x)) ==>\n    (res == Some(Claims(realm, x.user, rolesIn(account(realm, x.user)))))))\n  .under(answersNameASession, disabledHaveNoAccess, rolesAsGranted, signedInAreAccepted)\n  .keeps(realmIsolation)((realm, token, res) => res match\n    case Some(c) => List((realm, c))\n    case None    => Nil)\n  .examples(history.bind(events), seed.bind(atStart), sessionDb.bind(SessionDb.replaying(seed.value, history.value)))(\n    expect(acme, \"t1\", Some(Claims(acme, \"alice\", List(\"admin\", \"user\"))), \"Alice's token at acme: accepted as hers, with her roles\"),\n    expect(globex, \"t4\", Some(Claims(globex, \"carol\", List(\"viewer\"))), \"Carol's token at globex: accepted as hers\"),\n    expect(globex, \"t1\", None, \"acme's token is not good at globex\"),\n    expect(acme, \"t2\", None, \"Bob was disabled after signing in: his token is no longer accepted\"),\n    expect(acme, \"t3\", None, \"Alice signed out with t3\"),\n    expect(acme, \"t9\", None, \"a token no sign-in got\"),\n    reject(globex, \"t1\", Some(Claims(globex, \"alice\", List(\"admin\", \"user\"))), \"a token is never good in another realm\"),\n    reject(acme, \"t4\", Some(Claims(acme, \"carol\", List(\"viewer\"))), \"nor is globex's token good at acme\"),\n    reject(acme, \"t2\", Some(Claims(acme, \"bob\", List(\"user\"))), \"a disabled user's token is never accepted\"),\n    reject(acme, \"t3\", Some(Claims(acme, \"alice\", List(\"admin\", \"user\"))), \"a token signed out with is never accepted again\"),\n    reject(acme, \"t1\", Some(Claims(acme, \"alice\", List(\"admin\", \"user\", \"owner\"))), \"roles are never made up\"),\n    reject(acme, \"t1\", None, \"Alice's token is not turned away\"))",
+          "op": "introspect",
+          "keeps": [
+            "RealmIsolation: (realm, token, res) => res match\n    case Some(c) => List((realm, c))\n    case None    => Nil"
+          ],
+          "implementation": "proven: introspection\nintrospection = (realm: RealmId, token: String) =>\n  lookup(realm, token) match\n    case Some(x) =>\n      if isEnabled(account(realm, x.user)) then Some(Claims(realm, x.user, rolesIn(account(realm, x.user)))) else None\n    case None => None\nisEnabled = (a: Option[UserAccount]) => a.exists(x => x.enabled)\nrolesIn = (a: Option[UserAccount]) =>\n  a match\n    case Some(x) => x.roles\n    case None    => Nil",
+          "idea": "## Checking tokens\n\nAn application of a realm can ask the server whose a token is. The server\nanswers with the user and their roles in that realm when the token's session\nis open in that realm and the user is enabled; otherwise the token is not\nactive.",
+          "ideaSection": "Checking tokens",
+          "notModelled": "- How passwords are hashed: the server compares stored hashes, computed with\n  each user's salt before a request reaches the core.\n- How tokens are drawn: 256 random bits each, trusted to be new.\n- Token expiry and refresh tokens.\n- Which applications may ask (client authentication), consent, and the\n  OpenID Connect discovery documents.\n- Creating realms and users, and changing passwords or roles."
+        }
+      }
+    ],
+    "NoUnauthorizedAccess": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:34.633515734Z",
+        "reason": "IDEA.md's No unauthorized access section, the never-happen half of RealmAccess. Its three parts follow the ways in the section lists: the wrong sign-in (another user, realm, or after sign-out), a disabled user, and roles not given.",
+        "held": [
+          "ReferenceTokens"
+        ],
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "NMUPddSroSSO5IC8fPTKZcvgLddPMTkdbnfwZbNsHWSSenBzo7ZJIiyxToLcK5y9QyIUUAHxMUgMOdDtzJPfBQ==",
+        "chain": "9474bd612e482530742501602bd5d0a311781f97eb1d0360174b6691c7d582b9",
+        "content": {
+          "kind": "claim",
+          "parents": [
+            "RealmAccess"
+          ],
+          "parts": [
+            "OnlyTheSignedIn",
+            "DisabledHaveNoAccess",
+            "RolesAsGranted"
+          ],
+          "statement": "A token is accepted only as a user who signed in to that realm with it, has not signed out since and is still enabled, and only with that user's roles.",
+          "why": "The safety half of the purpose: whatever an application is told about a token must be true of a sign-in that still stands.",
+          "sources": {
+            "formula": "forall((r: Realm.T, t: Token.T) => accepted(r, t).forall(a => signedIn(r, a._1, t) && enabled(r, a._1) && a._2 == rolesOf(r, a._1)))"
+          },
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [
+            "Realm: an organisation using the server, with its own users and applications",
+            "Role: what a realm lets a user do in its applications, such as admin",
+            "Token: what a user gets when signing in, and hands to a realm's applications",
+            "User: a person with an account in a realm",
+            "accepted: whom a realm's application accepts a token as, now: the user, and the roles it is told they have, if it accepts the token at all",
+            "enabled: whether the user's account in the realm is enabled now",
+            "rolesOf: the roles the realm gives the user now",
+            "signedIn: whether the user signed in to the realm, with their password while enabled, got the token, and has not signed out with it since"
+          ],
+          "uses": [],
+          "governs": [],
+          "definition": "val noUnauthorizedAccess = Node.claim(\"NoUnauthorizedAccess\",\n  \"A token is accepted only as a user who signed in to that realm with it, has not signed out since and is still enabled, and only with that user's roles.\",\n  why = \"The safety half of the purpose: whatever an application is told about a token must be true of a sign-in that still stands.\",\n  idea = \"No unauthorized access\"\n)(forall((r: Realm.T, t: Token.T) => accepted(r, t).forall(a => signedIn(r, a._1, t) && enabled(r, a._1) && a._2 == rolesOf(r, a._1))))\n  .under(realmAccess)",
+          "idea": "## No unauthorized access\n\nA token never lets anyone in who is not signed in with it: not another user,\nnot in another realm, not after its sign-out, not once the user is disabled,\nand never with roles the realm did not give.",
+          "ideaSection": "No unauthorized access",
+          "notModelled": "- How passwords are hashed: the server compares stored hashes, computed with\n  each user's salt before a request reaches the core.\n- How tokens are drawn: 256 random bits each, trusted to be new.\n- Token expiry and refresh tokens.\n- Which applications may ask (client authentication), consent, and the\n  OpenID Connect discovery documents.\n- Creating realms and users, and changing passwords or roles."
+        }
       }
     ],
     "OneAtATime": [
@@ -114,6 +586,161 @@
           "uses": [],
           "governs": [],
           "definition": "val oneAtATime = sessions.refine[(Store.T, Request.T) => Store.T](\n  \"OneAtATime\",\n  \"The server starts with distinct tokens, a request keeps tokens distinct, and every request is granted when it may be and changes nothing else.\",\n  why = \"The server handles requests one at a time from its initial store, so it is enough that the start has distinct tokens and each step keeps them distinct (by induction over the requests), and that each step does only what was asked. abs: the store after a sequence is the requests applied in turn.\"\n)(\n  abs  = apply => rs => rs.foldLeft(initial.value)((s, q) => apply(s, q)),\n  spec = apply => distinct(initial.value) && forall((s: Store.T, q: Request.T) =>\n    (distinct(s) ==> distinct(apply(s, q))) && onlyThat(s, q, apply(s, q)) && granted(s, q, apply(s, q))))"
+        }
+      },
+      {
+        "action": "remove",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:51.613374495Z",
+        "reason": "One request at a time is now the definition ServerRun and the design ServiceWiring; the induction it carried is the authored proof of SessionsMirrorSignIns and AccountsAsAdministered.",
+        "after": "7d411b53912c8c50",
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "xLTHGIacd69nbZy0JJzFMnTa7NmUabV7S8kDVVieYCMk2r55Qpc2IB5DB3rMyGf+BCOh8YAcsbZGKFhoy8YYDg==",
+        "chain": "c750f207c64ec267ed645880446a88442ed7c43dbda1b0cee3889ddd55ffaa80",
+        "content": "same:d15698a19d1f2ec7"
+      }
+    ],
+    "OneSignInPerToken": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:39.714882536Z",
+        "reason": "IDEA.md: a token is a value no other session has. Without it an application could be told either of two users, so a signed-in user would not reliably be accepted as themselves.",
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "ivuMo4zy+woTA9fUT4UESf+0shM4buqXdK3/i3ILufTIXL/L1WBCvSB7aq7D/Amfj6Gfus/5IvkpRDK5pm+hBQ==",
+        "chain": "316da6f863418dfa5aaeeb2695746f485c95b3468243a333496b599187482e7b",
+        "content": {
+          "kind": "claim",
+          "parents": [
+            "SignedInAreAccepted"
+          ],
+          "parts": [
+            "FreshTokens"
+          ],
+          "statement": "Two sign-ins that still stand never share a token: a token names one session at most.",
+          "why": "A token must say whose it is: if two users could get the same one, an application could be told either of them.",
+          "sources": {
+            "formula": "forall((x: Session, y: Session) => (liveIn(history.value, x) && liveIn(history.value, y) && x.token == y.token) ==> (x == y))"
+          },
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [
+            "history: the requests the server has handled since it started, in order: sign-ins, sign-outs and administrators' changes (the server's event log)",
+            "seed: every realm's accounts as loaded at start: username, salted password hash, whether enabled, realm roles"
+          ],
+          "uses": [
+            "case class RealmId(name: String)",
+            "case class Session(token: String, realm: RealmId, user: String)",
+            "enum AuthRequest: case SignIn(realm: RealmId, user: String, passwordHash: String, token: String), case SignOut(realm: RealmId, token: String), case SetEnabled(realm: RealmId, user: String, on: Boolean)",
+            "case class UserAccount(realm: RealmId, username: String, passwordHash: String, enabled: Boolean, roles: List[String])",
+            "liveIn = (hs: List[AuthRequest], x: Session) =>\n  exists((pre: List[AuthRequest], post: List[AuthRequest]) =>\n    exists((q: AuthRequest) => hs == pre ++ (q :: post) && grantedBy(accountsAfter(pre), q) == Some(x)) &&\n      !post.contains(AuthRequest.SignOut(x.realm, x.token)))",
+            "grantedBy = (as: List[UserAccount], q: AuthRequest) =>\n  q match\n    case AuthRequest.SignIn(r, u, h, t) => if accountOf(as, r, u).exists(a => a.enabled && a.passwordHash == h) then Some(Session(t, r, u)) else None\n    case AuthRequest.SignOut(_, _)       => None\n    case AuthRequest.SetEnabled(_, _, _) => None",
+            "accountOf = (as: List[UserAccount], r: RealmId, u: String) => as.find(a => a.realm == r && a.username == u)",
+            "accountsAfter = (hs: List[AuthRequest]) => hs.foldLeft(seed.value)((as, q) => administer(as, q))",
+            "administer = (as: List[UserAccount], q: AuthRequest) =>\n  q match\n    case AuthRequest.SetEnabled(r, u, on) => as.map(a => if a.realm == r && a.username == u then a.copy(enabled = on) else a)\n    case AuthRequest.SignIn(_, _, _, _)   => as\n    case AuthRequest.SignOut(_, _)        => as"
+          ],
+          "governs": [],
+          "definition": "val oneSignInPerToken = Node.claim(\"OneSignInPerToken\",\n  \"Two sign-ins that still stand never share a token: a token names one session at most.\",\n  why = \"A token must say whose it is: if two users could get the same one, an application could be told either of them.\"\n)(forall((x: Session, y: Session) => (liveIn(history.value, x) && liveIn(history.value, y) && x.token == y.token) ==> (x == y)))\n  .under(signedInAreAccepted)"
+        }
+      }
+    ],
+    "OnlyTheSignedIn": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:35.111478366Z",
+        "reason": "Not another user, not another realm, not after its sign-out: the first clause of No unauthorized access. It follows from answers coming from a held session, sessions being exactly the standing sign-ins, and no realm seeing another's claims.",
+        "held": [
+          "ReferenceTokens"
+        ],
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "YQXr52uEYFrgBNuJI4+yOFL+6vSXp6OageHWeFpWV6oMt6r2aWORlR34u3cHUGbtzMFHc1ufipeplnf5FoR3Dg==",
+        "chain": "592dd9858f6d04b63e01df29ff9f1fdcbb1c863eed37725fda9d5c38138131dd",
+        "content": {
+          "kind": "claim",
+          "parents": [
+            "NoUnauthorizedAccess"
+          ],
+          "parts": [
+            "RealmIsolation",
+            "AnswersNameASession",
+            "SessionsMirrorSignIns"
+          ],
+          "statement": "A token is accepted in a realm only as the user who signed in to that realm with it and has not signed out with it since.",
+          "why": "A token stands for one sign-in: accepting it as anyone else, in another realm, or after its sign-out would let someone in who is not signed in.",
+          "sources": {
+            "formula": "forall((r: Realm.T, t: Token.T) => accepted(r, t).forall(a => signedIn(r, a._1, t)))"
+          },
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [
+            "Realm: an organisation using the server, with its own users and applications",
+            "Role: what a realm lets a user do in its applications, such as admin",
+            "Token: what a user gets when signing in, and hands to a realm's applications",
+            "User: a person with an account in a realm",
+            "accepted: whom a realm's application accepts a token as, now: the user, and the roles it is told they have, if it accepts the token at all",
+            "signedIn: whether the user signed in to the realm, with their password while enabled, got the token, and has not signed out with it since"
+          ],
+          "uses": [],
+          "governs": [],
+          "definition": "val onlyTheSignedIn = Node.claim(\"OnlyTheSignedIn\",\n  \"A token is accepted in a realm only as the user who signed in to that realm with it and has not signed out with it since.\",\n  why = \"A token stands for one sign-in: accepting it as anyone else, in another realm, or after its sign-out would let someone in who is not signed in.\"\n)(forall((r: Realm.T, t: Token.T) => accepted(r, t).forall(a => signedIn(r, a._1, t))))\n  .under(noUnauthorizedAccess)"
+        }
+      }
+    ],
+    "RealmAccess": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:33.078520499Z",
+        "reason": "IDEA.md's lead sentence in the domain's words: accepted exactly when signed in to that realm, not signed out, still enabled, so a server accepting nothing fails it (Lean shows idle does not meet it). Its two parts are the sections No unauthorized access and Signed-in users are let in, each needed.",
+        "held": [
+          "Accounts",
+          "Identities",
+          "ReferenceTokens",
+          "ReferenceTokens",
+          "ServerRun",
+          "SignInHistory"
+        ],
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "BY1own0o5xPxXZOFOJVpF935aFrVlJm82okOmBBrd6+OS43KF6UksMwI1WXS/3Ng4x5YjdTZj8IClupKaI9xBQ==",
+        "chain": "6ee8f022ee86bf4a649b715c78a059760b0f9f0e5fb7c3bb4deee0ed1197d4f9",
+        "content": {
+          "kind": "claim",
+          "parents": [],
+          "parts": [
+            "NoUnauthorizedAccess",
+            "SignedInAreAccepted"
+          ],
+          "statement": "A realm's application accepts a token as a user's, with the user's roles, exactly when the user signed in to that realm and got the token, has not signed out with it since, and is still enabled.",
+          "why": "The idea in one sentence: applications never see passwords, they ask the server whose a token is. Both halves matter: a token must never let anyone else in (no unauthorized access), and a user who signed in must be let in, or a server that accepts nothing would do.",
+          "sources": {
+            "formula": "forall((r: Realm.T, t: Token.T) => forall((u: User.T) =>\n  (accepted(r, t) == Some((u, rolesOf(r, u)))) == (signedIn(r, u, t) && enabled(r, u))))"
+          },
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [
+            "Realm: an organisation using the server, with its own users and applications",
+            "Role: what a realm lets a user do in its applications, such as admin",
+            "Token: what a user gets when signing in, and hands to a realm's applications",
+            "User: a person with an account in a realm",
+            "accepted: whom a realm's application accepts a token as, now: the user, and the roles it is told they have, if it accepts the token at all",
+            "enabled: whether the user's account in the realm is enabled now",
+            "rolesOf: the roles the realm gives the user now",
+            "signedIn: whether the user signed in to the realm, with their password while enabled, got the token, and has not signed out with it since"
+          ],
+          "uses": [],
+          "governs": [],
+          "definition": "val realmAccess = Node.claim(\"RealmAccess\",\n  \"A realm's application accepts a token as a user's, with the user's roles, exactly when the user signed in to that realm and got the token, has not signed out with it since, and is still enabled.\",\n  why = \"The idea in one sentence: applications never see passwords, they ask the server whose a token is. Both halves matter: a token must never let anyone else in (no unauthorized access), and a user who signed in must be let in, or a server that accepts nothing would do.\"\n)(forall((r: Realm.T, t: Token.T) => forall((u: User.T) =>\n  (accepted(r, t) == Some((u, rolesOf(r, u)))) == (signedIn(r, u, t) && enabled(r, u)))))",
+          "idea": "# Realms: a small authentication server\n\nA realm's application accepts a token as a user's, with the user's roles,\nexactly when the user signed in to that realm with their password and got the\ntoken, has not signed out with it since, and is still enabled.\n\nSeveral organisations share one authentication server, like Keycloak. Each\norganisation is a realm with its own users and applications. Applications\nnever see passwords: they send users to the server to sign in, and ask the\nserver whose a token is.",
+          "notModelled": "- How passwords are hashed: the server compares stored hashes, computed with\n  each user's salt before a request reaches the core.\n- How tokens are drawn: 256 random bits each, trusted to be new.\n- Token expiry and refresh tokens.\n- Which applications may ask (client authentication), consent, and the\n  OpenID Connect discovery documents.\n- Creating realms and users, and changing passwords or roles."
         }
       }
     ],
@@ -144,6 +771,44 @@
           ],
           "governs": [],
           "definition": "val realmIsolation = Node.invariant[RealmId, Claims](\n  \"RealmIsolation\",\n  \"No application is ever shown claims of a realm other than its own.\",\n  why = \"The idea says a token is only ever good in the realm that issued it. Stated once over every answer the server gives, so a new endpoint (user info, an admin view of sessions) must keep it or say why not.\"\n)((asking, c) => c.realm == asking)"
+        }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:35.836803358Z",
+        "reason": "IDEA.md's Realms section: no application is ever shown anything of another realm. As an invariant over every answer, Introspect keeps it and any new endpoint must keep it or say why not; it sits under OnlyTheSignedIn because a claim from another realm would let in someone not signed in there.",
+        "after": "3572e515a070d0d5",
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "+C7lxTuLZYbHlEAcwPb7W5eX25tA7bjdDcBtGT1WY4tmOxGh78+mG0ZJ5GNnOMOt08JVEos0rOxOrKcFaRXxDg==",
+        "chain": "bc0d26a9667f61e2076ec51b48ba8a722076c01ea992e73919d0fdc020be41b3",
+        "content": {
+          "kind": "claim",
+          "parents": [
+            "OnlyTheSignedIn"
+          ],
+          "parts": [
+            "Introspect"
+          ],
+          "statement": "No application is ever shown claims of a realm other than its own.",
+          "why": "The idea says a token is only ever good in the realm that issued it. Stated once over every answer the server gives, so a new endpoint (user info, an admin view of sessions) must keep it or say why not.",
+          "sources": {
+            "rule": "(asking, c) => c.realm == asking"
+          },
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [],
+          "uses": [
+            "case class RealmId(name: String)",
+            "case class Claims(realm: RealmId, user: String, roles: List[String])"
+          ],
+          "governs": [],
+          "definition": "val realmIsolation = Node.invariant[RealmId, Claims](\"RealmIsolation\",\n  \"No application is ever shown claims of a realm other than its own.\",\n  why = \"The idea says a token is only ever good in the realm that issued it. Stated once over every answer the server gives, so a new endpoint (user info, an admin view of sessions) must keep it or say why not.\",\n  idea = \"Realms\"\n)((asking, c) => c.realm == asking)\n  .under(onlyTheSignedIn)",
+          "idea": "## Realms\n\nA token is only ever good in the realm that issued it, and no application is\never shown anything of another realm.",
+          "ideaSection": "Realms",
+          "notModelled": "- How passwords are hashed: the server compares stored hashes, computed with\n  each user's salt before a request reaches the core.\n- How tokens are drawn: 256 random bits each, trusted to be new.\n- Token expiry and refresh tokens.\n- Which applications may ask (client authentication), consent, and the\n  OpenID Connect discovery documents.\n- Creating realms and users, and changing passwords or roles."
         }
       }
     ],
@@ -191,6 +856,127 @@
             "SessionTable: a token names at most one session: sign-ins keep tokens distinct, and a sign-out removes the session from the store"
           ]
         }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:28.949027689Z",
+        "reason": "IDEA.md says a sign-out ends the session at once and a disabled user's tokens stop being accepted at once; a token an application reads by itself would stay good after both. So accepted means what the server's introspection answers, a lookup per check that one server answers from memory.",
+        "after": "3778c8107e1744aa",
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "3nwYoh0+MkUI7xPC3YWO6UchSh3CJmyIuVhm3aKbqUk79exAVHEtZyoyRXPOMZov5LzMfis9HDzikqDhnSpcBQ==",
+        "chain": "",
+        "content": {
+          "kind": "definition",
+          "parents": [],
+          "statement": "A realm's application accepts a token as the server's introspection of it answers: a token is a reference to a session the server holds, not a statement the application reads.",
+          "why": "Sign-out must end a token at once, and a disabled user must lose access at once: a signed token stays good after both until it expires, so applications ask the server about every token. The cost is a lookup per check, which one server answers from memory.",
+          "sources": {},
+          "substitutions": [
+            "accepted := (r: RealmId, t: String) => claimsOf(introspect(r, t))"
+          ],
+          "examples": [],
+          "vocabulary": [
+            "accepted: whom a realm's application accepts a token as, now: the user, and the roles it is told they have, if it accepts the token at all",
+            "introspect: the server's answer to a realm's application asking about a token: the claims it is active with, or none (not active)"
+          ],
+          "uses": [
+            "case class RealmId(name: String)",
+            "case class Claims(realm: RealmId, user: String, roles: List[String])",
+            "claimsOf = (c: Option[Claims]) =>\n  c match\n    case Some(x) => Some((x.user, x.roles))\n    case None    => None"
+          ],
+          "governs": [],
+          "definition": "val referenceTokens = Node.definition(\"ReferenceTokens\",\n  \"A realm's application accepts a token as the server's introspection of it answers: a token is a reference to a session the server holds, not a statement the application reads.\",\n  why = \"Sign-out must end a token at once, and a disabled user must lose access at once: a signed token stays good after both until it expires, so applications ask the server about every token. The cost is a lookup per check, which one server answers from memory.\"\n)(accepted := ((r: RealmId, t: String) => claimsOf(introspect(r, t))))"
+        }
+      }
+    ],
+    "RolesAsGranted": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:35.598834310Z",
+        "reason": "IDEA.md: never with roles the realm did not give. Applications authorise from the roles they are told, so the roles must be the realm's for that user now, read from the accounts the server holds.",
+        "held": [
+          "ReferenceTokens"
+        ],
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "PEuR1AC2/e5xfGwhZODpkUfMQbOp4BaHfQ4NPwwI7TQuq46YrLfVGiMZHrkdibzk1nz3fcXNw+CwrTaGv9/3Cg==",
+        "chain": "84fcb76280f4b70973dd885471016ec4fb43fc96e360adf389ee92312d8f7c21",
+        "content": {
+          "kind": "claim",
+          "parents": [
+            "NoUnauthorizedAccess"
+          ],
+          "parts": [
+            "AccountsAsAdministered",
+            "Introspect"
+          ],
+          "statement": "A token is accepted only with the roles the realm gives its user now.",
+          "why": "Applications decide what a user may do from the roles they are told: a role made up, or kept after the realm took it away, is access the realm did not give.",
+          "sources": {
+            "formula": "forall((r: Realm.T, t: Token.T) => accepted(r, t).forall(a => a._2 == rolesOf(r, a._1)))"
+          },
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [
+            "Realm: an organisation using the server, with its own users and applications",
+            "Role: what a realm lets a user do in its applications, such as admin",
+            "Token: what a user gets when signing in, and hands to a realm's applications",
+            "User: a person with an account in a realm",
+            "accepted: whom a realm's application accepts a token as, now: the user, and the roles it is told they have, if it accepts the token at all",
+            "rolesOf: the roles the realm gives the user now"
+          ],
+          "uses": [],
+          "governs": [],
+          "definition": "val rolesAsGranted = Node.claim(\"RolesAsGranted\",\n  \"A token is accepted only with the roles the realm gives its user now.\",\n  why = \"Applications decide what a user may do from the roles they are told: a role made up, or kept after the realm took it away, is access the realm did not give.\"\n)(forall((r: Realm.T, t: Token.T) => accepted(r, t).forall(a => a._2 == rolesOf(r, a._1))))\n  .under(noUnauthorizedAccess)"
+        }
+      }
+    ],
+    "ServerRun": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:31.155406712Z",
+        "reason": "The server handles one request at a time from the accounts loaded at start and no session (ServiceWiring), so its sessions and accounts are its history applied in turn; this ties the state the code holds to the history the other definitions speak of.",
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "eEZPnpjE1iYfHBSOD87BLV9tu+YwJ/LQRX3qm+249ohPA1lgjjP2iCtN+UxTW4CMMUgPO5XTXAlrSQbtnxV9AA==",
+        "chain": "",
+        "content": {
+          "kind": "definition",
+          "parents": [],
+          "statement": "The server's sessions and accounts now are what its requests led to: from the accounts loaded at start and no session, each request handled in turn.",
+          "why": "The server handles one request at a time on the state it stored after the last one (ServiceWiring), so its state is the requests of its history applied in turn.",
+          "sources": {},
+          "substitutions": [
+            "sessions := (r: RealmId) => stateAfter(history.value).sessions.filter(x => x.realm == r)",
+            "account := (r: RealmId, u: String) => accountOf(stateAfter(history.value).accounts, r, u)"
+          ],
+          "examples": [],
+          "vocabulary": [
+            "account: the user's account in a realm, as the server holds it now",
+            "history: the requests the server has handled since it started, in order: sign-ins, sign-outs and administrators' changes (the server's event log)",
+            "seed: every realm's accounts as loaded at start: username, salted password hash, whether enabled, realm roles",
+            "sessions: the sessions a realm has open, as the server holds them now",
+            "step: the server's handling of one request: the state it stores, from the state before it"
+          ],
+          "uses": [
+            "case class RealmId(name: String)",
+            "case class UserAccount(realm: RealmId, username: String, passwordHash: String, enabled: Boolean, roles: List[String])",
+            "case class Session(token: String, realm: RealmId, user: String)",
+            "case class ServerState(accounts: List[UserAccount], sessions: List[Session])",
+            "enum AuthRequest: case SignIn(realm: RealmId, user: String, passwordHash: String, token: String), case SignOut(realm: RealmId, token: String), case SetEnabled(realm: RealmId, user: String, on: Boolean)",
+            "stateAfter = (hs: List[AuthRequest]) => hs.foldLeft(ServerState(seed.value, Nil))((s, q) => step(s, q))",
+            "accountOf = (as: List[UserAccount], r: RealmId, u: String) => as.find(a => a.realm == r && a.username == u)"
+          ],
+          "governs": [],
+          "definition": "val serverRun = Node.definition(\"ServerRun\",\n  \"The server's sessions and accounts now are what its requests led to: from the accounts loaded at start and no session, each request handled in turn.\",\n  why = \"The server handles one request at a time on the state it stored after the last one (ServiceWiring), so its state is the requests of its history applied in turn.\"\n)(sessions := ((r: RealmId) => stateAfter(history.value).sessions.filter(x => x.realm == r)),\n  account := ((r: RealmId, u: String) => accountOf(stateAfter(history.value).accounts, r, u)))"
+        }
       }
     ],
     "ServiceWiring": [
@@ -220,6 +1006,40 @@
           "definition": "val serviceWiring = signInOut.design(\n  \"ServiceWiring\",\n  \"Sign-ins, sign-outs and introspections run through service, which checks every result against SignInOut or Introspect, on one in-memory session store.\",\n  why = \"Every path to the sessions must go through service; keeping the wiring in one governed file makes a change to it visible. One process holds the store, so a sign-out is seen by the next introspection at once.\"\n)(\"src/main/scala/keycloak/Wiring.scala\")\n  .exempt(realmIsolation, \"it returns what SignInOut and Introspect return, which are checked against the rule\")",
           "keeps": [
             "RealmIsolation: exempt, because it returns what SignInOut and Introspect return, which are checked against the rule"
+          ]
+        }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:46.769854085Z",
+        "reason": "One process with one store and every request through service in order: this is what makes ServerRun true of the running server, so a sign-out or a disabled user is seen by the next introspection. Governed so any change to the wiring is reviewed.",
+        "after": "13fc91c72d238289",
+        "code": "9d557b7544c359ad18ff3bbd88ca2a94aa848374e55d4852582e49b2865829e1",
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "/KwrbBJuhxUFUhhBQWIfq3XQGLqS77rZffoBMieNWLr1SAKDpy149G7uAzor2iHjl1ZBc0kD0lqWKn6BCEWCBw==",
+        "chain": "",
+        "content": {
+          "kind": "design",
+          "parents": [
+            "HandleRequest",
+            "Introspect"
+          ],
+          "statement": "Every request reaches the store through service, one at a time: a sign-in, sign-out or administrator's change runs HandleRequest's code on the stored state, which stores its result through StoreKeepsState; an introspection runs Introspect's code on the state the store holds.",
+          "why": "The proofs are about a server whose state is its requests applied in turn (ServerRun): every path to the store must go through service, and keeping the wiring in one governed file makes a change to it visible. One process holds the store, so a sign-out or a disabled user is seen by the next introspection at once.",
+          "sources": {},
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [],
+          "uses": [],
+          "governs": [
+            "src/main/scala/keycloak/Wiring.scala"
+          ],
+          "definition": "val serviceWiring = Node.design(\"ServiceWiring\",\n  \"Every request reaches the store through service, one at a time: a sign-in, sign-out or administrator's change runs HandleRequest's code on the stored state, which stores its result through StoreKeepsState; an introspection runs Introspect's code on the state the store holds.\",\n  why = \"The proofs are about a server whose state is its requests applied in turn (ServerRun): every path to the store must go through service, and keeping the wiring in one governed file makes a change to it visible. One process holds the store, so a sign-out or a disabled user is seen by the next introspection at once.\"\n)(\"src/main/scala/keycloak/Wiring.scala\")\n  .under(handleRequest, introspectContract)\n  .exempt(realmIsolation, \"it returns what Introspect returns, which keeps the rule, and stored states, which hold no claims\")",
+          "keeps": [
+            "RealmIsolation: exempt, because it returns what Introspect returns, which keeps the rule, and stored states, which hold no claims"
           ]
         }
       }
@@ -260,6 +1080,50 @@
           "governs": [],
           "definition": "val sessionLookup = Node.port[RealmId, String, Option[Session]](\n  \"SessionLookup\",\n  \"The session store returns the realm's open session a token names, if there is one, and never a session of another realm.\",\n  why = \"Sessions live in a store indexed by realm and token (in memory here; a database or cache in a cluster). Introspection is proven from this promise, not from the index; the index is checked against the define it is decided with on its examples, and every session it returns is checked to be of the realm asked.\"\n)((realm, token, r) => r.forall(s => sessionsByToken(token) == Some(s) && s.realm == realm) &&\n  sessionsByToken(token).forall(s => (s.realm == realm) ==> (r == Some(s))))\n  .checkedBy((realm, token, r) => r.forall(s => s.realm == realm))\n  .examples(sessionsByToken.bindTable(Map(\"t1\" -> Session(\"t1\", RealmId(\"acme\"), \"alice\"))), sessionDb.bind(SessionDb.of(List(Session(\"t1\", RealmId(\"acme\"), \"alice\")))))(\n    expect(RealmId(\"acme\"), \"t1\", Some(Session(\"t1\", RealmId(\"acme\"), \"alice\")), \"acme's session of t1\"),\n    expect(RealmId(\"globex\"), \"t1\", None, \"the store keeps sessions per realm: none of globex under t1\"),\n    reject(RealmId(\"acme\"), \"t1\", None, \"an open session is never lost\"),\n    reject(RealmId(\"globex\"), \"t1\", Some(Session(\"t1\", RealmId(\"acme\"), \"alice\")), \"another realm's session is never returned\"))",
           "implementation": "proven: storedSession\nstoredSession = (realm: RealmId, token: String) =>\n  sessionsByToken(token) match\n    case Some(s) => if s.realm == realm then Some(s) else None\n    case None    => None\nruns: (realm, token) => sessionDb.value.find(realm, token)"
+        }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:43.395089126Z",
+        "reason": "A trusted port: the store's index by realm and token returns only a session it holds for the realm and token asked. Introspect is proven from this promise, the index is checked against the define on its examples, and every session it returns is checked on each call.",
+        "after": "7a17a1a443b9d518",
+        "code": "0857e011a48d73e95666a9f44efe68b3d79444752b2112a615cb3e856315627b",
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "F5BTZopBDzpGFaeMo2Ow5DJgVeuNzwXMtl6gNChZncrauMi0wbIEvxG3vSjHxtsL77971ix301pjhz6OMu10Bg==",
+        "chain": "d0a892b72652b06b7adba58b8d22038ca8d8bbd313033eab61b4514e9b136b04",
+        "content": {
+          "kind": "assumption",
+          "parents": [],
+          "parts": [],
+          "statement": "The store's index returns a session it holds under the token in the realm asked, if it holds one, and never one of another realm or token.",
+          "why": "Sessions live in a store indexed by realm and token (in memory here; a database or cache in a cluster). Introspection is proven from this promise, not from the index; the index is checked against the define it is decided with on its examples, and every session it returns is checked to be of the realm and token asked.",
+          "sources": {
+            "post": "(realm, token, r) => r.forall(x => sessions(realm).contains(x) && x.token == token && x.realm == realm) &&\n  (sessions(realm).exists(x => x.token == token) ==> r.isDefined)",
+            "check": "(realm, token, r) => r.forall(x => x.token == token && x.realm == realm)"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (RealmId(\"acme\"), \"t1\") ⇒ Some(Session(\"t1\", RealmId(\"acme\"), \"alice\"))  given history = List(SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t1\"), SignIn(RealmId(\"acme\"), \"bob\", \"h-bob\", \"t2\"), SignIn(RealmId(\"globex\"), \"carol\", \"h-carol\", \"t4\"), SetEnabled(RealmId(\"acme\"), \"bob\", false), SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t3\"), SignOut(RealmId(\"acme\"), \"t3\")), seed = List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", true, List(\"user\")), UserAccount(RealmId(\"globex\"), \"carol\", \"h-carol\", true, List(\"viewer\"))), sessionDb.bind(SessionDb.replaying(seed.value, history.value))  — acme's session of t1",
+            "expect (RealmId(\"globex\"), \"t1\") ⇒ None  given history = List(SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t1\"), SignIn(RealmId(\"acme\"), \"bob\", \"h-bob\", \"t2\"), SignIn(RealmId(\"globex\"), \"carol\", \"h-carol\", \"t4\"), SetEnabled(RealmId(\"acme\"), \"bob\", false), SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t3\"), SignOut(RealmId(\"acme\"), \"t3\")), seed = List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", true, List(\"user\")), UserAccount(RealmId(\"globex\"), \"carol\", \"h-carol\", true, List(\"viewer\"))), sessionDb.bind(SessionDb.replaying(seed.value, history.value))  — the store keeps sessions per realm: none of globex under t1",
+            "expect (RealmId(\"acme\"), \"t3\") ⇒ None  given history = List(SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t1\"), SignIn(RealmId(\"acme\"), \"bob\", \"h-bob\", \"t2\"), SignIn(RealmId(\"globex\"), \"carol\", \"h-carol\", \"t4\"), SetEnabled(RealmId(\"acme\"), \"bob\", false), SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t3\"), SignOut(RealmId(\"acme\"), \"t3\")), seed = List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", true, List(\"user\")), UserAccount(RealmId(\"globex\"), \"carol\", \"h-carol\", true, List(\"viewer\"))), sessionDb.bind(SessionDb.replaying(seed.value, history.value))  — Alice signed out with t3: its session is gone",
+            "reject (RealmId(\"acme\"), \"t1\") ⇒ None  given history = List(SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t1\"), SignIn(RealmId(\"acme\"), \"bob\", \"h-bob\", \"t2\"), SignIn(RealmId(\"globex\"), \"carol\", \"h-carol\", \"t4\"), SetEnabled(RealmId(\"acme\"), \"bob\", false), SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t3\"), SignOut(RealmId(\"acme\"), \"t3\")), seed = List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", true, List(\"user\")), UserAccount(RealmId(\"globex\"), \"carol\", \"h-carol\", true, List(\"viewer\"))), sessionDb.bind(SessionDb.replaying(seed.value, history.value))  — a session the store holds is never lost",
+            "reject (RealmId(\"globex\"), \"t1\") ⇒ Some(Session(\"t1\", RealmId(\"acme\"), \"alice\"))  given history = List(SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t1\"), SignIn(RealmId(\"acme\"), \"bob\", \"h-bob\", \"t2\"), SignIn(RealmId(\"globex\"), \"carol\", \"h-carol\", \"t4\"), SetEnabled(RealmId(\"acme\"), \"bob\", false), SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t3\"), SignOut(RealmId(\"acme\"), \"t3\")), seed = List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", true, List(\"user\")), UserAccount(RealmId(\"globex\"), \"carol\", \"h-carol\", true, List(\"viewer\"))), sessionDb.bind(SessionDb.replaying(seed.value, history.value))  — another realm's session is never returned"
+          ],
+          "vocabulary": [
+            "lookup: the store's answer to looking up a token's session in a realm, from its index by realm and token",
+            "sessions: the sessions a realm has open, as the server holds them now"
+          ],
+          "uses": [
+            "case class RealmId(name: String)",
+            "case class Session(token: String, realm: RealmId, user: String)"
+          ],
+          "governs": [],
+          "definition": "val sessionLookup = Node.assumption(lookup)(\"SessionLookup\",\n  \"The store's index returns a session it holds under the token in the realm asked, if it holds one, and never one of another realm or token.\",\n  why = \"Sessions live in a store indexed by realm and token (in memory here; a database or cache in a cluster). Introspection is proven from this promise, not from the index; the index is checked against the define it is decided with on its examples, and every session it returns is checked to be of the realm and token asked.\"\n)((realm, token, r) => r.forall(x => sessions(realm).contains(x) && x.token == token && x.realm == realm) &&\n  (sessions(realm).exists(x => x.token == token) ==> r.isDefined))\n  .checkedBy((realm, token, r) => r.forall(x => x.token == token && x.realm == realm))\n  .examples(history.bind(events), seed.bind(atStart), sessionDb.bind(SessionDb.replaying(seed.value, history.value)))(\n    expect(acme, \"t1\", Some(Session(\"t1\", acme, \"alice\")), \"acme's session of t1\"),\n    expect(globex, \"t1\", None, \"the store keeps sessions per realm: none of globex under t1\"),\n    expect(acme, \"t3\", None, \"Alice signed out with t3: its session is gone\"),\n    reject(acme, \"t1\", None, \"a session the store holds is never lost\"),\n    reject(globex, \"t1\", Some(Session(\"t1\", acme, \"alice\")), \"another realm's session is never returned\"))",
+          "op": "lookup",
+          "implementation": "proven: storedSession\nstoredSession = (realm: RealmId, token: String) => sessions(realm).find(x => x.token == token && x.realm == realm)\nruns: (realm, token) => sessionDb.value.find(realm, token)"
         }
       }
     ],
@@ -304,6 +1168,19 @@
           "governs": [],
           "definition": "val sessionTable = oneAtATime.instantiate[(SessionStore, AuthRequest) => SessionStore](\n  \"SessionTable\",\n  \"The store is a list of open sessions (token, realm, user); a sign-in opens one for an enabled user whose password hash matches, under a fresh token; a sign-out ends its realm's session of the token.\",\n  why = \"A session is what a token stands for, so a session holds its token, realm and user. Users are matched by realm and username: the same name in two realms is two users. A sign-out names its realm, so one realm's application cannot end another realm's sessions.\"\n)(\n  Store    := of[SessionStore],\n  Request  := of[AuthRequest],\n  initial  := SessionStore(Nil),\n  distinct := ((s: SessionStore) => distinctTokens(s)),\n  granted  := ((s: SessionStore, q: AuthRequest, t: SessionStore) => asked(s, q, t)),\n  onlyThat := ((s: SessionStore, q: AuthRequest, t: SessionStore) => nothingElse(s, q, t))\n)"
         }
+      },
+      {
+        "action": "remove",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:51.550793936Z",
+        "reason": "The store as a list of sessions is now said by SignInHistory (what signed in means) and ServerRun (the state as the requests applied), one term each.",
+        "after": "0f49d1b16ec3f82a",
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "AVvCiuiREaQmAi7IASxflUB4opkYaaYnWF9OQoQTFLjIvJbkJmCMz7Rj+5NZGX0+C8kw8c7HWaFY4Z6TCD9+CQ==",
+        "chain": "56b8e2f5a1fdcab71afa02b19a98d03056b2b330b4c58f896908c5194cf45f7b",
+        "content": "same:d835ae782cd99016"
       }
     ],
     "Sessions": [
@@ -338,6 +1215,113 @@
           "idea": "# Realms: a small authentication server\n\nSeveral organisations share one authentication server, like Keycloak. Each\norganisation is a realm with its own users. Applications never see passwords:\nthey send users to the server to sign in, and ask the server whose a token is.\n\n## Signing in and out\n\nA user of a realm can sign in with their username and password. If the user\nis enabled and the password is theirs, the server opens a session and gives\nback its token, a value no other session has. Anyone else gets no session.\n\nA user can sign out with their token: its session ends at once.",
           "ideaSection": "Signing in and out",
           "notModelled": "- How passwords are hashed: the server compares stored hashes, computed with\n  each user's salt before a request reaches the core.\n- Token expiry and refresh tokens.\n- Which applications may ask (client authentication), consent, and the\n  OpenID Connect discovery documents.\n- Managing realms and users: they are loaded at start, and an administrator\n  can enable or disable a user."
+        }
+      },
+      {
+        "action": "remove",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:51.400153156Z",
+        "reason": "Its three promises are now separate nodes: one sign-in per token (OneSignInPerToken), sessions mirroring sign-ins (SessionsMirrorSignIns) and accounts as administered.",
+        "after": "0377d67834485ea6",
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "+h4zaa+yKlnfXsrFwEfYoAlk9P7w/hDbl1oBFS5+NBfCeNXEsRM8plHRPQYuCTA+ucpBapP/KBqjYy0p+WvZDg==",
+        "chain": "",
+        "content": "same:5b994b61baabe12f"
+      }
+    ],
+    "SessionsMirrorSignIns": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:36.394168407Z",
+        "reason": "Shared by both halves of the root: one session too many lets someone in (OnlyTheSignedIn), one too few turns a signed-in user away (SignedInAreAccepted). Proven by induction over the history from HandleRequest and FreshTokens.",
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "0pgMliSoUexVWc9yRxv9Q+3lmYSYzZ5K2qpf8dtWCP+vaPM7w/JWmsGAHal4jS0U0TH/EcojF4cMYI9kBAanDw==",
+        "chain": "925865fa0bd8e2950c614671a996f524de5e72dd6bbd3fbe96f60290498e2648",
+        "content": {
+          "kind": "claim",
+          "parents": [
+            "OnlyTheSignedIn",
+            "SignedInAreAccepted"
+          ],
+          "parts": [
+            "FreshTokens",
+            "HandleRequest"
+          ],
+          "statement": "The server holds a session open in a realm exactly when its user is signed in to that realm with its token.",
+          "why": "Applications learn about tokens from the sessions the server holds, so these must be exactly the sign-ins that still stand: one more would let someone in, one less would turn a user away.",
+          "sources": {
+            "formula": "forall((r: RealmId, x: Session) => sessions(r).contains(x) == (x.realm == r && liveIn(history.value, x)))"
+          },
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [
+            "history: the requests the server has handled since it started, in order: sign-ins, sign-outs and administrators' changes (the server's event log)",
+            "seed: every realm's accounts as loaded at start: username, salted password hash, whether enabled, realm roles",
+            "sessions: the sessions a realm has open, as the server holds them now"
+          ],
+          "uses": [
+            "case class RealmId(name: String)",
+            "case class Session(token: String, realm: RealmId, user: String)",
+            "enum AuthRequest: case SignIn(realm: RealmId, user: String, passwordHash: String, token: String), case SignOut(realm: RealmId, token: String), case SetEnabled(realm: RealmId, user: String, on: Boolean)",
+            "case class UserAccount(realm: RealmId, username: String, passwordHash: String, enabled: Boolean, roles: List[String])",
+            "liveIn = (hs: List[AuthRequest], x: Session) =>\n  exists((pre: List[AuthRequest], post: List[AuthRequest]) =>\n    exists((q: AuthRequest) => hs == pre ++ (q :: post) && grantedBy(accountsAfter(pre), q) == Some(x)) &&\n      !post.contains(AuthRequest.SignOut(x.realm, x.token)))",
+            "grantedBy = (as: List[UserAccount], q: AuthRequest) =>\n  q match\n    case AuthRequest.SignIn(r, u, h, t) => if accountOf(as, r, u).exists(a => a.enabled && a.passwordHash == h) then Some(Session(t, r, u)) else None\n    case AuthRequest.SignOut(_, _)       => None\n    case AuthRequest.SetEnabled(_, _, _) => None",
+            "accountOf = (as: List[UserAccount], r: RealmId, u: String) => as.find(a => a.realm == r && a.username == u)",
+            "accountsAfter = (hs: List[AuthRequest]) => hs.foldLeft(seed.value)((as, q) => administer(as, q))",
+            "administer = (as: List[UserAccount], q: AuthRequest) =>\n  q match\n    case AuthRequest.SetEnabled(r, u, on) => as.map(a => if a.realm == r && a.username == u then a.copy(enabled = on) else a)\n    case AuthRequest.SignIn(_, _, _, _)   => as\n    case AuthRequest.SignOut(_, _)        => as"
+          ],
+          "governs": [],
+          "definition": "val sessionsMirrorSignIns = Node.claim(\"SessionsMirrorSignIns\",\n  \"The server holds a session open in a realm exactly when its user is signed in to that realm with its token.\",\n  why = \"Applications learn about tokens from the sessions the server holds, so these must be exactly the sign-ins that still stand: one more would let someone in, one less would turn a user away.\",\n  idea = \"Signing in and out\"\n)(forall((r: RealmId, x: Session) => sessions(r).contains(x) == (x.realm == r && liveIn(history.value, x))))\n  .under(onlyTheSignedIn, signedInAreAccepted)",
+          "idea": "## Signing in and out\n\nA user of a realm can sign in with their username and password. If the user\nis enabled and the password is theirs, the server opens a session and gives\nback its token, a value no other session has. Anyone else gets no session.\n\nA user can sign out with their token: its session ends at once.",
+          "ideaSection": "Signing in and out",
+          "notModelled": "- How passwords are hashed: the server compares stored hashes, computed with\n  each user's salt before a request reaches the core.\n- How tokens are drawn: 256 random bits each, trusted to be new.\n- Token expiry and refresh tokens.\n- Which applications may ask (client authentication), consent, and the\n  OpenID Connect discovery documents.\n- Creating realms and users, and changing passwords or roles."
+        }
+      }
+    ],
+    "SignInHistory": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:30.763709607Z",
+        "reason": "Signing in and out defined on the history of requests alone, in the words of IDEA.md's Signing in and out section, whatever the server stores. That is what lets SessionsMirrorSignIns prove the server's sessions right instead of trusting them.",
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "kobSFEDeXhS0dHRG8u+2ADqKUnimdPgzmCHwSnayQZjKFtP8tRgcfvOgaA+WPVEF+G5qpAEx9o0wGn8wI82uCw==",
+        "chain": "",
+        "content": {
+          "kind": "definition",
+          "parents": [],
+          "statement": "A user is signed in to a realm with a token when a sign-in of theirs to that realm got the token, while they were enabled and with their password, and no sign-out with the token in that realm came after it.",
+          "why": "This is what signing in and out means, said of the history of requests alone, whatever the server keeps: the server's sessions are proven to follow it (SessionsMirrorSignIns).",
+          "sources": {},
+          "substitutions": [
+            "signedIn := (r: RealmId, u: String, t: String) => liveIn(history.value, Session(t, r, u))"
+          ],
+          "examples": [],
+          "vocabulary": [
+            "history: the requests the server has handled since it started, in order: sign-ins, sign-outs and administrators' changes (the server's event log)",
+            "seed: every realm's accounts as loaded at start: username, salted password hash, whether enabled, realm roles",
+            "signedIn: whether the user signed in to the realm, with their password while enabled, got the token, and has not signed out with it since"
+          ],
+          "uses": [
+            "case class RealmId(name: String)",
+            "enum AuthRequest: case SignIn(realm: RealmId, user: String, passwordHash: String, token: String), case SignOut(realm: RealmId, token: String), case SetEnabled(realm: RealmId, user: String, on: Boolean)",
+            "case class Session(token: String, realm: RealmId, user: String)",
+            "case class UserAccount(realm: RealmId, username: String, passwordHash: String, enabled: Boolean, roles: List[String])",
+            "liveIn = (hs: List[AuthRequest], x: Session) =>\n  exists((pre: List[AuthRequest], post: List[AuthRequest]) =>\n    exists((q: AuthRequest) => hs == pre ++ (q :: post) && grantedBy(accountsAfter(pre), q) == Some(x)) &&\n      !post.contains(AuthRequest.SignOut(x.realm, x.token)))",
+            "grantedBy = (as: List[UserAccount], q: AuthRequest) =>\n  q match\n    case AuthRequest.SignIn(r, u, h, t) => if accountOf(as, r, u).exists(a => a.enabled && a.passwordHash == h) then Some(Session(t, r, u)) else None\n    case AuthRequest.SignOut(_, _)       => None\n    case AuthRequest.SetEnabled(_, _, _) => None",
+            "accountOf = (as: List[UserAccount], r: RealmId, u: String) => as.find(a => a.realm == r && a.username == u)",
+            "accountsAfter = (hs: List[AuthRequest]) => hs.foldLeft(seed.value)((as, q) => administer(as, q))",
+            "administer = (as: List[UserAccount], q: AuthRequest) =>\n  q match\n    case AuthRequest.SetEnabled(r, u, on) => as.map(a => if a.realm == r && a.username == u then a.copy(enabled = on) else a)\n    case AuthRequest.SignIn(_, _, _, _)   => as\n    case AuthRequest.SignOut(_, _)        => as"
+          ],
+          "governs": [],
+          "definition": "val signInHistory = Node.definition(\"SignInHistory\",\n  \"A user is signed in to a realm with a token when a sign-in of theirs to that realm got the token, while they were enabled and with their password, and no sign-out with the token in that realm came after it.\",\n  why = \"This is what signing in and out means, said of the history of requests alone, whatever the server keeps: the server's sessions are proven to follow it (SessionsMirrorSignIns).\"\n)(signedIn := ((r: RealmId, u: String, t: String) => liveIn(history.value, Session(t, r, u))))"
         }
       }
     ],
@@ -386,6 +1370,70 @@
           "definition": "val signInOut = sessionTable.contract[SessionStore, AuthRequest, SessionStore](\n  \"SignInOut\",\n  \"A request keeps tokens distinct, opens a session only for an enabled user with their password, ends only its realm's session of its token, and does what it asks when it may.\",\n  why = \"SessionTable, stated for one request, so each result of the running server is checked. A request that may not be granted leaves the store as it was.\"\n)((s, q, t) => (distinctTokens(s) ==> distinctTokens(t)) && nothingElse(s, q, t) && asked(s, q, t))\n  .examples(users.bind(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", false, List(\"user\")))))(\n    expect(SessionStore(Nil), AuthRequest.SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t1\"), SessionStore(List(Session(\"t1\", RealmId(\"acme\"), \"alice\"))),\n      \"Alice signs in to acme with her password: a session under t1\"),\n    expect(SessionStore(Nil), AuthRequest.SignIn(RealmId(\"acme\"), \"bob\", \"h-bob\", \"t2\"), SessionStore(Nil),\n      \"Bob is disabled: no session, even with his password\"),\n    expect(SessionStore(List(Session(\"t1\", RealmId(\"acme\"), \"alice\"))), AuthRequest.SignOut(RealmId(\"acme\"), \"t1\"), SessionStore(Nil),\n      \"Alice signs out: her session ends\"),\n    reject(SessionStore(Nil), AuthRequest.SignIn(RealmId(\"acme\"), \"alice\", \"wrong\", \"t1\"), SessionStore(List(Session(\"t1\", RealmId(\"acme\"), \"alice\"))),\n      \"a wrong password never opens a session\"),\n    reject(SessionStore(Nil), AuthRequest.SignIn(RealmId(\"globex\"), \"alice\", \"h-alice\", \"t1\"), SessionStore(List(Session(\"t1\", RealmId(\"globex\"), \"alice\"))),\n      \"Alice is a user of acme, not of globex\"),\n    reject(SessionStore(List(Session(\"t1\", RealmId(\"acme\"), \"alice\"))), AuthRequest.SignOut(RealmId(\"globex\"), \"t1\"), SessionStore(Nil),\n      \"globex cannot end acme's session\"),\n    reject(SessionStore(List(Session(\"t1\", RealmId(\"acme\"), \"alice\"))), AuthRequest.SignOut(RealmId(\"acme\"), \"t1\"), SessionStore(List(Session(\"t1\", RealmId(\"acme\"), \"alice\"))),\n      \"a sign-out is never ignored\"),\n    reject(SessionStore(Nil), AuthRequest.SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t1\"), SessionStore(Nil),\n      \"Alice with her password is not turned away\"))",
           "implementation": "proven: step\nstep = (s: SessionStore, q: AuthRequest) =>\n  q match\n    case AuthRequest.SignIn(realm, user, hash, token) =>\n      if mayOpen(realm, user, hash) && !s.open.exists(x => x.token == token) then SessionStore(s.open ++ List(Session(token, realm, user))) else s\n    case AuthRequest.SignOut(realm, token) => SessionStore(s.open.filter(x => !(x.token == token && x.realm == realm)))\nmayOpen = (realm: RealmId, user: String, hash: String) =>\n  users.value.exists(a => a.realm == realm && a.username == user && a.passwordHash == hash && a.enabled)"
         }
+      },
+      {
+        "action": "remove",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:51.484205652Z",
+        "reason": "The per-request promise is now HandleRequest, which also covers an administrator's change; nothing else says what SignInOut said.",
+        "after": "128942367a9be029",
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "S34VQwugycQApr6eAXqL/p2cD4kqMXXIotHAbgGWmiRUcswb30dmK9pnfuQeN9AOGd515Q+NeRVuCNm9HX2jCQ==",
+        "chain": "d85673eaff250f007a78cd483ffaa1eaf45b942d4705e3d20b0648e4cfa98809",
+        "content": "same:758066d2c6e3b6c1"
+      }
+    ],
+    "SignedInAreAccepted": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:34.853120734Z",
+        "reason": "IDEA.md's Signed-in users are let in, the can-do half of RealmAccess without which a server turning everyone away would pass. Its parts are how it comes about: sessions mirror sign-ins, accounts are current, a token names one sign-in, and introspection answers for that session.",
+        "held": [
+          "ReferenceTokens"
+        ],
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "y6ivJACiEE6sH4p/A4hfSqBjpePGioyrF8o/pWj6ROQ6vm+QyoG+hnsmI/yS6Re6BUCcpQWEcUHYc0gQmyQMBQ==",
+        "chain": "9474bd612e482530742501602bd5d0a311781f97eb1d0360174b6691c7d582b9",
+        "content": {
+          "kind": "claim",
+          "parents": [
+            "RealmAccess"
+          ],
+          "parts": [
+            "SessionsMirrorSignIns",
+            "AccountsAsAdministered",
+            "OneSignInPerToken",
+            "Introspect"
+          ],
+          "statement": "A user who signed in to a realm and got a token, has not signed out with it since and is still enabled, has it accepted there as theirs, with their roles.",
+          "why": "The capability half of the purpose: a server that turned everyone away would meet the safety half alone.",
+          "sources": {
+            "formula": "forall((r: Realm.T, t: Token.T) => forall((u: User.T) =>\n  (signedIn(r, u, t) && enabled(r, u)) ==> (accepted(r, t) == Some((u, rolesOf(r, u))))))"
+          },
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [
+            "Realm: an organisation using the server, with its own users and applications",
+            "Role: what a realm lets a user do in its applications, such as admin",
+            "Token: what a user gets when signing in, and hands to a realm's applications",
+            "User: a person with an account in a realm",
+            "accepted: whom a realm's application accepts a token as, now: the user, and the roles it is told they have, if it accepts the token at all",
+            "enabled: whether the user's account in the realm is enabled now",
+            "rolesOf: the roles the realm gives the user now",
+            "signedIn: whether the user signed in to the realm, with their password while enabled, got the token, and has not signed out with it since"
+          ],
+          "uses": [],
+          "governs": [],
+          "definition": "val signedInAreAccepted = Node.claim(\"SignedInAreAccepted\",\n  \"A user who signed in to a realm and got a token, has not signed out with it since and is still enabled, has it accepted there as theirs, with their roles.\",\n  why = \"The capability half of the purpose: a server that turned everyone away would meet the safety half alone.\",\n  idea = \"Signed-in users are let in\"\n)(forall((r: Realm.T, t: Token.T) => forall((u: User.T) =>\n  (signedIn(r, u, t) && enabled(r, u)) ==> (accepted(r, t) == Some((u, rolesOf(r, u)))))))\n  .under(realmAccess)",
+          "idea": "## Signed-in users are let in\n\nA user who signed in and has neither signed out nor been disabled has their\ntoken accepted, with their roles. A server that turns everyone away is no\nauthentication server.",
+          "ideaSection": "Signed-in users are let in",
+          "notModelled": "- How passwords are hashed: the server compares stored hashes, computed with\n  each user's salt before a request reaches the core.\n- How tokens are drawn: 256 random bits each, trusted to be new.\n- Token expiry and refresh tokens.\n- Which applications may ask (client authentication), consent, and the\n  OpenID Connect discovery documents.\n- Creating realms and users, and changing passwords or roles."
+        }
       }
     ],
     "SignedTokens": [
@@ -422,6 +1470,50 @@
           ],
           "governs": [],
           "definition": "val signedTokens = tokenCheck.instantiate[(RealmId, SignedToken) => Option[String]](\n  \"SignedTokens\",\n  \"Tokens are signed claims (realm, user) an application checks alone: a token is open in its realm while its signature is valid, and its user counts as enabled.\",\n  why = \"Like Keycloak's JWT access tokens: an application checks a token with the realm's public key, without asking the server, so a check costs no lookup and works while the server is down. The token carries no session, so the store is never read: openIn is the signature, and enabledIn cannot see the account.\"\n)(\n  Realm     := of[RealmId],\n  User      := of[String],\n  Token     := of[SignedToken],\n  openIn    := ((t: SignedToken, r: RealmId) => t.realm == r && signatureValid(t)),\n  holder    := ((t: SignedToken) => signedUser(t)),\n  enabledIn := ((r: RealmId, u: String) => true)\n)"
+        }
+      }
+    ],
+    "StoreKeepsState": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:42.967817062Z",
+        "reason": "A trusted port: the store keeps the state written with each request, and it is read back on every call, so a dropped or changed write shows at once. It has no parent because HandleRequest's wiring calls it and its proof rests on it.",
+        "code": "0ec2697d2870b250be5434c36c10c23c535206d9de07672644715e7b415dc9b6",
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "0lPopkCH/gavq6ZVE2Gw80bGr0yV0R1Mi42sU3YTvL7PNrll8dSmv3pHz41BXtioqsNmR+hhFXsp6bTjnJ3cBg==",
+        "chain": "",
+        "content": {
+          "kind": "assumption",
+          "parents": [],
+          "parts": [],
+          "statement": "Storing a request with the state it led to keeps that state: read back, the store holds exactly it.",
+          "why": "The state lives in a store (in memory here; a database in a cluster). The handling of a request is proven from this promise, not from the store's code; what is stored is read back on every call, so a write the store dropped or changed is seen at once.",
+          "sources": {
+            "post": "(q, after, back) => back == after"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t1\"), ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", false, List(\"user\"))), List(Session(\"t1\", RealmId(\"acme\"), \"alice\")))) ⇒ ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", false, List(\"user\"))), List(Session(\"t1\", RealmId(\"acme\"), \"alice\")))  given sessionDb.bind(SessionDb.empty)  — Alice's new session is stored, and read back",
+            "expect (SignOut(RealmId(\"acme\"), \"t1\"), ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", false, List(\"user\"))), List())) ⇒ ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", false, List(\"user\"))), List())  given sessionDb.bind(SessionDb.empty)  — after her sign-out, no session is stored",
+            "reject (SignIn(RealmId(\"acme\"), \"alice\", \"h-alice\", \"t1\"), ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", false, List(\"user\"))), List(Session(\"t1\", RealmId(\"acme\"), \"alice\")))) ⇒ ServerState(List(UserAccount(RealmId(\"acme\"), \"alice\", \"h-alice\", true, List(\"admin\", \"user\")), UserAccount(RealmId(\"acme\"), \"bob\", \"h-bob\", false, List(\"user\"))), List())  given sessionDb.bind(SessionDb.empty)  — a session the store dropped is seen"
+          ],
+          "vocabulary": [
+            "record: storing a request in the event log, with the state it led to: what the store holds afterwards, read back"
+          ],
+          "uses": [
+            "case class RealmId(name: String)",
+            "enum AuthRequest: case SignIn(realm: RealmId, user: String, passwordHash: String, token: String), case SignOut(realm: RealmId, token: String), case SetEnabled(realm: RealmId, user: String, on: Boolean)",
+            "case class UserAccount(realm: RealmId, username: String, passwordHash: String, enabled: Boolean, roles: List[String])",
+            "case class Session(token: String, realm: RealmId, user: String)",
+            "case class ServerState(accounts: List[UserAccount], sessions: List[Session])"
+          ],
+          "governs": [],
+          "definition": "val storeKeepsState = Node.assumption(record)(\"StoreKeepsState\",\n  \"Storing a request with the state it led to keeps that state: read back, the store holds exactly it.\",\n  why = \"The state lives in a store (in memory here; a database in a cluster). The handling of a request is proven from this promise, not from the store's code; what is stored is read back on every call, so a write the store dropped or changed is seen at once.\"\n)((q, after, back) => back == after)\n  .examples(sessionDb.bind(SessionDb.empty))(\n    expect(AuthRequest.SignIn(acme, \"alice\", \"h-alice\", \"t1\"), ServerState(loaded, List(Session(\"t1\", acme, \"alice\"))),\n      ServerState(loaded, List(Session(\"t1\", acme, \"alice\"))), \"Alice's new session is stored, and read back\"),\n    expect(AuthRequest.SignOut(acme, \"t1\"), ServerState(loaded, Nil), ServerState(loaded, Nil), \"after her sign-out, no session is stored\"),\n    reject(AuthRequest.SignIn(acme, \"alice\", \"h-alice\", \"t1\"), ServerState(loaded, List(Session(\"t1\", acme, \"alice\"))),\n      ServerState(loaded, Nil), \"a session the store dropped is seen\"))",
+          "op": "record",
+          "implementation": "proven: storedAs\nstoredAs = (q: AuthRequest, after: ServerState) => after\nruns: (q, t) => sessionDb.value.storeAfter(q, t)"
         }
       }
     ],
@@ -462,6 +1554,19 @@
           "ideaSection": "Checking tokens",
           "notModelled": "- How passwords are hashed: the server compares stored hashes, computed with\n  each user's salt before a request reaches the core.\n- Token expiry and refresh tokens.\n- Which applications may ask (client authentication), consent, and the\n  OpenID Connect discovery documents.\n- Managing realms and users: they are loaded at start, and an administrator\n  can enable or disable a user."
         }
+      },
+      {
+        "action": "remove",
+        "by": "demo-developer",
+        "at": "2026-10-22T19:19:49.893032642Z",
+        "reason": "The old root spoke of sessions; RealmAccess now states IDEA.md's sentence in terms of sign-ins, and the sessions are a part below (SessionsMirrorSignIns), so nothing says what TokenCheck said.",
+        "after": "01440671cd3f15c4",
+        "commit": "575f657af653f8766bf29cf06e53dff0a9886628",
+        "tree": "1d8572c3512e09a9665150f40de7f98bb182783c",
+        "key": "d25ac8c0dcd358c7",
+        "sig": "AyS/B9g/QJwH1x8ydFML5qwZNcpm2mQT2dEPbugsq9UU1Bv8Dtp2zUrIpyGZa/1J5/EHRW5Ag8xzov4Y3DusDA==",
+        "chain": "",
+        "content": "same:697ee94c6b5e2b72"
       }
     ],
     "TokenNeverMisused": [
