@@ -61,10 +61,8 @@ object Code:
   *     proven to imply the parent's spec. Implementations are plain Scala,
   *     attached with `KnowledgeBase.implement`.
   *
-  * Every node gets a Lean theorem `root`: the root's spec holds for its models. A link can be
-  * assumed (`assume = true`): its spec stays formal, so the nodes below are proven against it, and Lean
-  * takes the link as an axiom the developer decided by reading; every root theorem that rests on it
-  * names it. A node can opt out with `formal = false`: its model stays Scala (a contract's post still runs its examples
+  * Every node gets a Lean theorem `root`: the root's spec holds for its models. A node can opt out
+  * with `formal = false`: its model stays Scala (a contract's post still runs its examples
   * and `service`), nothing is translated to Lean, and its link is decided by reading. Everything
   * below it is out of Lean too, since there is nothing formal above it to prove against.
   */
@@ -86,7 +84,6 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
     val ideaSection: String = "",
     val file: String = "",
     val expected: List[(String, Lifted[?])] = Nil,
-    val assumed: Boolean = false,
     val relied: List[(() => Node[?], String, Option[Reliance])] = Nil,
     val at: Int = -1
 ):
@@ -132,33 +129,32 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
     copy(expected = expected :+ (statement -> Lifted.of(true, consequence)))
 
   /** A more concrete model. `why` is the reason for this step, including why `abs` maps it faithfully. */
-  inline def refine[M2](id: String, statement: String, why: String, inline formal: Boolean = true, assume: Boolean = false)(
+  inline def refine[M2](id: String, statement: String, why: String, inline formal: Boolean = true)(
       inline abs: M2 => M, inline spec: M2 => Boolean): Node[M2] =
     Node(id, statement, why, NodeKind.Refine, Some(this), Some(Lifted.of(formal, spec)), Some(Lifted.of(formal, abs)), None, Nil,
-      declaredFormal = formal, file = Lifted.here, at = Lifted.at, assumed = assume)
+      declaredFormal = formal, file = Lifted.here, at = Lifted.at)
 
   /** Fixes opaque types and parameters. `why` says why these are the right meanings in the world. */
   inline def instantiate[M2](id: String, statement: String, why: String, formal: Boolean = true)(substs: Subst*): Node[M2] =
     Node(id, statement, why, NodeKind.Instantiate, Some(this), None, None, None, substs.toList, declaredFormal = formal, file = Lifted.here, at = Lifted.at)
 
   /** A contract for implementations with two inputs: `post(a, b, result)` holds for every call. */
-  inline def contract[A, B, R](id: String, statement: String, why: String, inline formal: Boolean = true, assume: Boolean = false)(
+  inline def contract[A, B, R](id: String, statement: String, why: String, inline formal: Boolean = true)(
       inline post: (A, B, R) => Boolean)(using M =:= ((A, B) => R)): Node[(A, B) => R] =
-    Node(id, statement, why, NodeKind.Contract, Some(this), None, None, Some(Lifted.of(formal, post)), Nil, declaredFormal = formal, file = Lifted.here, at = Lifted.at,
-      assumed = assume)
+    Node(id, statement, why, NodeKind.Contract, Some(this), None, None, Some(Lifted.of(formal, post)), Nil, declaredFormal = formal, file = Lifted.here, at = Lifted.at)
 
   private def copy(cases: List[Example] = cases, governs: List[String] = governs, kept: List[Keep] = kept,
       expected: List[(String, Lifted[?])] = expected, relied: List[(() => Node[?], String, Option[Reliance])] = relied): Node[M] =
-    Node(id, statement, why, kind, parent, spec, abs, post, substs, cases, governs, declaredFormal, kept, scope, ideaSection, file, expected, assumed,
+    Node(id, statement, why, kind, parent, spec, abs, post, substs, cases, governs, declaredFormal, kept, scope, ideaSection, file, expected,
       relied, at)
 
   /** A contract with a signature of its own: `abs` says what an implementation is as the parent's
     * model (a new read path below an existing instantiation, say). Proven: `spec f → parent.spec (abs f)`.
     */
-  inline def contractVia[A, B, R](id: String, statement: String, why: String, inline formal: Boolean = true, assume: Boolean = false)(
+  inline def contractVia[A, B, R](id: String, statement: String, why: String, inline formal: Boolean = true)(
       inline abs: ((A, B) => R) => M)(inline post: (A, B, R) => Boolean): Node[(A, B) => R] =
     Node(id, statement, why, NodeKind.Contract, Some(this), None, Some(Lifted.of(formal, abs)), Some(Lifted.of(formal, post)), Nil,
-      declaredFormal = formal, file = Lifted.here, at = Lifted.at, assumed = assume)
+      declaredFormal = formal, file = Lifted.here, at = Lifted.at)
 
   private[frflow] def withExamples(es: List[Example]): Node[M] =
     copy(cases = cases ++ es)

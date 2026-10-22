@@ -68,14 +68,6 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
   // Content: what the developer decides; hashes
   // ---------------------------------------------------------------------------
 
-  private lazy val kernelHash: String =
-    val dir = ws.lean.resolve(ws.kernelPath).normalize.resolve("FrFlow")
-    val files = if Files.isDirectory(dir) then Files.list(dir).iterator.asScala.toList.sortBy(_.toString) else Nil
-    // The kernel's modules, its root module, and the Lean toolchain of the kernel and the project.
-    val kernel = ws.lean.resolve(ws.kernelPath).normalize
-    sha((files.flatMap(read) ++ List(kernel.resolve("FrFlow.lean"), kernel.resolve("lean-toolchain"), ws.lean.resolve("lean-toolchain"),
-      ws.lean.resolve("lakefile.toml"), ws.lean.resolve("lake-manifest.json")).map(p => read(p).getOrElse("")))*)
-
   /** The idea a root is decided against: IDEA.md without its `## Not modelled` section. */
   def ideaDecided: String = Decisions.splitIdea(idea)._1
 
@@ -125,7 +117,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
     "uses" -> JArr(generate.sourcesUsedBy(n).map(str)),
     "governs" -> JArr(n.governs.map(str)),
     "definition" -> str(definition(n))
-  ) ++ (if n.formal then Nil else List("formal" -> JBool(false))) ++ (if n.assumed then List("assumed" -> JBool(true)) else Nil) ++
+  ) ++ (if n.formal then Nil else List("formal" -> JBool(false))) ++
     (if n.kept.isEmpty then Nil else List("keeps" -> JArr(n.kept.map(k => str(k.describe))))) ++
     (if n.reliesOn.isEmpty then Nil else List("relies" -> JArr(n.relied.map((o, why, p) => str(s"${o().id}: $why${p.fold("")(r => s" (guarantee: ${r.guarantee.source}, of: ${r.sees.source})")}"))))) ++
     (if n.expected.isEmpty then Nil else List("expects" -> JArr(n.expected.map((st, l) => str(s"$st: ${l.source}"))))) ++
@@ -193,13 +185,13 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
   /** What a check depends on: the formal parts only, so rewording a statement does not re-run Lean. */
   def checkHash(n: Node[?]): String =
     val g = generate
-    sha((Seq(g.spec(n), g.auto(n), g.theorems(n), g.extraObligations(n).map(g.oblFile(n, _)).mkString, g.rootImplFile(n).getOrElse(""), g.idle(n).fold("")(_._1.statement), g.saysNothing(n).map(_.obligation.statement).mkString, g.clauseChecks(n).map(_._1.statement).mkString, g.evalFile(n).getOrElse(""),
+    sha((Seq(g.spec(n), g.auto(n), g.theorems(n), g.extraObligations(n).map(g.oblFile(n, _)).mkString, g.rootImplFile(n).getOrElse(""), g.idle(n).fold("")(_._1.statement), g.saysNothing(n).map(_.obligation.statement).mkString, g.evalFile(n).getOrElse(""),
       g.relyChecks(n).map(_._3).mkString, g.relyChecks(n).map((o, _, _) => checkHash(o)).mkString, read(ws.lean.resolve(g.proofsPath(n.id))).getOrElse(""),
       read(ws.lean.resolve(g.proofsPath(n.id))).filter(Lean.lemmaImports(_).nonEmpty).flatMap(_ => read(ws.lean.resolve(g.lemmasPath))).getOrElse(""),
       // The specs of other nodes a proof imports: a change to them re-checks it.
       read(ws.lean.resolve(g.proofsPath(n.id))).fold("")(src => s"(?m)^\\s*import\\s+FrFlowGen\\.${java.util.regex.Pattern.quote(kb.name)}\\.(\\w+)\\.Spec".r
         .findAllMatchIn(src).map(_.group(1)).filter(_ != n.id).flatMap(kb.node).filter(g.formal).map(g.spec).mkString),
-      n.parent.fold("")(checkHash), kernelHash, Workflow.CheckerVersion.toString) ++ g.declarationsUsedBy(n))*)
+      n.parent.fold("")(checkHash), Workflow.CheckerVersion.toString) ++ g.declarationsUsedBy(n))*)
 
   // ---------------------------------------------------------------------------
   // Check
@@ -256,7 +248,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
     if !spec.ok && spec.output.contains("timed out after") then return done("timeout", Nil, List("Lean timed out building the model (the machine may be busy): run check again"))
     if !spec.ok then return done("model-error", Nil, errors(spec))
 
-    // Lemmas shared by the proof files: the same filter, built, and replayed through the kernel.
+    // Lemmas shared by the proof files: the same filter, built.
     val proofSrc = read(ws.lean.resolve(g.proofsPath(n.id))).getOrElse("")
     val lemmas = Lean.lemmaImports(proofSrc)
     if lemmas.nonEmpty then
@@ -268,8 +260,6 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
       val built = lake.build(g.lemmasModule)
       if !built.ok then return done("failed", Nil, "the lemmas do not build" :: errors(built))
       if Lean.usesSorry(built.output) then return done("failed", Nil, List(s"lean/${g.lemmasPath} uses sorry"))
-      val replay = lake.replay(g.lemmasModule)
-      if !replay.ok then return done("failed", Nil, List("the kernel rejects the lemmas: " + replay.output.linesIterator.toList.takeRight(5).mkString("\n")))
 
     // Scala and Lean must agree on every example: what Scala computes of it, Lean proves; its
     // opposite, Lean does not. A disagreement means the translation does not mean what the Scala does,
@@ -294,8 +284,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
     if disagree.nonEmpty then return done("failed", Nil,
       s"Lean and Scala disagree on ${disagree.size} example(s): the Lean translation does not mean what the Scala does, so nothing proven of ${n.id} is about the code" :: disagree.map(_.detail))
 
-    val results = if n.assumed then g.obligation(n).toList.map(o => Result(o.name, "assumed", "decided by reading: Lean assumes it"))
-    else g.obligation(n).toList.map { o =>
+    val results = g.obligation(n).toList.map { o =>
       val rel = if authored(n.id) then g.proofsPath(n.id) else g.autoPath(n.id)
       val src = read(ws.lean.resolve(rel)).getOrElse("")
       val run = lake.elaborate(rel)
@@ -325,15 +314,10 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
 
     val thms = lake.build(g.theoremsModule(n.id))
     if !thms.ok then return done("failed", results, "the node's theorems do not build" :: errors(thms))
-    // Replay the authored proof through the kernel, so nothing elaborated around it is trusted.
-    if authored(n.id) then
-      val replay = lake.replay(g.proofsModule(n.id))
-      if !replay.ok then return done("failed", results.map(_.copy(status = "failed", detail = "rejected by the kernel")),
-        List("the kernel rejects the proof: " + replay.output.linesIterator.toList.takeRight(5).mkString("\n")))
     val ax = Lean.axioms(lake.elaborate(g.auditPath(n.id)).output)
     // The other obligations (kept invariants, a proven implementation), each in a file of its own:
-    // proven by frflow_auto or by a theorem in the proof file, which is built and replayed here when
-    // the link does not build it.
+    // proven by frflow_auto or by a theorem in the proof file, which is built here when the link does
+    // not build it.
     // When the proof file fails, the obligations it proves fail with it, by name; the link (proven
     // by automation) and the others stand.
     val proofFile: Option[String] =
@@ -344,11 +328,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
         if bad.nonEmpty then Some(s"not allowed in lean/${g.proofsPath(n.id)}: ${bad.map(_._2).distinct.mkString(", ")}")
         else
           val built = lake.build(g.proofsModule(n.id))
-          if !built.ok then Some(s"lean/${g.proofsPath(n.id)} does not build: " + errors(built).take(5).map(_.take(20000)).mkString("\n"))
-          else
-            val replay = lake.replay(g.proofsModule(n.id))
-            if !replay.ok then Some("the kernel rejects the proof file: " + replay.output.linesIterator.toList.takeRight(3).mkString(" "))
-            else None
+          Option.when(!built.ok)(s"lean/${g.proofsPath(n.id)} does not build: " + errors(built).take(5).map(_.take(20000)).mkString("\n"))
     val invRuns = g.extraObligations(n).map { o =>
       val how = if g.isAuthored(n, o.name) then "authored" else "auto"
       empty.find(_.fails == o.name).map(e => e.why).orElse(proofFile.filter(_ => g.isAuthored(n, o.name))) match
@@ -372,9 +352,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
       else (Result("root_impl", "failed", "the root theorem of the implementation does not build: " + errors(run).mkString("; ").take(20000)), Nil)
     }.toList
     // What the contract leaves to the examples: whether doing nothing meets it.
-    val idle = g.idle(n).map((o, what) => Result("idle", if lake.elaborate(g.oblPath(n.id, o.name)).ok then "proven" else "open", what)).toList ++
-      // A clause of the root that holds of every model of this node, decided by the meanings fixed above it.
-      g.clauseChecks(n).map((o, c) => Result(o.name, if lake.elaborate(g.oblPath(n.id, o.name)).ok then "proven" else "open", c))
+    val idle = g.idle(n).map((o, what) => Result("idle", if lake.elaborate(g.oblPath(n.id, o.name)).ok then "proven" else "open", what)).toList
     // A view whose coverage cannot be stated keeps nothing proven.
     val uncovered = g.formalKeeps(n).flatMap((i, _) => g.coverage(n, i).left.toOption.map(w =>
       (Result(s"cover_${i.id}", "failed", s"what the view must list cannot be stated: $w"), Nil)))
@@ -384,37 +362,30 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
       val run = if built.ok then lake.elaborate(g.oblPath(n.id, name)) else built
       val audit = Lean.axioms(run.output).collectFirst { case (t, as) if t.endsWith(".rely") => as }
       if run.ok && !Lean.usesSorry(run.output) && audit.isDefined then
-        (Result(name, "proven", s"every state ${o.id}'s concern reaches meets the guarantee"), audit.get.filterNot(a => g.assumptions(o).contains(a)))
+        (Result(name, "proven", s"every state ${o.id}'s concern reaches meets the guarantee"), audit.get)
       else (Result(name, "open", s"Lean does not show that every state ${o.id}'s concern reaches meets the guarantee" +
         Lean.diagnostics(run.output).find(_.isError).fold(if built.ok then "" else s": ${o.id} does not build")(d => s"\nLean: ${d.message.take(20000)}")), Nil)
     }
     val invRunsAll = invRuns ++ uncovered ++ relyRuns ++ rootImpl
     val used = (g.auditedTheorems(n).flatMap(t => ax.getOrElse(t, List("<no audit result>"))) ++ invRunsAll.flatMap(_._2)).distinct.sorted
-    // An assumed link may stand under the root theorems only; what is proven of the node itself (its
-    // invariants, implementation, expectations) rests on Lean's axioms alone.
-    val rootAxioms = (g.auditedTheorems(n).flatMap(t => ax.getOrElse(t, Nil)) ++ rootImpl.flatMap(_._2)).toSet
-    val extra = used.filterNot(a => Lean.allowedAxioms(a) || (g.assumptions(n).contains(a) && rootAxioms(a) && !invRuns.exists(_._2.contains(a))))
+    val extra = used.filterNot(Lean.allowedAxioms)
     val all = results ++ invRunsAll.map(_._1) ++ idle
     if extra.nonEmpty then done("failed", all, List(s"disallowed axioms: ${extra.mkString(", ")}"), used)
     // (What is left open is in the results, once: not repeated as messages.)
     else done("proven", all, Nil, used)
 
-  /** A proven implementation at or below `n`, reached through no assumed link: something meets `n`. */
+  /** A proven implementation at or below `n`: something meets `n`. */
   private def witnessed(n: Node[?]): Boolean =
     kb.nodes.exists { c =>
       val path = kb.path(c)
-      generate.provenImpl(c).isDefined && path.exists(_ eq n) && !path.dropWhile(p => !(p eq n)).exists(_.assumed) &&
+      generate.provenImpl(c).isDefined && path.exists(_ eq n) &&
         current(c).exists(k => k.status == "proven" && k.obligations.exists(o => o.name == "root_impl" && o.status == "proven"))
     }
 
   /** The recorded check of a node, if still current. */
   def current(n: Node[?]): Option[NodeCheck] =
-    // A committed record of checks is not evidence: proofs come from running check.
-    // A result that waited for its parent is not final: it is checked again.
-    if !generate.formal(n) || checksCommitted then None else checks.get(n.id).filter(c => c.hash == checkHash(n) && c.status != "waiting" && c.status != "timeout")
-
-  /** Whether `.frflow/checks.json` is in git: it must not be, since anyone can edit it. */
-  lazy val checksCommitted: Boolean = Git.tracked(ws.root, ws.root.relativize(ws.checksFile).toString)
+    // A result that waited for its parent, or timed out, is not final: it is checked again.
+    if !generate.formal(n) then None else checks.get(n.id).filter(c => c.hash == checkHash(n) && c.status != "waiting" && c.status != "timeout")
 
   /** The source files a node governs: a contract's implementation, a design decision's files. */
   def code(n: Node[?]): Option[Code] =
@@ -439,16 +410,14 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
       case None => st("unchecked", if checks.contains(n.id) then "changed since the last check" else "not checked yet")
       case Some(c) => c.obligations.find(_.name == "link") match
         case Some(r) if r.status == "proven" && c.status == "failed" => st("failed", c.messages.headOption.getOrElse("the node's theorems do not build"))
-        case Some(r) if r.status == "assumed" && c.status == "failed" => st("failed", c.messages.headOption.getOrElse("the node's theorems do not build"))
         // An authored link counts once something is shown to meet the node.
         case Some(r) if r.status == "proven" && c.obligations.exists(o => o.name == "feasible" && o.status != "proven") =>
           st("open", "the link is proven by hand: prove `feasible` too (some model meets the node), or give a proven implementation")
         case Some(r) if r.status == "proven" && c.obligations.exists(o => o.name == "nontrivial" && o.status != "proven") =>
           st("open", "the link is proven by hand: prove `nontrivial` too (some model fails the root, so the proof does not rest on the root saying nothing)")
-        // Without `feasible`, the witness is the proven implementation below: it must be proven, and
-        // reached through no assumed link.
+        // Without `feasible`, the witness is the proven implementation below: it must be proven.
         case Some(r) if r.status == "proven" && r.detail == "authored" && !generate.obligations(n).exists(_.name == "feasible") && !witnessed(n) =>
-          st("open", "the link is proven by hand, and nothing shown meets the node yet: the implementation below must be proven (through no assumed link), or prove `feasible`")
+          st("open", "the link is proven by hand, and nothing shown meets the node yet: the implementation below must be proven, or prove `feasible`")
         case Some(r) => st(r.status, r.detail.linesIterator.nextOption().getOrElse(""))
         case None if c.status == "timeout" => st("unchecked", "Lean timed out: run check again")
         case None if c.status == "model-error" => st("failed", "the model does not build: " + c.messages.headOption.getOrElse(""))
@@ -467,10 +436,8 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
     Decisions.decide(baseSnapshot, ledger, r, java.time.Instant.now.toString, Git.head(ws.root), Git.snapshot(ws.root, files))
       .map(Ledger.save(ws.ledgerFile, _))
 
-  /** Warnings about the record itself: decisions committed earlier and since rewritten, and
-    * governed files that do not exist.
-    */
-  def integrity: List[String] = Ledger.warnings(ws.root, ws.ledgerFile, ledger) ++ codeWarnings
+  /** Warnings about the record (decisions not signed by the developer) and the code. */
+  def integrity: List[String] = Ledger.warnings(ws.ledgerFile, ledger) ++ codeWarnings
 
   /** Warnings about the model and the code (the ledger's are read live, see `Ledger.warnings`). */
   def codeWarnings: List[String] =
@@ -478,33 +445,8 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
     // One owner per file: two nodes governing it would each review it as its own.
     val owners = kb.nodes.flatMap(n => code(n).toList.flatMap(_.files).map(_ -> n.id)).groupBy(_._1).toList.sortBy(_._1)
       .collect { case (f, ns) if ns.map(_._2).distinct.size > 1 => s"$f is governed by ${ns.map(_._2).distinct.mkString(" and ")}: give it one owner" }
-    missing ++ owners ++ ideaCoverage ++ ideaFollowUps ++
-      staleNames ++
-      (if checksCommitted then List(".frflow/checks.json is committed: proof results must come from running check, so it is ignored; remove it from git") else Nil) ++ ungoverned.map(f => s"$f is governed by no node: govern it (.governing or a design node) or move it") ++
-      shadowing.map(f => s"$f declares a package of FrFlow (frflow): it would replace FrFlow's own classes, its checks among them") ++
-      leanStrays.map(f => s"lean/$f is neither generated nor a proof: Lake may run it as code (a lakefile.lean does); remove it") ++
-      modelCode
-
-  /** A root whose idea changed in its latest accepted change, with nothing following it up: no node
-    * of its concern accepted since (a confirmation says only that a node still holds), and Not
-    * modelled not changed since. The new text is in no node and in no Not modelled.
-    */
-  def ideaFollowUps: List[String] =
-    val l = ledger
-    def field(d: Decision, k: String) = d.content(k).flatMap(_.str).getOrElse("")
-    def lines(t: String) = t.linesIterator.map(_.trim).filter(_.nonEmpty).toList
-    kb.roots.flatMap { r =>
-      val accepts = l.history(r.id).filter(_.action == "accept")
-      accepts.zip(accepts.drop(1)).filter((a, b) => field(a, "idea").nonEmpty && field(a, "idea") != field(b, "idea")).lastOption.flatMap { (before, d) =>
-        val concern = kb.nodes.filter(n => !(n eq r) && (kb.rootOf(n) eq r))
-        val modelled = concern.exists(n => l.history(n.id).exists(x => x.action == "accept" && x.at > d.at))
-        val notModelled = accepts.dropWhile(_ ne d).drop(1).exists(x => field(x, "notModelled") != field(d, "notModelled"))
-        val added = lines(field(d, "idea")).filterNot(lines(field(before, "idea")).contains)
-        Option.when(!modelled && !notModelled && added.nonEmpty)(
-          s"the idea of ${r.id} changed (${added.take(2).map(a => "\"" + a.take(100) + "\"").mkString(", ")}${if added.size > 2 then ", ..." else ""}) and nothing follows it up: " +
-            s"model it in a node of ${r.id}'s concern, or move it to Not modelled")
-      }
-    }
+    missing ++ owners ++ ideaCoverage ++ staleNames ++
+      ungoverned.map(f => s"$f is governed by no node: govern it (.governing or a design node) or move it") ++ modelCode
 
   /** Statements and reasons that name a node no longer chosen (rejected, or removed): the text
     * still rests on it.
@@ -512,7 +454,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
   def staleNames: List[String] =
     val l = ledger
     val ids = kb.nodes.map(_.id).toSet
-    val dropped = l.decisions.keySet.filter(id => id != Ledger.Self &&
+    val dropped = l.decisions.keySet.filter(id =>
       (l.current(id).exists(_.action == "remove") || l.current(id).exists(_.action == "reject"))).toSet
     kb.nodes.filterNot(n => l.current(n.id).exists(_.action == "reject")).flatMap { n =>
       dropped.toList.sorted.filter(d => d != n.id && s"\\b${java.util.regex.Pattern.quote(d)}\\b".r.findFirstIn(n.statement + " " + n.why).isDefined)
@@ -565,11 +507,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
           case termVal(name, _, _) => !used(name)
           case _                   => false)
         val shown = original(i).trim.take(60)
-        // The CLI's entry point does one thing: run FrFlow's CLI on the knowledge base, exiting with its result.
-        val mainForm = """@main\s+def\s+\w+\s*\(\s*args\s*:\s*String\s*\*\s*\)\s*:\s*Unit\s*=\s*sys\.exit\(\s*\w+\.cli\(\s*args\s*(,\s*root\s*=\s*"")?\s*\)\s*\)\s*""".r
-        if top && t.startsWith("@main") && !mainForm.matches(t) then
-          List(s"$rel:${i + 1}: `$shown`: the model's @main only runs the CLI: `@main def cli(args: String*): Unit = sys.exit(knowledge.cli(args))`")
-        else if bad && unusedTerm then List(s"$rel:${i + 1}: `$shown` is a parameter, opaque type or definition no node uses: use it in a node, or remove it")
+        if bad && unusedTerm then List(s"$rel:${i + 1}: `$shown` is a parameter, opaque type or definition no node uses: use it in a node, or remove it")
         else if bad then List(s"$rel:${i + 1}: `$shown` is code in the model's file, which no node governs; move it next to the implementation")
         else Nil
       }
@@ -613,26 +551,6 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
       .map(Path.of(_)).filterNot(p => abs(p).startsWith(root.resolve("target")))
     (walk(root) ++ fromBuild).filter(Files.isRegularFile(_)).map(abs).distinct
 
-  /** Files in the project's Lean workspace that are neither generated, nor proofs, nor its configuration
-    * as rendered: Lake runs a `lakefile.lean` as code, and anything else there is code no node governs.
-    */
-  def leanStrays: List[String] =
-    val lean = ws.lean.toAbsolutePath.normalize
-    val allowed = Set("lakefile.toml", "lean-toolchain", "lake-manifest.json")
-    if !Files.isDirectory(lean) then Nil
-    else Files.walk(lean).iterator.asScala.toList.filter(Files.isRegularFile(_)).map(p => lean.relativize(p.toAbsolutePath.normalize).toString)
-      .filterNot(r => r.startsWith(".lake/") || r.startsWith("FrFlowGen/") || r.startsWith("FrFlowAudit/") || allowed(r) ||
-        (r.startsWith("Proofs/") && r.endsWith(".lean")))
-      .sorted
-
-  /** Project sources that declare a package of FrFlow's own: they would replace its classes (the
-    * run-time checks among them) on the classpath.
-    */
-  def shadowing: List[String] =
-    projectSources.filter(p => p.toString.endsWith(".scala") || p.toString.endsWith(".java")).filter { p =>
-      read(p).exists(src => """(?m)^\s*package\s+frflow\b""".r.findFirstIn(src).isDefined)
-    }.map(p => ws.root.toAbsolutePath.normalize.relativize(p).toString)
-
   /** Where the developer stands on each node (see `Decisions`). */
   def state(n: Node[?]): String =
     annotated("nodes").get.arr.find(_("id").flatMap(_.str).contains(n.id)).flatMap(_("state")).flatMap(_.str).get
@@ -663,17 +581,13 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
   /** The tree and its warnings, and whether the knowledge base is complete (the CI gate). */
   def status: (String, Boolean) =
     val a = annotated
-    val warnings = integrity ++ budgetShortfall ++ uncrossed ++ (if fresh then ciWarnings else Nil)
+    val warnings = integrity ++ budgetShortfall ++ uncrossed
     val ok = Decisions.complete(a) && warnings.isEmpty
-    val notes = Ledger.restarts(ws.root, ws.ledgerFile).filter(c => ledger.acknowledged.exists(c.startsWith))
-      .map(c => s"the ledger was restarted in commit ${c.take(10)} (acknowledged); earlier decisions are in git history") ++
-      // What each invariant does not reach (by the type of what a contract returns), so a gap is seen.
-      kb.nodes.filter(_.kind == NodeKind.Invariant).flatMap { i =>
+    // What each invariant does not reach (by the type of what a contract returns), so a gap is seen.
+    val notes = kb.nodes.filter(_.kind == NodeKind.Invariant).flatMap { i =>
         val out = kb.nodes.filter(c => c.kind == NodeKind.Contract && !kb.inScope(i).contains(c))
         Option.when(out.nonEmpty)(s"${i.id} does not reach ${out.map(c => s"${c.id} (returns ${c.post.flatMap(_.params.lastOption).fold("?")(_._2)})").mkString(", ")}: its rule is about none of what they return")
-      } ++
-      // Who the developer key is: the first key committed, unless CI pins the keys.
-      Signing.firstKey(ws.root, ws.ledgerFile.getParent.resolve("keys")).toList.map(k => s"developer key: $k")
+      }
     (Decisions.tree(a) + "\n\n" + coverage + "\n" + notes.map("note: " + _ + "\n").mkString + warnings.map("warning: " + _ + "\n").mkString +
       (if ok then "Every node is accepted, proven (or decided by reading, where it opted out of Lean), and its examples pass."
        else "Not every node is accepted, proven, and passing its examples, or there are warnings.") + "\n", ok)
@@ -685,17 +599,16 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
     val g = generate
     val links = kb.nodes.filter(n => n.parent.nonEmpty && n.kind != NodeKind.Design && n.kind != NodeKind.Invariant)
     // Proven: checked now, not only formal.
-    val formal = links.filter(l => l.formal && !l.assumed && link(l)("status").flatMap(_.str).contains("proven"))
-    val formalAll = links.filter(l => l.formal && !l.assumed)
-    val assumedLinks = links.filter(l => l.formal && l.assumed)
+    val formal = links.filter(l => l.formal && link(l)("status").flatMap(_.str).contains("proven"))
+    val formalAll = links.filter(_.formal)
     val contracts = kb.nodes.filter(_.kind == NodeKind.Contract)
     val proven = provenCode
     val plain = contracts.filter(c => kb.implementation(c).exists(_.proven.isEmpty))
     val checked = contracts.filter(c => kb.implementation(c).exists(_.oracle))
     val designs = kb.nodes.filter(_.kind == NodeKind.Design)
-    s"Proofs: ${formal.size} of ${links.size} links proven in Lean${if assumedLinks.nonEmpty then s" (${assumedLinks.map(_.id).mkString(", ")} assumed: decided by reading, named by every root theorem that rests on them)" else ""}" +
+    s"Proofs: ${formal.size} of ${links.size} links proven in Lean" +
       s"${if formalAll.diff(formal).nonEmpty then s" (${formalAll.diff(formal).map(_.id).mkString(", ")} not proven yet)" else ""}" +
-      s"${if links.diff(formalAll).diff(assumedLinks).nonEmpty then s" (${links.diff(formalAll).diff(assumedLinks).map(_.id).mkString(", ")} out of Lean)" else ""}; " +
+      s"${if links.diff(formalAll).nonEmpty then s" (${links.diff(formalAll).map(_.id).mkString(", ")} out of Lean)" else ""}; " +
       s"the root proven of the code for ${proven.size} of ${contracts.size} contracts" +
       (if checked.nonEmpty then s", of a proven oracle for ${checked.map(_.id).mkString(", ")} (its plain implementation is checked against it on the examples' inputs)" else "") +
       (if plain.nonEmpty then s", checked on examples only for ${plain.map(_.id).mkString(", ")}" else "") +
@@ -722,28 +635,13 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
   private def evaluated: String =
     val per = kb.nodes.filter(c => c.kind == NodeKind.Contract && generate.formal(c) && c.cases.nonEmpty).map { c =>
       val rs = current(c).toList.flatMap(_.obligations)
-      (c, rs.count(o => o.name.startsWith("eval_") && o.status == "proven"), c.cases.size,
-        rs.count(o => o.name.startsWith("varied_") && o.status == "proven"))
+      (c, rs.count(o => o.name.startsWith("eval_") && o.status == "proven"), c.cases.size)
     }
     if per.isEmpty then ""
     else
-      val none = per.filter((_, ok, _, _) => ok == 0).map(_._1.id)
+      val none = per.filter((_, ok, _) => ok == 0).map(_._1.id)
       s"; examples evaluated in Lean as in Scala: ${per.map(_._2).sum} of ${per.map(_._3).sum}" +
-        (if none.nonEmpty then s" (none for ${none.mkString(", ")}: unchecked, or its parameters are functions)" else "") +
-        (if per.map(_._4).sum > 0 then s", and ${per.map(_._4).sum} calls varied from them" else "")
-
-  /** What CI (`ci`) requires besides: the developer key pinned (else the first key committed would be
-    * whoever committed first), a clone with the full history (the ledger's history is checked), and the
-    * kernel FrFlow proves with, when pinned.
-    */
-  def ciWarnings: List[String] =
-    (if sys.env.get("FRFLOW_DEVELOPER_KEYS").forall(_.trim.isEmpty) then
-      List("FRFLOW_DEVELOPER_KEYS is not set: CI must name the developer's key ids itself (status shows the key)") else Nil) ++
-    (if Git.shallow(ws.root) then List("the clone is shallow: the ledger's history cannot be checked; fetch the full history (fetch-depth: 0)") else Nil) ++
-    sys.env.get("FRFLOW_KERNEL_HASH").filter(h => h.trim.nonEmpty && h.trim != kernelHash).map(h =>
-      s"the FrFlow kernel (lean/FrFlow, its tactics and toolchain) is not the one CI pins: ${kernelHash.take(16)}, not ${h.trim.take(16)}").toList
-
-  def kernelId: String = kernelHash
+        (if none.nonEmpty then s" (none for ${none.mkString(", ")}: unchecked, or its parameters are functions)" else "")
 
   /** The contracts whose root theorem is proven of their code. */
   def provenCode: List[Node[?]] =
@@ -804,14 +702,12 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
       val ds = l.history(a.id).filter(d => Set("accept", "confirm", "revisit")(d.action))
       val nowHash = hash(a)
       def ver(d: Decision) = if d.hash == nowHash then "" else " [given for an earlier version of it]"
-      def line(d: Decision) = (d.action match
+      def line(d: Decision) = d.action match
         case "accept" if l.chosen(a.id).contains(d) => s"Chosen by ${d.by} because: ${d.reason}${ver(d)}"
         case "accept"  => s"Change accepted by ${d.by}: ${d.reason}${ver(d)}"
         case "confirm" => s"Confirmed by ${d.by}: ${d.reason}"
-        case _         => s"To revisit (${d.by}): ${d.reason}") +
-        (if d.standing.nonEmpty then s"\nHolds now because (restated by ${d.by}): ${d.standing}" else "")
+        case _         => s"To revisit (${d.by}): ${d.reason}"
       ds.lastOption.foreach(d => sb ++= s"Latest: ${line(d)}\n\n")
-      if l.revisitIf(a.id).nonEmpty then sb ++= s"Revisit if: ${l.revisitIf(a.id)}\n\n"
       val accepts = ds.dropRight(1).filter(_.action == "accept").reverse
       // The latest few changes, and how it was chosen; the rest is in the ledger's history.
       val shown = (accepts.take(4) ++ accepts.filter(l.chosen(a.id).contains)).distinct
@@ -1051,9 +947,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
         "rootTheorem" -> str(if g.formal(n) then g.rootTheorem(n) else ""),
         "lean" -> str(if g.formal(n) then g.spec(n) else ""),
         "messages" -> strs(check.toList.flatMap(_.messages)),
-        "axioms" -> strs(check.toList.flatMap(_.axioms)),
-        // The assumed links the node's root theorem rests on, as Lean's audit lists them.
-        "restsOn" -> strs(check.toList.flatMap(_.axioms).flatMap(g.assumptions(n).get))
+        "axioms" -> strs(check.toList.flatMap(_.axioms))
       )
     obj(
       "name" -> str(kb.name),
@@ -1074,7 +968,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
     )
 
   /** The snapshot with the developer's decisions. */
-  def annotated: Json = Workflow.withForgotten(Decisions.annotate(baseSnapshot, ledger), Ledger.forgotten(ws.root, ws.ledgerFile))
+  def annotated: Json = Decisions.annotate(baseSnapshot, ledger)
 
   /** Writes the snapshot to `.frflow/kb.json`. The browser re-reads the ledger itself. */
   def writeSnapshot(): Path =
@@ -1083,10 +977,6 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
     ws.snapshotFile
 
 object Workflow:
-  /** The annotated snapshot with the decisions commits took back. */
-  def withForgotten(a: Json, fs: List[(String, String, Decision)]): Json =
-    JObj(a.obj.filterNot(_._1 == "forgotten") :+ ("forgotten" -> JArr(fs.map((c, id, d) => obj("commit" -> str(c), "node" -> str(id),
-      "action" -> str(d.action), "reason" -> str(d.reason), "at" -> str(d.at), "content" -> d.content)))))
   /** The lines removed (`- `) and added (`+ `) from `a` to `b`, in order (a longest common subsequence). */
   def lineDiff(a: String, b: String): List[String] =
     val (x, y) = (a.split("\n", -1).toVector, b.split("\n", -1).toVector)

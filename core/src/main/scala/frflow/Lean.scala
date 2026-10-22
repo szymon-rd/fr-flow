@@ -21,8 +21,6 @@ final class Lake(dir: Path, timeoutSeconds: Long = 900):
   /** Several targets in one build: Lake builds them in parallel. */
   def buildAll(targets: Seq[String]): Run = Lake.building.synchronized(run(Seq(lake, "build") ++ targets))
   def elaborate(file: String): Run = run(Seq(lake, "env", "lean", file))
-  /** Replays a built module's declarations through the kernel. */
-  def replay(module: String): Run = run(Seq(lake, "env", "leanchecker", module))
   def available: Boolean =
     try ProcessBuilder(lake, "--version").redirectErrorStream(true).start().waitFor() == 0
     catch case _: java.io.IOException => false

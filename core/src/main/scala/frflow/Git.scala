@@ -19,52 +19,6 @@ object Git:
   /** The commit checked out in `dir`, or "" outside git. */
   def head(dir: Path): String = run(dir, "rev-parse", "HEAD").map(_.trim).getOrElse("")
 
-  /** A file as committed at HEAD, relative to `dir`. */
-  def show(dir: Path, file: String): Option[String] = run(dir, "show", s"HEAD:./$file")
-
-  /** The last `n` commits that changed a file, oldest first, with their parents in that history
-    * (a merge has two) and the file as committed.
-    */
-  def versions(dir: Path, file: String): List[Version] =
-    // Full history: a merge that kept one side's file (as `-s ours` does) is compared with each parent;
-    // and all of it, however long. The file at each commit is read only when asked for, and not kept.
-    val out = run(dir, "log", "--full-history", "--parents", "--format=@%H %P", "--name-status", "--", file).getOrElse("")
-    val commits = scala.collection.mutable.ListBuffer.empty[(List[String], Boolean)]
-    out.linesIterator.map(_.trim).filter(_.nonEmpty).foreach { l =>
-      if l.startsWith("@") then commits += ((l.drop(1).split(" ").toList, false))
-      else if l.startsWith("D") && commits.nonEmpty then commits(commits.size - 1) = (commits.last._1, true)
-    }
-    commits.toList.reverse.collect { case (c :: parents, deleted) => Version(c, parents, deleted)(() => run(dir, "show", s"$c:./$file")) }
-
-  /** A commit that changed a file, its parents among such commits, and whether it deleted the file. */
-  final case class Version(commit: String, parents: List[String], deleted: Boolean)(read: () => Option[String]):
-    def text: Option[String] = if deleted then None else read()
-
-  /** Files under `dir` that a commit removed, with the commit; and those removed from the working tree. */
-  def removed(root: Path, dir: String): List[(String, String)] =
-    val committed = run(root, "log", "--diff-filter=D", "--name-only", "--relative", "--format=@%H", "--", dir).toList.flatMap { out =>
-      var c = ""
-      out.linesIterator.map(_.trim).filter(_.nonEmpty).flatMap(l => if l.startsWith("@") then { c = l.drop(1); None } else Some(c -> l)).toList
-    }
-    val now = run(root, "ls-files", "--deleted", "--", dir).toList.flatMap(_.linesIterator.map(_.trim).filter(_.nonEmpty)).map("" -> _)
-    // A file removed and later restored is not missing.
-    (committed ++ now).filterNot((_, f) => java.nio.file.Files.exists(root.resolve(f))).distinct
-
-  /** The first file ever added under `dir` (run from it), if any was committed. */
-  def firstAdded(dir: Path): Option[String] =
-    if !java.nio.file.Files.isDirectory(dir) then None
-    else run(dir, "log", "--diff-filter=A", "--reverse", "--name-only", "--relative", "--format=", "--", ".").toList
-      .flatMap(_.linesIterator.map(_.trim).filter(_.endsWith(".pub"))).headOption
-
-  /** Whether the clone has only part of the history. */
-  def shallow(dir: Path): Boolean =
-    run(dir, "rev-parse", "--is-shallow-repository").exists(_.trim == "true")
-
-  /** Who added a file (in `dir`) to git, and in which commit. */
-  def addedBy(dir: Path, file: String): Option[String] =
-    if !java.nio.file.Files.isDirectory(dir) then None
-    else run(dir, "log", "--diff-filter=A", "--reverse", "--format=%an <%ae> in %h", "--", file).flatMap(_.linesIterator.map(_.trim).find(_.nonEmpty))
-
   /** Whether a file is tracked by git. */
   def tracked(dir: Path, file: String): Boolean = run(dir, "ls-files", "--error-unmatch", "--", file).isDefined
 

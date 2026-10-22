@@ -323,7 +323,7 @@ const waitingForYou = () => {
 };
 // Everything the inbox asks of you, counted once, the same everywhere.
 const waitingCount = () => waitingForYou().length + gone().length + requests().filter(r => r.status === "answered").length +
-  (snap()?.unsigned || []).length + (snap()?.restarts || []).length + (snap()?.keys?.untrusted || []).length;
+  (snap()?.unsigned || []).length;
 const gone = () => snap()?.gone || [];
 const siblings = n => live().filter(m => m.parent === n.parent && m.id !== n.id && m.state !== "rejected" && (m.kind === "design") === (n.kind === "design"));
 const requests = () => state.data?.requests || [];
@@ -331,7 +331,7 @@ const me = () => $("#me").value.trim();
 // Lean disagreeing with Scala on an example means the translation is wrong: the example fails too.
 const leanFailed = e => e.lean?.status === "failed" || e.leanImplementation?.status === "failed";
 const examplesBad = n => (n.examples || []).filter(e => e.contract !== "ok" || (e.implementation && e.implementation !== "ok") || leanFailed(e));
-const pathProven = n => pathTo(n.id).slice(1).every(p => ["proven", "design", "informal", "assumed"].includes(linkStatus(p)));
+const pathProven = n => pathTo(n.id).slice(1).every(p => ["proven", "design", "informal"].includes(linkStatus(p)));
 const causeText = { self: "it changed", above: "the meaning of something above it changed", code: "the code it governs changed", revisit: "a change above may affect it", merged: "two branches decided it and both were kept: decide it again" };
 function linkLabel(n) {
   const s = linkStatus(n), d = n.link?.detail;
@@ -449,13 +449,10 @@ function renderPane() {
   if (!snap() && state.tab !== "idea") { $("#pane").innerHTML = ""; return; }
   // A redraw (for example after a live update) keeps what the developer is typing or ticking.
   const keep = state.tab === "node" && $("#reason") ? { node: state.selected, reason: $("#reason").value,
-    standing: $("#standing")?.value, revisitIf: $("#revisitIf")?.value,
     ticks: [...document.querySelectorAll("#pane input[type=checkbox], #pane input[type=radio]")].map(x => [x.className, x.name + "|" + x.value, x.checked]) } : null;
   $("#pane").innerHTML = { node: nodePane, inbox: inboxPane, idea: ideaPane, vocabulary: vocabularyPane, history: historyPane }[state.tab]();
   if (keep && keep.node === state.selected) {
     if ($("#reason")) $("#reason").value = keep.reason;
-    if ($("#standing") && keep.standing !== undefined) $("#standing").value = keep.standing;
-    if ($("#revisitIf") && keep.revisitIf !== undefined) $("#revisitIf").value = keep.revisitIf;
     for (const [c, v, on] of keep.ticks) {
       const el = [...document.querySelectorAll("#pane input[type=checkbox], #pane input[type=radio]")].find(x => x.className === c && x.name + "|" + x.value === v);
       if (el) el.checked = on;
@@ -478,7 +475,6 @@ function verdict(n) {
     if (d === "authored") return "Proven by a proof the agent wrote, replayed through the Lean kernel. Read it before accepting: a proof can also go through because the node contradicts itself, which the automatic check does not always catch.";
     return "Proven automatically by frflow_auto.";
   }
-  if (s === "assumed") return "Assumed: you decide this link by reading; its spec stays formal, so everything below is proven against it, and every root theorem resting on it names it.";
   if (s === "informal") return "Not formalized: this node opted out of Lean (formal = false). Read its model against its parent; that reading is your decision. A contract's examples and run-time check still apply.";
   if (s === "open") return `Open: ${esc(d)}`;
   if (s === "failed") return `Failed: ${esc(d)}`;
@@ -556,12 +552,11 @@ async function loadCodeDiff(id) {
 
 const reasonBox = (placeholder, value = "", n = null) =>
   `<div class="side"><div class="label">your reason (kept as part of the theory)</div><textarea id="reason" rows="2" placeholder="${esc(placeholder)}">${esc(value)}</textarea>
-  ${n && n.standing && (n.causes || []).includes("self") ? `<div class="label" style="margin-top:6px">why it holds now — the reason it was chosen; rewrite it if the change made it untrue</div><textarea id="standing" rows="2" data-was="${esc(n.standing)}">${esc(n.standing)}</textarea>` : ""}
-  <div class="label" style="margin-top:6px">revisit if (optional) — when would this decision stop holding?</div><input id="revisitIf" style="width:100%" value="${esc(n?.revisitIf || "")}" data-was="${esc(n?.revisitIf || "")}" placeholder="e.g. a second instance serves requests"></div>`;
+  </div>`;
 
 function warnings(n) {
   const w = [];
-  if (n.kind !== "design" && n.parent && !["proven", "informal", "assumed"].includes(linkStatus(n))) w.push(`its link is ${linkStatus(n)}`);
+  if (n.kind !== "design" && n.parent && !["proven", "informal"].includes(linkStatus(n))) w.push(`its link is ${linkStatus(n)}`);
   if (examplesBad(n).length) w.push(`${examplesBad(n).length} example(s) fail`);
   (n.invariants || []).filter(i => !["proven", "informal", "exempt"].includes(i.status)).forEach(i => w.push(`invariant ${i.id} is ${i.status}`));
   const ip = n.implementationProof;
@@ -632,17 +627,6 @@ function aboveReasons(n) {
     ${relied.map(r => `<div class="small">relies on <a data-goto="${esc(r.id)}"><b>${esc(r.id)}</b></a>: ${esc(r.reasonNow || r.decision?.reason || "")}</div>`).join("")}</div>`;
 }
 
-// Keys: this browser's, and others that are not the developer's yet.
-function keysBox() {
-  const k = snap()?.keys; if (!k) return "";
-  const mine = k.mine && !k.mineTrusted ? `<div class="small">This browser's key ${esc(k.mine)} is not a developer key of this project: decisions made here are not counted as yours until a browser holding a developer key certifies it.</div>` : "";
-  const others = (k.untrusted || []).filter(id => id !== k.mine);
-  if (!mine && !others.length) return "";
-  return `<div class="box review" style="margin-top:0"><div class="verdict review">Keys that are not the developer's</div>${mine}
-    ${others.map(id => `<div class="small">${esc(id)} ${k.mineTrusted ? `<button class="btn small" data-certify="${esc(id)}">This key is mine: certify it</button>` : ""}</div>`).join("")}
-    <div class="muted small">A process that runs its own server makes its own key; certify only a key you made, on a machine of yours.</div></div>`;
-}
-
 // Back to the agent, with what to change: a request on the node.
 const sendBack = n => `<button class="btn small" data-sendback="${esc(n.id)}">Send back to the agent</button>`;
 
@@ -700,7 +684,6 @@ function decisionBox(n) {
         <div class="muted small">holds because: ${esc(b.reason)}</div>
         ${b.chosen && b.chosen !== b.reason && !b.reason.startsWith(b.chosen) ? `<div class="muted tiny">first chosen because: ${esc(b.chosen)}</div>` : ""}
         ${b.why ? `<div class="muted tiny">why: ${esc(b.why)}</div>` : ""}
-        ${b.revisitIf ? `<div class="small">revisit if: ${esc(b.revisitIf)}</div>` : ""}
         ${conditional(b) && b.kind !== "moved"
           ? `<div class="warn-text small">It says when to revisit it: answer it.</div>
              <label><input type="radio" class="ans" name="ans-${esc(b.id)}" value="held" data-id="${esc(b.id)}"> still holds</label>
@@ -810,7 +793,7 @@ function nodePane() {
       ${n.kind !== "design" ? `<button class="btn small" data-run="check" data-arg="${esc(n.id)}">Check this node</button>` : ""}
       ${ls === "open" && !n.proof && n.obligation ? `<button class="btn small" data-run="scaffold" data-arg="${esc(n.id)}">Create proof file</button>` : ""}
     </div>`;
-  const read = pathTo(n.id).slice(1).filter(p => ["informal", "assumed"].includes(linkStatus(p))).length;
+  const read = pathTo(n.id).slice(1).filter(p => ["informal"].includes(linkStatus(p))).length;
   if (n.kind !== "design" && n.kind !== "invariant") h += `<details><summary>Root theorem — ${!pathProven(n) ? "holds once every link on the path is proven" : read ? `holds as far as Lean goes: ${read} link(s) on the path are decided by reading, not proven` : "holds: every link from the root is proven"}</summary>
       <div class="chain">${pathTo(n.id).map((p, i) => (i ? `<span class="arrow ${linkStatus(p)}">${linkStatus(p) === "proven" ? "⟵✓" : "⟵?"}</span>` : "") +
         `<a data-goto="${esc(p.id)}">${esc(p.id)}</a>`).join("")}</div><pre>${esc(n.rootTheorem)}</pre></details>
@@ -821,32 +804,6 @@ function nodePane() {
 
 // Reviews caused by one change, decided at once with one reason: nodes that moved only because the
 // same nodes above them changed, or whose only change is the same definitions they use.
-function batches(w) {
-  const key = n => {
-    if (n.waitsFor) return null;
-    const cs = (n.causes || []).join();
-    if (cs === "above") return "above:" + (n.moved || []).map(m => m.id).sort().join(",");
-    if (cs === "self") {
-      const d = (n.history || []).filter(h => ["accept", "confirm", "migrate"].includes(h.action)).slice(-1)[0]?.content || {};
-      const changed = Object.keys({ ...d, ...C(n) }).filter(k => JSON.stringify(d[k] ?? null) !== JSON.stringify(C(n)[k] ?? null));
-      // Only the definitions and types it uses moved (and so how its examples print): the same change elsewhere.
-      if (changed.length && changed.includes("uses") && changed.every(f => ["uses", "examples", "vocabulary"].includes(f))) {
-        // The same change: the same definitions came and went, whatever else each node uses.
-        const was = new Set(d.uses || []), now = new Set(C(n).uses || []);
-        return "uses:" + JSON.stringify([[...now].filter(u => !was.has(u)).sort(), [...was].filter(u => !now.has(u)).sort()]);
-      }
-    }
-    return null;
-  };
-  const groups = {};
-  for (const n of w) { const k = key(n); if (k) (groups[k] ||= []).push(n); }
-  return Object.entries(groups).filter(([, ns]) => ns.length > 1).map(([k, ns]) => {
-    const what = k.startsWith("above:") ? `moved only because ${k.slice(6).split(",").map(x => `<a data-goto="${esc(x)}">${esc(x)}</a>`).join(", ")} changed`
-      : "changed only in the definitions they use (the same change)";
-    return batchBox(ns, `${ns.length} nodes ${what}`, `open one to see the change; Lean ${ns.every(n => ["proven", "informal"].includes(linkStatus(n)) || n.kind === "design") ? "proves their links again" : "has not proven all their links yet"}.`, "Why do they all still hold?");
-  }).join("");
-}
-
 // Nodes decided at once with one reason: one accept each, parents first (each with the version seen).
 function batchBox(ns, title, note, placeholder) {
   const depth = n => pathTo(n.id).length;
@@ -873,22 +830,16 @@ function inboxPane() {
   const rejected = all().filter(n => n.state === "rejected");
   const warns = snap()?.warnings || [];
   return `${warns.length ? `<div class="box failed" style="margin-top:0"><div class="verdict failed">Warnings</div>${warns.map(x => `<div class="small">${esc(x)}</div>`).join("")}</div>` : ""}
-    ${keysBox()}
     ${(snap()?.unsigned || []).length ? `<div class="box review" style="margin-top:0"><div class="verdict review">Decisions not signed by your key</div>
       <div class="muted small">Each decision you make here is signed with your key; these are not. One you did not make was written into the ledger by someone else: decide that node again. Sign only the ones that are yours.</div>
       ${snap().unsigned.map(u => `<label class="small" style="display:block"><input type="checkbox" class="unsigned" value="${esc(u.entry)}"> <a data-goto="${esc(u.node)}">${esc(u.node)}</a>: ${esc(u.action)} by ${esc(u.by)}, ${new Date(u.at).toLocaleString()} — ${esc(u.reason)}</label>`).join("")}
       <div class="actions"><button class="btn small" data-sign="1">These are mine: sign them</button></div></div>` : ""}
-    ${(snap()?.restarts || []).map(({ commit: c, why }) => `<div class="box review" style="margin-top:0"><div class="verdict review">${esc(why)}: commit ${esc(c.slice(0, 10))}</div>
-      <div class="muted small">A commit removed or changed recorded decisions (a deleted ledger, or a revert). Check in git what changed (git show ${esc(c.slice(0, 10))}), then say why it is right.</div>
-      <textarea class="removal" data-restart="${esc(c)}" rows="1" placeholder="Why is it right?"></textarea>
-      <div class="actions"><button class="btn small primary" data-ack="${esc(c)}">Acknowledge</button></div></div>`).join("")}
-    ${batches(w)}
     <h3 style="margin-top:0">Waiting for you</h3>${w.length ? w.filter(n => !followers(n, w)).map(n =>
       `<div class="req"><a data-goto="${esc(n.id)}"><b>${esc(n.id)}</b></a> ${chips(n)}<div class="small">${esc(C(n).statement)}</div>
       ${w.filter(f => followers(f, w) === n.id).map(f => `<div class="muted small">↳ <a data-goto="${esc(f.id)}">${esc(f.id)}</a> moved with it: decided together, from its review</div>`).join("")}</div>`).join("")
       : gone().length || mech.length ? "" : `<div class="muted small">Nothing. Every node is accepted.</div>`}
     ${mech.length ? `<h3>Mechanical — Lean proves these again; nothing in them is a choice</h3>
-      ${batchBox(mech, `${mech.length} mechanical decision${mech.length > 1 ? "s" : ""}`, "proven links, passing examples, no alternative beside them and no new terms. Open one to read what moved; nodes resting on them follow once they are accepted.", "Why do they hold? e.g. the change above does not touch what they rely on")}` : ""}
+      ${batchBox(mech, `${mech.length} mechanical decision${mech.length > 1 ? "s" : ""}`, "nothing you decided in them changed (only the types they use, a proven implementation, or something above them), and Lean proves them again. Open one to read what moved.", "Why do they hold? e.g. the change above does not touch what they rely on")}` : ""}
     ${gone().map(r => `<div class="req"><b>${esc(r.id)}</b> <span class="chip s-review">gone from the model</span>
       <div class="small">${esc(r.decision?.content?.statement)}</div>
       ${(r.renamedTo || []).length ? `<div class="small">Says what ${(r.renamedTo).map(x => `<a data-goto="${esc(x)}">${esc(x)}</a>`).join(", ")} says, under another name: if it was renamed, its history (its choice, reasons, rejected alternatives) carries over.</div>` : ""}
@@ -1016,10 +967,7 @@ document.addEventListener("click", async e => {
       say(acc, `${n.id}: ${ask.join("; and ")}. Click “${acc.textContent}” to decide, or change your ticks.`, "confirm-text");
       return;
     }
-    const st = $("#standing"), ri = $("#revisitIf");
-    const standing = st && st.value.trim() !== st.dataset.was ? st.value.trim() : "";
-    const revisitIf = ri && ri.value.trim() !== ri.dataset.was ? ri.value.trim() : "";
-    decide({ node: n.id, by: who, reason, reject, revisit, confirm: confirmBelow, held, seen: n.version, standing, revisitIf }, acc);
+    decide({ node: n.id, by: who, reason, reject, revisit, confirm: confirmBelow, held, seen: n.version }, acc);
     return;
   }
   const rs = t.closest("[data-reject-self]");
@@ -1054,21 +1002,11 @@ document.addEventListener("click", async e => {
     await refresh();
     return;
   }
-  const cert = t.closest("[data-certify]");
-  if (cert) { try { await post(`${P()}/certify`, { key: cert.dataset.certify }); await refresh(); } catch (err) { say(cert, err.message); } return; }
   const sg = t.closest("[data-sign]");
   if (sg) {
     const entries = [...document.querySelectorAll(".unsigned:checked")].map(x => x.value);
     if (!entries.length) { say(sg, "Tick the decisions that are yours."); return; }
     try { await post(`${P()}/sign`, { entries }); await refresh(); } catch (err) { say(sg, err.message); }
-    return;
-  }
-  const ack = t.closest("[data-ack]");
-  if (ack) {
-    const who = needName(ack); if (!who) return;
-    const reason = [...document.querySelectorAll("[data-restart]")].find(x => x.dataset.restart === ack.dataset.ack)?.value.trim() || "";
-    if (words(reason) < 3) { say(ack, "Say why the restart is right, in a few words."); return; }
-    decide({ node: "_ledger", by: who, reason, action: "acknowledge", seen: ack.dataset.ack }, ack);
     return;
   }
   const rn = t.closest("[data-rename]");

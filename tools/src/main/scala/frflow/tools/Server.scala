@@ -22,7 +22,6 @@ import java.util.concurrent.Executors
   * POST /api/p/NAME/run      {"args": [...]} render / check / scaffold
   * POST /api/p/NAME/decide   {"node", "by", "reason", "action", "seen", "reject", "revisit", "confirm"}   the developer's decision
   * POST /api/p/NAME/sign     {"entries"}     signs decisions the developer says are theirs
-  * POST /api/p/NAME/certify  {"key"}         makes another key a developer key of the project
   * POST /api/p/NAME/requests {"node", "text", "by"}
   * POST /api/p/NAME/requests/ID {"status", "answer"}
   * POST /api/p/NAME/idea     {"text","base"} saves IDEA.md (refused if it changed since `base`) and starts a render
@@ -146,17 +145,11 @@ final class Server(projects: List[Project], val token: String = Server.newToken(
             def ids(k: String) = body(k).map(_.arr.toList).getOrElse(Nil).flatMap(_.str)
             val req = frflow.Decisions.Request(field("node"), field("by"), field("reason"), ids("reject"),
               ids("revisit"), ids("confirm"), body("action").flatMap(_.str).getOrElse("accept"),
-              body("seen").flatMap(_.str).getOrElse(""), ids("held"), field("from"), field("revisitIf"), field("standing"))
+              body("seen").flatMap(_.str).getOrElse(""), ids("held"), field("from"))
             if !Project.Ident.matches(req.node) then error(ex, 400, "expected a node id")
-            else if Set("accept", "reject", "migrate", "rename")(req.action) && req.seen.isEmpty then
+            else if req.seen.isEmpty then
               error(ex, 400, "send the version of the node you looked at (seen), so a decision on a node that moved is refused")
             else p.decide(req) match
-              case Left(why) => error(ex, 409, why)
-              case Right(()) => signal(); json(ex, obj("ok" -> JBool(true)))
-          case List("certify") =>
-            val id = field("key")
-            if !id.matches("[0-9a-f]{16}") then error(ex, 400, "expected a key id")
-            else p.certify(id) match
               case Left(why) => error(ex, 409, why)
               case Right(()) => signal(); json(ex, obj("ok" -> JBool(true)))
           case List("sign") =>

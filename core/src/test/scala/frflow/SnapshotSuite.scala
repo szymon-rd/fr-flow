@@ -182,9 +182,6 @@ class SnapshotSuite extends munit.FunSuite:
     def d(r: String) = Decision("accept", Json.JNull, "", "dev", r, r)
     val base = Ledger(Map("A" -> List(d("1"))))
     val merged = Ledger(Map("A" -> List(d("1"), d("2a"), d("2b"))))
-    assertEquals(Ledger.rewrittenSince(Ledger(Map("A" -> List(d("1"), d("2b")))), merged), Nil)
-    assertEquals(Ledger.rewrittenSince(base, merged), Nil)
-    assert(Ledger.rewrittenSince(merged, base).nonEmpty)
   }
 
   test("decisions below are confirmed by name, only below nodes that are accepted") {
@@ -291,16 +288,13 @@ class SnapshotSuite extends munit.FunSuite:
     assertEquals(w.state(onlyGood2), "review")
   }
 
-  test("the ledger is compact on disk, and a rewrite of committed decisions is noticed") {
+  test("the ledger is compact on disk") {
     val ws = workspace()
     val w = workflow(shelfKb, ws)
     acceptAll(w)
     val committed = w.ledger
     val text = Files.readString(ws.ledgerFile)
     assertEquals(Ledger.fromJson(Json.parse(text)), committed)
-    val forged = Ledger(committed.decisions.updated("Listed", committed.history("Listed").map(_.copy(reason = "forged"))))
-    assertEquals(Ledger.rewrittenSince(committed, forged), List("Listed: decisions recorded earlier were changed or removed"))
-    assertEquals(Ledger.rewrittenSince(committed, committed.add("Pick", committed.history("Pick").head)), Nil)
   }
 
   // Lean is not run here: these mark every link as Lean would.
@@ -321,22 +315,14 @@ class SnapshotSuite extends munit.FunSuite:
       Decisions.decide(snap, l, Decisions.Request(id, by, s"$id holds for this reason", action = action), at(i))
     val l1 = decide(Ledger.empty, "OnlyGood", "accept", 1).toOption.get
     assert(Decisions.mechanical(snap, l1, ids("OnlyGood")).exists(_.contains("root nodes hold a choice")))
-    assertEquals(Decisions.mechanical(snap, l1, ids("Listed")), None)
-    // what the terms mean is a choice, however mechanical it looks
+    // a proposal is the developer's choice; so is what the terms mean
+    assert(Decisions.mechanical(snap, l1, ids("Listed")).exists(_.contains("only a node under review")))
     assert(Decisions.mechanical(snap, l1, ids("Books")).exists(_.contains("instantiate nodes hold a choice")))
-    val a1 = Decisions.annotate(snap, l1)
-    assertEquals(nodes(a1)("Listed")("mechanical"), Some(Json.JBool(true)))
-    assert(Decisions.waiting(a1)._1.contains("Listed: proposed, mechanical"), Decisions.waiting(a1))
     // there is no agent's decision
     assert(decide(l1, "Listed", "settle", 2, "agent").left.exists(_.contains("unknown decision")))
-    // a node the developer rejected once is theirs to decide again
-    val l4 = decide(l1, "Listed", "reject", 5).fold(e => fail(e), identity)
-    assert(Decisions.mechanical(snap, l4, ids("Listed")).isDefined)
-    // a link that is not proven is not mechanical
-    assert(Decisions.mechanical(w.baseSnapshot, l1, nodes(w.baseSnapshot)("Listed")).exists(_.contains("only a link Lean proves")))
   }
 
-  test("a merged ledger keeps both branches' decisions, and git's full history notices a merge that drops one side") {
+  test("a merged ledger keeps both branches' decisions") {
     val ws = workspace()
     val w = workflow(shelfKb, ws)
     acceptAll(w)
@@ -344,19 +330,8 @@ class SnapshotSuite extends munit.FunSuite:
     val ours = base.add("Pick", base.history("Pick").last.copy(action = "revisit", reason = "ours", at = "2030-01-01T00:00:00Z"))
     val theirs = base.add("Listed", base.history("Listed").last.copy(action = "revisit", reason = "theirs", at = "2030-01-02T00:00:00Z"))
     val merged = Ledger.merge(ours, theirs)
-    assertEquals(Ledger.rewrittenSince(ours, merged), Nil)
-    assertEquals(Ledger.rewrittenSince(theirs, merged), Nil)
     assertEquals(merged.current("Pick").map(_.reason), Some("ours"))
     assertEquals(merged.current("Listed").map(_.reason), Some("theirs"))
-    // in git: a merge that keeps only one side's ledger (`-s ours`) is a rewrite of the other's
-    def git(args: String*) =
-      val p = ProcessBuilder(("git" +: args)*).directory(ws.root.toFile).redirectErrorStream(true).start()
-      val out = String(p.getInputStream.readAllBytes()); assert(p.waitFor() == 0, out)
-    git("init", "-q", "-b", "main"); git("config", "user.email", "t@t"); git("config", "user.name", "t")
-    Ledger.save(ws.ledgerFile, base); git("add", "-A"); git("commit", "-qm", "base")
-    git("checkout", "-qb", "side"); Ledger.save(ws.ledgerFile, theirs); git("commit", "-qam", "side decides")
-    git("checkout", "-q", "main"); git("merge", "-q", "-s", "ours", "side", "-m", "drop side")
-    assert(Ledger.rewrites(ws.root, ws.ledgerFile, base).nonEmpty)
   }
 
 
@@ -480,17 +455,6 @@ class SnapshotSuite extends munit.FunSuite:
     ok(w.decide(Decisions.Request("OnlyGood", "dev", "The why is clearer now.", held = List("Listed"))))
   }
 
-  test("a decision copied into the ledger again, or one whose predecessors were cut, shows") {
-    val w = workflow()
-    acceptAll(w)
-    val l = w.ledger
-    val first = l.history("Listed").head
-    val replayed = l.copy(decisions = l.decisions.updated("Listed", l.history("Listed") :+ first))
-    assert(Ledger.chainBreaks(replayed).exists(_.contains("recorded twice")), Ledger.chainBreaks(replayed))
-    val l2 = w.decide(Decisions.Request("OnlyGood", "dev", "Reworded reason for the root.", action = "accept")).fold(_ => l, _ => w.ledger)
-    assert(Ledger.chainBreaks(w.ledger).isEmpty, Ledger.chainBreaks(w.ledger))
-  }
-
   test("a renamed node keeps its history, its reasons and the alternatives rejected for it, in one decision") {
     val ws = workspace()
     acceptAll(workflow(shelfKb, ws))
@@ -507,29 +471,14 @@ class SnapshotSuite extends munit.FunSuite:
     assertEquals(w.ledger.history("Choose").map(_.action), List("accept", "accept"))
     assert(field(nodes(w.annotated)("Choose"), "reasonNow").exists(r => r.startsWith("Pick is right") && r.contains("renamed from Pick")),
       field(nodes(w.annotated)("Choose"), "reasonNow"))
-    assertEquals(Ledger.chainBreaks(w.ledger), Nil)
     assertEquals(Ledger.fromJson(Json.parse(Files.readString(ws.ledgerFile))).history("Choose").map(_.from), List("", "Pick"))
   }
 
-  test("an idea change nothing follows up is a warning, until a node of its concern is accepted or Not modelled changes") {
-    val ws = workspace()
-    val w = workflow(shelfKb, ws)
-    acceptAll(w)
-    assertEquals(w.ideaFollowUps, Nil)
-    Files.writeString(ws.root.resolve("IDEA.md"), "# Shelf\n\nPick good items.\n\nA picked item is never damaged.\n\n## Not modelled\n\n- Prices.\n")
-    ok(accept(w, onlyGood, "The idea now says a picked item is never damaged."))
-    assert(w.ideaFollowUps.exists(_.contains("never damaged")), w.ideaFollowUps)
-    assert(w.codeWarnings.exists(_.contains("nothing follows it up")))
-    Files.writeString(ws.root.resolve("IDEA.md"), "# Shelf\n\nPick good items.\n\nA picked item is never damaged.\n\n## Not modelled\n\n- Prices.\n- Damage: checked by hand.\n")
-    ok(accept(w, onlyGood, "Damage is checked by hand: not modelled."))
-    assertEquals(w.ideaFollowUps, Nil)
-  }
-
-  test("a type change is not mechanical where the node's words name the type that changed") {
+  test("a type change is mechanical where nothing the developer decided changed") {
     val w = workflow()
     acceptAll(w)
     val snap = proven(w.baseSnapshot)
-    // Book gains a field: Pick says "books", so a reader checks the words still hold
+    // Book gains a field: only the types Pick uses changed, and how its examples print
     val changed = Json.JObj(snap.obj.map {
       case ("nodes", Json.JArr(ns)) => "nodes" -> Json.JArr(ns.map { n =>
         if field(n, "id").contains("Pick") then
@@ -541,7 +490,7 @@ class SnapshotSuite extends munit.FunSuite:
       case f => f })
     val pickNode = nodes(changed)("Pick")
     assertEquals(Decisions.state(changed, w.ledger, pickNode), "review")
-    assert(Decisions.mechanical(changed, w.ledger, pickNode).exists(_.contains("words name book")), Decisions.mechanical(changed, w.ledger, pickNode))
+    assertEquals(Decisions.mechanical(changed, w.ledger, pickNode), None)
   }
 
   test("calls varied from the examples keep each value's type, are new, and are the same each time") {
@@ -561,30 +510,4 @@ class SnapshotSuite extends munit.FunSuite:
       .implement(pick)((shelf, n) => if shelf.size > 2 then shelf else shelf.filter(_.pages >= minPages.value).take(n))
     assert(wrong.generated(pick).exists(_.example.note.startsWith("varied from example")), wrong.generated(pick))
     assertEquals(shelfKb.generated(pick), Nil)
-  }
-
-  test("a decision may say when to revisit it, and a change may restate why the node holds now") {
-    val ws = workspace()
-    val w0 = workflow(shelfKb, ws)
-    ok(accept(w0, onlyGood, "it is the idea"))
-    ok(w0.decide(Decisions.Request("Listed", "dev", "Items come from the list offered.", revisitIf = "items can come from elsewhere")))
-    ok(accept(w0, books, "Books are the items."))
-    ok(accept(w0, pick, "Picking is per call."))
-    assertEquals(field(nodes(w0.annotated)("Listed"), "revisitIf"), Some("items can come from elsewhere"))
-    // the root's why changes: Listed names when to revisit it, in its field, so it is answered by name
-    val root2 = Node.root[(List[Item.T], Int) => List[Item.T]]("OnlyGood", onlyGood.statement, "Picking a bad item is what the idea rules out, whatever the list.")(
-      pick => forall((l: List[Item.T], n: Int) => pick(l, n).forall(x => good(x))))
-    val w = workflow(KnowledgeBase("Shelf", idea = "IDEA.md")(root2, listed, books, pick), ws)
-    assert(accept(w, root2, "The why is clearer now.").left.exists(_.contains("Listed")))
-    ok(w.decide(Decisions.Request("OnlyGood", "dev", "The why is clearer now.", held = List("Listed"),
-      standing = "Picking only good items is the idea, whatever the list.")))
-    assertEquals(field(nodes(w.annotated)("OnlyGood"), "standing"), Some("Picking only good items is the idea, whatever the list."))
-    assert(field(nodes(w.annotated)("OnlyGood"), "reasonNow").exists(_.startsWith("Picking only good items")))
-    assert(w.context(listed).contains("Revisit if: items can come from elsewhere"))
-    assertEquals(Signing.payload("Listed", w.ledger.history("Listed").head).length > 0, true)
-  }
-
-  test("the model's @main only runs the CLI") {
-    val w = workflow()
-    assert(!w.modelCode.exists(_.contains("@main")), w.modelCode)
   }

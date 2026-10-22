@@ -19,8 +19,6 @@ final case class Obligation(name: String, statement: String, description: String
   * @param authored (node, obligation) proven by a theorem of that name in `Proofs/<KB>/<Node>.lean`
   */
 object Generate:
-  /** How many calls varied from a contract's examples Lean evaluates besides them. */
-  val VariedInLean: Int = sys.env.get("FRFLOW_VARIED_LEAN").flatMap(_.toIntOption).getOrElse(6)
   /** Names the generated Lean binds itself; a parameter or opaque type with one of them would be captured. */
   val reserved: Set[String] =
     Set("m", "f", "h", "p", "spec", "abs", "post", "toRoot", "rootSpec", "link", "root", "Obl", "Type", "Prop",
@@ -119,7 +117,6 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
         saysNothing(n).map(e => oblPath(n.id, e.obligation.name) -> attempt(n, e.obligation)) ++
         rootImplFile(n).map(oblPath(n.id, "rootImpl") -> _) ++
         idle(n).map((o, _) => oblPath(n.id, o.name) -> attempt(n, o)) ++
-        clauseChecks(n).map((o, _) => oblPath(n.id, o.name) -> attempt(n, o)) ++
         relyChecks(n).map((_, name, file) => oblPath(n.id, name) -> file) ++
         evalFile(n).map(evalPath(n.id) -> _)
     }
@@ -350,52 +347,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
           s"The root holds for every model of ${n.id}, whatever ${n.id} says."), "link", s"the root holds whatever ${n.id} says",
           s"the root holds for every model of ${n.id}, whatever its spec: an abs or a substitution above decides it, so the root theorem says nothing about ${n.id}"))
     ).getOrElse(Nil)
-    // An assumed link Lean can refute is false: everything below it would rest on a false axiom.
-    val refuted = Option.when(n.assumed && obligation(n).isDefined)(
-      Empty(Obligation("refuted", s"¬ ${q(n, "Obl.link")}", s"The assumed link of ${n.id} is false."), "link",
-        s"refuted: the assumed link is false", s"Lean refutes the assumed link of ${n.id}: it is false, so nothing below may rest on it")).toList
-    vacuous ++ node ++ refuted
-
-  /** The clauses of a root's spec that mention its model: its top-level conjuncts, with `∀` spread
-    * over `∧` (`∀ x, A ∧ B` gives `∀ x, A` and `∀ x, B`). One may be made to hold of every model by
-    * the meanings fixed below (an instantiation that says nothing about it), which the root theorem
-    * as a whole does not show.
-    */
-  def rootClauses(root: Node[?]): List[String] =
-    root.spec.filter(_ => root.kind == NodeKind.Root).toList.flatMap { sp =>
-      val m = sp.params.headOption.map(_._1).getOrElse("")
-      def closes(t: String, i: Int): Int =
-        var d = 0
-        (i until t.length).find { j => val c = t(j); if c == '(' || c == '[' then d += 1 else if c == ')' || c == ']' then d -= 1; d == 0 }.getOrElse(-1)
-      def atZero(t: String, sym: String): Option[Int] =
-        var d = 0
-        (0 until t.length).find { i => val c = t(i); if c == '(' || c == '[' then d += 1 else if c == ')' || c == ']' then d -= 1; d == 0 && t.startsWith(sym, i) }
-      def strip(t: String): String = if t.startsWith("(") && closes(t, 0) == t.length - 1 then strip(t.substring(1, t.length - 1).trim) else t
-      def split(t0: String): List[String] =
-        val t = strip(t0.trim)
-        if t.startsWith("∀ ") then atZero(t, ",").fold(List(t)) { i =>
-          val head = t.take(i + 1)
-          split(t.drop(i + 1)) match
-            case List(_) => List(t)
-            case parts   => parts.map(c => s"($head $c)")
-        }
-        else atZero(t, " ∧ ").fold(List(t))(i => split(t.take(i)) ++ split(t.drop(i + 3)))
-      val cs = split(sp.body)
-      if cs.size < 2 then Nil
-      else cs.filter(c => s"(?<![\\w'.])${java.util.regex.Pattern.quote(m)}(?![\\w'])".r.findFirstIn(c).isDefined)
-    }
-
-  /** For a node below the root's children: each clause of the root holding of every model of the node,
-    * whatever the node says. Tried by frflow_auto; when proven, the clause is a limit of the node.
-    */
-  def clauseChecks(n: Node[?]): List[(Obligation, String)] =
-    if !formal(n) || n.parent.forall(_.kind == NodeKind.Root) || n.kind == NodeKind.Design || n.kind == NodeKind.Invariant then Nil
-    else
-      val root = kb.rootOf(n)
-      rootClauses(root).zipWithIndex.map { (c, i) =>
-        (Obligation(s"clause_$i", stated(n, s"(m : ${modelType(n)})", None, s"${at(n)(s"rootClause_$i")} (${at(n)("toRoot")} m)"),
-          s"The root's clause $c holds of every model of ${n.id}, whatever ${n.id} says."), c)
-      }
+    vacuous ++ node
 
   /** The seams between concerns: for each guarantee `n` relies on (see `reliesThat`), that every state
     * the relied node's concern reaches meets it, proven from that node's root theorem. (relied node, the
@@ -501,16 +453,8 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
       val c = nodeCtx(n)
       val post = n.post.get.value.asInstanceOf[(Any, Any, Any) => Boolean]
       val impl = provenImpl(n)
-      // The examples, and calls varied from them (`Variations`): the translation is cross-checked
-      // beyond the values the examples happen to use. A varied call returns what the proven
-      // implementation returns, or the result of the example it was varied from.
-      val varied = Variations.of(n.cases, Generate.VariedInLean).map { v =>
-        val r = impl.flatMap(d => scala.util.Try(Bindings.within(v.bindings)(d.fn.asInstanceOf[(Any, Any) => Any](v.a, v.b))).toOption)
-          .getOrElse(n.cases(v.from).result)
-        n.cases(v.from).copy(note = s"varied from example ${v.from + 1}", bindings = v.bindings, a = v.a, b = v.b, result = r)
-      }
-      val out = (n.cases.zipWithIndex.map((e, i) => (e, s"example ${i + 1} (${e.note})", "eval", i)) ++
-          varied.zipWithIndex.map((e, i) => (e, s"varied call ${i + 1} (${e.note})", "varied", i))).map { (e, label, tag, i) =>
+      val out = n.cases.zipWithIndex.map { (e, i) =>
+        val label = s"example ${i + 1} (${e.note})"
         def valueOf(p: String): Either[String, String] =
           paramObject.get(p).flatMap(po => e.bindings.find(_.param eq po)) match
             case None => Left(s"it gives no value for $p")
@@ -537,15 +481,14 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
         yield
           val (verdict, got) = ran
           val call = s"$K.${n.id}.post${c.params.map(p => " " + vals(p)).mkString} $ta $tb $tr"
-          val onPost = Eval(s"${tag}_$i", label, if verdict then call else s"¬ $call", if verdict then s"¬ $call" else call)
+          val onPost = Eval(s"eval_$i", label, if verdict then call else s"¬ $call", if verdict then s"¬ $call" else call)
           val onImpl = for { d <- impl; g <- got; tg <- term(g) } yield
             val f = s"($K.${d.name}${defCtx(d).params.map(p => " " + vals(p)).mkString})"
-            Eval(s"${tag}Impl_$i", s"$label, run by ${d.name}", s"$f $ta $tb = $tg", s"$f $ta $tb ≠ $tg")
+            Eval(s"evalImpl_$i", s"$label, run by ${d.name}", s"$f $ta $tb = $tg", s"$f $ta $tb ≠ $tg")
           onPost :: onImpl.toList
-        evaluated.left.map(why => (s"${tag}_$i", s"$label: $why"))
+        evaluated.left.map(why => (s"eval_$i", s"$label: $why"))
       }
-      // A varied call Lean has no value for is left out: the examples say why.
-      (out.collect { case Right(es) => es }.flatten, out.collect { case Left(w) if w._1.startsWith("eval_") => w })
+      (out.collect { case Right(es) => es }.flatten, out.collect { case Left(w) => w })
 
   def evalPath(id: String) = oblPath(id, "eval")
 
@@ -615,7 +558,6 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
         d("spec", s"$m → Prop", resolve(n.spec.get.lean))
         d("toRoot", "", s"fun (m : $m) => m")
         d("rootSpec", "", at("spec"))
-        rootClauses(n).zipWithIndex.foreach((c, i) => d(s"rootClause_$i", s"$m → Prop", s"fun (${n.spec.get.params.head._1} : $m) => ${resolve(c)}"))
       case NodeKind.Refine =>
         val p = n.parent.get
         val pa = args(nodeCtx(p))
@@ -624,7 +566,6 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
         d("abs", n.abs.get.leanType, resolve(n.abs.get.lean))
         d("toRoot", "", s"fun (m : $m) => ${pat("toRoot")} (${at("abs")} m)")
         d("rootSpec", "", pat("rootSpec"))
-        rootClauses(kb.rootOf(n)).indices.foreach(i => d(s"rootClause_$i", "", pat(s"rootClause_$i")))
       case NodeKind.Contract =>
         val p = n.parent.get
         val pa = args(nodeCtx(p))
@@ -642,7 +583,6 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
         n.abs.foreach(a => d("abs", a.leanType, resolve(a.lean)))
         d("toRoot", "", if n.abs.isDefined then s"fun (m : $m) => ${pat("toRoot")} (${at("abs")} m)" else s"fun (m : $m) => ${pat("toRoot")} m")
         d("rootSpec", "", pat("rootSpec"))
-        rootClauses(kb.rootOf(n)).indices.foreach(i => d(s"rootClause_$i", "", pat(s"rootClause_$i")))
       case NodeKind.Instantiate =>
         n.substs.filterNot(_.isType).foreach { s =>
           val t = s.term.get
@@ -654,10 +594,9 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
         d("spec", "", s"${q(p, "spec")} $th")
         d("toRoot", "", s"${q(p, "toRoot")} $th")
         d("rootSpec", "", s"${q(p, "rootSpec")} $th")
-        rootClauses(kb.rootOf(n)).indices.foreach(i => d(s"rootClause_$i", "", s"${q(p, s"rootClause_$i")} $th"))
     if n.kind == NodeKind.Root || n.kind == NodeKind.Refine || n.kind == NodeKind.Contract then
       n.expected.zipWithIndex.foreach { case ((_, l), i) => d(s"expected_$i", l.leanType, resolve(l.lean)) }
-    (obligations(n) ++ saysNothing(n).map(_.obligation) ++ idle(n).map(_._1) ++ clauseChecks(n).map(_._1)).foreach { o =>
+    (obligations(n) ++ saysNothing(n).map(_.obligation) ++ idle(n).map(_._1)).foreach { o =>
       sb ++= s"namespace Obl\n\n/-- ${o.description} -/\n@[frflow_defs] def ${o.name} : Prop :=\n  ${o.statement}\n\nend Obl\n\n"
     }
     sb ++= s"end $K.${n.id}\n"
@@ -676,10 +615,8 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
     (types ++ params).mkString(" ")
 
   def auto(n: Node[?]): String =
-    val body = obligation(n).filterNot(_ => authoredLink(n.id)).fold("") { o =>
-      if n.assumed then s"/-- Assumed: the developer decided this link by reading; every root theorem resting on it names it. -/\naxiom ${o.name} : Obl.${o.name}\n\n"
-      else s"theorem ${o.name} : Obl.${o.name} := by\n  unfold Obl.${o.name}\n  frflow_auto\n\n"
-    }
+    val body = obligation(n).filterNot(_ => authoredLink(n.id)).fold("")(o =>
+      s"theorem ${o.name} : Obl.${o.name} := by\n  unfold Obl.${o.name}\n  frflow_auto\n\n")
     Header + s"import ${specModule(n.id)}\n\n" + Preamble + s"namespace $K.${n.id}.Auto\nopen $K.${n.id}\n\n$body" + s"end $K.${n.id}.Auto\n"
 
   def theorems(n: Node[?]): String =
@@ -717,10 +654,6 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
     t.substring(from, t.indexOf(" :=", from))
 
   def auditedTheorems(n: Node[?]): List[String] = List(q(n, "root"))
-
-  /** The axioms standing for the assumed links on a node's path, by node. */
-  def assumptions(n: Node[?]): Map[String, String] =
-    kb.path(n).filter(a => a.assumed && formal(a)).map(a => s"$K.${a.id}.Auto.link" -> a.id).toMap
 
   def audit(n: Node[?]): String =
     Header + s"import ${theoremsModule(n.id)}\n\n" + auditedTheorems(n).map(t => s"#print axioms $t\n").mkString

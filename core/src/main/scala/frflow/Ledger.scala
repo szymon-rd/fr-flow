@@ -6,14 +6,13 @@ import java.nio.file.{Files, Path}
 
 /** Result of one obligation: `proven`, `open` or `failed`. */
 final case class Result(name: String, status: String, detail: String = ""):
-  /** A limit of what the node says, not an obligation: proven, it is shown as a limit (`idle`: doing
-    * nothing meets the contract; `clause_i`: a clause of the root holds whatever the node says).
-    */
-  def isLimit: Boolean = name == "idle" || name.startsWith("clause_")
-  /** Lean evaluating an example, or a call varied from one, as Scala does: the translation's cross-check. */
-  def isEvaluation: Boolean = name.startsWith("eval") || name.startsWith("varied")
-  /** Nothing to do about it: an obligation proven (or assumed), or a limit. */
-  def fine: Boolean = isLimit || status == "proven" || status == "assumed"
+  /** A limit of what the node says, not an obligation: proven, `idle` means doing nothing meets the contract. */
+  def isLimit: Boolean = name == "idle"
+  /** Lean evaluating an example as Scala does: the translation's cross-check. */
+  def isEvaluation: Boolean = name.startsWith("eval")
+  /** Nothing to do about it: an obligation proven, or a limit. */
+  def fine: Boolean = isLimit || status == "proven"
+
 
 /** The outcome of checking one node. `status` is `proven`, `open`, `failed`,
   * `model-error` or `waiting` (proven, but its parent is not yet).
@@ -33,8 +32,7 @@ final case class NodeCheck(
   *                 (it still holds after something above it moved), `reject` (an alternative not
   *                 chosen, as it was proposed), `revisit` (the developer said a change above may affect
   *                 it, so it is reviewed again), `remove` (the developer agreed that a decided node is
-  *                 gone), `migrate` (a new FrFlow recorded the same decision in a new shape) or
-  *                 `acknowledge` (of the ledger itself: a restart or a rewrite)
+  *                 gone) or `migrate` (a new FrFlow recorded the same decision in a new shape)
   * @param content  the node as the developer saw it; the decision is bound to its hash
   * @param chain    the content of the ancestors, as decided; when it changes, the node is reviewed
   * @param reason   why: kept as part of the theory
@@ -45,17 +43,13 @@ final case class NodeCheck(
   * @param after    the node's decision this one follows (its `ref`): two decisions following the same
   *                 one come from two branches, merged; the node is then decided again
   * @param from     for an `accept` that renames a gone node: its old id, whose history it continues
-  * @param revisitIf when the developer would decide it again: a decision below a change that names
-  *                 one is answered by name (still holds, or revisit)
-  * @param standing for an `accept` of a change: the reason the node holds now, restated by the
-  *                 developer (the reason it was chosen may no longer be true)
   * @param commit   the git commit checked out when deciding
   * @param tree     the code as decided, written to git as a tree, to show how the code changed since
   *                 (a clone without it falls back to `commit`)
   */
 final case class Decision(action: String, content: Json, chain: String, by: String, at: String, reason: String,
     rejected: List[String] = Nil, code: String = "", commit: String = "", tree: String = "", held: List[String] = Nil,
-    after: String = "", key: String = "", sig: String = "", from: String = "", revisitIf: String = "", standing: String = ""):
+    after: String = "", key: String = "", sig: String = "", from: String = ""):
   def hash: String = Decision.hash(content)
   /** The decision without its signature: what is signed, and what a rewrite is judged on. */
   def unsigned: Decision = copy(key = "", sig = "")
@@ -95,8 +89,6 @@ final case class Ledger(decisions: Map[String, List[Decision]]):
   /** The decisions since the node was chosen: its choice, the changes accepted and confirmations. */
   def sinceChosen(id: String): List[Decision] =
     history(id).reverse.takeWhile(d => d.action != "reject" && d.action != "remove").reverse.dropWhile(_.action != "accept")
-  /** When the developer said they would decide it again, latest first given. */
-  def revisitIf(id: String): String = sinceChosen(id).map(_.revisitIf).filter(_.nonEmpty).lastOption.getOrElse("")
 
   /** What the node is bound to now: its last acceptance or confirmation (also while the developer
     * has asked to revisit it).
@@ -129,9 +121,6 @@ final case class Ledger(decisions: Map[String, List[Decision]]):
   /** The decisions where `id` was shown and left as it is (considered, still holding). */
   def considered(id: String): List[(String, Decision)] = all.filter(_._2.held.contains(id))
 
-  /** Restart commits the developer acknowledged. */
-  def acknowledged: Set[String] = history(Ledger.Self).filter(_.action == "acknowledge").map(_.commit).toSet
-
   /** Every decision, newest first. */
   def all: List[(String, Decision)] = decisions.toList.flatMap((id, ds) => ds.map(id -> _)).sortBy(_._2.at).reverse
 
@@ -146,8 +135,6 @@ final case class Ledger(decisions: Map[String, List[Decision]]):
         (if d.held.isEmpty then Nil else Seq("held" -> JArr(d.held.map(str)))) ++
         (if d.after.isEmpty then Nil else Seq("after" -> str(d.after))) ++
         (if d.from.isEmpty then Nil else Seq("from" -> str(d.from))) ++
-        (if d.revisitIf.isEmpty then Nil else Seq("revisitIf" -> str(d.revisitIf))) ++
-        (if d.standing.isEmpty then Nil else Seq("standing" -> str(d.standing))) ++
         (if d.code.isEmpty then Nil else Seq("code" -> str(d.code))) ++
         (if d.commit.isEmpty then Nil else Seq("commit" -> str(d.commit))) ++
         (if d.tree.isEmpty then Nil else Seq("tree" -> str(d.tree))) ++
@@ -159,8 +146,8 @@ object Ledger:
   val empty: Ledger = Ledger(Map.empty)
 
   /** Two branches' ledgers merged: every decision of either, each node's in order (this side's,
-    * then the other's that this one lacks). Nothing is dropped, so the merge passes `rewrites`; a
-    * node both sides decided is `forked`, and decided again. Git's merge driver for the ledger.
+    * then the other's that this one lacks). A node both sides decided is `forked`, and decided
+    * again. Git's merge driver for the ledger.
     */
   def merge(ours: Ledger, theirs: Ledger): Ledger =
     Ledger((ours.decisions.keySet ++ theirs.decisions.keySet).toList.map { id =>
@@ -169,9 +156,7 @@ object Ledger:
       id -> (mine ++ theirs.history(id).filterNot(d => seen(entry(d))))
     }.toMap)
 
-  /** Actions a node is bound to: the developer's acceptance or confirmation, or the agent settling
-    * a mechanical node.
-    */
+  /** Actions a node is bound to: the developer's acceptance or confirmation, or a migration. */
   def binds(action: String): Boolean = Set("accept", "confirm", "migrate")(action)
 
   /** A short reference to a decision: what was decided, by whom, when and why. */
@@ -201,125 +186,19 @@ object Ledger:
           case other => other.getOrElse(JNull)
         acc :+ Decision(s(d, "action"), content, s(d, "chain"), s(d, "by"), s(d, "at"), s(d, "reason"),
           d("rejected").map(_.arr).getOrElse(Nil).flatMap(_.str).toList, s(d, "code"), s(d, "commit"), s(d, "tree"),
-          d("held").map(_.arr).getOrElse(Nil).flatMap(_.str).toList, s(d, "after"), s(d, "key"), s(d, "sig"), s(d, "from"), s(d, "revisitIf"), s(d, "standing"))
+          d("held").map(_.arr).getOrElse(Nil).flatMap(_.str).toList, s(d, "after"), s(d, "key"), s(d, "sig"), s(d, "from"))
       }
     }.toMap)
 
-  /** What `status` and the browser warn about the record itself: decisions committed earlier and
-    * since rewritten, restarts of the ledger the developer has not acknowledged, and decisions of the
-    * developer's not signed with a developer key (with no key yet, none is).
+  /** What `status` and the browser warn about the record itself: decisions not signed by a key in
+    * `.frflow/keys` (the developer's: the browser creates it and signs with it).
     */
-  def warnings(root: Path, file: Path, now: Ledger): List[String] =
-    rewrites(root, file, now).collect { case ("", why) => s"the ledger was rewritten: $why" } ++
-      toAcknowledge(root, file, now).map((c, why) => s"$why in commit ${c.take(10)}: check what changed, then acknowledge it in the browser") ++
-      Signing.untrusted(file.getParent.resolve("keys")).map(k => s"the key $k") ++
-      Git.removed(root, root.relativize(file.getParent.resolve("keys")).toString).map((c, f) =>
-        s"a developer key ($f) was removed in commit ${c.take(10)}: decisions it signed no longer count; restore it") ++
-      (if now.decisions.nonEmpty && Signing.keys(file.getParent.resolve("keys")).isEmpty then
-        List("no developer key: status fails until the decisions are signed by one (anyone who can write the ledger could have written them). Start the browser (`frflow serve`), which creates your key, commit .frflow/keys/, and sign the decisions there; CI should pin the key with FRFLOW_DEVELOPER_KEYS")
-      else Nil) ++
-      chainBreaks(now) ++
-      Signing.unsigned(now, file.getParent.resolve("keys")).map((id, d) =>
-        s"$id: the ${d.action} of ${d.at} by ${d.by} is not signed by a developer key: decide it again in the browser, or sign it there if it is yours")
-
-  /** What the record itself shows was cut or replayed, whatever git's history says: a decision that
-    * follows no earlier decision of its node (a copy of a first decision appended again, say), the same
-    * decision twice, and a choice whose rejected alternatives' rejections are gone.
-    */
-  def chainBreaks(l: Ledger): List[String] =
-    l.decisions.toList.sortBy(_._1).flatMap { (id, ds) =>
-      val entries = ds.map(entry)
-      val dup = entries.diff(entries.distinct).distinct.map(e => s"$id: the decision $e is recorded twice")
-      // The chain starts at the first decision that names the one it follows (older ones carry none;
-      // a copy of one is a duplicate, and any other change to it breaks its signature).
-      val first = ds.indexWhere(_.after.nonEmpty)
-      val loose = ds.zipWithIndex.collect { case (d, i) if first >= 0 && i > first && !entries.take(i).contains(d.after) =>
-        s"$id: the ${d.action} of ${d.at} by ${d.by} follows no earlier decision of $id (a copy of an earlier one, or the decisions before it were removed)" }
-      val lost = ds.filter(_.action == "accept").flatMap(_.rejected).distinct.filterNot(r => l.history(r).exists(_.action == "reject"))
-        .map(r => s"$id was chosen over $r, whose rejection (and its reason) is gone from the ledger")
-      dup ++ loose ++ lost
-    }
-
-  /** Warnings when a committed version of the ledger, or the ledger now, changed or removed
-    * decisions recorded in a version it follows (its parents in git; a merge keeps both sides'). The
-    * ledger only grows. A commit that deletes it starts a new record, shown by `restarts`.
-    */
-
-  /** Commits that restarted or rewrote the ledger (a `git revert` of a decision rewrites it), with
-    * what they did, that the developer has not acknowledged.
-    */
-  def toAcknowledge(root: Path, file: Path, now: Ledger): List[(String, String)] =
-    (restarts(root, file).map(_ -> "the ledger was restarted") ++
-      rewrites(root, file, now).collect { case (c, why) if c.nonEmpty => c -> s"the ledger was rewritten ($why)" })
-      .filterNot((c, _) => now.acknowledged.exists(c.startsWith))
-      .groupBy(_._1).toList.map((c, ws) => c -> ws.map(_._2).distinct.mkString("; "))
-
-  /** Rewrites of committed decisions: (the commit that rewrote them, what), or ("", what) for the
-    * ledger now, which is fixed rather than acknowledged.
-    */
-  def rewrites(root: Path, file: Path, now: Ledger): List[(String, String)] =
-    val all = history(root, file)
-    val versions = all.drop(all.lastIndexWhere(_.deleted) + 1) // since the last restart
-    val byCommit = versions.map(v => v.commit -> v).toMap
-    val read = scala.collection.mutable.Map.empty[String, Option[Ledger]]
-    def at(c: String) = read.getOrElseUpdate(c, byCommit.get(c).flatMap(_.text).map(t => fromJson(Json.parse(t))))
-    // A commit and its parents never change: what it rewrote is worked out once, so only new commits cost.
-    val committed = versions.flatMap { v =>
-      val parents = v.parents.filter(byCommit.contains)
-      verdicts.getOrElseUpdate(root.toAbsolutePath.toString + ":" + v.commit + ":" + parents.mkString(","),
-        at(v.commit).toList.flatMap(l => parents.flatMap(at).flatMap(p => rewrittenSince(p, l))).distinct)
-        .map(v.commit -> _)
-    }
-    val head = versions.lastOption.flatMap(v => at(v.commit)).toList.flatMap(l => rewrittenSince(l, now)).map("" -> _)
-    (committed ++ head).distinct
-
-  /** The decisions a commit removed from the ledger (a `git revert` of a decision, say), with the
-    * commit: what was decided and then taken back is still part of the theory, for `find`.
-    */
-  def forgotten(root: Path, file: Path): List[(String, String, Decision)] =
-    val versions = history(root, file)
-    val byCommit = versions.map(v => v.commit -> v).toMap
-    val rewritten = rewrites(root, file, Ledger.empty).map(_._1).filter(_.nonEmpty).toSet
-    versions.filter(v => rewritten(v.commit)).flatMap { v =>
-      lost.getOrElseUpdate(root.toAbsolutePath.toString + ":" + v.commit, {
-        def at(c: String) = byCommit.get(c).flatMap(_.text).map(t => fromJson(Json.parse(t)))
-        val now = at(v.commit).getOrElse(Ledger.empty)
-        v.parents.flatMap(at).flatMap(p => p.decisions.toList.flatMap((id, ds) =>
-          ds.filterNot(d => now.history(id).exists(_.unsigned == d.unsigned)).map(d => (v.commit, id, d)))).distinct
-      })
-    }
-  private val lost = scala.collection.concurrent.TrieMap.empty[String, List[(String, String, Decision)]]
-
-  /** The commits that deleted the ledger: each started a new record, which could also hide a
-    * rewrite. One the developer has not acknowledged (in the browser, with a reason) is a warning.
-    */
-  def restarts(root: Path, file: Path): List[String] =
-    history(root, file).collect { case v if v.deleted => v.commit }
-
-  private val verdicts = scala.collection.concurrent.TrieMap.empty[String, List[String]]
-
-  // The ledger's history in git, read once per commit checked out (it only grows with new commits).
-  private val histories = scala.collection.concurrent.TrieMap.empty[(String, String), List[Git.Version]]
-  private def history(root: Path, file: Path): List[Git.Version] =
-    val rel = root.relativize(file).toString
-    histories.getOrElseUpdate((root.toAbsolutePath.toString + ":" + rel, Git.head(root)), Git.versions(root, rel))
-
-  /** The id under which acknowledgements of the ledger itself are recorded. */
-  val Self = "_ledger"
-
-  /** Decisions present at an earlier version of the ledger (for example the committed one) that are
-    * missing or different now: the ledger is append-only, so these mean it was rewritten.
-    */
-  def rewrittenSince(earlier: Ledger, now: Ledger): List[String] =
-    // Every earlier decision is still there, in order (a merge may interleave both sides').
-    def kept(ds: List[Decision], cur: List[Decision]): Boolean = ds match
-      case Nil     => true
-      case d :: tl => cur.dropWhile(_.unsigned != d.unsigned) match
-        case Nil       => false
-        case _ :: rest => kept(tl, rest)
-    earlier.decisions.toList.sortBy(_._1).flatMap { (id, ds) =>
-      if kept(ds, now.history(id)) then Nil else List(s"$id: decisions recorded earlier were changed or removed")
-    }
+  def warnings(file: Path, now: Ledger): List[String] =
+    val keys = file.getParent.resolve("keys")
+    (if now.decisions.nonEmpty && Signing.keys(keys).isEmpty then
+      List("no developer key: start the browser (`frflow serve`), which creates your key, and commit .frflow/keys/") else Nil) ++
+    Signing.unsigned(now, keys).map((id, d) =>
+      s"$id: the ${d.action} of ${d.at} by ${d.by} is not signed by a developer key: decide it again in the browser, or sign it there if it is yours")
 
 /** Check results, derived from the model and Lean; kept in `.frflow/checks.json`, not committed. */
 object Checks:
