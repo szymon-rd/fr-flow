@@ -188,7 +188,7 @@ object Ledger:
       Git.removed(root, root.relativize(file.getParent.resolve("keys")).toString).map((c, f) =>
         s"a developer key ($f) was removed in commit ${c.take(10)}: decisions it signed no longer count; restore it") ++
       (if now.decisions.nonEmpty && Signing.keys(file.getParent.resolve("keys")).isEmpty then
-        List("no developer key: no decision counts until one signs it. Start the browser (`frflow serve`), which creates your key, commit .frflow/keys/, and sign the decisions there; CI should pin the key with FRFLOW_DEVELOPER_KEYS")
+        List("no developer key: status fails until the decisions are signed by one (anyone who can write the ledger could have written them). Start the browser (`frflow serve`), which creates your key, commit .frflow/keys/, and sign the decisions there; CI should pin the key with FRFLOW_DEVELOPER_KEYS")
       else Nil) ++
       Signing.unsigned(now, file.getParent.resolve("keys")).map((id, d) =>
         s"$id: the ${d.action} of ${d.at} by ${d.by} is not signed by a developer key: decide it again in the browser, or sign it there if it is yours")

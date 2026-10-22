@@ -23,19 +23,21 @@ each step, now that agents can write the models and the proofs.
 
 ## The method
 
-The developer writes the idea in `IDEA.md`. The knowledge is a **tree** of
-Scala values; Lean, generated from them, proves each step:
+The developer writes the idea in `IDEA.md`. The knowledge is a **forest** of
+Scala values: a tree under each root (one concern of the idea), and invariants
+that cut across the trees. Lean, generated from the Scala, proves each step:
 
 | Kind | Written as | Proven |
 |---|---|---|
 | root | `Node.root[M](id, statement, why, idea = "Section")(spec)` | it is the statement of one concern of the idea |
 | refine | `parent.refine[M2](id, statement, why)(abs, spec)` | `spec m → parent.spec (abs m)` |
-| instantiate | `parent.instantiate[M2](id, statement, why)(T := of[X], p := ...)` | the parent's results, with its open terms fixed |
+| instantiate | `parent.instantiate[M2](id, statement, why)(T := of[X], p := ...)` | its link holds by substitution (the parent's results, with its open terms fixed); Lean checks it builds |
 | contract | `parent.contract[A, B, R](id, statement, why)(post).examples(...)(...)`, or `parent.contractVia[A, B, R](...)(abs)(post)` for a signature of its own | every function meeting `post` meets the parent (through `abs`) |
 | implementation | `kb.implementProven(contract)(define {...})`, or `kb.implement(contract)(plain Scala)` | a `define`: every result meets the contract, and the root holds of it (`root_impl`); plain Scala: examples and run-time checks |
-| invariant | `Node.invariant[A, B](id, statement, why)(rule)`; each contract `.keeps(inv)(view)` or `.exempt(inv, because)`; each design node `.exempt(inv, because)` | every pair a call shows the rule (`view`) meets it, from the contract's post |
+| invariant | `Node.invariant[A, B](id, statement, why)(rule)`; each contract `.keeps(inv)(view)` or `.exempt(inv, because)`; each design node `.exempt(inv, because)` | every pair the view lists meets the rule, from the contract's post; and the view lists all the result holds (see below) |
 | design | `parent.design(id, statement, why)(files*)` | nothing: an architecture decision or a convention, decided and tracked |
 | expectation | `node.expects(statement)(m => ...)` on a root, refine or contract | a consequence the developer expects of every model of the node, proven from its spec |
+| reliance | `node.relies(other, why)` | nothing: `other` becomes part of what the node rests on (see Drift) |
 
 So for a node, its **root theorem** holds: the root's statement is true of
 every model of the node, through every link above it. With a proven
@@ -43,33 +45,30 @@ implementation, it is true of the code.
 
 | What is recorded | Where |
 |---|---|
-| the idea, by concern (`## ` sections), and what it leaves out (`## Not modelled`) | `IDEA.md` |
+| the idea, by concern (`## ` sections), and what it leaves out (`## Not modelled`, with a `### ` subsection per concern if needed) | `IDEA.md` |
 | what each open term means in the world | `Opaque("User", "a person who uses the system")`, `Param(..., means)` |
 | per node: statement, `why`, formal model, examples | the Scala source |
 | per contract: what it does *not* promise, found mechanically | shown with the node |
-| per node: who decided it, their reason, the alternatives rejected | `.frflow/ledger.json`, append-only |
+| per node: who decided it, their reason, the alternatives rejected | `.frflow/ledger.json`, append-only, signed |
 
 ## Who decides
 
-**The developer decides every choice, in the browser.** The agent proposes
+**The developer decides every node, in the browser.** The agent proposes
 nodes, each with its reason and examples; the developer chooses one, with a
 reason of their own, and the ledger keeps both and the rejected alternatives.
-The tree is decided from the root down.
+The tree is decided from the root down. The agent never writes the ledger.
 
-**The agent settles only what Lean proves again** (`settle`):
-- a refinement or contract whose link Lean proves, with no proposal or node of
-  its kind beside it, no new term and no invariant to keep;
-- a review where only something above it moved, and Lean proves the link again;
-- a new proven implementation (a `define` Lean proves to meet the contract);
-- a reworded `why`, nothing else changed.
-
-Roots, instantiations (what the terms mean), designs, invariants and how a
-contract keeps one, nodes out of Lean, nodes the developer once rejected or
-that say what a rejected node said, plain code (examples check it, nothing
-proves it), and any other change to what a node says are the developer's. **What the agent settles
-is `settled`, not `accepted`, until the developer endorses it:** what rests on
-it may go on, the browser shows what changed since the developer's own last
-decision (content and code), and `status` fails until then.
+**Mechanical decisions** hold no choice, and Lean proves again all there is
+to prove: a refinement or contract whose link Lean proves and whose examples
+pass, new with nothing beside it, or under review only because something above
+it moved, only its proven implementation changed, or only the shape of a
+domain type it uses changed (that last also for an instantiation or
+invariant). Not mechanical: roots, instantiations, invariants, design and
+informal nodes, a node beside alternatives, introducing terms or naming
+invariants, a node once rejected or resembling a rejected one (compared with
+bound variables renamed), a changed `why`, any other change to what a node
+says, and code changes. The browser groups the mechanical nodes; the developer
+accepts them in one batch, with one reason, signed like any other decision.
 
 ## Drift
 
@@ -79,13 +78,19 @@ review says why:
 
 | Cause | What moved | Shown as |
 |---|---|---|
-| `self` | the node: statement, `why`, sources, examples, the terms it introduces, the definitions and types it uses, the invariants it keeps, its implementation's source; for a root, its section of the idea | a word diff against what was decided |
-| `above` | the *meaning* of an ancestor, or of an invariant it keeps (rewording a `why` or adding an example does not cascade) | the diff of what moved |
+| `self` | the node: statement, `why`, sources, examples, the terms it introduces, the definitions and types it uses, the invariants it keeps, its implementation's source; for a root, its section of the idea and what is not modelled for it | a word diff against what was decided |
+| `above` | the *meaning* of an ancestor, of an invariant it keeps, or of a node it relies on (rewording a `why` or adding an example does not cascade) | the diff of what moved |
 | `code` | the files it governs: a plain implementation's, a design node's, anything `.governing` names | a git diff since the developer's last decision |
 | `revisit` | the developer said a change above may affect it | their reason |
 | `merged` | two branches decided it, and the merge kept both | both decisions |
 
 A node removed from the model is listed as **gone** until the developer agrees.
+
+`.relies(other, why)` makes another node, often of another concern, part of
+what a node rests on, like its parent and the invariants it keeps: a change to
+`other`'s meaning reviews the node (`above`), the node waits for `other`, and
+accepting the change lists the node among the decisions below. A reliance
+that leads back to the node is refused.
 
 A change of meaning cascades by itself. A change that does not may still break
 a reason written below ("revisit if we add exports"). So accepting a change
@@ -100,64 +105,79 @@ by the same ancestors, or changed only in the same definitions) are accepted
 together, with one reason. A review can also be sent back to the agent as a
 request.
 
-**Decisions are the developer's, and show it.** The browser server signs each
-decision with the developer's key, kept outside the repository
-(`~/.config/frflow/signing.key`, or `FRFLOW_KEY`); public keys are committed in
-`.frflow/keys/`. The project's developer key is the first one committed; another
-counts only once a developer key certifies it (in the browser), so a process
-that makes its own key gains nothing, and a removed key is a warning. CI can
-name the developer keys itself (`FRFLOW_DEVELOPER_KEYS`). Once a project has a
-key, a developer decision without a valid signature (one an agent wrote into
-the ledger) is a warning, listed in the browser to decide again, or to sign if
-it is the developer's. The server takes decisions only from the page opened
-from the link it printed (a session token).
+**Every decision is signed.** The browser server signs each decision with the
+developer's key, kept outside the repository (`~/.config/frflow/signing.key`,
+or `FRFLOW_KEY`); public keys are committed in `.frflow/keys/`. The developer
+key is the first one committed; another counts once a developer key certifies
+it (in the browser), and a removed key is a warning. A decision without a
+valid signature is a warning, so `status` fails; the browser lists it to
+decide again, or to sign if it is the developer's. With no developer key, no
+decision is signed and `status` fails ("no developer key"): start `frflow
+serve` (it creates the key), commit `.frflow/keys/`, and sign there. An agent that
+committed a key first would be the developer, so `status` names the key and
+who first committed it, and CI should pin it (`FRFLOW_DEVELOPER_KEYS`). The
+server takes decisions only from the page opened from the link it printed.
 
 ## What Lean proves, and how it is kept honest
 
-- **Links:** each formal node implies its parent; instantiation applies the
-  generic theorem. Each obligation is stated by the generator, never by the
-  agent.
+- **Links:** each formal node implies its parent; an instantiation's link
+  holds by substitution. Each obligation is stated by the generator, never by
+  the agent.
 - **Invariants:** the rule is stated once, over pairs (a reader and a record
   returned to them). Every contract in the invariant's `scope` (all, by
   default) whose result can hold what the rule is about (a record, or a store
   of records) keeps it, listing the pairs a call shows (`result.map(r => (user,
   r))`), or is exempt with a reason; so is every design node below a keeper.
-  Lean proves the rule for every pair from the post. A view whose pairs meet the rule whatever the call returns keeps
-  it in name only, and fails.
+  Lean proves the rule for every pair the view lists, from the post
+  (`inv_X`); for a rule about a domain or opaque type, also that the view lists
+  every such value the result holds (lists, options, tuples, case classes and
+  enums unfolded; a recursive type fails), each with the call's input of the
+  rule's first type when only one input has it (`cover_X`). So a view cannot
+  leave out or mis-pair what the result shows, however a filter is hidden.
 - **Implementations** written as a `define` are proven to meet their contract,
   and `root_impl` composes that with the chain: the root holds of the code.
+- **Examples are evaluated in Lean.** On each example of a formal contract
+  whose parameters are values, Lean (`simp`) must prove what Scala computes
+  (the verdict of `post`, and a proven implementation's result) and not its
+  opposite. A disagreement fails the node: the translation does not mean what
+  the Scala does. An example Lean cannot evaluate is shown as unevaluated.
 - **State.** A root over runs, `List[Event] => State` ("every state reached is
   consistent"), is refined by a step `(State, Event) => State` with `abs` the
   fold of the steps from the initial state; the link is proven by induction
-  (`FrFlow.always`). The CRM's writes are modelled this way, proven down to the
-  code.
+  (`FrFlow.always`). The CRM's writes are modelled this way.
 - **Expectations:** consequences the developer states (`expects`), proven from
   the node's spec, so the theory is tested, not only approved.
-- **What a contract leaves to the examples:** whether doing nothing (returning
-  nothing, or the input unchanged) meets it, tried by `frflow_auto`; if so, it
-  is listed with what the contract does not promise.
 - **Authored link proofs need a witness:** `feasible` (some model meets the
-  node), unless a proven implementation at or below it is one, so a
+  node), or a proven implementation at or below it, reached through no assumed
+  link, with its `root_impl` proven; until then the link shows open. So a
   hand-written proof cannot rest on a contradiction.
-- **Saying nothing fails, when `frflow_auto` shows it:** a claim (a link, a kept
-  invariant) that holds without the node's own statement, a node no model
-  meets, and a node that makes the root hold by itself (through an `abs` or a
-  substitution above).
-- **Authored proofs** (`lean/Proofs/<KB>/<NODE>.lean`) state exactly the
-  generated obligation, use only a few commands, are replayed through the Lean
-  kernel, and have their axioms audited (every proven theorem's own audit is
-  required; `sorry` anywhere fails it). Lemmas they share go in
-  `lean/Proofs/<KB>/Lemmas.lean`, under the same rules.
+- **Authored proofs** (`lean/Proofs/<KB>/<NODE>.lean`, shared lemmas in
+  `Lemmas.lean`) state exactly the generated obligation, use only a few
+  commands, import only `FrFlowGen.<KB>.Domain`, `FrFlowGen.<KB>.<Node>.Spec`,
+  `FrFlow`, `Std`, `Init` and `Proofs.<KB>.Lemmas`, are replayed through the
+  Lean kernel, and have their axioms audited (`sorry` anywhere fails).
 - **Assumptions about the world are shown:** a top-level condition of a spec
   that never mentions the model.
 
+**Saying nothing** is checked by statements `frflow_auto` tries to prove; one
+it proves shows the node says nothing:
+
+| Check | Catches | Result |
+|---|---|---|
+| `vacuous_<claim>` | a link, kept invariant or expectation that holds without the node's own statement (an invariant kept in name only) | that claim fails |
+| `unsat` | a refinement or contract no model meets | the link fails |
+| `rootTrivial` | the root holds of every model, decided by an `abs` or a substitution above | the link fails |
+| `idle` | doing nothing (returning nothing, or the input unchanged) meets the contract | listed with what it does not promise |
+
 Lean is the default. Where a link's proof costs more than it gives, it can be
-**assumed** (`assume = true` on a refine or contract): its spec stays formal,
-so everything below is still proven against it, and Lean takes the link as an
-axiom that every root theorem resting on it names (`status` lists them).
-Where the translated subset cannot say a node at all, it opts out with
-`formal = false`: its model stays Scala, its examples and `service` still run,
-its link is decided by reading, and everything below it is out of Lean too.
+**assumed** (`assume = true` on a refine, contract or `contractVia`): its spec
+stays formal, so everything below is still proven against it, and Lean takes
+the link as an axiom, allowed only under the root theorems (`root`,
+`root_impl`), which name it; what is proven of the node itself (`impl`, `inv`,
+`cover`, `expect`, `feasible`) rests on Lean's axioms alone. Where the subset
+cannot say a node at all, it opts out with `formal = false`: its model stays
+Scala, its examples and `service` still run, its link is decided by reading,
+and everything below it is out of Lean too.
 
 ## Checked by running
 
@@ -170,33 +190,43 @@ its link is decided by reading, and everything below it is out of Lean too.
 
 ## Status, for CI
 
-`status` exits 1 unless every node is accepted by the developer (nothing the
-agent settled waits for endorsement), every formal link, invariant and proven
-implementation is proven, every example passes, and there is no warning:
+`status` exits 1 unless every node is accepted by the developer, every formal
+link, invariant and proven implementation is proven, every example passes,
+and there is no warning:
 - a committed version of the ledger, or the ledger now, changed or removed
   decisions of a version it follows (compared with every parent of a merge);
   a commit that does so (a revert, a deleted ledger) is a warning until the
   developer acknowledges it, with a reason;
-- a developer decision not signed by a key in `.frflow/keys` (once there is one);
+- a decision not signed by a developer key, or no developer key at all;
 - a file governed by two nodes;
-- a file under `src/main` governed by no node, or code in the model's file
-  that is not the model;
+- a source file no node governs (any file under `src/main`; a source file
+  elsewhere in the project but `src/test`, `target`, `lean`, `.frflow`,
+  `project`, `node_modules` and hidden directories; any source the build
+  compiles, when it passes `-Dfrflow.sources`, as a project's build should:
+  see the examples' `build.sbt`), or code in the model's file that is not the
+  model;
 - a section of the idea no root is decided against, when roots name sections;
 - a contract that never reads a parameter its ancestors use, or a statement
   naming a rejected node;
-- `.frflow/checks.json` committed (proof results come from running `check`,
-  so CI runs `check` before `status`).
+- `.frflow/checks.json` committed (CI runs `check` before `status`).
+- fewer contracts proven down to their code than the idea asks: a line
+  `Proven code: N%` in IDEA.md (decided with the roots, like the rest of the
+  idea) asks that at least N% of the contracts have a proven `root_impl`.
+
+It notes the developer key and who first committed it, and which contracts
+each invariant does not reach (by the type they return).
 
 Structural problems (two parameters with one name, a contract or design node
-in an invariant's scope that neither keeps it nor is exempt, a view that
-chooses by a condition) stop the CLI. Proof results are local: CI starts from
-a clean checkout and runs `check` before `status`.
+in an invariant's scope that neither keeps it nor is exempt, a reliance that
+leads back to the node) stop the CLI.
 
 ## Large projects, built by agents
 
-- **The theory lives in files.** Each agent reads the slice it needs with
-  `context(node)`: the path from the root with every reason and rejected
-  alternative, the invariants that apply, what moved, and the decisions below.
+- **The theory lives in files.** `context(node)` gives an agent what bears on
+  a node: its root's section of the idea, the vocabulary it uses, the path from
+  the root (latest reason first), what stands or was rejected beside it, what
+  it relies on and what relies on it, the invariants, what moved, the
+  decisions below, the obligation, and the last check's failures in full.
 - **Before adding, find.** `find` names the nodes that govern a file or
   mention a concern, so an agent extends the theory instead of forking it.
 - **Every file has one owner**, or `status` fails. The model itself may span
@@ -204,7 +234,7 @@ a clean checkout and runs `check` before `status`.
 - **Cross-cutting rules are stated once**, and a new contract or design node
   cannot skip one silently: it keeps it or says why not.
 - **Concerns are separate.** Each root names its section of `IDEA.md`; editing
-  one section reviews only its root.
+  one section, or its `### ` subsection of Not modelled, reviews only its root.
 - **Branches merge.** The ledger only grows; enable its merge driver once per
   clone (`git config merge.frflow-ledger.driver "bin/frflow merge-ledger %O %A %B"`,
   see `.gitattributes`). A node both branches decided is decided again.
@@ -225,6 +255,7 @@ val accounts = readApi.instantiate[(Account, Search) => List[CrmRecord]]("Accoun
   User := of[Account], Record := of[CrmRecord], Query := of[Search], Tenant := of[TenantId],
   tenantOf := ((a: Account) => a.tenant), owner := ((r: CrmRecord) => r.tenant),
   sharedWith := ((r: CrmRecord, t: TenantId) => shares.value.contains(Share(r.id, t))))
+  .relies(crmWrites, "a share names one record by its id: ids are unique in every store the writes reach")
 
 val noCrossTenantRead = Node.invariant[Account, CrmRecord]("NoCrossTenantRead",
   "No read returns a record of another company unless that company shared it with the reader's.", why = "...")(
@@ -239,15 +270,16 @@ val search = define { (user: Account, query: Search) =>
   store.value.filter(r => matches(query, r) && (r.tenant == user.tenant || shares.value.contains(Share(r.id, user.tenant))))
 }
 
-val knowledge = KnowledgeBase("Crm", idea = "IDEA.md")(isolation, readApi, accounts, readContract, readSideWiring, noCrossTenantRead)
+val knowledge = KnowledgeBase("Crm", idea = "IDEA.md")(isolation, readApi, accounts, readContract, readSideWiring, noCrossTenantRead, ...)
   .implementProven(readContract)(search)
 ```
 
 Lean proves `ReadApi` implies the root, `ReadContract` implies `ReadApi` under
-the CRM's meanings, that every record it returns keeps `NoCrossTenantRead`,
-and that `search` meets `ReadContract`: tenant isolation holds of the code.
-Production reads through `knowledge.service(readContract)(...)`, in a file the
-design node `ReadSideWiring` governs.
+the CRM's meanings, that every record it returns keeps `NoCrossTenantRead`
+(and that the view lists them all), and that `search` meets `ReadContract`:
+tenant isolation holds of the code. Production reads through
+`knowledge.service(readContract)(...)`, in a file the design node
+`ReadSideWiring` governs.
 
 Writes are a second concern of the idea, modelled as a state machine: the root
 `WritesKeepStore` says the store starts consistent, every write keeps it so,
@@ -270,43 +302,50 @@ bin/frflow serve examples     # the browser, where the developer decides: http:/
 bin/frflow mcp examples       # the MCP server, for agents (registered in .mcp.json)
 ```
 
-The browser shows the tree (green links are proven), each node with its
-examples, its link side by side with its parent, its invariants, and **the
-decision**: choose between proposals, or see what moved and accept it. The
-inbox lists what waits for the developer, and what the agent settled. The idea
-is edited there too; saving it starts a render.
+The browser shows the forest (green links are proven), each node with its
+examples (and whether Lean agrees), its link beside its parent's, its
+invariants and reliances, the options rejected beside it, its reasons (latest
+first), and **the decision**: choose between proposals, or see what moved and
+accept it. The inbox lists what waits for the developer, mechanical decisions
+in a batch of their own. The idea is edited there too; a save over an
+`IDEA.md` changed since is refused, and a save starts a render.
 
-The MCP tools are `inbox`, `context`, `render`, `check`, `answer`, `settle`,
-`find` and `scaffold`. None chooses. The skill
-(`.claude/skills/frflow/SKILL.md`) gives the agent its loop.
+The MCP tools are `inbox`, `context`, `render`, `check`, `answer`, `find` and
+`scaffold`. None decides. The skill (`.claude/skills/frflow/SKILL.md`) gives
+the agent its loop.
 
 ## What is proven, checked, and trusted
 
-- **Proven by Lean:** every formal link, kept invariant and `define`
-  implementation, so every formal node's root theorem. The levels are
-  consistent with each other; it does not say they are the right theory.
+- **Proven by Lean:** every formal link, kept invariant (with its coverage)
+  and `define` implementation, so every formal node's root theorem. The levels
+  are consistent with each other; it does not say they are the right theory.
 - **Checked by the examples:** that a contract means what its statement says,
-  and that the implementation does what was decided, in those cases.
+  that the implementation does what was decided, in those cases, and that
+  Lean computes what Scala does on them.
 - **Enforced at run time:** every result of `service` meets the contract and
   its invariants, or `ContractViolation` is raised.
-- **Decided by the developer:** every node, with its reasons.
+- **Decided by the developer:** every node, with its reasons, signed.
 - **Trusted:**
-  - the Scala-to-Lean translation (it refuses what it cannot translate
-    faithfully: shadowed names, names Lean's prelude defines (renamed),
-    matching on `true`/`false`, type tests, function-typed fields, types that
-    redefine equality, arithmetic on `Int`/`Long` (which wraps in Scala: use
-    `BigInt`), division by anything but a literal);
+  - the Scala-to-Lean translation, cross-checked only on the examples. Each
+    local binder gets a Lean name of its own; it refuses a local named like a
+    parameter, matching on `true`/`false`, type tests, function-typed fields,
+    types that redefine equality, `Int`/`Long` arithmetic (it wraps in Scala:
+    use `BigInt`) and division by anything but a literal;
   - parameters bound to the data the vocabulary says they mean;
   - that `abs` describes what the system does with the model;
   - every path to the data goes through `service` (the wiring is in a file a
     design node governs, and every change to it is the developer's);
-  - the developer's signing key, which the agent must not be able to read (the
-    browser runs on the developer's machine; agents run in their sandbox);
+  - the developer's signing key, which the agent must not be able to read: the
+    tools (the browser server holds the key) are installed and run outside the
+    repository the agent edits, on the developer's machine;
   - authored proof files, which Lean runs when checking (the filter is hygiene;
     the guarantee is the kernel replay and the axiom audit).
-- **Not covered:** properties over time other than what holds of every
-  reachable state (ordering, liveness), effects outside a pure core behind
-  `service`, and code outside `src/main`.
+- **Limits:** the "says nothing" checks are one-sided (only what `frflow_auto`
+  proves is caught); examples with function-valued parameters are not
+  evaluated in Lean; local check results (`.frflow/checks.json`) are not
+  evidence, so CI re-runs `check` from a clean checkout; properties over time
+  other than what holds of every reachable state (ordering, liveness), and
+  effects outside a pure core behind `service`, are not covered.
 
 ## Usage
 
@@ -317,7 +356,7 @@ sbt test                                  # unit tests, and Lean tests when lake
 sbt "crm/run render"                      # Lean and the snapshot .frflow/kb.json
 sbt "crm/run check"                       # prove the changed links, record the results
 sbt "crm/run status"                      # exits 1 unless everything is decided, proven and passing (CI)
-sbt "crm/run context ReadContract"        # everything known about a node, for agents and people
+sbt "crm/run context ReadContract"        # what bears on a node, for agents and people
 ```
 
 Committed: the Scala, `IDEA.md`, `.frflow/ledger.json`, `.frflow/keys`, the
@@ -329,16 +368,20 @@ migrated (`migrate`), not decided again.
 ## Layout
 
 ```
-lean/FrFlow/          the Lean side: the frflow_auto tactic
+lean/FrFlow/          the Lean side: the kernel and the frflow_auto tactic
 core/                 the Scala library
   Model.scala         Opaque, Param, define
   Lift.scala          the macro: Scala lambdas to Lean
   Node.scala          nodes, invariants, examples, the knowledge base, service
   Decisions.scala     decision states and rules, shared by the CLI, browser and MCP
   Ledger.scala        the decision record, and its merge
+  Signing.scala       the developer's keys, and the signatures of decisions
   Generate.scala      Lean generation
+  Lean.scala          runs lake; reads Lean's messages and axiom audits; the proof-file filter
   Workflow.scala      render, check, context, status, snapshot
   Git.scala           the code a decision saw, diffs since, the ledger's history
+  Json.scala          JSON, without dependencies
+  Cli.scala           the command line
 examples/auth/        access control, with a plain implementation
 examples/crm/         multi-tenant CRM, proven down to its implementation
 tools/                the browser server and UI, the MCP server, the ledger merge driver

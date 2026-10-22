@@ -59,7 +59,7 @@ enum Search:
   case OfKind(kind: Kind)
   case Everything
 
-val shares = Param[List[Share]]("shares", "the share table as stored when the search runs; a share names a record by its id, which is unique across all companies (in every store writes reach: WritesKeepStore)")
+val shares = Param[List[Share]]("shares", "the share table as stored when the search runs; a share names a record by its id, which is unique across all companies in every store writes reach (Accounts relies on CrmWrites for it)")
 
 val accounts = readApi.instantiate[(Account, Search) => List[CrmRecord]](
   "Accounts",
@@ -73,7 +73,7 @@ val accounts = readApi.instantiate[(Account, Search) => List[CrmRecord]](
   tenantOf   := ((a: Account) => a.tenant),
   owner      := ((r: CrmRecord) => r.tenant),
   sharedWith := ((r: CrmRecord, t: TenantId) => shares.value.contains(Share(r.id, t)))
-)
+).relies(crmWrites, "a share names one record by its id: ids are unique in every store the writes reach, so a share never shows another company's record with the same id")
 
 // ============================================================================
 // Contract for implementations

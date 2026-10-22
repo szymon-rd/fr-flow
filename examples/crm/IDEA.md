@@ -2,6 +2,8 @@
 
 Many companies use one CRM. Each company's users manage contacts and deals.
 
+Proven code: 100%. Every read and write path is proven down to its code.
+
 ## Reading records
 
 A user may see a record only if it belongs to their company, or if the record's
@@ -19,4 +21,7 @@ share is of a stored record.
 
 - That the account a search or a write runs for is the caller's own
   (authentication).
+
+### Writing records
+
 - Editing or removing records.

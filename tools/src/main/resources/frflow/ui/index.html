@@ -83,7 +83,7 @@ aside { background: var(--panel); border-left: 1px solid var(--line); display: f
         padding: 9px 11px; box-shadow: var(--shadow); cursor: pointer; transition: opacity .15s, border-color .15s; }
 .card:hover { border-color: var(--accent); }
 .card.proposed { border-style: dashed; border-width: 2px; border-color: var(--accent); background: color-mix(in srgb, var(--accent-soft) 45%, var(--panel)); }
-.card.review, .card.settled { border-color: var(--open); border-width: 2px; }
+.card.review { border-color: var(--open); border-width: 2px; }
 .card.design { background: var(--soft); }
 .card.rejected { opacity: .55; border-style: dotted; }
 .card.selected { box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow); border-color: var(--accent); }
@@ -99,7 +99,7 @@ aside { background: var(--panel); border-left: 1px solid var(--line); display: f
 .kind.root { background: var(--accent-soft); color: var(--accent); }
 .chip { font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid transparent; white-space: nowrap; }
 .s-proven, .s-accepted, .s-ok { background: var(--proven-soft); color: var(--proven); }
-.s-open, .s-waiting, .s-review, .s-settled { background: var(--open-soft); color: var(--open); }
+.s-open, .s-waiting, .s-review { background: var(--open-soft); color: var(--open); }
 .s-failed, .s-model-error, .s-bad { background: var(--failed-soft); color: var(--failed); }
 .s-not-checked, .s-rejected { background: var(--none-soft); color: var(--none); }
 .s-proposed { background: var(--accent-soft); color: var(--accent); }
@@ -136,6 +136,8 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: va
 .small { font-size: 12.5px; }
 .why { border-left: 3px solid var(--accent); padding: 4px 0 4px 12px; margin-top: 10px; }
 .why .label, .side .label { font-size: 12px; color: var(--muted); }
+.tiny { font-size: 11.5px; margin-top: 2px; }
+details.earlier summary { margin-top: 6px; font-size: 12.5px; }
 .box { border: 1px solid var(--line); border-left-width: 4px; border-radius: 10px; padding: 12px 14px; margin-top: 8px; }
 .box.proven, .box.accepted { border-color: color-mix(in srgb, var(--proven) 45%, transparent); border-left-color: var(--proven); background: color-mix(in srgb, var(--proven-soft) 55%, transparent); }
 .box.open, .box.review { border-left-color: var(--open); background: color-mix(in srgb, var(--open-soft) 55%, transparent); }
@@ -151,6 +153,8 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: va
 .option.this { border-color: var(--accent); }
 .option label { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); margin-top: 6px; }
 .warn-text { color: var(--open); font-size: 12.5px; margin-top: 6px; }
+.err-text { color: var(--failed); font-size: 12.5px; margin-top: 6px; }
+.confirm-text { color: var(--open); font-size: 12.5px; margin-top: 6px; flex-basis: 100%; }
 .option .head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .diff { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .diff pre.old { border-color: color-mix(in srgb, var(--failed) 35%, transparent); }
@@ -163,6 +167,11 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: va
 del.w { background: var(--failed-soft); color: var(--failed); text-decoration: line-through; }
 ins.w { background: var(--proven-soft); color: var(--proven); text-decoration: none; }
 pre.worddiff { white-space: pre-wrap; }
+.lean { margin-top: 4px; }
+.lean.bad { color: var(--failed); font-weight: 600; }
+.lean.bad .chip { font-weight: 700; border-color: var(--failed); }
+tr.lean-failed td { background: color-mix(in srgb, var(--failed-soft) 60%, transparent); }
+tr.lean-failed td:first-child { box-shadow: inset 3px 0 0 var(--failed); }
 .limits { margin-top: 8px; border: 1px dashed var(--open); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; color: var(--open); }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
 table { border-collapse: collapse; width: 100%; font-size: 13px; }
@@ -236,7 +245,7 @@ const store = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch {} },
 };
-const state = { projects: [], project: null, data: null, history: [], job: null, selected: null, tab: "node", jobOpen: false, editingIdea: false, codeDiffs: {} };
+const state = { projects: [], project: null, gen: 0, data: null, history: [], job: null, selected: null, tab: "node", jobOpen: false, editingIdea: false, ideaBase: null, ideaDraft: null, ideaError: "", codeDiffs: {} };
 
 async function api(path, opts) {
   const r = await fetch(path, opts);
@@ -267,17 +276,23 @@ async function loadProjects() {
   $("#me").value = store.get("frflow.me") || "";
 }
 
+// Each project switch starts a new generation: a response that comes back for an earlier one is
+// dropped, so one project's tree or idea is never shown (or saved) under another's name.
+const current = gen => gen === state.gen;
 let loading = null;
 async function refresh() {
   if (!state.project) return;
-  if (loading) return loading;
-  loading = (async () => {
-    const [data, history, job] = await Promise.all([api(`${P()}/kb`), api(`${P()}/history`), api(`${P()}/job`)]);
+  if (loading?.gen === state.gen) return loading.done;
+  const gen = state.gen, base = P();
+  const done = (async () => {
+    const [data, history, job] = await Promise.all([api(`${base}/kb`), api(`${base}/history`), api(`${base}/job`)]);
+    if (!current(gen)) return;
     state.data = data; state.history = history; state.job = job; state.codeDiffs = {};
     if (!live().some(n => n.id === state.selected)) state.selected = (waitingForYou()[0] || live()[0])?.id || null;
     render();
-  })().finally(() => { loading = null; });
-  return loading;
+  })().finally(() => { if (loading?.done === done) loading = null; });
+  loading = { gen, done };
+  return done;
 }
 
 let pendingRefresh = false;
@@ -301,16 +316,21 @@ const children = id => live().filter(n => n.parent === id);
 function pathTo(id) { const out = []; let n = byId(id); while (n) { out.unshift(n); n = n.parent ? byId(n.parent) : null; } return out; }
 const linkStatus = n => n.link?.status || (n.kind === "design" ? "design" : n.parent ? "unchecked" : "root");
 // A node resting on a rejected node waits for the agent to move it, not for you.
-const waitingForYou = () => live().filter(n => (n.state === "proposed" || n.state === "review" || n.state === "settled") && byId(n.parent)?.state !== "rejected" && !n.settleable);
+// Mechanical decisions (Lean proves them again, nothing in them is a choice) come last: risk-sorted.
+const waitingForYou = () => {
+  const w = live().filter(n => (n.state === "proposed" || n.state === "review") && byId(n.parent)?.state !== "rejected");
+  return [...w.filter(n => !n.mechanical), ...w.filter(n => n.mechanical)];
+};
 // Everything the inbox asks of you, counted once, the same everywhere.
 const waitingCount = () => waitingForYou().length + gone().length + requests().filter(r => r.status === "answered").length +
   (snap()?.unsigned || []).length + (snap()?.restarts || []).length + (snap()?.keys?.untrusted || []).length;
-const settledByAgent = () => live().filter(n => n.state === "settled");
 const gone = () => snap()?.gone || [];
 const siblings = n => live().filter(m => m.parent === n.parent && m.id !== n.id && m.state !== "rejected" && (m.kind === "design") === (n.kind === "design"));
 const requests = () => state.data?.requests || [];
 const me = () => $("#me").value.trim();
-const examplesBad = n => (n.examples || []).filter(e => e.contract !== "ok" || (e.implementation && e.implementation !== "ok"));
+// Lean disagreeing with Scala on an example means the translation is wrong: the example fails too.
+const leanFailed = e => e.lean?.status === "failed" || e.leanImplementation?.status === "failed";
+const examplesBad = n => (n.examples || []).filter(e => e.contract !== "ok" || (e.implementation && e.implementation !== "ok") || leanFailed(e));
 const pathProven = n => pathTo(n.id).slice(1).every(p => ["proven", "design", "informal", "assumed"].includes(linkStatus(p)));
 const causeText = { self: "it changed", above: "the meaning of something above it changed", code: "the code it governs changed", revisit: "a change above may affect it", merged: "two branches decided it and both were kept: decide it again" };
 function linkLabel(n) {
@@ -335,13 +355,13 @@ function render() {
   $("#waitingPill").textContent = `${w} waiting for you`;
   if (!s) {
     $("#summary").textContent = "";
-    $("#canvas").innerHTML = `<div class="empty">No snapshot yet. Press Render to build the tree from the Scala definitions.</div>`;
+    $("#canvas").innerHTML = `<div class="empty">${state.data ? "No snapshot yet. Press Render to build the tree from the Scala definitions." : "Loading…"}</div>`;
     renderPane(); renderJob();
     return;
   }
   const nodes = live(), links = nodes.filter(n => n.parent && n.kind !== "design");
   const proven = links.filter(n => linkStatus(n) === "proven").length;
-  const accepted = nodes.filter(n => n.state === "accepted").length, review = nodes.filter(n => n.state === "review" || n.state === "settled").length;
+  const accepted = nodes.filter(n => n.state === "accepted").length, review = nodes.filter(n => n.state === "review").length;
   const warn = (s.warnings || []).length;
   $("#summary").innerHTML = `${esc(s.name)} · <b>${accepted}</b> accepted · <b>${review}</b> to review · <b>${proven}/${links.length}</b> links proven${warn ? ` · <b style="color:var(--failed)">${warn} warning(s)</b>` : ""} · rendered ${ago(s.exportedAt)}`;
   renderTree(); renderPane(); renderJob();
@@ -422,6 +442,7 @@ function renderPane() {
     const n = counts[t.dataset.tab];
     t.innerHTML = t.dataset.tab[0].toUpperCase() + t.dataset.tab.slice(1) + (n ? `<span class="n">${n}</span>` : "");
   });
+  if (!state.data) { $("#pane").innerHTML = `<p class="muted">Loading…</p>`; return; }
   if (!snap() && state.tab !== "idea") { $("#pane").innerHTML = ""; return; }
   // A redraw (for example after a live update) keeps what the developer is typing or ticking.
   const keep = state.tab === "node" && $("#reason") ? { node: state.selected, reason: $("#reason").value,
@@ -483,7 +504,7 @@ function diff(old, cur) {
     ...Object.fromEntries(Object.entries(c.sources || {})),
     substitutions: (c.substitutions || []).join("\n"), examples: (c.examples || []).join("\n"),
     implementation: c.implementation, vocabulary: (c.vocabulary || []).join("\n"), "definitions used": (c.uses || []).join("\n\n"), governs: (c.governs || []).join("\n"),
-    "invariants kept": (c.keeps || []).join("\n"), "out of Lean": c.formal === false ? "yes" : "",
+    "invariants kept": (c.keeps || []).join("\n"), "relies on": (c.relies || []).join("\n"), "out of Lean": c.formal === false ? "yes" : "",
   });
   const a = flat(old || {}), b = flat(cur || {});
   const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])].filter(k => (a[k] || "") !== (b[k] || ""));
@@ -493,8 +514,12 @@ function diff(old, cur) {
 
 async function loadCodeDiff(id) {
   if (state.codeDiffs[id] !== undefined) return;
-  state.codeDiffs[id] = null;
-  try { state.codeDiffs[id] = (await api(`${P()}/codediff?node=${encodeURIComponent(id)}`)).diff; } catch { state.codeDiffs[id] = ""; }
+  const diffs = state.codeDiffs; // replaced on every refresh: a diff for an older load is dropped
+  diffs[id] = null;
+  let d = "";
+  try { d = (await api(`${P()}/codediff?node=${encodeURIComponent(id)}`)).diff; } catch {}
+  if (state.codeDiffs !== diffs) return;
+  diffs[id] = d;
   if (state.selected === id && state.tab === "node") renderPane();
 }
 
@@ -542,17 +567,22 @@ function governedFiles(n) {
 }
 
 // A node waiting for you shows what to decide first; the rest is there to read below it.
-const needsYou = n => ["proposed", "review", "settled"].includes(n.state);
+const needsYou = n => ["proposed", "review"].includes(n.state);
 
 // The decisions above a new node, with their reasons: where "revisit if …" is written.
 function aboveReasons(n) {
   const above = pathTo(n.id).slice(0, -1).filter(a => a.decision);
   const invs = (n.invariants || []).filter(i => byId(i.id));
-  const like = (n.resembles || []).map(x => `<div class="warn-text">It says what <a data-goto="${esc(x.id)}">${esc(x.id)}</a> said, which was rejected: ${esc(x.reason)}</div>`).join("");
-  if (!above.length && !invs.length) return like;
+  const like = (n.resembles || []).map(x => `<div class="warn-text">It says what <a data-goto="${esc(x.id)}">${esc(x.id)}</a> said, which was rejected: ${esc(x.reason)}</div>`).join("") +
+    // The options turned down here before, with why: a new proposal may be one of them in other words.
+    ((n.state === "proposed" && (n.rejectedBeside || []).length) ? `<div class="side"><div class="label">rejected here before (is this one of them?)</div>
+      ${n.rejectedBeside.map(x => `<div class="small"><b>${esc(x.id)}</b>: ${esc(x.statement)} <span class="muted">— rejected because ${esc(x.reason)}</span></div>`).join("")}</div>` : "");
+  const relied = (n.relies || []).map(byId).filter(Boolean);
+  if (!above.length && !invs.length && !relied.length) return like;
   return like + `<div class="side"><div class="label">what it rests on, with the reasons: does this meet a condition they set for revisiting them?</div>
     ${above.map(a => `<div class="small"><a data-goto="${esc(a.id)}"><b>${esc(a.id)}</b></a>: ${esc(a.decision?.reason || "")}</div>`).join("")}
-    ${invs.map(i => `<div class="small"><a data-goto="${esc(i.id)}"><b>${esc(i.id)}</b></a>: ${i.status === "exempt" ? `exempt, because ${esc(i.detail)} — still true?` : esc(byId(i.id).decision?.reason || "")}</div>`).join("")}</div>`;
+    ${invs.map(i => `<div class="small"><a data-goto="${esc(i.id)}"><b>${esc(i.id)}</b></a>: ${i.status === "exempt" ? `exempt, because ${esc(i.detail)} — still true?` : esc(byId(i.id).decision?.reason || "")}</div>`).join("")}
+    ${relied.map(r => `<div class="small">relies on <a data-goto="${esc(r.id)}"><b>${esc(r.id)}</b></a>: ${esc(r.decision?.reason || "")}</div>`).join("")}</div>`;
 }
 
 // Keys: this browser's, and others that are not the developer's yet.
@@ -569,14 +599,28 @@ function keysBox() {
 // Back to the agent, with what to change: a request on the node.
 const sendBack = n => `<button class="btn small" data-sendback="${esc(n.id)}">Send back to the agent</button>`;
 
+// The reasons on a node: the one that binds now (the last accept or confirm) first, the rest of its
+// history collapsed, the original choice among them. Migrations change the format, not the theory: not listed.
+const lastBinding = n => (n.history || []).filter(h => ["accept", "confirm"].includes(h.action)).slice(-1)[0] || n.decision;
+function reasons(n) {
+  const d = n.decision, latest = lastBinding(n);
+  if (!latest) return "";
+  const isChoice = h => d && h.at === d.at && h.action === d.action;
+  const verb = h => isChoice(h) ? "chosen" : { accept: "change accepted", confirm: "re-confirmed", revisit: "asked to revisit", reject: "rejected", remove: "agreed it is gone" }[h.action] || h.action;
+  const when = h => h.at ? new Date(h.at).toLocaleString() : "";
+  const hs = n.history || [], i = hs.indexOf(latest);
+  const earlier = (i < 0 ? hs : hs.slice(0, i)).filter(h => h.action !== "migrate").reverse();
+  return `<div class="why"><div class="label">${verb(latest)} by ${esc(latest.by)}${latest.at ? `, ${when(latest)}` : ""}, because</div>${esc(latest.reason)}</div>
+    ${earlier.length ? `<details class="earlier"><summary>Earlier reasons (${earlier.length})</summary>${earlier.map(h =>
+      `<div class="small" style="margin-top:4px"><span class="muted">${esc(verb(h))} by ${esc(h.by)}, ${when(h)}:</span> ${esc(h.reason)}</div>`).join("")}</details>` : ""}`;
+}
+
+const mechanicalNote = n => n.mechanical ? `<div class="muted small">Mechanical: Lean proves it again and nothing in it is a choice. Accept it here, or with the other mechanical decisions in the Inbox, with one reason.</div>` : "";
+
 // The decision: where the theory is built. The developer chooses, with a reason.
 function decisionBox(n) {
-  const d = n.decision;
   const blocked = !!n.waitsFor; // from core: a proposal, or a node whose parent moved, waits for its parent
-  const later = d ? (n.history || []).filter(h => ["accept", "confirm", "revisit"].includes(h.action) && h.at > d.at) : [];
-  const verb = { accept: "change accepted", confirm: "re-confirmed", revisit: "asked to revisit", settle: "settled by the agent" };
-  const chosen = d ? `<div class="why"><div class="label">chosen by ${esc(d.by)} because</div>${esc(d.reason)}</div>
-    ${later.map(c => `<div class="muted small">${verb[c.action]} by ${esc(c.by)}: ${esc(c.reason)}</div>`).join("")}` : "";
+  const chosen = reasons(n);
   const alts = n.alternatives || [];
   const altList = alts.length ? `<div class="side"><div class="label">rejected alternatives</div>${alts.map(r =>
     `<div class="option"><b>${esc(r.id)}</b> — ${esc(r.content?.statement)}<div class="muted small">${esc(r.content?.why)}</div></div>`).join("")}</div>` : "";
@@ -586,11 +630,11 @@ function decisionBox(n) {
   if (n.state === "proposed") {
     const others = siblings(n), warn = warnings(n);
     return `<div class="box proposed"><div class="verdict proposed">${others.some(o => o.state === "proposed") ? "Choose between the proposals" : "Proposed"}</div>
-      <div class="muted small">Choosing keeps your reason; what you reject is kept as an alternative.</div>
+      <div class="muted small">Choosing keeps your reason; what you reject is kept as an alternative.</div>${mechanicalNote(n)}
       ${others.length ? `<div class="side"><div class="label">other nodes beside it, under the same parent — each is its own part of the parent unless you tick it: a ticked node is replaced by this one</div>${others.map(o => `<div class="option">
         <div class="head"><a data-goto="${esc(o.id)}"><b>${esc(o.id)}</b></a>${chips(o)}</div>
         <div class="small" style="margin-top:4px">${esc(C(o).statement)}</div><div class="muted small">${esc(C(o).why)}</div>
-        <label><input type="checkbox" class="rej" value="${esc(o.id)}" ${o.state === "proposed" ? "checked" : ""}> reject ${esc(o.id)}${o.state === "accepted" || o.state === "settled" ? " (replaces a decided node)" : ""}</label></div>`).join("")}</div>` : ""}
+        <label><input type="checkbox" class="rej" value="${esc(o.id)}" ${o.state === "proposed" ? "checked" : ""}> reject ${esc(o.id)}${o.state === "accepted" ? " (replaces a decided node)" : ""}</label></div>`).join("")}</div>` : ""}
       ${warn.length ? `<div class="warn-text">Note: ${esc(warn.join("; "))}.</div>` : ""}
       ${aboveReasons(n)}
       ${n.code ? governedFiles(n) : ""}
@@ -607,32 +651,25 @@ function decisionBox(n) {
         <div class="head"><a data-goto="${esc(b.id)}"><b>${esc(b.id)}</b></a>${b.kind === "moved" ? ` <span class="muted small">(moved with this)</span>` : ""}</div>
         <div class="small" style="margin-top:4px">${esc(b.statement)}</div>
         <div class="muted small">chosen because: ${esc(b.reason)}</div>
+        ${b.why ? `<div class="muted tiny">why: ${esc(b.why)}</div>` : ""}
         <label><input type="checkbox" class="rev" value="${esc(b.id)}" data-moved="${b.kind === "moved" ? 1 : ""}"> revisit ${esc(b.id)}</label></div>`).join("")}</div>` : "";
     const warn = warnings(n);
-    return `<div class="box review"><div class="verdict review">To review: ${esc((n.causes || []).map(c => causeText[c]).join("; "))}</div>
+    return `<div class="box review"><div class="verdict review">To review: ${esc((n.causes || []).map(c => causeText[c]).join("; "))}</div>${mechanicalNote(n)}
       ${warn.length ? `<div class="warn-text">Note: ${esc(warn.join("; "))}.</div>` : ""}
       ${chosen}${whatMoved(n)}${aboveReasons(n)}${altList}${belowList}
       ${reasonBox((n.causes || []).includes("self") ? "Why is the change right?" : "Why does it still hold, given what changed?")}
       ${button("Accept", "")}<div class="actions">${sendBack(n)}</div></div>`;
   }
-  if (n.state === "settled") {
-    const a = n.settledByAgent, mine = n.developerDecision;
-    if (n.code) loadCodeDiff(n.id);
-    const cd = n.code ? state.codeDiffs[n.id] : "";
-    return `<div class="box review"><div class="verdict review">Settled by the agent — endorse it, or ask for a change</div>
-      <div class="muted small">The agent settled this because Lean proves it again and the rules leave nothing in it to you; that is not a judgment that it is right. Status fails until you endorse it. What it changed since your last decision is below.</div>
-      ${aboveReasons(n)}
-      <div class="why"><div class="label">the agent's reason</div>${esc(a.reason)}</div>
-      ${mine ? `<div class="side"><div class="label">changed since you decided it (${new Date(mine.at).toLocaleString()})</div>${diff(mine.content, n.content) || `<div class="muted small">Nothing in what it says.</div>`}</div>`
-        : `<div class="side"><div class="label">you have not decided it before: all of it is new</div></div>`}
-      ${n.code ? `<div class="side"><div class="label">the code it governs, ${mine ? "changed since your decision" : "in full"}: ${esc((n.code.files || []).join(", "))}</div>
-        ${cd === null || cd === undefined ? `<div class="muted small">loading…</div>` : cd ? `<pre class="mono">${esc(cd)}</pre>` : `<div class="muted small">No change in the code since your decision.</div>`}</div>` : ""}
-      ${chosen && d && d.action !== "settle" ? chosen : ""}${altList}
-      ${reasonBox("Why does it hold?")}
-      <div class="actions"><button class="btn small primary" data-accept="1">Endorse</button> ${sendBack(n)}</div></div>`;
-  }
   return `<div class="box accepted"><div class="verdict accepted">Accepted</div>
-    <div class="muted small">${d ? new Date(d.at).toLocaleString() : ""}</div>${chosen}${altList}</div>`;
+    ${chosen}${altList}</div>`;
+}
+
+// What Lean computes of one example, against what Scala computes.
+function leanBadge(l, prefix) {
+  if (!l) return "";
+  if (l.status === "proven") return `<div class="lean"><span class="chip s-ok" title="${esc(l.detail)}">${prefix}Lean agrees</span></div>`;
+  if (l.status === "failed") return `<div class="lean bad"><span class="chip s-bad">✗ ${prefix}Lean disagrees</span>${l.detail ? `<div class="small">${esc(l.detail)}</div>` : ""}</div>`;
+  return `<div class="lean"><span class="chip s-not-checked" title="${esc(l.detail)}">${prefix}${l.status === "unevaluated" ? "not evaluated in Lean" : "not checked in Lean"}</span></div>`;
 }
 
 function examplesTable(n) {
@@ -644,11 +681,13 @@ function examplesTable(n) {
   for (const e of n.examples) {
     const g = e.given.join(", ");
     if (g !== given) { given = g; rows += `<tr><td colspan="4" class="mono muted small" style="padding-top:10px">given ${esc(g)}</td></tr>`; }
-    rows += `<tr><td><span class="chip ${e.expected ? "s-ok" : "s-not-checked"}">${e.expected ? "expect" : "reject"}</span></td>
-      <td>${esc(e.note)}<div class="mono muted">${esc(e.call)}</div></td>
+    rows += `<tr${leanFailed(e) ? ` class="lean-failed"` : ""}><td><span class="chip ${e.expected ? "s-ok" : "s-not-checked"}">${e.expected ? "expect" : "reject"}</span></td>
+      <td>${esc(e.note)}<div class="mono muted">${esc(e.call)}</div>${leanBadge(e.lean, "")}${leanBadge(e.leanImplementation, "implementation: ")}</td>
       <td>${res(e.contract, e.expected)}</td><td>${e.expected ? (e.implementation === "ok" ? `<span class="chip s-ok">returns it ✓</span>` : res(e.implementation, true)) : `<span class="muted small">—</span>`}</td></tr>`;
   }
-  return `<h3>Examples</h3><div class="muted small">What this contract means in concrete cases, checked against the contract and against the implementation.</div>
+  const lf = n.examples.filter(leanFailed).length;
+  return `<h3>Examples</h3><div class="muted small">What this contract means in concrete cases, checked against the contract and against the implementation, and evaluated in Lean on the same values.</div>
+    ${lf ? `<div class="box failed"><div class="verdict failed">Lean disagrees with Scala on ${lf} example${lf > 1 ? "s" : ""}</div><div class="small">Lean, evaluating the example on its concrete values, computes something else than Scala does: the translation to Lean is wrong, so nothing proven of this node can be trusted until it is fixed.</div></div>` : ""}
     <table><tr><th></th><th>case</th><th>contract</th><th>implementation</th></tr>${rows}</table>${lim}`;
 }
 
@@ -705,6 +744,8 @@ function nodePane() {
         ? `<div class="side"><div class="label">exempt from <a data-goto="${esc(i.id)}">${esc(i.id)}</a></div><div class="small">${esc(i.detail)}</div></div>`
         : `<div class="side"><div class="label">keeps <a data-goto="${esc(i.id)}">${esc(i.id)}</a> — ${esc(i.status)}${i.detail ? ": " + esc(i.detail) : ""}</div>
           <div class="muted small">the pairs a call shows to the rule:</div><pre>${esc(i.view)}</pre><div class="muted small">the rule:</div><pre>${esc(i.rule)}</pre></div>`).join("")}
+      ${(C(n).relies || []).map(r => `<div class="side"><div class="label">relies on <a data-goto="${esc(r.split(":")[0])}">${esc(r.split(":")[0])}</a></div><div class="small">${esc(r.split(":").slice(1).join(":").trim())}</div></div>`).join("")}
+      ${(n.reliedOnBy || []).length ? `<div class="side"><div class="label">relied on by</div><div class="small">${n.reliedOnBy.map(id => `<a data-goto="${esc(id)}">${esc(id)}</a>`).join(", ")}: a change to what this node means puts them up for review</div></div>` : ""}
       ${n.proof ? `<details ${n.state !== "accepted" ? "open" : ""}><summary>authored proof — ${esc(n.proof.file)}</summary><pre>${esc(n.proof.source)}</pre></details>` : ""}
     </div>`;
   }
@@ -747,14 +788,20 @@ function batches(w) {
   const groups = {};
   for (const n of w) { const k = key(n); if (k) (groups[k] ||= []).push(n); }
   return Object.entries(groups).filter(([, ns]) => ns.length > 1).map(([k, ns]) => {
-    const ids = ns.map(n => n.id).join(",");
     const what = k.startsWith("above:") ? `moved only because ${k.slice(6).split(",").map(x => `<a data-goto="${esc(x)}">${esc(x)}</a>`).join(", ")} changed`
       : "changed only in the definitions they use (the same change)";
-    return `<div class="box review" style="margin-top:0"><div class="verdict review">${ns.length} nodes ${what}</div>
-      <div class="small">${ns.map(n => `<a data-goto="${esc(n.id)}">${esc(n.id)}</a>`).join(", ")} — open one to see the change; Lean ${ns.every(n => ["proven", "informal"].includes(linkStatus(n)) || n.kind === "design") ? "proves their links again" : "has not proven all their links yet"}.</div>
-      <textarea data-batchreason="${esc(ids)}" rows="1" placeholder="Why do they all still hold?"></textarea>
-      <div class="actions"><button class="btn small" data-batch="${esc(ids)}">Accept all ${ns.length}</button></div></div>`;
+    return batchBox(ns, `${ns.length} nodes ${what}`, `open one to see the change; Lean ${ns.every(n => ["proven", "informal"].includes(linkStatus(n)) || n.kind === "design") ? "proves their links again" : "has not proven all their links yet"}.`, "Why do they all still hold?");
   }).join("");
+}
+
+// Nodes decided at once with one reason: one accept each, parents first (each with the version seen).
+function batchBox(ns, title, note, placeholder) {
+  const depth = n => pathTo(n.id).length;
+  const ids = [...ns].sort((a, b) => depth(a) - depth(b)).map(n => n.id).join(",");
+  return `<div class="box review" style="margin-top:0"><div class="verdict review">${title}</div>
+    <div class="small">${ns.map(n => `<a data-goto="${esc(n.id)}">${esc(n.id)}</a>`).join(", ")} — ${note}</div>
+    <textarea data-batchreason="${esc(ids)}" rows="1" placeholder="${esc(placeholder)}"></textarea>
+    <div class="actions"><button class="btn small" data-batch="${esc(ids)}">${ns.length > 1 ? `Accept all ${ns.length}` : `Accept ${esc(ns[0].id)}`}</button></div></div>`;
 }
 
 // A review caused only by an ancestor's change that is itself waiting is decided with it: grouped under it.
@@ -765,7 +812,7 @@ function followers(n, w) {
 }
 
 function inboxPane() {
-  const w = waitingForYou();
+  const waiting = waitingForYou(), w = waiting.filter(n => !n.mechanical), mech = waiting.filter(n => n.mechanical);
   const answered = requests().filter(r => r.status === "answered");
   const open = requests().filter(r => r.status === "open");
   const rejected = all().filter(n => n.state === "rejected");
@@ -784,14 +831,13 @@ function inboxPane() {
     <h3 style="margin-top:0">Waiting for you</h3>${w.length ? w.filter(n => !followers(n, w)).map(n =>
       `<div class="req"><a data-goto="${esc(n.id)}"><b>${esc(n.id)}</b></a> ${chips(n)}<div class="small">${esc(C(n).statement)}</div>
       ${w.filter(f => followers(f, w) === n.id).map(f => `<div class="muted small">↳ <a data-goto="${esc(f.id)}">${esc(f.id)}</a> moved with it: decided together, from its review</div>`).join("")}</div>`).join("")
-      : gone().length ? "" : `<div class="muted small">Nothing. Every node is accepted.</div>`}
+      : gone().length || mech.length ? "" : `<div class="muted small">Nothing. Every node is accepted.</div>`}
+    ${mech.length ? `<h3>Mechanical — Lean proves these again; nothing in them is a choice</h3>
+      ${batchBox(mech, `${mech.length} mechanical decision${mech.length > 1 ? "s" : ""}`, "proven links, passing examples, no alternative beside them and no new terms. Open one to read what moved; nodes resting on them follow once they are accepted.", "Why do they hold? e.g. the change above does not touch what they rely on")}` : ""}
     ${gone().map(r => `<div class="req"><b>${esc(r.id)}</b> <span class="chip s-review">gone from the model</span>
       <div class="small">${esc(r.decision?.content?.statement)}</div>
       <textarea class="removal" data-node="${esc(r.id)}" rows="1" placeholder="Why is it gone?"></textarea>
       <div class="actions"><button class="btn small primary" data-gone="${esc(r.id)}">Accept that it is gone</button></div></div>`).join("")}
-    ${settledByAgent().length ? `<h3>Settled by the agent — waits for your endorsement</h3>${settledByAgent().map(n => `<div class="req"><a data-goto="${esc(n.id)}"><b>${esc(n.id)}</b></a>
-      <div class="small">${esc(C(n).statement)}</div><div class="answer small"><span class="muted">agent:</span> ${esc(n.settledByAgent.reason)}</div></div>`).join("")}` : ""}
-    ${live().some(n => n.settleable) ? `<div class="muted small" style="margin-top:8px">${live().filter(n => n.settleable).length} mechanical decision(s) left to the agent: ${live().filter(n => n.settleable).map(n => `<a data-goto="${esc(n.id)}">${esc(n.id)}</a>`).join(", ")}.</div>` : ""}
     <h3>Answered by the agent</h3>${answered.length ? answered.map(r => `<div class="req"><div class="small">on ${r.node ? `<a data-goto="${esc(r.node)}">${esc(r.node)}</a>` : "the idea"}</div>
       <div>${esc(r.text)}</div><div class="answer small"><span class="muted">agent:</span> ${esc(r.answer)}</div>
       <div class="actions"><button class="btn small" data-close="${esc(r.id)}">Done</button></div></div>`).join("") : `<div class="muted small">None.</div>`}
@@ -803,14 +849,16 @@ function inboxPane() {
 function markdown(src) {
   const out = []; let list = null, para = [], fence = null;
   const inline = s => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/\*([^*]+)\*/g, "<i>$1</i>");
-  const flush = () => { if (para.length) out.push(`<p>${inline(para.join(" "))}</p>`); para = []; if (list) { out.push(`<ul>${list.join("")}</ul>`); list = null; } };
+  const flush = () => { if (para.length) out.push(`<p>${inline(para.join(" "))}</p>`); para = []; if (list) { out.push(`<ul>${list.map(x => `<li>${inline(x)}</li>`).join("")}</ul>`); list = null; } };
   for (const line of src.split("\n")) {
     if (fence !== null) { if (line.startsWith("```")) { out.push(`<pre>${esc(fence.join("\n"))}</pre>`); fence = null; } else fence.push(line); continue; }
     if (line.startsWith("```")) { flush(); fence = []; continue; }
     const hd = line.match(/^(#{1,4})\s+(.*)/), li = line.match(/^\s*[-*]\s+(.*)/);
     if (hd) { flush(); out.push(`<h${hd[1].length}>${inline(hd[2])}</h${hd[1].length}>`); }
-    else if (li) { if (para.length) { out.push(`<p>${inline(para.join(" "))}</p>`); para = []; } (list ||= []).push(`<li>${inline(li[1])}</li>`); }
+    else if (li) { if (para.length) { out.push(`<p>${inline(para.join(" "))}</p>`); para = []; } (list ||= []).push(li[1]); }
     else if (!line.trim()) flush();
+    // A line under a list item (indented, or lazily not) continues that item.
+    else if (list && !para.length) list[list.length - 1] += " " + line.trim();
     else para.push(line.trim());
   }
   flush();
@@ -820,7 +868,8 @@ function markdown(src) {
 function ideaPane() {
   const s = snap();
   if (state.editingIdea) return `<div class="muted small">IDEA.md. A change puts the roots up for review. When you accept a root, tick the decisions below whose reasons the change may affect: they are reviewed again.</div>
-    <textarea id="ideaText" rows="22" class="mono">${esc(s?.idea || "")}</textarea>
+    <textarea id="ideaText" rows="22" class="mono">${esc(state.ideaDraft ?? state.ideaBase ?? "")}</textarea>
+    ${state.ideaError ? `<div class="err-text">${esc(state.ideaError)}</div>` : ""}
     <div class="actions"><button class="btn small primary" id="saveIdea">Save</button><button class="btn small" id="cancelIdea">Cancel</button></div>`;
   const roots = live().filter(n => !n.parent && n.kind === "root");
   return `<div class="actions" style="margin-top:0"><span class="muted small">Roots, one concern each: ${roots.map(r => `<a data-goto="${esc(r.id)}">${esc(r.id)}</a>`).join(", ") || "none"}</span>
@@ -841,7 +890,7 @@ function vocabularyPane() {
 
 function historyPane() {
   const hs = state.history || [];
-  const verb = { accept: "accepted", confirm: "re-confirmed", reject: "rejected", remove: "agreed is gone", revisit: "to revisit", settle: "settled by the agent", migrate: "recorded again by a new FrFlow" };
+  const verb = { accept: "accepted", confirm: "re-confirmed", reject: "rejected", remove: "agreed is gone", revisit: "to revisit", migrate: "recorded again by a new FrFlow" };
   return hs.length ? `<div class="muted small">Every decision, from the ledger (committed with the code).</div>` + hs.map(e =>
     `<div class="event"><span class="d ${esc(e.action)}"></span><div><a data-goto="${esc(e.node)}"><b>${esc(e.node)}</b></a> ${esc(verb[e.action] || e.action)} by ${esc(e.by)}${(e.rejected || []).length ? `, rejecting ${esc(e.rejected.join(", "))}` : ""}
       <div class="small">${esc(e.reason)}</div><div class="when">${new Date(e.at).toLocaleString()}</div></div></div>`).join("") : `<p class="muted">No decisions yet.</p>`;
@@ -849,18 +898,29 @@ function historyPane() {
 
 // --- actions ----------------------------------------------------------------
 
-async function run(args) {
-  try { state.jobOpen = true; state.job = await post(`${P()}/run`, { args }); render(); } catch (e) { alert(e.message); }
+async function run(args, el) {
+  const gen = state.gen;
+  try { const job = await post(`${P()}/run`, { args }); if (!current(gen)) return; state.jobOpen = true; state.job = job; render(); } catch (e) { say(el, e.message); }
 }
 
-function needName() {
+function needName(el) {
   if (me()) return me();
-  $("#me").focus(); alert("Enter your name at the top right: it is recorded with your decisions and requests.");
+  $("#me").focus(); say(el, "Enter your name at the top right: it is recorded with your decisions and requests.");
   return null;
 }
 
-async function decide(body) {
-  try { await post(`${P()}/decide`, body); await refresh(); } catch (e) { alert(e.message); }
+// An error, said where it happened: under the button that was pressed (no dialog).
+function say(el, msg, cls = "err-text") {
+  const at = el?.closest(".actions") || el?.parentElement;
+  if (!at) { alert(msg); return; }
+  let m = at.querySelector(":scope > .said");
+  if (!m) { m = document.createElement("div"); at.appendChild(m); }
+  m.className = `said ${cls}`; m.style.flexBasis = "100%"; m.textContent = msg;
+}
+const words = s => (s || "").split(/\s+/).filter(w => /\p{L}/u.test(w)).length;
+
+async function decide(body, el) {
+  try { await post(`${P()}/decide`, body); await refresh(); } catch (e) { say(el, e.message); }
 }
 
 document.addEventListener("click", async e => {
@@ -870,95 +930,130 @@ document.addEventListener("click", async e => {
   const card = t.closest(".card");
   if (card) { state.selected = card.dataset.node; state.tab = "node"; render(); return; }
   const r = t.closest("[data-run]");
-  if (r) { run([r.dataset.run, ...(r.dataset.arg ? [r.dataset.arg] : [])]); return; }
+  if (r) { run([r.dataset.run, ...(r.dataset.arg ? [r.dataset.arg] : [])], r); return; }
   const tab = t.closest(".tab");
   if (tab) { state.tab = tab.dataset.tab; renderPane(); return; }
   const acc = t.closest("[data-accept]");
   if (acc) {
-    const who = needName(); if (!who) return;
+    const who = needName(acc); if (!who) return;
     const reason = $("#reason")?.value.trim() || "";
-    if (reason.split(/\s+/).filter(w => /\p{L}/u.test(w)).length < 3) { $("#reason")?.focus(); alert("Give your reason in a few words: it is kept as part of the theory."); return; }
+    if (words(reason) < 3) { $("#reason")?.focus(); say(acc, "Give your reason in a few words: it is kept as part of the theory."); return; }
     const n = byId(state.selected);
     const reject = [...document.querySelectorAll(".rej:checked")].map(x => x.value);
     const revisit = [...document.querySelectorAll(".rev:checked")].map(x => x.value);
     const confirmBelow = [...document.querySelectorAll(".rev:not(:checked)")].filter(x => x.dataset.moved).map(x => x.value);
-    const warn = warnings(n);
-    if (warn.length && !confirm(`${n.id}: ${warn.join("; ")}. Accept it anyway?`)) return;
-    // Leaving every decision below as it is, is a choice too: ask for it explicitly.
-    const listedBelow = document.querySelectorAll(".rev").length;
-    if (listedBelow && !revisit.length && !confirm(`None of the ${listedBelow} decision(s) below is affected by this change: their reasons still hold?`)) return;
-    decide({ node: n.id, by: who, reason, reject, revisit, confirm: confirmBelow, seen: n.version });
+    // What needs saying yes to explicitly: accepting despite a warning, and leaving every decision
+    // below as it is (a choice too). Asked in place: the button turns into "Confirm: …"; a second click decides.
+    const warn = warnings(n), listedBelow = document.querySelectorAll(".rev").length;
+    const ask = [warn.length ? `accept although ${warn.join("; ")}` : "",
+      listedBelow && !revisit.length ? `none of the ${listedBelow} decision(s) below is affected: their reasons still hold` : ""].filter(Boolean);
+    const key = JSON.stringify([n.version, ask]);
+    if (ask.length && acc.dataset.armed !== key) {
+      acc.dataset.armed = key;
+      if (!acc.dataset.label) acc.dataset.label = acc.textContent;
+      acc.textContent = `Confirm: ${ask.length > 1 ? "both" : warn.length ? "accept anyway" : "none affected"}`;
+      say(acc, `${n.id}: ${ask.join("; and ")}. Click “${acc.textContent}” to decide, or change your ticks.`, "confirm-text");
+      return;
+    }
+    decide({ node: n.id, by: who, reason, reject, revisit, confirm: confirmBelow, seen: n.version }, acc);
     return;
   }
-  if (t.closest("[data-reject-self]")) {
-    const who = needName(); if (!who) return;
+  const rs = t.closest("[data-reject-self]");
+  if (rs) {
+    const who = needName(rs); if (!who) return;
     const reason = $("#reason")?.value.trim() || "";
-    if (reason.split(/\s+/).filter(w => /\p{L}/u.test(w)).length < 3) { $("#reason")?.focus(); alert("Say why not, in a few words: it is kept as part of the theory."); return; }
-    decide({ node: state.selected, by: who, reason, action: "reject", seen: byId(state.selected).version });
+    if (words(reason) < 3) { $("#reason")?.focus(); say(rs, "Say why not, in a few words: it is kept as part of the theory."); return; }
+    decide({ node: state.selected, by: who, reason, action: "reject", seen: byId(state.selected).version }, rs);
     return;
   }
   const sb = t.closest("[data-sendback]");
   if (sb) {
-    const who = needName(); if (!who) return;
+    const who = needName(sb); if (!who) return;
     const text = $("#reason")?.value.trim() || "";
-    if (text.split(/\s+/).filter(w => /\p{L}/u.test(w)).length < 3) { $("#reason")?.focus(); alert("Say what to change, in a few words, in the reason box."); return; }
-    try { await post(`${P()}/requests`, { node: sb.dataset.sendback, text, by: who }); await refresh(); } catch (err) { alert(err.message); }
+    if (words(text) < 3) { $("#reason")?.focus(); say(sb, "Say what to change, in a few words, in the reason box."); return; }
+    try { await post(`${P()}/requests`, { node: sb.dataset.sendback, text, by: who }); await refresh(); } catch (err) { say(sb, err.message); }
     return;
   }
   const ba = t.closest("[data-batch]");
   if (ba) {
-    const who = needName(); if (!who) return;
-    const ids = ba.dataset.batch.split(",");
-    const reason = document.querySelector(`textarea[data-batchreason="${ba.dataset.batch}"]`)?.value.trim() || "";
-    if (reason.split(/\s+/).filter(w => /\p{L}/u.test(w)).length < 3) { alert("Say why they still hold, in a few words."); return; }
-    for (const id of ids) { const x = byId(id); if (x) { try { await post(`${P()}/decide`, { node: id, by: who, reason, seen: x.version }); } catch (err) { alert(`${id}: ${err.message}`); break; } } }
+    const who = needName(ba); if (!who) return;
+    const ids = ba.dataset.batch.split(","), gen = state.gen, base = P();
+    const reason = [...document.querySelectorAll("textarea[data-batchreason]")].find(x => x.dataset.batchreason === ba.dataset.batch)?.value.trim() || "";
+    if (words(reason) < 3) { say(ba, "Say why they hold, in a few words."); return; }
+    ba.disabled = true;
+    // One accept each, parents first, with the version seen; stopped by the first refusal, or a project switch.
+    for (const id of ids) {
+      const x = byId(id); if (!x || !current(gen)) break;
+      try { await post(`${base}/decide`, { node: id, by: who, reason, seen: x.version }); }
+      catch (err) { await refresh(); say(document.querySelector(`[data-batch="${CSS.escape(ba.dataset.batch)}"]`) || ba, `${id}: ${err.message}`); return; }
+    }
     await refresh();
     return;
   }
   const cert = t.closest("[data-certify]");
-  if (cert) { try { await post(`${P()}/certify`, { key: cert.dataset.certify }); await refresh(); } catch (err) { alert(err.message); } return; }
-  if (t.closest("[data-sign]")) {
+  if (cert) { try { await post(`${P()}/certify`, { key: cert.dataset.certify }); await refresh(); } catch (err) { say(cert, err.message); } return; }
+  const sg = t.closest("[data-sign]");
+  if (sg) {
     const entries = [...document.querySelectorAll(".unsigned:checked")].map(x => x.value);
-    if (!entries.length) { alert("Tick the decisions that are yours."); return; }
-    try { await post(`${P()}/sign`, { entries }); await refresh(); } catch (err) { alert(err.message); }
+    if (!entries.length) { say(sg, "Tick the decisions that are yours."); return; }
+    try { await post(`${P()}/sign`, { entries }); await refresh(); } catch (err) { say(sg, err.message); }
     return;
   }
   const ack = t.closest("[data-ack]");
   if (ack) {
-    const who = needName(); if (!who) return;
-    const reason = document.querySelector(`[data-restart="${ack.dataset.ack}"]`)?.value.trim() || "";
-    if (reason.split(/\s+/).filter(w => /\p{L}/u.test(w)).length < 3) { alert("Say why the restart is right, in a few words."); return; }
-    decide({ node: "_ledger", by: who, reason, action: "acknowledge", seen: ack.dataset.ack });
+    const who = needName(ack); if (!who) return;
+    const reason = [...document.querySelectorAll("[data-restart]")].find(x => x.dataset.restart === ack.dataset.ack)?.value.trim() || "";
+    if (words(reason) < 3) { say(ack, "Say why the restart is right, in a few words."); return; }
+    decide({ node: "_ledger", by: who, reason, action: "acknowledge", seen: ack.dataset.ack }, ack);
     return;
   }
   const gn = t.closest("[data-gone]");
   if (gn) {
-    const who = needName(); if (!who) return;
-    const reason = document.querySelector(`.removal[data-node="${gn.dataset.gone}"]`)?.value.trim();
-    if ((reason || "").split(/\s+/).filter(w => /\p{L}/u.test(w)).length < 3) { alert("Say why it is gone, in a few words."); return; }
-    decide({ node: gn.dataset.gone, by: who, reason });
+    const who = needName(gn); if (!who) return;
+    const reason = [...document.querySelectorAll(".removal[data-node]")].find(x => x.dataset.node === gn.dataset.gone)?.value.trim();
+    if (words(reason) < 3) { say(gn, "Say why it is gone, in a few words."); return; }
+    decide({ node: gn.dataset.gone, by: who, reason }, gn);
     return;
   }
   const ask = t.closest("[data-ask]");
   if (ask) {
-    const who = needName(); if (!who) return;
+    const who = needName(ask); if (!who) return;
     const text = $("#ask").value.trim(); if (!text) { $("#ask").focus(); return; }
-    try { await post(`${P()}/requests`, { node: ask.dataset.ask, text, by: who }); $("#ask").value = ""; refresh(); } catch (err) { alert(err.message); }
+    try { await post(`${P()}/requests`, { node: ask.dataset.ask, text, by: who }); $("#ask").value = ""; refresh(); } catch (err) { say(ask, err.message); }
     return;
   }
   const close = t.closest("[data-close]");
-  if (close) { try { await post(`${P()}/requests/${encodeURIComponent(close.dataset.close)}`, { status: "closed" }); refresh(); } catch (err) { alert(err.message); } return; }
-  if (t.id === "editIdea") { state.editingIdea = true; renderPane(); return; }
-  if (t.id === "cancelIdea") { state.editingIdea = false; renderPane(); return; }
+  if (close) { try { await post(`${P()}/requests/${encodeURIComponent(close.dataset.close)}`, { status: "closed" }); refresh(); } catch (err) { say(close, err.message); } return; }
+  // The editor remembers the text it started from: a save over a file that changed since is refused,
+  // and the developer's text stays in the editor.
+  if (t.id === "editIdea") { Object.assign(state, { editingIdea: true, ideaBase: snap()?.idea || "", ideaDraft: null, ideaError: "" }); renderPane(); return; }
+  if (t.id === "cancelIdea") { Object.assign(state, { editingIdea: false, ideaBase: null, ideaDraft: null, ideaError: "" }); renderPane(); return; }
   if (t.id === "saveIdea") {
-    try { await post(`${P()}/idea`, { text: $("#ideaText").value }); state.editingIdea = false; await refresh(); } catch (err) { alert(err.message); }
+    const gen = state.gen, text = $("#ideaText").value;
+    state.ideaDraft = text;
+    try {
+      await post(`${P()}/idea`, { text, base: state.ideaBase ?? "" });
+      if (!current(gen)) return;
+      Object.assign(state, { editingIdea: false, ideaBase: null, ideaDraft: null, ideaError: "" });
+      await refresh();
+    } catch (err) {
+      if (!current(gen)) return;
+      state.ideaError = err.message;
+      if (state.tab === "idea") renderPane();
+    }
     return;
   }
   if (t.id === "waitingPill") { const n = waitingForYou()[0]; if (n) { state.selected = n.id; state.tab = "node"; render(); } else { state.tab = "inbox"; renderPane(); } }
 });
+document.addEventListener("input", e => { if (e.target.id === "ideaText") state.ideaDraft = e.target.value; });
 $("#me").addEventListener("change", e => store.set("frflow.me", e.target.value.trim()));
 $("#jobClose").onclick = () => { state.jobOpen = false; renderJob(); };
-$("#project").onchange = e => { state.project = e.target.value; store.set("frflow.project", state.project); state.selected = null; state.jobOpen = false; refresh(); };
+$("#project").onchange = e => {
+  // What is shown belongs to the old project until the new one is loaded: clear it now.
+  state.project = e.target.value; state.gen++; store.set("frflow.project", state.project);
+  Object.assign(state, { data: null, history: [], job: null, selected: null, jobOpen: false, editingIdea: false, ideaBase: null, ideaDraft: null, ideaError: "", codeDiffs: {} });
+  render(); refresh();
+};
 
 loadProjects().then(refresh).then(listen).catch(e => { $("#canvas").innerHTML = `<div class="empty">${esc(e.message)}</div>`; });
 </script>

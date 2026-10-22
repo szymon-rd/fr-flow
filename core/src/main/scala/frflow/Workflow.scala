@@ -517,7 +517,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   /** The tree and its warnings, and whether the knowledge base is complete (the CI gate). */
   def status: (String, Boolean) =
     val a = annotated
-    val warnings = integrity
+    val warnings = integrity ++ budgetShortfall
     val ok = Decisions.complete(a) && warnings.isEmpty
     val notes = Ledger.restarts(ws.root, ws.ledgerFile).filter(c => ledger.acknowledged.exists(c.startsWith))
       .map(c => s"the ledger was restarted in commit ${c.take(10)} (acknowledged); earlier decisions are in git history") ++
@@ -538,17 +538,36 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   def coverage: String =
     val g = generate
     val links = kb.nodes.filter(n => n.parent.nonEmpty && n.kind != NodeKind.Design && n.kind != NodeKind.Invariant)
-    val formal = links.filter(l => l.formal && !l.assumed)
+    // Proven: checked now, not only formal.
+    val formal = links.filter(l => l.formal && !l.assumed && link(l)("status").flatMap(_.str).contains("proven"))
+    val formalAll = links.filter(l => l.formal && !l.assumed)
     val assumedLinks = links.filter(l => l.formal && l.assumed)
     val contracts = kb.nodes.filter(_.kind == NodeKind.Contract)
-    val proven = contracts.filter(c => g.provenImpl(c).isDefined && current(c).exists(k => k.status == "proven" && k.obligations.exists(o => o.name == "root_impl" && o.status == "proven")))
+    val proven = provenCode
     val plain = contracts.filter(c => kb.implementation(c).exists(_.proven.isEmpty))
     val designs = kb.nodes.filter(_.kind == NodeKind.Design)
     s"Proofs: ${formal.size} of ${links.size} links proven in Lean${if assumedLinks.nonEmpty then s" (${assumedLinks.map(_.id).mkString(", ")} assumed: decided by reading, named by every root theorem that rests on them)" else ""}" +
-      s"${if links.diff(formal).diff(assumedLinks).nonEmpty then s" (${links.diff(formal).diff(assumedLinks).map(_.id).mkString(", ")} out of Lean)" else ""}; " +
+      s"${if formalAll.diff(formal).nonEmpty then s" (${formalAll.diff(formal).map(_.id).mkString(", ")} not proven yet)" else ""}" +
+      s"${if links.diff(formalAll).diff(assumedLinks).nonEmpty then s" (${links.diff(formalAll).diff(assumedLinks).map(_.id).mkString(", ")} out of Lean)" else ""}; " +
       s"the root proven of the code for ${proven.size} of ${contracts.size} contracts" +
       (if plain.nonEmpty then s", checked on examples only for ${plain.map(_.id).mkString(", ")}" else "") +
       (if designs.nonEmpty then s"; ${designs.size} design decision(s) govern code no proof covers (${designs.map(_.id).mkString(", ")})" else "") + ".\n"
+
+  /** The contracts whose root theorem is proven of their code. */
+  def provenCode: List[Node[?]] =
+    kb.nodes.filter(c => c.kind == NodeKind.Contract && generate.provenImpl(c).isDefined &&
+      current(c).exists(k => k.status == "proven" && k.obligations.exists(o => o.name == "root_impl" && o.status == "proven")))
+
+  /** What the idea requires of the proofs, as decided with it: a line `Proven code: N%` in IDEA.md
+    * (outside Not modelled) asks that at least N% of the contracts be proven down to their code.
+    */
+  def provenCodeBudget: Option[Int] = """(?i)proven code:\s*(\d{1,3})\s*%""".r.findFirstMatchIn(ideaDecided).map(_.group(1).toInt)
+
+  /** The budget, when the proofs fall short of it. */
+  def budgetShortfall: Option[String] =
+    val contracts = kb.nodes.count(_.kind == NodeKind.Contract)
+    provenCodeBudget.filter(b => contracts > 0 && provenCode.size * 100 < b * contracts).map(b =>
+      s"the idea asks that $b% of the contracts be proven down to their code; ${provenCode.size} of $contracts are (implement the others with a proven define)")
 
   /** Open requests from the developer (written by the browser). */
   def requests: List[Json] = allRequests.filter(_("status").flatMap(_.str).contains("open"))

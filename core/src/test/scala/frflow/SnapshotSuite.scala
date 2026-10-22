@@ -455,7 +455,7 @@ class SnapshotSuite extends munit.FunSuite:
     assert(nm.contains("Prices") && nm.contains("Covers") && !nm.contains("Taxes"), nm)
   }
 
-  test("with no developer key, no decision counts") {
+  test("with no developer key, status fails whatever the ledger says") {
     val w = workflow()
     acceptAll(w)
     assert(w.integrity.exists(_.startsWith("no developer key")), w.integrity)
