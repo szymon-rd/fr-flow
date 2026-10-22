@@ -123,6 +123,10 @@ the history, reasons and rejected alternatives.
   store for every call). Examples and `service` run the callee's registered
   code for the call. The caller rests on the callee: a change to the callee's
   meaning reviews it. `DealSearch` in `examples/crm` is built on `ReadContract`.
+- **Roots that say what users can do.** A root that doing nothing meets (it
+  only forbids) fails `status` unless it says why (`safety = "..."`); a section
+  of the idea that says what users can do ("a user can …") needs a root that
+  is not met by doing nothing.
 - **Seams.** In `.relies(other, why, guarantee)(sees)`, Lean proves
   `guarantee` of every state `other`'s concern reaches (`rely_<Other>`); at
   run time it is checked on what `sees` returns.
@@ -149,8 +153,9 @@ and everything below it is out of Lean too.
 
 **Checked by running.** Examples run against the contract and the
 implementation, and the implementation also runs on every combination of the
-examples' inputs. In production, `service` checks every result of plain code
-against the contract and its invariants (proven code is not checked again), and
+examples' inputs. In production, `service` checks every result against the
+contract and its invariants (proven code too: the running process does not know
+whether its proof still holds), and
 the guarantees relied on whenever a value it reads changes, or raises
 `ContractViolation`; it refuses to start if a parameter it reads is unbound.
 
@@ -234,9 +239,9 @@ whose maps differ at a key it does not name may be left unevaluated.
 
 ```scala
 val isolation = Node.root[(User.T, Record.T) => Boolean]("TenantIsolation",
-  "A user sees a record only if it belongs to their company or was shared with their company.",
+  "A user sees exactly the stored records of their company and those shared with their company.",
   why = "...", idea = "Reading records")(
-  shows => forall((u: User.T, r: Record.T) => shows(u, r) ==> visible(u, r)))
+  shows => forall((u: User.T, r: Record.T) => shows(u, r) == (stored(r) && visible(u, r))))
 
 val readContract = accounts.contract[Account, Search, List[CrmRecord]]("ReadContract", "...", why = "...")(
   (user, query, result) => result.forall(r => store.value.contains(r) && matches(query, r) && mayRead(user, r)) && ...)
@@ -250,9 +255,13 @@ val knowledge = KnowledgeBase("Crm", idea = "IDEA.md")(isolation, readApi, accou
 `ReadApi` and `Accounts` (not shown) refine it to queries and instantiate it
 with the CRM's types. Lean proves each link, that every record `ReadContract` returns keeps
 `NoCrossTenantRead` (and the view lists them all), and that `search` meets
-`ReadContract`: tenant isolation holds of the code. Writes are a second
-concern, a state machine whose `applyWrite` is proven by a short authored
-proof. `Accounts` relies on the writes for unique ids (`rely_CrmWrites`).
+`ReadContract`: tenant isolation holds of the code, and so does finding records
+(the root says "exactly": a search that drops shared records fails
+`ReadContract`'s own link). Writes are a second concern, a state machine whose
+`applyWrite` is proven by a short authored proof: every write is permitted and
+a permitted write takes effect. `Accounts` relies on the writes for unique ids
+(`rely_CrmWrites`). The sales screen is a third concern: `DealSearch` is
+proven from `ReadContract`'s promise (`contract.caller`).
 `examples/auth` does access control with a plain implementation; its ledger
 keeps the rejected `ClientAsserted` and a reason that says when to revisit.
 (The example ledgers were written by an agent, to show the method.)

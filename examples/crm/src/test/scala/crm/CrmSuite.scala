@@ -63,7 +63,7 @@ class CrmSuite extends munit.FunSuite:
     val w = Workflow(knowledge, Workspace(root, Paths.get("lean").toAbsolutePath.toString))
     val checked = w.check().map((n, c) => n.id -> c).toMap
     assertEquals(checked.view.mapValues(_.status).toMap, Map("TenantIsolation" -> "proven", "ReadApi" -> "proven", "Accounts" -> "proven",
-      "ReadContract" -> "proven", "WritesKeepStore" -> "proven", "StepByStep" -> "proven", "CrmWrites" -> "proven", "WriteContract" -> "proven", "DealSearch" -> "proven"))
+      "ReadContract" -> "proven", "WritesKeepStore" -> "proven", "StepByStep" -> "proven", "CrmWrites" -> "proven", "WriteContract" -> "proven", "SalesScreen" -> "proven", "DealSearch" -> "proven"))
     // every implementation is proven, and the root holds of each (DealSearch's from ReadContract's promise)
     for c <- List("ReadContract", "WriteContract", "DealSearch") do
       assertEquals(checked(c).obligations.filter(o => o.name == "impl" || o.name == "root_impl").map(_.status), List("proven", "proven"), checked(c))

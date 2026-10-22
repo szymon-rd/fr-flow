@@ -82,7 +82,8 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
     val file: String = "",
     val expected: List[(String, Lifted[?])] = Nil,
     val relied: List[(() => Node[?], String, Option[Reliance])] = Nil,
-    val at: Int = -1
+    val at: Int = -1,
+    val safety: String = ""
 ):
   /** The nodes this one relies on besides its parent (see `relies`), with what it relies on. */
   def reliesOn: List[(Node[?], String)] = relied.map((f, why, _) => (f(), why))
@@ -143,7 +144,7 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
   private def copy(cases: List[Example] = cases, governs: List[String] = governs, kept: List[Keep] = kept,
       expected: List[(String, Lifted[?])] = expected, relied: List[(() => Node[?], String, Option[Reliance])] = relied): Node[M] =
     Node(id, statement, why, kind, parent, spec, abs, post, substs, cases, governs, declaredFormal, kept, scope, ideaSection, file, expected,
-      relied, at)
+      relied, at, safety)
 
   /** A contract with a signature of its own: `abs` says what an implementation is as the parent's
     * model (a new read path below an existing instantiation, say). Proven: `spec f → parent.spec (abs f)`.
@@ -186,10 +187,13 @@ object Node:
     * the idea. `idea` names the `## ` section of IDEA.md it is decided against (the text before the
     * first section counts for every root); without it, the root is decided against the whole idea.
     */
-  inline def root[M](id: String, statement: String, why: String, inline formal: Boolean = true, idea: String = "")(
+  /** `safety`: why the root only says what must not happen, when doing nothing meets it (a root that
+    * says what users can do, a capability, needs none). Without it, such a root is unproven.
+    */
+  inline def root[M](id: String, statement: String, why: String, inline formal: Boolean = true, idea: String = "", safety: String = "")(
       inline spec: M => Boolean): Node[M] =
     Node(id, statement, why, NodeKind.Root, None, Some(Lifted.of(formal, spec)), None, None, Nil, declaredFormal = formal, ideaSection = idea,
-      file = Lifted.here, at = Lifted.at)
+      file = Lifted.here, at = Lifted.at, safety = safety)
 
   /** A cross-cutting invariant: `rule(a, b)` holds for every pair a call exposes (such as a reader
     * and a record returned to them), stated once. Every contract below the `scope` nodes (every
@@ -263,7 +267,7 @@ extension [A, B, R](n: Node[(A, B) => R])
   /** A plain Scala implementation with every call checked against the contract: a result that
     * breaks it is never returned. Used by `KnowledgeBase.service`, which is how code is attached.
     */
-  private[frflow] def enforce(impl: (A, B) => R, assumes: List[(String, () => Boolean)] = Nil, proven: Boolean = false)(bindings: Binding*): (A, B) => R =
+  private[frflow] def enforce(impl: (A, B) => R, assumes: List[(String, () => Boolean)] = Nil)(bindings: Binding*): (A, B) => R =
     require(n.kind == NodeKind.Contract, s"${n.id} is not a contract")
     val post = n.post.get.value.asInstanceOf[(A, B, R) => Boolean]
     // What the relied-on guarantees were last found to hold of: checked again only when a value changes.
@@ -290,10 +294,9 @@ extension [A, B, R](n: Node[(A, B) => R])
           assumes.find((_, p) => !p()).foreach((what, _) => throw ContractViolation(n.id, s"the values it runs with break what $what"))
           held = seen
         val r = impl(a, b)
-        // Lean proved that proven code meets the contract and the invariants it keeps: not checked again.
-        if !proven then
-          if !post(a, b, r) then throw ContractViolation(n.id, s"result $r for ($a, $b) breaks the contract")
-          n.broken(a, b, r).foreach(i => throw ContractViolation(n.id, s"result $r for ($a, $b) breaks the invariant $i"))
+        // Proven code too: the running process does not know whether its proof still holds.
+        if !post(a, b, r) then throw ContractViolation(n.id, s"result $r for ($a, $b) breaks the contract")
+        n.broken(a, b, r).foreach(i => throw ContractViolation(n.id, s"result $r for ($a, $b) breaks the invariant $i"))
         r
       }
 
@@ -434,7 +437,7 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
       val g = (x: Any, y: Any) => s(x, y)
       () => g
     }
-    contract.enforce((a, b) => f()(a, b), assumptionsOf(contract), i.provenCode)((calls ++ bindings)*)
+    contract.enforce((a, b) => f()(a, b), assumptionsOf(contract))((calls ++ bindings)*)
 
   /** Each `caller` bound to its contract's registered code, as examples run it. */
   def callerCode: List[Binding] = callers((_, i) => () => i.factory())

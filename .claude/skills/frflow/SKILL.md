@@ -112,7 +112,11 @@ val authenticated = noUnauthorizedAccess.refine[(Token.T, Resource.T) => Option[
 
 - **`Node.root(id, statement, why, idea = "Section")(spec)`**: one concern,
   over generic types. Make every concept the idea does not define open:
-  `Opaque` for types, `Param` for relations and values.
+  `Opaque` for types, `Param` for relations and values. Say what users can do,
+  not only what must not happen: "shows(u, r) == (stored(r) && visible(u, r))",
+  not "shows ==> visible". A root doing nothing meets fails `status` unless
+  `safety = "why it only forbids"`; a section of the idea that says what users
+  can do needs a root that says it.
 - **`refine(id, statement, why)(abs, spec)`**: `spec m → parent.spec (abs m)`.
 - **`instantiate(id, statement, why)(T := of[X], p := expr)`**: fixes open
   terms; holds by substitution.

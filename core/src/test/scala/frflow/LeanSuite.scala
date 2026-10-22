@@ -257,7 +257,7 @@ class LeanSuite extends munit.FunSuite:
     assert(c.obligations.filter(_.name.startsWith("eval_")).forall(_.status == "proven"), c)
     // in Scala the examples run Capped's code for the call
     assert(kb.exampleResults(longPick).forall(r => r.contract == "ok" && r.implementation.forall(_ == "ok")), kb.exampleResults(longPick))
-    // a running service calls Capped's service, and proven code is not checked again on each call
+    // a running service calls Capped's service
     val s = kb.service(longPick)(minPages.bind(100), maxPages.bind(500))
     assertEquals(s(List(Book("Long", 300), Book("Huge", 900)), 5), List(Book("Long", 300)))
   }
@@ -266,6 +266,20 @@ class LeanSuite extends munit.FunSuite:
     val c = workflow(KnowledgeBase("Firsts", idea = "IDEA.md")(onlyGood, listed, books, pick).implementProven(pick)(firstLong)).check().find(_._1.id == "Pick").get._2
     assertEquals(c.obligations.filter(o => Set("impl", "root_impl")(o.name)).map(_.status), List("proven", "proven"), c)
     assert(c.obligations.filter(_.name.startsWith("eval_")).forall(_.status == "proven"), c)
+  }
+
+  test("a root doing nothing meets is unproven, unless it says why it only forbids") {
+    val w = workflow(KnowledgeBase("Guard", idea = "IDEA.md")(onlyGood))
+    w.check()
+    val n = w.annotated("nodes").get.arr.find(_("id").flatMap(_.str).contains("OnlyGood")).get
+    assert(Decisions.unproven(n).exists(_.contains("doing nothing meets it")), Decisions.unproven(n))
+    val guard = Node.root[(List[Item.T], Int) => List[Item.T]]("OnlyGood", onlyGood.statement, onlyGood.why, safety = "picking is a guard here: what is picked is the caller's choice")(
+      pick => forall((l: List[Item.T], n: Int) => pick(l, n).forall(x => good(x))))
+    val w2 = workflow(KnowledgeBase("Guard", idea = "IDEA.md")(guard))
+    w2.check()
+    val n2 = w2.annotated("nodes").get.arr.find(_("id").flatMap(_.str).contains("OnlyGood")).get
+    assert(Decisions.unproven(n2).isEmpty, Decisions.unproven(n2))
+    assert(n2("limits").exists(_.arr.exists(_.str.exists(_.contains("says only what must not happen")))), n2("limits"))
   }
 
   test("state kept in a Map is proven, down to the code, and its examples are evaluated in Lean") {

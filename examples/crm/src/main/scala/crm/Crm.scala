@@ -13,6 +13,7 @@ val Record = Opaque("Record", "a contact or a deal kept in the CRM")
 val tenantOf   = Param[User.T => Tenant.T]("tenantOf", "the company a user works for")
 val owner      = Param[Record.T => Tenant.T]("owner", "the company a record belongs to")
 val sharedWith = Param[(Record.T, Tenant.T) => Boolean]("sharedWith", "whether the record's company shared it with the given company")
+val stored     = Param[Record.T => Boolean]("stored", "whether the record is kept in the CRM")
 
 /** A user may see a record of their own company, or one shared with it. */
 val visible = define { (u: User.T, r: Record.T) => owner(r) == tenantOf(u) || sharedWith(r, tenantOf(u)) }
@@ -20,25 +21,27 @@ val visible = define { (u: User.T, r: Record.T) => owner(r) == tenantOf(u) || sh
 /** Model: whom the system shows which records. */
 val isolation = Node.root[(User.T, Record.T) => Boolean](
   "TenantIsolation",
-  "A user sees a record only if it belongs to their company or was shared with their company.",
-  why = "Isolation between companies is what the idea says must hold. Companies, users, records and sharing are left open.",
+  "A user sees exactly the stored records of their company and those shared with their company.",
+  why = "Isolation between companies is what the idea says must hold, and finding records is what it says users can do: the two together say which records a user sees. Companies, users, records, storing and sharing are left open.",
   idea = "Reading records"
-)(shows => forall((u: User.T, r: Record.T) => shows(u, r) ==> visible(u, r)))
+)(shows => forall((u: User.T, r: Record.T) => shows(u, r) == (stored(r) && visible(u, r))))
 
 // ============================================================================
 // Users see records only through queries
 // ============================================================================
 
 val Query = Opaque("Query", "a search a user runs")
+val everything = Param[Query.T]("everything", "the search that lists everything a user can see")
 
 /** Model: what a query returns to a user. */
 val readApi = isolation.refine[(User.T, Query.T) => List[Record.T]](
   "ReadApi",
-  "Records are shown only as query results, and a query returns only records the user may see.",
+  "Records are shown only as query results; a query returns only stored records the user may see, and listing everything returns all of them.",
   why = "Users find records by searching, so what a user sees is what their queries return. abs: a user is shown a record when some query of theirs returns it."
 )(
   abs  = run => (u, r) => exists((q: Query.T) => run(u, q).contains(r)),
-  spec = run => forall((u: User.T, q: Query.T) => run(u, q).forall(r => visible(u, r)))
+  spec = run => forall((u: User.T, q: Query.T) => run(u, q).forall(r => stored(r) && visible(u, r))) &&
+    forall((u: User.T, r: Record.T) => (stored(r) && visible(u, r)) ==> run(u, everything.value).contains(r))
 )
 
 // ============================================================================
@@ -59,6 +62,8 @@ enum Search:
   case OfKind(kind: Kind)
   case Everything
 
+val store = Param[List[CrmRecord]]("store", "the records as stored when the search runs")
+
 val shares = Param[List[Share]]("shares", "the share table as stored when the search runs; a share names a record by its id, which is unique across all companies in every store writes reach (Accounts relies on CrmWrites for it)")
 
 val accounts = readApi.instantiate[(Account, Search) => List[CrmRecord]](
@@ -72,15 +77,15 @@ val accounts = readApi.instantiate[(Account, Search) => List[CrmRecord]](
   Query      := of[Search],
   tenantOf   := ((a: Account) => a.tenant),
   owner      := ((r: CrmRecord) => r.tenant),
-  sharedWith := ((r: CrmRecord, t: TenantId) => shares.value.contains(Share(r.id, t)))
+  sharedWith := ((r: CrmRecord, t: TenantId) => shares.value.contains(Share(r.id, t))),
+  stored     := ((r: CrmRecord) => store.value.contains(r)),
+  everything := Search.Everything
 ).relies(crmWrites, "a share names one record by its id: ids are unique in every store the writes reach, so a share never shows another company's record with the same id",
   (s: CrmStore) => consistentStore(s))(() => CrmStore(store.value, shares.value))
 
 // ============================================================================
 // Contract for implementations
 // ============================================================================
-
-val store = Param[List[CrmRecord]]("store", "the records as stored when the search runs")
 
 /** Whether a record is one a search asks for. */
 val matches = define { (q: Search, r: CrmRecord) =>
@@ -150,11 +155,21 @@ val search = define { (user: Account, query: Search) =>
   */
 val rc = readContract.caller("rc")
 
-val dealSearch = accounts.contract[Account, Search, List[CrmRecord]](
+/** Model: what the sales screen lists for a user's search. */
+val salesScreen = Node.root[(Account, Search) => List[CrmRecord]](
+  "SalesScreen",
+  "The sales screen lists exactly the stored deals that match a search and the user may see.",
+  why = "The idea's sales screen: deals only, and every deal the user may see; what a user may see is the same rule as for reading records.",
+  idea = "Sales screen"
+)(run => forall((u: Account, q: Search) =>
+  run(u, q).forall(r => store.value.contains(r) && r.kind == Kind.Deal && matches(q, r) && mayRead(u, r)) &&
+  store.value.forall(r => (r.kind == Kind.Deal && matches(q, r) && mayRead(u, r)) ==> run(u, q).contains(r))))
+
+val dealSearch = salesScreen.contract[Account, Search, List[CrmRecord]](
   "DealSearch",
   "A deal search returns exactly the stored deals that match it and the user may see.",
-  why = "The sales screen lists deals only, all of them. It is built on ReadContract, so it shows only what ReadContract may show."
-)((user, query, result) => result.forall(r => r.kind == Kind.Deal && mayRead(user, r)) &&
+  why = "SalesScreen, stated for one call. It is built on ReadContract, so it shows only what ReadContract may show."
+)((user, query, result) => result.forall(r => store.value.contains(r) && r.kind == Kind.Deal && matches(query, r) && mayRead(user, r)) &&
   store.value.forall(r => (r.kind == Kind.Deal && matches(query, r) && mayRead(user, r)) ==> result.contains(r)))
   .examples(
     store.bind(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal"), CrmRecord(2, TenantId("acme"), Kind.Contact, "Acme contact"))),
@@ -181,24 +196,26 @@ val initial    = Param[Store.T]("initial", "the store the CRM starts with")
 val consistent = Param[Store.T => Boolean]("consistent", "whether every share is of a stored record, and no two records have one id")
 val permitted  = Param[(Store.T, Write.T, Store.T) => Boolean]("permitted",
   "whether the change from the first store to the second is one the write's author may make: it touches only their company's records and shares")
+val effect     = Param[(Store.T, Write.T, Store.T) => Boolean]("effect",
+  "whether the second store holds what the write asked for, when its author's company may ask it")
 
 /** Model: the store a sequence of writes leads to, from the initial store. */
 val writesKeepStore = Node.root[List[Write.T] => Store.T](
   "WritesKeepStore",
-  "Every store the CRM reaches by writes is consistent, and every write changes only what its author's company may change.",
-  why = "The idea's rules for writing, over every sequence of writes from the initial store: consistency of every store reached, and authority of each write. What consistency and authority mean is left open.",
+  "Every store the CRM reaches by writes is consistent, every write changes only what its author's company may change, and a write its author's company may make takes effect.",
+  why = "The idea's rules for writing, over every sequence of writes from the initial store: consistency of every store reached, authority of each write, and what users can do (add, share, unshare). What consistency, authority and effect mean is left open.",
   idea = "Writing records"
 )(run => forall((ws: List[Write.T]) => consistent(run(ws))) &&
-  forall((ws: List[Write.T], w: Write.T) => permitted(run(ws), w, run(ws ++ List(w)))))
+  forall((ws: List[Write.T], w: Write.T) => permitted(run(ws), w, run(ws ++ List(w))) && effect(run(ws), w, run(ws ++ List(w)))))
 
 /** Model: one write. */
 val stepByStep = writesKeepStore.refine[(Store.T, Write.T) => Store.T](
   "StepByStep",
-  "The CRM starts consistent, a write keeps a consistent store consistent, and every write is permitted.",
+  "The CRM starts consistent, a write keeps a consistent store consistent, and every write is permitted and takes effect.",
   why = "A store is reached by applying writes one at a time from the initial store, so it is enough that the initial store is consistent and that each write keeps consistency (by induction over the writes) and is permitted. abs: the store after a sequence of writes is the writes applied in turn."
 )(
   abs = apply => ws => ws.foldLeft(initial.value)((s, w) => apply(s, w)),
-  spec = apply => consistent(initial.value) && forall((s: Store.T, w: Write.T) => (consistent(s) ==> consistent(apply(s, w))) && permitted(s, w, apply(s, w))))
+  spec = apply => consistent(initial.value) && forall((s: Store.T, w: Write.T) => (consistent(s) ==> consistent(apply(s, w))) && permitted(s, w, apply(s, w)) && effect(s, w, apply(s, w))))
 
 final case class CrmStore(records: List[CrmRecord], shares: List[Share])
 
@@ -240,7 +257,8 @@ val crmWrites = stepByStep.instantiate[(CrmStore, WriteCmd) => CrmStore](
   Write      := of[WriteCmd],
   initial    := CrmStore(Nil, Nil),
   consistent := ((s: CrmStore) => consistentStore(s)),
-  permitted  := ((s: CrmStore, w: WriteCmd, t: CrmStore) => permittedWrite(s, w, t))
+  permitted  := ((s: CrmStore, w: WriteCmd, t: CrmStore) => permittedWrite(s, w, t)),
+  effect     := ((s: CrmStore, w: WriteCmd, t: CrmStore) => takesEffect(s, w, t))
 )
 
 val writeContract = crmWrites.contract[CrmStore, WriteCmd, CrmStore](
@@ -281,7 +299,7 @@ val writeSideWiring = writeContract.design(
   .exempt(noCrossTenantRead, "the write side hands the new store to storage and returns nothing to a reader: no record leaves it")
 
 val knowledge = KnowledgeBase("Crm", idea = "IDEA.md")(isolation, readApi, accounts, readContract, readSideWiring, noCrossTenantRead,
-  writesKeepStore, stepByStep, crmWrites, writeContract, writeSideWiring, dealSearch)
+  writesKeepStore, stepByStep, crmWrites, writeContract, writeSideWiring, salesScreen, dealSearch)
   .implementProven(readContract)(search)
   .implementProven(dealSearch)(deals)
   .implementProven(writeContract)(applyWrite)

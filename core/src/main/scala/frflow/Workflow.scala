@@ -134,7 +134,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     "uses" -> JArr(generate.sourcesUsedBy(n).map(str)),
     "governs" -> JArr(n.governs.map(str)),
     "definition" -> str(definition(n))
-  ) ++ (if n.formal then Nil else List("formal" -> JBool(false))) ++
+  ) ++ (if n.formal then Nil else List("formal" -> JBool(false))) ++ (if n.safety.isEmpty then Nil else List("safety" -> str(n.safety))) ++
     (if n.kept.isEmpty then Nil else List("keeps" -> JArr(n.kept.map(k => str(k.describe))))) ++
     (if n.reliesOn.isEmpty then Nil else List("relies" -> JArr(n.relied.map((o, why, p) => str(s"${o().id}: $why${p.fold("")(r => s" (guarantee: ${r.guarantee.source}, of: ${r.sees.source})")}"))))) ++
     (if n.expected.isEmpty then Nil else List("expects" -> JArr(n.expected.map((st, l) => str(s"$st: ${l.source}"))))) ++
@@ -182,12 +182,23 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   def ideaCoverage: List[String] =
     val named = kb.roots.map(_.ideaSection.trim).filter(_.nonEmpty)
     val sections = Decisions.ideaSections(ideaDecided)._2.map(_._1)
-    if named.isEmpty then Nil
+    // What the idea says users can do needs a root that says it: roots doing nothing meets only forbid.
+    val (intro, bodies) = Decisions.ideaSections(ideaDecided)
+    val concerns = if named.isEmpty then List(("the idea", intro + "\n" + bodies.map(_._2).mkString("\n"), kb.roots))
+      else bodies.map((h, b) => (s"the section \"$h\"", b, kb.roots.filter(_.ideaSection.trim.equalsIgnoreCase(h))))
+    val uncovered = concerns.flatMap { (where, text, roots) =>
+      val can = Workflow.capabilities(text)
+      // Only once every root of it is checked: unchecked, a root's idle is not known.
+      Option.when(can.nonEmpty && roots.nonEmpty && roots.forall(r => !generate.formal(r) || current(r).isDefined) &&
+          roots.forall(r => idleOf(r).isDefined))(
+        s"$where says what users can do (\"${can.head}\"), but its roots say only what must not happen: add a root that says it (a capability)")
+    }
+    uncovered ++ (if named.isEmpty then Nil
     else sections.filterNot(h => named.exists(_.equalsIgnoreCase(h)))
         .map(h => s"the section \"$h\" of ${kb.idea} is the concern of no root: add a root for it (idea = \"$h\"), or move it to Not modelled") ++
       kb.roots.filter(_.ideaSection.trim.nonEmpty).filterNot(r => sections.exists(_.equalsIgnoreCase(r.ideaSection.trim)))
         .map(r => s"${r.id} is decided against the section \"${r.ideaSection}\", which ${kb.idea} does not have") ++
-      kb.roots.filter(_.ideaSection.trim.isEmpty).map(r => s"${r.id} names no section of ${kb.idea}, though other roots do: name the one it is decided against")
+      kb.roots.filter(_.ideaSection.trim.isEmpty).map(r => s"${r.id} names no section of ${kb.idea}, though other roots do: name the one it is decided against"))
 
   def hash(n: Node[?]): String = Decision.hash(content(n))
 
@@ -721,7 +732,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       a.post.foreach(src("post", _))
       a.substs.foreach(s => sb ++= s"- `${s.name} := ${s.term.fold(s.lean)(_.source)}`\n")
       kb.limits(a).foreach(x => sb ++= s"- does not promise: $x\n")
-      if a.kind == NodeKind.Root then idleOf(a).foreach(w => sb ++= s"- doing nothing meets it ($w): it says only what must not happen; what users can do is said by the contracts below\n")
+      if a.kind == NodeKind.Root then idleOf(a).foreach(w => sb ++= s"- doing nothing meets it ($w): it says only what must not happen${if a.safety.nonEmpty then s" (${a.safety})" else ": state what users can do, or give safety"}\n")
       kb.exampleResults(a).foreach { r =>
         sb ++= s"- example: ${r.example.describe} [${r.verdict}]\n"
       }
@@ -862,10 +873,11 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
         "id" -> str(n.id),
         "kind" -> str(n.kind.toString.toLowerCase),
         "parent" -> n.parent.fold(JNull)(p => str(p.id)),
-        "limits" -> JArr((kb.limits(n) ++ Option.when(n.kind == NodeKind.Root)(idleOf(n)).flatten.map(what =>
-          s"Doing nothing meets it ($what): it says only what must not happen; what users can do must be said by the contracts below (each says what it returns)")).map(str)),
-        // A contract met by doing nothing on every call: it guards, and asks for nothing (see `Decisions.unproven`).
-        "idle" -> Option.when(n.kind == NodeKind.Contract)(idleOf(n)).flatten.fold(JNull)(str),
+        "limits" -> JArr((kb.limits(n) ++ Option.when(n.kind == NodeKind.Root && n.safety.nonEmpty)(idleOf(n)).flatten.map(what =>
+          s"Doing nothing meets it ($what): it says only what must not happen (${n.safety})")).map(str)),
+        // Met by doing nothing: a contract that guards and asks for nothing, or a root that says nothing
+        // users can do and is not declared safety only (see `Decisions.unproven`).
+        "idle" -> Option.when(n.kind == NodeKind.Contract || (n.kind == NodeKind.Root && n.safety.isEmpty))(idleOf(n)).flatten.fold(JNull)(str),
         "examples" -> JArr(kb.exampleResults(n).zipWithIndex.map { (r, i) =>
           // What Lean computes of the example, against what Scala does (the examples written, not generated ones).
           def lean(name: String) =
@@ -959,6 +971,13 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     ws.snapshotFile
 
 object Workflow:
+  /** The sentences of an idea that say what someone can do ("a user can …", "users may …", "lets"):
+    * not those that say what must not happen ("only if", "never", "cannot").
+    */
+  def capabilities(text: String): List[String] =
+    text.replaceAll("\\s+", " ").split("""(?<=[.!?])\s+""").toList.map(_.trim).filter(_.nonEmpty)
+      .filter(s => """(?i)\b(can|may|is able to|are able to|lets|allows?)\b""".r.findFirstIn(s).isDefined)
+      .filterNot(s => """(?i)\b(not|never|only if|only when|cannot|no one|nobody|unless)\b|\bno \w+ (can|may)\b""".r.findFirstIn(s).isDefined)
   /** The lines removed (`- `) and added (`+ `) from `a` to `b`, in order (a longest common subsequence). */
   def lineDiff(a: String, b: String): List[String] =
     val (x, y) = (a.split("\n", -1).toVector, b.split("\n", -1).toVector)

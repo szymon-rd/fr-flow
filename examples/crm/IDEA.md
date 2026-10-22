@@ -10,10 +10,15 @@ everything they can see.
 
 ## Writing records
 
-A user adds records for their company, and shares or unshares their company's
-records with other companies. No write changes another company's records, or
+A user can add records for their company, and can share or unshare their
+company's records with other companies. No write changes another company's records, or
 adds or removes a share of a record the author's company does not own. Every
 share is of a stored record.
+
+## Sales screen
+
+The sales team has a screen that lists the deals a user can see: every stored
+deal that matches their search, and nothing else.
 
 ## Not modelled
 

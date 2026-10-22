@@ -527,6 +527,11 @@ class SnapshotSuite extends munit.FunSuite:
     assert(Decisions.mechanical(redefined, w.ledger, nodes(redefined)("Pick")).exists(_.contains("changed")))
   }
 
+  test("what the idea says users can do, not what it forbids") {
+    assertEquals(Workflow.capabilities("A user may see a record only if it is theirs. Users can list everything they can see. No user may delete it."),
+      List("Users can list everything they can see."))
+  }
+
   test("a reason that says when to revisit it, in the usual words; a statement of fact is not one") {
     for t <- List("Fine until we add a second server.", "If grants move to LDAP, revisit this.", "Revisit if we add exports.",
         "Reconsider once the store is shared.", "It holds as long as one process decides.") do

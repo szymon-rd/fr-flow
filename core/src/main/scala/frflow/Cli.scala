@@ -51,7 +51,8 @@ object Cli:
           // `idle` is not an obligation: proven, it is a limit of the contract (it allows doing nothing).
           c.obligations.filter(r => !r.isLimit && r.status != "proven").foreach(r => println(s"  ${r.status} ${r.name}: ${r.detail.linesIterator.mkString("\n    ")}"))
           c.obligations.filter(r => r.name == "idle" && r.status == "proven").foreach(r => println(
-            if n.kind == NodeKind.Root then s"  limit: doing nothing meets it (${r.detail}): it says only what must not happen; the contracts below say what users can do"
+            if n.kind == NodeKind.Root && n.safety.nonEmpty then s"  limit: doing nothing meets it (${r.detail}): it says only what must not happen (${n.safety})"
+            else if n.kind == NodeKind.Root then s"  ! doing nothing meets it (${r.detail}): say what users can do (a capability), or give `safety` = why it only says what must not happen (status fails until then)"
             else s"  ! it is met by ${r.detail} on every call: say in its post what it must return (status fails until then)"))
           // With an example failing, the link may be false: no hint to prove it.
           c.messages.filterNot(m => failing.nonEmpty && m.startsWith("prove it in")).foreach(m => println(s"  ! ${m.linesIterator.mkString("\n    ")}"))

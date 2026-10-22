@@ -671,5 +671,7 @@ object Decisions:
       bad("expectations", fine).map(e => s"an expectation is ${s(e, "status")}") ++
       bad("reliances", fine).map(r => s"the guarantee it relies on from ${s(r, "id")} is ${s(r, "status")}") ++
       // A contract only guarding (what it must never return) lets the code drop the feature unnoticed.
-      n("idle").flatMap(_.str).map(what => s"Lean shows it is met by $what on every call: say in its post what it must return")
+      n("idle").flatMap(_.str).map(what =>
+        if s(n, "kind") == "root" then s"Lean shows doing nothing meets it ($what): say what users can do (a capability), or give `safety` = why it only says what must not happen"
+        else s"Lean shows it is met by $what on every call: say in its post what it must return")
 
