@@ -13,7 +13,7 @@ object Cli:
       |
       |  render                  generate Lean and the snapshot .frflow/kb.json from the Scala definitions
       |  check [NODE]            render, prove the links, record the results
-      |  status                  the tree: decisions, links, examples; exits 1 unless all is settled (for CI)
+      |  status                  the tree: decisions, links, examples; exits 1 unless the knowledge base is complete (for CI)
       |  context NODE            everything needed to work on NODE (for agents and people)
       |  scaffold NODE           a proof file for an obligation automation did not prove
       |
@@ -36,8 +36,9 @@ object Cli:
         w.writeSnapshot()
         results.foreach { (n, c) =>
           println(s"${n.id}: ${c.status}")
-          c.obligations.filterNot(_.status == "proven")
-            .foreach(r => println(s"  ${r.status} ${r.name}: ${r.detail}"))
+          // `idle` is not an obligation: proven, it is a limit of the contract (it allows doing nothing).
+          c.obligations.filter(r => r.name != "idle" && r.status != "proven").foreach(r => println(s"  ${r.status} ${r.name}: ${r.detail}"))
+          c.obligations.filter(r => r.name == "idle" && r.status == "proven").foreach(r => println(s"  limit: it is met by ${r.detail} on every call"))
           c.messages.foreach(m => println(s"  ! ${m.linesIterator.mkString("\n    ")}"))
         }
         println()

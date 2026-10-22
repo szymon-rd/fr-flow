@@ -304,7 +304,7 @@ const linkStatus = n => n.link?.status || (n.kind === "design" ? "design" : n.pa
 const waitingForYou = () => live().filter(n => (n.state === "proposed" || n.state === "review" || n.state === "settled") && byId(n.parent)?.state !== "rejected" && !n.settleable);
 // Everything the inbox asks of you, counted once, the same everywhere.
 const waitingCount = () => waitingForYou().length + gone().length + requests().filter(r => r.status === "answered").length +
-  (snap()?.unsigned || []).length + (snap()?.restarts || []).length;
+  (snap()?.unsigned || []).length + (snap()?.restarts || []).length + (snap()?.keys?.untrusted || []).length;
 const settledByAgent = () => live().filter(n => n.state === "settled");
 const gone = () => snap()?.gone || [];
 const siblings = n => live().filter(m => m.parent === n.parent && m.id !== n.id && m.state !== "rejected" && (m.kind === "design") === (n.kind === "design"));
@@ -458,8 +458,10 @@ function verdict(n) {
 }
 
 // A word-level diff: what was decided, against what is there now.
-function wordDiff(a, b) {
-  const x = (a || "").split(/(\s+)/), y = (b || "").split(/(\s+)/);
+// Code and lists compare by line, so a change reads as the lines it touched; prose by word.
+const byLine = new Set(["implementation", "definitions used", "examples", "substitutions", "spec", "abs", "post"]);
+function wordDiff(a, b, lines = false) {
+  const x = (a || "").split(lines ? /(\n)/ : /(\s+)/), y = (b || "").split(lines ? /(\n)/ : /(\s+)/);
   if (x.length * y.length > 250000) return `<del class="w">${esc(a)}</del>\n<ins class="w">${esc(b)}</ins>`;
   const m = x.length, n = y.length, L = Array.from({ length: m + 1 }, () => new Int32Array(n + 1));
   for (let i = m - 1; i >= 0; i--) for (let j = n - 1; j >= 0; j--) L[i][j] = x[i] === y[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
@@ -485,7 +487,7 @@ function diff(old, cur) {
   const a = flat(old || {}), b = flat(cur || {});
   const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])].filter(k => (a[k] || "") !== (b[k] || ""));
   if (!keys.length) return "";
-  return keys.map(k => `<div class="side"><div class="label">${esc(k)}</div><pre class="worddiff">${wordDiff(a[k], b[k])}</pre></div>`).join("");
+  return keys.map(k => `<div class="side"><div class="label">${esc(k)}</div><pre class="worddiff">${wordDiff(a[k], b[k], byLine.has(k))}</pre></div>`).join("");
 }
 
 async function loadCodeDiff(id) {
@@ -508,7 +510,7 @@ function warnings(n) {
 
 // What moved since the decision, shown whether or not it can be accepted yet.
 function whatMoved(n) {
-  const d = n.history?.filter(h => h.action === "accept" || h.action === "confirm").slice(-1)[0];
+  const d = n.history?.filter(h => ["accept", "confirm", "migrate"].includes(h.action)).slice(-1)[0];
   let h = "";
   for (const c of n.causes || []) {
     if (c === "self") h += `<div class="side"><div class="label">${esc(n.id)} changed since it was accepted</div>${diff(d?.content, n.content) || `<div class="muted small">No difference in what was decided.</div>`}</div>`;
@@ -538,13 +540,29 @@ function governedFiles(n) {
     ${cd === null || cd === undefined ? `<div class="muted small">loading…</div>` : `<pre class="mono">${esc(cd)}</pre>`}</details>`;
 }
 
+// A node waiting for you shows what to decide first; the rest is there to read below it.
+const needsYou = n => ["proposed", "review", "settled"].includes(n.state);
+
 // The decisions above a new node, with their reasons: where "revisit if …" is written.
 function aboveReasons(n) {
   const above = pathTo(n.id).slice(0, -1).filter(a => a.decision);
-  const invs = (n.invariants || []).map(i => byId(i.id)).filter(Boolean);
-  if (!above.length && !invs.length) return "";
-  return `<div class="side"><div class="label">the decisions it rests on, with their reasons: does it meet a condition they set for revisiting them?</div>
-    ${[...above, ...invs].map(a => `<div class="small"><a data-goto="${esc(a.id)}"><b>${esc(a.id)}</b></a>: ${esc(a.decision?.reason || "")}</div>`).join("")}</div>`;
+  const invs = (n.invariants || []).filter(i => byId(i.id));
+  const like = (n.resembles || []).map(x => `<div class="warn-text">It says what <a data-goto="${esc(x.id)}">${esc(x.id)}</a> said, which was rejected: ${esc(x.reason)}</div>`).join("");
+  if (!above.length && !invs.length) return like;
+  return like + `<div class="side"><div class="label">what it rests on, with the reasons: does this meet a condition they set for revisiting them?</div>
+    ${above.map(a => `<div class="small"><a data-goto="${esc(a.id)}"><b>${esc(a.id)}</b></a>: ${esc(a.decision?.reason || "")}</div>`).join("")}
+    ${invs.map(i => `<div class="small"><a data-goto="${esc(i.id)}"><b>${esc(i.id)}</b></a>: ${i.status === "exempt" ? `exempt, because ${esc(i.detail)} — still true?` : esc(byId(i.id).decision?.reason || "")}</div>`).join("")}</div>`;
+}
+
+// Keys: this browser's, and others that are not the developer's yet.
+function keysBox() {
+  const k = snap()?.keys; if (!k) return "";
+  const mine = k.mine && !k.mineTrusted ? `<div class="small">This browser's key ${esc(k.mine)} is not a developer key of this project: decisions made here are not counted as yours until a browser holding a developer key certifies it.</div>` : "";
+  const others = (k.untrusted || []).filter(id => id !== k.mine);
+  if (!mine && !others.length) return "";
+  return `<div class="box review" style="margin-top:0"><div class="verdict review">Keys that are not the developer's</div>${mine}
+    ${others.map(id => `<div class="small">${esc(id)} ${k.mineTrusted ? `<button class="btn small" data-certify="${esc(id)}">This key is mine: certify it</button>` : ""}</div>`).join("")}
+    <div class="muted small">A process that runs its own server makes its own key; certify only a key you made, on a machine of yours.</div></div>`;
 }
 
 // Back to the agent, with what to change: a request on the node.
@@ -573,7 +591,6 @@ function decisionBox(n) {
         <div class="small" style="margin-top:4px">${esc(C(o).statement)}</div><div class="muted small">${esc(C(o).why)}</div>
         <label><input type="checkbox" class="rej" value="${esc(o.id)}" ${o.state === "proposed" ? "checked" : ""}> reject ${esc(o.id)}${o.state === "accepted" || o.state === "settled" ? " (replaces a decided node)" : ""}</label></div>`).join("")}</div>` : ""}
       ${warn.length ? `<div class="warn-text">Note: ${esc(warn.join("; "))}.</div>` : ""}
-      ${(n.resembles || []).map(x => `<div class="warn-text">It says what <a data-goto="${esc(x.id)}">${esc(x.id)}</a> said, which was rejected: ${esc(x.reason)}</div>`).join("")}
       ${aboveReasons(n)}
       ${n.code ? governedFiles(n) : ""}
       ${altList}
@@ -593,7 +610,7 @@ function decisionBox(n) {
     const warn = warnings(n);
     return `<div class="box review"><div class="verdict review">To review: ${esc((n.causes || []).map(c => causeText[c]).join("; "))}</div>
       ${warn.length ? `<div class="warn-text">Note: ${esc(warn.join("; "))}.</div>` : ""}
-      ${chosen}${whatMoved(n)}${altList}${belowList}
+      ${chosen}${whatMoved(n)}${aboveReasons(n)}${altList}${belowList}
       ${reasonBox((n.causes || []).includes("self") ? "Why is the change right?" : "Why does it still hold, given what changed?")}
       ${button("Accept", "")}<div class="actions">${sendBack(n)}</div></div>`;
   }
@@ -602,7 +619,8 @@ function decisionBox(n) {
     if (n.code) loadCodeDiff(n.id);
     const cd = n.code ? state.codeDiffs[n.id] : "";
     return `<div class="box review"><div class="verdict review">Settled by the agent — endorse it, or ask for a change</div>
-      <div class="muted small">The agent settled this as mechanical: Lean proves its link, its examples pass, and it introduces no term and no choice. Status fails until you endorse it. What it changed since your last decision is below.</div>
+      <div class="muted small">The agent settled this because Lean proves it again and the rules leave nothing in it to you; that is not a judgment that it is right. Status fails until you endorse it. What it changed since your last decision is below.</div>
+      ${aboveReasons(n)}
       <div class="why"><div class="label">the agent's reason</div>${esc(a.reason)}</div>
       ${mine ? `<div class="side"><div class="label">changed since you decided it (${new Date(mine.at).toLocaleString()})</div>${diff(mine.content, n.content) || `<div class="muted small">Nothing in what it says.</div>`}</div>`
         : `<div class="side"><div class="label">you have not decided it before: all of it is new</div></div>`}
@@ -655,6 +673,7 @@ function nodePane() {
     <div class="chips" style="margin-top:6px">${chips(n)}</div>
     <p class="lead">${esc(c.statement)}</p>
     <div class="why"><div class="label">why</div>${esc(c.why)}</div>
+    ${needsYou(n) ? `<h3>Decision</h3>${decisionBox(n)}` : ""}
     ${examplesTable(n)}`;
   if (n.kind === "design") {
     h += `<h3>Design decision</h3><div class="box"><div class="muted small">No formal model: decided and tracked like the rest, and every change to the files it governs is yours to review:</div>
@@ -676,6 +695,8 @@ function nodePane() {
         ${(C(parent).sources || {}).spec ? `<pre>${esc(C(parent).sources.spec)}</pre>` : parent.kind === "instantiate" ? `<div class="muted small">its spec is its parent's, instantiated</div>` : ""}</div>
       <div class="side"><div class="label">this node <b>${esc(n.id)}</b></div>${modelOf(n)}</div>
       ${n.code ? `<div class="side"><div class="label">governs</div><div class="mono small">${esc(n.code.files.join(", "))}</div></div>` : ""}
+      ${(n.expectations || []).map(e => `<div class="side"><div class="label">expected of it — ${esc(e.status)}${e.detail ? ": " + esc(e.detail) : ""}</div>
+        <div class="small">${esc(e.statement)}</div><pre>${esc(e.source)}</pre></div>`).join("")}
       ${n.kind === "contract" ? `<div class="side"><div class="label">implementation</div><div class="small">${n.implementationProof
         ? `${esc(n.implementationProof.name)}: ${esc(n.implementationProof.status)}${n.implementationProof.detail ? " — " + esc(n.implementationProof.detail) : ""}`
         : C(n).implementation ? `plain Scala, checked on its ${(n.examples || []).length} examples, every combination of their inputs, and at run time by service: not proven` : "none registered"}</div></div>` : ""}
@@ -686,7 +707,7 @@ function nodePane() {
       ${n.proof ? `<details ${n.state !== "accepted" ? "open" : ""}><summary>authored proof — ${esc(n.proof.file)}</summary><pre>${esc(n.proof.source)}</pre></details>` : ""}
     </div>`;
   }
-  h += `<h3>Decision</h3>${decisionBox(n)}`;
+  if (!needsYou(n)) h += `<h3>Decision</h3>${decisionBox(n)}`;
   if (n.messages?.length) h += `<h3>Messages</h3><pre>${esc(n.messages.join("\n\n"))}</pre>`;
   h += `<h3>Ask the agent</h3>${requestsFor(n.id)}
     ${askBox(n.id, n.kind === "contract" ? "e.g. Add an example: a revoked grant refuses access." : "e.g. Propose how to refine this: tokens expire after an hour.")}
@@ -711,9 +732,14 @@ function batches(w) {
     const cs = (n.causes || []).join();
     if (cs === "above") return "above:" + (n.moved || []).map(m => m.id).sort().join(",");
     if (cs === "self") {
-      const d = (n.history || []).filter(h => h.action === "accept" || h.action === "confirm").slice(-1)[0]?.content || {};
+      const d = (n.history || []).filter(h => ["accept", "confirm", "migrate"].includes(h.action)).slice(-1)[0]?.content || {};
       const changed = Object.keys({ ...d, ...C(n) }).filter(k => JSON.stringify(d[k] ?? null) !== JSON.stringify(C(n)[k] ?? null));
-      if (changed.length === 1 && changed[0] === "uses") return "uses:" + (C(n).uses || []).join("\n");
+      // Only the definitions and types it uses moved (and so how its examples print): the same change elsewhere.
+      if (changed.length && changed.includes("uses") && changed.every(f => ["uses", "examples", "vocabulary"].includes(f))) {
+        // The same change: the same definitions came and went, whatever else each node uses.
+        const was = new Set(d.uses || []), now = new Set(C(n).uses || []);
+        return "uses:" + JSON.stringify([[...now].filter(u => !was.has(u)).sort(), [...was].filter(u => !now.has(u)).sort()]);
+      }
     }
     return null;
   };
@@ -744,6 +770,7 @@ function inboxPane() {
   const rejected = all().filter(n => n.state === "rejected");
   const warns = snap()?.warnings || [];
   return `${warns.length ? `<div class="box failed" style="margin-top:0"><div class="verdict failed">Warnings</div>${warns.map(x => `<div class="small">${esc(x)}</div>`).join("")}</div>` : ""}
+    ${keysBox()}
     ${(snap()?.unsigned || []).length ? `<div class="box review" style="margin-top:0"><div class="verdict review">Decisions not signed by your key</div>
       <div class="muted small">Each decision you make here is signed with your key; these are not. One you did not make was written into the ledger by someone else: decide that node again. Sign only the ones that are yours.</div>
       ${snap().unsigned.map(u => `<label class="small" style="display:block"><input type="checkbox" class="unsigned" value="${esc(u.entry)}"> <a data-goto="${esc(u.node)}">${esc(u.node)}</a>: ${esc(u.action)} by ${esc(u.by)}, ${new Date(u.at).toLocaleString()} — ${esc(u.reason)}</label>`).join("")}
@@ -813,7 +840,7 @@ function vocabularyPane() {
 
 function historyPane() {
   const hs = state.history || [];
-  const verb = { accept: "accepted", confirm: "re-confirmed", reject: "rejected", remove: "agreed is gone", revisit: "to revisit", settle: "settled by the agent" };
+  const verb = { accept: "accepted", confirm: "re-confirmed", reject: "rejected", remove: "agreed is gone", revisit: "to revisit", settle: "settled by the agent", migrate: "recorded again by a new FrFlow" };
   return hs.length ? `<div class="muted small">Every decision, from the ledger (committed with the code).</div>` + hs.map(e =>
     `<div class="event"><span class="d ${esc(e.action)}"></span><div><a data-goto="${esc(e.node)}"><b>${esc(e.node)}</b></a> ${esc(verb[e.action] || e.action)} by ${esc(e.by)}${(e.rejected || []).length ? `, rejecting ${esc(e.rejected.join(", "))}` : ""}
       <div class="small">${esc(e.reason)}</div><div class="when">${new Date(e.at).toLocaleString()}</div></div></div>`).join("") : `<p class="muted">No decisions yet.</p>`;
@@ -887,6 +914,8 @@ document.addEventListener("click", async e => {
     await refresh();
     return;
   }
+  const cert = t.closest("[data-certify]");
+  if (cert) { try { await post(`${P()}/certify`, { key: cert.dataset.certify }); await refresh(); } catch (err) { alert(err.message); } return; }
   if (t.closest("[data-sign]")) {
     const entries = [...document.querySelectorAll(".unsigned:checked")].map(x => x.value);
     if (!entries.length) { alert("Tick the decisions that are yours."); return; }

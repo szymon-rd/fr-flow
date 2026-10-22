@@ -53,7 +53,8 @@ final class Project(dir: Path):
     val a = frflow.Decisions.annotate(s, l)
     val warnings = frflow.Ledger.warnings(root, ledgerFile, l).map(str) ++ a("warnings").map(_.arr.toList).getOrElse(Nil)
     JObj(a.obj.filterNot(f => f._1 == "warnings" || f._1 == "restarts") :+ ("warnings" -> JArr(warnings)) :+
-      ("restarts" -> JArr(restarts.map((c, why) => obj("commit" -> str(c), "why" -> str(why))))) :+ ("unsigned" -> JArr(unsigned)))
+      ("restarts" -> JArr(restarts.map((c, why) => obj("commit" -> str(c), "why" -> str(why))))) :+ ("unsigned" -> JArr(unsigned)) :+
+      ("keys" -> keyState))
   }
 
   /** How the code a node governs changed since the developer decided it (a git diff), so what the
@@ -105,9 +106,21 @@ final class Project(dir: Path):
 
   /** The developer's decisions not signed by a known key, for the developer to look at. */
   def unsigned: List[Json] =
-    frflow.Signing.unsigned(ledger, frflow.Signing.keys(state.resolve("keys"))).map((id, d) => obj(
+    frflow.Signing.unsigned(ledger, state.resolve("keys")).map((id, d) => obj(
       "node" -> str(id), "entry" -> str(frflow.Ledger.entry(d)), "action" -> str(d.action), "by" -> str(d.by), "at" -> str(d.at),
       "reason" -> str(d.reason)))
+
+  /** This process's key, whether it is a developer key of the project, and the keys that are not. */
+  def keyState: Json =
+    val dir = state.resolve("keys")
+    val trusted = frflow.Signing.keys(dir)
+    obj("mine" -> Project.signingKey.fold(JNull)((_, pub) => str(frflow.Signing.keyId(pub))),
+      "mineTrusted" -> JBool(Project.signingKey.exists((_, pub) => trusted.contains(frflow.Signing.keyId(pub)))),
+      "untrusted" -> JArr(frflow.Signing.keyFiles(dir).filterNot(k => trusted.contains(k.id)).map(k => str(k.id))))
+
+  /** Certifies another key with this process's developer key. */
+  def certify(id: String): Either[String, Unit] =
+    Project.signingKey.toRight("this process holds no developer key").flatMap((priv, pub) => frflow.Signing.certify(state.resolve("keys"), id, priv, pub))
 
   /** Signs the named decisions with the developer's key: the developer says they are theirs. */
   def sign(entries: Set[String]): Either[String, Unit] =

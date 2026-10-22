@@ -31,10 +31,11 @@ Scala values; Lean, generated from them, proves each step:
 | root | `Node.root[M](id, statement, why, idea = "Section")(spec)` | it is the statement of one concern of the idea |
 | refine | `parent.refine[M2](id, statement, why)(abs, spec)` | `spec m → parent.spec (abs m)` |
 | instantiate | `parent.instantiate[M2](id, statement, why)(T := of[X], p := ...)` | the parent's results, with its open terms fixed |
-| contract | `parent.contract[A, B, R](id, statement, why)(post).examples(...)(...)` | every function meeting `post` meets the parent |
+| contract | `parent.contract[A, B, R](id, statement, why)(post).examples(...)(...)`, or `parent.contractVia[A, B, R](...)(abs)(post)` for a signature of its own | every function meeting `post` meets the parent (through `abs`) |
 | implementation | `kb.implementProven(contract)(define {...})`, or `kb.implement(contract)(plain Scala)` | a `define`: every result meets the contract, and the root holds of it (`root_impl`); plain Scala: examples and run-time checks |
 | invariant | `Node.invariant[A, B](id, statement, why)(rule)`; each contract `.keeps(inv)(view)` or `.exempt(inv, because)`; each design node `.exempt(inv, because)` | every pair a call shows the rule (`view`) meets it, from the contract's post |
 | design | `parent.design(id, statement, why)(files*)` | nothing: an architecture decision or a convention, decided and tracked |
+| expectation | `node.expects(statement)(m => ...)` on a root, refine or contract | a consequence the developer expects of every model of the node, proven from its spec |
 
 So for a node, its **root theorem** holds: the root's statement is true of
 every model of the node, through every link above it. With a proven
@@ -56,10 +57,11 @@ reason of their own, and the ledger keeps both and the rejected alternatives.
 The tree is decided from the root down.
 
 **The agent settles only what Lean proves again** (`settle`):
-- a refinement or contract whose link Lean proves, with no proposal beside it,
-  no new term and no invariant to keep;
+- a refinement or contract whose link Lean proves, with no proposal or node of
+  its kind beside it, no new term and no invariant to keep;
 - a review where only something above it moved, and Lean proves the link again;
-- a new proven implementation (a `define` Lean proves to meet the contract).
+- a new proven implementation (a `define` Lean proves to meet the contract);
+- a reworded `why`, nothing else changed.
 
 Roots, instantiations (what the terms mean), designs, invariants and how a
 contract keeps one, nodes out of Lean, nodes the developer once rejected or
@@ -100,11 +102,15 @@ request.
 
 **Decisions are the developer's, and show it.** The browser server signs each
 decision with the developer's key, kept outside the repository
-(`~/.config/frflow/signing.key`, or `FRFLOW_KEY`); its public key is committed in
-`.frflow/keys/`. Once a project has a key, a developer decision without a valid
-signature (one an agent wrote into the ledger) is a warning, listed in the
-browser to decide again, or to sign if it is the developer's. The server takes
-decisions only from the page opened from the link it printed (a session token).
+(`~/.config/frflow/signing.key`, or `FRFLOW_KEY`); public keys are committed in
+`.frflow/keys/`. The project's developer key is the first one committed; another
+counts only once a developer key certifies it (in the browser), so a process
+that makes its own key gains nothing, and a removed key is a warning. CI can
+name the developer keys itself (`FRFLOW_DEVELOPER_KEYS`). Once a project has a
+key, a developer decision without a valid signature (one an agent wrote into
+the ledger) is a warning, listed in the browser to decide again, or to sign if
+it is the developer's. The server takes decisions only from the page opened
+from the link it printed (a session token).
 
 ## What Lean proves, and how it is kept honest
 
@@ -113,19 +119,26 @@ decisions only from the page opened from the link it printed (a session token).
   agent.
 - **Invariants:** the rule is stated once, over pairs (a reader and a record
   returned to them). Every contract in the invariant's `scope` (all, by
-  default) keeps it, listing the pairs a call shows (`result.map(r => (user,
-  r))`), or is exempt with a reason; Lean proves the rule for every pair from
-  the post. A view whose pairs meet the rule whatever the call returns keeps
+  default) whose result can hold what the rule is about (a record, or a store
+  of records) keeps it, listing the pairs a call shows (`result.map(r => (user,
+  r))`), or is exempt with a reason; so is every design node below a keeper.
+  Lean proves the rule for every pair from the post. A view whose pairs meet the rule whatever the call returns keeps
   it in name only, and fails.
 - **Implementations** written as a `define` are proven to meet their contract,
   and `root_impl` composes that with the chain: the root holds of the code.
-- **State.** A root over a step function `(State, Event) => State` whose spec
-  is `inv(initial) && forall((s, e) => inv(s) ==> inv(step(s, e)))` states an
-  inductive invariant; `FrFlow.always` lifts it to every state reached from
-  `initial`. The CRM's writes are modelled this way, proven down to the code.
+- **State.** A root over runs, `List[Event] => State` ("every state reached is
+  consistent"), is refined by a step `(State, Event) => State` with `abs` the
+  fold of the steps from the initial state; the link is proven by induction
+  (`FrFlow.always`). The CRM's writes are modelled this way, proven down to the
+  code.
+- **Expectations:** consequences the developer states (`expects`), proven from
+  the node's spec, so the theory is tested, not only approved.
+- **What a contract leaves to the examples:** whether doing nothing (returning
+  nothing, or the input unchanged) meets it, tried by `frflow_auto`; if so, it
+  is listed with what the contract does not promise.
 - **Authored link proofs need a witness:** `feasible` (some model meets the
-  node), unless a proven implementation is one, so a hand-written proof cannot
-  rest on a contradiction.
+  node), unless a proven implementation at or below it is one, so a
+  hand-written proof cannot rest on a contradiction.
 - **Saying nothing fails, when `frflow_auto` shows it:** a claim (a link, a kept
   invariant) that holds without the node's own statement, a node no model
   meets, and a node that makes the root hold by itself (through an `abs` or a
@@ -288,9 +301,9 @@ The MCP tools are `inbox`, `context`, `render`, `check`, `answer`, `settle`,
     browser runs on the developer's machine; agents run in their sandbox);
   - authored proof files, which Lean runs when checking (the filter is hygiene;
     the guarantee is the kernel replay and the axiom audit).
-- **Not covered:** properties over time or state, effects outside a pure core
-  behind `service`, whether a contract can be met beyond its examples (a
-  proven implementation shows it can), and code outside `src/main`.
+- **Not covered:** properties over time other than what holds of every
+  reachable state (ordering, liveness), effects outside a pure core behind
+  `service`, and code outside `src/main`.
 
 ## Usage
 
@@ -304,8 +317,11 @@ sbt "crm/run status"                      # exits 1 unless everything is decided
 sbt "crm/run context ReadContract"        # everything known about a node, for agents and people
 ```
 
-Committed: the Scala, `IDEA.md`, `.frflow/ledger.json` and `lean/Proofs`.
-Everything else is derived and git-ignored.
+Committed: the Scala, `IDEA.md`, `.frflow/ledger.json`, `.frflow/keys`, the
+requests and answers between the developer and the agent
+(`.frflow/requests.json`), and `lean/Proofs`. Everything else is derived and
+git-ignored. When a new FrFlow records content in a new shape, the node is
+migrated (`migrate`), not decided again.
 
 ## Layout
 

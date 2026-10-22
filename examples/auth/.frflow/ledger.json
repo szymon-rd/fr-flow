@@ -35,13 +35,11 @@
         }
       },
       {
-        "action": "accept",
+        "action": "migrate",
         "by": "claude-example-data",
         "at": "2026-10-21T21:56:45.434952068Z",
         "reason": "Format change only: terms are now listed at the node that first uses them; the meaning is unchanged.",
         "commit": "79d5d92ad9783b8d12890dd8ed6baeb07d5ac38a",
-        "key": "0f551cc8e3f37f9f",
-        "sig": "U5AJdbJUHTTbVLqmXBhl7BYjg/Vy+PM4+yQ49HprHfZ+pEBLWgggglAzlJCTeL7NyjUl58cwPlUwJ23y5kvyCA==",
         "chain": "5a68cbbb8e6fc9e8dc241543898bb8e427df957285b8885e89433220d1e7d546",
         "content": {
           "parent": "NoUnauthorizedAccess",
@@ -130,14 +128,12 @@
         }
       },
       {
-        "action": "accept",
+        "action": "migrate",
         "by": "claude-example-data",
         "at": "2026-10-21T21:56:48.420210252Z",
         "reason": "Format change only: terms are now listed at the node that first uses them; the meaning is unchanged. Format change only: the contract now shows how its implementation is built; same code as before.",
         "code": "945683e2a0ae0caddb95a65d3faa270ad3d5a9ada7d4507531215023b1791b18",
         "commit": "79d5d92ad9783b8d12890dd8ed6baeb07d5ac38a",
-        "key": "0f551cc8e3f37f9f",
-        "sig": "1RLO2XfYzdsy+xGVZ8eAGouG8TS9xtHdZF2685gf1dghrCGZeR+5hDScbh3dG23Y5Llk5mriHT2wBNv8qYohBA==",
         "chain": "4e5e5ff2b28e93ee3baef6f2030ed4d28a2301f34ff656a4eb70a5558cf0b091",
         "content": {
           "parent": "GrantBased",
@@ -164,15 +160,13 @@
         }
       },
       {
-        "action": "accept",
+        "action": "migrate",
         "by": "claude-example-data",
         "at": "2026-10-21T23:17:29.549065814Z",
         "reason": "Format change only: decisions are now bound to the Scala a node uses rather than generated Lean, ignore whitespace, and record how the implementation is built. The meaning is unchanged.",
         "code": "945683e2a0ae0caddb95a65d3faa270ad3d5a9ada7d4507531215023b1791b18",
         "commit": "dcb0d33b59cc517b50431d9a807394cfa552ba15",
         "tree": "77e1426f8f0a70e9f535c5df50e63582598ecd1d",
-        "key": "0f551cc8e3f37f9f",
-        "sig": "u4LEUxXYznI7+wSPjQJkk491Sp+HLehqHEW7bHo4ympodfmmmVHPZRLecXD2X+dufsfRsLqj8+Prie2Yl0pKDA==",
         "chain": "faab4fea8465dd522f53a47575a9086f32c7da7cc011163d780dff4cbc40145c",
         "content": {
           "parent": "GrantBased",
@@ -240,13 +234,11 @@
         }
       },
       {
-        "action": "accept",
+        "action": "migrate",
         "by": "claude-example-data",
         "at": "2026-10-21T21:56:46.996177828Z",
         "reason": "Format change only: terms are now listed at the node that first uses them; the meaning is unchanged.",
         "commit": "79d5d92ad9783b8d12890dd8ed6baeb07d5ac38a",
-        "key": "0f551cc8e3f37f9f",
-        "sig": "o9jDY2b7sE1I+zQrJ6MmHE9YrKc2NQEteaThVWIFisMUxon/BqtNxU7rlphiDPRVjU/hmDIDzxDotVRRbUOLDg==",
         "chain": "21373aa9109a318073af1be8b371aaab60003154e9a5efaa57553e27a71ffb24",
         "content": {
           "parent": "Authenticated",
@@ -274,14 +266,12 @@
         }
       },
       {
-        "action": "accept",
+        "action": "migrate",
         "by": "claude-example-data",
         "at": "2026-10-21T23:17:26.425572044Z",
         "reason": "Format change only: decisions are now bound to the Scala a node uses rather than generated Lean, ignore whitespace, and record how the implementation is built. The meaning is unchanged.",
         "commit": "dcb0d33b59cc517b50431d9a807394cfa552ba15",
         "tree": "77e1426f8f0a70e9f535c5df50e63582598ecd1d",
-        "key": "0f551cc8e3f37f9f",
-        "sig": "M9HKDEi5F2V8zk/Jfug53adP6RxoLL6Q/KjQtie8n9a5SNJt0OZLkZqUkMpD4v2IROWYCpwT65WzEBA3XimYBg==",
         "chain": "21373aa9109a318073af1be8b371aaab60003154e9a5efaa57553e27a71ffb24",
         "content": {
           "parent": "Authenticated",

@@ -85,13 +85,18 @@ class NodeSuite extends munit.FunSuite:
     val run = bad.service(kept)(minPages.bind(100))
     intercept[ContractViolation](run(List(Book("Long", 300)), 1))
     // every contract in its scope keeps it or says why not; an invariant nobody keeps is a problem
-    val unkept = KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, pick, atMostN).problems
+    // every contract whose result can hold what the rule is about keeps it or says why not
+    val fromShelf = Node.invariant[List[Book], Book]("FromShelf", "Only books on the shelf are picked.", "w")((shelf, b) => shelf.contains(b))
+    val unkept = KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, pick, fromShelf).problems
     assert(unkept.exists(_.contains("no contract keeps")), unkept)
-    assert(unkept.exists(_.startsWith("Pick: keep AtMostN")), unkept)
-    val exempt = KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, pick.exempt(atMostN, "picking has no limit to keep"), kept, atMostN)
+    assert(unkept.exists(_.startsWith("Pick: keep FromShelf")), unkept)
+    val exempt = KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books,
+      pick.keeps(fromShelf)((shelf, n, picked) => picked.map(b => (shelf, b))), kept.exempt(fromShelf, "the shelf is checked by Pick"), fromShelf, atMostN)
     assertEquals(exempt.problems, Nil)
+    // a rule about numbers does not reach a contract that returns books
+    assert(!KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, pick, kept, atMostN).problems.exists(_.startsWith("Pick: keep AtMostN")))
     // an invariant scoped to another subtree does not apply
-    val scoped = Node.invariant[Int, Int]("Scoped", "s", "w", scope = List(onlyGood))((a, b) => b <= a)
+    val scoped = Node.invariant[List[Book], Book]("Scoped", "s", "w", scope = List(onlyGood))((shelf, b) => shelf.contains(b))
     assert(KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, pick, scoped).problems.exists(_.startsWith("Pick: keep Scoped")))
   }
 

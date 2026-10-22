@@ -19,6 +19,4 @@ share is of a stored record.
 
 - That the account a search or a write runs for is the caller's own
   (authentication).
-- That a search returns every matching record the user may see: only what it
-  must not return is modelled.
 - Editing or removing records.

@@ -22,6 +22,7 @@ import java.util.concurrent.Executors
   * POST /api/p/NAME/run      {"args": [...]} render / check / scaffold
   * POST /api/p/NAME/decide   {"node", "by", "reason", "action", "seen", "reject", "revisit", "confirm"}   the developer's decision
   * POST /api/p/NAME/sign     {"entries"}     signs decisions the developer says are theirs
+  * POST /api/p/NAME/certify  {"key"}         makes another key a developer key of the project
   * POST /api/p/NAME/requests {"node", "text", "by"}
   * POST /api/p/NAME/requests/ID {"status", "answer"}
   * POST /api/p/NAME/idea     {"text"}        saves IDEA.md and starts a render
@@ -146,9 +147,15 @@ final class Server(projects: List[Project], val token: String = Server.newToken(
               body("seen").flatMap(_.str).getOrElse(""))
             if !Project.Ident.matches(req.node) then error(ex, 400, "expected a node id")
             else if req.action == "settle" then error(ex, 403, "the browser is where the developer decides; the agent settles through MCP")
-            else if Set("accept", "reject")(req.action) && req.seen.isEmpty then
+            else if Set("accept", "reject", "migrate")(req.action) && req.seen.isEmpty then
               error(ex, 400, "send the version of the node you looked at (seen), so a decision on a node that moved is refused")
             else p.decide(req) match
+              case Left(why) => error(ex, 409, why)
+              case Right(()) => signal(); json(ex, obj("ok" -> JBool(true)))
+          case List("certify") =>
+            val id = field("key")
+            if !id.matches("[0-9a-f]{16}") then error(ex, 400, "expected a key id")
+            else p.certify(id) match
               case Left(why) => error(ex, 409, why)
               case Right(()) => signal(); json(ex, obj("ok" -> JBool(true)))
           case List("sign") =>

@@ -78,7 +78,8 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
     val kept: List[Keep] = Nil,
     val scope: List[Node[?]] = Nil,
     val ideaSection: String = "",
-    val file: String = ""
+    val file: String = "",
+    val expected: List[(String, Lifted[?])] = Nil
 ):
   /** Whether Lean checks this node: it did not opt out, and neither did anything above it. */
   def formal: Boolean = declaredFormal && parent.forall(_.formal)
@@ -89,7 +90,14 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
   /** The node's lambdas, translated or not: what it refers to (definitions, parameters, opaque types)
     * is known either way, so a change to them reaches it.
     */
-  def referenced: List[Lifted[?]] = spec.toList ++ abs.toList ++ post.toList ++ substs.flatMap(_.term) ++ kept.flatMap(_.view)
+  def referenced: List[Lifted[?]] = spec.toList ++ abs.toList ++ post.toList ++ substs.flatMap(_.term) ++ kept.flatMap(_.view) ++
+    expected.map(_._2)
+
+  /** A consequence the developer expects of every model of this node, stated as a check of their
+    * understanding (Lean proves it from the node's spec): "Acme never sees Globex's unshared contact".
+    */
+  inline def expects(statement: String)(inline consequence: M => Boolean): Node[M] =
+    copy(expected = expected :+ (statement -> Lifted.of(true, consequence)))
 
   /** A more concrete model. `why` is the reason for this step, including why `abs` maps it faithfully. */
   inline def refine[M2](id: String, statement: String, why: String, inline formal: Boolean = true)(
@@ -106,8 +114,17 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
       inline post: (A, B, R) => Boolean)(using M =:= ((A, B) => R)): Node[(A, B) => R] =
     Node(id, statement, why, NodeKind.Contract, Some(this), None, None, Some(Lifted.of(formal, post)), Nil, declaredFormal = formal, file = Lifted.here)
 
-  private def copy(cases: List[Example] = cases, governs: List[String] = governs, kept: List[Keep] = kept): Node[M] =
-    Node(id, statement, why, kind, parent, spec, abs, post, substs, cases, governs, declaredFormal, kept, scope, ideaSection, file)
+  private def copy(cases: List[Example] = cases, governs: List[String] = governs, kept: List[Keep] = kept,
+      expected: List[(String, Lifted[?])] = expected): Node[M] =
+    Node(id, statement, why, kind, parent, spec, abs, post, substs, cases, governs, declaredFormal, kept, scope, ideaSection, file, expected)
+
+  /** A contract with a signature of its own: `abs` says what an implementation is as the parent's
+    * model (a new read path below an existing instantiation, say). Proven: `spec f → parent.spec (abs f)`.
+    */
+  inline def contractVia[A, B, R](id: String, statement: String, why: String, inline formal: Boolean = true)(
+      inline abs: ((A, B) => R) => M)(inline post: (A, B, R) => Boolean): Node[(A, B) => R] =
+    Node(id, statement, why, NodeKind.Contract, Some(this), None, Some(Lifted.of(formal, abs)), Some(Lifted.of(formal, post)), Nil,
+      declaredFormal = formal, file = Lifted.here)
 
   private[frflow] def withExamples(es: List[Example]): Node[M] =
     copy(cases = cases ++ es)
@@ -442,11 +459,28 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     (nodes.flatMap(_.referenced) ++ defs.map(_.lifted)).flatMap(_.opaqueObjects).groupBy(_.name).values.map(_.head).toList.sortBy(_.name)
   def children(n: Node[?]): List[Node[?]] = nodes.filter(_.parent.contains(n))
 
-  /** The contracts and design decisions an invariant applies to: those below its scope, or all when
-    * it names none. A design decision governs code no proof covers: it says why it does not break it.
+  /** The contracts and design decisions an invariant applies to, below its scope (or anywhere): the
+    * contracts whose result can hold what the rule is about, and the design decisions below a contract
+    * that keeps it (they govern code no proof covers on that path, and say why it does not break it).
     */
   def inScope(i: Node[?]): List[Node[?]] =
-    nodes.filter(c => (c.kind == NodeKind.Contract || c.kind == NodeKind.Design) && (i.scope.isEmpty || path(c).exists(a => i.scope.exists(_ eq a))))
+    // What the rule is about (the second of its pairs, such as a record), as a Lean type.
+    val about = i.spec.flatMap(_.params.lift(1)).map(_._2)
+    // A type holds it if it names it, or names a type that holds it (a store of records).
+    val uses = types.map(t => t.name -> t.uses).toMap
+    def holds(t: String, seen: Set[String] = Set.empty): Boolean =
+      val names = """[A-Za-z_][\w.]*""".r.findAllIn(t).toList
+      about.forall(a => names.contains(a) || names.filterNot(seen).exists(n => uses.get(n).exists(u => holds(u.mkString(" "), seen + n))))
+    def mentions(t: String) = holds(t)
+    def returnsIt(c: Node[?]) = c.post.forall(p => p.params.isEmpty || mentions(p.params.last._2))
+    def keeper(c: Node[?]) = c.kept.exists(k => (k.invariant eq i) && k.view.nonEmpty)
+    nodes.filter { c =>
+      (i.scope.isEmpty || path(c).exists(a => i.scope.exists(_ eq a))) && (c.kind match
+        case NodeKind.Contract => returnsIt(c)
+        // A design decision below a contract that keeps the rule governs code on that path.
+        case NodeKind.Design   => path(c).exists(a => a.kind == NodeKind.Contract && keeper(a))
+        case _                 => false)
+    }
   def path(n: Node[?]): List[Node[?]] = n.parent.fold(List(n))(p => path(p) :+ n)
   def ordered: List[Node[?]] = nodes.sortBy(path(_).size)
 

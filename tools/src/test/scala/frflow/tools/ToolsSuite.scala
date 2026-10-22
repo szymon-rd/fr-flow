@@ -231,3 +231,22 @@ class ToolsSuite extends munit.FunSuite:
     finally names.foreach(n => Files.deleteIfExists(java.nio.file.Paths.get(n)))
   }
 
+
+  test("a second key counts only once a developer key certifies it") {
+    val dir = Files.createTempDirectory("frflow-keys")
+    val (p1, k1) = frflow.Signing.loadOrCreate(Files.createTempDirectory("k1").resolve("key"))
+    val (p2, k2) = frflow.Signing.loadOrCreate(Files.createTempDirectory("k2").resolve("key"))
+    frflow.Signing.publish(k1, dir)
+    assertEquals(frflow.Signing.keys(dir).keySet, Set(frflow.Signing.keyId(k1)))
+    // a process that makes its own key and publishes it: not a developer key
+    def git(args: String*) = { val pr = ProcessBuilder(("git" +: args)*).directory(dir.toFile).redirectErrorStream(true).start(); pr.getInputStream.readAllBytes(); pr.waitFor() }
+    git("init", "-q"); git("config", "user.email", "t@t"); git("config", "user.name", "t"); git("add", "-A"); git("commit", "-qm", "the first key")
+    frflow.Signing.publish(k2, dir)
+    assertEquals(frflow.Signing.keys(dir).keySet, Set(frflow.Signing.keyId(k1)))
+    assertEquals(frflow.Signing.untrusted(dir).size, 1)
+    // it cannot certify itself; the developer certifies it, and then it counts
+    assert(frflow.Signing.certify(dir, frflow.Signing.keyId(k2), p2, k2).isLeft)
+    assert(frflow.Signing.certify(dir, frflow.Signing.keyId(k2), p1, k1).isRight)
+    assertEquals(frflow.Signing.keys(dir).keySet, Set(frflow.Signing.keyId(k1), frflow.Signing.keyId(k2)))
+    assertEquals(frflow.Signing.untrusted(dir), Nil)
+  }

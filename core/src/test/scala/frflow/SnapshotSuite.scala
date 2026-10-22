@@ -382,3 +382,28 @@ class SnapshotSuite extends munit.FunSuite:
     assert(a("nodes").get.arr.forall(_("state").flatMap(_.str).contains("accepted")), a("nodes").get.arr.head)
     assert(seconds < 5, s"$seconds s")
   }
+
+  test("rejecting a proposal rejects what rests on it; a reworded why is the agent's to settle, for the developer to endorse") {
+    val w = workflow()
+    val snap = proven(w.baseSnapshot)
+    def at(i: Int) = f"2026-01-01T00:01:$i%02dZ"
+    def decide(s: Json, l: Ledger, id: String, action: String, i: Int, by: String = "dev") =
+      Decisions.decide(s, l, Decisions.Request(id, by, s"$id holds for this reason", action = action), at(i))
+    val l1 = decide(snap, Ledger.empty, "OnlyGood", "accept", 1).toOption.get
+    val rejected = decide(snap, l1, "Listed", "reject", 2).fold(e => fail(e), identity)
+    assertEquals(List("Listed", "Books", "Pick").map(rejected.current(_).map(_.action)), List.fill(3)(Some("reject")))
+    // all accepted; then only Listed's why is reworded
+    val all = List("Listed", "Books", "Pick").zipWithIndex.foldLeft(l1)((l, x) => decide(snap, l, x._1, "accept", 3 + x._2).fold(e => fail(e), identity))
+    val reworded = Json.JObj(snap.obj.map {
+      case ("nodes", Json.JArr(ns)) => "nodes" -> Json.JArr(ns.map { n =>
+        if n("id").flatMap(_.str).contains("Listed") then
+          val c = Json.JObj(n("content").get.obj.map { case ("why", _) => "why" -> Json.str("Reworded, saying the same."); case f => f })
+          Json.JObj(n.obj.map { case ("content", _) => "content" -> c; case ("hash", _) => "hash" -> Json.str(Decision.hash(c)); case f => f })
+        else n
+      })
+      case f => f
+    })
+    assertEquals(Decisions.causes(reworded, all, nodes(reworded)("Listed")), List("self"))
+    assertEquals(Decisions.settleable(reworded, all, nodes(reworded)("Listed")), None)
+    assert(Decisions.causes(reworded, all, nodes(reworded)("Books")).isEmpty) // a why does not cascade
+  }

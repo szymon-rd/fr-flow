@@ -168,7 +168,9 @@ object Decisions:
   private def resembles(ledger: Ledger, n: Json): List[Json] =
     val id = s(n, "id")
     val mine = n("content").getOrElse(JNull)
-    def same(c: Json) = meaning(JObj(c.obj.filterNot(_._1 == "parent"))) == meaning(JObj(mine.obj.filterNot(_._1 == "parent"))) ||
+    // The same formal content (what Lean checks), however it is worded or named; or the same statement.
+    def formal(c: Json) = Decision.hash(JObj(c.obj.filter(f => Set("sources", "substitutions")(f._1))))
+    def same(c: Json) = (formal(c) == formal(mine) && (c("sources").exists(_.obj.nonEmpty) || c("substitutions").exists(_.arr.nonEmpty))) ||
       c("statement").flatMap(_.str).exists(st => mine("statement").flatMap(_.str).contains(st))
     if ledger.binding(id).isDefined then Nil
     else ledger.decisions.toList.sortBy(_._1).flatMap((other, ds) => ds.lastOption.filter(d => other != id && d.action == "reject" && same(d.content))
@@ -221,8 +223,9 @@ object Decisions:
     val kind = s(n, "kind")
     val st = v.state(n)
     val cs = v.causes(n)
-    // Accepted nodes beside it are complements; a proposal beside it is an alternative to choose from.
-    val siblings = v.children.getOrElse(n("parent").flatMap(_.str).getOrElse(""), Nil).filter(m => s(m, "id") != id && v.state(m) == "proposed")
+    // A proposal beside it, or a decided node of its kind, is an alternative: the developer chooses.
+    val siblings = v.children.getOrElse(n("parent").flatMap(_.str).getOrElse(""), Nil)
+      .filter(m => s(m, "id") != id && v.state(m) != "rejected" && (v.state(m) == "proposed" || s(m, "kind") == kind))
     val introduces = n("content").flatMap(_("vocabulary")).exists(_.arr.nonEmpty)
     val link = n("link").filter(_ != JNull).map(s(_, "status"))
     val (ok, total) = examples(n)
@@ -231,8 +234,20 @@ object Decisions:
     def without(c: Json) = JObj(c.obj.filterNot(_._1 == "implementation"))
     val implOnly = cs.contains("self") && n("implementationProof").exists(p => p != JNull && s(p, "status") == "proven") &&
       ledger.binding(id).exists(d => Decision.hash(without(d.content)) == Decision.hash(without(n("content").getOrElse(JNull))))
-    val reproven = st == "review" && cs.nonEmpty && cs.forall(c => c == "above" || (c == "self" && implOnly))
-    if !Set("refine", "contract")(kind) then Some(s"$kind nodes are the developer's to decide")
+    // Only its reason was reworded: nothing Lean checks moved, and the developer reads it when endorsing.
+    def onlyWhy(c: Json) = JObj(c.obj.filterNot(_._1 == "why"))
+    val whyOnly = cs == List("self") && ledger.binding(id).exists(d => Decision.hash(onlyWhy(d.content)) == Decision.hash(onlyWhy(n("content").getOrElse(JNull))))
+    // Only the shape of a domain type it uses changed (a field added, say), and how its examples print:
+    // no definition, nothing it says. A changed definition stays the developer's: it can carry meaning.
+    def strs(c: Json, k: String) = c(k).map(_.arr.flatMap(_.str).toSet).getOrElse(Set.empty)
+    def isType(u: String) = u.startsWith("case class ") || u.startsWith("enum ")
+    val typesOnly = cs == List("self") && ledger.binding(id).exists { d =>
+      val (was, now) = (d.content, n("content").getOrElse(JNull))
+      def rest(c: Json) = JObj(c.obj.filterNot(f => f._1 == "uses" || f._1 == "examples"))
+      Decision.hash(rest(was)) == Decision.hash(rest(now)) && ((strs(was, "uses") diff strs(now, "uses")) ++ (strs(now, "uses") diff strs(was, "uses"))).forall(isType)
+    }
+    val reproven = st == "review" && cs.nonEmpty && cs.forall(c => c == "above" || (c == "self" && (implOnly || whyOnly || typesOnly)))
+    if !Set("refine", "contract")(kind) && !(kind == "instantiate" && st == "review" && typesOnly) then Some(s"$kind nodes are the developer's to decide")
     else if st == "accepted" then Some(s"$id is already accepted")
     else if st == "settled" then Some(s"$id is already settled: the developer endorses it")
     else if st == "rejected" then Some(s"$id was rejected")
@@ -241,7 +256,7 @@ object Decisions:
     else if !link.contains("proven") then Some(s"$id's link is ${link.getOrElse("unchecked")}: only a link Lean proves is settled by the agent")
     else if cs.contains("code") then Some(s"the code $id governs changed, and no proof covers it: the developer decides")
     else if st == "review" && !reproven then Some(s"what $id says changed: the developer decides")
-    else if st == "proposed" && siblings.nonEmpty then Some(s"$id has proposals beside it: the developer chooses")
+    else if st == "proposed" && siblings.nonEmpty then Some(s"$id stands beside ${siblings.map(s(_, "id")).mkString(", ")}: an alternative or a part, the developer decides")
     else if st == "proposed" && introduces then Some(s"$id introduces terms: the developer decides what they mean")
     else if st == "proposed" && kept(n).nonEmpty then Some(s"$id names invariants: how a contract keeps one is the developer's to decide")
     else if waitsFor(snapshot, ledger, n).isDefined then Some(s"$id waits for ${waitsFor(snapshot, ledger, n).get}")
@@ -257,8 +272,9 @@ object Decisions:
   def below(snapshot: Json, ledger: Ledger, n: Json): List[Json] =
     val id = s(n, "id")
     def children(x: String) = view(snapshot, ledger).children.getOrElse(x, Nil)
+    // Moved only by this node, or by nodes above it already accepted again.
     def movedOnlyBy(c: Json) = causes(snapshot, ledger, c) == List("above") &&
-      moved(snapshot, ledger, c).flatMap(_("id").flatMap(_.str)).forall(_ == id)
+      moved(snapshot, ledger, c).flatMap(_("id").flatMap(_.str)).forall(m => m == id || byId(snapshot).get(m).exists(x => holds(state(snapshot, ledger, x))))
     def go(x: String): List[Json] = children(x).flatMap { c =>
       val cid = s(c, "id")
       val st = state(snapshot, ledger, c)
@@ -313,7 +329,10 @@ object Decisions:
     def make(action: String, n: Json, rejected: List[String], reason: String) =
       Decision(action, n("content").getOrElse(JNull), parentChain(snapshot, n), r.by, at, reason, rejected, code(n), commit, tree)
     if r.by.trim.isEmpty then Left("say who decides")
-    else if !Set("accept", "reject", "settle", "acknowledge")(r.action) then Left(s"unknown decision ${r.action}")
+    else if !Set("accept", "reject", "settle", "acknowledge", "migrate")(r.action) then Left(s"unknown decision ${r.action}")
+    // Whether the agent may settle it at all comes first.
+    else if r.action == "settle" && ids.get(r.node).flatMap(settleable(snapshot, ledger, _)).isDefined then
+      Left(s"the agent may not settle this: ${settleable(snapshot, ledger, ids(r.node)).get}")
     else if r.reason.trim.split("\\s+").count(_.exists(_.isLetter)) < 3 then
       Left("give the reason for the decision in a few words: it is kept as part of the theory")
     else if r.action == "acknowledge" then
@@ -331,13 +350,22 @@ object Decisions:
       val n = ids(r.node)
       val parent = n("parent").flatMap(_.str)
       val bad = r.reject.filter(x => x == r.node || !ids.get(x).exists(_("parent").flatMap(_.str) == parent))
-      if r.action == "settle" then
+      if r.action == "migrate" then
+        // Only the shape of what FrFlow records changed (a new FrFlow), not what the node says.
+        if st(ledger, r.node) != "review" || causes(snapshot, ledger, n) != List("self") then Left(s"only a node whose own content changed shape is migrated")
+        else Right(ledger.add(r.node, make("migrate", n, Nil, r.reason)))
+      else if r.action == "settle" then
         settleable(snapshot, ledger, n) match
           case Some(why) => Left(s"the agent may not settle this: $why")
           case None => Right(ledger.add(r.node, make("settle", n, Nil, r.reason)))
       else if r.action == "reject" then
         if st(ledger, r.node) != "proposed" then Left(s"${r.node} is ${st(ledger, r.node)}: only a proposal is rejected on its own")
-        else Right(ledger.add(r.node, make("reject", n, Nil, r.reason)))
+        else
+          // The proposals below it rested on it: they go with it.
+          def proposedBelow(x: String): List[String] = view(snapshot, ledger).children.getOrElse(x, Nil)
+            .filter(c => st(ledger, s(c, "id")) == "proposed").flatMap(c => s(c, "id") :: proposedBelow(s(c, "id")))
+          Right(proposedBelow(r.node).foldLeft(ledger.add(r.node, make("reject", n, Nil, r.reason)))((l, x) =>
+            l.add(x, make("reject", ids(x), Nil, s"${r.node}, which it rested on, was rejected: ${r.reason}"))))
       else if waitsFor(snapshot, ledger, n).isDefined then
         Left(s"accept ${parent.get} first: what rests on it is decided after it")
       else if bad.nonEmpty then Left(s"not an alternative to ${r.node}: ${bad.mkString(", ")}")
@@ -394,8 +422,10 @@ object Decisions:
       val link = n("link").filter(_ != JNull).fold("") { l => s", link ${s(l, "status")}${if s(l, "detail").nonEmpty then s" (${s(l, "detail")})" else ""}" }
       val (ok, total) = examples(n)
       val ex = if total == 0 then "" else s", examples $ok/$total"
-      val inv = n("invariants").map(_.arr.toList).getOrElse(Nil).map(i => s"${s(i, "id")} ${s(i, "status")}")
-      val keeps = if inv.isEmpty then "" else s", keeps ${inv.mkString(", ")}"
+      val all = n("invariants").map(_.arr.toList).getOrElse(Nil)
+      val (exempt, kept) = all.partition(i => s(i, "status") == "exempt")
+      val keeps = (if kept.isEmpty then "" else s", keeps ${kept.map(i => s"${s(i, "id")} ${s(i, "status")}").mkString(", ")}") +
+        (if exempt.isEmpty then "" else s", exempt from ${exempt.map(s(_, "id")).mkString(", ")}")
       val impl = n("implementationProof").filter(_ != JNull).fold("")(p => s", implementation ${s(p, "status")}")
       val covers = n("covers").map(_.arr.flatMap(_.str).toList).filter(_.nonEmpty).fold("")(cs => s", kept by ${cs.mkString(", ")}")
       val here = if mark.contains(s(n, "id")) then "   ← this node" else ""
@@ -455,7 +485,8 @@ object Decisions:
       val (ok, total) = examples(n)
       s(n, "state") == "accepted" && n("link").forall(l => l == JNull || Set("proven", "informal")(s(l, "status"))) && ok == total &&
         n("invariants").forall(_.arr.forall(i => Set("proven", "informal", "exempt")(s(i, "status")))) &&
-        n("implementationProof").forall(p => p == JNull || Set("proven", "informal")(s(p, "status")))
+        n("implementationProof").forall(p => p == JNull || Set("proven", "informal")(s(p, "status"))) &&
+        n("expectations").forall(_.arr.forall(e => Set("proven", "informal")(s(e, "status"))))
     }
 
   /** The nodes the agent settled that the developer has not endorsed yet. */

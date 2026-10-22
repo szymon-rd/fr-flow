@@ -71,6 +71,12 @@ class LiftSuite extends munit.FunSuite:
     assert(compileErrors("frflow.Lifted((x: BigInt, y: BigInt) => x / y)").contains("may be zero"))
   }
 
+  test("a fold over a list: what a sequence of steps leads to") {
+    val c = Lifted((l: List[BigInt]) => l.foldLeft(BigInt(0))((acc, x) => acc + x) >= 0)
+    assertEquals(c.body, "((List.foldl (fun (acc : Int) (x : Int) => (acc + x)) 0 l) ≥ 0)")
+    assert(c.value(List(BigInt(1), BigInt(2))))
+  }
+
   test("names Lean defines cannot be captured, nor calls hidden in strings") {
     assertEquals(Lifted((some: Int) => some > 1).body, "(some_ > 1)")
     assert(Lifted((s: String) => s == "⟦long⟧").body.contains("\\u27E6long\\u27E7"))

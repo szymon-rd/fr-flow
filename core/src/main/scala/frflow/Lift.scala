@@ -574,6 +574,7 @@ private final class Translator(using val quotes: Quotes):
       case ("exists", 1) if qt.derivesFrom(ListSym) =>
         val (x, b) = lam(args.head); Some(p(s"∃ $x ∈ $r, $b"))
       case ("map", 1) if qt.derivesFrom(ListSym)         => Some(p(s"List.map ${e(args.head)} $r"))
+      case ("foldLeft", 2) if qt.derivesFrom(ListSym)    => Some(p(s"List.foldl ${e(args(1))} ${e(args.head)} $r"))
       case ("filter", 1) if qt.derivesFrom(ListSym) =>
         val (x, b) = lam(args.head); Some(p(s"List.filter (fun $x => decide $b) $r"))
       case ("forall", 1) if qt.derivesFrom(OptionSym) =>

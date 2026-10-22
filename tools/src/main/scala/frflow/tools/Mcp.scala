@@ -10,7 +10,7 @@ import java.nio.charset.StandardCharsets.UTF_8
   * Tools run the knowledge base's CLI, which builds everything from the Scala
   * definitions. The agent proposes nodes and answers the developer's requests. Choices are the
   * developer's, in the browser; the agent may only settle what involves none (`settle`), and the
-  * developer spot-checks it.
+  * developer endorses it.
   */
 final class Mcp(projects: List[Project]):
   private val byName = projects.map(p => p.name -> p).toMap
@@ -37,12 +37,9 @@ final class Mcp(projects: List[Project]):
       "Expiring is simpler, Sliding keeps active users signed in. Choose in the browser.' Without a request, pass `node` " +
       "to tell the developer about work they did not ask for (a node to revisit, a change you made).",
       schema(project, "request" -> obj("type" -> str("string")), "node" -> obj("type" -> str("string")), "text" -> obj("type" -> str("string")))("text")),
-    tool("settle", "Settle a mechanical decision yourself, where a check re-runs on it: a refinement or contract whose link " +
-      "Lean proves, with no proposal beside it, no new term and no invariant to keep; a review where only something above it " +
-      "moved and Lean proves the link again; or a new proven implementation (a define Lean proves to meet its contract). Plain code is the developer's. " +
-      "Refused otherwise: roots, instantiations, designs, invariants, nodes out of Lean, nodes the developer once rejected, and " +
-      "changes to what a node says are the developer's. First read its context, including the reasons above and below it; do " +
-      "not settle if any 'revisit if' condition there may be met. Status fails until the developer endorses what you settled.",
+    tool("settle", "Settle a decision that involves no choice, where Lean proves it again (the rules are in the frflow skill, " +
+      "rule 1; the tool refuses anything else). First read its context, with the reasons above and below it; do not settle if " +
+      "a 'revisit if' condition there may be met. Status fails until the developer endorses what you settled.",
       schema(project, node, "reason" -> obj("type" -> str("string"), "description" -> str("Why it holds, in a sentence.")))("node", "reason")),
     tool("find", "Where a change belongs: the nodes that govern a file (pass a path relative to the project), or the nodes " +
       "whose id, statement or reason mention some words. Extend those nodes rather than adding a near-duplicate.",

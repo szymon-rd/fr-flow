@@ -45,19 +45,78 @@ object Signing:
       catch case _: Exception => false
     }
 
-  /** The developer keys committed in `dir`, by id. */
-  def keys(dir: Path): Map[String, PublicKey] =
-    if !Files.isDirectory(dir) then Map.empty
-    else Files.list(dir).iterator.asScala.toList.filter(_.toString.endsWith(".pub")).flatMap { f =>
-      try
-        val pub = KeyFactory.getInstance("Ed25519").generatePublic(X509EncodedKeySpec(Base64.getDecoder.decode(Files.readString(f, UTF_8).trim)))
-        Some(keyId(pub) -> pub)
-      catch case _: Exception => None
-    }.toMap
+  /** A key in `.frflow/keys/<id>.pub`: the public key, and, for any but the project's first key, a
+    * certificate (the id of a developer key and its signature of this key).
+    */
+  final case class KeyFile(id: String, pub: PublicKey, certifiedBy: Option[(String, String)])
 
-  /** The developer's decisions not signed by a known key; none while the project has no key. */
-  def unsigned(l: Ledger, keys: Map[String, PublicKey]): List[(String, Decision)] =
-    if keys.isEmpty then Nil
+  private def parse(text: String): Option[KeyFile] =
+    try
+      val lines = text.linesIterator.map(_.trim).filter(_.nonEmpty).toList
+      val pub = KeyFactory.getInstance("Ed25519").generatePublic(X509EncodedKeySpec(Base64.getDecoder.decode(lines.head)))
+      val cert = lines.lift(1).map(_.split("\\s+").toList).collect { case List(by, sig) => (by, sig) }
+      Some(KeyFile(keyId(pub), pub, cert))
+    catch case _: Exception => None
+
+  def keyFiles(dir: Path): List[KeyFile] =
+    if !Files.isDirectory(dir) then Nil
+    else Files.list(dir).iterator.asScala.toList.filter(_.toString.endsWith(".pub")).sortBy(_.toString)
+      .flatMap(f => parse(Files.readString(f, UTF_8)))
+
+  /** The developer keys: the project's one key without a certificate, and every key a developer key
+    * certified. A second key without a certificate (a process that made its own) is not one.
+    */
+  def keys(dir: Path): Map[String, PublicKey] =
+    val all = keyFiles(dir)
+    def grow(trusted: Map[String, PublicKey]): Map[String, PublicKey] =
+      val more = all.filter(k => !trusted.contains(k.id) && k.certifiedBy.exists((by, sig) => trusted.get(by).exists(t => verifyBytes(t, k.pub.getEncoded, sig))))
+      if more.isEmpty then trusted else grow(trusted ++ more.map(k => k.id -> k.pub))
+    // CI can name the developer's keys itself, out of any agent's reach.
+    sys.env.get("FRFLOW_DEVELOPER_KEYS").map(_.split("[,\\s]+").filter(_.nonEmpty).toSet) match
+      case Some(pinned) => grow(all.filter(k => pinned(k.id)).map(k => k.id -> k.pub).toMap)
+      case None         => first(dir, all).fold(Map.empty)(k => grow(Map(k.id -> k.pub)))
+
+  /** The project's first key: the one committed first, or, before any is committed, the only one. */
+  private def first(dir: Path, all: List[KeyFile]): Option[KeyFile] =
+    val committed = Git.firstAdded(dir).flatMap(f => all.find(k => f.endsWith(s"${k.id}.pub")))
+    committed.orElse(all.filter(_.certifiedBy.isEmpty) match { case List(only) if Git.firstAdded(dir).isEmpty => Some(only); case _ => None })
+
+  /** Keys in `dir` that are not developer keys: each is a warning. */
+  def untrusted(dir: Path): List[String] =
+    val all = keyFiles(dir)
+    val ok = keys(dir)
+    all.filterNot(k => ok.contains(k.id)).map(k =>
+      if k.certifiedBy.isEmpty then s"${k.id} is not a developer key: certify it from a browser that holds one, if it is yours, or remove it"
+      else s"${k.id}: its certificate is not by a developer key")
+
+  private def verifyBytes(pub: PublicKey, bytes: Array[Byte], sig: String): Boolean =
+    try
+      val s = Signature.getInstance("Ed25519")
+      s.initVerify(pub)
+      s.update(bytes)
+      s.verify(Base64.getDecoder.decode(sig))
+    catch case _: Exception => false
+
+  /** Certifies `other` with the developer's key: it becomes a developer key of the project. */
+  def certify(dir: Path, otherId: String, priv: PrivateKey, pub: PublicKey): Either[String, Unit] =
+    keyFiles(dir).find(_.id == otherId) match
+      case None => Left(s"no key $otherId in ${dir}")
+      case Some(k) =>
+        if !keys(dir).contains(keyId(pub)) then Left("this browser's key is not a developer key of the project")
+        else
+          val s = Signature.getInstance("Ed25519")
+          s.initSign(priv)
+          s.update(k.pub.getEncoded)
+          Files.writeString(dir.resolve(s"$otherId.pub"), b64(k.pub.getEncoded) + "\n" + keyId(pub) + " " + b64(s.sign()) + "\n", UTF_8)
+          Right(())
+
+  /** The developer's decisions not signed by a developer key; none while the project has never had a key. */
+  def unsigned(l: Ledger, dir: Path): List[(String, Decision)] =
+    // A project signs once it has (or had, or CI names) a key: then no key means nothing is signed.
+    val signs = keyFiles(dir).nonEmpty || sys.env.contains("FRFLOW_DEVELOPER_KEYS") ||
+      Option(dir.getParent).flatMap(p => Option(p.getParent)).exists(root => Git.removed(root, root.relativize(dir).toString).nonEmpty)
+    val keys = this.keys(dir)
+    if !signs then Nil
     else l.decisions.toList.sortBy(_._1).flatMap((id, ds) => ds.filterNot(d => byAgent(d.action) || verify(keys, id, d)).map(id -> _))
 
   /** The signing key at `file` (created if missing), with its public key. */

@@ -22,11 +22,12 @@ final case class NodeCheck(
 /** A decision of the developer about a node.
   *
   * @param action   `accept` (the developer chose the node, as seen), `settle` (the agent settled a
-  *                 mechanical node: no alternative, no new term, every check passing; the developer
-  *                 spot-checks it), `confirm` (it still holds after
-  *                 something above it or its code moved), `reject` (an alternative not chosen, as it
-  *                 was proposed), `revisit` (the developer said a change above may affect it, so it is
-  *                 reviewed again) or `remove` (the developer agreed that a decided node is gone)
+  *                 node Lean proves again, with no choice in it; the developer endorses it), `confirm`
+  *                 (it still holds after something above it moved), `reject` (an alternative not
+  *                 chosen, as it was proposed), `revisit` (the developer said a change above may affect
+  *                 it, so it is reviewed again), `remove` (the developer agreed that a decided node is
+  *                 gone), `migrate` (a new FrFlow recorded the same decision in a new shape) or
+  *                 `acknowledge` (of the ledger itself: a restart or a rewrite)
   * @param content  the node as the developer saw it; the decision is bound to its hash
   * @param chain    the content of the ancestors, as decided; when it changes, the node is reviewed
   * @param reason   why: kept as part of the theory
@@ -90,7 +91,7 @@ final case class Ledger(decisions: Map[String, List[Decision]]):
     * agent settled since is shown too.
     */
   def developerBinding(id: String): Option[Decision] =
-    history(id).reverse.takeWhile(d => !Set("reject", "remove")(d.action)).find(d => d.action == "accept" || d.action == "confirm")
+    history(id).reverse.takeWhile(d => !Set("reject", "remove")(d.action)).find(d => Set("accept", "confirm", "migrate")(d.action))
   def add(id: String, d: Decision): Ledger =
     Ledger(decisions.updated(id, history(id) :+ d.copy(after = current(id).fold("")(Ledger.entry))))
 
@@ -148,7 +149,7 @@ object Ledger:
   /** Actions a node is bound to: the developer's acceptance or confirmation, or the agent settling
     * a mechanical node.
     */
-  def binds(action: String): Boolean = action == "accept" || action == "confirm" || action == "settle"
+  def binds(action: String): Boolean = Set("accept", "confirm", "settle", "migrate")(action)
 
   /** A short reference to a decision: what was decided, by whom, when and why. */
   private[frflow] def entry(d: Decision): String =
@@ -189,7 +190,10 @@ object Ledger:
   def warnings(root: Path, file: Path, now: Ledger): List[String] =
     rewrites(root, file, now).collect { case ("", why) => s"the ledger was rewritten: $why" } ++
       toAcknowledge(root, file, now).map((c, why) => s"$why in commit ${c.take(10)}: check what changed, then acknowledge it in the browser") ++
-      Signing.unsigned(now, Signing.keys(file.getParent.resolve("keys"))).map((id, d) =>
+      Signing.untrusted(file.getParent.resolve("keys")).map(k => s"the key $k") ++
+      Git.removed(root, root.relativize(file.getParent.resolve("keys")).toString).map((c, f) =>
+        s"a developer key ($f) was removed in commit ${c.take(10)}: decisions it signed no longer count; restore it") ++
+      Signing.unsigned(now, file.getParent.resolve("keys")).map((id, d) =>
         s"$id: the ${d.action} of ${d.at} by ${d.by} is not signed by a developer key: decide it again in the browser, or sign it there if it is yours")
 
   /** Warnings when a committed version of the ledger, or the ledger now, changed or removed

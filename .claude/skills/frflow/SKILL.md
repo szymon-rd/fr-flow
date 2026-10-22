@@ -183,7 +183,14 @@ obligation is `spec m → parent.spec (abs m)`.
 types and parameters. It has no obligation.
 
 **`contract(id, statement, why)(post)`** is for a model `(A, B) => R`. `post`
-must hold for every call.
+must hold for every call. **`contractVia(id, statement, why)(abs)(post)`** is a
+contract with a signature of its own: `abs` says what an implementation is as
+the parent's model. Say what a call must do, not only what it must not: a
+contract that doing nothing meets is listed as such.
+
+**`expects(statement)(m => ...)`** states a consequence the developer expects of
+every model of a node, proven from its spec. Propose some when a node is new:
+they let the developer test their understanding.
 
 **`formal = false`** (on `Node.root`, `refine`, `instantiate`, `contract`)
 opts a node out of Lean. Its model stays Scala and may use any Scala; a

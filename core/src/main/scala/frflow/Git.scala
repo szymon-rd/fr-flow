@@ -34,6 +34,22 @@ object Git:
   /** A commit that changed a file, its parents among such commits, and the file there (None if deleted). */
   final case class Version(commit: String, parents: List[String], text: Option[String])
 
+  /** Files under `dir` that a commit removed, with the commit; and those removed from the working tree. */
+  def removed(root: Path, dir: String): List[(String, String)] =
+    val committed = run(root, "log", "--diff-filter=D", "--name-only", "--relative", "--format=@%H", "--", dir).toList.flatMap { out =>
+      var c = ""
+      out.linesIterator.map(_.trim).filter(_.nonEmpty).flatMap(l => if l.startsWith("@") then { c = l.drop(1); None } else Some(c -> l)).toList
+    }
+    val now = run(root, "ls-files", "--deleted", "--", dir).toList.flatMap(_.linesIterator.map(_.trim).filter(_.nonEmpty)).map("" -> _)
+    // A file removed and later restored is not missing.
+    (committed ++ now).filterNot((_, f) => java.nio.file.Files.exists(root.resolve(f))).distinct
+
+  /** The first file ever added under `dir` (run from it), if any was committed. */
+  def firstAdded(dir: Path): Option[String] =
+    if !java.nio.file.Files.isDirectory(dir) then None
+    else run(dir, "log", "--diff-filter=A", "--reverse", "--name-only", "--relative", "--format=", "--", ".").toList
+      .flatMap(_.linesIterator.map(_.trim).filter(_.endsWith(".pub"))).headOption
+
   /** Whether a file is tracked by git. */
   def tracked(dir: Path, file: String): Boolean = run(dir, "ls-files", "--error-unmatch", "--", file).isDefined
 

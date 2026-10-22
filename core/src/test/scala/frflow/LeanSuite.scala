@@ -22,7 +22,7 @@ class LeanSuite extends munit.FunSuite:
     val w = workflow(shelfKb)
     val r = w.check()
     assertEquals(statuses(r), List("OnlyGood" -> "proven", "Listed" -> "proven", "Books" -> "proven", "Pick" -> "proven"))
-    assert(r.flatMap(_._2.obligations).forall(_.detail == "auto"))
+    assert(r.flatMap(_._2.obligations).filter(_.name != "idle").forall(_.detail == "auto"), r)
     assert(r.flatMap(_._2.axioms).forall(Lean.allowedAxioms))
     val links = w.baseSnapshot("nodes").get.arr.map(n => n("id").flatMap(_.str).get -> n("link").flatMap(_("detail")).flatMap(_.str))
     assertEquals(links.toList, List("OnlyGood" -> None, "Listed" -> Some("auto"), "Books" -> Some("instantiation"), "Pick" -> Some("auto")))
@@ -156,6 +156,19 @@ class LeanSuite extends munit.FunSuite:
     // one that can return a short book is not proven
     val bad = workflow(KnowledgeBase("Impl2", idea = "IDEA.md")(onlyGood, listed, books, pick).implementProven(pick)(anyOnes)).check()
     assertEquals(bad.find(_._1.id == "Pick").get._2.obligations.find(_.name == "impl").map(_.status), Some("open"))
+  }
+
+  test("a contract with a signature of its own is proven through its abs") {
+    // the best book alone, by title: as the parent's model, the list of that one book
+    val best = books.contractVia[List[Book], String, Option[Book]]("Best", "The book named is picked, if it is long enough.", why = "w")(
+      abs = f => (shelf, n) => shelf.filter(b => f(shelf, b.title) == Some(b)))(
+      (shelf, title, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages.value && b.title == title))
+      .examples(minPages.bind(100))(
+        expect(List(Book("Long", 300)), "Long", Some(Book("Long", 300)), "the long book, named"),
+        expect(List(Book("Short", 20)), "Short", None, "a short book is never picked"),
+        reject(List(Book("Short", 20)), "Short", Some(Book("Short", 20)), "not a short one"))
+    val r = workflow(KnowledgeBase("Via", idea = "IDEA.md")(onlyGood, listed, books, best)).check()
+    assertEquals(statuses(r), List("OnlyGood" -> "proven", "Listed" -> "proven", "Books" -> "proven", "Best" -> "proven"), r)
   }
 
   test("a node no model meets is reported, so it cannot make everything below it hold") {
