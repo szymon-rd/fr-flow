@@ -181,6 +181,20 @@ once per clone; a node both branches decided is decided again:
 git config merge.frflow-ledger.driver "bin/frflow merge-ledger %O %A %B"
 ```
 
+**Measured.** `python3 bench/generate.py N` writes `examples/scale`: N concerns,
+each a root, a refinement and a contract with proven code in its own file,
+every fifth contract calling the previous one's (`sbt "scale/run check"`). On
+a 4-core container:
+
+| nodes | cold `check` | one code change | no change | `status` | browser load |
+|---|---|---|---|---|---|
+| 60 | 193 s | 21 s | 6 s | 5 s | |
+| 180 | 560 s | 18 s | 5 s | 5 s | 0.35 s |
+
+A cold check grows with the nodes (about 3 s each); after that, only what a
+change reaches is proven again (a root change: its concern and the callers of
+its contract).
+
 ## What is trusted, and the limits
 
 Lean proves the levels consistent with each other; it does not say they are

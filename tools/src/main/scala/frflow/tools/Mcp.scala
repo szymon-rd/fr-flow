@@ -86,21 +86,7 @@ final class Mcp(projects: List[Project]):
         if q.isEmpty then throw ToolError("query is required")
         p.annotated.fold(("No snapshot yet; call render.", true))(s => (frflow.Decisions.find(s, q), false))
       case "inbox" =>
-        val open = p.requests.filter(_("status").flatMap(_.str).contains("open"))
-        def f(r: Json, k: String) = r(k).flatMap(_.str).getOrElse("")
-        val reqs =
-          if open.isEmpty then List("No open requests.")
-          else "Open requests from the developer:" :: open.map(r =>
-            s"- [${f(r, "id")}] on ${if f(r, "node").isEmpty then "(the idea)" else f(r, "node")}: ${f(r, "text")}")
-        val rest = p.annotated.fold(List("", "No snapshot yet; call render.")) { s =>
-          val (dev, agent) = frflow.Decisions.waiting(s)
-          val warnings = s("warnings").map(_.arr.toList).getOrElse(Nil).flatMap(_.str)
-          (if warnings.isEmpty then Nil else "" :: "Warnings (status fails on each; fix those in the code):" :: warnings.map("- " + _)) ++
-          (if agent.isEmpty then Nil else "" :: "For you:" :: agent.map("- " + _)) ++
-            (if dev.isEmpty then Nil else "" :: "Waiting for the developer's decision (in the browser):" :: dev.map("- " + _))
-        }
-        val tree = p.annotated.fold("")(s => "\n\nThe tree:\n" + frflow.Decisions.tree(s))
-        ((reqs ++ rest).mkString("\n") + tree + staleness(p), false)
+        (frflow.Decisions.inbox(p.annotated, p.requests) + staleness(p), false)
       case other => throw ToolError(s"unknown tool $other")
 
   /** Handles one JSON-RPC message; None for notifications. */

@@ -592,6 +592,25 @@ object Decisions:
       else ("What mentions it, best first:" :: scored.map((e, _) => e.label + sentence(e).filterNot(e.label.contains).fold("")(x => s"\n    \"${x.take(200)}\""))).mkString("\n")
 
   /** What waits on whom: decisions for the developer, clean-up for the agent. */
+  /** What the agent starts from: the developer's open requests, warnings, what is the agent's to do,
+    * what waits for the developer, and the tree. The same from MCP and the CLI.
+    */
+  def inbox(annotated: Option[Json], requests: List[Json]): String =
+    val open = requests.filter(_("status").flatMap(_.str).contains("open"))
+    def f(r: Json, k: String) = r(k).flatMap(_.str).getOrElse("")
+    val reqs =
+      if open.isEmpty then List("No open requests.")
+      else "Open requests from the developer:" :: open.map(r =>
+        s"- [${f(r, "id")}] on ${if f(r, "node").isEmpty then "(the idea)" else f(r, "node")}: ${f(r, "text")}")
+    val rest = annotated.fold(List("", "No snapshot yet; render first.")) { s =>
+      val (dev, agent) = waiting(s)
+      val warnings = s("warnings").map(_.arr.toList).getOrElse(Nil).flatMap(_.str)
+      (if warnings.isEmpty then Nil else "" :: "Warnings (status fails on each; fix those in the code):" :: warnings.map("- " + _)) ++
+        (if agent.isEmpty then Nil else "" :: "For you:" :: agent.map("- " + _)) ++
+        (if dev.isEmpty then Nil else "" :: "Waiting for the developer's decision (in the browser):" :: dev.map("- " + _))
+    }
+    (reqs ++ rest).mkString("\n") + annotated.fold("")(s => "\n\nThe tree:\n" + tree(s))
+
   def waiting(annotated: Json): (List[String], List[String]) =
     val ns = nodes(annotated)
     val ids = byId(annotated)

@@ -272,6 +272,9 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
   private final case class Claim(name: String, vars: String, premise: Option[String], conclusion: String, description: String,
       vacuous: String = "")
 
+  /** The nodes on the path of a proven implementation. */
+  private lazy val witnessedIds: Set[String] = kb.nodes.filter(provenImpl(_).isDefined).flatMap(kb.path).map(_.id).toSet
+
   private def claims(n: Node[?]): List[Claim] =
     val link = n.parent.filter(_ => n.kind == NodeKind.Refine || n.kind == NodeKind.Contract).map { p =>
       val target = if n.abs.isDefined then s"(${at(n)("abs")} m)" else "m"
@@ -294,7 +297,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
     // A proof the agent wrote may rest on a contradiction automation did not find: then something
     // must meet the node. A proven implementation at or below it is that witness (the links between
     // prove it meets the node, under the meanings fixed on the way).
-    val witnessed = kb.nodes.exists(c => provenImpl(c).isDefined && kb.path(c).exists(_ eq n))
+    val witnessed = witnessedIds(n.id)
     val feasible = Option.when(authoredLink(n.id) && !witnessed && link.isDefined)(
       Claim("feasible", "", None, s"∃ (m : ${modelType(n)}), ${at(n)("spec")} m", s"Some model meets ${n.id}: its authored link does not rest on a contradiction."))
     // What the developer expects of every model of the node: their understanding, checked.

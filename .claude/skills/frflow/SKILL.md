@@ -97,7 +97,7 @@ The MCP server `frflow` (see `.mcp.json`); pass `project` when there are several
 | `scaffold(node)` | Stubs in the node's proof file for the obligations the last check left open. |
 | `answer(request, text)` | Reply to a request. With `node` and no `request`, answers the open request on that node. |
 
-Without MCP: `sbt "<kb>/run render"`, `check [NODE]`, `status`,
+Without MCP: `sbt "<kb>/run inbox"`, `render`, `check [NODE]`, `status`,
 `context NODE`, `find WORDS|PATH`, `scaffold NODE`. `ci` is for CI.
 
 ## Writing nodes

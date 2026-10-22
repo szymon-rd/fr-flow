@@ -34,11 +34,17 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
 
   def idea: String = read(ws.root.resolve(kb.idea)).getOrElse("")
   def ledger: Ledger = Ledger.load(ws.ledgerFile)
-  def checks: Map[String, NodeCheck] = Checks.load(ws.checksFile)
+  private var checksCache: Option[(String, Map[String, NodeCheck])] = None
+  /** The recorded checks (read again when the file changes). */
+  def checks: Map[String, NodeCheck] = synchronized {
+    val f = ws.checksFile
+    val stamp = if Files.exists(f) then s"${Files.size(f)}:${Files.getLastModifiedTime(f).toMillis}" else ""
+    checksCache.filter(_._1 == stamp).map(_._2).getOrElse { val c = Checks.load(f); checksCache = Some(stamp -> c); c }
+  }
 
   /** The obligations proven by a theorem of their name in the node's proof file: (node, obligation). */
   def proofs: Set[(String, String)] =
-    val base = Generate(kb)
+    val base = baseGenerate
     kb.nodes.flatMap { n =>
       val names = base.obligations(n).map(_.name).toSet + "feasible" + "nontrivial"
       read(ws.lean.resolve(base.proofsPath(n.id))).toList.flatMap(src => Lean.theorems(src).map(_.name).filter(names).map(n.id -> _))
@@ -47,7 +53,20 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   /** Nodes whose link has an authored proof. */
   def authored(id: String): Boolean = proofs((id, "link"))
 
-  def generate: Generate = Generate(kb, proofs)
+  private lazy val baseGenerate = Generate(kb)
+
+  /** The proof files as they are now (names, sizes, times): what `generate` and check hashes are cached by. */
+  private def proofStamp: String =
+    val dir = ws.lean.resolve(baseGenerate.proofsPath("x")).getParent
+    if !Files.isDirectory(dir) then ""
+    else scala.util.Using.resource(Files.list(dir))(_.iterator.asScala.toList).sorted
+      .map(f => s"${f.getFileName}:${Files.size(f)}:${Files.getLastModifiedTime(f).toMillis}").mkString(",")
+  private var cached: Option[(String, Generate, scala.collection.concurrent.TrieMap[String, String])] = None
+  private def cache: (Generate, scala.collection.concurrent.TrieMap[String, String]) = synchronized {
+    val stamp = proofStamp
+    cached.filter(_._1 == stamp).fold { val c = (stamp, Generate(kb, proofs), scala.collection.concurrent.TrieMap.empty[String, String]); cached = Some(c); (c._2, c._3) }(c => (c._2, c._3))
+  }
+  def generate: Generate = cache._1
 
   /** Writes the generated Lean; returns the files that changed. */
   def render(): List[String] =
@@ -195,14 +214,14 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
 
   /** What a check depends on: the formal parts only, so rewording a statement does not re-run Lean. */
   def checkHash(n: Node[?]): String =
-    val g = generate
-    sha((Seq(g.spec(n), g.auto(n), g.theorems(n), g.checks(n), g.evalFile(n).getOrElse(""),
+    val (g, hashes) = cache
+    hashes.getOrElseUpdate(n.id, sha((Seq(g.spec(n), g.auto(n), g.theorems(n), g.checks(n), g.evalFile(n).getOrElse(""),
       g.relyChecks(n).map(r => checkHash(r._1)).mkString, g.callees(n).map((_, c) => g.spec(c)).mkString, read(ws.lean.resolve(g.proofsPath(n.id))).getOrElse(""),
       read(ws.lean.resolve(g.proofsPath(n.id))).filter(Lean.lemmaImports(_).nonEmpty).flatMap(_ => read(ws.lean.resolve(g.lemmasPath))).getOrElse(""),
       // The specs of other nodes a proof imports: a change to them re-checks it.
       read(ws.lean.resolve(g.proofsPath(n.id))).fold("")(src => s"(?m)^\\s*import\\s+FrFlowGen\\.${java.util.regex.Pattern.quote(kb.name)}\\.(\\w+)\\.Spec".r
         .findAllMatchIn(src).map(_.group(1)).filter(_ != n.id).flatMap(kb.node).filter(g.formal).map(g.spec).mkString),
-      n.parent.fold("")(checkHash), Workflow.CheckerVersion.toString) ++ g.declarationsUsedBy(n))*)
+      n.parent.fold("")(checkHash), Workflow.CheckerVersion.toString) ++ g.declarationsUsedBy(n))*))
 
   // ---------------------------------------------------------------------------
   // Check
@@ -243,6 +262,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val kept = checks.filter((id, _) => kb.node(id).isDefined)
     val all = results.foldLeft(kept)((m, r) => m.updated(r._1.id, r._2))
     Checks.save(ws.checksFile, all)
+    synchronized { checksCache = None }
     results
 
   private def checkNode(n: Node[?], g: Generate, lake: Lake, parentStatus: Option[String]): NodeCheck =

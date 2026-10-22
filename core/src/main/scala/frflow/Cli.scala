@@ -15,6 +15,7 @@ object Cli:
       |  check [NODE]            render, prove the links, record the results
       |  status                  the tree: decisions, links, examples; exits 1 unless the knowledge base is complete
       |  ci                      for CI: check, then status; exits 1 unless everything is proven and decided
+      |  inbox                   start here: the developer's open requests, what is yours to do, what waits for the developer
       |  context NODE            everything needed to work on NODE (for agents and people)
       |  find WORDS|PATH         the nodes that govern a file, or what mentions some words (nodes, reasons, rejected options, the idea)
       |  scaffold NODE           a proof file for an obligation automation did not prove
@@ -67,6 +68,7 @@ object Cli:
         println(s"rendered ${changed.size} changed file(s); wrote ${ws.root.relativize(w.writeSnapshot())}")
         0
       case "status" :: Nil => val (text, ok) = w.status; print(text); if ok then 0 else 1
+      case "inbox" :: Nil => println(Decisions.inbox(Some(w.annotated), w.requests)); 0
       case "context" :: id :: Nil => node(id) { n => print(w.context(n)); 0 }
       case "find" :: query if query.nonEmpty => println(Decisions.find(w.annotated, query.mkString(" "))); 0
       case "scaffold" :: id :: Nil =>

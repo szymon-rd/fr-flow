@@ -41,7 +41,7 @@ pre { background: var(--code); border: 1px solid var(--line); border-radius: 8px
       overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
 
 header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--panel);
-         border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+         border-bottom: 1px solid var(--line); flex-wrap: nowrap; white-space: nowrap; }
 .brand { font-weight: 700; letter-spacing: .2px; }
 .brand span { color: var(--accent); }
 select, input[type=text], textarea { background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; }
@@ -54,7 +54,8 @@ textarea { width: 100%; resize: vertical; }
 .btn:disabled { opacity: .5; cursor: default; }
 .btn.small { padding: 2px 9px; font-size: 12.5px; }
 .spacer { flex: 1; }
-.summary { color: var(--muted); font-size: 13px; }
+/* One line at any width the tree is beside the pane: the summary gives way (its full text is its title). */
+.summary { color: var(--muted); font-size: 13px; flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .summary b { color: var(--ink); font-weight: 600; }
 .pill { display: none; align-items: center; gap: 8px; border-radius: 7px; padding: 3px 10px; font-size: 13px; }
 .pill.show { display: inline-flex; }
@@ -193,6 +194,7 @@ details.full > summary { color: var(--ink); font-weight: 600; }
 #job pre { max-height: 240px; overflow: auto; }
 #job .head { display: flex; align-items: center; gap: 8px; }
 @media (max-width: 900px) {
+  header { flex-wrap: wrap; white-space: normal; }
   main { grid-template-columns: 1fr; height: auto; }
   #canvasWrap { height: 60vh; }
   aside { border-left: 0; border-top: 1px solid var(--line); }
@@ -371,6 +373,7 @@ function render() {
   const implProven = impls.filter(n => n.implementationProof?.status === "proven").length;
   const openNodes = nodes.filter(n => warnings(n).length).length;
   $("#summary").innerHTML = `${esc(s.name)} · <b>${accepted}</b> accepted · <b>${review}</b> to review · <b>${proven}/${links.length}</b> links proven${impls.length ? ` · <b ${implProven < impls.length ? 'style="color:var(--failed)"' : ""}>${implProven}/${impls.length}</b> contracts proven down to their code` : ""}${openNodes ? ` · <b style="color:var(--failed)">${openNodes}</b> node(s) with something unproven or failing` : ""}${warn ? ` · <b style="color:var(--failed)">${warn} warning(s)</b>` : ""} · rendered ${ago(s.exportedAt)}`;
+  $("#summary").title = $("#summary").textContent;
   renderTree(); renderPane(); renderJob();
   history.replaceState(null, "", `#${encodeURIComponent(state.project)}/${encodeURIComponent(state.selected || "")}`);
 }

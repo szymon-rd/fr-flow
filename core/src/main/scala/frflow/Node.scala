@@ -408,7 +408,8 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
   def withImplementation(i: Implementation): KnowledgeBase =
     KnowledgeBase(name, idea, implementations.filterNot(_.contract == i.contract) :+ i)(nodes*)
 
-  def implementation(n: Node[?]): Option[Implementation] = implementations.find(_.contract == n.id)
+  private lazy val byContract = implementations.map(i => i.contract -> i).toMap
+  def implementation(n: Node[?]): Option[Implementation] = byContract.get(n.id)
 
   /** The files the model is written in: those its nodes are defined in, and where implementations are
     * attached. A model may span several files; each holds only the model.
@@ -583,7 +584,7 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     nodes.flatMap(_.lifted)
 
   /** Defined functions used anywhere, dependencies first. */
-  def defs: List[Def[?]] =
+  lazy val defs: List[Def[?]] =
     val out = scala.collection.mutable.LinkedHashMap.empty[String, Def[?]]
     val visiting = scala.collection.mutable.Set.empty[String]
     def visit(d: Def[?]): Unit =
@@ -597,11 +598,11 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     out.values.toList
 
   /** Parameters used anywhere. */
-  def params: List[Param[?]] =
+  lazy val params: List[Param[?]] =
     (nodes.flatMap(_.referenced) ++ defs.map(_.lifted)).flatMap(_.paramObjects).groupBy(_.name).values.map(_.head).toList.sortBy(_.name)
 
   /** Domain types used anywhere, dependencies first. */
-  def types: List[TypeDecl] =
+  lazy val types: List[TypeDecl] =
     val all = (allLifted ++ defs.map(_.lifted)).flatMap(_.types) ++ nodes.flatMap(_.substs).flatMap(_.types)
     val byName = all.groupBy(_.name).view.mapValues(_.head).toMap
     val out = scala.collection.mutable.LinkedHashMap.empty[String, TypeDecl]
