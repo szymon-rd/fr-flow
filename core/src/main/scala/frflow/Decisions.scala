@@ -149,6 +149,7 @@ object Decisions:
         "decision" -> ledger.chosen(id).fold(JNull)(decisionJson(id, _)),
         "reasonNow" -> (if ledger.binding(id).isDefined then str(reasonNow(ledger, id)) else JNull),
         "mechanical" -> JBool(mechanical(snapshot, ledger, n).isEmpty),
+        "notMechanical" -> mechanical(snapshot, ledger, n).fold(JNull)(str),
         "resembles" -> JArr(resembles(ledger, n)),
         "rejectedBeside" -> JArr(n("parent").flatMap(_.str).toList.flatMap(ledger.rejectedUnder).filter(_._1 != id).map((r, c, why) =>
           obj("id" -> str(r), "statement" -> c("statement").getOrElse(str("")), "why" -> c("why").getOrElse(str("")), "reason" -> str(why)))),

@@ -51,11 +51,11 @@ final case class Account(email: String, tenant: TenantId)
 enum Kind:
   case Contact, Deal
 
-final case class CrmRecord(id: Long, tenant: TenantId, kind: Kind, title: String)
-final case class Share(record: Long, to: TenantId)
+final case class CrmRecord(id: BigInt, tenant: TenantId, kind: Kind, title: String)
+final case class Share(record: BigInt, to: TenantId)
 
 enum Search:
-  case ById(id: Long)
+  case ById(id: BigInt)
   case OfKind(kind: Kind)
   case Everything
 
@@ -179,8 +179,8 @@ final case class CrmStore(records: List[CrmRecord], shares: List[Share])
 
 enum Change:
   case Add(record: CrmRecord)
-  case ShareWith(record: Long, to: TenantId)
-  case Unshare(record: Long, to: TenantId)
+  case ShareWith(record: BigInt, to: TenantId)
+  case Unshare(record: BigInt, to: TenantId)
 
 final case class WriteCmd(by: Account, change: Change)
 

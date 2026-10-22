@@ -19,9 +19,9 @@ class CrmSuite extends munit.FunSuite:
 
   test("a user sees their company's records and records shared with it") {
     val read = readSide(records, shareTable)
-    assertEquals(read(ann, Search.Everything).map(_.id), List(1L, 3L))
+    assertEquals(read(ann, Search.Everything).map(_.id), List[BigInt](1, 3))
     assertEquals(read(ann, Search.ById(2)), Nil)
-    assertEquals(read(ann, Search.OfKind(Kind.Contact)).map(_.id), List(1L, 3L))
+    assertEquals(read(ann, Search.OfKind(Kind.Contact)).map(_.id), List[BigInt](1, 3))
   }
 
   test("a store the writes could not reach is refused: the reads rely on unique ids") {
@@ -67,7 +67,7 @@ class CrmSuite extends munit.FunSuite:
     val write = writeSide()
     val start = CrmStore(records, shareTable)
     val added = write(start, WriteCmd(ann, Change.Add(CrmRecord(4, acme, Kind.Deal, "New deal"))))
-    assertEquals(added.records.map(_.id), List(1L, 2L, 3L, 4L))
+    assertEquals(added.records.map(_.id), List[BigInt](1, 2, 3, 4))
     // Ann cannot share Globex's deal, nor add a record for Globex: nothing changes
     assertEquals(write(start, WriteCmd(ann, Change.ShareWith(2, acme))), start)
     assertEquals(write(start, WriteCmd(ann, Change.Add(CrmRecord(5, globex, Kind.Deal, "Not hers")))), start)
