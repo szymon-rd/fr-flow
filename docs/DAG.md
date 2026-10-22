@@ -336,3 +336,11 @@ What the migrations of `examples/keycloak` and `examples/crm` found in the core,
 - **A list's elements as a set.** `xs.toSet` translates to the list's membership (`fun y => y ∈ xs`, the
   shape of a `Set` in Lean), so code can build a hash set once and test membership in constant time
   (`val there = shelf.toSet; picked.filter(b => there.contains(b))`), proven like `xs.contains`.
+
+### Witnesses (after the documentation review)
+
+`feasible` is asked of an authored `complete` unless the node is witnessed: it has proven code, it is
+an assumption, or all its parts are witnessed. (Before: any proven code below the node waived it, so a
+split with a part nothing proves could rest on a contradiction.) Assumptions count as witnessed: their
+joint consistency is trusted, and a check of it over the whole DAG (`∃` open terms meeting every
+assumption, the reference defines as witnesses of the ports) is future work.

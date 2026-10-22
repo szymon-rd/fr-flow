@@ -333,8 +333,9 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
       Obligation("complete", stated(splitOpens(n, ps), hs.map(_._1), claim(n)._1), s"The parts of ${n.id} (${ps.map(_.id).mkString(", ")}) together make it.")
     }
     // A proof the agent wrote may rest on a contradiction automation did not find: then something
-    // must meet the parts. A proven implementation below the node is that witness.
-    val feasible = splitParts(n).filter(_ => isAuthored(n, "complete") && !witnessed(n)).map { ps =>
+    // must meet the parts, unless they are witnessed (see `witnessed`). A proof file that proves it
+    // anyway keeps its statement.
+    val feasible = splitParts(n).filter(_ => isAuthored(n, "complete") && (!witnessed(n) || isAuthored(n, "feasible"))).map { ps =>
       val o = splitOpens(n, ps)
       val b = binders(o)
       Obligation("feasible", s"${if b.isEmpty then "" else s"∃ $b, "}${hyps(ps).map(_._1._2).mkString(" ∧ ")}",
@@ -494,10 +495,14 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
         s"theorem root_impl : $statement :=\n  $proof\n\n#print axioms $K.RootImpl.root_impl\n\nend $K.RootImpl\n")
     }
 
-  /** The nodes on the path of a proven implementation: something is shown to meet them. */
-  private lazy val witnessedIds: Set[String] =
-    kb.nodes.filter(provenImpl(_).isDefined).flatMap(c => c :: kb.ancestors(c)).map(_.id).toSet
-  def witnessed(n: Node[?]): Boolean = witnessedIds(n.id)
+  /** Whether something is shown to meet the node: proven code, an assumption (whose consistency is
+    * trusted), or parts that are all witnessed. A part nothing proves witnesses nothing, so a split
+    * with one is asked for `feasible` even when another part has proven code below it.
+    */
+  private val witnessedMemo = scala.collection.concurrent.TrieMap.empty[String, Boolean]
+  def witnessed(n: Node[?]): Boolean = witnessedMemo.getOrElseUpdate(n.id,
+    provenImpl(n).isDefined || n.kind == NodeKind.Assumption ||
+      splitParts(n).exists(ps => ps.nonEmpty && ps.forall(witnessed)))
 
   // ---------------------------------------------------------------------------
   // What a result holds: for the coverage of an invariant's view

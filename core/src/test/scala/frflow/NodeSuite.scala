@@ -298,3 +298,12 @@ class NodeSuite extends munit.FunSuite:
     val s = good.service(pick)(minPages.bind(100))
     assertEquals(s(List(Book("Long", 300)), 1), List(Book("Long", 300)))
   }
+
+  test("a node is witnessed by proven code, an assumption, or parts that all are; a part nothing proves witnesses nothing") {
+    val unrefined = Node.claim("Unrefined", "Some books are kept aside.", why = "A part not refined yet.")(
+      forall((l: List[Item.T], x: Item.T) => shown(l, x) ==> l.contains(x))).under(onlyGood)
+    val g = Generate(KnowledgeBase("Shelf", idea = "IDEA.md")((shelfNodes :+ pick :+ unrefined)*).implementProven(pick)(longOnes))
+    assert(g.witnessed(pick) && g.witnessed(fromList))
+    assert(!g.witnessed(unrefined))
+    assert(!g.witnessed(onlyGood)) // one of its parts has no witness, though the others have proven code
+  }
