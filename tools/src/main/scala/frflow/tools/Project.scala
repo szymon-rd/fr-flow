@@ -161,9 +161,12 @@ final class Project(dir: Path):
       out
     }
 
-  def addRequest(node: String, text: String, by: String): Json = updateRequests { rs =>
+  /** A request; `seen` is the version of the node the developer asked about: the node is with the
+    * agent until the request is answered or the node changes.
+    */
+  def addRequest(node: String, text: String, by: String, seen: String = ""): Json = updateRequests { rs =>
     val r = obj("id" -> str(s"R${java.lang.Long.toString(System.currentTimeMillis, 36)}"), "node" -> str(node), "text" -> str(text), "by" -> str(by),
-      "at" -> str(java.time.Instant.now.toString.take(19) + "Z"), "status" -> str("open"), "answer" -> str(""))
+      "at" -> str(java.time.Instant.now.toString.take(19) + "Z"), "status" -> str("open"), "answer" -> str(""), "seen" -> str(seen))
     (rs :+ r, r)
   }
 

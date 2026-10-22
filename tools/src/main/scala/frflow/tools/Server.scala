@@ -23,7 +23,7 @@ import java.util.concurrent.Executors
   * POST /api/p/NAME/decide   {"node", "by", "reason", "action", "seen", "reject", "revisit", "confirm"}   the developer's decision;
   *                            with "nodes": [{"node", "seen"}], one reason for several, all or none
   * POST /api/p/NAME/sign     {"entries"}     signs decisions the developer says are theirs
-  * POST /api/p/NAME/requests {"node", "text", "by"}
+  * POST /api/p/NAME/requests {"node", "text", "by", "seen"}   seen: the version of the node asked about
   * POST /api/p/NAME/requests/ID {"status", "answer"}
   * POST /api/p/NAME/idea     {"text","base"} saves IDEA.md (refused if it changed since `base`) and starts a render
   * GET  /api/p/NAME/codediff?node=N          how the code a node governs changed since it was decided
@@ -166,7 +166,7 @@ final class Server(projects: List[Project], val token: String = Server.newToken(
           case List("requests") =>
             val (node, text, by) = (field("node"), field("text").trim, field("by").trim)
             if text.isEmpty || by.isEmpty || (node.nonEmpty && !Project.Ident.matches(node)) then error(ex, 400, "expected node, text and by")
-            else { val r = p.addRequest(node, text, by); signal(); json(ex, r, 201) }
+            else { val r = p.addRequest(node, text, by, field("seen")); signal(); json(ex, r, 201) }
           case List("requests", id) =>
             try { val r = p.answerRequest(id, field("answer"), body("status").flatMap(_.str).getOrElse(if field("answer").trim.isEmpty then "closed" else "answered")); signal(); json(ex, r) }
             catch case e: java.util.NoSuchElementException => error(ex, 404, e.getMessage)
