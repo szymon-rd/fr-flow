@@ -146,9 +146,9 @@ final class Server(projects: List[Project], val token: String = Server.newToken(
             def ids(k: String) = body(k).map(_.arr.toList).getOrElse(Nil).flatMap(_.str)
             val req = frflow.Decisions.Request(field("node"), field("by"), field("reason"), ids("reject"),
               ids("revisit"), ids("confirm"), body("action").flatMap(_.str).getOrElse("accept"),
-              body("seen").flatMap(_.str).getOrElse(""), ids("held"))
+              body("seen").flatMap(_.str).getOrElse(""), ids("held"), field("from"), field("revisitIf"), field("standing"))
             if !Project.Ident.matches(req.node) then error(ex, 400, "expected a node id")
-            else if Set("accept", "reject", "migrate")(req.action) && req.seen.isEmpty then
+            else if Set("accept", "reject", "migrate", "rename")(req.action) && req.seen.isEmpty then
               error(ex, 400, "send the version of the node you looked at (seen), so a decision on a node that moved is refused")
             else p.decide(req) match
               case Left(why) => error(ex, 409, why)

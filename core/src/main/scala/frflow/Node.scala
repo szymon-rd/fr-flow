@@ -87,14 +87,14 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
     val file: String = "",
     val expected: List[(String, Lifted[?])] = Nil,
     val assumed: Boolean = false,
-    val relied: List[(() => Node[?], String, Option[Lifted[() => Boolean]])] = Nil,
+    val relied: List[(() => Node[?], String, Option[Reliance])] = Nil,
     val at: Int = -1
 ):
   /** The nodes this one relies on besides its parent (see `relies`), with what it relies on. */
   def reliesOn: List[(Node[?], String)] = relied.map((f, why, _) => (f(), why))
 
   /** What it relies on that is stated as a property of the parameters, checked wherever it runs. */
-  def reliedProperties: List[(Node[?], String, Lifted[() => Boolean])] = relied.collect { case (f, why, Some(p)) => (f(), why, p) }
+  def reliedProperties: List[(Node[?], String, Reliance)] = relied.collect { case (f, why, Some(p)) => (f(), why, p) }
 
   /** This node relies on what another node says (often of another concern: the read side on what
     * every write keeps); `why` says what. A change to that node's meaning puts this one up for review,
@@ -103,13 +103,15 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
     */
   def relies(on: => Node[?], why: String): Node[M] = copy(relied = relied :+ (() => on, why, None))
 
-  /** Relies on `on` for a property of the parameters, `that`, stated with a definition `on` proves
-    * something about (CRM's reads rely on `consistentStore(...)`, which every write keeps): besides
-    * the review, every example and every call through `service` checks it, and refuses values that
-    * break it.
+  /** Relies on `on` for a guarantee about the states `on`'s concern reaches, and on this node seeing
+    * such a state (`sees`, built from its parameters). CRM's reads: `(s: CrmStore) => consistentStore(s)`,
+    * seeing `() => CrmStore(store.value, shares.value)`. Lean proves the guarantee of every state `on`'s
+    * concern reaches, from `on`'s root theorem (`rely_<on>`); every example and every call through
+    * `service` checks it of the state this node sees. What is trusted is one named thing: that the state
+    * it sees is one `on`'s concern reached (the wiring that binds its parameters).
     */
-  inline def reliesThat(on: => Node[?], why: String)(inline that: () => Boolean): Node[M] =
-    copy(relied = relied :+ (() => on, why, Some(Lifted(that))))
+  inline def reliesThat[S](on: => Node[?], why: String)(inline guarantee: S => Boolean)(inline sees: () => S): Node[M] =
+    copy(relied = relied :+ (() => on, why, Some(Reliance(Lifted(guarantee), Lifted(sees)))))
 
   /** Whether Lean checks this node: it did not opt out, and neither did anything above it. */
   def formal: Boolean = declaredFormal && parent.forall(_.formal)
@@ -121,7 +123,7 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
     * is known either way, so a change to them reaches it.
     */
   def referenced: List[Lifted[?]] = spec.toList ++ abs.toList ++ post.toList ++ substs.flatMap(_.term) ++ kept.flatMap(_.view) ++
-    expected.map(_._2) ++ relied.flatMap(_._3)
+    expected.map(_._2) ++ relied.flatMap(_._3).flatMap(r => List(r.guarantee, r.sees))
 
   /** A consequence the developer expects of every model of this node, stated as a check of their
     * understanding (Lean proves it from the node's spec): "Acme never sees Globex's unshared contact".
@@ -146,7 +148,7 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
       assumed = assume)
 
   private def copy(cases: List[Example] = cases, governs: List[String] = governs, kept: List[Keep] = kept,
-      expected: List[(String, Lifted[?])] = expected, relied: List[(() => Node[?], String, Option[Lifted[() => Boolean]])] = relied): Node[M] =
+      expected: List[(String, Lifted[?])] = expected, relied: List[(() => Node[?], String, Option[Reliance])] = relied): Node[M] =
     Node(id, statement, why, kind, parent, spec, abs, post, substs, cases, governs, declaredFormal, kept, scope, ideaSection, file, expected, assumed,
       relied, at)
 
@@ -343,6 +345,13 @@ extension [A, B, R](n: Node[(A, B) => R])
   * runs it through `KnowledgeBase.service`, and a change to its source files is noticed. `wiring` is
   * the source of the expression that builds it, kept in the contract's content.
   */
+/** What a node relies on another concern for: a guarantee about the states that concern reaches, and the
+  * state this node sees (built from its parameters).
+  */
+final case class Reliance(guarantee: Lifted[?], sees: Lifted[?]):
+  /** The guarantee, of the state seen now (under the parameters bound). */
+  def holds: Boolean = guarantee.value.asInstanceOf[Any => Boolean](sees.value.asInstanceOf[() => Any]())
+
 /** An implementation registered for a contract. `proven` is the `define` Lean proves meets the
   * contract: the running implementation itself, or, with `oracle`, the reference a faster plain
   * implementation (`factory`) is checked against.
@@ -351,9 +360,15 @@ final case class Implementation(contract: String, factory: () => Any, files: Lis
     proven: Option[Def[?]] = None, oracle: Boolean = false):
   /** The running code is the proven `define` itself. */
   def provenCode: Boolean = proven.isDefined && !oracle
+
   /** The implementation's source files; the last one listed is the model's file, where it is attached. */
   def sources: List[String] = files.dropRight(1)
   def modelFile: Option[String] = files.lastOption
+
+object Implementation:
+  /** How many calls varied from the examples an implementation runs on, besides them. */
+  val Varied: Int = sys.env.get("FRFLOW_VARIED").flatMap(_.toIntOption).getOrElse(200)
+
 
 /** A knowledge base: the developer's idea (a Markdown file) and the nodes derived from it.
   * `name` is the Lean namespace.
@@ -410,9 +425,9 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
       throw IllegalStateException(s"${contract.id}: bind ${missing.mkString(", ")} (the contract reads them)")
     contract.enforce((a, b) => f()(a, b), assumptionsOf(contract))(bindings*)
 
-  /** The properties the nodes on a contract's path rely on (see `reliesThat`), to check where it runs. */
+  /** The guarantees the nodes on a contract's path rely on (see `reliesThat`), to check where it runs. */
   def assumptionsOf(n: Node[?]): List[(String, () => Boolean)] =
-    path(n).flatMap(x => x.reliedProperties.map((o, why, p) => (s"${x.id} relies on ${o.id} for (${why}): `${p.source}`", p.value)))
+    path(n).flatMap(x => x.reliedProperties.map((o, why, r) => (s"${x.id} relies on ${o.id} for (${why}): `${r.guarantee.source}` of `${r.sees.source}`", () => r.holds)))
 
   /** The results of a node's examples, against the implementation when one is registered. */
   def exampleResults(n: Node[?]): List[ExampleResult] =
@@ -421,8 +436,9 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
       generated(n)
 
   /** The contract holds for every call, not only the examples: the implementation also runs on
-    * every combination of the examples' inputs, under each example's parameter values. Calls whose
-    * result breaks the contract are listed as failing examples.
+    * every combination of the examples' inputs, under each example's parameter values, and on calls
+    * varied from the examples (`Variations`). Calls whose result breaks the contract (or, for an
+    * implementation checked against an oracle, differs from the oracle's) are listed as failing.
     */
   def generated(n: Node[?]): List[ExampleResult] =
     implementation(n).filter(_ => n.kind == NodeKind.Contract && n.cases.nonEmpty).toList.flatMap { i =>
@@ -431,7 +447,7 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
       val bs = n.cases.map(_.b).distinct
       val known = n.cases.map(e => (e.bindings, e.a, e.b)).toSet
       // Once per set of parameter values (examples giving the same values are one group).
-      n.cases.map(e => (e.bindings, e.givenSource)).distinctBy(_._1.map(b => (b.param.name, scala.util.Try(b.value()).toOption))).flatMap { (bindings, src) =>
+      (n.cases.map(e => (e.bindings, e.givenSource)).distinctBy(_._1.map(b => (b.param.name, scala.util.Try(b.value()).toOption))).flatMap { (bindings, src) =>
         Bindings.within(bindings) {
           val f = try Some(i.factory.asInstanceOf[() => (Any, Any) => Any]()) catch case _: Exception => None
           f.toList.flatMap { impl =>
@@ -452,7 +468,27 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
               broken.orElse(differs).map(why => ExampleResult(Example("generated from the examples' inputs: the contract holds for every call", bindings, src, a, b, r, true), "ok", Some(why)))
           }.flatten
         }
-      }.take(10)
+      } ++ Variations.of(n.cases, Implementation.Varied).flatMap { v =>
+        Bindings.within(v.bindings) {
+          val f = try Some(i.factory.asInstanceOf[() => (Any, Any) => Any]()) catch case _: Exception => None
+          f.toList.flatMap { impl =>
+            val (r, broken) =
+              try
+                val r = impl(v.a, v.b)
+                val keeps = n.asInstanceOf[Node[(Any, Any) => Any]].broken(v.a, v.b, r)
+                (r, if !post(v.a, v.b, r) then Some(s"returned ${Example.show(r)}, which breaks the contract")
+                    else keeps.map(x => s"returned ${Example.show(r)}, which breaks the invariant $x"))
+              catch case e: Exception => (null, Some(s"error: ${e.getMessage}"))
+            val differs = if !i.oracle || broken.nonEmpty then None else
+              try
+                val o = i.proven.get.fn.asInstanceOf[(Any, Any) => Any](v.a, v.b)
+                Option.when(o != r)(s"returned ${Example.show(r)}, where the proven ${i.proven.get.name} returns ${Example.show(o)}")
+              catch case e: Exception => Some(s"the proven ${i.proven.get.name} fails: ${e.getMessage}")
+            broken.orElse(differs).map(why => ExampleResult(Example(s"varied from example ${v.from + 1}: the contract holds for every call",
+              v.bindings, n.cases(v.from).givenSource, v.a, v.b, r, true), "ok", Some(why)))
+          }
+        }
+      }).take(10)
     }
 
   /** What a contract does not promise, found mechanically: inputs its `post` never looks at, and
@@ -537,8 +573,12 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     nodes.filter { c =>
       (i.scope.isEmpty || path(c).exists(a => i.scope.exists(_ eq a))) && (c.kind match
         case NodeKind.Contract => returnsIt(c)
-        // A design decision below a contract that keeps the rule governs code on that path.
-        case NodeKind.Design   => path(c).exists(a => a.kind == NodeKind.Contract && keeper(a))
+        // A design decision governs code no proof covers: it is in scope below a contract that keeps
+        // the rule, is exempt from it or returns what it is about (an exemption of the contract is
+        // not one of the code hung below it), and with no contract above it at all.
+        case NodeKind.Design   =>
+          val contracts = path(c).filter(_.kind == NodeKind.Contract)
+          contracts.isEmpty || contracts.exists(a => keeper(a) || a.kept.exists(_.invariant eq i) || returnsIt(a))
         case _                 => false)
     }
   def path(n: Node[?]): List[Node[?]] = n.parent.fold(List(n))(p => path(p) :+ n)
@@ -593,7 +633,7 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
       nodes.filter(n => n.kept.nonEmpty && n.kind != NodeKind.Contract && n.kind != NodeKind.Design)
         .map(n => s"${n.id}: only contracts and design decisions are exempt from invariants"),
       nodes.flatMap(n => n.kept.groupBy(_.invariant.id).collect { case (i, ks) if ks.size > 1 => s"${n.id} names $i more than once" }),
-      nodes.flatMap(n => n.kept.filter(k => k.view.isEmpty && k.exempt.trim.split("\\s+").count(_.exists(_.isLetter)) < 3)
+      nodes.flatMap(n => n.kept.filter(k => k.view.isEmpty && Words.tooFew(k.exempt))
         .map(k => s"${n.id}: say in a few words why ${k.invariant.id} does not apply to it")),
       nodes.filter(_.kind == NodeKind.Invariant).flatMap(i => inScope(i).filterNot(_.kept.exists(_.invariant eq i))
         .map(c => if c.kind == NodeKind.Design then s"${c.id}: say why ${i.id} does not apply to the code it governs (.exempt): a design decision in its scope does"
@@ -619,15 +659,10 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
         all.toList.groupBy(_.name).collect { case (n, ds) if ds.size > 1 =>
           s"two different definitions are named $n (in different packages, say): Lean would know only one of them; rename one" }.toList
       },
-      // A property relied on is stated with what the other node proves something about.
-      nodes.flatMap(n => n.reliedProperties.collect {
-        case (o, _, p) if o != null && nodes.contains(o) && !p.defs.map(_.name).exists(d => path(o).flatMap(_.referenced).flatMap(_.defs).exists(_.name == d)) =>
-          s"${n.id}: what it relies on ${o.id} for must be stated with a definition ${o.id} (or a node above it) uses, so it is what is proven there: `${p.source}` names none"
-      }),
       nodes.flatMap(n => n.reliesOn.collect {
         case (null, _) => s"${n.id} relies on a node that is not initialized: refer to its val"
         case (o, _) if !nodes.contains(o) => s"${n.id} relies on ${o.id}, which is not in the knowledge base"
-        case (o, why) if why.trim.split("\\s+").count(_.exists(_.isLetter)) < 3 => s"${n.id}: say in a few words what it relies on in ${o.id}"
+        case (o, why) if Words.tooFew(why) => s"${n.id}: say in a few words what it relies on in ${o.id}"
       }),
       // What a node rests on (its parent, what it relies on, the invariants it keeps) must not lead back to it.
       nodes.filter { n =>

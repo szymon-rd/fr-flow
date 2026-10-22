@@ -19,6 +19,8 @@ final case class Obligation(name: String, statement: String, description: String
   * @param authored (node, obligation) proven by a theorem of that name in `Proofs/<KB>/<Node>.lean`
   */
 object Generate:
+  /** How many calls varied from a contract's examples Lean evaluates besides them. */
+  val VariedInLean: Int = sys.env.get("FRFLOW_VARIED_LEAN").flatMap(_.toIntOption).getOrElse(6)
   /** Names the generated Lean binds itself; a parameter or opaque type with one of them would be captured. */
   val reserved: Set[String] =
     Set("m", "f", "h", "p", "spec", "abs", "post", "toRoot", "rootSpec", "link", "root", "Obl", "Type", "Prop",
@@ -65,11 +67,12 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
 
   private val defCtxCache = mutable.Map.empty[String, Ctx]
 
-  private def defCtx(d: Def[?]): Ctx =
+  private def defCtx(d: Def[?]): Ctx = defCtxCache.synchronized {
     defCtxCache.getOrElseUpdate(d.name, {
       defCtxCache(d.name) = Ctx.empty // recursion
       ctx(d.lifted, Set(d.name))
     })
+  }
 
   /** Context of a lifted expression: what it mentions, and what the functions it calls need. */
   def ctx(l: Lifted[?], self: Set[String] = Set.empty): Ctx =
@@ -117,31 +120,27 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
         rootImplFile(n).map(oblPath(n.id, "rootImpl") -> _) ++
         idle(n).map((o, _) => oblPath(n.id, o.name) -> attempt(n, o)) ++
         clauseChecks(n).map((o, _) => oblPath(n.id, o.name) -> attempt(n, o)) ++
+        relyChecks(n).map((_, name, file) => oblPath(n.id, name) -> file) ++
         evalFile(n).map(evalPath(n.id) -> _)
     }
     (s"FrFlowGen/$K/Domain.lean" -> domain :: perNode).toMap
 
   /** Lean of the domain types and functions a node's own expressions use. */
   def declarationsUsedBy(n: Node[?]): List[String] =
-    val defs = mutable.LinkedHashMap.empty[String, Def[?]]
-    def visit(d: Def[?]): Unit = if !defs.contains(d.name) then { defs(d.name) = d; d.lifted.defs.foreach(visit) }
     // What the node's own lambdas call, the invariants' rules it keeps, and its proven implementation:
     // a change to any of them re-runs its check.
-    (n.lifted ++ formalKeeps(n).flatMap(_._1.spec)).flatMap(_.defs).foreach(visit)
-    provenImpl(n).foreach(visit)
-    val ls = n.lifted ++ formalKeeps(n).flatMap(_._1.spec) ++ defs.values.map(_.lifted)
-    ls.flatMap(_.types).map(_.lean).distinct ++ defs.values.map(d => resolve(d.lifted.lean))
+    val defs = Def.closure((n.lifted ++ formalKeeps(n).flatMap(_._1.spec)).flatMap(_.defs) ++ provenImpl(n))
+    val ls = n.lifted ++ formalKeeps(n).flatMap(_._1.spec) ++ defs.map(_.lifted)
+    ls.flatMap(_.types).map(_.lean).distinct ++ defs.map(d => resolve(d.lifted.lean))
 
   /** What a node uses, as written in Scala: the domain types (theirs, and those it substitutes) and
     * the definitions, however nested. Part of what a decision is bound to; unlike the generated Lean,
     * it does not change when FrFlow's translation does.
     */
   def sourcesUsedBy(n: Node[?]): List[String] =
-    val defs = mutable.LinkedHashMap.empty[String, Def[?]]
-    def visit(d: Def[?]): Unit = if !defs.contains(d.name) then { defs(d.name) = d; d.lifted.defs.foreach(visit) }
-    n.referenced.flatMap(_.defs).foreach(visit)
-    val types = (n.referenced ++ defs.values.map(_.lifted)).flatMap(_.types) ++ n.substs.flatMap(_.types)
-    types.map(t => if t.scala.nonEmpty then t.scala else t.lean).distinct ++ defs.values.map(d => s"${d.name} = ${d.lifted.source}")
+    val defs = Def.closure(n.referenced.flatMap(_.defs))
+    val types = (n.referenced ++ defs.map(_.lifted)).flatMap(_.types) ++ n.substs.flatMap(_.types)
+    types.map(t => if t.scala.nonEmpty then t.scala else t.lean).distinct ++ defs.map(d => s"${d.name} = ${d.lifted.source}")
 
   def domain: String =
     val defs = kb.defs.map { d =>
@@ -398,6 +397,43 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
           s"The root's clause $c holds of every model of ${n.id}, whatever ${n.id} says."), c)
       }
 
+  /** The seams between concerns: for each guarantee `n` relies on (see `reliesThat`), that every state
+    * the relied node's concern reaches meets it, proven from that node's root theorem. (relied node, the
+    * obligation's name, its file.)
+    */
+  def relyChecks(n: Node[?]): List[(Node[?], String, String)] =
+    if !formal(n) then Nil
+    else n.reliedProperties.filter((o, _, r) => o != null && formal(o) && r.guarantee.body.nonEmpty).map { (o, _, r) =>
+      val c = nodeCtx(o) ++ ctx(r.guarantee)
+      val b = binders(c)
+      val ao = args(nodeCtx(o))
+      def atO(f: String) = if ao.isEmpty then q(o, f) else s"(${q(o, f)} $ao)"
+      // The root's model is a function of k arguments (a run of writes, say): every state is its result.
+      val rootModel = kb.rootOf(o).spec.get.params.head._2
+      val k = arity(rootModel)
+      val xs = (0 until k).map(i => s"x$i").mkString(" ")
+      val reached = if k == 0 then s"(${atO("toRoot")} m)" else s"(${atO("toRoot")} m $xs)"
+      val statement = (if b.isEmpty then "" else s"∀ $b, ") + s"∀ (m : ${modelType(o)}), ${atO("spec")} m → " +
+        (if k == 0 then "" else s"∀ $xs, ") + s"(${resolve(r.guarantee.lean)}) $reached"
+      val names = args(c)
+      val name = s"rely_${o.id}"
+      val ns = s"$K.${n.id}.${name.capitalize}"
+      val file = Header + s"import ${theoremsModule(o.id)}\n\n" + Preamble + s"namespace $ns\n\n" +
+        s"/-- Every state ${o.id}'s concern reaches meets what ${n.id} relies on it for. -/\n" +
+        s"theorem rely : $statement := by\n  intro${if names.isEmpty then "" else " " + names} m h\n" +
+        s"  have hr := ${q(o, "root")}${if ao.isEmpty then "" else " " + ao} m h\n" +
+        (if k == 0 then "" else s"  intro $xs\n") + s"  simp only [frflow_defs] at hr ⊢\n  frflow_auto\n\n" +
+        s"end $ns\n\n#print axioms $ns.rely\n"
+      (o, name, file)
+    }
+
+  /** How many arguments a function type takes (0 for a value). */
+  private def arity(t: String): Int = parseType(t) match
+    case LT.Fun(text) =>
+      var d = 0
+      text.indices.count { i => val ch = text(i); if ch == '(' then d += 1 else if ch == ')' then d -= 1; d == 0 && text.startsWith("→", i) }
+    case _ => 0
+
   /** The contract met by doing nothing (returning `[]` or `none`, or the input unchanged) on every
     * call, as `frflow_auto` may show: what it then leaves to the examples.
     */
@@ -465,8 +501,16 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
       val c = nodeCtx(n)
       val post = n.post.get.value.asInstanceOf[(Any, Any, Any) => Boolean]
       val impl = provenImpl(n)
-      val out = n.cases.zipWithIndex.map { (e, i) =>
-        val label = s"example ${i + 1} (${e.note})"
+      // The examples, and calls varied from them (`Variations`): the translation is cross-checked
+      // beyond the values the examples happen to use. A varied call returns what the proven
+      // implementation returns, or the result of the example it was varied from.
+      val varied = Variations.of(n.cases, Generate.VariedInLean).map { v =>
+        val r = impl.flatMap(d => scala.util.Try(Bindings.within(v.bindings)(d.fn.asInstanceOf[(Any, Any) => Any](v.a, v.b))).toOption)
+          .getOrElse(n.cases(v.from).result)
+        n.cases(v.from).copy(note = s"varied from example ${v.from + 1}", bindings = v.bindings, a = v.a, b = v.b, result = r)
+      }
+      val out = (n.cases.zipWithIndex.map((e, i) => (e, s"example ${i + 1} (${e.note})", "eval", i)) ++
+          varied.zipWithIndex.map((e, i) => (e, s"varied call ${i + 1} (${e.note})", "varied", i))).map { (e, label, tag, i) =>
         def valueOf(p: String): Either[String, String] =
           paramObject.get(p).flatMap(po => e.bindings.find(_.param eq po)) match
             case None => Left(s"it gives no value for $p")
@@ -493,14 +537,15 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
         yield
           val (verdict, got) = ran
           val call = s"$K.${n.id}.post${c.params.map(p => " " + vals(p)).mkString} $ta $tb $tr"
-          val onPost = Eval(s"eval_$i", label, if verdict then call else s"¬ $call", if verdict then s"¬ $call" else call)
+          val onPost = Eval(s"${tag}_$i", label, if verdict then call else s"¬ $call", if verdict then s"¬ $call" else call)
           val onImpl = for { d <- impl; g <- got; tg <- term(g) } yield
             val f = s"($K.${d.name}${defCtx(d).params.map(p => " " + vals(p)).mkString})"
-            Eval(s"evalImpl_$i", s"$label, run by ${d.name}", s"$f $ta $tb = $tg", s"$f $ta $tb ≠ $tg")
+            Eval(s"${tag}Impl_$i", s"$label, run by ${d.name}", s"$f $ta $tb = $tg", s"$f $ta $tb ≠ $tg")
           onPost :: onImpl.toList
-        evaluated.left.map(why => (s"eval_$i", s"$label: $why"))
+        evaluated.left.map(why => (s"${tag}_$i", s"$label: $why"))
       }
-      (out.collect { case Right(es) => es }.flatten, out.collect { case Left(w) => w })
+      // A varied call Lean has no value for is left out: the examples say why.
+      (out.collect { case Right(es) => es }.flatten, out.collect { case Left(w) if w._1.startsWith("eval_") => w })
 
   def evalPath(id: String) = oblPath(id, "eval")
 

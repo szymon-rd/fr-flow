@@ -40,7 +40,7 @@ object Cli:
         results.foreach { (n, c) =>
           // The link's status is the node's; what else is open is said with it, and failing examples first:
           // they show the code (or the contract) is wrong, which no proof fixes.
-          val open = c.obligations.filter(r => r.name != "link" && !r.name.startsWith("eval") && r.name != "idle" && !r.name.startsWith("clause_") && !Set("proven", "assumed")(r.status))
+          val open = c.obligations.filter(r => r.name != "link" && !r.isEvaluation && !r.fine)
           println(s"${n.id}: ${c.status}${if c.status == "proven" && open.nonEmpty then s" (the link; not proven: ${open.map(_.name).mkString(", ")})" else ""}")
           val failing = kb.exampleResults(n).filter(r => r.contract != "ok" || r.implementation.exists(_ != "ok"))
           if failing.nonEmpty then
@@ -48,7 +48,7 @@ object Cli:
             failing.take(5).foreach(r => println(s"    ${r.example.describe}: contract ${r.contract}${r.implementation.fold("")(i => s", implementation $i")}"))
           // `idle` is not an obligation: proven, it is a limit of the contract (it allows doing nothing).
           c.obligations.filter(r => r.name.startsWith("clause_") && r.status == "proven").foreach(r => println(s"  limit: the root's clause `${r.detail}` holds of every model of it, whatever it says"))
-          c.obligations.filter(r => r.name != "idle" && !r.name.startsWith("clause_") && r.status != "proven").foreach(r => println(s"  ${r.status} ${r.name}: ${r.detail.linesIterator.mkString("\n    ")}"))
+          c.obligations.filter(r => !r.isLimit && r.status != "proven").foreach(r => println(s"  ${r.status} ${r.name}: ${r.detail.linesIterator.mkString("\n    ")}"))
           c.obligations.filter(r => r.name == "idle" && r.status == "proven").foreach(r => println(s"  limit: it is met by ${r.detail} on every call"))
           c.messages.foreach(m => println(s"  ! ${m.linesIterator.mkString("\n    ")}"))
         }

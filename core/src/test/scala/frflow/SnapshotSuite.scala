@@ -490,3 +490,101 @@ class SnapshotSuite extends munit.FunSuite:
     val l2 = w.decide(Decisions.Request("OnlyGood", "dev", "Reworded reason for the root.", action = "accept")).fold(_ => l, _ => w.ledger)
     assert(Ledger.chainBreaks(w.ledger).isEmpty, Ledger.chainBreaks(w.ledger))
   }
+
+  test("a renamed node keeps its history, its reasons and the alternatives rejected for it, in one decision") {
+    val ws = workspace()
+    acceptAll(workflow(shelfKb, ws))
+    val w = workflow(KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, choose).implement(choose)((shelf, n) => shelf.filter(_.pages >= minPages.value).take(n)), ws)
+    val gone = w.annotated("gone").get.arr.toList
+    assertEquals(gone.map(g => field(g, "id")), List(Some("Pick")))
+    assertEquals(gone.head("renamedTo").get.arr.flatMap(_.str), Seq("Choose"))
+    assertEquals(w.state(choose), "proposed")
+    // only a node that says the same is a rename
+    assert(w.decide(Decisions.Request("Books", "dev", "Books is not Pick renamed.", action = "rename", from = "Pick")).isLeft)
+    ok(w.decide(Decisions.Request("Choose", "dev", "Choose says what the call does.", action = "rename", from = "Pick")))
+    assertEquals(w.state(choose), "accepted")
+    assertEquals(w.gone, Nil)
+    assertEquals(w.ledger.history("Choose").map(_.action), List("accept", "accept"))
+    assert(field(nodes(w.annotated)("Choose"), "reasonNow").exists(r => r.startsWith("Pick is right") && r.contains("renamed from Pick")),
+      field(nodes(w.annotated)("Choose"), "reasonNow"))
+    assertEquals(Ledger.chainBreaks(w.ledger), Nil)
+    assertEquals(Ledger.fromJson(Json.parse(Files.readString(ws.ledgerFile))).history("Choose").map(_.from), List("", "Pick"))
+  }
+
+  test("an idea change nothing follows up is a warning, until a node of its concern is accepted or Not modelled changes") {
+    val ws = workspace()
+    val w = workflow(shelfKb, ws)
+    acceptAll(w)
+    assertEquals(w.ideaFollowUps, Nil)
+    Files.writeString(ws.root.resolve("IDEA.md"), "# Shelf\n\nPick good items.\n\nA picked item is never damaged.\n\n## Not modelled\n\n- Prices.\n")
+    ok(accept(w, onlyGood, "The idea now says a picked item is never damaged."))
+    assert(w.ideaFollowUps.exists(_.contains("never damaged")), w.ideaFollowUps)
+    assert(w.codeWarnings.exists(_.contains("nothing follows it up")))
+    Files.writeString(ws.root.resolve("IDEA.md"), "# Shelf\n\nPick good items.\n\nA picked item is never damaged.\n\n## Not modelled\n\n- Prices.\n- Damage: checked by hand.\n")
+    ok(accept(w, onlyGood, "Damage is checked by hand: not modelled."))
+    assertEquals(w.ideaFollowUps, Nil)
+  }
+
+  test("a type change is not mechanical where the node's words name the type that changed") {
+    val w = workflow()
+    acceptAll(w)
+    val snap = proven(w.baseSnapshot)
+    // Book gains a field: Pick says "books", so a reader checks the words still hold
+    val changed = Json.JObj(snap.obj.map {
+      case ("nodes", Json.JArr(ns)) => "nodes" -> Json.JArr(ns.map { n =>
+        if field(n, "id").contains("Pick") then
+          val c = n("content").get
+          val uses = c("uses").get.arr.map(u => if u.str.exists(_.startsWith("case class Book")) then Json.str("case class Book(title: String, pages: Int, author: String)") else u)
+          val c2 = Json.JObj(c.obj.map { case ("uses", _) => "uses" -> Json.JArr(uses); case f => f })
+          Json.JObj(n.obj.map { case ("content", _) => "content" -> c2; case ("hash", _) => "hash" -> Json.str(Decision.hash(c2)); case f => f })
+        else n })
+      case f => f })
+    val pickNode = nodes(changed)("Pick")
+    assertEquals(Decisions.state(changed, w.ledger, pickNode), "review")
+    assert(Decisions.mechanical(changed, w.ledger, pickNode).exists(_.contains("words name book")), Decisions.mechanical(changed, w.ledger, pickNode))
+  }
+
+  test("calls varied from the examples keep each value's type, are new, and are the same each time") {
+    val vs = Variations.of(pick.cases, 20)
+    assert(vs.size >= 10, vs)
+    def key(v: Variations.Call) = (v.a, v.b, v.bindings.map(_.value()))
+    assertEquals(vs.map(key), Variations.of(pick.cases, 20).map(key))
+    vs.foreach { v =>
+      assert(v.a.asInstanceOf[List[Any]].forall(_.isInstanceOf[Book]), v.a)
+      assert(v.b.isInstanceOf[Int])
+      assert(v.bindings.map(_.value()).forall(_.isInstanceOf[Int]))
+    }
+    val known = pick.cases.map(e => (e.a, e.b, e.bindings.map(_.value()))).toSet
+    assert(vs.map(key).forall(!known(_)))
+    // an implementation wrong only on a shelf longer than any example's is caught on a varied call
+    val wrong = KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, pick)
+      .implement(pick)((shelf, n) => if shelf.size > 2 then shelf else shelf.filter(_.pages >= minPages.value).take(n))
+    assert(wrong.generated(pick).exists(_.example.note.startsWith("varied from example")), wrong.generated(pick))
+    assertEquals(shelfKb.generated(pick), Nil)
+  }
+
+  test("a decision may say when to revisit it, and a change may restate why the node holds now") {
+    val ws = workspace()
+    val w0 = workflow(shelfKb, ws)
+    ok(accept(w0, onlyGood, "it is the idea"))
+    ok(w0.decide(Decisions.Request("Listed", "dev", "Items come from the list offered.", revisitIf = "items can come from elsewhere")))
+    ok(accept(w0, books, "Books are the items."))
+    ok(accept(w0, pick, "Picking is per call."))
+    assertEquals(field(nodes(w0.annotated)("Listed"), "revisitIf"), Some("items can come from elsewhere"))
+    // the root's why changes: Listed names when to revisit it, in its field, so it is answered by name
+    val root2 = Node.root[(List[Item.T], Int) => List[Item.T]]("OnlyGood", onlyGood.statement, "Picking a bad item is what the idea rules out, whatever the list.")(
+      pick => forall((l: List[Item.T], n: Int) => pick(l, n).forall(x => good(x))))
+    val w = workflow(KnowledgeBase("Shelf", idea = "IDEA.md")(root2, listed, books, pick), ws)
+    assert(accept(w, root2, "The why is clearer now.").left.exists(_.contains("Listed")))
+    ok(w.decide(Decisions.Request("OnlyGood", "dev", "The why is clearer now.", held = List("Listed"),
+      standing = "Picking only good items is the idea, whatever the list.")))
+    assertEquals(field(nodes(w.annotated)("OnlyGood"), "standing"), Some("Picking only good items is the idea, whatever the list."))
+    assert(field(nodes(w.annotated)("OnlyGood"), "reasonNow").exists(_.startsWith("Picking only good items")))
+    assert(w.context(listed).contains("Revisit if: items can come from elsewhere"))
+    assertEquals(Signing.payload("Listed", w.ledger.history("Listed").head).length > 0, true)
+  }
+
+  test("the model's @main only runs the CLI") {
+    val w = workflow()
+    assert(!w.modelCode.exists(_.contains("@main")), w.modelCode)
+  }

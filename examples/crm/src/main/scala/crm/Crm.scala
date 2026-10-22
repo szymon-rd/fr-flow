@@ -74,7 +74,7 @@ val accounts = readApi.instantiate[(Account, Search) => List[CrmRecord]](
   owner      := ((r: CrmRecord) => r.tenant),
   sharedWith := ((r: CrmRecord, t: TenantId) => shares.value.contains(Share(r.id, t)))
 ).reliesThat(crmWrites, "a share names one record by its id: ids are unique in every store the writes reach, so a share never shows another company's record with the same id")(
-  () => consistentStore(CrmStore(store.value, shares.value)))
+  (s: CrmStore) => consistentStore(s))(() => CrmStore(store.value, shares.value))
 
 // ============================================================================
 // Contract for implementations
@@ -253,6 +253,7 @@ val writeSideWiring = writeContract.design(
   "The write side applies every write through service, which checks each new store against WriteContract.",
   why = "Every write must go through service; keeping the wiring in one governed file makes a change to it visible."
 )("src/main/scala/crm/WriteSide.scala")
+  .exempt(noCrossTenantRead, "the write side hands the new store to storage and returns nothing to a reader: no record leaves it")
 
 val knowledge = KnowledgeBase("Crm", idea = "IDEA.md")(isolation, readApi, accounts, readContract, readSideWiring, noCrossTenantRead,
   writesKeepStore, stepByStep, crmWrites, writeContract, writeSideWiring)

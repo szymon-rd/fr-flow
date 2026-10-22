@@ -20,8 +20,10 @@ object Signing:
   /** What is signed: everything the decision says, and which node it is about. */
   def payload(id: String, d: Decision): Array[Byte] =
     val u = d.unsigned
-    Seq(id, u.action, u.by, u.at, u.reason, u.rejected.mkString(","), u.held.mkString(","), u.chain, u.code, u.commit, u.tree,
-      u.after, Ledger.ref(u.content)).mkString("\u0000").getBytes(UTF_8)
+    (Seq(id, u.action, u.by, u.at, u.reason, u.rejected.mkString(","), u.held.mkString(","), u.chain, u.code, u.commit, u.tree,
+      u.after, Ledger.ref(u.content)) ++ (if u.from.isEmpty then Nil else Seq("from:" + u.from)) ++
+      (if u.revisitIf.isEmpty then Nil else Seq("revisitIf:" + u.revisitIf)) ++ (if u.standing.isEmpty then Nil else Seq("standing:" + u.standing)))
+      .mkString("\u0000").getBytes(UTF_8)
 
   def keyId(pub: PublicKey): String =
     Sha.bytes(pub.getEncoded).take(16)

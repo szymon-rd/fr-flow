@@ -27,13 +27,18 @@ object Git:
     */
   def versions(dir: Path, file: String): List[Version] =
     // Full history: a merge that kept one side's file (as `-s ours` does) is compared with each parent;
-    // and all of it, however long (the result is kept per commit, see `Ledger.rewrites`).
-    run(dir, "log", "--full-history", "--parents", "--format=%H %P", "--", file).toList
-      .flatMap(_.linesIterator.map(_.trim).filter(_.nonEmpty)).reverse
-      .map(_.split(" ").toList).collect { case c :: parents => Version(c, parents, run(dir, "show", s"$c:./$file")) }
+    // and all of it, however long. The file at each commit is read only when asked for, and not kept.
+    val out = run(dir, "log", "--full-history", "--parents", "--format=@%H %P", "--name-status", "--", file).getOrElse("")
+    val commits = scala.collection.mutable.ListBuffer.empty[(List[String], Boolean)]
+    out.linesIterator.map(_.trim).filter(_.nonEmpty).foreach { l =>
+      if l.startsWith("@") then commits += ((l.drop(1).split(" ").toList, false))
+      else if l.startsWith("D") && commits.nonEmpty then commits(commits.size - 1) = (commits.last._1, true)
+    }
+    commits.toList.reverse.collect { case (c :: parents, deleted) => Version(c, parents, deleted)(() => run(dir, "show", s"$c:./$file")) }
 
-  /** A commit that changed a file, its parents among such commits, and the file there (None if deleted). */
-  final case class Version(commit: String, parents: List[String], text: Option[String])
+  /** A commit that changed a file, its parents among such commits, and whether it deleted the file. */
+  final case class Version(commit: String, parents: List[String], deleted: Boolean)(read: () => Option[String]):
+    def text: Option[String] = if deleted then None else read()
 
   /** Files under `dir` that a commit removed, with the commit; and those removed from the working tree. */
   def removed(root: Path, dir: String): List[(String, String)] =

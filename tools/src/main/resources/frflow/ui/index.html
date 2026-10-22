@@ -363,10 +363,10 @@ function render() {
   const proven = links.filter(n => linkStatus(n) === "proven").length;
   const accepted = nodes.filter(n => n.state === "accepted").length, review = nodes.filter(n => n.state === "review").length;
   const warn = (s.warnings || []).length;
-  const impls = nodes.filter(n => n.implementationProof && n.implementationProof.status !== "informal");
-  const implProven = impls.filter(n => n.implementationProof.status === "proven").length;
+  const impls = nodes.filter(n => n.kind === "contract");
+  const implProven = impls.filter(n => n.implementationProof?.status === "proven" && !n.implementationProof.oracle).length;
   const openNodes = nodes.filter(n => warnings(n).length).length;
-  $("#summary").innerHTML = `${esc(s.name)} · <b>${accepted}</b> accepted · <b>${review}</b> to review · <b>${proven}/${links.length}</b> links proven${impls.length ? ` · <b ${implProven < impls.length ? 'style="color:var(--failed)"' : ""}>${implProven}/${impls.length}</b> implementations proven` : ""}${openNodes ? ` · <b style="color:var(--failed)">${openNodes}</b> node(s) with something unproven or failing` : ""}${warn ? ` · <b style="color:var(--failed)">${warn} warning(s)</b>` : ""} · rendered ${ago(s.exportedAt)}`;
+  $("#summary").innerHTML = `${esc(s.name)} · <b>${accepted}</b> accepted · <b>${review}</b> to review · <b>${proven}/${links.length}</b> links proven${impls.length ? ` · <b ${implProven < impls.length ? 'style="color:var(--failed)"' : ""}>${implProven}/${impls.length}</b> contracts proven down to their code` : ""}${openNodes ? ` · <b style="color:var(--failed)">${openNodes}</b> node(s) with something unproven or failing` : ""}${warn ? ` · <b style="color:var(--failed)">${warn} warning(s)</b>` : ""} · rendered ${ago(s.exportedAt)}`;
   renderTree(); renderPane(); renderJob();
   history.replaceState(null, "", `#${encodeURIComponent(state.project)}/${encodeURIComponent(state.selected || "")}`);
 }
@@ -449,12 +449,15 @@ function renderPane() {
   if (!snap() && state.tab !== "idea") { $("#pane").innerHTML = ""; return; }
   // A redraw (for example after a live update) keeps what the developer is typing or ticking.
   const keep = state.tab === "node" && $("#reason") ? { node: state.selected, reason: $("#reason").value,
-    ticks: [...document.querySelectorAll("#pane input[type=checkbox]")].map(x => [x.className, x.value, x.checked]) } : null;
+    standing: $("#standing")?.value, revisitIf: $("#revisitIf")?.value,
+    ticks: [...document.querySelectorAll("#pane input[type=checkbox], #pane input[type=radio]")].map(x => [x.className, x.name + "|" + x.value, x.checked]) } : null;
   $("#pane").innerHTML = { node: nodePane, inbox: inboxPane, idea: ideaPane, vocabulary: vocabularyPane, history: historyPane }[state.tab]();
   if (keep && keep.node === state.selected) {
     if ($("#reason")) $("#reason").value = keep.reason;
+    if ($("#standing") && keep.standing !== undefined) $("#standing").value = keep.standing;
+    if ($("#revisitIf") && keep.revisitIf !== undefined) $("#revisitIf").value = keep.revisitIf;
     for (const [c, v, on] of keep.ticks) {
-      const el = [...document.querySelectorAll("#pane input[type=checkbox]")].find(x => x.className === c && x.value === v);
+      const el = [...document.querySelectorAll("#pane input[type=checkbox], #pane input[type=radio]")].find(x => x.className === c && x.name + "|" + x.value === v);
       if (el) el.checked = on;
     }
   }
@@ -486,7 +489,8 @@ function verdict(n) {
 // Code and lists compare by line, so a change reads as the lines it touched; prose by word.
 const byLine = new Set(["implementation", "definitions used", "examples", "substitutions", "spec", "abs", "post", "definition (as written)"]);
 function wordDiff(a, b, lines = false) {
-  const x = (a || "").split(lines ? /(\n)/ : /(\s+)/), y = (b || "").split(lines ? /(\n)/ : /(\s+)/);
+  if (lines) return lineDiff(a, b);
+  const x = (a || "").split(/(\s+)/), y = (b || "").split(/(\s+)/);
   if (x.length * y.length > 250000) return `<del class="w">${esc(a)}</del>\n<ins class="w">${esc(b)}</ins>`;
   const m = x.length, n = y.length, L = Array.from({ length: m + 1 }, () => new Int32Array(n + 1));
   for (let i = m - 1; i >= 0; i--) for (let j = n - 1; j >= 0; j--) L[i][j] = x[i] === y[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
@@ -499,6 +503,29 @@ function wordDiff(a, b, lines = false) {
   while (i < m) out += `<del class="w">${esc(x[i++])}</del>`;
   while (j < n) out += `<ins class="w">${esc(y[j++])}</ins>`;
   return out;
+}
+
+// Line by line, with the unchanged lines between changes folded away (one kept on each side).
+function lineDiff(a, b) {
+  const x = (a || "").split("\n"), y = (b || "").split("\n");
+  if (x.length * y.length > 250000) return `<del class="w">${esc(a)}</del>\n<ins class="w">${esc(b)}</ins>`;
+  const m = x.length, n = y.length, L = Array.from({ length: m + 1 }, () => new Int32Array(n + 1));
+  for (let i = m - 1; i >= 0; i--) for (let j = n - 1; j >= 0; j--) L[i][j] = x[i] === y[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  const ops = []; let i = 0, j = 0;
+  while (i < m || j < n) {
+    if (i < m && j < n && x[i] === y[j]) { ops.push(["=", x[i]]); i++; j++; }
+    else if (j < n && (i === m || L[i][j + 1] >= L[i + 1][j])) ops.push(["+", y[j++]]);
+    else ops.push(["-", x[i++]]);
+  }
+  const near = k => [k - 1, k, k + 1].some(q => ops[q] && ops[q][0] !== "=");
+  const out = []; let skipped = 0;
+  ops.forEach(([o, t], k) => {
+    if (o === "=" && !near(k)) { skipped++; return; }
+    if (skipped) { out.push(`<span class="muted">… ${skipped} unchanged line(s)</span>`); skipped = 0; }
+    out.push(o === "=" ? esc(t) : o === "+" ? `<ins class="w">${esc(t)}</ins>` : `<del class="w">${esc(t)}</del>`);
+  });
+  if (skipped) out.push(`<span class="muted">… ${skipped} unchanged line(s)</span>`);
+  return out.join("\n");
 }
 
 function diff(old, cur) {
@@ -527,8 +554,10 @@ async function loadCodeDiff(id) {
   if (state.selected === id && state.tab === "node") renderPane();
 }
 
-const reasonBox = (placeholder, value = "") =>
-  `<div class="side"><div class="label">your reason (kept as part of the theory)</div><textarea id="reason" rows="2" placeholder="${esc(placeholder)}">${esc(value)}</textarea></div>`;
+const reasonBox = (placeholder, value = "", n = null) =>
+  `<div class="side"><div class="label">your reason (kept as part of the theory)</div><textarea id="reason" rows="2" placeholder="${esc(placeholder)}">${esc(value)}</textarea>
+  ${n && n.standing && (n.causes || []).includes("self") ? `<div class="label" style="margin-top:6px">why it holds now — the reason it was chosen; rewrite it if the change made it untrue</div><textarea id="standing" rows="2" data-was="${esc(n.standing)}">${esc(n.standing)}</textarea>` : ""}
+  <div class="label" style="margin-top:6px">revisit if (optional) — when would this decision stop holding?</div><input id="revisitIf" style="width:100%" value="${esc(n?.revisitIf || "")}" data-was="${esc(n?.revisitIf || "")}" placeholder="e.g. a second instance serves requests"></div>`;
 
 function warnings(n) {
   const w = [];
@@ -538,6 +567,10 @@ function warnings(n) {
   const ip = n.implementationProof;
   if (ip && !["proven", "informal"].includes(ip.status)) w.push(`its implementation ${ip.name} is ${ip.status}: not proven to meet the contract`);
   (n.expectations || []).filter(e => !["proven", "informal"].includes(e.status)).forEach(e => w.push(`an expectation is ${e.status}`));
+  const budget = snap()?.provenCodeBudget;
+  if (budget && n.kind === "contract" && !(ip && ip.status === "proven" && !ip.oracle))
+    w.push(`the idea asks that ${budget}% of the contracts be proven down to their code, and this one's implementation is not a proven define`);
+  if ((n.sameAs || []).length) w.push(`its spec says formally what ${n.sameAs.join(", ")} says: its statement must not claim more`);
   return w;
 }
 
@@ -549,8 +582,13 @@ function whatMoved(n) {
     if (c === "self") h += `<div class="side"><div class="label">${esc(n.id)} changed since it was accepted</div>${diff(d?.content, n.content) || `<div class="muted small">No difference in what was decided.</div>`}</div>`;
     if (c === "above" && byId(n.parent)?.state === "rejected")
       h += `<div class="side"><div class="label"><a data-goto="${esc(n.parent)}">${esc(n.parent)}</a>, which it rests on, was rejected</div><div class="muted small">The agent moves it under the node chosen instead, or removes it.</div></div>`;
-    if (c === "above") for (const m of n.moved || [])
-      h += `<div class="side"><div class="label"><a data-goto="${esc(m.id)}">${esc(m.id)}</a> changed in meaning since this was decided</div>${diff(m.before, C(byId(m.id))) || ""}</div>`;
+    if (c === "above") for (const m of n.moved || []) {
+      const a = byId(m.id);
+      // A change above that the developer has already accepted: one line, the diff folded away.
+      h += a?.state === "accepted"
+        ? `<div class="side"><div class="label"><a data-goto="${esc(m.id)}">${esc(m.id)}</a> changed in meaning; you accepted that: ${esc(a.reasonNow || "")}</div><details><summary class="small">what changed</summary>${diff(m.before, C(a)) || ""}</details></div>`
+        : `<div class="side"><div class="label"><a data-goto="${esc(m.id)}">${esc(m.id)}</a> changed in meaning since this was decided</div>${diff(m.before, C(a)) || ""}</div>`;
+    }
     if (c === "revisit") {
       const r = (n.history || []).filter(x => x.action === "revisit").slice(-1)[0];
       h += `<div class="side"><div class="label">${esc(r?.by || "")} asked to revisit it</div>${esc(r?.reason || "")}</div>`;
@@ -575,8 +613,8 @@ function governedFiles(n) {
 
 // A node waiting for you shows what to decide first; the rest is there to read below it.
 const needsYou = n => ["proposed", "review"].includes(n.state);
-// A decision whose reason says when to revisit it is answered by name (as in core's Decisions.conditional).
-const conditional = b => ["reason", "chosen", "why"].some(k => /\brevisit (if|when|once)\b|\bunless\b|\buntil\b|\bas long as\b|\bonly while\b/i.test(b[k] || ""));
+// A decision that says when to revisit it is answered by name (the server decides which: Decisions.conditional).
+const conditional = b => !!b.conditional;
 
 // The decisions above a new node, with their reasons: where "revisit if …" is written.
 function aboveReasons(n) {
@@ -648,7 +686,7 @@ function decisionBox(n) {
       ${aboveReasons(n)}
       ${n.code ? governedFiles(n) : ""}
       ${altList}
-      ${reasonBox("Why this one (or why not)? What would make you revisit it?")}
+      ${reasonBox("Why this one (or why not)?", "", n)}
       ${button(`Accept ${esc(n.id)}`)}<div class="actions"><button class="btn small" data-reject-self="1">Reject ${esc(n.id)}</button> ${sendBack(n)}</div></div>`;
   }
   if (n.state === "review") {
@@ -662,6 +700,7 @@ function decisionBox(n) {
         <div class="muted small">holds because: ${esc(b.reason)}</div>
         ${b.chosen && b.chosen !== b.reason && !b.reason.startsWith(b.chosen) ? `<div class="muted tiny">first chosen because: ${esc(b.chosen)}</div>` : ""}
         ${b.why ? `<div class="muted tiny">why: ${esc(b.why)}</div>` : ""}
+        ${b.revisitIf ? `<div class="small">revisit if: ${esc(b.revisitIf)}</div>` : ""}
         ${conditional(b) && b.kind !== "moved"
           ? `<div class="warn-text small">It says when to revisit it: answer it.</div>
              <label><input type="radio" class="ans" name="ans-${esc(b.id)}" value="held" data-id="${esc(b.id)}"> still holds</label>
@@ -671,7 +710,7 @@ function decisionBox(n) {
     return `<div class="box review"><div class="verdict review">To review: ${esc((n.causes || []).map(c => causeText[c]).join("; "))}</div>${mechanicalNote(n)}
       ${warn.length ? `<div class="warn-text">Note: ${esc(warn.join("; "))}.</div>` : ""}
       ${chosen}${whatMoved(n)}${aboveReasons(n)}${altList}${belowList}
-      ${reasonBox((n.causes || []).includes("self") ? "Why is the change right?" : "Why does it still hold, given what changed?")}
+      ${reasonBox((n.causes || []).includes("self") ? "Why is the change right?" : "Why does it still hold, given what changed?", "", n)}
       ${button("Accept", "")}<div class="actions">${sendBack(n)}</div></div>`;
   }
   return `<div class="box accepted"><div class="verdict accepted">Accepted</div>
@@ -852,8 +891,10 @@ function inboxPane() {
       ${batchBox(mech, `${mech.length} mechanical decision${mech.length > 1 ? "s" : ""}`, "proven links, passing examples, no alternative beside them and no new terms. Open one to read what moved; nodes resting on them follow once they are accepted.", "Why do they hold? e.g. the change above does not touch what they rely on")}` : ""}
     ${gone().map(r => `<div class="req"><b>${esc(r.id)}</b> <span class="chip s-review">gone from the model</span>
       <div class="small">${esc(r.decision?.content?.statement)}</div>
-      <textarea class="removal" data-node="${esc(r.id)}" rows="1" placeholder="Why is it gone?"></textarea>
-      <div class="actions"><button class="btn small primary" data-gone="${esc(r.id)}">Accept that it is gone</button></div></div>`).join("")}
+      ${(r.renamedTo || []).length ? `<div class="small">Says what ${(r.renamedTo).map(x => `<a data-goto="${esc(x)}">${esc(x)}</a>`).join(", ")} says, under another name: if it was renamed, its history (its choice, reasons, rejected alternatives) carries over.</div>` : ""}
+      <textarea class="removal" data-node="${esc(r.id)}" rows="1" placeholder="Why is it gone, or why renamed?"></textarea>
+      <div class="actions"><button class="btn small primary" data-gone="${esc(r.id)}">Accept that it is gone</button>
+        ${(r.renamedTo || []).map(x => `<button class="btn small" data-rename="${esc(x)}" data-from="${esc(r.id)}">Renamed to ${esc(x)}</button>`).join("")}</div></div>`).join("")}
     <h3>Answered by the agent</h3>${answered.length ? answered.map(r => `<div class="req"><div class="small">on ${r.node ? `<a data-goto="${esc(r.node)}">${esc(r.node)}</a>` : "the idea"}</div>
       <div>${esc(r.text)}</div><div class="answer small"><span class="muted">agent:</span> ${esc(r.answer)}</div>
       <div class="actions"><button class="btn small" data-close="${esc(r.id)}">Done</button></div></div>`).join("") : `<div class="muted small">None.</div>`}
@@ -975,7 +1016,10 @@ document.addEventListener("click", async e => {
       say(acc, `${n.id}: ${ask.join("; and ")}. Click “${acc.textContent}” to decide, or change your ticks.`, "confirm-text");
       return;
     }
-    decide({ node: n.id, by: who, reason, reject, revisit, confirm: confirmBelow, held, seen: n.version }, acc);
+    const st = $("#standing"), ri = $("#revisitIf");
+    const standing = st && st.value.trim() !== st.dataset.was ? st.value.trim() : "";
+    const revisitIf = ri && ri.value.trim() !== ri.dataset.was ? ri.value.trim() : "";
+    decide({ node: n.id, by: who, reason, reject, revisit, confirm: confirmBelow, held, seen: n.version, standing, revisitIf }, acc);
     return;
   }
   const rs = t.closest("[data-reject-self]");
@@ -991,7 +1035,7 @@ document.addEventListener("click", async e => {
     const who = needName(sb); if (!who) return;
     const text = $("#reason")?.value.trim() || "";
     if (words(text) < 3) { $("#reason")?.focus(); say(sb, "Say what to change, in a few words, in the reason box."); return; }
-    try { await post(`${P()}/requests`, { node: sb.dataset.sendback, text, by: who }); await refresh(); } catch (err) { say(sb, err.message); }
+    try { await post(`${P()}/requests`, { node: sb.dataset.sendback, text, by: who }); if ($("#reason")) $("#reason").value = ""; await refresh(); } catch (err) { say(sb, err.message); }
     return;
   }
   const ba = t.closest("[data-batch]");
@@ -1027,12 +1071,21 @@ document.addEventListener("click", async e => {
     decide({ node: "_ledger", by: who, reason, action: "acknowledge", seen: ack.dataset.ack }, ack);
     return;
   }
+  const rn = t.closest("[data-rename]");
+  if (rn) {
+    const who = needName(rn); if (!who) return;
+    const reason = [...document.querySelectorAll(".removal[data-node]")].find(x => x.dataset.node === rn.dataset.from)?.value.trim();
+    if (words(reason) < 3) { say(rn, "Say why it was renamed, in a few words."); return; }
+    const x = byId(rn.dataset.rename);
+    decide({ node: rn.dataset.rename, from: rn.dataset.from, by: who, reason, action: "rename", seen: x?.version || "" }, rn);
+    return;
+  }
   const gn = t.closest("[data-gone]");
   if (gn) {
     const who = needName(gn); if (!who) return;
     const reason = [...document.querySelectorAll(".removal[data-node]")].find(x => x.dataset.node === gn.dataset.gone)?.value.trim();
     if (words(reason) < 3) { say(gn, "Say why it is gone, in a few words."); return; }
-    decide({ node: gn.dataset.gone, by: who, reason }, gn);
+    decide({ node: gn.dataset.gone, by: who, reason, seen: "gone" }, gn);
     return;
   }
   const ask = t.closest("[data-ask]");

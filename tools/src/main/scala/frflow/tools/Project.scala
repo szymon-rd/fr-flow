@@ -50,7 +50,7 @@ final class Project(dir: Path):
   def annotated: Option[Json] = snapshot.map { s =>
     val l = ledger
     val restarts = frflow.Ledger.toAcknowledge(root, ledgerFile, l)
-    val a = frflow.Decisions.annotate(s, l)
+    val a = frflow.Workflow.withForgotten(frflow.Decisions.annotate(s, l), frflow.Ledger.forgotten(root, ledgerFile))
     val warnings = frflow.Ledger.warnings(root, ledgerFile, l).map(str) ++ a("warnings").map(_.arr.toList).getOrElse(Nil)
     JObj(a.obj.filterNot(f => f._1 == "warnings" || f._1 == "restarts") :+ ("warnings" -> JArr(warnings)) :+
       ("restarts" -> JArr(restarts.map((c, why) => obj("commit" -> str(c), "why" -> str(why))))) :+ ("unsigned" -> JArr(unsigned)) :+
@@ -281,7 +281,7 @@ object Project:
     Ansi.replaceAllIn(text, "").linesIterator.map(l => if l.startsWith("[info] ") then l.drop(7) else if l.startsWith("[error] ") then l.drop(8) else l)
       .filterNot(l => Noise.matches(l)).mkString("\n").stripPrefix("\n").stripSuffix("\n")
 
-  private def s(j: Json, k: String): String = j(k).flatMap(_.str).getOrElse("")
+  import frflow.Json.text as s
 
   /** Projects at the given paths; a directory without `frflow.json` is searched one level down. */
   def find(paths: List[String]): List[Project] =

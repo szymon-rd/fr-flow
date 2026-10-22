@@ -37,9 +37,15 @@ this way. It also keeps the code from drifting away from it.
    - Mechanical decisions (no choice in them, Lean proves them again; see the
      README's "Who decides") are the developer's too: the browser offers them
      in one batch. In your `answer`, say which waiting nodes are mechanical.
-   - A decision below a change whose reason or `why` says when to revisit it
-     ("revisit if", "unless", "until"...) is answered by the developer by
-     name. In your `answer`, say whether each such condition may be met.
+     A type change is not mechanical where a statement or `why` names the
+     type, a member it lost, or an enum's cases when it gains one: fix those
+     words in the same change.
+   - A decision below a change that says when to revisit it (its "revisit
+     if" field, which `context` shows, or its reason or `why`: "revisit if",
+     "unless", "until"...) is answered by the developer by name. In your
+     `answer`, say whether each such condition may be met.
+   - The model's file holds only the model; its `@main` only runs the CLI
+     (`@main def cli(args: String*): Unit = sys.exit(knowledge.cli(args))`).
 2. **Offer real alternatives.** When a step has more than one reasonable
    design, propose each as a sibling node, with its own `why` covering its
    trade-off. One proposal is fine when the step is obvious.
@@ -69,7 +75,8 @@ this way. It also keeps the code from drifting away from it.
    `why` and the files it governs.
 8. **The model is the Scala code.**
    - Never edit `lean/FrFlowGen/` or `lean/FrFlowAudit/`.
-   - Lean you write goes only in `lean/Proofs/<KB>/<NODE>.lean`.
+   - Lean you write goes only in `lean/Proofs/<KB>/<NODE>.lean`. Any other
+     file in `lean/` (neither generated nor a proof) is a `status` warning.
 9. **Never weaken a node to make a proof go through.** A false link means the
    child is wrong. If you think the idea or a decided node is wrong, say so in
    your answer and propose a change.
@@ -97,14 +104,20 @@ this way. It also keeps the code from drifting away from it.
    Choose in the browser."
 5. **After the developer decides,** delete the rejected nodes from the Scala
    code (`status` fails while they remain). If a rejected node had nodes below
-   it, move them under the node chosen instead: they are reviewed again. Their statements and reasons are kept with the decision. Then
-   `render`.
+   it, move them under the node chosen instead: they are reviewed again.
+   Their statements and reasons are kept with the decision. Then `render`.
 6. **If you change an accepted node,** it goes back to `review` (cause
-   `self`), with a diff. If its meaning changed, its descendants go to
-   `review` too (cause `above`); rewording a `why` or adding an example does
-   not reach them. Explain the change in an answer or in the node's `why`.
+   `self`), with a diff. What is decided is the whole `val` statement that
+   defines the node, as written (dedented): any change in it, arguments
+   included, counts. If its meaning changed, its descendants go to `review`
+   too (cause `above`); rewording a `why` or adding an example does not reach
+   them. Explain the change in an answer or in the node's `why`.
    - **Replacing an accepted node:** propose the new node as its sibling. The
      developer can reject the old one when choosing.
+   - **Renaming a node:** change only its id (and its val's name) in that
+     step. The browser offers "Renamed to X" beside the gone node; one
+     decision carries its history to the new id, and nodes below changed only
+     by the new name are mechanical. Anything else changed makes it a new node.
    - **A change to an implementation or a governed file** puts the node up for
      review (cause `code`), with a git diff, and no proof covers it: make
      sure the examples still pass, and say what changed in your answer. The
@@ -114,9 +127,10 @@ this way. It also keeps the code from drifting away from it.
      relies on elsewhere needs an owner: `.governing(paths*)`, or a design
      node owning a directory. `status` fails on a source file no node governs:
      anything under `src/main`, any source file elsewhere in the project (not
-     `src/test`; `target` folders in the sources, `project/*.scala` and
-     `*.sbt` count), and anything the build compiles (keep the build passing
-     `-Dfrflow.sources`). Never declare `package frflow` in the project.
+     `src/test`; `target` folders in the sources, `project/*.scala`, `*.sbt`
+     and hidden directories below the root count), and anything the build
+     compiles (keep the build passing `-Dfrflow.sources`). Never declare
+     `package frflow` in the project.
    - **A rule that applies to several contracts** (tenant isolation,
      authorization, auditing) is an **invariant**, stated once over pairs:
      `Node.invariant[Account, CrmRecord](id, statement, why)((reader, r) => ...)`.
@@ -124,15 +138,18 @@ this way. It also keeps the code from drifting away from it.
      default) either keeps it, listing the pairs a call shows the rule,
      `.keeps(inv)((user, query, result) => result.map(r => (user, r)))`, or
      says why it does not apply, `.exempt(inv, "it returns no records")`.
-     Every design node in its scope says why too (`.exempt`): it governs code
-     no proof covers.
+     A design node below a contract that keeps the invariant, is exempt from
+     it or returns what it is about, or with no contract above it, says why
+     it is exempt too (`.exempt`), or the CLI stops: an exempt contract does
+     not exempt the code hung below it (see the CRM's `WriteSideWiring`).
      A view lists every pair the result shows: for a rule about a domain or
      opaque type, Lean proves it lists every such value the result holds,
      with the caller (`cover_X`). When several inputs have the rule's first
      type, name the one the pairs are about: `.keeps(inv, reader = 1)(...)`
      (from 0); otherwise `cover_X` fails. A view that leaves something out,
      however the filter is hidden, fails; so does one that keeps the rule in
-     name only (`vacuous_inv_X`).
+     name only (`vacuous_inv_X`), and one over a function-typed result, whose
+     coverage cannot be stated.
    - **Keep production wiring** (the call to `service`) in a file a design
      node governs. Every change to it is the developer's.
    - **Prefer a proven implementation.** When the implementation fits the
@@ -141,11 +158,11 @@ this way. It also keeps the code from drifting away from it.
      the chain reaches the code. When the code must be faster than the
      subset allows, keep the `define` as its oracle:
      `implementChecked(contract)(fast)(define)`: the fast code runs and must
-     return what the `define` returns on every example and every combination
-     of their inputs. It is not proven code (nor counted as such), and a
-     change to it is never mechanical. If IDEA.md says `Proven code: N%`,
-     `status` fails while fewer contracts are proven down to the code that
-     runs; the line is the developer's (part of the idea), never lower it.
+     return what the `define` returns on every example, every combination of
+     their inputs and every varied call. It is not proven code (nor counted
+     as such), and a change to it is never mechanical. If IDEA.md says
+     `Proven code: N%`, `status` fails while fewer contracts are proven down
+     to the code that runs; the line is the developer's, never lower it.
    - **Name the idea's section** a root is decided against
      (`Node.root(..., idea = "Sharing")`) when `IDEA.md` has `## ` sections,
      so editing one section reviews only its root. What only one concern
@@ -156,19 +173,26 @@ this way. It also keeps the code from drifting away from it.
      reach")`. `context` lists other concerns calling the same definitions:
      check whether you rely on them. A change to the relied node's meaning
      then reviews yours. A reliance that leads back to the node is refused.
-     A property of the parameters you rely on is stated with a definition
-     the relied node (or one above it) uses, so it is what is proven there:
-     `.reliesThat(crmWrites, why)(() => consistentStore(CrmStore(store.value, shares.value)))`.
-     Every example and `service` call checks it.
-   - **The model's file holds only the model:** nodes, `Opaque`, `Param`,
+     A guarantee about the states the other concern reaches is a seam:
+     `.reliesThat(crmWrites, why)((s: CrmStore) => consistentStore(s))(() =>
+     CrmStore(store.value, shares.value))`, the guarantee, then the state this
+     node sees. Lean proves it of every state that concern reaches, from the
+     relied node's root theorem (`rely_CrmWrites`; the node is not complete
+     until it is); every example and `service` call checks it of the state
+     seen. Only the wiring that makes `sees` such a state stays trusted.
+   - **The model's files hold only the model:** nodes, `Opaque`, `Param`,
      `define`, domain types without methods, and the `@main`. Helpers go next
-     to the implementation; `status` warns otherwise.
+     to the implementation; `status` warns otherwise. Use one file per
+     concern: the Scala compiler fails ("Method too large") at about 30 nodes
+     in one file's top level.
    - **When the developer asks you to revisit a node** (the inbox says so), propose
      a change, or `answer` with `node` why it still holds (that answers their
      open request on the node).
    - **When you change the idea or what is not modelled,** say in your answer
      which decisions below rest on it (their reasons say), so the developer
-     can tick them for revisiting.
+     can tick them for revisiting. A change of a root's idea needs a follow-up
+     (a node of that concern accepted, or Not modelled changed), or `status`
+     warns: model the new text there, or propose moving it to Not modelled.
    - **Formal work on several alternatives** can be expensive. You may first
      describe the options in your `answer`, and formalize the one the developer
      picks.
@@ -181,16 +205,16 @@ The MCP server `frflow` (`bin/frflow mcp examples`, see `.mcp.json`) works on ev
 | tool | use |
 |---|---|
 | `inbox` | Start here: requests, clean-up, waiting decisions, and the tree. |
-| `context(node)` | What bears on the node: its root's idea section (with its Not modelled), the vocabulary its path and reliances use, the roots in one line, the path from the root with each node's latest binding reason first, then every accepted change to it, newest first (marked "[given for an earlier version of it]" when the node changed since), then confirmations briefly, what stands beside it and what was rejected there with the reasons, what it relies on and what relies on it, other concerns calling the same definitions, invariants, what moved (with diffs, including nodes its ancestors rely on; a code diff with notes on invariants and parameters it touches), the decisions below, the obligation, the last check's failures with Lean's full message, and the developer's requests. |
+| `context(node)` | What bears on the node, definitions under Scala's names: its root's idea section (with its Not modelled), the vocabulary its path and reliances use, the roots in one line, the path from the root with each node's latest binding reason first, then its latest accepted changes and how it was chosen (marked "[given for an earlier version of it]" when the node changed since; older ones are in the browser), then confirmations briefly, what stands beside it and what was rejected there with the reasons, what it relies on (with the guarantees) and what relies on it, other concerns calling the same definitions, the definitions the path uses, invariants, what moved (line diffs, including nodes its ancestors rely on; a code diff with notes on invariants and parameters it touches), the decisions below, the obligation, the last check's failures with Lean's full message, and the developer's requests. |
 | `render` | Rebuild from the Scala definitions; the browser updates. Compile errors in the model come back here. |
-| `check(node?)` | Prove what changed in Lean, and evaluate the examples there. Prints Lean's full message for what fails, once. Slow. |
+| `check(node?)` | Prove what changed in Lean, and evaluate the examples (and a few varied calls) there. Nodes run side by side in levels (`FRFLOW_THREADS`, default the cores, at most 4). Prints Lean's full message for what fails, once. Slow. A node `timeout` is not broken: run `check` again. |
 | `answer(request, text)` | Reply to a request; the reply is shown in the browser. With `node` and no `request`, it answers the developer's open request on that node, or tells them about work they did not ask for. |
-| `find(query)` | Which nodes govern a file; or what mentions a concern, best first, with the matching sentence: nodes and all their reasons, rejected options (also those removed from the model), gone nodes, lines of Not modelled. Where a change belongs, and what was already rejected. |
+| `find(query)` | Which nodes govern a file; or what mentions a concern (by word stems), best first, with the matching sentence: nodes and all their reasons, rejected options (also those removed from the model), gone nodes, the idea, the vocabulary, lines of Not modelled, the developer's acknowledgements, and decisions a commit took back. Where a change belongs, and what was already tried or rejected. |
 | `scaffold(node)` | Stubs, in the node's proof file (created or added to), for exactly the obligations the last check left open; before any check, the link with `feasible` and `nontrivial`. |
 
 Without MCP, use the CLI from the repository root: `sbt "auth/run render"`,
-`check [NODE]`, `status`, `context NODE`, `scaffold NODE`. `ci` is what CI
-runs (everything proven afresh, then `status`); you do not need it.
+`check [NODE]`, `status`, `context NODE`, `find WORDS|PATH`, `scaffold NODE`.
+`ci` is what CI runs (all proven afresh, then `status`); you do not need it.
 
 ## Writing nodes
 
@@ -229,8 +253,8 @@ they let the developer test their understanding.
 
 **`assume = true`** (on `refine`, `contract`, `contractVia`) keeps the node's spec in Lean but
 assumes its link instead of proving it: the developer decides it by reading,
-and every root theorem resting on it names the assumption. Prefer it to
-`formal = false` when only the proof is the problem.
+and every root theorem resting on it names the assumption (one Lean refutes
+fails). Prefer it to `formal = false` when only the proof is the problem.
 
 **`formal = false`** (on `Node.root`, `refine`, `instantiate`, `contract`)
 opts a node out of Lean. Its model stays Scala and may use any Scala; a
@@ -242,16 +266,20 @@ cannot express it (state, time, effects), and say so in `why`.
 **`design(id, statement, why)(files*)`** is a decision with no formal model.
 It has nothing to prove, and its files are tracked for change.
 
-**`.relies(node, why)`** (on any node) says it rests on what `node` says, as
-on its parent. `node` is named by its val and may be declared later.
+**`.relies(node, why)`** and **`.reliesThat(node, why)(guarantee)(sees)`**
+(on any node; see the loop) name `node` by its val; it may be declared later.
 
 **Examples:** Lean evaluates each example whose parameters are values (not
-functions) and must compute what Scala does. "Lean and Scala disagree" means
-the translation does not mean what the Scala does: report it to the developer;
-never change the example to hide it.
+functions), and 6 calls varied from them, and must compute what Scala does.
+"Lean and Scala disagree" means the translation does not mean what the Scala
+does: report it to the developer; never change the example to hide it. A
+formal contract none of whose examples Lean evaluates fails `status`: give a
+lookup as a finite table, `param.bindTable(Map(k -> v))`. The implementation
+also runs on 200 calls varied from the examples' values; one that breaks the
+contract, an invariant or the oracle fails as "varied from example N".
 
 ```scala
-  .examples(grants.bind(List(Grant(alice, Path("/a")))), sessions.bind(Map("t1" -> alice).get))(
+  .examples(grants.bind(List(Grant(alice, Path("/a")))), sessions.bindTable(Map("t1" -> alice)))(
     expect("t1", Path("/a"), Some(alice), "Alice's token and a grant for /a: she gets in"),
     reject("t1", Path("/b"), Some(alice), "access without a grant is never given"))
 ```
@@ -289,12 +317,14 @@ The macro supports:
 - `define`d functions.
 
 Arithmetic is on `BigInt` (exact in Scala and in Lean); `+ - *` on `Int` or
-`Long` is refused, since Scala wraps around; so is `exists` over a type holding
-an `Int` or `Long` however deep, or fixing to such a type an opaque type said
-to exist above (Lean may find a value Scala cannot hold). Use `BigInt`. A
-`forall` over `Int` or `Long` left of `==>` ranges over more in Lean. Divide
-only by a literal. Fields of domain types are data: a field of function type
-is refused, as is a type redefining `equals`, `hashCode` or `canEqual`.
+`Long` is refused, since Scala wraps around; so is `exists`, or a negated
+`forall` (under `!` or left of `==>`), over a type holding an `Int` or `Long`
+however deep, or fixing to such a type an opaque type said to exist above
+(Lean may find a value Scala cannot hold). Use `BigInt`. Divide only by a
+literal. Fields of domain types are data: a field of function type is
+refused, as is a type, or an enum case, redefining `equals`, `hashCode` or
+`canEqual`. Two different `define`s with one name (in two packages, say) are
+refused: rename one.
 
 **State.** Model a stateful part as a step `(State, Event) => State` whose root
 says an invariant holds initially and every step keeps it
@@ -309,6 +339,9 @@ says an invariant holds initially and every step keeps it
 2. If it is true, run `scaffold(node)` and prove `theorem link : Obl.link` in
    the proof file (it stubs each obligation the last check left open). Start
    with `unfold Obl.link`, then `intro m h`, then `simp only [frflow_defs] at *`.
+   Iterate with Lean directly, in seconds: `lake env lean Proofs/<KB>/<Node>.lean`
+   in the knowledge base's `lean/` (after one `check` built the specs); run
+   `check` once it builds (a change to a spec it imports checks it again).
 3. The file may contain only theorems and their tactic proofs. Anything else
    is rejected: `sorry`, `axiom`, `run_cmd`, `#eval`, attributes, and so on.
    It may import only `FrFlowGen.<KB>.Domain`, `FrFlowGen.<KB>.<Node>.Spec`,

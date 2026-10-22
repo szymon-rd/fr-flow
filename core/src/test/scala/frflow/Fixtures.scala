@@ -65,3 +65,11 @@ val anyOnes = define { (shelf: List[Book], n: Int) => shelf }
 
 /** A filter, hidden in a definition. */
 val onShelf = define { (shelf: List[Book], picked: List[Book]) => picked.filter(b => shelf.contains(b)) }
+
+/** Pick, renamed: the same contract under another name. */
+val choose = books.contract[List[Book], Int, List[Book]]("Choose", "Picking returns only long enough books.", why = "The per-call form of Books, checked on every result.")(
+  (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages.value))
+  .examples(minPages.bind(100))(
+    expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
+    expect(List(Book("Short", 20)), 5, Nil, "no book is long enough: none is picked"),
+    reject(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Short", 20)), "a short book is never picked"))

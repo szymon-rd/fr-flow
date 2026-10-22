@@ -16,7 +16,10 @@ final case class Diagnostic(file: String, line: Int, severity: String, message: 
 final class Lake(dir: Path, timeoutSeconds: Long = 900):
   private val lake = sys.env.getOrElse("FRFLOW_LAKE", "lake")
 
-  def build(target: String): Run = run(Seq(lake, "build", target))
+  // Builds write the workspace's build outputs: one at a time. Elaborating and replaying only read them.
+  def build(target: String): Run = Lake.building.synchronized(run(Seq(lake, "build", target)))
+  /** Several targets in one build: Lake builds them in parallel. */
+  def buildAll(targets: Seq[String]): Run = Lake.building.synchronized(run(Seq(lake, "build") ++ targets))
   def elaborate(file: String): Run = run(Seq(lake, "env", "lean", file))
   /** Replays a built module's declarations through the kernel. */
   def replay(module: String): Run = run(Seq(lake, "env", "leanchecker", module))
@@ -36,6 +39,9 @@ final class Lake(dir: Path, timeoutSeconds: Long = 900):
     else
       pump.join()
       Run(proc.exitValue(), out.toString("UTF-8"))
+
+object Lake:
+  private val building = Object()
 
 object Lean:
   private val LeanStyle: Regex = """^(.+?\.lean):(\d+):\d+: (error|warning|info)(?:\([^)]*\))?: ?(.*)$""".r

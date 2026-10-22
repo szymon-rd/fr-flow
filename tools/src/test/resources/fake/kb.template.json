@@ -1,5 +1,5 @@
 {
- "format": 2,
+ "format": 3,
  "name": "Fake",
  "idea": "# Fake\n\nAn idea with **bold** and `code`.\n\n- one\n- two\n",
  "roots": [

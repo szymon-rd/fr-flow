@@ -51,6 +51,8 @@ enum Json:
 object Json:
   def obj(fields: (String, Json)*): Json = JObj(fields)
   def str(s: String): Json = JStr(s)
+  /** The string field `k` of `j`, or "". */
+  def text(j: Json, k: String): String = j(k).flatMap(_.str).getOrElse("")
 
   def quote(s: String): String =
     val sb = new StringBuilder("\"")

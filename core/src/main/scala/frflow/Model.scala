@@ -138,6 +138,18 @@ object Lifted:
 final class Def[F](val name: String, val lifted: Lifted[F]):
   def fn: F = lifted.value
 
+object Def:
+  /** The definitions given and every definition they use, however nested; each once, by name. */
+  def closure(ds: Iterable[Def[?]]): List[Def[?]] =
+    val out = scala.collection.mutable.LinkedHashMap.empty[String, Def[?]]
+    def visit(d: Def[?]): Unit = if !out.contains(d.name) then { out(d.name) = d; d.lifted.defs.foreach(visit) }
+    ds.foreach(visit)
+    out.values.toList
+
+/** A reason, a why or an exemption says something: a few words, not a placeholder. */
+object Words:
+  def tooFew(s: String): Boolean = s.trim.split("\\s+").count(_.exists(_.isLetter)) < 3
+
 inline def define[F](inline f: F): Def[F] = ${ Lift.define('f) }
 
 extension [A, R](d: Def[A => R]) def apply(a: A): R = d.fn(a)

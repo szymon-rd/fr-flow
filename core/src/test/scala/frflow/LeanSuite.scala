@@ -22,7 +22,7 @@ class LeanSuite extends munit.FunSuite:
     val w = workflow(shelfKb)
     val r = w.check()
     assertEquals(statuses(r), List("OnlyGood" -> "proven", "Listed" -> "proven", "Books" -> "proven", "Pick" -> "proven"))
-    assert(r.flatMap(_._2.obligations).filter(o => o.name != "idle" && !o.name.startsWith("eval")).forall(_.detail == "auto"), r)
+    assert(r.flatMap(_._2.obligations).filter(o => !o.isLimit && !o.isEvaluation).forall(_.detail == "auto"), r)
     assert(r.flatMap(_._2.axioms).forall(Lean.allowedAxioms))
     val links = w.baseSnapshot("nodes").get.arr.map(n => n("id").flatMap(_.str).get -> n("link").flatMap(_("detail")).flatMap(_.str))
     assertEquals(links.toList, List("OnlyGood" -> None, "Listed" -> Some("auto"), "Books" -> Some("instantiation"), "Pick" -> Some("auto")))
