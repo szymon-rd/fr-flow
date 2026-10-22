@@ -268,7 +268,11 @@ object Decisions:
     val typesOnly = cs.contains("self") && ledger.binding(id).exists { d =>
       val (was, now) = (d.content, n("content").getOrElse(JNull))
       def rest(c: Json) = JObj(c.obj.filterNot(f => f._1 == "uses" || f._1 == "examples"))
-      Decision.hash(rest(was)) == Decision.hash(rest(now)) && ((strs(was, "uses") diff strs(now, "uses")) ++ (strs(now, "uses") diff strs(was, "uses"))).forall(isType)
+      // The examples may print differently (a new field shows), but say the same: as many, with the
+      // same verdicts and notes.
+      def said(c: Json) = c("examples").map(_.arr.toList.flatMap(_.str)).getOrElse(Nil).map(e => (e.takeWhile(_ != ' '), e.split(" — ").lastOption.getOrElse("")))
+      Decision.hash(rest(was)) == Decision.hash(rest(now)) && said(was) == said(now) &&
+        ((strs(was, "uses") diff strs(now, "uses")) ++ (strs(now, "uses") diff strs(was, "uses"))).forall(isType)
     }
     // Only words moved above it: the statements of the nodes it rests on were reworded, nothing Lean sees.
     def formalPart(c: Json) = Decision.hash(JObj(c.obj.filter(f => Set("parent", "sources", "substitutions", "vocabulary", "uses", "governs", "formal", "assumed")(f._1))))

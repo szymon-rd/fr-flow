@@ -25,9 +25,10 @@ object Git:
   /** The last `n` commits that changed a file, oldest first, with their parents in that history
     * (a merge has two) and the file as committed.
     */
-  def versions(dir: Path, file: String, n: Int = 50): List[Version] =
-    // Full history: a merge that kept one side's file (as `-s ours` does) is compared with each parent.
-    run(dir, "log", "--full-history", "--parents", "--format=%H %P", s"-n$n", "--", file).toList
+  def versions(dir: Path, file: String): List[Version] =
+    // Full history: a merge that kept one side's file (as `-s ours` does) is compared with each parent;
+    // and all of it, however long (the result is kept per commit, see `Ledger.rewrites`).
+    run(dir, "log", "--full-history", "--parents", "--format=%H %P", "--", file).toList
       .flatMap(_.linesIterator.map(_.trim).filter(_.nonEmpty)).reverse
       .map(_.split(" ").toList).collect { case c :: parents => Version(c, parents, run(dir, "show", s"$c:./$file")) }
 

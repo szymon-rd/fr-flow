@@ -85,6 +85,9 @@ final class Project(dir: Path):
   def decide(r: frflow.Decisions.Request): Either[String, Unit] =
     snapshot match
       case None => Left("no snapshot yet: render first")
+      // An acknowledgement names a restart or rewrite that waits for one.
+      case Some(_) if r.action == "acknowledge" && !frflow.Ledger.toAcknowledge(root, ledgerFile, ledger).exists((c, _) => r.seen.nonEmpty && c.startsWith(r.seen)) =>
+        Left(s"nothing to acknowledge in commit ${r.seen}: name a restart or rewrite of the ledger that waits for one")
       case Some(snap) if !snap("format").contains(JNum(frflow.Workflow.ContentFormat)) =>
         Left("the snapshot was written by another version of FrFlow: render first")
       case Some(snap) if (r.node :: r.confirm ++ r.revisit).exists(codeMoved(snap, _)) =>

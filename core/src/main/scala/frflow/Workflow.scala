@@ -261,7 +261,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
           if d.statement != s"Obl.${o.name}" then Result(o.name, "failed", s"must state exactly Obl.${o.name}")
           else if bad.nonEmpty then Result(o.name, "failed", s"not allowed in a proof file: ${bad.map(_._2).distinct.mkString(", ")}")
           else diags.find(x => x.isError && in(x.line)) match
-            case Some(err) => Result(o.name, "open", err.message.take(4000))
+            case Some(err) => Result(o.name, "open", err.message.take(20000))
             case None if diags.exists(x => x.isSorry && in(x.line)) => Result(o.name, "open", "uses sorry")
             case None if !run.ok => Result(o.name, "open", "not checked: " + run.output.take(300))
             case None => Result(o.name, "proven", if authored(n.id) then "authored" else "auto")
@@ -313,7 +313,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
           val r = if run.ok && (Lean.usesSorry(run.output) || audit.exists(_.contains("sorryAx"))) then Result(o.name, "open", "uses sorry")
             else if run.ok then Result(o.name, "proven", how)
             else Result(o.name, "open", s"not proven ($how): prove theorem ${o.name} : Obl.${o.name} in lean/${g.proofsPath(n.id)}" +
-              Lean.diagnostics(run.output).find(_.isError).fold("")(d => s"\nLean: ${d.message.take(4000)}"))
+              Lean.diagnostics(run.output).find(_.isError).fold("")(d => s"\nLean: ${d.message.take(20000)}"))
           (r, if r.status == "proven" then audit.getOrElse(List("<no audit result>")) else Nil)
     }
     // With a proven implementation, the root theorem of the code itself.

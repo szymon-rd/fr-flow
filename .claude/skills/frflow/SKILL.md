@@ -329,4 +329,5 @@ says an invariant holds initially and every step keeps it
    does not use the node's spec.
 5. **Never prove a link from a contradiction in the node** (for example by
    deriving `False` from its spec). The automatic unsatisfiability check does
-   not catch every contradiction; the developer reads authored proofs.
+   not catch every contradiction, and a change to a proof file reviews no
+   decision (the kernel replays it, and `feasible` and `nontrivial` must hold).

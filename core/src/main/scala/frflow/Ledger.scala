@@ -229,7 +229,7 @@ object Ledger:
     * ledger now, which is fixed rather than acknowledged.
     */
   def rewrites(root: Path, file: Path, now: Ledger): List[(String, String)] =
-    val all = Git.versions(root, root.relativize(file).toString)
+    val all = history(root, file)
     val versions = all.drop(all.lastIndexWhere(_.text.isEmpty) + 1) // since the last restart
     def parse(t: String) = fromJson(Json.parse(t))
     val text = versions.map(v => v.commit -> v.text).toMap
@@ -243,7 +243,13 @@ object Ledger:
     * rewrite. One the developer has not acknowledged (in the browser, with a reason) is a warning.
     */
   def restarts(root: Path, file: Path): List[String] =
-    Git.versions(root, root.relativize(file).toString).collect { case v if v.text.isEmpty => v.commit }
+    history(root, file).collect { case v if v.text.isEmpty => v.commit }
+
+  // The ledger's history in git, read once per commit checked out (it only grows with new commits).
+  private val histories = scala.collection.concurrent.TrieMap.empty[(String, String), List[Git.Version]]
+  private def history(root: Path, file: Path): List[Git.Version] =
+    val rel = root.relativize(file).toString
+    histories.getOrElseUpdate((root.toAbsolutePath.toString + ":" + rel, Git.head(root)), Git.versions(root, rel))
 
   /** The id under which acknowledgements of the ledger itself are recorded. */
   val Self = "_ledger"
