@@ -1,21 +1,23 @@
 ---
 name: frflow
 description: >-
-  Develop a system with FrFlow: the developer decides, in a browser, a tree of
-  Scala nodes, each proven in Lean to refine its parent. Use when turning an
-  idea into a root, proposing or changing nodes, adding examples, answering
-  the developer's requests, proving a link, or attaching an implementation;
-  or when the work touches IDEA.md, `Node.root`, `.refine`, `.instantiate`,
-  `.contract`, `.design`, `Node.invariant`, `.relies` or `service`.
+  Develop a system with FrFlow: one root (the idea's purpose) refined by a DAG
+  of small statements in the domain's words, each proven in Lean from its
+  parts and decided by the developer in a browser. Use when turning an idea
+  into a root, proposing or changing nodes, introducing domain terms, adding
+  examples, answering the developer's requests, proving a split, or attaching
+  an implementation; or when the work touches IDEA.md, `Node.claim`,
+  `Node.contract`, `Node.assumption`, `Node.definition`, `Node.design`,
+  `Node.invariant`, `.under`, `.replaces`, `implementProven` or `service`.
 ---
 
 # Developing with FrFlow
 
-The developer writes the idea in `IDEA.md`. You write Scala nodes: a tree
-under each root (one concern of the idea), and invariants across the trees.
-Lean proves each link; the developer decides every node in the browser, and
+The developer writes the idea in `IDEA.md`. You write Scala nodes: one root,
+and below it parts that together prove it, down to contracts on the code. Lean
+proves each split; the developer decides every node in the browser, and
 whatever moves under a decision puts the node back up for review. The README
-explains the method; this file holds your rules.
+explains the method and `docs/DAG.md` the design; this file holds your rules.
 
 ## Rules
 
@@ -23,65 +25,56 @@ explains the method; this file holds your rules.
    post to the browser's server, run `frflow serve`, create a signing key, or
    add files to `.frflow/keys/`. If `status` warns of no developer key, tell
    the developer to start the browser and commit `.frflow/keys/`.
-2. **Offer real alternatives.** When a step has more than one reasonable
-   design, propose each as a sibling node, its `why` covering its trade-off.
-   One proposal is fine when the step is obvious.
-3. **`why` carries the theory.** Say why this step, and what it assumes about
-   the world. For `refine`, why `abs` is faithful; for `instantiate`, why the
-   substitutions are the right meanings.
-4. **The statement says in plain words what the predicate says.**
-5. **Every `Opaque` and `Param` says what it means in the world** and where
-   its value comes from: `Param[List[Grant]]("grants", "the grant table as
-   stored when the request is decided")`.
-6. **Prefer formal nodes.** Use a `design` node only for a decision with no
-   formal model (storage, caching, a convention), with the files it governs.
-7. **Never weaken a node to make a proof go through.** A false link means the
-   child is wrong. If the idea or a decided node is wrong, say so and propose
-   a change.
-8. **Never edit generated Lean** (`lean/FrFlowGen/`, `lean/FrFlowAudit/`).
-   Lean you write goes only in `lean/Proofs/<KB>/`.
-9. **Every source file has one owner.** An implementation governs the files
-   its expression refers to; other code needs a design
-   node. Keep production wiring (the call to `service`) in a design node's file.
-10. **One model file per concern**, so an agent reads one concern at a time
-    and a change to one does not recompile the others.
-11. **Say what is not modelled**: propose it for `## Not modelled` in
-    `IDEA.md` (a `### Section` subsection when it concerns one root).
-12. **Say what waits.** In your `answer`, name the waiting nodes that are
+2. **One statement per node**, one sentence in the developer's domain words,
+   and the formula says exactly that sentence. A formula that packs several
+   independent properties is split into parts.
+3. **A part is never a restatement.** A node that only says its parent again,
+   in more detail, is not a node: say what the domain adds (a concept, a
+   mechanism, a rule), or attach the contract to the parent directly.
+4. **2 to 5 parts per parent.** More asks for an intermediate concept, a node
+   between them.
+5. **The root is stated as exactly**: what users can do and what must never
+   happen, together, so a system doing nothing does not meet it.
+6. **Introduce the domain by definitions.** Leave a concept open (`Opaque`,
+   `Param`) where the idea is general; fix it with a `Node.definition` where
+   the domain says what it is. Each term has one meaning (`means`) and at most
+   one definition.
+7. **`why` carries the theory**: why this step, and what it assumes about the
+   world. Every `Opaque` and `Param` says what it means and where its value
+   comes from.
+8. **Offer real alternatives** where a step has more than one reasonable
+   design: the second `.replaces` the first, its `why` covering the trade-off.
+9. **Never weaken a node to make a proof go through.** A false split means a
+   part is wrong or missing. If the idea or a decided node is wrong, say so and
+   propose a change.
+10. **Never edit generated Lean** (`lean/FrFlowGen/`, `lean/FrFlowAudit/`).
+    Lean you write goes only in `lean/Proofs/<KB>/`.
+11. **Every source file has one owner**: a contract's or assumption's
+    implementation, or a design node. Keep production wiring (the call to
+    `service`) in a design node's file.
+12. **Say what is not modelled**: propose it for `## Not modelled` in
+    `IDEA.md` (a `### Section` subsection when it concerns one section).
+13. **Say what waits.** In your `answer`, name the waiting nodes that are
     mechanical, and for each decision below a change whose reason says when to
     revisit it, whether that condition may be met.
 
 ## The loop
 
-1. `inbox`: requests, rejected nodes to delete, waiting decisions, the tree.
-2. For each request, read `context(node)` and `find` where the change belongs.
-   Extend the nodes that cover it; do not add a near-duplicate. Write the
-   proposals, with `why` and examples, and add them to `KnowledgeBase(...)`.
-3. `render`, then `check`. Fix failing examples first (the code or contract is
-   wrong, not the proof), then links. Proposals should reach the developer
-   proven, with passing examples.
-4. `answer(request, text)`: name the proposals, the trade-off, and what is
-   left open, including what the contract does not promise.
-5. After the developer decides, delete the rejected nodes, move what was below
+1. `inbox`: requests, rejected nodes to remove, waiting decisions, the tree.
+2. For each request, read `IDEA.md` and `context(node)`, and `find` where the
+   change belongs. Place a new statement **under the lowest nodes it helps
+   prove, as a part** (several parents if it serves several). Extend what
+   exists; do not add a near-duplicate.
+3. Write the proposal with `why` and examples, add it (and any definition) to
+   `KnowledgeBase(...)`, then `render` and `check`. Fix failing examples first
+   (the code or the contract is wrong, not the proof), then the splits.
+   Proposals should reach the developer proven, with passing examples.
+4. `answer(request, text)`: name the proposals, the trade-off, what is left
+   open, what the contract does not promise.
+5. After the developer decides, delete the rejected nodes, move what was under
    them under the node chosen, and drop their names from other statements.
 6. When the inbox says the developer asks to revisit a node, propose a change,
    or `answer` with `node` why it still holds.
-
-## Changing nodes
-
-- Changing an accepted node, anywhere in its `val` definition, puts it back
-  to review (`self`). A change of meaning also reviews the nodes below
-  (`above`); rewording a `why` or adding an example does not.
-- To replace an accepted node, propose the new one as its sibling.
-- **To rename a node,** change only its id and its val's name, and move its
-  proof file (`lean/Proofs/<KB>/<Id>.lean`, with its `namespace`). The browser
-  then offers "Renamed to X", which keeps its history.
-- A change to an implementation or governed file reviews the node (`code`).
-  No proof covers plain code: make sure the examples pass, and say in your
-  answer what changed and why the invariants it touches still hold.
-- When you change the idea or Not modelled, say which decisions rest on it.
-- Formalizing several alternatives can be costly: you may describe them in
-  your `answer` first, and formalize the one the developer picks.
 
 ## Tools
 
@@ -90,147 +83,211 @@ The MCP server `frflow` (see `.mcp.json`); pass `project` when there are several
 | tool | use |
 |---|---|
 | `inbox` | Start here: requests, clean-up, waiting decisions, the tree. |
-| `context(node)` | What bears on the node: its idea section, vocabulary, path from the root with reasons, alternatives and rejections beside it, reliances, invariants, what moved, decisions below, the obligation, the last failures. |
+| `context(node)` | What bears on a node: its idea section, the vocabulary it uses (meanings, definitions in force), its ancestors with every reason and rejected alternative, its co-parts under each parent, its parts, the contracts its code calls, invariants, what moved, its obligations. |
 | `find(query)` | Which nodes govern a file, or what mentions some words: nodes, reasons, rejected options, gone nodes, the idea, Not modelled. |
-| `render` | Rebuild from the Scala; compile errors come back here. |
+| `render` | Rebuild from the Scala; compile errors and structural problems come back here. |
 | `check(node?)` | Prove what changed and evaluate the examples in Lean. Slow. A `timeout` is not a failure: run it again. |
-| `scaffold(node)` | Stubs in the node's proof file for the obligations the last check left open. |
-| `answer(request, text)` | Reply to a request. With `node` and no `request`, answers the open request on that node. |
+| `scaffold(node)` | Stubs in the node's proof file for what the last check left open. |
+| `answer(request, text)` | Reply to a request; with `node` and no `request`, tell the developer about work they did not ask for. |
 
 Without MCP: `sbt "<kb>/run inbox"`, `render`, `check [NODE]`, `status`,
 `context NODE`, `find WORDS|PATH`, `scaffold NODE`. `ci` is for CI.
 
 ## Writing nodes
 
+From `examples/auth`:
+
 ```scala
-val authenticated = noUnauthorizedAccess.refine[(Token.T, Resource.T) => Option[User.T]]("Authenticated",
-  "A request is granted on behalf of a user only if its token belongs to that user and the user is authorized.",
-  why = "Users identify themselves with tokens they receive at login. abs: a user is allowed a resource when some token of theirs is.")(
-  abs  = decide => (u, r) => exists((t: Token.T) => decide(t, r) == Some(u)),
-  spec = decide => forall((t: Token.T, r: Resource.T) => decide(t, r).forall(u => holder(t) == Some(u) && authorized(u, r))))
+val User     = Opaque("User", "a person who uses the system")
+val access   = Param[(User.T, Resource.T) => Boolean]("access", "whether the system lets the user access the resource")
+val admit    = Param[(String, Path) => Option[UserId]]("admit", "the system's decision on a request (a token and a path): the user it is admitted on behalf of, if any")
+
+val accessExactly = Node.claim("AccessExactly",
+  "A user gets access to a resource exactly when they are signed in and authorized for it.", why = "...")(
+  forall((u: User.T, r: Resource.T) => access(u, r) == (signedIn(u) && authorized(u, r))))
+
+val identities = Node.definition("Identities", "Users are named by ids, and resources are paths.", why = "...")(
+  User := of[UserId], Resource := of[Path])
+val requests = Node.definition("Requests", "A user has access to a path when some request for it is admitted on their behalf.", why = "...")(
+  access := ((u: UserId, p: Path) => exists((t: String) => admit(t, p) == Some(u))))
+
+val grantLetsIn = Node.claim("GrantLetsIn",
+  "A request whose token was issued to a user with a grant for the path is admitted on their behalf.", why = "...")(
+  forall((t: String, p: Path) => sessions(t).forall(u => grants.value.contains(Grant(u, p)) ==> (admit(t, p) == Some(u)))))
+  .under(accessExactly)
 ```
 
-- **`Node.root(id, statement, why, idea = "Section")(spec)`**: one concern,
-  over generic types. Make every concept the idea does not define open:
-  `Opaque` for types, `Param` for relations and values. Say what users can do,
-  not only what must not happen: "shows(u, r) == (stored(r) && visible(u, r))",
-  not "shows ==> visible". A root doing nothing meets fails `status` unless
-  `safety = "why it only forbids"`; a section of the idea that says what users
-  can do needs a root that says it.
-- **`refine(id, statement, why)(abs, spec)`**: `spec m → parent.spec (abs m)`.
-- **`instantiate(id, statement, why)(T := of[X], p := expr)`**: fixes open
-  terms; holds by substitution.
-- **`contract(id, statement, why)(post)`** for a model `(A, B) => R`;
-  **`contractVia(...)(abs)(post)`** for a signature of its own. Say what a
-  call must return, not only what it must not: a contract met by returning
-  nothing (`idle`) fails `status`. Each "users can …" of the idea is a clause
-  of some post (or an `expects`), so dropping the feature breaks a proof. A
-  root that doing nothing meets (shown as a limit) says only what must not
-  happen; where the idea says what users can do, prefer a root that says it
-  (a capability: "shown exactly when visible"), so every contract below is
-  proven to deliver it.
-- **`Node.invariant[A, B](id, statement, why, scope = ...)(rule)`**: a rule for
-  several contracts, over pairs. Declare it before the contracts.
-  - Each contract in scope keeps it, listing the pairs a call shows:
-    `.keeps(inv)((user, query, result) => result.map(r => (user, r)))`.
-  - Or says why not: `.exempt(inv, "it returns no records")`. A design node
-    in scope says why it is exempt too.
-  - When several inputs have the rule's first type, name the reader:
-    `.keeps(inv, reader = 1)(...)` (from 0), or `cover_X` fails.
-- **`design(id, statement, why)(files*)`**: no formal model; files tracked.
-- **`expects(statement)(m => ...)`**: a consequence the developer expects,
-  proven from the spec. Propose some for a new node.
-- **`.relies(other, why)`**: the node rests on `other` (often another
-  concern); a change to its meaning reviews this node.
-  **`.relies(other, why, guarantee)(sees)`** also proves `guarantee` of every
-  state `other`'s concern reaches (`rely_<Other>`), and checks it at run time
-  on what `sees` returns.
-- **`val c = contract.caller("c")`**: code that calls another contract calls
-  this parameter, not that contract's code. Lean proves the caller assuming
-  only the callee's `post` (`h_c` in `impl` and `root_impl`), and only once the
-  callee's own code is proven (`implementProven`); the caller rests on the
-  callee. Examples and `service` bind it to the callee's code themselves. Build
-  large systems this way: each contract proven once, callers from promises.
-- **`Node.port[A, B, R](id, statement, why)(post)`**: what the outside (a
-  database, an HTTP service, the clock) is trusted to do. Call it through
-  `port.caller` from proven code; attach the adapter as
-  `implementProven(port)(define {...}, (a, b) => sql)`: the define is the
-  reference the SQL is checked against. Give it `checkedBy`. Request handlers
-  and jobs are design nodes governing their files, and call only `service`.
-- **`contract.checkedBy((a, b, r) => ...)`**: when the post reads all the data,
-  a check of the result alone for `service` to run per call; Lean proves the
-  post implies it.
-- **`kb.uses(other, "../other")(contracts*)`**: another project's contracts, to
-  call (`caller`) or rely on. They are decided there; never put a node under
-  one, and never ask this project's developer to decide one.
-- **`owner = "name"`** on a root: only that developer decides the concern. Do
-  not route its decisions to anyone else.
-- **`formal = false`** (on root, refine, instantiate, contract, contractVia)
-  takes a node and all below it out of Lean. Use it only when the subset
-  cannot say it or the proof costs more than it gives, and say so in `why`.
+**Vocabulary.** `Opaque("Name", means)` is a domain type (`Name.T`);
+`Param[T]("name", means)` a term: a fact of the world (`grants`, `enabled`) or
+an operation of the system (`admit`), a function some contract or assumption is
+about and some code implements. The val's name and the name given must be the
+same. A `define { ... }` is a named function in the Scala Lean translates, run
+as Scala and proven in Lean. An open term is universally quantified: what is
+proven holds for every value of it.
+
+| Constructor | What it is |
+|---|---|
+| `Node.claim(id, statement, why, idea = "", owner = "", formal = true)(formula)` | a proposition (`=> Boolean`). The one claim with no parents is the root. |
+| `Node.contract(op)(id, statement, why, idea, owner, formal)((a, b, r) => post)` | every call of `op: Param[(A, B) => R]` meets `post`; code is attached to `op`. |
+| `Node.assumption(op)(id, statement, why, idea, owner)((a, b, r) => post)` | what the outside does on an operation (a database, a store, the clock): trusted, a hypothesis of `root_impl`; its adapter is checked against it. |
+| `Node.assumption(id, statement, why, idea, owner)(formula)` | a fact of the world, trusted (tokens are fresh); checked at run time where it can be computed. |
+| `Node.definition(id, statement, why)(Opaque := of[T], param := expr, ...)` | fixes terms; decided, not proven; no parents. Two definitions of one term are alternatives. |
+| `Node.invariant[A, B](id, statement, why, scope = Nil, idea, owner, formal)(rule)` | a rule over pairs (a reader, a record), stated once; a claim whose parts are the contracts that keep it. |
+| `Node.design(id, statement, why, idea, owner)(files*)` | governs code no proof covers (wiring, an HTTP API, a convention); under the nodes it serves. |
+
+Edges and extras (chained on a node):
+
+- `.under(p1, p2, ...)`: a part of each. Declare parents first (a `val` used
+  before it is defined is `null`, and `under` refuses it). Contracts and
+  assumptions may have no parents only when code calls their operation.
+- `.replaces(other)`: an alternative; accepting one rejects the other.
+- `.keeps(inv)((a, b, r) => pairs)` on a contract: the pairs a call shows to
+  the invariant (`result.map(r => (user, r))`); with several inputs of the
+  rule's first type, `.keeps(inv, reader = 1)(...)` (from 0). Or
+  `.exempt(inv, "why it shows none")`, on a contract or a design node in the
+  invariant's scope. Declare the invariant before the contracts.
+- `.examples(bindings*)(expect(a, b, r, note), reject(a, b, r, note), ...)` on
+  a contract or an assumption on an operation (see Examples).
+- `.checkedBy((a, b, r) => ...)`: when the post reads all the data, a cheap
+  check of the result alone, run by `service` on every call; Lean proves the
+  post implies it. An assumption on an operation whose post reads all the
+  data needs one.
+- `.expects(statement)(formula)` on any node: a consequence the developer
+  expects, proven from the node. Propose some for a new node.
+- `idea = "Section"`: the `## ` section of `IDEA.md` the node is decided
+  against (the root takes the title and lead). A section no node names is a
+  warning. `owner = "name"`: only that developer decides it, and the nodes
+  whose first parent it owns; never route its decisions to anyone else.
+- `formal = false` (claim, contract, invariant): out of Lean, decided by
+  reading. Only when the Lean subset cannot say it or the proof costs more than
+  it gives; say so in `why`.
+- `KnowledgeBase(name, idea = "IDEA.md")(every node, definitions included)`;
+  `kb.uses(other, "../other")(contracts*)` brings another project's contracts
+  as leaves: call their operation, never put a node under one.
+
+**Where it belongs.** A claim states a property in the domain's terms; a
+contract states it for one call of an operation, so each result can be
+checked; an assumption states what you cannot prove (a port, a world fact).
+When a part needs a concept the vocabulary lacks (a session, a token), add a
+definition and write the part in its terms. State machines: a `define` folds
+the step over the history, a definition says the domain's terms are what it
+reaches, and the step's contract is a leaf (Keycloak's `stateAfter`,
+`ServerRun`, `HandleRequest`).
 
 **Examples.** Every contract needs at least one `expect` and one `reject`, and
-expects with different results. Lean evaluates each example whose parameters
-are values; give a lookup as `param.bindTable(Map(k -> v))`. Lean also evaluates
-probes, inputs near the examples' (`probe_j`). "Lean and Scala disagree" (on an
-example or a probe) means the translation is wrong: report it; never change
-the example or the code to hide it.
+expects with different results. Bind every parameter the post reads
+(`grants.bind(...)`); give a lookup as `param.bindTable(Map(k -> v))` so Lean
+can evaluate it. Defined terms and the operations other code implements are
+bound for you. Lean evaluates each example whose parameters are values, and
+probes near them (`probe_j`). "Lean and Scala disagree" means the translation
+is wrong: report it; never change the example or the code to hide it.
 
-```scala
-  .examples(grants.bind(List(Grant(alice, Path("/a")))), sessions.bindTable(Map("t1" -> alice)))(
-    expect("t1", Path("/a"), Some(alice), "Alice's token and a grant for /a: she gets in"),
-    reject("t1", Path("/b"), Some(alice), "access without a grant is never given"))
-```
+**Implementations.** `kb.implementProven(contract)(define {...})`: Lean proves
+the define meets the contract (`impl`) and the root holds of it (`root_impl`).
+`implementProven(c)(define {...}, (a, b) => fast)`: the fast code runs (an
+index, SQL), checked to return what the define does on every combination of
+the examples' inputs and on varied data; this is how an assumption's adapter is
+attached. `implement(contract)((a, b) => plain Scala)`: not proven, checked on
+the examples, every combination of their inputs, and every call. Code calls
+another operation through its `Param` (`fetch(user, query)`); Lean proves the
+caller from that operation's contract or assumption, never its code, and
+`service` binds it to that code. Code never calls its own operation.
+Production calls `knowledge.service(contract)(bindings*)`, which checks every
+result; facts that decide access come from bound parameters over the system's
+data, never from the result.
 
-**Implementations.** Prefer `implementProven(contract)(define {...})`: Lean
-proves it meets the contract, and the root holds of the code. Otherwise
-`implement(contract)(plain Scala)`, checked on the examples and every
-combination of their inputs. When production needs other code (an index, a
-query), keep the proven define as its reference:
-`implementProven(contract)(define {...}, (a, b) => fast)`; the fast code runs
-and must return what the define returns on every combination of the examples'
-inputs. Production calls
-`knowledge.service(contract)(bindings*)`, which checks each result. Facts that
-decide access must come from bound parameters over the system's data, never
-from the result.
+## What check reports, and what to do
 
-**State.** Model it as a step `(State, Event) => State` under a root that says
-an invariant holds initially and every step keeps it; `FrFlow.always` gives it
-for every reachable state (see the CRM's writes).
+Per node with parts: `complete` (`proven`, `open`, `failed`); each part
+`needed` or `not-needed` (one part: `vacuous` gives the same two); `clash` or
+`no-clash`; every claim `unsat` or `not-unsat`; the root `idle` or `not-idle`,
+and `root_impl`. `unchecked`, `timeout` and `informal` when there is no result.
+`status` lists the trusted list: the hypotheses of `root_impl`.
+
+| Report | Means | Do |
+|---|---|---|
+| `complete` open: "automation gave up" | the parts may not make it | First ask whether they do: usually a part is missing or too weak. If they do, prove it by hand (below). |
+| Ci `not-needed` | the node holds without Ci | Ci belongs elsewhere (under the node it does help), or another part says too much, or the node says less than meant. Fix the split. |
+| `vacuous` (one part) | the node holds whatever its part says | The node says nothing its part adds (often true of every world): strengthen it, or remove it. |
+| `clash` | the parts contradict each other | Fix the parts; a proof from them would prove anything. |
+| `unsat` | no world meets the node | Fix the node. |
+| `idle` | doing nothing meets the root | The root says only what must not happen: state what users can do. |
+| "nothing below proves it" | a claim with no parts | Add the parts or a contract that make it; a fact of the world is an assumption instead. |
+| `waiting` | two definitions of a term not yet chosen, or parts not yet proven | Ask the developer to choose; prove the parts. |
+| `impl` open | the define does not provably meet the contract | Fix the code, or prove `theorem impl : Obl.impl` by hand. |
+| `feasible` open | an authored `complete` with no proven code below | Prove that some world meets all the parts (give the witness). |
+| examples fail | the code or the contract is wrong | Fix them before any proof. |
+| `ContractViolation` at run time | a result broke the contract or an invariant, or a value breaks an assumption | Fix the code or the data; never the check. |
+
+## Proving by hand
+
+1. Run `scaffold(node)`: it writes `lean/Proofs/<KB>/<Node>.lean` with a stub
+   per open obligation, each stating exactly `Obl.<name>`.
+2. Start with `unfold Obl.complete`, `intro` the open terms and one hypothesis
+   per part, `simp only [<KB>.<Part>.claim, ...] at *` (or
+   `simp only [frflow_defs] at *`). Iterate with
+   `lake env lean Proofs/<KB>/<Node>.lean` in `lean/`, then run `check`.
+3. The library: `FrFlow.always` (a property kept by every step holds of every
+   run), `FrFlow.simulates` (and `simulates_rel`, `simulates_of_inv`: a step
+   mirroring an abstract step), `FrFlow.tracks` and `tracks_eq` (the state
+   follows the history), `FrFlow.run_snoc` (the last event of a run); for lists
+   `FrFlow.filter_filter_of_imp`, `eq_of_nodup_map`, `nodup_map_filter`,
+   `nodup_map_snoc`. Shared lemmas of your own go in
+   `lean/Proofs/<KB>/Lemmas.lean` (same rules).
+4. A proof file holds only theorems with tactic proofs: no `sorry`, `axiom`,
+   attributes or metaprograms. It imports only `FrFlowGen.<KB>.Domain`,
+   `FrFlowGen.<KB>.<Node>.Spec`, `FrFlow`, `Std`, `Init` and
+   `Proofs.<KB>.Lemmas`.
+5. Never prove a split from a contradiction in the parts, and never write a
+   proof that does not use them.
 
 ## The Scala subset
 
 Unsupported Scala is a compile error, `FrFlow: not supported in a model`:
 rewrite the expression, or make it a `define { ... }`. Supported: fields, case
-class constructors, `copy`, `match`, `if`; `==`, `!=`, `&&`, `||`, `!`, `==>`;
-`forall`/`exists` over one or two typed binders; on `List`: `contains`,
-`exists`, `forall`, `filter`, `filterNot`, `map`, `flatMap`, `foldLeft`,
-`find`, `headOption`, `take`, `drop`, `zip`, `length`/`size`,
-`isEmpty`/`nonEmpty`, `::`, `++`; on `Option`: `forall`, `exists`, `contains`, `isDefined`, `isEmpty`,
-`getOrElse`; on `Map` (a function from keys to `Option` values in Lean): `get`,
-`getOrElse`, `contains`, `updated`, `removed`, `+`, `-`, `==`, `Map(k -> v)`,
-`Map.empty`; on `Set` (its membership): `contains`, `+`, `-`, `++`,
-`intersect`, `subsetOf`, `Set(...)`. Not `m(k)` (it throws), nor iterating a map
-or a set. Params (applied or `.value`); `define`d functions; a caller of
-another contract (`contract.caller`).
+class constructors, `copy`, `match` (wildcards included), `if`; `==`, `!=`,
+`&&`, `||`, `!`, `==>`; `forall`/`exists` over one or two typed binders; on
+`List`: `contains`, `exists`, `forall`, `filter`, `filterNot`, `map`,
+`flatMap`, `foldLeft`, `find`, `headOption`, `take`, `drop`, `zip`,
+`length`/`size`, `isEmpty`/`nonEmpty`, `::`, `++`, `toSet`; on `Option`:
+`forall`, `exists`, `contains`, `isDefined`, `isEmpty`, `getOrElse`; on `Map` (a
+function from keys to `Option` values in Lean): `get`, `getOrElse`, `contains`,
+`updated`, `removed`, `+`, `-`, `==`, `Map(k -> v)`, `Map.empty`; on `Set` (its
+membership): `contains`, `+`, `-`, `++`, `intersect`, `subsetOf`, `Set(...)`.
+Not `m(k)` (it throws), nor iterating a map or a set. Params (applied or
+`.value`), `define`d functions of up to five arguments.
 
-Use `BigInt`: `Int`/`Long` arithmetic is refused, as is `exists` (or a negated
-`forall`) over a type holding one. Divide only by a literal. No function-typed
-fields, no types that redefine `equals`, no two `define`s with one name.
+Use `BigInt`: `Int`/`Long` arithmetic is refused, as is `exists` over a type
+holding one. Divide only by a literal. No function-typed fields, no types that
+redefine `equals`, no two `define`s with one name.
 
-## Proving a link
+## Pitfalls
 
-1. If `check` reports a link `open`, first ask whether it is true. Usually
-   the node is wrong.
-2. If it is true, run `scaffold(node)`. Start with `unfold Obl.link`,
-   `intro m h`, `simp only [frflow_defs] at *`. Iterate with
-   `lake env lean Proofs/<KB>/<Id>.lean` in `lean/`, then run `check`.
-3. A proof file holds only theorems and their tactic proofs: no `sorry`,
-   `axiom`, attributes or metaprograms. It imports only
-   `FrFlowGen.<KB>.Domain`, `FrFlowGen.<KB>.<Id>.Spec`, `FrFlow`, `Std`,
-   `Init` and `Proofs.<KB>.Lemmas` (shared lemmas, same rules).
-4. A hand-proven link also needs `feasible` (or a proven implementation below)
-   and `nontrivial`; the scaffold stubs both. `vacuous_*`, `unsat` and
-   `rootTrivial` reject claims that say nothing.
-5. Never prove a link from a contradiction in the node, and never write a
-   proof that does not use the node's spec.
+- **Concrete types below a type's definition.** A `Param` of an opaque type
+  (`authorized: (User.T, Resource.T) => Boolean`) cannot be applied in Scala to
+  the concrete type a definition fixes (`UserId`). Parts below the definition
+  are written in concrete terms (`grants.value.contains(Grant(u, p))`), with
+  concrete `Param`s and `define`s, and definitions relate the general terms to
+  them (as in `examples/auth`).
+- **Reserved names.** A `Param` or `Opaque` named `decide`, `max`, `min`, `id`,
+  `claim`, `post`, `rule`, `holds`, `complete`, `impl`, `m`, `f`, `h`, `p` or
+  `x0`–`x9` (among others) is refused: rename it (Auth's decision is `admit`).
+  Other names Lean uses are renamed in the generated Lean (`decide_`, `«end»`):
+  use those names in authored proofs.
+- **Don't name a val `keeps`** (or after another FrFlow function a model
+  calls: `examples`, `checkedBy`, `expect`, `reject`, `define`): it hides
+  FrFlow's in that file.
+- **Node ids** are identifiers, unique, and differ from every type, function
+  and term name; `Lemmas` and `RootImpl` are reserved.
+- **To rename a node**, change only its id and its val's name, and move its
+  proof file (with its `namespace`); the browser offers "Renamed to X".
+- **Lean 4.35 deprecates `if_pos`/`if_neg` (and `dif_pos`/`dif_neg`)**: in
+  authored proofs use `ite_eq_left`/`ite_eq_right` (`dite_eq_left`/
+  `dite_eq_right`), or `split` and `simp [h]`.
+- **Changing an accepted node** anywhere in its `val` puts it back to review
+  (`self`); a change of its statement or formula also reviews what rests on it
+  (`above`), and adding or removing a part reviews the parent (`parts`).
+  Rewording a `why` or adding an example does not cascade. A change to an
+  implementation or a governed file reviews the node (`code`): no proof covers
+  plain code, so say in your answer what changed and why the invariants it
+  touches still hold.
