@@ -135,6 +135,11 @@ val authenticated = noUnauthorizedAccess.refine[(Token.T, Resource.T) => Option[
   **`.relies(other, why, guarantee)(sees)`** also proves `guarantee` of every
   state `other`'s concern reaches (`rely_<Other>`), and checks it at run time
   on what `sees` returns.
+- **`val c = contract.caller("c")`**: code that calls another contract calls
+  this parameter, not that contract's code. Lean proves the caller assuming
+  only the callee's `post` (`h_c` in `impl` and `root_impl`); the caller rests
+  on the callee; bind it at run time to the callee's `service`. Build large
+  systems this way: each contract proven once, callers from promises.
 - **`formal = false`** (on root, refine, instantiate, contract, contractVia)
   takes a node and all below it out of Lean. Use it only when the subset
   cannot say it or the proof costs more than it gives, and say so in `why`.

@@ -228,3 +228,20 @@ class LeanSuite extends munit.FunSuite:
     assert(r(1)._2.obligations.head.detail.startsWith("unsatisfiable"), r(1)._2.obligations)
   }
 
+  test("a contract's code may call another contract: it is proven from that contract's promise alone") {
+    val kb = KnowledgeBase("Calls", idea = "IDEA.md")(onlyGood, listed, books, pick, again)
+      .implementProven(pick)(longOnes).implementProven(again)(viaPick)
+    val w = workflow(kb)
+    val g = w.generate
+    assertEquals(g.callees(again).map(_._2.id), List("Pick"))
+    assert(g.obligations(again).find(_.name == "impl").exists(_.statement.contains("h_pickCall")), g.obligations(again))
+    val r = w.check()
+    val c = r.find(_._1.id == "Again").get._2
+    assertEquals(c.status, "proven", c)
+    assertEquals(c.obligations.filter(o => Set("impl", "root_impl")(o.name)).map(_.status), List("proven", "proven"), c)
+    // its examples are evaluated in Lean, the call standing for Pick's proven code
+    assert(c.obligations.exists(o => o.name.startsWith("eval_") && o.status == "proven"), c)
+    // it rests on Pick: a change to Pick's meaning reviews it
+    assertEquals(w.restsOn(again).map(_.id), List("Pick"))
+  }
+

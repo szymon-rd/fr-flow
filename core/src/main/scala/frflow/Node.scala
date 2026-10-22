@@ -248,6 +248,13 @@ final case class ExampleResult(example: Example, contract: String, implementatio
 final class ContractViolation(node: String, detail: String) extends RuntimeException(s"$node: $detail")
 
 extension [A, B, R](n: Node[(A, B) => R])
+  /** A parameter standing for any implementation of this contract, for code that calls it: Lean proves
+    * the calling code assuming only what this contract promises (its `post`), and the caller rests on
+    * this contract. Bind it at run time to the contract's `service`.
+    */
+  def caller(name: String): Param[(A, B) => R] =
+    Param(name, s"any implementation of ${n.id}: what it returns meets ${n.id}'s contract", Some(() => n))
+
   /** A plain Scala implementation with every call checked against the contract: a result that
     * breaks it is never returned. Used by `KnowledgeBase.service`, which is how code is attached.
     */
@@ -573,6 +580,9 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     val names = types.map(_.name) ++ defs.map(_.name)
     List(
       ids.diff(ids.distinct).distinct.map(d => s"duplicate node id $d"),
+      // Code that calls its own contract would be proven assuming what it proves.
+      nodes.filter(c => implementation(c).flatMap(_.proven).toList.flatMap(d => Def.closure(List(d))).flatMap(_.lifted.paramObjects)
+        .exists(_.implementing.exists(f => f() eq c))).map(c => s"${c.id}: its implementation calls ${c.id} itself (through a caller): it cannot be proven from its own promise"),
       ids.filterNot(Ident.matches).map(i => s"node id $i is not an identifier"),
       ids.filter(_ == "Lemmas").map(_ => "node id Lemmas is reserved: lean/Proofs/<KB>/Lemmas.lean holds the lemmas the proofs share"),
       if roots.isEmpty then List("a root node is required") else Nil,

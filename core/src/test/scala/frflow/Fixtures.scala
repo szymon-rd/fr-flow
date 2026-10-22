@@ -73,3 +73,12 @@ val choose = books.contract[List[Book], Int, List[Book]]("Choose", "Picking retu
     expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
     expect(List(Book("Short", 20)), 5, Nil, "no book is long enough: none is picked"),
     reject(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Short", 20)), "a short book is never picked"))
+
+/** Code that calls another contract (Pick) by its promise, not by its code. */
+val pickCall = pick.caller("pickCall")
+val viaPick = define { (shelf: List[Book], n: Int) => pickCall(shelf, n).filter(b => shelf.contains(b)) }
+val again = books.contract[List[Book], Int, List[Book]]("Again", "Picking again, through Pick, returns only long books from the shelf.", why = "It reuses Pick.")(
+  (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages.value))
+  .examples(minPages.bind(100), pickCall.bind((s: List[Book], k: Int) => s.filter(b => b.pages >= minPages.value)))(
+    expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
+    reject(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))

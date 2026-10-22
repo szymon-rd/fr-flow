@@ -23,8 +23,10 @@ final class Opaque(val name: String, val means: String):
   * }}}
   *
   * @param means what it stands for in the world, and where its value comes from: part of the theory
+  * @param implementing the contract it calls, for a parameter made by `contract.caller`: the code that
+  *        calls it is proven assuming only that contract's promise
   */
-final class Param[A](val name: String, val means: String):
+final class Param[A](val name: String, val means: String, val implementing: Option[() => Node[?]] = None):
 
   /** The value bound at run time (see `Node.enforce`). */
   def value: A = Bindings.get(this)

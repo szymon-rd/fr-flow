@@ -180,7 +180,12 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
     */
   def parentChain(n: Node[?]): String =
     Decisions.above(if n.kind == NodeKind.Design then "" else n.parent.fold("")(chainHash),
-      n.kept.filter(_.view.nonEmpty).map(k => chainHash(k.invariant)) ++ n.reliesOn.map((o, _) => chainHash(o)))
+      n.kept.filter(_.view.nonEmpty).map(k => chainHash(k.invariant)) ++ restsOn(n).map(chainHash))
+
+  /** The nodes a node rests on besides its parent and the invariants it keeps: those it relies on, and
+    * the contracts its code calls (see `Node.caller`).
+    */
+  def restsOn(n: Node[?]): List[Node[?]] = (n.reliesOn.map(_._1) ++ generate.callees(n).map(_._2)).distinct
 
   /** Files governed explicitly by some node. */
   private lazy val governedExplicitly: Set[Path] =
@@ -190,7 +195,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
   def checkHash(n: Node[?]): String =
     val g = generate
     sha((Seq(g.spec(n), g.auto(n), g.theorems(n), g.extraObligations(n).map(g.oblFile(n, _)).mkString, g.rootImplFile(n).getOrElse(""), g.idle(n).fold("")(_._1.statement), g.saysNothing(n).map(_.obligation.statement).mkString, g.evalFile(n).getOrElse(""),
-      g.relyChecks(n).map(_._3).mkString, g.relyChecks(n).map((o, _, _) => checkHash(o)).mkString, read(ws.lean.resolve(g.proofsPath(n.id))).getOrElse(""),
+      g.relyChecks(n).map(_._3).mkString, g.relyChecks(n).map((o, _, _) => checkHash(o)).mkString, g.callees(n).map((_, c) => g.spec(c)).mkString, read(ws.lean.resolve(g.proofsPath(n.id))).getOrElse(""),
       read(ws.lean.resolve(g.proofsPath(n.id))).filter(Lean.lemmaImports(_).nonEmpty).flatMap(_ => read(ws.lean.resolve(g.lemmasPath))).getOrElse(""),
       // The specs of other nodes a proof imports: a change to them re-checks it.
       read(ws.lean.resolve(g.proofsPath(n.id))).fold("")(src => s"(?m)^\\s*import\\s+FrFlowGen\\.${java.util.regex.Pattern.quote(kb.name)}\\.(\\w+)\\.Spec".r
@@ -211,7 +216,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
     // the nodes of one level are checked side by side.
     val levels = scala.collection.mutable.Map.empty[String, Int]
     def level(n: Node[?], seen: Set[String]): Int = levels.getOrElse(n.id, {
-      val below = (n.parent.toList ++ n.reliesOn.map(_._1).filter(_ != null) ++ n.kept.map(_.invariant))
+      val below = (n.parent.toList ++ restsOn(n) ++ n.kept.map(_.invariant))
         .filter(x => g.formal(x) && !seen(x.id))
       val l = below.map(level(_, seen + n.id) + 1).maxOption.getOrElse(0)
       levels(n.id) = l
@@ -849,7 +854,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
               .getOrElse(("unchecked", "not checked yet"))
           obj("name" -> str(d.name), "status" -> str(st), "detail" -> str(detail))
         },
-        "relies" -> JArr(n.reliesOn.map((o, _) => str(o.id))),
+        "relies" -> JArr(restsOn(n).map(o => str(o.id))),
         // The guarantees it relies on, and whether Lean proves them of every state the other concern reaches.
         "reliances" -> JArr(n.reliedProperties.map { (o, why, r) =>
           val name = s"rely_${o.id}"

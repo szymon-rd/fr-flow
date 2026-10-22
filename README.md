@@ -31,6 +31,7 @@ trees. Lean, generated from the Scala, proves each link.
 | design | `parent.design(id, statement, why)(files*)` | nothing: an architecture choice or convention, decided and tracked |
 | expectation | `node.expects(statement)(m => ...)` | a consequence the developer expects, from the node's spec |
 | reliance | `.relies(other, why)`, or `.relies(other, why, guarantee)(sees)` | the guarantee, of every state `other`'s concern reaches |
+| call | `val c = contract.caller("c")`, called in a `define` | the calling code, from the callee's contract alone |
 
 So for each formal node, the root's statement is true of every model of the
 node, through every link above it. With a proven implementation, it is true of
@@ -109,6 +110,10 @@ the history, reasons and rejected alternatives.
   with no example Lean evaluates is a warning.
 - **State.** A root over runs (`List[Event] => State`) is refined by a step
   `(State, Event) => State`; the link is proven by induction (`FrFlow.always`).
+- **Composition.** Code calls another contract through `contract.caller`: Lean
+  proves it assuming only the callee's `post`, so each contract is proven once
+  and a caller does not depend on the callee's code. The caller rests on the
+  callee: a change to the callee's meaning reviews it.
 - **Seams.** In `.relies(other, why, guarantee)(sees)`, Lean proves
   `guarantee` of every state `other`'s concern reaches (`rely_<Other>`); at
   run time it is checked on what `sees` returns.

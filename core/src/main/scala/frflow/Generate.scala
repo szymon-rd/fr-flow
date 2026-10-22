@@ -293,7 +293,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
     }
     val impl = provenImpl(n).map { d =>
       val (vars, xs) = call(n.post.get.params.init.map(_._2))
-      Claim("impl", vars, None, s"${at(n)("post")} $xs (${resolve(s"⟦${d.name}⟧")} $xs)", s"Every result of ${d.name} meets ${n.id}.")
+      Claim("impl", (assumed(n).map(_._2) :+ vars).filter(_.nonEmpty).mkString(" "), None, s"${at(n)("post")} $xs (${resolve(s"⟦${d.name}⟧")} $xs)", s"Every result of ${d.name} meets ${n.id}.")
     }
     // A proof the agent wrote may rest on a contradiction automation did not find: then something
     // must meet the node. A proven implementation at or below it is that witness (the links between
@@ -315,6 +315,20 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
         s"Some model of ${n.id} fails the root: the root says something here.")
     }
     link.toList ++ keeps ++ impl ++ feasible ++ nontrivial ++ expects
+
+  /** The contracts a node's code calls (through `contract.caller` parameters), by parameter name. */
+  def callees(n: Node[?]): List[(String, Node[?])] =
+    nodeCtx(n).params.flatMap(p => paramObject.get(p).flatMap(_.implementing).map(f => p -> f())).filter((_, c) => formal(c))
+
+  /** What the code may assume of the contracts it calls: each meets its contract (a binder named `h_<p>`). */
+  private def assumed(n: Node[?]): List[(String, String)] =
+    val mine = nodeCtx(n)
+    callees(n).map { (p, c) =>
+      val ts = c.post.get.params.init.map(_._2)
+      val ys = ts.indices.map(i => s"y$i").mkString(" ")
+      val extra = binders(nodeCtx(c).without((mine.opaques ++ mine.params).toSet))
+      s"h_$p" -> s"(h_$p : ∀ ${if extra.isEmpty then "" else extra + " "}${ts.zipWithIndex.map((t, i) => s"(y$i : $t)").mkString(" ")}, ${pat(c)("post")} $ys ($p $ys))"
+    }
 
   /** What a formal node must prove: its link, the invariants it keeps, its proven implementation. */
   def obligations(n: Node[?]): List[Obligation] =
@@ -466,6 +480,11 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
               val cases = b.table.get.toList.map((k, v) => for { tk <- term(k); tv <- term(v) } yield (tk, tv))
               if dom.isEmpty || cases.exists(_.isEmpty) then Left(s"Lean has no value for the table $p")
               else Right(s"(fun (k' : ${dom.get}) => ${cases.flatten.foldRight("none")((kv, rest) => s"if k' = ${kv._1} then some ${kv._2} else $rest")})")
+            // A call of another contract: in Lean, its proven implementation (which the binding runs).
+            case Some(b) if paramObject.get(p).flatMap(_.implementing).exists(f => provenImpl(f()).isDefined) =>
+              val d1 = provenImpl(paramObject(p).implementing.get()).get
+              defCtx(d1).params.foldRight(Right(Nil): Either[String, List[String]])((x, acc) => for { v <- valueOf(x); r <- acc } yield v :: r)
+                .map(vs => if vs.isEmpty then s"$K.${d1.name}" else s"($K.${d1.name} ${vs.mkString(" ")})")
             case Some(b) =>
               scala.util.Try(b.value()).toOption.flatMap(term).toRight(s"Lean has no value for $p (a function, or a type Lean does not have; give a lookup as bindTable)")
         val evaluated: Either[String, List[Eval]] = for
@@ -518,11 +537,12 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
   def rootImplFile(n: Node[?]): Option[String] = provenImpl(n).map { d =>
     val a = args(nodeCtx(n))
     val impl = resolve(s"⟦${d.name}⟧")
-    val statement = stated(n, "", None, s"${at(n)("rootSpec")} (${at(n)("toRoot")} $impl)")
-    val intro = if a.isEmpty then "" else s"  intro $a\n"
+    val hs = assumed(n)
+    val statement = stated(n, hs.map(_._2).mkString(" "), None, s"${at(n)("rootSpec")} (${at(n)("toRoot")} $impl)")
+    val intro = if a.isEmpty && hs.isEmpty then "" else s"  intro ${(a :: hs.map(_._1)).filter(_.nonEmpty).mkString(" ")}\n"
     Header + s"import ${theoremsModule(n.id)}\nimport ${oblModule(n.id, "impl")}\n\n" + Preamble +
       s"namespace $K.${n.id}.RootImpl\nopen $K.${n.id}\n\n/-- The root holds of ${d.name}, the code. -/\n" +
-      s"theorem root_impl : $statement := by\n$intro  exact ${if a.isEmpty then "root" else s"root $a"} _ ($K.${n.id}.Impl.impl${if a.isEmpty then "" else s" $a"})\n\n" +
+      s"theorem root_impl : $statement := by\n$intro  exact ${if a.isEmpty then "root" else s"root $a"} _ ($K.${n.id}.Impl.impl${(a :: hs.map(_._1)).filter(_.nonEmpty).map(" " + _).mkString})\n\n" +
       s"end $K.${n.id}.RootImpl\n\n#print axioms $K.${n.id}.RootImpl.root_impl\n"
   }
 
@@ -547,7 +567,8 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
     val a = args(c)
     def at(f: String) = if a.isEmpty then f else s"$f $a"
     val sb = StringBuilder()
-    sb ++= Header + s"import ${n.parent.fold(s"FrFlowGen.$K.Domain")(p => specModule(p.id))}\n\n" + Preamble
+    sb ++= Header + s"import ${n.parent.fold(s"FrFlowGen.$K.Domain")(p => specModule(p.id))}\n" +
+      callees(n).map((_, c) => s"import ${specModule(c.id)}\n").distinct.mkString + "\n" + Preamble
     sb ++= s"namespace $K.${n.id}\n\n"
     def d(name: String, tpe: String, body: String) =
       sb ++= s"@[frflow_defs] def $name$b${if tpe.isEmpty then "" else s" : $tpe"} :=\n  $body\n\n"
