@@ -49,13 +49,11 @@ final class Project(dir: Path):
     */
   def annotated: Option[Json] = snapshot.map { s =>
     val l = ledger
-    val restarts = frflow.Ledger.restarts(root, ledgerFile).filterNot(c => l.acknowledged.exists(c.startsWith))
-    val rewritten = frflow.Ledger.rewrites(root, ledgerFile, l) ++
-      restarts.map(c => s"the ledger was restarted in commit ${c.take(10)}: check what changed, then acknowledge it")
+    val restarts = frflow.Ledger.toAcknowledge(root, ledgerFile, l)
     val a = frflow.Decisions.annotate(s, l)
-    val warnings = (a("warnings").map(_.arr.toList).getOrElse(Nil) ++ rewritten.map(str)).distinct
+    val warnings = frflow.Ledger.warnings(root, ledgerFile, l).map(str) ++ a("warnings").map(_.arr.toList).getOrElse(Nil)
     JObj(a.obj.filterNot(f => f._1 == "warnings" || f._1 == "restarts") :+ ("warnings" -> JArr(warnings)) :+
-      ("restarts" -> JArr(restarts.map(str))))
+      ("restarts" -> JArr(restarts.map((c, why) => obj("commit" -> str(c), "why" -> str(why))))) :+ ("unsigned" -> JArr(unsigned)))
   }
 
   /** How the code a node governs changed since the developer decided it (a git diff), so what the
@@ -91,9 +89,36 @@ final class Project(dir: Path):
       case Some(snap) =>
         Project.locked(state.resolve("ledger.lock")) {
           val files = snap("nodes").map(_.arr.toList).getOrElse(Nil).flatMap(_("code")).flatMap(_("files")).flatMap(_.arr).flatMap(_.str).distinct
-          frflow.Decisions.decide(snap, ledger, r, java.time.Instant.now.toString, frflow.Git.head(root), frflow.Git.snapshot(root, files))
-            .map(frflow.Ledger.save(ledgerFile, _))
+          val before = ledger
+          frflow.Decisions.decide(snap, before, r, java.time.Instant.now.toString, frflow.Git.head(root), frflow.Git.snapshot(root, files))
+            .map(l => frflow.Ledger.save(ledgerFile, signed(before, l)))
         }
+
+  /** The developer's new decisions, signed when this process holds the developer's key (the browser
+    * server does; the MCP server does not), with the public key published in `.frflow/keys`.
+    */
+  private def signed(before: frflow.Ledger, now: frflow.Ledger): frflow.Ledger =
+    Project.signingKey.fold(now) { (priv, pub) =>
+      frflow.Signing.publish(pub, state.resolve("keys"))
+      frflow.Signing.signNew(before, now, priv, pub)
+    }
+
+  /** The developer's decisions not signed by a known key, for the developer to look at. */
+  def unsigned: List[Json] =
+    frflow.Signing.unsigned(ledger, frflow.Signing.keys(state.resolve("keys"))).map((id, d) => obj(
+      "node" -> str(id), "entry" -> str(frflow.Ledger.entry(d)), "action" -> str(d.action), "by" -> str(d.by), "at" -> str(d.at),
+      "reason" -> str(d.reason)))
+
+  /** Signs the named decisions with the developer's key: the developer says they are theirs. */
+  def sign(entries: Set[String]): Either[String, Unit] =
+    Project.signingKey match
+      case None => Left("this process holds no developer key")
+      case Some((priv, pub)) =>
+        Project.locked(state.resolve("ledger.lock")) {
+          frflow.Signing.publish(pub, state.resolve("keys"))
+          frflow.Ledger.save(ledgerFile, frflow.Signing.signEntries(ledger, entries, priv, pub))
+        }
+        Right(())
 
   /** Whether the files a node governs differ from what the snapshot saw (file times can lie). */
   private def codeMoved(snap: Json, node: String): Boolean =
@@ -195,6 +220,12 @@ final class Project(dir: Path):
     }
 
 object Project:
+  /** The developer's signing key, held by the browser server only (see `frflow.Signing`). */
+  @volatile var signingKey: Option[(java.security.PrivateKey, java.security.PublicKey)] = None
+
+  /** Where the browser server keeps the developer's key: outside every repository. */
+  def keyFile: Path = sys.env.get("FRFLOW_KEY").map(Path.of(_))
+    .getOrElse(Path.of(sys.props("user.home"), ".config", "frflow", "signing.key"))
   /** The CLI commands the tools run. Deciding (`accept`) is the developer's, through `decide`. */
   val Commands: Set[String] = Set("render", "check", "status", "context", "scaffold")
 

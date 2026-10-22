@@ -6,11 +6,11 @@ import frflow.fixtures.*
 class LiftSuite extends munit.FunSuite:
 
   test("case classes: construction, fields, copy") {
-    val c = Lifted((b: Book) => b.copy(pages = b.pages + 1) == Book(b.title, 2))
-    assertEquals(c.body, "({ b with pages := (b.pages + 1) } = (Book.mk b.title 2))")
+    val c = Lifted((b: Book) => b.copy(pages = 2) == Book(b.title, b.pages))
+    assertEquals(c.body, "({ b with pages := 2 } = (Book.mk b.title b.pages))")
     assertEquals(c.params, List("b" -> "Book"))
     assert(c.types.exists(t => t.name == "Book" && t.lean.contains("pages : Int")))
-    assert(c.value(Book("x", 1)))
+    assert(c.value(Book("x", 2)))
     assert(!c.value(Book("x", 5)))
   }
 
@@ -31,10 +31,10 @@ class LiftSuite extends munit.FunSuite:
   }
 
   test("tuple fields follow Lean's nesting: A × B × C is A × (B × C)") {
-    val c = Lifted((t: (Int, Int, Int)) => t._2 * 10 + t._3)
+    val c = Lifted((t: (BigInt, BigInt, BigInt)) => t._2 * 10 + t._3)
     assertEquals(c.body, "((t.2.1 * 10) + t.2.2)")
-    assertEquals(c.value((1, 2, 3)), 23)
-    assertEquals(Lifted((t: (Int, Int)) => t._1 - t._2).body, "(t.1 - t.2)")
+    assertEquals(c.value((1, 2, 3)), BigInt(23))
+    assertEquals(Lifted((t: (BigInt, BigInt)) => t._1 - t._2).body, "(t.1 - t.2)")
   }
 
   test("patterns Lean would read as catch-alls are refused") {
@@ -61,6 +61,19 @@ class LiftSuite extends munit.FunSuite:
     assertEquals(c.body, "(∀ (a : Book) (b : Book), (((a ∈ l) ∧ (b ∈ l)) → (a.pages ≤ b.pages)))")
     val o = Lifted((o: Option[Book]) => o.forall(b => b.pages > 0))
     assertEquals(o.body, "(∀ b, o = some b → (b.pages > 0))")
+  }
+
+  test("arithmetic is exact in Lean and in Scala: BigInt, and division only by a literal") {
+    assert(compileErrors("frflow.Lifted((x: Int) => x + 1 > x)").contains("can overflow in Scala"))
+    assert(compileErrors("frflow.Lifted((x: Long) => x * 2)").contains("can overflow in Scala"))
+    assertEquals(Lifted((x: BigInt) => x + 1 > x).body, "((x + 1) > x)")
+    assertEquals(Lifted((x: BigInt) => x / 2).body, "(Int.tdiv x 2)")
+    assert(compileErrors("frflow.Lifted((x: BigInt, y: BigInt) => x / y)").contains("may be zero"))
+  }
+
+  test("names Lean defines cannot be captured, nor calls hidden in strings") {
+    assertEquals(Lifted((some: Int) => some > 1).body, "(some_ > 1)")
+    assert(Lifted((s: String) => s == "⟦long⟧").body.contains("\\u27E6long\\u27E7"))
   }
 
   test("unsupported Scala is a compile error") {

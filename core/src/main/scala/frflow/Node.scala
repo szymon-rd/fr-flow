@@ -105,17 +105,20 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
       inline post: (A, B, R) => Boolean)(using M =:= ((A, B) => R)): Node[(A, B) => R] =
     Node(id, statement, why, NodeKind.Contract, Some(this), None, None, Some(Lifted.of(formal, post)), Nil, declaredFormal = formal)
 
+  private def copy(cases: List[Example] = cases, governs: List[String] = governs, kept: List[Keep] = kept): Node[M] =
+    Node(id, statement, why, kind, parent, spec, abs, post, substs, cases, governs, declaredFormal, kept, scope, ideaSection)
+
   private[frflow] def withExamples(es: List[Example]): Node[M] =
-    Node(id, statement, why, kind, parent, spec, abs, post, substs, cases ++ es, governs, declaredFormal, kept, scope, ideaSection)
+    copy(cases = cases ++ es)
 
   private[frflow] def withKeeps(ks: List[Keep]): Node[M] =
-    Node(id, statement, why, kind, parent, spec, abs, post, substs, cases, governs, declaredFormal, ks, scope)
+    copy(kept = ks)
 
   /** Source files (or directories) this node also governs, relative to the project: a change to
     * them puts the node up for review. A contract already governs its implementation's files.
     */
   def governing(files: String*): Node[M] =
-    Node(id, statement, why, kind, parent, spec, abs, post, substs, cases, governs ++ files, declaredFormal, kept, scope, ideaSection)
+    copy(governs = governs ++ files)
 
   /** A design decision below this node, with no formal model: an architecture choice or a
     * convention. `governs` are the source files it is about (relative to the project), so a
@@ -123,6 +126,13 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
     */
   def design(id: String, statement: String, why: String)(governs: String*): Node[Unit] =
     Node(id, statement, why, NodeKind.Design, Some(this), None, None, None, Nil, Nil, governs.toList)
+
+  /** The invariant does not apply to this contract or design decision, for the reason given (part of
+    * what the node says, so the developer reads it).
+    */
+  def exempt(invariant: Node[?], because: String): Node[M] =
+    require(invariant != null, s"$id is exempt from an invariant declared after it: declare the invariant first")
+    withKeeps(kept :+ Keep(invariant, None, because))
 
   override def toString: String = id
 
@@ -230,11 +240,6 @@ extension [A, B, R](n: Node[(A, B) => R])
       inline view: (A, B, R) => List[(X, Y)]): Node[(A, B) => R] =
     require(invariant != null, s"${n.id} keeps an invariant declared after it: declare the invariant first")
     n.withKeeps(n.kept :+ Keep(invariant, Some(Lifted.of(formal, view))))
-
-  /** The invariant does not apply to this contract, for the reason given (part of what the contract says). */
-  def exempt(invariant: Node[?], because: String): Node[(A, B) => R] =
-    require(invariant != null, s"${n.id} is exempt from an invariant declared after it: declare the invariant first")
-    n.withKeeps(n.kept :+ Keep(invariant, None, because))
 
   /** The first invariant a call's result breaks, if any. */
   def broken(a: A, b: B, r: R): Option[String] =
@@ -370,7 +375,9 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     * the decision, so nobody believes a contract says more than it does.
     */
   def limits(n: Node[?]): List[String] =
-    assumptions(n).map(c => s"it assumes about the world, whatever the model does: `$c`") ++ unread(n) ++ (
+    assumptions(n).map(c => s"it assumes about the world, whatever the model does: `$c`") ++ unread(n) ++
+    n.abs.filter(a => n.formal && """\bif\b|\bmatch\b|List\.filter""".r.findFirstIn(a.body).isDefined)
+      .map(a => s"its abs chooses by a condition what reaches the parent: read it, since what it leaves out is not proven: `${a.source}`").toList ++ (
     if n.kind != NodeKind.Contract then Nil
     else
       val post = n.post.get
@@ -427,9 +434,11 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     (nodes.flatMap(_.referenced) ++ defs.map(_.lifted)).flatMap(_.opaqueObjects).groupBy(_.name).values.map(_.head).toList.sortBy(_.name)
   def children(n: Node[?]): List[Node[?]] = nodes.filter(_.parent.contains(n))
 
-  /** The contracts an invariant applies to: those below its scope, or all when it names none. */
+  /** The contracts and design decisions an invariant applies to: those below its scope, or all when
+    * it names none. A design decision governs code no proof covers: it says why it does not break it.
+    */
   def inScope(i: Node[?]): List[Node[?]] =
-    nodes.filter(c => c.kind == NodeKind.Contract && (i.scope.isEmpty || path(c).exists(a => i.scope.exists(_ eq a))))
+    nodes.filter(c => (c.kind == NodeKind.Contract || c.kind == NodeKind.Design) && (i.scope.isEmpty || path(c).exists(a => i.scope.exists(_ eq a))))
   def path(n: Node[?]): List[Node[?]] = n.parent.fold(List(n))(p => path(p) :+ n)
   def ordered: List[Node[?]] = nodes.sortBy(path(_).size)
 
@@ -472,17 +481,24 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     List(
       ids.diff(ids.distinct).distinct.map(d => s"duplicate node id $d"),
       ids.filterNot(Ident.matches).map(i => s"node id $i is not an identifier"),
+      ids.filter(_ == "Lemmas").map(_ => "node id Lemmas is reserved: lean/Proofs/<KB>/Lemmas.lean holds the lemmas the proofs share"),
       if roots.isEmpty then List("a root node is required") else Nil,
       nodes.filter(_.why.trim.isEmpty).map(n => s"${n.id}: say why (the reason for this node)"),
       nodes.filter(n => n.cases.nonEmpty && n.kind != NodeKind.Contract).map(n => s"${n.id}: only contracts have examples"),
       nodes.flatMap(n => n.kept.map(_.invariant).filterNot(i => nodes.contains(i) && i.kind == NodeKind.Invariant)
         .map(i => s"${n.id} keeps ${i.id}, which is not an invariant of this knowledge base")),
-      nodes.filter(n => n.kept.nonEmpty && n.kind != NodeKind.Contract).map(n => s"${n.id}: only contracts keep invariants"),
+      nodes.filter(n => n.kept.exists(_.view.nonEmpty) && n.kind != NodeKind.Contract).map(n => s"${n.id}: only contracts keep invariants"),
+      nodes.filter(n => n.kept.nonEmpty && n.kind != NodeKind.Contract && n.kind != NodeKind.Design)
+        .map(n => s"${n.id}: only contracts and design decisions are exempt from invariants"),
       nodes.flatMap(n => n.kept.groupBy(_.invariant.id).collect { case (i, ks) if ks.size > 1 => s"${n.id} names $i more than once" }),
       nodes.flatMap(n => n.kept.filter(k => k.view.isEmpty && k.exempt.trim.split("\\s+").count(_.exists(_.isLetter)) < 3)
         .map(k => s"${n.id}: say in a few words why ${k.invariant.id} does not apply to it")),
       nodes.filter(_.kind == NodeKind.Invariant).flatMap(i => inScope(i).filterNot(_.kept.exists(_.invariant eq i))
-        .map(c => s"${c.id}: keep ${i.id} (.keeps) or say why it does not apply (.exempt): every contract in its scope does one")),
+        .map(c => if c.kind == NodeKind.Design then s"${c.id}: say why ${i.id} does not apply to the code it governs (.exempt): a design decision in its scope does"
+          else s"${c.id}: keep ${i.id} (.keeps) or say why it does not apply (.exempt): every contract in its scope does one")),
+      // A view lists what a call shows; one that chooses by a condition could hide what the rule refuses.
+      nodes.flatMap(n => n.kept.flatMap(k => k.view.filter(v => """\bif\b|\bmatch\b|List\.filter""".r.findFirstIn(v.body).isDefined)
+        .map(_ => s"${n.id}: its view of ${k.invariant.id} chooses by a condition (if, match or filter); list every pair the call shows"))),
       nodes.filter(i => i.kind == NodeKind.Invariant && !nodes.exists(_.kept.exists(k => (k.invariant eq i) && k.view.nonEmpty)))
         .map(i => s"${i.id}: no contract keeps this invariant"),
       nodes.filter(i => i.kind == NodeKind.Invariant).flatMap(i => i.scope.filterNot(nodes.contains).map(s => s"${i.id}: its scope ${s.id} is not in the knowledge base")),

@@ -43,7 +43,27 @@ class CrmSuite extends munit.FunSuite:
     assume(Lake(Paths.get(".")).available, "lake is not available")
     val root = Files.createTempDirectory("crm")
     Files.copy(Paths.get("examples/crm/IDEA.md"), root.resolve("IDEA.md"))
+    val proofs = Paths.get("examples/crm/lean/Proofs/Crm")
+    Files.createDirectories(root.resolve("lean/Proofs/Crm"))
+    Files.list(proofs).forEach(f => Files.copy(f, root.resolve("lean/Proofs/Crm").resolve(f.getFileName)))
     val w = Workflow(knowledge, Workspace(root, Paths.get("lean").toAbsolutePath.toString))
-    assertEquals(w.check().map((n, c) => n.id -> c.status),
-      List("TenantIsolation" -> "proven", "ReadApi" -> "proven", "Accounts" -> "proven", "ReadContract" -> "proven"))
+    val checked = w.check().map((n, c) => n.id -> c).toMap
+    assertEquals(checked.view.mapValues(_.status).toMap, Map("TenantIsolation" -> "proven", "ReadApi" -> "proven", "Accounts" -> "proven",
+      "ReadContract" -> "proven", "WritesKeepStore" -> "proven", "CrmWrites" -> "proven", "WriteContract" -> "proven"))
+    // both implementations are proven, and the root holds of each
+    for c <- List("ReadContract", "WriteContract") do
+      assertEquals(checked(c).obligations.filter(o => o.name == "impl" || o.name == "root_impl").map(_.status), List("proven", "proven"), checked(c))
+  }
+
+  test("a write changes only what its author's company may change, and the write side checks it") {
+    val write = writeSide()
+    val start = CrmStore(records, shareTable)
+    val added = write(start, WriteCmd(ann, Change.Add(CrmRecord(4, acme, Kind.Deal, "New deal"))))
+    assertEquals(added.records.map(_.id), List(1L, 2L, 3L, 4L))
+    // Ann cannot share Globex's deal, nor add a record for Globex: nothing changes
+    assertEquals(write(start, WriteCmd(ann, Change.ShareWith(2, acme))), start)
+    assertEquals(write(start, WriteCmd(ann, Change.Add(CrmRecord(5, globex, Kind.Deal, "Not hers")))), start)
+    // an implementation that drops another company's record is stopped by the contract
+    val careless: (CrmStore, WriteCmd) => CrmStore = (s, _) => s.copy(records = s.records.filter(_.tenant == acme))
+    intercept[ContractViolation](knowledge.implement(writeContract)(careless).service(writeContract)()(start, WriteCmd(ann, Change.Unshare(1, globex))))
   }

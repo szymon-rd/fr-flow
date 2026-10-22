@@ -129,7 +129,7 @@ class ToolsSuite extends munit.FunSuite:
 
   private def withServer(body: (String, Project) => Unit): Unit =
     val p = fake()
-    val server = Server(List(p)).serve("127.0.0.1", 0)
+    val server = Server(List(p), "test-token").serve("127.0.0.1", 0)
     try body(s"http://127.0.0.1:${server.getAddress.getPort}", p) finally server.stop(0)
 
   private def get(url: String): (Int, String) =
@@ -138,7 +138,7 @@ class ToolsSuite extends munit.FunSuite:
 
   private def post(url: String, body: Json, headers: (String, String)*): (Int, Json) =
     val b = HttpRequest.newBuilder(URI(url)).POST(HttpRequest.BodyPublishers.ofString(body.compact))
-    (("Content-Type" -> "application/json") +: headers).toMap.foreach((k, v) => b.header(k, v))
+    (Seq("Content-Type" -> "application/json", "X-FrFlow-Token" -> "test-token") ++ headers).toMap.foreach((k, v) => b.header(k, v))
     val r = http.send(b.build(), HttpResponse.BodyHandlers.ofString(UTF_8))
     (r.statusCode, Json.parse(r.body))
 
@@ -166,7 +166,9 @@ class ToolsSuite extends munit.FunSuite:
       assertEquals(post(base + "/api/p/Fake/decide", obj("action" -> str("accept"), "node" -> str("Root;x"), "by" -> str("me"), "reason" -> str("r")))._1, 400)
       assertEquals(post(base + "/api/p/Nope/run", obj("args" -> JArr(Seq(str("render")))))._1, 404)
       assertEquals(post(base + "/api/p/Fake/run", obj("args" -> JArr(Seq(str("render")))), "Origin" -> "http://evil.example")._1, 403)
-      val plain = HttpRequest.newBuilder(URI(base + "/api/p/Fake/run")).header("Content-Type", "text/plain")
+      // a process without the browser's session token cannot decide
+      assertEquals(post(base + "/api/p/Fake/run", obj("args" -> JArr(Seq(str("render")))), "X-FrFlow-Token" -> "guess")._1, 403)
+      val plain = HttpRequest.newBuilder(URI(base + "/api/p/Fake/run")).header("Content-Type", "text/plain").header("X-FrFlow-Token", "test-token")
         .POST(HttpRequest.BodyPublishers.ofString("""{"args":["render"]}""")).build()
       assertEquals(http.send(plain, HttpResponse.BodyHandlers.ofString()).statusCode, 415)
     }
@@ -182,3 +184,50 @@ class ToolsSuite extends munit.FunSuite:
       assertEquals(Files.readString(p.root.resolve("IDEA.md")), "# New idea\n")
     }
   }
+
+  test("the browser signs the developer's decisions; one written into the ledger otherwise shows") {
+    val p = fake()
+    val keyFile = Files.createTempDirectory("frflow-key").resolve("signing.key")
+    Project.signingKey = Some(frflow.Signing.loadOrCreate(keyFile))
+    try
+      assert(p.run(List("render"), actor = "ui").ok)
+      val root = p.annotated.get("nodes").get.arr.find(n => s(n, "state") == "proposed" && n("waitsFor").contains(JNull)).get
+      def version(id: String) = p.snapshot.get("nodes").get.arr.find(n => s(n, "id") == id).map(s(_, "version")).get
+      val d = p.decide(frflow.Decisions.Request(s(root, "id"), "dev", "it is the idea, stated", seen = version(s(root, "id"))))
+      assert(d.isRight, d)
+      val keys = frflow.Signing.keys(p.state.resolve("keys"))
+      assertEquals(keys.size, 1)
+      // the decision made here is signed; those recorded before the project had a key are listed, to sign
+      assert(!p.unsigned.exists(u => s(u, "reason") == "it is the idea, stated"))
+      assert(p.unsigned.nonEmpty)
+      assert(p.sign(p.unsigned.map(s(_, "entry")).toSet).isRight)
+      assertEquals(p.unsigned, Nil)
+      // an entry appended by hand, as an agent with a shell could
+      val l = p.ledger
+      val id = s(root, "id")
+      val forged = l.add(id, l.current(id).get.unsigned.copy(at = "2030-01-01T00:00:00Z", reason = "forged by someone"))
+      frflow.Ledger.save(p.ledgerFile, forged)
+      assertEquals(p.unsigned.map(s(_, "reason")), List("forged by someone"))
+      assert(p.annotated.get("warnings").get.arr.exists(_.str.exists(_.contains("not signed by a developer key"))))
+      // the developer signs only what is theirs
+      assert(p.sign(p.unsigned.map(s(_, "entry")).toSet).isRight)
+      assertEquals(p.unsigned, Nil)
+      // signing rewrites no recorded decision
+      assertEquals(frflow.Ledger.rewrittenSince(forged, p.ledger), Nil)
+    finally Project.signingKey = None
+  }
+
+  test("the ledger merge driver takes the names git gives it") {
+    val base = frflow.Ledger.empty.add("A", frflow.Decision("accept", JNull, "", "dev", "2026-01-01T00:00:00Z", "the first one"))
+    val ours = base.add("A", frflow.Decision("revisit", JNull, "", "dev", "2026-01-02T00:00:00Z", "ours revisits it"))
+    val theirs = base.add("B", frflow.Decision("accept", JNull, "", "dev", "2026-01-03T00:00:00Z", "theirs adds one"))
+    val names = List(".merge_file_base_test", ".merge_file_ours_test", ".merge_file_theirs_test")
+    try
+      List(base, ours, theirs).zip(names).foreach((l, n) => frflow.Ledger.save(java.nio.file.Paths.get(n), l))
+      Main.main(Array("merge-ledger") ++ names)
+      val merged = frflow.Ledger.load(java.nio.file.Paths.get(names(1)).toAbsolutePath)
+      assertEquals(merged.history("A").map(_.reason), List("the first one", "ours revisits it"))
+      assertEquals(merged.history("B").map(_.reason), List("theirs adds one"))
+    finally names.foreach(n => Files.deleteIfExists(java.nio.file.Paths.get(n)))
+  }
+

@@ -57,16 +57,18 @@ object Lean:
     flush()
     out.result()
 
-  /** `#print axioms` output: theorem → axioms. */
+  /** `#print axioms` output: theorem → axioms. Lean wraps a long list over several lines. */
   def axioms(output: String): Map[String, List[String]] =
-    val Depends = """^'(.+?)' depends on axioms: \[(.*)\]\s*$""".r
-    val NoAxioms = """^'(.+?)' does not depend on any axioms\s*$""".r
-    output.linesIterator.collect {
-      // Generated files `open Classical`, so Lean prints `Classical.choice` as `choice`; proof files
-      // cannot declare axioms, so the short name is that one.
-      case Depends(t, as) => t -> as.split(",").map(_.trim).filter(_.nonEmpty).map(a => if a == "choice" then "Classical.choice" else a).toList
-      case NoAxioms(t)    => t -> Nil
-    }.toMap
+    val Depends = """(?s)'([^'\n]+)' depends on axioms: \[(.*?)\]""".r
+    val NoAxioms = """'([^'\n]+)' does not depend on any axioms""".r
+    // Generated files `open Classical`, so Lean prints `Classical.choice` as `choice`; proof files
+    // cannot declare axioms, so the short name is that one.
+    def name(a: String) = if a == "choice" then "Classical.choice" else a
+    (Depends.findAllMatchIn(output).map(m => m.group(1) -> m.group(2).split(",").map(_.trim).filter(_.nonEmpty).map(name).toList) ++
+      NoAxioms.findAllMatchIn(output).map(m => m.group(1) -> Nil)).toMap
+
+  /** Whether Lean said a declaration uses `sorry`. */
+  def usesSorry(output: String): Boolean = output.contains("declaration uses 'sorry'") || output.contains("declaration uses `sorry`")
 
   val allowedAxioms: Set[String] = Set("propext", "Classical.choice", "Quot.sound")
 
@@ -81,8 +83,12 @@ object Lean:
     "set_option" -> """\bset_option\b(?!\s+(maxHeartbeats\b|maxRecDepth\b|autoImplicit\b|linter\.))""".r,
     "metaprogram" -> """(#eval|#exit|\brun_cmd\b|\brun_tac\b|\brun_meta\b|\brun_elab\b|\bby_elab\b|\belab\b|\bmacro\b|\bmacro_rules\b|\bsyntax\b|\binitialize\b|\bbuiltin_initialize\b|\belab_rules\b|\bLean\.)""".r,
     "attribute" -> """\battribute\b|@\[""".r,
-    "import" -> """^\s*import\s+(?!FrFlowGen\.|FrFlow\b|Std\b|Init\b)""".r
+    "import" -> """^\s*import\s+(?!FrFlowGen\.|FrFlow\b|Std\b|Init\b|Proofs\.\w+\.Lemmas\b)""".r
   )
+
+  /** The lemma modules a proof file imports (`Proofs.<KB>.Lemmas`). */
+  def lemmaImports(src: String): List[String] =
+    """(?m)^\s*import\s+(Proofs\.\w+\.Lemmas)\b""".r.findAllMatchIn(code(src)).map(_.group(1)).toList.distinct
 
   /** Comments and strings replaced by spaces, keeping lines. */
   def code(src: String): String =

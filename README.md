@@ -32,8 +32,8 @@ Scala values; Lean, generated from them, proves each step:
 | refine | `parent.refine[M2](id, statement, why)(abs, spec)` | `spec m → parent.spec (abs m)` |
 | instantiate | `parent.instantiate[M2](id, statement, why)(T := of[X], p := ...)` | the parent's results, with its open terms fixed |
 | contract | `parent.contract[A, B, R](id, statement, why)(post).examples(...)(...)` | every function meeting `post` meets the parent |
-| implementation | `kb.implementProven(contract)(define {...})`, or `kb.implement(contract)(plain Scala)` | a `define`: every result meets the contract; plain Scala: examples and run-time checks |
-| invariant | `Node.invariant[A, B](id, statement, why)(rule)`; each contract `.keeps(inv)(view)` or `.exempt(inv, because)` | every pair a call shows the rule (`view`) meets it, from the contract's post |
+| implementation | `kb.implementProven(contract)(define {...})`, or `kb.implement(contract)(plain Scala)` | a `define`: every result meets the contract, and the root holds of it (`root_impl`); plain Scala: examples and run-time checks |
+| invariant | `Node.invariant[A, B](id, statement, why)(rule)`; each contract `.keeps(inv)(view)` or `.exempt(inv, because)`; each design node `.exempt(inv, because)` | every pair a call shows the rule (`view`) meets it, from the contract's post |
 | design | `parent.design(id, statement, why)(files*)` | nothing: an architecture decision or a convention, decided and tracked |
 
 So for a node, its **root theorem** holds: the root's statement is true of
@@ -55,20 +55,19 @@ nodes, each with its reason and examples; the developer chooses one, with a
 reason of their own, and the ledger keeps both and the rejected alternatives.
 The tree is decided from the root down.
 
-**The agent settles only where a check re-runs on it** (`settle`):
+**The agent settles only what Lean proves again** (`settle`):
 - a refinement or contract whose link Lean proves, with no proposal beside it,
   no new term and no invariant to keep;
-- a review where only something above it, or a definition it uses, moved, and
-  Lean proves the link again;
-- a change to the code of a contract whose post is formal (its examples, every
-  combination of their inputs, and `service` check it).
+- a review where only something above it moved, and Lean proves the link again;
+- a new proven implementation (a `define` Lean proves to meet the contract).
 
 Roots, instantiations (what the terms mean), designs, invariants and how a
-contract keeps one, nodes out of Lean, nodes the developer once rejected, and
-any change to what a node says are the developer's. **What the agent settles
-is not done until the developer endorses it:** the browser shows what changed
-since the developer's own last decision (content and code), and `status`
-fails until then.
+contract keeps one, nodes out of Lean, nodes the developer once rejected or
+that say what a rejected node said, plain code (examples check it, nothing
+proves it), and any other change to what a node says are the developer's. **What the agent settles
+is `settled`, not `accepted`, until the developer endorses it:** what rests on
+it may go on, the browser shows what changed since the developer's own last
+decision (content and code), and `status` fails until then.
 
 ## Drift
 
@@ -94,7 +93,18 @@ confirmed by name. The reasons are where the conditions for revisiting are
 written; this is where they are read.
 
 A decision is refused if the node moved since the developer looked at it, and
-needs a reason of a few words.
+needs a reason of a few words. Reviews caused by one change (nodes moved only
+by the same ancestors, or changed only in the same definitions) are accepted
+together, with one reason. A review can also be sent back to the agent as a
+request.
+
+**Decisions are the developer's, and show it.** The browser server signs each
+decision with the developer's key, kept outside the repository
+(`~/.config/frflow/signing.key`, or `FRFLOW_KEY`); its public key is committed in
+`.frflow/keys/`. Once a project has a key, a developer decision without a valid
+signature (one an agent wrote into the ledger) is a warning, listed in the
+browser to decide again, or to sign if it is the developer's. The server takes
+decisions only from the page opened from the link it printed (a session token).
 
 ## What Lean proves, and how it is kept honest
 
@@ -108,13 +118,23 @@ needs a reason of a few words.
   the post. A view whose pairs meet the rule whatever the call returns keeps
   it in name only, and fails.
 - **Implementations** written as a `define` are proven to meet their contract,
-  so the chain reaches the code.
-- **Saying nothing fails, when `frflow_auto` shows it:** a link where the parent
-  holds whatever the node says, a node no model meets, and a node that makes
-  the root hold by itself (through an `abs` or a substitution above).
+  and `root_impl` composes that with the chain: the root holds of the code.
+- **State.** A root over a step function `(State, Event) => State` whose spec
+  is `inv(initial) && forall((s, e) => inv(s) ==> inv(step(s, e)))` states an
+  inductive invariant; `FrFlow.always` lifts it to every state reached from
+  `initial`. The CRM's writes are modelled this way, proven down to the code.
+- **Authored link proofs need a witness:** `feasible` (some model meets the
+  node), unless a proven implementation is one, so a hand-written proof cannot
+  rest on a contradiction.
+- **Saying nothing fails, when `frflow_auto` shows it:** a claim (a link, a kept
+  invariant) that holds without the node's own statement, a node no model
+  meets, and a node that makes the root hold by itself (through an `abs` or a
+  substitution above).
 - **Authored proofs** (`lean/Proofs/<KB>/<NODE>.lean`) state exactly the
   generated obligation, use only a few commands, are replayed through the Lean
-  kernel, and have their axioms audited.
+  kernel, and have their axioms audited (every proven theorem's own audit is
+  required; `sorry` anywhere fails it). Lemmas they share go in
+  `lean/Proofs/<KB>/Lemmas.lean`, under the same rules.
 - **Assumptions about the world are shown:** a top-level condition of a spec
   that never mentions the model.
 
@@ -139,7 +159,10 @@ agent settled waits for endorsement), every formal link, invariant and proven
 implementation is proven, every example passes, and there is no warning:
 - a committed version of the ledger, or the ledger now, changed or removed
   decisions of a version it follows (compared with every parent of a merge);
-  a commit that deletes it starts a new record, a warning until acknowledged;
+  a commit that does so (a revert, a deleted ledger) is a warning until the
+  developer acknowledges it, with a reason;
+- a developer decision not signed by a key in `.frflow/keys` (once there is one);
+- a file governed by two nodes;
 - a file under `src/main` governed by no node, or code in the model's file
   that is not the model;
 - a section of the idea no root is decided against, when roots name sections;
@@ -148,8 +171,10 @@ implementation is proven, every example passes, and there is no warning:
 - `.frflow/checks.json` committed (proof results come from running `check`,
   so CI runs `check` before `status`).
 
-Structural problems (two parameters with one name, a contract in an
-invariant's scope that neither keeps it nor is exempt) stop the CLI.
+Structural problems (two parameters with one name, a contract or design node
+in an invariant's scope that neither keeps it nor is exempt, a view that
+chooses by a condition) stop the CLI. Proof results are local: CI starts from
+a clean checkout and runs `check` before `status`.
 
 ## Large projects, built by agents
 
@@ -158,9 +183,9 @@ invariant's scope that neither keeps it nor is exempt) stop the CLI.
   alternative, the invariants that apply, what moved, and the decisions below.
 - **Before adding, find.** `find` names the nodes that govern a file or
   mention a concern, so an agent extends the theory instead of forking it.
-- **Every file has an owner**, or `status` fails.
-- **Cross-cutting rules are stated once**, and a new contract cannot skip one
-  silently: it keeps it or says why not.
+- **Every file has one owner**, or `status` fails.
+- **Cross-cutting rules are stated once**, and a new contract or design node
+  cannot skip one silently: it keeps it or says why not.
 - **Concerns are separate.** Each root names its section of `IDEA.md`; editing
   one section reviews only its root.
 - **Branches merge.** The ledger only grows; enable its merge driver once per
@@ -207,6 +232,12 @@ and that `search` meets `ReadContract`: tenant isolation holds of the code.
 Production reads through `knowledge.service(readContract)(...)`, in a file the
 design node `ReadSideWiring` governs.
 
+Writes are a second concern of the idea, modelled as a state machine: the root
+`WritesKeepStore` says the store starts consistent, every write keeps it so,
+and a write changes only what its author's company may change. `applyWrite`, a
+`define`, is proven to meet `WriteContract` by a short authored proof
+(`lean/Proofs/Crm/WriteContract.lean`), so both concerns hold of the code.
+
 `examples/auth` does the same for access control with a plain Scala
 implementation. When it was built, the agent proposed two refinements of the
 root: requests carry tokens (`Authenticated`), or the client names its user
@@ -244,16 +275,16 @@ The MCP tools are `inbox`, `context`, `render`, `check`, `answer`, `settle`,
 - **Decided by the developer:** every node, with its reasons.
 - **Trusted:**
   - the Scala-to-Lean translation (it refuses what it cannot translate
-    faithfully: shadowed names, matching on `true`/`false`, type tests,
-    function-typed fields, types that redefine equality); `Int` and `Long`
-    read as unbounded; division by zero is 0 in Lean;
+    faithfully: shadowed names, names Lean's prelude defines (renamed),
+    matching on `true`/`false`, type tests, function-typed fields, types that
+    redefine equality, arithmetic on `Int`/`Long` (which wraps in Scala: use
+    `BigInt`), division by anything but a literal);
   - parameters bound to the data the vocabulary says they mean;
   - that `abs` describes what the system does with the model;
   - every path to the data goes through `service` (the wiring is in a file a
     design node governs, and every change to it is the developer's);
-  - the ledger, a plain file under version control: the CLI and MCP cannot
-    decide, but an agent with a shell could edit it or post to the local
-    server; review its diff as you review code;
+  - the developer's signing key, which the agent must not be able to read (the
+    browser runs on the developer's machine; agents run in their sandbox);
   - authored proof files, which Lean runs when checking (the filter is hygiene;
     the guarantee is the kernel replay and the axiom audit).
 - **Not covered:** properties over time or state, effects outside a pure core

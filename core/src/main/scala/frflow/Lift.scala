@@ -193,10 +193,18 @@ private final class Translator(using val quotes: Quotes):
     "fun", "λ", "nomatch", "nofun", "termination_by", "decreasing_by", "mutual", "opaque", "noncomputable"
   )
 
+  /** Lean names the generated code uses unqualified, or that Lean's prelude defines: a Scala name
+    * equal to one is renamed, so it cannot capture them (a parameter named `some`, a binder `none`).
+    */
+  private val Prelude = Set(
+    "some", "none", "True", "False", "true", "false", "max", "min", "decide", "List", "Option", "Int", "Nat", "Bool",
+    "String", "Prod", "Exists", "Eq", "Ne", "Not", "And", "Or", "Iff", "id", "ite", "dite", "Classical", "Unit", "Function",
+    "not", "and", "or", "xor", "cond", "Decidable", "propext", "funext", "rfl", "trivial", "absurd", "sorry", "FrFlow")
+
   def ident(n: String): String =
     val s = n.replace('$', '_')
     val t = if s.startsWith("__") then "x" + s.drop(1) else s
-    if Keywords(t) then s"«$t»" else t
+    if Keywords(t) then s"«$t»" else if Prelude(t) then t + "_" else t
 
   /** Owner chain without packages: `Wallet.total`, `Op.Deposit`. */
   def qualifiedName(sym: Symbol): String =
@@ -222,7 +230,19 @@ private final class Translator(using val quotes: Quotes):
     sym.isClassDef && !isLibrary(sym) && !sym.flags.is(Flags.Module) &&
       ((sym.flags.is(Flags.Case) && !sym.flags.is(Flags.Enum)) || (sym.flags.is(Flags.Enum) && !sym.flags.is(Flags.Case)))
 
-  private def isInt(t: TypeRepr) = norm(t) =:= TypeRepr.of[Int] || norm(t) =:= TypeRepr.of[Long]
+  private def isInt(t: TypeRepr) = norm(t) =:= TypeRepr.of[Int] || norm(t) =:= TypeRepr.of[Long] || isBig(t)
+  private def isBig(t: TypeRepr) = norm(t) =:= TypeRepr.of[BigInt]
+  /** Scala's `Int` and `Long` wrap around; Lean's integers do not, nor does `BigInt`. */
+  private def exact(qt: TypeRepr, op: String, pos: Position): Unit =
+    if !isBig(qt) then fail(s"`$op` on Int or Long can overflow in Scala, not in Lean: use BigInt for arithmetic", pos)
+  /** A divisor known not to be zero: Lean divides by zero to 0, Scala throws. */
+  private def nonZero(t: Term): Boolean = strip(t) match
+    case Literal(c) => c.value match
+      case i: Int  => i != 0
+      case l: Long => l != 0
+      case _       => false
+    case Apply(f, List(x)) if Set("int2bigInt", "long2bigInt", "apply")(f.symbol.name) => nonZero(x)
+    case _ => false
 
   def tpe(t0: TypeRepr, pos: Position): String =
     val t = norm(t0)
@@ -340,7 +360,8 @@ private final class Translator(using val quotes: Quotes):
     case b: Boolean => if b then "True" else "False"
     case i: Int     => if i < 0 then p(i.toString) else i.toString
     case l: Long    => if l < 0 then p(l.toString) else l.toString
-    case s: String  => "\"" + s.flatMap { case '"' => "\\\""; case '\\' => "\\\\"; case '\n' => "\\n"; case ch => ch.toString } + "\""
+    // The call markers ⟦ ⟧ the generator resolves are escaped, so a string can never be read as a call.
+    case s: String  => "\"" + s.flatMap { case '"' => "\\\""; case '\\' => "\\\\"; case '\n' => "\\n"; case '⟦' => "\\u27E6"; case '⟧' => "\\u27E7"; case ch => ch.toString } + "\""
     case _: Unit    => "()"
     case other      => fail(s"literal $other is not supported", pos)
 
@@ -428,7 +449,7 @@ private final class Translator(using val quotes: Quotes):
       case _            => None
 
     if argss.isEmpty && env.contains(sym) then return env(sym)
-    if Set("int2long")(name) && args.size == 1 then return e(args.head)
+    if Set("int2long", "int2bigInt", "long2bigInt")(name) && args.size == 1 then return e(args.head)
 
     // calls of defined functions and parameters: `d(a, b)` is an `apply` extension of `frflow`
     if name == "apply" && sym.owner.fullName.startsWith("frflow") && argss.size == 2 then
@@ -472,6 +493,7 @@ private final class Translator(using val quotes: Quotes):
         val c = norm(q.tpe).typeSymbol.companionClass
         if c == ListSym then return varargs(args).map(e).mkString("[", ", ", "]")
         if c == TypeRepr.of[Some[Any]].typeSymbol then return p(s"some ${e(args.head)}")
+        if c == TypeRepr.of[BigInt].typeSymbol && args.size == 1 && isInt(args.head.tpe) then return e(args.head)
         if defn.isTupleClass(c) then return args.map(e).mkString("(", ", ", ")")
         if sym.flags.is(Flags.Synthetic) && !isLibrary(c) then return p((ctorName(c, t.pos) :: args.map(e)).mkString(" "))
       case _ => ()
@@ -522,17 +544,17 @@ private final class Translator(using val quotes: Quotes):
       case ("&&", 1) if qt =:= TypeRepr.of[Boolean]      => bin("∧")
       case ("||", 1) if qt =:= TypeRepr.of[Boolean]      => bin("∨")
       case ("unary_!", 0) if qt =:= TypeRepr.of[Boolean] => Some(p(s"¬$r"))
-      case ("+", 1) if isInt(qt)                         => bin("+")
-      case ("-", 1) if isInt(qt)                         => bin("-")
-      case ("*", 1) if isInt(qt)                         => bin("*")
-      case ("/", 1) if isInt(qt)                         => Some(p(s"Int.tdiv $r ${e(args.head)}"))
-      case ("%", 1) if isInt(qt)                         => Some(p(s"Int.tmod $r ${e(args.head)}"))
+      case ("+" | "-" | "*", 1) if isInt(qt)             => exact(qt, name, q.pos); bin(name)
+      case ("/" | "%", 1) if isInt(qt) =>
+        exact(qt, name, q.pos)
+        if !nonZero(args.head) then fail(s"`$name` by something that may be zero: Lean gives 0, Scala throws; divide by a literal", args.head.pos)
+        Some(p(s"${if name == "/" then "Int.tdiv" else "Int.tmod"} $r ${e(args.head)}"))
       case ("<", 1) if isInt(qt)                         => bin("<")
       case ("<=", 1) if isInt(qt)                        => bin("≤")
       case (">", 1) if isInt(qt)                         => bin(">")
       case (">=", 1) if isInt(qt)                        => bin("≥")
       case ("max" | "min", 1) if isInt(qt)               => Some(p(s"$name $r ${e(args.head)}"))
-      case ("unary_-", 0) if isInt(qt)                   => Some(p(s"-$r"))
+      case ("unary_-", 0) if isInt(qt)                   => exact(qt, "-", q.pos); Some(p(s"-$r"))
       case ("+", 1) if qt =:= TypeRepr.of[String]        => bin("++")
       case ("::", 1) if qt.derivesFrom(ListSym)          => Some(p(s"${e(args.head)} :: $r"))
       case ("++", 1) if qt.derivesFrom(ListSym)          => bin("++")

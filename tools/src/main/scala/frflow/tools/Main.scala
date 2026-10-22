@@ -20,9 +20,12 @@ object Main:
       }._1
       val projects = Project.find(if paths.isEmpty then List(".") else paths)
       if projects.isEmpty then { System.err.println("no project found (a project is a directory with frflow.json)"); sys.exit(2) }
+      // The browser is where the developer decides: it signs their decisions with their key.
+      Project.signingKey = Some(frflow.Signing.loadOrCreate(Project.keyFile))
       val host = opt("--host").getOrElse("127.0.0.1")
-      val server = Server(projects).serve(host, opt("--port").map(_.toInt).getOrElse(8765))
-      println(s"FrFlow browser on http://$host:${server.getAddress.getPort}  (${projects.map(_.name).mkString(", ")})")
+      val srv = Server(projects)
+      val server = srv.serve(host, opt("--port").map(_.toInt).getOrElse(8765))
+      println(s"FrFlow browser on http://$host:${server.getAddress.getPort}/#token=${srv.token}  (${projects.map(_.name).mkString(", ")})")
       Thread.currentThread.join()
     case "mcp" :: paths =>
       // stdout carries the protocol; everything else goes to stderr.
@@ -30,7 +33,8 @@ object Main:
       System.setOut(System.err)
       Mcp(Project.find(if paths.isEmpty then List(".") else paths)).serve(System.in, protocol)
     case "merge-ledger" :: _ :: ours :: theirs :: Nil =>
-      val (a, b) = (java.nio.file.Paths.get(ours), java.nio.file.Paths.get(theirs))
+      // Git passes bare names of temporary files in the repository's root.
+      val (a, b) = (java.nio.file.Paths.get(ours).toAbsolutePath, java.nio.file.Paths.get(theirs).toAbsolutePath)
       try frflow.Ledger.save(a, frflow.Ledger.merge(frflow.Ledger.load(a), frflow.Ledger.load(b)))
       catch case e: Exception => { System.err.println(s"frflow merge-ledger: ${e.getMessage}"); sys.exit(1) }
     case _ => System.err.println(usage); sys.exit(2)

@@ -16,17 +16,19 @@ final case class Obligation(name: String, statement: String, description: String
   * Every declaration of a node takes the node's parameters, explicitly: its
   * opaque types and its parameters.
   *
-  * @param authored nodes whose obligation has an authored proof in `Proofs/<KB>/<Node>.lean`
-  * @param authoredInvs (node, `inv_<Invariant>`) proven in that file too
+  * @param authored (node, obligation) proven by a theorem of that name in `Proofs/<KB>/<Node>.lean`
   */
 object Generate:
   /** Names the generated Lean binds itself; a parameter or opaque type with one of them would be captured. */
   val reserved: Set[String] =
-    Set("m", "f", "h", "spec", "abs", "post", "toRoot", "rootSpec", "link", "root", "Obl", "Type", "Prop") ++ (0 to 9).map(i => s"x$i")
+    Set("m", "f", "h", "p", "spec", "abs", "post", "toRoot", "rootSpec", "link", "root", "Obl", "Type", "Prop",
+      "some", "none", "True", "False", "true", "false", "max", "min", "decide", "List", "Option", "Int", "Nat", "Bool", "String",
+      "Prod", "Exists", "Eq", "Ne", "Not", "And", "Or", "Iff", "id", "ite", "Classical", "Unit", "FrFlow") ++ (0 to 9).map(i => s"x$i")
 
-final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty, authoredInvs: Set[(String, String)] = Set.empty):
-  /** Whether the proof file of `n` proves the invariant obligation `name` itself. */
-  def authoredInv(n: Node[?], name: String): Boolean = authoredInvs((n.id, name))
+final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.empty):
+  /** Whether the proof file of `n` proves its obligation `name`. */
+  def isAuthored(n: Node[?], name: String): Boolean = authored((n.id, name))
+  private def authoredLink(id: String): Boolean = authored((id, "link"))
   private val K = kb.name
 
   def specModule(id: String) = s"FrFlowGen.$K.$id.Spec"
@@ -36,10 +38,10 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty, autho
   def specPath(id: String) = s"FrFlowGen/$K/$id/Spec.lean"
   def autoPath(id: String) = s"FrFlowGen/$K/$id/Auto.lean"
   def theoremsPath(id: String) = s"FrFlowGen/$K/$id/Theorems.lean"
-  def vacuityPath(id: String) = s"FrFlowGen/$K/$id/Vacuity.lean"
-  def unsatPath(id: String) = s"FrFlowGen/$K/$id/Unsat.lean"
-  def rootTrivialPath(id: String) = s"FrFlowGen/$K/$id/RootTrivial.lean"
   def proofsPath(id: String) = s"Proofs/$K/$id.lean"
+  /** Lemmas the proof files of this knowledge base share. */
+  def lemmasModule = s"Proofs.$K.Lemmas"
+  def lemmasPath = s"Proofs/$K/Lemmas.lean"
   def auditPath(id: String) = s"FrFlowAudit/$K/$id.lean"
   def generatedDirs = List(s"FrFlowGen/$K", s"FrFlowAudit/$K")
 
@@ -108,10 +110,9 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty, autho
   def files: Map[String, String] =
     val perNode = kb.nodes.filter(formal).flatMap { n =>
       List(specPath(n.id) -> spec(n), autoPath(n.id) -> auto(n), theoremsPath(n.id) -> theorems(n), auditPath(n.id) -> audit(n)) ++
-        vacuity(n).map(vacuityPath(n.id) -> _) ++ unsatFile(n).map(unsatPath(n.id) -> _) ++
-        rootTrivialFile(n).map(rootTrivialPath(n.id) -> _) ++
-        extraObligations(n).map(o => invPath(n.id, o.name) -> invFile(n, o)) ++
-        keepsNothing(n).map(o => invPath(n.id, o.name) -> attempt(n, o, o.name.capitalize))
+        extraObligations(n).map(o => oblPath(n.id, o.name) -> oblFile(n, o)) ++
+        saysNothing(n).map(e => oblPath(n.id, e.obligation.name) -> attempt(n, e.obligation)) ++
+        rootImplFile(n).map(oblPath(n.id, "rootImpl") -> _)
     }
     (s"FrFlowGen/$K/Domain.lean" -> domain :: perNode).toMap
 
@@ -149,57 +150,111 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty, autho
     if !n.formal then Nil
     else n.kept.collect { case Keep(i, Some(v), _) if i.formal && v.body.nonEmpty && i.spec.exists(_.body.nonEmpty) => (i, v) }
 
-  def invPath(id: String, name: String) = s"FrFlowGen/$K/$id/${name.capitalize}.lean"
-
-  private def keepStatement(n: Node[?], inv: Node[?], premise: Boolean): String =
-    val c = nodeCtx(n)
-    val a = args(c)
-    def at(f: String) = if a.isEmpty then f else s"$f $a"
-    val forallCtx = if binders(c).isEmpty then "" else s"∀ ${binders(c)}, "
-    val ts = n.post.get.params.map(_._2)
-    val xs = ts.indices.map(i => s"x$i").mkString(" ")
-    val kept = s"∀ p, p ∈ ${at(s"view_${inv.id}")} $xs → ${at(s"rule_${inv.id}")} p.1 p.2"
-    s"$forallCtx∀ ${ts.zipWithIndex.map((t, i) => s"(x$i : $t)").mkString(" ")}, ${if premise then s"${at("post")} $xs → " else ""}$kept"
-
-  /** For each invariant the contract keeps formally: every pair a call its post allows exposes meets the invariant's rule. */
-  def invariantObligations(n: Node[?]): List[Obligation] =
-    formalKeeps(n).map((inv, _) => Obligation(s"inv_${inv.id}", keepStatement(n, inv, premise = true), s"Every call ${n.id} allows keeps ${inv.id}."))
-
-  /** The pairs the view exposes meet the rule whatever the call returns: if provable, the contract
-    * keeps the invariant only in name (its view shows nothing the rule could refuse).
-    */
-  def keepsNothing(n: Node[?]): List[Obligation] =
-    formalKeeps(n).map((inv, _) => Obligation(s"nothing_${inv.id}", keepStatement(n, inv, premise = false),
-      s"Every call keeps ${inv.id}, whatever ${n.id} says."))
+  /** The file an obligation, or a check that the node says nothing, is proven in. */
+  def oblPath(id: String, name: String) = s"FrFlowGen/$K/$id/${name.capitalize}.lean"
 
   /** The implementation of a contract, when it is a `define` Lean can prove things about. */
   def provenImpl(n: Node[?]): Option[Def[?]] =
     if !n.formal || n.kind != NodeKind.Contract then None else kb.implementation(n).flatMap(_.proven)
 
-  /** The implementation keeps the contract: every result it returns meets the post (and so every
-    * invariant the post implies).
+  private def at(n: Node[?])(f: String): String = { val a = args(nodeCtx(n)); if a.isEmpty then f else s"$f $a" }
+  private def pat(p: Node[?])(f: String): String = { val a = args(nodeCtx(p)); if a.isEmpty then q(p, f) else s"${q(p, f)} $a" }
+
+  /** `∀ ctx, ∀ vars, premise → conclusion`, over the node's opaque types and parameters. */
+  private def stated(n: Node[?], vars: String, premise: Option[String], conclusion: String): String =
+    val b = binders(nodeCtx(n))
+    (if b.isEmpty then "" else s"∀ $b, ") + (if vars.isEmpty then "" else s"∀ $vars, ") + premise.fold("")(_ + " → ") + conclusion
+
+  /** What a node claims, from what it says (`premise`): its link, each invariant it keeps, its proven
+    * implementation. `vacuous` is why the claim says nothing if it holds without the premise.
     */
-  def implObligation(n: Node[?]): Option[Obligation] = provenImpl(n).map { d =>
-    val c = nodeCtx(n)
-    val a = args(c)
-    def at(f: String) = if a.isEmpty then f else s"$f $a"
-    val forallCtx = if binders(c).isEmpty then "" else s"∀ ${binders(c)}, "
-    val ins = n.post.get.params.init.map(_._2)
-    val xs = ins.indices.map(i => s"x$i")
-    val call = s"(${resolve(s"⟦${d.name}⟧")} ${xs.mkString(" ")})"
-    Obligation("impl", s"$forallCtx∀ ${ins.zip(xs).map((t, x) => s"($x : $t)").mkString(" ")}, ${at("post")} ${xs.mkString(" ")} $call",
-      s"Every result of ${d.name} meets ${n.id}.")
+  private final case class Claim(name: String, vars: String, premise: Option[String], conclusion: String, description: String,
+      vacuous: String = "")
+
+  private def claims(n: Node[?]): List[Claim] =
+    val link = n.parent.filter(_ => n.kind == NodeKind.Refine || n.kind == NodeKind.Contract).map { p =>
+      val target = if n.kind == NodeKind.Refine then s"(${at(n)("abs")} m)" else "m"
+      Claim("link", s"(m : ${modelType(n)})", Some(s"${at(n)("spec")} m"), s"${pat(p)("spec")} $target",
+        s"Every model that meets ${n.id} meets ${p.id}.", s"vacuous: ${p.id} holds whatever ${n.id} says")
+    }
+    def call(ts: List[String]) = (ts.zipWithIndex.map((t, i) => s"(x$i : $t)").mkString(" "), ts.indices.map(i => s"x$i").mkString(" "))
+    val keeps = formalKeeps(n).map { (inv, _) =>
+      val (vars, xs) = call(n.post.get.params.map(_._2))
+      Claim(s"inv_${inv.id}", vars, Some(s"${at(n)("post")} $xs"),
+        s"∀ p, p ∈ ${at(n)(s"view_${inv.id}")} $xs → ${at(n)(s"rule_${inv.id}")} p.1 p.2", s"Every call ${n.id} allows keeps ${inv.id}.",
+        s"kept in name only: the pairs the view lists meet ${inv.id}'s rule whatever the call returns")
+    }
+    val impl = provenImpl(n).map { d =>
+      val (vars, xs) = call(n.post.get.params.init.map(_._2))
+      Claim("impl", vars, None, s"${at(n)("post")} $xs (${resolve(s"⟦${d.name}⟧")} $xs)", s"Every result of ${d.name} meets ${n.id}.")
+    }
+    // A proof the agent wrote may rest on a contradiction automation did not find: then something
+    // must meet the node. A proven implementation is that witness.
+    val feasible = Option.when(authoredLink(n.id) && impl.isEmpty && link.isDefined)(
+      Claim("feasible", "", None, s"∃ (m : ${modelType(n)}), ${at(n)("spec")} m", s"Some model meets ${n.id}: its authored link does not rest on a contradiction."))
+    link.toList ++ keeps ++ impl ++ feasible
+
+  /** What a formal node must prove: its link, the invariants it keeps, its proven implementation. */
+  def obligations(n: Node[?]): List[Obligation] =
+    claims(n).map(c => Obligation(c.name, stated(n, c.vars, c.premise, c.conclusion), c.description))
+  def obligation(n: Node[?]): Option[Obligation] = obligations(n).find(_.name == "link")
+  /** Obligations proven in files of their own: all but the link. */
+  def extraObligations(n: Node[?]): List[Obligation] = obligations(n).filterNot(_.name == "link")
+
+  /** A statement that, if `frflow_auto` proves it, shows the node says nothing: `fails` is the claim
+    * that then fails (the link fails the node), with why.
+    */
+  final case class Empty(obligation: Obligation, fails: String, why: String, message: String)
+
+  /** Each claim holding without its premise (a vacuous link; an invariant kept in name only); no model
+    * meeting the node; the root holding for every model of the node, decided by an `abs` or a
+    * substitution above. Each is tried by `frflow_auto`, which can miss one.
+    */
+  def saysNothing(n: Node[?]): List[Empty] =
+    val m = s"(m : ${modelType(n)})"
+    val vacuous = claims(n).filter(_.premise.nonEmpty).map { c =>
+      Empty(Obligation(s"vacuous_${c.name}", stated(n, c.vars, None, c.conclusion), s"${c.description} Without ${n.id}'s own statement."),
+        c.name, c.vacuous, s"${c.name} proves nothing: it holds whatever ${n.id} says")
+    }
+    val node = Option.when(n.kind == NodeKind.Refine || n.kind == NodeKind.Contract)(List(
+      Empty(Obligation("unsat", stated(n, m, None, s"¬ ${at(n)("spec")} m"), s"No model meets ${n.id}."), "link",
+        s"unsatisfiable: no model meets ${n.id}", s"${n.id} is contradictory: no model meets it, so every link below it holds and says nothing")) ++
+      n.parent.filter(_.kind != NodeKind.Root).map(_ =>
+        Empty(Obligation("rootTrivial", stated(n, m, None, s"${at(n)("rootSpec")} (${at(n)("toRoot")} m)"),
+          s"The root holds for every model of ${n.id}, whatever ${n.id} says."), "link", s"the root holds whatever ${n.id} says",
+          s"the root holds for every model of ${n.id}, whatever its spec: an abs or a substitution above decides it, so the root theorem says nothing about ${n.id}"))
+    ).getOrElse(Nil)
+    vacuous ++ node
+
+  /** The proof of an obligation in a file of its own: the authored theorem of that name, or frflow_auto. */
+  def oblFile(n: Node[?], o: Obligation): String =
+    val ns = s"$K.${n.id}.${o.name.capitalize}"
+    val mine = isAuthored(n, o.name)
+    val proof = if mine then s"$K.${n.id}.Proofs.${o.name}" else s"by\n  unfold Obl.${o.name}\n  frflow_auto"
+    Header + s"import ${specModule(n.id)}\n" + (if mine then s"import ${proofsModule(n.id)}\n" else "") + "\n" + Preamble +
+      s"namespace $ns\nopen $K.${n.id}\n\ntheorem ${o.name} : Obl.${o.name} := $proof\n\n#print axioms ${o.name}\n\nend $ns\n"
+
+  def oblModule(id: String, name: String) = s"FrFlowGen.$K.$id.${name.capitalize}"
+
+  /** The root theorem of a proven implementation: the root holds of the code itself, composed from
+    * the node's `root` and its `impl` proof.
+    */
+  def rootImplFile(n: Node[?]): Option[String] = provenImpl(n).map { d =>
+    val a = args(nodeCtx(n))
+    val impl = resolve(s"⟦${d.name}⟧")
+    val statement = stated(n, "", None, s"${at(n)("rootSpec")} (${at(n)("toRoot")} $impl)")
+    val intro = if a.isEmpty then "" else s"  intro $a\n"
+    Header + s"import ${theoremsModule(n.id)}\nimport ${oblModule(n.id, "impl")}\n\n" + Preamble +
+      s"namespace $K.${n.id}.RootImpl\nopen $K.${n.id}\n\n/-- The root holds of ${d.name}, the code. -/\n" +
+      s"theorem root_impl : $statement := by\n$intro  exact ${if a.isEmpty then "root" else s"root $a"} _ ($K.${n.id}.Impl.impl${if a.isEmpty then "" else s" $a"})\n\n" +
+      s"#print axioms root_impl\n\nend $K.${n.id}.RootImpl\n"
   }
 
-  /** Obligations proven in files of their own: kept invariants, and a proven implementation. */
-  def extraObligations(n: Node[?]): List[Obligation] = invariantObligations(n) ++ implObligation(n)
-
-  /** The proof of an invariant: the theorem of that name in the authored proof file, if any, else frflow_auto. */
-  def invFile(n: Node[?], o: Obligation): String =
-    val ns = s"$K.${n.id}.${o.name.capitalize}"
-    val proof = if authoredInv(n, o.name) then s"$K.${n.id}.Proofs.${o.name}" else s"by\n  unfold Obl.${o.name}\n  frflow_auto"
-    Header + s"import ${specModule(n.id)}\n" + (if authoredInv(n, o.name) then s"import ${proofsModule(n.id)}\n" else "") + "\n" + Preamble +
-      s"namespace $ns\nopen $K.${n.id}\n\ntheorem ${o.name} : Obl.${o.name} := $proof\n\n#print axioms ${o.name}\n\nend $ns\n"
+  /** What frflow_auto tries for a check that the node says nothing. */
+  def attempt(n: Node[?], o: Obligation): String =
+    val ns = o.name.capitalize
+    Header + s"import ${specModule(n.id)}\n\n" + Preamble + s"namespace $K.${n.id}.$ns\nopen $K.${n.id}\n\n" +
+      s"theorem ${o.name} : Obl.${o.name} := by\n  unfold Obl.${o.name}\n  frflow_auto\n\nend $K.${n.id}.$ns\n"
 
   private def modelType(n: Node[?]): String = n.kind match
     case NodeKind.Design | NodeKind.Invariant => "Unit"
@@ -209,68 +264,6 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty, autho
 
   private def q(n: Node[?], decl: String) = s"$K.${n.id}.$decl"
 
-  def obligation(n: Node[?]): Option[Obligation] =
-    val c = nodeCtx(n)
-    val a = args(c)
-    def at(f: String) = if a.isEmpty then f else s"$f $a"
-    n.parent.filter(_ => n.kind == NodeKind.Refine || n.kind == NodeKind.Contract).map { p =>
-      val pa = args(nodeCtx(p))
-      def pat(f: String) = if pa.isEmpty then q(p, f) else s"${q(p, f)} $pa"
-      val target = if n.kind == NodeKind.Refine then s"(${at("abs")} m)" else "m"
-      val forallCtx = if binders(c).isEmpty then "" else s"∀ ${binders(c)}, "
-      Obligation("link", s"$forallCtx∀ (m : ${modelType(n)}), ${at("spec")} m → ${pat("spec")} $target",
-        s"Every model that meets ${n.id} meets ${p.id}.")
-    }
-
-  /** The parent holds for every model, whatever this node's spec says (for a refinement, every
-    * model mapped by `abs`). If this is provable, the link proves nothing.
-    */
-  def trivial(n: Node[?]): Option[Obligation] =
-    n.parent.filter(_ => n.kind == NodeKind.Refine || n.kind == NodeKind.Contract).map { p =>
-      val c = nodeCtx(n)
-      val a = args(c)
-      def at(f: String) = if a.isEmpty then f else s"$f $a"
-      val pa = args(nodeCtx(p))
-      def pat(f: String) = if pa.isEmpty then q(p, f) else s"${q(p, f)} $pa"
-      val target = if n.kind == NodeKind.Refine then s"(${at("abs")} m)" else "m"
-      val forallCtx = if binders(c).isEmpty then "" else s"∀ ${binders(c)}, "
-      Obligation("trivial", s"$forallCtx∀ (m : ${modelType(n)}), ${pat("spec")} $target",
-        s"${p.id} holds for every model of ${n.id}, whatever ${n.id} says.")
-    }
-
-  /** No model meets this node's spec. If this is provable, the node is contradictory: every link
-    * below it holds, and says nothing.
-    */
-  def unsat(n: Node[?]): Option[Obligation] =
-    Option.when(n.kind == NodeKind.Refine || n.kind == NodeKind.Contract) {
-      val c = nodeCtx(n)
-      val a = args(c)
-      def at(f: String) = if a.isEmpty then f else s"$f $a"
-      val forallCtx = if binders(c).isEmpty then "" else s"∀ ${binders(c)}, "
-      Obligation("unsat", s"$forallCtx∀ (m : ${modelType(n)}), ¬ ${at("spec")} m", s"No model meets ${n.id}.")
-    }
-
-  /** The root holds for every model of this node, whatever its spec says: what is mapped to the
-    * root (by an `abs` or a substitution above) decides it alone. If provable, the node's root
-    * theorem says nothing about it. (For a child of the root this is `trivial`.)
-    */
-  def rootTrivial(n: Node[?]): Option[Obligation] =
-    n.parent.filter(p => p.kind != NodeKind.Root && (n.kind == NodeKind.Refine || n.kind == NodeKind.Contract)).map { _ =>
-      val c = nodeCtx(n)
-      val a = args(c)
-      def at(f: String) = if a.isEmpty then f else s"$f $a"
-      val forallCtx = if binders(c).isEmpty then "" else s"∀ ${binders(c)}, "
-      Obligation("rootTrivial", s"$forallCtx∀ (m : ${modelType(n)}), ${at("rootSpec")} (${at("toRoot")} m)",
-        s"The root holds for every model of ${n.id}, whatever ${n.id} says.")
-    }
-
-  private def attempt(n: Node[?], o: Obligation, ns: String): String =
-    Header + s"import ${specModule(n.id)}\n\n" + Preamble + s"namespace $K.${n.id}.$ns\nopen $K.${n.id}\n\n" +
-      s"theorem ${o.name} : Obl.${o.name} := by\n  unfold Obl.${o.name}\n  frflow_auto\n\nend $K.${n.id}.$ns\n"
-
-  def vacuity(n: Node[?]): Option[String] = trivial(n).map(attempt(n, _, "Vacuity"))
-  def unsatFile(n: Node[?]): Option[String] = unsat(n).map(attempt(n, _, "Unsat"))
-  def rootTrivialFile(n: Node[?]): Option[String] = rootTrivial(n).map(attempt(n, _, "RootTrivial"))
 
   def spec(n: Node[?]): String =
     val c = nodeCtx(n)
@@ -323,7 +316,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty, autho
         d("spec", "", s"${q(p, "spec")} $th")
         d("toRoot", "", s"${q(p, "toRoot")} $th")
         d("rootSpec", "", s"${q(p, "rootSpec")} $th")
-    (obligation(n) ++ trivial(n) ++ unsat(n) ++ rootTrivial(n) ++ extraObligations(n) ++ keepsNothing(n)).foreach { o =>
+    (obligations(n) ++ saysNothing(n).map(_.obligation)).foreach { o =>
       sb ++= s"namespace Obl\n\n/-- ${o.description} -/\n@[frflow_defs] def ${o.name} : Prop :=\n  ${o.statement}\n\nend Obl\n\n"
     }
     sb ++= s"end $K.${n.id}\n"
@@ -342,7 +335,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty, autho
     (types ++ params).mkString(" ")
 
   def auto(n: Node[?]): String =
-    val body = obligation(n).filterNot(_ => authored(n.id)).fold("") { o =>
+    val body = obligation(n).filterNot(_ => authoredLink(n.id)).fold("") { o =>
       s"theorem ${o.name} : Obl.${o.name} := by\n  unfold Obl.${o.name}\n  frflow_auto\n\n"
     }
     Header + s"import ${specModule(n.id)}\n\n" + Preamble + s"namespace $K.${n.id}.Auto\nopen $K.${n.id}\n\n$body" + s"end $K.${n.id}.Auto\n"
@@ -354,7 +347,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty, autho
     def at(f: String) = if a.isEmpty then f else s"($f $a)"
     val sb = StringBuilder()
     sb ++= Header + s"import ${autoModule(n.id)}\n"
-    if authored(n.id) then sb ++= s"import ${proofsModule(n.id)}\n"
+    if authoredLink(n.id) then sb ++= s"import ${proofsModule(n.id)}\n"
     n.parent.foreach(p => sb ++= s"import ${theoremsModule(p.id)}\n")
     sb ++= "\n" + Preamble + s"namespace $K.${n.id}\n\n"
     val m = if n.kind == NodeKind.Instantiate then "m" else s"(m : ${modelType(n)})"
@@ -367,7 +360,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty, autho
         val pa = args(nodeCtx(p))
         def pat(f: String) = if pa.isEmpty then q(p, f) else s"(${q(p, f)} $pa)"
         val target = if n.kind == NodeKind.Refine then s"(${at("abs")} m)" else "m"
-        val ref = s"$K.${n.id}.${if authored(n.id) then "Proofs" else "Auto"}.link"
+        val ref = s"$K.${n.id}.${if authoredLink(n.id) then "Proofs" else "Auto"}.link"
         sb ++= s"/-- ${obligation(n).get.description} -/\n"
         sb ++= s"theorem link$b : ∀ $m, ${at("spec")} m → ${pat("spec")} $target :=\n  ${if a.isEmpty then ref else s"$ref $a"}\n\n"
         s"fun m h => ${pat("root")} $target (${at("link")} m h)"
@@ -389,7 +382,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty, autho
   def proofFile(n: Node[?]): String =
     s"""import ${specModule(n.id)}
        |
-       |/-! Authored proof of the obligation of ${n.id}. It must state exactly `Obl.link`. -/
+       |/-! Authored proofs of the obligations of ${n.id}. Each states exactly its `Obl`. -/
        |
        |$Preamble
        |namespace $K.${n.id}.Proofs
@@ -398,7 +391,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty, autho
        |theorem link : Obl.link := by
        |  unfold Obl.link
        |  sorry
-       |
+       |${if provenImpl(n).isEmpty then "\n/-- Something meets the node: the proof above does not rest on a contradiction. -/\ntheorem feasible : Obl.feasible := by\n  unfold Obl.feasible\n  sorry\n" else ""}
        |end $K.${n.id}.Proofs
        |""".stripMargin
 

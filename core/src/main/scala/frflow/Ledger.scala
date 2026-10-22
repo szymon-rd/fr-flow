@@ -42,8 +42,10 @@ final case class NodeCheck(
   */
 final case class Decision(action: String, content: Json, chain: String, by: String, at: String, reason: String,
     rejected: List[String] = Nil, code: String = "", commit: String = "", tree: String = "", held: List[String] = Nil,
-    after: String = ""):
+    after: String = "", key: String = "", sig: String = ""):
   def hash: String = Decision.hash(content)
+  /** The decision without its signature: what is signed, and what a rewrite is judged on. */
+  def unsigned: Decision = copy(key = "", sig = "")
 
 object Decision:
   /** The hash a decision is bound to. Runs of whitespace count as one space, so reformatting
@@ -125,6 +127,7 @@ final case class Ledger(decisions: Map[String, List[Decision]]):
         (if d.code.isEmpty then Nil else Seq("code" -> str(d.code))) ++
         (if d.commit.isEmpty then Nil else Seq("commit" -> str(d.commit))) ++
         (if d.tree.isEmpty then Nil else Seq("tree" -> str(d.tree))) ++
+        (if d.sig.isEmpty then Nil else Seq("key" -> str(d.key), "sig" -> str(d.sig))) ++
         Seq("chain" -> str(d.chain), "content" -> (if ds.take(i).exists(_.content == d.content) then str("same:" + Ledger.ref(d.content)) else d.content)))))
     }))
 
@@ -160,7 +163,7 @@ object Ledger:
     if !Files.isRegularFile(file) then empty else fromJson(Json.parse(Files.readString(file, UTF_8)))
 
   def save(file: Path, l: Ledger): Unit =
-    Files.createDirectories(file.getParent)
+    Option(file.toAbsolutePath.getParent).foreach(Files.createDirectories(_))
     Files.writeString(file, l.toJson.render() + "\n", UTF_8)
 
   private def s(j: Json, k: String): String = j(k).flatMap(_.str).getOrElse("")
@@ -175,24 +178,47 @@ object Ledger:
           case other => other.getOrElse(JNull)
         acc :+ Decision(s(d, "action"), content, s(d, "chain"), s(d, "by"), s(d, "at"), s(d, "reason"),
           d("rejected").map(_.arr).getOrElse(Nil).flatMap(_.str).toList, s(d, "code"), s(d, "commit"), s(d, "tree"),
-          d("held").map(_.arr).getOrElse(Nil).flatMap(_.str).toList, s(d, "after"))
+          d("held").map(_.arr).getOrElse(Nil).flatMap(_.str).toList, s(d, "after"), s(d, "key"), s(d, "sig"))
       }
     }.toMap)
+
+  /** What `status` and the browser warn about the record itself: decisions committed earlier and
+    * since rewritten, restarts of the ledger the developer has not acknowledged, and, once the
+    * project has a developer key, decisions of the developer's not signed with one.
+    */
+  def warnings(root: Path, file: Path, now: Ledger): List[String] =
+    rewrites(root, file, now).collect { case ("", why) => s"the ledger was rewritten: $why" } ++
+      toAcknowledge(root, file, now).map((c, why) => s"$why in commit ${c.take(10)}: check what changed, then acknowledge it in the browser") ++
+      Signing.unsigned(now, Signing.keys(file.getParent.resolve("keys"))).map((id, d) =>
+        s"$id: the ${d.action} of ${d.at} by ${d.by} is not signed by a developer key: decide it again in the browser, or sign it there if it is yours")
 
   /** Warnings when a committed version of the ledger, or the ledger now, changed or removed
     * decisions recorded in a version it follows (its parents in git; a merge keeps both sides'). The
     * ledger only grows. A commit that deletes it starts a new record, shown by `restarts`.
     */
-  def rewrites(root: Path, file: Path, now: Ledger): List[String] =
+
+  /** Commits that restarted or rewrote the ledger (a `git revert` of a decision rewrites it), with
+    * what they did, that the developer has not acknowledged.
+    */
+  def toAcknowledge(root: Path, file: Path, now: Ledger): List[(String, String)] =
+    (restarts(root, file).map(_ -> "the ledger was restarted") ++
+      rewrites(root, file, now).collect { case (c, why) if c.nonEmpty => c -> s"the ledger was rewritten ($why)" })
+      .filterNot((c, _) => now.acknowledged.exists(c.startsWith))
+      .groupBy(_._1).toList.map((c, ws) => c -> ws.map(_._2).distinct.mkString("; "))
+
+  /** Rewrites of committed decisions: (the commit that rewrote them, what), or ("", what) for the
+    * ledger now, which is fixed rather than acknowledged.
+    */
+  def rewrites(root: Path, file: Path, now: Ledger): List[(String, String)] =
     val all = Git.versions(root, root.relativize(file).toString)
     val versions = all.drop(all.lastIndexWhere(_.text.isEmpty) + 1) // since the last restart
     def parse(t: String) = fromJson(Json.parse(t))
     val text = versions.map(v => v.commit -> v.text).toMap
     val committed = versions.flatMap { v =>
-      v.text.toList.flatMap(t => v.parents.flatMap(text.get).flatten.flatMap(pt => rewrittenSince(parse(pt), parse(t))))
+      v.text.toList.flatMap(t => v.parents.flatMap(text.get).flatten.flatMap(pt => rewrittenSince(parse(pt), parse(t))).map(v.commit -> _))
     }
-    val head = versions.lastOption.flatMap(_.text).toList.flatMap(t => rewrittenSince(parse(t), now))
-    (committed ++ head).distinct.map("the ledger was rewritten: " + _)
+    val head = versions.lastOption.flatMap(_.text).toList.flatMap(t => rewrittenSince(parse(t), now)).map("" -> _)
+    (committed ++ head).distinct
 
   /** The commits that deleted the ledger: each started a new record, which could also hide a
     * rewrite. One the developer has not acknowledged (in the browser, with a reason) is a warning.
@@ -210,7 +236,7 @@ object Ledger:
     // Every earlier decision is still there, in order (a merge may interleave both sides').
     def kept(ds: List[Decision], cur: List[Decision]): Boolean = ds match
       case Nil     => true
-      case d :: tl => cur.dropWhile(_ != d) match
+      case d :: tl => cur.dropWhile(_.unsigned != d.unsigned) match
         case Nil       => false
         case _ :: rest => kept(tl, rest)
     earlier.decisions.toList.sortBy(_._1).flatMap { (id, ds) =>

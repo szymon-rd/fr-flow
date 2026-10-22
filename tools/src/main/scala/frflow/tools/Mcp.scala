@@ -34,11 +34,12 @@ final class Mcp(projects: List[Project]):
     tool("check", "Render, then prove each node's link to its parent in Lean and record the results. Slow (minutes). " +
       "Optionally one node.", schema(project, node)()),
     tool("answer", "Reply to a developer's request once done, e.g. 'Proposed Expiring and Sliding under Authenticated; " +
-      "Expiring is simpler, Sliding keeps active users signed in. Choose in the browser.'",
-      schema(project, "request" -> obj("type" -> str("string")), "text" -> obj("type" -> str("string")))("request", "text")),
+      "Expiring is simpler, Sliding keeps active users signed in. Choose in the browser.' Without a request, pass `node` " +
+      "to tell the developer about work they did not ask for (a node to revisit, a change you made).",
+      schema(project, "request" -> obj("type" -> str("string")), "node" -> obj("type" -> str("string")), "text" -> obj("type" -> str("string")))("text")),
     tool("settle", "Settle a mechanical decision yourself, where a check re-runs on it: a refinement or contract whose link " +
       "Lean proves, with no proposal beside it, no new term and no invariant to keep; a review where only something above it " +
-      "(or a definition it uses) moved and Lean proves the link again; or a change to the code of a contract with a formal post. " +
+      "moved and Lean proves the link again; or a new proven implementation (a define Lean proves to meet its contract). Plain code is the developer's. " +
       "Refused otherwise: roots, instantiations, designs, invariants, nodes out of Lean, nodes the developer once rejected, and " +
       "changes to what a node says are the developer's. First read its context, including the reasons above and below it; do " +
       "not settle if any 'revisit if' condition there may be met. Status fails until the developer endorses what you settled.",
@@ -76,7 +77,14 @@ final class Mcp(projects: List[Project]):
       case "context" | "scaffold" => run(p, List(name, need))
       case "answer" =>
         try
-          val r = p.answerRequest(args("request").flatMap(_.str).getOrElse(""), args("text").flatMap(_.str).getOrElse(""))
+          val text = args("text").flatMap(_.str).getOrElse("")
+          val r = args("request").flatMap(_.str).filter(_.nonEmpty) match
+            case Some(id) => p.answerRequest(id, text)
+            case None =>
+              val node = args("node").flatMap(_.str).getOrElse("")
+              if node.nonEmpty && !Project.Ident.matches(node) then throw ToolError("expected a node id")
+              val q = p.addRequest(node, "(from the agent)", "agent")
+              p.answerRequest(q("id").flatMap(_.str).get, text)
           (s"answered ${r("id").flatMap(_.str).getOrElse("")}", false)
         catch case e: java.util.NoSuchElementException => throw ToolError(e.getMessage)
       case "settle" =>
@@ -96,6 +104,8 @@ final class Mcp(projects: List[Project]):
             s"- [${f(r, "id")}] on ${if f(r, "node").isEmpty then "(the idea)" else f(r, "node")}: ${f(r, "text")}")
         val rest = p.annotated.fold(List("", "No snapshot yet; call render.")) { s =>
           val (dev, agent) = frflow.Decisions.waiting(s)
+          val warnings = s("warnings").map(_.arr.toList).getOrElse(Nil).flatMap(_.str)
+          (if warnings.isEmpty then Nil else "" :: "Warnings (status fails on each; fix those in the code):" :: warnings.map("- " + _)) ++
           (if agent.isEmpty then Nil else "" :: "For you:" :: agent.map("- " + _)) ++
             (if dev.isEmpty then Nil else "" :: "Waiting for the developer's decision (in the browser):" :: dev.map("- " + _))
         }

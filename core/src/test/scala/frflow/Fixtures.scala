@@ -52,10 +52,10 @@ val sloppy = onlyGood.refine[(List[Item.T], Int) => List[Item.T]]("Sloppy", "At 
 val sloppyKb = KnowledgeBase("Sloppy", idea = "IDEA.md")(onlyGood, sloppy)
 
 /** A link `frflow_auto` does not prove (nonlinear arithmetic): it needs an authored proof. */
-val nonNegative = Node.root[Int => Int]("NonNegative", "Results are never negative.", why = "Negative results are meaningless here.")(f => forall((x: Int) => f(x) >= 0))
-val squares = nonNegative.refine[Int => Int]("Squares", "The result is the square of the input.", why = "Squares are never negative.")(
+val nonNegative = Node.root[BigInt => BigInt]("NonNegative", "Results are never negative.", why = "Negative results are meaningless here.")(f => forall((x: BigInt) => f(x) >= 0))
+val squares = nonNegative.refine[BigInt => BigInt]("Squares", "The result is the square of the input.", why = "Squares are never negative.")(
   abs = f => f,
-  spec = f => forall((x: Int) => f(x) == x * x))
+  spec = f => forall((x: BigInt) => f(x) == x * x))
 
 val squareKb = KnowledgeBase("Square", idea = "IDEA.md")(nonNegative, squares)
 

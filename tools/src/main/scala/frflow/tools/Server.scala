@@ -21,6 +21,7 @@ import java.util.concurrent.Executors
   * GET  /api/p/NAME/job                      the last command started here
   * POST /api/p/NAME/run      {"args": [...]} render / check / scaffold
   * POST /api/p/NAME/decide   {"node", "by", "reason", "action", "seen", "reject", "revisit", "confirm"}   the developer's decision
+  * POST /api/p/NAME/sign     {"entries"}     signs decisions the developer says are theirs
   * POST /api/p/NAME/requests {"node", "text", "by"}
   * POST /api/p/NAME/requests/ID {"status", "answer"}
   * POST /api/p/NAME/idea     {"text"}        saves IDEA.md and starts a render
@@ -28,7 +29,7 @@ import java.util.concurrent.Executors
   * GET  /api/stream                          server-sent events on every change
   * }}}
   */
-final class Server(projects: List[Project]):
+final class Server(projects: List[Project], val token: String = Server.newToken()):
   private val byName = projects.map(p => p.name -> p).toMap
 
   final class Job(val args: List[String]):
@@ -120,6 +121,9 @@ final class Server(projects: List[Project]):
     val host = Option(ex.getRequestHeaders.getFirst("Host")).getOrElse("")
     val local = host.takeWhile(_ != ':') match { case "127.0.0.1" | "localhost" | "[::1]" => true; case _ => false }
     if !local || origin.exists(o => URI(o).getAuthority != host) then return error(ex, 403, "cross-origin request")
+    // Only the browser opened from the link the server printed: an agent's process does not have it.
+    if !Option(ex.getRequestHeaders.getFirst("X-FrFlow-Token")).contains(token) then
+      return error(ex, 403, "this page has no session token: open the link `bin/frflow serve` printed")
     if !Option(ex.getRequestHeaders.getFirst("Content-Type")).exists(_.startsWith("application/json")) then
       return error(ex, 415, "expected application/json")
     val body = try Json.parse(String(ex.getRequestBody.readAllBytes(), UTF_8)) catch case e: Exception => return error(ex, 400, s"bad JSON: ${e.getMessage}")
@@ -145,6 +149,12 @@ final class Server(projects: List[Project]):
             else if Set("accept", "reject")(req.action) && req.seen.isEmpty then
               error(ex, 400, "send the version of the node you looked at (seen), so a decision on a node that moved is refused")
             else p.decide(req) match
+              case Left(why) => error(ex, 409, why)
+              case Right(()) => signal(); json(ex, obj("ok" -> JBool(true)))
+          case List("sign") =>
+            val entries = body("entries").map(_.arr.toList).getOrElse(Nil).flatMap(_.str).toSet
+            if entries.isEmpty then error(ex, 400, "expected the entries to sign")
+            else p.sign(entries) match
               case Left(why) => error(ex, 409, why)
               case Right(()) => signal(); json(ex, obj("ok" -> JBool(true)))
           case List("requests") =>
@@ -206,3 +216,9 @@ final class Server(projects: List[Project]):
     watcher.start()
     server.start()
     server
+
+object Server:
+  def newToken(): String =
+    val b = new Array[Byte](18)
+    java.security.SecureRandom().nextBytes(b)
+    java.util.Base64.getUrlEncoder.withoutPadding.encodeToString(b)

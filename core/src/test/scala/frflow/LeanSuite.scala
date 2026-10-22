@@ -34,6 +34,8 @@ class LeanSuite extends munit.FunSuite:
     assert(r(1)._2.obligations.head.detail.contains("frflow_auto found no proof"), r(1)._2.obligations)
   }
 
+  private val feasible = "  unfold Obl.feasible\n  exact ⟨fun x => x * x, by simp [frflow_defs]⟩"
+
   test("an obligation automation cannot prove is proven in a separate file") {
     val w = workflow(squareKb)
     assertEquals(statuses(w.check()), List("NonNegative" -> "proven", "Squares" -> "open"))
@@ -52,13 +54,43 @@ class LeanSuite extends munit.FunSuite:
         |  · exact Int.mul_nonneg hx hx
         |  · have := Int.mul_nonneg (Int.neg_nonneg_of_nonpos hx) (Int.neg_nonneg_of_nonpos hx)
         |    simpa [Int.neg_mul_neg] using this""".stripMargin))
+    // an authored link needs a witness that something meets the node
+    assertEquals(w.check(Some("Squares")).head._2.obligations.find(_.name == "feasible").map(_.status), Some("open"))
+    edit(_.replace("  unfold Obl.feasible\n  sorry", feasible))
     val proven = w.check(Some("Squares")).head._2
-    assertEquals((proven.status, proven.obligations.head.detail), ("proven", "authored"))
+    assertEquals((proven.status, proven.obligations.head.detail), ("proven", "authored"), proven)
+    assertEquals(proven.obligations.find(_.name == "feasible").map(_.status), Some("proven"))
     assert(!Files.readString(w.ws.lean.resolve(w.generate.autoPath("Squares"))).contains("theorem link"))
 
     // a proof of something weaker does not count
     edit(src => src.replaceAll("(?s)theorem link : Obl.link := by.*?(?=\nend )", "theorem link : True := trivial\n"))
     assertEquals(w.check(Some("Squares")).head._2.obligations.head.status, "failed")
+  }
+
+  test("proofs may share lemmas, which are filtered and replayed like them") {
+    val w = workflow(squareKb)
+    w.check()
+    assert(w.scaffold(squares))
+    val file = w.ws.lean.resolve(w.generate.proofsPath("Squares"))
+    val lemmas = w.ws.lean.resolve(w.generate.lemmasPath)
+    def lemma(body: String) = Files.writeString(lemmas,
+      s"import FrFlow\n\nnamespace Square.Lemmas\n\n$body\n\nend Square.Lemmas\n")
+    lemma("""theorem sq (x : Int) : 0 ≤ x * x := by
+            |  rcases Int.le_total 0 x with hx | hx
+            |  · exact Int.mul_nonneg hx hx
+            |  · have := Int.mul_nonneg (Int.neg_nonneg_of_nonpos hx) (Int.neg_nonneg_of_nonpos hx)
+            |    simpa [Int.neg_mul_neg] using this""".stripMargin)
+    val src = Files.readString(file)
+    Files.writeString(file, src.replaceFirst("import ", "import Proofs.Square.Lemmas\nimport ")
+      .replace("  unfold Obl.link\n  sorry", "  unfold Obl.link\n  intro m h\n  simp only [frflow_defs] at *\n  intro x\n  rw [h x]\n  exact Square.Lemmas.sq x")
+      .replace("  unfold Obl.feasible\n  sorry", feasible))
+    val proven = w.check(Some("Squares")).head._2
+    assertEquals((proven.status, proven.obligations.head.detail), ("proven", "authored"), proven)
+    // a lemma file gets the same filter as a proof file
+    lemma("axiom sq (x : Int) : 0 ≤ x * x")
+    val bad = w.check(Some("Squares")).head._2
+    assertEquals(bad.status, "failed", bad)
+    assert(bad.messages.exists(_.contains("not allowed in lean/Proofs/Square/Lemmas.lean")), bad.messages)
   }
 
   test("a refinement whose abs alone makes the parent hold is vacuous") {
@@ -88,11 +120,31 @@ class LeanSuite extends munit.FunSuite:
       .keeps(atMostN)((shelf, n, picked) => List((n, picked.length)))
       // a view that shows the rule only what it accepts keeps nothing
       .keeps(inName)((shelf, n, picked) => picked.filter(b => shelf.contains(b)).map(b => (shelf, b)))
-    val r = workflow(KnowledgeBase("Inv", idea = "IDEA.md")(onlyGood, listed, books, kept, fromShelf, atMostN, inName)).check()
-    val c = r.find(_._1.id == "Pick").get._2
+    val w = workflow(KnowledgeBase("Inv", idea = "IDEA.md")(onlyGood, listed, books, kept, fromShelf, atMostN, inName))
+    val c = w.check().find(_._1.id == "Pick").get._2
     assertEquals(c.obligations.find(_.name == "inv_FromShelf").map(_.status), Some("proven"), c)
     assertEquals(c.obligations.find(_.name == "inv_AtMostN").map(_.status), Some("open"), c)
     assertEquals(c.obligations.find(_.name == "inv_InName").map(_.status), Some("failed"), c)
+    // an authored proof that uses sorry is not a proof, however Lean prints its axioms
+    Files.createDirectories(w.ws.lean.resolve(w.generate.proofsPath("Pick")).getParent)
+    Files.writeString(w.ws.lean.resolve(w.generate.proofsPath("Pick")),
+      """import FrFlowGen.Inv.Pick.Spec
+        |
+        |set_option autoImplicit false
+        |noncomputable section
+        |open Classical
+        |
+        |namespace Inv.Pick.Proofs
+        |open Inv.Pick
+        |
+        |theorem inv_AtMostN : Obl.inv_AtMostN := by
+        |  unfold Obl.inv_AtMostN
+        |  sorry
+        |
+        |end Inv.Pick.Proofs
+        |""".stripMargin)
+    val sorried = w.check(Some("Pick")).head._2
+    assertEquals(sorried.obligations.find(_.name == "inv_AtMostN").map(r => (r.status, r.detail)), Some(("open", "uses sorry")), sorried)
   }
 
   test("an implementation written as a define is proven to keep its contract") {

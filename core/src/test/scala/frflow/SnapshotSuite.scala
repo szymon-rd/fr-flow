@@ -322,7 +322,8 @@ class SnapshotSuite extends munit.FunSuite:
     assert(decide(l2, "Books", "settle", 3, "agent").left.exists(_.contains("instantiate nodes are the developer's")))
     val a2 = Decisions.annotate(snap, l2)
     assertEquals(Decisions.unendorsed(a2), List("Listed"))
-    assert(!Decisions.settled(a2))
+    assert(!Decisions.complete(a2))
+    assertEquals(nodes(a2)("Listed")("state").flatMap(_.str), Some("settled"))
     assert(Decisions.tree(a2).contains("Listed (refine)  [settled by the agent, not endorsed yet"), Decisions.tree(a2))
     assert(Decisions.waiting(a2)._1.exists(_.startsWith("Listed: settled by the agent")))
     // the developer endorses it by accepting it

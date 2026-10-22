@@ -28,12 +28,11 @@ this way. It also keeps the code from drifting away from it.
    - Never choose for the developer. There is no tool or command for it. Do
      not post to the browser's server, and do not edit `.frflow/ledger.json`.
      Rewriting committed decisions shows as a warning.
-   - You may **settle** (`settle`) only where a check re-runs on it: a
-     refinement or contract whose link Lean proves, with no proposal beside
-     it, no new term and no invariant to keep; a review where only something
-     above it (or a definition it uses) moved and Lean proves the link again;
-     or a change to the code of a contract with a formal post, once its
-     examples pass. Read its `context` first, with the reasons above and
+   - You may **settle** (`settle`) only what Lean proves again: a refinement
+     or contract whose link Lean proves, with no proposal beside it, no new
+     term and no invariant to keep; a review where only something above it
+     moved and Lean proves the link again; or a new proven implementation.
+     Plain code is the developer's. Read its `context` first, with the reasons above and
      below it; if a "revisit if" condition there may be met, do not settle:
      ask in your `answer`. The tool refuses anything else. `status` fails
      until the developer endorses what you settled, so say what you settled
@@ -115,6 +114,8 @@ this way. It also keeps the code from drifting away from it.
      default) either keeps it, listing the pairs a call shows the rule,
      `.keeps(inv)((user, query, result) => result.map(r => (user, r)))`, or
      says why it does not apply, `.exempt(inv, "it returns no records")`.
+     Every design node in its scope says why too (`.exempt`): it governs code
+     no proof covers.
      Never write a view that hides what the rule would refuse (filtering the
      result by the rule): Lean reports it as kept in name only.
    - **Keep production wiring** (the call to `service`) in a file a design
@@ -129,6 +130,8 @@ this way. It also keeps the code from drifting away from it.
    - **The model's file holds only the model:** nodes, `Opaque`, `Param`,
      `define`, domain types without methods, and the `@main`. Helpers go next
      to the implementation; `status` warns otherwise.
+   - **When the developer asks you to revisit a node** (the inbox says so), propose
+     a change, or `answer` with `node` why it still holds.
    - **When you change the idea or what is not modelled,** say in your answer
      which decisions below rest on it (their reasons say), so the developer
      can tick them for revisiting.
@@ -232,8 +235,14 @@ The macro supports:
 - params, applied or as `.value`;
 - `define`d functions.
 
-`Int` and `Long` are unbounded integers in Lean. Do not rely on overflow.
-Fields of domain types are data: a field of function type is refused.
+Arithmetic is on `BigInt` (exact in Scala and in Lean); `+ - *` on `Int` or
+`Long` is refused, since Scala wraps around. Divide only by a literal. Fields
+of domain types are data: a field of function type is refused.
+
+**State.** Model a stateful part as a step `(State, Event) => State` whose root
+says an invariant holds initially and every step keeps it
+(`inv(initial.value) && forall((s, e) => inv(s) ==> inv(step(s, e)))`);
+`FrFlow.always` gives it for every reachable state. See the CRM's writes.
 
 ## Proving a link
 
@@ -243,11 +252,14 @@ Fields of domain types are data: a field of function type is refused.
 2. If it is true, run `scaffold(node)` and prove `theorem link : Obl.link` in
    the proof file. Start with `unfold Obl.link`, then `intro m h`, then
    `simp only [frflow_defs] at *`.
-3. The file may contain only the theorem and its tactic proof. Anything else
+3. The file may contain only theorems and their tactic proofs. Anything else
    is rejected: `sorry`, `axiom`, `run_cmd`, `#eval`, attributes, extra
    imports, and so on. Accepted proofs are also replayed through the Lean
-   kernel.
-4. `check` also rejects a link that is **vacuous**: one where `abs` alone makes
+   kernel. Lemmas several proofs use go in `lean/Proofs/<KB>/Lemmas.lean`
+   (same rules), imported with `import Proofs.<KB>.Lemmas`.
+4. An authored link also needs `theorem feasible : Obl.feasible` (some model
+   meets the node; the scaffold has a stub), unless a proven implementation is
+   one. `check` also rejects a link that is **vacuous**: one where `abs` alone makes
    the parent hold, whatever the node's spec says, when `frflow_auto` shows it.
    Never write a proof that does not use the node's spec.
 5. **Never prove a link from a contradiction in the node** (for example by
