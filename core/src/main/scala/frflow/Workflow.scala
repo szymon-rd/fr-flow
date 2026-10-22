@@ -428,7 +428,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   /** The recorded check of a node, if still current. */
   def current(n: Node[?]): Option[NodeCheck] =
     // A result that waited for its parent, or timed out, is not final: it is checked again.
-    if !generate.formal(n) then None else checks.get(n.id).filter(c => c.hash == checkHash(n) && c.status != "waiting" && c.status != "timeout")
+    if !generate.formal(n) then None else checks.get(n.id).filter(c => c.hash == checkHash(n) && !Set("waiting", "timeout", "model-error")(c.status))
 
   /** The source files a node governs: a contract's implementation, a design decision's files. */
   def code(n: Node[?]): Option[Code] =
@@ -494,8 +494,20 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       else Files.list(proofsDir).iterator.asScala.map(_.getFileName.toString).filter(_.endsWith(".lean")).map(_.stripSuffix(".lean"))
         .filterNot(id => id == "Lemmas" || kb.node(id).isDefined).toList.sorted
         .map(id => s"lean/Proofs/${kb.name}/$id.lean is the proof file of no node: move it with its node's new id (and its namespace), or remove it")
-    missing ++ owners ++ ideaCoverage ++ staleNames ++ orphans ++ modelCode ++
+    missing ++ owners ++ ideaCoverage ++ staleNames ++ orphans ++ modelCode ++ bypasses ++
       ungoverned.map(f => s"$f is governed by no node: govern it (.governing or a design node) or move it")
+
+  /** Wiring that calls a contract's code directly, past `service` (so what it returns is not
+    * checked): a file a design node governs naming a method the registered code calls.
+    */
+  def bypasses: List[String] =
+    val wired = kb.nodes.filter(_.kind == NodeKind.Design).flatMap(d => code(d).toList.flatMap(_.files))
+    kb.nodes.flatMap(c => kb.implementation(c).filter(_.wiring.nonEmpty).map(c -> _)).flatMap { (c, i) =>
+      val methods = """\.(\w+)\(""".r.findAllMatchIn(i.wiring).map(_.group(1)).toSet -- Set("value", "apply", "filter", "map", "contains", "toSet", "toList")
+      wired.distinct.flatMap(f => read(ws.root.resolve(f)).toList.flatMap(text =>
+        methods.toList.sorted.filter(m => text.contains(s".$m(")).map(m =>
+          s"$f calls ${c.id}'s code directly (.$m): go through service(${c.id}), so what it returns is checked")))
+    }
 
   /** What doing nothing is, when it meets the node (Lean proved it). */
   def idleOf(n: Node[?]): Option[String] = current(n).flatMap(_.obligations.find(o => o.name == "idle" && o.status == "proven")).map(_.detail)

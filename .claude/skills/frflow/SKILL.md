@@ -151,6 +151,15 @@ val authenticated = noUnauthorizedAccess.refine[(Token.T, Resource.T) => Option[
   callee's own code is proven (`implementProven`); the caller rests on the
   callee. Examples and `service` bind it to the callee's code themselves. Build
   large systems this way: each contract proven once, callers from promises.
+- **`Node.port[A, B, R](id, statement, why)(post)`**: what the outside (a
+  database, an HTTP service, the clock) is trusted to do. Call it through
+  `port.caller` from proven code; attach the adapter as
+  `implementProven(port)(define {...}, (a, b) => sql)`: the define is the
+  reference the SQL is checked against. Give it `checkedBy`. Request handlers
+  and jobs are design nodes governing their files, and call only `service`.
+- **`contract.checkedBy((a, b, r) => ...)`**: when the post reads all the data,
+  a check of the result alone for `service` to run per call; Lean proves the
+  post implies it.
 - **`formal = false`** (on root, refine, instantiate, contract, contractVia)
   takes a node and all below it out of Lean. Use it only when the subset
   cannot say it or the proof costs more than it gives, and say so in `why`.

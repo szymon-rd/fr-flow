@@ -818,6 +818,159 @@
           ],
           "implementation": "proven: deals\ndeals = (user: Account, query: Search) => rc(user, query).filter(r => r.kind == Kind.Deal)"
         }
+      },
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-22T12:55:21.309590167Z",
+        "reason": "Its examples now also give the database, which the read side it calls reads; nothing it says changed.",
+        "after": "293ea8c7fcc42afe",
+        "commit": "50116a7f4a13266e821919275c75a8207b6f35ad",
+        "tree": "976cb09a31d4599929e219ef6552780a46d9d177",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "jyKC3HC4YUteiJQLrw+jrA4I2w682xFVGLuuxf5qQwjlovAR6Y8+ozLVrHm0FixRp9KZDBubzPkBgPKZyB0QDw==",
+        "chain": "85f59265fbe5060676da80c8d3ec86f15dcdddd140e1ee1329b50e2bf1831bbe",
+        "content": {
+          "parent": "SalesScreen",
+          "statement": "A deal search returns exactly the stored deals that match it and the user may see.",
+          "why": "SalesScreen, stated for one call. It is built on ReadContract, so it shows only what ReadContract may show.",
+          "sources": {
+            "post": "(user, query, result) => result.forall(r => store.value.contains(r) && r.kind == Kind.Deal && matches(query, r) && mayRead(user, r)) &&\n  store.value.forall(r => (r.kind == Kind.Deal && matches(query, r) && mayRead(user, r)) ==> result.contains(r))"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (Account(\"ann@acme\", TenantId(\"acme\")), Everything) ⇒ List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"))  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"acme\"), Contact, \"Acme contact\")), shares = List(), database.bind(Db.of(store.value, shares.value))  — Ann's deal search lists Acme's deal, not its contact",
+            "expect (Account(\"ann@acme\", TenantId(\"acme\")), OfKind(Contact)) ⇒ List()  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"acme\"), Contact, \"Acme contact\")), shares = List(), database.bind(Db.of(store.value, shares.value))  — a search for contacts finds no deal",
+            "reject (Account(\"ann@acme\", TenantId(\"acme\")), Everything) ⇒ List(CrmRecord(2, TenantId(\"acme\"), Contact, \"Acme contact\"))  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"acme\"), Contact, \"Acme contact\")), shares = List(), database.bind(Db.of(store.value, shares.value))  — a contact is never listed as a deal",
+            "reject (Account(\"ann@acme\", TenantId(\"acme\")), Everything) ⇒ List()  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"acme\"), Contact, \"Acme contact\")), shares = List(), database.bind(Db.of(store.value, shares.value))  — a deal Ann may see is never left out"
+          ],
+          "vocabulary": [],
+          "uses": [
+            "case class TenantId(value: String)",
+            "case class Account(email: String, tenant: TenantId)",
+            "enum Kind: case Contact, case Deal",
+            "enum Search: case ById(id: BigInt), case OfKind(kind: Kind), case Everything",
+            "case class CrmRecord(id: BigInt, tenant: TenantId, kind: Kind, title: String)",
+            "case class Share(record: BigInt, to: TenantId)",
+            "«matches» = (q: Search, r: CrmRecord) =>\n  q match\n    case Search.ById(id)  => r.id == id\n    case Search.OfKind(k) => r.kind == k\n    case Search.Everything => true",
+            "mayRead = (reader: Account, r: CrmRecord) => r.tenant == reader.tenant || shares.value.contains(Share(r.id, reader.tenant))"
+          ],
+          "governs": [],
+          "definition": "val dealSearch = salesScreen.contract[Account, Search, List[CrmRecord]](\n  \"DealSearch\",\n  \"A deal search returns exactly the stored deals that match it and the user may see.\",\n  why = \"SalesScreen, stated for one call. It is built on ReadContract, so it shows only what ReadContract may show.\"\n)((user, query, result) => result.forall(r => store.value.contains(r) && r.kind == Kind.Deal && matches(query, r) && mayRead(user, r)) &&\n  store.value.forall(r => (r.kind == Kind.Deal && matches(query, r) && mayRead(user, r)) ==> result.contains(r)))\n  .examples(\n    store.bind(List(CrmRecord(1, TenantId(\"acme\"), Kind.Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"acme\"), Kind.Contact, \"Acme contact\"))),\n    shares.bind(Nil), database.bind(Db.of(store.value, shares.value)))(\n    expect(Account(\"ann@acme\", TenantId(\"acme\")), Search.Everything, List(CrmRecord(1, TenantId(\"acme\"), Kind.Deal, \"Acme deal\")),\n      \"Ann's deal search lists Acme's deal, not its contact\"),\n    expect(Account(\"ann@acme\", TenantId(\"acme\")), Search.OfKind(Kind.Contact), Nil, \"a search for contacts finds no deal\"),\n    reject(Account(\"ann@acme\", TenantId(\"acme\")), Search.Everything, List(CrmRecord(2, TenantId(\"acme\"), Kind.Contact, \"Acme contact\")),\n      \"a contact is never listed as a deal\"),\n    reject(Account(\"ann@acme\", TenantId(\"acme\")), Search.Everything, Nil, \"a deal Ann may see is never left out\"))\n  .keeps(noCrossTenantRead)((user, query, result) => result.map(r => (user, r)))",
+          "keeps": [
+            "NoCrossTenantRead: (user, query, result) => result.map(r => (user, r))"
+          ],
+          "implementation": "proven: deals\ndeals = (user: Account, query: Search) => rc(user, query).filter(r => r.kind == Kind.Deal)"
+        }
+      }
+    ],
+    "ExpireJob": [
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-22T12:55:21.862653626Z",
+        "reason": "One run, as the root says, and it keeps the store consistent, which the read side relies on.",
+        "commit": "50116a7f4a13266e821919275c75a8207b6f35ad",
+        "tree": "976cb09a31d4599929e219ef6552780a46d9d177",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "1MMwdMy2kUmoIt5VMp8My2/+ZOgLrlZZ8DJU+aI5+hRQO4Z1WZ24DMFLxIcmGrimp0DpQYTGIc/QaKDSOQJCAA==",
+        "chain": "d9df2afba53ad14c599a699fee4a246397a5217f713928db680782e176872f03",
+        "content": {
+          "parent": "SharesExpire",
+          "statement": "A run removes exactly the shares that have ended, keeps the records, and keeps a consistent store consistent.",
+          "why": "SharesExpire, for one run. Keeping the store consistent matters because the read side relies on it (Accounts relies on CrmWrites), and the job changes the store besides the writes.",
+          "sources": {
+            "post": "(s, now, t) => t.records == s.records && t.shares == s.shares.filter(sh => !ended(sh, now)) && (consistentStore(s) ==> consistentStore(t))"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"globex\")), Share(1, TenantId(\"initech\")))), 150) ⇒ CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"initech\"))))  given expiries = List(Expiry(1, TenantId(\"globex\"), 100))  — Globex's share ended at 100; Initech's stays",
+            "expect (CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"globex\")))), 50) ⇒ CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"globex\"))))  given expiries = List(Expiry(1, TenantId(\"globex\"), 100))  — before 100 nothing ends",
+            "reject (CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"globex\")), Share(1, TenantId(\"initech\")))), 150) ⇒ CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List())  given expiries = List(Expiry(1, TenantId(\"globex\"), 100))  — a share that has not ended is never removed"
+          ],
+          "vocabulary": [],
+          "uses": [
+            "case class TenantId(value: String)",
+            "enum Kind: case Contact, case Deal",
+            "case class CrmRecord(id: BigInt, tenant: TenantId, kind: Kind, title: String)",
+            "case class Share(record: BigInt, to: TenantId)",
+            "case class CrmStore(records: List[CrmRecord], shares: List[Share])",
+            "case class Expiry(record: BigInt, to: TenantId, until: BigInt)",
+            "ended = (sh: Share, now: BigInt) => expiries.value.exists(e => e.record == sh.record && e.to == sh.to && e.until <= now)",
+            "consistentStore = (s: CrmStore) =>\n  s.shares.forall(sh => s.records.exists(r => r.id == sh.record)) && s.records.forall(a => s.records.forall(b => (a.id == b.id) ==> (a == b)))"
+          ],
+          "governs": [],
+          "definition": "val expireJob = sharesExpire.contract[CrmStore, BigInt, CrmStore](\n  \"ExpireJob\",\n  \"A run removes exactly the shares that have ended, keeps the records, and keeps a consistent store consistent.\",\n  why = \"SharesExpire, for one run. Keeping the store consistent matters because the read side relies on it (Accounts relies on CrmWrites), and the job changes the store besides the writes.\"\n)((s, now, t) => t.records == s.records && t.shares == s.shares.filter(sh => !ended(sh, now)) && (consistentStore(s) ==> consistentStore(t)))\n  .examples(expiries.bind(List(Expiry(1, TenantId(\"globex\"), 100))))(\n    expect(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Kind.Deal, \"Acme deal\")), List(Share(1, TenantId(\"globex\")), Share(1, TenantId(\"initech\")))), 150,\n      CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Kind.Deal, \"Acme deal\")), List(Share(1, TenantId(\"initech\")))), \"Globex's share ended at 100; Initech's stays\"),\n    expect(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Kind.Deal, \"Acme deal\")), List(Share(1, TenantId(\"globex\")))), 50,\n      CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Kind.Deal, \"Acme deal\")), List(Share(1, TenantId(\"globex\")))), \"before 100 nothing ends\"),\n    reject(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Kind.Deal, \"Acme deal\")), List(Share(1, TenantId(\"globex\")), Share(1, TenantId(\"initech\")))), 150,\n      CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Kind.Deal, \"Acme deal\")), Nil), \"a share that has not ended is never removed\"))\n  .exempt(noCrossTenantRead, \"the store it returns goes to storage, never to a reader\")",
+          "keeps": [
+            "NoCrossTenantRead: exempt, because the store it returns goes to storage, never to a reader"
+          ],
+          "implementation": "proven: expire\nexpire = (s: CrmStore, now: BigInt) => s.copy(shares = s.shares.filter(sh => !ended(sh, now)))\nended = (sh: Share, now: BigInt) => expiries.value.exists(e => e.record == sh.record && e.to == sh.to && e.until <= now)"
+        }
+      }
+    ],
+    "ExpiryJobWiring": [
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-22T12:55:22.162480040Z",
+        "reason": "The job runs every minute through service on the stored state and stores the result.",
+        "code": "2fca756d92498a85ad44610b4027bb4622237f7913e9c8828eb33228d5ed2e5f",
+        "commit": "50116a7f4a13266e821919275c75a8207b6f35ad",
+        "tree": "976cb09a31d4599929e219ef6552780a46d9d177",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "QgDzutWcKYjCpmzTpA3AFXpZrg8ht2bWZ3Uo41JTVZt+FHAi7ps3UJ6jDXlb9sN3aiwFjUt/EhDrksKQxeIUAw==",
+        "chain": "",
+        "content": {
+          "parent": "ExpireJob",
+          "statement": "The expiry job runs every minute through service, on the stored records and shares, and stores what it returns.",
+          "why": "Every change to the store goes through a proven contract; keeping the job's wiring in one governed file makes a change to it visible.",
+          "sources": {},
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [],
+          "uses": [],
+          "governs": [
+            "src/main/scala/crm/Job.scala"
+          ],
+          "definition": "val expiryJobWiring = expireJob.design(\n  \"ExpiryJobWiring\",\n  \"The expiry job runs every minute through service, on the stored records and shares, and stores what it returns.\",\n  why = \"Every change to the store goes through a proven contract; keeping the job's wiring in one governed file makes a change to it visible.\"\n)(\"src/main/scala/crm/Job.scala\")\n  .exempt(noCrossTenantRead, \"it hands the new store to storage and returns nothing to a reader\")",
+          "keeps": [
+            "NoCrossTenantRead: exempt, because it hands the new store to storage and returns nothing to a reader"
+          ]
+        }
+      }
+    ],
+    "HttpApi": [
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-22T12:55:20.790929940Z",
+        "reason": "Requests reach records only through the read, deal and write sides; who calls comes from headers since authentication is not modelled.",
+        "held": [
+          "ReadApi"
+        ],
+        "code": "d16841f59e6fa38f2b65cd46433453d506764733d6de178828d00d5073d771f7",
+        "commit": "50116a7f4a13266e821919275c75a8207b6f35ad",
+        "tree": "976cb09a31d4599929e219ef6552780a46d9d177",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "m0V9ckQPs5SM1+8hU4jqvJZeGipEBBlvUG6yG4aUT4EWHtGgZ3HRdBxx6GDDzv6s3WJyMOLk2rAr8gnPR+1GAg==",
+        "chain": "",
+        "content": {
+          "parent": "ReadContract",
+          "statement": "The HTTP API answers searches through the read side, the sales screen through the deal side, and writes through the write side; who calls is the account in the request's headers.",
+          "why": "Every request must reach the records only through service. Authentication is not modelled: the headers name the account.",
+          "sources": {},
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [],
+          "uses": [],
+          "governs": [
+            "src/main/scala/crm/Server.scala"
+          ],
+          "definition": "val httpApi = readContract.design(\n  \"HttpApi\",\n  \"The HTTP API answers searches through the read side, the sales screen through the deal side, and writes through the write side; who calls is the account in the request's headers.\",\n  why = \"Every request must reach the records only through service. Authentication is not modelled: the headers name the account.\"\n)(\"src/main/scala/crm/Server.scala\")\n  .exempt(noCrossTenantRead, \"it returns only what the read and deal sides return, which keep the rule\")",
+          "keeps": [
+            "NoCrossTenantRead: exempt, because it returns only what the read and deal sides return, which keep the rule"
+          ]
+        }
       }
     ],
     "NoCrossTenantRead": [
@@ -1699,6 +1852,55 @@
         "sig": "h7GOTL3FJgACHSi+bf2bkoCsDzkeY6c/zAFUg+nzIITglv1YTLd0NCDNliULmSy5R7iaUkWm0tpCBopkyRjCBw==",
         "chain": "215b75936db7e06b03edccd1b94262f93a9152aac36daf34eb8efcb1ea790bc9",
         "content": "same:10f85d3e5057396b"
+      },
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-22T12:55:20.270546436Z",
+        "reason": "Same contract; its code now asks the database and filters what the user may see, and every call is checked cheaply: matches and may read.",
+        "after": "cf9d00f086332b2d",
+        "commit": "50116a7f4a13266e821919275c75a8207b6f35ad",
+        "tree": "976cb09a31d4599929e219ef6552780a46d9d177",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "tA6NHBFhYZ8SUk0MNqRlqQMKZQ/qGa+og96rPJo/x+Mpv5cc9VhGDxQ9/hPyY0z1SJu4KYIIy7/RBGARwcSkCg==",
+        "chain": "881623593a5915fe2f2970bde54f19959942c075c6ea9cd410e5e35340bc4c80",
+        "content": {
+          "parent": "Accounts",
+          "statement": "A search returns exactly the stored records that match it and the user may see: each of the user's company or shared with it.",
+          "why": "Accounts, stated for one call, plus what a search asks for. A returned record must be one of the stored records, so an implementation cannot relabel another company's record as the user's; and every such record is returned, since the idea says users find records.",
+          "sources": {
+            "post": "(user, query, result) => result.forall(r => store.value.contains(r) && matches(query, r) && mayRead(user, r)) &&\n  store.value.forall(r => (matches(query, r) && mayRead(user, r)) ==> result.contains(r))"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (Account(\"ann@acme\", TenantId(\"acme\")), Everything) ⇒ List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"))  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List(), database.bind(Db.of(store.value, shares.value))  — Ann lists everything she can see: Acme's deal",
+            "expect (Account(\"ann@acme\", TenantId(\"acme\")), ById(2)) ⇒ List()  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List(), database.bind(Db.of(store.value, shares.value))  — Globex's contact is not shared with Acme",
+            "reject (Account(\"ann@acme\", TenantId(\"acme\")), ById(2)) ⇒ List(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\"))  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List(), database.bind(Db.of(store.value, shares.value))  — another company's record is never returned",
+            "reject (Account(\"ann@acme\", TenantId(\"acme\")), Everything) ⇒ List(CrmRecord(2, TenantId(\"acme\"), Contact, \"Globex contact\"))  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List(), database.bind(Db.of(store.value, shares.value))  — a record relabelled as Acme's is not a stored record",
+            "reject (Account(\"ann@acme\", TenantId(\"acme\")), OfKind(Contact)) ⇒ List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"))  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List(), database.bind(Db.of(store.value, shares.value))  — a search for contacts does not return deals",
+            "expect (Account(\"ann@acme\", TenantId(\"acme\")), OfKind(Contact)) ⇒ List(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\"))  given store = List(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List(Share(2, TenantId(\"acme\"))), database.bind(Db.of(store.value, shares.value))  — Globex shared its contact with Acme, so Ann finds it by kind"
+          ],
+          "vocabulary": [],
+          "uses": [
+            "case class TenantId(value: String)",
+            "case class Account(email: String, tenant: TenantId)",
+            "enum Kind: case Contact, case Deal",
+            "enum Search: case ById(id: BigInt), case OfKind(kind: Kind), case Everything",
+            "case class CrmRecord(id: BigInt, tenant: TenantId, kind: Kind, title: String)",
+            "case class Share(record: BigInt, to: TenantId)",
+            "«matches» = (q: Search, r: CrmRecord) =>\n  q match\n    case Search.ById(id)  => r.id == id\n    case Search.OfKind(k) => r.kind == k\n    case Search.Everything => true",
+            "mayRead = (reader: Account, r: CrmRecord) => r.tenant == reader.tenant || shares.value.contains(Share(r.id, reader.tenant))"
+          ],
+          "governs": [],
+          "definition": "val readContract = accounts.contract[Account, Search, List[CrmRecord]](\n  \"ReadContract\",\n  \"A search returns exactly the stored records that match it and the user may see: each of the user's company or shared with it.\",\n  why = \"Accounts, stated for one call, plus what a search asks for. A returned record must be one of the stored records, so an implementation cannot relabel another company's record as the user's; and every such record is returned, since the idea says users find records.\"\n)((user, query, result) => result.forall(r => store.value.contains(r) && matches(query, r) && mayRead(user, r)) &&\n  store.value.forall(r => (matches(query, r) && mayRead(user, r)) ==> result.contains(r)))\n  .examples(\n    store.bind(List(CrmRecord(1, TenantId(\"acme\"), Kind.Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Kind.Contact, \"Globex contact\"))),\n    shares.bind(Nil), database.bind(Db.of(store.value, shares.value)))(\n    expect(Account(\"ann@acme\", TenantId(\"acme\")), Search.Everything, List(CrmRecord(1, TenantId(\"acme\"), Kind.Deal, \"Acme deal\")),\n      \"Ann lists everything she can see: Acme's deal\"),\n    expect(Account(\"ann@acme\", TenantId(\"acme\")), Search.ById(2), Nil, \"Globex's contact is not shared with Acme\"),\n    reject(Account(\"ann@acme\", TenantId(\"acme\")), Search.ById(2), List(CrmRecord(2, TenantId(\"globex\"), Kind.Contact, \"Globex contact\")),\n      \"another company's record is never returned\"),\n    reject(Account(\"ann@acme\", TenantId(\"acme\")), Search.Everything, List(CrmRecord(2, TenantId(\"acme\"), Kind.Contact, \"Globex contact\")),\n      \"a record relabelled as Acme's is not a stored record\"),\n    reject(Account(\"ann@acme\", TenantId(\"acme\")), Search.OfKind(Kind.Contact), List(CrmRecord(1, TenantId(\"acme\"), Kind.Deal, \"Acme deal\")),\n      \"a search for contacts does not return deals\"))\n  .examples(\n    store.bind(List(CrmRecord(2, TenantId(\"globex\"), Kind.Contact, \"Globex contact\"))),\n    shares.bind(List(Share(2, TenantId(\"acme\")))), database.bind(Db.of(store.value, shares.value)))(\n    expect(Account(\"ann@acme\", TenantId(\"acme\")), Search.OfKind(Kind.Contact), List(CrmRecord(2, TenantId(\"globex\"), Kind.Contact, \"Globex contact\")),\n      \"Globex shared its contact with Acme, so Ann finds it by kind\"))\n  .keeps(noCrossTenantRead)((user, query, result) => result.map(r => (user, r)))\n  .checkedBy((user, query, result) => result.forall(r => matches(query, r) && mayRead(user, r)))\n  .expects(\"Someone at Acme never sees a Globex record that Globex did not share with Acme, whatever they search for\")(run =>\n    forall((u: Account, q: Search) => (u.tenant == TenantId(\"acme\")) ==>\n      run(u, q).forall(r => (r.tenant == TenantId(\"globex\")) ==> shares.value.contains(Share(r.id, TenantId(\"acme\"))))))",
+          "keeps": [
+            "NoCrossTenantRead: (user, query, result) => result.map(r => (user, r))"
+          ],
+          "expects": [
+            "Someone at Acme never sees a Globex record that Globex did not share with Acme, whatever they search for: run =>\n    forall((u: Account, q: Search) => (u.tenant == TenantId(\"acme\")) ==>\n      run(u, q).forall(r => (r.tenant == TenantId(\"globex\")) ==> shares.value.contains(Share(r.id, TenantId(\"acme\")))))"
+          ],
+          "implementation": "proven: search\nsearch = (user: Account, query: Search) =>\n  fetch(user, query).filter(r => mayRead(user, r))\nmayRead = (reader: Account, r: CrmRecord) => r.tenant == reader.tenant || shares.value.contains(Share(r.id, reader.tenant))"
+        }
       }
     ],
     "ReadSideWiring": [
@@ -1813,6 +2015,65 @@
         "sig": "1y64y/OJe2Q6c+Fqr0SfSIq0VITBF0KPt0NkoEzSRBlQUeCCkNVqTNDHjQR0dOL7ljeK691oQP2tt5XlCeKvDA==",
         "chain": "",
         "content": "same:173e1b48bf8cab1c"
+      },
+      {
+        "action": "confirm",
+        "by": "claude-example-data",
+        "at": "2026-10-22T12:55:20.528556276Z",
+        "reason": "The read side reads from the database through service; the full store is bound but loaded only to check the reliance at start.",
+        "after": "515ff8ad78a3da50",
+        "code": "431b70d2556172443b05edd07b396a85617cd3e36a7ca3e3a532764927ba162d",
+        "commit": "50116a7f4a13266e821919275c75a8207b6f35ad",
+        "tree": "976cb09a31d4599929e219ef6552780a46d9d177",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "g6v9tptxxK3P6cfzqmmF6TyP1YL3GzvxohsRtIpyoP5R/Tjz0yEVGFA8G45PpsU0DSVewOxShfa2u7cHNbiSCg==",
+        "chain": "",
+        "content": "same:173e1b48bf8cab1c"
+      }
+    ],
+    "RecordsByQuery": [
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-22T12:55:19.843757795Z",
+        "reason": "Records live in SQLite now; the read side should be proven from what the database promises, and the SQL checked against that promise, not trusted.",
+        "code": "b5ff5baade7089044c78b585d30df4205839ee587682891fb337005509b230b9",
+        "commit": "50116a7f4a13266e821919275c75a8207b6f35ad",
+        "tree": "976cb09a31d4599929e219ef6552780a46d9d177",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "l+gS0jRt2ktALqy7c9Zduk+ns9oDDrKuQZz5mTjwPCo4yCG7tVbpCOx0yk0m/7t8st6B2dg7jTBnsM75PWWhAw==",
+        "chain": "",
+        "content": {
+          "parent": null,
+          "statement": "The database returns exactly the stored records that match a search.",
+          "why": "Records live in SQLite. The read side is proven from this promise, not from the SQL; the SQL is checked against the define the port is decided with on its examples, and every result it returns is checked to match the search.",
+          "sources": {
+            "post": "(user, query, rs) => rs.forall(r => store.value.contains(r) && matches(query, r)) && store.value.forall(r => matches(query, r) ==> rs.contains(r))"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (Account(\"ann@acme\", TenantId(\"acme\")), OfKind(Contact)) ⇒ List(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\"))  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), database.bind(Db.of(store.value))  — every company's contacts: the database does not filter by company, the read side does",
+            "expect (Account(\"ann@acme\", TenantId(\"acme\")), ById(1)) ⇒ List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"))  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), database.bind(Db.of(store.value))  — a record by its id",
+            "reject (Account(\"ann@acme\", TenantId(\"acme\")), Everything) ⇒ List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"))  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), database.bind(Db.of(store.value))  — a stored record is never left out"
+          ],
+          "vocabulary": [
+            "store: the records as stored when the search runs"
+          ],
+          "uses": [
+            "case class TenantId(value: String)",
+            "case class Account(email: String, tenant: TenantId)",
+            "enum Kind: case Contact, case Deal",
+            "enum Search: case ById(id: BigInt), case OfKind(kind: Kind), case Everything",
+            "case class CrmRecord(id: BigInt, tenant: TenantId, kind: Kind, title: String)",
+            "«matches» = (q: Search, r: CrmRecord) =>\n  q match\n    case Search.ById(id)  => r.id == id\n    case Search.OfKind(k) => r.kind == k\n    case Search.Everything => true"
+          ],
+          "governs": [],
+          "definition": "val recordsByQuery = Node.port[Account, Search, List[CrmRecord]](\n  \"RecordsByQuery\",\n  \"The database returns exactly the stored records that match a search.\",\n  why = \"Records live in SQLite. The read side is proven from this promise, not from the SQL; the SQL is checked against the define the port is decided with on its examples, and every result it returns is checked to match the search.\"\n)((user, query, rs) => rs.forall(r => store.value.contains(r) && matches(query, r)) && store.value.forall(r => matches(query, r) ==> rs.contains(r)))\n  .checkedBy((user, query, rs) => rs.forall(r => matches(query, r)))\n  .examples(\n    store.bind(List(CrmRecord(1, TenantId(\"acme\"), Kind.Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Kind.Contact, \"Globex contact\"))),\n    database.bind(Db.of(store.value)))(\n    expect(Account(\"ann@acme\", TenantId(\"acme\")), Search.OfKind(Kind.Contact), List(CrmRecord(2, TenantId(\"globex\"), Kind.Contact, \"Globex contact\")),\n      \"every company's contacts: the database does not filter by company, the read side does\"),\n    expect(Account(\"ann@acme\", TenantId(\"acme\")), Search.ById(1), List(CrmRecord(1, TenantId(\"acme\"), Kind.Deal, \"Acme deal\")), \"a record by its id\"),\n    reject(Account(\"ann@acme\", TenantId(\"acme\")), Search.Everything, List(CrmRecord(1, TenantId(\"acme\"), Kind.Deal, \"Acme deal\")),\n      \"a stored record is never left out\"))\n  .exempt(noCrossTenantRead, \"it returns records to the read side's code, never to a reader: ReadContract keeps the rule\")",
+          "keeps": [
+            "NoCrossTenantRead: exempt, because it returns records to the read side's code, never to a reader: ReadContract keeps the rule"
+          ],
+          "implementation": "proven: storedMatching\nstoredMatching = (user: Account, query: Search) => store.value.filter(r => matches(query, r))\n«matches» = (q: Search, r: CrmRecord) =>\n  q match\n    case Search.ById(id)  => r.id == id\n    case Search.OfKind(k) => r.kind == k\n    case Search.Everything => true\nruns: (u, q) => database.value.recordsMatching(q)"
+        }
       }
     ],
     "SalesScreen": [
@@ -1856,6 +2117,49 @@
           "definition": "val salesScreen = Node.root[(Account, Search) => List[CrmRecord]](\n  \"SalesScreen\",\n  \"The sales screen lists exactly the stored deals that match a search and the user may see.\",\n  why = \"The idea's sales screen: deals only, and every deal the user may see; what a user may see is the same rule as for reading records.\",\n  idea = \"Sales screen\"\n)(run => forall((u: Account, q: Search) =>\n  run(u, q).forall(r => store.value.contains(r) && r.kind == Kind.Deal && matches(q, r) && mayRead(u, r)) &&\n  store.value.forall(r => (r.kind == Kind.Deal && matches(q, r) && mayRead(u, r)) ==> run(u, q).contains(r))))",
           "idea": "# CRM\n\nMany companies use one CRM. Each company's users manage contacts and deals.\n\n## Sales screen\n\nThe sales team has a screen that lists the deals a user can see: every stored\ndeal that matches their search, and nothing else.",
           "ideaSection": "Sales screen",
+          "notModelled": "- That the account a search or a write runs for is the caller's own\n  (authentication)."
+        }
+      }
+    ],
+    "SharesExpire": [
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-22T12:55:21.599533772Z",
+        "reason": "The idea now lets a company share until a time; ending exactly those shares, and nothing else, is the concern.",
+        "held": [
+          "NoCrossTenantRead"
+        ],
+        "commit": "50116a7f4a13266e821919275c75a8207b6f35ad",
+        "tree": "976cb09a31d4599929e219ef6552780a46d9d177",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "hxenbJPXxuo3Sq71InA9ZnqlcxmY3Ll74uW1Fu4hdCuyOpr+hTeJmSK9eXGSQ7zxd8CQDnDIwQE57FyFWP+3DQ==",
+        "chain": "",
+        "content": {
+          "parent": null,
+          "statement": "When the expiry job runs, exactly the shares that have ended are removed; the records and the other shares stay.",
+          "why": "The idea lets a company share a record until a given time; the job is what ends such shares, and it touches nothing else.",
+          "sources": {
+            "spec": "run => forall((s: CrmStore, now: BigInt) => run(s, now).records == s.records && run(s, now).shares == s.shares.filter(sh => !ended(sh, now)))"
+          },
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [
+            "expiries: until when each limited share holds (a time in seconds), as stored when the job runs"
+          ],
+          "uses": [
+            "case class TenantId(value: String)",
+            "enum Kind: case Contact, case Deal",
+            "case class CrmRecord(id: BigInt, tenant: TenantId, kind: Kind, title: String)",
+            "case class Share(record: BigInt, to: TenantId)",
+            "case class CrmStore(records: List[CrmRecord], shares: List[Share])",
+            "case class Expiry(record: BigInt, to: TenantId, until: BigInt)",
+            "ended = (sh: Share, now: BigInt) => expiries.value.exists(e => e.record == sh.record && e.to == sh.to && e.until <= now)"
+          ],
+          "governs": [],
+          "definition": "val sharesExpire = Node.root[(CrmStore, BigInt) => CrmStore](\n  \"SharesExpire\",\n  \"When the expiry job runs, exactly the shares that have ended are removed; the records and the other shares stay.\",\n  why = \"The idea lets a company share a record until a given time; the job is what ends such shares, and it touches nothing else.\",\n  idea = \"Expiring shares\"\n)(run => forall((s: CrmStore, now: BigInt) => run(s, now).records == s.records && run(s, now).shares == s.shares.filter(sh => !ended(sh, now))))",
+          "idea": "# CRM\n\nMany companies use one CRM. Each company's users manage contacts and deals.\n\n## Expiring shares\n\nA company can share a record until a given time. When that time has passed,\nthe share ends; nothing else changes.",
+          "ideaSection": "Expiring shares",
           "notModelled": "- That the account a search or a write runs for is the caller's own\n  (authentication)."
         }
       }
@@ -2578,6 +2882,20 @@
             "NoCrossTenantRead: exempt, because the write side hands the new store to storage and returns nothing to a reader: no record leaves it"
           ]
         }
+      },
+      {
+        "action": "confirm",
+        "by": "claude-example-data",
+        "at": "2026-10-22T12:55:21.061517691Z",
+        "reason": "Writes load the stored state, apply the proven step through service and store it back in one transaction.",
+        "after": "2bcc39b50e7008c0",
+        "code": "6a67bde5a347f4e0c6712429a4ba8f1fe0e958909ad430e8e31da7af1ca89bd0",
+        "commit": "50116a7f4a13266e821919275c75a8207b6f35ad",
+        "tree": "976cb09a31d4599929e219ef6552780a46d9d177",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "HY0cnJZj7kU0bvE+qLdjLwF78A7sxa9zUhfIygCsWwxHQNQuF+ZB6TWsz8siptina750XvRA9H9nRNbGce4cAA==",
+        "chain": "",
+        "content": "same:ff257e0eb41c0945"
       }
     ],
     "WritesKeepStore": [

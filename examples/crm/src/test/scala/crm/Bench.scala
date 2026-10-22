@@ -1,0 +1,34 @@
+package crm
+
+/** What the run-time checks cost per request: `sbt "crm/Test/runMain crm.benchReads 100000"`. The read
+  * side (ReadContract's code on SQLite, its check, the port's check) against the same SQL and filter
+  * with no FrFlow.
+  */
+@main def benchReads(n: Int): Unit =
+  val tenants = (0 until 100).map(i => TenantId(s"t$i"))
+  val records = (1 to n).toList.map(i => CrmRecord(i, tenants(i % 100), if i % 2 == 0 then Kind.Deal else Kind.Contact, s"record $i"))
+  val shareRows = (1 to n by 50).toList.map(i => Share(i, tenants((i + 1) % 100)))
+  val db = Db.of(records, shareRows)
+  val ann = Account("ann@t7", tenants(7))
+  val read = readSide(db)
+  def plain(u: Account, q: Search) =
+    val ss = db.shares().toSet
+    db.recordsMatching(q).filter(r => r.tenant == u.tenant || ss(Share(r.id, u.tenant)))
+  def time(label: String, f: () => Any): Double =
+    (1 to 5).foreach(_ => f()) // warm up
+    val runs = 10
+    val t0 = System.nanoTime
+    (1 to runs).foreach(_ => f())
+    val ms = (System.nanoTime - t0) / 1e6 / runs
+    println(f"$label%-34s $ms%8.2f ms per request")
+    ms
+  // The same proven code with no checks: what the checks add.
+  val unchecked: (Account, Search) => List[CrmRecord] = (u, q) =>
+    val ss = db.shares()
+    frflow.Bindings.within(List(shares.bind(ss), database.bind(db), fetch.bind((u: Account, q: Search) => db.recordsMatching(q))))(
+      search.lifted.value.asInstanceOf[(Account, Search) => List[CrmRecord]](u, q))
+  for q <- List(Search.ById(4207), Search.OfKind(Kind.Deal)) do
+    val a = time(s"read side, checked, $q", () => read(ann, q))
+    val b = time(s"same code, unchecked, $q", () => unchecked(ann, q))
+    val c = time(s"hand-written SQL and filter, $q", () => plain(ann, q))
+    println(f"  the checks add ${(a - b) / b * 100}%.0f%%; the proven code against hand-written: ${(b - c) / c * 100}%.0f%%")

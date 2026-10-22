@@ -121,7 +121,8 @@ private[frflow] object Names:
     "forall", "exists", "Type", "Prop", "Sort", "this", "deriving", "mut", "return", "for", "try", "catch",
     "matches", "variable", "universe", "axiom", "example", "abbrev", "class", "extends", "local", "private",
     "protected", "partial", "unsafe", "macro", "syntax", "notation", "calc", "suffices", "obtain", "using",
-    "fun", "λ", "nomatch", "nofun", "termination_by", "decreasing_by", "mutual", "opaque", "noncomputable"
+    "fun", "λ", "nomatch", "nofun", "termination_by", "decreasing_by", "mutual", "opaque", "noncomputable",
+    "until", "unless", "repeat", "while", "break", "continue", "attribute", "export", "hiding", "renaming", "omit", "include", "elab", "init", "instance"
   )
 
   /** Lean names the generated code uses unqualified, or that Lean's prelude defines: a Scala name

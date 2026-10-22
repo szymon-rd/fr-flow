@@ -20,6 +20,11 @@ share is of a stored record.
 The sales team has a screen that lists the deals a user can see: every stored
 deal that matches their search, and nothing else.
 
+## Expiring shares
+
+A company can share a record until a given time. When that time has passed,
+the share ends; nothing else changes.
+
 ## Not modelled
 
 - That the account a search or a write runs for is the caller's own

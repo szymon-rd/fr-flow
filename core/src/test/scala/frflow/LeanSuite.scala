@@ -268,6 +268,19 @@ class LeanSuite extends munit.FunSuite:
     assert(c.obligations.filter(_.name.startsWith("eval_")).forall(_.status == "proven"), c)
   }
 
+  test("a port has no parent: Lean proves its check follows from its post, and service runs the check") {
+    val kb = KnowledgeBase("Ports", idea = "IDEA.md")(shelfPort).implementProven(shelfPort)(fromService, (shelf, n) => shelf.filter(_.pages >= minPages.value))
+    val c = workflow(kb).check().find(_._1.id == "ShelfPort").get._2
+    assertEquals(c.status, "proven", c)
+    assertEquals(c.obligations.filter(o => Set("check", "impl", "root_impl")(o.name)).map(o => o.name -> o.status).toSet,
+      Set("check" -> "proven", "impl" -> "proven", "root_impl" -> "proven"), c)
+    // the check, not the post: a book off the shelf passes it, a short book does not
+    val off = KnowledgeBase("Ports", idea = "IDEA.md")(shelfPort).implement(shelfPort)((shelf, n) => List(Book("Elsewhere", 500)))
+    assertEquals(off.service(shelfPort)(minPages.bind(100))(Nil, 1), List(Book("Elsewhere", 500)))
+    val short = KnowledgeBase("Ports", idea = "IDEA.md")(shelfPort).implement(shelfPort)((shelf, n) => List(Book("Short", 20)))
+    intercept[ContractViolation](short.service(shelfPort)(minPages.bind(100))(Nil, 1))
+  }
+
   test("a root doing nothing meets is unproven, unless it says why it only forbids") {
     val w = workflow(KnowledgeBase("Guard", idea = "IDEA.md")(onlyGood))
     w.check()

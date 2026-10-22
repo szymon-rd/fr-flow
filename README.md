@@ -32,6 +32,8 @@ trees. Lean, generated from the Scala, proves each link.
 | expectation | `node.expects(statement)(m => ...)` | a consequence the developer expects, from the node's spec |
 | reliance | `.relies(other, why)`, or `.relies(other, why, guarantee)(sees)` | the guarantee, of every state `other`'s concern reaches |
 | call | `val c = contract.caller("c")`, called in a `define` | the calling code, from the callee's contract alone |
+| port | `Node.port[A, B, R](id, statement, why)(post)` | nothing: what the outside (a database, a service) is trusted to do; callers are proven from it |
+| check | `contract.checkedBy((a, b, r) => ...)` | the post implies it: what `service` checks on every call instead of the whole post |
 
 So for each formal node, the root's statement is true of every model of the
 node, through every link above it. With a proven implementation, it is true of
@@ -155,9 +157,28 @@ and everything below it is out of Lean too.
 implementation, and the implementation also runs on every combination of the
 examples' inputs. In production, `service` checks every result against the
 contract and its invariants (proven code too: the running process does not know
-whether its proof still holds), and
-the guarantees relied on whenever a value it reads changes, or raises
-`ContractViolation`; it refuses to start if a parameter it reads is unbound.
+whether its proof still holds), or raises `ContractViolation`; it refuses to
+start if a parameter it reads is unbound. A contract whose post reads all the
+data (every stored record) gives a cheap check of the result alone
+(`checkedBy`, proven to follow from the post): `service` checks that, and a
+parameter no check or code reads is never loaded. The guarantees relied on are
+checked when the service starts, and again when a call reads their values anew.
+
+**Effects: ports.** A database, an HTTP client or a clock is a port: a contract
+with no parent, decided like any node, whose post says what the outside is
+trusted to do. The proven core calls it (`port.caller`) and is proven from that
+promise; its adapter (SQL) is plain code with a proven `define` as its
+reference (`implementProven(port)(define, sql)`), checked against the define
+on the port's examples and by the port's check on every call. A file a design
+node governs that calls an adapter directly, past `service`, is a warning. In
+`examples/crm`, the read side is proven from `RecordsByQuery` (SQLite), the
+HTTP API (`Server.scala`) and an expiry job (`Job.scala`, its own root) are
+design nodes, and a seeded SQL bug (a dropped `WHERE`) is stopped by the
+port's check while every proof still holds. With 100,000 records in SQLite
+(`sbt "crm/Test/runMain crm.benchReads 100000"`), the checks add about 1% to a
+request; the proven code itself (lists, as Lean reads them) is slower than
+hand-written SQL on large results, and production code can run beside it
+(`implementProven(contract)(define, fast)`).
 
 ## Status and CI
 

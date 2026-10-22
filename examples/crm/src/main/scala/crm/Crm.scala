@@ -105,6 +105,35 @@ val noCrossTenantRead = Node.invariant[Account, CrmRecord](
   why = "The isolation every read path of the CRM must keep, stated once. Every contract keeps it, listing the records a call shows to whom, or says why it shows none; so a new read path (an export, an admin view) cannot leave it out unnoticed."
 )((reader, r) => mayRead(reader, r))
 
+// ============================================================================
+// Port: the database, outside the proven core
+// ============================================================================
+
+val database = Param[Db]("database", "the SQLite database the CRM keeps its records and shares in")
+
+/** What the database is trusted to do: return exactly the stored records a search asks for. */
+val recordsByQuery = Node.port[Account, Search, List[CrmRecord]](
+  "RecordsByQuery",
+  "The database returns exactly the stored records that match a search.",
+  why = "Records live in SQLite. The read side is proven from this promise, not from the SQL; the SQL is checked against the define the port is decided with on its examples, and every result it returns is checked to match the search."
+)((user, query, rs) => rs.forall(r => store.value.contains(r) && matches(query, r)) && store.value.forall(r => matches(query, r) ==> rs.contains(r)))
+  .checkedBy((user, query, rs) => rs.forall(r => matches(query, r)))
+  .examples(
+    store.bind(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal"), CrmRecord(2, TenantId("globex"), Kind.Contact, "Globex contact"))),
+    database.bind(Db.of(store.value)))(
+    expect(Account("ann@acme", TenantId("acme")), Search.OfKind(Kind.Contact), List(CrmRecord(2, TenantId("globex"), Kind.Contact, "Globex contact")),
+      "every company's contacts: the database does not filter by company, the read side does"),
+    expect(Account("ann@acme", TenantId("acme")), Search.ById(1), List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), "a record by its id"),
+    reject(Account("ann@acme", TenantId("acme")), Search.Everything, List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")),
+      "a stored record is never left out"))
+  .exempt(noCrossTenantRead, "it returns records to the read side's code, never to a reader: ReadContract keeps the rule")
+
+/** The records a search asks for, as the port promises them: what the SQL is checked against. */
+val storedMatching = define { (user: Account, query: Search) => store.value.filter(r => matches(query, r)) }
+
+/** In the read side's code: the database, called by its promise. */
+val fetch = recordsByQuery.caller("fetch")
+
 val readContract = accounts.contract[Account, Search, List[CrmRecord]](
   "ReadContract",
   "A search returns exactly the stored records that match it and the user may see: each of the user's company or shared with it.",
@@ -113,7 +142,7 @@ val readContract = accounts.contract[Account, Search, List[CrmRecord]](
   store.value.forall(r => (matches(query, r) && mayRead(user, r)) ==> result.contains(r)))
   .examples(
     store.bind(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal"), CrmRecord(2, TenantId("globex"), Kind.Contact, "Globex contact"))),
-    shares.bind(Nil))(
+    shares.bind(Nil), database.bind(Db.of(store.value, shares.value)))(
     expect(Account("ann@acme", TenantId("acme")), Search.Everything, List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")),
       "Ann lists everything she can see: Acme's deal"),
     expect(Account("ann@acme", TenantId("acme")), Search.ById(2), Nil, "Globex's contact is not shared with Acme"),
@@ -125,10 +154,11 @@ val readContract = accounts.contract[Account, Search, List[CrmRecord]](
       "a search for contacts does not return deals"))
   .examples(
     store.bind(List(CrmRecord(2, TenantId("globex"), Kind.Contact, "Globex contact"))),
-    shares.bind(List(Share(2, TenantId("acme")))))(
+    shares.bind(List(Share(2, TenantId("acme")))), database.bind(Db.of(store.value, shares.value)))(
     expect(Account("ann@acme", TenantId("acme")), Search.OfKind(Kind.Contact), List(CrmRecord(2, TenantId("globex"), Kind.Contact, "Globex contact")),
       "Globex shared its contact with Acme, so Ann finds it by kind"))
   .keeps(noCrossTenantRead)((user, query, result) => result.map(r => (user, r)))
+  .checkedBy((user, query, result) => result.forall(r => matches(query, r) && mayRead(user, r)))
   .expects("Someone at Acme never sees a Globex record that Globex did not share with Acme, whatever they search for")(run =>
     forall((u: Account, q: Search) => (u.tenant == TenantId("acme")) ==>
       run(u, q).forall(r => (r.tenant == TenantId("globex")) ==> shares.value.contains(Share(r.id, TenantId("acme"))))))
@@ -145,9 +175,9 @@ val readSideWiring = readContract.design(
 // Implementation, in the Scala Lean translates: proven to keep ReadContract
 // ============================================================================
 
-/** A search: the stored records it asks for, of the user's company or shared with it. */
+/** A search: what the database returns for it, of the user's company or shared with it. */
 val search = define { (user: Account, query: Search) =>
-  store.value.filter(r => matches(query, r) && mayRead(user, r))
+  fetch(user, query).filter(r => mayRead(user, r))
 }
 
 /** Code built on another contract: `rc` stands for any code meeting ReadContract. DealSearch is
@@ -173,7 +203,7 @@ val dealSearch = salesScreen.contract[Account, Search, List[CrmRecord]](
   store.value.forall(r => (r.kind == Kind.Deal && matches(query, r) && mayRead(user, r)) ==> result.contains(r)))
   .examples(
     store.bind(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal"), CrmRecord(2, TenantId("acme"), Kind.Contact, "Acme contact"))),
-    shares.bind(Nil))(
+    shares.bind(Nil), database.bind(Db.of(store.value, shares.value)))(
     expect(Account("ann@acme", TenantId("acme")), Search.Everything, List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")),
       "Ann's deal search lists Acme's deal, not its contact"),
     expect(Account("ann@acme", TenantId("acme")), Search.OfKind(Kind.Contact), Nil, "a search for contacts finds no deal"),
@@ -298,8 +328,63 @@ val writeSideWiring = writeContract.design(
 )("src/main/scala/crm/WriteSide.scala")
   .exempt(noCrossTenantRead, "the write side hands the new store to storage and returns nothing to a reader: no record leaves it")
 
+// ============================================================================
+// Root: shares given until a time end then, by a job
+// ============================================================================
+
+final case class Expiry(record: BigInt, to: TenantId, until: BigInt)
+
+val expiries = Param[List[Expiry]]("expiries", "until when each limited share holds (a time in seconds), as stored when the job runs")
+
+/** Whether a share has ended by `now`. */
+val ended = define { (sh: Share, now: BigInt) => expiries.value.exists(e => e.record == sh.record && e.to == sh.to && e.until <= now) }
+
+/** Model: what a run of the expiry job, at a time, does to the store. */
+val sharesExpire = Node.root[(CrmStore, BigInt) => CrmStore](
+  "SharesExpire",
+  "When the expiry job runs, exactly the shares that have ended are removed; the records and the other shares stay.",
+  why = "The idea lets a company share a record until a given time; the job is what ends such shares, and it touches nothing else.",
+  idea = "Expiring shares"
+)(run => forall((s: CrmStore, now: BigInt) => run(s, now).records == s.records && run(s, now).shares == s.shares.filter(sh => !ended(sh, now))))
+
+val expireJob = sharesExpire.contract[CrmStore, BigInt, CrmStore](
+  "ExpireJob",
+  "A run removes exactly the shares that have ended, keeps the records, and keeps a consistent store consistent.",
+  why = "SharesExpire, for one run. Keeping the store consistent matters because the read side relies on it (Accounts relies on CrmWrites), and the job changes the store besides the writes."
+)((s, now, t) => t.records == s.records && t.shares == s.shares.filter(sh => !ended(sh, now)) && (consistentStore(s) ==> consistentStore(t)))
+  .examples(expiries.bind(List(Expiry(1, TenantId("globex"), 100))))(
+    expect(CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("globex")), Share(1, TenantId("initech")))), 150,
+      CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("initech")))), "Globex's share ended at 100; Initech's stays"),
+    expect(CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("globex")))), 50,
+      CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("globex")))), "before 100 nothing ends"),
+    reject(CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("globex")), Share(1, TenantId("initech")))), 150,
+      CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), Nil), "a share that has not ended is never removed"))
+  .exempt(noCrossTenantRead, "the store it returns goes to storage, never to a reader")
+
+/** A run: the shares that have not ended. */
+val expire = define { (s: CrmStore, now: BigInt) => s.copy(shares = s.shares.filter(sh => !ended(sh, now))) }
+
+/** The job's wiring, owned as a design decision. */
+val expiryJobWiring = expireJob.design(
+  "ExpiryJobWiring",
+  "The expiry job runs every minute through service, on the stored records and shares, and stores what it returns.",
+  why = "Every change to the store goes through a proven contract; keeping the job's wiring in one governed file makes a change to it visible."
+)("src/main/scala/crm/Job.scala")
+  .exempt(noCrossTenantRead, "it hands the new store to storage and returns nothing to a reader")
+
+/** The HTTP API, owned as a design decision: every request goes through the read, deal and write sides. */
+val httpApi = readContract.design(
+  "HttpApi",
+  "The HTTP API answers searches through the read side, the sales screen through the deal side, and writes through the write side; who calls is the account in the request's headers.",
+  why = "Every request must reach the records only through service. Authentication is not modelled: the headers name the account."
+)("src/main/scala/crm/Server.scala")
+  .exempt(noCrossTenantRead, "it returns only what the read and deal sides return, which keep the rule")
+
 val knowledge = KnowledgeBase("Crm", idea = "IDEA.md")(isolation, readApi, accounts, readContract, readSideWiring, noCrossTenantRead,
-  writesKeepStore, stepByStep, crmWrites, writeContract, writeSideWiring, salesScreen, dealSearch)
+  recordsByQuery, writesKeepStore, stepByStep, crmWrites, writeContract, writeSideWiring, salesScreen, dealSearch,
+  sharesExpire, expireJob, expiryJobWiring, httpApi)
+  .implementProven(recordsByQuery)(storedMatching, (u, q) => database.value.recordsMatching(q))
+  .implementProven(expireJob)(expire)
   .implementProven(readContract)(search)
   .implementProven(dealSearch)(deals)
   .implementProven(writeContract)(applyWrite)

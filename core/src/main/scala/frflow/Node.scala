@@ -83,7 +83,8 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
     val expected: List[(String, Lifted[?])] = Nil,
     val relied: List[(() => Node[?], String, Option[Reliance])] = Nil,
     val at: Int = -1,
-    val safety: String = ""
+    val safety: String = "",
+    val local: Option[Lifted[?]] = None
 ):
   /** The nodes this one relies on besides its parent (see `relies`), with what it relies on. */
   def reliesOn: List[(Node[?], String)] = relied.map((f, why, _) => (f(), why))
@@ -117,7 +118,7 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
   /** The node's lambdas, translated or not: what it refers to (definitions, parameters, opaque types)
     * is known either way, so a change to them reaches it.
     */
-  def referenced: List[Lifted[?]] = spec.toList ++ abs.toList ++ post.toList ++ substs.flatMap(_.term) ++ kept.flatMap(_.view) ++
+  def referenced: List[Lifted[?]] = spec.toList ++ abs.toList ++ post.toList ++ local.toList ++ substs.flatMap(_.term) ++ kept.flatMap(_.view) ++
     expected.map(_._2) ++ relied.flatMap(_._3).flatMap(r => List(r.guarantee, r.sees))
 
   /** A consequence the developer expects of every model of this node, stated as a check of their
@@ -142,9 +143,10 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
     Node(id, statement, why, NodeKind.Contract, Some(this), None, None, Some(Lifted.of(formal, post)), Nil, declaredFormal = formal, file = Lifted.here, at = Lifted.at)
 
   private def copy(cases: List[Example] = cases, governs: List[String] = governs, kept: List[Keep] = kept,
-      expected: List[(String, Lifted[?])] = expected, relied: List[(() => Node[?], String, Option[Reliance])] = relied): Node[M] =
+      expected: List[(String, Lifted[?])] = expected, relied: List[(() => Node[?], String, Option[Reliance])] = relied,
+      local: Option[Lifted[?]] = local): Node[M] =
     Node(id, statement, why, kind, parent, spec, abs, post, substs, cases, governs, declaredFormal, kept, scope, ideaSection, file, expected,
-      relied, at, safety)
+      relied, at, safety, local)
 
   /** A contract with a signature of its own: `abs` says what an implementation is as the parent's
     * model (a new read path below an existing instantiation, say). Proven: `spec f → parent.spec (abs f)`.
@@ -159,6 +161,8 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
 
   private[frflow] def withKeeps(ks: List[Keep]): Node[M] =
     copy(kept = ks)
+
+  private[frflow] def withLocal(l: Lifted[?]): Node[M] = copy(local = Some(l))
 
   /** Source files (or directories) this node also governs, relative to the project: a change to
     * them puts the node up for review. A contract already governs its implementation's files.
@@ -183,6 +187,14 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
   override def toString: String = id
 
 object Node:
+  /** A port: a contract for what lies outside the proven core (a database, an HTTP client, a clock),
+    * with no parent: its post is what the outside is trusted to do, decided like any node. Code that
+    * calls it (`port.caller`) is proven from that promise; its adapter is plain code, checked at run
+    * time (give the port a cheap `checkedBy`).
+    */
+  inline def port[A, B, R](id: String, statement: String, why: String)(inline post: (A, B, R) => Boolean): Node[(A, B) => R] =
+    Node(id, statement, why, NodeKind.Contract, None, None, None, Some(Lifted.of(true, post)), Nil, file = Lifted.here, at = Lifted.at)
+
   /** A root: the formal statement of (one concern of) the project's idea. `why` says why it captures
     * the idea. `idea` names the `## ` section of IDEA.md it is decided against (the text before the
     * first section counts for every root); without it, the root is decided against the whole idea.
@@ -216,8 +228,15 @@ final case class Example(note: String, bindings: List[Binding], givenSource: Lis
   def call: String = s"(${Example.show(a)}, ${Example.show(b)}) ⇒ ${Example.show(result)}"
   /** The parameter values, as values where they print as such (functions as their source). */
   def givens: List[String] = bindings.zip(givenSource).map { (b, src) =>
-    val v = b.value()
-    if v.getClass.getName.contains("$$Lambda") then src else s"${b.param.name} = ${Example.show(v)}"
+    // A value prints as itself when it is data; otherwise (a function, a connection) as its source.
+    def data(v: Any): Boolean = v match
+      case _: String | _: Boolean | _: Int | _: Long | _: BigInt | _: Char => true
+      case o: Option[?] => o.forall(data)
+      case i: Iterable[?] => i.forall(data)
+      case p: Product => !p.getClass.getName.contains("$$Lambda") && p.productIterator.forall(data)
+      case _ => false
+    val v = Bindings.within(bindings)(b.value())
+    if data(v) then s"${b.param.name} = ${Example.show(v)}" else src
   }
   def describe: String = s"${if expected then "expect" else "reject"} $call  given ${givens.mkString(", ")}  — $note"
 
@@ -264,39 +283,38 @@ extension [A, B, R](n: Node[(A, B) => R])
   def caller(name: String): Param[(A, B) => R] =
     Param(name, s"any implementation of ${n.id}: what it returns meets ${n.id}'s contract", Some(() => n))
 
+  /** What `service` checks on every call instead of the whole post: a check of the result alone (each
+    * returned row matches the query, say), cheap where the post reads all the data. Lean proves the
+    * post implies it, so it refuses nothing the contract allows; what it leaves out (that nothing is
+    * missing) rests on the proofs, and on the port's promise.
+    */
+  inline def checkedBy(inline check: (A, B, R) => Boolean): Node[(A, B) => R] = n.withLocal(Lifted.of(true, check))
+
   /** A plain Scala implementation with every call checked against the contract: a result that
     * breaks it is never returned. Used by `KnowledgeBase.service`, which is how code is attached.
     */
-  private[frflow] def enforce(impl: (A, B) => R, assumes: List[(String, () => Boolean)] = Nil)(bindings: Binding*): (A, B) => R =
+  private[frflow] def enforce(impl: (A, B) => R, assumes: List[Assumption] = Nil)(bindings: Binding*): (A, B) => R =
     require(n.kind == NodeKind.Contract, s"${n.id} is not a contract")
-    val post = n.post.get.value.asInstanceOf[(A, B, R) => Boolean]
-    // What the relied-on guarantees were last found to hold of: checked again only when a value changes.
-    @volatile var held: List[Any] = null
+    // The cheap check when the contract gives one (Lean proves the post implies it), else the post.
+    val check = n.local.getOrElse(n.post.get).value.asInstanceOf[(A, B, R) => Boolean]
+    val what = if n.local.isDefined then "its check" else "the contract"
+    // What each relied-on guarantee was last found to hold of: checked again when a value it reads changes.
+    val held = java.util.concurrent.ConcurrentHashMap[String, List[Any]]()
     (a, b) =>
-      // Each parameter is read once per call: the implementation and the contract see the same values
-      // (a parameter that is a function answers each question once).
-      val fixed = bindings.map { b =>
-        def lambda(f: AnyRef) = f.getClass.getName.contains("Lambda")
-        val v = b.value() match
-          case f: Function1[?, ?] if lambda(f) => Example.memo(f.asInstanceOf[Any => Any])
-          case f: Function2[?, ?, ?] if lambda(f) =>
-            val g = f.asInstanceOf[(Any, Any) => Any]
-            val m = Example.memo { case (x, y) => g(x, y) }; (x: Any, y: Any) => m((x, y))
-          case f: Function3[?, ?, ?, ?] if lambda(f) =>
-            val g = f.asInstanceOf[(Any, Any, Any) => Any]
-            val m = Example.memo { case (x, y, z) => g(x, y, z) }; (x: Any, y: Any, z: Any) => m((x, y, z))
-          case other => other
-        (Binding(b.param, () => v), v)
-      }
-      val seen = fixed.map(_._2).toList
-      Bindings.within(fixed.map(_._1)) {
-        if held == null || held.length != seen.length || held.zip(seen).exists((x, y) => !(x.asInstanceOf[AnyRef] eq y.asInstanceOf[AnyRef])) then
-          assumes.find((_, p) => !p()).foreach((what, _) => throw ContractViolation(n.id, s"the values it runs with break what $what"))
-          held = seen
+      // Each parameter is read once per call, and only if something reads it (a whole table a cheap
+      // check does not read is never loaded): the implementation and the check see the same values.
+      val cells = bindings.map(b => b.param.name -> Cell(b)).toMap
+      Bindings.within(cells.values.map(c => Binding(c.binding.param, () => c.get)).toSeq) {
         val r = impl(a, b)
-        // Proven code too: the running process does not know whether its proof still holds.
-        if !post(a, b, r) then throw ContractViolation(n.id, s"result $r for ($a, $b) breaks the contract")
+        if !check(a, b, r) then throw ContractViolation(n.id, s"result $r for ($a, $b) breaks $what")
         n.broken(a, b, r).foreach(i => throw ContractViolation(n.id, s"result $r for ($a, $b) breaks the invariant $i"))
+        assumes.filter(x => x.reads.forall(p => cells.get(p).exists(_.loaded))).foreach { x =>
+          val vs = x.reads.toList.sorted.map(cells(_).get)
+          val last = held.get(x.what)
+          if last == null || last.size != vs.size || last.zip(vs).exists((p, q) => !(p.asInstanceOf[AnyRef] eq q.asInstanceOf[AnyRef])) then
+            if !x.holds() then throw ContractViolation(n.id, s"the values it runs with break what ${x.what}")
+            held.put(x.what, vs)
+        }
         r
       }
 
@@ -330,7 +348,7 @@ extension [A, B, R](n: Node[(A, B) => R])
   /** Each example, checked against the contract and, if given, against an implementation
     * built under the example's parameter values.
     */
-  def checkExamples(impl: Option[() => (A, B) => R], assumes: List[(String, () => Boolean)] = Nil): List[ExampleResult] =
+  def checkExamples(impl: Option[() => (A, B) => R], assumes: List[Assumption] = Nil): List[ExampleResult] =
     val post = n.post.get.value.asInstanceOf[(A, B, R) => Boolean]
     def attempt(f: => String) = try f catch case e: Exception => s"error: ${e.getMessage}"
     // The implementation is built once per set of given values, as a running system would be.
@@ -340,8 +358,8 @@ extension [A, B, R](n: Node[(A, B) => R])
       Bindings.within(e.bindings) {
         val c = attempt {
           val ok = post(a, b, r)
-          val broken = assumes.find((_, p) => !p())
-          if broken.isDefined then s"the values it gives break what ${broken.get._1}"
+          val broken = assumes.find(!_.holds())
+          if broken.isDefined then s"the values it gives break what ${broken.get.what}"
           else if ok != e.expected then (if e.expected then "the contract refuses it" else "the contract accepts it")
           else if e.expected then n.broken(a, b, r).fold("ok")(i => s"the invariant $i refuses it")
           else "ok"
@@ -359,6 +377,29 @@ extension [A, B, R](n: Node[(A, B) => R])
 /** What a node relies on another concern for: a guarantee about the states that concern reaches, and the
   * state this node sees (built from its parameters).
   */
+/** A guarantee relied on, checked where code runs: what it is, the parameters it reads, whether it holds now. */
+final case class Assumption(what: String, reads: Set[String], holds: () => Boolean)
+
+/** A parameter's value for one call, read when first needed (a function answers each question once). */
+private[frflow] final class Cell(val binding: Binding):
+  @volatile var loaded = false
+  private var v: Any = null
+  def get: Any = synchronized {
+    if !loaded then
+      def lambda(f: AnyRef) = f.getClass.getName.contains("Lambda")
+      v = binding.value() match
+        case f: Function1[?, ?] if lambda(f) => Example.memo(f.asInstanceOf[Any => Any])
+        case f: Function2[?, ?, ?] if lambda(f) =>
+          val g = f.asInstanceOf[(Any, Any) => Any]
+          val m = Example.memo { case (x, y) => g(x, y) }; (x: Any, y: Any) => m((x, y))
+        case f: Function3[?, ?, ?, ?] if lambda(f) =>
+          val g = f.asInstanceOf[(Any, Any, Any) => Any]
+          val m = Example.memo { case (x, y, z) => g(x, y, z) }; (x: Any, y: Any, z: Any) => m((x, y, z))
+        case other => other
+      loaded = true
+    v
+  }
+
 final case class Reliance(guarantee: Lifted[?], sees: Lifted[?]):
   /** The guarantee, of the state seen now (under the parameters bound). */
   def holds: Boolean = guarantee.value.asInstanceOf[Any => Boolean](sees.value.asInstanceOf[() => Any]())
@@ -437,7 +478,10 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
       val g = (x: Any, y: Any) => s(x, y)
       () => g
     }
-    contract.enforce((a, b) => f()(a, b), assumptionsOf(contract))((calls ++ bindings)*)
+    // The guarantees relied on hold of the values it starts with; later, whenever a call reads them anew.
+    val assumes = assumptionsOf(contract)
+    Bindings.within(bindings)(assumes.find(!_.holds())).foreach(x => throw ContractViolation(contract.id, s"the values it starts with break what ${x.what}"))
+    contract.enforce((a, b) => f()(a, b), assumes)((calls ++ bindings)*)
 
   /** Each `caller` bound to its contract's registered code, as examples run it. */
   def callerCode: List[Binding] = callers((_, i) => () => i.factory())
@@ -447,8 +491,9 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     params.flatMap(p => p.implementing.map(_()).flatMap(c => implementation(c).map(i => Binding(p, bind(c, i)))))
 
   /** The guarantees the nodes on a contract's path rely on (see `relies`), to check where it runs. */
-  def assumptionsOf(n: Node[?]): List[(String, () => Boolean)] =
-    path(n).flatMap(x => x.reliedProperties.map((o, why, r) => (s"${x.id} relies on ${o.id} for (${why}): `${r.guarantee.source}` of `${r.sees.source}`", () => r.holds)))
+  def assumptionsOf(n: Node[?]): List[Assumption] =
+    path(n).flatMap(x => x.reliedProperties.map((o, why, r) => Assumption(s"${x.id} relies on ${o.id} for (${why}): `${r.guarantee.source}` of `${r.sees.source}`",
+      (r.sees.paramObjects ++ r.guarantee.paramObjects).map(_.name).toSet, () => r.holds)))
 
   /** The results of a node's examples, against the implementation when one is registered. */
   def exampleResults(n: Node[?]): List[ExampleResult] =

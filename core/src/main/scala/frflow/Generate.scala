@@ -100,8 +100,8 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
     case NodeKind.Root     => ctx(n.spec.get)
     case NodeKind.Refine   => ctx(n.spec.get) ++ ctx(n.abs.get) ++ nodeCtx(n.parent.get)
     case NodeKind.Contract =>
-      (ctx(n.post.get) :: n.abs.toList.map(ctx(_)) ++ formalKeeps(n).flatMap((i, v) => List(ctx(i.spec.get), ctx(v))) ++
-        provenImpl(n).map(defCtx)).reduce(_ ++ _) ++ nodeCtx(n.parent.get)
+      (ctx(n.post.get) :: n.abs.toList.map(ctx(_)) ++ n.local.toList.map(ctx(_)) ++ formalKeeps(n).flatMap((i, v) => List(ctx(i.spec.get), ctx(v))) ++
+        provenImpl(n).map(defCtx)).reduce(_ ++ _) ++ n.parent.fold(Ctx.empty)(nodeCtx)
     case NodeKind.Design | NodeKind.Invariant => Ctx.empty
     case NodeKind.Instantiate =>
       val substituted = n.substs.map(_.name).toSet
@@ -290,6 +290,12 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
       coverage(n, inv).toOption.flatten.map(c =>
         Claim(s"cover_${inv.id}", vars, None, c, s"The view of ${inv.id} lists all the result holds of it, each with the caller.")).toList
     }
+    // What service checks on every call, when the contract gives a cheap check: implied by the post.
+    val localCheck = n.local.filter(_ => n.kind == NodeKind.Contract && formal(n)).map { _ =>
+      val (vars, xs) = call(n.post.get.params.map(_._2))
+      Claim("check", vars, Some(s"${at(n)("post")} $xs"), s"${at(n)("runCheck")} $xs",
+        s"What service checks of ${n.id} on every call follows from its post: it refuses nothing the contract allows.")
+    }
     val impl = provenImpl(n).map { d =>
       val (vars, xs) = call(n.post.get.params.init.map(_._2))
       Claim("impl", (assumed(n).map(_._2) :+ vars).filter(_.nonEmpty).mkString(" "), None, s"${at(n)("post")} $xs (${resolve(s"⟦${d.name}⟧")} $xs)", s"Every result of ${d.name} meets ${n.id}.")
@@ -313,7 +319,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
       Claim("nontrivial", "", None, s"${if b.isEmpty then "" else s"∃ $b, "}∃ (m : ${modelType(n)}), ¬ ${at(n)("rootSpec")} (${at(n)("toRoot")} m)",
         s"Some model of ${n.id} fails the root: the root says something here.")
     }
-    link.toList ++ keeps ++ impl ++ feasible ++ nontrivial ++ expects
+    link.toList ++ keeps ++ localCheck ++ impl ++ feasible ++ nontrivial ++ expects
 
   /** The contracts a node's code calls (through `contract.caller` parameters), by parameter name. */
   def callees(n: Node[?]): List[(String, Node[?])] =
@@ -613,9 +619,9 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
         d("toRoot", "", s"fun (m : $m) => ${pat("toRoot")} (${at("abs")} m)")
         d("rootSpec", "", pat("rootSpec"))
       case NodeKind.Contract =>
-        val p = n.parent.get
-        val pa = args(nodeCtx(p))
-        def pat(f: String) = if pa.isEmpty then q(p, f) else s"(${q(p, f)} $pa)"
+        // A port (no parent) is its own root: what the outside is trusted to do.
+        def pat(f: String) = n.parent.fold(at(if f == "rootSpec" then "spec" else f)) { p =>
+          val pa = args(nodeCtx(p)); if pa.isEmpty then q(p, f) else s"(${q(p, f)} $pa)" }
         val post = n.post.get
         val ins = post.params.init
         d("post", post.leanType, resolve(post.lean))
@@ -627,7 +633,9 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
         d("spec", s"($m) → Prop", s"fun (f : $m) => ∀ ${ins.zipWithIndex.map((t, i) => s"(x$i : ${t._2})").mkString(" ")}, ${at("post")} $vars (f $vars)")
         // A contract with a signature of its own maps its implementations to the parent's model.
         n.abs.foreach(a => d("abs", a.leanType, resolve(a.lean)))
-        d("toRoot", "", if n.abs.isDefined then s"fun (m : $m) => ${pat("toRoot")} (${at("abs")} m)" else s"fun (m : $m) => ${pat("toRoot")} m")
+        n.local.foreach(l => d("runCheck", l.leanType, resolve(l.lean)))
+        if n.parent.isEmpty then d("toRoot", "", s"fun (m : $m) => m")
+        else d("toRoot", "", if n.abs.isDefined then s"fun (m : $m) => ${pat("toRoot")} (${at("abs")} m)" else s"fun (m : $m) => ${pat("toRoot")} m")
         d("rootSpec", "", pat("rootSpec"))
       case NodeKind.Instantiate =>
         n.substs.filterNot(_.isType).foreach { s =>
@@ -679,6 +687,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
     val rootStatement = s"∀ $m, ${at("spec")} m → ${at("rootSpec")} (${at("toRoot")} m)"
     val proofOfRoot = n.kind match
       case NodeKind.Root | NodeKind.Design | NodeKind.Invariant => "fun m h => h"
+      case NodeKind.Contract if n.parent.isEmpty => "fun m h => h"
       case NodeKind.Instantiate => s"${q(n.parent.get, "root")} ${theta(n)}"
       case _ =>
         val p = n.parent.get

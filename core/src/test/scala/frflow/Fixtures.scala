@@ -100,6 +100,15 @@ val longPick = books.contract[List[Book], Int, List[Book]]("LongPick", "Picking 
     expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
     reject(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
 
+/** A port: what an outside shelf service is trusted to return, with a cheap check of each result. */
+val shelfPort = Node.port[List[Book], Int, List[Book]]("ShelfPort", "The shelf service returns long enough books from the shelf.", why = "Books come from a service.")(
+  (shelf, n, r) => r.forall(b => shelf.contains(b) && b.pages >= minPages.value))
+  .checkedBy((shelf, n, r) => r.forall(b => b.pages >= minPages.value))
+  .examples(minPages.bind(100))(
+    expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "the long book"),
+    reject(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
+val fromService = define { (shelf: List[Book], n: Int) => shelf.filter(b => b.pages >= minPages.value) }
+
 /** Code using flatMap and take: proven like a filter. */
 val firstLong = define { (shelf: List[Book], n: Int) => shelf.flatMap(b => if b.pages >= minPages.value then List(b) else Nil).take(n) }
 
