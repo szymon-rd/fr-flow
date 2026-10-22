@@ -539,11 +539,23 @@ function lineDiff(a, b) {
   return out.join("\n");
 }
 
+// Examples under the values they are given, each group once: a new binding is one line, not every example again.
+function exampleLines(es) {
+  const out = []; let given = null;
+  for (const e of es || []) {
+    const m = e.match(/^(.*?)  given (.*?)  — (.*)$/s);
+    if (!m) { out.push(e); continue; }
+    if (m[2] !== given) { given = m[2]; out.push(`given ${given || "nothing"}`); }
+    out.push(`  ${m[1]}  — ${m[3]}`);
+  }
+  return out.join("\n");
+}
+
 function diff(old, cur) {
   const flat = c => ({
     parent: c.parent, statement: c.statement, why: c.why, idea: c.idea, "not modelled": c.notModelled,
     ...Object.fromEntries(Object.entries(c.sources || {})),
-    substitutions: (c.substitutions || []).join("\n"), examples: (c.examples || []).join("\n"),
+    substitutions: (c.substitutions || []).join("\n"), examples: exampleLines(c.examples),
     implementation: c.implementation, vocabulary: (c.vocabulary || []).join("\n"), "definitions used": (c.uses || []).join("\n\n"), governs: (c.governs || []).join("\n"),
     "invariants kept": (c.keeps || []).join("\n"), "relies on": (c.relies || []).join("\n"), "out of Lean": c.formal === false ? "yes" : "",
     "definition (as written)": c.definition,
