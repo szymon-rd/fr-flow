@@ -34,6 +34,8 @@ class SnapshotSuite extends munit.FunSuite:
     assertEquals(ns("Pick")("examples").get.arr.head("given").get.arr.flatMap(_.str), Seq("minPages = 100"))
     assertEquals(j("params").get.arr.flatMap(p => field(p, "means")).toSet, Set("whether an item is worth picking", "the length readers asked for, from the settings"))
     assertEquals(ns("Pick")("code"), Some(Json.JNull)) // its implementation lives in the model's own file
+    // the model's files are where its nodes are written; a model may span several
+    assertEquals(shelfKb.modelFiles.map(f => java.nio.file.Paths.get(f).getFileName.toString), List("Fixtures.scala"))
   }
 
   test("the tree is decided from the root down, always with a reason") {

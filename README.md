@@ -183,7 +183,8 @@ a clean checkout and runs `check` before `status`.
   alternative, the invariants that apply, what moved, and the decisions below.
 - **Before adding, find.** `find` names the nodes that govern a file or
   mention a concern, so an agent extends the theory instead of forking it.
-- **Every file has one owner**, or `status` fails.
+- **Every file has one owner**, or `status` fails. The model itself may span
+  several files (one per concern, say); each holds only the model.
 - **Cross-cutting rules are stated once**, and a new contract or design node
   cannot skip one silently: it keeps it or says why not.
 - **Concerns are separate.** Each root names its section of `IDEA.md`; editing

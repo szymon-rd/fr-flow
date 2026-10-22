@@ -77,7 +77,8 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
     val declaredFormal: Boolean = true,
     val kept: List[Keep] = Nil,
     val scope: List[Node[?]] = Nil,
-    val ideaSection: String = ""
+    val ideaSection: String = "",
+    val file: String = ""
 ):
   /** Whether Lean checks this node: it did not opt out, and neither did anything above it. */
   def formal: Boolean = declaredFormal && parent.forall(_.formal)
@@ -94,19 +95,19 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
   inline def refine[M2](id: String, statement: String, why: String, inline formal: Boolean = true)(
       inline abs: M2 => M, inline spec: M2 => Boolean): Node[M2] =
     Node(id, statement, why, NodeKind.Refine, Some(this), Some(Lifted.of(formal, spec)), Some(Lifted.of(formal, abs)), None, Nil,
-      declaredFormal = formal)
+      declaredFormal = formal, file = Lifted.here)
 
   /** Fixes opaque types and parameters. `why` says why these are the right meanings in the world. */
-  def instantiate[M2](id: String, statement: String, why: String, formal: Boolean = true)(substs: Subst*): Node[M2] =
-    Node(id, statement, why, NodeKind.Instantiate, Some(this), None, None, None, substs.toList, declaredFormal = formal)
+  inline def instantiate[M2](id: String, statement: String, why: String, formal: Boolean = true)(substs: Subst*): Node[M2] =
+    Node(id, statement, why, NodeKind.Instantiate, Some(this), None, None, None, substs.toList, declaredFormal = formal, file = Lifted.here)
 
   /** A contract for implementations with two inputs: `post(a, b, result)` holds for every call. */
   inline def contract[A, B, R](id: String, statement: String, why: String, inline formal: Boolean = true)(
       inline post: (A, B, R) => Boolean)(using M =:= ((A, B) => R)): Node[(A, B) => R] =
-    Node(id, statement, why, NodeKind.Contract, Some(this), None, None, Some(Lifted.of(formal, post)), Nil, declaredFormal = formal)
+    Node(id, statement, why, NodeKind.Contract, Some(this), None, None, Some(Lifted.of(formal, post)), Nil, declaredFormal = formal, file = Lifted.here)
 
   private def copy(cases: List[Example] = cases, governs: List[String] = governs, kept: List[Keep] = kept): Node[M] =
-    Node(id, statement, why, kind, parent, spec, abs, post, substs, cases, governs, declaredFormal, kept, scope, ideaSection)
+    Node(id, statement, why, kind, parent, spec, abs, post, substs, cases, governs, declaredFormal, kept, scope, ideaSection, file)
 
   private[frflow] def withExamples(es: List[Example]): Node[M] =
     copy(cases = cases ++ es)
@@ -124,8 +125,8 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
     * convention. `governs` are the source files it is about (relative to the project), so a
     * change to them is noticed.
     */
-  def design(id: String, statement: String, why: String)(governs: String*): Node[Unit] =
-    Node(id, statement, why, NodeKind.Design, Some(this), None, None, None, Nil, Nil, governs.toList)
+  inline def design(id: String, statement: String, why: String)(governs: String*): Node[Unit] =
+    Node(id, statement, why, NodeKind.Design, Some(this), None, None, None, Nil, Nil, governs.toList, file = Lifted.here)
 
   /** The invariant does not apply to this contract or design decision, for the reason given (part of
     * what the node says, so the developer reads it).
@@ -143,7 +144,8 @@ object Node:
     */
   inline def root[M](id: String, statement: String, why: String, inline formal: Boolean = true, idea: String = "")(
       inline spec: M => Boolean): Node[M] =
-    Node(id, statement, why, NodeKind.Root, None, Some(Lifted.of(formal, spec)), None, None, Nil, declaredFormal = formal, ideaSection = idea)
+    Node(id, statement, why, NodeKind.Root, None, Some(Lifted.of(formal, spec)), None, None, Nil, declaredFormal = formal, ideaSection = idea,
+      file = Lifted.here)
 
   /** A cross-cutting invariant: `rule(a, b)` holds for every pair a call exposes (such as a reader
     * and a record returned to them), stated once. Every contract below the `scope` nodes (every
@@ -151,11 +153,12 @@ object Node:
     */
   inline def invariant[A, B](id: String, statement: String, why: String, scope: List[Node[?]] = Nil, inline formal: Boolean = true)(
       inline rule: (A, B) => Boolean): Node[(A, B) => Boolean] =
-    Node(id, statement, why, NodeKind.Invariant, None, Some(Lifted.of(formal, rule)), None, None, Nil, declaredFormal = formal, scope = scope)
+    Node(id, statement, why, NodeKind.Invariant, None, Some(Lifted.of(formal, rule)), None, None, Nil, declaredFormal = formal, scope = scope,
+      file = Lifted.here)
 
   /** A design decision on its own, with no formal model (see `Node.design`). */
-  def design(id: String, statement: String, why: String)(governs: String*): Node[Unit] =
-    Node(id, statement, why, NodeKind.Design, None, None, None, None, Nil, Nil, governs.toList)
+  inline def design(id: String, statement: String, why: String)(governs: String*): Node[Unit] =
+    Node(id, statement, why, NodeKind.Design, None, None, None, None, Nil, Nil, governs.toList, file = Lifted.here)
 
 /** A concrete case of a contract, under given parameter values: the call `(a, b)`
   * with `result`. An `expect`ed case must be accepted by the contract and returned by
@@ -321,6 +324,11 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     KnowledgeBase(name, idea, implementations.filterNot(_.contract == i.contract) :+ i)(nodes*)
 
   def implementation(n: Node[?]): Option[Implementation] = implementations.find(_.contract == n.id)
+
+  /** The files the model is written in: those its nodes are defined in, and where implementations are
+    * attached. A model may span several files; each holds only the model.
+    */
+  def modelFiles: List[String] = (nodes.map(_.file) ++ implementations.flatMap(_.modelFile)).filter(_.nonEmpty).distinct
 
   /** The running system: the registered implementation of `contract`, reading the given parameter
     * values, with every result checked against the contract (see `enforce`).

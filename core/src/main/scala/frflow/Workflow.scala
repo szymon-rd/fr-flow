@@ -361,7 +361,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     */
   def modelCode: List[String] =
     val skip = Set("final", "private", "protected", "sealed", "abstract", "lazy", "override", "inline", "opaque", "transparent")
-    kb.implementations.flatMap(_.modelFile).distinct.map(f => Path.of(f)).filter(Files.isRegularFile(_)).flatMap { p =>
+    kb.modelFiles.map(f => Path.of(f)).filter(Files.isRegularFile(_)).flatMap { p =>
       val rel = ws.root.toAbsolutePath.normalize.relativize(p.toAbsolutePath.normalize)
       var inEnum = false
       // Strings (statements, reasons) say anything; only the code around them is looked at.
@@ -400,7 +400,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val src = ws.root.resolve("src/main")
     val abs = (p: Path) => p.toAbsolutePath.normalize
     val governed = kb.nodes.flatMap(code).flatMap(_.files).map(f => abs(ws.root.resolve(f))).toSet ++
-      kb.implementations.flatMap(_.modelFile).map(f => abs(Path.of(f)))
+      kb.modelFiles.map(f => abs(Path.of(f)))
     if !Files.isDirectory(src) then Nil
     else Files.walk(src, java.nio.file.FileVisitOption.FOLLOW_LINKS).iterator.asScala.toList.filter(Files.isRegularFile(_))
       .map(abs).filterNot(governed).map(p => abs(ws.root).relativize(p).toString).sorted

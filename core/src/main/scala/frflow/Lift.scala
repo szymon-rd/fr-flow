@@ -90,6 +90,13 @@ private[frflow] object Lift:
     // The model's own file comes last: it is where the implementation is attached, not part of it.
     Expr(kept.map(rel) ++ own.filter(o => !kept.contains(o)).map(rel))
 
+  /** The source file of the call site, relative to the build's directory: where a node is defined. */
+  def here(using Quotes): Expr[String] =
+    import quotes.reflect.*
+    val base = java.nio.file.Paths.get("").toAbsolutePath.normalize
+    val p = java.nio.file.Paths.get(Position.ofMacroExpansion.sourceFile.path).toAbsolutePath.normalize
+    Expr(if p.startsWith(base) then base.relativize(p).toString else p.toString)
+
   def sources(xs: Expr[Seq[Any]])(using Quotes): Expr[List[String]] =
     import quotes.reflect.*
     // Through inline calls the argument arrives wrapped; its own position is the caller's text.
