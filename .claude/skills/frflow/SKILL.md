@@ -18,6 +18,7 @@ and below it parts that together prove it, down to contracts on the code. Lean
 proves each split; the developer decides every node in the browser, and
 whatever moves under a decision puts the node back up for review. The README
 explains the method and `docs/DAG.md` the design; this file holds your rules.
+To start a project, follow the README's "New project".
 
 ## Rules
 
@@ -60,7 +61,8 @@ explains the method and `docs/DAG.md` the design; this file holds your rules.
 
 ## The loop
 
-1. `inbox`: requests, rejected nodes to remove, waiting decisions, the tree.
+1. `inbox`: requests, rejected nodes (each with who rejected it and why),
+   waiting decisions, the tree.
 2. For each request, read `IDEA.md` and `context(node)`, and `find` where the
    change belongs. Place a new statement **under the lowest nodes it helps
    prove, as a part** (several parents if it serves several). Extend what
@@ -71,8 +73,12 @@ explains the method and `docs/DAG.md` the design; this file holds your rules.
    Proposals should reach the developer proven, with passing examples.
 4. `answer(request, text)`: name the proposals, the trade-off, what is left
    open, what the contract does not promise.
-5. After the developer decides, delete the rejected nodes, move what was under
-   them under the node chosen, and drop their names from other statements.
+5. After the developer decides, read each rejected node's reason (in `inbox`,
+   and with the decision in `context`). If it asks for something, propose a
+   node in its place that does it, under the same parents, its `why` saying
+   what the reason asked; then (or if it asks for nothing) remove the rejected
+   node, move what was under it under the node chosen, and drop its name from
+   other statements.
 6. When the inbox says the developer asks to revisit a node, propose a change,
    or `answer` with `node` why it still holds.
 
@@ -83,7 +89,7 @@ The MCP server `frflow` (see `.mcp.json`); pass `project` when there are several
 | tool | use |
 |---|---|
 | `inbox` | Start here: requests, clean-up, waiting decisions, the tree. |
-| `context(node)` | What bears on a node: its idea section, the vocabulary it uses (meanings, definitions in force), its ancestors with every reason and rejected alternative, its co-parts under each parent, its parts, the contracts its code calls, invariants, what moved, its obligations. |
+| `context(node)` | What bears on a node: its decision (who, when, why; a rejection's reason too), its idea section, the vocabulary it uses (meanings, definitions in force), its ancestors with every reason and rejected alternative, its co-parts under each parent, its parts, the contracts its code calls, invariants, what moved, its obligations. |
 | `find(query)` | Which nodes govern a file, or what mentions some words: nodes, reasons, rejected options, gone nodes, the idea, Not modelled. |
 | `render` | Rebuild from the Scala; compile errors and structural problems come back here. |
 | `check(node?)` | Prove what changed and evaluate the examples in Lean. Slow. A `timeout` is not a failure: run it again. |
@@ -91,7 +97,8 @@ The MCP server `frflow` (see `.mcp.json`); pass `project` when there are several
 | `answer(request, text)` | Reply to a request; with `node` and no `request`, tell the developer about work they did not ask for. |
 
 Without MCP: `sbt "<kb>/run inbox"`, `render`, `check [NODE]`, `status`,
-`context NODE`, `find WORDS|PATH`, `scaffold NODE`. `ci` is for CI.
+`context NODE`, `find WORDS|PATH`, `scaffold NODE`, `answer REQUEST TEXT` (or
+`answer NODE TEXT`, for work they did not ask for). `ci` is for CI.
 
 ## Writing nodes
 
@@ -206,7 +213,8 @@ and `root_impl`. `unchecked`, `timeout` and `informal` when there is no result.
 
 | Report | Means | Do |
 |---|---|---|
-| `complete` open: "automation gave up" | the parts may not make it | First ask whether they do: usually a part is missing or too weak. If they do, prove it by hand (below). |
+| `complete` open: "automation gave up" | the parts may not make it | First ask whether they do: usually a part is missing or too weak. If they do, prove it by hand (below), from the goal it prints. |
+| "the obligation of N changed since this proof was written" | a part or a term was added or removed, and the proof introduces binders by position | Start the proof with `frflow_intro` and use the names it prints. |
 | Ci `not-needed` | the node holds without Ci | Ci belongs elsewhere (under the node it does help), or another part says too much, or the node says less than meant. Fix the split. |
 | `vacuous` (one part) | the node holds whatever its part says | The node says nothing its part adds (often true of every world): strengthen it, or remove it. |
 | `clash` | the parts contradict each other | Fix the parts; a proof from them would prove anything. |
@@ -222,11 +230,15 @@ and `root_impl`. `unchecked`, `timeout` and `informal` when there is no result.
 ## Proving by hand
 
 1. Run `scaffold(node)`: it writes `lean/Proofs/<KB>/<Node>.lean` with a stub
-   per open obligation, each stating exactly `Obl.<name>`.
-2. Start with `unfold Obl.complete`, `intro` the open terms and one hypothesis
-   per part, `simp only [<KB>.<Part>.claim, ...] at *` (or
-   `simp only [frflow_defs] at *`). Iterate with
-   `lake env lean Proofs/<KB>/<Node>.lean` in `lean/`, then run `check`.
+   per open obligation, each stating exactly `Obl.<name>`, starting with
+   `unfold Obl.<name>`, `frflow_intro` and `simp only [frflow_defs] at *`,
+   then the goal these steps leave (as a comment), then `sorry`. `check`
+   prints the same goal when automation gave up.
+2. `frflow_intro` introduces the open terms by their names and one hypothesis
+   per part, `h_<Part>`: refer to them by name, so the proof survives a part
+   or a term added later (an `intro` by position does not). Replace `sorry`;
+   iterate with `lake env lean Proofs/<KB>/<Node>.lean` in `lean/`, then run
+   `check`.
 3. The library: `FrFlow.always` (a property kept by every step holds of every
    run), `FrFlow.simulates` (and `simulates_rel`, `simulates_of_inv`: a step
    mirroring an abstract step), `FrFlow.tracks` and `tracks_eq` (the state
@@ -243,8 +255,10 @@ and `root_impl`. `unchecked`, `timeout` and `informal` when there is no result.
 
 ## The Scala subset
 
-Unsupported Scala is a compile error, `FrFlow: not supported in a model`:
-rewrite the expression, or make it a `define { ... }`. Supported: fields, case
+Unsupported Scala is a compile error, `FrFlow: not supported in a model`,
+with the usual rewrite for common cases (`count` as `filter(...).length`,
+`sum` with `foldLeft`, an `Option`'s `toList` or `map` as a `match`): rewrite
+the expression, or make it a `define { ... }`. Supported: fields, case
 class constructors, `copy`, `match` (wildcards included), `if`; `==`, `!=`,
 `&&`, `||`, `!`, `==>`; `forall`/`exists` over one or two typed binders; on
 `List`: `contains`, `exists`, `forall`, `filter`, `filterNot`, `map`,
@@ -257,8 +271,10 @@ membership): `contains`, `+`, `-`, `++`, `intersect`, `subsetOf`, `Set(...)`.
 Not `m(k)` (it throws), nor iterating a map or a set. Params (applied or
 `.value`), `define`d functions of up to five arguments.
 
-Use `BigInt`: `Int`/`Long` arithmetic is refused, as is `exists` over a type
-holding one. Divide only by a literal. No function-typed fields, no types that
+Use `BigInt`: on it `+`, `-`, `*`, unary `-`, `max`, `min`, `<`, `<=`, `>`,
+`>=`, and `/`, `%` by a literal; `BigInt(xs.length)` to compare a length with
+one. `Int`/`Long` arithmetic is refused (comparisons are not), as is `exists`
+over a type holding one. No function-typed fields, no types that
 redefine `equals`, no two `define`s with one name.
 
 ## Pitfalls
