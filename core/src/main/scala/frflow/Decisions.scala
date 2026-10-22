@@ -162,7 +162,11 @@ object Decisions:
     val introduces = n("content").flatMap(_("vocabulary")).exists(_.arr.nonEmpty)
     val link = n("link").filter(_ != JNull).map(s(_, "status"))
     val (ok, total) = examples(n)
-    if !Set("refine", "instantiate", "contract")(s(n, "kind")) then Some(s"${s(n, "kind")} nodes are the developer's to decide")
+    val codeOnly = st == "review" && causes(snapshot, ledger, n) == List("code")
+    // A change inside the code a node governs (a contract's implementation, a component's files) is
+    // the agent's to settle; what any node says, and the choice of roots, components and invariants,
+    // is the developer's.
+    if !codeOnly && !Set("refine", "instantiate", "contract")(s(n, "kind")) then Some(s"${s(n, "kind")} nodes are the developer's to decide")
     else if st == "accepted" then Some(s"$id is already settled")
     else if st == "rejected" then Some(s"$id was rejected")
     else if st == "review" && causes(snapshot, ledger, n) != List("code") then Some(s"what $id says changed: the developer decides")

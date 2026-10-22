@@ -353,7 +353,8 @@ function chips(n) {
   const bad = examplesBad(n).length, ex = (n.examples || []).length;
   const st = n.state === "review" ? `review: ${(n.causes || []).join(", ")}` : n.state;
   return `<span class="chip s-${n.state}" title="${esc((n.causes || []).map(c => causeText[c]).join("; "))}">${esc(st)}</span>
-    ${ex ? `<span class="chip ${bad ? "s-bad" : "s-ok"}" title="examples">examples ${ex - bad}/${ex}</span>` : ""}`;
+    ${ex ? `<span class="chip ${bad ? "s-bad" : "s-ok"}" title="examples">examples ${ex - bad}/${ex}</span>` : ""}
+    ${n.settledByAgent ? `<span class="chip s-review" title="settled by the agent: spot-check it">agent-settled</span>` : ""}`;
 }
 
 function renderTree() {
@@ -491,6 +492,7 @@ function warnings(n) {
   const w = [];
   if (n.kind !== "design" && n.parent && !["proven", "informal"].includes(linkStatus(n))) w.push(`its link is ${linkStatus(n)}`);
   if (examplesBad(n).length) w.push(`${examplesBad(n).length} example(s) fail`);
+  (n.invariants || []).filter(i => !["proven", "informal"].includes(i.status)).forEach(i => w.push(`invariant ${i.id} is ${i.status}`));
   return w;
 }
 
@@ -624,8 +626,12 @@ function nodePane() {
     <div class="why"><div class="label">why</div>${esc(c.why)}</div>
     ${examplesTable(n)}`;
   if (n.kind === "design") {
-    h += `<h3>Design decision</h3><div class="box"><div class="muted small">No formal model: decided and tracked like the rest. It governs:</div>
+    h += `<h3>Design decision</h3><div class="box"><div class="muted small">No formal model: decided and tracked like the rest. It governs (a component when it owns a directory: changes inside it are the agent's to settle, and you spot-check them):</div>
       <pre>${esc((n.code?.files || []).join("\n") || "—")}</pre></div>`;
+  } else if (n.kind === "invariant") {
+    h += `<h3>Invariant</h3><div class="box"><div class="muted small">One rule, stated once. Each contract that keeps it gives the rule for its own calls; it is proven from the contract's post in Lean (unless that contract opted out), and checked on its examples and at run time.</div>
+      ${(n.covers || []).map(id => { const k = (byId(id)?.invariants || []).find(i => i.id === n.id) || {};
+        return `<div class="side"><div class="label"><a data-goto="${esc(id)}">${esc(id)}</a> — ${esc(k.status || "")}${k.detail ? ": " + esc(k.detail) : ""}</div><pre>${esc(k.rule || "")}</pre></div>`; }).join("")}</div>`;
   } else if (!parent) {
     h += `<h3>Root</h3><div class="box"><div class="muted">One concern of the idea, stated as a theorem. Every node below is proven to imply it.</div>${code("spec", (c.sources || {}).spec)}</div>`;
   } else {
@@ -636,6 +642,7 @@ function nodePane() {
         ${(C(parent).sources || {}).spec ? `<pre>${esc(C(parent).sources.spec)}</pre>` : parent.kind === "instantiate" ? `<div class="muted small">its spec is its parent's, instantiated</div>` : ""}</div>
       <div class="side"><div class="label">this node <b>${esc(n.id)}</b></div>${modelOf(n)}</div>
       ${n.code ? `<div class="side"><div class="label">governs</div><div class="mono small">${esc(n.code.files.join(", "))}</div></div>` : ""}
+      ${(n.invariants || []).map(i => `<div class="side"><div class="label">keeps <a data-goto="${esc(i.id)}">${esc(i.id)}</a> — ${esc(i.status)}${i.detail ? ": " + esc(i.detail) : ""}</div><pre>${esc(i.rule)}</pre></div>`).join("")}
       ${n.proof ? `<details ${n.state !== "accepted" ? "open" : ""}><summary>authored proof — ${esc(n.proof.file)}</summary><pre>${esc(n.proof.source)}</pre></details>` : ""}
     </div>`;
   }
@@ -647,7 +654,8 @@ function nodePane() {
       ${n.kind !== "design" ? `<button class="btn small" data-run="check" data-arg="${esc(n.id)}">Check this node</button>` : ""}
       ${ls === "open" && !n.proof && n.obligation ? `<button class="btn small" data-run="scaffold" data-arg="${esc(n.id)}">Create proof file</button>` : ""}
     </div>`;
-  if (n.kind !== "design") h += `<details><summary>Root theorem — ${pathProven(n) ? "holds: every link from the root is proven" : "holds once every link on the path is proven"}</summary>
+  const read = pathTo(n.id).slice(1).filter(p => linkStatus(p) === "informal").length;
+  if (n.kind !== "design" && n.kind !== "invariant") h += `<details><summary>Root theorem — ${!pathProven(n) ? "holds once every link on the path is proven" : read ? `holds as far as Lean goes: ${read} link(s) on the path are decided by reading, not proven` : "holds: every link from the root is proven"}</summary>
       <div class="chain">${pathTo(n.id).map((p, i) => (i ? `<span class="arrow ${linkStatus(p)}">${linkStatus(p) === "proven" ? "⟵✓" : "⟵?"}</span>` : "") +
         `<a data-goto="${esc(p.id)}">${esc(p.id)}</a>`).join("")}</div><pre>${esc(n.rootTheorem)}</pre></details>
     ${n.obligation ? `<details><summary>Obligation in Lean</summary><pre>${esc(n.obligation.statement)}</pre></details>` : ""}

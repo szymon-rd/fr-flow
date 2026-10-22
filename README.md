@@ -14,6 +14,10 @@ theory is what the system must do and why it is built this way.
   is, how it maps to the world, what would have to change if the world did.
   With agents, the human often never builds that theory, and the agent loses
   it when its context is compressed.
+- **Scale.** A large system grown by many agents over many sessions needs its
+  theory to outlive every context window, its cross-cutting rules to hold
+  everywhere, and the developer's attention spent on choices, not on every
+  change.
 
 ## The method
 
@@ -24,7 +28,9 @@ The developer writes the idea in `IDEA.md`. The project's knowledge is a
 - each node below **specializes its parent**, one design decision at a time;
 - **contracts** are what an implementation must satisfy on every call;
 - **design** nodes record decisions that have no formal model, such as
-  architecture or conventions.
+  architecture or conventions; one that owns a directory is a **component**;
+- **invariants** state a cross-cutting rule once ("no cross-tenant read"); each
+  contract it applies to names it and keeps it.
 
 | What is recorded | Where | Why it matters |
 |---|---|---|
@@ -34,6 +40,7 @@ The developer writes the idea in `IDEA.md`. The project's knowledge is a
 | per contract: examples (`expect` / `reject`) | the Scala source | what it means in concrete cases |
 | per contract: what it does *not* promise, found mechanically | shown with the node | nobody believes it says more than it does |
 | per node: who chose it, their reason, the alternatives rejected | `.frflow/ledger.json`, append-only | the decisions behind the design |
+| cross-cutting rules, and the contracts that keep them | `Node.invariant`, `.holds(inv)(rule)` | one rule, checked everywhere it applies |
 
 **The theory is built by deciding.** The developer works in the browser.
 1. They ask for a next step.
@@ -44,6 +51,15 @@ The developer writes the idea in `IDEA.md`. The project's knowledge is a
 The tree is decided from the root down. An agent picking up the work later
 reads the whole record through `context`.
 
+**The developer decides every choice; the agent settles what involves none.**
+Roots, components, invariants, a node with alternatives beside it, a node that
+introduces a term, and any change to what a node says are the developer's.
+The agent may settle (`settle`) a mechanical node, one with no alternative
+and no new term whose link holds and examples pass, and a change to the code
+a node governs once the checks pass; it gives its reason, and the browser
+lists what it settled for the developer to spot-check and endorse. Human
+attention goes where the meaning is.
+
 **Drift is caught by one rule: a decision binds a person's reason to the hash
 of what they saw, and whatever moves under it puts the node back up for
 review.** A node under review says why:
@@ -52,8 +68,9 @@ review.** A node under review says why:
 |---|---|---|
 | `self` | the node: statement, `why`, sources, examples (by value), the meaning of the terms it is the first to use, the definitions and types it uses, its parent, how its implementation is built; for a root, the idea and what is not modelled | a word-level diff against what was decided |
 | `above` | the *meaning* of an ancestor: its statement, model, vocabulary, definitions (rewording a `why`, adding an example or editing the idea does not cascade) | the diff of the ancestor that moved |
-| `code` | the code it governs: a contract's implementation (its package directory, subdirectories included) or a design node's files | a git diff against the code as it was decided |
+| `code` | the code it governs: the files a contract's implementation refers to, a design node's (or component's) files, anything `.governing` names | a git diff against the code as it was decided; the files in full when first decided |
 | `revisit` | the developer said a change above may affect it | the reason they gave |
+| `merged` | two branches decided it, and a merge kept both | both decisions, in the history |
 | `gone` | it was removed from the model | listed until the developer agrees |
 
 A change of meaning cascades by itself. A change that does not, such as an
@@ -63,8 +80,11 @@ lists every decision below with its reason. The developer ticks those the
 change may affect: they go back to review (`revisit`). The others still hold;
 those that moved only because of this change are confirmed with the
 developer's reason, by name, and leaving them all unticked is asked for
-explicitly. The reasons are where the conditions for revisiting are written;
-this is where they are read.
+explicitly; the decisions left as they are are recorded as considered. The
+reasons are where the conditions for revisiting are written; this is where
+they are read. A root's change (an edit of the idea) lists every decision in
+the knowledge base. An invariant's change reaches every contract that keeps
+it, as a parent's does.
 
 The developer **accepts** or **rejects**:
 - accepting a proposal chooses it, and rejects the alternatives ticked;
@@ -81,13 +101,15 @@ The developer **accepts** or **rejects**:
   decision is refused if the node moved since the developer looked at it.
 
 The levels are kept honest by Lean:
-- **Every link is proven:** each node implies its parent.
+- **Every formal link is proven:** each node implies its parent.
+- **Every formal invariant is kept:** each contract's post implies the rule it
+  keeps, or the invariant is reported open.
 - **A vacuous link fails, when `frflow_auto` shows it:** one where the parent
   holds whatever the node says.
 - **A node that makes the root hold by itself fails, when `frflow_auto` shows
   it:** one where the root holds for every model of the node, whatever its
   spec says, because an `abs` or a substitution above decides it.
-- **Assumptions about the world are shown:** a top-level condition of a spec
+- **Assumptions about the world are shown:** a top-level condition (only) of a spec
   that never mentions the model constrains the world, not the system, and is
   listed with the node's limits.
 - **An unsatisfiable node fails, when `frflow_auto` finds the contradiction:**
@@ -99,27 +121,55 @@ The levels are kept honest by Lean:
 Behaviour is kept honest by examples and run-time checks:
 - **Examples** run against the contract and the implementation. An
   implementation that always returns the same value must fail one of them.
-- **The contract holds for every call:** the implementation also runs on every
-  combination of the examples' inputs, and a result that breaks the contract
-  fails like an example.
+- **On every combination of the examples' inputs,** the implementation also
+  runs, and a result that breaks the contract or an invariant it keeps fails
+  like an example.
 - **Each contract lists what it does not promise**, found mechanically: inputs
   it never looks at, or the fact that an empty result always satisfies it.
-- **In production,** `service` checks every result against the contract.
+- **In production,** `service` checks every result against the contract and
+  the invariants it keeps.
 
 `status` and the browser also warn:
 - when a committed version of the ledger, or the ledger now, changed or
   removed decisions recorded in the version it follows (the ledger only grows;
-  a merge may interleave both sides' decisions; a commit that deletes it
-  starts a new record, and `status` notes it);
+  a merge may interleave both sides' decisions); a commit that deletes it
+  starts a new record, and is a warning until the developer acknowledges it;
 - when a source file of any kind under `src/main` is governed by no node, or
   the model's file holds code other than the model (helpers, classes, methods
-  on domain types): code that could change unnoticed.
+  on domain types, definitions no node uses): code that could change
+  unnoticed;
+- when a statement or reason names a node that was rejected or removed, and
+  when a contract never reads a parameter its ancestors use;
+- when `.frflow/checks.json` is committed (proofs come from running `check`).
 
-`status` exits 1 unless every node is accepted, proven and passing, with no
-warning, so CI can require it. Proof results (`.frflow/checks.json`) are local,
-so CI runs `check` before `status`. When two branches decided the same node,
-resolve the ledger conflict by keeping both sides' entries: repeated content
-refers to earlier entries by hash, so the order does not matter.
+`status` exits 1 unless every node is accepted, every formal link and
+invariant proven (or decided by reading, where a node opted out), every
+example passing, with no warning, so CI can require it. Proof results
+(`.frflow/checks.json`) are local, so CI runs `check` before `status`. When two
+branches decided the same node, resolve the ledger conflict by keeping both
+sides' entries; the node comes back as `merged`, and is decided again.
+
+## Large projects, built by agents
+
+The method is meant to hold as a system grows to many roots, contracts and
+components, built by agents across many sessions:
+- **The theory lives in files, not in any context window.** Each agent reads
+  the slice it needs with `context(node)`: the path from the root with every
+  reason and rejected alternative, what moved, and the decisions below.
+- **Before adding, find.** `find` names the nodes that govern a file or
+  mention a concern, so an agent extends the theory instead of forking it.
+- **Every file has an owner.** An implementation governs the files it refers
+  to; components (design nodes owning directories) govern the rest; a file no
+  node governs fails `status`. Inside a component, code is the agent's to
+  change and settle; at its boundary (its contracts) the developer decides.
+- **Cross-cutting rules are stated once.** An invariant names nothing below
+  it; each contract it applies to keeps it, and is checked against it.
+- **Attention follows meaning.** The developer is asked for choices and for
+  changes in meaning; mechanical work is settled by the agent and listed for
+  spot-checks; a change's effect below is shown as one list with the reasons
+  it may touch.
+- **Branches merge.** The ledger only grows; a node two branches decided comes
+  back to be decided again.
 
 ## Example: access control (`examples/auth`)
 
@@ -187,7 +237,8 @@ developer decides.)
 | refine | `parent.refine[M2](id, statement, why)(abs, spec)` | Lean: `spec m → parent.spec (abs m)`, and not vacuous |
 | instantiate | `parent.instantiate[M2](id, statement, why)(T := of[X], p := ...)` | none: the generic results apply |
 | contract | `parent.contract[A, B, R](id, statement, why)(post).examples(...)(...)` | Lean: the contract implies the parent |
-| design | `parent.design(id, statement, why)(files*)` or `Node.design(...)` | none: decided and tracked; its files are what it depends on |
+| design | `parent.design(id, statement, why)(files*)` or `Node.design(...)`; a component when it owns a directory | none: decided and tracked; its files are what it depends on |
+| invariant | `Node.invariant(id, statement, why)`; each contract keeps it with `.holds(inv)(rule)` | Lean: each contract's post implies its rule |
 
 Any node can also govern extra files or directories with `.governing(paths*)`.
 
@@ -196,7 +247,7 @@ Any node can also govern extra files or directories with `.governing(paths*)`.
 Scala; a contract's `post` still runs its examples and is still enforced by
 `service`. Nothing is translated to Lean: the link reads "not formalized",
 and the developer decides it by reading. Everything below an opted-out node
-opts out too, since there is nothing formal above it to prove against. Use it
+is out of Lean too, since there is nothing formal above it to prove against. Use it
 where a proof costs more than it gives, or where the subset cannot say it
 (state, time, effects); say why in `why`.
 
@@ -253,9 +304,11 @@ agent's answers to your requests.
 ## Agents
 
 - **MCP server.** `.mcp.json` registers `frflow` (`bin/frflow mcp examples`).
-  - Tools: `inbox`, `context`, `render`, `check`, `answer` and `scaffold`.
-  - It has no tool for deciding. Decisions are the developer's, in the
-    browser.
+  - Tools: `inbox`, `context`, `render`, `check`, `answer`, `settle`, `find`
+    and `scaffold`.
+  - It has no tool for choosing. Choices are the developer's, in the browser;
+    the agent settles only what involves none, and the developer spot-checks
+    it.
   - **Decisions run on trust.** The CLI has no command for deciding either,
     but an agent with a shell could post to the local server or edit the
     ledger; only the skill tells it not to. Review the ledger's diff in git as
@@ -269,8 +322,10 @@ agent's answers to your requests.
 
 ## What is proven, checked, and trusted
 
-- **Proven by Lean:** every link, and so every node's root theorem; links
-  `frflow_auto` shows vacuous, and nodes it shows unsatisfiable, fail. In short, the levels of the
+- **Proven by Lean:** every formal link and kept invariant, and so every formal
+  node's root theorem; links `frflow_auto` shows vacuous, and nodes it shows
+  unsatisfiable, fail. A link decided by reading (`formal = false`) is not
+  proven, and is shown as such. In short, the levels of the
   theory are consistent with each other. It does not say they are the right
   theory.
 - **Checked by the examples:** that a contract means what its statement says,
@@ -292,7 +347,8 @@ agent's answers to your requests.
   - that `abs` describes what the system really does with the model (shown
     side by side with the parent);
   - every path to the data goes through `service` (keep the wiring in a file
-    a design node governs);
+    a node governs);
+  - code the agent settled, until the developer spot-checks it;
   - the ledger, a plain file under version control;
   - authored proof files, which Lean runs on your machine when checking: the
     filter on them is hygiene; the guarantee is the kernel replay and the
@@ -302,11 +358,12 @@ agent's answers to your requests.
   - feasibility of a contract beyond its examples, unless `frflow_auto` shows
     it is unsatisfiable;
   - effectful or asynchronous code, except a pure core behind `service`;
-  - which files an implementation really depends on: it governs its whole
-    package directory, so any change there reviews its contract, and code in
-    other sbt modules it depends on is not seen;
-  - code outside `src/main` of the project, such as other sbt modules it
-    depends on.
+  - which files code really depends on: ownership is by file and directory,
+    as declared; code outside `src/main` of the project, such as other sbt
+    modules, is not seen;
+  - patterns Lean would read differently from Scala are refused (matching on
+    `true`/`false`, type tests); division by zero is 0 in Lean and an
+    exception in Scala.
 
 ## Usage
 

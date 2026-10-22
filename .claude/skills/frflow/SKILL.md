@@ -25,9 +25,16 @@ this way. It also keeps the code from drifting away from it.
 ## Rules
 
 1. **You propose; the developer decides.**
-   - Never decide nodes. There is no tool or command for it. Do not post to
-     the browser's server, and do not edit `.frflow/ledger.json`. Rewriting
-     committed decisions shows as a warning.
+   - Never choose for the developer. There is no tool or command for it. Do
+     not post to the browser's server, and do not edit `.frflow/ledger.json`.
+     Rewriting committed decisions shows as a warning.
+   - You may **settle** (`settle`) what involves no choice: a node with no
+     alternative beside it and no new term, whose link holds and examples
+     pass, or a change to the code a node governs once its checks pass. Read
+     its `context` first, with the reasons above and below it; if a "revisit
+     if" condition there may be met, do not settle: ask in your `answer`. The
+     tool refuses anything else, and the developer spot-checks what you
+     settled.
 2. **Offer real alternatives.** When a step has more than one reasonable
    design, propose each as a sibling node, with its own `why` covering its
    trade-off. One proposal is fine when the step is obvious.
@@ -69,9 +76,10 @@ this way. It also keeps the code from drifting away from it.
    - rejected nodes you must delete from the Scala model;
    - decisions still waiting for the developer;
    - the tree.
-2. **For each request,** read `context(node)`. Then write the proposals as
-   Scala nodes, with `why` and examples. Add them to the `KnowledgeBase(...)`
-   list.
+2. **For each request,** read `context(node)`, and `find` where the change
+   belongs: extend the nodes that already cover it rather than adding a
+   near-duplicate. Then write the proposals as Scala nodes, with `why` and
+   examples. Add them to the `KnowledgeBase(...)` list.
 3. **`render`, then `check`.** Fix compile errors and links that do not hold.
    Proposals should reach the developer proven, with passing examples.
 4. **`answer(request, text)`.** Name the proposals, the trade-off between them,
@@ -89,10 +97,16 @@ this way. It also keeps the code from drifting away from it.
    - **Replacing an accepted node:** propose the new node as its sibling. The
      developer can reject the old one when choosing.
    - **A change to an implementation or a governed file** puts the node up for
-     review (cause `code`), with a git diff. Make sure the examples still pass.
-     An implementation governs its package directory and everything below it.
-     Use `.governing(paths*)` for anything else it depends on. `status` warns
-     about source files no node governs: govern them, or say why not.
+     review (cause `code`), with a git diff. Make sure the examples still pass;
+     then you may `settle` it.
+     An implementation governs the files its expression refers to. Code it
+     relies on elsewhere needs an owner: `.governing(paths*)`, or a
+     **component** (a design node owning a directory). `status` fails on a
+     source file no node governs.
+   - **A rule that applies to several contracts** (tenant isolation,
+     authorization, auditing) is an **invariant**: `Node.invariant(id,
+     statement, why)`, kept by each contract it applies to with
+     `.holds(inv)(rule)`. Do not repeat it in every subtree.
    - **Keep production wiring** (the call to `service`) in a file a design
      node or the implementation governs, so a change to it is reviewed.
    - **The model's file holds only the model:** nodes, `Opaque`, `Param`,
@@ -113,10 +127,12 @@ The MCP server `frflow` (`bin/frflow mcp examples`, see `.mcp.json`) works on ev
 | tool | use |
 |---|---|
 | `inbox` | Start here: requests, clean-up, waiting decisions, and the tree. |
-| `context(node)` | The idea, the vocabulary, the roots, the path from the root with every decision, reason and rejected alternative, what moved since the node was decided (with the code diff), the decisions directly below, examples, the obligation, and the developer's requests. |
+| `context(node)` | The idea, the vocabulary, the roots, the path from the root with every decision, reason and rejected alternative, what moved since the node was decided (with diffs), every decision below with its reason, examples, the obligation, and the developer's requests. |
 | `render` | Rebuild from the Scala definitions; the browser updates. Compile errors in the model come back here. |
 | `check(node?)` | Prove the links that changed in Lean. Slow. |
 | `answer(request, text)` | Reply to a request; the reply is shown in the browser. |
+| `settle(node, reason)` | Settle a mechanical decision (see rule 1); refused for choices. |
+| `find(query)` | Which nodes govern a file, or mention a concern: where a change belongs. |
 | `scaffold(node)` | A proof file for an obligation `frflow_auto` did not prove. |
 
 Without MCP, use the CLI from the repository root: `sbt "auth/run render"`,
@@ -152,7 +168,7 @@ must hold for every call.
 **`formal = false`** (on `Node.root`, `refine`, `instantiate`, `contract`)
 opts a node out of Lean. Its model stays Scala and may use any Scala; a
 contract still runs its examples and `service` still checks it. Its link is
-decided by reading, and everything below it must opt out too. Formal is the
+decided by reading, and everything below it is out of Lean too. Formal is the
 default: opt out only when a proof costs more than it gives, or the subset
 cannot express it (state, time, effects), and say so in `why`.
 

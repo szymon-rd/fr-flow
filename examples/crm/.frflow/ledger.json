@@ -116,6 +116,28 @@
         }
       }
     ],
+    "NoCrossTenantRead": [
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-22T00:11:16.059210528Z",
+        "reason": "Isolation is the CRM's one promise; stating it once makes every read path name it, so a new one cannot leave it out.",
+        "commit": "277bfbfc535b32aa7410253f7e888f63cb9d6260",
+        "tree": "08f78bbd8f66ae9ea5c0a0dce51ac66229c045a8",
+        "chain": "",
+        "content": {
+          "parent": null,
+          "statement": "No read returns a record of another company unless that company shared it with the reader's.",
+          "why": "The isolation every read path of the CRM must keep, stated once: each contract that returns records names it, so a new read path (an export, an admin view) cannot leave it out unnoticed.",
+          "sources": {},
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [],
+          "uses": [],
+          "governs": []
+        }
+      }
+    ],
     "ReadApi": [
       {
         "action": "accept",
@@ -334,6 +356,76 @@
           "governs": [],
           "implementation": "InMemoryCrm(store.value, shares.value).search"
         }
+      },
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-22T00:11:18.979459907Z",
+        "reason": "It now names the cross-tenant invariant, which its post implies; it governs only the implementation it refers to.",
+        "after": "a8427e6a0030e8c1",
+        "code": "4d6273444d62f1cf038bd423e207048281b0d3a155490c8179cd3157ea040c80",
+        "commit": "277bfbfc535b32aa7410253f7e888f63cb9d6260",
+        "tree": "08f78bbd8f66ae9ea5c0a0dce51ac66229c045a8",
+        "chain": "df8f19d9162f3e60c93658bd0a578ef809d6428048b6664a09800656e5789d36",
+        "content": {
+          "parent": "Accounts",
+          "statement": "A search returns only stored records that match it, each of the user's company or shared with it.",
+          "why": "Accounts, stated for one call, plus what a search asks for. A returned record must be one of the stored records, so an implementation cannot relabel another company's record as the user's.",
+          "sources": {
+            "post": "(user, query, result) => result.forall(r => store.value.contains(r) && matches(query, r) && (r.tenant == user.tenant || shares.value.contains(Share(r.id, user.tenant))))"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (Account(\"ann@acme\", TenantId(\"acme\")), Everything) ⇒ List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"))  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List()  — Ann lists everything she can see: Acme's deal",
+            "expect (Account(\"ann@acme\", TenantId(\"acme\")), ById(2)) ⇒ List()  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List()  — Globex's contact is not shared with Acme",
+            "reject (Account(\"ann@acme\", TenantId(\"acme\")), ById(2)) ⇒ List(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\"))  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List()  — another company's record is never returned",
+            "reject (Account(\"ann@acme\", TenantId(\"acme\")), Everything) ⇒ List(CrmRecord(2, TenantId(\"acme\"), Contact, \"Globex contact\"))  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List()  — a record relabelled as Acme's is not a stored record",
+            "reject (Account(\"ann@acme\", TenantId(\"acme\")), OfKind(Contact)) ⇒ List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"))  given store = List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List()  — a search for contacts does not return deals",
+            "expect (Account(\"ann@acme\", TenantId(\"acme\")), OfKind(Contact)) ⇒ List(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\"))  given store = List(CrmRecord(2, TenantId(\"globex\"), Contact, \"Globex contact\")), shares = List(Share(2, TenantId(\"acme\")))  — Globex shared its contact with Acme, so Ann finds it by kind"
+          ],
+          "vocabulary": [
+            "store: the records as stored when the search runs; a record id is unique across all companies"
+          ],
+          "uses": [
+            "case class TenantId(value: String)",
+            "case class Account(email: String, tenant: TenantId)",
+            "enum Kind: case Contact, case Deal",
+            "enum Search: case ById(id: Long), case OfKind(kind: Kind), case Everything",
+            "case class CrmRecord(id: Long, tenant: TenantId, kind: Kind, title: String)",
+            "case class Share(record: Long, to: TenantId)",
+            "«matches» = (q: Search, r: CrmRecord) =>\n  q match\n    case Search.ById(id)  => r.id == id\n    case Search.OfKind(k) => r.kind == k\n    case Search.Everything => true"
+          ],
+          "governs": [],
+          "keeps": [
+            "NoCrossTenantRead: (user, query, result) =>\n    result.forall(r => r.tenant == user.tenant || shares.value.contains(Share(r.id, user.tenant)))"
+          ],
+          "implementation": "InMemoryCrm(store.value, shares.value).search"
+        }
+      }
+    ],
+    "ReadSideWiring": [
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-22T00:11:21.893954317Z",
+        "reason": "The wiring is the one place where searches reach the records, so it must be reviewed when it changes.",
+        "code": "7fd34bb0dabc60276c8f562cc07168f5a171ab79b1d853c2e7ca5c8e6b0729e6",
+        "commit": "277bfbfc535b32aa7410253f7e888f63cb9d6260",
+        "tree": "08f78bbd8f66ae9ea5c0a0dce51ac66229c045a8",
+        "chain": "61a791b8bda692bd67048f25f653b5ff73e98612a2752a994006b842279b5d86",
+        "content": {
+          "parent": "ReadContract",
+          "statement": "The read side serves searches through service, which checks every result against ReadContract and the invariants it keeps.",
+          "why": "Every path to the records must go through service; keeping the wiring in one governed file makes a change to it visible.",
+          "sources": {},
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [],
+          "uses": [],
+          "governs": [
+            "src/main/scala/crm/ReadSide.scala"
+          ]
+        }
       }
     ],
     "TenantIsolation": [
@@ -401,6 +493,17 @@
           "idea": "# CRM\n\nMany companies use one CRM. Each company's users manage contacts and deals.\nA user may see a record only if it belongs to their company, or if the record's\ncompany has shared it with theirs. Users find records by id, by kind, or list\neverything they can see.",
           "notModelled": "- Who may create or remove a share.\n- That the account a search runs for is the caller's own (authentication).\n- That a search returns every matching record the user may see: only what it\n  must not return is modelled.\n- Writing records."
         }
+      }
+    ],
+    "_ledger": [
+      {
+        "action": "acknowledge",
+        "by": "claude-example-data",
+        "at": "2026-10-22T00:11:13.242836703Z",
+        "reason": "The example ledgers were rewritten while the framework's ledger format changed; this restart starts the record again from the decisions as they were.",
+        "commit": "2c68d611fa04162df84eea8ddd6c22cfe8d94f7b",
+        "chain": "",
+        "content": null
       }
     ]
   }

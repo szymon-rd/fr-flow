@@ -364,6 +364,17 @@
           "notModelled": "- How tokens are issued at login, and when they expire.\n- Who may change the table of grants."
         }
       }
+    ],
+    "_ledger": [
+      {
+        "action": "acknowledge",
+        "by": "claude-example-data",
+        "at": "2026-10-22T00:11:09.813647757Z",
+        "reason": "The example ledgers were rewritten while the framework's ledger format changed; this restart starts the record again from the decisions as they were.",
+        "commit": "2c68d611fa04162df84eea8ddd6c22cfe8d94f7b",
+        "chain": "",
+        "content": null
+      }
     ]
   }
 }

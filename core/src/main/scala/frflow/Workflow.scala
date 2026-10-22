@@ -229,13 +229,11 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
 
   /** The source files a node governs: a contract's implementation, a design decision's files. */
   def code(n: Node[?]): Option[Code] =
-    // An implementation governs the files of its package: the directories of the code it refers to
-    // and everything below them, except the model's file and files another node governs explicitly.
+    // An implementation governs the files of the code its expression refers to (not the model's
+    // file); anything else it depends on is governed explicitly (.governing, or a component: a
+    // design node owning a directory), or `status` reports it as governed by no node.
     val impl = kb.implementation(n).toList.flatMap { i =>
-      val model = i.modelFile.map(f => Path.of(f).toAbsolutePath.normalize)
-      i.sources.map(f => Path.of(f).toAbsolutePath.normalize.getParent).distinct.flatMap { dir =>
-        if Files.isDirectory(dir) then Files.walk(dir, java.nio.file.FileVisitOption.FOLLOW_LINKS).iterator.asScala.toList.filter(Files.isRegularFile(_)) else Nil
-      }.map(_.toAbsolutePath.normalize).filterNot(p => model.contains(p) || governedExplicitly(p))
+      i.sources.map(f => Path.of(f).toAbsolutePath.normalize).filterNot(p => governedExplicitly.exists(g => p == g || p.startsWith(g)))
     }
     val files = n.governs.map(ws.root.resolve) ++ impl
     if files.isEmpty then None else Some(Code.of(ws.root, files))
@@ -310,7 +308,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
         if top then inEnum = word == "enum"
         // A top-level val must be part of the model: an opaque type, a parameter, a definition, a node
         // or the knowledge base.
-        val modelVal = """val\s+\w+\s*(:[^=]*)?=\s*(Opaque\(|Param\[|define\s*\{|Node\.(root|design)\b|KnowledgeBase\(|\w+\s*\.\s*(refine|instantiate|contract|design)\s*[\[(]).*""".r
+        val modelVal = """val\s+\w+\s*(:[^=]*)?=\s*(Opaque\(|Param\[|define\s*\{|Node\.(root|design|invariant)\b|KnowledgeBase\(|\w+\s*\.\s*(refine|instantiate|contract|design)\s*[\[(]).*""".r
         // ...and a definition, parameter or opaque type no node uses is code no node governs.
         val termVal = """val\s+(\w+)\s*(:[^=]*)?=\s*(Opaque|Param|define)\b.*""".r
         val used = (kb.defs.map(_.name) ++ kb.params.map(_.name) ++ kb.opaques.map(_.name)).map(_.stripPrefix("«").stripSuffix("»")).toSet
@@ -365,7 +363,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val notes = Ledger.restarts(ws.root, ws.ledgerFile).filter(c => ledger.acknowledged.exists(c.startsWith))
       .map(c => s"the ledger was restarted in commit ${c.take(10)} (acknowledged); earlier decisions are in git history")
     (Decisions.tree(a) + "\n\n" + notes.map("note: " + _ + "\n").mkString + warnings.map("warning: " + _ + "\n").mkString +
-      (if ok then "Every node is accepted, proven, and its examples pass."
+      (if ok then "Every node is accepted, proven (or decided by reading, where it opted out of Lean), and its examples pass."
        else "Not every node is accepted, proven, and passing its examples, or there are warnings.") + "\n", ok)
 
   /** Open requests from the developer (written by the browser). */
