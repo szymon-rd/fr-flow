@@ -41,9 +41,8 @@ object Decisions:
     val children: Map[String, List[Json]] = all.groupBy(_("parent").flatMap(_.str).getOrElse(""))
     private val states = scala.collection.mutable.Map.empty[String, String]
     private val causeMemo = scala.collection.mutable.Map.empty[String, List[String]]
-    def parentChain(n: Json): String =
-      above(if s(n, "kind") == "design" then "" else n("parent").flatMap(_.str).flatMap(ids.get).fold("")(s(_, "chain")),
-        (kept(n) ++ relies(n)).flatMap(ids.get).map(s(_, "chain")))
+    // What the node rests on, as the snapshot says (see `Workflow.parentChain`).
+    def parentChain(n: Json): String = s(n, "parentChain")
     def causes(n: Json): List[String] = causeMemo.getOrElseUpdate(s(n, "id"), {
       val id = s(n, "id")
       val revisit = ledger.current(id).exists(_.action == "revisit")
@@ -151,6 +150,7 @@ object Decisions:
         "mechanical" -> JBool(mechanical(snapshot, ledger, n).isEmpty),
         "notMechanical" -> mechanical(snapshot, ledger, n).fold(JNull)(str),
         "resembles" -> JArr(resembles(ledger, n)),
+        "unproven" -> JArr(unproven(n).map(str)),
         // A sibling that says formally the same (variables renamed): the statement may claim more than the spec.
         "sameAs" -> JArr(structure(snapshot).children.getOrElse(n("parent").flatMap(_.str).getOrElse(""), Nil).filter { m =>
           s(m, "id") != id && s(m, "kind") == s(n, "kind") && m("content").flatMap(_("sources")).exists(_.obj.nonEmpty) &&
@@ -282,7 +282,7 @@ object Decisions:
     * answered by name, still holds or revisit, never left to a default.
     */
   def conditional(text: String): Boolean =
-    """(?i)\b(revisit|reconsider|redo|rework|re-?examine|redone|reviewed again)\b(\s+\w+){0,3}\s+(if|when|once|should)\b|\bunless\b|\buntil\b|\bas long as\b|\b(only|valid|holds?) while\b|\bwould only be needed\b|\bassum(es|ing) that\b""".r.findFirstIn(text).isDefined
+    """(?i)\b(revisit|reconsider)\b(\s+\w+){0,3}\s+(if|when|once)\b|\bunless\b|\buntil\b|\bas long as\b|\bonly while\b""".r.findFirstIn(text).isDefined
 
   /** Why `n` is not mechanical, or None if it is. One rule: a node under review (not a proposal) of a
     * kind that holds no choice of meaning (a refinement, a contract, an invariant), where nothing the
@@ -295,7 +295,7 @@ object Decisions:
     val kind = s(n, "kind")
     val cs = v.causes(n)
     val (ok, total) = examples(n)
-    val provenImpl = n("implementationProof").exists(p => p != JNull && s(p, "status") == "proven" && !p("oracle").contains(JBool(true)))
+    val provenImpl = n("implementationProof").exists(p => p != JNull && s(p, "status") == "proven")
     // What the developer decided, without what follows from elsewhere.
     def decided(c: Json) = Decision.hash(JObj(c.obj.filterNot(f => f._1 == "uses" || f._1 == "examples" || (provenImpl && f._1 == "implementation")) :+
       ("examples" -> JArr(c("examples").map(_.arr.toList.flatMap(_.str)).getOrElse(Nil).map(e => str(e.takeWhile(_ != ' ') + " — " + e.split(" — ").lastOption.getOrElse("")))))))
@@ -589,13 +589,17 @@ object Decisions:
     * must be removed from the model, so that nothing still rests on them or is governed by them.
     */
   def complete(annotated: Json): Boolean =
-    val ns = nodes(annotated)
-    annotated("gone").forall(_.arr.isEmpty) && ns.forall { n =>
-      val (ok, total) = examples(n)
-      s(n, "state") == "accepted" && n("link").forall(l => l == JNull || Set("proven", "informal")(s(l, "status"))) && ok == total &&
-        n("invariants").forall(_.arr.forall(i => Set("proven", "informal", "exempt")(s(i, "status")))) &&
-        n("implementationProof").forall(p => p == JNull || Set("proven", "informal")(s(p, "status"))) &&
-        n("expectations").forall(_.arr.forall(e => Set("proven", "informal")(s(e, "status")))) &&
-        n("reliances").forall(_.arr.forall(r => Set("proven", "informal")(s(r, "status"))))
-    }
+    annotated("gone").forall(_.arr.isEmpty) && nodes(annotated).forall(n => s(n, "state") == "accepted" && unproven(n).isEmpty)
+
+  /** What of a node is not proven (or decided by reading) or fails: the one list the browser and `status` use. */
+  def unproven(n: Json): List[String] =
+    def bad(k: String, ok: Set[String]) = n(k).map(_.arr.toList).getOrElse(Nil).filterNot(x => ok(s(x, "status")))
+    val fine = Set("proven", "informal")
+    val (ok, total) = examples(n)
+    n("link").filter(l => l != JNull && !fine(s(l, "status"))).map(l => s"its link is ${s(l, "status")}").toList ++
+      Option.when(ok != total)(s"${total - ok} example(s) fail") ++
+      bad("invariants", fine + "exempt").map(i => s"invariant ${s(i, "id")} is ${s(i, "status")}") ++
+      n("implementationProof").filter(p => p != JNull && !fine(s(p, "status"))).map(p => s"its implementation ${s(p, "name")} is ${s(p, "status")}: not proven to meet the contract") ++
+      bad("expectations", fine).map(e => s"an expectation is ${s(e, "status")}") ++
+      bad("reliances", fine).map(r => s"the guarantee it relies on from ${s(r, "id")} is ${s(r, "status")}")
 

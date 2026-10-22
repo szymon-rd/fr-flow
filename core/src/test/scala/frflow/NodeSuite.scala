@@ -52,9 +52,8 @@ class NodeSuite extends munit.FunSuite:
     val rs = kb.exampleResults(two)
     assertEquals(rs.take(3).flatMap(_.implementation), List("ok", "ok", "ok"))
     val generated = rs.drop(3)
-    // the combination (shelf of two, one book), and calls varied from the examples
-    assert(generated.exists(r => r.example.note.startsWith("generated from the examples' inputs")), generated)
-    assert(generated.forall(_.implementation.exists(_.contains("breaks the contract"))), generated)
+    assertEquals(generated.size, 1)
+    assert(generated.head.implementation.exists(_.contains("breaks the contract")), generated)
   }
 
   test("a spec condition that does not mention the model is shown as an assumption about the world") {

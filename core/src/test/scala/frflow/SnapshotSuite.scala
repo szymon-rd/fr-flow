@@ -492,22 +492,3 @@ class SnapshotSuite extends munit.FunSuite:
     assertEquals(Decisions.state(changed, w.ledger, pickNode), "review")
     assertEquals(Decisions.mechanical(changed, w.ledger, pickNode), None)
   }
-
-  test("calls varied from the examples keep each value's type, are new, and are the same each time") {
-    val vs = Variations.of(pick.cases, 20)
-    assert(vs.size >= 10, vs)
-    def key(v: Variations.Call) = (v.a, v.b, v.bindings.map(_.value()))
-    assertEquals(vs.map(key), Variations.of(pick.cases, 20).map(key))
-    vs.foreach { v =>
-      assert(v.a.asInstanceOf[List[Any]].forall(_.isInstanceOf[Book]), v.a)
-      assert(v.b.isInstanceOf[Int])
-      assert(v.bindings.map(_.value()).forall(_.isInstanceOf[Int]))
-    }
-    val known = pick.cases.map(e => (e.a, e.b, e.bindings.map(_.value()))).toSet
-    assert(vs.map(key).forall(!known(_)))
-    // an implementation wrong only on a shelf longer than any example's is caught on a varied call
-    val wrong = KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, pick)
-      .implement(pick)((shelf, n) => if shelf.size > 2 then shelf else shelf.filter(_.pages >= minPages.value).take(n))
-    assert(wrong.generated(pick).exists(_.example.note.startsWith("varied from example")), wrong.generated(pick))
-    assertEquals(shelfKb.generated(pick), Nil)
-  }

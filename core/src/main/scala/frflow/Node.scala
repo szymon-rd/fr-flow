@@ -107,7 +107,7 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
     * `service` checks it of the state this node sees. What is trusted is one named thing: that the state
     * it sees is one `on`'s concern reached (the wiring that binds its parameters).
     */
-  inline def reliesThat[S](on: => Node[?], why: String)(inline guarantee: S => Boolean)(inline sees: () => S): Node[M] =
+  inline def relies[S](on: => Node[?], why: String, inline guarantee: S => Boolean)(inline sees: () => S): Node[M] =
     copy(relied = relied :+ (() => on, why, Some(Reliance(Lifted(guarantee), Lifted(sees)))))
 
   /** Whether Lean checks this node: it did not opt out, and neither did anything above it. */
@@ -349,21 +349,17 @@ final case class Reliance(guarantee: Lifted[?], sees: Lifted[?]):
   def holds: Boolean = guarantee.value.asInstanceOf[Any => Boolean](sees.value.asInstanceOf[() => Any]())
 
 /** An implementation registered for a contract. `proven` is the `define` Lean proves meets the
-  * contract: the running implementation itself, or, with `oracle`, the reference a faster plain
+  * contract, which is the running implementation itself.
   * implementation (`factory`) is checked against.
   */
 final case class Implementation(contract: String, factory: () => Any, files: List[String], wiring: String = "",
-    proven: Option[Def[?]] = None, oracle: Boolean = false):
+    proven: Option[Def[?]] = None):
   /** The running code is the proven `define` itself. */
-  def provenCode: Boolean = proven.isDefined && !oracle
+  def provenCode: Boolean = proven.isDefined
 
   /** The implementation's source files; the last one listed is the model's file, where it is attached. */
   def sources: List[String] = files.dropRight(1)
   def modelFile: Option[String] = files.lastOption
-
-object Implementation:
-  /** How many calls varied from the examples an implementation runs on, besides them. */
-  val Varied: Int = sys.env.get("FRFLOW_VARIED").flatMap(_.toIntOption).getOrElse(200)
 
 
 /** A knowledge base: the developer's idea (a Markdown file) and the nodes derived from it.
@@ -389,14 +385,6 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
   inline def implementProven[A, B, R](contract: Node[(A, B) => R])(inline impl: Def[(A, B) => R]): KnowledgeBase =
     withImplementation(Implementation(contract.id, () => impl.lifted.value, Lifted.sourceFiles(impl), "", Some(impl)))
 
-  /** Registers a plain (faster) implementation together with a `define` Lean proves meets the
-    * contract, as its oracle: the plain one runs (every result still checked by `service`), and must
-    * return what the oracle returns on every example and every combination of the examples' inputs.
-    * The proofs reach the oracle, not the plain code: status says so.
-    */
-  inline def implementChecked[A, B, R](contract: Node[(A, B) => R])(inline impl: (A, B) => R)(oracle: Def[(A, B) => R]): KnowledgeBase =
-    withImplementation(Implementation(contract.id, () => impl, Lifted.sourceFiles(impl), Lifted.sources(impl).mkString, Some(oracle), oracle = true))
-
   def withImplementation(i: Implementation): KnowledgeBase =
     KnowledgeBase(name, idea, implementations.filterNot(_.contract == i.contract) :+ i)(nodes*)
 
@@ -421,7 +409,7 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
       throw IllegalStateException(s"${contract.id}: bind ${missing.mkString(", ")} (the contract reads them)")
     contract.enforce((a, b) => f()(a, b), assumptionsOf(contract))(bindings*)
 
-  /** The guarantees the nodes on a contract's path rely on (see `reliesThat`), to check where it runs. */
+  /** The guarantees the nodes on a contract's path rely on (see `relies`), to check where it runs. */
   def assumptionsOf(n: Node[?]): List[(String, () => Boolean)] =
     path(n).flatMap(x => x.reliedProperties.map((o, why, r) => (s"${x.id} relies on ${o.id} for (${why}): `${r.guarantee.source}` of `${r.sees.source}`", () => r.holds)))
 
@@ -432,9 +420,8 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
       generated(n)
 
   /** The contract holds for every call, not only the examples: the implementation also runs on
-    * every combination of the examples' inputs, under each example's parameter values, and on calls
-    * varied from the examples (`Variations`). Calls whose result breaks the contract (or, for an
-    * implementation checked against an oracle, differs from the oracle's) are listed as failing.
+    * every combination of the examples' inputs, under each example's parameter values. Calls whose
+    * result breaks the contract are listed as failing.
     */
   def generated(n: Node[?]): List[ExampleResult] =
     implementation(n).filter(_ => n.kind == NodeKind.Contract && n.cases.nonEmpty).toList.flatMap { i =>
@@ -443,11 +430,11 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
       val bs = n.cases.map(_.b).distinct
       val known = n.cases.map(e => (e.bindings, e.a, e.b)).toSet
       // Once per set of parameter values (examples giving the same values are one group).
-      (n.cases.map(e => (e.bindings, e.givenSource)).distinctBy(_._1.map(b => (b.param.name, scala.util.Try(b.value()).toOption))).flatMap { (bindings, src) =>
+      n.cases.map(e => (e.bindings, e.givenSource)).distinctBy(_._1.map(b => (b.param.name, scala.util.Try(b.value()).toOption))).flatMap { (bindings, src) =>
         Bindings.within(bindings) {
           val f = try Some(i.factory.asInstanceOf[() => (Any, Any) => Any]()) catch case _: Exception => None
           f.toList.flatMap { impl =>
-            for a <- as; b <- bs if !known((bindings, a, b)) || i.oracle yield
+            for a <- as; b <- bs if !known((bindings, a, b)) yield
               val (r, broken) =
                 try
                   val r = impl(a, b)
@@ -455,36 +442,10 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
                   (r, if !post(a, b, r) then Some(s"returned ${Example.show(r)}, which breaks the contract")
                       else keeps.map(i => s"returned ${Example.show(r)}, which breaks the invariant $i"))
                 catch case e: Exception => (null, Some(s"error: ${e.getMessage}"))
-              // A plain implementation checked against a proven oracle returns what the oracle does.
-              val differs = if !i.oracle || broken.nonEmpty then None else
-                try
-                  val o = i.proven.get.fn.asInstanceOf[(Any, Any) => Any](a, b)
-                  Option.when(o != r)(s"returned ${Example.show(r)}, where the proven ${i.proven.get.name} returns ${Example.show(o)}")
-                catch case e: Exception => Some(s"the proven ${i.proven.get.name} fails: ${e.getMessage}")
-              broken.orElse(differs).map(why => ExampleResult(Example("generated from the examples' inputs: the contract holds for every call", bindings, src, a, b, r, true), "ok", Some(why)))
+              broken.map(why => ExampleResult(Example("generated from the examples' inputs: the contract holds for every call", bindings, src, a, b, r, true), "ok", Some(why)))
           }.flatten
         }
-      } ++ Variations.of(n.cases, Implementation.Varied).flatMap { v =>
-        Bindings.within(v.bindings) {
-          val f = try Some(i.factory.asInstanceOf[() => (Any, Any) => Any]()) catch case _: Exception => None
-          f.toList.flatMap { impl =>
-            val (r, broken) =
-              try
-                val r = impl(v.a, v.b)
-                val keeps = n.asInstanceOf[Node[(Any, Any) => Any]].broken(v.a, v.b, r)
-                (r, if !post(v.a, v.b, r) then Some(s"returned ${Example.show(r)}, which breaks the contract")
-                    else keeps.map(x => s"returned ${Example.show(r)}, which breaks the invariant $x"))
-              catch case e: Exception => (null, Some(s"error: ${e.getMessage}"))
-            val differs = if !i.oracle || broken.nonEmpty then None else
-              try
-                val o = i.proven.get.fn.asInstanceOf[(Any, Any) => Any](v.a, v.b)
-                Option.when(o != r)(s"returned ${Example.show(r)}, where the proven ${i.proven.get.name} returns ${Example.show(o)}")
-              catch case e: Exception => Some(s"the proven ${i.proven.get.name} fails: ${e.getMessage}")
-            broken.orElse(differs).map(why => ExampleResult(Example(s"varied from example ${v.from + 1}: the contract holds for every call",
-              v.bindings, n.cases(v.from).givenSource, v.a, v.b, r, true), "ok", Some(why)))
-          }
-        }
-      }).take(10)
+      }.take(10)
     }
 
   /** What a contract does not promise, found mechanically: inputs its `post` never looks at, and

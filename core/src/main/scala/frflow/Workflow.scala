@@ -122,8 +122,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
     (if n.reliesOn.isEmpty then Nil else List("relies" -> JArr(n.relied.map((o, why, p) => str(s"${o().id}: $why${p.fold("")(r => s" (guarantee: ${r.guarantee.source}, of: ${r.sees.source})")}"))))) ++
     (if n.expected.isEmpty then Nil else List("expects" -> JArr(n.expected.map((st, l) => str(s"$st: ${l.source}"))))) ++
     kb.implementation(n).flatMap(_.proven).map { d =>
-      val head = kb.implementation(n).filter(_.oracle).fold(s"proven: ${d.name}")(i => s"plain, checked against the proven ${d.name}: ${i.wiring}")
-      "implementation" -> str(head +: Def.closure(List(d)).map(x => s"${x.name} = ${x.lifted.source}") mkString "\n")
+      "implementation" -> str(s"proven: ${d.name}" +: Def.closure(List(d)).map(x => s"${x.name} = ${x.lifted.source}") mkString "\n")
     }.toList ++ kb.implementation(n).filter(_.proven.isEmpty).filter(_.wiring.nonEmpty).map(i => "implementation" -> str(i.wiring)).toList
     ++ (if n.kind != NodeKind.Root then Nil
         else if n.ideaSection.isEmpty then Seq("idea" -> str(ideaDecided), "notModelled" -> str(notModelled))
@@ -174,9 +173,14 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
   /** The node's content together with its ancestors': a change anywhere above shows below.
     * What is not modelled is reviewed at the roots only: it narrows no node below them.
     */
-  def chainHash(n: Node[?]): String =
-    Decisions.chain(content(n), Decisions.above(if n.kind == NodeKind.Design then "" else n.parent.fold("")(chainHash),
-      n.kept.filter(_.view.nonEmpty).map(k => chainHash(k.invariant)) ++ n.reliesOn.map((o, _) => chainHash(o))))
+  def chainHash(n: Node[?]): String = Decisions.chain(content(n), parentChain(n))
+
+  /** What a node rests on: its parent's chain (a design decision rests on its parent's place, not its
+    * meaning), with the chains of the invariants it keeps and the nodes it relies on.
+    */
+  def parentChain(n: Node[?]): String =
+    Decisions.above(if n.kind == NodeKind.Design then "" else n.parent.fold("")(chainHash),
+      n.kept.filter(_.view.nonEmpty).map(k => chainHash(k.invariant)) ++ n.reliesOn.map((o, _) => chainHash(o)))
 
   /** Files governed explicitly by some node. */
   private lazy val governedExplicitly: Set[Path] =
@@ -446,7 +450,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
     val owners = kb.nodes.flatMap(n => code(n).toList.flatMap(_.files).map(_ -> n.id)).groupBy(_._1).toList.sortBy(_._1)
       .collect { case (f, ns) if ns.map(_._2).distinct.size > 1 => s"$f is governed by ${ns.map(_._2).distinct.mkString(" and ")}: give it one owner" }
     missing ++ owners ++ ideaCoverage ++ staleNames ++
-      ungoverned.map(f => s"$f is governed by no node: govern it (.governing or a design node) or move it") ++ modelCode
+      ungoverned.map(f => s"$f is governed by no node: govern it (.governing or a design node) or move it")
 
   /** Statements and reasons that name a node no longer chosen (rejected, or removed): the text
     * still rests on it.
@@ -459,58 +463,6 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
     kb.nodes.filterNot(n => l.current(n.id).exists(_.action == "reject")).flatMap { n =>
       dropped.toList.sorted.filter(d => d != n.id && s"\\b${java.util.regex.Pattern.quote(d)}\\b".r.findFirstIn(n.statement + " " + n.why).isDefined)
         .map(d => s"${n.id}: its statement or why names $d, which is ${if ids(d) then "rejected" else "removed"}")
-    }
-
-  /** Code in the model's file that is not the model: no node governs it, so it could change
-    * unnoticed. The model's file holds the model's vals (nodes, opaque types, parameters, definitions), domain
-    * types without methods, and the `@main` of the CLI; anything else belongs next to the code.
-    */
-  def modelCode: List[String] =
-    val skip = Set("final", "private", "protected", "sealed", "abstract", "lazy", "override", "inline", "opaque", "transparent")
-    kb.modelFiles.map(f => Path.of(f)).filter(Files.isRegularFile(_)).flatMap { p =>
-      val rel = ws.root.toAbsolutePath.normalize.relativize(p.toAbsolutePath.normalize)
-      var inEnum = false
-      // Strings (statements, reasons) say anything; only the code around them is looked at.
-      val original = Files.readAllLines(p).asScala.toList
-      val stripped = original.map(_.replaceAll("\"(\\\\.|[^\"\\\\])*\"", "\"\""))
-      // A top-level val continued on the next lines (`val Query =` then `Opaque(...)`) is read whole.
-      def joined(i: Int): String =
-        val t = stripped(i).trim
-        if (t.endsWith("=") || t.endsWith("(")) && i + 1 < stripped.size then t + " " + joined(i + 1) else t
-      stripped.zipWithIndex.flatMap { (l, i) =>
-        val t = if l.nonEmpty && !l.head.isWhitespace then joined(i) else l.trim
-        val top = l.nonEmpty && !l.head.isWhitespace
-        val words = t.split("\\s+").toList.dropWhile(skip)
-        val word = words.headOption.getOrElse("")
-        val withBody = t.endsWith(":") || t.contains("{")
-        if top then inEnum = word == "enum"
-        // A top-level val must be part of the model: an opaque type, a parameter, a definition, a node
-        // or the knowledge base.
-        // (A type ascription may contain `=>`: the val's own `=` is the first one not followed by `>`.)
-        val modelVal = """val\s+\w+\s*(:(?:[^=]|=>)*)?=(?!>)\s*(Opaque\(|Param\[|define\s*\{|Node\.(root|design|invariant)\b|KnowledgeBase\(|\w+\s*\.\s*(refine|instantiate|contract|contractVia|design)\s*[\[(]).*""".r
-        // ...and a definition, parameter or opaque type no node uses is code no node governs.
-        val termVal = """val\s+(\w+)\s*(:(?:[^=]|=>)*)?=(?!>)\s*(Opaque|Param|define)\b.*""".r
-        val used = (kb.defs.map(_.name) ++ kb.params.map(_.name) ++ kb.opaques.map(_.name)).map(_.stripPrefix("«").stripSuffix("»")).toSet
-        val bad =
-          if top then
-            !t.startsWith("@main") && !t.startsWith("//") && !t.startsWith("/*") && !t.startsWith("*") && (
-              Set("def", "class", "object", "given", "extension", "implicit", "type", "var")(word) ||
-              (word == "trait" && withBody) || (word == "case" && withBody) ||
-              (word == "val" && !modelVal.matches(words.mkString(" "))) ||
-              (word == "val" && (words.mkString(" ") match
-                case termVal(name, _, _) => !used(name)
-                case _                   => false)))
-          else word == "def" || (inEnum && word != "case" && word.nonEmpty && !word.startsWith("//")) ||
-            // code hidden after a separator, as in `; object X { ... }`
-            """(^|;|\{)\s*(def|object|class|trait|given|var)\s""".r.findFirstIn(l).exists(_ => !t.startsWith("//"))
-        val unusedTerm = top && word == "val" && (words.mkString(" ") match
-          case termVal(name, _, _) => !used(name)
-          case _                   => false)
-        val shown = original(i).trim.take(60)
-        if bad && unusedTerm then List(s"$rel:${i + 1}: `$shown` is a parameter, opaque type or definition no node uses: use it in a node, or remove it")
-        else if bad then List(s"$rel:${i + 1}: `$shown` is code in the model's file, which no node governs; move it next to the implementation")
-        else Nil
-      }
     }
 
   /** Source files no node governs, other than the model's own: code that can change unnoticed. They
@@ -581,7 +533,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
   /** The tree and its warnings, and whether the knowledge base is complete (the CI gate). */
   def status: (String, Boolean) =
     val a = annotated
-    val warnings = integrity ++ budgetShortfall ++ uncrossed
+    val warnings = integrity ++ uncrossed
     val ok = Decisions.complete(a) && warnings.isEmpty
     // What each invariant does not reach (by the type of what a contract returns), so a gap is seen.
     val notes = kb.nodes.filter(_.kind == NodeKind.Invariant).flatMap { i =>
@@ -604,13 +556,11 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
     val contracts = kb.nodes.filter(_.kind == NodeKind.Contract)
     val proven = provenCode
     val plain = contracts.filter(c => kb.implementation(c).exists(_.proven.isEmpty))
-    val checked = contracts.filter(c => kb.implementation(c).exists(_.oracle))
     val designs = kb.nodes.filter(_.kind == NodeKind.Design)
     s"Proofs: ${formal.size} of ${links.size} links proven in Lean" +
       s"${if formalAll.diff(formal).nonEmpty then s" (${formalAll.diff(formal).map(_.id).mkString(", ")} not proven yet)" else ""}" +
       s"${if links.diff(formalAll).nonEmpty then s" (${links.diff(formalAll).map(_.id).mkString(", ")} out of Lean)" else ""}; " +
       s"the root proven of the code for ${proven.size} of ${contracts.size} contracts" +
-      (if checked.nonEmpty then s", of a proven oracle for ${checked.map(_.id).mkString(", ")} (its plain implementation is checked against it on the examples' inputs)" else "") +
       (if plain.nonEmpty then s", checked on examples only for ${plain.map(_.id).mkString(", ")}" else "") +
       (if designs.nonEmpty then s"; ${designs.size} design decision(s) govern code no proof covers (${designs.map(_.id).mkString(", ")})" else "") +
       evaluated + ".\n" + lines
@@ -648,11 +598,6 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
     kb.nodes.filter(c => c.kind == NodeKind.Contract && generate.provenImpl(c).isDefined && kb.implementation(c).exists(_.provenCode) &&
       current(c).exists(k => k.status == "proven" && k.obligations.exists(o => o.name == "root_impl" && o.status == "proven")))
 
-  /** What the idea requires of the proofs, as decided with it: a line `Proven code: N%` in IDEA.md
-    * (outside Not modelled) asks that at least N% of the contracts be proven down to their code.
-    */
-  def provenCodeBudget: Option[Int] = """(?i)proven code:\s*(\d{1,3})\s*%""".r.findFirstMatchIn(ideaDecided).map(_.group(1).toInt)
-
   /** Formal contracts whose translation no example cross-checks: checked, and none of their examples
     * evaluated in Lean as in Scala.
     */
@@ -661,14 +606,6 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
       current(c).filter(k => !k.obligations.exists(o => o.name.startsWith("eval_") && o.status == "proven")).map(_ =>
         s"${c.id}: none of its examples is evaluated in Lean, so nothing checks that the Lean means what the Scala does: give its parameters values Lean has (bindTable for a lookup)")
     }
-
-  /** The budget, when the proofs fall short of it. */
-  def budgetShortfall: Option[String] =
-    val contracts = kb.nodes.count(_.kind == NodeKind.Contract)
-    val unchecked = kb.nodes.filter(c => c.kind == NodeKind.Contract && kb.implementation(c).exists(_.provenCode) && current(c).isEmpty)
-    provenCodeBudget.filter(b => contracts > 0 && provenCode.size * 100 < b * contracts).map(b =>
-      s"the idea asks that $b% of the contracts be proven down to their code; ${provenCode.size} of $contracts are" +
-        (if unchecked.nonEmpty then s" (${unchecked.map(_.id).mkString(", ")} not checked yet: run check)" else " (implement the others with a proven define)"))
 
   /** Open requests from the developer (written by the browser). */
   def requests: List[Json] = allRequests.filter(_("status").flatMap(_.str).contains("open"))
@@ -900,6 +837,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
         "content" -> content(n),
         "hash" -> str(hash(n)),
         "chain" -> str(chainHash(n)),
+        "parentChain" -> str(parentChain(n)),
         "link" -> link(n),
         "invariants" -> JArr(n.kept.map { k =>
           val name = s"inv_${k.invariant.id}"
@@ -928,7 +866,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
               if c.status == "failed" && r.status == "proven" then ("failed", c.messages.headOption.getOrElse("the node's check failed"))
               else c.obligations.find(_.name == "root_impl").filter(_ => r.status == "proven").fold((r.status, r.detail))(ri => (ri.status, ri.detail))))
               .getOrElse(("unchecked", "not checked yet"))
-          obj("name" -> str(d.name), "status" -> str(st), "detail" -> str(detail), "oracle" -> JBool(kb.implementation(n).exists(_.oracle)))
+          obj("name" -> str(d.name), "status" -> str(st), "detail" -> str(detail))
         },
         "relies" -> JArr(n.reliesOn.map((o, _) => str(o.id))),
         // The guarantees it relies on, and whether Lean proves them of every state the other concern reaches.
@@ -954,8 +892,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
       "idea" -> str(idea),
       "format" -> JNum(Workflow.ContentFormat),
       "ideaFile" -> str(kb.idea),
-      "warnings" -> JArr((codeWarnings ++ budgetShortfall ++ uncrossed).map(str)),
-      "provenCodeBudget" -> provenCodeBudget.fold(JNull)(b => JNum(b)),
+      "warnings" -> JArr((codeWarnings ++ uncrossed).map(str)),
       "roots" -> JArr(kb.roots.map(r => str(r.id))),
       "exportedAt" -> str(java.time.Instant.now.toString),
       "opaques" -> JArr(kb.opaques.map(o => obj("name" -> str(o.name), "means" -> str(o.means)))),

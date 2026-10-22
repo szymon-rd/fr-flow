@@ -349,7 +349,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
     ).getOrElse(Nil)
     vacuous ++ node
 
-  /** The seams between concerns: for each guarantee `n` relies on (see `reliesThat`), that every state
+  /** The seams between concerns: for each guarantee `n` relies on (see `relies`), that every state
     * the relied node's concern reaches meets it, proven from that node's root theorem. (relied node, the
     * obligation's name, its file.)
     */

@@ -364,7 +364,7 @@ function render() {
   const accepted = nodes.filter(n => n.state === "accepted").length, review = nodes.filter(n => n.state === "review").length;
   const warn = (s.warnings || []).length;
   const impls = nodes.filter(n => n.kind === "contract");
-  const implProven = impls.filter(n => n.implementationProof?.status === "proven" && !n.implementationProof.oracle).length;
+  const implProven = impls.filter(n => n.implementationProof?.status === "proven").length;
   const openNodes = nodes.filter(n => warnings(n).length).length;
   $("#summary").innerHTML = `${esc(s.name)} · <b>${accepted}</b> accepted · <b>${review}</b> to review · <b>${proven}/${links.length}</b> links proven${impls.length ? ` · <b ${implProven < impls.length ? 'style="color:var(--failed)"' : ""}>${implProven}/${impls.length}</b> contracts proven down to their code` : ""}${openNodes ? ` · <b style="color:var(--failed)">${openNodes}</b> node(s) with something unproven or failing` : ""}${warn ? ` · <b style="color:var(--failed)">${warn} warning(s)</b>` : ""} · rendered ${ago(s.exportedAt)}`;
   renderTree(); renderPane(); renderJob();
@@ -554,20 +554,8 @@ const reasonBox = (placeholder, value = "", n = null) =>
   `<div class="side"><div class="label">your reason (kept as part of the theory)</div><textarea id="reason" rows="2" placeholder="${esc(placeholder)}">${esc(value)}</textarea>
   </div>`;
 
-function warnings(n) {
-  const w = [];
-  if (n.kind !== "design" && n.parent && !["proven", "informal"].includes(linkStatus(n))) w.push(`its link is ${linkStatus(n)}`);
-  if (examplesBad(n).length) w.push(`${examplesBad(n).length} example(s) fail`);
-  (n.invariants || []).filter(i => !["proven", "informal", "exempt"].includes(i.status)).forEach(i => w.push(`invariant ${i.id} is ${i.status}`));
-  const ip = n.implementationProof;
-  if (ip && !["proven", "informal"].includes(ip.status)) w.push(`its implementation ${ip.name} is ${ip.status}: not proven to meet the contract`);
-  (n.expectations || []).filter(e => !["proven", "informal"].includes(e.status)).forEach(e => w.push(`an expectation is ${e.status}`));
-  const budget = snap()?.provenCodeBudget;
-  if (budget && n.kind === "contract" && !(ip && ip.status === "proven" && !ip.oracle))
-    w.push(`the idea asks that ${budget}% of the contracts be proven down to their code, and this one's implementation is not a proven define`);
-  if ((n.sameAs || []).length) w.push(`its spec says formally what ${n.sameAs.join(", ")} says: its statement must not claim more`);
-  return w;
-}
+// What is not proven or fails (from core: Decisions.unproven), and a spec that says what a sibling's does.
+const warnings = n => [...(n.unproven || []), ...((n.sameAs || []).length ? [`its spec says formally what ${n.sameAs.join(", ")} says: its statement must not claim more`] : [])];
 
 // What moved since the decision, shown whether or not it can be accepted yet.
 function whatMoved(n) {

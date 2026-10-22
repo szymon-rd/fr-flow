@@ -207,22 +207,6 @@ class LeanSuite extends munit.FunSuite:
     assertEquals(again.obligations.find(_.name == "impl").map(_.status), Some("open"), again)
   }
 
-  test("a plain implementation is checked against a proven oracle, which Lean proves") {
-    val kb = KnowledgeBase("Oracle", idea = "IDEA.md")(onlyGood, listed, books, pick)
-      .implementChecked(pick)((shelf, n) => shelf.filter(_.pages >= minPages.value))(longOnes)
-    assert(kb.exampleResults(pick).forall(r => r.implementation.forall(_ == "ok")), kb.exampleResults(pick))
-    val w = workflow(kb)
-    val c = w.check().find(_._1.id == "Pick").get._2
-    assertEquals(c.obligations.find(_.name == "root_impl").map(_.status), Some("proven"), c)
-    // the oracle is proven, not the code that runs
-    assertEquals(w.provenCode, Nil)
-    assert(w.coverage.contains("of a proven oracle for Pick"), w.coverage)
-    // a plain implementation that differs from the oracle on the examples' inputs fails
-    val off = KnowledgeBase("Oracle2", idea = "IDEA.md")(onlyGood, listed, books, pick)
-      .implementChecked(pick)((shelf, n) => shelf.filter(_.pages > 300))(longOnes)
-    assert(off.exampleResults(pick).exists(_.implementation.exists(_.contains("where the proven longOnes returns"))), off.exampleResults(pick))
-  }
-
   test("a contract with a signature of its own is proven through its abs") {
     // the best book alone, by title: as the parent's model, the list of that one book
     val best = books.contractVia[List[Book], String, Option[Book]]("Best", "The book named is picked, if it is long enough.", why = "w")(
