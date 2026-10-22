@@ -201,6 +201,9 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
     val g = generate
     sha((Seq(g.spec(n), g.auto(n), g.theorems(n), g.extraObligations(n).map(g.oblFile(n, _)).mkString, g.rootImplFile(n).getOrElse(""), g.idle(n).fold("")(_._1.statement), g.saysNothing(n).map(_.obligation.statement).mkString, g.clauseChecks(n).map(_._1.statement).mkString, g.evalFile(n).getOrElse(""), read(ws.lean.resolve(g.proofsPath(n.id))).getOrElse(""),
       read(ws.lean.resolve(g.proofsPath(n.id))).filter(Lean.lemmaImports(_).nonEmpty).flatMap(_ => read(ws.lean.resolve(g.lemmasPath))).getOrElse(""),
+      // The specs of other nodes a proof imports: a change to them re-checks it.
+      read(ws.lean.resolve(g.proofsPath(n.id))).fold("")(src => s"(?m)^\\s*import\\s+FrFlowGen\\.${java.util.regex.Pattern.quote(kb.name)}\\.(\\w+)\\.Spec".r
+        .findAllMatchIn(src).map(_.group(1)).filter(_ != n.id).flatMap(kb.node).filter(g.formal).map(g.spec).mkString),
       n.parent.fold("")(checkHash), kernelHash, Workflow.CheckerVersion.toString) ++ g.declarationsUsedBy(n))*)
 
   // ---------------------------------------------------------------------------
@@ -606,7 +609,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
   /** The tree and its warnings, and whether the knowledge base is complete (the CI gate). */
   def status: (String, Boolean) =
     val a = annotated
-    val warnings = integrity ++ budgetShortfall ++ (if fresh then ciWarnings else Nil)
+    val warnings = integrity ++ budgetShortfall ++ uncrossed ++ (if fresh then ciWarnings else Nil)
     val ok = Decisions.complete(a) && warnings.isEmpty
     val notes = Ledger.restarts(ws.root, ws.ledgerFile).filter(c => ledger.acknowledged.exists(c.startsWith))
       .map(c => s"the ledger was restarted in commit ${c.take(10)} (acknowledged); earlier decisions are in git history") ++
@@ -700,6 +703,15 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
     */
   def provenCodeBudget: Option[Int] = """(?i)proven code:\s*(\d{1,3})\s*%""".r.findFirstMatchIn(ideaDecided).map(_.group(1).toInt)
 
+  /** Formal contracts whose translation no example cross-checks: checked, and none of their examples
+    * evaluated in Lean as in Scala.
+    */
+  def uncrossed: List[String] =
+    kb.nodes.filter(c => c.kind == NodeKind.Contract && generate.formal(c) && c.cases.nonEmpty).flatMap { c =>
+      current(c).filter(k => !k.obligations.exists(o => o.name.startsWith("eval_") && o.status == "proven")).map(_ =>
+        s"${c.id}: none of its examples is evaluated in Lean, so nothing checks that the Lean means what the Scala does: give its parameters values Lean has (bindTable for a lookup)")
+    }
+
   /** The budget, when the proofs fall short of it. */
   def budgetShortfall: Option[String] =
     val contracts = kb.nodes.count(_.kind == NodeKind.Contract)
@@ -787,6 +799,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
       sb ++= "## It relies on\n\n"
       n.reliesOn.foreach { (o, why) =>
         sb ++= s"### ${o.id} (${o.kind.toString.toLowerCase}, under ${kb.rootOf(o).id}) [${st(o.id)}]\n\nRelied on for: $why\n\n${o.statement}\n\nWhy: ${o.why}\n\n"
+        n.reliedProperties.find(_._1 eq o).foreach((_, _, p) => sb ++= s"Checked wherever it runs:\n```scala\n${p.source}\n```\n\n")
         reasons(o)
       }
     val dependents = kb.nodes.filter(_.reliesOn.exists(_._1 eq n))
@@ -797,11 +810,19 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
     // Other concerns calling the same definitions, which no reliance names: what they assume may matter.
     def defsOf(x: Node[?]) = x.referenced.flatMap(_.defs.map(_.name)).toSet
     val mine = defsOf(n)
-    val related = kb.nodes.filter(o => !(o eq n) && kb.rootOf(o).ne(root) && !n.reliesOn.exists(_._1 eq o) && !dependents.contains(o) && defsOf(o).exists(mine))
+    val related = kb.nodes.filter(o => !(o eq n) && o.kind != NodeKind.Invariant && kb.rootOf(o).ne(root) && !n.reliesOn.exists(_._1 eq o) && !dependents.contains(o) && defsOf(o).exists(mine))
     if related.nonEmpty then
       sb ++= "## Other concerns calling the same definitions (if this one relies on what they say, declare it: .relies)\n\n"
       related.take(8).foreach(o => sb ++= s"- ${o.id} (under ${kb.rootOf(o).id}): ${o.statement} Calls ${defsOf(o).intersect(mine).toList.sorted.mkString(", ")}.\n")
       if related.size > 8 then sb ++= s"- and ${related.size - 8} more\n"
+      sb ++= "\n"
+    // What the terms of the path mean: every definition its specs, substitutions and reliances call, as written.
+    val used = scala.collection.mutable.LinkedHashMap.empty[String, Def[?]]
+    def visitDef(d: Def[?]): Unit = if !used.contains(d.name) then { used(d.name) = d; d.lifted.defs.foreach(visitDef) }
+    (kb.path(n) ++ n.reliesOn.map(_._1) ++ n.kept.map(_.invariant)).distinct.flatMap(_.referenced).flatMap(_.defs).foreach(visitDef)
+    if used.nonEmpty then
+      sb ++= "## Definitions it uses (what the specs' terms mean)\n\n"
+      used.values.foreach(d => sb ++= s"```scala\n${d.name} = ${d.lifted.source}\n```\n")
       sb ++= "\n"
     // The cross-cutting rules that reach this node: every contract in their scope keeps them or is exempt.
     val invs = kb.nodes.filter(i => i.kind == NodeKind.Invariant &&
@@ -829,7 +850,9 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
           case other    => other.compact)).toMap
         val (b, a) = (flat(before), flat(now))
         (b.keySet ++ a.keySet).toList.sorted.filter(k => b.get(k) != a.get(k)).map { k =>
-          s"  - $k\n    was: ${b.getOrElse(k, "").replace("\n", "\n         ")}\n    now: ${a.getOrElse(k, "").replace("\n", "\n         ")}\n"
+          val (was, now) = (b.getOrElse(k, ""), a.getOrElse(k, ""))
+          if !was.contains("\n") && !now.contains("\n") then s"  - $k\n    was: $was\n    now: $now\n"
+          else s"  - $k (lines removed -, added +):\n" + Workflow.lineDiff(was, now).map("    " + _).mkString("\n") + "\n"
         }.mkString
       if causes.contains("self") then
         l.binding(n.id).foreach(d => sb ++= s"- ${n.id} itself changed:\n${fields(d.content, me("content").getOrElse(JNull))}")
@@ -974,7 +997,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
       "idea" -> str(idea),
       "format" -> JNum(Workflow.ContentFormat),
       "ideaFile" -> str(kb.idea),
-      "warnings" -> JArr((codeWarnings ++ budgetShortfall).map(str)),
+      "warnings" -> JArr((codeWarnings ++ budgetShortfall ++ uncrossed).map(str)),
       "roots" -> JArr(kb.roots.map(r => str(r.id))),
       "exportedAt" -> str(java.time.Instant.now.toString),
       "opaques" -> JArr(kb.opaques.map(o => obj("name" -> str(o.name), "means" -> str(o.means)))),
@@ -996,6 +1019,20 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
     ws.snapshotFile
 
 object Workflow:
+  /** The lines removed (`- `) and added (`+ `) from `a` to `b`, in order (a longest common subsequence). */
+  def lineDiff(a: String, b: String): List[String] =
+    val (x, y) = (a.split("\n", -1).toVector, b.split("\n", -1).toVector)
+    val lcs = Array.ofDim[Int](x.size + 1, y.size + 1)
+    for i <- x.indices.reverse; j <- y.indices.reverse do
+      lcs(i)(j) = if x(i) == y(j) then lcs(i + 1)(j + 1) + 1 else lcs(i + 1)(j).max(lcs(i)(j + 1))
+    val out = List.newBuilder[String]
+    var (i, j) = (0, 0)
+    while i < x.size || j < y.size do
+      if i < x.size && j < y.size && x(i) == y(j) then { i += 1; j += 1 }
+      else if j < y.size && (i == x.size || lcs(i)(j + 1) >= lcs(i + 1)(j)) then { out += s"+ ${y(j)}"; j += 1 }
+      else { out += s"- ${x(i)}"; i += 1 }
+    out.result()
+
   /** The shape of a node's content, which decisions are bound to. A snapshot of another shape is
     * not decided on: it was written by another version of FrFlow, and must be rendered again.
     */

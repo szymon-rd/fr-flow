@@ -17,6 +17,7 @@ object Cli:
       |  ci                      for CI: proves everything afresh (reads no recorded result), then status; also needs
       |                          FRFLOW_DEVELOPER_KEYS and the full git history
       |  context NODE            everything needed to work on NODE (for agents and people)
+      |  find WORDS|PATH         the nodes that govern a file, or what mentions some words (nodes, reasons, rejected options, the idea)
       |  scaffold NODE           a proof file for an obligation automation did not prove
       |
       |Decisions are the developer's, and are made in the browser (bin/frflow serve).
@@ -71,6 +72,7 @@ object Cli:
         0
       case "status" :: Nil => val (text, ok) = w.status; print(text); if ok then 0 else 1
       case "context" :: id :: Nil => node(id) { n => print(w.context(n)); 0 }
+      case "find" :: query if query.nonEmpty => println(Decisions.find(w.annotated, query.mkString(" "))); 0
       case "scaffold" :: id :: Nil =>
         node(id) { n =>
           println(if w.scaffold(n) then s"created lean/${w.generate.proofsPath(n.id)}" else "nothing to create")

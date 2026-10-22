@@ -811,7 +811,9 @@ function batches(w) {
 // Nodes decided at once with one reason: one accept each, parents first (each with the version seen).
 function batchBox(ns, title, note, placeholder) {
   const depth = n => pathTo(n.id).length;
-  const ids = [...ns].sort((a, b) => depth(a) - depth(b)).map(n => n.id).join(",");
+  // In the order core gives: each after what it rests on (its parent, what it relies on, what it keeps).
+  const rank = id => { const i = (snap()?.order || []).indexOf(id); return i < 0 ? 1e9 + depth(byId(id)) : i; };
+  const ids = [...ns].sort((a, b) => rank(a.id) - rank(b.id)).map(n => n.id).join(",");
   return `<div class="box review" style="margin-top:0"><div class="verdict review">${title}</div>
     <div class="small">${ns.map(n => `<a data-goto="${esc(n.id)}">${esc(n.id)}</a>`).join(", ")} — ${note}</div>
     <textarea data-batchreason="${esc(ids)}" rows="1" placeholder="${esc(placeholder)}"></textarea>

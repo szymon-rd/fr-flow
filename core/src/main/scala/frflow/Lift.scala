@@ -169,6 +169,11 @@ private final class Translator(using val quotes: Quotes):
     * a placeholder `_$1`, the same name in two scopes).
     */
   private val taken = mutable.Map.empty[String, AnyRef]
+  /** How many negations (`!`, the left of `==>`) the term being translated is under: a `forall` under an
+    * odd number says something exists.
+    */
+  private var negations = 0
+  private def negated[T](f: => T): T = { negations += 1; try f finally negations -= 1 }
   private def unique(owner: AnyRef, base: String, pos: Position, ok: String => Boolean = _ => true): String =
     // Nor a name a domain type starts with: `Share.mk` would read a field of a variable `Share`.
     val n = (Iterator(base) ++ Iterator.from(1).map(i => s"${base}_$i"))
@@ -340,9 +345,12 @@ private final class Translator(using val quotes: Quotes):
       // Lean equality is structural; a class that redefines equality, itself or through a trait,
       // would mean something else at run time.
       val standard = Set("scala.Any", "java.lang.Object", "scala.AnyRef", "scala.Product", "scala.Equals", "scala.reflect.Enum")
-      sym.typeRef.baseClasses.filterNot(b => standard(b.fullName)).foreach { b =>
-        List("equals", "hashCode", "canEqual").flatMap(b.declaredMethod).filterNot(_.flags.is(Flags.Synthetic)).foreach(m =>
-          fail(s"${sym.name} redefines ${m.name} (in ${b.name}): domain types must keep structural equality", pos))
+      // (Each case of an enum too: a case may extend a trait of its own.)
+      (sym :: (if sym.flags.is(Flags.Enum) then sym.children else Nil)).foreach { c =>
+        c.typeRef.baseClasses.filterNot(b => standard(b.fullName) || b == sym && c != sym).foreach { b =>
+          List("equals", "hashCode", "canEqual").flatMap(b.declaredMethod).filterNot(_.flags.is(Flags.Synthetic)).foreach(m =>
+            fail(s"${c.name} redefines ${m.name} (in ${b.name}): domain types must keep structural equality", pos))
+        }
       }
       inProgress += name
       def field(cls: Symbol, f: Symbol): (String, TypeRepr) =
@@ -350,12 +358,12 @@ private final class Translator(using val quotes: Quotes):
         // Scala compares a function field by reference, Lean by its values: they would disagree.
         if t.widen.dealias.isFunctionType then fail(s"${cls.name}.${f.name} is a function: a domain type's fields must be data", pos)
         (ident(f.name), t)
-      // The Scala shape of the type, as written: what a decision depends on (the Lean may change with FrFlow).
+      // The Scala shape of the type, as written (Scala's names, not Lean's): what a decision depends on.
       def shape(fs: List[(String, TypeRepr)]) = if fs.isEmpty then "" else fs.map((n, t) => s"$n: ${t.show(using Printer.TypeReprShortCode)}").mkString("(", ", ", ")")
       val scala =
         if sym.flags.is(Flags.Enum) then
-          s"enum ${sym.name}: " + sym.children.map(c => "case " + c.name + shape(if c.isClassDef then c.caseFields.map(field(c, _)) else Nil)).mkString(", ")
-        else s"case class ${sym.name}${shape(sym.caseFields.map(field(sym, _)))}"
+          s"enum ${sym.name}: " + sym.children.map(c => "case " + c.name + shape(if c.isClassDef then c.caseFields.map(f => f.name -> field(c, f)._2) else Nil)).mkString(", ")
+        else s"case class ${sym.name}${shape(sym.caseFields.map(f => f.name -> field(sym, f)._2))}"
       val ctors: List[(String, List[(String, TypeRepr)])] =
         if sym.flags.is(Flags.Enum) then sym.children.map(c => ident(c.name) -> (if c.isClassDef then c.caseFields.map(field(c, _)) else Nil))
         else List("mk" -> sym.caseFields.map(field(sym, _)))
@@ -524,13 +532,13 @@ private final class Translator(using val quotes: Quotes):
               val q = if name == "forall" then "∀" else "∃"
               // Lean's integers are unbounded, Scala's Int and Long are not: a value Lean shows to exist
               // (one larger than every Long, say) may not exist in Scala.
-              if name == "exists" then vs.find(v => bounded(v.tpt.tpe)).foreach(v =>
-                fail(s"exists over ${v.name}, whose type holds an Int or Long: Lean's integers are unbounded, Scala's are not, so what Lean finds may not exist in Scala; use BigInt", v.pos))
+              if name == "exists" || negations % 2 == 1 then vs.find(v => bounded(v.tpt.tpe)).foreach(v =>
+                fail(s"${if name == "exists" then "exists" else "a negated forall (it says something exists)"} over ${v.name}, whose type holds an Int or Long: Lean's integers are unbounded, Scala's are not, so what Lean finds may not exist in Scala; use BigInt", v.pos))
               val names = vs.map(v => local(v.symbol, v.pos))
               val bs = vs.zip(names).map((v, n) => s"($n : ${tpe(v.tpt.tpe, v.pos)})").mkString(" ")
               return p(s"$q $bs, ${expr(b, env ++ vs.map(_.symbol).zip(names))}")
             case _ => fail(s"$name expects a lambda", f.pos)
-        case ("==>", List(List(a), List(b))) => return p(s"${e(a)} → ${e(b)}")
+        case ("==>", List(List(a), List(b))) => val l = negated(e(a)); return p(s"$l → ${e(b)}")
         case _                               => ()
 
     if (name == "==" || name == "!=") && recv.isDefined && args.size == 1 then
@@ -600,7 +608,7 @@ private final class Translator(using val quotes: Quotes):
     (name, args.size) match
       case ("&&", 1) if qt =:= TypeRepr.of[Boolean]      => bin("∧")
       case ("||", 1) if qt =:= TypeRepr.of[Boolean]      => bin("∨")
-      case ("unary_!", 0) if qt =:= TypeRepr.of[Boolean] => Some(p(s"¬$r"))
+      case ("unary_!", 0) if qt =:= TypeRepr.of[Boolean] => Some(p(s"¬${negated(e(q))}"))
       case ("+" | "-" | "*", 1) if isInt(qt)             => exact(qt, name, q.pos); bin(name)
       case ("/" | "%", 1) if isInt(qt) =>
         exact(qt, name, q.pos)

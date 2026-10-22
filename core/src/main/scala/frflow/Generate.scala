@@ -183,7 +183,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
     case ListOf(t: LT)
     case OptionOf(t: LT)
     case Prod(a: LT, b: LT)
-    case Fun
+    case Fun(text: String)
 
   private def parseType(t0: String): LT =
     val t = t0.trim
@@ -198,7 +198,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
       var d = 0
       (i until t.length).find { j => if t(j) == '(' then d += 1 else if t(j) == ')' then d -= 1; d == 0 }.getOrElse(-1)
     if t.startsWith("(") && closes(0) == t.length - 1 then parseType(t.substring(1, t.length - 1))
-    else if depthZero("→").isDefined then LT.Fun
+    else if depthZero("→").isDefined then LT.Fun(t)
     else depthZero("×") match
       case Some(i) => LT.Prod(parseType(t.take(i)), parseType(t.drop(i + 1)))
       case None if t.startsWith("List ") => LT.ListOf(parseType(t.drop(5)))
@@ -222,7 +222,13 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
       case LT.ListOf(e)   => occurs(y, fresh, e, target, seen).map(_.map(b => s"(∃ $fresh ∈ $x, $b)"))
       case LT.OptionOf(e) => occurs(y, fresh, e, target, seen).map(_.map(b => s"(∃ $fresh, $x = some $fresh ∧ $b)"))
       case LT.Prod(a, b)  => any(List(occurs(y, s"$x.1", a, target, seen), occurs(y, s"$x.2", b, target, seen)))
-      case LT.Fun         => Right(None)
+      // A function can hold what it returns (or takes): what the view must list of it cannot be stated.
+      case LT.Fun(text)   =>
+        val names = """[A-Za-z_][\w.]*""".r.findAllIn(text).toSet
+        val t = target match { case LT.Name(n) => Some(n); case _ => None }
+        if t.exists(n => names(n) || names.exists(m => typeDecls.get(m).exists(_.uses.contains(n)))) then
+          Left(s"the result is a function ($text), which can hold a ${t.getOrElse("")}: what the view must list of it cannot be stated")
+        else Right(None)
       case LT.Name(n) => typeDecls.get(n) match
         case None => Right(None)
         case Some(_) if seen(n) => Left(s"$n is recursive")
@@ -345,7 +351,11 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
           s"The root holds for every model of ${n.id}, whatever ${n.id} says."), "link", s"the root holds whatever ${n.id} says",
           s"the root holds for every model of ${n.id}, whatever its spec: an abs or a substitution above decides it, so the root theorem says nothing about ${n.id}"))
     ).getOrElse(Nil)
-    vacuous ++ node
+    // An assumed link Lean can refute is false: everything below it would rest on a false axiom.
+    val refuted = Option.when(n.assumed && obligation(n).isDefined)(
+      Empty(Obligation("refuted", s"¬ ${q(n, "Obl.link")}", s"The assumed link of ${n.id} is false."), "link",
+        s"refuted: the assumed link is false", s"Lean refutes the assumed link of ${n.id}: it is false, so nothing below may rest on it")).toList
+    vacuous ++ node ++ refuted
 
   /** The clauses of a root's spec that mention its model: its top-level conjuncts, with `∀` spread
     * over `∧` (`∀ x, A ∧ B` gives `∀ x, A` and `∀ x, B`). One may be made to hold of every model by
@@ -460,8 +470,16 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
         def valueOf(p: String): Either[String, String] =
           paramObject.get(p).flatMap(po => e.bindings.find(_.param eq po)) match
             case None => Left(s"it gives no value for $p")
+            case Some(b) if b.table.isDefined =>
+              // A finite table: a function that looks it up.
+              val dom = paramTypes.get(p).map(parseType) match
+                case Some(LT.Fun(t)) => t.stripPrefix("(").stripSuffix(")").split("→").headOption.map(_.trim)
+                case _               => None
+              val cases = b.table.get.toList.map((k, v) => for { tk <- term(k); tv <- term(v) } yield (tk, tv))
+              if dom.isEmpty || cases.exists(_.isEmpty) then Left(s"Lean has no value for the table $p")
+              else Right(s"(fun (k' : ${dom.get}) => ${cases.flatten.foldRight("none")((kv, rest) => s"if k' = ${kv._1} then some ${kv._2} else $rest")})")
             case Some(b) =>
-              scala.util.Try(b.value()).toOption.flatMap(term).toRight(s"Lean has no value for $p (a function, or a type Lean does not have)")
+              scala.util.Try(b.value()).toOption.flatMap(term).toRight(s"Lean has no value for $p (a function, or a type Lean does not have; give a lookup as bindTable)")
         val evaluated: Either[String, List[Eval]] = for
           _ <- Either.cond(c.opaques.isEmpty, (), s"the contract leaves ${c.opaques.mkString(", ")} open")
           ps <- c.params.foldRight(Right(Nil): Either[String, List[(String, String)]])((p, acc) => for { v <- valueOf(p); r <- acc } yield (p, v) :: r)

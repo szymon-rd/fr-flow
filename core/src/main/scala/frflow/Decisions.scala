@@ -162,7 +162,24 @@ object Decisions:
       case (id, ds) if !ids.contains(id) && ledger.binding(id).isDefined =>
         obj("id" -> str(id), "decision" -> decisionJson(id, ds.last))
     }
-    JObj(snapshot.obj.filterNot(f => f._1 == "nodes" || f._1 == "gone") ++ Seq("nodes" -> JArr(annotated), "gone" -> JArr(gone)))
+    JObj(snapshot.obj.filterNot(f => f._1 == "nodes" || f._1 == "gone" || f._1 == "order") ++ Seq("nodes" -> JArr(annotated), "gone" -> JArr(gone),
+      "order" -> JArr(order(snapshot).map(str))))
+
+  /** Every node after all it rests on (its parent, the invariants it keeps, the nodes it relies on):
+    * the order decisions are taken in, a batch's too.
+    */
+  def order(snapshot: Json): List[String] =
+    val ns = nodes(snapshot)
+    val ids = ns.map(s(_, "id")).toSet
+    def on(n: Json) = (n("parent").flatMap(_.str).toList ++ kept(n) ++ relies(n)).filter(ids)
+    val byId = ns.map(n => s(n, "id") -> n).toMap
+    val done = scala.collection.mutable.LinkedHashSet.empty[String]
+    def visit(id: String, seen: Set[String]): Unit =
+      if !done(id) && !seen(id) then
+        byId.get(id).foreach(n => on(n).foreach(visit(_, seen + id)))
+        done += id
+    ns.foreach(n => visit(s(n, "id"), Set.empty))
+    done.toList
 
   /** Rejected nodes a proposal says the same as (under another id, or reworded only in its `why`):
     * the developer sees why they were rejected.
@@ -231,7 +248,7 @@ object Decisions:
     * answered by name, still holds or revisit, never left to a default.
     */
   def conditional(text: String): Boolean =
-    """(?i)\brevisit (if|when|once)\b|\bunless\b|\buntil\b|\bas long as\b|\bonly while\b""".r.findFirstIn(text).isDefined
+    """(?i)\b(revisit|reconsider|redo|rework|re-?examine|redone|reviewed again)\b(\s+\w+){0,3}\s+(if|when|once|should)\b|\bunless\b|\buntil\b|\bas long as\b|\b(only|valid|holds?) while\b|\bwould only be needed\b|\bassum(es|ing) that\b""".r.findFirstIn(text).isDefined
 
   /** Why `n` is not mechanical, or None if it is: a decision with no choice in it, where Lean proves
     * again all there is to prove, which the developer can accept with others in one batch. Not
@@ -361,7 +378,12 @@ object Decisions:
         .flatMap(u => """^(?:case class|enum)\s+(\w+)""".r.findFirstMatchIn(u).map(_.group(1)))
       types.find(mentions).map(t => s"the change names $t, which the invariant ${s(i, "id")} is about: does it show one to someone the rule refuses? (${i("content").flatMap(_("statement")).flatMap(_.str).getOrElse("")})")
     }
-    val params = snapshot("params").map(_.arr.toList).getOrElse(Nil).filter(p => s"(?<![\\w])${java.util.regex.Pattern.quote(s(p, "name"))}\\.bind\\(".r.findFirstIn(changed).isDefined)
+    // A parameter whose binding changed: what it is bound to differs between the lines removed and added.
+    def binds(lines: Iterator[String], name: String) =
+      val re = s"(?<![\\w])${java.util.regex.Pattern.quote(name)}\\.bind(?:Table)?\\(([^)]*)\\)".r
+      lines.flatMap(l => re.findAllMatchIn(l).map(_.group(1).trim)).toSet
+    def side(c: Char) = diff.linesIterator.filter(l => l.startsWith(c.toString) && !l.startsWith(s"$c$c$c"))
+    val params = snapshot("params").map(_.arr.toList).getOrElse(Nil).filter(p => binds(side('-'), s(p, "name")) != binds(side('+'), s(p, "name")))
       .map(p => s"it binds ${s(p, "name")}, which means: ${s(p, "means")} — does the new value still mean that?")
     invs ++ params
 
@@ -425,7 +447,7 @@ object Decisions:
           Right(proposedBelow(r.node).foldLeft(ledger.add(r.node, make("reject", n, Nil, r.reason)))((l, x) =>
             l.add(x, make("reject", ids(x), Nil, s"${r.node}, which it rested on, was rejected: ${r.reason}"))))
       else if waitsFor(snapshot, ledger, n).isDefined then
-        Left(s"accept ${parent.get} first: what rests on it is decided after it")
+        Left(s"accept ${waitsFor(snapshot, ledger, n).get} first: what rests on it is decided after it")
       else if bad.nonEmpty then Left(s"not an alternative to ${r.node}: ${bad.mkString(", ")}")
       else if st(ledger, r.node) == "accepted" && r.reject.isEmpty && r.confirm.isEmpty && r.revisit.isEmpty then
         Left(s"${r.node} is already accepted")
@@ -518,8 +540,16 @@ object Decisions:
       val gone = annotated("gone").map(_.arr.toList).getOrElse(Nil).map(g => Entry(s"- gone ${s(g, "id")}", s"${s(g, "id")} ${g("decision").flatMap(_("reason")).flatMap(_.str).getOrElse("")}"))
       val notModelled = nodes(annotated).flatMap(_("content").flatMap(_("notModelled")).flatMap(_.str)).distinct
         .flatMap(_.split("\n(?=- )").map(_.trim).filter(_.nonEmpty)).distinct.map(l => Entry(s"- not modelled: ${l.replaceAll("\\s+", " ")}", l))
-      val all = nodeEntries ++ rejected ++ gone ++ notModelled
-      val words = query.toLowerCase.split("\\W+").filter(_.length > 2).toList.distinct
+      // The idea's lines and the terms' meanings say what the model is about too.
+      val ideaLines = nodes(annotated).flatMap(_("content").flatMap(_("idea")).flatMap(_.str)).distinct
+        .flatMap(_.split("\n\\s*\n").map(_.trim).filter(l => l.nonEmpty && !l.startsWith("#"))).distinct
+        .map(l => Entry(s"- idea: ${l.replaceAll("\\s+", " ").take(160)}", l))
+      val terms = nodes(annotated).flatMap(n => n("content").flatMap(_("vocabulary")).map(_.arr.toList.flatMap(_.str)).getOrElse(Nil).map(v => s(n, "id") -> v))
+        .distinctBy(_._2).map((id, v) => Entry(s"- term (at $id): $v", v))
+      val all = nodeEntries ++ rejected ++ gone ++ notModelled ++ ideaLines ++ terms
+      // Words compared by their stem: "expiry", "expire" and "expired" find each other.
+      def stem(w: String) = w.toLowerCase.replaceAll("(ies|ied|ying|ing|ed|es|s|y|e)$", "")
+      val words = query.toLowerCase.split("\\W+").filter(_.length > 2).map(stem).filter(_.length > 2).toList.distinct
       def has(e: Entry, w: String) = e.text.toLowerCase.contains(w)
       // A word every entry has says little: rarer words weigh more.
       def weight(w: String) = math.log((all.size + 1).toDouble / (1 + all.count(has(_, w))))

@@ -35,6 +35,11 @@ final class Param[A](val name: String, val means: String):
   /** A run-time value of this parameter; evaluated on every use. */
   def bind(v: => A): Binding = Binding(this, () => v)
 
+  /** A parameter that is a lookup (`K => Option[V]`), given as a finite table: the same function as
+    * `bind(table.get)`, and Lean is given the table too, so the examples are evaluated there.
+    */
+  def bindTable[K, V](table: Map[K, V])(using A =:= (K => Option[V])): Binding = Binding(this, () => table.get, Some(table))
+
 extension [A, R](p: Param[A => R]) def apply(a: A): R = p.value(a)
 extension [A, B, R](p: Param[(A, B) => R]) def apply(a: A, b: B): R = p.value(a, b)
 extension [A, B, C, R](p: Param[(A, B, C) => R]) def apply(a: A, b: B, c: C): R = p.value(a, b, c)
@@ -51,7 +56,7 @@ final case class LeanType(lean: String, types: List[TypeDecl])
 /** The Lean translation of a Scala type: `User := of[UserId]`. */
 inline def of[T]: LeanType = ${ Lift.leanType[T] }
 
-final case class Binding(param: Param[?], value: () => Any)
+final case class Binding(param: Param[?], value: () => Any, table: Option[Map[?, ?]] = None)
 
 /** Run-time values of parameters, for the code that evaluates node predicates. */
 object Bindings:

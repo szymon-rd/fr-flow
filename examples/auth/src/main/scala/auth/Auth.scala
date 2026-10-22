@@ -66,7 +66,7 @@ val decisionContract = grantBased.contract[String, Path, Option[UserId]](
   "A decision names the user its token belongs to, and only when a grant covers the path.",
   why = "GrantBased, stated for one call, so every result of the running system can be checked."
 )((token, path, decision) => decision.forall(u => sessions(token) == Some(u) && grants.value.contains(Grant(u, path))))
-  .examples(grants.bind(List(Grant(UserId("alice"), Path("/a")))), sessions.bind(Map("t1" -> UserId("alice")).get))(
+  .examples(grants.bind(List(Grant(UserId("alice"), Path("/a")))), sessions.bindTable(Map("t1" -> UserId("alice"))))(
     expect("t1", Path("/a"), Some(UserId("alice")), "Alice's token and a grant for /a: she gets in"),
     expect("t1", Path("/b"), None, "no grant for /b: refused"),
     reject("t1", Path("/b"), Some(UserId("alice")), "access without a grant is never given"),

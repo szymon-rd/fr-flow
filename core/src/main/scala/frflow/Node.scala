@@ -610,6 +610,15 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
             s"${n.id}: ${s.name} := ${s.lean}, whose values hold an Int or Long, but something above says one exists: Lean's integers are unbounded, Scala's are not; use BigInt")
         }
       },
+      // Two definitions by one name (in two packages, say) would be one in Lean: Lean would prove one
+      // while Scala runs the other.
+      {
+        val all = scala.collection.mutable.ListBuffer.empty[Def[?]]
+        def walk(d: Def[?]): Unit = if !all.exists(_ eq d) then { all += d; d.lifted.defs.foreach(walk) }
+        (nodes.flatMap(_.referenced).flatMap(_.defs) ++ implementations.flatMap(_.proven)).foreach(walk)
+        all.toList.groupBy(_.name).collect { case (n, ds) if ds.size > 1 =>
+          s"two different definitions are named $n (in different packages, say): Lean would know only one of them; rename one" }.toList
+      },
       // A property relied on is stated with what the other node proves something about.
       nodes.flatMap(n => n.reliedProperties.collect {
         case (o, _, p) if o != null && nodes.contains(o) && !p.defs.map(_.name).exists(d => path(o).flatMap(_.referenced).flatMap(_.defs).exists(_.name == d)) =>
