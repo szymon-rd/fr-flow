@@ -118,9 +118,6 @@ final case class Ledger(decisions: Map[String, List[Decision]]):
     decisions.toList.sortBy(_._1).flatMap((id, ds) => ds.lastOption.filter(d => d.action == "reject" &&
       d.content("parent").flatMap(_.str).contains(parent)).map(d => (id, d.content, d.reason)))
 
-  /** The decisions where `id` was shown and left as it is (considered, still holding). */
-  def considered(id: String): List[(String, Decision)] = all.filter(_._2.held.contains(id))
-
   /** Every decision, newest first. */
   def all: List[(String, Decision)] = decisions.toList.flatMap((id, ds) => ds.map(id -> _)).sortBy(_._2.at).reverse
 

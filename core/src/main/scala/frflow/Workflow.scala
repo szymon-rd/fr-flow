@@ -656,7 +656,6 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
     kb.path(n).foreach { a =>
       sb ++= s"### ${a.id} (${a.kind.toString.toLowerCase}) [${st(a.id)}]\n\n${a.statement}\n\nWhy: ${a.why}\n\n"
       reasons(a)
-      l.considered(a.id).distinctBy(_._1).take(3).foreach((by, d) => sb ++= s"Considered when $by changed (${d.by}: ${d.reason.take(120)}): still holds\n\n")
       val alts = l.alternatives(a.id)
       def f(c: Json, k: String) = c(k).flatMap(_.str).getOrElse("")
       alts.foreach((id, c) => sb ++= s"- Rejected alternative $id: ${f(c, "statement")} (why: ${f(c, "why")})\n")
@@ -696,15 +695,6 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
     if dependents.nonEmpty then
       sb ++= "## Relied on by (a change to its meaning puts them up for review)\n\n"
       dependents.foreach(c => sb ++= s"- ${c.id} [${st(c.id)}], for: ${c.reliesOn.find(_._1 eq n).get._2}\n")
-      sb ++= "\n"
-    // Other concerns calling the same definitions, which no reliance names: what they assume may matter.
-    def defsOf(x: Node[?]) = x.referenced.flatMap(_.defs.map(_.name)).toSet
-    val mine = defsOf(n)
-    val related = kb.nodes.filter(o => !(o eq n) && o.kind != NodeKind.Invariant && kb.rootOf(o).ne(root) && !n.reliesOn.exists(_._1 eq o) && !dependents.contains(o) && defsOf(o).exists(mine))
-    if related.nonEmpty then
-      sb ++= "## Other concerns calling the same definitions (if this one relies on what they say, declare it: .relies)\n\n"
-      related.take(8).foreach(o => sb ++= s"- ${o.id} (under ${kb.rootOf(o).id}): ${o.statement} Calls ${defsOf(o).intersect(mine).toList.sorted.mkString(", ")}.\n")
-      if related.size > 8 then sb ++= s"- and ${related.size - 8} more\n"
       sb ++= "\n"
     // What the terms of the path mean: every definition its specs, substitutions and reliances call, as written.
     val used = Def.closure((kb.path(n) ++ n.reliesOn.map(_._1) ++ n.kept.map(_.invariant)).distinct.flatMap(_.referenced).flatMap(_.defs))
@@ -753,11 +743,6 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
       if causes.contains("revisit") then
         l.current(n.id).filter(_.action == "revisit").foreach { r =>
           sb ++= s"- ${r.by} asked to revisit it: ${r.reason}\n"
-          // The change that asked for it: decided at the same moment, with what it changed.
-          l.all.collect { case (x, d) if x != n.id && d.at == r.at && d.action == "accept" => x -> d }.foreach { (x, d) =>
-            val before = l.history(x).takeWhile(_ ne d).reverse.find(e => Ledger.binds(e.action))
-            before.foreach(b => sb ++= s"  ${x} changed then:\n${fields(b.content, d.content).linesIterator.map("  " + _).mkString("\n")}\n")
-          }
         }
       if causes.contains("code") then
         val since = l.binding(n.id).map(d => if Git.has(ws.root, d.tree) then d.tree else d.commit).getOrElse("")
@@ -774,7 +759,6 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
         val pad = "  " * depth
         sb ++= s"$pad- ${c.id} (${c.kind.toString.toLowerCase}) [${st(c.id)}]: ${c.statement} Why: ${c.why}\n"
         l.chosen(c.id).foreach(d => sb ++= s"$pad  Chosen by ${d.by} because: ${d.reason}\n")
-        l.considered(c.id).take(3).foreach((by, d) => sb ++= s"$pad  Considered when $by changed (${d.by}): still holds\n")
       }
       sb ++= "\n"
     g.obligation(n).foreach { o =>
@@ -836,7 +820,6 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
           "files" -> strs(c.files), "fingerprint" -> str(c.fingerprint))),
         "content" -> content(n),
         "hash" -> str(hash(n)),
-        "chain" -> str(chainHash(n)),
         "parentChain" -> str(parentChain(n)),
         "link" -> link(n),
         "invariants" -> JArr(n.kept.map { k =>
@@ -884,8 +867,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
         "proof" -> read(ws.lean.resolve(g.proofsPath(n.id))).fold(JNull)(src => obj("file" -> str("lean/" + g.proofsPath(n.id)), "source" -> str(src))),
         "rootTheorem" -> str(if g.formal(n) then g.rootTheorem(n) else ""),
         "lean" -> str(if g.formal(n) then g.spec(n) else ""),
-        "messages" -> strs(check.toList.flatMap(_.messages)),
-        "axioms" -> strs(check.toList.flatMap(_.axioms))
+        "messages" -> strs(check.toList.flatMap(_.messages))
       )
     obj(
       "name" -> str(kb.name),
