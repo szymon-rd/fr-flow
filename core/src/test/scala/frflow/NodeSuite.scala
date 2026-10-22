@@ -2,53 +2,96 @@ package frflow
 
 import frflow.fixtures.*
 
-/** Nodes, Lean generation, and enforcement on the shelf fixture. */
+/** Nodes, the structure of the DAG, Lean generation, and enforcement, on the shelf fixture. */
 class NodeSuite extends munit.FunSuite:
 
   private val g = Generate(shelfKb)
 
-  test("the knowledge base is well formed") {
+  test("the knowledge base is well formed: one root, parts under it, definitions beside") {
     assertEquals(shelfKb.problems, Nil)
-    assertEquals(shelfKb.ordered.map(_.id), List("OnlyGood", "Listed", "Books", "Pick"))
-    assertEquals(shelfKb.params.map(_.name), List("good", "minPages"))
+    assertEquals(shelfKb.root.map(_.id), Some("OnlyGood"))
+    // every node after what it rests on: the definitions it uses, its parents
+    val order = shelfKb.ordered.map(_.id)
+    assertEquals(order, List("Books", "Picking", "OnlyGood", "FromList", "OnlyLong", "EveryLong", "Pick"))
+    assertEquals(shelfKb.params.map(_.name), List("good", "minPages", "picks", "shown"))
+    assertEquals(shelfKb.definitions.map(_.id), List("Books", "Picking"))
   }
 
-  test("a contract must have its parent's model type") {
-    assert(compileErrors("""frflow.fixtures.onlyGood.contract[Int, Int, Int]("C", "c", "w")((a, b, r) => true)""").nonEmpty)
+  test("a contract's post has its operation's type") {
+    assert(compileErrors("""frflow.Node.contract(frflow.fixtures.picks)("C", "c", "w")((a: Int, b: Int, r: Int) => true)""").nonEmpty)
   }
 
-  test("contexts: generic nodes take opaque types and parameters; instantiation removes them") {
-    assertEquals(g.nodeCtx(listed) match { case c => (c.opaques, c.params) }, (List("Item"), List("good")))
-    assertEquals(g.nodeCtx(books) match { case c => (c.opaques, c.params) }, (Nil, List("minPages")))
-    assertEquals(g.theta(books), "(Item := Book) (good := (s_good minPages))")
+  test("a node with several parents is a part of each; a parent's parts are the nodes under it") {
+    assertEquals(shelfKb.parentsOf(pick).map(_.id), List("FromList", "OnlyLong", "EveryLong"))
+    assertEquals(shelfKb.parts(onlyGood).map(_.id), List("FromList", "OnlyLong", "EveryLong"))
+    assertEquals(shelfKb.parts(fromList).map(_.id), List("Pick"))
+    assertEquals(shelfKb.descendants(onlyGood).map(_.id), List("FromList", "Pick", "OnlyLong", "EveryLong"))
+    assertEquals(shelfKb.ancestors(pick).map(_.id), List("FromList", "OnlyLong", "EveryLong", "OnlyGood"))
+    // the composition reaches Pick once, whatever the number of paths to it
+    assertEquals(g.leaves(onlyGood).map(_.id), List("Pick"))
   }
 
-  test("refine and contract nodes have one obligation; root and instantiate none") {
-    assertEquals(g.obligation(onlyGood), None)
-    assertEquals(g.obligation(books), None)
-    assertEquals(g.obligation(listed).map(_.statement),
-      Some("∀ (Item : Type) (good : (Item → Prop)), ∀ (m : ((List Item) → Int → (List Item))), spec Item good m → Shelf.OnlyGood.spec Item good (abs Item good m)"))
-    assertEquals(g.obligation(pick).map(_.statement),
-      Some("∀ (minPages : Int), ∀ (m : (List Book) → Int → (List Book)), spec minPages m → Shelf.Books.spec minPages m"))
+  test("open terms are binders; defined terms are applied to their definitions") {
+    assertEquals(g.term("Item")._1, "Book")
+    assertEquals(g.term("good")._1, "(Shelf.good minPages)")
+    val (c, opens) = g.claim(onlyGood)
+    assertEquals(c, "(Shelf.OnlyGood.claim Book (Shelf.shown picks) (Shelf.good minPages))")
+    assertEquals(opens.names, List("picks", "minPages"))
+    assert(g.domain.contains("abbrev Item : Type := Book"), g.domain)
+    assert(g.domain.contains("def good (minPages : Int) : Book → Prop"), g.domain)
+    // the definitions a node uses, however nested
+    assertEquals(shelfKb.definitionsUsed(onlyGood, g.inForce).map(_.id).sorted, List("Books", "Picking"))
+    assertEquals(shelfKb.definitionsUsed(pick, g.inForce), Nil)
   }
 
-  test("every node gets a root theorem") {
-    kb(shelfKb).foreach(n => assert(g.theorems(n).contains("theorem root"), n.id))
-    assert(g.theorems(books).contains("Shelf.Listed.root (Item := Book) (good := (s_good minPages))"))
+  test("a node with parts is proven complete from them; a leaf has nothing to prove but that it is not contradictory") {
+    val complete = g.obligation(onlyGood, "complete").get.statement
+    assert(complete.contains("∀ (h_FromList : (Shelf.FromList.claim picks)) (h_OnlyLong") && complete.endsWith("(Shelf.OnlyGood.claim Book (Shelf.shown picks) (Shelf.good minPages))"), complete)
+    assertEquals(g.obligation(pick, "complete"), None)
+    assertEquals(g.tries(onlyGood).map(_.obligation.name), List("needed_FromList", "needed_OnlyLong", "needed_EveryLong", "clash", "unsat", "idle"))
+    assertEquals(g.tries(fromList).map(_.obligation.name), List("vacuous", "clash", "unsat"))
+    assertEquals(g.tries(pick).map(_.obligation.name), List("unsat"))
+    // the root with the operation doing nothing
+    assert(g.idle(onlyGood).get.statement.contains("(Shelf.shown (fun (x0 : (List Book)) (x1 : Int) => []))"), g.idle(onlyGood))
+    assertEquals(g.trusted.map(_.id), List("Pick"))
   }
 
-  private def kb(k: KnowledgeBase) = k.nodes
+  test("structure: one root, no cycles, a part under the nodes it proves, a design under what it serves") {
+    val other = Node.claim("Other", "s", "w")(forall((x: BigInt) => sq(x) >= 0))
+    assert(shelfWith(pick, other).problems.exists(_.startsWith("one root only")), shelfWith(pick, other).problems)
+    assert(KnowledgeBase("K", "IDEA.md")(fromList).problems.exists(_.contains("a root is required")))
+    // a contract no code calls and nothing is above
+    assert(shelfWith(pick, pickPromise).problems.exists(_.startsWith("PickPromise has no parents")))
+    val loose = Node.design("Loose", "Shelves are cached.", "They change once a day.")()
+    assert(shelfWith(pick, loose).problems.exists(_.startsWith("Loose: a design decision is under")))
+    intercept[IllegalArgumentException](books.under(onlyGood))
+    // (a node names its parents when it is built, from nodes built before it: no cycle can be written)
+  }
+
+  test("a definition with an alternative: both stay, as alternatives, and what uses the term waits for the choice") {
+    val thick = Node.definition("Thick", "A book is good when it is thick.", why = "Readers want long reads.")(good := ((b: Book) => b.pages >= 500))
+    val kb = shelfWith(pick, thick)
+    assertEquals(kb.problems, Nil)
+    val undecided = Generate(kb)
+    assertEquals(undecided.undecided, Set("good"))
+    assertEquals(undecided.waitsForDefinition(onlyGood), List("good"))
+    assertEquals(undecided.waitsForDefinition(pick), Nil)
+    val chosen = Generate(kb, chosen = _ == "Thick")
+    assertEquals(chosen.term("good")._1, "Shelf.good")
+    assert(chosen.domain.contains("/-- Thick -/"), chosen.domain)
+    // running, the first listed is used until one is chosen
+    assertEquals(kb.inForce(_ => false, fallback = true).get("good").map(_.id), Some("Books"))
+  }
 
   test("the implementation is also run on combinations of the examples' inputs") {
-    val two = books.contract[List[Book], Int, List[Book]]("Two", "Picking returns only long enough books.", "w")(
-      (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages.value))
+    val two = Node.contract(picks)("Two", "Picking returns only long enough books.", "w")(
+      (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages.value)).under(shelfParts*)
       .examples(minPages.bind(100))(
         expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
         expect(List(Book("Short", 20)), 1, Nil, "no long book"),
         reject(List(Book("Short", 20)), 1, List(Book("Short", 20)), "never a short one"))
     // passes every example, but returns the whole shelf when asked for one book from several
-    val kb = KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, two)
-      .implement(two)((s, n) => if s.size > 1 && n == 1 then s else s.filter(_.pages >= minPages.value).take(n))
+    val kb = shelfWith(two).implement(two)((s, n) => if s.size > 1 && n == 1 then s else s.filter(_.pages >= minPages.value).take(n))
     val rs = kb.exampleResults(two)
     assertEquals(rs.take(3).flatMap(_.implementation), List("ok", "ok", "ok"))
     val generated = rs.drop(3)
@@ -56,98 +99,124 @@ class NodeSuite extends munit.FunSuite:
     assert(generated.head.implementation.exists(_.contains("breaks the contract")), generated)
   }
 
-  test("a spec condition that does not mention the model is shown as an assumption about the world") {
-    val assumed = onlyGood.refine[(List[Item.T], Int) => List[Item.T]]("Assumed", "s", "w")(
-      abs = pick => pick, spec = pick => forall((x: Item.T) => good(x)) && forall((l: List[Item.T], n: Int) => pick(l, n).forall(x => l.contains(x))))
-    val kb = KnowledgeBase("A", idea = "IDEA.md")(onlyGood, assumed)
-    assertEquals(kb.limits(assumed).size, 1, kb.limits(assumed))
-    assert(kb.limits(assumed).head.contains("assumes about the world"))
-    assertEquals(kb.limits(listed), Nil)
+  test("a post condition that does not mention the call is shown as an assumption about the world") {
+    val assumed = Node.contract(picks)("Assumed", "s", "w")((shelf, n, picked) => minPages.value > 0 && picked.forall(b => shelf.contains(b)))
+      .under(shelfParts*)
+    assertEquals(shelfWith(assumed).limits(assumed).filter(_.contains("assumes about the world")).size, 1, shelfWith(assumed).limits(assumed))
+    assert(!shelfKb.limits(pick).exists(_.contains("assumes about the world")))
   }
 
-  test("a cross-cutting invariant is kept by the contracts that name it, on examples, generated calls and at run time") {
+  test("a cross-cutting invariant is a claim kept by the contracts that name it, on examples, generated calls and at run time") {
     val atMostN = Node.invariant[Int, Int]("AtMostN", "No more books are picked than asked for.", "Readers carry what they asked for.")(
-      (asked, picked) => picked <= asked)
-    val kept = books.contract[List[Book], Int, List[Book]]("Kept", "Picking returns only long enough books.", "w")(
-      (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages.value))
+      (asked, picked) => picked <= asked).under(onlyGood)
+    val kept = Node.contract(picks)("Kept", "Picking returns only long enough books.", "w")(
+      (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages.value)).under(shelfParts*)
       .examples(minPages.bind(100))(
         expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
         expect(List(Book("Short", 20)), 1, Nil, "no long book"),
         reject(List(Book("Short", 20)), 1, List(Book("Short", 20)), "never a short one"))
       .keeps(atMostN)((shelf, n, picked) => List((n, picked.length)))
-    val kb = KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, kept, atMostN)
-      .implement(kept)((s, n) => s.filter(_.pages >= minPages.value).take(n))
+    val kb = shelfWith(kept, atMostN).implement(kept)((s, n) => s.filter(_.pages >= minPages.value).take(n))
     assertEquals(kb.problems, Nil)
+    // keeping makes the contract a part of the invariant
+    assertEquals(kb.parts(atMostN).map(_.id), List("Kept"))
     assert(kb.exampleResults(kept).forall(_.implementation.contains("ok")), kb.exampleResults(kept))
     // every long book, twice: meets the post, breaks the invariant when one is asked for
     val bad = kb.implement(kept)((s, n) => s.filter(_.pages >= minPages.value) ++ s.filter(_.pages >= minPages.value))
     assert(bad.exampleResults(kept).flatMap(_.implementation).exists(_.contains("breaks the invariant AtMostN")), bad.exampleResults(kept))
     val run = bad.service(kept)(minPages.bind(100))
     intercept[ContractViolation](run(List(Book("Long", 300)), 1))
-    // every contract in its scope keeps it or says why not; an invariant nobody keeps is a problem
-    // every contract whose result can hold what the rule is about keeps it or says why not
-    val fromShelf = Node.invariant[List[Book], Book]("FromShelf", "Only books on the shelf are picked.", "w")((shelf, b) => shelf.contains(b))
-    val unkept = KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, pick, fromShelf).problems
+    // every contract whose result can hold what the rule is about keeps it or says why not; an invariant nobody keeps is a problem
+    val fromShelf = Node.invariant[List[Book], Book]("FromShelf", "Only books on the shelf are picked.", "w")((shelf, b) => shelf.contains(b)).under(onlyGood)
+    val unkept = shelfWith(pick, fromShelf).problems
     assert(unkept.exists(_.contains("no contract keeps")), unkept)
     assert(unkept.exists(_.startsWith("Pick: keep FromShelf")), unkept)
-    val exempt = KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books,
-      pick.keeps(fromShelf)((shelf, n, picked) => picked.map(b => (shelf, b))), kept.exempt(fromShelf, "the shelf is checked by Pick"), fromShelf, atMostN)
+    val exempt = shelfWith(pick.keeps(fromShelf)((shelf, n, picked) => picked.map(b => (shelf, b))), kept.exempt(fromShelf, "the shelf is checked by Pick"), fromShelf, atMostN)
     assertEquals(exempt.problems, Nil)
     // a rule about numbers does not reach a contract that returns books
-    assert(!KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, pick, kept, atMostN).problems.exists(_.startsWith("Pick: keep AtMostN")))
+    assert(!shelfWith(pick, kept, atMostN).problems.exists(_.startsWith("Pick: keep AtMostN")))
     // an invariant scoped to another subtree does not apply
-    val scoped = Node.invariant[List[Book], Book]("Scoped", "s", "w", scope = List(onlyGood))((shelf, b) => shelf.contains(b))
-    assert(KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, pick, scoped).problems.exists(_.startsWith("Pick: keep Scoped")))
+    val scoped = Node.invariant[List[Book], Book]("Scoped", "s", "w", scope = List(everyLong))((shelf, b) => shelf.contains(b)).under(onlyGood)
+    assert(shelfWith(pick, scoped).problems.exists(_.startsWith("Pick: keep Scoped")))
   }
 
   test("two different parameters with one name are a problem") {
     val other = Param[Int]("minPages", "the pages a reader can carry")
-    val c = books.contract[List[Book], Int, List[Book]]("Clash", "s", "w")((shelf, n, picked) => picked.length <= other.value)
-    val ps = KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, c).problems
-    assert(ps.exists(_.startsWith("two different parameters are named minPages")), ps)
+    val c = Node.contract(picks)("Clash", "s", "w")((shelf, n, picked) => picked.length <= other.value).under(shelfParts*)
+    assert(shelfWith(c).problems.exists(_.startsWith("two different parameters are named minPages")), shelfWith(c).problems)
   }
 
   test("examples are checked against the contract and the registered implementation") {
     val rs = shelfKb.exampleResults(pick)
-    assertEquals(rs.map(r => (r.contract, r.implementation)), List(("ok", Some("ok")), ("ok", Some("ok")), ("ok", Some("ok"))))
-    // a useless implementation: proven contract, but it does not do what was decided
-    val lazyKb = KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, pick).implement(pick)((_, _) => Nil)
+    assertEquals(rs.map(r => (r.contract, r.implementation)), List.fill(4)(("ok", Some("ok"))))
+    // a useless implementation: it does not do what was decided
+    val lazyKb = shelfKb.implement(pick)((_, _) => Nil)
     assertEquals(lazyKb.exampleResults(pick).head.implementation, Some("returned List()"))
     // a contract that refuses what was decided
-    val strict = books.contract[List[Book], Int, List[Book]]("Strict", "Nothing is picked.", "w")((_, _, picked) => picked.isEmpty)
+    val strict = Node.contract(picks)("Strict", "Nothing is picked.", "w")((_, _, picked) => picked.isEmpty)
       .examples(minPages.bind(100))(expect(List(Book("Long", 300)), 1, List(Book("Long", 300)), "the long book"))
     assertEquals(strict.checkExamples(None).head.contract, "the contract refuses it")
   }
 
-  test("every node says why; several roots are allowed; generated names are reserved") {
-    val noWhy = onlyGood.refine[(List[Item.T], Int) => List[Item.T]]("NoWhy", "s", " ")(abs = p => p, spec = p => true)
-    assert(KnowledgeBase("K", "IDEA.md")(onlyGood, noWhy).problems.exists(_.contains("say why")))
-    val other = Node.root[Int => Int]("Other", "s", "w")(f => true)
-    assertEquals(KnowledgeBase("K", "IDEA.md")(onlyGood, other).problems, Nil)
-    val m = Param[Int]("m", "a bound")
-    val clash = Node.root[Int => Int]("Clash", "s", "w")(f => forall((x: Int) => f(x) >= m.value))
+  test("every node says why; generated names are reserved") {
+    val noWhy = Node.claim("NoWhy", "s", " ")(forall((x: BigInt) => sq(x) >= 0)).under(onlyGood)
+    assert(shelfWith(pick, noWhy).problems.exists(_.contains("say why")))
+    val m = Param[Int => Int]("m", "a bound")
+    val clash = Node.claim("Clash", "s", "w")(forall((x: Int) => m(x) >= 0))
     assert(KnowledgeBase("K", "IDEA.md")(clash).problems.exists(_.contains("reserved")))
   }
 
-  test("an enforced implementation returns results that meet the contract") {
-    val ok = pick.enforce((shelf, n) => shelf.filter(_.pages >= 100).take(n))(minPages.bind(100))
+  test("an enforced implementation returns results that meet the contract, or fails closed") {
+    val ok = pick.enforce((shelf, n) => shelf.filter(_.pages >= 100))(minPages.bind(100))
     assertEquals(ok(List(Book("a", 50), Book("b", 150)), 5), List(Book("b", 150)))
-  }
-
-  test("an enforced implementation that breaks the contract fails closed") {
     val bad = pick.enforce((shelf, n) => shelf.take(n))(minPages.bind(100))
     intercept[ContractViolation](bad(List(Book("a", 50)), 1))
-  }
-
-  test("parameters must be bound to evaluate a contract") {
     val unbound = pick.enforce((shelf, n) => shelf)()
     intercept[IllegalStateException](unbound(List(Book("a", 500)), 1))
   }
 
+  test("service binds each operation with code to that code, and each defined term to its definition") {
+    // Again's code calls the shelf service's operation: the service runs PickPromise's code for it
+    val s = callsKb.service(againC)(minPages.bind(100))
+    assertEquals(s(List(Book("Long", 300), Book("Short", 20)), 5), List(Book("Long", 300)))
+    // a contract stated in a defined term: the term is bound to its definition where it runs
+    val longEnough = Param[Book => Boolean]("longEnough", "whether a book is long enough for readers")
+    val lengths = Node.definition("Lengths", "A book is long enough when it has the pages readers asked for.", "w")(
+      longEnough := ((b: Book) => b.pages >= minPages.value))
+    val byTerm = Node.contract(picks)("ByTerm", "Picked books are long enough.", "w")((shelf, n, picked) => picked.forall(b => longEnough(b)))
+      .under(shelfParts*)
+      .examples(minPages.bind(100))(
+        expect(List(Book("Long", 300)), 1, List(Book("Long", 300)), "the long book"),
+        expect(List(Book("Short", 20)), 1, Nil, "no long book"),
+        reject(List(Book("Short", 20)), 1, List(Book("Short", 20)), "not a short one"))
+    val kb = shelfWith(byTerm, lengths).implement(byTerm)((shelf, n) => shelf.filter(_.pages >= minPages.value))
+    assertEquals(kb.problems, Nil)
+    assert(kb.exampleResults(byTerm).forall(r => r.contract == "ok" && r.implementation.contains("ok")), kb.exampleResults(byTerm))
+    assertEquals(kb.service(byTerm)(minPages.bind(100))(List(Book("Long", 300), Book("Short", 20)), 1), List(Book("Long", 300)))
+    intercept[IllegalStateException](kb.service(byTerm)())
+  }
+
+  test("an assumption whose terms are bound is checked when the service starts, and when its values change") {
+    val positive = Node.assumption("PositiveLength", "Readers ask for books of at least one page.", why = "A length of zero would let empty books in.")(
+      minPages.value > 0).under(onlyLong)
+    val kb = shelfWith(pick, positive).implement(pick)((shelf, n) => shelf.filter(_.pages >= minPages.value))
+    assertEquals(kb.problems, Nil)
+    intercept[ContractViolation](kb.service(pick)(minPages.bind(0)))
+    var min = 100
+    val s = kb.service(pick)(minPages.bind(min))
+    assertEquals(s(List(Book("Long", 300)), 1), List(Book("Long", 300)))
+    min = 0
+    val e = intercept[ContractViolation](s(List(Book("Long", 300)), 1))
+    assert(e.getMessage.contains("PositiveLength"), e.getMessage)
+    // an assumption over a quantifier cannot be computed: it is trusted only
+    val world = Node.assumption("Shelved", "Every book has a title.", why = "The library labels books.")(forall((b: Book) => b.title != "")).under(onlyLong)
+    assert(shelfWith(pick, world).implement(pick)((shelf, n) => shelf).runtimeAssumptions.head.holds())
+  }
+
   test("proof files may contain only tactic proofs") {
-    val ok = Generate(squareKb).proofFile(squares).replace("sorry", "simp")
+    val ok = Generate(squareKb).proofFile(nonNegative).replace("sorry", "simp")
     assertEquals(Lean.violations(ok), Nil)
-    val bad = "import Lean\nrun_cmd do pure ()\nset_option debug.skipKernelTC true\nattribute [simp] foo\n#eval 1\ntheorem link : Obl.link := by simp\n"
+    val bad = "import Lean\nrun_cmd do pure ()\nset_option debug.skipKernelTC true\nattribute [simp] foo\n#eval 1\ntheorem complete : Obl.complete := by simp\n"
     assertEquals(Lean.violations(bad).map(_._2).toSet,
       Set("import", "command run_cmd", "metaprogram", "set_option", "command attribute", "attribute", "command #eval"))
     assert(Lean.violations("set_option\n  debug.skipKernelTC true\n").nonEmpty)
@@ -163,18 +232,17 @@ class NodeSuite extends munit.FunSuite:
   }
 
   test("a contract's examples must tell a constant implementation apart") {
-    val lazyPick = books.contract[List[Book], Int, List[Book]]("LazyPick", "s", "w")((_, _, picked) => picked.isEmpty)
+    val lazyPick = Node.contract(picks)("LazyPick", "s", "w")((_, _, picked) => picked.isEmpty).under(shelfParts*)
       .examples(minPages.bind(100))(expect(Nil, 1, Nil, "nothing"), reject(List(Book("L", 300)), 1, List(Book("L", 300)), "x"))
-    assert(KnowledgeBase("K", "IDEA.md")(onlyGood, listed, books, lazyPick).problems.exists(_.contains("always returns it")))
+    assert(shelfWith(lazyPick).problems.exists(_.contains("always returns it")))
   }
 
   test("production code beside a proven define runs, and is checked against the define and the contract") {
-    val kb = KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, pick)
-    val good = kb.implementProven(pick)(longOnes, (shelf, n) => shelf.filter(b => !(b.pages < minPages.value)))
+    val good = shelfKb.implementProven(pick)(longOnes, (shelf, n) => shelf.filter(b => !(b.pages < minPages.value)))
     assert(good.exampleResults(pick).forall(r => r.contract == "ok" && r.implementation.forall(_ == "ok")), good.exampleResults(pick))
     assert(!good.implementation(pick).get.provenCode)
-    // returning nothing meets the contract, but is not what the proven define returns
-    val lazyOne = kb.implementProven(pick)(longOnes, (shelf, n) => List.empty[Book])
+    // returning nothing is not what the proven define returns
+    val lazyOne = shelfKb.implementProven(pick)(longOnes, (shelf, n) => List.empty[Book])
     assert(lazyOne.exampleResults(pick).exists(_.implementation.exists(_.contains("where the proven define returns"))), lazyOne.exampleResults(pick))
     // and at run time every result is checked against the contract
     val s = good.service(pick)(minPages.bind(100))

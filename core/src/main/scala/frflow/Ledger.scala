@@ -117,7 +117,7 @@ final case class Ledger(decisions: Map[String, List[Decision]]):
     */
   def rejectedUnder(parent: String): List[(String, Json, String)] =
     decisions.toList.sortBy(_._1).flatMap((id, ds) => ds.lastOption.filter(d => d.action == "reject" &&
-      d.content("parent").flatMap(_.str).contains(parent)).map(d => (id, d.content, d.reason)))
+      (d.content("parent").flatMap(_.str).contains(parent) || d.content("parents").exists(_.arr.flatMap(_.str).contains(parent)))).map(d => (id, d.content, d.reason)))
 
   /** Every decision, newest first. */
   def all: List[(String, Decision)] = decisions.toList.flatMap((id, ds) => ds.map(id -> _)).sortBy(_._2.at).reverse

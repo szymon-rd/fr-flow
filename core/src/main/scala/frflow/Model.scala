@@ -1,7 +1,7 @@
 package frflow
 
-/** A type with no assumed structure. In Lean it is a type parameter of every
-  * definition and theorem that mentions it.
+/** A domain type, open until a definition fixes it (`Node.definition(...)(User := of[UserId])`). Open,
+  * it is a type parameter of every Lean definition and theorem that mentions it; defined, a Lean `abbrev`.
   *
   * {{{
   * val User = Opaque("User", "a person with an account")      // use the type as User.T
@@ -12,27 +12,27 @@ package frflow
 final class Opaque(val name: String, val means: String):
   type T
 
-  /** Fixes this type, in `instantiate`. */
-  def :=(t: LeanType): Subst = Subst(name, t.lean, t.types, None, isType = true)
+  /** Fixes this type, in a definition. */
+  def :=(t: LeanType): Subst = Subst(name, t.lean, t.types, None, isType = true, this)
 
-/** A value of a known type that the model leaves open. In Lean it is a
-  * parameter: everything proven holds for every value of it.
+/** A domain term of a known type, open until a definition fixes it. Open, it is a Lean binder:
+  * everything proven holds for every value of it; defined, a Lean `def` of the vocabulary. It is a fact
+  * of the world (`grants`), or an operation of the system (`decide`): a function some contract is about
+  * and some code implements, which other code calls through this parameter.
   *
   * {{{
   * val authorized = Param[(User.T, Resource.T) => Boolean]("authorized", "whether the user may access the resource")
   * }}}
   *
   * @param means what it stands for in the world, and where its value comes from: part of the theory
-  * @param implementing the contract it calls, for a parameter made by `contract.caller`: the code that
-  *        calls it is proven assuming only that contract's promise
   */
-final class Param[A](val name: String, val means: String, val implementing: Option[() => Node[?]] = None):
+final class Param[A](val name: String, val means: String):
 
   /** The value bound at run time (see `Node.enforce`). */
   def value: A = Bindings.get(this)
 
-  /** Gives this parameter a definition, in `instantiate`. */
-  inline def :=[B](inline v: B): Subst = Subst.param(name, Lifted(v))
+  /** Gives this term a definition, in `Node.definition`. */
+  inline def :=[B](inline v: B): Subst = Subst.param(this, Lifted(v))
 
   /** A run-time value of this parameter; evaluated on every use. */
   def bind(v: => A): Binding = Binding(this, () => v)
@@ -46,11 +46,14 @@ extension [A, R](p: Param[A => R]) def apply(a: A): R = p.value(a)
 extension [A, B, R](p: Param[(A, B) => R]) def apply(a: A, b: B): R = p.value(a, b)
 extension [A, B, C, R](p: Param[(A, B, C) => R]) def apply(a: A, b: B, c: C): R = p.value(a, b, c)
 
-/** A substitution of `instantiate`: an opaque type by a type, or a parameter by a term. */
-final case class Subst(name: String, lean: String, types: List[TypeDecl], term: Option[Lifted[?]], isType: Boolean)
+/** What a definition fixes: an opaque type by a type, or a parameter by a term. `target` is the
+  * `Opaque` or `Param` it defines.
+  */
+final case class Subst(name: String, lean: String, types: List[TypeDecl], term: Option[Lifted[?]], isType: Boolean, target: AnyRef):
+  def param: Option[Param[?]] = target match { case p: Param[?] => Some(p); case _ => None }
 
 object Subst:
-  def param(name: String, l: Lifted[?]): Subst = Subst(name, l.lean, l.types, Some(l), isType = false)
+  def param(p: Param[?], l: Lifted[?]): Subst = Subst(p.name, l.lean, l.types, Some(l), isType = false, p)
 
 /** A Scala type, as a Lean type. */
 final case class LeanType(lean: String, types: List[TypeDecl])
