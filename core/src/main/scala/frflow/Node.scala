@@ -367,8 +367,8 @@ final case class Reliance(guarantee: Lifted[?], sees: Lifted[?]):
   */
 final case class Implementation(contract: String, factory: () => Any, files: List[String], wiring: String = "",
     proven: Option[Def[?]] = None):
-  /** The running code is the proven `define` itself. */
-  def provenCode: Boolean = proven.isDefined
+  /** The running code is the proven `define` itself, not code checked against it (`runs`). */
+  def provenCode: Boolean = proven.isDefined && wiring.isEmpty
 
   /** The implementation's source files; the last one listed is the model's file, where it is attached. */
   def sources: List[String] = files.dropRight(1)
@@ -397,6 +397,13 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     */
   inline def implementProven[A, B, R](contract: Node[(A, B) => R])(inline impl: Def[(A, B) => R]): KnowledgeBase =
     withImplementation(Implementation(contract.id, () => impl.lifted.value, Lifted.sourceFiles(impl), "", Some(impl)))
+
+  /** Production code (`runs`: an index, a database query) for a contract Lean proves of the `define`:
+    * the code runs, and is checked against the define on every combination of the examples' inputs
+    * (the same result), and against the contract on every call. The root is proven of the define.
+    */
+  inline def implementProven[A, B, R](contract: Node[(A, B) => R])(inline impl: Def[(A, B) => R], inline runs: (A, B) => R): KnowledgeBase =
+    withImplementation(Implementation(contract.id, () => runs, Lifted.sourceFiles(runs), Lifted.sources(runs).mkString, Some(impl)))
 
   def withImplementation(i: Implementation): KnowledgeBase =
     KnowledgeBase(name, idea, implementations.filterNot(_.contract == i.contract) :+ i)(nodes*)
@@ -460,13 +467,17 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
       n.cases.map(e => (e.bindings, e.givenSource)).distinctBy(_._1.map(b => (b.param.name, scala.util.Try(b.value()).toOption))).flatMap { (bindings, src) =>
         Bindings.within(bindings) {
           val f = try Some(i.factory.asInstanceOf[() => (Any, Any) => Any]()) catch case _: Exception => None
+          // Code that runs beside a proven define returns what the define returns, examples included.
+          val reference = i.proven.filter(_ => !i.provenCode).map(_.lifted.value.asInstanceOf[(Any, Any) => Any])
           f.toList.flatMap { impl =>
-            for a <- as; b <- bs if !known((bindings, a, b)) yield
+            for a <- as; b <- bs if reference.isDefined || !known((bindings, a, b)) yield
               val (r, broken) =
                 try
                   val r = impl(a, b)
                   val keeps = n.asInstanceOf[Node[(Any, Any) => Any]].broken(a, b, r)
-                  (r, if !post(a, b, r) then Some(s"returned ${Example.show(r)}, which breaks the contract")
+                  val expected = reference.map(_(a, b)).filter(_ != r)
+                  (r, if expected.isDefined then Some(s"returned ${Example.show(r)}, where the proven define returns ${Example.show(expected.get)}")
+                      else if !post(a, b, r) then Some(s"returned ${Example.show(r)}, which breaks the contract")
                       else keeps.map(i => s"returned ${Example.show(r)}, which breaks the invariant $i"))
                 catch case e: Exception => (null, Some(s"error: ${e.getMessage}"))
               broken.map(why => ExampleResult(Example("generated from the examples' inputs: the contract holds for every call", bindings, src, a, b, r, true), "ok", Some(why)))

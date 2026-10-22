@@ -119,9 +119,11 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     (if n.kept.isEmpty then Nil else List("keeps" -> JArr(n.kept.map(k => str(k.describe))))) ++
     (if n.reliesOn.isEmpty then Nil else List("relies" -> JArr(n.relied.map((o, why, p) => str(s"${o().id}: $why${p.fold("")(r => s" (guarantee: ${r.guarantee.source}, of: ${r.sees.source})")}"))))) ++
     (if n.expected.isEmpty then Nil else List("expects" -> JArr(n.expected.map((st, l) => str(s"$st: ${l.source}"))))) ++
-    kb.implementation(n).flatMap(_.proven).map { d =>
-      "implementation" -> str(s"proven: ${d.name}" +: Def.closure(List(d)).map(x => s"${x.name} = ${x.lifted.source}") mkString "\n")
-    }.toList ++ kb.implementation(n).filter(_.proven.isEmpty).filter(_.wiring.nonEmpty).map(i => "implementation" -> str(i.wiring)).toList
+    kb.implementation(n).flatMap { i =>
+      val proven = i.proven.toList.flatMap(d => s"proven: ${d.name}" +: Def.closure(List(d)).map(x => s"${x.name} = ${x.lifted.source}"))
+      val runs = Option.when(i.wiring.nonEmpty)(if i.proven.isDefined then s"runs: ${i.wiring}" else i.wiring).toList
+      Option.when((proven ++ runs).nonEmpty)("implementation" -> str((proven ++ runs).mkString("\n")))
+    }.toList
     ++ (if n.kind != NodeKind.Root then Nil
         else if n.ideaSection.isEmpty then Seq("idea" -> str(ideaDecided), "notModelled" -> str(notModelled))
         else Seq("idea" -> str(ideaOf(n)), "ideaSection" -> str(n.ideaSection), "notModelled" -> str(notModelledOf(n)))))
@@ -568,12 +570,14 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val contracts = kb.nodes.filter(_.kind == NodeKind.Contract)
     val proven = provenCode
     val plain = contracts.filter(c => kb.implementation(c).exists(_.proven.isEmpty))
+    val beside = contracts.filter(c => kb.implementation(c).exists(i => i.proven.isDefined && !i.provenCode))
     val designs = kb.nodes.filter(_.kind == NodeKind.Design)
     s"Proofs: ${formal.size} of ${links.size} links proven in Lean" +
       s"${if formalAll.diff(formal).nonEmpty then s" (${formalAll.diff(formal).map(_.id).mkString(", ")} not proven yet)" else ""}" +
       s"${if links.diff(formalAll).nonEmpty then s" (${links.diff(formalAll).map(_.id).mkString(", ")} out of Lean)" else ""}; " +
       s"the root proven of the code for ${proven.size} of ${contracts.size} contracts" +
       (if plain.nonEmpty then s", checked on examples only for ${plain.map(_.id).mkString(", ")}" else "") +
+      (if beside.nonEmpty then s", and of a proven define the code is checked against for ${beside.map(_.id).mkString(", ")}" else "") +
       (if designs.nonEmpty then s"; ${designs.size} design decision(s) govern code no proof covers (${designs.map(_.id).mkString(", ")})" else "") +
       evaluated + ".\n" + lines
 

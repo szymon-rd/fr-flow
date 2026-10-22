@@ -26,7 +26,7 @@ trees. Lean, generated from the Scala, proves each link.
 | refine | `parent.refine[M2](id, statement, why)(abs, spec)` | `spec m → parent.spec (abs m)` |
 | instantiate | `parent.instantiate[M2](id, statement, why)(T := of[X], p := ...)` | the link holds by substitution; Lean checks it builds |
 | contract | `parent.contract[A, B, R](id, statement, why)(post)`, or `contractVia(...)(abs)(post)` | every function meeting `post` meets the parent |
-| implementation | `kb.implementProven(contract)(define {...})`, or `kb.implement(contract)(plain Scala)` | a `define` meets the contract, and the root holds of it (`root_impl`) |
+| implementation | `kb.implementProven(contract)(define {...})`, optionally `(define {...}, fastCode)`, or `kb.implement(contract)(plain Scala)` | a `define` meets the contract, and the root holds of it (`root_impl`); `fastCode` runs, checked to return what the define does |
 | invariant | `Node.invariant[A, B](id, statement, why)(rule)`, kept with `.keeps` or `.exempt` | every pair a keeping contract shows meets the rule |
 | design | `parent.design(id, statement, why)(files*)` | nothing: an architecture choice or convention, decided and tracked |
 | expectation | `node.expects(statement)(m => ...)` | a consequence the developer expects, from the node's spec |

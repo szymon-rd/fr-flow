@@ -160,7 +160,11 @@ to hide it.
 **Implementations.** Prefer `implementProven(contract)(define {...})`: Lean
 proves it meets the contract, and the root holds of the code. Otherwise
 `implement(contract)(plain Scala)`, checked on the examples and every
-combination of their inputs. Production calls
+combination of their inputs. When production needs other code (an index, a
+query), keep the proven define as its reference:
+`implementProven(contract)(define {...}, (a, b) => fast)`; the fast code runs
+and must return what the define returns on every combination of the examples'
+inputs. Production calls
 `knowledge.service(contract)(bindings*)`, which checks each result. Facts that
 decide access must come from bound parameters over the system's data, never
 from the result.

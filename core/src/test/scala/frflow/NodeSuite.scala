@@ -167,3 +167,16 @@ class NodeSuite extends munit.FunSuite:
       .examples(minPages.bind(100))(expect(Nil, 1, Nil, "nothing"), reject(List(Book("L", 300)), 1, List(Book("L", 300)), "x"))
     assert(KnowledgeBase("K", "IDEA.md")(onlyGood, listed, books, lazyPick).problems.exists(_.contains("always returns it")))
   }
+
+  test("production code beside a proven define runs, and is checked against the define and the contract") {
+    val kb = KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, pick)
+    val good = kb.implementProven(pick)(longOnes, (shelf, n) => shelf.filter(b => !(b.pages < minPages.value)))
+    assert(good.exampleResults(pick).forall(r => r.contract == "ok" && r.implementation.forall(_ == "ok")), good.exampleResults(pick))
+    assert(!good.implementation(pick).get.provenCode)
+    // returning nothing meets the contract, but is not what the proven define returns
+    val lazyOne = kb.implementProven(pick)(longOnes, (shelf, n) => List.empty[Book])
+    assert(lazyOne.exampleResults(pick).exists(_.implementation.exists(_.contains("where the proven define returns"))), lazyOne.exampleResults(pick))
+    // and at run time every result is checked against the contract
+    val s = good.service(pick)(minPages.bind(100))
+    assertEquals(s(List(Book("Long", 300)), 1), List(Book("Long", 300)))
+  }
