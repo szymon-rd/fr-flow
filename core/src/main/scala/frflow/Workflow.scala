@@ -132,7 +132,8 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       val all = scala.collection.mutable.LinkedHashMap.empty[String, Def[?]]
       def visit(x: Def[?]): Unit = if !all.contains(x.name) then { all(x.name) = x; x.lifted.defs.foreach(visit) }
       visit(d)
-      "implementation" -> str(("proven: " + d.name) +: all.values.map(x => s"${x.name} = ${x.lifted.source}").toList mkString "\n")
+      val head = kb.implementation(n).filter(_.oracle).fold(s"proven: ${d.name}")(i => s"plain, checked against the proven ${d.name}: ${i.wiring}")
+      "implementation" -> str(head +: all.values.map(x => s"${x.name} = ${x.lifted.source}").toList mkString "\n")
     }.toList ++ kb.implementation(n).filter(_.proven.isEmpty).filter(_.wiring.nonEmpty).map(i => "implementation" -> str(i.wiring)).toList
     ++ (if n.kind != NodeKind.Root then Nil
         else if n.ideaSection.isEmpty then Seq("idea" -> str(ideaDecided), "notModelled" -> str(notModelled))
@@ -554,17 +555,19 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val contracts = kb.nodes.filter(_.kind == NodeKind.Contract)
     val proven = provenCode
     val plain = contracts.filter(c => kb.implementation(c).exists(_.proven.isEmpty))
+    val checked = contracts.filter(c => kb.implementation(c).exists(_.oracle))
     val designs = kb.nodes.filter(_.kind == NodeKind.Design)
     s"Proofs: ${formal.size} of ${links.size} links proven in Lean${if assumedLinks.nonEmpty then s" (${assumedLinks.map(_.id).mkString(", ")} assumed: decided by reading, named by every root theorem that rests on them)" else ""}" +
       s"${if formalAll.diff(formal).nonEmpty then s" (${formalAll.diff(formal).map(_.id).mkString(", ")} not proven yet)" else ""}" +
       s"${if links.diff(formalAll).diff(assumedLinks).nonEmpty then s" (${links.diff(formalAll).diff(assumedLinks).map(_.id).mkString(", ")} out of Lean)" else ""}; " +
       s"the root proven of the code for ${proven.size} of ${contracts.size} contracts" +
+      (if checked.nonEmpty then s", of a proven oracle for ${checked.map(_.id).mkString(", ")} (its plain implementation is checked against it on the examples' inputs)" else "") +
       (if plain.nonEmpty then s", checked on examples only for ${plain.map(_.id).mkString(", ")}" else "") +
       (if designs.nonEmpty then s"; ${designs.size} design decision(s) govern code no proof covers (${designs.map(_.id).mkString(", ")})" else "") + ".\n"
 
   /** The contracts whose root theorem is proven of their code. */
   def provenCode: List[Node[?]] =
-    kb.nodes.filter(c => c.kind == NodeKind.Contract && generate.provenImpl(c).isDefined &&
+    kb.nodes.filter(c => c.kind == NodeKind.Contract && generate.provenImpl(c).isDefined && kb.implementation(c).exists(_.provenCode) &&
       current(c).exists(k => k.status == "proven" && k.obligations.exists(o => o.name == "root_impl" && o.status == "proven")))
 
   /** What the idea requires of the proofs, as decided with it: a line `Proven code: N%` in IDEA.md
@@ -816,7 +819,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
               if c.status == "failed" && r.status == "proven" then ("failed", c.messages.headOption.getOrElse("the node's check failed"))
               else c.obligations.find(_.name == "root_impl").filter(_ => r.status == "proven").fold((r.status, r.detail))(ri => (ri.status, ri.detail))))
               .getOrElse(("unchecked", "not checked yet"))
-          obj("name" -> str(d.name), "status" -> str(st), "detail" -> str(detail))
+          obj("name" -> str(d.name), "status" -> str(st), "detail" -> str(detail), "oracle" -> JBool(kb.implementation(n).exists(_.oracle)))
         },
         "relies" -> JArr(n.reliesOn.map((o, _) => str(o.id))),
         "reliedOnBy" -> JArr(kb.nodes.filter(_.reliesOn.exists(_._1 eq n)).map(c => str(c.id))),

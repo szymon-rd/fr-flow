@@ -247,7 +247,8 @@ object Decisions:
     // What moved is only above it (the re-proven link says it still holds), or only its proven
     // implementation (Lean proves the new one meets the contract, and the root holds of it).
     def without(c: Json) = JObj(c.obj.filterNot(_._1 == "implementation"))
-    val implOnly = cs.contains("self") && n("implementationProof").exists(p => p != JNull && s(p, "status") == "proven") &&
+    // (Not a plain implementation checked against a proven oracle: what runs is not what Lean proved.)
+    val implOnly = cs.contains("self") && n("implementationProof").exists(p => p != JNull && s(p, "status") == "proven" && !p("oracle").contains(JBool(true))) &&
       ledger.binding(id).exists(d => Decision.hash(without(d.content)) == Decision.hash(without(n("content").getOrElse(JNull))))
     // Only the shape of a domain type it uses changed (a field added, a case), and how its examples
     // print: no definition, nothing it says. One type change reaches many nodes; they are accepted

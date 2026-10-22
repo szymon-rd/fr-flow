@@ -129,7 +129,11 @@ this way. It also keeps the code from drifting away from it.
    - **Prefer a proven implementation.** When the implementation fits the
      Scala subset, write it as a `define` and register it with
      `implementProven(contract)(impl)`: Lean proves it meets the contract, and
-     the chain reaches the code. If IDEA.md says `Proven code: N%`, `status`
+     the chain reaches the code. When the code must be faster than the
+     subset allows, keep the `define` as its oracle:
+     `implementChecked(contract)(fast)(define)` (the fast code must return
+     what the proven `define` does on the examples' inputs; it is not proven
+     code). If IDEA.md says `Proven code: N%`, `status`
      fails while fewer contracts than that are proven down to their code; the
      line is the developer's (it is part of the idea), never lower it.
    - **Name the idea's section** a root is decided against

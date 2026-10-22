@@ -324,8 +324,14 @@ extension [A, B, R](n: Node[(A, B) => R])
   * runs it through `KnowledgeBase.service`, and a change to its source files is noticed. `wiring` is
   * the source of the expression that builds it, kept in the contract's content.
   */
+/** An implementation registered for a contract. `proven` is the `define` Lean proves meets the
+  * contract: the running implementation itself, or, with `oracle`, the reference a faster plain
+  * implementation (`factory`) is checked against.
+  */
 final case class Implementation(contract: String, factory: () => Any, files: List[String], wiring: String = "",
-    proven: Option[Def[?]] = None):
+    proven: Option[Def[?]] = None, oracle: Boolean = false):
+  /** The running code is the proven `define` itself. */
+  def provenCode: Boolean = proven.isDefined && !oracle
   /** The implementation's source files; the last one listed is the model's file, where it is attached. */
   def sources: List[String] = files.dropRight(1)
   def modelFile: Option[String] = files.lastOption
@@ -352,6 +358,14 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     */
   inline def implementProven[A, B, R](contract: Node[(A, B) => R])(inline impl: Def[(A, B) => R]): KnowledgeBase =
     withImplementation(Implementation(contract.id, () => impl.lifted.value, Lifted.sourceFiles(impl), "", Some(impl)))
+
+  /** Registers a plain (faster) implementation together with a `define` Lean proves meets the
+    * contract, as its oracle: the plain one runs (every result still checked by `service`), and must
+    * return what the oracle returns on every example and every combination of the examples' inputs.
+    * The proofs reach the oracle, not the plain code: status says so.
+    */
+  inline def implementChecked[A, B, R](contract: Node[(A, B) => R])(inline impl: (A, B) => R)(oracle: Def[(A, B) => R]): KnowledgeBase =
+    withImplementation(Implementation(contract.id, () => impl, Lifted.sourceFiles(impl), Lifted.sources(impl).mkString, Some(oracle), oracle = true))
 
   def withImplementation(i: Implementation): KnowledgeBase =
     KnowledgeBase(name, idea, implementations.filterNot(_.contract == i.contract) :+ i)(nodes*)
@@ -397,7 +411,7 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
         Bindings.within(bindings) {
           val f = try Some(i.factory.asInstanceOf[() => (Any, Any) => Any]()) catch case _: Exception => None
           f.toList.flatMap { impl =>
-            for a <- as; b <- bs if !known((bindings, a, b)) yield
+            for a <- as; b <- bs if !known((bindings, a, b)) || i.oracle yield
               val (r, broken) =
                 try
                   val r = impl(a, b)
@@ -405,7 +419,13 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
                   (r, if !post(a, b, r) then Some(s"returned ${Example.show(r)}, which breaks the contract")
                       else keeps.map(i => s"returned ${Example.show(r)}, which breaks the invariant $i"))
                 catch case e: Exception => (null, Some(s"error: ${e.getMessage}"))
-              broken.map(why => ExampleResult(Example("generated from the examples' inputs: the contract holds for every call", bindings, src, a, b, r, true), "ok", Some(why)))
+              // A plain implementation checked against a proven oracle returns what the oracle does.
+              val differs = if !i.oracle || broken.nonEmpty then None else
+                try
+                  val o = i.proven.get.fn.asInstanceOf[(Any, Any) => Any](a, b)
+                  Option.when(o != r)(s"returned ${Example.show(r)}, where the proven ${i.proven.get.name} returns ${Example.show(o)}")
+                catch case e: Exception => Some(s"the proven ${i.proven.get.name} fails: ${e.getMessage}")
+              broken.orElse(differs).map(why => ExampleResult(Example("generated from the examples' inputs: the contract holds for every call", bindings, src, a, b, r, true), "ok", Some(why)))
           }.flatten
         }
       }.take(10)
