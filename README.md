@@ -78,7 +78,10 @@ Whatever moves under it puts the node back up for review, with the cause:
 | `revisit` | the developer said a change above may affect it | their reason |
 | `merged` | two branches decided it, and the merge kept both | both decisions |
 
-Rewording a `why` or adding an example does not cascade below. A change that
+Rewording a `why` or adding an example does not cascade below; rewording a
+statement does (it is what the node says). A design node rests on its parent's
+place, not its meaning: a change of the parent's meaning lists it below the
+change, to revisit if it is affected. A change that
 does not cascade may still break a reason written below. So accepting a change
 lists the decisions below, each with the reason it holds by now; the developer
 marks those it may affect (`revisit`), and confirms by name those that moved

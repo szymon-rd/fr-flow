@@ -634,6 +634,14 @@ function aboveReasons(n) {
     ${relied.filter(r => !above.some(a => a.id === r.id)).map(r => `<div class="small">relies on <a data-goto="${esc(r.id)}"><b>${esc(r.id)}</b></a>: ${esc(r.reasonNow || r.decision?.reason || "")}${ask(r.id)}</div>`).join("")}</div>`;
 }
 
+// What an instantiation says: the spec above it, with what each open term now is.
+function instantiatedSpec(p) {
+  const subs = []; let a = p;
+  while (a && a.kind === "instantiate") { subs.push(...(C(a).substitutions || [])); a = byId(a.parent); }
+  const spec = a && (C(a).sources || {}).spec;
+  return spec ? `<div class="muted small">its spec is ${esc(a.id)}'s, where</div><pre>${esc(subs.join("\n"))}</pre><pre>${esc(spec)}</pre>` : "";
+}
+
 // Back to the agent, with what to change: a request on the node.
 const sendBack = n => `<button class="btn small" data-sendback="${esc(n.id)}">Send back to the agent</button>`;
 
@@ -778,7 +786,7 @@ function nodePane() {
       <div class="verdict ${ls}">${verdict(n)}</div>
       <div class="side"><div class="label">parent <b><a data-goto="${esc(parent.id)}">${esc(parent.id)}</a></b> (${esc(parent.kind)})</div>
         <div style="margin-top:2px">${esc(C(parent).statement)}</div>
-        ${(C(parent).sources || {}).spec ? `<pre>${esc(C(parent).sources.spec)}</pre>` : parent.kind === "instantiate" ? `<div class="muted small">its spec is its parent's, instantiated</div>` : ""}</div>
+        ${(C(parent).sources || {}).spec ? `<pre>${esc(C(parent).sources.spec)}</pre>` : parent.kind === "instantiate" ? instantiatedSpec(parent) : ""}</div>
       <div class="side"><div class="label">this node <b>${esc(n.id)}</b></div>${modelOf(n)}</div>
       ${n.code ? `<div class="side"><div class="label">governs</div><div class="mono small">${esc(n.code.files.join(", "))}</div></div>` : ""}
       ${(n.expectations || []).map(e => `<div class="side"><div class="label">expected of it — ${esc(e.status)}${e.detail ? ": " + esc(e.detail) : ""}</div>
@@ -1004,12 +1012,10 @@ document.addEventListener("click", async e => {
     const reason = [...document.querySelectorAll("textarea[data-batchreason]")].find(x => x.dataset.batchreason === ba.dataset.batch)?.value.trim() || "";
     if (words(reason) < 3) { say(ba, "Say why they hold, in a few words."); return; }
     ba.disabled = true;
-    // One accept each, parents first, with the version seen; stopped by the first refusal, or a project switch.
-    for (const id of ids) {
-      const x = byId(id); if (!x || !current(gen)) break;
-      try { await post(`${base}/decide`, { node: id, by: who, reason, seen: x.version }); }
-      catch (err) { await refresh(); say(document.querySelector(`[data-batch="${CSS.escape(ba.dataset.batch)}"]`) || ba, `${id}: ${err.message}`); return; }
-    }
+    // One request, parents first, each with the version seen: all accepted, or none.
+    const nodes = ids.map(id => ({ node: id, seen: byId(id)?.version || "" }));
+    try { if (current(gen)) await post(`${base}/decide`, { node: ids[0], nodes, by: who, reason }); }
+    catch (err) { await refresh(); say(document.querySelector(`[data-batch="${CSS.escape(ba.dataset.batch)}"]`) || ba, err.message); return; }
     await refresh();
     return;
   }

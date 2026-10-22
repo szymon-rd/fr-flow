@@ -79,18 +79,24 @@ final class Project(dir: Path):
     * `seen`). Edits elsewhere in the sources do not hold it up; edits to the code the node governs do,
     * since the decision records that code as seen.
     */
-  def decide(r: frflow.Decisions.Request): Either[String, Unit] =
+  def decide(r: frflow.Decisions.Request): Either[String, Unit] = decideAll(List(r))
+
+  /** Several decisions, in order, all or none (a batch refused part way records nothing). */
+  def decideAll(rs: List[frflow.Decisions.Request]): Either[String, Unit] =
+    val r = rs.head
     snapshot match
       case None => Left("no snapshot yet: render first")
       case Some(snap) if !snap("format").contains(JNum(frflow.Workflow.ContentFormat)) =>
         Left("the snapshot was written by another version of FrFlow: render first")
-      case Some(snap) if (r.node :: r.confirm ++ r.revisit).exists(codeMoved(snap, _)) =>
-        Left(s"the code governed by ${(r.node :: r.confirm ++ r.revisit).filter(codeMoved(snap, _)).mkString(", ")} changed since the last render: render first")
+      case Some(snap) if rs.flatMap(r => r.node :: r.confirm ++ r.revisit).exists(codeMoved(snap, _)) =>
+        Left(s"the code governed by ${rs.flatMap(r => r.node :: r.confirm ++ r.revisit).filter(codeMoved(snap, _)).distinct.mkString(", ")} changed since the last render: render first")
       case Some(snap) =>
         Project.locked(state.resolve("ledger.lock")) {
           val files = snap("nodes").map(_.arr.toList).getOrElse(Nil).flatMap(_("code")).flatMap(_("files")).flatMap(_.arr).flatMap(_.str).distinct
           val before = ledger
-          frflow.Decisions.decide(snap, before, r, java.time.Instant.now.toString, frflow.Git.head(root), frflow.Git.snapshot(root, files))
+          val (at, head, tree) = (java.time.Instant.now.toString, frflow.Git.head(root), frflow.Git.snapshot(root, files))
+          rs.foldLeft(Right(before): Either[String, frflow.Ledger])((l, r) =>
+            l.flatMap(frflow.Decisions.decide(snap, _, r, at, head, tree).left.map(why => if rs.size > 1 then s"${r.node}: $why" else why)))
             .map(l => frflow.Ledger.save(ledgerFile, signed(before, l)))
         }
 

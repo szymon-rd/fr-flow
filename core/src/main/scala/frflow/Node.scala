@@ -55,8 +55,8 @@ object Code:
   *     proven: `spec m → parent.spec (abs m)`.
   *   - instantiate: fixes opaque types and parameters of the parent.
   *   - contract: `post(a, b, result)` for every call of an implementation;
-  *     proven to imply the parent's spec. Implementations are plain Scala,
-  *     attached with `KnowledgeBase.implement`.
+  *     proven to imply the parent's spec. Implementations are `define`s Lean proves
+  *     (`KnowledgeBase.implementProven`), or plain Scala checked by running (`implement`).
   *
   * Every node gets a Lean theorem `root`: the root's spec holds for its models. A node can opt out
   * with `formal = false`: its model stays Scala (a contract's post still runs its examples

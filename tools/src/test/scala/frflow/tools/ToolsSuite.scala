@@ -62,6 +62,10 @@ class ToolsSuite extends munit.FunSuite:
     p.run(List("render"), actor = "ui")
     import frflow.Decisions.Request
     assert(p.decide(Request("Inst", "dev", "")).left.exists(_.contains("reason")))
+    // a batch refused part way records nothing
+    val before = p.ledger
+    assert(p.decideAll(List(Request("Inst", "dev", "It is simpler.", List("Inst2")), Request("Nope", "dev", "It is simpler."))).left.exists(_.startsWith("Nope:")))
+    assertEquals(p.ledger, before)
     assertEquals(p.decide(Request("Inst", "dev", "It is simpler.", List("Inst2"))), Right(()))
     val st = p.annotated.get("nodes").get.arr.map(n => s(n, "id") -> s(n, "state")).toMap
     assertEquals((st("Inst"), st("Inst2")), ("accepted", "rejected"))

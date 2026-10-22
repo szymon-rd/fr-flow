@@ -20,7 +20,8 @@ import java.util.concurrent.Executors
   * GET  /api/p/NAME/history                  every decision, newest first
   * GET  /api/p/NAME/job                      the last command started here
   * POST /api/p/NAME/run      {"args": [...]} render / check / scaffold
-  * POST /api/p/NAME/decide   {"node", "by", "reason", "action", "seen", "reject", "revisit", "confirm"}   the developer's decision
+  * POST /api/p/NAME/decide   {"node", "by", "reason", "action", "seen", "reject", "revisit", "confirm"}   the developer's decision;
+  *                            with "nodes": [{"node", "seen"}], one reason for several, all or none
   * POST /api/p/NAME/sign     {"entries"}     signs decisions the developer says are theirs
   * POST /api/p/NAME/requests {"node", "text", "by"}
   * POST /api/p/NAME/requests/ID {"status", "answer"}
@@ -146,10 +147,13 @@ final class Server(projects: List[Project], val token: String = Server.newToken(
             val req = frflow.Decisions.Request(field("node"), field("by"), field("reason"), ids("reject"),
               ids("revisit"), ids("confirm"), body("action").flatMap(_.str).getOrElse("accept"),
               body("seen").flatMap(_.str).getOrElse(""), ids("held"), field("from"))
-            if !Project.Ident.matches(req.node) then error(ex, 400, "expected a node id")
-            else if req.seen.isEmpty then
+            // A batch: the same reason for several nodes (`nodes`: [{node, seen}]), all or none.
+            val reqs = body("nodes").map(_.arr.toList).filter(_.nonEmpty).fold(List(req))(_.map(x =>
+              req.copy(node = x("node").flatMap(_.str).getOrElse(""), seen = x("seen").flatMap(_.str).getOrElse(""))))
+            if !reqs.forall(r => Project.Ident.matches(r.node)) then error(ex, 400, "expected a node id")
+            else if reqs.exists(_.seen.isEmpty) then
               error(ex, 400, "send the version of the node you looked at (seen), so a decision on a node that moved is refused")
-            else p.decide(req) match
+            else p.decideAll(reqs) match
               case Left(why) => error(ex, 409, why)
               case Right(()) => signal(); json(ex, obj("ok" -> JBool(true)))
           case List("sign") =>
