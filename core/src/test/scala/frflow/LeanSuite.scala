@@ -80,6 +80,17 @@ class LeanSuite extends munit.FunSuite:
     assert(c.obligations.head.detail.contains("the root holds"), c.obligations)
   }
 
+  test("an invariant a contract keeps is proven from its post, or left open") {
+    val fromShelf = Node.invariant("FromShelf", "Only books on the shelf are picked.", "w")
+    val atMostN = Node.invariant("AtMostN", "No more books are picked than asked for.", "w")
+    val kept = pick.holds(fromShelf)((shelf, n, picked) => picked.forall(b => shelf.contains(b)))
+      .holds(atMostN)((shelf, n, picked) => picked.length <= n)
+    val r = workflow(KnowledgeBase("Inv", idea = "IDEA.md")(onlyGood, listed, books, kept, fromShelf, atMostN)).check()
+    val c = r.find(_._1.id == "Pick").get._2
+    assertEquals(c.obligations.find(_.name == "inv_FromShelf").map(_.status), Some("proven"), c)
+    assertEquals(c.obligations.find(_.name == "inv_AtMostN").map(_.status), Some("open"), c)
+  }
+
   test("a node no model meets is reported, so it cannot make everything below it hold") {
     val never = onlyGood.refine[(List[Item.T], Int) => List[Item.T]]("Never", "Nothing is ever picked.", why = "w")(
       abs = pick => pick, spec = pick => false)

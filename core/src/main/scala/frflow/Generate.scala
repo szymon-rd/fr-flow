@@ -17,13 +17,16 @@ final case class Obligation(name: String, statement: String, description: String
   * opaque types and its parameters.
   *
   * @param authored nodes whose obligation has an authored proof in `Proofs/<KB>/<Node>.lean`
+  * @param authoredInvs (node, `inv_<Invariant>`) proven in that file too
   */
 object Generate:
   /** Names the generated Lean binds itself; a parameter or opaque type with one of them would be captured. */
   val reserved: Set[String] =
     Set("m", "f", "h", "spec", "abs", "post", "toRoot", "rootSpec", "link", "root", "Obl", "Type", "Prop") ++ (0 to 9).map(i => s"x$i")
 
-final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
+final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty, authoredInvs: Set[(String, String)] = Set.empty):
+  /** Whether the proof file of `n` proves the invariant obligation `name` itself. */
+  def authoredInv(n: Node[?], name: String): Boolean = authoredInvs((n.id, name))
   private val K = kb.name
 
   def specModule(id: String) = s"FrFlowGen.$K.$id.Spec"
@@ -90,8 +93,8 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
   def nodeCtx(n: Node[?]): Ctx = n.kind match
     case NodeKind.Root     => ctx(n.spec.get)
     case NodeKind.Refine   => ctx(n.spec.get) ++ ctx(n.abs.get) ++ nodeCtx(n.parent.get)
-    case NodeKind.Contract => ctx(n.post.get) ++ nodeCtx(n.parent.get)
-    case NodeKind.Design   => Ctx.empty
+    case NodeKind.Contract => (ctx(n.post.get) :: formalKeeps(n).map(k => ctx(k._2))).reduce(_ ++ _) ++ nodeCtx(n.parent.get)
+    case NodeKind.Design | NodeKind.Invariant => Ctx.empty
     case NodeKind.Instantiate =>
       val substituted = n.substs.map(_.name).toSet
       n.substs.flatMap(_.term).map(ctx(_)).foldLeft(nodeCtx(n.parent.get).without(substituted))(_ ++ _)
@@ -104,7 +107,8 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
     val perNode = kb.nodes.filter(formal).flatMap { n =>
       List(specPath(n.id) -> spec(n), autoPath(n.id) -> auto(n), theoremsPath(n.id) -> theorems(n), auditPath(n.id) -> audit(n)) ++
         vacuity(n).map(vacuityPath(n.id) -> _) ++ unsatFile(n).map(unsatPath(n.id) -> _) ++
-        rootTrivialFile(n).map(rootTrivialPath(n.id) -> _)
+        rootTrivialFile(n).map(rootTrivialPath(n.id) -> _) ++
+        invariantObligations(n).map(o => invPath(n.id, o.name) -> invFile(n, o))
     }
     (s"FrFlowGen/$K/Domain.lean" -> domain :: perNode).toMap
 
@@ -123,8 +127,8 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
   def sourcesUsedBy(n: Node[?]): List[String] =
     val defs = mutable.LinkedHashMap.empty[String, Def[?]]
     def visit(d: Def[?]): Unit = if !defs.contains(d.name) then { defs(d.name) = d; d.lifted.defs.foreach(visit) }
-    n.lifted.flatMap(_.defs).foreach(visit)
-    val types = (n.lifted ++ defs.values.map(_.lifted)).flatMap(_.types) ++ n.substs.flatMap(_.types)
+    n.referenced.flatMap(_.defs).foreach(visit)
+    val types = (n.referenced ++ defs.values.map(_.lifted)).flatMap(_.types) ++ n.substs.flatMap(_.types)
     types.map(t => if t.scala.nonEmpty then t.scala else t.lean).distinct ++ defs.values.map(d => s"${d.name} = ${d.lifted.source}")
 
   def domain: String =
@@ -135,10 +139,35 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
     Header + "import FrFlow\n\n" + Preamble + s"namespace $K\n\n" + (kb.types.map(_.lean) ++ defs).mkString("\n\n") + s"\n\nend $K\n"
 
   /** Nodes with a formal model, which get Lean. */
-  def formal(n: Node[?]): Boolean = n.kind != NodeKind.Design && n.formal
+  def formal(n: Node[?]): Boolean = n.kind != NodeKind.Design && n.kind != NodeKind.Invariant && n.formal
+
+  /** The invariants a contract keeps whose rules are translated to Lean. */
+  def formalKeeps(n: Node[?]): List[(Node[?], Lifted[?])] = if !n.formal then Nil else n.keeps.filter(_._2.body.nonEmpty)
+
+  def invPath(id: String, name: String) = s"FrFlowGen/$K/$id/${name.capitalize}.lean"
+
+  /** For each invariant the contract keeps formally: every result its post allows keeps the rule. */
+  def invariantObligations(n: Node[?]): List[Obligation] =
+    formalKeeps(n).map { (inv, l) =>
+      val c = nodeCtx(n)
+      val a = args(c)
+      def at(f: String) = if a.isEmpty then f else s"$f $a"
+      val forallCtx = if binders(c).isEmpty then "" else s"∀ ${binders(c)}, "
+      val ts = n.post.get.params.map(_._2)
+      val xs = ts.indices.map(i => s"x$i")
+      Obligation(s"inv_${inv.id}", s"$forallCtx∀ ${ts.zip(xs).map((t, x) => s"($x : $t)").mkString(" ")}, ${at("post")} ${xs.mkString(" ")} → ${at(s"rule_${inv.id}")} ${xs.mkString(" ")}",
+        s"Every result ${n.id} allows keeps ${inv.id}.")
+    }
+
+  /** The proof of an invariant: the theorem of that name in the authored proof file, if any, else frflow_auto. */
+  def invFile(n: Node[?], o: Obligation): String =
+    val ns = s"$K.${n.id}.${o.name.capitalize}"
+    val proof = if authoredInv(n, o.name) then s"$K.${n.id}.Proofs.${o.name}" else s"by\n  unfold Obl.${o.name}\n  frflow_auto"
+    Header + s"import ${specModule(n.id)}\n" + (if authoredInv(n, o.name) then s"import ${proofsModule(n.id)}\n" else "") + "\n" + Preamble +
+      s"namespace $ns\nopen $K.${n.id}\n\ntheorem ${o.name} : Obl.${o.name} := $proof\n\n#print axioms ${o.name}\n\nend $ns\n"
 
   private def modelType(n: Node[?]): String = n.kind match
-    case NodeKind.Design                 => "Unit"
+    case NodeKind.Design | NodeKind.Invariant => "Unit"
     case NodeKind.Root | NodeKind.Refine => n.spec.get.params.head._2
     case NodeKind.Contract           => n.post.get.params.map(_._2).mkString(" → ")
     case NodeKind.Instantiate        => "_"
@@ -220,7 +249,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
       sb ++= s"@[frflow_defs] def $name$b${if tpe.isEmpty then "" else s" : $tpe"} :=\n  $body\n\n"
     val m = modelType(n)
     n.kind match
-      case NodeKind.Design => ()
+      case NodeKind.Design | NodeKind.Invariant => ()
       case NodeKind.Root =>
         d("spec", s"$m → Prop", resolve(n.spec.get.lean))
         d("toRoot", "", s"fun (m : $m) => m")
@@ -240,6 +269,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
         val post = n.post.get
         val ins = post.params.init
         d("post", post.leanType, resolve(post.lean))
+        formalKeeps(n).foreach((inv, l) => d(s"rule_${inv.id}", l.leanType, resolve(l.lean)))
         val vars = ins.indices.map(i => s"x$i").mkString(" ")
         d("spec", s"($m) → Prop", s"fun (f : $m) => ∀ ${ins.zipWithIndex.map((t, i) => s"(x$i : ${t._2})").mkString(" ")}, ${at("post")} $vars (f $vars)")
         d("toRoot", "", s"fun (m : $m) => ${pat("toRoot")} m")
@@ -255,7 +285,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
         d("spec", "", s"${q(p, "spec")} $th")
         d("toRoot", "", s"${q(p, "toRoot")} $th")
         d("rootSpec", "", s"${q(p, "rootSpec")} $th")
-    (obligation(n) ++ trivial(n) ++ unsat(n) ++ rootTrivial(n)).foreach { o =>
+    (obligation(n) ++ trivial(n) ++ unsat(n) ++ rootTrivial(n) ++ invariantObligations(n)).foreach { o =>
       sb ++= s"namespace Obl\n\n/-- ${o.description} -/\n@[frflow_defs] def ${o.name} : Prop :=\n  ${o.statement}\n\nend Obl\n\n"
     }
     sb ++= s"end $K.${n.id}\n"
@@ -292,7 +322,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[String] = Set.empty):
     val m = if n.kind == NodeKind.Instantiate then "m" else s"(m : ${modelType(n)})"
     val rootStatement = s"∀ $m, ${at("spec")} m → ${at("rootSpec")} (${at("toRoot")} m)"
     val proofOfRoot = n.kind match
-      case NodeKind.Root | NodeKind.Design => "fun m h => h"
+      case NodeKind.Root | NodeKind.Design | NodeKind.Invariant => "fun m h => h"
       case NodeKind.Instantiate => s"${q(n.parent.get, "root")} ${theta(n)}"
       case _ =>
         val p = n.parent.get

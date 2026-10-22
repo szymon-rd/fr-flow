@@ -141,6 +141,8 @@ final class Server(projects: List[Project]):
               ids("revisit"), ids("confirm"), body("action").flatMap(_.str).getOrElse("accept"),
               body("seen").flatMap(_.str).getOrElse(""))
             if !Project.Ident.matches(req.node) then error(ex, 400, "expected a node id")
+            else if Set("accept", "reject")(req.action) && req.seen.isEmpty then
+              error(ex, 400, "send the version of the node you looked at (seen), so a decision on a node that moved is refused")
             else p.decide(req) match
               case Left(why) => error(ex, 409, why)
               case Right(()) => signal(); json(ex, obj("ok" -> JBool(true)))

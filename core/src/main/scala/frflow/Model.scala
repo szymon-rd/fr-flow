@@ -105,8 +105,7 @@ object Lifted:
   inline def apply[F](inline f: F): Lifted[F] = ${ Lift.lifted('f) }
 
   /** A lambda kept as Scala only, with its source text: for a node that opts out of Lean. */
-  inline def informal[F](inline f: F): Lifted[F] =
-    new Lifted[F](f, Nil, "", "", sources(f).head, Nil, Nil, Nil, () => Nil, () => Nil)
+  inline def informal[F](inline f: F): Lifted[F] = ${ Lift.informal('f) }
 
   /** Translated when `formal`, kept as Scala only otherwise. */
   inline def of[F](inline formal: Boolean, inline f: F): Lifted[F] =

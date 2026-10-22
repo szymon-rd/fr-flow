@@ -34,12 +34,15 @@ final case class NodeCheck(
   * @param code     the fingerprint of the source files the node governs, when decided
   * @param held     the decisions below that were shown with this one and left as they are:
   *                 considered, and still holding
+  * @param after    the node's decision this one follows (its `ref`): two decisions following the same
+  *                 one come from two branches, merged; the node is then decided again
   * @param commit   the git commit checked out when deciding
   * @param tree     the code as decided, written to git as a tree, to show how the code changed since
   *                 (a clone without it falls back to `commit`)
   */
 final case class Decision(action: String, content: Json, chain: String, by: String, at: String, reason: String,
-    rejected: List[String] = Nil, code: String = "", commit: String = "", tree: String = "", held: List[String] = Nil):
+    rejected: List[String] = Nil, code: String = "", commit: String = "", tree: String = "", held: List[String] = Nil,
+    after: String = ""):
   def hash: String = Decision.hash(content)
 
 object Decision:
@@ -76,7 +79,14 @@ final case class Ledger(decisions: Map[String, List[Decision]]):
 
   /** Whether the agent settled the node and the developer has not endorsed it since. */
   def settledByAgent(id: String): Option[Decision] = binding(id).filter(_.action == "settle")
-  def add(id: String, d: Decision): Ledger = Ledger(decisions.updated(id, history(id) :+ d))
+  def add(id: String, d: Decision): Ledger =
+    Ledger(decisions.updated(id, history(id) :+ d.copy(after = current(id).fold("")(Ledger.entry))))
+
+  /** Two branches decided the node, and the merge kept both: the last decision is one of two that
+    * follow the same one. Nothing says which holds, so the node is decided again.
+    */
+  def forked(id: String): Boolean =
+    current(id).exists(d => d.after.nonEmpty && history(id).count(_.after == d.after) > 1)
 
   /** The alternatives ever rejected in favour of a node, as they were proposed. */
   def alternatives(id: String): List[(String, Json)] =
@@ -85,6 +95,9 @@ final case class Ledger(decisions: Map[String, List[Decision]]):
 
   /** The decisions where `id` was shown and left as it is (considered, still holding). */
   def considered(id: String): List[(String, Decision)] = all.filter(_._2.held.contains(id))
+
+  /** Restart commits the developer acknowledged. */
+  def acknowledged: Set[String] = history(Ledger.Self).filter(_.action == "acknowledge").map(_.commit).toSet
 
   /** Every decision, newest first. */
   def all: List[(String, Decision)] = decisions.toList.flatMap((id, ds) => ds.map(id -> _)).sortBy(_._2.at).reverse
@@ -98,6 +111,7 @@ final case class Ledger(decisions: Map[String, List[Decision]]):
         "action" -> str(d.action), "by" -> str(d.by), "at" -> str(d.at), "reason" -> str(d.reason)) ++
         (if d.rejected.isEmpty then Nil else Seq("rejected" -> JArr(d.rejected.map(str)))) ++
         (if d.held.isEmpty then Nil else Seq("held" -> JArr(d.held.map(str)))) ++
+        (if d.after.isEmpty then Nil else Seq("after" -> str(d.after))) ++
         (if d.code.isEmpty then Nil else Seq("code" -> str(d.code))) ++
         (if d.commit.isEmpty then Nil else Seq("commit" -> str(d.commit))) ++
         (if d.tree.isEmpty then Nil else Seq("tree" -> str(d.tree))) ++
@@ -111,6 +125,11 @@ object Ledger:
     * a mechanical node.
     */
   def binds(action: String): Boolean = action == "accept" || action == "confirm" || action == "settle"
+
+  /** A short reference to a decision: what was decided, by whom, when and why. */
+  private[frflow] def entry(d: Decision): String =
+    java.security.MessageDigest.getInstance("SHA-256")
+      .digest(Seq(d.action, d.by, d.at, d.reason, ref(d.content)).mkString("\u0000").getBytes(UTF_8)).take(8).map("%02x".format(_)).mkString
 
   /** A short reference to a content exactly as recorded. */
   private[frflow] def ref(content: Json): String =
@@ -135,7 +154,7 @@ object Ledger:
           case other => other.getOrElse(JNull)
         acc :+ Decision(s(d, "action"), content, s(d, "chain"), s(d, "by"), s(d, "at"), s(d, "reason"),
           d("rejected").map(_.arr).getOrElse(Nil).flatMap(_.str).toList, s(d, "code"), s(d, "commit"), s(d, "tree"),
-          d("held").map(_.arr).getOrElse(Nil).flatMap(_.str).toList)
+          d("held").map(_.arr).getOrElse(Nil).flatMap(_.str).toList, s(d, "after"))
       }
     }.toMap)
 
@@ -154,12 +173,14 @@ object Ledger:
     val head = versions.lastOption.flatMap(_.text).toList.flatMap(t => rewrittenSince(parse(t), now))
     (committed ++ head).distinct.map("the ledger was rewritten: " + _)
 
-  /** The commits that deleted the ledger: each started a new record, and is shown, since a reset
-    * could also hide a rewrite.
+  /** The commits that deleted the ledger: each started a new record, which could also hide a
+    * rewrite. One the developer has not acknowledged (in the browser, with a reason) is a warning.
     */
   def restarts(root: Path, file: Path): List[String] =
-    Git.versions(root, root.relativize(file).toString).collect { case v if v.text.isEmpty =>
-      s"the ledger was restarted in commit ${v.commit.take(10)}; earlier decisions are in git history" }
+    Git.versions(root, root.relativize(file).toString).collect { case v if v.text.isEmpty => v.commit }
+
+  /** The id under which acknowledgements of the ledger itself are recorded. */
+  val Self = "_ledger"
 
   /** Decisions present at an earlier version of the ledger (for example the committed one) that are
     * missing or different now: the ledger is append-only, so these mean it was rewritten.

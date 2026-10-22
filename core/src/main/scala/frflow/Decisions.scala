@@ -17,7 +17,8 @@ import frflow.Json.*
   *   - `review`: something moved since it was decided; `causes` say what:
   *     `self` (the node changed), `above` (the meaning of an ancestor changed), `code` (the code
   *     it governs changed), `revisit` (the developer said a change above, such as an edit of the
-  *     idea, may affect it); a decided node no longer in the model is listed under `gone`;
+  *     idea, may affect it), `merged` (two branches decided it, and a merge kept both); a decided
+  *     node no longer in the model is listed under `gone`;
   *   - `rejected`: an alternative was chosen instead; the agent removes it from the model.
   *
   * The developer accepts or rejects (see `Request`). Accepting a proposal chooses it (rejecting
@@ -32,7 +33,15 @@ object Decisions:
   private def nodes(snapshot: Json): List[Json] = snapshot("nodes").map(_.arr.toList).getOrElse(Nil)
   private def byId(snapshot: Json): Map[String, Json] = nodes(snapshot).map(n => s(n, "id") -> n).toMap
   private def parentChain(snapshot: Json, n: Json): String =
-    n("parent").flatMap(_.str).flatMap(byId(snapshot).get).fold("")(s(_, "chain"))
+    val ids = byId(snapshot)
+    above(n("parent").flatMap(_.str).flatMap(ids.get).fold("")(s(_, "chain")),
+      kept(n).flatMap(ids.get).map(s(_, "chain")))
+
+  /** What a node rests on: its parent's chain, with the chains of the invariants it keeps. */
+  def above(parentChain: String, invariantChains: List[String]): String =
+    if invariantChains.isEmpty then parentChain else sha((parentChain :: invariantChains.sorted)*)
+
+  private def kept(n: Json): List[String] = n("invariants").map(_.arr.toList).getOrElse(Nil).flatMap(_("id").flatMap(_.str))
   private def code(n: Json): String = n("code").flatMap(_("fingerprint")).flatMap(_.str).getOrElse("")
   private def sha(parts: String*): String =
     java.security.MessageDigest.getInstance("SHA-256").digest(parts.mkString("\u0000").getBytes("UTF-8")).map("%02x".format(_)).mkString
@@ -66,7 +75,7 @@ object Decisions:
     val parentRejected = n("parent").flatMap(_.str).flatMap(byId(snapshot).get).exists(p => state(snapshot, ledger, p) == "rejected")
     ledger.binding(id).fold(Nil) { d =>
       List("self" -> (d.hash != s(n, "hash")), "above" -> (d.chain != parentChain(snapshot, n) || parentRejected),
-        "code" -> (d.code != code(n)), "revisit" -> revisit).collect { case (c, true) => c }
+        "code" -> (d.code != code(n)), "revisit" -> revisit, "merged" -> ledger.forked(id)).collect { case (c, true) => c }
     }
 
   def state(snapshot: Json, ledger: Ledger, n: Json): String =
@@ -117,7 +126,7 @@ object Decisions:
     ledger.binding(s(n, "id")).filter(_.chain != parentChain(snapshot, n)).fold(Nil) { d =>
       val ids = byId(snapshot)
       def up(x: Json): List[Json] = x("parent").flatMap(_.str).flatMap(ids.get).fold(Nil)(p => p :: up(p))
-      up(n).flatMap { a =>
+      (up(n) ++ kept(n).flatMap(ids.get)).flatMap { a =>
         val id = s(a, "id")
         val then_ = ledger.history(id).filter(x => Ledger.binds(x.action) && x.at <= d.at).lastOption
         val now = a("content").getOrElse(JNull)
@@ -208,7 +217,9 @@ object Decisions:
       val ps = byId(snapshot).get(p).map(state(snapshot, ledger, _))
       // Nothing is decided under a parent that is not chosen; what rests on a moved parent waits for it.
       ps.exists(Set("proposed", "rejected")) || (restsOnParent && ps.exists(_ != "accepted"))
-    }
+    }.orElse(
+      // A contract rests on the invariants it keeps, as on its parent.
+      if !restsOnParent then None else kept(n).find(i => byId(snapshot).get(i).exists(state(snapshot, ledger, _) != "accepted")))
 
   /** Applies a decision; the new ledger, or why it is refused. */
   def decide(snapshot: Json, ledger: Ledger, r: Request, at: String, commit: String = "", tree: String = ""): Either[String, Ledger] =
@@ -217,9 +228,13 @@ object Decisions:
     def make(action: String, n: Json, rejected: List[String], reason: String) =
       Decision(action, n("content").getOrElse(JNull), parentChain(snapshot, n), r.by, at, reason, rejected, code(n), commit, tree)
     if r.by.trim.isEmpty then Left("say who decides")
-    else if !Set("accept", "reject", "settle")(r.action) then Left(s"unknown decision ${r.action}")
+    else if !Set("accept", "reject", "settle", "acknowledge")(r.action) then Left(s"unknown decision ${r.action}")
     else if r.reason.trim.split("\\s+").count(_.exists(_.isLetter)) < 3 then
       Left("give the reason for the decision in a few words: it is kept as part of the theory")
+    else if r.action == "acknowledge" then
+      // The developer looked at a restart of the ledger (`seen` is its commit) and says why it is right.
+      if r.node != Ledger.Self || r.seen.isEmpty then Left("acknowledge names the ledger and the restart commit")
+      else Right(ledger.add(Ledger.Self, Decision("acknowledge", JNull, "", r.by, at, r.reason, commit = r.seen)))
     else if ids.get(r.node).exists(n => r.seen.nonEmpty && r.seen != version(snapshot, n)) then
       Left(s"${r.node} changed since you looked at it: look again before deciding")
     else if !ids.contains(r.node) then
@@ -293,8 +308,11 @@ object Decisions:
       val link = n("link").filter(_ != JNull).fold("") { l => s", link ${s(l, "status")}${if s(l, "detail").nonEmpty then s" (${s(l, "detail")})" else ""}" }
       val (ok, total) = examples(n)
       val ex = if total == 0 then "" else s", examples $ok/$total"
+      val inv = n("invariants").map(_.arr.toList).getOrElse(Nil).map(i => s"${s(i, "id")} ${s(i, "status")}")
+      val keeps = if inv.isEmpty then "" else s", keeps ${inv.mkString(", ")}"
+      val covers = n("covers").map(_.arr.flatMap(_.str).toList).filter(_.nonEmpty).fold("")(cs => s", kept by ${cs.mkString(", ")}")
       val here = if mark.contains(s(n, "id")) then "   ← this node" else ""
-      s"${"  " * depth}${s(n, "id")} (${s(n, "kind")})  [$st$link$ex]$here" ::
+      s"${"  " * depth}${s(n, "id")} (${s(n, "kind")})  [$st$link$ex$keeps$covers]$here" ::
         ns.filter(_("parent").flatMap(_.str).contains(s(n, "id"))).flatMap(go(_, depth + 1))
     val gone = annotated("gone").map(_.arr.toList).getOrElse(Nil).map(g => s"${s(g, "id")}  [review: gone]")
     (ns.filter(_("parent").forall(_ == JNull)).flatMap(go(_, 0)) ++ gone).mkString("\n")
@@ -340,5 +358,6 @@ object Decisions:
     val ns = nodes(annotated)
     annotated("gone").forall(_.arr.isEmpty) && ns.forall { n =>
       val (ok, total) = examples(n)
-      s(n, "state") == "accepted" && n("link").forall(l => l == JNull || Set("proven", "informal")(s(l, "status"))) && ok == total
+      s(n, "state") == "accepted" && n("link").forall(l => l == JNull || Set("proven", "informal")(s(l, "status"))) && ok == total &&
+        n("invariants").forall(_.arr.forall(i => Set("proven", "informal")(s(i, "status"))))
     }

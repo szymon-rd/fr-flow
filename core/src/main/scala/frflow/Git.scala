@@ -33,6 +33,9 @@ object Git:
   /** A commit that changed a file, its parents among such commits, and the file there (None if deleted). */
   final case class Version(commit: String, parents: List[String], text: Option[String])
 
+  /** Whether a file is tracked by git. */
+  def tracked(dir: Path, file: String): Boolean = run(dir, "ls-files", "--error-unmatch", "--", file).isDefined
+
   /** Whether an object (a recorded tree) is in this clone. */
   def has(dir: Path, obj: String): Boolean = obj.nonEmpty && run(dir, "cat-file", "-e", obj).isDefined
 

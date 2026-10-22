@@ -121,7 +121,7 @@ class SnapshotSuite extends munit.FunSuite:
     // `mkString` is outside the Scala the macro translates; an informal node may use any Scala.
     val titled = books.contract[List[Book], Int, List[Book]]("Titled", "Picked books have a title.",
         why = "Titles are free text; not worth a proof.", formal = false)(
-      (shelf, n, picked) => picked.forall(b => b.title.mkString.nonEmpty))
+      (shelf, n, picked) => picked.forall(b => b.title.mkString.nonEmpty && long(b)))
       .examples(minPages.bind(100))(
         expect(List(Book("Long", 300)), 1, List(Book("Long", 300)), "a titled book"),
         expect(Nil, 1, Nil, "nothing to pick"),
@@ -135,10 +135,11 @@ class SnapshotSuite extends munit.FunSuite:
     assertEquals(n("examples").get.arr.flatMap(_("contract").flatMap(_.str)), Seq("ok", "ok", "ok"))
     assert(!w.generate.formal(titled))
     assert(field(n, "content", "sources", "post").exists(_.contains("mkString")), n)
-    // below an informal node there is nothing formal to prove against
-    val below = titled.contract[List[Book], Int, List[Book]]("Below", "s", "w")((s, n, p) => true)
-    assert(KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, titled, below).problems
-      .exists(_.contains("Titled is not formal")))
+    // what it refers to is still part of what it is decided on
+    assert(n("content").flatMap(_("uses")).exists(_.arr.flatMap(_.str).exists(_.startsWith("long = "))), n)
+    // below an informal node there is nothing formal to prove against: it is out of Lean too
+    val below = titled.contract[List[Book], Int, List[Book]]("Below", "s", "w")((s, n, p) => p.isEmpty)
+    assert(!below.formal)
   }
 
   test("how the implementation is built is part of the contract's content") {
@@ -161,6 +162,18 @@ class SnapshotSuite extends munit.FunSuite:
     val l = Ledger(Map("A" -> List(d(c1, "1"), d(c2, "2"), d(c1, "3"))))
     assert(l.toJson.render().contains("same:"))
     assertEquals(Ledger.fromJson(Json.parse(l.toJson.render())), l)
+  }
+
+  test("when two branches decided the same node and both were kept, it is decided again") {
+    val w = workflow()
+    ok(accept(w, onlyGood, "it is the idea"))
+    val base = w.ledger
+    def d(r: String) = Decision("accept", base.history("OnlyGood").head.content, "", "dev", r, r)
+    val ours = base.add("OnlyGood", d("on branch one"))
+    val theirs = base.add("OnlyGood", d("on branch two"))
+    val merged = Ledger(Map("OnlyGood" -> (ours.history("OnlyGood") :+ theirs.history("OnlyGood").last)))
+    assert(merged.forked("OnlyGood"))
+    assert(!merged.add("OnlyGood", d("decided again after the merge")).forked("OnlyGood"))
   }
 
   test("the ledger only grows; a merge may interleave both sides' decisions") {

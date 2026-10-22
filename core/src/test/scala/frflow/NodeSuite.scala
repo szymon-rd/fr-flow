@@ -65,6 +65,28 @@ class NodeSuite extends munit.FunSuite:
     assertEquals(kb.limits(listed), Nil)
   }
 
+  test("a cross-cutting invariant is kept by the contracts that name it, on examples, generated calls and at run time") {
+    val atMostN = Node.invariant("AtMostN", "No more books are picked than asked for.", "Readers carry what they asked for.")
+    val kept = books.contract[List[Book], Int, List[Book]]("Kept", "Picking returns only long enough books.", "w")(
+      (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages.value))
+      .examples(minPages.bind(100))(
+        expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
+        expect(List(Book("Short", 20)), 1, Nil, "no long book"),
+        reject(List(Book("Short", 20)), 1, List(Book("Short", 20)), "never a short one"))
+      .holds(atMostN)((shelf, n, picked) => picked.length <= n)
+    val kb = KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, kept, atMostN)
+      .implement(kept)((s, n) => s.filter(_.pages >= minPages.value).take(n))
+    assertEquals(kb.problems, Nil)
+    assert(kb.exampleResults(kept).forall(_.implementation.contains("ok")), kb.exampleResults(kept))
+    // every long book, twice: meets the post, breaks the invariant when one is asked for
+    val bad = kb.implement(kept)((s, n) => s.filter(_.pages >= minPages.value) ++ s.filter(_.pages >= minPages.value))
+    assert(bad.exampleResults(kept).flatMap(_.implementation).exists(_.contains("breaks the invariant AtMostN")), bad.exampleResults(kept))
+    val run = bad.service(kept)(minPages.bind(100))
+    intercept[ContractViolation](run(List(Book("Long", 300)), 1))
+    // an invariant nobody keeps is a problem
+    assert(KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, listed, books, pick, atMostN).problems.exists(_.contains("no contract keeps")))
+  }
+
   test("examples are checked against the contract and the registered implementation") {
     val rs = shelfKb.exampleResults(pick)
     assertEquals(rs.map(r => (r.contract, r.implementation)), List(("ok", Some("ok")), ("ok", Some("ok")), ("ok", Some("ok"))))

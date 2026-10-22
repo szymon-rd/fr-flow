@@ -19,6 +19,8 @@ def example(name: String) = Project(name, file(s"examples/$name"))
     libraryDependencies += munit,
     publish / skip := true,
     run / fork := true,
+    // The CLI's output (read by the browser and agents) is UTF-8 whatever the locale.
+    run / javaOptions ++= Seq("-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "-Dfile.encoding=UTF-8"),
     run / baseDirectory := (ThisBuild / baseDirectory).value,
     Test / fork := true,
     Test / baseDirectory := (ThisBuild / baseDirectory).value

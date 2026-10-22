@@ -49,10 +49,13 @@ final class Project(dir: Path):
     */
   def annotated: Option[Json] = snapshot.map { s =>
     val l = ledger
-    val rewritten = frflow.Ledger.rewrites(root, ledgerFile, l)
+    val restarts = frflow.Ledger.restarts(root, ledgerFile).filterNot(c => l.acknowledged.exists(c.startsWith))
+    val rewritten = frflow.Ledger.rewrites(root, ledgerFile, l) ++
+      restarts.map(c => s"the ledger was restarted in commit ${c.take(10)}: check what changed, then acknowledge it")
     val a = frflow.Decisions.annotate(s, l)
     val warnings = (a("warnings").map(_.arr.toList).getOrElse(Nil) ++ rewritten.map(str)).distinct
-    JObj(a.obj.filterNot(_._1 == "warnings") :+ ("warnings" -> JArr(warnings)))
+    JObj(a.obj.filterNot(f => f._1 == "warnings" || f._1 == "restarts") :+ ("warnings" -> JArr(warnings)) :+
+      ("restarts" -> JArr(restarts.map(str))))
   }
 
   /** How the code a node governs changed since it was decided (a git diff). */
@@ -60,8 +63,13 @@ final class Project(dir: Path):
     val n = snapshot.flatMap(_("nodes")).map(_.arr).getOrElse(Nil).find(_("id").flatMap(_.str).contains(node))
     val files = n.flatMap(_("code")).flatMap(_("files")).map(_.arr.toList.flatMap(_.str)).getOrElse(Nil)
     // Against the code as decided; a clone without that tree falls back to the commit checked out then.
-    val since = ledger.binding(node).map(d => if frflow.Git.has(root, d.tree) then d.tree else d.commit).getOrElse("")
-    if since.isEmpty || files.isEmpty then "" else frflow.Git.diff(root, since, files)
+    // Never decided: the whole of each file, so what is accepted is seen.
+    ledger.binding(node) match
+      case None => files.map(f => root.resolve(f)).filter(Files.isRegularFile(_))
+          .map(f => s"--- ${root.relativize(f)} (in full)\n" + Files.readString(f, UTF_8)).mkString("\n")
+      case Some(d) =>
+        val since = if frflow.Git.has(root, d.tree) then d.tree else d.commit
+        if since.isEmpty || files.isEmpty then "" else frflow.Git.diff(root, since, files)
 
   /** Saves IDEA.md; a render brings the snapshot up to date. */
   def saveIdea(text: String): Unit =
@@ -76,8 +84,8 @@ final class Project(dir: Path):
       case Some(_) if sourcesChanged.nonEmpty => Left(s"the sources changed since the last render (${sourcesChanged.take(3).mkString(", ")}): render first")
       case Some(snap) if !snap("format").contains(JNum(frflow.Workflow.ContentFormat)) =>
         Left("the snapshot was written by another version of FrFlow: render first")
-      case Some(snap) if codeMoved(snap, r.node) =>
-        Left(s"the code ${r.node} governs changed since the last render: render first")
+      case Some(snap) if (r.node :: r.confirm ++ r.revisit).exists(codeMoved(snap, _)) =>
+        Left(s"the code governed by ${(r.node :: r.confirm ++ r.revisit).filter(codeMoved(snap, _)).mkString(", ")} changed since the last render: render first")
       case Some(snap) =>
         Project.locked(state.resolve("ledger.lock")) {
           val files = snap("nodes").map(_.arr.toList).getOrElse(Nil).flatMap(_("code")).flatMap(_("files")).flatMap(_.arr).flatMap(_.str).distinct
