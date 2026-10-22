@@ -109,7 +109,9 @@ final class Server(projects: List[Project], val token: String = Server.newToken(
         case None => error(ex, 404, s"unknown project $name")
         case Some(p) => what match
           case "kb" => json(ex, obj("snapshot" -> p.annotated.getOrElse(JNull), "sourcesChanged" -> JArr(p.sourcesChanged.map(str)),
-              "running" -> p.running.getOrElse(JNull), "requests" -> JArr(p.requests)))
+              "running" -> p.running.getOrElse(JNull), "requests" -> JArr(p.requests),
+              // IDEA.md as it is now (the snapshot holds it as last rendered): what the editor starts from.
+              "ideaNow" -> (try str(Files.readString(p.ideaFile, UTF_8)) catch case _: java.io.IOException => JNull)))
           case "history" => json(ex, p.history)
           case "codediff" => json(ex, obj("diff" -> str(p.codeDiff(query.getOrElse("node", "")))))
           case "job"    => json(ex, jobs.get(p.name).fold(JNull)(_.json))
@@ -144,7 +146,7 @@ final class Server(projects: List[Project], val token: String = Server.newToken(
             def ids(k: String) = body(k).map(_.arr.toList).getOrElse(Nil).flatMap(_.str)
             val req = frflow.Decisions.Request(field("node"), field("by"), field("reason"), ids("reject"),
               ids("revisit"), ids("confirm"), body("action").flatMap(_.str).getOrElse("accept"),
-              body("seen").flatMap(_.str).getOrElse(""))
+              body("seen").flatMap(_.str).getOrElse(""), ids("held"))
             if !Project.Ident.matches(req.node) then error(ex, 400, "expected a node id")
             else if Set("accept", "reject", "migrate")(req.action) && req.seen.isEmpty then
               error(ex, 400, "send the version of the node you looked at (seen), so a decision on a node that moved is refused")

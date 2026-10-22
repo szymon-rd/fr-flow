@@ -13,7 +13,9 @@ object Cli:
       |
       |  render                  generate Lean and the snapshot .frflow/kb.json from the Scala definitions
       |  check [NODE]            render, prove the links, record the results
-      |  status                  the tree: decisions, links, examples; exits 1 unless the knowledge base is complete (for CI)
+      |  status                  the tree: decisions, links, examples; exits 1 unless the knowledge base is complete
+      |  ci                      for CI: proves everything afresh (reads no recorded result), then status; also needs
+      |                          FRFLOW_DEVELOPER_KEYS and the full git history
       |  context NODE            everything needed to work on NODE (for agents and people)
       |  scaffold NODE           a proof file for an obligation automation did not prove
       |
@@ -35,7 +37,14 @@ object Cli:
         val results = w.check(rest.headOption)
         w.writeSnapshot()
         results.foreach { (n, c) =>
-          println(s"${n.id}: ${c.status}")
+          // The link's status is the node's; what else is open is said with it, and failing examples first:
+          // they show the code (or the contract) is wrong, which no proof fixes.
+          val open = c.obligations.filter(r => r.name != "link" && !r.name.startsWith("eval") && r.name != "idle" && !r.name.startsWith("clause_") && !Set("proven", "assumed")(r.status))
+          println(s"${n.id}: ${c.status}${if c.status == "proven" && open.nonEmpty then s" (the link; not proven: ${open.map(_.name).mkString(", ")})" else ""}")
+          val failing = kb.exampleResults(n).filter(r => r.contract != "ok" || r.implementation.exists(_ != "ok"))
+          if failing.nonEmpty then
+            println(s"  ${failing.size} example(s) fail: the code or the contract is wrong; fix that, not the proof")
+            failing.take(5).foreach(r => println(s"    ${r.example.describe}: contract ${r.contract}${r.implementation.fold("")(i => s", implementation $i")}"))
           // `idle` is not an obligation: proven, it is a limit of the contract (it allows doing nothing).
           c.obligations.filter(r => r.name.startsWith("clause_") && r.status == "proven").foreach(r => println(s"  limit: the root's clause `${r.detail}` holds of every model of it, whatever it says"))
           c.obligations.filter(r => r.name != "idle" && !r.name.startsWith("clause_") && r.status != "proven").foreach(r => println(s"  ${r.status} ${r.name}: ${r.detail.linesIterator.mkString("\n    ")}"))
@@ -45,6 +54,17 @@ object Cli:
         println()
         print(w.status._1)
         if results.forall(_._2.status == "proven") then 0 else 1
+      case "ci" :: Nil =>
+        // What CI runs: every proof from this run (no recorded result is read), then status, with the
+        // developer key pinned and the full history.
+        if !Lake(ws.lean).available then { System.err.println("lake not found (set FRFLOW_LAKE)"); return 3 }
+        val ci = Workflow(kb, ws, fresh = true)
+        val results = ci.check()
+        results.filter(_._2.status != "proven").foreach((n, c) => println(s"${n.id}: ${c.status}"))
+        println(s"kernel: ${ci.kernelId.take(16)} (pin it with FRFLOW_KERNEL_HASH)")
+        val (text, ok) = ci.status
+        print(text)
+        if ok && results.forall(_._2.status == "proven") then 0 else 1
       case "render" :: Nil =>
         val changed = w.render()
         println(s"rendered ${changed.size} changed file(s); wrote ${ws.root.relativize(w.writeSnapshot())}")

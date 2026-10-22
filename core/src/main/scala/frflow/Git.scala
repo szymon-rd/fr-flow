@@ -50,6 +50,10 @@ object Git:
     else run(dir, "log", "--diff-filter=A", "--reverse", "--name-only", "--relative", "--format=", "--", ".").toList
       .flatMap(_.linesIterator.map(_.trim).filter(_.endsWith(".pub"))).headOption
 
+  /** Whether the clone has only part of the history. */
+  def shallow(dir: Path): Boolean =
+    run(dir, "rev-parse", "--is-shallow-repository").exists(_.trim == "true")
+
   /** Who added a file (in `dir`) to git, and in which commit. */
   def addedBy(dir: Path, file: String): Option[String] =
     if !java.nio.file.Files.isDirectory(dir) then None

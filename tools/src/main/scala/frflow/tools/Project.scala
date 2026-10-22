@@ -68,19 +68,23 @@ final class Project(dir: Path):
           .map(f => s"--- ${root.relativize(f)} (in full)\n" + Files.readString(f, UTF_8)).mkString("\n")
       case Some(d) =>
         val since = if frflow.Git.has(root, d.tree) then d.tree else d.commit
-        if since.isEmpty || files.isEmpty then "" else frflow.Git.diff(root, since, files)
+        if since.isEmpty || files.isEmpty then "" else
+          val d = frflow.Git.diff(root, since, files)
+          val notes = snapshot.toList.flatMap(frflow.Decisions.codeNotes(_, d))
+          (if notes.isEmpty then "" else notes.map("# note: " + _).mkString("", "\n", "\n")) + d
 
   /** Saves IDEA.md; a render brings the snapshot up to date. */
   def saveIdea(text: String): Unit =
     Files.writeString(ideaFile, if text.endsWith("\n") then text else text + "\n", UTF_8)
 
-  /** Records a developer's decision without running the CLI: the snapshot carries what is decided.
-    * Refused when the sources changed since the snapshot, since the decision would bind to stale content.
+  /** Records a developer's decision without running the CLI: the snapshot carries what is decided,
+    * and the decision binds what the developer saw in it (a node that moved since is refused by
+    * `seen`). Edits elsewhere in the sources do not hold it up; edits to the code the node governs do,
+    * since the decision records that code as seen.
     */
   def decide(r: frflow.Decisions.Request): Either[String, Unit] =
     snapshot match
       case None => Left("no snapshot yet: render first")
-      case Some(_) if sourcesChanged.nonEmpty => Left(s"the sources changed since the last render (${sourcesChanged.take(3).mkString(", ")}): render first")
       case Some(snap) if !snap("format").contains(JNum(frflow.Workflow.ContentFormat)) =>
         Left("the snapshot was written by another version of FrFlow: render first")
       case Some(snap) if (r.node :: r.confirm ++ r.revisit).exists(codeMoved(snap, _)) =>

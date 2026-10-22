@@ -363,7 +363,10 @@ function render() {
   const proven = links.filter(n => linkStatus(n) === "proven").length;
   const accepted = nodes.filter(n => n.state === "accepted").length, review = nodes.filter(n => n.state === "review").length;
   const warn = (s.warnings || []).length;
-  $("#summary").innerHTML = `${esc(s.name)} · <b>${accepted}</b> accepted · <b>${review}</b> to review · <b>${proven}/${links.length}</b> links proven${warn ? ` · <b style="color:var(--failed)">${warn} warning(s)</b>` : ""} · rendered ${ago(s.exportedAt)}`;
+  const impls = nodes.filter(n => n.implementationProof && n.implementationProof.status !== "informal");
+  const implProven = impls.filter(n => n.implementationProof.status === "proven").length;
+  const openNodes = nodes.filter(n => warnings(n).length).length;
+  $("#summary").innerHTML = `${esc(s.name)} · <b>${accepted}</b> accepted · <b>${review}</b> to review · <b>${proven}/${links.length}</b> links proven${impls.length ? ` · <b ${implProven < impls.length ? 'style="color:var(--failed)"' : ""}>${implProven}/${impls.length}</b> implementations proven` : ""}${openNodes ? ` · <b style="color:var(--failed)">${openNodes}</b> node(s) with something unproven or failing` : ""}${warn ? ` · <b style="color:var(--failed)">${warn} warning(s)</b>` : ""} · rendered ${ago(s.exportedAt)}`;
   renderTree(); renderPane(); renderJob();
   history.replaceState(null, "", `#${encodeURIComponent(state.project)}/${encodeURIComponent(state.selected || "")}`);
 }
@@ -530,7 +533,10 @@ function warnings(n) {
   const w = [];
   if (n.kind !== "design" && n.parent && !["proven", "informal", "assumed"].includes(linkStatus(n))) w.push(`its link is ${linkStatus(n)}`);
   if (examplesBad(n).length) w.push(`${examplesBad(n).length} example(s) fail`);
-  (n.invariants || []).filter(i => !["proven", "informal"].includes(i.status)).forEach(i => w.push(`invariant ${i.id} is ${i.status}`));
+  (n.invariants || []).filter(i => !["proven", "informal", "exempt"].includes(i.status)).forEach(i => w.push(`invariant ${i.id} is ${i.status}`));
+  const ip = n.implementationProof;
+  if (ip && !["proven", "informal"].includes(ip.status)) w.push(`its implementation ${ip.name} is ${ip.status}: not proven to meet the contract`);
+  (n.expectations || []).filter(e => !["proven", "informal"].includes(e.status)).forEach(e => w.push(`an expectation is ${e.status}`));
   return w;
 }
 
@@ -568,6 +574,8 @@ function governedFiles(n) {
 
 // A node waiting for you shows what to decide first; the rest is there to read below it.
 const needsYou = n => ["proposed", "review"].includes(n.state);
+// A decision whose reason says when to revisit it is answered by name (as in core's Decisions.conditional).
+const conditional = b => ["reason", "chosen", "why"].some(k => /\brevisit (if|when|once)\b|\bunless\b|\buntil\b|\bas long as\b|\bonly while\b/i.test(b[k] || ""));
 
 // The decisions above a new node, with their reasons: where "revisit if …" is written.
 function aboveReasons(n) {
@@ -580,9 +588,9 @@ function aboveReasons(n) {
   const relied = (n.relies || []).map(byId).filter(Boolean);
   if (!above.length && !invs.length && !relied.length) return like;
   return like + `<div class="side"><div class="label">what it rests on, with the reasons: does this meet a condition they set for revisiting them?</div>
-    ${above.map(a => `<div class="small"><a data-goto="${esc(a.id)}"><b>${esc(a.id)}</b></a>: ${esc(a.decision?.reason || "")}</div>`).join("")}
-    ${invs.map(i => `<div class="small"><a data-goto="${esc(i.id)}"><b>${esc(i.id)}</b></a>: ${i.status === "exempt" ? `exempt, because ${esc(i.detail)} — still true?` : esc(byId(i.id).decision?.reason || "")}</div>`).join("")}
-    ${relied.map(r => `<div class="small">relies on <a data-goto="${esc(r.id)}"><b>${esc(r.id)}</b></a>: ${esc(r.decision?.reason || "")}</div>`).join("")}</div>`;
+    ${above.map(a => `<div class="small"><a data-goto="${esc(a.id)}"><b>${esc(a.id)}</b></a>: ${esc(a.reasonNow || a.decision?.reason || "")}</div>`).join("")}
+    ${invs.map(i => `<div class="small"><a data-goto="${esc(i.id)}"><b>${esc(i.id)}</b></a>: ${i.status === "exempt" ? `exempt, because ${esc(i.detail)} — still true?` : esc(byId(i.id).reasonNow || byId(i.id).decision?.reason || "")}</div>`).join("")}
+    ${relied.map(r => `<div class="small">relies on <a data-goto="${esc(r.id)}"><b>${esc(r.id)}</b></a>: ${esc(r.reasonNow || r.decision?.reason || "")}</div>`).join("")}</div>`;
 }
 
 // Keys: this browser's, and others that are not the developer's yet.
@@ -650,9 +658,14 @@ function decisionBox(n) {
     const belowList = ((n.causes || []).includes("self") || moved) && listed.length ? `<div class="side"><div class="label">decisions below, with their reasons — tick those this change may affect: they are reviewed again. The others still hold${moved ? "; those that moved only because of this are confirmed with your reason" : ""}.</div>${listed.map(b => `<div class="option">
         <div class="head"><a data-goto="${esc(b.id)}"><b>${esc(b.id)}</b></a>${b.kind === "moved" ? ` <span class="muted small">(moved with this)</span>` : ""}</div>
         <div class="small" style="margin-top:4px">${esc(b.statement)}</div>
-        <div class="muted small">chosen because: ${esc(b.reason)}</div>
+        <div class="muted small">holds because: ${esc(b.reason)}</div>
+        ${b.chosen && b.chosen !== b.reason && !b.reason.startsWith(b.chosen) ? `<div class="muted tiny">first chosen because: ${esc(b.chosen)}</div>` : ""}
         ${b.why ? `<div class="muted tiny">why: ${esc(b.why)}</div>` : ""}
-        <label><input type="checkbox" class="rev" value="${esc(b.id)}" data-moved="${b.kind === "moved" ? 1 : ""}"> revisit ${esc(b.id)}</label></div>`).join("")}</div>` : "";
+        ${conditional(b) && b.kind !== "moved"
+          ? `<div class="warn-text small">It says when to revisit it: answer it.</div>
+             <label><input type="radio" class="ans" name="ans-${esc(b.id)}" value="held" data-id="${esc(b.id)}"> still holds</label>
+             <label><input type="radio" class="ans" name="ans-${esc(b.id)}" value="revisit" data-id="${esc(b.id)}"> revisit ${esc(b.id)}</label>`
+          : `<label><input type="checkbox" class="rev" value="${esc(b.id)}" data-moved="${b.kind === "moved" ? 1 : ""}"> revisit ${esc(b.id)}</label>`}</div>`).join("")}</div>` : "";
     const warn = warnings(n);
     return `<div class="box review"><div class="verdict review">To review: ${esc((n.causes || []).map(c => causeText[c]).join("; "))}</div>${mechanicalNote(n)}
       ${warn.length ? `<div class="warn-text">Note: ${esc(warn.join("; "))}.</div>` : ""}
@@ -681,7 +694,7 @@ function examplesTable(n) {
   for (const e of n.examples) {
     const g = e.given.join(", ");
     if (g !== given) { given = g; rows += `<tr><td colspan="4" class="mono muted small" style="padding-top:10px">given ${esc(g)}</td></tr>`; }
-    rows += `<tr${leanFailed(e) ? ` class="lean-failed"` : ""}><td><span class="chip ${e.expected ? "s-ok" : "s-not-checked"}">${e.expected ? "expect" : "reject"}</span></td>
+    rows += `<tr${leanFailed(e) ? ` class="lean-failed"` : ""}><td><span class="chip ${(e.note || "").startsWith("generated") ? "s-not-checked" : e.expected ? "s-ok" : "s-not-checked"}">${(e.note || "").startsWith("generated") ? "generated" : e.expected ? "expect" : "reject"}</span></td>
       <td>${esc(e.note)}<div class="mono muted">${esc(e.call)}</div>${leanBadge(e.lean, "")}${leanBadge(e.leanImplementation, "implementation: ")}</td>
       <td>${res(e.contract, e.expected)}</td><td>${e.expected ? (e.implementation === "ok" ? `<span class="chip s-ok">returns it ✓</span>` : res(e.implementation, true)) : `<span class="muted small">—</span>`}</td></tr>`;
   }
@@ -940,13 +953,17 @@ document.addEventListener("click", async e => {
     if (words(reason) < 3) { $("#reason")?.focus(); say(acc, "Give your reason in a few words: it is kept as part of the theory."); return; }
     const n = byId(state.selected);
     const reject = [...document.querySelectorAll(".rej:checked")].map(x => x.value);
-    const revisit = [...document.querySelectorAll(".rev:checked")].map(x => x.value);
+    const answers = [...document.querySelectorAll(".ans:checked")];
+    const unanswered = [...new Set([...document.querySelectorAll(".ans")].map(x => x.dataset.id))].filter(id => !answers.some(a => a.dataset.id === id));
+    if (unanswered.length) { say(acc, `Say for ${unanswered.join(", ")} whether it still holds or is revisited: its reason says when to revisit it.`); return; }
+    const revisit = [...document.querySelectorAll(".rev:checked")].map(x => x.value).concat(answers.filter(a => a.value === "revisit").map(a => a.dataset.id));
+    const held = answers.filter(a => a.value === "held").map(a => a.dataset.id);
     const confirmBelow = [...document.querySelectorAll(".rev:not(:checked)")].filter(x => x.dataset.moved).map(x => x.value);
     // What needs saying yes to explicitly: accepting despite a warning, and leaving every decision
     // below as it is (a choice too). Asked in place: the button turns into "Confirm: …"; a second click decides.
     const warn = warnings(n), listedBelow = document.querySelectorAll(".rev").length;
     const ask = [warn.length ? `accept although ${warn.join("; ")}` : "",
-      listedBelow && !revisit.length ? `none of the ${listedBelow} decision(s) below is affected: their reasons still hold` : ""].filter(Boolean);
+      listedBelow && !revisit.length && !held.length ? `none of the ${listedBelow} decision(s) below is affected: their reasons still hold` : ""].filter(Boolean);
     const key = JSON.stringify([n.version, ask]);
     if (ask.length && acc.dataset.armed !== key) {
       acc.dataset.armed = key;
@@ -955,7 +972,7 @@ document.addEventListener("click", async e => {
       say(acc, `${n.id}: ${ask.join("; and ")}. Click “${acc.textContent}” to decide, or change your ticks.`, "confirm-text");
       return;
     }
-    decide({ node: n.id, by: who, reason, reject, revisit, confirm: confirmBelow, seen: n.version }, acc);
+    decide({ node: n.id, by: who, reason, reject, revisit, confirm: confirmBelow, held, seen: n.version }, acc);
     return;
   }
   const rs = t.closest("[data-reject-self]");
@@ -1026,7 +1043,7 @@ document.addEventListener("click", async e => {
   if (close) { try { await post(`${P()}/requests/${encodeURIComponent(close.dataset.close)}`, { status: "closed" }); refresh(); } catch (err) { say(close, err.message); } return; }
   // The editor remembers the text it started from: a save over a file that changed since is refused,
   // and the developer's text stays in the editor.
-  if (t.id === "editIdea") { Object.assign(state, { editingIdea: true, ideaBase: snap()?.idea || "", ideaDraft: null, ideaError: "" }); renderPane(); return; }
+  if (t.id === "editIdea") { Object.assign(state, { editingIdea: true, ideaBase: state.data?.ideaNow ?? snap()?.idea ?? "", ideaDraft: null, ideaError: "" }); renderPane(); return; }
   if (t.id === "cancelIdea") { Object.assign(state, { editingIdea: false, ideaBase: null, ideaDraft: null, ideaError: "" }); renderPane(); return; }
   if (t.id === "saveIdea") {
     const gen = state.gen, text = $("#ideaText").value;

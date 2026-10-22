@@ -147,6 +147,7 @@ object Decisions:
         "waitsFor" -> waitsFor(snapshot, ledger, n).fold(JNull)(str),
         "moved" -> JArr(moved(snapshot, ledger, n)),
         "decision" -> ledger.chosen(id).fold(JNull)(decisionJson(id, _)),
+        "reasonNow" -> (if ledger.binding(id).isDefined then str(reasonNow(ledger, id)) else JNull),
         "mechanical" -> JBool(mechanical(snapshot, ledger, n).isEmpty),
         "resembles" -> JArr(resembles(ledger, n)),
         "rejectedBeside" -> JArr(n("parent").flatMap(_.str).toList.flatMap(ledger.rejectedUnder).filter(_._1 != id).map((r, c, why) =>
@@ -199,7 +200,8 @@ object Decisions:
     ledger.binding(s(n, "id")).filter(_.chain != parentChain(snapshot, n)).fold(Nil) { d =>
       val ids = byId(snapshot)
       def up(x: Json): List[Json] = x("parent").flatMap(_.str).flatMap(ids.get).fold(Nil)(p => p :: up(p))
-      (up(n) ++ (kept(n) ++ relies(n)).flatMap(ids.get)).flatMap { a =>
+      // What it rests on: its ancestors, the invariants it keeps, and what it and its ancestors rely on.
+      (up(n) ++ (kept(n) ++ (n :: up(n)).flatMap(relies)).distinct.flatMap(ids.get)).flatMap { a =>
         val id = s(a, "id")
         val then_ = ledger.history(id).filter(x => Ledger.binds(x.action) && x.at <= d.at).lastOption
         val now = a("content").getOrElse(JNull)
@@ -221,7 +223,14 @@ object Decisions:
     * refused if the node moved since.
     */
   final case class Request(node: String, by: String, reason: String, reject: List[String] = Nil,
-      revisit: List[String] = Nil, confirm: List[String] = Nil, action: String = "accept", seen: String = "")
+      revisit: List[String] = Nil, confirm: List[String] = Nil, action: String = "accept", seen: String = "",
+      held: List[String] = Nil)
+
+  /** A reason (or why) that says when to revisit the decision: such a decision below a change is
+    * answered by name, still holds or revisit, never left to a default.
+    */
+  def conditional(text: String): Boolean =
+    """(?i)\brevisit (if|when|once)\b|\bunless\b|\buntil\b|\bas long as\b|\bonly while\b""".r.findFirstIn(text).isDefined
 
   /** Why `n` is not mechanical, or None if it is: a decision with no choice in it, where Lean proves
     * again all there is to prove, which the developer can accept with others in one batch. Not
@@ -260,8 +269,13 @@ object Decisions:
       def rest(c: Json) = JObj(c.obj.filterNot(f => f._1 == "uses" || f._1 == "examples"))
       Decision.hash(rest(was)) == Decision.hash(rest(now)) && ((strs(was, "uses") diff strs(now, "uses")) ++ (strs(now, "uses") diff strs(was, "uses"))).forall(isType)
     }
+    // Only words moved above it: the statements of the nodes it rests on were reworded, nothing Lean sees.
+    def formalPart(c: Json) = Decision.hash(JObj(c.obj.filter(f => Set("parent", "sources", "substitutions", "vocabulary", "uses", "governs", "formal", "assumed")(f._1))))
+    val wordsAbove = cs == List("above") && moved(snapshot, ledger, n).nonEmpty && moved(snapshot, ledger, n).forall { m =>
+      v.ids.get(s(m, "id")).exists(a => formalPart(m("before").getOrElse(JNull)) == formalPart(a("content").getOrElse(JNull)))
+    }
     val reproven = st == "review" && cs.nonEmpty && cs.forall(c => c == "above" || (c == "self" && (implOnly || typesOnly)))
-    if !Set("refine", "contract")(kind) && !(Set("instantiate", "invariant")(kind) && st == "review" && typesOnly) then Some(s"$kind nodes hold a choice")
+    if !Set("refine", "contract")(kind) && !(Set("instantiate", "invariant")(kind) && st == "review" && (typesOnly || wordsAbove)) then Some(s"$kind nodes hold a choice")
     else if st == "accepted" then Some(s"$id is already accepted")
     else if st == "rejected" then Some(s"$id was rejected")
     else if ledger.history(id).exists(_.action == "reject") then Some(s"the developer rejected $id once: they decide it again")
@@ -272,7 +286,9 @@ object Decisions:
     else if st == "proposed" && siblings.nonEmpty then Some(s"$id stands beside ${siblings.map(s(_, "id")).mkString(", ")}: an alternative or a part, the developer decides")
     else if st == "proposed" && introduces then Some(s"$id introduces terms: the developer decides what they mean")
     else if st == "proposed" && kept(n).nonEmpty then Some(s"$id names invariants: how a contract keeps one is the developer's to decide")
-    else if waitsFor(snapshot, ledger, n).isDefined then Some(s"$id waits for ${waitsFor(snapshot, ledger, n).get}")
+    // Waiting for a node that is itself mechanical is no wait: the batch accepts it first.
+    else if waitsFor(snapshot, ledger, n).exists(w => v.ids.get(w).forall(x => mechanical(snapshot, ledger, x).isDefined)) then
+      Some(s"$id waits for ${waitsFor(snapshot, ledger, n).get}")
     else if ok != total then Some(s"${total - ok} of $id's examples fail")
     else if n("invariants").exists(_.arr.exists(i => !Set("proven", "exempt")(s(i, "status"))) ) then Some(s"an invariant $id keeps is not proven")
     else None
@@ -295,7 +311,7 @@ object Decisions:
         else if st == "review" && movedOnlyBy(c) then Some("moved") else None
       kind.toList.flatMap { k =>
         obj("id" -> str(cid), "kind" -> str(k), "statement" -> c("content").flatMap(_("statement")).getOrElse(str("")),
-          "reason" -> str(ledger.chosen(cid).fold("")(_.reason))) :: go(cid)
+          "reason" -> str(reasonNow(ledger, cid)), "chosen" -> str(ledger.chosen(cid).fold("")(_.reason))) :: go(cid)
       }
     }
     // Below an invariant: the nodes that keep it, or are exempt from it; below any node, those relying on it.
@@ -306,7 +322,7 @@ object Decisions:
         val st = state(snapshot, ledger, c)
         val kind = if holds(st) && ledger.binding(cid).isDefined then Some("accepted") else if st == "review" && movedOnlyBy(c) then Some("moved") else None
         kind.map(k => obj("id" -> str(cid), "kind" -> str(k), "statement" -> c("content").flatMap(_("statement")).getOrElse(str("")),
-          "reason" -> str(ledger.chosen(cid).fold("")(_.reason))))
+          "reason" -> str(reasonNow(ledger, cid)), "chosen" -> str(ledger.chosen(cid).fold("")(_.reason))))
       }
     val down = go(id)
     val own = down ++ related.filterNot(r => down.exists(d => s(d, "id") == s(r, "id")))
@@ -318,10 +334,37 @@ object Decisions:
         cid != id && !own.exists(b => s(b, "id") == cid) && !isBelow(snapshot, cid, id) &&
           holds(state(snapshot, ledger, c)) && ledger.binding(cid).isDefined
       }.map(c => obj("id" -> str(s(c, "id")), "kind" -> str("accepted"),
-        "statement" -> c("content").flatMap(_("statement")).getOrElse(str("")), "reason" -> str(ledger.chosen(s(c, "id")).fold("")(_.reason))))
+        "statement" -> c("content").flatMap(_("statement")).getOrElse(str("")), "reason" -> str(reasonNow(ledger, s(c, "id"))), "chosen" -> str(ledger.chosen(s(c, "id")).fold("")(_.reason))))
+    // The invariants cut across every concern: a change to a root's idea lists them too.
+    val across = if s(n, "kind") != "root" then Nil else nodes(snapshot).filter { c =>
+      s(c, "kind") == "invariant" && !(own ++ elsewhere).exists(b => s(b, "id") == s(c, "id")) && holds(state(snapshot, ledger, c)) && ledger.binding(s(c, "id")).isDefined
+    }.map(c => obj("id" -> str(s(c, "id")), "kind" -> str("accepted"), "statement" -> c("content").flatMap(_("statement")).getOrElse(str("")),
+      "reason" -> str(reasonNow(ledger, s(c, "id"))), "chosen" -> str(ledger.chosen(s(c, "id")).fold("")(_.reason))))
     // With each its why: the theory a change may undo is often written there, not in the reason.
     val all = byId(snapshot)
-    (own ++ elsewhere).map(b => JObj(b.obj :+ ("why" -> all.get(s(b, "id")).flatMap(_("content")).flatMap(_("why")).getOrElse(str("")))))
+    (own ++ elsewhere ++ across).map(b => JObj(b.obj :+ ("why" -> all.get(s(b, "id")).flatMap(_("content")).flatMap(_("why")).getOrElse(str("")))))
+
+  /** What a diff of governed code may touch that no proof covers: the invariants whose domain types it
+    * names (with why each was decided), and the parameters it binds anew (with what each means). Shown
+    * with every code review.
+    */
+  def codeNotes(snapshot: Json, diff: String): List[String] =
+    val changed = diff.linesIterator.filter(l => (l.startsWith("+") || l.startsWith("-")) && !l.startsWith("+++") && !l.startsWith("---")).mkString("\n")
+    def mentions(w: String) = w.nonEmpty && s"(?<![\\w])${java.util.regex.Pattern.quote(w)}(?![\\w])".r.findFirstIn(changed).isDefined
+    val invs = nodes(snapshot).filter(c => s(c, "kind") == "invariant").flatMap { i =>
+      val types = i("content").flatMap(_("uses")).map(_.arr.toList.flatMap(_.str)).getOrElse(Nil)
+        .flatMap(u => """^(?:case class|enum)\s+(\w+)""".r.findFirstMatchIn(u).map(_.group(1)))
+      types.find(mentions).map(t => s"the change names $t, which the invariant ${s(i, "id")} is about: does it show one to someone the rule refuses? (${i("content").flatMap(_("statement")).flatMap(_.str).getOrElse("")})")
+    }
+    val params = snapshot("params").map(_.arr.toList).getOrElse(Nil).filter(p => s"(?<![\\w])${java.util.regex.Pattern.quote(s(p, "name"))}\\.bind\\(".r.findFirstIn(changed).isDefined)
+      .map(p => s"it binds ${s(p, "name")}, which means: ${s(p, "means")} — does the new value still mean that?")
+    invs ++ params
+
+  /** The reason a node holds now: of its latest acceptance (a confirmation adds to it, so with it). */
+  private def reasonNow(ledger: Ledger, id: String): String =
+    val accepts = ledger.history(id).reverse.takeWhile(d => d.action != "reject" && d.action != "remove").filter(_.action == "accept")
+    val last = accepts.headOption.fold("")(_.reason)
+    ledger.binding(id).filter(_.action == "confirm").fold(last)(c => s"$last (since confirmed: ${c.reason})")
 
   private def isBelow(snapshot: Json, id: String, ancestor: String): Boolean =
     structure(snapshot).ids.get(id).flatMap(_("parent").flatMap(_.str)).exists(p => p == ancestor || isBelow(snapshot, p, ancestor))
@@ -392,8 +435,13 @@ object Decisions:
         val under = below(snapshot, ledger, n).map(b => s(b, "id"))
         val listed = below(snapshot, ledger, n).map(b => s(b, "id") -> s(b, "kind")).toMap
         val notListed = r.revisit.filterNot(listed.contains) ++ r.confirm.filterNot(x => listed.get(x).contains("moved"))
+        // Those whose reason says when to revisit them are answered one by one.
+        val conditions = below(snapshot, ledger, n).filter(b => s(b, "kind") == "accepted" && List("reason", "chosen", "why").exists(k => conditional(s(b, k))))
+          .map(b => s(b, "id")).filterNot(x => r.revisit.contains(x) || r.confirm.contains(x) || r.held.contains(x))
         if notListed.nonEmpty then Left(s"not among the decisions below ${r.node} that this decision can act on: ${notListed.mkString(", ")}")
         else if r.revisit.exists(r.confirm.contains) then Left("a node is either revisited or confirmed")
+        else if conditions.nonEmpty then
+          Left(s"say for each decision below that names when to revisit it whether it still holds or is revisited: ${conditions.mkString(", ")}")
         else
           // Parents first: a node named to confirm is confirmed once its parent is accepted, and only
           // if it is under review just because something above it moved.
@@ -454,12 +502,26 @@ object Decisions:
     else if q.contains('/') || q.endsWith(".scala") then
       s"No node governs $q: code there changes unnoticed (status fails on it). Give it an owner: the contract whose implementation it is, `.governing`, or a design node."
     else
-      val words = query.toLowerCase.split("\\W+").filter(_.length > 2).toList
-      def text(n: Json) = (s(n, "id") :: List("statement", "why").flatMap(k => n("content").flatMap(_(k)).flatMap(_.str)) ++
-        n("decision").filter(_ != JNull).flatMap(_("reason")).flatMap(_.str).toList).mkString(" ").toLowerCase
-      val hits = ns.map(n => n -> words.count(text(n).contains)).filter(_._2 > 0).sortBy(-_._2).take(10).map(_._1)
-      if hits.isEmpty then s"No node governs or mentions \"$query\": a new concern may need a new node (and a governed home for its code)."
-      else ("Nodes that mention it, best first:" :: hits.map(line)).mkString("\n")
+      // Everything the theory says, as entries: the nodes (with their reasons), the options rejected
+      // (gone from the model or not), the gone nodes, and the lines of what is not modelled.
+      final case class Entry(label: String, text: String)
+      val nodeEntries = ns.map(n => Entry(line(n), (s(n, "id") :: List("statement", "why").flatMap(k => n("content").flatMap(_(k)).flatMap(_.str)) ++
+        n("history").map(_.arr.toList).getOrElse(Nil).map(h => s(h, "reason"))).mkString(" \n")))
+      val rejected = ns.flatMap(_("rejectedBeside").map(_.arr.toList).getOrElse(Nil)).distinctBy(r => s(r, "id"))
+        .filterNot(r => ns.exists(n => s(n, "id") == s(r, "id")))
+        .map(r => Entry(s"- rejected ${s(r, "id")}: ${s(r, "statement")} — rejected because: ${s(r, "reason")}", s"${s(r, "id")} ${s(r, "statement")} \n${s(r, "why")} \n${s(r, "reason")}"))
+      val gone = annotated("gone").map(_.arr.toList).getOrElse(Nil).map(g => Entry(s"- gone ${s(g, "id")}", s"${s(g, "id")} ${g("decision").flatMap(_("reason")).flatMap(_.str).getOrElse("")}"))
+      val notModelled = nodes(annotated).flatMap(_("content").flatMap(_("notModelled")).flatMap(_.str)).distinct
+        .flatMap(_.split("\n(?=- )").map(_.trim).filter(_.nonEmpty)).distinct.map(l => Entry(s"- not modelled: ${l.replaceAll("\\s+", " ")}", l))
+      val all = nodeEntries ++ rejected ++ gone ++ notModelled
+      val words = query.toLowerCase.split("\\W+").filter(_.length > 2).toList.distinct
+      def has(e: Entry, w: String) = e.text.toLowerCase.contains(w)
+      // A word every entry has says little: rarer words weigh more.
+      def weight(w: String) = math.log((all.size + 1).toDouble / (1 + all.count(has(_, w))))
+      val scored = all.map(e => e -> words.filter(has(e, _)).map(weight).sum).filter(_._2 > 0.01).sortBy(-_._2).take(10)
+      def sentence(e: Entry) = e.text.split("(?<=[.!?])\\s+|\n").find(x => words.exists(x.toLowerCase.contains)).map(_.trim).filter(_.nonEmpty)
+      if scored.isEmpty then s"No node, rejected option or not-modelled line mentions \"$query\": a new concern may need a new node (and a governed home for its code)."
+      else ("What mentions it, best first:" :: scored.map((e, _) => e.label + sentence(e).filterNot(e.label.contains).fold("")(x => s"\n    \"${x.take(200)}\""))).mkString("\n")
 
   /** What waits on whom: decisions for the developer, clean-up for the agent. */
   def waiting(annotated: Json): (List[String], List[String]) =

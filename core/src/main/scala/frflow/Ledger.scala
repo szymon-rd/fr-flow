@@ -189,8 +189,27 @@ object Ledger:
       (if now.decisions.nonEmpty && Signing.keys(file.getParent.resolve("keys")).isEmpty then
         List("no developer key: status fails until the decisions are signed by one (anyone who can write the ledger could have written them). Start the browser (`frflow serve`), which creates your key, commit .frflow/keys/, and sign the decisions there; CI should pin the key with FRFLOW_DEVELOPER_KEYS")
       else Nil) ++
+      chainBreaks(now) ++
       Signing.unsigned(now, file.getParent.resolve("keys")).map((id, d) =>
         s"$id: the ${d.action} of ${d.at} by ${d.by} is not signed by a developer key: decide it again in the browser, or sign it there if it is yours")
+
+  /** What the record itself shows was cut or replayed, whatever git's history says: a decision that
+    * follows no earlier decision of its node (a copy of a first decision appended again, say), the same
+    * decision twice, and a choice whose rejected alternatives' rejections are gone.
+    */
+  def chainBreaks(l: Ledger): List[String] =
+    l.decisions.toList.sortBy(_._1).flatMap { (id, ds) =>
+      val entries = ds.map(entry)
+      val dup = entries.diff(entries.distinct).distinct.map(e => s"$id: the decision $e is recorded twice")
+      // The chain starts at the first decision that names the one it follows (older ones carry none;
+      // a copy of one is a duplicate, and any other change to it breaks its signature).
+      val first = ds.indexWhere(_.after.nonEmpty)
+      val loose = ds.zipWithIndex.collect { case (d, i) if first >= 0 && i > first && !entries.take(i).contains(d.after) =>
+        s"$id: the ${d.action} of ${d.at} by ${d.by} follows no earlier decision of $id (a copy of an earlier one, or the decisions before it were removed)" }
+      val lost = ds.filter(_.action == "accept").flatMap(_.rejected).distinct.filterNot(r => l.history(r).exists(_.action == "reject"))
+        .map(r => s"$id was chosen over $r, whose rejection (and its reason) is gone from the ledger")
+      dup ++ loose ++ lost
+    }
 
   /** Warnings when a committed version of the ledger, or the ledger now, changed or removed
     * decisions recorded in a version it follows (its parents in git; a merge keeps both sides'). The

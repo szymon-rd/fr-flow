@@ -29,8 +29,12 @@ final case class Code(files: List[String], fingerprint: String)
 /** How a contract stands to an invariant: it keeps it, `view` giving the pairs a call exposes to the
   * invariant's rule; or it is exempt, `exempt` saying why the invariant does not apply to it.
   */
-final case class Keep(invariant: Node[?], view: Option[Lifted[?]], exempt: String = ""):
-  def describe: String = view.fold(s"${invariant.id}: exempt, because ${exempt}")(v => s"${invariant.id}: ${v.source}")
+/** How a node stands to an invariant: kept, through a view of each call (with, when several inputs
+  * have the rule's first type, the index of the one the pairs are about: the reader), or exempt.
+  */
+final case class Keep(invariant: Node[?], view: Option[Lifted[?]], exempt: String = "", reader: Int = -1):
+  def describe: String = view.fold(s"${invariant.id}: exempt, because ${exempt}")(v =>
+    s"${invariant.id}: ${v.source}${if reader >= 0 then s" (reader: input ${reader + 1})" else ""}")
 
 object Code:
   /** The files under `paths` (directories are walked), named relative to `base`, so the fingerprint
@@ -284,10 +288,10 @@ extension [A, B, R](n: Node[(A, B) => R])
     * rule, whatever the call returns, keeps nothing); it is also checked on the examples and at run
     * time.
     */
-  inline def keeps[X, Y](invariant: Node[(X, Y) => Boolean], inline formal: Boolean = true)(
+  inline def keeps[X, Y](invariant: Node[(X, Y) => Boolean], inline formal: Boolean = true, reader: Int = -1)(
       inline view: (A, B, R) => List[(X, Y)]): Node[(A, B) => R] =
     require(invariant != null, s"${n.id} keeps an invariant declared after it: declare the invariant first")
-    n.withKeeps(n.kept :+ Keep(invariant, Some(Lifted.of(formal, view))))
+    n.withKeeps(n.kept :+ Keep(invariant, Some(Lifted.of(formal, view)), reader = reader))
 
   /** The first invariant a call's result breaks, if any. */
   def broken(a: A, b: B, r: R): Option[String] =
@@ -425,7 +429,8 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
       val as = n.cases.map(_.a).distinct
       val bs = n.cases.map(_.b).distinct
       val known = n.cases.map(e => (e.bindings, e.a, e.b)).toSet
-      n.cases.map(e => (e.bindings, e.givenSource)).distinct.flatMap { (bindings, src) =>
+      // Once per set of parameter values (examples giving the same values are one group).
+      n.cases.map(e => (e.bindings, e.givenSource)).distinctBy(_._1.map(b => (b.param.name, scala.util.Try(b.value()).toOption))).flatMap { (bindings, src) =>
         Bindings.within(bindings) {
           val f = try Some(i.factory.asInstanceOf[() => (Any, Any) => Any]()) catch case _: Exception => None
           f.toList.flatMap { impl =>
@@ -595,6 +600,15 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
 
       nodes.filter(i => i.kind == NodeKind.Invariant && !nodes.exists(_.kept.exists(k => (k.invariant eq i) && k.view.nonEmpty)))
         .map(i => s"${i.id}: no contract keeps this invariant"),
+      // An opaque type something says exists of, fixed to a type that holds an Int or Long: Lean's
+      // integers are unbounded, so what Lean finds may not exist in Scala.
+      nodes.filter(_.kind == NodeKind.Instantiate).flatMap { n =>
+        n.substs.filter(_.isType).filter(s => s.types.exists(t => """:\s*(Int|Long)\b""".r.findFirstIn(t.scala).isDefined)).flatMap { s =>
+          val ex = s"∃ \\([^)]*: ${java.util.regex.Pattern.quote(s.name)}\\)".r
+          path(n).flatMap(_.lifted).find(l => ex.findFirstIn(l.body).isDefined).map(_ =>
+            s"${n.id}: ${s.name} := ${s.lean}, whose values hold an Int or Long, but something above says one exists: Lean's integers are unbounded, Scala's are not; use BigInt")
+        }
+      },
       // A property relied on is stated with what the other node proves something about.
       nodes.flatMap(n => n.reliedProperties.collect {
         case (o, _, p) if o != null && nodes.contains(o) && !p.defs.map(_.name).exists(d => path(o).flatMap(_.referenced).flatMap(_.defs).exists(_.name == d)) =>

@@ -41,6 +41,13 @@ class LiftSuite extends munit.FunSuite:
     assertEquals(e.body, "((∀ b ∈ l, (b.pages > 0)) ∧ (∃ b_1 ∈ l, (b_1.pages > 1)))")
   }
 
+  test("nothing is said to exist of a bounded integer, which Lean's unbounded Int would find") {
+    assert(compileErrors("frflow.Lifted((a: Long) => frflow.exists((c: Long) => c > a))").contains("unbounded"))
+    assert(compileErrors("frflow.Lifted((b: frflow.fixtures.Book) => frflow.exists((c: frflow.fixtures.Book) => c.pages > b.pages))").contains("unbounded"))
+    // over BigInt it is what it says
+    assert(Lifted((a: BigInt) => frflow.exists((c: BigInt) => c > a)).body.contains("∃"))
+  }
+
   test("tuple fields follow Lean's nesting: A × B × C is A × (B × C)") {
     val c = Lifted((t: (BigInt, BigInt, BigInt)) => t._2 * 10 + t._3)
     assertEquals(c.body, "((t.2.1 * 10) + t.2.2)")

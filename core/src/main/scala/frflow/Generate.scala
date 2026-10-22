@@ -156,7 +156,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
   /** The invariants a contract keeps in Lean, each with the contract's view of a call. */
   def formalKeeps(n: Node[?]): List[(Node[?], Lifted[?])] =
     if !n.formal then Nil
-    else n.kept.collect { case Keep(i, Some(v), _) if i.formal && v.body.nonEmpty && i.spec.exists(_.body.nonEmpty) => (i, v) }
+    else n.kept.collect { case Keep(i, Some(v), _, _) if i.formal && v.body.nonEmpty && i.spec.exists(_.body.nonEmpty) => (i, v) }
 
   /** The file an obligation, or a check that the node says nothing, is proven in. */
   def oblPath(id: String, name: String) = s"FrFlowGen/$K/$id/${name.capitalize}.lean"
@@ -253,12 +253,20 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
       case LT.Name(t) => typeDecls.contains(t) || nodeCtx(n).opaques.contains(t)
       case _          => false
     if !domain then Right(None) else occurs("y'", s"x${ts.size - 1}", parseType(ts.last), target).map(_.map { occ =>
-      val readers = ts.init.zipWithIndex.filter((t, _) => parseType(t) == parseType(rule(0))).map(_._2)
-      val pair = readers match
-        case List(i) => s"p.1 = x$i ∧ p.2 = y'"
-        case _       => "p.2 = y'"
+      val pair = readerOf(n, inv).fold("p.2 = y'")(i => s"p.1 = x$i ∧ p.2 = y'")
       s"∀ (y' : ${rule(1)}), $occ → ∃ p ∈ ${at(n)(s"view_${inv.id}")} ${ts.indices.map(i => s"x$i").mkString(" ")}, $pair"
-    })
+    }).flatMap(c => if c.isDefined && readerOf(n, inv).isEmpty && readers(n, inv).size > 1 then
+        Left(s"${readers(n, inv).size} inputs are of the rule's first type: say which the pairs are about (.keeps(${inv.id}, reader = i), counting from 0)")
+      else Right(c))
+
+  /** The inputs of a contract of the rule's first type (who a call shows things to). */
+  private def readers(n: Node[?], inv: Node[?]): List[Int] =
+    val rule = inv.spec.get.params.map(_._2)
+    n.post.get.params.map(_._2).init.zipWithIndex.filter((t, _) => parseType(t) == parseType(rule(0))).map(_._2)
+
+  /** The input the view's pairs are about: named in `keeps`, or the only one of the rule's first type. */
+  private def readerOf(n: Node[?], inv: Node[?]): Option[Int] =
+    n.kept.find(_.invariant eq inv).map(_.reader).filter(_ >= 0).orElse(readers(n, inv) match { case List(i) => Some(i); case _ => None })
 
   /** What a node claims, from what it says (`premise`): its link, each invariant it keeps, its proven
     * implementation. `vacuous` is why the claim says nothing if it holds without the premise.
@@ -297,11 +305,19 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
         Claim(s"expect_$i", s"(m : ${modelType(n)})", Some(s"${at(n)("spec")} m"), s"${at(n)(s"expected_$i")} m", statement,
           s"it holds of every model, whatever ${n.id} says: it checks nothing")
       }
-    link.toList ++ keeps ++ impl ++ feasible ++ expects
+    // A link proven by hand may rest on the root saying nothing, which frflow_auto cannot always see (an
+    // induction does what it does not): then some model must fail the root, under the meanings fixed so far.
+    val nontrivial = Option.when(authoredLink(n.id) && link.isDefined) {
+      val b = binders(nodeCtx(n))
+      Claim("nontrivial", "", None, s"${if b.isEmpty then "" else s"∃ $b, "}∃ (m : ${modelType(n)}), ¬ ${at(n)("rootSpec")} (${at(n)("toRoot")} m)",
+        s"Some model of ${n.id} fails the root: the root says something here.")
+    }
+    link.toList ++ keeps ++ impl ++ feasible ++ nontrivial ++ expects
 
   /** What a formal node must prove: its link, the invariants it keeps, its proven implementation. */
   def obligations(n: Node[?]): List[Obligation] =
-    claims(n).map(c => Obligation(c.name, stated(n, c.vars, c.premise, c.conclusion), c.description))
+    // (`nontrivial` binds the parameters itself, with ∃.)
+    claims(n).map(c => Obligation(c.name, if c.name == "nontrivial" then c.conclusion else stated(n, c.vars, c.premise, c.conclusion), c.description))
   def obligation(n: Node[?]): Option[Obligation] = obligations(n).find(_.name == "link")
   /** Obligations proven in files of their own: all but the link. */
   def extraObligations(n: Node[?]): List[Obligation] = obligations(n).filterNot(_.name == "link")
@@ -655,7 +671,8 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
     */
   def proofFile(n: Node[?], names: List[String] = List("link")): String =
     val witness = kb.nodes.exists(c => provenImpl(c).isDefined && kb.path(c).exists(_ eq n))
-    val all = names ++ Option.when(names.contains("link") && !witness && !names.contains("feasible"))("feasible")
+    val all = names ++ Option.when(names.contains("link") && !witness && !names.contains("feasible"))("feasible") ++
+      Option.when(names.contains("link") && !names.contains("nontrivial"))("nontrivial")
     s"""import ${specModule(n.id)}
        |
        |/-! Authored proofs of the obligations of ${n.id}. Each states exactly its `Obl`. -/

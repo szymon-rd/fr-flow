@@ -57,7 +57,7 @@ class ToolsSuite extends munit.FunSuite:
     assert(t.contains("Gone  [review: gone]"), t)
   }
 
-  test("decisions are recorded without running the CLI, and refused on stale sources") {
+  test("decisions are recorded without running the CLI; edits elsewhere in the sources do not hold them up") {
     val p = fake()
     p.run(List("render"), actor = "ui")
     import frflow.Decisions.Request
@@ -67,7 +67,7 @@ class ToolsSuite extends munit.FunSuite:
     assertEquals((st("Inst"), st("Inst2")), ("accepted", "rejected"))
     assertEquals(p.history.arr.take(2).flatMap(_("node").flatMap(_.str)).toSet, Set("Inst", "Inst2"))
     Files.setLastModifiedTime(p.root.resolve("model.txt"), java.nio.file.attribute.FileTime.fromMillis(System.currentTimeMillis + 5000))
-    assert(p.decide(Request("Failed", "dev", "It is still right.")).left.exists(_.contains("render first")))
+    assert(!p.decide(Request("Failed", "dev", "It is still right.")).left.exists(_.contains("render first")))
   }
 
   test("requests") {

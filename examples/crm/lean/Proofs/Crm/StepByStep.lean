@@ -23,4 +23,9 @@ theorem link : Obl.link := by
     simp only [List.foldl_append, List.foldl_cons, List.foldl_nil]
     exact (hs _ w).2
 
+/-- The root says something here: with no store consistent, no model meets it. -/
+theorem nontrivial : Obl.nontrivial := by
+  unfold Obl.nontrivial
+  exact ⟨Unit, Unit, fun _ => False, (), fun _ _ _ => True, fun s _ => s, by simp [frflow_defs]⟩
+
 end Crm.StepByStep.Proofs

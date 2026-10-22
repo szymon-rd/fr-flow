@@ -265,6 +265,16 @@ private final class Translator(using val quotes: Quotes):
     sym.isClassDef && !isLibrary(sym) && !sym.flags.is(Flags.Module) &&
       ((sym.flags.is(Flags.Case) && !sym.flags.is(Flags.Enum)) || (sym.flags.is(Flags.Enum) && !sym.flags.is(Flags.Case)))
 
+  /** Whether a value of the type holds a bounded integer (Int or Long), however deep. */
+  private def bounded(t0: TypeRepr, seen: Set[Symbol] = Set.empty): Boolean =
+    val t = norm(t0)
+    if t =:= TypeRepr.of[Int] || t =:= TypeRepr.of[Long] then true
+    else if isAdt(t.typeSymbol) && !seen(t.typeSymbol) then
+      val sym = t.typeSymbol
+      val cases = if sym.flags.is(Flags.Enum) then sym.children.filter(_.isClassDef) else List(sym)
+      cases.exists(c => c.caseFields.exists(f => bounded(c.typeRef.memberType(f), seen + sym)))
+    else t.typeArgs.exists(bounded(_, seen))
+
   private def isInt(t: TypeRepr) = norm(t) =:= TypeRepr.of[Int] || norm(t) =:= TypeRepr.of[Long] || isBig(t)
   private def isBig(t: TypeRepr) = norm(t) =:= TypeRepr.of[BigInt]
   /** Scala's `Int` and `Long` wrap around; Lean's integers do not, nor does `BigInt`. */
@@ -327,7 +337,7 @@ private final class Translator(using val quotes: Quotes):
       // would mean something else at run time.
       val standard = Set("scala.Any", "java.lang.Object", "scala.AnyRef", "scala.Product", "scala.Equals", "scala.reflect.Enum")
       sym.typeRef.baseClasses.filterNot(b => standard(b.fullName)).foreach { b =>
-        List("equals", "hashCode").flatMap(b.declaredMethod).filterNot(_.flags.is(Flags.Synthetic)).foreach(m =>
+        List("equals", "hashCode", "canEqual").flatMap(b.declaredMethod).filterNot(_.flags.is(Flags.Synthetic)).foreach(m =>
           fail(s"${sym.name} redefines ${m.name} (in ${b.name}): domain types must keep structural equality", pos))
       }
       inProgress += name
@@ -508,6 +518,10 @@ private final class Translator(using val quotes: Quotes):
           strip(f) match
             case Lambda(vs, b) =>
               val q = if name == "forall" then "∀" else "∃"
+              // Lean's integers are unbounded, Scala's Int and Long are not: a value Lean shows to exist
+              // (one larger than every Long, say) may not exist in Scala.
+              if name == "exists" then vs.find(v => bounded(v.tpt.tpe)).foreach(v =>
+                fail(s"exists over ${v.name}, whose type holds an Int or Long: Lean's integers are unbounded, Scala's are not, so what Lean finds may not exist in Scala; use BigInt", v.pos))
               val names = vs.map(v => local(v.symbol, v.pos))
               val bs = vs.zip(names).map((v, n) => s"($n : ${tpe(v.tpt.tpe, v.pos)})").mkString(" ")
               return p(s"$q $bs, ${expr(b, env ++ vs.map(_.symbol).zip(names))}")
