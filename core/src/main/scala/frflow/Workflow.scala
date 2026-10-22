@@ -33,7 +33,9 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   private def sha(parts: String*): String = Sha.parts(parts*)
 
   def idea: String = read(ws.root.resolve(kb.idea)).getOrElse("")
-  def ledger: Ledger = Ledger.load(ws.ledgerFile)
+  def ledger: Ledger = Workflow.withImports(Ledger.load(ws.ledgerFile), importDirs)
+  /** Each imported node, and the directory of the project that decides it. */
+  def importDirs: Map[String, String] = kb.imports.view.mapValues(i => ws.root.resolve(i.root).toAbsolutePath.normalize.toString).toMap
   private var checksCache: Option[(String, Map[String, NodeCheck])] = None
   /** The recorded checks (read again when the file changes). */
   def checks: Map[String, NodeCheck] = synchronized {
@@ -95,7 +97,9 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     * subsection (every root's), and the subsection named as the root's idea section. An edit of one
     * root's subsection reviews only that root.
     */
-  def notModelledOf(root: Node[?]): String =
+  def notModelledOf(root: Node[?]): String = notModelledOfText(notModelled, root)
+
+  private def notModelledOfText(notModelled: String, root: Node[?]): String =
     val lines = notModelled.linesIterator.toList
     val (general, rest) = lines.span(l => !l.startsWith("### "))
     def go(ls: List[String]): List[(String, String)] = ls match
@@ -143,9 +147,12 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       val runs = Option.when(i.wiring.nonEmpty)(if i.proven.isDefined then s"runs: ${i.wiring}" else i.wiring).toList
       Option.when((proven ++ runs).nonEmpty)("implementation" -> str((proven ++ runs).mkString("\n")))
     }.toList
-    ++ (if n.kind != NodeKind.Root then Nil
-        else if n.ideaSection.isEmpty then Seq("idea" -> str(ideaDecided), "notModelled" -> str(notModelled))
-        else Seq("idea" -> str(ideaOf(n)), "ideaSection" -> str(n.ideaSection), "notModelled" -> str(notModelledOf(n)))))
+    ++ (if n.kind != NodeKind.Root then Nil else
+        // Another knowledge base's root is decided against its own idea.
+        val (decided, notM) = kb.imports.get(n.id).fold((ideaDecided, notModelled))(i =>
+          Decisions.splitIdea(read(Path.of(i.root).resolve(i.idea)).getOrElse("")))
+        if n.ideaSection.isEmpty then Seq("idea" -> str(decided), "notModelled" -> str(notM))
+        else Seq("idea" -> str(ideaOfText(decided, n)), "ideaSection" -> str(n.ideaSection), "notModelled" -> str(notModelledOfText(notM, n)))))
 
   /** The source of the top-level definition a node is written in (the `val` with every call chained on
     * it, its arguments, its examples): what the developer decides is what is written, so nothing hidden in
@@ -174,7 +181,9 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     }
 
   /** The part of the idea a root is decided against: its section, after the text before the first. */
-  def ideaOf(root: Node[?]): String =
+  def ideaOf(root: Node[?]): String = ideaOfText(ideaDecided, root)
+
+  private def ideaOfText(ideaDecided: String, root: Node[?]): String =
     val (intro, sections) = Decisions.ideaSections(ideaDecided)
     (intro :: sections.find(_._1.equalsIgnoreCase(root.ideaSection.trim)).map(_._2).toList).filter(_.nonEmpty).mkString("\n\n")
 
@@ -239,11 +248,12 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   // ---------------------------------------------------------------------------
 
   /** Checks nodes (all, or one), parents first, and records the results. */
-  def check(only: Option[String] = None): List[(Node[?], NodeCheck)] =
+  def check(only: Option[String] = None, verify: Set[String] = Set.empty): List[(Node[?], NodeCheck)] =
     render()
     val lake = Lake(ws.lean)
     val g = generate
-    val todo = kb.ordered.filter(g.formal).filter(n => only.forall(_ == n.id))
+    // Another knowledge base's nodes are checked there.
+    val todo = kb.ordered.filter(g.formal).filter(n => !kb.imports.contains(n.id) && only.forall(_ == n.id))
     // A node is checked after what its proofs import (its parent, what it keeps, what it relies on);
     // the nodes of one level are checked side by side.
     val levels = scala.collection.mutable.Map.empty[String, Int]
@@ -254,18 +264,24 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       levels(n.id) = l
       l
     })
-    // A node whose formal parts did not change keeps its result.
-    def unchanged(n: Node[?]) = current(n).filter(_ => only.isEmpty)
+    // A node whose formal parts did not change keeps its result (unless it is to be verified anew).
+    def unchanged(n: Node[?]) = current(n).filter(_ => only.isEmpty && !verify(n.id))
     val pending = todo.filter(unchanged(_).isEmpty)
-    // The models first, in one build Lake runs in parallel.
-    if pending.size > 1 then lake.buildAll(pending.map(n => g.specModule(n.id)))
+    // The models first, in one build Lake runs in parallel. A batch that builds is built for each of
+    // its targets: their own builds are skipped (one at a time, they cost about as much as Lean's start).
+    val built = java.util.concurrent.ConcurrentHashMap.newKeySet[String]()
+    def batch(targets: Seq[String]): Unit =
+      if targets.size > 1 && lake.buildAll(targets).ok then targets.foreach(built.add)
+    batch(pending.map(n => g.specModule(n.id)))
     val threads = sys.env.get("FRFLOW_THREADS").flatMap(_.toIntOption).getOrElse(Runtime.getRuntime.availableProcessors.min(4)).max(1)
     val pool = java.util.concurrent.Executors.newFixedThreadPool(threads)
     val done = scala.collection.mutable.Map.empty[String, NodeCheck]
     try todo.groupBy(level(_, Set.empty)).toList.sortBy(_._1).foreach { (_, ns) =>
+      // A level's theorems in one build, which Lake runs in parallel (builds are one at a time).
+      batch(ns.filter(unchanged(_).isEmpty).map(n => g.theoremsModule(n.id)))
       ns.map { n =>
         val parentStatus = n.parent.map(p => done.get(p.id).orElse(current(p)).map(_.status).getOrElse("not-checked"))
-        n -> pool.submit(() => unchanged(n).getOrElse(checkNode(n, g, lake, parentStatus)))
+        n -> pool.submit(() => unchanged(n).getOrElse(checkNode(n, g, lake, parentStatus, built.contains)))
       }.foreach((n, f) => done(n.id) = f.get())
     }
     finally pool.shutdown()
@@ -276,7 +292,16 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     synchronized { checksCache = None }
     results
 
-  private def checkNode(n: Node[?], g: Generate, lake: Lake, parentStatus: Option[String]): NodeCheck =
+  /** Some of the results recorded and still current, chosen at random (at least one when there are
+    * any): `ci` proves them again, so a cache that says "proven" of what Lean no longer proves is found.
+    */
+  def sample(fraction: Double, seed: Long = System.nanoTime): Set[String] =
+    val cached = kb.nodes.filter(n => generate.formal(n) && current(n).exists(_.status == "proven")).map(_.id)
+    if cached.isEmpty || fraction <= 0 then Set.empty
+    else scala.util.Random(seed).shuffle(cached).take((cached.size * fraction).ceil.toInt.max(1)).toSet
+
+  private def checkNode(n: Node[?], g: Generate, lake: Lake, parentStatus: Option[String], built: String => Boolean = _ => false): NodeCheck =
+    def build(target: String) = if built(target) then Run(0, "") else lake.build(target)
     // The examples, evaluated in Lean: every result carries them.
     var evaluated: List[Result] = Nil
     def done(status: String, rs: List[Result], msgs: List[String], axioms: List[String] = Nil) =
@@ -285,7 +310,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       val ds = Lean.diagnostics(r.output).filter(_.isError).map(d => s"${d.file}:${d.line}: ${d.message}")
       if ds.nonEmpty then ds else List(r.output.linesIterator.toList.takeRight(15).mkString("\n"))
 
-    val spec = lake.build(g.specModule(n.id))
+    val spec = build(g.specModule(n.id))
     // A timeout is not a broken model: the machine was busy, or Lean slow; it is checked again.
     if !spec.ok && spec.output.contains("timed out after") then return done("timeout", Nil, List("Lean timed out building the model (the machine may be busy): run check again"))
     if !spec.ok then return done("model-error", Nil, errors(spec))
@@ -320,13 +345,15 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
           case (false, true) => Result(e.name, "failed", s"${e.what}: Scala computes ${e.claim}, Lean proves ${e.opposite}")
           case (true, true)  => Result(e.name, "failed", s"${e.what}: Lean proves both ${e.claim} and its opposite")
           case (false, false) => Result(e.name, "unevaluated", s"${e.what}: Lean decides neither ${e.claim} nor its opposite")
-      }
+      }.filterNot(r => r.name.startsWith("probe") && r.status == "unevaluated") // a probe Lean cannot decide says nothing
     evaluated ++= notEvaluated.map((name, why) => Result(name, "unevaluated", why))
     val disagree = evaluated.filter(_.status == "failed")
     if disagree.nonEmpty then return done("failed", Nil,
-      s"Lean and Scala disagree on ${disagree.size} example(s): the Lean translation does not mean what the Scala does, so nothing proven of ${n.id} is about the code" :: disagree.map(_.detail))
+      s"Lean and Scala disagree on ${disagree.size} example(s) or probe(s): the Lean translation does not mean what the Scala does, so nothing proven of ${n.id} is about the code" :: disagree.map(_.detail))
 
-    val results = g.obligation(n).toList.map { o =>
+    // Built already (with its level): an automatic link that builds is proven, without elaborating it again.
+    val prebuilt = Option.when(!authored(n.id) && g.obligation(n).isDefined)(build(g.theoremsModule(n.id))).filter(_.ok)
+    val results = if prebuilt.isDefined then g.obligation(n).toList.map(o => Result(o.name, "proven", "auto")) else g.obligation(n).toList.map { o =>
       val rel = if authored(n.id) then g.proofsPath(n.id) else g.autoPath(n.id)
       val src = read(ws.lean.resolve(rel)).getOrElse("")
       val run = lake.elaborate(rel)
@@ -349,7 +376,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       return done("open", results, List(s"prove it in lean/${g.proofsPath(n.id)} (run `scaffold ${n.id}`)"))
     if parentStatus.exists(_ != "proven") then return done("waiting", results, List(s"waiting for ${n.parent.get.id}"))
 
-    val thms = lake.build(g.theoremsModule(n.id))
+    val thms = prebuilt.getOrElse(build(g.theoremsModule(n.id)))
     if !thms.ok then return done("failed", results, "the node's theorems do not build" :: errors(thms))
     // The proof file, when it proves obligations besides the link (the link builds it otherwise).
     val proofFile: Option[String] =
@@ -439,8 +466,10 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       i.sources.filterNot(kb.modelFiles.contains).map(f => Path.of(f).toAbsolutePath.normalize)
         .filterNot(p => governedExplicitly.exists(g => p == g || p.startsWith(g)))
     }
-    val files = n.governs.map(ws.root.resolve) ++ impl
-    if files.isEmpty then None else Some(Code.of(ws.root, files))
+    // Another knowledge base's code, as its project names it.
+    val base = kb.imports.get(n.id).fold(ws.root)(i => Path.of(i.root))
+    val files = n.governs.map(base.resolve) ++ impl
+    if files.isEmpty then None else Some(Code.of(base, files))
 
   /** A node's link to its parent: `proven` (detail: `auto`, `authored`, `instantiation`), `open`,
     * `failed` or `unchecked`, with a detail. None for a root or a design decision.
@@ -449,6 +478,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     def st(status: String, detail: String) = obj("status" -> str(status), "detail" -> str(detail))
     if n.parent.isEmpty || n.kind == NodeKind.Design then JNull
     else if !n.formal then st("informal", "not formalized: decided by reading")
+    else if kb.imports.contains(n.id) then st("imported", s"checked in ${kb.imports(n.id).kb}")
     else current(n) match
       case None => st("unchecked", if checks.contains(n.id) then "changed since the last check" else "not checked yet")
       case Some(c) => c.obligations.find(_.name == "link") match
@@ -477,10 +507,20 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   def decide(r: Decisions.Request): Either[String, Unit] =
     val files = kb.nodes.flatMap(code).flatMap(_.files).distinct
     Decisions.decide(baseSnapshot, ledger, r, java.time.Instant.now.toString, Git.head(ws.root), Git.snapshot(ws.root, files))
-      .map(Ledger.save(ws.ledgerFile, _))
+      .map(l => Ledger.save(ws.ledgerFile, Ledger(l.decisions -- kb.imports.keySet)))
 
   /** Warnings about the record (decisions not signed by the developer) and the code. */
-  def integrity: List[String] = Ledger.warnings(ws.ledgerFile, ledger) ++ codeWarnings
+  def integrity: List[String] = Ledger.warnings(ws.ledgerFile, Ledger.load(ws.ledgerFile)) ++ importWarnings ++ codeWarnings
+
+  /** Decisions of another knowledge base's nodes, checked against its own keys. */
+  private def importWarnings: List[String] =
+    kb.imports.groupBy(_._2).toList.flatMap { (imp, ids) =>
+      val dir = ws.root.resolve(imp.root).normalize
+      val theirs = Ledger.load(dir.resolve(".frflow/ledger.json"))
+      val mine = Ledger(theirs.decisions.filter((id, _) => ids.contains(id)))
+      Signing.unsigned(mine, dir.resolve(".frflow/keys")).map((id, d) =>
+        s"$id (decided in ${imp.kb}): the ${d.action} of ${d.at} by ${d.by} is not signed by one of ${imp.kb}'s developer keys")
+    }
 
   /** Warnings about the model and the code (the ledger's are read live, see `Ledger.warnings`). */
   def codeWarnings: List[String] =
@@ -523,7 +563,8 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     kb.modelFiles.distinct.flatMap { f =>
       read(Path.of(f)).orElse(read(ws.root.resolve(f))).toList.flatMap(_.linesIterator.zipWithIndex.collect {
         case (Top(kw, name, rest), i) if !(kw == "val" && (known(Option(name).getOrElse("")) ||
-            Seq("= KnowledgeBase(", "= define", "= Opaque(", "= Param[", "= Param(").exists(rest.trim.startsWith) || rest.contains(".caller("))) =>
+            Seq("= KnowledgeBase(", "= define", "= Opaque(", "= Param[", "= Param(").exists(rest.trim.startsWith) || rest.contains(".caller(") ||
+            rest.contains("KnowledgeBase"))) =>
           s"${Path.of(f).getFileName}:${i + 1}: `$kw ${Option(name).getOrElse("")}` is code in the model's file that no node governs: make it a `define` (proven), or move it to a governed file"
       })
     }
@@ -552,7 +593,9 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val root = abs(ws.root)
     val governed = kb.nodes.flatMap(code).flatMap(_.files).map(f => abs(ws.root.resolve(f))).toSet ++
       kb.modelFiles.map(f => abs(Path.of(f)))
-    projectSources.filterNot(governed).map(p => if p.startsWith(root) then root.relativize(p).toString else p.toString).sorted
+    // The file that puts the knowledge base together (its concerns listed) is the model's too.
+    def assembles(p: Path) = read(p).exists(_.contains("KnowledgeBase(\""))
+    projectSources.filterNot(p => governed(p) || assembles(p)).map(p => if p.startsWith(root) then root.relativize(p).toString else p.toString).sorted
 
   /** The project's source files (see `ungoverned`). */
   def projectSources: List[Path] =
@@ -616,7 +659,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
         val out = kb.nodes.filter(c => c.kind == NodeKind.Contract && !kb.inScope(i).contains(c))
         Option.when(out.nonEmpty)(s"${i.id} does not reach ${out.map(c => s"${c.id} (returns ${c.post.flatMap(_.params.lastOption).fold("?")(_._2)})").mkString(", ")}: its rule is about none of what they return")
       }
-    (Decisions.tree(a) + "\n\n" + coverage + "\n" + notes.map("note: " + _ + "\n").mkString + warnings.map("warning: " + _ + "\n").mkString +
+    (Decisions.tree(a) + "\n\n" + coverage + "\n" + Decisions.load(a) + notes.map("note: " + _ + "\n").mkString + warnings.map("warning: " + _ + "\n").mkString +
       (if ok then "Every node is accepted, proven (or decided by reading, where it opted out of Lean), and its examples pass."
        else "Not every node is accepted, proven, and passing its examples, or there are warnings.") + "\n", ok)
 
@@ -665,10 +708,11 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       val rs = current(c).toList.flatMap(_.obligations)
       (c, rs.count(o => o.name.startsWith("eval_") && o.status == "proven"), c.cases.size)
     }
+    val probes = kb.nodes.flatMap(c => current(c).toList.flatMap(_.obligations)).count(o => o.name.startsWith("probe") && o.status == "proven")
     if per.isEmpty then ""
     else
       val none = per.filter((_, ok, _) => ok == 0).map(_._1.id)
-      s"; examples evaluated in Lean as in Scala: ${per.map(_._2).sum} of ${per.map(_._3).sum}" +
+      s"; examples evaluated in Lean as in Scala: ${per.map(_._2).sum} of ${per.map(_._3).sum}, and $probes probe(s) near them" +
         (if none.nonEmpty then s" (none for ${none.mkString(", ")}: unchecked, or its parameters are functions)" else "")
 
   /** The contracts whose root theorem is proven of their code. */
@@ -885,6 +929,9 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
         "id" -> str(n.id),
         "kind" -> str(n.kind.toString.toLowerCase),
         "parent" -> n.parent.fold(JNull)(p => str(p.id)),
+        // Who decides it: the owner of its concern (its root), if one is named; another knowledge base, if it is that one's.
+        "owner" -> str(kb.rootOf(n).owner),
+        "imported" -> kb.imports.get(n.id).fold(JNull)(i => str(i.kb)),
         "limits" -> JArr((kb.limits(n) ++ Option.when(n.kind == NodeKind.Root && n.safety.nonEmpty)(idleOf(n)).flatten.map(what =>
           s"Doing nothing meets it ($what): it says only what must not happen (${n.safety})")).map(str)),
         // Met by doing nothing: a contract that guards and asks for nothing, or a root that says nothing
@@ -961,7 +1008,8 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       "idea" -> str(idea),
       "format" -> JNum(Workflow.ContentFormat),
       "ideaFile" -> str(kb.idea),
-      "warnings" -> JArr((codeWarnings ++ uncrossed).map(str)),
+      "warnings" -> JArr((importWarnings ++ codeWarnings ++ uncrossed).map(str)),
+      "imports" -> JObj(importDirs.toList.sorted.map((id, d) => id -> str(d))),
       "roots" -> JArr(kb.roots.map(r => str(r.id))),
       "exportedAt" -> str(java.time.Instant.now.toString),
       "opaques" -> JArr(kb.opaques.map(o => obj("name" -> str(o.name), "means" -> str(o.means)))),
@@ -983,6 +1031,12 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     ws.snapshotFile
 
 object Workflow:
+  /** A ledger with the decisions of the nodes other knowledge bases decide (id -> their project's directory). */
+  def withImports(own: Ledger, imports: Map[String, String]): Ledger =
+    imports.groupBy(_._2).foldLeft(own) { case (l, (root, ids)) =>
+      val theirs = Ledger.load(Path.of(root).resolve(".frflow/ledger.json"))
+      Ledger(l.decisions ++ theirs.decisions.filter((id, _) => ids.contains(id)))
+    }
   /** The sentences of an idea that say what someone can do ("a user can …", "users may …", "lets"):
     * not those that say what must not happen ("only if", "never", "cannot").
     */

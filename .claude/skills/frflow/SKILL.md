@@ -160,15 +160,21 @@ val authenticated = noUnauthorizedAccess.refine[(Token.T, Resource.T) => Option[
 - **`contract.checkedBy((a, b, r) => ...)`**: when the post reads all the data,
   a check of the result alone for `service` to run per call; Lean proves the
   post implies it.
+- **`kb.uses(other, "../other")(contracts*)`**: another project's contracts, to
+  call (`caller`) or rely on. They are decided there; never put a node under
+  one, and never ask this project's developer to decide one.
+- **`owner = "name"`** on a root: only that developer decides the concern. Do
+  not route its decisions to anyone else.
 - **`formal = false`** (on root, refine, instantiate, contract, contractVia)
   takes a node and all below it out of Lean. Use it only when the subset
   cannot say it or the proof costs more than it gives, and say so in `why`.
 
 **Examples.** Every contract needs at least one `expect` and one `reject`, and
 expects with different results. Lean evaluates each example whose parameters
-are values; give a lookup as `param.bindTable(Map(k -> v))`. "Lean and Scala
-disagree" means the translation is wrong: report it; never change the example
-to hide it.
+are values; give a lookup as `param.bindTable(Map(k -> v))`. Lean also evaluates
+probes, inputs near the examples' (`probe_j`). "Lean and Scala disagree" (on an
+example or a probe) means the translation is wrong: report it; never change
+the example or the code to hide it.
 
 ```scala
   .examples(grants.bind(List(Grant(alice, Path("/a")))), sessions.bindTable(Map("t1" -> alice)))(

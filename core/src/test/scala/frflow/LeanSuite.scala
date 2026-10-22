@@ -182,6 +182,23 @@ class LeanSuite extends munit.FunSuite:
     assert(u.messages.head.contains("Lean and Scala disagree"), u.messages)
   }
 
+  test("probes near the examples find a translation bug the examples miss") {
+    def kb(d: Def[(List[BigInt], BigInt) => List[BigInt]]) = KnowledgeBase("Probe", idea = "IDEA.md")(floorRoot, floorKeep).implementProven(floorKeep)(d)
+    val good = workflow(kb(keepAtLeast)).check().find(_._1.id == "FloorKeep").get._2
+    assertEquals(good.status, "proven", good)
+    assert(good.obligations.count(o => o.name.startsWith("probe") && o.status == "proven") >= 3, good.obligations)
+    // A translation bug, injected: the Lean of the code says > where the Scala says >=. Lean still proves
+    // the code meets the contract, and the examples agree; a probe at the boundary does not.
+    val l = keepAtLeast.lifted
+    assert(l.body.contains("≥"), l.body)
+    val wrong = Def(keepAtLeast.name, new Lifted(l.value, l.params, l.result, l.body.replace("≥", ">"), l.source, l.types, l.opaques,
+      l.paramRefs, () => l.defs, () => l.paramObjects, () => l.opaqueObjects))
+    val bad = workflow(kb(wrong)).check().find(_._1.id == "FloorKeep").get._2
+    assertEquals(bad.status, "failed", bad)
+    assert(bad.obligations.filter(_.name.startsWith("eval")).forall(_.status == "proven"), bad.obligations)
+    assert(bad.obligations.exists(o => o.name.startsWith("probeImpl") && o.status == "failed"), bad.obligations)
+  }
+
   test("a proven implementation's results are evaluated in Lean too") {
     val kb = KnowledgeBase("ImplEval", idea = "IDEA.md")(onlyGood, listed, books, pick).implementProven(pick)(longOnes)
     val c = workflow(kb).check().find(_._1.id == "Pick").get._2
@@ -279,6 +296,17 @@ class LeanSuite extends munit.FunSuite:
     assertEquals(off.service(shelfPort)(minPages.bind(100))(Nil, 1), List(Book("Elsewhere", 500)))
     val short = KnowledgeBase("Ports", idea = "IDEA.md")(shelfPort).implement(shelfPort)((shelf, n) => List(Book("Short", 20)))
     intercept[ContractViolation](short.service(shelfPort)(minPages.bind(100))(Nil, 1))
+  }
+
+  test("a recorded result that does not hold is found when it is proven again") {
+    val w = workflow(sloppyKb)
+    assert(w.check().find(_._1.id == "Sloppy").exists(_._2.status != "proven"))
+    // a cache that says otherwise: Sloppy recorded as proven, for what it is now
+    val forged = w.checks.map((id, c) => id -> (if id == "Sloppy" then c.copy(status = "proven", obligations = c.obligations.map(_.copy(status = "proven"))) else c))
+    Checks.save(w.ws.checksFile, forged)
+    assertEquals(w.current(sloppy).map(_.status), Some("proven"))
+    assertEquals(w.sample(1.0), Set("OnlyGood", "Sloppy"))
+    assertNotEquals(w.check(verify = Set("Sloppy")).find(_._1.id == "Sloppy").get._2.status, "proven")
   }
 
   test("a root doing nothing meets is unproven, unless it says why it only forbids") {

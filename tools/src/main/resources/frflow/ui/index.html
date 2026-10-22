@@ -322,9 +322,12 @@ const linkStatus = n => n.link?.status || (n.kind === "design" ? "design" : n.pa
 // A node resting on a rejected node waits for the agent to move it, not for you.
 // Mechanical decisions (Lean proves them again, nothing in them is a choice) come last: risk-sorted.
 // In the order core gives: each after what it rests on, so each can be decided when it comes.
+// A concern with an owner waits for its owner (the name at the top right); the others are listed apart.
+const yours = n => !n.imported && (!n.owner || (me() || "").trim().toLowerCase() === n.owner.toLowerCase());
+const waitingAll = () => live().filter(n => (n.state === "proposed" || n.state === "review") && byId(n.parent)?.state !== "rejected");
 const waitingForYou = () => {
   const rank = n => { const i = (snap()?.order || []).indexOf(n.id); return i < 0 ? 1e9 : i; };
-  const w = live().filter(n => (n.state === "proposed" || n.state === "review") && byId(n.parent)?.state !== "rejected").sort((a, b) => rank(a) - rank(b));
+  const w = waitingAll().filter(yours).sort((a, b) => rank(a) - rank(b));
   // What can be decided now first; the mechanical batch next; what waits for another decision last.
   return [...w.filter(n => !n.mechanical && !n.waitsFor), ...w.filter(n => n.mechanical), ...w.filter(n => !n.mechanical && n.waitsFor)];
 };
@@ -681,6 +684,9 @@ const mechanicalNote = n => n.mechanical ? `<div class="muted small">Mechanical:
 
 // The decision: where the theory is built. The developer chooses, with a reason.
 function decisionBox(n) {
+  // Another knowledge base's node: decided and checked there; here its decisions are read.
+  if (n.imported) return `<div class="box ${n.state === "accepted" ? "accepted" : "proposed"}"><div class="verdict ${n.state === "accepted" ? "accepted" : "proposed"}">${n.state === "accepted" ? "Accepted" : "Waiting"} in ${esc(n.imported)}</div>
+    <div class="muted small">${esc(n.id)} is decided in ${esc(n.imported)}, the project it comes from; this project reads its decisions there.</div></div>`;
   const blocked = !!n.waitsFor; // from core: a proposal, or a node whose parent moved, waits for its parent
   const chosen = reasons(n);
   const alts = n.alternatives || [];
@@ -879,6 +885,9 @@ function inboxPane() {
       <textarea class="removal" data-node="${esc(r.id)}" rows="1" placeholder="Why is it gone, or why renamed?"></textarea>
       <div class="actions"><button class="btn small primary" data-gone="${esc(r.id)}">Accept that it is gone</button>
         ${(r.renamedTo || []).map(x => `<button class="btn small" data-rename="${esc(x)}" data-from="${esc(r.id)}">Renamed to ${esc(x)}</button>`).join("")}</div></div>`).join("")}
+    ${(() => { const others = waitingAll().filter(n => !yours(n)); if (!others.length) return "";
+      const by = {}; others.forEach(n => { const k = n.imported ? `${n.imported} (another project)` : n.owner; (by[k] = by[k] || []).push(n); });
+      return `<h3>Waiting for other owners</h3>${Object.entries(by).map(([o, ns]) => `<div class="small"><b>${esc(o)}</b>: ${ns.map(n => `<a data-goto="${esc(n.id)}">${esc(n.id)}</a>`).join(", ")}</div>`).join("")}`; })()}
     <h3>Answered by the agent</h3>${answered.length ? answered.map(r => `<div class="req"><div class="small">on ${r.node ? `<a data-goto="${esc(r.node)}">${esc(r.node)}</a>` : "the idea"}</div>
       <div>${esc(r.text)}</div><div class="answer small"><span class="muted">agent:</span> ${esc(r.answer)}</div>
       <div class="actions"><button class="btn small" data-close="${esc(r.id)}">Done</button></div></div>`).join("") : `<div class="muted small">None.</div>`}

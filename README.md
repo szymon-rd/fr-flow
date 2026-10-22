@@ -67,6 +67,19 @@ by one is a warning, so `status` fails; the browser lists it, to decide again
 or sign. Decisions with no key at all are a warning too: start `frflow serve`
 (it creates the key) and commit `.frflow/keys/`.
 
+**Owners.** A root may name its owner (`Node.root(..., owner = "ana")`): only
+they decide that concern, every node below it included; others see its
+decisions waiting in their inbox under "Waiting for other owners". `status`
+and the inbox count what waits, mechanical or to judge, by owner.
+
+**Other knowledge bases.** A project reuses another's contracts with
+`kb.uses(other, "../other")(contracts*)`: they come with the nodes above them,
+the invariants they keep and their code, for Lean and for running. They are
+decided and checked in their own project; here their decisions are read from
+its ledger and checked against its keys, a node below one of them is refused
+(call it or rely on it instead), and a change there reviews what rests on it
+here.
+
 ## Drift
 
 One rule: a decision binds a person's reason to the hash of what they saw.
@@ -209,7 +222,7 @@ alternatives, reliances, what moved), and `find` searches nodes, reasons,
 rejected options and the idea, so an agent extends the theory instead of
 forking it. Every file has one owner, cross-cutting rules are stated once, and
 editing one section of the idea reviews only its root. Use one model file per
-concern (the Scala compiler fails at about 30 nodes in one file). `check` runs
+concern. `check` runs
 nodes side by side in levels (`FRFLOW_THREADS`); a Lean timeout gives status
 `timeout` and is checked again. The ledger only grows; enable its merge driver
 once per clone; a node both branches decided is decided again:
@@ -218,27 +231,30 @@ once per clone; a node both branches decided is decided again:
 git config merge.frflow-ledger.driver "bin/frflow merge-ledger %O %A %B"
 ```
 
-**Measured.** `python3 bench/generate.py N` writes `examples/scale`: N concerns,
-each a root, a refinement and a contract with proven code in its own file,
-every fifth contract calling the previous one's (`sbt "scale/run check"`). On
-a 4-core container:
+**Measured.** `python3 bench/generate.py N` writes `examples/scale`: N concerns
+in a file each, every one a capability root, two refinements and a contract
+keeping a shared invariant, with proven code; every fifth contract's code calls
+the previous one's, and every tenth concern has a link proven by hand
+(`sbt "scale/run check"`). On a 4-core container, with 100 concerns:
 
-| nodes | cold `check` | one code change | no change | `status` | browser load |
-|---|---|---|---|---|---|
-| 60 | 193 s | 21 s | 6 s | 5 s | |
-| 180 | 560 s | 18 s | 5 s | 5 s | 0.35 s |
+| nodes | cold `check` | one code change | one root change | `status` |
+|---|---|---|---|---|
+| 401 | 550 s | 7 s | 8 s | 7 s |
 
-A cold check grows with the nodes (about 3 s each); after that, only what a
-change reaches is proven again (a root change: its concern and the callers of
-its contract).
+A cold check proves each level in one Lean build (about 1.4 s a node); after
+that, only what a change reaches is proven again (a root change: its concern
+and the callers of its contract). `ci` also proves again a random 5% of the
+results it reads from the cache (`FRFLOW_VERIFY`), so a bad cache is found.
 
 ## What is trusted, and the limits
 
 Lean proves the levels consistent with each other; it does not say they are
 the right theory. That is the developer's decision. Trusted:
 
-- the Scala-to-Lean translation, cross-checked only on the examples; it
-  refuses what it cannot translate faithfully (`Int` arithmetic, for one);
+- the Scala-to-Lean translation, cross-checked on the examples and on probes
+  near them (`Generate.near`: boundary numbers, shorter and reversed lists,
+  one field changed), each run in Scala and evaluated in Lean; it refuses what
+  it cannot translate faithfully (`Int` arithmetic, for one);
 - that parameters hold the data they are said to mean, and that `abs`
   describes what the system does;
 - that every path to the data goes through `service`, and that what `sees`

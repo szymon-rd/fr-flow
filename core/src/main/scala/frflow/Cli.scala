@@ -63,7 +63,14 @@ object Cli:
       case "ci" :: Nil =>
         // What CI runs: check (a node whose formal parts did not change keeps its result), then status.
         if !Lake(ws.lean).available then { System.err.println("lake not found (set FRFLOW_LAKE)"); return 3 }
-        val results = w.check()
+        // Results kept from a cache are trusted as far as the cache is: some are proven again, at random
+        // (FRFLOW_VERIFY, the fraction, 0.05 by default), and one that does not hold any more fails CI.
+        val fraction = sys.env.get("FRFLOW_VERIFY").flatMap(_.toDoubleOption).getOrElse(0.05)
+        val again = w.sample(fraction)
+        val results = w.check(verify = again)
+        val untrue = results.filter((n, c) => again(n.id) && c.status != "proven")
+        untrue.foreach((n, c) => println(s"${n.id}: recorded as proven, but proven again it is ${c.status}: the recorded results are not to be trusted; check without them"))
+        if again.nonEmpty then println(s"Proven again from scratch, to verify the recorded results: ${again.toList.sorted.mkString(", ")}")
         results.filter(_._2.status != "proven").foreach((n, c) => println(s"${n.id}: ${c.status}"))
         val (text, ok) = w.status
         print(text)

@@ -9,7 +9,7 @@ final case class Result(name: String, status: String, detail: String = ""):
   /** A limit of what the node says, not an obligation: proven, `idle` means doing nothing meets the contract. */
   def isLimit: Boolean = name == "idle"
   /** Lean evaluating an example as Scala does: the translation's cross-check. */
-  def isEvaluation: Boolean = name.startsWith("eval")
+  def isEvaluation: Boolean = name.startsWith("eval") || name.startsWith("probe")
   /** Nothing to do about it: an obligation proven, or a limit. */
   def fine: Boolean = isLimit || status == "proven"
 
@@ -101,10 +101,11 @@ final case class Ledger(decisions: Map[String, List[Decision]]):
     Ledger(decisions.updated(id, decisions.getOrElse(id, Nil) :+ d.copy(after = current(id).fold("")(Ledger.entry))))
 
   /** Two branches decided the node, and the merge kept both: the last decision is one of two that
-    * follow the same one. Nothing says which holds, so the node is decided again.
+    * follow the same one, or follows none (a first decision) though others come before it. Nothing
+    * says which holds, so the node is decided again.
     */
   def forked(id: String): Boolean =
-    current(id).exists(d => d.after.nonEmpty && history(id).count(_.after == d.after) > 1)
+    current(id).exists(d => if d.after.isEmpty then decisions.getOrElse(id, Nil).size > 1 else history(id).count(_.after == d.after) > 1)
 
   /** The alternatives ever rejected in favour of a node, as they were proposed. */
   def alternatives(id: String): List[(String, Json)] =

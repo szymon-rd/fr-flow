@@ -539,3 +539,55 @@ class SnapshotSuite extends munit.FunSuite:
     for t <- List("A record stays private until its company shares it.", "Accounts are users of a company.", "Revisit later.") do
       assert(!Decisions.conditional(t), t)
   }
+
+  test("a contract of another knowledge base is decided there: read here, with its signed decisions") {
+    val shelf = workflow()
+    acceptAll(shelf)
+    val ws = Workspace(Files.createTempDirectory("reader"), "../lean")
+    Files.writeString(ws.root.resolve("IDEA.md"), "# Reader\n\nA user can make a reading list from the shelf.\n")
+    val kb = readerKb(shelf.ws.root.toString)
+    assertEquals(kb.problems, Nil)
+    val w = workflow(kb, ws)
+    val ns = nodes(w.annotated)
+    assertEquals(field(ns("Pick"), "imported"), Some("Shelf"))
+    assertEquals(field(ns("Pick"), "state"), Some("accepted"))
+    assert(w.decide(Decisions.Request("Pick", "dev", "it is fine as it is")).left.exists(_.contains("decided in Shelf")))
+    ok(accept(w, shortList, "Readers choose from the shelf."))
+    ok(accept(w, readingList, "One call keeps to the shelf."))
+    // only this project's decisions are written here
+    assertEquals(Ledger.load(ws.ledgerFile).decisions.keySet, Set("ShortList", "ReadingList"))
+    // a node below another knowledge base's node would be decided in two places
+    assert(KnowledgeBase("Reader", idea = "IDEA.md")(again).uses(shelfKb, "../shelf")(pick).problems.exists(_.contains("Shelf decides")))
+  }
+
+  test("a concern with an owner is decided by its owner, and waits for them in everyone else's inbox") {
+    val w = workflow(ownedKb)
+    assert(accept(w, owned, "negative results are meaningless").left.exists(_.contains("ana's to decide")))
+    ok(w.decide(Decisions.Request("Owned", "ana", "negative results are meaningless")))
+    assert(Decisions.load(w.annotated).contains("ana: 1"))
+  }
+
+  test("five developers on five branches: merged in any order, every decision is kept, and a node two branches decided is decided again") {
+    val snap = workflow(teamKb).baseSnapshot
+    val ids = nodes(snap)
+    def decide(l: Ledger, node: String, by: String, reason: String, at: String) =
+      Decisions.decide(snap, l, Decisions.Request(node, by, reason), at).fold(e => fail(s"$node: $e"), identity)
+    // Branch i: dev i decides their concern. On branch 1, dev0 also decides their root, differently.
+    val branches = (0 until 5).toList.map { i =>
+      val l = decide(decide(Ledger.empty, s"NonNeg$i", s"dev$i", s"Concern $i is what users asked for.", s"2030-01-0${i + 1}T00:00:00Z"),
+        s"Abs$i", s"dev$i", "The absolute value is never negative.", s"2030-01-0${i + 1}T01:00:00Z")
+      if i == 1 then decide(l, "NonNeg0", "dev0", "Concern 0, as dev1's branch needs it.", "2030-01-02T02:00:00Z") else l
+    }
+    // another developer's concern is refused on any branch
+    assert(Decisions.decide(snap, Ledger.empty, Decisions.Request("NonNeg2", "dev0", "it looks right to me"), "x").left.exists(_.contains("dev2's to decide")))
+    def states(l: Ledger) = ids.view.mapValues(Decisions.state(snap, l, _)).toMap
+    val merges = branches.permutations.map(_.reduceLeft(Ledger.merge)).toList
+    assertEquals(merges.map(m => m.decisions.view.mapValues(_.map(Ledger.entry).toSet).toMap).distinct.size, 1)
+    assertEquals(merges.map(states).distinct.size, 1)
+    val merged = merges.head
+    assertEquals(merged.decisions.values.map(_.size).sum, 11)
+    assertEquals(states(merged)("NonNeg0"), "review") // decided on two branches: decided again
+    assertEquals((1 until 5).map(i => states(merged)(s"NonNeg$i")).toSet, Set("accepted"))
+    val again = decide(merged, "NonNeg0", "dev0", "Concern 0 is what users asked for, both branches agree.", "2030-01-06T00:00:00Z")
+    assertEquals(states(again)("NonNeg0"), "accepted")
+  }

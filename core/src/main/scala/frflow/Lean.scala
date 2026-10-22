@@ -26,6 +26,13 @@ final class Lake(dir: Path, timeoutSeconds: Long = 900):
     catch case _: java.io.IOException => false
 
   private def run(cmd: Seq[String]): Run =
+    val t0 = System.nanoTime
+    val r = runTimed(cmd)
+    // FRFLOW_TIMING=1: each Lean run, with how long it took (to see where a check spends its time).
+    if sys.env.contains("FRFLOW_TIMING") then System.err.println(f"[lean ${(System.nanoTime - t0) / 1e9}%.1fs] ${cmd.drop(1).mkString(" ").take(140)}")
+    r
+
+  private def runTimed(cmd: Seq[String]): Run =
     val proc = ProcessBuilder(cmd*).directory(dir.toFile).redirectErrorStream(true).start()
     val out = java.io.ByteArrayOutputStream()
     val pump = Thread(() => { proc.getInputStream.transferTo(out); () })

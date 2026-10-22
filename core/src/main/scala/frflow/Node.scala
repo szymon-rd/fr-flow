@@ -84,7 +84,8 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
     val relied: List[(() => Node[?], String, Option[Reliance])] = Nil,
     val at: Int = -1,
     val safety: String = "",
-    val local: Option[Lifted[?]] = None
+    val local: Option[Lifted[?]] = None,
+    val owner: String = ""
 ):
   /** The nodes this one relies on besides its parent (see `relies`), with what it relies on. */
   def reliesOn: List[(Node[?], String)] = relied.map((f, why, _) => (f(), why))
@@ -130,31 +131,43 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
   /** A more concrete model. `why` is the reason for this step, including why `abs` maps it faithfully. */
   inline def refine[M2](id: String, statement: String, why: String, inline formal: Boolean = true)(
       inline abs: M2 => M, inline spec: M2 => Boolean): Node[M2] =
-    Node(id, statement, why, NodeKind.Refine, Some(this), Some(Lifted.of(formal, spec)), Some(Lifted.of(formal, abs)), None, Nil,
-      declaredFormal = formal, file = Lifted.here, at = Lifted.at)
+    // Built in a method of its own: a file's top-level vals initialize in one JVM method (at most 64 KB).
+    def node(): Node[M2] =
+      Node(id, statement, why, NodeKind.Refine, Some(this), Some(Lifted.of(formal, spec)), Some(Lifted.of(formal, abs)), None, Nil,
+        declaredFormal = formal, file = Lifted.here, at = Lifted.at)
+    node()
 
   /** Fixes opaque types and parameters. `why` says why these are the right meanings in the world. */
   inline def instantiate[M2](id: String, statement: String, why: String, formal: Boolean = true)(substs: Subst*): Node[M2] =
-    Node(id, statement, why, NodeKind.Instantiate, Some(this), None, None, None, substs.toList, declaredFormal = formal, file = Lifted.here, at = Lifted.at)
+    // Built in a method of its own: a file's top-level vals initialize in one JVM method (at most 64 KB).
+    def node(): Node[M2] =
+      Node(id, statement, why, NodeKind.Instantiate, Some(this), None, None, None, substs.toList, declaredFormal = formal, file = Lifted.here, at = Lifted.at)
+    node()
 
   /** A contract for implementations with two inputs: `post(a, b, result)` holds for every call. */
   inline def contract[A, B, R](id: String, statement: String, why: String, inline formal: Boolean = true)(
       inline post: (A, B, R) => Boolean)(using M =:= ((A, B) => R)): Node[(A, B) => R] =
-    Node(id, statement, why, NodeKind.Contract, Some(this), None, None, Some(Lifted.of(formal, post)), Nil, declaredFormal = formal, file = Lifted.here, at = Lifted.at)
+    // Built in a method of its own: a file's top-level vals initialize in one JVM method (at most 64 KB).
+    def node(): Node[(A, B) => R] =
+      Node(id, statement, why, NodeKind.Contract, Some(this), None, None, Some(Lifted.of(formal, post)), Nil, declaredFormal = formal, file = Lifted.here, at = Lifted.at)
+    node()
 
   private def copy(cases: List[Example] = cases, governs: List[String] = governs, kept: List[Keep] = kept,
       expected: List[(String, Lifted[?])] = expected, relied: List[(() => Node[?], String, Option[Reliance])] = relied,
       local: Option[Lifted[?]] = local): Node[M] =
     Node(id, statement, why, kind, parent, spec, abs, post, substs, cases, governs, declaredFormal, kept, scope, ideaSection, file, expected,
-      relied, at, safety, local)
+      relied, at, safety, local, owner)
 
   /** A contract with a signature of its own: `abs` says what an implementation is as the parent's
     * model (a new read path below an existing instantiation, say). Proven: `spec f → parent.spec (abs f)`.
     */
   inline def contractVia[A, B, R](id: String, statement: String, why: String, inline formal: Boolean = true)(
       inline abs: ((A, B) => R) => M)(inline post: (A, B, R) => Boolean): Node[(A, B) => R] =
-    Node(id, statement, why, NodeKind.Contract, Some(this), None, Some(Lifted.of(formal, abs)), Some(Lifted.of(formal, post)), Nil,
-      declaredFormal = formal, file = Lifted.here, at = Lifted.at)
+    // Built in a method of its own: a file's top-level vals initialize in one JVM method (at most 64 KB).
+    def node(): Node[(A, B) => R] =
+      Node(id, statement, why, NodeKind.Contract, Some(this), None, Some(Lifted.of(formal, abs)), Some(Lifted.of(formal, post)), Nil,
+        declaredFormal = formal, file = Lifted.here, at = Lifted.at)
+    node()
 
   private[frflow] def withExamples(es: List[Example]): Node[M] =
     copy(cases = cases ++ es)
@@ -175,7 +188,10 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
     * change to them is noticed.
     */
   inline def design(id: String, statement: String, why: String)(governs: String*): Node[Unit] =
-    Node(id, statement, why, NodeKind.Design, Some(this), None, None, None, Nil, Nil, governs.toList, file = Lifted.here, at = Lifted.at)
+    // Built in a method of its own: a file's top-level vals initialize in one JVM method (at most 64 KB).
+    def node(): Node[Unit] =
+      Node(id, statement, why, NodeKind.Design, Some(this), None, None, None, Nil, Nil, governs.toList, file = Lifted.here, at = Lifted.at)
+    node()
 
   /** The invariant does not apply to this contract or design decision, for the reason given (part of
     * what the node says, so the developer reads it).
@@ -193,7 +209,10 @@ object Node:
     * time (give the port a cheap `checkedBy`).
     */
   inline def port[A, B, R](id: String, statement: String, why: String)(inline post: (A, B, R) => Boolean): Node[(A, B) => R] =
-    Node(id, statement, why, NodeKind.Contract, None, None, None, Some(Lifted.of(true, post)), Nil, file = Lifted.here, at = Lifted.at)
+    // Built in a method of its own: a file's top-level vals initialize in one JVM method (at most 64 KB).
+    def node(): Node[(A, B) => R] =
+      Node(id, statement, why, NodeKind.Contract, None, None, None, Some(Lifted.of(true, post)), Nil, file = Lifted.here, at = Lifted.at)
+    node()
 
   /** A root: the formal statement of (one concern of) the project's idea. `why` says why it captures
     * the idea. `idea` names the `## ` section of IDEA.md it is decided against (the text before the
@@ -201,11 +220,16 @@ object Node:
     */
   /** `safety`: why the root only says what must not happen, when doing nothing meets it (a root that
     * says what users can do, a capability, needs none). Without it, such a root is unproven.
+    * `owner`: the developer who decides this concern (every node below it); none, anyone.
     */
-  inline def root[M](id: String, statement: String, why: String, inline formal: Boolean = true, idea: String = "", safety: String = "")(
+  inline def root[M](id: String, statement: String, why: String, inline formal: Boolean = true, idea: String = "", safety: String = "",
+      owner: String = "")(
       inline spec: M => Boolean): Node[M] =
-    Node(id, statement, why, NodeKind.Root, None, Some(Lifted.of(formal, spec)), None, None, Nil, declaredFormal = formal, ideaSection = idea,
-      file = Lifted.here, at = Lifted.at, safety = safety)
+    // Built in a method of its own: a file's top-level vals initialize in one JVM method (at most 64 KB).
+    def node(): Node[M] =
+      Node(id, statement, why, NodeKind.Root, None, Some(Lifted.of(formal, spec)), None, None, Nil, declaredFormal = formal, ideaSection = idea,
+        file = Lifted.here, at = Lifted.at, safety = safety, owner = owner)
+    node()
 
   /** A cross-cutting invariant: `rule(a, b)` holds for every pair a call exposes (such as a reader
     * and a record returned to them), stated once. Every contract below the `scope` nodes (every
@@ -213,12 +237,18 @@ object Node:
     */
   inline def invariant[A, B](id: String, statement: String, why: String, scope: List[Node[?]] = Nil, inline formal: Boolean = true)(
       inline rule: (A, B) => Boolean): Node[(A, B) => Boolean] =
-    Node(id, statement, why, NodeKind.Invariant, None, Some(Lifted.of(formal, rule)), None, None, Nil, declaredFormal = formal, scope = scope,
-      file = Lifted.here, at = Lifted.at)
+    // Built in a method of its own: a file's top-level vals initialize in one JVM method (at most 64 KB).
+    def node(): Node[(A, B) => Boolean] =
+      Node(id, statement, why, NodeKind.Invariant, None, Some(Lifted.of(formal, rule)), None, None, Nil, declaredFormal = formal, scope = scope,
+        file = Lifted.here, at = Lifted.at)
+    node()
 
   /** A design decision on its own, with no formal model (see `Node.design`). */
   inline def design(id: String, statement: String, why: String)(governs: String*): Node[Unit] =
-    Node(id, statement, why, NodeKind.Design, None, None, None, None, Nil, Nil, governs.toList, file = Lifted.here, at = Lifted.at)
+    // Built in a method of its own: a file's top-level vals initialize in one JVM method (at most 64 KB).
+    def node(): Node[Unit] =
+      Node(id, statement, why, NodeKind.Design, None, None, None, None, Nil, Nil, governs.toList, file = Lifted.here, at = Lifted.at)
+    node()
 
 /** A concrete case of a contract, under given parameter values: the call `(a, b)`
   * with `result`. An `expect`ed case must be accepted by the contract and returned by
@@ -342,8 +372,11 @@ extension [A, B, R](n: Node[(A, B) => R])
     * the contract means, and they fail when it is vacuous, too weak, or when the
     * implementation does not do what was decided.
     */
-  inline def examples(inline bindings: Binding*)(cases: Case[A, B, R]*): Node[(A, B) => R] =
-    n.withExamples(cases.toList.map(c => Example(c.note, bindings.toList, Lifted.sources(bindings*), c.a, c.b, c.result, c.expected)))
+  inline def examples(inline bindings: Binding*)(inline cases: Case[A, B, R]*): Node[(A, B) => R] =
+    // Built in a method of its own (a file's top-level vals initialize in one JVM method of at most 64 KB).
+    def exampleList(): List[Example] =
+      cases.toList.map(c => Example(c.note, bindings.toList, Lifted.sources(bindings*), c.a, c.b, c.result, c.expected))
+    n.withExamples(exampleList())
 
   /** Each example, checked against the contract and, if given, against an implementation
     * built under the example's parameter values.
@@ -422,8 +455,25 @@ final case class Implementation(contract: String, factory: () => Any, files: Lis
 /** A knowledge base: the developer's idea (a Markdown file) and the nodes derived from it.
   * `name` is the Lean namespace.
   */
-final class KnowledgeBase(val name: String, val idea: String, val implementations: List[Implementation] = Nil)(nodeList: Node[?]*):
+/** A node another knowledge base decides: its name, the project directory (where its ledger and keys
+  * are), and its idea file.
+  */
+final case class Imported(kb: String, root: String, idea: String)
+
+final class KnowledgeBase(val name: String, val idea: String, val implementations: List[Implementation] = Nil,
+    val imports: Map[String, Imported] = Map.empty)(nodeList: Node[?]*):
   val nodes: List[Node[?]] = nodeList.toList
+
+  /** Contracts of another knowledge base this one's code calls (`caller`) or relies on (`relies`): decided
+    * and checked there (`root`, that project's directory: its ledger and keys hold their decisions). They
+    * come with the nodes above them, the invariants they keep and their code, for Lean and for running;
+    * here they are read: a change to one there reviews what rests on it here.
+    */
+  def uses(other: KnowledgeBase, root: String)(contracts: Node[?]*): KnowledgeBase =
+    val brought = contracts.toList.flatMap(other.path).distinct
+    val withKept = (brought ++ brought.flatMap(_.kept.map(_.invariant))).distinct.filterNot(n => nodes.exists(_ eq n))
+    KnowledgeBase(name, idea, implementations ++ other.implementations.filter(i => brought.exists(_.id == i.contract)),
+      imports ++ withKept.map(n => n.id -> Imported(other.name, root, other.idea)))((nodes ++ withKept)*)
 
   def node(id: String): Option[Node[?]] = nodes.find(_.id == id)
   def roots: List[Node[?]] = nodes.filter(_.kind == NodeKind.Root)
@@ -450,7 +500,7 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     withImplementation(Implementation(contract.id, () => runs, Lifted.sourceFiles(runs), Lifted.sources(runs).mkString, Some(impl)))
 
   def withImplementation(i: Implementation): KnowledgeBase =
-    KnowledgeBase(name, idea, implementations.filterNot(_.contract == i.contract) :+ i)(nodes*)
+    KnowledgeBase(name, idea, implementations.filterNot(_.contract == i.contract) :+ i, imports)(nodes*)
 
   private lazy val byContract = implementations.map(i => i.contract -> i).toMap
   def implementation(n: Node[?]): Option[Implementation] = byContract.get(n.id)
@@ -614,7 +664,8 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     def mentions(t: String) = holds(t)
     def returnsIt(c: Node[?]) = c.post.forall(p => p.params.isEmpty || mentions(p.params.last._2))
     def keeper(c: Node[?]) = c.kept.exists(k => (k.invariant eq i) && k.view.nonEmpty)
-    nodes.filter { c =>
+    // Another knowledge base's invariant is kept by its own contracts, not by this one's.
+    nodes.filter(c => imports.contains(i.id) == imports.contains(c.id)).filter { c =>
       (i.scope.isEmpty || path(c).exists(a => i.scope.exists(_ eq a))) && (c.kind match
         case NodeKind.Contract => returnsIt(c)
         // A design decision governs code no proof covers: it is in scope below a contract that keeps
@@ -666,6 +717,9 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     val names = types.map(_.name) ++ defs.map(_.name)
     List(
       ids.diff(ids.distinct).distinct.map(d => s"duplicate node id $d"),
+      // Another knowledge base's nodes are built on by calling or relying on them, not by refining them.
+      nodes.filter(n => !imports.contains(n.id) && n.parent.exists(p => imports.contains(p.id)))
+        .map(n => s"${n.id} is below ${n.parent.get.id}, which ${imports(n.parent.get.id).kb} decides: call it (caller) or rely on it (relies) instead"),
       // Code that calls its own contract would be proven assuming what it proves.
       nodes.filter(c => implementation(c).flatMap(_.proven).toList.flatMap(d => Def.closure(List(d))).flatMap(_.lifted.paramObjects)
         .exists(_.implementing.exists(f => f() eq c))).map(c => s"${c.id}: its implementation calls ${c.id} itself (through a caller): it cannot be proven from its own promise"),

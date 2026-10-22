@@ -26,6 +26,41 @@ object Generate:
       "some", "none", "True", "False", "true", "false", "max", "min", "decide", "List", "Option", "Int", "Nat", "Bool", "String",
       "Prod", "Exists", "Eq", "Ne", "Not", "And", "Or", "Iff", "id", "ite", "Classical", "Unit", "FrFlow") ++ (0 to 9).map(i => s"x$i")
 
+  /** How many probes of a contract Lean evaluates, beside its examples. */
+  val Probes = 6
+
+  /** The numbers a value holds, however nested: the boundaries a probe tries. */
+  def numbers(v: Any): List[BigInt] = v match
+    case i: Int     => List(BigInt(i))
+    case l: Long    => List(BigInt(l))
+    case b: BigInt  => List(b)
+    case l: Iterable[?] => l.toList.flatMap(numbers)
+    case Some(x)    => numbers(x)
+    case p: Product => p.productIterator.toList.flatMap(numbers)
+    case _          => Nil
+
+  /** Values of the same type near `v`: a number at the boundaries (`nums`, and next to it), a list
+    * emptied, shortened, reversed or with its head again, a string emptied, an option empty, a case
+    * class or tuple with one field changed so. What the examples do not reach, the translation is
+    * checked on.
+    */
+  def near(v: Any, nums: List[BigInt]): List[Any] =
+    val out: List[Any] = v match
+      case b: Boolean => List(!b)
+      case i: Int     => (nums.filter(_.isValidInt).map(_.toInt) ++ List(0, i + 1, i - 1, -i))
+      case l: Long    => (nums.filter(_.isValidLong).map(_.toLong) ++ List(0L, l + 1, l - 1, -l))
+      case b: BigInt  => nums ++ List(BigInt(0), b + 1, b - 1, -b)
+      case s: String  => List("", s + s)
+      case Some(x)    => None :: near(x, nums).take(2).map(Some(_))
+      case l: List[?] => if l.isEmpty then Nil else List(Nil, l.tail, l.reverse, l.head :: l)
+      case p: Product if p.productArity > 0 =>
+        val fields = p.productIterator.toList
+        val make = p.getClass.getConstructors.find(_.getParameterCount == fields.size)
+        make.toList.flatMap(k => fields.indices.flatMap(i => near(fields(i), nums).take(3).flatMap(x =>
+          scala.util.Try(k.newInstance(fields.updated(i, x).map(_.asInstanceOf[AnyRef])*)).toOption)))
+      case _ => Nil
+    out.distinct.filter(_ != v)
+
 final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.empty):
   /** Whether the proof file of `n` proves its obligation `name`. */
   def isAuthored(n: Node[?], name: String): Boolean = authored((n.id, name))
@@ -494,17 +529,20 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
     */
   final case class Eval(name: String, what: String, claim: String, opposite: String)
 
-  /** The examples of a contract Lean evaluates, and why the others are not evaluated (by `eval_i`). */
+  /** The examples of a contract Lean evaluates, and why the others are not evaluated (by `eval_i`); then
+    * probes (`probe_j`): inputs near the examples' (see `near`), each run in Scala and evaluated in Lean, so
+    * that the translation is cross-checked where the examples do not reach. A probe Lean cannot evaluate
+    * is left out; one it evaluates otherwise than Scala fails the node, as an example does.
+    */
   def evals(n: Node[?]): (List[Eval], List[(String, String)]) =
     if !formal(n) || n.kind != NodeKind.Contract then (Nil, Nil)
     else
       val c = nodeCtx(n)
       val post = n.post.get.value.asInstanceOf[(Any, Any, Any) => Boolean]
       val impl = provenImpl(n)
-      val out = n.cases.zipWithIndex.map { (e, i) =>
-        val label = s"example ${i + 1} (${e.note})"
+      def one(name: String, label: String, bindings: List[Binding], a: Any, b: Any, result: Option[Any]): Either[String, List[Eval]] =
         def valueOf(p: String): Either[String, String] =
-          paramObject.get(p).flatMap(po => e.bindings.find(_.param eq po).orElse(po.implementing.map(_ => Binding(po, () => ())))) match
+          paramObject.get(p).flatMap(po => bindings.find(_.param eq po).orElse(po.implementing.map(_ => Binding(po, () => ())))) match
             case None => Left(s"it gives no value for $p")
             case Some(b) if b.table.isDefined =>
               // A finite table: a function that looks it up.
@@ -521,27 +559,50 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
                 .map(vs => if vs.isEmpty then s"$K.${d1.name}" else s"($K.${d1.name} ${vs.mkString(" ")})")
             case Some(b) =>
               scala.util.Try(b.value()).toOption.flatMap(term).toRight(s"Lean has no value for $p (a function, or a type Lean does not have; give a lookup as bindTable)")
-        val evaluated: Either[String, List[Eval]] = for
+        for
           _ <- Either.cond(c.opaques.isEmpty, (), s"the contract leaves ${c.opaques.mkString(", ")} open")
           ps <- c.params.foldRight(Right(Nil): Either[String, List[(String, String)]])((p, acc) => for { v <- valueOf(p); r <- acc } yield (p, v) :: r)
           vals = ps.toMap
-          ran <- scala.util.Try(Bindings.within(kb.callerCode ++ e.bindings) {
-              (post(e.a, e.b, e.result), impl.map(d => d.fn.asInstanceOf[(Any, Any) => Any](e.a, e.b)))
+          // A probe has no result of its own: the implementation's, when there is one.
+          ran <- scala.util.Try(Bindings.within(kb.callerCode ++ bindings) {
+              val got = impl.map(d => d.fn.asInstanceOf[(Any, Any) => Any](a, b))
+              val r = result.orElse(got)
+              (r.map(post(a, b, _)), got)
             }).toEither.left.map(x => s"Scala cannot evaluate it: ${x.getMessage}")
-          ta <- term(e.a).toRight("Lean has no value for its input")
-          tb <- term(e.b).toRight("Lean has no value for its input")
-          tr <- term(e.result).toRight("Lean has no value for its result")
+          ta <- term(a).toRight("Lean has no value for its input")
+          tb <- term(b).toRight("Lean has no value for its input")
+          tr <- ran._1.fold(Right(None): Either[String, Option[String]])(_ => term(result.orElse(ran._2).get).map(Some(_)).toRight("Lean has no value for its result"))
         yield
           val (verdict, got) = ran
-          val call = s"$K.${n.id}.post${c.params.map(p => " " + vals(p)).mkString} $ta $tb $tr"
-          val onPost = Eval(s"eval_$i", label, if verdict then call else s"¬ $call", if verdict then s"¬ $call" else call)
+          val onPost = for { v <- verdict; t <- tr } yield
+            val call = s"$K.${n.id}.post${c.params.map(p => " " + vals(p)).mkString} $ta $tb $t"
+            Eval(name, label, if v then call else s"¬ $call", if v then s"¬ $call" else call)
           val onImpl = for { d <- impl; g <- got; tg <- term(g) } yield
             val f = s"($K.${d.name}${defCtx(d).params.map(p => " " + vals(p)).mkString})"
-            Eval(s"evalImpl_$i", s"$label, run by ${d.name}", s"$f $ta $tb = $tg", s"$f $ta $tb ≠ $tg")
-          onPost :: onImpl.toList
-        evaluated.left.map(why => (s"eval_$i", s"$label: $why"))
+            val implName = name.replaceFirst("^(eval|probe)_", "$1Impl_")
+            Eval(implName, s"$label, run by ${d.name}", s"$f $ta $tb = $tg", s"$f $ta $tb ≠ $tg")
+          onPost.toList ++ onImpl.toList
+      val out = n.cases.zipWithIndex.map { (e, i) =>
+        val label = s"example ${i + 1} (${e.note})"
+        one(s"eval_$i", label, e.bindings, e.a, e.b, Some(e.result)).left.map(why => (s"eval_$i", s"$label: $why"))
       }
-      (out.collect { case Right(es) => es }.flatten, out.collect { case Left(w) => w })
+      // Probes: with the first example's bindings, inputs near the examples' that no example has.
+      val probes = n.cases.headOption.toList.flatMap { first =>
+        val nums = n.cases.flatMap(e => Generate.numbers(e.a) ++ Generate.numbers(e.b)).distinct
+        val asked = n.cases.map(e => (e.a, e.b)).toSet
+        val inputs = n.cases.flatMap(e => for { a <- e.a :: Generate.near(e.a, nums); b <- e.b :: Generate.near(e.b, nums) } yield (a, b))
+          .distinct.filterNot(asked)
+        // Without code to run, the post is judged on the examples' results.
+        val cands = if impl.isDefined then inputs.map((a, b) => (a, b, None)) else inputs.flatMap((a, b) => n.cases.map(_.result).distinct.map(r => (a, b, Some(r))))
+        // Half at a boundary (a number of one input equal to one of the other, where `<` and `<=` part),
+        // half anywhere.
+        val (edge, rest) = scala.util.Random(n.id.hashCode).shuffle(cands)
+          .partition((a, b, _) => Generate.numbers(a).toSet.intersect(Generate.numbers(b).toSet).nonEmpty)
+        edge.map(Some(_)).zipAll(rest.map(Some(_)), None, None).flatMap((x, y) => x.toList ++ y.toList).iterator.zipWithIndex
+          .flatMap { case ((a, b, r), j) => one(s"probe_$j", s"probe ${j + 1}", first.bindings, a, b, r).toOption }
+          .filter(_.nonEmpty).take(Generate.Probes).flatten.toList
+      }
+      (out.collect { case Right(es) => es }.flatten ++ probes, out.collect { case Left(w) => w })
 
   def evalPath(id: String) = s"FrFlowGen/$K/$id/Eval.lean"
 

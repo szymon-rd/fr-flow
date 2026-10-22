@@ -123,3 +123,44 @@ val bump = counts.contract[Map[String, BigInt], String, Map[String, BigInt]]("Bu
     expect(Map("a" -> BigInt(1)), "b", Map("a" -> BigInt(1), "b" -> BigInt(1)), "b counted once, a left"),
     reject(Map("a" -> BigInt(1)), "b", Map("b" -> BigInt(1)), "a lost"))
 val bumped = define { (m: Map[String, BigInt], k: String) => m.updated(k, m.getOrElse(k, BigInt(0)) + 1) }
+
+/** Another project's knowledge base reusing the shelf's Pick: its own root, and code calling Pick by its promise. */
+val shortList = Node.root[(List[Book], Int) => List[Book]]("ShortList", "A reading list holds only books from the shelf.",
+  why = "Readers choose from what is there.", safety = "A list may be empty: nothing to read is not a failure.")(
+  f => forall((shelf: List[Book], n: Int) => f(shelf, n).forall(b => shelf.contains(b))))
+val readingList = shortList.contract[List[Book], Int, List[Book]]("ReadingList", "A call returns only books from the shelf.", why = "ShortList, for one call.")(
+  (shelf, n, r) => r.forall(b => shelf.contains(b)))
+  .examples(minPages.bind(100))(
+    expect(List(Book("Long", 300)), 5, List(Book("Long", 300)), "a book from the shelf"),
+    expect(List(Book("Short", 20)), 5, Nil, "no book long enough"),
+    reject(List(Book("Long", 300)), 5, List(Book("Other", 300)), "a book not on the shelf"))
+def readerKb(shelfDir: String) = KnowledgeBase("Reader", idea = "IDEA.md")(shortList, readingList)
+  .uses(shelfKb, shelfDir)(pick).implementProven(readingList)(viaPick)
+
+/** A concern with an owner: only they decide it, and what is below it. */
+val owned = Node.root[BigInt => BigInt]("Owned", "Results are never negative.", why = "Negative results are meaningless here.", owner = "ana")(
+  f => forall((x: BigInt) => f(x) >= 0))
+val ownedSquares = owned.refine[BigInt => BigInt]("OwnedSquares", "The result is the square of the input.", why = "Squares are never negative.")(
+  abs = f => f,
+  spec = f => forall((x: BigInt) => f(x) == x * x))
+val ownedKb = KnowledgeBase("Owned", idea = "IDEA.md")(owned, ownedSquares)
+
+/** Code keeping values at least a floor, whose examples do not reach the boundary (a value equal to the floor). */
+val floorRoot = Node.root[(List[BigInt], BigInt) => List[BigInt]]("Floor", "No value kept is under the floor.", why = "The floor is the rule.",
+  safety = "Keeping nothing is allowed: it is about what may be kept.")(
+  keep => forall((xs: List[BigInt], f: BigInt) => keep(xs, f).forall(x => x >= f)))
+val floorKeep = floorRoot.contract[List[BigInt], BigInt, List[BigInt]]("FloorKeep", "A call keeps no value under the floor.", why = "Floor, for one call.")(
+  (xs, f, r) => r.forall(x => x >= f))
+  .examples()(
+    expect(List(BigInt(1), BigInt(5)), BigInt(3), List(BigInt(5)), "the value over the floor"),
+    expect(List(BigInt(1)), BigInt(3), Nil, "nothing over the floor"),
+    reject(List(BigInt(1), BigInt(5)), BigInt(3), List(BigInt(1)), "a value under the floor is never kept"))
+val keepAtLeast = define { (xs: List[BigInt], f: BigInt) => xs.filter(x => x >= f) }
+
+/** Concern `i` of a team: a root its owner decides, and a refinement below it. */
+def teamConcern(i: Int, owner: String): List[Node[?]] =
+  val r = Node.root[BigInt => BigInt](s"NonNeg$i", "Results are never negative.", why = s"Concern $i of the team.", owner = owner)(
+    f => forall((x: BigInt) => f(x) >= 0))
+  List(r, r.refine[BigInt => BigInt](s"Abs$i", "The result is the absolute value of the input.", why = "It is never negative.")(
+    abs = f => f, spec = f => forall((x: BigInt) => f(x) == (if x >= 0 then x else -x))))
+val teamKb = KnowledgeBase("Team", idea = "IDEA.md")((0 until 5).toList.flatMap(i => teamConcern(i, s"dev$i"))*)

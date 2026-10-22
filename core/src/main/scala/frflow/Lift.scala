@@ -63,7 +63,7 @@ private[frflow] object Lift:
     val defs = of[Def[?]]("frflow.Def")
     val params = of[Param[?]]("frflow.Param")
     val opaques = of[Opaque]("frflow.Opaque")
-    '{ new Lifted[F]($f, Nil, "", "", ${ Expr(text) }, Nil, Nil, Nil, () => $defs, () => $params, () => $opaques) }
+    '{ def liftedNode(): Lifted[F] = new Lifted[F]($f, Nil, "", "", ${ Expr(text) }, Nil, Nil, Nil, () => $defs, () => $params, () => $opaques); liftedNode() }
 
   /** The source files of the project code an expression refers to (an implementation's classes). */
   def sourceFiles(e: Expr[Any])(using Quotes): Expr[List[String]] =
@@ -208,9 +208,13 @@ private final class Translator(using val quotes: Quotes):
     val depList = Expr.ofList(deps.toList.map(_.asExprOf[Def[?]]))
     val paramList = Expr.ofList(paramTerms.toList.map(_.asExprOf[Param[?]]))
     val opaqueList = Expr.ofList(opaqueTerms.values.toList.map(_.asExprOf[Opaque]))
+    // Built in a method of its own: a file's top-level vals all initialize in one JVM method, which
+    // may not exceed 64 KB; the construction is the bulk of each node's expansion.
     '{
-      new Lifted[F]($f, ${ Expr(params) }, ${ Expr(result) }, ${ Expr(body) }, ${ Expr(source(term.pos)) }, $typeList,
-        ${ Expr(opaques.toList) }, ${ Expr(paramRefs.toList) }, () => $depList, () => $paramList, () => $opaqueList)
+      def liftedNode(): Lifted[F] =
+        new Lifted[F]($f, ${ Expr(params) }, ${ Expr(result) }, ${ Expr(body) }, ${ Expr(source(term.pos)) }, $typeList,
+          ${ Expr(opaques.toList) }, ${ Expr(paramRefs.toList) }, () => $depList, () => $paramList, () => $opaqueList)
+      liftedNode()
     }
 
   def leanType[T: Type]: Expr[LeanType] =

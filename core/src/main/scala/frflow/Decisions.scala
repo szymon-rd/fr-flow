@@ -402,7 +402,9 @@ object Decisions:
       "reason" -> str(reasonNow(ledger, s(c, "id"))), "chosen" -> str(ledger.chosen(s(c, "id")).fold("")(_.reason))) ++ revisitFields(ledger, c))
     // With each its why: the theory a change may undo is often written there, not in the reason.
     val all = byId(snapshot)
-    (own ++ elsewhere ++ across).map(b => JObj(b.obj :+ ("why" -> all.get(s(b, "id")).flatMap(_("content")).flatMap(_("why")).getOrElse(str("")))))
+    // Another owner's concern is theirs to decide: it comes back to them, not listed here.
+    def mine(b: Json) = all.get(s(b, "id")).map(s(_, "owner")).forall(o => o.isEmpty || o == s(n, "owner"))
+    (own ++ elsewhere ++ across).filter(mine).map(b => JObj(b.obj :+ ("why" -> all.get(s(b, "id")).flatMap(_("content")).flatMap(_("why")).getOrElse(str("")))))
 
   /** What a diff of governed code may touch that no proof covers: the invariants whose domain types it
     * names (with why each was decided), and the parameters it binds anew (with what each means). Shown
@@ -457,7 +459,14 @@ object Decisions:
     def st(l: Ledger, id: String) = state(snapshot, l, ids(id))
     def make(action: String, n: Json, rejected: List[String], reason: String) =
       Decision(action, n("content").getOrElse(JNull), parentChain(snapshot, n), r.by, at, reason, rejected, code(n), commit, tree)
+    // A concern with an owner is decided by its owner: what the decision acts on below, too.
+    def ownerOf(id: String) = ids.get(id).map(s(_, "owner")).filter(_.nonEmpty)
+    val others = (r.node :: r.confirm ++ r.revisit ++ r.held ++ r.reject).distinct.flatMap(id => ownerOf(id).filter(o => !o.equalsIgnoreCase(r.by.trim)).map(id -> _))
+    // A node another knowledge base decides is decided there, and checked there.
+    val imported = (r.node :: r.confirm ++ r.revisit ++ r.held ++ r.reject).distinct.flatMap(id => ids.get(id).flatMap(n => n("imported")).flatMap(_.str).map(id -> _))
     if r.by.trim.isEmpty then Left("say who decides")
+    else if imported.nonEmpty then Left(imported.map((id, kb) => s"$id is decided in $kb, the knowledge base it comes from").mkString("; "))
+    else if others.nonEmpty then Left(others.map((id, o) => s"$id is $o's to decide (the owner of its concern)").mkString("; "))
     else if !Set("accept", "reject", "rename")(r.action) then Left(s"unknown decision ${r.action}")
     else if Words.tooFew(r.reason) then
       Left("give the reason for the decision in a few words: it is kept as part of the theory")
@@ -634,14 +643,30 @@ object Decisions:
     }
     (reqs ++ rest).mkString("\n") + annotated.fold("")(s => "\n\nThe tree:\n" + tree(s))
 
+  /** What waits for the developers: how many decisions, how many of them mechanical (one batch) and
+    * how many to judge (new nodes, changes), and for whom when concerns have owners. The cost of a
+    * change in decisions, seen as it happens.
+    */
+  def load(annotated: Json): String =
+    val ns = nodes(annotated).filter(n => Set("proposed", "review")(s(n, "state")))
+    if ns.isEmpty then ""
+    else
+      val mech = ns.count(_("mechanical").contains(JBool(true)))
+      val (fresh, changed) = ns.filterNot(_("mechanical").contains(JBool(true))).partition(n => s(n, "state") == "proposed")
+      val byOwner = ns.groupBy(n => s(n, "owner")).toList.filter(_._1.nonEmpty).sortBy(_._1)
+      s"Decisions waiting: ${ns.size} (${mech} mechanical, decided in one batch; ${fresh.size} new and ${changed.size} changed to judge)" +
+        (if byOwner.isEmpty then "" else byOwner.map((o, xs) => s"$o: ${xs.size}").mkString("; by owner: ", ", ", "")) + ".\n"
+
   def waiting(annotated: Json): (List[String], List[String]) =
     val ns = nodes(annotated)
     val ids = byId(annotated)
     // A node resting on a rejected node waits for the agent to move it, not for the developer.
     val orphan = (n: Json) => n("parent").flatMap(_.str).flatMap(ids.get).exists(p => s(p, "state") == "rejected")
-    val dev = ns.filter(n => Set("proposed", "review")(s(n, "state")) && !orphan(n)).map { n =>
+    def own(n: Json) =
       val cs = n("causes").map(_.arr.flatMap(_.str)).getOrElse(Nil)
       s"${s(n, "id")}: ${if cs.isEmpty then "proposed" else s"review (${cs.mkString(", ")})"}${if n("mechanical").contains(JBool(true)) then ", mechanical" else ""}"
+    val dev = ns.filter(n => Set("proposed", "review")(s(n, "state")) && !orphan(n)).map { n =>
+      n("imported").flatMap(_.str).fold(own(n))(kb => s"${s(n, "id")}: waits for a decision in $kb, the project it comes from")
     } ++
       annotated("gone").map(_.arr.toList).getOrElse(Nil).map(g => s"${s(g, "id")}: gone from the model; accept that it is gone" +
         g("renamedTo").map(_.arr.flatMap(_.str)).filter(_.nonEmpty).fold("")(rs => s", or that it was renamed to ${rs.mkString(" or ")} (it says the same)"))
@@ -661,6 +686,8 @@ object Decisions:
 
   /** What of a node is not proven (or decided by reading) or fails: the one list the browser and `status` use. */
   def unproven(n: Json): List[String] =
+    // An imported node is checked in its own knowledge base; here only its signed decisions are.
+    if n("imported").exists(_ != JNull) then return Nil
     def bad(k: String, ok: Set[String]) = n(k).map(_.arr.toList).getOrElse(Nil).filterNot(x => ok(s(x, "status")))
     val fine = Set("proven", "informal")
     val (ok, total) = examples(n)
