@@ -194,8 +194,8 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
   /** What a check depends on: the formal parts only, so rewording a statement does not re-run Lean. */
   def checkHash(n: Node[?]): String =
     val g = generate
-    sha((Seq(g.spec(n), g.auto(n), g.theorems(n), g.extraObligations(n).map(g.oblFile(n, _)).mkString, g.rootImplFile(n).getOrElse(""), g.idle(n).fold("")(_._1.statement), g.saysNothing(n).map(_.obligation.statement).mkString, g.evalFile(n).getOrElse(""),
-      g.relyChecks(n).map(_._3).mkString, g.relyChecks(n).map((o, _, _) => checkHash(o)).mkString, g.callees(n).map((_, c) => g.spec(c)).mkString, read(ws.lean.resolve(g.proofsPath(n.id))).getOrElse(""),
+    sha((Seq(g.spec(n), g.auto(n), g.theorems(n), g.checks(n), g.evalFile(n).getOrElse(""),
+      g.relyChecks(n).map(r => checkHash(r._1)).mkString, g.callees(n).map((_, c) => g.spec(c)).mkString, read(ws.lean.resolve(g.proofsPath(n.id))).getOrElse(""),
       read(ws.lean.resolve(g.proofsPath(n.id))).filter(Lean.lemmaImports(_).nonEmpty).flatMap(_ => read(ws.lean.resolve(g.lemmasPath))).getOrElse(""),
       // The specs of other nodes a proof imports: a change to them re-checks it.
       read(ws.lean.resolve(g.proofsPath(n.id))).fold("")(src => s"(?m)^\\s*import\\s+FrFlowGen\\.${java.util.regex.Pattern.quote(kb.name)}\\.(\\w+)\\.Spec".r
@@ -314,21 +314,12 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
     if results.exists(_.status == "failed") then return done("failed", results, Nil)
     if results.exists(_.status == "open") then
       return done("open", results, List(s"prove it in lean/${g.proofsPath(n.id)} (run `scaffold ${n.id}`)"))
-    // What would make the node say nothing: a claim holding without its premise, no model, the root by itself.
-    val empty = g.saysNothing(n).filter(e => lake.elaborate(g.oblPath(n.id, e.obligation.name)).ok)
-    val emptyLink = empty.find(_.fails == "link")
-    if emptyLink.isDefined then
-      return done("failed", results.map(_.copy(status = "failed", detail = emptyLink.get.why)), List(emptyLink.get.message))
     if parentStatus.exists(_ != "proven") then return done("waiting", results, List(s"waiting for ${n.parent.get.id}"))
 
     val thms = lake.build(g.theoremsModule(n.id))
     if !thms.ok then return done("failed", results, "the node's theorems do not build" :: errors(thms))
-    val ax = Lean.axioms(lake.elaborate(g.auditPath(n.id)).output)
-    // The other obligations (kept invariants, a proven implementation), each in a file of its own:
-    // proven by frflow_auto or by a theorem in the proof file, which is built here when the link does
-    // not build it.
-    // When the proof file fails, the obligations it proves fail with it, by name; the link (proven
-    // by automation) and the others stand.
+    // The proof file, when it proves obligations besides the link (the link builds it otherwise):
+    // when it fails, the obligations it proves fail with it, by name, and the others stand.
     val proofFile: Option[String] =
       if !(g.extraObligations(n).exists(o => g.isAuthored(n, o.name)) && !authored(n.id)) then None
       else
@@ -338,45 +329,50 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
         else
           val built = lake.build(g.proofsModule(n.id))
           Option.when(!built.ok)(s"lean/${g.proofsPath(n.id)} does not build: " + errors(built).take(5).map(_.take(20000)).mkString("\n"))
+    // Everything else, in one run of Lean (see `Generate.checks`): each theorem holds when Lean reports
+    // no error in it, no `sorry`, and its axioms (fail closed: no audit, no proof).
+    val rel = g.checksPath(n.id)
+    val run = lake.elaborate(rel)
+    if !run.ok && run.output.contains("timed out after") then return done("timeout", results, List("Lean timed out checking the node (the machine may be busy): run check again"))
+    val decls = Lean.theorems(read(ws.lean.resolve(rel)).getOrElse(""))
+    val diags = Lean.diagnostics(run.output).filter(_.file.endsWith(rel))
+    val ax = Lean.axioms(run.output)
+    def axiomsOf(name: String) = ax.collectFirst { case (t, as) if t == name || t.endsWith("." + name) => as }
+    def why(name: String): Option[String] = decls.find(_.name == name) match
+      case None => Some(s"no theorem $name")
+      case Some(d) =>
+        def in(l: Int) = l >= d.from && l <= d.to
+        diags.find(x => x.isError && in(x.line)).map(_.message.take(20000))
+          .orElse(Option.when(diags.exists(x => x.isSorry && in(x.line)) || axiomsOf(name).forall(_.contains("sorryAx")))("uses sorry"))
+    def holds(name: String) = why(name).isEmpty
+    // What would make the node say nothing: a claim holding without its premise, no model, the root by itself.
+    val empty = g.saysNothing(n).filter(e => holds(e.obligation.name))
+    val emptyLink = empty.find(_.fails == "link")
+    if emptyLink.isDefined then
+      return done("failed", results.map(_.copy(status = "failed", detail = emptyLink.get.why)), List(emptyLink.get.message))
     val invRuns = g.extraObligations(n).map { o =>
       val how = if g.isAuthored(n, o.name) then "authored" else "auto"
-      empty.find(_.fails == o.name).map(e => e.why).orElse(proofFile.filter(_ => g.isAuthored(n, o.name))) match
-        case Some(why) => (Result(o.name, "failed", why), Nil)
-        case None =>
-          val run = lake.elaborate(g.oblPath(n.id, o.name))
-          // Fail closed: the theorem's own audit must be there.
-          val audit = Lean.axioms(run.output).collectFirst { case (t, as) if t == o.name || t.endsWith("." + o.name) => as }
-          val r = if run.ok && (Lean.usesSorry(run.output) || audit.exists(_.contains("sorryAx"))) then Result(o.name, "open", "uses sorry")
-            else if run.ok then Result(o.name, "proven", how)
-            else Result(o.name, "open", s"not proven ($how): prove theorem ${o.name} : Obl.${o.name} in lean/${g.proofsPath(n.id)}" +
-              Lean.diagnostics(run.output).find(_.isError).fold("")(d => s"\nLean: ${d.message.take(20000)}"))
-          (r, if r.status == "proven" then audit.getOrElse(List("<no audit result>")) else Nil)
+      empty.find(_.fails == o.name).map(_.why).orElse(proofFile.filter(_ => g.isAuthored(n, o.name))) match
+        case Some(w) => (Result(o.name, "failed", w), Nil)
+        case None => why(o.name) match
+          case None => (Result(o.name, "proven", how), axiomsOf(o.name).getOrElse(List("<no audit result>")))
+          case Some(w) => (Result(o.name, "open", s"not proven ($how): prove theorem ${o.name} : Obl.${o.name} in lean/${g.proofsPath(n.id)}\nLean: $w"), Nil)
     }
     // With a proven implementation, the root theorem of the code itself.
-    val rootImpl = g.rootImplFile(n).filter(_ => invRuns.exists((r, _) => r.name == "impl" && r.status == "proven")).map { _ =>
-      val built = lake.build(g.oblModule(n.id, "impl"))
-      val run = if built.ok then lake.elaborate(g.oblPath(n.id, "rootImpl")) else built
-      val audit = Lean.axioms(run.output).collectFirst { case (t, as) if t.endsWith(".root_impl") || t == "root_impl" => as }
-      if run.ok then (Result("root_impl", "proven", "the root holds of the implementation"), audit.getOrElse(List("<no audit result>")))
-      else (Result("root_impl", "failed", "the root theorem of the implementation does not build: " + errors(run).mkString("; ").take(20000)), Nil)
-    }.toList
+    val rootImpl = g.provenImpl(n).filter(_ => invRuns.exists((r, _) => r.name == "impl" && r.status == "proven")).map(_ => why("root_impl") match
+      case None => (Result("root_impl", "proven", "the root holds of the implementation"), axiomsOf("root_impl").getOrElse(List("<no audit result>")))
+      case Some(w) => (Result("root_impl", "failed", s"the root theorem of the implementation does not hold: $w"), Nil)).toList
     // What the contract leaves to the examples: whether doing nothing meets it.
-    val idle = g.idle(n).map((o, what) => Result("idle", if lake.elaborate(g.oblPath(n.id, o.name)).ok then "proven" else "open", what)).toList
+    val idle = g.idle(n).map((o, what) => Result("idle", if holds(o.name) then "proven" else "open", what)).toList
     // A view whose coverage cannot be stated keeps nothing proven.
     val uncovered = g.formalKeeps(n).flatMap((i, _) => g.coverage(n, i).left.toOption.map(w =>
       (Result(s"cover_${i.id}", "failed", s"what the view must list cannot be stated: $w"), Nil)))
     // The seams: what this node relies on another concern for, proven of every state that concern reaches.
-    val relyRuns = g.relyChecks(n).map { (o, name, _) =>
-      val built = lake.build(g.theoremsModule(o.id))
-      val run = if built.ok then lake.elaborate(g.oblPath(n.id, name)) else built
-      val audit = Lean.axioms(run.output).collectFirst { case (t, as) if t.endsWith(".rely") => as }
-      if run.ok && !Lean.usesSorry(run.output) && audit.isDefined then
-        (Result(name, "proven", s"every state ${o.id}'s concern reaches meets the guarantee"), audit.get)
-      else (Result(name, "open", s"Lean does not show that every state ${o.id}'s concern reaches meets the guarantee" +
-        Lean.diagnostics(run.output).find(_.isError).fold(if built.ok then "" else s": ${o.id} does not build")(d => s"\nLean: ${d.message.take(20000)}")), Nil)
-    }
+    val relyRuns = g.relyChecks(n).map((o, name, _, _) => why(name) match
+      case None => (Result(name, "proven", s"every state ${o.id}'s concern reaches meets the guarantee"), axiomsOf(name).getOrElse(List("<no audit result>")))
+      case Some(w) => (Result(name, "open", s"Lean does not show that every state ${o.id}'s concern reaches meets the guarantee\nLean: $w"), Nil))
     val invRunsAll = invRuns ++ uncovered ++ relyRuns ++ rootImpl
-    val used = (g.auditedTheorems(n).flatMap(t => ax.getOrElse(t, List("<no audit result>"))) ++ invRunsAll.flatMap(_._2)).distinct.sorted
+    val used = (axiomsOf(s"${kb.name}.${n.id}.root").getOrElse(List("<no audit result>")) ++ invRunsAll.flatMap(_._2)).distinct.sorted
     val extra = used.filterNot(Lean.allowedAxioms)
     val all = results ++ invRunsAll.map(_._1) ++ idle
     if extra.nonEmpty then done("failed", all, List(s"disallowed axioms: ${extra.mkString(", ")}"), used)
