@@ -67,7 +67,7 @@ private[frflow] object Lift:
     val defs = of[Def[?]]("frflow.Def")
     val params = of[Param[?]]("frflow.Param")
     val opaques = of[Opaque]("frflow.Opaque")
-    '{ def liftedNode(): Lifted[F] = new Lifted[F]($f, Nil, "", "", ${ Expr(text) }, Nil, Nil, Nil, () => $defs, () => $params, () => $opaques); liftedNode() }
+    '{ def liftedNode(): Lifted[F] = new Lifted[F](() => $f, Nil, "", "", ${ Expr(text) }, Nil, Nil, Nil, () => $defs, () => $params, () => $opaques); liftedNode() }
 
   /** The source files of the project code an expression refers to (an implementation's classes). */
   def sourceFiles(e: Expr[Any])(using Quotes): Expr[List[String]] =
@@ -216,7 +216,7 @@ private final class Translator(using val quotes: Quotes):
     // may not exceed 64 KB; the construction is the bulk of each node's expansion.
     '{
       def liftedNode(): Lifted[F] =
-        new Lifted[F]($f, ${ Expr(params) }, ${ Expr(result) }, ${ Expr(body) }, ${ Expr(source(term match { case Lambda(Nil, b) => strip(b).pos; case t => t.pos })) }, $typeList,
+        new Lifted[F](() => $f, ${ Expr(params) }, ${ Expr(result) }, ${ Expr(body) }, ${ Expr(source(term match { case Lambda(Nil, b) => strip(b).pos; case t => t.pos })) }, $typeList,
           ${ Expr(opaques.toList) }, ${ Expr(paramRefs.toList) }, () => $depList, () => $paramList, () => $opaqueList)
       liftedNode()
     }

@@ -42,6 +42,33 @@ class LeanSuite extends munit.FunSuite:
     assert(w.status._1.contains("Trusted (the hypotheses of root_impl, proven): nothing."), w.status._1)
   }
 
+  test("two modules proving things of one match with a wildcard can be imported together: its equations are made where it is defined") {
+    assume(Lake(Paths.get(".")).available, "lake is not available")
+    val dir = Files.createTempDirectory("sparse")
+    Files.writeString(dir.resolve("lakefile.toml"),
+      s"name = \"sparse\"\n\n[[require]]\nname = \"frflow\"\npath = \"$kernel\"\n\n[[lean_lib]]\nname = \"Sparse\"\nglobs = [\"Sparse.+\"]\n")
+    Files.writeString(dir.resolve("lean-toolchain"), "leanprover/lean4:v4.35.0\n")
+    def file(name: String, text: String) = { Files.createDirectories(dir.resolve("Sparse")); Files.writeString(dir.resolve(s"Sparse/$name.lean"), text) }
+    // As the vocabulary module declares a `define` with a wildcard case, and two nodes' modules use `grind` on it.
+    def base(eqns: Boolean) =
+      "import FrFlow\ninductive Req where\n  | signIn (t : String)\n  | signOut (t : String)\n  | admin (on : Bool)\n" +
+        "def tokenOf : Req → Option String\n  | .signIn t => some t\n  | _ => none\n" + (if eqns then "frflow_match_eqns\n" else "")
+    def uses(b: String) = List(
+      s"import Sparse.$b\ntheorem a (q : Req) (t : String) (h : tokenOf q = some t) : q = .signIn t := by\n  unfold tokenOf at h; grind\n",
+      s"import Sparse.$b\ntheorem b (q : Req) (t : String) (h : tokenOf q = some t) : ∃ u, q = .signIn u := by\n  unfold tokenOf at h; grind\n")
+    file("Base", base(true)); file("A", uses("Base")(0)); file("B", uses("Base")(1)); file("C", "import Sparse.A\nimport Sparse.B\n")
+    val lake = Lake(dir)
+    val built = lake.build("Sparse.C")
+    assert(built.ok, built.output)
+    // Without it, each module makes the equations, and Lean's auxiliary declaration twice (Lean 4.35).
+    file("Base0", base(false)); file("A0", uses("Base0")(0)); file("B0", uses("Base0")(1)); file("C0", "import Sparse.A0\nimport Sparse.B0\n")
+    val clash = lake.build("Sparse.C0")
+    assert(!clash.ok && clash.output.contains("already contains"), clash.output)
+    // The generated modules that declare functions make their equations
+    val g = Generate(shelfKb)
+    assert(g.domain.contains("frflow_match_eqns") && g.spec(onlyGood).contains("frflow_match_eqns"), g.domain)
+  }
+
   test("root_impl rests on what is trusted: an assumption on an operation the code calls, and a contract with plain code") {
     val kb = shelfWith(pick, shelfPort).implementProven(pick)(viaFetch).implementProven(shelfPort)(fromService, (shelf, n) => shelf.filter(_.pages >= minPages.value))
     assertEquals(kb.problems, Nil)
@@ -244,7 +271,7 @@ class LeanSuite extends munit.FunSuite:
     // agree; a probe at the boundary does not.
     val l = keepAtLeast.lifted
     assert(l.body.contains("≥"), l.body)
-    val wrong = Def(keepAtLeast.name, new Lifted(l.value, l.params, l.result, l.body.replace("≥", ">"), l.source, l.types, l.opaques,
+    val wrong = Def(keepAtLeast.name, new Lifted(() => l.value, l.params, l.result, l.body.replace("≥", ">"), l.source, l.types, l.opaques,
       l.paramRefs, () => l.defs, () => l.paramObjects, () => l.opaqueObjects))
     val bad = of(workflow(kb(wrong)).check(), "FloorKeep")
     assertEquals(bad.status, "failed", bad)

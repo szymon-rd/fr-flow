@@ -285,3 +285,20 @@ Minimal departures from the above, each kept to what the code needed; none from 
   batch next; the rest under "After the decisions above them", each with what it waits on. Header:
   splits proven (of the formal splits), `root_impl`, the size of the trusted list. Cause `parts` shows the
   parts added and removed when the decided content records `parts`.
+
+### Fixes after the migrations
+
+What the migrations of `examples/keycloak` and `examples/crm` found in the core, fixed:
+
+- **Equations of a `match`, made where it is declared.** Lean 4.35 makes the equations of a `match` (and,
+  for one with overlapping patterns, an auxiliary `_sparseCasesOn` named after them) in the first module
+  that uses them (`grind`, `simp`); two modules that both did failed in a third importing them
+  ("environment already contains `f.match_1.congr_eq_1._sparseCasesOn_2`"). The kernel's command
+  `frflow_match_eqns` (`lean/FrFlow/MatchEqns.lean`) makes them in the module that declares the `match`,
+  and the vocabulary module and every `Spec` end with it: the modules that use them import them. The
+  translation is unchanged: expanding a wildcard into the remaining constructors would cover an enum only,
+  not `Option`, `List`, a literal or a nested pattern, which clash the same way.
+- **A defined term is evaluated where it is used.** `param := expr` keeps its Scala value as a thunk
+  (`Lifted.value` evaluates it on each use, under the bindings in force), so a term defined by an
+  expression over parameters (`sessions := stateAfter(history.value).sessions`) no longer reads them when
+  the model loads.

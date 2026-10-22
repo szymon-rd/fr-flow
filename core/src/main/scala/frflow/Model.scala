@@ -92,9 +92,12 @@ final case class TypeDecl(name: String, lean: String, uses: List[String], scala:
   * @param body     the Lean term; `⟦f⟧` marks a call of the defined function `f`
   * @param opaques  opaque types it mentions
   * @param paramRefs parameters it uses, with their Lean types
+  * @param valueThunk the Scala value, evaluated on each use (`value`): a term defined by an expression
+  *                   over parameters (`sessions := stateAfter(history.value).sessions`) is evaluated
+  *                   where it is used, under the bindings in force, not when the model loads
   */
 final class Lifted[+F](
-    val value: F,
+    valueThunk: () => F,
     val params: List[(String, String)],
     val result: String,
     val body: String,
@@ -106,6 +109,8 @@ final class Lifted[+F](
     paramsThunk: () => List[Param[?]],
     opaquesThunk: () => List[Opaque] = () => Nil
 ):
+  /** The Scala value, evaluated now (under the bindings in force). */
+  def value: F = valueThunk()
   def defs: List[Def[?]] = defsThunk()
   def paramObjects: List[Param[?]] = paramsThunk()
   def opaqueObjects: List[Opaque] = opaquesThunk()

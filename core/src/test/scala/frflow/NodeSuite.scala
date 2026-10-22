@@ -196,6 +196,21 @@ class NodeSuite extends munit.FunSuite:
     intercept[IllegalStateException](kb.service(byTerm)())
   }
 
+  test("a term defined by an expression, not a function, is evaluated where it is used, under the bindings in force") {
+    val shelfNow = Param[List[Book]]("shelfNow", "the books on the shelf now")
+    val onShelf = Param[Int]("onShelf", "how many books the shelf holds")
+    // Evaluated when the model loads, the definition would read shelfNow before anything binds it.
+    val counting = Node.definition("Counting", "The shelf holds as many books as are on it.", "w")(onShelf := shelfNow.value.length)
+    val term = counting.substs.head.term.get
+    assertEquals(term.body, "((shelfNow).length : Int)")
+    assertEquals(Bindings.within(Seq(shelfNow.bind(List(Book("A", 100), Book("B", 200)))))(term.value), 2)
+    assertEquals(Bindings.within(Seq(shelfNow.bind(Nil)))(term.value), 0)
+    // As service and the examples bind it: the defined term, under the values bound with it.
+    val kb = shelfWith(pick, counting)
+    assertEquals(Bindings.within(shelfNow.bind(List(Book("A", 100))) +: kb.definitionBindings)(onShelf.value), 1)
+    intercept[IllegalStateException](Bindings.within(kb.definitionBindings)(onShelf.value))
+  }
+
   test("an assumption whose terms are bound is checked when the service starts, and when its values change") {
     val positive = Node.assumption("PositiveLength", "Readers ask for books of at least one page.", why = "A length of zero would let empty books in.")(
       minPages.value > 0).under(onlyLong)
