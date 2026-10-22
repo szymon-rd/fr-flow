@@ -26,11 +26,11 @@ final class Mcp(projects: List[Project]):
   val tools: List[Json] = List(
     tool("inbox", "Start here. The developer's open requests (answer them by proposing nodes, then `answer`), rejected nodes " +
       "to remove from the Scala model, and decisions the developer has not made yet.", schema(project)()),
-    tool("context", "Everything known about a node: the idea, the path from the root with every decision, reason and rejected " +
-      "alternative, examples, the obligation, and open requests. Read it before proposing or changing a node.", schema(project, node)("node")),
+    tool("context", "Everything known about a node: its idea section, the vocabulary it uses, the nodes above it with every decision, " +
+      "reason and rejected alternative, its co-parts and parts, examples, its obligations, and open requests. Read it before proposing or changing a node.", schema(project, node)("node")),
     tool("render", "Rebuild from the Scala definitions: the Lean and the snapshot the browser shows. Run it after changing a node, " +
       "the domain or IDEA.md. Returns the tree; compile errors in the model come back as the error.", schema(project)()),
-    tool("check", "Render, then prove each node's link to its parent in Lean and record the results. Slow (minutes). " +
+    tool("check", "Render, then prove each node from its parts in Lean and record the results. Slow (minutes). " +
       "Optionally one node.", schema(project, node)()),
     tool("answer", "Reply to a developer's request once done, e.g. 'Proposed Expiring and Sliding under Authenticated; " +
       "Expiring is simpler, Sliding keeps active users signed in. Choose in the browser.' Without a request, pass `node` " +
@@ -40,7 +40,7 @@ final class Mcp(projects: List[Project]):
       "whose id, statement or reason mention some words. Extend those nodes rather than adding a near-duplicate.",
       schema(project, "query" -> obj("type" -> str("string")))("query")),
     tool("scaffold", "Create lean/Proofs/<KB>/<NODE>.lean for an obligation frflow_auto did not prove. The proof must state " +
-      "exactly `Obl.link` and contain only tactics.", schema(project, node)("node"))
+      "exactly its `Obl` (`Obl.complete`, `Obl.impl`, ...) and contain only tactics.", schema(project, node)("node"))
   )
 
   private def projectOf(args: Json): Project = args("project").flatMap(_.str) match

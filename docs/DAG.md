@@ -174,3 +174,47 @@ nodes it helps prove, as a part; never as a restatement.
 3. In parallel, on top of 2: `examples/keycloak`, `examples/crm`, `bench/generate.py` migrated, their
    ledgers decided again through the browser by an agent playing the developer (labelled as such).
 4. Docs (README, SKILL), measurements, and a review.
+
+## 9. As built in phase 1 (core): departures and precisions
+
+Minimal departures from the above, each kept to what the code needed; none from §0.
+
+- **Defined terms in Lean.** The vocabulary module (`FrFlowGen/<KB>/Domain.lean`) holds the domain
+  types, the `define`s, and each definition in force: a type as an `abbrev`, a term as a `def` over the
+  terms its definition mentions. A node's own declarations (`claim`, `post`, `rule`) take every term
+  they mention as a binder, defined or not; every statement (`complete`, `holds`, the tries, `impl`,
+  `root_impl`) applies them to the definitions in force, so it is over the open terms only. A node's
+  Lean thus does not change when a term it uses gets a definition; only its statements do.
+- **Typing.** A `Param` of an opaque type (`good: Item.T => Boolean`) cannot be applied, in Scala, to
+  the concrete type a definition fixes (`Book`): parts below a type's definition are written in
+  concrete terms (or in terms of concrete type, defined as in `examples/auth`).
+- **Operations.** A term is an operation when some contract or assumption is about it (`op`). The
+  root's `idle` replaces the operations its statement mentions (through the definitions) by doing
+  nothing; a root that mentions no operation yet has no `idle`.
+- **Alternative definitions.** With two definitions of one term and neither chosen, the nodes that use
+  the term are not checked (status `waiting`); examples and `service` use the first listed until then.
+  The choice is read from the ledger (an accepted definition is in force).
+- **Obligations.** `nontrivial` is gone (the root's `idle` says the root says something); `feasible`
+  stays as specified. `needed_i` with one part is named `vacuous`. Lean modules per node: `Spec`
+  (claim and statements), `Auto` (`complete`), `Theorems` (`holds`), `Impl` (`impl`, a module so that
+  `RootImpl.lean` can import it), `Checks` (tries with a small heartbeat budget, and `check`, `cover_X`,
+  `expect_i`, `feasible`), `Eval`; and `FrFlowGen/<KB>/RootImpl.lean`, elaborated with the root's check.
+  `holds` binds every open term of the nodes it goes through. A contract keeping an invariant no longer
+  has `inv_X`: the invariant's `complete` (with the keeper needed) is that proof; `cover_X` stays on the
+  contract. `idle` applies to the root only (the contract-level `idle` is gone, as specified).
+- **Expectations** are `node.expects(statement)(formula: => Boolean)`, a formula over the vocabulary
+  (an operation is mentioned by its `Param`), proven from the node's claim.
+- **Imports.** `kb.uses(other, dir)(contracts*)` brings each contract as a leaf: the node object is the
+  other knowledge base's (its `content`, parents included, is the same as there, so its decisions there
+  hold), but here it has no parents and no kept invariants; the definitions its statement uses come
+  with it. Its `parentChain` here is the one its decision there recorded.
+- **Snapshot.** Besides §4: per node `status` (the check of its statement: `proven`, `open`, `failed`,
+  `waiting`, `unchecked`, `timeout`, `informal`; null for definitions and design nodes), `leaf` (a claim
+  no part proves), `rootImpl` (on the root), `obligations` (each with its statement), `holds` (its
+  statement), `relies` (the contracts its code calls). Gone: `parent`, `link`, `obligation`,
+  `rootTheorem`, `reliances`, `reliedOnBy`, `roots`. The content of a node carries `kind`, `parents`,
+  `op`, `replaces`; `vocabulary` lists every term it mentions (not only those first used on its path).
+  `ContentFormat` and `CheckerVersion` are 4.
+- **Decisions (phase 1 only).** `waitsFor` is the first parent not accepted, else the first definition
+  used or contract called not accepted; alternatives are `replaces` and two definitions of one term;
+  the owner is a node's own, else its first parent's. Everything else of §5 is phase 2.

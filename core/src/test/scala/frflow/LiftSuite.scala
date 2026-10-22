@@ -132,3 +132,8 @@ class LiftSuite extends munit.FunSuite:
     val inList = Lifted((xs: List[Book]) => xs.forall(b => xs.exists(c => c.title == b.title && c.pages >= b.pages)))
     assertEquals(inList.body, "(∀ b ∈ xs, (∃ c ∈ xs, ((c.title = b.title) ∧ (c.pages ≥ b.pages))))")
   }
+
+  test("a claim's formula reads as written, not as the lambda that wraps it") {
+    assertEquals(onlyGood.formula.get.source, "forall((l: List[Item.T], x: Item.T) => shown(l, x) == (l.contains(x) && good(x)))")
+    assertEquals(onlyGood.formula.get.params, Nil)
+  }

@@ -12,8 +12,8 @@ object Cli:
     """Usage: <kb> <command>
       |
       |  render                  generate Lean and the snapshot .frflow/kb.json from the Scala definitions
-      |  check [NODE]            render, prove the links, record the results
-      |  status                  the tree: decisions, links, examples; exits 1 unless the knowledge base is complete
+      |  check [NODE]            render, prove each node from its parts, record the results
+      |  status                  the tree: decisions, proofs, examples, what is trusted; exits 1 unless the knowledge base is complete
       |  ci                      for CI: check, then status; exits 1 unless everything is proven and decided
       |  inbox                   start here: the developer's open requests, what is yours to do, what waits for the developer
       |  context NODE            everything needed to work on NODE (for agents and people)
@@ -39,22 +39,20 @@ object Cli:
         w.writeSnapshot()
         var examplesFail = false
         results.foreach { (n, c) =>
-          // The link's status is the node's; what else is open is said with it, and failing examples first:
-          // they show the code (or the contract) is wrong, which no proof fixes.
-          val open = c.obligations.filter(r => r.name != "link" && !r.isEvaluation && !r.fine)
-          println(s"${n.id}: ${c.status}${if c.status == "proven" && open.nonEmpty then s" (the link; not proven: ${open.map(_.name).mkString(", ")})" else ""}")
+          // The node's status, with what else is open, and failing examples first: they show the code
+          // (or the contract) is wrong, which no proof fixes.
+          val open = c.obligations.filter(r => !r.isEvaluation && !r.fine)
+          println(s"${n.id}: ${c.status}${if c.status == "proven" && open.nonEmpty then s" (not proven: ${open.map(_.name).mkString(", ")})" else ""}")
           val failing = kb.exampleResults(n).filter(r => r.contract != "ok" || r.implementation.exists(_ != "ok"))
           if failing.nonEmpty then
             examplesFail = true
             println(s"  ${failing.size} example(s) fail: the code or the contract is wrong; fix that, not the proof")
             failing.take(5).foreach(r => println(s"    ${r.example.describe}: ${r.verdict}"))
-          // `idle` is not an obligation: proven, it is a limit of the contract (it allows doing nothing).
+          // `idle` is not an obligation: proven, it says the root is met by doing nothing.
           c.obligations.filter(r => !r.isLimit && r.status != "proven").foreach(r => println(s"  ${r.status} ${r.name}: ${r.detail.linesIterator.mkString("\n    ")}"))
           c.obligations.filter(r => r.name == "idle" && r.status == "proven").foreach(r => println(
-            if n.kind == NodeKind.Root && n.safety.nonEmpty then s"  limit: doing nothing meets it (${r.detail}): it says only what must not happen (${n.safety})"
-            else if n.kind == NodeKind.Root then s"  ! doing nothing meets it (${r.detail}): say what users can do (a capability), or give `safety` = why it only says what must not happen (status fails until then)"
-            else s"  ! it is met by ${r.detail} on every call: say in its post what it must return (status fails until then)"))
-          // With an example failing, the link may be false: no hint to prove it.
+            s"  ! doing nothing meets it (${r.detail}): state what users can do, so it says exactly what the system does (status fails until then)"))
+          // With an example failing, the node may be false: no hint to prove it.
           c.messages.filterNot(m => failing.nonEmpty && m.startsWith("prove it in")).foreach(m => println(s"  ! ${m.linesIterator.mkString("\n    ")}"))
         }
         println()

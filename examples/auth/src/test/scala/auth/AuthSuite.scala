@@ -31,13 +31,29 @@ class AuthSuite extends munit.FunSuite:
       knowledge.exampleResults(decisionContract))
   }
 
-  test("the knowledge base is proven, from the root to the contract") {
+  test("the model is well formed: one root, its parts, the definitions of the domain, the contract under all three parts") {
+    assertEquals(knowledge.problems, Nil)
+    assertEquals(knowledge.root.map(_.id), Some("AccessExactly"))
+    assertEquals(knowledge.parentsOf(decisionContract).map(_.id), List("TokenNamesHolder", "AccessNeedsGrant", "GrantLetsIn"))
+  }
+
+  test("the knowledge base is proven, from the contract and its code to the root") {
     val lake = Lake(Paths.get("."))
     assume(lake.available, "lake is not available")
     val root = Files.createTempDirectory("auth")
     Files.copy(Paths.get("examples/auth/IDEA.md"), root.resolve("IDEA.md"))
+    Files.createDirectories(root.resolve("lean"))
+    val proofs = Paths.get("examples/auth/lean/Proofs")
+    if Files.isDirectory(proofs) then
+      Files.walk(proofs).forEach(f => if Files.isRegularFile(f) then
+        val to = root.resolve("lean").resolve(Paths.get("examples/auth/lean").relativize(f).toString)
+        Files.createDirectories(to.getParent)
+        Files.copy(f, to))
     val w = Workflow(knowledge, Workspace(root, Paths.get("lean").toAbsolutePath.toString))
-    assertEquals(w.check().map((n, c) => n.id -> c.status),
-      List("NoUnauthorizedAccess" -> "proven", "Authenticated" -> "proven", "GrantBased" -> "proven", "DecisionContract" -> "proven"))
+    val r = w.check()
+    assertEquals(r.map((n, c) => n.id -> c.status),
+      List("AccessExactly" -> "proven", "TokenNamesHolder" -> "proven", "AccessNeedsGrant" -> "proven", "GrantLetsIn" -> "proven", "DecisionContract" -> "proven"))
+    assertEquals(r.head._2.obligations.find(_.name == "root_impl").map(_.status), Some("proven"))
+    assertEquals(w.generate.trusted, Nil)
     assert(w.context(decisionContract).contains("No user may ever"))
   }

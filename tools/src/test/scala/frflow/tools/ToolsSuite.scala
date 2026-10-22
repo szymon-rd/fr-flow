@@ -45,15 +45,15 @@ class ToolsSuite extends munit.FunSuite:
     assertEquals(p.sourcesChanged, List("model.txt"))
   }
 
-  test("the text tree shows decisions (from the ledger), links and examples") {
+  test("the text tree shows decisions (from the ledger), how parts make each node, and examples") {
     val p = fake()
     p.run(List("render"), actor = "ui")
     val t = frflow.Decisions.tree(p.annotated.get)
-    assert(t.contains("Root (root)  [accepted]"), t)
-    assert(t.contains("  Auto (refine)  [accepted, link proven (auto)]"), t)
-    assert(t.contains("    Failed (refine)  [review: above, link failed (must state exactly Obl.link)]"), t)
-    assert(t.contains("Contract (contract)  [review: self, code, link proven (authored), examples 2/3]"), t)
-    assert(t.contains("Stale (refine)  [rejected: remove it from the model"), t)
+    assert(t.contains("Root (claim)  [accepted]"), t)
+    assert(t.contains("  Auto (claim)  [accepted, parts proven (auto)]"), t)
+    assert(t.contains("    Failed (claim)  [review: above, parts failed (must state exactly Obl.link)]"), t)
+    assert(t.contains("Contract (contract)  [review: self, code, parts proven (authored), examples 2/3]"), t)
+    assert(t.contains("Stale (claim)  [rejected: remove it from the model"), t)
     assert(t.contains("Gone  [review: gone]"), t)
   }
 
