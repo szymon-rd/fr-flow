@@ -40,16 +40,9 @@ class AuthSuite extends munit.FunSuite:
   test("the knowledge base is proven, from the contract and its code to the root") {
     val lake = Lake(Paths.get("."))
     assume(lake.available, "lake is not available")
-    val root = Files.createTempDirectory("auth")
-    Files.copy(Paths.get("examples/auth/IDEA.md"), root.resolve("IDEA.md"))
-    Files.createDirectories(root.resolve("lean"))
-    val proofs = Paths.get("examples/auth/lean/Proofs")
-    if Files.isDirectory(proofs) then
-      Files.walk(proofs).forEach(f => if Files.isRegularFile(f) then
-        val to = root.resolve("lean").resolve(Paths.get("examples/auth/lean").relativize(f).toString)
-        Files.createDirectories(to.getParent)
-        Files.copy(f, to))
-    val w = Workflow(knowledge, Workspace(root, Paths.get("lean").toAbsolutePath.toString))
+    // In the example's own workspace, as `auth/run check` checks it: its Lean build and recorded results
+    // are reused while current.
+    val w = Workflow(knowledge, Workspace(Paths.get("examples/auth").toAbsolutePath.normalize, "../../../lean"))
     val r = w.check()
     assertEquals(r.map((n, c) => n.id -> c.status),
       List("AccessExactly" -> "proven", "TokenNamesHolder" -> "proven", "AccessNeedsGrant" -> "proven", "GrantLetsIn" -> "proven", "DecisionContract" -> "proven"))

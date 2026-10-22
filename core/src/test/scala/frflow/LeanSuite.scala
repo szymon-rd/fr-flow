@@ -148,7 +148,11 @@ class LeanSuite extends munit.FunSuite:
 
   test("an obligation automation cannot prove is proven in the node's proof file, with a witness") {
     val w = workflow(squareKb)
-    assertEquals(statuses(w.check()), List("NonNegative" -> "open", "Squares" -> "proven"))
+    val first = w.check()
+    assertEquals(statuses(first), List("NonNegative" -> "open", "Squares" -> "proven"))
+    // automation gave up: what to write, and where, first
+    assert(result(of(first, "NonNegative"), "complete").exists(_.detail.startsWith(
+      "automation gave up: write theorem complete : Obl.complete in lean/Proofs/Square/NonNegative.lean (run `scaffold NonNegative`)")), of(first, "NonNegative"))
     assert(w.scaffold(nonNegative))
     assertEquals(result(w.check(Some("NonNegative")).head._2, "complete").map(_.detail), Some("uses sorry"))
 
@@ -371,6 +375,15 @@ class LeanSuite extends munit.FunSuite:
     // its code is plain: the reading list's code is proven of the root, from Pick's promise, which is trusted
     assertEquals(reader.generate.trusted.map(_.id), List("Pick"))
     assertEquals(result(of(r, "ShortList"), "root_impl").map(_.status), Some("proven"))
+  }
+
+  test("membership through a list's set is proven, and its examples are evaluated in Lean") {
+    val r = workflow(keepKb).check()
+    val c = of(r, "Keep")
+    assertEquals(c.status, "proven", c)
+    assertEquals(result(c, "impl").map(_.status), Some("proven"), c)
+    assert(c.obligations.filter(_.name.startsWith("eval_")).forall(_.status == "proven") && c.obligations.exists(_.name.startsWith("eval_")), c)
+    assertEquals(result(of(r, "KeptOnShelf"), "root_impl").map(_.status), Some("proven"), of(r, "KeptOnShelf"))
   }
 
   test("state kept in a Map is proven, down to the code, and its examples are evaluated in Lean") {

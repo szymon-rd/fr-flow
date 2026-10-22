@@ -455,11 +455,13 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
     */
   lazy val trusted: List[Node[?]] =
     kb.root.filter(formal).toList.flatMap { r =>
-      def need(n: Node[?], seen: Set[String]): List[Node[?]] =
+      def need(n: Node[?], seen: Set[String], via: Node[?] => List[Node[?]]): List[Node[?]] =
         if seen(n.id) then Nil
-        else if implementing(n) then calls(n).flatMap(need(_, seen + n.id))
+        else if implementing(n) then via(n).flatMap(need(_, seen + n.id, via))
         else List(n)
-      leaves(r).flatMap(need(_, Set.empty)).distinctBy(_.id)
+      // What the proofs of the code call; listed in the order of what the code depends on.
+      val used = leaves(r).flatMap(need(_, Set.empty, calls)).map(_.id).toSet
+      leaves(r).flatMap(need(_, Set.empty, callees)).filter(n => used(n.id)).distinctBy(_.id)
     }
 
   /** `root_impl`: the root of the code (every implemented operation replaced by its code), from the

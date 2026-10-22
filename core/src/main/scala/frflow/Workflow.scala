@@ -421,7 +421,10 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       if prebuilt.isDefined then Result(o.name, "proven", "auto")
       else
         val rel = if authored(n.id) then g.proofsPath(n.id) else g.autoPath(n.id)
-        judge(o.name, rel, lake.elaborate(rel), authored(n.id))
+        val r = judge(o.name, rel, lake.elaborate(rel), authored(n.id))
+        // Automation is tried only while no proof file proves it: what to do next comes first.
+        if authored(n.id) || r.status != "open" then r
+        else r.copy(detail = s"automation gave up: write theorem complete : Obl.complete in lean/${g.proofsPath(n.id)} (run `scaffold ${n.id}`)\nLean: ${r.detail}")
     }
     // Its code meets it, from what the contracts it calls promise.
     var implAxioms: List[String] = Nil
