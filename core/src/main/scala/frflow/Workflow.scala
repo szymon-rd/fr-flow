@@ -449,7 +449,13 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     // One owner per file: two nodes governing it would each review it as its own.
     val owners = kb.nodes.flatMap(n => code(n).toList.flatMap(_.files).map(_ -> n.id)).groupBy(_._1).toList.sortBy(_._1)
       .collect { case (f, ns) if ns.map(_._2).distinct.size > 1 => s"$f is governed by ${ns.map(_._2).distinct.mkString(" and ")}: give it one owner" }
-    missing ++ owners ++ ideaCoverage ++ staleNames ++
+    // A proof file of no node (after a rename or a removal) proves nothing any more.
+    val proofsDir = ws.lean.resolve(s"Proofs/${kb.name}")
+    val orphans = if !Files.isDirectory(proofsDir) then Nil
+      else Files.list(proofsDir).iterator.asScala.map(_.getFileName.toString).filter(_.endsWith(".lean")).map(_.stripSuffix(".lean"))
+        .filterNot(id => id == "Lemmas" || kb.node(id).isDefined).toList.sorted
+        .map(id => s"lean/Proofs/${kb.name}/$id.lean is the proof file of no node: move it with its node's new id (and its namespace), or remove it")
+    missing ++ owners ++ ideaCoverage ++ staleNames ++ orphans ++
       ungoverned.map(f => s"$f is governed by no node: govern it (.governing or a design node) or move it")
 
   /** Statements and reasons that name a node no longer chosen (rejected, or removed): the text

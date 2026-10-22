@@ -178,6 +178,7 @@ table { border-collapse: collapse; width: 100%; font-size: 13px; }
 td, th { text-align: left; border-bottom: 1px solid var(--line); padding: 6px 6px 6px 0; vertical-align: top; }
 th { color: var(--muted); font-weight: 600; font-size: 12px; }
 details summary { cursor: pointer; color: var(--muted); margin-top: 18px; }
+details.full > summary { color: var(--ink); font-weight: 600; }
 .event { display: grid; grid-template-columns: 14px 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); }
 .event .d { width: 9px; height: 9px; border-radius: 50%; margin-top: 6px; background: var(--none); }
 .event .d.proven, .event .d.accept { background: var(--proven); } .event .d.open { background: var(--open); }
@@ -737,8 +738,11 @@ function nodePane() {
     <div class="chips" style="margin-top:6px">${chips(n)}</div>
     <p class="lead">${esc(c.statement)}</p>
     <div class="why"><div class="label">why</div>${esc(c.why)}</div>
-    ${needsYou(n) ? `<h3>Decision</h3>${decisionBox(n)}` : ""}
-    ${examplesTable(n)}`;
+    ${needsYou(n) ? `<h3>Decision</h3>${decisionBox(n)}` : ""}`;
+  // Under review, what changed is in the decision above: the rest of the node is there to look up.
+  const folded = n.state === "review";
+  if (folded) h += `<details class="full"><summary>The node in full: its examples, model and link</summary>`;
+  h += examplesTable(n);
   if (n.kind === "design") {
     h += `<h3>Design decision</h3><div class="box"><div class="muted small">No formal model: decided and tracked like the rest, and every change to the files it governs is yours to review:</div>
       <pre>${esc((n.code?.files || []).join("\n") || "—")}</pre></div>`;
@@ -773,6 +777,7 @@ function nodePane() {
       ${n.proof ? `<details ${n.state !== "accepted" ? "open" : ""}><summary>authored proof — ${esc(n.proof.file)}</summary><pre>${esc(n.proof.source)}</pre></details>` : ""}
     </div>`;
   }
+  if (folded) h += `</details>`;
   if (!needsYou(n)) h += `<h3>Decision</h3>${decisionBox(n)}`;
   if (n.messages?.length) h += `<h3>Messages</h3><pre>${esc(n.messages.join("\n\n"))}</pre>`;
   h += `<h3>Ask the agent</h3>${requestsFor(n.id)}
@@ -790,8 +795,6 @@ function nodePane() {
   return h;
 }
 
-// Reviews caused by one change, decided at once with one reason: nodes that moved only because the
-// same nodes above them changed, or whose only change is the same definitions they use.
 // Nodes decided at once with one reason: one accept each, parents first (each with the version seen).
 function batchBox(ns, title, note, placeholder) {
   const depth = n => pathTo(n.id).length;
