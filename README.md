@@ -348,7 +348,9 @@ sbt "auth/run ci"                     # what CI runs: check, then status
 The browser draws the DAG from the root, each node under its first parent
 with "also under" its others, definitions in their own row, assumptions marked
 trusted. A node's pane shows its parents (each with its split and co-parts),
-the node (its formula, vocabulary and examples), and its parts. The agent's
+the node (its formula, vocabulary and examples), and its parts. Every node has
+one "Ask for a change" box: the node is then with the agent, not waiting for
+you, until the agent answers or changes it. The agent's
 rules are in [`.claude/skills/frflow/SKILL.md`](.claude/skills/frflow/SKILL.md).
 
 Committed: the Scala, `IDEA.md`, `.frflow/` (ledger, keys, requests) and

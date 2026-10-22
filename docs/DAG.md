@@ -413,3 +413,23 @@ now linear (about 0.85 s a node). The causes, and what changed:
   parts; a leaf claim or a node proven by automation is never asked it, and a contradictory one makes
   everything above it provable. `unsat` is the one guard there (cheap, and one-sided as the others).
 - `CheckerVersion` is 6: results recorded before are checked again.
+
+### Browser (after the r16 developer review)
+
+- **Asking for a change.** One "Ask for a change" box on every node (proposed, under review or
+  accepted) replaces "Send back to the agent" and "Ask the agent". A request records the version of the
+  node asked about (`seen`); the node is "with the agent" until the agent answers or the node changes:
+  it is not under "Waiting for you", the default action skips it, and its pane offers to withdraw the
+  request instead of accepting.
+- **What waits on the agent is named.** The inbox lists each rejected node still in the model, with
+  who rejected it and why, and each node resting on one; a rejected node's pane says it is rejected
+  (it said "Accepted").
+- **Counts.** "N waiting for you" counts decisions only (nodes waiting for you, and gone nodes), as the
+  CLI's inbox does; answers to read, nodes with the agent and decisions to sign are counted apart. The
+  browser had added answered requests to the decisions.
+- **Layout.** The legend is docked under the graph and folds; the graph fits the pane down to 80%, scrolls
+  beyond that, and scrolls to the node selected.
+- **Proven code, and authored proofs, in words.** A contract's code reads as the CLI words it: "proven
+  down to its code: proven define D; running code R checked against it", or "checked by running". An
+  authored `complete` says which parts the proof refers to (by name, outside comments) and whether it
+  needed `feasible`; the Lean is folded.

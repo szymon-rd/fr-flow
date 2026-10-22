@@ -70,14 +70,17 @@ textarea { width: 100%; resize: vertical; }
 @keyframes pulse { 50% { opacity: .25; } }
 
 main { display: grid; grid-template-columns: minmax(0, 1fr) 500px; height: calc(100% - 55px); }
-#canvasWrap { position: relative; overflow: auto; }
-#canvas { position: relative; margin: 28px auto 110px; }
+/* The graph scrolls; the legend is docked under it, so it never covers a card. */
+#left { position: relative; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+#canvasWrap { position: relative; overflow: auto; flex: 1; padding: 0 16px; }
+#canvas { position: relative; margin: 28px auto; }
 aside { background: var(--panel); border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
 .tabs { display: flex; border-bottom: 1px solid var(--line); padding: 0 8px; }
 .tab { border: 0; background: none; padding: 10px 12px; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; }
 .tab.active { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
 .tab .n { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 4px; border-radius: 999px; font-size: 11px;
           background: var(--accent); color: #fff; text-align: center; }
+.tab .n.soft { background: var(--soft); color: var(--muted); }
 .pane { overflow: auto; padding: 16px 18px 40px; flex: 1; }
 .pane a { color: var(--accent); text-decoration: none; cursor: pointer; }
 .pane a:hover { text-decoration: underline; }
@@ -137,8 +140,10 @@ path.edge.dim, path.glow.dim { opacity: .3; }
 .elabel.failed { color: var(--failed); border-color: color-mix(in srgb, var(--failed) 45%, transparent); }
 .elabel.unchecked, .elabel.design, .elabel.informal { color: var(--none); }
 .elabel.dim { opacity: .45; }
-.legend { position: sticky; left: 12px; bottom: 12px; display: inline-flex; gap: 14px; flex-wrap: wrap; background: var(--panel);
-          border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 12px; color: var(--muted); margin: 0 12px 12px; }
+.legend { background: var(--panel); border-top: 1px solid var(--line); padding: 5px 16px; font-size: 12px; color: var(--muted); }
+.legend summary { cursor: pointer; margin: 0; }
+.legend[open] > summary { float: left; margin-right: 14px; }
+.legend .items { display: flex; gap: 2px 14px; flex-wrap: wrap; align-items: center; }
 .legend i { display: inline-block; width: 22px; height: 0; border-top: 3px solid; vertical-align: middle; margin-right: 5px; }
 .legend .box { display: inline-block; width: 16px; height: 11px; border: 2px dashed var(--accent); border-radius: 3px; vertical-align: middle; margin-right: 5px; }
 .empty { color: var(--muted); padding: 40px; }
@@ -214,9 +219,8 @@ details.full > summary { color: var(--ink); font-weight: 600; }
 @media (max-width: 900px) {
   header { flex-wrap: wrap; white-space: normal; }
   main { grid-template-columns: 1fr; height: auto; }
-  #canvasWrap { height: 60vh; }
+  #left { height: 60vh; }
   aside { border-left: 0; border-top: 1px solid var(--line); }
-  .legend { position: static; }
   .diff { grid-template-columns: 1fr; }
 }
 </style>
@@ -235,9 +239,9 @@ details.full > summary { color: var(--ink); font-weight: 600; }
   <button class="btn primary" data-run="check" title="Prove, in Lean, that the parts of each node that changed make it">Check</button>
 </header>
 <main>
-  <div id="canvasWrap">
-    <div id="canvas"></div>
-    <div class="legend">
+  <div id="left">
+    <div id="canvasWrap"><div id="canvas"></div></div>
+    <details class="legend" id="legend" open><summary>Legend</summary><div class="items">
       <span><span class="box"></span>proposed: waiting for your decision</span>
       <span><span class="box" style="border-style:solid;border-color:var(--open)"></span>review: something moved under it</span>
       <span><i style="border-color:var(--proven)"></i>parts proven to make it</span>
@@ -245,7 +249,7 @@ details.full > summary { color: var(--ink); font-weight: 600; }
       <span><i style="border-color:var(--failed);border-top-style:dotted"></i>failed, or a part not needed</span>
       <span><i style="border-color:var(--none);border-top-style:dotted"></i>unchecked</span>
       <span><i style="border-color:var(--accent);border-top-style:dashed"></i>other parents of the selected node</span>
-    </div>
+    </div></details>
     <div id="job"><div class="head"><b id="jobTitle"></b><span class="spacer"></span><button class="btn small" id="jobClose">Close</button></div><pre id="jobOut"></pre></div>
   </div>
   <aside>
@@ -391,7 +395,10 @@ const VERB = { accept: "accepted", confirm: "re-confirmed", reject: "rejected", 
 // A concern with an owner waits for its owner (the name at the top right); the others are listed apart.
 const yours = n => !n.imported && (!n.owner || (me() || "").trim().toLowerCase() === n.owner.toLowerCase());
 const restsOnRejected = n => parentsOf(n).some(p => byId(p)?.state === "rejected");
-const waitingAll = () => live().filter(n => (n.state === "proposed" || n.state === "review") && !restsOnRejected(n));
+// A node the developer asked the agent to change is with the agent until it answers or changes the node.
+const askedOf = n => requests().filter(r => r.node === n.id && r.status === "open" && (!r.seen || r.seen === n.version));
+const withAgent = n => askedOf(n).length > 0;
+const waitingAll = () => live().filter(n => (n.state === "proposed" || n.state === "review") && !restsOnRejected(n) && !withAgent(n));
 const rank = n => { const i = (snap()?.order || []).indexOf(n.id); return i < 0 ? 1e9 : i; };
 // Ready first (every parent decided), by depth; within a depth, a node shared by more parents first.
 // The mechanical batch next; what waits for a decision above it last.
@@ -403,9 +410,11 @@ const waitingForYou = () => {
   return [...w.filter(n => !n.mechanical && !waitsOn(n)).sort(byReadiness), ...w.filter(n => n.mechanical).sort((a, b) => rank(a) - rank(b)),
     ...w.filter(n => !n.mechanical && waitsOn(n)).sort(byReadiness)];
 };
-// Everything the inbox asks of you, counted once, the same everywhere.
-const waitingCount = () => waitingForYou().length + gone().length + requests().filter(r => r.status === "answered").length +
-  (snap()?.unsigned || []).length;
+// The decisions waiting for you, counted once, the same everywhere (as the CLI counts them); answers
+// to read and decisions to sign are counted apart.
+const waitingCount = () => waitingForYou().length + gone().length;
+const answersCount = () => requests().filter(r => r.status === "answered").length;
+const withAgentCount = () => live().filter(n => needsYou(n) && withAgent(n)).length;
 const gone = () => snap()?.gone || [];
 const requests = () => state.data?.requests || [];
 // What Lean said: a short line inline; a goal (several lines) folded, as Lean prints it.
@@ -464,9 +473,10 @@ function render() {
   $("#running").classList.toggle("show", !!running);
   $("#runningText").textContent = running ? `${running.actor === "agent" ? "agent" : "running"}: ${running.args.join(" ")}` : "";
   document.querySelectorAll("[data-run]").forEach(b => b.disabled = !!running);
-  const w = waitingCount();
-  $("#waitingPill").classList.toggle("show", w > 0);
-  $("#waitingPill").textContent = `${w} waiting for you`;
+  const w = waitingCount(), a = answersCount(), ag = s ? withAgentCount() : 0, u = (s?.unsigned || []).length;
+  const pill = [w ? `${w} waiting for you` : "", ag ? `${ag} with the agent` : "", a ? `${a} answer${a > 1 ? "s" : ""} to read` : "", u ? `${u} to sign` : ""].filter(Boolean);
+  $("#waitingPill").classList.toggle("show", pill.length > 0);
+  $("#waitingPill").textContent = pill.join(" · ");
   if (!s) {
     $("#summary").textContent = "";
     $("#canvas").innerHTML = `<div class="empty">${state.data ? "No snapshot yet. Press Render to build the tree from the Scala definitions." : "Loading…"}</div>`;
@@ -483,15 +493,17 @@ function render() {
   const root = byId(s.root), ri = root?.rootImpl, tr = s.trusted || [];
   const impls = nodes.filter(n => n.kind === "contract");
   const implProven = impls.filter(n => n.implementationProof?.status === "proven").length;
+  const byRunning = impls.filter(n => !n.implementationProof && C(n).implementation).length;
   const openNodes = nodes.filter(n => warnings(n).length).length;
   const red = x => `<b style="color:var(--failed)">${x}</b>`;
   $("#summary").innerHTML = `${esc(s.name)} · <b>${accepted}</b> accepted${proposed ? ` · <b>${proposed}</b> proposed` : ""} · <b>${review}</b> to review` +
     ` · ${splitsProven < splits.length ? red(`${splitsProven}/${splits.length}`) : `<b>${splitsProven}/${splits.length}</b>`} splits proven` +
     (ri ? ` · root_impl ${ri.status === "proven" ? "<b>✓ proven</b>" : ri.status === "unchecked" ? "<b>unchecked</b>" : red(esc(ri.status))}` : "") +
     (ri ? ` · trusted: <b>${tr.length ? tr.length : "nothing"}</b>` : "") +
-    (impls.length ? ` · <b ${implProven < impls.length ? 'style="color:var(--failed)"' : ""}>${implProven}/${impls.length}</b> contracts proven down to their code` : "") +
+    (impls.length ? ` · <b ${implProven < impls.length ? 'style="color:var(--failed)"' : ""}>${implProven}/${impls.length}</b> contracts proven down to their code${byRunning ? ` (${byRunning} checked by running)` : ""}` : "") +
     (openNodes ? ` · ${red(openNodes)} node(s) with something unproven or failing` : "") + (warn ? ` · ${red(`${warn} warning(s)`)}` : "") + ` · rendered ${ago(s.exportedAt)}`;
-  $("#summary").title = $("#summary").textContent + (root?.rootImpl ? `\nTrusted (the hypotheses of root_impl): ${(s.trusted || []).join(", ") || "nothing"}` : "");
+  $("#summary").title = $("#summary").textContent + (root?.rootImpl ? `\nTrusted (the hypotheses of root_impl): ${(s.trusted || []).join(", ") || "nothing"}` : "") +
+    impls.map(n => `\n${n.id}: ${codeWords(n).text}`).join("");
   renderTree(); renderPane(); renderJob();
   history.replaceState(null, "", `#${encodeURIComponent(state.project)}/${encodeURIComponent(state.selected || "")}`);
 }
@@ -510,9 +522,21 @@ function chips(n) {
   const bad = examplesBad(n).length, ex = (n.examples || []).length;
   const st = n.state === "review" ? `review: ${(n.causes || []).join(", ")}` : n.state;
   return `<span class="chip s-${n.state}" title="${esc((n.causes || []).map(c => causeText[c]).join("; "))}">${esc(st)}</span>
+    ${withAgent(n) ? `<span class="chip s-waiting" title="You asked for a change: back with you when the agent answers or changes it">with the agent</span>` : ""}
     ${trusted(n) ? `<span class="chip s-trusted" title="Trusted, not proven: a hypothesis of root_impl">trusted</span>` : ""}
     ${ex ? `<span class="chip ${bad ? "s-bad" : "s-ok"}" title="examples">examples ${ex - bad}/${ex}</span>` : ""}
     `;
+}
+
+// How a contract's code meets it, in the words the CLI uses too: proven down to its code (a proven
+// define, with any faster running code checked against it), or checked by running.
+function codeWords(n) {
+  const ip = n.implementationProof, impl = C(n).implementation || "";
+  const runs = (impl.split("\n").find(l => l.startsWith("runs: ")) || "").slice(6);
+  const beside = runs ? `; running code ${runs} checked against it` : "";
+  if (ip) return ip.status === "proven" ? { ok: true, text: `proven down to its code: proven define ${ip.name}${beside}` }
+    : { ok: false, text: `define ${ip.name} not proven to meet it (${ip.status})${beside}` };
+  return impl ? { ok: false, text: "checked by running: a plain implementation, not proven" } : { ok: false, text: "no implementation registered" };
 }
 
 // The line under a card's chips: the other parents of a node (it is drawn under its first), or what a definition fixes.
@@ -596,7 +620,11 @@ function renderTree() {
     </div>`;
   }
   canvas.style.width = width + "px"; canvas.style.height = height + "px";
+  // Its widest row fits the pane, down to 80%; wider than that, it scrolls, to the node selected.
+  const room = $("#canvasWrap").clientWidth - 32;
+  canvas.style.zoom = room > 0 && width > room ? Math.max(0.8, room / width) : 1;
   canvas.innerHTML = `<svg width="${width}" height="${height}">${svg}</svg>${labels}${cards}`;
+  if (state.selected !== state.scrolledTo) { state.scrolledTo = state.selected; canvas.querySelector(".card.selected")?.scrollIntoView({ block: "nearest", inline: "nearest" }); }
 }
 
 function renderJob() {
@@ -609,11 +637,13 @@ function renderJob() {
 }
 
 function renderPane() {
-  const counts = { inbox: waitingCount() };
+  // The inbox: the decisions waiting for you; answers to read apart, in grey.
+  const counts = { inbox: [waitingCount() + (snap()?.unsigned || []).length, answersCount()] };
   document.querySelectorAll(".tab").forEach(t => {
     t.classList.toggle("active", t.dataset.tab === state.tab);
-    const n = counts[t.dataset.tab];
-    t.innerHTML = t.dataset.tab[0].toUpperCase() + t.dataset.tab.slice(1) + (n ? `<span class="n">${n}</span>` : "");
+    const [n, a] = counts[t.dataset.tab] || [];
+    t.innerHTML = t.dataset.tab[0].toUpperCase() + t.dataset.tab.slice(1) + (n ? `<span class="n" title="decisions waiting for you">${n}</span>` : "") +
+      (a ? `<span class="n soft" title="answers to read">${a}</span>` : "");
   });
   if (!state.data) { $("#pane").innerHTML = `<p class="muted">Loading…</p>`; return; }
   if (!snap() && state.tab !== "idea") { $("#pane").innerHTML = ""; return; }
@@ -810,8 +840,6 @@ function aboveReasons(n) {
     ${relied.filter(r => !above.some(a => a.id === r.id)).map(r => `<div class="small">relies on <a data-goto="${esc(r.id)}"><b>${esc(r.id)}</b></a>: ${esc(r.reasonNow || r.decision?.reason || "")}${ask(r.id)}</div>`).join("")}</div>`;
 }
 
-// Back to the agent, with what to change: a request on the node.
-const sendBack = n => `<button class="btn small" data-sendback="${esc(n.id)}">Send back to the agent</button>`;
 
 // The reasons on a node: the one that binds now (the last accept or confirm) first, the rest of its
 // history collapsed, the original choice among them. Migrations change the format, not the theory: not listed.
@@ -840,8 +868,7 @@ function partsTable(n) {
     return `<tr><td><a data-goto="${esc(x.id)}"><b>${esc(x.id)}</b></a>${p ? `<div><span class="kind ${kindOf(p)}">${esc(kindOf(p))}</span></div>` : ""}</td>
       <td class="small">${esc(p ? C(p).statement : "(not in the model)")}</td><td>${neededChip(x)}</td><td>${p ? `<span class="chip s-${p.state}">${esc(p.state)}</span>` : ""}${check}</td></tr>`; }).join("");
   const c = sp.complete || {}, k = sp.clash || {};
-  const complete = { proven: c.detail === "authored" ? "The parts make it, by a proof the agent wrote (checked by Lean, axioms audited): read it before accepting."
-      : "The parts make it: proven automatically.", open: `Not shown that the parts make it: ${c.detail || "open"}.`, failed: `Failed: ${c.detail || ""}`,
+  const complete = { proven: c.detail === "authored" ? authoredWords(n) : "The parts make it: proven automatically.", open: `Not shown that the parts make it: ${c.detail || "open"}.`, failed: `Failed: ${c.detail || ""}`,
     unchecked: `Not checked yet: ${c.detail || "press Check"}.`, timeout: "Lean timed out: run Check again.", informal: "Not formalized: whether the parts make it is decided by reading them." }[c.status] || `${c.status}: ${c.detail || ""}`;
   const clash = { "no-clash": "The parts do not contradict each other, as far as Lean shows.", clash: `The parts contradict each other: ${k.detail || ""}`,
     informal: "Not formalized.", unchecked: "Not checked yet." }[k.status] || `${k.status}: ${k.detail || ""}`;
@@ -853,6 +880,19 @@ function partsTable(n) {
       ? `Lean shows ${esc(n.id)} without its part: it says nothing its part adds (${esc(notNeeded[0].detail || "")}).`
       : `Lean shows ${esc(n.id)} without ${notNeeded.map(x => esc(x.id)).join(", ")}: ${notNeeded.length > 1 ? "they are" : "it is"} not needed for it.`}</span></div>` : ""}
     <div class="result"><span class="chip ${k.status === "no-clash" ? "s-proven" : k.status === "clash" ? "s-failed" : "s-not-checked"}">clash</span><span>${esc(clash)}</span></div>`;
+}
+
+// A proof the agent wrote, in words: Lean has checked it and audited its axioms, so what is left to
+// judge is what it rests on: the parts it refers to, and whether it had to show the parts can all hold.
+function authoredWords(n) {
+  const parts = splitParts(n), names = xs => xs.join(", ");
+  const src = (n.proof?.source || "").replace(/\/-[\s\S]*?-\//g, "").replace(/--.*$/gm, "");
+  const named = parts.filter(p => new RegExp(`\\b${p}\\b`).test(src)), unnamed = parts.filter(p => !named.includes(p));
+  const uses = !n.proof ? "" : named.length ? ` It refers to ${names(named)}${unnamed.length ? `, and not by name to ${names(unnamed)}` : ""}.` : " It names none of the parts.";
+  const feasible = (n.obligations || []).some(o => o.name === "feasible")
+    ? " It needed feasible: Lean also checked that some world meets every part, so the proof does not rest on parts that contradict each other."
+    : " It did not need feasible: every part is backed by proven code or an assumption below it, so the parts can all hold (as far as the assumptions do).";
+  return `The parts make it, by a proof the agent wrote: Lean checked it and audited its axioms.${uses}${feasible}`;
 }
 
 // What the root says of the code: doing nothing does not meet it (idle), and root_impl from what is trusted.
@@ -873,6 +913,11 @@ function decisionBox(n) {
   // Another knowledge base's node: decided and checked there; here its decisions are read.
   if (n.imported) return `<div class="box ${n.state === "accepted" ? "accepted" : "proposed"}"><div class="verdict ${n.state === "accepted" ? "accepted" : "proposed"}">${n.state === "accepted" ? "Accepted" : "Waiting"} in ${esc(n.imported)}</div>
     <div class="muted small">${esc(n.id)} is decided in ${esc(n.imported)}, the project it comes from; this project reads its decisions there.</div></div>`;
+  // Asked to change: the agent has it; nothing to decide until it answers or changes it.
+  if (needsYou(n) && withAgent(n)) return `<div class="box review"><div class="verdict review">With the agent</div>
+    ${askedOf(n).map(r => `<div class="why"><div class="label">${esc(r.by)} asked for a change, ${new Date(r.at).toLocaleString()}</div>${esc(r.text)}</div>`).join("")}
+    <div class="muted small">It comes back to you when the agent answers or changes ${esc(n.id)}.</div>
+    <div class="actions"><button class="btn small" data-withdraw="${esc(askedOf(n).map(r => r.id).join(","))}">Withdraw the request, and decide it now</button></div></div>`;
   const blocked = !!n.waitsFor; // from core: a proposal, or a node whose parent moved, waits for its parents and the definitions it uses
   const chosen = reasons(n);
   const gone = rejectedAlts(n);
@@ -900,7 +945,7 @@ function decisionBox(n) {
       ${n.code ? governedFiles(n) : ""}
       ${altList}
       ${reasonBox(parts.length ? "Why do these parts make it (and say it in the domain's words)?" : "Why this one (or why not)?", "", n)}
-      ${button}<div class="actions"><button class="btn small" data-reject-self="1">Reject ${esc(n.id)}</button> ${sendBack(n)}</div></div>`;
+      ${button}<div class="actions"><button class="btn small" data-reject-self="1">Reject ${esc(n.id)}</button></div></div>`;
   }
   if (n.state === "review") {
     // The decisions below that this decision acts on, from core, with their reasons: where the
@@ -922,7 +967,13 @@ function decisionBox(n) {
       ${warn.length ? `<div class="warn-text">Note: ${esc(warn.join("; "))}.</div>` : ""}
       ${chosen}${whatMoved(n)}${partsBox}${rootBlock(n)}${altBox}${aboveReasons(n)}${altList}${belowList}
       ${reasonBox((n.causes || []).includes("self") ? "Why is the change right?" : (n.causes || []).includes("parts") ? "Why do these parts still make it?" : "Why does it still hold, given what changed?", "", n)}
-      ${button}<div class="actions">${sendBack(n)}</div></div>`;
+      ${button}</div>`;
+  }
+  if (n.state === "rejected") {
+    const r = (n.history || []).filter(h => h.action === "reject").slice(-1)[0];
+    return `<div class="box not-checked"><div class="verdict unchecked">Rejected</div>
+      ${r ? `<div class="why"><div class="label">rejected by ${esc(r.by)}${r.at ? `, ${new Date(r.at).toLocaleString()}` : ""}, because</div>${esc(r.reason)}</div>` : ""}
+      <div class="muted small">It is still in the Scala model: the agent removes it${live().some(c => parentsOf(c).includes(n.id)) ? ", and moves what rests on it" : ""}.</div></div>`;
   }
   return `<div class="box accepted"><div class="verdict accepted">Accepted</div>
     ${chosen}${altList}</div>`;
@@ -965,8 +1016,14 @@ function requestsFor(node) {
 
 function askBox(node, placeholder) {
   return `<textarea id="ask" rows="2" placeholder="${esc(placeholder)}"></textarea>
-    <div class="actions"><button class="btn small" data-ask="${esc(node)}">Send to the agent</button>
-    <span class="muted small">The agent sees it in its inbox and answers with proposals.</span></div>`;
+    <div class="actions"><button class="btn small" data-ask="${esc(node)}">${node ? "Ask for a change" : "Send to the agent"}</button>
+    <span class="muted small">${node ? `The agent sees it in its inbox; ${esc(node)} is with the agent until it answers or changes it.` : "The agent sees it in its inbox and answers with proposals."}</span></div>`;
+}
+
+// One way to ask for a change, on every node: proposed, under review or accepted.
+function askSection(n) {
+  return `<h3>Ask for a change</h3>${requestsFor(n.id)}
+    ${askBox(n.id, n.kind === "contract" ? "e.g. Add an example: a revoked grant refuses access." : isDef(n) ? "e.g. Propose another definition: sessions expire after an hour." : "e.g. Propose the parts that make it: tokens expire after an hour.")}`;
 }
 
 // Its parents: it is a part of each. With each parent's split, whether it is needed there, and its co-parts.
@@ -1013,7 +1070,7 @@ function nodeSection(n) {
       <div class="small">${esc(e.statement)}</div><pre>${esc(e.source)}</pre></div>`).join("")}
     ${(n.relies || []).length ? `<div class="side"><div class="label">its code calls</div>${n.relies.map(id => `<div class="small"><a data-goto="${esc(id)}"><b>${esc(id)}</b></a> ${esc(C(byId(id) || {}).statement || "")}</div>`).join("")}<div class="muted tiny">proven from their promises alone, not from their code</div></div>` : ""}
     ${(() => { const by = live().filter(x => (x.relies || []).includes(n.id)); return by.length ? `<div class="side"><div class="label">called by the code of</div><div class="small">${by.map(x => `<a data-goto="${esc(x.id)}">${esc(x.id)}</a>`).join(", ")}: a change to what this node means puts them up for review</div></div>` : ""; })()}
-    ${n.proof ? `<details ${n.state !== "accepted" ? "open" : ""}><summary>authored proof — ${esc(n.proof.file)}</summary><pre>${esc(n.proof.source)}</pre></details>` : ""}`;
+    ${n.proof ? `<details><summary>the agent's proof, in Lean — ${esc(n.proof.file)}</summary><pre>${esc(n.proof.source)}</pre></details>` : ""}`;
   if (n.kind === "design")
     return `<h3>Design decision</h3><div class="box"><div class="muted small">No formal model: decided and tracked like the rest, and every change to the files it governs is yours to review:</div>
       <pre>${esc((n.code?.files || []).join("\n") || "—")}</pre></div>`;
@@ -1037,14 +1094,14 @@ function nodeSection(n) {
   const head = {
     root: ["The root — the idea's purpose", "Stated as <i>exactly</i>: what users can do and what must never happen, together. Every node below is proven to imply it."],
     claim: ["Claim", "A property over the vocabulary, in one sentence. Its parts, together, are proven to make it."],
-    contract: [`Contract on <span class="mono">${esc(n.op || "")}</span>`, "Every call of the operation meets its post. Proven of its code where the code is a define; checked on its examples and at run time otherwise."],
+    contract: [`Contract on <span class="mono">${esc(n.op || "")}</span>`, "Every call of the operation meets its post. Proven down to its code when its implementation is a proven define (faster running code may be checked against that define); checked by running otherwise."],
     assumption: ["Assumption — trusted, not proven", "What the outside does (a port), or a fact of the world. It is a hypothesis of root_impl: listed among what the root rests on."],
   }[k] || [esc(k), ""];
   return `<h3>${head[0]}</h3><div class="box"><div class="muted small">${head[1]}</div>
     ${sourcesOf(n)}
     ${n.kind === "contract" ? `<div class="side"><div class="label">implementation</div><div class="small">${n.implementationProof
-      ? `${esc(n.implementationProof.name)}: ${esc(n.implementationProof.status)}${leanText(n.implementationProof.detail)}`
-      : C(n).implementation ? `plain Scala, checked on its ${(n.examples || []).length} examples, every combination of their inputs, and at run time by service: not proven` : "none registered"}</div>
+      ? `<b>${esc(codeWords(n).text.replace(/^./, x => x.toUpperCase()))}</b>${n.implementationProof.status === "proven" ? "" : leanText(n.implementationProof.detail)}${/^runs: /m.test(C(n).implementation || "") ? `<div class="muted tiny">The running code is checked against the define on the examples' inputs, and on data varied from them.</div>` : ""}`
+      : C(n).implementation ? `<b>Checked by running</b>: plain Scala, checked on its ${(n.examples || []).length} examples, every combination of their inputs, and at run time by service; not proven` : "none registered"}</div>
       ${C(n).implementation ? `<details><summary class="small">the code</summary><pre>${esc(C(n).implementation)}</pre></details>` : ""}</div>` : ""}
     ${(n.invariants || []).map(i => i.status === "exempt"
       ? `<div class="side"><div class="label">exempt from <a data-goto="${esc(i.id)}">${esc(i.id)}</a></div><div class="small">${esc(i.detail)}</div></div>`
@@ -1070,7 +1127,7 @@ function nodePane() {
     <div class="chips" style="margin-top:6px">${chips(n)}${n.replaces ? `<span class="chip s-not-checked">replaces ${esc(n.replaces)}</span>` : ""}</div>
     <p class="lead">${esc(c.statement)}</p>
     <div class="why"><div class="label">why</div>${esc(c.why)}</div>
-    ${needsYou(n) ? `<h3>Decision</h3>${decisionBox(n)}` : ""}`;
+    ${needsYou(n) ? `<h3>Decision</h3>${decisionBox(n)}${askSection(n)}` : ""}`;
   // Under review, what changed is in the decision above: the rest of the node is there to look up.
   const folded = n.state === "review";
   // Its parents always: what it is a part of is what a decision on it is about.
@@ -1082,12 +1139,10 @@ function nodePane() {
   else { const designs = treeChildren(n.id).filter(x => x.kind === "design"); if (designs.length) h += `<h3>Design decisions under it</h3>${designs.map(d => `<div class="small"><a data-goto="${esc(d.id)}"><b>${esc(d.id)}</b></a> ${esc(C(d).statement)}</div>`).join("")}`; }
   h += examplesTable(n);
   if (folded) h += `</details>`;
-  if (!needsYou(n)) h += `<h3>Decision</h3>${decisionBox(n)}`;
+  if (!needsYou(n)) h += `<h3>Decision</h3>${decisionBox(n)}${n.state === "rejected" ? "" : askSection(n)}`;
   if (n.messages?.length) h += `<h3>Messages</h3><pre>${esc(n.messages.join("\n\n"))}</pre>`;
   const openProof = ["open", "failed"].includes(n.split?.complete?.status) || n.implementationProof?.status === "open" || n.rootImpl?.status === "open";
-  h += `<h3>Ask the agent</h3>${requestsFor(n.id)}
-    ${askBox(n.id, n.kind === "contract" ? "e.g. Add an example: a revoked grant refuses access." : isDef(n) ? "e.g. Propose another definition: sessions expire after an hour." : "e.g. Propose the parts that make it: tokens expire after an hour.")}
-    <div class="actions">
+  h += `<div class="actions">
       ${n.kind !== "design" && !isDef(n) ? `<button class="btn small" data-run="check" data-arg="${esc(n.id)}">Check this node</button>` : ""}
       ${openProof && !n.proof && (n.obligations || []).length ? `<button class="btn small" data-run="scaffold" data-arg="${esc(n.id)}">Create proof file</button>` : ""}
     </div>`;
@@ -1128,7 +1183,9 @@ function inboxPane() {
       ${all.filter(f => followers(f, all) === n.id).map(f => `<div class="muted small">↳ <a data-goto="${esc(f.id)}">${esc(f.id)}</a> moved with it: decided together, from its review</div>`).join("")}</div>`;
   const answered = requests().filter(r => r.status === "answered");
   const open = requests().filter(r => r.status === "open");
-  const rejected = all().filter(n => n.state === "rejected");
+  const rejected = all().filter(n => n.state === "rejected"), orphans = live().filter(n => n.state !== "rejected" && restsOnRejected(n));
+  const rejectedWhy = n => (n.history || []).filter(h => h.action === "reject").slice(-1)[0];
+  const stateChip = n => n ? `<span class="chip s-${n.state}">${esc(n.state)}</span>` : "";
   const warns = snap()?.warnings || [];
   return `${warns.length ? `<div class="box failed" style="margin-top:0"><div class="verdict failed">Warnings</div>${warns.map(x => `<div class="small">${esc(x)}</div>`).join("")}</div>` : ""}
     ${(snap()?.unsigned || []).length ? `<div class="box review" style="margin-top:0"><div class="verdict review">Decisions not signed by your key</div>
@@ -1136,7 +1193,8 @@ function inboxPane() {
       ${snap().unsigned.map(u => `<label class="small" style="display:block"><input type="checkbox" class="unsigned" value="${esc(u.entry)}"> <a data-goto="${esc(u.node)}">${esc(u.node)}</a>: ${esc(u.action)} by ${esc(u.by)}, ${new Date(u.at).toLocaleString()} — ${esc(u.reason)}</label>`).join("")}
       <div class="actions"><button class="btn small" data-sign="1">These are mine: sign them</button></div></div>` : ""}
     <h3 style="margin-top:0">Waiting for you — ready: everything above it is decided</h3>${ready.length ? ready.filter(n => !followers(n, w)).map(n => row(n, w)).join("")
-      : gone().length || mech.length || later.length ? `<div class="muted small">None ready.</div>` : `<div class="muted small">Nothing. Every node is accepted.</div>`}
+      : gone().length || mech.length || later.length ? `<div class="muted small">None ready.</div>`
+      : withAgentCount() ? `<div class="muted small">Nothing now: the nodes you asked to change are with the agent.</div>` : `<div class="muted small">Nothing. Every node is accepted.</div>`}
     ${mech.length ? `<h3>Mechanical — Lean proves these again; nothing in them is a choice</h3>
       ${batchBox(mech, `${mech.length} mechanical decision${mech.length > 1 ? "s" : ""}`, "nothing you decided in them changed (only the types they use, a proven implementation, or something above them), and Lean proves them again. Open one to read what moved.", "Why do they hold? e.g. a new field no rule reads")}` : ""}
     ${later.length ? `<h3>After the decisions above them</h3>${later.filter(n => !followers(n, w)).map(n => row(n, w)).join("")}` : ""}
@@ -1149,11 +1207,16 @@ function inboxPane() {
     ${(() => { const others = waitingAll().filter(n => !yours(n)); if (!others.length) return "";
       const by = {}; others.forEach(n => { const k = n.imported ? `${n.imported} (another project)` : n.owner; (by[k] = by[k] || []).push(n); });
       return `<h3>Waiting for other owners</h3>${Object.entries(by).map(([o, ns]) => `<div class="small"><b>${esc(o)}</b>: ${ns.map(n => `<a data-goto="${esc(n.id)}">${esc(n.id)}</a>`).join(", ")}</div>`).join("")}`; })()}
-    <h3>Answered by the agent</h3>${answered.length ? answered.map(r => `<div class="req"><div class="small">on ${r.node ? `<a data-goto="${esc(r.node)}">${esc(r.node)}</a>` : "the idea"}</div>
+    <h3>Answers to read</h3>${answered.length ? answered.map(r => `<div class="req"><div class="small">on ${r.node ? `<a data-goto="${esc(r.node)}">${esc(r.node)}</a>` : "the idea"}</div>
       <div>${esc(r.text)}</div><div class="answer small"><span class="muted">agent:</span> ${esc(r.answer)}</div>
       <div class="actions"><button class="btn small" data-close="${esc(r.id)}">Done</button></div></div>`).join("") : `<div class="muted small">None.</div>`}
-    <h3>Waiting for the agent</h3>${open.length ? open.map(r => `<div class="req"><div class="small">on ${r.node ? `<a data-goto="${esc(r.node)}">${esc(r.node)}</a>` : "the idea"} · ${esc(r.by)}</div><div>${esc(r.text)}</div></div>`).join("") : `<div class="muted small">None.</div>`}
-    ${rejected.length ? `<div class="muted small" style="margin-top:8px">${rejected.length} rejected node(s) still in the Scala model; the agent removes them.</div>` : ""}
+    <h3>Waiting for the agent</h3>${open.length || rejected.length || orphans.length ? "" : `<div class="muted small">None.</div>`}
+    ${open.map(r => { const n = byId(r.node), moved = n && r.seen && r.seen !== n.version;
+      return `<div class="req"><div class="small">on ${r.node ? `<a data-goto="${esc(r.node)}">${esc(r.node)}</a> ${stateChip(n)}` : "the idea"} · ${esc(r.by)}</div><div>${esc(r.text)}</div>
+      ${moved && needsYou(n) ? `<div class="muted tiny">${esc(n.id)} changed since you asked: it is back with you, under Waiting for you.</div>` : ""}</div>`; }).join("")}
+    ${rejected.length ? `<div class="side"><div class="label">rejected, still in the Scala model: the agent removes ${rejected.length > 1 ? "them" : "it"}</div>${rejected.map(n => `<div class="req"><span class="kind ${kindOf(n)}">${esc(kindOf(n))}</span> <a data-goto="${esc(n.id)}"><b>${esc(n.id)}</b></a> <span class="chip s-rejected">rejected</span>
+      <div class="small">${esc(C(n).statement)}</div>${rejectedWhy(n) ? `<div class="muted small">rejected by ${esc(rejectedWhy(n).by)}: ${esc(rejectedWhy(n).reason)}</div>` : ""}</div>`).join("")}</div>` : ""}
+    ${orphans.length ? `<div class="side"><div class="label">resting on a rejected node: the agent moves ${orphans.length > 1 ? "them" : "it"} under the node chosen instead, or removes ${orphans.length > 1 ? "them" : "it"}</div>${orphans.map(n => `<div class="small"><a data-goto="${esc(n.id)}"><b>${esc(n.id)}</b></a> rests on ${parentsOf(n).filter(p => byId(p)?.state === "rejected").map(p => `<a data-goto="${esc(p)}">${esc(p)}</a>`).join(", ")}</div>`).join("")}</div>` : ""}
     <h3>Ask about the whole idea</h3>${askBox("", "e.g. Users can also see who accessed their records: propose where it belongs.")}`;
 }
 
@@ -1289,12 +1352,9 @@ document.addEventListener("click", async e => {
     decide({ node: state.selected, by: who, reason, action: "reject", seen: byId(state.selected).version }, rs);
     return;
   }
-  const sb = t.closest("[data-sendback]");
-  if (sb) {
-    const who = needName(sb); if (!who) return;
-    const text = $("#reason")?.value.trim() || "";
-    if (words(text) < 3) { $("#reason")?.focus(); say(sb, "Say what to change, in a few words, in the reason box."); return; }
-    try { await post(`${P()}/requests`, { node: sb.dataset.sendback, text, by: who }); if ($("#reason")) $("#reason").value = ""; await refresh(); } catch (err) { say(sb, err.message); }
+  const wd = t.closest("[data-withdraw]");
+  if (wd) {
+    try { for (const id of wd.dataset.withdraw.split(",")) await post(`${P()}/requests/${encodeURIComponent(id)}`, { status: "closed" }); await refresh(); } catch (err) { say(wd, err.message); }
     return;
   }
   const ba = t.closest("[data-batch]");
@@ -1339,7 +1399,8 @@ document.addEventListener("click", async e => {
   if (ask) {
     const who = needName(ask); if (!who) return;
     const text = $("#ask").value.trim(); if (!text) { $("#ask").focus(); return; }
-    try { await post(`${P()}/requests`, { node: ask.dataset.ask, text, by: who }); $("#ask").value = ""; refresh(); } catch (err) { say(ask, err.message); }
+    // With the version of the node asked about: it is with the agent until the agent answers or changes it.
+    try { await post(`${P()}/requests`, { node: ask.dataset.ask, text, by: who, seen: byId(ask.dataset.ask)?.version || "" }); $("#ask").value = ""; refresh(); } catch (err) { say(ask, err.message); }
     return;
   }
   const close = t.closest("[data-close]");
@@ -1368,10 +1429,15 @@ document.addEventListener("click", async e => {
 document.addEventListener("input", e => { if (e.target.id === "ideaText") state.ideaDraft = e.target.value; });
 $("#me").addEventListener("change", e => store.set("frflow.me", e.target.value.trim()));
 $("#jobClose").onclick = () => { state.jobOpen = false; renderJob(); };
+// The legend stays as the developer left it, open or folded.
+$("#legend").open = store.get("frflow.legend") !== "closed";
+$("#legend").addEventListener("toggle", () => store.set("frflow.legend", $("#legend").open ? "open" : "closed"));
+let resized = null;
+window.addEventListener("resize", () => { clearTimeout(resized); resized = setTimeout(() => { if (snap()) renderTree(); }, 150); });
 $("#project").onchange = e => {
   // What is shown belongs to the old project until the new one is loaded: clear it now.
   state.project = e.target.value; state.gen++; store.set("frflow.project", state.project);
-  Object.assign(state, { data: null, history: [], job: null, selected: null, jobOpen: false, editingIdea: false, ideaBase: null, ideaDraft: null, ideaError: "", codeDiffs: {} });
+  Object.assign(state, { data: null, history: [], job: null, selected: null, scrolledTo: undefined, jobOpen: false, editingIdea: false, ideaBase: null, ideaDraft: null, ideaError: "", codeDiffs: {} });
   render(); refresh();
 };
 

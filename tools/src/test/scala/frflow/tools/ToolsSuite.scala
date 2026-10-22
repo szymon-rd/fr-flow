@@ -186,8 +186,10 @@ class ToolsSuite extends munit.FunSuite:
 
   test("server: requests and the idea") {
     withServer { (base, p) =>
-      val (st, r) = post(base + "/api/p/Fake/requests", obj("node" -> str("Auto"), "text" -> str("Propose another"), "by" -> str("dev")))
+      val (st, r) = post(base + "/api/p/Fake/requests", obj("node" -> str("Auto"), "text" -> str("Propose another"), "by" -> str("dev"), "seen" -> str("v1")))
       assertEquals(st, 201)
+      // the version of the node asked about: the node is with the agent until it answers or changes it
+      assertEquals(s(r, "seen"), "v1")
       assertEquals(Json.parse(get(base + "/api/p/Fake/kb")._2)("requests").map(_.arr.map(s(_, "text"))), Some(Seq("Propose another")))
       assertEquals(s(post(base + s"/api/p/Fake/requests/${s(r, "id")}", obj("status" -> str("closed")))._2, "status"), "closed")
       val before = if Files.exists(p.root.resolve("IDEA.md")) then Files.readString(p.root.resolve("IDEA.md")) else ""
