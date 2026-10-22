@@ -157,7 +157,8 @@ Edges and extras (chained on a node):
 - `idea = "Section"`: the `## ` section of `IDEA.md` the node is decided
   against (the root takes the title and lead). A section no node names is a
   warning. `owner = "name"`: only that developer decides it, and the nodes
-  whose first parent it owns; never route its decisions to anyone else.
+  whose first parent it owns; never route its decisions to anyone else. A node
+  whose parents have different owners names its own (`status` asks for it).
 - `formal = false` (claim, contract, invariant): out of Lean, decided by
   reading. Only when the Lean subset cannot say it or the proof costs more than
   it gives; say so in `why`.
@@ -199,16 +200,22 @@ data, never from the result.
 ## What check reports, and what to do
 
 Per node with parts: `complete` (`proven`, `open`, `failed`); each part
-`needed` or `not-needed` (one part: `vacuous` gives the same two); `clash` or
-`no-clash`; every claim `unsat` or `not-unsat`; the root `idle` or `not-idle`,
-and `root_impl`. `unchecked`, `timeout` and `informal` when there is no result.
-`status` lists the trusted list: the hypotheses of `root_impl`.
+`needed` or `not-needed` (one part: `vacuous` gives the same two, and
+`restates` or `not-restates`); `clash` or `no-clash`; every claim `unsat` or
+`not-unsat`; the root `idle` or `not-idle`, and `root_impl`. `unchecked`,
+`timeout` and `informal` when there is no result. `status` lists the trusted
+list: the hypotheses of `root_impl`. The tries are one-sided: `not-needed`,
+`restates`, `clash`, `unsat` and `idle` are proofs; `needed`, `no-clash`,
+`not-unsat` and `not-idle` say only that Lean found no proof within the try's
+budget (small; Lean's default for `idle`). Never write in a reason that Lean shows a part needed or the root not
+idle.
 
 | Report | Means | Do |
 |---|---|---|
 | `complete` open: "automation gave up" | the parts may not make it | First ask whether they do: usually a part is missing or too weak. If they do, prove it by hand (below). |
 | Ci `not-needed` | the node holds without Ci | Ci belongs elsewhere (under the node it does help), or another part says too much, or the node says less than meant. Fix the split. |
 | `vacuous` (one part) | the node holds whatever its part says | The node says nothing its part adds (often true of every world): strengthen it, or remove it. |
+| `restates` (one part; a warning of `status`) | the node and its one part say the same | Merge them, or say what the node adds. |
 | `clash` | the parts contradict each other | Fix the parts; a proof from them would prove anything. |
 | `unsat` | no world meets the node | Fix the node. |
 | `idle` | doing nothing meets the root | The root says only what must not happen: state what users can do. |
@@ -285,9 +292,11 @@ redefine `equals`, no two `define`s with one name.
   authored proofs use `ite_eq_left`/`ite_eq_right` (`dite_eq_left`/
   `dite_eq_right`), or `split` and `simp [h]`.
 - **Changing an accepted node** anywhere in its `val` puts it back to review
-  (`self`); a change of its statement or formula also reviews what rests on it
-  (`above`), and adding or removing a part reviews the parent (`parts`).
-  Rewording a `why` or adding an example does not cascade. A change to an
+  (`self`); a change of its formula also reviews what rests on it (`above`),
+  and adding or removing a part reviews the parent (`parts`). Rewording a
+  statement whose formula is unchanged, a `why`, or adding an example does not
+  cascade (the node's review lists what rests on it, to revisit by name); a
+  `formal = false` node is its words, and rewording it cascades. A change to an
   implementation or a governed file reviews the node (`code`): no proof covers
   plain code, so say in your answer what changed and why the invariants it
   touches still hold.

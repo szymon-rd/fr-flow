@@ -5,13 +5,17 @@ import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.{Files, Path}
 
 /** Result of one obligation: `proven`, `open` or `failed`. A try (a statement Lean is asked whether it
-  * can prove, see `Generate.tries`) has a plain status instead, saying what Lean shows: `needed` or
-  * `not-needed` (a part, and `vacuous` with one part), `no-clash` or `clash`, `not-unsat` or `unsat`,
-  * `not-idle` or `idle`, `not-vacuous` or `vacuous` (an expectation).
+  * can prove, see `Generate.tries`) has a plain status instead: the second of each pair when Lean proved
+  * it, the first when it found no proof within the try's budget (which shows nothing): `needed` or
+  * `not-needed` (a part, and `vacuous` with one part), `not-restates` or `restates` (one part),
+  * `no-clash` or `clash`, `not-unsat` or `unsat`, `not-idle` or `idle`, `not-vacuous` or `vacuous` (an
+  * expectation).
   */
 final case class Result(name: String, status: String, detail: String = ""):
-  /** A limit of what the node says, not an obligation: `idle` means doing nothing meets the root. */
-  def isLimit: Boolean = name == "idle"
+  /** A limit of what the node says, not an obligation: `idle` means doing nothing meets the root;
+    * `restates`, that the node says what its one part says (a warning of `status`).
+    */
+  def isLimit: Boolean = name == "idle" || name == "restates"
   /** Lean evaluating an example as Scala does: the translation's cross-check. */
   def isEvaluation: Boolean = name.startsWith("eval") || name.startsWith("probe")
   /** Nothing to do about it: an obligation proven, a try that shows nothing wrong, or a limit. */
@@ -19,7 +23,7 @@ final case class Result(name: String, status: String, detail: String = ""):
 
 object Result:
   /** The statuses that leave nothing to do: an obligation proven, a try showing nothing wrong. */
-  val Fine: Set[String] = Set("proven", "needed", "no-clash", "not-unsat", "not-idle", "not-vacuous")
+  val Fine: Set[String] = Set("proven", "needed", "not-restates", "no-clash", "not-unsat", "not-idle", "not-vacuous")
 
 
 /** The outcome of checking one node. `status` is `proven`, `open`, `failed`,

@@ -502,15 +502,19 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     // The tries: what Lean proves of them says the node or its split says nothing, or too much.
     val tried = g.tries(n).map(t => (t, holds(t.obligation.name)))
     val fatal = tried.collect { case (t, true) if Set("unsat", "clash")(t.obligation.name) => t.means }
-    // Each in plain words: what Lean shows (see `Result`).
+    // Each in plain words: what Lean proved, or that it found no proof within the try's budget (see `Result`).
     val tryResults = tried.map { (t, proven) =>
       val name = t.obligation.name
-      def says(yes: String, no: String, otherwise: String) = Result(name, if proven then yes else no, if proven then t.means else otherwise)
-      if name == "idle" then Result("idle", if proven then "idle" else "not-idle", g.idleWhat(n))
-      else if name.startsWith("vacuous_expect_") then says("vacuous", "not-vacuous", "")
-      else if name == "unsat" then says("unsat", "not-unsat", "Lean does not show it contradictory")
-      else if name == "clash" then says("clash", "no-clash", "Lean does not show the parts contradict each other")
-      else says("not-needed", "needed", "Lean does not show the node without it")
+      def says(yes: String, no: String, otherwise: String) = Result(name, if proven then yes else no, if proven then t.means else s"Lean found no proof that $otherwise (a try)")
+      val one = g.splitParts(n).collect { case List(c) => c.id }.getOrElse("")
+      if name == "idle" then Result("idle", if proven then "idle" else "not-idle",
+        if proven then g.idleWhat(n) else s"Lean found no proof that doing nothing (${g.idleWhat(n)}) meets it (a try)")
+      else if name.startsWith("vacuous_expect_") then says("vacuous", "not-vacuous", "the expectation holds whatever the node says")
+      else if name == "unsat" then says("unsat", "not-unsat", "no world meets it")
+      else if name == "clash" then says("clash", "no-clash", "the parts contradict each other")
+      else if name == "restates" then says("restates", "not-restates", s"$one follows from ${n.id}")
+      else if name == "vacuous" then says("not-needed", "needed", s"${n.id} holds whatever $one says")
+      else says("not-needed", "needed", s"${n.id} holds without it")
     }
     val extra = g.extraObligations(n).map { o =>
       val how = if g.isAuthored(n, o.name) then "authored" else "auto"
@@ -564,7 +568,8 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   /** How a node's parts make it (docs/DAG.md §4): `complete`, each part `needed`, and `clash`, each with a
     * status and a detail. `complete`: `proven`, `open`, `failed`; each part: `needed` or `not-needed`;
     * `clash`: `no-clash` or `clash`; any of them `unchecked`, `timeout` or `informal` when not checked. Null
-    * for a node with no parts.
+    * for a node with no parts. `needed` and `no-clash` are tries that found no proof: nothing is shown wrong,
+    * nothing is proven.
     */
   def split(n: Node[?]): Json =
     def st(status: String, detail: String) = obj("status" -> str(status), "detail" -> str(detail))
@@ -609,10 +614,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
 
   /** Decisions in a concern with an owner made by someone else (with named keys, `by` is the key's name). */
   /** Who decides a node: its own owner, else its first parent's, recursively; none, anyone. */
-  def ownerOf(n: Node[?]): String =
-    def go(x: Node[?], seen: Set[String]): String =
-      if x.owner.nonEmpty || seen(x.id) then x.owner else kb.parentsOf(x).headOption.fold("")(go(_, seen + x.id))
-    go(n, Set.empty)
+  def ownerOf(n: Node[?]): String = kb.ownerOf(n)
 
   /** Decisions on an owned node made by someone else (with named keys, `by` is the key's name). */
   private def ownerWarnings: List[String] =
@@ -786,7 +788,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   /** The tree and its warnings, and whether the knowledge base is complete (the CI gate). */
   def status: (String, Boolean) =
     val a = annotated
-    val warnings = integrity ++ uncrossed
+    val warnings = integrity ++ uncrossed ++ restated
     val ok = Decisions.complete(a) && warnings.isEmpty
     // What each invariant does not reach (by the type of what a contract returns), so a gap is seen.
     val notes = kb.nodes.filter(_.isInvariant).flatMap { i =>
@@ -871,6 +873,13 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   /** Formal contracts whose translation no example cross-checks: checked, and none of their examples
     * evaluated in Lean as in Scala.
     */
+  /** One-part nodes Lean proves say what their part says (`restates`, with `complete` proven): a node
+    * that only restates its part is not a node.
+    */
+  def restated: List[String] =
+    kb.nodes.flatMap(n => current(n).toList.filter(_.obligations.exists(o => o.name == "complete" && o.status == "proven"))
+      .flatMap(_.obligations.find(o => o.name == "restates" && o.status == "restates")).map(_.detail))
+
   def uncrossed: List[String] =
     kb.nodes.filter(c => c.kind == NodeKind.Contract && generate.formal(c) && c.cases.nonEmpty).flatMap { c =>
       current(c).filter(k => !k.obligations.exists(o => o.name.startsWith("eval_") && o.status == "proven")).map(_ =>
@@ -1107,16 +1116,20 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
             if k.view.isEmpty then ("exempt", k.exempt)
             else if !g.formalKeeps(n).exists(_._1 eq k.invariant) then ("informal", "checked on the examples and at run time; not formalized")
             else
-              // Kept: the view lists all the result holds of it, and the invariant's split holds with this contract needed.
+              // Kept: what is proven, that the view lists all the result holds of it, and the invariant's
+              // `complete`, this contract among its parts. Lean proving the invariant holds without it
+              // (`not-needed`) leaves it `open`; a try that found no proof (`needed`) proves nothing, and is said apart.
               val inv = split(k.invariant)
               val cover = res(s"cover_${k.invariant.id}").map(r => (r.status, s"coverage: ${r.detail}"))
               val complete = inv("complete").map(c => (c("status").flatMap(_.str).getOrElse(""), c("detail").flatMap(_.str).getOrElse("")))
-              // (In the invariant's words: kept, `proven`, when the contract is needed; `open` when it is not.)
               val needed = inv("needed").flatMap(_.arr.find(_("id").flatMap(_.str).contains(n.id)))
-                .map(c => (c("status").flatMap(_.str).map { case "needed" => "proven"; case "not-needed" => "open"; case x => x }.getOrElse(""),
-                  c("detail").flatMap(_.str).getOrElse("")))
-              val all = cover.toList ++ complete ++ needed
-              all.find(_._1 != "proven").orElse(complete).getOrElse(("unchecked", "not checked yet"))
+                .map(c => (c("status").flatMap(_.str).getOrElse(""), c("detail").flatMap(_.str).getOrElse("")))
+              val notNeeded = needed.filter(_._1 == "not-needed").map(c => ("open", c._2))
+              (cover.toList ++ complete ++ notNeeded).find(_._1 != "proven") match
+                case Some(x) => x
+                case None => complete.fold(("unchecked", "not checked yet"))(_ => ("proven",
+                  s"${k.invariant.id} follows from the contracts that keep it, ${n.id} among them" +
+                    (if needed.exists(_._1 == "needed") then s"; needed: not shown otherwise — ${needed.get._2}" else "")))
           obj("id" -> str(k.invariant.id), "view" -> str(k.view.fold("")(_.source)),
             "rule" -> str(k.invariant.rule.fold("")(_.source)), "status" -> str(st), "detail" -> str(detail))
         }),
@@ -1147,7 +1160,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       "idea" -> str(idea),
       "format" -> JNum(Workflow.ContentFormat),
       "ideaFile" -> str(kb.idea),
-      "warnings" -> strs(importWarnings ++ codeWarnings ++ uncrossed),
+      "warnings" -> strs(importWarnings ++ codeWarnings ++ uncrossed ++ restated),
       "imports" -> JObj(importDirs.toList.sorted.map((id, d) => id -> str(d))),
       "root" -> kb.root.fold(JNull)(r => str(r.id)),
       "definitions" -> strs(kb.definitions.map(_.id)),
@@ -1262,4 +1275,4 @@ object Workflow:
   val ContentFormat: Int = 4
 
   /** How checks are run and read: a change to it re-runs every check. */
-  val CheckerVersion: Int = 5
+  val CheckerVersion: Int = 6

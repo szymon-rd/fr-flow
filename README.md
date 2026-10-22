@@ -123,8 +123,10 @@ Whatever moves under it puts the node back up for review, with the cause:
 | `merged` | two branches decided it, and the merge kept both | both decisions |
 
 A change above a shared node reviews it once, whatever the number of paths; a
-new part reviews its parents only. Rewording a `why` or adding an example does
-not cascade below; rewording a statement does. Accepting a change lists every
+new part reviews its parents only. Rewording a `why`, adding an example, or
+rewording a statement whose formula is unchanged does not cascade below (out of
+Lean, `formal = false`, rewording does); a change of formula does. Accepting a
+change lists every
 decision that rests on it, however far down, each with its reason; the
 developer marks those it may affect (`revisit`) and confirms by name those that
 moved only because of it. A reason that says when to revisit it ("revisit if

@@ -213,6 +213,14 @@ class LeanSuite extends munit.FunSuite:
     val part = Node.claim("Part", "Picked books come from the shelf.", why = "w")(forall((l: List[Book], n: Int) => picks(l, n).forall(b => l.contains(b)))).under(trivial)
     val r = workflow(KnowledgeBase("Vac", idea = "IDEA.md")(trivial, part)).check()
     assertEquals(result(of(r, "Trivial"), "vacuous").map(_.status), Some("not-needed"), of(r, "Trivial"))
+    // a node that says what its one part says: a warning
+    val same = Node.claim("Same", "Picked books come from the shelf.", why = "w")(forall((l: List[Book], n: Int) => picks(l, n).forall(b => l.contains(b))))
+    val again = Node.claim("Again", "Every book picked is on the shelf.", why = "w")(forall((l: List[Book], n: Int) => picks(l, n).forall(b => l.contains(b)))).under(same)
+    val sw = workflow(KnowledgeBase("Same", idea = "IDEA.md")(same, again))
+    val sr = sw.check()
+    assertEquals(result(of(sr, "Same"), "restates").map(_.status), Some("restates"), of(sr, "Same"))
+    assertEquals(result(of(r, "Trivial"), "restates").map(_.status), Some("not-restates"), of(r, "Trivial"))
+    assert(sw.status._1.contains("warning: Same says what Again says: merge them, or say what Same adds"), sw.status._1)
     val never = Node.claim("Never", "The service picks more books than it picks.", why = "w")(
       picks(List(Book("A", 1)), 1).length > picks(List(Book("A", 1)), 1).length).under(onlyGood)
     val u = of(workflow(KnowledgeBase("Unsat", idea = "IDEA.md")(onlyGood, books, picking, never)).check(), "Never")

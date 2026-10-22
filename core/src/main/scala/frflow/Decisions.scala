@@ -76,11 +76,39 @@ object Decisions:
       val parentRejected = parents(n).flatMap(ids.get).exists(p => state(p) == "rejected")
       ledger.binding(id).fold(Nil) { d =>
         val moved = d.hash != s(n, "hash")
-        List("self" -> (moved && selfChanged(d, n, ledger)), "above" -> (d.chain != parentChain(n) || parentRejected),
+        List("self" -> (moved && selfChanged(d, n, ledger)), "above" -> ((d.chain != parentChain(n) && !reworded(n, d)) || parentRejected),
           "parts" -> (moved && partsChanged(d, n, ledger)),
           "code" -> (d.code != code(n)), "revisit" -> revisit, "merged" -> ledger.forked(id)).collect { case (c, true) => c }
       }
     })
+    /** What a node rests on, as `Workflow.restsOn`: its parents, the definitions it uses, the contracts its code calls. */
+    private def restsOn(n: Json): List[String] = (parents(n) ++ uses(n) ++ relies(n)).distinct.filter(ids.contains)
+    /** Whether what `n` rests on moved only in its words: with each formal node above it whose Lean did
+      * not change (its statement reworded) taken as it was decided when `d` was, the chain is `d`'s again.
+      * Rewording a formal node reviews that node only; the decisions below it are listed under it (`below`),
+      * not sent to review. A node out of Lean (`formal = false`) is its words: rewording it moves what is below.
+      */
+    private def reworded(n: Json, d: Decision): Boolean =
+      val rests = scala.collection.mutable.LinkedHashSet.empty[String]
+      def up(x: Json): Unit = restsOn(x).foreach(a => if rests.add(a) then up(ids(a)))
+      up(n)
+      val was: Map[String, String] = rests.toList.flatMap { a =>
+        val now = ids(a)("content").getOrElse(JObj(Nil))
+        ledger.history(a).filter(x => Ledger.binds(x.action) && x.at <= d.at).lastOption.map(_.content)
+          .filter(c => formalNode(now) && meaning(c) != meaning(now) && formalMeaning(c) == formalMeaning(now)).map(c => a -> meaning(c))
+      }.toMap
+      was.nonEmpty && {
+        val reaches = scala.collection.mutable.Map.empty[String, Boolean]
+        def touched(x: String): Boolean = reaches.getOrElseUpdate(x, restsOn(ids(x)).exists(a => was.contains(a) || touched(a)))
+        val chains = scala.collection.mutable.Map.empty[String, String]
+        def chainOf(a: String): String = chains.getOrElseUpdate(a,
+          sha(was.getOrElse(a, meaning(ids(a)("content").getOrElse(JObj(Nil)))), restOf(ids(a))))
+        // As `Workflow.restChain`: another knowledge base's node and a design node keep theirs.
+        def restOf(x: Json): String =
+          if !touched(s(x, "id")) || x("imported").exists(_ != JNull) || s(x, "kind") == "design" then parentChain(x)
+          else Decisions.above("", restsOn(x).map(chainOf))
+        restOf(n) == d.chain
+      }
     def state(n: Json): String = states.getOrElseUpdate(s(n, "id"),
       ledger.current(s(n, "id")) match
         case Some(d) if d.action == "reject" => if !changed(d, n, ledger) then "rejected" else "proposed"
@@ -174,6 +202,14 @@ object Decisions:
   def meaning(content: Json): String =
     val parts = Set("statement", "sources", "substitutions", "vocabulary", "uses", "governs", "formal", "op")
     Decision.hash(JObj(content.obj.filter(f => parts(f._1))))
+
+  /** What a formal node means to Lean: its meaning without the words of its statement. */
+  private def formalMeaning(content: Json): String = meaning(without(content, Set("statement")))
+
+  /** A node Lean reads (a formula, a post, a rule, or a definition's terms), not out of Lean (`formal = false`). */
+  private def formalNode(content: Json): Boolean =
+    !content("formal").contains(JBool(false)) &&
+      (content("sources").exists(_.obj.nonEmpty) || content("substitutions").exists(_.arr.nonEmpty))
 
   /** The `## ` sections of the idea (without Not modelled), by heading, after the text before the
     * first one (which every section-root is also decided against).
@@ -314,7 +350,7 @@ object Decisions:
     * content as it was then: what the browser shows for the cause `above`.
     */
   private def moved(snapshot: Json, ledger: Ledger, n: Json): List[Json] =
-    ledger.binding(s(n, "id")).filter(_.chain != parentChain(snapshot, n)).fold(Nil) { d =>
+    ledger.binding(s(n, "id")).filter(d => d.chain != parentChain(snapshot, n) && causes(snapshot, ledger, n).contains("above")).fold(Nil) { d =>
       val ids = byId(snapshot)
       def up(x: Json, seen: Set[String]): List[Json] = parents(x).filterNot(seen).flatMap(ids.get).flatMap(p => p :: up(p, seen + s(p, "id")))
       // What it rests on: its ancestors, the definitions they use, and the contracts their code calls.
@@ -393,7 +429,7 @@ object Decisions:
     * decided of the node itself changed (only what follows from elsewhere moved: the types it uses, a
     * proven implementation, how its examples print, or something above it; a definition it calls is part
     * of what it says), and Lean proves it again; when its parts changed, Lean proves they make it
-    * (`complete`), each needed, without clashing.
+    * (`complete`) and its tries show nothing wrong with them (none shown not needed, no clash shown).
     */
   def mechanical(snapshot: Json, ledger: Ledger, n: Json): Option[String] =
     val v = view(snapshot, ledger)
@@ -408,7 +444,7 @@ object Decisions:
     else if ledger.binding(id).forall(d => decidedHash(d.content, provenImpl, missing(d)) != decidedHash(n("content").getOrElse(JObj(Nil)), provenImpl, missing(d))) then
       Some(s"what $id says changed: the developer decides")
     else if cs.contains("parts") && !partsMake(n) then
-      Some(s"$id's parts changed and Lean does not prove they make it, each needed: the developer decides")
+      Some(s"$id's parts changed and Lean does not prove they make it, or shows one not needed or a clash: the developer decides")
     else if !unproven(n).forall(_.startsWith("nothing below proves it")) then Some(s"$id is not proven: only what Lean proves again is mechanical")
     else if ok != total then Some(s"${total - ok} of $id's examples fail")
     else if n("invariants").exists(_.arr.exists(i => !Set("proven", "exempt")(s(i, "status")))) then Some(s"an invariant $id keeps is not proven")
@@ -417,7 +453,10 @@ object Decisions:
       Some(s"$id waits for ${waitsFor(snapshot, ledger, n).get}")
     else None
 
-  /** Lean proves the node's parts make it (`complete`), each is needed, and they do not clash. */
+  /** Lean proves the node's parts make it (`complete`), and its tries ran and show nothing wrong: no part
+    * shown not needed (`needed` says only that Lean found no proof without it), no clash shown. The new
+    * parts themselves are decided on their own; this settles only that they make the node.
+    */
   private def partsMake(n: Json): Boolean = n("split").filter(_ != JNull).exists { sp =>
     sp("complete").exists(c => s(c, "status") == "proven") &&
       sp("needed").forall(_.arr.forall(x => s(x, "status") == "needed")) && sp("clash").forall(c => c == JNull || s(c, "status") != "clash")

@@ -94,6 +94,7 @@ For each node N with parts C1..Cn (n ≥ 1), over the union U of the open terms 
 | `complete` | `∀ U, C1 → … → Cn → N` | `frflow_auto`, or `theorem complete` in `lean/Proofs/<KB>/<N>.lean` | the parts do not make N: open (unproven) |
 | `needed_i` (n ≥ 2) | tried: `∀ U, (∧ j≠i, Cj) → N` | `frflow_auto` with a short timeout | if Lean **proves** it, part i is not needed: N's split is unproven ("Ci is not needed for N") |
 | `vacuous` (n = 1) | tried: `∀ U, N` | as above | if proven, N says nothing its part adds: unproven |
+| `restates` (n = 1) | tried: `∀ U, N → C1` | as above | if proven (with `complete`), N says what its part says: a warning |
 | `clash` | tried: `∀ U, C1 → … → Cn → False` | as above | if proven, the parts contradict each other: failed |
 | `unsat` (every claim) | tried: `∀ U, ¬ N` | as above | if proven, no world meets N: failed |
 | `feasible` | `∃ U, C1 ∧ … ∧ Cn` | in the proof file | required only when `complete` is authored and no proven code witnesses the parts |
@@ -144,7 +145,8 @@ Changed fields only; everything else stays as today.
 - Alternatives: `replaces`, and two definitions of one term. Siblings under one parent are parts, not
   alternatives.
 - Owner: a node's own `owner`, else the owner of its first parent, recursively. A decision on a node
-  is refused to anyone but its owner, if it has one (as today).
+  is refused to anyone but its owner, if it has one (as today). A node whose parents have different
+  owners names its own (a structure problem otherwise; see §9, "Honest tries").
 - The decide request (`POST /api/p/NAME/decide`, MCP, CLI) is unchanged; `reject` lists alternatives.
 
 ## 6. Browser
@@ -374,3 +376,40 @@ now linear (about 0.85 s a node). The causes, and what changed:
 - **A cached node is kept only while its parts are proven.** Since a part's code no longer changes its
   parents' hash, a parent whose part has stopped being proven is checked again (it waits for it), and
   its hash reads its parts' `holds` statements, which name the leaves below them.
+
+### Honest tries, review by meaning (after the r16 review)
+
+- **A try says what Lean did.** A try that fails shows nothing: Lean found no proof within its budget.
+  The status keys are unchanged (the browser reads them), and the details say so: a part `needed` reads
+  "Lean found no proof that N holds without it (a try)", the root `not-idle` "Lean found no proof that
+  doing nothing (…) meets it (a try)", and so for `no-clash`, `not-unsat`, `not-vacuous`. A proven try
+  (`not-needed`, `clash`, `unsat`, `idle`, `restates`) is a proof, and says what it shows.
+- **`idle` at Lean's default budget.** It is one try per knowledge base, and at 4000 heartbeats it gave
+  up on a CRM-sized root that only prohibits (proven idle in under a second at the default). The other
+  tries keep 4000.
+- **A kept invariant's status** comes from what is proven: the coverage of its view and the
+  invariant's `complete` (the contract among its parts), and `open` when Lean proves the invariant
+  holds without the contract (`not-needed`). A failed `needed` try no longer makes it `proven`; the
+  detail says "needed: not shown otherwise" apart.
+- **Mechanical acceptance of a change of parts** still asks that `complete` is proven and that the tries
+  ran and show nothing wrong (no part `not-needed`, no `clash`). Read honestly, this is not "each part
+  is needed" but "Lean proves the parts make it, and finds nothing redundant or contradictory": the rule's
+  intent, since the parts added are decided on their own; it stands.
+- **`restates`.** A node with one part C is tried for `N → C` (4000 heartbeats). With `complete`, N and C
+  are then equivalent: `status` warns "N says what C says: merge them, or say what N adds"
+  (`Result.isLimit`, like `idle`: not an obligation).
+- **Review follows meaning.** Rewording a formal node (its statement; its `why` already did not
+  cascade), with what Lean reads unchanged (sources, substitutions, vocabulary, uses), reviews that node
+  (`self`) and not what rests on it: a node's `above` is not set when its recorded chain is met again
+  with every such reworded node above it taken as it was decided then (`Decisions.View.reworded`). The
+  hashes and the ledger are unchanged, so existing decisions read as before. The reworded node's review
+  lists the decisions below it (`below`, kind `accepted`): what may be affected, to revisit by name. A
+  `formal = false` node is its words: rewording it cascades as before; so does any change of a formula.
+- **The owner of a shared node** is named: a node whose parents belong to different owners (one of them
+  possibly no one) and that has no `owner` is a structure problem ("Name the owner of N: its parents
+  belong to A and B"), so the order of `.under(...)` no longer decides who decides it.
+  `KnowledgeBase.ownerOf` is the rule; `Workflow.ownerOf` calls it.
+- **`unsat` stays.** `feasible` is asked only of an authored `complete` with nothing witnessing the
+  parts; a leaf claim or a node proven by automation is never asked it, and a contradictory one makes
+  everything above it provable. `unsat` is the one guard there (cheap, and one-sided as the others).
+- `CheckerVersion` is 6: results recorded before are checked again.

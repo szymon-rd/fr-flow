@@ -436,6 +436,11 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     nodes.flatMap(c => parentsOf(c).map(p => System.identityHashCode(p) -> c)).groupMap(_._1)(_._2)
   /** The nodes that name `n` as a parent, in the model's order: its parts, and the design decisions below it. */
   def children(n: Node[?]): List[Node[?]] = childrenOf.getOrElse(System.identityHashCode(n), Nil).filter(c => parentsOf(c).exists(_ eq n))
+  /** Who decides a node: its own owner, else its first parent's, recursively; none, anyone. */
+  def ownerOf(n: Node[?]): String =
+    def go(x: Node[?], seen: Set[String]): String =
+      if x.owner.nonEmpty || seen(x.id) then x.owner else parentsOf(x).headOption.fold("")(go(_, seen + x.id))
+    go(n, Set.empty)
   /** The parts of `n` that together refine it: claims, contracts and assumptions under it. */
   def parts(n: Node[?]): List[Node[?]] = children(n).filter(isStatement)
   def isStatement(n: Node[?]): Boolean = n.kind == NodeKind.Claim || n.kind == NodeKind.Contract || n.kind == NodeKind.Assumption
@@ -784,6 +789,11 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
         case List(_) => Nil
         case Nil     => List("a root is required: one claim with no parents, the idea's purpose")
         case rs      => List(s"one root only: ${rs.map(_.id).mkString(", ")} are claims with no parents; put all but one under the nodes they help prove"),
+      // A node shared by concerns of different owners: the order of `.under(...)` would decide who decides it.
+      local.filter(_.owner.isEmpty).flatMap { n =>
+        val owners = parentsOf(n).map(ownerOf).distinct.sortBy(_.isEmpty).map(o => if o.isEmpty then "no one" else o)
+        Option.when(owners.size > 1)(s"Name the owner of ${n.id}: its parents belong to ${owners.init.mkString(", ")} and ${owners.last} (owner = \"...\")")
+      },
       // What a node rests on (its parents) must not lead back to it.
       nodes.filter(n => ancestors(n).exists(_ eq n)).map(n => s"${n.id} is above itself: what it is a part of must not lead back to it"),
       local.filter(n => (n.kind == NodeKind.Contract || n.kind == NodeKind.Assumption) && n.parents.isEmpty && !n.op.exists(o => called(o.name)))

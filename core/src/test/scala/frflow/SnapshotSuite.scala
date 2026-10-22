@@ -34,7 +34,11 @@ class SnapshotSuite extends munit.FunSuite:
         expect(List(Book("Short", 20)), 5, Nil, "none"),
         reject(List(Book("Short", 20)), 5, List(Book("Short", 20)), "a short book is never picked"))
     List(root, books, picking, fl, ol, c)
+  // The root, reworded and its formula written otherwise: a change of what Lean reads.
   private def root2 = Node.claim("OnlyGood", "An item is picked from a list exactly when it is on the list and good, and only then.", onlyGood.why)(
+    forall((l: List[Item.T], x: Item.T) => shown(l, x) == (good(x) && l.contains(x))))
+  // The root reworded only: its formula as it was.
+  private def rootReworded = Node.claim("OnlyGood", "An item is picked from a list exactly when it is on the list and good, and only then.", onlyGood.why)(
     forall((l: List[Item.T], x: Item.T) => shown(l, x) == (l.contains(x) && good(x))))
 
   test("the snapshot is the DAG of the Scala definitions: parents, parts, definitions, the root") {
@@ -244,6 +248,33 @@ class SnapshotSuite extends munit.FunSuite:
     assert(w.context(now(5)).contains("Chosen by dev because: Pick is right"))
   }
 
+  test("a statement reworded, its formula unchanged, reviews that node only; what is below is listed under it, not sent to review") {
+    val ws = workspace()
+    acceptAll(workflow(KnowledgeBase("Shelf", idea = "IDEA.md")(under(onlyGood)*), ws))
+    val now = under(rootReworded)
+    val w = workflow(KnowledgeBase("Shelf", idea = "IDEA.md")(now*), ws)
+    assertEquals(w.kb.ordered.map(n => n.id -> w.state(n)).filter(_._2 != "accepted"), List("OnlyGood" -> "review"))
+    val ns = nodes(w.annotated)
+    assertEquals(ns("OnlyGood")("causes").get.arr.flatMap(_.str), Seq("self"))
+    // what may be affected: the decisions below it, each to revisit by name if it is
+    assertEquals(ns("OnlyGood")("below").get.arr.map(b => b("id").flatMap(_.str).get -> b("kind").flatMap(_.str).get).toList,
+      List("FromList" -> "accepted", "OnlyLong" -> "accepted", "Pick" -> "accepted", "Books" -> "accepted", "Picking" -> "accepted"))
+    assertEquals(ns("Pick")("moved").get.arr, Nil)
+    ok(accept(w, rootReworded, "Clearer with 'only then' added."))
+    assert(w.kb.nodes.forall(w.state(_) == "accepted"), w.kb.nodes.map(w.state))
+    // after it, a change of its formula still moves what is below
+    val w2 = workflow(KnowledgeBase("Shelf", idea = "IDEA.md")(under(root2)*), ws)
+    assertEquals(nodes(w2.annotated)("Pick")("causes").get.arr.flatMap(_.str), Seq("above"))
+    // a node out of Lean is its words: rewording it moves what is below
+    val ws3 = workspace()
+    def informal(statement: String) = Node.claim("Informal", statement, why = "w", formal = false)(forall((x: BigInt) => sq(x) >= 0))
+    def kb3(statement: String) =
+      val top = informal(statement)
+      KnowledgeBase("Team", idea = "IDEA.md")(top, Node.claim("Floor", "Results are at least zero.", why = "w")(forall((x: BigInt) => sq(x) >= 0)).under(top))
+    acceptAll(workflow(kb3("Results are never negative."), ws3))
+    assertEquals(nodes(workflow(kb3("Results are never below zero."), ws3).annotated)("Floor")("causes").get.arr.flatMap(_.str), Seq("above"))
+  }
+
   test("what is not modelled can change without disturbing decisions") {
     val ws = workspace()
     val w = workflow(shelfKb, ws)
@@ -433,7 +464,7 @@ class SnapshotSuite extends munit.FunSuite:
     val ws = workspace()
     acceptAll(workflow(callsKb, ws))
     val promise2 = Node.contract(picks)("PickPromise", "A call returns only long enough books, from the shelf.", why = pickPromise.why)(
-      (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages.value))
+      (shelf, n, picked) => picked.forall(b => b.pages >= minPages.value && shelf.contains(b)))
       .examples(minPages.bind(100))(
         expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
         reject(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
@@ -703,7 +734,9 @@ class SnapshotSuite extends munit.FunSuite:
 
   /** A diamond: D is a part of B and of C, both parts of A. Without `dUnderC`, D is a part of B only. */
   private def diamond(top: String = "Results are never negative.", dUnderC: Boolean = true): List[Node[?]] =
-    val a = Node.claim("A", top, why = "The purpose.")(forall((x: BigInt) => sq(x) >= 0))
+    // Reworded, the top says it in Lean otherwise too: a change of meaning.
+    val a = if top == "Results are never negative." then Node.claim("A", top, why = "The purpose.")(forall((x: BigInt) => sq(x) >= 0))
+      else Node.claim("A", top, why = "The purpose.")(forall((x: BigInt) => sq(x) > -1))
     val b = Node.claim("B", "Results are at least zero.", why = "Zero is the floor.")(forall((x: BigInt) => sq(x) >= 0)).under(a)
     val c = Node.claim("C", "Results are zero or more.", why = "Said otherwise.")(forall((x: BigInt) => sq(x) >= 0)).under(a)
     val d = if dUnderC then squaresOf(b, c) else squaresOf(b)
@@ -826,12 +859,18 @@ class SnapshotSuite extends munit.FunSuite:
     assertEquals(List("FromList", "Bounded", "Books", "Thick", "OnlyLong").map(rivals), List(List("Bounded"), List("FromList"), List("Thick"), List("Books"), Nil))
   }
 
-  test("an owner is the node's own, else its first parent's, however far up") {
+  test("an owner is the node's own, else its parent's, however far up; a node shared by owners names its own") {
     val nn = (1 to 2).map(i => teamKb.node(s"NonNeg$i").get)
-    val shared = Node.claim("Shared", "The result is the square of the input.", why = "Both concerns.")(forall((x: BigInt) => sq(x) == x * x)).under(nn*)
-    val below = Node.claim("Deeper", "The result is a square.", why = "Below the shared part.")(forall((x: BigInt) => sq(x) == x * x)).under(shared)
-    val ns = nodes(workflow(KnowledgeBase("Team", idea = "IDEA.md")((teamKb.nodes :+ shared :+ below)*)).annotated)
-    assertEquals(List("Shared", "Deeper", "Team").map(id => field(ns(id), "owner")), List(Some("dev1"), Some("dev1"), Some("")))
+    def shared(owner: String) = Node.claim("Shared", "The result is the square of the input.", why = "Both concerns.", owner = owner)(forall((x: BigInt) => sq(x) == x * x)).under(nn*)
+    def below(s: Node[?]) = Node.claim("Deeper", "The result is a square.", why = "Below the shared part.")(forall((x: BigInt) => sq(x) == x * x)).under(s)
+    val unnamed = shared("")
+    assert(KnowledgeBase("Team", idea = "IDEA.md")((teamKb.nodes :+ unnamed :+ below(unnamed))*).problems
+      .contains("Name the owner of Shared: its parents belong to dev1 and dev2 (owner = \"...\")"))
+    val named = shared("dev2")
+    val kb = KnowledgeBase("Team", idea = "IDEA.md")((teamKb.nodes :+ named :+ below(named))*)
+    assertEquals(kb.problems, Nil)
+    val ns = nodes(workflow(kb).annotated)
+    assertEquals(List("Shared", "Deeper", "Team").map(id => field(ns(id), "owner")), List(Some("dev2"), Some("dev2"), Some("")))
   }
 
   test("a ledger recorded before parts were part of a node's content loads, and nothing is reviewed for it") {

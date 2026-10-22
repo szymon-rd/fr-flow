@@ -49,10 +49,15 @@ class NodeSuite extends munit.FunSuite:
     assert(complete.contains("∀ (h_FromList : (Shelf.FromList.claim picks)) (h_OnlyLong") && complete.endsWith("(Shelf.OnlyGood.claim Book (Shelf.shown picks) (Shelf.good minPages))"), complete)
     assertEquals(g.obligation(pick, "complete"), None)
     assertEquals(g.tries(onlyGood).map(_.obligation.name), List("needed_FromList", "needed_OnlyLong", "needed_EveryLong", "clash", "unsat", "idle"))
-    assertEquals(g.tries(fromList).map(_.obligation.name), List("vacuous", "clash", "unsat"))
+    assertEquals(g.tries(fromList).map(_.obligation.name), List("vacuous", "restates", "clash", "unsat"))
     assertEquals(g.tries(pick).map(_.obligation.name), List("unsat"))
-    // the root with the operation doing nothing
+    // one part: whether the node says only what its part says
+    assert(g.tries(fromList).find(_.obligation.name == "restates").get.obligation.statement.endsWith("(h_FromList : (Shelf.FromList.claim picks)), (Shelf.Pick.claim minPages picks)"),
+      g.tries(fromList).find(_.obligation.name == "restates"))
+    // the root with the operation doing nothing, tried at Lean's default budget; the other tries at a small one
     assert(g.idle(onlyGood).get.statement.contains("(Shelf.shown (fun (x0 : (List Book)) (x1 : Int) => []))"), g.idle(onlyGood))
+    val checks = g.checks(onlyGood)
+    assert(checks.contains("\n\ntheorem idle : Obl.idle") && checks.contains(s"set_option maxHeartbeats ${Generate.TryHeartbeats} in\ntheorem clash"), checks)
     assertEquals(g.trusted.map(_.id), List("Pick"))
   }
 

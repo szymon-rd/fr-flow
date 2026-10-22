@@ -15,7 +15,7 @@ final case class Obligation(name: String, statement: String, description: String
   *   - `FrFlowGen/<KB>/<Node>/Theorems.lean` `holds`: the node, from the leaves below it
   *   - `FrFlowGen/<KB>/<Node>/Impl.lean`     `impl`: its proven code meets the contract
   *   - `FrFlowGen/<KB>/<Node>/Eval.lean`     the examples, evaluated
-  *   - `FrFlowGen/<KB>/<Node>/Checks.lean`   the tries (needed, clash, unsat, idle) and the other obligations
+  *   - `FrFlowGen/<KB>/<Node>/Checks.lean`   the tries (needed, restates, clash, unsat, idle) and the other obligations
   *   - `FrFlowGen/<KB>/RootImpl.lean`        `root_impl`: the root, of the code, from the trusted leaves
   *
   * An open term (opaque type, parameter) is a Lean binder; a defined term is a `def` (a type: an
@@ -35,7 +35,10 @@ object Generate:
   /** How many probes of a contract Lean evaluates, beside its examples. */
   val Probes = 6
 
-  /** The work a try (a statement Lean is asked whether it can prove) may take: a try is one-sided and cheap. */
+  /** The work a try (a statement Lean is asked whether it can prove) may take: a try is one-sided and cheap.
+    * A try that fails says only that Lean found no proof within it. The root's `idle` (one per knowledge
+    * base) runs at Lean's default budget: at this one it gives up on a root of the CRM's size.
+    */
   val TryHeartbeats = 4000
 
   /** The numbers a value holds, however nested: the boundaries a probe tries. */
@@ -423,16 +426,19 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
   /** A try: a statement Lean is asked whether it can prove, cheaply; if it does, `means` what is wrong. */
   final case class Try(obligation: Obligation, means: String)
 
-  /** The tries of a node: a part not needed (with one part: the node says nothing it adds), parts that
-    * contradict each other, no world meeting the node, an expectation that checks nothing, and, for the
-    * root, doing nothing meeting it.
+  /** The tries of a node: a part not needed (with one part: the node says nothing it adds, or says only
+    * what its part says), parts that contradict each other, no world meeting the node, an expectation that
+    * checks nothing, and, for the root, doing nothing meeting it.
     */
   def tries(n: Node[?]): List[Try] =
     val split = splitParts(n).toList.flatMap { ps =>
       val o = splitOpens(n, ps)
       val hs = hyps(ps)
       val needed = if ps.size == 1 then List(Try(Obligation("vacuous", stated(o, Nil, claim(n)._1), s"${n.id} holds whatever ${ps.head.id} says."),
-          s"${n.id} holds whatever ${ps.head.id} says: it says nothing its part adds"))
+          s"${n.id} holds whatever ${ps.head.id} says: it says nothing its part adds"),
+          // With `complete`, the node and its part are then equivalent: one says what the other does.
+          Try(Obligation("restates", stated(o, List(s"h_${n.id}" -> claim(n)._1), claim(ps.head)._1), s"${ps.head.id} follows from ${n.id}."),
+            s"${n.id} says what ${ps.head.id} says: merge them, or say what ${n.id} adds"))
         else ps.map(c => Try(Obligation(s"needed_${c.id}", stated(o, hs.filterNot(_._1._1 == s"h_${c.id}").map(_._1), claim(n)._1),
           s"${n.id} holds without ${c.id}."), s"${c.id} is not needed for ${n.id}"))
       needed :+ Try(Obligation("clash", stated(o, hs.map(_._1), "False"), s"The parts of ${n.id} contradict each other."),
@@ -908,8 +914,8 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
 
   /** Everything else checked of a node, in one file elaborated (not built): the obligations besides
     * `complete` and `impl` (by `frflow_auto`, or the theorem of that name in its proof file), the tries
-    * (each with a small budget: they are one-sided), and the axioms `holds` rests on. Each theorem
-    * stands or falls on its own; Lean goes on past one that fails.
+    * (each with a small budget, the root's `idle` with Lean's default: they are one-sided), and the
+    * axioms `holds` rests on. Each theorem stands or falls on its own; Lean goes on past one that fails.
     */
   def checks(n: Node[?]): String =
     val ns = s"$K.${n.id}.Checks"
@@ -920,7 +926,10 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
     extraObligations(n).foreach { o =>
       sb ++= s"theorem ${o.name} : Obl.${o.name} := ${if isAuthored(n, o.name) then s"$K.${n.id}.Proofs.${o.name}" else auto(o.name)}\n\n#print axioms $ns.${o.name}\n\n"
     }
-    tries(n).foreach(t => sb ++= s"set_option maxHeartbeats ${TryHeartbeats} in\ntheorem ${t.obligation.name} : Obl.${t.obligation.name} := ${auto(t.obligation.name)}\n\n")
+    tries(n).foreach { t =>
+      val budget = if t.obligation.name == "idle" then "" else s"set_option maxHeartbeats ${TryHeartbeats} in\n"
+      sb ++= s"${budget}theorem ${t.obligation.name} : Obl.${t.obligation.name} := ${auto(t.obligation.name)}\n\n"
+    }
     sb ++= s"#print axioms $K.${n.id}.holds\n\nend $ns\n"
     sb.result()
 
