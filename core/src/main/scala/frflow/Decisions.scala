@@ -15,10 +15,13 @@ import frflow.Json.*
   *   - `proposed`: not decided yet (or rejected, then reworked);
   *   - `accepted`: decided by the developer, and nothing moved since;
   *   - `review`: something moved since it was decided; `causes` say what:
-  *     `self` (the node changed), `above` (the meaning of an ancestor changed), `code` (the code
-  *     it governs changed), `revisit` (the developer said a change above, such as an edit of the
-  *     idea, may affect it), `merged` (two branches decided it, and a merge kept both); a decided
-  *     node no longer in the model is listed under `gone`;
+  *     `self` (what the node itself says changed), `above` (the meaning of what it rests on changed:
+  *     any of its parents, of the definitions it uses, of the contracts its code calls, however far
+  *     up; one cause however many paths lead there), `parts` (a part was added or removed: its parts
+  *     are decided with it, by its owner), `code` (the code it governs changed), `revisit` (the
+  *     developer said a change above, such as an edit of the idea, may affect it), `merged` (two
+  *     branches decided it, and a merge kept both); a decided node no longer in the model is listed
+  *     under `gone`;
   *   - `rejected`: an alternative was chosen instead; the agent removes it from the model.
   *
   * The developer accepts or rejects (see `Request`). Accepting a proposal chooses it (rejecting
@@ -39,6 +42,30 @@ object Decisions:
     val all: List[Json] = nodes(snapshot)
     val ids: Map[String, Json] = all.map(n => s(n, "id") -> n).toMap
     val children: Map[String, List[Json]] = all.flatMap(n => parents(n).map(_ -> n)).groupMap(_._1)(_._2)
+    /** What rests on each node: its parts, the nodes that use it (a definition), the nodes whose code
+      * calls it (a contract), and the contracts that keep it (an invariant). A change of its meaning
+      * shows on each, as `above`.
+      */
+    val dependents: Map[String, List[Json]] =
+      all.flatMap(n => (parents(n) ++ uses(n) ++ relies(n) ++ keeps(n)).distinct.map(_ -> n)).groupMap(_._1)(_._2)
+    /** Every node after all it rests on (see `Decisions.order`). */
+    lazy val order: List[String] =
+      def on(n: Json) = (parents(n) ++ uses(n) ++ relies(n)).filter(ids.contains)
+      val done = scala.collection.mutable.LinkedHashSet.empty[String]
+      def visit(id: String, seen: Set[String]): Unit =
+        if !done(id) && !seen(id) then
+          ids.get(id).foreach(n => on(n).foreach(visit(_, seen + id)))
+          done += id
+      all.foreach(n => visit(s(n, "id"), Set.empty))
+      done.toList
+    lazy val rank: Map[String, Int] = order.zipWithIndex.toMap
+    /** The nodes of the model that are alternatives to each (see `alternatives`). */
+    lazy val rivals: Map[String, List[String]] =
+      val byTerm = all.flatMap(n => defines(n).map(_ -> n)).groupMap(_._1)(_._2)
+      val replacing = all.flatMap(n => n("replaces").flatMap(_.str).flatMap(ids.get).toList.flatMap(r => List(n -> r, r -> n)))
+      (replacing ++ all.flatMap(n => defines(n).toList.flatMap(byTerm).map(n -> _)))
+        .filter((a, b) => s(a, "id") != s(b, "id") && alternatives(a, b))
+        .groupMap(p => s(p._1, "id"))(p => s(p._2, "id")).view.mapValues(_.distinct.sortBy(x => rank.getOrElse(x, 0))).toMap
     private val states = scala.collection.mutable.Map.empty[String, String]
     private val causeMemo = scala.collection.mutable.Map.empty[String, List[String]]
     // What the node rests on, as the snapshot says (see `Workflow.parentChain`).
@@ -48,7 +75,9 @@ object Decisions:
       val revisit = ledger.current(id).exists(_.action == "revisit")
       val parentRejected = parents(n).flatMap(ids.get).exists(p => state(p) == "rejected")
       ledger.binding(id).fold(Nil) { d =>
-        List("self" -> changed(d, n, ledger), "above" -> (d.chain != parentChain(n) || parentRejected),
+        val moved = d.hash != s(n, "hash")
+        List("self" -> (moved && selfChanged(d, n, ledger)), "above" -> (d.chain != parentChain(n) || parentRejected),
+          "parts" -> (moved && partsChanged(d, n, ledger)),
           "code" -> (d.code != code(n)), "revisit" -> revisit, "merged" -> ledger.forked(id)).collect { case (c, true) => c }
       }
     })
@@ -70,13 +99,43 @@ object Decisions:
   /** What FrFlow added to a node's content in later formats: a decision recorded before has none of
     * it, and is not reviewed for it (a new FrFlow needs no decision again).
     */
-  private val addedByFormat = Set("definition")
+  private val addedByFormat = Set("definition", "parts")
+  private def missing(d: Decision): Set[String] = addedByFormat.filter(k => d.content(k).isEmpty)
+  private def without(c: Json, keys: Set[String]): Json = JObj(c.obj.filterNot(f => keys(f._1)))
 
   /** Whether the node says something else than what was decided (a node renamed since is the same node). */
   private def changed(d: Decision, n: Json, ledger: Ledger): Boolean =
-    val missing = addedByFormat.filter(k => d.content(k).isEmpty)
-    val now = JObj(n("content").map(_.obj).getOrElse(Nil).filterNot(f => missing(f._1)))
-    d.hash != (if missing.isEmpty then s(n, "hash") else Decision.hash(now)) && !sameRenamed(ledger, JObj(d.content.obj.filterNot(f => missing(f._1))), now)
+    val gone = missing(d)
+    val now = without(n("content").getOrElse(JObj(Nil)), gone)
+    d.hash != (if gone.isEmpty then s(n, "hash") else Decision.hash(now)) && !sameRenamed(ledger, without(d.content, gone), now)
+
+  /** What a node says itself: its content without its edges. Its parts are decided with it, but under
+    * their own cause (`parts`); its parents are what it rests on (`above`), and the calls that place it
+    * under them (`.under(...)`) are left out of the source it is written in. A design decision rests on
+    * its parents' place, not their meaning: for it, where it is is what it says.
+    */
+  private def ownContent(c: Json): Json =
+    if c("kind").flatMap(_.str).contains("design") then without(c, Set("parts"))
+    else JObj(c.obj.collect {
+      case ("definition", JStr(src)) => "definition" -> JStr(withoutEdges(src))
+      case f if f._1 != "parts" && f._1 != "parents" => f
+    })
+  private def withoutEdges(src: String): String = src.replaceAll("""\s*\.under\([^()]*\)""", "")
+
+  /** Whether what the node says itself changed since it was decided (see `ownContent`). */
+  private def selfChanged(d: Decision, n: Json, ledger: Ledger): Boolean =
+    val gone = missing(d)
+    val (before, now) = (ownContent(without(d.content, gone)), ownContent(without(n("content").getOrElse(JObj(Nil)), gone)))
+    Decision.hash(before) != Decision.hash(now) && !sameRenamed(ledger, before, now)
+
+  /** Whether a part was added or removed since the node was decided (in any order; a part renamed is
+    * the same part). A decision recorded before parts were part of a node's content has none: not reviewed for it.
+    */
+  private def partsChanged(d: Decision, n: Json, ledger: Ledger): Boolean =
+    d.content("parts").exists { p =>
+      def ids(j: Json) = j.arr.flatMap(_.str).toSet
+      ids(p).map(x => ledger.renames.getOrElse(x, x)) != ids(n("content").flatMap(_("parts")).getOrElse(JArr(Nil)))
+    }
 
   /** The node holds as decided. */
   private def holds(state: String): Boolean = state == "accepted"
@@ -91,6 +150,10 @@ object Decisions:
   def parents(n: Json): List[String] = n("parents").map(_.arr.flatMap(_.str).toList).getOrElse(Nil)
   /** The definitions a node uses. */
   private def uses(n: Json): List[String] = n("uses").filter(_ != JNull).map(_.arr.flatMap(_.str).toList).getOrElse(Nil)
+  /** The terms a definition fixes. */
+  private def defines(n: Json): Set[String] = n("defines").filter(_ != JNull).map(_.arr.flatMap(_.str).toSet).getOrElse(Set.empty)
+  /** The invariants a contract keeps (or is exempt from). */
+  private def keeps(n: Json): List[String] = n("invariants").filter(_ != JNull).map(_.arr.toList.flatMap(_("id").flatMap(_.str))).getOrElse(Nil)
   /** The root: the claim with no parents. */
   private def isRoot(n: Json): Boolean = s(n, "kind") == "claim" && parents(n).isEmpty
 
@@ -169,7 +232,7 @@ object Decisions:
         "resembles" -> JArr(resembles(ledger, n)),
         "unproven" -> JArr(unproven(n).map(str)),
         // A sibling that says formally the same (variables renamed): the statement may claim more than the spec.
-        "sameAs" -> JArr(parents(n).headOption.toList.flatMap(p => structure(snapshot).children.getOrElse(p, Nil)).filter { m =>
+        "sameAs" -> JArr(parents(n).flatMap(p => structure(snapshot).children.getOrElse(p, Nil)).distinctBy(s(_, "id")).filter { m =>
           s(m, "id") != id && s(m, "kind") == s(n, "kind") && m("content").flatMap(_("sources")).exists(_.obj.nonEmpty) &&
             m("content").flatMap(_("sources")).map(alpha) == n("content").flatMap(_("sources")).map(alpha)
         }.map(m => str(s(m, "id")))),
@@ -178,6 +241,8 @@ object Decisions:
         "below" -> JArr(if state(snapshot, ledger, n) == "accepted" then Nil else below(snapshot, ledger, n)),
         "conditionsAbove" -> JArr(conditionsAbove(snapshot, ledger, n).map(str)),
         "history" -> JArr(ledger.history(id).map(decisionJson(id, _))),
+        // The nodes of the model that are its alternatives: accepting it may reject them (`reject`).
+        "rivals" -> JArr(structure(snapshot).rivals.getOrElse(id, Nil).map(str)),
         "alternatives" -> JArr(ledger.alternatives(id).map((a, c) => obj("id" -> str(a), "content" -> c))))
       JObj(n.obj.filterNot(f => fields.exists(_._1 == f._1)) ++ fields)
     }
@@ -213,18 +278,7 @@ object Decisions:
   /** Every node after all it rests on (its parents, the definitions it uses, the contracts its code calls):
     * the order decisions are taken in, a batch's too.
     */
-  def order(snapshot: Json): List[String] =
-    val ns = nodes(snapshot)
-    val ids = ns.map(s(_, "id")).toSet
-    def on(n: Json) = (parents(n) ++ uses(n) ++ relies(n)).filter(ids)
-    val byId = ns.map(n => s(n, "id") -> n).toMap
-    val done = scala.collection.mutable.LinkedHashSet.empty[String]
-    def visit(id: String, seen: Set[String]): Unit =
-      if !done(id) && !seen(id) then
-        byId.get(id).foreach(n => on(n).foreach(visit(_, seen + id)))
-        done += id
-    ns.foreach(n => visit(s(n, "id"), Set.empty))
-    done.toList
+  def order(snapshot: Json): List[String] = structure(snapshot).order
 
   /** Rejected nodes a proposal says the same as (under another id, or reworded only in its `why`):
     * the developer sees why they were rejected.
@@ -326,18 +380,21 @@ object Decisions:
     * it uses (`uses` also lists the definitions it calls, `name = body`, which it says), how its
     * examples print, and a proven implementation.
     */
-  private def decidedHash(c: Json, provenImpl: Boolean): String =
+  private def decidedHash(content: Json, provenImpl: Boolean, missing: Set[String] = Set.empty): String =
+    // What it says itself (not its edges), with only what the decision recorded.
+    val c = ownContent(without(content, missing))
     def definitions = "definitions" -> JArr(c("uses").map(_.arr.toList).getOrElse(Nil).filter(u => u.str.exists(DefinitionUse.matches)))
     Decision.hash(JObj(c.obj.filterNot(f => f._1 == "uses" || f._1 == "examples" || (provenImpl && f._1 == "implementation")) :+ definitions :+
       ("examples" -> JArr(c("examples").map(_.arr.toList.flatMap(_.str)).getOrElse(Nil).map(e => str(e.takeWhile(_ != ' ') + " — " + e.split(" — ").lastOption.getOrElse("")))))))
   private def provenImpl(n: Json) = n("implementationProof").exists(p => p != JNull && s(p, "status") == "proven")
 
   /** Why `n` is not mechanical, or None if it is. One rule: a node under review (not a proposal), not
-    * a root or a design node, where nothing the developer decided changed (only what follows from
-    * elsewhere moved: the types it uses, a proven implementation, how its examples print, or
-    * something above it; a definition it calls is part of what it says), and Lean proves it again.
+    * a definition or a design node (they hold a choice Lean does not check), where nothing the developer
+    * decided of the node itself changed (only what follows from elsewhere moved: the types it uses, a
+    * proven implementation, how its examples print, or something above it; a definition it calls is part
+    * of what it says), and Lean proves it again; when its parts changed, Lean proves they make it
+    * (`complete`), each needed, without clashing.
     */
-
   def mechanical(snapshot: Json, ledger: Ledger, n: Json): Option[String] =
     val v = view(snapshot, ledger)
     val id = s(n, "id")
@@ -345,11 +402,13 @@ object Decisions:
     val cs = v.causes(n)
     val (ok, total) = examples(n)
     val provenImpl = Decisions.provenImpl(n)
-    def decided(c: Json) = decidedHash(c, provenImpl)
-    if isRoot(n) || kind == "design" || kind == "definition" then Some(s"${if isRoot(n) then "root" else kind} nodes hold a choice")
+    if kind == "design" || kind == "definition" then Some(s"$kind nodes hold a choice")
     else if v.state(n) != "review" then Some(s"$id is ${v.state(n)}: only a node under review can be mechanical")
-    else if cs.exists(c => c != "self" && c != "above") then Some(s"$id is under review for ${cs.mkString(", ")}: the developer decides")
-    else if ledger.binding(id).forall(d => decided(d.content) != decided(n("content").getOrElse(JNull))) then Some(s"what $id says changed: the developer decides")
+    else if cs.exists(c => !Set("self", "above", "parts")(c)) then Some(s"$id is under review for ${cs.mkString(", ")}: the developer decides")
+    else if ledger.binding(id).forall(d => decidedHash(d.content, provenImpl, missing(d)) != decidedHash(n("content").getOrElse(JObj(Nil)), provenImpl, missing(d))) then
+      Some(s"what $id says changed: the developer decides")
+    else if cs.contains("parts") && !partsMake(n) then
+      Some(s"$id's parts changed and Lean does not prove they make it, each needed: the developer decides")
     else if !unproven(n).forall(_.startsWith("nothing below proves it")) then Some(s"$id is not proven: only what Lean proves again is mechanical")
     else if ok != total then Some(s"${total - ok} of $id's examples fail")
     else if n("invariants").exists(_.arr.exists(i => !Set("proven", "exempt")(s(i, "status")))) then Some(s"an invariant $id keeps is not proven")
@@ -358,6 +417,12 @@ object Decisions:
       Some(s"$id waits for ${waitsFor(snapshot, ledger, n).get}")
     else None
 
+  /** Lean proves the node's parts make it (`complete`), each is needed, and they do not clash. */
+  private def partsMake(n: Json): Boolean = n("split").filter(_ != JNull).exists { sp =>
+    sp("complete").exists(c => s(c, "status") == "proven") &&
+      sp("needed").forall(_.arr.forall(x => s(x, "status") == "proven")) && sp("clash").forall(c => c == JNull || s(c, "status") != "failed")
+  }
+
   /** The decisions below `n` that accepting it can act on, with their reasons, parents first: those
     * accepted (each may be revisited), and those under review only because `n`'s meaning moved
     * (each still holds, or is revisited). Below a node that is under review for anything else,
@@ -365,32 +430,27 @@ object Decisions:
     */
   def below(snapshot: Json, ledger: Ledger, n: Json): List[Json] =
     val id = s(n, "id")
-    def children(x: String) = view(snapshot, ledger).children.getOrElse(x, Nil)
+    val v = view(snapshot, ledger)
     // Moved only by this node, or by nodes above it already accepted again.
     def movedOnlyBy(c: Json) = causes(snapshot, ledger, c) == List("above") &&
       moved(snapshot, ledger, c).flatMap(_("id").flatMap(_.str)).forall(m => m == id || byId(snapshot).get(m).exists(x => holds(state(snapshot, ledger, x))))
-    def go(x: String): List[Json] = children(x).flatMap { c =>
+    def row(c: Json): Option[Json] =
       val cid = s(c, "id")
       val st = state(snapshot, ledger, c)
       val kind = if holds(st) && ledger.binding(cid).isDefined then Some("accepted")
         else if st == "review" && movedOnlyBy(c) then Some("moved") else None
-      kind.toList.flatMap { k =>
-        (obj("id" -> str(cid), "kind" -> str(k), "statement" -> c("content").flatMap(_("statement")).getOrElse(str("")),
-          "reason" -> str(reasonNow(ledger, cid)), "chosen" -> str(ledger.chosen(cid).fold("")(_.reason))) ++ revisitFields(ledger, c)) :: go(cid)
-      }
-    }
-    // Below an invariant: the nodes that keep it, or are exempt from it; below any node, those relying on it.
-    val related =
-      nodes(snapshot).filter(c => (n("rule").contains(JBool(true)) && c("invariants").exists(_.arr.exists(i => s(i, "id") == id))) ||
-        relies(c).contains(id) || uses(c).contains(id)).flatMap { c =>
-        val cid = s(c, "id")
-        val st = state(snapshot, ledger, c)
-        val kind = if holds(st) && ledger.binding(cid).isDefined then Some("accepted") else if st == "review" && movedOnlyBy(c) then Some("moved") else None
-        kind.map(k => obj("id" -> str(cid), "kind" -> str(k), "statement" -> c("content").flatMap(_("statement")).getOrElse(str("")),
-          "reason" -> str(reasonNow(ledger, cid)), "chosen" -> str(ledger.chosen(cid).fold("")(_.reason))) ++ revisitFields(ledger, c))
-      }
-    val down = go(id).distinctBy(s(_, "id"))
-    val own = down ++ related.filterNot(r => down.exists(d => s(d, "id") == s(r, "id")))
+      kind.map(k => obj("id" -> str(cid), "kind" -> str(k), "statement" -> c("content").flatMap(_("statement")).getOrElse(str("")),
+        "reason" -> str(reasonNow(ledger, cid)), "chosen" -> str(ledger.chosen(cid).fold("")(_.reason))) ++ revisitFields(ledger, c))
+    // What rests on it, however far down (its parts and theirs; the users of a definition, the callers
+    // of a contract, the keepers of an invariant, and what rests on them), through the decisions listed;
+    // each once, however many paths lead to it, parents first.
+    val seen = scala.collection.mutable.Set(id)
+    val found = List.newBuilder[Json]
+    var frontier = v.dependents.getOrElse(id, Nil)
+    while frontier.nonEmpty do
+      val next = frontier.filter(c => seen.add(s(c, "id"))).flatMap(c => row(c).map { r => found += r; c })
+      frontier = next.flatMap(c => v.dependents.getOrElse(s(c, "id"), Nil))
+    val own = found.result().sortBy(b => v.rank.getOrElse(s(b, "id"), Int.MaxValue))
     // The idea is what every decision rests on: a root's change lists the decisions outside its tree too.
     val elsewhere =
       if !isRoot(n) || n("content").flatMap(_("ideaSection")).isDefined then Nil
@@ -462,7 +522,6 @@ object Decisions:
     * Parts under one parent are not: together they make it.
     */
   def alternatives(a: Json, b: Json): Boolean =
-    def defines(n: Json) = n("defines").map(_.arr.flatMap(_.str).toSet).getOrElse(Set.empty)
     a("replaces").flatMap(_.str).contains(s(b, "id")) || b("replaces").flatMap(_.str).contains(s(a, "id")) ||
       defines(a).intersect(defines(b)).nonEmpty
 
@@ -508,7 +567,7 @@ object Decisions:
           // The proposals below it rested on it: they go with it.
           def proposedBelow(x: String): List[String] = view(snapshot, ledger).children.getOrElse(x, Nil)
             .filter(c => st(ledger, s(c, "id")) == "proposed").flatMap(c => s(c, "id") :: proposedBelow(s(c, "id")))
-          Right(proposedBelow(r.node).foldLeft(ledger.add(r.node, make("reject", n, Nil, r.reason)))((l, x) =>
+          Right(proposedBelow(r.node).distinct.foldLeft(ledger.add(r.node, make("reject", n, Nil, r.reason)))((l, x) =>
             l.add(x, make("reject", ids(x), Nil, s"${r.node}, which it rested on, was rejected: ${r.reason}"))))
       else if waitsFor(snapshot, ledger, n).isDefined then
         Left(s"accept ${waitsFor(snapshot, ledger, n).get} first: what rests on it is decided after it")
@@ -519,8 +578,9 @@ object Decisions:
         // Choosing (or accepting a change to the node itself) is an acceptance; otherwise a confirmation.
         val cs = causes(snapshot, ledger, n)
         // A change only of what follows from elsewhere (types, printing, proven code) is confirmed: its reason does not replace the node's.
+        // A change of its parts only is confirmed too: what it says, and why, stays; its parts are bound with the confirmation.
         val meaningMoved = cs.contains("self") && ledger.binding(r.node).forall(d =>
-          decidedHash(d.content, provenImpl(n)) != decidedHash(n("content").getOrElse(JNull), provenImpl(n)))
+          decidedHash(d.content, provenImpl(n), missing(d)) != decidedHash(n("content").getOrElse(JObj(Nil)), provenImpl(n), missing(d)))
         val action = if st(ledger, r.node) == "review" && !meaningMoved && r.reject.isEmpty then "confirm" else "accept"
         val chosen = if st(ledger, r.node) == "accepted" && r.reject.isEmpty then ledger
           else ledger.add(r.node, make(action, n, r.reject, r.reason))
@@ -540,12 +600,13 @@ object Decisions:
         else if conditions.nonEmpty then
           Left(s"say for each decision below or above that names when to revisit it whether it still holds or is revisited: ${conditions.mkString(", ")}")
         else
-          // Parents first: a node named to confirm is confirmed once its parent is accepted, and only
-          // if it is under review just because something above it moved.
+          // Parents first: a node named to confirm is confirmed once all it rests on (its parents, the
+          // definitions it uses, the contracts its code calls) is accepted, and only if it is under review
+          // just because something above it moved.
           val tried = under.filter(r.confirm.contains).foldLeft(Right(withRejected): Either[String, Ledger]) { (acc, id) =>
             acc.flatMap { l =>
               val c = ids(id)
-              val parent = parents(c).find(p => !holds(st(l, p)))
+              val parent = (parents(c) ++ uses(c) ++ relies(c)).filter(ids.contains).find(p => !holds(st(l, p)))
               if parent.isDefined then Left(s"$id cannot be confirmed before ${parent.get}: confirm ${parent.get} too, or decide $id after it")
               else if causes(snapshot, l, c) != List("above") then Left(s"$id is under review for ${causes(snapshot, l, c).mkString(", ")}, not only a change above: decide it on its own")
               else Right(l.add(id, make("confirm", c, Nil, s"still holds after ${r.node} changed: ${r.reason}")))

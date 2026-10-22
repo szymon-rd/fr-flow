@@ -138,10 +138,13 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val terms = kb.termsOf(n).toSet ++ n.defines
     (kb.opaques.filter(o => terms(o.name)).map(o => s"${o.name}: ${o.means}") ++ kb.params.filter(p => terms(p.name)).map(p => s"${p.name}: ${p.means}")).sorted
 
-  /** The node as the developer sees it and decides it. A decision is bound to its hash. */
+  /** The node as the developer sees it and decides it. A decision is bound to its hash. A statement's
+    * parts are part of it (docs/DAG.md §5): a part added or removed reviews it, with the cause `parts`.
+    */
   def content(n: Node[?]): Json = JObj(Seq(
     "kind" -> str(Workflow.kindName(n)),
-    "parents" -> JArr(n.parents.map(p => str(p.id))),
+    "parents" -> JArr(n.parents.map(p => str(p.id)))) ++
+    partsOf(n).map(ps => "parts" -> JArr(ps.map(str))) ++ Seq(
     "statement" -> str(n.statement),
     "why" -> str(n.why),
     "sources" -> JObj(Seq("formula" -> n.formula, "post" -> n.post, "rule" -> n.rule, "check" -> n.local).collect { case (k, Some(l)) => k -> str(l.source) }),
@@ -169,6 +172,14 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       else if kb.root.exists(_ eq n) then Seq("idea" -> str(Decisions.ideaSections(decided)._1), "notModelled" -> str(notModelledOfText(notM, n)))
       else Nil
     })
+
+  /** The parts a statement is decided with: its parts here; for another knowledge base's node, those its
+    * decision there recorded (its content is the same as there), none if that decision recorded none.
+    */
+  private def partsOf(n: Node[?]): Option[List[String]] =
+    if !kb.isStatement(n) then None
+    else if kb.imports.contains(n.id) then ledger.binding(n.id).flatMap(_.content("parts")).map(_.arr.toList.flatMap(_.str))
+    else Some(kb.parts(n).map(_.id))
 
   /** The source of the top-level definition a node is written in (the `val` with every call chained on
     * it, its arguments, its examples): what the developer decides is what is written, so nothing hidden in
