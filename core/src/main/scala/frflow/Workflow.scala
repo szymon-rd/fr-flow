@@ -154,7 +154,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   /** What a check depends on: the formal parts only, so rewording a statement does not re-run Lean. */
   def checkHash(n: Node[?]): String =
     val g = generate
-    sha((Seq(g.spec(n), g.auto(n), g.theorems(n), g.extraObligations(n).map(g.oblFile(n, _)).mkString, g.rootImplFile(n).getOrElse(""), g.idle(n).fold("")(_._1.statement), g.saysNothing(n).map(_.obligation.statement).mkString, read(ws.lean.resolve(g.proofsPath(n.id))).getOrElse(""),
+    sha((Seq(g.spec(n), g.auto(n), g.theorems(n), g.extraObligations(n).map(g.oblFile(n, _)).mkString, g.rootImplFile(n).getOrElse(""), g.idle(n).fold("")(_._1.statement), g.saysNothing(n).map(_.obligation.statement).mkString, g.evalFile(n).getOrElse(""), read(ws.lean.resolve(g.proofsPath(n.id))).getOrElse(""),
       read(ws.lean.resolve(g.proofsPath(n.id))).filter(Lean.lemmaImports(_).nonEmpty).flatMap(_ => read(ws.lean.resolve(g.lemmasPath))).getOrElse(""),
       n.parent.fold("")(checkHash), kernelHash, Workflow.CheckerVersion.toString) ++ g.declarationsUsedBy(n))*)
 
@@ -178,8 +178,10 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     results
 
   private def checkNode(n: Node[?], g: Generate, lake: Lake, parentStatus: Option[String]): NodeCheck =
+    // The examples, evaluated in Lean: every result carries them.
+    var evaluated: List[Result] = Nil
     def done(status: String, rs: List[Result], msgs: List[String], axioms: List[String] = Nil) =
-      NodeCheck(checkHash(n), status, rs, msgs, axioms, java.time.Instant.now.toString)
+      NodeCheck(checkHash(n), status, rs ++ evaluated, msgs, axioms, java.time.Instant.now.toString)
     def errors(r: Run) =
       val ds = Lean.diagnostics(r.output).filter(_.isError).map(d => s"${d.file}:${d.line}: ${d.message}")
       if ds.nonEmpty then ds else List(r.output.linesIterator.toList.takeRight(15).mkString("\n"))
@@ -201,6 +203,29 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       if Lean.usesSorry(built.output) then return done("failed", Nil, List(s"lean/${g.lemmasPath} uses sorry"))
       val replay = lake.replay(g.lemmasModule)
       if !replay.ok then return done("failed", Nil, List("the kernel rejects the lemmas: " + replay.output.linesIterator.toList.takeRight(5).mkString("\n")))
+
+    // Scala and Lean must agree on every example: what Scala computes of it, Lean proves; its
+    // opposite, Lean does not. A disagreement means the translation does not mean what the Scala does,
+    // and nothing proven of the node is about the code.
+    val (evals, notEvaluated) = g.evals(n)
+    if evals.nonEmpty then
+      val rel = g.evalPath(n.id)
+      val run = lake.elaborate(rel)
+      val decls = Lean.theorems(read(ws.lean.resolve(rel)).getOrElse(""))
+      val diags = Lean.diagnostics(run.output).filter(_.file.endsWith(rel))
+      def proves(name: String) = decls.find(_.name == name).exists(d => !diags.exists(x => x.isError && x.line >= d.from && x.line <= d.to))
+      evaluated = evals.map { e =>
+        (proves(e.name), proves(e.name + "_opposite")) match
+          case _ if diags.isEmpty && !run.ok => Result(e.name, "unevaluated", s"${e.what}: Lean did not run: ${run.output.take(200)}")
+          case (true, false) => Result(e.name, "proven", s"Lean agrees: ${e.claim}")
+          case (false, true) => Result(e.name, "failed", s"${e.what}: Scala computes ${e.claim}, Lean proves ${e.opposite}")
+          case (true, true)  => Result(e.name, "failed", s"${e.what}: Lean proves both ${e.claim} and its opposite")
+          case (false, false) => Result(e.name, "unevaluated", s"${e.what}: simp decides neither ${e.claim} nor its opposite")
+      }
+    evaluated ++= notEvaluated.map((name, why) => Result(name, "unevaluated", why))
+    val disagree = evaluated.filter(_.status == "failed")
+    if disagree.nonEmpty then return done("failed", Nil,
+      s"Lean and Scala disagree on ${disagree.size} example(s): the Lean translation does not mean what the Scala does, so nothing proven of ${n.id} is about the code" :: disagree.map(_.detail))
 
     val results = if n.assumed then g.obligation(n).toList.map(o => Result(o.name, "assumed", "decided by reading: Lean assumes it"))
     else g.obligation(n).toList.map { o =>
@@ -317,7 +342,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     else if !n.formal then st("informal", "not formalized: decided by reading")
     else current(n) match
       case None => st("unchecked", if checks.contains(n.id) then "changed since the last check" else "not checked yet")
-      case Some(c) => c.obligations.headOption match
+      case Some(c) => c.obligations.find(_.name == "link") match
         case Some(r) if r.status == "proven" && c.status == "failed" => st("failed", c.messages.headOption.getOrElse("the node's theorems do not build"))
         case Some(r) if r.status == "assumed" && c.status == "failed" => st("failed", c.messages.headOption.getOrElse("the node's theorems do not build"))
         // An authored link counts once something is shown to meet the node.
@@ -325,6 +350,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
           st("open", "the link is proven by hand: prove `feasible` too (some model meets the node), or give a proven implementation")
         case Some(r) => st(r.status, r.detail)
         case None if c.status == "model-error" => st("failed", "the model does not build: " + c.messages.headOption.getOrElse(""))
+        case None if c.status == "failed" && n.kind != NodeKind.Instantiate => st("failed", c.messages.headOption.getOrElse("the check failed"))
         case None => st(if c.status == "failed" then "failed" else "proven", "instantiation")
 
   // ---------------------------------------------------------------------------
@@ -591,7 +617,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       }
       sb ++= "\n"
     g.obligation(n).foreach { o =>
-      val stl = current(n).flatMap(_.obligations.headOption).fold("not checked")(r => s"${r.status}${if r.detail.nonEmpty then s" (${r.detail})" else ""}")
+      val stl = current(n).flatMap(_.obligations.find(_.name == "link")).fold("not checked")(r => s"${r.status}${if r.detail.nonEmpty then s" (${r.detail})" else ""}")
       sb ++= s"## Obligation of ${n.id} [$stl]\n\n${o.description}\n\n```lean\n${o.statement}\n```\n\n"
     }
     val asks = allRequests.filter(_("node").flatMap(_.str).contains(n.id))
@@ -621,10 +647,19 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
         "parent" -> n.parent.fold(JNull)(p => str(p.id)),
         "limits" -> JArr((kb.limits(n) ++ check.toList.flatMap(_.obligations.filter(o => o.name == "idle" && o.status == "proven"))
           .map(o => s"Lean shows it is met by ${o.detail} on every call: only the examples ask for more; say what it must do, or list it as not modelled")).map(str)),
-        "examples" -> JArr(kb.exampleResults(n).map(r => obj(
-          "note" -> str(r.example.note), "given" -> strs(r.example.givens), "call" -> str(r.example.call),
-          "expected" -> JBool(r.example.expected), "contract" -> str(r.contract),
-          "implementation" -> r.implementation.fold(JNull)(str)))),
+        "examples" -> JArr(kb.exampleResults(n).zipWithIndex.map { (r, i) =>
+          // What Lean computes of the example, against what Scala does (the examples written, not generated ones).
+          def lean(name: String) =
+            if i >= n.cases.size || !g.formal(n) then JNull
+            else check.flatMap(_.obligations.find(_.name == name)).fold(obj("status" -> str("unchecked"), "detail" -> str("not checked yet")))(o =>
+              obj("status" -> str(o.status), "detail" -> str(o.detail)))
+          obj(
+            "note" -> str(r.example.note), "given" -> strs(r.example.givens), "call" -> str(r.example.call),
+            "expected" -> JBool(r.example.expected), "contract" -> str(r.contract),
+            "implementation" -> r.implementation.fold(JNull)(str),
+            "lean" -> lean(s"eval_$i"),
+            "leanImplementation" -> (if g.provenImpl(n).isEmpty then JNull else lean(s"evalImpl_$i")))
+        }),
         "code" -> code(n).fold(JNull)(c => obj(
           "files" -> strs(c.files), "fingerprint" -> str(c.fingerprint))),
         "content" -> content(n),

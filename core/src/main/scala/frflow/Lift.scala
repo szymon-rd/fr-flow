@@ -110,6 +110,40 @@ private[frflow] object Lift:
       case Varargs(es) => Expr(es.map(text).toList)
       case other       => Expr(List(text(other)))
 
+private[frflow] object Names:
+  private val Keywords = Set(
+    "at", "by", "do", "else", "end", "fun", "have", "if", "in", "let", "match", "then", "with", "from", "show",
+    "where", "open", "namespace", "section", "def", "theorem", "structure", "inductive", "instance", "import",
+    "forall", "exists", "Type", "Prop", "Sort", "this", "deriving", "mut", "return", "for", "try", "catch",
+    "matches", "variable", "universe", "axiom", "example", "abbrev", "class", "extends", "local", "private",
+    "protected", "partial", "unsafe", "macro", "syntax", "notation", "calc", "suffices", "obtain", "using",
+    "fun", "λ", "nomatch", "nofun", "termination_by", "decreasing_by", "mutual", "opaque", "noncomputable"
+  )
+
+  /** Lean names the generated code uses unqualified, or that Lean's prelude defines: a Scala name
+    * equal to one is renamed, so it cannot capture them (a parameter named `some`, a binder `none`).
+    */
+  private val Prelude = Set(
+    "some", "none", "True", "False", "true", "false", "max", "min", "decide", "List", "Option", "Int", "Nat", "Bool",
+    "String", "Prod", "Exists", "Eq", "Ne", "Not", "And", "Or", "Iff", "id", "ite", "dite", "Classical", "Unit", "Function",
+    "not", "and", "or", "xor", "cond", "Decidable", "propext", "funext", "rfl", "trivial", "absurd", "sorry", "FrFlow")
+
+  def ident(n: String): String =
+    val s = n.replace('$', '_')
+    val t = if s.startsWith("__") then "x" + s.drop(1) else s
+    if Keywords(t) then s"«$t»" else if Prelude(t) then t + "_" else t
+
+  /** A Lean string literal. The call markers ⟦ ⟧ the generator resolves are escaped, so a string can
+    * never be read as a call.
+    */
+  def string(s: String): String = "\"" + s.flatMap {
+    case '"' => "\\\""; case '\\' => "\\\\"; case '\n' => "\\n"; case '\t' => "\\t"; case '\r' => "\\r"
+    case '⟦' => "\\u27E6"; case '⟧' => "\\u27E7"
+    case ch if ch < ' ' => f"\\x${ch.toInt}%02x"
+    case ch => ch.toString
+  } + "\""
+
+
 private final class Translator(using val quotes: Quotes):
   import quotes.reflect.*
 
@@ -191,27 +225,7 @@ private final class Translator(using val quotes: Quotes):
   // Names
   // ---------------------------------------------------------------------------
 
-  private val Keywords = Set(
-    "at", "by", "do", "else", "end", "fun", "have", "if", "in", "let", "match", "then", "with", "from", "show",
-    "where", "open", "namespace", "section", "def", "theorem", "structure", "inductive", "instance", "import",
-    "forall", "exists", "Type", "Prop", "Sort", "this", "deriving", "mut", "return", "for", "try", "catch",
-    "matches", "variable", "universe", "axiom", "example", "abbrev", "class", "extends", "local", "private",
-    "protected", "partial", "unsafe", "macro", "syntax", "notation", "calc", "suffices", "obtain", "using",
-    "fun", "λ", "nomatch", "nofun", "termination_by", "decreasing_by", "mutual", "opaque", "noncomputable"
-  )
-
-  /** Lean names the generated code uses unqualified, or that Lean's prelude defines: a Scala name
-    * equal to one is renamed, so it cannot capture them (a parameter named `some`, a binder `none`).
-    */
-  private val Prelude = Set(
-    "some", "none", "True", "False", "true", "false", "max", "min", "decide", "List", "Option", "Int", "Nat", "Bool",
-    "String", "Prod", "Exists", "Eq", "Ne", "Not", "And", "Or", "Iff", "id", "ite", "dite", "Classical", "Unit", "Function",
-    "not", "and", "or", "xor", "cond", "Decidable", "propext", "funext", "rfl", "trivial", "absurd", "sorry", "FrFlow")
-
-  def ident(n: String): String =
-    val s = n.replace('$', '_')
-    val t = if s.startsWith("__") then "x" + s.drop(1) else s
-    if Keywords(t) then s"«$t»" else if Prelude(t) then t + "_" else t
+  def ident(n: String): String = Names.ident(n)
 
   /** Owner chain without packages: `Wallet.total`, `Op.Deposit`. */
   def qualifiedName(sym: Symbol): String =
@@ -368,7 +382,7 @@ private final class Translator(using val quotes: Quotes):
     case i: Int     => if i < 0 then p(i.toString) else i.toString
     case l: Long    => if l < 0 then p(l.toString) else l.toString
     // The call markers ⟦ ⟧ the generator resolves are escaped, so a string can never be read as a call.
-    case s: String  => "\"" + s.flatMap { case '"' => "\\\""; case '\\' => "\\\\"; case '\n' => "\\n"; case '⟦' => "\\u27E6"; case '⟧' => "\\u27E7"; case ch => ch.toString } + "\""
+    case s: String  => Names.string(s)
     case _: Unit    => "()"
     case other      => fail(s"literal $other is not supported", pos)
 

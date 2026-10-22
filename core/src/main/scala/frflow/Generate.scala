@@ -115,7 +115,8 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
         extraObligations(n).map(o => oblPath(n.id, o.name) -> oblFile(n, o)) ++
         saysNothing(n).map(e => oblPath(n.id, e.obligation.name) -> attempt(n, e.obligation)) ++
         rootImplFile(n).map(oblPath(n.id, "rootImpl") -> _) ++
-        idle(n).map((o, _) => oblPath(n.id, o.name) -> attempt(n, o))
+        idle(n).map((o, _) => oblPath(n.id, o.name) -> attempt(n, o)) ++
+        evalFile(n).map(evalPath(n.id) -> _)
     }
     (s"FrFlowGen/$K/Domain.lean" -> domain :: perNode).toMap
 
@@ -253,6 +254,99 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
         else if r.startsWith("(Option ") then Some("none" -> "returning None")
         else ins.indexOf(r) match { case -1 => None; case i => Some(s"x$i" -> "returning its input unchanged") }
       nothing.map((v, what) => (Obligation("idle", stated(n, vars, None, s"${at(n)("post")} $xs $v"), s"${n.id} is met by $what."), what))
+    }
+
+  // ---------------------------------------------------------------------------
+  // Examples, evaluated in Lean
+  // ---------------------------------------------------------------------------
+
+  private val typeNames: Set[String] = kb.types.map(_.name).toSet
+  /** Lean parameter names, with the Param objects they stand for. */
+  private val paramObject: Map[String, Param[?]] =
+    (kb.nodes.flatMap(_.lifted) ++ kb.defs.map(_.lifted)).flatMap(l => l.paramRefs.map(_._1).zip(l.paramObjects)).toMap
+
+  /** The Lean name of a domain class, as `Lift` declares it (the owner chain without packages). */
+  private def leanName(c: Class[?]): String =
+    val pkg = c.getPackageName
+    val rest = if pkg.isEmpty then c.getName else c.getName.stripPrefix(pkg + ".")
+    rest.replaceAll("[^$]*\\$package\\$", "").split('$').filter(_.nonEmpty).map(Names.ident).mkString(".")
+
+  /** A Scala value as a Lean term of the domain: None for what Lean has no value for (a function, an
+    * opaque value, a Map).
+    */
+  def term(v: Any): Option[String] =
+    def all(xs: Iterator[Any]) = { val ts = xs.map(term).toList; Option.when(ts.forall(_.isDefined))(ts.flatten) }
+    def int(b: BigInt) = if b < 0 then s"($b)" else b.toString
+    def ctor(name: String, args: List[String]) = if args.isEmpty then s"$K.$name" else s"($K.$name ${args.mkString(" ")})"
+    v match
+      case b: Boolean => Some(if b then "True" else "False")
+      case i: Int     => Some(int(BigInt(i)))
+      case l: Long    => Some(int(BigInt(l)))
+      case b: BigInt  => Some(int(b))
+      case s: String  => Some(Names.string(s))
+      case ()         => Some("()")
+      case None       => Some("none")
+      case Some(x)    => term(x).map(t => s"(some $t)")
+      case l: List[?] => all(l.iterator).map(_.mkString("[", ", ", "]"))
+      case t: Product if t.getClass.getName.startsWith("scala.Tuple") => all(t.productIterator).map(_.mkString("(", ", ", ")"))
+      case e: scala.reflect.Enum =>
+        val c = if typeNames(leanName(e.getClass)) then e.getClass else e.getClass.getSuperclass
+        Option.when(typeNames(leanName(c)))(leanName(c)).flatMap(t => all(e.productIterator).map(ctor(s"$t.${Names.ident(e.productPrefix)}", _)))
+      case p: Product if typeNames(leanName(p.getClass)) => all(p.productIterator).map(ctor(s"${leanName(p.getClass)}.mk", _))
+      case _ => None
+
+  /** An example, evaluated in Lean: `claim` is what Scala computes of it (the contract's verdict, or the
+    * result of the proven implementation), `opposite` its negation. Lean proving the opposite means the
+    * translation does not mean what the Scala does.
+    */
+  final case class Eval(name: String, what: String, claim: String, opposite: String)
+
+  /** The examples of a contract Lean evaluates, and why the others are not evaluated (by `eval_i`). */
+  def evals(n: Node[?]): (List[Eval], List[(String, String)]) =
+    if !formal(n) || n.kind != NodeKind.Contract then (Nil, Nil)
+    else
+      val c = nodeCtx(n)
+      val post = n.post.get.value.asInstanceOf[(Any, Any, Any) => Boolean]
+      val impl = provenImpl(n)
+      val out = n.cases.zipWithIndex.map { (e, i) =>
+        val label = s"example ${i + 1} (${e.note})"
+        def valueOf(p: String): Either[String, String] =
+          paramObject.get(p).flatMap(po => e.bindings.find(_.param eq po)) match
+            case None => Left(s"it gives no value for $p")
+            case Some(b) =>
+              scala.util.Try(b.value()).toOption.flatMap(term).toRight(s"Lean has no value for $p (a function, or a type Lean does not have)")
+        val evaluated: Either[String, List[Eval]] = for
+          _ <- Either.cond(c.opaques.isEmpty, (), s"the contract leaves ${c.opaques.mkString(", ")} open")
+          ps <- c.params.foldRight(Right(Nil): Either[String, List[(String, String)]])((p, acc) => for { v <- valueOf(p); r <- acc } yield (p, v) :: r)
+          vals = ps.toMap
+          ran <- scala.util.Try(Bindings.within(e.bindings) {
+              (post(e.a, e.b, e.result), impl.map(d => d.fn.asInstanceOf[(Any, Any) => Any](e.a, e.b)))
+            }).toEither.left.map(x => s"Scala cannot evaluate it: ${x.getMessage}")
+          ta <- term(e.a).toRight("Lean has no value for its input")
+          tb <- term(e.b).toRight("Lean has no value for its input")
+          tr <- term(e.result).toRight("Lean has no value for its result")
+        yield
+          val (verdict, got) = ran
+          val call = s"$K.${n.id}.post${c.params.map(p => " " + vals(p)).mkString} $ta $tb $tr"
+          val onPost = Eval(s"eval_$i", label, if verdict then call else s"¬ $call", if verdict then s"¬ $call" else call)
+          val onImpl = for { d <- impl; g <- got; tg <- term(g) } yield
+            val f = s"($K.${d.name}${defCtx(d).params.map(p => " " + vals(p)).mkString})"
+            Eval(s"evalImpl_$i", s"$label, run by ${d.name}", s"$f $ta $tb = $tg", s"$f $ta $tb ≠ $tg")
+          onPost :: onImpl.toList
+        evaluated.left.map(why => (s"eval_$i", s"$label: $why"))
+      }
+      (out.collect { case Right(es) => es }.flatten, out.collect { case Left(w) => w })
+
+  def evalPath(id: String) = oblPath(id, "eval")
+
+  /** Each evaluated example, and its opposite, decided by `simp`. */
+  def evalFile(n: Node[?]): Option[String] =
+    val es = evals(n)._1
+    Option.when(es.nonEmpty) {
+      Header + s"import ${specModule(n.id)}\n\n" + Preamble + s"namespace $K.${n.id}.Eval\n\n" + es.map { e =>
+        s"/-- ${e.what.replace("-/", "- /")} -/\ntheorem ${e.name} : ${e.claim} := by\n  simp [frflow_defs]\n\n" +
+          s"theorem ${e.name}_opposite : ${e.opposite} := by\n  simp [frflow_defs]\n\n"
+      }.mkString + s"end $K.${n.id}.Eval\n"
     }
 
   /** The proof of an obligation in a file of its own: the authored theorem of that name, or frflow_auto. */

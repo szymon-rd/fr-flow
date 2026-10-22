@@ -22,7 +22,7 @@ class LeanSuite extends munit.FunSuite:
     val w = workflow(shelfKb)
     val r = w.check()
     assertEquals(statuses(r), List("OnlyGood" -> "proven", "Listed" -> "proven", "Books" -> "proven", "Pick" -> "proven"))
-    assert(r.flatMap(_._2.obligations).filter(_.name != "idle").forall(_.detail == "auto"), r)
+    assert(r.flatMap(_._2.obligations).filter(o => o.name != "idle" && !o.name.startsWith("eval")).forall(_.detail == "auto"), r)
     assert(r.flatMap(_._2.axioms).forall(Lean.allowedAxioms))
     val links = w.baseSnapshot("nodes").get.arr.map(n => n("id").flatMap(_.str).get -> n("link").flatMap(_("detail")).flatMap(_.str))
     assertEquals(links.toList, List("OnlyGood" -> None, "Listed" -> Some("auto"), "Books" -> Some("instantiation"), "Pick" -> Some("auto")))
@@ -145,6 +145,30 @@ class LeanSuite extends munit.FunSuite:
         |""".stripMargin)
     val sorried = w.check(Some("Pick")).head._2
     assertEquals(sorried.obligations.find(_.name == "inv_AtMostN").map(r => (r.status, r.detail)), Some(("open", "uses sorry")), sorried)
+  }
+
+  test("Lean evaluates each example as Scala does, and a disagreement fails the node") {
+    val c = workflow(shelfKb).check().find(_._1.id == "Pick").get._2
+    assertEquals(c.obligations.filter(_.name.startsWith("eval")).map(o => o.name -> o.status),
+      List("eval_0" -> "proven", "eval_1" -> "proven", "eval_2" -> "proven"), c)
+    // A parameter that is no fixed value: Lean is given one value of it, Scala's post reads another.
+    var flip = false
+    val unstable = books.contract[List[Book], Int, List[Book]]("Unstable", "Picking returns only long enough books.", why = "w")(
+      (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages.value))
+      .examples(minPages.bind { flip = !flip; if flip then 100 else 10 })(
+        expect(List(Book("Mid", 50)), 5, List(Book("Mid", 50)), "a book of 50 pages"),
+        reject(List(Book("Mid", 50)), 5, List(Book("Other", 50)), "not a book from the shelf"))
+    val u = workflow(KnowledgeBase("Unstable", idea = "IDEA.md")(onlyGood, listed, books, unstable)).check().find(_._1.id == "Unstable").get._2
+    assertEquals(u.status, "failed", u)
+    assertEquals(u.obligations.find(_.name == "eval_0").map(_.status), Some("failed"), u)
+    assertEquals(u.obligations.find(_.name == "eval_1").map(_.status), Some("proven"), u)
+    assert(u.messages.head.contains("Lean and Scala disagree"), u.messages)
+  }
+
+  test("a proven implementation's results are evaluated in Lean too") {
+    val kb = KnowledgeBase("ImplEval", idea = "IDEA.md")(onlyGood, listed, books, pick).implementProven(pick)(longOnes)
+    val c = workflow(kb).check().find(_._1.id == "Pick").get._2
+    assertEquals(c.obligations.filter(_.name.startsWith("evalImpl")).map(_.status), List.fill(3)("proven"), c)
   }
 
   test("an implementation written as a define is proven to keep its contract") {
