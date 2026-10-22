@@ -7,7 +7,9 @@ final case class Obligation(name: String, statement: String, description: String
 
 /** Generates the Lean of a knowledge base (docs/DAG.md §3). Layout, relative to the Lean workspace:
   *
-  *   - `FrFlowGen/<KB>/Domain.lean`          the vocabulary: domain types, `define`s, and the definitions in force
+  *   - `FrFlowGen/<KB>/Types.lean`           the domain types, and the types the definitions in force fix
+  *   - `FrFlowGen/<KB>/Domain/Def_<f>.lean`  a `define`; `Domain/Term_<t>.lean`: a term a definition in force fixes
+  *   - `FrFlowGen/<KB>/Domain.lean`          the whole vocabulary (what a proof file imports)
   *   - `FrFlowGen/<KB>/<Node>/Spec.lean`     the node's claim and the statements of its obligations
   *   - `FrFlowGen/<KB>/<Node>/Auto.lean`     `complete` by `frflow_auto`, unless proven by hand
   *   - `FrFlowGen/<KB>/<Node>/Theorems.lean` `holds`: the node, from the leaves below it
@@ -99,6 +101,10 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
   def checksPath(id: String) = s"FrFlowGen/$K/$id/Checks.lean"
   def evalPath(id: String) = s"FrFlowGen/$K/$id/Eval.lean"
   def rootImplPath = s"FrFlowGen/$K/RootImpl.lean"
+  def typesModule = s"FrFlowGen.$K.Types"
+  private def defModule(name: String) = s"FrFlowGen.$K.Domain.Def_$name"
+  private def termModule(name: String) = s"FrFlowGen.$K.Domain.Term_$name"
+  private def modulePath(module: String) = module.replace('.', '/') + ".lean"
   /** Lemmas the proof files of this knowledge base share. */
   def lemmasModule = s"Proofs.$K.Lemmas"
   def lemmasPath = s"Proofs/$K/Lemmas.lean"
@@ -243,7 +249,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
       List(specPath(n.id) -> spec(n), autoPath(n.id) -> auto(n), theoremsPath(n.id) -> theorems(n), checksPath(n.id) -> checks(n)) ++
         provenImpl(n).map(_ => implPath(n.id) -> impl(n)) ++ evalFile(n).map(evalPath(n.id) -> _)
     }
-    (s"FrFlowGen/$K/Domain.lean" -> domain :: rootImpl.map((_, text) => rootImplPath -> text).toList ++ perNode).toMap
+    (s"FrFlowGen/$K/Domain.lean" -> domainModule :: modulePath(typesModule) -> types :: vocabulary ++ rootImpl.map((_, text) => rootImplPath -> text).toList ++ perNode).toMap
 
   /** Lean of the domain types, functions and definitions a node's own expressions use. */
   def declarationsUsedBy(n: Node[?]): List[String] =
@@ -260,22 +266,66 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
     val types = (n.referenced ++ defs.map(_.lifted)).flatMap(_.types) ++ n.substs.flatMap(_.types)
     types.map(t => if t.scala.nonEmpty then t.scala else t.lean).distinct ++ defs.map(d => s"${d.name} = ${d.lifted.source}")
 
-  /** The vocabulary module: the domain types, the `define`s (over the terms they mention), the types
-    * defined (`abbrev`) and the terms defined (`def`, over the terms their definitions mention).
+  /** The vocabulary: the domain types (`Types`), each `define` (over the terms it mentions) and each term
+    * a definition in force fixes (a `def` over the terms its definition mentions) in a module of its own,
+    * importing the `define`s it calls; `Domain` imports them all. A node's model imports only what it
+    * uses (`vocabularyOf`): a change to one `define` (code, say) or one definition rebuilds the nodes
+    * that use it, not every node of the knowledge base.
     */
-  def domain: String =
+  private lazy val definitionsInForce: List[(String, Node[?], Subst)] =
+    inForce.toList.sortBy(_._1).flatMap((t, d) => d.substs.find(_.name == t).map(s => (t, d, s)))
+  private lazy val defNames: Set[String] = kb.defs.map(_.name).toSet
+
+  def types: String =
+    val abbrevs = definitionsInForce.collect { case (t, d, s) if s.isType => s"/-- ${d.id} -/\n@[frflow_defs] abbrev $t : Type := ${s.lean}" }
+    Header + "import FrFlow\n\n" + Preamble + s"namespace $K\n\n" + (kb.types.map(_.lean) ++ abbrevs).mkString("\n\n") + s"\n\nend $K\n"
+
+  private def vocabularyModule(imports: List[String], decl: String): String =
+    Header + (typesModule :: imports).distinct.map(m => s"import $m\n").mkString + "\n" + Preamble + s"namespace $K\n\n" + decl + s"\n\nend $K\n"
+
+  private def vocabulary: List[(String, String)] =
     val defs = kb.defs.map { d =>
       val b = binders(defCtx(d))
-      s"@[frflow_defs] def ${d.name}${if b.isEmpty then "" else " " + b} : ${d.lifted.leanType} :=\n  ${resolve(d.lifted.lean)}"
+      modulePath(defModule(d.name)) -> vocabularyModule(d.lifted.defs.map(_.name).filter(x => x != d.name && defNames(x)).map(defModule),
+        s"@[frflow_defs] def ${d.name}${if b.isEmpty then "" else " " + b} : ${d.lifted.leanType} :=\n  ${resolve(d.lifted.lean)}")
     }
-    val definitions = inForce.toList.sortBy(_._1).flatMap((t, d) => d.substs.find(_.name == t).map(s => (t, d, s)))
-    val types = definitions.collect { case (t, d, s) if s.isType => s"/-- ${d.id} -/\n@[frflow_defs] abbrev $t : Type := ${s.lean}" }
-    val terms = definitions.collect { case (t, d, s) if !s.isType =>
+    val terms = definitionsInForce.collect { case (t, d, s) if !s.isType =>
       val l = s.term.get
       val b = binders(ctx(l))
-      s"/-- ${d.id} -/\n@[frflow_defs] def $t${if b.isEmpty then "" else " " + b} : ${l.leanType} :=\n  ${resolve(l.lean)}"
+      modulePath(termModule(t)) -> vocabularyModule(l.defs.map(_.name).filter(defNames).map(defModule),
+        s"/-- ${d.id} -/\n@[frflow_defs] def $t${if b.isEmpty then "" else " " + b} : ${l.leanType} :=\n  ${resolve(l.lean)}")
     }
-    Header + "import FrFlow\n\n" + Preamble + s"namespace $K\n\n" + (kb.types.map(_.lean) ++ types ++ defs ++ terms).mkString("\n\n") + s"\n\nend $K\n"
+    defs ++ terms
+
+  /** The whole vocabulary, in one module that imports every part of it: what proof files and lemmas import. */
+  def domainModule: String =
+    val all = typesModule :: kb.defs.map(d => defModule(d.name)) ++ definitionsInForce.collect { case (t, _, s) if !s.isType => termModule(t) }
+    Header + all.distinct.map(m => s"import $m\n").mkString
+
+  /** The vocabulary's declarations, together (to read; the modules above hold them). */
+  def domain: String = (types :: vocabulary.map(_._2)).mkString("\n")
+
+  /** The vocabulary modules some declarations need: the `define`s they call, however nested, and the
+    * terms in force they mention, with what those terms' definitions need in turn.
+    */
+  private def vocabularyOf(defs0: List[Def[?]], terms0: List[String]): List[String] =
+    val defs = mutable.LinkedHashSet.empty[String]
+    val terms = mutable.LinkedHashSet.empty[String]
+    def addDef(d: Def[?]): Unit = Def.closure(List(d)).foreach(x => if defNames(x.name) && defs.add(x.name) then defCtx(x).names.foreach(addTerm))
+    def addTerm(t: String): Unit = definitionOf(t).filterNot(_.isType).foreach { s =>
+      if terms.add(t) then
+        s.term.get.defs.foreach(addDef)
+        ctx(s.term.get).names.foreach(addTerm)
+    }
+    defs0.foreach(addDef)
+    terms0.foreach(addTerm)
+    defs.toList.map(defModule) ++ terms.toList.map(termModule)
+
+  /** The vocabulary a node's model needs: what its expressions and its code mention. */
+  private def vocabularyOf(n: Node[?]): List[String] =
+    val ls = n.lifted ++ formalKeeps(n).flatMap(_._1.rule)
+    val code = provenImpl(n).toList
+    vocabularyOf(ls.flatMap(_.defs) ++ code, ls.flatMap(ctx(_).names) ++ code.flatMap(defCtx(_).names) ++ n.op.map(_.name))
 
   // ---------------------------------------------------------------------------
   // Obligations
@@ -731,7 +781,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
 
   def spec(n: Node[?]): String =
     val sb = StringBuilder()
-    val imports = (s"FrFlowGen.$K.Domain" :: (kb.parts(n).filter(formal) ++ callees(n) ++ keepers(n).map(_._1)).map(c => specModule(c.id))).distinct
+    val imports = (typesModule :: vocabularyOf(n) ++ (kb.parts(n).filter(formal) ++ callees(n) ++ keepers(n).map(_._1)).map(c => specModule(c.id))).distinct
     sb ++= Header + imports.map(m => s"import $m\n").mkString + "\n" + Preamble
     sb ++= s"namespace $K.${n.id}\n\n"
     def d(name: String, c: Ctx, tpe: String, body: String) =
@@ -765,10 +815,41 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
     sb ++= s"end $K.${n.id}\n"
     sb.result()
 
-  /** `complete` by `frflow_auto`, unless the proof file proves it. */
+  /** The node's own declarations a statement about it unfolds to (not the vocabulary's). */
+  private def ownDefs(n: Node[?]): List[String] =
+    q(n, "claim") :: (if n.isInvariant then q(n, "rule") :: keepers(n).map(k => q(n, s"view_${k._1.id}"))
+      else if n.post.isDefined then List(q(n, "post")) else Nil)
+
+  /** `complete` by `frflow_auto`, unless the proof file proves it. A split whose node only regroups
+    * what its parts say (a group of claims, the root over its groups, an invariant over its keepers) is
+    * tried first by matching: the node's and its parts' own declarations unfolded (the vocabulary's
+    * terms left as they are), each statement split into its conjuncts (each hypothesis and the goal on
+    * its own: simplifying them as one term grows with the square of their size), and each conjunct of
+    * the node found among the parts', up to reducible unfolding only. `frflow_auto` unfolds everything
+    * and simplifies the hypotheses against each other: at a hundred conjuncts it runs out of time where
+    * matching takes seconds. Either is a proof Lean checks of the same `Obl.complete`; when matching
+    * does not close it (it fails fast), `frflow_auto` is tried as before.
+    */
   def auto(n: Node[?]): String =
-    val body = obligation(n, "complete").filterNot(_ => isAuthored(n, "complete")).fold("")(o =>
-      s"theorem complete : Obl.complete := by\n  unfold Obl.complete\n  frflow_auto\n\n")
+    val body = obligation(n, "complete").filterNot(_ => isAuthored(n, "complete")).fold("") { o =>
+      val ps = splitParts(n).get
+      val hs = ps.map(p => s"h_${p.id}").mkString(" ")
+      val names = splitOpens(n, ps).names
+      val defs = (n :: ps).flatMap(ownDefs).distinct.mkString(", ")
+      s"""set_option linter.unusedSimpArgs false in
+         |theorem complete : Obl.complete := by
+         |  unfold Obl.complete
+         |  first
+         |    | (intro ${(names :+ hs).mkString(" ")}
+         |       simp only [$defs, List.forall_mem_map, forall_and] at $hs ⊢
+         |       revert $hs
+         |       try simp only [and_imp]
+         |       repeat' (first | (with_reducible assumption) | (with_reducible intro _) | (with_reducible apply And.intro))
+         |       done)
+         |    | frflow_auto
+         |
+         |""".stripMargin
+    }
     Header + s"import ${specModule(n.id)}\n\n" + Preamble + s"namespace $K.${n.id}.Auto\nopen $K.${n.id}\n\n$body" + s"end $K.${n.id}.Auto\n"
 
   /** `impl` by `frflow_auto`, unless the proof file proves it; with the axioms it rests on. */
