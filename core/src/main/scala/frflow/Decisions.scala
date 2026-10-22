@@ -140,7 +140,7 @@ object Decisions:
   def version(snapshot: Json, n: Json): String = sha(s(n, "hash"), parentChain(snapshot, n), code(n)).take(16)
 
   private def decisionJson(id: String, d: Decision) = obj(
-    "node" -> str(id), "action" -> str(d.action), "by" -> str(d.by), "at" -> str(d.at), "reason" -> str(d.reason),
+    "node" -> str(id), "action" -> str(d.action), "binds" -> JBool(Ledger.binds(d.action)), "by" -> str(d.by), "at" -> str(d.at), "reason" -> str(d.reason),
     "rejected" -> JArr(d.rejected.map(str)), "content" -> d.content)
 
   /** The snapshot with each node's state, what moved, its decision, history and alternatives;
@@ -170,6 +170,7 @@ object Decisions:
         "rejectedBeside" -> JArr(n("parent").flatMap(_.str).toList.flatMap(ledger.rejectedUnder).filter(_._1 != id).map((r, c, why) =>
           obj("id" -> str(r), "statement" -> c("statement").getOrElse(str("")), "why" -> c("why").getOrElse(str("")), "reason" -> str(why)))),
         "below" -> JArr(if state(snapshot, ledger, n) == "accepted" then Nil else below(snapshot, ledger, n)),
+        "conditionsAbove" -> JArr(conditionsAbove(snapshot, ledger, n).map(str)),
         "history" -> JArr(ledger.history(id).map(decisionJson(id, _))),
         "alternatives" -> JArr(ledger.alternatives(id).map((a, c) => obj("id" -> str(a), "content" -> c))))
       JObj(n.obj.filterNot(f => fields.exists(_._1 == f._1)) ++ fields)
@@ -288,6 +289,17 @@ object Decisions:
     Seq("conditional" -> JBool((reasonNow(ledger, id) :: ledger.chosen(id).fold("")(_.reason) ::
       c("content").flatMap(_("why")).flatMap(_.str).toList).exists(conditional)))
   extension (j: Json) private def ++(fs: Seq[(String, Json)]): Json = JObj(j.obj ++ fs)
+
+  /** Above a proposal: the accepted decisions it rests on (its path, what it relies on, the invariants
+    * it keeps) whose reason says when to revisit them. Accepting it answers each by name.
+    */
+  def conditionsAbove(snapshot: Json, ledger: Ledger, n: Json): List[String] =
+    val ids = byId(snapshot)
+    if state(snapshot, ledger, n) != "proposed" then Nil
+    else
+      val path = Iterator.iterate(n("parent").flatMap(_.str))(_.flatMap(ids.get).flatMap(_("parent")).flatMap(_.str)).takeWhile(_.isDefined).flatten.toList
+      (path.reverse ++ relies(n) ++ kept(n)).distinct.filter(id => ids.contains(id) && ledger.binding(id).isDefined &&
+        revisitFields(ledger, ids(id)).exists(_._2 == JBool(true)))
 
   /** A reason (or why) that says when to revisit the decision: such a decision below a change is
     * answered by name, still holds or revisit, never left to a default.
@@ -472,31 +484,37 @@ object Decisions:
         // Parents first, as listed below the node.
         val under = below(snapshot, ledger, n).map(b => s(b, "id"))
         val listed = below(snapshot, ledger, n).map(b => s(b, "id") -> s(b, "kind")).toMap
-        val notListed = r.revisit.filterNot(listed.contains) ++ r.confirm.filterNot(x => listed.get(x).contains("moved"))
+        val aboveIt = conditionsAbove(snapshot, ledger, n)
+        val notListed = r.revisit.filterNot(x => listed.contains(x) || aboveIt.contains(x)) ++ r.confirm.filterNot(x => listed.get(x).contains("moved")) ++
+          r.held.filterNot(x => listed.get(x).contains("accepted") || aboveIt.contains(x))
         // Those whose reason says when to revisit them are answered one by one.
         val conditions = below(snapshot, ledger, n).filter(b => s(b, "kind") == "accepted" && b("conditional").contains(JBool(true)))
-          .map(b => s(b, "id")).filterNot(x => r.revisit.contains(x) || r.confirm.contains(x) || r.held.contains(x))
+          .map(b => s(b, "id")).++(aboveIt).filterNot(x => r.revisit.contains(x) || r.confirm.contains(x) || r.held.contains(x))
         if notListed.nonEmpty then Left(s"not among the decisions below ${r.node} that this decision can act on: ${notListed.mkString(", ")}")
         else if r.revisit.exists(r.confirm.contains) then Left("a node is either revisited or confirmed")
         else if conditions.nonEmpty then
-          Left(s"say for each decision below that names when to revisit it whether it still holds or is revisited: ${conditions.mkString(", ")}")
+          Left(s"say for each decision below or above that names when to revisit it whether it still holds or is revisited: ${conditions.mkString(", ")}")
         else
           // Parents first: a node named to confirm is confirmed once its parent is accepted, and only
           // if it is under review just because something above it moved.
-          val confirmed = under.filter(r.confirm.contains).foldLeft(withRejected) { (l, id) =>
-            val c = ids(id)
-            val parentAccepted = c("parent").flatMap(_.str).forall(p => holds(st(l, p)))
-            if parentAccepted && st(l, id) == "review" && causes(snapshot, l, c) == List("above") then
-              l.add(id, make("confirm", c, Nil, s"still holds after ${r.node} changed: ${r.reason}"))
-            else l
+          val tried = under.filter(r.confirm.contains).foldLeft(Right(withRejected): Either[String, Ledger]) { (acc, id) =>
+            acc.flatMap { l =>
+              val c = ids(id)
+              val parent = c("parent").flatMap(_.str).filterNot(p => holds(st(l, p)))
+              if parent.isDefined then Left(s"$id cannot be confirmed before ${parent.get}: confirm ${parent.get} too, or decide $id after it")
+              else if causes(snapshot, l, c) != List("above") then Left(s"$id is under review for ${causes(snapshot, l, c).mkString(", ")}, not only a change above: decide it on its own")
+              else Right(l.add(id, make("confirm", c, Nil, s"still holds after ${r.node} changed: ${r.reason}")))
+            }
           }
+          tried.flatMap { confirmed =>
           // The decisions listed and left as they are were considered: say so on this decision.
-          val held = listed.collect { case (x, "accepted") if !r.revisit.contains(x) => x }.toList.sorted
+          val held = (listed.collect { case (x, "accepted") if !r.revisit.contains(x) => x }.toList ++ aboveIt.filter(r.held.contains)).sorted
           val withHeld = if held.isEmpty || !confirmed.current(r.node).exists(_.at == at) then confirmed
             else confirmed.copy(decisions = confirmed.decisions.updated(r.node,
               confirmed.history(r.node).init :+ confirmed.history(r.node).last.copy(held = held)))
           Right(r.revisit.distinct.foldLeft(withHeld)((l, id) =>
             l.add(id, make("revisit", ids(id), Nil, s"${r.node} changed and may affect it: ${r.reason}"))))
+          }
 
   // -- views: the same for the CLI, the browser and the agent ---------------------------------
 

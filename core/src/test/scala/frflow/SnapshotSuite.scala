@@ -200,6 +200,11 @@ class SnapshotSuite extends munit.FunSuite:
     assertEquals(w.kb.ordered.map(w.state), List("accepted", "review", "review"))
   }
 
+  test("the definition as written runs past comments between its chained calls, and not into the next one's") {
+    val d = workflow().definition(longPick)
+    assert(d.startsWith("val longPick = ") && d.contains(".examples(") && d.endsWith("\"never a short one\"))"), d)
+  }
+
   test("a change to a node's meaning shows below, and what still holds is confirmed by name") {
     val ws = workspace()
     acceptAll(workflow(shelfKb, ws))
@@ -444,8 +449,8 @@ class SnapshotSuite extends munit.FunSuite:
     val w0 = workflow(shelfKb, ws)
     ok(accept(w0, onlyGood, "it is the idea"))
     ok(accept(w0, listed, "Items come from the list; revisit if items can come from elsewhere."))
-    ok(accept(w0, books, "Books are the items."))
-    ok(accept(w0, pick, "Picking is per call."))
+    ok(w0.decide(Decisions.Request("Books", "dev", "Books are the items.", held = List("Listed"))))
+    ok(w0.decide(Decisions.Request("Pick", "dev", "Picking is per call.", held = List("Listed"))))
     // only the root's why changes: the decisions below stay accepted, and are listed with it
     val root2 = Node.root[(List[Item.T], Int) => List[Item.T]]("OnlyGood", onlyGood.statement, "Picking a bad item is what the idea rules out, whatever the list.")(
       pick => forall((l: List[Item.T], n: Int) => pick(l, n).forall(x => good(x))))
@@ -453,6 +458,32 @@ class SnapshotSuite extends munit.FunSuite:
     // Listed's reason names when to revisit it: no default
     assert(accept(w, root2, "The why is clearer now.").left.exists(_.contains("Listed")), accept(w, root2, "The why is clearer now."))
     ok(w.decide(Decisions.Request("OnlyGood", "dev", "The why is clearer now.", held = List("Listed"))))
+  }
+
+  test("a new node under a decision that says when to revisit it answers it by name") {
+    val w = workflow(shelfKb, workspace())
+    ok(accept(w, onlyGood, "it is the idea"))
+    ok(accept(w, listed, "Items come from the list; revisit if items can come from elsewhere."))
+    // Books is new under it: it answers it
+    assert(accept(w, books, "Books are the items.").left.exists(_.contains("Listed")))
+    ok(w.decide(Decisions.Request("Books", "dev", "Books are the items.", held = List("Listed"))))
+    assertEquals(nodes(w.annotated)("Pick")("conditionsAbove").get.arr.flatMap(_.str), Seq("Listed"))
+    assert(accept(w, pick, "Picking is per call.").left.exists(_.contains("Listed")))
+    ok(w.decide(Decisions.Request("Pick", "dev", "Picking is per call.", held = List("Listed"))))
+    assertEquals(w.ledger.current("Pick").get.held, List("Listed"))
+  }
+
+  test("a confirmation it cannot apply is refused, with why, not dropped") {
+    val ws = workspace()
+    acceptAll(workflow(shelfKb, ws))
+    val root2 = Node.root[(List[Item.T], Int) => List[Item.T]]("OnlyGood", "Only good items are ever picked.", onlyGood.why)(
+      pick => forall((l: List[Item.T], n: Int) => pick(l, n).forall(x => good(x))))
+    val w = workflow(KnowledgeBase("Shelf", idea = "IDEA.md")(root2, listed, books, pick), ws)
+    val r = w.decide(Decisions.Request("OnlyGood", "dev", "Clearer with 'ever' added.", confirm = List("Books")))
+    assert(r.left.exists(_.contains("Books")), r)
+    val h = w.decide(Decisions.Request("OnlyGood", "dev", "Clearer with ever added.", held = List("Elsewhere")))
+    assert(h.left.exists(_.contains("not among")), h)
+    ok(w.decide(Decisions.Request("OnlyGood", "dev", "Clearer with 'ever' added.", held = List("Listed"))))
   }
 
   test("a renamed node keeps its history, its reasons and the alternatives rejected for it, in one decision") {

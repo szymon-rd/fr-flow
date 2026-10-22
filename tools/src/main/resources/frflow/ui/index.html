@@ -313,13 +313,16 @@ const all = () => snap()?.nodes || [];
 const live = () => all().filter(n => n.state !== "rejected" || all().some(c => c.parent === n.id));
 const byId = id => all().find(n => n.id === id);
 const C = n => n.content || {};
+const VERB = { accept: "accepted", confirm: "re-confirmed", reject: "rejected", remove: "agreed it is gone", revisit: "asked to revisit", migrate: "recorded again by a new FrFlow" };
 const children = id => live().filter(n => n.parent === id);
 function pathTo(id) { const out = []; let n = byId(id); while (n) { out.unshift(n); n = n.parent ? byId(n.parent) : null; } return out; }
 const linkStatus = n => n.link?.status || (n.kind === "design" ? "design" : n.parent ? "unchecked" : "root");
 // A node resting on a rejected node waits for the agent to move it, not for you.
 // Mechanical decisions (Lean proves them again, nothing in them is a choice) come last: risk-sorted.
+// In the order core gives: each after what it rests on, so each can be decided when it comes.
 const waitingForYou = () => {
-  const w = live().filter(n => (n.state === "proposed" || n.state === "review") && byId(n.parent)?.state !== "rejected");
+  const rank = n => { const i = (snap()?.order || []).indexOf(n.id); return i < 0 ? 1e9 : i; };
+  const w = live().filter(n => (n.state === "proposed" || n.state === "review") && byId(n.parent)?.state !== "rejected").sort((a, b) => rank(a) - rank(b));
   return [...w.filter(n => !n.mechanical), ...w.filter(n => n.mechanical)];
 };
 // Everything the inbox asks of you, counted once, the same everywhere.
@@ -449,9 +452,16 @@ function renderPane() {
   if (!state.data) { $("#pane").innerHTML = `<p class="muted">Loading…</p>`; return; }
   if (!snap() && state.tab !== "idea") { $("#pane").innerHTML = ""; return; }
   // A redraw (for example after a live update) keeps what the developer is typing or ticking.
-  const keep = state.tab === "node" && $("#reason") ? { node: state.selected, reason: $("#reason").value,
+  const keep = state.tab === "node" && $("#reason") ? { node: state.selected, reason: $("#reason").value, version: state.shownVersion,
     ticks: [...document.querySelectorAll("#pane input[type=checkbox], #pane input[type=radio]")].map(x => [x.className, x.name + "|" + x.value, x.checked]) } : null;
   $("#pane").innerHTML = { node: nodePane, inbox: inboxPane, idea: ideaPane, vocabulary: vocabularyPane, history: historyPane }[state.tab]();
+  const now = state.tab === "node" ? byId(state.selected)?.version : null;
+  // What the developer wrote a reason for changed under it: said, and kept said until they decide.
+  if (keep && keep.node === state.selected && keep.reason.trim() && keep.version && now && keep.version !== now)
+    state.notice = { node: state.selected, msg: `${state.selected} changed while you were writing: read it again before deciding; your reason is kept.` };
+  state.shownVersion = now;
+  if (state.notice && state.tab === "node" && state.notice.node === state.selected)
+    $("#pane").insertAdjacentHTML("afterbegin", `<div class="said err-text" style="margin-bottom:8px">${esc(state.notice.msg)}</div>`);
   if (keep && keep.node === state.selected) {
     if ($("#reason")) $("#reason").value = keep.reason;
     for (const [c, v, on] of keep.ticks) {
@@ -560,7 +570,7 @@ const warnings = n => [...(n.unproven || []), ...((n.sameAs || []).length ? [`it
 
 // What moved since the decision, shown whether or not it can be accepted yet.
 function whatMoved(n) {
-  const d = n.history?.filter(h => ["accept", "confirm", "migrate"].includes(h.action)).slice(-1)[0];
+  const d = n.history?.filter(h => h.binds).slice(-1)[0];
   let h = "";
   for (const c of n.causes || []) {
     if (c === "self") h += `<div class="side"><div class="label">${esc(n.id)} changed since it was accepted</div>${diff(d?.content, n.content) || `<div class="muted small">No difference in what was decided.</div>`}</div>`;
@@ -610,10 +620,14 @@ function aboveReasons(n) {
       ${n.rejectedBeside.map(x => `<div class="small"><b>${esc(x.id)}</b>: ${esc(x.statement)} <span class="muted">— rejected because ${esc(x.reason)}</span></div>`).join("")}</div>` : "");
   const relied = (n.relies || []).map(byId).filter(Boolean);
   if (!above.length && !invs.length && !relied.length) return like;
+  // A reason above that says when to revisit it is answered by name, as below.
+  const ask = id => (n.conditionsAbove || []).includes(id) ? ` <span class="small">
+    <label><input type="radio" class="ans" name="ans-${esc(id)}" value="held" data-id="${esc(id)}"> still holds</label>
+    <label><input type="radio" class="ans" name="ans-${esc(id)}" value="revisit" data-id="${esc(id)}"> revisit ${esc(id)}</label></span>` : "";
   return like + `<div class="side"><div class="label">what it rests on, with the reasons: does this meet a condition they set for revisiting them?</div>
-    ${above.map(a => `<div class="small"><a data-goto="${esc(a.id)}"><b>${esc(a.id)}</b></a>: ${esc(a.reasonNow || a.decision?.reason || "")}</div>`).join("")}
-    ${invs.map(i => `<div class="small"><a data-goto="${esc(i.id)}"><b>${esc(i.id)}</b></a>: ${i.status === "exempt" ? `exempt, because ${esc(i.detail)} — still true?` : esc(byId(i.id).reasonNow || byId(i.id).decision?.reason || "")}</div>`).join("")}
-    ${relied.map(r => `<div class="small">relies on <a data-goto="${esc(r.id)}"><b>${esc(r.id)}</b></a>: ${esc(r.reasonNow || r.decision?.reason || "")}</div>`).join("")}</div>`;
+    ${above.map(a => `<div class="small"><a data-goto="${esc(a.id)}"><b>${esc(a.id)}</b></a>: ${esc(a.reasonNow || a.decision?.reason || "")}${ask(a.id)}</div>`).join("")}
+    ${invs.map(i => `<div class="small"><a data-goto="${esc(i.id)}"><b>${esc(i.id)}</b></a>: ${i.status === "exempt" ? `exempt, because ${esc(i.detail)} — still true?` : esc(byId(i.id).reasonNow || byId(i.id).decision?.reason || "")}${ask(i.id)}</div>`).join("")}
+    ${relied.filter(r => !above.some(a => a.id === r.id)).map(r => `<div class="small">relies on <a data-goto="${esc(r.id)}"><b>${esc(r.id)}</b></a>: ${esc(r.reasonNow || r.decision?.reason || "")}${ask(r.id)}</div>`).join("")}</div>`;
 }
 
 // Back to the agent, with what to change: a request on the node.
@@ -626,7 +640,7 @@ function reasons(n) {
   const d = n.decision, latest = lastBinding(n);
   if (!latest) return "";
   const isChoice = h => d && h.at === d.at && h.action === d.action;
-  const verb = h => isChoice(h) ? "chosen" : { accept: "change accepted", confirm: "re-confirmed", revisit: "asked to revisit", reject: "rejected", remove: "agreed it is gone" }[h.action] || h.action;
+  const verb = h => isChoice(h) ? "chosen" : h.action === "accept" ? "change accepted" : VERB[h.action] || h.action;
   const when = h => h.at ? new Date(h.at).toLocaleString() : "";
   const hs = n.history || [], i = hs.indexOf(latest);
   const earlier = (i < 0 ? hs : hs.slice(0, i)).filter(h => h.action !== "migrate").reverse();
@@ -796,14 +810,14 @@ function nodePane() {
 }
 
 // Nodes decided at once with one reason: one accept each, parents first (each with the version seen).
-function batchBox(ns, title, note, placeholder) {
+function batchBox(ns, title, note, placeholder, reason = "") {
   const depth = n => pathTo(n.id).length;
   // In the order core gives: each after what it rests on (its parent, what it relies on, what it keeps).
   const rank = id => { const i = (snap()?.order || []).indexOf(id); return i < 0 ? 1e9 + depth(byId(id)) : i; };
   const ids = [...ns].sort((a, b) => rank(a.id) - rank(b.id)).map(n => n.id).join(",");
   return `<div class="box review" style="margin-top:0"><div class="verdict review">${title}</div>
     <div class="small">${ns.map(n => `<a data-goto="${esc(n.id)}">${esc(n.id)}</a>`).join(", ")} — ${note}</div>
-    <textarea data-batchreason="${esc(ids)}" rows="1" placeholder="${esc(placeholder)}"></textarea>
+    <textarea data-batchreason="${esc(ids)}" rows="1" placeholder="${esc(placeholder)}">${esc(reason)}</textarea>
     <div class="actions"><button class="btn small" data-batch="${esc(ids)}">${ns.length > 1 ? `Accept all ${ns.length}` : `Accept ${esc(ns[0].id)}`}</button></div></div>`;
 }
 
@@ -830,7 +844,8 @@ function inboxPane() {
       ${w.filter(f => followers(f, w) === n.id).map(f => `<div class="muted small">↳ <a data-goto="${esc(f.id)}">${esc(f.id)}</a> moved with it: decided together, from its review</div>`).join("")}</div>`).join("")
       : gone().length || mech.length ? "" : `<div class="muted small">Nothing. Every node is accepted.</div>`}
     ${mech.length ? `<h3>Mechanical — Lean proves these again; nothing in them is a choice</h3>
-      ${batchBox(mech, `${mech.length} mechanical decision${mech.length > 1 ? "s" : ""}`, "nothing you decided in them changed (only the types they use, a proven implementation, or something above them), and Lean proves them again. Open one to read what moved.", "Why do they hold? e.g. the change above does not touch what they rely on")}` : ""}
+      ${batchBox(mech, `${mech.length} mechanical decision${mech.length > 1 ? "s" : ""}`, "nothing you decided in them changed (only the types they use, a proven implementation, or something above them), and Lean proves them again. Open one to read what moved.", "Why do they hold? e.g. the change above does not touch what they rely on",
+        "Nothing I decided in them changed, and Lean proves them again.")}` : ""}
     ${gone().map(r => `<div class="req"><b>${esc(r.id)}</b> <span class="chip s-review">gone from the model</span>
       <div class="small">${esc(r.decision?.content?.statement)}</div>
       ${(r.renamedTo || []).length ? `<div class="small">Says what ${(r.renamedTo).map(x => `<a data-goto="${esc(x)}">${esc(x)}</a>`).join(", ")} says, under another name: if it was renamed, its history (its choice, reasons, rejected alternatives) carries over.</div>` : ""}
@@ -889,9 +904,9 @@ function vocabularyPane() {
 
 function historyPane() {
   const hs = state.history || [];
-  const verb = { accept: "accepted", confirm: "re-confirmed", reject: "rejected", remove: "agreed is gone", revisit: "to revisit", migrate: "recorded again by a new FrFlow" };
+
   return hs.length ? `<div class="muted small">Every decision, from the ledger (committed with the code).</div>` + hs.map(e =>
-    `<div class="event"><span class="d ${esc(e.action)}"></span><div><a data-goto="${esc(e.node)}"><b>${esc(e.node)}</b></a> ${esc(verb[e.action] || e.action)} by ${esc(e.by)}${(e.rejected || []).length ? `, rejecting ${esc(e.rejected.join(", "))}` : ""}
+    `<div class="event"><span class="d ${esc(e.action)}"></span><div><a data-goto="${esc(e.node)}"><b>${esc(e.node)}</b></a> ${esc(VERB[e.action] || e.action)} by ${esc(e.by)}${(e.rejected || []).length ? `, rejecting ${esc(e.rejected.join(", "))}` : ""}
       <div class="small">${esc(e.reason)}</div><div class="when">${new Date(e.at).toLocaleString()}</div></div></div>`).join("") : `<p class="muted">No decisions yet.</p>`;
 }
 
@@ -918,8 +933,10 @@ function say(el, msg, cls = "err-text") {
 }
 const words = s => (s || "").split(/\s+/).filter(w => /\p{L}/u.test(w)).length;
 
+// A refusal is kept above the node, so a redraw cannot hide it.
 async function decide(body, el) {
-  try { await post(`${P()}/decide`, body); await refresh(); } catch (e) { say(el, e.message); }
+  try { await post(`${P()}/decide`, body); state.notice = null; await refresh(); }
+  catch (e) { state.notice = { node: body.node, msg: e.message }; await refresh(); }
 }
 
 document.addEventListener("click", async e => {

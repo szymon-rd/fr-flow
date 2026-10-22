@@ -242,7 +242,12 @@ def expect[A, B, R](a: A, b: B, result: R, note: String): Case[A, B, R] = Case(a
 def reject[A, B, R](a: A, b: B, result: R, note: String): Case[A, B, R] = Case(a, b, result, false, note)
 
 /** The outcome of one example: against the contract, and against the implementation if one is registered. */
-final case class ExampleResult(example: Example, contract: String, implementation: Option[String])
+final case class ExampleResult(example: Example, contract: String, implementation: Option[String]):
+  /** In words: "ok", or what went wrong, of the contract and of the implementation. */
+  def verdict: String =
+    List(Option.when(contract != "ok")(contract), implementation.filter(_ != "ok").map(i => s"the implementation $i")).flatten match
+      case Nil => "ok"
+      case ws  => ws.mkString("; ")
 
 /** Raised by an enforced implementation whose result breaks its contract. */
 final class ContractViolation(node: String, detail: String) extends RuntimeException(s"$node: $detail")

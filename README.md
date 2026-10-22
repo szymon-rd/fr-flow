@@ -83,7 +83,9 @@ lists the decisions below, each with the reason it holds by now; the developer
 marks those it may affect (`revisit`), and confirms by name those that moved
 only because of it. A decision whose reason or `why` says when it stops
 holding ("revisit if", "reconsider when", "unless", "until", "as long as",
-"only while") must be answered by name: still holds, or revisit.
+"only while") must be answered by name: still holds, or revisit. So must such
+a decision above a new node (on its path, what it relies on, what it keeps):
+the new node may be what the condition was about.
 
 A decision is refused if the node or its code moved since the developer looked
 at it, or if its reason is not a few words. A review can be sent back to the

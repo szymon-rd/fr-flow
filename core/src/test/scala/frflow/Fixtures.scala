@@ -95,6 +95,7 @@ val cappedCall = capped.caller("cappedCall")
 val viaCapped = define { (shelf: List[Book], n: Int) => cappedCall(shelf, n).filter(b => shelf.contains(b)) }
 val longPick = books.contract[List[Book], Int, List[Book]]("LongPick", "Picking through Capped returns only long books from the shelf.", why = "It reuses Capped.")(
   (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages.value))
+// what it is decided on: these examples (a comment does not end the definition)
   .examples(minPages.bind(100), maxPages.bind(500))(
     expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
     reject(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))

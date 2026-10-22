@@ -44,11 +44,12 @@ object Cli:
           val failing = kb.exampleResults(n).filter(r => r.contract != "ok" || r.implementation.exists(_ != "ok"))
           if failing.nonEmpty then
             println(s"  ${failing.size} example(s) fail: the code or the contract is wrong; fix that, not the proof")
-            failing.take(5).foreach(r => println(s"    ${r.example.describe}: contract ${r.contract}${r.implementation.fold("")(i => s", implementation $i")}"))
+            failing.take(5).foreach(r => println(s"    ${r.example.describe}: ${r.verdict}"))
           // `idle` is not an obligation: proven, it is a limit of the contract (it allows doing nothing).
           c.obligations.filter(r => !r.isLimit && r.status != "proven").foreach(r => println(s"  ${r.status} ${r.name}: ${r.detail.linesIterator.mkString("\n    ")}"))
           c.obligations.filter(r => r.name == "idle" && r.status == "proven").foreach(r => println(s"  limit: it is met by ${r.detail} on every call"))
-          c.messages.foreach(m => println(s"  ! ${m.linesIterator.mkString("\n    ")}"))
+          // With an example failing, the link may be false: no hint to prove it.
+          c.messages.filterNot(m => failing.nonEmpty && m.startsWith("prove it in")).foreach(m => println(s"  ! ${m.linesIterator.mkString("\n    ")}"))
         }
         println()
         print(w.status._1)

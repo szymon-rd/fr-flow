@@ -139,12 +139,14 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       val Statement = """^\s*(?:(?:private|protected|final|lazy|override|inline)\s+)*(?:val|def|given|var)\b.*""".r
       // The statement holding the call: the nearest `val`/`def` above it, no deeper than its line...
       val from = (k to 0 by -1).find(j => lines(j).trim.nonEmpty && indent(lines(j)) <= indent(lines(k)) && Statement.matches(lines(j))).getOrElse(k)
-      // ...to the next line as shallow as it that does not continue it (a closing bracket, a chained call).
+      // ...to the next line as shallow as it that does not continue it (a closing bracket, a chained call;
+      // a comment may sit between chained calls, and the comments before the next statement are not its).
+      def comment(t: String) = Seq("//", "/*", "*").exists(t.startsWith)
       val to = ((from + 1) until lines.size).find { j =>
         val t = lines(j).trim
-        t.nonEmpty && indent(lines(j)) <= indent(lines(from)) && !Seq(")", "}", "]", ".").exists(t.startsWith)
+        t.nonEmpty && !comment(t) && indent(lines(j)) <= indent(lines(from)) && !Seq(")", "}", "]", ".").exists(t.startsWith)
       }.getOrElse(lines.size)
-      val body = lines.slice(from, to).map(_.stripTrailing).reverse.dropWhile(_.isEmpty).reverse
+      val body = lines.slice(from, to).map(_.stripTrailing).reverse.dropWhile(l => l.isEmpty || comment(l.trim)).reverse
       // Dedented: moving the statement into or out of a block is not a change of what it says.
       val margin = body.filter(_.trim.nonEmpty).map(indent).minOption.getOrElse(0)
       body.map(_.drop(margin)).mkString("\n")
@@ -316,8 +318,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
 
     val thms = lake.build(g.theoremsModule(n.id))
     if !thms.ok then return done("failed", results, "the node's theorems do not build" :: errors(thms))
-    // The proof file, when it proves obligations besides the link (the link builds it otherwise):
-    // when it fails, the obligations it proves fail with it, by name, and the others stand.
+    // The proof file, when it proves obligations besides the link (the link builds it otherwise).
     val proofFile: Option[String] =
       if !(g.extraObligations(n).exists(o => g.isAuthored(n, o.name)) && !authored(n.id)) then None
       else
@@ -327,6 +328,9 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
         else
           val built = lake.build(g.proofsModule(n.id))
           Option.when(!built.ok)(s"lean/${g.proofsPath(n.id)} does not build: " + errors(built).take(5).map(_.take(20000)).mkString("\n"))
+    // Everything else imports it: what it proves fails, by name, and the file is the message.
+    if proofFile.isDefined then return done("failed",
+      results ++ g.extraObligations(n).filter(o => g.isAuthored(n, o.name)).map(o => Result(o.name, "failed", proofFile.get)), List(proofFile.get))
     // Everything else, in one run of Lean (see `Generate.checks`): each theorem holds when Lean reports
     // no error in it, no `sorry`, and its axioms (fail closed: no audit, no proof).
     val rel = g.checksPath(n.id)
@@ -350,7 +354,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       return done("failed", results.map(_.copy(status = "failed", detail = emptyLink.get.why)), List(emptyLink.get.message))
     val invRuns = g.extraObligations(n).map { o =>
       val how = if g.isAuthored(n, o.name) then "authored" else "auto"
-      empty.find(_.fails == o.name).map(_.why).orElse(proofFile.filter(_ => g.isAuthored(n, o.name))) match
+      empty.find(_.fails == o.name).map(_.why) match
         case Some(w) => (Result(o.name, "failed", w), Nil)
         case None => why(o.name) match
           case None => (Result(o.name, "proven", how), axiomsOf(o.name).getOrElse(List("<no audit result>")))
@@ -374,7 +378,9 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val used = (axiomsOf(s"${kb.name}.${n.id}.root").getOrElse(List("<no audit result>")) ++ invRunsAll.flatMap(_._2)).distinct.sorted
     val extra = used.filterNot(Lean.allowedAxioms)
     val all = results ++ invRunsAll.map(_._1) ++ idle
-    if extra.nonEmpty then done("failed", all, List(s"disallowed axioms: ${extra.mkString(", ")}"), used)
+    if used.contains("<no audit result>") then
+      done("failed", all, List(s"Lean did not finish checking lean/$rel: " + errors(run).take(3).map(_.take(5000)).mkString("\n")), used)
+    else if extra.nonEmpty then done("failed", all, List(s"disallowed axioms: ${extra.mkString(", ")}"), used)
     // (What is left open is in the results, once: not repeated as messages.)
     else done("proven", all, Nil, used)
 
@@ -673,7 +679,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       a.substs.foreach(s => sb ++= s"- `${s.name} := ${s.term.fold(s.lean)(_.source)}`\n")
       kb.limits(a).foreach(x => sb ++= s"- does not promise: $x\n")
       kb.exampleResults(a).foreach { r =>
-        sb ++= s"- example: ${r.example.describe} [contract ${r.contract}${r.implementation.fold("")(i => s", implementation $i")}]\n"
+        sb ++= s"- example: ${r.example.describe} [${r.verdict}]\n"
       }
       code(a).foreach(c => sb ++= s"- governs: ${c.files.mkString(", ")}\n")
       content(a)("implementation").flatMap(_.str).foreach(i => sb ++= s"implementation:\n```scala\n$i\n```\n")
