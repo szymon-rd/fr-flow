@@ -339,6 +339,57 @@
             "CrmWrites: a share names one record by its id: ids are unique in every store the writes reach, so a share never shows another company's record with the same id (guarantee: (s: CrmStore) => consistentStore(s), of: () => CrmStore(store.value, shares.value))"
           ]
         }
+      },
+      {
+        "action": "accept",
+        "by": "claude-example-data",
+        "at": "2026-10-22T08:44:14.803448453Z",
+        "reason": "The guarantee the reads rely on from the writes is now written with relies, the one form for relying on another node; what it relies on is unchanged.",
+        "held": [
+          "ReadContract",
+          "ReadSideWiring"
+        ],
+        "after": "25432f0385f96282",
+        "commit": "c92ea7e40964933b9dfb35cde5be2701a219a12f",
+        "tree": "a4654ce2677f23bd5f9ad62b473fbbc2cc778567",
+        "key": "0f551cc8e3f37f9f",
+        "sig": "ekH1861FN9fgYWByK78ITX3mVI2ug9UELori6NyyxKjRXkeCXT/uKGVprbpocHRpTma8d+HHPPbxZyOUhMsmDA==",
+        "chain": "619b21ae01917d1fec452d0ca85526893c02c6bd3b414f64e03a29a8b21a9710",
+        "content": {
+          "parent": "ReadApi",
+          "statement": "Users are accounts of a company, records are contacts and deals, and sharing is a table of shares.",
+          "why": "A record belongs to the company stored on it, and a user to the company of their account. This trusts the record, so ReadContract requires returned records to be the stored ones; it also trusts the account, which authentication provides (not modelled).",
+          "sources": {},
+          "substitutions": [
+            "Tenant := TenantId",
+            "User := Account",
+            "Record := CrmRecord",
+            "Query := Search",
+            "tenantOf := (a: Account) => a.tenant",
+            "owner := (r: CrmRecord) => r.tenant",
+            "sharedWith := (r: CrmRecord, t: TenantId) => shares.value.contains(Share(r.id, t))"
+          ],
+          "examples": [],
+          "vocabulary": [
+            "shares: the share table as stored when the search runs; a share names a record by its id, which is unique across all companies in every store writes reach (Accounts relies on CrmWrites for it)",
+            "store: the records as stored when the search runs"
+          ],
+          "uses": [
+            "case class TenantId(value: String)",
+            "case class Account(email: String, tenant: TenantId)",
+            "enum Kind: case Contact, case Deal",
+            "case class CrmRecord(id: BigInt, tenant: TenantId, kind: Kind, title: String)",
+            "case class Share(record: BigInt, to: TenantId)",
+            "case class CrmStore(records: List[CrmRecord], shares: List[Share])",
+            "enum Search: case ById(id: BigInt), case OfKind(kind: Kind), case Everything",
+            "consistentStore = (s: CrmStore) =>\n  s.shares.forall(sh => s.records.exists(r => r.id == sh.record)) && s.records.forall(a => s.records.forall(b => (a.id == b.id) ==> (a == b)))"
+          ],
+          "governs": [],
+          "definition": "val accounts = readApi.instantiate[(Account, Search) => List[CrmRecord]](\n  \"Accounts\",\n  \"Users are accounts of a company, records are contacts and deals, and sharing is a table of shares.\",\n  why = \"A record belongs to the company stored on it, and a user to the company of their account. This trusts the record, so ReadContract requires returned records to be the stored ones; it also trusts the account, which authentication provides (not modelled).\"\n)(\n  Tenant     := of[TenantId],\n  User       := of[Account],\n  Record     := of[CrmRecord],\n  Query      := of[Search],\n  tenantOf   := ((a: Account) => a.tenant),\n  owner      := ((r: CrmRecord) => r.tenant),\n  sharedWith := ((r: CrmRecord, t: TenantId) => shares.value.contains(Share(r.id, t)))\n).relies(crmWrites, \"a share names one record by its id: ids are unique in every store the writes reach, so a share never shows another company's record with the same id\",\n  (s: CrmStore) => consistentStore(s))(() => CrmStore(store.value, shares.value))",
+          "relies": [
+            "CrmWrites: a share names one record by its id: ids are unique in every store the writes reach, so a share never shows another company's record with the same id (guarantee: (s: CrmStore) => consistentStore(s), of: () => CrmStore(store.value, shares.value))"
+          ]
+        }
       }
     ],
     "CrmWrites": [
