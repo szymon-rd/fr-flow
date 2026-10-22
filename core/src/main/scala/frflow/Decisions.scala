@@ -799,24 +799,33 @@ object Decisions:
     * change in decisions, seen as it happens.
     */
   def load(annotated: Json): String =
-    val ns = nodes(annotated).filter(n => Set("proposed", "review")(s(n, "state")))
-    if ns.isEmpty then ""
+    val ns = forDeveloper(annotated)
+    val gone = annotated("gone").map(_.arr.size).getOrElse(0)
+    if ns.isEmpty && gone == 0 then ""
     else
       val mech = ns.count(_("mechanical").contains(JBool(true)))
       val (fresh, changed) = ns.filterNot(_("mechanical").contains(JBool(true))).partition(n => s(n, "state") == "proposed")
       val byOwner = ns.groupBy(n => s(n, "owner")).toList.filter(_._1.nonEmpty).sortBy(_._1)
-      s"Decisions waiting: ${ns.size} (${mech} mechanical, decided in one batch; ${fresh.size} new and ${changed.size} changed to judge)" +
+      s"Decisions waiting: ${ns.size + gone} (${mech} mechanical, decided in one batch; ${fresh.size} new and ${changed.size} changed to judge" +
+        (if gone == 0 then ")" else s"; $gone gone from the model)") +
         (if byOwner.isEmpty then "" else byOwner.map((o, xs) => s"$o: ${xs.size}").mkString("; by owner: ", ", ", "")) + ".\n"
+
+  /** The nodes waiting for a developer's decision: proposed or under review, and not resting on a
+    * rejected node (that one waits for the agent to move it). `load` and `waiting` count the same.
+    */
+  private def forDeveloper(annotated: Json): List[Json] =
+    val ids = byId(annotated)
+    val orphan = (n: Json) => parents(n).flatMap(ids.get).exists(p => s(p, "state") == "rejected")
+    nodes(annotated).filter(n => Set("proposed", "review")(s(n, "state")) && !orphan(n))
 
   def waiting(annotated: Json): (List[String], List[String]) =
     val ns = nodes(annotated)
     val ids = byId(annotated)
-    // A node resting on a rejected node waits for the agent to move it, not for the developer.
     val orphan = (n: Json) => parents(n).flatMap(ids.get).exists(p => s(p, "state") == "rejected")
     def own(n: Json) =
       val cs = n("causes").map(_.arr.flatMap(_.str)).getOrElse(Nil)
       s"${s(n, "id")}: ${if cs.isEmpty then "proposed" else s"review (${cs.mkString(", ")})"}${if n("mechanical").contains(JBool(true)) then ", mechanical" else ""}"
-    val dev = ns.filter(n => Set("proposed", "review")(s(n, "state")) && !orphan(n)).map { n =>
+    val dev = forDeveloper(annotated).map { n =>
       n("imported").flatMap(_.str).fold(own(n))(kb => s"${s(n, "id")}: waits for a decision in $kb, the project it comes from")
     } ++
       annotated("gone").map(_.arr.toList).getOrElse(Nil).map(g => s"${s(g, "id")}: gone from the model; accept that it is gone" +
