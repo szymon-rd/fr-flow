@@ -10,7 +10,7 @@ import java.util.concurrent.Executors
 
 /** The FrFlow browser: where the developer reads the tree and makes decisions.
   *
-  * The tree comes from `.frflow/kb.json`, written by the knowledge base's CLI from the
+  * The tree (from the root, each node under its first parent; a DAG of refinements, see docs/DAG.md §6) comes from `.frflow/kb.json`, written by the knowledge base's CLI from the
   * Scala definitions. Open pages update when the snapshot, the ledger, the
   * requests or the sources change.
   *
@@ -180,7 +180,7 @@ final class Server(projects: List[Project], val token: String = Server.newToken(
             else if base.get.trim != now.trim then error(ex, 409, s"${p.ideaFile.getFileName} changed since you opened it (by the agent, or in another tab): copy your text, reload, and edit again")
             else
               p.saveIdea(text)
-              // The roots' content follows from a render, as for any other source.
+              // The root's content (and any node naming a section) follows from a render, as for any other source.
               try start(p, List("render")) catch case _: IllegalStateException => ()
               signal()
               json(ex, obj("ok" -> JBool(true)))

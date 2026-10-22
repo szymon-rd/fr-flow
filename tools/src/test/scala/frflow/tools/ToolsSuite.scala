@@ -25,7 +25,9 @@ class ToolsSuite extends munit.FunSuite:
     val r = p.run(List("render"), actor = "agent")
     assert(r.ok, r.output)
     assertEquals(r.output, "ran render")
-    assertEquals(p.snapshot.flatMap(_("roots")).map(_.arr.flatMap(_.str)), Some(Seq("Root")))
+    assertEquals(p.snapshot.flatMap(_("root")).flatMap(_.str), Some("Root"))
+    assertEquals(p.snapshot.flatMap(_("nodes")).get.arr.find(n => s(n, "id") == "Auto").flatMap(_("parts")).map(_.arr.flatMap(_.str)),
+      Some(Seq("Inst", "Inst2", "Failed")))
     assertEquals(p.running, None)
     intercept[IllegalArgumentException](p.run(List("rm"), actor = "agent"))
   }
@@ -154,6 +156,14 @@ class ToolsSuite extends munit.FunSuite:
       assertEquals(job("exitCode"), Some(JNum(0)), job("output"))
       assertEquals(Json.parse(get(base + "/api/p/Fake/kb")._2)("snapshot").flatMap(_("nodes")).map(_.arr.size), Some(8))
       assertEquals(Json.parse(get(base + "/api/p/Fake/history")._2).arr.size, 7)
+    }
+  }
+
+  test("server: the page reads the snapshot as a DAG (parents, parts, splits), not as a tree of links") {
+    withServer { (base, _) =>
+      val page = get(base + "/")._2
+      for want <- List("parents", "split", "needed", "these parts make it", "also under", "rootImpl", "trusted") do assert(page.contains(want), want)
+      for gone <- List("n.parent", ".link?.", "linkStatus", "Link to parent") do assert(!page.contains(gone), gone)
     }
   }
 

@@ -218,3 +218,22 @@ Minimal departures from the above, each kept to what the code needed; none from 
 - **Decisions (phase 1 only).** `waitsFor` is the first parent not accepted, else the first definition
   used or contract called not accepted; alternatives are `replaces` and two definitions of one term;
   the owner is a node's own, else its first parent's. Everything else of §5 is phase 2.
+- **Browser (phase 2).** As §6, with these choices. The tree is drawn from the root, each node under its
+  first parent (its card says "also under" the others; selecting a node also draws its other parent edges,
+  dashed); nodes under no parent besides the root are drawn beside it; definitions in a row under the
+  tree, each card saying what it defines and which nodes use it. Kind badges: root, claim, invariant (a
+  claim with `rule`), contract, assumption, definition, design; a "trusted" chip on assumptions and on the
+  ids in top-level `trusted`. An edge is coloured by its parent's split (red when Lean shows that part is
+  not needed); one label per parent says how its parts make it. A node's pane shows its parents (each with
+  its split, whether this node is needed there, and its co-parts), the node by kind (formula/post/rule, the
+  vocabulary it mentions with meanings and the definition fixing each, the definitions in force it uses),
+  then its parts. The parts table (id, statement, needed, status, then `complete` and `clash`; on the root
+  also `idle`, `root_impl` and the trusted list) is in the decision while the node waits for the
+  developer, so a node with parts is accepted with them ("these parts make it"). Alternatives are computed
+  as core's `Decisions.alternatives` (plus any ids core lists in `alternatives`); accepting a node sends
+  every live alternative in `reject` (asked to confirm when one was decided before). Inbox: "ready" means
+  every parent and every definition used is accepted (and core's `waitsFor` is empty), ordered by depth
+  (the longest way from a node with no parents), then by number of parents (more first); the mechanical
+  batch next; the rest under "After the decisions above them", each with what it waits on. Header:
+  splits proven (of the formal splits), `root_impl`, the size of the trusted list. Cause `parts` shows the
+  parts added and removed when the decided content records `parts`.

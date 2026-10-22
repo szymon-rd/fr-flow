@@ -25,15 +25,19 @@ final class Mcp(projects: List[Project]):
 
   val tools: List[Json] = List(
     tool("inbox", "Start here. The developer's open requests (answer them by proposing nodes, then `answer`), rejected nodes " +
-      "to remove from the Scala model, and decisions the developer has not made yet.", schema(project)()),
-    tool("context", "Everything known about a node: its idea section, the vocabulary it uses, the nodes above it with every decision, " +
-      "reason and rejected alternative, its co-parts and parts, examples, its obligations, and open requests. Read it before proposing or changing a node.", schema(project, node)("node")),
+      "to remove from the Scala model, decisions the developer has not made yet, and the tree from the root (each node under its " +
+      "first parent, \"also under\" its others; the definitions apart).", schema(project)()),
+    tool("context", "Everything known about a node: its idea section, the vocabulary it uses (terms, meanings, definitions in force), " +
+      "the nodes above it through every parent with every decision, reason and rejected alternative, for each parent its co-parts, its parts, " +
+      "examples, its obligations, and open requests. Read it before proposing or changing a node: a new statement goes under the lowest " +
+      "nodes it helps prove, as a part; never as a restatement of its parent.", schema(project, node)("node")),
     tool("render", "Rebuild from the Scala definitions: the Lean and the snapshot the browser shows. Run it after changing a node, " +
       "the domain or IDEA.md. Returns the tree; compile errors in the model come back as the error.", schema(project)()),
-    tool("check", "Render, then prove each node from its parts in Lean and record the results. Slow (minutes). " +
-      "Optionally one node.", schema(project, node)()),
-    tool("answer", "Reply to a developer's request once done, e.g. 'Proposed Expiring and Sliding under Authenticated; " +
-      "Expiring is simpler, Sliding keeps active users signed in. Choose in the browser.' Without a request, pass `node` " +
+    tool("check", "Render, then prove in Lean that each node's parts make it (complete), that each part is needed, that they do " +
+      "not clash, and the root of the code (root_impl), and record the results. Slow (minutes). Optionally one node.", schema(project, node)()),
+    tool("answer", "Reply to a developer's request once done, e.g. 'Proposed SlidingSessions, which replaces ExpiringSessions " +
+      "(an alternative: accepting one rejects the other); Expiring is simpler, Sliding keeps active users signed in. Choose in the browser.' " +
+      "Without a request, pass `node` " +
       "to tell the developer about work they did not ask for (a node to revisit, a change you made).",
       schema(project, "request" -> obj("type" -> str("string")), "node" -> obj("type" -> str("string")), "text" -> obj("type" -> str("string")))("text")),
     tool("find", "Where a change belongs: the nodes that govern a file (pass a path relative to the project), or the nodes " +
