@@ -165,6 +165,9 @@ class CrmSuite extends munit.FunSuite:
     val w = Workflow(knowledge, Workspace(root, Paths.get("lean").toAbsolutePath.toString))
     assertEquals(w.bypasses, Nil)
     val server = root.resolve("src/main/scala/crm/Server.scala")
+    // A method of the adapter's name on something else is not the adapter (a builder's insert).
+    Files.writeString(server, Files.readString(server).replace("server.start()", "val note = new StringBuilder(\"x\"); note.insert(0, \"crm \")\n    server.start()"))
+    assertEquals(w.bypasses, Nil)
     Files.writeString(server, Files.readString(server).replace("server.start()", "db.insert(Nil, Nil, Nil)\n    server.start()"))
     assert(w.bypasses.exists(_.contains("changes the outside directly (.insert")), w.bypasses)
   }

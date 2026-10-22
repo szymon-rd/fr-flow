@@ -302,3 +302,8 @@ What the migrations of `examples/keycloak` and `examples/crm` found in the core,
   (`Lifted.value` evaluates it on each use, under the bindings in force), so a term defined by an
   expression over parameters (`sessions := stateAfter(history.value).sessions`) no longer reads them when
   the model loads.
+- **A bypass is a call on the adapter.** `bypasses` (a governed file calling an adapter's method past
+  `service`) flags a call only on the adapter: on a name the file declares of one of the adapter file's
+  classes (`db: Db`) or binds to one (`val db = Db.open(...)`, `new Db(...)`), on such a class, or on the
+  value of a model parameter of that type (`database.value`). A list's `find` or a response's `write` is no
+  longer taken for the adapter's method of that name.

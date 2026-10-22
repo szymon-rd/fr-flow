@@ -632,16 +632,23 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       ungoverned.map(f => s"$f is governed by no node: govern it (a design node) or move it")
 
   /** Wiring that calls a contract's code directly, past `service` (so what it returns is not
-    * checked): a file a design node governs naming a method the registered code calls.
+    * checked): a file a design node governs calling, on the adapter, a method the registered code calls.
+    * On the adapter: on a name the file binds to one of the adapter's classes (`db: Db`, `val db =
+    * Db.open(...)`), on such a class itself, or on the value of a parameter of that type (`database.value`,
+    * a `Param[Db]` of the model); a method of the same name on anything else (a list's `find`) is not it.
     */
   def bypasses: List[String] =
     val wired = kb.nodes.filter(_.kind == NodeKind.Design).flatMap(d => code(d).toList.flatMap(_.files)).distinct
+    val modelTexts = kb.modelFiles.distinct.flatMap(f => read(Path.of(f)).orElse(read(ws.root.resolve(f))))
     adapters.flatMap { (c, i, files) =>
       val called = """\.(\w+)\(""".r.findAllMatchIn(i.wiring).map(_.group(1)).toSet
       // An adapter's methods that change the outside: those returning Unit.
       val effects = files.flatMap(f => read(ws.root.resolve(f)).toList.flatMap(Workflow.methods).filter(_.unit).map(m => m.name -> f))
+      val classes = files.flatMap(f => read(ws.root.resolve(f)).toList.flatMap(Workflow.classesOf)).toSet
+      val params = modelTexts.flatMap(Workflow.paramsOf(_, classes)).toSet
       wired.filterNot(files.contains).flatMap(f => read(ws.root.resolve(f)).toList.flatMap { text =>
-        def calls(m: String) = s"\\.$m\\(".r.findFirstIn(text).isDefined
+        val onAdapter = Workflow.adapterCalls(text, classes, params)
+        def calls(m: String) = onAdapter(m)
         called.toList.sorted.filter(calls).map(m => s"$f calls ${c.id}'s code directly (.$m): go through service(${c.id}), so what it returns is checked") ++
           effects.filter((m, _) => calls(m)).map((m, af) => s"$f changes the outside directly (.$m, in $af): go through an assumption on an operation, so the change is checked")
       })
@@ -1176,6 +1183,30 @@ object Workflow:
       val more = seen.flatMap(n => byName.getOrElse(n, Nil)).flatMap(m => ms.filter(p => p.priv && !seen(p.name) && s"\\b${p.name}\\b".r.findFirstIn(m.body).isDefined).map(_.name))
       if more.isEmpty then seen else close(seen ++ more)
     close(names.filter(byName.contains)).toList.flatMap(byName).map(_.lines).sum
+
+  /** The classes, objects and traits a Scala file declares. */
+  def classesOf(text: String): List[String] =
+    """(?m)^\s*(?:(?:final|sealed|abstract|private(?:\[\w+\])?|case)\s+)*(?:class|object|trait)\s+(\w+)""".r.findAllMatchIn(text).map(_.group(1)).toList
+
+  /** The parameters a model file declares of one of `classes` (`val database = Param[Db](...)`). */
+  def paramsOf(text: String, classes: Set[String]): List[String] =
+    """\bval\s+(\w+)\s*=\s*Param\[\s*(\w+)\s*\]""".r.findAllMatchIn(text).filter(m => classes(m.group(2))).map(_.group(1)).toList
+
+  /** The methods a file calls on a value of one of `classes`: on a name it declares of such a class (`db: Db`)
+    * or binds to one (`val db = Db.open(...)`, `new Db(...)`), on the class itself, or on the value of one of
+    * `params` (`database.value`). A method of the same name on anything else is not one.
+    */
+  def adapterCalls(text: String, classes: Set[String], params: Set[String]): Set[String] =
+    if classes.isEmpty then Set.empty
+    else
+      val code = text.replaceAll("\"(?:[^\"\\\\\n]|\\\\.)*\"", "\"\"").replaceAll("//[^\n]*", "")
+      val cls = classes.toList.sorted.map(java.util.regex.Pattern.quote).mkString("|")
+      val typed = s"""\\b(\\w+)\\s*:\\s*(?:$cls)\\b(?!\\s*[.\\[])""".r.findAllMatchIn(code).map(_.group(1))
+      val bound = s"""\\b(?:val|var)\\s+(\\w+)\\s*(?::[^=]*)?=\\s*(?:new\\s+)?(?:$cls)\\b""".r.findAllMatchIn(code).map(_.group(1))
+      val receivers = (typed ++ bound).map(java.util.regex.Pattern.quote).toList ++ classes.toList.map(java.util.regex.Pattern.quote) ++
+        params.toList.map(p => java.util.regex.Pattern.quote(p) + "\\s*\\.\\s*value")
+      if receivers.isEmpty then Set.empty
+      else s"""(?<![\\w.])(?:${receivers.distinct.mkString("|")})\\s*\\.\\s*(\\w+)\\s*\\(""".r.findAllMatchIn(code).map(_.group(1)).toSet
 
   /** The first line of a proof copied from another knowledge base. */
   val CopiedProof = "-- Copied by FrFlow from"

@@ -1,6 +1,7 @@
 package keycloak
 
 import frflow.*
+import java.nio.file.{Files, Paths}
 
 class KeycloakSuite extends munit.FunSuite:
 
@@ -48,4 +49,23 @@ class KeycloakSuite extends munit.FunSuite:
       account.bind((r: RealmId, u: String) => accountOf(db.load().accounts, r, u)))
     val e = intercept[ContractViolation](introspectSide(acme, "t9"))
     assert(e.getMessage.contains("SessionLookup"), e.getMessage)
+  }
+
+  test("a governed file calling the store's find past service is a warning; a list's find, or a response's write, is not") {
+    val root = Files.createTempDirectory("keycloak-bypass")
+    Files.copy(Paths.get("examples/keycloak/IDEA.md"), root.resolve("IDEA.md"))
+    val src = Paths.get("examples/keycloak/src/main/scala/keycloak")
+    Files.createDirectories(root.resolve("src/main/scala/keycloak"))
+    Files.list(src).forEach(f => Files.copy(f, root.resolve("src/main/scala/keycloak").resolve(f.getFileName)))
+    val w = Workflow(knowledge, Workspace(root, Paths.get("lean").toAbsolutePath.toString))
+    // The server writes its responses (ex.getResponseBody.write), and finds accounts in a list: not the store.
+    assertEquals(w.bypasses, Nil)
+    val wiring = root.resolve("src/main/scala/keycloak/Wiring.scala")
+    val end = "  /** What an application of `realm` learns about `token`. */"
+    Files.writeString(wiring, Files.readString(wiring).replace(end,
+      "  def firstEnabled: Option[UserAccount] = atStart.find(a => a.enabled)\n\n" + end))
+    assertEquals(w.bypasses, Nil)
+    Files.writeString(wiring, Files.readString(wiring).replace(end,
+      "  def lookup(realm: RealmId, token: String): Option[Session] = db.find(realm, token)\n\n" + end))
+    assert(w.bypasses.exists(_.contains("calls SessionLookup's code directly (.find)")), w.bypasses)
   }
