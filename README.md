@@ -240,21 +240,27 @@ driver once per clone (a node both branches decided is decided again):
 git config merge.frflow-ledger.driver "bin/frflow merge-ledger %O %A %B"
 ```
 
-(Being re-measured on the DAG: the numbers below are of the old shape, a root per concern.)
+**Measured.** `python3 bench/generate.py N` writes `examples/scale`: one root
+over N services, grouped five by five (a group: five service claims and the
+floor invariant their contracts keep; past five groups, areas of five groups),
+each group's promise one defined word, so no statement grows with N. Each
+service is a claim with two or three parts and a contract with proven code;
+every fifth service's code calls the previous one's, and every tenth service
+has a split proven by hand (`sbt "scale/run check"`). On a 4-core container:
 
-**Measured.** `python3 bench/generate.py N` writes `examples/scale`: N concerns
-in a file each, every one a capability root, two refinements and a contract
-keeping a shared invariant, with proven code; every fifth contract's code calls
-the previous one's, and every tenth concern has a link proven by hand
-(`sbt "scale/run check"`). On a 4-core container, with 100 concerns:
+| nodes | cold `check` | one code change | one claim change | one definition change | `status` |
+|---|---|---|---|---|---|
+| 103 | 92 s | 14 s | 15 s | 45 s | 2.2 s |
+| 305 | 234 s | 19 s | 21 s | 125 s | 4.3 s |
 
-| nodes | cold `check` | one code change | one root change | `status` |
-|---|---|---|---|---|
-| 401 | 550 s | 7 s | 8 s | 7 s |
+(`bench/measure.sh 20 60`. The code change is one service's code; the claim change strengthens one
+service's part; the definition change is the limit every bounded service keeps, about a third of the
+nodes.)
 
-A cold check proves each level in one Lean build (about 1.4 s a node); after
-that, only what a change reaches is proven again (a root change: its concern
-and the callers of its contract). `ci` also proves again a random 5% of the
+A cold check proves each level in one Lean build (about 0.85 s a node); after
+that, only what a change reaches is proven again: a code change, its contract
+and the root; a claim change, the claim and the nodes above it; a definition
+change, every node that uses the term. `ci` also proves again a random 5% of the
 results it reads from the cache (`FRFLOW_VERIFY`), with their Lean build
 removed first, so a bad results file or build cache is found.
 

@@ -1,28 +1,30 @@
 """Generates examples/scale: a synthetic knowledge base on the DAG of refinements (docs/DAG.md), to
-measure how FrFlow behaves as a project grows.
+measure how FrFlow behaves as a project grows. No statement grows with the project: each node says
+one thing in words the vocabulary defines, and has at most six parts.
 
 One root, `Catalog`: every service shows a reader the visible values of each request (within its
-bounds), and never a value under the reader's floor. Its two parts:
+bounds), and never a value under the reader's floor; in one defined word, `catalogOk`, over the
+groups' words (or the areas', past twenty-five services). Its parts:
 
-  Served            every service serves its requests; its parts are groups of at most five services
-                    (`Group0` covers services 0-4), and groups of groups when there are more than five
-                    (`Area0` covers groups 0-4), so that no parent has more than five parts;
-  NeverUnderFloor   the invariant every contract keeps (each contract is one of its parts).
+  Group{k}          services 5k to 5k+4 serve their requests and never show a value under the floor
+                    (`group{k}Ok`, defined by `Group{k}Terms` over those five services); its parts are
+                    the five services and `Floor{k}`, the invariant their five contracts keep;
+  Area{k}           groups 5k to 5k+4 (`area{k}Ok`), when there are more than five groups.
 
 Each service `Service{i}` is a claim with two or three granular parts, proven by one contract
 `Show{i}` on its operation `serve{i}`, with proven code. Two kinds alternate: an open service
 (shows every visible value; parts FromRequest, AllVisible) and a bounded one (shows the visible
 values within a shared limit; parts FromRequest, WithinLimit, AllVisible). Every fifth service's
 code calls the previous service's operation (proven from that one's contract). In every other
-group, the two bounded services share one claim (`WithinLimit{a}And{b}`): a node with two parents
-beyond the invariant. Every tenth service's `complete` is proven by hand (lean/Proofs).
+group, the two bounded services share one claim (`WithinLimit{a}And{b}`): a node with two parents.
+Every tenth service's `complete` is proven by hand (lean/Proofs).
 
-The vocabulary, decided once (`Vocabulary.scala`): `visible` (definition `Clearance`), `limit`
-(definition `Limit`) and `serves` (definition `Serving`), which the root, the groups and the
-services speak in.
+The vocabulary, decided once: `visible` (definition `Clearance`), `limit` (definition `Limit`) and
+`serves` (definition `Serving`) in `Vocabulary.scala`; the groups', areas' and catalog's words in
+`Groups.scala`.
 
-    python3 bench/generate.py 20      # 96 nodes
-    python3 bench/generate.py 85      # 393 nodes
+    python3 bench/generate.py 20      # about a hundred nodes
+    python3 bench/generate.py 60      # about three hundred
     sbt "scale/run check"             # cold, then after one change; sbt "scale/run status"
 """
 import os, sys
@@ -79,14 +81,6 @@ def served(i):
     return f"serves({req}, f, serve{i}(xs, f))"
 
 
-def conj(fs):
-    """A conjunction, parenthesised as the tree groups it (five by five): a flat chain of more than about
-    150 conjuncts is deeper than Lean elaborates by default, and costs more to take apart."""
-    while len(fs) > 5:
-        fs = ["(" + " && ".join(fs[k:k + 5]) + ")" for k in range(0, len(fs), 5)]
-    return " &&\n    ".join(fs)
-
-
 # ---------------------------------------------------------------------------------------------
 # The vocabulary, decided once, with the operations (each service's): a file of its own, so that
 # files do not initialize each other in a cycle
@@ -119,33 +113,70 @@ val serving = Node.definition("Serving", "A result serves a request when it hold
 """)
 
 # ---------------------------------------------------------------------------------------------
-# The groups: no parent with more than five parts
+# The groups and areas: each a word of the vocabulary over at most five services (or groups), so
+# that no statement grows with the project
 # ---------------------------------------------------------------------------------------------
-level = [(f"Service{i}", [i], None) for i in range(n)]
-names = ["Group", "Area", "Region", "Zone"]
-tiers = []
-while len(level) > 5:
-    level = [(f"{names[len(tiers)]}{k // 5}", [s for c in level[k:k + 5] for s in c[1]], [c[0] for c in level[k:k + 5]])
-             for k in range(0, len(level), 5)]
-    tiers.append(level)
-parent_of = {p: "Served" for p, _, _ in level}
-for tier in tiers:
-    for gid, _, parts in tier:
-        for p in parts:
-            parent_of.setdefault(p, gid)
-for tier in tiers:
-    for gid, _, parts in tier:
-        for p in parts:
-            parent_of[p] = gid
+def ok(i):
+    """What service i promises with the floor (over xs, f): it serves, and shows nothing under the floor."""
+    return f"{served(i)} && serve{i}(xs, f).forall(x => visible(x, f))"
 
-groups_src = []
-for t in reversed(range(len(tiers))):
-    for gid, svcs, parts in tiers[t]:
-        groups_src.append(f'''val {lower(gid)} = Node.claim("{gid}", "Services {svcs[0]} to {svcs[-1]} serve their requests, each within its bounds.",
-  why = "One {names[t].lower()} of the catalog, so that no claim has more than five parts.")(
-  forall((xs: {L}, f: BigInt) =>
-    {conj([served(i) for i in svcs])})).under({lower(parent_of[gid])})
-''')
+
+groups = [(f"Group{k // 5}", list(range(k, min(k + 5, n)))) for k in range(0, n, 5)]
+group_of = {i: gid for gid, svcs in groups for i in svcs}
+tiers = [[(gid, svcs, [f"Service{i}" for i in svcs]) for gid, svcs in groups]]
+while len(tiers[-1]) > 5:
+    below = tiers[-1]
+    tiers.append([(f"Area{k // 5}", [s for c in below[k:k + 5] for s in c[1]], [c[0] for c in below[k:k + 5]])
+                  for k in range(0, len(below), 5)])
+parent_of = {p: gid for tier in tiers for gid, _, parts in tier for p in parts}
+top = [gid for gid, _, _ in tiers[-1]]
+for gid in top:
+    parent_of[gid] = "Catalog"
+
+
+def word(gid):
+    return lower(gid) + "Ok"
+
+
+def floor_id(gid):
+    return "Floor" + gid[len("Group"):]
+
+
+words, definitions, claims = [], [], []
+for t, tier in enumerate(tiers):
+    for gid, svcs, parts in tier:
+        what = f"services {svcs[0]} to {svcs[-1]}"
+        words.append(f'val {word(gid)} = Param[({L}, BigInt) => Boolean]("{word(gid)}", '
+                     f'"whether {what} serve a request to a reader, and show nothing under the reader\'s floor")')
+        body = (" &&\n    ".join(ok(i) for i in svcs) if t == 0
+                else " &&\n    ".join(f"{word(p)}(xs, f)" for p in parts))
+        made_of = "" if t == 0 else f" ({', '.join(parts)})"
+        definitions.append(
+            f'val {lower(gid)}Terms = Node.definition("{gid}Terms", "{gid} is {what}{made_of}.",\n'
+            f'  why = "Services are grouped five by five, so that what a group promises is said once, in one word."\n'
+            f')({word(gid)} := ((xs: {L}, f: BigInt) =>\n    {body}))\n')
+        floor = ""
+        if t == 0:
+            floor = (f'\n\n/** The floor, for {what}: kept by each of their contracts. */\n'
+                     f'val {lower(floor_id(gid))} = Node.invariant[BigInt, BigInt]("{floor_id(gid)}", '
+                     f'"No value {what} show is under the reader\'s floor.",\n'
+                     f'  why = "What must never happen, whatever the service: kept by each call, checked on every result.", '
+                     f'idea = "Clearance",\n  scope = List({lower(gid)}))((f, x) => visible(x, f)).under({lower(gid)})')
+        claims.append(
+            f'val {lower(gid)} = Node.claim("{gid}", "{what.capitalize()} serve their requests, each within its bounds, '
+            f'and never show a value under the floor.",\n'
+            f'  why = "One {"group" if t == 0 else "area"} of the catalog: no claim has more than five parts besides its floor.", idea = "Services")(\n'
+            f'  forall((xs: {L}, f: BigInt) => {word(gid)}(xs, f))).under({lower(parent_of[gid])}){floor}\n')
+
+write(os.path.join(src, "Groups.scala"), "package scale\n\nimport frflow.*\n\n"
+      "// What each group (and area) of services promises, and the catalog: one word each.\n\n" +
+      "\n".join(words) + "\n" +
+      f'val catalogOk = Param[({L}, BigInt) => Boolean]("catalogOk", '
+      f'"whether every service serves a request to a reader, and shows nothing under the reader\'s floor")\n\n' +
+      "\n".join(definitions) +
+      f'\nval catalogTerms = Node.definition("CatalogTerms", "The catalog is {", ".join(top)}.",\n'
+      f'  why = "The root speaks of the whole catalog in one word."\n'
+      f')(catalogOk := ((xs: {L}, f: BigInt) => {" && ".join(f"{word(g)}(xs, f)" for g in top)}))\n')
 
 write(os.path.join(src, "Catalog.scala"), f'''package scale
 
@@ -158,24 +189,13 @@ import frflow.*
 val catalog = Node.claim("Catalog",
   "Every service shows a reader the visible values of each request, within its bounds, and never a value under the reader's floor.",
   why = "The idea: readers get what they may see from every service, and nothing under their clearance, whatever the service."
-)(forall((xs: {L}, f: BigInt) =>
-    {conj([f"({served(i)} && serve{i}(xs, f).forall(x => visible(x, f)))" for i in range(n)])}))
-
-/** Stated once, kept by every contract: no value shown is under the reader's floor. */
-val neverUnderFloor = Node.invariant[BigInt, BigInt]("NeverUnderFloor", "No service shows a reader a value under their floor.",
-  why = "What must never happen, whatever the service: kept by each call, checked on every result.", idea = "Clearance"
-)((f, x) => visible(x, f)).under(catalog)
-
-val served = Node.claim("Served", "Every service serves its requests, each within its bounds.",
-  why = "What readers can do: every service is worth asking.", idea = "Services")(
-  forall((xs: {L}, f: BigInt) =>
-    {conj([served(i) for i in range(n)])})).under(catalog)
+)(forall((xs: {L}, f: BigInt) => catalogOk(xs, f)))
 
 // ============================================================================
-// The groups of services
+// The areas and groups of services
 // ============================================================================
 
-''' + "\n".join(groups_src))
+''' + "\n".join(reversed(claims)))
 
 # ---------------------------------------------------------------------------------------------
 # The services
@@ -203,7 +223,7 @@ val withinLimit{i} = Node.claim("WithinLimit{i}", "Service {i} shows no value ov
 
 val service{i} = Node.claim("Service{i}", "Service {i} shows {words}, and nothing from elsewhere.",
   why = "Readers ask service {i} for {'bounded' if b else 'whole'} lists.")(
-  forall((xs: {L}, f: BigInt) => {served(i)})).under({lower(parent_of[f"Service{i}"])})
+  forall((xs: {L}, f: BigInt) => {served(i)})).under({lower(group_of[i])})
 
 val fromRequest{i} = Node.claim("FromRequest{i}", "Service {i} shows only values from the request.",
   why = "A service shows what it was asked about, not values from elsewhere.")(
@@ -239,7 +259,7 @@ val show{i} = Node.contract(serve{i})("Show{i}", "{stmt}", why = "Service {i}'s 
   .under({", ".join(parts)})
   .examples()(
 {examples})
-  .keeps(neverUnderFloor)((xs, f, r) => r.map(x => (f, x)))
+  .keeps({lower(floor_id(group_of[i]))})((xs, f, r) => r.map(x => (f, x)))
 
 val shown{i} = define {{ (xs: {L}, f: BigInt) => {body} }}
 '''
@@ -299,8 +319,9 @@ for i in range(n):
     if bounded(i) and shared_by(i) in (None, i):
         service_nodes.append(lower(within_id(i)))
     service_nodes += [f"allVisible{i}", f"show{i}"]
-group_nodes = [lower(g[0]) for t in reversed(range(len(tiers))) for g in tiers[t]]
-nodes = ["catalog", "clearance", "limits", "serving", "neverUnderFloor", "served"] + group_nodes + service_nodes
+group_nodes = [x for tier in reversed(tiers) for gid, _, _ in tier
+               for x in [lower(gid), lower(gid) + "Terms"] + ([lower(floor_id(gid))] if gid.startswith("Group") else [])]
+nodes = ["catalog", "catalogTerms", "clearance", "limits", "serving"] + group_nodes + service_nodes
 impls = "".join(f"\n  .implementProven(show{i})(shown{i})" for i in range(n))
 write(os.path.join(src, "Scale.scala"), f'''package scale
 
@@ -355,5 +376,5 @@ for f in ["lean-toolchain", "lake-manifest.json"]:
     t = open(os.path.join(root, "..", "auth", "lean", f)).read()
     write(os.path.join(root, "lean", f), t.replace('"auth"', '"scale"'))
 
-print(f"examples/scale: {len(nodes)} nodes ({n} services, {len(group_nodes)} groups, 3 definitions); "
+print(f"examples/scale: {len(nodes)} nodes ({n} services, {len(groups)} groups, {sum(len(t) for t in tiers[1:])} areas); "
       f"{len(hand)} splits proven by hand ({', '.join(f'Service{i}' for i in hand) or 'none'})")

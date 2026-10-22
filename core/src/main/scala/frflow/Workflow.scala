@@ -265,8 +265,14 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
         // The specs of other nodes a proof imports: a change to them re-checks it.
         proof.fold("")(src => s"(?m)^\\s*import\\s+FrFlowGen\\.${java.util.regex.Pattern.quote(kb.name)}\\.(\\w+)\\.Spec".r
           .findAllMatchIn(src).map(_.group(1)).filter(_ != n.id).flatMap(kb.node).filter(g.formal).map(g.spec).mkString),
-        (kb.parts(n) ++ g.callees(n) ++ (if kb.root.exists(_ eq n) then g.trusted ++ kb.nodes.filter(c => g.provenImpl(c).isDefined) else Nil))
-          .filter(g.formal).distinctBy(_.id).filterNot(c => seen(c.id) || (c eq n)).map(go(_, seen + n.id)).mkString,
+        // A node's proofs read its parts' and callees' statements (and its `holds`, its parts' `holds`,
+        // over the leaves below them), not how those are proven or coded: a change of code below
+        // re-checks only the contract and the root's `root_impl`, not every ancestor.
+        (kb.parts(n) ++ g.callees(n)).filter(g.formal).distinctBy(_.id).filterNot(c => c eq n).map(g.spec).mkString,
+        kb.parts(n).filter(g.formal).filterNot(c => c eq n).map(g.holdsStatement).mkString,
+        // `root_impl` composes every proof and every implementation: the root depends on all of them.
+        (if kb.root.exists(_ eq n) then (g.trusted ++ kb.nodes.filter(c => g.provenImpl(c).isDefined) ++ kb.nodes.filter(g.formal))
+          .distinctBy(_.id).filterNot(c => seen(c.id) || (c eq n)).map(go(_, seen + n.id)).mkString else ""),
         Workflow.CheckerVersion.toString) ++ g.declarationsUsedBy(n))*)
       hashes(n.id) = h
       h
@@ -315,7 +321,9 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       batch(ns.filter(n => unchanged(n).isEmpty && g.waitsForDefinition(n).isEmpty).map(n => g.theoremsModule(n.id)))
       ns.map { n =>
         val partStatus = kb.parts(n).filter(g.formal).map(p => p.id -> done.get(p.id).orElse(current(p)).map(_.status).getOrElse("not-checked"))
-        n -> pool.submit(() => unchanged(n).getOrElse(checkNode(n, g, lake, partStatus, built.contains)))
+        // A node is proven with its parts: kept as it was only while they all are.
+        val kept = unchanged(n).filter(_ => partStatus.forall(_._2 == "proven"))
+        n -> pool.submit(() => kept.getOrElse(checkNode(n, g, lake, partStatus, built.contains)))
       }.foreach((n, f) => done(n.id) = f.get())
     }
     finally pool.shutdown()

@@ -1,7 +1,7 @@
 # Evidence plan
 
 What would show FrFlow keeps a large agent-built system's theory, and what it costs. Measured
-so far: `bench/generate.py` (speed at 401 nodes before the DAG rework, README), `examples/crm` (a
+so far: `bench/generate.py` (speed at 305 nodes on the DAG, README), `examples/crm` (a
 seeded SQL bug stopped by an assumption's check; checks at about 1% of a request, before the
 rework), and the translation tests (an injected `≥`→`>` bug the examples miss is found by probes,
 `LeanSuite`).

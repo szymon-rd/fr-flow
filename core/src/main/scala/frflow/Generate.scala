@@ -36,7 +36,7 @@ object Generate:
   val Probes = 6
 
   /** The work a try (a statement Lean is asked whether it can prove) may take: a try is one-sided and cheap. */
-  val TryHeartbeats = 40000
+  val TryHeartbeats = 4000
 
   /** The numbers a value holds, however nested: the boundaries a probe tries. */
   def numbers(v: Any): List[BigInt] = v match
@@ -102,8 +102,9 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
   def evalPath(id: String) = s"FrFlowGen/$K/$id/Eval.lean"
   def rootImplPath = s"FrFlowGen/$K/RootImpl.lean"
   def typesModule = s"FrFlowGen.$K.Types"
-  private def defModule(name: String) = s"FrFlowGen.$K.Domain.Def_$name"
-  private def termModule(name: String) = s"FrFlowGen.$K.Domain.Term_$name"
+  // A name Lean reads as a keyword is escaped (`«matches»`); a module's name is prefixed, so plain.
+  private def defModule(name: String) = s"FrFlowGen.$K.Domain.Def_${name.filterNot("«»".contains(_))}"
+  private def termModule(name: String) = s"FrFlowGen.$K.Domain.Term_${name.filterNot("«»".contains(_))}"
   private def modulePath(module: String) = module.replace('.', '/') + ".lean"
   /** Lemmas the proof files of this knowledge base share. */
   def lemmasModule = s"Proofs.$K.Lemmas"
@@ -844,8 +845,8 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
 
   /** `complete` by `frflow_auto`, unless the proof file proves it. A split whose node only regroups
     * what its parts say (a group of claims, the root over its groups, an invariant over its keepers) is
-    * tried first by matching: the node's and its parts' own declarations unfolded (the vocabulary's
-    * terms left as they are), each statement split into its conjuncts (each hypothesis and the goal on
+    * tried first by matching: the node's and its parts' own declarations unfolded, with the defined
+    * terms only the node mentions (the vocabulary its parts speak in left as it is), each statement split into its conjuncts (each hypothesis and the goal on
     * its own: simplifying them as one term grows with the square of their size), and each conjunct of
     * the node found among the parts', up to reducible unfolding only. `frflow_auto` unfolds everything
     * and simplifies the hypotheses against each other: at a hundred conjuncts it runs out of time where
@@ -857,7 +858,12 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
       val ps = splitParts(n).get
       val hs = ps.map(p => s"h_${p.id}").mkString(" ")
       val names = splitOpens(n, ps).names
-      val defs = (n :: ps).flatMap(ownDefs).distinct.mkString(", ")
+      // A defined term the node mentions and none of its parts does names what its parts say together
+      // (a group's): unfolded too. The terms its parts mention stay folded, as they state them.
+      def mentions(x: Node[?]) = x.lifted.flatMap(ctx(_).names).toSet
+      val below = ps.flatMap(mentions).toSet
+      val named = mentions(n).toList.sorted.filter(t => !below(t) && definitionOf(t).exists(!_.isType)).map(t => s"$K.$t")
+      val defs = ((n :: ps).flatMap(ownDefs) ++ named).distinct.mkString(", ")
       s"""set_option linter.unusedSimpArgs false in
          |theorem complete : Obl.complete := by
          |  unfold Obl.complete

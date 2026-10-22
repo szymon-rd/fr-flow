@@ -427,12 +427,15 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     KnowledgeBase(name, idea, implementations ++ other.implementations.filter(i => brought.exists(_.id == i.contract)),
       imports ++ all.map(n => n.id -> Imported(other.name, root, other.idea)))((nodes ++ all)*)
 
-  def node(id: String): Option[Node[?]] = nodes.find(_.id == id)
+  private lazy val byId: Map[String, Node[?]] = nodes.reverse.map(n => n.id -> n).toMap
+  def node(id: String): Option[Node[?]] = byId.get(id)
 
   /** A node's parents in this knowledge base (another knowledge base's node has its own parents there). */
   def parentsOf(n: Node[?]): List[Node[?]] = n.parents.filter(has)
+  private lazy val childrenOf: Map[Int, List[Node[?]]] =
+    nodes.flatMap(c => parentsOf(c).map(p => System.identityHashCode(p) -> c)).groupMap(_._1)(_._2)
   /** The nodes that name `n` as a parent, in the model's order: its parts, and the design decisions below it. */
-  def children(n: Node[?]): List[Node[?]] = nodes.filter(c => parentsOf(c).exists(_ eq n))
+  def children(n: Node[?]): List[Node[?]] = childrenOf.getOrElse(System.identityHashCode(n), Nil).filter(c => parentsOf(c).exists(_ eq n))
   /** The parts of `n` that together refine it: claims, contracts and assumptions under it. */
   def parts(n: Node[?]): List[Node[?]] = children(n).filter(isStatement)
   def isStatement(n: Node[?]): Boolean = n.kind == NodeKind.Claim || n.kind == NodeKind.Contract || n.kind == NodeKind.Assumption

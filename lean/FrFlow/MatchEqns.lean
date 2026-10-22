@@ -1,4 +1,5 @@
-import Lean
+import Lean.Elab.Command
+import Lean.Meta.Match.MatchEqs
 
 /-!
 `frflow_match_eqns`: generates, in the module that defines them, the equations of every `match`

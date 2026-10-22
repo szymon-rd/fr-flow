@@ -344,3 +344,33 @@ an assumption, or all its parts are witnessed. (Before: any proven code below th
 split with a part nothing proves could rest on a contradiction.) Assumptions count as witnessed: their
 joint consistency is trusted, and a check of it over the whole DAG (`∃` open terms meeting every
 assumption, the reference defines as witnesses of the ports) is future work.
+
+### Speed (after the benchmark on the DAG)
+
+Measured on `bench/generate.py`, four cores. A cold check went from 121 s to 51 s at 54 nodes, and is
+now linear (about 0.85 s a node). The causes, and what changed:
+
+- **Every generated module loaded the whole of Lean.** `FrFlow.Attr` and `FrFlow.MatchEqns` imported
+  `Lean` (for `register_simp_attr` and the match equations): 1.35 s to start each module, against
+  0.6 s for one importing nothing, three to five modules a node. They import the two modules they use.
+- **A try that fails runs to its budget.** In a sound DAG nearly every try fails (no part is
+  redundant, nothing clashes), and each ran `frflow_auto` to 40000 heartbeats, longer the bigger the
+  statement (Group0's seven tries: 6 s). The budget is 4000: the tries the tests expect to succeed
+  still do (a redundant part, a clash, an idle root), and a failed one costs a tenth.
+- **A change below re-checked every ancestor.** A node's check hash read its parts' full hashes (their
+  proofs and code); it reads their statements, and the root reads everything (`root_impl`). A code
+  change re-checks its contract and the root (20 s at 305 nodes, 70 s before at 95).
+- **A group's statement restated every service.** The benchmark's root, `Served` and the groups said
+  every service's promise in one conjunction, and one invariant had every contract as a part: those
+  statements, and their proofs and tries, grew with the project. Each group and area now has a word
+  of the vocabulary (`group0Ok`, a definition over its five services), the root says `catalogOk`, and
+  each group keeps its own floor (an invariant with five keepers). Matching (the `complete` tried
+  first) unfolds the defined terms a node mentions and none of its parts does, so a group, an area and
+  the root are proven by matching, not by `frflow_auto`.
+- **`KnowledgeBase.children` scanned every node** for each call (`parts`, everywhere): indexed once.
+- **A vocabulary module's file name is plain.** A term Lean reads as a keyword is escaped in Lean
+  (`«matches»`), but its module (`Domain/Def_matches.lean`) is not: the escape is not a file name every
+  file system or JVM encoding takes (the CRM's check failed on it).
+- **A cached node is kept only while its parts are proven.** Since a part's code no longer changes its
+  parents' hash, a parent whose part has stopped being proven is checked again (it waits for it), and
+  its hash reads its parts' `holds` statements, which name the leaves below them.
