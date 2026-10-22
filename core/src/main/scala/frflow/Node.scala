@@ -44,7 +44,7 @@ object Code:
     }.distinct.map(p => base.toAbsolutePath.normalize.relativize(p).toString -> p).sortBy(_._1)
     val text = files.map((rel, p) => rel + "\u0000" + (if java.nio.file.Files.isRegularFile(p) then java.nio.file.Files.readString(p) else "<missing>"))
       .mkString("\u0000")
-    Code(files.map(_._1), java.security.MessageDigest.getInstance("SHA-256").digest(text.getBytes("UTF-8")).map("%02x".format(_)).mkString)
+    Code(files.map(_._1), Sha(text))
 
 /** A node of the knowledge base. It specifies a model of type `M`: a Scala value
   * (usually a function) describing what the system does at this level.

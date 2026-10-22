@@ -24,7 +24,7 @@ object Signing:
       u.after, Ledger.ref(u.content)).mkString("\u0000").getBytes(UTF_8)
 
   def keyId(pub: PublicKey): String =
-    java.security.MessageDigest.getInstance("SHA-256").digest(pub.getEncoded).take(8).map("%02x".format(_)).mkString
+    Sha.bytes(pub.getEncoded).take(16)
 
   def sign(priv: PrivateKey, pub: PublicKey, id: String, d: Decision): Decision =
     val s = Signature.getInstance("Ed25519")

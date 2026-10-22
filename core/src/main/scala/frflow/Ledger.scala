@@ -52,7 +52,7 @@ object Decision:
     * changes nothing that was decided.
     */
   def hash(content: Json): String =
-    java.security.MessageDigest.getInstance("SHA-256").digest(normal(content).compact.getBytes(UTF_8)).map("%02x".format(_)).mkString
+    Sha(normal(content).compact)
 
   private def normal(j: Json): Json = j match
     case JStr(s)  => JStr(s.trim.replaceAll("\\s+", " "))
@@ -147,12 +147,11 @@ object Ledger:
 
   /** A short reference to a decision: what was decided, by whom, when and why. */
   private[frflow] def entry(d: Decision): String =
-    java.security.MessageDigest.getInstance("SHA-256")
-      .digest(Seq(d.action, d.by, d.at, d.reason, ref(d.content)).mkString("\u0000").getBytes(UTF_8)).take(8).map("%02x".format(_)).mkString
+    Sha.parts(d.action, d.by, d.at, d.reason, ref(d.content)).take(16)
 
   /** A short reference to a content exactly as recorded. */
   private[frflow] def ref(content: Json): String =
-    java.security.MessageDigest.getInstance("SHA-256").digest(content.compact.getBytes(UTF_8)).take(8).map("%02x".format(_)).mkString
+    Sha(content.compact).take(16)
 
   def load(file: Path): Ledger =
     if !Files.isRegularFile(file) then empty else fromJson(Json.parse(Files.readString(file, UTF_8)))

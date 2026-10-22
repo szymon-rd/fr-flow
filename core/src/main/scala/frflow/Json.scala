@@ -161,3 +161,11 @@ object Json:
       while i < s.length && "+-0123456789.eE".contains(s(i)) do i += 1
       if start == i then fail("unexpected character")
       JNum(s.substring(start, i).toDouble)
+
+/** SHA-256, in hex: what every hash in FrFlow is. */
+object Sha:
+  def bytes(b: Array[Byte]): String =
+    java.security.MessageDigest.getInstance("SHA-256").digest(b).map("%02x".format(_)).mkString
+  def apply(s: String): String = bytes(s.getBytes(java.nio.charset.StandardCharsets.UTF_8))
+  /** Of several parts, kept apart. */
+  def parts(ps: String*): String = apply(ps.mkString("\u0000"))

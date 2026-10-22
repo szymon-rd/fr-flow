@@ -83,8 +83,7 @@ object Decisions:
   /** The nodes a node relies on besides its parent: it rests on their meaning too. */
   private def relies(n: Json): List[String] = n("relies").map(_.arr.toList.flatMap(_.str)).getOrElse(Nil)
   private def code(n: Json): String = n("code").flatMap(_("fingerprint")).flatMap(_.str).getOrElse("")
-  private def sha(parts: String*): String =
-    java.security.MessageDigest.getInstance("SHA-256").digest(parts.mkString("\u0000").getBytes("UTF-8")).map("%02x".format(_)).mkString
+  private def sha(parts: String*): String = Sha.parts(parts*)
 
   /** A node's chain: what its content means, together with its ancestors'. A change to a node's
     * meaning puts the nodes below up for review; rewording its reason, adding an example, or

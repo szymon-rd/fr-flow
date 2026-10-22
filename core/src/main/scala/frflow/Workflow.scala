@@ -3,7 +3,6 @@ package frflow
 import java.nio.charset.StandardCharsets.UTF_8
 import frflow.Json.*
 import java.nio.file.{Files, Path, StandardOpenOption}
-import java.security.MessageDigest
 import scala.jdk.CollectionConverters.*
 
 /** Where a project lives on disk.
@@ -31,8 +30,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   private def write(p: Path, s: String): Boolean =
     if read(p).contains(s) then false
     else { Files.createDirectories(p.getParent); Files.writeString(p, s, UTF_8); true }
-  private def sha(parts: String*): String =
-    MessageDigest.getInstance("SHA-256").digest(parts.mkString("\u0000").getBytes(UTF_8)).map("%02x".format(_)).mkString
+  private def sha(parts: String*): String = Sha.parts(parts*)
 
   def idea: String = read(ws.root.resolve(kb.idea)).getOrElse("")
   def ledger: Ledger = Ledger.load(ws.ledgerFile)
@@ -508,9 +506,20 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   def scaffold(n: Node[?]): Boolean =
     val g = generate
     val path = ws.lean.resolve(g.proofsPath(n.id))
-    if g.obligation(n).isEmpty || Files.exists(path) then false
-    else
-      write(path, g.proofFile(n))
+    // The obligations the last check left open (the link, an invariant, the implementation...), or the
+    // link before any check: a stub each, added to the proof file (created if missing).
+    val names = g.obligations(n).map(_.name)
+    val open = checks.get(n.id).toList.flatMap(_.obligations).filter(r => Set("open", "failed")(r.status)).map(_.name).filter(names.contains)
+    val wanted = if open.nonEmpty then open else g.obligation(n).map(_.name).toList
+    val existing = read(path).fold(List.empty[String])(src => Lean.theorems(src).map(_.name))
+    val add = wanted.filterNot(existing.contains)
+    if add.isEmpty then false
+    else read(path) match
+      case None => write(path, g.proofFile(n, add))
+      case Some(src) =>
+        val end = s"end ${kb.name}.${n.id}.Proofs"
+        val i = src.lastIndexOf(end)
+        if i < 0 then false else write(path, src.substring(0, i) + g.stubs(add) + src.substring(i))
 
   def tree(mark: Option[String] = None): String = Decisions.tree(annotated, mark)
 

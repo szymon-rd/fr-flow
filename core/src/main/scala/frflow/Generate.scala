@@ -600,7 +600,16 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
   def audit(n: Node[?]): String =
     Header + s"import ${theoremsModule(n.id)}\n\n" + auditedTheorems(n).map(t => s"#print axioms $t\n").mkString
 
-  def proofFile(n: Node[?]): String =
+  /** A stub for each obligation, to prove in its place. */
+  def stubs(names: List[String]): String =
+    names.map(o => s"theorem $o : Obl.$o := by\n  unfold Obl.$o\n  sorry\n\n").mkString
+
+  /** A proof file with a stub for each of `names` (and for `feasible` with the link, unless a proven
+    * implementation below witnesses the node).
+    */
+  def proofFile(n: Node[?], names: List[String] = List("link")): String =
+    val witness = kb.nodes.exists(c => provenImpl(c).isDefined && kb.path(c).exists(_ eq n))
+    val all = names ++ Option.when(names.contains("link") && !witness && !names.contains("feasible"))("feasible")
     s"""import ${specModule(n.id)}
        |
        |/-! Authored proofs of the obligations of ${n.id}. Each states exactly its `Obl`. -/
@@ -609,11 +618,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
        |namespace $K.${n.id}.Proofs
        |open $K.${n.id}
        |
-       |theorem link : Obl.link := by
-       |  unfold Obl.link
-       |  sorry
-       |${if !kb.nodes.exists(c => provenImpl(c).isDefined && kb.path(c).exists(_ eq n)) then "\n/-- Something meets the node: the proof above does not rest on a contradiction. -/\ntheorem feasible : Obl.feasible := by\n  unfold Obl.feasible\n  sorry\n" else ""}
-       |end $K.${n.id}.Proofs
+       |${stubs(all)}end $K.${n.id}.Proofs
        |""".stripMargin
 
   def lakefile(kernelPath: String): String =

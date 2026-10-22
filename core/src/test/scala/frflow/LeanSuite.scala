@@ -189,8 +189,16 @@ class LeanSuite extends munit.FunSuite:
     val c = r.find(_._1.id == "Pick").get._2
     assertEquals(c.obligations.find(_.name == "impl").map(_.status), Some("proven"), c)
     // one that can return a short book is not proven
-    val bad = workflow(KnowledgeBase("Impl2", idea = "IDEA.md")(onlyGood, listed, books, pick).implementProven(pick)(anyOnes)).check()
+    val w2 = workflow(KnowledgeBase("Impl2", idea = "IDEA.md")(onlyGood, listed, books, pick).implementProven(pick)(anyOnes))
+    val bad = w2.check()
     assertEquals(bad.find(_._1.id == "Pick").get._2.obligations.find(_.name == "impl").map(_.status), Some("open"))
+    // scaffold stubs what is open, the implementation, and leaves the proven link to automation
+    assert(w2.scaffold(pick))
+    val src = Files.readString(w2.ws.lean.resolve(w2.generate.proofsPath("Pick")))
+    assert(src.contains("theorem impl : Obl.impl") && !src.contains("theorem link"), src)
+    val again = w2.check(Some("Pick")).head._2
+    assertEquals(again.obligations.find(_.name == "link").map(_.detail), Some("auto"), again)
+    assertEquals(again.obligations.find(_.name == "impl").map(_.status), Some("open"), again)
   }
 
   test("an assumed link is decided by reading, and every root theorem resting on it names it") {
