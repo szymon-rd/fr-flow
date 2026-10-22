@@ -57,7 +57,13 @@ class LeanSuite extends munit.FunSuite:
     // an authored link needs a witness that something meets the node
     assertEquals(w.check(Some("Squares")).head._2.obligations.find(_.name == "feasible").map(_.status), Some("open"))
     edit(_.replace("  unfold Obl.feasible\n  sorry", feasible))
+    // ...and that the root says something under it: some model fails it
+    val noWitness = w.check(Some("Squares")).head._2
+    assertEquals(noWitness.obligations.find(_.name == "nontrivial").map(_.status), Some("open"), noWitness)
+    assertEquals(w.link(squares)("status").flatMap(_.str), Some("open"))
+    edit(_.replace("  unfold Obl.nontrivial\n  sorry", "  unfold Obl.nontrivial\n  exact ⟨fun _ => -1, by simp [frflow_defs]⟩"))
     val proven = w.check(Some("Squares")).head._2
+    assertEquals(w.link(squares)("status").flatMap(_.str), Some("proven"))
     assertEquals((proven.status, proven.obligations.head.detail), ("proven", "authored"), proven)
     assertEquals(proven.obligations.find(_.name == "feasible").map(_.status), Some("proven"))
     assert(!Files.readString(w.ws.lean.resolve(w.generate.autoPath("Squares"))).contains("theorem link"))

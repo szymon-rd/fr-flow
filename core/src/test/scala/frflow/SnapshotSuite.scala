@@ -461,3 +461,30 @@ class SnapshotSuite extends munit.FunSuite:
     assert(w.integrity.exists(_.startsWith("no developer key")), w.integrity)
     assert(!w.status._2)
   }
+
+  test("a decision below that says when to revisit it is answered by name before the change above is accepted") {
+    val ws = workspace()
+    val w0 = workflow(shelfKb, ws)
+    ok(accept(w0, onlyGood, "it is the idea"))
+    ok(accept(w0, listed, "Items come from the list; revisit if items can come from elsewhere."))
+    ok(accept(w0, books, "Books are the items."))
+    ok(accept(w0, pick, "Picking is per call."))
+    // only the root's why changes: the decisions below stay accepted, and are listed with it
+    val root2 = Node.root[(List[Item.T], Int) => List[Item.T]]("OnlyGood", onlyGood.statement, "Picking a bad item is what the idea rules out, whatever the list.")(
+      pick => forall((l: List[Item.T], n: Int) => pick(l, n).forall(x => good(x))))
+    val w = workflow(KnowledgeBase("Shelf", idea = "IDEA.md")(root2, listed, books, pick), ws)
+    // Listed's reason names when to revisit it: no default
+    assert(accept(w, root2, "The why is clearer now.").left.exists(_.contains("Listed")), accept(w, root2, "The why is clearer now."))
+    ok(w.decide(Decisions.Request("OnlyGood", "dev", "The why is clearer now.", held = List("Listed"))))
+  }
+
+  test("a decision copied into the ledger again, or one whose predecessors were cut, shows") {
+    val w = workflow()
+    acceptAll(w)
+    val l = w.ledger
+    val first = l.history("Listed").head
+    val replayed = l.copy(decisions = l.decisions.updated("Listed", l.history("Listed") :+ first))
+    assert(Ledger.chainBreaks(replayed).exists(_.contains("recorded twice")), Ledger.chainBreaks(replayed))
+    val l2 = w.decide(Decisions.Request("OnlyGood", "dev", "Reworded reason for the root.", action = "accept")).fold(_ => l, _ => w.ledger)
+    assert(Ledger.chainBreaks(w.ledger).isEmpty, Ledger.chainBreaks(w.ledger))
+  }
