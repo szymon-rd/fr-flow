@@ -340,7 +340,7 @@ class SnapshotSuite extends munit.FunSuite:
     // 800 nodes, eight children per node, all accepted
     val ns = (0 until 800).map { i =>
       obj("id" -> str(s"N$i"), "kind" -> str(if i == 0 then "root" else "refine"), "parent" -> (if i == 0 then JNull else str(s"N${(i - 1) / 8}")),
-        "hash" -> str(Decision.hash(obj("statement" -> str(s"node $i")))), "chain" -> str(s"c$i"),
+        "hash" -> str(Decision.hash(obj("statement" -> str(s"node $i")))), "parentChain" -> str(if i == 0 then "" else s"c${(i - 1) / 8}"),
         "content" -> obj("statement" -> str(s"node $i")), "link" -> JNull)
     }
     val snap = obj("nodes" -> JArr(ns))

@@ -800,9 +800,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace, val fresh: Boolea
         "kind" -> str(n.kind.toString.toLowerCase),
         "parent" -> n.parent.fold(JNull)(p => str(p.id)),
         "limits" -> JArr((kb.limits(n) ++ check.toList.flatMap(_.obligations.filter(o => o.name == "idle" && o.status == "proven"))
-          .map(o => s"Lean shows it is met by ${o.detail} on every call: only the examples ask for more; say what it must do, or list it as not modelled") ++
-          check.toList.flatMap(_.obligations.filter(o => o.name.startsWith("clause_") && o.status == "proven"))
-            .map(o => s"Lean shows the root's clause `${o.detail}` holds of every model of ${n.id}, whatever it says: the meanings fixed on the way decide it, so nothing below is proven about it")).map(str)),
+          .map(o => s"Lean shows it is met by ${o.detail} on every call: only the examples ask for more; say what it must do, or list it as not modelled")).map(str)),
         "examples" -> JArr(kb.exampleResults(n).zipWithIndex.map { (r, i) =>
           // What Lean computes of the example, against what Scala does (the examples written, not generated ones).
           def lean(name: String) =

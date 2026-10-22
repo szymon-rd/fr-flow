@@ -87,8 +87,7 @@ object Lean:
     "set_option" -> """\bset_option\b(?!\s+(maxHeartbeats\b|maxRecDepth\b|autoImplicit\b|linter\.))""".r,
     "metaprogram" -> """(#eval|#exit|\brun_cmd\b|\brun_tac\b|\brun_meta\b|\brun_elab\b|\bby_elab\b|\belab\b|\bmacro\b|\bmacro_rules\b|\bsyntax\b|\binitialize\b|\bbuiltin_initialize\b|\belab_rules\b|\bLean\.)""".r,
     "attribute" -> """\battribute\b|@\[""".r,
-    // Only what states things: the domain, the nodes' specs, FrFlow's kernel, the shared lemmas. Never
-    // a node's theorems or its Auto module, which holds an assumed link's axiom.
+    // Only what states things: the domain, the nodes' specs, FrFlow's kernel, the shared lemmas.
     "import" -> """^\s*import\s+(?!FrFlowGen\.\w+\.Domain\s*$|FrFlowGen\.\w+\.\w+\.Spec\s*$|FrFlow\b|Std\b|Init\b|Proofs\.\w+\.Lemmas\s*$)""".r
   )
 
@@ -141,7 +140,7 @@ object Lean:
   /** Commands a proof file may contain. */
   val allowedCommands: Set[String] = Set("import", "set_option", "open", "namespace", "end", "section", "noncomputable", "theorem")
 
-  /** Hygiene, not the guarantee (that is the kernel replay and the axiom audit): a line at the
+  /** Hygiene, not the guarantee (that is the axiom audit and the statement each proof must have): a line at the
     * start of a line must begin an allowed command, and no line may begin any other command or a
     * `#` command (Lean ignores indentation, so the tactic lines are checked too).
     */

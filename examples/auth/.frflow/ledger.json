@@ -567,31 +567,6 @@
           "notModelled": "- How tokens are issued at login, and when they expire.\n- Who may change the table of grants."
         }
       }
-    ],
-    "_ledger": [
-      {
-        "action": "acknowledge",
-        "by": "claude-example-data",
-        "at": "2026-10-22T00:11:09.813647757Z",
-        "reason": "The example ledgers were rewritten while the framework's ledger format changed; this restart starts the record again from the decisions as they were.",
-        "commit": "2c68d611fa04162df84eea8ddd6c22cfe8d94f7b",
-        "key": "0f551cc8e3f37f9f",
-        "sig": "xnXaC6NlZJbl0O5LuLUv91Ld9JZwjrECb5Cll6aE2opveKyJaYDgDk0JR1xhyyrP5FTXSZweiXXe7dw2ib/XCQ==",
-        "chain": "",
-        "content": null
-      },
-      {
-        "action": "acknowledge",
-        "by": "claude-example-data",
-        "at": "2026-10-22T02:56:47.428462587Z",
-        "reason": "Example data: acceptances that only recorded FrFlow format changes are now recorded as migrations, which is what they were.",
-        "after": "240d8820bce09515",
-        "commit": "3a834d0cc39ca1c0909d7533998706eed27fae81",
-        "key": "0f551cc8e3f37f9f",
-        "sig": "kh2FWrK416kI+bmPmgFYqhRiiBbvEtY7X1l7EoQIRkQcv4denGXlUKqDMfmDZEZ69HFn5Ea4NAVIX8q1dvHdCg==",
-        "chain": "",
-        "content": "same:74234e98afe7498f"
-      }
     ]
   }
 }

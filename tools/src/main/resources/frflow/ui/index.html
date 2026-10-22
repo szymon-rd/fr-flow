@@ -472,7 +472,7 @@ function verdict(n) {
   const s = linkStatus(n), d = n.link?.detail || "";
   if (s === "proven") {
     if (d === "instantiation") return "Nothing to prove: the parent's theorems apply with these substitutions. Whether they mean the right things in the world is your decision.";
-    if (d === "authored") return "Proven by a proof the agent wrote, replayed through the Lean kernel. Read it before accepting: a proof can also go through because the node contradicts itself, which the automatic check does not always catch.";
+    if (d === "authored") return "Proven by a proof the agent wrote, checked by Lean with its axioms audited. Read it before accepting: a proof can also go through because the node contradicts itself, which the automatic check does not always catch.";
     return "Proven automatically by frflow_auto.";
   }
   if (s === "informal") return "Not formalized: this node opted out of Lean (formal = false). Read its model against its parent; that reading is your decision. A contract's examples and run-time check still apply.";

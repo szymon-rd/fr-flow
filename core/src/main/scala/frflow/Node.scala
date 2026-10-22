@@ -26,9 +26,6 @@ enum NodeKind:
   */
 final case class Code(files: List[String], fingerprint: String)
 
-/** How a contract stands to an invariant: it keeps it, `view` giving the pairs a call exposes to the
-  * invariant's rule; or it is exempt, `exempt` saying why the invariant does not apply to it.
-  */
 /** How a node stands to an invariant: kept, through a view of each call (with, when several inputs
   * have the rule's first type, the index of the one the pairs are about: the reader), or exempt.
   */
@@ -337,10 +334,6 @@ extension [A, B, R](n: Node[(A, B) => R])
       }
     }
 
-/** A plain Scala implementation registered for a contract: its examples run against it, production
-  * runs it through `KnowledgeBase.service`, and a change to its source files is noticed. `wiring` is
-  * the source of the expression that builds it, kept in the contract's content.
-  */
 /** What a node relies on another concern for: a guarantee about the states that concern reaches, and the
   * state this node sees (built from its parameters).
   */
@@ -348,9 +341,10 @@ final case class Reliance(guarantee: Lifted[?], sees: Lifted[?]):
   /** The guarantee, of the state seen now (under the parameters bound). */
   def holds: Boolean = guarantee.value.asInstanceOf[Any => Boolean](sees.value.asInstanceOf[() => Any]())
 
-/** An implementation registered for a contract. `proven` is the `define` Lean proves meets the
-  * contract, which is the running implementation itself.
-  * implementation (`factory`) is checked against.
+/** An implementation registered for a contract: its examples run against it, production runs it
+  * through `KnowledgeBase.service`, and a change to its source files is noticed. `wiring` is the
+  * source of the expression that builds it; `proven` is the `define` Lean proves meets the contract,
+  * when the implementation is one.
   */
 final case class Implementation(contract: String, factory: () => Any, files: List[String], wiring: String = "",
     proven: Option[Def[?]] = None):
