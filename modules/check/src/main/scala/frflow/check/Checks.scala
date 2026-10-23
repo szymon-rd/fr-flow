@@ -1,6 +1,7 @@
 package frflow
 package check
 
+import cats.effect.unsafe.implicits.global
 import frflow.ledger.Store
 import frflow.protocol.*
 import io.circe.Json
@@ -17,4 +18,4 @@ object Checks:
     else decode[Map[NodeId, NodeCheck]](Files.readString(file, UTF_8)).getOrElse(Map.empty)
 
   def save(file: Path, checks: Map[NodeId, NodeCheck]): Unit =
-    Store.write(file, Canonical.file(Json.fromFields(checks.toList.sortBy(_._1).map((id, c) => id.value -> c.asJson))) + "\n")
+    Store.writeJson(file, Json.fromFields(checks.toList.sortBy(_._1).map((id, c) => id.value -> c.asJson))).unsafeRunSync()

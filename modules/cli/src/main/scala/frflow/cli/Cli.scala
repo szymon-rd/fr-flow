@@ -6,6 +6,8 @@ import frflow.lean.*
 import frflow.ledger.*
 import frflow.protocol.{CheckStatus, ObligationStatus}
 import java.nio.file.Paths
+// The ledger's stores are IO; this CLI still runs synchronously until the new one replaces it.
+import cats.effect.unsafe.implicits.global
 
 /** Command line of a kb, which a project's main object runs through `frflow.cli.FrFlowApp`. */
 object Cli:
@@ -84,9 +86,10 @@ object Cli:
           0
         }
       case "answer" :: to :: text if text.nonEmpty =>
-        RequestStore.answer(ws.requestsFile, to, text.mkString(" "), kb.node(_).isDefined, java.time.Instant.now) match
-          case Right(id) => println(s"answered $id"); 0
-          case Left(e) => System.err.println(e); 1
+        RequestStore.make(ws.requestsFile).flatMap(_.answer(to, text.mkString(" "), id => kb.node(id.value).isDefined))
+          .unsafeRunSync() match
+          case Right(r) => println(s"answered ${r.id}"); 0
+          case Left(e) => System.err.println(e.message); 1
       case _ => System.err.println(usage); 2
 
   /** The workspace at `FRFLOW_ROOT`, or `default`; `kernelPath` is relative to its `lean/`. */

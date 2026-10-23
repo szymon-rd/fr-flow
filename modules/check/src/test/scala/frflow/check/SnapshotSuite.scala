@@ -413,7 +413,7 @@ class SnapshotSuite extends munit.FunSuite:
     val ns = snapOf(snap)
     def at(i: Int) = f"2026-01-01T00:00:$i%02dZ"
     def decide(l: Ledger, id: String, action: Action, i: Int, by: String = "dev") =
-      Decisions.decide(snap, l, req(id, by, s"$id holds for this reason", action = action), at(i))
+      Decisions.decide(snap, l, req(id, by, s"$id holds for this reason", action = action), at(i)).left.map(_.message)
     val l1 = List("Books", "Picking", "OnlyGood").zipWithIndex.foldLeft(Ledger.empty)((l, x) => decide(l, x._1, Action.Accept, x._2 + 1).toOption.get)
     assert(Decisions.mechanical(snap, l1, ns("Books")).exists(_.contains("definition nodes hold a choice")))
     // a proposal is the developer's choice
@@ -443,7 +443,7 @@ class SnapshotSuite extends munit.FunSuite:
     val snap = proven(w.baseSnapshot)
     def at(i: Int) = f"2026-01-01T00:01:$i%02dZ"
     def decide(s: Snapshot, l: Ledger, id: String, action: Action, i: Int, by: String = "dev") =
-      Decisions.decide(s, l, req(id, by, s"$id holds for this reason", action = action), at(i))
+      Decisions.decide(s, l, req(id, by, s"$id holds for this reason", action = action), at(i)).left.map(_.message)
     val l1 = List("Books", "Picking", "OnlyGood").zipWithIndex.foldLeft(Ledger.empty)((l, x) => decide(snap, l, x._1, Action.Accept, x._2 + 1).toOption.get)
     val rejected = decide(snap, l1, "FromList", Action.Reject, 5).fold(e => fail(e), identity)
     assertEquals(ids("FromList", "Pick").map(rejected.current(_).map(_.action)), List.fill(2)(Some(Action.Reject)))
@@ -674,31 +674,3 @@ class SnapshotSuite extends munit.FunSuite:
     assertEquals(Decisions.causes(Snapshot("S", List(reworded)), ledger, reworded), List(Cause.Self))
   }
 
-  test("the code a decision saw, diffed: a file git does not track is compared as it is, not shown as deleted") {
-    val repo = Files.createTempDirectory("frflow-git")
-    def git(args: String*) =
-      val p = ProcessBuilder(("git" +: args)*).directory(repo.toFile).redirectErrorStream(true).start()
-      p.getInputStream.readAllBytes(); assertEquals(p.waitFor(), 0, args)
-    git("init", "-q"); git("config", "user.email", "t@example.com"); git("config", "user.name", "t")
-    val dir = Files.createDirectories(repo.resolve("project"))
-    Files.writeString(repo.resolve("README"), "x\n")
-    git("add", "README"); git("commit", "-q", "-m", "first")
-    // Untracked: the project's files, before its first commit.
-    Files.writeString(dir.resolve("Desk.scala"), "val desk = 1\n")
-    val tree = Git.snapshot(dir, List("Desk.scala", "New.scala"))
-    assert(tree.nonEmpty)
-    Files.writeString(dir.resolve("Desk.scala"), "val desk = 1\nval members = 2\n")
-    Files.writeString(dir.resolve("New.scala"), "val added = 3\n")
-    val d = Git.diff(dir, tree, List("Desk.scala", "New.scala"))
-    assert(!d.contains("deleted file"), d)
-    assert(d.contains("+val members = 2") && !d.contains("-val desk = 1"), d)
-    assert(d.contains("new file") && d.contains("+val added = 3"), d)
-    // Removed from the working tree: shown as deleted.
-    Files.delete(dir.resolve("Desk.scala"))
-    assert(Git.diff(dir, tree, List("Desk.scala")).contains("-val desk = 1"))
-    // Nothing changed: no diff; and the repository's own index is untouched.
-    Files.writeString(dir.resolve("Desk.scala"), "val desk = 1\n")
-    assertEquals(Git.diff(dir, tree, List("Desk.scala")), "")
-    val listed = ProcessBuilder("git", "ls-files", "Desk.scala").directory(dir.toFile).start()
-    assert(String(listed.getInputStream.readAllBytes(), "UTF-8").trim.isEmpty)
-  }

@@ -4,6 +4,8 @@ package check
 import frflow.lean.*
 import frflow.ledger.*
 import frflow.protocol.{NodeKind as Kind, *}
+// The ledger's stores and git are IO; this module still runs synchronously and bridges until it is rewritten.
+import cats.effect.unsafe.implicits.global
 import io.circe.Json
 import io.circe.syntax.*
 import java.nio.charset.StandardCharsets.UTF_8
@@ -42,7 +44,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   private def strs(xs: Seq[String]): Json = Json.fromValues(xs.map(Json.fromString))
 
   def idea: String = read(ws.root.resolve(kb.idea)).getOrElse("")
-  def ledger: Ledger = LedgerStore.load(ws.ledgerFile)
+  def ledger: Ledger = Store.load(ws.ledgerFile, Ledger.empty).unsafeRunSync()
   private var checksCache: Option[(String, Map[NodeId, NodeCheck])] = None
   /** The recorded checks (read again when the file changes). */
   def checks: Map[NodeId, NodeCheck] = synchronized {
@@ -526,12 +528,14 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     */
   def decide(r: DecisionRequest): Either[String, Unit] =
     val files = kb.nodes.flatMap(code).flatMap(_.files).distinct
-    def known(s: String) = Option(s).filter(_.nonEmpty)
-    Decisions.decide(baseSnapshot, ledger, r, java.time.Instant.now.toString, known(Git.head(ws.root)), known(Git.snapshot(ws.root, files)))
-      .map(LedgerStore.save(ws.ledgerFile, _))
+    val git = Git.at(ws.root)
+    val (head, tree) = git.head.product(git.snapshot(files)).unsafeRunSync()
+    Decisions.decide(baseSnapshot, ledger, r, java.time.Instant.now.toString, head, tree).left.map(_.message)
+      .map(l => LedgerStore.make(ws.ledgerFile).flatMap(_.save(l)).unsafeRunSync())
 
   /** Warnings about the record (decisions not signed by the developer) and the code. */
-  def integrity: List[String] = Signing.warnings(ws.ledgerFile, ledger) ++ codeWarnings
+  def integrity: List[String] =
+    Signing.warnings(KeyStore.projectKeys(ws.ledgerFile.getParent.resolve("keys")).unsafeRunSync(), ledger) ++ codeWarnings
 
   /** Warnings about the model and the code (the ledger's are read live, see `Signing.warnings`). */
   def codeWarnings: List[String] =
@@ -728,7 +732,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
 
   /** Open requests from the developer. */
   def requests: List[Request] = allRequests.filter(_.status == RequestStatus.Open)
-  def allRequests: List[Request] = RequestStore.load(ws.requestsFile)
+  def allRequests: List[Request] = Store.load(ws.requestsFile, List.empty[Request]).unsafeRunSync()
 
   /** Everything known about a node (docs/DAG.md §7): its idea section, the vocabulary it uses (terms,
     * meanings, definitions in force), the nodes above it with their reasons, the co-parts under each
@@ -852,8 +856,9 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       if causes.contains(Cause.Revisit) then
         l.current(id(n)).filter(_.action == Action.Revisit).foreach(r => sb ++= s"- ${r.by} asked to revisit it: ${r.reason}\n")
       if causes.contains(Cause.Code) then
-        val since = l.binding(id(n)).flatMap(d => d.tree.filter(Git.has(ws.root, _)).orElse(d.commit)).getOrElse("")
-        val d = code(n).fold("")(c => Git.diff(ws.root, since, c.files))
+        val git = Git.at(ws.root)
+        val since = l.binding(id(n)).flatMap(d => d.tree.filter(git.has(_).unsafeRunSync()).orElse(d.commit)).getOrElse("")
+        val d = code(n).fold("")(c => git.diff(since, c.files).unsafeRunSync())
         sb ++= (if d.nonEmpty then s"- the code it governs changed:\n```diff\n$d```\n" else "- the code it governs changed (no git diff available)\n")
       sb ++= "\n"
     }
@@ -974,7 +979,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
 
   /** Writes the snapshot to `.frflow/kb.json`. */
   def writeSnapshot(): Path =
-    Store.write(ws.snapshotFile, Canonical.file(baseSnapshot.asJson) + "\n")
+    Store.writeJson(ws.snapshotFile, baseSnapshot.asJson).unsafeRunSync()
     ws.snapshotFile
 
 object Workflow:
