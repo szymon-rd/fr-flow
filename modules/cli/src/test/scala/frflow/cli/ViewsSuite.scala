@@ -57,3 +57,16 @@ class ViewsSuite extends munit.CatsEffectSuite with Golden:
     assertEquals(Style.strip(Style(true, true, None).cut(Style(true, true, None).green("a user gets access"), 10)), "a user ge…")
     assertEquals(st.wrap("one two three four", 9), List("one two", "three", "four"))
   }
+
+  test("a source or diff line is wrapped under its text, its colors kept; nothing is cut") {
+    val narrow = Style(color = false, unicode = false, width = Some(24))
+    assertEquals(narrow.fold("  - one two three four five six"), List("  - one two three four", "    five six"))
+    val colored = narrow.copy(color = true).fold("  " + narrow.copy(color = true).red("- one two three four five six"))
+    assertEquals((colored.map(Style.strip), colored(1).take(9)), (narrow.fold("  - one two three four five six"), "    \u001b[31m"))
+  }
+
+  test("colors and Unicode only on a terminal, without --plain or NO_COLOR; lines cut only on a terminal") {
+    val env = Map("COLUMNS" -> "80")
+    assertEquals(List(Style.of(false, env, terminal = true), Style.of(true, env, terminal = true), Style.of(false, env + ("NO_COLOR" -> "1"), terminal = true),
+      Style.of(false, env, terminal = false)), List(Style(true, true, Some(80)), Style(false, false, Some(80)), Style(false, false, Some(80)), Style(false, false, None)))
+  }
