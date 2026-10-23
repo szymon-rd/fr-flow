@@ -23,7 +23,7 @@ abstract class FrFlowApp(knowledge: => KnowledgeBase, root: String = ".", kernel
       case Right((command, plain)) =>
         for
           term <- Terminal.live
-          st = FrFlowApp.style(plain, env, term.interactive)
+          st = Style.of(plain, env, term.interactive)
           code <- LiveApi.fromEnv(knowledge, root, kernelPath, env).flatMap(api => Dispatch(api, term, st)(command))
             .handleErrorWith(FrFlowApp.failed(term, _))
         yield code
@@ -34,13 +34,8 @@ abstract class FrFlowApp(knowledge: => KnowledgeBase, root: String = ".", kernel
   }
 
 object FrFlowApp:
-  // Plain ASCII also when the output is not a terminal (CI, agents, files); lines cut to `COLUMNS`, which bin/frflow sets.
-  private def style(plain: Boolean, env: Map[String, String], terminal: Boolean): Style =
-    val color = !plain && terminal && !env.contains("NO_COLOR")
-    Style(color, unicode = color, env.get("COLUMNS").flatMap(_.toIntOption).filter(_ > 20))
-
   /** The one place failures become exit codes: the model's problems 1, an unknown node 2, no Lean 3. */
-  private def failed(term: Terminal, e: Throwable): IO[ExitCode] = e match
+  private[cli] def failed(term: Terminal, e: Throwable): IO[ExitCode] = e match
     case FrFlowError.ModelProblems(ps) => ps.traverse_(p => term.err(s"error: $p")).as(Dispatch.Refused)
     case FrFlowError.UnknownNode(id) => term.err(s"unknown node $id").as(Dispatch.Usage)
     case FrFlowError.LeanMissing => term.err(FrFlowError.LeanMissing.message).as(ExitCode(3))
@@ -92,7 +87,7 @@ object Commands:
       |
       |The developer reads with tree, show, diff, inbox; decides with review, accept, reject, confirm, revisit, gone;
       |asks with ask and close. The agent works with render, check, status, ci, context, find, scaffold, answer, inbox.
-      |Exit codes: 0 fine; 1 something is not accepted or proven, or a decision was refused; 2 a usage error.""".stripMargin
+      |Exit codes: 0 fine; 1 something is not accepted or proven, or a decision was refused; 2 a usage error; 3 no Lean.""".stripMargin
 
   private val plain = Opts.flag("plain", "ASCII without colors (also when NO_COLOR is set or the output is not a terminal)").orFalse
   private val json = Opts.flag("json", "print the typed value as JSON, each node in brief").orFalse

@@ -61,7 +61,7 @@ object InboxText:
     def on(q: Request) = q.node.fold("the idea")(_.value)
     def waiting(w: Queued) =
       Lines.node(w.node, st, 4, w.waitsFor.fold("")(x => st.dim(s"  after $x"))) ::
-        w.followers.map(f => st.dim(s"  ${st.follows} $f moved only with it: accepting ${w.node.id} confirms it"))
+        w.followers.map(f => st.dim(s"  ${st.follows} $f moved only with it: confirmed with it once ${w.node.id} is accepted"))
     val body =
       section("Requests from the developer", i.open.map(q => s"[${q.id}] on ${on(q)} ${st.dot} ${q.by}: ${q.text}"), st) ++
         section("Answers to read (close REQUEST when read)", i.answers.flatMap(q =>
@@ -107,7 +107,7 @@ object ReportText:
   def found(f: Found, v: View, st: Style): List[String] = f match
     case Found.Governed(_, ids) => "Governed by:" :: ids.flatMap(v.node).map(Lines.node(_, st))
     case Found.Ungoverned(path) =>
-      List(s"No node governs $path: code there changes unnoticed (status fails on it). Give it a home: the contract whose implementation it is, or a design node.")
+      List(s"No node governs $path: code there changes unnoticed (status fails on a source file no node governs). Give it a home: the contract whose implementation it is, or a design node.")
     case Found.Nothing(q) =>
       List(s"No node, rejected option or not-modelled line mentions \"$q\": a new concern may need a new node (and a governed home for its code).")
     case Found.Mentions(_, ms) => "What mentions it:" :: ms.flatMap { m =>
