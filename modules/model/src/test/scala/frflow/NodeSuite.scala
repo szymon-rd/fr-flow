@@ -21,12 +21,12 @@ class NodeSuite extends munit.FunSuite:
 
   test("structure: one root, no cycles, a part under the nodes it proves, a design under what it serves") {
     val other = Node.claim("Other", "s", "w")(forall((x: BigInt) => sq(x) >= 0))
-    assert(shelfWith(pick, other).problems.exists(_.startsWith("one root only")), shelfWith(pick, other).problems)
-    assert(KnowledgeBase("K", "IDEA.md")(fromList).problems.exists(_.contains("a root is required")))
+    assert(shelfWith(pick, other).problems.exists(_.message.startsWith("one root only")), shelfWith(pick, other).problems)
+    assert(KnowledgeBase("K", "IDEA.md")(fromList).problems.exists(_.message.contains("a root is required")))
     // a contract no code calls and nothing is above
-    assert(shelfWith(pick, pickPromise).problems.exists(_.startsWith("PickPromise has no parents")))
+    assert(shelfWith(pick, pickPromise).problems.exists(_.message.startsWith("PickPromise has no parents")))
     val loose = Node.design("Loose", "Shelves are cached.", "They change once a day.")()
-    assert(shelfWith(pick, loose).problems.exists(_.startsWith("Loose: a design decision is under")))
+    assert(shelfWith(pick, loose).problems.exists(_.message.startsWith("Loose: a design decision is under")))
     intercept[IllegalArgumentException](books.under(onlyGood))
     // (a node names its parents when it is built, from nodes built before it: no cycle can be written)
   }
@@ -69,22 +69,22 @@ class NodeSuite extends munit.FunSuite:
     intercept[ContractViolation](run(List(Book("Long", 300)), 1))
     // every contract whose result can hold what the rule is about keeps it or says why not; an invariant nobody keeps is a problem
     val fromShelf = Node.invariant[List[Book], Book]("FromShelf", "Only books on the shelf are picked.", "w")((shelf, b) => shelf.contains(b)).under(onlyGood)
-    val unkept = shelfWith(pick, fromShelf).problems
+    val unkept = shelfWith(pick, fromShelf).problems.map(_.message)
     assert(unkept.exists(_.contains("no contract keeps")), unkept)
     assert(unkept.exists(_.startsWith("Pick: keep FromShelf")), unkept)
     val exempt = shelfWith(pick.keeps(fromShelf)((shelf, n, picked) => picked.map(b => (shelf, b))), kept.exempt(fromShelf, "the shelf is checked by Pick"), fromShelf, atMostN)
     assertEquals(exempt.problems, Nil)
     // a rule about numbers does not reach a contract that returns books
-    assert(!shelfWith(pick, kept, atMostN).problems.exists(_.startsWith("Pick: keep AtMostN")))
+    assert(!shelfWith(pick, kept, atMostN).problems.exists(_.message.startsWith("Pick: keep AtMostN")))
     // an invariant scoped to another subtree does not apply
     val scoped = Node.invariant[List[Book], Book]("Scoped", "s", "w", scope = List(everyLong))((shelf, b) => shelf.contains(b)).under(onlyGood)
-    assert(shelfWith(pick, scoped).problems.exists(_.startsWith("Pick: keep Scoped")))
+    assert(shelfWith(pick, scoped).problems.exists(_.message.startsWith("Pick: keep Scoped")))
   }
 
   test("two different parameters with one name are a problem") {
     val other = Param[Int]("minPages", "the pages a reader can carry")
     val c = Node.contract(picks)("Clash", "s", "w")((shelf, n, picked) => picked.length <= other.value).under(shelfParts*)
-    assert(shelfWith(c).problems.exists(_.startsWith("two different parameters are named minPages")), shelfWith(c).problems)
+    assert(shelfWith(c).problems.exists(_.message.startsWith("two different parameters are named minPages")), shelfWith(c).problems)
   }
 
   test("examples are checked against the contract and the registered implementation") {
@@ -101,7 +101,7 @@ class NodeSuite extends munit.FunSuite:
 
   test("every node says why") {
     val noWhy = Node.claim("NoWhy", "s", " ")(forall((x: BigInt) => sq(x) >= 0)).under(onlyGood)
-    assert(shelfWith(pick, noWhy).problems.exists(_.contains("say why")))
+    assert(shelfWith(pick, noWhy).problems.exists(_.message.contains("say why")))
   }
 
   test("an enforced implementation returns results that meet the contract, or fails closed") {
@@ -187,7 +187,7 @@ class NodeSuite extends munit.FunSuite:
   test("a contract's examples must tell a constant implementation apart") {
     val lazyPick = Node.contract(picks)("LazyPick", "s", "w")((_, _, picked) => picked.isEmpty).under(shelfParts*)
       .examples(minPages.bind(100))(expect(Nil, 1, Nil, "nothing"), reject(List(Book("L", 300)), 1, List(Book("L", 300)), "x"))
-    assert(shelfWith(lazyPick).problems.exists(_.contains("always returns it")))
+    assert(shelfWith(lazyPick).problems.exists(_.message.contains("always returns it")))
   }
 
   test("production code beside a proven define runs, and is checked against the define and the contract") {

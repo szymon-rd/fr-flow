@@ -67,21 +67,6 @@ inline def of[T]: LeanType = ${ Lift.leanType[T] }
 
 final case class Binding(param: Param[?], value: () => Any, table: Option[Map[?, ?]] = None)
 
-/** Run-time values of parameters, for the code that evaluates node predicates. */
-object Bindings:
-  private val current = ThreadLocal.withInitial[Map[String, () => Any]](() => Map.empty)
-
-  def get[A](p: Param[A]): A =
-    current.get.get(p.name) match
-      case Some(v) => v().asInstanceOf[A]
-      case None    => throw IllegalStateException(s"parameter ${p.name} is not bound")
-
-  def within[T](bs: Seq[Binding])(body: => T): T =
-    val saved = current.get
-    current.set(saved ++ bs.map(b => b.param.name -> b.value))
-    try body
-    finally current.set(saved)
-
 /** A Lean declaration of a domain type, produced from a Scala case class or enum.
   *
   * @param ctors its constructors (`mk` for a case class, the cases of an enum), each with its fields'
@@ -156,11 +141,7 @@ final class Def[F](val name: String, val lifted: Lifted[F]):
 
 object Def:
   /** The definitions given and every definition they use, however nested; each once, by name. */
-  def closure(ds: Iterable[Def[?]]): List[Def[?]] =
-    val out = scala.collection.mutable.LinkedHashMap.empty[String, Def[?]]
-    def visit(d: Def[?]): Unit = if !out.contains(d.name) then { out(d.name) = d; d.lifted.defs.foreach(visit) }
-    ds.foreach(visit)
-    out.values.toList
+  def closure(ds: Iterable[Def[?]]): List[Def[?]] = Walk.preorder(ds.toList, _.name)(_.lifted.defs)
 
 /** A reason, a why or an exemption says something: a few words, not a placeholder. */
 object Words:
@@ -174,7 +155,9 @@ extension [A, B, C, R](d: Def[(A, B, C) => R]) def apply(a: A, b: B, c: C): R = 
 extension [A, B, C, D, R](d: Def[(A, B, C, D) => R]) def apply(a: A, b: B, c: C, e: D): R = d.fn(a, b, c, e)
 extension [A, B, C, D, E, R](d: Def[(A, B, C, D, E) => R]) def apply(a: A, b: B, c: C, e: D, f: E): R = d.fn(a, b, c, e, f)
 
-/** Raised when specification-only logic is executed. */
+/** Raised when specification-only logic is executed: `forall` and `exists` are Booleans to Scala, so
+  * the only way they can say they cannot be computed is to throw (see `Wiring.runtimeAssumptions`).
+  */
 final class NotExecutable(what: String) extends RuntimeException(s"$what cannot be executed")
 
 /** For every value (specification only). */
