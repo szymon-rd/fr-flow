@@ -49,6 +49,15 @@ class CommandsSuite extends munit.CatsEffectSuite:
     })
   }
 
+  test("check: a node Lean proved with its impl open reads open, as check exits on it; proven when nothing is open") {
+    def checked(c: CheckedNode) = FakeApi().flatMap(_.view).map(v => ReportText.check(CheckReport(List(c), v, Overview.of(v)), st).head)
+    val proven = CheckedNode(NodeId("Decide"), CheckStatus.Proven, Nil, Nil, Nil, None, Nil, None)
+    (checked(proven.copy(notProven = List(ObligationName.Impl))), checked(proven)).mapN { (open, done) =>
+      assertEquals(open, "o Decide: open (impl not proven)")
+      assertEquals(done, "+ Decide: proven")
+    }
+  }
+
   test("find: a path that names no file says so; one no node governs says that") {
     def find(q: String) = FakeApi().flatMap(api => api.view.flatMap(v => api.find(v, q).map(f => ReportText.found(f, v, st).mkString(" "))))
     (find("nope/Cache.scala"), find("src/main/scala/auth/Cache.scala")).mapN { (missing, ungoverned) =>

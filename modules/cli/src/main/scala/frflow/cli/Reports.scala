@@ -90,9 +90,11 @@ object ReportText:
   def status(v: View, tree: Tree, st: Style): List[String] = TreeText.lines(tree, st) ++ v.warnings.map(w => st.red(s"warning: $w"))
 
   private def checked(c: CheckedNode, st: Style): List[String] =
-    val notProven = if c.status == CheckStatus.Proven && c.notProven.nonEmpty then s" (not proven: ${c.notProven.mkString(", ")})" else ""
-    val glyph = if c.ok && c.notProven.isEmpty then st.proven else if c.status == CheckStatus.Failed || c.failing.nonEmpty then st.failed else st.open
-    s"$glyph ${st.bold(c.id.value)}: ${c.status}$notProven" ::
+    // Its status as `check` exits on (`ok`): proven by Lean with an obligation open, or an example failing, is not proven.
+    val status = if c.status != CheckStatus.Proven || c.ok then c.status else if c.notProven.isEmpty then CheckStatus.Failed else CheckStatus.Open
+    val notProven = if status != c.status && c.notProven.nonEmpty then s" (${c.notProven.mkString(", ")} not proven)" else ""
+    val glyph = if c.ok then st.proven else if status == CheckStatus.Failed || c.failing.nonEmpty then st.failed else st.open
+    s"$glyph ${st.bold(c.id.value)}: $status$notProven" ::
       (Option.when(c.failing.nonEmpty)(st.red(s"${c.failing.size} example(s) fail: the code or the contract is wrong; fix that, not the proof")).toList ++
         c.failing.take(5).map(f => s"  ${f.example}: ${f.verdict}") ++
         c.problems.map(r => s"${r.name} ${r.status}: ${r.detail.linesIterator.mkString("\n    ")}") ++
