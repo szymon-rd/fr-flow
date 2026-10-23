@@ -347,10 +347,10 @@ knowledge base `Library`):
    lazy val library = example("library")
    ```
 3. The model in `src/main/scala/library/`, ending with the knowledge base and
-   its command line (with several `@main`s, set `Compile / run / mainClass`):
+   its command line (with several mains, set `Compile / run / mainClass`):
    ```scala
    val knowledge = KnowledgeBase("Library", idea = "IDEA.md")(lendsExactly, ...)
-   @main def libraryCli(args: String*): Unit = sys.exit(knowledge.cli(args, root = "examples/library"))
+   object libraryCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/library")
    ```
 4. `sbt "library/run render"` creates `lean/` (its `lakefile.toml`, toolchain
    and the generated Lean); then `check` and `status`.

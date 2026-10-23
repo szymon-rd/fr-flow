@@ -535,9 +535,9 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       .map(Ledger.save(ws.ledgerFile, _))
 
   /** Warnings about the record (decisions not signed by the developer) and the code. */
-  def integrity: List[String] = Ledger.warnings(ws.ledgerFile, Ledger.load(ws.ledgerFile)) ++ codeWarnings
+  def integrity: List[String] = Signing.warnings(ws.ledgerFile, Ledger.load(ws.ledgerFile)) ++ codeWarnings
 
-  /** Warnings about the model and the code (the ledger's are read live, see `Ledger.warnings`). */
+  /** Warnings about the model and the code (the ledger's are read live, see `Signing.warnings`). */
   def codeWarnings: List[String] =
     val missing = kb.nodes.flatMap(n => n.governs.filterNot(f => Files.exists(ws.root.resolve(f))).map(f => s"${n.id} governs $f, which does not exist"))
     // One owner per file: two nodes governing it would each review it as its own.

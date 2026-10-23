@@ -9,7 +9,7 @@ import scala.jdk.CollectionConverters.*
 
 /** Decisions signed by the developer's key, so one an agent wrote into the ledger shows.
   *
-  * The browser server holds the private key, outside the repository; the public keys are
+  * The developer holds the private key, outside the repository; the public keys are
   * committed in `.frflow/keys/<id>.pub`. Every decision must be signed by one of them, or `status` warns.
   */
 object Signing:
@@ -91,3 +91,13 @@ object Signing:
   /** Signs the named decisions (by `Ledger.entry`), the developer vouching for them. */
   def signEntries(l: Ledger, entries: Set[String], priv: PrivateKey, pub: PublicKey): Ledger =
     Ledger(l.decisions.map((id, ds) => id -> ds.map(d => if entries(Ledger.entry(d)) then sign(priv, pub, id, d) else d)))
+
+  /** What `status` warns about the record itself: decisions not signed by a key in
+    * `.frflow/keys` (the developer's, who signs with it).
+    */
+  def warnings(file: Path, now: Ledger): List[String] =
+    val dir = file.getParent.resolve("keys")
+    (if now.decisions.nonEmpty && keys(dir).isEmpty then
+      List("no developer key: the developer signs their decisions with their key, and commits its public key in .frflow/keys/") else Nil) ++
+    unsigned(now, dir).map((id, d) =>
+      s"$id: the ${d.action} of ${d.at} by ${d.by} is not signed by a developer key: the developer decides it again, or signs it if it is theirs")

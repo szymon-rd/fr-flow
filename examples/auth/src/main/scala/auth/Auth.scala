@@ -112,4 +112,4 @@ val knowledge = KnowledgeBase("Auth", idea = "IDEA.md")(
 ).implementProven(decisionContract)(admitted, SessionStore(grants.value.toSet, sessions.value).decide)
 
 
-@main def authCli(args: String*): Unit = sys.exit(knowledge.cli(args, root = "examples/auth"))
+object authCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/auth")

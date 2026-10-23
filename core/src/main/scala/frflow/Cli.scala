@@ -3,11 +3,7 @@ package frflow
 import java.nio.channels.FileChannel
 import java.nio.file.{Files, Paths, StandardCopyOption, StandardOpenOption}
 
-/** Command line of a kb:
-  * {{{
-  * @main def auth(args: String*): Unit = sys.exit(knowledge.cli(args, root = "examples/auth"))
-  * }}}
-  */
+/** Command line of a kb, which a project's main object runs through `frflow.cli.FrFlowApp`. */
 object Cli:
   val usage: String =
     """Usage: <kb> <command>
@@ -26,7 +22,7 @@ object Cli:
       |""".stripMargin
 
   def run(kb: KnowledgeBase, ws: Workspace, args: Seq[String]): Int =
-    val problems = kb.problems
+    val problems = kb.problems ++ Generate.problems(kb)
     if problems.nonEmpty then
       problems.foreach(p => System.err.println(s"error: $p"))
       return 1

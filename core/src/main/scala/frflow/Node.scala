@@ -20,28 +20,9 @@ enum NodeKind:
   /** Governs code no proof covers (an architecture choice, a convention); decided and tracked. */
   case Design
 
-/** The source files a node governs (a contract's implementation, a design decision's files),
-  * and a hash of their content, to notice when they change.
-  */
-final case class Code(files: List[String], fingerprint: String)
-
 /** How a node stands to an invariant: kept, through a view of each call, or exempt. */
 final case class Keep(invariant: Node[?], view: Option[Lifted[?]], exempt: String = ""):
   def describe: String = view.fold(s"${invariant.id}: exempt, because ${exempt}")(v => s"${invariant.id}: ${v.source}")
-
-object Code:
-  /** The files under `paths` (directories are walked), named relative to `base`, so the fingerprint
-    * is the same in every checkout.
-    */
-  def of(base: java.nio.file.Path, paths: List[java.nio.file.Path]): Code =
-    import scala.jdk.CollectionConverters.*
-    val files = paths.map(_.toAbsolutePath.normalize).flatMap { p =>
-      if java.nio.file.Files.isDirectory(p) then java.nio.file.Files.walk(p, java.nio.file.FileVisitOption.FOLLOW_LINKS).iterator.asScala.filter(java.nio.file.Files.isRegularFile(_)).toList
-      else List(p)
-    }.distinct.map(p => base.toAbsolutePath.normalize.relativize(p).toString -> p).sortBy(_._1)
-    val text = files.map((rel, p) => rel + "\u0000" + (if java.nio.file.Files.isRegularFile(p) then java.nio.file.Files.readString(p) else "<missing>"))
-      .mkString("\u0000")
-    Code(files.map(_._1), Sha(text))
 
 /** A node of the knowledge base: one statement, in the developer's domain words, decided by the
   * developer and (when formal) proven in Lean from its parts. `M` is the operation's type for a
@@ -581,13 +562,13 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
       // with no structural equality, a database, is never equal to another).
       val groups = n.cases.map(e => (e.bindings, e.givenSource)).distinctBy(_._2)
       // Production code beside a proven define is also run on varied data: each parameter value the
-      // examples give (a stored table, say) with a row dropped, repeated or changed (`Generate.near`),
+      // examples give (a stored table, say) with a row dropped, repeated or changed (`Probes.near`),
       // so a query that drops rows or reads the wrong column is found where the examples' data hides it.
       val varied = if i.proven.isEmpty || i.provenCode then Nil else
-        val nums = n.cases.flatMap(e => Generate.numbers(e.a) ++ Generate.numbers(e.b)).distinct
+        val nums = n.cases.flatMap(e => Probes.numbers(e.a) ++ Probes.numbers(e.b)).distinct
         groups.flatMap { (bindings, src) =>
           bindings.flatMap(b => scala.util.Try(Bindings.within(bindings)(b.value())).toOption.toList
-            .flatMap(v => Generate.near(v, nums ++ Generate.numbers(v)).take(8))
+            .flatMap(v => Probes.near(v, nums ++ Probes.numbers(v)).take(8))
             .map(v2 => (bindings.map(x => if x eq b then Binding(b.param, () => v2) else x), src.map(_ + s" (${b.param.name} varied: ${Example.show(v2)})"), true)))
         }
       // On varied data, a result in another order than the define's is the same result, and data the
@@ -811,8 +792,6 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
         .map(n => s"opaque type $n: the val name and the name given to Opaque differ"),
       implementations.map(_.contract).filterNot(c => nodes.exists(n => n.id == c && n.op.isDefined))
         .map(c => s"implementation of $c: not a contract (or an assumption on an operation) of this knowledge base"),
-      (params.map(_.name) ++ opaques.map(_.name)).distinct.filter(Generate.reserved)
-        .map(n => s"parameter or opaque type $n: the name is reserved in generated Lean"),
       ids.filter(i => names.contains(i) || params.exists(_.name == i) || opaques.exists(_.name == i))
         .map(i => s"node id $i clashes with a type, function or term of the same name"),
       (params.map(_.name) ++ opaques.map(_.name)).filter(names.contains).distinct.map(n => s"term $n clashes with a type or function of the same name"),
@@ -823,7 +802,3 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
         case (n, ds) if ds.map(_.body).distinct.size > 1 => s"two different Scala types are named $n"
       }.toList
     ).flatten
-
-  /** Runs the command line on a workspace (see `Cli`). */
-  def cli(args: Seq[String], root: String = ".", kernelPath: String = "../../../lean"): Int =
-    Cli.run(this, Cli.workspace(root, kernelPath), args)

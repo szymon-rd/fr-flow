@@ -26,4 +26,4 @@ val knowledge = KnowledgeBase("Crm", idea = "IDEA.md")(
   .implementProven(saveWrite)(saved)
   .implementProven(sharesExpire)(expireCode)
 
-@main def crmCli(args: String*): Unit = sys.exit(knowledge.cli(args, root = "examples/crm"))
+object crmCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/crm")

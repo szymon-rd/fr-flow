@@ -177,6 +177,8 @@ object Decisions:
   private def relies(n: Json): List[String] = n("relies").map(_.arr.toList.flatMap(_.str)).getOrElse(Nil)
   private def code(n: Json): String = n("code").flatMap(_("fingerprint")).flatMap(_.str).getOrElse("")
   private def sha(parts: String*): String = Sha.parts(parts*)
+  /** A reason says something: a few words, not a placeholder (as `Words.tooFew` of the model). */
+  private def tooFew(s: String): Boolean = s.trim.split("\\s+").count(_.exists(_.isLetter)) < 3
 
   /** A node's chain: what its content means, together with its ancestors'. A change to a node's
     * meaning puts the nodes below up for review; rewording its reason, adding an example, or
@@ -464,7 +466,7 @@ object Decisions:
       Decision(action, n("content").getOrElse(JNull), parentChain(snapshot, n), r.by, at, reason, rejected, code(n), commit, tree)
     if r.by.trim.isEmpty then Left("say who decides")
     else if !Set("accept", "reject")(r.action) then Left(s"unknown decision ${r.action}")
-    else if Words.tooFew(r.reason) then
+    else if tooFew(r.reason) then
       Left("give the reason for the decision in a few words: it is kept as part of the theory")
     else if ids.get(r.node).exists(n => r.seen.nonEmpty && r.seen != version(snapshot, n)) then
       Left(s"${r.node} changed since you looked at it: look again before deciding")

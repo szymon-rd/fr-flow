@@ -331,7 +331,7 @@ import frflow.*
 val knowledge = KnowledgeBase("Scale", idea = "IDEA.md")(
   {(",\n  ").join(nodes)}){impls}
 
-@main def scaleCli(args: String*): Unit = sys.exit(knowledge.cli(args, root = "examples/scale"))
+object scaleCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/scale")
 ''')
 
 write(os.path.join(root, "IDEA.md"), """# Scale

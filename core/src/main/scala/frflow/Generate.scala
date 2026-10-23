@@ -38,45 +38,18 @@ object Generate:
       "Prod", "Exists", "Eq", "Ne", "Not", "And", "Or", "Iff", "id", "ite", "Classical", "Unit", "FrFlow") ++ (0 to 9).map(i => s"x$i")
 
   /** How many probes of a contract Lean evaluates, beside its examples. */
-  val Probes = 6
+  val ProbeCount = 6
+
+  /** What generated Lean cannot hold: a parameter or opaque type with a name it binds itself. */
+  def problems(kb: KnowledgeBase): List[String] =
+    (kb.params.map(_.name) ++ kb.opaques.map(_.name)).distinct.filter(reserved)
+      .map(n => s"parameter or opaque type $n: the name is reserved in generated Lean")
 
   /** The work a try (a statement Lean is asked whether it can prove) may take: a try is one-sided and cheap.
     * A try that fails says only that Lean found no proof within it. The root's `idle` (one per knowledge
     * base) runs at Lean's default budget: at this one it gives up on a root of the CRM's size.
     */
   val TryHeartbeats = 4000
-
-  /** The numbers a value holds, however nested: the boundaries a probe tries. */
-  def numbers(v: Any): List[BigInt] = v match
-    case i: Int     => List(BigInt(i))
-    case l: Long    => List(BigInt(l))
-    case b: BigInt  => List(b)
-    case l: Iterable[?] => l.toList.flatMap(numbers)
-    case Some(x)    => numbers(x)
-    case p: Product => p.productIterator.toList.flatMap(numbers)
-    case _          => Nil
-
-  /** Values of the same type near `v`: a number at the boundaries (`nums`, and next to it), a list
-    * emptied, shortened, reversed, with its head again or with a row like its head added, a string emptied, an option empty, a case
-    * class or tuple with one field changed so. What the examples do not reach, the translation is
-    * checked on.
-    */
-  def near(v: Any, nums: List[BigInt]): List[Any] =
-    val out: List[Any] = v match
-      case b: Boolean => List(!b)
-      case i: Int     => (nums.filter(_.isValidInt).map(_.toInt) ++ List(0, i + 1, i - 1, -i))
-      case l: Long    => (nums.filter(_.isValidLong).map(_.toLong) ++ List(0L, l + 1, l - 1, -l))
-      case b: BigInt  => nums ++ List(BigInt(0), b + 1, b - 1, -b)
-      case s: String  => List("", s + s)
-      case Some(x)    => None :: near(x, nums).take(2).map(Some(_))
-      case l: List[?] => if l.isEmpty then Nil else List(Nil, l.tail, l.reverse, l.head :: l) ++ near(l.head, nums).take(2).map(x => l :+ x)
-      case p: Product if p.productArity > 0 =>
-        val fields = p.productIterator.toList
-        val make = p.getClass.getConstructors.find(_.getParameterCount == fields.size)
-        make.toList.flatMap(k => fields.indices.flatMap(i => near(fields(i), nums).take(3).flatMap(x =>
-          scala.util.Try(k.newInstance(fields.updated(i, x).map(_.asInstanceOf[AnyRef])*)).toOption)))
-      case _ => Nil
-    out.distinct.filter(_ != v)
 
   /** The top-level arrows of a Lean type: `A → (B → C) → D` is `A`, `(B → C)`, `D`. */
   def arrows(t0: String): List[String] =
@@ -782,19 +755,19 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
       }
       // Probes: with the first example's bindings, inputs near the examples' that no example has.
       val probes = n.cases.headOption.toList.flatMap { first =>
-        val nums = n.cases.flatMap(e => Generate.numbers(e.a) ++ Generate.numbers(e.b)).distinct
+        val nums = n.cases.flatMap(e => Probes.numbers(e.a) ++ Probes.numbers(e.b)).distinct
         val asked = n.cases.map(e => (e.a, e.b)).toSet
-        val inputs = n.cases.flatMap(e => for { a <- e.a :: Generate.near(e.a, nums); b <- e.b :: Generate.near(e.b, nums) } yield (a, b))
+        val inputs = n.cases.flatMap(e => for { a <- e.a :: Probes.near(e.a, nums); b <- e.b :: Probes.near(e.b, nums) } yield (a, b))
           .distinct.filterNot(asked)
         // Without code to run, the post is judged on the examples' results.
         val cands = if impl.isDefined then inputs.map((a, b) => (a, b, None)) else inputs.flatMap((a, b) => n.cases.map(_.result).distinct.map(r => (a, b, Some(r))))
         // Half at a boundary (a number of one input equal to one of the other, where `<` and `<=` part),
         // half anywhere.
         val (edge, rest) = scala.util.Random(n.id.hashCode).shuffle(cands)
-          .partition((a, b, _) => Generate.numbers(a).toSet.intersect(Generate.numbers(b).toSet).nonEmpty)
+          .partition((a, b, _) => Probes.numbers(a).toSet.intersect(Probes.numbers(b).toSet).nonEmpty)
         edge.map(Some(_)).zipAll(rest.map(Some(_)), None, None).flatMap((x, y) => x.toList ++ y.toList).iterator.zipWithIndex
           .flatMap { case ((a, b, r), j) => one(s"probe_$j", s"probe ${j + 1}", first.bindings, a, b, r).toOption }
-          .filter(_.nonEmpty).take(Generate.Probes).flatten.toList
+          .filter(_.nonEmpty).take(Generate.ProbeCount).flatten.toList
       }
       (out.collect { case Right(es) => es }.flatten ++ probes, out.collect { case Left(w) => w })
 

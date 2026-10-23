@@ -160,7 +160,7 @@ class NodeSuite extends munit.FunSuite:
     assert(shelfWith(pick, noWhy).problems.exists(_.contains("say why")))
     val m = Param[Int => Int]("m", "a bound")
     val clash = Node.claim("Clash", "s", "w")(forall((x: Int) => m(x) >= 0))
-    assert(KnowledgeBase("K", "IDEA.md")(clash).problems.exists(_.contains("reserved")))
+    assert(Generate.problems(KnowledgeBase("K", "IDEA.md")(clash)).exists(_.contains("reserved")))
   }
 
   test("an enforced implementation returns results that meet the contract, or fails closed") {
