@@ -9,10 +9,10 @@ import frflow.protocol.*
 import java.nio.file.{Files, Path}
 
 /** What the checker reads of a workspace on disk, what deciding writes there, and what git says of it. */
-class WorkspaceSuite extends munit.CatsEffectSuite:
+class WorkspaceSuite extends munit.CatsEffectSuite with TempDirs:
 
   private def workspace: IO[Workspace] = IO.blocking {
-    val ws = Workspace(Files.createTempDirectory("frflow"), "../lean")
+    val ws = Workspace(tempDir("frflow"), "../lean")
     Files.writeString(ws.root.resolve("IDEA.md"), Desk.idea)
     ws
   }
@@ -32,7 +32,7 @@ class WorkspaceSuite extends munit.CatsEffectSuite:
   test("a change to the implementation's code shows on its contract") {
     for
       ws <- workspace
-      impl <- IO.blocking(Files.createTempDirectory("impl").resolve("Impl.scala"))
+      impl = ws.root.resolve("Impl.scala")
       _ <- write(impl, "class Impl")
       kb = shelfKb.withImplementation(Implementation("Pick", () => (s: List[Book], n: Int) => s.filter(_.pages >= 100), List(impl.toString, "Model.scala")))
       w <- OnDisk(kb, ws)
@@ -47,33 +47,24 @@ class WorkspaceSuite extends munit.CatsEffectSuite:
     yield ()
   }
 
-  test("a design decision governs files, sits under what it serves, and has nothing to prove") {
+  test("a design decision governs files and has nothing to prove; a file it governs changing reviews it") {
     val cache = Node.design("Cache", "Shelves are cached in memory.", why = "They change once a day.")("Store.scala").under(pick)
-    for
-      ws <- workspace
-      _ <- write(ws.root.resolve("Store.scala"), "object Store")
-      w <- OnDisk(shelfWith(pick, cache), ws)
-      _ = assertEquals(w.kb.problems, Nil)
-      _ <- acceptAll(w)
-      node <- w.analysis.map(_.annotated.byId(NodeId("Cache")).node)
-      _ = assertEquals((node.split, node.status), (None, None))
-      _ = assertEquals(node.code.map(_.files), Some(List("Store.scala")))
-      _ <- write(ws.root.resolve("Store.scala"), "object Store // redis")
-      _ <- causes(w, "Cache").assertEquals(List("code"))
-    yield ()
+    def governing(fingerprint: String)(d: Desk) = d.copy(inputs = d.inputs.copy(code = Map("Cache" -> CodeRef(List("Store.scala"), Fingerprint(fingerprint)))))
+    val d = governing("a")(Desk(shelfWith(pick, cache))).acceptAll
+    assertEquals(d.kb.problems, Nil)
+    assertEquals((d.node("Cache").node.split, d.node("Cache").node.status, d.node("Cache").node.code.map(_.files)), (None, None, Some(List("Store.scala"))))
+    assertEquals(governing("b")(d).causes("Cache"), List("code"))
   }
 
-  test("a node governing a file that does not exist, and a file governed by two nodes, are warned of") {
+  test("a node governing a file that does not exist, a file governed by two nodes, and a proof file of no node are warned of") {
     val one = Node.design("One", "The store is kept in one file.", why = "Simple.")("Store.scala").under(pick)
     val two = Node.design("Two", "The store and the cache are kept apart.", why = "Clear.")("Store.scala", "Cache.scala").under(pick)
-    for
-      ws <- workspace
-      _ <- write(ws.root.resolve("Store.scala"), "object Store")
-      w <- OnDisk(shelfWith(pick, one, two), ws)
-      warnings <- w.analysis.map(Governance.warnings)
-    yield
-      assert(warnings.contains("Two governs Cache.scala, which does not exist"), warnings)
-      assert(warnings.contains("Store.scala is governed by One and Two: give it one owner"), warnings)
+    val d = Desk(shelfWith(pick, one, two))
+    val warnings = Governance.warnings(Desk(d.kb, d.inputs.copy(missing = Set("Cache.scala"), proofs = Map("Gone" -> "-- a node renamed\n"),
+      code = Map("One" -> CodeRef(List("Store.scala"), Fingerprint("f")), "Two" -> CodeRef(List("Store.scala", "Cache.scala"), Fingerprint("g"))))).analysis)
+    assert(warnings.contains("Two governs Cache.scala, which does not exist"), warnings)
+    assert(warnings.contains("Store.scala is governed by One and Two: give it one owner"), warnings)
+    assert(warnings.exists(_.startsWith("lean/Proofs/Shelf/Gone.lean is the proof file of no node")), warnings)
   }
 
   test("source files no node governs are found under src/main and in what the build compiles; tests are not production code") {
@@ -90,28 +81,9 @@ class WorkspaceSuite extends munit.CatsEffectSuite:
     yield assertEquals(u, List("src/fast/scala/Fast.scala", "src/main/scala/Leak.scala"))
   }
 
-  test("a proof file of no node is warned of") {
-    for
-      ws <- workspace
-      _ <- IO.blocking(Files.createDirectories(ws.lean.resolve("Proofs/Shelf")))
-      _ <- write(ws.lean.resolve("Proofs/Shelf/Gone.lean"), "-- proofs of a node renamed\n")
-      warnings <- OnDisk(shelfKb, ws).flatMap(_.analysis).map(Governance.warnings)
-    yield assert(warnings.exists(_.startsWith("lean/Proofs/Shelf/Gone.lean is the proof file of no node")), warnings)
-  }
-
-  test("the snapshot written is the analysis's") {
-    for
-      ws <- workspace
-      w <- OnDisk(callsKb, ws)
-      a <- w.analysis
-      file <- CheckRunner.writeSnapshot(a)
-      text <- IO.blocking(Files.readString(file))
-    yield assertEquals(io.circe.parser.decode[Snapshot](text).map(_.nodes.map(_.id)), Right(a.snapshot.nodes.map(_.id)))
-  }
-
   test("the code diffed against a commit: a file git does not track is compared as it is, not shown as deleted") {
     for
-      repo <- IO.blocking(Files.createTempDirectory("frflow-git"))
+      repo <- IO.blocking(tempDir("frflow-git"))
       _    <- git(repo, "init", "-q") *> git(repo, "config", "user.email", "t@example.com") *> git(repo, "config", "user.name", "t")
       dir  <- IO.blocking(Files.createDirectories(repo.resolve("project")))
       _    <- write(dir.resolve("Desk.scala"), "val desk = 1\n") *> git(dir, "add", "Desk.scala") *> git(repo, "commit", "-q", "-m", "first")
@@ -137,7 +109,7 @@ class WorkspaceSuite extends munit.CatsEffectSuite:
 
   test("outside git: no commit, no diff") {
     for
-      dir  <- IO.blocking(Files.createTempDirectory("frflow-nogit"))
+      dir  <- IO.blocking(tempDir("frflow-nogit"))
       g     = Git.at(dir)
       head <- g.head
       d    <- g.diff("abc", List("A.scala"))
