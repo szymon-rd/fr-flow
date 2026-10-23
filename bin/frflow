@@ -1,0 +1,22 @@
+#!/bin/sh
+# Runs a project's FrFlow CLI on this terminal, with colors and the interactive review:
+#   bin/frflow auth tree          bin/frflow keycloak review --as NAME          bin/frflow crm --help
+# sbt writes the java command once (`<project>/cliLauncher`), and again after a source changes.
+# Agents and CI can use `sbt "<project>/run COMMAND"` as well: through sbt the output is plain.
+set -e
+here=$(cd "$(dirname "$0")/.." && pwd)
+project=${1:?usage: bin/frflow PROJECT COMMAND [ARGS...]}
+shift
+launch="$here/examples/$project/target/frflow.launch"
+if [ ! -s "$launch" ] || [ -n "$(find "$here/modules" "$here/examples/$project/src" "$here/build.sbt" \( -name '*.scala' -o -name '*.sbt' \) -newer "$launch" 2>/dev/null | head -n 1)" ]; then
+  echo "frflow: compiling $project with sbt (on first use, or after a change)..." >&2
+  (cd "$here" && sbt --client "$project/cliLauncher" < /dev/null > /dev/null 2>&1) ||
+    { echo "frflow: sbt failed; run: sbt \"$project/cliLauncher\" to see why" >&2; exit 2; }
+fi
+cd "$here"
+# The java command's arguments (one per line), then the ones given here.
+n=$#
+while IFS= read -r arg; do set -- "$@" "$arg"; done < "$launch"
+i=0
+while [ "$i" -lt "$n" ]; do a=$1; shift; set -- "$@" "$a"; i=$((i + 1)); done
+exec java "$@"
