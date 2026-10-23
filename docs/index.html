@@ -389,6 +389,7 @@ choose one. See <a href="#t-domain">the tutorial's step 4</a>.</p>
 <tr><td>Lean to prove the code</td><td><code>.implementProven(contract)(aDefine)</code></td><td>the define runs, and <code>impl</code> is proven</td></tr>
 <tr><td>Fast production code beside a proven reference</td><td><code>.implementProven(contract)(aDefine, (a, b) =&gt; fast(a, b))</code></td><td>the fast code runs, checked against the define on the examples and varied data</td></tr>
 <tr><td>Plain code, checked by running</td><td><code>.implement(contract)((a, b) =&gt; …)</code></td><td>the examples run, and <code>service</code> checks every call</td></tr>
+<tr><td>Lean to prove code that takes steps against the outside</td><td><code>.implementProven(flowContract)(aFlow)</code></td><td><code>impl</code> is proven on the boundaries' models; production runs it with <code>knowledge.run[F]</code> (<a href="#effects">Effectful code</a>)</td></tr>
 </tbody>
 </table>
 <p>Plain Scala code calls a define with <code>d.fn(…)</code> and reads a parameter with <code>p.value</code>.</p>
@@ -407,7 +408,9 @@ with a reason (<code>.exempt</code>). A new endpoint then has to keep it or say 
 
 <h3 id="how-outside">State what the outside does</h3>
 <p>A database or a clock cannot be proven. State what it is trusted to do as an assumption on its operation; the code
-that calls it is proven from that promise, and <code>checkedBy</code> gives a cheap check run on every call.</p>
+that calls it is proven from that promise, and <code>checkedBy</code> gives a cheap check run on every call. Code
+that takes several steps against the outside (load, store, log) is a flow over a boundary instead: see
+<a href="#effects">Effectful code</a>.</p>
 <div class="code"><pre><code>val sessionLookup = Node.assumption(lookup)("SessionLookup",
   "The store's index returns a session it holds under the token in the realm asked, if it holds one, and never one of another realm or token.",
   why = "Sessions live in a store indexed by realm and token (in memory here; a database or cache in a cluster). Introspection is proven from this promise, not from the index; the index is checked against the define it is decided with on its examples, and every session it returns is checked to be of the realm and token asked."
@@ -458,7 +461,7 @@ prints as Lean and runs as Scala. A lambda over terms annotates its parameters
 <tr><td><code>forall((x: Term[A]) =&gt; …)</code>, <code>exists(…)</code></td><td>for every, for some value, of one or two variables. Specification only: Scala cannot run them</td><td><code>∀</code>, <code>∃</code></td></tr>
 <tr><td><code>If(c)(a).Else(b)</code></td><td>a conditional</td><td><code>if c then a else b</code></td></tr>
 <tr><td><code>t.on[Case](fields =&gt; …).on[Other.type](…)</code></td><td>a match: each case's lambda takes its fields; a singleton case takes <code>.type</code>; Options use <code>Some[A]</code> and <code>None.type</code></td><td><code>match t with | …</code></td></tr>
-<tr><td><code>let(v)(x =&gt; body)</code></td><td>a named shared value</td><td><code>let x := v; body</code></td></tr>
+<tr><td><code>let(v)(x =&gt; body)</code></td><td>a named shared value</td><td><code>let x : A := v; body</code></td></tr>
 <tr><td><code>some(t)</code>, <code>none[A]</code></td><td>Option values</td><td><code>some t</code>, <code>none</code></td></tr>
 <tr><td><code>s.field</code>, <code>a.copy((field = v))</code>, <code>t._1</code></td><td>a field, a copy with one field changed, a tuple's part (tuples up to 3)</td><td><code>s.field</code>, <code>{ a with field := v }</code></td></tr>
 <tr><td><code>+ - *</code> on <code>BigInt</code>; <code>/ %</code> by a literal; <code>&lt; &lt;= &gt; &gt;= max min</code></td><td>arithmetic. <code>Int</code> and <code>Long</code> arithmetic is refused: they wrap in Scala, not in Lean</td><td>on <code>Int</code></td></tr>
@@ -528,7 +531,9 @@ val aboutRecord = define { (s: Term[CrmStore], id: Term[BigInt]) =&gt;
 <tr><td>claim</td><td><code>Node.claim(id, statement, why, idea = "")(formula)</code>; the claim with no parents is the root</td><td>proven from its parts (<code>complete</code>)</td></tr>
 <tr><td>invariant</td><td><code>Node.invariant[A, B](id, statement, why, scope)(rule)</code></td><td>a claim whose parts are the contracts that keep it</td></tr>
 <tr><td>contract</td><td><code>Node.contract(op)(id, statement, why)(post)</code>, <code>op: Param[(A, B) =&gt; R]</code></td><td>every call of <code>op</code> meets <code>post</code>; <code>impl</code> when a define is attached</td></tr>
+<tr><td>contract on a flow</td><td><code>Node.contract(op)(id, statement, why)((a, result, before, after) =&gt; …)</code>, <code>op: Param[A =&gt; Flow[R]]</code></td><td>every run from any world meets <code>post</code>; <code>impl</code> when a flow is attached</td></tr>
 <tr><td>assumption</td><td><code>Node.assumption(op)(…)(post)</code>, or <code>Node.assumption(id, statement, why)(formula)</code></td><td>trusted: a hypothesis of <code>root_impl</code></td></tr>
+<tr><td>model of a boundary</td><td><code>Node.assumption(boundary)(Model)(id, statement, why)</code></td><td>trusted: the boundary behaves as the model, and flows are proven from it</td></tr>
 <tr><td>definition</td><td><code>Node.definition(id, statement, why)(T := of[X], term := expression, …)</code></td><td>decided, not proven</td></tr>
 <tr><td>design</td><td><code>Node.design(id, statement, why)(files*)</code></td><td>none: a change to its files is noticed</td></tr>
 </tbody>
@@ -625,7 +630,7 @@ Subcommands:
 <tr><td><code>idle</code> (the root), tried</td><td>the root holds when every operation does nothing</td><td>Lean proves it: the root does not say what users can do</td></tr>
 <tr><td><code>impl</code></td><td>the attached define meets the contract, from the promises of what it calls</td><td>not proven</td></tr>
 <tr><td><code>root_impl</code></td><td>the root holds of the code, from the trusted assumptions alone</td><td>not proven</td></tr>
-<tr><td><code>eval_i</code>, <code>probe_j</code></td><td>an example, or an input near one, gives in Lean what it gives in Scala</td><td>Lean and Scala disagree: the translation is wrong</td></tr>
+<tr><td><code>eval_i</code>, <code>probe_j</code></td><td>an example, or an input near one, gives in Lean what it gives in Scala</td><td>Lean and Scala disagree: FrFlow's Lean printer or evaluator is wrong</td></tr>
 </tbody>
 </table>
 <p>A try is one-sided: <code>shown</code> means Lean proved it; <code>not-shown</code> means it found no proof within
@@ -646,47 +651,131 @@ a small budget, which shows nothing.</p>
 </section>
 
 <section aria-labelledby="effects">
-<h2 id="effects">Effectful code: Flow and boundaries <span class="kind">Explanation</span></h2>
-<div class="wip" role="note"><strong>In progress.</strong> This section describes the design agreed for effectful
-code. It is being built and is not on the main branch yet; names and details may change. The code below shows the
-intended shape and has not been compiled.</div>
-<p>Today the proven code is pure: a database or a clock is an assumption, and the code that wires them together is a
-design node, reviewed but not proven. <code>Flow</code> makes that wiring provable.</p>
+<h2 id="effects">Effectful code: flows over boundaries <span class="kind">Explanation</span></h2>
+<p>Code that takes several steps against the outside (load from a database, store, log) is written as a
+<strong>flow</strong>, in the style of Cats Effect or ZIO code. Its order and its loops are then proven, not only
+reviewed. A single call whose result is checked can stay an assumption on an operation
+(<a href="#how-outside">State what the outside does</a>).</p>
 <ul>
   <li><strong><code>Flow[A]</code></strong> is FrFlow's monad, written with <code>for</code>, <code>&lt;-</code> and
-  <code>yield</code> as with Cats Effect or ZIO. It runs in any <code>cats.effect.Sync</code>, <code>IO</code> in
-  production, and is printed as a Lean <code>do</code> block.</li>
-  <li><strong>A boundary</strong> is a plain trait whose methods take terms and return flows: what proven code calls but
-  cannot see. The model names one value for it, <code>Boundary[T]</code>, and production binds a real implementation.</li>
+  <code>yield</code>. It is printed as a Lean <code>do</code> block over any monad with the boundaries' operations,
+  and runs in any <code>cats.effect.Sync</code>.</li>
+  <li><strong>A boundary</strong> is a plain trait whose operations take terms and return flows: what proven code
+  calls but cannot see. The model names one value for it, <code>Boundary[T]</code>.</li>
   <li><strong>A state model</strong> says what a boundary does: another implementation of the same trait, over a
   state, written with <code>state.get</code>, <code>state.set</code> and <code>state.update</code>. You decide it as an
-  assumption. In Lean it becomes an instance on <code>StateM</code>.</li>
-  <li><strong>A flow's contract</strong> relates its input and result to the state before and after the run.</li>
+  assumption; in Lean it is an instance on <code>StateM</code>.</li>
+  <li><strong>A flow's contract</strong> relates the input and the result to the boundaries' states before and after
+  the run. Lean proves the attached flow meets it, on the models.</li>
 </ul>
-<div class="code"><span class="label">Intended shape (design, not compiled)</span><pre><code>trait Database:
+
+<h3 id="effects-boundary">A boundary and its model</h3>
+<div class="code"><span class="label"><code>examples/crm/…/Database.scala</code></span><pre><code>/** What proven code may ask of the database. */
+trait Database:
+  /** The records, shares and expiries it holds. */
   def load: Flow[CrmStore]
+  /** Holds what `t` holds about the record `id` in place of what it held about it. */
   def storeAbout(id: Term[BigInt], t: Term[CrmStore]): Flow[Unit]
+  /** Appends an event to the event log. */
   def logEvent(e: Term[Event]): Flow[Unit]
 
-val db = Boundary[Database]("database", "the SQLite database the CRM keeps its records in")
+val db = Boundary[Database]("database", "the SQLite database the CRM keeps its records, shares, expiries and event log in")
 
+/** What the database holds: the store, and the event log. */
 final case class Tables(store: CrmStore, events: List[Event])
-object DatabaseModel extends Database, StateModel[Tables]:
-  def load = state.get.map(_.store)
-  def storeAbout(id: Term[BigInt], s: Term[CrmStore]) =
-    state.update(t =&gt; Tables(replaceAbout(t.store, id, aboutRecord(s, id)), t.events))
-  def logEvent(e: Term[Event]) = state.update(t =&gt; Tables(t.store, t.events :+ e))
+object Tables extends Data[Tables]
 
-def expireOnce(now: Term[BigInt]): Flow[CrmStore] =
+/** The database as the proofs see it. */
+object DatabaseModel extends Database, StateModel[Tables]:
+  def load = state.get.map(t =&gt; t.store)
+  def storeAbout(id: Term[BigInt], s: Term[CrmStore]) = state.update(t =&gt; Tables(replaceAbout(t.store, id, aboutRecord(s, id)), t.events))
+  def logEvent(e: Term[Event]) = state.update(t =&gt; Tables(t.store, t.events ++ List(e)))
+
+val tablesModel = Node.assumption(db)(DatabaseModel)("TablesModel",
+  "The database holds a store and an event log: it gives the store as it holds it, holds the rows a store has about a record in place of those it held about it, leaving the other records' rows, and appends an event to the log.",
+  why = "…",
+  idea = "Expiring shares")
+  .checkedAgainst(t =&gt; SqliteDatabase.holding(t), _.tables)</code></pre></div>
+<p><code>.checkedAgainst(start, read)</code> runs the production implementation beside the model on the examples of
+the flows that call it: both start from the same state and must end with the same result and state. The production
+implementation builds its operations with <code>Flow.effect</code>:</p>
+<div class="code"><span class="label"><code>examples/crm/…/Database.scala</code></span><pre><code>final class SqliteDatabase(sql: Db) extends Database:
+  /** What it holds, read back. */
+  def tables: Tables = Tables(sql.load(), sql.events())
+  def load = Flow.effect(sql.load())
+  def storeAbout(id: Term[BigInt], t: Term[CrmStore]) = Flow.effect(id, t)((i, s) =&gt; { sql.storeAbout(i, s); () })
+  def logEvent(e: Term[Event]) = Flow.effect(e)(sql.logEvent)</code></pre></div>
+
+<h3 id="effects-flow">A flow and its contract</h3>
+<p>The flow is a plain <code>def</code>. It calls the operation <code>expire</code> (SharesExpire's), so it is proven
+from that contract, not from its code.</p>
+<div class="code"><span class="label"><code>examples/crm/…/Job.scala</code></span><pre><code>def expireOnce(now: Term[BigInt]): Flow[CrmStore] =
   for
     s &lt;- db.load
-    t  = expireCode(s, now)
+    t  = expire(s, now)
     _ &lt;- changedIds(s, t).traverse_(id =&gt; db.storeAbout(id, t))
     _ &lt;- db.logEvent(Event[Event.Expired](now))
   yield t</code></pre></div>
-<p>A state model assumes the outside is deterministic (unknowns such as clock readings go into the state, and proofs
-hold for every start state), does not fail, is not changed by anyone else during a run, and that loops run over
-lists. Failures and concurrency are kept as decided assumptions for now.</p>
+<p>The contract is on an operation whose type is a flow, <code>Param[A =&gt; Flow[R]]</code>. Its post takes the input,
+the result and the worlds before and after; <code>before(DatabaseModel)</code> is the database's state before the run.
+Its examples give a world before, the result, and the world after:</p>
+<div class="code"><span class="label"><code>examples/crm/…/Expiry.scala</code></span><pre><code>val runExpiry = Param[BigInt =&gt; Flow[CrmStore]]("runExpiry",
+  "a run of the expiry job at a time (in seconds), on the database: the store it computes; the database holds it after")
+
+val expiryJob = Node.contract(runExpiry)("ExpiryJob",
+  "A run of the expiry job at a time leaves the database holding, about each record, what SharesExpire's run on what it held gives, logs the run at the end of the event log, and returns that store.",
+  why = "…",
+  idea = "Expiring shares"
+)((now, result, before, after) =&gt;
+  sameRows(after(DatabaseModel).store, expire(before(DatabaseModel).store, now)) &amp;&amp;
+    after(DatabaseModel).events === before(DatabaseModel).events ++ List(Event[Event.Expired](now)) &amp;&amp;
+    result === expire(before(DatabaseModel).store, now))
+  .examples()(
+    expect(BigInt(150), World(DatabaseModel -&gt; Tables(globexUntil100, earlier)), initechOnly,
+      World(DatabaseModel -&gt; Tables(initechOnly, earlier :+ Event.Expired(150))), "Globex's share ended at 100: the database drops it, and the run is logged"),
+    …)</code></pre></div>
+<p>It is attached as other proven code is, with <code>.implementProven(expiryJob)(expireOnce)</code>. A contract on a
+flow may have no parent: production runs it, as an entry point. A design node under it says when it runs and how it
+has the database to itself (in the CRM, every minute, under the database's lock).</p>
+
+<h3 id="effects-run">Running it</h3>
+<div class="code"><span class="label"><code>examples/crm/…/Job.scala</code></span><pre><code>def runExpiryJob(d: Db, now: BigInt): CrmStore = d.synchronized {
+  knowledge.run[SyncIO](expiryJob)(db.bind(SqliteDatabase(d)))(now).unsafeRunSync()
+}</code></pre></div>
+<p><code>knowledge.run[F](contract)(bindings*)</code> runs the proven flow in <code>F</code>, calling the bound
+implementations of its boundaries. The CRM runs it in <code>SyncIO</code> on the thread that holds the lock;
+<code>IO</code> works too where nothing else needs the lock.</p>
+
+<h3 id="effects-lean">In Lean</h3>
+<p>The boundary becomes a class, the model a <code>def</code> per operation in <code>StateM</code>, and the flow a
+generic <code>do</code> block:</p>
+<div class="code"><span class="label">Generated: <code>lean/FrFlowGen/Crm/Domain/Def_expireOnce.lean</code></span><pre><code>@[frflow_defs] def expireOnce {m : Type → Type} [Monad m] [Database m] (expire : CrmStore → Int → CrmStore) : Int → m CrmStore :=
+  fun (now : Int) =&gt; do
+    let s ← Database.load
+    for id_ in (Crm.changedIds s (expire s now)) do
+      Database.storeAbout id_ (expire s now)
+    Database.logEvent (Event.Expired now)
+    pure (expire s now)</code></pre></div>
+<p><code>impl</code> states the contract of <code>expireOnce_run</code>, the flow run on the models
+(<code>FrFlow.runOn</code> over <code>StateM World</code>), given SharesExpire's promise. To prove it by hand,
+<code>simp only</code> with the run lemmas (<code>FrFlow.runOn_bind</code>, <code>runOn_pure</code>,
+<code>runOn_within</code>, <code>runOn_get</code>, <code>runOn_modify</code>, <code>runOn_forIn_unit</code>), the
+generated <code>Database.&lt;op&gt;_onWorld</code> lemmas and the model's definitions, keeping the domain's
+definitions folded. <code>runOn_forIn_unit</code> turns a loop into a <code>List.foldl</code> over worlds; what the fold
+does is then proven by induction on the list. The CRM's proof is
+<code>examples/crm/lean/Proofs/Crm/ExpiryJob.lean</code>.</p>
+
+<h3 id="effects-assumes">What a state model assumes</h3>
+<ul>
+  <li><strong>Deterministic.</strong> Each operation has one outcome. What is unknown, such as a clock's readings, goes
+  into the state; the proofs hold for every start state.</li>
+  <li><strong>No failures.</strong> An operation always succeeds. Failures are not modelled yet.</li>
+  <li><strong>Exclusive.</strong> Nothing else changes the state during a run. A design node says how that is ensured
+  (a lock, a transaction).</li>
+  <li><strong>Loops over lists.</strong> A flow loops with <code>xs.traverse_(x =&gt; …)</code>, so it terminates.</li>
+</ul>
+<p>Steps of the outside world (<code>Flow.effect</code>) belong to production implementations only: a proven flow
+that takes one is refused when the knowledge base is rendered.</p>
 </section>
 
 <section aria-labelledby="decisions">
@@ -719,12 +808,14 @@ theory. Trusted:</p>
   <li>the assumptions you accept, which are the hypotheses of <code>root_impl</code>, checked where they can be;</li>
   <li>that a term means in Lean what it computes in Scala. Both come from one tree, and the examples and probes near
   them are evaluated in both and compared;</li>
+  <li>the state models of boundaries: that the production implementation behaves as its model, checked on the
+  examples where <code>.checkedAgainst</code> is given;</li>
   <li>that parameters hold the data they are said to mean, and that every path to the data goes through
-  <code>service</code>: design nodes are reviewed, not proven;</li>
+  <code>service</code> or a proven flow: design nodes are reviewed, not proven;</li>
   <li>your signing key.</li>
 </ul>
 <p>Limits: the tries are one-sided; running covers the examples and their combinations, not every input; ordering,
-liveness and effects outside a pure core are not covered yet; maps and sets cannot be iterated.</p>
+liveness, failures of the outside world and concurrent access to a boundary are not covered; maps and sets cannot be iterated.</p>
 </section>
 
 <section aria-labelledby="troubleshooting">
@@ -738,7 +829,7 @@ liveness and effects outside a pure core are not covered yet; maps and sets cann
 <tr><td><code>idle</code> shown</td><td>doing nothing meets the root</td><td>State what users can do.</td></tr>
 <tr><td><code>impl</code> open</td><td>the define does not provably meet the contract</td><td>Fix the code, or prove <code>impl</code> by hand.</td></tr>
 <tr><td>examples fail</td><td>the code or the contract is wrong</td><td>Fix them before any proof.</td></tr>
-<tr><td>Lean and Scala disagree</td><td>an example gives one result in Lean and another in Scala</td><td>Report it: the translation is wrong. Do not change the example.</td></tr>
+<tr><td>Lean and Scala disagree</td><td>an example gives one result in Lean and another in Scala</td><td>Report it: FrFlow's Lean printer or evaluator is wrong. Do not change the example.</td></tr>
 <tr><td><code>timeout</code></td><td>Lean ran out of time</td><td>Run <code>check</code> again; it is not a failure.</td></tr>
 <tr><td>"compare terms with ==="</td><td><code>==</code> was used between terms</td><td>Use <code>===</code> or <code>=!=</code>.</td></tr>
 <tr><td><code>ContractViolation</code> at run time</td><td>a result broke the contract, or a value broke an assumption</td><td>Fix the code or the data, never the check.</td></tr>

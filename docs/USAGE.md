@@ -48,7 +48,9 @@ Exit codes: 0 fine; 1 not complete, or a decision refused; 2 a usage error
 | claim | `Node.claim(id, statement, why)(formula)`; the one with no parents is the root | proven from its parts (`complete`) |
 | invariant | `Node.invariant[A, B](id, statement, why)(rule)`, kept by contracts with `.keeps(inv)(view)` | a claim whose parts are its keepers |
 | contract | `Node.contract(op)(id, statement, why)(post)` on an operation `op: Param[(A, B) => R]` | every call of `op` meets `post`; an attached `define` is proven against it (`impl`) |
+| contract on a flow | `Node.contract(op)(id, statement, why)((a, result, before, after) => ...)` on `op: Param[A => Flow[R]]` | every run from any world meets `post`; the attached flow is proven against it on the models (`impl`) |
 | assumption | `Node.assumption(op)(...)(post)`, or `Node.assumption(id, statement, why)(formula)` | trusted, not proven: what the outside does, or a fact of the world |
+| model of a boundary | `Node.assumption(boundary)(Model)(id, statement, why)` | trusted: the boundary behaves as the model; flows are proven from it |
 | definition | `Node.definition(id, statement, why)(Type := of[T], term := expr, ...)` | fixes terms of the vocabulary; decided, not proven |
 | design | `Node.design(id, statement, why)(files*)` | none: governs code no proof covers |
 
@@ -56,6 +58,52 @@ Exit codes: 0 fine; 1 not complete, or a decision refused; 2 a usage error
 an alternative: accepting one rejects the other. Two definitions of one term
 are alternatives too. The root speaks in open terms (`Opaque` types, `Param`
 terms); definitions bring in the domain as it is needed.
+
+## Writing formulas and code
+
+Formulas and proven code are written with terms: a `Term[A]` is a value of
+type `A` as FrFlow sees it. It prints as Lean for the proofs and compiles to
+Scala for the examples and the checks at run time. There is no macro: what you
+can write is what the library offers, and anything else is a type error.
+
+```scala
+final case class Grant(user: UserId, path: Path)
+object Grant extends Data[Grant]          // builds a Grant from terms: Grant(u, p)
+
+/** The decision as Lean proves it meets the contract: the reference the running code is checked against. */
+val admitted = define { (token: Term[String], path: Term[Path]) =>
+  sessions(token)
+    .on[Some[UserId]](u => If(grants.contains(Grant(u, path)))(some(u)).Else(none))
+    .on[None.type](none)
+}
+```
+
+| Write | For | In Lean |
+|---|---|---|
+| `x === y`, `x =!= y` | equality (`==` between terms does not compile) | `=`, `≠` |
+| `&&`, `\|\|`, `!`, `==>`, `True`, `False` | logic | `∧`, `∨`, `¬`, `→` |
+| `forall((u: Term[User.T]) => ...)`, `exists(...)` | one or two variables; specification only | `∀`, `∃` |
+| `s.records`, `CrmStore(a, b, c)`, `a.copy((enabled = v))` | fields, construction, copy (with `object CrmStore extends Data[CrmStore]`) | fields, `CrmStore.mk`, `{ a with ... }` |
+| `Event[Event.Expired](now)` | an enum case built from terms (with `object Event extends Data[Event]`) | `Event.Expired now` |
+| `q.on[Search.ById](id => ...).on[Search.Everything.type](...)` | a match; a singleton case is written with `.type`; Options and lists alike (`.on[Some[A]]`, `.on[None.type]`) | `match` |
+| `If(c)(a).Else(b)` | a conditional | `if c then a else b` |
+| `let(v)(x => ...)` | a shared value, named | `let x : A := v; ...` |
+| `some(x)`, `none[A]`, `List(a, b)`, `(a, b)`, `t._1` | options, lists and pairs of terms | as Lean's |
+| `val d = define { (a: Term[A], b: Term[B]) => ... }` | a named function, in Lean by the val's name | a `def` |
+
+Lambda parameters are annotated (`(s: Term[CrmStore]) => ...`), so the term
+knows its type; FrFlow reads the names from the lambda. A `Param` is itself a
+term (`grants.contains(g)`, `sessions(t)`). In plain Scala code, call a define
+with `d.fn(...)` and read a parameter's value with `p.value`.
+
+On lists: `contains`, `exists`, `forall`, `filter`, `filterNot`, `map`,
+`flatMap`, `foldLeft`, `find`, `headOption`, `take`, `drop`, `zip`,
+`length`/`size`, `isEmpty`/`nonEmpty`, `::`, `++`, `toSet`. On options:
+`forall`, `exists`, `contains`, `isDefined`, `isEmpty`, `getOrElse`. On maps:
+`get`, `getOrElse`, `contains`, `updated`, `removed`, `+`, `-`. On sets:
+`contains`, `+`, `-`, `++`, `intersect`, `subsetOf`. Maps and sets cannot be
+iterated. Arithmetic is on `BigInt` (`+`, `-`, `*`, `max`, `min`, comparisons,
+`/` and `%` by a literal); `Int` and `Long` compare but do not add.
 
 ## Decisions
 
@@ -132,11 +180,67 @@ implementation. In production, `service` binds the operations to their code
 and checks every result against the contract (or `checkedBy`, a cheaper check
 proven to follow from it), raising `ContractViolation`.
 
-**Effects are assumptions.** A database or a clock is an assumption on an
-operation; the code is proven from its promise. The adapter (SQL) is checked
-against a proven `define` on the examples, on varied data and on every call.
-In `examples/crm`, a seeded SQL bug (a dropped `WHERE`) is stopped this way
-while every proof still holds.
+**Effects as assumptions on an operation.** A database or a clock can be an
+assumption on an operation; the code is proven from its promise. The adapter
+(SQL) is checked against a proven `define` on the examples, on varied data and
+on every call. In `examples/crm`, a seeded SQL bug (a dropped `WHERE`) is
+stopped this way while every proof still holds. Code that takes several steps
+against the outside is written as a flow (next section).
+
+## Effectful code: flows over boundaries
+
+A **boundary** is a plain trait of operations that take terms and return
+flows: what proven code calls but cannot see. Its behaviour is a **state
+model**, another implementation of the same trait over a state, which you
+decide as an assumption. A **flow** is code over boundaries, written as Cats or
+ZIO code is. Lean proves the flow's contract from the models. From
+`examples/crm`:
+
+```scala
+trait Database:
+  def load: Flow[CrmStore]
+  def storeAbout(id: Term[BigInt], t: Term[CrmStore]): Flow[Unit]
+  def logEvent(e: Term[Event]): Flow[Unit]
+
+val db = Boundary[Database]("database", "the SQLite database the CRM keeps its records, shares, expiries and event log in")
+
+object DatabaseModel extends Database, StateModel[Tables]:
+  def load = state.get.map(t => t.store)
+  def storeAbout(id: Term[BigInt], s: Term[CrmStore]) = state.update(t => Tables(replaceAbout(t.store, id, aboutRecord(s, id)), t.events))
+  def logEvent(e: Term[Event]) = state.update(t => Tables(t.store, t.events ++ List(e)))
+
+def expireOnce(now: Term[BigInt]): Flow[CrmStore] =
+  for
+    s <- db.load
+    t  = expire(s, now)
+    _ <- changedIds(s, t).traverse_(id => db.storeAbout(id, t))
+    _ <- db.logEvent(Event[Event.Expired](now))
+  yield t
+```
+
+- **The model** is decided with `Node.assumption(db)(DatabaseModel)(id,
+  statement, why)`. It reads and changes its state with `state.get`,
+  `state.set(s)` and `state.update(f)`. A state model assumes the boundary is
+  deterministic (what is unknown, such as a clock's readings, goes into the
+  state), never fails, and is the flow's alone during a run; loops are over
+  lists (`xs.traverse_(x => ...)`). A design node says how the exclusive
+  access is ensured (in the CRM, a lock).
+- **The contract** is on an operation `Param[A => Flow[R]]`; its post relates
+  the input, the result and the states before and after:
+  `(now, result, before, after) => sameRows(after(DatabaseModel).store, expire(before(DatabaseModel).store, now)) && ...`.
+  Its examples give a world before (`World(DatabaseModel -> Tables(...))`)
+  and the result and world after.
+- **The code** is attached with `.implementProven(expiryJob)(expireOnce)`. In
+  Lean it is a `do` block over any monad with the boundaries' classes, and
+  `impl` runs it on the models (`StateM World`). Steps of the outside world
+  (`Flow.effect`) belong to production implementations only; a proven flow
+  takes none.
+- **Production** binds an implementation of the trait, its operations built
+  with `Flow.effect`, and runs the flow in any `cats.effect.Sync`:
+  `knowledge.run[SyncIO](expiryJob)(db.bind(SqliteDatabase(d)))(now)`.
+  `.checkedAgainst(start, read)` on the model's node checks the production
+  implementation against the model on the contract's examples: both start
+  from the same state, and must end with the same result and state.
 
 ## What is trusted, and the limits
 
@@ -144,9 +248,11 @@ Lean proves the nodes consistent with each other and the root of the code;
 the developer decides that they are the right theory. Trusted:
 
 - the assumptions (the hypotheses of `root_impl`), checked where they can be;
-- the Scala-to-Lean translation, cross-checked on the examples and on probes
-  near them; it refuses what it cannot translate faithfully (`Int`
-  arithmetic);
+- the printing of terms as Lean and their evaluation as Scala, cross-checked
+  on the examples and on probes near them; the library offers no operation it
+  cannot print faithfully (`Int` arithmetic is a type error);
+- the state models of boundaries: that the production implementation behaves
+  as its model, checked on the examples where `.checkedAgainst` is given;
 - that parameters hold the data they are said to mean, and that every path to
   the data goes through `service`: design nodes are reviewed, not proven;
 - the signing key, kept outside the repository the agent edits;
@@ -155,8 +261,8 @@ the developer decides that they are the right theory. Trusted:
 
 Limits: the tries are one-sided. Examples with function-valued parameters
 (other than `bindTable`) are not evaluated in Lean. Running covers the
-examples and their combinations, not every input. Ordering, liveness, and
-effects outside a pure core behind `service` are not covered. Maps and sets
+examples and their combinations, not every input. Ordering, liveness, failures
+of the outside world, and concurrent access to a boundary are not covered. Maps and sets
 cannot be iterated.
 
 ## Warnings
@@ -217,7 +323,8 @@ One sbt subproject each, under `modules/`:
 
 - `protocol`: the data crossing modules and files, with JSON codecs.
 - `model` (package `frflow`): nodes and knowledge bases; `Opaque`, `Param`,
-  `define`; the macro; examples, probes, `service`.
+  `define`; terms, their Lean and their evaluation; flows, boundaries and
+  state models; examples, probes, `service`, `run`.
 - `lean`: the Lean of a knowledge base, and reading Lean's output.
 - `ledger`: review states and decision rules; reports; stores, keys and
   signatures.

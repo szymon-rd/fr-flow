@@ -52,7 +52,9 @@ proofs. That work goes to the places where using AI is risky: the intent, and
 whether the code still matches it.
 
 What stays trusted: the assumptions you accept (for example, that the store
-returns what it stored) and FrFlow's translation from Scala to Lean.
+returns what it stored, or the model of a database the code talks to) and
+FrFlow's printing of the model as Lean, which the examples cross-check by
+running the same model as Scala.
 
 ## Inspiration
 
@@ -71,22 +73,23 @@ returns what it stored) and FrFlow's translation from Scala to Lean.
 
 ## How it works
 
-Nodes are Scala values. This is the root of `examples/keycloak`, a small
+Nodes are Scala values. Their formulas are written with FrFlow's terms
+(`Term[A]`): the same value prints as Lean for the proofs and runs as Scala for
+the examples and checks. This is the root of `examples/keycloak`, a small
 Keycloak-like authentication server, and one of its two parts:
 
 ```scala
 val realmAccess = Node.claim("RealmAccess",
   "A realm's application accepts a token as a user's, with the user's roles, exactly when the user signed in to that realm and got the token, has not signed out with it since, and is still enabled.",
-  why = "...")(
-  forall((r: Realm.T, t: Token.T) => forall((u: User.T) =>
-    (accepted(r, t) == Some((u, rolesOf(r, u)))) == (signedIn(r, u, t) && enabled(r, u)))))
+  why = "..."
+)(forall((r: Term[Realm.T], t: Term[Token.T]) => forall((u: Term[User.T]) =>
+  (accepted(r, t) === some((u, rolesOf(r, u)))) === (signedIn(r, u, t) && enabled(r, u)))))
 
 val noUnauthorizedAccess = Node.claim("NoUnauthorizedAccess",
   "A token is accepted only as a user who signed in to that realm with it, has not signed out since and is still enabled, and only with that user's roles.",
   why = "The safety half of the purpose: whatever an application is told about a token must be true of a sign-in that still stands.",
-  idea = "No unauthorized access")(
-  forall((r: Realm.T, t: Token.T) => accepted(r, t).forall(a =>
-    signedIn(r, a._1, t) && enabled(r, a._1) && a._2 == rolesOf(r, a._1))))
+  idea = "No unauthorized access"
+)(forall((r: Term[Realm.T], t: Term[Token.T]) => accepted(r, t).forall(a => signedIn(r, a._1, t) && enabled(r, a._1) && a._2 === rolesOf(r, a._1))))
   .under(realmAccess)
 ```
 
@@ -96,6 +99,11 @@ that `NoUnauthorizedAccess` and its sibling `SignedInAreAccepted` together give
 the introspection endpoint must return, and the Scala function that implements
 it is proven to meet it. The running server also checks every result against
 the contract.
+
+Code that talks to the outside, such as a database, is written as a `Flow`, in
+the style of Cats or ZIO code, over a trait of operations whose behaviour you
+decide as a model. Lean proves the flow's contract from that model. The CRM's
+expiry job is written this way.
 
 ## Using it
 
@@ -153,7 +161,8 @@ The examples:
 - `examples/auth`: access control by a table of grants. The smallest one.
 - `examples/keycloak`: realms, sign-in, token introspection and sign-out over
   HTTP. The sessions are proven to follow the history of requests.
-- `examples/crm`: a multi-tenant CRM on SQLite with an HTTP API.
+- `examples/crm`: a multi-tenant CRM on SQLite with an HTTP API. Its expiry
+  job is a flow over the database, proven from the database's model.
 
 ## More
 

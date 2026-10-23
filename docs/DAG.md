@@ -7,7 +7,7 @@ change that needs to depart from it says so in its commit message and in this fi
 
 1. **One root.** A knowledge base has exactly one root: the idea's purpose, in one sentence, stated
    as *exactly* (what users can do and what must never happen, together), so that a system that does
-   nothing does not meet it. Where the purpose has one, the root is one relation (`==`, "exactly
+   nothing does not meet it. Where the purpose has one, the root is one relation (`===`, "exactly
    when") between what users observe and what their requests entitle them to, defined over the
    history of requests; a part proves that the state mirrors the history (keycloak's
    `SessionsMirrorSignIns`). A conjunction at the root asks for a better observable.
@@ -32,7 +32,18 @@ change that needs to depart from it says so in its commit message and in this fi
 - `Param[T]("sessions", means)`: a domain term of type `T`, open until a definition fixes it. It is a
   fact of the world (`enabled`), or an **operation** of the system (`introspect`): a term some
   contract or assumption is about (`op`), which code implements.
-- `define { ... }`: a named function, translated to Lean and run as Scala.
+- `define { (a: Term[A]) => ... }`: a named function over terms, a Lean `def` named as its val, run
+  as Scala.
+- `Boundary[T]("db", means)`: what proven code calls but cannot see, a trait `T` of operations that
+  take terms and return flows; `Node.assumption(boundary)(Model)` decides the state model it behaves
+  as (§1a).
+
+Formulas and code are terms (`Term[A]`): a tree that prints as Lean and compiles to Scala, built by
+calling the Scala lambda once on variables. There is no macro; the library's operations are the
+language (`===`, `&&`, `forall`, `.on[Case]`, `If(...).Else(...)`, list, option, map and set
+operations), and anything else is a type error. Case classes and enums built from terms have
+`object X extends Data[X]` as companion. Their Lean types are derived (structures and inductive
+types); a define's and a lambda's variable names are read from the lambda.
 
 An open term is a Lean binder: what is proven holds for every value of it. Every term is open or has
 exactly one definition in force. The vocabulary is in modules of its own, so a change to one term
@@ -48,6 +59,32 @@ A `Param` of an opaque type cannot be applied, in Scala, to the concrete type a 
 parts below a type's definition are written in concrete terms, and definitions relate the general
 terms to them (`examples/auth`).
 
+## 1a. Flows, boundaries and state models
+
+A **flow** (`Flow[A]`) is code over boundaries, a monad written with `for`/`<-`/`yield`: `db.load`,
+`xs.traverse_(x => ...)`, `If(c)(f1).Else(f2)`, `Flow.when(c)(f)`. It is built once on symbolic values.
+In Lean it is a generic `do` block, `def f {m} [Monad m] [B m] … : A → m R`, one class `B` per boundary
+(declared from the trait in `Boundaries.lean`). In Scala it runs in any `cats.effect.Sync`
+(`knowledge.run[F](contract)(boundary.bind(impl))`).
+
+A **state model** is an implementation of a boundary's trait over a state `S` (`StateModel[S]`), with
+`state.get`, `state.set(s)` and `state.update(f)`. In Lean it is a `def` per operation in `StateM S`;
+the models together make `structure World` (one field per boundary), an instance of each class on
+`StateM World`, and an `@[frflow_defs]` lemma per operation (`B.op_onWorld`, `rfl`). A state model
+assumes the boundary deterministic (unknowns go into the state; the proofs hold for every start
+state), never failing, the flow's alone during a run (a design node governs how), and loops over
+lists. The model's node is an assumption: decided and trusted, a hypothesis of nothing in Lean (the
+instance is the model). `.checkedAgainst(start, read)` runs the production implementation beside the
+model on the examples of the flows that call it.
+
+A **contract on a flow** is on an operation `Param[A => Flow[R]]`; its post relates the input, the
+result and the worlds before and after (`before(Model)` is the model's state). Its `claim` takes the
+operation as a run on the models, `A → World → R × World`. The attached flow `f` is `f_run` there
+(`FrFlow.runOn (f a) w`), and `impl` is proven of it from the promises of the operations it calls.
+Such a contract may have no parent: production code runs it (an entry point). A proven flow takes no
+step of the outside world (`Flow.effect`, which production implementations use); a validation
+problem says so.
+
 ## 2. Nodes
 
 Kinds (JSON `kind`): `claim`, `contract`, `assumption`, `definition`, `design`. An invariant is a claim
@@ -59,7 +96,9 @@ with a `rule`.
 | root | the claim with no parents | as a claim, plus `idle` |
 | invariant | `Node.invariant[A, B](id, statement, why, scope)(rule)` | a claim whose parts are its keepers |
 | contract | `Node.contract(op)(id, statement, why)(post)`, `op: Param[(A, B) => R]` | `∀ a b, post(a, b, op(a, b))`; `impl` when a `define` is attached |
+| contract on a flow | `Node.contract(op)(id, statement, why)((a, r, before, after) => ...)`, `op: Param[A => Flow[R]]` | `∀ a w, post a (op a w).1 w (op a w).2`; `impl` when a flow is attached |
 | assumption | `Node.assumption(op)(id, statement, why)(post)`, or `Node.assumption(id, statement, why)(formula)` | a hypothesis of `root_impl`: trusted |
+| model | `Node.assumption(boundary)(Model)(id, statement, why)` | the boundary's class instance on `StateM World`: trusted |
 | definition | `Node.definition(id, statement, why)(Opaque := of[T], param := expr, ...)` | an `abbrev` in `Types.lean`, a `def` in its term's module |
 | design | `Node.design(id, statement, why)(files*)` | none: it governs code no proof covers |
 
@@ -79,11 +118,13 @@ Edges:
   design node in the scope.
 
 Structure rules (`KnowledgeBase.problems`): exactly one claim without parents; no cycles; an
-assumption or a contract has no parents only when code calls its operation; a design node has a
+assumption or a contract has no parents only when code calls its operation, it is a model, or a flow
+implements it; a design node has a
 parent; a definition has none; at most one definition in force per term.
 
-Also part of the DSL: `examples(bindings*)(expect/reject...)`, `checkedBy`, `implement`,
-`implementProven(contract)(define)` and `(define, runs)`, `service`, `expects`, `forall`/`exists`.
+Also part of the DSL: `examples(bindings*)(expect/reject...)` (on a flow's contract, each with the
+world before and after), `checkedBy`, `checkedAgainst`, `implement`, `implementProven(contract)(define)`,
+`(define, runs)` and `(flow)`, `service`, `run`, `expects`, `forall`/`exists`.
 
 `IDEA.md`: the title and lead paragraph are the root's. Any node may name a section with
 `idea = "Section"`; a section no node names is a warning.
@@ -106,7 +147,7 @@ For each node N with parts C1..Cn (n ≥ 1), over the union U of the open terms 
 | `impl` | `∀ U, promises of the callees → claim[op := code]` | `frflow_auto` or authored | the `define` does not meet the contract |
 | `check` | post → the `checkedBy` check | as above | the cheap check does not follow |
 | `cover_X`, `expect_i` | the view lists every value the rule is about; the expectation follows from N | as above | |
-| `eval_i`, `probe_j` | an example, or an input near one, evaluated as Scala computes it | `frflow_eval` | Lean and Scala disagree: the translation is wrong |
+| `eval_i`, `probe_j` | an example, or an input near one, evaluated as Scala computes it | `frflow_eval` | Lean and Scala disagree: the Lean printer or the evaluator is wrong |
 
 A try is one-sided: `shown` means Lean proved it; `not-shown` means it found no proof within its
 budget, and its detail says so ("Lean found no proof that N holds without it (a try)"). Never read a
@@ -125,12 +166,15 @@ proven from the promises of the operations the code calls, never from their code
 Lean modules per node: `Spec` (the claim, its `conjunct_i` when `restates_i_C` is tried, and the
 statements), `Auto` (`complete`; empty when the proof file proves it), `Theorems` (`holds`), `Impl`,
 `Checks` (the tries, `check`, `cover_X`, `expect_i`, `feasible`) and `Eval`; then `RootImpl.lean`.
-Before them, the vocabulary's: `Types`, a `Def_` or `Term_` module per `define` and defined term, and
-`Domain`, which imports them. Each `Def_`, `Term_` and `Spec` ends with `frflow_match_eqns`, so a
+Before them, the vocabulary's: `Types`, a `Def_` or `Term_` module per `define` and defined term (a flow
+has `Def_<f>` and `Def_<f>_run`), `Boundaries` (the classes, the models, `World`), and `Domain`, which
+imports them. Each `Def_`, `Term_` and `Spec` ends with `frflow_match_eqns`, so a
 `match`'s equations are made where it is declared and not again in two modules a third imports.
 
 Library (`lean/FrFlow/`): `frflow_auto`, `frflow_intro` (binders by their generated names, `h_<Part>`
-for each part), `FrFlow.always`, `simulates`, `tracks` and `tracks_eq`, `run_snoc`, and list lemmas.
+for each part), `FrFlow.always`, `simulates`, `tracks` and `tracks_eq`, `run_snoc`, list lemmas, and for
+flows `FrFlow.runOn` with its lemmas (`runOn_bind`, `runOn_pure`, `runOn_get`, `runOn_modify`,
+`runOn_within`, `runOn_forIn_unit`: a loop whose body yields nothing is a `foldl` over states).
 
 A node's check hash covers its own Lean, and its parts' statements (`holds`), not their proofs or
 code; the root's covers everything (`root_impl`). A node is checked again when the hash moves, when a

@@ -8,7 +8,9 @@ description: >-
   examples, answering the developer's requests, proving a split, or attaching
   an implementation; or when the work touches IDEA.md, `Node.claim`,
   `Node.contract`, `Node.assumption`, `Node.definition`, `Node.design`,
-  `Node.invariant`, `.under`, `.replaces`, `implementProven` or `service`.
+  `Node.invariant`, `.under`, `.replaces`, `implementProven` or `service`;
+  or terms (`Term`, `define`, `Data`), flows (`Flow`), boundaries
+  (`Boundary`) or state models (`StateModel`).
 ---
 
 # Developing with FrFlow
@@ -30,7 +32,7 @@ method and how to start a project, `docs/DAG.md` the design.
    whose only job is to rename terms is a definition, or folds into its parent.
 4. **2 to 5 parts per parent, as a rule.** More asks for an intermediate node.
 5. **The root is stated as exactly**: what users can do and what must never
-   happen, as one relation (`==`, "exactly when") between what users observe and
+   happen, as one relation (`===`, "exactly when") between what users observe and
    what their requests entitle them to, defined over the history of requests
    when the purpose has one. A part proves that the state mirrors the history
    (keycloak's `SessionsMirrorSignIns`). A conjunction at the root asks for a
@@ -103,36 +105,43 @@ One of each kind, from the examples (`why` cut):
 ```scala
 val User   = Opaque("User", "a person who uses the system")
 val access = Param[(User.T, Resource.T) => Boolean]("access", "whether the system lets the user access the resource")
-val admit  = Param[(String, Path) => Option[UserId]]("admit", "the system's decision on a request: the user it is admitted for, if any")
+val admit  = Param[(String, Path) => Option[UserId]]("admit", "the system's decision on a request (a token and a path): the user it is admitted on behalf of, if any")
 
 val accessExactly = Node.claim("AccessExactly",          // the root: the claim with no parents
-  "A user gets access to a resource exactly when they are signed in and authorized for it.", why = "...")(
-  forall((u: User.T, r: Resource.T) => access(u, r) == (signedIn(u) && authorized(u, r))))
-val identities = Node.definition("Identities", "Users are named by ids, and resources are paths.", why = "...")(
-  User := of[UserId], Resource := of[Path])
+  "A user gets access to a resource exactly when they are signed in and authorized for it.", why = "..."
+)(forall((u: Term[User.T], r: Term[Resource.T]) => access(u, r) === (signedIn(u) && authorized(u, r))))
+val identities = Node.definition("Identities", "Users are named by ids, and resources are paths.", why = "..."
+)(User := of[UserId], Resource := of[Path])
 val decisionContract = Node.contract(admit)("DecisionContract",
-  "A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path.", why = "...")(
-  (token, path, decision) => decision.forall(u => sessions(token) == Some(u) && grants.value.contains(Grant(u, path))) && ...)
+  "A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path.", why = "..."
+)((token, path, decision) => decision.forall(u => sessions(token) === Some(u) && grants.contains(Grant(u, path))) && ...)
   .under(tokenNamesHolder, accessNeedsGrant, grantLetsIn)
   .examples(grants.bind(List(Grant(UserId("alice"), Path("/a")))), sessions.bindTable(Map("t1" -> UserId("alice"))))(
     expect("t1", Path("/a"), Some(UserId("alice")), "Alice's token and a grant for /a: she gets in"),
     reject("t1", Path("/b"), Some(UserId("alice")), "access without a grant is never given"))
+val admitted = define { (token: Term[String], path: Term[Path]) =>     // code Lean proves
+  sessions(token)
+    .on[Some[UserId]](u => If(grants.contains(Grant(u, path)))(some(u)).Else(none))
+    .on[None.type](none)
+}
 val inMemorySessions = Node.design("InMemorySessions",
-  "Sessions and grants are loaded into memory, in one process that decides every request.", why = "...")(
-  "src/main/scala/auth/Server.scala").under(decisionContract)
+  "Sessions and grants are loaded into memory, in one process that decides every request.", why = "..."
+)("src/main/scala/auth/Server.scala").under(decisionContract)
 
 val realmIsolation = Node.invariant[RealmId, Claims]("RealmIsolation",   // keycloak
-  "No application is ever shown claims of a realm other than its own.", why = "...")((asking, c) => c.realm == asking)
-// on the contract Introspect:   .keeps(realmIsolation)((realm, token, res) => res match { case Some(c) => List((realm, c)); case None => Nil })
-// on the design ServiceWiring:  .exempt(realmIsolation, "it returns what Introspect returns, which keeps the rule")
-val sessionLookup = Node.assumption(lookup)("SessionLookup",          // keycloak: a port, trusted
-  "The store's index returns a session it holds under the token in the realm asked, if it holds one.", why = "...")(
-  (realm, token, r) => r.forall(x => sessions(realm).contains(x) && x.token == token && x.realm == realm))
+  "No application is ever shown claims of a realm other than its own.", why = "..."
+)((asking, c) => c.realm === asking)
+// on the contract Introspect:  .keeps(realmIsolation)((realm, token, res) => res.on[Some[Claims]](c => List((realm, c))).on[None.type](Nil))
+// on the design ServiceWiring: .exempt(realmIsolation, "it returns what Introspect returns, which keeps the rule")
+val sessionLookup = Node.assumption(lookup)("SessionLookup",          // keycloak: trusted
+  "The store's index returns a session it holds under the token in the realm asked, if it holds one, and never one of another realm or token.", why = "..."
+)((realm, token, r) => r.forall(x => sessions(realm).contains(x) && x.token === token && x.realm === realm) && ...)
 ```
 
 - **Vocabulary.** `Opaque` is a domain type (`User.T`); `Param` a fact of the
-  world (`grants`) or an operation (`admit`), named as its val. A `define` is a
-  function Lean translates and Scala runs.
+  world (`grants`) or an operation (`admit`), named as its val, and itself a
+  term (`grants.contains(g)`, `sessions(t)`). A `define` is a named function
+  over terms: Lean's `def` of the same name, and Scala runs it.
 - **Kinds.** A contract states a claim for one call of an operation, so each
   result can be checked. An assumption states what you cannot prove: a port, or
   a fact of the world (`Node.assumption(id, statement, why)(formula)`).
@@ -146,13 +155,93 @@ val sessionLookup = Node.assumption(lookup)("SessionLookup",          // keycloa
 - **Examples.** Every contract needs an `expect` and a `reject`, and expects
   with different results. Bind every parameter the post reads; a lookup as
   `bindTable(Map(...))` so Lean can evaluate it. "Lean and Scala disagree"
-  means the translation is wrong: report it; never change the example to hide it.
+  means FrFlow's Lean printer or evaluator is wrong: report it; never change
+  the example to hide it.
 - **Implementations.** `implementProven(contract)(define {...})`: Lean proves it.
   `implementProven(c)(define {...}, (a, b) => fast)`: the fast code (an index,
   SQL; an assumption's adapter) runs, checked against the define.
   `implement(c)((a, b) => ...)`: plain code, checked by running. Code calls
   another operation through its `Param`, and is proven from its promise.
   Production calls `knowledge.service(contract)(bindings*)`, which checks every result.
+
+## Writing terms
+
+Formulas and proven code are terms (`Term[A]`), built from the library's
+operations; there is no macro, so what is not offered is a type error.
+
+- **Annotate lambda parameters** as terms: `(s: Term[CrmStore], now: Term[BigInt]) => ...`.
+  Quantifiers too: `forall((u: Term[User.T]) => ...)`, `exists(...)`, one or two variables.
+- **`===` and `=!=`**, never `==` (between terms it does not compile). `&&`,
+  `||`, `!`, `==>`; `True` and `False` for the constants.
+- **Build data from terms through its companion**: `object CrmStore extends Data[CrmStore]`
+  makes `CrmStore(a, b, c)` a term (1 to 6 fields); `object Event extends Data[Event]`
+  makes `Event[Event.Expired](now)` a term of the enum. Copy with a named tuple:
+  `a.copy((enabled = v))`. Fields read as on values: `s.records`.
+- **Matches** are `.on[Case](fields => ...)` per case, in order: `q.on[Search.ById](id => ...)`;
+  a singleton case is `.on[Search.Everything.type](...)`; an option `.on[Some[A]](x => ...).on[None.type](...)`.
+  Missing cases fail when the Lean is rendered.
+- **`If(c)(a).Else(b)`**; `let(v)(x => ...)` names a shared value; `some(x)`, `none[A]`.
+- **In plain Scala** (implementations, wiring, tests): call a define with `d.fn(...)`
+  and read a parameter with `p.value`.
+- Operations: on `List`: `contains`, `exists`, `forall`, `filter`, `filterNot`,
+  `map`, `flatMap`, `foldLeft`, `find`, `headOption`, `take`, `drop`, `zip`,
+  `length`/`size`, `isEmpty`/`nonEmpty`, `::`, `++`, `toSet`; on `Option`:
+  `forall`, `exists`, `contains`, `isDefined`, `isEmpty`, `getOrElse`; on `Map`:
+  `get`, `getOrElse`, `contains`, `updated`, `removed`, `+`, `-`; on `Set`:
+  `contains`, `+`, `-`, `++`, `intersect`, `subsetOf`. Maps and sets cannot be
+  iterated. Arithmetic on `BigInt` (`+`, `-`, `*`, `max`, `min`, comparisons,
+  `/` and `%` by a literal); `Int` and `Long` only compare. Tuples up to three.
+  No function-typed fields, no types that redefine `equals`, no two `define`s
+  with one name.
+
+## Effectful code: boundaries, models and flows
+
+Use a flow when code takes several steps against the outside (load, store,
+log): its order and its loop are then proven, not only reviewed. A single
+call whose result is checked stays an assumption on an operation.
+
+```scala
+trait Database:                                       // the boundary: what proven code may ask
+  def load: Flow[CrmStore]
+  def storeAbout(id: Term[BigInt], t: Term[CrmStore]): Flow[Unit]
+  def logEvent(e: Term[Event]): Flow[Unit]
+val db = Boundary[Database]("database", "the SQLite database the CRM keeps its records, shares, expiries and event log in")
+
+object DatabaseModel extends Database, StateModel[Tables]:   // what it does, as the proofs see it
+  def load = state.get.map(t => t.store)
+  def storeAbout(id: Term[BigInt], s: Term[CrmStore]) = state.update(t => Tables(replaceAbout(t.store, id, aboutRecord(s, id)), t.events))
+  def logEvent(e: Term[Event]) = state.update(t => Tables(t.store, t.events ++ List(e)))
+val tablesModel = Node.assumption(db)(DatabaseModel)("TablesModel", "...", why = "...")
+  .checkedAgainst(t => SqliteDatabase.holding(t), _.tables)
+
+def expireOnce(now: Term[BigInt]): Flow[CrmStore] =   // the code: a plain def, Cats-style
+  for
+    s <- db.load
+    t  = expire(s, now)
+    _ <- changedIds(s, t).traverse_(id => db.storeAbout(id, t))
+    _ <- db.logEvent(Event[Event.Expired](now))
+  yield t
+// the contract, on runExpiry: Param[BigInt => Flow[CrmStore]]:
+//   Node.contract(runExpiry)("ExpiryJob", "...", why = "...")((now, result, before, after) =>
+//     sameRows(after(DatabaseModel).store, expire(before(DatabaseModel).store, now)) && ...)
+// knowledge.implementProven(expiryJob)(expireOnce); production: knowledge.run[SyncIO](expiryJob)(db.bind(SqliteDatabase(d)))(now)
+```
+
+- **The model is a decision.** State it in the domain's words; it is trusted.
+  It must be deterministic (put unknowns, such as clock readings, into the
+  state), never failing, and the flow's alone during a run: a design node says
+  how that is ensured (a lock, a transaction). Loops are over lists
+  (`traverse_`). Give `.checkedAgainst` so the production implementation is
+  run beside the model on the examples.
+- **Steps.** `state.get`, `state.set(s)`, `state.update(f)` in models only;
+  `Flow.effect(...)` in production implementations only (a proven flow taking
+  one is refused); `If(c)(f1).Else(f2)` and `Flow.when(c)(f)` for branches.
+- **The contract's examples** give the world before and after:
+  `expect(BigInt(150), World(DatabaseModel -> Tables(...)), result, World(DatabaseModel -> Tables(...)), "...")`.
+- **Calling an operation from a flow** (`expire` above) proves the flow from
+  that operation's contract, not its code: prefer it to calling the define.
+- A contract on a flow may have no parent: production runs it, as an entry
+  point. The design node over its scheduling goes under it.
 
 ## What check reports, and what to do
 
@@ -170,7 +259,7 @@ it shows nothing). Never write in a reason that Lean shows a part needed.
 | `idle` shown | doing nothing meets the root | State what users can do. |
 | "nothing below proves it" | a claim with no parts | Add the parts or a contract; a fact of the world is an assumption. |
 | `waiting` | two definitions not yet chosen, or parts not yet proven | Ask the developer to choose; prove the parts. |
-| `impl` open | the define does not provably meet the contract | Fix the code, or prove `impl` by hand. |
+| `impl` open | the define or flow does not provably meet the contract | Fix the code, or prove `impl` by hand. |
 | `feasible` open | an authored `complete` nothing witnesses | Prove that some world meets all the parts. |
 | examples fail | the code or the contract is wrong | Fix them before any proof. |
 | `ContractViolation` at run time | a result broke the contract, or a value an assumption | Fix the code or the data; never the check. |
@@ -191,18 +280,9 @@ it shows nothing). Never write in a reason that Lean shows a part needed.
    attributes or metaprograms), and imports only `FrFlowGen.<KB>.Domain`,
    `FrFlowGen.<KB>.<Node>.Spec`, `FrFlow`, `Std`, `Init`, `Proofs.<KB>.Lemmas`.
 5. Never prove a split from a contradiction in the parts, or without them.
-
-## The Scala subset
-
-Unsupported Scala is a compile error, with the usual rewrite; or make it a `define`. Supported:
-fields, case class constructors, `copy`, `match`, `if`; `==`, `!=`, `&&`, `||`,
-`!`, `==>`; `forall`/`exists` over one or two typed binders; on `List`:
-`contains`, `exists`, `forall`, `filter`, `filterNot`, `map`, `flatMap`,
-`foldLeft`, `find`, `headOption`, `take`, `drop`, `zip`, `length`/`size`,
-`isEmpty`/`nonEmpty`, `::`, `++`, `toSet`; on `Option`: `forall`, `exists`,
-`contains`, `isDefined`, `isEmpty`, `getOrElse`; on `Map`: `get`, `getOrElse`,
-`contains`, `updated`, `removed`, `+`, `-`, `==`, `Map(k -> v)`, `Map.empty`
-(not `m(k)`); on `Set`: `contains`, `+`, `-`, `++`, `intersect`, `subsetOf`, `Set(...)`.
-Maps and sets cannot be iterated. Use `BigInt` (`+`, `-`, `*`, `max`, `min`,
-comparisons, `/` and `%` by a literal): `Int`/`Long` arithmetic is refused. No
-function-typed fields, no types that redefine `equals`, no two `define`s with one name.
+6. **A flow's `impl`.** Run it on the models with
+   `simp only [<Node>.post, f_run, f, FrFlow.runOn_bind, FrFlow.runOn_pure, FrFlow.runOn_within,
+   FrFlow.runOn_get, FrFlow.runOn_modify, FrFlow.runOn_forIn_unit, <B>.<op>_onWorld, <Model>.<op>]`,
+   keeping the domain's definitions folded. `runOn_forIn_unit` turns a loop
+   into a `List.foldl` over worlds: prove what the fold does by induction on
+   the list, in lemmas of your own (see `examples/crm/lean/Proofs/Crm/ExpiryJob.lean`).
