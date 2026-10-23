@@ -10,10 +10,10 @@ class KeycloakSuite extends munit.FunSuite:
     // As `keycloak/run status` reads it: a change to the content, the hashes or the code fingerprints shows here.
     val w = Workflow(knowledge, Workspace(Paths.get("examples/keycloak").toAbsolutePath.normalize, "../../../lean"))
     val annotated = w.annotated
-    val states = annotated("nodes").get.arr.toList.map(n => n("id").flatMap(_.str).getOrElse("") -> n("state").flatMap(_.str).getOrElse(""))
+    val states = annotated.nodes.map(r => r.id.value -> r.state.toString)
     assertEquals(states.size, knowledge.nodes.size)
     assertEquals(states.filter(_._2 != "accepted"), Nil)
-    assertEquals(annotated("gone").get.arr.toList, Nil)
+    assertEquals(annotated.gone, Nil)
   }
 
   test("the model is well formed: one root, refined by a DAG of parts; Introspect serves five parents") {

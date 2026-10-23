@@ -1,6 +1,7 @@
 package frflow
 package lean
 
+import frflow.protocol.TryKind
 import scala.collection.mutable
 
 /** A statement Lean is asked to prove (or, for a try, that it is asked whether it can prove). */
@@ -403,7 +404,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
   def obligation(n: Node[?], name: String): Option[Obligation] = obligations(n).find(_.name == name)
 
   /** A try: a statement Lean is asked whether it can prove, cheaply; if it does, `means` what is wrong. */
-  final case class Try(obligation: Obligation, means: String)
+  final case class Try(kind: TryKind, obligation: Obligation, means: String)
 
   /** The tries of a node: a part not needed (with one part: the node says nothing it adds, or says only
     * what its part says), parts that contradict each other, no world meeting the node, an expectation that
@@ -413,24 +414,24 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
     val split = splitParts(n).toList.flatMap { ps =>
       val o = splitOpens(n, ps)
       val hs = hyps(ps)
-      val needed = if ps.size == 1 then List(Try(Obligation("vacuous", stated(o, Nil, claim(n)._1), s"${n.id} holds whatever ${ps.head.id} says."),
+      val needed = if ps.size == 1 then List(Try(TryKind.Vacuous, Obligation("vacuous", stated(o, Nil, claim(n)._1), s"${n.id} holds whatever ${ps.head.id} says."),
           s"${n.id} holds whatever ${ps.head.id} says: it says nothing its part adds"),
           // With `complete`, the node and its part are then equivalent: one says what the other does.
-          Try(Obligation("restates", stated(o, List(s"h_${n.id}" -> claim(n)._1), claim(ps.head)._1), s"${ps.head.id} follows from ${n.id}."),
+          Try(TryKind.Restates, Obligation("restates", stated(o, List(s"h_${n.id}" -> claim(n)._1), claim(ps.head)._1), s"${ps.head.id} follows from ${n.id}."),
             s"${n.id} says what ${ps.head.id} says: merge them, or say what ${n.id} adds"))
-        else ps.map(c => Try(Obligation(s"needed_${c.id}", stated(o, hs.filterNot(_._1._1 == s"h_${c.id}").map(_._1), claim(n)._1),
+        else ps.map(c => Try(TryKind.Needed(c.id), Obligation(s"needed_${c.id}", stated(o, hs.filterNot(_._1._1 == s"h_${c.id}").map(_._1), claim(n)._1),
           s"${n.id} holds without ${c.id}."), s"${c.id} is not needed for ${n.id}"))
-      needed :+ Try(Obligation("clash", stated(o, hs.map(_._1), "False"), s"The parts of ${n.id} contradict each other."),
+      needed :+ Try(TryKind.Clash, Obligation("clash", stated(o, hs.map(_._1), "False"), s"The parts of ${n.id} contradict each other."),
         s"the parts of ${n.id} contradict each other: no world meets them all")
     }
     val (c, co) = claim(n)
-    val unsat = Try(Obligation("unsat", stated(co, Nil, s"¬ $c"), s"No world meets ${n.id}."), s"${n.id} is contradictory: no world meets it")
+    val unsat = Try(TryKind.Unsat, Obligation("unsat", stated(co, Nil, s"¬ $c"), s"No world meets ${n.id}."), s"${n.id} is contradictory: no world meets it")
     val expects = n.expected.indices.toList.map { i =>
       val (e, eo) = app(q(n, s"expected_$i"), ctx(n.expected(i)._2))
-      Try(Obligation(s"vacuous_expect_$i", stated(eo, Nil, e), s"The expectation holds whatever ${n.id} says."),
+      Try(TryKind.VacuousExpect(i), Obligation(s"vacuous_expect_$i", stated(eo, Nil, e), s"The expectation holds whatever ${n.id} says."),
         "the expectation holds whatever the node says: it checks nothing")
     }
-    if !formal(n) then Nil else split ++ List(unsat) ++ expects ++ idle(n).map(o => Try(o, s"doing nothing meets ${n.id}"))
+    if !formal(n) then Nil else split ++ List(unsat) ++ expects ++ idle(n).map(o => Try(TryKind.Idle, o, s"doing nothing meets ${n.id}"))
 
   /** The root with every operation it mentions replaced by doing nothing (see `nothing`), when one can be. */
   def idle(n: Node[?]): Option[Obligation] =

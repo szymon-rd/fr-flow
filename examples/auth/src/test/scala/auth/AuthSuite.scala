@@ -10,10 +10,10 @@ class AuthSuite extends munit.FunSuite:
     // As `auth/run status` reads it: a change to the content, the hashes or the code fingerprints shows here.
     val w = Workflow(knowledge, Workspace(Paths.get("examples/auth").toAbsolutePath.normalize, "../../../lean"))
     val annotated = w.annotated
-    val states = annotated("nodes").get.arr.toList.map(n => n("id").flatMap(_.str).getOrElse("") -> n("state").flatMap(_.str).getOrElse(""))
+    val states = annotated.nodes.map(r => r.id.value -> r.state.toString)
     assertEquals(states.size, knowledge.nodes.size)
     assertEquals(states.filter(_._2 != "accepted"), Nil)
-    assertEquals(annotated("gone").get.arr.toList, Nil)
+    assertEquals(annotated.gone, Nil)
   }
 
   override val munitTimeout = scala.concurrent.duration.Duration(20, "min")
@@ -55,9 +55,9 @@ class AuthSuite extends munit.FunSuite:
     // are reused while current.
     val w = Workflow(knowledge, Workspace(Paths.get("examples/auth").toAbsolutePath.normalize, "../../../lean"))
     val r = w.check()
-    assertEquals(r.map((n, c) => n.id -> c.status),
+    assertEquals(r.map((n, c) => n.id -> c.status.toString),
       List("AccessExactly" -> "proven", "TokenNamesHolder" -> "proven", "AccessNeedsGrant" -> "proven", "GrantLetsIn" -> "proven", "DecisionContract" -> "proven"))
-    assertEquals(r.head._2.obligations.find(_.name == "root_impl").map(_.status), Some("proven"))
+    assertEquals(r.head._2.obligations.find(_.name == "root_impl").map(_.status.toString), Some("proven"))
     assertEquals(w.generate.trusted, Nil)
     assert(w.context(decisionContract).contains("No user may ever"))
   }

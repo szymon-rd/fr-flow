@@ -198,7 +198,7 @@ the check while every proof still holds, and so is a write the database drops.
 ## Status and CI
 
 `status` exits 1 unless every node is accepted, nothing is left unproven (one
-list per node, `Decisions.unproven`: its check, its split, examples,
+list per node, `Reports.unproven`: its check, its split, examples,
 invariants, implementation, expectations, `root_impl`, `idle`, and a claim
 nothing below proves), no node is gone, and there is no warning: a decision
 not signed by a developer key; a source file governed by two nodes or by none;
@@ -360,10 +360,11 @@ knowledge base `Library`):
 ```
 docs/DAG.md             the design: one root, parts, the vocabulary, obligations, decisions
 lean/FrFlow/            the Lean side: frflow_auto, frflow_intro; run and list lemmas (always, simulates, tracks)
-modules/                the Scala library, one sbt subproject each (model ← lean ← check ← cli; ledger ← check)
+modules/                the Scala library, one sbt subproject each (model ← lean ← check ← cli; protocol ← lean and ledger; ledger ← check)
   model                 package frflow: nodes and knowledge bases; Opaque, Param, define; the macro; probes
+  protocol              the data crossing modules and files (snapshot, review, ledger, checks, requests), with JSON codecs
   lean                  Lean generation; axiom audits, the proof-file filter
-  ledger                decision states and rules; the decision record; keys and signatures; git diffs
+  ledger                decision states and rules; the reports (tree, inbox, find); the stores; keys and signatures; git diffs
   check                 render, check (running lake), the snapshot, context, status
   cli                   the command line: FrFlowApp
 examples/               auth, keycloak, crm

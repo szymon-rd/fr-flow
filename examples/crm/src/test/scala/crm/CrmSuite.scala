@@ -10,10 +10,10 @@ class CrmSuite extends munit.FunSuite:
     // As `crm/run status` reads it: a change to the content, the hashes or the code fingerprints shows here.
     val w = Workflow(knowledge, Workspace(Paths.get("examples/crm").toAbsolutePath.normalize, "../../../lean"))
     val annotated = w.annotated
-    val states = annotated("nodes").get.arr.toList.map(n => n("id").flatMap(_.str).getOrElse("") -> n("state").flatMap(_.str).getOrElse(""))
+    val states = annotated.nodes.map(r => r.id.value -> r.state.toString)
     assertEquals(states.size, knowledge.nodes.size)
     assertEquals(states.filter(_._2 != "accepted"), Nil)
-    assertEquals(annotated("gone").get.arr.toList, Nil)
+    assertEquals(annotated.gone, Nil)
   }
 
   override val munitTimeout = scala.concurrent.duration.Duration(30, "min")
@@ -215,12 +215,12 @@ class CrmSuite extends munit.FunSuite:
     val w = Workflow(knowledge, Workspace(Paths.get("examples/crm").toAbsolutePath.normalize, "../../../lean"))
     val checked = w.check().map((n, c) => n.id -> c).toMap
     val formal = knowledge.nodes.filter(w.generate.formal).map(_.id)
-    assertEquals(checked.view.filterKeys(formal.contains).mapValues(_.status).toMap, formal.map(_ -> "proven").toMap)
+    assertEquals(checked.view.filterKeys(formal.contains).mapValues(_.status.toString).toMap, formal.map(_ -> "proven").toMap)
     // every implementation is proven, and the root holds of the code from the ports alone
     for c <- List("ReadContract", "DealSearch", "WriteContract", "SaveWrite", "SharesExpire", "RecordsByQuery", "StoreEdits") do
-      assertEquals(checked(c).obligations.filter(_.name == "impl").map(_.status), List("proven"), checked(c))
-    assertEquals(checked("SharedCrm").obligations.find(_.name == "root_impl").map(_.status), Some("proven"))
+      assertEquals(checked(c).obligations.filter(_.name == "impl").map(_.status.toString), List("proven"), checked(c))
+    assertEquals(checked("SharedCrm").obligations.find(_.name == "root_impl").map(_.status.toString), Some("proven"))
     // the root's expectations: its main promise on a concrete store, and an added record found
-    assertEquals(checked("SharedCrm").obligations.filter(_.name.startsWith("expect_")).map(_.status), List("proven", "proven"))
+    assertEquals(checked("SharedCrm").obligations.filter(_.name.startsWith("expect_")).map(_.status.toString), List("proven", "proven"))
     assertEquals(w.generate.trusted.map(_.id), List("RecordsByQuery", "StoreEdits"))
   }

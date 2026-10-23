@@ -4,7 +4,7 @@ ThisBuild / scalacOptions ++= Seq("-deprecation", "-feature", "-Werror")
 val munit = "org.scalameta" %% "munit" % "1.1.1" % Test
 
 lazy val root = project.in(file("."))
-  .aggregate(model, lean, ledger, check, cli, auth, crm, keycloak)
+  .aggregate(model, protocol, lean, ledger, check, cli, auth, crm, keycloak)
   .settings(publish / skip := true)
 
 def module(name: String) = Project(name, file(s"modules/$name"))
@@ -13,11 +13,17 @@ def module(name: String) = Project(name, file(s"modules/$name"))
 /** The DSL: nodes, the knowledge base, the macro from Scala to Lean, the runtime checks (package `frflow`). */
 lazy val model = module("model")
 
+/** The data crossing modules and files: the snapshot, the review, the ledger, checks and requests,
+  * with their JSON codecs; ids and statuses as types (package `frflow.protocol`).
+  */
+lazy val protocol = module("protocol").settings(libraryDependencies ++= Seq(
+  "io.circe" %% "circe-core" % "0.14.17", "io.circe" %% "circe-parser" % "0.14.17"))
+
 /** The Lean of a knowledge base, and reading Lean's output. */
-lazy val lean = module("lean").dependsOn(model % "compile->compile;test->test")
+lazy val lean = module("lean").dependsOn(model % "compile->compile;test->test", protocol)
 
 /** The developer's decisions: review states, the ledger, signatures. */
-lazy val ledger = module("ledger")
+lazy val ledger = module("ledger").dependsOn(protocol)
 
 /** Rendering and checking a knowledge base against Lean; the snapshot. */
 lazy val check = module("check").dependsOn(lean % "compile->compile;test->test", ledger, model % "test->test")
