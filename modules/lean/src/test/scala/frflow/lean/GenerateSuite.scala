@@ -2,6 +2,7 @@ package frflow
 package lean
 
 import frflow.fixtures.*
+import frflow.protocol.ObligationName
 
 /** The Lean of a knowledge base: terms, obligations, tries, and what a proof file may hold, on the shelf fixture. */
 class GenerateSuite extends munit.FunSuite:

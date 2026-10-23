@@ -26,7 +26,7 @@ class ViewsSuite extends munit.CatsEffectSuite with Golden:
   }
 
   test("inbox: requests, the developer's queue, the agent's tasks, then the tree") {
-    api.flatMap(_.view).map(v => golden("inbox", InboxText.lines(Inbox.of(v), Trees.of(v, None).toOption.get, st)))
+    api.flatMap(_.view).map(v => golden("inbox", InboxText.lines(Inbox.of(v), Trees.of(v, None, Overview.of(v)).toOption.get, st)))
   }
 
   test("colors are ANSI codes around the same text") {

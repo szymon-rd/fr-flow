@@ -3,13 +3,13 @@ package check
 
 import cats.effect.IO
 import java.nio.charset.StandardCharsets.UTF_8
-import java.nio.file.{Files, Path, StandardCopyOption}
+import frflow.ledger.Store
+import java.nio.file.{Files, Path}
 import scala.jdk.CollectionConverters.*
 
-/** The files the checker reads and writes, as IO. */
+/** The files the checker reads and writes, as IO (read whole and written whole by the ledger's `Store`). */
 object Disk:
-  def read(p: Path): IO[Option[String]] =
-    IO.blocking(Option.when(Files.isRegularFile(p))(Files.readString(p, UTF_8)))
+  def read(p: Path): IO[Option[String]] = Store.read(p)
 
   def exists(p: Path): IO[Boolean] = IO.blocking(Files.exists(p))
 
@@ -19,16 +19,6 @@ object Disk:
       if now.contains(text) then IO.pure(false)
       else IO.blocking { Files.createDirectories(p.getParent); Files.writeString(p, text, UTF_8) }.as(true)
     }
-
-  /** Writes the file whole, then moves it into place: a reader never sees half of it. */
-  def replace(file: Path, text: String): IO[Unit] = IO.blocking {
-    val dir = file.toAbsolutePath.getParent
-    Files.createDirectories(dir)
-    val tmp = Files.createTempFile(dir, s".${file.getFileName}", ".tmp")
-    Files.writeString(tmp, text, UTF_8)
-    Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
-    ()
-  }
 
   /** The entries of a directory, sorted; none when it is missing. */
   def list(dir: Path): IO[List[Path]] = IO.blocking {

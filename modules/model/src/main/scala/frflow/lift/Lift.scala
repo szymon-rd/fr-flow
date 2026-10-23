@@ -30,45 +30,6 @@ private[frflow] object Lift:
 
   def leanType[T: Type](using Quotes): Expr[LeanType] = Translator().leanType[T]
 
-  /** A lambda kept as Scala only (a node out of Lean), with its source text and the definitions,
-    * parameters and opaque types it refers to: a change to them still reaches the node.
-    */
-  def informal[F: Type](f: Expr[F])(using Quotes): Expr[Lifted[F]] =
-    import quotes.reflect.*
-    val term = unwrap(f.asTerm)
-    val found = scala.collection.mutable.LinkedHashMap.empty[String, (String, Term)]
-    def kind(t: TypeRepr): Option[String] =
-      val n = t.widen.dealias.typeSymbol.fullName
-      Option.when(Set("frflow.Param", "frflow.Def", "frflow.Opaque")(n))(n)
-    object refs extends TreeTraverser:
-      override def traverseTree(t: Tree)(owner: Symbol): Unit =
-        t match
-          case r: Ident if r.symbol.isValDef || (r.symbol.isTerm && r.symbol.flags.is(Flags.Module)) =>
-            kind(r.tpe).foreach(k => found.getOrElseUpdate(r.symbol.fullName, (k, r)))
-          case r: Select if r.symbol.isValDef =>
-            kind(r.tpe).foreach(k => found.getOrElseUpdate(r.symbol.fullName, (k, r)))
-          case tt: TypeTree =>
-            // `User.T`: the opaque type a lambda's binder is declared with
-            def opaques(tp: TypeRepr): Unit = tp match
-              case TypeRef(prefix: TermRef, _) if kind(prefix).contains("frflow.Opaque") =>
-                found.getOrElseUpdate(prefix.termSymbol.fullName, ("frflow.Opaque", Ref(prefix.termSymbol)))
-              case AppliedType(c, args) => opaques(c); args.foreach(opaques)
-              case _ => ()
-            opaques(tt.tpe)
-          case _ => ()
-        super.traverseTree(t)(owner)
-    refs.traverseTree(term)(Symbol.spliceOwner)
-    def of[T: Type](k: String): Expr[List[T]] = Expr.ofList(found.values.collect { case (`k`, r) => r.asExprOf[T] }.toList)
-    // A formula (`() => formula`, built by `Node.claim`) reads as the caller's expression.
-    val shown = term match
-      case Lambda(Nil, b) => unwrap(b)
-      case t              => t
-    val text = shown.pos.sourceCode.getOrElse(shown.show)
-    val defs = of[Def[?]]("frflow.Def")
-    val params = of[Param[?]]("frflow.Param")
-    val opaques = of[Opaque]("frflow.Opaque")
-    '{ def liftedNode(): Lifted[F] = new Lifted[F](() => $f, Nil, "", "", ${ Expr(text) }, Nil, Nil, Nil, () => $defs, () => $params, () => $opaques); liftedNode() }
-
   /** The source files of the project code an expression refers to (an implementation's classes).
     * FrFlow's own code (package `frflow`, wherever its sources are) is not the project's.
     */

@@ -1,6 +1,7 @@
 package frflow.protocol
 
 import io.circe.Codec
+import java.time.Instant
 
 /** A status with what it means in words: of an obligation, a part, an example in Lean. */
 final case class Outcome(status: ObligationStatus, detail: String = "") derives Codec.AsObject
@@ -11,18 +12,16 @@ object Outcome:
 /** How a node's parts make it (docs/DAG.md §4): `complete`, each part `needed`, and `clash`. */
 final case class Split(complete: Outcome, needed: List[Split.Part], clash: Outcome) derives Codec.AsObject:
   /** Lean proves the parts make the node, none is shown not needed, and they do not clash. */
-  def proven: Boolean =
-    complete.status == ObligationStatus.Proven && needed.forall(p => fine(p.status)) && fine(clash.status)
-  private def fine(s: ObligationStatus) = s.fine || s == ObligationStatus.Informal
+  def proven: Boolean = complete.status == ObligationStatus.Proven && needed.forall(_.status.fine) && clash.status.fine
 object Split:
   final case class Part(id: NodeId, status: ObligationStatus, detail: String) derives Codec.AsObject
 
-/** An example of a contract: what it says, what the contract and the implementation make of it in
-  * Scala (`ok`, or what failed), and what Lean computes of it (the examples written, not generated ones).
+/** An example of a contract: what it says, what fails of it in Scala (against the contract, and against
+  * the implementation), and what Lean computes of it (the examples written, not generated ones).
   */
-final case class ExampleView(note: String, `given`: List[String], call: String, expected: Boolean, contract: String,
-    implementation: Option[String], lean: Option[Outcome], leanImplementation: Option[Outcome]) derives Codec.AsObject:
-  def passes: Boolean = contract == "ok" && implementation.forall(_ == "ok")
+final case class ExampleView(note: String, `given`: List[String], call: String, expected: Boolean, fails: Option[String],
+    codeFails: Option[String], lean: Option[Outcome], leanImplementation: Option[Outcome]) derives Codec.AsObject:
+  def passes: Boolean = fails.isEmpty && codeFails.isEmpty
 
 /** The source files a node governs, and their fingerprint. */
 final case class CodeRef(files: List[String], fingerprint: Fingerprint) derives Codec.AsObject
@@ -61,7 +60,6 @@ final case class SnapNode(
     uses: List[NodeId] = Nil,
     relies: List[NodeId] = Nil,
     rule: Boolean = false,
-    limits: List[String] = Nil,
     idle: Option[String] = None,
     status: Option[CheckStatus] = None,
     leaf: Boolean = false,
@@ -104,7 +102,7 @@ final case class Snapshot(
     root: Option[NodeId] = None,
     definitions: List[NodeId] = Nil,
     trusted: List[NodeId] = Nil,
-    exportedAt: String = "",
+    exportedAt: Instant = Instant.EPOCH,
     opaques: List[OpaqueTerm] = Nil,
     params: List[ParamTerm] = Nil,
     types: List[TypeText] = Nil,

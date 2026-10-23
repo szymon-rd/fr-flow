@@ -12,7 +12,6 @@ final case class Style(color: Boolean, unicode: Boolean, width: Option[Int]):
   def red(s: String): String = ansi("31")(s)
   def green(s: String): String = ansi("32")(s)
   def yellow(s: String): String = ansi("33")(s)
-  def blue(s: String): String = ansi("34")(s)
   def magenta(s: String): String = ansi("35")(s)
   def cyan(s: String): String = ansi("36")(s)
   def heading(s: String): String = bold(s)
@@ -20,7 +19,6 @@ final case class Style(color: Boolean, unicode: Boolean, width: Option[Int]):
   private def pick(u: String, a: String) = if unicode then u else a
   def ellipsis: String = pick("…", "...")
   def bullet: String = pick("•", "-")
-  def arrow: String = pick("→", "->")
   def follows: String = pick("↳", "->")
   def see: String = pick("⇢", "->")
   def dot: String = pick("·", "-")
@@ -29,14 +27,13 @@ final case class Style(color: Boolean, unicode: Boolean, width: Option[Int]):
   def last: String = pick("└─ ", "`- ")
   def bar: String = pick("│  ", "|  ")
 
-  /** A check status as one glyph, colored: ✓ proven, ○ open, ✗ failed, … waiting, ? unchecked, ≈ decided by reading. */
+  /** A check status as one glyph, colored: ✓ proven, ○ open, ✗ failed, … waiting, ? unchecked. */
   def glyph(g: Glyph): String = g match
     case Glyph.Proven    => green(pick("✓", "+"))
     case Glyph.Open      => yellow(pick("○", "o"))
     case Glyph.Failed    => red(pick("✗", "x"))
     case Glyph.Waiting   => yellow(pick("…", "."))
     case Glyph.Unchecked => dim("?")
-    case Glyph.Informal  => dim(pick("≈", "~"))
     case Glyph.None      => dim(pick("·", "-"))
 
   def state(s: ReviewState, text: String): String = s match
@@ -67,7 +64,7 @@ object Style:
 
 /** A node's check status as people scan it in a tree. */
 enum Glyph:
-  case Proven, Open, Failed, Waiting, Unchecked, Informal, None
+  case Proven, Open, Failed, Waiting, Unchecked, None
 
 object Glyph:
   import frflow.protocol.Reviewed
@@ -81,5 +78,4 @@ object Glyph:
       case Some(CheckStatus.Open) => Glyph.Open
       case Some(CheckStatus.Waiting | CheckStatus.Timeout) => Glyph.Waiting
       case Some(CheckStatus.Unchecked) => Glyph.Unchecked
-      case Some(CheckStatus.Informal) => Glyph.Informal
       case Some(CheckStatus.Proven) => if r.review.unproven.isEmpty then Glyph.Proven else Glyph.Open

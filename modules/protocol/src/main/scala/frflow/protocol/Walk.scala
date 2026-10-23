@@ -1,11 +1,11 @@
-package frflow
+package frflow.protocol
 
 import scala.annotation.tailrec
 
 /** Walks over a graph given as a function from a vertex to the vertices it leads to. Pure: each vertex
   * is listed once (as told apart by `key`), in an order that depends only on the graph.
   */
-private[frflow] object Walk:
+object Walk:
 
   /** What `start` leads to, level by level: `start` itself, then what it leads to, nearest first. */
   def breadthFirst[A, K](start: List[A], key: A => K)(next: A => List[A]): List[A] =

@@ -12,7 +12,7 @@ object Requests:
     */
   def ask(rs: List[Request], node: Option[NodeId], text: String, by: String, now: Instant,
       seen: Option[String] = None): (List[Request], Request) =
-    val r = Request(freshId(rs, now), node, text, by, stamp(now), RequestStatus.Open, seen = seen)
+    val r = Request(freshId(rs, now), node, text, by, now, RequestStatus.Open, seen = seen)
     (rs :+ r, r)
 
   /** Answers the request `to` with the text; given a node, the developer's open request on it, or a new
@@ -37,8 +37,6 @@ object Requests:
 
   private def update(rs: List[Request], i: Int, to: String)(f: Request => Request): Either[Refusal, (List[Request], Request)] =
     rs.lift(i).map(f).map(r => (rs.updated(i, r), r)).toRight(Refusal.UnknownRequest(to))
-
-  private def stamp(now: Instant): String = now.toString.take(19) + "Z"
 
   /** `R` and the time in base 36; the next free one when two are asked at once. */
   private def freshId(rs: List[Request], now: Instant): RequestId =

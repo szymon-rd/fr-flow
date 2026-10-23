@@ -4,7 +4,7 @@ package check
 import cats.effect.{IO, Resource}
 import cats.syntax.all.*
 import frflow.lean.*
-import frflow.protocol.{NodeKind as _, *}
+import frflow.protocol.*
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files
 
@@ -54,7 +54,7 @@ object Scaffold:
     val g = a.generate
     val names = g.obligations(n).map(_.name)
     val open = a.checks.get(NodeId(n.id)).toList.flatMap(_.obligations)
-      .filter(r => r.status == ObligationStatus.Open || r.status == ObligationStatus.Failed).flatMap(r => ObligationName.parse(r.name)).filter(names.contains)
+      .filter(r => r.status == ObligationStatus.Open || r.status == ObligationStatus.Failed).map(_.name).filter(names.contains)
     val wanted = if open.nonEmpty then open else g.obligation(n, ObligationName.Complete).map(_.name).toList
     val existing = a.proofOf(n).fold(List.empty[String])(src => LeanSource.theorems(src).map(_.name))
     wanted.filterNot(o => existing.contains(o.lean))

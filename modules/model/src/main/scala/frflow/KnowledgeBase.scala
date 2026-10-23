@@ -1,5 +1,7 @@
 package frflow
 
+import frflow.protocol.{NodeKind, Walk}
+
 /** A knowledge base: the developer's idea (a Markdown file) and the nodes derived from it: one root
   * claim, refined by a DAG of parts, over a shared vocabulary. `name` is the Lean namespace.
   *
@@ -29,6 +31,7 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
   def children(n: Node[?]): List[Node[?]] = childrenOf.getOrElse(n, Nil)
   /** The parts of `n` that together refine it: claims, contracts and assumptions under it. */
   def parts(n: Node[?]): List[Node[?]] = children(n).filter(isStatement)
+  def isRoot(n: Node[?]): Boolean = root.exists(_ eq n)
   def isStatement(n: Node[?]): Boolean = n.kind == NodeKind.Claim || n.kind == NodeKind.Contract || n.kind == NodeKind.Assumption
 
   /** The claims with no parents: one, the root, in a well-formed knowledge base. */
@@ -123,10 +126,8 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     go(paramsIn(l), Set.empty).distinct
   private def paramsIn(l: Lifted[?]): List[String] = (l.paramObjects ++ Def.closure(l.defs).flatMap(_.lifted.paramObjects)).map(_.name).distinct
 
-  /** Every lambda of the nodes and the defines, translated or not. */
+  /** Every lambda of the nodes and the defines. */
   private[frflow] lazy val lifteds: List[Lifted[?]] = nodes.flatMap(_.referenced) ++ defs.map(_.lifted)
-  /** The lambdas Lean is given. */
-  private[frflow] lazy val formalLifteds: List[Lifted[?]] = nodes.flatMap(_.lifted) ++ defs.map(_.lifted)
 
   /** Defined functions used anywhere, dependencies first. */
   lazy val defs: List[Def[?]] = Walk.postorder(defRoots, _.name)(_.lifted.defs)
@@ -147,7 +148,7 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
 
   /** Domain types used anywhere, dependencies first. */
   lazy val types: List[TypeDecl] =
-    val all = formalLifteds.flatMap(_.types) ++ definitions.flatMap(_.substs).flatMap(_.types)
+    val all = lifteds.flatMap(_.types) ++ definitions.flatMap(_.substs).flatMap(_.types)
     // The same type as seen with and without its doc comment: the one with it.
     val byName = all.groupBy(_.name).view.mapValues(ds => ds.maxBy(_.lean.length)).toMap
     Walk.postorder(all.map(_.name).distinct.flatMap(byName.get), _.name)(_.uses.flatMap(byName.get))
@@ -226,9 +227,6 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     * breaks the contract.
     */
   def generated(n: Node[?]): List[ExampleResult] = ExampleRuns.generated(this, n)
-
-  /** What a contract does not promise, found mechanically (see `ExampleRuns.limits`). */
-  def limits(n: Node[?]): List[String] = ExampleRuns.limits(this, n)
 
   /** Structural problems; a knowledge base with problems is not checked. */
   lazy val problems: List[Problem] = Validation.problems(this)

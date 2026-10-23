@@ -1,7 +1,7 @@
 package frflow
 package lean
 
-import frflow.protocol.TryKind
+import frflow.protocol.{ObligationName, TryKind}
 
 /** Reading Lean's output and source, on output recorded from Lean 4.35 (`lake env lean`, `lake build`). */
 class LeanOutputSuite extends munit.FunSuite:

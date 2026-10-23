@@ -6,6 +6,7 @@ import frflow.protocol.*
 import io.circe.Json
 import java.nio.file.{Files, Path, Paths}
 import java.nio.file.attribute.PosixFilePermission
+import java.time.Instant
 
 /** Decisions signed with the developer's key; one written into the ledger otherwise shows. Keys live
   * in temporary directories only: the developer's own key is never read.
@@ -13,7 +14,7 @@ import java.nio.file.attribute.PosixFilePermission
 class SigningSuite extends munit.CatsEffectSuite:
 
   private def decision(reason: String) =
-    Decision(Action.Accept, "dev", "2026-01-01T00:00:00Z", reason, chain = Chain("chain"),
+    Decision(Action.Accept, "dev", Instant.parse("2026-01-01T00:00:00Z"), reason, chain = Chain("chain"),
       content = Content("statement" -> Json.fromString("Readers find the books they ask for.")))
   private val (root, part) = (NodeId("Root"), NodeId("Part"))
   private val key = Keys.generate()
@@ -29,18 +30,16 @@ class SigningSuite extends munit.CatsEffectSuite:
     assert(!Signing.verify(keys, root, d.unsigned))
   }
 
-  test("the developer's new decisions are signed; those from before are listed, to sign by their entry") {
+  test("the developer's new decisions are signed; one written otherwise is listed, and warned of") {
     val before = Ledger.empty.add(root, decision("it is the idea, stated"))
     assertEquals(Signing.unsigned(before, keys).map(_._1), List(root))
-    assert(Signing.warnings(Map.empty, before).exists(_.startsWith("no developer key")))
-    val signed = Signing.signNew(before, before.add(part, decision("it is a part of the root")), key)
-    assertEquals(Signing.unsigned(signed, keys).map(_._1), List(root))
-    val all = Signing.signEntries(signed, Signing.unsigned(signed, keys).map((_, d) => Ledger.entry(d)).toSet, key)
-    assertEquals(Signing.warnings(keys, all), Nil)
+    assert(Signing.warnings(Map.empty, before, Nil).exists(_.startsWith("no developer key")))
+    val all = Signing.signNew(Ledger.empty, before.add(part, decision("it is a part of the root")), key)
+    assertEquals(Signing.unsigned(all, keys), Nil)
     // An entry appended by hand, as an agent with a shell could.
-    val forged = all.add(root, decision("forged by someone").copy(at = "2030-01-01T00:00:00Z"))
+    val forged = all.add(root, decision("forged by someone").copy(at = Instant.parse("2030-01-01T00:00:00Z")))
     assertEquals(Signing.unsigned(forged, keys).map(_._2.reason), List("forged by someone"))
-    assert(Signing.warnings(keys, forged).exists(_.contains("is not signed by a developer key")))
+    assert(Signing.warnings(keys, forged, Signing.unsigned(forged, keys)).exists(_.contains("is not signed by a developer key")))
   }
 
   test("a key survives its two-line text; text that is not a key does not read") {
@@ -77,12 +76,12 @@ class SigningSuite extends munit.CatsEffectSuite:
       dir   <- temp("frflow-keys")
       keysDir = dir.resolve(".frflow/keys")
       store  = KeyStore.at(dir.resolve("signing.key"), keysDir)
-      none  <- store.projectKeys
+      none  <- KeyStore.projectKeys(keysDir)
       dev   <- store.developer
       _     <- store.publish(dev.public, "dev")
       _     <- store.publish(dev.public, "someone-else")
       files <- IO.blocking(Files.list(keysDir).toArray.toList.map(_.toString))
-      known <- store.projectKeys
+      known <- KeyStore.projectKeys(keysDir)
     yield
       assertEquals(none, Map.empty)
       assertEquals(files, List(keysDir.resolve("dev.pub").toString))

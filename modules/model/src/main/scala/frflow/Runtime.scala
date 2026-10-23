@@ -1,5 +1,6 @@
 package frflow
 
+import frflow.protocol.NodeKind
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import scala.collection.concurrent.TrieMap
 

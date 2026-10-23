@@ -1,6 +1,7 @@
 package frflow
 
 import frflow.lift.Lift
+import frflow.protocol.Walk
 
 /** A domain type, open until a definition fixes it (`Node.definition(...)(User := of[UserId])`). Open,
   * it is a type parameter of every Lean definition and theorem that mentions it; defined, a Lean `abbrev`.
@@ -115,13 +116,6 @@ object Lifted:
   /** Translates a Scala lambda over the domain. Unsupported Scala is a compile error. */
   inline def apply[F](inline f: F): Lifted[F] = ${ Lift.lifted('f) }
 
-  /** A lambda kept as Scala only, with its source text: for a node that opts out of Lean. */
-  inline def informal[F](inline f: F): Lifted[F] = ${ Lift.informal('f) }
-
-  /** Translated when `formal`, kept as Scala only otherwise. */
-  inline def of[F](inline formal: Boolean, inline f: F): Lifted[F] =
-    inline if formal then apply(f) else informal(f)
-
   /** The project source files an expression refers to (used to notice implementation changes). */
   inline def sourceFiles(inline x: Any): List[String] = ${ Lift.sourceFiles('x) }
   /** The file this is written in. */
@@ -142,10 +136,6 @@ final class Def[F](val name: String, val lifted: Lifted[F]):
 object Def:
   /** The definitions given and every definition they use, however nested; each once, by name. */
   def closure(ds: Iterable[Def[?]]): List[Def[?]] = Walk.preorder(ds.toList, _.name)(_.lifted.defs)
-
-/** A reason, a why or an exemption says something: a few words, not a placeholder. */
-object Words:
-  def tooFew(s: String): Boolean = s.trim.split("\\s+").count(_.exists(_.isLetter)) < 3
 
 inline def define[F](inline f: F): Def[F] = ${ Lift.define('f) }
 

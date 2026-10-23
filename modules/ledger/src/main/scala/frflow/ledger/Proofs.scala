@@ -30,15 +30,15 @@ object Proofs:
   def complete(a: Annotated): Boolean =
     a.gone.isEmpty && a.nodes.forall(r => r.state == ReviewState.Accepted && unproven(r.node).isEmpty)
 
-  /** What of a node is not proven (or decided by reading) or fails: the one list `status` uses. */
+  /** What of a node is not proven or fails: the one list `status` uses. */
   def unproven(n: SnapNode): List[String] =
-    def fine(s: ObligationStatus) = s == ObligationStatus.Proven || s == ObligationStatus.Informal
+    def fine(s: ObligationStatus) = s == ObligationStatus.Proven
     val (ok, total) = n.examplesPassing
-    n.status.filterNot(s => s == CheckStatus.Proven || s == CheckStatus.Informal)
+    n.status.filterNot(_ == CheckStatus.Proven)
       .map(st => s"its check is $st${n.messages.headOption.fold("")(m => s": ${m.linesIterator.nextOption().getOrElse("")}")}").toList ++
       n.split.map(_.complete).filterNot(c => fine(c.status)).map(c => s"its parts are not proven to make it (${c.status}: ${c.detail})") ++
-      n.split.toList.flatMap(_.needed).filter(_.status == ObligationStatus.NotNeeded).map(x => s"${x.id} is not needed for it: ${x.detail}") ++
-      n.split.map(_.clash).filter(_.status == ObligationStatus.Clash).map(_ => "its parts contradict each other") ++
+      n.split.toList.flatMap(_.needed).filter(_.status == ObligationStatus.Shown).map(x => s"${x.id} is not needed for it: ${x.detail}") ++
+      n.split.map(_.clash).filter(_.status == ObligationStatus.Shown).map(_ => "its parts contradict each other") ++
       Option.when(n.leaf)("nothing below proves it: add the parts that make it, or a contract") ++
       Option.when(ok != total)(s"${total - ok} example(s) fail") ++
       n.invariants.filterNot(i => fine(i.status) || i.status == ObligationStatus.Exempt).map(i => s"invariant ${i.id} is ${i.status}") ++

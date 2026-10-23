@@ -43,7 +43,7 @@ object Meaning:
   def chain(content: Content, parentChain: Chain): Chain = chainOf(of(content), parentChain)
   def chainOf(meaning: Hash, parentChain: Chain): Chain = Chain(Sha.parts(meaning.value, parentChain.value))
 
-  private val meaningful = Set("statement", "sources", "substitutions", "vocabulary", "uses", "governs", "formal", "op")
+  private val meaningful = Set("statement", "sources", "substitutions", "vocabulary", "uses", "governs", "op")
 
   /** What a node's content means, without its reason, examples or idea; and without its parent's
     * name (the chain holds the parent's meaning), so renaming a node reviews nothing below it.
@@ -57,11 +57,6 @@ object Meaning:
   def hasFormal(c: Content): Boolean =
     c("sources").exists(_.asObject.exists(_.nonEmpty)) || c("substitutions").exists(_.asArray.exists(_.nonEmpty))
 
-  /** A node Lean reads, not out of Lean (`formal = false`). */
-  def formalNode(c: Content): Boolean = !c("formal").contains(Json.False) && hasFormal(c)
-
-  /** What Lean checks of a node (its formula), however it is worded or named. */
-  def formula(c: Content): Hash = c.only(Set("sources", "substitutions")).hash
 
   private val DefinitionUse = """(?s)^[A-Za-z_]\w* = .*""".r
 

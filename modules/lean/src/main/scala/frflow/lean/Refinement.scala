@@ -1,6 +1,8 @@
 package frflow
 package lean
 
+import frflow.protocol.NodeKind
+
 /** How the nodes of a knowledge base refine each other in Lean: which nodes Lean states, their splits
   * and claims, the code proven of them, and what `holds` and `root_impl` are composed of.
   */
@@ -8,20 +10,19 @@ final class Refinement(kb: KnowledgeBase, val vocabulary: Vocabulary):
   import vocabulary.*
   private val K = kb.name
 
-  /** Nodes with a statement Lean checks: formal claims, contracts and assumptions. */
-  def formal(n: Node[?]): Boolean = kb.isStatement(n) && n.formal
+  /** Nodes with a statement Lean checks: claims, contracts and assumptions. */
+  def formal(n: Node[?]): Boolean = kb.isStatement(n)
 
-  /** The parts that together refine a node, when Lean can state it: the node and every part formal. */
+  /** The parts that together refine a node. */
   def splitParts(n: Node[?]): Option[List[Node[?]]] =
     val ps = kb.parts(n)
-    Option.when(formal(n) && ps.nonEmpty && ps.forall(formal))(ps)
+    Option.when(formal(n) && ps.nonEmpty)(ps)
   /** A node no formal split proves: a leaf of the composition (a hypothesis of what rests on it). */
   def leafy(n: Node[?]): Boolean = splitParts(n).isEmpty
 
   /** The invariants a contract keeps in Lean, each with the contract's view of a call. */
   def formalKeeps(n: Node[?]): List[(Node[?], Lifted[?])] =
-    if !n.formal || n.kind != NodeKind.Contract then Nil
-    else n.kept.collect { case Keep(i, Some(v), _) if i.formal && v.body.nonEmpty && i.rule.exists(_.body.nonEmpty) => (i, v) }
+    if n.kind != NodeKind.Contract then Nil else n.kept.collect { case Keep(i, Some(v), _) if i.rule.isDefined => (i, v) }
 
   /** The keepers of an invariant, each with its view (in Lean). */
   def keepers(i: Node[?]): List[(Node[?], Lifted[?])] =

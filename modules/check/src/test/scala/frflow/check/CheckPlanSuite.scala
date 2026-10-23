@@ -2,14 +2,14 @@ package frflow
 package check
 
 import frflow.fixtures.*
-import frflow.protocol.{NodeKind as _, *}
+import frflow.protocol.*
 
 /** What a check runs, and in what order, from the analysis alone. */
 class CheckPlanSuite extends munit.FunSuite:
 
   private val a = Desk(shelfKb).analysis
   private def ids(ns: List[Node[?]]) = ns.map(_.id)
-  private def proven(n: Node[?]) = NodeId(n.id) -> NodeCheck(a.checkHash(n), CheckStatus.Proven, Nil, Nil, Nil, "")
+  private def proven(n: Node[?]) = NodeId(n.id) -> NodeCheck(a.checkHash(n), CheckStatus.Proven, Nil, Nil, Nil, java.time.Instant.EPOCH)
 
   test("a node is checked after its parts, the nodes of one level side by side") {
     val plan = CheckPlan(a, None)
@@ -21,17 +21,17 @@ class CheckPlanSuite extends munit.FunSuite:
   }
 
   test("a node whose check is current keeps it while its parts are proven; one node is checked whatever its record") {
-    val recorded = a.withInputs(a.inputs.copy(checks = Map(proven(pick), proven(fromList))))
+    val recorded = a.withChecks(Map(proven(pick), proven(fromList)))
     val plan = CheckPlan(recorded, None)
     assertEquals(ids(plan.pending), List("OnlyGood", "OnlyLong", "EveryLong"))
     assertEquals(plan.theorems(List(fromList, onlyLong)), List("FrFlowGen.Shelf.OnlyLong.Theorems"))
     assertEquals(plan.kept(pick, plan.parts(pick, Map.empty)).map(_.status), Some(CheckStatus.Proven))
     // FromList is kept only once Pick, its part, is proven in this run or the record
     assertEquals(plan.parts(fromList, Map.empty), List("Pick" -> Some(CheckStatus.Proven)))
-    val failed = Map("Pick" -> NodeCheck(Hash("h"), CheckStatus.Failed, Nil, Nil, Nil, ""))
+    val failed = Map("Pick" -> NodeCheck(Hash("h"), CheckStatus.Failed, Nil, Nil, Nil, java.time.Instant.EPOCH))
     assertEquals(plan.kept(fromList, plan.parts(fromList, failed)), None)
     // a recorded check of another hash is not current
-    val stale = a.withInputs(a.inputs.copy(checks = Map(NodeId("Pick") -> NodeCheck(Hash("old"), CheckStatus.Proven, Nil, Nil, Nil, ""))))
+    val stale = a.withChecks(Map(NodeId("Pick") -> NodeCheck(Hash("old"), CheckStatus.Proven, Nil, Nil, Nil, java.time.Instant.EPOCH)))
     assertEquals(CheckPlan(stale, None).pending.map(_.id).contains("Pick"), true)
     // checking one node: that node, checked again
     val one = CheckPlan(recorded, Some("Pick"))

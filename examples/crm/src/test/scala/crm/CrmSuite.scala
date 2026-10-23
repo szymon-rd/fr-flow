@@ -2,15 +2,19 @@ package crm
 
 import frflow.*
 import cats.effect.IO
-import frflow.check.*
+import frflow.api.{FrFlowError, LiveApi}
+import frflow.check.Workspace
 import java.nio.file.{Files, Paths}
 
 class CrmSuite extends munit.CatsEffectSuite:
+  // The API over the example's own workspace; nothing here decides, so no key is read.
+  private def api = LiveApi(knowledge, Workspace(Paths.get("examples/crm").toAbsolutePath.normalize, "../../../lean"), Paths.get("no.key"), Map.empty)
+  private def checked = api.flatMap(_.check(None)).recoverWith { case FrFlowError.LeanMissing => IO(assume(false, "lake is not available")) *> IO.never }
 
   test("the committed ledger accepts every node: none is up for review, none is gone") {
     // As `crm/run status` reads it: a change to the content, the hashes or the code fingerprints shows here.
-    Workflow(knowledge, Workspace(Paths.get("examples/crm").toAbsolutePath.normalize, "../../../lean")).flatMap(_.analysis).map { a =>
-      val annotated = a.annotated
+    api.flatMap(_.view).map { v =>
+      val annotated = v.annotated
       val states = annotated.nodes.map(r => r.id.value -> r.state.toString)
       assertEquals(states.size, knowledge.nodes.size)
       assertEquals(states.filter(_._2 != "accepted"), Nil)
@@ -212,19 +216,17 @@ class CrmSuite extends munit.CatsEffectSuite:
     // In the example's own workspace, as `crm/run check` checks it: its Lean build and the results it
     // recorded are reused while current (a node whose Lean changed is checked again). The core's LeanSuite
     // checks from scratch.
-    for
-      lake <- Config.load.flatMap(Lake(Paths.get("."), _)).flatMap(_.available)
-      _ <- IO(assume(lake, "lake is not available"))
-      run <- Workflow(knowledge, Workspace(Paths.get("examples/crm").toAbsolutePath.normalize, "../../../lean")).flatMap(_.check())
+    for report <- checked
     yield
-      val checked = run.results.map((n, c) => n.id -> c).toMap
-      val formal = knowledge.nodes.filter(run.after.generate.formal).map(_.id)
-      assertEquals(checked.view.filterKeys(formal.contains).mapValues(_.status.toString).toMap, formal.map(_ -> "proven").toMap)
+      val v = report.view
+      def node(id: String) = v.node(frflow.protocol.NodeId(id)).map(_.node)
+      val statements = v.nodes.filter(_.node.status.isDefined).map(_.id)
+      assertEquals(report.nodes.filter(c => statements.contains(c.id)).map(c => c.id -> c.status.toString).toMap, statements.map(_ -> "proven").toMap)
       // every implementation is proven, and the root holds of the code from the ports alone
       for c <- List("ReadContract", "DealSearch", "WriteContract", "SaveWrite", "SharesExpire", "RecordsByQuery", "StoreEdits") do
-        assertEquals(checked(c).obligations.filter(_.name == "impl").map(_.status.toString), List("proven"), checked(c))
-      assertEquals(checked("SharedCrm").obligations.find(_.name == "root_impl").map(_.status.toString), Some("proven"))
+        assertEquals(node(c).flatMap(_.implementationProof).map(_.status.toString), Some("proven"), c)
+      assertEquals(node("SharedCrm").flatMap(_.rootImpl).map(_.status.toString), Some("proven"))
       // the root's expectations: its main promise on a concrete store, and an added record found
-      assertEquals(checked("SharedCrm").obligations.filter(_.name.startsWith("expect_")).map(_.status.toString), List("proven", "proven"))
-      assertEquals(run.after.generate.trusted.map(_.id), List("RecordsByQuery", "StoreEdits"))
+      assertEquals(node("SharedCrm").map(_.expectations.map(_.status.toString)), Some(List("proven", "proven")))
+      assertEquals(v.snapshot.trusted.map(_.value), List("RecordsByQuery", "StoreEdits"))
   }

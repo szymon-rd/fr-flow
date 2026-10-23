@@ -1,6 +1,6 @@
 package frflow.api
 
-import frflow.ledger.Waiting
+import frflow.ledger.{Graph, Waiting}
 import frflow.protocol.*
 
 /** A node with what surrounds it, and what changed since it was decided: what `show`, `diff` and the
@@ -27,14 +27,8 @@ object Details:
       withAgent = v.withAgent(r),
       diff = diff(v, r, code))
 
-  /** What a node rests on, nearest first, each once: its ancestors, and the definitions they use and the
-    * contracts their code calls. Their reasons say when to revisit them; a proposal may meet one.
-    */
-  def above(v: View, r: Reviewed): List[Reviewed] =
-    def up(frontier: List[Reviewed], seen: Set[NodeId]): List[Reviewed] =
-      val next = frontier.flatMap(x => x.node.parents ++ x.node.uses ++ x.node.relies).distinct.filterNot(seen).flatMap(v.node)
-      if next.isEmpty then Nil else next ++ up(next, seen ++ next.map(_.id))
-    up(List(r), Set(r.id))
+  /** What a node rests on, nearest first (see `Graph.ancestry`): their reasons say when to revisit them. */
+  def above(v: View, r: Reviewed): List[Reviewed] = Graph(v.snapshot).ancestry(r.node).filter(_ != r.id).flatMap(v.node)
 
   /** The terms a node mentions (its `vocabulary`, "name: means"), with the definition fixing each. */
   def terms(v: View, r: Reviewed): List[Term] =
@@ -47,15 +41,10 @@ object Details:
       Term(name, means, params.get(name).exists(_.operation), params.get(name).flatMap(_.definedBy).orElse(opaques.get(name).flatten))
     }
 
-  /** The decision a node is bound to now: its last acceptance or confirmation, unless it was rejected since. */
-  def binding(r: Reviewed): Option[Decision] =
-    r.review.history.lastOption.filter(d => d.action != Action.Reject && d.action != Action.Remove)
-      .flatMap(_ => r.review.history.reverse.find(_.action.binds))
-
   /** What changed since the node was decided, by cause; `code` is how its code changed (or, never decided, the code in full). */
   def diff(v: View, r: Reviewed, code: Option[CodeChange]): NodeDiff =
     val causes = r.review.causes
-    val since = binding(r)
+    val since = r.review.binding
     val self = since.filter(_ => causes.contains(Cause.Self)).fold(Nil)(d => Fields.changes(d.content, r.node.content))
     val (added, removed) = since.filter(_ => causes.contains(Cause.Parts)).flatMap(_.content.parts).fold((Nil, Nil)) { before =>
       (r.node.parts.filterNot(before.contains), before.filterNot(r.node.parts.contains))

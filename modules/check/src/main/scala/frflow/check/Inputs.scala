@@ -3,8 +3,8 @@ package check
 
 import cats.effect.IO
 import cats.syntax.all.*
-import frflow.ledger.{KeyStore, LedgerStore}
-import frflow.protocol.{NodeKind as _, *}
+import frflow.ledger.KeyStore
+import frflow.protocol.*
 import java.nio.file.Path
 import java.security.PublicKey
 import java.time.Instant
@@ -36,11 +36,11 @@ final case class Inputs(
 object Inputs:
   val empty: Inputs = Inputs("", Ledger.empty, Map.empty, Map.empty, Map.empty, Map.empty, Set.empty, Map.empty, Map.empty, Instant.EPOCH)
 
-  /** Reads the workspace, and the ledger from `ledger`. */
-  def read(kb: KnowledgeBase, ws: Workspace, cfg: Config, ledger: LedgerStore): IO[Inputs] =
+  /** Reads the workspace, and the ledger `ledger` reads. */
+  def read(kb: KnowledgeBase, ws: Workspace, cfg: Config, ledger: IO[Ledger]): IO[Inputs] =
     (
       Disk.read(ws.root.resolve(kb.idea)).map(_.getOrElse("")),
-      ledger.load,
+      ledger,
       KeyStore.projectKeys(ws.keysDir),
       ChecksStore(ws.checksFile).load,
       proofs(kb, ws),
@@ -71,30 +71,11 @@ object Inputs:
   private def missing(kb: KnowledgeBase, ws: Workspace): IO[Set[String]] =
     kb.nodes.flatMap(_.governs).distinct.filterA(f => Disk.exists(ws.root.resolve(f)).map(!_)).map(_.toSet)
 
-  /** The project's source files: every file under `src/main`, every source file elsewhere in the project
-    * (but tests, builds' output, the Lean and FrFlow's own records), and every source the build compiles,
-    * when the build names them: a source directory added in the build is production code too.
+  /** The project's source files: every file under `src/main`, and every source the build compiles (a source
+    * directory added in the build is production code too), but its output.
     */
-  def projectSources(root0: Path, fromBuild: List[Path]): IO[List[Path]] =
+  def projectSources(root: Path, fromBuild: List[Path]): IO[List[Path]] =
     val abs = (p: Path) => p.toAbsolutePath.normalize
-    val root = abs(root0)
-    // Only the project's own output and records are skipped, at its root: a `target` folder inside the
-    // sources is compiled like any other. The build's own definitions (`project/*.scala`, `*.sbt`) are
-    // code too: only their output is skipped.
-    val skipDirs = Set("target", "lean", ".frflow", "node_modules")
-    val codeExt = Set("scala", "sc", "sbt", "java", "kt", "js", "ts", "py", "go", "rs", "sql", "sh")
-    def skipped(p: Path): Boolean =
-      val name = p.getFileName.toString
-      val parent = abs(p).getParent
-      // Hidden directories are code like any other, but the tools' own at the root (.git, .bsp, ...).
-      (name.startsWith(".") && parent == root) || (skipDirs(name) && parent == root) || root.relativize(abs(p)).toString == "src/test" ||
-        ((name == "target" || name == "project") && parent == root.resolve("project"))
-    def source(p: Path): Boolean =
-      root.relativize(abs(p)).startsWith("src/main") || codeExt(p.getFileName.toString.reverse.takeWhile(_ != '.').reverse)
-    def walk(dir: Path): IO[List[Path]] = Disk.list(dir).flatMap(_.flatTraverse { p =>
-      Disk.isDirectory(p).flatMap(isDir =>
-        if isDir then (if skipped(p) then IO.pure(Nil) else walk(p))
-        else IO.pure(List(p).filter(source)))
-    })
-    val built = fromBuild.filterNot(p => abs(p).startsWith(root.resolve("target")))
-    (walk(root).map(_ ++ built)).flatMap(_.filterA(Disk.isFile)).map(_.map(abs).distinct)
+    Disk.isDirectory(root.resolve("src/main")).ifM(Disk.files(root.resolve("src/main")), IO.pure(Nil)).map { main =>
+      (main ++ fromBuild.filterNot(p => abs(p).startsWith(abs(root).resolve("target")))).map(abs).distinct
+    }

@@ -2,6 +2,7 @@ package frflow
 package lean
 
 import cats.syntax.all.*
+import frflow.protocol.ObligationName
 
 /** An example, evaluated in Lean: `claim` is what Scala computes of it (the contract's verdict, or the
   * result of the proven implementation), `opposite` its negation. Lean proving the opposite means the

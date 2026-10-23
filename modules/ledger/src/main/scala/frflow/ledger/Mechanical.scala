@@ -15,7 +15,7 @@ import frflow.protocol.*
 object Mechanical:
 
   /** Why `n` is not mechanical, or None if it is; `others` holds the answer for what it waits for. */
-  def why(v: View, n: SnapNode, others: Map[NodeId, Option[String]]): Option[String] =
+  def why(v: Reading, n: SnapNode, others: Map[NodeId, Option[String]]): Option[String] =
     val id = n.id
     val cs = v.causes(n)
     val (ok, total) = n.examplesPassing
@@ -39,6 +39,6 @@ object Mechanical:
     * parts themselves are decided on their own; this settles only that they make the node.
     */
   private def partsMake(n: SnapNode): Boolean = n.split.exists { sp =>
-    sp.complete.status == ObligationStatus.Proven && sp.needed.forall(_.status == ObligationStatus.Needed) &&
-      sp.clash.status != ObligationStatus.Clash
+    sp.complete.status == ObligationStatus.Proven && sp.needed.forall(_.status == ObligationStatus.NotShown) &&
+      sp.clash.status != ObligationStatus.Shown
   }

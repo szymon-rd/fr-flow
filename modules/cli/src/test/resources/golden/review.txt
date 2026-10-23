@@ -51,7 +51,7 @@ Decisions
 
 [a]ccept [s]kip [q]uit [?]ask: ?
 What should change? Name the user as 'that user'.
-asked [R3]: Decide is with the agent until it answers or changes it
+asked [Rmjzoj9c0]: Decide is with the agent until it answers or changes it
 
 --- 1 waiting ---
 o Expiry  claim  proposed
@@ -62,7 +62,7 @@ Decision
   note: its check is open
   rejected here before: Forever: A session never ends. — because sessions must end: a stolen token would work forever
 
-What it rests on, with the reasons: does it meet a condition they set for revisiting them?
+What it rests on, with the reasons
   Root: Root holds as stated (since confirmed: the new parts are proven to make it)
 
 Parents: it is a part of each

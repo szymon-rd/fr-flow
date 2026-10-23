@@ -1,6 +1,8 @@
 package frflow
 package lean
 
+import frflow.protocol.ObligationName
+
 /** The files an agent proves in (`Proofs/<KB>/<Node>.lean`), their stubs, and the Lake project. */
 final class ProofFiles(kb: KnowledgeBase, layout: Layout, refinement: Refinement):
   private val K = kb.name

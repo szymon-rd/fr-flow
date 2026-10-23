@@ -3,7 +3,6 @@ package frflow.cli
 import cats.effect.{ExitCode, IO}
 import frflow.api.*
 import frflow.protocol.*
-import frflow.ledger.Refusal
 
 /** The developer's review: the mechanical batch offered first, as one decision; then each node waiting,
   * in the order to decide it (parents and definitions first), shown as `show` shows it, then a prompt;
@@ -20,8 +19,7 @@ final class ReviewSession(api: FrFlowApi, term: Terminal, st: Style):
         .as(Run.Usage)
     else api.developer(as).flatMap(_.fold(r => term.err(r.message).as(Run.Usage), dev => loop(dev, Pass(Set.empty, false, 0))))
 
-  private def loop(dev: Developer, p: Pass): IO[ExitCode] = api.view.flatMap { v =>
-    val inbox = Inbox.of(v)
+  private def loop(dev: Developer, p: Pass): IO[ExitCode] = api.inbox.flatMap { inbox =>
     if !p.batchOffered && inbox.mechanical.nonEmpty then batch(dev, inbox, p)
     else inbox.queue.find(w => !p.skipped(w.node.id)) match
       case Some(w) => one(dev, w, inbox.queue.count(x => !p.skipped(x.node.id)), p)
@@ -81,7 +79,7 @@ final class ReviewSession(api: FrFlowApi, term: Terminal, st: Style):
             case _ => loop(dev, p)
           }
           case Some("s") | Some("") => loop(dev, p.skip(r.id))
-          case _ => api.view.flatMap(v => finish(Inbox.of(v), p))
+          case _ => api.inbox.flatMap(finish(_, p))
         }
     }
 
@@ -117,7 +115,7 @@ final class ReviewSession(api: FrFlowApi, term: Terminal, st: Style):
       choose("[g]one: agree it is gone  [s]kip  [q]uit: ", Set("g", "s", "q", "")).flatMap {
         case Some("g") => reason(s"Why is ${g.id} gone? ").flatMap(_.fold(loop(dev, p))(why => record(dev, Decide.Gone(g.id, why), p, Some(g.id))))
         case Some("s") | Some("") => loop(dev, p.skip(g.id))
-        case _ => api.view.flatMap(v => finish(Inbox.of(v), p))
+        case _ => api.inbox.flatMap(finish(_, p))
       }
 
   private def finish(inbox: Inbox, p: Pass): IO[ExitCode] =

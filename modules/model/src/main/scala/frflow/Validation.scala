@@ -1,5 +1,6 @@
 package frflow
 
+import frflow.protocol.{NodeKind, tooFew}
 import java.util.regex.Pattern.quote
 
 /** What keeps a knowledge base from being checked: one thing wrong with it, said so that its author
@@ -68,7 +69,7 @@ private[frflow] object Validation:
       definitions.flatMap { d =>
         d.substs.filter(s => s.isType && s.types.exists(t => """:\s*(Int|Long)\b""".r.findFirstIn(t.scala).isDefined)).flatMap { s =>
           val ex = s"∃ \\([^)]*: ${quote(s.name)}\\)".r
-          nodes.flatMap(_.lifted).find(l => ex.findFirstIn(l.body).isDefined).map(_ =>
+          nodes.flatMap(_.referenced).find(l => ex.findFirstIn(l.body).isDefined).map(_ =>
             s"${d.id}: ${s.name} := ${s.lean}, whose values hold an Int or Long, but something says one exists: Lean's integers are unbounded, Scala's are not; use BigInt")
         }
       }
@@ -91,13 +92,13 @@ private[frflow] object Validation:
       // Two different parameters (or opaque types) with one name would be one in Lean and at run time.
       twice(kb.paramObjects, _.name)((p, ps) => s"two different parameters are named $p: ${ps.map(_.means).mkString("; ")}; rename one").sorted,
       twice(kb.lifteds.flatMap(_.opaqueObjects), _.name)((o, _) => s"two different opaque types are named $o; rename one").sorted,
-      kb.opaques.map(_.name).filterNot((kb.formalLifteds.flatMap(_.opaques) ++ kb.definitions.flatMap(_.defines)).contains)
+      kb.opaques.map(_.name).filterNot((kb.lifteds.flatMap(_.opaques) ++ kb.definitions.flatMap(_.defines)).contains)
         .map(n => s"opaque type $n: the val name and the name given to Opaque differ"),
       ids.filter(i => declared.contains(i) || terms.contains(i)).map(i => s"node id $i clashes with a type, function or term of the same name"),
       terms.filter(declared.contains).distinct.map(n => s"term $n clashes with a type or function of the same name"),
-      kb.nodes.flatMap(_.lifted).flatMap(_.paramRefs).map(_._1).distinct.filterNot(n => kb.params.exists(_.name == n))
+      kb.nodes.flatMap(_.referenced).flatMap(_.paramRefs).map(_._1).distinct.filterNot(n => kb.params.exists(_.name == n))
         .map(n => s"parameter $n: the val name and the name given to Param differ"),
-      kb.formalLifteds.flatMap(_.types).groupBy(_.name).collect {
+      kb.lifteds.flatMap(_.types).groupBy(_.name).collect {
         case (n, ds) if ds.map(_.body).distinct.size > 1 => s"two different Scala types are named $n"
       }.toList
     ).flatten.map(Vocabulary(_))
@@ -136,7 +137,7 @@ private[frflow] object Validation:
       nodes.filter(n => n.kept.nonEmpty && n.kind != NodeKind.Contract && n.kind != NodeKind.Design)
         .map(n => s"${n.id}: only contracts and design decisions are exempt from invariants"),
       nodes.flatMap(n => n.kept.groupBy(_.invariant.id).collect { case (i, ks) if ks.size > 1 => s"${n.id} names $i more than once" }),
-      nodes.flatMap(n => n.kept.filter(k => k.view.isEmpty && Words.tooFew(k.exempt))
+      nodes.flatMap(n => n.kept.filter(k => k.view.isEmpty && tooFew(k.exempt))
         .map(k => s"${n.id}: say in a few words why ${k.invariant.id} does not apply to it")),
       rules.flatMap(i => kb.inScope(i).filterNot(_.kept.exists(_.invariant eq i))
         .map(c => if c.kind == NodeKind.Design then s"${c.id}: say why ${i.id} does not apply to the code it governs (.exempt): a design decision in its scope does"

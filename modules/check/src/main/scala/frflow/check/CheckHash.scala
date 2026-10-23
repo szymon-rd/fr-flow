@@ -10,7 +10,7 @@ import frflow.protocol.{Hash, Sha}
   */
 object CheckHash:
   /** How checks are run and read: a change to it re-runs every check. */
-  val CheckerVersion: Int = 6
+  val CheckerVersion: Int = 7
 
   /** What `root_impl` composes: every proof and every implementation. */
   def composed(a: Analysis, root: Node[?]): List[Node[?]] =
@@ -22,9 +22,9 @@ object CheckHash:
   def of(a: Analysis, n: Node[?], composed: List[Hash]): Hash =
     val g = a.generate
     val kb = a.kb
-    val isRoot = a.isRoot(n)
+    val isRoot = kb.isRoot(n)
     val proof = a.proofOf(n)
-    val lemmas = proof.filter(LeanSource.lemmaImports(_).nonEmpty).flatMap(_ => a.lemmas).getOrElse("")
+    val lemmas = proof.filter(LeanSource.lemmaImports(_).nonEmpty).flatMap(_ => a.inputs.proofs.get("Lemmas")).getOrElse("")
     // The specs of other nodes a proof imports: a change to them re-checks it.
     val imported = proof.fold("")(src => s"(?m)^\\s*import\\s+FrFlowGen\\.${java.util.regex.Pattern.quote(kb.name)}\\.(\\w+)\\.Spec".r
       .findAllMatchIn(src).map(_.group(1)).filter(_ != n.id).flatMap(kb.node).filter(g.formal).map(g.spec).mkString)

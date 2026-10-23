@@ -2,7 +2,6 @@ package frflow
 package ledger
 
 import frflow.protocol.*
-import scala.annotation.tailrec
 
 /** The shape of a snapshot, apart from any decision: what each node rests on, what rests on it, the
   * order decisions are taken in, the alternatives, and each node's chain.
@@ -25,15 +24,15 @@ final class Graph(val snapshot: Snapshot):
   def restsOn(n: SnapNode): List[NodeId] = (n.parents ++ n.uses ++ n.relies).distinct.filter(byId.contains)
 
   /** Every node after all it rests on: the order decisions are taken in, a batch's too. */
-  lazy val order: List[NodeId] = Graph.topological(nodes.map(_.id), id => byId.get(id).fold(Nil)(restsOn))
+  lazy val order: List[NodeId] = Walk.postorder(nodes.map(_.id), identity)(id => byId.get(id).fold(Nil)(restsOn))
   lazy val rank: Map[NodeId, Int] = order.zipWithIndex.toMap
 
-  /** Everything `n` rests on, however far up. */
-  def ancestry(n: SnapNode): Set[NodeId] = Graph.closure(restsOn(n), id => byId.get(id).fold(Nil)(restsOn))
+  /** Everything `n` rests on, however far up, nearest first. */
+  def ancestry(n: SnapNode): List[NodeId] = Walk.breadthFirst(restsOn(n), identity)(id => byId.get(id).fold(Nil)(restsOn))
 
-  /** `n`'s ancestors through its parents only, nearest first (each once). */
+  /** `n`'s ancestors through its parents only (each once). */
   def ancestors(n: SnapNode): List[SnapNode] =
-    Graph.preorder(n.parents, id => byId.get(id).fold(Nil)(_.parents)).flatMap(byId.get)
+    Walk.preorder(n.parents, identity)(id => byId.get(id).fold(Nil)(_.parents)).flatMap(byId.get)
 
   /** The nodes of the model that are alternatives to each (see `Graph.alternatives`). */
   lazy val rivals: Map[NodeId, List[NodeId]] =
@@ -54,7 +53,7 @@ final class Graph(val snapshot: Snapshot):
 
   /** As `parentChain`, computing only the chains of what `n` rests on. */
   def parentChainAlone(n: SnapNode): Chain =
-    val up = ancestry(n)
+    val up = ancestry(n).toSet
     parentChainFrom(n, chainsOver(order.filter(up)))
 
   private def chainsOver(ids: List[NodeId]): Map[NodeId, Chain] =
@@ -73,26 +72,3 @@ object Graph:
     */
   def alternatives(a: SnapNode, b: SnapNode): Boolean =
     a.replaces.contains(b.id) || b.replaces.contains(a.id) || a.defines.intersect(b.defines).nonEmpty
-
-  private final case class Visited(order: Vector[NodeId], seen: Set[NodeId]):
-    def add(id: NodeId): Visited = Visited(order :+ id, seen + id)
-
-  /** Each id after its dependencies (depth first, in the order given; a cycle is cut where it closes). */
-  def topological(ids: List[NodeId], deps: NodeId => List[NodeId]): List[NodeId] =
-    def visit(done: Visited, id: NodeId, path: Set[NodeId]): Visited =
-      if done.seen(id) || path(id) then done
-      else deps(id).foldLeft(done)(visit(_, _, path + id)).add(id)
-    ids.foldLeft(Visited(Vector.empty, Set.empty))(visit(_, _, Set.empty)).order.toList
-
-  /** The ids reached from `from` through `next`, each once, depth first and nearest first. */
-  def preorder(from: List[NodeId], next: NodeId => List[NodeId]): List[NodeId] =
-    def visit(done: Visited, id: NodeId): Visited =
-      if done.seen(id) then done else next(id).foldLeft(done.add(id))(visit)
-    from.foldLeft(Visited(Vector.empty, Set.empty))(visit).order.toList
-
-  /** The ids reached from `from` through `next`. */
-  def closure(from: List[NodeId], next: NodeId => List[NodeId]): Set[NodeId] =
-    @tailrec def go(frontier: List[NodeId], seen: Set[NodeId]): Set[NodeId] = frontier match
-      case Nil => seen
-      case id :: rest => if seen(id) then go(rest, seen) else go(next(id) ++ rest, seen + id)
-    go(from, Set.empty)

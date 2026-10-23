@@ -3,13 +3,13 @@ package frflow.protocol
 import io.circe.{Codec, Decoder, Encoder}
 
 /** An enum written as a word (its `toString`): how statuses are stored and printed. */
-private[protocol] trait Words[E]:
+trait Words[E]:
   def values: Array[E]
   private lazy val byWord = values.map(e => e.toString -> e).toMap
   def fromWord(w: String): Option[E] = byWord.get(w)
   given Codec[E] = Codec.from(Decoder.decodeString.emap(w => fromWord(w).toRight(s"unknown value: $w")), Encoder.encodeString.contramap(_.toString))
 
-private[protocol] def word(name: String): String =
+def word(name: String): String =
   name.replaceAll("([a-z])([A-Z])", "$1-$2").toLowerCase
 
 /** A node's kind, as the snapshot names it. */
@@ -20,32 +20,22 @@ enum NodeKind:
   def shown(rule: Boolean): String = if rule then "invariant" else toString
 object NodeKind extends Words[NodeKind]
 
-/** The outcome of checking a node: `proven`, `open`, `failed`, `model-error`, `timeout`, or `waiting`
-  * (proven, but its parts are not yet, or a term it uses has two definitions and neither is chosen).
-  * The snapshot adds `unchecked` (no current check) and `informal` (out of Lean: decided by reading).
+/** The outcome of checking a node: `waiting` is proven itself, but a part is not yet, or a term it uses has
+  * two definitions and neither is chosen; the snapshot adds `unchecked` (no current check).
   */
 enum CheckStatus:
-  case Proven, Open, Failed, ModelError, Waiting, Timeout, Unchecked, Informal
+  case Proven, Open, Failed, ModelError, Waiting, Timeout, Unchecked
   override def toString: String = word(productPrefix)
 object CheckStatus extends Words[CheckStatus]
 
-/** The status of one obligation, of a try, or of a part of the snapshot.
-  *
-  * An obligation is `proven`, `open`, `failed`, or `unevaluated` (an example Lean did not decide). A try
-  * (a statement Lean is asked whether it can prove, see `TryKind`) has a plain status instead: the second
-  * of each pair when Lean proved it, the first when it found no proof within its budget (which shows
-  * nothing): `needed` or `not-needed`, `not-restates` or `restates`, `no-clash` or `clash`, `not-unsat` or
-  * `unsat`, `not-idle` or `idle`, `not-vacuous` or `vacuous`. The snapshot adds `unchecked`, `timeout`,
-  * `informal` and, for an invariant a contract does not keep, `exempt`.
+/** The status of one obligation (`unevaluated`: an example Lean did not decide), or of a try (see
+  * `TryKind`): `shown` when Lean proved it, `not-shown` when it found no proof within its budget.
   */
 enum ObligationStatus:
-  case Proven, Open, Failed, Unevaluated, Unchecked, Timeout, Informal, Exempt
-  case Needed, NotNeeded, Restates, NotRestates, Clash, NoClash, Unsat, NotUnsat, Idle, NotIdle, Vacuous, NotVacuous
+  case Proven, Open, Failed, Unevaluated, Unchecked, Timeout, Exempt, Shown, NotShown
   override def toString: String = word(productPrefix)
   /** Leaves nothing to do: an obligation proven, a try showing nothing wrong. */
-  def fine: Boolean = this match
-    case Proven | Needed | NotRestates | NoClash | NotUnsat | NotIdle | NotVacuous => true
-    case _ => false
+  def fine: Boolean = this == Proven || this == NotShown
 object ObligationStatus extends Words[ObligationStatus]
 
 /** Where the developer stands on a node: `proposed` (not decided yet, or rejected then reworked),
@@ -110,21 +100,6 @@ enum TryKind:
   /** The expectation `i` holds whatever the node says. */
   case VacuousExpect(i: Int)
 
-  /** The status when Lean proved it, and when it found no proof. */
-  def onProven: ObligationStatus = this match
-    case Needed(_) | Vacuous => ObligationStatus.NotNeeded
-    case Restates            => ObligationStatus.Restates
-    case Clash               => ObligationStatus.Clash
-    case Unsat               => ObligationStatus.Unsat
-    case Idle                => ObligationStatus.Idle
-    case VacuousExpect(_)    => ObligationStatus.Vacuous
-  def onNot: ObligationStatus = this match
-    case Needed(_) | Vacuous => ObligationStatus.Needed
-    case Restates            => ObligationStatus.NotRestates
-    case Clash               => ObligationStatus.NoClash
-    case Unsat               => ObligationStatus.NotUnsat
-    case Idle                => ObligationStatus.NotIdle
-    case VacuousExpect(_)    => ObligationStatus.NotVacuous
   /** Proven, the node fails: nothing it says can hold. */
   def fatal: Boolean = this == Clash || this == Unsat
 

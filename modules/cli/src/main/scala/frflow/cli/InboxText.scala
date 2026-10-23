@@ -20,8 +20,6 @@ object InboxText:
         section("Answers to read (close REQUEST when read)", i.answers.flatMap(q =>
           s"[${q.id}] on ${on(q)}: ${q.text}" :: q.answer.toList.map(a => s"  ${st.cyan("agent:")} $a")), st) ++
         section("Warnings: status fails on each", i.warnings.map(w => st.red(s"${st.bullet} $w")), st) ++
-        section("Not signed by a developer key (sign ENTRY…, for the ones that are yours)", i.unsigned.map(u =>
-          s"${st.dim(u.entry.value)} ${u.node}: ${u.decision.action} by ${u.decision.by}, ${Words.date(u.decision.at)}: ${u.decision.reason}"), st) ++
         section("For the developer: ready to decide (review, or accept / reject NODE)", i.ready.flatMap(waiting), st) ++
         section(s"Mechanical: Lean proves them again, nothing in them is a choice (confirm decides all ${i.mechanical.size})",
           i.mechanical.map(Lines.node(_, st, 4)), st) ++

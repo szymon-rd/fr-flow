@@ -1,7 +1,6 @@
 package frflow.cli
 
 import frflow.api.*
-import frflow.ledger.CodeProof
 import frflow.protocol.*
 
 /** A node as `show` and the review print it: what it says and why, what changed, what deciding it acts
@@ -15,7 +14,7 @@ object NodeText:
     header(d, st) ++
       (if r.state == ReviewState.Review && !d.diff.isEmpty then "" :: DiffText.lines(d.diff.copy(code = d.diff.code.filterNot(_.inFull)), st) else Nil) ++
       decision(d, st) ++
-      Lines.section("What it rests on, with the reasons: does it meet a condition they set for revisiting them?",
+      Lines.section("What it rests on, with the reasons",
         d.above.filter(_ => r.state == ReviewState.Proposed).filter(_.review.reasonNow.isDefined)
           .flatMap(a => Lines.para(s"${a.id}: ${a.review.reasonNow.getOrElse("")}", st)), st) ++
       Lines.section("Idea (what it is decided against)", (n.content.text("idea").linesIterator.toList ++
@@ -65,9 +64,7 @@ object NodeText:
       v.waitsFor.map(w => st.yellow(s"decide $w first: what rests on it is decided after it")).toList ++
         (if v.mechanical then List(st.green("mechanical: Lean proves it again and nothing in it is a choice (confirm decides the batch)"))
          else v.notMechanical.filter(_ => r.state == ReviewState.Review).map(st.dim).toList) ++
-        (v.unproven ++ Option.when(v.sameAs.nonEmpty)(s"its spec says formally what ${v.sameAs.mkString(", ")} says: its statement must not claim more"))
-          .map(u => st.red(s"note: $u")) ++
-        v.resembles.map(x => st.yellow(s"it says what ${x.id} said, which was rejected: ${x.reason}")) ++
+        v.unproven.map(u => st.red(s"note: $u")) ++
         Option.when(d.rivals.exists(_.state != ReviewState.Rejected))(
           s"accepting it rejects ${d.rivals.filter(_.state != ReviewState.Rejected).map(_.id).mkString(", ")} (its alternatives), with your reason").toList ++
         v.rejectedBeside.filter(_ => r.state == ReviewState.Proposed).map(x => st.dim(s"rejected here before: ${x.id}: ${x.statement} — because ${x.reason}")) ++
@@ -88,27 +85,26 @@ object NodeText:
         else s"keeps ${i.id} (${i.status}), showing the rule:" :: i.view.linesIterator.map("  " + _).toList) ++
       Option.when(n.covers.nonEmpty)(s"kept by ${n.covers.mkString(", ")}").toList ++
       Option.when(n.exempts.nonEmpty)(s"exempt: ${n.exempts.mkString(", ")}").toList ++
-      n.expectations.flatMap(e => s"expects (${e.status}): ${e.statement}" :: e.source.linesIterator.map("  " + _).toList) ++
-      n.limits.map(l => s"does not promise: $l")
+      n.expectations.flatMap(e => s"expects (${e.status}): ${e.statement}" :: e.source.linesIterator.map("  " + _).toList)
 
   /** How it serves a parent: needed there or not, and with which co-parts. */
   private def partOf(p: Reviewed, r: Reviewed, st: Style): String =
     val need = p.node.split.flatMap(_.needed.find(_.id == r.id))
     val co = p.node.parts.filter(_ != r.id)
     st.dim(s" — ${if co.isEmpty then "its only part" else s"with ${co.mkString(", ")}, together they make it"}") +
-      need.filter(_.status == ObligationStatus.NotNeeded).fold("")(x => st.red(s"; not needed: ${x.detail}"))
+      need.filter(_.status == ObligationStatus.Shown).fold("")(x => st.red(s"; not needed: ${x.detail}"))
 
   private def parts(d: NodeDetails, st: Style): List[String] =
     val sp = d.node.node.split
     d.parts.map { p =>
       val need = sp.flatMap(_.needed.find(_.id == p.id))
-      Lines.node(p, st, extra = need.fold("")(x => "  " + (if x.status == ObligationStatus.NotNeeded then st.red(s"not needed: ${x.detail}") else st.dim(x.status.toString))))
+      Lines.node(p, st, extra = need.fold("")(x => "  " + (if x.status == ObligationStatus.Shown then st.red(s"not needed: ${x.detail}") else st.dim("needed"))))
     } ++ sp.map(s => s"clash: ${outcome(s.clash, st)}").toList
 
   def outcome(o: Outcome, st: Style): String =
     val text = s"${o.status}${if o.detail.isEmpty then "" else s": ${o.detail.linesIterator.nextOption().getOrElse("")}"}"
-    if o.status == ObligationStatus.Proven || o.status.fine then st.green(text)
-    else if o.status == ObligationStatus.Informal || o.status == ObligationStatus.Unchecked then st.dim(text)
+    if o.status.fine then st.green(text)
+    else if o.status == ObligationStatus.Unchecked then st.dim(text)
     else st.red(text)
 
   /** Every obligation and try with its status, in honest words. */
@@ -119,7 +115,7 @@ object NodeText:
     split ++ n.implementationProof.map(p => s"impl (${p.name}): ${outcome(Outcome(p.status, p.detail), st)}") ++
       n.rootImpl.map(o => s"root_impl: ${outcome(o, st)}") ++
       n.idle.map(i => st.red(s"idle: Lean shows doing nothing meets it ($i): say what users can do")) ++
-      n.status.filter(s => s != CheckStatus.Proven && s != CheckStatus.Informal).map(s => st.yellow(s"check: $s"))
+      n.status.filter(_ != CheckStatus.Proven).map(s => st.yellow(s"check: $s"))
 
   private def examplesTitle(n: SnapNode): String =
     val (ok, total) = n.examplesPassing
@@ -135,7 +131,7 @@ object NodeText:
 
   private def example(e: ExampleView, st: Style): String =
     val mark = if e.passes then st.glyph(Glyph.Proven) else st.glyph(Glyph.Failed)
-    val verdict = if e.passes then "" else st.red(s"  contract: ${e.contract}${e.implementation.filter(_ != "ok").fold("")(i => s", implementation: $i")}")
+    val verdict = if e.passes then "" else st.red(s"  contract: ${e.fails.getOrElse("ok")}${e.codeFails.fold("")(i => s", implementation: $i")}")
     val lean = e.lean.fold("")(o => if o.status == ObligationStatus.Proven then st.dim("  Lean agrees")
       else if o.status == ObligationStatus.Failed then st.red(s"  Lean disagrees: ${o.detail}") else st.dim(s"  ${o.status} in Lean"))
     s"$mark ${if e.expected then "expect" else "reject"} ${e.call}  ${st.dim(s"— ${e.note}")}$verdict$lean"

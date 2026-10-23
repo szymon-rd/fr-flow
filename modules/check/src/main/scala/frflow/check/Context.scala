@@ -1,8 +1,8 @@
 package frflow
 package check
 
-import frflow.ledger.Decisions
-import frflow.protocol.{NodeKind as _, *}
+import frflow.ledger.Idea
+import frflow.protocol.*
 
 /** Everything known about a node (docs/DAG.md §7): its idea section, the vocabulary it uses (terms,
   * meanings, definitions in force), the nodes above it with their reasons, the co-parts under each
@@ -32,16 +32,16 @@ object Context:
     private val kb = a.kb
     private val g = a.generate
     private val l = a.ledger
-    private val st: Map[String, String] = a.annotated.nodes.map(r => r.id.value -> r.state.toString).toMap
-    private def state(x: Node[?]) = st.getOrElse(x.id, "?")
-    private def kind(x: Node[?]) = Analysis.shownKind(x)
+    private val st: Map[String, ReviewState] = a.annotated.nodes.map(r => r.id.value -> r.state).toMap
+    private def state(x: Node[?]) = st.get(x.id).fold("?")(_.toString)
+    private def kind(x: Node[?]) = x.shownKind
     private def id(x: Node[?]) = NodeId(x.id)
     private def lines(xs: List[String]): String = xs.map(_ + "\n").mkString
     private def code(label: String, lang: String, src: String) = s"$label```$lang\n$src\n```\n"
 
     def idea: Section =
       val section = (n :: kb.ancestors(n)).find(_.ideaSection.trim.nonEmpty)
-      val text = Decisions.ideaSections(a.ideaDecided)._1 + section.fold("")(s => "\n\n" + a.ideaOf(s)) +
+      val text = Idea.sections(a.ideaDecided)._1 + section.fold("")(s => "\n\n" + a.ideaOf(s)) +
         (if a.notModelled.nonEmpty then s"\n\n## Not modelled\n\n${a.notModelled}" else "")
       Section(s"Idea (${section.fold("its purpose")(s => s"the section ${s.ideaSection}")})", s"${text.trim}\n\n")
 
@@ -78,9 +78,8 @@ object Context:
         x.post.map(p => code(s"post (of every call of ${x.op.fold("")(_.name)}):\n", "scala", p.source)).mkString +
         x.rule.map(r => code("rule:\n", "scala", r.source)).mkString +
         lines(x.substs.map(s => s"- `${s.name} := ${s.term.fold(s.lean)(_.source)}`") ++
-          kb.limits(x).map(w => s"- does not promise: $w") ++
-          (if a.isRoot(x) then a.idleOf(x).map(w => s"- doing nothing meets it ($w): it says only what must not happen; state what users can do").toList else Nil) ++
-          kb.exampleResults(x).map(r => s"- example: ${r.example.describe} [${r.verdict}]") ++
+          (if kb.isRoot(x) then a.idleOf(x).map(w => s"- doing nothing meets it ($w): it says only what must not happen; state what users can do").toList else Nil) ++
+          a.examples(x).map(r => s"- example: ${r.example.describe} [${r.verdict}]") ++
           a.code(x).map(c => s"- governs: ${c.files.mkString(", ")}")) +
         a.content(x).str("implementation").map(i => code("implementation:\n", "scala", i)).mkString + "\n"
 
@@ -136,7 +135,7 @@ object Context:
         }.mkString
       val self = if cs.contains(Cause.Self) then l.binding(id(n)).map(d => s"- ${n.id} itself changed:\n${fields(d.content, me.node.content)}").mkString else ""
       val meaning = me.review.moved.map(m => s"- the meaning of ${m.id} changed:\n${fields(m.before, a.annotated.byId.get(m.id).fold(Content.empty)(_.node.content))}").mkString
-      val rejected = kb.parentsOf(n).filter(p => st.get(p.id).contains("rejected")).map(p => s"- its parent ${p.id} was rejected: move it under the node chosen instead\n").mkString
+      val rejected = kb.parentsOf(n).filter(p => st.get(p.id).contains(ReviewState.Rejected)).map(p => s"- its parent ${p.id} was rejected: move it under the node chosen instead\n").mkString
       val revisit = if cs.contains(Cause.Revisit) then l.current(id(n)).filter(_.action == Action.Revisit).map(r => s"- ${r.by} asked to revisit it: ${r.reason}\n").mkString else ""
       val code = if !cs.contains(Cause.Code) then ""
         else if codeDiff.nonEmpty then s"- the code it governs changed:\n```diff\n$codeDiff```\n" else "- the code it governs changed (no git diff available)\n"
@@ -144,7 +143,7 @@ object Context:
     }
 
     def obligations: List[Section] = g.obligations(n).map { o =>
-      val stl = a.current(n).flatMap(_.result(o.name.lean)).fold("not checked")(r => s"${r.status}${r.detail.linesIterator.nextOption().fold("")(d => s" ($d)")}")
+      val stl = a.current(n).flatMap(_.result(o.name)).fold("not checked")(r => s"${r.status}${r.detail.linesIterator.nextOption().fold("")(d => s" ($d)")}")
       Section(s"Obligation ${o.name} of ${n.id} [$stl]", s"${o.description}\n\n```lean\n${o.statement}\n```\n\n")
     }
 

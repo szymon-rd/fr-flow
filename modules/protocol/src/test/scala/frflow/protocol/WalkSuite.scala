@@ -1,4 +1,4 @@
-package frflow
+package frflow.protocol
 
 /** The graph walks, on a small graph with a diamond and a cycle. */
 class WalkSuite extends munit.FunSuite:

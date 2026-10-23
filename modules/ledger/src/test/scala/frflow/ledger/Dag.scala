@@ -3,6 +3,7 @@ package ledger
 
 import frflow.protocol.*
 import io.circe.Json
+import java.time.Instant
 
 /** Snapshots written by hand, for the pure tests: a root `R`, its part `A`, and `A`'s part `B`. */
 object Dag:
@@ -33,15 +34,18 @@ object Dag:
 
   def id(s: String): NodeId = NodeId(s)
   def ids(xs: String*): List[NodeId] = xs.map(NodeId(_)).toList
-  def stamp(i: Int): Stamp = Stamp(f"2026-01-01T00:00:$i%02dZ")
+  def stamp(i: Int): Stamp = Stamp(Instant.parse(f"2026-01-01T00:00:$i%02dZ"))
 
-  def req(node: String, reason: String = "", reject: List[String] = Nil, revisit: List[String] = Nil,
-      confirm: List[String] = Nil, by: String = "dev", action: Action = Action.Accept, seen: Option[String] = None) =
-    DecisionRequest(NodeId(node), by, if reason.isEmpty then s"$node holds for this reason" else reason, ids(reject*),
-      ids(revisit*), ids(confirm*), action, seen)
+  /** Accepting `node`, for a reason of its own unless one is given. */
+  def accept(node: String, reason: String = "", revisit: List[String] = Nil, seen: Option[String] = None): Decide =
+    Decide.Accept(ids(node), if reason.isEmpty then s"$node holds for this reason" else reason, ids(revisit*), seen.map(id(node) -> _).toMap)
+
+  /** `l` with R accepted as it is in `s`, and nothing else decided again. */
+  def onlyRoot(s: Snapshot, l: Ledger): Ledger =
+    l.add(id("R"), Decision(Action.Accept, "dev", stamp(30).at, "R holds for this reason", content = s.nodes.find(_.id == id("R")).fold(Content.empty)(_.content)))
 
   def right[A](e: Either[Refusal, A]): A = e.fold(r => throw AssertionError(r.message), identity)
 
   /** Every node of `s` accepted, in order. */
   def acceptAll(s: Snapshot, from: Ledger = Ledger.empty, start: Int = 1): Ledger =
-    Decisions.order(s).zipWithIndex.foldLeft(from)((l, x) => right(Decide(s, l, req(x._1.value), stamp(start + x._2))))
+    Graph(s).order.zipWithIndex.foldLeft(from)((l, x) => right(Decide(s, l, accept(x._1.value), "dev", stamp(start + x._2))))

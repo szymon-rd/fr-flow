@@ -5,7 +5,7 @@ import cats.effect.IO
 import cats.syntax.all.*
 import frflow.ledger.*
 import frflow.fixtures.*
-import frflow.protocol.{NodeKind as _, *}
+import frflow.protocol.*
 import java.nio.file.{Files, Path}
 
 /** What the checker reads of a workspace on disk, and what deciding writes there. */
@@ -17,10 +17,11 @@ class WorkspaceSuite extends munit.CatsEffectSuite:
     ws
   }
   private def write(p: Path, text: String): IO[Unit] = IO.blocking(Files.writeString(p, text)).void
-  private def accept(w: Workflow, n: Node[?], reason: String): IO[Unit] =
-    w.decide(Desk.req(n.id, reason)).flatMap(r => IO.fromEither(r.leftMap(e => AssertionError(e.message))))
-  private def acceptAll(w: Workflow): IO[Unit] = w.kb.ordered.traverse_(n => accept(w, n, s"${n.id} is right"))
-  private def causes(w: Workflow, id: String): IO[List[String]] =
+  private def accept(w: OnDisk, n: Node[?], reason: String): IO[Unit] =
+    w.decide(Decide.Accept(List(NodeId(n.id)), reason)).flatMap(r => IO.fromEither(r.leftMap(e => AssertionError(e.message))))
+  private def acceptAll(w: OnDisk): IO[Unit] = w.kb.ordered.traverse_(n => accept(w, n, s"${n.id} is right"))
+  private def state(a: Analysis, n: Node[?]) = a.annotated.byId(NodeId(n.id)).state
+  private def causes(w: OnDisk, id: String): IO[List[String]] =
     w.analysis.map(_.annotated.byId(NodeId(id)).review.causes.map(_.toString))
 
   test("a change to the implementation's code shows on its contract") {
@@ -29,14 +30,14 @@ class WorkspaceSuite extends munit.CatsEffectSuite:
       impl <- IO.blocking(Files.createTempDirectory("impl").resolve("Impl.scala"))
       _ <- write(impl, "class Impl")
       kb = shelfKb.withImplementation(Implementation("Pick", () => (s: List[Book], n: Int) => s.filter(_.pages >= 100), List(impl.toString, "Model.scala")))
-      w <- Workflow(kb, ws)
+      w <- OnDisk(kb, ws)
       _ <- acceptAll(w)
-      _ <- w.analysis.map(a => assertEquals(a.state(pick), ReviewState.Accepted))
+      _ <- w.analysis.map(a => assertEquals(state(a, pick), ReviewState.Accepted))
       _ <- write(impl, "class Impl // faster")
       _ <- causes(w, "Pick").assertEquals(List("code"))
-      _ <- w.status.map(s => assert(!s.ok))
+      _ <- w.analysis.map(a => assert(!OnDisk.ok(a)))
       _ <- accept(w, pick, "Same behaviour; examples pass.")
-      _ <- w.analysis.map(a => assertEquals(a.state(pick), ReviewState.Accepted))
+      _ <- w.analysis.map(a => assertEquals(state(a, pick), ReviewState.Accepted))
     yield ()
   }
 
@@ -45,7 +46,7 @@ class WorkspaceSuite extends munit.CatsEffectSuite:
     for
       ws <- workspace
       _ <- write(ws.root.resolve("Store.scala"), "object Store")
-      w <- Workflow(shelfWith(pick, cache), ws)
+      w <- OnDisk(shelfWith(pick, cache), ws)
       _ = assertEquals(w.kb.problems, Nil)
       _ <- acceptAll(w)
       node <- w.analysis.map(_.annotated.byId(NodeId("Cache")).node)
@@ -62,24 +63,25 @@ class WorkspaceSuite extends munit.CatsEffectSuite:
     for
       ws <- workspace
       _ <- write(ws.root.resolve("Store.scala"), "object Store")
-      w <- Workflow(shelfWith(pick, one, two), ws)
+      w <- OnDisk(shelfWith(pick, one, two), ws)
       warnings <- w.analysis.map(Governance.codeWarnings)
     yield
       assert(warnings.contains("Two governs Cache.scala, which does not exist"), warnings)
       assert(warnings.contains("Store.scala is governed by One and Two: give it one owner"), warnings)
   }
 
-  test("source files no node governs are found outside src/main too; tests are not production code") {
+  test("source files no node governs are found under src/main and in what the build compiles; tests are not production code") {
     for
       ws <- workspace
+      _ <- IO.blocking(Files.createDirectories(ws.root.resolve("src/main/scala")))
+      _ <- write(ws.root.resolve("src/main/scala/Leak.scala"), "object Leak")
       _ <- IO.blocking(Files.createDirectories(ws.root.resolve("src/fast/scala")))
-      _ <- write(ws.root.resolve("src/fast/scala/Leak.scala"), "object Leak")
+      _ <- write(ws.root.resolve("src/fast/scala/Fast.scala"), "object Fast")
       _ <- IO.blocking(Files.createDirectories(ws.root.resolve("src/test/scala")))
       _ <- write(ws.root.resolve("src/test/scala/T.scala"), "object T")
-      u <- Workflow(shelfKb, ws).flatMap(_.analysis).map(Governance.ungoverned)
-    yield
-      assert(u.contains("src/fast/scala/Leak.scala"), u)
-      assert(!u.exists(_.contains("src/test")), u)
+      cfg <- Config.load.map(_.copy(sources = List(ws.root.resolve("src/fast/scala/Fast.scala"))))
+      u <- Inputs.read(shelfKb, ws, cfg, IO.pure(Ledger.empty)).map(in => Governance.ungoverned(Analysis(shelfKb, ws, in)))
+    yield assertEquals(u, List("src/fast/scala/Fast.scala", "src/main/scala/Leak.scala"))
   }
 
   test("a proof file of no node is warned of") {
@@ -87,31 +89,30 @@ class WorkspaceSuite extends munit.CatsEffectSuite:
       ws <- workspace
       _ <- IO.blocking(Files.createDirectories(ws.lean.resolve("Proofs/Shelf")))
       _ <- write(ws.lean.resolve("Proofs/Shelf/Gone.lean"), "-- proofs of a node renamed\n")
-      warnings <- Workflow(shelfKb, ws).flatMap(_.analysis).map(Governance.codeWarnings)
+      warnings <- OnDisk(shelfKb, ws).flatMap(_.analysis).map(Governance.codeWarnings)
     yield assert(warnings.exists(_.startsWith("lean/Proofs/Shelf/Gone.lean is the proof file of no node")), warnings)
   }
 
   test("decisions are written to the ledger, compactly; with no developer key, status fails whatever the ledger says") {
     for
       ws <- workspace
-      w <- Workflow(shelfKb, ws)
+      w <- OnDisk(shelfKb, ws)
       _ <- acceptAll(w)
       a <- w.analysis
       text <- IO.blocking(Files.readString(ws.ledgerFile))
-      s <- w.status
     yield
       assertEquals(io.circe.parser.decode[Ledger](text), Right(a.ledger))
-      assert(a.kb.nodes.forall(a.state(_) == ReviewState.Accepted))
-      assert(s.warnings.exists(_.startsWith("no developer key")), s.warnings)
-      assert(!s.ok)
+      assert(a.kb.nodes.forall(state(a, _) == ReviewState.Accepted))
+      assert(a.warnings.exists(_.startsWith("no developer key")), a.warnings)
+      assert(!OnDisk.ok(a))
   }
 
   test("the snapshot written is the analysis's") {
     for
       ws <- workspace
-      w <- Workflow(callsKb, ws)
+      w <- OnDisk(callsKb, ws)
       a <- w.analysis
-      file <- w.writeSnapshot(a)
+      file <- CheckRunner.writeSnapshot(a)
       text <- IO.blocking(Files.readString(file))
     yield assertEquals(io.circe.parser.decode[Snapshot](text).map(_.nodes.map(_.id)), Right(a.snapshot.nodes.map(_.id)))
   }

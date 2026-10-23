@@ -29,11 +29,11 @@ object DiffText:
   def fields(fs: List[FieldChange], st: Style): List[String] =
     fs.flatMap(f => st.bold(f.field) :: f.lines.map(l => "  " + line(l, st)))
 
-  private def line(l: DiffLine, st: Style): String = l.op match
-    case DiffOp.Same    => st.dim(s"  ${l.text}")
-    case DiffOp.Added   => st.green(s"+ ${l.text}")
-    case DiffOp.Removed => st.red(s"- ${l.text}")
-    case DiffOp.Folded  => st.dim(s"${st.ellipsis} ${l.text} unchanged line(s)")
+  private def line(l: DiffLine, st: Style): String = l match
+    case DiffLine.Same(t)    => st.dim(s"  $t")
+    case DiffLine.Added(t)   => st.green(s"+ $t")
+    case DiffLine.Removed(t) => st.red(s"- $t")
+    case DiffLine.Folded(n)  => st.dim(s"${st.ellipsis} $n unchanged line(s)")
 
   def code(c: CodeChange, st: Style): List[String] =
     val what = if c.inFull then s"the files it governs, in full: read them before accepting (${c.files.mkString(", ")})"
@@ -58,7 +58,7 @@ object Words:
     case Action.Remove  => "agreed gone"
 
   /** An instant as people read it: `2026-10-23 01:42`. */
-  def date(at: String): String = at.take(16).replace('T', ' ')
+  def date(at: java.time.Instant): String = at.toString.take(16).replace('T', ' ')
 
   val causes: Map[Cause, String] = Map(
     Cause.Self -> "it changed",

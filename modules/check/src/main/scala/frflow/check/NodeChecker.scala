@@ -4,9 +4,9 @@ package check
 import cats.data.EitherT
 import cats.effect.IO
 import cats.syntax.all.*
-import frflow.lean.{Elaboration, ObligationName}
-import frflow.lean.ObligationName.{Complete, Impl}
-import frflow.protocol.{NodeKind as _, *}
+import frflow.lean.Elaboration
+import frflow.protocol.*
+import frflow.protocol.ObligationName.{Complete, Impl}
 
 /** Checks one node against Lean. Each step runs Lean (IO), then a pure judge (`Verdict`) says whether the
   * check ends there, and how: a `Left` is the final verdict.
@@ -21,7 +21,7 @@ final class NodeChecker(a: Analysis, lake: Lake, prebuilt: Set[String]):
   private def stop(j: Option[Judged]): Step[Unit] = EitherT.fromEither(j.toLeft(()))
   private def build(target: String): IO[Run] = if prebuilt(target) then IO.pure(Run.built) else lake.build(target)
   private def elaborate(rel: String, src: String): IO[Elaborated] = lake.elaborate(rel).map(r => Elaborated(r, Elaboration(src, r.output, rel)))
-  private def generated(rel: String): IO[Elaborated] = elaborate(rel, a.generated(rel))
+  private def generated(rel: String): IO[Elaborated] = elaborate(rel, a.files.getOrElse(rel, ""))
   private def state(n: Node[?], o: ObligationName): IO[Option[String]] = ProofState.of(lake, g, n, o)
 
   /** The check of `n`, given the status of its parts' checks. */
@@ -38,7 +38,7 @@ final class NodeChecker(a: Analysis, lake: Lake, prebuilt: Set[String]):
 
   // Lemmas shared by the proof files: the same filter, built.
   private def lemmas(proof: String): Step[Unit] =
-    EitherT.fromEither[IO](Verdict.lemmas(g, proof, a.lemmas)).flatMap { needed =>
+    EitherT.fromEither[IO](Verdict.lemmas(g, proof, a.inputs.proofs.get("Lemmas"))).flatMap { needed =>
       if !needed then EitherT.pure(()) else lift(lake.build(g.layout.lemmas.name)).flatMap(r => stop(Verdict.lemmasBuilt(g, r)))
     }
 
@@ -61,32 +61,31 @@ final class NodeChecker(a: Analysis, lake: Lake, prebuilt: Set[String]):
       _ <- proofFile(n, proof, results)
       checks <- lift(generated(g.layout.checks(n.id).path))
       _ <- stop(Verdict.checksRan(results, checks.run))
-      root <- lift(g.rootImpl.filter(_ => a.isRoot(n)).traverse(_ => generated(g.layout.rootImpl.path)))
+      root <- lift(g.rootImpl.filter(_ => a.kb.isRoot(n)).traverse(_ => generated(g.layout.rootImpl.path)))
     yield Verdict.finish(a, n, results, impl, checks, root)
 
   // Built already (with its level), automatic `complete` is proven without elaborating it again. Automation is
   // tried only while no proof file proves it: what to do next comes first.
   private def complete(n: Node[?]): IO[List[Result]] =
-    val authored = a.authored(n.id)
+    val authored = g.isAuthored(n, Complete)
     g.obligation(n, Complete).toList.traverse { o =>
       val prebuilt = if authored then IO.pure(false) else build(g.layout.theorems(n.id).name).map(_.ok)
       val judged =
         if authored then elaborate(g.layout.proofs(n.id).path, a.proofOf(n).getOrElse("")).map(Verdict.judge(o.name, _, true))
         else generated(g.layout.auto(n.id).path).map(Verdict.judge(o.name, _, false))
-      prebuilt.ifM(IO.pure(Result(o.name.lean, ObligationStatus.Proven, "auto")),
+      prebuilt.ifM(IO.pure(Result(o.name, ObligationStatus.Proven, "auto")),
         judged.flatMap { r =>
           if authored || r.status != ObligationStatus.Open then IO.pure(r) else state(n, Complete).map(Verdict.gaveUp(g, n, r, _))
         })
     }
 
   // Its code meets it, from what the contracts it calls promise: with the axioms its build rests on.
-  private def implementation(n: Node[?], proof: String): IO[Option[(Result, List[String])]] =
+  private def implementation(n: Node[?], proof: String): IO[Option[(Result, Option[List[String]])]] =
+    val authored = g.isAuthored(n, Impl)
     g.obligation(n, Impl).traverse { _ =>
-      if g.isAuthored(n, Impl) then
-        Verdict.implRules(proof).fold(lake.build(g.layout.impl(n.id).name).map(r => (Verdict.implAuthored(r), Verdict.implAxioms(r))))(r => IO.pure((r, Nil)))
-      else lake.build(g.layout.impl(n.id).name).flatMap { r =>
-        (if r.ok then IO.pure(None) else state(n, Impl)).map(st => (Verdict.implAuto(g, n, r, st), Verdict.implAxioms(r)))
-      }
+      Verdict.implRules(proof).filter(_ => authored).fold(lake.build(g.layout.impl(n.id).name).flatMap { r =>
+        (if r.ok || authored then IO.pure(None) else state(n, Impl)).map(Verdict.impl(g, n, authored, r, _))
+      })(r => IO.pure((r, Some(Nil))))
     }
 
   // The proof file, when it proves obligations of the Checks file: everything else imports it.

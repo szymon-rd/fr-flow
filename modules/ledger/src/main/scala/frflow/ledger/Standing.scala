@@ -47,13 +47,13 @@ object Standing:
   /** Whether what `n` rests on moved only in its words: with each formal node above it whose Lean did
     * not change (its statement reworded) taken as it was decided when `d` was, the chain is `d`'s again.
     * Rewording a formal node reviews that node only; the decisions below it are listed under it (`below`),
-    * not sent to review. A node out of Lean (`formal = false`) is its words: rewording it moves what is below.
+    * not sent to review.
     */
   private def reworded(g: Graph, ledger: Ledger, n: SnapNode, d: Decision): Boolean =
-    val rests = g.ancestry(n)
+    val rests = g.ancestry(n).toSet
     val was: Map[NodeId, Hash] = rests.toList.flatMap(a => g.byId.get(a).toList.flatMap { now =>
-      ledger.history(a).filter(x => x.action.binds && x.at <= d.at).lastOption.map(_.content)
-        .filter(c => Meaning.formalNode(now.content) && Meaning.of(c) != Meaning.of(now.content) &&
+      ledger.history(a).filter(x => x.action.binds && !x.at.isAfter(d.at)).lastOption.map(_.content)
+        .filter(c => Meaning.hasFormal(now.content) && Meaning.of(c) != Meaning.of(now.content) &&
           Meaning.formal(c) == Meaning.formal(now.content))
         .map(c => a -> Meaning.of(c))
     }).toMap

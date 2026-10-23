@@ -19,7 +19,7 @@ def module(name: String, libraries: ModuleID*) = Project(name, file(s"modules/$n
   .settings(Keys.name := s"frflow-$name", libraryDependencies ++= munit +: libraries)
 
 /** The DSL: nodes, the knowledge base, the macro from Scala to Lean, the runtime checks (package `frflow`). */
-lazy val model = module("model")
+lazy val model = module("model").dependsOn(protocol)
 
 /** The data crossing modules and files: the snapshot, the review, the ledger, checks and requests,
   * with their JSON codecs; ids and statuses as types (package `frflow.protocol`).
@@ -29,15 +29,15 @@ lazy val protocol = module("protocol", circe, circeParser % Test)
 /** The Lean of a knowledge base, and reading Lean's output. */
 lazy val lean = module("lean", cats).dependsOn(model % "compile->compile;test->test", protocol)
 
-/** The developer's decisions: review states, decide, signatures, reports; the ledger's, requests' and keys' files, git. */
+/** The developer's decisions: review states, decide, signatures, reports; the ledger's, requests' and keys' files. */
 lazy val ledger = module("ledger", cats, catsEffect, circe, circeParser, munitEffect).dependsOn(protocol)
 
-/** Rendering and checking a knowledge base against Lean; the snapshot; where it stands. */
+/** Rendering and checking a knowledge base against Lean; the snapshot; git. */
 lazy val check = module("check", (Seq(cats, catsEffect, circe, circeParser, munitEffect) ++ fs2)*)
-  .dependsOn(lean % "compile->compile;test->test", ledger, model % "test->test")
+  .dependsOn(lean % "compile->compile;test->test", ledger)
 
 /** The one API a front end calls (the CLI now, a web view later): typed values over `IO`. */
-lazy val api = module("api", cats, catsEffect, circe).dependsOn(check, ledger)
+lazy val api = module("api", cats, catsEffect, circe).dependsOn(check)
 
 /** The command line a project's main object extends (`FrFlowApp`): commands, colors, interactive review. */
 lazy val cli = module("cli", cats, catsEffect, circe, decline, munitEffect).dependsOn(api % "compile->compile;test->test")
@@ -46,7 +46,7 @@ lazy val cli = module("cli", cats, catsEffect, circe, decline, munitEffect).depe
 val cliLauncher = taskKey[File]("Writes the java command running this project's CLI, for bin/frflow")
 
 def example(name: String) = Project(name, file(s"examples/$name"))
-  .dependsOn(cli, check % Test)
+  .dependsOn(cli)
   .settings(
     libraryDependencies ++= Seq(munit, munitEffect),
     publish / skip := true,

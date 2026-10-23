@@ -1,24 +1,6 @@
 package frflow
 
-/** What a node is (see docs/DAG.md §2). */
-enum NodeKind:
-  /** A proposition over the vocabulary, in the domain's words. The one claim without parents is the
-    * root: the idea's purpose. A claim with parts is proven from them; an invariant is a claim whose
-    * parts are the contracts that keep it.
-    */
-  case Claim
-  /** Every call of an operation meets a post; code attached to the operation is proven or checked
-    * against it.
-    */
-  case Contract
-  /** Trusted, not proven: what the outside does on an operation (a database, a clock), or a fact of
-    * the world. A hypothesis of `root_impl`.
-    */
-  case Assumption
-  /** Fixes terms of the vocabulary (a type, a term by an expression); decided, not proven. */
-  case Definition
-  /** Governs code no proof covers (an architecture choice, a convention); decided and tracked. */
-  case Design
+import frflow.protocol.NodeKind
 
 /** How a node stands to an invariant: kept, through a view of each call, or exempt. */
 final case class Keep(invariant: Node[?], view: Option[Lifted[?]], exempt: String = ""):
@@ -36,7 +18,7 @@ final case class Keep(invariant: Node[?], view: Option[Lifted[?]], exempt: Strin
     }
 
 /** A node of the knowledge base: one statement, in the developer's domain words, decided by the
-  * developer and (when formal) proven in Lean from its parts. `M` is the operation's type for a
+  * developer and proven in Lean from its parts. `M` is the operation's type for a
   * contract or an assumption on an operation (so examples and checks are typed), the rule's type for an
   * invariant, `Unit` otherwise.
   *
@@ -60,7 +42,6 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
     val substs: List[Subst] = Nil,
     val cases: List[Example] = Nil,
     val governs: List[String] = Nil,
-    val declaredFormal: Boolean = true,
     val kept: List[Keep] = Nil,
     val scope: List[Node[?]] = Nil,
     val ideaSection: String = "",
@@ -75,19 +56,13 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
 
   /** A cross-cutting rule (`Node.invariant`): a claim whose parts are the contracts that keep it. */
   def isInvariant: Boolean = rule.isDefined
-
-  /** Whether Lean checks this node (`formal = false` opts out: decided by reading). */
-  def formal: Boolean = declaredFormal
+  /** As people read its kind: an invariant is a claim with a rule. */
+  def shownKind: String = kind.shown(isInvariant)
 
   /** The terms a definition fixes. */
   def defines: List[String] = substs.map(_.name)
 
-  /** The parts translated to Lean; none when the node is out of Lean. */
-  def lifted: List[Lifted[?]] = if !formal then Nil else referenced
-
-  /** The node's lambdas, translated or not: what it refers to (definitions, parameters, opaque types)
-    * is known either way, so a change to them reaches it.
-    */
+  /** The node's lambdas, translated to Lean. */
   def referenced: List[Lifted[?]] = formula.toList ++ post.toList ++ rule.toList ++ local.toList ++ substs.flatMap(_.term) ++
     kept.flatMap(_.view) ++ expected.map(_._2)
 
@@ -109,11 +84,11 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
     * proves it from the node's claim): "Acme never sees Globex's unshared contact".
     */
   inline def expects(statement: String)(inline consequence: Boolean): Node[M] =
-    copy(expected = expected :+ (statement -> Lifted.of(true, () => consequence)))
+    copy(expected = expected :+ (statement -> Lifted(() => consequence)))
 
   private[frflow] def copy(declaredParents: List[Node[?]] = declaredParents, cases: List[Example] = cases, kept: List[Keep] = kept,
       expected: List[(String, Lifted[?])] = expected, local: Option[Lifted[?]] = local, replaced: Option[Node[?]] = replaced): Node[M] =
-    Node(id, statement, why, kind, declaredParents, formula, post, op, rule, substs, cases, governs, declaredFormal, kept, scope, ideaSection,
+    Node(id, statement, why, kind, declaredParents, formula, post, op, rule, substs, cases, governs, kept, scope, ideaSection,
       file, expected, at, local, replaced)
 
   private[frflow] def withExamples(es: List[Example]): Node[M] = copy(cases = cases ++ es)
@@ -136,21 +111,19 @@ object Node:
     * stated as *exactly* (what users can do and what must never happen), so that doing nothing does not
     * meet it. `idea` names the section of IDEA.md it is decided against.
     */
-  inline def claim(id: String, statement: String, why: String, idea: String = "", inline formal: Boolean = true)(
-      inline formula: Boolean): Node[Unit] =
+  inline def claim(id: String, statement: String, why: String, idea: String = "")(inline formula: Boolean): Node[Unit] =
     def node(): Node[Unit] =
-      Node(id, statement, why, NodeKind.Claim, formula = Some(Lifted.of(formal, () => formula)), declaredFormal = formal, ideaSection = idea,
+      Node(id, statement, why, NodeKind.Claim, formula = Some(Lifted(() => formula)), ideaSection = idea,
         file = Lifted.here, at = Lifted.at)
     node()
 
   /** A contract on an operation: every call `op(a, b)` meets `post(a, b, op(a, b))`. Code attached to the
     * operation (`KnowledgeBase.implementProven`, `implement`) is proven or checked against it.
     */
-  inline def contract[A, B, R](op: Param[(A, B) => R])(id: String, statement: String, why: String, idea: String = "",
-      inline formal: Boolean = true)(inline post: (A, B, R) => Boolean): Node[(A, B) => R] =
+  inline def contract[A, B, R](op: Param[(A, B) => R])(id: String, statement: String, why: String, idea: String = "")(
+      inline post: (A, B, R) => Boolean): Node[(A, B) => R] =
     def node(): Node[(A, B) => R] =
-      Node(id, statement, why, NodeKind.Contract, post = Some(Lifted.of(formal, post)), op = Some(op), declaredFormal = formal,
-        ideaSection = idea, file = Lifted.here, at = Lifted.at)
+      Node(id, statement, why, NodeKind.Contract, post = Some(Lifted(post)), op = Some(op), ideaSection = idea, file = Lifted.here, at = Lifted.at)
     node()
 
   /** What the outside is trusted to do on an operation (a database, an HTTP service, the clock): not
@@ -164,7 +137,7 @@ object Node:
     */
   inline def assumption(id: String, statement: String, why: String, idea: String = "")(inline formula: Boolean): Node[Unit] =
     def node(): Node[Unit] =
-      Node(id, statement, why, NodeKind.Assumption, formula = Some(Lifted.of(true, () => formula)), ideaSection = idea,
+      Node(id, statement, why, NodeKind.Assumption, formula = Some(Lifted(() => formula)), ideaSection = idea,
         file = Lifted.here, at = Lifted.at)
     node()
 
@@ -181,10 +154,10 @@ object Node:
     * (`keeps`); every contract below the `scope` nodes (anywhere, when none are given) whose result can
     * hold what the rule is about keeps it or is `exempt`.
     */
-  inline def invariant[A, B](id: String, statement: String, why: String, scope: List[Node[?]] = Nil, idea: String = "",
-      inline formal: Boolean = true)(inline rule: (A, B) => Boolean): Node[(A, B) => Boolean] =
+  inline def invariant[A, B](id: String, statement: String, why: String, scope: List[Node[?]] = Nil, idea: String = "")(
+      inline rule: (A, B) => Boolean): Node[(A, B) => Boolean] =
     def node(): Node[(A, B) => Boolean] =
-      Node(id, statement, why, NodeKind.Claim, rule = Some(Lifted.of(formal, rule)), declaredFormal = formal, scope = scope, ideaSection = idea,
+      Node(id, statement, why, NodeKind.Claim, rule = Some(Lifted(rule)), scope = scope, ideaSection = idea,
         file = Lifted.here, at = Lifted.at)
     node()
 
@@ -203,7 +176,7 @@ final class AssumptionOn[A, B, R](val op: Param[(A, B) => R]):
   inline def apply(id: String, statement: String, why: String, idea: String = "")(
       inline post: (A, B, R) => Boolean): Node[(A, B) => R] =
     def node(): Node[(A, B) => R] =
-      Node(id, statement, why, NodeKind.Assumption, post = Some(Lifted.of(true, post)), op = Some(op), ideaSection = idea,
+      Node(id, statement, why, NodeKind.Assumption, post = Some(Lifted(post)), op = Some(op), ideaSection = idea,
         file = Lifted.here, at = Lifted.at)
     node()
 
@@ -214,16 +187,15 @@ extension [A, B, R](n: Node[(A, B) => R])
     * post implies it, so it refuses nothing the contract allows; what it leaves out (that nothing is
     * missing) rests on the proofs, and on the assumption's promise.
     */
-  inline def checkedBy(inline check: (A, B, R) => Boolean): Node[(A, B) => R] = n.withLocal(Lifted.of(true, check))
+  inline def checkedBy(inline check: (A, B, R) => Boolean): Node[(A, B) => R] = n.withLocal(Lifted(check))
 
   /** This contract keeps an invariant: `view(a, b, result)` lists the pairs the call exposes to it
     * (such as `result.map(r => (reader, r))`), and the invariant's rule holds for each. It makes the
     * contract a part of the invariant; it is also checked on the examples and at run time.
     */
-  inline def keeps[X, Y](invariant: Node[(X, Y) => Boolean], inline formal: Boolean = true)(
-      inline view: (A, B, R) => List[(X, Y)]): Node[(A, B) => R] =
+  inline def keeps[X, Y](invariant: Node[(X, Y) => Boolean])(inline view: (A, B, R) => List[(X, Y)]): Node[(A, B) => R] =
     require(invariant != null, s"${n.id} keeps an invariant declared after it: declare the invariant first")
-    n.withKeeps(n.kept :+ Keep(invariant, Some(Lifted.of(formal, view))))
+    n.withKeeps(n.kept :+ Keep(invariant, Some(Lifted(view))))
 
   /** Concrete cases of the contract, under the given parameter values. They show what
     * the contract means, and they fail when it is vacuous, too weak, or when the

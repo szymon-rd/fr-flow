@@ -2,9 +2,15 @@ package frflow.api
 
 import cats.effect.IO
 import frflow.check.Context
-import frflow.ledger.{Find, Found, Refusal}
 import frflow.protocol.*
 import scala.util.control.NoStackTrace
+
+// The ledger's types a front end reads, so it imports only this package and the protocol's.
+export frflow.ledger.{CodeProof, Decide, ForAgent, Found, Mention, Mentioned, Refusal}
+
+/** Where a change belongs, in a view (see the ledger's `Find`). */
+object Find:
+  def apply(v: View, query: String): Found = frflow.ledger.Find(v.annotated, query)
 
 /** What fails a command (refusals a user reads are `Refusal`s instead): mapped once, at each front end. */
 enum FrFlowError(val message: String) extends Exception(message) with NoStackTrace:
@@ -22,16 +28,12 @@ trait FrFlowApi:
   /** The snapshot with the developer's decisions, the requests, what is not signed, the warnings. */
   def view: IO[View]
   /** How the code a node governs changed since it was decided; never decided, the files in full. */
-  def codeChange(node: Reviewed): IO[Option[CodeChange]]
-  /** Every decision, newest first. */
-  def history: IO[List[Logged]]
+  protected def codeChange(node: Reviewed): IO[Option[CodeChange]]
 
   /** The decisions `d` would record, without recording them. */
   def preview(d: Decide, by: Developer): IO[Either[Refusal, Decided]]
   /** Records `d`, signed with the developer's key (its public key filed in `.frflow/keys` on first use). */
   def decide(d: Decide, by: Developer): IO[Either[Refusal, Decided]]
-  /** Signs decisions not signed by a developer key (all, or the entries named): the developer vouches for them. */
-  def sign(entries: Option[Set[EntryRef]], by: Developer): IO[Either[Refusal, List[Unsigned]]]
   /** Who decides: `as`, else `FRFLOW_AS`, else the name the developer's key is filed under. */
   def developer(as: Option[String]): IO[Either[Refusal, Developer]]
 
@@ -51,10 +53,10 @@ trait FrFlowApi:
   def scaffold(node: NodeId): IO[Scaffolded]
 
   def tree(from: Option[NodeId]): IO[Tree] =
-    view.flatMap(v => IO.fromEither(Trees.of(v, from).left.map(_ => FrFlowError.UnknownNode(from.fold("")(_.value)))))
+    view.flatMap(v => IO.fromEither(Trees.of(v, from, Overview.of(v)).left.map(_ => FrFlowError.UnknownNode(from.fold("")(_.value)))))
   def overview: IO[Overview] = view.map(Overview.of)
   def inbox: IO[Inbox] = view.map(Inbox.of)
-  def find(query: String): IO[Found] = view.map(v => Find(v.annotated, query))
+  def find(query: String): IO[Found] = view.map(Find(_, query))
 
   def details(id: NodeId): IO[NodeDetails] = withNode(id)((v, r) => codeChange(r).map(Details.of(v, r, _)))
   def diff(id: NodeId): IO[NodeDiff] = withNode(id)((v, r) => codeChange(r).map(Details.diff(v, r, _)))

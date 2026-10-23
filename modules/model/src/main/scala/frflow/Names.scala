@@ -15,7 +15,7 @@ private[frflow] object Names:
   /** Lean names the generated code uses unqualified, or that Lean's prelude defines: a Scala name
     * equal to one is renamed, so it cannot capture them (a parameter named `some`, a binder `none`).
     */
-  private val Prelude = Set(
+  val Prelude: Set[String] = Set(
     "some", "none", "True", "False", "true", "false", "max", "min", "decide", "List", "Option", "Int", "Nat", "Bool",
     "String", "Prod", "Exists", "Eq", "Ne", "Not", "And", "Or", "Iff", "id", "ite", "dite", "Classical", "Unit", "Function",
     "not", "and", "or", "xor", "cond", "Decidable", "propext", "funext", "rfl", "trivial", "absurd", "sorry", "FrFlow")

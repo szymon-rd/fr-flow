@@ -52,8 +52,8 @@ object Signing:
   /** What is signed: everything the decision says, and which node it is about. */
   def payload(id: NodeId, d: Decision): Array[Byte] =
     val u = d.unsigned
-    Seq(id.value, u.action.toString, u.by, u.at, u.reason, u.rejected.mkString(","), u.chain.value, u.code.fold("")(_.value),
-      u.commit.getOrElse(""), u.tree.getOrElse(""), u.after.fold("")(_.value), u.content.ref)
+    Seq(id.value, u.action.toString, u.by, u.at.toString, u.reason, u.rejected.mkString(","), u.chain.value, u.code.fold("")(_.value),
+      u.commit.getOrElse(""), u.after.fold("")(_.value), u.content.ref)
       .mkString("\u0000").getBytes(UTF_8)
 
   def sign(key: DeveloperKey, id: NodeId, d: Decision): Decision =
@@ -84,15 +84,8 @@ object Signing:
       id -> ds.map(d => if !old(d.unsigned) then sign(key, id, d) else d)
     })
 
-  /** Signs the named decisions (by `Ledger.entry`), the developer vouching for them. */
-  def signEntries(l: Ledger, entries: Set[EntryRef], key: DeveloperKey): Ledger =
-    Ledger(l.decisions.map((id, ds) => id -> ds.map(d => if entries(Ledger.entry(d)) then sign(key, id, d) else d)))
-
-  /** What `status` warns about the record itself: no developer key, or decisions not signed by one of
-    * the project's keys (the developer's, who signs with it).
-    */
-  def warnings(keys: Map[KeyId, PublicKey], now: Ledger): List[String] =
+  /** What `status` warns about the record itself: no developer key, or the decisions `unsigned` lists. */
+  def warnings(keys: Map[KeyId, PublicKey], now: Ledger, unsigned: List[(NodeId, Decision)]): List[String] =
     Option.when(now.decisions.nonEmpty && keys.isEmpty)(
       "no developer key: the developer signs their decisions with their key, and commits its public key in .frflow/keys/").toList ++
-    unsigned(now, keys).map((id, d) =>
-      s"$id: the ${d.action} of ${d.at} by ${d.by} is not signed by a developer key: the developer decides it again, or signs it if it is theirs")
+    unsigned.map((id, d) => s"$id: the ${d.action} of ${d.at} by ${d.by} is not signed by a developer key: the developer decides it again")

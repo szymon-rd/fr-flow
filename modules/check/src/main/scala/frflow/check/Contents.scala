@@ -1,7 +1,7 @@
 package frflow
 package check
 
-import frflow.ledger.Decisions
+import frflow.ledger.Idea
 import frflow.protocol.Content
 import io.circe.Json
 
@@ -15,7 +15,7 @@ object Contents:
   def of(a: Analysis, n: Node[?]): Content =
     val kb = a.kb
     Content((Seq(
-      "kind" -> str(Analysis.kindOf(n).toString),
+      "kind" -> str(n.kind.toString),
       "parents" -> strs(n.parents.map(_.id))) ++
       Option.when(kb.isStatement(n))("parts" -> strs(kb.parts(n).map(_.id))) ++ Seq(
       "statement" -> str(n.statement),
@@ -28,7 +28,6 @@ object Contents:
       "governs" -> strs(n.governs),
       "definition" -> str(a.definition(n))
     ) ++ n.op.map(o => "op" -> str(o.name)) ++ n.replaced.map(r => "replaces" -> str(r.id)) ++
-      (if n.formal then Nil else List("formal" -> Json.False)) ++
       (if n.kept.isEmpty then Nil else List("keeps" -> strs(n.kept.map(_.describe)))) ++
       (if n.expected.isEmpty then Nil else List("expects" -> strs(n.expected.map((st, l) => s"$st: ${l.source}")))) ++
       implementation(kb, n).map("implementation" -> str(_)) ++
@@ -45,7 +44,7 @@ object Contents:
   /** The root is decided against the idea's title and lead; a node naming a section, against that section. */
   private def idea(a: Analysis, n: Node[?]): Seq[(String, Json)] =
     if n.ideaSection.nonEmpty then Seq("idea" -> str(a.ideaOf(n)), "ideaSection" -> str(n.ideaSection), "notModelled" -> str(a.notModelled))
-    else if a.isRoot(n) then Seq("idea" -> str(Decisions.ideaSections(a.ideaDecided)._1), "notModelled" -> str(a.notModelled))
+    else if a.kb.isRoot(n) then Seq("idea" -> str(Idea.sections(a.ideaDecided)._1), "notModelled" -> str(a.notModelled))
     else Nil
 
   /** The terms a node mentions, with what they mean in the world. */

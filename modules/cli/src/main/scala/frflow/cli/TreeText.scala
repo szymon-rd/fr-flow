@@ -53,9 +53,7 @@ object TreeText:
 
   /** The review state as a word: `review` with its causes, `asked` while the agent has it. */
   def stateText(n: TreeNode): String =
-    val r = n.node.review
-    val base = if r.state == ReviewState.Review then s"review: ${r.causes.mkString(", ")}" else r.state.toString
-    base + (if n.withAgent then " (asked)" else "")
+    Lines.state(n.node) + (if n.withAgent then " (asked)" else "")
 
   private def node(r: Row, n: TreeNode, idColumn: Int, stateWidth: Int, st: Style, full: Boolean): List[String] =
     val rv = n.node

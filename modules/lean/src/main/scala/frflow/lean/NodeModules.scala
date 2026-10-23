@@ -1,9 +1,9 @@
 package frflow
 package lean
 
+import frflow.protocol.{ObligationName, TryKind}
 import ObligationName.*
 import LeanText.*
-import frflow.protocol.TryKind
 
 /** The Lean modules of each formal node (see `Layout`): its model and the theorems proven of it. */
 final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinement, vocabularyModules: VocabularyModules,
@@ -15,7 +15,7 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
 
   /** The vocabulary a node's model needs: what its expressions and its code mention. */
   private def vocabularyOf(n: Node[?]): List[LeanModule] =
-    val ls = n.lifted ++ formalKeeps(n).flatMap(_._1.rule)
+    val ls = n.referenced ++ formalKeeps(n).flatMap(_._1.rule)
     val code = provenImpl(n).toList
     vocabularyModules.modulesFor(ls.flatMap(_.defs) ++ code, ls.flatMap(ctx(_).names) ++ code.flatMap(defCtx(_).names) ++ n.op.map(_.name))
 
@@ -77,7 +77,7 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
       val names = splitOpens(n, ps).names
       // A defined term the node mentions and none of its parts does names what its parts say together
       // (a group's): unfolded too. The terms its parts mention stay folded, as they state them.
-      def mentions(x: Node[?]) = x.lifted.flatMap(ctx(_).names).toSet
+      def mentions(x: Node[?]) = x.referenced.flatMap(ctx(_).names).toSet
       val below = ps.flatMap(mentions).toSet
       val groups = mentions(n).toList.sorted.filter(t => !below(t) && definitionOf(t).exists(!_.isType)).map(t => s"$K.$t")
       val defs = ((n :: ps).flatMap(ownDefs) ++ groups).distinct.mkString(", ")

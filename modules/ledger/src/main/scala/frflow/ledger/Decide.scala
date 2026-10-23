@@ -3,121 +3,141 @@ package ledger
 
 import cats.syntax.all.*
 import frflow.protocol.*
+import io.circe.Codec
+import java.time.Instant
+import ReviewState.{Accepted, Proposed, Rejected}
 
-/** When a decision is taken, and the code as it was: the commit checked out, and the files the nodes
-  * govern written to git as a tree (to show later how the code changed since).
-  */
-final case class Stamp(at: String, commit: Option[String] = None, tree: Option[String] = None)
+/** When a decision is taken, and the commit checked out then (how the code changed since is diffed against it). */
+final case class Stamp(at: Instant, commit: Option[String] = None)
 
 /** A decision of the developer's, as recorded: bound to the node's content and chain as they are. */
 private[ledger] final case class Record(g: Graph, by: String, stamp: Stamp):
   def apply(action: Action, n: SnapNode, reason: String, rejected: List[NodeId] = Nil): Decision =
     Decision(action, by, stamp.at, reason, rejected, code = n.code.map(_.fingerprint), commit = stamp.commit,
-      tree = stamp.tree, chain = g.parentChain(n), content = n.content)
+      chain = g.parentChain(n), content = n.content)
 
-/** The one way to record a decision: the new ledger, or why it is refused. Pure.
-  *
-  * The developer accepts or rejects. Accepting a proposal chooses it (rejecting the alternatives
-  * named); accepting a node under review says it holds as it now is (recorded as a confirmation when
-  * only something above it or its code moved, so the reason it was chosen stays); accepting a gone
-  * node agrees that it is gone. Accepting a change, the developer goes through the decisions below,
-  * with their reasons: each is revisited or confirmed, by name (see `Accept`).
-  */
+/** A decision the developer takes, with its reason. Several nodes accepted at once share it: all, or none. */
+enum Decide derives Codec.AsObject:
+  /** Choose the nodes, or accept them as they now are; a gone node is agreed gone. Accepting a node rejects its
+    * rivals; of the decisions below a changed node, those in `revisit` are reviewed again, and those under
+    * review only because it moved are confirmed (each once all it rests on holds). `seen` is each node's
+    * version as the developer saw it: the decision is refused if it moved since.
+    */
+  case Accept(nodes: List[NodeId], reason: String, revisit: List[NodeId] = Nil, seen: Map[NodeId, String] = Map.empty)
+  /** Reject a proposal, with the proposals that rest on it: the agent proposes what the reason asks for. */
+  case Reject(node: NodeId, reason: String, seen: Option[String] = None)
+  /** Accept every mechanical decision (see `Mechanical`). */
+  case Confirm(reason: String)
+  /** Ask that a decided node be reviewed again: a change elsewhere may affect it. */
+  case Revisit(node: NodeId, reason: String)
+  /** Agree that a decided node is gone from the model. */
+  case Gone(node: NodeId, reason: String)
+
+  def reason: String
+
+/** The one way to record a decision: the new ledger, or why it is refused. Pure. */
 object Decide:
+  def apply(snapshot: Snapshot, ledger: Ledger, d: Decide, by: String, stamp: Stamp): Either[Refusal, Ledger] =
+    val r = Reading(snapshot, ledger)
+    val record = Record(r.graph, by, stamp)
+    Either.cond(by.trim.nonEmpty, (), Refusal.NoOneDecides) *> Either.cond(!tooFew(d.reason), (), Refusal.NoReason) *> (d match
+      case Accept(ids, reason, revisit, seen) => accept(r, ids, reason, revisit, seen, record)
+      case Reject(id, reason, seen) =>
+        unmoved(r, id, seen) *> r.graph.byId.get(id).fold(remove(r, id, reason, record))(reject(r, _, reason, record))
+      case Confirm(reason) =>
+        Either.cond(r.mechanicalBatch.nonEmpty, (), Refusal.NothingToConfirm) *>
+          each(r, r.mechanicalBatch)((now, n) => acceptOne(now, n, reason, Nil, record))
+      case Revisit(id, reason) => revisit(r, id, reason, record)
+      case Gone(id, reason) => Either.cond(!r.graph.byId.contains(id), (), Refusal.StillInModel(id)) *> remove(r, id, reason, record))
 
-  /** Applies a decision: accepts or rejects a node of the model; for a decided node gone from it,
-    * agrees that it is gone.
-    */
-  def apply(snapshot: Snapshot, ledger: Ledger, r: DecisionRequest, stamp: Stamp): Either[Refusal, Ledger] =
-    decide(View(snapshot, ledger), r, stamp)
+  /** The decisions `after` has that `before` did not, in the order they are taken. */
+  def added(snapshot: Snapshot, before: Ledger, after: Ledger): List[(NodeId, Decision)] =
+    inOrder(Graph(snapshot), after.decisions.keys.toList).flatMap(id => after.history(id).drop(before.history(id).size).map(id -> _))
 
-  /** Accepts a node: chooses it, accepts its change, or agrees that it is gone. */
-  def accept(snapshot: Snapshot, ledger: Ledger, r: DecisionRequest, stamp: Stamp): Either[Refusal, Ledger] =
-    apply(snapshot, ledger, r.copy(action = Action.Accept), stamp)
+  private def inOrder(g: Graph, ids: List[NodeId]): List[NodeId] = ids.distinct.sortBy(g.rank.getOrElse(_, Int.MaxValue))
 
-  /** Rejects a proposal, with the proposals that rest on it. */
-  def reject(snapshot: Snapshot, ledger: Ledger, r: DecisionRequest, stamp: Stamp): Either[Refusal, Ledger] =
-    apply(snapshot, ledger, r.copy(action = Action.Reject), stamp)
-
-  /** Agrees that a decided node removed from the model is gone. */
-  def gone(snapshot: Snapshot, ledger: Ledger, node: NodeId, by: String, reason: String, stamp: Stamp): Either[Refusal, Ledger] =
-    val v = View(snapshot, ledger)
-    for
-      _ <- said(by, reason)
-      _ <- Either.cond(!v.graph.byId.contains(node), (), Refusal.StillInModel(node))
-      l <- remove(v, node, by, reason, stamp)
-    yield l
-
-  /** Asks to revisit a decided node: a change above (an edit of the idea, say) may affect it. It is
-    * reviewed again, with the cause `revisit`, and holds by its decision until then.
-    */
-  def revisit(snapshot: Snapshot, ledger: Ledger, node: NodeId, by: String, reason: String, stamp: Stamp,
-      seen: Option[String] = None): Either[Refusal, Ledger] =
-    val v = View(snapshot, ledger)
-    for
-      _ <- said(by, reason)
-      _ <- unmoved(v, node, seen)
-      n <- v.graph.byId.get(node).toRight(Refusal.UnknownNode(node))
-      _ <- Either.cond(ledger.binding(node).isDefined, (), Refusal.NotDecided(node, v.state(n)))
-      _ <- Either.cond(!ledger.current(node).exists(_.action == Action.Revisit), (), Refusal.AlreadyRevisited(node))
-    yield ledger.add(node, Record(v.graph, by, stamp)(Action.Revisit, n, reason))
-
-  /** Several decisions, each after what it rests on whatever order they came in: all, or none. */
-  def all(snapshot: Snapshot, ledger: Ledger, rs: List[DecisionRequest], stamp: Stamp): Either[Refusal, Ledger] =
-    val g = Graph(snapshot)
-    rs.sortBy(r => g.rank.getOrElse(r.node, Int.MaxValue)).foldLeftM(ledger) { (l, r) =>
-      decide(View(g, l), r, stamp).leftMap(e => if rs.size > 1 then Refusal.Within(r.node, e) else e)
+  /** Each node decided on the ledger the ones before it left, each after what it rests on: all, or none. */
+  private def each(r: Reading, ids: List[NodeId])(f: (Reading, SnapNode) => Either[Refusal, Ledger]): Either[Refusal, Ledger] =
+    inOrder(r.graph, ids).foldLeftM(r.ledger) { (l, id) =>
+      val now = Reading(r.graph, l)
+      now.graph.byId.get(id).toRight(Refusal.UnknownNode(id)).flatMap(f(now, _))
+        .leftMap(e => if ids.distinct.size > 1 then Refusal.Within(id, e) else e)
     }
 
-  /** The mechanical decisions, in the order they are taken: the batch `confirm` accepts. */
-  def mechanicalBatch(snapshot: Snapshot, ledger: Ledger): List[NodeId] =
-    val v = View(snapshot, ledger)
-    v.graph.order.filter(id => v.notMechanical.get(id).exists(_.isEmpty))
-
-  /** Accepts the mechanical decisions named (as `mechanicalBatch` lists them), with one reason: all, or none. */
-  def confirm(snapshot: Snapshot, ledger: Ledger, nodes: List[NodeId], by: String, reason: String, stamp: Stamp): Either[Refusal, Ledger] =
-    val v = View(snapshot, ledger)
-    def mechanical(id: NodeId) = v.graph.byId.get(id).toRight(Refusal.UnknownNode(id))
-      .flatMap(n => v.mechanical(n).map(Refusal.NotMechanical(id, _)).toLeft(()))
+  private def accept(r: Reading, ids: List[NodeId], reason: String, revisit: List[NodeId], seen: Map[NodeId, String],
+      record: Record): Either[Refusal, Ledger] =
+    val below = ids.flatMap(r.graph.byId.get).filter(r.state(_) != Accepted).flatMap(Downstream.below(r, _)).map(_.id).toSet
+    def one(now: Reading, n: SnapNode): Either[Refusal, Ledger] =
+      val rivals = now.graph.rivals.getOrElse(n.id, Nil).filter(now.stateOf(_) != Rejected)
+      val under = if now.state(n) == Accepted then Nil else Downstream.below(now, n)
+      val confirm = under.filter(b => b.kind == BelowKind.Moved && !revisit.contains(b.id)).map(_.id)
+      acceptOne(now, n, reason, rivals, record).map { l =>
+        revisit.filter(x => under.exists(_.id == x)).distinct.flatMap(now.graph.byId.get).foldLeft(confirmBelow(now.graph, l, n, confirm, reason, record))(
+          (l, c) => l.add(c.id, record(Action.Revisit, c, s"${n.id} changed and may affect it: $reason")))
+      }
     for
-      _ <- Either.cond(nodes.nonEmpty, (), Refusal.NothingToConfirm)
-      _ <- nodes.traverse_(mechanical)
-      l <- all(snapshot, ledger, nodes.map(DecisionRequest(_, by, reason)), stamp)
+      _ <- Either.cond(ids.nonEmpty, (), Refusal.NoNodes)
+      _ <- revisit.filterNot(below) match
+        case Nil => Right(())
+        case xs => Left(Refusal.NotBelow(ids.head, xs))
+      _ <- ids.traverse_(id => unmoved(r, id, seen.get(id)))
+      l <- inOrder(r.graph, ids).foldLeftM(r.ledger) { (l, id) =>
+        val now = Reading(r.graph, l)
+        now.graph.byId.get(id).fold(remove(now, id, reason, record))(one(now, _))
+          .leftMap(e => if ids.distinct.size > 1 then Refusal.Within(id, e) else e)
+      }
     yield l
 
-  private def decide(v: View, r: DecisionRequest, stamp: Stamp): Either[Refusal, Ledger] =
+  /** The node chosen, or its change accepted or confirmed, rejecting `rivals`. Choosing (or accepting a change
+    * to the node itself) is an acceptance; otherwise a confirmation: a change only of what follows from
+    * elsewhere (types, printing, proven code), or of its parts, keeps the reason it was chosen for.
+    */
+  private def acceptOne(v: Reading, n: SnapNode, reason: String, rivals: List[NodeId], record: Record): Either[Refusal, Ledger] =
+    val state = v.state(n)
+    val meaningMoved = v.causes(n).contains(Cause.Self) && v.ledger.binding(n.id).forall(Meaning.decisionMoved(_, n))
+    val action = if state == ReviewState.Review && !meaningMoved && rivals.isEmpty then Action.Confirm else Action.Accept
     for
-      _ <- decider(r.by)
-      _ <- Either.cond(r.action == Action.Accept || r.action == Action.Reject, (), Refusal.UnknownDecision(r.action))
-      _ <- reasoned(r.reason)
-      _ <- unmoved(v, r.node, r.seen)
-      l <- v.graph.byId.get(r.node) match
-        case None => remove(v, r.node, r.by, r.reason, stamp)
-        case Some(n) if r.action == Action.Reject => reject(v, n, r, stamp)
-        case Some(n) => Accept(v, n, r, Record(v.graph, r.by, stamp))
-    yield l
+      _ <- v.waitsFor(n).map(Refusal.AcceptFirst(_)).toLeft(())
+      _ <- Either.cond(!(state == Accepted && rivals.isEmpty), (), Refusal.AlreadyAccepted(n.id))
+    yield rivals.flatMap(v.graph.byId.get).foldLeft(v.ledger.add(n.id, record(action, n, reason, rivals)))((l, x) =>
+      l.add(x.id, record(Action.Reject, x, s"${n.id} was chosen instead: $reason")))
 
-  /** Someone decides, and gives the reason in a few words. */
-  private def said(by: String, reason: String): Either[Refusal, Unit] = decider(by) *> reasoned(reason)
-  private def decider(by: String) = Either.cond(by.trim.nonEmpty, (), Refusal.NoOneDecides)
-  private def reasoned(reason: String) = Either.cond(!Reasons.tooFew(reason), (), Refusal.NoReason)
+  /** The decisions below `n` under review only because it moved, parents first: each is confirmed once all it
+    * rests on holds; one that still waits for another node stays under review.
+    */
+  private def confirmBelow(g: Graph, start: Ledger, n: SnapNode, confirm: List[NodeId], reason: String, record: Record): Ledger =
+    inOrder(g, confirm).flatMap(g.byId.get).foldLeft(start) { (l, c) =>
+      val now = Reading(g, l)
+      if g.restsOn(c).forall(now.holds) && now.causes(c) == List(Cause.Above) then
+        l.add(c.id, record(Action.Confirm, c, s"still holds after ${n.id} changed: $reason"))
+      else l
+    }
+
+  /** A change above (an edit of the idea, say) may affect a decided node: it is reviewed again, with the cause
+    * `revisit`, and holds by its decision until then.
+    */
+  private def revisit(v: Reading, id: NodeId, reason: String, record: Record): Either[Refusal, Ledger] =
+    for
+      n <- v.graph.byId.get(id).toRight(Refusal.UnknownNode(id))
+      _ <- Either.cond(v.ledger.binding(id).isDefined, (), Refusal.NotDecided(id, v.state(n)))
+      _ <- Either.cond(!v.ledger.current(id).exists(_.action == Action.Revisit), (), Refusal.AlreadyRevisited(id))
+    yield v.ledger.add(id, record(Action.Revisit, n, reason))
 
   /** The node is as the developer saw it (`seen`, its version), if they say what they saw. */
-  private def unmoved(v: View, node: NodeId, seen: Option[String]): Either[Refusal, Unit] =
+  private def unmoved(v: Reading, node: NodeId, seen: Option[String]): Either[Refusal, Unit] =
     Either.cond(!v.graph.byId.get(node).exists(n => seen.exists(_ != v.version(n))), (), Refusal.MovedSinceSeen(node))
 
   /** A decided node gone from the model: its last decision, recorded again as a removal. */
-  private def remove(v: View, node: NodeId, by: String, reason: String, stamp: Stamp): Either[Refusal, Ledger] =
+  private def remove(v: Reading, node: NodeId, reason: String, record: Record): Either[Refusal, Ledger] =
     v.ledger.current(node).filter(_ => v.ledger.binding(node).isDefined).toRight(Refusal.UnknownNode(node)).map(last =>
-      v.ledger.add(node, last.unsigned.copy(action = Action.Remove, by = by, at = stamp.at, reason = reason, rejected = Nil,
-        commit = stamp.commit, tree = stamp.tree)))
+      v.ledger.add(node, last.unsigned.copy(action = Action.Remove, by = record.by, at = record.stamp.at, reason = reason,
+        rejected = Nil, commit = record.stamp.commit)))
 
   /** Rejects a proposal; the proposals below it rested on it: they go with it. */
-  private def reject(v: View, n: SnapNode, r: DecisionRequest, stamp: Stamp): Either[Refusal, Ledger] =
-    val record = Record(v.graph, r.by, stamp)
-    def proposedChildren(id: NodeId) = v.graph.children.getOrElse(id, Nil).filter(c => v.state(c) == ReviewState.Proposed).map(_.id)
-    val below = Graph.preorder(proposedChildren(n.id), proposedChildren).flatMap(v.graph.byId.get)
-    Either.cond(v.state(n) == ReviewState.Proposed,
-      below.foldLeft(v.ledger.add(n.id, record(Action.Reject, n, r.reason)))((l, c) =>
-        l.add(c.id, record(Action.Reject, c, s"${n.id}, which it rested on, was rejected: ${r.reason}"))),
+  private def reject(v: Reading, n: SnapNode, reason: String, record: Record): Either[Refusal, Ledger] =
+    def proposedChildren(id: NodeId) = v.graph.children.getOrElse(id, Nil).filter(c => v.state(c) == Proposed).map(_.id)
+    val below = Walk.preorder(proposedChildren(n.id), identity)(proposedChildren).flatMap(v.graph.byId.get)
+    Either.cond(v.state(n) == Proposed,
+      below.foldLeft(v.ledger.add(n.id, record(Action.Reject, n, reason)))((l, c) =>
+        l.add(c.id, record(Action.Reject, c, s"${n.id}, which it rested on, was rejected: $reason"))),
       Refusal.NotAProposal(n.id, v.state(n)))

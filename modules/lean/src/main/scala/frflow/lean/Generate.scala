@@ -1,6 +1,8 @@
 package frflow
 package lean
 
+import frflow.protocol.ObligationName
+
 /** The Lean of a knowledge base (docs/DAG.md §3; where each module lives: `Layout`), put together from
   * its parts: the terms (`Vocabulary`), how the nodes refine each other (`Refinement`), what Lean is
   * asked of each (`Obligations`, `Coverage`), the examples evaluated (`Evals`), and the text of each
@@ -41,8 +43,8 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, ObligationName)] 
   /** Lean of the domain types, functions and definitions a node's own expressions use. */
   def declarationsUsedBy(n: Node[?]): List[String] =
     val rules = formalKeeps(n).flatMap(_._1.rule)
-    val defs = Def.closure((n.lifted ++ rules).flatMap(_.defs) ++ provenImpl(n))
-    val ls = n.lifted ++ rules ++ defs.map(_.lifted)
+    val defs = Def.closure((n.referenced ++ rules).flatMap(_.defs) ++ provenImpl(n))
+    val ls = n.referenced ++ rules ++ defs.map(_.lifted)
     ls.flatMap(_.types).map(_.body).distinct ++ defs.map(d => vocabulary.resolve(d.lifted.lean)) ++
       kb.definitionsUsed(n, inForce).flatMap(_.substs).map(s => s"${s.name} := ${s.lean}")
 
@@ -57,9 +59,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, ObligationName)] 
 object Generate:
   /** Names the generated Lean binds itself; a parameter or opaque type with one of them would be captured. */
   val reserved: Set[String] =
-    Set("m", "f", "h", "p", "claim", "post", "rule", "holds", "complete", "impl", "Obl", "Type", "Prop",
-      "some", "none", "True", "False", "true", "false", "max", "min", "decide", "List", "Option", "Int", "Nat", "Bool", "String",
-      "Prod", "Exists", "Eq", "Ne", "Not", "And", "Or", "Iff", "id", "ite", "Classical", "Unit", "FrFlow") ++ (0 to 9).map(i => s"x$i")
+    Names.Prelude ++ Set("m", "f", "h", "p", "claim", "post", "rule", "holds", "complete", "impl", "Obl", "Type", "Prop") ++ (0 to 9).map(i => s"x$i")
 
   /** How many probes of a contract Lean evaluates, beside its examples. */
   val ProbeCount = 6

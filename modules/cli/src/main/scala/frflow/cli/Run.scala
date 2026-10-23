@@ -2,7 +2,6 @@ package frflow.cli
 
 import cats.effect.{ExitCode, IO}
 import frflow.api.*
-import frflow.ledger.{Find, Refusal}
 import frflow.protocol.Canonical
 import io.circe.Encoder
 import io.circe.syntax.*
@@ -18,8 +17,10 @@ final class Run(api: FrFlowApi, term: Terminal, st: Style):
     case Command.Show(id, lean, json) => api.details(id).flatMap(d => emit(json, d)(NodeText.lines(d, st, lean)))
     case Command.Diff(id, json) => api.diff(id).flatMap(d => emit(json, d)(DiffText.lines(d, st)))
     case Command.Inbox(json) =>
-      api.view.flatMap(v => withTree(v)(t => emit(json, Inbox.of(v))(InboxText.lines(Inbox.of(v), t, st))))
-    case Command.History(json) => api.history.flatMap(h => emit(json, h)(ReportText.history(h, st)))
+      api.view.flatMap { v =>
+        val inbox = Inbox.of(v)
+        withTree(v, inbox.overview)(t => emit(json, inbox)(InboxText.lines(inbox, t, st)))
+      }
     case Command.Review(as) => ReviewSession(api, term, st).run(as)
     case Command.Accept(nodes, revisit, a) => decision(a)(Decide.Accept(nodes, _, revisit))
     case Command.Reject(node, a) => decision(a)(Decide.Reject(node, _))
@@ -29,24 +30,25 @@ final class Run(api: FrFlowApi, term: Terminal, st: Style):
     case Command.Ask(node, text, as) => developer(as)(dev => api.ask(node, text, dev).flatMap(done(q =>
       List(s"asked [${q.id}] on ${q.node.fold("the idea")(_.value)}: the agent sees it in its inbox"))))
     case Command.Close(ids) => api.close(ids).flatMap(done(rs => rs.map(r => s"closed [${r.id}]")))
-    case Command.Sign(entries, as, yes) => sign(entries, as, yes)
     case Command.Render => api.render.flatMap(r => ok(s"rendered ${r.changed.size} changed file(s); wrote ${r.snapshot}"))
     case Command.Check(node, json) =>
       api.check(node).flatMap(r => withTree(r.view)(t => emit(json, r)(ReportText.check(r, t, st)).as(exit(r.ok))))
     case Command.Status(json) =>
-      api.status.flatMap(v => withTree(v)(t => emit(json, v)(ReportText.status(v, t, st)).as(exit(v.status.ok))))
+      api.status.flatMap(v => withTree(v)(t => emit(json, v)(ReportText.status(v, t, st)).as(exit(v.ok))))
     case Command.Ci(json) => api.ci.flatMap(r => withTree(r.view)(t => emit(json, r)(ReportText.ci(r, t, st)).as(exit(r.ok))))
     case Command.Context(node) => api.context(node).flatMap(c => term.out(c.text.stripSuffix("\n")).as(ExitCode.Success))
     case Command.Find(query, json) =>
       api.view.flatMap { v =>
-        val found = Find(v.annotated, query)
+        val found = Find(v, query)
         emit(json, found)(ReportText.found(found, v, st))
       }
     case Command.Scaffold(node) =>
       api.scaffold(node).flatMap(s => ok(s.file.fold("nothing to create")(f => s"created $f")))
     case Command.Answer(to, text) => api.answer(to, text).flatMap(done(id => List(s"answered $id")))
 
-  private def withTree[A](v: View)(f: Tree => IO[A]): IO[A] = IO.fromEither(Trees.of(v, None).left.map(FrFlowError.UnknownNode(_))).flatMap(f)
+  private def withTree[A](v: View, o: Overview)(f: Tree => IO[A]): IO[A] =
+    IO.fromEither(Trees.of(v, None, o).left.map(FrFlowError.UnknownNode(_))).flatMap(f)
+  private def withTree[A](v: View)(f: Tree => IO[A]): IO[A] = withTree(v, Overview.of(v))(f)
 
   private def emit[A: Encoder](json: Boolean, a: A)(text: => List[String]): IO[ExitCode] =
     term.out(if json then List(Canonical.file(a.asJson)) else text).as(ExitCode.Success)
@@ -93,20 +95,6 @@ final class Run(api: FrFlowApi, term: Terminal, st: Style):
     if yes then IO.pure(Some(true))
     else if !term.interactive then IO.pure(None)
     else term.out(what) *> term.read(question).map(a => Some(a.exists(x => Yes(x.trim.toLowerCase))))
-
-  private def sign(entries: List[frflow.protocol.EntryRef], as: Option[String], yes: Boolean): IO[ExitCode] =
-    developer(as) { dev =>
-      api.view.flatMap { v =>
-        val chosen = if entries.isEmpty then v.unsigned else v.unsigned.filter(u => entries.contains(u.entry))
-        val list = chosen.map(u => s"  ${st.bullet} ${u.entry} ${u.node}: ${u.decision.action} by ${u.decision.by}, ${Words.date(u.decision.at)}: ${u.decision.reason}")
-        if v.unsigned.isEmpty then ok("Every decision is signed.")
-        else confirmed(yes, s"Sign these ${chosen.size} decision(s) as ${dev.name}? Sign only the ones you made." :: list, "Sign them? [y/N] ").flatMap {
-          case Some(true) => api.sign(Option.when(entries.nonEmpty)(entries.toSet), dev).flatMap(done(us => List(s"signed ${us.size} decision(s)")))
-          case Some(false) => term.out("Nothing signed.").as(Refused)
-          case None => term.err("signing is confirmed on a terminal; without one, pass --yes").as(Usage)
-        }
-      }
-    }
 
 object Run:
   val Refused: ExitCode = ExitCode(1)

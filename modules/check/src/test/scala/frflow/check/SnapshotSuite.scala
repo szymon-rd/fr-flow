@@ -6,7 +6,8 @@ import frflow.fixtures.*
 import frflow.protocol.{NodeKind as Kind, *}
 import io.circe.Json
 import io.circe.syntax.*
-import Desk.{ok, req}
+import Desk.ok
+import java.time.Instant
 
 /** The snapshot, the developer's decisions and how drift shows: in memory, without files or Lean. */
 class SnapshotSuite extends munit.FunSuite:
@@ -63,7 +64,7 @@ class SnapshotSuite extends munit.FunSuite:
     assertEquals(ns("OnlyGood").split.map(_.needed.map(_.id)), Some(ids("FromList", "OnlyLong", "EveryLong")))
     assertEquals(ns("Pick").split, None)
     assertEquals(a.byId(NodeId("FromList")).state, ReviewState.Proposed)
-    assertEquals(ns("Pick").examples.flatMap(_.implementation), List("ok", "ok", "ok", "ok"))
+    assertEquals(ns("Pick").examples.map(_.codeFails), List.fill(4)(None))
     assertEquals(ns("Pick").examples.head.`given`, List("minPages = 100"))
     assertEquals(ns("Pick").code, None) // its implementation lives in the model's own file
     // the model's files are where its nodes are written; a model may span several
@@ -87,11 +88,9 @@ class SnapshotSuite extends munit.FunSuite:
 
   test("choosing one proposal rejects the alternatives it replaces; they are kept through later decisions") {
     val alt = alternative
-    val d = ok(Desk(shelfWith(pick, alt)).accepting(books, picking, onlyGood).accept(fromList, "Books must come from the shelf.", List(alt)))
+    val d = ok(Desk(shelfWith(pick, alt)).accepting(books, picking, onlyGood).accept(fromList, "Books must come from the shelf."))
     assertEquals((d.state(fromList), d.state(alt)), (ReviewState.Accepted, ReviewState.Rejected))
     assert(d.context(pick).contains("Rejected alternative Bounded"), d.context(pick))
-    // parts of one parent are not alternatives: together they make it
-    assert(d.accept(onlyLong, "parts are not alternatives", List(everyLong)).left.exists(_.contains("not an alternative")))
     // the agent removes the rejected node, then rewords FromList; the new decision keeps the alternative
     val reworded = Node.claim("FromList", "Every picked book is on the shelf.", why = fromList.why)(
       forall((l: List[Book], n: Int) => picks(l, n).forall(b => l.contains(b)))).under(onlyGood)
@@ -112,8 +111,8 @@ class SnapshotSuite extends munit.FunSuite:
   test("after a change, the developer names the decisions below that it may affect; a shared part is listed once") {
     val d = Desk(shelfKb).acceptAll.withIdea("# Shelf\n\nPick good items, quickly.\n\n## Not modelled\n\n- Prices.\n")
     assertEquals(belowIds(d, "OnlyGood").count(_ == "Pick"), 1)
-    val d2 = ok(d.decide(req("OnlyGood", "Picking must be quick now.", revisit = List("Pick"))))
-    assert(d.decide(req("FromList", "OnlyGood is not below it.", revisit = List("OnlyGood"))).left.exists(_.contains("not among")))
+    val d2 = ok(d.accept(onlyGood, "Picking must be quick now.", revisit = List(pick)))
+    assert(d.accept(fromList, "OnlyGood is not below it.", revisit = List(onlyGood)).left.exists(_.contains("not among")))
     assertEquals(d2.notAccepted, List("Pick" -> "review"))
     assertEquals(d2.causes("Pick"), List("revisit"))
     val d3 = ok(d2.accept(pick, "Filtering a list is quick enough."))
@@ -126,47 +125,23 @@ class SnapshotSuite extends munit.FunSuite:
     val alt = alternative
     val d = Desk(shelfWith(pick, alt))
     assert(d.accept(books, "ok").left.exists(_.contains("few words")))
-    val d2 = ok(d.accepting(books, picking, onlyGood).decide(req("Bounded", "Readers want every good book.", action = Action.Reject)))
+    val d2 = ok(d.accepting(books, picking, onlyGood).reject("Bounded", "Readers want every good book."))
     assertEquals((d2.state(alt), d2.state(fromList)), (ReviewState.Rejected, ReviewState.Proposed))
-    assert(d2.decide(req("OnlyGood", "The root is not a proposal.", action = Action.Reject)).left.exists(_.contains("only a proposal")))
+    assert(d2.reject("OnlyGood", "The root is not a proposal.").left.exists(_.contains("only a proposal")))
   }
 
   test("rejecting a node puts what rests on it up for review, and status fails until it is moved") {
     val alt = alternative
-    val d = ok(Desk(shelfWith(pick, alt)).accepting(shelfKb.ordered*).accept(alt, "Readers want fewer books now.", List(fromList)))
+    val d = ok(Desk(shelfWith(pick, alt)).accepting(shelfKb.ordered*).accept(alt, "Readers want fewer books now."))
     assertEquals(d.state(fromList), ReviewState.Rejected)
     assertEquals(d.causes("Pick"), List("above"))
     assert(d.accept(pick, "Pick still holds here.").left.exists(_.contains("accept FromList first")))
-    val s = d.status
-    assert(!s.ok)
+    assert(!d.complete)
     // The agent reads why: the reason may ask for something in the node's place.
-    assertEquals(Waiting.of(d.annotated).agent, List(
+    assertEquals(Waiting.forAgent(d.annotated), List(
       ForAgent.Replace(NodeId("FromList"), "dev", "Bounded was chosen instead: Readers want fewer books now."),
       ForAgent.Move(NodeId("Pick"), ids("FromList"))))
     assert(d.context(fromList).contains("Rejected by dev at "), d.context(fromList))
-  }
-
-  test("a node can opt out of Lean: Scala only, decided by reading, examples still run") {
-    // `mkString` is outside the Scala the macro translates; an informal node may use any Scala.
-    val titled = Node.contract(picks)("Titled", "Picked books have a title.", why = "Titles are free text; not worth a proof.", formal = false)(
-      (shelf, n, picked) => picked.forall(b => b.title.mkString.nonEmpty && long(b))).under(shelfParts*)
-      .examples(minPages.bind(100))(
-        expect(List(Book("Long", 300)), 1, List(Book("Long", 300)), "a titled book"),
-        expect(Nil, 1, Nil, "nothing to pick"),
-        reject(List(Book("", 300)), 1, List(Book("", 300)), "a book without a title"))
-    val kb = shelfWith(titled)
-    assertEquals(kb.problems, Nil)
-    val d = Desk(kb)
-    val n = d.node("Titled")
-    assertEquals(n.node.status.map(_.toString), Some("informal"))
-    assertEquals(n.node.content("formal"), Some(Json.False))
-    assertEquals(n.node.examples.map(_.contract), List("ok", "ok", "ok"))
-    assert(!d.analysis.generate.formal(titled))
-    assert(n.node.content("sources").flatMap(_.hcursor.downField("post").as[String].toOption).exists(_.contains("mkString")), n)
-    // what it refers to is still part of what it is decided on
-    assert(n.node.content.strs("uses").exists(_.startsWith("long = ")), n)
-    // its parents' splits are decided by reading: Lean cannot state them
-    assertEquals(d.node("FromList").node.split.map(_.complete.status.toString), Some("informal"))
   }
 
   test("how the implementation is built is part of the contract's content") {
@@ -176,24 +151,15 @@ class SnapshotSuite extends munit.FunSuite:
 
   test("a decision is refused when the node moved since the developer looked at it") {
     val d = Desk(shelfKb)
-    assert(d.decide(req("Books", "It is the idea.", seen = "stale")).left.exists(_.contains("changed since")))
-    assert(d.decide(req("Books", "It is the idea.", seen = d.node("Books").review.version)).isRight)
-  }
-
-  test("repeated content is written once and survives a merge that interleaves entries") {
-    val c1 = Content("statement" -> str("one"))
-    val c2 = Content("statement" -> str("two"))
-    def d(c: Content, r: String) = Decision(Action.Accept, "dev", r, r, content = c)
-    val l = Ledger(Map(NodeId("A") -> List(d(c1, "1"), d(c2, "2"), d(c1, "3"))))
-    val text = Canonical.file(l.asJson)
-    assert(text.contains("same:"))
-    assertEquals(io.circe.parser.decode[Ledger](text), Right(l))
+    def seeing(v: String) = Decide.Accept(ids("Books"), "It is the idea.", seen = Map(NodeId("Books") -> v))
+    assert(d.decide(seeing("stale")).left.exists(_.contains("changed since")))
+    assert(d.decide(seeing(d.node("Books").review.version)).isRight)
   }
 
   test("when two branches decided the same node and both were kept, it is decided again") {
     val base = ok(Desk(shelfKb).accept(books, "it is the idea")).ledger
     val b = NodeId("Books")
-    def d(r: String) = Decision(Action.Accept, "dev", r, r, content = base.history(b).head.content)
+    def d(r: String) = Decision(Action.Accept, "dev", Instant.EPOCH, r, content = base.history(b).head.content)
     val ours = base.add(b, d("on branch one"))
     val theirs = base.add(b, d("on branch two"))
     val merged = Ledger(Map(b -> (ours.history(b) :+ theirs.history(b).last)))
@@ -201,15 +167,13 @@ class SnapshotSuite extends munit.FunSuite:
     assert(!merged.add(b, d("decided again after the merge")).forked(b))
   }
 
-  test("decisions below are confirmed by name, only below nodes that are accepted") {
+  test("decisions below are confirmed with a change, only below nodes that are accepted") {
     val r2 = root2
     val now = under(r2, "Picked books come from the shelf, and nowhere else.")
     val d = Desk(kbOf(under(onlyGood))).acceptAll.withKb(kbOf(now))
     // FromList changed itself, so it is decided on its own; nothing below it is listed with the root
-    assert(d.accept(r2, "Clearer with 'only then' added.", confirm = List(now(3), now(5))).left.exists(_.contains("not among")))
-    // (the definitions are listed too: a change of the purpose may affect any decision)
-    assertEquals(belowIds(d, "OnlyGood"), List("OnlyLong", "Books", "Picking"))
-    assertEquals(ok(d.accept(r2, "Clearer with 'only then' added.")).notAccepted.map(_._1), List("FromList", "OnlyLong", "Pick"))
+    assertEquals(belowIds(d, "OnlyGood"), List("OnlyLong"))
+    assertEquals(ok(d.accept(r2, "Clearer with 'only then' added.")).notAccepted.map(_._1), List("FromList", "Pick"))
   }
 
   test("the definition as written runs past comments between its chained calls, and not into the next one's") {
@@ -223,8 +187,8 @@ class SnapshotSuite extends munit.FunSuite:
     val d = Desk(kbOf(under(onlyGood))).acceptAll.withKb(kbOf(now))
     assertEquals(List("OnlyGood", "FromList", "Pick").map(d.causes), List(List("self"), List("above"), List("above")))
     assertEquals(d.node("OnlyGood").review.below.map(b => b.id.value -> b.kind.toString),
-      List("FromList" -> "moved", "OnlyLong" -> "moved", "Pick" -> "moved", "Books" -> "accepted", "Picking" -> "accepted")) // parents first
-    val d2 = ok(d.accept(r2, "Clearer with 'only then' added.", confirm = List(now(3), now(4), now(5))))
+      List("FromList" -> "moved", "OnlyLong" -> "moved", "Pick" -> "moved")) // parents first
+    val d2 = ok(d.accept(r2, "Clearer with 'only then' added."))
     assert(d2.allAccepted, d2.notAccepted)
     assertEquals(d2.ledger.history(NodeId("Pick")).map(_.action.toString), List("accept", "confirm"))
     assert(d2.context(now(5)).contains("Chosen by dev because: Pick is right"))
@@ -236,18 +200,12 @@ class SnapshotSuite extends munit.FunSuite:
     assertEquals(d.causes("OnlyGood"), List("self"))
     // what may be affected: the decisions below it, each to revisit by name if it is
     assertEquals(d.node("OnlyGood").review.below.map(b => b.id.value -> b.kind.toString),
-      List("FromList" -> "accepted", "OnlyLong" -> "accepted", "Pick" -> "accepted", "Books" -> "accepted", "Picking" -> "accepted"))
+      List("FromList" -> "accepted", "OnlyLong" -> "accepted", "Pick" -> "accepted"))
     assertEquals(d.node("Pick").review.moved, Nil)
     val d2 = ok(d.accept(rootReworded, "Clearer with 'only then' added."))
     assert(d2.allAccepted, d2.notAccepted)
     // after it, a change of its formula still moves what is below
     assertEquals(d2.withKb(kbOf(under(root2))).causes("Pick"), List("above"))
-    // a node out of Lean is its words: rewording it moves what is below
-    def informal(statement: String) = Node.claim("Informal", statement, why = "w", formal = false)(forall((x: BigInt) => sq(x) >= 0))
-    def kb3(statement: String) =
-      val top = informal(statement)
-      KnowledgeBase("Team", idea = "IDEA.md")(top, Node.claim("Floor", "Results are at least zero.", why = "w")(forall((x: BigInt) => sq(x) >= 0)).under(top))
-    assertEquals(Desk(kb3("Results are never negative.")).acceptAll.withKb(kb3("Results are never below zero.")).causes("Floor"), List("above"))
   }
 
   test("what is not modelled can change without disturbing decisions") {
@@ -258,16 +216,15 @@ class SnapshotSuite extends munit.FunSuite:
 
   test("a decided node removed from the model shows until the removal is confirmed") {
     val d = Desk(shelfKb).acceptAll.withKb(kbOf(shelfNodes))
-    assertEquals(d.analysis.gone, ids("Pick"))
-    assert(!d.status.ok)
-    assertEquals(ok(d.decide(req("Pick", "Picking moved to another service."))).analysis.gone, Nil)
+    assertEquals(d.annotated.gone.map(_.id), ids("Pick"))
+    assert(!d.complete)
+    assertEquals(ok(d.decide(Decide.Accept(ids("Pick"), "Picking moved to another service."))).annotated.gone, Nil)
   }
 
-  test("the ledger is the history; a contract shows what it does not promise") {
+  test("the ledger is the history") {
     val d = ok(Desk(callsKb).accept(pickedAgain, "it is the idea"))
     assertEquals(d.ledger.all.map(_._1), ids("PickedAgain"))
     assertEquals(d.node("PickedAgain").review.decision.map(_.by), Some("dev"))
-    assert(d.node("PickPromise").node.limits.exists(_.contains("empty result")))
   }
 
   test("a change to what a term means reviews the nodes that use it") {
@@ -294,8 +251,8 @@ class SnapshotSuite extends munit.FunSuite:
     val d = Desk(shelfWith(pick, other))
     assertEquals(d.analysis.generate.undecided, Set("good"))
     assertEquals(d.node("Thick").node.defines, List("good"))
-    assert(Decisions.alternatives(d.node("Thick").node, d.node("Books").node))
-    val d2 = ok(d.accept(books, "Length is what readers asked for.", List(other)))
+    assert(Graph.alternatives(d.node("Thick").node, d.node("Books").node))
+    val d2 = ok(d.accept(books, "Length is what readers asked for."))
     assertEquals(d2.state(other), ReviewState.Rejected)
     assertEquals(d2.analysis.generate.undecided, Set.empty[String])
     assertEquals(d2.analysis.generate.inForce.get("good").map(_.id), Some("Books"))
@@ -304,14 +261,15 @@ class SnapshotSuite extends munit.FunSuite:
   // Lean is not run here: these mark every node as Lean would.
   private def proven(s: Snapshot): Snapshot = s.copy(nodes = s.nodes.map(n => n.copy(
     status = n.status.map(_ => CheckStatus.Proven),
-    split = n.split.map(_ => Split(Outcome(ObligationStatus.Proven, "auto"), Nil, Outcome(ObligationStatus.NoClash))))))
+    split = n.split.map(_ => Split(Outcome(ObligationStatus.Proven, "auto"), Nil, Outcome(ObligationStatus.NotShown))))))
   /** The snapshot with one node's content changed (and its hash with it). */
   private def changing(s: Snapshot, id: String)(f: PartialFunction[(String, Json), (String, Json)]): Snapshot =
     s.copy(nodes = s.nodes.map(n => if n.id != NodeId(id) then n else
       val c = n.content.mapFields(f)
       n.copy(content = c, hash = c.hash)))
-  private def decideOn(s: Snapshot, l: Ledger, id: String, action: Action, i: Int, by: String = "dev") =
-    Decisions.decide(s, l, req(id, s"$id holds for this reason", action = action, by = by), f"2026-01-01T00:00:$i%02dZ").left.map(_.message)
+  private def decideOn(s: Snapshot, l: Ledger, id: String, action: Action, i: Int) =
+    val d = if action == Action.Reject then Decide.Reject(NodeId(id), s"$id holds for this reason") else Decide.Accept(ids(id), s"$id holds for this reason")
+    Decide(s, l, d, "dev", Stamp(Instant.parse(f"2026-01-01T00:00:$i%02dZ"))).left.map(_.message)
   private def decided(s: Snapshot, l: Ledger, ids: List[String], from: Int) =
     ids.zipWithIndex.foldLeft(l)((l, x) => decideOn(s, l, x._1, Action.Accept, from + x._2).fold(e => fail(e), identity))
 
@@ -319,11 +277,9 @@ class SnapshotSuite extends munit.FunSuite:
     val snap = proven(Desk(shelfKb).analysis.snapshot)
     val ns = snapOf(snap)
     val l1 = decided(snap, Ledger.empty, List("Books", "Picking", "OnlyGood"), 1)
-    assert(Decisions.mechanical(snap, l1, ns("Books")).exists(_.contains("definition nodes hold a choice")))
+    assert(Reading(snap, l1).mechanical(ns("Books")).exists(_.contains("definition nodes hold a choice")))
     // a proposal is the developer's choice
-    assert(Decisions.mechanical(snap, l1, ns("FromList")).exists(_.contains("only a node under review")))
-    // the developer accepts or rejects: a confirmation follows from an acceptance
-    assert(decideOn(snap, l1, "FromList", Action.Confirm, 5, "agent").left.exists(_.contains("unknown decision")))
+    assert(Reading(snap, l1).mechanical(ns("FromList")).exists(_.contains("only a node under review")))
   }
 
   test("deciding a large tree stays fast: each node's state is computed once") {
@@ -333,10 +289,10 @@ class SnapshotSuite extends munit.FunSuite:
       SnapNode(NodeId(s"N$i"), Kind.Claim, c, c.hash, parents = if i == 0 then Nil else ids(s"N${(i - 1) / 8}"))
     }
     val snap = Snapshot("Large", ns)
-    val ledger = ns.foldLeft(Ledger.empty)((l, n) => l.add(n.id, Decision(Action.Accept, "dev", "2026-01-01T00:00:00Z", "it is right",
-      chain = Decisions.parentChain(snap, n), content = n.content)))
+    val ledger = ns.foldLeft(Ledger.empty)((l, n) => l.add(n.id, Decision(Action.Accept, "dev", Instant.EPOCH, "it is right",
+      chain = Graph(snap).parentChainAlone(n), content = n.content)))
     val t = System.nanoTime
-    val a = Decisions.annotate(snap, ledger)
+    val a = Annotate(snap, ledger)
     val seconds = (System.nanoTime - t) / 1e9
     assert(a.nodes.forall(_.state == ReviewState.Accepted), a.nodes.head)
     assert(seconds < 5, s"$seconds s")
@@ -351,9 +307,9 @@ class SnapshotSuite extends munit.FunSuite:
     val all = decided(snap, l1, List("FromList", "OnlyLong", "EveryLong", "Pick"), 10)
     val reworded = changing(snap, "FromList") { case ("why", _) => "why" -> str("Reworded, saying the same.") }
     val rs = snapOf(reworded)
-    assertEquals(Decisions.causes(reworded, all, rs("FromList")), List(Cause.Self))
-    assert(Decisions.mechanical(reworded, all, rs("FromList")).isDefined)
-    assert(Decisions.causes(reworded, all, rs("Pick")).isEmpty) // a why does not cascade
+    assertEquals(Reading(reworded, all).causes(rs("FromList")), List(Cause.Self))
+    assert(Reading(reworded, all).mechanical(rs("FromList")).isDefined)
+    assert(Reading(reworded, all).causes(rs("Pick")).isEmpty) // a why does not cascade
   }
 
   test("a node whose code calls another contract's operation rests on that contract") {
@@ -384,13 +340,11 @@ class SnapshotSuite extends munit.FunSuite:
     assert(!warnings.exists(_.contains("the section \"Picking\"")), warnings)
   }
 
-  test("a confirmation it cannot apply is refused, with why, not dropped") {
+  test("a revisit it cannot apply is refused, with why, not dropped") {
     val d = Desk(kbOf(under(onlyGood))).acceptAll.withKb(kbOf(under(root2)))
-    val r = d.decide(req("OnlyGood", "Clearer with 'only then' added.", confirm = List("Books")))
-    assert(r.left.exists(_.contains("Books")), r)
-    val h = d.decide(req("OnlyGood", "Clearer with only then added.", revisit = List("Elsewhere")))
+    val h = d.decide(Decide.Accept(ids("OnlyGood"), "Clearer with only then added.", ids("Elsewhere")))
     assert(h.left.exists(_.contains("not among")), h)
-    assert(d.decide(req("OnlyGood", "Clearer with 'only then' added.", revisit = List("FromList"))).isRight)
+    assert(d.decide(Decide.Accept(ids("OnlyGood"), "Clearer with 'only then' added.", ids("FromList"))).isRight)
   }
 
   test("a type change is mechanical where nothing the developer decided changed") {
@@ -401,11 +355,11 @@ class SnapshotSuite extends munit.FunSuite:
     // Book gains a field: only the types Pick uses changed, and how its examples print
     val changed = withUses(_.map(u => if u.asString.exists(_.startsWith("case class Book")) then str("case class Book(title: String, pages: Int, author: String)") else u))
     val pickNode = snapOf(changed)("Pick")
-    assertEquals(Decisions.state(changed, d.ledger, pickNode), ReviewState.Review)
-    assertEquals(Decisions.mechanical(changed, d.ledger, pickNode), None)
+    assertEquals(Reading(changed, d.ledger).state(pickNode), ReviewState.Review)
+    assertEquals(Reading(changed, d.ledger).mechanical(pickNode), None)
     // a definition it calls is part of what it says: not mechanical
     val redefined = withUses(_ :+ str("long = (b: Book) => b.pages >= 10"))
-    assert(Decisions.mechanical(redefined, d.ledger, snapOf(redefined)("Pick")).exists(_.contains("changed")))
+    assert(Reading(redefined, d.ledger).mechanical(snapOf(redefined)("Pick")).exists(_.contains("changed")))
   }
 
   test("alternatives are a node and the one it replaces, or two definitions of one term; parts of one parent are not") {
@@ -414,8 +368,8 @@ class SnapshotSuite extends munit.FunSuite:
         replaces = replaces.map(NodeId(_)), defines = defines)
     val (a, b, c) = (n("A"), n("B", replaces = Some("A")), n("C"))
     val (d1, d2) = (n("D1", Kind.Definition, defines = List("good")), n("D2", Kind.Definition, defines = List("good", "Item")))
-    assert(Decisions.alternatives(a, b) && Decisions.alternatives(b, a) && Decisions.alternatives(d1, d2))
-    assert(!Decisions.alternatives(a, c) && !Decisions.alternatives(a, d1))
+    assert(Graph.alternatives(a, b) && Graph.alternatives(b, a) && Graph.alternatives(d1, d2))
+    assert(!Graph.alternatives(a, c) && !Graph.alternatives(a, d1))
   }
 
   /** The shelf's nodes and more, with Pick implemented as in `shelfKb`. */
@@ -451,25 +405,26 @@ class SnapshotSuite extends munit.FunSuite:
     val back = d3.withKb(shelfKb)
     assertEquals(back.notAccepted, List("FromList" -> "review"))
     assertEquals(back.causes("FromList"), List("parts"))
-    assertEquals(back.analysis.gone, ids("Bounded"))
+    assertEquals(back.annotated.gone.map(_.id), ids("Bounded"))
   }
 
   test("a change of parts is mechanical when Lean proves the parts make it, each needed; not otherwise") {
     val d = Desk(shelfKb).acceptAll.withKb(shelfAnd(pick, newPart))
     val snap = proven(d.analysis.snapshot)
     val ns = snapOf(snap)
-    assertEquals(Decisions.causes(snap, d.ledger, ns("FromList")), List(Cause.Parts))
-    assertEquals(Decisions.mechanical(snap, d.ledger, ns("FromList")), None)
-    import ObligationStatus.{Needed, NotNeeded, Open, Proven}
+    def mechanical(s: Snapshot, n: SnapNode) = Reading(s, d.ledger).mechanical(n)
+    assertEquals(Reading(snap, d.ledger).causes(ns("FromList")), List(Cause.Parts))
+    assertEquals(mechanical(snap, ns("FromList")), None)
+    import ObligationStatus.{NotShown as Needed, Shown as NotNeeded, Open, Proven}
     def withSplit(complete: ObligationStatus, needed: ObligationStatus) = snap.copy(nodes = snap.nodes.map(n => if n.id != NodeId("FromList") then n
-      else n.copy(split = Some(Split(Outcome(complete), ids("Pick", "Bounded").map(Split.Part(_, needed, "")), Outcome(ObligationStatus.NoClash))))))
+      else n.copy(split = Some(Split(Outcome(complete), ids("Pick", "Bounded").map(Split.Part(_, needed, "")), Outcome(ObligationStatus.NotShown))))))
     def fromList(s: Snapshot) = snapOf(s)("FromList")
-    assertEquals(Decisions.mechanical(withSplit(Proven, Needed), d.ledger, ns("FromList")), None)
+    assertEquals(mechanical(withSplit(Proven, Needed), ns("FromList")), None)
     // a part not needed (Lean shows the parent without it), or the parts not shown to make it: the developer decides
-    assert(Decisions.mechanical(withSplit(Proven, NotNeeded), d.ledger, fromList(withSplit(Proven, NotNeeded))).isDefined)
-    assert(Decisions.mechanical(withSplit(Open, Needed), d.ledger, fromList(withSplit(Open, Needed))).isDefined)
+    assert(mechanical(withSplit(Proven, NotNeeded), fromList(withSplit(Proven, NotNeeded))).isDefined)
+    assert(mechanical(withSplit(Open, Needed), fromList(withSplit(Open, Needed))).isDefined)
     // a proposal is never mechanical
-    assert(Decisions.mechanical(snap, d.ledger, ns("Bounded")).exists(_.contains("proposed")))
+    assert(mechanical(snap, ns("Bounded")).exists(_.contains("proposed")))
   }
 
   test("a diamond: the node under two parents is reviewed once, listed once after both, and confirmed once") {
@@ -480,16 +435,17 @@ class SnapshotSuite extends munit.FunSuite:
     // D waits for its parents, which wait for A
     assert(d.accept(now(3), "D still holds.").left.exists(_.contains("accept B first")))
     assert(d.accept(now(2), "C still holds.").left.exists(_.contains("accept A first")))
-    val d2 = ok(d.accept(now(0), "Clearer about every input.", confirm = now.drop(1)))
+    val d2 = ok(d.accept(now(0), "Clearer about every input."))
     assert(d2.allAccepted, d2.notAccepted)
     assertEquals(d2.ledger.history(NodeId("D")).map(_.action.toString), List("accept", "confirm"))
   }
 
   test("a proposal waits for all of its parents") {
-    val d = List("A", "B").foldLeft(Desk(kbOf(diamond())))((d, id) => ok(d.decide(req(id, s"$id is right"))))
+    def accept(d: Desk, id: String) = d.decide(Decide.Accept(ids(id), s"$id is right"))
+    val d = List("A", "B").foldLeft(Desk(kbOf(diamond())))((d, id) => ok(accept(d, id)))
     assertEquals(d.node("D").review.waitsFor.map(_.value), Some("C"))
-    assert(d.decide(req("D", "D is right")).left.exists(_.contains("accept C first")))
-    assert(ok(d.decide(req("C", "C is right"))).decide(req("D", "D is right")).isRight)
+    assert(accept(d, "D").left.exists(_.contains("accept C first")))
+    assert(accept(ok(accept(d, "C")), "D").isRight)
   }
 
   test("a node placed under a second parent: that parent reviews its parts; the node rests on more, and says the same") {
@@ -497,7 +453,7 @@ class SnapshotSuite extends munit.FunSuite:
     assertEquals(List("A", "B", "C", "D").map(d.causes), List(Nil, Nil, List("parts"), List("above")))
     val snap = proven(d.analysis.snapshot)
     // both mechanical: Lean proves C's parts make it, and D says what it said
-    assertEquals(List("C", "D").map(id => Decisions.mechanical(snap, d.ledger, snapOf(snap)(id))), List(None, None))
+    assertEquals(List("C", "D").map(id => Reading(snap, d.ledger).mechanical(snapOf(snap)(id))), List(None, None))
   }
 
   test("a change to a definition lists what rests on it, however far down, each once, to confirm by name") {
@@ -505,7 +461,7 @@ class SnapshotSuite extends munit.FunSuite:
     val d = Desk(shelfKb).acceptAll.withKb(kbOf(now).implement(pick)((shelf, n) => shelf.filter(_.pages >= minPages.value)))
     val below = Set("OnlyGood", "FromList", "OnlyLong", "EveryLong", "Pick")
     assertEquals(belowIds(d, "Books"), List("OnlyGood", "FromList", "OnlyLong", "EveryLong", "Pick"))
-    assert(ok(d.accept(now.head, "Readers want thick books now.", confirm = now.filter(n => below(n.id)))).allAccepted)
+    assert(ok(d.accept(now.head, "Readers want thick books now.")).allAccepted)
   }
 
   test("the alternatives of each node in the model: what it replaces or is replaced by, other definitions of its terms; never its siblings") {
@@ -521,11 +477,11 @@ class SnapshotSuite extends munit.FunSuite:
         "definition" -> str(s"val d = Node.claim(\"D\", \"The result is a square.\", why = \"w\")(f)\n  .under($under)\n  .examples()()"))
       SnapNode(NodeId("D"), Kind.Claim, c, c.hash, parents = ids(parents*))
     val before = node(List("B"), "b")
-    val ledger = Ledger.empty.add(NodeId("D"), Decision(Action.Accept, "dev", "2026-01-01T00:00:00Z", "it is right", content = before.content))
+    val ledger = Ledger.empty.add(NodeId("D"), Decision(Action.Accept, "dev", Instant.EPOCH, "it is right", content = before.content))
     val now = node(List("B", "C"), "b, c")
-    assertEquals(Decisions.causes(Snapshot("S", List(now)), ledger, now), Nil)
+    assertEquals(Reading(Snapshot("S", List(now)), ledger).causes(now), Nil)
     // what it says, changed beside the call that places it: itself
     val c = now.content.mapFields { case ("definition", d) => "definition" -> str(d.asString.getOrElse("").replace(".examples()()", ".examples()(expect(1))")) }
     val reworded = now.copy(content = c, hash = c.hash)
-    assertEquals(Decisions.causes(Snapshot("S", List(reworded)), ledger, reworded), List(Cause.Self))
+    assertEquals(Reading(Snapshot("S", List(reworded)), ledger).causes(reworded), List(Cause.Self))
   }

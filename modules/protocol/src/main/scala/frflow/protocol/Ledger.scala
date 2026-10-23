@@ -1,7 +1,14 @@
 package frflow.protocol
 
-import io.circe.{Codec, Decoder, DecodingFailure, Encoder, Json, JsonObject}
+import io.circe.{Codec, Decoder, Encoder, Json}
+import io.circe.derivation.{Configuration, ConfiguredCodec}
 import io.circe.syntax.*
+import java.time.Instant
+
+/** A reason, a why or an exemption says something: a few words, not a placeholder. */
+def tooFew(s: String): Boolean = s.trim.split("\\s+").count(_.exists(_.isLetter)) < 3
+
+private given Configuration = Configuration.default.withDefaults
 
 /** A decision of the developer about a node.
   *
@@ -12,15 +19,13 @@ import io.circe.syntax.*
   * @param after    the node's decision this one follows (its `entry`): two decisions following the same
   *                 one come from two branches, merged; the node is then decided again
   * @param code     the fingerprint of the source files the node governs, when decided
-  * @param commit   the git commit checked out when deciding
-  * @param tree     the code as decided, written to git as a tree, to show how the code changed since
-  *                 (a clone without it falls back to `commit`)
+  * @param commit   the git commit checked out when deciding: how the code changed since is diffed against it
   * @param key      the developer key that signed it, with `sig` the signature (see `Signing`)
   */
-final case class Decision(action: Action, by: String, at: String, reason: String, rejected: List[NodeId] = Nil,
+final case class Decision(action: Action, by: String, at: Instant, reason: String, rejected: List[NodeId] = Nil,
     after: Option[EntryRef] = None, code: Option[Fingerprint] = None, commit: Option[String] = None,
-    tree: Option[String] = None, key: Option[KeyId] = None, sig: Option[String] = None,
-    chain: Chain = Chain.empty, content: Content = Content.empty) derives Codec.AsObject:
+    key: Option[KeyId] = None, sig: Option[String] = None, chain: Chain = Chain.empty,
+    content: Content = Content.empty) derives ConfiguredCodec:
   def hash: Hash = content.hash
   /** The decision without its signature: what is signed, and what a rewrite is judged on. */
   def unsigned: Decision = copy(key = None, sig = None)
@@ -78,35 +83,8 @@ object Ledger:
 
   /** A short reference to a decision: what was decided, by whom, when and why. */
   def entry(d: Decision): EntryRef =
-    EntryRef(Sha.parts(d.action.toString, d.by, d.at, d.reason, d.content.ref).take(16))
+    EntryRef(Sha.parts(d.action.toString, d.by, d.at.toString, d.reason, d.content.ref).take(16))
 
-  /** On disk, content already recorded for the node is written once, then referred to by its reference
-    * (`"content": "same:<ref>"`), which stays right when a merge interleaves two branches' decisions.
-    */
-  given Codec[Ledger] = Codec.from(
-    Decoder.instance { c =>
-      c.downField("decisions").as[JsonObject].flatMap { o =>
-        o.toList.foldLeft[Decoder.Result[Map[NodeId, List[Decision]]]](Right(Map.empty)) { case (acc, (id, ds)) =>
-          acc.flatMap(m => ds.as[List[Json]].flatMap(_.foldLeft[Decoder.Result[List[Decision]]](Right(Nil))((done, d) =>
-            done.flatMap(prev => decision(prev, d).map(prev :+ _)))).map(m.updated(NodeId(id), _)))
-        }
-      }.map(Ledger(_))
-    },
-    Encoder.instance { l =>
-      Json.obj("decisions" -> Json.fromFields(l.decisions.toList.sortBy(_._1).map { (id, ds) =>
-        id.value -> Json.fromValues(ds.zipWithIndex.map { (d, i) =>
-          val o = d.asJsonObject.filter((k, v) => !(k == "rejected" && d.rejected.isEmpty))
-          Json.fromJsonObject(if ds.take(i).exists(_.content == d.content) then o.add("content", Json.fromString("same:" + d.content.ref)) else o)
-        })
-      }))
-    })
-
-  private def decision(before: List[Decision], d: Json): Decoder.Result[Decision] =
-    val c = d.hcursor
-    // A decision without `rejected` rejected nothing.
-    val full = d.mapObject(o => if o.contains("rejected") then o else o.add("rejected", Json.arr()))
-    c.downField("content").as[String].toOption.filter(_.startsWith("same:")).map(_.stripPrefix("same:")) match
-      case None => full.as[Decision]
-      case Some(ref) =>
-        before.reverse.find(_.content.ref == ref).toRight(DecodingFailure(s"no content $ref before", c.history))
-          .flatMap(prev => full.mapObject(_.add("content", prev.content.json)).as[Decision])
+  /** On disk, nodes in the order of their ids. */
+  given Codec[Ledger] = Codec.from(Decoder[Map[NodeId, List[Decision]]].at("decisions").map(Ledger(_)),
+    Encoder.instance(l => Json.obj("decisions" -> Json.fromFields(l.decisions.toList.sortBy(_._1).map((id, ds) => id.value -> ds.asJson)))))

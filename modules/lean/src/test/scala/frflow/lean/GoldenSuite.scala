@@ -2,6 +2,7 @@ package frflow
 package lean
 
 import frflow.fixtures.*
+import frflow.protocol.ObligationName
 
 /** The generated Lean, byte for byte, on fixtures: a change to it moves every cached proof and decision. */
 class GoldenSuite extends munit.FunSuite:

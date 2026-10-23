@@ -12,7 +12,7 @@ class ReviewSuite extends munit.CatsEffectSuite with Golden:
     val typed = List("a", "the new parts are proven to make it", "?", "Name the user as 'that user'.", "a", "an hour bounds a stolen token")
     for
       api <- FakeApi()
-      term <- Terminal.scripted(typed)
+      term <- Scripted(typed)
       code <- ReviewSession(api, term, st).run(None)
       out <- term.output
       ledger <- api.ledgerNow
@@ -27,7 +27,7 @@ class ReviewSuite extends munit.CatsEffectSuite with Golden:
 
   test("review needs a terminal") {
     for
-      term <- Terminal.scripted(Nil, interactive = false)
+      term <- Scripted(Nil, interactive = false)
       code <- FakeApi().flatMap(ReviewSession(_, term, st).run(None))
     yield assertEquals(code, Run.Usage)
   }
@@ -36,7 +36,7 @@ class ReviewSuite extends munit.CatsEffectSuite with Golden:
     def reject(yes: Boolean) = Command.Reject(NodeId("Expiry"), Asked(Some("sessions end on sign-out instead"), None, yes))
     for
       api <- FakeApi()
-      term <- Terminal.scripted(Nil, interactive = false)
+      term <- Scripted(Nil, interactive = false)
       refused <- Run(api, term, st)(reject(yes = false))
       done <- Run(api, term, st)(reject(yes = true))
       out <- term.output
@@ -51,7 +51,7 @@ class ReviewSuite extends munit.CatsEffectSuite with Golden:
     val accept = Command.Accept(List(NodeId("Decide")), Nil, Asked(None, None, yes = false))
     for
       api <- FakeApi()
-      term <- Terminal.scripted(List("the wording names the user plainly", "y"))
+      term <- Scripted(List("the wording names the user plainly", "y"))
       code <- Run(api, term, st)(accept)
       out <- term.output
     yield
@@ -62,7 +62,7 @@ class ReviewSuite extends munit.CatsEffectSuite with Golden:
   test("a refused decision exits 1 and says why") {
     for
       api <- FakeApi()
-      term <- Terminal.scripted(Nil, interactive = false)
+      term <- Scripted(Nil, interactive = false)
       code <- Run(api, term, st)(Command.Accept(List(NodeId("Expiry")), Nil, Asked(Some("an hour bounds a stolen token"), None, yes = true)))
       out <- term.output
     yield

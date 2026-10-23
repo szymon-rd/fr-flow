@@ -2,12 +2,10 @@ package frflow.cli
 
 import cats.syntax.all.*
 import com.monovore.decline.Opts
-import frflow.protocol.{EntryRef, NodeId, RequestId}
+import frflow.protocol.{NodeId, RequestId}
 
-/** How output looks, as asked: `plain` forces ASCII without color, `color` forces colors; else a
-  * terminal decides (see `FrFlowApp.style`).
-  */
-final case class Looks(plain: Boolean, color: Boolean, width: Option[Int])
+/** How output looks, as asked: `plain` forces ASCII without color; else a terminal decides (see `FrFlowApp.style`). */
+final case class Looks(plain: Boolean)
 
 /** A decision as asked: why (asked for on a terminal), by whom, and whether it is confirmed already. */
 final case class Asked(reason: Option[String], as: Option[String], yes: Boolean)
@@ -18,7 +16,6 @@ enum Command:
   case Show(node: NodeId, lean: Boolean, json: Boolean)
   case Diff(node: NodeId, json: Boolean)
   case Inbox(json: Boolean)
-  case History(json: Boolean)
   case Review(as: Option[String])
   case Accept(nodes: List[NodeId], revisit: List[NodeId], asked: Asked)
   case Reject(node: NodeId, asked: Asked)
@@ -27,7 +24,6 @@ enum Command:
   case Gone(node: NodeId, asked: Asked)
   case Ask(node: Option[NodeId], text: String, as: Option[String])
   case Close(requests: List[RequestId])
-  case Sign(entries: List[EntryRef], as: Option[String], yes: Boolean)
   case Render
   case Check(node: Option[NodeId], json: Boolean)
   case Status(json: Boolean)
@@ -42,15 +38,12 @@ object Commands:
   val header: String =
     """FrFlow: one root refined by a DAG of small statements, each proven in Lean from its parts and decided by the developer.
       |
-      |The developer reads with tree, show, diff, inbox; decides with review, accept, reject, confirm, revisit, gone, sign;
+      |The developer reads with tree, show, diff, inbox; decides with review, accept, reject, confirm, revisit, gone;
       |asks with ask and close. The agent works with render, check, status, ci, context, find, scaffold, answer, inbox.
       |Exit codes: 0 fine; 1 something is not accepted or proven, or a decision was refused; 2 a usage error.""".stripMargin
 
-  private val looks: Opts[Looks] = (
-    Opts.flag("plain", "ASCII without colors (also when NO_COLOR is set or the output is not a terminal)").orFalse,
-    Opts.flag("color", "colors and Unicode even when the output is not a terminal").orFalse,
-    Opts.option[Int]("width", "cut lines to this many columns (default: the terminal's, none otherwise)").orNone
-  ).mapN(Looks.apply)
+  private val looks: Opts[Looks] =
+    Opts.flag("plain", "ASCII without colors (also when NO_COLOR is set or the output is not a terminal)").orFalse.map(Looks.apply)
 
   private val json = Opts.flag("json", "print the API's typed value as JSON").orFalse
   private def node(name: String = "NODE") = Opts.argument[String](name).map(NodeId(_))
@@ -85,10 +78,7 @@ object Commands:
       (Opts.flag("idea", "about the whole idea, not one node").map(_ => Option.empty[NodeId]).orElse(node().map(Some(_))), words("TEXT"), as)
         .mapN(Command.Ask.apply)),
     command("close", "close requests: an answer read, or a request withdrawn")(
-      Opts.arguments[String]("REQUEST").map(rs => Command.Close(rs.toList.map(RequestId(_))))),
-    command("sign", "sign decisions not signed by a developer key (all, or the entries named) when they are yours")(
-      (Opts.arguments[String]("ENTRY").orEmpty.map(_.map(EntryRef(_))), as, yes).mapN(Command.Sign.apply)),
-    command("history", "every decision, newest first")(json.map(Command.History.apply)))
+      Opts.arguments[String]("REQUEST").map(rs => Command.Close(rs.toList.map(RequestId(_))))))
 
   private val agent = List(
     command("render", "generate Lean and the snapshot .frflow/kb.json from the Scala definitions")(Opts(Command.Render)),

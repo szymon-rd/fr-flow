@@ -5,8 +5,10 @@ import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
-import frflow.lean.ObligationName
-import frflow.protocol.{NodeKind as _, *}
+import frflow.ledger.Store
+import frflow.protocol.*
+import io.circe.syntax.*
+import java.nio.file.Path
 
 /** What to check, and in what order: a node after what its Lean imports (its parts, and the contracts its
   * code calls; the root's `root_impl` imports every proven implementation), the nodes of one level side by
@@ -26,7 +28,7 @@ final case class CheckPlan(a: Analysis, only: Option[String]):
   val pending: List[Node[?]] = todo.filter(unchanged(_).isEmpty)
 
   private def below(n: Node[?]): List[Node[?]] =
-    (kb.parts(n) ++ g.callees(n) ++ (if a.isRoot(n) then kb.nodes.filter(c => g.provenImpl(c).isDefined) else Nil))
+    (kb.parts(n) ++ g.callees(n) ++ (if kb.isRoot(n) then kb.nodes.filter(c => g.provenImpl(c).isDefined) else Nil))
       .filter(x => g.formal(x) && !(x eq n))
 
   /** The level of each node: one more than the highest below it. */
@@ -62,8 +64,35 @@ final case class CheckPlan(a: Analysis, only: Option[String]):
   def kept(n: Node[?], parts: List[(String, Option[CheckStatus])]): Option[NodeCheck] =
     unchanged(n).filter(_ => parts.forall(_._2.contains(CheckStatus.Proven)))
 
-/** Runs a plan: level by level, each level's nodes side by side (`threads` at a time). */
+/** Writes the Lean and the snapshot, and checks: a plan run level by level, each level's nodes side by side. */
 object CheckRunner:
+  /** Writes the generated Lean; returns the files that changed. */
+  def render(a: Analysis): IO[List[String]] =
+    val ws = a.ws
+    val keep = a.files.keySet.map(ws.lean.resolve(_).normalize)
+    for
+      _ <- Disk.update(ws.lean.resolve("lakefile.toml"), a.generate.lakefile(ws.kernelPath))
+      _ <- Disk.update(ws.lean.resolve("lean-toolchain"), "leanprover/lean4:v4.35.0\n")
+      changed <- a.files.toList.sortBy(_._1).parTraverseN(8)((rel, text) => Disk.update(ws.lean.resolve(rel), text).map(Option.when(_)(rel)))
+      stale <- a.generate.layout.generatedDirs.map(ws.lean.resolve).flatTraverse(d => Disk.isDirectory(d).ifM(Disk.files(d), IO.pure(Nil)))
+      _ <- stale.filterNot(p => keep(p.normalize)).traverse_(Disk.delete)
+    yield changed.flatten
+
+  /** Writes the snapshot to the workspace's `snapshotFile`. */
+  def writeSnapshot(a: Analysis): IO[Path] =
+    Store.write(a.ws.snapshotFile, Canonical.file(a.snapshot.asJson) + "\n").as(a.ws.snapshotFile)
+
+  /** Renders, checks nodes (all, or one), parts first, and records the results: the nodes checked, and the
+    * analysis with them recorded.
+    */
+  def check(a: Analysis, lake: Lake, cfg: Config, only: Option[String]): IO[(List[(Node[?], NodeCheck)], Analysis)] =
+    for
+      _ <- render(a)
+      results <- run(CheckPlan(a, only), lake, cfg.threads)
+      all = a.checks.filter((id, _) => a.kb.node(id.value).isDefined) ++ results.map((n, c) => NodeId(n.id) -> c)
+      _ <- ChecksStore(a.ws.checksFile).save(all)
+    yield (results, a.withChecks(all))
+
   def run(plan: CheckPlan, lake: Lake, threads: Int): IO[List[(Node[?], NodeCheck)]] =
     // A batch that builds is built for each of its targets: their own builds are skipped (one at a time,
     // they cost about as much as Lean's start). Each node's own build then replays it, with its messages.

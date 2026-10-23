@@ -4,6 +4,7 @@ import io.circe.{Codec, Json}
 import io.circe.parser.decode
 import io.circe.syntax.*
 import java.nio.file.{Files, Path, Paths}
+import java.time.Instant
 
 /** The codecs: every type crossing modules and files reads back as written. */
 class ProtocolSuite extends munit.FunSuite:
@@ -16,8 +17,7 @@ class ProtocolSuite extends munit.FunSuite:
 
   test("statuses are written as words, and read back") {
     assertEquals(CheckStatus.ModelError.asJson, Json.fromString("model-error"))
-    assertEquals(ObligationStatus.NotNeeded.toString, "not-needed")
-    assertEquals(ObligationStatus.NoClash.toString, "no-clash")
+    assertEquals(ObligationStatus.NotShown.toString, "not-shown")
     assertEquals(decode[Cause]("\"self\""), Right(Cause.Self))
     assert(decode[Action]("\"settle\"").isLeft)
     List(NodeKind.values, CheckStatus.values, ObligationStatus.values, ReviewState.values, Cause.values, Action.values,
@@ -38,24 +38,24 @@ class ProtocolSuite extends munit.FunSuite:
     assertEquals(content.parts, None)
   }
 
-  test("tries: what Lean proving each means, and their words when it does not") {
-    assertEquals((TryKind.Needed("A").onProven, TryKind.Needed("A").onNot), (ObligationStatus.NotNeeded, ObligationStatus.Needed))
+  test("tries: which fail the node, their words when Lean finds no proof, and their names") {
     assert(TryKind.Clash.fatal && TryKind.Unsat.fatal && !TryKind.Idle.fatal)
     assertEquals(TryKind.Vacuous.unshown("Root", "Part", ""), "Lean found no proof that Root holds whatever Part says (a try)")
-    assertEquals(TryKind.VacuousExpect(0).onProven, ObligationStatus.Vacuous)
+    List(ObligationName.Tried(TryKind.Needed("A")), ObligationName.Cover("I"), ObligationName.EvalImpl(3), ObligationName.RootImpl,
+      ObligationName.Tried(TryKind.VacuousExpect(2))).foreach(o => assertEquals(ObligationName.parse(o.lean), Some(o)))
   }
 
-  private val decision = Decision(Action.Accept, "dev", "2026-01-01T00:00:00Z", "it is right", rejected = List(NodeId("Alt")),
+  private val decision = Decision(Action.Accept, "dev", Instant.parse("2026-01-01T00:00:00Z"), "it is right", rejected = List(NodeId("Alt")),
     code = Some(Fingerprint("f")), chain = Chain("c"), content = content)
 
-  test("a ledger reads back as written; content repeated for a node is written once") {
-    val again = decision.copy(action = Action.Confirm, at = "2026-01-02T00:00:00Z", rejected = Nil)
-    val l = Ledger.empty.add(NodeId("A"), decision).add(NodeId("A"), again).add(NodeId("Alt"), decision.copy(action = Action.Reject))
+  test("a ledger reads back as written; decisions are ordered by when they were taken, to the nanosecond") {
+    val again = decision.copy(action = Action.Confirm, at = Instant.parse("2026-01-01T00:00:00.4Z"), rejected = Nil)
+    val l = Ledger.empty.add(NodeId("A"), again).add(NodeId("A"), decision).add(NodeId("Alt"), decision.copy(action = Action.Reject))
     val text = Canonical.file(l.asJson)
-    assert(text.contains("\"content\": \"same:"), text)
-    assert(!text.contains("null") && !text.contains("\"rejected\": []"), text)
+    assert(!text.contains("null"), text)
+    assertEquals(l.all.map(_._2.at), List(again.at, decision.at, decision.at))
     assertEquals(decode[Ledger](text), Right(l))
-    assertEquals(l.history(NodeId("A")).last.after, Some(Ledger.entry(decision)))
+    assertEquals(l.history(NodeId("A")).last.after, Some(Ledger.entry(again)))
   }
 
   /** The examples' committed files, found from wherever the tests run. */
@@ -75,24 +75,23 @@ class ProtocolSuite extends munit.FunSuite:
     assertEquals(requests.map(_.map(_.status)), Right(List(RequestStatus.Closed)))
   }
 
-  test("checks, requests and decision requests read back as written") {
-    roundTrip(NodeCheck(Hash("h"), CheckStatus.Proven, List(Result("complete", ObligationStatus.Proven, "auto"),
-      Result("needed_A", ObligationStatus.Needed)), Nil, List("propext"), "2026-01-01T00:00:00Z"))
-    roundTrip(Request(RequestId("R1"), None, "Say more.", "dev", "2026-01-01T00:00:00Z", RequestStatus.Open))
-    roundTrip(DecisionRequest(NodeId("A"), "dev", "it is right", reject = List(NodeId("B")), seen = Some("v")))
+  test("checks and requests read back as written") {
+    roundTrip(NodeCheck(Hash("h"), CheckStatus.Proven, List(Result(ObligationName.Complete, ObligationStatus.Proven, "auto"),
+      Result(ObligationName.Tried(TryKind.Needed("A")), ObligationStatus.NotShown)), Nil, List("propext"), decision.at))
+    roundTrip(Request(RequestId("R1"), None, "Say more.", "dev", decision.at, RequestStatus.Open))
   }
 
   test("a snapshot and its review read back as written") {
     val node = SnapNode(NodeId("A"), NodeKind.Contract, content, content.hash, parents = List(NodeId("Root")),
-      status = Some(CheckStatus.Open), examples = List(ExampleView("one", List("x = 1"), "f(1)", true, "ok", Some("ok"),
+      status = Some(CheckStatus.Open), examples = List(ExampleView("one", List("x = 1"), "f(1)", true, None, None,
         Some(Outcome(ObligationStatus.Proven, "Lean agrees")), None)),
       code = Some(CodeRef(List("A.scala"), Fingerprint("f"))),
-      split = Some(Split(Outcome.unchecked, List(Split.Part(NodeId("B"), ObligationStatus.Needed, "")), Outcome(ObligationStatus.NoClash))),
+      split = Some(Split(Outcome.unchecked, List(Split.Part(NodeId("B"), ObligationStatus.NotShown, "")), Outcome(ObligationStatus.NotShown))),
       invariants = List(Kept(NodeId("I"), "view", "rule", ObligationStatus.Exempt, "why")))
     val snap = Snapshot("Shelf", List(node), root = Some(NodeId("Root")), params = List(ParamTerm("good", "good", false, None, "Book → Bool")))
     roundTrip(snap)
     val review = Review(ReviewState.Review, List(Cause.Above), "v", Some(NodeId("Root")), List(Moved(NodeId("Root"), content)),
-      Some(decision), Some("it is right"), None, Nil, Nil, Nil, Nil,
+      Some(decision), Some(decision), Some("it is right"), None, Nil, Nil,
       List(Below(NodeId("B"), BelowKind.Moved, "s", "r", "c", "w")), List(decision), Nil, List(Alternative(NodeId("Alt"), content)))
     roundTrip(Annotated(snap, List(Reviewed(node, review)), List(Gone(NodeId("Old"), decision)), List(NodeId("A"))))
     assert(review.mechanical)

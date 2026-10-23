@@ -45,14 +45,6 @@ class ExamplesSuite extends munit.FunSuite:
     assertEquals(s(List(Book("Long", 300)), 1), List(Book("Long", 300)))
   }
 
-  test("what a contract does not promise: an input it never reads, an empty result it always accepts") {
-    // PickPromise: picked books come from the shelf and are long; nothing says some must be picked
-    assertEquals(shelfKb.limits(pickPromise), List("the result may not depend on `n`: the contract never looks at it",
-      "an empty result (None or Nil) always satisfies it: it never requires the system to return anything"))
-    assertEquals(shelfKb.limits(pick), List("the result may not depend on `n`: the contract never looks at it"))
-    assertEquals(shelfKb.limits(onlyGood), Nil)
-  }
-
   test("generated calls are only listed when they fail, at most ten, and code that throws is a finding") {
     assertEquals(shelfKb.generated(pick), Nil)
     val throwing = shelfKb.implement(pick)((shelf, n) => if shelf.size > 1 && n == 1 then sys.error("boom") else shelf.filter(_.pages >= minPages.value))

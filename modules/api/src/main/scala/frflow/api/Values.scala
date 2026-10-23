@@ -1,25 +1,22 @@
 package frflow.api
 
-import frflow.check.Status
+import frflow.ledger.Proofs
 import frflow.protocol.*
-import io.circe.{Codec, Decoder, Encoder}
+import io.circe.Codec
 
 /** The developer who decides: every decision is theirs, and signed with their key. */
 final case class Developer(name: String)
 
-/** A decision in the ledger not signed by a developer key, by its entry (what `sign` names). */
-final case class Unsigned(node: NodeId, entry: EntryRef, decision: Decision) derives Codec.AsObject
-
 /** One decision of the ledger, with the node it is about. */
 final case class Logged(node: NodeId, decision: Decision) derives Codec.AsObject
 
-/** Everything a front end shows, read once: where the knowledge base stands (the snapshot with the
-  * developer's decisions, how far the proofs reach, the warnings `status` fails on), the requests, and the
-  * decisions not signed.
+/** Everything a front end shows, read once: the snapshot with the developer's decisions, the warnings `status`
+  * fails on, the requests, and the decisions not signed by a developer key.
   */
-final case class View(status: Status, requests: List[Request], unsigned: List[Unsigned]) derives Codec.AsObject:
-  def annotated: Annotated = status.annotated
-  def warnings: List[String] = status.warnings
+final case class View(annotated: Annotated, warnings: List[String], requests: List[Request], unsigned: List[Logged])
+    derives Codec.AsObject:
+  /** Every node accepted, proven and passing its examples, and nothing to warn of: the CI gate. */
+  def ok: Boolean = Proofs.complete(annotated) && warnings.isEmpty
   def snapshot: Snapshot = annotated.snapshot
   def nodes: List[Reviewed] = annotated.nodes
   def node(id: NodeId): Option[Reviewed] = annotated.byId.get(id)
@@ -29,37 +26,18 @@ final case class View(status: Status, requests: List[Request], unsigned: List[Un
     requests.filter(q => q.node.contains(r.id) && q.status == RequestStatus.Open && q.seen.forall(_ == r.review.version))
   def withAgent(r: Reviewed): Boolean = asked(r).nonEmpty
 
-/** A decision the developer takes. Several nodes accepted at once share one reason, all or none. */
-enum Decide derives Codec.AsObject:
-  /** Choose the nodes (rejecting their rivals), or accept them as they now are. Of the decisions below a
-    * changed node, those named in `revisit` are reviewed again; those under review only because it moved
-    * still hold, and are confirmed with the same reason.
-    */
-  case Accept(nodes: List[NodeId], reason: String, revisit: List[NodeId] = Nil, seen: Map[NodeId, String] = Map.empty)
-  /** Reject a proposal: the agent proposes what the reason asks for, or removes it. */
-  case Reject(node: NodeId, reason: String, seen: Option[String] = None)
-  /** Accept every mechanical decision (Lean proves them again; nothing in them is a choice). */
-  case Confirm(reason: String)
-  /** Ask that an accepted node be reviewed again: a change elsewhere may affect it. */
-  case Revisit(node: NodeId, reason: String)
-  /** Agree that a decided node is gone from the model. */
-  case Gone(node: NodeId, reason: String)
-
 /** The decisions a `Decide` records, in order (what a preview shows, and what was written). */
 final case class Decided(decisions: List[Logged]) derives Codec.AsObject
 
 /** A term of the vocabulary a node uses: what it means in the world, and the definition that fixes it. */
 final case class Term(name: String, means: String, operation: Boolean, definedBy: Option[NodeId]) derives Codec.AsObject
 
-/** One line of a diff: unchanged, added, removed, or a run of unchanged lines folded away (`text` is how many). */
-enum DiffOp:
-  case Same, Added, Removed, Folded
-object DiffOp:
-  given Codec[DiffOp] = Codec.from(
-    Decoder.decodeString.emap(s => DiffOp.values.find(_.toString == s).toRight(s"unknown diff op $s")),
-    Encoder.encodeString.contramap(_.toString))
-
-final case class DiffLine(op: DiffOp, text: String) derives Codec.AsObject
+/** One line of a diff: unchanged, added, removed, or a run of `lines` unchanged lines folded away. */
+enum DiffLine derives Codec.AsObject:
+  case Same(text: String)
+  case Added(text: String)
+  case Removed(text: String)
+  case Folded(lines: Int)
 
 /** A field of a node's content as decided against as it is now. */
 final case class FieldChange(field: String, lines: List[DiffLine]) derives Codec.AsObject

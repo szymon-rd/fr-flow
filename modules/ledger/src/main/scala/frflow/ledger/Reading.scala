@@ -8,7 +8,7 @@ import ReviewState.{Accepted, Proposed, Rejected}
   * mechanical, each computed once, in one pass parents first. Made for each reading; nothing is kept
   * between readings.
   */
-final class View(val graph: Graph, val ledger: Ledger):
+final class Reading(val graph: Graph, val ledger: Ledger):
   def snapshot: Snapshot = graph.snapshot
 
   lazy val standings: Map[NodeId, Standing] = Standing.all(graph, ledger)
@@ -43,7 +43,10 @@ final class View(val graph: Graph, val ledger: Ledger):
 
   def mechanical(n: SnapNode): Option[String] = Mechanical.why(this, n, notMechanical)
 
-object View:
-  def apply(snapshot: Snapshot, ledger: Ledger): View = new View(Graph(snapshot), ledger)
+  /** The mechanical decisions, in the order they are taken: the batch `confirm` accepts. */
+  def mechanicalBatch: List[NodeId] = graph.order.filter(id => notMechanical.get(id).exists(_.isEmpty))
+
+object Reading:
+  def apply(snapshot: Snapshot, ledger: Ledger): Reading = new Reading(Graph(snapshot), ledger)
   /** The same structure, read with another ledger. */
-  def apply(graph: Graph, ledger: Ledger): View = new View(graph, ledger)
+  def apply(graph: Graph, ledger: Ledger): Reading = new Reading(graph, ledger)

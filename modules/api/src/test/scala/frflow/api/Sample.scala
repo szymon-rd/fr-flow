@@ -1,9 +1,9 @@
 package frflow.api
 
-import frflow.check.Status
-import frflow.ledger.Decisions
+import frflow.ledger.{Annotate, Decide, Graph, Stamp}
 import frflow.protocol.*
 import io.circe.Json
+import java.time.Instant
 
 /** A small knowledge base as a snapshot, decided by hand: a root with two claims sharing a contract, a
   * definition, an assumption under no parent, and a design node; then the contract reworded (under
@@ -11,7 +11,7 @@ import io.circe.Json
   */
 object Sample:
   val by = "dev"
-  val at = "2026-01-02T10:00:00Z"
+  val at = Instant.parse("2026-01-02T10:00:00Z")
 
   private def str(s: String) = Json.fromString(s)
   private def strs(xs: String*) = Json.fromValues(xs.map(Json.fromString))
@@ -23,8 +23,8 @@ object Sample:
       "sources" -> Json.obj(sources.map((k, v) => k -> str(v))*), "vocabulary" -> strs(vocabulary*)))*)
 
   private def proven(id: String, parts: List[String]) =
-    Some(Split(Outcome(ObligationStatus.Proven, "auto"), parts.map(p => Split.Part(NodeId(p), ObligationStatus.Needed,
-      s"Lean found no proof that $id holds without it (a try)")), Outcome(ObligationStatus.NoClash, "Lean found no proof that the parts contradict each other (a try)")))
+    Some(Split(Outcome(ObligationStatus.Proven, "auto"), parts.map(p => Split.Part(NodeId(p), ObligationStatus.NotShown,
+      s"Lean found no proof that $id holds without it (a try)")), Outcome(ObligationStatus.NotShown, "Lean found no proof that the parts contradict each other (a try)")))
 
   private def node(id: String, kind: NodeKind, parents: List[String], parts: List[String], statement: String, why: String,
       sources: List[(String, String)] = Nil, uses: List[String] = Nil, status: Option[CheckStatus] = Some(CheckStatus.Proven),
@@ -38,8 +38,8 @@ object Sample:
       split = Option.when(statementLike && parts.nonEmpty && kind != NodeKind.Contract)(proven(id, parts)).flatten)
 
   private def example(note: String, call: String, ok: Boolean = true) =
-    ExampleView(note, List("grants = List(Grant(alice, /a))"), call, expected = true, if ok then "ok" else "returned None",
-      Some("ok"), Some(Outcome(ObligationStatus.Proven, "Lean agrees")), None)
+    ExampleView(note, List("grants = List(Grant(alice, /a))"), call, expected = true, Option.when(!ok)("returned None"),
+      None, Some(Outcome(ObligationStatus.Proven, "Lean agrees")), None)
 
   val definition = node("Identities", NodeKind.Definition, Nil, Nil, "Users are named by ids, and resources are paths.",
     "Ids are what the session table stores.", status = None, defines = List("User"))
@@ -64,11 +64,11 @@ object Sample:
   val decided: Snapshot = Snapshot("Sample", List(root, needsGrant, letsIn, decide, memory, definition, store),
     root = Some(NodeId("Root")), definitions = List(NodeId("Identities")), trusted = List(NodeId("StoreKeeps")))
 
-  private def accept(s: Snapshot, l: Ledger, id: String, reason: String, time: String = at): Ledger =
-    Decisions.decide(s, l, DecisionRequest(NodeId(id), by, reason), time).fold(e => sys.error(s"$id: ${e.message}"), identity)
+  private def accept(s: Snapshot, l: Ledger, id: String, reason: String): Ledger =
+    Decide(s, l, Decide.Accept(List(NodeId(id)), reason), by, Stamp(at)).fold(e => sys.error(s"$id: ${e.message}"), identity)
 
   /** Every node accepted, in the order decisions are taken. */
-  val ledger: Ledger = Decisions.order(decided).foldLeft(Ledger.empty)((l, id) => accept(decided, l, id.value, s"${id.value} holds as stated"))
+  val ledger: Ledger = Graph(decided).order.foldLeft(Ledger.empty)((l, id) => accept(decided, l, id.value, s"${id.value} holds as stated"))
 
   /** Then: the contract reworded (under review, with what it rests on), a new proposal under the root,
     * and one rejected beside it.
@@ -89,19 +89,13 @@ object Sample:
     val changed = Map(decide.id -> reworded.copy(hash = reworded.content.hash), root.id -> grown)
     decided.copy(nodes = decided.nodes.map(n => changed.getOrElse(n.id, n)) ++ List(expiry, forever))
 
-  val ledgerNow: Ledger = Decisions.decide(snapshot, ledger, DecisionRequest(NodeId("Forever"), by,
-    "sessions must end: a stolen token would work forever", action = Action.Reject), "2026-01-03T09:00:00Z").fold(e => sys.error(e.message), identity)
+  val ledgerNow: Ledger = Decide(snapshot, ledger, Decide.Reject(NodeId("Forever"), "sessions must end: a stolen token would work forever"), by,
+    Stamp(Instant.parse("2026-01-03T09:00:00Z"))).fold(e => sys.error(e.message), identity)
 
   val requests: List[Request] = List(
-    Request(RequestId("R1"), Some(NodeId("NeedsGrant")), "Add an example: a revoked grant refuses access.", by, "2026-01-03T10:00:00Z",
+    Request(RequestId("R1"), Some(NodeId("NeedsGrant")), "Add an example: a revoked grant refuses access.", by, Instant.parse("2026-01-03T10:00:00Z"),
       RequestStatus.Answered, Some("Added the example under Decide; it is proven."), None),
-    Request(RequestId("R2"), None, "Users can see who accessed their records.", by, "2026-01-03T11:00:00Z", RequestStatus.Open))
-
-  /** How far the proofs reach, as the checker would find it of this snapshot: its three splits proven, its
-    * contract checked on its examples (both evaluated in Lean), its design node reviewed only.
-    */
-  val reach: Status.Reach = Status.Reach(splits = 3, provenSplits = 3, notProvenYet = Nil, outOfLean = Nil, contracts = 1,
-    provenDown = Nil, beside = Nil, byRunning = Nil, designs = List(NodeId("Memory")), examples = Some(Status.Examples(2, 2, 0, Nil)))
+    Request(RequestId("R2"), None, "Users can see who accessed their records.", by, Instant.parse("2026-01-03T11:00:00Z"), RequestStatus.Open))
 
   def view(s: Snapshot = snapshot, l: Ledger = ledgerNow, rs: List[Request] = requests): View =
-    View(Status(Decisions.annotate(s, l), reach, Nil, Nil), rs, Nil)
+    View(Annotate(s, l), Nil, rs, Nil)

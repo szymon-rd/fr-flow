@@ -4,8 +4,9 @@ package ledger
 import cats.effect.{IO, Resource}
 import cats.effect.std.Mutex
 import cats.syntax.all.*
-import io.circe.{Decoder, Json}
+import io.circe.{Decoder, Encoder, Json}
 import io.circe.parser.decode
+import io.circe.syntax.*
 import java.nio.channels.FileChannel
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.{Files, Path, StandardCopyOption, StandardOpenOption}
@@ -58,3 +59,14 @@ final class FileLock private (lockFile: Path, mutex: Mutex[IO]):
 object FileLock:
   /** The lock of `file`, held through `file.lock` beside it. */
   def of(file: Path): IO[FileLock] = Mutex[IO].map(FileLock(file.resolveSibling(s"${file.getFileName}.lock"), _))
+
+/** A JSON file changed under its lock (one store per file, see `FileLock`): `update` sees it as on disk,
+  * and a refusal writes nothing.
+  */
+final class JsonStore[A: Encoder: Decoder] private (file: Path, empty: A, lock: FileLock):
+  def load: IO[A] = Store.load(file, empty)
+  def update[E, B](f: A => Either[E, (A, B)]): IO[Either[E, B]] =
+    lock.surround(load.flatMap(f(_).traverse((next, b) => Store.writeJson(file, next.asJson).as(b))))
+
+object JsonStore:
+  def make[A: Encoder: Decoder](file: Path, empty: A): IO[JsonStore[A]] = FileLock.of(file).map(new JsonStore(file, empty, _))

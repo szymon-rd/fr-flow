@@ -1,7 +1,7 @@
 package frflow
 package lean
 
-import frflow.protocol.TryKind
+import frflow.protocol.{ObligationName, TryKind}
 import ObligationName.*
 
 /** A statement Lean is asked to prove (or, for a try, that it is asked whether it can prove). */

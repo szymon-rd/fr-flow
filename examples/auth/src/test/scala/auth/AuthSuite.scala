@@ -2,15 +2,19 @@ package auth
 
 import frflow.*
 import cats.effect.IO
-import frflow.check.*
+import frflow.api.{FrFlowError, LiveApi}
+import frflow.check.Workspace
 import java.nio.file.{Files, Paths}
 
 class AuthSuite extends munit.CatsEffectSuite:
+  // The API over the example's own workspace; nothing here decides, so no key is read.
+  private def api = LiveApi(knowledge, Workspace(Paths.get("examples/auth").toAbsolutePath.normalize, "../../../lean"), Paths.get("no.key"), Map.empty)
+  private def checked = api.flatMap(_.check(None)).recoverWith { case FrFlowError.LeanMissing => IO(assume(false, "lake is not available")) *> IO.never }
 
   test("the committed ledger accepts every node: none is up for review, none is gone") {
     // As `auth/run status` reads it: a change to the content, the hashes or the code fingerprints shows here.
-    Workflow(knowledge, Workspace(Paths.get("examples/auth").toAbsolutePath.normalize, "../../../lean")).flatMap(_.analysis).map { a =>
-      val annotated = a.annotated
+    api.flatMap(_.view).map { v =>
+      val annotated = v.annotated
       val states = annotated.nodes.map(r => r.id.value -> r.state.toString)
       assertEquals(states.size, knowledge.nodes.size)
       assertEquals(states.filter(_._2 != "accepted"), Nil)
@@ -54,16 +58,12 @@ class AuthSuite extends munit.CatsEffectSuite:
     // In the example's own workspace, as `auth/run check` checks it: its Lean build and recorded results
     // are reused while current.
     for
-      lake <- Config.load.flatMap(Lake(Paths.get("."), _)).flatMap(_.available)
-      _ <- IO(assume(lake, "lake is not available"))
-      w <- Workflow(knowledge, Workspace(Paths.get("examples/auth").toAbsolutePath.normalize, "../../../lean"))
-      checked <- w.check()
-      context <- w.context(decisionContract)
+      report <- checked
+      context <- api.flatMap(_.context(frflow.protocol.NodeId(decisionContract.id)))
     yield
-      val r = checked.results
-      assertEquals(r.map((n, c) => n.id -> c.status.toString),
+      assertEquals(report.nodes.map(c => c.id.value -> c.status.toString),
         List("AccessExactly" -> "proven", "TokenNamesHolder" -> "proven", "AccessNeedsGrant" -> "proven", "GrantLetsIn" -> "proven", "DecisionContract" -> "proven"))
-      assertEquals(r.head._2.obligations.find(_.name == "root_impl").map(_.status.toString), Some("proven"))
-      assertEquals(checked.after.generate.trusted, Nil)
+      assertEquals(report.view.snapshot.root.flatMap(report.view.node).flatMap(_.node.rootImpl).map(_.status.toString), Some("proven"))
+      assertEquals(report.view.snapshot.trusted, Nil)
       assert(context.text.contains("No user may ever"))
   }

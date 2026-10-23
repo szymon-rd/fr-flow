@@ -12,12 +12,12 @@ object Downstream:
   /** The ancestors whose meaning changed since the node was decided, nearest first, each with its
     * content as it was then: what is shown for the cause `above`.
     */
-  def moved(v: View, n: SnapNode): List[Moved] =
+  def moved(v: Reading, n: SnapNode): List[Moved] =
     v.ledger.binding(n.id).filter(d => d.chain != v.graph.parentChain(n) && v.causes(n).contains(Cause.Above)).fold(Nil) { d =>
       // What it rests on: its ancestors, the definitions they use, and the contracts their code calls.
       val above = v.graph.ancestors(n)
       (above ++ (n :: above).flatMap(x => x.uses ++ x.relies).distinct.flatMap(v.graph.byId.get)).distinctBy(_.id).flatMap { a =>
-        v.ledger.history(a.id).filter(x => x.action.binds && x.at <= d.at).lastOption
+        v.ledger.history(a.id).filter(x => x.action.binds && !x.at.isAfter(d.at)).lastOption
           .filter(t => Meaning.of(t.content) != Meaning.of(a.content)).map(t => Moved(a.id, t.content))
       }
     }
@@ -27,7 +27,7 @@ object Downstream:
     * (each still holds, or is revisited). Below a node that is under review for anything else,
     * nothing is listed: that node is decided on its own first.
     */
-  def below(v: View, n: SnapNode): List[Below] =
+  def below(v: Reading, n: SnapNode): List[Below] =
     val g = v.graph
     def accepted(c: SnapNode) = v.state(c) == ReviewState.Accepted && v.ledger.binding(c.id).isDefined
     def row(c: SnapNode, kind: BelowKind) =
@@ -47,14 +47,4 @@ object Downstream:
         val fresh = frontier.distinctBy(_.id).filterNot(c => seen(c.id))
         val rows = fresh.flatMap(c => listed(c).map(c -> _))
         walk(rows.flatMap((c, _) => g.dependentsOf(c.id)), seen ++ fresh.map(_.id), found ++ rows.map(_._2))
-    val own = walk(g.dependentsOf(n.id), Set(n.id), Vector.empty).toList.sortBy(b => g.rank.getOrElse(b.id, Int.MaxValue))
-    // The idea is what every decision rests on: a root's change lists the decisions outside its tree too.
-    val elsewhere =
-      if !n.isRoot || n.content("ideaSection").isDefined then Nil
-      else g.nodes.filter(c => c.id != n.id && !own.exists(_.id == c.id) && !g.ancestors(c).exists(_.id == n.id) && accepted(c))
-        .map(row(_, BelowKind.Accepted))
-    // The invariants cut across every concern: a change to a root's idea lists them too.
-    val across =
-      if !n.isRoot then Nil
-      else g.nodes.filter(c => c.rule && !(own ++ elsewhere).exists(_.id == c.id) && accepted(c)).map(row(_, BelowKind.Accepted))
-    own ++ elsewhere ++ across
+    walk(g.dependentsOf(n.id), Set(n.id), Vector.empty).toList.sortBy(b => g.rank.getOrElse(b.id, Int.MaxValue))

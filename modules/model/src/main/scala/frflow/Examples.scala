@@ -173,28 +173,3 @@ private[frflow] object ExampleRuns:
     case _ => x == y
 
   private def counts(xs: List[?]): Map[Any, Int] = xs.groupMapReduce(identity)(_ => 1)(_ + _)
-
-  /** What a contract does not promise, found mechanically: inputs its post never looks at, and whether
-    * an empty result (`None`, `Nil`) satisfies it for every example input. Shown next to the decision, so
-    * nobody believes a contract says more than it does.
-    */
-  def limits(kb: KnowledgeBase, n: Node[?]): List[String] =
-    n.post.toList.flatMap { post =>
-      val inputs = post.params.dropRight(1).map(_._1)
-      val unused = if !n.formal then Nil else inputs.filterNot(p => mentions(post.body, p))
-      val f = post.value.asInstanceOf[(Any, Any, Any) => Boolean]
-      val empties = n.cases.flatMap { e =>
-        emptyLike(e.result).map(v => Try(Bindings.within(kb.definitionBindings ++ e.bindings)(f(e.a, e.b, v))).getOrElse(false))
-      }
-      unused.map(p => s"the result may not depend on `$p`: the contract never looks at it") ++
-        Option.when(empties.nonEmpty && empties.forall(identity))(
-          "an empty result (None or Nil) always satisfies it: it never requires the system to return anything")
-    }
-
-  private def mentions(lean: String, name: String): Boolean =
-    s"(?<![\\w'])${java.util.regex.Pattern.quote(name)}(?![\\w'])".r.findFirstIn(lean).isDefined
-
-  private def emptyLike(v: Any): Option[Any] = v match
-    case _: Option[?] => Some(None)
-    case _: List[?]   => Some(Nil)
-    case _            => None
