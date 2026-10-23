@@ -95,6 +95,8 @@ object NodeText:
   private def formal(n: SnapNode): List[String] =
     sources(n).flatMap((k, src) => s"$k${if k == "post" then n.op.fold("")(o => s" (every call of $o)") else ""}:" :: indent(src)) ++
       n.content.strs("substitutions").map("  " + _) ++
+      // A boundary's model, as Lean has it: what the developer decides the outside does.
+      Option.when(n.content.strs("model").nonEmpty)("model:").toList ++ n.content.strs("model").flatMap(indent) ++
       n.invariants.flatMap(i => if i.status == ObligationStatus.Exempt then List(s"exempt from ${i.id}: ${i.detail}")
         else s"keeps ${i.id} (${i.status}), showing the rule:" :: indent(i.view)) ++
       Option.when(n.covers.nonEmpty)(s"kept by ${n.covers.mkString(", ")}").toList ++

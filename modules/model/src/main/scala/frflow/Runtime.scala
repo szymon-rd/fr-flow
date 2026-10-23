@@ -31,12 +31,42 @@ object Bindings:
 final case class Assumption(what: String, reads: Set[String], holds: () => Boolean)
 
 /** The code registered for a contract's operation: `wiring` is its source; `proven`, the `define` Lean proves. */
-final case class Implementation(contract: String, factory: () => Any, files: List[String], wiring: String = "", proven: Option[Def[?]] = None):
+final case class Implementation(contract: String, factory: () => Any, files: List[String], wiring: String = "", proven: Option[Def[?]] = None,
+    flowDef: Option[Def[?]] = None):
+  /** Proven code that is a flow: `proven` is its run on the models, `flowDef` the flow itself. */
+  def flow: Boolean = flowDef.isDefined
   /** The running code is the proven `define` itself, not code checked against it (`runs`). */
   def provenCode: Boolean = proven.isDefined && wiring.isEmpty
   // The last of `files` is the model's file, where it is attached.
   def sources: List[String] = files.dropRight(1)
   def modelFile: Option[String] = files.lastOption
+
+object Implementation:
+  private val Ident = "[A-Za-z_][A-Za-z0-9_]*".r
+  def ofFlow[A, R](contract: Node[A => Flow[R]], impl: Term[A] => Flow[R], text: String, files: List[String]): Implementation =
+    val (in, r) = Node.flowTypes(contract.op.getOrElse(throw IllegalArgumentException(s"${contract.id} is not a contract")))
+    val name = if Ident.matches(text) then text else contract.id.head.toLower.toString + contract.id.tail
+    val flow = Def(Lifted.flow(impl, in, text), r, Some(name), isFlow = true)
+    val pair = LeanType.of[Any](Shape.TupleOf(List(r, summon[LeanType[World]])))
+    val code = Def(Lifted.runOn(flow, in, pair), pair, Some(s"${name}_run"))
+    Implementation(contract.id, () => code.lifted.value, files, "", Some(code), Some(flow))
+
+/** Runs a flow's proven code in `F`: `knowledge.run[IO](expiryJob)(db.bind(sqlite))` is the job, a function of its input. */
+final class Runner[F[_]] private[frflow] (kb: KnowledgeBase)(using F: cats.effect.kernel.Sync[F]):
+  def apply[A, R](contract: Node[A => Flow[R]])(bound: (Binding | Boundary.Bound)*): A => F[R] =
+    val flow = kb.implementation(contract).flatMap(_.flowDef)
+      .getOrElse(throw IllegalStateException(s"no flow implements ${contract.id}: implementProven(${contract.id})(…)"))
+    val bindings = bound.collect { case b: Binding => b }
+    val impls: Map[Boundary[?], Any] = bound.collect { case b: Boundary.Bound => b.boundary -> b.impl }.toMap
+    val (bs, body) = flow.lifted.built
+    val steps = body.termTree match
+      case Tree.Do(s) => s
+      case _          => throw IllegalStateException(s"${flow.name} is not a flow")
+    Steps.boundaries(steps).filterNot(impls.contains).foreach(b =>
+      throw IllegalStateException(s"${contract.id}: bind the boundary ${b.name} (${b.name}.bind(…))"))
+    val bound2 = bindings.map(_.param.name).toSet
+    val all = bindings ++ kb.definitionBindings.filterNot(b => bound2(b.param.name)) ++ Wiring.calls(kb, bindings).filterNot(b => bound2(b.param.name))
+    a => F.map(Flows.run[F](steps, Map(bs.head -> a), impls, all))(_.asInstanceOf[R])
 
 /** A parameter's value for one call, read when first needed; a function it holds answers each question once. */
 private[frflow] final class Cell(val binding: Binding):
@@ -68,7 +98,13 @@ private[frflow] object Cell:
 
 extension [A, B, R](n: Node[(A, B) => R])
   // The IR is untyped; the builders gave the post this type.
-  private[frflow] def postFn: Option[(A, B, R) => Boolean] = n.post.map(_.value.asInstanceOf[(A, B, R) => Boolean])
+  // A flow's post reads the result and the world after apart: its "result" is the pair the run on the models gives.
+  private[frflow] def postFn: Option[(A, B, R) => Boolean] = n.post.map { p =>
+    if n.isFlow then
+      val f = p.value.asInstanceOf[(Any, Any, Any, Any) => Boolean]
+      (a: A, before: B, r: R) => r match { case (x, after) => f(a, x, before, after); case _ => false }
+    else p.value.asInstanceOf[(A, B, R) => Boolean]
+  }
   def broken(a: A, b: B, r: R): Option[String] = n.kept.find(_.brokenBy(a, b, r)).map(_.invariant.id)
 
   private[frflow] def enforce(impl: (A, B) => R, assumes: List[Assumption] = Nil)(bindings: Binding*): (A, B) => R =
@@ -106,11 +142,7 @@ private[frflow] object Wiring:
     val f = i.factory.asInstanceOf[() => (A, B) => R]
     val bound = bindings.map(_.param.name).toSet
     val defined = kb.definitionBindings.filterNot(b => bound(b.param.name))
-    val calls = opBindings(kb) { (c, _) =>
-      lazy val s = service(kb, c.asInstanceOf[Node[(Any, Any) => Any]], bindings)
-      val g = (x: Any, y: Any) => s(x, y)
-      () => g
-    }.filterNot(b => bound(b.param.name) || contract.op.exists(_ eq b.param))
+    val calls = Wiring.calls(kb, bindings).filterNot(b => bound(b.param.name) || contract.op.exists(_ eq b.param))
     // Fail when wired, not on the first call: every parameter the contract or its examples read must be bound
     // (a contract that starts reading a new parameter breaks old wiring here).
     val auto = (defined ++ calls).map(_.param.name).toSet
@@ -123,6 +155,14 @@ private[frflow] object Wiring:
     Bindings.within(all)(assumes.find(!_.holds()))
       .foreach(x => throw ContractViolation(contract.id, s"the values it starts with break the assumption ${x.what}"))
     contract.enforce((a, b) => f()(a, b), assumes)(all*)
+
+  /** Each operation some contract's code implements, bound to its service (made when first called). */
+  def calls(kb: KnowledgeBase, bindings: Seq[Binding]): List[Binding] =
+    opBindings(kb) { (c, _) =>
+      lazy val s = service(kb, c.asInstanceOf[Node[(Any, Any) => Any]], bindings)
+      val g = (x: Any, y: Any) => s(x, y)
+      () => g
+    }
 
   def definitionBindings(kb: KnowledgeBase): List[Binding] =
     kb.provisional.toList.sortBy(_._1).flatMap((t, d) => d.substs.find(_.name == t))

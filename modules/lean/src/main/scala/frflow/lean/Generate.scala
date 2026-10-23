@@ -14,6 +14,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, ObligationName)] 
   private val asked = Obligations(kb, refinement, coverages, authored)
   private val evaluated = Evals(kb, refinement)
   private val vocabularyModules = VocabularyModules(kb, layout, vocabulary)
+  val boundaryModules: BoundaryModules = BoundaryModules(kb, layout, vocabulary, vocabularyModules)
   private val nodeModules = NodeModules(kb, layout, refinement, vocabularyModules, asked, evaluated)
   private val proofFiles = ProofFiles(kb, layout, refinement)
   export vocabulary.{inForce, undecided, term, waitsForDefinition}
@@ -30,7 +31,8 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, ObligationName)] 
       List(layout.spec(n.id) -> spec(n), layout.auto(n.id) -> auto(n), layout.theorems(n.id) -> theorems(n), layout.checks(n.id) -> checks(n)) ++
         provenImpl(n).map(_ => layout.impl(n.id) -> impl(n)) ++ evalFile(n).map(layout.eval(n.id) -> _)
     }
-    val modules = List(layout.domain -> domainModule, layout.types -> types) ++ rootImpl.map(r => layout.rootImpl -> r._2) ++ perNode
+    val modules = List(layout.domain -> domainModule, layout.types -> types) ++ rootImpl.map(r => layout.rootImpl -> r._2) ++
+      Option.when(boundaryModules.exist)(layout.boundaries -> boundaryModules.file) ++ perNode
     (modules.map((m, text) => m.path -> text) ++ vocabularyModules.files).toMap
 
   def declarationsUsedBy(n: Node[?]): List[String] =

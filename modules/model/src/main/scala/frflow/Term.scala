@@ -23,7 +23,8 @@ sealed trait NoEquality
 
 /** A variable bound by a lambda: `hint` is the name the Scala lambda gave it (`_$1` for a wildcard). */
 private[frflow] final class Binder(val hint: String, val tpe: LeanType[?]):
-  def wildcard: Boolean = hint.startsWith("_$")
+  /** `_` in a lambda, or `_ <-` in a for-comprehension (Scala names it `x$1`). */
+  def wildcard: Boolean = hint.startsWith("_$") || hint.matches("x\\$\\d+")
   def term[A]: Term[A] = Term(Tree.Var(this), tpe.asInstanceOf[LeanType[A]])
 
 private[frflow] enum Iter:
@@ -68,6 +69,12 @@ private[frflow] enum Tree:
   case ListT(es: List[Tree])
   case Over(kind: Iter, on: Tree, b: Binder, body: Tree)
   case Op(op: Prim, args: List[Tree])
+  /** A flow's steps: the body of a `def` over a monad. */
+  case Do(steps: Steps)
+  /** A flow (a call of one) run on the models from a world: its result and the world after. */
+  case RunOn(call: Tree, world: Tree)
+  /** A model's state in a world. */
+  case Part(world: Tree, model: StateModel[?])
 
 /** The variables of a lambda over terms, named as the lambda names them, and its body. */
 private[frflow] object Lambda:
@@ -101,6 +108,8 @@ def none[A](using a: LeanType[A]): Term[Option[A]] = Term(Tree.Lit(None, LeanTyp
 
 /** `If(c)(a).Else(b)`: Lean's `if c then a else b`. */
 def If[R](c: Term[Boolean])(a: Term[R]): Then[R] = Then(c, a)
+/** `If(c)(a).Else(b)` on flows: the steps of one branch. */
+def If[R](c: Term[Boolean])(a: Flow[R]): ThenFlow[R] = ThenFlow(c, a)
 final class Then[R](c: Term[Boolean], a: Term[R]):
   def Else(b: Term[R]): Term[R] = Term(Tree.If(c.termTree, a.termTree, b.termTree), a.termType)
 
@@ -336,6 +345,8 @@ object Term extends TermsOfValues:
     def toSet: Term[Set[A]] = op(Prim.ToSet, LeanType.of(Shape.SetOf(elem(xs))), xs)
     def take(n: Term[Int]): Term[List[A]] = op(Prim.Take, xs.termType, n, xs)
     def drop(n: Term[Int]): Term[List[A]] = op(Prim.Drop, xs.termType, n, xs)
+    /** Each element in turn, as Cats' `traverse_`: Lean's `for x in xs do`. */
+    def traverse_(f: Term[A] => Flow[?]): Flow[Unit] = Flow.Each(xs, f)
     def zip[B](ys: Term[List[B]]): Term[List[(A, B)]] =
       op(Prim.Zip, LeanType.of(Shape.ListOf(LeanType.of(Shape.TupleOf(List(elem(xs), elem(ys)))))), xs, ys)
 

@@ -6,6 +6,7 @@ val circe = "io.circe" %% "circe-core" % "0.14.17"
 val circeParser = "io.circe" %% "circe-parser" % "0.14.17"
 val cats = "org.typelevel" %% "cats-core" % "2.13.0"
 val catsEffect = "org.typelevel" %% "cats-effect" % "3.6.3"
+val catsEffectKernel = "org.typelevel" %% "cats-effect-kernel" % "3.6.3"
 val fs2 = Seq("co.fs2" %% "fs2-core" % "3.12.2", "co.fs2" %% "fs2-io" % "3.12.2")
 val decline = "com.monovore" %% "decline" % "2.5.0"
 val http4s = Seq("http4s-ember-server", "http4s-dsl", "http4s-circe").map("org.http4s" %% _ % "0.23.33") :+
@@ -22,7 +23,7 @@ def module(name: String, libraries: ModuleID*) = Project(name, file(s"modules/$n
   .settings(Keys.name := s"frflow-$name", libraryDependencies ++= munit +: libraries)
 
 /** The DSL: nodes, the knowledge base, the macro from Scala to Lean, the runtime checks (package `frflow`). */
-lazy val model = module("model").dependsOn(protocol)
+lazy val model = module("model", cats, catsEffectKernel).dependsOn(protocol)
 
 /** The data crossing modules and files: the snapshot, the review, the ledger, checks and requests,
   * with their JSON codecs; ids and statuses as types (package `frflow.protocol`).

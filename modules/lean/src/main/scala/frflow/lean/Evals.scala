@@ -26,7 +26,8 @@ final class Evals(kb: KnowledgeBase, refinement: Refinement):
 
   private final class Contract(n: Node[?], post: Lifted[?], op: String):
     // The post's Scala value takes the call's inputs and result: its type is erased in the node.
-    private val holds = post.value.asInstanceOf[(Any, Any, Any) => Boolean]
+    // A flow's post takes the input, the result, the world before and the world after: `postFn` pairs them as a call's.
+    private val holds = n.asInstanceOf[Node[(Any, Any) => Any]].postFn.getOrElse(post.value.asInstanceOf[(Any, Any, Any) => Boolean])
     private val impl = provenImpl(n)
 
     def all: (List[Eval], List[(ObligationName, String)]) =
@@ -73,8 +74,12 @@ final class Evals(kb: KnowledgeBase, refinement: Refinement):
         tb <- leanValue(b).toRight("Lean has no value for its input")
         tr <- judged.traverse(r => leanValue(r).toRight("Lean has no value for its result"))
       yield
-        val onPost = (verdict, tr).tupled.map { (v, t) =>
-          val call = s"${app(qualified(n, "post"), ctx(post), env)._1} $ta $tb $t"
+        val onPost = (verdict, judged, tr).tupled.map { (v, r, t) =>
+          val p = app(qualified(n, "post"), ctx(post), env)._1
+          val call = r match
+            // A run's result and world after, as the post takes them: input, result, world before, world after.
+            case (x, w) if n.isFlow => (leanValue(x), leanValue(w)).tupled.fold(s"$p $ta $t $tb")((tx, tw) => s"$p $ta $tx $tb $tw")
+            case _                  => s"$p $ta $tb $t"
           Eval(name, label, if v then call else s"¬ $call", if v then s"¬ $call" else call)
         }
         val onImpl = for { d <- impl; g <- got; tg <- leanValue(g) } yield
@@ -110,6 +115,8 @@ final class Evals(kb: KnowledgeBase, refinement: Refinement):
 
   private def leanValue(v: Any): Option[String] = v match
     case b: Boolean => Some(if b then "True" else "False")
+    case w: World   => w.parts.toList.sortBy(_._1.field).traverse((m, s) => leanValue(s).map(t => s"${m.field} := $t"))
+      .map(fs => s"({ ${fs.mkString(", ")} } : $K.World)")
     case i: Int     => Some(int(BigInt(i)))
     case l: Long    => Some(int(BigInt(l)))
     case b: BigInt  => Some(int(b))

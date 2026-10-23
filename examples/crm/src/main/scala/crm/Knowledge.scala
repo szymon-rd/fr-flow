@@ -16,7 +16,7 @@ val knowledge = KnowledgeBase("Crm", idea = "IDEA.md")(
   companies, searches, adding, sharing, crmRun,
   storeMirrorsRequests, visibility, noCrossTenantRead, searchesMatch, readContract, dealSearch, recordsByQuery, readSideWiring,
   writesTakeEffect, writesOnlyAsAsked, recordsKept, writeContract, saveWrite, storeEdits, writeSideWiring,
-  sharesExpire, expiryJobWiring,
+  sharesExpire, tablesModel, expiryJob, expiryJobWiring,
   httpApi)
   .implementProven(recordsByQuery)(storedMatching, (u, q) => database.value.recordsMatching(q))
   .implementProven(storeEdits)(storedAbout, (id, t) => database.value.storeAbout(id, t))
@@ -25,5 +25,6 @@ val knowledge = KnowledgeBase("Crm", idea = "IDEA.md")(
   .implementProven(writeContract)(applyWrite)
   .implementProven(saveWrite)(saved)
   .implementProven(sharesExpire)(expireCode)
+  .implementProven(expiryJob)(expireOnce)
 
 object crmCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/crm", serve = Some(frflow.web.WebView.serve))

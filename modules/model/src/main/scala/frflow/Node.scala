@@ -23,10 +23,13 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (val id: St
     val post: Option[Lifted[?]] = None, val op: Option[Param[?]] = None, val rule: Option[Lifted[?]] = None,
     val substs: List[Subst] = Nil, val cases: List[Example] = Nil, val governs: List[String] = Nil, val kept: List[Keep] = Nil,
     val scope: List[Node[?]] = Nil, val ideaSection: String = "", val file: String = "", val expected: List[(String, Lifted[?])] = Nil,
-    val at: Int = -1, val local: Option[Lifted[?]] = None, val replaced: Option[Node[?]] = None):
+    val at: Int = -1, val local: Option[Lifted[?]] = None, val replaced: Option[Node[?]] = None,
+    val modelOf: Option[ModelOf] = None):
   def parents: List[Node[?]] = (declaredParents ++ kept.collect { case Keep(i, Some(_), _) => i }).distinctBy(System.identityHashCode)
   def isInvariant: Boolean = rule.isDefined
   def shownKind: String = kind.shown(isInvariant)
+  /** A contract on a flow: its operation runs from a world (`A => Flow[R]`), its post relates the worlds before and after. */
+  def isFlow: Boolean = op.exists(o => o.termType.shape match { case Shape.FnOf(_, r) => r.shape.isInstanceOf[Shape.FlowOf]; case _ => false })
   def defines: List[String] = substs.map(_.name)
   def referenced: List[Lifted[?]] = formula.toList ++ post.toList ++ rule.toList ++ local.toList ++ substs.flatMap(_.term) ++
     kept.flatMap(_.view) ++ expected.map(_._2)
@@ -50,9 +53,10 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (val id: St
     copy(expected = expected :+ (statement -> Lifted.thunk(() => consequence, Source.text(consequence))))
 
   private[frflow] def copy(declaredParents: List[Node[?]] = declaredParents, cases: List[Example] = cases, kept: List[Keep] = kept,
-      expected: List[(String, Lifted[?])] = expected, local: Option[Lifted[?]] = local, replaced: Option[Node[?]] = replaced): Node[M] =
+      expected: List[(String, Lifted[?])] = expected, local: Option[Lifted[?]] = local, replaced: Option[Node[?]] = replaced,
+      modelOf: Option[ModelOf] = modelOf): Node[M] =
     Node(id, statement, why, kind, declaredParents, formula, post, op, rule, substs, cases, governs, kept, scope, ideaSection,
-      file, expected, at, local, replaced)
+      file, expected, at, local, replaced, modelOf)
 
   /** The invariant does not apply to this contract or design decision, for the reason given (which the developer reads). */
   def exempt(invariant: Node[?], because: String): Node[M] =
@@ -78,8 +82,24 @@ object Node:
         ideaSection = idea, file = Source.here, at = Source.at)
     node()
 
+  /** A contract on a flow: every run of `op(a)` from a world meets `post(a, result, before, after)`, where
+    * `before(Model)` is a model's state before the run: `(now, result, before, after) => …`.
+    */
+  def contract[A, R](op: Param[A => Flow[R]]): FlowContractOn[A, R] = FlowContractOn(op)
+
   /** What the outside (a database, the clock) is trusted to do: code calling it is proven from it, its adapter checked. */
   def assumption[A, B, R](op: Param[(A, B) => R]): AssumptionOn[A, B, R] = AssumptionOn(op)
+
+  /** What a boundary does, as its model says: `Node.assumption(db)(DatabaseModel)(id, statement, why)`. Trusted:
+    * proven flows calling the boundary are proven from the model.
+    */
+  def assumption[T](boundary: Boundary[T]): ModelFor[T] = ModelFor(boundary)
+
+  private[frflow] def flowTypes(op: Param[?]): (LeanType[?], LeanType[?]) = op.termType.shape match
+    case Shape.FnOf(List(a), r) => r.shape match
+      case Shape.FlowOf(x) => (a, x)
+      case _               => throw IllegalArgumentException(s"FrFlow: ${op.name} is not a flow's operation (A => Flow[R])")
+    case _ => throw IllegalArgumentException(s"FrFlow: ${op.name} is not a flow's operation (A => Flow[R])")
 
   /** A fact of the world, trusted; checked at run time where the terms it reads are bound, when it can be computed. */
   inline def assumption(id: String, statement: String, why: String, idea: String = "")(inline formula: Term[Boolean]): Node[Unit] =
@@ -113,6 +133,41 @@ object Node:
     case Shape.FnOf(as, r) => as :+ r
     case _                 => throw IllegalArgumentException(s"FrFlow: ${op.name} is not an operation (a function)")
 
+/** `Node.contract(op)(id, statement, why, idea)(post)` on a flow's operation. */
+final class FlowContractOn[A, R](val op: Param[A => Flow[R]]):
+  inline def apply(id: String, statement: String, why: String, idea: String = "")(
+      inline post: (Term[A], Term[R], Term[World], Term[World]) => Term[Boolean]): Node[A => Flow[R]] =
+    def node(): Node[A => Flow[R]] =
+      val (a, r) = Node.flowTypes(op)
+      val w = summon[LeanType[World]]
+      Node(id, statement, why, NodeKind.Contract, post = Some(Lifted.lambda(post, List(a, r, w, w), Source.text(post))), op = Some(op),
+        ideaSection = idea, file = Source.here, at = Source.at)
+    node()
+
+/** A boundary and the model it is decided to behave as. */
+/** `real`: how to start the production implementation in a model's state, and read its state back. */
+final case class ModelOf(boundary: Boundary[?], model: StateModel[?], real: Option[(Any => Any, Any => Any)] = None)
+
+/** A boundary's model, decided: `T` is the boundary's trait, `S` the model's state. */
+final class Modelled[T, S] private ()
+
+/** `Node.assumption(db)(DatabaseModel)(id, statement, why, idea)`. */
+final class ModelFor[T](boundary: Boundary[T]):
+  def apply[S](model: T & StateModel[S]): ModelNode[T, S] = ModelNode(ModelOf(boundary, model))
+final class ModelNode[T, S](m: ModelOf):
+  inline def apply(id: String, statement: String, why: String, idea: String = ""): Node[Modelled[T, S]] =
+    def node(): Node[Modelled[T, S]] =
+      Node(id, statement, why, NodeKind.Assumption, ideaSection = idea, file = Source.here, at = Source.at, modelOf = Some(m))
+    node()
+
+extension [T, S](n: Node[Modelled[T, S]])
+  /** The production implementation, checked against the model on the examples of the flows calling it: `start` makes
+    * one holding a model's state, `read` reads its state back. Each example's run on it must give what the run on the
+    * model gives.
+    */
+  def checkedAgainst[I <: T](start: S => I, read: I => S): Node[Modelled[T, S]] =
+    n.copy(modelOf = n.modelOf.map(_.copy(real = Some((start.asInstanceOf[Any => Any], read.asInstanceOf[Any => Any])))))
+
 /** `Node.assumption(op)(id, statement, why, idea)(post)`: a step of its own, so that both assumptions default `idea`. */
 final class AssumptionOn[A, B, R](val op: Param[(A, B) => R]):
   inline def apply(id: String, statement: String, why: String, idea: String = "")(
@@ -137,4 +192,11 @@ extension [A, B, R](n: Node[(A, B) => R])
     // Built in a method of its own (a file's top-level vals initialize in one JVM method of at most 64 KB).
     def exampleList(): List[Example] =
       cases.toList.map(c => Example(c.note, bindings.toList, Source.sources(bindings*), c.a, c.b, c.result, c.expected))
+    n.copy(cases = n.cases ++ exampleList())
+
+extension [A, R](n: Node[A => Flow[R]])
+  /** Concrete runs of a flow from a world: they fail when the contract or the code (run on the models) is not what was decided. */
+  inline def examples(inline bindings: Binding*)(inline cases: FlowCase[A, R]*): Node[A => Flow[R]] =
+    def exampleList(): List[Example] =
+      cases.toList.map(c => Example(c.note, bindings.toList, Source.sources(bindings*), c.a, c.before, (c.result, c.after), c.expected))
     n.copy(cases = n.cases ++ exampleList())

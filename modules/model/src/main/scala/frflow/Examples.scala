@@ -33,12 +33,19 @@ object Example:
     override def toString: String = "no result"
 
 final case class Case[A, B, R](a: A, b: B, result: R, expected: Boolean, note: String)
+/** A run of a flow: its input, the world before, its result and the world after. */
+final case class FlowCase[A, R](a: A, before: World, result: R, after: World, expected: Boolean, note: String)
 
 /** The contract accepts this result, and the implementation must return it. */
 def expect[A, B, R](a: A, b: B, result: R, note: String): Case[A, B, R] = Case(a, b, result, true, note)
 
 /** The contract must refuse this result. */
 def reject[A, B, R](a: A, b: B, result: R, note: String): Case[A, B, R] = Case(a, b, result, false, note)
+
+/** A run the flow's contract accepts, and its code (run on the models) must make. */
+def expect[A, R](a: A, before: World, result: R, after: World, note: String): FlowCase[A, R] = FlowCase(a, before, result, after, true, note)
+/** A run the flow's contract must refuse. */
+def reject[A, R](a: A, before: World, result: R, after: World, note: String): FlowCase[A, R] = FlowCase(a, before, result, after, false, note)
 
 /** The outcome of one example: against the contract, and against the implementation. */
 final case class ExampleResult(example: Example, contract: String, implementation: Option[String]):
@@ -86,8 +93,35 @@ private[frflow] object ExampleRuns:
     if n.cases.isEmpty then Nil
     else Bindings.within(kb.opCode ++ kb.definitionBindings) {
       untyped(n).checkExamples(kb.implementation(n).map(_.factory.asInstanceOf[() => (Any, Any) => Any]), kb.runtimeAssumptions) ++
-        generated(kb, n)
+        generated(kb, n) ++ onReal(kb, n)
     }
+
+  /** A flow's examples run on the production implementations of its boundaries, started in each model's state before:
+    * what they give, read back, must be what the run on the models gives.
+    */
+  private def onReal(kb: KnowledgeBase, n: Node[?]): List[ExampleResult] =
+    (for
+      flow <- kb.implementation(n).flatMap(_.flowDef)
+      (bs, body) = flow.lifted.built
+      steps <- body.termTree match { case Tree.Do(s) => Some(s); case _ => None }
+      reals = kb.models.filter(m => m.real.isDefined && Steps.boundaries(steps).contains(m.boundary))
+      if reals.nonEmpty
+    yield n.cases.filter(_.expected).flatMap { e =>
+      val before = e.b.asInstanceOf[World]
+      val model = Try(Flows.onModels(steps, Map(bs.head -> e.a), before))
+      val real = Try {
+        val impls = reals.map(m => m.boundary -> m.real.get._1(before(m.model.asInstanceOf[StateModel[Any]]))).toMap
+        val r = Flows.runNow(steps, Map(bs.head -> e.a), impls)
+        (r, reals.foldLeft(before)((w, m) => w.updated(m.model, m.real.get._2(impls(m.boundary)))))
+      }
+      val verdict = (model, real) match
+        case (scala.util.Success(m), scala.util.Success(r)) if m == r => "ok"
+        case (scala.util.Success(m), scala.util.Success(r)) =>
+          s"on ${reals.map(_.boundary.name).mkString(", ")} gives ${Example.show(r)}, where the model gives ${Example.show(m)}"
+        case (_, scala.util.Failure(x)) => s"error on ${reals.map(_.boundary.name).mkString(", ")}: ${x.getMessage}"
+        case (scala.util.Failure(x), _) => s"error on the models: ${x.getMessage}"
+      List(ExampleResult(e.copy(note = s"${e.note} (run on ${reals.map(_.boundary.name).mkString(", ")})"), "ok", Some(verdict)))
+    }).getOrElse(Nil)
 
   // On `loose` (varied) data, a result in another order than the define's is the same result, and data the
   // outside cannot hold (two rows with one key) is no finding.

@@ -19,7 +19,9 @@ final class Vocabulary(kb: KnowledgeBase, chosen: String => Boolean):
   def isOpaque(name: String): Boolean = opaqueNames(name)
   private val paramTypes: Map[String, String] =
     (kb.nodes.flatMap(_.referenced) ++ kb.defs.map(_.lifted)).flatMap(_.paramRefs).toMap ++
-      kb.nodes.flatMap(n => n.op.zip(n.post).map((o, p) => o.name -> p.params.map(_._2).mkString(" → ")))
+      kb.nodes.flatMap(n => n.op.zip(n.post).map((o, p) =>
+        // A flow's operation: from its input and a world, its result and the world after.
+        o.name -> (if n.isFlow then o.termType.lean.stripPrefix("(").stripSuffix(")") else p.params.map(_._2).mkString(" → "))))
   def paramType(p: String): Option[String] = paramTypes.get(p)
 
   // What a lifted expression mentions, and what the `define`s it calls need (`self` excluded: a recursive one).

@@ -4,7 +4,8 @@ import scala.collection.mutable
 
 /** One expression's Lean: the text, and what it mentions (in the order it meets them). */
 private[frflow] final case class Printed(params: List[(String, String)], result: String, body: String, types: List[TypeDecl],
-    opaques: List[Opaque], paramRefs: List[(String, String)], paramObjects: List[Param[?]], defs: List[Def[?]])
+    opaques: List[Opaque], paramRefs: List[(String, String)], paramObjects: List[Param[?]], defs: List[Def[?]],
+    boundaries: List[Boundary[?]] = Nil, world: Boolean = false)
 
 /** Prints a term's tree as Lean. Every local variable gets a name no other in the expression has (an inner one can
   * never capture an outer one), none a parameter's, an opaque type's or a type's.
@@ -17,6 +18,8 @@ private[frflow] final class LeanPrinter:
   private val taken = mutable.Map.empty[String, AnyRef]
   private val binders = mutable.LinkedHashSet.empty[String]
   private val names = mutable.Map.empty[Binder, String]
+  private val boundaries = mutable.LinkedHashSet.empty[Boundary[?]]
+  private var world = false
   // The negations (`!`, the left of `==>`) the term is under: a `forall` under an odd number says something exists.
   private var negations = 0
   private def negated[T](f: => T): T = { negations += 1; try f finally negations -= 1 }
@@ -29,9 +32,13 @@ private[frflow] final class LeanPrinter:
     binders.find(n => paramRefs.contains(n) || types.opaques.contains(n)).foreach(n =>
       fail(s"`$n` names both a parameter or opaque type and a local variable here; rename the local one"))
     val r = tpe(result)
-    Printed(params, r, text, types.decls.values.toList, types.opaques.values.toList, paramRefs.toList, paramObjects.toList, defs.toList)
+    world ||= (result :: bs.map(_.tpe)).exists(Types.mentionsWorld)
+    Printed(params, r, text, types.decls.values.toList, types.opaques.values.toList, paramRefs.toList, paramObjects.toList, defs.toList,
+      boundaries.toList, world)
 
-  def tpe(t: LeanType[?]): String = types.tpe(t)
+  def tpe(t: LeanType[?]): String =
+    world ||= Types.mentionsWorld(t)
+    types.tpe(t)
 
   private def unique(owner: AnyRef, base: String, ok: String => Boolean = _ => true): String =
     // Nor a name a domain type starts with: `Share.mk` would read a field of a variable `Share`.
@@ -107,6 +114,40 @@ private[frflow] final class LeanPrinter:
         case Iter.OptAll    => p(s"∀ $x, $r = some $x → $tb")
         case Iter.OptSome   => p(s"∃ $x, $r = some $x ∧ $tb")
     case Tree.Op(op, args)     => prim(op, args)
+    case Tree.Do(steps)        => "do\n" + block(steps, "    ").mkString("\n")
+    case Tree.RunOn(call, w)   => world = true; val c = expr(call); p(s"FrFlow.runOn $c ${expr(w)}")
+    case Tree.Part(w, m)       => world = true; s"${expr(w)}.${m.field}"
+
+  /** A flow's steps as the lines of a `do` block, indented by `ind`. */
+  def block(s: Steps, ind: String): List[String] = s match
+    case Steps.Ret(t)            => List(s"${ind}pure ${expr(t)}")
+    case Steps.Seq(first, b, rest) =>
+      val bound = if b.wildcard then None else Some(local(b))
+      val lines = (bound, first) match
+        // A loop or a branch whose result is dropped is a statement of the block itself.
+        case (None, Steps.Loop(_, _, _) | Steps.Branch(_, _, _)) => block(first, ind)
+        case (None, Steps.Seq(_, _, _))                          => s"${ind}do" :: block(first, ind + "  ")
+        case (Some(n), Steps.Seq(_, _, _) | Steps.Loop(_, _, _) | Steps.Branch(_, _, _)) => s"${ind}let $n ← do" :: block(first, ind + "  ")
+        case (None, one)                                         => List(ind + step(one))
+        case (Some(n), one)                                      => List(s"${ind}let $n ← ${step(one)}")
+      lines ++ block(rest, ind)
+    case Steps.Loop(xs, b, body) =>
+      val r = expr(xs)
+      s"${ind}for ${local(b)} in $r do" :: block(body, ind + "  ")
+    case Steps.Branch(c, a, b)   => (s"${ind}if ${expr(c)} then" :: block(a, ind + "  ")) ++ (s"${ind}else" :: block(b, ind + "  "))
+    case one                     => List(ind + step(one))
+
+  /** One step, on a line of its own. */
+  private def step(s: Steps): String = s match
+    case Steps.Ret(t)              => s"pure ${expr(t)}"
+    case Steps.Op(b, m, args)      => boundaries += b; (s"${b.lean}.${Names.ident(m.getName)}" :: args.map(expr)).mkString(" ")
+    case Steps.Read(_)             => "get"
+    case Steps.Write(_, t)         => s"set ${expr(t)}"
+    case Steps.Modify(_, b, body)  =>
+      val n = local(b)
+      s"modify (fun $n => ${expr(body)})"
+    case Steps.Outside(_)          => fail("a step of the outside world (Flow.effect) in a flow Lean proves: only a production implementation of a boundary takes one")
+    case other                     => block(other, "").mkString("; ")
 
   private def free(r: => String)(x: String): Boolean =
     !(s"(?<![\\w'.])${java.util.regex.Pattern.quote(x)}(?![\\w'])").r.findFirstIn(r).isDefined

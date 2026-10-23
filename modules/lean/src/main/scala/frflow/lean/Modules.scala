@@ -19,10 +19,20 @@ final class VocabularyModules(kb: KnowledgeBase, layout: Layout, vocabulary: Voc
   private def definedTerms: List[(String, Node[?], Lifted[?])] =
     definitionsInForce.collect { case (t, d, s) if !s.isType => s.term.map((t, d, _)) }.flatten
 
+  /** A module that mentions the boundaries' world or calls a boundary imports them. */
+  def boundariesFor(ls: List[Lifted[?]]): List[LeanModule] =
+    Option.when(ls.exists(l => l.world || l.boundaries.nonEmpty))(layout.boundaries).toList
+
   def files: List[(String, String)] =
     val defs = kb.defs.map { d =>
-      layout.definition(d.name).path -> declaring(d.lifted.defs.map(_.name).filter(x => x != d.name && defNames(x)).map(layout.definition),
-        definition(d.name, binders(defCtx(d)), d.lifted.leanType, resolve(d.lifted.lean)))
+      // A flow is generic in its monad: any with the boundaries' operations.
+      val (monad, tpe) =
+        if d.isFlow then (s"{m : Type → Type} [Monad m]${d.lifted.boundaries.map(b => s" [${b.lean} m]").mkString}",
+          (d.lifted.params.map(_._2) :+ s"m ${d.lifted.result}").mkString(" → "))
+        else ("", d.lifted.leanType)
+      val uses = boundariesFor(List(d.lifted)) ++ d.lifted.defs.map(_.name).filter(x => x != d.name && defNames(x)).map(layout.definition)
+      layout.definition(d.name).path -> declaring(uses,
+        definition(d.name, List(monad, binders(defCtx(d))).filter(_.nonEmpty).mkString(" "), tpe, resolve(d.lifted.lean)))
     }
     val terms = definedTerms.map { (t, d, l) =>
       layout.term(t).path -> declaring(l.defs.map(_.name).filter(defNames).map(layout.definition),
@@ -60,15 +70,23 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
   private def vocabularyOf(n: Node[?]): List[LeanModule] =
     val ls = n.referenced ++ formalKeeps(n).flatMap(_._1.rule)
     val code = provenImpl(n).toList
-    vocabularyModules.modulesFor(ls.flatMap(_.defs) ++ code, ls.flatMap(ctx(_).names) ++ code.flatMap(defCtx(_).names) ++ n.op.map(_.name))
+    vocabularyModules.boundariesFor(ls ++ code.map(_.lifted)) ++
+      vocabularyModules.modulesFor(ls.flatMap(_.defs) ++ code, ls.flatMap(ctx(_).names) ++ code.flatMap(defCtx(_).names) ++ n.op.map(_.name))
   private def declared(name: String, c: Ctx, tpe: String, body: String): String = definition(name, binders(c), tpe, body) + "\n\n"
   private def lifted(name: String, l: Lifted[?]): String = declared(name, ctx(l), l.leanType, resolve(l.lean))
 
-  /** `∀ inputs, what inputs (op inputs) rest`, of every call of `c`'s operation. */
+  /** `∀ inputs, what inputs (op inputs) rest`, of every call of `c`'s operation; of a flow's, every run from every world:
+    * `∀ a w, post a (op a w).1 w (op a w).2`.
+    */
   private def everyCall(c: Node[?], what: String, rest: String = ""): String =
     c.post.zip(c.op).fold("True") { (p, op) =>
-      val (vars, xs) = call(p.params.init.map(_._2))
-      s"∀ $vars, $what $xs (${op.name} $xs)$rest"
+      if c.isFlow then
+        val List(a, _, w, _) = p.params.map(_._2): @unchecked
+        val run = s"(${op.name} x0 x1)"
+        s"∀ (x0 : $a) (x1 : $w), $what x0 $run.1 x1 $run.2$rest"
+      else
+        val (vars, xs) = call(p.params.init.map(_._2))
+        s"∀ $vars, $what $xs (${op.name} $xs)$rest"
     }
 
   private def model(n: Node[?]): List[String] = (n.rule, n.post) match

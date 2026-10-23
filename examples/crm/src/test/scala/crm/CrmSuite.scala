@@ -126,11 +126,20 @@ class CrmSuite extends munit.CatsEffectSuite:
     finally server.stop(0)
   }
 
+  test("the expiry job's proven flow runs in IO on SQLite, and logs its run") {
+    import cats.effect.unsafe.implicits.global
+    val d = Db.of(records, List(Share(3, acme), Share(1, globex)), List(Expiry(3, acme, 100)))
+    val t = expiryJobIO(d)(150).unsafeRunSync()
+    assertEquals(t.shares, List(Share(1, globex)))
+    assertEquals(d.shares(), List(Share(1, globex)))
+    assertEquals(d.events(), List(Event.Expired(150)))
+  }
+
   test("the expiry job ends shares whose time is up, and nothing else") {
     val d = Db.of(records, List(Share(3, acme), Share(1, globex)), List(Expiry(3, acme, 100)))
-    expireOnce(d, 50)
+    runExpiryJob(d, 50)
     assertEquals(d.shares().size, 2)
-    expireOnce(d, 150)
+    runExpiryJob(d, 150)
     assertEquals(d.shares(), List(Share(1, globex)))
     assertEquals(d.allRecords(), records)
     assertEquals(d.expiries(), Nil)
@@ -142,7 +151,7 @@ class CrmSuite extends munit.CatsEffectSuite:
     assertEquals(at(50), List[BigInt](1, 2))
     assertEquals(at(100), List[BigInt](1))
     // the job then clears the share; what a search returns does not change
-    expireOnce(d, 150)
+    runExpiryJob(d, 150)
     assertEquals(d.shares(), Nil)
     assertEquals(at(150), List[BigInt](1))
   }
@@ -156,7 +165,7 @@ class CrmSuite extends munit.CatsEffectSuite:
     write(WriteCmd(bob, Change.ShareWith(2, acme, Some(BigInt(100)))))
     write(WriteCmd(ann, Change.Add(CrmRecord(2, acme, Kind.Deal, "a taken id"))))
     write(WriteCmd(ann, Change.ShareWith(1, globex, None)))
-    expireOnce(d, 150)
+    runExpiryJob(d, 150)
     write(WriteCmd(ann, Change.Unshare(1, globex)))
     assertEquals(d.events().size, 7)
     val replayed = Db.replaying(d.events())
@@ -168,7 +177,7 @@ class CrmSuite extends munit.CatsEffectSuite:
   }
 
   test("the examples pass against the contracts, the ports and the code") {
-    for n <- List(readContract, dealSearch, writeContract, saveWrite, sharesExpire, recordsByQuery, storeEdits) do
+    for n <- List(readContract, dealSearch, writeContract, saveWrite, sharesExpire, recordsByQuery, storeEdits, expiryJob) do
       assert(knowledge.exampleResults(n).forall(r => r.contract == "ok" && r.implementation.forall(_ == "ok")), knowledge.exampleResults(n))
   }
 
@@ -196,7 +205,7 @@ class CrmSuite extends munit.CatsEffectSuite:
     // sharing again for good removes the expiry; the job then leaves the share alone
     write(WriteCmd(ann, Change.ShareWith(4, globex, None)))
     assertEquals(d.expiries(), Nil)
-    expireOnce(d, 150)
+    runExpiryJob(d, 150)
     assert(d.shares().contains(Share(4, globex)))
     // what the database holds is what the write led to
     val s = d.load()

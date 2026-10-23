@@ -25,6 +25,10 @@ private[frflow] enum Shape:
   case FnOf(as: List[LeanType[?]], r: LeanType[?])
   case Opq(o: Opaque)
   case Data(adt: Adt)
+  /** The states of the boundaries' models (Lean's `World`). */
+  case WorldT
+  /** A flow's result, as an operation's: run from a world, the result and the world after. */
+  case FlowOf(r: LeanType[?])
 
 /** A case class (one constructor, `mk`) or an enum (its cases, in order). */
 private[frflow] final class Adt(val name: String, val cls: Class[?], val isEnum: Boolean, ctorList: => List[Ctor],
@@ -83,7 +87,39 @@ object LeanType:
   private[frflow] def maker(m: Mirror.Product): List[Any] => Any = xs => m.fromProduct(Tuple.fromArray(xs.toArray.map(_.asInstanceOf[Object])))
 
   private[frflow] def of[A](s: Shape): LeanType[A] = new LeanType[A] { private[frflow] val shape = s }
-  private[frflow] def data[A](adt: Adt): LeanType[A] = of(Shape.Data(adt))
+  private[frflow] def data[A](adt: Adt): LeanType[A] =
+    val t = of[A](Shape.Data(adt))
+    known.putIfAbsent(adt.cls, t)
+    t
+  /** Every case class and enum met so far, by class: what a boundary's operation, read by reflection, is typed with. */
+  private val known = scala.collection.concurrent.TrieMap.empty[Class[?], LeanType[?]]
+
+  /** The type of a boundary operation's parameter or result, read from its Java signature (`Term<CrmStore>`). */
+  private[frflow] def ofJava(t: java.lang.reflect.Type): LeanType[?] = t match
+    case p: java.lang.reflect.ParameterizedType =>
+      val raw = p.getRawType.asInstanceOf[Class[?]]
+      val as = p.getActualTypeArguments.toList.map(ofJava)
+      raw.getName match
+        case "frflow.Term" | "frflow.Flow" => as.head
+        case "scala.collection.immutable.List" => of(Shape.ListOf(as.head))
+        case "scala.Option" => of(Shape.OptionOf(as.head))
+        case "scala.collection.immutable.Map" => of(Shape.MapOf(as(0), as(1)))
+        case "scala.collection.immutable.Set" => of(Shape.SetOf(as.head))
+        case n if n.startsWith("scala.Tuple") => of(Shape.TupleOf(as))
+        case n if n.startsWith("scala.Function") => of(Shape.FnOf(as.init, as.last))
+        case _ => ofJava(raw)
+    case c: Class[?] =>
+      c.getName match
+        case "java.lang.String" => summon[LeanType[String]]
+        case "scala.math.BigInt" => summon[LeanType[BigInt]]
+        case "boolean" | "java.lang.Boolean" => summon[LeanType[Boolean]]
+        case "int" | "java.lang.Integer" => summon[LeanType[Int]]
+        case "long" | "java.lang.Long" => summon[LeanType[Long]]
+        case "void" | "scala.runtime.BoxedUnit" | "scala.Unit" => summon[LeanType[Unit]]
+        case "frflow.World" => summon[LeanType[World]]
+        case _ => Iterator.iterate[Class[?] | Null](c)(x => x.nn.getSuperclass).takeWhile(_ != null)
+          .flatMap(x => known.get(x.nn)).nextOption().getOrElse(unknown)
+    case _ => unknown
   private[frflow] def unknown[A]: LeanType[A] = of(Shape.Unknown)
 
   given LeanType[Boolean] = of(Shape.Prop)
@@ -110,6 +146,7 @@ object LeanType:
     of(Shape.FnOf(List(a, b, c, d), r))
   given [A, B, C, D, E, R](using a: LeanType[A], b: LeanType[B], c: LeanType[C], d: LeanType[D], e: LeanType[E], r: LeanType[R]): LeanType[(A, B, C, D, E) => R] =
     of(Shape.FnOf(List(a, b, c, d, e), r))
+  given [R](using r: LeanType[R]): LeanType[Flow[R]] = of(Shape.FlowOf(r))
 
   /** The owner chain without packages, as Lean names it: `Model.Session`, `Search.ById`. */
   private[frflow] def qualified(c: Class[?]): String =
@@ -141,6 +178,8 @@ private[frflow] final class Types:
     case Shape.FnOf(as, r)   => "(" + (as :+ r).map(tpe).mkString(" → ") + ")"
     case Shape.Opq(o)        => val n = Names.ident(o.name); opaques.getOrElseUpdate(n, o); n
     case Shape.Data(adt)     => declare(adt)
+    case Shape.WorldT        => "World"
+    case Shape.FlowOf(r)     => s"(World → (${tpe(r)} × World))"
 
   def declare(adt: Adt): String =
     if !decls.contains(adt.name) && !inProgress(adt.name) then
@@ -180,6 +219,7 @@ private[frflow] object Types:
     case Shape.MapOf(k, v)                 => adts(k) ++ adts(v)
     case Shape.TupleOf(as)                 => as.flatMap(adts)
     case Shape.FnOf(as, r)                 => (as :+ r).flatMap(adts)
+    case Shape.FlowOf(r)                   => adts(r)
     case _                                 => Nil
 
   /** The Scala type as written: what a decision on a node using it binds. */
@@ -197,6 +237,19 @@ private[frflow] object Types:
     case Shape.FnOf(as, r)   => (if as.size == 1 then scala(as.head) else as.map(scala).mkString("(", ", ", ")")) + " => " + scala(r)
     case Shape.Opq(o)        => s"${o.name}.T"
     case Shape.Data(a)       => a.scalaName
+    case Shape.WorldT        => "World"
+    case Shape.FlowOf(r)     => s"Flow[${scala(r)}]"
+
+  /** Whether the type names the boundaries' world (Lean's `World`, declared with the boundaries). */
+  def mentionsWorld(t: LeanType[?]): Boolean = t.shape match
+    case Shape.WorldT | Shape.FlowOf(_) => true
+    case Shape.ListOf(a)   => mentionsWorld(a)
+    case Shape.OptionOf(a) => mentionsWorld(a)
+    case Shape.SetOf(a)    => mentionsWorld(a)
+    case Shape.MapOf(k, v) => mentionsWorld(k) || mentionsWorld(v)
+    case Shape.TupleOf(as) => as.exists(mentionsWorld)
+    case Shape.FnOf(as, r) => (as :+ r).exists(mentionsWorld)
+    case _                 => false
 
   /** Whether a value of the type holds an Int or a Long, however deep. */
   def bounded(t: LeanType[?], seen: Set[String] = Set.empty): Boolean = t.shape match

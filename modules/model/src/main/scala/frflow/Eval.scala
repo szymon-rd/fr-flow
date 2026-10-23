@@ -105,6 +105,16 @@ private[frflow] object Eval:
           case Iter.OptAll    => ro(env).asInstanceOf[Option[Any]].forall(p)
           case Iter.OptSome   => ro(env).asInstanceOf[Option[Any]].exists(p)
     case Tree.Op(op, args)    => prim(op, args.map(compile))
+    case Tree.Part(w, m)      => val r = compile(w); env => r(env).asInstanceOf[World](m)
+    case Tree.RunOn(Tree.Call(d, args), w) =>
+      val (as, rw) = (args.map(compile), compile(w))
+      env =>
+        val (bs, body) = d.lifted.built
+        body.termTree match
+          case Tree.Do(steps) => Flows.onModels(steps, bs.zip(as.map(_(env))).toMap, rw(env).asInstanceOf[World])
+          case other          => throw IllegalArgumentException(s"FrFlow: ${d.name} is not a flow")
+    case Tree.RunOn(other, _) => throw IllegalArgumentException(s"FrFlow: only a flow's call runs on the models, not $other")
+    case Tree.Do(_)           => _ => throw IllegalStateException("FrFlow: a flow runs on the models (FrFlow.runOn) or in production (run)")
 
   private def matches(pat: Pat, v: Any): Option[Env] = pat match
     case Pat.Ctor(adt, c, bs) =>

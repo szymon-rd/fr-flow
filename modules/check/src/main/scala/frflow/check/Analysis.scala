@@ -89,7 +89,9 @@ object Contents:
   def of(a: Analysis, n: Node[?]): Content =
     val kb = a.kb
     val implementation = kb.implementation(n).flatMap { i =>
-      val proven = i.proven.toList.flatMap(d => s"proven: ${d.name}" +: Def.closure(List(d)).map(x => s"${x.name} = ${x.lifted.source}"))
+      // A flow is decided as Lean reads it: its Scala is a `def` elsewhere, governed by a design decision.
+      val proven = i.proven.toList.flatMap(d => s"proven: ${d.name}" +: Def.closure(List(d))
+        .map(x => s"${x.name} = ${if x.isFlow then x.lifted.lean else x.lifted.source}"))
       val runs = Option.when(i.wiring.nonEmpty)(if i.proven.isDefined then s"runs: ${i.wiring}" else i.wiring).toList
       Option.when((proven ++ runs).nonEmpty)((proven ++ runs).mkString("\n"))
     }
@@ -121,7 +123,8 @@ object Contents:
       n.replaced.map(r => "replaces" -> str(r.id)),
       Option.when(n.kept.nonEmpty)("keeps" -> strs(n.kept.map(_.describe))),
       Option.when(n.expected.nonEmpty)("expects" -> strs(n.expected.map((st, l) => s"$st: ${l.source}"))),
-      implementation.map("implementation" -> str(_))
+      implementation.map("implementation" -> str(_)),
+      n.modelOf.map(mo => "model" -> strs(a.generate.boundaryModules.modelText(mo)))
     ).flatten ++ idea)*)
 
   private val Statement = """^\s*(?:(?:private|protected|final|lazy|override|inline)\s+)*(?:val|def|given|var)\b.*""".r

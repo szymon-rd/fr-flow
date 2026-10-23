@@ -64,7 +64,7 @@ final case class TypeDecl(name: String, lean: String, uses: List[String], scala:
   */
 final class Lifted[+F] private[frflow] (build: () => (List[Binder], Term[?]), private[frflow] val fn: AnyRef | Null, val source: String,
     asValue: Boolean = false, runs: Lifted[?] | Null = null):
-  private lazy val built = build()
+  private[frflow] lazy val built = build()
   private lazy val printed: Printed = LeanPrinter().print(built._1, built._2.termTree, built._2.termType)
   private lazy val compiled: AnyRef = Eval.function(built._1, built._2.termTree)
   /** The Scala function; a term defined as a value (`onShelf := shelf.length`), its value under the bindings in force. */
@@ -80,6 +80,9 @@ final class Lifted[+F] private[frflow] (build: () => (List[Binder], Term[?]), pr
   def defs: List[Def[?]] = printed.defs
   def paramObjects: List[Param[?]] = printed.paramObjects
   def opaqueObjects: List[Opaque] = printed.opaques
+  /** The boundaries a flow calls, and whether it mentions the boundaries' world. */
+  def boundaries: List[Boundary[?]] = printed.boundaries
+  def world: Boolean = printed.world
   def lean: String = if params.isEmpty then body else s"fun ${params.map((n, t) => s"($n : $t)").mkString(" ")} => $body"
   def leanType: String = (params.map(_._2) :+ result).mkString(" → ")
 
@@ -88,13 +91,27 @@ object Lifted:
   @scala.annotation.publicInBinary private[frflow] def thunk(t: () => Term[?], source: String): Lifted[() => Any] = Lifted(() => (Nil, t()), null, source)
   /** A term defined as a value. */
   @scala.annotation.publicInBinary private[frflow] def term(t: () => Term[?], source: String): Lifted[Any] = Lifted(() => (Nil, t()), null, source, asValue = true)
+  /** A flow from its input: its steps. */
+  @scala.annotation.publicInBinary private[frflow] def flow(f: AnyRef, in: LeanType[?], source: String): Lifted[Nothing] =
+    Lifted(() => {
+      val b = Lambda.binders(f, List(in)).head
+      val (s, t) = Steps.of(f.asInstanceOf[Term[Any] => Flow[?]](b.term))
+      (List(b), Term(Tree.Do(s), t))
+    }, f, source)
+  /** The code of a flow's contract: the flow from an input, run on the models from a world. */
+  @scala.annotation.publicInBinary private[frflow] def runOn(flow: Def[?], in: LeanType[?], result: LeanType[?]): Lifted[Nothing] =
+    Lifted(() => {
+      val a = Binder(flow.lifted.built._1.headOption.fold("x")(_.hint), in)
+      val w = Binder("w", summon[LeanType[World]])
+      (List(a, w), Term(Tree.RunOn(Tree.Call(flow, List(Tree.Var(a))), Tree.Var(w)), result))
+    }, null, flow.lifted.source)
   /** A lambda over terms of these types. */
   @scala.annotation.publicInBinary private[frflow] def lambda[F](f: AnyRef, types: List[LeanType[?]], source: String): Lifted[F] =
     Lifted(() => { val bs = Lambda.binders(f, types); (bs, Lambda.body(f, bs)) }, f, source)
 
 /** A function of the domain, defined once with terms: a Lean definition named as its `val`, and run as Scala. */
 final class Def[F] @scala.annotation.publicInBinary private[frflow] (val lifted: Lifted[F], private[frflow] val resultType: LeanType[?],
-    named: Option[String] = None):
+    named: Option[String] = None, val isFlow: Boolean = false):
   lazy val name: String = named.orElse(Lambdas.valName(this, lifted.fn.nn))
     .getOrElse(throw IllegalStateException("FrFlow: a `define` must be assigned to a top-level val, or a val of an object"))
   def fn: F = lifted.value

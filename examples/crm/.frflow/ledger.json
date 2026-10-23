@@ -509,6 +509,58 @@
           "governs": [],
           "definition": "val crmRun = Node.definition(\"CrmRun\",\n  \"What the CRM holds now, its records, their shares and the shares' expiries, is what its history led to: from empty, each write saved by the write side, the rows about its record replaced by those it stored, and each run of the expiry job, in turn.\",\n  why = \"Nothing else changes the CRM: users write through the write side, and the job ends shares, one at a time, each on what the last left (WriteSideWiring, ExpiryJobWiring); the database replaces the rows about the written record and nothing else (StoreEdits). So the store searches read is the one writes made, and it follows what users asked (StoreMirrorsRequests). The running read side reads these tables from the database, and the event log is this history (ReadSideWiring).\"\n)(store := runOf(history).records, shares := runOf(history).shares, expiries := runOf(history).expiries)"
         }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-23T16:57:31.930952Z",
+        "reason": "The expiry job is a flow proven from the database's model",
+        "rejected": [],
+        "after": "7dbb01ab7e23634c",
+        "commit": "2938c0c26a869fa8fc13b1bcbb1f328ebaa986a0",
+        "key": "b6e216cfdf46a202",
+        "sig": "tVKvFG40yxwfhMsTSf30ywiWPq1cJBYKyZiIKipp8kctr5o2O0TxHTKBUi9HBXOEctECRdh0OtHqiy+/RDM4Bw==",
+        "chain": "",
+        "content": {
+          "kind": "definition",
+          "parents": [],
+          "statement": "What the CRM holds now, its records, their shares and the shares' expiries, is what its history led to: from empty, each write saved by the write side, the rows about its record replaced by those it stored, and each run of the expiry job, in turn.",
+          "why": "Nothing else changes the CRM: users write through the write side, and the job ends shares, one at a time, each on what the last left (WriteSideWiring, ExpiryJob); the database replaces the rows about the written record and nothing else (StoreEdits). So the store searches read is the one writes made, and it follows what users asked (StoreMirrorsRequests). The running read side reads these tables from the database, and the event log is this history (ReadSideWiring).",
+          "sources": {},
+          "substitutions": [
+            "store := runOf(history).records",
+            "shares := runOf(history).shares",
+            "expiries := runOf(history).expiries"
+          ],
+          "examples": [],
+          "vocabulary": [
+            "expire: a run of the expiry job at a time (in seconds) on a store: the store it leads to",
+            "expiries: the times until which the CRM's shares are given, as it holds them now",
+            "history: the CRM's history since it started empty: every write the write side saved and every run of the expiry job, in order (its event log)",
+            "save: the write side: a write applied to the store the database holds, the rows about its record stored; it returns those rows as read back",
+            "shares: the shares the CRM holds now",
+            "store: the records the CRM holds now"
+          ],
+          "uses": [
+            "case class TenantId(value: String)",
+            "enum Kind: case Contact, case Deal",
+            "case class CrmRecord(id: BigInt, tenant: TenantId, kind: Kind, title: String)",
+            "case class Share(record: BigInt, to: TenantId)",
+            "case class Expiry(record: BigInt, to: TenantId, until: BigInt)",
+            "case class CrmStore(records: List[CrmRecord], shares: List[Share], expiries: List[Expiry])",
+            "case class Account(email: String, tenant: TenantId)",
+            "enum Change: case Add(record: CrmRecord), case ShareWith(record: BigInt, to: TenantId, until: Option[BigInt]), case Unshare(record: BigInt, to: TenantId)",
+            "case class WriteCmd(by: Account, change: Change)",
+            "enum Event: case Wrote(cmd: WriteCmd), case Expired(now: BigInt)",
+            "runOf = (es: Term[List[Event]]) => es.foldLeft(CrmStore(Nil, Nil, Nil))((s, e) => stepOf(s, e))",
+            "stepOf = (s: Term[CrmStore], e: Term[Event]) =>\n  e.on[Event.Wrote](w => afterSave(s, w))\n    .on[Event.Expired](now => expire(s, now))",
+            "afterSave = (s: Term[CrmStore], w: Term[WriteCmd]) => replaceAbout(s, about(w), save(s, w))",
+            "replaceAbout = (s: Term[CrmStore], id: Term[BigInt], rows: Term[CrmStore]) =>\n  CrmStore(s.records.filter(r => r.id =!= id) ++ rows.records, s.shares.filter(sh => sh.record =!= id) ++ rows.shares,\n    s.expiries.filter(e => e.record =!= id) ++ rows.expiries)",
+            "about = (w: Term[WriteCmd]) =>\n  w.change\n    .on[Change.Add](r => r.id)\n    .on[Change.ShareWith]((id, _, _) => id)\n    .on[Change.Unshare]((id, _) => id)"
+          ],
+          "governs": [],
+          "definition": "val crmRun = Node.definition(\"CrmRun\",\n  \"What the CRM holds now, its records, their shares and the shares' expiries, is what its history led to: from empty, each write saved by the write side, the rows about its record replaced by those it stored, and each run of the expiry job, in turn.\",\n  why = \"Nothing else changes the CRM: users write through the write side, and the job ends shares, one at a time, each on what the last left (WriteSideWiring, ExpiryJob); the database replaces the rows about the written record and nothing else (StoreEdits). So the store searches read is the one writes made, and it follows what users asked (StoreMirrorsRequests). The running read side reads these tables from the database, and the event log is this history (ReadSideWiring).\"\n)(store := runOf(history).records, shares := runOf(history).shares, expiries := runOf(history).expiries)"
+        }
       }
     ],
     "DealSearch": [
@@ -695,6 +747,66 @@
         }
       }
     ],
+    "ExpiryJob": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-23T16:57:42.634356Z",
+        "reason": "The expiry job is a flow proven from the database's model",
+        "rejected": [],
+        "commit": "2938c0c26a869fa8fc13b1bcbb1f328ebaa986a0",
+        "key": "b6e216cfdf46a202",
+        "sig": "fmaoaP8hcRHcsNXnerIreNXvWyLNTs8VJPyPILRrFxC/8dkQlbCzlnVhZkuuWSKuV2Co2RlhyKIPafOCN2S9Cg==",
+        "chain": "9db3433bfb4a8b7eb0f51c489d85492784a9175df938ad9821698ea807aef59f",
+        "content": {
+          "kind": "contract",
+          "parents": [],
+          "parts": [],
+          "statement": "A run of the expiry job at a time leaves the database holding, about each record, what SharesExpire's run on what it held gives, logs the run at the end of the event log, and returns that store.",
+          "why": "The job is how SharesExpire's operation reaches the database: it loads what the database holds, runs the operation on it, stores the rows of each record whose rows changed, and logs the run, which is what makes the event log the history CrmRun replays. Proven of the code from the database's model (TablesModel), it is no longer only reviewed wiring.",
+          "sources": {
+            "post": "(now, result, before, after) =>\n  sameRows(after(DatabaseModel).store, expire(before(DatabaseModel).store, now)) &&\n    after(DatabaseModel).events === before(DatabaseModel).events ++ List(Event[Event.Expired](now)) &&\n    result === expire(before(DatabaseModel).store, now)"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (150, World(DatabaseModel = Tables(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"globex\")), Share(1, TenantId(\"initech\"))), List(Expiry(1, TenantId(\"globex\"), 100))), List(Wrote(WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), Add(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")))))))) ⇒ Tuple2(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"initech\"))), List()), World(DatabaseModel = Tables(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"initech\"))), List()), List(Wrote(WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), Add(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")))), Expired(150)))))  given   — Globex's share ended at 100: the database drops it, and the run is logged",
+            "expect (50, World(DatabaseModel = Tables(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"globex\")), Share(1, TenantId(\"initech\"))), List(Expiry(1, TenantId(\"globex\"), 100))), List(Wrote(WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), Add(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")))))))) ⇒ Tuple2(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"globex\")), Share(1, TenantId(\"initech\"))), List(Expiry(1, TenantId(\"globex\"), 100))), World(DatabaseModel = Tables(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"globex\")), Share(1, TenantId(\"initech\"))), List(Expiry(1, TenantId(\"globex\"), 100))), List(Wrote(WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), Add(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")))), Expired(50)))))  given   — before 100 nothing ends, and the run is still logged",
+            "reject (150, World(DatabaseModel = Tables(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"globex\")), Share(1, TenantId(\"initech\"))), List(Expiry(1, TenantId(\"globex\"), 100))), List(Wrote(WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), Add(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")))))))) ⇒ Tuple2(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"initech\"))), List()), World(DatabaseModel = Tables(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"globex\")), Share(1, TenantId(\"initech\"))), List(Expiry(1, TenantId(\"globex\"), 100))), List(Wrote(WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), Add(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")))), Expired(150)))))  given   — a run that stores nothing leaves an ended share in the database",
+            "reject (150, World(DatabaseModel = Tables(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"globex\")), Share(1, TenantId(\"initech\"))), List(Expiry(1, TenantId(\"globex\"), 100))), List(Wrote(WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), Add(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")))))))) ⇒ Tuple2(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"initech\"))), List()), World(DatabaseModel = Tables(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"initech\"))), List()), List(Wrote(WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), Add(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"))))))))  given   — a run is never left out of the event log"
+          ],
+          "vocabulary": [
+            "expire: a run of the expiry job at a time (in seconds) on a store: the store it leads to",
+            "runExpiry: a run of the expiry job at a time (in seconds), on the database: the store it computes; the database holds it after"
+          ],
+          "uses": [
+            "case class TenantId(value: String)",
+            "enum Kind: case Contact, case Deal",
+            "case class CrmRecord(id: BigInt, tenant: TenantId, kind: Kind, title: String)",
+            "case class Share(record: BigInt, to: TenantId)",
+            "case class Expiry(record: BigInt, to: TenantId, until: BigInt)",
+            "case class CrmStore(records: List[CrmRecord], shares: List[Share], expiries: List[Expiry])",
+            "case class Account(email: String, tenant: TenantId)",
+            "enum Change: case Add(record: CrmRecord), case ShareWith(record: BigInt, to: TenantId, until: Option[BigInt]), case Unshare(record: BigInt, to: TenantId)",
+            "case class WriteCmd(by: Account, change: Change)",
+            "enum Event: case Wrote(cmd: WriteCmd), case Expired(now: BigInt)",
+            "case class Tables(store: CrmStore, events: List[Event])",
+            "sameRows = (a: Term[CrmStore], b: Term[CrmStore]) =>\n  (idsIn(a) ++ idsIn(b)).forall(id => aboutRecord(a, id) === aboutRecord(b, id))",
+            "idsIn = (s: Term[CrmStore]) => s.records.map(r => r.id) ++ s.shares.map(sh => sh.record) ++ s.expiries.map(e => e.record)",
+            "aboutRecord = (s: Term[CrmStore], id: Term[BigInt]) =>\n  CrmStore(s.records.filter(r => r.id === id), s.shares.filter(sh => sh.record === id), s.expiries.filter(e => e.record === id))"
+          ],
+          "governs": [],
+          "definition": "val expiryJob = Node.contract(runExpiry)(\"ExpiryJob\",\n  \"A run of the expiry job at a time leaves the database holding, about each record, what SharesExpire's run on what it held gives, logs the run at the end of the event log, and returns that store.\",\n  why = \"The job is how SharesExpire's operation reaches the database: it loads what the database holds, runs the operation on it, stores the rows of each record whose rows changed, and logs the run, which is what makes the event log the history CrmRun replays. Proven of the code from the database's model (TablesModel), it is no longer only reviewed wiring.\",\n  idea = \"Expiring shares\"\n)((now, result, before, after) =>\n  sameRows(after(DatabaseModel).store, expire(before(DatabaseModel).store, now)) &&\n    after(DatabaseModel).events === before(DatabaseModel).events ++ List(Event[Event.Expired](now)) &&\n    result === expire(before(DatabaseModel).store, now))\n  .examples()(\n    expect(BigInt(150), World(DatabaseModel -> Tables(globexUntil100, earlier)), initechOnly,\n      World(DatabaseModel -> Tables(initechOnly, earlier :+ Event.Expired(150))), \"Globex's share ended at 100: the database drops it, and the run is logged\"),\n    expect(BigInt(50), World(DatabaseModel -> Tables(globexUntil100, earlier)), globexUntil100,\n      World(DatabaseModel -> Tables(globexUntil100, earlier :+ Event.Expired(50))), \"before 100 nothing ends, and the run is still logged\"),\n    reject(BigInt(150), World(DatabaseModel -> Tables(globexUntil100, earlier)), initechOnly,\n      World(DatabaseModel -> Tables(globexUntil100, earlier :+ Event.Expired(150))), \"a run that stores nothing leaves an ended share in the database\"),\n    reject(BigInt(150), World(DatabaseModel -> Tables(globexUntil100, earlier)), initechOnly,\n      World(DatabaseModel -> Tables(initechOnly, earlier)), \"a run is never left out of the event log\"))\n  .exempt(noCrossTenantRead, \"it hands the new store to the database and returns nothing to a reader\")",
+          "op": "runExpiry",
+          "keeps": [
+            "NoCrossTenantRead: exempt, because it hands the new store to the database and returns nothing to a reader"
+          ],
+          "implementation": "proven: expireOnce_run\nexpireOnce_run = expireOnce\nexpireOnce = fun (now : Int) => do\n    let s ← Database.load\n    for id_ in (⟦changedIds⟧ s (expire s now)) do\n      Database.storeAbout id_ (expire s now)\n    Database.logEvent (Event.Expired now)\n    pure (expire s now)\nchangedIds = (s: Term[CrmStore], t: Term[CrmStore]) =>\n  (idsIn(s) ++ idsIn(t)).filter(id => aboutRecord(s, id) =!= aboutRecord(t, id))\nidsIn = (s: Term[CrmStore]) => s.records.map(r => r.id) ++ s.shares.map(sh => sh.record) ++ s.expiries.map(e => e.record)\naboutRecord = (s: Term[CrmStore], id: Term[BigInt]) =>\n  CrmStore(s.records.filter(r => r.id === id), s.shares.filter(sh => sh.record === id), s.expiries.filter(e => e.record === id))",
+          "idea": "## Expiring shares\n\nA company can share a record until a given time. When that time has passed,\nthe share ends: searches no longer find the record through it, whether or not\nthe expiry job has run. The job clears ended shares every minute, and changes\nnothing else.",
+          "ideaSection": "Expiring shares",
+          "notModelled": "- That the account a search or a write runs for is the caller's own\n  (authentication).\n- That the database's tables, which the running read side reads, are what its\n  event log led to: that nothing but the write side and the expiry job changes\n  them (a test replays the log).\n- Editing or removing records: a write only adds one."
+        }
+      }
+    ],
     "ExpiryJobWiring": [
       {
         "action": "accept",
@@ -723,6 +835,42 @@
             "src/main/scala/crm/Job.scala"
           ],
           "definition": "val expiryJobWiring = Node.design(\n  \"ExpiryJobWiring\",\n  \"The expiry job runs every minute through service, on the stored records, shares and expiries, stores the rows of each record it changed through StoreEdits, and logs its run in the event log.\",\n  why = \"Every change to the store goes through a proven contract and a checked port; keeping the job's wiring in one governed file makes a change to it visible.\",\n  idea = \"Expiring shares\"\n)(\"src/main/scala/crm/Job.scala\")\n  .under(sharesExpire)\n  .exempt(noCrossTenantRead, \"it hands the new store to storage and returns nothing to a reader\")",
+          "keeps": [
+            "NoCrossTenantRead: exempt, because it hands the new store to storage and returns nothing to a reader"
+          ],
+          "idea": "## Expiring shares\n\nA company can share a record until a given time. When that time has passed,\nthe share ends: searches no longer find the record through it, whether or not\nthe expiry job has run. The job clears ended shares every minute, and changes\nnothing else.",
+          "ideaSection": "Expiring shares",
+          "notModelled": "- That the account a search or a write runs for is the caller's own\n  (authentication).\n- That the database's tables, which the running read side reads, are what its\n  event log led to: that nothing but the write side and the expiry job changes\n  them (a test replays the log).\n- Editing or removing records: a write only adds one."
+        }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-23T16:57:48.998259Z",
+        "reason": "The expiry job is a flow proven from the database's model",
+        "rejected": [],
+        "after": "24f816b89eb4c53e",
+        "code": "39792757844257b7cf27571572fe6cc9283b54f2fb2883f06cb46f0dbfa885be",
+        "commit": "2938c0c26a869fa8fc13b1bcbb1f328ebaa986a0",
+        "key": "b6e216cfdf46a202",
+        "sig": "Utf4T+b6siOOxAk4iqbpfKkNvTnOKAICHGO2hGrwjcrC2NiDwdOyxXoau3PDY0fNRPZz6xJ4GHQIGw9XjMJcAQ==",
+        "chain": "",
+        "content": {
+          "kind": "design",
+          "parents": [
+            "ExpiryJob"
+          ],
+          "statement": "The expiry job runs every minute, holding the database's lock during a run so no write interleaves with it; its code is the flow ExpiryJob is proven of, run on SQLite.",
+          "why": "What a run does is proven (ExpiryJob); when it runs, and that no write interleaves with it, is decided here and reviewed: the model assumes a run has the database to itself.",
+          "sources": {},
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [],
+          "uses": [],
+          "governs": [
+            "src/main/scala/crm/Job.scala"
+          ],
+          "definition": "val expiryJobWiring = Node.design(\n  \"ExpiryJobWiring\",\n  \"The expiry job runs every minute, holding the database's lock during a run so no write interleaves with it; its code is the flow ExpiryJob is proven of, run on SQLite.\",\n  why = \"What a run does is proven (ExpiryJob); when it runs, and that no write interleaves with it, is decided here and reviewed: the model assumes a run has the database to itself.\",\n  idea = \"Expiring shares\"\n)(\"src/main/scala/crm/Job.scala\")\n  .under(expiryJob)\n  .exempt(noCrossTenantRead, \"it hands the new store to storage and returns nothing to a reader\")",
           "keeps": [
             "NoCrossTenantRead: exempt, because it hands the new store to storage and returns nothing to a reader"
           ],
@@ -2832,6 +2980,40 @@
           "definition": "val storeMirrorsRequests = Node.claim(\"StoreMirrorsRequests\",\n  \"The CRM holds exactly the records its users added, and holds a share of a record as current exactly when the record's company shared it so.\",\n  why = \"What users asked is said of the history alone (Adding, Sharing); the CRM keeps tables, and searches read those. This is the link, proven by induction over the history, as Keycloak's sessions follow its sign-ins: each write saved and each run of the job moves the tables as one more event moves what users asked. One record more would show what nobody added, one less would lose a record a user added; a share outliving its time or its unshare would show a record to a company no longer entitled to it.\",\n  idea = \"Writing records\"\n)(forall((r: Term[CrmRecord]) => store.contains(r) === askedIn(history).records.contains(r)) &&\n  forall((id: Term[BigInt], c: Term[TenantId]) => sharedNow(id, c) === sharedIn(history, id, c, clock)))\n  .under(sharedCrm)",
           "idea": "## Writing records\n\nA user can add records for their company, and can share or unshare their\ncompany's records with other companies, for good or until a given time; sharing\nagain replaces the time. The CRM holds exactly the records its users added, and\nholds a share exactly as long as the last share or unshare of it says and its\ntime has not come: a write does what its author asked, and nothing else, and\nremoves no record. A record a user adds is found by their searches from then on.\nNo write changes another company's records, or whom they are shared with. A\nshare names a record by its id, so no two records have one id: a record is not\nadded under an id another record has.",
           "ideaSection": "Writing records",
+          "notModelled": "- That the account a search or a write runs for is the caller's own\n  (authentication).\n- That the database's tables, which the running read side reads, are what its\n  event log led to: that nothing but the write side and the expiry job changes\n  them (a test replays the log).\n- Editing or removing records: a write only adds one."
+        }
+      }
+    ],
+    "TablesModel": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-23T16:57:37.251236Z",
+        "reason": "The expiry job is a flow proven from the database's model",
+        "rejected": [],
+        "commit": "2938c0c26a869fa8fc13b1bcbb1f328ebaa986a0",
+        "key": "b6e216cfdf46a202",
+        "sig": "Vk9U3n790L8xBimtJlRGWnEBtY2ezoewxOMHYVuHrgAca6+YijI9rsasOBiKT7twhR6dTlwIwRv1Dg0l07yqCA==",
+        "chain": "",
+        "content": {
+          "kind": "assumption",
+          "parents": [],
+          "statement": "The database holds a store and an event log: it gives the store as it holds it, holds the rows a store has about a record in place of those it held about it, leaving the other records' rows, and appends an event to the log.",
+          "why": "Records, shares, expiries and the event log live in SQLite. Proven flows are proven from this model, not from the SQL; the SQLite adapter (SqliteDatabase) does this by deleting and inserting the record's rows in one transaction, and by inserting into the events table.",
+          "sources": {},
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [],
+          "uses": [],
+          "governs": [],
+          "definition": "val tablesModel = Node.assumption(db)(DatabaseModel)(\"TablesModel\",\n  \"The database holds a store and an event log: it gives the store as it holds it, holds the rows a store has about a record in place of those it held about it, leaving the other records' rows, and appends an event to the log.\",\n  why = \"Records, shares, expiries and the event log live in SQLite. Proven flows are proven from this model, not from the SQL; the SQLite adapter (SqliteDatabase) does this by deleting and inserting the record's rows in one transaction, and by inserting into the events table.\",\n  idea = \"Expiring shares\")\n  .checkedAgainst(t => SqliteDatabase.holding(t), _.tables)",
+          "model": [
+            "load = do\n    let t ← get\n    pure t.store",
+            "logEvent = fun (e : Event) => do\n    modify (fun t => (Tables.mk t.store (t.events ++ [e])))",
+            "storeAbout = fun (id_ : Int) (t : CrmStore) => do\n    modify (fun t_1 => (Tables.mk (Crm.replaceAbout t_1.store id_ (Crm.aboutRecord t id_)) t_1.events))"
+          ],
+          "idea": "## Expiring shares\n\nA company can share a record until a given time. When that time has passed,\nthe share ends: searches no longer find the record through it, whether or not\nthe expiry job has run. The job clears ended shares every minute, and changes\nnothing else.",
+          "ideaSection": "Expiring shares",
           "notModelled": "- That the account a search or a write runs for is the caller's own\n  (authentication).\n- That the database's tables, which the running read side reads, are what its\n  event log led to: that nothing but the write side and the expiry job changes\n  them (a test replays the log).\n- Editing or removing records: a write only adds one."
         }
       }

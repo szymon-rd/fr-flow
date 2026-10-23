@@ -29,6 +29,7 @@ final case class Layout(kb: String):
   val types: LeanModule = generated("Types")
   val domain: LeanModule = generated("Domain")
   val rootImpl: LeanModule = generated("RootImpl")
+  val boundaries: LeanModule = generated("Boundaries")
   val lemmas: LeanModule = LeanModule(s"Proofs.$kb.Lemmas")
   def definition(name: String): LeanModule = generated(s"Domain.Def_${plain(name)}")
   def term(name: String): LeanModule = generated(s"Domain.Term_${plain(name)}")

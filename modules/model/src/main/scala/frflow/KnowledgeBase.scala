@@ -16,7 +16,11 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
   def children(n: Node[?]): List[Node[?]] = childrenOf.getOrElse(n, Nil)
   def parts(n: Node[?]): List[Node[?]] = children(n).filter(isStatement)
   def isRoot(n: Node[?]): Boolean = root.exists(_ eq n)
-  def isStatement(n: Node[?]): Boolean = n.kind == NodeKind.Claim || n.kind == NodeKind.Contract || n.kind == NodeKind.Assumption
+  /** A boundary's model is decided, not stated in Lean: it is what proven flows are proven from. */
+  def isStatement(n: Node[?]): Boolean =
+    n.kind == NodeKind.Claim || n.kind == NodeKind.Contract || (n.kind == NodeKind.Assumption && n.modelOf.isEmpty)
+  /** Each boundary with the model it is decided to behave as. */
+  lazy val models: List[ModelOf] = nodes.flatMap(_.modelOf)
   def roots: List[Node[?]] = nodes.filter(n => n.kind == NodeKind.Claim && n.parents.isEmpty)
   def root: Option[Node[?]] = roots.headOption.filter(_ => roots.size == 1)
   def definitions: List[Node[?]] = nodes.filter(_.kind == NodeKind.Definition)
@@ -93,7 +97,10 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
       .distinctBy(_.name).sortBy(_.name)
 
   lazy val types: List[TypeDecl] =
-    val all = lifteds.flatMap(_.types) ++ definitions.flatMap(_.substs).flatMap(_.types)
+    // The boundaries' operations and the models' states are typed in Lean too.
+    val boundaryTypes = models.flatMap(m => m.model.stateType :: m.boundary.operations.flatMap(o =>
+      LeanType.ofJava(o.getGenericReturnType) :: o.getGenericParameterTypes.toList.map(LeanType.ofJava)))
+    val all = lifteds.flatMap(_.types) ++ definitions.flatMap(_.substs).flatMap(_.types) ++ boundaryTypes.flatMap(_.types)
     // The same type as seen with and without its doc comment: the one with it.
     val byName = all.groupBy(_.name).view.mapValues(ds => ds.maxBy(_.lean.length)).toMap
     Walk.postorder(all.map(_.name).distinct.flatMap(byName.get), _.name)(_.uses.flatMap(byName.get))
@@ -109,6 +116,11 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
   /** Production code (`runs`: a query) beside the proven `define`, checked against it and against the contract. */
   inline def implementProven[A, B, R](contract: Node[(A, B) => R])(inline impl: Def[(A, B) => R], inline runs: (A, B) => R): KnowledgeBase =
     withImplementation(Implementation(contract.id, () => runs, Source.sourceFiles(runs), Source.sources(runs).mkString, Some(impl)))
+  /** A flow attached as a contract's code: Lean proves every run of it on the models meets the contract. Named in Lean
+    * as the `def` it is (`expireOnce`), its run on the models as `expireOnce_run`.
+    */
+  inline def implementProven[A, R](contract: Node[A => Flow[R]])(inline impl: Term[A] => Flow[R]): KnowledgeBase =
+    withImplementation(Implementation.ofFlow(contract, impl, Source.text(impl), Source.sourceFiles(impl)))
   def withImplementation(i: Implementation): KnowledgeBase =
     KnowledgeBase(name, idea, implementations.filterNot(_.contract == i.contract) :+ i)(nodes*)
   private lazy val byContract = implementations.map(i => i.contract -> i).toMap
@@ -124,6 +136,10 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     * to their services, and the assumptions whose terms are bound checked whenever the values they read change.
     */
   def service[A, B, R](contract: Node[(A, B) => R])(bindings: Binding*): (A, B) => R = Wiring.service(this, contract, bindings)
+  /** The running system of a flow: its proven code in `F` (`run[IO](expiryJob)(db.bind(sqlite))`), calling the bound
+    * implementations of its boundaries; the operations it calls run as their services.
+    */
+  def run[F[_]: cats.effect.kernel.Sync]: Runner[F] = Runner(this)
   lazy val definitionBindings: List[Binding] = Wiring.definitionBindings(this)
   lazy val opCode: List[Binding] = Wiring.opCode(this)
   lazy val runtimeAssumptions: List[Assumption] = Wiring.runtimeAssumptions(this)
@@ -162,7 +178,8 @@ private[frflow] object Validation:
         case Nil     => List("a root is required: one claim with no parents, the idea's purpose")
         case rs      => List(s"one root only: ${rs.map(_.id).mkString(", ")} are claims with no parents; put all but one under the nodes they help prove"),
       nodes.filter(n => kb.ancestors(n).exists(_ eq n)).map(n => s"${n.id} is above itself: what it is a part of must not lead back to it"),
-      nodes.filter(n => isOperation(n) && n.parents.isEmpty && !n.op.exists(o => called(o.name)))
+      nodes.filter(n => isOperation(n) && n.parents.isEmpty && !n.op.exists(o => called(o.name)) && n.modelOf.isEmpty &&
+          !kb.implementation(n).exists(_.flow))
         .map(n => s"${n.id} has no parents: a ${n.kind.toString.toLowerCase} is a part of the nodes it helps prove, unless code calls its operation"),
       nodes.filter(n => n.kind == NodeKind.Design && n.parents.isEmpty).map(n => s"${n.id}: a design decision is under the nodes it serves (.under)"),
       nodes.filter(n => n.kind == NodeKind.Definition && n.parents.nonEmpty).map(n => s"${n.id}: a definition has no parents"),
@@ -258,7 +275,14 @@ private[frflow] object Validation:
     ).flatten.map(Invariants(_))
 
   private def code(kb: KnowledgeBase): List[Problem] =
+    val boundaries = kb.implementations.flatMap(_.flowDef).flatMap(_.lifted.boundaries).distinct
     List(
+      boundaries.filterNot(b => kb.models.exists(_.boundary eq b))
+        .map(b => s"the boundary ${b.name}: proven flows call it, so decide what it does (Node.assumption(${b.name})(SomeModel)(…))"),
+      kb.models.groupBy(_.boundary).collect { case (b, ms) if ms.size > 1 => s"the boundary ${b.name} has ${ms.size} models: decide one" }.toList,
+      kb.models.filterNot(m => m.boundary.cls.isInstance(m.model)).map(m => s"${m.model.lean} is not an implementation of ${m.boundary.cls.getSimpleName}"),
+      kb.implementations.flatMap(_.flowDef).filter(d => d.lifted.built._2.termTree match { case Tree.Do(s) => Steps.effectful(s); case _ => false })
+        .map(d => s"${d.name}: a proven flow takes no step of the outside world (Flow.effect): call a boundary"),
       // Code that calls its own operation would be proven assuming what it proves.
       kb.nodes.flatMap(c => c.op.filter(o => kb.implementation(c).flatMap(_.proven).exists(d => kb.opsCalledBy(d).contains(o.name)))
         .map(o => s"${c.id}: its implementation calls ${o.name} itself: it cannot be proven from its own promise")),
