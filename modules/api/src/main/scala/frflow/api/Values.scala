@@ -137,8 +137,10 @@ final case class FailingExample(example: String, verdict: String) derives Codec.
   */
 final case class CheckedNode(id: NodeId, status: CheckStatus, notProven: List[ObligationName], problems: List[Result],
     failing: List[FailingExample], idle: Option[String], messages: List[String], hint: Option[String]):
-  /** Proven, nothing of it left open, and its examples passing: what `check` exits 0 on. */
-  def ok: Boolean = status == CheckStatus.Proven && notProven.isEmpty && failing.isEmpty
+  /** Proven, nothing of it left open, its examples passing, and (for the root) not met by doing nothing:
+    * what `check` exits 0 on.
+    */
+  def ok: Boolean = status == CheckStatus.Proven && notProven.isEmpty && failing.isEmpty && idle.isEmpty
 object CheckedNode:
   /** Encoded with `ok`, so that `status` is not read as all of it. */
   given Codec.AsObject[CheckedNode] =
