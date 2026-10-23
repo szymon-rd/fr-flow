@@ -32,7 +32,7 @@ class CommandsSuite extends munit.CatsEffectSuite:
       out <- term.output
       unknown <- FakeApi().flatMap(Dispatch(_, term, st)(Command.Answer("R9", "done")))
       noReason <- FakeApi().flatMap(Dispatch(_, term, st)(Command.Decision(Decide.Gone(NodeId("Old"), _), Asked(None, None, yes = true))))
-      failed <- List(FrFlowError.UnknownNode("Nope"), FrFlowError.ModelProblems(List("a cycle")), FrFlowError.LeanMissing).traverse(FrFlowApp.failed(term, _))
+      failed <- List(FrFlowError.UnknownNode(NodeId("Nope")), FrFlowError.ModelProblems(List("a cycle")), FrFlowError.LeanMissing).traverse(FrFlowApp.failed(term, _))
     yield
       assertEquals((open, complete), (ExitCode(1), ExitCode.Success))
       assert(out.contains("Nothing waits: every node is accepted and proven."), out)
