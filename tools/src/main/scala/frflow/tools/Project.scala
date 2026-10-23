@@ -87,8 +87,6 @@ final class Project(dir: Path):
     val rs = requests.sortBy(r => order.indexOf(r.node) match { case -1 => Int.MaxValue; case i => i })
     snapshot match
       case None => Left("no snapshot yet: render first")
-      case Some(snap) if !snap("format").contains(JNum(frflow.Workflow.ContentFormat)) =>
-        Left("the snapshot was written by another version of FrFlow: render first")
       case Some(snap) if rs.flatMap(r => r.node :: r.confirm ++ r.revisit).exists(codeMoved(snap, _)) =>
         Left(s"the code governed by ${rs.flatMap(r => r.node :: r.confirm ++ r.revisit).filter(codeMoved(snap, _)).distinct.mkString(", ")} changed since the last render: render first")
       case Some(snap) =>

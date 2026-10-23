@@ -665,19 +665,6 @@ class SnapshotSuite extends munit.FunSuite:
     assertEquals(List("FromList", "Bounded", "Books", "Thick", "OnlyLong").map(rivals), List(List("Bounded"), List("FromList"), List("Thick"), List("Books"), Nil))
   }
 
-  test("a ledger recorded before parts were part of a node's content loads, and nothing is reviewed for it") {
-    val ws = workspace()
-    acceptAll(workflow(shelfKb, ws))
-    val l = Ledger.load(ws.ledgerFile)
-    val old = Ledger(l.decisions.view.mapValues(_.map(d => d.copy(content = Json.JObj(d.content.obj.filterNot(_._1 == "parts"))))).toMap)
-    Ledger.save(ws.ledgerFile, old)
-    val w = workflow(shelfKb, ws)
-    assertEquals(w.kb.nodes.map(w.state).distinct, List("accepted"))
-    // a decided node gone from the model shows as gone
-    val w2 = workflow(KnowledgeBase("Shelf", idea = "IDEA.md")(shelfNodes*), ws)
-    assertEquals(w2.gone, List("Pick"))
-  }
-
   test("placing a node under another parent changes where it rests, not what it says") {
     import Json.*
     def node(parents: List[String], under: String) =

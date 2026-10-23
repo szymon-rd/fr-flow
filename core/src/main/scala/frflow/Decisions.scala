@@ -124,18 +124,10 @@ object Decisions:
     last
   }
 
-  /** What FrFlow added to a node's content in later formats: a decision recorded before has none of
-    * it, and is not reviewed for it (a new FrFlow needs no decision again).
-    */
-  private val addedByFormat = Set("definition", "parts")
-  private def missing(d: Decision): Set[String] = addedByFormat.filter(k => d.content(k).isEmpty)
   private def without(c: Json, keys: Set[String]): Json = JObj(c.obj.filterNot(f => keys(f._1)))
 
   /** Whether the node says something else than what was decided. */
-  private def changed(d: Decision, n: Json): Boolean =
-    val gone = missing(d)
-    val now = without(n("content").getOrElse(JObj(Nil)), gone)
-    d.hash != (if gone.isEmpty then s(n, "hash") else Decision.hash(now))
+  private def changed(d: Decision, n: Json): Boolean = d.hash != s(n, "hash")
 
   /** What a node says itself: its content without its edges. Its parts are decided with it, but under
     * their own cause (`parts`); its parents are what it rests on (`above`), and the calls that place it
@@ -152,12 +144,9 @@ object Decisions:
 
   /** Whether what the node says itself changed since it was decided (see `ownContent`). */
   private def selfChanged(d: Decision, n: Json): Boolean =
-    val gone = missing(d)
-    Decision.hash(ownContent(without(d.content, gone))) != Decision.hash(ownContent(without(n("content").getOrElse(JObj(Nil)), gone)))
+    Decision.hash(ownContent(d.content)) != Decision.hash(ownContent(n("content").getOrElse(JObj(Nil))))
 
-  /** Whether a part was added or removed since the node was decided (in any order). A decision recorded
-    * before parts were part of a node's content has none: not reviewed for it.
-    */
+  /** Whether a part was added or removed since the node was decided (in any order). */
   private def partsChanged(d: Decision, n: Json): Boolean =
     d.content("parts").exists { p =>
       def ids(j: Json) = j.arr.flatMap(_.str).toSet
@@ -344,9 +333,9 @@ object Decisions:
     * it uses (`uses` also lists the definitions it calls, `name = body`, which it says), how its
     * examples print, and a proven implementation.
     */
-  private def decidedHash(content: Json, provenImpl: Boolean, missing: Set[String] = Set.empty): String =
+  private def decidedHash(content: Json, provenImpl: Boolean): String =
     // What it says itself (not its edges), with only what the decision recorded.
-    val c = ownContent(without(content, missing))
+    val c = ownContent(content)
     def definitions = "definitions" -> JArr(c("uses").map(_.arr.toList).getOrElse(Nil).filter(u => u.str.exists(DefinitionUse.matches)))
     Decision.hash(JObj(c.obj.filterNot(f => f._1 == "uses" || f._1 == "examples" || (provenImpl && f._1 == "implementation")) :+ definitions :+
       ("examples" -> JArr(c("examples").map(_.arr.toList.flatMap(_.str)).getOrElse(Nil).map(e => str(e.takeWhile(_ != ' ') + " — " + e.split(" — ").lastOption.getOrElse("")))))))
@@ -369,7 +358,7 @@ object Decisions:
     if kind == "design" || kind == "definition" then Some(s"$kind nodes hold a choice")
     else if v.state(n) != "review" then Some(s"$id is ${v.state(n)}: only a node under review can be mechanical")
     else if cs.exists(c => !Set("self", "above", "parts")(c)) then Some(s"$id is under review for ${cs.mkString(", ")}: the developer decides")
-    else if ledger.binding(id).forall(d => decidedHash(d.content, provenImpl, missing(d)) != decidedHash(n("content").getOrElse(JObj(Nil)), provenImpl, missing(d))) then
+    else if ledger.binding(id).forall(d => decidedHash(d.content, provenImpl) != decidedHash(n("content").getOrElse(JObj(Nil)), provenImpl)) then
       Some(s"what $id says changed: the developer decides")
     else if cs.contains("parts") && !partsMake(n) then
       Some(s"$id's parts changed and Lean does not prove they make it, or shows one not needed or a clash: the developer decides")
@@ -506,7 +495,7 @@ object Decisions:
         // A change only of what follows from elsewhere (types, printing, proven code) is confirmed: its reason does not replace the node's.
         // A change of its parts only is confirmed too: what it says, and why, stays; its parts are bound with the confirmation.
         val meaningMoved = cs.contains("self") && ledger.binding(r.node).forall(d =>
-          decidedHash(d.content, provenImpl(n), missing(d)) != decidedHash(n("content").getOrElse(JObj(Nil)), provenImpl(n), missing(d)))
+          decidedHash(d.content, provenImpl(n)) != decidedHash(n("content").getOrElse(JObj(Nil)), provenImpl(n)))
         val action = if st(ledger, r.node) == "review" && !meaningMoved && r.reject.isEmpty then "confirm" else "accept"
         val chosen = if st(ledger, r.node) == "accepted" && r.reject.isEmpty then ledger
           else ledger.add(r.node, make(action, n, r.reject, r.reason))

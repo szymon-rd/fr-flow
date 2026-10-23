@@ -988,7 +988,6 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     obj(
       "name" -> str(kb.name),
       "idea" -> str(idea),
-      "format" -> JNum(Workflow.ContentFormat),
       "ideaFile" -> str(kb.idea),
       "warnings" -> strs(codeWarnings ++ uncrossed ++ restated),
       "root" -> kb.root.fold(JNull)(r => str(r.id)),
@@ -1019,10 +1018,5 @@ object Workflow:
   def kindName(n: Node[?]): String = n.kind.toString.toLowerCase
   /** A node's kind as people read it: an invariant is a claim with a rule. */
   def shownKind(n: Node[?]): String = if n.isInvariant then "invariant" else kindName(n)
-  /** The shape of a node's content, which decisions are bound to. A snapshot of another shape is
-    * not decided on: it was written by another version of FrFlow, and must be rendered again.
-    */
-  val ContentFormat: Int = 4
-
   /** How checks are run and read: a change to it re-runs every check. */
   val CheckerVersion: Int = 6

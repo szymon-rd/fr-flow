@@ -44,7 +44,7 @@ final case class NodeCheck(
   *                 (it still holds after something above it moved), `reject` (an alternative not
   *                 chosen, as it was proposed), `revisit` (the developer said a change above may affect
   *                 it, so it is reviewed again), `remove` (the developer agreed that a decided node is
-  *                 gone), or `migrate` (recorded by an earlier FrFlow when its format changed)
+  *                 gone)
   * @param content  the node as the developer saw it; the decision is bound to its hash
   * @param chain    the content of the ancestors, as decided; when it changes, the node is reviewed
   * @param reason   why: kept as part of the theory
@@ -120,7 +120,7 @@ final case class Ledger(decisions: Map[String, List[Decision]]):
     */
   def rejectedUnder(parent: String): List[(String, Json, String)] =
     decisions.toList.sortBy(_._1).flatMap((id, ds) => ds.lastOption.filter(d => d.action == "reject" &&
-      (d.content("parent").flatMap(_.str).contains(parent) || d.content("parents").exists(_.arr.flatMap(_.str).contains(parent)))).map(d => (id, d.content, d.reason)))
+      d.content("parents").exists(_.arr.flatMap(_.str).contains(parent))).map(d => (id, d.content, d.reason)))
 
   /** Every decision, newest first. */
   def all: List[(String, Decision)] = decisions.toList.flatMap((id, ds) => ds.map(id -> _)).sortBy(_._2.at).reverse
@@ -144,8 +144,8 @@ final case class Ledger(decisions: Map[String, List[Decision]]):
 object Ledger:
   val empty: Ledger = Ledger(Map.empty)
 
-  /** Actions a node is bound to: the developer's acceptance or confirmation, or a migration. */
-  def binds(action: String): Boolean = Set("accept", "confirm", "migrate")(action)
+  /** Actions a node is bound to: the developer's acceptance or confirmation. */
+  def binds(action: String): Boolean = action == "accept" || action == "confirm"
 
   /** A short reference to a decision: what was decided, by whom, when and why. */
   private[frflow] def entry(d: Decision): String =
@@ -172,7 +172,6 @@ object Ledger:
     Ledger(j("decisions").map(_.obj).getOrElse(Nil).map { (id, ds) =>
       id -> ds.arr.foldLeft(List.empty[Decision]) { (acc, d) =>
         val content = d("content") match
-          case Some(JStr("same")) => acc.lastOption.fold(JNull)(_.content) // the earlier form: the previous entry's
           case Some(JStr(ref)) if ref.startsWith("same:") =>
             acc.reverse.find(x => Ledger.ref(x.content) == ref.stripPrefix("same:")).fold(JNull)(_.content)
           case other => other.getOrElse(JNull)
