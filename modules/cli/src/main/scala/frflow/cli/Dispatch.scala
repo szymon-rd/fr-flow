@@ -3,7 +3,7 @@ package frflow.cli
 import cats.effect.{ExitCode, IO}
 import frflow.api.*
 import frflow.protocol.*
-import io.circe.{Encoder, Json}
+import io.circe.{Codec, Encoder, Json}
 import io.circe.derivation.ConfiguredCodec
 import io.circe.syntax.*
 
@@ -13,9 +13,10 @@ final class Dispatch(api: FrFlowApi, term: Terminal, st: Style):
 
   def apply(c: Command): IO[ExitCode] = c match
     case Command.Tree(from, json) => api.tree(from).flatMap(t => emit(json, Brief(t))(TreeText.lines(t, st)))
-    case Command.Show(id, depth, json) => api.details(id).flatMap(d => emit(json, Brief(d))(NodeText.lines(d, st, depth)))
-    case Command.Diff(id) => api.diff(id).flatMap(d => ok(DiffText.lines(d, st)))
-    case Command.Inbox(json) => api.inbox.flatMap(i => emit(json, Brief(i))(InboxText.lines(i, st)))
+    case Command.Show(id, depth, json) =>
+      node(id, json)(api.details(_, _).flatMap(d => emit(json, Brief(d))(NodeText.lines(d, st, depth))))
+    case Command.Diff(id) => node(id, json = false)(api.diff(_, _).flatMap(d => ok(DiffText.lines(d, st))))
+    case Command.Inbox(json) => api.reviewing.flatMap((v, i) => emit(json, Brief(i))(InboxText.lines(i, v, st)))
     case Command.Review(as) => ReviewSession(api, term, st).run(as)
     case Command.Decision(make, a) => decision(a)(make)
     case Command.Ask(node, text, as) => developer(as)(dev => api.ask(node, text, dev).flatMap(done(q =>
@@ -30,6 +31,11 @@ final class Dispatch(api: FrFlowApi, term: Terminal, st: Style):
     case Command.Scaffold(node) =>
       api.scaffold(node).flatMap(s => ok(List(s.file.fold(s"nothing to stub: the last check of $node left nothing open that the proof file lacks")(f => s"created $f"))))
     case Command.Answer(to, text) => api.answer(to, text).flatMap(done(id => List(s"answered $id")))
+
+  /** A node in the model; or one gone from it, shown as gone with its last decision. */
+  private def node(id: NodeId, json: Boolean)(f: (View, Reviewed) => IO[ExitCode]): IO[ExitCode] = api.view.flatMap(v =>
+    v.node(id).map(f(v, _)).orElse(Details.gone(v, id).map(g => emit(json, Brief(g))(GoneText.lines(g, st))))
+      .getOrElse(IO.raiseError(FrFlowError.UnknownNode(id))))
 
   // On a terminal: a check can take minutes.
   private def progress(p: Progress): IO[Unit] =
@@ -106,6 +112,8 @@ object Brief:
   private def of[A](e: Encoder[A]): Brief[A] = e(_)
 
   given Brief[Tree] = of(Encoder.AsObject.derived[Tree])
+  /** A gone node keeps the content it was decided with: there is nothing else of it. */
+  given Brief[GoneNode] = of(summon[Codec.AsObject[GoneNode]])
   given Brief[Inbox] = of(Encoder.AsObject.derived[Inbox])
   private def status(v: View, o: Overview) = StatusBrief(o, v.warnings, v.nodes.map(node)).asJson
   given Brief[StatusReport] = s => status(s.view, s.tree.overview)

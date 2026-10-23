@@ -84,6 +84,9 @@ final class LiveApi private (kb: KnowledgeBase, ws: Workspace, cfg: Config, lake
     IO(Path.of(query).toAbsolutePath.normalize).map(p => if p.startsWith(ws.root) && p != ws.root then ws.root.relativize(p).toString else query)
       .handleError(_ => query)
 
+  override protected def exists(path: String): IO[Boolean] =
+    IO(java.nio.file.Files.exists(ws.root.resolve(path)) || java.nio.file.Files.exists(Path.of(path))).handleError(_ => false)
+
   def scaffold(id: NodeId): IO[Scaffolded] =
     IO.fromOption(kb.node(id.value))(FrFlowError.UnknownNode(id)).flatMap(n =>
       analysis.flatMap(Scaffold(_, lake, n)).flatTap(_ => analysis.flatMap(CheckRunner.writeSnapshot)).map(Scaffolded(id, _)))

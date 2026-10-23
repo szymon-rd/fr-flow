@@ -47,7 +47,11 @@ trait FrFlowApi:
   def inbox: IO[Inbox] = reviewing.map(_._2)
   /** The inbox with the view it was read from: what a review walks, reading each node of that view. */
   def reviewing: IO[(View, Inbox)] = view.map(v => v -> Inbox.of(v))
-  def find(v: View, query: String): IO[Found] = relative(query).map(frflow.ledger.Find(v.annotated, _))
+  /** Whether a path the project names is a file or a directory. */
+  protected def exists(path: String): IO[Boolean] = IO.pure(true)
+  def find(v: View, query: String): IO[Found] = relative(query).flatMap(q => frflow.ledger.Find(v.annotated, q) match
+    case Found.Ungoverned(path) => exists(path).map(if _ then Found.Ungoverned(path) else Found.Missing(path))
+    case found => IO.pure(found))
   def details(id: NodeId): IO[NodeDetails] = withNode(id)(details)
   def details(v: View, r: Reviewed): IO[NodeDetails] = codeChange(r).map(Details.of(v, r, _))
   def diff(id: NodeId): IO[NodeDiff] = withNode(id)(diff)

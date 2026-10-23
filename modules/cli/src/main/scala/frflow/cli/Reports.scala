@@ -57,11 +57,12 @@ object SummaryText:
 object InboxText:
   import Lines.section
 
-  def lines(i: Inbox, st: Style): List[String] =
+  /** `v`: the view the inbox was read from, for a gone node renamed. */
+  def lines(i: Inbox, v: View, st: Style): List[String] =
     def on(q: Request) = q.node.fold("the idea")(_.value)
     def waiting(w: Queued) =
       Lines.node(w.node, st, 4, w.waitsFor.fold("")(x => st.dim(s"  after $x"))) ::
-        w.followers.map(f => st.dim(s"  ${st.follows} $f moved only with it: confirmed with it once ${w.node.id} is accepted"))
+        w.followers.map(f => st.dim("  " + Words.follower(f, w.node.id, st)))
     val body =
       section("Requests from the developer", i.open.map(q => s"[${q.id}] on ${on(q)} ${st.dot} ${q.by}: ${q.text}"), st) ++
         section("Answers to read (close REQUEST when read)", i.answers.flatMap(q =>
@@ -70,7 +71,8 @@ object InboxText:
         section("For the developer, in order (review, or accept / reject NODE)", i.queue.flatMap(waiting), st) ++
         section(s"Mechanical: Lean proves them again, nothing in them is a choice (confirm decides all ${i.mechanical.size})",
           i.mechanical.map(Lines.node(_, st, 4)), st) ++
-        section("Gone from the model (gone NODE)", i.gone.map(g => st.fit(s"${st.bold(g.id.value)}: ${g.decision.content.statement}", 2)), st) ++
+        section("Gone from the model (gone NODE)", i.gone.map(Details.gone(v, _)).map(g => st.fit(s"${st.bold(g.gone.id.value)}" +
+          s"${g.renamedTo.fold("")(y => st.yellow(s"  renamed to $y"))}: ${g.gone.decision.content.statement}", 2)), st) ++
         section("With the agent: asked, until it answers or changes the node", i.withAgent.map(Lines.node(_, st, 4)), st) ++
         section("For the agent", i.forAgent.flatMap(t => Lines.para(task(t, st), st)), st)
     (body ++ ("" :: SummaryText.lines(i.overview, st))).dropWhile(_.isEmpty)
@@ -106,10 +108,12 @@ object ReportText:
   /** Each node in one line, each mention with its sentence. */
   def found(f: Found, v: View, st: Style): List[String] = f match
     case Found.Governed(_, ids) => "Governed by:" :: ids.flatMap(v.node).map(Lines.node(_, st))
+    case Found.Missing(path) =>
+      Lines.para(s"There is no file or directory $path (paths are relative to the project's directory).", st, indent = 0)
     case Found.Ungoverned(path) =>
-      List(s"No node governs $path: code there changes unnoticed (status fails on a source file no node governs). Give it a home: the contract whose implementation it is, or a design node.")
+      Lines.para(s"No node governs $path: code there changes unnoticed (status fails on a source file no node governs). Give it a home: the contract whose implementation it is, or a design node.", st, indent = 0)
     case Found.Nothing(q) =>
-      List(s"No node, rejected option or not-modelled line mentions \"$q\": a new concern may need a new node (and a governed home for its code).")
+      Lines.para(s"No node, rejected option or not-modelled line mentions \"$q\": a new concern may need a new node (and a governed home for its code).", st, indent = 0)
     case Found.Mentions(_, ms) => "What mentions it:" :: ms.flatMap { m =>
       def flat(s: String) = s.replaceAll("\\s+", " ").trim
       val label = m.what match
@@ -119,7 +123,8 @@ object ReportText:
         case Mentioned.NotModelled(line) => s"not modelled: ${flat(line)}"
         case Mentioned.Idea(line) => s"idea: ${flat(line).take(160)}"
         case Mentioned.Term(at, meaning) => s"term (at $at): $meaning"
-      s"${st.bullet} $label" :: m.sentence.filterNot(x => Style.strip(label).contains(x)).map(x => st.dim(s"    \"${x.take(200)}\"")).toList
+      Lines.para(s"${st.bullet} $label", st, indent = 0) ++
+        m.sentence.filterNot(x => Style.strip(label).contains(x)).toList.flatMap(x => Lines.para(s"\"${x.take(200)}\"", st, indent = 4).map(l => st.dim("    " + l)))
     }
 
   /** `notes`: with what is not proven of the nodes it accepts. */

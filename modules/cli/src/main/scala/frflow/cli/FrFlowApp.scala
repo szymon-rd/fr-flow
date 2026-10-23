@@ -51,7 +51,15 @@ trait Terminal:
   def out(line: String): IO[Unit] = out(List(line))
 
 object Terminal:
-  def live: IO[Terminal] = IO(System.console() != null).map { tty =>
+  /** From JDK 22 `System.console()` is there even when the output is redirected: `Console.isTerminal` (JDK 22, so
+    * read by reflection: FrFlow builds on 21) says whether it is a terminal.
+    */
+  private[cli] def attached[C](console: Option[C], isTerminal: C => Option[Boolean]): Boolean =
+    console.exists(isTerminal(_).getOrElse(true))
+  private def isTerminal(c: java.io.Console): Option[Boolean] =
+    scala.util.Try(classOf[java.io.Console].getMethod("isTerminal")).toOption.map(_.invoke(c) == java.lang.Boolean.TRUE)
+
+  def live: IO[Terminal] = IO(attached(Option(System.console()), isTerminal)).map { tty =>
     new Terminal:
       val interactive: Boolean = tty
       def out(lines: List[String]): IO[Unit] = if lines.isEmpty then IO.unit else Console[IO].println(lines.mkString("\n"))

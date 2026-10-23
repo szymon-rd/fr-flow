@@ -63,3 +63,63 @@ class ReviewSuite extends munit.CatsEffectSuite with Golden:
       assertEquals(code, Dispatch.Refused)
       assert(out.exists(_.contains("accept Root first")), out)
   }
+
+  /** Root's formula changed, so what rests on it moved with it (and Decide reworded, if `reworded`). */
+  private def rootMoved(reworded: Boolean = false): Snapshot =
+    def changed(n: SnapNode, field: String, to: io.circe.Json) =
+      val c = n.content.mapFields { case (`field`, _) => field -> to }
+      n.copy(content = c, hash = c.hash)
+    val formula = "forall((u, r) => access(u, r) == (authorized(u, r) && signedIn(u)))"
+    val root = changed(Sample.root, "sources", io.circe.Json.obj("formula" -> io.circe.Json.fromString(formula)))
+    Sample.decided.copy(nodes = Sample.decided.nodes.map(n =>
+      if n.id == root.id then root else if reworded && n.id == Sample.decide.id then Sample.reworded.copy(hash = Sample.reworded.content.hash) else n))
+
+  private def review(api: FakeApi, typed: List[String]) =
+    Scripted(typed).flatMap(term => ReviewSession(api, term, st).run(None).flatMap(code => term.output.map(code -> _)))
+
+  test("a node waiting for another offers no [a]ccept, and says once what it waits for") {
+    (for
+      api <- FakeApi()
+      (code, out) <- review(api, List("s", "s", "a", "r", "q"))
+      ledger <- api.ledgerNow
+    yield
+      assertEquals(code, ExitCode.Success)
+      assert(out.contains("\n[s]kip [v]iew [q]uit [?]ask: a"), out.mkString("\n"))
+      assertEquals(out.count(_ == "one of: ? q s v"), 2, out.mkString("\n"))
+      assertEquals(out.count(_.contains("Root first")), 1, out.mkString("\n"))
+      assert(!out.exists(_.contains("waits for Root")), out.mkString("\n"))
+      assertEquals(ledger.current(NodeId("Expiry")), None)) *>
+    FakeApi(rootMoved(reworded = true), Sample.ledger, Nil).flatMap(api => review(api, List("s", "a", "q"))).map { (_, out) =>
+      // Under review, waiting for what it rests on: one line says so.
+      assert(out.contains("  decide NeedsGrant first: what rests on it is decided after it"), out.mkString("\n"))
+      assert(!out.exists(_.contains("waits for NeedsGrant")), out.mkString("\n"))
+      assertEquals(out.count(_ == "one of: ? q s v"), 1, out.mkString("\n"))
+    }
+  }
+
+  test("a mistyped name at the revisit prompt is asked again: the reason and the node are kept") {
+    val typed = List("a", "the new parts are proven to make it", "a", "Nope", "Memory", "the wording names the user plainly", "y", "q")
+    for
+      api <- FakeApi()
+      (_, out) <- review(api, typed)
+      ledger <- api.ledgerNow
+    yield
+      assert(out.contains("not a decision below Decide: Nope"), out.mkString("\n"))
+      assertEquals(out.count(_.startsWith("Revisit any decision below")), 2, out.mkString("\n"))
+      assertEquals(ledger.current(NodeId("Decide")).map(d => d.action -> d.reason), Some(Action.Accept -> "the wording names the user plainly"))
+      assertEquals(ledger.current(NodeId("Memory")).map(_.action), Some(Action.Revisit))
+  }
+
+  test("what moved only with a node: the inbox and the review say the same, and accepting the node confirms it") {
+    val followers = List("NeedsGrant", "LetsIn", "Decide")
+    for
+      api <- FakeApi(rootMoved(), Sample.ledger, Nil)
+      inbox <- api.reviewing.map((v, i) => InboxText.lines(i, v, st))
+      (_, out) <- review(api, List("a", "", "the formula says the same, in another order", "y"))
+      ledger <- api.ledgerNow
+    yield
+      val said = followers.map(f => s"-> $f moved only with it: accepting Root confirms it too")
+      assertEquals(said.map(l => inbox.count(_.trim == l)), List(1, 1, 1), inbox.mkString("\n"))
+      assertEquals(said.map(l => out.count(_.trim == l)), List(1, 1, 1), out.mkString("\n"))
+      assertEquals(followers.map(f => ledger.current(NodeId(f)).map(_.action)), List.fill(3)(Some(Action.Confirm)))
+  }

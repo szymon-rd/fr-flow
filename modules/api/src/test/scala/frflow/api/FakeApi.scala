@@ -16,6 +16,8 @@ final class FakeApi(snapshot: Snapshot, ledger: Ref[IO, Ledger], requests: Ref[I
   protected def codeChange(node: Reviewed): IO[Option[CodeChange]] =
     IO.pure(node.node.code.filter(_ => node.state == ReviewState.Proposed).map(c => CodeChange(c.files, "object Store", inFull = true)))
   def ledgerNow: IO[Ledger] = ledger.get
+  // The project's files: those under src/.
+  override protected def exists(path: String): IO[Boolean] = IO.pure(path.startsWith("src/"))
 
   private def decided(l: Ledger, d: Decide, by: Developer) =
     Decide(snapshot, l, d, by.name, at).map(after => after -> Decided.of(snapshot, l, after))

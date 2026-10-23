@@ -23,9 +23,10 @@ final class ReviewSession(api: FrFlowApi, term: Terminal, st: Style):
     if !p.batchOffered && inbox.mechanical.nonEmpty then batch(dev, v, inbox, p)
     else inbox.queue.find(w => !p.skipped(w.node.id)) match
       case Some(w) => api.details(v, w.node).flatMap(one(dev, w, _, inbox.queue.count(x => !p.skipped(x.node.id)), p, Depth.Brief))
-      case None => inbox.gone.find(g => !p.skipped(g.id)).fold(finish(inbox, p))(gone(dev, _, p))
+      case None => inbox.gone.find(g => !p.skipped(g.id)).fold(finish(inbox, p))(g => gone(dev, Details.gone(v, g), p))
   }
 
+  private val Keys = Map("a" -> "[a]ccept", "r" -> "[r]eject", "s" -> "[s]kip", "v" -> "[v]iew", "q" -> "[q]uit", "?" -> "[?]ask")
   private def quit(p: Pass) = api.inbox.flatMap(finish(_, p))
   /** Until the answer is one of `keys` (its first letter counts); none at the end of the input. */
   private def choose(prompt: String, keys: Set[String]): IO[Option[String]] =
@@ -64,10 +65,12 @@ final class ReviewSession(api: FrFlowApi, term: Terminal, st: Style):
   private def one(dev: Developer, w: Queued, d: NodeDetails, left: Int, p: Pass, depth: Depth): IO[ExitCode] =
     val r = w.node
     val proposal = r.state == ReviewState.Proposed
-    val keys = if proposal then "[a]ccept [r]eject [s]kip [v]iew [q]uit [?]ask" else "[a]ccept [s]kip [v]iew [q]uit [?]ask"
+    // One that waits for another is decided after it: its Decision section says which.
+    val decides = if w.waitsFor.isDefined then Nil else if proposal then List("a", "r") else List("a")
+    val keys = (decides ++ List("s", "v", "q", "?")).map(Keys).mkString(" ")
     term.out("" :: st.dim(s"${st.rule} $left waiting ${st.rule}") :: NodeText.lines(d, st, depth) ++
-      w.followers.map(f => st.dim(s"${st.follows} $f moved only with it: accepting ${r.id} confirms it"))) *>
-      choose(s"\n$keys: ", Set("a", "r", "s", "v", "q", "?", "").filter(k => proposal || k != "r")).flatMap {
+      w.followers.map(f => st.dim(Words.follower(f, r.id, st)))) *>
+      choose(s"\n$keys: ", Set("s", "v", "q", "?", "") ++ decides).flatMap {
         case Some("a") => accept(dev, r, p)
         case Some("r") => reason(s"Why not ${r.id}? ").flatMap(_.fold(loop(dev, p))(why =>
           record(dev, Decide.Reject(r.id, why, Some(r.review.version)), p, Some(r.id))))
@@ -86,11 +89,18 @@ final class ReviewSession(api: FrFlowApi, term: Terminal, st: Style):
   /** Asks which decisions below to revisit and why; shows what it records when that is more than the node. */
   private def accept(dev: Developer, r: Reviewed, p: Pass): IO[ExitCode] =
     val candidates = r.review.below.filter(_.kind == BelowKind.Accepted).map(_.id)
-    val which =
-      if candidates.isEmpty then IO.pure(Nil)
-      else term.read(s"Revisit any decision below that this may affect (${candidates.mkString(" ")}; Enter for none)? ")
-        .map(_.fold(Nil)(_.split("[\\s,]+").filter(_.nonEmpty).map(NodeId(_)).toList))
-    which.flatMap { revisit =>
+    // Asked again until each name is one of them; none at the end of the input.
+    def which: IO[Option[List[NodeId]]] =
+      if candidates.isEmpty then IO.pure(Some(Nil))
+      else term.read(s"Revisit any decision below that this may affect (${candidates.mkString(" ")}; Enter for none)? ").flatMap {
+        case None => IO.pure(None)
+        case Some(a) =>
+          val named = a.split("[\\s,]+").filter(_.nonEmpty).map(NodeId(_)).toList.distinct
+          val other = named.filterNot(candidates.contains)
+          if other.isEmpty then IO.pure(Some(named))
+          else term.out(st.red(s"not a decision below ${r.id}: ${other.mkString(" ")}")) *> which
+      }
+    which.flatMap(_.fold(loop(dev, p)) { revisit =>
       reason(s"Why ${r.id}? ").flatMap {
         case None => loop(dev, p)
         case Some(why) =>
@@ -105,11 +115,13 @@ final class ReviewSession(api: FrFlowApi, term: Terminal, st: Style):
               }
           }
       }
-    }
+    })
 
-  private def gone(dev: Developer, g: Gone, p: Pass): IO[ExitCode] =
+  private def gone(dev: Developer, gn: GoneNode, p: Pass): IO[ExitCode] =
+    val g = gn.gone
     term.out("" :: s"${st.bold(g.id.value)} ${st.red("is gone from the model")}: ${g.decision.content.statement}" ::
-      st.dim(s"  last ${Words.verb(g.decision.action)} by ${g.decision.by}: ${g.decision.reason}") :: Nil) *>
+      st.dim(s"  last ${Words.verb(g.decision.action)} by ${g.decision.by}: ${g.decision.reason}") ::
+      gn.renamedTo.map(y => st.yellow(s"  renamed to $y: it says the same")).toList) *>
       choose("[g]one: agree it is gone  [s]kip  [q]uit: ", Set("g", "s", "q", "")).flatMap {
         case Some("g") => reason(s"Why is ${g.id} gone? ").flatMap(_.fold(loop(dev, p))(why => record(dev, Decide.Gone(g.id, why), p, Some(g.id))))
         case Some("s") | Some("") => loop(dev, p.skip(g.id))

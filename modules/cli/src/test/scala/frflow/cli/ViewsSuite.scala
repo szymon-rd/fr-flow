@@ -2,6 +2,7 @@ package frflow.cli
 
 import frflow.api.*
 import frflow.protocol.*
+import io.circe.syntax.*
 
 /** The views in plain mode, against golden files: what an agent or CI reads. */
 class ViewsSuite extends munit.CatsEffectSuite with Golden:
@@ -34,8 +35,29 @@ class ViewsSuite extends munit.CatsEffectSuite with Golden:
     }
   }
 
+  test("--json: a diff line is an object with its op, as other enums are lowercase strings") {
+    api.flatMap(_.details(NodeId("Decide"))).map { d =>
+      val lines = Brief(d).hcursor.downField("diff").downField("self").downArray.downField("lines")
+      assertEquals(lines.downArray.focus.map(_.noSpaces), Some("""{"op":"removed","text":"A request is admitted on behalf of its token's user exactly when a grant names that user and the path."}"""))
+      assertEquals((DiffLine.Folded(3): DiffLine).asJson.noSpaces, """{"op":"folded","lines":3}""")
+      assertEquals(List[DiffLine](DiffLine.Same("a"), DiffLine.Added("b"), DiffLine.Folded(2)).asJson.as[List[DiffLine]],
+        Right(List(DiffLine.Same("a"), DiffLine.Added("b"), DiffLine.Folded(2))))
+    }
+  }
+
+  test("decisions wrap to the width, as formulas and diffs do: the history and the decisions below are not cut") {
+    val narrow = st.copy(width = Some(50))
+    api.flatMap(_.details(NodeId("Decide"))).map { d =>
+      val out = NodeText.lines(d, narrow)
+      assert(out.forall(Style.visible(_) <= 50), out.mkString("\n"))
+      val text = out.mkString(" ").replaceAll("\\s+", " ")
+      assert(text.contains("Memory: Sessions and grants are kept in memory. — holds because: Memory holds as stated"), out.mkString("\n"))
+      assert(text.contains("2026-01-02 10:00 accepted by dev: Decide holds as stated"), out.mkString("\n"))
+    }
+  }
+
   test("inbox: requests, the developer's queue, the agent's tasks, then the summary") {
-    api.flatMap(_.view).map(v => golden("inbox", InboxText.lines(Inbox.of(v), st)))
+    api.flatMap(_.view).map(v => golden("inbox", InboxText.lines(Inbox.of(v), v, st)))
   }
 
   test("colors are ANSI codes around the same text") {
@@ -64,4 +86,10 @@ class ViewsSuite extends munit.CatsEffectSuite with Golden:
     val env = Map("COLUMNS" -> "80")
     assertEquals(List(Style.of(false, env, terminal = true), Style.of(true, env, terminal = true), Style.of(false, env + ("NO_COLOR" -> "1"), terminal = true),
       Style.of(false, env, terminal = false)), List(Style(true, true, Some(80)), Style(false, false, Some(80)), Style(false, false, Some(80)), Style(false, false, None)))
+    assertEquals(Style.of(false, env + ("TERM" -> "dumb"), terminal = true), Style(false, false, Some(80)))
+  }
+
+  test("a terminal is the console's own answer where the JDK has one (22 and later), else a console being there") {
+    assertEquals(List(Terminal.attached(Some(()), _ => Some(false)), Terminal.attached(Some(()), _ => Some(true)),
+      Terminal.attached(Some(()), _ => None), Terminal.attached(Option.empty[Unit], _ => Some(true))), List(false, true, true, false))
   }
