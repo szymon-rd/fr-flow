@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FrFlow</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #fff; --ink: #1c2330; --muted: #5d6878; --line: #dde2ea; --soft: #eef1f5;
+  --accent: #3d5afe; --accent-soft: #e8ecff; --proven: #13854b; --proven-soft: #e3f5ea; --open: #b86e00; --open-soft: #fff3dc;
+  --failed: #c62f2f; --failed-soft: #fde7e7; --none: #8a94a3; --none-soft: #eef0f3; --code: #f3f5f8;
+  --def: #7445c2; --def-soft: #f1eafc; --inv: #0b7a83; --inv-soft: #e0f4f5;
+  --shadow: 0 1px 2px rgba(20,30,50,.06), 0 4px 14px rgba(20,30,50,.06);
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace; color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root {
+  --bg: #0f131a; --panel: #161b24; --ink: #e5e9f0; --muted: #98a2b3; --line: #29313e; --soft: #1d2430;
+  --accent: #8c9eff; --accent-soft: #232b48; --proven: #4cc38a; --proven-soft: #15302a; --open: #f0b44c; --open-soft: #33290f;
+  --failed: #ff7b7b; --failed-soft: #3a1a1d; --none: #7d8696; --none-soft: #1f252f; --code: #10151d;
+  --def: #b99af5; --def-soft: #2a2140; --inv: #5fd0d8; --inv-soft: #14302f;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25); color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; display: flex; flex-direction: column; }
+button, textarea { font: inherit; color: inherit; }
+pre, .mono { font-family: var(--mono); font-size: 12.5px; }
+pre { background: var(--code); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 6px 0 0; white-space: pre-wrap; word-break: break-word; }
+textarea { width: 100%; resize: vertical; background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; margin-top: 8px; }
+a { color: var(--accent); cursor: pointer; text-decoration: none; } a:hover { text-decoration: underline; }
+header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--line); white-space: nowrap; }
+.brand { font-weight: 700; } .brand span { color: var(--accent); }
+.summary { color: var(--muted); font-size: 13px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.summary b { color: var(--ink); }
+.pill { border-radius: 7px; padding: 3px 10px; font-size: 13px; }
+.pill.you { background: var(--accent-soft); color: var(--accent); cursor: pointer; }
+.pill.stale { background: var(--failed-soft); color: var(--failed); font-weight: 600; }
+.btn { background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 3px 11px; cursor: pointer; font-size: 13px; }
+.btn:hover:not(:disabled) { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--panel); }
+.btn:disabled { opacity: .5; cursor: default; }
+main { display: grid; grid-template-columns: minmax(0, 1fr) 520px; flex: 1; min-height: 0; }
+#left { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+#wrap { overflow: auto; flex: 1; padding: 0 16px; }
+#canvas { position: relative; margin: 24px auto; }
+aside { background: var(--panel); border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+.tabs { display: flex; border-bottom: 1px solid var(--line); padding: 0 8px; }
+.tab { border: 0; background: none; padding: 10px 12px; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; }
+.tab.active { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+.tab .n { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 4px; border-radius: 999px; font-size: 11px; background: var(--accent); color: var(--panel); }
+#pane { overflow: auto; padding: 16px 18px 40px; flex: 1; }
+.card { position: absolute; width: 230px; height: 118px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 11px; box-shadow: var(--shadow); cursor: pointer; }
+.card:hover { border-color: var(--accent); }
+.card.proposed { border: 2px dashed var(--accent); }
+.card.review { border: 2px solid var(--open); }
+.card.rejected { opacity: .55; border-style: dotted; }
+.card.design { background: var(--soft); }
+.card.definition { border-left: 4px solid var(--def); }
+.card.selected { box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow); border-color: var(--accent); }
+.card .top { display: flex; align-items: center; gap: 6px; }
+.card .id { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card .stmt { color: var(--muted); font-size: 12.5px; margin: 3px 0 5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 37px; }
+.chips { display: flex; gap: 4px; flex-wrap: wrap; }
+.card .chips { flex-wrap: nowrap; overflow: hidden; }
+.kind { font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; background: var(--soft); color: var(--muted); flex: none; }
+.kind.root { background: var(--accent-soft); color: var(--accent); } .kind.contract { background: var(--proven-soft); color: var(--proven); }
+.kind.assumption { background: var(--open-soft); color: var(--open); } .kind.definition { background: var(--def-soft); color: var(--def); }
+.kind.invariant { background: var(--inv-soft); color: var(--inv); }
+.chip { font-size: 11px; padding: 1px 7px; border-radius: 999px; white-space: nowrap; background: var(--none-soft); color: var(--none); }
+.s-proven, .s-accepted, .s-ok { background: var(--proven-soft); color: var(--proven); }
+.s-open, .s-review, .s-waiting, .s-timeout, .s-trusted { background: var(--open-soft); color: var(--open); }
+.s-failed, .s-bad, .s-model-error { background: var(--failed-soft); color: var(--failed); }
+.s-proposed { background: var(--accent-soft); color: var(--accent); }
+svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+path { fill: none; stroke-width: 2.2; }
+path.proven { stroke: var(--proven); } path.open { stroke: var(--open); stroke-dasharray: 7 5; }
+path.failed { stroke: var(--failed); stroke-dasharray: 3 4; } path.unchecked { stroke: var(--none); stroke-dasharray: 2 5; }
+path.design { stroke: var(--line); } path.also { stroke: var(--accent); stroke-width: 1.4; stroke-dasharray: 4 4; opacity: .35; }
+path.also.on { opacity: .9; }
+.elabel { position: absolute; transform: translate(-50%, -50%); font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); white-space: nowrap; }
+.elabel.proven { color: var(--proven); } .elabel.open { color: var(--open); } .elabel.failed { color: var(--failed); } .elabel.unchecked { color: var(--none); }
+.rowlabel { position: absolute; font-size: 11.5px; font-weight: 650; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+.legend { background: var(--panel); border-top: 1px solid var(--line); padding: 5px 16px; font-size: 12px; color: var(--muted); display: flex; gap: 2px 14px; flex-wrap: wrap; }
+.legend i { display: inline-block; width: 22px; border-top: 3px solid; vertical-align: middle; margin-right: 5px; }
+h2 { font-size: 18px; margin: 0; }
+h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin: 22px 0 6px; }
+.lead { font-size: 15px; margin: 8px 0 0; }
+.muted { color: var(--muted); } .small { font-size: 12.5px; }
+.why { border-left: 3px solid var(--accent); padding: 4px 0 4px 12px; margin-top: 10px; }
+.label { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.box { border: 1px solid var(--line); border-left-width: 4px; border-radius: 10px; padding: 12px 14px; margin-top: 8px; }
+.box.accepted { border-left-color: var(--proven); } .box.review { border-left-color: var(--open); background: color-mix(in srgb, var(--open-soft) 50%, transparent); }
+.box.proposed { border-left-color: var(--accent); background: color-mix(in srgb, var(--accent-soft) 50%, transparent); }
+.box.failed { border-left-color: var(--failed); background: color-mix(in srgb, var(--failed-soft) 50%, transparent); }
+.verdict { font-weight: 650; }
+.side { margin-top: 10px; }
+.row { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-top: 6px; background: var(--panel); }
+.warn { color: var(--open); font-size: 12.5px; margin-top: 6px; } .err { color: var(--failed); font-size: 12.5px; margin-top: 6px; } .ok { color: var(--proven); font-size: 12.5px; margin-top: 6px; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+.diff { font-family: var(--mono); font-size: 12.5px; white-space: pre-wrap; word-break: break-word; background: var(--code); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; margin-top: 4px; }
+.diff .add { color: var(--proven); background: var(--proven-soft); } .diff .del { color: var(--failed); background: var(--failed-soft); }
+.diff .fold, .diff .hunk { color: var(--muted); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+td, th { text-align: left; border-bottom: 1px solid var(--line); padding: 5px 6px 5px 0; vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 12px; }
+details summary { cursor: pointer; color: var(--muted); margin-top: 14px; }
+label { font-size: 12.5px; display: block; margin-top: 4px; }
+@media (max-width: 900px) { header { flex-wrap: wrap; white-space: normal; } main { grid-template-columns: 1fr; } #left { height: 60vh; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Fr<span>Flow</span></div>
+  <span class="summary" id="summary">Loading…</span>
+  <span class="pill stale" id="stale" hidden title="The model's sources changed on disk since serve started: what is shown mixes two models, and nothing can be decided">The model changed: restart serve</span>
+  <span class="pill you" id="waiting" hidden></span>
+  <span class="muted small" id="me"></span>
+</header>
+<main>
+  <div id="left">
+    <div id="wrap"><div id="canvas"></div></div>
+    <div class="legend">
+      <span><i style="border-color:var(--accent);border-top-style:dashed"></i>proposed: waiting for you</span>
+      <span><i style="border-color:var(--open)"></i>review: something moved under it</span>
+      <span><i style="border-color:var(--proven)"></i>parts proven to make it</span>
+      <span><i style="border-color:var(--open);border-top-style:dashed"></i>open</span>
+      <span><i style="border-color:var(--failed);border-top-style:dotted"></i>failed, or a part not needed</span>
+      <span><i style="border-color:var(--none);border-top-style:dotted"></i>unchecked</span>
+      <span><i style="border-color:var(--accent);border-top-style:dashed;opacity:.6"></i>also a part of</span>
+    </div>
+  </div>
+  <aside>
+    <nav class="tabs"><button class="tab" data-tab="node">Node</button><button class="tab" data-tab="inbox">Inbox</button></nav>
+    <div id="pane"></div>
+  </aside>
+</main>
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+// The token comes with the link serve printed: every route asks for it.
+const token = new URLSearchParams(location.search).get("token") || "";
+async function call(path, body) {
+  const r = await fetch(path, body === undefined ? { headers: { "X-FrFlow-Token": token }, cache: "no-store" }
+    : { method: "POST", headers: { "X-FrFlow-Token": token, "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const text = await r.text();
+  const json = text ? JSON.parse(text) : null;
+  if (!r.ok) throw new Error(json?.error || r.statusText);
+  return { json, text };
+}
+const S = { tree: null, inbox: null, serving: null, details: null, shown: null, selected: decodeURIComponent(location.hash.slice(1)) || null,
+  tab: "node", notes: {}, texts: {}, pending: false };
+const nodes = new Map(), withAgent = new Set();
+const byId = id => nodes.get(id);
+const C = r => r.node.content;
+const changed = () => !!S.serving?.modelChanged;
+
+// --- loading: the tree, the inbox and whether the model moved, every few seconds; a node's details when it is shown
+
+async function refresh() {
+  const [tree, inbox, serving] = await Promise.all([call("/api/tree"), call("/api/inbox"), call("/api/serving")]);
+  const moved = tree.text !== S.texts.tree || inbox.text !== S.texts.inbox || serving.text !== S.texts.serving;
+  S.texts = { tree: tree.text, inbox: inbox.text, serving: serving.text };
+  S.tree = tree.json; S.inbox = inbox.json; S.serving = serving.json;
+  nodes.clear(); withAgent.clear();
+  const walk = t => { nodes.set(t.node.node.id, t.node); if (t.withAgent) withAgent.add(t.node.node.id); t.children.forEach(walk); };
+  ["main", "assumptions", "unparented", "definitions"].forEach(k => S.tree[k].forEach(walk));
+  if (!byId(S.selected)) S.selected = (S.inbox.ready[0]?.node || S.tree.main[0]?.node)?.node.id || null;
+  if (moved) await load(S.selected, false, true);
+}
+async function load(id, scroll = true, quiet = false) {
+  S.details = id ? (await call(`/api/details/${encodeURIComponent(id)}`)).json : null;
+  render(scroll, quiet);
+}
+async function tick() {
+  if (document.visibilityState === "visible") await refresh().catch(e => { $("#summary").textContent = e.message; });
+  setTimeout(tick, 4000);
+}
+
+// --- the graph
+
+const kindOf = r => r.node.kind === "claim" && S.tree.main[0]?.node.node.id === r.node.id ? "root" : r.node.rule ? "invariant" : r.node.kind;
+const trusted = r => S.tree.overview.trusted.includes(r.node.id) || r.node.kind === "assumption";
+function splitStatus(n) {
+  const sp = n.split; if (!sp) return null;
+  const c = sp.complete.status;
+  if (c === "failed" || sp.clash.status === "shown") return "failed";
+  if (sp.needed.some(x => x.status === "shown")) return "open";
+  return c === "proven" ? "proven" : c === "timeout" || c === "open" ? "open" : "unchecked";
+}
+function splitLabel(n) {
+  const sp = n.split, notNeeded = sp.needed.filter(x => x.status === "shown").map(x => x.id);
+  if (sp.clash.status === "shown") return "✗ parts clash";
+  if (notNeeded.length) return `${notNeeded.length > 1 ? notNeeded.length + " parts" : notNeeded[0]} not needed`;
+  return { proven: "✓ parts make it" + (sp.complete.detail === "authored" ? " (proof)" : ""), failed: "✗ failed", open: "parts: open", unchecked: "unchecked" }[splitStatus(n)];
+}
+function chips(r) {
+  const n = r.node, ex = n.examples, bad = ex.filter(e => e.fails || e.codeFails || e.lean?.status === "failed").length;
+  return `<span class="chip s-${r.review.state}">${esc(r.review.state === "review" ? `review: ${r.review.causes.join(", ")}` : r.review.state)}</span>` +
+    (withAgent.has(n.id) ? `<span class="chip s-waiting">with the agent</span>` : "") +
+    (trusted(r) ? `<span class="chip s-trusted" title="a hypothesis of root_impl: trusted, not proven">trusted</span>` : "") +
+    (n.status && n.status !== "proven" ? `<span class="chip s-${n.status}">${esc(n.status)}</span>` : "") +
+    (ex.length ? `<span class="chip ${bad ? "s-bad" : "s-ok"}">examples ${ex.length - bad}/${ex.length}</span>` : "");
+}
+const W = 230, H = 118, GX = 24, GY = 70;
+// Each node under its first parent, as the API's tree draws it; a parent centred over its parts.
+function renderGraph() {
+  const pos = {}, edges = [], also = [], labels = [];
+  let slot = 0;
+  function place(t, d) {
+    t.children.forEach(c => { place(c, d + 1); edges.push([t.node, c.node]); });
+    t.seeAlso.forEach(x => also.push([t.node.node.id, x]));
+    const xs = t.children.map(c => pos[c.node.node.id].x);
+    pos[t.node.node.id] = { x: xs.length ? (xs[0] + xs[xs.length - 1]) / 2 : (slot++) * (W + GX), y: d * (H + GY) };
+  }
+  [...S.tree.main, ...S.tree.assumptions, ...S.tree.unparented].forEach(t => { place(t, 0); slot += 0.4; });
+  const drawn = Object.values(pos), top = (drawn.length ? Math.max(...drawn.map(p => p.y)) + H + GY : 0) + 26;
+  const perRow = Math.max(3, Math.floor((Math.max(0, ...drawn.map(p => p.x + W)) + GX) / (W + GX)));
+  if (S.tree.definitions.length) labels.push(`<div class="rowlabel" style="left:0;top:${top - 24}px">Definitions: they fix terms of the vocabulary (decided, not proven)</div>`);
+  S.tree.definitions.forEach((t, i) => pos[t.node.node.id] = { x: (i % perRow) * (W + GX), y: top + Math.floor(i / perRow) * (H + 18) });
+  const ps = Object.values(pos);
+  if (!ps.length) { $("#canvas").innerHTML = `<p class="muted">No nodes.</p>`; return; }
+  const width = Math.max(...ps.map(p => p.x)) + W, height = Math.max(...ps.map(p => p.y)) + H;
+  const curve = (a, b) => { const x1 = a.x + W / 2, y1 = a.y + H, x2 = b.x + W / 2, y2 = b.y, m = (y1 + y2) / 2; return `M${x1},${y1} C${x1},${m} ${x2},${m} ${x2},${y2}`; };
+  let svg = "";
+  for (const [p, c] of edges) {
+    const need = p.node.split?.needed.find(x => x.id === c.node.id);
+    const st = c.node.kind === "design" ? "design" : need?.status === "shown" ? "failed" : splitStatus(p.node) || "unchecked";
+    svg += `<path class="${st}" d="${curve(pos[p.node.id], pos[c.node.id])}"/>`;
+  }
+  for (const [p, c] of also) if (pos[p] && pos[c]) svg += `<path class="also${S.selected === c || S.selected === p ? " on" : ""}" d="${curve(pos[p], pos[c])}"/>`;
+  for (const [id, p] of Object.entries(pos)) { const n = byId(id).node;
+    if (n.split && edges.some(([q]) => q.node.id === id)) labels.push(`<div class="elabel ${splitStatus(n)}" style="left:${p.x + W / 2}px;top:${p.y + H + 18}px">${esc(splitLabel(n))}</div>`); }
+  const cards = Object.entries(pos).map(([id, p]) => { const r = byId(id), k = kindOf(r);
+    return `<div class="card ${r.review.state} ${r.node.kind}${id === S.selected ? " selected" : ""}" data-node="${esc(id)}" style="left:${p.x}px;top:${p.y}px">
+      <div class="top"><span class="kind ${k}">${esc(k)}</span><span class="id">${esc(id)}</span></div>
+      <div class="stmt" title="${esc(C(r).statement)}">${esc(C(r).statement)}</div><div class="chips">${chips(r)}</div></div>`; }).join("");
+  const c = $("#canvas");
+  c.style.width = width + "px"; c.style.height = height + "px";
+  // Its widest row fits the pane, down to 75%; wider than that, it scrolls.
+  const room = $("#wrap").clientWidth - 32;
+  c.style.zoom = room > 0 && width > room ? Math.max(0.75, room / width) : 1;
+  c.innerHTML = `<svg width="${width}" height="${height}">${svg}</svg>${labels.join("")}${cards}`;
+}
+
+// --- the header
+
+function renderHeader() {
+  const o = S.tree.overview, i = S.inbox, red = x => `<b style="color:var(--failed)">${x}</b>`;
+  $("#summary").innerHTML = `${esc(o.name)} · <b>${o.accepted}</b>/${o.nodes} accepted${o.proposed ? ` · <b>${o.proposed}</b> proposed` : ""}${o.review ? ` · <b>${o.review}</b> to review` : ""}` +
+    ` · splits ${o.splitsProven < o.splits ? red(`${o.splitsProven}/${o.splits}`) : `<b>${o.splitsProven}/${o.splits}</b>`} proven` +
+    (o.rootImpl ? ` · root_impl ${o.rootImpl === "proven" ? "<b>proven</b>" : red(esc(o.rootImpl))}` : "") +
+    ` · trusted: <b>${o.trusted.length || "nothing"}</b>` + (o.warnings ? ` · ${red(`${o.warnings} warning(s)`)}` : "");
+  const w = [o.forDeveloper ? `${o.forDeveloper} waiting for you` : "", o.withAgent ? `${o.withAgent} with the agent` : "",
+    i.answers.length ? `${i.answers.length} answer(s) to read` : ""].filter(Boolean);
+  $("#waiting").hidden = !w.length; $("#waiting").textContent = w.join(" · ");
+  $("#stale").hidden = !changed();
+  $("#me").textContent = `deciding as ${S.serving.developer}`;
+  document.querySelectorAll(".tab").forEach(t => { t.classList.toggle("active", t.dataset.tab === S.tab);
+    t.innerHTML = t.dataset.tab[0].toUpperCase() + t.dataset.tab.slice(1) + (t.dataset.tab === "inbox" && o.forDeveloper ? `<span class="n">${o.forDeveloper}</span>` : ""); });
+}
+
+// --- the node: what NodeDetails holds
+
+const go = id => `<a data-goto="${esc(id)}">${esc(id)}</a>`;
+const when = at => new Date(at).toLocaleString();
+const VERB = { accept: "accepted", confirm: "confirmed", reject: "rejected", revisit: "asked to revisit", remove: "agreed gone" };
+const CAUSE = { self: "it changed", above: "the meaning of what it rests on changed", parts: "its parts changed", code: "the code it governs changed",
+  revisit: "a change elsewhere may affect it", merged: "two branches decided it and both were kept" };
+const line = r => `<div class="small"><span class="kind ${kindOf(r)}">${esc(kindOf(r))}</span> <b>${go(r.node.id)}</b> <span class="chip s-${r.review.state}">${esc(r.review.state)}</span> ${esc(C(r).statement)}</div>`;
+const section = (title, body) => body ? `<h3>${title}</h3>${body}` : "";
+const note = key => S.notes[key] ? `<div class="${S.notes[key].cls}">${esc(S.notes[key].text)}</div>` : "";
+const box = (key, placeholder) => `<textarea id="t-${esc(key)}" rows="2" placeholder="${esc(placeholder)}"></textarea>`;
+// Asking and closing record no decision: they stay open when the model changed.
+const button = (label, action, key, primary) => `<button class="btn${primary ? " primary" : ""}" data-act="${action}" data-key="${esc(key)}"${
+  changed() && action !== "ask" && action !== "close" ? ` disabled title="the model changed: restart serve"` : ""}>${esc(label)}</button>`;
+
+const lines = ls => `<div class="diff">${ls.map(l => l.op === "folded" ? `<span class="fold">… ${l.lines} unchanged line(s)</span>` : l.op === "added"
+  ? `<span class="add">+ ${esc(l.text)}</span>` : l.op === "removed" ? `<span class="del">- ${esc(l.text)}</span>` : `  ${esc(l.text)}`).join("\n")}</div>`;
+const fields = fs => fs.map(f => `<div class="label">${esc(f.field)}</div>${lines(f.lines)}`).join("");
+function code(c) {
+  const ls = c.text ? c.text.split("\n") : [];
+  return `<div class="label">${c.inFull ? `the files it governs, in full: read them before accepting (${esc(c.files.join(", "))})` : `the code it governs changed (${esc(c.files.join(", "))})`}</div>
+    ${ls.length ? `<div class="diff">${ls.map(l => c.inFull ? esc(l) : /^\+(?!\+\+)/.test(l) ? `<span class="add">${esc(l)}</span>`
+      : /^-(?!--)/.test(l) ? `<span class="del">${esc(l)}</span>` : l.startsWith("@@") ? `<span class="hunk">${esc(l)}</span>` : esc(l)).join("\n")}</div>`
+      : `<div class="muted small">No git diff available (decided outside git, or before the code was committed).</div>`}`;
+}
+function diff(d) {
+  if (!d.since) return `<div class="side"><b>New: never decided</b></div>${d.code ? code(d.code) : ""}`;
+  return `<div class="side"><b>What changed since it was ${VERB[d.since.action]} (${esc(d.since.by)}, ${when(d.since.at)})</b></div>` + fields(d.self) +
+    (d.statementStale ? `<div class="warn">What it says formally changed and its statement did not: does the statement still say it?</div>` : "") +
+    (d.partsAdded.length ? `<div class="warn">Parts added: ${d.partsAdded.map(go).join(", ")}: do these parts, together, still make it?</div>` : "") +
+    (d.partsRemoved.length ? `<div class="warn">Parts removed: ${d.partsRemoved.map(esc).join(", ")}</div>` : "") +
+    d.moved.map(m => `<div class="side">The meaning of <b>${go(m.id)}</b> changed (${m.acceptedAgain ? `you accepted that${m.reason ? ": " + esc(m.reason) : ""}` : "not accepted yet"})${fields(m.changes)}</div>`).join("") +
+    d.rejectedParents.map(p => `<div class="err">Its parent ${go(p)} was rejected: the agent moves it under the node chosen instead.</div>`).join("") +
+    (d.revisit ? `<div class="warn">${esc(d.revisit.by)} asked to revisit it: ${esc(d.revisit.reason)}</div>` : "") + (d.code ? code(d.code) : "");
+}
+
+// What deciding it acts on, and the buttons; or who has it, or why it was rejected.
+function decision(d) {
+  const r = d.node, v = r.review, id = r.node.id, open = d.requests.filter(q => q.status === "open");
+  if (d.withAgent && (v.state === "proposed" || v.state === "review")) return `<div class="box review"><div class="verdict">With the agent</div>
+    ${open.map(q => `<div class="why"><div class="label">${esc(q.by)} asked, ${when(q.at)}</div>${esc(q.text)}</div>`).join("")}
+    <div class="muted small">It comes back to you when the agent answers or changes ${esc(id)}.</div>
+    <div class="actions">${button("Withdraw the request, and decide it now", "close", open.map(q => q.id).join(","))}</div>${note("close")}</div>`;
+  if (v.state === "accepted") return `<div class="box accepted"><div class="verdict" style="color:var(--proven)">Accepted</div>
+    ${v.reasonNow ? `<div class="why"><div class="label">holds because</div>${esc(v.reasonNow)}</div>` : ""}
+    <details><summary>Ask that it be reviewed again: a change elsewhere may affect it</summary>${box("revisit", "What may affect it?")}
+    <div class="actions">${button(`Revisit ${id}`, "revisit", id)}</div></details>${note("revisit")}</div>`;
+  if (v.state === "rejected") { const h = [...v.history].reverse().find(x => x.action === "reject");
+    return `<div class="box failed"><div class="verdict" style="color:var(--failed)">Rejected</div>${h ? `<div class="why"><div class="label">rejected by ${esc(h.by)}, ${when(h.at)}, because</div>${esc(h.reason)}</div>` : ""}
+      <div class="muted small">The agent removes it, or proposes what the reason asks for.</div></div>`; }
+  const rivals = d.rivals.filter(x => x.review.state !== "rejected").map(x => x.node.id), proposal = v.state === "proposed";
+  const below = v.below.length ? `<div class="side"><div class="label">Decisions below it, with their reasons: tick those this change may affect, to review them again. One that moved only with it is confirmed with your reason.</div>
+    ${v.below.map(b => `<div class="row"><b>${go(b.id)}</b>${b.kind === "moved" ? ` <span class="muted small">(moved with it)</span>` : ""}<div class="small">${esc(b.statement)}</div>
+      <div class="muted small">holds because: ${esc(b.reason)}</div>${b.kind === "accepted" ? `<label><input type="checkbox" class="rev" value="${esc(b.id)}"> revisit ${esc(b.id)}</label>` : ""}</div>`).join("")}</div>` : "";
+  return `<div class="box ${v.state}"><div class="verdict">${proposal ? "Proposed" : `To review: ${v.causes.map(c => CAUSE[c] || c).join("; ")}`}</div>
+    ${v.waitsFor ? `<div class="warn">Decide ${go(v.waitsFor)} first: what rests on it is decided after it.</div>` : ""}
+    ${v.notMechanical ? "" : `<div class="ok">Mechanical: Lean proves it again and nothing in it is a choice (the Inbox confirms the batch).</div>`}
+    ${v.unproven.map(u => `<div class="err">Note: ${esc(u)}</div>`).join("")}
+    ${rivals.length ? `<div class="warn">Accepting it rejects ${rivals.map(go).join(", ")} (its alternatives), with your reason.</div>` : ""}
+    ${proposal ? v.rejectedBeside.map(x => `<div class="muted small">Rejected here before: <b>${esc(x.id)}</b>: ${esc(x.statement)} — because ${esc(x.reason)}</div>`).join("") : ""}
+    ${diff(d.diff)}${below}
+    ${box("decide", proposal ? "Why this one (or why not)? It is kept as part of the theory." : "Why does it hold, given what changed?")}
+    <div class="actions">${v.waitsFor ? "" : button(`Accept ${id}${rivals.length ? `, rejecting ${rivals.join(", ")}` : ""}`, "accept", id, true)}
+      ${proposal ? button(`Reject ${id}`, "reject", id) : ""}</div>${note("decide")}</div>`;
+}
+
+const outcome = (name, o) => `<div class="small" style="margin-top:4px"><span class="chip s-${o.status === "not-shown" ? "proven" : o.status === "shown" ? "failed" : o.status}">${esc(name)}</span> ${
+  esc(o.status === "not-shown" ? o.detail : `${o.status}${o.detail ? ": " + o.detail.split("\n")[0] : ""}`)}</div>`;
+function parts(d) {
+  const sp = d.node.node.split;
+  const rows = d.parts.map(p => { const x = sp?.needed.find(y => y.id === p.node.id);
+    return `<tr><td><b>${go(p.node.id)}</b></td><td class="small">${esc(C(p).statement)}</td><td>${x ? `<span class="chip ${x.status === "shown" ? "s-open" : ""}" title="${esc(x.detail)}">${
+      x.status === "shown" ? "not needed" : "needed"}</span>` : ""}</td><td><span class="chip s-${p.review.state}">${esc(p.review.state)}</span></td></tr>`; }).join("");
+  return rows && `<table><tr><th>part</th><th>statement</th><th>needed</th><th>state</th></tr>${rows}</table>` + (sp ? outcome("complete", sp.complete) + outcome("clash", sp.clash) : "");
+}
+function examples(n) {
+  let given = null;
+  return n.examples.map(e => { const g = e.given.join(", ") || "nothing", head = g !== given ? `<div class="label mono">given ${esc(g)}</div>` : "", ok = !e.fails && !e.codeFails; given = g;
+    return head + `<div class="row small"><span class="chip ${ok ? "s-ok" : "s-bad"}">${e.expected ? "expect" : "reject"}</span> ${esc(e.note)}
+      ${e.lean ? `<span class="chip ${e.lean.status === "proven" ? "s-ok" : e.lean.status === "failed" ? "s-bad" : ""}" title="${esc(e.lean.detail)}">${
+        e.lean.status === "proven" ? "Lean agrees" : e.lean.status === "failed" ? "Lean disagrees" : esc(e.lean.status) + " in Lean"}</span>` : ""}
+      <div class="mono muted">${esc(e.call)}</div>${ok ? "" : `<div class="err">${esc([e.fails, e.codeFails && "the implementation " + e.codeFails].filter(Boolean).join("; "))}</div>`}</div>`; }).join("");
+}
+function formal(d) {
+  const n = d.node.node, c = n.content, p = d.codeProof && Object.entries(d.codeProof)[0], runs = p?.[1].running ? `; running code ${esc(p[1].running)} checked against it` : "";
+  return section("Formally (as written in Scala)", Object.entries(c.sources || {}).map(([k, v]) => `<div class="label">${esc(k)}${k === "post" && n.op ? ` (every call of ${esc(n.op)})` : ""}</div><pre>${esc(v)}</pre>`).join("") +
+      (c.substitutions || []).map(s => `<pre>${esc(s)}</pre>`).join("") +
+      n.invariants.map(i => i.status === "exempt" ? `<div class="small">exempt from ${go(i.id)}: ${esc(i.detail)}</div>` : `<div class="label">keeps ${go(i.id)} (${esc(i.status)}), showing the rule:</div><pre>${esc(i.view)}</pre>`).join("") +
+      n.expectations.map(e => `<div class="label">expects (${esc(e.status)}): ${esc(e.statement)}</div><pre>${esc(e.source)}</pre>`).join("")) +
+    section("Proofs", [n.implementationProof && outcome(`impl (${n.implementationProof.name})`, n.implementationProof), n.rootImpl && outcome("root_impl", n.rootImpl),
+      n.idle && `<div class="err">idle: Lean shows doing nothing meets it (${esc(n.idle)}): say what users can do.</div>`,
+      n.leaf && `<div class="warn">Nothing below proves it yet: it is trusted as it stands.</div>`].filter(Boolean).join("")) +
+    section("Code", (p ? `<div class="small">${p[0] === "ProvenDown" ? `<b>Proven down to its code</b>: proven define ${esc(p[1].define)}${runs}` : p[0] === "Define"
+      ? `define ${esc(p[1].name)}, ${esc(p[1].status)}${runs}` : "Checked by running: a plain implementation, not proven"}</div>` : "") +
+      (n.code ? `<div class="small">governs: <span class="mono">${esc(n.code.files.join(", "))}</span></div>` : "") +
+      (c.implementation ? `<details><summary>the code</summary><pre>${esc(c.implementation)}</pre></details>` : ""));
+}
+
+function nodePane() {
+  const d = S.details;
+  if (!d) return `${note("top")}<p class="muted">Select a node.</p>`;
+  const r = d.node, n = r.node, v = r.review, k = kindOf(r);
+  const place = [...d.parents.map(p => ["part of", p]), ...d.designs.map(p => ["design", p]), ...d.definitions.map(p => ["uses", p]), ...d.usedBy.map(p => ["used by", p]),
+    ...d.calls.map(p => ["calls", p]), ...d.calledBy.map(p => ["called by", p]), ...d.keptBy.map(p => ["kept by", p])];
+  return `${note("top")}<div style="display:flex;align-items:center;gap:8px"><span class="kind ${k}">${esc(k)}${n.op ? " on " + esc(n.op) : ""}</span><h2>${esc(n.id)}</h2></div>
+    <div class="chips" style="margin-top:6px">${chips(r)}${n.replaces ? `<span class="chip">replaces ${esc(n.replaces)}</span>` : ""}</div>
+    <p class="lead">${esc(C(r).statement)}</p><div class="why"><div class="label">why</div>${esc(C(r).why)}</div>
+    <h3>Decision</h3>${note("done")}${decision(d)}
+    ${d.idea && (d.isRoot || v.state === "proposed") ? `<details${d.isRoot ? " open" : ""}><summary>The idea it is decided against</summary><pre>${esc(d.idea)}</pre></details>` : ""}
+    ${formal(d)}
+    ${section("Where it sits", place.map(([l, p]) => `<div class="small"><span class="muted">${l}</span> <b>${go(p.node.id)}</b> ${esc(C(p).statement)}</div>`).join("") +
+      d.beside.map(([p, co]) => co.length ? `<div class="muted small">under ${go(p)}, with ${co.map(c => go(c.node.id)).join(", ")}: together they make it</div>` : "").join(""))}
+    ${section(n.split ? "Parts: together they make it" : "Parts", parts(d))}
+    ${section("Vocabulary", d.terms.length ? `<table>${d.terms.map(t => `<tr><td class="mono">${esc(t.name)}${t.operation ? ` <span class="muted small">operation</span>` : ""}</td><td>${esc(t.means)}</td><td>${
+      t.definedBy ? go(t.definedBy) : `<span class="muted small">open</span>`}</td></tr>`).join("")}</table>` : "")}
+    ${section(`Examples: ${n.examples.filter(e => !e.fails && !e.codeFails).length} of ${n.examples.length} pass`, examples(n))}
+    ${section("History", v.history.map(h => `<div class="row small"><b>${esc(VERB[h.action] || h.action)}</b> by ${esc(h.by)}, ${when(h.at)}${
+      h.rejected.length ? `, rejecting ${h.rejected.map(esc).join(", ")}` : ""}<div>${esc(h.reason)}</div></div>`).join(""))}
+    ${section("Alternatives rejected for it", v.alternatives.map(a => `<div class="small"><b>${esc(a.id)}</b>: ${esc(a.content.statement)}</div>`).join(""))}
+    <h3>Ask for a change</h3>${d.requests.map(q => `<div class="row small"><b>${esc(q.by)}</b> <span class="muted">${when(q.at)} · ${esc(q.status)}</span><div>${esc(q.text)}</div>
+      ${q.answer ? `<div class="why"><span class="muted">agent:</span> ${esc(q.answer)}</div>` : ""}${q.status === "answered" ? `<div class="actions">${button("Done: read", "close", q.id)}</div>` : ""}</div>`).join("")}
+    ${box("ask", "e.g. Add an example: a revoked grant refuses access.")}<div class="actions">${button("Ask for a change", "ask", n.id)}
+      <span class="muted small">The agent sees it in its inbox; ${esc(n.id)} is with the agent until it answers or changes it.</span></div>${note("ask")}
+    ${n.messages.length ? section("Messages from the last check", `<pre>${esc(n.messages.join("\n\n"))}</pre>`) : ""}
+    ${n.obligations.length ? `<details><summary>Obligations in Lean (${n.obligations.length})</summary>${n.obligations.map(o => `<div class="label"><b>${esc(o.name)}</b> ${esc(o.description)}</div><pre>${esc(o.statement)}</pre>`).join("")}</details>` : ""}
+    ${n.lean ? `<details><summary>Generated Lean</summary><pre>${esc(n.lean)}</pre></details>` : ""}`;
+}
+
+// --- the inbox: what Inbox holds
+
+function inboxPane() {
+  const i = S.inbox;
+  const row = q => `<div class="row">${line(q.node)}${q.waitsFor ? `<div class="muted small">after ${go(q.waitsFor)}: what it rests on is decided first</div>` : ""}
+    ${q.followers.map(f => `<div class="muted small">↳ ${go(f)} moved only with it: accepting ${esc(q.node.node.id)} confirms it too</div>`).join("")}</div>`;
+  const forAgent = f => { const [k, v] = Object.entries(f)[0];
+    return `<div class="row small">${k === "Replace" ? `${go(v.node)} rejected by ${esc(v.by)}: the agent removes it, or proposes what the reason asks for — ${esc(v.reason)}`
+      : k === "Revisit" ? `${go(v.node)} to revisit: ${esc(v.reason)}` : `${go(v.node)} rests on ${v.rejectedParents.map(go).join(", ")}, rejected: the agent moves it`}</div>`; };
+  return `${note("done")}${i.warnings.length ? `<div class="box failed" style="margin-top:0"><div class="verdict" style="color:var(--failed)">Warnings</div>${i.warnings.map(w => `<div class="small">${esc(w)}</div>`).join("")}</div>` : ""}
+    <h3>Waiting for you: ready</h3>${i.ready.map(row).join("") || `<div class="muted small">${i.overview.forDeveloper ? "None ready." : "Nothing: every node is decided."}</div>`}
+    ${i.mechanical.length ? `<h3>Mechanical: Lean proves these again; nothing in them is a choice</h3><div class="box review" style="margin-top:0">
+      ${i.mechanical.map(line).join("")}${box("confirm", "Why do they hold? e.g. a new field no rule reads")}
+      <div class="actions">${button(`Confirm all ${i.mechanical.length}`, "confirm", "confirm", true)}</div>${note("confirm")}</div>` : ""}
+    ${section("After the decisions above them", i.later.map(row).join(""))}
+    ${section("Gone from the model", i.gone.map(g => `<div class="row"><b>${esc(g.id)}</b> <span class="muted small">last ${esc(VERB[g.decision.action])} by ${esc(g.decision.by)}</span>
+      <div class="small">${esc(g.decision.content.statement)}</div>${box("gone-" + g.id, "Why is it gone?")}<div class="actions">${button("Agree it is gone", "gone", g.id)}</div>${note("gone-" + g.id)}</div>`).join(""))}
+    ${section("With the agent: you asked for a change", i.withAgent.map(line).join(""))}
+    <h3>Answers to read</h3>${i.answers.map(q => `<div class="row small">on ${q.node ? go(q.node) : "the idea"}<div>${esc(q.text)}</div>
+      <div class="why"><span class="muted">agent:</span> ${esc(q.answer)}</div><div class="actions">${button("Done: read", "close", q.id)}</div></div>`).join("") || `<div class="muted small">None.</div>`}
+    <h3>Waiting for the agent</h3>${i.open.map(q => `<div class="row small">on ${q.node ? go(q.node) : "the idea"} · ${esc(q.by)}<div>${esc(q.text)}</div></div>`).join("") +
+      i.forAgent.map(forAgent).join("") || `<div class="muted small">None.</div>`}
+    <h3>Ask about the whole idea</h3>${box("idea", "e.g. Users can also see who accessed their records: propose where it belongs.")}
+    <div class="actions">${button("Send to the agent", "ask", "")}</div>${note("ask")}`;
+}
+
+// --- drawing, keeping what the developer is typing or ticking
+
+function render(scroll, quiet) {
+  if (!S.tree) return;
+  renderHeader(); renderGraph();
+  // A refresh does not redraw the pane under a cursor: it waits until the developer leaves the box.
+  if (quiet && document.activeElement?.closest("#pane")) { S.pending = true; return; }
+  S.pending = false;
+  const kept = [...document.querySelectorAll("#pane textarea")].map(t => [t.id, t.value]);
+  const ticks = [...document.querySelectorAll("#pane input:checked")].map(x => x.value);
+  const opened = [...document.querySelectorAll("#pane details[open] > summary")].map(s => s.textContent);
+  const top = $("#pane").scrollTop;
+  // The version shown is the one decided on: a decision on a node that moved since is refused.
+  const was = S.shown;
+  S.shown = S.tab === "node" ? S.details?.node.review.version : null;
+  if (was && S.shown && was !== S.shown && S.details && kept.some(([, v]) => v.trim()))
+    S.notes.top = { cls: "err", text: `${S.details.node.node.id} changed while you were writing: read it again before deciding; your text is kept.` };
+  $("#pane").innerHTML = S.tab === "node" ? nodePane() : inboxPane();
+  for (const [id, v] of kept) { const t = document.getElementById(id); if (t) t.value = v; }
+  document.querySelectorAll("#pane input[type=checkbox]").forEach(x => x.checked = ticks.includes(x.value));
+  document.querySelectorAll("#pane details > summary").forEach(s => { if (opened.includes(s.textContent)) s.parentElement.open = true; });
+  if (scroll) document.querySelector(".card.selected")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  else $("#pane").scrollTop = top;
+  history.replaceState(null, "", location.search + (S.selected ? "#" + encodeURIComponent(S.selected) : ""));
+}
+window.addEventListener("resize", () => S.tree && renderGraph());
+document.addEventListener("focusout", () => setTimeout(() => { if (S.pending && !document.activeElement?.closest("#pane")) render(false); }, 100));
+async function select(id) {
+  S.selected = id; S.tab = "node"; S.notes = {}; S.shown = null; $("#pane").scrollTop = 0;
+  await load(id).catch(e => { S.details = null; S.notes.top = { cls: "err", text: e.message }; render(true); });
+}
+
+// --- actions: each through the API's own operation; what it recorded, or why it was refused, is said where it was asked
+
+const text = key => document.getElementById("t-" + key)?.value.trim() || "";
+const DESCRIBE = l => `${l.decision.action} ${l.node}${l.decision.rejected.length ? ", rejecting " + l.decision.rejected.join(", ") : ""}`;
+// What was recorded is said where it was asked (a decision's box is gone once it is decided: under the heading).
+async function act(key, area, f, said, done = key) {
+  try {
+    S.notes = { [done]: { cls: "ok", text: said(await f()) } };
+    const t = document.getElementById("t-" + area); if (t) t.value = "";
+  } catch (e) { S.notes = { [key]: { cls: "err", text: e.message } }; }
+  await refresh().catch(() => {});
+  await load(S.selected, false).catch(() => render(false));
+  document.querySelector("#pane .ok, #pane .err")?.scrollIntoView({ block: "nearest" });
+}
+const decide = (key, d) => act(key, key, async () => (await call("/api/decide", d)).json,
+  out => `Recorded, signed by ${S.serving.developer}: ${out.decisions.map(DESCRIBE).join("; ")}.`, "done");
+// Accepting may record more than the node (its rivals rejected, what moved with it confirmed): that is said first, and recorded on a second click.
+let armed = null;
+async function accept() {
+  const id = S.details.node.node.id;
+  const d = { Accept: { nodes: [id], reason: text("decide"), revisit: [...document.querySelectorAll(".rev:checked")].map(x => x.value), seen: { [id]: S.shown } } };
+  const key = JSON.stringify(d);
+  if (armed === key) { armed = null; return decide("decide", d); }
+  try {
+    const plan = (await call("/api/preview", d)).json;
+    if (plan.decisions.length <= 1 && !plan.unproven.length) return decide("decide", d);
+    armed = key;
+    S.notes = { decide: { cls: "warn", text: `This records: ${plan.decisions.map(DESCRIBE).join("; ")}${
+      plan.unproven.length ? `; note: ${plan.unproven.map(([n, u]) => `${n}: ${u}`).join("; ")}` : ""}. Click Accept again to record it.` } };
+  } catch (e) { S.notes = { decide: { cls: "err", text: e.message } }; }
+  render(false);
+}
+document.addEventListener("click", async e => {
+  const g = e.target.closest("[data-goto]") || e.target.closest(".card");
+  if (g) { e.preventDefault(); return select(g.dataset.goto || g.dataset.node); }
+  const tab = e.target.closest(".tab");
+  if (tab) { S.tab = tab.dataset.tab; S.notes = {}; return render(true); }
+  if (e.target.closest("#waiting")) { const q = S.inbox.ready[0]; return q ? select(q.node.node.id) : (S.tab = "inbox", render(true)); }
+  const b = e.target.closest("[data-act]");
+  if (!b) return;
+  const k = b.dataset.key, id = S.details?.node.node.id;
+  b.disabled = true;
+  ({
+    accept: () => accept(),
+    reject: () => decide("decide", { Reject: { node: id, reason: text("decide"), seen: S.shown } }),
+    revisit: () => decide("revisit", { Revisit: { node: id, reason: text("revisit") } }),
+    confirm: () => decide("confirm", { Confirm: { reason: text("confirm") } }),
+    gone: () => decide("gone-" + k, { Gone: { node: k, reason: text("gone-" + k) } }),
+    ask: () => act("ask", k ? "ask" : "idea", async () => (await call("/api/ask", { node: k || null, text: text(k ? "ask" : "idea") })).json,
+      q => `Asked [${q.id}]: the agent sees it in its inbox.`),
+    close: () => act(b.closest(".box") ? "close" : "ask", "", async () => (await call("/api/close", k.split(","))).json, rs => `Closed ${rs.map(r => r.id).join(", ")}.`),
+  })[b.dataset.act]();
+});
+
+refresh().then(() => load(S.selected)).then(() => setTimeout(tick, 4000)).catch(e => { $("#summary").textContent = e.message; });
+</script>
+</body>
+</html>

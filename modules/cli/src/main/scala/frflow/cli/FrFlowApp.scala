@@ -5,18 +5,25 @@ import cats.effect.{ExitCode, IO, IOApp}
 import cats.effect.std.Console
 import cats.syntax.all.*
 import com.monovore.decline.{Command as Sub, Opts}
-import frflow.api.{Decide, FrFlowError, LiveApi}
+import frflow.api.{Decide, Developer, FrFlowApi, FrFlowError, LiveApi}
 import frflow.protocol.{NodeId, RequestId}
 import java.nio.file.Path
 
+/** What `serve` runs until it is stopped: a front end over the API (the web view, `frflow.web.WebView.serve`), deciding
+  * as the developer, on a port of localhost (0: any free one). The CLI does not depend on it: a project's main object
+  * passes it.
+  */
+type Server = (FrFlowApi, Developer, Int) => IO[Unit]
+
 /** The command line of a knowledge base, which a project's main object extends:
   * {{{
-  * object authCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/auth")
+  * object authCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/auth", serve = Some(frflow.web.WebView.serve))
   * }}}
   * `root` is the project's directory (`FRFLOW_ROOT` overrides it); `kernelPath`, FrFlow's Lean kernel
   * relative to the project's `lean/`. A usage error prints the help and exits 2.
   */
-abstract class FrFlowApp(knowledge: => KnowledgeBase, root: String = ".", kernelPath: String = "../../../lean") extends IOApp:
+abstract class FrFlowApp(knowledge: => KnowledgeBase, root: String = ".", kernelPath: String = "../../../lean",
+    serve: Option[Server] = None) extends IOApp:
   final def run(args: List[String]): IO[ExitCode] = IO(sys.env).flatMap { env =>
     val name = Option(Path.of(root).normalize.getFileName).map(_.toString).filter(n => n.nonEmpty && n != ".").getOrElse("frflow")
     Sub(name, Commands.header)(Commands.all).parse(args, env) match
@@ -24,7 +31,7 @@ abstract class FrFlowApp(knowledge: => KnowledgeBase, root: String = ".", kernel
         for
           term <- Terminal.live
           st = Style.of(plain, env, term.interactive)
-          code <- LiveApi.fromEnv(knowledge, root, kernelPath, env).flatMap(api => Dispatch(api, term, st)(command))
+          code <- LiveApi.fromEnv(knowledge, root, kernelPath, env).flatMap(api => Dispatch(api, term, st, serve)(command))
             .handleErrorWith(FrFlowApp.failed(term, _))
         yield code
       case Left(help) =>
@@ -87,6 +94,7 @@ enum Command:
   case Find(query: String)
   case Scaffold(node: NodeId)
   case Answer(to: String, text: String)
+  case Serve(port: Int, as: Option[String])
 
 /** The command line: the developer's commands, then the agent's (their names are SKILL.md's). */
 object Commands:
@@ -94,7 +102,8 @@ object Commands:
     """FrFlow: one root refined by a DAG of small statements, each proven in Lean from its parts and decided by the developer.
       |
       |The developer reads with tree, show, diff, inbox; decides with review, accept, reject, confirm, revisit, gone;
-      |asks with ask and close. The agent works with render, check, status, ci, context, find, scaffold, answer, inbox.
+      |asks with ask and close; or does all of it in a browser, with serve.
+      |The agent works with render, check, status, ci, context, find, scaffold, answer, inbox.
       |Exit codes: 0 fine; 1 something is not accepted or proven, or a decision was refused; 2 a usage error; 3 no Lean (lake).""".stripMargin
 
   private val plain = Opts.flag("plain", "ASCII without colors (also when NO_COLOR is set or the output is not a terminal)").orFalse
@@ -131,7 +140,9 @@ object Commands:
       (Opts.flag("idea", "about the whole idea, not one node").map(_ => Option.empty[NodeId]).orElse(node().map(Some(_))), words("TEXT"), as)
         .mapN(Command.Ask.apply)),
     command("close", "close requests: an answer read, or a request withdrawn")(
-      Opts.arguments[String]("REQUEST").map(rs => Command.Close(rs.toList.map(RequestId(_))))))
+      Opts.arguments[String]("REQUEST").map(rs => Command.Close(rs.toList.map(RequestId(_))))),
+    command("serve", "the web view on localhost, until stopped: the graph, the inbox, and your decisions, signed as here")(
+      (Opts.option[Int]("port", "the port (default 8765; 0 for any free one)").withDefault(8765), as).mapN(Command.Serve.apply)))
 
   private val agent = List(
     command("render", "generate Lean and the snapshot .frflow/kb.json from the Scala definitions")(Opts(Command.Render)),

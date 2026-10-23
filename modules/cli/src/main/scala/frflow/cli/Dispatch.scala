@@ -8,7 +8,7 @@ import io.circe.derivation.ConfiguredCodec
 import io.circe.syntax.*
 
 /** Runs a parsed command: a read prints a view, or (`--json`) the typed value in brief; a decision is confirmed first. */
-final class Dispatch(api: FrFlowApi, term: Terminal, st: Style):
+final class Dispatch(api: FrFlowApi, term: Terminal, st: Style, serve: Option[Server] = None):
   import Dispatch.*
 
   def apply(c: Command): IO[ExitCode] = c match
@@ -31,6 +31,7 @@ final class Dispatch(api: FrFlowApi, term: Terminal, st: Style):
     case Command.Scaffold(node) =>
       api.scaffold(node).flatMap(s => ok(List(s.file.fold(s"nothing to stub: the last check of $node left nothing open that the proof file lacks")(f => s"created $f"))))
     case Command.Answer(to, text) => api.answer(to, text).flatMap(done(id => List(s"answered $id")))
+    case Command.Serve(port, as) => serve.fold(term.err(NoServer).as(Usage))(s => developer(as)(dev => s(api, dev, port).as(ExitCode.Success)))
 
   /** A node in the model; or one gone from it, shown as gone with its last decision. */
   private def node(id: NodeId, json: Boolean)(f: (View, Reviewed) => IO[ExitCode]): IO[ExitCode] = api.view.flatMap(v =>
@@ -79,6 +80,7 @@ final class Dispatch(api: FrFlowApi, term: Terminal, st: Style):
     }
 
 object Dispatch:
+  val NoServer = "this project's main object passes no server: FrFlowApp(..., serve = Some(frflow.web.WebView.serve))"
   val Refused: ExitCode = ExitCode(1)
   val Usage: ExitCode = ExitCode(2)
   def exit(ok: Boolean): ExitCode = if ok then ExitCode.Success else Refused

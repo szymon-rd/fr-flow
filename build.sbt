@@ -8,11 +8,14 @@ val cats = "org.typelevel" %% "cats-core" % "2.13.0"
 val catsEffect = "org.typelevel" %% "cats-effect" % "3.6.3"
 val fs2 = Seq("co.fs2" %% "fs2-core" % "3.12.2", "co.fs2" %% "fs2-io" % "3.12.2")
 val decline = "com.monovore" %% "decline" % "2.5.0"
+val http4s = Seq("http4s-ember-server", "http4s-dsl", "http4s-circe").map("org.http4s" %% _ % "0.23.33") :+
+  // Ember logs through SLF4J: without a binding it warns on start. The routes answer every failure themselves.
+  "org.slf4j" % "slf4j-nop" % "1.7.36"
 val munit = "org.scalameta" %% "munit" % "1.1.1" % Test
 val munitEffect = "org.typelevel" %% "munit-cats-effect" % "2.1.0" % Test
 
 lazy val root = project.in(file("."))
-  .aggregate(model, protocol, lean, ledger, check, api, cli, auth, crm, keycloak)
+  .aggregate(model, protocol, lean, ledger, check, api, cli, web, auth, crm, keycloak)
   .settings(publish / skip := true)
 
 def module(name: String, libraries: ModuleID*) = Project(name, file(s"modules/$name"))
@@ -36,17 +39,22 @@ lazy val ledger = module("ledger", cats, catsEffect, circe, circeParser, munitEf
 lazy val check = module("check", (Seq(cats, catsEffect, circe, circeParser, munitEffect) ++ fs2)*)
   .dependsOn(lean % "compile->compile;test->test", ledger)
 
-/** The one API a front end calls (the CLI now, a web view later): typed values over `IO`. */
+/** The one API a front end calls (the CLI, the web view): typed values over `IO`. */
 lazy val api = module("api", cats, catsEffect, circe, munitEffect).dependsOn(check % "compile->compile;test->test")
 
 /** The command line a project's main object extends (`FrFlowApp`): commands, colors, interactive review. */
 lazy val cli = module("cli", cats, catsEffect, circe, decline, munitEffect).dependsOn(api % "compile->compile;test->test")
 
+/** The web view (`serve`): the page, and routes onto the API, over http4s on localhost. The CLI does not depend on it;
+  * a project's main object passes it to the CLI.
+  */
+lazy val web = module("web", (Seq(catsEffect, circe, munitEffect) ++ http4s)*).dependsOn(api % "compile->compile;test->test")
+
 /** The java command that runs a project's CLI on a terminal (colors, the interactive review): what `bin/frflow` runs. */
 val cliLauncher = taskKey[File]("Writes the java command running this project's CLI, for bin/frflow")
 
 def example(name: String) = Project(name, file(s"examples/$name"))
-  .dependsOn(cli)
+  .dependsOn(cli, web)
   .settings(
     libraryDependencies ++= Seq(munit, munitEffect),
     publish / skip := true,

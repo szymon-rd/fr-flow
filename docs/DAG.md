@@ -194,5 +194,6 @@ restatement. A rejection's reason that asks for something is answered by a node 
 `scaffold` writes proof stubs that start with `unfold Obl.X`, `frflow_intro` and
 `simp only [frflow_defs] at *`; `check` prints the goal they leave when automation gives up.
 
-The developer's flow and the agent's are in the CLI. The web view and the MCP server are on the
-branch `web-view`, which will become a separate repository.
+The developer's flow and the agent's are in the CLI. The `web` module serves the developer's flow in a
+browser (`serve`) over the same API, so a decision is recorded alike from either. The MCP server is on
+the branch `web-view`, which will become a separate repository.

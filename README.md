@@ -182,6 +182,7 @@ Requirements: JDK 17+, sbt, and Lean 4.35.0 (`lake` on the PATH, or
 | | `review` | decide what waits, parents first: `[a]ccept [r]eject [s]kip [v]iew [q]uit [?]ask` |
 | | `accept NODE...`, `reject NODE`, `confirm`, `revisit NODE`, `gone NODE` | one decision, with `-m REASON`; shown and confirmed on a terminal, `--yes` without one |
 | | `ask NODE TEXT`, `ask --idea TEXT`, `close REQUEST...` | ask the agent for a change; close an answer read |
+| | `serve [--port N] [--as NAME]` | all of the above in a browser: the [web view](#web-view) |
 | agent | `inbox`, `context NODE`, `find WORDS\|PATH` | what to do; everything on a node (`show --full`); where a change belongs |
 | | `render`, `check [NODE]`, `scaffold NODE` | Lean and `.frflow/kb.json`; prove what changed; stubs for what the last check left open |
 | | `status`, `ci` | the tree, the summary and the warnings; exit 1 unless the knowledge base is complete (`ci` checks first) |
@@ -208,6 +209,21 @@ Committed: the Scala, `IDEA.md`, `.frflow/` (ledger, keys, requests) and
 and `lean/.lake` by branch: only what changed is proven again. `bench/`
 measures FrFlow as a project grows.
 
+## Web view
+
+`bin/frflow PROJECT serve [--port N] [--as NAME]` serves the developer's flow in a
+browser: the DAG with each node's state and status, a node with its diff since
+it was decided, the inbox, the decisions with their reasons, and requests to the
+agent. It listens on localhost (port 8765 by default) and prints a link with a
+random token, which every route asks for.
+
+The page is a client of the same API as the CLI (`FrFlowApi`, one JSON route per
+operation): a decision is signed with the developer's key and recorded as
+`accept` records it, and the CLI can run beside it. The server runs the model it
+compiled when it started: once the model's sources change on disk, the page says
+"the model changed: restart serve", and every decision is refused until it is
+started again. Agents use the CLI, not the web view.
+
 ## Examples
 
 The example ledgers are decided by an agent playing the developer.
@@ -232,7 +248,7 @@ A project is a directory beside the examples (here `examples/library`):
    its command line (with several mains, set `Compile / run / mainClass`):
    ```scala
    val knowledge = KnowledgeBase("Library", idea = "IDEA.md")(lendsExactly, ...)
-   object libraryCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/library")
+   object libraryCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/library", serve = Some(frflow.web.WebView.serve))
    ```
 4. `bin/frflow library render` creates `lean/` (its `lakefile.toml`, toolchain
    and the generated Lean); then `check` and `status`.
@@ -248,6 +264,7 @@ One sbt subproject each, under `modules/`:
 - `check`: render and check (running `lake`), the snapshot, status, scaffold, git.
 - `api`: `FrFlowApi`, the typed operations a front end calls (`LiveApi` over the project on disk).
 - `cli`: the command line over the API: `FrFlowApp`, the views, the review.
+- `web`: the web view over the API (`serve`): the page, and its routes on localhost. The CLI does not depend on it: a project's main object passes it.
 
 The Lean library is in `lean/FrFlow/`, and the design in [`docs/DAG.md`](docs/DAG.md).
-The web view and the MCP server are on the branch `web-view`, which will become a separate repository.
+The MCP server is on the branch `web-view`, which will become a separate repository.

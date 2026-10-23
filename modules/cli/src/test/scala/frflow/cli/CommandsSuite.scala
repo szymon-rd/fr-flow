@@ -1,6 +1,6 @@
 package frflow.cli
 
-import cats.effect.ExitCode
+import cats.effect.{ExitCode, IO, Ref}
 import cats.syntax.all.*
 import com.monovore.decline.Command as Sub
 import frflow.api.*
@@ -14,7 +14,7 @@ class CommandsSuite extends munit.CatsEffectSuite:
   test("every command parses, --plain before or after it; a usage error is the help with errors") {
     List("tree", "tree Root --json", "show Decide --full --json", "diff Decide", "inbox --json", "review --as dev", "reject Expiry --reason no",
       "confirm -m same", "revisit Root -m look", "gone Old -m renamed --yes", "ask Decide name the user", "ask --idea more", "close R1 R2",
-      "render", "check", "check Pick --json", "status --json", "ci", "context Decide", "find some words", "scaffold Pick", "answer R1 done it")
+      "render", "check", "check Pick --json", "status --json", "ci", "context Decide", "find some words", "scaffold Pick", "answer R1 done it", "serve", "serve --port 0 --as dev")
       .foreach(a => assert(parse(a).isRight, a))
     assertEquals(List("--plain tree", "tree --plain", "tree").map(parse(_).map(_._2)), List(Right(true), Right(true), Right(false)))
     parse("accept A B --revisit C -m why --yes") match
@@ -82,4 +82,20 @@ class CommandsSuite extends munit.CatsEffectSuite:
       assertEquals(out.count(_ == "  renamed to StoreReturnsLast (it says the same): gone StoreKeeps agrees that it is gone"), 2, out.mkString("\n"))
       assert(out.contains("  StoreKeeps  renamed to StoreReturnsLast: The store returns what was last written."), out.mkString("\n"))
       assert(out.contains("error: unknown node Nope"), out.mkString("\n"))
+  }
+
+  test("serve runs the server the main object passes, as the developer and on the port asked; without one, a usage error") {
+    for
+      api <- FakeApi()
+      term <- Scripted(Nil, interactive = false)
+      ran <- Ref.of[IO, List[(String, Int)]](Nil)
+      server: Server = (_, dev, port) => ran.update(_ :+ (dev.name -> port))
+      served <- Dispatch(api, term, st, Some(server))(Command.Serve(0, Some("demo")))
+      none <- Dispatch(api, term, st)(Command.Serve(8765, None))
+      calls <- ran.get
+      out <- term.output
+    yield
+      assertEquals((served, none), (ExitCode.Success, ExitCode(2)))
+      assertEquals(calls, List("demo" -> 0))
+      assert(out.contains(s"error: ${Dispatch.NoServer}"), out)
   }
