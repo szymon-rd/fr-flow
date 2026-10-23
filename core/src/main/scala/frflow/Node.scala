@@ -433,13 +433,6 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
       go(fresh.flatMap(parentsOf))
     go(parentsOf(n))
     out.values.toList
-  /** Every part below `n`, however deep (each once). */
-  def descendants(n: Node[?]): List[Node[?]] =
-    val out = scala.collection.mutable.LinkedHashMap.empty[Int, Node[?]]
-    def go(xs: List[Node[?]]): Unit = xs.foreach { x =>
-      if !out.contains(System.identityHashCode(x)) then { out(System.identityHashCode(x)) = x; go(parts(x)) } }
-    go(parts(n))
-    out.values.toList
 
   /** The contracts and assumptions about each operation, by its name. */
   lazy val onOp: Map[String, List[Node[?]]] = nodes.filter(_.op.isDefined).groupBy(_.op.get.name)

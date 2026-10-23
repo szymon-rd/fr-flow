@@ -25,7 +25,6 @@ class NodeSuite extends munit.FunSuite:
     assertEquals(shelfKb.parentsOf(pick).map(_.id), List("FromList", "OnlyLong", "EveryLong"))
     assertEquals(shelfKb.parts(onlyGood).map(_.id), List("FromList", "OnlyLong", "EveryLong"))
     assertEquals(shelfKb.parts(fromList).map(_.id), List("Pick"))
-    assertEquals(shelfKb.descendants(onlyGood).map(_.id), List("FromList", "Pick", "OnlyLong", "EveryLong"))
     assertEquals(shelfKb.ancestors(pick).map(_.id), List("FromList", "OnlyLong", "EveryLong", "OnlyGood"))
     // the composition reaches Pick once, whatever the number of paths to it
     assertEquals(g.leaves(onlyGood).map(_.id), List("Pick"))

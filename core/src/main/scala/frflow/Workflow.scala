@@ -177,19 +177,13 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
 
   def hash(n: Node[?]): String = Decision.hash(content(n))
 
-  /** The node's content together with what it rests on: a change of meaning anywhere above shows below.
-    * What is not modelled is reviewed at the nodes that name it only: it narrows nothing below them.
-    */
-  def chainHash(n: Node[?]): String = chains(n, scala.collection.mutable.Map.empty)
-
   private def chains(n: Node[?], memo: scala.collection.mutable.Map[String, String]): String =
     memo.getOrElseUpdate(n.id, Decisions.chain(content(n), restChain(n, memo)))
 
   /** What a node rests on: the chains of its parents, of the definitions it uses and of the contracts its
-    * code calls. A design decision rests on its parents' place, not their meaning.
+    * code calls. A design decision rests on its parents' place, not their meaning. (Each node's chain
+    * is its content's meaning with what it rests on: a change of meaning anywhere above shows below.)
     */
-  def parentChain(n: Node[?]): String = restChain(n, scala.collection.mutable.Map.empty)
-
   private def restChain(n: Node[?], memo: scala.collection.mutable.Map[String, String]): String =
     if n.kind == NodeKind.Design then ""
     else Decisions.above("", restsOn(n).map(chains(_, memo)))
@@ -558,7 +552,6 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     missing ++ owners ++ ideaCoverage ++ orphans ++
       ungoverned.map(f => s"$f is governed by no node: govern it (a design node) or move it")
 
-  /** What doing nothing is, when it meets the node (Lean proved it). */
   /** What doing nothing is, when it meets the root (Lean proved it). */
   def idleOf(n: Node[?]): Option[String] = current(n).flatMap(_.obligations.find(o => o.name == "idle" && o.status == "idle")).map(_.detail)
 
@@ -653,7 +646,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   private def stateText(o: String, state: String): String =
     s"After `${Generate.recipe(o).mkString("; ")}` (the first steps the stub has), the goal is:\n$state"
 
-  def tree(mark: Option[String] = None): String = Decisions.tree(annotated, mark)
+  def tree: String = Decisions.tree(annotated)
 
   /** The tree and its warnings, and whether the knowledge base is complete (the CI gate). */
   def status: (String, Boolean) =
@@ -724,9 +717,6 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     kb.nodes.filter(c => c.kind == NodeKind.Contract && generate.provenImpl(c).isDefined &&
       current(c).exists(k => k.status == "proven" && k.obligations.exists(o => o.name == "impl" && o.status == "proven")))
 
-  /** Formal contracts whose translation no example cross-checks: checked, and none of their examples
-    * evaluated in Lean as in Scala.
-    */
   /** One-part nodes Lean proves say what their part says (`restates`, with `complete` proven): a node
     * that only restates its part is not a node.
     */
@@ -734,6 +724,9 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     kb.nodes.flatMap(n => current(n).toList.filter(_.obligations.exists(o => o.name == "complete" && o.status == "proven"))
       .flatMap(_.obligations.find(o => o.name == "restates" && o.status == "restates")).map(_.detail))
 
+  /** Formal contracts whose translation no example cross-checks: checked, and none of their examples
+    * evaluated in Lean as in Scala.
+    */
   def uncrossed: List[String] =
     kb.nodes.filter(c => c.kind == NodeKind.Contract && generate.formal(c) && c.cases.nonEmpty).flatMap { c =>
       current(c).filter(k => !k.obligations.exists(o => o.name.startsWith("eval_") && o.status == "proven")).map(_ =>
@@ -760,31 +753,22 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       (if notModelled.nonEmpty then s"\n\n## Not modelled\n\n$notModelled" else "")
     sb ++= s"# ${kb.name} / ${n.id}\n\n## Idea (${section.fold("its purpose")(s => s"the section ${s.ideaSection}")})\n\n${ideaText.trim}\n\n"
     def kind(x: Node[?]) = Workflow.shownKind(x)
-    // The decision that binds a node now, first; every accepted change to the node, newest first (each
-    // marked if given for an earlier version of what it says); confirmations, briefly.
+    // Every decision on the node, oldest first, each marked if given for an earlier version of what it says.
     def reasons(a: Node[?]): Unit =
-      val ds = l.history(a.id).filter(d => Set("accept", "confirm", "revisit")(d.action))
       val nowHash = hash(a)
-      def ver(d: Decision) = if d.hash == nowHash then "" else " [given for an earlier version of it]"
+      def ver(d: Decision) = if d.hash == nowHash || !Ledger.binds(d.action) then "" else " [given for an earlier version of it]"
       def line(d: Decision) = d.action match
-        case "accept" if l.chosen(a.id).contains(d) => s"Chosen by ${d.by} because: ${d.reason}${ver(d)}"
-        case "accept"  => s"Change accepted by ${d.by}: ${d.reason}${ver(d)}"
+        case "accept" if l.chosen(a.id).contains(d) => s"Chosen by ${d.by} because: ${d.reason}"
+        case "accept"  => s"Change accepted by ${d.by}: ${d.reason}"
         case "confirm" => s"Confirmed by ${d.by}: ${d.reason}"
-        case _         => s"To revisit (${d.by}): ${d.reason}"
-      // A rejection is the developer's last word on the node: its reason may ask for something in its place.
-      l.current(a.id).filter(_.action == "reject").foreach(d => sb ++= s"Rejected by ${d.by} at ${d.at}: ${d.reason}\n\n")
-      ds.lastOption.foreach(d => sb ++= s"Latest: ${line(d)}\n\n")
-      val accepts = ds.dropRight(1).filter(_.action == "accept").reverse
-      // The latest few changes, and how it was chosen; the rest is in the ledger's history.
-      val shown = (accepts.take(4) ++ accepts.filter(l.chosen(a.id).contains)).distinct
-      shown.foreach(d => sb ++= s"${line(d)}\n\n")
-      if accepts.size > shown.size then sb ++= s"(${accepts.size - shown.size} earlier accepted change(s) of ${a.id}: see its history in the browser)\n\n"
-      val confirms = ds.dropRight(1).filter(_.action != "accept")
-      if confirms.nonEmpty then sb ++= s"Earlier confirmations: ${confirms.takeRight(2).map(line).mkString(" / ")}${if confirms.size > 2 then s" (and ${confirms.size - 2} more)" else ""}\n\n"
+        case "revisit" => s"To revisit (${d.by}): ${d.reason}"
+        case "reject"  => s"Rejected by ${d.by} at ${d.at}: ${d.reason}"
+        case other     => s"${other.capitalize} by ${d.by}: ${d.reason}"
+      l.history(a.id).foreach(d => sb ++= s"${line(d)}${ver(d)}\n\n")
       l.alternatives(a.id).foreach((id, c) => sb ++= s"- Rejected alternative $id: ${c("statement").flatMap(_.str).getOrElse("")} (why: ${c("why").flatMap(_.str).getOrElse("")})\n")
     def src(label: String, x: Lifted[?]) = sb ++= s"$label:\n```scala\n${x.source}\n```\n"
-    def show(a: Node[?], depth: String) =
-      sb ++= s"### ${a.id} (${kind(a)}) [${st.getOrElse(a.id, "?")}]$depth\n\n${a.statement}\n\nWhy: ${a.why}\n\n"
+    def show(a: Node[?]) =
+      sb ++= s"### ${a.id} (${kind(a)}) [${st.getOrElse(a.id, "?")}]\n\n${a.statement}\n\nWhy: ${a.why}\n\n"
       reasons(a)
       a.formula.foreach(src("formula", _))
       a.post.foreach(src(s"post (of every call of ${a.op.fold("")(_.name)})", _))
@@ -804,18 +788,13 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val defs = Def.closure((n :: used).flatMap(_.referenced).flatMap(_.defs))
     defs.foreach(d => sb ++= s"```scala\n${d.name} = ${d.lifted.source}\n```\n")
     sb ++= "\n"
-    // The nodes above, nearest first: each once, at its shortest distance.
+    // The nodes above, nearest first, each once.
     val above = kb.ancestors(n)
     if above.nonEmpty then
       sb ++= "## Above it (what it helps prove), nearest first\n\n"
-      def dist(a: Node[?]): Int =
-        def go(xs: List[Node[?]], d: Int, seen: Set[String]): Int =
-          if xs.exists(_ eq a) then d else if xs.isEmpty then Int.MaxValue
-          else go(xs.flatMap(kb.parentsOf).filterNot(x => seen(x.id)), d + 1, seen ++ xs.map(_.id))
-        go(kb.parentsOf(n), 1, Set.empty)
-      above.sortBy(dist).foreach(a => show(a, s" (${dist(a)} above)"))
+      above.foreach(show)
     sb ++= "## The node\n\n"
-    show(n, "")
+    show(n)
     // Under each parent: the other parts, which together with this one make it, and those rejected there.
     kb.parentsOf(n).foreach { p =>
       val beside = kb.parts(p).filterNot(_ eq n)
@@ -869,10 +848,9 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
           case JArr(xs) => xs.map(x => x.str.getOrElse(x.compact)).mkString("\n")
           case other    => other.compact)).toMap
         val (b, a) = (flat(before), flat(now))
+        def indent(t: String) = t.linesIterator.mkString("\n      ")
         (b.keySet ++ a.keySet).toList.sorted.filter(k => b.get(k) != a.get(k)).map { k =>
-          val (was, now) = (b.getOrElse(k, ""), a.getOrElse(k, ""))
-          if !was.contains("\n") && !now.contains("\n") then s"  - $k\n    was: $was\n    now: $now\n"
-          else s"  - $k (lines removed -, added +):\n" + Workflow.lineDiff(was, now).map("    " + _).mkString("\n") + "\n"
+          s"  - $k\n    was: ${indent(b.getOrElse(k, ""))}\n    now: ${indent(a.getOrElse(k, ""))}\n"
         }.mkString
       if causes.contains("self") then
         l.binding(n.id).foreach(d => sb ++= s"- ${n.id} itself changed:\n${fields(d.content, me("content").getOrElse(JNull))}")
@@ -1041,20 +1019,6 @@ object Workflow:
   def kindName(n: Node[?]): String = n.kind.toString.toLowerCase
   /** A node's kind as people read it: an invariant is a claim with a rule. */
   def shownKind(n: Node[?]): String = if n.isInvariant then "invariant" else kindName(n)
-  /** The lines removed (`- `) and added (`+ `) from `a` to `b`, in order (a longest common subsequence). */
-  def lineDiff(a: String, b: String): List[String] =
-    val (x, y) = (a.split("\n", -1).toVector, b.split("\n", -1).toVector)
-    val lcs = Array.ofDim[Int](x.size + 1, y.size + 1)
-    for i <- x.indices.reverse; j <- y.indices.reverse do
-      lcs(i)(j) = if x(i) == y(j) then lcs(i + 1)(j + 1) + 1 else lcs(i + 1)(j).max(lcs(i)(j + 1))
-    val out = List.newBuilder[String]
-    var (i, j) = (0, 0)
-    while i < x.size || j < y.size do
-      if i < x.size && j < y.size && x(i) == y(j) then { i += 1; j += 1 }
-      else if j < y.size && (i == x.size || lcs(i)(j + 1) >= lcs(i + 1)(j)) then { out += s"+ ${y(j)}"; j += 1 }
-      else { out += s"- ${x(i)}"; i += 1 }
-    out.result()
-
   /** The shape of a node's content, which decisions are bound to. A snapshot of another shape is
     * not decided on: it was written by another version of FrFlow, and must be rendered again.
     */

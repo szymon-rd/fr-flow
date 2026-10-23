@@ -19,9 +19,6 @@ object Git:
   /** The commit checked out in `dir`, or "" outside git. */
   def head(dir: Path): String = run(dir, "rev-parse", "HEAD").map(_.trim).getOrElse("")
 
-  /** Whether a file is tracked by git. */
-  def tracked(dir: Path, file: String): Boolean = run(dir, "ls-files", "--error-unmatch", "--", file).isDefined
-
   /** Whether an object (a recorded tree) is in this clone. */
   def has(dir: Path, obj: String): Boolean = obj.nonEmpty && run(dir, "cat-file", "-e", obj).isDefined
 

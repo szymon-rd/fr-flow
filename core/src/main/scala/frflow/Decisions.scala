@@ -568,7 +568,7 @@ object Decisions:
     * with its state (and what moved), how its parts make it, its examples; then the definitions, and
     * the nodes under no parent besides the root.
     */
-  def tree(annotated: Json, mark: Option[String] = None): String =
+  def tree(annotated: Json): String =
     val ns = nodes(annotated)
     val ids = ns.map(s(_, "id")).toSet
     def go(n: Json, depth: Int): List[String] =
@@ -596,8 +596,7 @@ object Decisions:
       val expects = if exps.isEmpty then "" else if notProven.isEmpty then s", expectations ${exps.size}/${exps.size} proven"
         else s", expectations ${exps.size - notProven.size}/${exps.size} proven (${notProven.map(e => s"${s(e, "status")}: \"${{ val t = s(e, "statement"); if t.length > 80 then t.take(79) + "…" else t }}\"").mkString("; ")})"
       val also = parents(n).filter(ids).drop(1)
-      val here = if mark.contains(s(n, "id")) then "   ← this node" else ""
-      s"${"  " * depth}${s(n, "id")} (${kindOf(n)})  [$st$check$split$ex$expects$keeps$impl]${if also.isEmpty then "" else s" (also under ${also.mkString(", ")})"}$here" ::
+      s"${"  " * depth}${s(n, "id")} (${kindOf(n)})  [$st$check$split$ex$expects$keeps$impl]${if also.isEmpty then "" else s" (also under ${also.mkString(", ")})"}" ::
         ns.filter(c => parents(c).filter(ids).headOption.contains(s(n, "id"))).flatMap(go(_, depth + 1))
     val gone = annotated("gone").map(_.arr.toList).getOrElse(Nil).map(g => s"${s(g, "id")}  [review: gone]")
     val tops = ns.filter(n => parents(n).forall(p => !ids(p)))
@@ -643,7 +642,6 @@ object Decisions:
       if found.isEmpty then s"No node, rejected option or not-modelled line mentions \"$query\": a new concern may need a new node (and a governed home for its code)."
       else ("What mentions it:" :: found.map(e => e.label + sentence(e).filterNot(e.label.contains).fold("")(x => s"\n    \"${x.take(200)}\""))).mkString("\n")
 
-  /** What waits on whom: decisions for the developer, clean-up for the agent. */
   /** What the agent starts from: the developer's open requests, warnings, what is the agent's to do,
     * what waits for the developer, and the tree. The same from MCP and the CLI.
     */

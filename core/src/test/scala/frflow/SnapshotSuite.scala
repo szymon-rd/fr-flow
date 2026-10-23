@@ -721,5 +721,6 @@ class SnapshotSuite extends munit.FunSuite:
     // Nothing changed: no diff; and the repository's own index is untouched.
     Files.writeString(dir.resolve("Desk.scala"), "val desk = 1\n")
     assertEquals(Git.diff(dir, tree, List("Desk.scala")), "")
-    assert(!Git.tracked(dir, "Desk.scala"))
+    val listed = ProcessBuilder("git", "ls-files", "Desk.scala").directory(dir.toFile).start()
+    assert(String(listed.getInputStream.readAllBytes(), "UTF-8").trim.isEmpty)
   }
