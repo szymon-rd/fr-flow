@@ -1,270 +1,166 @@
 # FrFlow
 
-FrFlow builds a system as a tree of requirements, proven in Lean and decided by
-a person: one root, the idea's purpose, refined by small statements in the
-domain's words down to contracts on the code. Every drift from what was decided
-is shown, also when agents build most of a large project.
+FrFlow is a tool and a method for building software with AI agents without
+losing track of what the software is for. The agent writes the code and a tree
+of small statements that explain it. Lean proves that the statements fit
+together and that the code meets them. You decide every statement, and you see
+it again when it changes.
 
-## Problem
+FrFlow is written in Scala 3 and uses Lean 4.
 
-Agents add logic step by step, with no stated relation to the intent. A program
-is the visible part of a theory its programmers hold (Naur, 1985): why it is as
-it is, and how it maps to the world. With agents, the developer often never
-builds that theory, and the agent loses it when its context is compressed.
+## The problem of using AI for coding
 
-## The method
+- **Lost Theory.** Peter Naur argued that a program is the visible part of a
+  theory its programmers hold: why it is built the way it is, and how it maps
+  to the world. When agents write the code, nobody on the team builds that
+  theory. The agent loses it too, when its context ends. A system nobody
+  understands cannot be changed safely.
+- **Drift.** Each change an agent makes can move what the system does a little
+  away from what was intended. Each step looks reasonable on its own. Reviewing
+  large generated diffs does not catch it, because the reviewer has no record
+  of the intent to compare against.
 
-The developer writes the idea in `IDEA.md`. An agent writes Scala nodes; Lean,
-generated from the Scala, proves each step. The nodes form a DAG:
+## Formal refinement agentic flow
 
-- **One root**: the purpose in one sentence, stated as *exactly* (what users
-  can do and what must never happen, together), so a system that does nothing
-  does not meet it.
-- **Parts**: every other node is a part of the nodes above it
-  (`.under(parents*)`), and may be a part of several. A parent's parts,
-  together, prove it; each is needed; they do not contradict each other. A node
-  says one thing, in one sentence of the developer's domain words. A node that
-  only restates its parent is not a node. A parent should have 2 to 5 parts.
-- **A shared vocabulary**: the root speaks in general terms, left open
-  (`Opaque` types, `Param` terms, each saying what it means). Decided
-  definitions bring in the domain (grants, sessions, tokens) as it is needed.
-  Each term has one meaning and at most one definition in force.
+1. You write `IDEA.md`: the purpose of the system, in prose.
+2. The agent proposes a root: one statement that says the purpose exactly,
+   both what users can do and what must never happen.
+3. The agent refines the root into parts, in the words of your domain:
+   claims, contracts on operations, assumptions, definitions of terms, and
+   design decisions. Parts have parts of their own, down to the code. The
+   result is a DAG.
+4. FrFlow translates the DAG to Lean and proves that the parts of each node
+   imply it, that the code meets its contract, and that the root follows from
+   the code and a short list of trusted assumptions.
+5. You accept or reject each node, in the terminal or in a local web view.
+   Each decision is signed and kept in a ledger with your reason.
+6. When something changes, every node it affects comes back for review, with
+   a diff of what changed.
 
-| Kind | Written as | Lean |
-|---|---|---|
-| claim | `Node.claim(id, statement, why)(formula)`; the one with no parents is the root | proven from its parts (`complete`) |
-| invariant | `Node.invariant[A, B](id, statement, why)(rule)`, kept by contracts with `.keeps(inv)(view)` | a claim whose parts are its keepers |
-| contract | `Node.contract(op)(id, statement, why)(post)` on an operation `op: Param[(A, B) => R]` | every call of `op` meets `post`; a `define` attached is proven against it (`impl`) |
-| assumption | `Node.assumption(op)(...)(post)`, or `Node.assumption(id, statement, why)(formula)` | trusted, not proven: what the outside does (a database, a clock), or a fact of the world |
-| definition | `Node.definition(id, statement, why)(Type := of[T], term := expr, ...)` | fixes terms of the vocabulary; decided, not proven |
-| design | `Node.design(id, statement, why)(files*)` | none: governs code no proof covers |
+How this addresses the two problems:
 
-`.replaces(other)` marks an alternative: accepting one rejects the other. Two
-definitions of one term are alternatives too.
+- **The theory is written down.** Each node is one sentence with a `why`, and
+  you decided it. A new developer, or a new agent session, can read from the
+  repository why the system is the way it is.
+- **The links are proven.** You do not have to trust that a contract on one
+  endpoint really gives the property stated at the root. Lean checks each step.
+- **Drift shows up for review.** A change to code, to a statement, or to a term
+  that a decision rests on puts that node back in your queue, with the diff.
 
-From `examples/auth`, the smallest example:
+This costs extra work: you read and decide nodes, and the agent writes
+proofs. That work goes to the places where using AI is risky: the intent, and
+whether the code still matches it.
+
+What stays trusted: the assumptions you accept (for example, that the store
+returns what it stored) and FrFlow's translation from Scala to Lean.
+
+## Inspiration
+
+- Nada Amin, [*Future of Programming*](https://scaladays.org/session/future-of-programming/),
+  keynote at Scala Days 2026. The organisers describe it as a reflection on how
+  AI changes programming as theory building, and on verification.
+- Peter Naur, *Programming as Theory Building* (1985). The source of the Lost
+  Theory problem.
+- Niklaus Wirth, *Program Development by Stepwise Refinement* (1971). A
+  program grows from its purpose in small, explained steps.
+- Ralph-Johan Back's refinement calculus, and Carroll Morgan, *Programming from
+  Specifications* (1990). Each refinement step is an obligation to prove.
+- Eric Evans, *Domain-Driven Design* (2003). Nodes use the ubiquitous language
+  of the domain, and each term is defined once.
+- Leonardo de Moura and Sebastian Ullrich, *The Lean 4 Theorem Prover and
+  Programming Language* (2021). The prover behind every check.
+
+## How it works
+
+Nodes are Scala values. This is the root of `examples/keycloak`, a small
+Keycloak-like authentication server, and one of its two parts:
 
 ```scala
-val accessExactly = Node.claim("AccessExactly",
-  "A user gets access to a resource exactly when they are signed in and authorized for it.", why = "...")(
-  forall((u: User.T, r: Resource.T) => access(u, r) == (signedIn(u) && authorized(u, r))))
-val decisionContract = Node.contract(admit)("DecisionContract", "...", why = "...")((token, path, decision) => ...)
-  .under(tokenNamesHolder, accessNeedsGrant, grantLetsIn)
-  .examples(grants.bind(...), sessions.bindTable(Map("t1" -> UserId("alice"))))(expect(...), reject(...))
-val knowledge = KnowledgeBase("Auth", idea = "IDEA.md")(accessExactly, identities, grantTable, ..., inMemorySessions)
-  .implementProven(decisionContract)(admitted, SessionStore(grants.value.toSet, sessions.value).decide)
+val realmAccess = Node.claim("RealmAccess",
+  "A realm's application accepts a token as a user's, with the user's roles, exactly when the user signed in to that realm and got the token, has not signed out with it since, and is still enabled.",
+  why = "...")(
+  forall((r: Realm.T, t: Token.T) => forall((u: User.T) =>
+    (accepted(r, t) == Some((u, rolesOf(r, u)))) == (signedIn(r, u, t) && enabled(r, u)))))
+
+val noUnauthorizedAccess = Node.claim("NoUnauthorizedAccess",
+  "A token is accepted only as a user who signed in to that realm with it, has not signed out since and is still enabled, and only with that user's roles.",
+  why = "The safety half of the purpose: whatever an application is told about a token must be true of a sign-in that still stands.",
+  idea = "No unauthorized access")(
+  forall((r: Realm.T, t: Token.T) => accepted(r, t).forall(a =>
+    signedIn(r, a._1, t) && enabled(r, a._1) && a._2 == rolesOf(r, a._1))))
+  .under(realmAccess)
 ```
 
-The contract is a part of the root's three parts. `admitted` is a `define` that
-Lean proves meets it; `SessionStore` is the code that runs, checked against it.
+The sentence is what you decide. The formula is what Lean reads. Lean proves
+that `NoUnauthorizedAccess` and its sibling `SignedInAreAccepted` together give
+`RealmAccess`. Further down, the contract `Introspect` states what one call of
+the introspection endpoint must return, and the Scala function that implements
+it is proven to meet it. The running server also checks every result against
+the contract.
 
-## Who decides
+## Using it
 
-The developer decides every node, once. The agent proposes, with a `why` and
-examples, often with alternatives; no command of the agent's decides.
-`.frflow/ledger.json` holds each decision: who, their reason, the alternatives
-rejected, the commit, a signature, and the node's decision before it.
+`bin/frflow PROJECT COMMAND` runs a project's CLI. The screenshots are from
+`examples/keycloak`.
 
-- **A parent decides its parts.** What a node says includes the list of its
-  parts, shown with whether Lean shows each needed, `complete` and `clash`.
-  Adding or removing a part puts the parent up for review.
-- **Order.** A proposal waits until its parents and the definitions it uses are
-  accepted.
-- **Mechanical decisions.** A node under review, not a definition or a design
-  node, where nothing it says itself changed and Lean proves it again (and new
-  parts make it, none shown not needed, no clash): one batch, `confirm`.
-- **Signing.** Each decision is signed with the developer's key, kept outside
-  the repository (`~/.config/frflow/signing.key`, or `FRFLOW_KEY`); its public
-  key is committed as `.frflow/keys/NAME.pub`. A decision no filed key signed fails `status`.
+**1. See the tree.** `tree` shows the DAG from the root: each node's status,
+its kind, and its statement.
 
-## Drift
+![bin/frflow keycloak tree](docs/img/cli-tree.png)
 
-One rule: a decision binds a person's reason to the hash of what they saw.
-Whatever moves under it puts the node back up for review, with the cause:
+**2. Read a node.** `show NODE` gives one node in about a screen: what it
+says and why, the formula, where it sits, and its parts with what Lean proved.
 
-| Cause | What moved | Shown as |
-|---|---|---|
-| `self` | what the node says: statement, formula, `why`, examples, the terms and types it uses, kept invariants, implementation source; its section of the idea | a line diff per field |
-| `above` | the meaning of a parent, of a definition it uses, or of a contract its code calls | the diff of what moved |
-| `parts` | its list of parts | the parts added and removed |
-| `code` | the files it governs: a plain implementation, a design node's files | a git diff since the decision's commit |
-| `revisit` | the developer said a change above may affect it | their reason |
-| `merged` | two branches decided it, and the merge kept both | both decisions |
+![bin/frflow keycloak show NoUnauthorizedAccess](docs/img/cli-show.png)
 
-A change above a shared node reviews it once; a new part reviews its parents
-only. Rewording a `why` or a statement whose formula is unchanged does not
-cascade below; a change of formula does. Accepting a change lists every
-decision that rests on it, with its reason: the developer marks those it may
-affect (`revisit`). A decision is refused if the node moved since the developer
-looked at it, or if its reason is not a few words.
+**3. Review what changed.** Here an agent removed the check that the user is
+still enabled from the introspection code. `review` puts the contract back in
+front of you with the diff: three examples fail, and the proof of the code no
+longer goes through. You accept it, skip it, or ask the agent about it; the
+agent sees the question in its inbox.
 
-## What Lean proves
+![bin/frflow keycloak review](docs/img/cli-review.png)
 
-For each node N with parts C1..Cn, over the open terms they mention, with every
-definition in force applied:
+**4. Check the state.** `status` exits 1 while anything waits for a decision
+or is not proven, so CI can gate on it.
 
-| Obligation | Statement | Fails when |
-|---|---|---|
-| `complete` | C1 → … → Cn → N | not proven: the parts do not make N (open) |
-| `needed_C` (n ≥ 2), tried | N without C | Lean proves it: C is not needed for N |
-| `vacuous` (n = 1), tried | N, with no hypothesis | Lean proves it: N says nothing its part adds |
-| `restates` (n = 1), tried | N → C1 | Lean proves it: N says what its part says (`status` warns of it) |
-| `clash`, tried | C1 → … → Cn → False | Lean proves it: the parts contradict each other (failed) |
-| `unsat` (every claim), tried | ¬ N | Lean proves it: no world meets N (failed) |
-| `idle` (the root), tried | the root, every operation doing nothing (`[]`, `none`, `False`, its input unchanged) | Lean proves it: the root does not say what users can do |
+![bin/frflow keycloak status](docs/img/cli-status.png)
 
-`complete` is proven by `frflow_auto` or by hand. The tries use automation with
-a small budget, so they catch only what it can show. Then:
+**5. Or use the browser.** `serve` runs the same flow as a local web view: the
+graph, the node under review with its diff, and your inbox. Decisions are
+signed the same way as in the CLI.
 
-- **Composition.** Each node gets `holds`: the leaves below it imply it.
-  `root_impl` states the root of the code (every operation with a proven
-  `define` replaced by it) from the assumptions alone: the trusted base.
-- **Implementations** written as a `define` meet their contract (`impl`),
-  proven from the promises of the operations the code calls, not their code.
-- **Invariants.** A rule stated once over pairs (a reader, a record shown to
-  them). Every contract in its scope keeps it (`.keeps(inv)(view)`) or says why
-  it is exempt (`.exempt`). The invariant is proven from its keepers; for a
-  rule about a domain type, `cover_X` proves the view lists every such value.
-- **Examples, both ways.** Lean evaluates each example whose parameters are
-  values (or `bindTable` lookups), and probes near them: it must prove what
-  Scala computes and not its opposite. An expectation
-  (`node.expects(statement)(formula)`) is proven from the node.
-- **State.** A run is `es.foldLeft(init)(step)`; the library (`FrFlow.always`,
-  `simulates`, `tracks`) proves properties of every run.
-- **Authored proofs** (`lean/Proofs/<KB>/<Node>.lean`) state exactly the
-  generated obligation and have their axioms audited (`sorry` fails). A
-  hand-proven `complete` on a node nothing witnesses also needs `feasible`:
-  some world meets all the parts.
+![The web view](docs/img/web-view.png)
 
-**Checked by running.** Examples run against the contract and the
-implementation, which also runs on every combination of the examples' inputs.
-In production, `service` binds the operations to their code and checks every
-result against the contract and its invariants (or `checkedBy`, a cheaper check
-proven to follow from the post), raising `ContractViolation`.
-
-**Effects are assumptions.** A database or a clock is an assumption on an
-operation; the proven code is proven from its promise. The adapter (SQL) is
-checked against a proven `define` (`implementProven(assumption)(define, sql)`)
-on the examples, on varied data and on every call. In `examples/crm`, a seeded
-SQL bug (a dropped `WHERE`) is stopped this way while every proof still holds.
-
-## What is trusted, and the limits
-
-Lean proves the nodes consistent with each other, and the root of the code; the
-developer decides that they are the right theory. Trusted:
-
-- the assumptions (the hypotheses of `root_impl`): checked where they can be;
-- the Scala-to-Lean translation, cross-checked on the examples and on probes
-  near them; it refuses what it cannot translate faithfully (`Int` arithmetic);
-- that parameters hold the data they are said to mean, and that every path to
-  the data goes through `service`: design nodes are reviewed, never proven;
-- the signing key, kept outside the repository the agent edits;
-- the model's program. FrFlow runs it to read it, so the gate stops drift, not
-  an agent that writes code to subvert FrFlow.
-
-Limits: the tries are one-sided. Examples with function-valued parameters
-(other than `bindTable`) are not evaluated in Lean. Running covers the examples
-and their combinations, not every input. Ordering, liveness, and effects outside
-a pure core behind `service` are not covered. Maps and sets cannot be iterated.
-
-## Usage
-
-Requirements: JDK 17+, sbt, and Lean 4.35.0 (`lake` on the PATH, or
-`FRFLOW_LAKE`). `bin/frflow PROJECT COMMAND` runs a project's CLI
-(`bin/frflow auth tree`), compiling with sbt on first use and after a change.
-`--help` lists the commands. `sbt test` runs the tests.
-
-| | command | what it does |
-|---|---|---|
-| developer | `tree [NODE]` | the DAG from the root (or below NODE): status, kind and state when they say something, statement |
-| | `show NODE`, `diff NODE` | a node in about a screen; what changed since it was decided |
-| | `inbox` | what waits for whom, then the summary |
-| | `review` | decide what waits, parents first: `[a]ccept [r]eject [s]kip [v]iew [q]uit [?]ask` |
-| | `accept NODE...`, `reject NODE`, `confirm`, `revisit NODE`, `gone NODE` | one decision, with `-m REASON`; shown and confirmed on a terminal, `--yes` without one |
-| | `ask NODE TEXT`, `ask --idea TEXT`, `close REQUEST...` | ask the agent for a change; close an answer read |
-| | `serve [--port N] [--as NAME]` | all of the above in a browser: the [web view](#web-view) |
-| agent | `inbox`, `context NODE`, `find WORDS\|PATH` | what to do; everything on a node (`show --full`); where a change belongs |
-| | `render`, `check [NODE]`, `scaffold NODE` | Lean and `.frflow/kb.json`; prove what changed; stubs for what the last check left open |
-| | `status`, `ci` | the tree, the summary and the warnings; exit 1 unless the knowledge base is complete (`ci` checks first) |
-| | `answer REQUEST\|NODE TEXT` | reply to a request, or tell the developer of work they did not ask for |
-
-On a terminal the output has colors and Unicode (`--plain`, `NO_COLOR` or
-`TERM=dumb` turn them off) and fits its width: formulas, diffs and decisions
-wrap, and the other lines are cut (`context` shows them whole). Off a terminal
-(CI, agents, a pipe) the output is plain ASCII and no line is cut. `--json` on
-tree, show, inbox, status and check prints the typed value, each node in brief. Exit
-codes: 0 fine; 1 not complete, or a decision refused; 2 a usage error (an
-unknown node too); 3 no Lean. The agent's rules are in
+The agent has its own commands (`inbox`, `context`, `check`, `scaffold`,
+`answer`) and rules, in
 [`.claude/skills/frflow/SKILL.md`](.claude/skills/frflow/SKILL.md).
 
-`status` exits 1 unless every node is accepted, nothing is left unproven, no
-node is gone, and there is no warning: no developer key, or a decision not
-signed by one; a source file governed by two nodes or by none, or a governed
-file that does not exist; a section of the idea no node names, or one a node
-names that the idea lacks; a proof file of no node; a contract none of whose
-examples Lean evaluates; a node that only restates its part.
+## Getting started
 
-Committed: the Scala, `IDEA.md`, `.frflow/` (ledger, keys, requests) and
-`lean/Proofs`; the rest is derived. CI runs `ci`, caching `.frflow/checks.json`
-and `lean/.lake` by branch: only what changed is proven again. `bench/`
-measures FrFlow as a project grows.
+You need JDK 17 or later, sbt, and Lean 4.35.0 installed with
+[elan](https://github.com/leanprover/elan), so that `lake` is on the `PATH`.
 
-## Web view
+```sh
+git clone https://github.com/szymon-rd/fr-flow && cd fr-flow
+bin/frflow auth tree                    # the smallest example; compiles on first use
+bin/frflow keycloak check               # prove the keycloak example in Lean
+bin/frflow keycloak show RealmAccess    # read its root
+bin/frflow keycloak serve --as NAME     # the web view on localhost, deciding as NAME
+```
 
-`bin/frflow PROJECT serve [--port N] [--as NAME]` serves the developer's flow in a
-browser: the DAG with each node's state and status, a node with its diff since
-it was decided, the inbox, the decisions with their reasons, and requests to the
-agent. It listens on localhost (port 8765 by default) and prints a link with a
-random token, which every route asks for.
+The examples:
 
-The page is a client of the same API as the CLI (`FrFlowApi`, one JSON route per
-operation): a decision is signed with the developer's key and recorded as
-`accept` records it, and the CLI can run beside it. The server runs the model it
-compiled when it started: once the model's sources change on disk, the page says
-"the model changed: restart serve", and every decision is refused until it is
-started again. Agents use the CLI, not the web view.
+- `examples/auth`: access control by a table of grants. The smallest one.
+- `examples/keycloak`: realms, sign-in, token introspection and sign-out over
+  HTTP. The sessions are proven to follow the history of requests.
+- `examples/crm`: a multi-tenant CRM on SQLite with an HTTP API.
 
-## Examples
+## More
 
-The example ledgers are decided by an agent playing the developer.
-
-- **`examples/auth`**: access control, shown above. Its code is proven, and
-  `root_impl` trusts nothing.
-- **`examples/keycloak`**: a small Keycloak-like server (realms, sign-in, token
-  introspection, sign-out) over HTTP. Its sessions are proven to follow the
-  history of requests (`FrFlow.tracks`).
-- **`examples/crm`**: a multi-tenant CRM on SQLite, with an HTTP API and an
-  expiry job. Nothing a user does changes another company's records. The
-  alternative that relied on the job's schedule is rejected in the ledger.
-
-## New project
-
-A project is a directory beside the examples (here `examples/library`):
-
-1. `IDEA.md`: a title, a lead paragraph, `## ` sections, and `## Not modelled`.
-2. `lazy val library = example("library")` in `build.sbt` (and the project in
-   `root`'s `aggregate`), then `sbt reload`.
-3. The model in `src/main/scala/library/`, ending with the knowledge base and
-   its command line (with several mains, set `Compile / run / mainClass`):
-   ```scala
-   val knowledge = KnowledgeBase("Library", idea = "IDEA.md")(lendsExactly, ...)
-   object libraryCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/library", serve = Some(frflow.web.WebView.serve))
-   ```
-4. `bin/frflow library render` creates `lean/` (its `lakefile.toml`, toolchain
-   and the generated Lean); then `check` and `status`.
-
-## Modules
-
-One sbt subproject each, under `modules/`:
-
-- `protocol`: the data crossing modules and files (snapshot, review, ledger, checks, requests), with JSON codecs.
-- `model` (package `frflow`): nodes and knowledge bases; `Opaque`, `Param`, `define`; the macro; examples, probes, `service`.
-- `lean`: the Lean of a knowledge base, and reading Lean's output.
-- `ledger`: review states and the decision rules; the reports; the stores, keys and signatures.
-- `check`: render and check (running `lake`), the snapshot, status, scaffold, git.
-- `api`: `FrFlowApi`, the typed operations a front end calls (`LiveApi` over the project on disk).
-- `cli`: the command line over the API: `FrFlowApp`, the views, the review.
-- `web`: the web view over the API (`serve`): the page, and its routes on localhost. The CLI does not depend on it: a project's main object passes it.
-
-The Lean library is in `lean/FrFlow/`, and the design in [`docs/DAG.md`](docs/DAG.md).
-The MCP server is on the branch `web-view`, which will become a separate repository.
+- [docs/USAGE.md](docs/USAGE.md): the commands, output and exit codes, what
+  Lean proves, warnings, starting a project, the web view, modules, and
+  measurements.
+- [docs/DAG.md](docs/DAG.md): the design.
+- [.claude/skills/frflow/SKILL.md](.claude/skills/frflow/SKILL.md): the
+  agent's rules.
