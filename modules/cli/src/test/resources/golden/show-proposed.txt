@@ -7,6 +7,9 @@ Decision
   note: its check is open
   rejected here before: Forever: A session never ends. — because sessions must end: a stolen token would work forever
 
+What it rests on, with the reasons: does it meet a condition they set for revisiting them?
+  Root: Root holds as stated
+
 Parents: it is a part of each
   + Root  claim  review: parts — with NeedsGrant, LetsIn, Forever, together they make it  A user ge...
 

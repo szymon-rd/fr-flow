@@ -13,6 +13,7 @@ object Details:
       isRoot = v.isRoot(r),
       trusted = v.snapshot.trusted.contains(r.id),
       parents = r.node.parents.flatMap(v.node),
+      above = above(v, r),
       parts = parts,
       designs = designs,
       definitions = r.node.uses.flatMap(v.node),
@@ -24,6 +25,15 @@ object Details:
       requests = v.requests.filter(q => q.node.contains(r.id) && q.status != RequestStatus.Closed),
       withAgent = v.withAgent(r),
       diff = diff(v, r, code))
+
+  /** What a node rests on, nearest first, each once: its ancestors, and the definitions they use and the
+    * contracts their code calls. Their reasons say when to revisit them; a proposal may meet one.
+    */
+  def above(v: View, r: Reviewed): List[Reviewed] =
+    def up(frontier: List[Reviewed], seen: Set[NodeId]): List[Reviewed] =
+      val next = frontier.flatMap(x => x.node.parents ++ x.node.uses ++ x.node.relies).distinct.filterNot(seen).flatMap(v.node)
+      if next.isEmpty then Nil else next ++ up(next, seen ++ next.map(_.id))
+    up(List(r), Set(r.id))
 
   /** The terms a node mentions (its `vocabulary`, "name: means"), with the definition fixing each. */
   def terms(v: View, r: Reviewed): List[Term] =

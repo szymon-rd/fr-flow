@@ -12,8 +12,14 @@ object NodeText:
     val r = d.node
     val n = r.node
     header(d, st) ++
-      (if (r.state == ReviewState.Review || d.diff.code.exists(_.inFull)) && !d.diff.isEmpty then "" :: DiffText.lines(d.diff, st) else Nil) ++
+      (if r.state == ReviewState.Review && !d.diff.isEmpty then "" :: DiffText.lines(d.diff.copy(code = d.diff.code.filterNot(_.inFull)), st) else Nil) ++
       decision(d, st) ++
+      Lines.section("What it rests on, with the reasons: does it meet a condition they set for revisiting them?",
+        d.above.filter(_ => r.state == ReviewState.Proposed).filter(_.review.reasonNow.isDefined)
+          .flatMap(a => Lines.para(s"${a.id}: ${a.review.reasonNow.getOrElse("")}", st)), st) ++
+      Lines.section("Idea (what it is decided against)", (n.content.text("idea").linesIterator.toList ++
+        Option.when(n.content.text("notModelled").nonEmpty)("" :: "Not modelled:" :: n.content.text("notModelled").linesIterator.toList).toList.flatten)
+        .flatMap(l => if l.isEmpty then List("") else Lines.para(l, st, hang = 0)), st) ++
       Lines.section("Formally (as written in Scala)", formal(n), st) ++
       Lines.section("Parents: it is a part of each", d.parents.map(p => Lines.node(p, st, extra = partOf(p, r, st))), st) ++
       Lines.section(n.split.fold("Parts")(sp => s"Parts: together they make it (${outcome(sp.complete, st)})"), parts(d, st), st) ++
@@ -54,6 +60,7 @@ object NodeText:
     val v = r.review
     val open = r.state == ReviewState.Proposed || r.state == ReviewState.Review
     val lines = if !open then Nil else
+      Option.when(r.state == ReviewState.Review)(st.yellow(s"to review: ${v.causes.flatMap(Words.causes.get).mkString("; ")}")).toList ++
       v.waitsFor.map(w => st.yellow(s"decide $w first: what rests on it is decided after it")).toList ++
         (if v.mechanical then List(st.green("mechanical: Lean proves it again and nothing in it is a choice (confirm decides the batch)"))
          else v.notMechanical.filter(_ => r.state == ReviewState.Review).map(st.dim).toList) ++
@@ -140,7 +147,8 @@ object NodeText:
       case None if impl.nonEmpty => Some("checked by running: a plain implementation, not proven")
       case None => None
     how.toList ++ Option.when(impl.nonEmpty)(impl.linesIterator.map(l => st.dim("  " + l)).toList).toList.flatten ++
-      n.code.map(c => s"governs: ${c.files.mkString(", ")}${if d.diff.code.exists(_.inFull) then st.dim("  (in full above)") else ""}")
+      n.code.map(c => s"governs: ${c.files.mkString(", ")}" +
+        (if d.diff.code.exists(_.inFull) then st.yellow(s"  (diff ${d.node.id} shows them in full: read them before accepting)") else ""))
 
   private def leanText(n: SnapNode, st: Style): List[String] =
     Lines.section("Theorem holds (from the leaves below it)", n.holds.linesIterator.toList, st) ++

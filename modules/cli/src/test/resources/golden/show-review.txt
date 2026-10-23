@@ -9,6 +9,7 @@ What changed since it was accepted (dev, 2026-01-02 10:00)
     + A request is admitted on behalf of the user its token was issued to, exactly when a grant names them and the path.
 
 Decision
+  to review: it changed
   what Decide says changed: the developer decides
   decisions below it, with their reasons (accept --revisit NODE reviews one again; one that moved only with it is confirmed):
     Memory: Sessions and grants are kept in memory. — holds because: Memory holds as stated

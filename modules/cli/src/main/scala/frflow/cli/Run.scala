@@ -69,14 +69,19 @@ final class Run(api: FrFlowApi, term: Terminal, st: Style):
       case None => term.err("give the reason: --reason TEXT (it is kept as part of the theory)").as(Usage)
       case Some(reason) => developer(a.as) { dev =>
         val d = make(reason)
-        api.preview(d, dev).flatMap(_.fold(refused, p =>
-          confirmed(a.yes, s"This records, as ${dev.name}:" :: ReportText.decided(p, st), "Record it? [y/N] ").flatMap {
+        api.preview(d, dev).flatMap(_.fold(refused, p => notes(p).flatMap(ns =>
+          confirmed(a.yes, (s"This records, as ${dev.name}:" :: ReportText.decided(p, st)) ++ ns, "Record it? [y/N] ").flatMap {
             case Some(true) => api.decide(d, dev).flatMap(done(r => s"Recorded, signed by ${dev.name}:" :: ReportText.decided(r, st)))
             case Some(false) => term.out("Nothing recorded.").as(Refused)
             case None => term.err("a decision is confirmed on a terminal; without one, pass --yes").as(Usage)
-          }))
+          })))
       }
     }
+
+  /** What is not proven, or fails, of the nodes a decision accepts: said before it is confirmed. */
+  private def notes(d: Decided): IO[List[String]] = api.view.map(v =>
+    d.decisions.filter(_.decision.action.binds).flatMap(l => v.node(l.node).toList.flatMap(_.review.unproven)
+      .map(u => st.yellow(s"  note: ${l.node}: $u"))))
 
   /** True when `--yes` was given or the developer says yes; none when no one can be asked. */
   private def confirmed(yes: Boolean, what: List[String], question: String): IO[Option[Boolean]] =

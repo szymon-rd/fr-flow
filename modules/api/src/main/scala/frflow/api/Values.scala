@@ -88,6 +88,7 @@ final case class NodeDetails(
     isRoot: Boolean,
     trusted: Boolean,
     parents: List[Reviewed],
+    above: List[Reviewed],
     parts: List[Reviewed],
     designs: List[Reviewed],
     definitions: List[Reviewed],

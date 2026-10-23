@@ -74,8 +74,9 @@ object TreeText:
     val room = st.width.map(_ - Style.visible(head) - also.length)
     val main = (st.width, room) match
       case (Some(w), Some(k)) if full && k > 20 && statement.length > k =>
-        val lines = st.wrap(statement, w - Style.visible(head))
-        (head + lines.head + st.dim(also)) :: lines.tail.map(l => st.dim(indent) + " " * (Style.visible(head) - indent.length).max(0) + l)
+        st.wrap(statement, w - Style.visible(head)) match
+          case first :: rest => (head + first + st.dim(also)) :: rest.map(l => st.dim(indent) + " " * (Style.visible(head) - indent.length).max(0) + l)
+          case Nil => List(head + st.dim(also))
       case (_, Some(k)) if !full => List(head + st.cut(statement, k.max(12)) + st.dim(also))
       case _ => List(head + statement + st.dim(also))
     main ++ Option.when(apart)(st.dim(indent + " " * (Style.visible(head) - indent.length).max(0) + alsoText))
