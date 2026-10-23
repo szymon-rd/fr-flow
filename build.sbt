@@ -27,6 +27,12 @@ lazy val ledger = module("ledger").dependsOn(protocol)
 
 /** Rendering and checking a knowledge base against Lean; the snapshot. */
 lazy val check = module("check").dependsOn(lean % "compile->compile;test->test", ledger, model % "test->test")
+  .settings(libraryDependencies ++= Seq(
+    "org.typelevel" %% "cats-core" % "2.13.0",
+    "org.typelevel" %% "cats-effect" % "3.6.3",
+    "co.fs2" %% "fs2-core" % "3.12.2",
+    "co.fs2" %% "fs2-io" % "3.12.2",
+    "org.typelevel" %% "munit-cats-effect" % "2.1.0" % Test))
 
 /** The command line a project's main object extends (`FrFlowApp`). */
 lazy val cli = module("cli").dependsOn(check)

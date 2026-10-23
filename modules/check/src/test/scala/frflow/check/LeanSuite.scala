@@ -1,6 +1,7 @@
 package frflow
 package check
 
+import cats.effect.unsafe.implicits.global
 import frflow.lean.*
 import frflow.ledger.*
 import frflow.fixtures.*
@@ -17,15 +18,28 @@ class LeanSuite extends munit.FunSuite:
     Iterator.iterate(Paths.get(sys.props("user.dir")).toAbsolutePath)(_.getParent).takeWhile(_ != null)
       .map(_.resolve("lean")).find(p => Files.exists(p.resolve("FrFlow.lean"))).getOrElse(fail("kernel not found"))
 
-  private def workflow(kb: KnowledgeBase): Workflow =
-    assume(Lake(Paths.get(".")).available, "lake is not available")
-    Workflow(kb, Workspace(Files.createTempDirectory("frflow"), kernel.toString))
+  private def lake(dir: Path): Lake = Config.load.flatMap(Lake(dir, _)).unsafeRunSync()
+  private def lakeAvailable: Boolean = lake(Paths.get(".")).available.unsafeRunSync()
+
+  /** A workflow in a fresh workspace, its operations run one after another. */
+  private final class Lab(w: Workflow):
+    def ws: Workspace = w.ws
+    def check(only: Option[String] = None): List[(Node[?], NodeCheck)] = w.check(only).unsafeRunSync().results
+    def analysis: Analysis = w.analysis.unsafeRunSync()
+    def generate: Generate = analysis.generate
+    def baseSnapshot: Snapshot = analysis.snapshot
+    def scaffold(n: Node[?]): Boolean = w.scaffold(n).unsafeRunSync().isDefined
+    def status: String = Status.text(w.status.unsafeRunSync())
+
+  private def workflow(kb: KnowledgeBase): Lab =
+    assume(lakeAvailable, "lake is not available")
+    Lab(Workflow(kb, Workspace(Files.createTempDirectory("frflow"), kernel.toString)).unsafeRunSync())
 
   private def statuses(r: List[(Node[?], NodeCheck)]) = r.map((n, c) => n.id -> c.status.toString)
   private def of(r: List[(Node[?], NodeCheck)], id: String) = r.find(_._1.id == id).get._2
   private def result(c: NodeCheck, name: String) = c.obligations.find(_.name == name)
-  private def node(w: Workflow, id: String) = w.baseSnapshot.nodes.find(_.id == NodeId(id)).get
-  private def splitOf(w: Workflow, n: Node[?]) = node(w, n.id).split.get
+  private def node(w: Lab, id: String) = w.baseSnapshot.nodes.find(_.id == NodeId(id)).get
+  private def splitOf(w: Lab, n: Node[?]) = node(w, n.id).split.get
   private def st(split: Split, k: String) = Some((if k == "clash" then split.clash else split.complete).status.toString)
 
   test("the shelf is proven by automation: each node from its parts, the root from the leaves, of the code from what is trusted") {
@@ -47,11 +61,11 @@ class LeanSuite extends munit.FunSuite:
     // the code is proven: nothing is trusted
     assertEquals(result(root, "root_impl").map(r => (r.status.toString, r.detail)), Some(("proven", "the root holds of the code, trusting nothing")))
     assertEquals(w.generate.trusted, Nil)
-    assert(w.status._1.contains("Trusted (the hypotheses of root_impl, proven): nothing."), w.status._1)
+    assert(w.status.contains("Trusted (the hypotheses of root_impl, proven): nothing."), w.status)
   }
 
   test("two modules proving things of one match with a wildcard can be imported together: its equations are made where it is defined") {
-    assume(Lake(Paths.get(".")).available, "lake is not available")
+    assume(lakeAvailable, "lake is not available")
     val dir = Files.createTempDirectory("sparse")
     Files.writeString(dir.resolve("lakefile.toml"),
       s"name = \"sparse\"\n\n[[require]]\nname = \"frflow\"\npath = \"$kernel\"\n\n[[lean_lib]]\nname = \"Sparse\"\nglobs = [\"Sparse.+\"]\n")
@@ -65,12 +79,12 @@ class LeanSuite extends munit.FunSuite:
       s"import Sparse.$b\ntheorem a (q : Req) (t : String) (h : tokenOf q = some t) : q = .signIn t := by\n  unfold tokenOf at h; grind\n",
       s"import Sparse.$b\ntheorem b (q : Req) (t : String) (h : tokenOf q = some t) : ∃ u, q = .signIn u := by\n  unfold tokenOf at h; grind\n")
     file("Base", base(true)); file("A", uses("Base")(0)); file("B", uses("Base")(1)); file("C", "import Sparse.A\nimport Sparse.B\n")
-    val lake = Lake(dir)
-    val built = lake.build("Sparse.C")
+    val lk = lake(dir)
+    val built = lk.build("Sparse.C").unsafeRunSync()
     assert(built.ok, built.output)
     // Without it, each module makes the equations, and Lean's auxiliary declaration twice (Lean 4.35).
     file("Base0", base(false)); file("A0", uses("Base0")(0)); file("B0", uses("Base0")(1)); file("C0", "import Sparse.A0\nimport Sparse.B0\n")
-    val clash = lake.build("Sparse.C0")
+    val clash = lk.build("Sparse.C0").unsafeRunSync()
     assert(!clash.ok && clash.output.contains("already contains"), clash.output)
     // The generated modules that declare functions make their equations
     val g = Generate(shelfKb)
@@ -237,7 +251,7 @@ class LeanSuite extends munit.FunSuite:
     val sr = sw.check()
     assertEquals(result(of(sr, "Same"), "restates").map(_.status.toString), Some("restates"), of(sr, "Same"))
     assertEquals(result(of(r, "Trivial"), "restates").map(_.status.toString), Some("not-restates"), of(r, "Trivial"))
-    assert(sw.status._1.contains("warning: Same says what Again says: merge them, or say what Same adds"), sw.status._1)
+    assert(sw.status.contains("warning: Same says what Again says: merge them, or say what Same adds"), sw.status)
     val never = Node.claim("Never", "The service picks more books than it picks.", why = "w")(
       picks(List(Book("A", 1)), 1).length > picks(List(Book("A", 1)), 1).length).under(onlyGood)
     val u = of(workflow(KnowledgeBase("Unsat", idea = "IDEA.md")(onlyGood, books, picking, never)).check(), "Never")
