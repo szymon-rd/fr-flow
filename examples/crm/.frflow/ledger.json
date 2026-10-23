@@ -805,6 +805,66 @@
           "ideaSection": "Expiring shares",
           "notModelled": "- That the account a search or a write runs for is the caller's own\n  (authentication).\n- That the database's tables, which the running read side reads, are what its\n  event log led to: that nothing but the write side and the expiry job changes\n  them (a test replays the log).\n- Editing or removing records: a write only adds one."
         }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-23T17:40:12.694278Z",
+        "reason": "Same contract, with an example of two records out of the database order; the code names the new store once",
+        "rejected": [],
+        "after": "ed70ce0afd455363",
+        "commit": "eb54740324e27e00539b9c062fa22cda238c7767",
+        "key": "b6e216cfdf46a202",
+        "sig": "GS9DK5g1FlvFh75HZ8ksQSReHDLYk5CGDa3WuKWxFx0ncsgjtoIdPg8NDsXxVa9TTtrLr/v/l+VcaDOoVJtHDw==",
+        "chain": "9db3433bfb4a8b7eb0f51c489d85492784a9175df938ad9821698ea807aef59f",
+        "content": {
+          "kind": "contract",
+          "parents": [],
+          "parts": [],
+          "statement": "A run of the expiry job at a time leaves the database holding, about each record, what SharesExpire's run on what it held gives, logs the run at the end of the event log, and returns that store.",
+          "why": "The job is how SharesExpire's operation reaches the database: it loads what the database holds, runs the operation on it, stores the rows of each record whose rows changed, and logs the run, which is what makes the event log the history CrmRun replays. Proven of the code from the database's model (TablesModel), it is no longer only reviewed wiring.",
+          "sources": {
+            "post": "(now, result, before, after) =>\n  sameRows(after(DatabaseModel).store, expire(before(DatabaseModel).store, now)) &&\n    after(DatabaseModel).events === before(DatabaseModel).events ++ List(Event[Event.Expired](now)) &&\n    result === expire(before(DatabaseModel).store, now)"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (150, World(DatabaseModel = Tables(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"globex\")), Share(1, TenantId(\"initech\"))), List(Expiry(1, TenantId(\"globex\"), 100))), List(Wrote(WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), Add(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")))))))) ⇒ Tuple2(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"initech\"))), List()), World(DatabaseModel = Tables(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"initech\"))), List()), List(Wrote(WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), Add(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")))), Expired(150)))))  given   — Globex's share ended at 100: the database drops it, and the run is logged",
+            "expect (150, World(DatabaseModel = Tables(CrmStore(List(CrmRecord(2, TenantId(\"acme\"), Contact, \"Acme contact\"), CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(2, TenantId(\"globex\")), Share(1, TenantId(\"initech\"))), List(Expiry(2, TenantId(\"globex\"), 100))), List(Wrote(WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), Add(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")))))))) ⇒ Tuple2(CrmStore(List(CrmRecord(2, TenantId(\"acme\"), Contact, \"Acme contact\"), CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"initech\"))), List()), World(DatabaseModel = Tables(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"), CrmRecord(2, TenantId(\"acme\"), Contact, \"Acme contact\")), List(Share(1, TenantId(\"initech\"))), List()), List(Wrote(WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), Add(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")))), Expired(150)))))  given   — two records: the contact's share with Globex ended; the database stores the contact's rows again",
+            "expect (50, World(DatabaseModel = Tables(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"globex\")), Share(1, TenantId(\"initech\"))), List(Expiry(1, TenantId(\"globex\"), 100))), List(Wrote(WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), Add(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")))))))) ⇒ Tuple2(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"globex\")), Share(1, TenantId(\"initech\"))), List(Expiry(1, TenantId(\"globex\"), 100))), World(DatabaseModel = Tables(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"globex\")), Share(1, TenantId(\"initech\"))), List(Expiry(1, TenantId(\"globex\"), 100))), List(Wrote(WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), Add(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")))), Expired(50)))))  given   — before 100 nothing ends, and the run is still logged",
+            "reject (150, World(DatabaseModel = Tables(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"globex\")), Share(1, TenantId(\"initech\"))), List(Expiry(1, TenantId(\"globex\"), 100))), List(Wrote(WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), Add(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")))))))) ⇒ Tuple2(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"initech\"))), List()), World(DatabaseModel = Tables(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"globex\")), Share(1, TenantId(\"initech\"))), List(Expiry(1, TenantId(\"globex\"), 100))), List(Wrote(WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), Add(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")))), Expired(150)))))  given   — a run that stores nothing leaves an ended share in the database",
+            "reject (150, World(DatabaseModel = Tables(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"globex\")), Share(1, TenantId(\"initech\"))), List(Expiry(1, TenantId(\"globex\"), 100))), List(Wrote(WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), Add(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")))))))) ⇒ Tuple2(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"initech\"))), List()), World(DatabaseModel = Tables(CrmStore(List(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\")), List(Share(1, TenantId(\"initech\"))), List()), List(Wrote(WriteCmd(Account(\"ann@acme\", TenantId(\"acme\")), Add(CrmRecord(1, TenantId(\"acme\"), Deal, \"Acme deal\"))))))))  given   — a run is never left out of the event log"
+          ],
+          "vocabulary": [
+            "expire: a run of the expiry job at a time (in seconds) on a store: the store it leads to",
+            "runExpiry: a run of the expiry job at a time (in seconds), on the database: the store it computes; the database holds it after"
+          ],
+          "uses": [
+            "case class TenantId(value: String)",
+            "enum Kind: case Contact, case Deal",
+            "case class CrmRecord(id: BigInt, tenant: TenantId, kind: Kind, title: String)",
+            "case class Share(record: BigInt, to: TenantId)",
+            "case class Expiry(record: BigInt, to: TenantId, until: BigInt)",
+            "case class CrmStore(records: List[CrmRecord], shares: List[Share], expiries: List[Expiry])",
+            "case class Account(email: String, tenant: TenantId)",
+            "enum Change: case Add(record: CrmRecord), case ShareWith(record: BigInt, to: TenantId, until: Option[BigInt]), case Unshare(record: BigInt, to: TenantId)",
+            "case class WriteCmd(by: Account, change: Change)",
+            "enum Event: case Wrote(cmd: WriteCmd), case Expired(now: BigInt)",
+            "case class Tables(store: CrmStore, events: List[Event])",
+            "sameRows = (a: Term[CrmStore], b: Term[CrmStore]) =>\n  (idsIn(a) ++ idsIn(b)).forall(id => aboutRecord(a, id) === aboutRecord(b, id))",
+            "idsIn = (s: Term[CrmStore]) => s.records.map(r => r.id) ++ s.shares.map(sh => sh.record) ++ s.expiries.map(e => e.record)",
+            "aboutRecord = (s: Term[CrmStore], id: Term[BigInt]) =>\n  CrmStore(s.records.filter(r => r.id === id), s.shares.filter(sh => sh.record === id), s.expiries.filter(e => e.record === id))"
+          ],
+          "governs": [],
+          "definition": "val expiryJob = Node.contract(runExpiry)(\"ExpiryJob\",\n  \"A run of the expiry job at a time leaves the database holding, about each record, what SharesExpire's run on what it held gives, logs the run at the end of the event log, and returns that store.\",\n  why = \"The job is how SharesExpire's operation reaches the database: it loads what the database holds, runs the operation on it, stores the rows of each record whose rows changed, and logs the run, which is what makes the event log the history CrmRun replays. Proven of the code from the database's model (TablesModel), it is no longer only reviewed wiring.\",\n  idea = \"Expiring shares\"\n)((now, result, before, after) =>\n  sameRows(after(DatabaseModel).store, expire(before(DatabaseModel).store, now)) &&\n    after(DatabaseModel).events === before(DatabaseModel).events ++ List(Event[Event.Expired](now)) &&\n    result === expire(before(DatabaseModel).store, now))\n  .examples()(\n    expect(BigInt(150), World(DatabaseModel -> Tables(globexUntil100, earlier)), initechOnly,\n      World(DatabaseModel -> Tables(initechOnly, earlier :+ Event.Expired(150))), \"Globex's share ended at 100: the database drops it, and the run is logged\"),\n    expect(BigInt(150), World(DatabaseModel -> Tables(twoUnsorted, earlier)), twoExpired,\n      World(DatabaseModel -> Tables(twoStored, earlier :+ Event.Expired(150))), \"two records: the contact's share with Globex ended; the database stores the contact's rows again\"),\n    expect(BigInt(50), World(DatabaseModel -> Tables(globexUntil100, earlier)), globexUntil100,\n      World(DatabaseModel -> Tables(globexUntil100, earlier :+ Event.Expired(50))), \"before 100 nothing ends, and the run is still logged\"),\n    reject(BigInt(150), World(DatabaseModel -> Tables(globexUntil100, earlier)), initechOnly,\n      World(DatabaseModel -> Tables(globexUntil100, earlier :+ Event.Expired(150))), \"a run that stores nothing leaves an ended share in the database\"),\n    reject(BigInt(150), World(DatabaseModel -> Tables(globexUntil100, earlier)), initechOnly,\n      World(DatabaseModel -> Tables(initechOnly, earlier)), \"a run is never left out of the event log\"))\n  .exempt(noCrossTenantRead, \"it hands the new store to the database and returns nothing to a reader\")",
+          "op": "runExpiry",
+          "keeps": [
+            "NoCrossTenantRead: exempt, because it hands the new store to the database and returns nothing to a reader"
+          ],
+          "implementation": "proven: expireOnce_run\nexpireOnce_run = expireOnce\nexpireOnce = fun (now : Int) => do\n    let s ← Database.load\n    let t := (expire s now)\n    for id_ in (⟦changedIds⟧ s t) do\n      Database.storeAbout id_ t\n    Database.logEvent (Event.Expired now)\n    pure t\nchangedIds = (s: Term[CrmStore], t: Term[CrmStore]) =>\n  (idsIn(s) ++ idsIn(t)).filter(id => aboutRecord(s, id) =!= aboutRecord(t, id))\nidsIn = (s: Term[CrmStore]) => s.records.map(r => r.id) ++ s.shares.map(sh => sh.record) ++ s.expiries.map(e => e.record)\naboutRecord = (s: Term[CrmStore], id: Term[BigInt]) =>\n  CrmStore(s.records.filter(r => r.id === id), s.shares.filter(sh => sh.record === id), s.expiries.filter(e => e.record === id))",
+          "idea": "## Expiring shares\n\nA company can share a record until a given time. When that time has passed,\nthe share ends: searches no longer find the record through it, whether or not\nthe expiry job has run. The job clears ended shares every minute, and changes\nnothing else.",
+          "ideaSection": "Expiring shares",
+          "notModelled": "- That the account a search or a write runs for is the caller's own\n  (authentication).\n- That the database's tables, which the running read side reads, are what its\n  event log led to: that nothing but the write side and the expiry job changes\n  them (a test replays the log).\n- Editing or removing records: a write only adds one."
+        }
       }
     ],
     "ExpiryJobWiring": [

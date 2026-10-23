@@ -126,8 +126,9 @@ private[frflow] final class LeanPrinter:
       val lines = (bound, first) match
         // A loop or a branch whose result is dropped is a statement of the block itself.
         case (None, Steps.Loop(_, _, _) | Steps.Branch(_, _, _)) => block(first, ind)
-        case (None, Steps.Seq(_, _, _))                          => s"${ind}do" :: block(first, ind + "  ")
-        case (Some(n), Steps.Seq(_, _, _) | Steps.Loop(_, _, _) | Steps.Branch(_, _, _)) => s"${ind}let $n ← do" :: block(first, ind + "  ")
+        case (None, Steps.Seq(_, _, _) | Steps.Let(_, _, _))     => s"${ind}do" :: block(first, ind + "  ")
+        case (Some(n), Steps.Seq(_, _, _) | Steps.Let(_, _, _) | Steps.Loop(_, _, _) | Steps.Branch(_, _, _)) =>
+          s"${ind}let $n ← do" :: block(first, ind + "  ")
         case (None, one)                                         => List(ind + step(one))
         case (Some(n), one)                                      => List(s"${ind}let $n ← ${step(one)}")
       lines ++ block(rest, ind)
@@ -135,6 +136,9 @@ private[frflow] final class LeanPrinter:
       val r = expr(xs)
       s"${ind}for ${local(b)} in $r do" :: block(body, ind + "  ")
     case Steps.Branch(c, a, b)   => (s"${ind}if ${expr(c)} then" :: block(a, ind + "  ")) ++ (s"${ind}else" :: block(b, ind + "  "))
+    case Steps.Let(b, v, rest)   =>
+      val tv = expr(v)
+      s"${ind}let ${local(b)} := $tv" :: block(rest, ind)
     case one                     => List(ind + step(one))
 
   /** One step, on a line of its own. */

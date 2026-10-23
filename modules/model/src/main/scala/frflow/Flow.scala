@@ -115,25 +115,58 @@ private[frflow] enum Steps:
   case Write(model: StateModel[?], s: Tree)
   case Modify(model: StateModel[?], b: Binder, body: Tree)
   case Outside(run: () => Any)
+  /** `let b := v; rest`: a value the program named (`t = …` in a for-comprehension), computed once. */
+  case Let(b: Binder, v: Tree, rest: Steps)
 
 private[frflow] object Steps:
   /** The steps of a flow, and the type of its result. */
-  def of(f: Flow[?]): (Steps, LeanType[?]) = f match
+  def of(f: Flow[?]): (Steps, LeanType[?]) = within(f, Nil)
+
+  /** A value the program named and later steps use (`t = expire(s, now)` is a `val t` their lambdas capture) is
+    * computed once, in a `let` named as the program names it, where the flow that first uses it begins; `bound`
+    * holds those already let above.
+    */
+  private def within(f: Flow[?], bound: List[Tree]): (Steps, LeanType[?]) =
+    val named = shared(f).foldLeft(List.empty[(String, Term[?])]) { (acc, x) =>
+      if (bound ++ acc.map(_._2.termTree)).exists(_ eq x._2.termTree) then acc else acc :+ x
+    }
+    val (s, t) = build(f, bound ++ named.map(_._2.termTree))
+    val used = named.filter((_, x) => Trees.occurs(x.termTree, s))
+    // One named from another comes after it.
+    val ordered = used.sortBy((_, x) => used.count((_, y) => (y ne x) && Trees.occurs(y.termTree, x.termTree)))
+    (ordered.foldRight(s) { case ((n, x), acc) =>
+      val b = Binder(n, x.termType)
+      Let(b, x.termTree, Trees.replaceIn(acc, x.termTree, Tree.Var(b)))
+    }, t)
+
+  /** The compound terms the lambdas of `f` capture (a named value, not a variable or a constant). */
+  private def shared(f: Flow[?]): List[(String, Term[?])] =
+    def captures(g: AnyRef) = Lambdas.captured(g).collect {
+      case (n, x: Term[?]) if (x.termTree match { case Tree.Var(_) | Tree.Lit(_, _) | Tree.Ref(_) => false; case _ => true }) => (n, x)
+    }
+    f match
+      case Flow.Bind(first, _, named) => shared(first) ++ captures(named)
+      case Flow.Each(_, body)         => captures(body)
+      case Flow.Cond(_, a, b)         => shared(a) ++ shared(b)
+      case Flow.Update(_, g)          => captures(g)
+      case _                          => Nil
+
+  private def build(f: Flow[?], bound: List[Tree]): (Steps, LeanType[?]) = f match
     case Flow.Pure(t)          => (Ret(t.termTree), t.termType)
     case c @ Flow.Call(b, m, args) => (Op(b, m, args.map(_.termTree)), LeanType.ofJava(m.getGenericReturnType))
     case Flow.Bind(first, next, named) =>
-      val (s, t) = of(first)
+      val (s, t) = within(first, bound)
       val b = Lambda.binders(named, List(t)).head
-      val (rest, r) = of(next.asInstanceOf[Term[Any] => Flow[?]](b.term))
+      val (rest, r) = within(next.asInstanceOf[Term[Any] => Flow[?]](b.term), bound)
       (Seq(s, b, rest), r)
     case Flow.Each(xs, body)   =>
       val elem = xs.termType.shape match { case Shape.ListOf(a) => a; case _ => LeanType.unknown }
       val b = Lambda.binders(body, List(elem)).head
-      val (s, t) = of(body.asInstanceOf[Term[Any] => Flow[?]](b.term))
+      val (s, t) = within(body.asInstanceOf[Term[Any] => Flow[?]](b.term), bound)
       // A loop's body yields nothing: a result of another type is dropped.
       val unitBody = if t.shape == Shape.UnitT then s else Seq(s, Binder("_$", t), Ret(Tree.Lit((), summon[LeanType[Unit]])))
       (Loop(xs.termTree, b, unitBody), summon[LeanType[Unit]])
-    case Flow.Cond(c, a, b)    => val (sa, t) = of(a); (Branch(c.termTree, sa, of(b)._1), t)
+    case Flow.Cond(c, a, b)    => val (sa, t) = within(a, bound); (Branch(c.termTree, sa, within(b, bound)._1), t)
     case Flow.Get(m)           => (Read(m), m.stateType)
     case Flow.Put(m, s)        => (Write(m, s.termTree), summon[LeanType[Unit]])
     case Flow.Update(m, f)     =>
@@ -147,6 +180,7 @@ private[frflow] object Steps:
       case Seq(a, _, b)    => fold(b, fold(a, here)(f))(f)
       case Loop(_, _, b)   => fold(b, here)(f)
       case Branch(_, a, b) => fold(b, fold(a, here)(f))(f)
+      case Let(_, _, r)    => fold(r, here)(f)
       case _               => here
 
   def boundaries(s: Steps): List[Boundary[?]] = fold(s, List.empty[Boundary[?]]) {
@@ -177,6 +211,7 @@ private[frflow] object Flows:
       val (r, own) = onModel(inner, model, w(model.asInstanceOf[StateModel[Any]]))
       (r, w.updated(model, own))
     case Steps.Seq(a, b, rest)   => val (x, w1) = onModels(a, env, w); onModels(rest, env + (b -> x), w1)
+    case Steps.Let(b, v, rest)   => onModels(rest, env + (b -> Eval.compile(v)(env)), w)
     case Steps.Loop(xs, b, body) =>
       Eval.compile(xs)(env).asInstanceOf[List[Any]].foldLeft(((): Any, w))((acc, x) => (((), onModels(body, env + (b -> x), acc._2)._2)))
     case Steps.Branch(c, a, b)   => if Eval.compile(c)(env).asInstanceOf[Boolean] then onModels(a, env, w) else onModels(b, env, w)
@@ -189,6 +224,7 @@ private[frflow] object Flows:
     case Steps.Write(_, t)         => ((), Eval.compile(t)(env))
     case Steps.Modify(_, b, body)  => ((), Eval.compile(body)(env + (b -> st)))
     case Steps.Seq(a, b, rest)     => val (x, st1) = onModel(a, model, st, env); onModel(rest, model, st1, env + (b -> x))
+    case Steps.Let(b, v, rest)     => onModel(rest, model, st, env + (b -> Eval.compile(v)(env)))
     case Steps.Loop(xs, b, body)   =>
       ((), Eval.compile(xs)(env).asInstanceOf[List[Any]].foldLeft(st)((acc, x) => onModel(body, model, acc, env + (b -> x))._2))
     case Steps.Branch(c, a, b)     => if Eval.compile(c)(env).asInstanceOf[Boolean] then onModel(a, model, st, env) else onModel(b, model, st, env)
@@ -204,6 +240,7 @@ private[frflow] object Flows:
       val f = m.invoke(impls(b), args.map(a => literal(Eval.compile(a)(env)))*).asInstanceOf[Flow[?]]
       runNow(Steps.of(f)._1, Map.empty, impls)
     case Steps.Seq(a, b, rest)   => runNow(rest, env + (b -> runNow(a, env, impls)), impls)
+    case Steps.Let(b, v, rest)   => runNow(rest, env + (b -> Eval.compile(v)(env)), impls)
     case Steps.Loop(xs, b, body) => Eval.compile(xs)(env).asInstanceOf[List[Any]].foreach(x => runNow(body, env + (b -> x), impls))
     case Steps.Branch(c, a, b)   => if Eval.compile(c)(env).asInstanceOf[Boolean] then runNow(a, env, impls) else runNow(b, env, impls)
     case Steps.Outside(run)      => run()
@@ -221,8 +258,86 @@ private[frflow] object Flows:
           F.delay(m.invoke(impl, vs.map(literal)*).asInstanceOf[Flow[?]]).flatMap(f => go(Steps.of(f)._1, Map.empty))
         }
       case Steps.Seq(a, b, rest)   => go(a, env).flatMap(x => go(rest, env + (b -> x)))
+      case Steps.Let(b, v, rest)   => eval(v, env).flatMap(x => go(rest, env + (b -> x)))
       case Steps.Loop(xs, b, body) => eval(xs, env).flatMap(v => v.asInstanceOf[List[Any]].traverse_(x => go(body, env + (b -> x)))).as(())
       case Steps.Branch(c, a, b)   => eval(c, env).flatMap(v => if v.asInstanceOf[Boolean] then go(a, env) else go(b, env))
       case Steps.Outside(run)      => F.delay(run())
       case other                   => F.raiseError(IllegalStateException(s"FrFlow: production runs no model's step ($other)"))
     go(s, env)
+
+/** Trees by identity: a named value's tree is the one object at each of its uses. */
+private[frflow] object Trees:
+  private def children(t: Tree): List[Tree] = t match
+    case Tree.Var(_) | Tree.Lit(_, _) | Tree.Ref(_) => Nil
+    case Tree.Call(_, as)          => as
+    case Tree.Apply(f, as)         => f :: as
+    case Tree.Fun(_, b)            => List(b)
+    case Tree.Quant(_, _, b)       => List(b)
+    case Tree.If(c, a, b)          => List(c, a, b)
+    case Tree.Match(on, cs)        => on :: cs.map(_.body)
+    case Tree.Let(_, v, b)         => List(v, b)
+    case Tree.Field(on, _, _)      => List(on)
+    case Tree.Copy(on, _, us)      => on :: us.map(_._2)
+    case Tree.Make(_, _, as)       => as
+    case Tree.Tup(es)              => es
+    case Tree.Proj(on, _, _)       => List(on)
+    case Tree.SomeT(a)             => List(a)
+    case Tree.ListT(es)            => es
+    case Tree.Over(_, on, _, b)    => List(on, b)
+    case Tree.Op(_, as)            => as
+    case Tree.Do(s)                => trees(s)
+    case Tree.RunOn(c, w)          => List(c, w)
+    case Tree.Part(w, _)           => List(w)
+
+  private def trees(s: Steps): List[Tree] = Steps.fold(s, List.empty[Tree]) {
+    case (acc, Steps.Ret(t))          => acc :+ t
+    case (acc, Steps.Op(_, _, as))    => acc ++ as
+    case (acc, Steps.Loop(xs, _, _))  => acc :+ xs
+    case (acc, Steps.Branch(c, _, _)) => acc :+ c
+    case (acc, Steps.Write(_, t))     => acc :+ t
+    case (acc, Steps.Modify(_, _, t)) => acc :+ t
+    case (acc, Steps.Let(_, v, _))    => acc :+ v
+    case (acc, _)                     => acc
+  }
+
+  def occurs(x: Tree, in: Tree): Boolean = (in eq x) || children(in).exists(occurs(x, _))
+  def occurs(x: Tree, in: Steps): Boolean = trees(in).exists(occurs(x, _))
+
+  /** `in` with `x` (that object) replaced by `by`. */
+  def replace(in: Tree, x: Tree, by: Tree): Tree =
+    def go(t: Tree): Tree = if t eq x then by else t match
+      case Tree.Var(_) | Tree.Lit(_, _) | Tree.Ref(_) => t
+      case Tree.Call(d, as)          => Tree.Call(d, as.map(go))
+      case Tree.Apply(f, as)         => Tree.Apply(go(f), as.map(go))
+      case Tree.Fun(bs, b)           => Tree.Fun(bs, go(b))
+      case Tree.Quant(a, bs, b)      => Tree.Quant(a, bs, go(b))
+      case Tree.If(c, a, b)          => Tree.If(go(c), go(a), go(b))
+      case Tree.Match(on, cs)        => Tree.Match(go(on), cs.map(c => c.copy(body = go(c.body))))
+      case Tree.Let(b, v, body)      => Tree.Let(b, go(v), go(body))
+      case Tree.Field(on, a, i)      => Tree.Field(go(on), a, i)
+      case Tree.Copy(on, a, us)      => Tree.Copy(go(on), a, us.map((i, v) => (i, go(v))))
+      case Tree.Make(a, c, as)       => Tree.Make(a, c, as.map(go))
+      case Tree.Tup(es)              => Tree.Tup(es.map(go))
+      case Tree.Proj(on, i, n)       => Tree.Proj(go(on), i, n)
+      case Tree.SomeT(a)             => Tree.SomeT(go(a))
+      case Tree.ListT(es)            => Tree.ListT(es.map(go))
+      case Tree.Over(k, on, b, body) => Tree.Over(k, go(on), b, go(body))
+      case Tree.Op(op, as)           => Tree.Op(op, as.map(go))
+      case Tree.Do(s)                => Tree.Do(replaceIn(s, x, by))
+      case Tree.RunOn(c, w)          => Tree.RunOn(go(c), go(w))
+      case Tree.Part(w, m)           => Tree.Part(go(w), m)
+    go(in)
+
+  def replaceIn(s: Steps, x: Tree, by: Tree): Steps =
+    def t(a: Tree) = replace(a, x, by)
+    def go(s: Steps): Steps = s match
+      case Steps.Ret(a)              => Steps.Ret(t(a))
+      case Steps.Op(b, m, as)        => Steps.Op(b, m, as.map(t))
+      case Steps.Seq(a, b, rest)     => Steps.Seq(go(a), b, go(rest))
+      case Steps.Loop(xs, b, body)   => Steps.Loop(t(xs), b, go(body))
+      case Steps.Branch(c, a, b)     => Steps.Branch(t(c), go(a), go(b))
+      case Steps.Write(m, a)         => Steps.Write(m, t(a))
+      case Steps.Modify(m, b, body)  => Steps.Modify(m, b, t(body))
+      case Steps.Let(b, v, rest)     => Steps.Let(b, t(v), go(rest))
+      case other                     => other
+    go(s)

@@ -26,6 +26,16 @@ def restock(ds: Term[List[BigInt]]): Flow[BigInt] =
     after <- stock.count
   yield after - before
 
+/** Restocks twice the delivery, naming the doubled amount once. */
+def restockTwice(d: Term[BigInt]): Flow[BigInt] =
+  for
+    before <- stock.count
+    twice = d + d
+    _ <- stock.add(twice)
+    _ <- stock.add(twice)
+    after <- stock.count
+  yield twice
+
 class FlowSuite extends munit.FunSuite:
   private val flow = Def(Lifted.flow(restock, summon[LeanType[List[BigInt]]], "restock"), summon[LeanType[BigInt]], Some("restock"), isFlow = true)
   private def steps = flow.lifted.built._2.termTree match { case Tree.Do(s) => s; case t => fail(s"not a flow: $t") }
@@ -39,6 +49,21 @@ class FlowSuite extends munit.FunSuite:
         |    let after ← Stock.count
         |    pure (after - before)""".stripMargin)
     assertEquals(flow.lifted.boundaries, List(stock))
+  }
+
+  test("a value named in a for-comprehension is a let, computed once, named as the program names it") {
+    val twice = Def(Lifted.flow(restockTwice, summon[LeanType[BigInt]], "restockTwice"), summon[LeanType[BigInt]], Some("restockTwice"), isFlow = true)
+    assertEquals(twice.lifted.lean,
+      """fun (d : Int) => do
+        |    let before ← Stock.count
+        |    let twice := (d + d)
+        |    Stock.add twice
+        |    Stock.add twice
+        |    let after ← Stock.count
+        |    pure twice""".stripMargin)
+    val s = twice.lifted.built._2.termTree match { case Tree.Do(s) => s; case t => fail(s"not a flow: $t") }
+    val (r, w) = Flows.onModels(s, Map(twice.lifted.built._1.head -> BigInt(2)), World(StockModel -> BigInt(10)))
+    assertEquals((r, w(StockModel)), (BigInt(4), BigInt(18)))
   }
 
   test("a flow runs on the models, and on an implementation, the same") {

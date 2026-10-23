@@ -163,7 +163,8 @@ final class ModelNode[T, S](m: ModelOf):
 extension [T, S](n: Node[Modelled[T, S]])
   /** The production implementation, checked against the model on the examples of the flows calling it: `start` makes
     * one holding a model's state, `read` reads its state back. Each example's run on it must give what the run on the
-    * model gives.
+    * model gives, both seen as the implementation holds a state (stored and read back): order it does not keep, such as
+    * rows a table returns sorted, is not compared.
     */
   def checkedAgainst[I <: T](start: S => I, read: I => S): Node[Modelled[T, S]] =
     n.copy(modelOf = n.modelOf.map(_.copy(real = Some((start.asInstanceOf[Any => Any], read.asInstanceOf[Any => Any])))))

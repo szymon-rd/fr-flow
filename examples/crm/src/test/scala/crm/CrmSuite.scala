@@ -181,6 +181,11 @@ class CrmSuite extends munit.CatsEffectSuite:
       assert(knowledge.exampleResults(n).forall(r => r.contract == "ok" && r.implementation.forall(_ == "ok")), knowledge.exampleResults(n))
   }
 
+  test("SQLite and the database's model agree on records the example lists out of the order SQLite returns them in") {
+    val onSqlite = knowledge.exampleResults(expiryJob).filter(r => r.example.note.startsWith("two records") && r.example.note.contains("run on database"))
+    assertEquals(onSqlite.map(_.implementation), List(Some("ok")))
+  }
+
   test("a write changes only what its author's company may change, and the write side checks it") {
     val write = knowledge.service(writeContract)()
     val start = CrmStore(records, shareTable, Nil)

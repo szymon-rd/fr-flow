@@ -97,7 +97,10 @@ private[frflow] object ExampleRuns:
     }
 
   /** A flow's examples run on the production implementations of its boundaries, started in each model's state before:
-    * what they give, read back, must be what the run on the models gives.
+    * what they give, read back, must be what the run on the models gives. Both are compared as the implementation
+    * holds a state: the model runs from the example's state stored and read back, and its state after is stored in a
+    * fresh implementation and read back. What the implementation does not keep (the order of rows a table returns
+    * sorted) is then not compared; what it keeps (the order of an event log) is.
     */
   private def onReal(kb: KnowledgeBase, n: Node[?]): List[ExampleResult] =
     (for
@@ -108,7 +111,8 @@ private[frflow] object ExampleRuns:
       if reals.nonEmpty
     yield n.cases.filter(_.expected).flatMap { e =>
       val before = e.b.asInstanceOf[World]
-      val model = Try(Flows.onModels(steps, Map(bs.head -> e.a), before))
+      def held(w: World): World = reals.foldLeft(w)((acc, m) => acc.updated(m.model, m.real.get._2(m.real.get._1(w(m.model.asInstanceOf[StateModel[Any]])))))
+      val model = Try(Flows.onModels(steps, Map(bs.head -> e.a), held(before))).map((r, w) => (r, held(w)))
       val real = Try {
         val impls = reals.map(m => m.boundary -> m.real.get._1(before(m.model.asInstanceOf[StateModel[Any]]))).toMap
         val r = Flows.runNow(steps, Map(bs.head -> e.a), impls)
