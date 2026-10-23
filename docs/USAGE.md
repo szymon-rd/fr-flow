@@ -235,7 +235,8 @@ The Lean library is in `lean/FrFlow/`. The MCP server is on the branch
 `python3 bench/generate.py N` writes `examples/scale`, a synthetic project:
 one root over N services grouped five by five, each service a claim with two
 or three parts and a contract with proven code. `bench/measure.sh 20 60`
-times a cold check, then one change of each kind. On a 4-core container:
+times a cold check, then one change of each kind. On a 4-core container
+with nothing else running:
 
 | nodes | cold `check` | one code change | one claim change | one definition change | `status` |
 |---|---|---|---|---|---|
