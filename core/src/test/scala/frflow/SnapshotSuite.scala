@@ -523,35 +523,6 @@ class SnapshotSuite extends munit.FunSuite:
     assert(!w.status._2)
   }
 
-  test("a decision below that says when to revisit it is answered by name before the change above is accepted") {
-    val ws = workspace()
-    val before = under(onlyGood)
-    val w0 = workflow(KnowledgeBase("Shelf", idea = "IDEA.md")(before*), ws)
-    List(before(1), before(2), before(0)).foreach(n => ok(accept(w0, n, s"${n.id} is right")))
-    ok(accept(w0, before(3), "Books come from the shelf; revisit if books can come from elsewhere."))
-    ok(accept(w0, before(4), "OnlyLong is right"))
-    ok(w0.decide(Decisions.Request("Pick", "dev", "Picking is per call.", held = List("FromList"))))
-    // only the root's why changes: the decisions below stay accepted, and are listed with it
-    val r2 = Node.claim("OnlyGood", onlyGood.statement, "Picking a bad item is what the idea rules out, whatever the list.")(
-      forall((l: List[Item.T], x: Item.T) => shown(l, x) == (l.contains(x) && good(x))))
-    val w = workflow(KnowledgeBase("Shelf", idea = "IDEA.md")(under(r2)*), ws)
-    // FromList's reason names when to revisit it: no default
-    val r = accept(w, r2, "The why is clearer now.")
-    assert(r.left.exists(_.contains("FromList")), r)
-    ok(w.decide(Decisions.Request("OnlyGood", "dev", "The why is clearer now.", held = List("FromList"))))
-  }
-
-  test("a new node under a decision that says when to revisit it answers it by name") {
-    val w = workflow(shelfKb, workspace())
-    List(books, picking, onlyGood).foreach(n => ok(accept(w, n, s"${n.id} is right")))
-    ok(accept(w, fromList, "Books come from the shelf; revisit if books can come from elsewhere."))
-    List(onlyLong, everyLong).foreach(n => ok(accept(w, n, s"${n.id} is right")))
-    assertEquals(nodes(w.annotated)("Pick")("conditionsAbove").get.arr.flatMap(_.str), Seq("FromList"))
-    assert(accept(w, pick, "Picking is per call.").left.exists(_.contains("FromList")))
-    ok(w.decide(Decisions.Request("Pick", "dev", "Picking is per call.", held = List("FromList"))))
-    assertEquals(w.ledger.current("Pick").get.held, List("FromList"))
-  }
-
   test("a confirmation it cannot apply is refused, with why, not dropped") {
     val ws = workspace()
     acceptAll(workflow(KnowledgeBase("Shelf", idea = "IDEA.md")(under(onlyGood)*), ws))
@@ -559,28 +530,9 @@ class SnapshotSuite extends munit.FunSuite:
     val w = workflow(KnowledgeBase("Shelf", idea = "IDEA.md")(under(r2)*), ws)
     val r = w.decide(Decisions.Request("OnlyGood", "dev", "Clearer with 'only then' added.", confirm = List("Books")))
     assert(r.left.exists(_.contains("Books")), r)
-    val h = w.decide(Decisions.Request("OnlyGood", "dev", "Clearer with only then added.", held = List("Elsewhere")))
+    val h = w.decide(Decisions.Request("OnlyGood", "dev", "Clearer with only then added.", revisit = List("Elsewhere")))
     assert(h.left.exists(_.contains("not among")), h)
     ok(w.decide(Decisions.Request("OnlyGood", "dev", "Clearer with 'only then' added.", revisit = List("FromList"))))
-  }
-
-  test("a renamed node keeps its history, its reasons and the alternatives rejected for it, in one decision") {
-    val ws = workspace()
-    acceptAll(workflow(shelfKb, ws))
-    val w = workflow(shelfWith(choose).implement(choose)((shelf, n) => shelf.filter(_.pages >= minPages.value)), ws)
-    val gone = w.annotated("gone").get.arr.toList
-    assertEquals(gone.map(g => field(g, "id")), List(Some("Pick")))
-    assertEquals(gone.head("renamedTo").get.arr.flatMap(_.str), Seq("Choose"))
-    assertEquals(w.state(choose), "proposed")
-    // only a node that says the same is a rename
-    assert(w.decide(Decisions.Request("FromList", "dev", "FromList is not Pick renamed.", action = "rename", from = "Pick")).isLeft)
-    ok(w.decide(Decisions.Request("Choose", "dev", "Choose says what the call does.", action = "rename", from = "Pick")))
-    assertEquals(w.state(choose), "accepted")
-    assertEquals(w.gone, Nil)
-    assertEquals(w.ledger.history("Choose").map(_.action), List("accept", "accept"))
-    assert(field(nodes(w.annotated)("Choose"), "reasonNow").exists(r => r.startsWith("Pick is right") && r.contains("renamed from Pick")),
-      field(nodes(w.annotated)("Choose"), "reasonNow"))
-    assertEquals(Ledger.fromJson(Json.parse(Files.readString(ws.ledgerFile))).history("Choose").map(_.from), List("", "Pick"))
   }
 
   test("a type change is mechanical where nothing the developer decided changed") {
@@ -603,14 +555,6 @@ class SnapshotSuite extends munit.FunSuite:
     // a definition it calls is part of what it says: not mechanical
     val redefined = withUses(_ :+ Json.str("long = (b: Book) => b.pages >= 10"))
     assert(Decisions.mechanical(redefined, w.ledger, nodes(redefined)("Pick")).exists(_.contains("changed")))
-  }
-
-  test("a reason that says when to revisit it, in the usual words; a statement of fact is not one") {
-    for t <- List("Fine until we add a second server.", "If grants move to LDAP, revisit this.", "Revisit if we add exports.",
-        "Reconsider once the store is shared.", "It holds as long as one process decides.") do
-      assert(Decisions.conditional(t), t)
-    for t <- List("A record stays private until its company shares it.", "Accounts are users of a company.", "Revisit later.") do
-      assert(!Decisions.conditional(t), t)
   }
 
   test("decisions the ledger lost since the base are found") {

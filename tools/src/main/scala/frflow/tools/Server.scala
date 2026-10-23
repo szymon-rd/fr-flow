@@ -147,7 +147,7 @@ final class Server(projects: List[Project], val token: String = Server.newToken(
             // With a named developer, decisions are theirs whatever the page says.
             val req = frflow.Decisions.Request(field("node"), Project.developer.getOrElse(field("by")), field("reason"), ids("reject"),
               ids("revisit"), ids("confirm"), body("action").flatMap(_.str).getOrElse("accept"),
-              body("seen").flatMap(_.str).getOrElse(""), ids("held"), field("from"))
+              body("seen").flatMap(_.str).getOrElse(""))
             // A batch: the same reason for several nodes (`nodes`: [{node, seen}]), all or none.
             val reqs = body("nodes").map(_.arr.toList).filter(_.nonEmpty).fold(List(req))(_.map(x =>
               req.copy(node = x("node").flatMap(_.str).getOrElse(""), seen = x("seen").flatMap(_.str).getOrElse(""))))

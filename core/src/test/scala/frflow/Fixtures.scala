@@ -81,16 +81,6 @@ val anyOnes = define { (shelf: List[Book], n: Int) => shelf }
 /** A filter, hidden in a definition. */
 val onShelf = define { (shelf: List[Book], picked: List[Book]) => picked.filter(b => shelf.contains(b)) }
 
-/** Pick, renamed: the same contract under another name. */
-val choose = Node.contract(picks)("Choose", "A call returns exactly the long enough books of the shelf.", why = "The three parts, for one call, checked on every result.")(
-  (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages.value) && shelf.forall(b => b.pages >= minPages.value ==> picked.contains(b)))
-  .under(fromList, onlyLong, everyLong)
-  .examples(minPages.bind(100))(
-    expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
-    expect(List(Book("Short", 20)), 5, Nil, "no book is long enough: none is picked"),
-    reject(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Short", 20)), "a short book is never picked"),
-    reject(List(Book("Long", 300)), 5, Nil, "a long book is not left on the shelf"))
-
 /** Code that calls another contract's operation, proven from that contract's promise, not its code. */
 val again = Param[(List[Book], Int) => List[Book]]("again", "the books picked again, through the shelf service")
 val pickedAgain = Node.claim("PickedAgain", "Books picked again come from the shelf and are long enough.", why = "Picking again is picking.")(

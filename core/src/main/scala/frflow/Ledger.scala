@@ -50,18 +50,15 @@ final case class NodeCheck(
   * @param reason   why: kept as part of the theory
   * @param rejected for `accept`, the alternatives rejected by this choice
   * @param code     the fingerprint of the source files the node governs, when decided
-  * @param held     the decisions below that were shown with this one and left as they are:
-  *                 considered, and still holding
   * @param after    the node's decision this one follows (its `ref`): two decisions following the same
   *                 one come from two branches, merged; the node is then decided again
-  * @param from     for an `accept` that renames a gone node: its old id, whose history it continues
   * @param commit   the git commit checked out when deciding
   * @param tree     the code as decided, written to git as a tree, to show how the code changed since
   *                 (a clone without it falls back to `commit`)
   */
 final case class Decision(action: String, content: Json, chain: String, by: String, at: String, reason: String,
-    rejected: List[String] = Nil, code: String = "", commit: String = "", tree: String = "", held: List[String] = Nil,
-    after: String = "", key: String = "", sig: String = "", from: String = ""):
+    rejected: List[String] = Nil, code: String = "", commit: String = "", tree: String = "",
+    after: String = "", key: String = "", sig: String = ""):
   def hash: String = Decision.hash(content)
   /** The decision without its signature: what is signed, and what a rewrite is judged on. */
   def unsigned: Decision = copy(key = "", sig = "")
@@ -83,14 +80,8 @@ object Decision:
   * Kept in `.frflow/ledger.json` and committed. Nothing in it is ever overwritten.
   */
 final case class Ledger(decisions: Map[String, List[Decision]]):
-  /** A node's decisions; a renamed node's start with those of the id it had. */
-  def history(id: String): List[Decision] = history(id, Set.empty)
-  private def history(id: String, seen: Set[String]): List[Decision] =
-    val own = decisions.getOrElse(id, Nil)
-    own.headOption.map(_.from).filter(f => f.nonEmpty && !seen(f) && f != id).fold(own)(f => history(f, seen + id) ++ own)
-  /** Renames: each old id, with the id it has now. */
-  lazy val renames: Map[String, String] =
-    decisions.toList.flatMap((id, ds) => ds.headOption.map(_.from).filter(_.nonEmpty).map(_ -> id)).toMap
+  /** A node's decisions, oldest first. */
+  def history(id: String): List[Decision] = decisions.getOrElse(id, Nil)
   def current(id: String): Option[Decision] = history(id).lastOption
   /** The developer's choice of the node: the acceptance that chose it (the first since it was last
     * rejected or removed), which carries the reason it was chosen. Later acceptances are of changes.
@@ -142,9 +133,7 @@ final case class Ledger(decisions: Map[String, List[Decision]]):
       id -> JArr(ds.zipWithIndex.map((d, i) => JObj(Seq(
         "action" -> str(d.action), "by" -> str(d.by), "at" -> str(d.at), "reason" -> str(d.reason)) ++
         (if d.rejected.isEmpty then Nil else Seq("rejected" -> JArr(d.rejected.map(str)))) ++
-        (if d.held.isEmpty then Nil else Seq("held" -> JArr(d.held.map(str)))) ++
         (if d.after.isEmpty then Nil else Seq("after" -> str(d.after))) ++
-        (if d.from.isEmpty then Nil else Seq("from" -> str(d.from))) ++
         (if d.code.isEmpty then Nil else Seq("code" -> str(d.code))) ++
         (if d.commit.isEmpty then Nil else Seq("commit" -> str(d.commit))) ++
         (if d.tree.isEmpty then Nil else Seq("tree" -> str(d.tree))) ++
@@ -207,7 +196,7 @@ object Ledger:
           case other => other.getOrElse(JNull)
         acc :+ Decision(s(d, "action"), content, s(d, "chain"), s(d, "by"), s(d, "at"), s(d, "reason"),
           d("rejected").map(_.arr).getOrElse(Nil).flatMap(_.str).toList, s(d, "code"), s(d, "commit"), s(d, "tree"),
-          d("held").map(_.arr).getOrElse(Nil).flatMap(_.str).toList, s(d, "after"), s(d, "key"), s(d, "sig"), s(d, "from"))
+          s(d, "after"), s(d, "key"), s(d, "sig"))
       }
     }.toMap)
 
