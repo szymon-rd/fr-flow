@@ -60,7 +60,7 @@ object ReportText:
 
   def history(ls: List[Logged], st: Style): List[String] =
     if ls.isEmpty then List("No decisions yet.")
-    else ls.map(l => s"${st.dim(Words.date(l.decision.at))}  ${st.bold(l.node.value)} ${Words.verb(l.decision.action)} by ${l.decision.by}" +
-      (if l.decision.rejected.isEmpty then "" else s", rejecting ${l.decision.rejected.mkString(", ")}") + s": ${l.decision.reason}")
+    else ls.flatMap(l => Lines.para(s"${Words.date(l.decision.at)}  ${st.bold(l.node.value)} ${Words.verb(l.decision.action)} by ${l.decision.by}" +
+      (if l.decision.rejected.isEmpty then "" else s", rejecting ${l.decision.rejected.mkString(", ")}") + s": ${l.decision.reason}", st, indent = 0, hang = 4))
 
   def decided(d: Decided, st: Style): List[String] = d.decisions.map(l => s"  ${st.bullet} ${Words.decided(l)}")

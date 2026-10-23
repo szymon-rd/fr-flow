@@ -40,5 +40,5 @@ object Find:
   private def mentions(v: View, query: String): List[Hit] =
     val words = query.toLowerCase.split("\\s+").filter(_.nonEmpty).toList
     def sentence(e: Entry) = e.text.split("(?<=[.!?])\\s+|\n").map(_.trim)
-      .find(x => x.nonEmpty && words.exists(x.toLowerCase.contains)).filterNot(e.label.contains).map(_.take(200))
+      .find(x => x.nonEmpty && !e.id.exists(_.value == x) && words.exists(x.toLowerCase.contains)).filterNot(e.label.contains).map(_.take(200))
     entries(v).filter(e => words.forall(e.text.toLowerCase.contains)).take(10).map(e => Hit(e.kind, e.id, e.label, sentence(e)))
