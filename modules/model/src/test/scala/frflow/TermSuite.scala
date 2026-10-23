@@ -54,8 +54,13 @@ class TermSuite extends munit.FunSuite:
       lean1((o: Term[Option[Book]]) => o.on[Some[Book]](b => b.pages).on[None.type](0)) -> "(match o with | some b => b.pages | none => 0)",
       lean1((s: Term[Shelf]) => s.on[Shelf.Box](_ => True).on[Shelf.Top.type](False).on[Shelf.Bottom.type](False)) ->
         "(match s with | Shelf.Box _ => True | Shelf.Top => False | Shelf.Bottom => False)",
-      lean1((b: Term[Book]) => If(b.pages > 1)(b.title).Else("none")) -> "(if (b.pages > 1) then b.title else \"none\")"
+      lean1((b: Term[Book]) => If(b.pages > 1)(b.title).Else("none")) -> "(if (b.pages > 1) then b.title else \"none\")",
+      // an enum's case built from terms is a term of the enum
+      lean2((xs: Term[List[Shelf]], l: Term[String]) => xs.contains(make[Shelf.Box](l))) -> "((Shelf.Box l) ∈ xs)"
     ).foreach((got, want) => assertEquals(got, want))
+    assertEquals(lifted1((l: Term[String]) => make[Shelf.Box](l): Term[Shelf]).value("x"), Shelf.Box("x"))
+    // a parameter only plain code reads (a database handle) needs no Lean type
+    assertEquals(Param[java.io.File]("store", "a handle").name, "store")
     val d = lean2((l: Term[List[Book]], x: Term[Book]) => l.forall(x_1 => l.exists(x => x === x_1)))
     assert(!d.contains("(x = x)") && !d.contains("(x_1 = x_1)"), d)
     // calls hidden in strings stay strings

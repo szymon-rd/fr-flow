@@ -64,7 +64,7 @@ class KeycloakSuite extends munit.CatsEffectSuite:
     val db = SessionDb.loaded(atStart)
     val introspectSide = leaky.service(introspectContract)(sessionDb.bind(db), seed.bind(atStart), history.bind(db.events()),
       sessions.bind((r: RealmId) => db.load().sessions.filter(_.realm == r)),
-      account.bind((r: RealmId, u: String) => accountOf(db.load().accounts, r, u)))
+      account.bind((r: RealmId, u: String) => accountOf.fn(db.load().accounts, r, u)))
     val e = intercept[ContractViolation](introspectSide(acme, "t9"))
     assert(e.getMessage.contains("SessionLookup"), e.getMessage)
   }

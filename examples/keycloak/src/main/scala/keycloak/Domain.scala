@@ -9,6 +9,7 @@ import frflow.*
 final case class RealmId(name: String)
 final case class UserAccount(realm: RealmId, username: String, passwordHash: String, enabled: Boolean, roles: List[String])
 final case class Session(token: String, realm: RealmId, user: String)
+object Session extends Data[Session]
 
 enum AuthRequest:
   /** A sign-in: the password arrives already hashed with the user's salt; `token` is a fresh random value the server drew. */
@@ -31,72 +32,68 @@ val history = Param[List[AuthRequest]]("history",
 // ============================================================================
 
 /** An administrator's change: enabling or disabling a user of a realm; other requests change no account. */
-val administer = define { (as: List[UserAccount], q: AuthRequest) =>
-  q match
-    case AuthRequest.SetEnabled(r, u, on) => as.map(a => if a.realm == r && a.username == u then a.copy(enabled = on) else a)
-    case AuthRequest.SignIn(_, _, _, _)   => as
-    case AuthRequest.SignOut(_, _)        => as
+val administer = define { (as: Term[List[UserAccount]], q: Term[AuthRequest]) =>
+  q.on[AuthRequest.SetEnabled]((r, u, on) => as.map(a => If(a.realm === r && a.username === u)(a.copy((enabled = on))).Else(a)))
+    .on[AuthRequest.SignIn]((_, _, _, _) => as)
+    .on[AuthRequest.SignOut]((_, _) => as)
 }
 
 /** The accounts after some requests: as loaded, with each administrator's change applied in turn. */
-val accountsAfter = define { (hs: List[AuthRequest]) => hs.foldLeft(seed.value)((as, q) => administer(as, q)) }
+val accountsAfter = define { (hs: Term[List[AuthRequest]]) => hs.foldLeft(seed: Term[List[UserAccount]])((as, q) => administer(as, q)) }
 
 /** The user's account in a realm, if there is one. */
-val accountOf = define { (as: List[UserAccount], r: RealmId, u: String) => as.find(a => a.realm == r && a.username == u) }
+val accountOf = define { (as: Term[List[UserAccount]], r: Term[RealmId], u: Term[String]) => as.find(a => a.realm === r && a.username === u) }
 
 /** Whether there is an account, and it is enabled. */
-val isEnabled = define { (a: Option[UserAccount]) => a.exists(x => x.enabled) }
+val isEnabled = define { (a: Term[Option[UserAccount]]) => a.exists(x => x.enabled) }
 
 /** The roles an account has (none without an account). */
-val rolesIn = define { (a: Option[UserAccount]) =>
-  a match
-    case Some(x) => x.roles
-    case None    => Nil
+val rolesIn = define { (a: Term[Option[UserAccount]]) =>
+  a.on[Some[UserAccount]](x => x.roles)
+    .on[None.type](Nil)
 }
 
 val accounts = Node.definition("Accounts",
   "A user is enabled, and has the roles, that their account in the realm says, as loaded at start and as administrators have set it since.",
   why = "Realms and users are loaded at start (managing them is not modelled); an administrator can enable or disable a user, and the next request sees it."
-)(enabled := ((r: RealmId, u: String) => isEnabled(accountOf(accountsAfter(history.value), r, u))),
-  rolesOf := ((r: RealmId, u: String) => rolesIn(accountOf(accountsAfter(history.value), r, u))))
+)(enabled := ((r: Term[RealmId], u: Term[String]) => isEnabled(accountOf(accountsAfter(history), r, u))),
+  rolesOf := ((r: Term[RealmId], u: Term[String]) => rolesIn(accountOf(accountsAfter(history), r, u))))
 
 // ============================================================================
 // Signing in and out, as the history of requests says it
 // ============================================================================
 
 /** The session a request asks for, when these accounts grant it: a sign-in by an enabled user with their password. */
-val grantedBy = define { (as: List[UserAccount], q: AuthRequest) =>
-  q match
-    case AuthRequest.SignIn(r, u, h, t) => if accountOf(as, r, u).exists(a => a.enabled && a.passwordHash == h) then Some(Session(t, r, u)) else None
-    case AuthRequest.SignOut(_, _)       => None
-    case AuthRequest.SetEnabled(_, _, _) => None
+val grantedBy = define { (as: Term[List[UserAccount]], q: Term[AuthRequest]) =>
+  q.on[AuthRequest.SignIn]((r, u, h, t) => If(accountOf(as, r, u).exists(a => a.enabled && a.passwordHash === h))(some(Session(t, r, u))).Else(none))
+    .on[AuthRequest.SignOut]((_, _) => none)
+    .on[AuthRequest.SetEnabled]((_, _, _) => none)
 }
 
 /** Whether a sign-in in the history got the session, granted by the accounts as they were then, and no
   * sign-out with its token in its realm came after it.
   */
-val liveIn = define { (hs: List[AuthRequest], x: Session) =>
-  exists((pre: List[AuthRequest], post: List[AuthRequest]) =>
-    exists((q: AuthRequest) => hs == pre ++ (q :: post) && grantedBy(accountsAfter(pre), q) == Some(x)) &&
-      !post.contains(AuthRequest.SignOut(x.realm, x.token)))
+val liveIn = define { (hs: Term[List[AuthRequest]], x: Term[Session]) =>
+  exists((pre: Term[List[AuthRequest]], post: Term[List[AuthRequest]]) =>
+    exists((q: Term[AuthRequest]) => hs === pre ++ (q :: post) && grantedBy(accountsAfter(pre), q) === some(x)) &&
+      !post.contains(make[AuthRequest.SignOut](x.realm, x.token)))
 }
 
 val signInHistory = Node.definition("SignInHistory",
   "A user is signed in to a realm with a token when a sign-in of theirs to that realm got the token, while they were enabled and with their password, and no sign-out with the token in that realm came after it.",
   why = "This is what signing in and out means, said of the history of requests alone, whatever the server keeps: the server's sessions are proven to follow it (SessionsMirrorSignIns)."
-)(signedIn := ((r: RealmId, u: String, t: String) => liveIn(history.value, Session(t, r, u))))
+)(signedIn := ((r: Term[RealmId], u: Term[String], t: Term[String]) => liveIn(history, Session(t, r, u))))
 
 /** The token a sign-in carries. */
-val tokenOf = define { (q: AuthRequest) =>
-  q match
-    case AuthRequest.SignIn(_, _, _, t)  => Some(t)
-    case AuthRequest.SignOut(_, _)       => None
-    case AuthRequest.SetEnabled(_, _, _) => None
+val tokenOf = define { (q: Term[AuthRequest]) =>
+  q.on[AuthRequest.SignIn]((_, _, _, t) => some(t))
+    .on[AuthRequest.SignOut]((_, _) => none)
+    .on[AuthRequest.SetEnabled]((_, _, _) => none)
 }
 
 /** Whether a request carries a token no earlier sign-in carried (a request that is no sign-in carries none). */
-val fresh = define { (pre: List[AuthRequest], q: AuthRequest) =>
-  tokenOf(q).forall(t => !pre.exists(p => tokenOf(p) == Some(t)))
+val fresh = define { (pre: Term[List[AuthRequest]], q: Term[AuthRequest]) =>
+  tokenOf(q).forall(t => !pre.exists(p => tokenOf(p) === some(t)))
 }
 
 // ============================================================================
