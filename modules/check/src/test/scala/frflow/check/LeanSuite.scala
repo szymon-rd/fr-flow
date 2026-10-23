@@ -64,6 +64,11 @@ class LeanSuite extends munit.FunSuite with TempDirs:
     // the code is proven: nothing is trusted
     assertEquals(result(root, "root_impl").map(r => (r.status.toString, r.detail)), Some(("proven", "the root holds of the code, trusting nothing")))
     assertEquals(w.generate.trusted, Nil)
+    // the root checked alone builds the proofs of the code it composes: it does not read what a build left, or nothing
+    val olean = w.ws.lean.resolve(s".lake/build/lib/lean/${w.generate.layout.impl("Pick").path.stripSuffix(".lean")}.olean")
+    assert(Files.deleteIfExists(olean), olean)
+    val again = of(w.check(Some("OnlyGood")), "OnlyGood")
+    assertEquals(result(again, "root_impl").map(r => (r.status.toString, r.detail)), Some(("proven", "the root holds of the code, trusting nothing")))
   }
 
   test("two modules proving things of one match with a wildcard can be imported together: its equations are made where it is defined") {

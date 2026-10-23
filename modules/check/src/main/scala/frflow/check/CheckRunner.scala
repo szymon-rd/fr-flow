@@ -149,8 +149,17 @@ final class NodeChecker(a: Analysis, lake: Lake, prebuilt: Set[String]):
       _ <- proofFile(n, proof, results)
       checks <- lift(generated(g.layout.checks(n.id).path))
       _ <- stop(Verdict.checksRan(results, checks.run))
-      root <- lift(g.rootImpl.filter(_ => a.kb.isRoot(n)).traverse(_ => generated(g.layout.rootImpl.path)))
+      root <- lift(g.rootImpl.filter(_ => a.kb.isRoot(n)).traverse(_ => rootImpl))
     yield Verdict.finish(a, n, results, impl, checks, root)
+
+  // `root_impl` composes the proofs of the code; `lake env lean` builds nothing it imports, so they are built first:
+  // else it reads what an earlier build left of them, or nothing. One that does not build is the reason, by name.
+  private def rootImpl: IO[Either[String, Elaborated]] =
+    val rel = g.layout.rootImpl.path
+    val composed = Verdict.composed(a.kb, g, a.files.getOrElse(rel, ""))
+    NonEmptyList.fromList(composed.map(c => g.layout.impl(c.id).name).filterNot(prebuilt))
+      .fold(IO.pure(Run.built))(lake.build)
+      .flatMap(r => Verdict.composedBuilt(g, composed, r).fold(generated(rel).map(Right(_)))(why => IO.pure(Left(why))))
 
   // Built already (with its level), automatic `complete` is proven without elaborating it again. Automation is
   // tried only while no proof file proves it: what to do next comes first.

@@ -152,7 +152,7 @@ object Verdict:
 
   /** The verdict from the Checks file (one run of Lean) and `root_impl`: each theorem holds with no error, no `sorry`, and its axioms. */
   def finish(a: Analysis, n: Node[?], results: List[Result], impl: Option[(Result, Option[List[String]])], checks: Elaborated,
-      root: Option[Elaborated]): Judged =
+      root: Option[Either[String, Elaborated]]): Judged =
     val g = a.generate
     // The tries: what Lean proves of them says the node or its split says nothing, or too much.
     val tried = g.tries(n).map(t => (t, checks.verdict(t.obligation.name).proven))
@@ -194,11 +194,33 @@ object Verdict:
       case Some(used) => Judged(CheckStatus.Proven, all, Nil, used)
 
   /** The root, of the code, from what is trusted only: proven with the axioms Lean printed for it (none printed, it did not finish). */
-  private def rootVerdict(g: Generate, e: Elaborated): (Result, Option[List[String]]) =
+  private def rootVerdict(g: Generate, root: Either[String, Elaborated]): (Result, Option[List[String]]) =
     def notProven(why: String) = (Result(RootImpl, Open, s"the root is not proven of the code: $why"), Some(Nil))
-    (e.verdict(RootImpl), e.axiomsOf(RootImpl)) match
+    // A module that is missing, by name: not the path Lake keeps it at.
+    def named(why: String) = MissingModule.replaceAllIn(why, m => scala.util.matching.Regex.quoteReplacement(s"${m.group(1)} did not build"))
+    root.fold(notProven, e => (e.verdict(RootImpl), e.axiomsOf(RootImpl)) match
       case (TheoremVerdict.Proven, Some(axioms)) =>
         val trusting = if g.trusted.isEmpty then "nothing" else g.trusted.map(_.id).mkString(", ")
         (Result(RootImpl, Proven, s"the root holds of the code, trusting $trusting"), Some(axioms))
       case (TheoremVerdict.Proven, None) => notProven(s"Lean did not print its axioms: ${quoted(e.run)}")
-      case (v, _) => notProven(clip(v.why(RootImpl.lean).getOrElse(""), 5000))
+      case (v, _) => notProven(named(clip(v.why(RootImpl.lean).getOrElse(""), 5000))))
+  private val MissingModule = """object file '[^']*' of module (\S+) does not exist""".r
+
+  /** The nodes whose proofs of the code `root_impl` composes: the `Impl` modules RootImpl imports. */
+  def composed(kb: KnowledgeBase, g: Generate, rootImpl: String): List[Node[?]] =
+    val imports = """(?m)^import\s+(\S+)""".r.findAllMatchIn(rootImpl).map(_.group(1)).toSet
+    kb.nodes.filter(c => imports(g.layout.impl(c.id).name))
+
+  /** Whether the proofs of the code it composes built; if not, which did not, as Lake lists the targets that failed. */
+  def composedBuilt(g: Generate, composed: List[Node[?]], run: Run): Option[String] =
+    def failed(c: Node[?]) =
+      val (modules, files) = (Set(g.layout.impl(c.id), g.layout.proofs(c.id)).map(_.name), List(g.layout.impl(c.id).path, g.layout.proofs(c.id).path))
+      run.output.linesIterator.exists(l => (l.startsWith("✖") || l.startsWith("- ")) && l.split("\\s+").exists(modules)) ||
+        LeanOutput.diagnostics(run.output).exists(d => d.isError && files.exists(d.file.endsWith))
+    run match
+      case Run.TimedOut(_) => Some("Lean timed out building the proofs of the code it composes: run check again")
+      case r if r.ok => None
+      case _ => Some(composed.filter(failed).map(_.id) match
+        case Nil => s"the proofs of the code it composes do not build: ${quoted(run)}"
+        case List(id) => s"$id's impl did not build (check $id says why)"
+        case ids => s"the impls of ${ids.mkString(", ")} did not build (check each says why)")

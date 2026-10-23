@@ -146,7 +146,7 @@ class CheckSuite extends munit.FunSuite:
     elaborated(Run.Done(1, (failing ++ audits).mkString("\n")), text, rel)
 
   test("the verdict from the Checks file: the tries in plain words, the axioms audited, fail closed") {
-    val root = Some(elaborated(Run.Done(0, "'Shelf.RootImpl.root_impl' does not depend on any axioms"), "theorem root_impl : Obl.root_impl := by\n  auto\n", "r"))
+    val root = Some(Right(elaborated(Run.Done(0, "'Shelf.RootImpl.root_impl' does not depend on any axioms"), "theorem root_impl : Obl.root_impl := by\n  auto\n", "r")))
     val results = List(Result(ObligationName.Complete, ObligationStatus.Proven, "auto"))
     val j = Verdict.finish(a, onlyGood, results, None, checked(a, onlyGood, "depends on axioms: [propext]"), root)
     assertEquals(j.status, CheckStatus.Proven, j)
@@ -167,18 +167,37 @@ class CheckSuite extends munit.FunSuite:
     val results = List(Result(ObligationName.Complete, ObligationStatus.Proven, "auto"))
     val source = "import FrFlowGen.Shelf.Pick.Impl\n\ntheorem root_impl : Obl.root_impl := by\n  auto\n"
     val checks = checked(a, onlyGood, "depends on axioms: [propext]")
-    def judged(run: Run) = Verdict.finish(a, onlyGood, results, None, checks, Some(elaborated(run, source, "FrFlowGen/Shelf/RootImpl.lean")))
+    def judged(run: Run) = Verdict.finish(a, onlyGood, results, None, checks, Some(Right(elaborated(run, source, "FrFlowGen/Shelf/RootImpl.lean"))))
     def rootImpl(run: Run) = judged(run).results.find(_.name == ObligationName.RootImpl).map(r => (r.status, r.detail))
-    // the import did not build: Lean says so before the theorem
-    val noImport = Run.Done(1, "FrFlowGen/Shelf/RootImpl.lean:1:0: error: object file of module FrFlowGen.Shelf.Pick.Impl does not exist")
+    // the import did not build: Lean says so before the theorem, and the message names the module, not where Lake keeps it
+    val noImport = Run.Done(1, "FrFlowGen/Shelf/RootImpl.lean:1:0: error: object file '/w/lean/.lake/build/lib/lean/FrFlowGen/Shelf/Pick/Impl.olean' " +
+      "of module FrFlowGen.Shelf.Pick.Impl does not exist")
     assertEquals(rootImpl(noImport),
-      Some((ObligationStatus.Open, "the root is not proven of the code: object file of module FrFlowGen.Shelf.Pick.Impl does not exist")))
+      Some((ObligationStatus.Open, "the root is not proven of the code: FrFlowGen.Shelf.Pick.Impl did not build")))
     // what is not proven is in the results; the Checks file is not blamed
     assertEquals(judged(noImport).messages, Nil)
     // Lean stopped, saying nothing of the file; or it printed no axioms: it did not finish
     assertEquals(rootImpl(Run.Done(1, "error: build failed")).map(_._2),
       Some("the root is not proven of the code: not checked: error: build failed"))
     assert(rootImpl(Run.Done(0, "")).exists((s, d) => s == ObligationStatus.Open && d.contains("Lean did not print its axioms")))
+  }
+
+  test("root_impl is elaborated only once the proofs of the code it composes are built: one that does not build is the reason, by name") {
+    val withCode = Desk(shelfKb.implementProven(pick)(longOnes)).analysis
+    val g = withCode.generate
+    val composed = Verdict.composed(withCode.kb, g, withCode.files.getOrElse(g.layout.rootImpl.path, ""))
+    assertEquals(ids(composed), List("Pick"))
+    assertEquals(Verdict.composedBuilt(g, composed, Run.Done(0, "Build completed successfully")), None)
+    // as Lake prints a target that failed
+    val failed = Run.Done(1, "✖ [28/28] Building FrFlowGen.Shelf.Pick.Impl (750ms)\n" +
+      "error: FrFlowGen/Shelf/Pick/Impl.lean:16:8: Unknown identifier `bogus`\nSome required targets logged failures:\n- FrFlowGen.Shelf.Pick.Impl\nerror: build failed")
+    val why = Verdict.composedBuilt(g, composed, failed)
+    assertEquals(why, Some("Pick's impl did not build (check Pick says why)"))
+    val judged = Verdict.finish(withCode, onlyGood, List(Result(ObligationName.Complete, ObligationStatus.Proven, "auto")), None,
+      checked(withCode, onlyGood, "depends on axioms: [propext]"), why.map(Left(_)))
+    assertEquals(judged.results.find(_.name == ObligationName.RootImpl).map(r => (r.status, r.detail)),
+      Some((ObligationStatus.Open, "the root is not proven of the code: Pick's impl did not build (check Pick says why)")))
+    assertEquals(Verdict.composedBuilt(g, composed, Run.TimedOut("")).map(_.contains("timed out")), Some(true))
   }
 
   test("the goal the first steps of a proof leave, as the stub and the message show it") {
