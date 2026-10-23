@@ -29,7 +29,7 @@ class LeanSuite extends munit.FunSuite:
     def generate: Generate = analysis.generate
     def baseSnapshot: Snapshot = analysis.snapshot
     def scaffold(n: Node[?]): Boolean = w.scaffold(n).unsafeRunSync().isDefined
-    def status: String = Status.text(w.status.unsafeRunSync())
+    def status: Status = w.status.unsafeRunSync()
 
   private def workflow(kb: KnowledgeBase): Lab =
     assume(lakeAvailable, "lake is not available")
@@ -46,7 +46,7 @@ class LeanSuite extends munit.FunSuite:
     val w = workflow(shelfKb.implementProven(pick)(longOnes))
     val r = w.check()
     assertEquals(statuses(r), List("OnlyGood" -> "proven", "FromList" -> "proven", "OnlyLong" -> "proven", "EveryLong" -> "proven", "Pick" -> "proven"))
-    assert(r.flatMap(_._2.axioms).forall(Lean.allowedAxioms))
+    assert(r.flatMap(_._2.axioms).forall(ProofRules.allowedAxioms))
     // the root's parts make it only together: each is needed, and they do not clash
     val root = of(r, "OnlyGood")
     assertEquals(root.obligations.filter(o => o.name.startsWith("needed_") || Set("complete", "clash", "unsat")(o.name)).map(o => o.name -> o.status.toString),
@@ -61,7 +61,6 @@ class LeanSuite extends munit.FunSuite:
     // the code is proven: nothing is trusted
     assertEquals(result(root, "root_impl").map(r => (r.status.toString, r.detail)), Some(("proven", "the root holds of the code, trusting nothing")))
     assertEquals(w.generate.trusted, Nil)
-    assert(w.status.contains("Trusted (the hypotheses of root_impl, proven): nothing."), w.status)
   }
 
   test("two modules proving things of one match with a wildcard can be imported together: its equations are made where it is defined") {
@@ -134,7 +133,7 @@ class LeanSuite extends munit.FunSuite:
     val needed = splitOf(w, onlyGood).needed.map(n => n.id.value -> n.status.toString).toMap
     assertEquals(needed("Bounded"), "not-needed")
     val n = node(w, "OnlyGood")
-    assert(Reports.unproven(n).exists(_.startsWith("Bounded is not needed for it")), Reports.unproven(n))
+    assert(Proofs.unproven(n).exists(_.startsWith("Bounded is not needed for it")), Proofs.unproven(n))
   }
 
   test("parts that contradict each other fail their parent, however complete") {
@@ -160,7 +159,7 @@ class LeanSuite extends munit.FunSuite:
     val root = of(w.check(), "Guard")
     assertEquals(result(root, "idle").map(_.status.toString), Some("idle"), root)
     val n = node(w, "Guard")
-    assert(Reports.unproven(n).exists(_.contains("doing nothing meets it")), Reports.unproven(n))
+    assert(Proofs.unproven(n).exists(_.contains("doing nothing meets it")), Proofs.unproven(n))
     // the shelf's root says exactly: doing nothing does not meet it
     assert(!workflow(shelfKb).check().exists((n, c) => result(c, "idle").exists(_.status.toString == "idle")))
   }
@@ -251,7 +250,7 @@ class LeanSuite extends munit.FunSuite:
     val sr = sw.check()
     assertEquals(result(of(sr, "Same"), "restates").map(_.status.toString), Some("restates"), of(sr, "Same"))
     assertEquals(result(of(r, "Trivial"), "restates").map(_.status.toString), Some("not-restates"), of(r, "Trivial"))
-    assert(sw.status.contains("warning: Same says what Again says: merge them, or say what Same adds"), sw.status)
+    assert(sw.status.warnings.contains("Same says what Again says: merge them, or say what Same adds"), sw.status.warnings)
     val never = Node.claim("Never", "The service picks more books than it picks.", why = "w")(
       picks(List(Book("A", 1)), 1).length > picks(List(Book("A", 1)), 1).length).under(onlyGood)
     val u = of(workflow(KnowledgeBase("Unsat", idea = "IDEA.md")(onlyGood, books, picking, never)).check(), "Never")

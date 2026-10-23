@@ -68,7 +68,7 @@ class SnapshotSuite extends munit.FunSuite:
     assertEquals(ns("Pick").code, None) // its implementation lives in the model's own file
     // the model's files are where its nodes are written; a model may span several
     assertEquals(shelfKb.modelFiles.map(f => java.nio.file.Paths.get(f).getFileName.toString), List("Fixtures.scala"))
-    assert(Reports.tree(a).contains("Pick (contract)  [proposed, unchecked, examples 4/4, code checked by running] (also under OnlyLong, EveryLong)"), Reports.tree(a))
+    assertEquals((ns("Pick").examplesPassing, CodeProof.of(ns("Pick")), ns("Pick").parents), ((4, 4), Some(CodeProof.ByRunning), ids("FromList", "OnlyLong", "EveryLong")))
   }
 
   test("a claim with no parts is a leaf, trusted as it stands") {
@@ -139,11 +139,10 @@ class SnapshotSuite extends munit.FunSuite:
     assert(d.accept(pick, "Pick still holds here.").left.exists(_.contains("accept FromList first")))
     val s = d.status
     assert(!s.ok)
-    assert(Status.text(s).contains("FromList (claim)  [rejected: remove it from the model"), Status.text(s))
     // The agent reads why: the reason may ask for something in the node's place.
-    val inbox = Reports.inbox(Some(d.annotated), Nil)
-    assert(inbox.contains("Pick: rests on rejected FromList"), inbox)
-    assert(inbox.contains("FromList: rejected by dev: Bounded was chosen instead: Readers want fewer books now; propose what the reason asks for"), inbox)
+    assertEquals(Waiting.of(d.annotated).agent, List(
+      ForAgent.Replace(NodeId("FromList"), "dev", "Bounded was chosen instead: Readers want fewer books now."),
+      ForAgent.Move(NodeId("Pick"), ids("FromList"))))
     assert(d.context(fromList).contains("Rejected by dev at "), d.context(fromList))
   }
 
@@ -260,7 +259,7 @@ class SnapshotSuite extends munit.FunSuite:
   test("a decided node removed from the model shows until the removal is confirmed") {
     val d = Desk(shelfKb).acceptAll.withKb(kbOf(shelfNodes))
     assertEquals(d.analysis.gone, ids("Pick"))
-    assert(Status.text(d.status).contains("Pick  [review: gone]"))
+    assert(!d.status.ok)
     assertEquals(ok(d.decide(req("Pick", "Picking moved to another service."))).analysis.gone, Nil)
   }
 

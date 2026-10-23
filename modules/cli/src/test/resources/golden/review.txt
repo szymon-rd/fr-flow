@@ -1,0 +1,82 @@
+
+1 mechanical decision(s): Lean proves them again, and nothing in them is a choice
+  + Root  claim  review: parts  A user gets access to a resource exactly when they are signed in...
+[a]ccept all, with one reason  [s]kip  [q]uit: a
+Why do they hold (e.g. a new field no rule reads)? the new parts are proven to make it
+recorded, signed by dev:
+  - confirm Root
+
+--- 2 waiting ---
++ Decide  contract on admit  review: self
+  A request is admitted on behalf of the user its token was issued to, exactly when a grant names
+  them and the path.
+  why: One call meets both rules at once.
+
+What changed since it was accepted (dev, 2026-01-02 10:00)
+  statement
+    - A request is admitted on behalf of its token's user exactly when a grant names that user and the path.
+    + A request is admitted on behalf of the user its token was issued to, exactly when a grant names them and the path.
+
+Decision
+  to review: it changed
+  what Decide says changed: the developer decides
+  decisions below it, with their reasons (accept --revisit NODE reviews one again; one that moved only with it is confirmed):
+    Memory: Sessions and grants are kept in memory. — holds because: Memory holds as stated
+
+Formally (as written in Scala)
+  post (every call of admit):
+    (t, p, d) => d == sessions(t).filter(u => grants(u, p))
+
+Parents: it is a part of each
+  + NeedsGrant  claim  accepted — its only part  A request is admitted only with a grant for the...
+  + LetsIn  claim  accepted — its only part  A request with a grant for the path is admitted.
+
+Design decisions under it
+  - Memory  design  accepted  Sessions and grants are kept in memory.
+
+Vocabulary
+  admit: the system's decision on a request (open)
+  grants: the grant table (open)
+
+Examples: 2 of 2 pass; Lean agrees on 2 of 2
+  given grants = List(Grant(alice, /a))
+    + expect admit(t1, /a) == Some(alice)  — Alice's token and a grant: she gets in  Lean agrees
+    + expect admit(t1, /b) == None  — no grant for /b: refused  Lean agrees
+
+Code
+  governs: src/main/scala/auth/Store.scala
+
+Decisions
+  2026-01-02 10:00 accepted by dev: Decide holds as stated
+
+[a]ccept [s]kip [q]uit [?]ask: ?
+What should change? Name the user as 'that user'.
+asked [R3]: Decide is with the agent until it answers or changes it
+
+--- 1 waiting ---
+o Expiry  claim  proposed
+  A session ends an hour after sign-in.
+  why: Stolen tokens expire.
+
+Decision
+  note: its check is open
+  rejected here before: Forever: A session never ends. — because sessions must end: a stolen token would work forever
+
+What it rests on, with the reasons: does it meet a condition they set for revisiting them?
+  Root: Root holds as stated (since confirmed: the new parts are proven to make it)
+
+Parents: it is a part of each
+  + Root  claim  accepted — with NeedsGrant, LetsIn, Forever, together they make it  A user gets...
+
+Proofs
+  check: open
+
+[a]ccept [r]eject [s]kip [q]uit [?]ask: a
+Why Expiry? an hour bounds a stolen token
+recorded, signed by dev:
+  - accept Expiry
+
+Decided 2 decision(s).
+Sample: 9 nodes, 7 accepted, 1 to review, 1 rejected
+splits 3/3 proven, contracts 0/1 proven down to their code, trusted: StoreKeeps, 2 with something unproven
+Waiting: 1 asked of the agent, 1 for the agent, 2 open request(s), 1 answer(s) to read

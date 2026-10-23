@@ -28,8 +28,8 @@ object LedgerStore:
 /** The developer's requests in `.frflow/requests.json`, and the agent's answers. */
 trait RequestStore:
   def load: IO[List[Request]]
-  /** The developer asks for a change, on a node or on the idea. */
-  def ask(node: Option[NodeId], text: String, by: String): IO[Request]
+  /** The developer asks for a change, on a node (as they saw it: its version) or on the idea. */
+  def ask(node: Option[NodeId], text: String, by: String, seen: Option[String] = None): IO[Request]
   /** Answers the request `to`, or the open request on the node `to` (see `Requests.answer`). */
   def answer(to: String, text: String, isNode: NodeId => Boolean): IO[Either[Refusal, Request]]
   /** Closes requests: all, or none if one is unknown. */
@@ -46,8 +46,8 @@ object RequestStore:
           now <- IO.realTimeInstant
           out <- f(rs, now).traverse((next, a) => Store.writeJson(file, next.asJson).as(a))
         yield out)
-      def ask(node: Option[NodeId], text: String, by: String): IO[Request] =
-        change[Nothing, Request]((rs, now) => Right(Requests.ask(rs, node, text, by, now))).map(_.merge)
+      def ask(node: Option[NodeId], text: String, by: String, seen: Option[String]): IO[Request] =
+        change[Nothing, Request]((rs, now) => Right(Requests.ask(rs, node, text, by, now, seen))).map(_.merge)
       def answer(to: String, text: String, isNode: NodeId => Boolean): IO[Either[Refusal, Request]] =
         change(Requests.answer(_, to, text, isNode, _))
       def close(ids: List[RequestId]): IO[Either[Refusal, List[Request]]] = change((rs, _) => Requests.close(rs, ids))

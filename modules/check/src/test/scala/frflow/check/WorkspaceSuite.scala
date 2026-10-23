@@ -34,7 +34,7 @@ class WorkspaceSuite extends munit.CatsEffectSuite:
       _ <- w.analysis.map(a => assertEquals(a.state(pick), ReviewState.Accepted))
       _ <- write(impl, "class Impl // faster")
       _ <- causes(w, "Pick").assertEquals(List("code"))
-      _ <- w.status.map(s => assert(Status.text(s).contains("review: code")))
+      _ <- w.status.map(s => assert(!s.ok))
       _ <- accept(w, pick, "Same behaviour; examples pass.")
       _ <- w.analysis.map(a => assertEquals(a.state(pick), ReviewState.Accepted))
     yield ()

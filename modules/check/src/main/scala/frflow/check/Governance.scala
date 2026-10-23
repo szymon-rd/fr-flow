@@ -1,7 +1,7 @@
 package frflow
 package check
 
-import frflow.ledger.Decisions
+import frflow.ledger.{Decisions, Signing}
 import frflow.lean.ObligationName
 import frflow.protocol.{NodeKind as _, *}
 import java.nio.file.Path
@@ -11,7 +11,7 @@ import java.nio.file.Path
   */
 object Governance:
   /** Everything `status` warns of: the ledger's signatures, the model and the code, and the checks. */
-  def warnings(a: Analysis): List[String] = a.inputs.signing ++ codeWarnings(a) ++ uncrossed(a) ++ restated(a)
+  def warnings(a: Analysis): List[String] = Signing.warnings(a.inputs.keys, a.ledger) ++ codeWarnings(a) ++ uncrossed(a) ++ restated(a)
 
   /** The warnings the snapshot carries (the ledger's are read live). */
   def snapshotWarnings(a: Analysis): List[String] = codeWarnings(a) ++ uncrossed(a) ++ restated(a)

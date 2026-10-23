@@ -49,7 +49,7 @@ final class Workflow private (val kb: KnowledgeBase, val ws: Workspace, val cfg:
       _ <- ChecksStore(ws.checksFile).save(all)
     yield Checked(results, a.withChecks(all))
 
-  /** Where the knowledge base stands (see `Status.text` for what `status` prints). */
+  /** Where the knowledge base stands (see `Status`). */
   def status: IO[Status] = analysis.map(Status.of)
 
   def ci: IO[Ci] = check().map(c => Ci(c, Status.of(c.after)))

@@ -3,9 +3,10 @@ package check
 
 import cats.effect.IO
 import cats.syntax.all.*
-import frflow.ledger.{KeyStore, LedgerStore, Signing}
+import frflow.ledger.{KeyStore, LedgerStore}
 import frflow.protocol.{NodeKind as _, *}
 import java.nio.file.Path
+import java.security.PublicKey
 import java.time.Instant
 
 /** Everything the checker reads of the world, read once: the analysis is computed from it alone.
@@ -18,7 +19,7 @@ import java.time.Instant
   * @param code     the code each node governs, with its fingerprint
   * @param missing  the files nodes govern that do not exist
   * @param sources  the project's source files (see `Inputs.projectSources`), with their text
-  * @param signing  the ledger's warnings: decisions not signed by a developer key
+  * @param keys     the project's developer keys (`.frflow/keys`), which sign the decisions
   */
 final case class Inputs(
     idea: String,
@@ -29,17 +30,18 @@ final case class Inputs(
     code: Map[String, CodeRef],
     missing: Set[String],
     sources: Map[Path, String],
-    signing: List[String],
+    keys: Map[KeyId, PublicKey],
     now: Instant)
 
 object Inputs:
-  val empty: Inputs = Inputs("", Ledger.empty, Map.empty, Map.empty, Map.empty, Map.empty, Set.empty, Map.empty, Nil, Instant.EPOCH)
+  val empty: Inputs = Inputs("", Ledger.empty, Map.empty, Map.empty, Map.empty, Map.empty, Set.empty, Map.empty, Map.empty, Instant.EPOCH)
 
   /** Reads the workspace, and the ledger from `ledger`. */
   def read(kb: KnowledgeBase, ws: Workspace, cfg: Config, ledger: LedgerStore): IO[Inputs] =
     (
       Disk.read(ws.root.resolve(kb.idea)).map(_.getOrElse("")),
-      (ledger.load, KeyStore.projectKeys(ws.keysDir)).parMapN((l, keys) => (l, Signing.warnings(keys, l))),
+      ledger.load,
+      KeyStore.projectKeys(ws.keysDir),
       ChecksStore(ws.checksFile).load,
       proofs(kb, ws),
       texts(kb, ws),
@@ -47,8 +49,8 @@ object Inputs:
       missing(kb, ws),
       projectSources(ws.root, cfg.sources).flatMap(_.traverse(p => Disk.read(p).map(p -> _.getOrElse("")))).map(_.toMap),
       IO.realTimeInstant
-    ).parMapN { case (idea, (ledger, signing), checks, proofs, texts, code, missing, sources, now) =>
-      Inputs(idea, ledger, checks, proofs, texts, code, missing, sources, signing, now)
+    ).parMapN { case (idea, ledger, keys, checks, proofs, texts, code, missing, sources, now) =>
+      Inputs(idea, ledger, checks, proofs, texts, code, missing, sources, keys, now)
     }
 
   private def proofs(kb: KnowledgeBase, ws: Workspace): IO[Map[String, String]] =

@@ -7,9 +7,12 @@ import java.time.Instant
 /** The developer's requests ("Ask for a change") and the agent's answers, as values. Pure. */
 object Requests:
 
-  /** A new request on a node (or on the idea), with an id not taken yet. */
-  def ask(rs: List[Request], node: Option[NodeId], text: String, by: String, now: Instant): (List[Request], Request) =
-    val r = Request(freshId(rs, now), node, text, by, stamp(now), RequestStatus.Open)
+  /** A new request on a node (or on the idea), with an id not taken yet; `seen`, the node's version the
+    * developer asked about.
+    */
+  def ask(rs: List[Request], node: Option[NodeId], text: String, by: String, now: Instant,
+      seen: Option[String] = None): (List[Request], Request) =
+    val r = Request(freshId(rs, now), node, text, by, stamp(now), RequestStatus.Open, seen = seen)
     (rs :+ r, r)
 
   /** Answers the request `to` with the text; given a node, the developer's open request on it, or a new

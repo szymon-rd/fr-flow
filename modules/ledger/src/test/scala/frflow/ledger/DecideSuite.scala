@@ -136,4 +136,6 @@ class DecideSuite extends munit.FunSuite:
     assert(a2.id != q.id)
     assertEquals(Requests.close(fromAgent, List(q.id, RequestId("R0"))), Left(UnknownRequest("R0")))
     assertEquals(right(Requests.close(fromAgent, List(q.id)))._2.map(_.status), List(RequestStatus.Closed))
+    // the version of the node the developer asked about
+    assertEquals(Requests.ask(Nil, Some(id("A")), "Say which shelf.", "dev", now, Some("v1"))._2.seen, Some("v1"))
   }
