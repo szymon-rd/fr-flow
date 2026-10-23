@@ -204,8 +204,6 @@ examples and on varied data, and by its `checkedBy` on every call. Wiring that
 calls an adapter past `service`, or changes the outside past an assumption, is
 a warning. In `examples/crm`, a seeded SQL bug (a dropped `WHERE`) is stopped by
 the check while every proof still holds, and so is a write the database drops.
-Measured before the DAG rework (`crm/Test/runMain crm.benchReads 100000`): the
-checks add about 1% to a read at 100,000 records.
 
 ## Status and CI
 
@@ -257,7 +255,9 @@ has a split proven by hand (`sbt "scale/run check"`). On a 4-core container:
 
 (`bench/measure.sh 20 60`. The code change is one service's code; the claim change strengthens one
 service's part; the definition change is the limit every bounded service keeps, about a third of the
-nodes.)
+nodes.) What would show more is a trial: one real service built by agents over weeks, against a
+control built without FrFlow, measuring seeded faults caught, how well a newcomer answers "why is
+it so" from the repository alone, and what deciding costs the developer.
 
 A cold check proves each level in one Lean build (about 0.85 s a node); after
 that, only what a change reaches is proven again: a code change, its contract
@@ -399,7 +399,7 @@ core/                   the Scala library
   Ledger, Signing       the decision record and its merge; keys and signatures
   Workflow, Cli, Git    render, check, context, status; the command line; diffs
 examples/               auth, keycloak, crm
-bench/                  the scale benchmark and the evidence plan
+bench/                  the scale benchmark
 tools/                  the browser server and UI, the MCP server, the merge driver
 bin/frflow              runs them
 .claude/skills/frflow   the agent skill
