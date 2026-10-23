@@ -73,7 +73,10 @@ object Snapshots:
 
 /** What `status` warns of besides decisions, proofs and signatures (the snapshot carries these; the ledger's are read live). */
 object Governance:
-  def warnings(a: Analysis): List[String] =
+  /** None before the first node: while the idea is being written, there is nothing to cover it or to govern files yet. */
+  def warnings(a: Analysis): List[String] = if a.kb.nodes.isEmpty then Nil else ofNodes(a)
+
+  private def ofNodes(a: Analysis): List[String] =
     val kb = a.kb
     val missing = kb.nodes.flatMap(n => n.governs.filter(a.inputs.missing).map(f => s"${n.id} governs $f, which does not exist"))
     // One owner per file: two nodes governing it would each review it as its own.

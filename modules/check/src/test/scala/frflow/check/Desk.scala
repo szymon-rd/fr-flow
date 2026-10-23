@@ -32,7 +32,10 @@ final case class Desk(kb: KnowledgeBase, inputs: Inputs):
 
   def accept(n: Node[?], reason: String): Either[String, Desk] = decide(Decide.Accept(List(NodeId(n.id)), reason))
 
-  def acceptAll: Desk = kb.ordered.foldLeft(this)((d, n) => Desk.ok(d.accept(n, s"${n.id} is right")))
+  /** IDEA.md first, when there is one and it is not accepted: the root is decided after it. */
+  def acceptAll: Desk =
+    val idea = if annotated.idea.exists(_.state != ReviewState.Accepted) then Desk.ok(decide(Decide.Accept(List(IdeaDecision.Id), "it says what the system is for"))) else this
+    kb.ordered.foldLeft(idea)((d, n) => Desk.ok(d.accept(n, s"${n.id} is right")))
 
 object Desk:
   val idea = "# Shelf\n\nPick good items.\n\n## Not modelled\n\n- Prices.\n"

@@ -443,6 +443,22 @@
         }
       }
     ],
+    "IDEA": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-23T18:03:45.973974Z",
+        "reason": "IDEA.md is the purpose this knowledge base was decided against; it is now a decision of its own, accepted as it stands",
+        "rejected": [],
+        "commit": "c9d3b3612488b0695e77f8543e227e075d01c4b5",
+        "key": "b6e216cfdf46a202",
+        "sig": "R6a+S92HmCM9QkmBmID4qTxKCpMVUfTHKxLj2N5bcVnAgi+rRFXNZIs0UA0B28QDIsrT9M9hW/iG2SSZhfgoDw==",
+        "chain": "",
+        "content": {
+          "idea": "# Auth\n\nA system decides which users may access which resources. No user may ever\naccess a resource they are not authorized to access.\n\nUsers identify themselves with tokens they receive at login. Authorization is\ngiven by a table of grants: a user may access a path when a grant names that\nuser and that path.\n\n## Not modelled\n\n- How tokens are issued at login, and when they expire.\n- Who may change the table of grants.\n"
+        }
+      }
+    ],
     "Identities": [
       {
         "action": "accept",

@@ -2,18 +2,19 @@ package frflow.api
 
 import cats.effect.{IO, Ref}
 import cats.syntax.all.*
-import frflow.ledger.{Decide, Refusal, Requests, Stamp}
+import frflow.ledger.{Decide, Refusal, Requests, Stamp, Talk}
 import frflow.protocol.*
 import java.time.Instant
 
 /** The API over a fixed snapshot, its ledger and requests in memory: the CLI's tests run on it. Decisions
   * and requests go through the ledger's `Decide` and `Requests`, as the live API's do; nothing is signed.
   */
-final class FakeApi(snapshot: Snapshot, ledger: Ref[IO, Ledger], requests: Ref[IO, List[Request]], model: Ref[IO, Fingerprint])
+final class FakeApi(snapshot: Snapshot, ledger: Ref[IO, Ledger], requests: Ref[IO, List[Request]], model: Ref[IO, Fingerprint],
+    talk: Ref[IO, Conversation])
     extends FrFlowApi:
   private val at = Stamp(Instant.parse("2026-01-04T12:00:00Z"))
 
-  def view: IO[View] = (ledger.get, requests.get).flatMapN((l, rs) => IO.pure(Sample.view(snapshot, l, rs)))
+  def view: IO[View] = (ledger.get, requests.get, talk.get).flatMapN((l, rs, c) => IO.pure(Sample.view(snapshot, l, rs, c)))
   protected def codeChange(node: Reviewed): IO[Option[CodeChange]] =
     IO.pure(node.node.code.filter(_ => node.state == ReviewState.Proposed).map(c => CodeChange(c.files, "object Store", inFull = true)))
   def ledgerNow: IO[Ledger] = ledger.get
@@ -35,6 +36,12 @@ final class FakeApi(snapshot: Snapshot, ledger: Ref[IO, Ledger], requests: Ref[I
   private def change[A](f: List[Request] => Either[Refusal, (List[Request], A)]): IO[Either[Refusal, A]] =
     requests.modify(rs => f(rs).fold(e => (rs, Left(e)), (next, a) => (next, Right(a))))
 
+  def said(text: String): IO[Either[Refusal, Said]] = record(Talk.say(_, text, at.at))
+  def asked(text: String, assumed: String): IO[Either[Refusal, Question]] = record(Talk.ask(_, text, assumed, at.at))
+  def replied(question: String, text: String): IO[Either[Refusal, Question]] = record(Talk.reply(_, question, text, at.at))
+  private def record[A](f: Conversation => Either[Refusal, (Conversation, A)]): IO[Either[Refusal, A]] =
+    talk.modify(c => f(c).fold(e => (c, Left(e)), (next, a) => (next, Right(a))))
+
   private def unavailable[A]: IO[A] = IO.raiseError(new UnsupportedOperationException("not in the fake: it needs Lean"))
   def render: IO[Rendered] = unavailable
   def check(node: Option[NodeId], progress: Progress => IO[Unit]): IO[CheckReport] = unavailable
@@ -46,6 +53,7 @@ final class FakeApi(snapshot: Snapshot, ledger: Ref[IO, Ledger], requests: Ref[I
   def editModel: IO[Unit] = model.update(f => Fingerprint(f.value + "'"))
 
 object FakeApi:
-  def apply(snapshot: Snapshot = Sample.snapshot, ledger: Ledger = Sample.ledgerNow, requests: List[Request] = Sample.requests): IO[FakeApi] =
-    (Ref.of[IO, Ledger](ledger), Ref.of[IO, List[Request]](requests), Ref.of[IO, Fingerprint](Fingerprint("model")))
-      .mapN(new FakeApi(snapshot, _, _, _))
+  def apply(snapshot: Snapshot = Sample.snapshot, ledger: Ledger = Sample.ledgerNow, requests: List[Request] = Sample.requests,
+      talk: Conversation = Conversation.empty): IO[FakeApi] =
+    (Ref.of[IO, Ledger](ledger), Ref.of[IO, List[Request]](requests), Ref.of[IO, Fingerprint](Fingerprint("model")),
+      Ref.of[IO, Conversation](talk)).mapN(new FakeApi(snapshot, _, _, _, _))

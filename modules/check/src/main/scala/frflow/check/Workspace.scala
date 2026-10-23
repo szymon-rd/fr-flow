@@ -25,6 +25,8 @@ final case class Workspace(root: Path, kernelPath: String):
   def checksFile: Path = root.resolve(".frflow/checks.json")
   def snapshotFile: Path = root.resolve(".frflow/kb.json")
   def requestsFile: Path = root.resolve(".frflow/requests.json")
+  /** What the developer said to the agent and the agent asked, as the agent recorded it: what IDEA.md is written from. */
+  def conversationFile: Path = root.resolve(".frflow/conversation.json")
   def keysDir: Path = root.resolve(".frflow/keys")
 
 /** How FrFlow runs, read once from the environment: `FRFLOW_LAKE`, `FRFLOW_TIMING` (print each Lean run's time),
@@ -70,7 +72,7 @@ object Disk:
 /** Everything the checker reads, read once: `proofs` (`lean/Proofs/<KB>/`) by node id or `Lemmas`; `texts`, the nodes' files. */
 final case class Inputs(idea: String, ledger: Ledger, checks: Map[NodeId, NodeCheck], proofs: Map[String, String],
     texts: Map[String, String], code: Map[String, CodeRef], missing: Set[String], sources: Map[Path, String],
-    keys: Map[KeyId, PublicKey], now: Instant)
+    keys: Map[KeyId, PublicKey], now: Instant, talk: Conversation = Conversation.empty)
 
 object Inputs:
   val empty: Inputs = Inputs("", Ledger.empty, Map.empty, Map.empty, Map.empty, Map.empty, Set.empty, Map.empty, Map.empty, Instant.EPOCH)
@@ -80,10 +82,15 @@ object Inputs:
       proofs(kb, ws), texts(kb, ws), code(kb, ws.root),
       kb.nodes.flatMap(_.governs).distinct.filterA(f => Disk.exists(ws.root.resolve(f)).map(!_)).map(_.toSet),
       projectSources(ws.root, cfg.sources).flatMap(_.traverse(p => Disk.read(p).map(p -> _.getOrElse("")))).map(_.toMap),
-      IO.realTimeInstant
-    ).parMapN { case (idea, ledger, keys, checks, proofs, texts, code, missing, sources, now) =>
-      Inputs(idea, ledger, checks, proofs, texts, code, missing, sources, keys, now)
+      IO.realTimeInstant, conversation(ws.conversationFile)
+    ).parMapN { case (idea, ledger, keys, checks, proofs, texts, code, missing, sources, now, talk) =>
+      Inputs(idea, ledger, checks, proofs, texts, code, missing, sources, keys, now, talk)
     }
+
+  /** The conversation as recorded (none when missing); a file that does not read is an error, not an empty record. */
+  def conversation(file: Path): IO[Conversation] =
+    Disk.read(file).flatMap(_.fold(IO.pure(Conversation.empty))(text =>
+      IO.fromEither(decode[Conversation](text).left.map(e => frflow.ledger.LedgerError.BadFile(file, e.getMessage)))))
 
   /** The recorded checks (`.frflow/checks.json`, not committed); none when missing, or written by another version. */
   def checks(file: Path): IO[Map[NodeId, NodeCheck]] =

@@ -22,19 +22,24 @@ FrFlow is written in Scala 3 and uses Lean 4.
 
 ## Formal refinement agentic flow
 
-1. You write `IDEA.md`: the purpose of the system, in prose.
-2. The agent proposes a root: one statement that says the purpose exactly,
+1. You tell the agent your idea in chat. It asks what it needs to know, a few
+   questions at a time, each with the answer it assumes, so you can just agree
+   or correct it. It records what you said and answered.
+2. The agent writes `IDEA.md` from the conversation, and you accept it: the
+   purpose of the system, in prose, each section naming the answers it comes
+   from.
+3. The agent proposes a root: one statement that says the purpose exactly,
    both what users can do and what must never happen.
-3. The agent refines the root into parts, in the words of your domain:
+4. The agent refines the root into parts, in the words of your domain:
    claims, contracts on operations, assumptions, definitions of terms, and
    design decisions. Parts have parts of their own, down to the code. The
    result is a DAG.
-4. FrFlow translates the DAG to Lean and proves that the parts of each node
+5. FrFlow translates the DAG to Lean and proves that the parts of each node
    imply it, that the code meets its contract, and that the root follows from
    the code and a short list of trusted assumptions.
-5. You accept or reject each node, in the terminal or in a local web view.
+6. You accept or reject each node, in the terminal or in a local web view.
    Each decision is signed and kept in a ledger with your reason.
-6. When something changes, every node it affects comes back for review, with
+7. When something changes, every node it affects comes back for review, with
    a diff of what changed.
 
 How this addresses the two problems:
@@ -133,14 +138,14 @@ or is not proven, so CI can gate on it.
 
 ![bin/frflow keycloak status](docs/img/cli-status.png)
 
-**5. Or use the browser.** `serve` runs the same flow as a local web view: the
-graph, the node under review with its diff, and your inbox. Decisions are
-signed the same way as in the CLI.
+**5. Or use the browser.** `sbt "keycloak/serve --as NAME"` runs the same flow as
+a local web view: the graph, the node under review with its diff, and your
+inbox. Decisions are signed the same way as in the CLI.
 
 ![The web view](docs/img/web-view.png)
 
-The agent has its own commands (`inbox`, `context`, `check`, `scaffold`,
-`answer`) and rules, in
+The agent has its own commands (`said`, `asked`, `replied` to record the
+conversation; `inbox`, `context`, `check`, `scaffold`, `answer`) and rules, in
 [`.claude/skills/frflow/SKILL.md`](.claude/skills/frflow/SKILL.md).
 
 ## Getting started
@@ -153,8 +158,12 @@ git clone https://github.com/szymon-rd/fr-flow && cd fr-flow
 bin/frflow auth tree                    # the smallest example; compiles on first use
 bin/frflow keycloak check               # prove the keycloak example in Lean
 bin/frflow keycloak show RealmAccess    # read its root
-bin/frflow keycloak serve --as NAME     # the web view on localhost, deciding as NAME
+sbt "keycloak/serve --as NAME"          # the web view on localhost, deciding as NAME
 ```
+
+To start a project of your own, `sbt "frflowInit NAME"` sets up an empty one in
+`examples/NAME`. Then tell the agent your idea; it asks, writes `IDEA.md` for
+you to accept, and proposes the root.
 
 The examples:
 

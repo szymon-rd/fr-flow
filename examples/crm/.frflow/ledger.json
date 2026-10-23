@@ -974,6 +974,22 @@
         }
       }
     ],
+    "IDEA": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-23T18:57:21.410558Z",
+        "reason": "IDEA.md is the purpose this knowledge base was decided against; it is now a decision of its own, accepted as it stands",
+        "rejected": [],
+        "commit": "1254a7c6125b020d3b14202b34b5632de4067a40",
+        "key": "b6e216cfdf46a202",
+        "sig": "rjhsE4UHBrRwW1QRHOlTQN8KB2vRTwpahN6bFOHfkNk31C/yjx8QGNoT+qt+6+RZ6TamTRUB8x/IXNlJY7bfAA==",
+        "chain": "",
+        "content": {
+          "idea": "# Shared CRM\n\nMany companies use one CRM, where each company's users keep contacts and deals.\nA user's search finds a record exactly when it asks for that record, a user of\nthe record's company added it, and it is of the user's company or currently\nshared with it by its own. Users add their company's records, and share them\nwith other companies, for good or until a time, or unshare them. Nothing a user\ndoes changes what anyone finds of another company's records.\n\n## Finding records\n\nA user may see a record only if it belongs to their company, or if the record's\ncompany has shared it with theirs and the share's time, if it has one, has not\ncome. Users find records by id, by kind, or list everything they can see; a\nsearch returns every record it asks for that they may see, of what the CRM holds\nwhen it runs: what its writes and its expiry job have done so far.\n\n## Sales screen\n\nThe sales team has a screen that lists the deals a user can see: every stored\ndeal that matches their search, and nothing else.\n\n## Writing records\n\nA user can add records for their company, and can share or unshare their\ncompany's records with other companies, for good or until a given time; sharing\nagain replaces the time. The CRM holds exactly the records its users added, and\nholds a share exactly as long as the last share or unshare of it says and its\ntime has not come: a write does what its author asked, and nothing else, and\nremoves no record. A record a user adds is found by their searches from then on.\nNo write changes another company's records, or whom they are shared with. A\nshare names a record by its id, so no two records have one id: a record is not\nadded under an id another record has.\n\n## Expiring shares\n\nA company can share a record until a given time. When that time has passed,\nthe share ends: searches no longer find the record through it, whether or not\nthe expiry job has run. The job clears ended shares every minute, and changes\nnothing else.\n\n## Not modelled\n\n- That the account a search or a write runs for is the caller's own\n  (authentication).\n- That the database's tables, which the running read side reads, are what its\n  event log led to: that nothing but the write side and the expiry job changes\n  them (a test replays the log).\n- Editing or removing records: a write only adds one.\n"
+        }
+      }
+    ],
     "LiveShares": [
       {
         "action": "accept",

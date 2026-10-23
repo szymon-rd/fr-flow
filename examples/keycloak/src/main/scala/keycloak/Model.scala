@@ -32,4 +32,4 @@ val knowledge = KnowledgeBase("Keycloak", idea = "IDEA.md")(
   .implementProven(handleRequest)(handle)
   .implementProven(introspectContract)(introspection)
 
-object keycloakCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/keycloak", serve = Some(frflow.web.WebView.serve))
+object keycloakCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/keycloak")

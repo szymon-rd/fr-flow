@@ -5,7 +5,7 @@ import cats.syntax.all.*
 import frflow.KnowledgeBase
 import frflow.check.*
 import frflow.lean.Generate
-import frflow.ledger.{Decide, JsonStore, KeyStore, Refusal, Requests, Signing, Stamp}
+import frflow.ledger.{Decide, JsonStore, KeyStore, Refusal, Requests, Signing, Stamp, Talk}
 import frflow.protocol.*
 import java.nio.file.Path
 
@@ -13,9 +13,10 @@ import java.nio.file.Path
   * writes what it changed.
   */
 final class LiveApi private (kb: KnowledgeBase, ws: Workspace, cfg: Config, lake: Lake, git: Git, ledger: JsonStore[Ledger],
-    requests: JsonStore[List[Request]], keys: KeyStore) extends FrFlowApi:
+    requests: JsonStore[List[Request]], talk: JsonStore[Conversation], keys: KeyStore) extends FrFlowApi:
   private def analysis: IO[Analysis] = Analysis.read(kb, ws, cfg, ledger)
-  private def viewOf(a: Analysis): IO[View] = requests.load.map(View(a.annotated, a.warnings, _, a.unsigned.map(Logged.apply)))
+  private def viewOf(a: Analysis): IO[View] =
+    requests.load.map(View(a.annotated, a.warnings, _, a.unsigned.map(Logged.apply), a.inputs.talk))
   def view: IO[View] = analysis.flatMap(viewOf)
 
   protected def codeChange(r: Reviewed): IO[Option[CodeChange]] = r.node.code.flatTraverse { c =>
@@ -60,6 +61,12 @@ final class LiveApi private (kb: KnowledgeBase, ws: Workspace, cfg: Config, lake
   def answer(to: String, text: String): IO[Either[Refusal, RequestId]] =
     IO.realTimeInstant.flatMap(now => requests.update(Requests.answer(_, to, text, id => kb.node(id.value).isDefined, now))).map(_.map(_.id))
 
+  def said(text: String): IO[Either[Refusal, Said]] = IO.realTimeInstant.flatMap(now => talk.update(Talk.say(_, text, now)))
+  def asked(text: String, assumed: String): IO[Either[Refusal, Question]] =
+    IO.realTimeInstant.flatMap(now => talk.update(Talk.ask(_, text, assumed, now)))
+  def replied(question: String, text: String): IO[Either[Refusal, Question]] =
+    IO.realTimeInstant.flatMap(now => talk.update(Talk.reply(_, question, text, now)))
+
   def render: IO[Rendered] = analysis.flatMap(a =>
     (CheckRunner.render(a), CheckRunner.writeSnapshot(a)).mapN((changed, file) => Rendered(changed, ws.root.relativize(file).toString)))
 
@@ -100,8 +107,9 @@ object LiveApi:
   def apply(kb: KnowledgeBase, ws: Workspace, env: Map[String, String]): IO[FrFlowApi] =
     IO(kb.problems.map(_.message) ++ Generate.problems(kb)).flatMap(ps => IO.raiseWhen(ps.nonEmpty)(FrFlowError.ModelProblems(ps))) *>
       Config.load(env).flatMap { cfg =>
-        (Lake(ws.lean, cfg), JsonStore.make(ws.ledgerFile, Ledger.empty), JsonStore.make(ws.requestsFile, List.empty[Request]))
-          .mapN(new LiveApi(kb, ws, cfg, _, Git.at(ws.root), _, _, KeyStore.at(cfg.key, ws.keysDir)))
+        (Lake(ws.lean, cfg), JsonStore.make(ws.ledgerFile, Ledger.empty), JsonStore.make(ws.requestsFile, List.empty[Request]),
+          JsonStore.make(ws.conversationFile, Conversation.empty))
+          .mapN(new LiveApi(kb, ws, cfg, _, Git.at(ws.root), _, _, _, KeyStore.at(cfg.key, ws.keysDir)))
       }
 
   /** The project at `root` (`FRFLOW_ROOT` overrides it); `kernelPath` is FrFlow's Lean kernel relative to its `lean/`. */

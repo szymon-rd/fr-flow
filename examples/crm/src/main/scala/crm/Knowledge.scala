@@ -27,4 +27,4 @@ val knowledge = KnowledgeBase("Crm", idea = "IDEA.md")(
   .implementProven(sharesExpire)(expireCode)
   .implementProven(expiryJob)(expireOnce)
 
-object crmCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/crm", serve = Some(frflow.web.WebView.serve))
+object crmCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/crm")

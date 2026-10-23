@@ -56,6 +56,8 @@ final class Reading(val graph: Graph, val ledger: Ledger):
   /** A node not in the model is not decided. */
   def stateOf(id: NodeId): ReviewState = graph.byId.get(id).fold(Proposed)(state)
   def holds(id: NodeId): Boolean = stateOf(id) == Accepted
+  /** Where the developer stands on IDEA.md; the root is decided after it. */
+  lazy val idea: Option[IdeaReview] = IdeaDecision.review(snapshot, ledger)
 
   /** What the developer saw of a node: a decision sent with it is refused if the node moved since. */
   def version(n: SnapNode): Version =
@@ -66,6 +68,7 @@ final class Reading(val graph: Graph, val ledger: Ledger):
     val restsOnParent = state(n) == Proposed || causes(n).contains(Cause.Above)
     n.parents.find(p => graph.byId.get(p).map(state).exists(s => s == Proposed || s == Rejected || (restsOnParent && s != Accepted)))
       .orElse(Option.when(restsOnParent)((n.uses ++ n.relies).find(i => graph.byId.get(i).exists(x => state(x) != Accepted))).flatten)
+      .orElse(Option.when(snapshot.root.contains(n.id) && idea.exists(_.state != Accepted))(IdeaDecision.Id))
 
   /** Why each node is not mechanical, or None if it is, parents first. */
   lazy val notMechanical: Map[NodeId, Option[String]] =

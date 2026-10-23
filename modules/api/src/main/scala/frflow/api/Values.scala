@@ -8,12 +8,16 @@ import io.circe.{Codec, Encoder, Json}
 final case class Developer(name: String)
 final case class Logged(node: NodeId, decision: Decision) derives Codec.AsObject
 
-/** Everything a front end shows, read once; `warnings` are what `status` fails on. */
-final case class View(annotated: Annotated, warnings: List[String], requests: List[Request], unsigned: List[Logged])
-    derives Codec.AsObject:
-  /** Every node accepted, proven and passing its examples, and nothing to warn of: the CI gate. */
+/** Everything a front end shows, read once; `warnings` are what `status` fails on; `conversation`, what the developer said
+  * and the agent asked, which IDEA.md is written from.
+  */
+final case class View(annotated: Annotated, warnings: List[String], requests: List[Request], unsigned: List[Logged],
+    conversation: Conversation = Conversation.empty) derives Codec.AsObject:
+  /** IDEA.md and every node accepted, proven and passing its examples, and nothing to warn of: the CI gate. */
   def ok: Boolean = Proofs.complete(annotated) && warnings.isEmpty
   def snapshot: Snapshot = annotated.snapshot
+  /** IDEA.md, when it waits for the developer: written (or changed) and not accepted as it is. */
+  def ideaWaits: Option[IdeaReview] = annotated.idea.filter(_.state != ReviewState.Accepted)
   def nodes: List[Reviewed] = annotated.nodes
   def node(id: NodeId): Option[Reviewed] = annotated.byId.get(id)
   def isRoot(r: Reviewed): Boolean = snapshot.root.contains(r.id)
@@ -34,8 +38,8 @@ object Decided:
 final case class Overview(name: String, nodes: Int, proposed: Int, review: Int, accepted: Int, rejected: Int, gone: Int,
     proven: Int, trusted: List[NodeId], forDeveloper: Int, mechanical: Int, withAgent: Int, forAgent: Int, openRequests: Int,
     answers: Int, unsigned: Int, splits: Int, splitsProven: Int, contracts: Int, contractsProvenDown: Int,
-    examplesInLean: Int, examplesAgreeing: Int, rootImpl: Option[ObligationStatus], warnings: Int, complete: Boolean)
-    derives Codec.AsObject:
+    examplesInLean: Int, examplesAgreeing: Int, rootImpl: Option[ObligationStatus], warnings: Int, complete: Boolean,
+    idea: Option[ReviewState] = None, openQuestions: Int = 0) derives Codec.AsObject:
   def unproven: Int = nodes - proven
 object Overview:
   def of(v: View): Overview = of(v, Waiting.forDeveloper(v.annotated))
@@ -52,19 +56,24 @@ object Overview:
     Overview(name = v.snapshot.name, nodes = a.nodes.size, proposed = count(ReviewState.Proposed), review = count(ReviewState.Review),
       accepted = count(ReviewState.Accepted), rejected = count(ReviewState.Rejected), gone = a.gone.size,
       proven = ns.count(Proofs.unproven(_).isEmpty), trusted = v.snapshot.trusted,
-      forDeveloper = waiting.size + a.gone.size - asked.size, mechanical = waiting.count(_.review.mechanical), withAgent = asked.size,
+      forDeveloper = waiting.size + a.gone.size - asked.size + v.ideaWaits.size, mechanical = waiting.count(_.review.mechanical),
+      withAgent = asked.size,
       forAgent = Waiting.forAgent(a, v.requests).size, openRequests = v.requests.count(_.status == RequestStatus.Open),
       answers = v.requests.count(_.status == RequestStatus.Answered), unsigned = v.unsigned.size,
       splits = ns.count(_.split.isDefined), splitsProven = ns.count(_.split.exists(_.proven)),
       contracts = contracts.size, contractsProvenDown = contracts.count(provenDown),
       examplesInLean = inLean.size, examplesAgreeing = inLean.count(_.status == ObligationStatus.Proven),
-      rootImpl = v.snapshot.root.flatMap(v.node).flatMap(_.node.rootImpl).map(_.status), warnings = v.warnings.size, complete = v.ok)
+      rootImpl = v.snapshot.root.flatMap(v.node).flatMap(_.node.rootImpl).map(_.status), warnings = v.warnings.size, complete = v.ok,
+      idea = a.idea.map(_.state), openQuestions = v.conversation.unanswered.size)
 
 final case class Queued(node: Reviewed, waitsFor: Option[NodeId], followers: List[NodeId]) derives Codec.AsObject
-/** What waits for whom; the developer's queue in the order the ledger takes decisions, less what is with the agent. */
+/** What waits for whom; the developer's queue in the order the ledger takes decisions, less what is with the agent.
+  * `idea`: IDEA.md, first, when it waits for the developer; `questions`, the agent's questions with no reply yet (the
+  * developer answers them in chat).
+  */
 final case class Inbox(open: List[Request], answers: List[Request], warnings: List[String], ready: List[Queued],
     mechanical: List[Reviewed], later: List[Queued], gone: List[Gone], withAgent: List[Reviewed], forAgent: List[ForAgent],
-    overview: Overview) derives Codec.AsObject:
+    overview: Overview, idea: Option[IdeaReview] = None, questions: List[Question] = Nil) derives Codec.AsObject:
   def queue: List[Queued] = ready ++ later
 object Inbox:
   /** Of the nodes waiting for the developer, those they asked the agent about. */
@@ -88,7 +97,8 @@ object Inbox:
     val following = queued.flatMap(_.followers).toSet
     val (later, ready) = queued.filterNot(q => following(q.node.id)).partition(_.waitsFor.isDefined)
     Inbox(v.requests.filter(_.status == RequestStatus.Open), v.requests.filter(_.status == RequestStatus.Answered), v.warnings,
-      ready, mechanical, later, v.annotated.gone, asked(v, waiting), Waiting.forAgent(v.annotated, v.requests), Overview.of(v, waiting))
+      ready, mechanical, later, v.annotated.gone, asked(v, waiting), Waiting.forAgent(v.annotated, v.requests), Overview.of(v, waiting),
+      v.ideaWaits, v.conversation.unanswered)
 
 /** A node of the tree, drawn once, under its first parent; `seeAlso` are the nodes below it drawn under another. */
 final case class TreeNode(node: Reviewed, seeAlso: List[NodeId], withAgent: Boolean, children: List[TreeNode]) derives Codec.AsObject

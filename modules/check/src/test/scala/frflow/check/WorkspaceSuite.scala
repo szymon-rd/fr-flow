@@ -24,7 +24,10 @@ class WorkspaceSuite extends munit.CatsEffectSuite with TempDirs:
   }
   private def accept(w: OnDisk, n: Node[?], reason: String): IO[Unit] =
     w.decide(Decide.Accept(List(NodeId(n.id)), reason)).flatMap(r => IO.fromEither(r.leftMap(e => AssertionError(e.message))))
-  private def acceptAll(w: OnDisk): IO[Unit] = w.kb.ordered.traverse_(n => accept(w, n, s"${n.id} is right"))
+  /** IDEA.md first: the root is decided after it. */
+  private def acceptAll(w: OnDisk): IO[Unit] =
+    w.decide(Decide.Accept(List(IdeaDecision.Id), "it says what the shelf is for")).flatMap(r => IO.fromEither(r.leftMap(e => AssertionError(e.message)))) *>
+      w.kb.ordered.traverse_(n => accept(w, n, s"${n.id} is right"))
   private def state(a: Analysis, n: Node[?]) = a.annotated.byId(NodeId(n.id)).state
   private def causes(w: OnDisk, id: String): IO[List[String]] =
     w.analysis.map(_.annotated.byId(NodeId(id)).review.causes.map(_.toString))

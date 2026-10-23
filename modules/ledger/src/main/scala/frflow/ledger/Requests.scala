@@ -52,6 +52,9 @@ enum Refusal(val message: String):
   case NoRequest(ids: List[RequestId]) extends Refusal(s"no request ${ids.mkString(", ")}")
   case NoNodes extends Refusal("name the nodes to accept")
   case NoText extends Refusal("say what to change")
+  case NoIdea extends Refusal("there is no IDEA.md yet: the agent writes it from your conversation first")
+  case NoAssumption extends Refusal("say the answer you assume (--assume TEXT): the developer can then just agree")
+  case UnknownQuestion(id: String) extends Refusal(s"no question $id in the conversation")
   /** No name to decide under: none given, and the developer's key is filed under none. */
   case NoDeveloper extends Refusal("say who decides: the name your key's public half is filed under (.frflow/keys/NAME.pub)")
   /** One decision of several refused: none is recorded. */

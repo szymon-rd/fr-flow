@@ -15,16 +15,55 @@ description: >-
 
 # Developing with FrFlow
 
-The developer writes the idea in `IDEA.md`. You write Scala nodes: one root, and
-below it parts that together prove it, down to contracts on the code. Lean
-proves each split; the developer decides every node. The README explains the
-method and how to start a project, `docs/DAG.md` the design.
+The developer tells you the idea in chat; you ask what you need, record the
+conversation, and write `IDEA.md` from it for them to accept. Then you write
+Scala nodes: one root, and below it parts that together prove it, down to
+contracts on the code. Lean proves each split; the developer decides every node,
+and `IDEA.md`. The README explains the method, `docs/DAG.md` the design.
+
+## Starting a project: the conversation
+
+1. **Set up.** `sbt "frflowInit NAME"` (a lowercase name), then `sbt reload`:
+   an empty knowledge base in `examples/NAME`. `bin/frflow NAME status` works
+   from here.
+2. **Let the developer tell the idea**, in their own words, as long or short
+   as they like. Record it verbatim: `said TEXT` (each message that tells the
+   idea or corrects it). Do not write files yet.
+3. **Ask, 3 to 5 questions at a time**, each with the answer you assume, so
+   the developer can just agree or correct it: "Can a company share a record
+   with another? I assume yes, only the owner can, until a date." Ask what
+   decides the root and the first split: who the users are, what they can do,
+   what must never happen, what the system keeps, what is out of scope. Record
+   each before asking it: `asked QUESTION --assume ANSWER` gives `Q1`, `Q2`, ...;
+   record each answer as said: `replied Q TEXT`. Stop when the root can be
+   stated; ask later questions when a node needs them, the same way.
+4. **Restate the purpose in one sentence** ("A user finds exactly ...") and
+   ask the developer to confirm or correct it in chat. It becomes the root.
+5. **Write `IDEA.md`** from the conversation, in the developer's words where
+   possible: a title, a lead paragraph (the purpose), `## ` sections (one per
+   concern: what users do, what must never happen, what is kept), and
+   `## Not modelled` (what they said is out of scope). Under each heading, a
+   line `From: Q1, Q3` names the answers it comes from. Never put in it
+   anything the developer did not say or agree to.
+6. **Ask the developer to accept it**: `accept IDEA` on their terminal, or in
+   the web view (you cannot: it is signed). `inbox` shows it waiting. If they
+   want changes, edit it and ask again.
+7. **Then propose the root and the first parts**, each naming its section
+   (`idea = "..."`) and, in its `why`, the answers it rests on. Where a node
+   needs something the developer has not said, ask (step 3) instead of
+   guessing.
+
+`conversation` shows what is recorded. A reply that changes an answer after
+`IDEA.md` was accepted is a warning in `status`: update the sections that name
+it, and ask the developer to accept `IDEA.md` again; the nodes naming a changed
+section come back to them.
 
 ## Rules
 
 1. **You propose; the developer decides.** Never edit `.frflow/ledger.json`,
-   decide for the developer, create a signing key, or add files to
-   `.frflow/keys/`. If `status` says decisions are not signed, tell the developer.
+   decide for the developer (`IDEA.md` included), create a signing key, or add files to
+   `.frflow/keys/`. Record the conversation only as it happened: never a reply
+   the developer did not give. If `status` says decisions are not signed, tell the developer.
 2. **One statement per node**, one sentence in the developer's domain words; the
    formula says exactly that sentence.
 3. **A part is never a restatement.** Say what the domain adds (a concept, a
@@ -86,7 +125,8 @@ gives the rest.
 
 | command | use |
 |---|---|
-| `inbox` | Start here: requests, clean-up, waiting decisions, the summary. |
+| `inbox` | Start here: requests, clean-up, waiting decisions (`IDEA.md` first), open questions, the summary. |
+| `said TEXT`, `asked QUESTION --assume ANSWER`, `replied Q TEXT`, `conversation` | Record the conversation the idea comes from; show it. |
 | `context NODE` | Everything on a node (`show NODE --full`), nothing cut. |
 | `tree [NODE]`, `show NODE`, `diff NODE` | The DAG; a node in about a screen; what changed since it was decided. |
 | `find WORDS\|PATH` | The nodes that govern a file, or what mentions some words. |

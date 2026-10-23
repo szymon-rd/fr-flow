@@ -821,6 +821,22 @@
         }
       }
     ],
+    "IDEA": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-23T18:57:17.410685Z",
+        "reason": "IDEA.md is the purpose this knowledge base was decided against; it is now a decision of its own, accepted as it stands",
+        "rejected": [],
+        "commit": "1254a7c6125b020d3b14202b34b5632de4067a40",
+        "key": "b6e216cfdf46a202",
+        "sig": "jNKmoMm5M0AgAb2PWZ0OubdPE3FWh6Kcou91FFkvDpcsCSwrwLxRQ7KYi+cn0czTj+a9QUoSmDfTVi5OgnR5DQ==",
+        "chain": "",
+        "content": {
+          "idea": "# Realms: a small authentication server\n\nA realm's application accepts a token as a user's, with the user's roles,\nexactly when the user signed in to that realm with their password and got the\ntoken, has not signed out with it since, and is still enabled.\n\nSeveral organisations share one authentication server, like Keycloak. Each\norganisation is a realm with its own users and applications. Applications\nnever see passwords: they send users to the server to sign in, and ask the\nserver whose a token is.\n\n## No unauthorized access\n\nA token never lets anyone in who is not signed in with it: not another user,\nnot in another realm, not after its sign-out, not once the user is disabled,\nand never with roles the realm did not give.\n\n## Signed-in users are let in\n\nA user who signed in and has neither signed out nor been disabled has their\ntoken accepted, with their roles. A server that turns everyone away is no\nauthentication server.\n\n## Signing in and out\n\nA user of a realm can sign in with their username and password. If the user\nis enabled and the password is theirs, the server opens a session and gives\nback its token, a value no other session has. Anyone else gets no session.\n\nA user can sign out with their token: its session ends at once.\n\n## Checking tokens\n\nAn application of a realm can ask the server whose a token is. The server\nanswers with the user and their roles in that realm when the token's session\nis open in that realm and the user is enabled; otherwise the token is not\nactive.\n\n## Realms\n\nA token is only ever good in the realm that issued it, and no application is\never shown anything of another realm.\n\n## Administering users\n\nRealms and their users are loaded at start. An administrator can enable or\ndisable a user; the next request sees it, and a disabled user's tokens stop\nbeing accepted at once.\n\n## Not modelled\n\n- How passwords are hashed: the server compares stored hashes, computed with\n  each user's salt before a request reaches the core.\n- How tokens are drawn: 256 random bits each, trusted to be new.\n- Token expiry and refresh tokens.\n- Which applications may ask (client authentication), consent, and the\n  OpenID Connect discovery documents.\n- Creating realms and users, and changing passwords or roles.\n"
+        }
+      }
+    ],
     "Identities": [
       {
         "action": "accept",

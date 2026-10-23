@@ -8,6 +8,16 @@ import scala.util.control.NoStackTrace
 export frflow.ledger.{CodeProof, Decide, ForAgent, Found, Mention, Mentioned, Refusal}
 export frflow.check.Progress
 
+/** A project as its front ends open it: the knowledge base, its directory (`FRFLOW_ROOT` overrides it), and FrFlow's Lean
+  * kernel relative to its `lean/`. A project's main object is one (the CLI's `FrFlowApp`); the web view's `serve` task
+  * opens the same object.
+  */
+trait FrFlowProject:
+  def kb: frflow.KnowledgeBase
+  def root: String
+  def kernelPath: String
+  def api(env: Map[String, String]): IO[FrFlowApi] = LiveApi.fromEnv(kb, root, kernelPath, env)
+
 /** What fails a command (refusals a user reads are `Refusal`s instead): mapped once, at each front end. */
 enum FrFlowError(val message: String) extends Exception(message) with NoStackTrace:
   /** The model does not hold together: nothing else is computed until it does. */
@@ -32,6 +42,13 @@ trait FrFlowApi:
   def close(ids: List[RequestId]): IO[Either[Refusal, List[Request]]]
   /** Answers a request; given a node instead, tells the developer about work they did not ask for. */
   def answer(to: String, text: String): IO[Either[Refusal, RequestId]]
+  // The conversation IDEA.md is written from, as the agent records it: a record, not decisions (the developer decides IDEA.md).
+  /** What the developer said in chat, word for word. */
+  def said(text: String): IO[Either[Refusal, Said]]
+  /** A question the agent asked, with the answer it assumed: numbered Q1, Q2, … */
+  def asked(text: String, assumed: String): IO[Either[Refusal, Question]]
+  /** The developer's reply to a question, as they said it in chat; a later reply stands. */
+  def replied(question: String, text: String): IO[Either[Refusal, Question]]
   def render: IO[Rendered]
   /** `progress` hears of each level of the check before Lean proves it. */
   def check(node: Option[NodeId], progress: Progress => IO[Unit] = _ => IO.unit): IO[CheckReport]

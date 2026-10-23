@@ -29,7 +29,8 @@ final class Analysis private (val kb: KnowledgeBase, val ws: Workspace, val inpu
   def hash(n: Node[?]): Hash = content(n).hash
   def definition(n: Node[?]): String = inputs.texts.get(n.file).filter(_ => n.at >= 0).fold("")(Contents.definition(_, n.at))
 
-  lazy val (ideaDecided, notModelled) = Idea.split(idea)
+  // Without its `From:` lines: which answers a section comes from moves no node.
+  lazy val (ideaDecided, notModelled) = Idea.split(IdeaDecision.withoutSources(idea))
   def ideaOf(n: Node[?]): String =
     Idea.sections(ideaDecided)._2.find(_._1.equalsIgnoreCase(n.ideaSection.trim)).map(_._2).getOrElse("")
 
@@ -52,8 +53,11 @@ final class Analysis private (val kb: KnowledgeBase, val ws: Workspace, val inpu
   lazy val annotated: Annotated = Annotate(snapshot, ledger)
   lazy val unsigned: List[(NodeId, Decision)] = Signing.unsigned(ledger, inputs.keys)
 
-  /** Everything `status` warns of: the model and the code (the snapshot's), and the ledger's signatures. */
-  lazy val warnings: List[String] = snapshot.warnings ++ Signing.warnings(inputs.keys, ledger, unsigned)
+  /** Everything `status` warns of: the model and the code (the snapshot's), the ledger's signatures, and IDEA.md against
+    * the conversation it comes from.
+    */
+  lazy val warnings: List[String] = snapshot.warnings ++ Signing.warnings(inputs.keys, ledger, unsigned) ++
+    IdeaDecision.warnings(idea, inputs.talk, ledger.binding(IdeaDecision.Id))
 
 object Analysis:
   def apply(kb: KnowledgeBase, ws: Workspace, inputs: Inputs): Analysis = new Analysis(kb, ws, inputs, None)

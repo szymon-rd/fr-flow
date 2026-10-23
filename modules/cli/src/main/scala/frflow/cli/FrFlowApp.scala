@@ -5,25 +5,21 @@ import cats.effect.{ExitCode, IO, IOApp}
 import cats.effect.std.Console
 import cats.syntax.all.*
 import com.monovore.decline.{Command as Sub, Opts}
-import frflow.api.{Decide, Developer, FrFlowApi, FrFlowError, LiveApi}
+import frflow.api.{Decide, FrFlowError, FrFlowProject, LiveApi}
 import frflow.protocol.{NodeId, RequestId}
 import java.nio.file.Path
 
-/** What `serve` runs until it is stopped: a front end over the API (the web view, `frflow.web.WebView.serve`), deciding
-  * as the developer, on a port of localhost (0: any free one). The CLI does not depend on it: a project's main object
-  * passes it.
-  */
-type Server = (FrFlowApi, Developer, Int) => IO[Unit]
-
 /** The command line of a knowledge base, which a project's main object extends:
   * {{{
-  * object authCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/auth", serve = Some(frflow.web.WebView.serve))
+  * object authCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/auth")
   * }}}
   * `root` is the project's directory (`FRFLOW_ROOT` overrides it); `kernelPath`, FrFlow's Lean kernel
-  * relative to the project's `lean/`. A usage error prints the help and exits 2.
+  * relative to the project's `lean/`. A usage error prints the help and exits 2. The web view runs from the
+  * same object, through sbt (`sbt "auth/serve --as NAME"`), not from here.
   */
-abstract class FrFlowApp(knowledge: => KnowledgeBase, root: String = ".", kernelPath: String = "../../../lean",
-    serve: Option[Server] = None) extends IOApp:
+abstract class FrFlowApp(knowledge: => KnowledgeBase, val root: String = ".", val kernelPath: String = "../../../lean")
+    extends IOApp with FrFlowProject:
+  final def kb: KnowledgeBase = knowledge
   final def run(args: List[String]): IO[ExitCode] = IO(sys.env).flatMap { env =>
     val name = Option(Path.of(root).normalize.getFileName).map(_.toString).filter(n => n.nonEmpty && n != ".").getOrElse("frflow")
     Sub(name, Commands.header)(Commands.all).parse(args, env) match
@@ -31,7 +27,7 @@ abstract class FrFlowApp(knowledge: => KnowledgeBase, root: String = ".", kernel
         for
           term <- Terminal.live
           st = Style.of(plain, env, term.interactive)
-          code <- LiveApi.fromEnv(knowledge, root, kernelPath, env).flatMap(api => Dispatch(api, term, st, serve)(command))
+          code <- LiveApi.fromEnv(knowledge, root, kernelPath, env).flatMap(api => Dispatch(api, term, st)(command))
             .handleErrorWith(FrFlowApp.failed(term, _))
         yield code
       case Left(help) =>
@@ -94,16 +90,21 @@ enum Command:
   case Find(query: String)
   case Scaffold(node: NodeId)
   case Answer(to: String, text: String)
-  case Serve(port: Int, as: Option[String])
+  case Said(text: String)
+  case QuestionAsked(text: String, assumed: String)
+  case Replied(question: String, text: String)
+  case Conversation(json: Boolean)
 
 /** The command line: the developer's commands, then the agent's (their names are SKILL.md's). */
 object Commands:
   val header: String =
     """FrFlow: one root refined by a DAG of small statements, each proven in Lean from its parts and decided by the developer.
       |
-      |The developer reads with tree, show, diff, inbox; decides with review, accept, reject, confirm, revisit, gone;
-      |asks with ask and close; or does all of it in a browser, with serve.
-      |The agent works with render, check, status, ci, context, find, scaffold, answer, inbox.
+      |A project starts in chat: the developer tells the agent the idea; the agent asks, records the conversation (said,
+      |asked, replied) and writes IDEA.md from it; the developer accepts IDEA.md; then the agent proposes the root.
+      |The developer reads with tree, show, diff, inbox, conversation; decides with review, accept, reject, confirm, revisit,
+      |gone; asks with ask and close. The web view does the same in a browser: sbt "PROJECT/serve --as NAME".
+      |The agent works with said, asked, replied, render, check, status, ci, context, find, scaffold, answer, inbox.
       |Exit codes: 0 fine; 1 something is not accepted or proven, or a decision was refused; 2 a usage error; 3 no Lean (lake).""".stripMargin
 
   private val plain = Opts.flag("plain", "ASCII without colors (also when NO_COLOR is set or the output is not a terminal)").orFalse
@@ -141,10 +142,15 @@ object Commands:
         .mapN(Command.Ask.apply)),
     command("close", "close requests: an answer read, or a request withdrawn")(
       Opts.arguments[String]("REQUEST").map(rs => Command.Close(rs.toList.map(RequestId(_))))),
-    command("serve", "the web view on localhost, until stopped: the graph, the inbox, and your decisions, signed as here")(
-      (Opts.option[Int]("port", "the port (default 8765; 0 for any free one)").withDefault(8765), as).mapN(Command.Serve.apply)))
+    command("conversation", "what you told the agent and its questions, with the answers it assumed and yours: what IDEA.md comes from")(
+      json.map(Command.Conversation.apply)))
 
   private val agent = List(
+    command("said", "record what the developer said in chat, word for word (the idea, a correction)")(words("TEXT").map(Command.Said.apply)),
+    command("asked", "record a question asked in chat, with the answer you assume (--assume): numbered Q1, Q2, ...")(
+      (words("QUESTION"), Opts.option[String]("assume", "the answer you assume, which the developer can just confirm")).mapN(Command.QuestionAsked.apply)),
+    command("replied", "record the developer's reply to a question, as they said it in chat")(
+      (Opts.argument[String]("Q"), words("TEXT")).mapN(Command.Replied.apply)),
     command("render", "generate Lean and the snapshot .frflow/kb.json from the Scala definitions")(Opts(Command.Render)),
     command("check", "render, prove each node from its parts, record the results")((node().orNone, json).mapN(Command.Check.apply)),
     command("status", "the tree and the summary; exits 1 unless the knowledge base is complete")(json.map(Command.Status.apply)),

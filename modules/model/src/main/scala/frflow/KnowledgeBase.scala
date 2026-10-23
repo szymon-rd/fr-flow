@@ -175,6 +175,8 @@ private[frflow] object Validation:
       ids.diff(ids.distinct).distinct.map(d => s"duplicate node id $d"),
       kb.roots match
         case List(_) => Nil
+        // A new project has no nodes while the idea is being written: the root comes first once there are any.
+        case Nil if nodes.isEmpty => Nil
         case Nil     => List("a root is required: one claim with no parents, the idea's purpose")
         case rs      => List(s"one root only: ${rs.map(_.id).mkString(", ")} are claims with no parents; put all but one under the nodes they help prove"),
       nodes.filter(n => kb.ancestors(n).exists(_ eq n)).map(n => s"${n.id} is above itself: what it is a part of must not lead back to it"),
@@ -216,6 +218,7 @@ private[frflow] object Validation:
     List(
       ids.filterNot(Ident.matches).map(i => s"node id $i is not an identifier"),
       ids.filter(i => i == "Lemmas" || i == "RootImpl").map(i => s"node id $i is reserved in lean/"),
+      ids.filter(_ == "IDEA").map(_ => "node id IDEA is reserved: the ledger keeps the decision on IDEA.md under it"),
       // Lean would prove one while Scala runs the other.
       twice(kb.allDefs, _.name)((n, _) => s"two different definitions are named $n (in different packages, say): Lean would know only one of them; rename one"),
       twice(kb.paramObjects, _.name)((p, ps) => s"two different parameters are named $p: ${ps.map(_.means).mkString("; ")}; rename one").sorted,

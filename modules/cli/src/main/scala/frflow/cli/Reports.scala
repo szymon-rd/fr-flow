@@ -52,13 +52,35 @@ object SummaryText:
       some(s.unsigned, "decision(s) not signed", st.red)).flatten
     val waits = List(
       Option.when(s.forDeveloper > 0)(st.yellow(s"${s.forDeveloper} for the developer") +
+        (if s.idea.exists(_ != ReviewState.Accepted) then " (IDEA.md first)" else "") +
         (if s.mechanical > 0 then s" (${s.mechanical} mechanical: confirm)" else "")),
+      some(s.openQuestions, "question(s) for the developer to answer in chat", st.yellow),
       some(s.withAgent, "asked of the agent", st.magenta), some(s.forAgent, "for the agent", st.magenta),
       some(s.openRequests, "open request(s)"), some(s.answers, "answer(s) to read")).flatten
     val sep = if st.unicode then s" ${st.dot} " else ", "
-    List(s"${st.bold(s.name)}: ${s.nodes} nodes${sep}${counts.mkString(sep)}", proofs.mkString(sep),
-      if waits.isEmpty then (if s.complete then st.green("Nothing waits: every node is accepted and proven.") else "Nothing waits for a decision.")
-      else s"Waiting: ${waits.mkString(sep)}").flatMap(Lines.para(_, st, indent = 0))
+    // Before the first node, the project is the conversation and IDEA.md: what comes next is said instead of the counts.
+    val start = if s.nodes > 0 then Nil
+      else List(s.idea match
+        case None => "No IDEA.md yet: the agent writes it from your conversation, then proposes the root."
+        case Some(ReviewState.Accepted) => "IDEA.md is accepted: the agent proposes the root next."
+        case Some(_) => "IDEA.md waits for you: read it, then accept IDEA (or tell the agent what to change).")
+    val head = if s.nodes > 0 then List(s"${st.bold(s.name)}: ${s.nodes} nodes${sep}${counts.mkString(sep)}", proofs.mkString(sep))
+      else List(s"${st.bold(s.name)}: no nodes yet") ++ start
+    (head :+ (if waits.isEmpty then (if s.complete then st.green("Nothing waits: every node is accepted and proven.") else "Nothing waits for a decision.")
+      else s"Waiting: ${waits.mkString(sep)}")).flatMap(Lines.para(_, st, indent = 0))
+
+/** The conversation IDEA.md comes from: what the developer said, then each question with the answer assumed and theirs. */
+object ConversationText:
+  def lines(c: Conversation, st: Style): List[String] =
+    if c.said.isEmpty && c.questions.isEmpty then List("Nothing recorded yet: tell the agent your idea in chat.")
+    else
+      def under(text: String) = Lines.para(text, st, indent = 4).map("  " + _)
+      (Lines.section("What you said", c.said.flatMap(s => Lines.para(s.text, st)), st) ++
+        Lines.section("What the agent asked", c.questions.flatMap { q =>
+          Lines.para(s"[${q.id}] ${q.text}", st) ++ under(st.dim(s"assumed: ${q.assumed}")) ++
+            q.replies.dropRight(1).flatMap(r => under(st.dim(s"earlier: ${r.text}"))) ++
+            under(q.answer.fold(st.yellow("no reply yet"))(a => s"${st.cyan("you:")} $a"))
+        }, st)).dropWhile(_.isEmpty)
 
 /** What waits for whom, for both the developer and the agent; the summary last. */
 object InboxText:
@@ -70,8 +92,15 @@ object InboxText:
     def waiting(w: Queued) =
       Lines.node(w.node, st, 4, w.waitsFor.fold("")(x => st.dim(s"  after $x"))) ::
         w.followers.map(f => st.dim("  " + Words.follower(f, w.node.id, st)))
+    val idea = i.idea.toList.flatMap { r =>
+      val how = if r.state == ReviewState.Review then "changed since you accepted it" else "written by the agent from your conversation"
+      Lines.para(s"${st.bold("IDEA")}  ${st.yellow(s"IDEA.md, $how")}: read it, then accept IDEA (the root is decided after it)", st)
+    }
     val body =
-      section("Requests from the developer", i.open.map(q => s"[${q.id}] on ${on(q)} ${st.dot} ${q.by}: ${q.text}"), st) ++
+      section("IDEA.md, first", idea, st) ++
+        section("Questions the agent asked: answer them in chat", i.questions.flatMap(q =>
+          Lines.para(s"[${q.id}] ${q.text}", st) ++ Lines.para(st.dim(s"assumed: ${q.assumed}"), st, indent = 4).map("  " + _)), st) ++
+        section("Requests from the developer", i.open.map(q => s"[${q.id}] on ${on(q)} ${st.dot} ${q.by}: ${q.text}"), st) ++
         section("Answers to read (close REQUEST when read)", i.answers.flatMap(q =>
           s"[${q.id}] on ${on(q)}: ${q.text}" :: q.answer.toList.map(a => s"  ${st.cyan("agent:")} $a")), st) ++
         section("Warnings: status fails on each", i.warnings.map(w => st.red(s"${st.bullet} $w")), st) ++

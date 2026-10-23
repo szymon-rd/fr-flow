@@ -54,7 +54,8 @@ object Decide:
 
   /** The decisions `after` has that `before` did not, in the order they are taken. */
   def added(snapshot: Snapshot, before: Ledger, after: Ledger): List[(NodeId, Decision)] =
-    inOrder(Graph(snapshot), after.decisions.keys.toList).flatMap(id => after.history(id).drop(before.history(id).size).map(id -> _))
+    val (idea, nodes) = after.decisions.keys.toList.partition(_ == IdeaDecision.Id)
+    (idea ++ inOrder(Graph(snapshot), nodes)).flatMap(id => after.history(id).drop(before.history(id).size).map(id -> _))
 
   private def inOrder(g: Graph, ids: List[NodeId]): List[NodeId] = ids.distinct.sortBy(g.rank.getOrElse(_, Int.MaxValue))
 
@@ -62,7 +63,16 @@ object Decide:
     inOrder(r.graph, ids).foldLeftM(r.ledger)((l, id) =>
       f(Reading(r.graph, l), id).leftMap(e => if ids.distinct.size > 1 then Refusal.Within(id, e) else e))
 
+  /** IDEA.md first (`IDEA` among the nodes), then the nodes, which may rest on it. */
   private def accept(r: Reading, ids: List[NodeId], reason: String, revisit: List[NodeId], seen: Map[NodeId, Version], record: Record) =
+    val (idea, nodes) = ids.partition(_ == IdeaDecision.Id)
+    if idea.isEmpty then acceptNodes(r, nodes, reason, revisit, seen, record)
+    else
+      IdeaDecision.accept(r.snapshot, r.ledger, reason, seen.get(IdeaDecision.Id), record.by, record.stamp)
+        .leftMap(e => if ids.distinct.size > 1 then Refusal.Within(IdeaDecision.Id, e) else e)
+        .flatMap(l => if nodes.isEmpty then Right(l) else acceptNodes(Reading(r.graph, l), nodes, reason, revisit, seen, record))
+
+  private def acceptNodes(r: Reading, ids: List[NodeId], reason: String, revisit: List[NodeId], seen: Map[NodeId, Version], record: Record) =
     val below = ids.flatMap(r.graph.byId.get).filter(r.state(_) != Accepted).flatMap(Downstream.below(r, _)).map(_.id).toSet
     def one(now: Reading, n: SnapNode): Either[Refusal, Ledger] =
       val rivals = now.graph.rivals.getOrElse(n.id, Nil).filter(now.stateOf(_) != Rejected)

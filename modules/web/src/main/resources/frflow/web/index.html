@@ -445,7 +445,16 @@ function inboxPane() {
   const forAgent = f => { const [k, v] = Object.entries(f)[0];
     return `<div class="row small">${k === "Replace" ? `${go(v.node)} rejected by ${esc(v.by)}: the agent removes it, or proposes what the reason asks for — ${esc(v.reason)}`
       : k === "Revisit" ? `${go(v.node)} to revisit: ${esc(v.reason)}` : `${go(v.node)} rests on ${v.rejectedParents.map(go).join(", ")}, rejected: the agent moves it`}</div>`; };
+  // IDEA.md first: the agent wrote it from your conversation, and the root is decided after it.
+  const idea = i.idea ? `<h3>IDEA.md, first</h3><div class="box ${i.idea.state === "review" ? "review" : "proposed"}" style="margin-top:0">
+      <div class="small">${i.idea.state === "review" ? "IDEA.md changed since you accepted it." : "The agent wrote IDEA.md from your conversation."}
+        Does it say what the system is for? The root is decided after it; to change it, tell the agent in chat.</div>
+      <pre>${esc(i.idea.text)}</pre>${box("idea-accept", "Why does it say what the system is for?")}
+      <div class="actions">${button("Accept IDEA.md", "acceptIdea", "", true)}</div>${note("idea-accept")}</div>` : "";
+  const questions = i.questions.length ? `<h3>The agent's questions: answer them in chat</h3>${i.questions.map(q =>
+    `<div class="row small">[${esc(q.id)}] ${esc(q.text)}<div class="muted">assumed: ${esc(q.assumed)}</div></div>`).join("")}` : "";
   return `${note("done")}${i.warnings.length ? `<div class="box failed" style="margin-top:0"><div class="verdict" style="color:var(--failed)">Warnings</div>${i.warnings.map(w => `<div class="small">${esc(w)}</div>`).join("")}</div>` : ""}
+    ${idea}${questions}
     <h3>Waiting for you: ready</h3>${i.ready.map(row).join("") || `<div class="muted small">${i.overview.forDeveloper ? "None ready." : "Nothing: every node is decided."}</div>`}
     ${i.mechanical.length ? `<h3>Mechanical: Lean proves these again; nothing in them is a choice</h3><div class="box review" style="margin-top:0">
       ${i.mechanical.map(line).join("")}${box("confirm", "Why do they hold? e.g. a new field no rule reads")}
@@ -531,7 +540,7 @@ document.addEventListener("click", async e => {
   if (g) { e.preventDefault(); return select(g.dataset.goto || g.dataset.node); }
   const tab = e.target.closest(".tab");
   if (tab) { S.tab = tab.dataset.tab; S.notes = {}; return render(true); }
-  if (e.target.closest("#waiting")) { const q = S.inbox.ready[0]; return q ? select(q.node.node.id) : (S.tab = "inbox", render(true)); }
+  if (e.target.closest("#waiting")) { const q = S.inbox.idea ? null : S.inbox.ready[0]; return q ? select(q.node.node.id) : (S.tab = "inbox", render(true)); }
   const b = e.target.closest("[data-act]");
   if (!b) return;
   const k = b.dataset.key, id = S.details?.node.node.id;
@@ -541,6 +550,7 @@ document.addEventListener("click", async e => {
     reject: () => decide("decide", { Reject: { node: id, reason: text("decide"), seen: S.shown } }),
     revisit: () => decide("revisit", { Revisit: { node: id, reason: text("revisit") } }),
     confirm: () => decide("confirm", { Confirm: { reason: text("confirm") } }),
+    acceptIdea: () => decide("idea-accept", { Accept: { nodes: ["IDEA"], reason: text("idea-accept"), revisit: [], seen: { IDEA: S.inbox.idea.version } } }),
     gone: () => decide("gone-" + k, { Gone: { node: k, reason: text("gone-" + k) } }),
     ask: () => act("ask", k ? "ask" : "idea", async () => (await call("/api/ask", { node: k || null, text: text(k ? "ask" : "idea") })).json,
       q => `Asked [${q.id}]: the agent sees it in its inbox.`),

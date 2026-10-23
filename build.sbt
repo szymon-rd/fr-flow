@@ -25,6 +25,8 @@ def leanTagged: Seq[Setting[?]] = inConfig(LeanTest)(Defaults.testTasks) ++ Seq(
     Tests.Argument(TestFrameworks.MUnit, "--include-tags=Lean"))
 addCommandAlias("leanTest", "Lean/test")
 addCommandAlias("testAll", "; test; Lean/test")
+// A new project, before the idea is told: `sbt "frflowInit toy"` (an empty knowledge base, its Lean project, its line below).
+addCommandAlias("frflowInit", "cli/runMain frflow.cli.Init")
 
 lazy val root = project.in(file("."))
   .aggregate(model, protocol, lean, ledger, check, api, cli, web, auth, crm, keycloak)
@@ -66,6 +68,7 @@ lazy val web = module("web", (Seq(catsEffect, circe, munitEffect) ++ http4s)*).d
 
 /** The java command that runs a project's CLI on a terminal (colors, the interactive review): what `bin/frflow` runs. */
 val cliLauncher = taskKey[File]("Writes the java command running this project's CLI, for bin/frflow")
+val serve = inputKey[Unit]("The project's web view on localhost, until stopped: serve [--port N] [--as NAME]")
 
 def example(name: String) = Project(name, file(s"examples/$name"))
   .dependsOn(cli, web)
@@ -85,6 +88,12 @@ def example(name: String) = Project(name, file(s"examples/$name"))
       IO.writeLines(launch, (run / javaOptions).value ++ Seq("-cp", (Runtime / fullClasspath).value.files.mkString(java.io.File.pathSeparator), main))
       launch
     },
+    // The web view runs the project's main object (its knowledge base) in a forked JVM, over the API the CLI uses.
+    serve := Def.inputTaskDyn {
+      val args = complete.DefaultParsers.spaceDelimited("[--port N] [--as NAME]").parsed
+      val main = (Compile / run / mainClass).value.getOrElse(sys.error(s"${Keys.name.value} has no main class"))
+      (Compile / runMain).toTask((Seq("frflow.web.Serve", main) ++ args).mkString(" ", " ", ""))
+    }.evaluated,
     Test / fork := true,
     Test / baseDirectory := (ThisBuild / baseDirectory).value
   )

@@ -14,8 +14,11 @@ class CommandsSuite extends munit.CatsEffectSuite:
   test("every command parses, --plain before or after it; a usage error is the help with errors") {
     List("tree", "tree Root --json", "show Decide --full --json", "diff Decide", "inbox --json", "review --as dev", "reject Expiry --reason no",
       "confirm -m same", "revisit Root -m look", "gone Old -m renamed --yes", "ask Decide name the user", "ask --idea more", "close R1 R2",
-      "render", "check", "check Pick --json", "status --json", "ci", "context Decide", "find some words", "scaffold Pick", "answer R1 done it", "serve", "serve --port 0 --as dev")
+      "render", "check", "check Pick --json", "status --json", "ci", "context Decide", "find some words", "scaffold Pick", "answer R1 done it",
+      "said a shared CRM for many companies", "asked can a company share a record --assume yes until a date", "replied Q1 yes", "conversation --json")
       .foreach(a => assert(parse(a).isRight, a))
+    // the web view is an sbt task, not a command; a question needs the answer assumed
+    assert(List("serve", "asked who decides").forall(parse(_).left.exists(_.errors.nonEmpty)))
     assertEquals(List("--plain tree", "tree --plain", "tree").map(parse(_).map(_._2)), List(Right(true), Right(true), Right(false)))
     parse("accept A B --revisit C -m why --yes") match
       case Right((Command.Decision(make, asked), _)) =>
@@ -84,18 +87,48 @@ class CommandsSuite extends munit.CatsEffectSuite:
       assert(out.contains("error: unknown node Nope"), out.mkString("\n"))
   }
 
-  test("serve runs the server the main object passes, as the developer and on the port asked; without one, a usage error") {
+  test("the agent records the conversation: what was said, each question with the answer assumed, the reply; inbox lists the open ones") {
     for
       api <- FakeApi()
       term <- Scripted(Nil, interactive = false)
-      ran <- Ref.of[IO, List[(String, Int)]](Nil)
-      server: Server = (_, dev, port) => ran.update(_ :+ (dev.name -> port))
-      served <- Dispatch(api, term, st, Some(server))(Command.Serve(0, Some("demo")))
-      none <- Dispatch(api, term, st)(Command.Serve(8765, None))
-      calls <- ran.get
+      codes <- List(Command.Said("A CRM shared by many companies."), Command.QuestionAsked("Can a company share a record?", "Yes, until a date."),
+        Command.QuestionAsked("Who may unshare it?", "Only the owning company."), Command.Replied("q1", "Yes, until a date or for good."))
+        .traverse(Dispatch(api, term, st)(_))
+      unknown <- Dispatch(api, term, st)(Command.Replied("Q9", "no"))
+      _ <- Dispatch(api, term, st)(Command.Conversation(json = false))
+      _ <- Dispatch(api, term, st)(Command.Inbox(json = false))
       out <- term.output
     yield
-      assertEquals((served, none), (ExitCode.Success, ExitCode(2)))
-      assertEquals(calls, List("demo" -> 0))
-      assert(out.contains(s"error: ${Dispatch.NoServer}"), out)
+      assertEquals(codes, List.fill(4)(ExitCode.Success))
+      assertEquals(unknown, ExitCode(2))
+      val text = out.mkString("\n")
+      List("recorded [Q1]: ask it in chat, with the answer you assume", "recorded the reply to [Q1]", "error: no question Q9 in the conversation",
+        "What you said", "  A CRM shared by many companies.", "  [Q1] Can a company share a record?", "    assumed: Yes, until a date.",
+        "    you: Yes, until a date or for good.", "    no reply yet", "Questions the agent asked: answer them in chat",
+        "  [Q2] Who may unshare it?", "1 question(s) for the developer to answer in chat").foreach(l => assert(text.contains(l), s"$l\n$text"))
+  }
+
+  test("IDEA.md waits for the developer, first: the root is decided after it, and accepting it twice is refused") {
+    val idea = "# Shelf\n\nA shelf hands out the good books.\n\n## Picking\nFrom: Q1\nOnly long books are picked.\n"
+    for
+      api <- FakeApi(Sample.snapshot.copy(idea = idea), Sample.ledgerNow, Nil)
+      term <- Scripted(Nil, interactive = false)
+      before <- api.view
+      root = before.snapshot.root.flatMap(before.node).get
+      _ <- Dispatch(api, term, st)(Command.Inbox(json = false))
+      refused <- Dispatch(api, term, st)(Command.Decision(Decide.Accept(List(root.id), _), Asked(Some("as decided"), None, yes = true)))
+      accepted <- Dispatch(api, term, st)(Command.Decision(Decide.Accept(List(IdeaReview.Id), _), Asked(Some("it says what the shelf is for"), None, yes = true)))
+      after <- api.view
+      again <- Dispatch(api, term, st)(Command.Decision(Decide.Accept(List(IdeaReview.Id), _), Asked(Some("again"), None, yes = true)))
+      out <- term.output
+    yield
+      assertEquals(before.annotated.idea.map(_.state), Some(ReviewState.Proposed))
+      assertEquals(root.review.waitsFor, Some(IdeaReview.Id))
+      assertEquals((refused, accepted, again), (ExitCode(1), ExitCode.Success, ExitCode(1)))
+      assertEquals(after.annotated.idea.map(_.state), Some(ReviewState.Accepted))
+      assertEquals(after.snapshot.root.flatMap(after.node).flatMap(_.review.waitsFor), None)
+      val text = out.mkString("\n")
+      List("IDEA.md, first", "IDEA.md, written by the agent from your conversation: read it, then accept IDEA",
+        "error: accept IDEA first: what rests on it is decided after it", "error: IDEA is already accepted")
+        .foreach(l => assert(text.contains(l), s"$l\n$text"))
   }

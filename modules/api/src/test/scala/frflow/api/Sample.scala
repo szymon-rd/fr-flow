@@ -98,5 +98,5 @@ object Sample:
       RequestStatus.Answered, Some("Added the example under Decide; it is proven."), None),
     Request(RequestId("R2"), None, "Users can see who accessed their records.", by, Instant.parse("2026-01-03T11:00:00Z"), RequestStatus.Open))
 
-  def view(s: Snapshot = snapshot, l: Ledger = ledgerNow, rs: List[Request] = requests): View =
-    View(Annotate(s, l), Nil, rs, Nil)
+  def view(s: Snapshot = snapshot, l: Ledger = ledgerNow, rs: List[Request] = requests, c: Conversation = Conversation.empty): View =
+    View(Annotate(s, l), Nil, rs, Nil, c)

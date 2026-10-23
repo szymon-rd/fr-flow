@@ -23,15 +23,40 @@ minutes) run with `sbt leanTest`; `sbt testAll` runs both, as before a merge.
 | | `review` | decide what waits, parents first: `[a]ccept [r]eject [s]kip [v]iew [q]uit [?]ask` |
 | | `accept NODE...`, `reject NODE`, `confirm`, `revisit NODE`, `gone NODE` | one decision, with `-m REASON`; confirmed on a terminal, `--yes` without one |
 | | `ask NODE TEXT`, `ask --idea TEXT`, `close REQUEST...` | ask the agent for a change; close an answer read |
-| | `serve [--port N] [--as NAME]` | the same in a browser: the [web view](#web-view) |
-| agent | `inbox`, `context NODE`, `find WORDS\|PATH` | what to do; everything on a node (`show --full`); where a change belongs |
+| | `conversation` | what you told the agent, its questions with the answers it assumed, and yours |
+| agent | `said TEXT`, `asked QUESTION --assume ANSWER`, `replied Q TEXT` | record the conversation the idea comes from (see [Starting a project](#starting-a-project)) |
+| | `inbox`, `context NODE`, `find WORDS\|PATH` | what to do; everything on a node (`show --full`); where a change belongs |
 | | `render`, `check [NODE]`, `scaffold NODE` | Lean and `.frflow/kb.json`; prove what changed; proof stubs for what is left open |
 | | `status`, `ci` | the tree, the summary and the warnings; exit 1 unless complete (`ci` checks first) |
 | | `answer REQUEST\|NODE TEXT` | reply to a request, or tell the developer of work they did not ask for |
 
 `--as NAME` names who decides (default: `FRFLOW_AS`, or the name the key is
-filed under). `serve` and the commands that decide ask for it when neither is
+filed under). The commands that decide, and the web view, ask for it when neither is
 set.
+
+`accept IDEA` accepts `IDEA.md` (see below); `IDEA` is not a node id.
+
+The web view is not a command: it is an sbt task, `sbt "PROJECT/serve [--port N] [--as NAME]"`
+(see [Web view](#web-view)).
+
+## Starting a project
+
+1. `sbt "frflowInit NAME"` sets up an empty project in `examples/NAME`: a knowledge base with no nodes, its main
+   object, its Lean project, and its line in `build.sbt` (then `sbt reload`).
+2. The developer tells the agent the idea in chat. The agent asks what it needs, three to five questions at a time,
+   each with the answer it assumes, and records the conversation as it goes: `said` (the developer's words, verbatim),
+   `asked` (a question and the assumed answer, numbered `Q1`, `Q2`, ...) and `replied` (the developer's answer, as
+   said in chat). This is a record, kept in `.frflow/conversation.json`, not a decision: the agent cannot sign as the
+   developer. `conversation` shows it; `inbox` and `status` list the questions with no reply yet.
+3. The agent writes `IDEA.md` from the conversation. Each section names the answers it comes from on a `From:` line
+   (`From: Q1, Q3`), which moves no node.
+4. `IDEA.md` waits for the developer, first in `inbox` and `review`: they accept it (`accept IDEA`, signed, or in the
+   web view) or tell the agent what to change. The root is decided after it.
+5. The agent proposes the root, then its parts, each naming the section of `IDEA.md` it comes from (`idea = "..."`).
+
+Later, a change to `IDEA.md` brings it back for review, and the root waits for it again. A change to what a section
+says brings back the nodes that name that section; a change to its `From:` lines brings back only `IDEA.md`. A
+changed answer to a question is a warning in `status` until `IDEA.md` is looked at and accepted again.
 
 ## Output and exit codes
 
@@ -284,35 +309,27 @@ node is gone, and there is no warning. The warnings:
 
 ## CI
 
-Committed: the Scala, `IDEA.md`, `.frflow/` (ledger, keys, requests) and
+Committed: the Scala, `IDEA.md`, `.frflow/` (ledger, keys, requests, the conversation) and
 `lean/Proofs`; the rest is derived. CI runs `ci`, caching
 `.frflow/checks.json` and `lean/.lake` by branch, so only what changed is
 proven again.
 
 ## A new project
 
-A project is a directory beside the examples (here `examples/library`):
-
-1. `IDEA.md`: a title, a lead paragraph, `## ` sections, and `## Not modelled`.
-2. `lazy val library = example("library")` in `build.sbt` (and the project in
-   `root`'s `aggregate`), then `sbt reload`.
-3. The model in `src/main/scala/library/`, ending with the knowledge base and
-   its command line:
-   ```scala
-   val knowledge = KnowledgeBase("Library", idea = "IDEA.md")(lendsExactly, ...)
-   object libraryCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/library", serve = Some(frflow.web.WebView.serve))
-   ```
-   With several mains, set `Compile / run / mainClass`.
-4. `bin/frflow library render` creates `lean/` (its `lakefile.toml`,
-   toolchain and the generated Lean); then `check` and `status`.
+`sbt "frflowInit library"` makes `examples/library` with an empty knowledge base and its command line, and adds
+`lazy val library = example("library")` to `build.sbt` (add it to `root`'s `aggregate` to test it with the rest);
+then `sbt reload`. The rest follows [Starting a project](#starting-a-project). `bin/frflow library render` creates
+`lean/` (its `lakefile.toml`, toolchain and the generated Lean) once there are nodes; with several mains in the
+project, set `Compile / run / mainClass`.
 
 ## Web view
 
-`bin/frflow PROJECT serve [--port N] [--as NAME]` serves the developer's flow
-in a browser: the DAG with each node's state and status, a node with its diff
+`sbt "PROJECT/serve [--port N] [--as NAME]"` serves the developer's flow
+in a browser, from the project's main object in a JVM of its own: the DAG with each node's state and status, a node with its diff
 since it was decided, the inbox, the decisions with their reasons, and
 requests to the agent. It listens on localhost (port 8765 by default) and
-prints a link with a random token, which every route asks for.
+prints a link with a random token, which every route asks for. `IDEA.md` waits there too, first, and the agent's
+open questions are listed (they are answered in chat).
 
 The page is a client of the same API as the CLI (`FrFlowApi`), so a decision is
 signed and recorded as `accept` records it, and the CLI can run beside it. The

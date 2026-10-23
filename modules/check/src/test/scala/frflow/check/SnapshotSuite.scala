@@ -110,6 +110,25 @@ class SnapshotSuite extends munit.FunSuite:
     assert(!warnings.exists(_.contains("the section \"Picking\"")), warnings)
   }
 
+  test("IDEA.md is decided first; an edit to a section brings back IDEA.md and the nodes naming it, a From: line nothing") {
+    val long2 = Node.claim("OnlyLong", onlyLong.statement, onlyLong.why, idea = "Picking")(
+      forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => b.pages >= minPages))).under(onlyGood)
+    val idea = "# Shelf\n\nPick good items.\n\n## Picking\nFrom: Q1\nPick only long books.\n\n## Not modelled\n\n- Prices.\n"
+    val d = Desk(KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, books, picking, long2)).withIdea(idea)
+    val defined = Desk.ok(Desk.ok(d.accept(books, "books are the items")).accept(picking, "picking is the service's"))
+    assertEquals(defined.accept(onlyGood, "as said").left.toOption, Some(Refusal.AcceptFirst(IdeaDecision.Id).message))
+    val all = d.acceptAll
+    assertEquals((all.annotated.idea.map(_.state), all.notAccepted), (Some(ReviewState.Accepted), Nil))
+    assert(!all.node("OnlyLong").node.content.str("idea").exists(_.contains("From:")))
+    // where the section comes from is provenance: IDEA.md is decided again, no node moves
+    val from = all.withIdea(idea.replace("From: Q1", "From: Q1, Q2"))
+    assertEquals((from.annotated.idea.map(_.state), from.notAccepted), (Some(ReviewState.Review), Nil))
+    // what the section says moves the node naming it
+    val said = all.withIdea(idea.replace("Pick only long books.", "Pick only long books, and new ones."))
+    assertEquals((said.annotated.idea.map(_.state), said.notAccepted), (Some(ReviewState.Review), List("OnlyLong" -> "review")))
+    assertEquals(said.node(onlyGood.id).review.waitsFor, Some(IdeaDecision.Id))
+  }
+
   test("a type change is mechanical where nothing the developer decided changed") {
     val d = Desk(shelfKb).acceptAll
     val snap = proven(d.analysis.snapshot)

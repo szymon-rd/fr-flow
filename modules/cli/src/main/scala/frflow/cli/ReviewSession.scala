@@ -5,8 +5,8 @@ import cats.syntax.all.*
 import frflow.api.*
 import frflow.protocol.*
 
-/** The developer's review: the mechanical batch, each node waiting in the order to decide it, then the gone nodes.
-  * The view is read again after each decision, so what it unblocked comes next.
+/** The developer's review: IDEA.md when it waits, the mechanical batch, each node waiting in the order to decide it, then
+  * the gone nodes. The view is read again after each decision, so what it unblocked comes next.
   */
 final class ReviewSession(api: FrFlowApi, term: Terminal, st: Style):
   private final case class Pass(skipped: Set[NodeId], batchOffered: Boolean, decided: Int):
@@ -20,10 +20,12 @@ final class ReviewSession(api: FrFlowApi, term: Terminal, st: Style):
     else api.developer(as).flatMap(_.fold(r => term.err(r.message).as(Dispatch.Usage), dev => loop(dev, Pass(Set.empty, false, 0))))
 
   private def loop(dev: Developer, p: Pass): IO[ExitCode] = api.reviewing.flatMap { (v, inbox) =>
-    if !p.batchOffered && inbox.mechanical.nonEmpty then batch(dev, v, inbox, p)
-    else inbox.queue.find(w => !p.skipped(w.node.id)) match
-      case Some(w) => api.details(v, w.node).flatMap(one(dev, w, _, inbox.queue.count(x => !p.skipped(x.node.id)), p, Depth.Brief))
-      case None => inbox.gone.find(g => !p.skipped(g.id)).fold(finish(inbox, p))(g => gone(dev, Details.gone(v, g), p))
+    inbox.idea.filterNot(_ => p.skipped(IdeaReview.Id)) match
+      case Some(idea) => ideaMd(dev, v, idea, p)
+      case None if !p.batchOffered && inbox.mechanical.nonEmpty => batch(dev, v, inbox, p)
+      case None => inbox.queue.find(w => !p.skipped(w.node.id)) match
+        case Some(w) => api.details(v, w.node).flatMap(one(dev, w, _, inbox.queue.count(x => !p.skipped(x.node.id)), p, Depth.Brief))
+        case None => inbox.gone.find(g => !p.skipped(g.id)).fold(finish(inbox, p))(g => gone(dev, Details.gone(v, g), p))
   }
 
   private val Keys = Map("a" -> "[a]ccept", "r" -> "[r]eject", "s" -> "[s]kip", "v" -> "[v]iew", "q" -> "[q]uit", "?" -> "[?]ask")
@@ -45,6 +47,17 @@ final class ReviewSession(api: FrFlowApi, term: Terminal, st: Style):
       case Right(done) =>
         term.out(st.green(s"recorded, signed by ${dev.name}:") :: ReportText.decided(done, st, notes = false)) *> loop(dev, p.recorded(done.decisions.size))
     }
+
+  /** IDEA.md first: the agent wrote it from the conversation, and the root is decided after it. */
+  private def ideaMd(dev: Developer, v: View, i: IdeaReview, p: Pass): IO[ExitCode] =
+    val how = if i.state == ReviewState.Review then "changed since you accepted it" else "written by the agent from your conversation"
+    term.out("" :: st.bold(s"IDEA.md, $how: does it say what the system is for?") :: v.snapshot.idea.linesIterator.map("  " + _).toList) *>
+      choose("[a]ccept  [s]kip  [q]uit: ", Set("a", "s", "q", "")).flatMap {
+        case Some("a") => reason("Why (kept as part of the theory)? ").flatMap(_.fold(loop(dev, p))(why =>
+          record(dev, Decide.Accept(List(IdeaReview.Id), why, Nil, Map(IdeaReview.Id -> i.version)), p, Some(IdeaReview.Id))))
+        case Some("s") | Some("") => loop(dev, p.skip(IdeaReview.Id))
+        case _ => quit(p)
+      }
 
   // A mechanical decision is never of code (`Mechanical`): what changed is in its fields.
   private def batch(dev: Developer, v: View, inbox: Inbox, p: Pass): IO[ExitCode] =

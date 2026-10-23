@@ -149,7 +149,10 @@ and <strong>explanations</strong> of why it works as it does. For the short pitc
 </ul>
 <p>FrFlow addresses them with a formal refinement flow:</p>
 <ol class="steps">
-  <li>You write <code>IDEA.md</code>: the purpose of the system, in prose.</li>
+  <li>You tell the agent your idea in chat. It asks what it needs, a few questions at a time, each with the answer it
+  assumes, and records the conversation.</li>
+  <li>The agent writes <code>IDEA.md</code> from the conversation: the purpose of the system, in prose, each section
+  naming the answers it comes from. You accept it.</li>
   <li>The agent proposes a <em>root</em>: one statement that says the purpose exactly, both what users can do and
   what must never happen.</li>
   <li>The agent refines the root into <em>parts</em>, in your domain's words: claims, contracts on operations,
@@ -212,7 +215,9 @@ Nothing waits: every node is accepted and proven.</code></pre></div>
 the example's code. Open <code>examples/auth/src/main/scala/auth/Auth.scala</code> beside this page.</p>
 
 <h3 id="t-idea">1. The idea</h3>
-<p>You write the purpose in <code>IDEA.md</code>: a title, a lead paragraph, sections, and what is not modelled.</p>
+<p>The purpose is in <code>IDEA.md</code>: a title, a lead paragraph, sections, and what is not modelled. In a new
+project the agent writes it from your conversation and you accept it (<a href="#how-new-project">Start a project</a>);
+this example's was written before that, and accepted as it stands.</p>
 <div class="code"><span class="label"><code>examples/auth/IDEA.md</code></span><pre><code># Auth
 
 A system decides which users may access which resources. No user may ever
@@ -325,7 +330,7 @@ val knowledge = KnowledgeBase("Auth", idea = "IDEA.md")(
   inMemorySessions
 ).implementProven(decisionContract)(admitted, SessionStore(grants.value.toSet, sessions.value).decide)
 
-object authCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/auth", serve = Some(frflow.web.WebView.serve))</code></pre></div>
+object authCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/auth")</code></pre></div>
 <p>Production calls the operation through <code>service</code>, which checks every result against the contract:</p>
 <div class="code"><span class="label"><code>examples/auth/src/main/scala/auth/Server.scala</code></span><pre><code>def service(grantTable: List[Grant], tokens: Map[String, UserId]): (String, Path) =&gt; Option[UserId] =
   knowledge.service(decisionContract)(grants.bind(grantTable), sessions.bind(t =&gt; tokens.get(t)))</code></pre></div>
@@ -342,17 +347,24 @@ object authCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/auth", s
 
 <h3 id="how-new-project">Start a project</h3>
 <ol class="steps">
-  <li>Create <code>examples/library/IDEA.md</code> with a title, a lead paragraph, <code>## </code> sections, and a
-  <code>## Not modelled</code> section.</li>
-  <li>In <code>build.sbt</code>, add <code>lazy val library = example("library")</code> and add the project to
-  <code>root</code>'s <code>aggregate</code>. Run <code>sbt reload</code>.</li>
-  <li>Write the model in <code>examples/library/src/main/scala/library/</code>, ending with the knowledge base and its
-  command line, as in <a href="#t-kb">the tutorial's step 8</a>:
-  <code>KnowledgeBase("Library", idea = "IDEA.md")(…)</code> and
-  <code>object libraryCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/library", serve = Some(frflow.web.WebView.serve))</code>.</li>
-  <li>Run <code>bin/frflow library render</code>. It creates <code>lean/</code> with its Lake project and the
-  generated Lean. Then run <code>check</code> and <code>status</code>.</li>
+  <li>Run <code>sbt "frflowInit library"</code>, then <code>sbt reload</code>. It creates
+  <code>examples/library</code> with an empty knowledge base and its command line, and adds
+  <code>lazy val library = example("library")</code> to <code>build.sbt</code>. <code>bin/frflow library status</code>
+  works from here.</li>
+  <li>Tell the agent your idea in chat, in your own words. It records them (<code>said</code>).</li>
+  <li>Answer its questions. It asks three to five at a time, each with the answer it assumes, so you can just agree
+  or correct it. It records each question (<code>asked</code>, numbered <code>Q1</code>, <code>Q2</code>, …) and your
+  answer (<code>replied</code>). <code>bin/frflow library conversation</code> shows what is recorded; <code>inbox</code>
+  lists the questions not answered yet.</li>
+  <li>Confirm the purpose in one sentence when the agent restates it: it becomes the root.</li>
+  <li>Read <code>IDEA.md</code>, which the agent writes from the conversation (each section names the answers it comes
+  from on a <code>From:</code> line), and accept it: <code>accept IDEA --reason "…"</code>, or in
+  <code>review</code> or the web view. To change it, tell the agent.</li>
+  <li>The agent proposes the root and its parts; decide them as in <a href="#how-review">Review a change</a>.</li>
 </ol>
+<p>The conversation is a record the agent keeps in <code>.frflow/conversation.json</code>, not a decision: only
+<code>IDEA.md</code> and the nodes are signed. If <code>IDEA.md</code> changes later, it comes back to you, and so do
+the nodes that name a changed section.</p>
 
 <h3 id="how-split">Split a claim into parts</h3>
 <ol class="steps">
@@ -426,7 +438,7 @@ that takes several steps against the outside (load, store, log) is a flow over a
   <kbd>?</kbd> to ask the agent, <kbd>q</kbd> to quit.</li>
   <li>Or decide one node: <code>accept NODE --reason "…"</code>, or <code>reject NODE --reason "…"</code>. A reason
   of a word or two is refused.</li>
-  <li>For decisions in a browser, run <code>bin/frflow PROJECT serve --as NAME</code> and open the printed link.</li>
+  <li>For decisions in a browser, run <code>sbt "PROJECT/serve --as NAME"</code> and open the printed link.</li>
 </ol>
 
 <h3 id="how-prove">Prove a split by hand</h3>
@@ -554,9 +566,11 @@ val aboutRecord = define { (s: Term[CrmStore], id: Term[BigInt]) =&gt;
 
 FrFlow: one root refined by a DAG of small statements, each proven in Lean from its parts and decided by the developer.
 
-The developer reads with tree, show, diff, inbox; decides with review, accept, reject, confirm, revisit, gone;
-asks with ask and close; or does all of it in a browser, with serve.
-The agent works with render, check, status, ci, context, find, scaffold, answer, inbox.
+A project starts in chat: the developer tells the agent the idea; the agent asks, records the conversation (said,
+asked, replied) and writes IDEA.md from it; the developer accepts IDEA.md; then the agent proposes the root.
+The developer reads with tree, show, diff, inbox, conversation; decides with review, accept, reject, confirm, revisit,
+gone; asks with ask and close. The web view does the same in a browser: sbt "PROJECT/serve --as NAME".
+The agent works with said, asked, replied, render, check, status, ci, context, find, scaffold, answer, inbox.
 Exit codes: 0 fine; 1 something is not accepted or proven, or a decision was refused; 2 a usage error; 3 no Lean (lake).
 
 Options and flags:
@@ -590,8 +604,14 @@ Subcommands:
         ask the agent for a change on NODE (or, with --idea, about the whole idea)
     close
         close requests: an answer read, or a request withdrawn
-    serve
-        the web view on localhost, until stopped: the graph, the inbox, and your decisions, signed as here
+    conversation
+        what you told the agent and its questions, with the answers it assumed and yours: what IDEA.md comes from
+    said
+        record what the developer said in chat, word for word (the idea, a correction)
+    asked
+        record a question asked in chat, with the answer you assume (--assume): numbered Q1, Q2, ...
+    replied
+        record the developer's reply to a question, as they said it in chat
     render
         generate Lean and the snapshot .frflow/kb.json from the Scala definitions
     check
@@ -640,9 +660,10 @@ a small budget, which shows nothing.</p>
 <table>
 <thead><tr><th>Path</th><th>Holds</th><th>Committed</th></tr></thead>
 <tbody>
-<tr><td><code>IDEA.md</code></td><td>the purpose, in prose</td><td>yes</td></tr>
+<tr><td><code>IDEA.md</code></td><td>the purpose, in prose, written by the agent from the conversation and accepted by you</td><td>yes</td></tr>
 <tr><td><code>src/main/scala/…</code></td><td>the nodes and the code</td><td>yes</td></tr>
-<tr><td><code>.frflow/ledger.json</code></td><td>every decision: who, why, the alternatives, the commit, a signature</td><td>yes</td></tr>
+<tr><td><code>.frflow/ledger.json</code></td><td>every decision, <code>IDEA.md</code>'s included: who, why, the alternatives, the commit, a signature</td><td>yes</td></tr>
+<tr><td><code>.frflow/conversation.json</code></td><td>what you told the agent, its questions with the answers it assumed, and yours: a record, not decisions</td><td>yes</td></tr>
 <tr><td><code>.frflow/keys/NAME.pub</code></td><td>the developers' public keys. The private key stays in <code>~/.config/frflow/signing.key</code> or <code>FRFLOW_KEY</code></td><td>yes</td></tr>
 <tr><td><code>lean/Proofs/&lt;KB&gt;/</code></td><td>proofs written by hand</td><td>yes</td></tr>
 <tr><td><code>lean/FrFlowGen/</code>, <code>.frflow/kb.json</code></td><td>generated Lean and the snapshot</td><td>no</td></tr>

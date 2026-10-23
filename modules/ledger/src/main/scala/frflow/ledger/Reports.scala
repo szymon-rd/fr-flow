@@ -22,9 +22,9 @@ object Annotate:
         below = if st == ReviewState.Accepted then Nil else Downstream.below(v, n),
         history = l.history(id), rivals = v.graph.rivals.getOrElse(id, Nil), alternatives = l.alternatives(id).map(Alternative(_, _))))
     }
-    val gone = l.decisions.keys.toList.sorted.filter(id => !v.graph.byId.contains(id) && l.binding(id).isDefined)
+    val gone = l.decisions.keys.toList.sorted.filter(id => id != IdeaDecision.Id && !v.graph.byId.contains(id) && l.binding(id).isDefined)
       .flatMap(id => l.current(id).map(Gone(id, _)))
-    Annotated(v.snapshot, nodes, gone, v.graph.order)
+    Annotated(v.snapshot, nodes, gone, v.graph.order, v.idea)
 
 /** What is the agent's to do: replace a rejected node (or remove it), revisit a node, move one resting on a rejected one. */
 enum ForAgent derives Codec.AsObject:
@@ -70,11 +70,12 @@ object CodeProof:
       case None => Option.when(impl.nonEmpty)(ByRunning)
 
 object Proofs:
-  /** The CI gate: every node accepted and proven, every example passing; rejected nodes removed from the model, so that
-    * nothing rests on them or is governed by them.
+  /** The CI gate: some node (a project still in its conversation is not done), IDEA.md accepted, every node accepted and
+    * proven, every example passing; rejected nodes removed from the model, so that nothing rests on them or is governed by them.
     */
   def complete(a: Annotated): Boolean =
-    a.gone.isEmpty && a.nodes.forall(r => r.state == ReviewState.Accepted && unproven(r.node).isEmpty)
+    a.nodes.nonEmpty && a.idea.forall(_.state == ReviewState.Accepted) &&
+      a.gone.isEmpty && a.nodes.forall(r => r.state == ReviewState.Accepted && unproven(r.node).isEmpty)
 
   /** What of a node is not proven or fails: the one list `status` uses. */
   def unproven(n: SnapNode): List[String] =

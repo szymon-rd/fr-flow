@@ -103,3 +103,19 @@ class RoutesSuite extends munit.CatsEffectSuite:
       assert(v.requests.exists(q => q.text == "Name the user." && q.by == dev.name && q.node.contains(NodeId("Decide"))), v.requests)
       assertEquals(v.requests.find(_.id == RequestId("R1")).map(_.status), Some(RequestStatus.Closed))
   }
+
+  test("the inbox carries IDEA.md and the agent's open questions; the page accepts IDEA.md as it saw it") {
+    val talk = Conversation(questions = List(Question("Q1", "Can a token be shared?", "No: one user per token.", Sample.at)))
+    for
+      api <- FakeApi(Sample.snapshot.copy(idea = "# Auth\n\nOnly the authorized get in.\n"), Sample.ledgerNow, Nil, talk)
+      inbox <- json(api, Method.GET, "/api/inbox")
+      version = inbox._2.hcursor.downField("idea").downField("version").as[String].toOption.get
+      stale <- json(api, Method.POST, "/api/decide", Some((Decide.Accept(List(IdeaReview.Id), "says what it is for", Nil, Map(IdeaReview.Id -> Version("old"))): Decide).asJson))
+      accepted <- json(api, Method.POST, "/api/decide", Some((Decide.Accept(List(IdeaReview.Id), "says what it is for", Nil, Map(IdeaReview.Id -> Version(version))): Decide).asJson))
+      v <- api.view
+    yield
+      assertEquals(inbox._2.hcursor.downField("idea").downField("text").as[String], Right("# Auth\n\nOnly the authorized get in.\n"))
+      assertEquals(inbox._2.hcursor.downField("questions").downN(0).downField("id").as[String], Right("Q1"))
+      assertEquals((stale._1, accepted._1), (Status.Conflict, Status.Ok))
+      assertEquals(v.annotated.idea.map(_.state), Some(ReviewState.Accepted))
+  }

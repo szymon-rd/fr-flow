@@ -129,6 +129,15 @@ world before and after), `checkedBy`, `checkedAgainst`, `implement`, `implementP
 `IDEA.md`: the title and lead paragraph are the root's. Any node may name a section with
 `idea = "Section"`; a section no node names is a warning.
 
+The developer does not write `IDEA.md`. They tell the agent the idea in chat; the agent asks, three to five
+questions at a time, each with the answer it assumes, and records the conversation (`said`, `asked`, `replied`;
+`.frflow/conversation.json`, a record the agent writes, not a decision). It writes `IDEA.md` from it, each section
+naming the answers it comes from on a `From:` line. `IDEA.md` is a decision of the developer's, kept in the ledger
+under `IDEA`: proposed until accepted, back for review when it changes. The root is decided after it. A node's
+meaning carries the text of the section it names (without `From:` lines), so an edit to a section brings back the
+nodes naming it; an answer changed after `IDEA.md` was accepted is a warning until it is accepted again. A project
+starts empty (`sbt "frflowInit NAME"`): a knowledge base with no nodes is valid while the idea is told.
+
 ## 3. Lean obligations
 
 For each node N with parts C1..Cn (n ≥ 1), over the union U of the open terms the statements mention:
@@ -246,5 +255,6 @@ restatement. A rejection's reason that asks for something is answered by a node 
 `simp only [frflow_defs] at *`; `check` prints the goal they leave when automation gives up.
 
 The developer's flow and the agent's are in the CLI. The `web` module serves the developer's flow in a
-browser (`serve`) over the same API, so a decision is recorded alike from either. The MCP server is on
+browser (the sbt task `sbt "PROJECT/serve --as NAME"`, not a CLI command) over the same API, so a decision is
+recorded alike from either. The MCP server is on
 the branch `web-view`, which will become a separate repository.

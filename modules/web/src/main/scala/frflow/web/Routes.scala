@@ -59,7 +59,7 @@ final class Routes(api: FrFlowApi, dev: Developer, token: String, started: Finge
 
 object Routes:
   val TokenHeader = "X-FrFlow-Token"
-  val NoToken = "no session token: open the link `bin/frflow PROJECT serve` printed"
+  val NoToken = "no session token: open the link `sbt \"PROJECT/serve\"` printed"
   val ModelChanged = "the model changed: restart serve (what is on disk is no longer what this server compiled)"
 
   private given QueryParamDecoder[NodeId] = QueryParamDecoder[String].map(NodeId(_))
