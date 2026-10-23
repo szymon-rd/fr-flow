@@ -4,7 +4,7 @@ ThisBuild / scalacOptions ++= Seq("-deprecation", "-feature", "-Werror")
 val munit = "org.scalameta" %% "munit" % "1.1.1" % Test
 
 lazy val root = project.in(file("."))
-  .aggregate(model, protocol, lean, ledger, check, cli, auth, crm, keycloak)
+  .aggregate(model, protocol, lean, ledger, check, api, cli, auth, crm, keycloak)
   .settings(publish / skip := true)
 
 def module(name: String) = Project(name, file(s"modules/$name"))
@@ -28,8 +28,18 @@ lazy val ledger = module("ledger").dependsOn(protocol)
 /** Rendering and checking a knowledge base against Lean; the snapshot. */
 lazy val check = module("check").dependsOn(lean % "compile->compile;test->test", ledger, model % "test->test")
 
-/** The command line a project's main object extends (`FrFlowApp`). */
-lazy val cli = module("cli").dependsOn(check)
+val catsEffect = Seq("org.typelevel" %% "cats-core" % "2.13.0", "org.typelevel" %% "cats-effect" % "3.6.3",
+  "org.typelevel" %% "munit-cats-effect" % "2.1.0" % Test)
+
+/** The one API a front end calls (the CLI now, a web view later): typed values over `IO`. */
+lazy val api = module("api").dependsOn(check, ledger).settings(libraryDependencies ++= catsEffect)
+
+/** The command line a project's main object extends (`FrFlowApp`): commands, colors, interactive review. */
+lazy val cli = module("cli").dependsOn(api % "compile->compile;test->test").settings(libraryDependencies ++= catsEffect ++ Seq(
+  "com.monovore" %% "decline" % "2.5.0", "com.monovore" %% "decline-effect" % "2.5.0"))
+
+/** The java command that runs a project's CLI on a terminal (colors, the interactive review): what `bin/frflow` runs. */
+val cliLauncher = taskKey[File]("Writes the java command running this project's CLI, for bin/frflow")
 
 def example(name: String) = Project(name, file(s"examples/$name"))
   .dependsOn(cli, check % Test)
@@ -42,6 +52,12 @@ def example(name: String) = Project(name, file(s"examples/$name"))
     // Every source the build compiles, so code in a source directory added here is governed too.
     run / javaOptions += "-Dfrflow.sources=" + (Compile / sources).value.map(_.getAbsolutePath).mkString(java.io.File.pathSeparator),
     run / baseDirectory := (ThisBuild / baseDirectory).value,
+    cliLauncher := {
+      val launch = target.value / "frflow.launch"
+      val main = (Compile / run / mainClass).value.getOrElse(sys.error(s"${Keys.name.value} has no main class"))
+      IO.writeLines(launch, (run / javaOptions).value ++ Seq("-cp", (Runtime / fullClasspath).value.files.mkString(java.io.File.pathSeparator), main))
+      launch
+    },
     Test / fork := true,
     Test / baseDirectory := (ThisBuild / baseDirectory).value
   )
