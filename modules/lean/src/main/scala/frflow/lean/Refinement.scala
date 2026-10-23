@@ -109,7 +109,7 @@ final class Refinement(kb: KnowledgeBase, val vocabulary: Vocabulary):
 
   def proofOf(n: Node[?]): String =
     if leafy(n) then s"h_${n.id}"
-    else s"(${qualified(n, "holds")} ${named(holdsOpens(n))} ${leaves(n).map(l => s"(h_${l.id} := h_${l.id})").mkString(" ")})"
+    else s"(${qualified(n, LeanText.Holds)} ${named(holdsOpens(n))} ${leaves(n).map(l => s"(h_${l.id} := h_${l.id})").mkString(" ")})"
   private lazy val implemented: List[(Node[?], Def[?], String)] =
     kb.nodes.flatMap(c => for { d <- provenImpl(c) if c.kind == NodeKind.Contract; op <- c.op } yield (c, d, op.name))
 

@@ -47,6 +47,8 @@ object LeanText:
   val Preamble = "set_option autoImplicit false\nset_option linter.unusedVariables false\nnoncomputable section\nopen Classical\n\n"
   /** Each module generates its own matches' equations: generated twice, Lean's `_sparseCasesOn` clashes on import. */
   val MatchEqns = "frflow_match_eqns\n"
+  /** The theorem of each node: it holds of every world that meets the leaves below it. */
+  val Holds = "holds"
   def imports(ms: List[LeanModule]): String = ms.map(m => s"import ${m.name}\n").mkString
   def module(uses: List[LeanModule], ns: String, body: String, opens: Option[String] = None): String =
     Header + imports(uses) + "\n" + Preamble + s"namespace $ns\n" + opens.fold("")(o => s"open $o\n") + "\n" + body + s"end $ns\n"

@@ -80,6 +80,9 @@ class LeanOutputSuite extends munit.FunSuite:
     assertEquals(Elaboration(source, built, "Proofs/Tmp.lean").verdict("holey"), TheoremVerdict.UsesSorry)
     // what Lean says of another file says nothing of this one
     assertEquals(Elaboration(source, elaborated, "Proofs/Other.lean").verdict("bad"), TheoremVerdict.Proven)
+    // an error before the first theorem (an import that did not build) stops the file: nothing in it is proven
+    assertEquals(Elaboration("import X\n" + source, "Proofs/Tmp.lean:1:0: error: unknown module prefix 'X'\n", "Proofs/Tmp.lean").verdict("good"),
+      TheoremVerdict.Failed("unknown module prefix 'X'"))
   }
 
   test("sorry found among a theorem's axioms, without the warning") {

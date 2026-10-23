@@ -138,7 +138,7 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
     }
     val intro = holdsOpens(n).names ++ leaves(n).map(l => s"h_${l.id}")
     module(uses, s"$K.${n.id}", s"/-- ${n.id} holds of every world that meets the leaves below it: ${leaves(n).map(_.id).mkString(", ")}. -/\n" +
-      s"theorem holds : ${holdsStatement(n)} := by\n${introduce(intro)}  exact $proof\n\n")
+      s"theorem $Holds : ${holdsStatement(n)} := by\n${introduce(intro)}  exact $proof\n\n")
 
   /** Elaborated, not built, each theorem on its own: the other obligations, the tries and `holds`' axioms. */
   def checks(n: Node[?]): String =
@@ -152,7 +152,7 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
       val budget = if t.kind == TryKind.Idle then "" else s"set_option maxHeartbeats ${Generate.TryHeartbeats} in\n"
       s"${budget}theorem ${t.obligation.name} : Obl.${t.obligation.name} := ${byAuto(t.obligation.name)}\n\n"
     }
-    module(uses, ns, (proven ++ tried).mkString + s"#print axioms $K.${n.id}.holds\n\n", Some(s"$K.${n.id}"))
+    module(uses, ns, (proven ++ tried).mkString + s"#print axioms $K.${n.id}.$Holds\n\n", Some(s"$K.${n.id}"))
 
   def evalFile(n: Node[?]): Option[String] =
     val es = evals.evals(n)._1
@@ -177,7 +177,7 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
     val opens = co ++ Ctx.all(hs.map(_._2)) ++ holdsOpens(r, codeEnv) ++ Ctx.all(implOpens)
     val statement = stated(opens, hs.map(_._1), concl)
     val intro = opens.names ++ trusted.map(t => s"h_${t.id}")
-    val proof = s"by\n${introduce(intro)}  exact ${qualified(r, "holds")} ${named(holdsOpens(r), codeEnv)} " +
+    val proof = s"by\n${introduce(intro)}  exact ${qualified(r, Holds)} ${named(holdsOpens(r), codeEnv)} " +
       leaves(r).map(l => s"(h_${l.id} := ${proofIn(l)})").mkString(" ")
     val uses = (layout.theorems(r.id) :: implemented.map((n, _) => layout.impl(n.id))).distinct
     (statement, module(uses, s"$K.RootImpl",

@@ -163,6 +163,22 @@ class CheckSuite extends munit.FunSuite:
     assert(unaudited.messages.head.startsWith("Lean did not finish checking lean/FrFlowGen/Shelf/OnlyGood/Checks.lean"), unaudited.messages)
   }
 
+  test("a RootImpl that does not build proves nothing of the code: the root is not proven, its own errors say why") {
+    val results = List(Result(ObligationName.Complete, ObligationStatus.Proven, "auto"))
+    val source = "import FrFlowGen.Shelf.Pick.Impl\n\ntheorem root_impl : Obl.root_impl := by\n  auto\n"
+    def judged(run: Run) = Verdict.finish(a, onlyGood, results, None, checked(a, onlyGood, "depends on axioms: [propext]"), Some(elaborated(run, source, "FrFlowGen/Shelf/RootImpl.lean")))
+    def rootImpl(run: Run) = judged(run).results.find(_.name == ObligationName.RootImpl).map(r => (r.status, r.detail))
+    // the import did not build: Lean says so before the theorem
+    val noImport = Run.Done(1, "FrFlowGen/Shelf/RootImpl.lean:1:0: error: object file of module FrFlowGen.Shelf.Pick.Impl does not exist")
+    assertEquals(rootImpl(noImport),
+      Some((ObligationStatus.Open, "the root is not proven of the code: object file of module FrFlowGen.Shelf.Pick.Impl does not exist")))
+    // what is not proven is in the results; the Checks file is not blamed
+    assertEquals(judged(noImport).messages, Nil)
+    // Lean stopped, saying nothing of the file; or it printed no axioms: it did not finish
+    assertEquals(rootImpl(Run.Done(1, "error: build failed")).map(_._2), Some("the root is not proven of the code: not checked: error: build failed"))
+    assert(rootImpl(Run.Done(0, "")).exists((s, d) => s == ObligationStatus.Open && d.contains("Lean did not print its axioms")))
+  }
+
   test("the goal the first steps of a proof leave, as the stub and the message show it") {
     val goal = Run.Done(1, "/tmp/frflow-state1.lean:14:2: error: unsolved goals\nx : Int\n⊢ 0 ≤ x * x")
     assertEquals(ProofState.goal(goal, "frflow-state1.lean"), Some("x : Int\n⊢ 0 ≤ x * x"))

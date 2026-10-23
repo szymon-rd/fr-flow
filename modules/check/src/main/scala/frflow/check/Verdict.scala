@@ -15,15 +15,21 @@ final case class Judged(status: CheckStatus, results: List[Result], messages: Li
 
 /** One run of Lean on one file, and what Lean said of it (see `Elaboration`). */
 final case class Elaborated(run: Run, lean: Elaboration):
-  def verdict(name: ObligationName): TheoremVerdict = lean.verdict(name.lean)
+  /** A run that failed with no error in this file (an import that did not build, Lean stopped) checked nothing in it. */
+  def verdict(name: ObligationName): TheoremVerdict = lean.verdict(name.lean) match
+    case TheoremVerdict.Proven if !run.ok && !lean.diagnostics.exists(_.isError) => TheoremVerdict.Failed("not checked: " + Verdict.quoted(run))
+    case v => v
   def axiomsOf(name: ObligationName): Option[List[String]] = lean.axiomsOf(name.lean)
 
 /** The judges of a check, from the recorded runs of Lean, running nothing: each returns the verdict that ends it there, if any. */
 object Verdict:
   import ObligationName.{Complete, Impl, RootImpl}
 
-  /** Lean's output, cut to what a check records. */
-  def clip(s: String): String = s.take(20000)
+  /** Lean's output, cut to what a check records (`n`: to what a message quotes). */
+  def clip(s: String, n: Int = 20000): String = s.take(n)
+
+  /** The first errors of a run, as a message quotes them. */
+  def quoted(r: Run): String = errors(r).take(3).map(clip(_, 5000)).mkString("\n")
 
   /** Lean's errors in a run, or its last lines. */
   def errors(r: Run): List[String] =
@@ -112,7 +118,7 @@ object Verdict:
     if run.ok && !axioms.exists(_.contains("sorryAx")) then (Result(Impl, Proven, how), axioms)
     else if run.ok then (Result(Impl, Open, "uses sorry"), Some(Nil))
     else (Result(Impl, Open, s"not proven ($how): prove theorem impl : Obl.impl in ${proofPath(g, n)} (run `scaffold ${n.id}`)\n" +
-      state.fold("Lean: " + clip(errors(run).take(3).mkString("\n")))(ProofState.text(Impl, _))), Some(Nil))
+      state.fold("Lean: " + quoted(run))(ProofState.text(Impl, _))), Some(Nil))
 
   /** The obligations judged: failed, open, or waiting for the parts (a node is proven with its parts). */
   def obligations(g: Generate, n: Node[?], split: List[Result], results: List[Result], parts: List[(String, Option[CheckStatus])]): Option[Judged] =
@@ -132,7 +138,7 @@ object Verdict:
     else ruled(proof, proofPath(g, n)).toLeft(true)
 
   def proofFileBuilt(g: Generate, n: Node[?], run: Run): Option[String] =
-    Option.when(!run.ok)(s"${proofPath(g, n)} does not build: " + errors(run).take(5).map(clip).mkString("\n"))
+    Option.when(!run.ok)(s"${proofPath(g, n)} does not build: " + errors(run).take(5).map(clip(_)).mkString("\n"))
 
   /** Everything else imports the proof file: what it proves fails, by name, and the file is the message. */
   def proofFileFails(g: Generate, n: Node[?], results: List[Result], why: String): Judged =
@@ -171,23 +177,26 @@ object Verdict:
     // A view whose coverage cannot be stated keeps nothing proven.
     val uncovered = g.formalKeeps(n).flatMap((i, _) => g.coverage(n, i).left.toOption.map(w =>
       Result(ObligationName.Cover(i.id), Failed, s"what the view must list cannot be stated: $w")))
-    // The root, of the code: from what is trusted only.
-    val (rootImpl, rootAxioms) = root.map(e => e.verdict(RootImpl) match
-      case TheoremVerdict.Proven =>
-        (Result(RootImpl, Proven, s"the root holds of the code, trusting ${if g.trusted.isEmpty then "nothing" else g.trusted.map(_.id).mkString(", ")}"),
-          e.axiomsOf(RootImpl))
-      case v => (Result(RootImpl, Open, s"the root is not proven of the code: ${clip(v.why(RootImpl.lean).getOrElse(""))}" +
-        (if e.run.ok then "" else "\n" + errors(e.run).take(3).mkString("\n").take(5000))), Some(Nil))).unzip
-    // None when Lean did not report the axioms of a theorem proven: the audit did not finish.
-    val audited = (checks.lean.axiomsOf("holds") :: extra.map(_._2) ++ impl.filter(_._1.status == Proven).map(_._2).toList ++
+    val (rootImpl, rootAxioms) = root.map(rootVerdict(g, _)).unzip
+    // None when Lean did not report the axioms of a theorem of the Checks file proven: its audit did not finish.
+    val audited = (checks.lean.axiomsOf(LeanText.Holds) :: extra.map(_._2) ++ impl.filter(_._1.status == Proven).map(_._2).toList ++
       rootAxioms.toList).sequence.map(_.flatten.distinct.sorted)
     val all = results ++ extra.map(_._1) ++ uncovered ++ tries ++ rootImpl
     audited match
       case _ if fatal.nonEmpty => Judged(CheckStatus.Failed, all, fatal, audited.getOrElse(Nil))
       case None =>
-        Judged(CheckStatus.Failed, all, List(s"Lean did not finish checking lean/${checks.lean.file}: " +
-          errors(checks.run).take(3).map(_.take(5000)).mkString("\n")))
+        Judged(CheckStatus.Failed, all, List(s"Lean did not finish checking lean/${checks.lean.file}: ${quoted(checks.run)}"))
       case Some(used) if used.exists(a => !ProofRules.allowedAxioms(a)) =>
         Judged(CheckStatus.Failed, all, List(s"disallowed axioms: ${used.filterNot(ProofRules.allowedAxioms).mkString(", ")}"), used)
       // (What is left open is in the results, once: not repeated as messages.)
       case Some(used) => Judged(CheckStatus.Proven, all, Nil, used)
+
+  /** The root, of the code, from what is trusted only: proven with the axioms Lean printed for it (none printed, it did not finish). */
+  private def rootVerdict(g: Generate, e: Elaborated): (Result, Option[List[String]]) =
+    def notProven(why: String) = (Result(RootImpl, Open, s"the root is not proven of the code: $why"), Some(Nil))
+    (e.verdict(RootImpl), e.axiomsOf(RootImpl)) match
+      case (TheoremVerdict.Proven, Some(axioms)) =>
+        val trusting = if g.trusted.isEmpty then "nothing" else g.trusted.map(_.id).mkString(", ")
+        (Result(RootImpl, Proven, s"the root holds of the code, trusting $trusting"), Some(axioms))
+      case (TheoremVerdict.Proven, None) => notProven(s"Lean did not print its axioms: ${quoted(e.run)}")
+      case (v, _) => notProven(clip(v.why(RootImpl.lean).getOrElse(""), 5000))
