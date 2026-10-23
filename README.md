@@ -187,11 +187,11 @@ Requirements: JDK 17+, sbt, and Lean 4.35.0 (`lake` on the PATH, or
 | | `status`, `ci` | the tree, the summary and the warnings; exit 1 unless the knowledge base is complete (`ci` checks first) |
 | | `answer REQUEST\|NODE TEXT` | reply to a request, or tell the developer of work they did not ask for |
 
-On a terminal the output has colors and Unicode (`--plain` or `NO_COLOR` turn
-them off) and fits its width: formulas, diffs and decisions wrap, and the other
-lines are cut (`context` shows them whole). Off a terminal (CI, agents, a pipe)
-the output is plain ASCII and no line is cut. `--json` on tree,
-show, inbox, status and check prints the typed value, each node in brief. Exit
+On a terminal the output has colors and Unicode (`--plain`, `NO_COLOR` or
+`TERM=dumb` turn them off) and fits its width: formulas, diffs and decisions
+wrap, and the other lines are cut (`context` shows them whole). Off a terminal
+(CI, agents, a pipe) the output is plain ASCII and no line is cut. `--json` on
+tree, show, inbox, status and check prints the typed value, each node in brief. Exit
 codes: 0 fine; 1 not complete, or a decision refused; 2 a usage error (an
 unknown node too); 3 no Lean. The agent's rules are in
 [`.claude/skills/frflow/SKILL.md`](.claude/skills/frflow/SKILL.md).

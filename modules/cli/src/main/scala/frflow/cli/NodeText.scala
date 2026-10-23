@@ -42,7 +42,7 @@ object NodeText:
       (normal, "Code", code(d, st, full)),
       (!normal, "Code", governs(d, st).filter(_ => d.diff.code.exists(_.inFull))),
       (normal, "Messages from the last check", cut(n.messages.flatMap(m => if full then m.linesIterator.toList else m.linesIterator.nextOption().toList))),
-      (normal, "Decisions", cut(r.review.history.map(h => s"${Words.date(h.at)}  ${Words.verb(h.action)} by ${h.by}: ${h.reason}"))),
+      (normal, "Decisions", r.review.history.flatMap(h => st.fold(s"${Words.date(h.at)}  ${Words.verb(h.action)} by ${h.by}: ${h.reason}", 2))),
       (normal, "Alternatives rejected for it", cut(r.review.alternatives.map(a => s"${a.id}: ${a.content.statement}"))),
       (normal, "Requests", d.requests.flatMap(q => s"[${q.id}] ${q.status} ${st.dot} ${q.by}: ${q.text}" ::
         q.answer.filter(_.nonEmpty).map(a => s"  agent: $a").toList)))
@@ -73,13 +73,13 @@ object NodeText:
       Option.when(r.state == ReviewState.Review)(st.yellow(s"to review: ${v.causes.flatMap(Words.causes.get).mkString("; ")}")).toList ++
         v.waitsFor.map(w => st.yellow(s"decide $w first: what rests on it is decided after it")).toList ++
         (if v.mechanical then List(st.green("mechanical: Lean proves it again and nothing in it is a choice (confirm decides the batch)"))
-         else v.notMechanical.filter(_ => r.state == ReviewState.Review).map(st.dim).toList) ++
+         else v.notMechanical.filter(_ => r.state == ReviewState.Review && v.waitsFor.isEmpty).map(st.dim).toList) ++
         v.unproven.map(u => st.red(s"note: $u")) ++
         Option.when(rivals.nonEmpty)(s"accepting it rejects ${rivals.mkString(", ")} (its alternatives), with your reason").toList ++
         v.rejectedBeside.filter(_ => r.state == ReviewState.Proposed).map(x => st.dim(s"rejected here before: ${x.id}: ${x.statement} — because ${x.reason}")) ++
         (if v.below.isEmpty then Nil else
           "decisions below it (accept --revisit NODE reviews one again; one that moved only with it is confirmed):" ::
-            v.below.map(b => st.fit(s"  ${b.id}${if b.kind == BelowKind.Moved then " (moved with it)" else ""}: ${b.statement} " +
+            v.below.flatMap(b => st.fold(s"  ${b.id}${if b.kind == BelowKind.Moved then " (moved with it)" else ""}: ${b.statement} " +
               s"— holds because: ${b.reason}", 2)))
     val rejected = Option.when(r.state == ReviewState.Rejected)(v.history.reverse.find(_.action == Action.Reject)).flatten
       .map(h => st.red(s"rejected by ${h.by}: ${h.reason} (the agent removes it, or proposes what the reason asks for)")).toList
@@ -179,6 +179,20 @@ object NodeText:
     d.node.node.code.toList.map(c => s"governs: ${c.files.mkString(", ")}" +
       (if d.diff.code.exists(_.inFull) then st.yellow(s"  (diff ${d.node.id} shows them in full: read them before accepting)") else ""))
 
+/** A decided node gone from the model, as `show` and `diff` print it: what it said, and its last decision. */
+object GoneText:
+  def lines(g: GoneNode, st: Style): List[String] =
+    val d = g.gone.decision
+    val room = st.width.fold(Int.MaxValue)(_ - 2)
+    val id = g.gone.id
+    (s"${st.red(st.dot)} ${st.bold(id.value)}  ${st.red("gone from the model")}" ::
+      st.wrap(d.content.statement, room).map("  " + _) ++ st.wrap(s"why: ${d.content.why}", room).map(l => "  " + st.dim(l))) ++
+      Lines.section("Decision", Lines.para(s"last ${Words.verb(d.action)} by ${d.by} (${Words.date(d.at)}): ${d.reason}", st) ++
+        Lines.para(s"${what(g)}: gone $id agrees that it is gone", st), st)
+
+  /** "renamed to Y" when a node in the model says the same. */
+  def what(g: GoneNode): String = g.renamedTo.fold("it is no longer in the model")(y => s"renamed to $y (it says the same)")
+
 /** What changed since a node was decided, as lines wrapped to the width less 2 (room for a caller's indent). */
 object DiffText:
   def lines(d: NodeDiff, st: Style): List[String] = unwrapped(d, st).flatMap(st.fold(_, 2))
@@ -232,6 +246,9 @@ object Words:
     case Action.Reject  => "rejected"
     case Action.Revisit => "asked to revisit"
     case Action.Remove  => "agreed gone"
+
+  /** A review under `node` that moved only with it: `Decide` confirms it with the node (`Inbox.followers`). */
+  def follower(f: NodeId, node: NodeId, st: Style): String = s"${st.follows} $f moved only with it: accepting $node confirms it too"
 
   def date(at: java.time.Instant): String = at.toString.take(16).replace('T', ' ')
 

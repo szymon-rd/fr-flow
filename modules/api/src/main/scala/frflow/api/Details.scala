@@ -2,7 +2,7 @@ package frflow.api
 
 import frflow.ledger.{CodeProof, Graph, Waiting}
 import frflow.protocol.*
-import io.circe.{Codec, Json}
+import io.circe.{Codec, Decoder, Encoder, Json, JsonObject}
 
 /** A node with everything around it: what `show` and the review read. `beside`: under each parent, the other
   * parts that with it make the parent; `keptBy`: for an invariant, the contracts that keep it (or are exempt);
@@ -28,16 +28,43 @@ final case class MovedAbove(id: NodeId, acceptedAgain: Boolean, reason: Option[S
     derives Codec.AsObject
 final case class FieldChange(field: String, lines: List[DiffLine]) derives Codec.AsObject
 
-enum DiffLine derives Codec.AsObject:
+/** In JSON `{"op": "same", "text": ...}`, `{"op": "folded", "lines": n}`: its kind a lowercase string, as other enums are. */
+enum DiffLine:
   case Same(text: String)
   case Added(text: String)
   case Removed(text: String)
   case Folded(lines: Int)
 
+object DiffLine:
+  given Codec[DiffLine] = Codec.from(
+    Decoder[String].at("op").flatMap {
+      case "same" => Decoder[String].at("text").map(Same(_))
+      case "added" => Decoder[String].at("text").map(Added(_))
+      case "removed" => Decoder[String].at("text").map(Removed(_))
+      case "folded" => Decoder[Int].at("lines").map(Folded(_))
+      case other => Decoder.failedWithMessage(s"no diff line op $other")
+    },
+    Encoder.AsObject.instance {
+      case Same(t) => JsonObject("op" -> Json.fromString("same"), "text" -> Json.fromString(t))
+      case Added(t) => JsonObject("op" -> Json.fromString("added"), "text" -> Json.fromString(t))
+      case Removed(t) => JsonObject("op" -> Json.fromString("removed"), "text" -> Json.fromString(t))
+      case Folded(n) => JsonObject("op" -> Json.fromString("folded"), "lines" -> Json.fromInt(n))
+    })
+
 /** How the code a node governs changed since it was decided (a git diff), or, never decided, the files in full. */
 final case class CodeChange(files: List[String], text: String, inFull: Boolean) derives Codec.AsObject
 
+/** A decided node gone from the model, with its last decision; `renamedTo`: a node in the model that says the same. */
+final case class GoneNode(gone: Gone, renamedTo: Option[NodeId]) derives Codec.AsObject
+
 object Details:
+  /** The node, if it is gone from the model. */
+  def gone(v: View, id: NodeId): Option[GoneNode] = v.annotated.gone.find(_.id == id).map(gone(v, _))
+  def gone(v: View, g: Gone): GoneNode =
+    def said(s: String) = s.replaceAll("\\s+", " ").trim
+    val statement = said(g.decision.content.statement)
+    GoneNode(g, v.nodes.find(r => statement.nonEmpty && said(r.node.content.statement) == statement).map(_.id))
+
   def of(v: View, r: Reviewed, code: Option[CodeChange]): NodeDetails =
     val (designs, parts) = r.node.parts.flatMap(v.node).partition(_.node.kind == NodeKind.Design)
     val parents = r.node.parents.flatMap(v.node)

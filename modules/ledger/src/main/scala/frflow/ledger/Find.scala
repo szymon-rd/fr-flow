@@ -22,6 +22,8 @@ enum Found derives Codec.AsObject:
   case Governed(path: String, nodes: List[NodeId])
   /** A source path no node governs: code there changes unnoticed. */
   case Ungoverned(path: String)
+  /** A path that names no file or directory of the project (the API tells it from `Ungoverned`). */
+  case Missing(path: String)
   /** What mentions every word asked for (at most ten). */
   case Mentions(query: String, mentions: List[Mention])
   case Nothing(query: String)

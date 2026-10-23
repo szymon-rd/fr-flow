@@ -78,11 +78,11 @@ object Style:
   private val Piece = "\u001b\\[[0-9;]*m|\\s+|[^\\s\u001b]+".r
   private val Reset = "\u001b[0m"
 
-  /** Colors and Unicode on a terminal, unless `--plain` or `NO_COLOR`; lines cut (or wrapped) to `COLUMNS`, which
-    * bin/frflow sets, only on a terminal: CI, agents and files read every line whole.
+  /** Colors and Unicode on a terminal, unless `--plain`, `NO_COLOR` or `TERM=dumb`; lines cut (or wrapped) to
+    * `COLUMNS`, which bin/frflow sets, only on a terminal: CI, agents and files read every line whole.
     */
   def of(plain: Boolean, env: Map[String, String], terminal: Boolean): Style =
-    val color = !plain && terminal && !env.contains("NO_COLOR")
+    val color = !plain && terminal && !env.contains("NO_COLOR") && !env.get("TERM").contains("dumb")
     Style(color, unicode = color, env.get("COLUMNS").flatMap(_.toIntOption).filter(_ > 20 && terminal))
   def visible(s: String): Int = strip(s).length
   def strip(s: String): String = Ansi.replaceAllIn(s, "")
