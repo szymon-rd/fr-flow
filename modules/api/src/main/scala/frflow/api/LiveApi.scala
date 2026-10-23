@@ -13,7 +13,7 @@ import java.nio.file.Path
   * writes what it changed.
   */
 final class LiveApi private (kb: KnowledgeBase, ws: Workspace, cfg: Config, lake: Lake, git: Git, ledger: JsonStore[Ledger],
-    requests: JsonStore[List[Request]], keys: KeyStore, env: Map[String, String]) extends FrFlowApi:
+    requests: JsonStore[List[Request]], keys: KeyStore) extends FrFlowApi:
   private def analysis: IO[Analysis] = Analysis.read(kb, ws, cfg, ledger)
   private def viewOf(a: Analysis): IO[View] = requests.load.map(View(a.annotated, a.warnings, _, a.unsigned.map(Logged.apply)))
   def view: IO[View] = analysis.flatMap(viewOf)
@@ -45,7 +45,7 @@ final class LiveApi private (kb: KnowledgeBase, ws: Workspace, cfg: Config, lake
     yield out
 
   def developer(as: Option[String]): IO[Either[Refusal, Developer]] =
-    as.orElse(env.get("FRFLOW_AS")).map(_.trim).filter(_.nonEmpty).fold(keys.filedName)(n => IO.pure(Some(n)))
+    as.map(_.trim).filter(_.nonEmpty).orElse(cfg.as).fold(keys.filedName)(n => IO.pure(Some(n)))
       .map(_.map(Developer.apply).toRight(Refusal.NoDeveloper))
 
   def ask(node: Option[NodeId], text: String, by: Developer): IO[Either[Refusal, Request]] =
@@ -67,37 +67,37 @@ final class LiveApi private (kb: KnowledgeBase, ws: Workspace, cfg: Config, lake
   private def checked(node: Option[NodeId], progress: Progress => IO[Unit]): IO[(List[CheckedNode], View)] =
     for
       _ <- lake.available.ifM(IO.unit, IO.raiseError(FrFlowError.LeanMissing))
-      _ <- node.traverse_(id => IO.fromOption(kb.node(id.value))(FrFlowError.UnknownNode(id.value)))
+      _ <- node.traverse_(id => IO.fromOption(kb.node(id.value))(FrFlowError.UnknownNode(id)))
       a <- analysis
       (results, after) <- CheckRunner.check(a, lake, cfg, node.map(_.value), progress)
       _ <- CheckRunner.writeSnapshot(after)
       v <- viewOf(after)
     yield (results.flatMap((n, c) => v.node(NodeId(n.id)).map(CheckedNode.of(_, c))), v)
 
-  def check(node: Option[NodeId], progress: Progress => IO[Unit]): IO[CheckReport] = checked(node, progress).map(CheckReport.apply)
-  def status: IO[View] = analysis.flatMap(a => CheckRunner.writeSnapshot(a) *> viewOf(a))
-  def ci(progress: Progress => IO[Unit]): IO[CiReport] = checked(None, progress).map((ns, v) => CiReport(ns.filter(_.status != CheckStatus.Proven), v))
+  def check(node: Option[NodeId], progress: Progress => IO[Unit]): IO[CheckReport] =
+    checked(node, progress).map((ns, v) => CheckReport(ns, v, Overview.of(v)))
+  def status: IO[StatusReport] = analysis.flatMap(a => CheckRunner.writeSnapshot(a) *> viewOf(a)).map(StatusReport.of)
+  def ci(progress: Progress => IO[Unit]): IO[CiReport] =
+    checked(None, progress).map((ns, v) => CiReport(ns.filter(_.status != CheckStatus.Proven), v, Trees.all(v)))
 
   override protected def relative(query: String): IO[String] =
     IO(Path.of(query).toAbsolutePath.normalize).map(p => if p.startsWith(ws.root) && p != ws.root then ws.root.relativize(p).toString else query)
       .handleError(_ => query)
 
   def scaffold(id: NodeId): IO[Scaffolded] =
-    IO.fromOption(kb.node(id.value))(FrFlowError.UnknownNode(id.value)).flatMap(n =>
+    IO.fromOption(kb.node(id.value))(FrFlowError.UnknownNode(id)).flatMap(n =>
       analysis.flatMap(Scaffold(_, lake, n)).flatTap(_ => analysis.flatMap(CheckRunner.writeSnapshot)).map(Scaffolded(id, _)))
 
 object LiveApi:
-  /** Deciding with the key at `keyFile`; the model's problems, if any, fail it (nothing else is computed). */
-  def apply(kb: KnowledgeBase, ws: Workspace, keyFile: Path, env: Map[String, String]): IO[FrFlowApi] =
+  /** The project in `ws`, run as `env` says (see `Config`); the model's problems, if any, fail it (nothing else is computed). */
+  def apply(kb: KnowledgeBase, ws: Workspace, env: Map[String, String]): IO[FrFlowApi] =
     IO(kb.problems.map(_.message) ++ Generate.problems(kb)).flatMap(ps => IO.raiseWhen(ps.nonEmpty)(FrFlowError.ModelProblems(ps))) *>
-      Config.load.flatMap(cfg => (Lake(ws.lean, cfg), JsonStore.make(ws.ledgerFile, Ledger.empty), JsonStore.make(ws.requestsFile, List.empty[Request]))
-        .mapN(new LiveApi(kb, ws, cfg, _, Git.at(ws.root), _, _, KeyStore.at(keyFile, ws.keysDir), env)))
+      Config.load(env).flatMap { cfg =>
+        (Lake(ws.lean, cfg), JsonStore.make(ws.ledgerFile, Ledger.empty), JsonStore.make(ws.requestsFile, List.empty[Request]))
+          .mapN(new LiveApi(kb, ws, cfg, _, Git.at(ws.root), _, _, KeyStore.at(cfg.key, ws.keysDir)))
+      }
 
-  /** The project at `root` (`FRFLOW_ROOT` overrides it), deciding with the key the environment names (`FRFLOW_KEY`,
-    * or the one under the home directory); `kernelPath` is FrFlow's Lean kernel relative to its `lean/`.
-    */
+  /** The project at `root` (`FRFLOW_ROOT` overrides it); `kernelPath` is FrFlow's Lean kernel relative to its `lean/`. */
   def fromEnv(kb: => KnowledgeBase, root: String, kernelPath: String, env: Map[String, String]): IO[FrFlowApi] =
-    IO(sys.props.getOrElse("user.home", ".")).flatMap { home =>
-      val ws = Workspace(Path.of(env.getOrElse("FRFLOW_ROOT", root)).toAbsolutePath.normalize, kernelPath)
-      IO(kb).flatMap(LiveApi(_, ws, KeyStore.keyFile(env, Path.of(home)), env))
-    }
+    IO(Workspace(Path.of(env.getOrElse("FRFLOW_ROOT", root)).toAbsolutePath.normalize, kernelPath))
+      .flatMap(ws => IO(kb).flatMap(LiveApi(_, ws, env)))

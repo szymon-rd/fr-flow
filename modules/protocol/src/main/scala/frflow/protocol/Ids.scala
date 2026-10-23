@@ -31,6 +31,9 @@ opaque type EntryRef = String
 object EntryRef extends Id[EntryRef]
 opaque type RequestId = String
 object RequestId extends Id[RequestId]
+/** A node as the developer last saw it (see the ledger's `Reading.version`): a decision sent with one is refused if it moved. */
+opaque type Version = String
+object Version extends Id[Version]
 
 /** An enum written as a word (its `toString`): how statuses are stored and printed. */
 trait Words[E]:

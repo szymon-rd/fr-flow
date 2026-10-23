@@ -27,18 +27,25 @@ final case class Workspace(root: Path, kernelPath: String):
   def requestsFile: Path = root.resolve(".frflow/requests.json")
   def keysDir: Path = root.resolve(".frflow/keys")
 
-/** How checks run, read once from the environment: `FRFLOW_LAKE`, `FRFLOW_TIMING` (print each Lean run's time),
-  * `FRFLOW_THREADS` (the nodes of a level checked side by side), and `-Dfrflow.sources` (every source the build compiles).
+/** How FrFlow runs, read once from the environment: `FRFLOW_LAKE`, `FRFLOW_TIMING` (print each Lean run's time),
+  * `FRFLOW_THREADS` (the nodes of a level checked side by side), the developer's key (`FRFLOW_KEY`, or the one under
+  * the home directory), who decides (`FRFLOW_AS`), and `-Dfrflow.sources` (every source the build compiles).
   */
-final case class Config(lake: String, timing: Boolean, threads: Int, timeout: FiniteDuration, sources: List[Path])
+final case class Config(lake: String, timing: Boolean, threads: Int, timeout: FiniteDuration, sources: List[Path], key: Path,
+    as: Option[String])
 
 object Config:
-  val load: IO[Config] = IO(Config(
-    lake = sys.env.getOrElse("FRFLOW_LAKE", "lake"),
-    timing = sys.env.contains("FRFLOW_TIMING"),
-    threads = sys.env.get("FRFLOW_THREADS").flatMap(_.toIntOption).getOrElse(Runtime.getRuntime.availableProcessors.min(4)).max(1),
+  def load(env: Map[String, String]): IO[Config] = IO(Config(
+    lake = env.getOrElse("FRFLOW_LAKE", "lake"),
+    timing = env.contains("FRFLOW_TIMING"),
+    threads = env.get("FRFLOW_THREADS").flatMap(_.toIntOption).getOrElse(Runtime.getRuntime.availableProcessors.min(4)).max(1),
     timeout = 900.seconds,
-    sources = sys.props.get("frflow.sources").toList.flatMap(_.split(java.io.File.pathSeparator)).filter(_.nonEmpty).map(Path.of(_))))
+    sources = sys.props.get("frflow.sources").toList.flatMap(_.split(java.io.File.pathSeparator)).filter(_.nonEmpty).map(Path.of(_)),
+    key = KeyStore.keyFile(env, Path.of(sys.props.getOrElse("user.home", "."))),
+    as = env.get("FRFLOW_AS").map(_.trim).filter(_.nonEmpty)))
+
+  /** From the process's environment: for the tests. */
+  def load: IO[Config] = IO(sys.env).flatMap(load(_))
 
 /** The files the checker reads and writes (read whole, and written whole by the ledger's `Store`). */
 object Disk:

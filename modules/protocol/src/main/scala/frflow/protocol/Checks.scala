@@ -31,9 +31,9 @@ enum ObligationName:
     case RootImpl     => "root_impl"
 
   override def toString: String = lean
-  def isProbe: Boolean = isInstanceOf[Probe] || isInstanceOf[ProbeImpl]
+  def isProbe: Boolean = PartialFunction.cond(this) { case Probe(_) | ProbeImpl(_) => true }
   /** An example or a probe, evaluated in Lean: the translation's cross-check. */
-  def isEvaluation: Boolean = isProbe || isInstanceOf[Eval] || isInstanceOf[EvalImpl]
+  def isEvaluation: Boolean = isProbe || PartialFunction.cond(this) { case Eval(_) | EvalImpl(_) => true }
 
   /** The same evaluation, of the proven code instead of the contract. */
   def ofCode: ObligationName = this match
@@ -115,7 +115,6 @@ final case class SnapNode(id: NodeId, kind: NodeKind, content: Content, hash: Ha
     exempts: List[NodeId] = Nil, obligations: List[ObligationText] = Nil, proof: Option[ProofFile] = None,
     holds: String = "", lean: String = "", messages: List[String] = Nil) derives Codec.AsObject:
   def shownKind: String = kind.shown(rule)
-  def isRoot: Boolean = kind == NodeKind.Claim && parents.isEmpty
   def examplesPassing: (Int, Int) = (examples.count(_.passes), examples.size)
 
 final case class OpaqueTerm(name: String, means: String, definedBy: Option[NodeId]) derives Codec.AsObject

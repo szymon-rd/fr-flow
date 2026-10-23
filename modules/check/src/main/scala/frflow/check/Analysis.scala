@@ -101,16 +101,28 @@ object Contents:
     val terms = kb.termsOf(n).toSet ++ n.defines
     val vocabulary = (kb.opaques.filter(o => terms(o.name)).map(o => s"${o.name}: ${o.means}") ++
       kb.params.filter(p => terms(p.name)).map(p => s"${p.name}: ${p.means}")).sorted
-    Content((Seq("kind" -> str(n.kind.toString), "parents" -> strs(n.parents.map(_.id))) ++
-      Option.when(kb.isStatement(n))("parts" -> strs(kb.parts(n).map(_.id))) ++ Seq(
-      "statement" -> str(n.statement), "why" -> str(n.why),
-      "sources" -> Json.obj(Seq("formula" -> n.formula, "post" -> n.post, "rule" -> n.rule, "check" -> n.local).collect { case (k, Some(l)) => k -> str(l.source) }*),
-      "substitutions" -> strs(n.substs.map(s => s"${s.name} := ${s.term.fold(s.lean)(_.source)}")),
-      "examples" -> strs(n.cases.map(_.describe)), "vocabulary" -> strs(vocabulary), "uses" -> strs(a.generate.sourcesUsedBy(n)),
-      "governs" -> strs(n.governs), "definition" -> str(a.definition(n))) ++ n.op.map(o => "op" -> str(o.name)) ++ n.replaced.map(r => "replaces" -> str(r.id)) ++
-      (if n.kept.isEmpty then Nil else List("keeps" -> strs(n.kept.map(_.describe)))) ++
-      (if n.expected.isEmpty then Nil else List("expects" -> strs(n.expected.map((st, l) => s"$st: ${l.source}")))) ++
-      implementation.map("implementation" -> str(_)) ++ idea)*)
+    val sources = Seq("formula" -> n.formula, "post" -> n.post, "rule" -> n.rule, "check" -> n.local)
+      .collect { case (k, Some(l)) => k -> str(l.source) }
+    // The fields in this order: the order is part of the hash, so a change of it reviews every node again.
+    Content((List(
+      Some("kind" -> str(n.kind.toString)),
+      Some("parents" -> strs(n.parents.map(_.id))),
+      Option.when(kb.isStatement(n))("parts" -> strs(kb.parts(n).map(_.id))),
+      Some("statement" -> str(n.statement)),
+      Some("why" -> str(n.why)),
+      Some("sources" -> Json.obj(sources*)),
+      Some("substitutions" -> strs(n.substs.map(s => s"${s.name} := ${s.term.fold(s.lean)(_.source)}"))),
+      Some("examples" -> strs(n.cases.map(_.describe))),
+      Some("vocabulary" -> strs(vocabulary)),
+      Some("uses" -> strs(a.generate.sourcesUsedBy(n))),
+      Some("governs" -> strs(n.governs)),
+      Some("definition" -> str(a.definition(n))),
+      n.op.map(o => "op" -> str(o.name)),
+      n.replaced.map(r => "replaces" -> str(r.id)),
+      Option.when(n.kept.nonEmpty)("keeps" -> strs(n.kept.map(_.describe))),
+      Option.when(n.expected.nonEmpty)("expects" -> strs(n.expected.map((st, l) => s"$st: ${l.source}"))),
+      implementation.map("implementation" -> str(_))
+    ).flatten ++ idea)*)
 
   private val Statement = """^\s*(?:(?:private|protected|final|lazy|override|inline)\s+)*(?:val|def|given|var)\b.*""".r
 

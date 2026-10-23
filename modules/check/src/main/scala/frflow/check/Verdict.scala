@@ -17,7 +17,8 @@ final case class Judged(status: CheckStatus, results: List[Result], messages: Li
 final case class Elaborated(run: Run, lean: Elaboration):
   /** A run that failed with no error in this file (an import that did not build, Lean stopped) checked nothing in it. */
   def verdict(name: ObligationName): TheoremVerdict = lean.verdict(name.lean) match
-    case TheoremVerdict.Proven if !run.ok && !lean.diagnostics.exists(_.isError) => TheoremVerdict.Failed("not checked: " + Verdict.quoted(run))
+    case TheoremVerdict.Proven if !run.ok && !lean.diagnostics.exists(_.isError) =>
+      TheoremVerdict.Failed("not checked: " + Verdict.quoted(run))
     case v => v
   def axiomsOf(name: ObligationName): Option[List[String]] = lean.axiomsOf(name.lean)
 
@@ -86,7 +87,8 @@ object Verdict:
   def agree(n: Node[?], evaluated: List[Result]): Option[Judged] =
     val disagree = evaluated.filter(_.status == Failed)
     Option.when(disagree.nonEmpty)(Judged(CheckStatus.Failed, evaluated,
-      s"Lean and Scala disagree on ${disagree.size} example(s) or probe(s): the Lean translation does not mean what the Scala does, so nothing proven of ${n.id} is about the code" :: disagree.map(_.detail)))
+      s"Lean and Scala disagree on ${disagree.size} example(s) or probe(s): the Lean translation does not mean what the Scala does, " +
+        s"so nothing proven of ${n.id} is about the code" :: disagree.map(_.detail)))
 
   /** Proven when Lean reports no error and no `sorry` in it; an authored one states exactly its obligation, with only what a proof file may. */
   def judge(o: ObligationName, e: Elaborated, isAuthored: Boolean): Result =

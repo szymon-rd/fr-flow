@@ -35,7 +35,7 @@ final class FakeApi(snapshot: Snapshot, ledger: Ref[IO, Ledger], requests: Ref[I
   private def unavailable[A]: IO[A] = IO.raiseError(new UnsupportedOperationException("not in the fake: it needs Lean"))
   def render: IO[Rendered] = unavailable
   def check(node: Option[NodeId], progress: Progress => IO[Unit]): IO[CheckReport] = unavailable
-  def status: IO[View] = view
+  def status: IO[StatusReport] = view.map(StatusReport.of)
   def ci(progress: Progress => IO[Unit]): IO[CiReport] = unavailable
   def scaffold(node: NodeId): IO[Scaffolded] = unavailable
 

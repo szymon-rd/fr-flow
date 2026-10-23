@@ -32,7 +32,6 @@ class DecideSuite extends munit.FunSuite:
     val seen = Reading(shelf, Ledger.empty).version(r)
     assert(decide(shelf, Ledger.empty, accept("R", seen = Some(seen))).isRight)
     assertEquals(decide(moved, Ledger.empty, accept("R", seen = Some(seen))), Left(MovedSinceSeen(id("R"))))
-    assert(MovedSinceSeen(id("R")).stale && !NoReason.stale)
   }
 
   test("a node neither in the model nor decided is unknown; only a proposal is rejected on its own") {
@@ -121,8 +120,8 @@ class DecideSuite extends munit.FunSuite:
     val (fromAgent, a2) = right(Requests.answer(answered, "B", "Shelves are now listed.", _ == id("B"), now))
     assertEquals((a2.by, a2.node, fromAgent.size), ("agent", Some(id("B")), 2))
     assert(a2.id != q.id)
-    assertEquals(Requests.close(fromAgent, List(q.id, RequestId("R0"))), Left(UnknownRequest("R0")))
+    assertEquals(Requests.close(fromAgent, List(q.id, RequestId("R0"))), Left(NoRequest(List(RequestId("R0")))))
     assertEquals(right(Requests.close(fromAgent, List(q.id)))._2.map(_.status), List(RequestStatus.Closed))
     // the version of the node the developer asked about
-    assertEquals(Requests.ask(Nil, Some(id("A")), "Say which shelf.", "dev", now, Some("v1"))._2.seen, Some("v1"))
+    assertEquals(Requests.ask(Nil, Some(id("A")), "Say which shelf.", "dev", now, Some(Version("v1")))._2.seen, Some(Version("v1")))
   }

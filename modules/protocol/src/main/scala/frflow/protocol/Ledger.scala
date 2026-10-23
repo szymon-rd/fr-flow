@@ -61,10 +61,11 @@ object Ledger:
     Encoder.instance(l => Json.obj("decisions" -> Json.fromFields(l.decisions.toList.sortBy(_._1).map((id, ds) => id.value -> ds.asJson)))))
 
 /** A request of the developer's, on a node or on the idea; the node is with the agent until it is answered
-  * or the node changes from the `version` it was `seen` at.
+  * (`answeredAt`) or the node changes from the `version` it was `seen` at.
   */
 final case class Request(id: RequestId, node: Option[NodeId], text: String, by: String, at: Instant,
-    status: RequestStatus, answer: Option[String] = None, seen: Option[String] = None) derives Codec.AsObject
+    status: RequestStatus, answer: Option[String] = None, seen: Option[Version] = None, answeredAt: Option[Instant] = None)
+    derives Codec.AsObject
 
 final case class Moved(id: NodeId, before: Content) derives Codec.AsObject
 final case class RejectedBeside(id: NodeId, statement: String, why: String, reason: String) derives Codec.AsObject
@@ -74,7 +75,7 @@ final case class Below(id: NodeId, kind: BelowKind, statement: String, reason: S
 /** Where the developer stands on a node, and what they read to decide it. A decision sent with `version`
   * is refused if the node moved since.
   */
-final case class Review(state: ReviewState, causes: List[Cause], version: String, waitsFor: Option[NodeId], moved: List[Moved],
+final case class Review(state: ReviewState, causes: List[Cause], version: Version, waitsFor: Option[NodeId], moved: List[Moved],
     decision: Option[Decision], binding: Option[Decision], reasonNow: Option[String], notMechanical: Option[String],
     unproven: List[String], rejectedBeside: List[RejectedBeside], below: List[Below], history: List[Decision],
     rivals: List[NodeId], alternatives: List[Alternative]) derives Codec.AsObject:

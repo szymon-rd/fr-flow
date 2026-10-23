@@ -33,7 +33,7 @@ class ViewsSuite extends munit.CatsEffectSuite with Golden:
 
   test("--json: the typed value, each node in brief") {
     api.flatMap(_.tree(None)).map { t =>
-      val j = Brief(io.circe.syntax.EncoderOps(t).asJson)
+      val j = Brief(t)
       val root = j.hcursor.downField("main").downArray.downField("node")
       assertEquals(root.keys.map(_.toList), Some(List("id", "kind", "state", "causes", "status", "statement", "waitsFor", "unproven")))
     }

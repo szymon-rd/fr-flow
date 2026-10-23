@@ -58,8 +58,8 @@ final class Reading(val graph: Graph, val ledger: Ledger):
   def holds(id: NodeId): Boolean = stateOf(id) == Accepted
 
   /** What the developer saw of a node: a decision sent with it is refused if the node moved since. */
-  def version(n: SnapNode): String =
-    Sha.parts(n.hash.value, graph.parentChain(n).value, n.code.fold("")(_.fingerprint.value)).take(16)
+  def version(n: SnapNode): Version =
+    Version(Sha.parts(n.hash.value, graph.parentChain(n).value, n.code.fold("")(_.fingerprint.value)).take(16))
 
   /** A parent not chosen; or, when `n` rests on its parents (proposed, or they moved), what it rests on not accepted. */
   def waitsFor(n: SnapNode): Option[NodeId] =

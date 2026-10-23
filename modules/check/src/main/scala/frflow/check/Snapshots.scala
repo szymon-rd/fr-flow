@@ -90,8 +90,10 @@ object Governance:
       .map(id => s"lean/Proofs/${kb.name}/$id.lean is the proof file of no node: move it with its node's new id (and its namespace), or remove it")
     // Formal contracts whose translation no example cross-checks: checked, and none of their examples evaluated in Lean.
     val uncrossed = kb.nodes.filter(c => c.kind == NodeKind.Contract && c.cases.nonEmpty).flatMap { c =>
-      a.current(c).filter(k => !k.obligations.exists(o => o.name.isInstanceOf[Eval] && o.status == Proven)).map(_ =>
-        s"${c.id}: none of its examples is evaluated in Lean, so nothing checks that the Lean means what the Scala does: give its parameters values Lean has (bindTable for a lookup)")
+      def evaluated(o: Result) = o.status == Proven && PartialFunction.cond(o.name) { case Eval(_) => true }
+      a.current(c).filter(!_.obligations.exists(evaluated)).map(_ =>
+        s"${c.id}: none of its examples is evaluated in Lean, so nothing checks that the Lean means what the Scala does: " +
+          "give its parameters values Lean has (bindTable for a lookup)")
     }
     // A one-part node Lean proves equivalent to its part (`complete` and `restates` both proven) says nothing of its own.
     val restated = kb.nodes.flatMap(n => a.current(n).filter(_.result(ObligationName.Complete).exists(_.status == Proven))

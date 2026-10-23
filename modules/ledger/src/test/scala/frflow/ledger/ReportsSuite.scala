@@ -25,6 +25,17 @@ class ReportsSuite extends munit.FunSuite:
       ForAgent.Move(id("B"), ids("A"))))
   }
 
+  test("a revisit is the agent's until it answers on the node") {
+    val l = right(Decide(shelf, acceptAll(shelf), Decide.Revisit(id("A"), "shelves may move now"), "dev", stamp(10)))
+    def tasks(answeredAt: Int) =
+      val answered = right(Requests.answer(Nil, "A", "A still holds: a shelf lists its books", _ => true, stamp(answeredAt).at))._1
+      Waiting.forAgent(Annotate(shelf, l), answered)
+    assertEquals(Waiting.forAgent(Annotate(shelf, l)), List(ForAgent.Revisit(id("A"), "shelves may move now")))
+    assertEquals(tasks(answeredAt = 11), Nil)
+    // an answer from before the revisit does not answer it
+    assertEquals(tasks(answeredAt = 5), List(ForAgent.Revisit(id("A"), "shelves may move now")))
+  }
+
   test("complete: every node accepted and proven") {
     assert(Proofs.complete(Annotate(shelf, acceptAll(shelf))))
     // A leaf nothing below proves is not.

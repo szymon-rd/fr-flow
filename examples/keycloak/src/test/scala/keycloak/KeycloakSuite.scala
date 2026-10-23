@@ -8,7 +8,8 @@ import java.nio.file.{Files, Paths}
 
 class KeycloakSuite extends munit.CatsEffectSuite:
   // The API over the example's own workspace; nothing here decides, so no key is read.
-  private def api = LiveApi(knowledge, Workspace(Paths.get("examples/keycloak").toAbsolutePath.normalize, "../../../lean"), Paths.get("no.key"), Map.empty)
+  private def api =
+    LiveApi(knowledge, Workspace(Paths.get("examples/keycloak").toAbsolutePath.normalize, "../../../lean"), sys.env.updated("FRFLOW_KEY", "no.key"))
   private def checked = api.flatMap(_.check(None)).recoverWith { case FrFlowError.LeanMissing => IO(assume(false, "lake is not available")) *> IO.never }
 
   test("the committed ledger accepts every node: none is up for review, none is gone") {

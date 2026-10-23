@@ -142,8 +142,9 @@ object LineDiff:
 
   private def fold(ops: List[DiffLine], context: Int): List[DiffLine] =
     def same(l: DiffLine) = PartialFunction.cond(l) { case DiffLine.Same(_) => true }
-    val changed = ops.indices.filterNot(k => same(ops(k))).toVector
-    ops.zipWithIndex.map((l, k) => Option.when(!same(l) || changed.exists(c => (c - k).abs <= context))(l))
+    // The lines within `context` of a change: the change itself among them.
+    val near = ops.zipWithIndex.collect { case (l, k) if !same(l) => (k - context) to (k + context) }.flatten.toSet
+    ops.zipWithIndex.map((l, k) => Option.when(near(k))(l))
       .foldRight(List.empty[DiffLine]) {
         case (Some(l), acc) => l :: acc
         case (None, DiffLine.Folded(n) :: rest) => DiffLine.Folded(n + 1) :: rest

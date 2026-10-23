@@ -45,18 +45,18 @@ class ApiSuite extends munit.FunSuite:
     val i = Inbox.of(Sample.view(rs = Sample.requests :+ asked))
     assertEquals(i.withAgent.map(_.id), List(id("Decide")))
     assert(!i.queue.exists(_.node.id == id("Decide")))
-    val moved = asked.copy(seen = Some("an older version"))
+    val moved = asked.copy(seen = Some(Version("an older version")))
     assert(Inbox.of(Sample.view(rs = Sample.requests :+ moved)).queue.exists(_.node.id == id("Decide")))
   }
 
   test("the tree: a shared part drawn once, under its first parent, and referred to under the others") {
-    val t = Trees.of(v, None).toOption.get
+    val t = Trees.all(v)
     val root = t.main.head
     assertEquals(root.children.map(_.node.id), List(id("NeedsGrant"), id("LetsIn"), id("Expiry"), id("Forever")))
     assertEquals(root.children.head.children.map(_.node.id), List(id("Decide")))
     assertEquals(root.children(1).seeAlso, List(id("Decide")))
     assertEquals((t.assumptions.map(_.node.id), t.definitions.map(_.node.id)), (List(id("StoreKeeps")), List(id("Identities"))))
-    assert(Trees.of(v, Some(id("Nope"))).isLeft)
+    assertEquals(Trees.from(v, id("Nope")), None)
     // From a node, a part is drawn under a parent among those drawn, not referred to one outside.
-    assertEquals(Trees.of(v, Some(id("LetsIn"))).map(_.main.head.children.map(_.node.id)), Right(List(id("Decide"))))
+    assertEquals(Trees.from(v, id("LetsIn")).map(_.main.head.children.map(_.node.id)), Some(List(id("Decide"))))
   }

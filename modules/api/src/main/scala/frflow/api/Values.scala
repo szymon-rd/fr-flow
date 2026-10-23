@@ -38,22 +38,27 @@ final case class Overview(name: String, nodes: Int, proposed: Int, review: Int, 
     derives Codec.AsObject:
   def unproven: Int = nodes - proven
 object Overview:
-  def of(v: View): Overview =
+  def of(v: View): Overview = of(v, Waiting.forDeveloper(v.annotated))
+
+  /** `waiting`: the nodes waiting for the developer (`Waiting.forDeveloper`). */
+  private[api] def of(v: View, waiting: List[Reviewed]): Overview =
     val a = v.annotated
     val ns = a.nodes.map(_.node)
     def count(s: ReviewState) = a.nodes.count(_.state == s)
-    val waiting = Waiting.forDeveloper(a)
-    val asked = Inbox.asked(v)
+    val asked = Inbox.asked(v, waiting)
     val contracts = ns.filter(_.kind == NodeKind.Contract)
+    def provenDown(c: SnapNode) = c.status.contains(CheckStatus.Proven) && c.implementationProof.exists(_.status == ObligationStatus.Proven)
     val inLean = ns.flatMap(_.examples.flatMap(_.lean))
-    Overview(v.snapshot.name, a.nodes.size, count(ReviewState.Proposed), count(ReviewState.Review), count(ReviewState.Accepted),
-      count(ReviewState.Rejected), a.gone.size, ns.count(Proofs.unproven(_).isEmpty), v.snapshot.trusted,
-      waiting.size + a.gone.size - asked.size, waiting.count(_.review.mechanical), asked.size, Waiting.forAgent(a).size,
-      v.requests.count(_.status == RequestStatus.Open), v.requests.count(_.status == RequestStatus.Answered), v.unsigned.size,
-      ns.count(_.split.isDefined), ns.count(_.split.exists(_.proven)), contracts.size,
-      contracts.count(c => c.status.contains(CheckStatus.Proven) && c.implementationProof.exists(_.status == ObligationStatus.Proven)),
-      inLean.size, inLean.count(_.status == ObligationStatus.Proven),
-      v.snapshot.root.flatMap(v.node).flatMap(_.node.rootImpl).map(_.status), v.warnings.size, v.ok)
+    Overview(name = v.snapshot.name, nodes = a.nodes.size, proposed = count(ReviewState.Proposed), review = count(ReviewState.Review),
+      accepted = count(ReviewState.Accepted), rejected = count(ReviewState.Rejected), gone = a.gone.size,
+      proven = ns.count(Proofs.unproven(_).isEmpty), trusted = v.snapshot.trusted,
+      forDeveloper = waiting.size + a.gone.size - asked.size, mechanical = waiting.count(_.review.mechanical), withAgent = asked.size,
+      forAgent = Waiting.forAgent(a, v.requests).size, openRequests = v.requests.count(_.status == RequestStatus.Open),
+      answers = v.requests.count(_.status == RequestStatus.Answered), unsigned = v.unsigned.size,
+      splits = ns.count(_.split.isDefined), splitsProven = ns.count(_.split.exists(_.proven)),
+      contracts = contracts.size, contractsProvenDown = contracts.count(provenDown),
+      examplesInLean = inLean.size, examplesAgreeing = inLean.count(_.status == ObligationStatus.Proven),
+      rootImpl = v.snapshot.root.flatMap(v.node).flatMap(_.node.rootImpl).map(_.status), warnings = v.warnings.size, complete = v.ok)
 
 final case class Queued(node: Reviewed, waitsFor: Option[NodeId], followers: List[NodeId]) derives Codec.AsObject
 /** What waits for whom; the developer's queue in the order the ledger takes decisions, less what is with the agent. */
@@ -62,18 +67,20 @@ final case class Inbox(open: List[Request], answers: List[Request], warnings: Li
     overview: Overview) derives Codec.AsObject:
   def queue: List[Queued] = ready ++ later
 object Inbox:
-  def asked(v: View): List[Reviewed] = Waiting.forDeveloper(v.annotated).filter(r => !r.review.mechanical && v.withAgent(r))
+  /** Of the nodes waiting for the developer, those they asked the agent about. */
+  private[api] def asked(v: View, waiting: List[Reviewed]): List[Reviewed] = waiting.filter(r => !r.review.mechanical && v.withAgent(r))
 
   /** A review moving only with a node waiting is grouped under it: accepting the node confirms it once all it
     * rests on holds (as the ledger's `Decide` does).
     */
   def of(v: View): Inbox =
-    val (mechanical, judged) = Waiting.forDeveloper(v.annotated).partition(_.review.mechanical)
+    val waiting = Waiting.forDeveloper(v.annotated)
+    val (mechanical, judged) = waiting.partition(_.review.mechanical)
     val mine = judged.filterNot(v.withAgent)
-    val waiting = mine.map(_.id).toSet
+    val ids = mine.map(_.id).toSet
     def holds(id: NodeId) = v.node(id).forall(_.state == ReviewState.Accepted)
     def followers(r: Reviewed) =
-      val moved = r.review.below.filter(b => b.kind == BelowKind.Moved && waiting(b.id)).map(_.id)
+      val moved = r.review.below.filter(b => b.kind == BelowKind.Moved && ids(b.id)).map(_.id)
       moved.filter(id => v.node(id).exists { b =>
         b.review.causes == List(Cause.Above) && (b.node.parents ++ b.node.uses ++ b.node.relies).forall(x => x == r.id || moved.contains(x) || holds(x))
       })
@@ -81,7 +88,7 @@ object Inbox:
     val following = queued.flatMap(_.followers).toSet
     val (later, ready) = queued.filterNot(q => following(q.node.id)).partition(_.waitsFor.isDefined)
     Inbox(v.requests.filter(_.status == RequestStatus.Open), v.requests.filter(_.status == RequestStatus.Answered), v.warnings,
-      ready, mechanical, later, v.annotated.gone, asked(v), Waiting.forAgent(v.annotated), Overview.of(v))
+      ready, mechanical, later, v.annotated.gone, asked(v, waiting), Waiting.forAgent(v.annotated, v.requests), Overview.of(v, waiting))
 
 /** A node of the tree, drawn once, under its first parent; `seeAlso` are the nodes below it drawn under another. */
 final case class TreeNode(node: Reviewed, seeAlso: List[NodeId], withAgent: Boolean, children: List[TreeNode]) derives Codec.AsObject
@@ -93,10 +100,23 @@ final case class Tree(main: List[TreeNode], assumptions: List[TreeNode], unparen
     definitions: List[TreeNode], gone: List[Gone], overview: Overview) derives Codec.AsObject
 
 object Trees:
-  /** Each node once, under its first parent among the nodes drawn; its children in the order of its parts. */
-  def of(v: View, from: Option[NodeId]): Either[String, Tree] =
+  /** The whole DAG: each node once, under its first parent; its children in the order of its parts. */
+  def all(v: View): Tree =
+    val ids = v.nodes.map(_.id).toSet
+    val draw = drawing(v, ids)
+    val (main, rest) = v.nodes.filterNot(_.node.parents.exists(ids)).partition(v.isRoot)
+    val (definitions, others) = rest.partition(_.node.kind == NodeKind.Definition)
+    val (assumptions, unparented) = others.partition(_.node.kind == NodeKind.Assumption)
+    Tree(main.map(draw), assumptions.map(draw), unparented.map(draw), definitions.map(draw), v.annotated.gone, Overview.of(v))
+
+  /** What is below a node, drawn from it; none if there is no such node. */
+  def from(v: View, id: NodeId): Option[Tree] =
     val children = v.nodes.flatMap(r => r.node.parents.map(_ -> r.id)).groupMap(_._1)(_._2)
-    val ids = from.fold(v.nodes.map(_.id))(f => Walk.preorder(List(f), identity)(children.getOrElse(_, Nil))).toSet
+    val below = Walk.preorder(List(id), identity)(children.getOrElse(_, Nil)).toSet
+    v.node(id).map(r => Tree(List(drawing(v, below)(r)), Nil, Nil, Nil, Nil, Overview.of(v)))
+
+  /** Draws the nodes among `ids`: each under its first parent among them. */
+  private def drawing(v: View, ids: Set[NodeId]): Reviewed => TreeNode =
     def firstParent(r: Reviewed) = r.node.parents.find(ids)
     val drawn = v.nodes.filter(r => ids(r.id))
     val under = drawn.flatMap(r => firstParent(r).map(_ -> r)).groupMap(_._1)(_._2)
@@ -108,21 +128,15 @@ object Trees:
     def draw(path: Set[NodeId])(r: Reviewed): TreeNode =
       TreeNode(r, inParts(r, elsewhere.getOrElse(r.id, Nil))(identity), v.withAgent(r),
         inParts(r, under.getOrElse(r.id, Nil))(_.id).filterNot(c => path(c.id)).map(draw(path + r.id)))
-    from match
-      case Some(id) => v.node(id).toRight(s"unknown node $id").map(r => Tree(List(draw(Set.empty)(r)), Nil, Nil, Nil, Nil, Overview.of(v)))
-      case None =>
-        val (main, rest) = v.nodes.filter(firstParent(_).isEmpty).partition(v.isRoot)
-        val (definitions, others) = rest.partition(_.node.kind == NodeKind.Definition)
-        val (assumptions, unparented) = others.partition(_.node.kind == NodeKind.Assumption)
-        def all(rs: List[Reviewed]) = rs.map(draw(Set.empty))
-        Right(Tree(all(main), all(assumptions), all(unparented), all(definitions), v.annotated.gone, Overview.of(v)))
+    draw(Set.empty)
 
 final case class FailingExample(example: String, verdict: String) derives Codec.AsObject
 
 /** One node as `check` left it; `idle`, for a root, is what doing nothing is when it meets the root. */
 final case class CheckedNode(id: NodeId, status: CheckStatus, notProven: List[ObligationName], problems: List[Result],
     failing: List[FailingExample], idle: Option[String], messages: List[String], hint: Option[String]) derives Codec.AsObject:
-  def ok: Boolean = status == CheckStatus.Proven && failing.isEmpty
+  /** Proven, nothing of it left open, and its examples passing: what `check` exits 0 on. */
+  def ok: Boolean = status == CheckStatus.Proven && notProven.isEmpty && failing.isEmpty
 object CheckedNode:
   def of(r: Reviewed, c: NodeCheck): CheckedNode =
     val failing = r.node.examples.filterNot(_.passes).map(e =>
@@ -133,9 +147,14 @@ object CheckedNode:
       // With an example failing the node may be false: no hint to prove it.
       c.hint.filter(_ => failing.isEmpty))
 
-final case class CheckReport(nodes: List[CheckedNode], view: View) derives Codec.AsObject:
+final case class CheckReport(nodes: List[CheckedNode], view: View, overview: Overview) derives Codec.AsObject:
   def ok: Boolean = nodes.forall(_.ok)
-final case class CiReport(notProven: List[CheckedNode], view: View) derives Codec.AsObject:
+/** What `status` shows: the view, drawn as the tree. */
+final case class StatusReport(view: View, tree: Tree) derives Codec.AsObject:
+  def ok: Boolean = view.ok
+object StatusReport:
+  def of(v: View): StatusReport = StatusReport(v, Trees.all(v))
+final case class CiReport(notProven: List[CheckedNode], view: View, tree: Tree) derives Codec.AsObject:
   def ok: Boolean = notProven.isEmpty && view.ok
 final case class Rendered(changed: List[String], snapshot: String) derives Codec.AsObject
 /** The proof file `scaffold` created or added stubs to, if any. */

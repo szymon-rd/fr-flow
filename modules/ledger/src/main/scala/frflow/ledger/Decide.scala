@@ -23,9 +23,9 @@ enum Decide derives Codec.AsObject:
     * review only because it moved are confirmed (each once all it rests on holds). `seen` is each node's
     * version as the developer saw it: the decision is refused if it moved since.
     */
-  case Accept(nodes: List[NodeId], reason: String, revisit: List[NodeId] = Nil, seen: Map[NodeId, String] = Map.empty)
+  case Accept(nodes: List[NodeId], reason: String, revisit: List[NodeId] = Nil, seen: Map[NodeId, Version] = Map.empty)
   /** Reject a proposal, with the proposals that rest on it: the agent proposes what the reason asks for. */
-  case Reject(node: NodeId, reason: String, seen: Option[String] = None)
+  case Reject(node: NodeId, reason: String, seen: Option[Version] = None)
   /** Accept every mechanical decision (see `Mechanical`). */
   case Confirm(reason: String)
   /** Ask that a decided node be reviewed again: a change elsewhere may affect it. */
@@ -62,16 +62,16 @@ object Decide:
     inOrder(r.graph, ids).foldLeftM(r.ledger)((l, id) =>
       f(Reading(r.graph, l), id).leftMap(e => if ids.distinct.size > 1 then Refusal.Within(id, e) else e))
 
-  private def accept(r: Reading, ids: List[NodeId], reason: String, revisit: List[NodeId], seen: Map[NodeId, String], record: Record) =
+  private def accept(r: Reading, ids: List[NodeId], reason: String, revisit: List[NodeId], seen: Map[NodeId, Version], record: Record) =
     val below = ids.flatMap(r.graph.byId.get).filter(r.state(_) != Accepted).flatMap(Downstream.below(r, _)).map(_.id).toSet
     def one(now: Reading, n: SnapNode): Either[Refusal, Ledger] =
       val rivals = now.graph.rivals.getOrElse(n.id, Nil).filter(now.stateOf(_) != Rejected)
       val under = if now.state(n) == Accepted then Nil else Downstream.below(now, n)
       val confirm = under.filter(b => b.kind == BelowKind.Moved && !revisit.contains(b.id)).map(_.id)
-      acceptOne(now, n, reason, rivals, record).map { l =>
-        revisit.filter(x => under.exists(_.id == x)).distinct.flatMap(now.graph.byId.get).foldLeft(confirmBelow(now.graph, l, n, confirm, reason, record))(
-          (l, c) => l.add(c.id, record(Action.Revisit, c, s"${n.id} changed and may affect it: $reason")))
-      }
+      // The decisions below it named to revisit, reviewed again.
+      def revisitBelow(l: Ledger) = revisit.filter(x => under.exists(_.id == x)).distinct.flatMap(now.graph.byId.get)
+        .foldLeft(l)((l, c) => l.add(c.id, record(Action.Revisit, c, s"${n.id} changed and may affect it: $reason")))
+      acceptOne(now, n, reason, rivals, record).map(l => revisitBelow(confirmBelow(now.graph, l, n, confirm, reason, record)))
     for
       _ <- Either.cond(ids.nonEmpty, (), Refusal.NoNodes)
       _ <- Either.cond(revisit.forall(below), (), Refusal.NotBelow(ids.head, revisit.filterNot(below)))
@@ -108,7 +108,7 @@ object Decide:
       _ <- Either.cond(!v.ledger.current(id).exists(_.action == Action.Revisit), (), Refusal.AlreadyRevisited(id))
     yield v.ledger.add(id, record(Action.Revisit, n, reason))
 
-  private def unmoved(v: Reading, node: NodeId, seen: Option[String]): Either[Refusal, Unit] =
+  private def unmoved(v: Reading, node: NodeId, seen: Option[Version]): Either[Refusal, Unit] =
     Either.cond(!v.graph.byId.get(node).exists(n => seen.exists(_ != v.version(n))), (), Refusal.MovedSinceSeen(node))
 
   private def remove(v: Reading, node: NodeId, reason: String, record: Record): Either[Refusal, Ledger] =
@@ -162,63 +162,3 @@ object Reasons:
   def now(ledger: Ledger, id: NodeId): String =
     val last = ledger.sinceChosen(id).filter(_.action == Action.Accept).lastOption.fold("")(_.reason)
     ledger.binding(id).filter(_.action == Action.Confirm).fold(last)(c => s"$last (since confirmed: ${c.reason})")
-
-/** The developer's requests ("Ask for a change") and the agent's answers, as values. Pure. */
-object Requests:
-  /** A new request on a node (or on the idea); `seen`, the node's version the developer asked about. */
-  def ask(rs: List[Request], node: Option[NodeId], text: String, by: String, now: Instant, seen: Option[String] = None): (List[Request], Request) =
-    // `R` and the time in base 36; the next free one when two are asked at once.
-    val taken = rs.map(_.id).toSet
-    val id = Iterator.from(0).map(i => RequestId(s"R${java.lang.Long.toString(now.toEpochMilli + i, 36)}")).dropWhile(taken).next()
-    val r = Request(id, node, text, by, now, RequestStatus.Open, seen = seen)
-    (rs :+ r, r)
-
-  /** Answers the request `to`: by id, the open request on a node, or a new one from the agent on a node `isNode` knows. */
-  def answer(rs: List[Request], to: String, text: String, isNode: NodeId => Boolean, now: Instant): Either[Refusal, (List[Request], Request)] =
-    val byId = rs.indexWhere(_.id == RequestId(to))
-    val at = if byId >= 0 then byId else rs.indexWhere(r => r.node.contains(NodeId(to)) && r.status == RequestStatus.Open)
-    val all =
-      if at >= 0 then Right((rs, at))
-      else if isNode(NodeId(to)) then Right(ask(rs, Some(NodeId(to)), "(from the agent)", "agent", now)._1 -> rs.size)
-      else Left(Refusal.UnknownRequest(to))
-    all.flatMap((all, i) => all.lift(i).map(_.copy(status = RequestStatus.Answered, answer = Some(text)))
-      .map(r => (all.updated(i, r), r)).toRight(Refusal.UnknownRequest(to)))
-
-  /** The developer closes requests, answered or not. All, or none if one is unknown. */
-  def close(rs: List[Request], ids: List[RequestId]): Either[Refusal, (List[Request], List[Request])] =
-    ids.filterNot(i => rs.exists(_.id == i)) match
-      case Nil =>
-        val closed = rs.map(r => if ids.contains(r.id) then r.copy(status = RequestStatus.Closed) else r)
-        Right((closed, closed.filter(r => ids.contains(r.id))))
-      case unknown => Left(Refusal.UnknownRequest(unknown.mkString(", ")))
-
-/** Why a decision, or an answer to a request, is not recorded: what the developer (or the agent) reads. */
-enum Refusal(val message: String):
-  case NoOneDecides extends Refusal("say who decides")
-  case NoReason extends Refusal("give the reason for the decision in a few words: it is kept as part of the theory")
-  case MovedSinceSeen(node: NodeId) extends Refusal(s"$node changed since you looked at it: look again before deciding")
-  case UnknownNode(node: NodeId) extends Refusal(s"unknown node $node")
-  case NotAProposal(node: NodeId, state: ReviewState) extends Refusal(s"$node is $state: only a proposal is rejected on its own")
-  case AcceptFirst(waitsFor: NodeId) extends Refusal(s"accept $waitsFor first: what rests on it is decided after it")
-  case AlreadyAccepted(node: NodeId) extends Refusal(s"$node is already accepted")
-  case NotBelow(node: NodeId, named: List[NodeId])
-      extends Refusal(s"not among the decisions below $node that this decision can act on: ${named.mkString(", ")}")
-  case NotDecided(node: NodeId, state: ReviewState) extends Refusal(s"$node is $state: only a decided node is revisited")
-  case AlreadyRevisited(node: NodeId) extends Refusal(s"$node is already to revisit")
-  case StillInModel(node: NodeId) extends Refusal(s"$node is still in the model: only a node removed from it is gone")
-  case NothingToConfirm extends Refusal("nothing to confirm: no decision is mechanical")
-  case UnknownRequest(to: String) extends Refusal(s"no request or node $to")
-  case NoNodes extends Refusal("name the nodes to accept")
-  case NoText extends Refusal("say what to change")
-  /** No name to decide under: none given, and the developer's key is filed under none. */
-  case NoDeveloper extends Refusal("say who decides: the name your key's public half is filed under (.frflow/keys/NAME.pub)")
-  /** One decision of several refused: none is recorded. */
-  case Within(node: NodeId, refusal: Refusal) extends Refusal(s"$node: ${refusal.message}")
-
-  /** The model moved since the developer looked: they look again, rather than change what they asked. */
-  def stale: Boolean = this match
-    case MovedSinceSeen(_) => true
-    case Within(_, r) => r.stale
-    case _ => false
-
-  override def toString: String = message

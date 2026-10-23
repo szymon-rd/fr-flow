@@ -92,7 +92,7 @@ object Commands:
       |
       |The developer reads with tree, show, diff, inbox; decides with review, accept, reject, confirm, revisit, gone;
       |asks with ask and close. The agent works with render, check, status, ci, context, find, scaffold, answer, inbox.
-      |Exit codes: 0 fine; 1 something is not accepted or proven, or a decision was refused; 2 a usage error.""".stripMargin
+      |Exit codes: 0 fine; 1 something is not accepted or proven, or a decision was refused; 2 a usage error; 3 no Lean (lake).""".stripMargin
 
   private val plain = Opts.flag("plain", "ASCII without colors (also when NO_COLOR is set or the output is not a terminal)").orFalse
   private val json = Opts.flag("json", "print the typed value as JSON, each node in brief").orFalse

@@ -12,7 +12,7 @@ export frflow.check.Progress
 enum FrFlowError(val message: String) extends Exception(message) with NoStackTrace:
   /** The model does not hold together: nothing else is computed until it does. */
   case ModelProblems(problems: List[String]) extends FrFlowError(problems.mkString("\n"))
-  case UnknownNode(id: String) extends FrFlowError(s"unknown node $id")
+  case UnknownNode(id: NodeId) extends FrFlowError(s"unknown node $id")
   case LeanMissing extends FrFlowError("lake not found (set FRFLOW_LAKE)")
 
 /** FrFlow as a front end sees it: typed values, never text. The primitives read and write the project; the
@@ -36,19 +36,22 @@ trait FrFlowApi:
   /** `progress` hears of each level of the check before Lean proves it. */
   def check(node: Option[NodeId], progress: Progress => IO[Unit] = _ => IO.unit): IO[CheckReport]
   /** The view, with the snapshot written. */
-  def status: IO[View]
+  def status: IO[StatusReport]
   def ci(progress: Progress => IO[Unit] = _ => IO.unit): IO[CiReport]
   def scaffold(node: NodeId): IO[Scaffolded]
   /** A path as the project names it: relative to its directory (a path from elsewhere is given as it is). */
   protected def relative(query: String): IO[String] = IO.pure(query)
 
   def tree(from: Option[NodeId]): IO[Tree] =
-    view.flatMap(v => IO.fromEither(Trees.of(v, from).left.map(_ => FrFlowError.UnknownNode(from.fold("")(_.value)))))
-  def inbox: IO[Inbox] = view.map(Inbox.of)
+    view.flatMap(v => from.fold(IO.pure(Trees.all(v)))(id => IO.fromOption(Trees.from(v, id))(FrFlowError.UnknownNode(id))))
+  def inbox: IO[Inbox] = reviewing.map(_._2)
+  /** The inbox with the view it was read from: what a review walks, reading each node of that view. */
+  def reviewing: IO[(View, Inbox)] = view.map(v => v -> Inbox.of(v))
   def find(v: View, query: String): IO[Found] = relative(query).map(frflow.ledger.Find(v.annotated, _))
   def details(id: NodeId): IO[NodeDetails] = withNode(id)(details)
   def details(v: View, r: Reviewed): IO[NodeDetails] = codeChange(r).map(Details.of(v, r, _))
-  def diff(id: NodeId): IO[NodeDiff] = withNode(id)((v, r) => codeChange(r).map(Details.diff(v, r, _)))
+  def diff(id: NodeId): IO[NodeDiff] = withNode(id)(diff)
+  def diff(v: View, r: Reviewed): IO[NodeDiff] = codeChange(r).map(Details.diff(v, r, _))
 
   protected def withNode[A](id: NodeId)(f: (View, Reviewed) => IO[A]): IO[A] =
-    view.flatMap(v => v.node(id).fold(IO.raiseError(FrFlowError.UnknownNode(id.value)))(f(v, _)))
+    view.flatMap(v => v.node(id).fold(IO.raiseError(FrFlowError.UnknownNode(id)))(f(v, _)))

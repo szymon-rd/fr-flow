@@ -36,7 +36,7 @@ object Dag:
   def stamp(i: Int): Stamp = Stamp(Instant.parse(f"2026-01-01T00:00:$i%02dZ"))
 
   /** Accepting `node`, for a reason of its own unless one is given. */
-  def accept(node: String, reason: String = "", revisit: List[String] = Nil, seen: Option[String] = None): Decide =
+  def accept(node: String, reason: String = "", revisit: List[String] = Nil, seen: Option[Version] = None): Decide =
     Decide.Accept(ids(node), if reason.isEmpty then s"$node holds for this reason" else reason, ids(revisit*), seen.map(id(node) -> _).toMap)
 
   /** `l` with R accepted as it is in `s`, and nothing else decided again. */

@@ -96,7 +96,7 @@ class ProtocolSuite extends munit.FunSuite:
       invariants = List(Kept(NodeId("I"), "view", "rule", ObligationStatus.Exempt, "why")))
     val snap = Snapshot("Shelf", List(node), root = Some(NodeId("Root")), params = List(ParamTerm("good", "good", false, None, "Book → Bool")))
     roundTrip(snap)
-    val review = Review(ReviewState.Review, List(Cause.Above), "v", Some(NodeId("Root")), List(Moved(NodeId("Root"), content)),
+    val review = Review(ReviewState.Review, List(Cause.Above), Version("v"), Some(NodeId("Root")), List(Moved(NodeId("Root"), content)),
       Some(decision), Some(decision), Some("it is right"), None, Nil, Nil,
       List(Below(NodeId("B"), BelowKind.Moved, "s", "r", "c", "w")), List(decision), Nil, List(Alternative(NodeId("Alt"), content)))
     roundTrip(Annotated(snap, List(Reviewed(node, review)), List(Gone(NodeId("Old"), decision)), List(NodeId("A"))))
