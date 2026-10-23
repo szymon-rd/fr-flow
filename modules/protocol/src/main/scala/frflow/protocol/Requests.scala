@@ -4,9 +4,12 @@ import io.circe.Codec
 
 /** A request of the developer's ("Ask for a change"), on a node or on the idea (no node), and the
   * agent's answer. Kept in `.frflow/requests.json`.
+  *
+  * @param seen the node's `version` when the developer asked: the node is with the agent until the
+  *             request is answered or the node changes
   */
 final case class Request(id: RequestId, node: Option[NodeId], text: String, by: String, at: String,
-    status: RequestStatus, answer: Option[String] = None) derives Codec.AsObject
+    status: RequestStatus, answer: Option[String] = None, seen: Option[String] = None) derives Codec.AsObject
 
 /** A decision asked of the ledger. `action` is `accept` (choose the node, rejecting the alternatives in
   * `reject`; accept it again after something moved; agree that a gone node is gone) or `reject` (reject
