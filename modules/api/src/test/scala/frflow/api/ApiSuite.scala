@@ -68,3 +68,13 @@ class ApiSuite extends munit.FunSuite:
     assert(!proven.copy(failing = List(FailingExample("expect", "fails"))).ok)
     assert(!CheckReport(List(proven, proven.copy(notProven = List(ObligationName.Impl))), v, Overview.of(v)).ok)
   }
+
+  test("--json: a node checked says whether it is ok, beside how its check ended, and reads back") {
+    import io.circe.syntax.*
+    val open = CheckedNode(id("Decide"), CheckStatus.Proven, List(ObligationName.Impl), Nil, Nil, None, Nil, None)
+    val json = open.asJson
+    assertEquals(json.hcursor.get[String]("status"), Right("proven"))
+    assertEquals(json.hcursor.get[Boolean]("ok"), Right(false))
+    assertEquals(open.copy(notProven = Nil).asJson.hcursor.get[Boolean]("ok"), Right(true))
+    assertEquals(json.as[CheckedNode], Right(open))
+  }

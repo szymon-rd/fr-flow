@@ -2,7 +2,7 @@ package frflow.api
 
 import frflow.ledger.{Decide, ForAgent, Proofs, Waiting}
 import frflow.protocol.*
-import io.circe.Codec
+import io.circe.{Codec, Encoder, Json}
 
 /** The developer who decides: every decision is theirs, and signed with their key. */
 final case class Developer(name: String)
@@ -132,12 +132,19 @@ object Trees:
 
 final case class FailingExample(example: String, verdict: String) derives Codec.AsObject
 
-/** One node as `check` left it; `idle`, for a root, is what doing nothing is when it meets the root. */
+/** One node as `check` left it; `idle`, for a root, is what doing nothing is when it meets the root. `status` is how
+  * its check ended: `proven` with an obligation still open (its `impl`, `root_impl`) is not `ok`.
+  */
 final case class CheckedNode(id: NodeId, status: CheckStatus, notProven: List[ObligationName], problems: List[Result],
-    failing: List[FailingExample], idle: Option[String], messages: List[String], hint: Option[String]) derives Codec.AsObject:
+    failing: List[FailingExample], idle: Option[String], messages: List[String], hint: Option[String]):
   /** Proven, nothing of it left open, and its examples passing: what `check` exits 0 on. */
   def ok: Boolean = status == CheckStatus.Proven && notProven.isEmpty && failing.isEmpty
 object CheckedNode:
+  /** Encoded with `ok`, so that `status` is not read as all of it. */
+  given Codec.AsObject[CheckedNode] =
+    val derived = Codec.AsObject.derived[CheckedNode]
+    Codec.AsObject.from(derived, Encoder.AsObject.instance(c => derived.encodeObject(c).add("ok", Json.fromBoolean(c.ok))))
+
   def of(r: Reviewed, c: NodeCheck): CheckedNode =
     val failing = r.node.examples.filterNot(_.passes).map(e =>
       FailingExample(s"${if e.expected then "expect" else "reject"} ${e.call}  given ${e.`given`.mkString(", ")}  — ${e.note}",
