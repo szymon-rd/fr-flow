@@ -160,19 +160,6 @@ val bump = Node.contract(bumps)("Bump", "A bump adds one to its name's count, an
     reject(Map("a" -> BigInt(1)), "b", Map("b" -> BigInt(1)), "a lost"))
 val bumped = define { (m: Map[String, BigInt], k: String) => m.updated(k, m.getOrElse(k, BigInt(0)) + 1) }
 
-/** Another project's knowledge base calling the shelf's operation, from Pick's promise. */
-val reading = Param[(List[Book], Int) => List[Book]]("reading", "the reading list made from a shelf")
-val shortList = Node.claim("ShortList", "A reading list holds only books from the shelf.", why = "Readers choose from what is there.")(
-  forall((shelf: List[Book], n: Int) => reading(shelf, n).forall(b => shelf.contains(b))))
-val readingList = Node.contract(reading)("ReadingList", "A call returns only books from the shelf.", why = "ShortList, for one call.")(
-  (shelf, n, r) => r.forall(b => shelf.contains(b))).under(shortList)
-  .examples(minPages.bind(100))(
-    expect(List(Book("Long", 300)), 5, List(Book("Long", 300)), "a book from the shelf"),
-    expect(List(Book("Short", 20)), 5, Nil, "no book long enough"),
-    reject(List(Book("Long", 300)), 5, List(Book("Other", 300)), "a book not on the shelf"))
-def readerKb(shelfDir: String) = KnowledgeBase("Reader", idea = "IDEA.md")(shortList, readingList)
-  .uses(shelfKb, shelfDir)(pick).implementProven(readingList)(viaPick)
-
 /** A node with an owner: only they decide it, and what is below it. */
 val owned = Node.claim("Owned", "Results are never negative.", why = "Negative results are meaningless here.", owner = "ana")(
   forall((x: BigInt) => sq(x) >= 0))

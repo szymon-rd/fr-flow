@@ -42,11 +42,8 @@ final class Project(dir: Path):
     try Some(Json.parse(Files.readString(p, UTF_8))) catch case _: Exception => None
 
   def snapshot: Option[Json] = readJson(snapshotFile)
-  /** The decisions: this project's, and those of the nodes it imports, from the projects that decide them. */
-  def ledger: frflow.Ledger = frflow.Workflow.withImports(ownLedger, imports)
-  private def imports: Map[String, String] =
-    snapshot.flatMap(_("imports")).map(_.obj.toList.flatMap((id, d) => d.str.map(id -> _)).toMap).getOrElse(Map.empty)
-  def ownLedger: frflow.Ledger = frflow.Ledger.load(ledgerFile)
+  /** The developer's decisions. */
+  def ledger: frflow.Ledger = frflow.Ledger.load(ledgerFile)
 
   /** The snapshot with the developer's decisions, read now (see `frflow.Decisions`), and warnings
     * about decisions not signed by the developer.
@@ -54,7 +51,7 @@ final class Project(dir: Path):
   def annotated: Option[Json] = snapshot.map { s =>
     val l = ledger
     val a = frflow.Decisions.annotate(s, l)
-    val warnings = frflow.Ledger.warnings(ledgerFile, ownLedger).map(str) ++ a("warnings").map(_.arr.toList).getOrElse(Nil)
+    val warnings = frflow.Ledger.warnings(ledgerFile, l).map(str) ++ a("warnings").map(_.arr.toList).getOrElse(Nil)
     JObj(a.obj.filterNot(_._1 == "warnings") :+ ("warnings" -> JArr(warnings)) :+ ("unsigned" -> JArr(unsigned)))
   }
 
@@ -103,8 +100,7 @@ final class Project(dir: Path):
           val (at, head, tree) = (java.time.Instant.now.toString, frflow.Git.head(root), frflow.Git.snapshot(root, files))
           rs.foldLeft(Right(before): Either[String, frflow.Ledger])((l, r) =>
             l.flatMap(frflow.Decisions.decide(snap, _, r, at, head, tree).left.map(why => if rs.size > 1 then s"${r.node}: $why" else why)))
-            // Only this project's decisions are written: imported ones stay where they are decided.
-            .map(l => frflow.Ledger.save(ledgerFile, signed(before, frflow.Ledger(l.decisions -- imports.keySet))))
+            .map(l => frflow.Ledger.save(ledgerFile, signed(before, l)))
         }
 
   /** The developer's new decisions, signed when this process holds the developer's key (the browser
@@ -118,7 +114,7 @@ final class Project(dir: Path):
 
   /** The developer's decisions not signed by a known key, for the developer to look at. */
   def unsigned: List[Json] =
-    frflow.Signing.unsigned(ownLedger, state.resolve("keys")).map((id, d) => obj(
+    frflow.Signing.unsigned(ledger, state.resolve("keys")).map((id, d) => obj(
       "node" -> str(id), "entry" -> str(frflow.Ledger.entry(d)), "action" -> str(d.action), "by" -> str(d.by), "at" -> str(d.at),
       "reason" -> str(d.reason)))
 
@@ -129,7 +125,7 @@ final class Project(dir: Path):
       case Some((priv, pub)) =>
         Project.locked(state.resolve("ledger.lock")) {
           frflow.Signing.publish(pub, state.resolve("keys"), Project.developer.getOrElse(""))
-          frflow.Ledger.save(ledgerFile, frflow.Signing.signEntries(ownLedger, entries, priv, pub))
+          frflow.Ledger.save(ledgerFile, frflow.Signing.signEntries(ledger, entries, priv, pub))
         }
         Right(())
 

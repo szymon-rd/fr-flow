@@ -613,30 +613,6 @@ class SnapshotSuite extends munit.FunSuite:
       assert(!Decisions.conditional(t), t)
   }
 
-  test("a contract of another knowledge base is called here as a leaf, decided there: read here, with its signed decisions") {
-    val shelf = workflow()
-    acceptAll(shelf)
-    val ws = Workspace(Files.createTempDirectory("reader"), "../lean")
-    Files.writeString(ws.root.resolve("IDEA.md"), "# Reader\n\nA user can make a reading list from the shelf.\n")
-    val kb = readerKb(shelf.ws.root.toString)
-    assertEquals(kb.problems, Nil)
-    val w = workflow(kb, ws)
-    val ns = nodes(w.annotated)
-    assertEquals(field(ns("Pick"), "imported"), Some("Shelf"))
-    assertEquals(strs(ns("Pick"), "parents"), Nil)
-    assertEquals(field(ns("Pick"), "state"), Some("accepted"))
-    assert(w.decide(Decisions.Request("Pick", "dev", "it is fine as it is")).left.exists(_.contains("decided in Shelf")))
-    ok(accept(w, shortList, "Readers choose from the shelf."))
-    ok(accept(w, readingList, "One call keeps to the shelf."))
-    // only this project's decisions are written here
-    assertEquals(Ledger.load(ws.ledgerFile).decisions.keySet, Set("ShortList", "ReadingList"))
-    // what rests on it here: the code that calls it
-    assertEquals(w.restsOn(readingList).map(_.id), List("ShortList", "Pick"))
-    // a node under another knowledge base's node would be decided in two places
-    val underIt = Node.claim("UnderPick", "s", "w")(forall((x: BigInt) => sq(x) >= 0)).under(pick)
-    assert(KnowledgeBase("Reader", idea = "IDEA.md")(shortList, readingList, underIt).uses(shelfKb, "../shelf")(pick).problems.exists(_.contains("Shelf decides")))
-  }
-
   test("a node with an owner is decided by its owner, and so is what is below it; it waits for them in everyone else's inbox") {
     val w = workflow(ownedKb)
     assert(accept(w, owned, "negative results are meaningless").left.exists(_.contains("ana's to decide")))

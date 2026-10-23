@@ -103,9 +103,9 @@ object Decisions:
         val chains = scala.collection.mutable.Map.empty[String, String]
         def chainOf(a: String): String = chains.getOrElseUpdate(a,
           sha(was.getOrElse(a, meaning(ids(a)("content").getOrElse(JObj(Nil)))), restOf(ids(a))))
-        // As `Workflow.restChain`: another knowledge base's node and a design node keep theirs.
+        // As `Workflow.restChain`: a design node keeps its own.
         def restOf(x: Json): String =
-          if !touched(s(x, "id")) || x("imported").exists(_ != JNull) || s(x, "kind") == "design" then parentChain(x)
+          if !touched(s(x, "id")) || s(x, "kind") == "design" then parentChain(x)
           else Decisions.above("", restsOn(x).map(chainOf))
         restOf(n) == d.chain
       }
@@ -573,10 +573,7 @@ object Decisions:
     // A concern with an owner is decided by its owner: what the decision acts on below, too.
     def ownerOf(id: String) = ids.get(id).map(s(_, "owner")).filter(_.nonEmpty)
     val others = (r.node :: r.confirm ++ r.revisit ++ r.held ++ r.reject).distinct.flatMap(id => ownerOf(id).filter(o => !o.equalsIgnoreCase(r.by.trim)).map(id -> _))
-    // A node another knowledge base decides is decided there, and checked there.
-    val imported = (r.node :: r.confirm ++ r.revisit ++ r.held ++ r.reject).distinct.flatMap(id => ids.get(id).flatMap(n => n("imported")).flatMap(_.str).map(id -> _))
     if r.by.trim.isEmpty then Left("say who decides")
-    else if imported.nonEmpty then Left(imported.map((id, kb) => s"$id is decided in $kb, the knowledge base it comes from").mkString("; "))
     else if others.nonEmpty then Left(others.map((id, o) => s"$id is $o's to decide (the owner of its concern)").mkString("; "))
     else if !Set("accept", "reject", "rename")(r.action) then Left(s"unknown decision ${r.action}")
     else if Words.tooFew(r.reason) then
@@ -825,9 +822,7 @@ object Decisions:
     def own(n: Json) =
       val cs = n("causes").map(_.arr.flatMap(_.str)).getOrElse(Nil)
       s"${s(n, "id")}: ${if cs.isEmpty then "proposed" else s"review (${cs.mkString(", ")})"}${if n("mechanical").contains(JBool(true)) then ", mechanical" else ""}"
-    val dev = forDeveloper(annotated).map { n =>
-      n("imported").flatMap(_.str).fold(own(n))(kb => s"${s(n, "id")}: waits for a decision in $kb, the project it comes from")
-    } ++
+    val dev = forDeveloper(annotated).map(own) ++
       annotated("gone").map(_.arr.toList).getOrElse(Nil).map(g => s"${s(g, "id")}: gone from the model; accept that it is gone" +
         g("renamedTo").map(_.arr.flatMap(_.str)).filter(_.nonEmpty).fold("")(rs => s", or that it was renamed to ${rs.mkString(" or ")} (it says the same)"))
     val revisits = ns.filter(n => n("causes").exists(_.arr.flatMap(_.str).contains("revisit"))).map { n =>

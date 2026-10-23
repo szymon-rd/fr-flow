@@ -33,9 +33,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   private def sha(parts: String*): String = Sha.parts(parts*)
 
   def idea: String = read(ws.root.resolve(kb.idea)).getOrElse("")
-  def ledger: Ledger = Workflow.withImports(Ledger.load(ws.ledgerFile), importDirs)
-  /** Each imported node, and the directory of the project that decides it. */
-  def importDirs: Map[String, String] = kb.imports.view.mapValues(i => ws.root.resolve(i.root).toAbsolutePath.normalize.toString).toMap
+  def ledger: Ledger = Ledger.load(ws.ledgerFile)
   private var checksCache: Option[(String, Map[String, NodeCheck])] = None
   /** The recorded checks (read again when the file changes). */
   def checks: Map[String, NodeCheck] = synchronized {
@@ -73,25 +71,10 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     files + "|" + kb.definitionsOf.values.filter(_.size > 1).flatten.map(_.id).filter(chosen).toList.sorted.mkString(",")
   private var cached: Option[(String, Generate, scala.collection.concurrent.TrieMap[String, String])] = None
   private def cache: (Generate, scala.collection.concurrent.TrieMap[String, String]) = synchronized {
-    importProofs()
     val stamp = proofStamp
     cached.filter(_._1 == stamp).fold { val c = (stamp, Generate(kb, proofs, chosen), scala.collection.concurrent.TrieMap.empty[String, String]); cached = Some(c); (c._2, c._3) }(c => (c._2, c._3))
   }
   def generate: Generate = cache._1
-
-  /** The proofs another knowledge base wrote for the nodes this one imports, copied beside this one's
-    * (its names in place of the other's): imported nodes are proven here too, as they stand here.
-    */
-  private def importProofs(): Unit =
-    kb.imports.foreach { (id, i) =>
-      val dir = ws.root.resolve(i.root).normalize
-      val src = Option(dir.resolve(s"lean/Proofs/${i.kb}/$id.lean")).filter(Files.isRegularFile(_)).map(Files.readString(_, UTF_8))
-      val dst = ws.lean.resolve(baseGenerate.proofsPath(id))
-      src.fold(if Files.isRegularFile(dst) && read(dst).exists(_.startsWith(Workflow.CopiedProof)) then Files.delete(dst)) { text =>
-        write(dst, s"${Workflow.CopiedProof} ${i.kb}: edit it there.\n" +
-          text.replaceAll(s"\\b${java.util.regex.Pattern.quote(i.kb)}\\.", java.util.regex.Matcher.quoteReplacement(kb.name + ".")))
-      }
-    }
 
   /** Writes the generated Lean; returns the files that changed. */
   def render(): List[String] =
@@ -144,7 +127,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   def content(n: Node[?]): Json = JObj(Seq(
     "kind" -> str(Workflow.kindName(n)),
     "parents" -> JArr(n.parents.map(p => str(p.id)))) ++
-    partsOf(n).map(ps => "parts" -> JArr(ps.map(str))) ++ Seq(
+    Option.when(kb.isStatement(n))("parts" -> JArr(kb.parts(n).map(p => str(p.id)))) ++ Seq(
     "statement" -> str(n.statement),
     "why" -> str(n.why),
     "sources" -> JObj(Seq("formula" -> n.formula, "post" -> n.post, "rule" -> n.rule, "check" -> n.local).collect { case (k, Some(l)) => k -> str(l.source) }),
@@ -165,21 +148,11 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     }.toList
     ++ {
       // The root is decided against the idea's title and lead; a node naming a section, against that section.
-      // Another knowledge base's node is decided against its own idea.
-      val (decided, notM) = kb.imports.get(n.id).fold((ideaDecided, notModelled))(i =>
-        Decisions.splitIdea(read(Path.of(i.root).resolve(i.idea)).getOrElse("")))
+      val (decided, notM) = (ideaDecided, notModelled)
       if n.ideaSection.nonEmpty then Seq("idea" -> str(ideaOfText(decided, n)), "ideaSection" -> str(n.ideaSection), "notModelled" -> str(notModelledOfText(notM, n)))
       else if kb.root.exists(_ eq n) then Seq("idea" -> str(Decisions.ideaSections(decided)._1), "notModelled" -> str(notModelledOfText(notM, n)))
       else Nil
     })
-
-  /** The parts a statement is decided with: its parts here; for another knowledge base's node, those its
-    * decision there recorded (its content is the same as there), none if that decision recorded none.
-    */
-  private def partsOf(n: Node[?]): Option[List[String]] =
-    if !kb.isStatement(n) then None
-    else if kb.imports.contains(n.id) then ledger.binding(n.id).flatMap(_.content("parts")).map(_.arr.toList.flatMap(_.str))
-    else Some(kb.parts(n).map(_.id))
 
   /** The source of the top-level definition a node is written in (the `val` with every call chained on
     * it, its arguments, its examples): what the developer decides is what is written, so nothing hidden in
@@ -233,14 +206,12 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     memo.getOrElseUpdate(n.id, Decisions.chain(content(n), restChain(n, memo)))
 
   /** What a node rests on: the chains of its parents, of the definitions it uses and of the contracts its
-    * code calls. A design decision rests on its parents' place, not their meaning; another knowledge
-    * base's node, on what it rested on when decided there.
+    * code calls. A design decision rests on its parents' place, not their meaning.
     */
   def parentChain(n: Node[?]): String = restChain(n, scala.collection.mutable.Map.empty)
 
   private def restChain(n: Node[?], memo: scala.collection.mutable.Map[String, String]): String =
-    if kb.imports.contains(n.id) then ledger.binding(n.id).fold("")(_.chain)
-    else if n.kind == NodeKind.Design then ""
+    if n.kind == NodeKind.Design then ""
     else Decisions.above("", restsOn(n).map(chains(_, memo)))
 
   /** The nodes a node rests on: its parents, the definitions it uses, and the contracts its code calls. */
@@ -563,10 +534,8 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       i.sources.filterNot(kb.modelFiles.contains).map(f => Path.of(f).toAbsolutePath.normalize)
         .filterNot(p => governedExplicitly.exists(g => p == g || p.startsWith(g)))
     }
-    // Another knowledge base's code, as its project names it.
-    val base = kb.imports.get(n.id).fold(ws.root)(i => ws.root.resolve(i.root).normalize)
-    val files = n.governs.map(base.resolve) ++ impl
-    if files.isEmpty then None else Some(Code.of(base, files))
+    val files = n.governs.map(ws.root.resolve) ++ impl
+    if files.isEmpty then None else Some(Code.of(ws.root, files))
 
   /** How a node's parts make it (docs/DAG.md §4): `complete`, each part `needed`, and `clash`, each with a
     * status and a detail. `complete`: `proven`, `open`, `failed`; each part: `needed` or `not-needed`;
@@ -610,10 +579,10 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   def decide(r: Decisions.Request): Either[String, Unit] =
     val files = kb.nodes.flatMap(code).flatMap(_.files).distinct
     Decisions.decide(baseSnapshot, ledger, r, java.time.Instant.now.toString, Git.head(ws.root), Git.snapshot(ws.root, files))
-      .map(l => Ledger.save(ws.ledgerFile, Ledger(l.decisions -- kb.imports.keySet)))
+      .map(Ledger.save(ws.ledgerFile, _))
 
   /** Warnings about the record (decisions not signed by the developer) and the code. */
-  def integrity: List[String] = Ledger.warnings(ws.ledgerFile, Ledger.load(ws.ledgerFile)) ++ ownerWarnings ++ importWarnings ++ codeWarnings
+  def integrity: List[String] = Ledger.warnings(ws.ledgerFile, Ledger.load(ws.ledgerFile)) ++ ownerWarnings ++ codeWarnings
 
   /** Decisions in a concern with an owner made by someone else (with named keys, `by` is the key's name). */
   /** Who decides a node: its own owner, else its first parent's, recursively; none, anyone. */
@@ -622,21 +591,11 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   /** Decisions on an owned node made by someone else (with named keys, `by` is the key's name). */
   private def ownerWarnings: List[String] =
     val own = Ledger.load(ws.ledgerFile)
-    kb.nodes.filterNot(n => kb.imports.contains(n.id)).flatMap { n =>
+    kb.nodes.flatMap { n =>
       val owner = ownerOf(n)
       if owner.isEmpty then Nil
       else own.decisions.getOrElse(n.id, Nil).filter(d => d.action != "revisit" && !d.by.trim.equalsIgnoreCase(owner))
         .map(d => s"${n.id}: the ${d.action} of ${d.at} is by ${d.by}, but $owner owns it: $owner decides it again")
-    }
-
-  /** Decisions of another knowledge base's nodes, checked against its own keys. */
-  private def importWarnings: List[String] =
-    kb.imports.groupBy(_._2).toList.flatMap { (imp, ids) =>
-      val dir = ws.root.resolve(imp.root).normalize
-      val theirs = Ledger.load(dir.resolve(".frflow/ledger.json"))
-      val mine = Ledger(theirs.decisions.filter((id, _) => ids.contains(id)))
-      Signing.unsigned(mine, dir.resolve(".frflow/keys")).map((id, d) =>
-        s"$id (decided in ${imp.kb}): the ${d.action} of ${d.at} by ${d.by} is not signed by one of ${imp.kb}'s developer keys")
     }
 
   /** Warnings about the model and the code (the ledger's are read live, see `Ledger.warnings`). */
@@ -1131,9 +1090,8 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
         "defines" -> strs(n.defines),
         "uses" -> strs(kb.definitionsUsed(n, g.inForce).map(_.id)),
         "rule" -> JBool(n.isInvariant),
-        // Who decides it: its owner, else its first parent's; another knowledge base, if it is that one's.
+        // Who decides it: its owner, else its first parent's.
         "owner" -> str(ownerOf(n)),
-        "imported" -> kb.imports.get(n.id).fold(JNull)(i => str(i.kb)),
         "limits" -> strs(kb.limits(n)),
         // The root met by doing nothing: it says only what must not happen (see `Decisions.unproven`).
         "idle" -> Option.when(isRoot)(idleOf(n)).flatten.fold(JNull)(str),
@@ -1210,8 +1168,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       "idea" -> str(idea),
       "format" -> JNum(Workflow.ContentFormat),
       "ideaFile" -> str(kb.idea),
-      "warnings" -> strs(importWarnings ++ codeWarnings ++ uncrossed ++ restated),
-      "imports" -> JObj(importDirs.toList.sorted.map((id, d) => id -> str(d))),
+      "warnings" -> strs(codeWarnings ++ uncrossed ++ restated),
       "root" -> kb.root.fold(JNull)(r => str(r.id)),
       "definitions" -> strs(kb.definitions.map(_.id)),
       "trusted" -> strs(if kb.root.exists(g.formal) then g.trusted.map(_.id) else Nil),
@@ -1295,14 +1252,6 @@ object Workflow:
       if receivers.isEmpty then Set.empty
       else s"""(?<![\\w.])(?:${receivers.distinct.mkString("|")})\\s*\\.\\s*(\\w+)\\s*\\(""".r.findAllMatchIn(code).map(_.group(1)).toSet
 
-  /** The first line of a proof copied from another knowledge base. */
-  val CopiedProof = "-- Copied by FrFlow from"
-  /** A ledger with the decisions of the nodes other knowledge bases decide (id -> their project's directory). */
-  def withImports(own: Ledger, imports: Map[String, String]): Ledger =
-    imports.groupBy(_._2).foldLeft(own) { case (l, (root, ids)) =>
-      val theirs = Ledger.load(Path.of(root).resolve(".frflow/ledger.json"))
-      Ledger(l.decisions ++ theirs.decisions.filter((id, _) => ids.contains(id)))
-    }
   /** The binders an obligation's statement introduces, in order: its open terms, then its hypotheses
     * (`∀ (A B : Type) (x : T), ∀ (h_P : ...), goal`).
     */

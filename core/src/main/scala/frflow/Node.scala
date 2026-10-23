@@ -401,36 +401,18 @@ final case class Implementation(contract: String, factory: () => Any, files: Lis
   def sources: List[String] = files.dropRight(1)
   def modelFile: Option[String] = files.lastOption
 
-/** A node another knowledge base decides: its name, the project directory (where its ledger and keys
-  * are), and its idea file.
-  */
-final case class Imported(kb: String, root: String, idea: String)
-
 /** A knowledge base: the developer's idea (a Markdown file) and the nodes derived from it: one root
   * claim, refined by a DAG of parts, over a shared vocabulary. `name` is the Lean namespace.
   */
-final class KnowledgeBase(val name: String, val idea: String, val implementations: List[Implementation] = Nil,
-    val imports: Map[String, Imported] = Map.empty)(nodeList: Node[?]*):
+final class KnowledgeBase(val name: String, val idea: String, val implementations: List[Implementation] = Nil)(nodeList: Node[?]*):
   val nodes: List[Node[?]] = nodeList.toList
   private lazy val here: Set[Int] = nodes.map(System.identityHashCode).toSet
   private def has(n: Node[?]): Boolean = here(System.identityHashCode(n))
 
-  /** Contracts of another knowledge base this one's code calls: decided and checked there (`root`, that
-    * project's directory: its ledger and keys hold their decisions). They come as leaves, without the
-    * nodes above them, with the definitions their statements use and their code; here they are read, and
-    * a change to one there reviews what rests on it here.
-    */
-  def uses(other: KnowledgeBase, root: String)(contracts: Node[?]*): KnowledgeBase =
-    val brought = contracts.toList.filterNot(has)
-    val defs = brought.flatMap(c => other.definitionsUsed(c, other.inForce(_ => false, fallback = true))).distinct.filterNot(has)
-    val all = (brought ++ defs).distinct
-    KnowledgeBase(name, idea, implementations ++ other.implementations.filter(i => brought.exists(_.id == i.contract)),
-      imports ++ all.map(n => n.id -> Imported(other.name, root, other.idea)))((nodes ++ all)*)
-
   private lazy val byId: Map[String, Node[?]] = nodes.reverse.map(n => n.id -> n).toMap
   def node(id: String): Option[Node[?]] = byId.get(id)
 
-  /** A node's parents in this knowledge base (another knowledge base's node has its own parents there). */
+  /** A node's parents in this knowledge base. */
   def parentsOf(n: Node[?]): List[Node[?]] = n.parents.filter(has)
   private lazy val childrenOf: Map[Int, List[Node[?]]] =
     nodes.flatMap(c => parentsOf(c).map(p => System.identityHashCode(p) -> c)).groupMap(_._1)(_._2)
@@ -446,7 +428,7 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
   def isStatement(n: Node[?]): Boolean = n.kind == NodeKind.Claim || n.kind == NodeKind.Contract || n.kind == NodeKind.Assumption
 
   /** The root: the one claim with no parents. */
-  def root: Option[Node[?]] = nodes.filter(n => n.kind == NodeKind.Claim && n.parents.isEmpty && !imports.contains(n.id)) match
+  def root: Option[Node[?]] = nodes.filter(n => n.kind == NodeKind.Claim && n.parents.isEmpty) match
     case List(r) => Some(r)
     case _       => None
   def definitions: List[Node[?]] = nodes.filter(_.kind == NodeKind.Definition)
@@ -525,7 +507,7 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     withImplementation(Implementation(contract.id, () => runs, Lifted.sourceFiles(runs), Lifted.sources(runs).mkString, Some(impl)))
 
   def withImplementation(i: Implementation): KnowledgeBase =
-    KnowledgeBase(name, idea, implementations.filterNot(_.contract == i.contract) :+ i, imports)(nodes*)
+    KnowledgeBase(name, idea, implementations.filterNot(_.contract == i.contract) :+ i)(nodes*)
 
   private lazy val byContract = implementations.map(i => i.contract -> i).toMap
   def implementation(n: Node[?]): Option[Implementation] = byContract.get(n.id)
@@ -713,8 +695,7 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     def returnsIt(c: Node[?]) = c.post.forall(p => p.params.isEmpty || holds(p.params.last._2))
     def keeper(c: Node[?]) = c.kept.exists(k => (k.invariant eq i) && k.view.nonEmpty)
     def within(c: Node[?]) = i.scope.isEmpty || (c :: ancestors(c)).exists(a => i.scope.exists(_ eq a))
-    // Another knowledge base's invariant is kept by its own contracts, not by this one's.
-    nodes.filter(c => imports.contains(i.id) == imports.contains(c.id)).filter { c =>
+    nodes.filter { c =>
       within(c) && (c.kind match
         case NodeKind.Contract => returnsIt(c)
         // A design decision governs code no proof covers: it is in scope below a contract that keeps
@@ -777,8 +758,7 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     val ids = nodes.map(_.id)
     val Ident = """[A-Za-z_][A-Za-z0-9_]*""".r
     val names = types.map(_.name) ++ defs.map(_.name)
-    val local = nodes.filterNot(n => imports.contains(n.id))
-    val roots = local.filter(n => n.kind == NodeKind.Claim && n.parents.isEmpty)
+    val roots = nodes.filter(n => n.kind == NodeKind.Claim && n.parents.isEmpty)
     // The code of each contract's operation, and the operations it calls.
     def calls(d: Def[?]): List[String] = Def.closure(List(d)).flatMap(_.lifted.paramObjects).map(_.name).filter(isOp).distinct
     // (Plain code calls an operation through its parameter: `decide.value(...)`, `decide(...)`.)
@@ -791,15 +771,15 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
         case Nil     => List("a root is required: one claim with no parents, the idea's purpose")
         case rs      => List(s"one root only: ${rs.map(_.id).mkString(", ")} are claims with no parents; put all but one under the nodes they help prove"),
       // A node shared by concerns of different owners: the order of `.under(...)` would decide who decides it.
-      local.filter(_.owner.isEmpty).flatMap { n =>
+      nodes.filter(_.owner.isEmpty).flatMap { n =>
         val owners = parentsOf(n).map(ownerOf).distinct.sortBy(_.isEmpty).map(o => if o.isEmpty then "no one" else o)
         Option.when(owners.size > 1)(s"Name the owner of ${n.id}: its parents belong to ${owners.init.mkString(", ")} and ${owners.last} (owner = \"...\")")
       },
       // What a node rests on (its parents) must not lead back to it.
       nodes.filter(n => ancestors(n).exists(_ eq n)).map(n => s"${n.id} is above itself: what it is a part of must not lead back to it"),
-      local.filter(n => (n.kind == NodeKind.Contract || n.kind == NodeKind.Assumption) && n.parents.isEmpty && !n.op.exists(o => called(o.name)))
+      nodes.filter(n => (n.kind == NodeKind.Contract || n.kind == NodeKind.Assumption) && n.parents.isEmpty && !n.op.exists(o => called(o.name)))
         .map(n => s"${n.id} has no parents: a ${n.kind.toString.toLowerCase} is a part of the nodes it helps prove, unless code calls its operation"),
-      local.filter(n => n.kind == NodeKind.Design && n.parents.isEmpty).map(n => s"${n.id}: a design decision is under the nodes it serves (.under)"),
+      nodes.filter(n => n.kind == NodeKind.Design && n.parents.isEmpty).map(n => s"${n.id}: a design decision is under the nodes it serves (.under)"),
       nodes.filter(n => n.kind == NodeKind.Definition && n.parents.nonEmpty).map(n => s"${n.id}: a definition has no parents"),
       nodes.filter(n => n.kind == NodeKind.Definition && n.substs.isEmpty).map(n => s"${n.id}: a definition fixes at least one term"),
       definitions.flatMap(d => d.defines.diff(d.defines.distinct).distinct.map(t => s"${d.id} defines $t twice")),
@@ -809,10 +789,7 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
         definitions.filter(d => definitionsUsed(d, force).exists(_ eq d)).map(d => s"${d.id}: its terms are defined through themselves")
       },
       definitions.flatMap(d => d.defines.filter(isOp).map(t => s"${d.id} defines $t, an operation: code implements an operation, a definition does not")),
-      nodes.flatMap(n => n.parents.filter(p => !has(p) && !imports.contains(n.id)).map(p => s"${n.id}: its parent ${p.id} is not in the knowledge base")),
-      // Another knowledge base's nodes are called, not refined here.
-      nodes.filter(n => !imports.contains(n.id) && parentsOf(n).exists(p => imports.contains(p.id)))
-        .map(n => s"${n.id} is under ${parentsOf(n).find(p => imports.contains(p.id)).get.id}, which ${imports(parentsOf(n).find(p => imports.contains(p.id)).get.id).kb} decides: call its operation instead"),
+      nodes.flatMap(n => n.parents.filter(p => !has(p)).map(p => s"${n.id}: its parent ${p.id} is not in the knowledge base")),
       nodes.filter(n => n.kind != NodeKind.Design && parentsOf(n).exists(_.kind == NodeKind.Design))
         .map(n => s"${n.id}: a design decision has no statement to refine; only design decisions go below it"),
       nodes.filter(n => parentsOf(n).exists(_.kind == NodeKind.Definition)).map(n => s"${n.id}: nothing is under a definition; a node uses its terms"),
@@ -834,7 +811,7 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
       nodes.filter(_.isInvariant).flatMap(i => inScope(i).filterNot(_.kept.exists(_.invariant eq i))
         .map(c => if c.kind == NodeKind.Design then s"${c.id}: say why ${i.id} does not apply to the code it governs (.exempt): a design decision in its scope does"
           else s"${c.id}: keep ${i.id} (.keeps) or say why it does not apply (.exempt): every contract in its scope does one")),
-      nodes.filter(i => i.isInvariant && !imports.contains(i.id) && !nodes.exists(_.kept.exists(k => (k.invariant eq i) && k.view.nonEmpty)))
+      nodes.filter(i => i.isInvariant && !nodes.exists(_.kept.exists(k => (k.invariant eq i) && k.view.nonEmpty)))
         .map(i => s"${i.id}: no contract keeps this invariant"),
       nodes.filter(_.isInvariant).flatMap(i => i.scope.filterNot(has).map(s => s"${i.id}: its scope ${s.id} is not in the knowledge base")),
       // An opaque type something says exists of, fixed to a type that holds an Int or Long: Lean's

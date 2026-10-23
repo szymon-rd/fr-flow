@@ -391,16 +391,6 @@ class LeanSuite extends munit.FunSuite:
     assert(before.keySet.forall(p => after.get(p).exists(_.compareTo(before(p)) > 0)), (before, after))
   }
 
-  test("another project's contract is proven here too, as it stands here, as a leaf") {
-    val shelf = workflow(shelfKb)
-    val reader = Workflow(readerKb(shelf.ws.root.toString), Workspace(Files.createTempDirectory("reader"), kernel.toString))
-    val r = reader.check()
-    assertEquals(statuses(r).toMap, Map("ShortList" -> "proven", "ReadingList" -> "proven", "Pick" -> "proven"), r)
-    // its code is plain: the reading list's code is proven of the root, from Pick's promise, which is trusted
-    assertEquals(reader.generate.trusted.map(_.id), List("Pick"))
-    assertEquals(result(of(r, "ShortList"), "root_impl").map(_.status), Some("proven"))
-  }
-
   test("membership through a list's set is proven, and its examples are evaluated in Lean") {
     val r = workflow(keepKb).check()
     val c = of(r, "Keep")
