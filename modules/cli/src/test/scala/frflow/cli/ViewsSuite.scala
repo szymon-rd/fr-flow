@@ -75,6 +75,13 @@ class ViewsSuite extends munit.CatsEffectSuite with Golden:
     assertEquals(st.wrap("one two three four", 9), List("one two", "three", "four"))
   }
 
+  test("the root's statement is wrapped at its clauses, under its text: nothing is cut") {
+    val narrow = Style(color = false, unicode = false, width = Some(40))
+    assertEquals(Lines.clauses("Users find their records, and add them; a share ends at its time.", narrow, 8, "|  "),
+      List("Users find their records,", "|       and add them;", "|       a share ends at its time."))
+    assertEquals(Lines.clauses("Users find their records.", narrow, 8), List("Users find their records."))
+  }
+
   test("a source or diff line is wrapped under its text, its colors kept; nothing is cut") {
     val narrow = Style(color = false, unicode = false, width = Some(24))
     assertEquals(narrow.fold("  - one two three four five six"), List("  - one two three four", "    five six"))

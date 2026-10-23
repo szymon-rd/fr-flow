@@ -8,9 +8,16 @@ object TreeText:
   def lines(t: Tree, st: Style): List[String] =
     def rows(n: TreeNode, prefix: String, cont: String): List[String] =
       val r = n.node
-      val row = st.fit(s"$prefix${st.glyph(r)} ${st.bold(r.id.value)}${Lines.marks(r, st, n.withAgent)}  ${Lines.statement(r)}")
+      val head = s"$prefix${st.glyph(r)} ${st.bold(r.id.value)}${Lines.marks(r, st, n.withAgent)}  "
       val kids = n.children.map(Left(_)) ++ n.seeAlso.map(Right(_))
-      row :: kids.zipWithIndex.flatMap { (k, i) =>
+      // The root is read whole: wrapped at its clauses, under its statement, not cut.
+      val row =
+        if r.node.parents.isEmpty && prefix.isEmpty && r.node.kind == NodeKind.Claim then
+          Lines.clauses(Lines.statement(r), st, Style.visible(head), if kids.isEmpty then "" else st.bar) match
+            case first :: rest => (head + first) :: rest
+            case Nil           => List(head)
+        else List(st.fit(head + Lines.statement(r)))
+      row ++ kids.zipWithIndex.flatMap { (k, i) =>
         val end = i == kids.size - 1
         val (p, c) = (cont + (if end then st.last else st.tee), cont + (if end then "   " else st.bar))
         k.fold(rows(_, p, c), id => List(st.dim(s"$p${st.see} $id")))
