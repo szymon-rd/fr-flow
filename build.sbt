@@ -22,8 +22,10 @@ lazy val protocol = module("protocol").settings(libraryDependencies ++= Seq(
 /** The Lean of a knowledge base, and reading Lean's output. */
 lazy val lean = module("lean").dependsOn(model % "compile->compile;test->test", protocol)
 
-/** The developer's decisions: review states, the ledger, signatures. */
-lazy val ledger = module("ledger").dependsOn(protocol)
+/** The developer's decisions: review states, decide, signatures, reports; the ledger's and requests' files. */
+lazy val ledger = module("ledger").dependsOn(protocol).settings(libraryDependencies ++= Seq(
+  "org.typelevel" %% "cats-core" % "2.13.0", "org.typelevel" %% "cats-effect" % "3.6.3",
+  "org.typelevel" %% "munit-cats-effect" % "2.1.0" % Test))
 
 /** Rendering and checking a knowledge base against Lean; the snapshot. */
 lazy val check = module("check").dependsOn(lean % "compile->compile;test->test", ledger, model % "test->test")
