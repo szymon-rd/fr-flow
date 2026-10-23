@@ -4,22 +4,15 @@ import frflow.*
 import scala.annotation.tailrec
 import scala.quoted.*
 
-/** Translates one Scala lambda (or a `define`'s) to a Lean term: the entry points, then the terms. */
+/** Translates one Scala lambda (or a `define`'s) to a Lean term. */
 private[lift] final class Translator(using q: Quotes) extends TypeTranslation(using q):
   import quotes.reflect.*
-
   private type Env = Map[Symbol, String]
 
-  /** How many negations (`!`, the left of `==>`) the term being translated is under: a `forall` under an
-    * odd number says something exists. A counter of this expansion's translator, like the buffers,
-    * rather than a parameter every case of `expr` would pass along.
-    */
+  // The negations (`!`, the left of `==>`) the term is under: a `forall` under an odd number says something
+  // exists. A counter of this expansion, like the buffers, rather than a parameter of every case of `expr`.
   private var negations = 0
   private def negated[T](f: => T): T = { negations += 1; try f finally negations -= 1 }
-
-  // ---------------------------------------------------------------------------
-  // Entry points
-  // ---------------------------------------------------------------------------
 
   def lift[F: Type](f: Expr[F]): Expr[Lifted[F]] =
     val term = strip(f.asTerm)
@@ -34,8 +27,8 @@ private[lift] final class Translator(using q: Quotes) extends TypeTranslation(us
     val depList = Expr.ofList(deps.toList.map(_.asExprOf[Def[?]]))
     val paramList = Expr.ofList(paramTerms.toList.map(_.asExprOf[Param[?]]))
     val opaqueList = Expr.ofList(opaqueTerms.values.toList.map(_.asExprOf[Opaque]))
-    // Built in a method of its own: a file's top-level vals all initialize in one JVM method, which
-    // may not exceed 64 KB; the construction is the bulk of each node's expansion.
+    // Built in a method of its own: a file's top-level vals all initialize in one JVM method, which may not
+    // exceed 64 KB; the construction is the bulk of each node's expansion.
     '{
       def liftedNode(): Lifted[F] =
         new Lifted[F](() => $f, ${ Expr(params) }, ${ Expr(result) }, ${ Expr(body) }, ${ Expr(source(term match { case Lambda(Nil, b) => strip(b).pos; case t => t.pos })) }, $typeList,
@@ -43,7 +36,6 @@ private[lift] final class Translator(using q: Quotes) extends TypeTranslation(us
       liftedNode()
     }
 
-  /** Lean name of the `val` a `define` is assigned to. */
   def defName: String =
     @tailrec def named(s: Symbol): Symbol =
       if !s.isNoSymbol && (s.flags.is(Flags.Synthetic) || s.name.startsWith("$") || s.name == "macro" || !s.isTerm) then named(s.owner) else s
@@ -53,11 +45,6 @@ private[lift] final class Translator(using q: Quotes) extends TypeTranslation(us
     def inBody(o: Symbol): Boolean = !o.isNoSymbol && !o.isPackageDef && (o.isDefDef || inBody(o.owner))
     if inBody(s.owner) then fail("`define` must be a top-level val, or a val of an object", Position.ofMacroExpansion)
     qualifiedName(s)
-
-  // ---------------------------------------------------------------------------
-  // Terms
-  // ---------------------------------------------------------------------------
-
   private def p(s: String): String = s"($s)"
 
   def expr(t: Term, env: Env): String = t match
@@ -138,9 +125,7 @@ private[lift] final class Translator(using q: Quotes) extends TypeTranslation(us
     case r: Term if isNamed(r.symbol, "None") => ("none", Map.empty)
     case r: Term if isNamed(r.symbol, "Nil")  => ("[]", Map.empty)
     case _ => unsupported(t)
-
   private def isNamed(sym: Symbol, n: String) = sym.name == n && sym.fullName.startsWith("scala.")
-
   private def isEnumValue(sym: Symbol) =
     sym.isTerm && sym.flags.is(Flags.Enum) && sym.flags.is(Flags.Case) && !isLibrary(sym)
 
@@ -148,7 +133,7 @@ private[lift] final class Translator(using q: Quotes) extends TypeTranslation(us
     declare(sym.owner.companionClass, pos)
     qualifiedName(sym)
 
-  /** Lean constructor of a case class (`N.mk`) or of an enum case with fields (`E.C`). */
+  /** `N.mk` of a case class, `E.C` of an enum case with fields. */
   private def ctorName(cls: Symbol, pos: Position): String =
     if isAdt(cls) && cls.flags.is(Flags.Case) then declare(cls, pos) + ".mk"
     else if cls.flags.is(Flags.Case) && cls.flags.is(Flags.Enum) && !isLibrary(cls) then
@@ -168,7 +153,6 @@ private[lift] final class Translator(using q: Quotes) extends TypeTranslation(us
       case Inlined(_, Nil, b) => unwrap(b)
       case _                 => t
 
-  /** A key and its value: `k -> v`, or a pair. */
   private def pair(t: Term, env: Env): (String, String) = strip(t) match
     case Apply(TypeApply(Select(Apply(TypeApply(arrow, _), List(k)), "->"), _), List(v)) if arrow.symbol.name == "ArrowAssoc" =>
       (expr(k, env), expr(v, env))
@@ -180,8 +164,7 @@ private[lift] final class Translator(using q: Quotes) extends TypeTranslation(us
     case List(Typed(Repeated(es, _), _)) => es
     case List(Repeated(es, _))           => es
     case other                           => other
-
-  /** `x` when `cond` holds (each step of `app` is tried in turn, until one translates the term). */
+  // Each step of `app` is tried in turn, until one translates the term.
   private def when(cond: Boolean)(x: => Option[String]): Option[String] = if cond then x else None
 
   private def app(t: Term, env: Env): String =
@@ -228,7 +211,6 @@ private[lift] final class Translator(using q: Quotes) extends TypeTranslation(us
       })
       .getOrElse(member(t, recv, sym, args, env))
 
-  /** Specification logic: `forall`, `exists`, `==>`. */
   private def logic(name: String, argss: List[List[Term]], env: Env): Option[String] =
     def e(x: Term) = expr(x, env)
     (name, argss) match
@@ -236,8 +218,7 @@ private[lift] final class Translator(using q: Quotes) extends TypeTranslation(us
         strip(f) match
           case Lambda(vs, b) =>
             val q = if name == "forall" then "∀" else "∃"
-            // Lean's integers are unbounded, Scala's Int and Long are not: a value Lean shows to exist
-            // (one larger than every Long, say) may not exist in Scala.
+            // Lean's integers are unbounded: a value Lean shows to exist (larger than every Long) may not in Scala.
             if name == "exists" || negations % 2 == 1 then vs.find(v => bounded(v.tpt.tpe)).foreach(v =>
               fail(s"${if name == "exists" then "exists" else "a negated forall (it says something exists)"} over ${v.name}, whose type holds an Int or Long: Lean's integers are unbounded, Scala's are not, so what Lean finds may not exist in Scala; use BigInt", v.pos))
             val names = vs.map(v => local(v.symbol, v.pos))
@@ -247,7 +228,6 @@ private[lift] final class Translator(using q: Quotes) extends TypeTranslation(us
       case ("==>", List(List(a), List(b))) => val l = negated(e(a)); Some(p(s"$l → ${e(b)}"))
       case _                               => None
 
-  /** `List.empty`, `Map(...)`, `Some(x)`, a tuple or a case class built through its companion. */
   private def companion(t: Term, head: Term, args: List[Term], env: Env): Option[String] =
     def e(x: Term) = expr(x, env)
     head match
@@ -270,7 +250,6 @@ private[lift] final class Translator(using q: Quotes) extends TypeTranslation(us
         else None
       case _ => None
 
-  /** A field, `copy`, a function applied, or a method of the standard library on a receiver. */
   private def member(t: Term, recv: Option[Term], sym: Symbol, args: List[Term], env: Env): String =
     def e(x: Term) = expr(x, env)
     val name = sym.name
@@ -292,7 +271,7 @@ private[lift] final class Translator(using q: Quotes) extends TypeTranslation(us
         else builtin(q, qt, name, args, env).getOrElse(unsupported(t))
       case None => unsupported(t)
 
-  /** A reference to a parameter: a Lean variable of the same name. */
+  /** A parameter is a Lean variable of the same name. */
   private def paramRef(d: Term): String =
     if !d.symbol.isValDef then fail("refer to a parameter through the val it is assigned to", d.pos)
     val n = ident(d.symbol.name)
@@ -353,8 +332,7 @@ private[lift] final class Translator(using q: Quotes) extends TypeTranslation(us
       case ("take" | "drop", 1) if qt.derivesFrom(ListSym) && isInt(args.head.tpe.widen) =>
         Some(p(s"List.$name (Int.toNat ${e(args.head)}) $r"))
       case ("zip", 1) if qt.derivesFrom(ListSym) && args.head.tpe.widen.derivesFrom(ListSym) => Some(p(s"List.zip $r ${e(args.head)}"))
-      // Maps and sets, as functions: what can be said of every key needs iterating, which Lean's
-      // functions do not; `m(k)` throws in Scala for a missing key.
+      // Maps and sets, as functions: what is said of every key needs iterating them, which Lean cannot.
       case ("get", 1) if qt.derivesFrom(MapSym)          => Some(p(s"$r ${e(args.head)}"))
       case ("contains", 1) if qt.derivesFrom(MapSym)     => Some(p(s"$r ${e(args.head)} ≠ none"))
       case ("getOrElse", 2) if qt.derivesFrom(MapSym)    => Some(p(s"Option.getD ($r ${e(args.head)}) ${e(args(1))}"))
