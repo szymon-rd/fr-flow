@@ -1,6 +1,7 @@
 package frflow
 package check
 
+import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import frflow.ledger.*
@@ -20,8 +21,7 @@ final case class Desk(kb: KnowledgeBase, inputs: Inputs):
   def causes(id: String): List[String] = node(id).review.causes.map(_.toString)
   def notAccepted: List[(String, String)] = kb.ordered.map(n => n.id -> state(n).toString).filter(_._2 != "accepted")
   def allAccepted: Boolean = kb.nodes.forall(state(_) == ReviewState.Accepted)
-  /** What `status` passes: every node accepted and proven, and nothing to warn of. */
-  def complete: Boolean = Proofs.complete(annotated) && analysis.warnings.isEmpty
+  def complete: Boolean = OnDisk.ok(analysis)
 
   /** The same decisions over another model, or another idea. */
   def withKb(other: KnowledgeBase): Desk = Desk(other, inputs.copy(texts = Desk.texts(other)))
@@ -36,7 +36,6 @@ final case class Desk(kb: KnowledgeBase, inputs: Inputs):
     decide(Decide.Accept(List(NodeId(n.id)), reason, revisit.map(r => NodeId(r.id))))
   def reject(id: String, reason: String): Either[String, Desk] = decide(Decide.Reject(NodeId(id), reason))
 
-  /** Every node accepted, in the order decisions are taken. */
   def acceptAll: Desk = accepting(kb.ordered*)
   def accepting(ns: Node[?]*): Desk = ns.foldLeft(this)((d, n) => Desk.ok(d.accept(n, s"${n.id} is right")))
 
@@ -50,3 +49,21 @@ object Desk:
   def texts(kb: KnowledgeBase): Map[String, String] = Inputs.texts(kb, ws).unsafeRunSync()
 
   def ok(e: Either[String, Desk]): Desk = e.fold(e => throw AssertionError(e), identity)
+
+/** A knowledge base in a workspace on disk, read, decided and checked as the API does it (unsigned). */
+final class OnDisk private (val kb: KnowledgeBase, val ws: Workspace, val cfg: Config, val lake: Lake, ledger: JsonStore[Ledger]):
+  def analysis: IO[Analysis] = Analysis.read(kb, ws, cfg, ledger)
+  def check(only: Option[String] = None): IO[(List[(Node[?], NodeCheck)], Analysis)] = analysis.flatMap(CheckRunner.check(_, lake, cfg, only))
+  def decide(d: Decide): IO[Either[Refusal, Unit]] =
+    (analysis, IO.realTimeInstant).flatMapN((a, now) => ledger.update(l => Decide(a.snapshot, l, d, "dev", Stamp(now)).map(_ -> ())))
+
+object OnDisk:
+  def apply(kb: KnowledgeBase, ws: Workspace): IO[OnDisk] =
+    for
+      cfg <- Config.load
+      lake <- Lake(ws.lean, cfg)
+      ledger <- JsonStore.make(ws.ledgerFile, Ledger.empty)
+    yield new OnDisk(kb, ws, cfg, lake, ledger)
+
+  /** What `status` passes: every node accepted and proven, and nothing to warn of. */
+  def ok(a: Analysis): Boolean = Proofs.complete(a.annotated) && a.warnings.isEmpty

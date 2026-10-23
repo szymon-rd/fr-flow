@@ -2,13 +2,13 @@ package frflow
 package check
 
 import cats.data.NonEmptyList
-import cats.effect.{IO, Ref}
+import cats.effect.{IO, Ref, Resource}
 import cats.effect.std.{Console, Mutex}
 import cats.syntax.all.*
 import fs2.io.process.ProcessBuilder
 import fs2.text
-import java.nio.file.Path
-import scala.concurrent.duration.FiniteDuration
+import java.nio.file.{Files, Path}
+import scala.concurrent.duration.*
 
 /** One run of a program: it finished with an exit code, or it took longer than allowed and was stopped. */
 enum Run:
@@ -24,9 +24,7 @@ object Run:
   /** A target an earlier batch built: nothing to run. */
   val built: Run = Done(0, "")
 
-  /** Runs `command` in `dir`, stopped (the process killed) after `timeout` or when the fiber is cancelled. Its
-    * output is stdout and stderr line by line (`merged`), or stdout alone as it came; kept when it is stopped.
-    */
+  /** Runs `command` in `dir`, killed after `timeout` or on cancel; its output (stdout and stderr by line if `merged`) kept either way. */
   def of(command: String, args: List[String], dir: Path, timeout: FiniteDuration, env: Map[String, String] = Map.empty,
       merged: Boolean = true): IO[Run] =
     Ref[IO].of(Vector.empty[String]).flatMap { out =>
@@ -43,9 +41,7 @@ object Run:
 
 /** Lake in one Lean workspace, run as `cfg.lake`; each run is stopped after `cfg.timeout`. */
 final class Lake private (dir: Path, cfg: Config, building: Mutex[IO]):
-  /** Builds targets in one run (Lake builds them in parallel). Builds write the workspace's outputs: one at a
-    * time. Elaborating and replaying only read them.
-    */
+  /** One run builds them all, in parallel; builds write the workspace's outputs, so one at a time (elaborating only reads them). */
   def build(targets: NonEmptyList[String]): IO[Run] = building.lock.surround(run("build" :: targets.toList))
   def build(target: String): IO[Run] = build(NonEmptyList.one(target))
   /** Elaborates one file (a path relative to the workspace, or absolute). */
@@ -61,3 +57,34 @@ final class Lake private (dir: Path, cfg: Config, building: Mutex[IO]):
 
 object Lake:
   def apply(dir: Path, cfg: Config): IO[Lake] = Mutex[IO].map(new Lake(dir, cfg, _))
+
+/** The little FrFlow asks of git: the current commit, and how files changed since one. Outside git each says so. */
+final class Git private (dir: Path):
+  // git's output, if it ran and succeeded within 20 seconds.
+  private def run(env: Map[String, String], args: String*): IO[Option[String]] =
+    Run.of("git", args.toList, dir, 20.seconds, env, merged = false).map {
+      case Run.Done(0, out) => Some(out)
+      case _ => None
+    }.handleError(_ => None)
+
+  def head: IO[Option[String]] = run(Map.empty, "rev-parse", "HEAD").map(_.map(_.trim).filter(_.nonEmpty))
+
+  /** The working tree against a commit, on an index of its own holding the files as they are, so a file git does not track is
+    * compared as it is, not shown as deleted; the repository's index and working tree are untouched.
+    */
+  def diff(since: String, files: List[String]): IO[String] =
+    val tempDir = Resource.make(IO.blocking(Files.createTempDirectory("frflow")))(d =>
+      IO.blocking { Files.deleteIfExists(d.resolve("index")); Files.deleteIfExists(d) }.void)
+    if since.isEmpty || files.isEmpty then IO.pure("")
+    else tempDir.use { d =>
+      val env = Map("GIT_INDEX_FILE" -> d.resolve("index").toString)
+      for
+        base    <- head.flatMap(h => if h.isEmpty then run(env, "read-tree", "--empty") else run(env, "read-tree", "HEAD"))
+        present <- IO.blocking(files.filter(x => Files.exists(dir.resolve(x))))
+        added   <- if base.isEmpty || present.isEmpty then IO.pure(base) else run(env, ("add" :: "-f" :: "--" :: present)*)
+        out     <- if added.isDefined then run(env, ("diff" :: since :: "--" :: files)*) else IO.pure(None)
+      yield out.getOrElse("")
+    }
+
+object Git:
+  def at(dir: Path): Git = new Git(dir)

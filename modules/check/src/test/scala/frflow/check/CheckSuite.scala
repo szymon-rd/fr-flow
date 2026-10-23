@@ -5,11 +5,55 @@ import frflow.fixtures.*
 import frflow.lean.*
 import frflow.protocol.*
 
-/** The judges of a check, on Lean's output as Lean prints it (recorded), without running Lean. */
-class VerdictSuite extends munit.FunSuite:
+/** What a check runs, in what order, and how it judges Lean's output (recorded as Lean prints it), without running Lean. */
+class CheckSuite extends munit.FunSuite:
   import ObligationName.Probe
 
   private def elaborated(run: Run, src: String, rel: String) = Elaborated(run, Elaboration(src, run.output, rel))
+  private val a = Desk(shelfKb).analysis
+  private def ids(ns: List[Node[?]]) = ns.map(_.id)
+  private def proven(n: Node[?]) = NodeId(n.id) -> NodeCheck(a.checkHash(n), CheckStatus.Proven, Nil, Nil, Nil, java.time.Instant.EPOCH)
+
+  test("a node is checked after its parts, the nodes of one level side by side") {
+    val plan = CheckPlan(a, None)
+    assertEquals(ids(plan.todo), List("OnlyGood", "FromList", "OnlyLong", "EveryLong", "Pick"))
+    assertEquals(plan.levels.map(ids), List(List("Pick"), List("FromList", "OnlyLong", "EveryLong"), List("OnlyGood")))
+    // the models first, in one build
+    assertEquals(plan.prebuild, ids(plan.todo).map(id => s"FrFlowGen.Shelf.$id.Spec"))
+    assertEquals(plan.theorems(List(pick)), List("FrFlowGen.Shelf.Pick.Theorems"))
+  }
+
+  test("a node whose check is current keeps it while its parts are proven; one node is checked whatever its record") {
+    val recorded = a.withChecks(Map(proven(pick), proven(fromList)))
+    val plan = CheckPlan(recorded, None)
+    assertEquals(ids(plan.pending), List("OnlyGood", "OnlyLong", "EveryLong"))
+    assertEquals(plan.theorems(List(fromList, onlyLong)), List("FrFlowGen.Shelf.OnlyLong.Theorems"))
+    assertEquals(plan.kept(pick, plan.parts(pick, Map.empty)).map(_.status), Some(CheckStatus.Proven))
+    // FromList is kept only once Pick, its part, is proven in this run or the record
+    assertEquals(plan.parts(fromList, Map.empty), List("Pick" -> Some(CheckStatus.Proven)))
+    val failed = Map("Pick" -> NodeCheck(Hash("h"), CheckStatus.Failed, Nil, Nil, Nil, java.time.Instant.EPOCH))
+    assertEquals(plan.kept(fromList, plan.parts(fromList, failed)), None)
+    // a recorded check of another hash is not current
+    val stale = a.withChecks(Map(NodeId("Pick") -> NodeCheck(Hash("old"), CheckStatus.Proven, Nil, Nil, Nil, java.time.Instant.EPOCH)))
+    assertEquals(CheckPlan(stale, None).pending.map(_.id).contains("Pick"), true)
+    // checking one node: that node, checked again
+    val one = CheckPlan(recorded, Some("Pick"))
+    assertEquals((ids(one.todo), ids(one.pending)), (List("Pick"), List("Pick")))
+  }
+
+  test("check hashes depend on the Lean, not the words: a reworded statement keeps them") {
+    def team(statement: String) =
+      val top = Node.claim("Top", statement, why = "w")(forall((x: BigInt) => sq(x) >= 0))
+      Desk(KnowledgeBase("Team", idea = "IDEA.md")(top, Node.claim("Floor", "Results are at least zero.", why = "w")(forall((x: BigInt) => sq(x) >= 0)).under(top))).analysis
+    val (before, after) = (team("Results are never negative."), team("Results are never below zero."))
+    def both(f: Analysis => Node[?] => Any, id: String) = (f(before)(before.kb.node(id).getOrElse(fail(id))), f(after)(after.kb.node(id).getOrElse(fail(id))))
+    val (h1, h2) = both(_.checkHash, "Top")
+    assertEquals(h1, h2)
+    val (c1, c2) = both(_.hash, "Top")
+    assertNotEquals(c1, c2)
+    // the root's depends on everything root_impl composes
+    assertNotEquals(a.checkHash(onlyGood), Desk(shelfKb.implementProven(pick)(longOnes)).analysis.checkHash(onlyGood))
+  }
 
   test("an obligation is judged by its theorem: its statement, what Lean said in it, whether Lean ran") {
     val proof = "theorem complete : Obl.complete := by\n  sorry\n\ntheorem weak : True := trivial\n"
@@ -36,7 +80,6 @@ class VerdictSuite extends munit.FunSuite:
   }
 
   test("the examples are evaluated: Lean agrees, disagrees, decides neither, or did not run") {
-    val g = Generate(shelfKb)
     def eval(name: ObligationName) = Eval(name, s"example $name", s"claim $name", s"not $name")
     val file = (List("eval_0", "eval_0_opposite", "eval_1", "eval_1_opposite", "eval_2", "eval_2_opposite", "probe_0", "probe_0_opposite")
       .map(t => s"theorem $t : True := by\n  frflow_eval\n")).mkString("\n")
@@ -103,7 +146,6 @@ class VerdictSuite extends munit.FunSuite:
     elaborated(Run.Done(1, (failing ++ audits).mkString("\n")), text, rel)
 
   test("the verdict from the Checks file: the tries in plain words, the axioms audited, fail closed") {
-    val a = Desk(shelfKb).analysis
     val root = Some(elaborated(Run.Done(0, "'Shelf.RootImpl.root_impl' does not depend on any axioms"), "theorem root_impl : Obl.root_impl := by\n  auto\n", "r"))
     val results = List(Result(ObligationName.Complete, ObligationStatus.Proven, "auto"))
     val j = Verdict.finish(a, onlyGood, results, None, checked(a, onlyGood, "depends on axioms: [propext]"), root)

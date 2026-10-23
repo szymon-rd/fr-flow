@@ -29,7 +29,6 @@ object Dag:
   val shelf: Snapshot = snap(r, a, b)
 
   def snap(ns: SnapNode*): Snapshot = Snapshot("Shelf", ns.toList)
-  /** The snapshot with the node of the same id replaced. */
   def replacing(s: Snapshot, n: SnapNode): Snapshot = s.copy(nodes = s.nodes.map(m => if m.id == n.id then n else m))
 
   def id(s: String): NodeId = NodeId(s)
@@ -46,6 +45,5 @@ object Dag:
 
   def right[A](e: Either[Refusal, A]): A = e.fold(r => throw AssertionError(r.message), identity)
 
-  /** Every node of `s` accepted, in order. */
   def acceptAll(s: Snapshot, from: Ledger = Ledger.empty, start: Int = 1): Ledger =
     Graph(s).order.zipWithIndex.foldLeft(from)((l, x) => right(Decide(s, l, accept(x._1.value), "dev", stamp(start + x._2))))

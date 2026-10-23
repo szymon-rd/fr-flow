@@ -42,7 +42,8 @@ class LeanSuite extends munit.FunSuite:
   private def st(split: Split, k: String) = Some((if k == "clash" then split.clash else split.complete).status.toString)
 
   test("the shelf is proven by automation: each node from its parts, the root from the leaves, of the code from what is trusted") {
-    val w = workflow(shelfKb.implementProven(pick)(longOnes))
+    val kb = shelfKb.implementProven(pick)(longOnes)
+    val w = workflow(kb)
     val r = w.check()
     assertEquals(statuses(r), List("OnlyGood" -> "proven", "FromList" -> "proven", "OnlyLong" -> "proven", "EveryLong" -> "proven", "Pick" -> "proven"))
     assert(r.flatMap(_._2.axioms).forall(ProofRules.allowedAxioms))
@@ -57,6 +58,9 @@ class LeanSuite extends munit.FunSuite:
     // Pick has three parents: each is proven from it, and it is proven once
     assertEquals(List(fromList, onlyLong, everyLong).map(n => st(splitOf(w, n), "complete")), List.fill(3)(Some("proven")))
     assertEquals(result(of(r, "Pick"), "impl").map(_.status.toString), Some("proven"))
+    // the code, a define, runs as Scala does on every example, and is evaluated in Lean on each
+    assert(kb.exampleResults(pick).forall(_.implementation.contains("ok")), kb.exampleResults(pick))
+    assertEquals(of(r, "Pick").obligations.filter(_.name.lean.startsWith("evalImpl")).map(_.status.toString), List.fill(4)("proven"))
     // the code is proven: nothing is trusted
     assertEquals(result(root, "root_impl").map(r => (r.status.toString, r.detail)), Some(("proven", "the root holds of the code, trusting nothing")))
     assertEquals(w.generate.trusted, Nil)
@@ -112,37 +116,39 @@ class LeanSuite extends munit.FunSuite:
     assertEquals(Generate(shelfKb).trusted.map(_.id), List("Pick"))
   }
 
-  test("parts that do not make their parent are not accepted") {
-    val r = workflow(sloppyKb).check()
-    assertEquals(statuses(r), List("OnlyGood" -> "open", "Sloppy" -> "proven"))
+  test("a split fails as Lean shows it: parts that do not make their parent, one not needed, parts that clash, a parent that says nothing; a node no world meets") {
+    val sloppy = of(workflow(sloppyKb).check(), "OnlyGood")
+    assertEquals(sloppy.status.toString, "open")
     // with the goal a proof by hand starts from: after the stub's first steps, the parts by their names
-    assert(result(of(r, "OnlyGood"), "complete").exists(d => d.detail.contains("the goal is:") && d.detail.contains("h_Sloppy :") && d.detail.contains("⊢")),
-      of(r, "OnlyGood").obligations)
-  }
-
-  test("a part the parent holds without is not needed: the split is unproven") {
+    assert(result(sloppy, "complete").exists(d => d.detail.contains("the goal is:") && d.detail.contains("h_Sloppy :") && d.detail.contains("⊢")), sloppy.obligations)
     val bounded = Node.claim("Bounded", "No more books are picked than the shelf holds.", why = "w")(
       forall((l: List[Book], n: Int) => picks(l, n).length <= l.length)).under(onlyGood)
     val w = workflow(shelfWith(pick, bounded))
-    val r = w.check()
-    val root = of(r, "OnlyGood")
-    assertEquals(result(root, "complete").map(_.status.toString), Some("proven"))
-    assertEquals(result(root, "needed_Bounded").map(_.status.toString), Some("shown"), root.obligations)
-    assertEquals(result(root, "needed_FromList").map(_.status.toString), Some("not-shown"), root.obligations)
-    val needed = splitOf(w, onlyGood).needed.map(n => n.id.value -> n.status.toString).toMap
-    assertEquals(needed("Bounded"), "shown")
-    val n = node(w, "OnlyGood")
-    assert(Proofs.unproven(n).exists(_.startsWith("Bounded is not needed for it")), Proofs.unproven(n))
-  }
-
-  test("parts that contradict each other fail their parent, however complete") {
+    val root = of(w.check(), "OnlyGood")
+    assertEquals(List("complete", "needed_Bounded", "needed_FromList").map(result(root, _).map(_.status.toString)),
+      List(Some("proven"), Some("shown"), Some("not-shown")), root.obligations)
+    assertEquals(splitOf(w, onlyGood).needed.find(_.id == NodeId("Bounded")).map(_.status.toString), Some("shown"))
+    assert(Proofs.unproven(node(w, "OnlyGood")).exists(_.startsWith("Bounded is not needed for it")), Proofs.unproven(node(w, "OnlyGood")))
     val none = Node.claim("NoneLong", "No book is ever picked.", why = "w")(forall((l: List[Book], n: Int) => picks(l, n).isEmpty)).under(onlyGood)
     val one = Node.claim("OneAlways", "One book is always picked.", why = "w")(forall((l: List[Book], n: Int) => picks(l, n).length == 1)).under(onlyGood)
-    val w = workflow(KnowledgeBase("Clash", idea = "IDEA.md")(onlyGood, books, picking, none, one))
-    val root = of(w.check(), "OnlyGood")
-    assertEquals(root.status.toString, "failed", root)
-    assertEquals(result(root, "clash").map(_.status.toString), Some("shown"))
-    assertEquals(st(splitOf(w, onlyGood), "clash"), Some("shown"))
+    val cw = workflow(KnowledgeBase("Clash", idea = "IDEA.md")(onlyGood, books, picking, none, one))
+    val clash = of(cw.check(), "OnlyGood")
+    assertEquals((clash.status.toString, result(clash, "clash").map(_.status.toString), st(splitOf(cw, onlyGood), "clash")),
+      ("failed", Some("shown"), Some("shown")), clash)
+    // a parent that holds whatever its one part says is vacuous; one that says what its one part says restates it
+    val trivial = Node.claim("Trivial", "Nothing is wrong.", why = "w")(forall((l: List[Book], n: Int) => picks(l, n).forall(b => true)))
+    val part = Node.claim("Part", "Picked books come from the shelf.", why = "w")(forall((l: List[Book], n: Int) => picks(l, n).forall(b => l.contains(b)))).under(trivial)
+    val vac = of(workflow(KnowledgeBase("Vac", idea = "IDEA.md")(trivial, part)).check(), "Trivial")
+    assertEquals(List("vacuous", "restates").map(result(vac, _).map(_.status.toString)), List(Some("shown"), Some("not-shown")), vac)
+    val same = Node.claim("Same", "Picked books come from the shelf.", why = "w")(forall((l: List[Book], n: Int) => picks(l, n).forall(b => l.contains(b))))
+    val again = Node.claim("Again", "Every book picked is on the shelf.", why = "w")(forall((l: List[Book], n: Int) => picks(l, n).forall(b => l.contains(b)))).under(same)
+    val restates = of(workflow(KnowledgeBase("Same", idea = "IDEA.md")(same, again)).check(), "Same")
+    assertEquals(result(restates, "restates").map(r => (r.status.toString, r.detail)),
+      Some(("shown", "Same says what Again says: merge them, or say what Same adds")), restates)
+    val never = Node.claim("Never", "The service picks more books than it picks.", why = "w")(
+      picks(List(Book("A", 1)), 1).length > picks(List(Book("A", 1)), 1).length).under(onlyGood)
+    val u = of(workflow(KnowledgeBase("Unsat", idea = "IDEA.md")(onlyGood, books, picking, never)).check(), "Never")
+    assert(u.status.toString == "failed" && u.messages.exists(_.contains("no world meets it")), u)
   }
 
   test("a root doing nothing meets is unproven: it must say what users can do") {
@@ -237,26 +243,6 @@ class LeanSuite extends munit.FunSuite:
     assert(bad.messages.exists(_.contains("not allowed in lean/Proofs/Square/Lemmas.lean")), bad.messages)
   }
 
-  test("a parent that holds whatever its one part says is vacuous; a node no world meets fails") {
-    val trivial = Node.claim("Trivial", "Nothing is wrong.", why = "w")(forall((l: List[Book], n: Int) => picks(l, n).forall(b => true)))
-    val part = Node.claim("Part", "Picked books come from the shelf.", why = "w")(forall((l: List[Book], n: Int) => picks(l, n).forall(b => l.contains(b)))).under(trivial)
-    val r = workflow(KnowledgeBase("Vac", idea = "IDEA.md")(trivial, part)).check()
-    assertEquals(result(of(r, "Trivial"), "vacuous").map(_.status.toString), Some("shown"), of(r, "Trivial"))
-    // a node that says what its one part says: a warning
-    val same = Node.claim("Same", "Picked books come from the shelf.", why = "w")(forall((l: List[Book], n: Int) => picks(l, n).forall(b => l.contains(b))))
-    val again = Node.claim("Again", "Every book picked is on the shelf.", why = "w")(forall((l: List[Book], n: Int) => picks(l, n).forall(b => l.contains(b)))).under(same)
-    val sw = workflow(KnowledgeBase("Same", idea = "IDEA.md")(same, again))
-    val sr = sw.check()
-    assertEquals(result(of(sr, "Same"), "restates").map(r => (r.status.toString, r.detail)),
-      Some(("shown", "Same says what Again says: merge them, or say what Same adds")), of(sr, "Same"))
-    assertEquals(result(of(r, "Trivial"), "restates").map(_.status.toString), Some("not-shown"), of(r, "Trivial"))
-    val never = Node.claim("Never", "The service picks more books than it picks.", why = "w")(
-      picks(List(Book("A", 1)), 1).length > picks(List(Book("A", 1)), 1).length).under(onlyGood)
-    val u = of(workflow(KnowledgeBase("Unsat", idea = "IDEA.md")(onlyGood, books, picking, never)).check(), "Never")
-    assertEquals(u.status.toString, "failed", u)
-    assert(u.messages.exists(_.contains("no world meets it")), u.messages)
-  }
-
   test("an invariant is a claim proven from the contracts that keep it, or left open") {
     val fromShelf = Node.invariant[List[Book], Book]("FromShelf", "Only books on the shelf are picked.", "w")((shelf, b) => shelf.contains(b)).under(onlyGood)
     val atMostN = Node.invariant[Int, Int]("AtMostN", "No more books are picked than asked for.", "w")((asked, picked) => picked <= asked).under(onlyGood)
@@ -322,28 +308,32 @@ class LeanSuite extends munit.FunSuite:
     assert(bad.obligations.exists(o => o.name.lean.startsWith("probeImpl") && o.status.toString == "failed"), bad.obligations)
   }
 
-  test("an implementation written as a define is proven to keep its contract, and its results are evaluated in Lean") {
-    val kb = shelfKb.implementProven(pick)(longOnes)
-    assert(kb.exampleResults(pick).forall(_.implementation.contains("ok")), kb.exampleResults(pick))
-    val c = of(workflow(kb).check(), "Pick")
-    assertEquals(result(c, "impl").map(_.status.toString), Some("proven"), c)
-    assertEquals(c.obligations.filter(_.name.lean.startsWith("evalImpl")).map(_.status.toString), List.fill(4)("proven"), c)
-    // one that can return a short book is not proven
-    val w2 = workflow(shelfKb.implementProven(pick)(anyOnes))
-    val bad = of(w2.check(), "Pick")
-    assertEquals(result(bad, "impl").map(_.status.toString), Some("open"))
-    // scaffold stubs what is open: the implementation
-    assert(w2.scaffold(pick))
-    val src = Files.readString(w2.ws.lean.resolve(w2.generate.layout.proofs("Pick").path))
-    assert(src.contains("theorem impl : Obl.impl") && !src.contains("theorem complete"), src)
-    val again = w2.check(Some("Pick")).head._2
-    assertEquals(result(again, "impl").map(r => (r.status.toString, r.detail)), Some(("open", "uses sorry")), again)
+  test("code is proven to meet its contract and evaluated in Lean: with flatMap, through a list's set, with state in a Map") {
+    def proven(kb: KnowledgeBase, id: String) =
+      val r = workflow(kb).check()
+      assertEquals(result(of(r, id), "impl").map(_.status.toString), Some("proven"), of(r, id))
+      r
+    def evals(r: List[(Node[?], NodeCheck)], id: String) = of(r, id).obligations.filter(_.name.lean.startsWith("eval_")).map(_.status.toString)
+    assert(evals(proven(shelfKb.implementProven(pick)(firstLong), "Pick"), "Pick").forall(_ == "proven"))
+    val keep = proven(keepKb, "Keep")
+    assertEquals(of(keep, "Keep").status.toString, "proven", of(keep, "Keep"))
+    assert(evals(keep, "Keep").nonEmpty && evals(keep, "Keep").forall(_ == "proven"), of(keep, "Keep"))
+    assertEquals(result(of(keep, "KeptOnShelf"), "root_impl").map(_.status.toString), Some("proven"), of(keep, "KeptOnShelf"))
+    val counter = proven(KnowledgeBase("Counter", idea = "IDEA.md")(counts, bump).implementProven(bump)(bumped), "Bump")
+    assertEquals(of(counter, "Bump").status.toString, "proven", of(counter, "Bump"))
+    assertEquals(List("complete", "root_impl").map(n => result(of(counter, "Counts"), n).map(_.status.toString)), List(Some("proven"), Some("proven")), of(counter, "Counts"))
+    // maps compared key by key; one that differs at a key the call does not name is not found
+    assertEquals(evals(counter, "Bump"), List("proven", "proven", "unevaluated"), of(counter, "Bump"))
   }
 
-  test("code using flatMap is proven to meet its contract, and evaluated in Lean") {
-    val c = of(workflow(shelfKb.implementProven(pick)(firstLong)).check(), "Pick")
-    assertEquals(result(c, "impl").map(_.status.toString), Some("proven"), c)
-    assert(c.obligations.filter(_.name.lean.startsWith("eval_")).forall(_.status.toString == "proven"), c)
+  test("code that can break its contract is not proven: scaffold stubs its implementation") {
+    val w = workflow(shelfKb.implementProven(pick)(anyOnes))
+    assertEquals(result(of(w.check(), "Pick"), "impl").map(_.status.toString), Some("open"))
+    assert(w.scaffold(pick))
+    val src = Files.readString(w.ws.lean.resolve(w.generate.layout.proofs("Pick").path))
+    assert(src.contains("theorem impl : Obl.impl") && !src.contains("theorem complete"), src)
+    val again = w.check(Some("Pick")).head._2
+    assertEquals(result(again, "impl").map(r => (r.status.toString, r.detail)), Some(("open", "uses sorry")), again)
   }
 
   test("code calling another contract's operation is proven from that contract's promise alone") {
@@ -379,22 +369,3 @@ class LeanSuite extends munit.FunSuite:
     assertEquals(s(List(Book("Long", 300), Book("Huge", 900)), 5), List(Book("Long", 300)))
   }
 
-  test("membership through a list's set is proven, and its examples are evaluated in Lean") {
-    val r = workflow(keepKb).check()
-    val c = of(r, "Keep")
-    assertEquals(c.status.toString, "proven", c)
-    assertEquals(result(c, "impl").map(_.status.toString), Some("proven"), c)
-    assert(c.obligations.filter(_.name.lean.startsWith("eval_")).forall(_.status.toString == "proven") && c.obligations.exists(_.name.lean.startsWith("eval_")), c)
-    assertEquals(result(of(r, "KeptOnShelf"), "root_impl").map(_.status.toString), Some("proven"), of(r, "KeptOnShelf"))
-  }
-
-  test("state kept in a Map is proven, down to the code, and its examples are evaluated in Lean") {
-    val w = workflow(KnowledgeBase("Counter", idea = "IDEA.md")(counts, bump).implementProven(bump)(bumped))
-    val r = w.check()
-    val c = of(r, "Bump")
-    assertEquals(c.status.toString, "proven", c)
-    assertEquals(result(c, "impl").map(_.status.toString), Some("proven"), c)
-    assertEquals(List("complete", "root_impl").map(n => result(of(r, "Counts"), n).map(_.status.toString)), List(Some("proven"), Some("proven")), of(r, "Counts"))
-    // maps compared key by key; one that differs at a key the call does not name is not found
-    assertEquals(c.obligations.filter(_.name.lean.startsWith("eval_")).map(_.status.toString), List("proven", "proven", "unevaluated"), c)
-  }

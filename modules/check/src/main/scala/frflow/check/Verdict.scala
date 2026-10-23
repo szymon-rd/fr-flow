@@ -10,7 +10,6 @@ import java.time.Instant
 /** What a check of a node finds, before it is stamped with its hash and time. */
 final case class Judged(status: CheckStatus, results: List[Result], messages: List[String], axioms: List[String] = Nil,
     hint: Option[String] = None):
-  /** With the examples evaluated in Lean: every result carries them. */
   def withEvaluations(rs: List[Result]): Judged = copy(results = results ++ rs)
   def stamp(hash: Hash, at: Instant): NodeCheck = NodeCheck(hash, status, results, messages, axioms, at, hint)
 
@@ -19,9 +18,7 @@ final case class Elaborated(run: Run, lean: Elaboration):
   def verdict(name: ObligationName): TheoremVerdict = lean.verdict(name.lean)
   def axiomsOf(name: ObligationName): Option[List[String]] = lean.axiomsOf(name.lean)
 
-/** The judges of a check: from the recorded runs of Lean to a verdict, without running anything. Each
-  * returns the verdict that ends the check there, if any (see `NodeChecker` for the order they run in).
-  */
+/** The judges of a check, from the recorded runs of Lean, running nothing: each returns the verdict that ends it there, if any. */
 object Verdict:
   import ObligationName.{Complete, Impl, RootImpl}
 
@@ -33,7 +30,6 @@ object Verdict:
     val ds = LeanOutput.diagnostics(r.output).filter(_.isError).map(d => s"${d.file}:${d.line}: ${d.message}")
     if ds.nonEmpty then ds else List(r.output.linesIterator.toList.takeRight(15).mkString("\n"))
 
-  /** What an authored file (`where`) holds that it may not, in words. */
   def ruled(src: String, where: String): Option[String] = ProofRules.notAllowed(src).map(bad => s"not allowed in $where: $bad")
 
   private def failed(msg: String): Judged = Judged(CheckStatus.Failed, Nil, List(msg))
@@ -66,9 +62,7 @@ object Verdict:
     if !run.ok then Some(Judged(CheckStatus.Failed, Nil, "the lemmas do not build" :: errors(run)))
     else Option.when(LeanOutput.usesSorry(run.output))(failed(s"lean/${g.layout.lemmas.path} uses sorry"))
 
-  /** The examples, evaluated in Lean. Scala and Lean must agree on every one: what Scala computes of it,
-    * Lean proves; its opposite, Lean does not. A probe Lean cannot decide says nothing.
-    */
+  /** Scala and Lean must agree on every example: Lean proves what Scala computes, not its opposite; an undecided probe says nothing. */
   def evaluations(evals: List[Eval], notEvaluated: List[(ObligationName, String)], e: Option[Elaborated]): List[Result] =
     e.toList.flatMap(e => evals.map(evaluation(_, e))).filterNot(r => r.name.isProbe && r.status == Unevaluated) ++
       notEvaluated.map((name, why) => Result(name, Unevaluated, why))
@@ -82,17 +76,13 @@ object Verdict:
       case (true, true) => Result(x.name, Failed, s"${x.what}: Lean proves both ${x.claim} and its opposite")
       case (false, false) => Result(x.name, Unevaluated, s"${x.what}: Lean decides neither ${x.claim} nor its opposite")
 
-  /** A disagreement means the translation does not mean what the Scala does, and nothing proven of the
-    * node is about the code.
-    */
+  /** A disagreement means the translation does not mean what the Scala does: nothing proven of the node is about the code. */
   def agree(n: Node[?], evaluated: List[Result]): Option[Judged] =
     val disagree = evaluated.filter(_.status == Failed)
     Option.when(disagree.nonEmpty)(Judged(CheckStatus.Failed, evaluated,
       s"Lean and Scala disagree on ${disagree.size} example(s) or probe(s): the Lean translation does not mean what the Scala does, so nothing proven of ${n.id} is about the code" :: disagree.map(_.detail)))
 
-  /** A theorem of a file: proven when Lean reports no error in it and no `sorry`; an authored one must state
-    * exactly its obligation and use only what a proof file may.
-    */
+  /** Proven when Lean reports no error and no `sorry` in it; an authored one states exactly its obligation, with only what a proof file may. */
   def judge(o: ObligationName, e: Elaborated, isAuthored: Boolean): Result =
     val name = o.lean
     e.lean.theorem(name) match
@@ -109,18 +99,13 @@ object Verdict:
     r.copy(detail = s"automation gave up: write theorem complete : Obl.complete in ${proofPath(g, n)} (run `scaffold ${n.id}`)\n" +
       state.fold(s"Lean: ${r.detail}")(ProofState.text(Complete, _)))
 
-  /** What an authored `impl` holds that it may not: it states exactly its obligation, and uses only what a
-    * proof file may.
-    */
+  /** What an authored `impl` holds that it may not: it states exactly its obligation, and uses only what a proof file may. */
   def implRules(proof: String): Option[Result] =
     ruled(proof, "a proof file").map(Result(Impl, Failed, _))
       .orElse(Option.when(!LeanSource.theorems(proof).find(_.name == Impl.lean).map(_.statement).contains("Obl.impl"))(
         Result(Impl, Failed, "must state exactly Obl.impl")))
 
-  /** The code meets the contract, from what the contracts it calls promise: by an authored proof, or by
-    * automation; with the axioms its build rests on (none when it is not proven). Else what to do next, and
-    * the goal the first steps leave.
-    */
+  /** From what the contracts it calls promise, with the axioms its build rests on (none unless proven); else what to do next. */
   def impl(g: Generate, n: Node[?], authored: Boolean, run: Run, state: Option[String]): (Result, Option[List[String]]) =
     val how = if authored then "authored" else "auto"
     val axioms = LeanOutput.axioms(run.output).collectFirst { case (t, as) if t.endsWith("Impl.impl") => as }
@@ -157,12 +142,7 @@ object Verdict:
     case Run.TimedOut(_) => Some(Judged(CheckStatus.Timeout, results, List("Lean timed out checking the node (the machine may be busy): run check again")))
     case _ => None
 
-  /** The verdict from the node's Checks file, in one run of Lean (see `Generate.checks`), and the root's
-    * `root_impl`: each theorem holds when Lean reports no error in it, no `sorry`, and its axioms.
-    *
-    * @param results the obligations judged so far (`complete`, `impl`)
-    * @param impl    `impl`, with the axioms its build rests on
-    */
+  /** The verdict from the Checks file (one run of Lean) and `root_impl`: each theorem holds with no error, no `sorry`, and its axioms. */
   def finish(a: Analysis, n: Node[?], results: List[Result], impl: Option[(Result, Option[List[String]])], checks: Elaborated,
       root: Option[Elaborated]): Judged =
     val g = a.generate
@@ -191,7 +171,13 @@ object Verdict:
     // A view whose coverage cannot be stated keeps nothing proven.
     val uncovered = g.formalKeeps(n).flatMap((i, _) => g.coverage(n, i).left.toOption.map(w =>
       Result(ObligationName.Cover(i.id), Failed, s"what the view must list cannot be stated: $w")))
-    val (rootImpl, rootAxioms) = root.map(rootOfCode(g, _)).unzip
+    // The root, of the code: from what is trusted only.
+    val (rootImpl, rootAxioms) = root.map(e => e.verdict(RootImpl) match
+      case TheoremVerdict.Proven =>
+        (Result(RootImpl, Proven, s"the root holds of the code, trusting ${if g.trusted.isEmpty then "nothing" else g.trusted.map(_.id).mkString(", ")}"),
+          e.axiomsOf(RootImpl))
+      case v => (Result(RootImpl, Open, s"the root is not proven of the code: ${clip(v.why(RootImpl.lean).getOrElse(""))}" +
+        (if e.run.ok then "" else "\n" + errors(e.run).take(3).mkString("\n").take(5000))), Some(Nil))).unzip
     // None when Lean did not report the axioms of a theorem proven: the audit did not finish.
     val audited = (checks.lean.axiomsOf("holds") :: extra.map(_._2) ++ impl.filter(_._1.status == Proven).map(_._2).toList ++
       rootAxioms.toList).sequence.map(_.flatten.distinct.sorted)
@@ -205,12 +191,3 @@ object Verdict:
         Judged(CheckStatus.Failed, all, List(s"disallowed axioms: ${used.filterNot(ProofRules.allowedAxioms).mkString(", ")}"), used)
       // (What is left open is in the results, once: not repeated as messages.)
       case Some(used) => Judged(CheckStatus.Proven, all, Nil, used)
-
-  /** The root, of the code: from what is trusted only. */
-  private def rootOfCode(g: Generate, e: Elaborated): (Result, Option[List[String]]) =
-    e.verdict(RootImpl) match
-      case TheoremVerdict.Proven =>
-        (Result(RootImpl, Proven, s"the root holds of the code, trusting ${if g.trusted.isEmpty then "nothing" else g.trusted.map(_.id).mkString(", ")}"),
-          e.axiomsOf(RootImpl))
-      case v => (Result(RootImpl, Open, s"the root is not proven of the code: ${clip(v.why(RootImpl.lean).getOrElse(""))}" +
-        (if e.run.ok then "" else "\n" + errors(e.run).take(3).mkString("\n").take(5000))), Some(Nil))

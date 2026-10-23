@@ -44,6 +44,11 @@ class DecideSuite extends munit.FunSuite:
     assertEquals(decide(shelf, Ledger.empty, accept("A")), Left(AcceptFirst(id("R"))))
     assertEquals(decide(moved, accepted, accept("A")), Left(AcceptFirst(id("R"))))
     assertEquals(decide(shelf, accepted, accept("R")), Left(AlreadyAccepted(id("R"))))
+    // after the definitions it uses, and every parent
+    val d = node("D", "A book is a title.", kind = NodeKind.Definition)
+    assertEquals(decide(snap(r.copy(uses = ids("D")), d), Ledger.empty, accept("R")), Left(AcceptFirst(id("D"))))
+    val c = snap(r, a, node("C", "Each shelf is labelled.", parents = List("R", "A")))
+    assertEquals(decide(c, right(decide(c, Ledger.empty, accept("R"))), accept("C")), Left(AcceptFirst(id("A"))))
   }
 
   test("choosing a node rejects its alternatives, kept as such") {

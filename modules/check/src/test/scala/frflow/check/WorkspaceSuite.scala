@@ -8,7 +8,7 @@ import frflow.fixtures.*
 import frflow.protocol.*
 import java.nio.file.{Files, Path}
 
-/** What the checker reads of a workspace on disk, and what deciding writes there. */
+/** What the checker reads of a workspace on disk, what deciding writes there, and what git says of it. */
 class WorkspaceSuite extends munit.CatsEffectSuite:
 
   private def workspace: IO[Workspace] = IO.blocking {
@@ -17,6 +17,11 @@ class WorkspaceSuite extends munit.CatsEffectSuite:
     ws
   }
   private def write(p: Path, text: String): IO[Unit] = IO.blocking(Files.writeString(p, text)).void
+  private def git(repo: Path, args: String*): IO[Unit] = IO.blocking {
+    val p = ProcessBuilder(("git" +: args)*).directory(repo.toFile).redirectErrorStream(true).start()
+    p.getInputStream.readAllBytes()
+    assertEquals(p.waitFor(), 0, args)
+  }
   private def accept(w: OnDisk, n: Node[?], reason: String): IO[Unit] =
     w.decide(Decide.Accept(List(NodeId(n.id)), reason)).flatMap(r => IO.fromEither(r.leftMap(e => AssertionError(e.message))))
   private def acceptAll(w: OnDisk): IO[Unit] = w.kb.ordered.traverse_(n => accept(w, n, s"${n.id} is right"))
@@ -32,7 +37,8 @@ class WorkspaceSuite extends munit.CatsEffectSuite:
       kb = shelfKb.withImplementation(Implementation("Pick", () => (s: List[Book], n: Int) => s.filter(_.pages >= 100), List(impl.toString, "Model.scala")))
       w <- OnDisk(kb, ws)
       _ <- acceptAll(w)
-      _ <- w.analysis.map(a => assertEquals(state(a, pick), ReviewState.Accepted))
+      // all accepted, and status still fails with no developer key: an agent could have written the decisions
+      _ <- w.analysis.map(a => assert(state(a, pick) == ReviewState.Accepted && a.warnings.exists(_.startsWith("no developer key")), a.warnings))
       _ <- write(impl, "class Impl // faster")
       _ <- causes(w, "Pick").assertEquals(List("code"))
       _ <- w.analysis.map(a => assert(!OnDisk.ok(a)))
@@ -64,7 +70,7 @@ class WorkspaceSuite extends munit.CatsEffectSuite:
       ws <- workspace
       _ <- write(ws.root.resolve("Store.scala"), "object Store")
       w <- OnDisk(shelfWith(pick, one, two), ws)
-      warnings <- w.analysis.map(Governance.codeWarnings)
+      warnings <- w.analysis.map(Governance.warnings)
     yield
       assert(warnings.contains("Two governs Cache.scala, which does not exist"), warnings)
       assert(warnings.contains("Store.scala is governed by One and Two: give it one owner"), warnings)
@@ -89,22 +95,8 @@ class WorkspaceSuite extends munit.CatsEffectSuite:
       ws <- workspace
       _ <- IO.blocking(Files.createDirectories(ws.lean.resolve("Proofs/Shelf")))
       _ <- write(ws.lean.resolve("Proofs/Shelf/Gone.lean"), "-- proofs of a node renamed\n")
-      warnings <- OnDisk(shelfKb, ws).flatMap(_.analysis).map(Governance.codeWarnings)
+      warnings <- OnDisk(shelfKb, ws).flatMap(_.analysis).map(Governance.warnings)
     yield assert(warnings.exists(_.startsWith("lean/Proofs/Shelf/Gone.lean is the proof file of no node")), warnings)
-  }
-
-  test("decisions are written to the ledger, compactly; with no developer key, status fails whatever the ledger says") {
-    for
-      ws <- workspace
-      w <- OnDisk(shelfKb, ws)
-      _ <- acceptAll(w)
-      a <- w.analysis
-      text <- IO.blocking(Files.readString(ws.ledgerFile))
-    yield
-      assertEquals(io.circe.parser.decode[Ledger](text), Right(a.ledger))
-      assert(a.kb.nodes.forall(state(a, _) == ReviewState.Accepted))
-      assert(a.warnings.exists(_.startsWith("no developer key")), a.warnings)
-      assert(!OnDisk.ok(a))
   }
 
   test("the snapshot written is the analysis's") {
@@ -115,4 +107,39 @@ class WorkspaceSuite extends munit.CatsEffectSuite:
       file <- CheckRunner.writeSnapshot(a)
       text <- IO.blocking(Files.readString(file))
     yield assertEquals(io.circe.parser.decode[Snapshot](text).map(_.nodes.map(_.id)), Right(a.snapshot.nodes.map(_.id)))
+  }
+
+  test("the code diffed against a commit: a file git does not track is compared as it is, not shown as deleted") {
+    for
+      repo <- IO.blocking(Files.createTempDirectory("frflow-git"))
+      _    <- git(repo, "init", "-q") *> git(repo, "config", "user.email", "t@example.com") *> git(repo, "config", "user.name", "t")
+      dir  <- IO.blocking(Files.createDirectories(repo.resolve("project")))
+      _    <- write(dir.resolve("Desk.scala"), "val desk = 1\n") *> git(dir, "add", "Desk.scala") *> git(repo, "commit", "-q", "-m", "first")
+      g     = Git.at(dir)
+      head <- g.head.map(_.getOrElse(""))
+      _    <- write(dir.resolve("Desk.scala"), "val desk = 1\nval members = 2\n") *> write(dir.resolve("New.scala"), "val added = 3\n")
+      d    <- g.diff(head, List("Desk.scala", "New.scala"))
+      // Removed from the working tree: shown as deleted.
+      _    <- IO.blocking(Files.delete(dir.resolve("Desk.scala")))
+      gone <- g.diff(head, List("Desk.scala"))
+      // Nothing changed: no diff; and the repository's own index is untouched.
+      _    <- write(dir.resolve("Desk.scala"), "val desk = 1\n")
+      same <- g.diff(head, List("Desk.scala"))
+      listed <- IO.blocking(String(ProcessBuilder("git", "ls-files", "New.scala").directory(dir.toFile).start().getInputStream.readAllBytes()))
+    yield
+      assert(head.nonEmpty)
+      assert(d.contains("+val members = 2") && !d.contains("-val desk = 1"), d)
+      assert(d.contains("new file") && d.contains("+val added = 3"), d)
+      assert(gone.contains("-val desk = 1"), gone)
+      assertEquals(same, "")
+      assert(listed.trim.isEmpty, listed)
+  }
+
+  test("outside git: no commit, no diff") {
+    for
+      dir  <- IO.blocking(Files.createTempDirectory("frflow-nogit"))
+      g     = Git.at(dir)
+      head <- g.head
+      d    <- g.diff("abc", List("A.scala"))
+    yield assertEquals((head, d), (None, ""))
   }
