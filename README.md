@@ -100,13 +100,6 @@ append-only.
   `FRFLOW_KEY`); `frflow serve --as NAME` files its public key as
   `.frflow/keys/NAME.pub`, to commit. A decision not signed by a key there is a
   warning, so `status` fails.
-- **Owners.** `owner = "ana"` on a node: only she decides it, and every node
-  whose first parent she owns, recursively; a decision by anyone else is a
-  warning.
-- **Other knowledge bases.** `kb.uses(other, "../other")(contracts*)` brings
-  another project's contracts as leaves, decided there (its ledger and keys)
-  and proven again here. A node under one of them is refused: call its
-  operation instead.
 
 ## Drift
 
@@ -129,11 +122,10 @@ Lean, `formal = false`, rewording does); a change of formula does. Accepting a
 change lists every
 decision that rests on it, however far down, each with its reason; the
 developer marks those it may affect (`revisit`) and confirms by name those that
-moved only because of it. A reason that says when to revisit it ("revisit if
-…", "fine until …") must be answered by name, also above a new node. A decision
-is refused if the node moved since the developer looked at it, or if its reason
-is not a few words. A decided node removed from the model is listed as gone
-until the developer agrees, or accepts it as "Renamed to X".
+moved only because of it. A decision is refused if the node moved since the
+developer looked at it, or if its reason is not a few words. A decided node
+removed from the model is listed as gone until the developer agrees (a renamed
+node is a removal and a new node, with "renamed from X" in the reason).
 
 ## What Lean proves
 
@@ -200,9 +192,7 @@ post says what the outside is trusted to do. The proven code calls the
 operation's `Param` and is proven from that promise; the adapter (SQL) is plain
 code with a proven `define` as its reference
 (`implementProven(assumption)(define, sql)`), checked against it on the
-examples and on varied data, and by its `checkedBy` on every call. Wiring that
-calls an adapter past `service`, or changes the outside past an assumption, is
-a warning. In `examples/crm`, a seeded SQL bug (a dropped `WHERE`) is stopped by
+examples and on varied data, and by its `checkedBy` on every call. In `examples/crm`, a seeded SQL bug (a dropped `WHERE`) is stopped by
 the check while every proof still holds, and so is a write the database drops.
 
 ## Status and CI
@@ -211,19 +201,17 @@ the check while every proof still holds, and so is a write the database drops.
 list per node, `Decisions.unproven`: its check, its split, examples,
 invariants, implementation, expectations, `root_impl`, `idle`, and a claim
 nothing below proves), no node is gone, and there is no warning: a decision
-unsigned or not by the owner; a source file governed by two nodes or by none;
-code in a model file that is none of the model; a section of the idea no node
-names; a statement naming a rejected node; a formal contract none of whose
-examples Lean evaluates. It prints the tree, the trusted list, and how far the
+not signed by a developer key; a source file governed by two nodes or by none;
+a section of the idea no node names; a formal contract none of whose examples
+Lean evaluates. It prints the tree, the trusted list, and how far the
 proofs reach.
 
-`ci` is what CI runs: `check`, then `status`; it also fails when a decision in
-the ledger where the branch left its base (`FRFLOW_BASE`, by default
-`origin/HEAD`) is gone. The results (`.frflow/checks.json`) are not committed;
+`ci` is what CI runs: `check`, then `status`. The results (`.frflow/checks.json`) are not committed;
 keep them and Lean's build in the CI's cache, keyed by branch
 (`<kb>/.frflow/checks.json`, `lean/.lake`, `<kb>/lean/.lake`): each result is
 recorded with the hash of what it proved, so only what changed is proven again.
-A result read from the cache is as trusted as the cache.
+A result read from the cache is as trusted as the cache: a nightly `ci` with the
+cache cleared proves everything again.
 
 ## Large projects
 
@@ -231,14 +219,10 @@ The theory lives in files, not in an agent's context: `context(node)` gives
 what bears on a node (its idea section, vocabulary and definitions, ancestors
 with their reasons, co-parts, parts, rejected alternatives, what moved), and
 `find` searches nodes, reasons, rejected options and the idea, so an agent
-extends the theory instead of forking it. Every file has one owner, and a
-change reviews only what rests on it. `check` runs nodes side by side in levels
-(`FRFLOW_THREADS`); a Lean timeout is checked again. Enable the ledger's merge
-driver once per clone (a node both branches decided is decided again):
-
-```sh
-git config merge.frflow-ledger.driver "bin/frflow merge-ledger %O %A %B"
-```
+extends the theory instead of forking it. Every file is governed by one node,
+and a change reviews only what rests on it. `check` runs nodes side by side in
+levels; a Lean timeout is checked again. A node two branches decided, both kept
+by a merge, is decided again.
 
 **Measured.** `python3 bench/generate.py N` writes `examples/scale`: one root
 over N services, grouped five by five (a group: five service claims and the
@@ -262,9 +246,7 @@ it so" from the repository alone, and what deciding costs the developer.
 A cold check proves each level in one Lean build (about 0.85 s a node); after
 that, only what a change reaches is proven again: a code change, its contract
 and the root; a claim change, the claim and the nodes above it; a definition
-change, every node that uses the term. `ci` also proves again a random 5% of the
-results it reads from the cache (`FRFLOW_VERIFY`), with their Lean build
-removed first, so a bad results file or build cache is found.
+change, every node that uses the term.
 
 ## What is trusted, and the limits
 
@@ -282,7 +264,7 @@ Trusted:
 - the signing key: run the browser server outside the repository the agent edits;
 - the model's program. FrFlow runs it to read it, so the gate stops drift, not
   an agent that writes code to subvert FrFlow. Every node's definition as
-  written is decided, and every source file has a reviewed owner.
+  written is decided, and every source file is governed by a reviewed node.
 
 Limits: the tries (`needed`, `clash`, `unsat`, `idle`) are one-sided: what
 automation cannot show is not caught. Examples with function-valued parameters
@@ -396,11 +378,11 @@ core/                   the Scala library
   Node, Model, Lift     nodes and knowledge bases; Opaque, Param, define; the macro from Scala to Lean
   Generate, Lean        Lean generation; running lake, axiom audits, the proof-file filter
   Decisions             decision states and rules, shared by the CLI, browser and MCP
-  Ledger, Signing       the decision record and its merge; keys and signatures
+  Ledger, Signing       the decision record; keys and signatures
   Workflow, Cli, Git    render, check, context, status; the command line; diffs
 examples/               auth, keycloak, crm
 bench/                  the scale benchmark
-tools/                  the browser server and UI, the MCP server, the merge driver
+tools/                  the browser server and UI, the MCP server
 bin/frflow              runs them
 .claude/skills/frflow   the agent skill
 ```

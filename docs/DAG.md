@@ -42,9 +42,9 @@ Kinds (JSON `kind`): `claim`, `contract`, `assumption`, `definition`, `design`. 
 
 | Kind | Scala | Meaning | Lean |
 |---|---|---|---|
-| claim | `Node.claim(id, statement, why, idea = "", owner = "")(formula)` | a proposition over the vocabulary (`formula: => Boolean`, lifted) | `def claim : Prop` over its open terms |
+| claim | `Node.claim(id, statement, why, idea = "")(formula)` | a proposition over the vocabulary (`formula: => Boolean`, lifted) | `def claim : Prop` over its open terms |
 | root | a claim with no parents | the purpose | as a claim, plus `idle` |
-| contract | `Node.contract(op)(id, statement, why, owner = "")(post)` with `op: Param[(A, B) => R]` | every call of `op` meets `post`; the claim is `∀ a b, post(a, b, op(a, b))` | as a claim; `impl` when code is attached |
+| contract | `Node.contract(op)(id, statement, why)(post)` with `op: Param[(A, B) => R]` | every call of `op` meets `post`; the claim is `∀ a b, post(a, b, op(a, b))` | as a claim; `impl` when code is attached |
 | assumption | `Node.assumption(op)(id, statement, why)(post)`, or `Node.assumption(id, statement, why)(formula)` | trusted, not proven: what the outside does (a port), or a fact of the world | a hypothesis of `root_impl` |
 | definition | `Node.definition(id, statement, why)(Opaque := of[T], param := expr, ...)` | fixes terms of the vocabulary; decided, not proven | `abbrev`/`def`s in the vocabulary module |
 | design | `Node.design(id, statement, why)(files*)` | governs code no proof covers | none |
@@ -66,7 +66,7 @@ term (two present: they are alternatives, decided before the nodes that use the 
 
 Kept from today, unchanged in meaning: `examples(bindings*)(expect/reject...)`, `checkedBy`,
 `implement`, `implementProven(contract)(define)` and `(define, fast)`, `service`, `expects`,
-`formal = false`, `owner`, `KnowledgeBase.uses`, `Opaque`, `Param`, `define`, `forall`/`exists`.
+`formal = false`, `Opaque`, `Param`, `define`, `forall`/`exists`.
 
 Removed: `Node.root` (a claim with no parents), `refine` and `abs` (a part plus, where the model's
 shape changes, a definition relating the terms: `shows := (u, r) => exists((q: Query) => run(u, q).contains(r))`),
@@ -135,7 +135,7 @@ Changed fields only; everything else stays as today.
 
 - A node is decided once, whatever the number of its parents. Its decided content includes its
   statement, formula and `why`, and **for a node with parts, the list of its parts**: adding or
-  removing a part puts the parent up for review (cause `parts`). It is decided by the parent's owner.
+  removing a part puts the parent up for review (cause `parts`).
 - Causes (`causes`): `self` (its content changed), `above` (a parent's or a definition's decided
   content changed: any of them), `parts` (its list of parts changed), `code`, `revisit`, `merged`.
 - Mechanical (one batch, as today): a node under review whose own meaning did not change and whose
@@ -144,9 +144,6 @@ Changed fields only; everything else stays as today.
   first that is not).
 - Alternatives: `replaces`, and two definitions of one term. Siblings under one parent are parts, not
   alternatives.
-- Owner: a node's own `owner`, else the owner of its first parent, recursively. A decision on a node
-  is refused to anyone but its owner, if it has one (as today). A node whose parents have different
-  owners names its own (a structure problem otherwise; see §9, "Honest tries").
 - The decide request (`POST /api/p/NAME/decide`, MCP, CLI) is unchanged; `reject` lists alternatives.
 
 ## 6. Browser
@@ -206,34 +203,27 @@ Minimal departures from the above, each kept to what the code needed; none from 
   contract. `idle` applies to the root only (the contract-level `idle` is gone, as specified).
 - **Expectations** are `node.expects(statement)(formula: => Boolean)`, a formula over the vocabulary
   (an operation is mentioned by its `Param`), proven from the node's claim.
-- **Imports.** `kb.uses(other, dir)(contracts*)` brings each contract as a leaf: the node object is the
-  other knowledge base's (its `content`, parents included, is the same as there, so its decisions there
-  hold), but here it has no parents and no kept invariants; the definitions its statement uses come
-  with it. Its `parentChain` here is the one its decision there recorded.
 - **Snapshot.** Besides §4: per node `status` (the check of its statement: `proven`, `open`, `failed`,
   `waiting`, `unchecked`, `timeout`, `informal`; null for definitions and design nodes), `leaf` (a claim
   no part proves), `rootImpl` (on the root), `obligations` (each with its statement), `holds` (its
   statement), `relies` (the contracts its code calls). Gone: `parent`, `link`, `obligation`,
   `rootTheorem`, `reliances`, `reliedOnBy`, `roots`. The content of a node carries `kind`, `parents`,
   `op`, `replaces`; `vocabulary` lists every term it mentions (not only those first used on its path).
-  `ContentFormat` and `CheckerVersion` are 4 (phase 2a adds `parts` to the content without changing
-  `ContentFormat`: a snapshot without it decides as before, and decisions without it are not reviewed for it).
+  `CheckerVersion` versions how checks are run.
 
 ### As built in phase 2a (decisions)
 
 - **Content.** A statement's content (claim, contract, assumption, invariant) carries `parts`: the ids
   of its statement parts, in the model's order (a design node under it is not a part of what it
-  says: it governs code). Definitions and design nodes have no `parts` in their content. An imported
-  node carries the parts its decision there recorded. In the annotated snapshot, `content.parts` is the
+  says: it governs code). Definitions and design nodes have no `parts` in their content. In the annotated snapshot, `content.parts` is the
   parts now, and the content each decision bound is in `history` (entries with `binds: true`; the last
   is what the node is bound to, `decision` being the choice): their `parts` against `content.parts` are
-  the parts added and removed under the cause `parts`. A decision recorded before (no `parts` in its
-  content) is not reviewed for its parts, as for any field a later format added: old ledgers load as
-  they are, and a decided node no longer in the model is listed under `gone`, as before.
+  the parts added and removed under the cause `parts`. A decided node no longer in the model is listed
+  under `gone`.
 - **Causes.** `self`: what the node says itself changed, that is its content without `parts` and
   `parents`, and with the calls that place it (`.under(...)`) taken out of its `definition` source; a
   design node rests on its parents' place, so for it `parents` stays part of what it says. `parts`: the
-  set of its parts changed (order aside; a part renamed is the same part). `above`: the node's
+  set of its parts changed (order aside). `above`: the node's
   `parentChain` changed. `parentChain` is unchanged from phase 1: the sorted chains of its parents, of the
   definitions in force it uses and of the contracts its code calls, each chain hashing the meaning of
   that node with its own `parentChain`; a node's meaning has no `parts` or `parents`, so a sibling added
@@ -260,14 +250,11 @@ Minimal departures from the above, each kept to what the code needed; none from 
   `{id, content}`. No other annotated field was renamed or removed.
 - **Unchanged.** `waitsFor` (a proposal, or a node whose `above` moved, waits for the first of its
   parents, then of the definitions it uses and the contracts its code calls, that is not accepted; any
-  node waits for a parent proposed or rejected), `conditionsAbove` (all ancestors, each once), the owner
-  (its own, else its first parent's, recursively; others are refused), signing, the ledger format and its
-  merge driver. `unproven` keeps "nothing below proves it" on a leaf claim: a claim is proven by parts
+  node waits for a parent proposed or rejected), signing, the ledger format. `unproven` keeps "nothing below proves it" on a leaf claim: a claim is proven by parts
   or trusted as an assumption, so the CI gate (`complete`) fails on it; `status` lists it as trusted.
-  `ContentFormat` and `CheckerVersion` are 4.
 - **Decisions (phase 1 only).** `waitsFor` is the first parent not accepted, else the first definition
-  used or contract called not accepted; alternatives are `replaces` and two definitions of one term;
-  the owner is a node's own, else its first parent's. Everything else of §5 is phase 2.
+  used or contract called not accepted; alternatives are `replaces` and two definitions of one term.
+  Everything else of §5 is phase 2.
 - **Browser (phase 2).** As §6, with these choices. The tree is drawn from the root, each node under its
   first parent (its card says "also under" the others; selecting a node also draws its other parent edges,
   dashed); nodes under no parent besides the root are drawn beside it; definitions in a row under the
@@ -304,11 +291,6 @@ What the migrations of `examples/keycloak` and `examples/crm` found in the core,
   (`Lifted.value` evaluates it on each use, under the bindings in force), so a term defined by an
   expression over parameters (`sessions := stateAfter(history.value).sessions`) no longer reads them when
   the model loads.
-- **A bypass is a call on the adapter.** `bypasses` (a governed file calling an adapter's method past
-  `service`) flags a call only on the adapter: on a name the file declares of one of the adapter file's
-  classes (`db: Db`) or binds to one (`val db = Db.open(...)`, `new Db(...)`), on such a class, or on the
-  value of a model parameter of that type (`database.value`). A list's `find` or a response's `write` is no
-  longer taken for the adapter's method of that name.
 - **Tries in plain words.** A try's result (in `checks.json`, the snapshot's `split`, `check`'s output and
   the browser) says what Lean showed, no longer read backwards: each part `needed` or `not-needed` (with
   one part, `vacuous` gives the same two), `clash` or `no-clash`, `unsat` or `not-unsat`, the root's `idle`
@@ -318,7 +300,7 @@ What the migrations of `examples/keycloak` and `examples/crm` found in the core,
   `idle` on the root is unchanged (what doing nothing is, when Lean shows it meets the root; else null),
   and a kept invariant's status stays in its own words (`proven` when the contract is needed, `open` when
   not). `CheckerVersion` is 5: results recorded before are checked again.
-- **Small API gaps.** `Node.assumption` takes `idea` and `owner`, on a fact and on an operation (the latter
+- **Small API gaps.** `Node.assumption` takes `idea`, on a fact and on an operation (the latter
   through `AssumptionOn`, so both overloads may have defaults: `Node.assumption(op)(id, statement, why,
   idea = "...")(post)` reads as before). `Def` and `Param` apply to four and five arguments. `impl` is proven
   from the promises of the operations the code calls (itself, or through the `define`s it calls:
@@ -405,10 +387,6 @@ now linear (about 0.85 s a node). The causes, and what changed:
   hashes and the ledger are unchanged, so existing decisions read as before. The reworded node's review
   lists the decisions below it (`below`, kind `accepted`): what may be affected, to revisit by name. A
   `formal = false` node is its words: rewording it cascades as before; so does any change of a formula.
-- **The owner of a shared node** is named: a node whose parents belong to different owners (one of them
-  possibly no one) and that has no `owner` is a structure problem ("Name the owner of N: its parents
-  belong to A and B"), so the order of `.under(...)` no longer decides who decides it.
-  `KnowledgeBase.ownerOf` is the rule; `Workflow.ownerOf` calls it.
 - **`unsat` stays.** `feasible` is asked only of an authored `complete` with nothing witnessing the
   parts; a leaf claim or a node proven by automation is never asked it, and a contradictory one makes
   everything above it provable. `unsat` is the one guard there (cheap, and one-sided as the others).
@@ -443,9 +421,7 @@ now linear (about 0.85 s a node). The causes, and what changed:
   `frflow_intro` (FrFlow's tactic: every binder by its generated name, the open terms and `h_<Part>`)
   and `simp only [frflow_defs] at *`, then the goal they leave as a comment; `check` prints that same
   goal when automation gives up (before, `frflow_auto`'s normal form, which the recipe does not reach).
-  A proof using the names survives a part or a term added. A failing authored proof whose `intro`
-  puts a generated name at another place is reported as written for an earlier obligation, with its
-  binders now.
+  A proof using the names survives a part or a term added.
 - **Code diffs use an index of their own.** `Git.diff` compares the decision's tree with the files as
   they are through a temporary index, so a file git does not track (a new project before its first
   commit) is diffed as it is, not shown as deleted.

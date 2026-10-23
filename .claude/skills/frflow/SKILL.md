@@ -50,14 +50,13 @@ To start a project, follow the README's "New project".
    propose a change.
 10. **Never edit generated Lean** (`lean/FrFlowGen/`, `lean/FrFlowAudit/`).
     Lean you write goes only in `lean/Proofs/<KB>/`.
-11. **Every source file has one owner**: a contract's or assumption's
+11. **Every source file is governed by one node**: a contract's or assumption's
     implementation, or a design node. Keep production wiring (the call to
     `service`) in a design node's file.
 12. **Say what is not modelled**: propose it for `## Not modelled` in
-    `IDEA.md` (a `### Section` subsection when it concerns one section).
+    `IDEA.md`.
 13. **Say what waits.** In your `answer`, name the waiting nodes that are
-    mechanical, and for each decision below a change whose reason says when to
-    revisit it, whether that condition may be met.
+    mechanical.
 
 ## The loop
 
@@ -134,13 +133,13 @@ proven holds for every value of it.
 
 | Constructor | What it is |
 |---|---|
-| `Node.claim(id, statement, why, idea = "", owner = "", formal = true)(formula)` | a proposition (`=> Boolean`). The one claim with no parents is the root. |
-| `Node.contract(op)(id, statement, why, idea, owner, formal)((a, b, r) => post)` | every call of `op: Param[(A, B) => R]` meets `post`; code is attached to `op`. |
-| `Node.assumption(op)(id, statement, why, idea, owner)((a, b, r) => post)` | what the outside does on an operation (a database, a store, the clock): trusted, a hypothesis of `root_impl`; its adapter is checked against it. |
-| `Node.assumption(id, statement, why, idea, owner)(formula)` | a fact of the world, trusted (tokens are fresh); checked at run time where it can be computed. |
+| `Node.claim(id, statement, why, idea = "", formal = true)(formula)` | a proposition (`=> Boolean`). The one claim with no parents is the root. |
+| `Node.contract(op)(id, statement, why, idea, formal)((a, b, r) => post)` | every call of `op: Param[(A, B) => R]` meets `post`; code is attached to `op`. |
+| `Node.assumption(op)(id, statement, why, idea)((a, b, r) => post)` | what the outside does on an operation (a database, a store, the clock): trusted, a hypothesis of `root_impl`; its adapter is checked against it. |
+| `Node.assumption(id, statement, why, idea)(formula)` | a fact of the world, trusted (tokens are fresh); checked at run time where it can be computed. |
 | `Node.definition(id, statement, why)(Opaque := of[T], param := expr, ...)` | fixes terms; decided, not proven; no parents. Two definitions of one term are alternatives. |
-| `Node.invariant[A, B](id, statement, why, scope = Nil, idea, owner, formal)(rule)` | a rule over pairs (a reader, a record), stated once; a claim whose parts are the contracts that keep it. |
-| `Node.design(id, statement, why, idea, owner)(files*)` | governs code no proof covers (wiring, an HTTP API, a convention); under the nodes it serves. |
+| `Node.invariant[A, B](id, statement, why, scope = Nil, idea, formal)(rule)` | a rule over pairs (a reader, a record), stated once; a claim whose parts are the contracts that keep it. |
+| `Node.design(id, statement, why, idea)(files*)` | governs code no proof covers (wiring, an HTTP API, a convention); under the nodes it serves. |
 
 Edges and extras (chained on a node):
 
@@ -149,8 +148,8 @@ Edges and extras (chained on a node):
   assumptions may have no parents only when code calls their operation.
 - `.replaces(other)`: an alternative; accepting one rejects the other.
 - `.keeps(inv)((a, b, r) => pairs)` on a contract: the pairs a call shows to
-  the invariant (`result.map(r => (user, r))`); with several inputs of the
-  rule's first type, `.keeps(inv, reader = 1)(...)` (from 0). Or
+  the invariant (`result.map(r => (user, r))`); the pairs are about the one
+  input of the rule's first type. Or
   `.exempt(inv, "why it shows none")`, on a contract or a design node in the
   invariant's scope. Declare the invariant before the contracts.
 - `.examples(bindings*)(expect(a, b, r, note), reject(a, b, r, note), ...)` on
@@ -163,15 +162,11 @@ Edges and extras (chained on a node):
   expects, proven from the node. Propose some for a new node.
 - `idea = "Section"`: the `## ` section of `IDEA.md` the node is decided
   against (the root takes the title and lead). A section no node names is a
-  warning. `owner = "name"`: only that developer decides it, and the nodes
-  whose first parent it owns; never route its decisions to anyone else. A node
-  whose parents have different owners names its own (`status` asks for it).
+  warning.
 - `formal = false` (claim, contract, invariant): out of Lean, decided by
   reading. Only when the Lean subset cannot say it or the proof costs more than
   it gives; say so in `why`.
-- `KnowledgeBase(name, idea = "IDEA.md")(every node, definitions included)`;
-  `kb.uses(other, "../other")(contracts*)` brings another project's contracts
-  as leaves: call their operation, never put a node under one.
+- `KnowledgeBase(name, idea = "IDEA.md")(every node, definitions included)`.
 
 **Where it belongs.** A claim states a property in the domain's terms; a
 contract states it for one call of an operation, so each result can be
@@ -220,7 +215,6 @@ idle.
 | Report | Means | Do |
 |---|---|---|
 | `complete` open: "automation gave up" | the parts may not make it | First ask whether they do: usually a part is missing or too weak. If they do, prove it by hand (below), from the goal it prints. |
-| "the obligation of N changed since this proof was written" | a part or a term was added or removed, and the proof introduces binders by position | Start the proof with `frflow_intro` and use the names it prints. |
 | Ci `not-needed` | the node holds without Ci | Ci belongs elsewhere (under the node it does help), or another part says too much, or the node says less than meant. Fix the split. |
 | `vacuous` (one part) | the node holds whatever its part says | The node says nothing its part adds (often true of every world): strengthen it, or remove it. |
 | `restates` (one part; a warning of `status`) | the node and its one part say the same | Merge them, or say what the node adds. |
@@ -303,7 +297,8 @@ redefine `equals`, no two `define`s with one name.
 - **Node ids** are identifiers, unique, and differ from every type, function
   and term name; `Lemmas` and `RootImpl` are reserved.
 - **To rename a node**, change only its id and its val's name, and move its
-  proof file (with its `namespace`); the browser offers "Renamed to X".
+  proof file (with its `namespace`); the developer accepts the old one as gone
+  and the new one, with "renamed from X" in the reason.
 - **Lean 4.35 deprecates `if_pos`/`if_neg` (and `dif_pos`/`dif_neg`)**: in
   authored proofs use `ite_eq_left`/`ite_eq_right` (`dite_eq_left`/
   `dite_eq_right`), or `split` and `simp [h]`.
