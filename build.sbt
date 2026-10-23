@@ -1,14 +1,22 @@
 ThisBuild / scalaVersion := "3.10.0"
 ThisBuild / scalacOptions ++= Seq("-deprecation", "-feature", "-Werror")
 
+// One version of each library, for every module; each module lists the ones it imports.
+val circe = "io.circe" %% "circe-core" % "0.14.17"
+val circeParser = "io.circe" %% "circe-parser" % "0.14.17"
+val cats = "org.typelevel" %% "cats-core" % "2.13.0"
+val catsEffect = "org.typelevel" %% "cats-effect" % "3.6.3"
+val fs2 = Seq("co.fs2" %% "fs2-core" % "3.12.2", "co.fs2" %% "fs2-io" % "3.12.2")
+val decline = "com.monovore" %% "decline" % "2.5.0"
 val munit = "org.scalameta" %% "munit" % "1.1.1" % Test
+val munitEffect = "org.typelevel" %% "munit-cats-effect" % "2.1.0" % Test
 
 lazy val root = project.in(file("."))
   .aggregate(model, protocol, lean, ledger, check, api, cli, auth, crm, keycloak)
   .settings(publish / skip := true)
 
-def module(name: String) = Project(name, file(s"modules/$name"))
-  .settings(Keys.name := s"frflow-$name", libraryDependencies += munit)
+def module(name: String, libraries: ModuleID*) = Project(name, file(s"modules/$name"))
+  .settings(Keys.name := s"frflow-$name", libraryDependencies ++= munit +: libraries)
 
 /** The DSL: nodes, the knowledge base, the macro from Scala to Lean, the runtime checks (package `frflow`). */
 lazy val model = module("model")
@@ -16,36 +24,23 @@ lazy val model = module("model")
 /** The data crossing modules and files: the snapshot, the review, the ledger, checks and requests,
   * with their JSON codecs; ids and statuses as types (package `frflow.protocol`).
   */
-lazy val protocol = module("protocol").settings(libraryDependencies ++= Seq(
-  "io.circe" %% "circe-core" % "0.14.17", "io.circe" %% "circe-parser" % "0.14.17"))
+lazy val protocol = module("protocol", circe, circeParser % Test)
 
 /** The Lean of a knowledge base, and reading Lean's output. */
-lazy val lean = module("lean").dependsOn(model % "compile->compile;test->test", protocol)
-  .settings(libraryDependencies += "org.typelevel" %% "cats-core" % "2.13.0")
+lazy val lean = module("lean", cats).dependsOn(model % "compile->compile;test->test", protocol)
 
-/** The developer's decisions: review states, decide, signatures, reports; the ledger's and requests' files. */
-lazy val ledger = module("ledger").dependsOn(protocol).settings(libraryDependencies ++= Seq(
-  "org.typelevel" %% "cats-core" % "2.13.0", "org.typelevel" %% "cats-effect" % "3.6.3",
-  "org.typelevel" %% "munit-cats-effect" % "2.1.0" % Test))
+/** The developer's decisions: review states, decide, signatures, reports; the ledger's, requests' and keys' files, git. */
+lazy val ledger = module("ledger", cats, catsEffect, circe, circeParser, munitEffect).dependsOn(protocol)
 
-/** Rendering and checking a knowledge base against Lean; the snapshot. */
-lazy val check = module("check").dependsOn(lean % "compile->compile;test->test", ledger, model % "test->test")
-  .settings(libraryDependencies ++= Seq(
-    "org.typelevel" %% "cats-core" % "2.13.0",
-    "org.typelevel" %% "cats-effect" % "3.6.3",
-    "co.fs2" %% "fs2-core" % "3.12.2",
-    "co.fs2" %% "fs2-io" % "3.12.2",
-    "org.typelevel" %% "munit-cats-effect" % "2.1.0" % Test))
-
-val catsEffect = Seq("org.typelevel" %% "cats-core" % "2.13.0", "org.typelevel" %% "cats-effect" % "3.6.3",
-  "org.typelevel" %% "munit-cats-effect" % "2.1.0" % Test)
+/** Rendering and checking a knowledge base against Lean; the snapshot; where it stands. */
+lazy val check = module("check", (Seq(cats, catsEffect, circe, circeParser, munitEffect) ++ fs2)*)
+  .dependsOn(lean % "compile->compile;test->test", ledger, model % "test->test")
 
 /** The one API a front end calls (the CLI now, a web view later): typed values over `IO`. */
-lazy val api = module("api").dependsOn(check, ledger).settings(libraryDependencies ++= catsEffect)
+lazy val api = module("api", cats, catsEffect, circe).dependsOn(check, ledger)
 
 /** The command line a project's main object extends (`FrFlowApp`): commands, colors, interactive review. */
-lazy val cli = module("cli").dependsOn(api % "compile->compile;test->test").settings(libraryDependencies ++= catsEffect ++ Seq(
-  "com.monovore" %% "decline" % "2.5.0"))
+lazy val cli = module("cli", cats, catsEffect, circe, decline, munitEffect).dependsOn(api % "compile->compile;test->test")
 
 /** The java command that runs a project's CLI on a terminal (colors, the interactive review): what `bin/frflow` runs. */
 val cliLauncher = taskKey[File]("Writes the java command running this project's CLI, for bin/frflow")
@@ -53,7 +48,7 @@ val cliLauncher = taskKey[File]("Writes the java command running this project's 
 def example(name: String) = Project(name, file(s"examples/$name"))
   .dependsOn(cli, check % Test)
   .settings(
-    libraryDependencies += munit,
+    libraryDependencies ++= Seq(munit, munitEffect),
     publish / skip := true,
     run / fork := true,
     // The CLI's output (read by agents) is UTF-8 whatever the locale.
