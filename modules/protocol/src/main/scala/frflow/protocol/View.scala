@@ -20,7 +20,7 @@ final case class Below(id: NodeId, kind: BelowKind, statement: String, reason: S
   * @param decision   the developer's choice of it (see `Ledger.chosen`)
   * @param reasonNow  the reason it holds now, while it is bound
   * @param mechanical whether it is mechanical (decided in one batch); else why not
-  * @param unproven   what of it is not proven or fails (see `Reports.unproven`)
+  * @param unproven   what of it is not proven or fails (see the ledger's `Proofs.unproven`)
   * @param sameAs     siblings that say formally the same: the statement may claim more than the spec
   * @param below      the decisions below that accepting it can act on (none while it is accepted)
   * @param rivals     the nodes of the model that are its alternatives: accepting it may reject them

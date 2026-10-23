@@ -4,18 +4,7 @@ package ledger
 import frflow.protocol.*
 import io.circe.Codec
 
-/** What the agent starts from: the developer's open requests, the warnings, who waits on whom, and the
-  * tree (none before the first render).
-  */
-final case class Inbox(requests: List[Request], warnings: List[String], waiting: Waiting, tree: Option[Tree])
-    derives Codec.AsObject
-
-object Inbox:
-  def of(annotated: Option[Annotated], requests: List[Request]): Inbox =
-    val open = requests.filter(_.status == RequestStatus.Open)
-    annotated.fold(Inbox(open, Nil, Waiting.none, None))(a => Inbox(open, a.snapshot.warnings, Waiting.of(a), Some(Tree.of(a))))
-
-/** The counts closing the tree: nodes by state, how many are proven, what the root's proof trusts, what
+/** The counts of the decisions: nodes by state, how many are proven, what the root's proof trusts, what
   * waits for the developer, and whether everything is decided and proven.
   */
 final case class Summary(nodes: Int, proposed: Int, review: Int, accepted: Int, rejected: Int, gone: Int, proven: Int,

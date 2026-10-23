@@ -51,7 +51,7 @@ object Snapshots:
       relies = ids(g.callees(n)),
       rule = n.isInvariant,
       limits = kb.limits(n),
-      // The root met by doing nothing: it says only what must not happen (see `Reports.unproven`).
+      // The root met by doing nothing: it says only what must not happen (see the ledger's `Proofs.unproven`).
       idle = Option.when(a.isRoot(n))(a.idleOf(n)).flatten,
       status = Option.when(kb.isStatement(n))(if !g.formal(n) then CheckStatus.Informal
         else check.orElse(a.checks.get(id).filter(_.hash == a.checkHash(n))).fold(CheckStatus.Unchecked)(_.status)),

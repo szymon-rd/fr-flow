@@ -5,26 +5,10 @@ import frflow.protocol.*
 import io.circe.syntax.*
 import Dag.*
 
-/** What the developer and the agent read: typed values, and their text where today's commands print it. */
+/** What the developer and the agent read, as typed values. */
 class ReportsSuite extends munit.FunSuite:
 
-  private val d = node("Title", "A book is known by its title.", kind = NodeKind.Definition)
   private val c = node("C", "Each shelf is labelled.", parents = List("A", "R"))
-  private val s = snap(r, a, b, c, d)
-
-  test("the tree: each node under its first parent, also under the others; then the definitions and the gone") {
-    val l = acceptAll(snap(r, a, b, node("Old", "An old part.", parents = List("R"))))
-    val t = Tree.of(Decisions.annotate(s, l))
-    assertEquals(t.roots.map(_.id), ids("R"))
-    assertEquals(t.roots.head.children.map(_.id), ids("A"))
-    assertEquals(t.roots.head.children.head.children.map(b => b.id -> b.alsoUnder), List(id("B") -> Nil, id("C") -> ids("R")))
-    assertEquals((t.definitions.map(_.id), t.gone), (ids("Title"), ids("Old")))
-    assertEquals(t.asJson.as[Tree], Right(t))
-    val text = Reports.tree(Decisions.annotate(s, l))
-    assert(text.contains("    C (claim)  [proposed] (also under R)"), text)
-    assert(text.contains("Definitions:\n  Title (definition)  [proposed]"), text)
-    assert(text.endsWith("Old  [review: gone]"), text)
-  }
 
   test("who waits on whom: the developer's decisions, in the order to take them, and the agent's work") {
     val l = acceptAll(shelf)
@@ -36,7 +20,6 @@ class ReportsSuite extends munit.FunSuite:
       ForDeveloper.Decide(id("C"), Nil, false)))
     assertEquals(Load.of(ann), Load(mechanical = 2, fresh = 1, changed = 0, gone = 0))
     assertEquals(Queue.of(ann), Queue(ready = Nil, mechanical = ids("A", "B"), waiting = ids("C"), gone = Nil))
-    assertEquals(Reports.load(ann), "Decisions waiting: 3 (2 mechanical, decided in one batch; 1 new and 0 changed to judge).\n")
   }
 
   test("a rejected node is the agent's to replace, and what rests on it to move") {
@@ -46,21 +29,13 @@ class ReportsSuite extends munit.FunSuite:
     val w = Waiting.of(Decisions.annotate(all, l))
     assertEquals(w.agent, List(ForAgent.Replace(id("A"), "dev", "A2 was chosen instead: a title finds a book faster"),
       ForAgent.Move(id("B"), ids("A"))))
-    val inbox = Reports.inbox(Some(Decisions.annotate(all, l)), Nil)
-    assert(inbox.contains("- B: rests on rejected A; move it under the node chosen instead"), inbox)
-    assertEquals(Reports.inbox(None, Nil), "No open requests.\n\nNo snapshot yet; render first.")
   }
 
-  test("the inbox and the summary") {
-    val req = Request(RequestId("R1"), Some(id("A")), "Say which shelf.", "dev", "2026-01-01T00:00:00Z", RequestStatus.Open)
-    val done = req.copy(id = RequestId("R2"), status = RequestStatus.Answered)
-    val inbox = Inbox.of(Some(Decisions.annotate(shelf, Ledger.empty)), List(req, done))
-    assertEquals(inbox.requests, List(req))
-    assertEquals(inbox.tree.map(_.roots.map(_.id)), Some(ids("R")))
-    assertEquals(inbox.asJson.as[Inbox], Right(inbox))
+  test("the summary") {
     val summary = Summary.of(Decisions.annotate(shelf, acceptAll(shelf)))
     assertEquals((summary.nodes, summary.accepted, summary.proposed, summary.load.total), (3, 3, 0, 0))
     assert(summary.complete)
+    assertEquals(summary.asJson.as[Summary], Right(summary))
     // A leaf nothing below proves is not.
     assert(!Summary.of(Decisions.annotate(replacing(shelf, b.copy(leaf = true)), acceptAll(shelf))).complete)
   }
@@ -73,7 +48,6 @@ class ReportsSuite extends munit.FunSuite:
     assertEquals(Find(ann, "src/Other.scala"), Found.Ungoverned("src/Other.scala"))
     assertEquals(Find(ann, "shelf LISTS"), Found.Mentions("shelf LISTS", List(Mention(Mentioned.Node(id("B")), Some("Each shelf lists its books.")))))
     assertEquals(Find(ann, "dragons"), Found.Nothing("dragons"))
-    assertEquals(Reports.find(ann, "src/Shelf.scala"), "Governed by:\n- B (claim, proposed): Each shelf lists its books.")
   }
 
   test("what is not proven of a node, and how its code is") {
