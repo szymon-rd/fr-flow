@@ -20,8 +20,6 @@ final case class Desk(kb: KnowledgeBase, inputs: Inputs):
   def node(id: String): Reviewed = annotated.byId(NodeId(id))
   def causes(id: String): List[String] = node(id).review.causes.map(_.toString)
   def notAccepted: List[(String, String)] = kb.ordered.map(n => n.id -> state(n).toString).filter(_._2 != "accepted")
-  def allAccepted: Boolean = kb.nodes.forall(state(_) == ReviewState.Accepted)
-  def complete: Boolean = OnDisk.ok(analysis)
 
   /** The same decisions over another model, or another idea. */
   def withKb(other: KnowledgeBase): Desk = Desk(other, inputs.copy(texts = Desk.texts(other)))
@@ -32,12 +30,9 @@ final case class Desk(kb: KnowledgeBase, inputs: Inputs):
     val at = Instant.parse("2026-01-01T00:00:00Z").plusSeconds(ledger.all.size)
     Decide(analysis.snapshot, ledger, d, "dev", Stamp(at)).leftMap(_.message).map(l => copy(inputs = inputs.copy(ledger = l)))
 
-  def accept(n: Node[?], reason: String, revisit: List[Node[?]] = Nil): Either[String, Desk] =
-    decide(Decide.Accept(List(NodeId(n.id)), reason, revisit.map(r => NodeId(r.id))))
-  def reject(id: String, reason: String): Either[String, Desk] = decide(Decide.Reject(NodeId(id), reason))
+  def accept(n: Node[?], reason: String): Either[String, Desk] = decide(Decide.Accept(List(NodeId(n.id)), reason))
 
-  def acceptAll: Desk = accepting(kb.ordered*)
-  def accepting(ns: Node[?]*): Desk = ns.foldLeft(this)((d, n) => Desk.ok(d.accept(n, s"${n.id} is right")))
+  def acceptAll: Desk = kb.ordered.foldLeft(this)((d, n) => Desk.ok(d.accept(n, s"${n.id} is right")))
 
 object Desk:
   val idea = "# Shelf\n\nPick good items.\n\n## Not modelled\n\n- Prices.\n"

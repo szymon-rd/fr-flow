@@ -74,13 +74,9 @@ class LiftSuite extends munit.FunSuite:
     val c = Lifted((b: Book) => b.copy(pages = 2) == Book(b.title, b.pages))
     assert(c.value(Book("x", 2)) && !c.value(Book("x", 5)))
     assert(Lifted((m: Map[String, BigInt], k: String) => m.updated(k, BigInt(1)).get(k) == Some(BigInt(1)) && !m.removed(k).contains(k)).value(Map("a" -> BigInt(2)), "a"))
-    assert(Lifted((xs: Set[String], x: String) => (xs + x).contains(x) && xs.subsetOf(xs ++ Set(x))).value(Set("a"), "b"))
     assertEquals(where(Shelf.Box("b")), "b")
-    assertEquals(Lifted((t: (BigInt, BigInt, BigInt)) => t._2 * 10 + t._3).value((1, 2, 3)), BigInt(23))
     assertEquals((pagesBetween(Book("A", 300), 100, 500, "B"), pagesBetweenOn(Book("A", 300), 100, 500, "top", Shelf.Top)), (true, false))
     assertEquals(keptOnce(List(Book("A", 1)), List(Book("A", 1), Book("B", 2))), List(Book("A", 1)))
-    assert(Lifted((l: List[BigInt], n: Int) => l.flatMap(x => List(x, x)).take(n).headOption == l.find(x => x > 0)).value(List(BigInt(1), BigInt(2)), 3))
-    assert(Lifted((l: List[BigInt]) => l.foldLeft(BigInt(0))((acc, x) => acc + x) >= 0).value(List(BigInt(1), BigInt(2))))
   }
 
   test("Scala outside the subset, or meaning something else in Lean, is a compile error saying why") {

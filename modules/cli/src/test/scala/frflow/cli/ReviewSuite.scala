@@ -25,24 +25,18 @@ class ReviewSuite extends munit.CatsEffectSuite with Golden:
       assertEquals((asked.node, asked.text), (Some(NodeId("Decide")), "Name the user as 'that user'."))
   }
 
-  test("review needs a terminal") {
-    for
-      term <- Scripted(Nil, interactive = false)
-      code <- FakeApi().flatMap(ReviewSession(_, term, st).run(None))
-    yield assertEquals(code, Dispatch.Usage)
-  }
-
-  test("a decision without a terminal needs --yes; with it, it is recorded") {
+  test("without a terminal: review is refused, and a decision needs --yes; with it, it is recorded") {
     def reject(yes: Boolean) = Command.Decision(Decide.Reject(NodeId("Expiry"), _), Asked(Some("sessions end on sign-out instead"), None, yes))
     for
       api <- FakeApi()
       term <- Scripted(Nil, interactive = false)
+      review <- ReviewSession(api, term, st).run(None)
       refused <- Dispatch(api, term, st)(reject(yes = false))
       done <- Dispatch(api, term, st)(reject(yes = true))
       out <- term.output
       ledger <- api.ledgerNow
     yield
-      assertEquals((refused, done), (Dispatch.Usage, ExitCode.Success))
+      assertEquals((review, refused, done), (Dispatch.Usage, Dispatch.Usage, ExitCode.Success))
       assertEquals(ledger.current(NodeId("Expiry")).map(_.action), Some(Action.Reject))
       assert(out.exists(_.contains("pass --yes")), out)
   }

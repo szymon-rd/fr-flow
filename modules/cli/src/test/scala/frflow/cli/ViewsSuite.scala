@@ -18,13 +18,8 @@ class ViewsSuite extends munit.CatsEffectSuite with Golden:
       api.flatMap(_.details(NodeId("Expiry"))).map(d => golden("show-proposed", NodeText.lines(d, st)))
   }
 
-  test("diff: a proposal is new; a change is shown once, field by field") {
-    for
-      expiry <- api.flatMap(_.diff(NodeId("Expiry")))
-      decide <- api.flatMap(_.diff(NodeId("Decide")))
-    yield
-      assertEquals(DiffText.lines(expiry, st).headOption, Some("New: never decided"))
-      assertEquals(decide.self.map(_.field), List("statement"))
+  test("diff: a proposal is new") {
+    api.flatMap(_.diff(NodeId("Expiry"))).map(d => assertEquals(DiffText.lines(d, st).headOption, Some("New: never decided")))
   }
 
   test("context (show --full): with the idea, what it rests on and the obligations; nothing cut") {

@@ -80,12 +80,9 @@ class LeanOutputSuite extends munit.FunSuite:
     assertEquals(Elaboration(source, built, "Proofs/Tmp.lean").verdict("holey"), TheoremVerdict.UsesSorry)
     // what Lean says of another file says nothing of this one
     assertEquals(Elaboration(source, elaborated, "Proofs/Other.lean").verdict("bad"), TheoremVerdict.Proven)
-  }
-
-  test("sorry found among a theorem's axioms, without the warning") {
-    val e = Elaboration(source, "'Tmp.holey' depends on axioms: [sorryAx]\n", "Proofs/Tmp.lean")
-    assertEquals(e.verdict("holey"), TheoremVerdict.UsesSorry)
-    assertEquals(e.axiomsOf("holey"), Some(List("sorryAx")))
+    // sorry found among a theorem's axioms, without the warning
+    val axiomsOnly = Elaboration(source, "'Tmp.holey' depends on axioms: [sorryAx]\n", "Proofs/Tmp.lean")
+    assertEquals((axiomsOnly.verdict("holey"), axiomsOnly.axiomsOf("holey")), (TheoremVerdict.UsesSorry, Some(List("sorryAx"))))
   }
 
   test("comments and strings do not count as code, and keep their lines") {
@@ -97,7 +94,12 @@ class LeanOutputSuite extends munit.FunSuite:
     assertEquals(LeanSource.theorems("-- theorem hidden : False := sorry\ntheorem shown : True := trivial\n").map(_.name), List("shown"))
   }
 
-  test("what a proof file or the shared lemmas may not hold, in words") {
+  test("a proof file holds only tactic proofs; what it or the shared lemmas may not hold, in words") {
+    assertEquals(ProofRules.violations(Generate(frflow.fixtures.squareKb).proofFile(frflow.fixtures.nonNegative).replace("sorry", "simp")), Nil)
+    val bad = "import Lean\nrun_cmd do pure ()\nset_option debug.skipKernelTC true\nattribute [simp] foo\n#eval 1\ntheorem complete : Obl.complete := by simp\n"
+    assertEquals(ProofRules.violations(bad).map(_._2).toSet,
+      Set("import", "command run_cmd", "metaprogram", "set_option", "command attribute", "attribute", "command #eval"))
+    assert(ProofRules.violations("set_option\n  debug.skipKernelTC true\n").nonEmpty)
     assertEquals(ProofRules.notAllowed("theorem complete : Obl.complete := by\n  simp\n"), None)
     assertEquals(ProofRules.notAllowed("theorem t : True := by native_decide\naxiom bad : False\n"), Some("native_decide, command axiom, axiom"))
     assertEquals(ProofRules.notAllowedInLemmas("import Proofs.K.Lemmas\ntheorem t : True := trivial\n"), Some("import Proofs.K.Lemmas"))

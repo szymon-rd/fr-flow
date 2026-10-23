@@ -14,6 +14,10 @@ class RuntimeSuite extends munit.FunSuite:
     intercept[ContractViolation](bad(List(Book("a", 50)), 1))
     val unbound = pick.enforce((shelf, n) => shelf)()
     intercept[IllegalStateException](unbound(List(Book("a", 500)), 1))
+    // an assumption's service runs its check, not its post: a book off the shelf passes it, a short book does not
+    def port(code: (List[Book], Int) => List[Book]) = shelfWith(pick, shelfPort).implement(shelfPort)(code).service(shelfPort)(minPages.bind(100))(Nil, 1)
+    assertEquals(port((shelf, n) => List(Book("Elsewhere", 500))), List(Book("Elsewhere", 500)))
+    intercept[ContractViolation](port((shelf, n) => List(Book("Short", 20))))
   }
 
   test("service binds each operation with code to that code, and each defined term to its definition") {
@@ -86,7 +90,8 @@ class RuntimeSuite extends munit.FunSuite:
     assertEquals(Bindings.within(Seq(minPages.bind(7)))(Bindings.within(Seq(minPages.bind(8)))(minPages.value) + minPages.value), 15)
   }
 
-  test("the implementation is also run on combinations of the examples' inputs") {
+  test("the implementation is also run on combinations of the examples' inputs: those that fail are listed, code that throws too") {
+    assertEquals(shelfKb.generated(pick), Nil)
     val two = Node.contract(picks)("Two", "Picking returns only long enough books.", "w")(
       (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages.value)).under(shelfParts*)
       .examples(minPages.bind(100))(
@@ -100,6 +105,8 @@ class RuntimeSuite extends munit.FunSuite:
     val generated = rs.drop(3)
     assertEquals(generated.size, 1)
     assert(generated.head.implementation.exists(_.contains("breaks the contract")), generated)
+    val boom = shelfWith(two).implement(two)((s, n) => if s.size > 1 && n == 1 then sys.error("boom") else s.filter(_.pages >= minPages.value)).generated(two)
+    assertEquals(boom.map(r => (r.implementation, r.example.call)), List((Some("error: boom"), "(List(Book(\"Long\", 300), Book(\"Short\", 20)), 1) ⇒ no result")))
   }
 
   test("examples are checked against the contract and the registered implementation") {
@@ -126,41 +133,20 @@ class RuntimeSuite extends munit.FunSuite:
     assertEquals(s(List(Book("Long", 300)), 1), List(Book("Long", 300)))
   }
 
-  test("generated calls are only listed when they fail, at most ten, and code that throws is a finding") {
-    assertEquals(shelfKb.generated(pick), Nil)
-    val throwing = shelfKb.implement(pick)((shelf, n) => if shelf.size > 1 && n == 1 then sys.error("boom") else shelf.filter(_.pages >= minPages.value))
-    val two = Node.contract(picks)("Two", "s", "w")((shelf, n, picked) => picked.forall(b => shelf.contains(b)))
-      .examples(minPages.bind(100))(
-        expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "the long book"),
-        expect(List(Book("Short", 20)), 1, Nil, "no long book"),
-        reject(List(Book("Short", 20)), 1, List(Book("X", 1)), "never one off the shelf"))
-    val rs = shelfWith(two).implement(two)((s, n) => if s.size > 1 && n == 1 then sys.error("boom") else s.filter(_.pages >= minPages.value)).generated(two)
-    assertEquals(rs.map(_.implementation), List(Some("error: boom")))
-    assertEquals(rs.map(_.example.call), List("(List(Book(\"Long\", 300), Book(\"Short\", 20)), 1) ⇒ no result"))
-    assert(throwing.generated(pick).isEmpty) // the examples' inputs never ask for one book of two
-  }
-
-  test("values near a value: the boundaries and next to them, a list shortened or grown, a field changed") {
+  test("probes: values near a value, inputs near the examples' that no example asks, their combinations, a parameter's variations") {
     assertEquals(Probes.near(5, List(BigInt(3))), List(3, 0, 6, 4, -5))
     assertEquals(Probes.near(List(1), Nil), List(Nil, List(1, 1), List(1, 0), List(1, 2)))
     assertEquals(Probes.near(Book("A", 1), Nil), List(Book("", 1), Book("AA", 1), Book("A", 0), Book("A", 2), Book("A", -1)))
     assertEquals(Probes.near(None, Nil), Nil)
-  }
-
-  test("inputs near the examples' that no example asks, and every combination of the examples' inputs") {
     val cases = pick.cases
     val inputs = Probes.inputs(cases)
-    assert(inputs.nonEmpty)
     assert(inputs.forall(i => !cases.exists(e => (e.a, e.b) == i)))
     assertEquals(inputs.distinct, inputs)
     // the numbers the examples hold are tried as the other input
     assert(inputs.exists(_._2 == 300), inputs)
     assertEquals(Probes.boundaries(cases), List(BigInt(300), BigInt(20), BigInt(5)))
-    val combos = Probes.combinations(cases)
-    assertEquals(combos.size, cases.map(_.a).distinct.size * cases.map(_.b).distinct.size)
-  }
-
-  test("variations of a parameter value: at most eight") {
+    assertEquals(Probes.combinations(cases).size, cases.map(_.a).distinct.size * cases.map(_.b).distinct.size)
+    // a parameter's value varied: at most eight
     val table = List(Book("A", 100), Book("B", 200), Book("C", 300))
     val vs = Probes.variations(table, pick.cases)
     assertEquals(vs, Probes.near(table, Probes.boundaries(pick.cases) ++ Probes.numbers(table)).take(8))

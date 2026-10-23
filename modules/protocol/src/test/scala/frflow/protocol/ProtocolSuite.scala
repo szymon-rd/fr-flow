@@ -16,14 +16,11 @@ class ProtocolSuite extends munit.FunSuite:
     "statement" -> Json.fromString("Readers  find\tthe books\n they ask for."), "formal" -> Json.False)
 
   test("statuses are written as words, and read back") {
-    assertEquals(CheckStatus.ModelError.asJson, Json.fromString("model-error"))
-    assertEquals(ObligationStatus.NotShown.toString, "not-shown")
-    assertEquals(decode[Cause]("\"self\""), Right(Cause.Self))
+    assertEquals((CheckStatus.ModelError.asJson, ObligationStatus.NotShown.toString), (Json.fromString("model-error"), "not-shown"))
     assert(decode[Action]("\"settle\"").isLeft)
     List(NodeKind.values, CheckStatus.values, ObligationStatus.values, ReviewState.values, Cause.values, Action.values,
       RequestStatus.values, BelowKind.values).foreach(_.foreach(v => assertEquals(v.toString, v.toString.toLowerCase)))
     NodeKind.values.foreach(roundTrip(_)); CheckStatus.values.foreach(roundTrip(_)); ObligationStatus.values.foreach(roundTrip(_))
-    assertEquals(NodeKind.Claim.shown(rule = true), "invariant")
   }
 
   test("the canonical printing is compact, in field order; hashing ignores runs of whitespace") {

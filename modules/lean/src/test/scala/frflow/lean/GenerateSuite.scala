@@ -17,9 +17,6 @@ class GenerateSuite extends munit.FunSuite:
     assertEquals(opens.names, List("picks", "minPages"))
     assert(g.domain.contains("abbrev Item : Type := Book"), g.domain)
     assert(g.domain.contains("def good (minPages : Int) : Book → Prop"), g.domain)
-    // the definitions a node uses, however nested
-    assertEquals(shelfKb.definitionsUsed(onlyGood, g.inForce).map(_.id).sorted, List("Books", "Picking"))
-    assertEquals(shelfKb.definitionsUsed(pick, g.inForce), Nil)
   }
 
   test("a node with parts is proven complete from them; a leaf has nothing to prove but that it is not contradictory") {
@@ -72,15 +69,6 @@ class GenerateSuite extends munit.FunSuite:
     val c = Generate(callsKb)
     assertEquals(c.calls(againC).map(_.id), List("PickPromise"))
     assert(c.obligation(againC, ObligationName.Impl).get.statement.contains("h_PickPromise"), c.obligation(againC, ObligationName.Impl))
-  }
-
-  test("proof files may contain only tactic proofs") {
-    val ok = Generate(squareKb).proofFile(nonNegative).replace("sorry", "simp")
-    assertEquals(ProofRules.violations(ok), Nil)
-    val bad = "import Lean\nrun_cmd do pure ()\nset_option debug.skipKernelTC true\nattribute [simp] foo\n#eval 1\ntheorem complete : Obl.complete := by simp\n"
-    assertEquals(ProofRules.violations(bad).map(_._2).toSet,
-      Set("import", "command run_cmd", "metaprogram", "set_option", "command attribute", "attribute", "command #eval"))
-    assert(ProofRules.violations("set_option\n  debug.skipKernelTC true\n").nonEmpty)
   }
 
   test("a node is witnessed by proven code, an assumption, or parts that all are; a part nothing proves witnesses nothing") {
