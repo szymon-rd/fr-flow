@@ -157,6 +157,8 @@ The examples:
 
 ## More
 
+- [docs/index.html](docs/index.html): the documentation. A tutorial, how-to
+  guides, the reference for the model and the CLI, and troubleshooting.
 - [docs/USAGE.md](docs/USAGE.md): the commands, output and exit codes, what
   Lean proves, warnings, starting a project, the web view, modules, and
   measurements.
