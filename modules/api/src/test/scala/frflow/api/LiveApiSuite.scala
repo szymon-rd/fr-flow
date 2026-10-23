@@ -84,3 +84,17 @@ class LiveApiSuite extends munit.CatsEffectSuite:
       assertEquals((filed, l), (false, Ledger.empty))
       assertEquals((fromEnv, named), (Right(Developer("ci-dev")), Right(dev)))
   }
+
+  dir.test("the model's fingerprint moves when a source of the model changes on disk, and only then") { d =>
+    val source = project(d).resolve("src/main/scala/Shelf.scala")
+    for
+      live <- api(d)
+      _ <- IO.blocking { Files.createDirectories(source.getParent); Files.writeString(source, "object Shelf") }
+      before <- live.modelFingerprint
+      same <- live.modelFingerprint
+      _ <- IO.blocking(Files.writeString(source, "object Shelf:\n  val books = 1"))
+      after <- live.modelFingerprint
+    yield
+      assertEquals(same, before)
+      assertNotEquals(after, before)
+  }

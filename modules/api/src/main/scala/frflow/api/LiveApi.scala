@@ -87,6 +87,10 @@ final class LiveApi private (kb: KnowledgeBase, ws: Workspace, cfg: Config, lake
   override protected def exists(path: String): IO[Boolean] =
     IO(java.nio.file.Files.exists(ws.root.resolve(path)) || java.nio.file.Files.exists(Path.of(path))).handleError(_ => false)
 
+  def modelFingerprint: IO[Fingerprint] =
+    Inputs.projectSources(ws.root, cfg.sources).flatMap(_.sorted.traverse(p => Disk.read(p).map(t => s"$p\u0000${t.getOrElse("")}")))
+      .map(texts => Fingerprint(Sha(texts.mkString("\u0000"))))
+
   def scaffold(id: NodeId): IO[Scaffolded] =
     IO.fromOption(kb.node(id.value))(FrFlowError.UnknownNode(id)).flatMap(n =>
       analysis.flatMap(Scaffold(_, lake, n)).flatTap(_ => analysis.flatMap(CheckRunner.writeSnapshot)).map(Scaffolded(id, _)))

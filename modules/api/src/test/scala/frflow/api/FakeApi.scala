@@ -9,7 +9,8 @@ import java.time.Instant
 /** The API over a fixed snapshot, its ledger and requests in memory: the CLI's tests run on it. Decisions
   * and requests go through the ledger's `Decide` and `Requests`, as the live API's do; nothing is signed.
   */
-final class FakeApi(snapshot: Snapshot, ledger: Ref[IO, Ledger], requests: Ref[IO, List[Request]]) extends FrFlowApi:
+final class FakeApi(snapshot: Snapshot, ledger: Ref[IO, Ledger], requests: Ref[IO, List[Request]], model: Ref[IO, Fingerprint])
+    extends FrFlowApi:
   private val at = Stamp(Instant.parse("2026-01-04T12:00:00Z"))
 
   def view: IO[View] = (ledger.get, requests.get).flatMapN((l, rs) => IO.pure(Sample.view(snapshot, l, rs)))
@@ -40,7 +41,11 @@ final class FakeApi(snapshot: Snapshot, ledger: Ref[IO, Ledger], requests: Ref[I
   def status: IO[StatusReport] = view.map(StatusReport.of)
   def ci(progress: Progress => IO[Unit]): IO[CiReport] = unavailable
   def scaffold(node: NodeId): IO[Scaffolded] = unavailable
+  def modelFingerprint: IO[Fingerprint] = model.get
+  /** As if the agent edited the model's sources. */
+  def editModel: IO[Unit] = model.update(f => Fingerprint(f.value + "'"))
 
 object FakeApi:
   def apply(snapshot: Snapshot = Sample.snapshot, ledger: Ledger = Sample.ledgerNow, requests: List[Request] = Sample.requests): IO[FakeApi] =
-    (Ref.of[IO, Ledger](ledger), Ref.of[IO, List[Request]](requests)).mapN(new FakeApi(snapshot, _, _))
+    (Ref.of[IO, Ledger](ledger), Ref.of[IO, List[Request]](requests), Ref.of[IO, Fingerprint](Fingerprint("model")))
+      .mapN(new FakeApi(snapshot, _, _, _))

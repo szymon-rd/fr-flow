@@ -39,6 +39,10 @@ trait FrFlowApi:
   def status: IO[StatusReport]
   def ci(progress: Progress => IO[Unit] = _ => IO.unit): IO[CiReport]
   def scaffold(node: NodeId): IO[Scaffolded]
+  /** The model's sources as they are on disk now. A process that keeps running (`serve`) compiled its model when it
+    * started: once this moves, what it shows mixes that model with the files of another, and is not decided on.
+    */
+  def modelFingerprint: IO[Fingerprint]
   /** A path as the project names it: relative to its directory (a path from elsewhere is given as it is). */
   protected def relative(query: String): IO[String] = IO.pure(query)
 
