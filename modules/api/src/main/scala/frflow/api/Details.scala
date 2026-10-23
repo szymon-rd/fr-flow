@@ -2,40 +2,53 @@ package frflow.api
 
 import frflow.ledger.{CodeProof, Graph, Waiting}
 import frflow.protocol.*
+import io.circe.{Codec, Json}
 
-/** A node with what surrounds it, and what changed since it was decided: what `show`, `diff` and the
-  * review read.
+/** A node with everything around it: what `show` and the review read. `beside`: under each parent, the other
+  * parts that with it make the parent; `keptBy`: for an invariant, the contracts that keep it (or are exempt);
+  * `defs`: the Scala functions its formal statement calls, and those they call.
   */
+final case class NodeDetails(node: Reviewed, isRoot: Boolean, trusted: Boolean, idea: String, parents: List[Reviewed],
+    beside: List[(NodeId, List[Reviewed])], above: List[Reviewed], parts: List[Reviewed], designs: List[Reviewed],
+    definitions: List[Reviewed], usedBy: List[Reviewed], calls: List[Reviewed], calledBy: List[Reviewed], keptBy: List[Reviewed],
+    rivals: List[Reviewed], terms: List[Term], defs: List[DefText], codeProof: Option[CodeProof], requests: List[Request],
+    withAgent: Boolean, diff: NodeDiff) derives Codec.AsObject
+
+/** A term of a node's vocabulary: what it means in the world, and the definition that fixes it. */
+final case class Term(name: String, means: String, operation: Boolean, definedBy: Option[NodeId]) derives Codec.AsObject
+/** What changed since a node was decided, by cause; `statementStale`: what it says formally changed, and its words did not. */
+final case class NodeDiff(id: NodeId, causes: List[Cause], since: Option[Decision], self: List[FieldChange],
+    partsAdded: List[NodeId], partsRemoved: List[NodeId], moved: List[MovedAbove], rejectedParents: List[NodeId],
+    revisit: Option[Decision], code: Option[CodeChange], statementStale: Boolean) derives Codec.AsObject:
+  def isEmpty: Boolean = self.isEmpty && partsAdded.isEmpty && partsRemoved.isEmpty && moved.isEmpty &&
+    rejectedParents.isEmpty && revisit.isEmpty && code.isEmpty
+
+/** An ancestor (or a definition used, a contract called) whose meaning moved since the node was decided. */
+final case class MovedAbove(id: NodeId, acceptedAgain: Boolean, reason: Option[String], changes: List[FieldChange])
+    derives Codec.AsObject
+final case class FieldChange(field: String, lines: List[DiffLine]) derives Codec.AsObject
+
+enum DiffLine derives Codec.AsObject:
+  case Same(text: String)
+  case Added(text: String)
+  case Removed(text: String)
+  case Folded(lines: Int)
+
+/** How the code a node governs changed since it was decided (a git diff), or, never decided, the files in full. */
+final case class CodeChange(files: List[String], text: String, inFull: Boolean) derives Codec.AsObject
+
 object Details:
   def of(v: View, r: Reviewed, code: Option[CodeChange]): NodeDetails =
     val (designs, parts) = r.node.parts.flatMap(v.node).partition(_.node.kind == NodeKind.Design)
     val parents = r.node.parents.flatMap(v.node)
-    val up = above(v, r)
-    NodeDetails(
-      node = r,
-      isRoot = v.isRoot(r),
-      trusted = v.snapshot.trusted.contains(r.id),
-      idea = idea(v, r, up),
-      parents = parents,
-      beside = parents.map(p => p.id -> p.node.parts.filter(_ != r.id).flatMap(v.node)),
-      above = up,
-      parts = parts,
-      designs = designs,
-      definitions = r.node.uses.flatMap(v.node),
-      usedBy = v.nodes.filter(_.node.uses.contains(r.id)),
-      calls = r.node.relies.flatMap(v.node),
-      calledBy = v.nodes.filter(_.node.relies.contains(r.id)),
-      keptBy = v.nodes.filter(_.node.invariants.exists(_.id == r.id)),
-      rivals = r.review.rivals.flatMap(v.node),
-      terms = terms(v, r),
-      defs = defs(v, r),
-      codeProof = CodeProof.of(r.node),
-      requests = v.requests.filter(q => q.node.contains(r.id) && q.status != RequestStatus.Closed),
-      withAgent = v.withAgent(r),
-      diff = diff(v, r, code))
-
-  /** What a node rests on, nearest first (see `Graph.ancestry`): their reasons say when to revisit them. */
-  def above(v: View, r: Reviewed): List[Reviewed] = Graph(v.snapshot).ancestry(r.node).filter(_ != r.id).flatMap(v.node)
+    // Nearest first (see `Graph.ancestry`): their reasons say when to revisit them.
+    val above = Graph(v.snapshot).ancestry(r.node).filter(_ != r.id).flatMap(v.node)
+    NodeDetails(r, v.isRoot(r), v.snapshot.trusted.contains(r.id), idea(v, r, above), parents,
+      parents.map(p => p.id -> p.node.parts.filter(_ != r.id).flatMap(v.node)), above, parts, designs,
+      r.node.uses.flatMap(v.node), v.nodes.filter(_.node.uses.contains(r.id)), r.node.relies.flatMap(v.node),
+      v.nodes.filter(_.node.relies.contains(r.id)), v.nodes.filter(_.node.invariants.exists(_.id == r.id)),
+      r.review.rivals.flatMap(v.node), terms(v, r), defs(v, r), CodeProof.of(r.node),
+      v.requests.filter(q => q.node.contains(r.id) && q.status != RequestStatus.Closed), v.withAgent(r), diff(v, r, code))
 
   /** The root's idea (its lead), the section of the nearest node naming one, and what is not modelled. */
   private def idea(v: View, r: Reviewed, up: List[Reviewed]): String =
@@ -46,24 +59,20 @@ object Details:
     val notModelled = section.orElse(root).map(_.node.content.text("notModelled")).filter(_.nonEmpty).map("Not modelled:\n" + _)
     (lead.toList ++ section.map(text) ++ notModelled).map(_.trim).filter(_.nonEmpty).mkString("\n\n")
 
-  /** The terms a node mentions (its `vocabulary`, "name: means"), with the definition fixing each. */
-  def terms(v: View, r: Reviewed): List[Term] =
+  /** Its `vocabulary` lines read "name: means". */
+  private def terms(v: View, r: Reviewed): List[Term] =
     val opaques = v.snapshot.opaques.map(o => o.name -> o.definedBy).toMap
     val params = v.snapshot.params.map(p => p.name -> p).toMap
     r.node.content.strs("vocabulary").map { line =>
-      val (name, means) = line.indexOf(':') match
-        case -1 => (line.trim, "")
-        case i => (line.take(i).trim, line.drop(i + 1).trim)
+      val (name, means) = line.span(_ != ':') match { case (n, m) => (n.trim, m.drop(1).trim) }
       Term(name, means, params.get(name).exists(_.operation), params.get(name).flatMap(_.definedBy).orElse(opaques.get(name).flatten))
     }
 
-  /** The functions its formal statement names, and those they name in turn. */
   private def defs(v: View, r: Reviewed): List[DefText] =
     def named(text: String) = v.snapshot.defs.filter(d => s"\\b${java.util.regex.Pattern.quote(d.name)}\\b".r.findFirstIn(text).isDefined)
     val sources = r.node.content("sources").flatMap(_.asObject).fold(Nil)(_.values.flatMap(_.asString).toList)
     Walk.preorder(sources.flatMap(named), (d: DefText) => d.name)(d => named(d.source).filter(_.name != d.name))
 
-  /** What changed since the node was decided, by cause; `code` is how its code changed (or, never decided, the code in full). */
   def diff(v: View, r: Reviewed, code: Option[CodeChange]): NodeDiff =
     val causes = r.review.causes
     val since = r.review.binding
@@ -76,16 +85,67 @@ object Details:
       MovedAbove(m.id, now.exists(_.state == ReviewState.Accepted), now.flatMap(_.review.reasonNow),
         Fields.changes(m.before, now.fold(Content.empty)(_.node.content)))
     }
-    val changedFields = self.map(_.field).toSet
-    NodeDiff(
-      id = r.id,
-      causes = causes,
-      since = since,
-      self = self,
-      partsAdded = added,
-      partsRemoved = removed,
-      moved = moved,
-      rejectedParents = if causes.contains(Cause.Above) then Waiting.rejectedParents(v.annotated, r) else Nil,
-      revisit = Option.when(causes.contains(Cause.Revisit))(r.review.history.reverse.find(_.action == Action.Revisit)).flatten,
-      code = code,
-      statementStale = changedFields.exists(Fields.formal) && !changedFields("statement"))
+    val changed = self.map(_.field).toSet
+    NodeDiff(r.id, causes, since, self, added, removed, moved,
+      if causes.contains(Cause.Above) then Waiting.rejectedParents(v.annotated, r) else Nil,
+      Option.when(causes.contains(Cause.Revisit))(r.review.history.reverse.find(_.action == Action.Revisit)).flatten,
+      code, changed.exists(Fields.formal) && !changed("statement"))
+
+/** A node's content as fields people read, and what changed between two contents, field by field. */
+object Fields:
+  private val labels = Map("uses" -> "definitions used", "notModelled" -> "not modelled", "ideaSection" -> "idea section",
+    "definition" -> "definition (as written)", "op" -> "operation", "keeps" -> "invariants kept")
+  /** What Lean reads of a node (its `sources`). */
+  val formal: Set[String] = Set("formula", "post", "rule", "check")
+
+  /** The source as written comes last: it repeats the rest. */
+  def of(c: Content): List[(String, String)] =
+    val flat = c.fields.flatMap((k, j) =>
+      j.asObject.filter(_ => k == "sources").fold(List(labels.getOrElse(k, k) -> text(j)))(_.toList.map((s, v) => s -> text(v))))
+    val (source, rest) = flat.partition(_._1 == labels("definition"))
+    rest ++ source
+
+  private def text(j: Json): String =
+    j.asString.orElse(j.asArray.map(_.map(x => x.asString.getOrElse(Canonical.print(x))).mkString("\n"))).getOrElse(Canonical.print(j))
+
+  /** The source as written only when nothing else changed. */
+  def changes(before: Content, after: Content): List[FieldChange] =
+    val (a, b) = (of(before).toMap, of(after))
+    val changed = (b.map(_._1) ++ of(before).map(_._1)).distinct.flatMap { k =>
+      val (was, now) = (a.getOrElse(k, ""), b.toMap.getOrElse(k, ""))
+      Option.when(was != now)(FieldChange(k, LineDiff(was, now)))
+    }
+    val (source, rest) = changed.partition(_.field == labels("definition"))
+    if rest.isEmpty then source else rest
+
+/** A line diff by longest common subsequence; an unchanged run more than `context` lines from a change is folded. */
+object LineDiff:
+  /** Beyond this many line pairs the whole text is shown as replaced. */
+  private val Budget = 250000
+
+  def apply(before: String, after: String, context: Int = 1): List[DiffLine] =
+    def lines(s: String) = if s.isEmpty then Vector.empty else s.split("\n", -1).toVector
+    val (a, b) = (lines(before), lines(after))
+    fold(if a.size.toLong * b.size > Budget then (a.map(DiffLine.Removed(_)) ++ b.map(DiffLine.Added(_))).toList else align(a, b), context)
+
+  private def align(a: Vector[String], b: Vector[String]): List[DiffLine] =
+    // common(i)(j): the length of the longest common subsequence of a.drop(i) and b.drop(j).
+    val common = Array.ofDim[Int](a.size + 1, b.size + 1)
+    for i <- a.indices.reverse; j <- b.indices.reverse do
+      common(i)(j) = if a(i) == b(j) then common(i + 1)(j + 1) + 1 else common(i + 1)(j).max(common(i)(j + 1))
+    def walk(i: Int, j: Int, acc: List[DiffLine]): List[DiffLine] =
+      if i < a.size && j < b.size && a(i) == b(j) then walk(i + 1, j + 1, DiffLine.Same(a(i)) :: acc)
+      else if i < a.size && (j == b.size || common(i + 1)(j) >= common(i)(j + 1)) then walk(i + 1, j, DiffLine.Removed(a(i)) :: acc)
+      else if j < b.size then walk(i, j + 1, DiffLine.Added(b(j)) :: acc)
+      else acc.reverse
+    walk(0, 0, Nil)
+
+  private def fold(ops: List[DiffLine], context: Int): List[DiffLine] =
+    def same(l: DiffLine) = PartialFunction.cond(l) { case DiffLine.Same(_) => true }
+    val changed = ops.indices.filterNot(k => same(ops(k))).toVector
+    ops.zipWithIndex.map((l, k) => Option.when(!same(l) || changed.exists(c => (c - k).abs <= context))(l))
+      .foldRight(List.empty[DiffLine]) {
+        case (Some(l), acc) => l :: acc
+        case (None, DiffLine.Folded(n) :: rest) => DiffLine.Folded(n + 1) :: rest
+        case (None, acc) => DiffLine.Folded(1) :: acc
+      }

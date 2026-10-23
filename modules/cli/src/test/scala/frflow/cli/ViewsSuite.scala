@@ -1,6 +1,5 @@
 package frflow.cli
 
-import cats.effect.IO
 import frflow.api.*
 import frflow.protocol.*
 
@@ -9,20 +8,14 @@ class ViewsSuite extends munit.CatsEffectSuite with Golden:
   private val st = Style(color = false, unicode = false, width = Some(100))
   private def api = FakeApi()
 
-  test("tree: the DAG from the root, the sections, the summary") {
-    api.flatMap(_.tree(None)).map(t => golden("tree", TreeText.lines(t, st)))
+  test("tree: the DAG from the root, the sections, the summary; from a node, what is below it") {
+    api.flatMap(_.tree(None)).map(t => golden("tree", TreeText.lines(t, st))) *>
+      api.flatMap(_.tree(Some(NodeId("LetsIn")))).map(t => golden("tree-node", TreeText.lines(t, st)))
   }
 
-  test("tree NODE: what is below it, each part under a parent drawn") {
-    api.flatMap(_.tree(Some(NodeId("LetsIn")))).map(t => golden("tree-node", TreeText.lines(t, st)))
-  }
-
-  test("show: a node under review, with what changed and what deciding it acts on") {
-    api.flatMap(_.details(NodeId("Decide"))).map(d => golden("show-review", NodeText.lines(d, st)))
-  }
-
-  test("show: a proposal waiting for its parent") {
-    api.flatMap(_.details(NodeId("Expiry"))).map(d => golden("show-proposed", NodeText.lines(d, st)))
+  test("show: a node under review, with what changed and what deciding it acts on; a proposal waiting for its parent") {
+    api.flatMap(_.details(NodeId("Decide"))).map(d => golden("show-review", NodeText.lines(d, st))) *>
+      api.flatMap(_.details(NodeId("Expiry"))).map(d => golden("show-proposed", NodeText.lines(d, st)))
   }
 
   test("diff: a proposal is new; a change is shown once, field by field") {
