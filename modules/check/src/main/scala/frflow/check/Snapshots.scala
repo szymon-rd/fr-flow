@@ -93,8 +93,11 @@ object Governance:
       a.current(c).filter(k => !k.obligations.exists(o => o.name.isInstanceOf[Eval] && o.status == Proven)).map(_ =>
         s"${c.id}: none of its examples is evaluated in Lean, so nothing checks that the Lean means what the Scala does: give its parameters values Lean has (bindTable for a lookup)")
     }
+    // A one-part node Lean proves equivalent to its part (`complete` and `restates` both proven) says nothing of its own.
+    val restated = kb.nodes.flatMap(n => a.current(n).filter(_.result(ObligationName.Complete).exists(_.status == Proven))
+      .flatMap(_.result(ObligationName.Tried(TryKind.Restates))).filter(_.status == Shown).map(_.detail))
     missing ++ owners ++ ideaCoverage ++ orphans ++ ungoverned(a).map(f => s"$f is governed by no node: govern it (a design node) or move it") ++
-      uncrossed
+      uncrossed ++ restated
 
   /** Source files no node governs, other than the model's own: code that can change unnoticed (see `Inputs.projectSources`). */
   def ungoverned(a: Analysis): List[String] =

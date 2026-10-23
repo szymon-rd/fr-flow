@@ -142,9 +142,12 @@ class LeanSuite extends munit.FunSuite:
     assertEquals(List("vacuous", "restates").map(result(vac, _).map(_.status.toString)), List(Some("shown"), Some("not-shown")), vac)
     val same = Node.claim("Same", "Picked books come from the shelf.", why = "w")(forall((l: List[Book], n: Int) => picks(l, n).forall(b => l.contains(b))))
     val again = Node.claim("Again", "Every book picked is on the shelf.", why = "w")(forall((l: List[Book], n: Int) => picks(l, n).forall(b => l.contains(b)))).under(same)
-    val restates = of(workflow(KnowledgeBase("Same", idea = "IDEA.md")(same, again)).check(), "Same")
+    val sameLab = workflow(KnowledgeBase("Same", idea = "IDEA.md")(same, again))
+    val restates = of(sameLab.check(), "Same")
     assertEquals(result(restates, "restates").map(r => (r.status.toString, r.detail)),
       Some(("shown", "Same says what Again says: merge them, or say what Same adds")), restates)
+    // and status warns of it
+    assert(sameLab.analysis.warnings.contains("Same says what Again says: merge them, or say what Same adds"), sameLab.analysis.warnings)
     val never = Node.claim("Never", "The service picks more books than it picks.", why = "w")(
       picks(List(Book("A", 1)), 1).length > picks(List(Book("A", 1)), 1).length).under(onlyGood)
     val u = of(workflow(KnowledgeBase("Unsat", idea = "IDEA.md")(onlyGood, books, picking, never)).check(), "Never")
