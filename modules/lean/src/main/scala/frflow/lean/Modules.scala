@@ -2,10 +2,54 @@ package frflow
 package lean
 
 import frflow.protocol.{ObligationName, TryKind}
+import scala.collection.immutable.ListSet
 import ObligationName.*
 import LeanText.*
 
-/** The Lean modules of each formal node (see `Layout`): its model and the theorems proven of it. */
+/** The vocabulary, a module per `define` and per defined term: a change to one rebuilds only the nodes that use it. */
+final class VocabularyModules(kb: KnowledgeBase, layout: Layout, vocabulary: Vocabulary):
+  import vocabulary.*
+  private val K = kb.name
+
+  def types: String =
+    val abbrevs = definitionsInForce.collect { case (t, d, s) if s.isType => s"/-- ${d.id} -/\n@[frflow_defs] abbrev $t : Type := ${s.lean}" }
+    module(List(LeanModule("FrFlow")), K, (kb.types.map(_.lean) ++ abbrevs).mkString("\n\n") + "\n\n")
+  private def declaring(uses: List[LeanModule], decl: String): String =
+    module((layout.types :: uses).distinct, K, decl + "\n\n" + MatchEqns + "\n")
+  private def definedTerms: List[(String, Node[?], Lifted[?])] =
+    definitionsInForce.collect { case (t, d, s) if !s.isType => s.term.map((t, d, _)) }.flatten
+
+  def files: List[(String, String)] =
+    val defs = kb.defs.map { d =>
+      layout.definition(d.name).path -> declaring(d.lifted.defs.map(_.name).filter(x => x != d.name && defNames(x)).map(layout.definition),
+        definition(d.name, binders(defCtx(d)), d.lifted.leanType, resolve(d.lifted.lean)))
+    }
+    val terms = definedTerms.map { (t, d, l) =>
+      layout.term(t).path -> declaring(l.defs.map(_.name).filter(defNames).map(layout.definition),
+        s"/-- ${d.id} -/\n" + definition(t, binders(ctx(l)), l.leanType, resolve(l.lean)))
+    }
+    defs ++ terms
+
+  def domainModule: String =
+    Header + imports((layout.types :: kb.defs.map(d => layout.definition(d.name)) ++ definedTerms.map(t => layout.term(t._1))).distinct)
+  def domain: String = (types :: files.map(_._2)).mkString("\n")
+
+  private final case class Needs(defs: ListSet[String], terms: ListSet[String]):
+    def define(d: Def[?]): Needs = Def.closure(List(d)).foldLeft(this) { (acc, x) =>
+      if !defNames(x.name) || acc.defs(x.name) then acc
+      else defCtx(x).names.foldLeft(acc.copy(defs = acc.defs + x.name))(_.term(_))
+    }
+    def term(t: String): Needs = definedTerm(t) match
+      case Some(l) if !terms(t) =>
+        val withDefs = l.defs.foldLeft(copy(terms = terms + t))(_.define(_))
+        ctx(l).names.foldLeft(withDefs)(_.term(_))
+      case _ => this
+
+  def modulesFor(defs: List[Def[?]], terms: List[String]): List[LeanModule] =
+    val needs = terms.foldLeft(defs.foldLeft(Needs(ListSet.empty, ListSet.empty))(_.define(_)))(_.term(_))
+    needs.defs.toList.map(layout.definition) ++ needs.terms.toList.map(layout.term)
+
+/** The Lean modules of each formal node: its model and the theorems proven of it. */
 final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinement, vocabularyModules: VocabularyModules,
     obligations: Obligations, evals: Evals):
   import refinement.*
@@ -13,13 +57,10 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
   import obligations.*
   private val K = kb.name
 
-  /** The vocabulary a node's model needs: what its expressions and its code mention. */
   private def vocabularyOf(n: Node[?]): List[LeanModule] =
     val ls = n.referenced ++ formalKeeps(n).flatMap(_._1.rule)
     val code = provenImpl(n).toList
     vocabularyModules.modulesFor(ls.flatMap(_.defs) ++ code, ls.flatMap(ctx(_).names) ++ code.flatMap(defCtx(_).names) ++ n.op.map(_.name))
-
-  /** A definition of the node's model, over the terms of `c`. */
   private def declared(name: String, c: Ctx, tpe: String, body: String): String = definition(name, binders(c), tpe, body) + "\n\n"
   private def lifted(name: String, l: Lifted[?]): String = declared(name, ctx(l), l.leanType, resolve(l.lean))
 
@@ -30,7 +71,6 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
       s"∀ $vars, $what $xs (${op.name} $xs)$rest"
     }
 
-  /** What the node says, as Lean: an invariant through its keepers' views, a contract through its post. */
   private def model(n: Node[?]): List[String] = (n.rule, n.post) match
     case (Some(r), _) =>
       val ks = keepers(n)
@@ -42,12 +82,9 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
       List(lifted("post", post)) ++ kept ++ n.local.map(lifted("runCheck", _)) ++
         List(declared("claim", claimCtx(n), "Prop", everyCall(n, ref(qualified(n, "post"), ctx(post)))))
     case _ => n.formula.map(lifted("claim", _)).toList
-
-  /** That every pair keeper `c`'s view lists of a call meets the invariant's rule. */
   private def keeps(n: Node[?], c: Node[?], view: Lifted[?], rule: String): String =
     s"(${everyCall(c, s"∀ p ∈ ${ref(qualified(n, s"view_${c.id}"), ctx(view))}", s", $rule p.1 p.2")})"
 
-  /** The node's model: its claim, the declarations it is stated with, and the statements of its obligations and tries. */
   def spec(n: Node[?]): String =
     val uses = (layout.types :: vocabularyOf(n) ++ (kb.parts(n).filter(formal) ++ callees(n) ++ keepers(n).map(_._1)).map(c => layout.spec(c.id))).distinct
     val expected = n.expected.zipWithIndex.map { case ((_, l), i) => lifted(s"expected_$i", l) }
@@ -56,27 +93,17 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
     }
     module(uses, s"$K.${n.id}", (model(n) ++ expected ++ obls).mkString + MatchEqns + "\n")
 
-  /** The node's own declarations a statement about it unfolds to (not the vocabulary's). */
   private def ownDefs(n: Node[?]): List[String] =
     qualified(n, "claim") :: (if n.isInvariant then qualified(n, "rule") :: keepers(n).map(k => qualified(n, s"view_${k._1.id}"))
       else if n.post.isDefined then List(qualified(n, "post")) else Nil)
 
-  /** `complete` by `frflow_auto`, unless the proof file proves it. A split whose node only regroups
-    * what its parts say (a group of claims, the root over its groups, an invariant over its keepers) is
-    * tried first by matching: the node's and its parts' own declarations unfolded, with the defined
-    * terms only the node mentions (the vocabulary its parts speak in left as it is), each statement split
-    * into its conjuncts (each hypothesis and the goal on its own: simplifying them as one term grows with
-    * the square of their size), and each conjunct of the node found among the parts', up to reducible
-    * unfolding only. `frflow_auto` unfolds everything and simplifies the hypotheses against each other: at
-    * a hundred conjuncts it runs out of time where matching takes seconds. Either is a proof Lean checks of
-    * the same `Obl.complete`; when matching does not close it (it fails fast), `frflow_auto` is tried as before.
-    */
+  /** `complete`: first by matching the node's conjuncts among its parts' (seconds where `frflow_auto` times out). */
   def auto(n: Node[?]): String =
     val body = splitParts(n).filterNot(_ => isAuthored(n, Complete)).fold("") { ps =>
       val hs = ps.map(p => s"h_${p.id}").mkString(" ")
       val names = splitOpens(n, ps).names
-      // A defined term the node mentions and none of its parts does names what its parts say together
-      // (a group's): unfolded too. The terms its parts mention stay folded, as they state them.
+      // A defined term the node mentions and none of its parts does names what its parts say together (a
+      // group's): unfolded too. The terms its parts mention stay folded, as they state them.
       def mentions(x: Node[?]) = x.referenced.flatMap(ctx(_).names).toSet
       val below = ps.flatMap(mentions).toSet
       val groups = mentions(n).toList.sorted.filter(t => !below(t) && definitionOf(t).exists(!_.isType)).map(t => s"$K.$t")
@@ -97,13 +124,11 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
     }
     module(List(layout.spec(n.id)), s"$K.${n.id}.Auto", body, Some(s"$K.${n.id}"))
 
-  /** `impl` by `frflow_auto`, unless the proof file proves it; with the axioms it rests on. */
   def impl(n: Node[?]): String =
     val ns = s"$K.${n.id}.Impl"
     val (uses, proof) = if isAuthored(n, Impl) then (layout.proofs(n.id), s"$K.${n.id}.Proofs.impl") else (layout.spec(n.id), byAuto(Impl))
     module(List(uses), ns, s"theorem impl : Obl.impl :=\n  $proof\n\n#print axioms $ns.impl\n\n", Some(s"$K.${n.id}"))
 
-  /** `holds`: the node, from the leaves below it, through `complete` here and `holds` of each part. */
   def theorems(n: Node[?]): String =
     val authoredSplit = isAuthored(n, Complete)
     val (uses, proof) = splitParts(n).fold((List(layout.spec(n.id)), s"h_${n.id}")) { ps =>
@@ -115,11 +140,7 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
     module(uses, s"$K.${n.id}", s"/-- ${n.id} holds of every world that meets the leaves below it: ${leaves(n).map(_.id).mkString(", ")}. -/\n" +
       s"theorem holds : ${holdsStatement(n)} := by\n${introduce(intro)}  exact $proof\n\n")
 
-  /** Everything else checked of a node, in one file elaborated (not built): the obligations besides
-    * `complete` and `impl` (by `frflow_auto`, or the theorem of that name in its proof file), the tries
-    * (each with a small budget, the root's `idle` with Lean's default: they are one-sided), and the
-    * axioms `holds` rests on. Each theorem stands or falls on its own; Lean goes on past one that fails.
-    */
+  /** Elaborated, not built, each theorem on its own: the other obligations, the tries and `holds`' axioms. */
   def checks(n: Node[?]): String =
     val ns = s"$K.${n.id}.Checks"
     val extra = extraObligations(n)
@@ -133,7 +154,6 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
     }
     module(uses, ns, (proven ++ tried).mkString + s"#print axioms $K.${n.id}.holds\n\n", Some(s"$K.${n.id}"))
 
-  /** Each evaluated example, and its opposite, decided by `simp`. */
   def evalFile(n: Node[?]): Option[String] =
     val es = evals.evals(n)._1
     Option.when(es.nonEmpty) {
@@ -144,9 +164,7 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
       }.mkString)
     }
 
-  /** `root_impl`: the root of the code (every implemented operation replaced by its code), from the
-    * trusted leaves alone; with its proof, composed from `holds` and the `impl` theorems. Its statement, and the module.
-    */
+  /** `root_impl`, composed of `holds` and `impl`: its statement, and the module. */
   def rootImpl: Option[(String, String)] = kb.root.filter(formal).map { r =>
     def proofIn(n: Node[?]): String = implementing(n).fold(s"h_${n.id}") { (d, op) =>
       s"(${qualified(n, "Impl.impl")} ${named(ofCode(n, d, op)._2, codeEnv)} ${calls(n).map(c => s"(h_${c.id} := ${proofIn(c)})").mkString(" ")})"
@@ -166,5 +184,37 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
       s"/-- The root holds of the code, from what is trusted: ${if trusted.isEmpty then "nothing" else trusted.map(_.id).mkString(", ")}. -/\n" +
         s"theorem root_impl : $statement :=\n  $proof\n\n#print axioms $K.RootImpl.root_impl\n\n"))
   }
-
   private def introduce(names: List[String]): String = if names.isEmpty then "" else s"  intro ${names.mkString(" ")}\n"
+
+/** The files an agent proves in (`Proofs/<KB>/<Node>.lean`), their stubs, and the Lake project. */
+final class ProofFiles(kb: KnowledgeBase, layout: Layout, refinement: Refinement):
+  private val K = kb.name
+
+  /** For each obligation: the first steps of a proof by hand, what they leave (`state`), then `sorry`. */
+  def stubs(names: List[ObligationName], state: ObligationName => String = _ => ""): String =
+    names.map(o => s"theorem $o : Obl.$o := by\n  ${ProofFiles.recipe(o).mkString("\n  ")}\n${state(o)}  sorry\n\n").mkString
+
+  def proofFile(n: Node[?], names: List[ObligationName] = List(Complete), state: ObligationName => String = _ => ""): String =
+    val all = names ++ Option.when(names.contains(Complete) && !refinement.witnessed(n) && !names.contains(Feasible))(Feasible)
+    s"""import ${layout.spec(n.id).name}
+       |
+       |/-! Authored proofs of the obligations of ${n.id}. Each states exactly its `Obl`. -/
+       |
+       |${Preamble}
+       |namespace $K.${n.id}.Proofs
+       |open $K.${n.id}
+       |
+       |""".stripMargin + stubs(all, state) + s"end $K.${n.id}.Proofs\n"
+
+  /** A file whose unsolved goal Lean reports: what `o` leaves after the first steps of a proof by hand. */
+  def goalFile(n: Node[?], o: ObligationName): String =
+    val ns = s"$K.${n.id}"
+    s"import ${layout.spec(n.id).name}\n\n${Preamble}namespace $ns.State\nopen $ns\n\ntheorem state : Obl.$o := by\n  " +
+      ProofFiles.recipe(o).mkString("\n  ") + s"\n  done\n\nend $ns.State\n"
+
+  def lakefile(kernelPath: String): String =
+    s"name = \"${K.toLowerCase}\"\ndefaultTargets = [\"FrFlowGen\"]\n\n[[require]]\nname = \"frflow\"\npath = \"$kernelPath\"\n\n" +
+      List("FrFlowGen", "Proofs").map(l => s"[[lean_lib]]\nname = \"$l\"\nglobs = [\"$l.+\"]\n").mkString("\n")
+
+object ProofFiles:
+  def recipe(o: ObligationName): List[String] = List(s"unfold Obl.$o", "frflow_intro", "simp only [frflow_defs] at *")

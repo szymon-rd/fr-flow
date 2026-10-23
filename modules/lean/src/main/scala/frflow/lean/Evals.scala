@@ -4,28 +4,21 @@ package lean
 import cats.syntax.all.*
 import frflow.protocol.ObligationName
 
-/** An example, evaluated in Lean: `claim` is what Scala computes of it (the contract's verdict, or the
-  * result of the proven implementation), `opposite` its negation. Lean proving the opposite means the
-  * translation does not mean what the Scala does.
-  */
+/** An example evaluated in Lean: `claim` is what Scala computes; Lean proving `opposite` means the translation is wrong. */
 final case class Eval(name: ObligationName, what: String, claim: String, opposite: String)
 
 /** The examples of the contracts of a knowledge base, and probes near them, evaluated in Lean. */
-final class Evals(kb: KnowledgeBase, refinement: Refinement, values: LeanValues):
+final class Evals(kb: KnowledgeBase, refinement: Refinement):
   import refinement.*
   import refinement.vocabulary.*
-  import values.*
+  private val K = kb.name
+  private val typeNames: Set[String] = kb.types.map(_.name).toSet
 
-  /** Lean parameter names, with the Param objects they stand for. */
   private val paramObject: Map[String, Param[?]] =
     (kb.nodes.flatMap(_.referenced) ++ kb.defs.map(_.lifted)).flatMap(l => l.paramRefs.map(_._1).zip(l.paramObjects)).toMap ++
       kb.nodes.flatMap(_.op).map(o => o.name -> o)
 
-  /** The examples of a contract Lean evaluates, and why the others are not evaluated (by `eval_i`); then
-    * probes (`probe_j`): inputs near the examples' (see `Probes.near`), each run in Scala and evaluated in
-    * Lean, so that the translation is cross-checked where the examples do not reach. A probe Lean cannot
-    * evaluate is left out; one it evaluates otherwise than Scala fails the node, as an example does.
-    */
+  /** The examples Lean evaluates, why the others are not, and probes near them where the examples do not reach. */
   def evals(n: Node[?]): (List[Eval], List[(ObligationName, String)]) =
     (n.post, n.op) match
       case (Some(post), Some(op)) if formal(n) => Contract(n, post, op.name).all
@@ -43,19 +36,13 @@ final class Evals(kb: KnowledgeBase, refinement: Refinement, values: LeanValues)
       }
       (evaluated.flatten ++ probes, failed)
 
-    /** Lean for the value an example gives an open term: a binding's value, a finite table as a
-      * function looking it up, or a call of another operation as its proven code (which the example runs).
-      */
     private def valueOf(bindings: List[Binding], p: String, seen: Set[String]): Either[String, String] =
       paramObject.get(p).flatMap(po => bindings.find(_.param eq po)) match
-        case Some(b) => b.table.fold(scalaValue(p, b))(tableValue(p, _))
+        case Some(b) => b.table.fold(scala.util.Try(b.value()).toOption.flatMap(leanValue)
+          .toRight(s"Lean has no value for $p (a function, or a type Lean does not have; give a lookup as bindTable)"))(tableValue(p, _))
         case None => kb.onOp.getOrElse(p, Nil).flatMap(provenImpl).headOption.filterNot(_ => seen(p)) match
           case Some(d) => envOf(bindings, defCtx(d), seen + p).map(env => code(d, env)._1)
           case None    => Left(s"it gives no value for $p")
-
-    private def scalaValue(p: String, b: Binding): Either[String, String] =
-      scala.util.Try(b.value()).toOption.flatMap(leanValue)
-        .toRight(s"Lean has no value for $p (a function, or a type Lean does not have; give a lookup as bindTable)")
 
     private def tableValue(p: String, table: Map[?, ?]): Either[String, String] =
       val domain = paramType(p).map(LeanType.parse) match
@@ -69,9 +56,6 @@ final class Evals(kb: KnowledgeBase, refinement: Refinement, values: LeanValues)
       if opens.opaques.nonEmpty then Left(s"the contract leaves ${opens.opaques.mkString(", ")} open")
       else opens.params.traverse(p => valueOf(bindings, p, seen).map(v => p -> (v, Ctx.empty))).map(_.toMap)
 
-    /** What Scala computes of a call: the post's verdict on the result (the example's, else the code's),
-      * the code's result, and the result judged.
-      */
     private def run(bindings: List[Binding], a: Any, b: Any, result: Option[Any]): Either[String, (Option[Boolean], Option[Any], Option[Any])] =
       scala.util.Try(Bindings.within(kb.opCode ++ kb.definitionBindings ++ bindings) {
         // A proven implementation's Scala value takes the call's inputs: its type is erased in the node.
@@ -80,7 +64,6 @@ final class Evals(kb: KnowledgeBase, refinement: Refinement, values: LeanValues)
         (r.map(holds(a, b, _)), got, r)
       }).toEither.left.map(x => s"Scala cannot evaluate it: ${x.getMessage}")
 
-    /** One call evaluated: of the contract, and of the proven code (with a name of its own). */
     private def one(name: ObligationName, label: String, bindings: List[Binding], a: Any, b: Any, result: Option[Any]): Either[String, List[Eval]] =
       for
         env <- envOf(bindings, ctx(post) ++ impl.fold(Ctx.empty)(defCtx), Set(op))
@@ -99,9 +82,7 @@ final class Evals(kb: KnowledgeBase, refinement: Refinement, values: LeanValues)
           Eval(name.ofCode, s"$label, run by ${d.name}", s"$f $ta $tb = $tg", s"$f $ta $tb ≠ $tg")
         onPost.toList ++ onImpl.toList
 
-    /** Probes: with the first example's bindings, inputs near the examples' that no example has; half at a
-      * boundary (a number of one input equal to one of the other, where `<` and `<=` part), half anywhere.
-      */
+    /** Under the first example's bindings, half at a boundary (a number of one input equal to one of the other). */
     private def probes: List[Eval] = n.cases.headOption.toList.flatMap { first =>
       val inputs = Probes.inputs(n.cases)
       // Without code to run, the post is judged on the examples' results.
@@ -109,11 +90,40 @@ final class Evals(kb: KnowledgeBase, refinement: Refinement, values: LeanValues)
         else inputs.flatMap((a, b) => n.cases.map(_.result).distinct.map(r => (a, b, Some(r))))
       val (edge, rest) = scala.util.Random(n.id.hashCode).shuffle(calls)
         .partition((a, b, _) => Probes.numbers(a).toSet.intersect(Probes.numbers(b).toSet).nonEmpty)
-      interleave(edge, rest).iterator.zipWithIndex
+      // `x0 y0 x1 y1 …`, the longer list's rest at the end.
+      val interleaved = edge.map(Some(_)).zipAll(rest.map(Some(_)), None, None).flatMap((x, y) => x.toList ++ y.toList)
+      interleaved.iterator.zipWithIndex
         .flatMap { case ((a, b, r), j) => one(ObligationName.Probe(j), s"probe ${j + 1}", first.bindings, a, b, r).toOption }
         .filter(_.nonEmpty).take(Generate.ProbeCount).flatten.toList
     }
 
-  /** `x0 y0 x1 y1 …`, the longer list's rest at the end. */
-  private def interleave[A](xs: List[A], ys: List[A]): List[A] =
-    xs.map(Some(_)).zipAll(ys.map(Some(_)), None, None).flatMap((x, y) => x.toList ++ y.toList)
+  // As `Lift` declares it: the owner chain without packages.
+  private def leanName(c: Class[?]): String =
+    val pkg = c.getPackageName
+    val rest = if pkg.isEmpty then c.getName else c.getName.stripPrefix(pkg + ".")
+    rest.replaceAll("[^$]*\\$package\\$", "").split('$').filter(_.nonEmpty).map(Names.ident).mkString(".")
+  private def int(b: BigInt) = if b < 0 then s"($b)" else b.toString
+  private def ctor(name: String, args: List[String]) = if args.isEmpty then s"$K.$name" else s"($K.$name ${args.mkString(" ")})"
+  private def all(xs: Iterator[Any]): Option[List[String]] = xs.map(leanValue).toList.sequence
+  private def lookup(pairs: List[(String, String)]): String =
+    pairs.foldRight("none")((kv, rest) => s"if k' = ${kv._1} then some ${kv._2} else $rest")
+
+  private def leanValue(v: Any): Option[String] = v match
+    case b: Boolean => Some(if b then "True" else "False")
+    case i: Int     => Some(int(BigInt(i)))
+    case l: Long    => Some(int(BigInt(l)))
+    case b: BigInt  => Some(int(b))
+    case s: String  => Some(Names.string(s))
+    case ()         => Some("()")
+    case None       => Some("none")
+    case Some(x)    => leanValue(x).map(t => s"(some $t)")
+    case l: List[?] => all(l.iterator).map(_.mkString("[", ", ", "]"))
+    // A map, as the function Lean has for it (see `Lift.tpe`); a set, as its membership.
+    case m: Map[?, ?] => m.toList.traverse((k, v) => (leanValue(k), leanValue(v)).tupled).map(kvs => s"(fun k' => ${lookup(kvs)})")
+    case st: Set[?] => all(st.iterator).map(xs => s"(fun y' => ${(xs.map(x => s"y' = $x") :+ "False").mkString(" ∨ ")})")
+    case t: Product if t.getClass.getName.startsWith("scala.Tuple") => all(t.productIterator).map(_.mkString("(", ", ", ")"))
+    case e: scala.reflect.Enum =>
+      val c = if typeNames(leanName(e.getClass)) then e.getClass else e.getClass.getSuperclass
+      Option.when(typeNames(leanName(c)))(leanName(c)).flatMap(t => all(e.productIterator).map(ctor(s"$t.${Names.ident(e.productPrefix)}", _)))
+    case p: Product if typeNames(leanName(p.getClass)) => all(p.productIterator).map(ctor(s"${leanName(p.getClass)}.mk", _))
+    case _ => None

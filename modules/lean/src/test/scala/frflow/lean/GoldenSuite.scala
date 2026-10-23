@@ -2,32 +2,50 @@ package frflow
 package lean
 
 import frflow.fixtures.*
-import frflow.protocol.ObligationName
+import frflow.protocol.{ObligationName, Sha}
 
-/** The generated Lean, byte for byte, on fixtures: a change to it moves every cached proof and decision. */
+/** The generated Lean, byte for byte, on fixtures: a change to it moves every cached proof and decision. The
+  * whole of it is pinned by a hash; one file of each kind is recorded, to read and to diff.
+  */
 class GoldenSuite extends munit.FunSuite:
 
-  /** Every file of a knowledge base's Lean, with the proof file stubs of its nodes and what check
-    * hashes are made of, as one text.
-    */
-  private def rendered(g: Generate, kb: KnowledgeBase): String =
-    val files = g.files.toList.sortBy(_._1).map((p, s) => s"=== $p ===\n$s")
+  /** Every file of a knowledge base's Lean, the proof file stubs of its nodes and what check hashes are made of. */
+  private def sections(kb: KnowledgeBase): List[(String, String)] =
+    val g = Generate(kb)
     val perNode = kb.nodes.filter(g.formal).flatMap(n => List(
-      s"=== proof file of ${n.id} ===\n${g.proofFile(n, List(ObligationName.Complete, ObligationName.Impl))}",
-      s"=== used by ${n.id} ===\n${(g.declarationsUsedBy(n) ++ g.sourcesUsedBy(n)).mkString("\n")}",
-      s"=== not evaluated of ${n.id} ===\n${g.evals(n)._2.mkString("\n")}"))
-    (files ++ perNode :+ s"=== lakefile ===\n${g.lakefile("../../lean")}").mkString("\n")
+      s"proof file of ${n.id}" -> g.proofFile(n, List(ObligationName.Complete, ObligationName.Impl)),
+      s"used by ${n.id}" -> (g.declarationsUsedBy(n) ++ g.sourcesUsedBy(n)).mkString("\n"),
+      s"not evaluated of ${n.id}" -> g.evals(n)._2.mkString("\n")))
+    g.files.toList.sortBy(_._1) ++ perNode :+ ("lakefile" -> g.lakefile("../../lean"))
 
-  private val fixtures: List[(String, KnowledgeBase)] = List(
-    "shelf" -> shelfKb,
-    // proven code calling another contract's operation: impl, root_impl, evaluated code
-    "calls" -> callsKb)
+  private def text(ss: List[(String, String)]): String = ss.map((p, s) => s"=== $p ===\n$s").mkString("\n")
 
-  fixtures.foreach { (name, kb) =>
-    test(s"the Lean of the $name fixture is as recorded") {
-      val expected = scala.io.Source.fromResource(s"golden/$name.lean.txt")(using scala.io.Codec.UTF8).mkString
-      val got = rendered(Generate(kb), kb)
-      assertNoDiff(got, expected)
-      assert(got == expected, "the same lines, but not the same bytes (whitespace at the ends of lines?)")
+  private val hashes = List(shelfKb -> "cfb04adc7f4e06c3163ba5174085b429ce7b977b3a65dfe56274e2a3b949e1f2",
+    callsKb -> "94d48ce2f06640cc5cd92beb8a69c279b3797bf4cef8427d81829b0794cccd91")
+
+  test("the whole Lean of each fixture is as recorded, byte for byte") {
+    hashes.foreach { (kb, hash) =>
+      val got = text(sections(kb))
+      val file = java.nio.file.Paths.get(s"target/golden-${kb.name}.lean.txt").toAbsolutePath
+      if Sha(got) != hash then java.nio.file.Files.writeString(file, got)
+      assertEquals(Sha(got), hash, s"the Lean of ${kb.name} changed: it is in $file. If the change is meant, check the " +
+        "recorded files below still read right, regenerate golden/calls.lean.txt from it, and record the new hash here")
     }
+  }
+
+  /** One file of each kind: a node with parts, proven code, the root of the code, the vocabulary, a proof
+    * file, what a decision is bound to, and the examples evaluated (not the probes).
+    */
+  private val recorded = List("PickedAgain/Spec", "PickedAgain/Auto", "PickedAgain/Theorems", "PickedAgain/Checks", "PickPromise/Impl",
+    "RootImpl", "Types", "Domain", "Domain/Def_viaPick", "Again/Eval").map(m => s"FrFlowGen/Calls/$m.lean") ++
+    List("proof file of PickedAgain", "used by Again")
+
+  test("one file of each kind reads as recorded") {
+    val got = sections(callsKb).filter((p, _) => recorded.contains(p)).map { (p, s) =>
+      p -> (if p.endsWith("Eval.lean") then s.take(s.indexOf("/-- probe 1 -/")) else s)
+    }
+    assertEquals(got.map(_._1).sorted, recorded.sorted)
+    val expected = scala.io.Source.fromResource("golden/calls.lean.txt")(using scala.io.Codec.UTF8).mkString
+    assertNoDiff(text(got), expected)
+    assert(text(got) == expected, "the same lines, but not the same bytes (whitespace at the ends of lines?)")
   }
