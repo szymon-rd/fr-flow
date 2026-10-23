@@ -10,12 +10,10 @@ import io.circe.syntax.*
 import java.nio.file.Path
 
 /** A check's results, and the analysis with them recorded (what `status` reads next). */
-final case class Checked(results: List[(Node[?], NodeCheck)], after: Analysis):
-  def allProven: Boolean = results.forall(_._2.status == CheckStatus.Proven)
+final case class Checked(results: List[(Node[?], NodeCheck)], after: Analysis)
 
 /** What CI runs: check (a node whose formal parts did not change keeps its result), then status. */
-final case class Ci(checked: Checked, status: Status):
-  def ok: Boolean = status.ok && checked.allProven
+final case class Ci(checked: Checked, status: Status)
 
 /** The operations on one knowledge base in its workspace. Each reads the workspace once (`Inputs`),
   * computes (`Analysis`), and writes what it changed.
@@ -26,8 +24,6 @@ final class Workflow private (val kb: KnowledgeBase, val ws: Workspace, val cfg:
   def analysis: IO[Analysis] = Inputs.read(kb, ws, cfg, stores.ledger).map(Analysis(kb, ws, _))
 
   /** Writes the generated Lean; returns the files that changed. */
-  def render: IO[List[String]] = analysis.flatMap(render)
-
   def render(a: Analysis): IO[List[String]] =
     val g = a.generate
     val keep = a.files.keySet.map(ws.lean.resolve(_).normalize)
