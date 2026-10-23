@@ -1,23 +1,24 @@
 package auth
 
 import frflow.*
-import cats.effect.unsafe.implicits.global
+import cats.effect.IO
 import frflow.check.*
 import java.nio.file.{Files, Paths}
 
-class AuthSuite extends munit.FunSuite:
+class AuthSuite extends munit.CatsEffectSuite:
 
   test("the committed ledger accepts every node: none is up for review, none is gone") {
     // As `auth/run status` reads it: a change to the content, the hashes or the code fingerprints shows here.
-    val annotated = Workflow(knowledge, Workspace(Paths.get("examples/auth").toAbsolutePath.normalize, "../../../lean"))
-      .flatMap(_.analysis).unsafeRunSync().annotated
-    val states = annotated.nodes.map(r => r.id.value -> r.state.toString)
-    assertEquals(states.size, knowledge.nodes.size)
-    assertEquals(states.filter(_._2 != "accepted"), Nil)
-    assertEquals(annotated.gone, Nil)
+    Workflow(knowledge, Workspace(Paths.get("examples/auth").toAbsolutePath.normalize, "../../../lean")).flatMap(_.analysis).map { a =>
+      val annotated = a.annotated
+      val states = annotated.nodes.map(r => r.id.value -> r.state.toString)
+      assertEquals(states.size, knowledge.nodes.size)
+      assertEquals(states.filter(_._2 != "accepted"), Nil)
+      assertEquals(annotated.gone, Nil)
+    }
   }
 
-  override val munitTimeout = scala.concurrent.duration.Duration(20, "min")
+  override val munitIOTimeout = scala.concurrent.duration.Duration(20, "min")
 
   private val alice = UserId("alice")
   private val report = Path("/reports/q3")
@@ -50,15 +51,19 @@ class AuthSuite extends munit.FunSuite:
   }
 
   test("the knowledge base is proven, from the contract and its code to the root") {
-    assume(Config.load.flatMap(Lake(Paths.get("."), _)).flatMap(_.available).unsafeRunSync(), "lake is not available")
     // In the example's own workspace, as `auth/run check` checks it: its Lean build and recorded results
     // are reused while current.
-    val w = Workflow(knowledge, Workspace(Paths.get("examples/auth").toAbsolutePath.normalize, "../../../lean"))
-    val checked = w.flatMap(_.check()).unsafeRunSync()
-    val r = checked.results
-    assertEquals(r.map((n, c) => n.id -> c.status.toString),
-      List("AccessExactly" -> "proven", "TokenNamesHolder" -> "proven", "AccessNeedsGrant" -> "proven", "GrantLetsIn" -> "proven", "DecisionContract" -> "proven"))
-    assertEquals(r.head._2.obligations.find(_.name == "root_impl").map(_.status.toString), Some("proven"))
-    assertEquals(checked.after.generate.trusted, Nil)
-    assert(w.flatMap(_.context(decisionContract)).unsafeRunSync().text.contains("No user may ever"))
+    for
+      lake <- Config.load.flatMap(Lake(Paths.get("."), _)).flatMap(_.available)
+      _ <- IO(assume(lake, "lake is not available"))
+      w <- Workflow(knowledge, Workspace(Paths.get("examples/auth").toAbsolutePath.normalize, "../../../lean"))
+      checked <- w.check()
+      context <- w.context(decisionContract)
+    yield
+      val r = checked.results
+      assertEquals(r.map((n, c) => n.id -> c.status.toString),
+        List("AccessExactly" -> "proven", "TokenNamesHolder" -> "proven", "AccessNeedsGrant" -> "proven", "GrantLetsIn" -> "proven", "DecisionContract" -> "proven"))
+      assertEquals(r.head._2.obligations.find(_.name == "root_impl").map(_.status.toString), Some("proven"))
+      assertEquals(checked.after.generate.trusted, Nil)
+      assert(context.text.contains("No user may ever"))
   }

@@ -1,20 +1,21 @@
 package keycloak
 
 import frflow.*
-import cats.effect.unsafe.implicits.global
+import cats.effect.IO
 import frflow.check.*
 import java.nio.file.{Files, Paths}
 
-class KeycloakSuite extends munit.FunSuite:
+class KeycloakSuite extends munit.CatsEffectSuite:
 
   test("the committed ledger accepts every node: none is up for review, none is gone") {
     // As `keycloak/run status` reads it: a change to the content, the hashes or the code fingerprints shows here.
-    val annotated = Workflow(knowledge, Workspace(Paths.get("examples/keycloak").toAbsolutePath.normalize, "../../../lean"))
-      .flatMap(_.analysis).unsafeRunSync().annotated
-    val states = annotated.nodes.map(r => r.id.value -> r.state.toString)
-    assertEquals(states.size, knowledge.nodes.size)
-    assertEquals(states.filter(_._2 != "accepted"), Nil)
-    assertEquals(annotated.gone, Nil)
+    Workflow(knowledge, Workspace(Paths.get("examples/keycloak").toAbsolutePath.normalize, "../../../lean")).flatMap(_.analysis).map { a =>
+      val annotated = a.annotated
+      val states = annotated.nodes.map(r => r.id.value -> r.state.toString)
+      assertEquals(states.size, knowledge.nodes.size)
+      assertEquals(states.filter(_._2 != "accepted"), Nil)
+      assertEquals(annotated.gone, Nil)
+    }
   }
 
   test("the model is well formed: one root, refined by a DAG of parts; Introspect serves five parents") {
