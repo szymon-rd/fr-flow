@@ -622,20 +622,6 @@ class SnapshotSuite extends munit.FunSuite:
     assertEquals(Ledger.lost(before, Ledger.merge(now, before)), Nil)
   }
 
-  test("the methods of a file: which change something (Unit), and the lines of those named with the private ones they call") {
-    val text = """final class Db:
-                 |  private def rows(sql: String): List[Int] =
-                 |    List(1)
-                 |  def find(q: String): List[Int] = rows(q)
-                 |  def save(x: Int): Unit = synchronized {
-                 |    println(x)
-                 |  }
-                 |""".stripMargin
-    val ms = Workflow.methods(text)
-    assertEquals(ms.map(m => m.name -> m.unit), List("rows" -> false, "find" -> false, "save" -> true))
-    assertEquals(Workflow.linesOf(text, Set("find")), 3)
-  }
-
   test("alternatives are a node and the one it replaces, or two definitions of one term; parts of one parent are not") {
     val a = Json.parse("""{"id":"A","kind":"claim","parents":["R"],"content":{}}""")
     val b = Json.parse("""{"id":"B","kind":"claim","parents":["R"],"replaces":"A","content":{}}""")
@@ -645,15 +631,6 @@ class SnapshotSuite extends munit.FunSuite:
     assert(Decisions.alternatives(a, b) && Decisions.alternatives(b, a) && Decisions.alternatives(d1, d2))
     assert(!Decisions.alternatives(a, c) && !Decisions.alternatives(a, d1))
   }
-
-  test("example data in a model file is not code: a constructor applied to values") {
-    for r <- List(""" = RealmId("acme")""", """ = Account("ann@acme", TenantId("acme"))""", """: BigInt = 42""", """ = List(Share(1, TenantId("x")))""") do
-      assert(Workflow.isData(r), r)
-    for r <- List(""" = records.filter(_.ok)""", """ = (x: Int) => x + 1""", """ = { compute() }""", """ = Db.open("x")""") do
-      assert(!Workflow.isData(r), r)
-  }
-
-  // -- decisions on the DAG (docs/DAG.md §5) ----------------------------------------------------
 
   private def causesOf(w: Workflow, id: String) = nodes(w.annotated)(id)("causes").get.arr.flatMap(_.str).toList
   private def ids(j: Json, k: String) = j(k).get.arr.flatMap(_("id").flatMap(_.str)).toList
@@ -803,15 +780,6 @@ class SnapshotSuite extends munit.FunSuite:
       case ("hash", _) => "hash" -> str("rehashed below"); case f => f })
     val fixed = Json.JObj(reworded.obj.map { case ("hash", _) => "hash" -> str(Decision.hash(reworded("content").get)); case f => f })
     assertEquals(Decisions.causes(obj("nodes" -> JArr(List(fixed))), ledger, fixed), List("self"))
-  }
-
-  test("a removed node whose id is a plain word is stale only where it is written as a name") {
-    val w = workflow()
-    acceptAll(w)
-    val l = w.ledger
-    val gone = l.decisions.values.head.last.copy(action = "remove")
-    Ledger.save(w.ws.ledgerFile, l.add("Sessions", gone).add("Listing", gone))
-    assert(!w.staleNames.exists(_.contains("Sessions")), w.staleNames)
   }
 
   test("the code a decision saw, diffed: a file git does not track is compared as it is, not shown as deleted") {

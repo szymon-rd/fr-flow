@@ -233,20 +233,6 @@ class NodeSuite extends munit.FunSuite:
     assert(shelfWith(pick, world).implement(pick)((shelf, n) => shelf).runtimeAssumptions.head.holds())
   }
 
-  test("a call past service is a call on the adapter: a name bound to its class, the class, or a parameter of its type") {
-    def calls(text: String) = Workflow.adapterCalls(text, Set("SessionDb"), Set("sessionDb"))
-    // the same method names on something else
-    assertEquals(calls("def first(accounts: List[UserAccount]) = accounts.find(a => a.enabled)"), Set.empty[String])
-    assertEquals(calls("ex.getResponseBody.write(b); ex.close()"), Set.empty[String])
-    assertEquals(calls("val db = 1\nprintln(\"db.find(r, t)\") // db.find(r, t)"), Set.empty[String])
-    // on the adapter
-    assertEquals(calls("final class Realms(val db: SessionDb):\n  def get(r: RealmId, t: String) = db.find(r, t)"), Set("find"))
-    assertEquals(calls("val store = SessionDb.loaded(Nil)\nstore.replaceWith(q, s)"), Set("loaded", "replaceWith"))
-    assertEquals(calls("val got = sessionDb.value.find(r, t)"), Set("find"))
-    assertEquals(Workflow.classesOf("final class SessionDb private (x: Int):\n  def a = 1\nobject SessionDb:\n  def empty = 1"), List("SessionDb", "SessionDb"))
-    assertEquals(Workflow.paramsOf("val sessionDb = Param[SessionDb](\"sessionDb\", \"the store\")\nval n = Param[Int](\"n\", \"x\")", Set("SessionDb")), List("sessionDb"))
-  }
-
   test("an assumption names its idea section, on a fact or on an operation") {
     val fact = Node.assumption("LongShelf", "Readers ask for books of at least a page.", why = "An empty book is not a book.",
       idea = "Picking")(minPages.value >= 1)

@@ -67,9 +67,7 @@ final class Project(dir: Path):
       case Some(d) =>
         val since = if frflow.Git.has(root, d.tree) then d.tree else d.commit
         if since.isEmpty || files.isEmpty then "" else
-          val d = frflow.Git.diff(root, since, files)
-          val notes = snapshot.toList.flatMap(frflow.Decisions.codeNotes(_, d))
-          (if notes.isEmpty then "" else notes.map("# note: " + _).mkString("", "\n", "\n")) + d
+          frflow.Git.diff(root, since, files)
 
   /** Saves IDEA.md; a render brings the snapshot up to date. */
   def saveIdea(text: String): Unit =

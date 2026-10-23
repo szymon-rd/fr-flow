@@ -195,22 +195,6 @@ class CrmSuite extends munit.FunSuite:
     assert(e2.getMessage.contains("StoreEdits"), e2.getMessage)
   }
 
-  test("a governed file that changes the database past a port is a warning; the wired adapter methods are what is counted as checked") {
-    val root = Files.createTempDirectory("crm-bypass")
-    Files.copy(Paths.get("examples/crm/IDEA.md"), root.resolve("IDEA.md"))
-    val src = Paths.get("examples/crm/src/main/scala/crm")
-    Files.createDirectories(root.resolve("src/main/scala/crm"))
-    Files.list(src).forEach(f => Files.copy(f, root.resolve("src/main/scala/crm").resolve(f.getFileName)))
-    val w = Workflow(knowledge, Workspace(root, Paths.get("lean").toAbsolutePath.toString))
-    assertEquals(w.bypasses, Nil)
-    val server = root.resolve("src/main/scala/crm/Server.scala")
-    // A method of the adapter's name on something else is not the adapter (a builder's insert).
-    Files.writeString(server, Files.readString(server).replace("server.start()", "val note = new StringBuilder(\"x\"); note.insert(0, \"crm \")\n    server.start()"))
-    assertEquals(w.bypasses, Nil)
-    Files.writeString(server, Files.readString(server).replace("server.start()", "db.insert(Nil, Nil, Nil)\n    server.start()"))
-    assert(w.bypasses.exists(_.contains("changes the outside directly (.insert")), w.bypasses)
-  }
-
   test("the knowledge base is proven, from the contracts, their code and the ports to the root") {
     val lake = Lake(Paths.get("."))
     assume(lake.available, "lake is not available")

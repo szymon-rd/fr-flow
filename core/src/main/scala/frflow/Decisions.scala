@@ -508,27 +508,6 @@ object Decisions:
     val all = byId(snapshot)
     (own ++ elsewhere ++ across).map(b => JObj(b.obj :+ ("why" -> all.get(s(b, "id")).flatMap(_("content")).flatMap(_("why")).getOrElse(str("")))))
 
-  /** What a diff of governed code may touch that no proof covers: the invariants whose domain types it
-    * names (with why each was decided), and the parameters it binds anew (with what each means). Shown
-    * with every code review.
-    */
-  def codeNotes(snapshot: Json, diff: String): List[String] =
-    val changed = diff.linesIterator.filter(l => (l.startsWith("+") || l.startsWith("-")) && !l.startsWith("+++") && !l.startsWith("---")).mkString("\n")
-    def mentions(w: String) = w.nonEmpty && s"(?<![\\w])${java.util.regex.Pattern.quote(w)}(?![\\w])".r.findFirstIn(changed).isDefined
-    val invs = nodes(snapshot).filter(c => c("rule").contains(JBool(true))).flatMap { i =>
-      val types = i("content").flatMap(_("uses")).map(_.arr.toList.flatMap(_.str)).getOrElse(Nil)
-        .flatMap(u => """^(?:case class|enum)\s+(\w+)""".r.findFirstMatchIn(u).map(_.group(1)))
-      types.find(mentions).map(t => s"the change names $t, which the invariant ${s(i, "id")} is about: does it show one to someone the rule refuses? (${i("content").flatMap(_("statement")).flatMap(_.str).getOrElse("")})")
-    }
-    // A parameter whose binding changed: what it is bound to differs between the lines removed and added.
-    def binds(lines: Iterator[String], name: String) =
-      val re = s"(?<![\\w])${java.util.regex.Pattern.quote(name)}\\.bind(?:Table)?\\(([^)]*)\\)".r
-      lines.flatMap(l => re.findAllMatchIn(l).map(_.group(1).trim)).toSet
-    def side(c: Char) = diff.linesIterator.filter(l => l.startsWith(c.toString) && !l.startsWith(s"$c$c$c"))
-    val params = snapshot("params").map(_.arr.toList).getOrElse(Nil).filter(p => binds(side('-'), s(p, "name")) != binds(side('+'), s(p, "name")))
-      .map(p => s"it binds ${s(p, "name")}, which means: ${s(p, "means")} — does the new value still mean that?")
-    invs ++ params
-
   /** The reason a node holds now: of its latest change of meaning accepted (the reason it was chosen,
     * if none since); a confirmation (nothing it says changed) adds to it, and never replaces it.
     */

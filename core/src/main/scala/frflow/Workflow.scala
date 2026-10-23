@@ -596,75 +596,12 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       else Files.list(proofsDir).iterator.asScala.map(_.getFileName.toString).filter(_.endsWith(".lean")).map(_.stripSuffix(".lean"))
         .filterNot(id => id == "Lemmas" || kb.node(id).isDefined).toList.sorted
         .map(id => s"lean/Proofs/${kb.name}/$id.lean is the proof file of no node: move it with its node's new id (and its namespace), or remove it")
-    missing ++ owners ++ ideaCoverage ++ staleNames ++ orphans ++ modelCode ++ bypasses ++
+    missing ++ owners ++ ideaCoverage ++ orphans ++
       ungoverned.map(f => s"$f is governed by no node: govern it (a design node) or move it")
-
-  /** Wiring that calls a contract's code directly, past `service` (so what it returns is not
-    * checked): a file a design node governs calling, on the adapter, a method the registered code calls.
-    * On the adapter: on a name the file binds to one of the adapter's classes (`db: Db`, `val db =
-    * Db.open(...)`), on such a class itself, or on the value of a parameter of that type (`database.value`,
-    * a `Param[Db]` of the model); a method of the same name on anything else (a list's `find`) is not it.
-    */
-  def bypasses: List[String] =
-    val wired = kb.nodes.filter(_.kind == NodeKind.Design).flatMap(d => code(d).toList.flatMap(_.files)).distinct
-    val modelTexts = kb.modelFiles.distinct.flatMap(f => read(Path.of(f)).orElse(read(ws.root.resolve(f))))
-    adapters.flatMap { (c, i, files) =>
-      val called = """\.(\w+)\(""".r.findAllMatchIn(i.wiring).map(_.group(1)).toSet
-      // An adapter's methods that change the outside: those returning Unit.
-      val effects = files.flatMap(f => read(ws.root.resolve(f)).toList.flatMap(Workflow.methods).filter(_.unit).map(m => m.name -> f))
-      val classes = files.flatMap(f => read(ws.root.resolve(f)).toList.flatMap(Workflow.classesOf)).toSet
-      val params = modelTexts.flatMap(Workflow.paramsOf(_, classes)).toSet
-      wired.filterNot(files.contains).flatMap(f => read(ws.root.resolve(f)).toList.flatMap { text =>
-        val onAdapter = Workflow.adapterCalls(text, classes, params)
-        def calls(m: String) = onAdapter(m)
-        called.toList.sorted.filter(calls).map(m => s"$f calls ${c.id}'s code directly (.$m): go through service(${c.id}), so what it returns is checked") ++
-          effects.filter((m, _) => calls(m)).map((m, af) => s"$f changes the outside directly (.$m, in $af): go through an assumption on an operation, so the change is checked")
-      })
-    }.distinct
-
-  /** The ports' adapters: the contract, its implementation with production code, and the files that code is in. */
-  private def adapters: List[(Node[?], Implementation, List[String])] =
-    val model = kb.modelFiles.map(f => ws.root.resolve(f).toAbsolutePath.normalize).toSet
-    kb.nodes.flatMap(c => kb.implementation(c).filter(_.wiring.nonEmpty).map(i =>
-      (c, i, code(c).toList.flatMap(_.files).filterNot(f => model(ws.root.resolve(f).toAbsolutePath.normalize)))))
 
   /** What doing nothing is, when it meets the node (Lean proved it). */
   /** What doing nothing is, when it meets the root (Lean proved it). */
   def idleOf(n: Node[?]): Option[String] = current(n).flatMap(_.obligations.find(o => o.name == "idle" && o.status == "idle")).map(_.detail)
-
-  /** Top-level code in a model file that is none of the model (a node, a `define`, an open term, a type,
-    * the knowledge base, a `@main`): it would run unseen by any node, next to the model.
-    */
-  def modelCode: List[String] =
-    val ValName = """^\s*(?:lazy\s+)?val\s+([A-Za-z_]\w*)""".r.unanchored
-    val known = (kb.nodes.flatMap(n => ValName.findFirstMatchIn(definition(n)).map(_.group(1))) ++ kb.defs.map(_.name) ++
-      kb.params.map(_.name) ++ kb.opaques.map(_.name)).toSet
-    val Top = """^(?:(?:private|protected|final|lazy|implicit|inline|override|abstract)\s+)*(val|var|def|object|class|given|extension)\b\s*([A-Za-z_]\w*)?(.*)$""".r
-    kb.modelFiles.distinct.flatMap { f =>
-      read(Path.of(f)).orElse(read(ws.root.resolve(f))).toList.flatMap(_.linesIterator.zipWithIndex.collect {
-        case (Top(kw, name, rest), i) if !(kw == "val" && (known(Option(name).getOrElse("")) ||
-            Seq("= KnowledgeBase(", "= define", "= Opaque(", "= Param[", "= Param(").exists(rest.trim.startsWith) ||
-            rest.contains("KnowledgeBase") || Workflow.isData(rest))) =>
-          s"${Path.of(f).getFileName}:${i + 1}: `$kw ${Option(name).getOrElse("")}` is code in the model's file that no node governs: make it a `define` (proven), or move it to a governed file"
-      })
-    }
-
-  /** Statements and reasons that name a node no longer chosen (rejected, or removed): the text
-    * still rests on it.
-    */
-  def staleNames: List[String] =
-    val l = ledger
-    val ids = kb.nodes.map(_.id).toSet
-    val dropped = l.decisions.keySet.filter(id =>
-      (l.current(id).exists(_.action == "remove") || l.current(id).exists(_.action == "reject"))).toSet
-    kb.nodes.filterNot(n => l.current(n.id).exists(_.action == "reject")).flatMap { n =>
-      // An id that is also a plain word ("Sessions") counts only where it is written as a name (`Sessions`).
-      def names(d: String) =
-        val q = java.util.regex.Pattern.quote(d)
-        (if d.matches("[A-Z][a-z]+") then s"`$q`" else s"\\b$q\\b").r.findFirstIn(n.statement + " " + n.why).isDefined
-      dropped.toList.sorted.filter(d => d != n.id && names(d))
-        .map(d => s"${n.id}: its statement or why names $d, which is ${if ids(d) then "rejected" else "removed"}")
-    }
 
   /** Source files no node governs, other than the model's own: code that can change unnoticed. They
     * are every file under `src/main`, every source file elsewhere in the project (but tests, builds'
@@ -826,22 +763,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       (if beside.nonEmpty then s" (${beside.mkString("; ")})" else "") +
       (if plain.nonEmpty then s", checked by running for ${plain.map(_.id).mkString(", ")}" else "") +
       (if designs.nonEmpty then s"; ${designs.size} design decision(s) govern code reviewed only (${designs.map(_.id).mkString(", ")})" else "") +
-      evaluated + ".\n" + lines
-
-  private def lines: String =
-    def count(f: String) = read(ws.root.resolve(f)).fold(0)(_.linesIterator.count(_.trim.nonEmpty))
-    val provenDefs = Def.closure(kb.nodes.flatMap(c => kb.implementation(c).flatMap(_.proven)))
-    val proven = provenDefs.map(_.lifted.source.linesIterator.count(_.trim.nonEmpty)).sum
-    // Running code: only the methods it calls (and the private ones they call), not the rest of its
-    // file; checked against a proven define, or, a plain implementation, by running only.
-    val running = adapters.flatMap((_, i, files) => files.map(f => (f, i.proven.isDefined) -> """\.(\w+)""".r.findAllMatchIn(i.wiring).map(_.group(1)).toSet))
-      .groupMapReduce(_._1)(_._2)(_ ++ _).toList
-    def linesOf(against: Boolean) = running.filter(_._1._2 == against).map { case ((f, _), names) => read(ws.root.resolve(f)).fold(0)(t => Workflow.linesOf(t, names)) }.sum
-    val runningFiles = running.map(_._1._1).toSet
-    val reviewedFiles = kb.nodes.filter(_.kind == NodeKind.Design).flatMap(d => code(d).toList.flatMap(_.files)).distinct.filterNot(runningFiles)
-    val (against, plain, reviewed) = (linesOf(true), linesOf(false), reviewedFiles.map(count).sum)
-    if proven + against + plain + reviewed == 0 then ""
-    else s"Code: $proven line(s) in proven defines, $against of running code checked against them, $plain checked by running (plain implementations), $reviewed reviewed only (${reviewedFiles.size} file(s) design nodes govern).\n"
+      evaluated + ".\n"
 
   /** How many examples Lean evaluated as Scala does (the translation's cross-check), and where none. */
   private def evaluated: String =
@@ -1027,7 +949,6 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
         val since = l.binding(n.id).map(d => if Git.has(ws.root, d.tree) then d.tree else d.commit).getOrElse("")
         val d = code(n).fold("")(c => Git.diff(ws.root, since, c.files))
         sb ++= (if d.nonEmpty then s"- the code it governs changed:\n```diff\n$d```\n" else "- the code it governs changed (no git diff available)\n")
-        Decisions.codeNotes(ann, d).foreach(x => sb ++= s"- $x\n")
       sb ++= "\n"
     g.obligations(n).foreach { o =>
       val stl = current(n).flatMap(_.obligations.find(_.name == o.name)).fold("not checked")(r => s"${r.status}${if r.detail.nonEmpty then s" (${r.detail.linesIterator.next()})" else ""}")
@@ -1177,65 +1098,6 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     ws.snapshotFile
 
 object Workflow:
-  /** The right side of a `val` that is a value, not code: literals, and constructors applied to values
-    * (`= Account("ann@acme", TenantId("acme"))`, `= List(…)`), with no lambda, block or method call.
-    */
-  def isData(rest: String): Boolean =
-    val r = rest.trim.stripPrefix(":").trim
-    val rhs = r.drop(r.indexOf('=') + 1).trim
-    r.contains("=") && rhs.nonEmpty && !rhs.contains("=>") && !rhs.contains("{") &&
-      """\.[a-z]\w*""".r.findFirstIn(rhs.replaceAll("\"[^\"]*\"", "\"\"").replaceAll("""\d+\.\d+""", "0")).isEmpty &&
-      """^[A-Z"0-9(\-]""".r.findFirstIn(rhs).isDefined
-  /** A method in a Scala file: its name, whether it returns Unit (it changes something), its lines, and its body. */
-  final case class Method(name: String, unit: Boolean, lines: Int, body: String, priv: Boolean)
-
-  /** The methods of a file, by indentation: a `def` and the lines indented under it. */
-  def methods(text: String): List[Method] =
-    val ls = text.linesIterator.toVector
-    val Def = """^(\s*)((?:private(?:\[\w+\])?|protected|override|final|inline)\s+)*def\s+(\w+)(.*)$""".r
-    def indent(l: String) = l.takeWhile(_ == ' ').length
-    ls.indices.toList.flatMap(i => ls(i) match
-      case Def(sp, mods, name, rest) =>
-        val end = ls.indices.drop(i + 1).find(j => ls(j).trim.nonEmpty && indent(ls(j)) <= sp.length).getOrElse(ls.size)
-        val body = ls.slice(i, end).filter(_.trim.nonEmpty)
-        val header = (rest + " " + ls.slice(i + 1, end).takeWhile(!_.contains("=")).mkString(" ")).takeWhile(_ != '=')
-        Some(Method(name, """\)\s*:\s*Unit\s*$""".r.findFirstIn(header.trim).isDefined || header.trim.endsWith(": Unit"),
-          body.size, body.mkString("\n"), Option(mods).exists(_.contains("private"))))
-      case _ => None)
-
-  /** The lines of the named methods of a file, with the private methods they call, however deep. */
-  def linesOf(text: String, names: Set[String]): Int =
-    val ms = methods(text)
-    val byName = ms.groupBy(_.name)
-    def close(seen: Set[String]): Set[String] =
-      val more = seen.flatMap(n => byName.getOrElse(n, Nil)).flatMap(m => ms.filter(p => p.priv && !seen(p.name) && s"\\b${p.name}\\b".r.findFirstIn(m.body).isDefined).map(_.name))
-      if more.isEmpty then seen else close(seen ++ more)
-    close(names.filter(byName.contains)).toList.flatMap(byName).map(_.lines).sum
-
-  /** The classes, objects and traits a Scala file declares. */
-  def classesOf(text: String): List[String] =
-    """(?m)^\s*(?:(?:final|sealed|abstract|private(?:\[\w+\])?|case)\s+)*(?:class|object|trait)\s+(\w+)""".r.findAllMatchIn(text).map(_.group(1)).toList
-
-  /** The parameters a model file declares of one of `classes` (`val database = Param[Db](...)`). */
-  def paramsOf(text: String, classes: Set[String]): List[String] =
-    """\bval\s+(\w+)\s*=\s*Param\[\s*(\w+)\s*\]""".r.findAllMatchIn(text).filter(m => classes(m.group(2))).map(_.group(1)).toList
-
-  /** The methods a file calls on a value of one of `classes`: on a name it declares of such a class (`db: Db`)
-    * or binds to one (`val db = Db.open(...)`, `new Db(...)`), on the class itself, or on the value of one of
-    * `params` (`database.value`). A method of the same name on anything else is not one.
-    */
-  def adapterCalls(text: String, classes: Set[String], params: Set[String]): Set[String] =
-    if classes.isEmpty then Set.empty
-    else
-      val code = text.replaceAll("\"(?:[^\"\\\\\n]|\\\\.)*\"", "\"\"").replaceAll("//[^\n]*", "")
-      val cls = classes.toList.sorted.map(java.util.regex.Pattern.quote).mkString("|")
-      val typed = s"""\\b(\\w+)\\s*:\\s*(?:$cls)\\b(?!\\s*[.\\[])""".r.findAllMatchIn(code).map(_.group(1))
-      val bound = s"""\\b(?:val|var)\\s+(\\w+)\\s*(?::[^=]*)?=\\s*(?:new\\s+)?(?:$cls)\\b""".r.findAllMatchIn(code).map(_.group(1))
-      val receivers = (typed ++ bound).map(java.util.regex.Pattern.quote).toList ++ classes.toList.map(java.util.regex.Pattern.quote) ++
-        params.toList.map(p => java.util.regex.Pattern.quote(p) + "\\s*\\.\\s*value")
-      if receivers.isEmpty then Set.empty
-      else s"""(?<![\\w.])(?:${receivers.distinct.mkString("|")})\\s*\\.\\s*(\\w+)\\s*\\(""".r.findAllMatchIn(code).map(_.group(1)).toSet
-
   /** The binders an obligation's statement introduces, in order: its open terms, then its hypotheses
     * (`∀ (A B : Type) (x : T), ∀ (h_P : ...), goal`).
     */
