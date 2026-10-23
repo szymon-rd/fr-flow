@@ -22,7 +22,7 @@ object Cli:
       |  scaffold NODE           a proof file for an obligation automation did not prove
       |  answer REQUEST TEXT     reply to the developer's request; with a NODE instead, tell them about work they did not ask for
       |
-      |Decisions are the developer's, and are made in the browser (bin/frflow serve).
+      |Decisions are the developer's.
       |""".stripMargin
 
   def run(kb: KnowledgeBase, ws: Workspace, args: Seq[String]): Int =

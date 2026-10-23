@@ -78,14 +78,15 @@ in the domain. `admitted` is a `define` Lean proves meets the contract;
 
 ## Who decides
 
-The developer decides every node, once, in the browser; the agent proposes,
-with a `why` and examples, often with alternatives (`replaces`), through MCP
-and the CLI, and no tool of the agent's decides. `.frflow/ledger.json` holds
+The developer decides every node, once; the agent proposes, with a `why` and
+examples, often with alternatives (`replaces`), through the CLI, and no command
+of the agent's decides. (The browser where the developer decided is on the
+`web-view` branch; the developer's commands are coming to the CLI.) `.frflow/ledger.json` holds
 each decision: who, their reason, the alternatives rejected, signed; it is
 append-only.
 
 - **A parent decides its parts.** What a node says includes the list of its
-  parts. The browser shows them as one table (each part's statement, whether
+  parts. They are decided as one table (each part's statement, whether
   Lean shows it needed, its status, then `complete` and `clash`; on the root
   also `idle`, `root_impl` and the trusted list): "these parts make it".
   Adding or removing a part puts the parent up for review.
@@ -94,11 +95,10 @@ append-only.
 - **Mechanical decisions** (`Decisions.mechanical`): a node under review, not a
   definition or a design node, where nothing it says itself changed, that Lean
   proves again with its examples passing (if its parts changed: they make it,
-  each needed, no clash). The browser offers them as one batch.
-- **Signing.** The browser server signs each decision with the developer's
-  key, kept outside the repository (`~/.config/frflow/signing.key`, or
-  `FRFLOW_KEY`); `frflow serve --as NAME` files its public key as
-  `.frflow/keys/NAME.pub`, to commit. A decision not signed by a key there is a
+  each needed, no clash). They are offered as one batch.
+- **Signing.** Each decision is signed with the developer's key, kept outside
+  the repository (`~/.config/frflow/signing.key`, or `FRFLOW_KEY`); its public
+  key is filed as `.frflow/keys/NAME.pub`, to commit. A decision not signed by a key there is a
   warning, so `status` fails.
 
 ## Drift
@@ -148,7 +148,7 @@ a small budget, so they catch only what it can show. Then:
   assumptions, claims without parts) imply it; a shared node is proven once.
   `root_impl` states the root of the code (every operation with a proven
   `define` replaced by it) from the assumptions alone: its hypotheses are the
-  trusted base, shown by `status` and in the browser.
+  trusted base, shown by `status`.
 - **Implementations** written as a `define` meet their contract (`impl`),
   proven from the promises of the operations the code calls, not from their
   code: each contract is proven once.
@@ -261,7 +261,7 @@ Trusted:
   it cannot translate faithfully (`Int` arithmetic, for one);
 - that parameters hold the data they are said to mean, and that every path to
   the data goes through `service`: design nodes are reviewed, never proven;
-- the signing key: run the browser server outside the repository the agent edits;
+- the signing key: kept outside the repository the agent edits;
 - the model's program. FrFlow runs it to read it, so the gate stops drift, not
   an agent that writes code to subvert FrFlow. Every node's definition as
   written is decided, and every source file is governed by a reviewed node.
@@ -321,8 +321,6 @@ Requirements: JDK 17+, sbt, and Lean 4.35.0 (`lake` on the PATH, or
 `FRFLOW_LAKE`).
 
 ```sh
-bin/frflow serve examples             # the browser, where the developer decides
-bin/frflow mcp examples               # the MCP server for agents (see .mcp.json)
 sbt test                              # unit tests, and Lean tests when lake is available
 sbt "auth/run render"                 # Lean and the snapshot .frflow/kb.json
 sbt "auth/run check"                  # prove what changed, record the results
@@ -330,13 +328,8 @@ sbt "auth/run status"                 # exits 1 unless decided, proven and passi
 sbt "auth/run ci"                     # what CI runs: check, then status
 ```
 
-The browser draws the DAG from the root, each node under its first parent
-with "also under" its others, definitions in their own row, assumptions marked
-trusted. A node's pane shows its parents (each with its split and co-parts),
-the node (its formula, vocabulary and examples), and its parts. Every node has
-one "Ask for a change" box: the node is then with the agent, not waiting for
-you, until the agent answers or changes it. The agent's
-rules are in [`.claude/skills/frflow/SKILL.md`](.claude/skills/frflow/SKILL.md).
+Agents use the same commands (`inbox`, `context`, `find`, `scaffold`,
+`answer`). The agent's rules are in [`.claude/skills/frflow/SKILL.md`](.claude/skills/frflow/SKILL.md).
 
 Committed: the Scala, `IDEA.md`, `.frflow/` (ledger, keys, requests) and
 `lean/Proofs`; the rest is derived.
@@ -348,26 +341,19 @@ knowledge base `Library`):
 
 1. `IDEA.md`: a title, a lead paragraph (the purpose), `## ` sections, and
    `## Not modelled`.
-2. `frflow.json`, which tells the browser and MCP how to run its CLI and which
-   files are its sources:
-   ```json
-   { "name": "Library", "run": ["sbt", "--client", "library/run {args}"], "cwd": "../..",
-     "sources": ["src/main/scala", "IDEA.md", "lean/Proofs"] }
-   ```
-3. A line in `build.sbt` (and the project in `root`'s `aggregate`), then
+2. A line in `build.sbt` (and the project in `root`'s `aggregate`), then
    `sbt reload`:
    ```scala
    lazy val library = example("library")
    ```
-4. The model in `src/main/scala/library/`, ending with the knowledge base and
+3. The model in `src/main/scala/library/`, ending with the knowledge base and
    its command line (with several `@main`s, set `Compile / run / mainClass`):
    ```scala
    val knowledge = KnowledgeBase("Library", idea = "IDEA.md")(lendsExactly, ...)
    @main def libraryCli(args: String*): Unit = sys.exit(knowledge.cli(args, root = "examples/library"))
    ```
-5. `sbt "library/run render"` creates `lean/` (its `lakefile.toml`, toolchain
-   and the generated Lean); then `check`, and `bin/frflow serve examples` shows
-   it beside the others.
+4. `sbt "library/run render"` creates `lean/` (its `lakefile.toml`, toolchain
+   and the generated Lean); then `check` and `status`.
 
 ## Layout
 
@@ -377,12 +363,10 @@ lean/FrFlow/            the Lean side: frflow_auto, frflow_intro; run and list l
 core/                   the Scala library
   Node, Model, Lift     nodes and knowledge bases; Opaque, Param, define; the macro from Scala to Lean
   Generate, Lean        Lean generation; running lake, axiom audits, the proof-file filter
-  Decisions             decision states and rules, shared by the CLI, browser and MCP
+  Decisions             decision states and rules
   Ledger, Signing       the decision record; keys and signatures
   Workflow, Cli, Git    render, check, context, status; the command line; diffs
 examples/               auth, keycloak, crm
 bench/                  the scale benchmark
-tools/                  the browser server and UI, the MCP server
-bin/frflow              runs them
 .claude/skills/frflow   the agent skill
 ```

@@ -187,9 +187,9 @@ object Ledger:
   def warnings(file: Path, now: Ledger): List[String] =
     val keys = file.getParent.resolve("keys")
     (if now.decisions.nonEmpty && Signing.keys(keys).isEmpty then
-      List("no developer key: start the browser (`frflow serve`), which creates your key, and commit .frflow/keys/") else Nil) ++
+      List("no developer key: the developer signs their decisions with their key, and commits its public key in .frflow/keys/") else Nil) ++
     Signing.unsigned(now, keys).map((id, d) =>
-      s"$id: the ${d.action} of ${d.at} by ${d.by} is not signed by a developer key: decide it again in the browser, or sign it there if it is yours")
+      s"$id: the ${d.action} of ${d.at} by ${d.by} is not signed by a developer key: the developer decides it again, or signs it if it is theirs")
 
 /** Check results, derived from the model and Lean; kept in `.frflow/checks.json`, not committed. */
 object Checks:

@@ -3,7 +3,7 @@ name: frflow
 description: >-
   Develop a system with FrFlow: one root (the idea's purpose) refined by a DAG
   of small statements in the domain's words, each proven in Lean from its
-  parts and decided by the developer in a browser. Use when turning an idea
+  parts and decided by the developer. Use when turning an idea
   into a root, proposing or changing nodes, introducing domain terms, adding
   examples, answering the developer's requests, proving a split, or attaching
   an implementation; or when the work touches IDEA.md, `Node.claim`,
@@ -15,7 +15,7 @@ description: >-
 
 The developer writes the idea in `IDEA.md`. You write Scala nodes: one root,
 and below it parts that together prove it, down to contracts on the code. Lean
-proves each split; the developer decides every node in the browser, and
+proves each split; the developer decides every node, and
 whatever moves under a decision puts the node back up for review. The README
 explains the method and `docs/DAG.md` the design; this file holds your rules.
 To start a project, follow the README's "New project".
@@ -23,9 +23,9 @@ To start a project, follow the README's "New project".
 ## Rules
 
 1. **You propose; the developer decides.** Never edit `.frflow/ledger.json`,
-   post to the browser's server, run `frflow serve`, create a signing key, or
-   add files to `.frflow/keys/`. If `status` warns of no developer key, tell
-   the developer to start the browser and commit `.frflow/keys/`.
+   decide for the developer, create a signing key, or add files to
+   `.frflow/keys/`. If `status` warns of no developer key, tell the developer
+   to sign their decisions and commit `.frflow/keys/`.
 2. **One statement per node**, one sentence in the developer's domain words,
    and the formula says exactly that sentence. A formula that packs several
    independent properties is split into parts.
@@ -62,7 +62,7 @@ To start a project, follow the README's "New project".
 
 1. `inbox`: requests, rejected nodes (each with who rejected it and why),
    waiting decisions, the tree.
-2. For each request, read `IDEA.md` and `context(node)`, and `find` where the
+2. For each request, read `IDEA.md` and `context NODE`, and `find` where the
    change belongs. Place a new statement **under the lowest nodes it helps
    prove, as a part** (several parents if it serves several). Extend what
    exists; do not add a near-duplicate.
@@ -70,7 +70,7 @@ To start a project, follow the README's "New project".
    `KnowledgeBase(...)`, then `render` and `check`. Fix failing examples first
    (the code or the contract is wrong, not the proof), then the splits.
    Proposals should reach the developer proven, with passing examples.
-4. `answer(request, text)`: name the proposals, the trade-off, what is left
+4. `answer REQUEST TEXT`: name the proposals, the trade-off, what is left
    open, what the contract does not promise.
 5. After the developer decides, read each rejected node's reason (in `inbox`,
    and with the decision in `context`). If it asks for something, propose a
@@ -79,25 +79,25 @@ To start a project, follow the README's "New project".
    node, move what was under it under the node chosen, and drop its name from
    other statements.
 6. When the inbox says the developer asks to revisit a node, propose a change,
-   or `answer` with `node` why it still holds.
+   or `answer NODE TEXT` why it still holds.
 
 ## Tools
 
-The MCP server `frflow` (see `.mcp.json`); pass `project` when there are several.
+The knowledge base's CLI: `sbt "<kb>/run COMMAND"` (`sbt --client` keeps a
+server running between commands).
 
-| tool | use |
+| command | use |
 |---|---|
 | `inbox` | Start here: requests, clean-up, waiting decisions, the tree. |
-| `context(node)` | What bears on a node: its decision (who, when, why; a rejection's reason too), its idea section, the vocabulary it uses (meanings, definitions in force), its ancestors with every reason and rejected alternative, its co-parts under each parent, its parts, the contracts its code calls, invariants, what moved, its obligations. |
-| `find(query)` | Which nodes govern a file, or what mentions some words: nodes, reasons, rejected options, gone nodes, the idea, Not modelled. |
+| `context NODE` | What bears on a node: its decision (who, when, why; a rejection's reason too), its idea section, the vocabulary it uses (meanings, definitions in force), its ancestors with every reason and rejected alternative, its co-parts under each parent, its parts, the contracts its code calls, invariants, what moved, its obligations. |
+| `find WORDS\|PATH` | Which nodes govern a file, or what mentions some words: nodes, reasons, rejected options, gone nodes, the idea, Not modelled. |
 | `render` | Rebuild from the Scala; compile errors and structural problems come back here. |
-| `check(node?)` | Prove what changed and evaluate the examples in Lean. Slow. A `timeout` is not a failure: run it again. |
-| `scaffold(node)` | Stubs in the node's proof file for what the last check left open. |
-| `answer(request, text)` | Reply to a request; with `node` and no `request`, tell the developer about work they did not ask for. |
+| `check [NODE]` | Prove what changed and evaluate the examples in Lean. Slow. A `timeout` is not a failure: run it again. |
+| `status` | The tree: decisions, proofs, examples, what is trusted; exits 1 unless the knowledge base is complete. |
+| `scaffold NODE` | Stubs in the node's proof file for what the last check left open. |
+| `answer REQUEST TEXT` | Reply to a request; `answer NODE TEXT` tells the developer about work they did not ask for. |
 
-Without MCP: `sbt "<kb>/run inbox"`, `render`, `check [NODE]`, `status`,
-`context NODE`, `find WORDS|PATH`, `scaffold NODE`, `answer REQUEST TEXT` (or
-`answer NODE TEXT`, for work they did not ask for). `ci` is for CI.
+`ci` is for CI: `check`, then `status`.
 
 ## Writing nodes
 
@@ -230,7 +230,7 @@ idle.
 
 ## Proving by hand
 
-1. Run `scaffold(node)`: it writes `lean/Proofs/<KB>/<Node>.lean` with a stub
+1. Run `scaffold NODE`: it writes `lean/Proofs/<KB>/<Node>.lean` with a stub
    per open obligation, each stating exactly `Obl.<name>`, starting with
    `unfold Obl.<name>`, `frflow_intro` and `simp only [frflow_defs] at *`,
    then the goal these steps leave (as a comment), then `sorry`. `check`

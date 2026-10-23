@@ -148,13 +148,7 @@ Changed fields only; everything else stays as today.
 
 ## 6. Browser
 
-- The tree from the root: each node under its first parent, with "also under X" chips for the others;
-  definitions in their own list under the tree; assumptions marked as trusted.
-- The focus pane of a node: its parents (with each parent's split status), the node, its parts.
-- The decision pane of a node with parts: a table of its parts (id, statement, needed, status) and
-  the `complete` and `clash` results, decided as one ("these parts make it").
-- The inbox: ready nodes (all parents decided) first, by depth; a node shared by more parents first
-  within a depth; mechanical batch as today.
+The browser moved to the `web-view` branch (r17); the developer's flow comes to the CLI.
 
 ## 7. Agents
 

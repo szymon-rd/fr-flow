@@ -1,6 +1,0 @@
-{
-  "name": "Keycloak",
-  "run": ["sbt", "--client", "keycloak/run {args}"],
-  "cwd": "../..",
-  "sources": ["src/main/scala", "IDEA.md", "lean/Proofs"]
-}

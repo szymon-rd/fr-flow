@@ -3,15 +3,10 @@ ThisBuild / scalacOptions ++= Seq("-deprecation", "-feature", "-Werror")
 
 val munit = "org.scalameta" %% "munit" % "1.1.1" % Test
 
-lazy val root = project.in(file(".")).aggregate(core, tools, auth, crm, keycloak).settings(publish / skip := true)
+lazy val root = project.in(file(".")).aggregate(core, auth, crm, keycloak).settings(publish / skip := true)
 
 /** The FrFlow library: nodes, the Scala-to-Lean translation, the checker, the CLI. */
 lazy val core = project.in(file("core")).settings(name := "frflow", libraryDependencies += munit)
-
-/** The browser (where the developer decides) and the MCP server (how agents work). Run with `bin/frflow`. */
-lazy val tools = project.in(file("tools"))
-  .dependsOn(core)
-  .settings(name := "frflow-tools", libraryDependencies += munit, publish / skip := true, Test / fork := true)
 
 def example(name: String) = Project(name, file(s"examples/$name"))
   .dependsOn(core)
@@ -19,7 +14,7 @@ def example(name: String) = Project(name, file(s"examples/$name"))
     libraryDependencies += munit,
     publish / skip := true,
     run / fork := true,
-    // The CLI's output (read by the browser and agents) is UTF-8 whatever the locale.
+    // The CLI's output (read by agents) is UTF-8 whatever the locale.
     run / javaOptions ++= Seq("-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "-Dfile.encoding=UTF-8"),
     // Every source the build compiles, so code in a source directory added here is governed too.
     run / javaOptions += "-Dfrflow.sources=" + (Compile / sources).value.map(_.getAbsolutePath).mkString(java.io.File.pathSeparator),

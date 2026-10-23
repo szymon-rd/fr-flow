@@ -365,13 +365,6 @@ globs = ["FrFlowGen.+"]
 name = "Proofs"
 globs = ["Proofs.+"]
 ''')
-write(os.path.join(root, "frflow.json"), '''{
-  "name": "Scale",
-  "run": ["sbt", "--client", "scale/run {args}"],
-  "cwd": "../..",
-  "sources": ["src/main/scala", "IDEA.md", "lean/Proofs"]
-}
-''')
 for f in ["lean-toolchain", "lake-manifest.json"]:
     t = open(os.path.join(root, "..", "auth", "lean", f)).read()
     write(os.path.join(root, "lean", f), t.replace('"auth"', '"scale"'))

@@ -646,7 +646,7 @@ object Decisions:
       val warnings = s("warnings").map(_.arr.toList).getOrElse(Nil).flatMap(_.str)
       (if warnings.isEmpty then Nil else "" :: "Warnings (status fails on each; fix those in the code):" :: warnings.map("- " + _)) ++
         (if agent.isEmpty then Nil else "" :: "For you:" :: agent.map("- " + _)) ++
-        (if dev.isEmpty then Nil else "" :: "Waiting for the developer's decision (in the browser):" :: dev.map("- " + _))
+        (if dev.isEmpty then Nil else "" :: "Waiting for the developer's decision:" :: dev.map("- " + _))
     }
     (reqs ++ rest).mkString("\n") + annotated.fold("")(s => "\n\nThe tree:\n" + tree(s))
 
