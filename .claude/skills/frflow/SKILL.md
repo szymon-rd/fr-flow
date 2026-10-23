@@ -71,7 +71,7 @@ To start a project, follow the README's "New project".
    (the code or the contract is wrong, not the proof), then the splits.
    Proposals should reach the developer proven, with passing examples.
 4. `answer REQUEST TEXT`: name the proposals, the trade-off, what is left
-   open, what the contract does not promise.
+   open.
 5. After the developer decides, read each rejected node's reason (in `inbox`,
    and with the decision in `context`). If it asks for something, propose a
    node in its place that does it, under the same parents, its `why` saying
@@ -163,9 +163,6 @@ Edges and extras (chained on a node):
 - `idea = "Section"`: the `## ` section of `IDEA.md` the node is decided
   against (the root takes the title and lead). A section no node names is a
   warning.
-- `formal = false` (claim, contract, invariant): out of Lean, decided by
-  reading. Only when the Lean subset cannot say it or the proof costs more than
-  it gives; say so in `why`.
 - `KnowledgeBase(name, idea = "IDEA.md")(every node, definitions included)`.
 
 **Where it belongs.** A claim states a property in the domain's terms; a
@@ -306,8 +303,7 @@ redefine `equals`, no two `define`s with one name.
   (`self`); a change of its formula also reviews what rests on it (`above`),
   and adding or removing a part reviews the parent (`parts`). Rewording a
   statement whose formula is unchanged, a `why`, or adding an example does not
-  cascade (the node's review lists what rests on it, to revisit by name); a
-  `formal = false` node is its words, and rewording it cascades. A change to an
+  cascade (the node's review lists what rests on it, to revisit by name). A change to an
   implementation or a governed file reviews the node (`code`): no proof covers
   plain code, so say in your answer what changed and why the invariants it
   touches still hold.

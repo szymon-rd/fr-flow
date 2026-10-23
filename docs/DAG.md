@@ -66,7 +66,7 @@ term (two present: they are alternatives, decided before the nodes that use the 
 
 Kept from today, unchanged in meaning: `examples(bindings*)(expect/reject...)`, `checkedBy`,
 `implement`, `implementProven(contract)(define)` and `(define, fast)`, `service`, `expects`,
-`formal = false`, `Opaque`, `Param`, `define`, `forall`/`exists`.
+`Opaque`, `Param`, `define`, `forall`/`exists`.
 
 Removed: `Node.root` (a claim with no parents), `refine` and `abs` (a part plus, where the model's
 shape changes, a definition relating the terms: `shows := (u, r) => exists((q: Query) => run(u, q).contains(r))`),
@@ -379,8 +379,8 @@ now linear (about 0.85 s a node). The causes, and what changed:
   (`self`) and not what rests on it: a node's `above` is not set when its recorded chain is met again
   with every such reworded node above it taken as it was decided then (`Decisions.View.reworded`). The
   hashes and the ledger are unchanged, so existing decisions read as before. The reworded node's review
-  lists the decisions below it (`below`, kind `accepted`): what may be affected, to revisit by name. A
-  `formal = false` node is its words: rewording it cascades as before; so does any change of a formula.
+  lists the decisions below it (`below`, kind `accepted`): what may be affected, to revisit by name. Any
+  change of a formula cascades.
 - **`unsat` stays.** `feasible` is asked only of an authored `complete` with nothing witnessing the
   parts; a leaf claim or a node proven by automation is never asked it, and a contradictory one makes
   everything above it provable. `unsat` is the one guard there (cheap, and one-sided as the others).

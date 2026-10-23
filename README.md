@@ -117,8 +117,8 @@ Whatever moves under it puts the node back up for review, with the cause:
 
 A change above a shared node reviews it once, whatever the number of paths; a
 new part reviews its parents only. Rewording a `why`, adding an example, or
-rewording a statement whose formula is unchanged does not cascade below (out of
-Lean, `formal = false`, rewording does); a change of formula does. Accepting a
+rewording a statement whose formula is unchanged does not cascade below; a
+change of formula does. Accepting a
 change lists every
 decision that rests on it, however far down, each with its reason; the
 developer marks those it may affect (`revisit`) and confirms by name those that
@@ -170,10 +170,6 @@ a small budget, so they catch only what it can show. Then:
   commands and imports, and have their axioms audited (`sorry` fails). A
   hand-proven `complete` with no proven code below also needs `feasible`: some
   world meets all the parts, so a proof cannot rest on a contradiction.
-
-Lean is the default. Where the Lean subset cannot say a node, or a proof costs
-more than it gives, the node opts out with `formal = false`: its split is
-decided by reading, and its examples and `service` still run.
 
 **Checked by running.** Examples run against the contract and the
 implementation, which also runs on every combination of the examples' inputs.
