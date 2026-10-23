@@ -102,10 +102,7 @@ final class Evals(kb: KnowledgeBase, refinement: Refinement, values: LeanValues)
       * boundary (a number of one input equal to one of the other, where `<` and `<=` part), half anywhere.
       */
     private def probes: List[Eval] = n.cases.headOption.toList.flatMap { first =>
-      val nums = n.cases.flatMap(e => Probes.numbers(e.a) ++ Probes.numbers(e.b)).distinct
-      val asked = n.cases.map(e => (e.a, e.b)).toSet
-      val inputs = n.cases.flatMap(e => for { a <- e.a :: Probes.near(e.a, nums); b <- e.b :: Probes.near(e.b, nums) } yield (a, b))
-        .distinct.filterNot(asked)
+      val inputs = Probes.inputs(n.cases)
       // Without code to run, the post is judged on the examples' results.
       val calls = if impl.isDefined then inputs.map((a, b) => (a, b, None))
         else inputs.flatMap((a, b) => n.cases.map(_.result).distinct.map(r => (a, b, Some(r))))
