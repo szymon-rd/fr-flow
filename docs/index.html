@@ -1,0 +1,841 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FrFlow documentation</title>
+<meta name="description" content="FrFlow: a method and tool for building software with AI agents, where a DAG of small statements explains the code, Lean proves it, and the developer decides every statement.">
+<style>
+:root {
+  --bg: #ffffff; --fg: #1f2328; --muted: #57606a; --line: #d0d7de; --panel: #f6f8fa; --code: #f6f8fa;
+  --link: #0a58ca; --accent: #0a58ca; --mark: #fff8c5; --warn-bg: #fff8e6; --warn-line: #b08800; --warn-fg: #5c4400;
+  --kbd: #eaeef2; --focus: #0a58ca;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #0d1117; --fg: #e6edf3; --muted: #9da7b3; --line: #30363d; --panel: #161b22; --code: #161b22;
+  --link: #6cb6ff; --accent: #6cb6ff; --mark: #3b2f00; --warn-bg: #2a2111; --warn-line: #d29922; --warn-fg: #f0d58a;
+  --kbd: #262c36; --focus: #6cb6ff;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1117; --fg: #e6edf3; --muted: #9da7b3; --line: #30363d; --panel: #161b22; --code: #161b22;
+    --link: #6cb6ff; --accent: #6cb6ff; --mark: #3b2f00; --warn-bg: #2a2111; --warn-line: #d29922; --warn-fg: #f0d58a;
+    --kbd: #262c36; --focus: #6cb6ff;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 4.5rem; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+a { color: var(--link); }
+a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.skip { position: absolute; left: -999px; top: 0; background: var(--bg); padding: .5rem 1rem; z-index: 10; }
+.skip:focus { left: 1rem; top: 1rem; }
+header.top {
+  position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: .75rem;
+  padding: .6rem 1rem; background: var(--bg); border-bottom: 1px solid var(--line);
+}
+header.top .name { font-weight: 700; font-size: 1.1rem; text-decoration: none; color: var(--fg); }
+header.top .links { margin-left: auto; display: flex; gap: .75rem; align-items: center; font-size: .95rem; }
+button { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: .3rem .6rem; cursor: pointer; }
+#menu { display: none; }
+.layout { display: grid; grid-template-columns: 17rem minmax(0, 1fr); max-width: 78rem; margin: 0 auto; }
+nav.toc {
+  position: sticky; top: var(--head, 3.4rem); align-self: start; max-height: calc(100vh - var(--head, 3.4rem)); overflow-y: auto;
+  padding: 1rem 1rem 2rem; border-right: 1px solid var(--line); font-size: .92rem;
+}
+nav.toc input {
+  width: 100%; padding: .4rem .5rem; margin-bottom: .75rem; font: inherit; color: var(--fg);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+}
+nav.toc ol { list-style: none; margin: 0; padding: 0; }
+nav.toc li ol { padding-left: .9rem; }
+nav.toc a { display: block; padding: .12rem .4rem; border-radius: 4px; color: var(--fg); text-decoration: none; }
+nav.toc a:hover { background: var(--panel); }
+nav.toc a[aria-current="true"] { background: var(--panel); color: var(--accent); font-weight: 600; box-shadow: inset 3px 0 0 var(--accent); }
+nav.toc .group { margin: .9rem 0 .2rem .4rem; font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+nav.toc .none { color: var(--muted); padding: .2rem .4rem; }
+main { padding: 1.5rem 2rem 4rem; min-width: 0; }
+main > section { max-width: 46rem; }
+main p, main li { max-width: 70ch; }
+h1 { font-size: 2rem; line-height: 1.25; margin: .5rem 0 .75rem; }
+h2 { font-size: 1.5rem; line-height: 1.3; margin: 3rem 0 .75rem; padding-top: .5rem; border-top: 1px solid var(--line); }
+h3 { font-size: 1.15rem; margin: 2rem 0 .5rem; }
+h2 .kind, h3 .kind { font-size: .72rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: .05rem .5rem; margin-left: .5rem; vertical-align: middle; }
+.anchor { margin-left: .4rem; color: var(--muted); text-decoration: none; opacity: 0; font-weight: 400; }
+h2:hover .anchor, h3:hover .anchor, .anchor:focus { opacity: 1; }
+.lead { font-size: 1.1rem; color: var(--fg); }
+code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; font-size: .9em; background: var(--code); padding: .1em .3em; border-radius: 4px; overflow-wrap: anywhere; }
+.code { position: relative; margin: 1rem 0; }
+.code pre { margin: 0; padding: .9rem 1rem; overflow-x: auto; background: var(--code); border: 1px solid var(--line); border-radius: 8px; line-height: 1.45; font-size: .85rem; }
+.code pre code { background: none; padding: 0; font-size: inherit; white-space: pre; }
+.code .label { display: block; font-size: .78rem; color: var(--muted); margin-bottom: .25rem; }
+.code button.copy { position: absolute; top: .4rem; right: .4rem; font-size: .78rem; padding: .15rem .5rem; opacity: .85; }
+.code .label + pre + button.copy, .code .label ~ button.copy { top: 1.9rem; }
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .93rem; display: block; overflow-x: auto; }
+th, td { border: 1px solid var(--line); padding: .4rem .6rem; text-align: left; vertical-align: top; }
+th { background: var(--panel); }
+.note { border-left: 4px solid var(--accent); background: var(--panel); padding: .6rem 1rem; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+.wip { border: 1px solid var(--warn-line); background: var(--warn-bg); color: var(--warn-fg); padding: .7rem 1rem; border-radius: 6px; margin: 1rem 0; }
+.wip strong { color: inherit; }
+ol.steps > li { margin: .4rem 0; }
+kbd { font-family: inherit; font-size: .85em; background: var(--kbd); border: 1px solid var(--line); border-radius: 4px; padding: 0 .3rem; }
+footer { color: var(--muted); font-size: .9rem; margin-top: 4rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+mark { background: var(--mark); color: inherit; }
+@media (max-width: 900px) {
+  #menu { display: inline-block; }
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  nav.toc { display: none; position: fixed; inset: 0; max-height: none; padding-top: calc(var(--head, 3.6rem) + 1rem); background: var(--bg); z-index: 4; border-right: none; }
+  body.nav-open nav.toc { display: block; }
+  main { padding: 1rem 1rem 3rem; }
+  h1 { font-size: 1.6rem; }
+  header.top .links .gh { display: none; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="top">
+  <button id="menu" aria-expanded="false" aria-controls="toc">Contents</button>
+  <a class="name" href="#top">FrFlow</a>
+  <div class="links">
+    <a class="gh" href="https://github.com/szymon-rd/fr-flow">GitHub</a>
+    <a href="../README.md">README</a>
+    <button id="theme" aria-label="Switch between light and dark theme">Dark</button>
+  </div>
+</header>
+<div class="layout">
+<nav class="toc" id="toc" aria-label="Contents">
+  <label for="filter" class="group" style="display:block;margin-left:0">Find a section</label>
+  <input id="filter" type="search" placeholder="Filter headings ( / )" autocomplete="off">
+  <ol id="toc-list"></ol>
+  <p class="none" id="toc-none" hidden>No section matches.</p>
+</nav>
+<main id="content">
+
+<section id="top" aria-labelledby="title">
+<h1 id="title">FrFlow documentation</h1>
+<p class="lead">FrFlow is a method and a tool for building software with AI agents without losing track of what the
+software is for. The agent writes the code and a tree of small statements that explain it. Lean proves that the
+statements fit together and that the code meets them. You decide every statement, and you see it again when it changes.</p>
+<p>FrFlow is written in Scala 3 and uses Lean 4. This page has four kinds of section, marked next to each heading:
+a <strong>tutorial</strong> to learn it, <strong>how-to guides</strong> for tasks, the <strong>reference</strong>,
+and <strong>explanations</strong> of why it works as it does. For the short pitch, read the
+<a href="../README.md">README</a>.</p>
+<ul>
+  <li>New to FrFlow: start with <a href="#get-started">Get started</a>, then <a href="#tutorial">the tutorial</a>.</li>
+  <li>Writing a model: see <a href="#ref-terms">Terms</a> and <a href="#ref-nodes">Nodes</a>.</li>
+  <li>Using the command line: see <a href="#ref-cli">Commands</a>.</li>
+  <li>A check failed: see <a href="#troubleshooting">Troubleshooting</a>.</li>
+</ul>
+</section>
+
+<section aria-labelledby="why">
+<h2 id="why">Why FrFlow <span class="kind">Explanation</span></h2>
+<p>Using AI agents for coding brings two problems:</p>
+<ul>
+  <li><strong>Lost Theory.</strong> Peter Naur argued that a program is the visible part of a theory its programmers
+  hold: why it is built the way it is, and how it maps to the world. When agents write the code, nobody on the team
+  builds that theory, and the agent loses it when its context ends.</li>
+  <li><strong>Drift.</strong> Each change an agent makes can move what the system does a little away from what was
+  intended. Each step looks reasonable on its own, and a reviewer of a large diff has no record of the intent to
+  compare against.</li>
+</ul>
+<p>FrFlow addresses them with a formal refinement flow:</p>
+<ol class="steps">
+  <li>You write <code>IDEA.md</code>: the purpose of the system, in prose.</li>
+  <li>The agent proposes a <em>root</em>: one statement that says the purpose exactly, both what users can do and
+  what must never happen.</li>
+  <li>The agent refines the root into <em>parts</em>, in your domain's words: claims, contracts on operations,
+  assumptions, definitions of terms, and design decisions. Parts have parts, down to the code. The result is a DAG.</li>
+  <li>FrFlow translates the DAG to Lean and proves that the parts of each node imply it, that the code meets its
+  contract, and that the root follows from the code and a short list of trusted assumptions.</li>
+  <li>You accept or reject each node, in the terminal or in a local web view. Each decision is signed and kept in a
+  ledger with your reason.</li>
+  <li>When something changes, every node it affects comes back for review, with a diff.</li>
+</ol>
+<p>The theory is written down, one sentence and one <code>why</code> per node; the links between the statements
+are proven; and drift shows up as a node back in your queue. This costs work: you read and decide nodes, and the
+agent writes proofs. That work goes where using AI is risky: the intent, and whether the code still matches it.</p>
+</section>
+
+<section aria-labelledby="get-started">
+<h2 id="get-started">Get started <span class="kind">Tutorial</span></h2>
+<p>You need JDK 17 or later, sbt, and Lean 4.35.0 installed with <a href="https://github.com/leanprover/elan">elan</a>,
+so that <code>lake</code> is on the <code>PATH</code>. Then clone the repository and run the smallest example:</p>
+<div class="code"><pre><code>git clone https://github.com/szymon-rd/fr-flow &amp;&amp; cd fr-flow
+bin/frflow auth tree      # compiles the example on first use
+bin/frflow auth check     # proves it in Lean (the first run builds the Lean library)
+bin/frflow auth status    # the summary; exits 1 unless everything is proven and decided</code></pre></div>
+<p><code>bin/frflow PROJECT COMMAND</code> runs a project's command line. After <code>check</code>,
+<code>tree</code> shows every node proven (<code>+</code>):</p>
+<div class="code"><span class="label">Output of <code>bin/frflow auth tree --plain</code></span><pre><code>+ AccessExactly  A user gets access to a resource exactly when they are signed in and authorized for it.
+|- + TokenNamesHolder  A request is admitted only on behalf of the user its token was issued to.
+|  `- + DecisionContract  contract  A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path.
+|     `- - InMemorySessions  design  Sessions and grants are loaded into memory, in one process that decides every request.
+|- + AccessNeedsGrant  A request is admitted on behalf of a user only if a grant names that user and the path.
+|  `- -&gt; DecisionContract
+`- + GrantLetsIn  A request whose token was issued to a user with a grant for the path is admitted on their behalf.
+   `- -&gt; DecisionContract
+
+Definitions: they fix terms of the vocabulary (decided, not proven)
+- Identities  definition  Users are named by ids, and resources are paths.
+- Requests  definition  A user has access to a path when some request for it is admitted on their behalf.
+- SessionTable  definition  A user is signed in when some session token was issued to them.
+- GrantTable  definition  A user is authorized for a path when a grant names that user and that path.
+
+Auth: 10 nodes, 10 accepted
+splits 4/4 proven, contracts 1/1 proven down to their code, root_impl proven, examples 5/5 agree in Lean, trusted: nothing
+Nothing waits: every node is accepted and proven.</code></pre></div>
+<p>And <code>status</code> ends with the summary:</p>
+<div class="code"><span class="label">End of <code>bin/frflow auth status --plain</code></span><pre><code>Auth: 10 nodes, 10 accepted
+splits 4/4 proven, contracts 1/1 proven down to their code, root_impl proven, examples 5/5 agree in Lean, trusted: nothing
+Nothing waits: every node is accepted and proven.</code></pre></div>
+<p>The repository has three examples:</p>
+<ul>
+  <li><code>examples/auth</code>: access control by a table of grants. The smallest; the tutorial below walks through it.</li>
+  <li><code>examples/keycloak</code>: realms, sign-in, token introspection and sign-out over HTTP. The sessions are
+  proven to follow the history of requests.</li>
+  <li><code>examples/crm</code>: a multi-tenant CRM on SQLite with an HTTP API.</li>
+</ul>
+</section>
+
+<section aria-labelledby="tutorial">
+<h2 id="tutorial">Tutorial: read a knowledge base, top to bottom <span class="kind">Tutorial</span></h2>
+<p>This walks through <code>examples/auth</code> in the order an agent writes it and you decide it. Every snippet is
+the example's code. Open <code>examples/auth/src/main/scala/auth/Auth.scala</code> beside this page.</p>
+
+<h3 id="t-idea">1. The idea</h3>
+<p>You write the purpose in <code>IDEA.md</code>: a title, a lead paragraph, sections, and what is not modelled.</p>
+<div class="code"><span class="label"><code>examples/auth/IDEA.md</code></span><pre><code># Auth
+
+A system decides which users may access which resources. No user may ever
+access a resource they are not authorized to access.
+
+Users identify themselves with tokens they receive at login. Authorization is
+given by a table of grants: a user may access a path when a grant names that
+user and that path.
+
+## Not modelled
+
+- How tokens are issued at login, and when they expire.
+- Who may change the table of grants.</code></pre></div>
+
+<h3 id="t-vocab">2. Open terms</h3>
+<p>The root speaks in the idea's most general words. An <code>Opaque</code> is a domain type that is not fixed yet;
+a <code>Param</code> is a term: a fact of the world or an operation of the system. Each says what it means.</p>
+<div class="code"><pre><code>val User       = Opaque("User", "a person who uses the system")
+val Resource   = Opaque("Resource", "something a user may want to access")
+val access     = Param[(User.T, Resource.T) =&gt; Boolean]("access", "whether the system lets the user access the resource")
+val authorized = Param[(User.T, Resource.T) =&gt; Boolean]("authorized", "whether the user is allowed the resource, by whatever rule the system adopts")
+val signedIn   = Param[User.T =&gt; Boolean]("signedIn", "whether the user has signed in, so can present who they are")</code></pre></div>
+
+<h3 id="t-root">3. The root</h3>
+<p>The root states the purpose <em>exactly</em>: access holds exactly when the user is signed in and authorized.
+The sentence is what you decide; the formula is what Lean reads. Formulas are written with
+<a href="#ref-terms">terms</a>: lambdas over <code>Term[…]</code>, compared with <code>===</code>.</p>
+<div class="code"><pre><code>val accessExactly = Node.claim("AccessExactly",
+  "A user gets access to a resource exactly when they are signed in and authorized for it.",
+  why = "The idea says no one may access what they are not authorized to; and authorization is what lets a signed-in user in, or the system would serve no one. Who is authorized, and how a user signs in, the domain says below."
+)(forall((u: Term[User.T], r: Term[Resource.T]) =&gt; access(u, r) === (signedIn(u) &amp;&amp; authorized(u, r))))</code></pre></div>
+
+<h3 id="t-domain">4. The domain, by definitions</h3>
+<p>Below the root, definitions bring in the domain: users are ids, resources are paths, and the open terms get their
+meaning from tables. A case class that formulas build from terms has a companion that extends <code>Data</code>.</p>
+<div class="code"><pre><code>final case class UserId(name: String)
+final case class Path(value: String)
+final case class Grant(user: UserId, path: Path)
+object Grant extends Data[Grant]
+
+val grants   = Param[List[Grant]]("grants", "the grant table as stored when the request is decided")
+val sessions = Param[String =&gt; Option[UserId]]("sessions", "the session table as stored when the request is decided: a token to the user it was issued to at login")
+val admit    = Param[(String, Path) =&gt; Option[UserId]]("admit", "the system's decision on a request (a token and a path): the user it is admitted on behalf of, if any")
+
+val identities = Node.definition("Identities", "Users are named by ids, and resources are paths.",
+  why = "The grant table names users by id and resources by path, so these are what the system knows them by."
+)(User := of[UserId], Resource := of[Path])
+
+val grantTable = Node.definition("GrantTable", "A user is authorized for a path when a grant names that user and that path.",
+  why = "The idea defines authorization as a table of grants; who may change the table is not modelled."
+)(authorized := ((u: Term[UserId], p: Term[Path]) =&gt; grants.contains(Grant(u, p))))
+
+val sessionTable = Node.definition("SessionTable", "A user is signed in when some session token was issued to them.",
+  why = "Users identify themselves with tokens they receive at login; the session table records which token was issued to whom. How tokens are issued is not modelled."
+)(signedIn := ((u: Term[UserId]) =&gt; exists((t: Term[String]) =&gt; sessions(t) === Some(u))))</code></pre></div>
+
+<h3 id="t-parts">5. The parts</h3>
+<p>The root has three parts. Lean proves that together they imply it (<code>complete</code>), and tries to show that
+each one is needed. This is the capability part: a granted user gets in.</p>
+<div class="code"><pre><code>val grantLetsIn = Node.claim("GrantLetsIn",
+  "A request whose token was issued to a user with a grant for the path is admitted on their behalf.",
+  why = "A grant is there to be used: a system that turned a granted user away would meet the rules by serving no one."
+)(forall((t: Term[String], p: Term[Path]) =&gt; sessions(t).forall(u =&gt; grants.contains(Grant(u, p)) ==&gt; (admit(t, p) === Some(u))))).under(accessExactly)</code></pre></div>
+
+<h3 id="t-contract">6. A contract, with examples</h3>
+<p>A contract states, for one call of an operation, what every result must satisfy, so each result of the running
+system can be checked. Examples are concrete calls: an <code>expect</code> the contract must allow and a
+<code>reject</code> it must refuse. Lean evaluates them too, and must agree with Scala.</p>
+<div class="code"><pre><code>val decisionContract = Node.contract(admit)("DecisionContract",
+  "A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path.",
+  why = "The three parts, stated for one call, so every result of the running system can be checked."
+)((token, path, decision) =&gt; decision.forall(u =&gt; sessions(token) === Some(u) &amp;&amp; grants.contains(Grant(u, path))) &amp;&amp;
+  sessions(token).forall(u =&gt; grants.contains(Grant(u, path)) ==&gt; (decision === Some(u))))
+  .under(tokenNamesHolder, accessNeedsGrant, grantLetsIn)
+  .examples(grants.bind(List(Grant(UserId("alice"), Path("/a")))), sessions.bindTable(Map("t1" -&gt; UserId("alice"))))(
+    expect("t1", Path("/a"), Some(UserId("alice")), "Alice's token and a grant for /a: she gets in"),
+    expect("t1", Path("/b"), None, "no grant for /b: refused"),
+    reject("t1", Path("/b"), Some(UserId("alice")), "access without a grant is never given"),
+    reject("t2", Path("/a"), Some(UserId("alice")), "a token that is not Alice's never acts for her"),
+    reject("t1", Path("/a"), None, "Alice with a grant for /a is not turned away"))</code></pre></div>
+
+<h3 id="t-code">7. Code that Lean proves</h3>
+<p>A <code>define</code> is a function written with terms. It runs as Scala and is printed as a Lean definition, so
+Lean can prove that it meets the contract (<code>impl</code>).</p>
+<div class="code"><pre><code>val admitted = define { (token: Term[String], path: Term[Path]) =&gt;
+  sessions(token)
+    .on[Some[UserId]](u =&gt; If(grants.contains(Grant(u, path)))(some(u)).Else(none))
+    .on[None.type](none)
+}</code></pre></div>
+
+<h3 id="t-kb">8. The knowledge base and its command line</h3>
+<p>A design decision governs files no proof covers. The knowledge base lists the nodes and attaches the code; here
+the production class <code>SessionStore</code> runs, and is checked against the proven <code>admitted</code>.</p>
+<div class="code"><pre><code>val inMemorySessions = Node.design(
+  "InMemorySessions",
+  "Sessions and grants are loaded into memory, in one process that decides every request.",
+  why = "One service decides access, and the tables fit in memory. A shared store would only be needed with several instances."
+)("src/main/scala/auth/Server.scala").under(decisionContract)
+
+val knowledge = KnowledgeBase("Auth", idea = "IDEA.md")(
+  accessExactly,
+  identities,
+  grantTable,
+  sessionTable,
+  requests,
+  tokenNamesHolder,
+  accessNeedsGrant,
+  grantLetsIn,
+  decisionContract,
+  inMemorySessions
+).implementProven(decisionContract)(admitted, SessionStore(grants.value.toSet, sessions.value).decide)
+
+object authCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/auth", serve = Some(frflow.web.WebView.serve))</code></pre></div>
+<p>Production calls the operation through <code>service</code>, which checks every result against the contract:</p>
+<div class="code"><span class="label"><code>examples/auth/src/main/scala/auth/Server.scala</code></span><pre><code>def service(grantTable: List[Grant], tokens: Map[String, UserId]): (String, Path) =&gt; Option[UserId] =
+  knowledge.service(decisionContract)(grants.bind(grantTable), sessions.bind(t =&gt; tokens.get(t)))</code></pre></div>
+
+<h3 id="t-next">9. Next</h3>
+<p>Run <code>bin/frflow auth show GrantLetsIn</code> to see one node with its proofs and decisions, and
+<code>bin/frflow keycloak tree</code> for a larger DAG. To start your own project, follow
+<a href="#how-new-project">Start a project</a>.</p>
+</section>
+
+<section aria-labelledby="howto">
+<h2 id="howto">How-to guides <span class="kind">How-to</span></h2>
+<p>Each guide is one task. They assume you have run <a href="#get-started">Get started</a>.</p>
+
+<h3 id="how-new-project">Start a project</h3>
+<ol class="steps">
+  <li>Create <code>examples/library/IDEA.md</code> with a title, a lead paragraph, <code>## </code> sections, and a
+  <code>## Not modelled</code> section.</li>
+  <li>In <code>build.sbt</code>, add <code>lazy val library = example("library")</code> and add the project to
+  <code>root</code>'s <code>aggregate</code>. Run <code>sbt reload</code>.</li>
+  <li>Write the model in <code>examples/library/src/main/scala/library/</code>, ending with the knowledge base and its
+  command line, as in <a href="#t-kb">the tutorial's step 8</a>:
+  <code>KnowledgeBase("Library", idea = "IDEA.md")(…)</code> and
+  <code>object libraryCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/library", serve = Some(frflow.web.WebView.serve))</code>.</li>
+  <li>Run <code>bin/frflow library render</code>. It creates <code>lean/</code> with its Lake project and the
+  generated Lean. Then run <code>check</code> and <code>status</code>.</li>
+</ol>
+
+<h3 id="how-split">Split a claim into parts</h3>
+<ol class="steps">
+  <li>Write each part as a <code>Node.claim</code> (or a contract, or an assumption) with one sentence, a
+  <code>why</code>, and a formula that says exactly that sentence.</li>
+  <li>Attach it with <code>.under(parent)</code>. Edges point up, so the parent's code does not change.</li>
+  <li>Aim for 2 to 5 parts. Split the root first into what must never happen and what users can do (keycloak's
+  <code>NoUnauthorizedAccess</code> and <code>SignedInAreAccepted</code>), or into state and reads.</li>
+  <li>Run <code>check</code>. If <code>complete</code> stays open, a part is missing or too weak; see
+  <a href="#troubleshooting">Troubleshooting</a>.</li>
+</ol>
+<div class="code"><span class="label">The keycloak root and its safety half (<code>examples/keycloak/…/Access.scala</code>)</span><pre><code>val realmAccess = Node.claim("RealmAccess",
+  "A realm's application accepts a token as a user's, with the user's roles, exactly when the user signed in to that realm and got the token, has not signed out with it since, and is still enabled.",
+  why = "The idea in one sentence: applications never see passwords, they ask the server whose a token is. Both halves matter: a token must never let anyone else in (no unauthorized access), and a user who signed in must be let in, or a server that accepts nothing would do."
+)(forall((r: Term[Realm.T], t: Term[Token.T]) =&gt; forall((u: Term[User.T]) =&gt;
+  (accepted(r, t) === some((u, rolesOf(r, u)))) === (signedIn(r, u, t) &amp;&amp; enabled(r, u)))))
+
+val noUnauthorizedAccess = Node.claim("NoUnauthorizedAccess",
+  "A token is accepted only as a user who signed in to that realm with it, has not signed out since and is still enabled, and only with that user's roles.",
+  why = "The safety half of the purpose: whatever an application is told about a token must be true of a sign-in that still stands.",
+  idea = "No unauthorized access"
+)(forall((r: Term[Realm.T], t: Term[Token.T]) =&gt; accepted(r, t).forall(a =&gt; signedIn(r, a._1, t) &amp;&amp; enabled(r, a._1) &amp;&amp; a._2 === rolesOf(r, a._1))))
+  .under(realmAccess)</code></pre></div>
+
+<h3 id="how-term">Define a domain term</h3>
+<p>Fix an open type with <code>Opaque := of[T]</code> and an open term with <code>param := expression</code>, inside a
+<code>Node.definition</code>. A definition is decided, not proven. Two definitions of one term are alternatives: you
+choose one. See <a href="#t-domain">the tutorial's step 4</a>.</p>
+
+<h3 id="how-implement">Attach an implementation</h3>
+<table>
+<thead><tr><th>You want</th><th>Write</th><th>Then</th></tr></thead>
+<tbody>
+<tr><td>Lean to prove the code</td><td><code>.implementProven(contract)(aDefine)</code></td><td>the define runs, and <code>impl</code> is proven</td></tr>
+<tr><td>Fast production code beside a proven reference</td><td><code>.implementProven(contract)(aDefine, (a, b) =&gt; fast(a, b))</code></td><td>the fast code runs, checked against the define on the examples and varied data</td></tr>
+<tr><td>Plain code, checked by running</td><td><code>.implement(contract)((a, b) =&gt; …)</code></td><td>the examples run, and <code>service</code> checks every call</td></tr>
+</tbody>
+</table>
+<p>Plain Scala code calls a define with <code>d.fn(…)</code> and reads a parameter with <code>p.value</code>.</p>
+
+<h3 id="how-invariant">Keep a rule across every operation</h3>
+<p>An invariant is a rule over pairs that every contract in its scope keeps (<code>.keeps</code>) or is exempt from,
+with a reason (<code>.exempt</code>). A new endpoint then has to keep it or say why not.</p>
+<div class="code"><span class="label"><code>examples/keycloak/…/Introspection.scala</code></span><pre><code>val realmIsolation = Node.invariant[RealmId, Claims]("RealmIsolation",
+  "No application is ever shown claims of a realm other than its own.",
+  why = "The idea says a token is only ever good in the realm that issued it. Stated once over every answer the server gives, so a new endpoint (user info, an admin view of sessions) must keep it or say why not.",
+  idea = "Realms"
+)((asking, c) =&gt; c.realm === asking)
+  .under(onlyTheSignedIn)</code></pre></div>
+<p>On the contract <code>Introspect</code>, the result shows the rule each claim it returns:
+<code>.keeps(realmIsolation)((realm, token, res) =&gt; res.on[Some[Claims]](c =&gt; List((realm, c))).on[None.type](Nil))</code>.</p>
+
+<h3 id="how-outside">State what the outside does</h3>
+<p>A database or a clock cannot be proven. State what it is trusted to do as an assumption on its operation; the code
+that calls it is proven from that promise, and <code>checkedBy</code> gives a cheap check run on every call.</p>
+<div class="code"><pre><code>val sessionLookup = Node.assumption(lookup)("SessionLookup",
+  "The store's index returns a session it holds under the token in the realm asked, if it holds one, and never one of another realm or token.",
+  why = "Sessions live in a store indexed by realm and token (in memory here; a database or cache in a cluster). Introspection is proven from this promise, not from the index; the index is checked against the define it is decided with on its examples, and every session it returns is checked to be of the realm and token asked."
+)((realm, token, r) =&gt; r.forall(x =&gt; sessions(realm).contains(x) &amp;&amp; x.token === token &amp;&amp; x.realm === realm) &amp;&amp;
+  (sessions(realm).exists(x =&gt; x.token === token) ==&gt; r.isDefined))
+  .checkedBy((realm, token, r) =&gt; r.forall(x =&gt; x.token === token &amp;&amp; x.realm === realm))</code></pre></div>
+
+<h3 id="how-review">Review a change</h3>
+<ol class="steps">
+  <li>Run <code>bin/frflow PROJECT inbox</code> to see what waits for you.</li>
+  <li>Run <code>bin/frflow PROJECT review</code>. It shows each node with its diff, parents first. Press
+  <kbd>a</kbd> to accept, <kbd>r</kbd> to reject, <kbd>s</kbd> to skip, <kbd>v</kbd> to view the node,
+  <kbd>?</kbd> to ask the agent, <kbd>q</kbd> to quit.</li>
+  <li>Or decide one node: <code>accept NODE --reason "…"</code>, or <code>reject NODE --reason "…"</code>. A reason
+  of a word or two is refused.</li>
+  <li>For decisions in a browser, run <code>bin/frflow PROJECT serve --as NAME</code> and open the printed link.</li>
+</ol>
+
+<h3 id="how-prove">Prove a split by hand</h3>
+<ol class="steps">
+  <li>Run <code>bin/frflow PROJECT scaffold NODE</code>. It writes <code>lean/Proofs/&lt;KB&gt;/&lt;Node&gt;.lean</code>
+  with a stub per open obligation.</li>
+  <li>Use the names <code>frflow_intro</code> gives (<code>h_&lt;Part&gt;</code> for each part), so the proof
+  survives a part being added.</li>
+  <li>Iterate in <code>lean/</code> with <code>lake env lean Proofs/&lt;KB&gt;/&lt;Node&gt;.lean</code>, then run
+  <code>check</code>. A proof file may not use <code>sorry</code> or <code>axiom</code>.</li>
+</ol>
+
+<h3 id="how-ci">Gate CI on FrFlow</h3>
+<p>Commit the Scala, <code>IDEA.md</code>, <code>.frflow/</code> and <code>lean/Proofs</code>. In CI, run
+<code>bin/frflow PROJECT ci</code>: it checks, then exits 1 unless every node is proven and decided. Cache
+<code>.frflow/checks.json</code> and <code>lean/.lake</code> by branch, so only what changed is proven again.</p>
+</section>
+
+<section aria-labelledby="reference">
+<h2 id="reference">Reference <span class="kind">Reference</span></h2>
+
+<h3 id="ref-terms">Terms</h3>
+<p>Formulas and defines are written with <code>Term[A]</code>: a value of the domain as FrFlow sees it, a tree that
+prints as Lean and runs as Scala. A lambda over terms annotates its parameters
+(<code>(s: Term[CrmStore]) =&gt; …</code>); a contract's post gets them from the operation's type.</p>
+<table>
+<thead><tr><th>Write</th><th>Means</th><th>Lean</th></tr></thead>
+<tbody>
+<tr><td><code>a === b</code>, <code>a =!= b</code></td><td>equal, not equal. <code>==</code> between terms does not compile</td><td><code>=</code>, <code>≠</code></td></tr>
+<tr><td><code>&amp;&amp;</code>, <code>||</code>, <code>!</code>, <code>==&gt;</code></td><td>and, or, not, implies</td><td><code>∧ ∨ ¬ →</code></td></tr>
+<tr><td><code>True</code>, <code>False</code></td><td>the Boolean terms (a Scala <code>true</code> does not convert)</td><td><code>True</code>, <code>False</code></td></tr>
+<tr><td><code>forall((x: Term[A]) =&gt; …)</code>, <code>exists(…)</code></td><td>for every, for some value, of one or two variables. Specification only: Scala cannot run them</td><td><code>∀</code>, <code>∃</code></td></tr>
+<tr><td><code>If(c)(a).Else(b)</code></td><td>a conditional</td><td><code>if c then a else b</code></td></tr>
+<tr><td><code>t.on[Case](fields =&gt; …).on[Other.type](…)</code></td><td>a match: each case's lambda takes its fields; a singleton case takes <code>.type</code>; Options use <code>Some[A]</code> and <code>None.type</code></td><td><code>match t with | …</code></td></tr>
+<tr><td><code>let(v)(x =&gt; body)</code></td><td>a named shared value</td><td><code>let x := v; body</code></td></tr>
+<tr><td><code>some(t)</code>, <code>none[A]</code></td><td>Option values</td><td><code>some t</code>, <code>none</code></td></tr>
+<tr><td><code>s.field</code>, <code>a.copy((field = v))</code>, <code>t._1</code></td><td>a field, a copy with one field changed, a tuple's part (tuples up to 3)</td><td><code>s.field</code>, <code>{ a with field := v }</code></td></tr>
+<tr><td><code>+ - *</code> on <code>BigInt</code>; <code>/ %</code> by a literal; <code>&lt; &lt;= &gt; &gt;= max min</code></td><td>arithmetic. <code>Int</code> and <code>Long</code> arithmetic is refused: they wrap in Scala, not in Lean</td><td>on <code>Int</code></td></tr>
+<tr><td>List: <code>contains exists forall filter filterNot find map flatMap foldLeft headOption take drop zip length size isEmpty nonEmpty :: ++ toSet</code></td><td>as in Scala</td><td><code>List.*</code>, <code>∈</code></td></tr>
+<tr><td>Option: <code>forall exists contains isDefined isEmpty getOrElse</code></td><td>as in Scala</td><td></td></tr>
+<tr><td>Map: <code>get contains getOrElse updated removed + -</code>; Set: <code>contains + - ++ union intersect subsetOf</code></td><td>maps and sets are functions in Lean, so they cannot be iterated</td><td><code>K → Option V</code>, <code>A → Prop</code></td></tr>
+<tr><td><code>p(x, y)</code> on a <code>Param</code> or a define</td><td>a call, on terms</td><td><code>p x y</code></td></tr>
+</tbody>
+</table>
+<p>A plain value converts to a term where a term is expected (<code>Path("/a")</code>, <code>BigInt(3)</code>). The
+build sets <code>-language:implicitConversions</code> for this.</p>
+
+<h3 id="ref-data">Domain types</h3>
+<p>Case classes and Scala 3 enums are the domain's types; FrFlow derives their Lean <code>structure</code> or
+<code>inductive</code>. To build one from terms in a formula, give it a companion that extends <code>Data</code>:</p>
+<div class="code"><span class="label"><code>examples/crm/…/Crm.scala</code></span><pre><code>final case class CrmStore(records: List[CrmRecord], shares: List[Share], expiries: List[Expiry])
+object CrmStore extends Data[CrmStore]
+
+enum Change:
+  case Add(record: CrmRecord)
+  case ShareWith(record: BigInt, to: TenantId, until: Option[BigInt])
+  case Unshare(record: BigInt, to: TenantId)
+object Change extends Data[Change]
+
+final case class WriteCmd(by: Account, change: Change)
+object WriteCmd extends Data[WriteCmd]
+
+/** What changes the store: a user's write, or a run of the expiry job at a time. */
+enum Event:
+  case Wrote(cmd: WriteCmd)
+  case Expired(now: BigInt)
+object Event extends Data[Event]</code></pre></div>
+<ul>
+  <li>A case class is built as <code>CrmStore(a, b, c)</code> on terms (1 to 6 fields); the same call on values still
+  builds a value.</li>
+  <li>An enum case is built through the enum's companion: <code>Event[Event.Wrote](w)</code> (up to 4 fields).</li>
+  <li><code>of[T]</code> is a type's Lean translation, used in definitions: <code>User := of[UserId]</code>.</li>
+  <li>Not supported: recursive types, function-typed fields, and types that redefine <code>equals</code>.</li>
+</ul>
+<p>A define built from these, with a match on an enum and a constructor on terms:</p>
+<div class="code"><pre><code>val matches = define { (q: Term[Search], r: Term[CrmRecord]) =&gt;
+  q.on[Search.ById](id =&gt; r.id === id)
+    .on[Search.OfKind](k =&gt; r.kind === k)
+    .on[Search.Everything.type](True)
+}
+
+val aboutRecord = define { (s: Term[CrmStore], id: Term[BigInt]) =&gt;
+  CrmStore(s.records.filter(r =&gt; r.id === id), s.shares.filter(sh =&gt; sh.record === id), s.expiries.filter(e =&gt; e.record === id))
+}</code></pre></div>
+
+<h3 id="ref-vocab">Vocabulary</h3>
+<table>
+<thead><tr><th>Write</th><th>Is</th></tr></thead>
+<tbody>
+<tr><td><code>Opaque("User", means)</code></td><td>a domain type, open until a definition fixes it; used as <code>User.T</code></td></tr>
+<tr><td><code>Param[T]("grants", means)</code></td><td>a term: a fact of the world or an operation, open until a definition fixes it. It is a term itself (<code>grants.contains(g)</code>)</td></tr>
+<tr><td><code>define { (a: Term[A], b: Term[B]) =&gt; … }</code></td><td>a named function: a Lean definition named after its <code>val</code>, run as Scala. A plain <code>def</code> returning a term is inlined</td></tr>
+<tr><td><code>p.bind(v)</code>, <code>p.bindTable(map)</code></td><td>a parameter's value for examples and <code>service</code>; a table Lean can evaluate</td></tr>
+<tr><td><code>t := expression</code>, <code>T := of[X]</code></td><td>what a definition fixes</td></tr>
+</tbody>
+</table>
+
+<h3 id="ref-nodes">Nodes</h3>
+<table>
+<thead><tr><th>Kind</th><th>Written as</th><th>In Lean</th></tr></thead>
+<tbody>
+<tr><td>claim</td><td><code>Node.claim(id, statement, why, idea = "")(formula)</code>; the claim with no parents is the root</td><td>proven from its parts (<code>complete</code>)</td></tr>
+<tr><td>invariant</td><td><code>Node.invariant[A, B](id, statement, why, scope)(rule)</code></td><td>a claim whose parts are the contracts that keep it</td></tr>
+<tr><td>contract</td><td><code>Node.contract(op)(id, statement, why)(post)</code>, <code>op: Param[(A, B) =&gt; R]</code></td><td>every call of <code>op</code> meets <code>post</code>; <code>impl</code> when a define is attached</td></tr>
+<tr><td>assumption</td><td><code>Node.assumption(op)(…)(post)</code>, or <code>Node.assumption(id, statement, why)(formula)</code></td><td>trusted: a hypothesis of <code>root_impl</code></td></tr>
+<tr><td>definition</td><td><code>Node.definition(id, statement, why)(T := of[X], term := expression, …)</code></td><td>decided, not proven</td></tr>
+<tr><td>design</td><td><code>Node.design(id, statement, why)(files*)</code></td><td>none: a change to its files is noticed</td></tr>
+</tbody>
+</table>
+<p>Edges and extras:</p>
+<ul>
+  <li><code>.under(parents*)</code>: a part of each parent. Declare parents first.</li>
+  <li><code>.replaces(other)</code>: an alternative; accepting one rejects the other.</li>
+  <li><code>.keeps(invariant)(view)</code> and <code>.exempt(invariant, reason)</code>.</li>
+  <li><code>.examples(bindings*)(expect(…), reject(…))</code>: every contract needs at least one of each.</li>
+  <li><code>.checkedBy((a, b, r) =&gt; …)</code>: a cheaper check run on every call, proven to follow from the post.</li>
+  <li><code>.expects(statement)(formula)</code>: a consequence you expect, proven from the node.</li>
+</ul>
+
+<h3 id="ref-cli">Commands</h3>
+<p><code>bin/frflow PROJECT COMMAND</code>, or <code>sbt "PROJECT/run COMMAND"</code>. The full help:</p>
+<div class="code"><span class="label">Output of <code>bin/frflow auth --help</code></span><pre><code>Usage: auth [--plain] COMMAND [ARGS]...
+
+FrFlow: one root refined by a DAG of small statements, each proven in Lean from its parts and decided by the developer.
+
+The developer reads with tree, show, diff, inbox; decides with review, accept, reject, confirm, revisit, gone;
+asks with ask and close; or does all of it in a browser, with serve.
+The agent works with render, check, status, ci, context, find, scaffold, answer, inbox.
+Exit codes: 0 fine; 1 something is not accepted or proven, or a decision was refused; 2 a usage error; 3 no Lean (lake).
+
+Options and flags:
+    --help
+        Display this help text.
+    --plain
+        ASCII without colors (also when NO_COLOR is set or the output is not a terminal)
+
+Subcommands:
+    tree
+        the DAG from the root (or from NODE): each node's status, review state and statement
+    show
+        a node: what it says and why, what changed, its parts and parents, proofs, examples, code, decisions
+    diff
+        what changed since NODE was decided: its fields, what moved above it, its code
+    inbox
+        what waits for whom: requests, answers, decisions to take, the agent's tasks
+    review
+        decide what waits, node by node, parents first: [a]ccept [r]eject [s]kip [v]iew [q]uit [?]ask
+    accept
+        accept nodes (rejecting their rivals); --revisit names decisions below a change to review again
+    reject
+        reject a proposal, saying why: the agent proposes what the reason asks for, or removes it
+    confirm
+        accept the mechanical decisions in one batch (Lean proves them again; nothing in them is a choice)
+    revisit
+        ask that an accepted node be reviewed again: a change elsewhere may affect it
+    gone
+        agree that a decided node is gone from the model
+    ask
+        ask the agent for a change on NODE (or, with --idea, about the whole idea)
+    close
+        close requests: an answer read, or a request withdrawn
+    serve
+        the web view on localhost, until stopped: the graph, the inbox, and your decisions, signed as here
+    render
+        generate Lean and the snapshot .frflow/kb.json from the Scala definitions
+    check
+        render, prove each node from its parts, record the results
+    status
+        the tree and the summary; exits 1 unless the knowledge base is complete
+    ci
+        for CI: check, then status; exits 1 unless everything is proven and decided
+    context
+        show --full: everything needed to work on NODE, with the idea and what it rests on
+    find
+        the nodes that govern a file, or what mentions some words
+    scaffold
+        a proof file with a stub for each obligation the last check left open
+    answer
+        reply to the developer's request; with a NODE instead, tell them about work they did not ask for</code></pre></div>
+<ul>
+  <li><code>--as NAME</code> names who decides (default: <code>FRFLOW_AS</code>, or the name the key is filed under).</li>
+  <li><code>--json</code> on <code>tree</code>, <code>show</code>, <code>inbox</code>, <code>status</code> and
+  <code>check</code> prints the typed value.</li>
+  <li>On a terminal the output has colors and fits its width; <code>--plain</code>, <code>NO_COLOR</code>,
+  <code>TERM=dumb</code> or a pipe give plain ASCII with no line cut.</li>
+  <li>Exit codes: 0 fine; 1 not complete, or a decision refused; 2 a usage error; 3 no Lean.</li>
+</ul>
+
+<h3 id="ref-lean">What Lean proves</h3>
+<p>For each node N with parts C1…Cn, over the open terms they mention, with the definitions in force applied:</p>
+<table>
+<thead><tr><th>Obligation</th><th>Statement</th><th>Fails when</th></tr></thead>
+<tbody>
+<tr><td><code>complete</code></td><td>C1 → … → Cn → N</td><td>not proven: the parts do not make N</td></tr>
+<tr><td><code>needed_C</code>, tried</td><td>N without C</td><td>Lean proves it: C is not needed</td></tr>
+<tr><td><code>vacuous</code> (one part), tried</td><td>N, with no hypothesis</td><td>Lean proves it: N says nothing its part adds</td></tr>
+<tr><td><code>restates</code>, tried</td><td>N says what its part, or one conjunct, says</td><td>Lean proves it: a warning</td></tr>
+<tr><td><code>clash</code>, <code>unsat</code>, tried</td><td>the parts imply False; no world meets N</td><td>Lean proves it</td></tr>
+<tr><td><code>idle</code> (the root), tried</td><td>the root holds when every operation does nothing</td><td>Lean proves it: the root does not say what users can do</td></tr>
+<tr><td><code>impl</code></td><td>the attached define meets the contract, from the promises of what it calls</td><td>not proven</td></tr>
+<tr><td><code>root_impl</code></td><td>the root holds of the code, from the trusted assumptions alone</td><td>not proven</td></tr>
+<tr><td><code>eval_i</code>, <code>probe_j</code></td><td>an example, or an input near one, gives in Lean what it gives in Scala</td><td>Lean and Scala disagree: the translation is wrong</td></tr>
+</tbody>
+</table>
+<p>A try is one-sided: <code>shown</code> means Lean proved it; <code>not-shown</code> means it found no proof within
+a small budget, which shows nothing.</p>
+
+<h3 id="ref-files">Files</h3>
+<table>
+<thead><tr><th>Path</th><th>Holds</th><th>Committed</th></tr></thead>
+<tbody>
+<tr><td><code>IDEA.md</code></td><td>the purpose, in prose</td><td>yes</td></tr>
+<tr><td><code>src/main/scala/…</code></td><td>the nodes and the code</td><td>yes</td></tr>
+<tr><td><code>.frflow/ledger.json</code></td><td>every decision: who, why, the alternatives, the commit, a signature</td><td>yes</td></tr>
+<tr><td><code>.frflow/keys/NAME.pub</code></td><td>the developers' public keys. The private key stays in <code>~/.config/frflow/signing.key</code> or <code>FRFLOW_KEY</code></td><td>yes</td></tr>
+<tr><td><code>lean/Proofs/&lt;KB&gt;/</code></td><td>proofs written by hand</td><td>yes</td></tr>
+<tr><td><code>lean/FrFlowGen/</code>, <code>.frflow/kb.json</code></td><td>generated Lean and the snapshot</td><td>no</td></tr>
+</tbody>
+</table>
+</section>
+
+<section aria-labelledby="effects">
+<h2 id="effects">Effectful code: Flow and boundaries <span class="kind">Explanation</span></h2>
+<div class="wip" role="note"><strong>In progress.</strong> This section describes the design agreed for effectful
+code. It is being built and is not on the main branch yet; names and details may change. The code below shows the
+intended shape and has not been compiled.</div>
+<p>Today the proven code is pure: a database or a clock is an assumption, and the code that wires them together is a
+design node, reviewed but not proven. <code>Flow</code> makes that wiring provable.</p>
+<ul>
+  <li><strong><code>Flow[A]</code></strong> is FrFlow's monad, written with <code>for</code>, <code>&lt;-</code> and
+  <code>yield</code> as with Cats Effect or ZIO. It runs in any <code>cats.effect.Sync</code>, <code>IO</code> in
+  production, and is printed as a Lean <code>do</code> block.</li>
+  <li><strong>A boundary</strong> is a plain trait whose methods take terms and return flows: what proven code calls but
+  cannot see. The model names one value for it, <code>Boundary[T]</code>, and production binds a real implementation.</li>
+  <li><strong>A state model</strong> says what a boundary does: another implementation of the same trait, over a
+  state, written with <code>state.get</code>, <code>state.set</code> and <code>state.update</code>. You decide it as an
+  assumption. In Lean it becomes an instance on <code>StateM</code>.</li>
+  <li><strong>A flow's contract</strong> relates its input and result to the state before and after the run.</li>
+</ul>
+<div class="code"><span class="label">Intended shape (design, not compiled)</span><pre><code>trait Database:
+  def load: Flow[CrmStore]
+  def storeAbout(id: Term[BigInt], t: Term[CrmStore]): Flow[Unit]
+  def logEvent(e: Term[Event]): Flow[Unit]
+
+val db = Boundary[Database]("database", "the SQLite database the CRM keeps its records in")
+
+final case class Tables(store: CrmStore, events: List[Event])
+object DatabaseModel extends Database, StateModel[Tables]:
+  def load = state.get.map(_.store)
+  def storeAbout(id: Term[BigInt], s: Term[CrmStore]) =
+    state.update(t =&gt; Tables(replaceAbout(t.store, id, aboutRecord(s, id)), t.events))
+  def logEvent(e: Term[Event]) = state.update(t =&gt; Tables(t.store, t.events :+ e))
+
+def expireOnce(now: Term[BigInt]): Flow[CrmStore] =
+  for
+    s &lt;- db.load
+    t  = expireCode(s, now)
+    _ &lt;- changedIds(s, t).traverse_(id =&gt; db.storeAbout(id, t))
+    _ &lt;- db.logEvent(Event[Event.Expired](now))
+  yield t</code></pre></div>
+<p>A state model assumes the outside is deterministic (unknowns such as clock readings go into the state, and proofs
+hold for every start state), does not fail, is not changed by anyone else during a run, and that loops run over
+lists. Failures and concurrency are kept as decided assumptions for now.</p>
+</section>
+
+<section aria-labelledby="decisions">
+<h2 id="decisions">How decisions and review work <span class="kind">Explanation</span></h2>
+<p>You decide every node, once. The agent proposes, with a <code>why</code> and examples; no command of the agent's
+decides. A decision binds your reason to the hash of what you saw, so whatever moves under it puts the node back up
+for review, with the cause:</p>
+<table>
+<thead><tr><th>Cause</th><th>What moved</th></tr></thead>
+<tbody>
+<tr><td><code>self</code></td><td>what the node says: statement, formula, <code>why</code>, examples, terms, its code</td></tr>
+<tr><td><code>above</code></td><td>the meaning of a parent, of a definition it uses, or of a contract its code calls</td></tr>
+<tr><td><code>parts</code></td><td>its list of parts</td></tr>
+<tr><td><code>code</code></td><td>the files it governs</td></tr>
+<tr><td><code>revisit</code></td><td>you asked to see it again</td></tr>
+<tr><td><code>merged</code></td><td>two branches decided it</td></tr>
+</tbody>
+</table>
+<p>Rewording a statement whose formula is unchanged reviews only that node; a change of formula reviews what rests
+on it. A node under review whose own content did not change and that Lean proves again is <em>mechanical</em>:
+<code>confirm</code> accepts all of them in one decision. Each decision is signed with your key, which is kept
+outside the repository the agent edits.</p>
+</section>
+
+<section aria-labelledby="trusted">
+<h2 id="trusted">What is trusted, and the limits <span class="kind">Explanation</span></h2>
+<p>Lean proves the nodes consistent with each other and the root of the code. You decide that they are the right
+theory. Trusted:</p>
+<ul>
+  <li>the assumptions you accept, which are the hypotheses of <code>root_impl</code>, checked where they can be;</li>
+  <li>that a term means in Lean what it computes in Scala. Both come from one tree, and the examples and probes near
+  them are evaluated in both and compared;</li>
+  <li>that parameters hold the data they are said to mean, and that every path to the data goes through
+  <code>service</code>: design nodes are reviewed, not proven;</li>
+  <li>your signing key.</li>
+</ul>
+<p>Limits: the tries are one-sided; running covers the examples and their combinations, not every input; ordering,
+liveness and effects outside a pure core are not covered yet; maps and sets cannot be iterated.</p>
+</section>
+
+<section aria-labelledby="troubleshooting">
+<h2 id="troubleshooting">Troubleshooting <span class="kind">How-to</span></h2>
+<table>
+<thead><tr><th>Report</th><th>Means</th><th>Do</th></tr></thead>
+<tbody>
+<tr><td><code>complete</code> open</td><td>the parts may not make the node</td><td>Usually a part is missing or too weak. If they do make it, prove it by hand (<a href="#how-prove">Prove a split</a>).</td></tr>
+<tr><td><code>needed_C</code> shown</td><td>the node holds without C</td><td>C belongs elsewhere, or another part says too much.</td></tr>
+<tr><td><code>restates</code> shown</td><td>a part says what the node says</td><td>Merge them, or say what the part adds.</td></tr>
+<tr><td><code>idle</code> shown</td><td>doing nothing meets the root</td><td>State what users can do.</td></tr>
+<tr><td><code>impl</code> open</td><td>the define does not provably meet the contract</td><td>Fix the code, or prove <code>impl</code> by hand.</td></tr>
+<tr><td>examples fail</td><td>the code or the contract is wrong</td><td>Fix them before any proof.</td></tr>
+<tr><td>Lean and Scala disagree</td><td>an example gives one result in Lean and another in Scala</td><td>Report it: the translation is wrong. Do not change the example.</td></tr>
+<tr><td><code>timeout</code></td><td>Lean ran out of time</td><td>Run <code>check</code> again; it is not a failure.</td></tr>
+<tr><td>"compare terms with ==="</td><td><code>==</code> was used between terms</td><td>Use <code>===</code> or <code>=!=</code>.</td></tr>
+<tr><td><code>ContractViolation</code> at run time</td><td>a result broke the contract, or a value broke an assumption</td><td>Fix the code or the data, never the check.</td></tr>
+</tbody>
+</table>
+</section>
+
+<footer>
+<p>FrFlow is at <a href="https://github.com/szymon-rd/fr-flow">github.com/szymon-rd/fr-flow</a>. The design is in
+<a href="DAG.md">docs/DAG.md</a>, the full CLI reference in <a href="USAGE.md">docs/USAGE.md</a>, and the agent's rules in
+<a href="../.claude/skills/frflow/SKILL.md">.claude/skills/frflow/SKILL.md</a>.</p>
+</footer>
+</main>
+</div>
+<script>
+(() => {
+  const root = document.documentElement;
+  // The contents sit below the header, whatever its height.
+  const head = document.querySelector('header.top');
+  const fit = () => root.style.setProperty('--head', head.offsetHeight + 'px');
+  fit(); addEventListener('resize', fit);
+  const themeBtn = document.getElementById('theme');
+  const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } },
+                  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
+  const dark = () => root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  const saved = store.get('frflow-theme');
+  if (saved) root.dataset.theme = saved;
+  const label = () => { themeBtn.textContent = dark() ? 'Light' : 'Dark'; };
+  label();
+  themeBtn.addEventListener('click', () => { root.dataset.theme = dark() ? 'light' : 'dark'; store.set('frflow-theme', root.dataset.theme); label(); });
+
+  // Contents from the headings, with an anchor on each.
+  const list = document.getElementById('toc-list');
+  const heads = [...document.querySelectorAll('main h2[id], main h3[id]')];
+  let current = null;
+  const links = new Map();
+  for (const h of heads) {
+    const a = document.createElement('a');
+    a.className = 'anchor'; a.href = '#' + h.id; a.textContent = '#';
+    a.setAttribute('aria-label', 'Link to this section');
+    h.appendChild(a);
+    const text = [...h.childNodes].filter(n => !(n.nodeType === 1 && (n.classList.contains('anchor') || n.classList.contains('kind')))).map(n => n.textContent).join('').trim();
+    const li = document.createElement('li');
+    const link = document.createElement('a');
+    link.href = '#' + h.id; link.textContent = text;
+    li.appendChild(link);
+    if (h.tagName === 'H2') { list.appendChild(li); current = document.createElement('ol'); li.appendChild(current); }
+    else (current || list).appendChild(li);
+    links.set(h.id, link);
+  }
+  // Filter the contents.
+  const filter = document.getElementById('filter'), none = document.getElementById('toc-none');
+  filter.addEventListener('input', () => {
+    const q = filter.value.trim().toLowerCase();
+    let shown = 0;
+    for (const li of list.querySelectorAll('li')) {
+      const own = li.firstElementChild.textContent.toLowerCase().includes(q);
+      const child = [...li.querySelectorAll('li > a')].some(a => a.textContent.toLowerCase().includes(q));
+      li.hidden = !(own || child);
+      if (own) shown++;
+    }
+    none.hidden = shown > 0 || q === '';
+  });
+  filter.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { const first = [...list.querySelectorAll('li:not([hidden]) > a')].find(a => a.textContent.toLowerCase().includes(filter.value.trim().toLowerCase())); if (first) { location.hash = first.getAttribute('href'); closeNav(); } }
+  });
+  // Mark the section in view.
+  const mark = id => { for (const [k, l] of links) l.toggleAttribute('aria-current', k === id); const l = links.get(id); if (l) l.setAttribute('aria-current', 'true'); };
+  const seen = new Set();
+  const io = new IntersectionObserver(es => {
+    for (const e of es) e.isIntersecting ? seen.add(e.target.id) : seen.delete(e.target.id);
+    const first = heads.find(h => seen.has(h.id));
+    if (first) mark(first.id);
+  }, { rootMargin: '-60px 0px -70% 0px' });
+  heads.forEach(h => io.observe(h));
+  // Copy buttons.
+  for (const pre of document.querySelectorAll('.code pre')) {
+    const b = document.createElement('button');
+    b.className = 'copy'; b.type = 'button'; b.textContent = 'Copy';
+    b.setAttribute('aria-label', 'Copy this code');
+    b.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(pre.innerText); b.textContent = 'Copied'; }
+      catch { b.textContent = 'Select and copy'; }
+      setTimeout(() => { b.textContent = 'Copy'; }, 1500);
+    });
+    pre.parentElement.appendChild(b);
+  }
+  // The contents on a phone.
+  const menu = document.getElementById('menu');
+  const closeNav = () => { document.body.classList.remove('nav-open'); menu.setAttribute('aria-expanded', 'false'); };
+  menu.addEventListener('click', () => { const open = document.body.classList.toggle('nav-open'); menu.setAttribute('aria-expanded', String(open)); if (open) filter.focus({ preventScroll: true }); });
+  list.addEventListener('click', e => { if (e.target.tagName === 'A') closeNav(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeNav();
+    if (e.key === '/' && document.activeElement !== filter) { e.preventDefault(); if (matchMedia('(max-width: 900px)').matches) { document.body.classList.add('nav-open'); menu.setAttribute('aria-expanded', 'true'); } filter.focus({ preventScroll: true }); }
+  });
+})();
+</script>
+</body>
+</html>
