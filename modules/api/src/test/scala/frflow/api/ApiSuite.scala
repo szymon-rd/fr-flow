@@ -58,9 +58,10 @@ class ApiSuite extends munit.FunSuite:
     assertEquals(root.children.map(_.node.id), List(id("NeedsGrant"), id("LetsIn"), id("Expiry"), id("Forever")))
     assertEquals(root.children.head.children.map(_.node.id), List(id("Decide")))
     assertEquals(root.children(1).seeAlso, List(id("Decide")))
-    assertEquals(root.children.head.children.head.alsoUnder, List(id("LetsIn")))
     assertEquals((t.assumptions.map(_.node.id), t.definitions.map(_.node.id)), (List(id("StoreKeeps")), List(id("Identities"))))
     assert(Trees.of(v, Some(id("Nope")), Overview.of(v)).isLeft)
+    // From a node, a part is drawn under a parent among those drawn, not referred to one outside.
+    assertEquals(Trees.of(v, Some(id("LetsIn")), Overview.of(v)).map(_.main.head.children.map(_.node.id)), Right(List(id("Decide"))))
   }
 
   test("deciding: accept parents first, all or none; the mechanical batch") {

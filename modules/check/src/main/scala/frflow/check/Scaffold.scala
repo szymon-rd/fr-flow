@@ -48,14 +48,15 @@ object Scaffold:
     }
 
   /** The obligations to stub: those the last check left open (`complete`, the implementation, a check...),
-    * or `complete` before any check; less those the proof file already has.
+    * or `complete` before any check (none when the last check left nothing open); less those the proof file has.
     */
   def stubs(a: Analysis, n: Node[?]): List[ObligationName] =
     val g = a.generate
     val names = g.obligations(n).map(_.name)
-    val open = a.checks.get(NodeId(n.id)).toList.flatMap(_.obligations)
+    val last = a.checks.get(NodeId(n.id))
+    val open = last.toList.flatMap(_.obligations)
       .filter(r => r.status == ObligationStatus.Open || r.status == ObligationStatus.Failed).map(_.name).filter(names.contains)
-    val wanted = if open.nonEmpty then open else g.obligation(n, ObligationName.Complete).map(_.name).toList
+    val wanted = if last.isDefined then open else g.obligation(n, ObligationName.Complete).map(_.name).toList
     val existing = a.proofOf(n).fold(List.empty[String])(src => LeanSource.theorems(src).map(_.name))
     wanted.filterNot(o => existing.contains(o.lean))
 

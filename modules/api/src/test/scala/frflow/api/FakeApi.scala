@@ -2,7 +2,6 @@ package frflow.api
 
 import cats.effect.{IO, Ref}
 import cats.syntax.all.*
-import frflow.check.Context
 import frflow.ledger.{Decide, Refusal, Requests, Stamp}
 import frflow.protocol.*
 import java.time.Instant
@@ -19,7 +18,7 @@ final class FakeApi(snapshot: Snapshot, ledger: Ref[IO, Ledger], requests: Ref[I
   def ledgerNow: IO[Ledger] = ledger.get
 
   private def decided(l: Ledger, d: Decide, by: Developer) =
-    Decide(snapshot, l, d, by.name, at).map(after => after -> Decided(Decide.added(snapshot, l, after).map(Logged.apply)))
+    Decide(snapshot, l, d, by.name, at).map(after => after -> Decided.of(snapshot, l, after))
   def preview(d: Decide, by: Developer): IO[Either[Refusal, Decided]] = ledger.get.map(decided(_, d, by).map(_._2))
   def decide(d: Decide, by: Developer): IO[Either[Refusal, Decided]] =
     ledger.get.flatMap(l => decided(l, d, by).traverse((after, done) => ledger.set(after).as(done)))
@@ -35,10 +34,9 @@ final class FakeApi(snapshot: Snapshot, ledger: Ref[IO, Ledger], requests: Ref[I
 
   private def unavailable[A]: IO[A] = IO.raiseError(new UnsupportedOperationException("not in the fake: it needs Lean"))
   def render: IO[Rendered] = unavailable
-  def check(node: Option[NodeId]): IO[CheckReport] = unavailable
+  def check(node: Option[NodeId], progress: Progress => IO[Unit]): IO[CheckReport] = unavailable
   def status: IO[View] = view
-  def ci: IO[CiReport] = unavailable
-  def context(node: NodeId): IO[Context] = unavailable
+  def ci(progress: Progress => IO[Unit]): IO[CiReport] = unavailable
   def scaffold(node: NodeId): IO[Scaffolded] = unavailable
 
 object FakeApi:

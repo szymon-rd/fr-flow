@@ -1,6 +1,7 @@
 
 1 mechanical decision(s): Lean proves them again, and nothing in them is a choice
-  + Root  claim  review: parts  A user gets access to a resource exactly when they are signed in...
+  + Root  A user gets access to a resource exactly when they are signed in and authorized for it.
+    parts added: Expiry, Forever: do these parts, together, still make it?
 [a]ccept all, with one reason  [s]kip  [q]uit: a
 Why do they hold (e.g. a new field no rule reads)? the new parts are proven to make it
 recorded, signed by dev:
@@ -14,25 +15,42 @@ recorded, signed by dev:
 
 What changed since it was accepted (dev, 2026-01-02 10:00)
   statement
-    - A request is admitted on behalf of its token's user exactly when a grant names that user and the path.
-    + A request is admitted on behalf of the user its token was issued to, exactly when a grant names them and the path.
+    - A request is admitted on behalf of its token's user exactly when a grant names that user an...
+    + A request is admitted on behalf of the user its token was issued to, exactly when a grant n...
 
 Decision
   to review: it changed
   what Decide says changed: the developer decides
-  decisions below it, with their reasons (accept --revisit NODE reviews one again; one that moved only with it is confirmed):
+  decisions below it (accept --revisit NODE reviews one again; one that moved only with it is con...
+    Memory: Sessions and grants are kept in memory. — holds because: Memory holds as stated
+
+[a]ccept [s]kip [v]iew [q]uit [?]ask: v
+
+--- 2 waiting ---
++ Decide  contract on admit  review: self
+  A request is admitted on behalf of the user its token was issued to, exactly when a grant names
+  them and the path.
+  why: One call meets both rules at once.
+
+What changed since it was accepted (dev, 2026-01-02 10:00)
+  statement
+    - A request is admitted on behalf of its token's user exactly when a grant names that user an...
+    + A request is admitted on behalf of the user its token was issued to, exactly when a grant n...
+
+Decision
+  to review: it changed
+  what Decide says changed: the developer decides
+  decisions below it (accept --revisit NODE reviews one again; one that moved only with it is con...
     Memory: Sessions and grants are kept in memory. — holds because: Memory holds as stated
 
 Formally (as written in Scala)
   post (every call of admit):
     (t, p, d) => d == sessions(t).filter(u => grants(u, p))
 
-Parents: it is a part of each
-  + NeedsGrant  claim  accepted — its only part  A request is admitted only with a grant for the...
-  + LetsIn  claim  accepted — its only part  A request with a grant for the path is admitted.
-
-Design decisions under it
-  - Memory  design  accepted  Sessions and grants are kept in memory.
+Where it sits
+  part of    + NeedsGrant  its only part  A request is admitted only with a grant for the path.
+  part of    + LetsIn  its only part  A request with a grant for the path is admitted.
+  design     - Memory  design  Sessions and grants are kept in memory.
 
 Vocabulary
   admit: the system's decision on a request (open)
@@ -40,16 +58,16 @@ Vocabulary
 
 Examples: 2 of 2 pass; Lean agrees on 2 of 2
   given grants = List(Grant(alice, /a))
-    + expect admit(t1, /a) == Some(alice)  — Alice's token and a grant: she gets in  Lean agrees
-    + expect admit(t1, /b) == None  — no grant for /b: refused  Lean agrees
+    + Alice's token and a grant: she gets in  expect admit(t1, /a) == Some(alice)
+    + no grant for /b: refused  expect admit(t1, /b) == None
 
 Code
   governs: src/main/scala/auth/Store.scala
 
 Decisions
-  2026-01-02 10:00 accepted by dev: Decide holds as stated
+  2026-01-02 10:00  accepted by dev: Decide holds as stated
 
-[a]ccept [s]kip [q]uit [?]ask: ?
+[a]ccept [s]kip [v]iew [q]uit [?]ask: ?
 What should change? Name the user as 'that user'.
 asked [Rmjzoj9c0]: Decide is with the agent until it answers or changes it
 
@@ -60,23 +78,19 @@ o Expiry  claim  proposed
 
 Decision
   note: its check is open
-  rejected here before: Forever: A session never ends. — because sessions must end: a stolen token would work forever
+  rejected here before: Forever: A session never ends. — because sessions must end: a stolen toke...
 
-What it rests on, with the reasons
-  Root: Root holds as stated (since confirmed: the new parts are proven to make it)
-
-Parents: it is a part of each
-  + Root  claim  accepted — with NeedsGrant, LetsIn, Forever, together they make it  A user gets...
-
-Proofs
-  check: open
-
-[a]ccept [r]eject [s]kip [q]uit [?]ask: a
+[a]ccept [r]eject [s]kip [v]iew [q]uit [?]ask: a
 Why Expiry? an hour bounds a stolen token
+This records:
+  - accept Expiry
+  note: Expiry: its check is open
+Record it? [y/n]: y
 recorded, signed by dev:
   - accept Expiry
 
 Decided 2 decision(s).
 Sample: 9 nodes, 7 accepted, 1 to review, 1 rejected
-splits 3/3 proven, contracts 0/1 proven down to their code, trusted: StoreKeeps, 2 with something unproven
+splits 3/3 proven, contracts 0/1 proven down to their code, examples 2/2 agree in Lean, trusted:
+  StoreKeeps, 2 with something unproven
 Waiting: 1 asked of the agent, 1 for the agent, 2 open request(s), 1 answer(s) to read

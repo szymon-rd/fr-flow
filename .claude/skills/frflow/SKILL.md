@@ -24,8 +24,9 @@ To start a project, follow the README's "New project".
 
 1. **You propose; the developer decides.** Never edit `.frflow/ledger.json`,
    decide for the developer, create a signing key, or add files to
-   `.frflow/keys/`. If `status` warns of no developer key, tell the developer
-   to sign their decisions and commit `.frflow/keys/`.
+   `.frflow/keys/`. If `status` says decisions are not signed, tell the
+   developer: each decision they take through the CLI is signed with their key,
+   and its public half goes in `.frflow/keys/`, committed.
 2. **One statement per node**, one sentence in the developer's domain words,
    and the formula says exactly that sentence. A formula that packs several
    independent properties is split into parts.
@@ -61,7 +62,7 @@ To start a project, follow the README's "New project".
 ## The loop
 
 1. `inbox`: requests, rejected nodes (each with who rejected it and why),
-   waiting decisions, the tree.
+   waiting decisions, the summary (`tree` draws the DAG).
 2. For each request, read `IDEA.md` and `context NODE`, and `find` where the
    change belongs. Place a new statement **under the lowest nodes it helps
    prove, as a part** (several parents if it serves several). Extend what
@@ -83,21 +84,26 @@ To start a project, follow the README's "New project".
 
 ## Tools
 
-The knowledge base's CLI: `sbt "<kb>/run COMMAND"` (`sbt --client` keeps a
-server running between commands).
+The knowledge base's CLI: `bin/frflow <kb> COMMAND` from the repository root
+(it compiles with sbt on first use and after a change; `sbt "<kb>/run COMMAND"`
+works too, slower, with sbt's `[info]` before each line). Piped, the output is
+plain ASCII and not cut to a width; `--json` on `tree`, `show`, `inbox`,
+`status` and `check` prints the typed value, each node in brief.
 
 | command | use |
 |---|---|
-| `inbox` | Start here: requests, clean-up, waiting decisions, the tree. |
-| `context NODE` | What bears on a node: its decision (who, when, why; a rejection's reason too), its idea section, the vocabulary it uses (meanings, definitions in force), its ancestors with every reason and rejected alternative, its co-parts under each parent, its parts, the contracts its code calls, invariants, what moved, its obligations. |
-| `find WORDS\|PATH` | Which nodes govern a file, or what mentions some words: nodes, reasons, rejected options, gone nodes, the idea, Not modelled. |
+| `inbox` | Start here: requests, clean-up, waiting decisions, then the summary. |
+| `context NODE` | Everything on a node (`show NODE --full`): what changed, its decision, the idea it is decided against, its formal statement, where it sits (parents, co-parts under each, parts, design nodes, the contracts its code calls with their promises), what it rests on with every reason, the vocabulary and the functions it names, its proofs and obligations in Lean, all its examples and code, its decisions, rejected alternatives and requests. |
+| `tree [NODE]`, `show NODE`, `diff NODE` | The DAG (or what is below NODE); a node in about a screen; what changed since it was decided. |
+| `find WORDS\|PATH` | Which nodes govern a file (a path from the project or from the repository root), or what mentions some words: nodes, reasons, rejected options, gone nodes, the idea, Not modelled. |
 | `render` | Rebuild from the Scala; compile errors and structural problems come back here. |
 | `check [NODE]` | Prove what changed and evaluate the examples in Lean. Slow. A `timeout` is not a failure: run it again. |
-| `status` | The tree: decisions, proofs, examples, what is trusted; exits 1 unless the knowledge base is complete. |
-| `scaffold NODE` | Stubs in the node's proof file for what the last check left open. |
+| `status` | The tree and the summary (decisions, proofs, examples in Lean, what is trusted), then the warnings; exits 1 unless the knowledge base is complete. |
+| `scaffold NODE` | Stubs in the node's proof file for what the last check left open; nothing when it left nothing open. |
 | `answer REQUEST TEXT` | Reply to a request; `answer NODE TEXT` tells the developer about work they did not ask for. |
 
-`ci` is for CI: `check`, then `status`.
+`ci` is for CI: `check`, then `status`. Exit codes: 0 fine; 1 not complete, or
+refused; 2 a usage error (an unknown node too).
 
 ## Writing nodes
 

@@ -40,7 +40,8 @@ object Decide:
   def apply(snapshot: Snapshot, ledger: Ledger, d: Decide, by: String, stamp: Stamp): Either[Refusal, Ledger] =
     val r = Reading(snapshot, ledger)
     val record = Record(r.graph, by, stamp)
-    Either.cond(by.trim.nonEmpty, (), Refusal.NoOneDecides) *> Either.cond(!tooFew(d.reason), (), Refusal.NoReason) *> (d match
+    // What is wrong with the node is said before what is wrong with the reason.
+    Either.cond(by.trim.nonEmpty, (), Refusal.NoOneDecides) *> (d match
       case Accept(ids, reason, revisit, seen) => accept(r, ids, reason, revisit, seen, record)
       case Reject(id, reason, seen) =>
         unmoved(r, id, seen) *> r.graph.byId.get(id).fold(remove(r, id, reason, record))(reject(r, _, reason, record))
@@ -49,6 +50,7 @@ object Decide:
           each(r, r.mechanicalBatch)((now, n) => acceptOne(now, n, reason, Nil, record))
       case Revisit(id, reason) => revisit(r, id, reason, record)
       case Gone(id, reason) => Either.cond(!r.graph.byId.contains(id), (), Refusal.StillInModel(id)) *> remove(r, id, reason, record))
+      <* Either.cond(!tooFew(d.reason), (), Refusal.NoReason)
 
   /** The decisions `after` has that `before` did not, in the order they are taken. */
   def added(snapshot: Snapshot, before: Ledger, after: Ledger): List[(NodeId, Decision)] =

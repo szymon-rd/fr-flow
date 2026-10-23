@@ -59,11 +59,11 @@ class AuthSuite extends munit.CatsEffectSuite:
     // are reused while current.
     for
       report <- checked
-      context <- api.flatMap(_.context(frflow.protocol.NodeId(decisionContract.id)))
+      details <- api.flatMap(_.details(frflow.protocol.NodeId(decisionContract.id)))
     yield
       assertEquals(report.nodes.map(c => c.id.value -> c.status.toString),
         List("AccessExactly" -> "proven", "TokenNamesHolder" -> "proven", "AccessNeedsGrant" -> "proven", "GrantLetsIn" -> "proven", "DecisionContract" -> "proven"))
       assertEquals(report.view.snapshot.root.flatMap(report.view.node).flatMap(_.node.rootImpl).map(_.status.toString), Some("proven"))
       assertEquals(report.view.snapshot.trusted, Nil)
-      assert(context.text.contains("No user may ever"))
+      assert(details.idea.contains("No user may ever"), details.idea)
   }

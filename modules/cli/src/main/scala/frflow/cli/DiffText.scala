@@ -7,11 +7,12 @@ import frflow.protocol.*
   * or removed, what moved above it, a rejected parent, a revisit asked, the code's git diff.
   */
 object DiffText:
-  def lines(d: NodeDiff, st: Style): List[String] =
-    val since = d.since.fold("since it was decided")(x => s"since it was ${Words.verb(x.action)} (${x.by}, ${Words.date(x.at)})")
+  /** `codeText`: the code's diff line by line; without it, one line naming the files. */
+  def lines(d: NodeDiff, st: Style, codeText: Boolean = true): List[String] =
     val parts = List(
       Option.when(d.partsAdded.nonEmpty)(s"parts added: ${d.partsAdded.mkString(", ")}"),
       Option.when(d.partsRemoved.nonEmpty)(s"parts removed: ${d.partsRemoved.mkString(", ")}")).flatten
+    val codeLines = d.code.toList.flatMap(c => if codeText then code(c, st) else List(st.bold(title(c))))
     val body =
       fields(d.self, st) ++
         Option.when(d.statementStale)(st.yellow("! what it says formally changed and its statement did not: does the statement still say it?")) ++
@@ -22,9 +23,13 @@ object DiffText:
         } ++
         d.rejectedParents.map(p => st.red(s"its parent $p was rejected: the agent moves it under the node chosen instead")) ++
         d.revisit.map(r => st.yellow(s"${r.by} asked to revisit it: ${r.reason}")) ++
-        d.code.toList.flatMap(code(_, st))
-    if body.isEmpty then List(st.dim(s"Nothing changed $since."))
-    else st.heading(s"What changed $since") :: body.map("  " + _)
+        codeLines
+    d.since match
+      case None => st.heading("New: never decided") :: codeLines.map("  " + _)
+      case Some(x) =>
+        val since = s"since it was ${Words.verb(x.action)} (${x.by}, ${Words.date(x.at)})"
+        if body.isEmpty then List(st.dim(s"Nothing changed $since."))
+        else st.heading(s"What changed $since") :: body.map("  " + _)
 
   def fields(fs: List[FieldChange], st: Style): List[String] =
     fs.flatMap(f => st.bold(f.field) :: f.lines.map(l => "  " + line(l, st)))
@@ -35,11 +40,13 @@ object DiffText:
     case DiffLine.Removed(t) => st.red(s"- $t")
     case DiffLine.Folded(n)  => st.dim(s"${st.ellipsis} $n unchanged line(s)")
 
+  private def title(c: CodeChange): String =
+    if c.inFull then s"the files it governs, in full: read them before accepting (${c.files.mkString(", ")})"
+    else s"the code it governs changed (${c.files.mkString(", ")})"
+
   def code(c: CodeChange, st: Style): List[String] =
-    val what = if c.inFull then s"the files it governs, in full: read them before accepting (${c.files.mkString(", ")})"
-      else s"the code it governs changed (${c.files.mkString(", ")})"
     val text = c.text.linesIterator.toList
-    st.bold(what) :: (if text.isEmpty then List(st.dim("  no git diff available (decided outside git, or before the code was committed)"))
+    st.bold(title(c)) :: (if text.isEmpty then List(st.dim("  no git diff available (decided outside git, or before the code was committed)"))
       else text.map { l =>
         if c.inFull then "  " + l
         else if l.startsWith("+") && !l.startsWith("+++") then "  " + st.green(l)

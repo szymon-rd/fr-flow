@@ -5,13 +5,10 @@ o Expiry  claim  proposed
 Decision
   decide Root first: what rests on it is decided after it
   note: its check is open
-  rejected here before: Forever: A session never ends. — because sessions must end: a stolen token would work forever
+  rejected here before: Forever: A session never ends. — because sessions must end: a stolen toke...
 
-What it rests on, with the reasons
-  Root: Root holds as stated
-
-Parents: it is a part of each
-  + Root  claim  review: parts — with NeedsGrant, LetsIn, Forever, together they make it  A user ge...
+Where it sits
+  part of    + Root  review: parts  with NeedsGrant, LetsIn, Forever  A user gets access to a res...
 
 Proofs
   check: open

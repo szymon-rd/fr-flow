@@ -20,7 +20,6 @@ final case class Desk(kb: KnowledgeBase, inputs: Inputs):
   def causes(id: String): List[String] = node(id).review.causes.map(_.toString)
   def notAccepted: List[(String, String)] = kb.ordered.map(n => n.id -> state(n).toString).filter(_._2 != "accepted")
   def allAccepted: Boolean = kb.nodes.forall(state(_) == ReviewState.Accepted)
-  def context(n: Node[?]): String = Context.of(analysis, n, Nil, "").text
   /** What `status` passes: every node accepted and proven, and nothing to warn of. */
   def complete: Boolean = Proofs.complete(annotated) && analysis.warnings.isEmpty
 

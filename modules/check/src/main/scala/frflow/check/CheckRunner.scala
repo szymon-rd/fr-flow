@@ -64,6 +64,9 @@ final case class CheckPlan(a: Analysis, only: Option[String]):
   def kept(n: Node[?], parts: List[(String, Option[CheckStatus])]): Option[NodeCheck] =
     unchanged(n).filter(_ => parts.forall(_._2.contains(CheckStatus.Proven)))
 
+/** How far a check is: Lean is about to build the models (`level` 0), or to prove level `level` of `levels`. */
+final case class Progress(level: Int, levels: Int, nodes: List[String])
+
 /** Writes the Lean and the snapshot, and checks: a plan run level by level, each level's nodes side by side. */
 object CheckRunner:
   /** Writes the generated Lean; returns the files that changed. */
@@ -85,23 +88,28 @@ object CheckRunner:
   /** Renders, checks nodes (all, or one), parts first, and records the results: the nodes checked, and the
     * analysis with them recorded.
     */
-  def check(a: Analysis, lake: Lake, cfg: Config, only: Option[String]): IO[(List[(Node[?], NodeCheck)], Analysis)] =
+  def check(a: Analysis, lake: Lake, cfg: Config, only: Option[String],
+      progress: Progress => IO[Unit] = _ => IO.unit): IO[(List[(Node[?], NodeCheck)], Analysis)] =
     for
       _ <- render(a)
-      results <- run(CheckPlan(a, only), lake, cfg.threads)
+      results <- run(CheckPlan(a, only), lake, cfg.threads, progress)
       all = a.checks.filter((id, _) => a.kb.node(id.value).isDefined) ++ results.map((n, c) => NodeId(n.id) -> c)
       _ <- ChecksStore(a.ws.checksFile).save(all)
     yield (results, a.withChecks(all))
 
-  def run(plan: CheckPlan, lake: Lake, threads: Int): IO[List[(Node[?], NodeCheck)]] =
+  def run(plan: CheckPlan, lake: Lake, threads: Int, progress: Progress => IO[Unit]): IO[List[(Node[?], NodeCheck)]] =
     // A batch that builds is built for each of its targets: their own builds are skipped (one at a time,
     // they cost about as much as Lean's start). Each node's own build then replays it, with its messages.
     def batch(targets: List[String]): IO[Set[String]] =
       NonEmptyList.fromList(targets).filter(_.size > 1)
         .fold(IO.pure(Set.empty[String]))(ts => lake.build(ts).map(r => if r.ok then targets.toSet else Set.empty))
+    val levels = plan.levels.filter(_.exists(plan.unchanged(_).isEmpty))
     for
+      _ <- progress(Progress(0, levels.size, Nil)).whenA(plan.prebuild.nonEmpty)
       pre <- batch(plan.prebuild)
       (done, _) <- plan.levels.foldLeftM((Map.empty[String, NodeCheck], pre)) { case ((done, built), level) =>
+        val step = levels.indexOf(level) + 1
+        progress(Progress(step, levels.size, level.filter(plan.unchanged(_).isEmpty).map(_.id))).whenA(step > 0) *>
         batch(plan.theorems(level)).map(built ++ _).flatMap { built =>
           val checker = NodeChecker(plan.a, lake, built)
           level.parTraverseN(threads) { n =>

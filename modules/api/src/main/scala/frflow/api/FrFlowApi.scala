@@ -1,12 +1,12 @@
 package frflow.api
 
 import cats.effect.IO
-import frflow.check.Context
 import frflow.protocol.*
 import scala.util.control.NoStackTrace
 
 // The ledger's types a front end reads, so it imports only this package and the protocol's.
 export frflow.ledger.{CodeProof, Decide, ForAgent, Found, Mention, Mentioned, Refusal}
+export frflow.check.Progress
 
 /** Where a change belongs, in a view (see the ledger's `Find`). */
 object Find:
@@ -45,20 +45,24 @@ trait FrFlowApi:
   def answer(to: String, text: String): IO[Either[Refusal, RequestId]]
 
   def render: IO[Rendered]
-  def check(node: Option[NodeId]): IO[CheckReport]
+  /** Checks one node, or all; `progress` hears of each level of the check before Lean proves it. */
+  def check(node: Option[NodeId], progress: Progress => IO[Unit] = _ => IO.unit): IO[CheckReport]
   /** The view, with the snapshot written (so it shows what `status` says). */
   def status: IO[View]
-  def ci: IO[CiReport]
-  def context(node: NodeId): IO[Context]
+  def ci(progress: Progress => IO[Unit] = _ => IO.unit): IO[CiReport]
   def scaffold(node: NodeId): IO[Scaffolded]
+  /** A path as the project names it: relative to its directory (a path from elsewhere is given as it is). */
+  protected def relative(query: String): IO[String] = IO.pure(query)
 
   def tree(from: Option[NodeId]): IO[Tree] =
     view.flatMap(v => IO.fromEither(Trees.of(v, from, Overview.of(v)).left.map(_ => FrFlowError.UnknownNode(from.fold("")(_.value)))))
   def overview: IO[Overview] = view.map(Overview.of)
   def inbox: IO[Inbox] = view.map(Inbox.of)
-  def find(query: String): IO[Found] = view.map(Find(_, query))
+  def find(query: String): IO[Found] = view.flatMap(find(_, query))
+  def find(v: View, query: String): IO[Found] = relative(query).map(Find(v, _))
 
-  def details(id: NodeId): IO[NodeDetails] = withNode(id)((v, r) => codeChange(r).map(Details.of(v, r, _)))
+  def details(id: NodeId): IO[NodeDetails] = withNode(id)(details)
+  def details(v: View, r: Reviewed): IO[NodeDetails] = codeChange(r).map(Details.of(v, r, _))
   def diff(id: NodeId): IO[NodeDiff] = withNode(id)((v, r) => codeChange(r).map(Details.diff(v, r, _)))
 
   protected def withNode[A](id: NodeId)(f: (View, Reviewed) => IO[A]): IO[A] =

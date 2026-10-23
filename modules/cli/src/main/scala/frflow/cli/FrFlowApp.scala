@@ -19,8 +19,10 @@ abstract class FrFlowApp(knowledge: => KnowledgeBase, root: String = ".", kernel
   final def run(args: List[String]): IO[ExitCode] =
     IO(sys.env).flatMap(env => Parser(FrFlowApp.name(root), Commands.header)(Commands.all).parse(args, env) match
       case Right((command, looks)) => FrFlowApp.run(knowledge, root, kernelPath, command, looks, env)
-      case Left(help) if help.errors.isEmpty => IO.println(help).as(ExitCode.Success)
-      case Left(help) => Console[IO].errorln(help).as(Run.Usage))
+      case Left(help) =>
+        // The commands are listed once, under Subcommands: not again as a usage line each.
+        val once = if help.usage.size > 3 then help.copy(usage = List("[--plain] COMMAND [ARGS]...")) else help
+        if help.errors.isEmpty then IO.println(once).as(ExitCode.Success) else Console[IO].errorln(once).as(Dispatch.Usage))
 
 object FrFlowApp:
   /** What the usage calls the command: the project's directory name. */
@@ -32,7 +34,7 @@ object FrFlowApp:
     for
       term <- Terminal.live
       st = style(looks, env, term.interactive)
-      code <- LiveApi.fromEnv(knowledge, root, kernelPath, env).flatMap(api => Run(api, term, st)(command)).handleErrorWith(failed(term, _))
+      code <- LiveApi.fromEnv(knowledge, root, kernelPath, env).flatMap(api => Dispatch(api, term, st)(command)).handleErrorWith(failed(term, _))
     yield code
 
   /** Colors and Unicode on a terminal; plain ASCII with `--plain`, with `NO_COLOR`, or when the output is
@@ -44,7 +46,7 @@ object FrFlowApp:
 
   /** The one place failures become exit codes: the model's problems 1, an unknown node 2, no Lean 3. */
   private def failed(term: Terminal, e: Throwable): IO[ExitCode] = e match
-    case FrFlowError.ModelProblems(ps) => ps.traverse_(p => term.err(s"error: $p")).as(Run.Refused)
-    case FrFlowError.UnknownNode(id) => term.err(s"unknown node $id").as(Run.Usage)
+    case FrFlowError.ModelProblems(ps) => ps.traverse_(p => term.err(s"error: $p")).as(Dispatch.Refused)
+    case FrFlowError.UnknownNode(id) => term.err(s"unknown node $id").as(Dispatch.Usage)
     case FrFlowError.LeanMissing => term.err(FrFlowError.LeanMissing.message).as(ExitCode(3))
-    case other => term.err(s"error: ${Option(other.getMessage).getOrElse(other.toString)}").as(Run.Refused)
+    case other => term.err(s"error: ${Option(other.getMessage).getOrElse(other.toString)}").as(Dispatch.Refused)

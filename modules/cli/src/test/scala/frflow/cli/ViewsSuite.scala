@@ -13,8 +13,8 @@ class ViewsSuite extends munit.CatsEffectSuite with Golden:
     api.flatMap(_.tree(None)).map(t => golden("tree", TreeText.lines(t, st)))
   }
 
-  test("tree --all: statements in full, wrapped under the node") {
-    api.flatMap(_.tree(None)).map(t => golden("tree-all", TreeText.lines(t, st.copy(width = Some(72)), full = true)))
+  test("tree NODE: what is below it, each part under a parent drawn") {
+    api.flatMap(_.tree(Some(NodeId("LetsIn")))).map(t => golden("tree-node", TreeText.lines(t, st)))
   }
 
   test("show: a node under review, with what changed and what deciding it acts on") {
@@ -25,8 +25,29 @@ class ViewsSuite extends munit.CatsEffectSuite with Golden:
     api.flatMap(_.details(NodeId("Expiry"))).map(d => golden("show-proposed", NodeText.lines(d, st)))
   }
 
-  test("inbox: requests, the developer's queue, the agent's tasks, then the tree") {
-    api.flatMap(_.view).map(v => golden("inbox", InboxText.lines(Inbox.of(v), Trees.of(v, None, Overview.of(v)).toOption.get, st)))
+  test("diff: a proposal is new; a change is shown once, field by field") {
+    for
+      expiry <- api.flatMap(_.diff(NodeId("Expiry")))
+      decide <- api.flatMap(_.diff(NodeId("Decide")))
+    yield
+      assertEquals(DiffText.lines(expiry, st).headOption, Some("New: never decided"))
+      assertEquals(decide.self.map(_.field), List("statement"))
+  }
+
+  test("context (show --full): with the idea, what it rests on and the obligations; nothing cut") {
+    api.flatMap(_.details(NodeId("Decide"))).map(d => golden("context", NodeText.lines(d, st, Depth.Full)))
+  }
+
+  test("--json: the typed value, each node in brief") {
+    api.flatMap(_.tree(None)).map { t =>
+      val j = Brief(io.circe.syntax.EncoderOps(t).asJson)
+      val root = j.hcursor.downField("main").downArray.downField("node")
+      assertEquals(root.keys.map(_.toList), Some(List("id", "kind", "state", "causes", "status", "statement", "waitsFor", "unproven")))
+    }
+  }
+
+  test("inbox: requests, the developer's queue, the agent's tasks, then the summary") {
+    api.flatMap(_.view).map(v => golden("inbox", InboxText.lines(Inbox.of(v), st)))
   }
 
   test("colors are ANSI codes around the same text") {
@@ -39,6 +60,7 @@ class ViewsSuite extends munit.CatsEffectSuite with Golden:
 
   test("a statement is cut to the width, with an ellipsis") {
     assertEquals(st.cut("a user gets access", 10), "a user...")
-    assertEquals(Style(true, true, None).cut("a user gets access", 10), "a user ge…")
+    assertEquals(Style(true, true, None).cut("a user gets access", 10), "a user ge…\u001b[0m")
+    assertEquals(Style.strip(Style(true, true, None).cut(Style(true, true, None).green("a user gets access"), 10)), "a user ge…")
     assertEquals(st.wrap("one two three four", 9), List("one two", "three", "four"))
   }

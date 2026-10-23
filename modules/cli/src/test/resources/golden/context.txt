@@ -1,0 +1,54 @@
++ Decide  contract on admit  review: self
+  A request is admitted on behalf of the user its token was issued to, exactly when a grant names them and the path.
+  why: One call meets both rules at once.
+
+What changed since it was accepted (dev, 2026-01-02 10:00)
+  statement
+    - A request is admitted on behalf of its token's user exactly when a grant names that user and the path.
+    + A request is admitted on behalf of the user its token was issued to, exactly when a grant names them and the path.
+
+Decision
+  to review: it changed
+  what Decide says changed: the developer decides
+  decisions below it (accept --revisit NODE reviews one again; one that moved only with it is confirmed):
+    Memory: Sessions and grants are kept in memory. — holds because: Memory holds as stated
+
+Formally (as written in Scala)
+  post (every call of admit):
+    (t, p, d) => d == sessions(t).filter(u => grants(u, p))
+
+Where it sits
+  part of    + NeedsGrant  its only part  A request is admitted only with a grant for the path.
+  part of    + LetsIn  its only part  A request with a grant for the path is admitted.
+  design     - Memory  design  Sessions and grants are kept in memory.
+
+What it rests on, nearest first, with the reasons
+  + NeedsGrant  A request is admitted only with a grant for the path.
+    holds because: NeedsGrant holds as stated
+      forall((t, p) => admit(t, p).forall(u => grants(u, p)))
+  + LetsIn  A request with a grant for the path is admitted.
+    holds because: LetsIn holds as stated
+      forall((t, p) => sessions(t).forall(u => grants(u, p) ==> admit(t, p) == Some(u)))
+  + Root  review: parts  A user gets access to a resource exactly when they are signed in and authorized for it.
+    holds because: Root holds as stated
+      forall((u, r) => access(u, r) == (signedIn(u) && authorized(u, r)))
+  - Identities  definition  Users are named by ids, and resources are paths.
+    holds because: Identities holds as stated
+
+Vocabulary
+  admit: the system's decision on a request (open)
+  grants: the grant table (open)
+
+Examples: 2 of 2 pass; Lean agrees on 2 of 2
+  given grants = List(Grant(alice, /a))
+    + Alice's token and a grant: she gets in  expect admit(t1, /a) == Some(alice)
+    + no grant for /b: refused  expect admit(t1, /b) == None
+
+Code
+  governs: src/main/scala/auth/Store.scala
+
+Decisions
+  2026-01-02 10:00  accepted by dev: Decide holds as stated
+
+A new statement belongs under the lowest nodes it helps prove, as a part; never as a restatement of a node.
+The developer decides; you propose. The rules are in the frflow skill (.claude/skills/frflow/SKILL.md).

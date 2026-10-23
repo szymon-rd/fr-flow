@@ -60,11 +60,13 @@ object Fields:
   private def text(j: Json): String =
     j.asString.orElse(j.asArray.map(_.map(x => x.asString.getOrElse(Canonical.print(x))).mkString("\n"))).getOrElse(Canonical.print(j))
 
-  /** The fields that differ, each as a line diff. */
+  /** The fields that differ, each as a line diff; the source as written only when nothing else did (it repeats the rest). */
   def changes(before: Content, after: Content): List[FieldChange] =
     val (a, b) = (of(before).toMap, of(after))
     val keys = (b.map(_._1) ++ of(before).map(_._1)).distinct
-    keys.flatMap { k =>
+    val changed = keys.flatMap { k =>
       val (was, now) = (a.getOrElse(k, ""), b.toMap.getOrElse(k, ""))
       Option.when(was != now)(FieldChange(k, LineDiff(was, now)))
     }
+    val (source, rest) = changed.partition(_.field == labels("definition"))
+    if rest.isEmpty then source else rest

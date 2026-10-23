@@ -9,7 +9,7 @@ class ReviewSuite extends munit.CatsEffectSuite with Golden:
   private val st = Style(color = false, unicode = false, width = Some(100))
 
   test("review: the mechanical batch, a request instead of a decision, then the proposal it unblocked") {
-    val typed = List("a", "the new parts are proven to make it", "?", "Name the user as 'that user'.", "a", "an hour bounds a stolen token")
+    val typed = List("a", "the new parts are proven to make it", "v", "?", "Name the user as 'that user'.", "a", "an hour bounds a stolen token", "y")
     for
       api <- FakeApi()
       term <- Scripted(typed)
@@ -29,30 +29,30 @@ class ReviewSuite extends munit.CatsEffectSuite with Golden:
     for
       term <- Scripted(Nil, interactive = false)
       code <- FakeApi().flatMap(ReviewSession(_, term, st).run(None))
-    yield assertEquals(code, Run.Usage)
+    yield assertEquals(code, Dispatch.Usage)
   }
 
   test("a decision without a terminal needs --yes; with it, it is recorded") {
-    def reject(yes: Boolean) = Command.Reject(NodeId("Expiry"), Asked(Some("sessions end on sign-out instead"), None, yes))
+    def reject(yes: Boolean) = Command.Decision(Decide.Reject(NodeId("Expiry"), _), Asked(Some("sessions end on sign-out instead"), None, yes))
     for
       api <- FakeApi()
       term <- Scripted(Nil, interactive = false)
-      refused <- Run(api, term, st)(reject(yes = false))
-      done <- Run(api, term, st)(reject(yes = true))
+      refused <- Dispatch(api, term, st)(reject(yes = false))
+      done <- Dispatch(api, term, st)(reject(yes = true))
       out <- term.output
       ledger <- api.ledgerNow
     yield
-      assertEquals((refused, done), (Run.Usage, ExitCode.Success))
+      assertEquals((refused, done), (Dispatch.Usage, ExitCode.Success))
       assertEquals(ledger.current(NodeId("Expiry")).map(_.action), Some(Action.Reject))
       assert(out.exists(_.contains("pass --yes")), out)
   }
 
   test("on a terminal a decision shows what it records and asks first") {
-    val accept = Command.Accept(List(NodeId("Decide")), Nil, Asked(None, None, yes = false))
+    val accept = Command.Decision(Decide.Accept(List(NodeId("Decide")), _), Asked(None, None, yes = false))
     for
       api <- FakeApi()
       term <- Scripted(List("the wording names the user plainly", "y"))
-      code <- Run(api, term, st)(accept)
+      code <- Dispatch(api, term, st)(accept)
       out <- term.output
     yield
       assertEquals(code, ExitCode.Success)
@@ -63,9 +63,9 @@ class ReviewSuite extends munit.CatsEffectSuite with Golden:
     for
       api <- FakeApi()
       term <- Scripted(Nil, interactive = false)
-      code <- Run(api, term, st)(Command.Accept(List(NodeId("Expiry")), Nil, Asked(Some("an hour bounds a stolen token"), None, yes = true)))
+      code <- Dispatch(api, term, st)(Command.Decision(Decide.Accept(List(NodeId("Expiry")), _), Asked(Some("an hour bounds a stolen token"), None, yes = true)))
       out <- term.output
     yield
-      assertEquals(code, Run.Refused)
+      assertEquals(code, Dispatch.Refused)
       assert(out.exists(_.contains("accept Root first")), out)
   }

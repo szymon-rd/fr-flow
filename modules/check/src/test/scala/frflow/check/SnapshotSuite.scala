@@ -90,7 +90,7 @@ class SnapshotSuite extends munit.FunSuite:
     val alt = alternative
     val d = ok(Desk(shelfWith(pick, alt)).accepting(books, picking, onlyGood).accept(fromList, "Books must come from the shelf."))
     assertEquals((d.state(fromList), d.state(alt)), (ReviewState.Accepted, ReviewState.Rejected))
-    assert(d.context(pick).contains("Rejected alternative Bounded"), d.context(pick))
+    assertEquals(d.ledger.alternatives(NodeId("FromList")).map(_._1), ids("Bounded"))
     // the agent removes the rejected node, then rewords FromList; the new decision keeps the alternative
     val reworded = Node.claim("FromList", "Every picked book is on the shelf.", why = fromList.why)(
       forall((l: List[Book], n: Int) => picks(l, n).forall(b => l.contains(b)))).under(onlyGood)
@@ -118,7 +118,7 @@ class SnapshotSuite extends munit.FunSuite:
     val d3 = ok(d2.accept(pick, "Filtering a list is quick enough."))
     assertEquals(d3.ledger.history(NodeId("Pick")).map(_.action.toString), List("accept", "revisit", "confirm"))
     assertEquals(d3.node("Pick").review.decision.map(_.reason), Some("Pick is right"))
-    assert(d3.context(pick).contains("To revisit (dev): OnlyGood changed"))
+    assert(d3.node("Pick").review.history.exists(h => h.action == Action.Revisit && h.reason.startsWith("OnlyGood changed")))
   }
 
   test("a proposal can be rejected on its own; a reason takes a few words") {
@@ -141,7 +141,7 @@ class SnapshotSuite extends munit.FunSuite:
     assertEquals(Waiting.forAgent(d.annotated), List(
       ForAgent.Replace(NodeId("FromList"), "dev", "Bounded was chosen instead: Readers want fewer books now."),
       ForAgent.Move(NodeId("Pick"), ids("FromList"))))
-    assert(d.context(fromList).contains("Rejected by dev at "), d.context(fromList))
+    assert(d.node("FromList").review.history.exists(h => h.action == Action.Reject && h.by == "dev"))
   }
 
   test("how the implementation is built is part of the contract's content") {
@@ -191,7 +191,7 @@ class SnapshotSuite extends munit.FunSuite:
     val d2 = ok(d.accept(r2, "Clearer with 'only then' added."))
     assert(d2.allAccepted, d2.notAccepted)
     assertEquals(d2.ledger.history(NodeId("Pick")).map(_.action.toString), List("accept", "confirm"))
-    assert(d2.context(now(5)).contains("Chosen by dev because: Pick is right"))
+    assertEquals(d2.node("Pick").review.decision.map(_.reason), Some("Pick is right"))
   }
 
   test("a statement reworded, its formula unchanged, reviews that node only; what is below is listed under it, not sent to review") {
@@ -323,8 +323,7 @@ class SnapshotSuite extends munit.FunSuite:
     assertEquals(d.analysis.restsOn(againC).map(_.id), List("PickedAgain", "PickPromise"))
     assertEquals(d.causes("Again"), List("above"))
     assertEquals(d.node("Again").node.relies, ids("PickPromise"))
-    assert(d.context(againC).contains("## Its code calls"), d.context(againC))
-    assert(d.context(promise2).contains("Rests on it besides its parts"), d.context(promise2))
+    assertEquals(d.annotated.nodes.filter(_.node.relies.contains(NodeId(promise2.id))).map(_.id), ids("Again"))
   }
 
   test("any node may name a section of the idea; a section no node names is a warning") {

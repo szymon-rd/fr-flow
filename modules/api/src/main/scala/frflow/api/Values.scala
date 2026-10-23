@@ -1,6 +1,6 @@
 package frflow.api
 
-import frflow.ledger.Proofs
+import frflow.ledger.{CodeProof, Decide, Proofs}
 import frflow.protocol.*
 import io.circe.Codec
 
@@ -26,8 +26,16 @@ final case class View(annotated: Annotated, warnings: List[String], requests: Li
     requests.filter(q => q.node.contains(r.id) && q.status == RequestStatus.Open && q.seen.forall(_ == r.review.version))
   def withAgent(r: Reviewed): Boolean = asked(r).nonEmpty
 
-/** The decisions a `Decide` records, in order (what a preview shows, and what was written). */
-final case class Decided(decisions: List[Logged]) derives Codec.AsObject
+/** The decisions a `Decide` records, in order (what a preview shows, and what was written), and what is not
+  * proven, or fails, of the nodes it accepts: said before it is confirmed.
+  */
+final case class Decided(decisions: List[Logged], unproven: List[(NodeId, String)]) derives Codec.AsObject
+
+object Decided:
+  def of(s: Snapshot, before: Ledger, after: Ledger): Decided =
+    val added = Decide.added(s, before, after).map(Logged.apply)
+    val nodes = s.nodes.map(n => n.id -> n).toMap
+    Decided(added, added.filter(_.decision.action.binds).flatMap(l => nodes.get(l.node).toList.flatMap(Proofs.unproven).map(l.node -> _)))
 
 /** A term of the vocabulary a node uses: what it means in the world, and the definition that fixes it. */
 final case class Term(name: String, means: String, operation: Boolean, definedBy: Option[NodeId]) derives Codec.AsObject
@@ -60,12 +68,20 @@ final case class NodeDiff(id: NodeId, causes: List[Cause], since: Option[Decisio
   def isEmpty: Boolean = self.isEmpty && partsAdded.isEmpty && partsRemoved.isEmpty && moved.isEmpty &&
     rejectedParents.isEmpty && revisit.isEmpty && code.isEmpty
 
-/** A node with everything around it: where it sits, what it uses, what is asked of it, what changed. */
+/** A node with everything around it: where it sits, what it uses, what is asked of it, what changed.
+  *
+  * @param idea    the idea it is decided against: the lead, and the section of the nearest node naming one
+  * @param beside  under each parent, the other parts that together with it make the parent
+  * @param keptBy  for an invariant, the contracts that keep it (or are exempt)
+  * @param defs    the Scala functions its formal statement calls, with those they call
+  */
 final case class NodeDetails(
     node: Reviewed,
     isRoot: Boolean,
     trusted: Boolean,
+    idea: String,
     parents: List[Reviewed],
+    beside: List[(NodeId, List[Reviewed])],
     above: List[Reviewed],
     parts: List[Reviewed],
     designs: List[Reviewed],
@@ -73,18 +89,20 @@ final case class NodeDetails(
     usedBy: List[Reviewed],
     calls: List[Reviewed],
     calledBy: List[Reviewed],
+    keptBy: List[Reviewed],
     rivals: List[Reviewed],
     terms: List[Term],
+    defs: List[DefText],
+    codeProof: Option[CodeProof],
     requests: List[Request],
     withAgent: Boolean,
     diff: NodeDiff
 ) derives Codec.AsObject
 
-/** A node of the tree: drawn once, under its first parent, with the other parents it is also under; and,
-  * under it, the nodes below it that are drawn under another parent (`seeAlso`).
+/** A node of the tree: drawn once, under its first parent; and, under it, the nodes below it that are drawn
+  * under another parent (`seeAlso`).
   */
-final case class TreeNode(node: Reviewed, alsoUnder: List[NodeId], seeAlso: List[NodeId], withAgent: Boolean, children: List[TreeNode])
-    derives Codec.AsObject
+final case class TreeNode(node: Reviewed, seeAlso: List[NodeId], withAgent: Boolean, children: List[TreeNode]) derives Codec.AsObject
 
 /** The DAG drawn as a tree from the root, and its sections: the assumptions and the other nodes under no
   * parent (what code calls), the definitions, and the decided nodes gone from the model.

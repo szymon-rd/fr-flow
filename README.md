@@ -80,8 +80,8 @@ in the domain. `admitted` is a `define` Lean proves meets the contract;
 
 The developer decides every node, once; the agent proposes, with a `why` and
 examples, often with alternatives (`replaces`), through the CLI, and no command
-of the agent's decides. (The browser where the developer decided is on the
-`web-view` branch; the developer's commands are coming to the CLI.) `.frflow/ledger.json` holds
+of the agent's decides. The developer decides with the CLI (`bin/frflow PROJECT
+review`, or `accept`, `reject` and the rest: see Usage). `.frflow/ledger.json` holds
 each decision: who, their reason, the alternatives rejected, signed; it is
 append-only.
 
@@ -211,7 +211,7 @@ cache cleared proves everything again.
 
 ## Large projects
 
-The theory lives in files, not in an agent's context: `context(node)` gives
+The theory lives in files, not in an agent's context: `context NODE` gives
 what bears on a node (its idea section, vocabulary and definitions, ancestors
 with their reasons, co-parts, parts, rejected alternatives, what moved), and
 `find` searches nodes, reasons, rejected options and the idea, so an agent
@@ -316,16 +316,29 @@ The example ledgers are decided by an agent playing the developer.
 Requirements: JDK 17+, sbt, and Lean 4.35.0 (`lake` on the PATH, or
 `FRFLOW_LAKE`).
 
-```sh
-sbt test                              # unit tests, and Lean tests when lake is available
-sbt "auth/run render"                 # Lean and the snapshot .frflow/kb.json
-sbt "auth/run check"                  # prove what changed, record the results
-sbt "auth/run status"                 # exits 1 unless decided, proven and passing
-sbt "auth/run ci"                     # what CI runs: check, then status
-```
+`bin/frflow PROJECT COMMAND` runs a project's CLI (`bin/frflow auth tree`); it
+compiles with sbt on first use and after a change. `--help` lists the commands,
+`COMMAND --help` their options; `sbt test` runs the tests (Lean's when `lake` is there).
 
-Agents use the same commands (`inbox`, `context`, `find`, `scaffold`,
-`answer`). The agent's rules are in [`.claude/skills/frflow/SKILL.md`](.claude/skills/frflow/SKILL.md).
+| | command | what it does |
+|---|---|---|
+| developer | `tree [NODE]` | the DAG from the root (or below NODE): status, kind and state when they say something, statement |
+| | `show NODE`, `diff NODE` | a node in about a screen (what changed, the decision, its formula, where it sits, proofs, examples, code, decisions); what changed since it was decided |
+| | `inbox` | what waits for whom, then the summary |
+| | `review` | decide what waits, parents first: `[a]ccept [r]eject [s]kip [v]iew [q]uit [?]ask` |
+| | `accept NODE...`, `reject NODE`, `confirm`, `revisit NODE`, `gone NODE` | one decision, with `-m REASON`; shown and confirmed on a terminal, `--yes` without one |
+| | `ask NODE TEXT`, `ask --idea TEXT`, `close REQUEST...` | ask the agent for a change; close an answer read |
+| agent | `inbox`, `context NODE`, `find WORDS\|PATH` | what to do; everything on a node (`show --full`); where a change belongs |
+| | `render`, `check [NODE]`, `scaffold NODE` | Lean and `.frflow/kb.json`; prove what changed; stubs for what the last check left open |
+| | `status`, `ci` | the tree, the summary and the warnings; exit 1 unless every node is accepted and proven (`ci` checks first) |
+| | `answer REQUEST\|NODE TEXT` | reply to a request, or tell the developer of work they did not ask for |
+
+On a terminal the output has colors and Unicode and is cut to its width, and
+`check` prints a line per Lean level; `--plain`, `NO_COLOR` or a pipe give plain
+ASCII, not cut. `--json` on tree, show, inbox, status and check prints the
+typed value, each node in brief. Exit codes: 0 fine; 1 not complete, or a
+decision refused; 2 a usage error (an unknown node too). `sbt "auth/run COMMAND"`
+works as well, slower. The agent's rules are in [`.claude/skills/frflow/SKILL.md`](.claude/skills/frflow/SKILL.md).
 
 Committed: the Scala, `IDEA.md`, `.frflow/` (ledger, keys, requests) and
 `lean/Proofs`; the rest is derived.
@@ -356,13 +369,14 @@ knowledge base `Library`):
 ```
 docs/DAG.md             the design: one root, parts, the vocabulary, obligations, decisions
 lean/FrFlow/            the Lean side: frflow_auto, frflow_intro; run and list lemmas (always, simulates, tracks)
-modules/                the Scala library, one sbt subproject each (model ← lean ← check ← cli; protocol ← lean and ledger; ledger ← check)
+modules/                the Scala library, one sbt subproject each (model ← lean ← check ← api ← cli; protocol ← lean and ledger; ledger ← check)
   model                 package frflow: nodes and knowledge bases; Opaque, Param, define; the macro; probes
   protocol              the data crossing modules and files (snapshot, review, ledger, checks, requests), with JSON codecs
   lean                  Lean generation; axiom audits, the proof-file filter
   ledger                decision states and rules; the reports (tree, inbox, find); the stores; keys and signatures; git diffs
-  check                 render, check (running lake), the snapshot, context, status
-  cli                   the command line: FrFlowApp
+  check                 render, check (running lake), the snapshot, status, scaffold
+  api                   FrFlowApi: the typed operations a front end calls (LiveApi over the project on disk)
+  cli                   the command line over the API: FrFlowApp, the views, the review
 examples/               auth, keycloak, crm
 bench/                  the scale benchmark
 .claude/skills/frflow   the agent skill

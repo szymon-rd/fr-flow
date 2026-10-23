@@ -5,25 +5,23 @@
 
 What changed since it was accepted (dev, 2026-01-02 10:00)
   statement
-    - A request is admitted on behalf of its token's user exactly when a grant names that user and the path.
-    + A request is admitted on behalf of the user its token was issued to, exactly when a grant names them and the path.
+    - A request is admitted on behalf of its token's user exactly when a grant names that user an...
+    + A request is admitted on behalf of the user its token was issued to, exactly when a grant n...
 
 Decision
   to review: it changed
   what Decide says changed: the developer decides
-  decisions below it, with their reasons (accept --revisit NODE reviews one again; one that moved only with it is confirmed):
+  decisions below it (accept --revisit NODE reviews one again; one that moved only with it is con...
     Memory: Sessions and grants are kept in memory. — holds because: Memory holds as stated
 
 Formally (as written in Scala)
   post (every call of admit):
     (t, p, d) => d == sessions(t).filter(u => grants(u, p))
 
-Parents: it is a part of each
-  + NeedsGrant  claim  accepted — its only part  A request is admitted only with a grant for the...
-  + LetsIn  claim  accepted — its only part  A request with a grant for the path is admitted.
-
-Design decisions under it
-  - Memory  design  accepted  Sessions and grants are kept in memory.
+Where it sits
+  part of    + NeedsGrant  its only part  A request is admitted only with a grant for the path.
+  part of    + LetsIn  its only part  A request with a grant for the path is admitted.
+  design     - Memory  design  Sessions and grants are kept in memory.
 
 Vocabulary
   admit: the system's decision on a request (open)
@@ -31,11 +29,11 @@ Vocabulary
 
 Examples: 2 of 2 pass; Lean agrees on 2 of 2
   given grants = List(Grant(alice, /a))
-    + expect admit(t1, /a) == Some(alice)  — Alice's token and a grant: she gets in  Lean agrees
-    + expect admit(t1, /b) == None  — no grant for /b: refused  Lean agrees
+    + Alice's token and a grant: she gets in  expect admit(t1, /a) == Some(alice)
+    + no grant for /b: refused  expect admit(t1, /b) == None
 
 Code
   governs: src/main/scala/auth/Store.scala
 
 Decisions
-  2026-01-02 10:00 accepted by dev: Decide holds as stated
+  2026-01-02 10:00  accepted by dev: Decide holds as stated

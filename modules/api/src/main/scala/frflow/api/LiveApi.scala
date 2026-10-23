@@ -52,7 +52,7 @@ final class LiveApi private (kb: KnowledgeBase, ws: Workspace, cfg: Config, lake
       _ <- out.traverse_(_ => keys.publish(key.public, by.name))
     yield out
 
-  private def decided(s: Snapshot, before: Ledger, after: Ledger): Decided = Decided(Decide.added(s, before, after).map(Logged.apply))
+  private def decided(s: Snapshot, before: Ledger, after: Ledger): Decided = Decided.of(s, before, after)
 
   def developer(as: Option[String]): IO[Either[Refusal, Developer]] =
     as.orElse(env.get("FRFLOW_AS")).map(_.trim).filter(_.nonEmpty).fold(keys.filedName)(n => IO.pure(Some(n)))
@@ -80,30 +80,26 @@ final class LiveApi private (kb: KnowledgeBase, ws: Workspace, cfg: Config, lake
     yield Rendered(changed, ws.root.relativize(file).toString)
 
   /** Checks, and writes the snapshot with the results: the nodes checked, and the view after. */
-  private def checked(node: Option[NodeId]): IO[(List[CheckedNode], View)] =
+  private def checked(node: Option[NodeId], progress: Progress => IO[Unit]): IO[(List[CheckedNode], View)] =
     for
       _ <- lake.available.ifM(IO.unit, IO.raiseError(FrFlowError.LeanMissing))
       _ <- node.traverse_(id => IO.fromOption(kb.node(id.value))(FrFlowError.UnknownNode(id.value)))
       a <- analysis
-      (results, after) <- CheckRunner.check(a, lake, cfg, node.map(_.value))
+      (results, after) <- CheckRunner.check(a, lake, cfg, node.map(_.value), progress)
       _ <- CheckRunner.writeSnapshot(after)
       v <- viewOf(after)
     yield (results.flatMap((n, c) => v.node(NodeId(n.id)).map(CheckedNode.of(_, c))), v)
 
-  def check(node: Option[NodeId]): IO[CheckReport] = checked(node).map(CheckReport.apply)
+  def check(node: Option[NodeId], progress: Progress => IO[Unit]): IO[CheckReport] = checked(node, progress).map(CheckReport.apply)
 
   def status: IO[View] = analysis.flatMap(a => CheckRunner.writeSnapshot(a) *> viewOf(a))
 
-  def ci: IO[CiReport] = checked(None).map((ns, v) => CiReport(ns.filter(_.status != CheckStatus.Proven), v))
+  def ci(progress: Progress => IO[Unit]): IO[CiReport] =
+    checked(None, progress).map((ns, v) => CiReport(ns.filter(_.status != CheckStatus.Proven), v))
 
-  def context(id: NodeId): IO[Context] =
-    IO.fromOption(kb.node(id.value))(FrFlowError.UnknownNode(id.value)).flatMap { n =>
-      (analysis, requests.load).parTupled.flatMap { (a, rs) =>
-        val diff = a.annotated.byId.get(id).filter(_.review.causes.contains(Cause.Code)).flatMap(_.review.binding).zip(a.code(n))
-          .fold(IO.pure(""))((d, c) => git.diff(d.commit.getOrElse(""), c.files))
-        diff.map(Context.of(a, n, rs, _))
-      }
-    }
+  override protected def relative(query: String): IO[String] =
+    IO(Path.of(query).toAbsolutePath.normalize).map(p => if p.startsWith(ws.root) && p != ws.root then ws.root.relativize(p).toString else query)
+      .handleError(_ => query)
 
   def scaffold(id: NodeId): IO[Scaffolded] =
     IO.fromOption(kb.node(id.value))(FrFlowError.UnknownNode(id.value)).flatMap(n =>
