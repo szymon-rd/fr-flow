@@ -752,10 +752,11 @@ generic <code>do</code> block:</p>
 <div class="code"><span class="label">Generated: <code>lean/FrFlowGen/Crm/Domain/Def_expireOnce.lean</code></span><pre><code>@[frflow_defs] def expireOnce {m : Type → Type} [Monad m] [Database m] (expire : CrmStore → Int → CrmStore) : Int → m CrmStore :=
   fun (now : Int) =&gt; do
     let s ← Database.load
-    for id_ in (Crm.changedIds s (expire s now)) do
-      Database.storeAbout id_ (expire s now)
+    let t := (expire s now)
+    for id_ in (Crm.changedIds s t) do
+      Database.storeAbout id_ t
     Database.logEvent (Event.Expired now)
-    pure (expire s now)</code></pre></div>
+    pure t</code></pre></div>
 <p><code>impl</code> states the contract of <code>expireOnce_run</code>, the flow run on the models
 (<code>FrFlow.runOn</code> over <code>StateM World</code>), given SharesExpire's promise. To prove it by hand,
 <code>simp only</code> with the run lemmas (<code>FrFlow.runOn_bind</code>, <code>runOn_pure</code>,
