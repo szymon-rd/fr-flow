@@ -47,7 +47,7 @@ final class Workflow private (val kb: KnowledgeBase, val ws: Workspace, val cfg:
       results <- CheckRunner.run(CheckPlan(a, only), lake, cfg.threads)
       all = a.checks.filter((id, _) => kb.node(id.value).isDefined) ++ results.map((n, c) => NodeId(n.id) -> c)
       _ <- ChecksStore(ws.checksFile).save(all)
-    yield Checked(results, a.withInputs(a.inputs.copy(checks = all)))
+    yield Checked(results, a.withChecks(all))
 
   /** Where the knowledge base stands (see `Status.text` for what `status` prints). */
   def status: IO[Status] = analysis.map(Status.of)

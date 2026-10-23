@@ -8,14 +8,19 @@ import frflow.protocol.{NodeKind as Kind, *}
 /** What the checker knows of a knowledge base, computed from what was read (`Inputs`) alone: the Lean,
   * each node's content and hashes, the checks still current, the snapshot. Nothing here reads or writes.
   */
-final class Analysis(val kb: KnowledgeBase, val ws: Workspace, val inputs: Inputs):
+final class Analysis private (val kb: KnowledgeBase, val ws: Workspace, val inputs: Inputs, model: Option[Analysis.Model]):
+  // What does not depend on the checks: kept when only they change (after a check).
+  private val m: Analysis.Model = model.getOrElse(Analysis.Model(this))
 
   def ledger: Ledger = inputs.ledger
   def checks: Map[NodeId, NodeCheck] = inputs.checks
   def idea: String = inputs.idea
 
-  /** The same knowledge base, with other inputs (after a check, or a decision). */
+  /** The same knowledge base, with other inputs (after a decision, say). */
   def withInputs(in: Inputs): Analysis = Analysis(kb, ws, in)
+
+  /** The same knowledge base and inputs, with other checks recorded: the Lean and the contents are kept. */
+  def withChecks(checks: Map[NodeId, NodeCheck]): Analysis = new Analysis(kb, ws, inputs.copy(checks = checks), Some(m))
 
   // ---------------------------------------------------------------------------
   // The Lean
@@ -28,17 +33,12 @@ final class Analysis(val kb: KnowledgeBase, val ws: Workspace, val inputs: Input
     ledger.binding(NodeId(id)).isDefined && !ledger.current(NodeId(id)).exists(_.action == Action.Reject)
 
   /** The obligations proven by a theorem of their name in the node's proof file: (node, obligation). */
-  lazy val proofs: Set[(String, String)] =
-    val base = Generate(kb)
-    kb.nodes.flatMap { n =>
-      val names = base.obligations(n).map(_.name).toSet + "feasible"
-      proofOf(n).toList.flatMap(src => Lean.theorems(src).map(_.name).filter(names).map(n.id -> _))
-    }.toSet
+  def proofs: Set[(String, String)] = m.proofs
 
-  lazy val generate: Generate = Generate(kb, proofs, chosen)
+  def generate: Generate = m.generate
 
   /** The generated Lean files, by their path under `lean/`. */
-  lazy val files: Map[String, String] = generate.files
+  def files: Map[String, String] = m.files
 
   /** The generated file at `rel`, or "". */
   def generated(rel: String): String = files.getOrElse(rel, "")
@@ -68,10 +68,8 @@ final class Analysis(val kb: KnowledgeBase, val ws: Workspace, val inputs: Input
   def ideaOf(n: Node[?]): String =
     Decisions.ideaSections(ideaDecided)._2.find(_._1.equalsIgnoreCase(n.ideaSection.trim)).map(_._2).getOrElse("")
 
-  private lazy val contents: Map[String, Content] = kb.nodes.map(n => n.id -> Contents.of(this, n)).toMap
-
   /** The node as the developer sees it and decides it (see `Contents`). */
-  def content(n: Node[?]): Content = contents.getOrElse(n.id, Contents.of(this, n))
+  def content(n: Node[?]): Content = m.contents.getOrElse(n.id, Contents.of(this, n))
 
   def hash(n: Node[?]): Hash = content(n).hash
 
@@ -92,15 +90,9 @@ final class Analysis(val kb: KnowledgeBase, val ws: Workspace, val inputs: Input
   // Checks
   // ---------------------------------------------------------------------------
 
-  // Every node's but the root's depends on its own Lean only; the root's on what `root_impl` composes too.
-  private lazy val hashes: Map[String, Hash] =
-    kb.nodes.filter(n => generate.formal(n) && !isRoot(n)).map(n => n.id -> CheckHash.of(this, n, Nil)).toMap
-  private lazy val rootHash: Option[Hash] =
-    kb.root.map(r => CheckHash.of(this, r, CheckHash.composed(this, r).map(c => hashes.getOrElse(c.id, CheckHash.of(this, c, Nil)))))
-
   /** What a check depends on (see `CheckHash`). */
   def checkHash(n: Node[?]): Hash =
-    if isRoot(n) then rootHash.getOrElse(CheckHash.of(this, n, Nil)) else hashes.getOrElse(n.id, CheckHash.of(this, n, Nil))
+    if isRoot(n) then m.rootHash.getOrElse(CheckHash.of(this, n, Nil)) else m.hashes.getOrElse(n.id, CheckHash.of(this, n, Nil))
 
   /** The recorded check of a node, if still current. A result that waited, or timed out, is not final:
     * it is checked again.
@@ -134,6 +126,25 @@ final class Analysis(val kb: KnowledgeBase, val ws: Workspace, val inputs: Input
   def gone: List[NodeId] = annotated.gone.map(_.id)
 
 object Analysis:
+  def apply(kb: KnowledgeBase, ws: Workspace, inputs: Inputs): Analysis = new Analysis(kb, ws, inputs, None)
+
+  /** What an analysis computes that does not depend on the checks recorded. */
+  private final class Model(a: Analysis):
+    lazy val proofs: Set[(String, String)] =
+      val base = Generate(a.kb)
+      a.kb.nodes.flatMap { n =>
+        val names = base.obligations(n).map(_.name).toSet + "feasible"
+        a.proofOf(n).toList.flatMap(src => Lean.theorems(src).map(_.name).filter(names).map(n.id -> _))
+      }.toSet
+    lazy val generate: Generate = Generate(a.kb, proofs, a.chosen)
+    lazy val files: Map[String, String] = generate.files
+    lazy val contents: Map[String, Content] = a.kb.nodes.map(n => n.id -> Contents.of(a, n)).toMap
+    // Every node's but the root's depends on its own Lean only; the root's on what `root_impl` composes too.
+    lazy val hashes: Map[String, Hash] =
+      a.kb.nodes.filter(n => generate.formal(n) && !a.isRoot(n)).map(n => n.id -> CheckHash.of(a, n, Nil)).toMap
+    lazy val rootHash: Option[Hash] =
+      a.kb.root.map(r => CheckHash.of(a, r, CheckHash.composed(a, r).map(c => hashes.getOrElse(c.id, CheckHash.of(a, c, Nil)))))
+
   /** Check results that are not final: checked again. */
   val Pending: Set[CheckStatus] = Set(CheckStatus.Waiting, CheckStatus.Timeout, CheckStatus.ModelError)
 

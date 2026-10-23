@@ -57,8 +57,8 @@ object Lake:
           def lines(s: fs2.Stream[IO, Byte]) = s.through(text.utf8.decode).through(text.lines)
           lines(p.stdout).merge(lines(p.stderr)).evalMap(l => out.update(_ :+ l)).compile.drain *> p.exitValue
         }
-        def text_(o: Vector[String]) = o.mkString("\n")
-        exec.flatMap(code => out.get.map(o => Run.Done(code, text_(o))))
-          .timeoutTo(cfg.timeout, out.get.map(o => Run.TimedOut(text_(o) + s"\ntimed out after ${cfg.timeout.toSeconds}s")))
+        def joined(o: Vector[String]) = o.mkString("\n")
+        exec.flatMap(code => out.get.map(o => Run.Done(code, joined(o))))
+          .timeoutTo(cfg.timeout, out.get.map(o => Run.TimedOut(joined(o) + s"\ntimed out after ${cfg.timeout.toSeconds}s")))
       }
   }
