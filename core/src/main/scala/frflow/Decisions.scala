@@ -18,7 +18,7 @@ import frflow.Json.*
   *     `self` (what the node itself says changed), `above` (the meaning of what it rests on changed:
   *     any of its parents, of the definitions it uses, of the contracts its code calls, however far
   *     up; one cause however many paths lead there), `parts` (a part was added or removed: its parts
-  *     are decided with it, by its owner), `code` (the code it governs changed), `revisit` (the
+  *     are decided with it), `code` (the code it governs changed), `revisit` (the
   *     developer said a change above, such as an edit of the idea, may affect it), `merged` (two
   *     branches decided it, and a merge kept both); a decided node no longer in the model is listed
   *     under `gone`;
@@ -506,9 +506,7 @@ object Decisions:
       "reason" -> str(reasonNow(ledger, s(c, "id"))), "chosen" -> str(ledger.chosen(s(c, "id")).fold("")(_.reason))) ++ revisitFields(ledger, c))
     // With each its why: the theory a change may undo is often written there, not in the reason.
     val all = byId(snapshot)
-    // Another owner's concern is theirs to decide: it comes back to them, not listed here.
-    def mine(b: Json) = all.get(s(b, "id")).map(s(_, "owner")).forall(o => o.isEmpty || o == s(n, "owner"))
-    (own ++ elsewhere ++ across).filter(mine).map(b => JObj(b.obj :+ ("why" -> all.get(s(b, "id")).flatMap(_("content")).flatMap(_("why")).getOrElse(str("")))))
+    (own ++ elsewhere ++ across).map(b => JObj(b.obj :+ ("why" -> all.get(s(b, "id")).flatMap(_("content")).flatMap(_("why")).getOrElse(str("")))))
 
   /** What a diff of governed code may touch that no proof covers: the invariants whose domain types it
     * names (with why each was decided), and the parameters it binds anew (with what each means). Shown
@@ -570,11 +568,7 @@ object Decisions:
     def st(l: Ledger, id: String) = state(snapshot, l, ids(id))
     def make(action: String, n: Json, rejected: List[String], reason: String) =
       Decision(action, n("content").getOrElse(JNull), parentChain(snapshot, n), r.by, at, reason, rejected, code(n), commit, tree)
-    // A concern with an owner is decided by its owner: what the decision acts on below, too.
-    def ownerOf(id: String) = ids.get(id).map(s(_, "owner")).filter(_.nonEmpty)
-    val others = (r.node :: r.confirm ++ r.revisit ++ r.held ++ r.reject).distinct.flatMap(id => ownerOf(id).filter(o => !o.equalsIgnoreCase(r.by.trim)).map(id -> _))
     if r.by.trim.isEmpty then Left("say who decides")
-    else if others.nonEmpty then Left(others.map((id, o) => s"$id is $o's to decide (the owner of its concern)").mkString("; "))
     else if !Set("accept", "reject", "rename")(r.action) then Left(s"unknown decision ${r.action}")
     else if Words.tooFew(r.reason) then
       Left("give the reason for the decision in a few words: it is kept as part of the theory")
@@ -740,7 +734,7 @@ object Decisions:
     val governing = ns.filter(n => files(n).exists(f => f == q || f.startsWith(q.stripSuffix("/") + "/") || q.startsWith(f.stripSuffix("/") + "/")))
     if governing.nonEmpty then ("Governed by:" :: governing.map(line)).mkString("\n")
     else if q.contains('/') || q.endsWith(".scala") then
-      s"No node governs $q: code there changes unnoticed (status fails on it). Give it an owner: the contract whose implementation it is, or a design node."
+      s"No node governs $q: code there changes unnoticed (status fails on it). Give it a home: the contract whose implementation it is, or a design node."
     else
       // Everything the theory says, as entries: the nodes (with their reasons), the options rejected
       // (gone from the model or not), the gone nodes, and the lines of what is not modelled.
@@ -792,7 +786,7 @@ object Decisions:
     (reqs ++ rest).mkString("\n") + annotated.fold("")(s => "\n\nThe tree:\n" + tree(s))
 
   /** What waits for the developers: how many decisions, how many of them mechanical (one batch) and
-    * how many to judge (new nodes, changes), and for whom when concerns have owners. The cost of a
+    * how many to judge (new nodes, changes). The cost of a
     * change in decisions, seen as it happens.
     */
   def load(annotated: Json): String =
@@ -802,10 +796,8 @@ object Decisions:
     else
       val mech = ns.count(_("mechanical").contains(JBool(true)))
       val (fresh, changed) = ns.filterNot(_("mechanical").contains(JBool(true))).partition(n => s(n, "state") == "proposed")
-      val byOwner = ns.groupBy(n => s(n, "owner")).toList.filter(_._1.nonEmpty).sortBy(_._1)
       s"Decisions waiting: ${ns.size + gone} (${mech} mechanical, decided in one batch; ${fresh.size} new and ${changed.size} changed to judge" +
-        (if gone == 0 then ")" else s"; $gone gone from the model)") +
-        (if byOwner.isEmpty then "" else byOwner.map((o, xs) => s"$o: ${xs.size}").mkString("; by owner: ", ", ", "")) + ".\n"
+        (if gone == 0 then ")" else s"; $gone gone from the model)") + ".\n"
 
   /** The nodes waiting for a developer's decision: proposed or under review, and not resting on a
     * rejected node (that one waits for the agent to move it). `load` and `waiting` count the same.

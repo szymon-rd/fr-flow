@@ -42,28 +42,16 @@ object Signing:
       catch case _: Exception => false
     }
 
-  /** The developer keys: every public key in `dir`. */
-  def keys(dir: Path): Map[String, PublicKey] = named(dir).view.mapValues(_._1).toMap
-
-  /** Every public key in `dir`, with the name of the developer it is (`<name>.pub`), or "" for a key
-    * filed by its id (`<id>.pub`), which names no one.
-    */
-  def named(dir: Path): Map[String, (PublicKey, String)] =
+  /** The developer keys: every public key in `dir` (`<name>.pub`), by its id. */
+  def keys(dir: Path): Map[String, PublicKey] =
     if !Files.isDirectory(dir) then Map.empty
     else Files.list(dir).iterator.asScala.toList.filter(_.toString.endsWith(".pub")).sortBy(_.toString).flatMap { f =>
       try
         val line = Files.readString(f, UTF_8).linesIterator.map(_.trim).find(_.nonEmpty).get
         val pub = KeyFactory.getInstance("Ed25519").generatePublic(X509EncodedKeySpec(Base64.getDecoder.decode(line)))
-        val stem = f.getFileName.toString.stripSuffix(".pub")
-        Some(keyId(pub) -> (pub, if stem == keyId(pub) then "" else stem))
+        Some(keyId(pub) -> pub)
       catch case _: Exception => None
     }.toMap
-
-  /** Decisions signed by a named developer's key that say another developer decided them. */
-  def misnamed(l: Ledger, dir: Path): List[(String, Decision, String)] =
-    val names = named(dir)
-    l.decisions.toList.sortBy(_._1).flatMap((id, ds) => ds.flatMap(d =>
-      names.get(d.key).map(_._2).filter(n => n.nonEmpty && !n.equalsIgnoreCase(d.by.trim) && verify(keys(dir), id, d)).map(n => (id, d, n))))
 
   /** The developer's decisions not signed by a developer key; none while the project has never had a key. */
   def unsigned(l: Ledger, dir: Path): List[(String, Decision)] =
@@ -89,7 +77,7 @@ object Signing:
     * if it is not there under any name.
     */
   def publish(pub: PublicKey, dir: Path, name: String = ""): Unit =
-    if !named(dir).contains(keyId(pub)) then
+    if !keys(dir).contains(keyId(pub)) then
       Files.createDirectories(dir)
       Files.writeString(dir.resolve(s"${if name.trim.isEmpty then keyId(pub) else name.trim}.pub"), b64(pub.getEncoded) + "\n", UTF_8)
 

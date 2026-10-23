@@ -582,21 +582,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       .map(Ledger.save(ws.ledgerFile, _))
 
   /** Warnings about the record (decisions not signed by the developer) and the code. */
-  def integrity: List[String] = Ledger.warnings(ws.ledgerFile, Ledger.load(ws.ledgerFile)) ++ ownerWarnings ++ codeWarnings
-
-  /** Decisions in a concern with an owner made by someone else (with named keys, `by` is the key's name). */
-  /** Who decides a node: its own owner, else its first parent's, recursively; none, anyone. */
-  def ownerOf(n: Node[?]): String = kb.ownerOf(n)
-
-  /** Decisions on an owned node made by someone else (with named keys, `by` is the key's name). */
-  private def ownerWarnings: List[String] =
-    val own = Ledger.load(ws.ledgerFile)
-    kb.nodes.flatMap { n =>
-      val owner = ownerOf(n)
-      if owner.isEmpty then Nil
-      else own.decisions.getOrElse(n.id, Nil).filter(d => d.action != "revisit" && !d.by.trim.equalsIgnoreCase(owner))
-        .map(d => s"${n.id}: the ${d.action} of ${d.at} is by ${d.by}, but $owner owns it: $owner decides it again")
-    }
+  def integrity: List[String] = Ledger.warnings(ws.ledgerFile, Ledger.load(ws.ledgerFile)) ++ codeWarnings
 
   /** Warnings about the model and the code (the ledger's are read live, see `Ledger.warnings`). */
   def codeWarnings: List[String] =
@@ -1090,8 +1076,6 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
         "defines" -> strs(n.defines),
         "uses" -> strs(kb.definitionsUsed(n, g.inForce).map(_.id)),
         "rule" -> JBool(n.isInvariant),
-        // Who decides it: its owner, else its first parent's.
-        "owner" -> str(ownerOf(n)),
         "limits" -> strs(kb.limits(n)),
         // The root met by doing nothing: it says only what must not happen (see `Decisions.unproven`).
         "idle" -> Option.when(isRoot)(idleOf(n)).flatten.fold(JNull)(str),

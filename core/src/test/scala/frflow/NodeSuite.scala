@@ -247,12 +247,12 @@ class NodeSuite extends munit.FunSuite:
     assertEquals(Workflow.paramsOf("val sessionDb = Param[SessionDb](\"sessionDb\", \"the store\")\nval n = Param[Int](\"n\", \"x\")", Set("SessionDb")), List("sessionDb"))
   }
 
-  test("an assumption names its idea section and owner, on a fact or on an operation") {
+  test("an assumption names its idea section, on a fact or on an operation") {
     val fact = Node.assumption("LongShelf", "Readers ask for books of at least a page.", why = "An empty book is not a book.",
-      idea = "Picking", owner = "ana")(minPages.value >= 1)
+      idea = "Picking")(minPages.value >= 1)
     val port = Node.assumption(fetch)("Port", "The service returns books of the shelf.", why = "Books come from a service.", idea = "Picking")(
       (shelf, n, r) => r.forall(b => shelf.contains(b)))
-    assertEquals((fact.ideaSection, fact.owner, port.ideaSection, port.owner), ("Picking", "ana", "Picking", ""))
+    assertEquals((fact.ideaSection, port.ideaSection), ("Picking", "Picking"))
     assertEquals(port.op.map(_.name), Some("fetch"))
   }
 

@@ -219,9 +219,7 @@ object Ledger:
     (if now.decisions.nonEmpty && Signing.keys(keys).isEmpty then
       List("no developer key: start the browser (`frflow serve`), which creates your key, and commit .frflow/keys/") else Nil) ++
     Signing.unsigned(now, keys).map((id, d) =>
-      s"$id: the ${d.action} of ${d.at} by ${d.by} is not signed by a developer key: decide it again in the browser, or sign it there if it is yours") ++
-    Signing.misnamed(now, keys).map((id, d, name) =>
-      s"$id: the ${d.action} of ${d.at} says ${d.by} decided it, but it is signed with $name's key")
+      s"$id: the ${d.action} of ${d.at} by ${d.by} is not signed by a developer key: decide it again in the browser, or sign it there if it is yours")
 
 /** Check results, derived from the model and Lean; kept in `.frflow/checks.json`, not committed. */
 object Checks:

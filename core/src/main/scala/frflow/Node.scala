@@ -79,7 +79,6 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
     val expected: List[(String, Lifted[?])] = Nil,
     val at: Int = -1,
     val local: Option[Lifted[?]] = None,
-    val owner: String = "",
     val replaced: Option[Node[?]] = None
 ):
   /** The nodes it is a part of: those named with `under`, and the invariants it keeps. */
@@ -123,7 +122,7 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
   private[frflow] def copy(declaredParents: List[Node[?]] = declaredParents, cases: List[Example] = cases, kept: List[Keep] = kept,
       expected: List[(String, Lifted[?])] = expected, local: Option[Lifted[?]] = local, replaced: Option[Node[?]] = replaced): Node[M] =
     Node(id, statement, why, kind, declaredParents, formula, post, op, rule, substs, cases, governs, declaredFormal, kept, scope, ideaSection,
-      file, expected, at, local, owner, replaced)
+      file, expected, at, local, replaced)
 
   private[frflow] def withExamples(es: List[Example]): Node[M] = copy(cases = cases ++ es)
   private[frflow] def withKeeps(ks: List[Keep]): Node[M] = copy(kept = ks)
@@ -143,23 +142,23 @@ object Node:
 
   /** A claim: a proposition over the vocabulary. With no parents, it is the root: the idea's purpose,
     * stated as *exactly* (what users can do and what must never happen), so that doing nothing does not
-    * meet it. `idea` names the section of IDEA.md it is decided against; `owner`, who decides it.
+    * meet it. `idea` names the section of IDEA.md it is decided against.
     */
-  inline def claim(id: String, statement: String, why: String, idea: String = "", owner: String = "", inline formal: Boolean = true)(
+  inline def claim(id: String, statement: String, why: String, idea: String = "", inline formal: Boolean = true)(
       inline formula: Boolean): Node[Unit] =
     def node(): Node[Unit] =
       Node(id, statement, why, NodeKind.Claim, formula = Some(Lifted.of(formal, () => formula)), declaredFormal = formal, ideaSection = idea,
-        owner = owner, file = Lifted.here, at = Lifted.at)
+        file = Lifted.here, at = Lifted.at)
     node()
 
   /** A contract on an operation: every call `op(a, b)` meets `post(a, b, op(a, b))`. Code attached to the
     * operation (`KnowledgeBase.implementProven`, `implement`) is proven or checked against it.
     */
-  inline def contract[A, B, R](op: Param[(A, B) => R])(id: String, statement: String, why: String, idea: String = "", owner: String = "",
+  inline def contract[A, B, R](op: Param[(A, B) => R])(id: String, statement: String, why: String, idea: String = "",
       inline formal: Boolean = true)(inline post: (A, B, R) => Boolean): Node[(A, B) => R] =
     def node(): Node[(A, B) => R] =
       Node(id, statement, why, NodeKind.Contract, post = Some(Lifted.of(formal, post)), op = Some(op), declaredFormal = formal,
-        ideaSection = idea, owner = owner, file = Lifted.here, at = Lifted.at)
+        ideaSection = idea, file = Lifted.here, at = Lifted.at)
     node()
 
   /** What the outside is trusted to do on an operation (a database, an HTTP service, the clock): not
@@ -171,9 +170,9 @@ object Node:
   /** A fact of the world, trusted (a hypothesis of `root_impl`); checked at run time wherever the
     * terms it reads are bound, when it can be computed.
     */
-  inline def assumption(id: String, statement: String, why: String, idea: String = "", owner: String = "")(inline formula: Boolean): Node[Unit] =
+  inline def assumption(id: String, statement: String, why: String, idea: String = "")(inline formula: Boolean): Node[Unit] =
     def node(): Node[Unit] =
-      Node(id, statement, why, NodeKind.Assumption, formula = Some(Lifted.of(true, () => formula)), ideaSection = idea, owner = owner,
+      Node(id, statement, why, NodeKind.Assumption, formula = Some(Lifted.of(true, () => formula)), ideaSection = idea,
         file = Lifted.here, at = Lifted.at)
     node()
 
@@ -190,29 +189,29 @@ object Node:
     * (`keeps`); every contract below the `scope` nodes (anywhere, when none are given) whose result can
     * hold what the rule is about keeps it or is `exempt`.
     */
-  inline def invariant[A, B](id: String, statement: String, why: String, scope: List[Node[?]] = Nil, idea: String = "", owner: String = "",
+  inline def invariant[A, B](id: String, statement: String, why: String, scope: List[Node[?]] = Nil, idea: String = "",
       inline formal: Boolean = true)(inline rule: (A, B) => Boolean): Node[(A, B) => Boolean] =
     def node(): Node[(A, B) => Boolean] =
       Node(id, statement, why, NodeKind.Claim, rule = Some(Lifted.of(formal, rule)), declaredFormal = formal, scope = scope, ideaSection = idea,
-        owner = owner, file = Lifted.here, at = Lifted.at)
+        file = Lifted.here, at = Lifted.at)
     node()
 
   /** A design decision with no formal model: an architecture choice or a convention, under the nodes
     * it serves. `governs` are the source files it is about, so a change to them is noticed.
     */
-  inline def design(id: String, statement: String, why: String, idea: String = "", owner: String = "")(governs: String*): Node[Unit] =
+  inline def design(id: String, statement: String, why: String, idea: String = "")(governs: String*): Node[Unit] =
     def node(): Node[Unit] =
-      Node(id, statement, why, NodeKind.Design, governs = governs.toList, ideaSection = idea, owner = owner, file = Lifted.here, at = Lifted.at)
+      Node(id, statement, why, NodeKind.Design, governs = governs.toList, ideaSection = idea, file = Lifted.here, at = Lifted.at)
     node()
 
-/** `Node.assumption(op)(id, statement, why, idea, owner)(post)`: an assumption on an operation. (A step of
-  * its own, so that it and the assumption on a fact both take `idea` and `owner` with defaults.)
+/** `Node.assumption(op)(id, statement, why, idea)(post)`: an assumption on an operation. (A step of
+  * its own, so that it and the assumption on a fact both take `idea` with a default.)
   */
 final class AssumptionOn[A, B, R](val op: Param[(A, B) => R]):
-  inline def apply(id: String, statement: String, why: String, idea: String = "", owner: String = "")(
+  inline def apply(id: String, statement: String, why: String, idea: String = "")(
       inline post: (A, B, R) => Boolean): Node[(A, B) => R] =
     def node(): Node[(A, B) => R] =
-      Node(id, statement, why, NodeKind.Assumption, post = Some(Lifted.of(true, post)), op = Some(op), ideaSection = idea, owner = owner,
+      Node(id, statement, why, NodeKind.Assumption, post = Some(Lifted.of(true, post)), op = Some(op), ideaSection = idea,
         file = Lifted.here, at = Lifted.at)
     node()
 
@@ -418,11 +417,6 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     nodes.flatMap(c => parentsOf(c).map(p => System.identityHashCode(p) -> c)).groupMap(_._1)(_._2)
   /** The nodes that name `n` as a parent, in the model's order: its parts, and the design decisions below it. */
   def children(n: Node[?]): List[Node[?]] = childrenOf.getOrElse(System.identityHashCode(n), Nil).filter(c => parentsOf(c).exists(_ eq n))
-  /** Who decides a node: its own owner, else its first parent's, recursively; none, anyone. */
-  def ownerOf(n: Node[?]): String =
-    def go(x: Node[?], seen: Set[String]): String =
-      if x.owner.nonEmpty || seen(x.id) then x.owner else parentsOf(x).headOption.fold("")(go(_, seen + x.id))
-    go(n, Set.empty)
   /** The parts of `n` that together refine it: claims, contracts and assumptions under it. */
   def parts(n: Node[?]): List[Node[?]] = children(n).filter(isStatement)
   def isStatement(n: Node[?]): Boolean = n.kind == NodeKind.Claim || n.kind == NodeKind.Contract || n.kind == NodeKind.Assumption
@@ -770,11 +764,6 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
         case List(_) => Nil
         case Nil     => List("a root is required: one claim with no parents, the idea's purpose")
         case rs      => List(s"one root only: ${rs.map(_.id).mkString(", ")} are claims with no parents; put all but one under the nodes they help prove"),
-      // A node shared by concerns of different owners: the order of `.under(...)` would decide who decides it.
-      nodes.filter(_.owner.isEmpty).flatMap { n =>
-        val owners = parentsOf(n).map(ownerOf).distinct.sortBy(_.isEmpty).map(o => if o.isEmpty then "no one" else o)
-        Option.when(owners.size > 1)(s"Name the owner of ${n.id}: its parents belong to ${owners.init.mkString(", ")} and ${owners.last} (owner = \"...\")")
-      },
       // What a node rests on (its parents) must not lead back to it.
       nodes.filter(n => ancestors(n).exists(_ eq n)).map(n => s"${n.id} is above itself: what it is a part of must not lead back to it"),
       nodes.filter(n => (n.kind == NodeKind.Contract || n.kind == NodeKind.Assumption) && n.parents.isEmpty && !n.op.exists(o => called(o.name)))

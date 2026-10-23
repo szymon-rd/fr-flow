@@ -613,57 +613,6 @@ class SnapshotSuite extends munit.FunSuite:
       assert(!Decisions.conditional(t), t)
   }
 
-  test("a node with an owner is decided by its owner, and so is what is below it; it waits for them in everyone else's inbox") {
-    val w = workflow(ownedKb)
-    assert(accept(w, owned, "negative results are meaningless").left.exists(_.contains("ana's to decide")))
-    ok(w.decide(Decisions.Request("Owned", "ana", "negative results are meaningless")))
-    assertEquals(field(nodes(w.annotated)("OwnedSquares"), "owner"), Some("ana"))
-    assert(accept(w, ownedSquares, "squares are never negative").left.exists(_.contains("ana's to decide")))
-    assert(Decisions.load(w.annotated).contains("ana: 1"))
-  }
-
-  test("five developers on five branches: merged in any order, every decision is kept, and a node two branches decided is decided again") {
-    val snap = workflow(teamKb).baseSnapshot
-    val ids = nodes(snap)
-    def decide(l: Ledger, node: String, by: String, reason: String, at: String) =
-      Decisions.decide(snap, l, Decisions.Request(node, by, reason), at).fold(e => fail(s"$node: $e"), identity)
-    val base = decide(Ledger.empty, "Team", "lead", "The team's purpose, as agreed.", "2030-01-01T00:00:00Z")
-    // Branch i: dev i decides their part. On branch 1, dev0 also decides their part, differently.
-    val branches = (0 until 5).toList.map { i =>
-      val l = decide(decide(base, s"NonNeg$i", s"dev$i", s"Concern $i is what users asked for.", s"2030-01-0${i + 2}T00:00:00Z"),
-        s"Abs$i", s"dev$i", "The absolute value is never negative.", s"2030-01-0${i + 2}T01:00:00Z")
-      if i == 1 then decide(l, "NonNeg0", "dev0", "Concern 0, as dev1's branch needs it.", "2030-01-03T02:00:00Z") else l
-    }
-    // another developer's part is refused on any branch
-    assert(Decisions.decide(snap, base, Decisions.Request("NonNeg2", "dev0", "it looks right to me"), "x").left.exists(_.contains("dev2's to decide")))
-    def states(l: Ledger) = ids.view.mapValues(Decisions.state(snap, l, _)).toMap
-    val merges = branches.permutations.map(_.reduceLeft(Ledger.merge)).toList
-    assertEquals(merges.map(m => m.decisions.view.mapValues(_.map(Ledger.entry).toSet).toMap).distinct.size, 1)
-    assertEquals(merges.map(states).distinct.size, 1)
-    val merged = merges.head
-    assertEquals(merged.decisions.values.map(_.size).sum, 12)
-    assertEquals(states(merged)("NonNeg0"), "review") // decided on two branches: decided again
-    assertEquals((1 until 5).map(i => states(merged)(s"NonNeg$i")).toSet, Set("accepted"))
-    val again = decide(merged, "NonNeg0", "dev0", "Concern 0 is what users asked for, both branches agree.", "2030-01-08T00:00:00Z")
-    assertEquals(states(again)("NonNeg0"), "accepted")
-  }
-
-  test("a decision signed with a named developer's key says that developer decided it; an owned node is its owner's") {
-    val w = workflow(ownedKb)
-    ok(w.decide(Decisions.Request("Owned", "ana", "negative results are meaningless")))
-    val kp = java.security.KeyPairGenerator.getInstance("Ed25519").generateKeyPair()
-    val keys = w.ws.ledgerFile.getParent.resolve("keys")
-    Signing.publish(kp.getPublic, keys, "bob")
-    assert(Files.exists(keys.resolve("bob.pub")))
-    // bob's key signs a decision that says ana made it
-    Ledger.save(w.ws.ledgerFile, Signing.signNew(Ledger.empty, Ledger.load(w.ws.ledgerFile), kp.getPrivate, kp.getPublic))
-    assert(w.integrity.exists(_.contains("signed with bob's key")), w.integrity)
-    // a decision on ana's node written as bob's
-    val l = Ledger.load(w.ws.ledgerFile)
-    Ledger.save(w.ws.ledgerFile, l.add("OwnedSquares", l.history("Owned").head.copy(by = "bob")))
-    assert(w.integrity.exists(_.contains("ana owns it")), w.integrity)
-  }
-
   test("decisions the ledger lost since the base are found") {
     val w = workflow()
     acceptAll(w)
@@ -747,20 +696,6 @@ class SnapshotSuite extends munit.FunSuite:
     assertEquals(back.gone, List("Bounded"))
   }
 
-  test("a parent's parts are decided by its owner") {
-    val ws = workspace()
-    val w0 = workflow(ownedKb, ws)
-    ok(w0.decide(Decisions.Request("Owned", "ana", "negative results are meaningless")))
-    ok(w0.decide(Decisions.Request("OwnedSquares", "ana", "squares are never negative")))
-    val abs = Node.claim("OwnedAbs", "The result is the absolute value of the input.", why = "Never negative.", owner = "bob")(
-      forall((x: BigInt) => sq(x) == (if x >= 0 then x else -x))).under(owned)
-    val w = workflow(KnowledgeBase("Owned", idea = "IDEA.md")(owned, ownedSquares, abs), ws)
-    assertEquals(causesOf(w, "Owned"), List("parts"))
-    assert(w.decide(Decisions.Request("Owned", "bob", "my part makes it too")).left.exists(_.contains("ana's to decide")))
-    ok(w.decide(Decisions.Request("Owned", "ana", "both parts make it")))
-    assertEquals(w.state(owned), "accepted")
-  }
-
   test("a change of parts is mechanical when Lean proves the parts make it, each needed; not otherwise") {
     val ws = workspace()
     acceptAll(workflow(shelfKb, ws))
@@ -837,20 +772,6 @@ class SnapshotSuite extends munit.FunSuite:
     val ns = nodes(workflow(shelfWith(pick, alt, thick)).annotated)
     def rivals(id: String) = strs(ns(id), "rivals")
     assertEquals(List("FromList", "Bounded", "Books", "Thick", "OnlyLong").map(rivals), List(List("Bounded"), List("FromList"), List("Thick"), List("Books"), Nil))
-  }
-
-  test("an owner is the node's own, else its parent's, however far up; a node shared by owners names its own") {
-    val nn = (1 to 2).map(i => teamKb.node(s"NonNeg$i").get)
-    def shared(owner: String) = Node.claim("Shared", "The result is the square of the input.", why = "Both concerns.", owner = owner)(forall((x: BigInt) => sq(x) == x * x)).under(nn*)
-    def below(s: Node[?]) = Node.claim("Deeper", "The result is a square.", why = "Below the shared part.")(forall((x: BigInt) => sq(x) == x * x)).under(s)
-    val unnamed = shared("")
-    assert(KnowledgeBase("Team", idea = "IDEA.md")((teamKb.nodes :+ unnamed :+ below(unnamed))*).problems
-      .contains("Name the owner of Shared: its parents belong to dev1 and dev2 (owner = \"...\")"))
-    val named = shared("dev2")
-    val kb = KnowledgeBase("Team", idea = "IDEA.md")((teamKb.nodes :+ named :+ below(named))*)
-    assertEquals(kb.problems, Nil)
-    val ns = nodes(workflow(kb).annotated)
-    assertEquals(List("Shared", "Deeper", "Team").map(id => field(ns(id), "owner")), List(Some("dev2"), Some("dev2"), Some("")))
   }
 
   test("a ledger recorded before parts were part of a node's content loads, and nothing is reviewed for it") {

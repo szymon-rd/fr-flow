@@ -160,13 +160,6 @@ val bump = Node.contract(bumps)("Bump", "A bump adds one to its name's count, an
     reject(Map("a" -> BigInt(1)), "b", Map("b" -> BigInt(1)), "a lost"))
 val bumped = define { (m: Map[String, BigInt], k: String) => m.updated(k, m.getOrElse(k, BigInt(0)) + 1) }
 
-/** A node with an owner: only they decide it, and what is below it. */
-val owned = Node.claim("Owned", "Results are never negative.", why = "Negative results are meaningless here.", owner = "ana")(
-  forall((x: BigInt) => sq(x) >= 0))
-val ownedSquares = Node.claim("OwnedSquares", "The result is the square of the input.", why = "Squares are never negative.")(
-  forall((x: BigInt) => sq(x) == x * x)).under(owned)
-val ownedKb = KnowledgeBase("Owned", idea = "IDEA.md")(owned, ownedSquares)
-
 /** Code keeping values at least a floor, whose examples do not reach the boundary (a value equal to the floor). */
 val retained = Param[(List[BigInt], BigInt) => List[BigInt]]("retained", "the values kept from a list, given the floor")
 val floorRoot = Node.claim("Floor", "A value is kept exactly when it is on the list and not under the floor.", why = "The floor is the rule.")(
@@ -178,16 +171,6 @@ val floorKeep = Node.contract(retained)("FloorKeep", "A call keeps exactly the v
     expect(List(BigInt(1)), BigInt(3), Nil, "nothing over the floor"),
     reject(List(BigInt(1), BigInt(5)), BigInt(3), List(BigInt(1)), "a value under the floor is never kept"))
 val keepAtLeast = define { (xs: List[BigInt], f: BigInt) => xs.filter(x => x >= f) }
-
-/** A team: one root, and one part per developer, which they own, with a part below it. */
-val team = Node.claim("Team", "Every result the team computes is never negative.", why = "The team's purpose.")(
-  forall((x: BigInt) => sq(x) >= 0))
-def teamConcern(i: Int, owner: String): List[Node[?]] =
-  val r = Node.claim(s"NonNeg$i", "Results are never negative.", why = s"Concern $i of the team.", owner = owner)(
-    forall((x: BigInt) => sq(x) >= 0)).under(team)
-  List(r, Node.claim(s"Abs$i", "The result is the absolute value of the input.", why = "It is never negative.")(
-    forall((x: BigInt) => sq(x) == (if x >= 0 then x else -x))).under(r))
-val teamKb = KnowledgeBase("Team", idea = "IDEA.md")((team :: (0 until 5).toList.flatMap(i => teamConcern(i, s"dev$i")))*)
 
 /** Defined functions of four and five arguments, called like the others. */
 val pagesBetween = define { (b: Book, lo: Int, hi: Int, title: String) => b.pages >= lo && b.pages <= hi && b.title != title }
