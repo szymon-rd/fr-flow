@@ -130,14 +130,14 @@ class ReviewSuite extends munit.FunSuite:
     assertEquals(ra.reasonNow, Some("A holds for this reason"))
   }
 
-  test("deciding a large tree stays fast: each node's state is computed once") {
-    val ns = (0 until 800).toList.map(i => node(s"N$i", s"node $i", parents = if i == 0 then Nil else List(s"N${(i - 1) / 8}")))
-    val s = Snapshot("Large", ns)
-    val g = Graph(s)
-    val l = ns.foldLeft(Ledger.empty)((l, n) => l.add(n.id, Decision(Action.Accept, "dev", stamp(0).at, "it is right",
-      chain = g.parentChain(n), content = n.content)))
-    val t = System.nanoTime
-    val a = Annotate(s, l)
-    assert(a.nodes.forall(_.state == ReviewState.Accepted))
-    assert((System.nanoTime - t) / 1e9 < 5)
+  test("annotating a tree grows linearly with it: each node's state is computed once") {
+    // The fastest of three runs, so a pause elsewhere in the build does not count; linear is 4, quadratic 16.
+    def seconds(n: Int): Double =
+      val ns = (0 until n).toList.map(i => node(s"N$i", s"node $i", parents = if i == 0 then Nil else List(s"N${(i - 1) / 8}")))
+      val (s, g) = (Snapshot("Large", ns), Graph(Snapshot("Large", ns)))
+      val l = ns.foldLeft(Ledger.empty)((l, n) => l.add(n.id, Decision(Action.Accept, "dev", stamp(0).at, "it is right",
+        chain = g.parentChain(n), content = n.content)))
+      List.fill(3) { val t = System.nanoTime; assert(Annotate(s, l).nodes.forall(_.state == ReviewState.Accepted)); (System.nanoTime - t) / 1e9 }.min
+    val (small, large) = (seconds(400), seconds(1600))
+    assert(large / small < 8, s"$small s for 400 nodes, $large s for 1600")
   }
