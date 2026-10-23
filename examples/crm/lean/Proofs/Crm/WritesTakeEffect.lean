@@ -14,15 +14,16 @@ open Crm.WritesTakeEffect
 
 theorem complete : Obl.complete := by
   unfold Obl.complete
-  intro save write h_WriteContract h_SaveWrite
+  frflow_intro
   unfold Crm.WritesTakeEffect.claim
   intro s w
-  have hsv := h_SaveWrite s w
-  have hw := h_WriteContract s w
-  simp only [Crm.SaveWrite.post] at hsv
-  simp only [Crm.WriteContract.post] at hw
+  have hSaved := h_SaveWrite s w
+  have hWrite := h_WriteContract s w
+  simp only [Crm.SaveWrite.post] at hSaved
+  simp only [Crm.WriteContract.post] at hWrite
+  obtain ⟨⟨_, hTakes⟩, _⟩ := hWrite
   simp only [Crm.afterSave]
-  rw [hsv]
-  exact Crm.Lemmas.takesEffect_replace s (write s w) w hw.1.2
+  rw [hSaved]
+  exact Crm.Lemmas.takesEffect_replace s (write s w) w hTakes
 
 end Crm.WritesTakeEffect.Proofs

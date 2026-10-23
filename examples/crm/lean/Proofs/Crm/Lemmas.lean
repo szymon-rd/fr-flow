@@ -1,8 +1,8 @@
 import FrFlowGen.Crm.Domain
 
-/-! Facts about a store with the rows about one record replaced (what the database holds after the
-write side saves a write), shared by the proofs of WritesTakeEffect, WritesInCompany and
-StoreConsistent. -/
+/-! Facts shared by the authored proofs: about a store with the rows about one record replaced (what the
+database holds after the write side saves a write), used by WritesTakeEffect and WritesOnlyAsAsked; and
+about what users asked (`askedIn`), the history alone, used by StoreMirrorsRequests and the root. -/
 
 set_option autoImplicit false
 noncomputable section
@@ -24,19 +24,6 @@ theorem mem_expiries (s t : CrmStore) (id_ : Int) (e : Expiry) :
     e ∈ (replaceAbout s id_ (aboutRecord t id_)).expiries ↔ (e ∈ s.expiries ∧ e.record ≠ id_) ∨ (e ∈ t.expiries ∧ e.record = id_) := by
   simp [replaceAbout, aboutRecord]
 
-/-- Replacing the rows about one record by those of a store with unique ids keeps ids unique: the
-records kept have other ids than the new ones. -/
-theorem idsUnique_replace (s t : CrmStore) (id_ : Int) (hs : idsUnique s) (ht : idsUnique t) :
-    idsUnique (replaceAbout s id_ (aboutRecord t id_)) := by
-  unfold idsUnique at *
-  intro a ha b hb hab
-  rw [mem_records] at ha hb
-  rcases ha with ⟨ha, hai⟩ | ⟨ha, hai⟩ <;> rcases hb with ⟨hb, hbi⟩ | ⟨hb, hbi⟩
-  · exact hs a ha b hb hab
-  · exact absurd (hab.trans hbi) hai
-  · exact absurd (hab.symm.trans hai) hbi
-  · exact ht a ha b hb hab
-
 /-- What a write asks is about its own record's rows only: it holds of the replaced store when it holds
 of the store the write led to. -/
 theorem takesEffect_replace (s t : CrmStore) (w : WriteCmd) (h : takesEffect s w t) :
@@ -54,7 +41,13 @@ theorem takesEffect_replace (s t : CrmStore) (w : WriteCmd) (h : takesEffect s w
     obtain ⟨h1, h2⟩ := h hc
     refine ⟨(mem_shares s t id_ _).2 (Or.inr ⟨h1, rfl⟩), ?_⟩
     cases u with
-    | some u => exact (mem_expiries s t id_ _).2 (Or.inr ⟨h2, rfl⟩)
+    | some u =>
+      obtain ⟨h2, h3⟩ := h2
+      refine ⟨(mem_expiries s t id_ _).2 (Or.inr ⟨h2, rfl⟩), fun e he hpair => ?_⟩
+      rw [mem_expiries] at he
+      rcases he with ⟨_, hne⟩ | ⟨he, _⟩
+      · exact absurd hpair.1 hne
+      · exact h3 e he hpair
     | none =>
       rintro ⟨e, he, her, het⟩
       rw [mem_expiries] at he
@@ -69,61 +62,157 @@ theorem takesEffect_replace (s t : CrmStore) (w : WriteCmd) (h : takesEffect s w
     · exact hne rfl
     · exact h hc hm
 
-/-- A company other than the author's holds its records alike in the replaced store, when the write
-left its records, and their shares and expiries, as they were. -/
-theorem holdsAlike_replace (s t : CrmStore) (id_ : Int) (a c : TenantId) (hc : c ≠ a)
-    (hrec : List.filter (fun r => decide (r.tenant ≠ a)) t.records = List.filter (fun r => decide (r.tenant ≠ a)) s.records)
-    (hrows : ∀ r ∈ s.records, r.tenant ≠ a → rowsAlike s t r.id_) :
-    holdsAlike s (replaceAbout s id_ (aboutRecord t id_)) c := by
-  have toT : ∀ r ∈ s.records, r.tenant ≠ a → r ∈ t.records := by
-    intro r hr hra
-    have : r ∈ List.filter (fun r => decide (r.tenant ≠ a)) s.records := List.mem_filter.2 ⟨hr, by simpa using hra⟩
-    rw [← hrec] at this
-    exact (List.mem_filter.1 this).1
-  have toS : ∀ r ∈ t.records, r.tenant ≠ a → r ∈ s.records := by
-    intro r hr hra
-    have : r ∈ List.filter (fun r => decide (r.tenant ≠ a)) t.records := List.mem_filter.2 ⟨hr, by simpa using hra⟩
-    rw [hrec] at this
-    exact (List.mem_filter.1 this).1
-  unfold holdsAlike
-  refine ⟨fun r hr hrc => ?_, fun r hr hrc => ?_⟩
-  · have hra : r.tenant ≠ a := hrc ▸ hc
-    refine ⟨(mem_records s t id_ r).2 ?_, ?_⟩
-    · by_cases hid : r.id_ = id_
-      · exact Or.inr ⟨toT r hr hra, hid⟩
-      · exact Or.inl ⟨hr, hid⟩
-    · have hr2 := hrows r hr hra
-      unfold rowsAlike at hr2 ⊢
-      obtain ⟨⟨⟨s1, s2⟩, e1⟩, e2⟩ := hr2
-      by_cases hid : r.id_ = id_
-      · refine ⟨⟨⟨fun sh hsh hshr => (mem_shares s t id_ sh).2 (Or.inr ⟨s1 sh hsh hshr, hshr.trans hid⟩), ?_⟩,
-          fun e he her => (mem_expiries s t id_ e).2 (Or.inr ⟨e1 e he her, her.trans hid⟩)⟩, ?_⟩
-        · intro sh hsh hshr
-          rw [mem_shares] at hsh
-          rcases hsh with ⟨hsh, _⟩ | ⟨hsh, _⟩
-          · exact hsh
-          · exact s2 sh hsh hshr
-        · intro e he her
-          rw [mem_expiries] at he
-          rcases he with ⟨he, _⟩ | ⟨he, _⟩
-          · exact he
-          · exact e2 e he her
-      · refine ⟨⟨⟨fun sh hsh hshr => (mem_shares s t id_ sh).2 (Or.inl ⟨hsh, fun h => hid (hshr.symm.trans h)⟩), ?_⟩,
-          fun e he her => (mem_expiries s t id_ e).2 (Or.inl ⟨he, fun h => hid (her.symm.trans h)⟩)⟩, ?_⟩
-        · intro sh hsh hshr
-          rw [mem_shares] at hsh
-          rcases hsh with ⟨hsh, _⟩ | ⟨_, hshi⟩
-          · exact hsh
-          · exact absurd (hshr.symm.trans hshi) hid
-        · intro e he her
-          rw [mem_expiries] at he
-          rcases he with ⟨he, _⟩ | ⟨_, hei⟩
-          · exact he
-          · exact absurd (her.symm.trans hei) hid
-  · have hra : r.tenant ≠ a := hrc ▸ hc
-    rw [mem_records] at hr
+/-- A write that changes nothing it did not ask still does so when only the rows about its record are
+stored: the other rows are those of the store before it. -/
+theorem onlyAsked_replace (s t : CrmStore) (w : WriteCmd) (h : onlyAsked s w t) :
+    onlyAsked s w (replaceAbout s (about w) (aboutRecord t (about w))) := by
+  obtain ⟨⟨⟨⟨hRec, hShT⟩, hShS⟩, hExT⟩, hExS⟩ := h
+  refine ⟨⟨⟨⟨fun r hr => ?_, fun sh hsh => ?_⟩, fun sh hsh => ?_⟩, fun e he => ?_⟩, fun e he => ?_⟩
+  · rw [mem_records] at hr
     rcases hr with ⟨hr, _⟩ | ⟨hr, _⟩
-    · exact hr
-    · exact toS r hr hra
+    · exact Or.inl hr
+    · exact hRec r hr
+  · rw [mem_shares] at hsh
+    rcases hsh with ⟨hsh, _⟩ | ⟨hsh, _⟩
+    · exact Or.inl hsh
+    · exact hShT sh hsh
+  · rw [mem_shares]
+    by_cases hid : sh.record = about w
+    · rcases hShS sh hsh with ht | hc
+      · exact Or.inl (Or.inr ⟨ht, hid⟩)
+      · exact Or.inr hc
+    · exact Or.inl (Or.inl ⟨hsh, hid⟩)
+  · rw [mem_expiries] at he
+    rcases he with ⟨he, _⟩ | ⟨he, _⟩
+    · exact Or.inl he
+    · exact hExT e he
+  · rw [mem_expiries]
+    by_cases hid : e.record = about w
+    · rcases hExS e he with ht | hc
+      · exact Or.inl (Or.inr ⟨ht, hid⟩)
+      · exact Or.inr hc
+    · exact Or.inl (Or.inl ⟨he, hid⟩)
+
+/-! What users asked: facts about the history alone, used by StoreMirrorsRequests and the root. -/
+
+/-- What a history and one more event asked: that event, after what the history asked. -/
+theorem askedIn_snoc (es : List Event) (e : Event) :
+    askedIn (es ++ [e]) = askedStep (askedIn es) e := by
+  simp only [askedIn, List.foldl_append, List.foldl_cons, List.foldl_nil]
+
+/-- No event takes back a record added. -/
+theorem askedStep_records {a : Asked} (e : Event) {r : CrmRecord} (h : r ∈ a.records) :
+    r ∈ (askedStep a e).records := by
+  cases e with
+  | Expired now => simpa [askedStep] using h
+  | Wrote w =>
+    rcases w with ⟨u, ch⟩
+    cases ch with
+    | Add x =>
+      simp only [askedStep]
+      split
+      · exact List.mem_append_left _ h
+      · exact h
+    | ShareWith i to v =>
+      simp only [askedStep]
+      split
+      · exact h
+      · exact h
+    | Unshare i to =>
+      simp only [askedStep]
+      split
+      · exact h
+      · exact h
+
+/-- A record added stays added, whatever is asked after it. -/
+theorem askedIn_records_append (pre post : List Event) {r : CrmRecord} (h : r ∈ (askedIn pre).records) :
+    r ∈ (askedIn (pre ++ post)).records := by
+  simp only [askedIn, List.foldl_append]
+  exact FrFlow.always (fun a e => askedStep a e) (fun a => r ∈ a.records) _ h (fun a e ha => askedStep_records e ha) post
+
+/-- What users asked has one record per id, and one share per record and company. -/
+theorem askedIn_unique (es : List Event) :
+    (∀ x ∈ (askedIn es).records, ∀ y ∈ (askedIn es).records, x.id_ = y.id_ → x = y) ∧
+    (∀ g ∈ (askedIn es).grants, ∀ g' ∈ (askedIn es).grants, g.record = g'.record → g.to = g'.to → g = g') := by
+  simp only [askedIn]
+  apply FrFlow.always (fun a e => askedStep a e)
+    (fun a => (∀ x ∈ a.records, ∀ y ∈ a.records, x.id_ = y.id_ → x = y) ∧
+      (∀ g ∈ a.grants, ∀ g' ∈ a.grants, g.record = g'.record → g.to = g'.to → g = g'))
+  · simp
+  · intro a e ⟨hR, hG⟩
+    -- a filter of unique shares is unique
+    have hFilter : ∀ (p : Grant → Bool), ∀ g ∈ a.grants.filter p, ∀ g' ∈ a.grants.filter p,
+        g.record = g'.record → g.to = g'.to → g = g' :=
+      fun p g hg g' hg' => hG g (List.mem_filter.1 hg).1 g' (List.mem_filter.1 hg').1
+    cases e with
+    | Expired now => exact ⟨hR, hFilter _⟩
+    | Wrote w =>
+      rcases w with ⟨u, ch⟩
+      cases ch with
+      | Add x =>
+        simp only [askedStep]
+        split
+        · rename_i hc
+          refine ⟨fun y hy z hz hyz => ?_, hG⟩
+          simp only [List.mem_append, List.mem_singleton] at hy hz
+          rcases hy with hy | rfl <;> rcases hz with hz | rfl
+          · exact hR y hy z hz hyz
+          · exact absurd ⟨y, hy, hyz⟩ hc.2
+          · exact absurd ⟨z, hz, hyz.symm⟩ hc.2
+          · rfl
+        · exact ⟨hR, hG⟩
+      | ShareWith i to v =>
+        simp only [askedStep]
+        split
+        · refine ⟨hR, fun g hg g' hg' hr ht => ?_⟩
+          simp only [List.mem_append, List.mem_singleton] at hg hg'
+          rcases hg with hg | rfl <;> rcases hg' with hg' | rfl
+          · exact hFilter _ g hg g' hg' hr ht
+          · simp only [List.mem_filter, decide_eq_true_eq] at hg
+            exact absurd ⟨hr, ht⟩ hg.2
+          · simp only [List.mem_filter, decide_eq_true_eq] at hg'
+            exact absurd ⟨hr.symm, ht.symm⟩ hg'.2
+          · rfl
+        · exact ⟨hR, hG⟩
+      | Unshare i to =>
+        simp only [askedStep]
+        split
+        · exact ⟨hR, hFilter _⟩
+        · exact ⟨hR, hG⟩
+
+/-- A share of what users asked, other than the one a write replaces, is as it was. -/
+theorem grant_filter_other (gs : List Grant) (id0 : Int) (to0 : TenantId) (T id_ : Int) (c : TenantId)
+    (hOther : ¬(id_ = id0 ∧ c = to0)) :
+    (∃ g ∈ gs.filter (fun g => decide (¬(g.record = id0 ∧ g.to = to0))), (g.record = id_ ∧ g.to = c) ∧ ∀ t, g.until = some t → T < t) ↔
+    (∃ g ∈ gs, (g.record = id_ ∧ g.to = c) ∧ ∀ t, g.until = some t → T < t) := by
+  constructor
+  · rintro ⟨g, hg, hPair, hKeep⟩
+    exact ⟨g, (List.mem_filter.1 hg).1, hPair, hKeep⟩
+  · rintro ⟨g, hg, hPair, hKeep⟩
+    refine ⟨g, List.mem_filter.2 ⟨hg, decide_eq_true ?_⟩, hPair, hKeep⟩
+    rintro ⟨hRecord, hTo⟩
+    exact hOther ⟨hPair.1.symm.trans hRecord, hPair.2.symm.trans hTo⟩
+
+/-- The share a write replaces or ends is no longer among those it keeps. -/
+theorem grant_filter_self (gs : List Grant) (id0 : Int) (to0 : TenantId) (T : Int) :
+    ¬∃ g ∈ gs.filter (fun g => decide (¬(g.record = id0 ∧ g.to = to0))),
+      (g.record = id0 ∧ g.to = to0) ∧ ∀ t, g.until = some t → T < t := by
+  rintro ⟨g, hg, hPair, _⟩
+  exact (of_decide_eq_true (List.mem_filter.1 hg).2) hPair
+
+/-- A share given anew is not of another record and company. -/
+theorem grant_append_other (gs : List Grant) (id0 : Int) (to0 : TenantId) (u : Option Int) (T id_ : Int) (c : TenantId)
+    (hOther : ¬(id_ = id0 ∧ c = to0)) :
+    (∃ g ∈ gs ++ [Grant.mk id0 to0 u], (g.record = id_ ∧ g.to = c) ∧ ∀ t, g.until = some t → T < t) ↔
+    (∃ g ∈ gs, (g.record = id_ ∧ g.to = c) ∧ ∀ t, g.until = some t → T < t) := by
+  constructor
+  · rintro ⟨g, hg, hPair, hKeep⟩
+    rcases List.mem_append.1 hg with hg | hg
+    · exact ⟨g, hg, hPair, hKeep⟩
+    · rw [List.mem_singleton] at hg
+      subst hg
+      exact absurd ⟨hPair.1.symm, hPair.2.symm⟩ hOther
+  · rintro ⟨g, hg, hPair, hKeep⟩
+    exact ⟨g, List.mem_append_left _ hg, hPair, hKeep⟩
 
 end Crm.Lemmas
