@@ -134,6 +134,6 @@ class DecideSuite extends munit.FunSuite:
     val (fromAgent, a2) = right(Requests.answer(answered, "B", "Shelves are now listed.", _ == id("B"), now))
     assertEquals((a2.by, a2.node, fromAgent.size), ("agent", Some(id("B")), 2))
     assert(a2.id != q.id)
-    assertEquals(Requests.close(fromAgent, RequestId("R0")), Left(UnknownRequest("R0")))
-    assertEquals(right(Requests.close(fromAgent, q.id))._2.status, RequestStatus.Closed)
+    assertEquals(Requests.close(fromAgent, List(q.id, RequestId("R0"))), Left(UnknownRequest("R0")))
+    assertEquals(right(Requests.close(fromAgent, List(q.id)))._2.map(_.status), List(RequestStatus.Closed))
   }

@@ -24,9 +24,13 @@ object Requests:
       else Left(Refusal.UnknownRequest(to))
     all.flatMap((all, i) => update(all, i, to)(_.copy(status = RequestStatus.Answered, answer = Some(text))))
 
-  /** The developer closes a request: done with it, answered or not. */
-  def close(rs: List[Request], id: RequestId): Either[Refusal, (List[Request], Request)] =
-    update(rs, rs.indexWhere(_.id == id), id.value)(_.copy(status = RequestStatus.Closed))
+  /** The developer closes requests: done with them, answered or not. All, or none if one is unknown. */
+  def close(rs: List[Request], ids: List[RequestId]): Either[Refusal, (List[Request], List[Request])] =
+    ids.filterNot(i => rs.exists(_.id == i)) match
+      case Nil =>
+        val closed = rs.map(r => if ids.contains(r.id) then r.copy(status = RequestStatus.Closed) else r)
+        Right((closed, closed.filter(r => ids.contains(r.id))))
+      case unknown => Left(Refusal.UnknownRequest(unknown.mkString(", ")))
 
   private def update(rs: List[Request], i: Int, to: String)(f: Request => Request): Either[Refusal, (List[Request], Request)] =
     rs.lift(i).map(f).map(r => (rs.updated(i, r), r)).toRight(Refusal.UnknownRequest(to))

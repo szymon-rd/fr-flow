@@ -26,6 +26,14 @@ enum Refusal:
   case NotMechanical(node: NodeId, why: String)
   case NothingToConfirm
   case UnknownRequest(to: String)
+  /** An acceptance names no node. */
+  case NoNodes
+  /** A request says nothing. */
+  case NoText
+  /** No name to decide under: none given, and the developer's key is filed under none. */
+  case NoDeveloper
+  case NothingToSign
+  case NotUnsigned(entries: List[EntryRef])
   /** One decision of several refused: none is recorded. */
   case Within(node: NodeId, refusal: Refusal)
 
@@ -49,6 +57,11 @@ enum Refusal:
     case NotMechanical(n, why) => s"$n is not mechanical ($why): decide it on its own"
     case NothingToConfirm => "nothing to confirm: no decision is mechanical"
     case UnknownRequest(to) => s"no request or node $to"
+    case NoNodes => "name the nodes to accept"
+    case NoText => "say what to change"
+    case NoDeveloper => "say who decides: the name your key's public half is filed under (.frflow/keys/NAME.pub)"
+    case NothingToSign => "every decision is signed"
+    case NotUnsigned(es) => s"not a decision waiting to be signed: ${es.mkString(", ")}"
     case Within(n, r) => s"$n: ${r.message}"
 
   /** The model moved since the developer looked: they look again, rather than change what they asked. */

@@ -32,7 +32,8 @@ trait RequestStore:
   def ask(node: Option[NodeId], text: String, by: String): IO[Request]
   /** Answers the request `to`, or the open request on the node `to` (see `Requests.answer`). */
   def answer(to: String, text: String, isNode: NodeId => Boolean): IO[Either[Refusal, Request]]
-  def close(id: RequestId): IO[Either[Refusal, Request]]
+  /** Closes requests: all, or none if one is unknown. */
+  def close(ids: List[RequestId]): IO[Either[Refusal, List[Request]]]
 
 object RequestStore:
   /** The store of `file`; one per file in a process (see `FileLock`). */
@@ -49,5 +50,5 @@ object RequestStore:
         change[Nothing, Request]((rs, now) => Right(Requests.ask(rs, node, text, by, now))).map(_.merge)
       def answer(to: String, text: String, isNode: NodeId => Boolean): IO[Either[Refusal, Request]] =
         change(Requests.answer(_, to, text, isNode, _))
-      def close(id: RequestId): IO[Either[Refusal, Request]] = change((rs, _) => Requests.close(rs, id))
+      def close(ids: List[RequestId]): IO[Either[Refusal, List[Request]]] = change((rs, _) => Requests.close(rs, ids))
   }

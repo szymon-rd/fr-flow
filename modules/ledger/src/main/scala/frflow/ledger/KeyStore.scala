@@ -19,6 +19,8 @@ trait KeyStore:
   def projectKeys: IO[Map[KeyId, PublicKey]]
   /** Files the public key as `NAME.pub` (`ID.pub` with no name), unless it is there under any name. */
   def publish(key: PublicKey, name: String): IO[Unit]
+  /** The name the developer's key is filed under in the project (`NAME.pub`), if the key exists and is filed. */
+  def filedName: IO[Option[String]]
 
 object KeyStore:
 
@@ -33,12 +35,15 @@ object KeyStore:
     IO(keyFile(sys.env, Paths.get(sys.props.getOrElse("user.home", ".")))).map(at(_, keysDir))
 
   /** The developer keys in `keysDir`: every `.pub` in it that reads, by its id. */
-  def projectKeys(keysDir: Path): IO[Map[KeyId, PublicKey]] =
+  def projectKeys(keysDir: Path): IO[Map[KeyId, PublicKey]] = filed(keysDir).map(_.map((_, pub) => Keys.id(pub) -> pub).toMap)
+
+  /** Every `.pub` in `keysDir` that reads: its name (the file's, without `.pub`), and the key. */
+  private def filed(keysDir: Path): IO[List[(String, PublicKey)]] =
     val pubs = Resource.fromAutoCloseable(IO.blocking(Files.list(keysDir)))
       .use(files => IO.blocking(files.iterator.asScala.toList.filter(_.toString.endsWith(".pub")).sortBy(_.toString)))
     IO.blocking(Files.isDirectory(keysDir)).ifM(pubs, IO.pure(Nil)).flatMap(_.traverseFilter(f =>
-      IO.blocking(Files.readString(f).linesIterator.map(_.trim).find(_.nonEmpty).flatMap(Keys.decodePublic(_).toOption))))
-      .map(_.map(pub => Keys.id(pub) -> pub).toMap)
+      IO.blocking(Files.readString(f).linesIterator.map(_.trim).find(_.nonEmpty).flatMap(Keys.decodePublic(_).toOption)
+        .map(f.getFileName.toString.stripSuffix(".pub") -> _))))
 
   def at(keyFile: Path, keysDir: Path): KeyStore = new KeyStore:
     def developer: IO[DeveloperKey] =
@@ -57,6 +62,11 @@ object KeyStore:
     })
 
     def projectKeys: IO[Map[KeyId, PublicKey]] = KeyStore.projectKeys(keysDir)
+
+    def filedName: IO[Option[String]] =
+      IO.blocking(Files.isRegularFile(keyFile)).ifM(
+        (read, filed(keysDir)).mapN((k, all) => all.collectFirst { case (name, pub) if Keys.id(pub) == k.id => name }),
+        IO.pure(None))
 
     def publish(key: PublicKey, name: String): IO[Unit] =
       projectKeys.flatMap { known =>

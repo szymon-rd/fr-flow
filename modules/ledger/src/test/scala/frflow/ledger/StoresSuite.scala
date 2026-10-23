@@ -51,12 +51,12 @@ class StoresSuite extends munit.CatsEffectSuite:
       asked    <- store.ask(Some(NodeId("Pick")), "Pick faster.", "dev")
       answered <- store.answer("Pick", "Picking is now quicker.", _ => false)
       unknown  <- store.answer("Nowhere", "text", _ => false)
-      closed   <- store.close(asked.id)
+      closed   <- store.close(List(asked.id))
       all      <- store.load
     yield
       assertEquals(none, Nil)
       assertEquals(answered.map(r => (r.id, r.answer)), Right((asked.id, Some("Picking is now quicker."))))
       assertEquals(unknown, Left(Refusal.UnknownRequest("Nowhere")))
-      assertEquals(closed.map(_.status), Right(RequestStatus.Closed))
+      assertEquals(closed.map(_.map(_.status)), Right(List(RequestStatus.Closed)))
       assertEquals(all.map(r => (r.status, r.answer)), List((RequestStatus.Closed, Some("Picking is now quicker."))))
   }
