@@ -1,44 +1,64 @@
 package frflow
 package check
 
+import cats.data.NonEmptyList
+import cats.effect.{IO, Ref}
+import cats.effect.std.{Console, Mutex}
+import cats.syntax.all.*
+import fs2.io.process.ProcessBuilder
+import fs2.text
 import java.nio.file.Path
-import java.util.concurrent.TimeUnit
 
-final case class Run(exitCode: Int, output: String):
-  def ok: Boolean = exitCode == 0
+/** One run of Lean: it finished with an exit code, or it took longer than allowed and was stopped. */
+enum Run:
+  case Done(exit: Int, output: String)
+  case TimedOut(output: String)
 
-/** Runs `lake` in a Lean workspace. The executable is `FRFLOW_LAKE`, or `lake` on the PATH. */
-final class Lake(dir: Path, timeoutSeconds: Long = 900):
-  private val lake = sys.env.getOrElse("FRFLOW_LAKE", "lake")
+  def ok: Boolean = this match
+    case Done(0, _) => true
+    case _ => false
+  /** What Lean printed, stdout and stderr each line by line. */
+  def output: String
 
-  // Builds write the workspace's build outputs: one at a time. Elaborating and replaying only read them.
-  def build(target: String): Run = Lake.building.synchronized(run(Seq(lake, "build", target)))
-  /** Several targets in one build: Lake builds them in parallel. */
-  def buildAll(targets: Seq[String]): Run = Lake.building.synchronized(run(Seq(lake, "build") ++ targets))
-  def elaborate(file: String): Run = run(Seq(lake, "env", "lean", file))
-  def available: Boolean =
-    try ProcessBuilder(lake, "--version").redirectErrorStream(true).start().waitFor() == 0
-    catch case _: java.io.IOException => false
+object Run:
+  /** A target an earlier batch built: nothing to run. */
+  val built: Run = Done(0, "")
 
-  private def run(cmd: Seq[String]): Run =
-    val t0 = System.nanoTime
-    val r = runTimed(cmd)
-    // FRFLOW_TIMING=1: each Lean run, with how long it took (to see where a check spends its time).
-    if sys.env.contains("FRFLOW_TIMING") then System.err.println(f"[lean ${(System.nanoTime - t0) / 1e9}%.1fs] ${cmd.drop(1).mkString(" ").take(140)}")
-    r
-
-  private def runTimed(cmd: Seq[String]): Run =
-    val proc = ProcessBuilder(cmd*).directory(dir.toFile).redirectErrorStream(true).start()
-    val out = java.io.ByteArrayOutputStream()
-    val pump = Thread(() => { proc.getInputStream.transferTo(out); () })
-    pump.start()
-    if !proc.waitFor(timeoutSeconds, TimeUnit.SECONDS) then
-      proc.destroyForcibly()
-      pump.join(1000)
-      Run(124, out.toString("UTF-8") + s"\ntimed out after ${timeoutSeconds}s")
-    else
-      pump.join()
-      Run(proc.exitValue(), out.toString("UTF-8"))
+/** Lake in one Lean workspace. */
+trait Lake:
+  /** Builds targets in one run (Lake builds them in parallel). Builds write the workspace's outputs: one
+    * at a time. Elaborating and replaying only read them.
+    */
+  def build(targets: NonEmptyList[String]): IO[Run]
+  def build(target: String): IO[Run] = build(NonEmptyList.one(target))
+  /** Elaborates one file (a path relative to the workspace, or absolute). */
+  def elaborate(file: String): IO[Run]
+  /** Whether Lake runs at all. */
+  def available: IO[Boolean]
 
 object Lake:
-  private val building = Object()
+  /** Lake in `dir`, run as `cfg.lake`; each run is stopped (the process killed) after `cfg.timeout`, or
+    * when the fiber running it is cancelled.
+    */
+  def apply(dir: Path, cfg: Config): IO[Lake] = Mutex[IO].map { building =>
+    new Lake:
+      def build(targets: NonEmptyList[String]): IO[Run] = building.lock.surround(run("build" :: targets.toList))
+      def elaborate(file: String): IO[Run] = run(List("env", "lean", file))
+      def available: IO[Boolean] = spawn(List("--version")).map(_.ok).handleError(_ => false)
+
+      private def run(args: List[String]): IO[Run] =
+        if !cfg.timing then spawn(args)
+        else spawn(args).timed.flatTap((t, _) =>
+          Console[IO].errorln(f"[lean ${t.toMillis / 1e3}%.1fs] ${args.mkString(" ").take(140)}")).map(_._2)
+
+      // The output as it came, stdout and stderr each line by line; kept when the run is stopped.
+      private def spawn(args: List[String]): IO[Run] = Ref[IO].of(Vector.empty[String]).flatMap { out =>
+        val exec = ProcessBuilder(cfg.lake, args).withWorkingDirectory(fs2.io.file.Path.fromNioPath(dir)).spawn[IO].use { p =>
+          def lines(s: fs2.Stream[IO, Byte]) = s.through(text.utf8.decode).through(text.lines)
+          lines(p.stdout).merge(lines(p.stderr)).evalMap(l => out.update(_ :+ l)).compile.drain *> p.exitValue
+        }
+        def joined(o: Vector[String]) = o.mkString("\n")
+        exec.flatMap(code => out.get.map(o => Run.Done(code, joined(o))))
+          .timeoutTo(cfg.timeout, out.get.map(o => Run.TimedOut(joined(o) + s"\ntimed out after ${cfg.timeout.toSeconds}s")))
+      }
+  }

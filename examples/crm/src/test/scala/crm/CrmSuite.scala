@@ -1,6 +1,7 @@
 package crm
 
 import frflow.*
+import cats.effect.unsafe.implicits.global
 import frflow.check.*
 import java.nio.file.{Files, Paths}
 
@@ -8,8 +9,8 @@ class CrmSuite extends munit.FunSuite:
 
   test("the committed ledger accepts every node: none is up for review, none is gone") {
     // As `crm/run status` reads it: a change to the content, the hashes or the code fingerprints shows here.
-    val w = Workflow(knowledge, Workspace(Paths.get("examples/crm").toAbsolutePath.normalize, "../../../lean"))
-    val annotated = w.annotated
+    val annotated = Workflow(knowledge, Workspace(Paths.get("examples/crm").toAbsolutePath.normalize, "../../../lean"))
+      .flatMap(_.analysis).unsafeRunSync().annotated
     val states = annotated.nodes.map(r => r.id.value -> r.state.toString)
     assertEquals(states.size, knowledge.nodes.size)
     assertEquals(states.filter(_._2 != "accepted"), Nil)
@@ -207,14 +208,14 @@ class CrmSuite extends munit.FunSuite:
   }
 
   test("the knowledge base is proven, from the contracts, their code and the ports to the root") {
-    val lake = Lake(Paths.get("."))
-    assume(lake.available, "lake is not available")
+    assume(Config.load.flatMap(Lake(Paths.get("."), _)).flatMap(_.available).unsafeRunSync(), "lake is not available")
     // In the example's own workspace, as `crm/run check` checks it: its Lean build and the results it
     // recorded are reused while current (a node whose Lean changed is checked again). The core's LeanSuite
     // checks from scratch.
     val w = Workflow(knowledge, Workspace(Paths.get("examples/crm").toAbsolutePath.normalize, "../../../lean"))
-    val checked = w.check().map((n, c) => n.id -> c).toMap
-    val formal = knowledge.nodes.filter(w.generate.formal).map(_.id)
+    val run = w.flatMap(_.check()).unsafeRunSync()
+    val checked = run.results.map((n, c) => n.id -> c).toMap
+    val formal = knowledge.nodes.filter(run.after.generate.formal).map(_.id)
     assertEquals(checked.view.filterKeys(formal.contains).mapValues(_.status.toString).toMap, formal.map(_ -> "proven").toMap)
     // every implementation is proven, and the root holds of the code from the ports alone
     for c <- List("ReadContract", "DealSearch", "WriteContract", "SaveWrite", "SharesExpire", "RecordsByQuery", "StoreEdits") do
@@ -222,5 +223,5 @@ class CrmSuite extends munit.FunSuite:
     assertEquals(checked("SharedCrm").obligations.find(_.name == "root_impl").map(_.status.toString), Some("proven"))
     // the root's expectations: its main promise on a concrete store, and an added record found
     assertEquals(checked("SharedCrm").obligations.filter(_.name.startsWith("expect_")).map(_.status.toString), List("proven", "proven"))
-    assertEquals(w.generate.trusted.map(_.id), List("RecordsByQuery", "StoreEdits"))
+    assertEquals(run.after.generate.trusted.map(_.id), List("RecordsByQuery", "StoreEdits"))
   }
