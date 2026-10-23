@@ -18,6 +18,7 @@ object Book extends Data[Book]
 enum Shelf:
   case Top, Bottom
   case Box(label: String)
+object Shelf extends Data[Shelf]
 
 val minPages = Param[Int]("minPages", "the length readers asked for, from the settings")
 val picks = Param[(List[Book], Int) => List[Book]]("picks", "the books the shelf service picks from a shelf, asked for n")

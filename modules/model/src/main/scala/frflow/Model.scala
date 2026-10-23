@@ -9,9 +9,10 @@ final class Opaque(val name: String, val means: String):
   def :=(t: LeanType[?]): Subst = Subst(name, this, isType = true, Some(t), None)
 
 /** A domain term, open until a definition fixes it: a fact of the world, or an operation some contract is about.
-  * It is a term: `grants.contains(g)`, `sessions(t)`. Plain code reads its value in force with `value`.
+  * It is a term: `grants.contains(g)`, `sessions(t)`. Plain code reads its value in force with `value`. One that only
+  * code reads (a database connection) needs no Lean type: it cannot appear in a model.
   */
-final class Param[A](val name: String, val means: String)(using t: LeanType[A]) extends Term[A](null, t):
+final class Param[A](val name: String, val means: String)(using t: LeanType[A] = LeanType.unknown[A]) extends Term[A](null, t):
   override private[frflow] def termTree: Tree = Tree.Ref(this)
   def value: A = Bindings.get(this)
   inline def :=(inline v: Term[A]): Subst = Subst.term(this, Lifted.term(() => v, Source.text(v)))

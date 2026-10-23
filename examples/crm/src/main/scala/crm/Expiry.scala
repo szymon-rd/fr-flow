@@ -24,7 +24,7 @@ val sharesExpire = Node.contract(expire)("SharesExpire",
   .exempt(noCrossTenantRead, "the store it returns goes to storage, never to a reader")
 
 /** A run: the shares that have not ended, and the expiries of those. */
-val expireCode = define { (s: CrmStore, now: BigInt) =>
+val expireCode = define { (s: Term[CrmStore], now: Term[BigInt]) =>
   CrmStore(s.records, s.shares.filter(sh => !ended(sh, s, now)), s.expiries.filter(e => !ended(Share(e.record, e.to), s, now)))
 }
 

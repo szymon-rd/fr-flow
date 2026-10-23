@@ -123,6 +123,19 @@ trait Data[T]:
     make(t, a, b, c, d, e)
   def apply(a: Term[E[F, 0]], b: Term[E[F, 1]], c: Term[E[F, 2]], d: Term[E[F, 3]], e: Term[E[F, 4]], f: Term[E[F, 5]])(using t: LeanType[T]): Term[T] =
     make(t, a, b, c, d, e, f)
+  /** An enum's case built from terms, with `object Event extends Data[Event]`: `Event[Event.Wrote](w)`. (A case's
+    * own companion cannot take terms: Scala gives it its `apply` and no way to add another.)
+    */
+  inline def apply[C <: T](using m: Mirror.ProductOf[C]): CaseOf[T, m.MirroredElemTypes] = CaseOf(constValue[m.MirroredLabel])
+
+/** One case of an enum, given its fields as terms. */
+final class CaseOf[T, F <: Tuple] @scala.annotation.publicInBinary private[frflow] (label: String):
+  import Tuple.Elem as E
+  private def make(t: LeanType[T], args: Term[?]*): Term[T] = Term.makeCase(t, label, args.toList)
+  def apply(a: Term[E[F, 0]])(using t: LeanType[T]): Term[T] = make(t, a)
+  def apply(a: Term[E[F, 0]], b: Term[E[F, 1]])(using t: LeanType[T]): Term[T] = make(t, a, b)
+  def apply(a: Term[E[F, 0]], b: Term[E[F, 1]], c: Term[E[F, 2]])(using t: LeanType[T]): Term[T] = make(t, a, b, c)
+  def apply(a: Term[E[F, 0]], b: Term[E[F, 1]], c: Term[E[F, 2]], d: Term[E[F, 3]])(using t: LeanType[T]): Term[T] = make(t, a, b, c, d)
 
 /** The terms a case's lambda takes: one per field. */
 type Fields[T <: Tuple, R] = T match
@@ -185,6 +198,10 @@ object Term extends TermsOfValues:
   private[frflow] def make[T](t: LeanType[T], args: List[Term[?]]): Term[T] = t.shape match
     case Shape.Data(adt) if !adt.isEnum => Term(Tree.Make(adt, adt.ctors.head, args.map(_.termTree)), t)
     case _ => throw IllegalArgumentException("FrFlow: only a case class is built from its fields")
+
+  private[frflow] def makeCase[T](t: LeanType[T], label: String, args: List[Term[?]]): Term[T] = t.shape match
+    case Shape.Data(adt) if adt.isEnum => Term(Tree.Make(adt, adt.ctor(label), args.map(_.termTree)), t)
+    case _ => throw IllegalArgumentException(s"FrFlow: $label is not a case of an enum")
 
   private[frflow] def quant(all: Boolean, p: AnyRef, types: List[LeanType[?]]): Term[Boolean] =
     val bs = Lambda.binders(p, types)

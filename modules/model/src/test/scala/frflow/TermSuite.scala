@@ -68,6 +68,9 @@ class TermSuite extends munit.FunSuite:
     // values print as the macro printed them written in Scala
     assertEquals(lean1((o: Term[Option[Book]]) => o === Some(Book("A", -1))), "(o = (some (Book.mk \"A\" (-1))))")
     assertEquals(lean1((s: Term[Shelf]) => s === Shelf.Box("x") || s === Shelf.Top), "((s = (Shelf.Box \"x\")) ∨ (s = Shelf.Top))")
+    // an enum's case built from terms, through its companion
+    assertEquals(lean1((l: Term[String]) => Shelf[Shelf.Box](l) =!= Shelf.Top), "((Shelf.Box l) ≠ Shelf.Top)")
+    assertEquals(lifted1((l: Term[String]) => Shelf[Shelf.Box](l)).value("x"), Shelf.Box("x"))
   }
 
   test("what a term mentions: its parameters, types, opaque types and defined functions") {

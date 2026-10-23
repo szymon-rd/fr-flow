@@ -10,8 +10,8 @@ val storeMirrorsRequests = Node.claim("StoreMirrorsRequests",
   "The CRM holds exactly the records its users added, and holds a share of a record as current exactly when the record's company shared it so.",
   why = "What users asked is said of the history alone (Adding, Sharing); the CRM keeps tables, and searches read those. This is the link, proven by induction over the history, as Keycloak's sessions follow its sign-ins: each write saved and each run of the job moves the tables as one more event moves what users asked. One record more would show what nobody added, one less would lose a record a user added; a share outliving its time or its unshare would show a record to a company no longer entitled to it.",
   idea = "Writing records"
-)(forall((r: CrmRecord) => store.value.contains(r) == askedIn(history.value).records.contains(r)) &&
-  forall((id: BigInt, c: TenantId) => sharedNow(id, c) == sharedIn(history.value, id, c, clock.value)))
+)(forall((r: Term[CrmRecord]) => store.contains(r) === askedIn(history).records.contains(r)) &&
+  forall((id: Term[BigInt], c: Term[TenantId]) => sharedNow(id, c) === sharedIn(history, id, c, clock)))
   .under(sharedCrm)
 
 // ============================================================================
@@ -22,21 +22,21 @@ val writesTakeEffect = Node.claim("WritesTakeEffect",
   "A user's write about their company's record does what they asked: it adds the record, shares it (until a time, or for good), or unshares it.",
   why = "What the idea says users can do with their company's records. It is about what the database holds after the write, not only what the write computes: a write that is not stored has not happened. A share until a time holds that time only, so sharing again replaces the time it had.",
   idea = "Writing records"
-)(forall((s: CrmStore, w: WriteCmd) => takesEffect(s, w, afterSave(s, w))))
+)(forall((s: Term[CrmStore], w: Term[WriteCmd]) => takesEffect(s, w, afterSave(s, w))))
   .under(storeMirrorsRequests)
 
 val writesOnlyAsAsked = Node.claim("WritesOnlyAsAsked",
   "A write changes nothing its author did not ask of their company's records: it adds no other record, and changes no other share or share's time.",
   why = "The other half of a write doing what was asked: a record added beside the one asked, or a share changed beside it, is something no user asked. A write about another company's record, or a record its author's company does not hold, changes nothing; so no write changes another company's records or whom they are shared with.",
   idea = "Writing records"
-)(forall((s: CrmStore, w: WriteCmd) => onlyAsked(s, w, afterSave(s, w))))
+)(forall((s: Term[CrmStore], w: Term[WriteCmd]) => onlyAsked(s, w, afterSave(s, w))))
   .under(storeMirrorsRequests)
 
 val recordsKept = Node.claim("RecordsKept",
   "No write and no run of the expiry job removes a record: after each, the CRM holds every record it held before.",
   why = "Editing or removing records is not modelled, so a record once added stays: a write changes shares or adds a record, and the job ends shares only. This is what keeps an added record found from then on, not only right after its write.",
   idea = "Writing records"
-)(forall((s: CrmStore, e: Event) => s.records.forall(r => stepOf(s, e).records.contains(r))))
+)(forall((s: Term[CrmStore], e: Term[Event]) => s.records.forall(r => stepOf(s, e).records.contains(r))))
   .under(storeMirrorsRequests)
 
 // ============================================================================
@@ -48,12 +48,12 @@ val writeContract = Node.contract(write)("WriteContract",
   why = "The writing rules, stated for one write on a store: what the user asked takes effect, no record is lost, and nothing else changes, of their company or another's. A write the author's company may not make changes nothing.",
   idea = "Writing records"
 )((s, w, t) => s.records.forall(r => t.records.contains(r)) &&
-  t.records.filter(r => r.tenant != w.by.tenant) == s.records.filter(r => r.tenant != w.by.tenant) && takesEffect(s, w, t) &&
+  t.records.filter(r => r.tenant =!= w.by.tenant) === s.records.filter(r => r.tenant =!= w.by.tenant) && takesEffect(s, w, t) &&
   onlyAsked(s, w, t))
   .under(writesTakeEffect, writesOnlyAsAsked, recordsKept)
   // Per call, in time linear in the store: the write took effect, and other companies' records are as they were.
   // The rest (no record lost, nothing else changed) is proven of the code, and would read every pair of rows.
-  .checkedBy((s, w, t) => takesEffect(s, w, t) && t.records.filter(r => r.tenant != w.by.tenant) == s.records.filter(r => r.tenant != w.by.tenant))
+  .checkedBy((s, w, t) => takesEffect(s, w, t) && t.records.filter(r => r.tenant =!= w.by.tenant) === s.records.filter(r => r.tenant =!= w.by.tenant))
   .examples()(
     expect(CrmStore(Nil, Nil, Nil), WriteCmd(Account("ann@acme", TenantId("acme")), Change.Add(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact"))), CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact")), Nil, Nil),
       "Ann adds a contact of Acme's"),
@@ -70,33 +70,33 @@ val writeContract = Node.contract(write)("WriteContract",
   .exempt(noCrossTenantRead, "the store a write returns goes to the write side, never to a reader: reads go through ReadContract")
 
 /** A write: the change, when its author's company may make it; otherwise nothing changes. */
-val applyWrite = define { (s: CrmStore, w: WriteCmd) =>
-  w.change match
-    case Change.Add(r) =>
-      if r.tenant == w.by.tenant && !s.records.exists(x => x.id == r.id) then CrmStore(s.records ++ List(r), s.shares, s.expiries) else s
-    case Change.ShareWith(id, to, until) =>
-      if s.records.exists(x => x.id == id && x.tenant == w.by.tenant) then
-        CrmStore(s.records, s.shares.filter(sh => sh != Share(id, to)) ++ List(Share(id, to)),
-          s.expiries.filter(e => !(e.record == id && e.to == to)) ++ (until match
-            case Some(u) => List(Expiry(id, to, u))
-            case None    => Nil))
-      else s
-    case Change.Unshare(id, to) =>
-      if s.records.exists(x => x.id == id && x.tenant == w.by.tenant) then
-        CrmStore(s.records, s.shares.filter(sh => sh != Share(id, to)), s.expiries.filter(e => !(e.record == id && e.to == to)))
-      else s
+val applyWrite = define { (s: Term[CrmStore], w: Term[WriteCmd]) =>
+  w.change
+    .on[Change.Add](r =>
+      If(r.tenant === w.by.tenant && !s.records.exists(x => x.id === r.id))(CrmStore(s.records ++ List(r), s.shares, s.expiries)).Else(s))
+    .on[Change.ShareWith]((id, to, until) =>
+      If(s.records.exists(x => x.id === id && x.tenant === w.by.tenant))(
+        CrmStore(s.records, s.shares.filter(sh => sh =!= Share(id, to)) ++ List(Share(id, to)),
+          s.expiries.filter(e => !(e.record === id && e.to === to)) ++ until
+            .on[Some[BigInt]](u => List(Expiry(id, to, u)))
+            .on[None.type](Nil)))
+      .Else(s))
+    .on[Change.Unshare]((id, to) =>
+      If(s.records.exists(x => x.id === id && x.tenant === w.by.tenant))(
+        CrmStore(s.records, s.shares.filter(sh => sh =!= Share(id, to)), s.expiries.filter(e => !(e.record === id && e.to === to))))
+      .Else(s))
 }
 
 val saveWrite = Node.contract(save)("SaveWrite",
   "Saving a write stores, and returns as read back, what the store the write leads to holds about the written record.",
   why = "A write changes only its own record's rows, so storing those rows stores the write, whatever the size of the store: the database then holds what CrmRun says. The rows are read back, so a write the database dropped or changed is seen on the call.",
   idea = "Writing records"
-)((s, w, back) => back == aboutRecord(write(s, w), about(w)))
+)((s, w, back) => back === aboutRecord(write(s, w), about(w)))
   .under(writesTakeEffect, writesOnlyAsAsked, recordsKept)
   // Per call: the rows read back are about the written record. That they are the write's is proven of the
   // code, from StoreEdits; checking it would run the write twice.
-  .checkedBy((s, w, back) => back.records.forall(r => r.id == about(w)) && back.shares.forall(sh => sh.record == about(w)) &&
-    back.expiries.forall(e => e.record == about(w)))
+  .checkedBy((s, w, back) => back.records.forall(r => r.id === about(w)) && back.shares.forall(sh => sh.record === about(w)) &&
+    back.expiries.forall(e => e.record === about(w)))
   .examples(database.bind(Db.of(Nil)))(
     expect(CrmStore(List(CrmRecord(2, TenantId("globex"), Kind.Deal, "Globex deal")), List(Share(2, TenantId("acme"))), Nil),
       WriteCmd(Account("ann@acme", TenantId("acme")), Change.Add(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact"))),
@@ -110,7 +110,7 @@ val saveWrite = Node.contract(save)("SaveWrite",
   .exempt(noCrossTenantRead, "it returns the rows it stored to the write side, never to a reader")
 
 /** The write side: apply the write, store the rows about its record, return them as read back. */
-val saved = define { (s: CrmStore, w: WriteCmd) => storeRows(about(w), write(s, w)) }
+val saved = define { (s: Term[CrmStore], w: Term[WriteCmd]) => storeRows(about(w), write(s, w)) }
 
 // ============================================================================
 // Port: the database storing the rows about one record
@@ -120,7 +120,7 @@ val saved = define { (s: CrmStore, w: WriteCmd) => storeRows(about(w), write(s, 
 val storeEdits = Node.assumption(storeRows)("StoreEdits",
   "Storing what a store holds about one record replaces what the database holds about it, and nothing else; read back, the rows about it are what the store holds about it.",
   why = "The database is outside the proofs: the write side is proven from this promise. The rows are read back after storing, and checked: a write the database dropped or changed is seen on the call. That it changes nothing else is trusted (CrmRun)."
-)((id, t, back) => back == aboutRecord(t, id))
+)((id, t, back) => back === aboutRecord(t, id))
   .examples(database.bind(Db.of(Nil, Nil)))(
     expect(BigInt(1), CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal"), CrmRecord(2, TenantId("globex"), Kind.Deal, "Globex deal")), List(Share(1, TenantId("globex"))), Nil),
       CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("globex"))), Nil), "the record and its share, not the other record"),
@@ -129,7 +129,7 @@ val storeEdits = Node.assumption(storeRows)("StoreEdits",
       CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), Nil, Nil), "a share the database dropped is seen"))
 
 /** The rows about a record, as the port promises them: what the SQL is checked against. */
-val storedAbout = define { (id: BigInt, t: CrmStore) => aboutRecord(t, id) }
+val storedAbout = define { (id: Term[BigInt], t: Term[CrmStore]) => aboutRecord(t, id) }
 
 /** The production wiring of writes, owned as a design decision: changes to it are reviewed. */
 val writeSideWiring = Node.design(
