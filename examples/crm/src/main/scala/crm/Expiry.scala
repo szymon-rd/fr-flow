@@ -51,6 +51,12 @@ val sameRows = define { (a: Term[CrmStore], b: Term[CrmStore]) =>
 private val acmeDeal = CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")
 private val globexUntil100 = CrmStore(List(acmeDeal), List(Share(1, TenantId("globex")), Share(1, TenantId("initech"))), List(Expiry(1, TenantId("globex"), 100)))
 private val initechOnly = CrmStore(List(acmeDeal), List(Share(1, TenantId("initech"))), Nil)
+// Two records out of the database's order (it returns rows sorted by record): the model and SQLite must agree on them.
+private val acmeContact = CrmRecord(2, TenantId("acme"), Kind.Contact, "Acme contact")
+private val twoUnsorted = CrmStore(List(acmeContact, acmeDeal), List(Share(2, TenantId("globex")), Share(1, TenantId("initech"))),
+  List(Expiry(2, TenantId("globex"), 100)))
+private val twoExpired = CrmStore(List(acmeContact, acmeDeal), List(Share(1, TenantId("initech"))), Nil)
+private val twoStored = CrmStore(List(acmeDeal, acmeContact), List(Share(1, TenantId("initech"))), Nil)
 private val earlier = List(Event.Wrote(WriteCmd(Account("ann@acme", TenantId("acme")), Change.Add(acmeDeal))))
 
 val expiryJob = Node.contract(runExpiry)("ExpiryJob",
@@ -64,6 +70,8 @@ val expiryJob = Node.contract(runExpiry)("ExpiryJob",
   .examples()(
     expect(BigInt(150), World(DatabaseModel -> Tables(globexUntil100, earlier)), initechOnly,
       World(DatabaseModel -> Tables(initechOnly, earlier :+ Event.Expired(150))), "Globex's share ended at 100: the database drops it, and the run is logged"),
+    expect(BigInt(150), World(DatabaseModel -> Tables(twoUnsorted, earlier)), twoExpired,
+      World(DatabaseModel -> Tables(twoStored, earlier :+ Event.Expired(150))), "two records: the contact's share with Globex ended; the database stores the contact's rows again"),
     expect(BigInt(50), World(DatabaseModel -> Tables(globexUntil100, earlier)), globexUntil100,
       World(DatabaseModel -> Tables(globexUntil100, earlier :+ Event.Expired(50))), "before 100 nothing ends, and the run is still logged"),
     reject(BigInt(150), World(DatabaseModel -> Tables(globexUntil100, earlier)), initechOnly,

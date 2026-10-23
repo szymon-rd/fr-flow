@@ -29,6 +29,17 @@ class NodeSuite extends munit.FunSuite:
     assert(e.getMessage.contains("structural equality"), e.getMessage)
   }
 
+  test("a domain type that writes its own equality is refused; Scala's generated one is kept") {
+    def refused[T](using t: LeanType[T]): String = intercept[IllegalArgumentException](t.lean).getMessage
+    assert(refused[NodeSuite.TitleOnly].contains("TitleOnly redefines equals (in TitleOnly): domain types must keep structural equality"))
+    assert(refused[NodeSuite.Hashed].contains("Hashed redefines hashCode"))
+    assert(refused[NodeSuite.Loose].contains("Loose redefines equals"))
+    // an equals that reads every field does what the generated one does
+    assertEquals(summon[LeanType[NodeSuite.Careful]].lean, "NodeSuite.Careful")
+    assertEquals(summon[LeanType[Book]].lean, "Book")
+    assertEquals(summon[LeanType[Shelf]].lean, "Shelf")
+  }
+
   test("a cross-cutting invariant is a claim kept by the contracts that name it, on examples, generated calls and at run time") {
     val atMostN = Node.invariant[Int, Int]("AtMostN", "No more books are picked than asked for.", "Readers carry what they asked for.")(
       (asked, picked) => picked <= asked).under(onlyGood)
@@ -124,3 +135,14 @@ class NodeSuite extends munit.FunSuite:
 object NodeSuite:
   trait CaseInsensitive { override def equals(o: Any): Boolean = true; override def hashCode: Int = 0 }
   final case class PathCI(v: String) extends CaseInsensitive
+  final case class TitleOnly(title: String, pages: Int):
+    override def equals(o: Any): Boolean = o match { case b: TitleOnly => b.title == title; case _ => false }
+    override def hashCode: Int = title.hashCode
+  final case class Hashed(title: String):
+    override def hashCode: Int = 0
+  final case class Careful(title: String, pages: Int):
+    override def equals(o: Any): Boolean = o match { case b: Careful => b.title == title && b.pages == pages; case _ => false }
+    override def hashCode: Int = scala.util.hashing.MurmurHash3.caseClassHash(this)
+  enum Loose:
+    case A(x: String)
+    override def equals(o: Any): Boolean = true

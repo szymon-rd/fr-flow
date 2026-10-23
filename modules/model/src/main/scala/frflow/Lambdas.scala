@@ -27,6 +27,20 @@ private[frflow] object Lambdas:
       }.toOption
     }.getOrElse(Nil)
 
+  /** The values the lambda captures, each with the name the program gave it (`t` of a `val t` in an enclosing lambda);
+    * the receiver of an instance method is not one of them.
+    */
+  def captured(f: AnyRef): List[(String, Any)] =
+    serialized(f).flatMap { sl =>
+      Try {
+        val m = load(sl.getImplClass).getDeclaredMethods.find(_.getName == sl.getImplMethodName).get
+        val receiver = if java.lang.reflect.Modifier.isStatic(m.getModifiers) then 0 else 1
+        val names = m.getParameters.toList.take(sl.getCapturedArgCount - receiver)
+          .map(p => if p.isNamePresent then p.getName.replaceAll("\\$\\d+$", "") else "x")
+        names.zip((receiver until sl.getCapturedArgCount).map(sl.getCapturedArg).toList)
+      }.toOption
+    }.getOrElse(Nil)
+
   /** The name of the val holding `x`, in the file or object where the lambda `f` was written: `name`, or `Object.name`. */
   def valName(x: AnyRef, f: AnyRef): Option[String] =
     serialized(f).flatMap(sl => Try(load(sl.getCapturingClass)).toOption).flatMap { c =>
