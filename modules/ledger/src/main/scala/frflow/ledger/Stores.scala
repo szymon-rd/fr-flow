@@ -1,63 +1,53 @@
 package frflow
 package ledger
 
+import cats.effect.IO
+import cats.syntax.all.*
 import frflow.protocol.*
-import io.circe.parser.decode
 import io.circe.syntax.*
-import java.nio.channels.FileChannel
-import java.nio.charset.StandardCharsets.UTF_8
-import java.nio.file.{Files, Path, StandardCopyOption, StandardOpenOption}
+import java.nio.file.Path
 
-/** Writing FrFlow's files: whole, then moved into place, so a reader never sees half a file. */
-object Store:
-  def write(file: Path, text: String): Unit =
-    val dir = file.toAbsolutePath.getParent
-    Files.createDirectories(dir)
-    val tmp = Files.createTempFile(dir, s".${file.getFileName}", ".tmp")
-    Files.writeString(tmp, text, UTF_8)
-    Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+/** The ledger in `.frflow/ledger.json`: read whole; changed under its lock, all or nothing. */
+trait LedgerStore:
+  def load: IO[Ledger]
+  /** Applies `f` to the ledger as it is on disk, under the lock; writes what it returns, or nothing if it
+    * refuses.
+    */
+  def update[A](f: Ledger => Either[Refusal, (Ledger, A)]): IO[Either[Refusal, A]]
+  def save(l: Ledger): IO[Unit] = update(_ => Right(l -> ())).void
 
-  /** The file decoded, or `empty` when there is none; a file that does not read is an error. */
-  def read[A: io.circe.Decoder](file: Path, empty: => A): A =
-    if !Files.isRegularFile(file) then empty
-    else decode[A](Files.readString(file, UTF_8)).fold(e => throw IllegalArgumentException(s"$file does not read: ${e.getMessage}"), identity)
-
-  /** `f` with the lock file beside `file` held. */
-  def locked[A](file: Path)(f: => A): A =
-    Files.createDirectories(file.toAbsolutePath.getParent)
-    val ch = FileChannel.open(file.resolveSibling(s"${file.getFileName}.lock"), StandardOpenOption.CREATE, StandardOpenOption.WRITE)
-    try
-      val lock = ch.lock()
-      try f finally lock.release()
-    finally ch.close()
-
-/** The ledger in `.frflow/ledger.json`. */
 object LedgerStore:
-  def load(file: Path): Ledger = Store.read(file, Ledger.empty)
-  def save(file: Path, l: Ledger): Unit = Store.write(file, Canonical.file(l.asJson) + "\n")
+  /** The store of `file`; one per file in a process (see `FileLock`). */
+  def make(file: Path): IO[LedgerStore] = FileLock.of(file).map { lock =>
+    new LedgerStore:
+      def load: IO[Ledger] = Store.load(file, Ledger.empty)
+      def update[A](f: Ledger => Either[Refusal, (Ledger, A)]): IO[Either[Refusal, A]] =
+        lock.surround(load.flatMap(l => f(l).traverse((next, a) => Store.writeJson(file, next.asJson).as(a))))
+  }
 
 /** The developer's requests in `.frflow/requests.json`, and the agent's answers. */
-object RequestStore:
-  def load(file: Path): List[Request] = Store.read(file, List.empty[Request])
+trait RequestStore:
+  def load: IO[List[Request]]
+  /** The developer asks for a change, on a node or on the idea. */
+  def ask(node: Option[NodeId], text: String, by: String): IO[Request]
+  /** Answers the request `to`, or the open request on the node `to` (see `Requests.answer`). */
+  def answer(to: String, text: String, isNode: NodeId => Boolean): IO[Either[Refusal, Request]]
+  def close(id: RequestId): IO[Either[Refusal, Request]]
 
-  /** Answers the request `to` with the text; given a node, the developer's open request on it, or a new
-    * one from the agent. The file is locked while it is written. The id of the request answered.
-    */
-  def answer(file: Path, to: String, text: String, isNode: String => Boolean, now: java.time.Instant): Either[String, RequestId] =
-    Store.locked(file) {
-      val rs = load(file)
-      val at = rs.indexWhere(_.id == RequestId(to)) match
-        case -1 => rs.indexWhere(r => r.node.contains(NodeId(to)) && r.status == RequestStatus.Open)
-        case i => i
-      val all =
-        if at >= 0 then Right(rs)
-        else if !isNode(to) then Left(s"no request or node $to")
-        else Right(rs :+ Request(RequestId(s"R${java.lang.Long.toString(now.toEpochMilli, 36)}"), Some(NodeId(to)), "(from the agent)",
-          "agent", now.toString.take(19) + "Z", RequestStatus.Open))
-      all.map { all =>
-        val k = if at >= 0 then at else all.size - 1
-        val answered = all(k).copy(status = RequestStatus.Answered, answer = Some(text))
-        Store.write(file, Canonical.file(all.updated(k, answered).asJson) + "\n")
-        answered.id
-      }
-    }
+object RequestStore:
+  /** The store of `file`; one per file in a process (see `FileLock`). */
+  def make(file: Path): IO[RequestStore] = FileLock.of(file).map { lock =>
+    new RequestStore:
+      def load: IO[List[Request]] = Store.load(file, List.empty[Request])
+      private def change[E, A](f: (List[Request], java.time.Instant) => Either[E, (List[Request], A)]): IO[Either[E, A]] =
+        lock.surround(for
+          rs  <- load
+          now <- IO.realTimeInstant
+          out <- f(rs, now).traverse((next, a) => Store.writeJson(file, next.asJson).as(a))
+        yield out)
+      def ask(node: Option[NodeId], text: String, by: String): IO[Request] =
+        change[Nothing, Request]((rs, now) => Right(Requests.ask(rs, node, text, by, now))).map(_.merge)
+      def answer(to: String, text: String, isNode: NodeId => Boolean): IO[Either[Refusal, Request]] =
+        change(Requests.answer(_, to, text, isNode, _))
+      def close(id: RequestId): IO[Either[Refusal, Request]] = change((rs, _) => Requests.close(rs, id))
+  }
