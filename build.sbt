@@ -3,13 +3,30 @@ ThisBuild / scalacOptions ++= Seq("-deprecation", "-feature", "-Werror")
 
 val munit = "org.scalameta" %% "munit" % "1.1.1" % Test
 
-lazy val root = project.in(file(".")).aggregate(core, auth, crm, keycloak).settings(publish / skip := true)
+lazy val root = project.in(file("."))
+  .aggregate(model, lean, ledger, check, cli, auth, crm, keycloak)
+  .settings(publish / skip := true)
 
-/** The FrFlow library: nodes, the Scala-to-Lean translation, the checker, the CLI. */
-lazy val core = project.in(file("core")).settings(name := "frflow", libraryDependencies += munit)
+def module(name: String) = Project(name, file(s"modules/$name"))
+  .settings(Keys.name := s"frflow-$name", libraryDependencies += munit)
+
+/** The DSL: nodes, the knowledge base, the macro from Scala to Lean, the runtime checks (package `frflow`). */
+lazy val model = module("model")
+
+/** The Lean of a knowledge base, and reading Lean's output. */
+lazy val lean = module("lean").dependsOn(model % "compile->compile;test->test")
+
+/** The developer's decisions: review states, the ledger, signatures. */
+lazy val ledger = module("ledger")
+
+/** Rendering and checking a knowledge base against Lean; the snapshot. */
+lazy val check = module("check").dependsOn(lean % "compile->compile;test->test", ledger, model % "test->test")
+
+/** The command line a project's main object extends (`FrFlowApp`). */
+lazy val cli = module("cli").dependsOn(check)
 
 def example(name: String) = Project(name, file(s"examples/$name"))
-  .dependsOn(core)
+  .dependsOn(cli, check % Test)
   .settings(
     libraryDependencies += munit,
     publish / skip := true,

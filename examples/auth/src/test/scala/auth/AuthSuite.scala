@@ -1,6 +1,7 @@
 package auth
 
 import frflow.*
+import frflow.check.*
 import java.nio.file.{Files, Paths}
 
 class AuthSuite extends munit.FunSuite:

@@ -1,6 +1,7 @@
 package keycloak
 
 import frflow.*
+import frflow.check.*
 import java.nio.file.{Files, Paths}
 
 class KeycloakSuite extends munit.FunSuite:

@@ -1,6 +1,7 @@
 package crm
 
 import frflow.*
+import frflow.check.*
 import java.nio.file.{Files, Paths}
 
 class CrmSuite extends munit.FunSuite:

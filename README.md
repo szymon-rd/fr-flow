@@ -256,7 +256,7 @@ Trusted:
 
 - the assumptions (the hypotheses of `root_impl`): checked where they can be, not proven;
 - the Scala-to-Lean translation, cross-checked on the examples and on probes
-  near them (`Generate.near`: boundary numbers, shorter and reversed lists,
+  near them (`Probes.near`: boundary numbers, shorter and reversed lists,
   one field changed), each run in Scala and evaluated in Lean; it refuses what
   it cannot translate faithfully (`Int` arithmetic, for one);
 - that parameters hold the data they are said to mean, and that every path to
@@ -360,12 +360,12 @@ knowledge base `Library`):
 ```
 docs/DAG.md             the design: one root, parts, the vocabulary, obligations, decisions
 lean/FrFlow/            the Lean side: frflow_auto, frflow_intro; run and list lemmas (always, simulates, tracks)
-core/                   the Scala library
-  Node, Model, Lift     nodes and knowledge bases; Opaque, Param, define; the macro from Scala to Lean
-  Generate, Lean        Lean generation; running lake, axiom audits, the proof-file filter
-  Decisions             decision states and rules
-  Ledger, Signing       the decision record; keys and signatures
-  Workflow, Cli, Git    render, check, context, status; the command line; diffs
+modules/                the Scala library, one sbt subproject each (model ← lean ← check ← cli; ledger ← check)
+  model                 package frflow: nodes and knowledge bases; Opaque, Param, define; the macro; probes
+  lean                  Lean generation; axiom audits, the proof-file filter
+  ledger                decision states and rules; the decision record; keys and signatures; git diffs
+  check                 render, check (running lake), the snapshot, context, status
+  cli                   the command line: FrFlowApp
 examples/               auth, keycloak, crm
 bench/                  the scale benchmark
 .claude/skills/frflow   the agent skill
