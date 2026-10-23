@@ -4,13 +4,11 @@ import java.io.PrintStream
 import java.nio.charset.StandardCharsets.UTF_8
 
 /** `frflow serve [--host H] [--port N] PATH...` starts the browser;
-  * `frflow mcp PATH...` serves MCP on stdin/stdout;
-  * `frflow merge-ledger BASE OURS THEIRS` is git's merge driver for `.frflow/ledger.json`
-  * (see `.gitattributes`): it keeps every decision of both sides, and writes the result to OURS.
+  * `frflow mcp PATH...` serves MCP on stdin/stdout.
   * A PATH is a project (a directory with `frflow.json`) or a directory of projects.
   */
 object Main:
-  val usage = "usage: frflow serve [--host 127.0.0.1] [--port 8765] [--as NAME] PATH... | frflow mcp PATH... | frflow merge-ledger BASE OURS THEIRS"
+  val usage = "usage: frflow serve [--host 127.0.0.1] [--port 8765] [--as NAME] PATH... | frflow mcp PATH..."
 
   def main(args: Array[String]): Unit = args.toList match
     case "serve" :: rest =>
@@ -34,9 +32,4 @@ object Main:
       val protocol = PrintStream(java.io.FileOutputStream(java.io.FileDescriptor.out), true, UTF_8)
       System.setOut(System.err)
       Mcp(Project.find(if paths.isEmpty then List(".") else paths)).serve(System.in, protocol)
-    case "merge-ledger" :: _ :: ours :: theirs :: Nil =>
-      // Git passes bare names of temporary files in the repository's root.
-      val (a, b) = (java.nio.file.Paths.get(ours).toAbsolutePath, java.nio.file.Paths.get(theirs).toAbsolutePath)
-      try frflow.Ledger.save(a, frflow.Ledger.merge(frflow.Ledger.load(a), frflow.Ledger.load(b)))
-      catch case e: Exception => { System.err.println(s"frflow merge-ledger: ${e.getMessage}"); sys.exit(1) }
     case _ => System.err.println(usage); sys.exit(2)

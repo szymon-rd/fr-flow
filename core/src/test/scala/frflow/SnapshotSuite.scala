@@ -406,18 +406,6 @@ class SnapshotSuite extends munit.FunSuite:
     assert(decide(l1, "FromList", "settle", 5, "agent").left.exists(_.contains("unknown decision")))
   }
 
-  test("a merged ledger keeps both branches' decisions") {
-    val ws = workspace()
-    val w = workflow(shelfKb, ws)
-    acceptAll(w)
-    val base = w.ledger
-    val ours = base.add("Pick", base.history("Pick").last.copy(action = "revisit", reason = "ours", at = "2030-01-01T00:00:00Z"))
-    val theirs = base.add("FromList", base.history("FromList").last.copy(action = "revisit", reason = "theirs", at = "2030-01-02T00:00:00Z"))
-    val merged = Ledger.merge(ours, theirs)
-    assertEquals(merged.current("Pick").map(_.reason), Some("ours"))
-    assertEquals(merged.current("FromList").map(_.reason), Some("theirs"))
-  }
-
   test("deciding a large tree stays fast: each node's state is computed once") {
     import Json.*
     // 800 nodes, eight children per node, all accepted
@@ -555,15 +543,6 @@ class SnapshotSuite extends munit.FunSuite:
     // a definition it calls is part of what it says: not mechanical
     val redefined = withUses(_ :+ Json.str("long = (b: Book) => b.pages >= 10"))
     assert(Decisions.mechanical(redefined, w.ledger, nodes(redefined)("Pick")).exists(_.contains("changed")))
-  }
-
-  test("decisions the ledger lost since the base are found") {
-    val w = workflow()
-    acceptAll(w)
-    val before = w.ledger
-    val now = Ledger(before.decisions - "Pick")
-    assertEquals(Ledger.lost(before, now).map(_._1), List("Pick"))
-    assertEquals(Ledger.lost(before, Ledger.merge(now, before)), Nil)
   }
 
   test("alternatives are a node and the one it replaces, or two definitions of one term; parts of one parent are not") {

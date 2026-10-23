@@ -22,16 +22,6 @@ object Git:
   /** Whether a file is tracked by git. */
   def tracked(dir: Path, file: String): Boolean = run(dir, "ls-files", "--error-unmatch", "--", file).isDefined
 
-  /** A file as committed at `rev` (a path relative to `dir`), if it was. */
-  def show(dir: Path, rev: String, file: String): Option[String] =
-    run(dir, "rev-parse", "--show-prefix").map(_.trim).flatMap(prefix => run(dir, "show", s"$rev:$prefix$file"))
-
-  /** The commit where HEAD left `ref` (`git merge-base`), if both exist. */
-  def mergeBase(dir: Path, ref: String): Option[String] = run(dir, "merge-base", "HEAD", ref).map(_.trim).filter(_.nonEmpty)
-
-  /** A git configuration value, if set. */
-  def config(dir: Path, key: String): Option[String] = run(dir, "config", "--get", key).map(_.trim).filter(_.nonEmpty)
-
   /** Whether an object (a recorded tree) is in this clone. */
   def has(dir: Path, obj: String): Boolean = obj.nonEmpty && run(dir, "cat-file", "-e", obj).isDefined
 

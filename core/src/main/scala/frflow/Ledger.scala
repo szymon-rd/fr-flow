@@ -144,17 +144,6 @@ final case class Ledger(decisions: Map[String, List[Decision]]):
 object Ledger:
   val empty: Ledger = Ledger(Map.empty)
 
-  /** Two branches' ledgers merged: every decision of either, each node's in order (this side's,
-    * then the other's that this one lacks). A node both sides decided is `forked`, and decided
-    * again. Git's merge driver for the ledger.
-    */
-  def merge(ours: Ledger, theirs: Ledger): Ledger =
-    Ledger((ours.decisions.keySet ++ theirs.decisions.keySet).toList.map { id =>
-      val mine = ours.history(id)
-      val seen = mine.map(entry).toSet
-      id -> (mine ++ theirs.history(id).filterNot(d => seen(entry(d))))
-    }.toMap)
-
   /** Actions a node is bound to: the developer's acceptance or confirmation, or a migration. */
   def binds(action: String): Boolean = Set("accept", "confirm", "migrate")(action)
 
@@ -165,13 +154,6 @@ object Ledger:
   /** A short reference to a content exactly as recorded. */
   private[frflow] def ref(content: Json): String =
     Sha(content.compact).take(16)
-
-  /** The decisions of `before` that `now` lost: the ledger only grows, so each is a merge gone wrong
-    * (a text merge, a conflict resolved by hand) or an edit.
-    */
-  def lost(before: Ledger, now: Ledger): List[(String, Decision)] =
-    val kept = now.decisions.values.flatten.map(entry).toSet
-    before.decisions.toList.sortBy(_._1).flatMap((id, ds) => ds.filterNot(d => kept(entry(d))).map(id -> _))
 
   def load(file: Path): Ledger =
     if !Files.isRegularFile(file) then empty else fromJson(Json.parse(Files.readString(file, UTF_8)))

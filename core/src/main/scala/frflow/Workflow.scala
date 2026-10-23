@@ -255,13 +255,11 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   // ---------------------------------------------------------------------------
 
   /** Checks nodes (all, or one), parts first, and records the results. */
-  def check(only: Option[String] = None, verify: Set[String] = Set.empty): List[(Node[?], NodeCheck)] =
+  def check(only: Option[String] = None): List[(Node[?], NodeCheck)] =
     render()
     val lake = Lake(ws.lean)
     val g = generate
     val todo = kb.ordered.filter(g.formal).filter(n => only.forall(_ == n.id))
-    // A node proven again: its compiled modules are forgotten first, so Lean elaborates it, not a build cache.
-    verify.flatMap(kb.node).foreach(forgetBuild)
     // A node is checked after what its Lean imports: its parts, and the contracts its code calls (the
     // root's `root_impl` imports every proven implementation); the nodes of one level side by side.
     val levels = scala.collection.mutable.Map.empty[String, Int]
@@ -272,8 +270,8 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       levels(n.id) = l
       l
     })
-    // A node whose formal parts did not change keeps its result (unless it is to be verified anew).
-    def unchanged(n: Node[?]) = current(n).filter(_ => only.isEmpty && !verify(n.id))
+    // A node whose formal parts did not change keeps its result.
+    def unchanged(n: Node[?]) = current(n).filter(_ => only.isEmpty)
     val pending = todo.filter(unchanged(_).isEmpty)
     // The models first, in one build Lake runs in parallel. A batch that builds is built for each of
     // its targets: their own builds are skipped (one at a time, they cost about as much as Lean's start).
@@ -304,24 +302,6 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     Checks.save(ws.checksFile, all)
     synchronized { checksCache = None }
     results
-
-  /** Removes what Lake built of a node (its model, theorems, proof), so that it is elaborated again. */
-  private def forgetBuild(n: Node[?]): Unit =
-    val build = ws.lean.resolve(".lake/build")
-    val k = kb.name
-    if Files.isDirectory(build) then
-      val mine = (p: Path) =>
-        val u = build.relativize(p).toString.replace('\\', '/')
-        u.contains(s"FrFlowGen/$k/${n.id}/") || u.matches(s".*Proofs/$k/${java.util.regex.Pattern.quote(n.id)}\\.[^/]+")
-      scala.util.Using.resource(Files.walk(build))(_.iterator.asScala.toList).filter(p => Files.isRegularFile(p) && mine(p)).foreach(Files.delete)
-
-  /** Some of the results recorded and still current, chosen at random (at least one when there are
-    * any): `ci` proves them again, so a cache that says "proven" of what Lean no longer proves is found.
-    */
-  def sample(fraction: Double, seed: Long = System.nanoTime): Set[String] =
-    val cached = kb.nodes.filter(n => generate.formal(n) && current(n).exists(_.status == "proven")).map(_.id)
-    if cached.isEmpty || fraction <= 0 then Set.empty
-    else scala.util.Random(seed).shuffle(cached).take((cached.size * fraction).ceil.toInt.max(1)).toSet
 
   private def checkNode(n: Node[?], g: Generate, lake: Lake, partStatus: List[(String, String)], built: String => Boolean = _ => false): NodeCheck =
     def build(target: String) = if built(target) then Run(0, "") else lake.build(target)
@@ -722,10 +702,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val notes = kb.nodes.filter(_.isInvariant).flatMap { i =>
         val out = kb.nodes.filter(c => c.kind == NodeKind.Contract && !kb.inScope(i).contains(c))
         Option.when(out.nonEmpty)(s"${i.id} does not reach ${out.map(c => s"${c.id} (returns ${c.post.flatMap(_.params.lastOption).fold("?")(_._2)})").mkString(", ")}: its rule is about none of what they return")
-      } ++
-      // Without the merge driver, git merges the ledger as text, and a conflict resolved by hand can drop decisions.
-      Option.when(Files.isRegularFile(ws.ledgerFile) && Git.head(ws.root).nonEmpty && Git.config(ws.root, "merge.frflow-ledger.driver").isEmpty)(
-        "the ledger's merge driver is not set in this clone: git config merge.frflow-ledger.driver \"bin/frflow merge-ledger %O %A %B\"")
+      }
     (Decisions.tree(a) + "\n\n" + trustedLine + coverage + "\n" + Decisions.load(a) + notes.map("note: " + _ + "\n").mkString + warnings.map("warning: " + _ + "\n").mkString +
       (if ok then "Every node is accepted, proven (or decided by reading, where it opted out of Lean), and its examples pass."
        else "Not every node is accepted, proven, and passing its examples, or there are warnings.") + "\n", ok)

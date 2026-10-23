@@ -367,30 +367,6 @@ class LeanSuite extends munit.FunSuite:
     assertEquals(s(List(Book("Long", 300), Book("Huge", 900)), 5), List(Book("Long", 300)))
   }
 
-  test("a recorded result that does not hold is found when it is proven again") {
-    val w = workflow(sloppyKb)
-    assert(w.check().find(_._1.id == "OnlyGood").exists(_._2.status != "proven"))
-    // a cache that says otherwise: OnlyGood recorded as proven, for what it is now
-    val forged = w.checks.map((id, c) => id -> (if id == "OnlyGood" then c.copy(status = "proven", obligations = c.obligations.map(_.copy(status = "proven"))) else c))
-    Checks.save(w.ws.checksFile, forged)
-    assertEquals(w.current(onlyGood).map(_.status), Some("proven"))
-    assertEquals(w.sample(1.0), Set("OnlyGood", "Sloppy"))
-    assertNotEquals(w.check(verify = Set("OnlyGood")).find(_._1.id == "OnlyGood").get._2.status, "proven")
-  }
-
-  test("a node proven again is elaborated again, not taken from Lean's build cache") {
-    val w = workflow(shelfKb)
-    w.check()
-    def built() = scala.util.Using.resource(Files.walk(w.ws.lean.resolve(".lake/build")))(_.iterator.asScala.toList)
-      .filter(p => Files.isRegularFile(p) && p.toString.contains("FrFlowGen/Shelf/FromList/")).map(p => p -> Files.getLastModifiedTime(p)).toMap
-    val before = built()
-    assert(before.nonEmpty)
-    Thread.sleep(1100)
-    assertEquals(w.check(verify = Set("FromList")).find(_._1.id == "FromList").get._2.status, "proven")
-    val after = built()
-    assert(before.keySet.forall(p => after.get(p).exists(_.compareTo(before(p)) > 0)), (before, after))
-  }
-
   test("membership through a list's set is proven, and its examples are evaluated in Lean") {
     val r = workflow(keepKb).check()
     val c = of(r, "Keep")

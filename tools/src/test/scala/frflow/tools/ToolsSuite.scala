@@ -230,19 +230,3 @@ class ToolsSuite extends munit.FunSuite:
       assertEquals(p.unsigned, Nil)
     finally Project.signingKey = None
   }
-
-  test("the ledger merge driver takes the names git gives it") {
-    val base = frflow.Ledger.empty.add("A", frflow.Decision("accept", JNull, "", "dev", "2026-01-01T00:00:00Z", "the first one"))
-    val ours = base.add("A", frflow.Decision("revisit", JNull, "", "dev", "2026-01-02T00:00:00Z", "ours revisits it"))
-    val theirs = base.add("B", frflow.Decision("accept", JNull, "", "dev", "2026-01-03T00:00:00Z", "theirs adds one"))
-    val names = List(".merge_file_base_test", ".merge_file_ours_test", ".merge_file_theirs_test")
-    try
-      List(base, ours, theirs).zip(names).foreach((l, n) => frflow.Ledger.save(java.nio.file.Paths.get(n), l))
-      Main.main(Array("merge-ledger") ++ names)
-      val merged = frflow.Ledger.load(java.nio.file.Paths.get(names(1)).toAbsolutePath)
-      assertEquals(merged.history("A").map(_.reason), List("the first one", "ours revisits it"))
-      assertEquals(merged.history("B").map(_.reason), List("theirs adds one"))
-    finally names.foreach(n => Files.deleteIfExists(java.nio.file.Paths.get(n)))
-  }
-
-
