@@ -60,3 +60,11 @@ class ApiSuite extends munit.FunSuite:
     // From a node, a part is drawn under a parent among those drawn, not referred to one outside.
     assertEquals(Trees.from(v, id("LetsIn")).map(_.main.head.children.map(_.node.id)), Some(List(id("Decide"))))
   }
+
+  test("check exits 1 on a node proven with an obligation left open: its implementation, or a failing example") {
+    val proven = CheckedNode(id("Decide"), CheckStatus.Proven, Nil, Nil, Nil, None, Nil, None)
+    assert(proven.ok)
+    assert(!proven.copy(notProven = List(ObligationName.Impl)).ok)
+    assert(!proven.copy(failing = List(FailingExample("expect", "fails"))).ok)
+    assert(!CheckReport(List(proven, proven.copy(notProven = List(ObligationName.Impl))), v, Overview.of(v)).ok)
+  }
