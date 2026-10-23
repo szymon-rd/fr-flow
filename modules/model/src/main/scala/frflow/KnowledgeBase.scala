@@ -1,58 +1,33 @@
 package frflow
 
-import frflow.protocol.{NodeKind, Walk}
+import frflow.protocol.{NodeKind, Walk, tooFew}
+import java.util.regex.Pattern.quote
 
-/** A knowledge base: the developer's idea (a Markdown file) and the nodes derived from it: one root
-  * claim, refined by a DAG of parts, over a shared vocabulary. `name` is the Lean namespace.
-  *
-  * Immutable: its queries are functions of the nodes and the implementations, over indexes built once
-  * (the lazy vals). Registering code (`implement`) gives a new knowledge base. Nodes are told apart by
-  * identity (a `Node` has no structural equality), ids by name.
-  */
+/** The idea and its nodes: one root claim refined by a DAG of parts, told apart by identity; `name` is the Lean namespace. */
 final class KnowledgeBase(val name: String, val idea: String, val implementations: List[Implementation] = Nil)(nodeList: Node[?]*):
   val nodes: List[Node[?]] = nodeList.toList
-
-  // ---------------------------------------------------------------------------
-  // The DAG
-  // ---------------------------------------------------------------------------
-
   private lazy val members: Set[Node[?]] = nodes.toSet
-  /** Whether the node is one of this knowledge base's. */
   def has(n: Node[?]): Boolean = members(n)
-
   private lazy val byId: Map[String, Node[?]] = nodes.reverse.map(n => n.id -> n).toMap
   def node(id: String): Option[Node[?]] = byId.get(id)
-
-  /** A node's parents in this knowledge base. */
   def parentsOf(n: Node[?]): List[Node[?]] = n.parents.filter(has)
-
   private lazy val childrenOf: Map[Node[?], List[Node[?]]] = nodes.flatMap(c => parentsOf(c).map(_ -> c)).groupMap(_._1)(_._2)
-  /** The nodes that name `n` as a parent, in the model's order: its parts, and the design decisions below it. */
+  /** In the model's order: its parts, and the design decisions below it. */
   def children(n: Node[?]): List[Node[?]] = childrenOf.getOrElse(n, Nil)
-  /** The parts of `n` that together refine it: claims, contracts and assumptions under it. */
   def parts(n: Node[?]): List[Node[?]] = children(n).filter(isStatement)
   def isRoot(n: Node[?]): Boolean = root.exists(_ eq n)
   def isStatement(n: Node[?]): Boolean = n.kind == NodeKind.Claim || n.kind == NodeKind.Contract || n.kind == NodeKind.Assumption
-
-  /** The claims with no parents: one, the root, in a well-formed knowledge base. */
   def roots: List[Node[?]] = nodes.filter(n => n.kind == NodeKind.Claim && n.parents.isEmpty)
-  /** The root: the one claim with no parents. */
-  def root: Option[Node[?]] = roots match
-    case List(r) => Some(r)
-    case _       => None
+  def root: Option[Node[?]] = roots.headOption.filter(_ => roots.size == 1)
   def definitions: List[Node[?]] = nodes.filter(_.kind == NodeKind.Definition)
-
-  /** Every node above `n` (each once), nearest first. */
+  /** Nearest first. */
   def ancestors(n: Node[?]): List[Node[?]] = Walk.breadthFirst(parentsOf(n), identity)(parentsOf)
 
-  /** Every node after the nodes it rests on: its parents, the definitions it uses, the contracts its code calls. */
+  /** Every node after its parents, the definitions it uses and the contracts its code calls. */
   lazy val ordered: List[Node[?]] =
     Walk.postorder(nodes, identity)(n => definitionsUsed(n, provisional) ++ parentsOf(n) ++ calledBy(n))
 
-  /** The contracts and design decisions an invariant applies to, below its scope (or anywhere): the
-    * contracts whose result can hold what the rule is about, and the design decisions below a contract
-    * that keeps it (they govern code no proof covers there, and say why it does not break it).
-    */
+  /** Within its scope: the contracts whose result can hold what the rule is about, and the designs below them. */
   def inScope(i: Node[?]): List[Node[?]] =
     // What the rule is about (the second of its pairs, such as a record), as a Lean type.
     val about = i.rule.flatMap(_.params.lift(1)).map(_._2)
@@ -67,38 +42,22 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     nodes.filter { c =>
       within(c) && (c.kind match
         case NodeKind.Contract => returnsIt(c)
-        // A design decision governs code no proof covers: it is in scope below a contract that keeps
-        // the rule, is exempt from it or returns what it is about, and with no contract above it at all.
+        // It governs code no proof covers: below a contract the rule reaches, or with no contract above it.
         case NodeKind.Design   =>
           val contracts = ancestors(c).filter(_.kind == NodeKind.Contract)
           contracts.isEmpty || contracts.exists(a => keeper(a) || a.kept.exists(_.invariant eq i) || returnsIt(a))
         case _                 => false)
     }
-
-  // ---------------------------------------------------------------------------
-  // The vocabulary
-  // ---------------------------------------------------------------------------
-
-  /** The contracts and assumptions about each operation, by its name. */
   lazy val onOp: Map[String, List[Node[?]]] = nodes.flatMap(n => n.op.map(_.name -> n)).groupMap(_._1)(_._2)
-  /** Whether a term is an operation of the system: some contract or assumption is about it. */
   def isOp(name: String): Boolean = onOp.contains(name)
 
-  /** Every term a node mentions, directly or through the `define`s it calls: opaque types and parameters
-    * (and its operation), by name.
-    */
   def termsOf(n: Node[?]): List[String] =
     val ls = n.referenced ++ Def.closure(n.referenced.flatMap(_.defs)).map(_.lifted)
     (ls.flatMap(_.opaques) ++ ls.flatMap(_.paramObjects.map(_.name)) ++ n.op.map(_.name).toList ++
       n.kept.filter(_.view.nonEmpty).flatMap(k => k.invariant.rule.toList.flatMap(_.opaques))).distinct
-
-  /** The definitions of each term. */
   lazy val definitionsOf: Map[String, List[Node[?]]] = definitions.flatMap(d => d.defines.map(_ -> d)).groupMap(_._1)(_._2)
 
-  /** The definition in force for each defined term: its only definition, or the one `chosen` among
-    * several (they are alternatives, decided before the terms are used); with `fallback`, the first
-    * listed when none is chosen (to run examples before the choice).
-    */
+  /** Each term's only definition, or the one `chosen` among alternatives; with `fallback`, the first listed. */
   def inForce(chosen: String => Boolean, fallback: Boolean = false): Map[String, Node[?]] =
     definitionsOf.toList.flatMap { (t, ds) =>
       val picked =
@@ -109,15 +68,11 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
           case _             => Nil
       picked.map(t -> _)
     }.toMap
-
-  /** The definitions in force before any is chosen: the first listed of alternatives (how code runs). */
   private[frflow] lazy val provisional: Map[String, Node[?]] = inForce(_ => false, fallback = true)
-
-  /** The definitions in force a node depends on: those of the terms it mentions, and theirs, however nested. */
   def definitionsUsed(n: Node[?], inForce: Map[String, Node[?]]): List[Node[?]] =
     Walk.preorder(termsOf(n).filterNot(n.defines.contains).flatMap(inForce.get), _.id)(d => termsOf(d).flatMap(inForce.get))
 
-  /** The data parameters a lambda reads, through the defines it calls and the definitions of the terms it uses. */
+  /** The data parameters a lambda reads, also through the defines and the definitions it uses. */
   def reads(l: Lifted[?]): List[String] =
     def go(ps: List[String], seen: Set[String]): List[String] = ps.flatMap { p =>
       if seen(p) then Nil
@@ -125,108 +80,188 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     }
     go(paramsIn(l), Set.empty).distinct
   private def paramsIn(l: Lifted[?]): List[String] = (l.paramObjects ++ Def.closure(l.defs).flatMap(_.lifted.paramObjects)).map(_.name).distinct
-
-  /** Every lambda of the nodes and the defines. */
   private[frflow] lazy val lifteds: List[Lifted[?]] = nodes.flatMap(_.referenced) ++ defs.map(_.lifted)
-
-  /** Defined functions used anywhere, dependencies first. */
   lazy val defs: List[Def[?]] = Walk.postorder(defRoots, _.name)(_.lifted.defs)
   private def defRoots: List[Def[?]] = nodes.flatMap(_.referenced).flatMap(_.defs) ++ implementations.flatMap(_.proven)
-  /** Every `define` reached, each object once: two by one name are two here. */
+  /** Each object once: two by one name are two here. */
   private[frflow] lazy val allDefs: List[Def[?]] = Walk.preorder(defRoots, identity)(_.lifted.defs)
-
-  /** Every parameter object reached (operations included), possibly two by one name. */
   private[frflow] lazy val paramObjects: List[Param[?]] =
     lifteds.flatMap(_.paramObjects) ++ nodes.flatMap(_.op) ++ definitions.flatMap(_.substs).flatMap(_.param)
-  /** Parameters used anywhere (operations included), by name. */
   lazy val params: List[Param[?]] = paramObjects.distinctBy(_.name).sortBy(_.name)
-
-  /** The opaque types used anywhere, by name. */
   lazy val opaques: List[Opaque] =
     (lifteds.flatMap(_.opaqueObjects) ++ definitions.flatMap(_.substs).map(_.target).collect { case o: Opaque => o })
       .distinctBy(_.name).sortBy(_.name)
 
-  /** Domain types used anywhere, dependencies first. */
   lazy val types: List[TypeDecl] =
     val all = lifteds.flatMap(_.types) ++ definitions.flatMap(_.substs).flatMap(_.types)
     // The same type as seen with and without its doc comment: the one with it.
     val byName = all.groupBy(_.name).view.mapValues(ds => ds.maxBy(_.lean.length)).toMap
     Walk.postorder(all.map(_.name).distinct.flatMap(byName.get), _.name)(_.uses.flatMap(byName.get))
 
-  // ---------------------------------------------------------------------------
-  // Code
-  // ---------------------------------------------------------------------------
-
-  /** Registers the implementation of a contract's operation. `impl` is built under the parameter
-    * values of each example and of each production call, so it can read them (`grants.value`).
-    */
+  /** Registers the code of a contract's operation, built under the values of each example and call (`grants.value`). */
   inline def implement[A, B, R](contract: Node[(A, B) => R])(inline impl: (A, B) => R): KnowledgeBase =
     withImplementation(Implementation(contract.id, () => impl, Lifted.sourceFiles(impl), Lifted.sources(impl).mkString))
 
-  /** Registers an implementation written as a `define`, in the Scala Lean translates: besides its
-    * examples and the run-time check, Lean proves that every result it returns meets the contract, and
-    * the root holds of it (`root_impl`).
-    */
+  /** Code written as a `define`: Lean proves every result meets the contract, and the root holds of it (`root_impl`). */
   inline def implementProven[A, B, R](contract: Node[(A, B) => R])(inline impl: Def[(A, B) => R]): KnowledgeBase =
     withImplementation(Implementation(contract.id, () => impl.lifted.value, Lifted.sourceFiles(impl), "", Some(impl)))
 
-  /** Production code (`runs`: an index, a database query) for a contract Lean proves of the `define`:
-    * the code runs, and is checked against the define on every combination of the examples' inputs
-    * (the same result), and against the contract on every call. The root is proven of the define.
-    */
+  /** Production code (`runs`: a query) beside the proven `define`, checked against it and against the contract. */
   inline def implementProven[A, B, R](contract: Node[(A, B) => R])(inline impl: Def[(A, B) => R], inline runs: (A, B) => R): KnowledgeBase =
     withImplementation(Implementation(contract.id, () => runs, Lifted.sourceFiles(runs), Lifted.sources(runs).mkString, Some(impl)))
-
   def withImplementation(i: Implementation): KnowledgeBase =
     KnowledgeBase(name, idea, implementations.filterNot(_.contract == i.contract) :+ i)(nodes*)
-
   private lazy val byContract = implementations.map(i => i.contract -> i).toMap
   def implementation(n: Node[?]): Option[Implementation] = byContract.get(n.id)
-
-  /** The files the model is written in: those its nodes are defined in, and where implementations are
-    * attached. A model may span several files; each holds only the model.
-    */
   def modelFiles: List[String] = (nodes.map(_.file) ++ implementations.flatMap(_.modelFile)).filter(_.nonEmpty).distinct
-
-  /** The operations a define calls, through the defines it calls, by name. */
   def opsCalledBy(d: Def[?]): List[String] = Def.closure(List(d)).flatMap(_.lifted.paramObjects).map(_.name).filter(isOp).distinct
 
-  /** The contracts (and assumptions) whose operations a node's proven code calls. */
   def calledBy(n: Node[?]): List[Node[?]] =
     implementation(n).flatMap(_.proven).toList.flatMap(opsCalledBy).distinct.filterNot(p => n.op.exists(_.name == p))
       .flatMap(onOp.getOrElse(_, Nil)).filterNot(_ eq n)
 
-  // ---------------------------------------------------------------------------
-  // Running it, and what is wrong with it (see Wiring in Runtime.scala, ExampleRuns, Validation)
-  // ---------------------------------------------------------------------------
-
-  /** The running system: the registered implementation of `contract`, reading the given parameter
-    * values, with every result checked against the contract (see `enforce`). Every other operation with
-    * code is bound to that code's service, every defined term to its definition, and the assumptions
-    * whose terms are all bound are checked at start and whenever the values they read change.
+  /** The running system: the code of `contract`, every result checked against it; the operations it calls bound
+    * to their services, and the assumptions whose terms are bound checked whenever the values they read change.
     */
   def service[A, B, R](contract: Node[(A, B) => R])(bindings: Binding*): (A, B) => R = Wiring.service(this, contract, bindings)
-
-  /** Each defined parameter bound to its definition (as examples and `service` run them). */
   lazy val definitionBindings: List[Binding] = Wiring.definitionBindings(this)
-
-  /** Each operation bound to its registered code, as examples run it. */
   lazy val opCode: List[Binding] = Wiring.opCode(this)
-
-  /** The assumptions of facts that can be computed, to check where code runs (a quantifier over a type
-    * cannot be: such an assumption is trusted only).
-    */
   lazy val runtimeAssumptions: List[Assumption] = Wiring.runtimeAssumptions(this)
-
-  /** The results of a node's examples, against the implementation when one is registered, and the
-    * generated calls its code fails.
-    */
   def exampleResults(n: Node[?]): List[ExampleResult] = ExampleRuns.results(this, n)
-
-  /** The calls beyond the examples (every combination of their inputs, and varied data) whose result
-    * breaks the contract.
-    */
   def generated(n: Node[?]): List[ExampleResult] = ExampleRuns.generated(this, n)
-
   /** Structural problems; a knowledge base with problems is not checked. */
   lazy val problems: List[Problem] = Validation.problems(this)
+
+/** What keeps a knowledge base from being checked, said so that its author can fix it. */
+enum Problem(val message: String):
+  case Structure(text: String) extends Problem(text)
+  case Vocabulary(text: String) extends Problem(text)
+  case Wording(text: String) extends Problem(text)
+  case Examples(text: String) extends Problem(text)
+  case Invariants(text: String) extends Problem(text)
+  case Code(text: String) extends Problem(text)
+  override def toString: String = message
+
+private[frflow] object Validation:
+  import Problem.*
+  def problems(kb: KnowledgeBase): List[Problem] =
+    structure(kb) ++ vocabulary(kb) ++ names(kb) ++ wording(kb) ++ examples(kb) ++ invariants(kb) ++ code(kb)
+  private def isOperation(n: Node[?]) = n.kind == NodeKind.Contract || n.kind == NodeKind.Assumption
+
+  private def structure(kb: KnowledgeBase): List[Problem] =
+    import kb.{nodes, parentsOf}
+    val ids = nodes.map(_.id)
+    // The operations some code calls (plain code calls one through its parameter: `decide.value(...)`, `decide(...)`).
+    val called = kb.implementations.flatMap(_.proven).flatMap(kb.opsCalledBy).toSet ++
+      kb.onOp.keySet.filter(o => kb.implementations.exists(i => s"\\b${quote(o)}\\b".r.findFirstIn(i.wiring).isDefined))
+    def under(kind: NodeKind)(n: Node[?]) = parentsOf(n).exists(_.kind == kind)
+    List(
+      ids.diff(ids.distinct).distinct.map(d => s"duplicate node id $d"),
+      kb.roots match
+        case List(_) => Nil
+        case Nil     => List("a root is required: one claim with no parents, the idea's purpose")
+        case rs      => List(s"one root only: ${rs.map(_.id).mkString(", ")} are claims with no parents; put all but one under the nodes they help prove"),
+      nodes.filter(n => kb.ancestors(n).exists(_ eq n)).map(n => s"${n.id} is above itself: what it is a part of must not lead back to it"),
+      nodes.filter(n => isOperation(n) && n.parents.isEmpty && !n.op.exists(o => called(o.name)))
+        .map(n => s"${n.id} has no parents: a ${n.kind.toString.toLowerCase} is a part of the nodes it helps prove, unless code calls its operation"),
+      nodes.filter(n => n.kind == NodeKind.Design && n.parents.isEmpty).map(n => s"${n.id}: a design decision is under the nodes it serves (.under)"),
+      nodes.filter(n => n.kind == NodeKind.Definition && n.parents.nonEmpty).map(n => s"${n.id}: a definition has no parents"),
+      nodes.flatMap(n => n.parents.filterNot(kb.has).map(p => s"${n.id}: its parent ${p.id} is not in the knowledge base")),
+      nodes.filter(n => n.kind != NodeKind.Design && under(NodeKind.Design)(n))
+        .map(n => s"${n.id}: a design decision has no statement to refine; only design decisions go below it"),
+      nodes.filter(under(NodeKind.Definition)).map(n => s"${n.id}: nothing is under a definition; a node uses its terms")
+    ).flatten.map(Structure(_))
+
+  private def vocabulary(kb: KnowledgeBase): List[Problem] =
+    import kb.{definitions, nodes}
+    List(
+      definitions.filter(_.substs.isEmpty).map(n => s"${n.id}: a definition fixes at least one term"),
+      definitions.flatMap(d => d.defines.diff(d.defines.distinct).distinct.map(t => s"${d.id} defines $t twice")),
+      definitions.filter(d => kb.definitionsUsed(d, kb.provisional).exists(_ eq d)).map(d => s"${d.id}: its terms are defined through themselves"),
+      definitions.flatMap(d => d.defines.filter(kb.isOp).map(t => s"${d.id} defines $t, an operation: code implements an operation, a definition does not")),
+      // Something exists of a type holding an Int or Long: Lean's integers are unbounded, so it may not in Scala.
+      definitions.flatMap { d =>
+        d.substs.filter(s => s.isType && s.types.exists(t => """:\s*(Int|Long)\b""".r.findFirstIn(t.scala).isDefined)).flatMap { s =>
+          val ex = s"∃ \\([^)]*: ${quote(s.name)}\\)".r
+          nodes.flatMap(_.referenced).find(l => ex.findFirstIn(l.body).isDefined).map(_ =>
+            s"${d.id}: ${s.name} := ${s.lean}, whose values hold an Int or Long, but something says one exists: Lean's integers are unbounded, Scala's are not; use BigInt")
+        }
+      }
+    ).flatten.map(Vocabulary(_))
+
+  private def names(kb: KnowledgeBase): List[Problem] =
+    val ids = kb.nodes.map(_.id)
+    val Ident = """[A-Za-z_][A-Za-z0-9_]*""".r
+    val declared = kb.types.map(_.name) ++ kb.defs.map(_.name)
+    val terms = kb.params.map(_.name) ++ kb.opaques.map(_.name)
+    def twice[A](xs: List[A], name: A => String)(say: (String, List[A]) => String): List[String] =
+      xs.distinct.groupBy(name).collect { case (n, as) if as.size > 1 => say(n, as) }.toList
+    List(
+      ids.filterNot(Ident.matches).map(i => s"node id $i is not an identifier"),
+      ids.filter(i => i == "Lemmas" || i == "RootImpl").map(i => s"node id $i is reserved in lean/"),
+      // Lean would prove one while Scala runs the other.
+      twice(kb.allDefs, _.name)((n, _) => s"two different definitions are named $n (in different packages, say): Lean would know only one of them; rename one"),
+      twice(kb.paramObjects, _.name)((p, ps) => s"two different parameters are named $p: ${ps.map(_.means).mkString("; ")}; rename one").sorted,
+      twice(kb.lifteds.flatMap(_.opaqueObjects), _.name)((o, _) => s"two different opaque types are named $o; rename one").sorted,
+      kb.opaques.map(_.name).filterNot((kb.lifteds.flatMap(_.opaques) ++ kb.definitions.flatMap(_.defines)).contains)
+        .map(n => s"opaque type $n: the val name and the name given to Opaque differ"),
+      ids.filter(i => declared.contains(i) || terms.contains(i)).map(i => s"node id $i clashes with a type, function or term of the same name"),
+      terms.filter(declared.contains).distinct.map(n => s"term $n clashes with a type or function of the same name"),
+      kb.nodes.flatMap(_.referenced).flatMap(_.paramRefs).map(_._1).distinct.filterNot(n => kb.params.exists(_.name == n))
+        .map(n => s"parameter $n: the val name and the name given to Param differ"),
+      kb.lifteds.flatMap(_.types).groupBy(_.name).collect {
+        case (n, ds) if ds.map(_.body).distinct.size > 1 => s"two different Scala types are named $n"
+      }.toList
+    ).flatten.map(Vocabulary(_))
+
+  private def wording(kb: KnowledgeBase): List[Problem] =
+    List(
+      kb.nodes.filter(_.why.trim.isEmpty).map(n => s"${n.id}: say why (the reason for this node)"),
+      (kb.params.filter(_.means.trim.isEmpty).map(_.name) ++ kb.opaques.filter(_.means.trim.isEmpty).map(_.name))
+        .map(n => s"$n: say what it means in the world"),
+      kb.nodes.filter(_.statement.trim.isEmpty).map(n => s"${n.id}: empty statement")
+    ).flatten.map(Wording(_))
+
+  private def examples(kb: KnowledgeBase): List[Problem] =
+    val contracts = kb.nodes.filter(_.kind == NodeKind.Contract)
+    List(
+      kb.nodes.filter(n => n.cases.nonEmpty && n.post.isEmpty).map(n => s"${n.id}: only contracts and assumptions on an operation have examples"),
+      contracts.filterNot(n => n.cases.exists(_.expected) && n.cases.exists(!_.expected))
+        .map(n => s"${n.id}: a contract needs examples: at least one expect (what it must allow) and one reject"),
+      // An implementation that always returns the same value must fail some example.
+      contracts.flatMap { n =>
+        n.cases.filter(_.expected).map(_.result).distinct match
+          case List(v) if !n.cases.exists(e => !e.expected && e.result == v) =>
+            List(s"${n.id}: every expect returns ${Example.show(v)}, so an implementation that always returns it would pass the examples; add an expect with another result")
+          case _ => Nil
+      }
+    ).flatten.map(Examples(_))
+
+  private def invariants(kb: KnowledgeBase): List[Problem] =
+    import kb.nodes
+    val rules = nodes.filter(_.isInvariant)
+    def keeps(n: Node[?], i: Node[?]) = n.kept.exists(k => (k.invariant eq i) && k.view.nonEmpty)
+    List(
+      nodes.flatMap(n => n.kept.map(_.invariant).filterNot(i => kb.has(i) && i.isInvariant)
+        .map(i => s"${n.id} keeps ${i.id}, which is not an invariant of this knowledge base")),
+      nodes.filter(n => n.kept.exists(_.view.nonEmpty) && n.kind != NodeKind.Contract).map(n => s"${n.id}: only contracts keep invariants"),
+      nodes.filter(n => n.kept.nonEmpty && n.kind != NodeKind.Contract && n.kind != NodeKind.Design)
+        .map(n => s"${n.id}: only contracts and design decisions are exempt from invariants"),
+      nodes.flatMap(n => n.kept.groupBy(_.invariant.id).collect { case (i, ks) if ks.size > 1 => s"${n.id} names $i more than once" }),
+      nodes.flatMap(n => n.kept.filter(k => k.view.isEmpty && tooFew(k.exempt))
+        .map(k => s"${n.id}: say in a few words why ${k.invariant.id} does not apply to it")),
+      rules.flatMap(i => kb.inScope(i).filterNot(_.kept.exists(_.invariant eq i))
+        .map(c => if c.kind == NodeKind.Design then s"${c.id}: say why ${i.id} does not apply to the code it governs (.exempt): a design decision in its scope does"
+          else s"${c.id}: keep ${i.id} (.keeps) or say why it does not apply (.exempt): every contract in its scope does one")),
+      rules.filterNot(i => nodes.exists(keeps(_, i))).map(i => s"${i.id}: no contract keeps this invariant"),
+      rules.flatMap(i => i.scope.filterNot(kb.has).map(s => s"${i.id}: its scope ${s.id} is not in the knowledge base"))
+    ).flatten.map(Invariants(_))
+
+  private def code(kb: KnowledgeBase): List[Problem] =
+    List(
+      // Code that calls its own operation would be proven assuming what it proves.
+      kb.nodes.flatMap(c => c.op.filter(o => kb.implementation(c).flatMap(_.proven).exists(d => kb.opsCalledBy(d).contains(o.name)))
+        .map(o => s"${c.id}: its implementation calls ${o.name} itself: it cannot be proven from its own promise")),
+      kb.implementations.map(_.contract).filterNot(c => kb.nodes.exists(n => n.id == c && n.op.isDefined))
+        .map(c => s"implementation of $c: not a contract (or an assumption on an operation) of this knowledge base")
+    ).flatten.map(Code(_))

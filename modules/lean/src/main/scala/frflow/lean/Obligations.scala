@@ -4,41 +4,26 @@ package lean
 import frflow.protocol.{ObligationName, TryKind}
 import ObligationName.*
 
-/** A statement Lean is asked to prove (or, for a try, that it is asked whether it can prove). */
 final case class Obligation(name: ObligationName, statement: String, description: String)
 
-/** A try: a statement Lean is asked whether it can prove, cheaply; if it does, `means` what is wrong. */
+/** A try, and `means`: what is wrong if Lean proves it. */
 final case class Try(kind: TryKind, obligation: Obligation, means: String)
 
-/** What Lean is asked of each node: its obligations, each proven by `frflow_auto` or authored, and its tries.
-  *
-  * @param authored (node, obligation) proven by a theorem of that name in `Proofs/<KB>/<Node>.lean`
-  */
+/** What Lean is asked of each node: its obligations, proven by `frflow_auto` or `authored`, and its tries. */
 final class Obligations(kb: KnowledgeBase, refinement: Refinement, coverage: Coverage, authored: Set[(String, ObligationName)]):
   import refinement.*
   import refinement.vocabulary.*
-
-  /** Whether the proof file of `n` proves its obligation `name`. */
   def isAuthored(n: Node[?], name: ObligationName): Boolean = authored((n.id, name))
-
-  /** The obligations of a node: its split, its code, its cheap check, its kept invariants' coverage,
-    * the expectations; `feasible` with an authored split.
-    */
   def obligations(n: Node[?]): List[Obligation] =
     complete(n).toList ++ feasible(n) ++ implementation(n) ++ check(n) ++ covers(n) ++ expects(n)
-
   def obligation(n: Node[?], name: ObligationName): Option[Obligation] = obligations(n).find(_.name == name)
-
-  /** Obligations proven in the Checks file: all but `complete` and `impl`. */
   def extraObligations(n: Node[?]): List[Obligation] = obligations(n).filterNot(o => o.name == Complete || o.name == Impl)
 
   private def complete(n: Node[?]): Option[Obligation] = splitParts(n).map { ps =>
     Obligation(Complete, stated(splitOpens(n, ps), hyps(ps).map(_._1), claim(n)._1), s"The parts of ${n.id} (${ps.map(_.id).mkString(", ")}) together make it.")
   }
 
-  // A proof the agent wrote may rest on a contradiction automation did not find: then something
-  // must meet the parts, unless they are witnessed (see `witnessed`). A proof file that proves it
-  // anyway keeps its statement.
+  // An authored proof may rest on a contradiction automation missed: something must meet the parts, unless witnessed.
   private def feasible(n: Node[?]): Option[Obligation] =
     splitParts(n).filter(_ => isAuthored(n, Complete) && (!witnessed(n) || isAuthored(n, Feasible))).map { ps =>
       val b = binders(splitOpens(n, ps))
@@ -65,7 +50,6 @@ final class Obligations(kb: KnowledgeBase, refinement: Refinement, coverage: Cov
     coverage.coverage(n, inv).toOption.flatten.map((stmt, o) => Obligation(Cover(inv.id), stated(o, Nil, stmt),
       s"The view of ${inv.id} lists all the result holds of it, each with the caller."))
   }
-
   private def expected(n: Node[?], i: Int, l: Lifted[?]): (String, Ctx) = app(qualified(n, s"expected_$i"), ctx(l))
 
   private def expects(n: Node[?]): List[Obligation] =
@@ -75,14 +59,9 @@ final class Obligations(kb: KnowledgeBase, refinement: Refinement, coverage: Cov
       val (e, eo) = expected(n, i, l)
       Obligation(Expect(i), stated(co ++ eo, List("h" -> c), e), statement)
     }
-
   private def tried(kind: TryKind, statement: String, description: String, means: String): Try =
     Try(kind, Obligation(Tried(kind), statement, description), means)
 
-  /** The tries of a node: a part not needed (with one part: the node says nothing it adds, or says only
-    * what its part says), parts that contradict each other, no world meeting the node, an expectation that
-    * checks nothing, and, for the root, doing nothing meeting it.
-    */
   def tries(n: Node[?]): List[Try] =
     val (c, co) = claim(n)
     val unsat = tried(TryKind.Unsat, stated(co, Nil, s"¬ $c"), s"No world meets ${n.id}.", s"${n.id} is contradictory: no world meets it")
@@ -95,9 +74,6 @@ final class Obligations(kb: KnowledgeBase, refinement: Refinement, coverage: Cov
     else splitParts(n).toList.flatMap(splitTries(n, _)) ++ List(unsat) ++ vacuousExpects ++
       idle(n).map(o => Try(TryKind.Idle, o, s"doing nothing meets ${n.id}"))
 
-  /** With one part: whether the node says nothing it adds, or only what it says. With several: whether
-    * each is needed. And whether the parts contradict each other.
-    */
   private def splitTries(n: Node[?], ps: List[Node[?]]): List[Try] =
     val o = splitOpens(n, ps)
     val hs = hyps(ps)
@@ -112,12 +88,9 @@ final class Obligations(kb: KnowledgeBase, refinement: Refinement, coverage: Cov
           s"${n.id} holds without ${c.id}.", s"${c.id} is not needed for ${n.id}"))
     needed :+ tried(TryKind.Clash, stated(o, hs.map(_._1), "False"), s"The parts of ${n.id} contradict each other.",
       s"the parts of ${n.id} contradict each other: no world meets them all")
-
-  /** The operations of the root that doing nothing can stand for (see `LeanType.nothing`), each with it. */
   private def nothings(n: Node[?]): List[(String, String)] =
     claim(n)._2.params.filter(kb.isOp).flatMap(o => LeanType.nothing(paramType(o).getOrElse("")).map(o -> _))
 
-  /** The root with every operation it mentions replaced by doing nothing, when one can be. */
   def idle(n: Node[?]): Option[Obligation] =
     if !kb.root.exists(_ eq n) || !formal(n) then None
     else
@@ -126,6 +99,72 @@ final class Obligations(kb: KnowledgeBase, refinement: Refinement, coverage: Cov
         val (c, o) = claim(n, env)
         Obligation(Tried(TryKind.Idle), stated(o, Nil, c), s"${n.id} is met by doing nothing (${env.keys.toList.sorted.mkString(", ")}: returning nothing).")
       }
-
-  /** What doing nothing is, in words, for the root's idle. */
   def idleWhat(n: Node[?]): String = nothings(n).map(_._1).mkString(", ") + " doing nothing"
+
+/** `cover_<invariant>`: a contract's view of an invariant lists every value of the rule's type its result holds. */
+final class Coverage(kb: KnowledgeBase, refinement: Refinement):
+  import refinement.*
+  import refinement.vocabulary.*
+  import LeanType.*
+  private val typeDecls: Map[String, TypeDecl] = kb.types.map(t => t.name -> t).toMap
+
+  /** `y` occurs in `x` of type `t`: None if `t` can never hold a `target`; Left if FrFlow cannot unfold `t`. */
+  private def occurs(y: String, x: String, t: LeanType, target: LeanType, seen: Set[String] = Set.empty): Either[String, Option[String]] =
+    val fresh = s"z${seen.size}_${x.count(_ == '.')}${x.length}'"
+    def any(parts: List[Either[String, Option[String]]]): Either[String, Option[String]] =
+      parts.collectFirst { case Left(w) => w }.toLeft {
+        val ps = parts.collect { case Right(Some(p)) => p }
+        Option.when(ps.nonEmpty)(ps.mkString("(", " ∨ ", ")"))
+      }
+    if t == target then Right(Some(s"$y = $x"))
+    else t match
+      case ListOf(e)   => occurs(y, fresh, e, target, seen).map(_.map(b => s"(∃ $fresh ∈ $x, $b)"))
+      case OptionOf(e) => occurs(y, fresh, e, target, seen).map(_.map(b => s"(∃ $fresh, $x = some $fresh ∧ $b)"))
+      case Prod(a, b)  => any(List(occurs(y, s"$x.1", a, target, seen), occurs(y, s"$x.2", b, target, seen)))
+      // A function can hold what it returns (or takes): what the view must list of it cannot be stated.
+      case Fun(text)   =>
+        val names = """[A-Za-z_][\w.]*""".r.findAllIn(text).toSet
+        val t = target match { case Name(n) => Some(n); case _ => None }
+        if t.exists(n => names(n) || names.exists(m => typeDecls.get(m).exists(_.uses.contains(n)))) then
+          Left(s"the result is a function ($text), which can hold a ${t.getOrElse("")}: what the view must list of it cannot be stated")
+        else Right(None)
+      case Name(n) => typeDecls.get(n) match
+        case None => Right(None)
+        case Some(_) if seen(n) => Left(s"$n is recursive")
+        case Some(d) => d.ctors match
+          case List(("mk", fields)) => any(fields.map((f, ft) => occurs(y, s"$x.$f", parse(ft), target, seen + n)))
+          case ctors =>
+            val cases = ctors.map { (c, fs) =>
+              val vars = fs.indices.map(i => s"${fresh}$i").toList
+              (c, vars, any(fs.zip(vars).map { case ((_, ft), v) => occurs(y, v, parse(ft), target, seen + n) }))
+            }
+            cases.collectFirst { case (_, _, Left(w)) => w }.toLeft {
+              Option.when(cases.exists(_._3.exists(_.isDefined)))(cases.map { (c, vs, b) =>
+                s"| $n.$c${vs.map(" " + _).mkString} => ${b.toOption.flatten.getOrElse("False")}"
+              }.mkString(s"(match $x with ", " ", ")"))
+            }
+
+  /** Each paired with the call's input of the rule's first type, when one input has it; Left when it cannot be stated. */
+  def coverage(n: Node[?], inv: Node[?]): Either[String, Option[(String, Ctx)]] =
+    val stated = for
+      post <- n.post
+      rule <- inv.rule.map(_.params.map(_._2))
+      what <- rule.lift(1)
+      view <- formalKeeps(n).collectFirst { case (i, v) if i eq inv => v }
+      ts = post.params.map(_._2)
+      result <- ts.lastOption
+      target = parse(what)
+      // Of the domain (a record, an opaque thing), not a number or string every result may hold for other reasons.
+      if (target match { case Name(t) => typeDecls.contains(t) || isOpaque(t); case _ => false })
+    yield
+      val (v, vo) = app(qualified(n, s"view_${inv.id}"), ctx(view))
+      // The inputs of the rule's first type (who a call shows things to).
+      val rs = ts.init.zipWithIndex.filter((t, _) => rule.headOption.exists(r => parse(t) == parse(r))).map(_._2)
+      occurs("y'", s"x${ts.size - 1}", parse(result), target).map(_.map { occ =>
+        val pair = rs match { case List(i) => s"p.1 = x$i ∧ p.2 = y'"; case _ => "p.2 = y'" }
+        val (vars, xs) = LeanText.call(ts)
+        (s"∀ $vars, ∀ (y' : $what), $occ → ∃ p ∈ $v $xs, $pair", vo)
+      }).flatMap(c => if c.isDefined && rs.size > 1 then
+          Left(s"${rs.size} inputs are of the rule's first type: the view's pairs cannot be tied to one of them")
+        else Right(c))
+    stated.getOrElse(Right(None))

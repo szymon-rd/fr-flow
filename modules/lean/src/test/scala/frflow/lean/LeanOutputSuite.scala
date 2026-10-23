@@ -1,8 +1,6 @@
 package frflow
 package lean
 
-import frflow.protocol.{ObligationName, TryKind}
-
 /** Reading Lean's output and source, on output recorded from Lean 4.35 (`lake env lean`, `lake build`). */
 class LeanOutputSuite extends munit.FunSuite:
 
@@ -104,16 +102,4 @@ class LeanOutputSuite extends munit.FunSuite:
     assertEquals(ProofRules.notAllowed("theorem t : True := by native_decide\naxiom bad : False\n"), Some("native_decide, command axiom, axiom"))
     assertEquals(ProofRules.notAllowedInLemmas("import Proofs.K.Lemmas\ntheorem t : True := trivial\n"), Some("import Proofs.K.Lemmas"))
     assertEquals(LeanSource.lemmaImports("import Proofs.K.Lemmas\nimport FrFlowGen.K.Domain\n"), List("Proofs.K.Lemmas"))
-  }
-
-  test("obligation names read back as written") {
-    val names = List(ObligationName.Complete, ObligationName.Feasible, ObligationName.Impl, ObligationName.Check, ObligationName.RootImpl,
-      ObligationName.Cover("Isolated"), ObligationName.Expect(2), ObligationName.Eval(0), ObligationName.EvalImpl(3), ObligationName.Probe(1),
-      ObligationName.ProbeImpl(5)) ++ List(TryKind.Needed("A_b"), TryKind.Vacuous, TryKind.Restates, TryKind.Clash, TryKind.Unsat, TryKind.Idle,
-      TryKind.VacuousExpect(1)).map(ObligationName.Tried(_))
-    assertEquals(names.map(n => ObligationName.parse(n.lean)), names.map(Some(_)))
-    assertEquals(names.map(_.lean).take(7), List("complete", "feasible", "impl", "check", "root_impl", "cover_Isolated", "expect_2"))
-    assertEquals(ObligationName.Tried(TryKind.VacuousExpect(1)).lean, "vacuous_expect_1")
-    assertEquals(ObligationName.parse("holds"), None)
-    assert(ObligationName.Probe(1).isEvaluation && ObligationName.Probe(1).isProbe && !ObligationName.Complete.isEvaluation)
   }

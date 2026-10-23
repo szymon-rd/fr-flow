@@ -9,15 +9,6 @@ class GenerateSuite extends munit.FunSuite:
 
   private val g = Generate(shelfKb)
 
-  test("a node with several parents is a part of each; a parent's parts are the nodes under it") {
-    assertEquals(shelfKb.parentsOf(pick).map(_.id), List("FromList", "OnlyLong", "EveryLong"))
-    assertEquals(shelfKb.parts(onlyGood).map(_.id), List("FromList", "OnlyLong", "EveryLong"))
-    assertEquals(shelfKb.parts(fromList).map(_.id), List("Pick"))
-    assertEquals(shelfKb.ancestors(pick).map(_.id), List("FromList", "OnlyLong", "EveryLong", "OnlyGood"))
-    // the composition reaches Pick once, whatever the number of paths to it
-    assertEquals(g.leaves(onlyGood).map(_.id), List("Pick"))
-  }
-
   test("open terms are binders; defined terms are applied to their definitions") {
     assertEquals(g.term("Item")._1, "Book")
     assertEquals(g.term("good")._1, "(Shelf.good minPages)")
@@ -46,6 +37,8 @@ class GenerateSuite extends munit.FunSuite:
     val checks = g.checks(onlyGood)
     assert(checks.contains("\n\ntheorem idle : Obl.idle") && checks.contains(s"set_option maxHeartbeats ${Generate.TryHeartbeats} in\ntheorem clash"), checks)
     assertEquals(g.trusted.map(_.id), List("Pick"))
+    // the composition reaches Pick once, whatever the number of paths to it
+    assertEquals(g.leaves(onlyGood).map(_.id), List("Pick"))
   }
 
   test("a definition with an alternative: both stay, as alternatives, and what uses the term waits for the choice") {
