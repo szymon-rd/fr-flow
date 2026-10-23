@@ -41,7 +41,4 @@ nothing else.
 - That the database's tables, which the running read side reads, are what its
   event log led to: that nothing but the write side and the expiry job changes
   them (a test replays the log).
-
-### Writing records
-
-- Editing or removing records.
+- Editing or removing records: a write only adds one.

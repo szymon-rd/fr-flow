@@ -169,10 +169,6 @@ class LeanSuite extends munit.FunSuite:
     assertEquals(result(w.check(Some("NonNegative")).head._2, "complete").map(_.detail), Some("uses sorry"))
 
     def edit(f: String => String) = Files.writeString(file, f(Files.readString(file)))
-    // a proof by position, under names the obligation does not have there: said in plain words
-    Files.writeString(file, fill(stub, "complete", "  unfold Obl.complete\n  intro h_Squares sq\n  exact h_Squares"))
-    val moved = result(w.check(Some("NonNegative")).head._2, "complete").get
-    assert(moved.detail.startsWith("the obligation of NonNegative changed since this proof was written: its binders are now sq h_Squares"), moved)
     // from the stub's first steps, the binders by their names
     Files.writeString(file, fill(stub, "complete",
       """  unfold Obl.complete

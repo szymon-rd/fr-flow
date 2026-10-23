@@ -470,14 +470,6 @@ class SnapshotSuite extends munit.FunSuite:
     assert(w.context(promise2).contains("Rests on it besides its parts"), w.context(promise2))
   }
 
-  test("a rejected proposal is recognised again with its variables renamed") {
-    def a(src: String) = Decisions.alpha(Json.str(src))
-    assertEquals(a("pick => forall((l: List[Item.T], n: Int) => pick(l, n).forall(x => good(x)))"),
-      a("f => forall((xs: List[Item.T], k: Int) => f(xs, k).forall(y  =>  good(y)))"))
-    assertNotEquals(a("f => forall((xs: List[Item.T], k: Int) => f(xs, k).forall(y => good(y)))"),
-      a("f => forall((xs: List[Item.T], k: Int) => f(xs, k).forall(y => bad(y)))"))
-  }
-
   test("source files no node governs are found outside src/main too; tests are not production code") {
     val ws = workspace()
     Files.createDirectories(ws.root.resolve("src/fast/scala"))
@@ -492,12 +484,11 @@ class SnapshotSuite extends munit.FunSuite:
   test("any node may name a section of the idea; a section no node names is a warning") {
     val ws = workspace()
     Files.writeString(ws.root.resolve("IDEA.md"),
-      "# Shelf\n\nPick good items.\n\n## Picking\n\nPick only long books.\n\n## Selling\n\nSell them.\n\n## Not modelled\n\n- Prices.\n\n### Picking\n\n- Covers.\n\n### Selling\n\n- Taxes.\n")
+      "# Shelf\n\nPick good items.\n\n## Picking\n\nPick only long books.\n\n## Selling\n\nSell them.\n\n## Not modelled\n\n- Prices.\n")
     val long2 = Node.claim("OnlyLong", onlyLong.statement, onlyLong.why, idea = "Picking")(
       forall((l: List[Book], n: Int) => picks(l, n).forall(b => b.pages >= minPages.value))).under(onlyGood)
     val w = workflow(KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, books, picking, long2), ws)
-    val nm = w.notModelledOf(long2)
-    assert(nm.contains("Covers") && !nm.contains("Taxes"), nm)
+    assert(field(nodes(w.annotated)("OnlyLong"), "content", "notModelled").exists(_.contains("Prices")))
     assert(field(nodes(w.annotated)("OnlyLong"), "content", "idea").exists(_.contains("Pick only long books")))
     assert(field(nodes(w.annotated)("OnlyGood"), "content", "idea").exists(i => i.contains("Pick good items") && !i.contains("long books")))
     assert(w.codeWarnings.exists(_.contains("the section \"Selling\"")), w.codeWarnings)

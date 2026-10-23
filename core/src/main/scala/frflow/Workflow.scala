@@ -99,23 +99,6 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   /** The `## Not modelled` section of IDEA.md: the limits of the theory. */
   def notModelled: String = Decisions.splitIdea(idea)._2
 
-  /** What is not modelled, as a root is decided against it: the text before the first `### `
-    * subsection (every root's), and the subsection named as the root's idea section. An edit of one
-    * root's subsection reviews only that root.
-    */
-  def notModelledOf(root: Node[?]): String = notModelledOfText(notModelled, root)
-
-  private def notModelledOfText(notModelled: String, root: Node[?]): String =
-    val lines = notModelled.linesIterator.toList
-    val (general, rest) = lines.span(l => !l.startsWith("### "))
-    def go(ls: List[String]): List[(String, String)] = ls match
-      case h :: tail =>
-        val (body, more) = tail.span(l => !l.startsWith("### "))
-        (h.stripPrefix("### ").trim -> (h :: body).mkString("\n").trim) :: go(more)
-      case Nil => Nil
-    val own = go(rest).filter((h, _) => root.ideaSection.trim.nonEmpty && h.equalsIgnoreCase(root.ideaSection.trim)).map(_._2)
-    (general.mkString("\n").trim :: own).filter(_.nonEmpty).mkString("\n\n")
-
   /** The terms a node mentions, with what they mean in the world. */
   def vocabulary(n: Node[?]): List[String] =
     val terms = kb.termsOf(n).toSet ++ n.defines
@@ -148,9 +131,8 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     }.toList
     ++ {
       // The root is decided against the idea's title and lead; a node naming a section, against that section.
-      val (decided, notM) = (ideaDecided, notModelled)
-      if n.ideaSection.nonEmpty then Seq("idea" -> str(ideaOfText(decided, n)), "ideaSection" -> str(n.ideaSection), "notModelled" -> str(notModelledOfText(notM, n)))
-      else if kb.root.exists(_ eq n) then Seq("idea" -> str(Decisions.ideaSections(decided)._1), "notModelled" -> str(notModelledOfText(notM, n)))
+      if n.ideaSection.nonEmpty then Seq("idea" -> str(ideaOf(n)), "ideaSection" -> str(n.ideaSection), "notModelled" -> str(notModelled))
+      else if kb.root.exists(_ eq n) then Seq("idea" -> str(Decisions.ideaSections(ideaDecided)._1), "notModelled" -> str(notModelled))
       else Nil
     })
 
@@ -181,9 +163,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     }
 
   /** The section of the idea a node is decided against. */
-  def ideaOf(n: Node[?]): String = ideaOfText(ideaDecided, n)
-
-  private def ideaOfText(ideaDecided: String, n: Node[?]): String =
+  def ideaOf(n: Node[?]): String =
     Decisions.ideaSections(ideaDecided)._2.find(_._1.equalsIgnoreCase(n.ideaSection.trim)).map(_._2).getOrElse("")
 
   /** Sections of the idea no node is decided against, and nodes naming a section the idea does not have. */
@@ -385,8 +365,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
         val rel = if authored(n.id) then g.proofsPath(n.id) else g.autoPath(n.id)
         val r = judge(o.name, rel, lake.elaborate(rel), authored(n.id))
         // Automation is tried only while no proof file proves it: what to do next comes first.
-        if authored(n.id) && r.status == "open" then r.copy(detail = binderNote(n, g, "complete") + r.detail)
-        else if authored(n.id) || r.status != "open" then r
+        if authored(n.id) || r.status != "open" then r
         else r.copy(detail = s"automation gave up: write theorem complete : Obl.complete in lean/${g.proofsPath(n.id)} (run `scaffold ${n.id}`)\n" +
           proofState(n, "complete", g, lake).fold(s"Lean: ${r.detail}")(stateText("complete", _)))
     }
@@ -404,7 +383,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
           implAxioms = Lean.axioms(run.output).collectFirst { case (t, as) if t.endsWith("Impl.impl") => as }.getOrElse(List("<no audit result>"))
           if run.ok && !implAxioms.contains("sorryAx") then Result("impl", "proven", "authored")
           else if run.ok then Result("impl", "open", "uses sorry")
-          else Result("impl", "open", s"not proven (authored): " + binderNote(n, g, "impl") + errors(run).take(3).mkString("\n").take(20000))
+          else Result("impl", "open", s"not proven (authored): " + errors(run).take(3).mkString("\n").take(20000))
       else
         val run = lake.build(g.implModule(n.id))
         implAxioms = Lean.axioms(run.output).collectFirst { case (t, as) if t.endsWith("Impl.impl") => as }.getOrElse(List("<no audit result>"))
@@ -674,23 +653,6 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   private def stateText(o: String, state: String): String =
     s"After `${Generate.recipe(o).mkString("; ")}` (the first steps the stub has), the goal is:\n$state"
 
-  /** For an authored proof that fails: the obligation's binders, in order, when the proof introduces
-    * them by position under other names; and, when a name it introduces now stands at another place,
-    * that the obligation changed since the proof was written (a part or a term added or removed).
-    */
-  private def binderNote(n: Node[?], g: Generate, o: String): String =
-    val now = g.obligation(n, o).fold(List.empty[String])(x => Workflow.binderNames(x.statement))
-    val src = read(ws.lean.resolve(g.proofsPath(n.id))).getOrElse("")
-    val body = Lean.theorems(src).find(_.name == o).fold("")(d => Lean.code(src).linesIterator.slice(d.from - 1, d.to).mkString("\n"))
-    val Ident = """[\p{L}_][\p{L}\p{N}_'!?]*""".r
-    val intro = """(?m)^\s*intro\s+(.+)$""".r.findFirstMatchIn(body).toList
-      .flatMap(_.group(1).trim.split("\\s+").toList.takeWhile(Ident.matches))
-    val moved = intro.zipWithIndex.exists((x, i) => now.contains(x) && now.indexOf(x) != i)
-    if now.isEmpty || intro.isEmpty || intro == now.take(intro.size) then ""
-    else if moved then s"the obligation of ${n.id} changed since this proof was written: its binders are now ${now.mkString(" ")}; " +
-      "introduce them with `frflow_intro`, which names them so, and refer to them by name\n"
-    else s"(the binders of Obl.$o, in order: ${now.mkString(" ")}; `frflow_intro` introduces them by these names)\n"
-
   def tree(mark: Option[String] = None): String = Decisions.tree(annotated, mark)
 
   /** The tree and its warnings, and whether the knowledge base is complete (the CI gate). */
@@ -795,7 +757,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val sb = StringBuilder()
     val section = (n :: kb.ancestors(n)).find(_.ideaSection.trim.nonEmpty)
     val ideaText = Decisions.ideaSections(ideaDecided)._1 + section.fold("")(s => "\n\n" + ideaOf(s)) +
-      (if notModelledOfText(notModelled, section.getOrElse(n)).nonEmpty then s"\n\n## Not modelled\n\n${notModelledOfText(notModelled, section.getOrElse(n))}" else "")
+      (if notModelled.nonEmpty then s"\n\n## Not modelled\n\n$notModelled" else "")
     sb ++= s"# ${kb.name} / ${n.id}\n\n## Idea (${section.fold("its purpose")(s => s"the section ${s.ideaSection}")})\n\n${ideaText.trim}\n\n"
     def kind(x: Node[?]) = Workflow.shownKind(x)
     // The decision that binds a node now, first; every accepted change to the node, newest first (each
@@ -1075,27 +1037,6 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     ws.snapshotFile
 
 object Workflow:
-  /** The binders an obligation's statement introduces, in order: its open terms, then its hypotheses
-    * (`∀ (A B : Type) (x : T), ∀ (h_P : ...), goal`).
-    */
-  def binderNames(statement: String): List[String] =
-    def groups(s: String): (List[String], String) =
-      val t = s.dropWhile(_ == ' ')
-      if !t.startsWith("(") then (Nil, t)
-      else
-        var depth = 0
-        val end = t.indices.find { i => if t(i) == '(' then depth += 1 else if t(i) == ')' then depth -= 1; depth == 0 }.getOrElse(t.length - 1)
-        val names = t.substring(1, end).split(" : ", 2).head.trim.split("\\s+").toList
-        val (more, rest) = groups(t.substring(end + 1))
-        (names ++ more, rest)
-    def block(s: String): Option[(List[String], String)] =
-      Option.when(s.startsWith("∀ ("))(groups(s.stripPrefix("∀ "))).collect { case (ns, rest) if ns.nonEmpty && rest.startsWith(",") => (ns, rest.drop(1).trim) }
-    block(statement.trim) match
-      case None => Nil
-      case Some((first, rest)) =>
-        // A second block is the hypotheses (`h_<Part>`, or `h`), not a quantifier of the goal.
-        first ++ block(rest).map(_._1).filter(_.forall(_.startsWith("h"))).getOrElse(Nil)
-
   /** A node's kind as the snapshot names it. */
   def kindName(n: Node[?]): String = n.kind.toString.toLowerCase
   /** A node's kind as people read it: an invariant is a claim with a rule. */

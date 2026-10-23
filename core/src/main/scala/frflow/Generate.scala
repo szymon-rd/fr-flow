@@ -228,7 +228,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
   /** The invariants a contract keeps in Lean, each with the contract's view of a call. */
   def formalKeeps(n: Node[?]): List[(Node[?], Lifted[?])] =
     if !n.formal || n.kind != NodeKind.Contract then Nil
-    else n.kept.collect { case Keep(i, Some(v), _, _) if i.formal && v.body.nonEmpty && i.rule.exists(_.body.nonEmpty) => (i, v) }
+    else n.kept.collect { case Keep(i, Some(v), _) if i.formal && v.body.nonEmpty && i.rule.exists(_.body.nonEmpty) => (i, v) }
 
   /** The keepers of an invariant, each with its view (in Lean). */
   private def keepers(i: Node[?]): List[(Node[?], Lifted[?])] =
@@ -660,7 +660,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
       val (vars, xs) = call(ts)
       (s"∀ $vars, ∀ (y' : ${rule(1)}), $occ → ∃ p ∈ $v $xs, $pair", vo)
     }).flatMap(c => if c.isDefined && readerOf(n, inv).isEmpty && readers(n, inv).size > 1 then
-        Left(s"${readers(n, inv).size} inputs are of the rule's first type: say which the pairs are about (.keeps(${inv.id}, reader = i), counting from 0)")
+        Left(s"${readers(n, inv).size} inputs are of the rule's first type: the view's pairs cannot be tied to one of them")
       else Right(c))
 
   /** The inputs of a contract of the rule's first type (who a call shows things to). */
@@ -668,9 +668,9 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, String)] = Set.em
     val rule = inv.rule.get.params.map(_._2)
     n.post.get.params.map(_._2).init.zipWithIndex.filter((t, _) => parseType(t) == parseType(rule(0))).map(_._2)
 
-  /** The input the view's pairs are about: named in `keeps`, or the only one of the rule's first type. */
+  /** The input the view's pairs are about: the only one of the rule's first type. */
   private def readerOf(n: Node[?], inv: Node[?]): Option[Int] =
-    n.kept.find(_.invariant eq inv).map(_.reader).filter(_ >= 0).orElse(readers(n, inv) match { case List(i) => Some(i); case _ => None })
+    readers(n, inv) match { case List(i) => Some(i); case _ => None }
 
   // ---------------------------------------------------------------------------
   // Examples, evaluated in Lean

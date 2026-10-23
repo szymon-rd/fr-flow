@@ -104,13 +104,6 @@ class NodeSuite extends munit.FunSuite:
     assert(generated.head.implementation.exists(_.contains("breaks the contract")), generated)
   }
 
-  test("a post condition that does not mention the call is shown as an assumption about the world") {
-    val assumed = Node.contract(picks)("Assumed", "s", "w")((shelf, n, picked) => minPages.value > 0 && picked.forall(b => shelf.contains(b)))
-      .under(shelfParts*)
-    assertEquals(shelfWith(assumed).limits(assumed).filter(_.contains("assumes about the world")).size, 1, shelfWith(assumed).limits(assumed))
-    assert(!shelfKb.limits(pick).exists(_.contains("assumes about the world")))
-  }
-
   test("a cross-cutting invariant is a claim kept by the contracts that name it, on examples, generated calls and at run time") {
     val atMostN = Node.invariant[Int, Int]("AtMostN", "No more books are picked than asked for.", "Readers carry what they asked for.")(
       (asked, picked) => picked <= asked).under(onlyGood)

@@ -25,12 +25,9 @@ enum NodeKind:
   */
 final case class Code(files: List[String], fingerprint: String)
 
-/** How a node stands to an invariant: kept, through a view of each call (with, when several inputs
-  * have the rule's first type, the index of the one the pairs are about: the reader), or exempt.
-  */
-final case class Keep(invariant: Node[?], view: Option[Lifted[?]], exempt: String = "", reader: Int = -1):
-  def describe: String = view.fold(s"${invariant.id}: exempt, because ${exempt}")(v =>
-    s"${invariant.id}: ${v.source}${if reader >= 0 then s" (reader: input ${reader + 1})" else ""}")
+/** How a node stands to an invariant: kept, through a view of each call, or exempt. */
+final case class Keep(invariant: Node[?], view: Option[Lifted[?]], exempt: String = ""):
+  def describe: String = view.fold(s"${invariant.id}: exempt, because ${exempt}")(v => s"${invariant.id}: ${v.source}")
 
 object Code:
   /** The files under `paths` (directories are walked), named relative to `base`, so the fingerprint
@@ -82,7 +79,7 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (
     val replaced: Option[Node[?]] = None
 ):
   /** The nodes it is a part of: those named with `under`, and the invariants it keeps. */
-  def parents: List[Node[?]] = (declaredParents ++ kept.collect { case Keep(i, Some(_), _, _) => i }).distinctBy(System.identityHashCode)
+  def parents: List[Node[?]] = (declaredParents ++ kept.collect { case Keep(i, Some(_), _) => i }).distinctBy(System.identityHashCode)
 
   /** A cross-cutting rule (`Node.invariant`): a claim whose parts are the contracts that keep it. */
   def isInvariant: Boolean = rule.isDefined
@@ -310,10 +307,10 @@ extension [A, B, R](n: Node[(A, B) => R])
     * (such as `result.map(r => (reader, r))`), and the invariant's rule holds for each. It makes the
     * contract a part of the invariant; it is also checked on the examples and at run time.
     */
-  inline def keeps[X, Y](invariant: Node[(X, Y) => Boolean], inline formal: Boolean = true, reader: Int = -1)(
+  inline def keeps[X, Y](invariant: Node[(X, Y) => Boolean], inline formal: Boolean = true)(
       inline view: (A, B, R) => List[(X, Y)]): Node[(A, B) => R] =
     require(invariant != null, s"${n.id} keeps an invariant declared after it: declare the invariant first")
-    n.withKeeps(n.kept :+ Keep(invariant, Some(Lifted.of(formal, view)), reader = reader))
+    n.withKeeps(n.kept :+ Keep(invariant, Some(Lifted.of(formal, view))))
 
   /** The first invariant a call's result breaks, if any. */
   def broken(a: A, b: B, r: R): Option[String] =
@@ -627,12 +624,11 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
       }.distinctBy(r => (r.example.a, r.example.b, r.implementation)).take(10)
     }
 
-  /** What a contract does not promise, found mechanically: conditions of its post about the world only,
-    * inputs its post never looks at, and whether an empty result (`None`, `Nil`) satisfies it for every
-    * example input. Shown next to the decision, so nobody believes a contract says more than it does.
+  /** What a contract does not promise, found mechanically: inputs its post never looks at, and whether
+    * an empty result (`None`, `Nil`) satisfies it for every example input. Shown next to the decision, so
+    * nobody believes a contract says more than it does.
     */
   def limits(n: Node[?]): List[String] =
-    assumptions(n).map(c => s"it assumes about the world, whatever the system does: `$c`") ++ (
     if n.post.isEmpty then Nil
     else
       val post = n.post.get
@@ -647,27 +643,7 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
       }
       unused.map(p => s"the result may not depend on `$p`: the contract never looks at it") ++
         (if empties.nonEmpty && empties.forall(identity) then
-          List("an empty result (None or Nil) always satisfies it: it never requires the system to return anything") else Nil))
-
-  /** Top-level conditions of a post that never mention the call: they constrain the world, not the
-    * system, and can do a proof's work.
-    */
-  def assumptions(n: Node[?]): List[String] =
-    def strip(t: String): String =
-      val x = t.trim
-      // Outer parentheses that wrap the whole text: the depth stays above 0 until the last character.
-      val depths = x.scanLeft(0)((d, c) => if c == '(' then d + 1 else if c == ')' then d - 1 else d).drop(1)
-      if x.startsWith("(") && x.endsWith(")") && depths.dropRight(1).forall(_ > 0) then strip(x.drop(1).dropRight(1)) else x
-    def split(t: String): List[String] =
-      val x = strip(t)
-      var d = 0
-      val cuts = x.indices.filter { i => val c = x(i); if c == '(' then d += 1 else if c == ')' then d -= 1; d == 0 && c == '∧' }.toList
-      if cuts.isEmpty then List(x) else (-1 :: cuts).zip(cuts :+ x.length).map((a, b) => x.substring(a + 1, b)).flatMap(split)
-    n.post.filter(_ => n.formal).toList.flatMap { f =>
-      val names = f.params.map(_._1)
-      if names.isEmpty then Nil
-      else split(f.body).filterNot(c => names.exists(b => s"(?<![\\w'.])${java.util.regex.Pattern.quote(b)}(?![\\w'])".r.findFirstIn(c).isDefined))
-    }
+          List("an empty result (None or Nil) always satisfies it: it never requires the system to return anything") else Nil)
 
   /** The opaque types used anywhere. */
   def opaques: List[Opaque] =

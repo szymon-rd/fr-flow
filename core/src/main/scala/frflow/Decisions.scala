@@ -229,7 +229,6 @@ object Decisions:
     val i = lines.indexWhere(_.trim.toLowerCase.startsWith("## not modelled"))
     if i < 0 then (idea.trim, "")
     else
-      // To the next heading of its level or above: its `### ` subsections are its own.
       val (section, rest) = lines.drop(i + 1).span(l => !(l.startsWith("# ") || l.startsWith("## ")))
       ((lines.take(i) ++ rest).mkString("\n").trim, section.mkString("\n").trim)
 
@@ -266,10 +265,10 @@ object Decisions:
         "notMechanical" -> mechanical(snapshot, ledger, n).fold(JNull)(str),
         "resembles" -> JArr(resembles(ledger, n)),
         "unproven" -> JArr(unproven(n).map(str)),
-        // A sibling that says formally the same (variables renamed): the statement may claim more than the spec.
+        // A sibling that says formally the same: the statement may claim more than the spec.
         "sameAs" -> JArr(parents(n).flatMap(p => structure(snapshot).children.getOrElse(p, Nil)).distinctBy(s(_, "id")).filter { m =>
           s(m, "id") != id && s(m, "kind") == s(n, "kind") && m("content").flatMap(_("sources")).exists(_.obj.nonEmpty) &&
-            m("content").flatMap(_("sources")).map(alpha) == n("content").flatMap(_("sources")).map(alpha)
+            m("content").flatMap(_("sources")).map(Decision.hash) == n("content").flatMap(_("sources")).map(Decision.hash)
         }.map(m => str(s(m, "id")))),
         "rejectedBeside" -> JArr(parents(n).flatMap(ledger.rejectedUnder).distinctBy(_._1).filter(_._1 != id).map((r, c, why) =>
           obj("id" -> str(r), "statement" -> c("statement").getOrElse(str("")), "why" -> c("why").getOrElse(str("")), "reason" -> str(why)))),
@@ -298,29 +297,13 @@ object Decisions:
   private def resembles(ledger: Ledger, n: Json): List[Json] =
     val id = s(n, "id")
     val mine = n("content").getOrElse(JNull)
-    // The same formal content (what Lean checks), however it is worded, named, or its variables are
-    // called; or the same statement.
-    def formal(c: Json) = Decision.hash(alpha(JObj(c.obj.filter(f => Set("sources", "substitutions")(f._1)))))
+    // The same formal content (what Lean checks), however it is worded or named; or the same statement.
+    def formal(c: Json) = Decision.hash(JObj(c.obj.filter(f => Set("sources", "substitutions")(f._1))))
     def same(c: Json) = (formal(c) == formal(mine) && (c("sources").exists(_.obj.nonEmpty) || c("substitutions").exists(_.arr.nonEmpty))) ||
       c("statement").flatMap(_.str).exists(st => mine("statement").flatMap(_.str).contains(st))
     if ledger.binding(id).isDefined then Nil
     else ledger.decisions.toList.sortBy(_._1).flatMap((other, ds) => ds.lastOption.filter(d => other != id && d.action == "reject" && same(d.content))
       .map(d => obj("id" -> str(other), "reason" -> str(d.reason))))
-
-  /** Source text with its bound variables renamed in order (`x`, `user` become `v0`, `v1`) and spacing
-    * normalized: two lambdas that differ only in their variables' names read the same.
-    */
-  def alpha(j: Json): Json = j match
-    case JStr(src) =>
-      val binder = """(?<![\w.])([A-Za-z_]\w*)(?=\s*(?::[^,()=]+)?\s*(?:,[^()]*)?\)?\s*=>)""".r
-      val names = binder.findAllMatchIn(src).map(_.group(1)).toList.distinct
-      val renamed = names.zipWithIndex.foldLeft(src) { case (t, (n, i)) =>
-        t.replaceAll(s"(?<![\\w.])${java.util.regex.Pattern.quote(n)}(?!\\w)", s"v$i")
-      }
-      JStr(renamed.replaceAll("\\s+", " ").trim)
-    case JArr(xs) => JArr(xs.map(alpha))
-    case JObj(fs) => JObj(fs.map((k, v) => k -> alpha(v)))
-    case other => other
 
   /** The ancestors whose meaning changed since the node was decided, nearest first, each with its
     * content as it was then: what the browser shows for the cause `above`.
@@ -622,8 +605,8 @@ object Decisions:
     (tops.filter(isRoot).flatMap(go(_, 0)) ++ others.flatMap(go(_, 0)) ++
       (if defs.isEmpty then Nil else "Definitions:" :: defs.flatMap(go(_, 1))) ++ gone).mkString("\n")
 
-  /** Where a change belongs: the nodes governing a file, or those whose id, statement or reasons
-    * mention the words asked for, best first.
+  /** Where a change belongs: the nodes governing a file, or what mentions every word asked for (their
+    * id, statement or reasons, the options rejected, the idea).
     */
   def find(annotated: Json, query: String): String =
     val ns = nodes(annotated)
@@ -653,16 +636,12 @@ object Decisions:
       val terms = nodes(annotated).flatMap(n => n("content").flatMap(_("vocabulary")).map(_.arr.toList.flatMap(_.str)).getOrElse(Nil).map(v => s(n, "id") -> v))
         .distinctBy(_._2).map((id, v) => Entry(s"- term (at $id): $v", v))
       val all = nodeEntries ++ rejected ++ gone ++ notModelled ++ ideaLines ++ terms
-      // Words compared by their stem: "expiry", "expire" and "expired" find each other.
-      def stem(w: String) = w.toLowerCase.replaceAll("(ies|ied|ying|ing|ed|es|s|y|e)$", "")
-      val words = query.toLowerCase.split("\\W+").filter(_.length > 2).map(stem).filter(_.length > 2).toList.distinct
-      def has(e: Entry, w: String) = e.text.toLowerCase.contains(w)
-      // A word every entry has says little: rarer words weigh more.
-      def weight(w: String) = math.log((all.size + 1).toDouble / (1 + all.count(has(_, w))))
-      val scored = all.map(e => e -> words.filter(has(e, _)).map(weight).sum).filter(_._2 > 0.01).sortBy(-_._2).take(10)
+      // Every word of the query, anywhere in the entry, whatever the case.
+      val words = query.toLowerCase.split("\\s+").filter(_.nonEmpty).toList
+      val found = all.filter(e => words.forall(e.text.toLowerCase.contains)).take(10)
       def sentence(e: Entry) = e.text.split("(?<=[.!?])\\s+|\n").find(x => words.exists(x.toLowerCase.contains)).map(_.trim).filter(_.nonEmpty)
-      if scored.isEmpty then s"No node, rejected option or not-modelled line mentions \"$query\": a new concern may need a new node (and a governed home for its code)."
-      else ("What mentions it, best first:" :: scored.map((e, _) => e.label + sentence(e).filterNot(e.label.contains).fold("")(x => s"\n    \"${x.take(200)}\""))).mkString("\n")
+      if found.isEmpty then s"No node, rejected option or not-modelled line mentions \"$query\": a new concern may need a new node (and a governed home for its code)."
+      else ("What mentions it:" :: found.map(e => e.label + sentence(e).filterNot(e.label.contains).fold("")(x => s"\n    \"${x.take(200)}\""))).mkString("\n")
 
   /** What waits on whom: decisions for the developer, clean-up for the agent. */
   /** What the agent starts from: the developer's open requests, warnings, what is the agent's to do,
