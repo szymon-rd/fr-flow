@@ -37,7 +37,7 @@ lazy val check = module("check", (Seq(cats, catsEffect, circe, circeParser, muni
   .dependsOn(lean % "compile->compile;test->test", ledger)
 
 /** The one API a front end calls (the CLI now, a web view later): typed values over `IO`. */
-lazy val api = module("api", cats, catsEffect, circe).dependsOn(check)
+lazy val api = module("api", cats, catsEffect, circe, munitEffect).dependsOn(check % "compile->compile;test->test")
 
 /** The command line a project's main object extends (`FrFlowApp`): commands, colors, interactive review. */
 lazy val cli = module("cli", cats, catsEffect, circe, decline, munitEffect).dependsOn(api % "compile->compile;test->test")
