@@ -1,5 +1,5 @@
 ThisBuild / scalaVersion := "3.10.0"
-ThisBuild / scalacOptions ++= Seq("-deprecation", "-feature", "-Werror")
+ThisBuild / scalacOptions ++= Seq("-deprecation", "-feature", "-Werror", "-language:implicitConversions")
 
 // One version of each library, for every module; each module lists the ones it imports.
 val circe = "io.circe" %% "circe-core" % "0.14.17"
@@ -15,7 +15,7 @@ val munit = "org.scalameta" %% "munit" % "1.1.1" % Test
 val munitEffect = "org.typelevel" %% "munit-cats-effect" % "2.1.0" % Test
 
 lazy val root = project.in(file("."))
-  .aggregate(model, protocol, lean, ledger, check, api, cli, web, auth, crm, keycloak)
+  .aggregate(model, protocol, lean, ledger, check, api, cli, web, auth) // crm, keycloak: back once migrated to terms
   .settings(publish / skip := true)
 
 def module(name: String, libraries: ModuleID*) = Project(name, file(s"modules/$name"))

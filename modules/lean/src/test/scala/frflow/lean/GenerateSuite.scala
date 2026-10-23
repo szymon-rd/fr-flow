@@ -58,7 +58,7 @@ class GenerateSuite extends munit.FunSuite:
   }
 
   test("a definition with an alternative: both stay, as alternatives, and what uses the term waits for the choice") {
-    val thick = Node.definition("Thick", "A book is good when it is thick.", why = "Readers want long reads.")(good := ((b: Book) => b.pages >= 500))
+    val thick = Node.definition("Thick", "A book is good when it is thick.", why = "Readers want long reads.")(good := ((b: Term[Book]) => b.pages >= 500))
     val kb = shelfWith(pick, thick)
     assertEquals(kb.problems, Nil)
     val undecided = Generate(kb)
@@ -74,7 +74,7 @@ class GenerateSuite extends munit.FunSuite:
 
   test("generated names are reserved") {
     val m = Param[Int => Int]("m", "a bound")
-    val clash = Node.claim("Clash", "s", "w")(forall((x: Int) => m(x) >= 0))
+    val clash = Node.claim("Clash", "s", "w")(forall((x: Term[Int]) => m(x) >= 0))
     assert(Generate.problems(KnowledgeBase("K", "IDEA.md")(clash)).exists(_.contains("reserved")))
   }
 
@@ -92,7 +92,7 @@ class GenerateSuite extends munit.FunSuite:
 
   test("a node is witnessed by proven code, an assumption, or parts that all are; a part nothing proves witnesses nothing") {
     val unrefined = Node.claim("Unrefined", "Some books are kept aside.", why = "A part not refined yet.")(
-      forall((l: List[Item.T], x: Item.T) => shown(l, x) ==> l.contains(x))).under(onlyGood)
+      forall((l: Term[List[Item.T]], x: Term[Item.T]) => shown(l, x) ==> l.contains(x))).under(onlyGood)
     val g = Generate(KnowledgeBase("Shelf", idea = "IDEA.md")((shelfNodes :+ pick :+ unrefined)*).implementProven(pick)(longOnes))
     assert(g.witnessed(pick) && g.witnessed(fromList))
     assert(!g.witnessed(unrefined))

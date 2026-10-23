@@ -1,0 +1,221 @@
+package frflow
+
+import scala.collection.mutable
+
+/** One expression's Lean: the text, and what it mentions (in the order it meets them). */
+private[frflow] final case class Printed(params: List[(String, String)], result: String, body: String, types: List[TypeDecl],
+    opaques: List[Opaque], paramRefs: List[(String, String)], paramObjects: List[Param[?]], defs: List[Def[?]])
+
+/** Prints a term's tree as Lean. Every local variable gets a name no other in the expression has (an inner one can
+  * never capture an outer one), none a parameter's, an opaque type's or a type's.
+  */
+private[frflow] final class LeanPrinter:
+  private val types = Types()
+  private val paramRefs = mutable.LinkedHashMap.empty[String, String]
+  private val paramObjects = mutable.ListBuffer.empty[Param[?]]
+  private val defs = mutable.ListBuffer.empty[Def[?]]
+  private val taken = mutable.Map.empty[String, AnyRef]
+  private val binders = mutable.LinkedHashSet.empty[String]
+  private val names = mutable.Map.empty[Binder, String]
+  // The negations (`!`, the left of `==>`) the term is under: a `forall` under an odd number says something exists.
+  private var negations = 0
+  private def negated[T](f: => T): T = { negations += 1; try f finally negations -= 1 }
+  private def fail(msg: String): Nothing = throw IllegalArgumentException(s"FrFlow: $msg")
+
+  def print(bs: List[Binder], body: Tree, result: LeanType[?]): Printed =
+    val ns = bs.map(local)
+    val params = ns.zip(bs.map(b => tpe(b.tpe)))
+    val text = expr(body)
+    binders.find(n => paramRefs.contains(n) || types.opaques.contains(n)).foreach(n =>
+      fail(s"`$n` names both a parameter or opaque type and a local variable here; rename the local one"))
+    val r = tpe(result)
+    Printed(params, r, text, types.decls.values.toList, types.opaques.values.toList, paramRefs.toList, paramObjects.toList, defs.toList)
+
+  def tpe(t: LeanType[?]): String = types.tpe(t)
+
+  private def unique(owner: AnyRef, base: String, ok: String => Boolean = _ => true): String =
+    // Nor a name a domain type starts with: `Share.mk` would read a field of a variable `Share`.
+    val n = (Iterator(base) ++ Iterator.from(1).map(i => s"${base}_$i"))
+      .filter(c => taken.get(c).forall(_ eq owner) && !paramRefs.contains(c) && !types.opaques.contains(c) &&
+        !types.decls.keys.exists(t => t == c || t.startsWith(c + ".")) && ok(c)).next() // (the candidates never end)
+    taken(n) = owner
+    binders += n
+    n
+  private def local(b: Binder): String = { val n = unique(b, Names.ident(b.hint)); names(b) = n; n }
+  private def p(s: String): String = s"($s)"
+
+  def expr(t: Tree): String = t match
+    case Tree.Var(b)          => names.getOrElse(b, fail(s"variable ${b.hint} used outside its lambda"))
+    case Tree.Lit(v, lt)      => value(v, lt)
+    case Tree.Ref(prm)        => paramRef(prm)
+    case Tree.Call(d, args)   =>
+      defs += d
+      val head = s"⟦${d.name}⟧"
+      p((head :: args.map(expr)).mkString(" "))
+    case Tree.Apply(f, args)  => val h = expr(f); p((h :: args.map(expr)).mkString(" "))
+    case Tree.Fun(bs, body)   =>
+      val ns = bs.map(local)
+      val typed = ns.zip(bs).map((n, b) => s"($n : ${tpe(b.tpe)})").mkString(" ")
+      p(s"fun $typed => ${expr(body)}")
+    case Tree.Quant(all, bs, body) =>
+      if !all || negations % 2 == 1 then bs.find(b => Types.bounded(b.tpe)).foreach(b =>
+        fail(s"${if !all then "exists" else "a negated forall (it says something exists)"} over ${b.hint}, whose type holds an Int or Long: Lean's integers are unbounded, Scala's are not, so what Lean finds may not exist in Scala; use BigInt"))
+      val ns = bs.map(local)
+      val typed = ns.zip(bs).map((n, b) => s"($n : ${tpe(b.tpe)})").mkString(" ")
+      p(s"${if all then "∀" else "∃"} $typed, ${expr(body)}")
+    case Tree.If(c, a, b)     => val tc = expr(c); val ta = expr(a); p(s"if $tc then $ta else ${expr(b)}")
+    case Tree.Match(on, cs)   =>
+      val s = expr(on)
+      p(s"match $s with ${cs.map(caseDef).mkString(" ")}")
+    case Tree.Let(b, v, body) =>
+      val tv = expr(v)
+      val n = local(b)
+      val ty = tpe(b.tpe)
+      p(s"let $n : $ty := $tv; ${expr(body)}")
+    case Tree.Field(on, adt, i) =>
+      types.declare(adt)
+      s"${expr(on)}.${Names.ident(adt.ctors.head.fields(i)._1)}"
+    case Tree.Copy(on, adt, ups) =>
+      val r = expr(on)
+      val fs = adt.ctors.head.fields
+      val updates = ups.flatMap { (i, v) =>
+        val tv = expr(v)
+        val f = Names.ident(fs(i)._1)
+        if tv == s"$r.$f" then None else Some(s"$f := $tv")
+      }
+      if updates.isEmpty then r else s"{ $r with ${updates.mkString(", ")} }"
+    case Tree.Make(adt, c, args) =>
+      types.declare(adt)
+      p((c.lean :: args.map(expr)).mkString(" "))
+    case Tree.Tup(es)          => es.map(expr).mkString("(", ", ", ")")
+    // Lean's A × B × C is A × (B × C): the k-th of n is k-1 steps right, then left (but the last).
+    case Tree.Proj(on, k, n)   => expr(on) + ".2" * (k - 1) + (if k == n then "" else ".1")
+    case Tree.SomeT(a)         => p(s"some ${expr(a)}")
+    case Tree.ListT(es)        => es.map(expr).mkString("[", ", ", "]")
+    case Tree.Over(kind, on, b, body) =>
+      lazy val r = expr(on)
+      // A binder must not capture a variable of the receiver: `∀ x ∈ r, b` puts `r` in scope of `x`.
+      val x = unique(b, Names.ident(b.hint), free(r))
+      names(b) = x
+      val tb = expr(body)
+      kind match
+        case Iter.All       => p(s"∀ $x ∈ $r, $tb")
+        case Iter.Some      => p(s"∃ $x ∈ $r, $tb")
+        case Iter.Filter    => p(s"List.filter (fun $x => decide $tb) $r")
+        case Iter.FilterNot => p(s"List.filter (fun $x => decide (¬$tb)) $r")
+        case Iter.Find      => p(s"List.find? (fun $x => decide $tb) $r")
+        case Iter.OptAll    => p(s"∀ $x, $r = some $x → $tb")
+        case Iter.OptSome   => p(s"∃ $x, $r = some $x ∧ $tb")
+    case Tree.Op(op, args)     => prim(op, args)
+
+  private def free(r: => String)(x: String): Boolean =
+    !(s"(?<![\\w'.])${java.util.regex.Pattern.quote(x)}(?![\\w'])").r.findFirstIn(r).isDefined
+
+  private def caseDef(c: Arm): String =
+    val pat = c.pat match
+      case Pat.Ctor(adt, ctor, bs) =>
+        val args = bs.map(b => if b.wildcard then "_" else local(b))
+        types.declare(adt)
+        if ctor.singleton.isDefined && adt.isEnum then ctor.lean else (ctor.lean :: args).mkString(" ")
+      case Pat.SomeP(b)    => s"some ${if b.wildcard then "_" else local(b)}"
+      case Pat.NoneP       => "none"
+      case Pat.ConsP(h, t) =>
+        val (a, b) = (if h.wildcard then "_" else local(h), if t.wildcard then "_" else local(t))
+        s"$a :: $b"
+      case Pat.NilP        => "[]"
+    s"| $pat => ${expr(c.body)}"
+
+  private def paramRef(prm: Param[?]): String =
+    val n = Names.ident(prm.name)
+    if !paramRefs.contains(n) then
+      paramRefs(n) = tpe(prm.termType)
+      paramObjects += prm
+    n
+
+  private def prim(op: Prim, args: List[Tree]): String =
+    def e(t: Tree) = expr(t)
+    lazy val r = e(args.head)
+    def arg = e(args(1))
+    def bin(sym: String) = { val x = r; p(s"$x $sym $arg") }
+    def fresh(base: String) = unique(new Object, base, free(r))
+    op match
+      case Prim.Eq        => bin("=")
+      case Prim.Ne        => bin("≠")
+      case Prim.And       => bin("∧")
+      case Prim.Or        => bin("∨")
+      case Prim.Not       => p(s"¬${negated(r)}")
+      case Prim.Implies   => val l = negated(r); p(s"$l → $arg")
+      case Prim.Add       => bin("+")
+      case Prim.Sub       => bin("-")
+      case Prim.Mul       => bin("*")
+      case Prim.Div       => val x = r; p(s"Int.tdiv $x $arg")
+      case Prim.Mod       => val x = r; p(s"Int.tmod $x $arg")
+      case Prim.Lt        => bin("<")
+      case Prim.Le        => bin("≤")
+      case Prim.Gt        => bin(">")
+      case Prim.Ge        => bin("≥")
+      case Prim.Max       => val x = r; p(s"max $x $arg")
+      case Prim.Min       => val x = r; p(s"min $x $arg")
+      case Prim.Neg       => p(s"-$r")
+      case Prim.Concat    => bin("++")
+      case Prim.Cons      => val x = r; p(s"$x :: $arg")
+      case Prim.Append    => bin("++")
+      case Prim.Contains  => val x = arg; p(s"$x ∈ $r")
+      case Prim.IsEmpty   => p(s"$r = []")
+      case Prim.NonEmpty  => p(s"$r ≠ []")
+      case Prim.Length    => p(s"($r).length : Int")
+      case Prim.MapL      => val f = r; p(s"List.map $f $arg")
+      case Prim.FlatMap   => val f = r; p(s"List.flatMap $f $arg")
+      case Prim.FoldLeft  => val f = r; val z = arg; p(s"List.foldl $f $z ${e(args(2))}")
+      case Prim.HeadOption => p(s"List.head? $r")
+      case Prim.ToSet     => val y = fresh("y"); p(s"fun $y => $y ∈ $r")
+      case Prim.Take      => val n = r; p(s"List.take (Int.toNat $n) $arg")
+      case Prim.Drop      => val n = r; p(s"List.drop (Int.toNat $n) $arg")
+      case Prim.Zip       => val x = r; p(s"List.zip $x $arg")
+      case Prim.Get       => val x = r; p(s"$x $arg")
+      case Prim.HasKey    => val x = r; p(s"$x $arg ≠ none")
+      case Prim.GetOrElse => val x = r; val k = arg; p(s"Option.getD ($x $k) ${e(args(2))}")
+      case Prim.Updated   => val k = fresh("k"); val key = arg; p(s"fun $k => if $k = $key then some ${e(args(2))} else $r $k")
+      case Prim.Removed   => val k = fresh("k"); p(s"fun $k => if $k = $arg then none else $r $k")
+      case Prim.SetHas    => val x = r; p(s"$x $arg")
+      case Prim.Incl      => val y = fresh("y"); p(s"fun $y => $y = $arg ∨ $r $y")
+      case Prim.Excl      => val y = fresh("y"); p(s"fun $y => $y ≠ $arg ∧ $r $y")
+      case Prim.Union     => val y = fresh("y"); p(s"fun $y => $r $y ∨ $arg $y")
+      case Prim.Intersect => val y = fresh("y"); p(s"fun $y => $r $y ∧ $arg $y")
+      case Prim.SubsetOf  => val y = fresh("y"); p(s"∀ $y, $r $y → $arg $y")
+      case Prim.OptContains => val x = r; p(s"$x = some $arg")
+      case Prim.IsDefined => p(s"$r ≠ none")
+      case Prim.OptIsEmpty => p(s"$r = none")
+      case Prim.OptGetOrElse => val x = r; p(s"Option.getD $x $arg")
+
+  /** A Scala value as Lean writes it: what the macro made of the same value written in a model. */
+  def value(v: Any, t: LeanType[?]): String = t.shape match
+    case Shape.Prop   => if v.asInstanceOf[Boolean] then "True" else "False"
+    case Shape.Num(_) =>
+      val n = v match { case i: Int => BigInt(i); case l: Long => BigInt(l); case b: BigInt => b; case o => fail(s"$o is not a number") }
+      if n < 0 then p(n.toString) else n.toString
+    case Shape.Str    => Names.string(v.asInstanceOf[String])
+    case Shape.UnitT  => "()"
+    case Shape.ListOf(a) => v.asInstanceOf[List[?]].map(value(_, a)).mkString("[", ", ", "]")
+    case Shape.OptionOf(a) => v match
+      case Some(x) => p(s"some ${value(x, a)}")
+      case _       => "none"
+    case Shape.TupleOf(as) => v.asInstanceOf[Product].productIterator.toList.zip(as).map(value).mkString("(", ", ", ")")
+    case Shape.MapOf(kt, vt) =>
+      val m = v.asInstanceOf[Map[Any, Any]]
+      if m.isEmpty then "(fun _ => none)"
+      else
+        val k = unique(new Object, "k")
+        p(s"fun $k => " + m.toList.map((a, b) => (value(a, kt), value(b, vt))).foldRight("none")((kv, rest) => s"if $k = ${kv._1} then some ${kv._2} else $rest"))
+    case Shape.SetOf(a) =>
+      val s = v.asInstanceOf[Set[Any]]
+      if s.isEmpty then "(fun _ => False)"
+      else
+        val y = unique(new Object, "y")
+        p(s"fun $y => " + (s.toList.map(x => s"$y = ${value(x, a)}") :+ "False").mkString(" ∨ "))
+    case Shape.Data(adt) =>
+      val c = adt.ctorOf(v)
+      types.declare(adt)
+      if adt.isEnum && c.singleton.isDefined then c.lean
+      else p((c.lean :: v.asInstanceOf[Product].productIterator.toList.zip(c.fields.map(_._2)).map(value)).mkString(" "))
+    case other => fail(s"Lean has no value for $v (${Types.scala(t)})")

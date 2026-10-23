@@ -43,8 +43,8 @@ class CheckSuite extends munit.FunSuite:
 
   test("check hashes depend on the Lean, not the words: a reworded statement keeps them") {
     def team(statement: String) =
-      val top = Node.claim("Top", statement, why = "w")(forall((x: BigInt) => sq(x) >= 0))
-      Desk(KnowledgeBase("Team", idea = "IDEA.md")(top, Node.claim("Floor", "Results are at least zero.", why = "w")(forall((x: BigInt) => sq(x) >= 0)).under(top))).analysis
+      val top = Node.claim("Top", statement, why = "w")(forall((x: Term[BigInt]) => sq(x) >= 0))
+      Desk(KnowledgeBase("Team", idea = "IDEA.md")(top, Node.claim("Floor", "Results are at least zero.", why = "w")(forall((x: Term[BigInt]) => sq(x) >= 0)).under(top))).analysis
     val (before, after) = (team("Results are never negative."), team("Results are never below zero."))
     def both(f: Analysis => Node[?] => Any, id: String) = (f(before)(before.kb.node(id).getOrElse(fail(id))), f(after)(after.kb.node(id).getOrElse(fail(id))))
     val (h1, h2) = both(_.checkHash, "Top")

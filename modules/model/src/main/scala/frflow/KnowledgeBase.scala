@@ -100,15 +100,15 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
 
   /** Registers the code of a contract's operation, built under the values of each example and call (`grants.value`). */
   inline def implement[A, B, R](contract: Node[(A, B) => R])(inline impl: (A, B) => R): KnowledgeBase =
-    withImplementation(Implementation(contract.id, () => impl, Lifted.sourceFiles(impl), Lifted.sources(impl).mkString))
+    withImplementation(Implementation(contract.id, () => impl, Source.sourceFiles(impl), Source.sources(impl).mkString))
 
   /** Code written as a `define`: Lean proves every result meets the contract, and the root holds of it (`root_impl`). */
   inline def implementProven[A, B, R](contract: Node[(A, B) => R])(inline impl: Def[(A, B) => R]): KnowledgeBase =
-    withImplementation(Implementation(contract.id, () => impl.lifted.value, Lifted.sourceFiles(impl), "", Some(impl)))
+    withImplementation(Implementation(contract.id, () => impl.lifted.value, Source.sourceFiles(impl), "", Some(impl)))
 
   /** Production code (`runs`: a query) beside the proven `define`, checked against it and against the contract. */
   inline def implementProven[A, B, R](contract: Node[(A, B) => R])(inline impl: Def[(A, B) => R], inline runs: (A, B) => R): KnowledgeBase =
-    withImplementation(Implementation(contract.id, () => runs, Lifted.sourceFiles(runs), Lifted.sources(runs).mkString, Some(impl)))
+    withImplementation(Implementation(contract.id, () => runs, Source.sourceFiles(runs), Source.sources(runs).mkString, Some(impl)))
   def withImplementation(i: Implementation): KnowledgeBase =
     KnowledgeBase(name, idea, implementations.filterNot(_.contract == i.contract) :+ i)(nodes*)
   private lazy val byContract = implementations.map(i => i.contract -> i).toMap

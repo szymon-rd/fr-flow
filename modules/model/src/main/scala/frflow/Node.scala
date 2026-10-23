@@ -46,8 +46,8 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (val id: St
     copy(replaced = Some(other))
 
   /** A consequence the developer expects, which Lean proves from the claim: "Acme never sees Globex's contact". */
-  inline def expects(statement: String)(inline consequence: Boolean): Node[M] =
-    copy(expected = expected :+ (statement -> Lifted(() => consequence)))
+  inline def expects(statement: String)(inline consequence: Term[Boolean]): Node[M] =
+    copy(expected = expected :+ (statement -> Lifted.thunk(() => consequence, Source.text(consequence))))
 
   private[frflow] def copy(declaredParents: List[Node[?]] = declaredParents, cases: List[Example] = cases, kept: List[Keep] = kept,
       expected: List[(String, Lifted[?])] = expected, local: Option[Lifted[?]] = local, replaced: Option[Node[?]] = replaced): Node[M] =
@@ -64,66 +64,77 @@ object Node:
   // Each is built in a method of its own: a file's top-level vals initialize in one JVM method (at most 64 KB).
 
   /** With no parents, the root: the idea's purpose, stated as *exactly*, so that doing nothing does not meet it. */
-  inline def claim(id: String, statement: String, why: String, idea: String = "")(inline formula: Boolean): Node[Unit] =
+  inline def claim(id: String, statement: String, why: String, idea: String = "")(inline formula: Term[Boolean]): Node[Unit] =
     def node(): Node[Unit] =
-      Node(id, statement, why, NodeKind.Claim, formula = Some(Lifted(() => formula)), ideaSection = idea, file = Lifted.here, at = Lifted.at)
+      Node(id, statement, why, NodeKind.Claim, formula = Some(Lifted.thunk(() => formula, Source.text(formula))), ideaSection = idea,
+        file = Source.here, at = Source.at)
     node()
 
   /** Every call `op(a, b)` meets `post(a, b, op(a, b))`: code attached to the operation is proven or checked against it. */
   inline def contract[A, B, R](op: Param[(A, B) => R])(id: String, statement: String, why: String, idea: String = "")(
-      inline post: (A, B, R) => Boolean): Node[(A, B) => R] =
+      inline post: (Term[A], Term[B], Term[R]) => Term[Boolean]): Node[(A, B) => R] =
     def node(): Node[(A, B) => R] =
-      Node(id, statement, why, NodeKind.Contract, post = Some(Lifted(post)), op = Some(op), ideaSection = idea, file = Lifted.here, at = Lifted.at)
+      Node(id, statement, why, NodeKind.Contract, post = Some(Lifted.lambda(post, call(op), Source.text(post))), op = Some(op),
+        ideaSection = idea, file = Source.here, at = Source.at)
     node()
 
   /** What the outside (a database, the clock) is trusted to do: code calling it is proven from it, its adapter checked. */
   def assumption[A, B, R](op: Param[(A, B) => R]): AssumptionOn[A, B, R] = AssumptionOn(op)
 
   /** A fact of the world, trusted; checked at run time where the terms it reads are bound, when it can be computed. */
-  inline def assumption(id: String, statement: String, why: String, idea: String = "")(inline formula: Boolean): Node[Unit] =
+  inline def assumption(id: String, statement: String, why: String, idea: String = "")(inline formula: Term[Boolean]): Node[Unit] =
     def node(): Node[Unit] =
-      Node(id, statement, why, NodeKind.Assumption, formula = Some(Lifted(() => formula)), ideaSection = idea, file = Lifted.here, at = Lifted.at)
+      Node(id, statement, why, NodeKind.Assumption, formula = Some(Lifted.thunk(() => formula, Source.text(formula))), ideaSection = idea,
+        file = Source.here, at = Source.at)
     node()
 
   /** Fixes terms of the vocabulary (`User := of[UserId]`, `authorized := (u, p) => ...`): decided, not proven. */
   inline def definition(id: String, statement: String, why: String)(substs: Subst*): Node[Unit] =
     def node(): Node[Unit] =
-      Node(id, statement, why, NodeKind.Definition, substs = substs.toList, file = Lifted.here, at = Lifted.at)
+      Node(id, statement, why, NodeKind.Definition, substs = substs.toList, file = Source.here, at = Source.at)
     node()
 
   /** `rule(a, b)` holds for every pair a call exposes: every contract below `scope` that can expose one keeps it or is `exempt`. */
   inline def invariant[A, B](id: String, statement: String, why: String, scope: List[Node[?]] = Nil, idea: String = "")(
-      inline rule: (A, B) => Boolean): Node[(A, B) => Boolean] =
+      inline rule: (Term[A], Term[B]) => Term[Boolean])(using a: LeanType[A], b: LeanType[B]): Node[(A, B) => Boolean] =
     def node(): Node[(A, B) => Boolean] =
-      Node(id, statement, why, NodeKind.Claim, rule = Some(Lifted(rule)), scope = scope, ideaSection = idea, file = Lifted.here, at = Lifted.at)
+      Node(id, statement, why, NodeKind.Claim, rule = Some(Lifted.lambda(rule, List(a, b), Source.text(rule))), scope = scope,
+        ideaSection = idea, file = Source.here, at = Source.at)
     node()
 
   /** An architecture choice or a convention, with no formal model; a change to the files it `governs` is noticed. */
   inline def design(id: String, statement: String, why: String, idea: String = "")(governs: String*): Node[Unit] =
     def node(): Node[Unit] =
-      Node(id, statement, why, NodeKind.Design, governs = governs.toList, ideaSection = idea, file = Lifted.here, at = Lifted.at)
+      Node(id, statement, why, NodeKind.Design, governs = governs.toList, ideaSection = idea, file = Source.here, at = Source.at)
     node()
+
+  /** The types of a call of the operation: its inputs, then its result. */
+  private[frflow] def call(op: Param[?]): List[LeanType[?]] = op.termType.shape match
+    case Shape.FnOf(as, r) => as :+ r
+    case _                 => throw IllegalArgumentException(s"FrFlow: ${op.name} is not an operation (a function)")
 
 /** `Node.assumption(op)(id, statement, why, idea)(post)`: a step of its own, so that both assumptions default `idea`. */
 final class AssumptionOn[A, B, R](val op: Param[(A, B) => R]):
   inline def apply(id: String, statement: String, why: String, idea: String = "")(
-      inline post: (A, B, R) => Boolean): Node[(A, B) => R] =
+      inline post: (Term[A], Term[B], Term[R]) => Term[Boolean]): Node[(A, B) => R] =
     def node(): Node[(A, B) => R] =
-      Node(id, statement, why, NodeKind.Assumption, post = Some(Lifted(post)), op = Some(op), ideaSection = idea, file = Lifted.here, at = Lifted.at)
+      Node(id, statement, why, NodeKind.Assumption, post = Some(Lifted.lambda(post, Node.call(op), Source.text(post))), op = Some(op),
+        ideaSection = idea, file = Source.here, at = Source.at)
     node()
 
 extension [A, B, R](n: Node[(A, B) => R])
   /** What `service` checks on every call instead of the post: Lean proves the post implies it, so it refuses nothing allowed. */
-  inline def checkedBy(inline check: (A, B, R) => Boolean): Node[(A, B) => R] = n.copy(local = Some(Lifted(check)))
+  inline def checkedBy(inline check: (Term[A], Term[B], Term[R]) => Term[Boolean]): Node[(A, B) => R] =
+    n.copy(local = Some(Lifted.lambda(check, n.op.toList.flatMap(Node.call), Source.text(check))))
 
   /** Keeps an invariant: its rule holds for each pair `view(a, b, result)` lists (`result.map(r => (reader, r))`). */
-  inline def keeps[X, Y](invariant: Node[(X, Y) => Boolean])(inline view: (A, B, R) => List[(X, Y)]): Node[(A, B) => R] =
+  inline def keeps[X, Y](invariant: Node[(X, Y) => Boolean])(inline view: (Term[A], Term[B], Term[R]) => Term[List[(X, Y)]]): Node[(A, B) => R] =
     require(invariant != null, s"${n.id} keeps an invariant declared after it: declare the invariant first")
-    n.copy(kept = n.kept :+ Keep(invariant, Some(Lifted(view))))
+    n.copy(kept = n.kept :+ Keep(invariant, Some(Lifted.lambda(view, n.op.toList.flatMap(Node.call), Source.text(view)))))
 
   /** Concrete cases, under the given parameter values: they fail when the contract or the code is not what was decided. */
   inline def examples(inline bindings: Binding*)(inline cases: Case[A, B, R]*): Node[(A, B) => R] =
     // Built in a method of its own (a file's top-level vals initialize in one JVM method of at most 64 KB).
     def exampleList(): List[Example] =
-      cases.toList.map(c => Example(c.note, bindings.toList, Lifted.sources(bindings*), c.a, c.b, c.result, c.expected))
+      cases.toList.map(c => Example(c.note, bindings.toList, Source.sources(bindings*), c.a, c.b, c.result, c.expected))
     n.copy(cases = n.cases ++ exampleList())

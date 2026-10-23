@@ -54,12 +54,12 @@ class SnapshotSuite extends munit.FunSuite:
   }
 
   private def thick = Node.definition("Books", "Items are books; a book is good when it is thick.", why = books.why)(
-    Item := of[Book], good := ((b: Book) => b.pages >= 500))
+    Item := of[Book], good := ((b: Term[Book]) => b.pages >= 500))
 
   test("a change to what a term means, or to a definition, reviews the nodes that use it, and what rests on them") {
     val good2 = Param[Item.T => Boolean]("good", "whether an item is cheap")
     val onlyGood2 = Node.claim(onlyGood.id, onlyGood.statement, onlyGood.why)(
-      forall((l: List[Item.T], x: Item.T) => shown(l, x) == (l.contains(x) && good2(x))))
+      forall((l: Term[List[Item.T]], x: Term[Item.T]) => shown(l, x) === (l.contains(x) && good2(x))))
     assertEquals(Desk(shelfKb).acceptAll.withKb(KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood2, books, picking)).state(onlyGood2), ReviewState.Review)
     val d = Desk(shelfKb).acceptAll.withKb(kbOf((thick :: shelfNodes.filterNot(_ eq books)) :+ pick))
     // what does not use the term rests on what does: the root, whose meaning moved
@@ -67,7 +67,7 @@ class SnapshotSuite extends munit.FunSuite:
   }
 
   test("a definition with an alternative: what uses the term waits for the choice, and the choice is in force") {
-    val other = Node.definition("Thick", "A book is good when it is thick.", why = "Readers want long reads.")(good := ((b: Book) => b.pages >= 500))
+    val other = Node.definition("Thick", "A book is good when it is thick.", why = "Readers want long reads.")(good := ((b: Term[Book]) => b.pages >= 500))
     val d = Desk(shelfWith(pick, other))
     assert(Graph.alternatives(d.node("Thick").node, d.node("Books").node))
     val d2 = ok(d.accept(books, "Length is what readers asked for."))
@@ -87,7 +87,7 @@ class SnapshotSuite extends munit.FunSuite:
 
   test("a node whose code calls another contract's operation rests on that contract") {
     val promise2 = Node.contract(picks)("PickPromise", "A call returns only long enough books, from the shelf.", why = pickPromise.why)(
-      (shelf, n, picked) => picked.forall(b => b.pages >= minPages.value && shelf.contains(b)))
+      (shelf, n, picked) => picked.forall(b => b.pages >= minPages && shelf.contains(b)))
       .examples(minPages.bind(100))(
         expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
         reject(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
@@ -99,7 +99,7 @@ class SnapshotSuite extends munit.FunSuite:
 
   test("any node may name a section of the idea; a section no node names is a warning") {
     val long2 = Node.claim("OnlyLong", onlyLong.statement, onlyLong.why, idea = "Picking")(
-      forall((l: List[Book], n: Int) => picks(l, n).forall(b => b.pages >= minPages.value))).under(onlyGood)
+      forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => b.pages >= minPages))).under(onlyGood)
     val d = Desk(KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, books, picking, long2))
       .withIdea("# Shelf\n\nPick good items.\n\n## Picking\n\nPick only long books.\n\n## Selling\n\nSell them.\n\n## Not modelled\n\n- Prices.\n")
     assert(d.node("OnlyLong").node.content.str("notModelled").exists(_.contains("Prices")))
@@ -128,7 +128,7 @@ class SnapshotSuite extends munit.FunSuite:
   /** The shelf's nodes and more, with Pick implemented as in `shelfKb`. */
   private def shelfAnd(ns: Node[?]*) = kbOf(shelfNodes ++ ns).implement(pick)((shelf, n) => shelf.filter(_.pages >= minPages.value))
   private val newPart = Node.claim("Bounded", "At most n books are picked.", why = "Readers want few books.")(
-    forall((l: List[Book], n: Int) => picks(l, n).length <= n)).under(fromList)
+    forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).length <= n)).under(fromList)
 
   test("a change of parts is mechanical when Lean proves the parts make it, each needed; not otherwise") {
     val d = Desk(shelfKb).acceptAll.withKb(shelfAnd(pick, newPart))
@@ -152,10 +152,10 @@ class SnapshotSuite extends munit.FunSuite:
   test("a node placed under a second parent: that parent reviews its parts; the node rests on more, and says the same") {
     // A diamond: D a part of B and of C, both parts of A; before, D a part of B only.
     def diamond(dUnderC: Boolean): List[Node[?]] =
-      val a = Node.claim("A", "Results are never negative.", why = "The purpose.")(forall((x: BigInt) => sq(x) >= 0))
-      val b = Node.claim("B", "Results are at least zero.", why = "Zero is the floor.")(forall((x: BigInt) => sq(x) >= 0)).under(a)
-      val c = Node.claim("C", "Results are zero or more.", why = "Said otherwise.")(forall((x: BigInt) => sq(x) >= 0)).under(a)
-      val d = Node.claim("D", "The result is the square of the input.", why = "Squares are never negative.")(forall((x: BigInt) => sq(x) == x * x))
+      val a = Node.claim("A", "Results are never negative.", why = "The purpose.")(forall((x: Term[BigInt]) => sq(x) >= 0))
+      val b = Node.claim("B", "Results are at least zero.", why = "Zero is the floor.")(forall((x: Term[BigInt]) => sq(x) >= 0)).under(a)
+      val c = Node.claim("C", "Results are zero or more.", why = "Said otherwise.")(forall((x: Term[BigInt]) => sq(x) >= 0)).under(a)
+      val d = Node.claim("D", "The result is the square of the input.", why = "Squares are never negative.")(forall((x: Term[BigInt]) => sq(x) === x * x))
       List(a, b, c, if dUnderC then d.under(b, c) else d.under(b))
     val d = Desk(kbOf(diamond(dUnderC = false))).acceptAll.withKb(kbOf(diamond(dUnderC = true)))
     assertEquals(List("A", "B", "C", "D").map(d.causes), List(Nil, Nil, List("parts"), List("above")))

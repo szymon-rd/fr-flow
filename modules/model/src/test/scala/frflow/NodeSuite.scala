@@ -17,7 +17,7 @@ class NodeSuite extends munit.FunSuite:
 
   test("an assumption names its idea section, on a fact or on an operation") {
     val fact = Node.assumption("LongShelf", "Readers ask for books of at least a page.", why = "An empty book is not a book.",
-      idea = "Picking")(minPages.value >= 1)
+      idea = "Picking")(minPages >= 1)
     val port = Node.assumption(fetch)("Port", "The service returns books of the shelf.", why = "Books come from a service.", idea = "Picking")(
       (shelf, n, r) => r.forall(b => shelf.contains(b)))
     assertEquals((fact.ideaSection, port.ideaSection), ("Picking", "Picking"))
@@ -25,19 +25,15 @@ class NodeSuite extends munit.FunSuite:
   }
 
   test("domain types keep structural equality, even through a trait") {
-    val errs = compileErrors("""
-      trait CaseInsensitive { override def equals(o: Any): Boolean = true; override def hashCode: Int = 0 }
-      final case class PathCI(v: String) extends CaseInsensitive
-      frflow.Lifted((p: PathCI, q: PathCI) => p == q)
-    """)
-    assert(errs.contains("structural equality"), errs)
+    val e = intercept[IllegalArgumentException](summon[LeanType[NodeSuite.PathCI]].lean)
+    assert(e.getMessage.contains("structural equality"), e.getMessage)
   }
 
   test("a cross-cutting invariant is a claim kept by the contracts that name it, on examples, generated calls and at run time") {
     val atMostN = Node.invariant[Int, Int]("AtMostN", "No more books are picked than asked for.", "Readers carry what they asked for.")(
       (asked, picked) => picked <= asked).under(onlyGood)
     val kept = Node.contract(picks)("Kept", "Picking returns only long enough books.", "w")(
-      (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages.value)).under(shelfParts*)
+      (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages)).under(shelfParts*)
       .examples(minPages.bind(100))(
         expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
         expect(List(Book("Short", 20)), 1, Nil, "no long book"),
@@ -83,7 +79,7 @@ class NodeSuite extends munit.FunSuite:
   }
 
   test("structure: one root, no cycles, a part under the nodes it proves, a design under what it serves") {
-    val other = Node.claim("Other", "s", "w")(forall((x: BigInt) => sq(x) >= 0))
+    val other = Node.claim("Other", "s", "w")(forall((x: Term[BigInt]) => sq(x) >= 0))
     assert(shelfWith(pick, other).problems.exists(_.message.startsWith("one root only")), shelfWith(pick, other).problems)
     assert(KnowledgeBase("K", "IDEA.md")(fromList).problems.exists(_.message.contains("a root is required")))
     // a contract no code calls and nothing is above
@@ -103,20 +99,20 @@ class NodeSuite extends munit.FunSuite:
   test("a problem says what part of the model it is about, and prints as its message") {
     // two different parameters with one name; a contract with no examples
     val clash = Param[Int]("minPages", "the pages a reader can carry")
-    val c = shelfWith(Node.contract(picks)("Clash", "s", "w")((shelf, n, picked) => picked.length <= clash.value).under(shelfParts*)).problems
+    val c = shelfWith(Node.contract(picks)("Clash", "s", "w")((shelf, n, picked) => picked.length <= clash).under(shelfParts*)).problems
     assert(c.exists { case Problem.Vocabulary(t) => t.startsWith("two different parameters are named minPages"); case _ => false }, c)
     assert(c.exists(_.isInstanceOf[Problem.Examples]), c)
-    val noWhy = Node.claim("NoWhy", "s", " ")(forall((x: BigInt) => sq(x) >= 0)).under(onlyGood)
+    val noWhy = Node.claim("NoWhy", "s", " ")(forall((x: Term[BigInt]) => sq(x) >= 0)).under(onlyGood)
     assert(shelfWith(pick, noWhy).problems.exists { case Problem.Wording(t) => t.contains("say why"); case _ => false })
   }
 
   test("a definition: at least one term, none defined through itself, none an operation") {
     val n = Param[Int]("n", "a count")
     val m = Param[Int]("m", "another count")
-    val ofM = Node.definition("OfM", "n is m.", "w")(n := m.value)
-    val ofN = Node.definition("OfN", "m is n.", "w")(m := n.value)
+    val ofM = Node.definition("OfM", "n is m.", "w")(n := m)
+    val ofN = Node.definition("OfN", "m is n.", "w")(m := n)
     assert(shelfWith(pick, ofM, ofN).problems.exists(_.message == "OfM: its terms are defined through themselves"), shelfWith(pick, ofM, ofN).problems)
-    val op = Node.definition("Op", "Picking is taking all.", "w")(picks := ((s: List[Book], k: Int) => s))
+    val op = Node.definition("Op", "Picking is taking all.", "w")(picks := ((s: Term[List[Book]], k: Term[Int]) => s))
     assert(shelfWith(pick, op).problems.exists(_.message.startsWith("Op defines picks, an operation")))
   }
 
@@ -124,3 +120,7 @@ class NodeSuite extends munit.FunSuite:
     val kb = shelfWith(pick).withImplementation(Implementation("Nowhere", () => (), Nil))
     assert(kb.problems.exists { case Problem.Code(t) => t.startsWith("implementation of Nowhere"); case _ => false }, kb.problems)
   }
+
+object NodeSuite:
+  trait CaseInsensitive { override def equals(o: Any): Boolean = true; override def hashCode: Int = 0 }
+  final case class PathCI(v: String) extends CaseInsensitive

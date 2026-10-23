@@ -39,6 +39,46 @@
           "idea": "# Auth\n\nA system decides which users may access which resources. No user may ever\naccess a resource they are not authorized to access.\n\nUsers identify themselves with tokens they receive at login. Authorization is\ngiven by a table of grants: a user may access a path when a grant names that\nuser and that path.",
           "notModelled": "- How tokens are issued at login, and when they expire.\n- Who may change the table of grants."
         }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-23T15:18:56.797314Z",
+        "reason": "Rewritten with FrFlow's terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.",
+        "rejected": [],
+        "after": "e2cda180dd22746f",
+        "commit": "fdd423f2b83b4d86612d3ea048a5fc48aac5956f",
+        "key": "b6e216cfdf46a202",
+        "sig": "x5bTLBbiXwNjfTwco63l/wcLrN5qcZJbRTllAnoeKQ8pmr8V3v3FprqEjQ+lvlZeaz3WJEkcl2DaRM2bB9DXDA==",
+        "chain": "b2d5b5f4caec419b228679351d83a77b64266105426fb39ea1b4cf1ee0a2a833",
+        "content": {
+          "kind": "claim",
+          "parents": [],
+          "parts": [
+            "TokenNamesHolder",
+            "AccessNeedsGrant",
+            "GrantLetsIn"
+          ],
+          "statement": "A user gets access to a resource exactly when they are signed in and authorized for it.",
+          "why": "The idea says no one may access what they are not authorized to; and authorization is what lets a signed-in user in, or the system would serve no one. Who is authorized, and how a user signs in, the domain says below.",
+          "sources": {
+            "formula": "forall((u: Term[User.T], r: Term[Resource.T]) => access(u, r) === (signedIn(u) && authorized(u, r)))"
+          },
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [
+            "Resource: something a user may want to access",
+            "User: a person who uses the system",
+            "access: whether the system lets the user access the resource",
+            "authorized: whether the user is allowed the resource, by whatever rule the system adopts",
+            "signedIn: whether the user has signed in, so can present who they are"
+          ],
+          "uses": [],
+          "governs": [],
+          "definition": "val accessExactly = Node.claim(\"AccessExactly\",\n  \"A user gets access to a resource exactly when they are signed in and authorized for it.\",\n  why = \"The idea says no one may access what they are not authorized to; and authorization is what lets a signed-in user in, or the system would serve no one. Who is authorized, and how a user signs in, the domain says below.\"\n)(forall((u: Term[User.T], r: Term[Resource.T]) => access(u, r) === (signedIn(u) && authorized(u, r))))",
+          "idea": "# Auth\n\nA system decides which users may access which resources. No user may ever\naccess a resource they are not authorized to access.\n\nUsers identify themselves with tokens they receive at login. Authorization is\ngiven by a table of grants: a user may access a path when a grant names that\nuser and that path.",
+          "notModelled": "- How tokens are issued at login, and when they expire.\n- Who may change the table of grants."
+        }
       }
     ],
     "AccessNeedsGrant": [
@@ -78,6 +118,45 @@
           ],
           "governs": [],
           "definition": "val accessNeedsGrant = Node.claim(\"AccessNeedsGrant\",\n  \"A request is admitted on behalf of a user only if a grant names that user and the path.\",\n  why = \"No one may access what they are not authorized to, and a grant is what authorizes.\"\n)(forall((t: String, p: Path) => admit(t, p).forall(u => grants.value.contains(Grant(u, p))))).under(accessExactly)"
+        }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-23T15:18:56.797314Z",
+        "reason": "Rewritten with FrFlow's terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.",
+        "rejected": [],
+        "after": "9903da1c7ef511f6",
+        "commit": "fdd423f2b83b4d86612d3ea048a5fc48aac5956f",
+        "key": "b6e216cfdf46a202",
+        "sig": "Xhc0wGDYNSnsZwuTeE1iaToCNq2tdCC2D+J091g1HLhRcyVk0s8Q6xTJAgpujrTZNcQdRyIgPWkDfrPR7Q3wCQ==",
+        "chain": "bbf2189eb532533f420710d68302aef390e80a6a90eb8875d9ddb95f199cbe29",
+        "content": {
+          "kind": "claim",
+          "parents": [
+            "AccessExactly"
+          ],
+          "parts": [
+            "DecisionContract"
+          ],
+          "statement": "A request is admitted on behalf of a user only if a grant names that user and the path.",
+          "why": "No one may access what they are not authorized to, and a grant is what authorizes.",
+          "sources": {
+            "formula": "forall((t: Term[String], p: Term[Path]) => admit(t, p).forall(u => grants.contains(Grant(u, p))))"
+          },
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [
+            "admit: the system's decision on a request (a token and a path): the user it is admitted on behalf of, if any",
+            "grants: the grant table as stored when the request is decided"
+          ],
+          "uses": [
+            "case class Path(value: String)",
+            "case class UserId(name: String)",
+            "case class Grant(user: UserId, path: Path)"
+          ],
+          "governs": [],
+          "definition": "val accessNeedsGrant = Node.claim(\"AccessNeedsGrant\",\n  \"A request is admitted on behalf of a user only if a grant names that user and the path.\",\n  why = \"No one may access what they are not authorized to, and a grant is what authorizes.\"\n)(forall((t: Term[String], p: Term[Path]) => admit(t, p).forall(u => grants.contains(Grant(u, p))))).under(accessExactly)"
         }
       }
     ],
@@ -163,6 +242,55 @@
           "op": "admit",
           "implementation": "proven: admitted\nadmitted = (token: String, path: Path) =>\n  sessions(token) match\n    case Some(u) => if grants.value.contains(Grant(u, path)) then Some(u) else None\n    case None    => None\nruns: SessionStore(grants.value.toSet, sessions.value).decide"
         }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-23T15:18:56.797314Z",
+        "reason": "Rewritten with FrFlow's terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.",
+        "rejected": [],
+        "after": "8f2f40ca9e8833d8",
+        "code": "945683e2a0ae0caddb95a65d3faa270ad3d5a9ada7d4507531215023b1791b18",
+        "commit": "fdd423f2b83b4d86612d3ea048a5fc48aac5956f",
+        "key": "b6e216cfdf46a202",
+        "sig": "RJZ4+NvOd+oBUjYRCE5XU1kkw1yC8tGsNMD+heWENYCaR3A4fUMegteDEnD5dKdvKXQf0k7h4EtpfxNM94ssAg==",
+        "chain": "b4442bf5297a321e45b1160cbadc0c78ae5c466220c5c384a301e8e7a4452a99",
+        "content": {
+          "kind": "contract",
+          "parents": [
+            "TokenNamesHolder",
+            "AccessNeedsGrant",
+            "GrantLetsIn"
+          ],
+          "parts": [],
+          "statement": "A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path.",
+          "why": "The three parts, stated for one call, so every result of the running system can be checked.",
+          "sources": {
+            "post": "(token, path, decision) => decision.forall(u => sessions(token) === Some(u) && grants.contains(Grant(u, path))) &&\n  sessions(token).forall(u => grants.contains(Grant(u, path)) ==> (decision === Some(u)))"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (\"t1\", Path(\"/a\")) ⇒ Some(UserId(\"alice\"))  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\")))  — Alice's token and a grant for /a: she gets in",
+            "expect (\"t1\", Path(\"/b\")) ⇒ None  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\")))  — no grant for /b: refused",
+            "reject (\"t1\", Path(\"/b\")) ⇒ Some(UserId(\"alice\"))  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\")))  — access without a grant is never given",
+            "reject (\"t2\", Path(\"/a\")) ⇒ Some(UserId(\"alice\"))  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\")))  — a token that is not Alice's never acts for her",
+            "reject (\"t1\", Path(\"/a\")) ⇒ None  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\")))  — Alice with a grant for /a is not turned away"
+          ],
+          "vocabulary": [
+            "admit: the system's decision on a request (a token and a path): the user it is admitted on behalf of, if any",
+            "grants: the grant table as stored when the request is decided",
+            "sessions: the session table as stored when the request is decided: a token to the user it was issued to at login"
+          ],
+          "uses": [
+            "case class Path(value: String)",
+            "case class UserId(name: String)",
+            "case class Grant(user: UserId, path: Path)"
+          ],
+          "governs": [],
+          "definition": "val decisionContract = Node.contract(admit)(\"DecisionContract\",\n  \"A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path.\",\n  why = \"The three parts, stated for one call, so every result of the running system can be checked.\"\n)((token, path, decision) => decision.forall(u => sessions(token) === Some(u) && grants.contains(Grant(u, path))) &&\n  sessions(token).forall(u => grants.contains(Grant(u, path)) ==> (decision === Some(u))))\n  .under(tokenNamesHolder, accessNeedsGrant, grantLetsIn)\n  .examples(grants.bind(List(Grant(UserId(\"alice\"), Path(\"/a\")))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\"))))(\n    expect(\"t1\", Path(\"/a\"), Some(UserId(\"alice\")), \"Alice's token and a grant for /a: she gets in\"),\n    expect(\"t1\", Path(\"/b\"), None, \"no grant for /b: refused\"),\n    reject(\"t1\", Path(\"/b\"), Some(UserId(\"alice\")), \"access without a grant is never given\"),\n    reject(\"t2\", Path(\"/a\"), Some(UserId(\"alice\")), \"a token that is not Alice's never acts for her\"),\n    reject(\"t1\", Path(\"/a\"), None, \"Alice with a grant for /a is not turned away\"))",
+          "op": "admit",
+          "implementation": "proven: admitted\nadmitted = (token: Term[String], path: Term[Path]) =>\n  sessions(token)\n    .on[Some[UserId]](u => If(grants.contains(Grant(u, path)))(some(u)).Else(none))\n    .on[None.type](none)\nruns: SessionStore(grants.value.toSet, sessions.value).decide"
+        }
       }
     ],
     "GrantLetsIn": [
@@ -204,6 +332,46 @@
           "governs": [],
           "definition": "val grantLetsIn = Node.claim(\"GrantLetsIn\",\n  \"A request whose token was issued to a user with a grant for the path is admitted on their behalf.\",\n  why = \"A grant is there to be used: a system that turned a granted user away would meet the rules by serving no one.\"\n)(forall((t: String, p: Path) => sessions(t).forall(u => grants.value.contains(Grant(u, p)) ==> (admit(t, p) == Some(u))))).under(accessExactly)"
         }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-23T15:18:56.797314Z",
+        "reason": "Rewritten with FrFlow's terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.",
+        "rejected": [],
+        "after": "296bae39beca9648",
+        "commit": "fdd423f2b83b4d86612d3ea048a5fc48aac5956f",
+        "key": "b6e216cfdf46a202",
+        "sig": "WXSSK2kAna1bvLa7pnHf3Aw+BZimPG+g764e6uoHc0elmJJGrPuGB+yjVPQDMXEkou/lzux/7VnsoHYdWBMQCA==",
+        "chain": "bbf2189eb532533f420710d68302aef390e80a6a90eb8875d9ddb95f199cbe29",
+        "content": {
+          "kind": "claim",
+          "parents": [
+            "AccessExactly"
+          ],
+          "parts": [
+            "DecisionContract"
+          ],
+          "statement": "A request whose token was issued to a user with a grant for the path is admitted on their behalf.",
+          "why": "A grant is there to be used: a system that turned a granted user away would meet the rules by serving no one.",
+          "sources": {
+            "formula": "forall((t: Term[String], p: Term[Path]) => sessions(t).forall(u => grants.contains(Grant(u, p)) ==> (admit(t, p) === Some(u))))"
+          },
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [
+            "admit: the system's decision on a request (a token and a path): the user it is admitted on behalf of, if any",
+            "grants: the grant table as stored when the request is decided",
+            "sessions: the session table as stored when the request is decided: a token to the user it was issued to at login"
+          ],
+          "uses": [
+            "case class Path(value: String)",
+            "case class UserId(name: String)",
+            "case class Grant(user: UserId, path: Path)"
+          ],
+          "governs": [],
+          "definition": "val grantLetsIn = Node.claim(\"GrantLetsIn\",\n  \"A request whose token was issued to a user with a grant for the path is admitted on their behalf.\",\n  why = \"A grant is there to be used: a system that turned a granted user away would meet the rules by serving no one.\"\n)(forall((t: Term[String], p: Term[Path]) => sessions(t).forall(u => grants.contains(Grant(u, p)) ==> (admit(t, p) === Some(u))))).under(accessExactly)"
+        }
       }
     ],
     "GrantTable": [
@@ -238,6 +406,40 @@
           ],
           "governs": [],
           "definition": "val grantTable = Node.definition(\"GrantTable\", \"A user is authorized for a path when a grant names that user and that path.\",\n  why = \"The idea defines authorization as a table of grants; who may change the table is not modelled.\"\n)(authorized := ((u: UserId, p: Path) => grants.value.contains(Grant(u, p))))"
+        }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-23T15:18:56.797314Z",
+        "reason": "Rewritten with FrFlow's terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.",
+        "rejected": [],
+        "after": "a907910e8a9891e3",
+        "commit": "fdd423f2b83b4d86612d3ea048a5fc48aac5956f",
+        "key": "b6e216cfdf46a202",
+        "sig": "yNHmc5x/A4UFd7HUO8+8DOxsMWR7GS3oo7xcx9KvKjqaOJ/KANCABObyGfqJF5fYuccMshGg3H6oqOn4NNk1AQ==",
+        "chain": "",
+        "content": {
+          "kind": "definition",
+          "parents": [],
+          "statement": "A user is authorized for a path when a grant names that user and that path.",
+          "why": "The idea defines authorization as a table of grants; who may change the table is not modelled.",
+          "sources": {},
+          "substitutions": [
+            "authorized := (u: Term[UserId], p: Term[Path]) => grants.contains(Grant(u, p))"
+          ],
+          "examples": [],
+          "vocabulary": [
+            "authorized: whether the user is allowed the resource, by whatever rule the system adopts",
+            "grants: the grant table as stored when the request is decided"
+          ],
+          "uses": [
+            "case class UserId(name: String)",
+            "case class Path(value: String)",
+            "case class Grant(user: UserId, path: Path)"
+          ],
+          "governs": [],
+          "definition": "val grantTable = Node.definition(\"GrantTable\", \"A user is authorized for a path when a grant names that user and that path.\",\n  why = \"The idea defines authorization as a table of grants; who may change the table is not modelled.\"\n)(authorized := ((u: Term[UserId], p: Term[Path]) => grants.contains(Grant(u, p))))"
         }
       }
     ],
@@ -341,6 +543,39 @@
           "governs": [],
           "definition": "val requests = Node.definition(\"Requests\", \"A user has access to a path when some request for it is admitted on their behalf.\",\n  why = \"A user reaches a resource only through requests, and a request carries a token, not a user: the system sees tokens.\"\n)(access := ((u: UserId, p: Path) => exists((t: String) => admit(t, p) == Some(u))))"
         }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-23T15:18:56.797314Z",
+        "reason": "Rewritten with FrFlow's terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.",
+        "rejected": [],
+        "after": "625052fa024f0d93",
+        "commit": "fdd423f2b83b4d86612d3ea048a5fc48aac5956f",
+        "key": "b6e216cfdf46a202",
+        "sig": "4PRphKD6FCZ16fnJbeA12e4eZ8C67eX+XcP1wYimwLvAdbM+Chsj+eSkFuJpJAQwqfXqg4ra55H5R8RAc+s7CQ==",
+        "chain": "",
+        "content": {
+          "kind": "definition",
+          "parents": [],
+          "statement": "A user has access to a path when some request for it is admitted on their behalf.",
+          "why": "A user reaches a resource only through requests, and a request carries a token, not a user: the system sees tokens.",
+          "sources": {},
+          "substitutions": [
+            "access := (u: Term[UserId], p: Term[Path]) => exists((t: Term[String]) => admit(t, p) === Some(u))"
+          ],
+          "examples": [],
+          "vocabulary": [
+            "access: whether the system lets the user access the resource",
+            "admit: the system's decision on a request (a token and a path): the user it is admitted on behalf of, if any"
+          ],
+          "uses": [
+            "case class UserId(name: String)",
+            "case class Path(value: String)"
+          ],
+          "governs": [],
+          "definition": "val requests = Node.definition(\"Requests\", \"A user has access to a path when some request for it is admitted on their behalf.\",\n  why = \"A user reaches a resource only through requests, and a request carries a token, not a user: the system sees tokens.\"\n)(access := ((u: Term[UserId], p: Term[Path]) => exists((t: Term[String]) => admit(t, p) === Some(u))))"
+        }
       }
     ],
     "SessionTable": [
@@ -373,6 +608,38 @@
           ],
           "governs": [],
           "definition": "val sessionTable = Node.definition(\"SessionTable\", \"A user is signed in when some session token was issued to them.\",\n  why = \"Users identify themselves with tokens they receive at login; the session table records which token was issued to whom. How tokens are issued is not modelled.\"\n)(signedIn := ((u: UserId) => exists((t: String) => sessions(t) == Some(u))))"
+        }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-23T15:18:56.797314Z",
+        "reason": "Rewritten with FrFlow's terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.",
+        "rejected": [],
+        "after": "83df77d2f35867f1",
+        "commit": "fdd423f2b83b4d86612d3ea048a5fc48aac5956f",
+        "key": "b6e216cfdf46a202",
+        "sig": "dMmPVn9lai7/sfw4TCj6yC+o5ihQgKQrraIzEQ9BGYeVCMrO57djyTPChze3+MslE95fZiMeuUDuhEuWEir5AA==",
+        "chain": "",
+        "content": {
+          "kind": "definition",
+          "parents": [],
+          "statement": "A user is signed in when some session token was issued to them.",
+          "why": "Users identify themselves with tokens they receive at login; the session table records which token was issued to whom. How tokens are issued is not modelled.",
+          "sources": {},
+          "substitutions": [
+            "signedIn := (u: Term[UserId]) => exists((t: Term[String]) => sessions(t) === Some(u))"
+          ],
+          "examples": [],
+          "vocabulary": [
+            "sessions: the session table as stored when the request is decided: a token to the user it was issued to at login",
+            "signedIn: whether the user has signed in, so can present who they are"
+          ],
+          "uses": [
+            "case class UserId(name: String)"
+          ],
+          "governs": [],
+          "definition": "val sessionTable = Node.definition(\"SessionTable\", \"A user is signed in when some session token was issued to them.\",\n  why = \"Users identify themselves with tokens they receive at login; the session table records which token was issued to whom. How tokens are issued is not modelled.\"\n)(signedIn := ((u: Term[UserId]) => exists((t: Term[String]) => sessions(t) === Some(u))))"
         }
       }
     ],
@@ -412,6 +679,44 @@
           ],
           "governs": [],
           "definition": "val tokenNamesHolder = Node.claim(\"TokenNamesHolder\",\n  \"A request is admitted only on behalf of the user its token was issued to.\",\n  why = \"A token stands for the user it was issued to: acting for anyone else would let one user in as another.\"\n)(forall((t: String, p: Path) => admit(t, p).forall(u => sessions(t) == Some(u)))).under(accessExactly)"
+        }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-23T15:18:56.797314Z",
+        "reason": "Rewritten with FrFlow's terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.",
+        "rejected": [],
+        "after": "6538a6cd829fe1f6",
+        "commit": "fdd423f2b83b4d86612d3ea048a5fc48aac5956f",
+        "key": "b6e216cfdf46a202",
+        "sig": "Sj7PW0s02cVlUsjjPdnlrRVwLWJQSRj6XsCGAKc2RXTgIVJ2cn/MlQoVm6mUe8M7s4AtsNGO5LP1pDRQxjICBg==",
+        "chain": "bbf2189eb532533f420710d68302aef390e80a6a90eb8875d9ddb95f199cbe29",
+        "content": {
+          "kind": "claim",
+          "parents": [
+            "AccessExactly"
+          ],
+          "parts": [
+            "DecisionContract"
+          ],
+          "statement": "A request is admitted only on behalf of the user its token was issued to.",
+          "why": "A token stands for the user it was issued to: acting for anyone else would let one user in as another.",
+          "sources": {
+            "formula": "forall((t: Term[String], p: Term[Path]) => admit(t, p).forall(u => sessions(t) === Some(u)))"
+          },
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [
+            "admit: the system's decision on a request (a token and a path): the user it is admitted on behalf of, if any",
+            "sessions: the session table as stored when the request is decided: a token to the user it was issued to at login"
+          ],
+          "uses": [
+            "case class Path(value: String)",
+            "case class UserId(name: String)"
+          ],
+          "governs": [],
+          "definition": "val tokenNamesHolder = Node.claim(\"TokenNamesHolder\",\n  \"A request is admitted only on behalf of the user its token was issued to.\",\n  why = \"A token stands for the user it was issued to: acting for anyone else would let one user in as another.\"\n)(forall((t: Term[String], p: Term[Path]) => admit(t, p).forall(u => sessions(t) === Some(u)))).under(accessExactly)"
         }
       }
     ]

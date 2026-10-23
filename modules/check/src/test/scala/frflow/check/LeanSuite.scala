@@ -112,26 +112,26 @@ class LeanSuite extends munit.FunSuite with TempDirs:
     // with the goal a proof by hand starts from: after the stub's first steps, the parts by their names
     assert(result(sloppy, "complete").exists(d => d.detail.contains("the goal is:") && d.detail.contains("h_Sloppy :") && d.detail.contains("⊢")), sloppy.obligations)
     val bounded = Node.claim("Bounded", "No more books are picked than the shelf holds.", why = "w")(
-      forall((l: List[Book], n: Int) => picks(l, n).length <= l.length)).under(onlyGood)
+      forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).length <= l.length)).under(onlyGood)
     val w = workflow(shelfWith(pick, bounded))
     val root = of(w.check(), "OnlyGood")
     assertEquals(List("complete", "needed_Bounded", "needed_FromList").map(result(root, _).map(_.status.toString)),
       List(Some("proven"), Some("shown"), Some("not-shown")), root.obligations)
     assertEquals(splitOf(w, onlyGood).needed.find(_.id == NodeId("Bounded")).map(_.status.toString), Some("shown"))
     assert(Proofs.unproven(node(w, "OnlyGood")).exists(_.startsWith("Bounded is not needed for it")), Proofs.unproven(node(w, "OnlyGood")))
-    val none = Node.claim("NoneLong", "No book is ever picked.", why = "w")(forall((l: List[Book], n: Int) => picks(l, n).isEmpty)).under(onlyGood)
-    val one = Node.claim("OneAlways", "One book is always picked.", why = "w")(forall((l: List[Book], n: Int) => picks(l, n).length == 1)).under(onlyGood)
+    val none = Node.claim("NoneLong", "No book is ever picked.", why = "w")(forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).isEmpty)).under(onlyGood)
+    val one = Node.claim("OneAlways", "One book is always picked.", why = "w")(forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).length === 1)).under(onlyGood)
     val cw = workflow(KnowledgeBase("Clash", idea = "IDEA.md")(onlyGood, books, picking, none, one))
     val clash = of(cw.check(), "OnlyGood")
     assertEquals((clash.status.toString, result(clash, "clash").map(_.status.toString), st(splitOf(cw, onlyGood), "clash")),
       ("failed", Some("shown"), Some("shown")), clash)
     // a parent that holds whatever its one part says is vacuous; one that says what its one part says restates it
-    val trivial = Node.claim("Trivial", "Nothing is wrong.", why = "w")(forall((l: List[Book], n: Int) => picks(l, n).forall(b => true)))
-    val part = Node.claim("Part", "Picked books come from the shelf.", why = "w")(forall((l: List[Book], n: Int) => picks(l, n).forall(b => l.contains(b)))).under(trivial)
+    val trivial = Node.claim("Trivial", "Nothing is wrong.", why = "w")(forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => True)))
+    val part = Node.claim("Part", "Picked books come from the shelf.", why = "w")(forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => l.contains(b)))).under(trivial)
     val vac = of(workflow(KnowledgeBase("Vac", idea = "IDEA.md")(trivial, part)).check(), "Trivial")
     assertEquals(List("vacuous", "restates").map(result(vac, _).map(_.status.toString)), List(Some("shown"), Some("not-shown")), vac)
-    val same = Node.claim("Same", "Picked books come from the shelf.", why = "w")(forall((l: List[Book], n: Int) => picks(l, n).forall(b => l.contains(b))))
-    val again = Node.claim("Again", "Every book picked is on the shelf.", why = "w")(forall((l: List[Book], n: Int) => picks(l, n).forall(b => l.contains(b)))).under(same)
+    val same = Node.claim("Same", "Picked books come from the shelf.", why = "w")(forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => l.contains(b))))
+    val again = Node.claim("Again", "Every book picked is on the shelf.", why = "w")(forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => l.contains(b)))).under(same)
     val sameLab = workflow(KnowledgeBase("Same", idea = "IDEA.md")(same, again))
     val restates = of(sameLab.check(), "Same")
     assertEquals(result(restates, "restates").map(r => (r.status.toString, r.detail)),
@@ -162,9 +162,9 @@ class LeanSuite extends munit.FunSuite with TempDirs:
 
   test("a root doing nothing meets is unproven: it must say what users can do") {
     val guard = Node.claim("Guard", "A picked item is on the list and good.", why = "w")(
-      forall((l: List[Item.T], x: Item.T) => shown(l, x) ==> (l.contains(x) && good(x))))
+      forall((l: Term[List[Item.T]], x: Term[Item.T]) => shown(l, x) ==> (l.contains(x) && good(x))))
     val c = Node.contract(picks)("GuardPick", "A call returns only long books from the shelf.", why = "w")(
-      (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages.value)).under(guard)
+      (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages)).under(guard)
       .examples(minPages.bind(100))(
         expect(List(Book("Long", 300)), 5, List(Book("Long", 300)), "the long book"),
         expect(List(Book("Short", 20)), 5, Nil, "none"),
@@ -275,7 +275,7 @@ class LeanSuite extends munit.FunSuite with TempDirs:
     // A parameter that is no fixed value: Lean is given one value of it, Scala's post reads another.
     var flip = false
     val unstable = Node.contract(picks)("Unstable", "Picking returns only long enough books.", why = "w")(
-      (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages.value)).under(shelfParts*)
+      (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages)).under(shelfParts*)
       .examples(minPages.bind { flip = !flip; if flip then 100 else 10 })(
         expect(List(Book("Mid", 50)), 5, List(Book("Mid", 50)), "a book of 50 pages"),
         reject(List(Book("Mid", 50)), 5, List(Book("Other", 50)), "not a book from the shelf"))
@@ -295,8 +295,10 @@ class LeanSuite extends munit.FunSuite with TempDirs:
     // agree; a probe at the boundary does not.
     val l = keepAtLeast.lifted
     assert(l.body.contains("≥"), l.body)
-    val wrong = Def(keepAtLeast.name, new Lifted(() => l.value, l.params, l.result, l.body.replace("≥", ">"), l.source, l.types, l.opaques,
-      l.paramRefs, () => l.defs, () => l.paramObjects, () => l.opaqueObjects))
+    val above = Lifted.lambda[(List[BigInt], BigInt) => List[BigInt]]((xs: Term[List[BigInt]], f: Term[BigInt]) => xs.filter(x => x > f),
+      List(frflow.of[List[BigInt]], frflow.of[BigInt]), l.source)
+    val wrong = Def(above.runningAs(l), frflow.of[List[BigInt]], Some(keepAtLeast.name))
+    assert(wrong.lifted.body.contains(">") && !wrong.lifted.body.contains("≥"), wrong.lifted.body)
     val bad = of(workflow(kb(wrong)).check(), "FloorKeep")
     assertEquals(bad.status.toString, "failed", bad)
     assert(bad.obligations.filter(_.name.lean.startsWith("eval")).forall(_.status.toString == "proven"), bad.obligations)
