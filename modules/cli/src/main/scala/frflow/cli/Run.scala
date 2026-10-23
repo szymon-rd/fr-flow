@@ -71,7 +71,7 @@ final class Run(api: FrFlowApi, term: Terminal, st: Style):
         val d = make(reason)
         api.preview(d, dev).flatMap(_.fold(refused, p =>
           confirmed(a.yes, s"This records, as ${dev.name}:" :: ReportText.decided(p, st), "Record it? [y/N] ").flatMap {
-            case Some(true) => api.decide(d, dev).flatMap(done(r => s"Recorded ${r.decisions.size} decision(s), signed by ${dev.name}." :: Nil))
+            case Some(true) => api.decide(d, dev).flatMap(done(r => s"Recorded, signed by ${dev.name}:" :: ReportText.decided(r, st)))
             case Some(false) => term.out("Nothing recorded.").as(Refused)
             case None => term.err("a decision is confirmed on a terminal; without one, pass --yes").as(Usage)
           }))

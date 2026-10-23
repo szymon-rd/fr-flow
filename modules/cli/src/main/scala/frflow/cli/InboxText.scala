@@ -27,7 +27,7 @@ object InboxText:
         section("After the decisions above them", i.later.flatMap(waiting), st) ++
         section("Gone from the model (gone NODE)", i.gone.map(g => s"${st.bold(g.id.value)}: ${g.decision.content.statement}"), st) ++
         section("Asked of the agent: with the agent until it answers or changes the node", i.withAgent.map(Lines.node(_, st, 4)), st) ++
-        section("For the agent", i.forAgent.map(task(_, st)), st)
+        section("For the agent", i.forAgent.flatMap(t => Lines.para(task(t, st), st)), st)
     val nothing = if body.nonEmpty then Nil else List(st.green("Nothing waits: no request, no decision, nothing for the agent."))
     (body ++ nothing).dropWhile(_.isEmpty) ++ ("" :: st.heading("The tree") :: TreeText.lines(tree, st))
 

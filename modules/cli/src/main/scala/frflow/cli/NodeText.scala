@@ -65,8 +65,8 @@ object NodeText:
         v.rejectedBeside.filter(_ => r.state == ReviewState.Proposed).map(x => st.dim(s"rejected here before: ${x.id}: ${x.statement} — because ${x.reason}")) ++
         (if v.below.isEmpty then Nil else
           "decisions below it, with their reasons (accept --revisit NODE reviews one again; one that moved only with it is confirmed):" ::
-            v.below.map(b => s"  ${st.bold(b.id.value)}${if b.kind == BelowKind.Moved then st.dim(" (moved with it)") else ""}: ${b.statement} " +
-              st.dim(s"— holds because: ${b.reason}")))
+            v.below.flatMap(b => Lines.para(s"${b.id}${if b.kind == BelowKind.Moved then " (moved with it)" else ""}: ${b.statement} " +
+              s"— holds because: ${b.reason}", st, indent = 4).map("  " + _)))
     val chosen = v.reasonNow.filter(_ => r.state == ReviewState.Accepted).toList.flatMap(x => Lines.para(s"holds because: $x", st))
     val rejected = Option.when(r.state == ReviewState.Rejected)(r.review.history.reverse.find(_.action == Action.Reject)).flatten
       .map(h => st.red(s"rejected by ${h.by}: ${h.reason} (the agent removes it, or proposes what the reason asks for)")).toList

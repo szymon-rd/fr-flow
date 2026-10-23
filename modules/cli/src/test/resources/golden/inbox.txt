@@ -15,7 +15,8 @@ After the decisions above them
   o Expiry  claim  proposed  after Root  A session ends an hour after sign-in.
 
 For the agent
-  Forever: rejected by dev: sessions must end: a stolen token would work forever; propose what the reason asks for in its place, or remove it from the Scala model
+  Forever: rejected by dev: sessions must end: a stolen token would work forever; propose what the
+    reason asks for in its place, or remove it from the Scala model
 
 The tree
 + Root             claim       review: parts  A user gets access to a resource exactly when they...

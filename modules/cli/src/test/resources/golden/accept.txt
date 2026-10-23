@@ -2,4 +2,5 @@ Why (kept as part of the theory)? the wording names the user plainly
 This records, as dev:
   - accept Decide
 Record it? [y/N] y
-Recorded 1 decision(s), signed by dev.
+Recorded, signed by dev:
+  - accept Decide

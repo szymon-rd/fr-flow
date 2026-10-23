@@ -9,6 +9,7 @@ project=${1:?usage: bin/frflow PROJECT COMMAND [ARGS...]}
 shift
 launch="$here/examples/$project/target/frflow.launch"
 if [ ! -s "$launch" ] || [ -n "$(find "$here/modules" "$here/examples/$project/src" "$here/build.sbt" \( -name '*.scala' -o -name '*.sbt' \) -newer "$launch" 2>/dev/null | head -n 1)" ]; then
+  command -v sbt > /dev/null || { echo "frflow: sbt is not on the PATH" >&2; exit 2; }
   echo "frflow: compiling $project with sbt (on first use, or after a change)..." >&2
   (cd "$here" && sbt --client "$project/cliLauncher" < /dev/null > /dev/null 2>&1) ||
     { echo "frflow: sbt failed; run: sbt \"$project/cliLauncher\" to see why" >&2; exit 2; }

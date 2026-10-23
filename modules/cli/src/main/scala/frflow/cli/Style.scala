@@ -54,7 +54,7 @@ final case class Style(color: Boolean, unicode: Boolean, width: Option[Int]):
     if room <= 0 then List(s)
     else s.split("\\s+").filter(_.nonEmpty).foldLeft(List.empty[String]) {
       case (Nil, w) => List(w)
-      case (l :: done, w) if l.length + 1 + w.length <= room => s"$l $w" :: done
+      case (l :: done, w) if Style.visible(l) + 1 + Style.visible(w) <= room => s"$l $w" :: done
       case (done, w) => w :: done
     }.reverse
 
