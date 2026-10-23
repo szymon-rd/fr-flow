@@ -26,7 +26,7 @@ object Cli:
       |""".stripMargin
 
   def run(kb: KnowledgeBase, ws: Workspace, args: Seq[String]): Int =
-    val problems = kb.problems ++ Generate.problems(kb)
+    val problems = kb.problems.map(_.message) ++ Generate.problems(kb)
     if problems.nonEmpty then
       problems.foreach(p => System.err.println(s"error: $p"))
       return 1
