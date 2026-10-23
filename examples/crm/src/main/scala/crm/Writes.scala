@@ -3,52 +3,56 @@ package crm
 import frflow.*
 
 // ============================================================================
+// What the CRM holds: exactly what users asked, by induction over its history
+// ============================================================================
+
+val storeMirrorsRequests = Node.claim("StoreMirrorsRequests",
+  "The CRM holds exactly the records its users added, and holds a share of a record as current exactly when the record's company shared it so.",
+  why = "What users asked is said of the history alone (Adding, Sharing); the CRM keeps tables, and searches read those. This is the link, proven by induction over the history, as Keycloak's sessions follow its sign-ins: each write saved and each run of the job moves the tables as one more event moves what users asked. One record more would show what nobody added, one less would lose a record a user added; a share outliving its time or its unshare would show a record to a company no longer entitled to it.",
+  idea = "Writing records"
+)(forall((r: CrmRecord) => store.value.contains(r) == askedIn(history.value).records.contains(r)) &&
+  forall((id: BigInt, c: TenantId) => sharedNow(id, c) == sharedIn(history.value, id, c, clock.value)))
+  .under(sharedCrm)
+
+// ============================================================================
 // Writing records: what a write does, and what it never does
 // ============================================================================
 
 val writesTakeEffect = Node.claim("WritesTakeEffect",
   "A user's write about their company's record does what they asked: it adds the record, shares it (until a time, or for good), or unshares it.",
-  why = "What the idea says users can do with their company's records. It is about what the database holds after the write, not only what the write computes: a write that is not stored has not happened.",
+  why = "What the idea says users can do with their company's records. It is about what the database holds after the write, not only what the write computes: a write that is not stored has not happened. A share until a time holds that time only, so sharing again replaces the time it had.",
   idea = "Writing records"
 )(forall((s: CrmStore, w: WriteCmd) => takesEffect(s, w, afterSave(s, w))))
-  .under(sharedCrm, addedAreFound)
+  .under(storeMirrorsRequests)
 
-val writesInCompany = Node.claim("WritesInCompany",
-  "In every store the CRM reaches, a write leaves every other company's records, and whom they are shared with until when, as they were.",
-  why = "No write may change another company's records, nor share or unshare them: that would change what other companies see. A share names a record by its id, so this holds only where ids are unique: in the stores the CRM reaches (StoreConsistent).",
+val writesOnlyAsAsked = Node.claim("WritesOnlyAsAsked",
+  "A write changes nothing its author did not ask of their company's records: it adds no other record, and changes no other share or share's time.",
+  why = "The other half of a write doing what was asked: a record added beside the one asked, or a share changed beside it, is something no user asked. A write about another company's record, or a record its author's company does not hold, changes nothing; so no write changes another company's records or whom they are shared with.",
   idea = "Writing records"
-)(forall((es: List[Event], w: WriteCmd) => forall((c: TenantId) =>
-  (c != w.by.tenant) ==> holdsAlike(runOf(es), afterSave(runOf(es), w), c))))
-  .under(sharedCrm)
-
-val storeConsistent = Node.claim("StoreConsistent",
-  "No two records have one id in any store the CRM reaches, by writes and by runs of the expiry job.",
-  why = "A share names a record by its id: with two records of one id, sharing one would share the other, across companies. Every write and every run of the job keeps ids unique, so every store reached from the empty one has them unique (by induction over the events). The job is an event like the writes: it is covered too.",
-  idea = "Writing records"
-)(forall((es: List[Event]) => idsUnique(runOf(es))))
-  .under(writesInCompany)
+)(forall((s: CrmStore, w: WriteCmd) => onlyAsked(s, w, afterSave(s, w))))
+  .under(storeMirrorsRequests)
 
 val recordsKept = Node.claim("RecordsKept",
   "No write and no run of the expiry job removes a record: after each, the CRM holds every record it held before.",
-  why = "Editing or removing records is not modelled, so a record once stored stays: a write changes shares or adds a record, and the job ends shares only. This is what makes an added record found from then on, not only right after its write.",
+  why = "Editing or removing records is not modelled, so a record once added stays: a write changes shares or adds a record, and the job ends shares only. This is what keeps an added record found from then on, not only right after its write.",
   idea = "Writing records"
 )(forall((s: CrmStore, e: Event) => s.records.forall(r => stepOf(s, e).records.contains(r))))
-  .under(addedAreFound)
+  .under(storeMirrorsRequests)
 
 // ============================================================================
 // Contracts: one write, and the write side that stores it
 // ============================================================================
 
 val writeContract = Node.contract(write)("WriteContract",
-  "A write keeps every record, leaves the records of other companies as they were, does what its author asked of their company's records, and on a store with unique ids keeps them unique and leaves other companies' shares and expiries as they were.",
-  why = "The writing rules, stated for one write on a store: what the user asked takes effect, no record is lost, and nothing of another company's changes. A write the author's company may not make changes nothing.",
+  "A write keeps every record, leaves the records of other companies as they were, does what its author asked of their company's records, and changes nothing else.",
+  why = "The writing rules, stated for one write on a store: what the user asked takes effect, no record is lost, and nothing else changes, of their company or another's. A write the author's company may not make changes nothing.",
   idea = "Writing records"
 )((s, w, t) => s.records.forall(r => t.records.contains(r)) &&
   t.records.filter(r => r.tenant != w.by.tenant) == s.records.filter(r => r.tenant != w.by.tenant) && takesEffect(s, w, t) &&
-  (idsUnique(s) ==> (idsUnique(t) && s.records.forall(r => (r.tenant != w.by.tenant) ==> rowsAlike(s, t, r.id)))))
-  .under(writesTakeEffect, writesInCompany, storeConsistent, recordsKept)
+  onlyAsked(s, w, t))
+  .under(writesTakeEffect, writesOnlyAsAsked, recordsKept)
   // Per call, in time linear in the store: the write took effect, and other companies' records are as they were.
-  // The rest (no record lost, unique ids, other companies' shares) is proven of the code, and would read every pair of rows.
+  // The rest (no record lost, nothing else changed) is proven of the code, and would read every pair of rows.
   .checkedBy((s, w, t) => takesEffect(s, w, t) && t.records.filter(r => r.tenant != w.by.tenant) == s.records.filter(r => r.tenant != w.by.tenant))
   .examples()(
     expect(CrmStore(Nil, Nil, Nil), WriteCmd(Account("ann@acme", TenantId("acme")), Change.Add(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact"))), CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact")), Nil, Nil),
@@ -88,7 +92,7 @@ val saveWrite = Node.contract(save)("SaveWrite",
   why = "A write changes only its own record's rows, so storing those rows stores the write, whatever the size of the store: the database then holds what CrmRun says. The rows are read back, so a write the database dropped or changed is seen on the call.",
   idea = "Writing records"
 )((s, w, back) => back == aboutRecord(write(s, w), about(w)))
-  .under(writesTakeEffect, writesInCompany, storeConsistent, recordsKept)
+  .under(writesTakeEffect, writesOnlyAsAsked, recordsKept)
   // Per call: the rows read back are about the written record. That they are the write's is proven of the
   // code, from StoreEdits; checking it would run the write twice.
   .checkedBy((s, w, back) => back.records.forall(r => r.id == about(w)) && back.shares.forall(sh => sh.record == about(w)) &&

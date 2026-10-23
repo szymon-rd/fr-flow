@@ -44,13 +44,13 @@ class CrmSuite extends munit.CatsEffectSuite:
   test("the model is well formed: one root, its parts, the contracts under the claims they make") {
     assertEquals(knowledge.problems, Nil)
     assertEquals(knowledge.root.map(_.id), Some("SharedCrm"))
-    assertEquals(knowledge.parts(sharedCrm).map(_.id), List("AddedAreFound", "Visibility", "WritesTakeEffect", "WritesInCompany"))
-    // finding and writing meet in one store: what a user adds is then found
-    assertEquals(knowledge.parts(addedAreFound).map(_.id), List("Visibility", "WritesTakeEffect", "RecordsKept"))
+    // what the CRM holds, and what searches read of it
+    assertEquals(knowledge.parts(sharedCrm).map(_.id), List("StoreMirrorsRequests", "Visibility"))
+    // the store follows what users asked: each write and each run of the job moves it as one more request does
+    assertEquals(knowledge.parts(storeMirrorsRequests).map(_.id), List("WritesTakeEffect", "WritesOnlyAsAsked", "RecordsKept", "SharesExpire"))
     assertEquals(knowledge.parentsOf(readContract).map(_.id), List("SearchesMatch", "NoCrossTenantRead"))
     assertEquals(knowledge.parentsOf(dealSearch).map(_.id), List("SearchesMatch", "NoCrossTenantRead"))
-    // every event that changes the store, the expiry job's runs too, is a part of StoreConsistent and RecordsKept
-    assertEquals(knowledge.parts(storeConsistent).map(_.id), List("WriteContract", "SaveWrite", "SharesExpire"))
+    // every event that changes the store, the expiry job's runs too, is a part of RecordsKept
     assertEquals(knowledge.parts(recordsKept).map(_.id), List("WriteContract", "SaveWrite", "SharesExpire"))
   }
 
@@ -227,7 +227,9 @@ class CrmSuite extends munit.CatsEffectSuite:
       for c <- List("ReadContract", "DealSearch", "WriteContract", "SaveWrite", "SharesExpire", "RecordsByQuery", "StoreEdits") do
         assertEquals(node(c).flatMap(_.implementationProof).map(_.status.toString), Some("proven"), c)
       assertEquals(node("SharedCrm").flatMap(_.rootImpl).map(_.status.toString), Some("proven"))
-      // the root's expectations: its main promise on a concrete store, and an added record found
-      assertEquals(node("SharedCrm").map(_.expectations.map(_.status.toString)), Some(List("proven", "proven")))
-      assertEquals(v.snapshot.trusted.map(_.value), List("RecordsByQuery", "StoreEdits"))
+      // the root's expectations, of the history: Ann and Gil's, an added record found from then on, and isolation
+      assertEquals(node("SharedCrm").map(_.expectations.map(_.status.toString)), Some(List("proven", "proven", "proven")))
+      // doing nothing does not meet the root: no proof that it does
+      assertEquals(node("SharedCrm").flatMap(_.idle), None)
+      assertEquals(v.snapshot.trusted.map(_.value).toSet, Set("RecordsByQuery", "StoreEdits"))
   }

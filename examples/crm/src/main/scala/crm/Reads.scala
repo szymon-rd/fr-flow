@@ -7,11 +7,11 @@ import frflow.*
 // ============================================================================
 
 val visibility = Node.claim("Visibility",
-  "A search, on either screen, returns exactly the stored records it asks for that belong to the user's company or are shared with it now.",
-  why = "The purpose's first half, in the domain's words: what a user finds is what the screens return, of what the CRM holds now; a record they may read is one of their company or one shared with it whose time has not come.",
+  "A search, on either screen, returns exactly the stored records it asks for that the user may read now: of their company, or shared with it now.",
+  why = "The read side of the purpose: what a user finds is what the screens return, of what the CRM holds now (CrmRun), its shares counted until their time. With StoreMirrorsRequests, what the CRM holds is what users asked, so a search finds what the purpose says.",
   idea = "Finding records"
 )(forall((u: Account, q: Ask) => forall((r: CrmRecord) => results(u, q).contains(r) == (store.value.contains(r) && askMatches(q, r) && mayRead(u, r)))))
-  .under(sharedCrm, addedAreFound)
+  .under(sharedCrm)
 
 /** One rule for every read path, stated once: a reader is shown a record only if their company may see it. */
 val noCrossTenantRead = Node.invariant[Account, CrmRecord](

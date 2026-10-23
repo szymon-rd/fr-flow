@@ -1,10 +1,11 @@
 # Shared CRM
 
 Many companies use one CRM, where each company's users keep contacts and deals.
-Each user finds by search exactly the stored records of their company and those
-currently shared with it, and can add their company's records and share or
-unshare them; a share given until a time ends then, and nothing a user does
-changes another company's records.
+A user's search finds a record exactly when it asks for that record, a user of
+the record's company added it, and it is of the user's company or currently
+shared with it by its own. Users add their company's records, and share them
+with other companies, for good or until a time, or unshare them. Nothing a user
+does changes what anyone finds of another company's records.
 
 ## Finding records
 
@@ -22,10 +23,14 @@ deal that matches their search, and nothing else.
 ## Writing records
 
 A user can add records for their company, and can share or unshare their
-company's records with other companies, for good or until a given time. A record
-a user adds is found by their searches from then on. No write changes another
-company's records, or whom they are shared with. A share names a record by its
-id, so no two records have one id.
+company's records with other companies, for good or until a given time; sharing
+again replaces the time. The CRM holds exactly the records its users added, and
+holds a share exactly as long as the last share or unshare of it says and its
+time has not come: a write does what its author asked, and nothing else, and
+removes no record. A record a user adds is found by their searches from then on.
+No write changes another company's records, or whom they are shared with. A
+share names a record by its id, so no two records have one id: a record is not
+added under an id another record has.
 
 ## Expiring shares
 
