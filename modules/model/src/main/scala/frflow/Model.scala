@@ -1,5 +1,7 @@
 package frflow
 
+import frflow.lift.Lift
+
 /** A domain type, open until a definition fixes it (`Node.definition(...)(User := of[UserId])`). Open,
   * it is a type parameter of every Lean definition and theorem that mentions it; defined, a Lean `abbrev`.
   *
