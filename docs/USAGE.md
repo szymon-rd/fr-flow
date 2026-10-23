@@ -8,7 +8,10 @@ explains the idea; [DAG.md](DAG.md) is the design.
 Requirements: JDK 17+, sbt, and Lean 4.35.0 (`lake` on the `PATH`, or
 `FRFLOW_LAKE`). `bin/frflow PROJECT COMMAND` runs a project's CLI
 (`bin/frflow auth tree`), compiling with sbt on first use and after a change.
-`--help` lists the commands. `sbt test` runs the tests.
+`--help` lists the commands.
+
+Tests: `sbt test` runs the fast ones (about a minute). The tests that run Lean end to end (tagged `Lean`, several
+minutes) run with `sbt leanTest`; `sbt testAll` runs both, as before a merge.
 
 ## Commands
 

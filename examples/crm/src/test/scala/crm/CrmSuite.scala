@@ -227,10 +227,11 @@ class CrmSuite extends munit.CatsEffectSuite:
     assert(e2.getMessage.contains("StoreEdits"), e2.getMessage)
   }
 
-  test("the knowledge base is proven, from the contracts, their code and the ports to the root") {
+  // Runs Lean: `sbt leanTest`, not plain `sbt test`.
+  test("the knowledge base is proven, from the contracts, their code and the ports to the root".tag(munit.Tag("Lean"))) {
     // In the example's own workspace, as `crm/run check` checks it: its Lean build and the results it
-    // recorded are reused while current (a node whose Lean changed is checked again). The core's LeanSuite
-    // checks from scratch.
+    // recorded are reused while current (a node whose Lean changed is checked again). The check module's
+    // Lean suites check from scratch.
     for report <- checked
     yield
       val v = report.view

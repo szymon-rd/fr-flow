@@ -55,7 +55,8 @@ class AuthSuite extends munit.CatsEffectSuite:
     assertEquals(knowledge.parentsOf(decisionContract).map(_.id), List("TokenNamesHolder", "AccessNeedsGrant", "GrantLetsIn"))
   }
 
-  test("the knowledge base is proven, from the contract and its code to the root") {
+  // Runs Lean: `sbt leanTest`, not plain `sbt test`.
+  test("the knowledge base is proven, from the contract and its code to the root".tag(munit.Tag("Lean"))) {
     // In the example's own workspace, as `auth/run check` checks it: its Lean build and recorded results
     // are reused while current.
     for

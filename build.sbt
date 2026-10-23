@@ -15,11 +15,24 @@ val http4s = Seq("http4s-ember-server", "http4s-dsl", "http4s-circe").map("org.h
 val munit = "org.scalameta" %% "munit" % "1.1.1" % Test
 val munitEffect = "org.typelevel" %% "munit-cats-effect" % "2.1.0" % Test
 
+// Tests tagged `Lean` run Lean end to end (minutes): plain `sbt test` leaves them out, `sbt leanTest` runs them,
+// `sbt testAll` runs both.
+lazy val LeanTest = config("lean").extend(Test)
+val withoutLean = Tests.Argument(TestFrameworks.MUnit, "--exclude-tags=Lean")
+def leanTagged: Seq[Setting[?]] = inConfig(LeanTest)(Defaults.testTasks) ++ Seq(
+  Test / testOptions += withoutLean,
+  LeanTest / testOptions := (LeanTest / testOptions).value.filterNot(_ == withoutLean) :+
+    Tests.Argument(TestFrameworks.MUnit, "--include-tags=Lean"))
+addCommandAlias("leanTest", "Lean/test")
+addCommandAlias("testAll", "; test; Lean/test")
+
 lazy val root = project.in(file("."))
   .aggregate(model, protocol, lean, ledger, check, api, cli, web, auth, crm, keycloak)
+  .configs(LeanTest).settings(leanTagged)
   .settings(publish / skip := true)
 
 def module(name: String, libraries: ModuleID*) = Project(name, file(s"modules/$name"))
+  .configs(LeanTest).settings(leanTagged)
   .settings(Keys.name := s"frflow-$name", libraryDependencies ++= munit +: libraries)
 
 /** The DSL: nodes, the knowledge base, the macro from Scala to Lean, the runtime checks (package `frflow`). */
@@ -56,6 +69,7 @@ val cliLauncher = taskKey[File]("Writes the java command running this project's 
 
 def example(name: String) = Project(name, file(s"examples/$name"))
   .dependsOn(cli, web)
+  .configs(LeanTest).settings(leanTagged)
   .settings(
     libraryDependencies ++= Seq(munit, munitEffect),
     publish / skip := true,
