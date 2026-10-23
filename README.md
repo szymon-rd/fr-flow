@@ -57,8 +57,7 @@ returns what it stored) and FrFlow's translation from Scala to Lean.
 ## Inspiration
 
 - Nada Amin, [*Future of Programming*](https://scaladays.org/session/future-of-programming/),
-  keynote at Scala Days 2026. The organisers describe it as a reflection on how
-  AI changes programming as theory building, and on verification.
+  keynote at Scala Days 2026.
 - Peter Naur, *Programming as Theory Building* (1985). The source of the Lost
   Theory problem.
 - Niklaus Wirth, *Program Development by Stepwise Refinement* (1971). A
