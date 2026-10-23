@@ -31,15 +31,15 @@ class GenerateSuite extends munit.FunSuite:
   }
 
   test("a node with parts is proven complete from them; a leaf has nothing to prove but that it is not contradictory") {
-    val complete = g.obligation(onlyGood, "complete").get.statement
+    val complete = g.obligation(onlyGood, ObligationName.Complete).get.statement
     assert(complete.contains("∀ (h_FromList : (Shelf.FromList.claim picks)) (h_OnlyLong") && complete.endsWith("(Shelf.OnlyGood.claim Book (Shelf.shown picks) (Shelf.good minPages))"), complete)
-    assertEquals(g.obligation(pick, "complete"), None)
-    assertEquals(g.tries(onlyGood).map(_.obligation.name), List("needed_FromList", "needed_OnlyLong", "needed_EveryLong", "clash", "unsat", "idle"))
-    assertEquals(g.tries(fromList).map(_.obligation.name), List("vacuous", "restates", "clash", "unsat"))
-    assertEquals(g.tries(pick).map(_.obligation.name), List("unsat"))
+    assertEquals(g.obligation(pick, ObligationName.Complete), None)
+    assertEquals(g.tries(onlyGood).map(_.obligation.name.lean), List("needed_FromList", "needed_OnlyLong", "needed_EveryLong", "clash", "unsat", "idle"))
+    assertEquals(g.tries(fromList).map(_.obligation.name.lean), List("vacuous", "restates", "clash", "unsat"))
+    assertEquals(g.tries(pick).map(_.obligation.name.lean), List("unsat"))
     // one part: whether the node says only what its part says
-    assert(g.tries(fromList).find(_.obligation.name == "restates").get.obligation.statement.endsWith("(h_FromList : (Shelf.FromList.claim picks)), (Shelf.Pick.claim minPages picks)"),
-      g.tries(fromList).find(_.obligation.name == "restates"))
+    assert(g.tries(fromList).find(_.obligation.name.lean == "restates").get.obligation.statement.endsWith("(h_FromList : (Shelf.FromList.claim picks)), (Shelf.Pick.claim minPages picks)"),
+      g.tries(fromList).find(_.obligation.name.lean == "restates"))
     // the root with the operation doing nothing, tried at Lean's default budget; the other tries at a small one
     assert(g.idle(onlyGood).get.statement.contains("(Shelf.shown (fun (x0 : (List Book)) (x1 : Int) => []))"), g.idle(onlyGood))
     val checks = g.checks(onlyGood)
@@ -73,11 +73,11 @@ class GenerateSuite extends munit.FunSuite:
     val g = Generate(readsKb)
     assertEquals(g.callees(againC).map(_.id), List("PickPromise"))
     assertEquals(g.calls(againC), Nil)
-    assert(!g.obligation(againC, "impl").get.statement.contains("h_PickPromise"), g.obligation(againC, "impl"))
+    assert(!g.obligation(againC, ObligationName.Impl).get.statement.contains("h_PickPromise"), g.obligation(againC, ObligationName.Impl))
     // code calling the operation itself is proven from its promise
     val c = Generate(callsKb)
     assertEquals(c.calls(againC).map(_.id), List("PickPromise"))
-    assert(c.obligation(againC, "impl").get.statement.contains("h_PickPromise"), c.obligation(againC, "impl"))
+    assert(c.obligation(againC, ObligationName.Impl).get.statement.contains("h_PickPromise"), c.obligation(againC, ObligationName.Impl))
   }
 
   test("proof files may contain only tactic proofs") {

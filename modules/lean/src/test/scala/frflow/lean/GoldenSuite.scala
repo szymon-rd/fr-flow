@@ -12,7 +12,7 @@ class GoldenSuite extends munit.FunSuite:
   private def rendered(g: Generate, kb: KnowledgeBase): String =
     val files = g.files.toList.sortBy(_._1).map((p, s) => s"=== $p ===\n$s")
     val perNode = kb.nodes.filter(g.formal).flatMap(n => List(
-      s"=== proof file of ${n.id} ===\n${g.proofFile(n, List("complete", "impl"))}",
+      s"=== proof file of ${n.id} ===\n${g.proofFile(n, List(ObligationName.Complete, ObligationName.Impl))}",
       s"=== used by ${n.id} ===\n${(g.declarationsUsedBy(n) ++ g.sourcesUsedBy(n)).mkString("\n")}",
       s"=== not evaluated of ${n.id} ===\n${g.evals(n)._2.mkString("\n")}"))
     (files ++ perNode :+ s"=== lakefile ===\n${g.lakefile("../../lean")}").mkString("\n")
