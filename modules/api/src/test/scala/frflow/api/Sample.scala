@@ -78,6 +78,7 @@ object Sample:
     "One call meets both rules at once.", List("post" -> "(t, p, d) => d == sessions(t).filter(u => grants(u, p))"),
     List("admit: the system's decision on a request", "grants: the grant table")))
   val expiry = node("Expiry", NodeKind.Claim, List("Root"), Nil, "A session ends an hour after sign-in.", "Stolen tokens expire.",
+    List("formula" -> "forall((t: Token, now: Instant) => sessions(t, now).isDefined == (issued(t).exists(at => now.isBefore(at.plus(hour)))))"),
     status = Some(CheckStatus.Open))
   val forever = node("Forever", NodeKind.Claim, List("Root"), Nil, "A session never ends.", "Simplest.", status = Some(CheckStatus.Open))
 

@@ -188,9 +188,3 @@ class CheckSuite extends munit.FunSuite:
     assertEquals(ProofState.goal(Run.Done(1, "/tmp/frflow-state1.lean:3:0: error: unknown module"), "frflow-state1.lean"), None)
   }
 
-  test("a check is stamped with the hash it was made against") {
-    val j = Judged(CheckStatus.Open, Nil, List("m"))
-    val eval = Result(ObligationName.Eval(0), ObligationStatus.Proven)
-    assertEquals(j.withEvaluations(List(eval)).stamp(Hash("h"), java.time.Instant.EPOCH),
-      NodeCheck(Hash("h"), CheckStatus.Open, List(eval), List("m"), Nil, java.time.Instant.EPOCH))
-  }

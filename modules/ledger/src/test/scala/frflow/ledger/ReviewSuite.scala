@@ -32,26 +32,21 @@ class ReviewSuite extends munit.FunSuite:
       "B" -> (ReviewState.Review, List(Cause.Above))))
   }
 
-  test("a reason reworded reviews the node only: what is below rests on its meaning") {
+  test("a reason reworded, or a formal statement with its formula unchanged, reviews the node only: what is below rests on its meaning") {
     val l = acceptAll(shelf)
     val withWhy = r.content :+ ("why" -> str("Said again, in other words."))
     val s = replacing(shelf, r.copy(content = withWhy, hash = withWhy.hash))
-    assertEquals(standing(s, l)("R"), ReviewState.Review -> List(Cause.Self))
-    assertEquals(standing(s, l)("A"), ReviewState.Accepted -> Nil)
-  }
-
-  test("a formal statement reworded, its formula unchanged, reviews that node only") {
+    assertEquals((standing(s, l)("R"), standing(s, l)("A")), (ReviewState.Review -> List(Cause.Self), ReviewState.Accepted -> Nil))
+    // A formal statement reworded, its formula unchanged, likewise.
     val formula = "sources" -> io.circe.Json.obj("R" -> str("∀ b, asked b → found b"))
     val fr = node("R", "Readers find the books they ask for.", parts = List("A"), extra = List(formula))
-    val s = snap(fr, a, b)
-    val l = acceptAll(s)
-    val reworded = replacing(s, restated(fr, "A reader finds each book they ask for."))
-    assertEquals(standing(reworded, l)("R"), ReviewState.Review -> List(Cause.Self))
-    assertEquals(standing(reworded, l)("A"), ReviewState.Accepted -> Nil)
+    val (sf, lf) = (snap(fr, a, b), acceptAll(snap(fr, a, b)))
+    val reworded = replacing(sf, restated(fr, "A reader finds each book they ask for."))
+    assertEquals((standing(reworded, lf)("R"), standing(reworded, lf)("A")), (ReviewState.Review -> List(Cause.Self), ReviewState.Accepted -> Nil))
     // Its formula changed too: what is below moves.
-    val reformulated = replacing(s, changed(restated(fr, "A reader finds each book.")) { case ("sources", _) =>
+    val reformulated = replacing(sf, changed(restated(fr, "A reader finds each book.")) { case ("sources", _) =>
       "sources" -> io.circe.Json.obj("R" -> str("∀ b, found b")) })
-    assertEquals(standing(reformulated, l)("A"), ReviewState.Review -> List(Cause.Above))
+    assertEquals(standing(reformulated, lf)("A"), ReviewState.Review -> List(Cause.Above))
   }
 
   test("a part added reviews its parent for its parts; the new part is proposed and waits for it") {
@@ -88,11 +83,11 @@ class ReviewSuite extends munit.FunSuite:
     assertEquals(standing(shelf, merged)("B"), ReviewState.Review -> List(Cause.Merged))
   }
 
-  test("an alternative chosen instead rejects the node; what rests on it is reviewed, and a reworked one is proposed") {
+  test("an alternative chosen instead rejects the node, kept as its alternative; what rests on it is reviewed, and a reworked one is proposed") {
     val a2 = node("A2", "Every book asked for is found by its title.", parents = List("R"), extra = Nil).copy(replaces = Some(id("A")))
     val s = snap(r, a, b, a2)
     val l = right(Decide(s, acceptAll(snap(r, a, b)), accept("A2"), "dev", stamp(10)))
-    assertEquals(standing(s, l)("A"), ReviewState.Rejected -> Nil)
+    assertEquals((standing(s, l)("A"), l.alternatives(id("A2")).map(_._1)), (ReviewState.Rejected -> Nil, ids("A")))
     assertEquals(standing(s, l)("B"), ReviewState.Review -> List(Cause.Above))
     assertEquals(standing(s, l)("A2"), ReviewState.Accepted -> Nil)
     val reworked = replacing(s, restated(a, "Every book asked for is on a labelled shelf."))
@@ -130,14 +125,14 @@ class ReviewSuite extends munit.FunSuite:
     assertEquals(ra.reasonNow, Some("A holds for this reason"))
   }
 
-  test("deciding a large tree stays fast: each node's state is computed once") {
-    val ns = (0 until 800).toList.map(i => node(s"N$i", s"node $i", parents = if i == 0 then Nil else List(s"N${(i - 1) / 8}")))
-    val s = Snapshot("Large", ns)
-    val g = Graph(s)
-    val l = ns.foldLeft(Ledger.empty)((l, n) => l.add(n.id, Decision(Action.Accept, "dev", stamp(0).at, "it is right",
-      chain = g.parentChain(n), content = n.content)))
-    val t = System.nanoTime
-    val a = Annotate(s, l)
-    assert(a.nodes.forall(_.state == ReviewState.Accepted))
-    assert((System.nanoTime - t) / 1e9 < 5)
+  test("annotating a tree grows linearly with it: each node's state is computed once") {
+    // The fastest of three runs, so a pause elsewhere in the build does not count; linear is 4, quadratic 16.
+    def seconds(n: Int): Double =
+      val ns = (0 until n).toList.map(i => node(s"N$i", s"node $i", parents = if i == 0 then Nil else List(s"N${(i - 1) / 8}")))
+      val (s, g) = (Snapshot("Large", ns), Graph(Snapshot("Large", ns)))
+      val l = ns.foldLeft(Ledger.empty)((l, n) => l.add(n.id, Decision(Action.Accept, "dev", stamp(0).at, "it is right",
+        chain = g.parentChain(n), content = n.content)))
+      List.fill(3) { val t = System.nanoTime; assert(Annotate(s, l).nodes.forall(_.state == ReviewState.Accepted)); (System.nanoTime - t) / 1e9 }.min
+    val (small, large) = (seconds(400), seconds(1600))
+    assert(large / small < 8, s"$small s for 400 nodes, $large s for 1600")
   }

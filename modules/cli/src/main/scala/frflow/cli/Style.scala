@@ -46,9 +46,24 @@ final case class Style(color: Boolean, unicode: Boolean, width: Option[Int]):
       val (kept, _) = Style.Token.findAllIn(s).foldLeft((Vector.empty[String], 0)) { case ((out, n), t) =>
         if t.startsWith("\u001b") then (out :+ t, n) else if n < keep then (out :+ t, n + 1) else (out, n)
       }
-      kept.mkString.stripTrailing + ellipsis + (if color then "\u001b[0m" else "")
+      kept.mkString.stripTrailing + ellipsis + (if color then Style.Reset else "")
 
   def fit(s: String, indent: Int = 0): String = width.fold(s)(w => cut(s, (w - indent).max(12)))
+
+  /** `s` wrapped to the width (less `indent`), its later lines indented under its text: nothing is cut.
+    * For source and diff lines; their spaces are kept, and a word longer than a line is split.
+    */
+  def fold(s: String, indent: Int = 0): List[String] = width.map(w => (w - indent).max(20)).filter(Style.visible(s) > _).fold(List(s)) { room =>
+    val hang = " " * (Style.strip(s).takeWhile(_ == ' ').length + 2).min(room / 2)
+    val pieces = Style.Piece.findAllIn(s).toList.flatMap(p => if p.startsWith("\u001b") then List(p) else p.grouped(room - hang.length).toList)
+    // The colors open at a break are closed, and opened again on the next line.
+    val (done, last, _) = pieces.foldLeft((Vector.empty[String], "", Vector.empty[String])) { case ((done, line, codes), p) =>
+      if p.startsWith("\u001b") then (done, line + p, if p == Style.Reset then Vector.empty else codes :+ p)
+      else if Style.visible(line) + p.length <= room then (done, line + p, codes)
+      else (done :+ (line.stripTrailing + (if codes.isEmpty then "" else Style.Reset)), hang + codes.mkString + (if p.isBlank then "" else p), codes)
+    }
+    (done :+ last).toList
+  }
   def wrap(s: String, room: Int): List[String] =
     if room <= 0 then List(s)
     else s.split("\\s+").filter(_.nonEmpty).foldLeft(List.empty[String]) {
@@ -60,6 +75,15 @@ final case class Style(color: Boolean, unicode: Boolean, width: Option[Int]):
 object Style:
   private val Ansi = "\u001b\\[[0-9;]*m".r
   private val Token = "(?s)\u001b\\[[0-9;]*m|.".r
+  private val Piece = "\u001b\\[[0-9;]*m|\\s+|[^\\s\u001b]+".r
+  private val Reset = "\u001b[0m"
+
+  /** Colors and Unicode on a terminal, unless `--plain` or `NO_COLOR`; lines cut (or wrapped) to `COLUMNS`, which
+    * bin/frflow sets, only on a terminal: CI, agents and files read every line whole.
+    */
+  def of(plain: Boolean, env: Map[String, String], terminal: Boolean): Style =
+    val color = !plain && terminal && !env.contains("NO_COLOR")
+    Style(color, unicode = color, env.get("COLUMNS").flatMap(_.toIntOption).filter(_ > 20 && terminal))
   def visible(s: String): Int = strip(s).length
   def strip(s: String): String = Ansi.replaceAllIn(s, "")
 

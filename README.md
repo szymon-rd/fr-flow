@@ -24,7 +24,7 @@ generated from the Scala, proves each step. The nodes form a DAG:
   (`.under(parents*)`), and may be a part of several. A parent's parts,
   together, prove it; each is needed; they do not contradict each other. A node
   says one thing, in one sentence of the developer's domain words. A node that
-  only restates its parent is not a node. A parent has 2 to 5 parts.
+  only restates its parent is not a node. A parent should have 2 to 5 parts.
 - **A shared vocabulary**: the root speaks in general terms, left open
   (`Opaque` types, `Param` terms, each saying what it means). Decided
   definitions bring in the domain (grants, sessions, tokens) as it is needed.
@@ -108,7 +108,7 @@ definition in force applied:
 | `complete` | C1 → … → Cn → N | not proven: the parts do not make N (open) |
 | `needed_C` (n ≥ 2), tried | N without C | Lean proves it: C is not needed for N |
 | `vacuous` (n = 1), tried | N, with no hypothesis | Lean proves it: N says nothing its part adds |
-| `restates` (n = 1), tried | N → C1 | Lean proves it: N says what its part says (a limit, not a failure) |
+| `restates` (n = 1), tried | N → C1 | Lean proves it: N says what its part says (`status` warns of it) |
 | `clash`, tried | C1 → … → Cn → False | Lean proves it: the parts contradict each other (failed) |
 | `unsat` (every claim), tried | ¬ N | Lean proves it: no world meets N (failed) |
 | `idle` (the root), tried | the root, every operation doing nothing (`[]`, `none`, `False`, its input unchanged) | Lean proves it: the root does not say what users can do |
@@ -187,17 +187,21 @@ Requirements: JDK 17+, sbt, and Lean 4.35.0 (`lake` on the PATH, or
 | | `status`, `ci` | the tree, the summary and the warnings; exit 1 unless the knowledge base is complete (`ci` checks first) |
 | | `answer REQUEST\|NODE TEXT` | reply to a request, or tell the developer of work they did not ask for |
 
-On a terminal the output has colors and Unicode and is cut to its width.
-`--plain`, `NO_COLOR` or a pipe give plain ASCII, not cut. `--json` on tree,
+On a terminal the output has colors and Unicode (`--plain` or `NO_COLOR` turn
+them off) and fits its width: formulas, diffs and decisions wrap, and the other
+lines are cut (`context` shows them whole). Off a terminal (CI, agents, a pipe)
+the output is plain ASCII and no line is cut. `--json` on tree,
 show, inbox, status and check prints the typed value, each node in brief. Exit
 codes: 0 fine; 1 not complete, or a decision refused; 2 a usage error (an
 unknown node too); 3 no Lean. The agent's rules are in
 [`.claude/skills/frflow/SKILL.md`](.claude/skills/frflow/SKILL.md).
 
 `status` exits 1 unless every node is accepted, nothing is left unproven, no
-node is gone, and there is no warning: a decision not signed by a developer
-key, a source file governed by two nodes or by none, a section of the idea no
-node names, a contract none of whose examples Lean evaluates.
+node is gone, and there is no warning: no developer key, or a decision not
+signed by one; a source file governed by two nodes or by none, or a governed
+file that does not exist; a section of the idea no node names, or one a node
+names that the idea lacks; a proof file of no node; a contract none of whose
+examples Lean evaluates; a node that only restates its part.
 
 Committed: the Scala, `IDEA.md`, `.frflow/` (ledger, keys, requests) and
 `lean/Proofs`; the rest is derived. CI runs `ci`, caching `.frflow/checks.json`

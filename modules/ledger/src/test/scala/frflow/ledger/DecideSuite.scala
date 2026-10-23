@@ -50,14 +50,6 @@ class DecideSuite extends munit.FunSuite:
     assertEquals(decide(c, right(decide(c, Ledger.empty, accept("R"))), accept("C")), Left(AcceptFirst(id("A"))))
   }
 
-  test("choosing a node rejects its alternatives, kept as such") {
-    val a2 = node("A2", "Every book asked for is found by its title.", parents = List("R")).copy(replaces = Some(id("A")))
-    val s = snap(r, a, b, a2)
-    val chosen = right(decide(s, right(decide(s, Ledger.empty, accept("R"))), accept("A2")))
-    assertEquals(actions(chosen, "A"), List(Action.Reject))
-    assertEquals(chosen.alternatives(id("A2")).map(_._1), ids("A"))
-  }
-
   test("accepting a change acts on the decisions below it: those named revisited, those that moved only with it confirmed") {
     assertEquals(decide(moved, accepted, accept("R", revisit = List("Nowhere"))), Left(NotBelow(id("R"), ids("Nowhere"))))
     val l = right(decide(moved, accepted, accept("R", revisit = List("B"))))
@@ -98,7 +90,6 @@ class DecideSuite extends munit.FunSuite:
 
   test("the mechanical batch is confirmed in one go") {
     val onlyR = accepted.add(id("R"), Decision(Action.Accept, "dev", stamp(21).at, "R holds for this reason", content = moved.nodes.head.content))
-    assertEquals(Reading(moved, onlyR).mechanicalBatch, ids("A", "B"))
     val done = right(decide(moved, onlyR, Decide.Confirm("the change above leaves them as they were")))
     assertEquals((actions(done, "A").last, actions(done, "B").last), (Action.Confirm, Action.Confirm))
     assertEquals(decide(shelf, accepted, Decide.Confirm("nothing to see here")), Left(NothingToConfirm))

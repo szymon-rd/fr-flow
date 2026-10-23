@@ -27,7 +27,7 @@ method and how to start a project, `docs/DAG.md` the design.
    formula says exactly that sentence.
 3. **A part is never a restatement.** Say what the domain adds (a concept, a
    mechanism, a rule), or attach the contract to the parent directly.
-4. **2 to 5 parts per parent.** More asks for an intermediate node.
+4. **2 to 5 parts per parent, as a rule.** More asks for an intermediate node.
 5. **The root is stated as exactly**: what users can do and what must never happen.
 6. **Introduce the domain by definitions.** Leave a concept open (`Opaque`,
    `Param`) where the idea is general; fix it with a `Node.definition` where the

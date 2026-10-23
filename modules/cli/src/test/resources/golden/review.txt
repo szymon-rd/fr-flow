@@ -15,13 +15,16 @@ recorded, signed by dev:
 
 What changed since it was accepted (dev, 2026-01-02 10:00)
   statement
-    - A request is admitted on behalf of its token's user exactly when a grant names that user an...
-    + A request is admitted on behalf of the user its token was issued to, exactly when a grant n...
+    - A request is admitted on behalf of its token's user exactly when a grant names that user and
+      the path.
+    + A request is admitted on behalf of the user its token was issued to, exactly when a grant
+      names them and the path.
 
 Decision
   to review: it changed
   what Decide says changed: the developer decides
-  decisions below it (accept --revisit NODE reviews one again; one that moved only with it is con...
+  decisions below it (accept --revisit NODE reviews one again; one that moved only with it is
+    confirmed):
     Memory: Sessions and grants are kept in memory. — holds because: Memory holds as stated
 
 [a]ccept [s]kip [v]iew [q]uit [?]ask: v
@@ -34,13 +37,16 @@ Decision
 
 What changed since it was accepted (dev, 2026-01-02 10:00)
   statement
-    - A request is admitted on behalf of its token's user exactly when a grant names that user an...
-    + A request is admitted on behalf of the user its token was issued to, exactly when a grant n...
+    - A request is admitted on behalf of its token's user exactly when a grant names that user and
+      the path.
+    + A request is admitted on behalf of the user its token was issued to, exactly when a grant
+      names them and the path.
 
 Decision
   to review: it changed
   what Decide says changed: the developer decides
-  decisions below it (accept --revisit NODE reviews one again; one that moved only with it is con...
+  decisions below it (accept --revisit NODE reviews one again; one that moved only with it is
+    confirmed):
     Memory: Sessions and grants are kept in memory. — holds because: Memory holds as stated
 
 Formally (as written in Scala)
@@ -78,7 +84,13 @@ o Expiry  claim  proposed
 
 Decision
   note: its check is open
-  rejected here before: Forever: A session never ends. — because sessions must end: a stolen toke...
+  rejected here before: Forever: A session never ends. — because sessions must end: a stolen token
+    would work forever
+
+Formally (as written in Scala)
+  formula:
+    forall((t: Token, now: Instant) => sessions(t, now).isDefined == (issued(t).exists(at =>
+      now.isBefore(at.plus(hour)))))
 
 [a]ccept [r]eject [s]kip [v]iew [q]uit [?]ask: a
 Why Expiry? an hour bounds a stolen token

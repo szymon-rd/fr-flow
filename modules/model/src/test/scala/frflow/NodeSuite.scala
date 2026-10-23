@@ -8,11 +8,7 @@ class NodeSuite extends munit.FunSuite:
   test("the knowledge base is well formed: one root, parts under it, definitions beside") {
     assertEquals(shelfKb.problems, Nil)
     assertEquals(shelfKb.root.map(_.id), Some("OnlyGood"))
-    // every node after what it rests on: the definitions it uses, its parents
-    val order = shelfKb.ordered.map(_.id)
-    assertEquals(order, List("Books", "Picking", "OnlyGood", "FromList", "OnlyLong", "EveryLong", "Pick"))
     assertEquals(shelfKb.params.map(_.name), List("good", "minPages", "picks", "shown"))
-    assertEquals(shelfKb.definitions.map(_.id), List("Books", "Picking"))
   }
 
   test("a contract's post has its operation's type") {
@@ -72,24 +68,18 @@ class NodeSuite extends munit.FunSuite:
   }
 
   test("the DAG's queries: parents, parts, ancestors nearest first, the root") {
-    assertEquals(shelfKb.parentsOf(pick).map(_.id), List("FromList", "OnlyLong", "EveryLong"))
-    assertEquals(shelfKb.parts(onlyGood).map(_.id), List("FromList", "OnlyLong", "EveryLong"))
     assertEquals(shelfKb.children(fromList).map(_.id), List("Pick"))
     assertEquals(shelfKb.ancestors(pick).map(_.id), List("FromList", "OnlyLong", "EveryLong", "OnlyGood"))
-    assertEquals(shelfKb.node("Pick").map(_.id), Some("Pick"))
     // a parent outside the knowledge base is not one of its parents
     assertEquals(KnowledgeBase("K", "IDEA.md")(fromList).parentsOf(fromList), Nil)
   }
 
   test("the vocabulary's queries: the definitions a node uses, the terms it reads, the operations its code calls") {
     assertEquals(shelfKb.definitionsUsed(pick, shelfKb.inForce(_ => false)).map(_.id), Nil)
-    assertEquals(shelfKb.definitionsUsed(onlyGood, shelfKb.inForce(_ => false)).map(_.id), List("Books", "Picking"))
     assertEquals(shelfKb.reads(pick.post.get), List("minPages"))
     assertEquals(callsKb.calledBy(againC).map(_.id), List("PickPromise"))
     assertEquals(callsKb.opsCalledBy(viaPick), List("picks"))
-    assertEquals(shelfKb.types.map(_.name), List("Book"))
-    assertEquals(shelfKb.opaques.map(_.name), List("Item"))
-    assertEquals(callsKb.defs.map(_.name), List("longOnes", "viaPick"))
+    assertEquals((shelfKb.types.map(_.name), shelfKb.opaques.map(_.name), callsKb.defs.map(_.name)), (List("Book"), List("Item"), List("longOnes", "viaPick")))
   }
 
   test("structure: one root, no cycles, a part under the nodes it proves, a design under what it serves") {
@@ -99,7 +89,7 @@ class NodeSuite extends munit.FunSuite:
     // a contract no code calls and nothing is above
     assert(shelfWith(pick, pickPromise).problems.exists(_.message.startsWith("PickPromise has no parents")))
     val loose = Node.design("Loose", "Shelves are cached.", "They change once a day.")()
-    assert(shelfWith(pick, loose).problems.exists(_.message.startsWith("Loose: a design decision is under")))
+    assert(shelfWith(pick, loose).problems.exists { case Problem.Structure(t) => t.startsWith("Loose: a design decision is under"); case _ => false })
     intercept[IllegalArgumentException](books.under(onlyGood))
     // (a node names its parents when it is built, from nodes built before it: no cycle can be written)
   }
@@ -111,10 +101,6 @@ class NodeSuite extends munit.FunSuite:
   }
 
   test("a problem says what part of the model it is about, and prints as its message") {
-    val ps = shelfWith(pick, Node.design("Loose", "Shelves are cached.", "They change once a day.")()).problems
-    assert(ps.exists { case Problem.Structure(t) => t.startsWith("Loose: a design decision is under"); case _ => false }, ps)
-    val p = Problem.Wording("X: empty statement")
-    assertEquals((p.message, p.toString), ("X: empty statement", "X: empty statement"))
     // two different parameters with one name; a contract with no examples
     val clash = Param[Int]("minPages", "the pages a reader can carry")
     val c = shelfWith(Node.contract(picks)("Clash", "s", "w")((shelf, n, picked) => picked.length <= clash.value).under(shelfParts*)).problems

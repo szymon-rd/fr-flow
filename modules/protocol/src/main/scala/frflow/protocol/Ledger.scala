@@ -43,9 +43,11 @@ final case class Ledger(decisions: Map[NodeId, List[Decision]]):
     history(id).filter(_.action == Action.Accept).flatMap(_.rejected).distinct
       .flatMap(r => history(r).reverse.find(_.action == Action.Reject).map(d => r -> d.content))
 
-  def rejectedUnder(parent: NodeId): List[(NodeId, Content, String)] =
-    decisions.toList.sortBy(_._1).flatMap((id, ds) => ds.lastOption.filter(d => d.action == Action.Reject &&
-      d.content.parents.contains(parent)).map(d => (id, d.content, d.reason)))
+  def rejectedUnder(parent: NodeId): List[(NodeId, Content, String)] = rejectedByParent.getOrElse(parent, Nil)
+  // Once per ledger: a view asks it of every node's parents.
+  private lazy val rejectedByParent: Map[NodeId, List[(NodeId, Content, String)]] =
+    decisions.toList.sortBy(_._1).flatMap((id, ds) => ds.lastOption.filter(_.action == Action.Reject).toList
+      .flatMap(d => d.content.parents.distinct.map(_ -> (id, d.content, d.reason)))).groupMap(_._1)(_._2)
 
   /** Every decision, newest first. */
   def all: List[(NodeId, Decision)] = decisions.toList.flatMap((id, ds) => ds.map(id -> _)).sortBy(_._2.at).reverse
