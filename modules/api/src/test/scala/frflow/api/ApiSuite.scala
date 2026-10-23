@@ -1,14 +1,11 @@
 package frflow.api
 
-import frflow.ledger.{ForAgent, Stamp}
+import frflow.ledger.ForAgent
 import frflow.protocol.*
-import java.time.Instant
 
 class ApiSuite extends munit.FunSuite:
   private val v = Sample.view()
   private def id(s: String) = NodeId(s)
-  private val dev = Developer(Sample.by)
-  private val at = Stamp(Instant.parse("2026-01-04T12:00:00Z"))
 
   test("a line diff aligns the lines, and folds a run that did not change") {
     val before = (1 to 8).map(i => s"line $i").mkString("\n")
@@ -53,24 +50,13 @@ class ApiSuite extends munit.FunSuite:
   }
 
   test("the tree: a shared part drawn once, under its first parent, and referred to under the others") {
-    val t = Trees.of(v, None, Overview.of(v)).toOption.get
+    val t = Trees.of(v, None).toOption.get
     val root = t.main.head
     assertEquals(root.children.map(_.node.id), List(id("NeedsGrant"), id("LetsIn"), id("Expiry"), id("Forever")))
     assertEquals(root.children.head.children.map(_.node.id), List(id("Decide")))
     assertEquals(root.children(1).seeAlso, List(id("Decide")))
     assertEquals((t.assumptions.map(_.node.id), t.definitions.map(_.node.id)), (List(id("StoreKeeps")), List(id("Identities"))))
-    assert(Trees.of(v, Some(id("Nope")), Overview.of(v)).isLeft)
+    assert(Trees.of(v, Some(id("Nope"))).isLeft)
     // From a node, a part is drawn under a parent among those drawn, not referred to one outside.
-    assertEquals(Trees.of(v, Some(id("LetsIn")), Overview.of(v)).map(_.main.head.children.map(_.node.id)), Right(List(id("Decide"))))
-  }
-
-  test("deciding: accept parents first, all or none; the mechanical batch") {
-    val l = Sample.ledgerNow
-    def decide(d: Decide) = frflow.ledger.Decide(v.snapshot, l, d, dev.name, at)
-    val both = decide(Decide.Accept(List(id("Expiry"), id("Root")), "an hour bounds a stolen token"))
-    assertEquals(both.map(after => frflow.ledger.Decide.added(v.snapshot, l, after).map((n, d) => n -> d.action)),
-      Right(List(id("Root") -> Action.Confirm, id("Expiry") -> Action.Accept)))
-    assert(decide(Decide.Accept(List(id("Expiry")), "an hour bounds a stolen token")).left.exists(_.message.contains("accept Root first")))
-    val batch = decide(Decide.Confirm("the new parts are proven to make it"))
-    assertEquals(batch.map(after => frflow.ledger.Decide.added(v.snapshot, l, after).map(_._1)), Right(List(id("Root"))))
+    assertEquals(Trees.of(v, Some(id("LetsIn"))).map(_.main.head.children.map(_.node.id)), Right(List(id("Decide"))))
   }

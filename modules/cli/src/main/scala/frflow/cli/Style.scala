@@ -2,9 +2,7 @@ package frflow.cli
 
 import frflow.protocol.{CheckStatus, ReviewState, Reviewed}
 
-/** How text looks: ANSI colors and Unicode on a terminal, plain ASCII otherwise; and how wide a line may
-  * be (none: as long as it is, for agents and files). Rendering builds plain strings through it.
-  */
+/** ANSI colors and Unicode on a terminal, plain ASCII otherwise; `width` none: lines as long as they are. */
 final case class Style(color: Boolean, unicode: Boolean, width: Option[Int]):
   private def ansi(code: String)(s: String) = if color && s.nonEmpty then s"\u001b[${code}m$s\u001b[0m" else s
   def bold(s: String): String = ansi("1")(s)
@@ -14,26 +12,15 @@ final case class Style(color: Boolean, unicode: Boolean, width: Option[Int]):
   def yellow(s: String): String = ansi("33")(s)
   def magenta(s: String): String = ansi("35")(s)
   def cyan(s: String): String = ansi("36")(s)
-  def heading(s: String): String = bold(s)
 
   private def pick(u: String, a: String) = if unicode then u else a
-  def ellipsis: String = pick("…", "...")
-  def bullet: String = pick("•", "-")
-  def follows: String = pick("↳", "->")
-  def see: String = pick("⇢", "->")
-  def dot: String = pick("·", "-")
-  def rule: String = pick("───", "---")
-  def tee: String = pick("├─ ", "|- ")
-  def last: String = pick("└─ ", "`- ")
-  def bar: String = pick("│  ", "|  ")
-
+  val (ellipsis, bullet, follows, see, dot, rule, tee, last, bar) =
+    if unicode then ("…", "•", "↳", "⇢", "·", "───", "├─ ", "└─ ", "│  ") else ("...", "-", "->", "->", "-", "---", "|- ", "`- ", "|  ")
   def proven: String = green(pick("✓", "+"))
   def open: String = yellow(pick("○", "o"))
   def failed: String = red(pick("✗", "x"))
 
-  /** A node's check status as one glyph: ✓ proven (nothing of it unproven), ○ open, ✗ failed (or an example
-    * failing), … waiting, ? unchecked; · no check (a definition, a design decision).
-    */
+  /** ✓ proven (nothing of it unproven), ○ open, ✗ failed (or an example failing), … waiting, ? unchecked, · no check. */
   def glyph(r: Reviewed): String =
     val (ok, total) = r.node.examplesPassing
     r.node.status match
@@ -61,10 +48,7 @@ final case class Style(color: Boolean, unicode: Boolean, width: Option[Int]):
       }
       kept.mkString.stripTrailing + ellipsis + (if color then "\u001b[0m" else "")
 
-  /** `s` cut to the width, less `indent`; as it is without a width. */
   def fit(s: String, indent: Int = 0): String = width.fold(s)(w => cut(s, (w - indent).max(12)))
-
-  /** `s` in lines of at most `room` characters, broken between words. */
   def wrap(s: String, room: Int): List[String] =
     if room <= 0 then List(s)
     else s.split("\\s+").filter(_.nonEmpty).foldLeft(List.empty[String]) {
@@ -74,9 +58,36 @@ final case class Style(color: Boolean, unicode: Boolean, width: Option[Int]):
     }.reverse
 
 object Style:
-  val plain: Style = Style(color = false, unicode = false, width = None)
   private val Ansi = "\u001b\\[[0-9;]*m".r
   private val Token = "(?s)\u001b\\[[0-9;]*m|.".r
-  /** How wide `s` shows: without its ANSI codes. */
-  def visible(s: String): Int = Ansi.replaceAllIn(s, "").length
+  def visible(s: String): Int = strip(s).length
   def strip(s: String): String = Ansi.replaceAllIn(s, "")
+
+/** The pieces views are made of: a section, wrapped prose, and a node in one line. */
+object Lines:
+  /** Nothing when it has no lines. */
+  def section(title: String, body: List[String], st: Style): List[String] =
+    if body.isEmpty then Nil else "" :: st.bold(title) :: body.map("  " + _)
+
+  /** Wrapped to the width (less `indent`), its later lines indented by `hang`. */
+  def para(text: String, st: Style, indent: Int = 2, hang: Int = 2): List[String] =
+    st.width.fold(List(text)) { w =>
+      st.wrap(text, w - indent - hang) match
+        case first :: rest => first :: rest.map(" " * hang + _)
+        case Nil => Nil
+    }
+
+  def state(r: Reviewed): String =
+    if r.state == ReviewState.Review then s"review: ${r.review.causes.mkString(", ")}" else r.state.toString
+
+  /** Its kind unless a claim, its review state unless accepted. */
+  def marks(r: Reviewed, st: Style, asked: Boolean = false): String =
+    val kind = Option.when(r.node.shownKind != "claim")(st.dim(r.node.shownKind))
+    val review = Option.when(r.state != ReviewState.Accepted)(st.state(r.state, state(r)))
+    (kind.toList ++ review ++ Option.when(asked)(st.magenta("asked"))).map("  " + _).mkString
+
+  def statement(r: Reviewed): String = r.node.content.statement.replaceAll("\\s+", " ").trim
+
+  /** Its status, id, marks and statement, cut to the width (less `indent`). */
+  def node(r: Reviewed, st: Style, indent: Int = 2, extra: String = ""): String =
+    st.fit(s"${st.glyph(r)} ${st.bold(r.id.value)}${marks(r, st)}$extra  ${statement(r)}", indent)
