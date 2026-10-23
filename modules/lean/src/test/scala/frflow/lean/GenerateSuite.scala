@@ -38,6 +38,25 @@ class GenerateSuite extends munit.FunSuite:
     assertEquals(g.leaves(onlyGood).map(_.id), List("Pick"))
   }
 
+  test("a part may only say one conjunct of its parent again: tried when the parent has as many conjuncts as parts") {
+    assertEquals(LeanText.conjuncts("(((∀ x, A x) ∧ (B ∧ C)) ∧ f y z)"), List("(∀ x, A x)", "B", "C", "f y z"))
+    // a binder, an arrow or a disjunction binds wider than `∧`; a string's text is not cut
+    assertEquals(LeanText.conjuncts("(∀ x, A x ∧ B x)"), List("(∀ x, A x ∧ B x)"))
+    assertEquals(LeanText.conjuncts("(a → b ∧ c)"), List("(a → b ∧ c)"))
+    assertEquals(LeanText.conjuncts("(a ∨ b ∧ c)"), List("(a ∨ b ∧ c)"))
+    assertEquals(LeanText.conjuncts("(f \"x ∧ y\")"), List("(f \"x ∧ y\")"))
+    val h = Generate(handedOutKb(fromShelfAgain, hundredPages))
+    assertEquals(h.tries(handedOut).map(_.obligation.name.lean), List("needed_FromShelfAgain", "needed_HundredPages",
+      "restates_1_FromShelfAgain", "restates_2_FromShelfAgain", "restates_1_HundredPages", "restates_2_HundredPages", "clash", "unsat"))
+    val t = h.tries(handedOut).find(_.obligation.name.lean == "restates_2_HundredPages").get
+    assert(t.obligation.statement.endsWith("((HandedOut.HundredPages.claim picks) ↔ (HandedOut.HandedOut.conjunct_2 picks HandedOut.worthy))"), t.obligation.statement)
+    assertEquals(t.means, "HundredPages says what conjunct 2 of HandedOut says: fold it into HandedOut, or say what HundredPages adds")
+    assert(h.spec(handedOut).contains("def conjunct_2 (picks : ((List Book) → Int → (List Book))) (worthy : (Book → Prop)) : Prop"), h.spec(handedOut))
+    // as many conjuncts as parts only: a third part, or a claim that is no conjunction, tries none
+    assert(!Generate(handedOutKb(fromShelfAgain, hundredPages, twoHundredPages)).tries(handedOut).exists(_.obligation.name.lean.startsWith("restates")))
+    assert(!g.tries(onlyGood).exists(_.obligation.name.lean.startsWith("restates")))
+  }
+
   test("a definition with an alternative: both stay, as alternatives, and what uses the term waits for the choice") {
     val thick = Node.definition("Thick", "A book is good when it is thick.", why = "Readers want long reads.")(good := ((b: Book) => b.pages >= 500))
     val kb = shelfWith(pick, thick)

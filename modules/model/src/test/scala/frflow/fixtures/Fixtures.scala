@@ -191,3 +191,21 @@ val keptOnce = define { (shelf: List[Book], picked: List[Book]) =>
   picked.filter(b => there.contains(b))
 }
 val keepKb = KnowledgeBase("Keep", idea = "IDEA.md")(keptOnShelf, keep).implementProven(keep)(keptOnce)
+
+/** A root of two conjuncts in general terms, and parts that each say one of them again with the definition applied
+  * (folded), or say more than it (refined).
+  */
+val worthy = Param[Book => Boolean]("worthy", "whether a book is worth handing out")
+val worth = Node.definition("Worth", "A book is worth handing out when it has at least 100 pages.", why = "Readers asked for long books.")(
+  worthy := ((b: Book) => b.pages >= 100))
+val handedOut = Node.claim("HandedOut", "Picked books come from the shelf and are worth handing out.", why = "What the shelf hands out.")(
+  forall((l: List[Book], n: Int) => picks(l, n).forall(b => l.contains(b))) && forall((l: List[Book], n: Int) => picks(l, n).forall(b => worthy(b))))
+val fromShelfAgain = Node.claim("FromShelfAgain", "Every picked book is on the shelf.", why = "w")(
+  forall((l: List[Book], n: Int) => picks(l, n).forall(b => l.contains(b)))).under(handedOut)
+val hundredPages = Node.claim("HundredPages", "Every picked book has at least 100 pages.", why = "w")(
+  forall((l: List[Book], n: Int) => picks(l, n).forall(b => b.pages >= 100))).under(handedOut)
+val fromShelfOnce = Node.claim("FromShelfOnce", "Picked books come from the shelf, and no more are picked than it holds.", why = "w")(
+  forall((l: List[Book], n: Int) => picks(l, n).forall(b => l.contains(b)) && picks(l, n).length <= l.length)).under(handedOut)
+val twoHundredPages = Node.claim("TwoHundredPages", "Every picked book has at least 200 pages.", why = "w")(
+  forall((l: List[Book], n: Int) => picks(l, n).forall(b => b.pages >= 200))).under(handedOut)
+def handedOutKb(parts: Node[?]*): KnowledgeBase = KnowledgeBase("HandedOut", idea = "IDEA.md")((handedOut +: worth +: parts)*)

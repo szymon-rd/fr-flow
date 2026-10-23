@@ -50,6 +50,7 @@ object ObligationName:
     case TryKind.Unsat            => "unsat"
     case TryKind.Idle             => "idle"
     case TryKind.VacuousExpect(i) => s"vacuous_expect_$i"
+    case TryKind.RestatesConjunct(p, i) => s"restates_${i}_$p"
 
   private val fixed: Map[String, ObligationName] =
     (List(Complete, Feasible, Impl, Check, RootImpl) ++
@@ -58,9 +59,11 @@ object ObligationName:
     "vacuous_expect" -> (i => Tried(TryKind.VacuousExpect(i))), "evalImpl" -> EvalImpl.apply, "probe" -> Probe.apply, "probeImpl" -> ProbeImpl.apply)
   private val Indexed = s"(${indexed.keys.mkString("|")})_(\\d{1,9})".r
   private val OfNode = """(cover|needed)_(.+)""".r
+  private val Conjunct = """restates_(\d{1,9})_(.+)""".r
 
   def parse(s: String): Option[ObligationName] = fixed.get(s).orElse(s match
     case Indexed(kind, i)    => indexed.get(kind).map(_(i.toInt))
+    case Conjunct(i, id)     => Some(Tried(TryKind.RestatesConjunct(id, i.toInt)))
     case OfNode("cover", id) => Some(Cover(id))
     case OfNode(_, id)       => Some(Tried(TryKind.Needed(id)))
     case _                   => None)
@@ -71,9 +74,11 @@ object ObligationName:
 final case class Result(name: ObligationName, status: ObligationStatus, detail: String = "") derives Codec.AsObject:
   def isEvaluation: Boolean = name.isEvaluation
   /** Nothing to do about it: an obligation proven, a try that shows nothing wrong, or a limit of what the
-    * node says (doing nothing meets the root, or the node says what its one part says).
+    * node says (doing nothing meets the root, or the node says what its one part says, or a part one of its conjuncts).
     */
-  def fine: Boolean = name == ObligationName.Tried(TryKind.Idle) || name == ObligationName.Tried(TryKind.Restates) || status.fine
+  def fine: Boolean = status.fine || PartialFunction.cond(name) {
+    case ObligationName.Tried(TryKind.Idle | TryKind.Restates | TryKind.RestatesConjunct(_, _)) => true
+  }
 
 /** The outcome of checking one node, against the hash of what the check depends on. */
 final case class NodeCheck(hash: Hash, status: CheckStatus, obligations: List[Result], messages: List[String],

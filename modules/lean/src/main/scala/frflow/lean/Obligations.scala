@@ -86,7 +86,12 @@ final class Obligations(kb: KnowledgeBase, refinement: Refinement, coverage: Cov
           s"${n.id} says what ${p.id} says: merge them, or say what ${n.id} adds"))
       case _ => ps.map(c => tried(TryKind.Needed(c.id), stated(o, hs.filterNot(_._1._1 == s"h_${c.id}").map(_._1), goal),
           s"${n.id} holds without ${c.id}.", s"${c.id} is not needed for ${n.id}"))
-    needed :+ tried(TryKind.Clash, stated(o, hs.map(_._1), "False"), s"The parts of ${n.id} contradict each other.",
+    // A part Lean shows equivalent to one conjunct of its parent only says that conjunct again, in other words.
+    val conjuncts = ps.flatMap(p => conjunctsOf(n).indices.map(_ + 1).map { i =>
+      tried(TryKind.RestatesConjunct(p.id, i), stated(o, Nil, s"(${claim(p)._1} ↔ ${conjunct(n, i)._1})"),
+        s"${p.id} says what conjunct $i of ${n.id} says.", s"${p.id} says what conjunct $i of ${n.id} says: fold it into ${n.id}, or say what ${p.id} adds")
+    })
+    needed ++ conjuncts :+ tried(TryKind.Clash, stated(o, hs.map(_._1), "False"), s"The parts of ${n.id} contradict each other.",
       s"the parts of ${n.id} contradict each other: no world meets them all")
   private def nothings(n: Node[?]): List[(String, String)] =
     claim(n)._2.params.filter(kb.isOp).flatMap(o => LeanType.nothing(paramType(o).getOrElse("")).map(o -> _))

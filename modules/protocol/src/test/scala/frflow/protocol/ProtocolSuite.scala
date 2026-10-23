@@ -41,7 +41,7 @@ class ProtocolSuite extends munit.FunSuite:
     val names = List(ObligationName.Complete, ObligationName.Feasible, ObligationName.Impl, ObligationName.Check, ObligationName.RootImpl,
       ObligationName.Cover("Isolated"), ObligationName.Expect(2), ObligationName.Eval(0), ObligationName.EvalImpl(3), ObligationName.Probe(1),
       ObligationName.ProbeImpl(5)) ++ List(TryKind.Needed("A_b"), TryKind.Vacuous, TryKind.Restates, TryKind.Clash, TryKind.Unsat, TryKind.Idle,
-      TryKind.VacuousExpect(1)).map(ObligationName.Tried(_))
+      TryKind.VacuousExpect(1), TryKind.RestatesConjunct("A_b", 12)).map(ObligationName.Tried(_))
     assertEquals(names.map(n => ObligationName.parse(n.lean)), names.map(Some(_)))
     assertEquals(names.map(_.lean).take(7), List("complete", "feasible", "impl", "check", "root_impl", "cover_Isolated", "expect_2"))
     assertEquals(ObligationName.Tried(TryKind.VacuousExpect(1)).lean, "vacuous_expect_1")

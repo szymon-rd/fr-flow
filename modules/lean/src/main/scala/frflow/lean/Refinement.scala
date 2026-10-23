@@ -86,6 +86,17 @@ final class Refinement(kb: KnowledgeBase, val vocabulary: Vocabulary):
     case (_, Some(p)) => ctx(p) ++ opLeaf(n)
     case _            => n.formula.fold(Ctx.empty)(ctx(_))
   def claim(n: Node[?], env: Env = Map.empty): (String, Ctx) = app(qualified(n, "claim"), claimCtx(n), env)
+  /** A claim's top-level conjuncts (in Lean), when it has as many as its parts, two or more: then a part may only restate
+    * one of them with the definitions applied, which `restates_<i>_<part>` tries. None otherwise.
+    */
+  def conjunctsOf(n: Node[?]): List[String] =
+    (for
+      l <- n.formula if n.rule.isEmpty && n.post.isEmpty && l.params.isEmpty
+      ps <- splitParts(n) if ps.size >= 2
+      cs = LeanText.conjuncts(l.body) if cs.size == ps.size
+    yield cs).getOrElse(Nil)
+  /** Conjunct `i` (from 1) of the claim, applied as the claim is. */
+  def conjunct(n: Node[?], i: Int): (String, Ctx) = app(qualified(n, s"conjunct_$i"), claimCtx(n))
   def hyps(ns: List[Node[?]], env: Env = Map.empty): List[((String, String), Ctx)] =
     ns.map(c => { val (t, o) = claim(c, env); ((s"h_${c.id}", t), o) })
   def splitOpens(n: Node[?], parts: List[Node[?]]): Ctx = claim(n)._2 ++ Ctx.all(hyps(parts).map(_._2))

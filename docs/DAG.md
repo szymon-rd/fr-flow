@@ -7,13 +7,19 @@ change that needs to depart from it says so in its commit message and in this fi
 
 1. **One root.** A knowledge base has exactly one root: the idea's purpose, in one sentence, stated
    as *exactly* (what users can do and what must never happen, together), so that a system that does
-   nothing does not meet it.
+   nothing does not meet it. Where the purpose has one, the root is one relation (`==`, "exactly
+   when") between what users observe and what their requests entitle them to, defined over the
+   history of requests; a part proves that the state mirrors the history (keycloak's
+   `SessionsMirrorSignIns`). A conjunction at the root asks for a better observable.
 2. **A tree of refinements, as a DAG.** Every other node refines the nodes above it, and may refine
    several. Every edge is proven and every node is decided: a knowledge base of why the system is as
    it is.
 3. **Granular and understandable.** One node says one thing, in the developer's domain words, in one
-   sentence. A node that only restates its parent is not a node. A formula that packs several
-   independent properties is split into parts. A parent should have 2 to 5 parts.
+   sentence. A node that only restates its parent, or one conjunct of it, is not a node; one that
+   only renames terms is a definition, or folds into its parent. A formula that packs several
+   independent properties is split into parts. A parent should have 2 to 5 parts. The first split
+   is ⇒/⇐ (safety and capability) or state/reads, not one part per conjunct, and the top nodes each
+   name their `IDEA.md` section.
 4. **Domain-driven.** The root speaks in the most general terms (users, applications, access); nodes
    below introduce the domain's concepts (realm, session, token) by decided definitions, as they are
    needed. Each term has one meaning, written in words (`means`), and at most one definition in force.
@@ -92,6 +98,7 @@ For each node N with parts C1..Cn (n ≥ 1), over the union U of the open terms 
 | `needed_C` (n ≥ 2) | tried: `∀ U, (∧ the other parts) → N` | `frflow_auto`, 4000 heartbeats | proven: C is not needed for N; the split is unproven |
 | `vacuous` (n = 1) | tried: `∀ U, N` | as above | proven: N says nothing its part adds; unproven |
 | `restates` (n = 1) | tried: `∀ U, N → C1` | as above | proven (with `complete`): N says what its part says; `status` warns of it |
+| `restates_i_C` (n ≥ 2) | tried, when N's claim is a top-level conjunction of n conjuncts, for each part C and conjunct i: `∀ U, C ↔ conjunct_i` | as above | proven: C says what conjunct i of N says, with the definitions applied; `status` warns of it |
 | `clash` | tried: `∀ U, C1 → … → Cn → False` | as above | proven: the parts contradict each other; failed |
 | `unsat` (every claim) | tried: `∀ U, ¬ N` | as above | proven: no world meets N; failed |
 | `feasible` | `∃ U, C1 ∧ … ∧ Cn` | in the proof file | asked only of an authored `complete` on a node nothing witnesses |
@@ -115,12 +122,12 @@ proven once. The knowledge base gets `theorem root_impl : ∀ U', Assumptions �
 every op with a proven define]`. Its hypotheses are the trusted base, shown by `status`. `impl` is
 proven from the promises of the operations the code calls, never from their code.
 
-Lean modules per node: `Spec` (the claim and statements), `Auto` (`complete`; empty when the proof
-file proves it), `Theorems` (`holds`), `Impl`, `Checks` (the tries, `check`, `cover_X`, `expect_i`,
-`feasible`) and `Eval`; then `RootImpl.lean`. Before them, the vocabulary's: `Types`, a `Def_` or
-`Term_` module per `define` and defined term, and `Domain`, which imports them. Each `Def_`, `Term_`
-and `Spec` ends with `frflow_match_eqns`, so a `match`'s equations are made where it is declared and
-not again in two modules a third imports.
+Lean modules per node: `Spec` (the claim, its `conjunct_i` when `restates_i_C` is tried, and the
+statements), `Auto` (`complete`; empty when the proof file proves it), `Theorems` (`holds`), `Impl`,
+`Checks` (the tries, `check`, `cover_X`, `expect_i`, `feasible`) and `Eval`; then `RootImpl.lean`.
+Before them, the vocabulary's: `Types`, a `Def_` or `Term_` module per `define` and defined term, and
+`Domain`, which imports them. Each `Def_`, `Term_` and `Spec` ends with `frflow_match_eqns`, so a
+`match`'s equations are made where it is declared and not again in two modules a third imports.
 
 Library (`lean/FrFlow/`): `frflow_auto`, `frflow_intro` (binders by their generated names, `h_<Part>`
 for each part), `FrFlow.always`, `simulates`, `tracks` and `tracks_eq`, `run_snoc`, and list lemmas.
