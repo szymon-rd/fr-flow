@@ -1,6 +1,7 @@
 package keycloak
 
 import frflow.*
+import cats.effect.unsafe.implicits.global
 import frflow.check.*
 import java.nio.file.{Files, Paths}
 
@@ -8,8 +9,8 @@ class KeycloakSuite extends munit.FunSuite:
 
   test("the committed ledger accepts every node: none is up for review, none is gone") {
     // As `keycloak/run status` reads it: a change to the content, the hashes or the code fingerprints shows here.
-    val w = Workflow(knowledge, Workspace(Paths.get("examples/keycloak").toAbsolutePath.normalize, "../../../lean"))
-    val annotated = w.annotated
+    val annotated = Workflow(knowledge, Workspace(Paths.get("examples/keycloak").toAbsolutePath.normalize, "../../../lean"))
+      .flatMap(_.analysis).unsafeRunSync().annotated
     val states = annotated.nodes.map(r => r.id.value -> r.state.toString)
     assertEquals(states.size, knowledge.nodes.size)
     assertEquals(states.filter(_._2 != "accepted"), Nil)

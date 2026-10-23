@@ -1,6 +1,7 @@
 package auth
 
 import frflow.*
+import cats.effect.unsafe.implicits.global
 import frflow.check.*
 import java.nio.file.{Files, Paths}
 
@@ -8,8 +9,8 @@ class AuthSuite extends munit.FunSuite:
 
   test("the committed ledger accepts every node: none is up for review, none is gone") {
     // As `auth/run status` reads it: a change to the content, the hashes or the code fingerprints shows here.
-    val w = Workflow(knowledge, Workspace(Paths.get("examples/auth").toAbsolutePath.normalize, "../../../lean"))
-    val annotated = w.annotated
+    val annotated = Workflow(knowledge, Workspace(Paths.get("examples/auth").toAbsolutePath.normalize, "../../../lean"))
+      .flatMap(_.analysis).unsafeRunSync().annotated
     val states = annotated.nodes.map(r => r.id.value -> r.state.toString)
     assertEquals(states.size, knowledge.nodes.size)
     assertEquals(states.filter(_._2 != "accepted"), Nil)
@@ -49,15 +50,15 @@ class AuthSuite extends munit.FunSuite:
   }
 
   test("the knowledge base is proven, from the contract and its code to the root") {
-    val lake = Lake(Paths.get("."))
-    assume(lake.available, "lake is not available")
+    assume(Config.load.flatMap(Lake(Paths.get("."), _)).flatMap(_.available).unsafeRunSync(), "lake is not available")
     // In the example's own workspace, as `auth/run check` checks it: its Lean build and recorded results
     // are reused while current.
     val w = Workflow(knowledge, Workspace(Paths.get("examples/auth").toAbsolutePath.normalize, "../../../lean"))
-    val r = w.check()
+    val checked = w.flatMap(_.check()).unsafeRunSync()
+    val r = checked.results
     assertEquals(r.map((n, c) => n.id -> c.status.toString),
       List("AccessExactly" -> "proven", "TokenNamesHolder" -> "proven", "AccessNeedsGrant" -> "proven", "GrantLetsIn" -> "proven", "DecisionContract" -> "proven"))
     assertEquals(r.head._2.obligations.find(_.name == "root_impl").map(_.status.toString), Some("proven"))
-    assertEquals(w.generate.trusted, Nil)
-    assert(w.context(decisionContract).contains("No user may ever"))
+    assertEquals(checked.after.generate.trusted, Nil)
+    assert(w.flatMap(_.context(decisionContract)).unsafeRunSync().text.contains("No user may ever"))
   }

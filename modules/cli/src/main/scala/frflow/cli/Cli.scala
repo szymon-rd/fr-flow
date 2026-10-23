@@ -4,7 +4,10 @@ package cli
 import frflow.check.*
 import frflow.lean.*
 import frflow.ledger.*
-import frflow.protocol.{CheckStatus, ObligationStatus}
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
+import cats.syntax.all.*
+import frflow.protocol.{CheckStatus, NodeCheck, ObligationStatus}
 import java.nio.file.Paths
 
 /** Command line of a kb, which a project's main object runs through `frflow.cli.FrFlowApp`. */
@@ -28,66 +31,74 @@ object Cli:
   def run(kb: KnowledgeBase, ws: Workspace, args: Seq[String]): Int =
     val problems = kb.problems ++ Generate.problems(kb)
     if problems.nonEmpty then
-      problems.foreach(p => System.err.println(s"error: $p"))
-      return 1
-    val w = Workflow(kb, ws)
-    def node(id: String)(f: Node[?] => Int): Int =
-      kb.node(id).fold { System.err.println(s"unknown node $id"); 1 }(f)
-    args.toList match
+      IO(problems.foreach(p => System.err.println(s"error: $p"))).as(1).unsafeRunSync()
+    else Workflow(kb, ws).flatMap(w => command(kb, ws, w, args.toList)).unsafeRunSync()
+
+  private def err(s: String): IO[Unit] = IO(System.err.println(s))
+  private def out(s: String): IO[Unit] = IO(println(s))
+
+  private def command(kb: KnowledgeBase, ws: Workspace, w: Workflow, args: List[String]): IO[Int] =
+    def node(id: String)(f: Node[?] => IO[Int]): IO[Int] = kb.node(id).fold(err(s"unknown node $id").as(1))(f)
+    def withLake(f: IO[Int]): IO[Int] = w.lake.available.ifM(f, err("lake not found (set FRFLOW_LAKE)").as(3))
+    args match
       case "check" :: rest =>
-        if !Lake(ws.lean).available then { System.err.println("lake not found (set FRFLOW_LAKE)"); return 3 }
-        if rest.headOption.exists(kb.node(_).isEmpty) then { System.err.println(s"unknown node ${rest.head}"); return 1 }
-        val results = w.check(rest.headOption)
-        w.writeSnapshot()
-        var examplesFail = false
-        results.foreach { (n, c) =>
-          // The node's status, with what else is open, and failing examples first: they show the code
-          // (or the contract) is wrong, which no proof fixes.
-          val open = c.obligations.filter(r => !r.isEvaluation && !r.fine)
-          println(s"${n.id}: ${c.status}${if c.status == CheckStatus.Proven && open.nonEmpty then s" (not proven: ${open.map(_.name).mkString(", ")})" else ""}")
-          val failing = kb.exampleResults(n).filter(r => r.contract != "ok" || r.implementation.exists(_ != "ok"))
-          if failing.nonEmpty then
-            examplesFail = true
-            println(s"  ${failing.size} example(s) fail: the code or the contract is wrong; fix that, not the proof")
-            failing.take(5).foreach(r => println(s"    ${r.example.describe}: ${r.verdict}"))
-          // `idle` is not an obligation: proven, it says the root is met by doing nothing.
-          c.obligations.filter(r => !r.fine).foreach(r => println(s"  ${r.status} ${r.name}: ${r.detail.linesIterator.mkString("\n    ")}"))
-          c.obligations.filter(r => r.name == "idle" && r.status == ObligationStatus.Idle).foreach(r => println(
-            s"  ! doing nothing meets it (${r.detail}): state what users can do, so it says exactly what the system does (status fails until then)"))
-          // With an example failing, the node may be false: no hint to prove it.
-          c.messages.filterNot(m => failing.nonEmpty && m.startsWith("prove it in")).foreach(m => println(s"  ! ${m.linesIterator.mkString("\n    ")}"))
-        }
-        println()
-        print(w.status._1)
-        if results.forall(_._2.status == CheckStatus.Proven) && !examplesFail then 0 else 1
+        withLake(rest.headOption.filter(kb.node(_).isEmpty).fold(
+          for
+            checked <- w.check(rest.headOption)
+            _ <- w.writeSnapshot(checked.after)
+            failing <- checked.results.traverse((n, c) => out(checkText(kb, n, c)).as(failingExamples(kb, n).nonEmpty))
+            _ <- out("")
+            _ <- IO(print(Status.text(Status.of(checked.after))))
+          yield if checked.allProven && !failing.contains(true) then 0 else 1
+        )(id => err(s"unknown node $id").as(1)))
       case "ci" :: Nil =>
-        // What CI runs: check (a node whose formal parts did not change keeps its result), then status.
-        if !Lake(ws.lean).available then { System.err.println("lake not found (set FRFLOW_LAKE)"); return 3 }
-        val results = w.check()
-        results.filter(_._2.status != CheckStatus.Proven).foreach((n, c) => println(s"${n.id}: ${c.status}"))
-        val (text, ok) = w.status
-        print(text)
-        if ok && results.forall(_._2.status == CheckStatus.Proven) then 0 else 1
+        withLake(w.ci.flatMap { ci =>
+          ci.checked.results.filter(_._2.status != CheckStatus.Proven).traverse_((n, c) => out(s"${n.id}: ${c.status}")) *>
+            IO(print(Status.text(ci.status))).as(if ci.ok then 0 else 1)
+        })
       case "render" :: Nil =>
-        val changed = w.render()
-        println(s"rendered ${changed.size} changed file(s); wrote ${ws.root.relativize(w.writeSnapshot())}")
-        0
+        for
+          a <- w.analysis
+          changed <- w.render(a)
+          file <- w.writeSnapshot(a)
+          _ <- out(s"rendered ${changed.size} changed file(s); wrote ${ws.root.relativize(file)}")
+        yield 0
       // The snapshot is written too, so it shows what status says.
-      case "status" :: Nil => w.writeSnapshot(); val (text, ok) = w.status; print(text); if ok then 0 else 1
-      case "inbox" :: Nil => println(Reports.inbox(Some(w.annotated), w.requests)); 0
-      case "context" :: id :: Nil => node(id) { n => print(w.context(n)); 0 }
-      case "find" :: query if query.nonEmpty => println(Reports.find(w.annotated, query.mkString(" "))); 0
+      case "status" :: Nil =>
+        w.analysis.flatMap(a => w.writeSnapshot(a) *> IO(Status.of(a)).flatMap(s => IO(print(Status.text(s))).as(if s.ok then 0 else 1)))
+      case "inbox" :: Nil => (w.analysis, w.openRequests).parTupled.flatMap((a, rs) => out(Reports.inbox(Some(a.annotated), rs))).as(0)
+      case "context" :: id :: Nil => node(id)(n => w.context(n).flatMap(c => IO(print(c.text))).as(0))
+      case "find" :: query if query.nonEmpty => w.analysis.flatMap(a => out(Reports.find(a.annotated, query.mkString(" ")))).as(0)
       case "scaffold" :: id :: Nil =>
         node(id) { n =>
-          println(if w.scaffold(n) then s"created lean/${w.generate.proofsPath(n.id)}" else "nothing to create")
-          w.writeSnapshot()
-          0
+          w.scaffold(n).flatMap(f => out(f.fold("nothing to create")(f => s"created $f"))) *> w.writeSnapshot.as(0)
         }
       case "answer" :: to :: text if text.nonEmpty =>
-        RequestStore.answer(ws.requestsFile, to, text.mkString(" "), kb.node(_).isDefined, java.time.Instant.now) match
-          case Right(id) => println(s"answered $id"); 0
-          case Left(e) => System.err.println(e); 1
-      case _ => System.err.println(usage); 2
+        IO.realTimeInstant.flatMap(now => IO.blocking(RequestStore.answer(ws.requestsFile, to, text.mkString(" "), kb.node(_).isDefined, now))).flatMap {
+          case Right(id) => out(s"answered $id").as(0)
+          case Left(e) => err(e).as(1)
+        }
+      case _ => err(usage).as(2)
+
+  private def failingExamples(kb: KnowledgeBase, n: Node[?]) =
+    kb.exampleResults(n).filter(r => r.contract != "ok" || r.implementation.exists(_ != "ok"))
+
+  /** A node's check: its status, with what else is open, and failing examples first: they show the code
+    * (or the contract) is wrong, which no proof fixes.
+    */
+  private def checkText(kb: KnowledgeBase, n: Node[?], c: NodeCheck): String =
+    val open = c.obligations.filter(r => !r.isEvaluation && !r.fine)
+    val failing = failingExamples(kb, n)
+    (List(s"${n.id}: ${c.status}${if c.status == CheckStatus.Proven && open.nonEmpty then s" (not proven: ${open.map(_.name).mkString(", ")})" else ""}") ++
+      (if failing.isEmpty then Nil
+       else s"  ${failing.size} example(s) fail: the code or the contract is wrong; fix that, not the proof" ::
+         failing.take(5).map(r => s"    ${r.example.describe}: ${r.verdict}")) ++
+      // `idle` is not an obligation: proven, it says the root is met by doing nothing.
+      c.obligations.filter(r => !r.fine).map(r => s"  ${r.status} ${r.name}: ${r.detail.linesIterator.mkString("\n    ")}") ++
+      c.obligations.filter(r => r.name == "idle" && r.status == ObligationStatus.Idle).map(r =>
+        s"  ! doing nothing meets it (${r.detail}): state what users can do, so it says exactly what the system does (status fails until then)") ++
+      // With an example failing, the node may be false: no hint to prove it.
+      c.messages.filterNot(m => failing.nonEmpty && m.startsWith("prove it in")).map(m => s"  ! ${m.linesIterator.mkString("\n    ")}")).mkString("\n")
 
   /** The workspace at `FRFLOW_ROOT`, or `default`; `kernelPath` is relative to its `lean/`. */
   def workspace(default: String, kernelPath: String): Workspace =
