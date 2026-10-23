@@ -40,5 +40,5 @@ object SessionDb:
   /** A store holding what the requests led to from the accounts loaded at start (for the examples). */
   def replaying(atStart: List[UserAccount], requests: List[AuthRequest]): SessionDb =
     val db = loaded(atStart)
-    requests.foreach(q => db.replaceWith(q, next(db.load(), q)))
+    requests.foreach(q => db.replaceWith(q, next.fn(db.load(), q)))
     db

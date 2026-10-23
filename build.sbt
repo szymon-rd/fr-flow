@@ -15,7 +15,7 @@ val munit = "org.scalameta" %% "munit" % "1.1.1" % Test
 val munitEffect = "org.typelevel" %% "munit-cats-effect" % "2.1.0" % Test
 
 lazy val root = project.in(file("."))
-  .aggregate(model, protocol, lean, ledger, check, api, cli, web, auth, crm) // keycloak: back once migrated to terms
+  .aggregate(model, protocol, lean, ledger, check, api, cli, web, auth, crm, keycloak)
   .settings(publish / skip := true)
 
 def module(name: String, libraries: ModuleID*) = Project(name, file(s"modules/$name"))

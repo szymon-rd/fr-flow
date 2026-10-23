@@ -11,7 +11,7 @@ final class Realms(atStart: List[UserAccount], val db: SessionDb):
   private val introspectSide = knowledge.service(introspectContract)(
     sessionDb.bind(db), seed.bind(atStart), history.bind(db.events()),
     sessions.bind((r: RealmId) => db.load().sessions.filter(_.realm == r)),
-    account.bind((r: RealmId, u: String) => accountOf(db.load().accounts, r, u)))
+    account.bind((r: RealmId, u: String) => accountOf.fn(db.load().accounts, r, u)))
 
   /** One sign-in, sign-out or administrator's change, on the stored state, one at a time: the state
     * stored afterwards.
