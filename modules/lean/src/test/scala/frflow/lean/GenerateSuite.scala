@@ -82,11 +82,11 @@ class GenerateSuite extends munit.FunSuite:
 
   test("proof files may contain only tactic proofs") {
     val ok = Generate(squareKb).proofFile(nonNegative).replace("sorry", "simp")
-    assertEquals(Lean.violations(ok), Nil)
+    assertEquals(ProofRules.violations(ok), Nil)
     val bad = "import Lean\nrun_cmd do pure ()\nset_option debug.skipKernelTC true\nattribute [simp] foo\n#eval 1\ntheorem complete : Obl.complete := by simp\n"
-    assertEquals(Lean.violations(bad).map(_._2).toSet,
+    assertEquals(ProofRules.violations(bad).map(_._2).toSet,
       Set("import", "command run_cmd", "metaprogram", "set_option", "command attribute", "attribute", "command #eval"))
-    assert(Lean.violations("set_option\n  debug.skipKernelTC true\n").nonEmpty)
+    assert(ProofRules.violations("set_option\n  debug.skipKernelTC true\n").nonEmpty)
   }
 
   test("a node is witnessed by proven code, an assumption, or parts that all are; a part nothing proves witnesses nothing") {

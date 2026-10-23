@@ -70,9 +70,6 @@ object Generate:
     */
   val TryHeartbeats = 4000
 
-  /** The first steps of a proof by hand (see `ProofFiles.recipe`). */
-  def recipe(o: ObligationName): List[String] = ProofFiles.recipe(o)
-
   /** What generated Lean cannot hold: a parameter or opaque type with a name it binds itself. */
   def problems(kb: KnowledgeBase): List[String] =
     (kb.params.map(_.name) ++ kb.opaques.map(_.name)).distinct.filter(reserved)
