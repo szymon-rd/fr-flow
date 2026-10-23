@@ -26,30 +26,38 @@ method and how to start a project, `docs/DAG.md` the design.
 2. **One statement per node**, one sentence in the developer's domain words; the
    formula says exactly that sentence.
 3. **A part is never a restatement.** Say what the domain adds (a concept, a
-   mechanism, a rule), or attach the contract to the parent directly.
+   mechanism, a rule), or attach the contract to the parent directly. A node
+   whose only job is to rename terms is a definition, or folds into its parent.
 4. **2 to 5 parts per parent, as a rule.** More asks for an intermediate node.
-5. **The root is stated as exactly**: what users can do and what must never happen.
-6. **Introduce the domain by definitions.** Leave a concept open (`Opaque`,
+5. **The root is stated as exactly**: what users can do and what must never
+   happen, as one relation (`==`, "exactly when") between what users observe and
+   what their requests entitle them to, defined over the history of requests
+   when the purpose has one. A part proves that the state mirrors the history
+   (keycloak's `SessionsMirrorSignIns`). A conjunction at the root asks for a
+   better observable.
+6. **The first split is ⇒/⇐** (safety and capability) **or state/reads**, not
+   one part per conjunct. The top nodes each name their `IDEA.md` section.
+7. **Introduce the domain by definitions.** Leave a concept open (`Opaque`,
    `Param`) where the idea is general; fix it with a `Node.definition` where the
    domain says what it is. Below a type's definition, write parts in its
    concrete terms (a `Param` of `User.T` cannot be applied to a `UserId`).
-7. **`why` carries the theory**: why this step, and what it assumes. Every
+8. **`why` carries the theory**: why this step, and what it assumes. Every
    `Opaque` and `Param` says what it means and where its value comes from.
-8. **Offer real alternatives**: the second `.replaces` the first, its `why` the trade-off.
-9. **Never weaken a node to make a proof go through.** A false split means a
-   part is wrong or missing. If the idea or a decided node is wrong, say so.
-10. **Never edit generated Lean** (`lean/FrFlowGen/`, `lean/FrFlowAudit/`). Lean
+9. **Offer real alternatives**: the second `.replaces` the first, its `why` the trade-off.
+10. **Never weaken a node to make a proof go through.** A false split means a
+    part is wrong or missing. If the idea or a decided node is wrong, say so.
+11. **Never edit generated Lean** (`lean/FrFlowGen/`, `lean/FrFlowAudit/`). Lean
     you write goes only in `lean/Proofs/<KB>/`.
-11. **Every source file is governed by one node**: an implementation, or a
+12. **Every source file is governed by one node**: an implementation, or a
     design node (production wiring, the call to `service`, goes in one).
-12. **Say what is not modelled** (`## Not modelled` in `IDEA.md`), and in your
+13. **Say what is not modelled** (`## Not modelled` in `IDEA.md`), and in your
     `answer` name the waiting nodes that are mechanical.
-13. **Names.** Node ids are unique identifiers, distinct from every type,
+14. **Names.** Node ids are unique identifiers, distinct from every type,
     function and term. A `Param` or `Opaque` named after a Lean word (`decide`,
     `max`, `id`, `holds`, `m`, `x0`, ...) is refused; a val named after a FrFlow
     function (`keeps`, `expect`) hides it. To rename a node, change its id and
     val, and move its proof file.
-14. **Changes.** A change of formula reviews what rests on the node; a change
+15. **Changes.** A change of formula reviews what rests on the node; a change
     to governed code reviews the node (`code`): say why its invariants still hold.
 
 ## The loop
@@ -157,6 +165,7 @@ it shows nothing). Never write in a reason that Lean shows a part needed.
 | `needed_C` shown | the node holds without C | C belongs elsewhere, or another part says too much. Fix the split. |
 | `vacuous` shown (one part) | the node holds whatever its part says | Strengthen the node, or remove it. |
 | `restates` shown (one part) | the node and its part say the same | Merge them, or say what the node adds. |
+| `restates_<i>_<P>` shown | part P says what conjunct i of the node says, with the definitions applied | Fold P into the node, or say what P adds; better, restate the node as one relation. |
 | `clash`, `unsat` shown | the parts contradict each other; no world meets the node | Fix the parts, or the node. |
 | `idle` shown | doing nothing meets the root | State what users can do. |
 | "nothing below proves it" | a claim with no parts | Add the parts or a contract; a fact of the world is an assumption. |
