@@ -66,6 +66,39 @@ object LeanText:
     (types.zipWithIndex.map((t, i) => s"(x$i : $t)").mkString(" "), types.indices.map(i => s"x$i").mkString(" "))
   def byAuto(o: ObligationName): String = s"by\n  unfold Obl.$o\n  frflow_auto"
 
+  /** The top-level conjuncts of a proposition as the translator writes it (each `&&` in parentheses), in order; itself
+    * when it is not a conjunction. It is cut only where nothing but `∧` stands between groups and applications, which is
+    * where Lean cuts it: a binder, an arrow, `∨` or `¬` there keeps the text whole.
+    */
+  def conjuncts(prop: String): List[String] =
+    val t = prop.trim
+    val inner = if enclosed(t) then t.substring(1, t.length - 1).trim else t
+    atAnds(inner) match
+      case ps @ (_ :: _ :: _) if ps.forall(_.nonEmpty) => ps.flatMap(conjuncts)
+      case _ => List(t)
+
+  private val Keywords = Set("fun", "if", "then", "else", "let", "match", "with", "do", "have", "show", "by", "in", "at", "from")
+  /** The depth after each character (brackets of every kind; a string's text is at depth -1, never cut). */
+  private def levels(t: String): IndexedSeq[Int] =
+    var (depth, inString) = (0, false)
+    t.indices.map { i =>
+      val c = t(i)
+      if inString then { if c == '"' && t(i - 1) != '\\' then inString = false; -1 }
+      else if c == '"' then { inString = true; -1 }
+      else
+        if "([{⟨".contains(c) then depth += 1 else if ")]}⟩".contains(c) then depth -= 1
+        depth
+    }
+  private def enclosed(t: String): Boolean = t.startsWith("(") && levels(t).indexWhere(_ == 0) == t.length - 1
+  private def atAnds(t: String): List[String] =
+    val ls = levels(t)
+    val top = t.indices.map(i => if ls(i) == 0 && !")]}⟩".contains(t(i)) then t(i) else ' ').mkString
+    val plain = top.forall(c => c.isLetterOrDigit || c.isWhitespace || "_.'«»∧".contains(c)) && ls.forall(_ >= -1) &&
+      !top.split("[^\\p{L}\\p{N}_'.«»]+").exists(Keywords)
+    val cuts = t.indices.filter(top(_) == '∧').toList
+    if !plain || cuts.isEmpty then List(t)
+    else (-1 :: cuts).zip(cuts :+ t.length).map((from, to) => t.substring(from + 1, to).trim)
+
 /** A Lean type, read back from its text. */
 enum LeanType:
   case Name(n: String)

@@ -144,6 +144,22 @@ class LeanSuite extends munit.FunSuite with TempDirs:
     assert(u.status.toString == "failed" && u.messages.exists(_.contains("no world meets it")), u)
   }
 
+  test("a part that only says one conjunct of its parent again, with the definitions applied, is warned of; one that says more is not") {
+    val folded = workflow(handedOutKb(fromShelfAgain, hundredPages))
+    val root = of(folded.check(), "HandedOut")
+    assertEquals(List("restates_1_FromShelfAgain", "restates_2_FromShelfAgain", "restates_1_HundredPages", "restates_2_HundredPages")
+      .map(result(root, _).map(_.status.toString)), List(Some("shown"), Some("not-shown"), Some("not-shown"), Some("shown")), root.obligations)
+    // a warning, not a failure: the split stays proven
+    assertEquals((root.status.toString, splitOf(folded, handedOut).proven), ("proven", true))
+    assertEquals(folded.analysis.warnings.filter(_.contains("conjunct")), List(
+      "FromShelfAgain says what conjunct 1 of HandedOut says: fold it into HandedOut, or say what FromShelfAgain adds",
+      "HundredPages says what conjunct 2 of HandedOut says: fold it into HandedOut, or say what HundredPages adds"))
+    val refined = workflow(handedOutKb(fromShelfOnce, twoHundredPages))
+    val r = of(refined.check(), "HandedOut")
+    assert(r.status.toString == "proven" && r.obligations.filter(_.name.lean.startsWith("restates_")).map(_.status.toString).distinct == List("not-shown"), r)
+    assertEquals(refined.analysis.warnings.filter(_.contains("conjunct")), Nil)
+  }
+
   test("a root doing nothing meets is unproven: it must say what users can do") {
     val guard = Node.claim("Guard", "A picked item is on the list and good.", why = "w")(
       forall((l: List[Item.T], x: Item.T) => shown(l, x) ==> (l.contains(x) && good(x))))

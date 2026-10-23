@@ -60,6 +60,7 @@ aside { background: var(--panel); border-left: 1px solid var(--line); display: f
 .card .top { display: flex; align-items: center; gap: 6px; }
 .card .id { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card .stmt { color: var(--muted); font-size: 12.5px; margin: 3px 0 5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 37px; }
+.card.whole { height: auto; } .card.whole .stmt { display: block; -webkit-line-clamp: unset; overflow: visible; }
 .chips { display: flex; gap: 4px; flex-wrap: wrap; }
 .card .chips { flex-wrap: nowrap; overflow: hidden; }
 .kind { font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; background: var(--soft); color: var(--muted); flex: none; }
@@ -202,39 +203,86 @@ function chips(r) {
     (n.status && n.status !== "proven" ? `<span class="chip s-${n.status}">${esc(n.status)}</span>` : "") +
     (ex.length ? `<span class="chip ${bad ? "s-bad" : "s-ok"}">examples ${ex.length - bad}/${ex.length}</span>` : "");
 }
-const W = 230, H = 118, GX = 24, GY = 70;
-// Each node under its first parent, as the API's tree draws it; a parent centred over its parts.
+const W = 230, H = 118, GX = 24, GY = 70, WRAP = 3;
+// The root's card is two slots wide when its tree is, and as tall as its whole statement.
+function rootCard(r, wide) {
+  const k = document.createElement("div");
+  k.className = "card whole"; k.style.cssText = `visibility:hidden;left:0;top:0;width:${wide ? 2 * W + GX : W}px`;
+  k.innerHTML = cardBody(r, "root"); document.body.appendChild(k);
+  const h = Math.max(H, k.offsetHeight); k.remove(); return h;
+}
+const cardBody = (r, k) => `<div class="top"><span class="kind ${k}">${esc(k)}</span><span class="id">${esc(r.node.id)}</span></div>
+      <div class="stmt" title="${esc(C(r).statement)}">${esc(C(r).statement)}</div><div class="chips">${chips(r)}</div>`;
+// Each node under its first parent, as the API's tree draws it; a parent centred over its parts. A parent of more than
+// WRAP parts, or whose parts are wider than `room` slots, puts them on two rows, the second under the first's subtrees,
+// so the graph stays about half as wide.
+function layout(t, room = Infinity) {
+  if (!t.children.length) return { w: 1, rows: 1, at: [[t, 0, 0]] };
+  const subs = t.children.map(c => layout(c, room)), total = subs.reduce((a, s) => a + s.w, 0);
+  let bands = [subs];
+  if (subs.length > WRAP || (subs.length > 1 && total > room)) { let acc = 0, k = 0; while (k < subs.length - 1 && acc + subs[k].w / 2 < total / 2) acc += subs[k++].w; k = Math.max(1, k); bands = [subs.slice(0, k), subs.slice(k)]; }
+  const at = [], tops = []; let row = 1, w = 0;
+  for (const band of bands) {
+    let x = 0, rows = 0;
+    for (const s of band) { s.at.forEach(([n, dx, dy]) => at.push([n, x + dx, row + dy])); tops.push(x + s.at[s.at.length - 1][1]); x += s.w; rows = Math.max(rows, s.rows); }
+    w = Math.max(w, x); row += rows;
+  }
+  at.push([t, (Math.min(...tops) + Math.max(...tops)) / 2, 0]);
+  return { w, rows: row, at };
+}
 function renderGraph() {
   const pos = {}, edges = [], also = [], labels = [];
-  let slot = 0;
-  function place(t, d) {
-    t.children.forEach(c => { place(c, d + 1); edges.push([t.node, c.node]); });
-    t.seeAlso.forEach(x => also.push([t.node.node.id, x]));
-    const xs = t.children.map(c => pos[c.node.node.id].x);
-    pos[t.node.node.id] = { x: xs.length ? (xs[0] + xs[xs.length - 1]) / 2 : (slot++) * (W + GX), y: d * (H + GY) };
+  const root = S.tree.main[0]?.node, bottom = () => Math.max(0, ...Object.values(pos).map(p => p.y + p.h));
+  const walk = t => { t.children.forEach(c => { edges.push([t.node, c.node]); walk(c); }); t.seeAlso.forEach(x => also.push([t.node.node.id, x])); };
+  [...S.tree.main, ...S.tree.assumptions, ...S.tree.unparented].forEach(walk);
+  // As many slots as the pane shows at the smallest zoom.
+  const slots = ((($("#wrap").clientWidth - 32) / 0.75) + GX) / (W + GX);
+  const laid = S.tree.main.map(t => layout(t, slots)), widest = Math.max(3, ...laid.map(l => l.w));
+  // A section's trees side by side, on as many lines as it takes to stay as wide as the main tree; its title above it.
+  function section(trees, title) {
+    if (!trees.length) return;
+    let top = Object.keys(pos).length ? bottom() + GY + (title ? 26 : 0) : 0, slot = 0, rows = 0;
+    if (title) labels.push(`<div class="rowlabel" style="left:0;top:${top - 24}px">${esc(title)}</div>`);
+    trees.forEach(t => {
+      const l = layout(t, slots), isRoot = t.node === root, wide = isRoot && l.w >= 2;
+      if (slot > 0 && slot + l.w > widest) { top += rows * (H + GY); slot = 0; rows = 0; }
+      const rootW = wide ? 2 * W + GX : W, rootH = isRoot ? rootCard(root, wide) : H;
+      // Rows below the first start under the root's card, however tall.
+      l.at.forEach(([n, x, y]) => pos[n.node.node.id] = { x: (slot + x) * (W + GX), y: top + y * (H + GY) + (y > 0 ? rootH - H : 0), w: W, h: H });
+      if (isRoot) { const p = pos[root.node.id]; p.x = Math.min(Math.max(slot * (W + GX), p.x + W / 2 - rootW / 2), (slot + l.w) * (W + GX) - GX - rootW); p.w = rootW; p.h = rootH; }
+      slot += l.w + 0.4; rows = Math.max(rows, l.rows);
+    });
   }
-  [...S.tree.main, ...S.tree.assumptions, ...S.tree.unparented].forEach(t => { place(t, 0); slot += 0.4; });
-  const drawn = Object.values(pos), top = (drawn.length ? Math.max(...drawn.map(p => p.y)) + H + GY : 0) + 26;
-  const perRow = Math.max(3, Math.floor((Math.max(0, ...drawn.map(p => p.x + W)) + GX) / (W + GX)));
+  section(S.tree.main, "");
+  section(S.tree.assumptions, "Assumptions, under no parent: trusted (the code calls them)");
+  section(S.tree.unparented, "Under no parent");
+  const top = (Object.keys(pos).length ? bottom() + GY : 0) + 26;
+  const perRow = Math.max(3, Math.floor((Math.max(0, ...Object.values(pos).map(p => p.x + p.w)) + GX) / (W + GX)));
   if (S.tree.definitions.length) labels.push(`<div class="rowlabel" style="left:0;top:${top - 24}px">Definitions: they fix terms of the vocabulary (decided, not proven)</div>`);
-  S.tree.definitions.forEach((t, i) => pos[t.node.node.id] = { x: (i % perRow) * (W + GX), y: top + Math.floor(i / perRow) * (H + 18) });
+  S.tree.definitions.forEach((t, i) => pos[t.node.node.id] = { x: (i % perRow) * (W + GX), y: top + Math.floor(i / perRow) * (H + 18), w: W, h: H });
   const ps = Object.values(pos);
   if (!ps.length) { $("#canvas").innerHTML = `<p class="muted">No nodes.</p>`; return; }
-  const width = Math.max(...ps.map(p => p.x)) + W, height = Math.max(...ps.map(p => p.y)) + H;
-  const curve = (a, b) => { const x1 = a.x + W / 2, y1 = a.y + H, x2 = b.x + W / 2, y2 = b.y, m = (y1 + y2) / 2; return `M${x1},${y1} C${x1},${m} ${x2},${m} ${x2},${y2}`; };
+  const width = Math.max(...ps.map(p => p.x + p.w)), height = Math.max(...ps.map(p => p.y + p.h));
+  // To a part a row down, a curve; to one on a second row, along the left margin and the gaps between rows, so it
+  // crosses no card and no label.
+  const curve = (a, b, part = true) => {
+    const x1 = a.x + a.w / 2, y1 = a.y + a.h, x2 = b.x + b.w / 2, y2 = b.y, m = y2 - GY / 2;
+    if (!part || y2 - y1 <= GY + 1) return `M${x1},${y1} C${x1},${m} ${x2},${m} ${x2},${y2}`;
+    return `M${x1},${y1} V${y1 + GY * 0.55} H${-GX / 2} V${m} H${x2} V${y2}`;
+  };
   let svg = "";
-  for (const [p, c] of edges) {
+  // A design node's grey edge first: where edges share the margin, a proof's colour stays on top.
+  for (const [p, c] of [...edges].sort((x, y) => (y[1].node.kind === "design") - (x[1].node.kind === "design"))) {
     const need = p.node.split?.needed.find(x => x.id === c.node.id);
     const st = c.node.kind === "design" ? "design" : need?.status === "shown" ? "failed" : splitStatus(p.node) || "unchecked";
     svg += `<path class="${st}" d="${curve(pos[p.node.id], pos[c.node.id])}"/>`;
   }
-  for (const [p, c] of also) if (pos[p] && pos[c]) svg += `<path class="also${S.selected === c || S.selected === p ? " on" : ""}" d="${curve(pos[p], pos[c])}"/>`;
+  for (const [p, c] of also) if (pos[p] && pos[c]) svg += `<path class="also${S.selected === c || S.selected === p ? " on" : ""}" d="${curve(pos[p], pos[c], false)}"/>`;
   for (const [id, p] of Object.entries(pos)) { const n = byId(id).node;
-    if (n.split && edges.some(([q]) => q.node.id === id)) labels.push(`<div class="elabel ${splitStatus(n)}" style="left:${p.x + W / 2}px;top:${p.y + H + 18}px">${esc(splitLabel(n))}</div>`); }
-  const cards = Object.entries(pos).map(([id, p]) => { const r = byId(id), k = kindOf(r);
-    return `<div class="card ${r.review.state} ${r.node.kind}${id === S.selected ? " selected" : ""}" data-node="${esc(id)}" style="left:${p.x}px;top:${p.y}px">
-      <div class="top"><span class="kind ${k}">${esc(k)}</span><span class="id">${esc(id)}</span></div>
-      <div class="stmt" title="${esc(C(r).statement)}">${esc(C(r).statement)}</div><div class="chips">${chips(r)}</div></div>`; }).join("");
+    if (n.split && edges.some(([q]) => q.node.id === id)) labels.push(`<div class="elabel ${splitStatus(n)}" style="left:${p.x + p.w / 2}px;top:${p.y + p.h + 18}px">${esc(splitLabel(n))}</div>`); }
+  const cards = Object.entries(pos).map(([id, p]) => { const r = byId(id), k = kindOf(r), whole = id === root?.node.id;
+    return `<div class="card ${r.review.state} ${r.node.kind}${whole ? " whole" : ""}${id === S.selected ? " selected" : ""}" data-node="${esc(id)}" style="left:${p.x}px;top:${p.y}px${whole ? `;width:${p.w}px;height:${p.h}px` : ""}">
+      ${cardBody(r, k)}</div>`; }).join("");
   const c = $("#canvas");
   c.style.width = width + "px"; c.style.height = height + "px";
   // Its widest row fits the pane, down to 75%; wider than that, it scrolls.

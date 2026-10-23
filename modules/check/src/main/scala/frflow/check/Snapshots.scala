@@ -95,9 +95,12 @@ object Governance:
         s"${c.id}: none of its examples is evaluated in Lean, so nothing checks that the Lean means what the Scala does: " +
           "give its parameters values Lean has (bindTable for a lookup)")
     }
-    // A one-part node Lean proves equivalent to its part (`complete` and `restates` both proven) says nothing of its own.
-    val restated = kb.nodes.flatMap(n => a.current(n).filter(_.result(ObligationName.Complete).exists(_.status == Proven))
-      .flatMap(_.result(ObligationName.Tried(TryKind.Restates))).filter(_.status == Shown).map(_.detail))
+    // A one-part node Lean proves equivalent to its part (`complete` and `restates` both proven) says nothing of its own;
+    // a part Lean proves equivalent to one conjunct of its parent says nothing the parent does not.
+    val restated = kb.nodes.flatMap(n => a.current(n).toList.flatMap { c =>
+      c.result(ObligationName.Tried(TryKind.Restates)).filter(r => r.status == Shown && c.result(ObligationName.Complete).exists(_.status == Proven)) ++
+        c.obligations.filter(r => r.status == Shown && PartialFunction.cond(r.name) { case ObligationName.Tried(TryKind.RestatesConjunct(_, _)) => true })
+    }.map(_.detail))
     missing ++ owners ++ ideaCoverage ++ orphans ++ ungoverned(a).map(f => s"$f is governed by no node: govern it (a design node) or move it") ++
       uncrossed ++ restated
 

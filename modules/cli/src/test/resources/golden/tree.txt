@@ -1,4 +1,5 @@
-+ Root  review: parts  A user gets access to a resource exactly when they are signed in and autho...
++ Root  review: parts  A user gets access to a resource exactly when they are signed in and
+|                      authorized for it.
 |- + NeedsGrant  A request is admitted only with a grant for the path.
 |  `- + Decide  contract  review: self  A request is admitted on behalf of the user its token was...
 |     `- - Memory  design  Sessions and grants are kept in memory.

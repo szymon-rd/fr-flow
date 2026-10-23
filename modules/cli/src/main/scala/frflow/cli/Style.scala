@@ -112,6 +112,17 @@ object Lines:
 
   def statement(r: Reviewed): String = r.node.content.statement.replaceAll("\\s+", " ").trim
 
+  /** A statement after `indent` characters, whole: on one line when it fits the width, else a clause a line (cut after
+    * each ";" and before each ", and"), a clause longer than a line wrapped at its words; the later lines start with
+    * `bar` and are indented under the first's text.
+    */
+  def clauses(text: String, st: Style, indent: Int, bar: String = ""): List[String] =
+    st.width.filter(w => indent + Style.visible(text) > w).fold(List(text)) { w =>
+      val room = (w - indent).max(20)
+      val lines = text.split("(?<=;) +|(?<=,) +(?=and )").toList.flatMap(c => if c.length <= room then List(c) else st.wrap(c, room))
+      lines.headOption.toList ++ lines.drop(1).map(l => bar + " " * (indent - Style.visible(bar)).max(0) + l)
+    }
+
   /** Its status, id, marks and statement, cut to the width (less `indent`). */
   def node(r: Reviewed, st: Style, indent: Int = 2, extra: String = ""): String =
     st.fit(s"${st.glyph(r)} ${st.bold(r.id.value)}${marks(r, st)}$extra  ${statement(r)}", indent)

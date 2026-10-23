@@ -81,7 +81,8 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
       val kept = formalKeeps(n).flatMap((inv, v) => inv.rule.toList.map(lifted(s"rule_${inv.id}", _)) :+ lifted(s"view_${inv.id}", v))
       List(lifted("post", post)) ++ kept ++ n.local.map(lifted("runCheck", _)) ++
         List(declared("claim", claimCtx(n), "Prop", everyCall(n, ref(qualified(n, "post"), ctx(post)))))
-    case _ => n.formula.map(lifted("claim", _)).toList
+    case _ => n.formula.map(lifted("claim", _)).toList ++ conjunctsOf(n).zipWithIndex.map((c, i) =>
+      doc(s"Conjunct ${i + 1} of the claim: a part that says only this restates it.") + declared(s"conjunct_${i + 1}", claimCtx(n), "Prop", resolve(c)))
   private def keeps(n: Node[?], c: Node[?], view: Lifted[?], rule: String): String =
     s"(${everyCall(c, s"∀ p ∈ ${ref(qualified(n, s"view_${c.id}"), ctx(view))}", s", $rule p.1 p.2")})"
 
