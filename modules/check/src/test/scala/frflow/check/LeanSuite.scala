@@ -89,7 +89,7 @@ class LeanSuite extends munit.FunSuite:
     val port = of(r, "ShelfPort")
     assertEquals(port.obligations.filter(o => Set("check", "impl")(o.name)).map(o => o.name -> o.status.toString).toSet, Set("check" -> "proven", "impl" -> "proven"))
     // Pick's code is proven from the assumption's promise alone
-    assert(w.generate.obligation(pick, "impl").get.statement.contains("h_ShelfPort"), w.generate.obligation(pick, "impl"))
+    assert(w.generate.obligation(pick, ObligationName.Impl).get.statement.contains("h_ShelfPort"), w.generate.obligation(pick, ObligationName.Impl))
     assertEquals(w.baseSnapshot.trusted, List(NodeId("ShelfPort")))
     // service runs the check, not the post: a book off the shelf passes it, a short book does not
     val off = kb.implement(shelfPort)((shelf, n) => List(Book("Elsewhere", 500)))
@@ -167,7 +167,7 @@ class LeanSuite extends munit.FunSuite:
     val gaveUp = result(of(first, "NonNegative"), "complete").get.detail
     assert(gaveUp.contains("After `unfold Obl.complete; frflow_intro; simp only [frflow_defs] at *`") && gaveUp.contains("h_Squares : ∀ (x : Int), sq x = x * x"), gaveUp)
     assert(w.scaffold(nonNegative))
-    val file = w.ws.lean.resolve(w.generate.proofsPath("NonNegative"))
+    val file = w.ws.lean.resolve(w.generate.layout.proofs("NonNegative").path)
     val stub = Files.readString(file)
     assert(stub.contains("  unfold Obl.complete\n  frflow_intro\n  simp only [frflow_defs] at *\n  /- The goal here") &&
       stub.contains("h_Squares : ∀ (x : Int), sq x = x * x"), stub)
@@ -193,7 +193,7 @@ class LeanSuite extends munit.FunSuite:
     val proven = w.check(Some("NonNegative")).head._2
     assertEquals(st(splitOf(w, nonNegative), "complete"), Some("proven"))
     assertEquals((proven.status.toString, result(proven, "complete").map(_.detail)), ("proven", Some("authored")), proven)
-    assert(!Files.readString(w.ws.lean.resolve(w.generate.autoPath("NonNegative"))).contains("theorem complete"))
+    assert(!Files.readString(w.ws.lean.resolve(w.generate.layout.auto("NonNegative").path)).contains("theorem complete"))
     // a proof of something weaker does not count
     edit(src => src.replaceAll("(?s)theorem complete : Obl.complete := by.*?(?=\ntheorem feasible)", "theorem complete : True := trivial\n"))
     assertEquals(result(w.check(Some("NonNegative")).head._2, "complete").map(_.status.toString), Some("failed"))
@@ -203,8 +203,8 @@ class LeanSuite extends munit.FunSuite:
     val w = workflow(squareKb)
     w.check()
     assert(w.scaffold(nonNegative))
-    val file = w.ws.lean.resolve(w.generate.proofsPath("NonNegative"))
-    val lemmas = w.ws.lean.resolve(w.generate.lemmasPath)
+    val file = w.ws.lean.resolve(w.generate.layout.proofs("NonNegative").path)
+    val lemmas = w.ws.lean.resolve(w.generate.layout.lemmas.path)
     def lemma(body: String) = Files.writeString(lemmas,
       s"import FrFlow\n\nnamespace Square.Lemmas\n\n$body\n\nend Square.Lemmas\n")
     lemma("""theorem sq (x : Int) : 0 ≤ x * x := by
@@ -322,7 +322,7 @@ class LeanSuite extends munit.FunSuite:
     assertEquals(result(bad, "impl").map(_.status.toString), Some("open"))
     // scaffold stubs what is open: the implementation
     assert(w2.scaffold(pick))
-    val src = Files.readString(w2.ws.lean.resolve(w2.generate.proofsPath("Pick")))
+    val src = Files.readString(w2.ws.lean.resolve(w2.generate.layout.proofs("Pick").path))
     assert(src.contains("theorem impl : Obl.impl") && !src.contains("theorem complete"), src)
     val again = w2.check(Some("Pick")).head._2
     assertEquals(result(again, "impl").map(r => (r.status.toString, r.detail)), Some(("open", "uses sorry")), again)
@@ -338,7 +338,7 @@ class LeanSuite extends munit.FunSuite:
     val w = workflow(callsKb)
     val g = w.generate
     assertEquals(g.callees(againC).map(_.id), List("PickPromise"))
-    assert(g.obligation(againC, "impl").exists(_.statement.contains("h_PickPromise")), g.obligations(againC))
+    assert(g.obligation(againC, ObligationName.Impl).exists(_.statement.contains("h_PickPromise")), g.obligations(againC))
     val r = w.check()
     assert(r.forall(_._2.status.toString == "proven"), r)
     assertEquals(result(of(r, "Again"), "impl").map(_.status.toString), Some("proven"))
@@ -354,7 +354,7 @@ class LeanSuite extends munit.FunSuite:
       .implementProven(capped)(cappedOnes).implementProven(longPick)(viaCapped)
     assertEquals(kb.problems, Nil)
     val w = workflow(kb)
-    val impl = w.generate.obligation(longPick, "impl").get.statement
+    val impl = w.generate.obligation(longPick, ObligationName.Impl).get.statement
     // one cap for every call: not a cap per call, which no single function could meet
     assert(impl.contains("(maxPages : Int)") && impl.contains("(h_Capped : (Capped.Capped.claim"), impl)
     val c = of(w.check(), "LongPick")

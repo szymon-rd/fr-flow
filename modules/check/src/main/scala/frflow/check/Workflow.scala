@@ -54,15 +54,16 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   }
 
   /** The obligations proven by a theorem of their name in the node's proof file: (node, obligation). */
-  def proofs: Set[(String, String)] =
+  def proofs: Set[(String, ObligationName)] =
     val base = baseGenerate
     kb.nodes.flatMap { n =>
-      val names = base.obligations(n).map(_.name).toSet + "feasible"
-      read(ws.lean.resolve(base.proofsPath(n.id))).toList.flatMap(src => Lean.theorems(src).map(_.name).filter(names).map(n.id -> _))
+      val names = base.obligations(n).map(_.name).toSet + ObligationName.Feasible
+      read(ws.lean.resolve(base.layout.proofs(n.id).path)).toList.flatMap(src =>
+        Lean.theorems(src).flatMap(t => ObligationName.parse(t.name)).filter(names).map(n.id -> _))
     }.toSet
 
   /** Nodes whose `complete` has an authored proof. */
-  def authored(id: String): Boolean = proofs((id, "complete"))
+  def authored(id: String): Boolean = proofs((id, ObligationName.Complete))
 
   /** The definitions the developer chose (accepted, and not since rejected): among two definitions of a
     * term, the one in force.
@@ -76,7 +77,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     * alternatives: what `generate` and check hashes are cached by.
     */
   private def proofStamp: String =
-    val dir = ws.lean.resolve(baseGenerate.proofsPath("x")).getParent
+    val dir = ws.lean.resolve(baseGenerate.layout.proofs("x").path).getParent
     val files = if !Files.isDirectory(dir) then ""
       else scala.util.Using.resource(Files.list(dir))(_.iterator.asScala.toList).sorted
         .map(f => s"${f.getFileName}:${Files.size(f)}:${Files.getLastModifiedTime(f).toMillis}").mkString(",")
@@ -96,7 +97,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val files = g.files
     val changed = files.toList.sortBy(_._1).collect { case (rel, text) if write(ws.lean.resolve(rel), text) => rel }
     val keep = files.keySet.map(ws.lean.resolve(_).normalize)
-    g.generatedDirs.map(ws.lean.resolve).filter(Files.isDirectory(_)).foreach { d =>
+    g.layout.generatedDirs.map(ws.lean.resolve).filter(Files.isDirectory(_)).foreach { d =>
       Files.walk(d).iterator.asScala.toList.filter(Files.isRegularFile(_)).filterNot(p => keep(p.normalize)).foreach(Files.delete)
     }
     changed
@@ -206,10 +207,10 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   def checkHash(n: Node[?]): Hash =
     val (g, hashes) = cache
     def go(n: Node[?], seen: Set[String]): Hash = hashes.getOrElse(n.id, {
-      val proof = read(ws.lean.resolve(g.proofsPath(n.id)))
+      val proof = read(ws.lean.resolve(g.layout.proofs(n.id).path))
       val h = Hash(sha((Seq(g.spec(n), g.auto(n), g.theorems(n), g.checks(n), g.evalFile(n).getOrElse(""), g.provenImpl(n).fold("")(_ => g.impl(n)),
         if kb.root.exists(_ eq n) then g.rootImpl.fold("")(_._2) else "",
-        proof.getOrElse(""), proof.filter(Lean.lemmaImports(_).nonEmpty).flatMap(_ => read(ws.lean.resolve(g.lemmasPath))).getOrElse(""),
+        proof.getOrElse(""), proof.filter(Lean.lemmaImports(_).nonEmpty).flatMap(_ => read(ws.lean.resolve(g.layout.lemmas.path))).getOrElse(""),
         // The specs of other nodes a proof imports: a change to them re-checks it.
         proof.fold("")(src => s"(?m)^\\s*import\\s+FrFlowGen\\.${java.util.regex.Pattern.quote(kb.name)}\\.(\\w+)\\.Spec".r
           .findAllMatchIn(src).map(_.group(1)).filter(_ != n.id).flatMap(kb.node).filter(g.formal).map(g.spec).mkString),
@@ -258,13 +259,13 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     // The proofs of the code too (each imports only models): one at a time, they were most of a cold
     // check. Each node's own build of it then replays it, with its messages (the axioms it rests on).
     val ready = pending.filter(g.waitsForDefinition(_).isEmpty)
-    batch(ready.map(n => g.specModule(n.id)) ++ ready.filter(g.obligation(_, "impl").isDefined).map(n => g.implModule(n.id)))
+    batch(ready.map(n => g.layout.spec(n.id).name) ++ ready.filter(g.obligation(_, ObligationName.Impl).isDefined).map(n => g.layout.impl(n.id).name))
     val threads = sys.env.get("FRFLOW_THREADS").flatMap(_.toIntOption).getOrElse(Runtime.getRuntime.availableProcessors.min(4)).max(1)
     val pool = java.util.concurrent.Executors.newFixedThreadPool(threads)
     val done = scala.collection.concurrent.TrieMap.empty[String, NodeCheck]
     try todo.groupBy(level(_, Set.empty)).toList.sortBy(_._1).foreach { (_, ns) =>
       // A level's theorems in one build, which Lake runs in parallel (builds are one at a time).
-      batch(ns.filter(n => unchanged(n).isEmpty && g.waitsForDefinition(n).isEmpty).map(n => g.theoremsModule(n.id)))
+      batch(ns.filter(n => unchanged(n).isEmpty && g.waitsForDefinition(n).isEmpty).map(n => g.layout.theorems(n.id).name))
       ns.map { n =>
         val partStatus = kb.parts(n).filter(g.formal).map(p => p.id -> done.get(p.id).orElse(current(p)).map(_.status))
         // A node is proven with its parts: kept as it was only while they all are.
@@ -295,165 +296,155 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     val waits = g.waitsForDefinition(n)
     if waits.nonEmpty then return done(CheckStatus.Waiting, Nil, List(s"waits for the choice between the definitions of ${waits.mkString(", ")} (${waits.flatMap(t => kb.definitionsOf(t).map(_.id)).mkString(", ")})"))
 
-    val spec = build(g.specModule(n.id))
+    val spec = build(g.layout.spec(n.id).name)
     // A timeout is not a broken model: the machine was busy, or Lean slow; it is checked again.
     if timedOut(spec) then return done(CheckStatus.Timeout, Nil, List("Lean timed out building the model (the machine may be busy): run check again"))
     if !spec.ok then return done(CheckStatus.ModelError, Nil, errors(spec))
 
     // Lemmas shared by the proof files: the same filter, built.
-    val proofSrc = read(ws.lean.resolve(g.proofsPath(n.id))).getOrElse("")
+    val proofSrc = read(ws.lean.resolve(g.layout.proofs(n.id).path)).getOrElse("")
     val lemmas = Lean.lemmaImports(proofSrc)
     if lemmas.nonEmpty then
-      if lemmas != List(g.lemmasModule) then return done(CheckStatus.Failed, Nil, List(s"a proof file may import only ${g.lemmasModule}, not ${lemmas.mkString(", ")}"))
-      val lsrc = read(ws.lean.resolve(g.lemmasPath))
-      if lsrc.isEmpty then return done(CheckStatus.Failed, Nil, List(s"the proof imports ${g.lemmasModule}, but lean/${g.lemmasPath} does not exist"))
-      val bad = Lean.violations(lsrc.get) ++ Lean.lemmaImports(lsrc.get).map(m => (0, s"import $m"))
-      if bad.nonEmpty then return done(CheckStatus.Failed, Nil, List(s"not allowed in lean/${g.lemmasPath}: ${bad.map(_._2).distinct.mkString(", ")}"))
-      val built = lake.build(g.lemmasModule)
+      if lemmas != List(g.layout.lemmas.name) then return done(CheckStatus.Failed, Nil, List(s"a proof file may import only ${g.layout.lemmas.name}, not ${lemmas.mkString(", ")}"))
+      val lsrc = read(ws.lean.resolve(g.layout.lemmas.path))
+      if lsrc.isEmpty then return done(CheckStatus.Failed, Nil, List(s"the proof imports ${g.layout.lemmas.name}, but lean/${g.layout.lemmas.path} does not exist"))
+      val bad = lsrc.flatMap(Lean.notAllowedInLemmas)
+      if bad.nonEmpty then return done(CheckStatus.Failed, Nil, List(s"not allowed in lean/${g.layout.lemmas.path}: ${bad.mkString}"))
+      val built = lake.build(g.layout.lemmas.name)
       if !built.ok then return done(CheckStatus.Failed, Nil, "the lemmas do not build" :: errors(built))
-      if Lean.usesSorry(built.output) then return done(CheckStatus.Failed, Nil, List(s"lean/${g.lemmasPath} uses sorry"))
+      if Lean.usesSorry(built.output) then return done(CheckStatus.Failed, Nil, List(s"lean/${g.layout.lemmas.path} uses sorry"))
 
     // Scala and Lean must agree on every example: what Scala computes of it, Lean proves; its
     // opposite, Lean does not. A disagreement means the translation does not mean what the Scala does,
     // and nothing proven of the node is about the code.
     val (evals, notEvaluated) = g.evals(n)
     if evals.nonEmpty then
-      val rel = g.evalPath(n.id)
+      val rel = g.layout.eval(n.id).path
       val run = lake.elaborate(rel)
-      val decls = Lean.theorems(read(ws.lean.resolve(rel)).getOrElse(""))
-      val diags = Lean.diagnostics(run.output).filter(_.file.endsWith(rel))
-      def proves(name: String) = decls.find(_.name == name).exists(d => !diags.exists(x => x.isError && x.line >= d.from && x.line <= d.to))
+      val lean = Elaboration(read(ws.lean.resolve(rel)).getOrElse(""), run.output, rel)
       evaluated = evals.map { e =>
-        (proves(e.name), proves(e.name + "_opposite")) match
-          case _ if diags.isEmpty && !run.ok => Result(e.name, ObligationStatus.Unevaluated, s"${e.what}: Lean did not run: ${run.output.take(20000)}")
-          case (true, false) => Result(e.name, ObligationStatus.Proven, s"Lean agrees: ${e.claim}")
-          case (false, true) => Result(e.name, ObligationStatus.Failed, s"${e.what}: Scala computes ${e.claim}, Lean proves ${e.opposite}")
-          case (true, true)  => Result(e.name, ObligationStatus.Failed, s"${e.what}: Lean proves both ${e.claim} and its opposite")
-          case (false, false) => Result(e.name, ObligationStatus.Unevaluated, s"${e.what}: Lean decides neither ${e.claim} nor its opposite")
-      }.filterNot(r => r.name.startsWith("probe") && r.status == ObligationStatus.Unevaluated) // a probe Lean cannot decide says nothing
-    evaluated ++= notEvaluated.map((name, why) => Result(name, ObligationStatus.Unevaluated, why))
+        val name = e.name.lean
+        (lean.proves(name), lean.proves(name + "_opposite")) match
+          case _ if lean.diagnostics.isEmpty && !run.ok => Result(name, ObligationStatus.Unevaluated, s"${e.what}: Lean did not run: ${run.output.take(20000)}")
+          case (true, false) => Result(name, ObligationStatus.Proven, s"Lean agrees: ${e.claim}")
+          case (false, true) => Result(name, ObligationStatus.Failed, s"${e.what}: Scala computes ${e.claim}, Lean proves ${e.opposite}")
+          case (true, true)  => Result(name, ObligationStatus.Failed, s"${e.what}: Lean proves both ${e.claim} and its opposite")
+          case (false, false) => Result(name, ObligationStatus.Unevaluated, s"${e.what}: Lean decides neither ${e.claim} nor its opposite")
+      }.filterNot(r => ObligationName.parse(r.name).exists(_.isProbe) && r.status == ObligationStatus.Unevaluated) // a probe Lean cannot decide says nothing
+    evaluated ++= notEvaluated.map((name, why) => Result(name.lean, ObligationStatus.Unevaluated, why))
     val disagree = evaluated.filter(_.status == ObligationStatus.Failed)
     if disagree.nonEmpty then return done(CheckStatus.Failed, Nil,
       s"Lean and Scala disagree on ${disagree.size} example(s) or probe(s): the Lean translation does not mean what the Scala does, so nothing proven of ${n.id} is about the code" :: disagree.map(_.detail))
 
     // A theorem of a file: proven when Lean reports no error in it and no `sorry`; an authored one must
     // state exactly its obligation and use only what a proof file may.
-    def judge(name: String, rel: String, run: Run, isAuthored: Boolean): Result =
-      val src = read(ws.lean.resolve(rel)).getOrElse("")
-      val diags = Lean.diagnostics(run.output).filter(_.file.endsWith(rel))
-      Lean.theorems(src).find(_.name == name) match
+    def judge(o: ObligationName, rel: String, run: Run, isAuthored: Boolean): Result =
+      val name = o.lean
+      val lean = Elaboration(read(ws.lean.resolve(rel)).getOrElse(""), run.output, rel)
+      val bad = if isAuthored then Lean.notAllowed(lean.source) else None
+      lean.theorem(name) match
         case None => Result(name, ObligationStatus.Open, s"no theorem $name in $rel")
-        case Some(d) =>
-          def in(l: Int) = l >= d.from && l <= d.to
-          val bad = if isAuthored then Lean.violations(src) else Nil
-          if d.statement != s"Obl.$name" then Result(name, ObligationStatus.Failed, s"must state exactly Obl.$name")
-          else if bad.nonEmpty then Result(name, ObligationStatus.Failed, s"not allowed in a proof file: ${bad.map(_._2).distinct.mkString(", ")}")
-          else diags.find(x => x.isError && in(x.line)) match
-            case Some(err) => Result(name, ObligationStatus.Open, err.message.take(20000))
-            case None if diags.exists(x => x.isSorry && in(x.line)) => Result(name, ObligationStatus.Open, "uses sorry")
-            case None if !run.ok => Result(name, ObligationStatus.Open, "not checked: " + run.output.take(20000))
-            case None => Result(name, ObligationStatus.Proven, if isAuthored then "authored" else "auto")
+        case Some(d) if d.statement != s"Obl.$name" => Result(name, ObligationStatus.Failed, s"must state exactly Obl.$name")
+        case Some(_) if bad.nonEmpty => Result(name, ObligationStatus.Failed, s"not allowed in a proof file: ${bad.mkString}")
+        case Some(_) => lean.verdict(name) match
+          case TheoremVerdict.Proven if run.ok => Result(name, ObligationStatus.Proven, if isAuthored then "authored" else "auto")
+          case TheoremVerdict.Proven => Result(name, ObligationStatus.Open, "not checked: " + run.output.take(20000))
+          case v => Result(name, ObligationStatus.Open, v.why(name).getOrElse("").take(20000))
 
     // Its parts make it: built already (with its level), automatic `complete` is proven without elaborating it again.
-    val split = g.obligation(n, "complete").toList.map { o =>
-      val prebuilt = Option.when(!authored(n.id))(build(g.theoremsModule(n.id))).filter(_.ok)
-      if prebuilt.isDefined then Result(o.name, ObligationStatus.Proven, "auto")
+    val split = g.obligation(n, ObligationName.Complete).toList.map { o =>
+      val prebuilt = Option.when(!authored(n.id))(build(g.layout.theorems(n.id).name)).filter(_.ok)
+      if prebuilt.isDefined then Result(o.name.lean, ObligationStatus.Proven, "auto")
       else
-        val rel = if authored(n.id) then g.proofsPath(n.id) else g.autoPath(n.id)
+        val rel = if authored(n.id) then g.layout.proofs(n.id).path else g.layout.auto(n.id).path
         val r = judge(o.name, rel, lake.elaborate(rel), authored(n.id))
         // Automation is tried only while no proof file proves it: what to do next comes first.
         if authored(n.id) || r.status != ObligationStatus.Open then r
-        else r.copy(detail = s"automation gave up: write theorem complete : Obl.complete in lean/${g.proofsPath(n.id)} (run `scaffold ${n.id}`)\n" +
-          proofState(n, "complete", g, lake).fold(s"Lean: ${r.detail}")(stateText("complete", _)))
+        else r.copy(detail = s"automation gave up: write theorem complete : Obl.complete in lean/${g.layout.proofs(n.id).path} (run `scaffold ${n.id}`)\n" +
+          proofState(n, ObligationName.Complete, g, lake).fold(s"Lean: ${r.detail}")(stateText(ObligationName.Complete, _)))
     }
     // Its code meets it, from what the contracts it calls promise.
     var implAxioms: List[String] = Nil
-    val implemented = g.obligation(n, "impl").toList.map { o =>
-      val auth = g.isAuthored(n, "impl")
+    val implemented = g.obligation(n, ObligationName.Impl).toList.map { o =>
+      val auth = g.isAuthored(n, ObligationName.Impl)
       if auth then
-        val bad = Lean.violations(proofSrc)
+        val bad = Lean.notAllowed(proofSrc)
         val stated = Lean.theorems(proofSrc).find(_.name == "impl").map(_.statement)
-        if bad.nonEmpty then Result("impl", ObligationStatus.Failed, s"not allowed in a proof file: ${bad.map(_._2).distinct.mkString(", ")}")
+        if bad.nonEmpty then Result("impl", ObligationStatus.Failed, s"not allowed in a proof file: ${bad.mkString}")
         else if !stated.contains("Obl.impl") then Result("impl", ObligationStatus.Failed, "must state exactly Obl.impl")
         else
-          val run = lake.build(g.implModule(n.id))
+          val run = lake.build(g.layout.impl(n.id).name)
           implAxioms = Lean.axioms(run.output).collectFirst { case (t, as) if t.endsWith("Impl.impl") => as }.getOrElse(List("<no audit result>"))
           if run.ok && !implAxioms.contains("sorryAx") then Result("impl", ObligationStatus.Proven, "authored")
           else if run.ok then Result("impl", ObligationStatus.Open, "uses sorry")
           else Result("impl", ObligationStatus.Open, s"not proven (authored): " + errors(run).take(3).mkString("\n").take(20000))
       else
-        val run = lake.build(g.implModule(n.id))
+        val run = lake.build(g.layout.impl(n.id).name)
         implAxioms = Lean.axioms(run.output).collectFirst { case (t, as) if t.endsWith("Impl.impl") => as }.getOrElse(List("<no audit result>"))
         if run.ok then Result("impl", ObligationStatus.Proven, "auto")
-        else Result("impl", ObligationStatus.Open, s"not proven (auto): prove theorem impl : Obl.impl in lean/${g.proofsPath(n.id)} (run `scaffold ${n.id}`)\n" +
-          proofState(n, "impl", g, lake).fold("Lean: " + errors(run).take(3).mkString("\n").take(20000))(stateText("impl", _)))
+        else Result("impl", ObligationStatus.Open, s"not proven (auto): prove theorem impl : Obl.impl in lean/${g.layout.proofs(n.id).path} (run `scaffold ${n.id}`)\n" +
+          proofState(n, ObligationName.Impl, g, lake).fold("Lean: " + errors(run).take(3).mkString("\n").take(20000))(stateText(ObligationName.Impl, _)))
     }
     val results = split ++ implemented
     if results.exists(_.status == ObligationStatus.Failed) then return done(CheckStatus.Failed, results, Nil)
     if split.exists(_.status == ObligationStatus.Open) then
-      return done(CheckStatus.Open, results, List(s"prove it in lean/${g.proofsPath(n.id)} (run `scaffold ${n.id}`)"))
+      return done(CheckStatus.Open, results, List(s"prove it in lean/${g.layout.proofs(n.id).path} (run `scaffold ${n.id}`)"))
     val notYet = partStatus.filterNot(_._2.contains(CheckStatus.Proven))
     if notYet.nonEmpty then return done(CheckStatus.Waiting, results, List(s"waiting for its parts: ${notYet.map(_._1).mkString(", ")}"))
 
-    val thms = build(g.theoremsModule(n.id))
+    val thms = build(g.layout.theorems(n.id).name)
     if timedOut(thms) then return done(CheckStatus.Timeout, results, List("Lean timed out building the node's theorems: run check again"))
     if !thms.ok then return done(CheckStatus.Failed, results, "the node's theorems do not build" :: errors(thms))
     // The proof file, when it proves obligations of the Checks file.
     val proofFile: Option[String] =
       if !g.extraObligations(n).exists(o => g.isAuthored(n, o.name)) then None
       else
-        val bad = Lean.violations(proofSrc)
-        if bad.nonEmpty then Some(s"not allowed in lean/${g.proofsPath(n.id)}: ${bad.map(_._2).distinct.mkString(", ")}")
+        val bad = Lean.notAllowed(proofSrc)
+        if bad.nonEmpty then Some(s"not allowed in lean/${g.layout.proofs(n.id).path}: ${bad.mkString}")
         else
-          val built = lake.build(g.proofsModule(n.id))
-          Option.when(!built.ok)(s"lean/${g.proofsPath(n.id)} does not build: " + errors(built).take(5).map(_.take(20000)).mkString("\n"))
+          val built = lake.build(g.layout.proofs(n.id).name)
+          Option.when(!built.ok)(s"lean/${g.layout.proofs(n.id).path} does not build: " + errors(built).take(5).map(_.take(20000)).mkString("\n"))
     // Everything else imports it: what it proves fails, by name, and the file is the message.
     if proofFile.isDefined then return done(CheckStatus.Failed,
-      results ++ g.extraObligations(n).filter(o => g.isAuthored(n, o.name)).map(o => Result(o.name, ObligationStatus.Failed, proofFile.get)), List(proofFile.get))
+      results ++ g.extraObligations(n).filter(o => g.isAuthored(n, o.name)).map(o => Result(o.name.lean, ObligationStatus.Failed, proofFile.get)), List(proofFile.get))
     // Everything else, in one run of Lean (see `Generate.checks`): each theorem holds when Lean reports
     // no error in it, no `sorry`, and its axioms (fail closed: no audit, no proof).
     def elaborated(rel: String): (Run, String => Option[String], String => Option[List[String]]) =
       val run = lake.elaborate(rel)
-      val decls = Lean.theorems(read(ws.lean.resolve(rel)).getOrElse(""))
-      val diags = Lean.diagnostics(run.output).filter(_.file.endsWith(rel))
-      val ax = Lean.axioms(run.output)
-      def axiomsOf(name: String) = ax.collectFirst { case (t, as) if t == name || t.endsWith("." + name) => as }
-      def why(name: String): Option[String] = decls.find(_.name == name) match
-        case None => Some(s"no theorem $name")
-        case Some(d) =>
-          def in(l: Int) = l >= d.from && l <= d.to
-          diags.find(x => x.isError && in(x.line)).map(_.message.linesIterator.filterNot(_.contains("depends on axioms")).mkString("\n").take(20000))
-            .orElse(Option.when(diags.exists(x => x.isSorry && in(x.line)) || axiomsOf(name).exists(_.contains("sorryAx")))("uses sorry"))
-      (run, why, axiomsOf)
-    val rel = g.checksPath(n.id)
+      val lean = Elaboration(read(ws.lean.resolve(rel)).getOrElse(""), run.output, rel)
+      (run, name => lean.verdict(name).why(name).map(_.take(20000)), lean.axiomsOf)
+    val rel = g.layout.checks(n.id).path
     val (run, why, axiomsOf) = elaborated(rel)
     if timedOut(run) then return done(CheckStatus.Timeout, results, List("Lean timed out checking the node (the machine may be busy): run check again"))
     def holds(name: String) = why(name).isEmpty
     // The tries: what Lean proves of them says the node or its split says nothing, or too much.
-    val tried = g.tries(n).map(t => (t, holds(t.obligation.name)))
+    val tried = g.tries(n).map(t => (t, holds(t.obligation.name.lean)))
     val fatal = tried.collect { case (t, true) if t.kind.fatal => t.means }
     // Each in plain words: what Lean proved, or that it found no proof within the try's budget (see `TryKind`).
     lazy val idle = g.idleWhat(n)
     val one = g.splitParts(n).collect { case List(c) => c.id }.getOrElse("")
     val tryResults = tried.map { (t, proven) =>
-      Result(t.obligation.name, if proven then t.kind.onProven else t.kind.onNot,
+      Result(t.obligation.name.lean, if proven then t.kind.onProven else t.kind.onNot,
         if !proven then t.kind.unshown(n.id, one, idle) else if t.kind == TryKind.Idle then idle else t.means)
     }
     val extra = g.extraObligations(n).map { o =>
       val how = if g.isAuthored(n, o.name) then "authored" else "auto"
-      if o.name.startsWith("expect_") && tried.exists((t, p) => p && t.obligation.name == s"vacuous_${o.name}") then
-        (Result(o.name, ObligationStatus.Failed, "it holds whatever the node says: it checks nothing"), Nil)
-      else why(o.name) match
-        case None => (Result(o.name, ObligationStatus.Proven, how), axiomsOf(o.name).getOrElse(List("<no audit result>")))
-        case Some("uses sorry") => (Result(o.name, ObligationStatus.Open, "uses sorry"), Nil)
-        case Some(w) => (Result(o.name, ObligationStatus.Open, s"not proven ($how): prove theorem ${o.name} : Obl.${o.name} in lean/${g.proofsPath(n.id)}\nLean: $w"), Nil)
+      val name = o.name.lean
+      val vacuous = o.name match
+        case ObligationName.Expect(i) => tried.exists((t, p) => p && t.kind == TryKind.VacuousExpect(i))
+        case _                        => false
+      if vacuous then (Result(name, ObligationStatus.Failed, "it holds whatever the node says: it checks nothing"), Nil)
+      else why(name) match
+        case None => (Result(name, ObligationStatus.Proven, how), axiomsOf(name).getOrElse(List("<no audit result>")))
+        case Some("uses sorry") => (Result(name, ObligationStatus.Open, "uses sorry"), Nil)
+        case Some(w) => (Result(name, ObligationStatus.Open, s"not proven ($how): prove theorem $name : Obl.$name in lean/${g.layout.proofs(n.id).path}\nLean: $w"), Nil)
     }
     // A view whose coverage cannot be stated keeps nothing proven.
     val uncovered = g.formalKeeps(n).flatMap((i, _) => g.coverage(n, i).left.toOption.map(w =>
-      Result(s"cover_${i.id}", ObligationStatus.Failed, s"what the view must list cannot be stated: $w")))
+      Result(ObligationName.Cover(i.id).lean, ObligationStatus.Failed, s"what the view must list cannot be stated: $w")))
     // The root, of the code: from what is trusted only.
     val (rootImpl, rootAxioms) = g.rootImpl.filter(_ => kb.root.exists(_ eq n)).fold((List.empty[Result], List.empty[String])) { _ =>
-      val (rrun, rwhy, raxioms) = elaborated(g.rootImplPath)
+      val (rrun, rwhy, raxioms) = elaborated(g.layout.rootImpl.path)
       rwhy("root_impl") match
         case None => (List(Result("root_impl", ObligationStatus.Proven, s"the root holds of the code, trusting ${if g.trusted.isEmpty then "nothing" else g.trusted.map(_.id).mkString(", ")}")),
           raxioms("root_impl").getOrElse(List("<no audit result>")))
@@ -553,6 +544,9 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       ungoverned.map(f => s"$f is governed by no node: govern it (a design node) or move it")
 
   /** What doing nothing is, when it meets the root (Lean proved it). */
+  /** An example of the contract, evaluated in Lean (not a probe, nor its code's run). */
+  private def isExample(r: Result): Boolean = ObligationName.parse(r.name).exists { case ObligationName.Eval(_) => true; case _ => false }
+
   def idleOf(n: Node[?]): Option[String] = current(n).flatMap(_.result("idle")).filter(_.status == ObligationStatus.Idle).map(_.detail)
 
   /** Source files no node governs, other than the model's own: code that can change unnoticed. They
@@ -603,19 +597,19 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   /** Creates the proof file of a node with a stub for its obligation. */
   def scaffold(n: Node[?]): Boolean =
     val g = generate
-    val path = ws.lean.resolve(g.proofsPath(n.id))
+    val path = ws.lean.resolve(g.layout.proofs(n.id).path)
     // The obligations the last check left open (`complete`, the implementation, a check...), or
     // `complete` before any check: a stub each, added to the proof file (created if missing).
     val names = g.obligations(n).map(_.name)
     val open = checks.get(id(n)).toList.flatMap(_.obligations).filter(r => r.status == ObligationStatus.Open || r.status == ObligationStatus.Failed)
-      .map(_.name).filter(names.contains)
-    val wanted = if open.nonEmpty then open else g.obligation(n, "complete").map(_.name).toList
+      .flatMap(r => ObligationName.parse(r.name)).filter(names.contains)
+    val wanted = if open.nonEmpty then open else g.obligation(n, ObligationName.Complete).map(_.name).toList
     val existing = read(path).fold(List.empty[String])(src => Lean.theorems(src).map(_.name))
-    val add = wanted.filterNot(existing.contains)
+    val add = wanted.filterNot(o => existing.contains(o.lean))
     // Each stub shows, as a comment, the goal its first steps leave: the state `check` prints.
     val lake = Lake(ws.lean)
-    val built = add.nonEmpty && lake.available && lake.build(g.specModule(n.id)).ok
-    def state(o: String) = Option.when(built)(proofState(n, o, g, lake)).flatten.fold("") { st =>
+    val built = add.nonEmpty && lake.available && lake.build(g.layout.spec(n.id).name).ok
+    def state(o: ObligationName) = Option.when(built)(proofState(n, o, g, lake)).flatten.fold("") { st =>
       s"  /- The goal here (as `check` prints it when automation gives up):\n${st.replace("-/", "- /").linesIterator.map("     " + _).mkString("\n")}\n  -/\n"
     }
     if add.isEmpty then false
@@ -630,20 +624,17 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     * Lean prints it: what `scaffold` writes in a stub, and `check` prints when automation gave up, so
     * the agent starts from the state its own first steps give. None when Lean cannot say.
     */
-  def proofState(n: Node[?], o: String, g: Generate, lake: Lake): Option[String] =
+  def proofState(n: Node[?], o: ObligationName, g: Generate, lake: Lake): Option[String] =
     val file = Files.createTempFile("frflow-state", ".lean")
     try
-      val ns = s"${kb.name}.${n.id}"
-      Files.writeString(file, s"import ${g.specModule(n.id)}\n\nset_option autoImplicit false\nset_option linter.unusedVariables false\n" +
-        s"noncomputable section\nopen Classical\n\nnamespace $ns.State\nopen $ns\n\ntheorem state : Obl.$o := by\n  " +
-        Generate.recipe(o).mkString("\n  ") + s"\n  done\n\nend $ns.State\n")
+      Files.writeString(file, g.goalFile(n, o))
       val run = lake.elaborate(file.toString)
       val errs = Lean.diagnostics(run.output).filter(d => d.isError && d.file.endsWith(file.getFileName.toString))
       errs.find(_.message.startsWith("unsolved goals")).map(_.message.stripPrefix("unsolved goals").trim)
         .orElse(Option.when(errs.isEmpty && run.ok)("no goals: these steps prove it"))
     finally Files.deleteIfExists(file)
 
-  private def stateText(o: String, state: String): String =
+  private def stateText(o: ObligationName, state: String): String =
     s"After `${Generate.recipe(o).mkString("; ")}` (the first steps the stub has), the goal is:\n$state"
 
   def tree: String = Reports.tree(annotated)
@@ -698,9 +689,9 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
   private def evaluated: String =
     val per = kb.nodes.filter(c => c.post.isDefined && generate.formal(c) && c.cases.nonEmpty).map { c =>
       val rs = current(c).toList.flatMap(_.obligations)
-      (c, rs.count(o => o.name.startsWith("eval_") && o.status == ObligationStatus.Proven), c.cases.size)
+      (c, rs.count(o => isExample(o) && o.status == ObligationStatus.Proven), c.cases.size)
     }
-    val probes = kb.nodes.flatMap(c => current(c).toList.flatMap(_.obligations)).count(o => o.name.startsWith("probe") && o.status == ObligationStatus.Proven)
+    val probes = kb.nodes.flatMap(c => current(c).toList.flatMap(_.obligations)).count(o => ObligationName.parse(o.name).exists(_.isProbe) && o.status == ObligationStatus.Proven)
     if per.isEmpty then ""
     else
       val none = per.filter((_, ok, _) => ok == 0).map(_._1.id)
@@ -726,7 +717,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
     */
   def uncrossed: List[String] =
     kb.nodes.filter(c => c.kind == NodeKind.Contract && generate.formal(c) && c.cases.nonEmpty).flatMap { c =>
-      current(c).filter(k => !k.obligations.exists(o => o.name.startsWith("eval_") && o.status == ObligationStatus.Proven)).map(_ =>
+      current(c).filter(k => !k.obligations.exists(o => isExample(o) && o.status == ObligationStatus.Proven)).map(_ =>
         s"${c.id}: none of its examples is evaluated in Lean, so nothing checks that the Lean means what the Scala does: give its parameters values Lean has (bindTable for a lookup)")
     }
 
@@ -863,7 +854,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
       sb ++= "\n"
     }
     g.obligations(n).foreach { o =>
-      val stl = current(n).flatMap(_.result(o.name)).fold("not checked")(r => s"${r.status}${if r.detail.nonEmpty then s" (${r.detail.linesIterator.next()})" else ""}")
+      val stl = current(n).flatMap(_.result(o.name.lean)).fold("not checked")(r => s"${r.status}${if r.detail.nonEmpty then s" (${r.detail.linesIterator.next()})" else ""}")
       sb ++= s"## Obligation ${o.name} of ${n.id} [$stl]\n\n${o.description}\n\n```lean\n${o.statement}\n```\n\n"
     }
     // What the last check left open or failed, with Lean's message in full (the goal it stopped at).
@@ -920,7 +911,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
           // What Lean computes of the example, against what Scala does (the examples written, not generated ones).
           def lean(name: String) = Option.when(i < n.cases.size && g.formal(n))(outcome(name))
           ExampleView(r.example.note, r.example.givens, r.example.call, r.example.expected, r.contract, r.implementation,
-            lean(s"eval_$i"), if g.provenImpl(n).isEmpty then None else lean(s"evalImpl_$i"))
+            lean(ObligationName.Eval(i).lean), if g.provenImpl(n).isEmpty then None else lean(ObligationName.EvalImpl(i).lean))
         },
         code = code(n),
         split = split(n),
@@ -943,7 +934,7 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
           Kept(id(k.invariant), k.view.fold("")(_.source), k.invariant.rule.fold("")(_.source), st, detail)
         },
         expectations = n.expected.zipWithIndex.map { case ((st, l), i) =>
-          val o = if !g.formal(n) then Outcome(Informal, "not formalized") else outcome(s"expect_$i")
+          val o = if !g.formal(n) then Outcome(Informal, "not formalized") else outcome(ObligationName.Expect(i).lean)
           Expectation(st, l.source, o.status, o.detail)
         },
         implementationProof = kb.implementation(n).flatMap(_.proven).map { d =>
@@ -953,8 +944,8 @@ final class Workflow(val kb: KnowledgeBase, val ws: Workspace):
         rootImpl = Option.when(isRoot && g.formal(n))(outcome("root_impl")),
         covers = if !n.isInvariant then Nil else ids(kb.nodes.filter(_.kept.exists(k => (k.invariant eq n) && k.view.nonEmpty))),
         exempts = if !n.isInvariant then Nil else ids(kb.nodes.filter(_.kept.exists(k => (k.invariant eq n) && k.view.isEmpty))),
-        obligations = if !g.formal(n) then Nil else g.obligations(n).map(o => ObligationText(o.name, o.statement, o.description)),
-        proof = read(ws.lean.resolve(g.proofsPath(n.id))).map(src => ProofFile("lean/" + g.proofsPath(n.id), src)),
+        obligations = if !g.formal(n) then Nil else g.obligations(n).map(o => ObligationText(o.name.lean, o.statement, o.description)),
+        proof = read(ws.lean.resolve(g.layout.proofs(n.id).path)).map(src => ProofFile("lean/" + g.layout.proofs(n.id).path, src)),
         holds = if g.formal(n) then g.holdsStatement(n) else "",
         lean = if g.formal(n) then g.spec(n) else "",
         messages = check.orElse(checks.get(id(n)).filter(_.status == CheckStatus.Waiting)).toList.flatMap(_.messages))

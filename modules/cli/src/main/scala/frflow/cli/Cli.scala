@@ -81,7 +81,7 @@ object Cli:
       case "find" :: query if query.nonEmpty => println(Reports.find(w.annotated, query.mkString(" "))); 0
       case "scaffold" :: id :: Nil =>
         node(id) { n =>
-          println(if w.scaffold(n) then s"created lean/${w.generate.proofsPath(n.id)}" else "nothing to create")
+          println(if w.scaffold(n) then s"created lean/${w.generate.layout.proofs(n.id).path}" else "nothing to create")
           w.writeSnapshot()
           0
         }
