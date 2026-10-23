@@ -11,46 +11,47 @@ enum Depth:
 object NodeText:
   private val Few = 4
 
+  /** Source, diffs and decisions are wrapped to the width; prose that `context` shows whole is cut to it. */
   def lines(d: NodeDetails, style: Style, depth: Depth = Depth.Normal): List[String] =
     val full = depth == Depth.Full
+    val normal = depth != Depth.Brief
     val st = if full then style.copy(width = None) else style
     val r = d.node
     val n = r.node
-    def sec(title: String, body: List[String]) = Lines.section(title, body, st)
-    def when(cond: Boolean)(ls: => List[String]) = if cond then ls else Nil
-    val changed = when(r.state == ReviewState.Review && !d.diff.isEmpty)("" :: DiffText.lines(d.diff.copy(code = d.diff.code.filterNot(_.inFull)), st))
-    val partsSection = sec(n.split.fold("Parts")(sp => s"Parts: together they make it (${outcome(sp.complete, st)})"), parts(d, st))
-    val out = depth match
-      case Depth.Brief => header(d, st) ++ changed ++ decision(d, st, full) ++ partsSection ++
-          sec("Code", governs(d, st).filter(_ => d.diff.code.exists(_.inFull)))
-      case _ =>
-        header(d, st) ++ changed ++ decision(d, st, full) ++
-          sec("Idea (what it is decided against)", when(full || r.state == ReviewState.Proposed)(idea(d, st, full))) ++
-          sec("Formally (as written in Scala)", formal(n)) ++ sec("Where it sits", place(d, st, full)) ++
-          when(full)(d.beside.flatMap((p, co) => sec(s"Beside it under $p: together they make $p", co.map(Lines.node(_, st)))) ++
-            sec("Rejected beside it", r.review.rejectedBeside.filter(_ => r.state != ReviewState.Proposed).map(x => s"${x.id}: ${x.statement} — because ${x.reason}"))) ++
-          partsSection ++
-          sec("Kept by", d.keptBy.flatMap(k => k.node.invariants.find(_.id == r.id).map(i =>
-            if i.status == ObligationStatus.Exempt then s"${k.id} is exempt: ${i.detail}" else s"${k.id} (${i.status}), showing: ${i.view}"))) ++
-          when(full)(sec("What it rests on, nearest first, with the reasons", d.above.flatMap(above(_, st)))) ++
-          sec("Vocabulary", d.terms.flatMap(t => Lines.para(s"${t.name}${if t.operation then " (operation)" else ""}: ${t.means} " +
-            t.definedBy.fold("(open)")(x => s"(defined by $x)"), st))) ++
-          when(full)(sec("The functions it names", d.defs.flatMap(f => s"${f.name} =" :: indent(f.source)))) ++
-          sec("Proofs", proofs(n, st, full)) ++
-          when(full)(sec("Obligations in Lean", n.obligations.flatMap(o => s"${o.name}: ${o.description}" :: indent(o.statement)))) ++
-          sec(examplesTitle(n), examples(n, st, full)) ++ sec("Code", code(d, st, full)) ++
-          sec("Messages from the last check", n.messages.flatMap(m => if full then m.linesIterator.toList else m.linesIterator.nextOption().toList)) ++
-          sec("Decisions", r.review.history.flatMap(h => line(s"${Words.date(h.at)}  ${Words.verb(h.action)} by ${h.by}: ${h.reason}", st, full))) ++
-          sec("Alternatives rejected for it", r.review.alternatives.map(a => s"${a.id}: ${a.content.statement}")) ++
-          sec("Requests", d.requests.flatMap(q => s"[${q.id}] ${q.status} ${st.dot} ${q.by}: ${q.text}" ::
-            q.answer.filter(_.nonEmpty).map(a => s"  agent: $a").toList)) ++ when(full)("" :: Footer)
-    out.map(st.fit(_))
+    val proposal = r.state == ReviewState.Proposed
+    def cut(ls: List[String]) = ls.map(st.fit(_, 2))
+    val changed = if r.state != ReviewState.Review || d.diff.isEmpty then Nil
+      else "" :: DiffText.lines(d.diff.copy(code = d.diff.code.filterNot(_.inFull)), st)
+    // Each section: whether it shows at this depth, its title, its lines (none: no section).
+    val sections: List[(Boolean, String, List[String])] = List(
+      (normal, "Idea (what it is decided against)", if full || proposal then idea(d, st, full) else Nil),
+      (normal || proposal, "Formally (as written in Scala)", formal(n)),
+      (normal, "Where it sits", place(d, st, full))
+    ) ++ d.beside.map((p, co) => (full, s"Beside it under $p: together they make $p", co.map(Lines.node(_, st)))) ++ List(
+      (full && !proposal, "Rejected beside it", r.review.rejectedBeside.map(x => s"${x.id}: ${x.statement} — because ${x.reason}")),
+      (true, n.split.fold("Parts")(sp => s"Parts: together they make it (${outcome(sp.complete, st)})"), parts(d, st)),
+      (normal, "Kept by", d.keptBy.flatMap(k => k.node.invariants.find(_.id == r.id).map(i =>
+        if i.status == ObligationStatus.Exempt then s"${k.id} is exempt: ${i.detail}" else s"${k.id} (${i.status}), showing: ${i.view}"))),
+      (full, "What it rests on, nearest first, with the reasons", d.above.flatMap(above(_, st))),
+      (normal, "Vocabulary", d.terms.flatMap(t => Lines.para(s"${t.name}${if t.operation then " (operation)" else ""}: ${t.means} " +
+        t.definedBy.fold("(open)")(x => s"(defined by $x)"), st))),
+      (full, "The functions it names", d.defs.flatMap(f => s"${f.name} =" :: indent(f.source))),
+      (normal, "Proofs", cut(proofs(n, st, full))),
+      (full, "Obligations in Lean", n.obligations.flatMap(o => s"${o.name}: ${o.description}" :: indent(o.statement))),
+      (normal, examplesTitle(n), cut(examples(n, st, full))),
+      (normal, "Code", code(d, st, full)),
+      (!normal, "Code", governs(d, st).filter(_ => d.diff.code.exists(_.inFull))),
+      (normal, "Messages from the last check", cut(n.messages.flatMap(m => if full then m.linesIterator.toList else m.linesIterator.nextOption().toList))),
+      (normal, "Decisions", cut(r.review.history.map(h => s"${Words.date(h.at)}  ${Words.verb(h.action)} by ${h.by}: ${h.reason}"))),
+      (normal, "Alternatives rejected for it", cut(r.review.alternatives.map(a => s"${a.id}: ${a.content.statement}"))),
+      (normal, "Requests", d.requests.flatMap(q => s"[${q.id}] ${q.status} ${st.dot} ${q.by}: ${q.text}" ::
+        q.answer.filter(_.nonEmpty).map(a => s"  agent: $a").toList)))
+    val body = sections.flatMap((shown, title, ls) => if shown then Lines.section(title, ls, st) else Nil)
+    (header(d, st) ++ changed ++ decision(d, st) ++ body ++ (if full then "" :: Footer else Nil)).flatMap(st.fold(_))
 
   private val Footer = List("A new statement belongs under the lowest nodes it helps prove, as a part; never as a restatement of a node.",
     "The developer decides; you propose. The rules are in the frflow skill (.claude/skills/frflow/SKILL.md).")
   private def indent(s: String): List[String] = s.linesIterator.map("  " + _).toList
-  /** Prose: wrapped in full, or one line cut to the width. */
-  private def line(text: String, st: Style, full: Boolean): List[String] = if full then Lines.para(text, st) else List(text)
 
   private def header(d: NodeDetails, st: Style): List[String] =
     val r = d.node
@@ -63,7 +64,7 @@ object NodeText:
       st.wrap(n.content.statement, room).map("  " + _) ++ st.wrap(s"why: ${n.content.why}", room).map(l => "  " + st.dim(l))
 
   /** What deciding it acts on; or why it was rejected. */
-  private def decision(d: NodeDetails, st: Style, full: Boolean): List[String] =
+  private def decision(d: NodeDetails, st: Style): List[String] =
     val r = d.node
     val v = r.review
     val open = r.state == ReviewState.Proposed || r.state == ReviewState.Review
@@ -78,8 +79,8 @@ object NodeText:
         v.rejectedBeside.filter(_ => r.state == ReviewState.Proposed).map(x => st.dim(s"rejected here before: ${x.id}: ${x.statement} — because ${x.reason}")) ++
         (if v.below.isEmpty then Nil else
           "decisions below it (accept --revisit NODE reviews one again; one that moved only with it is confirmed):" ::
-            v.below.flatMap(b => line(s"${b.id}${if b.kind == BelowKind.Moved then " (moved with it)" else ""}: ${b.statement} " +
-              s"— holds because: ${b.reason}", st, full).map("  " + _)))
+            v.below.map(b => st.fit(s"  ${b.id}${if b.kind == BelowKind.Moved then " (moved with it)" else ""}: ${b.statement} " +
+              s"— holds because: ${b.reason}", 2)))
     val rejected = Option.when(r.state == ReviewState.Rejected)(v.history.reverse.find(_.action == Action.Reject)).flatten
       .map(h => st.red(s"rejected by ${h.by}: ${h.reason} (the agent removes it, or proposes what the reason asks for)")).toList
     Lines.section("Decision", lines ++ rejected, st)
@@ -178,9 +179,11 @@ object NodeText:
     d.node.node.code.toList.map(c => s"governs: ${c.files.mkString(", ")}" +
       (if d.diff.code.exists(_.inFull) then st.yellow(s"  (diff ${d.node.id} shows them in full: read them before accepting)") else ""))
 
-/** What changed since a node was decided, as lines. */
+/** What changed since a node was decided, as lines wrapped to the width less 2 (room for a caller's indent). */
 object DiffText:
-  def lines(d: NodeDiff, st: Style): List[String] =
+  def lines(d: NodeDiff, st: Style): List[String] = unwrapped(d, st).flatMap(st.fold(_, 2))
+
+  private def unwrapped(d: NodeDiff, st: Style): List[String] =
     val parts = List(Option.when(d.partsAdded.nonEmpty)(s"parts added: ${d.partsAdded.mkString(", ")}"),
       Option.when(d.partsRemoved.nonEmpty)(s"parts removed: ${d.partsRemoved.mkString(", ")}")).flatten
     val codeLines = d.code.toList.flatMap(code(_, st))
