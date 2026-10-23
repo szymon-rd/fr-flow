@@ -34,7 +34,7 @@ enum ForAgent derives Codec.AsObject:
 
 object Waiting:
   /** A revisit is the agent's until it answers on the node (`answer NODE`), or changes it. */
-  def forAgent(a: Annotated, requests: List[Request] = Nil): List[ForAgent] =
+  def forAgent(a: Annotated, requests: List[Request]): List[ForAgent] =
     def last(r: Reviewed, action: Action) = r.review.history.reverse.find(_.action == action)
     def answeredSince(r: Reviewed, d: Decision) = requests.exists(q => q.node.contains(r.id) && q.answeredAt.exists(!_.isBefore(d.at)))
     val rejected = a.nodes.filter(_.state == ReviewState.Rejected)

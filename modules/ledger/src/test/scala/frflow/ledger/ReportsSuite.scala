@@ -21,7 +21,7 @@ class ReportsSuite extends munit.FunSuite:
     val a2 = node("A2", "Every book asked for is found by its title.", parents = List("R")).copy(replaces = Some(id("A")))
     val all = snap(r, a, b, a2)
     val l = right(Decide(all, acceptAll(shelf), accept("A2", "a title finds a book faster"), "dev", stamp(10)))
-    assertEquals(Waiting.forAgent(Annotate(all, l)), List(ForAgent.Replace(id("A"), "dev", "A2 was chosen instead: a title finds a book faster"),
+    assertEquals(Waiting.forAgent(Annotate(all, l), Nil), List(ForAgent.Replace(id("A"), "dev", "A2 was chosen instead: a title finds a book faster"),
       ForAgent.Move(id("B"), ids("A"))))
   }
 
@@ -30,7 +30,7 @@ class ReportsSuite extends munit.FunSuite:
     def tasks(answeredAt: Int) =
       val answered = right(Requests.answer(Nil, "A", "A still holds: a shelf lists its books", _ => true, stamp(answeredAt).at))._1
       Waiting.forAgent(Annotate(shelf, l), answered)
-    assertEquals(Waiting.forAgent(Annotate(shelf, l)), List(ForAgent.Revisit(id("A"), "shelves may move now")))
+    assertEquals(Waiting.forAgent(Annotate(shelf, l), Nil), List(ForAgent.Revisit(id("A"), "shelves may move now")))
     assertEquals(tasks(answeredAt = 11), Nil)
     // an answer from before the revisit does not answer it
     assertEquals(tasks(answeredAt = 5), List(ForAgent.Revisit(id("A"), "shelves may move now")))
