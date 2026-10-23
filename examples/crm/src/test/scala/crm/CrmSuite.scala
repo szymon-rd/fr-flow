@@ -5,6 +5,16 @@ import java.nio.file.{Files, Paths}
 
 class CrmSuite extends munit.FunSuite:
 
+  test("the committed ledger accepts every node: none is up for review, none is gone") {
+    // As `crm/run status` reads it: a change to the content, the hashes or the code fingerprints shows here.
+    val w = Workflow(knowledge, Workspace(Paths.get("examples/crm").toAbsolutePath.normalize, "../../../lean"))
+    val annotated = w.annotated
+    val states = annotated("nodes").get.arr.toList.map(n => n("id").flatMap(_.str).getOrElse("") -> n("state").flatMap(_.str).getOrElse(""))
+    assertEquals(states.size, knowledge.nodes.size)
+    assertEquals(states.filter(_._2 != "accepted"), Nil)
+    assertEquals(annotated("gone").get.arr.toList, Nil)
+  }
+
   override val munitTimeout = scala.concurrent.duration.Duration(30, "min")
 
   private val acme = TenantId("acme")

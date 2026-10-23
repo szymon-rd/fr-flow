@@ -69,12 +69,15 @@ private[frflow] object Lift:
     val opaques = of[Opaque]("frflow.Opaque")
     '{ def liftedNode(): Lifted[F] = new Lifted[F](() => $f, Nil, "", "", ${ Expr(text) }, Nil, Nil, Nil, () => $defs, () => $params, () => $opaques); liftedNode() }
 
-  /** The source files of the project code an expression refers to (an implementation's classes). */
+  /** The source files of the project code an expression refers to (an implementation's classes).
+    * FrFlow's own code (package `frflow`, wherever its sources are) is not the project's.
+    */
   def sourceFiles(e: Expr[Any])(using Quotes): Expr[List[String]] =
     import quotes.reflect.*
     val files = mutable.LinkedHashSet.empty[String]
+    def library(s: Symbol): Boolean = s.fullName == "frflow" || s.fullName.startsWith("frflow.")
     def add(s: Symbol): Unit =
-      if !s.isNoSymbol then
+      if !s.isNoSymbol && !library(s) then
         s.pos.map(p => java.nio.file.Paths.get(p.sourceFile.path)).filter(java.nio.file.Files.isRegularFile(_))
           .map(_.toAbsolutePath.normalize.toString).filter(_.endsWith(".scala")).foreach(files += _)
     object T extends TreeTraverser:
@@ -89,7 +92,7 @@ private[frflow] object Lift:
     val own = Some(java.nio.file.Paths.get(Position.ofMacroExpansion.sourceFile.path).toAbsolutePath.normalize.toString)
     // Relative to the build's directory, so the paths hold in any checkout.
     val base = java.nio.file.Paths.get("").toAbsolutePath.normalize
-    val kept = files.toList.filterNot(f => f.contains("/core/src/main/scala/frflow/") || own.contains(f) && files.size > 1)
+    val kept = files.toList.filterNot(f => own.contains(f) && files.size > 1)
     def rel(f: String) = { val p = java.nio.file.Paths.get(f); if p.startsWith(base) then base.relativize(p).toString else f }
     // The model's own file comes last: it is where the implementation is attached, not part of it.
     Expr(kept.map(rel) ++ own.filter(o => !kept.contains(o)).map(rel))
