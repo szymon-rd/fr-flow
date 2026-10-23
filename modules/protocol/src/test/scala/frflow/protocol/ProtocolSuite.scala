@@ -6,7 +6,7 @@ import io.circe.syntax.*
 import java.nio.file.{Files, Path, Paths}
 import java.time.Instant
 
-/** The codecs: every type crossing modules and files reads back as written. */
+/** The codecs (every type crossing modules and files reads back as written), the hashes, and the walks. */
 class ProtocolSuite extends munit.FunSuite:
 
   private def roundTrip[A: Codec](a: A)(using munit.Location): Unit =
@@ -29,8 +29,8 @@ class ProtocolSuite extends munit.FunSuite:
   test("the canonical printing is compact, in field order; hashing ignores runs of whitespace") {
     assertEquals(Canonical.print(content.json),
       """{"kind":"claim","parents":["Root"],"statement":"Readers  find\tthe books\n they ask for.","formal":false}""")
-    assertEquals(Canonical.print(Json.obj("n" -> Json.fromInt(3), "x" -> Json.fromDoubleOrNull(1.5), "c" -> Json.fromString("\u0001"))),
-      """{"n":3,"x":1.5,"c":"\u0001"}""")
+    assertEquals(Canonical.print(Json.obj("n" -> Json.fromInt(3), "x" -> Json.fromDoubleOrNull(1.5), "c" -> Json.fromString("\u0001\"\\"))),
+      """{"n":3,"x":1.5,"c":"\u0001\"\\"}""")
     val spaced = content.mapFields { case ("statement", _) => "statement" -> Json.fromString("Readers find the books they ask for.") }
     assertEquals(spaced.hash, content.hash)
     assertNotEquals(spaced.ref, content.ref)
@@ -38,11 +38,20 @@ class ProtocolSuite extends munit.FunSuite:
     assertEquals(content.parts, None)
   }
 
-  test("tries: which fail the node, their words when Lean finds no proof, and their names") {
+  test("tries and obligation names: which fail the node, their words, their names read back") {
     assert(TryKind.Clash.fatal && TryKind.Unsat.fatal && !TryKind.Idle.fatal)
     assertEquals(TryKind.Vacuous.unshown("Root", "Part", ""), "Lean found no proof that Root holds whatever Part says (a try)")
-    List(ObligationName.Tried(TryKind.Needed("A")), ObligationName.Cover("I"), ObligationName.EvalImpl(3), ObligationName.RootImpl,
-      ObligationName.Tried(TryKind.VacuousExpect(2))).foreach(o => assertEquals(ObligationName.parse(o.lean), Some(o)))
+    val names = List(ObligationName.Complete, ObligationName.Feasible, ObligationName.Impl, ObligationName.Check, ObligationName.RootImpl,
+      ObligationName.Cover("Isolated"), ObligationName.Expect(2), ObligationName.Eval(0), ObligationName.EvalImpl(3), ObligationName.Probe(1),
+      ObligationName.ProbeImpl(5)) ++ List(TryKind.Needed("A_b"), TryKind.Vacuous, TryKind.Restates, TryKind.Clash, TryKind.Unsat, TryKind.Idle,
+      TryKind.VacuousExpect(1)).map(ObligationName.Tried(_))
+    assertEquals(names.map(n => ObligationName.parse(n.lean)), names.map(Some(_)))
+    assertEquals(names.map(_.lean).take(7), List("complete", "feasible", "impl", "check", "root_impl", "cover_Isolated", "expect_2"))
+    assertEquals(ObligationName.Tried(TryKind.VacuousExpect(1)).lean, "vacuous_expect_1")
+    assertEquals(ObligationName.parse("holds"), None)
+    assert(ObligationName.Probe(1).isEvaluation && ObligationName.Probe(1).isProbe && ObligationName.EvalImpl(0).isEvaluation)
+    assert(!ObligationName.Complete.isEvaluation && !ObligationName.Eval(0).isProbe)
+    assertEquals(ObligationName.Probe(2).ofCode, ObligationName.ProbeImpl(2))
   }
 
   private val decision = Decision(Action.Accept, "dev", Instant.parse("2026-01-01T00:00:00Z"), "it is right", rejected = List(NodeId("Alt")),
@@ -75,13 +84,10 @@ class ProtocolSuite extends munit.FunSuite:
     assertEquals(requests.map(_.map(_.status)), Right(List(RequestStatus.Closed)))
   }
 
-  test("checks and requests read back as written") {
+  test("checks, requests, a snapshot and its review read back as written") {
     roundTrip(NodeCheck(Hash("h"), CheckStatus.Proven, List(Result(ObligationName.Complete, ObligationStatus.Proven, "auto"),
       Result(ObligationName.Tried(TryKind.Needed("A")), ObligationStatus.NotShown)), Nil, List("propext"), decision.at))
     roundTrip(Request(RequestId("R1"), None, "Say more.", "dev", decision.at, RequestStatus.Open))
-  }
-
-  test("a snapshot and its review read back as written") {
     val node = SnapNode(NodeId("A"), NodeKind.Contract, content, content.hash, parents = List(NodeId("Root")),
       status = Some(CheckStatus.Open), examples = List(ExampleView("one", List("x = 1"), "f(1)", true, None, None,
         Some(Outcome(ObligationStatus.Proven, "Lean agrees")), None)),
@@ -95,4 +101,16 @@ class ProtocolSuite extends munit.FunSuite:
       List(Below(NodeId("B"), BelowKind.Moved, "s", "r", "c", "w")), List(decision), Nil, List(Alternative(NodeId("Alt"), content)))
     roundTrip(Annotated(snap, List(Reviewed(node, review)), List(Gone(NodeId("Old"), decision)), List(NodeId("A"))))
     assert(review.mechanical)
+  }
+
+  test("the walks, on a diamond with a cycle: breadth first, preorder, and postorder cut where the cycle closes") {
+    // a → b, c; b → d; c → d; d → a; e alone
+    val edges = Map("a" -> List("b", "c"), "b" -> List("d"), "c" -> List("d"), "d" -> List("a"), "e" -> Nil)
+    def next(v: String) = edges.getOrElse(v, Nil)
+    assertEquals(Walk.breadthFirst(next("a"), identity)(next), List("b", "c", "d", "a"))
+    assertEquals(Walk.breadthFirst(List("e"), identity)(next), List("e"))
+    assertEquals(Walk.preorder(List("a"), identity)(next), List("a", "b", "d", "c"))
+    assertEquals(Walk.postorder(List("a", "e"), identity)(next), List("d", "b", "c", "a", "e"))
+    // by key: two values with one key are one
+    assertEquals(Walk.postorder(List("x1", "x2", "y"), _.head)(_ => Nil), List("x1", "y"))
   }
