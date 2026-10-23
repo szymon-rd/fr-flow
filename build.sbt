@@ -36,7 +36,7 @@ lazy val api = module("api").dependsOn(check, ledger).settings(libraryDependenci
 
 /** The command line a project's main object extends (`FrFlowApp`): commands, colors, interactive review. */
 lazy val cli = module("cli").dependsOn(api % "compile->compile;test->test").settings(libraryDependencies ++= catsEffect ++ Seq(
-  "com.monovore" %% "decline" % "2.5.0", "com.monovore" %% "decline-effect" % "2.5.0"))
+  "com.monovore" %% "decline" % "2.5.0"))
 
 /** The java command that runs a project's CLI on a terminal (colors, the interactive review): what `bin/frflow` runs. */
 val cliLauncher = taskKey[File]("Writes the java command running this project's CLI, for bin/frflow")

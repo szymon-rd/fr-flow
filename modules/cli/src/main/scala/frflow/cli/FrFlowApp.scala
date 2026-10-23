@@ -1,10 +1,10 @@
 package frflow
 package cli
 
-import cats.effect.{ExitCode, IO}
+import cats.effect.{ExitCode, IO, IOApp}
+import cats.effect.std.Console
 import cats.syntax.all.*
-import com.monovore.decline.Opts
-import com.monovore.decline.effect.CommandIOApp
+import com.monovore.decline.Command as Parser
 import frflow.api.{FrFlowError, LiveApi}
 import frflow.check.Workspace
 import java.nio.file.Path
@@ -14,11 +14,14 @@ import java.nio.file.Path
   * object authCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/auth")
   * }}}
   * `root` is the project's directory (`FRFLOW_ROOT` overrides it); `kernelPath`, FrFlow's Lean kernel
-  * relative to the project's `lean/`.
+  * relative to the project's `lean/`. A usage error prints the help and exits 2.
   */
-abstract class FrFlowApp(knowledge: => KnowledgeBase, root: String = ".", kernelPath: String = "../../../lean")
-    extends CommandIOApp(name = FrFlowApp.name(root), header = Commands.header):
-  final def main: Opts[IO[ExitCode]] = Commands.all.map((command, looks) => FrFlowApp.run(knowledge, root, kernelPath, command, looks))
+abstract class FrFlowApp(knowledge: => KnowledgeBase, root: String = ".", kernelPath: String = "../../../lean") extends IOApp:
+  final def run(args: List[String]): IO[ExitCode] =
+    IO(sys.env).flatMap(env => Parser(FrFlowApp.name(root), Commands.header)(Commands.all).parse(args, env) match
+      case Right((command, looks)) => FrFlowApp.run(knowledge, root, kernelPath, command, looks)
+      case Left(help) if help.errors.isEmpty => IO.println(help).as(ExitCode.Success)
+      case Left(help) => Console[IO].errorln(help).as(Run.Usage))
 
 object FrFlowApp:
   /** What the usage calls the command: the project's directory name. */
