@@ -20,6 +20,9 @@ final class ContractViolation(node: String, detail: String) extends RuntimeExcep
 object Bindings:
   private val current = ThreadLocal.withInitial[Map[String, () => Any]](() => Map.empty)
   def get[A](p: Param[A]): A =
+    if Building.active then
+      throw IllegalStateException(s"FrFlow: ${p.name}.value is read while a model is built, so the value it has now would be " +
+        s"fixed into its Lean and its running code: use ${p.name} itself as a term")
     current.get.get(p.name).fold(throw IllegalStateException(s"parameter ${p.name} is not bound"))(_().asInstanceOf[A])
 
   def within[T](bs: Seq[Binding])(body: => T): T =
@@ -27,6 +30,17 @@ object Bindings:
     current.set(saved ++ bs.map(b => b.param.name -> b.value))
     try body
     finally current.set(saved)
+
+/** While a term, a define, a flow or a model's operation is built (once, on symbolic values): a parameter's value read
+  * then would become a constant in both its Lean and its Scala, so `Bindings.get` refuses it.
+  */
+private[frflow] object Building:
+  private val depth = ThreadLocal.withInitial[Int](() => 0)
+  def apply[T](body: => T): T =
+    depth.set(depth.get + 1)
+    try body
+    finally depth.set(depth.get - 1)
+  def active: Boolean = depth.get > 0
 
 final case class Assumption(what: String, reads: Set[String], holds: () => Boolean)
 

@@ -13,13 +13,16 @@ class Term[A] private[frflow] (tree: Tree | Null, private[frflow] val termType: 
   type Fields = NamedTuple.Map[NamedTuple.From[A], Term]
   private[frflow] def termTree: Tree = tree.nn
   def selectDynamic(name: String): Any = Term.select(this, name)
-  /** Scala's `==` would compare the trees: `===` says the values are equal. */
-  def ==(that: Term[?])(using NoEquality): Boolean = false
-  def !=(that: Term[?])(using NoEquality): Boolean = false
+  /** Scala's `==` would compare the tree with whatever is on the right (always false for a value): `===` says the values
+    * are equal.
+    */
+  def ==(that: Any)(using NoEquality): Boolean = false
+  def !=(that: Any)(using NoEquality): Boolean = false
   override def toString: String = s"Term($termTree)"
 
-@implicitNotFound("FrFlow: compare terms with === (and =!=), not == (which compares the trees)")
+@implicitNotFound("FrFlow: compare terms with === (and =!=), not == (which compares the trees); in plain code, compare values (`d.fn(…)`, `p.value`)")
 sealed trait NoEquality
+
 
 /** A variable bound by a lambda: `hint` is the name the Scala lambda gave it (`_$1` for a wildcard). */
 private[frflow] final class Binder(val hint: String, val tpe: LeanType[?]):
@@ -81,7 +84,7 @@ private[frflow] object Lambda:
   def binders(f: AnyRef, types: List[LeanType[?]]): List[Binder] =
     val hints = Lambdas.params(f)
     types.zipWithIndex.map((t, i) => Binder(hints.lift(i).getOrElse("x"), t))
-  def body(f: AnyRef, bs: List[Binder]): Term[?] =
+  def body(f: AnyRef, bs: List[Binder]): Term[?] = Building {
     val ts = bs.map(_.term[Any])
     (f, ts) match
       case (g: Function0[?], Nil)                      => g().asInstanceOf[Term[?]]
@@ -91,6 +94,7 @@ private[frflow] object Lambda:
       case (g: Function4[?, ?, ?, ?, ?], List(a, b, c, d)) => g.asInstanceOf[(Any, Any, Any, Any) => Term[?]](a, b, c, d)
       case (g: Function5[?, ?, ?, ?, ?, ?], List(a, b, c, d, e)) => g.asInstanceOf[(Any, Any, Any, Any, Any) => Term[?]](a, b, c, d, e)
       case _ => throw IllegalArgumentException(s"FrFlow: a lambda of ${bs.size} terms expected")
+  }
 
 /** The Lean of `t` alone: for tests and messages. */
 def leanOf(t: Term[?]): String = LeanPrinter().expr(t.termTree)
@@ -260,11 +264,18 @@ object Term extends TermsOfValues:
     inline def on[C <: S](using m: Mirror.ProductOf[C]): First[S, m.MirroredElemTypes] = First(s, constValue[m.MirroredLabel])
 
   extension [A](a: Term[A])
-    def ===(b: Term[A]): Term[Boolean] = opB(Prim.Eq, a, b)
-    def =!=(b: Term[A]): Term[Boolean] = opB(Prim.Ne, a, b)
+    def ===(b: Term[A]): Term[Boolean] = opB(Prim.Eq, comparable(a), b)
+    def =!=(b: Term[A]): Term[Boolean] = opB(Prim.Ne, comparable(a), b)
     /** The value with some fields changed: `a.copy((enabled = v))`. */
     inline def copy[N <: Tuple, V <: Tuple](changes: NamedTuple.NamedTuple[N, V]): Term[A] =
       copied(a, constValueTuple[N].toList.asInstanceOf[List[String]], changes.toTuple.productIterator.toList)
+
+  /** Scala compares functions by reference, Lean by their values: an equality between two would mean one thing in each. */
+  private def comparable[A](a: Term[A]): Term[A] = a.termType.shape match
+    case Shape.FnOf(_, _) => throw IllegalArgumentException(
+      "FrFlow: === or =!= between functions: Scala compares them by reference and Lean by their values; compare what they " +
+        "give instead, as in forall((x: Term[X]) => f(x) === g(x))")
+    case _ => a
 
   private[frflow] def copied[A](a: Term[A], labels: List[String], values: List[Any]): Term[A] = a.termType.shape match
     case Shape.Data(adt) if !adt.isEnum =>

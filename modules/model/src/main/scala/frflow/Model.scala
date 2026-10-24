@@ -28,7 +28,8 @@ final class Param[A](val name: String, val means: String)(using t: LeanType[A] =
   def bindTable[K, V](table: Map[K, V])(using A =:= (K => Option[V])): Binding = Binding(this, () => table.get, Some(table))
   override def toString: String = name
 
-// A parameter called in a model is a term; plain code calls the value in force: `sessions.value(t)`.
+// A parameter called in a model is a term; plain code calls the value in force: `sessions.value(t)`. Called on plain values
+// it is a term too (a model may call it on constants); plain code cannot use that term as a value, nor compare it with `==`.
 extension [A, R](p: Param[A => R])
   def apply(a: Term[A]): Term[R] = Term.applied(p, a)
 extension [A, B, R](p: Param[(A, B) => R])
@@ -64,7 +65,7 @@ final case class TypeDecl(name: String, lean: String, uses: List[String], scala:
   */
 final class Lifted[+F] private[frflow] (build: () => (List[Binder], Term[?]), private[frflow] val fn: AnyRef | Null, val source: String,
     asValue: Boolean = false, runs: Lifted[?] | Null = null):
-  private[frflow] lazy val built = build()
+  private[frflow] lazy val built = Building(build())
   private lazy val printed: Printed = LeanPrinter().print(built._1, built._2.termTree, built._2.termType)
   private lazy val compiled: AnyRef = Eval.function(built._1, built._2.termTree)
   /** The Scala function; a term defined as a value (`onShelf := shelf.length`), its value under the bindings in force. */
@@ -137,7 +138,8 @@ inline def define[A, B, C, D, E, R](inline f: (Term[A], Term[B], Term[C], Term[D
 private def called[R](d: Def[?], args: Term[?]*): Term[R] =
   Term(Tree.Call(d, args.toList.map(_.termTree)), d.resultType.asInstanceOf[LeanType[R]])
 
-// A define called in a model is a term; plain code runs it with `fn`: `admitted.fn(token, path)`.
+// A define called in a model is a term; plain code runs it with `fn`: `admitted.fn(token, path)`. Called on plain values it
+// is a term too (a model may call it on constants); plain code cannot use that term as a value, nor compare it with `==`.
 extension [A, R](d: Def[A => R])
   def apply(a: Term[A]): Term[R] = called(d, a)
 extension [A, B, R](d: Def[(A, B) => R])
