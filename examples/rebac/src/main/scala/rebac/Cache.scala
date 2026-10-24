@@ -31,7 +31,7 @@ object CacheModel extends AnswerCache, StateModel[List[Cached]]:
 
 val cacheKeepsAnswers = Node.assumption(cache)(CacheModel)("CacheKeepsAnswers",
   "The cache gives back the answer it last kept for a check at a version, if it still keeps it, and keeps the newest answers, a bounded number of them.",
-  why = "Answers are kept by the check and its version, so a later write, which makes a new version, never meets an answer kept for an older one: staleness, the classic bug of an authorization cache, cannot happen by how the key is made (Q4). The cache is the service's own code (LruCache.scala), tested against this model on generated runs of its operations; what is decided here is the model.",
+  why = "Answers are kept by the check and its version, so a later write, which makes a new version, never meets an answer kept for an older one: staleness, the classic bug of an authorization cache, cannot happen by how the key is made (Q4), since the tuples of a version never change (Versions, ServiceWiring). The cache is the service's own code (LruCache.scala), tested against this model on generated runs of its operations; what is decided here is the model.",
   idea = "Versions and the cache")
   .implementedBy(cs => LruCache.holding(cs), _.entries)
 
@@ -46,7 +46,10 @@ def cachedCheck(a: Term[Ask]): Flow[Boolean] =
   for
     hit <- cache.lookup(a)
     answer <- If(hit.isDefined)(Flow.pure(hit.getOrElse(False))).Else(
-      for _ <- cache.remember(a, allowed(a.query, a.at)) yield allowed(a.query, a.at))
+      for
+        fresh <- Flow.pure(allowed(a.query, a.at))
+        _     <- cache.remember(a, fresh)
+      yield fresh)
   yield answer
 
 private val annAt3 = Ask(Query(Obj("doc", "readme"), "viewer", "ann"), 3)

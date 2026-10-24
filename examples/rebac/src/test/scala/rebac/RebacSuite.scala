@@ -33,11 +33,11 @@ class RebacSuite extends munit.CatsEffectSuite:
     }
   }
 
-  test("the model is well formed: one root split into its safety and capability halves, the check's contract under both") {
+  test("the model is well formed: the meaning in two definitions, the root split into the resolution and the two indexes it reads") {
     assertEquals(knowledge.problems, Nil)
     assertEquals(knowledge.root.map(_.id), Some("ChecksExactly"))
-    assertEquals(knowledge.parts(checksExactly).map(_.id), List("OnlyGivenAccess", "GivenAccessAnswered"))
-    assertEquals(knowledge.parentsOf(checkContract).map(_.id), List("OnlyGivenAccess", "GivenAccessAnswered"))
+    assertEquals(knowledge.definitions.map(_.id), List("Versions", "Derivation"))
+    assertEquals(knowledge.parts(checksExactly).map(_.id), List("StoreIndex", "SchemaIndex", "CheckContract"))
   }
 
   test("the examples pass against the contracts, the indexes and the code, and on the cache's own implementation") {
@@ -84,20 +84,82 @@ class RebacSuite extends munit.CatsEffectSuite:
     f.foreach(x => println(s"store ignoring deletes, shrunk: ${x.shown} — ${x.why}"))
   }
 
-  test("the service: writes get versions, and a check answers by the tuples of its version, through the cache") {
+  test("the tuples of a version never change when later writes are added: what keeps a kept answer the check's") {
+    val r = scala.util.Random(7)
+    def tuple() = RelTuple(Obj("doc", s"d${r.nextInt(3)}"), List("viewer", "editor")(r.nextInt(2)), Subject.Person(s"u${r.nextInt(3)}"))
+    def log(n: Int) = List.fill(n)(if r.nextBoolean() then Write.Add(tuple()) else Write.Remove(tuple()))
+    for _ <- 1 to 200 do
+      val (ws, more) = (log(r.nextInt(8)), log(r.nextInt(4)))
+      for v <- 0 to ws.size do assertEquals(tuplesAt.fn(ws ++ more, v), tuplesAt.fn(ws, v), (ws, more, v))
+  }
+
+  test("the running store is found again by its log, not rebuilt on each read") {
+    val s = TupleStore.replaying(demoWrites)
+    assert(TupleStore.of(s.writes) eq s)
+    assertEquals(TupleStore.of(demoWrites.map(identity)).tuplesOf(2, readme), s.tuplesOf(2, readme))
+  }
+
+  test("the service: writes get versions, a check answers by the tuples of its version, and a kept answer survives later writes") {
     val s = RebacService(demoSchema, serviceLevels)
-    demoWrites.foreach(s.write)
+    demoWrites.take(3).foreach(s.write)
     val ann = Query(readme, "viewer", "ann")
+    assertEquals(s.check(ann, Some(3)), true)
+    demoWrites.drop(3).foreach(s.write)
     assertEquals(List(1, 2, 3, 4, 5).map(v => s.check(ann, Some(v))), List(false, false, true, true, false))
-    assertEquals(s.check(ann, Some(3)), true) // again: from the cache, the same answer
+    assertEquals(s.check(ann, Some(99)), false) // never past the latest: version 5
     assertEquals(s.check(Query(readme, "viewer", "bob"), None), true)
     assertEquals(s.check(Query(readme, "editor", "ann"), Some(3)), false)
   }
 
-  test("tuple strings: users, usersets and links parse; anything else is refused") {
-    assertEquals(RebacService.parse("doc:readme#viewer@user:ann"), Some(RelTuple(readme, "viewer", Subject.Person("ann"))))
-    assertEquals(RebacService.parse("folder:eng#viewer@group:eng#member"), Some(RelTuple(eng, "viewer", Subject.Members(engGroup, "member"))))
-    assertEquals(RebacService.parse("doc:readme#parent@>folder:eng"), Some(RelTuple(readme, "parent", Subject.Link(eng))))
-    for bad <- List("", "doc:readme", "doc:readme#viewer", "doc#viewer@user:ann", "doc:readme#viewer@ann", "doc:readme#@user:ann") do
-      assertEquals(RebacService.parse(bad), None, bad)
+  test("tuple strings: users, usersets and links parse and print back; anything else is refused with a reason") {
+    val ok = List(
+      "doc:readme#viewer@user:ann" -> RelTuple(readme, "viewer", Subject.Person("ann")),
+      "folder:eng#viewer@group:eng#member" -> RelTuple(eng, "viewer", Subject.Members(engGroup, "member")),
+      "doc:readme#parent@>folder:eng" -> RelTuple(readme, "parent", Subject.Link(eng)))
+    for (text, t) <- ok do
+      assertEquals(TupleSyntax.parse(text), Right(t))
+      assertEquals(TupleSyntax.show(t), text)
+    for bad <- List("", "doc:readme", "doc:readme#viewer", "doc#viewer@user:ann", "doc:readme#viewer@ann", "doc:readme#@user:ann",
+        "doc:readme#viewer@group:eng#", "doc:readme#viewer@user:") do
+      assert(TupleSyntax.parse(bad).isLeft, bad)
+  }
+
+  test("the server over HTTP: a write through a group and a folder, checks before and after, at a past version") {
+    val server = RebacHttp.serve(0, RebacService(demoSchema, serviceLevels))
+    try
+      val http = java.net.http.HttpClient.newHttpClient()
+      def call(m: String, path: String) =
+        val req = java.net.http.HttpRequest.newBuilder(java.net.URI.create(s"http://127.0.0.1:${server.getAddress.getPort}$path"))
+          .method(m, java.net.http.HttpRequest.BodyPublishers.noBody()).build()
+        val res = http.send(req, java.net.http.HttpResponse.BodyHandlers.ofString())
+        (res.statusCode, res.body.trim)
+      def enc(t: String) = java.net.URLEncoder.encode(t, "UTF-8")
+      val ann = enc("doc:readme#viewer@user:ann")
+      val answers = List(
+        call("POST", s"/write?tuple=${enc("folder:eng#viewer@group:eng#member")}"),
+        call("POST", s"/write?tuple=${enc("doc:readme#parent@>folder:eng")}"),
+        call("GET", s"/check?tuple=$ann"),
+        call("POST", s"/write?tuple=${enc("group:eng#member@user:ann")}"),
+        call("GET", s"/check?tuple=$ann"),
+        call("POST", s"/delete?tuple=${enc("group:eng#member@user:ann")}"),
+        call("GET", s"/check?tuple=$ann"),
+        call("GET", s"/check?tuple=$ann&at=3"),
+        call("POST", s"/write?tuple=${enc("doc:readme#viewer@group:eng#")}"))
+      assertEquals(answers.map(_._1), List(200, 200, 200, 200, 200, 200, 200, 200, 400))
+      assertEquals(answers.take(8).map(_._2), List("1", "2", "no", "3", "yes", "4", "no", "yes"))
+    finally server.stop(0)
+  }
+
+  test("the HTTP layer: checks and writes, and refusals with the reason") {
+    val s = RebacService(demoSchema, serviceLevels)
+    def call(m: String, path: String, tuple: String, at: Option[Int] = None) =
+      RebacHttp.answer(s, m, path, Map("tuple" -> tuple) ++ at.map(v => "at" -> v.toString))
+    assertEquals(call("POST", "/write", "folder:eng#viewer@group:eng#member"), (200, "1"))
+    assertEquals(call("POST", "/write", "doc:readme#parent@>folder:eng"), (200, "2"))
+    assertEquals(call("GET", "/check", "doc:readme#viewer@user:ann"), (200, "no"))
+    assertEquals(call("POST", "/write", "group:eng#member@user:ann"), (200, "3"))
+    assertEquals(call("GET", "/check", "doc:readme#viewer@user:ann"), (200, "yes"))
+    assertEquals(call("GET", "/check", "doc:readme#viewer@user:ann", Some(2)), (200, "no"))
+    assertEquals(call("GET", "/check", "doc:readme#viewer@group:eng#member")._1, 400)
+    assertEquals(call("POST", "/write", "doc:readme#viewer@group:eng#")._1, 400)
   }

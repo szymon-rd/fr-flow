@@ -57,40 +57,48 @@ val levels = Param[List[Unit]]("levels",
   "the resolution depth, one entry per step a check may take (a userset, an implied relation or a link is a step), as configured: 25 entries in production, as OpenFGA's default")
 val writes = Param[List[Write]]("writes", "every write and delete of a tuple, in order: version v is what the first v of them leave")
 
+// ============================================================================
+// The vocabulary the purpose is stated in, fixed by the definitions Versions and Derivation (Checks.scala)
+// ============================================================================
+
+val stored = Param[(Int, Obj) => List[RelTuple]]("stored",
+  "the tuples about an object stored at a version: what the writes up to that version leave about it")
+val granted = Param[(Query, Int) => Boolean]("granted",
+  "whether the tuples stored at the version give the person the relation on the object under the schema, within the depth")
+
 /** The rules the schema gives a relation of a kind of object; none if the schema does not name it. */
 val rulesOf = define { (kind: Term[String], rel: Term[String]) =>
   schema.find(d => d.kind === kind && d.rel === rel).on[Some[RelationDef]](d => d.rules).on[None.type](Nil)
 }
 
-/** The tuples stored at a version: the first `v` writes applied in order, each tuple once. */
+/** The tuples after one more write: an added tuple once, a removed one gone. */
 val applyWrite = define { (ts: Term[List[RelTuple]], w: Term[Write]) =>
   w.on[Write.Add](t => If(ts.contains(t))(ts).Else(ts ++ List(t)))
    .on[Write.Remove](t => ts.filterNot(x => x === t))
 }
+/** The tuples the first `v` writes leave, applied in order. */
 val tuplesAt = define { (ws: Term[List[Write]], v: Term[Int]) =>
   ws.take(v).foldLeft(Nil: Term[List[RelTuple]])((ts, w) => applyWrite(ts, w))
 }
 
-/** Whether the tuples give the person the relation on the object in at most as many steps as `fuel` has entries: a
-  * step is one rule of the relation (its own tuples, an implied relation, a link), and a userset or a link continues
-  * on the next step with the rest of the fuel.
+/** Whether the tuples stored at version `v` give the person the relation on the object in at most as many steps as
+  * `fuel` has entries: a step is one rule of the relation (its own tuples, an implied relation, a link), and a userset
+  * or a link continues on the next step with the rest of the fuel. It reads an object's tuples (`stored`) and a
+  * relation's rules (`rulesOf`), one object at a time, as the service's resolution does through its indexes.
   */
-val holds: Def[(List[Unit], List[RelTuple], Obj, String, String) => Boolean] = define {
-  (fuel: Term[List[Unit]], ts: Term[List[RelTuple]], o: Term[Obj], r: Term[String], p: Term[String]) =>
+val holds: Def[(List[Unit], Int, Obj, String, String) => Boolean] = define {
+  (fuel: Term[List[Unit]], v: Term[Int], o: Term[Obj], r: Term[String], p: Term[String]) =>
     fuel.on[Nil.type](False).on[::[Unit]]((_, rest) =>
       rulesOf(o.kind, r).exists(rule =>
         rule.on[Rule.Direct.type](
-              ts.exists(t => t.obj === o && t.rel === r && t.subject
+              stored(v, o).exists(t => t.rel === r && t.subject
                 .on[Subject.Person](id => id === p)
-                .on[Subject.Members]((g, gr) => holds(rest, ts, g, gr, p))
+                .on[Subject.Members]((g, gr) => holds(rest, v, g, gr, p))
                 .on[Subject.Link](_ => False)))
-            .on[Rule.Implied](by => holds(rest, ts, o, by, p))
+            .on[Rule.Implied](by => holds(rest, v, o, by, p))
             .on[Rule.Inherited]((link, via) =>
-              ts.exists(t => t.obj === o && t.rel === link && t.subject
+              stored(v, o).exists(t => t.rel === link && t.subject
                 .on[Subject.Person](_ => False)
                 .on[Subject.Members]((_, _) => False)
-                .on[Subject.Link](parent => holds(rest, ts, parent, via, p))))))
+                .on[Subject.Link](parent => holds(rest, v, parent, via, p))))))
 }
-
-/** Whether the schema gives the person the relation on the object by the tuples of a version, within the depth. */
-val granted = define { (q: Term[Query], v: Term[Int]) => holds(levels, tuplesAt(writes, v), q.obj, q.rel, q.person) }

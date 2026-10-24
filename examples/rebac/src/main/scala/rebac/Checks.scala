@@ -7,29 +7,27 @@ import frflow.*
 // ============================================================================
 
 val allowed = Param[(Query, Int) => Boolean]("allowed",
-  "the service's answer to a check at a version (whether it allows the request): whether the person has the relation on the object, by the tuples of that version")
+  "the service's answer to a check at a version (whether it allows the request)")
 
 val checksExactly = Node.claim("ChecksExactly",
   "A check of whether a person has a relation to an object, at a version, answers yes exactly when the tuples stored at that version give it under the schema, within the resolution depth.",
-  why = "The idea's lead paragraph (Q1), stated as one relation between what a client observes (the answer) and what the stored tuples entitle the person to (granted). Stating it at a version makes the answer a function of the tuples a check reads (Q4); the depth bounds the derivation as OpenFGA's resolver does (Q3).",
+  why = "The idea's lead paragraph (Q1), stated as one relation between what a client observes (the answer) and what the stored tuples entitle the person to (granted, fixed by Derivation). Stating it at a version makes the answer a function of the tuples a check reads (Q4); the depth bounds the derivation as OpenFGA's resolver does (Q3).",
   idea = "Checks"
 )(forall((q: Term[Query], v: Term[Int]) => allowed(q, v) === granted(q, v)))
 
 // ============================================================================
-// The first split: no access the tuples do not give; every access they give
+// The vocabulary: what a version holds, and what the tuples give
 // ============================================================================
 
-val onlyGivenAccess = Node.claim("OnlyGivenAccess",
-  "A check answers yes only when the tuples stored at its version give the relation under the schema, within the depth.",
-  why = "Safety: an authorization service that says yes without a derivation lets someone in that the tuples do not let in. This is the half of the purpose a careless cache or a stale read breaks (Q4).",
-  idea = "Checks"
-)(forall((q: Term[Query], v: Term[Int]) => allowed(q, v) ==> granted(q, v))).under(checksExactly)
+val versions = Node.definition("Versions",
+  "An object's tuples at a version are those about it that the first v writes leave, applied in order: an added tuple once, a removed one gone.",
+  why = "Each write and delete gets the next version, and a check reads one version (Q4): so a version's tuples are a prefix of the log replayed, and a later write never changes them."
+)(stored := ((v: Term[Int], o: Term[Obj]) => tuplesAt(writes, v).filter(t => t.obj === o)))
 
-val givenAccessAnswered = Node.claim("GivenAccessAnswered",
-  "A check answers yes whenever the tuples stored at its version give the relation under the schema, within the depth.",
-  why = "Capability: a service that answers no to everything meets the safety half; this half is what makes the tuples and the schema's rules (usersets, implied relations, links) mean something (Q2).",
-  idea = "The schema"
-)(forall((q: Term[Query], v: Term[Int]) => granted(q, v) ==> allowed(q, v))).under(checksExactly)
+val derivation = Node.definition("Derivation",
+  "The tuples of a version give a person a relation on an object when, within the depth, a rule the schema gives that relation does: a tuple of the relation naming the person, or a userset the person is in; the relation it is implied by; or the relation inherited through a linked object.",
+  why = "The schema's four kinds of rule (Q2), read one object at a time; a userset, an implied relation and a link each take a step, and what is given only beyond the depth is not given (Q3), as in OpenFGA."
+)(granted := ((q: Term[Query], v: Term[Int]) => holds(levels, v, q.obj, q.rel, q.person)))
 
 // ============================================================================
 // The operations the check reads through: the store's index, and the schema's
@@ -41,10 +39,12 @@ val rulesFor = Param[(String, String) => List[Rule]]("rulesFor",
   "the schema index's answer for a relation of a kind of object: the rules that give it")
 
 val storeIndex = Node.assumption(tuplesOf)("StoreIndex",
-  "A read of an object's tuples at a version returns exactly the tuples about that object that the writes up to that version leave, in the order they were added.",
-  why = "The tuples live in the store, which keeps them by object and version; the check is proven from this promise, not from the store's code. The in-memory store (TupleStore) stands for a database here: its reads are checked against `storedOf` (this promise as code) on the examples and on generated logs of writes, not proven.",
+  "A read of an object's tuples at a version returns exactly the tuples about it stored at that version, in the order they were added.",
+  why = "The tuples live in the store, which keeps them by object and version; the check is proven from this promise, not from the store's code. The in-memory store (TupleStore) stands for a database here: its reads are checked against `storedOf` (this promise as code) on the examples and on generated logs of writes, and every read is checked to be about the object asked.",
   idea = "Versions and the cache"
-)((v, o, ts) => ts === tuplesAt(writes, v).filter(t => t.obj === o))
+)((v, o, ts) => ts === stored(v, o))
+  .under(checksExactly)
+  .checkedBy((v, o, ts) => ts.forall(t => t.obj === o))
   .examples(writes.bind(demoWrites))(
     expect(2, Obj("doc", "readme"), List(RelTuple(Obj("doc", "readme"), "parent", Subject.Link(Obj("folder", "eng")))),
       "the first two writes leave the readme's link to its folder; the folder's own tuple is about another object"),
@@ -53,13 +53,14 @@ val storeIndex = Node.assumption(tuplesOf)("StoreIndex",
       "at version 1 only the folder's tuple was written: a read never shows a later write"))
 
 /** The promise of StoreIndex as code: what the store's reads are checked against, and what Lean evaluates them by. */
-val storedOf = define { (v: Term[Int], o: Term[Obj]) => tuplesAt(writes, v).filter(t => t.obj === o) }
+val storedOf = define { (v: Term[Int], o: Term[Obj]) => stored(v, o) }
 
 val schemaIndex = Node.contract(rulesFor)("SchemaIndex",
   "The schema index gives a relation of a kind of object exactly the rules the schema gives it, and none for a relation the schema does not name.",
   why = "Checks look rules up on every step; an index by kind and relation makes that cheap. Lean proves `rulesOf` meets this contract; the index that runs (SchemaIndex.scala, plain Scala) is checked against `rulesOf` on the examples and on generated schemas. The check is proven from the contract.",
   idea = "The schema"
 )((kind, rel, rules) => rules === rulesOf(kind, rel))
+  .under(checksExactly)
   .examples(schema.bind(demoSchema))(
     expect("doc", "viewer", List(Rule.Direct, Rule.Implied("editor"), Rule.Inherited("parent", "viewer")), "a document's viewers: its own tuples, its editors, and its folder's viewers"),
     expect("doc", "owner", Nil, "a relation the schema does not name has no rules"),
@@ -69,8 +70,8 @@ val schemaIndex = Node.contract(rulesFor)("SchemaIndex",
 // The check: proven of the code, which reads through the two indexes
 // ============================================================================
 
-/** The check's resolution: like `holds`, but reading one object's tuples at a time through the store's index, and
-  * the rules through the schema index, as the running service does.
+/** The check's resolution: `holds`, step for step, reading an object's tuples through the store's index and a
+  * relation's rules through the schema index, as the running service does.
   */
 val resolve: Def[(List[Unit], Int, Obj, String, String) => Boolean] = define {
   (fuel: Term[List[Unit]], v: Term[Int], o: Term[Obj], r: Term[String], p: Term[String]) =>
@@ -93,11 +94,11 @@ val resolve: Def[(List[Unit], Int, Obj, String, String) => Boolean] = define {
 val resolveCheck = define { (q: Term[Query], v: Term[Int]) => resolve(levels, v, q.obj, q.rel, q.person) }
 
 val checkContract = Node.contract(allowed)("CheckContract",
-  "A check at a version answers yes exactly when the tuples of that version give the person the relation under the schema, within the depth.",
-  why = "The two halves, for one call, so every answer the running service gives is checked. The service resolves through the store's index and the schema index (StoreIndex, SchemaIndex); Lean proves that resolution gives what the tuples of the version give.",
+  "A check at a version answers what resolving it gives: the rules of the relation asked, from the schema index, and the tuples of the objects they lead to, from the store's index at that version, step by step within the depth.",
+  why = "How the service answers, stated as the resolution it runs: one object's tuples at a time, as Zanzibar reads, instead of the whole store. That this resolution gives exactly what the tuples of the version give (Derivation) is the root's split, proven by induction on the depth from the two indexes' promises.",
   idea = "Checks"
-)((q, v, answer) => answer === granted(q, v))
-  .under(onlyGivenAccess, givenAccessAnswered)
+)((q, v, answer) => answer === resolve(levels, v, q.obj, q.rel, q.person))
+  .under(checksExactly)
   .examples(schema.bind(demoSchema), levels.bind(demoLevels), writes.bind(demoWrites))(
     expect(Query(readme, "viewer", "ann"), 3, true, "at version 3 ann is in the eng group, whose members view the folder that holds the readme"),
     expect(Query(readme, "viewer", "ann"), 2, false, "at version 2 ann is not yet in the group"),
