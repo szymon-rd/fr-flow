@@ -20,6 +20,55 @@ class RuntimeSuite extends munit.FunSuite:
     intercept[ContractViolation](port((shelf, n) => List(Book("Short", 20))))
   }
 
+  test("how code is checked where it runs: every call for plain code, none for proven code, or a sample, as decided") {
+    import frflow.protocol.{RunCheck, RunTime}
+    val plain = shelfKb
+    assertEquals(plain.runTime(pick), Some(RunTime(RunCheck.EveryCall, "the contract", chosen = false)))
+    // Proven code: the define that runs is the one Lean proves; its result is not checked again.
+    val proven = shelfKb.implementProven(pick)(longOnes)
+    assertEquals(proven.runTime(pick).map(_.check), Some(RunCheck.Never))
+    // A choice is a decision: on the node, and so in what the developer decides.
+    val sampled = pick.checkedAtRunTime(RunCheck.Sampled(3))
+    val kb = shelfWith(sampled).implement(sampled)((shelf, n) => shelf.take(n))
+    assertEquals(kb.runTime(sampled), Some(RunTime(RunCheck.Sampled(3), "the contract", chosen = true)))
+    // One call in three, the first included: calls 0, 3, 6 are checked, the others pass unchecked.
+    val reported = scala.collection.mutable.ListBuffer.empty[Violation]
+    val s = kb.reporting(reported += _).service(sampled)(minPages.bind(100))
+    val short = List(Book("Short", 20))
+    val outcomes = (0 until 7).map(_ => scala.util.Try(s(short, 1)).isFailure)
+    assertEquals(outcomes.toList, List(true, false, false, true, false, false, true))
+    assertEquals(reported.size, 3)
+    // At random, at that rate, with a seed: the same calls each run.
+    def drawn(seed: Long) =
+      val k = shelfWith(pick.checkedAtRunTime(RunCheck.Sampled(4, Some(seed)))).implement(pick)((shelf, n) => shelf.take(n))
+        .reporting(_ => ()).service(pick)(minPages.bind(100))
+      (0 until 40).map(_ => scala.util.Try(k(short, 1)).isFailure).toList
+    assertEquals(drawn(7), drawn(7))
+    assert(drawn(7).count(identity) > 0 && drawn(7).count(identity) < 40)
+    // A choice on a node whose code service does not run is refused when the model loads.
+    val noCode = shelfWith(pick.checkedAtRunTime(RunCheck.Never))
+    assert(noCode.problems.exists(_.message.contains("checkedAtRunTime")), noCode.problems)
+  }
+
+  test("a broken contract is reported with its fields before service throws; the values a proven define runs with still are") {
+    val seen = scala.collection.mutable.ListBuffer.empty[Violation]
+    val s = shelfKb.implement(pick)((shelf, n) => shelf.take(n)).reporting(seen += _).service(pick)(minPages.bind(100))
+    val e = intercept[ContractViolation](s(List(Book("Short", 20)), 1))
+    assertEquals(e.violation, Violation("Pick", "the contract", List(List(Book("Short", 20)), 1), Some(List(Book("Short", 20)))))
+    assertEquals(seen.toList, List(e.violation))
+    assertEquals(e.violation.line,
+      "frflow contract violation: contract=Pick check=\"the contract\" inputs=(List(Book(\"Short\", 20)), 1) result=List(Book(\"Short\", 20))")
+    // A proven define's result is not checked again, but an assumption about the values it runs with is.
+    val positive = Node.assumption("PositiveLength", "Readers ask for books of at least one page.", why = "A length of zero would let empty books in.")(
+      minPages > 0).under(onlyLong)
+    var min = 100
+    val proven = shelfWith(pick, positive).implementProven(pick)(longOnes).reporting(seen += _).service(pick)(minPages.bind(min))
+    assertEquals(proven(List(Book("Long", 300)), 1), List(Book("Long", 300)))
+    min = 0
+    val a = intercept[ContractViolation](proven(List(Book("Long", 300)), 1))
+    assertEquals(a.violation.check, "the assumption PositiveLength")
+  }
+
   test("service binds each operation with code to that code, and each defined term to its definition") {
     // Again's code calls the shelf service's operation: the service runs PickPromise's code for it
     val s = callsKb.service(againC)(minPages.bind(100))

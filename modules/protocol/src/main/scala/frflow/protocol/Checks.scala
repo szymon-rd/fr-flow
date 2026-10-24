@@ -115,6 +115,26 @@ final case class TestReport(cases: Int, seed: Long, against: String, failure: Op
   def unreached: List[Covered] = coverage.filter(_.held == 0)
   def passed: Boolean = failure.isEmpty && unreached.isEmpty
 final case class TestFailure(shown: String, why: String, seed: Long, index: Int, size: Int) derives Codec.AsObject
+
+/** How a contract's code is checked where it runs (`service`): a decision of the developer's, or the default for its kind. */
+enum RunCheck derives Codec.AsObject:
+  /** Every call's result is checked: one that breaks the check is never returned. */
+  case EveryCall
+  /** One call in `oneIn`: every `oneIn`-th (the first included), or, with a seed, calls drawn at that rate. */
+  case Sampled(oneIn: Int, seed: Option[Long] = None)
+  /** Not checked: the running code is the code Lean proves. Assumptions about the values it runs with still are. */
+  case Never
+  def describe: String = this match
+    case EveryCall          => "every call"
+    case Sampled(n, None)    => s"one call in $n (every ${n}th, the first included)"
+    case Sampled(n, Some(s)) => s"one call in $n, drawn at random (seed $s)"
+    case Never              => "not checked"
+
+/** How a contract's code is checked where it runs, against what, and whether the developer chose it. */
+final case class RunTime(check: RunCheck, against: String, chosen: Boolean) derives Codec.AsObject:
+  def describe: String = check match
+    case RunCheck.Never => s"at run time: not checked, the running code is the code Lean proves${if chosen then " (chosen)" else ""}"
+    case c              => s"at run time: $against, checked on ${c.describe}${if chosen then " (chosen)" else " (the default for code not proven)"}"
 final case class Covered(part: String, held: Int) derives Codec.AsObject
 
 final case class ObligationText(name: String, statement: String, description: String) derives Codec.AsObject
@@ -130,7 +150,8 @@ final case class SnapNode(id: NodeId, kind: NodeKind, content: Content, hash: Ha
     split: Option[Split] = None, invariants: List[Kept] = Nil, expectations: List[Expectation] = Nil,
     implementationProof: Option[ImplProof] = None, rootImpl: Option[Outcome] = None, covers: List[NodeId] = Nil,
     exempts: List[NodeId] = Nil, obligations: List[ObligationText] = Nil, proof: Option[ProofFile] = None,
-    holds: String = "", lean: String = "", messages: List[String] = Nil, tested: Option[TestReport] = None) derives Codec.AsObject:
+    holds: String = "", lean: String = "", messages: List[String] = Nil, tested: Option[TestReport] = None,
+    runtime: Option[RunTime] = None) derives Codec.AsObject:
   def shownKind: String = kind.shown(rule)
   def examplesPassing: (Int, Int) = (examples.count(_.passes), examples.size)
 

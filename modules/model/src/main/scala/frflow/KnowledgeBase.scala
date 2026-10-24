@@ -1,11 +1,12 @@
 package frflow
 
-import frflow.protocol.{NodeKind, Walk, tooFew}
+import frflow.protocol.{NodeKind, RunCheck, RunTime, Walk, tooFew}
 import java.util.regex.Pattern.quote
 
 /** The idea and its nodes: one root claim refined by a DAG of parts, told apart by identity; `name` is the Lean namespace. */
 final class KnowledgeBase(val name: String, val idea: String, val implementations: List[Implementation] = Nil,
-    val generators: List[(LeanType[?], Gen[?])] = Nil, val testing: TestSettings = TestSettings())(nodeList: Node[?]*):
+    val generators: List[(LeanType[?], Gen[?])] = Nil, val testing: TestSettings = TestSettings(),
+    val onViolation: Violation => Unit = Violation.log)(nodeList: Node[?]*):
   val nodes: List[Node[?]] = nodeList.toList
   private lazy val members: Set[Node[?]] = nodes.toSet
   def has(n: Node[?]): Boolean = members(n)
@@ -127,15 +128,31 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
   inline def implementProven[A, R](contract: Node[A => Flow[R]])(inline impl: Term[A] => Flow[R]): KnowledgeBase =
     withImplementation(Implementation.ofFlow(contract, impl, Source.text(impl), Source.sourceFiles(impl)))
   def withImplementation(i: Implementation): KnowledgeBase =
-    KnowledgeBase(name, idea, implementations.filterNot(_.contract == i.contract) :+ i, generators, testing)(nodes*)
+    KnowledgeBase(name, idea, implementations.filterNot(_.contract == i.contract) :+ i, generators, testing, onViolation)(nodes*)
 
   /** Values of `T` for the tests of code against contracts, where the ones derived from the type rarely reach what a
     * contract is about: `.generating(Gen.oneOf(Path("/a"), Path("/b")))`.
     */
   def generating[T](g: Gen[T])(using t: LeanType[T]): KnowledgeBase =
-    KnowledgeBase(name, idea, implementations, generators :+ (t -> g), testing)(nodes*)
+    KnowledgeBase(name, idea, implementations, generators :+ (t -> g), testing, onViolation)(nodes*)
   /** How many cases each contract's code is tested on, from which seed. */
-  def testedWith(settings: TestSettings): KnowledgeBase = KnowledgeBase(name, idea, implementations, generators, settings)(nodes*)
+  def testedWith(settings: TestSettings): KnowledgeBase = KnowledgeBase(name, idea, implementations, generators, settings, onViolation)(nodes*)
+  /** Where a broken contract or assumption is reported before `service` throws: a log line by default; an application
+    * adds its own (a metric, an alert) here, and maps the thrown `ContractViolation` to its own failure (an HTTP 500).
+    */
+  def reporting(report: Violation => Unit): KnowledgeBase = KnowledgeBase(name, idea, implementations, generators, testing, report)(nodes*)
+
+  /** How a contract's code is checked where `service` runs it: as the developer chose (`checkedAtRunTime`), else on every
+    * call, unless the running code is the code Lean proves (a proven define's result needs no second look; the values it
+    * runs with are still checked against the assumptions).
+    */
+  def runTime(n: Node[?]): Option[RunTime] =
+    // As this knowledge base holds the node: a choice made on it is the one in force, whichever copy is passed.
+    val m = node(n.id).getOrElse(n)
+    implementation(m).filter(i => !i.flow && m.post.isDefined).map { i =>
+      val check = m.runCheck.getOrElse(if i.provenCode then RunCheck.Never else RunCheck.EveryCall)
+      RunTime(check, if m.local.isDefined then "its check (checkedBy)" else "the contract", m.runCheck.isDefined)
+    }
   private lazy val byContract = implementations.map(i => i.contract -> i).toMap
   def implementation(n: Node[?]): Option[Implementation] = byContract.get(n.id)
   def modelFiles: List[String] = (nodes.map(_.file) ++ implementations.flatMap(_.modelFile)).filter(_.nonEmpty).distinct
@@ -305,5 +322,7 @@ private[frflow] object Validation:
       kb.nodes.flatMap(c => c.op.filter(o => kb.implementation(c).flatMap(_.proven).exists(d => kb.opsCalledBy(d).contains(o.name)))
         .map(o => s"${c.id}: its implementation calls ${o.name} itself: it cannot be proven from its own promise")),
       kb.implementations.map(_.contract).filterNot(c => kb.nodes.exists(n => n.id == c && n.op.isDefined))
-        .map(c => s"implementation of $c: not a contract (or an assumption on an operation) of this knowledge base")
+        .map(c => s"implementation of $c: not a contract (or an assumption on an operation) of this knowledge base"),
+      kb.nodes.filter(n => n.runCheck.isDefined && kb.runTime(n).isEmpty)
+        .map(n => s"${n.id}: checkedAtRunTime is for a contract or an assumption whose code service runs: attach its code, or remove it")
     ).flatten.map(Code(_))

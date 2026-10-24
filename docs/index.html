@@ -445,7 +445,7 @@ with a reason (<code>.exempt</code>). A new endpoint then has to keep it or say 
 
 <h3 id="how-outside">State what the outside does</h3>
 <p>A database or a clock cannot be proven. State what it is trusted to do as an assumption on its operation; the code
-that calls it is proven from that promise, and <code>checkedBy</code> gives a cheap check run on every call. Code
+that calls it is proven from that promise, and <code>checkedBy</code> gives a cheap check run where the code runs. Code
 that takes several steps against the outside (load, store, log) is a flow over a boundary instead: see
 <a href="#effects">Effectful code</a>.</p>
 <div class="code"><pre><code>val sessionLookup = Node.assumption(lookup)("SessionLookup",
@@ -581,7 +581,11 @@ val aboutRecord = define { (s: Term[CrmStore], id: Term[BigInt]) =&gt;
   <li><code>.replaces(other)</code>: an alternative; accepting one rejects the other.</li>
   <li><code>.keeps(invariant)(view)</code> and <code>.exempt(invariant, reason)</code>.</li>
   <li><code>.examples(bindings*)(expect(…), reject(…))</code>: every contract needs at least one of each.</li>
-  <li><code>.checkedBy((a, b, r) =&gt; …)</code>: a cheaper check run on every call, proven to follow from the post.</li>
+  <li><code>.checkedBy((a, b, r) =&gt; …)</code>: a cheaper check run where the code runs, proven to follow from the post.</li>
+  <li><code>.checkedAtRunTime(RunCheck.Sampled(100))</code> (or <code>EveryCall</code>, <code>Never</code>): how often <code>service</code> checks
+    the code's results, instead of the default: every call for plain code and outside adapters, none for a proven define that is the
+    running code. A decision, shown in <code>show</code>. A failed check is reported (<code>knowledge.reporting(v =&gt; …)</code>; a log line by
+    default) before <code>ContractViolation</code> is thrown, which an application maps to its own failure (an HTTP 500).</li>
   <li><code>.expects(statement)(formula)</code>: a consequence you expect, proven from the node.</li>
 </ul>
 

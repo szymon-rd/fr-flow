@@ -174,7 +174,7 @@ object NodeText:
     // The define and the running code are named above.
     val impl = n.content.text("implementation").linesIterator.filterNot(l => l.startsWith("proven: ") || l.startsWith("runs: ")).toList
     val shown = if full || impl.size <= Few + 2 then impl else impl.take(Few) :+ s"${st.ellipsis} ${impl.size - Few} more line(s): context ${n.id}"
-    how.toList ++ shown.map(l => st.dim("  " + l)) ++ tests(n, st, full) ++ governs(d, st)
+    how.toList ++ shown.map(l => st.dim("  " + l)) ++ tests(n, st, full) ++ n.runtime.map(_.describe).toList ++ governs(d, st)
 
   /** What the tests of the code found: cases, seed, the failing case (shrunk), how often each part of the contract (or
     * each operation and branch of the model) was reached.

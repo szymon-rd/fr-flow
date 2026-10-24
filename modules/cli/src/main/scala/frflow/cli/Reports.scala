@@ -50,6 +50,9 @@ object SummaryText:
       Option.when(s.contractsTested > 0)(s"code tested against its contract ${ratio(s.testsPassing, s.contractsTested)}"),
       Option.when(s.modelsRun > 0)(s"boundaries' implementations run against their models ${ratio(s.modelsPassing, s.modelsRun)}"),
       rootImpl.map(r => s"root_impl $r"),
+      Option.when(s.runEveryCall + s.runSampled + s.runNotChecked > 0)("at run time: " + List(
+        some(s.runEveryCall, "checked on every call", identity), some(s.runSampled, "sampled", identity),
+        some(s.runNotChecked, "not checked (proven)", identity)).flatten.mkString(", ")),
       Option.when(s.examplesInLean > 0)(s"examples ${ratio(s.examplesAgreeing, s.examplesInLean)} agree in Lean"),
       Some(s"trusted: ${s.trusted.filterNot(s.tested.contains) match { case Nil => "nothing"; case ts => ts.mkString(", ") }}" +
         (if s.tested.isEmpty then "" else s"; tested, not proven: ${s.tested.mkString(", ")}")),

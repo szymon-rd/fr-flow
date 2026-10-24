@@ -132,7 +132,9 @@ object Contents:
       implementation.map("implementation" -> str(_)),
       n.modelOf.map(mo => "model" -> strs(a.generate.boundaryModules.modelText(mo))),
       n.modelOf.filter(_.impls.nonEmpty).map(mo => "implementations" -> strs(mo.impls.map(i =>
-        s"${if i.outside then CodeProof.Outside else CodeProof.Own}${i.source}")))
+        s"${if i.outside then CodeProof.Outside else CodeProof.Own}${i.source}"))),
+      // Only a choice is decided: the default follows from the implementation, which is decided above.
+      n.runCheck.map(c => "runtime" -> str(c.describe))
     ).flatten ++ idea)*)
 
   private val Statement = """^\s*(?:(?:private|protected|final|lazy|override|inline)\s+)*(?:val|def|given|var)\b.*""".r

@@ -199,8 +199,13 @@ val sessionLookup = Node.assumption(lookup)("SessionLookup",          // keycloa
   shows the invariant; every contract and design node in its scope keeps it or
   is `.exempt`. `idea = "Section"`: the section of `IDEA.md` it is decided against.
 - **Extras.** `.checkedBy((a, b, r) => ...)`: a cheap check of the result, run
-  on every call, proven to follow from the post. `.expects(statement)(formula)`:
+  where the code runs, proven to follow from the post. `.expects(statement)(formula)`:
   a consequence the developer expects, proven from the node.
+  `.checkedAtRunTime(RunCheck.Sampled(n))` (or `EveryCall`, `Never`): how often
+  `service` checks the code's results, instead of the default (every call for
+  plain code and outside adapters, none for a proven define). It is the
+  developer's decision: propose it with the cost that motivates it (a check that
+  restates an expensive specification), never to hide a failing check.
 - **Examples.** Every contract needs an `expect` and a `reject`, and expects
   with different results. Bind every parameter the post reads; a lookup as
   `bindTable(Map(...))` so Lean can evaluate it. "Lean and Scala disagree"

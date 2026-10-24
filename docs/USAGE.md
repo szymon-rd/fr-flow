@@ -303,8 +303,29 @@ with a small budget, so they catch only what it can show. Then:
 
 **Checked by running.** Examples run against the contract and the
 implementation. In production, `service` binds the operations to their code
-and checks every result against the contract (or `checkedBy`, a cheaper check
-proven to follow from it), raising `ContractViolation`.
+and checks results against the contract (or `checkedBy`, a cheaper check
+proven to follow from it):
+
+| Code | Checked where it runs, by default | Why |
+|---|---|---|
+| plain Scala (`implement`), or code beside a proven define (`implementProven(c)(define, runs)`) | every call | its correctness rests on tests |
+| an outside system's adapter (an assumption's code) | every call | nothing else guards it |
+| a proven define that is the running code (`implementProven(c)(define)`) | not checked | Lean proves its result; checking it again costs a second evaluation of the specification and finds nothing the proof does not |
+
+A different choice is a decision on the node, shown in `show` and in the
+summary: `.checkedAtRunTime(RunCheck.Sampled(100))` checks one call in a hundred
+(every hundredth, the first included; `Sampled(100, Some(seed))` draws them at
+random, reproducibly), `RunCheck.EveryCall` checks every call (for proven code
+too), `RunCheck.Never` checks none. Assumptions about the values the code runs
+with are checked whatever the choice (once per change of a value they read).
+
+A broken check is reported first, then thrown: the knowledge base's reporter
+gets a `Violation` (the contract, which check, the inputs, the result), by
+default one line to the platform logger named `frflow`
+(`frflow contract violation: contract=Pick check="the contract" inputs=(…) result=…`);
+`knowledge.reporting(v => …)` adds your own (a metric, an alert). Then
+`ContractViolation` is thrown, so the result is never returned; an application
+maps it to its own failure (an HTTP layer, to a 500).
 
 **Effects as assumptions on an operation.** A database or a clock can be an
 assumption on an operation; the code is proven from its promise. The adapter

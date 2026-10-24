@@ -97,6 +97,13 @@ snapshot, `status` and `show`:
   `root_impl` lists it under "tested, not proven";
 - **assumed**: an outside system (`.checkedAgainst`), or an assumption on an operation.
 
+Where the code runs, `service` checks results as the contract's run-time check says: every call by
+default for plain code and outside adapters, none for a proven define that is the running code (its
+result is what Lean proves), or what the developer decided (`checkedAtRunTime`: `EveryCall`,
+`Sampled(n[, seed])`, `Never`; part of the node's content, so decided like the rest). Assumptions about
+the values the code runs with are checked whatever the choice. A failed check is reported (`Violation`,
+to the knowledge base's reporter: a log line by default) before `ContractViolation` is thrown.
+
 Tests are built from what is decided, so they cannot drift from it:
 - **the property** is the contract's own formula (with its `checkedBy` check and kept invariants),
   evaluated on each case; for a boundary, the model run beside the implementation, results and states

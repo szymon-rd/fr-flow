@@ -408,6 +408,14 @@ function tested(r, expected, model) {
     r.coverage.map(c => `<div class="small ${c.held ? "" : "err"}">${c.held ? `${c.held}×` : "never"}: <span class="mono">${esc(c.part)}</span></div>`).join("") +
     r.notes.map(x => `<div class="small muted">${esc(x)}</div>`).join("") + `</details>`;
 }
+/** How the contract's code is checked where it runs: what production does on each call. */
+function runtime(r) {
+  if (!r) return "";
+  const [k, v] = Object.entries(r.check)[0];
+  const how = k === "Never" ? "not checked: the running code is the code Lean proves"
+    : `${esc(r.against)}, checked on ${k === "EveryCall" ? "every call" : `one call in ${v.oneIn}${v.seed != null ? ", drawn at random" : ""}`}`;
+  return `<div class="small"><b>At run time</b>: ${how}${r.chosen ? " (chosen)" : ""}</div>`;
+}
 function formal(d) {
   const n = d.node.node, c = n.content, p = d.codeProof && Object.entries(d.codeProof)[0], runs = p?.[1].running ? `; running code ${esc(p[1].running)} tested against it` : "";
   return section("Formally (as written in Scala)", Object.entries(c.sources || {}).map(([k, v]) => `<div class="label">${esc(k)}${k === "post" && n.op ? ` (every call of ${esc(n.op)})` : ""}</div><pre>${esc(v)}</pre>`).join("") +
@@ -423,6 +431,7 @@ function formal(d) {
           ...p[1].outside.map(i => `<span class="mono">${esc(i)}</span> (an outside system, checked against the model; the model stays assumed)`)].join("; ")}`
       : "<b>Plain code, tested</b> against the contract, not proven"}</div>` : "") +
       tested(n.tested, p && (p[0] === "Tested" || p[0] === "Model" || p[1].running), p && p[0] === "Model") +
+      runtime(n.runtime) +
       (n.code ? `<div class="small">governs: <span class="mono">${esc(n.code.files.join(", "))}</span></div>` : "") +
       (c.implementation ? `<details><summary>the code</summary><pre>${esc(c.implementation)}</pre></details>` : ""));
 }

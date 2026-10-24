@@ -1,21 +1,44 @@
 package frflow
 
-import frflow.protocol.NodeKind
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
+import frflow.protocol.{NodeKind, RunCheck}
+import java.util.SplittableRandom
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong, AtomicReference}
 import scala.collection.concurrent.TrieMap
 
 // The run-time path: the user's production code calls `service`'s plain function `(A, B) => R`, and the
 // predicates it checks read parameters as `param.value` deep inside the user's own code. That path has no
 // effect type, and three things here follow from it:
 // - The values in force are a ThreadLocal (`Bindings`): there is no argument to pass them through.
-// - A broken contract or assumption is the documented `ContractViolation`, thrown so that a result that
-//   breaks it is never returned (fail closed); a wiring mistake (no implementation, an unbound parameter)
-//   is an `IllegalStateException` when the service is wired, not on the first call.
+// - A broken contract or assumption is reported (`Violation`, to the knowledge base's reporter: a log line by
+//   default), then thrown as the documented `ContractViolation`, so that a result that breaks it is never
+//   returned (fail closed); a wiring mistake (no implementation, an unbound parameter) is an
+//   `IllegalStateException` when the service is wired, not on the first call.
+// - Which calls are checked is the contract's `RunCheck`: every call for code Lean does not prove, none for
+//   code it proves, or a sample, as the developer decides.
 // - A running service remembers, in an atomic reference to an immutable map, what each assumption was last
 //   found to hold of; a call reads each parameter once, through a `Cell`.
 
-/** Raised by an enforced implementation whose result breaks its contract. */
-final class ContractViolation(node: String, detail: String) extends RuntimeException(s"$node: $detail")
+/** What broke where the code runs: the contract, which check (`its check`, `the contract`, `the invariant I`, `the
+  * assumption A`), the call's inputs, and the result (none when the values it runs with break an assumption).
+  */
+final case class Violation(contract: String, check: String, inputs: List[Any], result: Option[Any]):
+  private def args = inputs.map(Example.show).mkString("(", ", ", ")")
+  def message: String = result match
+    case Some(r)                => s"$contract: result ${Example.show(r)} for $args breaks $check"
+    case None if inputs.isEmpty => s"$contract: the values it starts with break $check"
+    case None                   => s"$contract: the values it runs with break $check"
+  /** One line with named fields, for logs to search and alert on. */
+  def line: String =
+    s"frflow contract violation: contract=$contract check=\"$check\" inputs=$args" + result.fold("")(r => s" result=${Example.show(r)}")
+
+object Violation:
+  /** The default report: the line, at ERROR, to the platform's logger named `frflow`. */
+  val log: Violation => Unit = v => System.getLogger("frflow").log(System.Logger.Level.ERROR, v.line)
+
+/** Raised where a result or a value breaks what was decided, after the violation is reported: the result is never
+  * returned (fail closed). An application maps it to its own failure (an HTTP layer, to a 500).
+  */
+final class ContractViolation(val violation: Violation) extends RuntimeException(violation.message)
 
 object Bindings:
   private val current = ThreadLocal.withInitial[Map[String, () => Any]](() => Map.empty)
@@ -145,33 +168,50 @@ extension [A, B, R](n: Node[(A, B) => R])
   }
   def broken(a: A, b: B, r: R): Option[String] = n.kept.find(_.brokenBy(a, b, r)).map(_.invariant.id)
 
-  private[frflow] def enforce(impl: (A, B) => R, assumes: List[Assumption] = Nil)(bindings: Binding*): (A, B) => R =
+  private[frflow] def enforce(impl: (A, B) => R, assumes: List[Assumption] = Nil, runCheck: RunCheck = RunCheck.EveryCall,
+      report: Violation => Unit = Violation.log)(bindings: Binding*): (A, B) => R =
     // The cheap check when the contract gives one (Lean proves the post implies it), else the post.
     val (lifted, what) = (n.local, n.post) match
       case (Some(l), Some(_)) => (l, "its check")
       case (None, Some(p))    => (p, "the contract")
       case _                  => throw IllegalArgumentException(s"${n.id} is not a contract")
     val check = lifted.value.asInstanceOf[(A, B, R) => Boolean]
+    val sampled = RunTimeChecks.chooser(runCheck)
     // What each assumption was last found to hold of: checked again when a value it reads changes.
     val held = AtomicReference(Map.empty[String, List[Any]])
     def same(xs: List[Any], ys: List[Any]) =
       xs.size == ys.size && xs.zip(ys).forall((p, q) => p.asInstanceOf[AnyRef] eq q.asInstanceOf[AnyRef])
+    def fail(v: Violation): Nothing = { report(v); throw ContractViolation(v) }
     (a, b) =>
       // Each parameter is read once per call, and only if something reads it (a whole table a cheap check does
       // not read is never loaded): the implementation and the check see the same values.
       val cells = bindings.map(b => b.param.name -> Cell(b)).toMap
       Bindings.within(cells.values.map(c => Binding(c.binding.param, () => c.get)).toSeq) {
         val r = impl(a, b)
-        if !check(a, b, r) then throw ContractViolation(n.id, s"result $r for ($a, $b) breaks $what")
-        n.broken(a, b, r).foreach(i => throw ContractViolation(n.id, s"result $r for ($a, $b) breaks the invariant $i"))
+        if sampled() then
+          if !check(a, b, r) then fail(Violation(n.id, what, List(a, b), Some(r)))
+          n.broken(a, b, r).foreach(i => fail(Violation(n.id, s"the invariant $i", List(a, b), Some(r))))
+        // The values it ran with are checked whatever the code: they are about the world, and cheap (once per change).
         assumes.filter(x => x.reads.forall(p => cells.get(p).exists(_.loaded))).foreach { x =>
           val vs = x.reads.toList.sorted.flatMap(cells.get).map(_.get)
           if !held.get.get(x.what).exists(same(_, vs)) then
-            if !x.holds() then throw ContractViolation(n.id, s"the values it runs with break the assumption ${x.what}")
+            if !x.holds() then fail(Violation(n.id, s"the assumption ${x.what}", List(a, b), None))
             held.updateAndGet(_.updated(x.what, vs))
         }
         r
       }
+
+/** Which calls a run-time check checks. */
+private[frflow] object RunTimeChecks:
+  def chooser(c: RunCheck): () => Boolean = c match
+    case RunCheck.EveryCall => () => true
+    case RunCheck.Never     => () => false
+    case RunCheck.Sampled(k, None) =>
+      val calls = AtomicLong(0)
+      () => calls.getAndIncrement() % k == 0
+    case RunCheck.Sampled(k, Some(seed)) =>
+      val random = SplittableRandom(seed)
+      () => random.synchronized(random.nextInt(k) == 0)
 
 /** Wiring a knowledge base's code into a running system (see `KnowledgeBase.service`). */
 private[frflow] object Wiring:
@@ -190,9 +230,13 @@ private[frflow] object Wiring:
     if missing.nonEmpty then throw IllegalStateException(s"${contract.id}: bind ${missing.mkString(", ")} (the contract reads them)")
     val all = bindings ++ defined ++ calls
     val assumes = kb.runtimeAssumptions.filter(_.reads.subsetOf(bound))
-    Bindings.within(all)(assumes.find(!_.holds()))
-      .foreach(x => throw ContractViolation(contract.id, s"the values it starts with break the assumption ${x.what}"))
-    contract.enforce((a, b) => f()(a, b), assumes)(all*)
+    Bindings.within(all)(assumes.find(!_.holds())).foreach { x =>
+      val v = Violation(contract.id, s"the assumption ${x.what}", Nil, None)
+      kb.onViolation(v)
+      throw ContractViolation(v)
+    }
+    val runTime = kb.runTime(contract).map(_.check).getOrElse(RunCheck.EveryCall)
+    contract.enforce((a, b) => f()(a, b), assumes, runTime, kb.onViolation)(all*)
 
   /** Each operation some contract's code implements, bound to its service (made when first called). */
   def calls(kb: KnowledgeBase, bindings: Seq[Binding]): List[Binding] =

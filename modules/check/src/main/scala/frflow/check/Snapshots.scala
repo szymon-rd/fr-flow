@@ -57,7 +57,7 @@ object Snapshots:
       proof = a.proofOf(n).map(src => ProofFile("lean/" + g.layout.proofs(n.id).path, src)),
       holds = if g.formal(n) then g.holdsStatement(n) else "", lean = if g.formal(n) then g.spec(n) else "",
       messages = check.orElse(a.checks.get(id).filter(_.status == CheckStatus.Waiting)).toList.flatMap(_.messages),
-      tested = a.tested(n))
+      tested = a.tested(n), runtime = kb.runTime(n))
 
   /** An invariant a contract keeps: the view lists all the result holds of it, and the invariant's `complete`, this contract
     * among its parts. Lean showing it holds without the contract leaves it `open`; a try that found no proof proves nothing.

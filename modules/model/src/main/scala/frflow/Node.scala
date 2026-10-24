@@ -1,6 +1,6 @@
 package frflow
 
-import frflow.protocol.NodeKind
+import frflow.protocol.{NodeKind, RunCheck}
 
 /** How a node stands to an invariant: kept, through a view of each call, or exempt. */
 final case class Keep(invariant: Node[?], view: Option[Lifted[?]], exempt: String = ""):
@@ -24,7 +24,7 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (val id: St
     val substs: List[Subst] = Nil, val cases: List[Example] = Nil, val governs: List[String] = Nil, val kept: List[Keep] = Nil,
     val scope: List[Node[?]] = Nil, val ideaSection: String = "", val file: String = "", val expected: List[(String, Lifted[?])] = Nil,
     val at: Int = -1, val local: Option[Lifted[?]] = None, val replaced: Option[Node[?]] = None,
-    val modelOf: Option[ModelOf] = None):
+    val modelOf: Option[ModelOf] = None, val runCheck: Option[RunCheck] = None):
   def parents: List[Node[?]] = (declaredParents ++ kept.collect { case Keep(i, Some(_), _) => i }).distinctBy(System.identityHashCode)
   def isInvariant: Boolean = rule.isDefined
   def shownKind: String = kind.shown(isInvariant)
@@ -54,9 +54,9 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (val id: St
 
   private[frflow] def copy(declaredParents: List[Node[?]] = declaredParents, cases: List[Example] = cases, kept: List[Keep] = kept,
       expected: List[(String, Lifted[?])] = expected, local: Option[Lifted[?]] = local, replaced: Option[Node[?]] = replaced,
-      modelOf: Option[ModelOf] = modelOf): Node[M] =
+      modelOf: Option[ModelOf] = modelOf, runCheck: Option[RunCheck] = runCheck): Node[M] =
     Node(id, statement, why, kind, declaredParents, formula, post, op, rule, substs, cases, governs, kept, scope, ideaSection,
-      file, expected, at, local, replaced, modelOf)
+      file, expected, at, local, replaced, modelOf, runCheck)
 
   /** The invariant does not apply to this contract or design decision, for the reason given (which the developer reads). */
   def exempt(invariant: Node[?], because: String): Node[M] =
@@ -199,6 +199,16 @@ extension [A, B, R](n: Node[(A, B) => R])
   /** What `service` checks on every call instead of the post: Lean proves the post implies it, so it refuses nothing allowed. */
   inline def checkedBy(inline check: (Term[A], Term[B], Term[R]) => Term[Boolean]): Node[(A, B) => R] =
     n.copy(local = Some(Lifted.lambda(check, n.op.toList.flatMap(Node.call), Source.text(check))))
+
+  /** How `service` checks this code's results where it runs, instead of the default for its kind: every call for code
+    * Lean does not prove (it rests on tests, or is an outside system), none for code it proves. A decision: `show` says it.
+    * `RunCheck.Sampled(100)` checks one call in a hundred, for a check that costs as much as the specification it states.
+    */
+  def checkedAtRunTime(check: RunCheck): Node[(A, B) => R] =
+    check match
+      case RunCheck.Sampled(k, _) => require(k >= 1, s"${n.id}: sample one call in 1 or more, not in $k")
+      case _                      => ()
+    n.copy(runCheck = Some(check))
 
   /** Keeps an invariant: its rule holds for each pair `view(a, b, result)` lists (`result.map(r => (reader, r))`). */
   inline def keeps[X, Y](invariant: Node[(X, Y) => Boolean])(inline view: (Term[A], Term[B], Term[R]) => Term[List[(X, Y)]]): Node[(A, B) => R] =
