@@ -1,0 +1,45 @@
+{
+  "said": [
+    {
+      "text": "Spawn agent that will do 2. With this tool",
+      "at": "2026-10-24T13:24:24.117231Z"
+    }
+  ],
+  "questions": [
+    {
+      "id": "Q1",
+      "text": "Is the system idea 2 from the list: an authorization service in the style of Google Zanzibar or OpenFGA, where a check answers yes exactly when the stored relationship tuples derive it under the schema?",
+      "assumed": "Yes: relationship tuples, a schema of object types and relations, check, write and delete of tuples; listing objects only if it stays small.",
+      "at": "2026-10-24T13:24:35.533979Z",
+      "replies": []
+    },
+    {
+      "id": "Q2",
+      "text": "Which relation rules does the schema have?",
+      "assumed": "Four, as in Zanzibar: direct tuples (doc:1#viewer@user:ann); usersets as subjects (group:eng#member: everyone who is a member); a relation implied by another on the same object (an editor is a viewer); and a relation inherited through a link (a document's viewers include its parent folder's viewers). No exclusion or intersection.",
+      "at": "2026-10-24T13:24:48.796505Z",
+      "replies": []
+    },
+    {
+      "id": "Q3",
+      "text": "Groups nest and folders nest, so a derivation can be long. How deep does a check go?",
+      "assumed": "A fixed resolution depth, as OpenFGA's 25: a check follows at most that many steps (a userset, an implied relation or a link each is one step); what is derivable only in more steps is answered no. The depth is part of the configuration.",
+      "at": "2026-10-24T13:24:50.116460Z",
+      "replies": []
+    },
+    {
+      "id": "Q4",
+      "text": "Which tuples does a check read when writes happen around it?",
+      "assumed": "Each write and delete gets the next version (Zanzibar's zookie). A check names a version and answers exactly from the tuples the writes up to that version leave; it never mixes versions. A cache may speed checks up, but it never answers from another version's tuples.",
+      "at": "2026-10-24T13:24:51.637923Z",
+      "replies": []
+    },
+    {
+      "id": "Q5",
+      "text": "What is out of scope?",
+      "assumed": "Schema changes over time (one schema, fixed); exclusion, intersection and conditions; who may write tuples (authentication of callers); listing the users of an object; a watch API; replication across regions.",
+      "at": "2026-10-24T13:24:52.970433Z",
+      "replies": []
+    }
+  ]
+}

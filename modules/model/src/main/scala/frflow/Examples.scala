@@ -116,12 +116,13 @@ private[frflow] object ExampleRuns:
       val before = e.b.asInstanceOf[World]
       def held(w: World): World = w.updated(m, impl.read(impl.start(w(m))))
       val name = ModelTests.implName(impl)
-      val model = Try(Flows.onModels(steps, Map(bs.head -> e.a), held(before))).map((r, w) => (r, held(w)))
-      val real = Try {
+      // Under the example's own values too: the operations the flow calls read them.
+      val model = Bindings.within(e.bindings)(Try(Flows.onModels(steps, Map(bs.head -> e.a), held(before))).map((r, w) => (r, held(w))))
+      val real = Bindings.within(e.bindings)(Try {
         val i = impl.start(before(m))
         val r = Flows.runNow(steps, Map(bs.head -> e.a), Map(mo.boundary -> i))
         (r, before.updated(m, impl.read(i)))
-      }
+      })
       val verdict = (model, real) match
         case (scala.util.Success(x), scala.util.Success(y)) if x == y => "ok"
         case (scala.util.Success(x), scala.util.Success(y)) => s"on $name gives ${Example.show(y)}, where the model gives ${Example.show(x)}"
