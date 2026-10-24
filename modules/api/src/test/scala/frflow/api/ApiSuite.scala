@@ -1,6 +1,5 @@
 package frflow.api
 
-import frflow.ledger.ForAgent
 import frflow.protocol.*
 
 class ApiSuite extends munit.FunSuite:
@@ -25,28 +24,23 @@ class ApiSuite extends munit.FunSuite:
     assertEquals((root.partsAdded, root.partsRemoved), (List(id("Expiry"), id("Forever")), Nil))
   }
 
-  test("the inbox: what the developer decides, in order; what the agent does; the requests") {
+  test("the inbox: what the developer decides, in order") {
     val i = Inbox.of(v)
     // The root's new parts are proven to make it, and nothing it says changed: mechanical.
     assertEquals(i.mechanical.map(_.id), List(id("Root")))
     assertEquals(i.ready.map(_.node.id), List(id("Decide")))
     assertEquals(i.later.map(w => w.node.id -> w.waitsFor), List(id("Expiry") -> Some(id("Root"))))
-    assertEquals(i.forAgent, List(ForAgent.Replace(id("Forever"), Sample.by, "sessions must end: a stolen token would work forever")))
-    assertEquals((i.open.map(_.id), i.answers.map(_.id)), (List(RequestId("R2")), List(RequestId("R1"))))
     val s = i.overview
-    assertEquals((s.accepted, s.review, s.proposed, s.rejected, s.forDeveloper, s.forAgent), (5, 2, 1, 1, 3, 1))
+    assertEquals((s.accepted, s.review, s.proposed, s.rejected, s.forDeveloper), (5, 2, 1, 1, 3))
     assertEquals(s.mechanical, 1)
     assert(!s.complete)
   }
 
-  test("a node asked of the agent waits with the agent until the request is answered or the node changes") {
-    val asked = Request(RequestId("R3"), Some(id("Decide")), "Say 'them' as 'that user'.", Sample.by, Sample.at, RequestStatus.Open,
-      seen = v.node(id("Decide")).map(_.review.version))
-    val i = Inbox.of(Sample.view(rs = Sample.requests :+ asked))
-    assertEquals(i.withAgent.map(_.id), List(id("Decide")))
+  test("a node a layer on top holds back is aside, not in the queue; a mechanical one stays in the batch") {
+    val i = Inbox.of(v, held = Set(id("Decide"), id("Root")))
+    assertEquals(i.aside.map(_.id), List(id("Decide")))
     assert(!i.queue.exists(_.node.id == id("Decide")))
-    val moved = asked.copy(seen = Some(Version("an older version")))
-    assert(Inbox.of(Sample.view(rs = Sample.requests :+ moved)).queue.exists(_.node.id == id("Decide")))
+    assertEquals(i.mechanical.map(_.id), List(id("Root")))
   }
 
   test("the tree: a shared part drawn once, under its first parent, and referred to under the others") {

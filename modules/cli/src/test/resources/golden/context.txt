@@ -49,6 +49,3 @@ Code
 
 Decisions
   2026-01-02 10:00  accepted by dev: Decide holds as stated
-
-A new statement belongs under the lowest nodes it helps prove, as a part; never as a restatement of a node.
-The developer decides; you propose. The rules are in the frflow skill (.claude/skills/frflow/SKILL.md).

@@ -151,7 +151,11 @@ async function call(path, body) {
 }
 const S = { tree: null, inbox: null, serving: null, details: null, shown: null, selected: decodeURIComponent(location.hash.slice(1)) || null,
   tab: "node", notes: {}, texts: {}, pending: false };
-const nodes = new Map(), withAgent = new Set();
+const nodes = new Map();
+// Layers on top (an AI agent's, say) register with FrFlow.extend: each may load its own data, add a chip to a node, words
+// to the header, replace a node's decision box, add sections to a node and to the inbox, and handle its own buttons.
+const layers = [];
+const each = (f, ...args) => layers.map(l => l[f]?.(...args)).filter(Boolean);
 const byId = id => nodes.get(id);
 const C = r => r.node.content;
 const changed = () => !!S.serving?.modelChanged;
@@ -159,12 +163,14 @@ const changed = () => !!S.serving?.modelChanged;
 // --- loading: the tree, the inbox and whether the model moved, every few seconds; a node's details when it is shown
 
 async function refresh() {
-  const [tree, inbox, serving] = await Promise.all([call("/api/tree"), call("/api/inbox"), call("/api/serving")]);
-  const moved = tree.text !== S.texts.tree || inbox.text !== S.texts.inbox || serving.text !== S.texts.serving;
-  S.texts = { tree: tree.text, inbox: inbox.text, serving: serving.text };
+  const [tree, inbox, serving, ...theirs] = await Promise.all([call("/api/tree"), call("/api/inbox"), call("/api/serving"),
+    ...layers.map(l => l.load ? l.load() : Promise.resolve(""))]);
+  const mine = theirs.join("\u0000");
+  const moved = tree.text !== S.texts.tree || inbox.text !== S.texts.inbox || serving.text !== S.texts.serving || mine !== S.texts.layers;
+  S.texts = { tree: tree.text, inbox: inbox.text, serving: serving.text, layers: mine };
   S.tree = tree.json; S.inbox = inbox.json; S.serving = serving.json;
-  nodes.clear(); withAgent.clear();
-  const walk = t => { nodes.set(t.node.node.id, t.node); if (t.withAgent) withAgent.add(t.node.node.id); t.children.forEach(walk); };
+  nodes.clear();
+  const walk = t => { nodes.set(t.node.node.id, t.node); t.children.forEach(walk); };
   ["main", "assumptions", "unparented", "definitions"].forEach(k => S.tree[k].forEach(walk));
   if (!byId(S.selected)) S.selected = (S.inbox.ready[0]?.node || S.tree.main[0]?.node)?.node.id || null;
   if (moved) await load(S.selected, false, true);
@@ -198,7 +204,7 @@ function splitLabel(n) {
 function chips(r) {
   const n = r.node, ex = n.examples, bad = ex.filter(e => e.fails || e.codeFails || e.lean?.status === "failed").length;
   return `<span class="chip s-${r.review.state}">${esc(r.review.state === "review" ? `review: ${r.review.causes.join(", ")}` : r.review.state)}</span>` +
-    (withAgent.has(n.id) ? `<span class="chip s-waiting">with the agent</span>` : "") +
+    each("chip", r).join("") +
     (trusted(r) ? `<span class="chip s-trusted" title="a hypothesis of root_impl: trusted, not proven">trusted</span>` : "") +
     (n.status && n.status !== "proven" ? `<span class="chip s-${n.status}">${esc(n.status)}</span>` : "") +
     (ex.length ? `<span class="chip ${bad ? "s-bad" : "s-ok"}">examples ${ex.length - bad}/${ex.length}</span>` : "");
@@ -299,8 +305,7 @@ function renderHeader() {
     ` · splits ${o.splitsProven < o.splits ? red(`${o.splitsProven}/${o.splits}`) : `<b>${o.splitsProven}/${o.splits}</b>`} proven` +
     (o.rootImpl ? ` · root_impl ${o.rootImpl === "proven" ? "<b>proven</b>" : red(esc(o.rootImpl))}` : "") +
     ` · trusted: <b>${o.trusted.length || "nothing"}</b>` + (o.warnings ? ` · ${red(`${o.warnings} warning(s)`)}` : "");
-  const w = [o.forDeveloper ? `${o.forDeveloper} waiting for you` : "", o.withAgent ? `${o.withAgent} with the agent` : "",
-    i.answers.length ? `${i.answers.length} answer(s) to read` : ""].filter(Boolean);
+  const w = [o.forDeveloper ? `${o.forDeveloper} waiting for you` : "", ...each("waiting").flat()].filter(Boolean);
   $("#waiting").hidden = !w.length; $("#waiting").textContent = w.join(" · ");
   $("#stale").hidden = !changed();
   $("#me").textContent = `deciding as ${S.serving.developer}`;
@@ -319,9 +324,9 @@ const line = r => `<div class="small"><span class="kind ${kindOf(r)}">${esc(kind
 const section = (title, body) => body ? `<h3>${title}</h3>${body}` : "";
 const note = key => S.notes[key] ? `<div class="${S.notes[key].cls}">${esc(S.notes[key].text)}</div>` : "";
 const box = (key, placeholder) => `<textarea id="t-${esc(key)}" rows="2" placeholder="${esc(placeholder)}"></textarea>`;
-// Asking and closing record no decision: they stay open when the model changed.
-const button = (label, action, key, primary) => `<button class="btn${primary ? " primary" : ""}" data-act="${action}" data-key="${esc(key)}"${
-  changed() && action !== "ask" && action !== "close" ? ` disabled title="the model changed: restart serve"` : ""}>${esc(label)}</button>`;
+// A button that records no decision (`free`, a layer's) stays open when the model changed.
+const button = (label, action, key, primary, free) => `<button class="btn${primary ? " primary" : ""}" data-act="${action}" data-key="${esc(key)}"${
+  changed() && !free ? ` disabled title="the model changed: restart serve"` : ""}>${esc(label)}</button>`;
 
 const lines = ls => `<div class="diff">${ls.map(l => l.op === "folded" ? `<span class="fold">… ${l.lines} unchanged line(s)</span>` : l.op === "added"
   ? `<span class="add">+ ${esc(l.text)}</span>` : l.op === "removed" ? `<span class="del">- ${esc(l.text)}</span>` : `  ${esc(l.text)}`).join("\n")}</div>`;
@@ -340,24 +345,22 @@ function diff(d) {
     (d.partsAdded.length ? `<div class="warn">Parts added: ${d.partsAdded.map(go).join(", ")}: do these parts, together, still make it?</div>` : "") +
     (d.partsRemoved.length ? `<div class="warn">Parts removed: ${d.partsRemoved.map(esc).join(", ")}</div>` : "") +
     d.moved.map(m => `<div class="side">The meaning of <b>${go(m.id)}</b> changed (${m.acceptedAgain ? `you accepted that${m.reason ? ": " + esc(m.reason) : ""}` : "not accepted yet"})${fields(m.changes)}</div>`).join("") +
-    d.rejectedParents.map(p => `<div class="err">Its parent ${go(p)} was rejected: the agent moves it under the node chosen instead.</div>`).join("") +
+    d.rejectedParents.map(p => `<div class="err">Its parent ${go(p)} was rejected: it moves under the node chosen instead.</div>`).join("") +
     (d.revisit ? `<div class="warn">${esc(d.revisit.by)} asked to revisit it: ${esc(d.revisit.reason)}</div>` : "") + (d.code ? code(d.code) : "");
 }
 
-// What deciding it acts on, and the buttons; or who has it, or why it was rejected.
+// What deciding it acts on, and the buttons; or why it was rejected; or, if a layer holds it, what that layer shows.
 function decision(d) {
-  const r = d.node, v = r.review, id = r.node.id, open = d.requests.filter(q => q.status === "open");
-  if (d.withAgent && (v.state === "proposed" || v.state === "review")) return `<div class="box review"><div class="verdict">With the agent</div>
-    ${open.map(q => `<div class="why"><div class="label">${esc(q.by)} asked, ${when(q.at)}</div>${esc(q.text)}</div>`).join("")}
-    <div class="muted small">It comes back to you when the agent answers or changes ${esc(id)}.</div>
-    <div class="actions">${button("Withdraw the request, and decide it now", "close", open.map(q => q.id).join(","))}</div>${note("close")}</div>`;
+  const r = d.node, v = r.review, id = r.node.id;
+  const held = each("decision", d)[0];
+  if (held) return held;
   if (v.state === "accepted") return `<div class="box accepted"><div class="verdict" style="color:var(--proven)">Accepted</div>
     ${v.reasonNow ? `<div class="why"><div class="label">holds because</div>${esc(v.reasonNow)}</div>` : ""}
     <details><summary>Ask that it be reviewed again: a change elsewhere may affect it</summary>${box("revisit", "What may affect it?")}
     <div class="actions">${button(`Revisit ${id}`, "revisit", id)}</div></details>${note("revisit")}</div>`;
   if (v.state === "rejected") { const h = [...v.history].reverse().find(x => x.action === "reject");
     return `<div class="box failed"><div class="verdict" style="color:var(--failed)">Rejected</div>${h ? `<div class="why"><div class="label">rejected by ${esc(h.by)}, ${when(h.at)}, because</div>${esc(h.reason)}</div>` : ""}
-      <div class="muted small">The agent removes it, or proposes what the reason asks for.</div></div>`; }
+      <div class="muted small">It is removed from the model, or what the reason asks for is proposed instead.</div></div>`; }
   const rivals = d.rivals.filter(x => x.review.state !== "rejected").map(x => x.node.id), proposal = v.state === "proposed";
   const below = v.below.length ? `<div class="side"><div class="label">Decisions below it, with their reasons: tick those this change may affect, to review them again. One that moved only with it is confirmed with your reason.</div>
     ${v.below.map(b => `<div class="row"><b>${go(b.id)}</b>${b.kind === "moved" ? ` <span class="muted small">(moved with it)</span>` : ""}<div class="small">${esc(b.statement)}</div>
@@ -427,10 +430,7 @@ function nodePane() {
     ${section("History", v.history.map(h => `<div class="row small"><b>${esc(VERB[h.action] || h.action)}</b> by ${esc(h.by)}, ${when(h.at)}${
       h.rejected.length ? `, rejecting ${h.rejected.map(esc).join(", ")}` : ""}<div>${esc(h.reason)}</div></div>`).join(""))}
     ${section("Alternatives rejected for it", v.alternatives.map(a => `<div class="small"><b>${esc(a.id)}</b>: ${esc(a.content.statement)}</div>`).join(""))}
-    <h3>Ask for a change</h3>${d.requests.map(q => `<div class="row small"><b>${esc(q.by)}</b> <span class="muted">${when(q.at)} · ${esc(q.status)}</span><div>${esc(q.text)}</div>
-      ${q.answer ? `<div class="why"><span class="muted">agent:</span> ${esc(q.answer)}</div>` : ""}${q.status === "answered" ? `<div class="actions">${button("Done: read", "close", q.id)}</div>` : ""}</div>`).join("")}
-    ${box("ask", "e.g. Add an example: a revoked grant refuses access.")}<div class="actions">${button("Ask for a change", "ask", n.id)}
-      <span class="muted small">The agent sees it in its inbox; ${esc(n.id)} is with the agent until it answers or changes it.</span></div>${note("ask")}
+    ${each("nodeSections", d).join("")}
     ${n.messages.length ? section("Messages from the last check", `<pre>${esc(n.messages.join("\n\n"))}</pre>`) : ""}
     ${n.obligations.length ? `<details><summary>Obligations in Lean (${n.obligations.length})</summary>${n.obligations.map(o => `<div class="label"><b>${esc(o.name)}</b> ${esc(o.description)}</div><pre>${esc(o.statement)}</pre>`).join("")}</details>` : ""}
     ${n.lean ? `<details><summary>Generated Lean</summary><pre>${esc(n.lean)}</pre></details>` : ""}`;
@@ -442,19 +442,14 @@ function inboxPane() {
   const i = S.inbox;
   const row = q => `<div class="row">${line(q.node)}${q.waitsFor ? `<div class="muted small">after ${go(q.waitsFor)}: what it rests on is decided first</div>` : ""}
     ${q.followers.map(f => `<div class="muted small">↳ ${go(f)} moved only with it: accepting ${esc(q.node.node.id)} confirms it too</div>`).join("")}</div>`;
-  const forAgent = f => { const [k, v] = Object.entries(f)[0];
-    return `<div class="row small">${k === "Replace" ? `${go(v.node)} rejected by ${esc(v.by)}: the agent removes it, or proposes what the reason asks for — ${esc(v.reason)}`
-      : k === "Revisit" ? `${go(v.node)} to revisit: ${esc(v.reason)}` : `${go(v.node)} rests on ${v.rejectedParents.map(go).join(", ")}, rejected: the agent moves it`}</div>`; };
-  // IDEA.md first: the agent wrote it from your conversation, and the root is decided after it.
+  // IDEA.md first: the root is decided after it.
   const idea = i.idea ? `<h3>IDEA.md, first</h3><div class="box ${i.idea.state === "review" ? "review" : "proposed"}" style="margin-top:0">
-      <div class="small">${i.idea.state === "review" ? "IDEA.md changed since you accepted it." : "The agent wrote IDEA.md from your conversation."}
-        Does it say what the system is for? The root is decided after it; to change it, tell the agent in chat.</div>
+      <div class="small">${i.idea.state === "review" ? "IDEA.md changed since you accepted it." : "IDEA.md is not accepted yet."}
+        Does it say what the system is for? The root is decided after it.</div>
       <pre>${esc(i.idea.text)}</pre>${box("idea-accept", "Why does it say what the system is for?")}
       <div class="actions">${button("Accept IDEA.md", "acceptIdea", "", true)}</div>${note("idea-accept")}</div>` : "";
-  const questions = i.questions.length ? `<h3>The agent's questions: answer them in chat</h3>${i.questions.map(q =>
-    `<div class="row small">[${esc(q.id)}] ${esc(q.text)}<div class="muted">assumed: ${esc(q.assumed)}</div></div>`).join("")}` : "";
   return `${note("done")}${i.warnings.length ? `<div class="box failed" style="margin-top:0"><div class="verdict" style="color:var(--failed)">Warnings</div>${i.warnings.map(w => `<div class="small">${esc(w)}</div>`).join("")}</div>` : ""}
-    ${idea}${questions}
+    ${idea}${each("inboxTop", i).join("")}
     <h3>Waiting for you: ready</h3>${i.ready.map(row).join("") || `<div class="muted small">${i.overview.forDeveloper ? "None ready." : "Nothing: every node is decided."}</div>`}
     ${i.mechanical.length ? `<h3>Mechanical: Lean proves these again; nothing in them is a choice</h3><div class="box review" style="margin-top:0">
       ${i.mechanical.map(line).join("")}${box("confirm", "Why do they hold? e.g. a new field no rule reads")}
@@ -462,13 +457,7 @@ function inboxPane() {
     ${section("After the decisions above them", i.later.map(row).join(""))}
     ${section("Gone from the model", i.gone.map(g => `<div class="row"><b>${esc(g.id)}</b> <span class="muted small">last ${esc(VERB[g.decision.action])} by ${esc(g.decision.by)}</span>
       <div class="small">${esc(g.decision.content.statement)}</div>${box("gone-" + g.id, "Why is it gone?")}<div class="actions">${button("Agree it is gone", "gone", g.id)}</div>${note("gone-" + g.id)}</div>`).join(""))}
-    ${section("With the agent: you asked for a change", i.withAgent.map(line).join(""))}
-    <h3>Answers to read</h3>${i.answers.map(q => `<div class="row small">on ${q.node ? go(q.node) : "the idea"}<div>${esc(q.text)}</div>
-      <div class="why"><span class="muted">agent:</span> ${esc(q.answer)}</div><div class="actions">${button("Done: read", "close", q.id)}</div></div>`).join("") || `<div class="muted small">None.</div>`}
-    <h3>Waiting for the agent</h3>${i.open.map(q => `<div class="row small">on ${q.node ? go(q.node) : "the idea"} · ${esc(q.by)}<div>${esc(q.text)}</div></div>`).join("") +
-      i.forAgent.map(forAgent).join("") || `<div class="muted small">None.</div>`}
-    <h3>Ask about the whole idea</h3>${box("idea", "e.g. Users can also see who accessed their records: propose where it belongs.")}
-    <div class="actions">${button("Send to the agent", "ask", "")}</div>${note("ask")}`;
+    ${each("inboxSections", i).join("")}`;
 }
 
 // --- drawing, keeping what the developer is typing or ticking
@@ -545,20 +534,24 @@ document.addEventListener("click", async e => {
   if (!b) return;
   const k = b.dataset.key, id = S.details?.node.node.id;
   b.disabled = true;
-  ({
+  const theirs = Object.assign({}, ...layers.map(l => l.actions || {}));
+  ({ ...Object.fromEntries(Object.entries(theirs).map(([name, f]) => [name, () => f(k, b)])),
     accept: () => accept(),
     reject: () => decide("decide", { Reject: { node: id, reason: text("decide"), seen: S.shown } }),
     revisit: () => decide("revisit", { Revisit: { node: id, reason: text("revisit") } }),
     confirm: () => decide("confirm", { Confirm: { reason: text("confirm") } }),
     acceptIdea: () => decide("idea-accept", { Accept: { nodes: ["IDEA"], reason: text("idea-accept"), revisit: [], seen: { IDEA: S.inbox.idea.version } } }),
     gone: () => decide("gone-" + k, { Gone: { node: k, reason: text("gone-" + k) } }),
-    ask: () => act("ask", k ? "ask" : "idea", async () => (await call("/api/ask", { node: k || null, text: text(k ? "ask" : "idea") })).json,
-      q => `Asked [${q.id}]: the agent sees it in its inbox.`),
-    close: () => act(b.closest(".box") ? "close" : "ask", "", async () => (await call("/api/close", k.split(","))).json, rs => `Closed ${rs.map(r => r.id).join(", ")}.`),
   })[b.dataset.act]();
 });
 
-refresh().then(() => load(S.selected)).then(() => setTimeout(tick, 4000)).catch(e => { $("#summary").textContent = e.message; });
+// What a layer's script uses of the page; then the layers' scripts (served as /ext.js, empty with none), then the page.
+window.FrFlow = { extend: l => layers.push(l), S, call, esc, go, when, line, section, note, box, button, text, act, render, refresh, byId };
+const scripts = document.createElement("script");
+scripts.src = `/ext.js?token=${encodeURIComponent(token)}`;
+scripts.onload = scripts.onerror = () =>
+  refresh().then(() => load(S.selected)).then(() => setTimeout(tick, 4000)).catch(e => { $("#summary").textContent = e.message; });
+document.head.appendChild(scripts);
 </script>
 </body>
 </html>

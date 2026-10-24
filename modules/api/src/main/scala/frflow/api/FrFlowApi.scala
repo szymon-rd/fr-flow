@@ -2,21 +2,35 @@ package frflow.api
 
 import cats.effect.IO
 import frflow.protocol.*
+import java.nio.file.Path
 import scala.util.control.NoStackTrace
 
 // The ledger's types a front end reads, so it imports only this package and the protocol's.
-export frflow.ledger.{CodeProof, Decide, ForAgent, Found, Mention, Mentioned, Refusal}
+export frflow.ledger.{CodeProof, Decide, Found, Mention, Mentioned, Refusal}
 export frflow.check.Progress
 
-/** A project as its front ends open it: the knowledge base, its directory (`FRFLOW_ROOT` overrides it), and FrFlow's Lean
-  * kernel relative to its `lean/`. A project's main object is one (the CLI's `FrFlowApp`); the web view's `serve` task
-  * opens the same object.
+/** A layer on top of FrFlow, such as an AI agent's tools: a project's main object lists the ones it uses, and each front
+  * end takes the parts it knows (the CLI's `CliExtension`, the web view's `WebExtension`). FrFlow itself needs none.
+  */
+trait Extension
+
+/** What a layer on top works with: the project's API, its directory (where it keeps its own files, under `.frflow/`),
+  * and the environment.
+  */
+final case class Host(api: FrFlowApi, directory: Path, env: Map[String, String])
+
+/** A project as its front ends open it: the knowledge base, its directory (`FRFLOW_ROOT` overrides it), FrFlow's Lean
+  * kernel relative to its `lean/`, and the layers on top it uses. A project's main object is one (the CLI's `FrFlowApp`);
+  * the web view's `serve` task opens the same object.
   */
 trait FrFlowProject:
   def kb: frflow.KnowledgeBase
   def root: String
   def kernelPath: String
+  def extensions: List[Extension] = Nil
+  def directory(env: Map[String, String]): Path = Path.of(env.getOrElse("FRFLOW_ROOT", root)).toAbsolutePath.normalize
   def api(env: Map[String, String]): IO[FrFlowApi] = LiveApi.fromEnv(kb, root, kernelPath, env)
+  def host(env: Map[String, String]): IO[Host] = api(env).map(Host(_, directory(env), env))
 
 /** What fails a command (refusals a user reads are `Refusal`s instead): mapped once, at each front end. */
 enum FrFlowError(val message: String) extends Exception(message) with NoStackTrace:
@@ -37,18 +51,6 @@ trait FrFlowApi:
   def decide(d: Decide, by: Developer): IO[Either[Refusal, Decided]]
   /** Who decides: `as`, else `FRFLOW_AS`, else the name the developer's key is filed under. */
   def developer(as: Option[String]): IO[Either[Refusal, Developer]]
-  def ask(node: Option[NodeId], text: String, by: Developer): IO[Either[Refusal, Request]]
-  /** An answer read, or a request withdrawn. */
-  def close(ids: List[RequestId]): IO[Either[Refusal, List[Request]]]
-  /** Answers a request; given a node instead, tells the developer about work they did not ask for. */
-  def answer(to: String, text: String): IO[Either[Refusal, RequestId]]
-  // The conversation IDEA.md is written from, as the agent records it: a record, not decisions (the developer decides IDEA.md).
-  /** What the developer said in chat, word for word. */
-  def said(text: String): IO[Either[Refusal, Said]]
-  /** A question the agent asked, with the answer it assumed: numbered Q1, Q2, … */
-  def asked(text: String, assumed: String): IO[Either[Refusal, Question]]
-  /** The developer's reply to a question, as they said it in chat; a later reply stands. */
-  def replied(question: String, text: String): IO[Either[Refusal, Question]]
   def render: IO[Rendered]
   /** `progress` hears of each level of the check before Lean proves it. */
   def check(node: Option[NodeId], progress: Progress => IO[Unit] = _ => IO.unit): IO[CheckReport]
@@ -65,9 +67,11 @@ trait FrFlowApi:
 
   def tree(from: Option[NodeId]): IO[Tree] =
     view.flatMap(v => from.fold(IO.pure(Trees.all(v)))(id => IO.fromOption(Trees.from(v, id))(FrFlowError.UnknownNode(id))))
-  def inbox: IO[Inbox] = reviewing.map(_._2)
+  /** `aside`: the nodes a layer on top holds back from the developer's queue (see `Inbox.of`). */
+  def inbox(aside: View => IO[Set[NodeId]] = FrFlowApi.noneAside): IO[Inbox] = reviewing(aside).map(_._2)
   /** The inbox with the view it was read from: what a review walks, reading each node of that view. */
-  def reviewing: IO[(View, Inbox)] = view.map(v => v -> Inbox.of(v))
+  def reviewing(aside: View => IO[Set[NodeId]] = FrFlowApi.noneAside): IO[(View, Inbox)] =
+    view.flatMap(v => aside(v).map(held => v -> Inbox.of(v, held)))
   /** Whether a path the project names is a file or a directory. */
   protected def exists(path: String): IO[Boolean] = IO.pure(true)
   def find(v: View, query: String): IO[Found] = relative(query).flatMap(q => frflow.ledger.Find(v.annotated, q) match
@@ -80,3 +84,6 @@ trait FrFlowApi:
 
   protected def withNode[A](id: NodeId)(f: (View, Reviewed) => IO[A]): IO[A] =
     view.flatMap(v => v.node(id).fold(IO.raiseError(FrFlowError.UnknownNode(id)))(f(v, _)))
+
+object FrFlowApi:
+  val noneAside: View => IO[Set[NodeId]] = _ => IO.pure(Set.empty)

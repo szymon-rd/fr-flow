@@ -1,10 +1,3 @@
-Requests from the developer
-  [R2] on the idea - dev: Users can see who accessed their records.
-
-Answers to read (close REQUEST when read)
-  [R1] on NeedsGrant: Add an example: a revoked grant refuses access.
-    agent: Added the example under Decide; it is proven.
-
 For the developer, in order (review, or accept / reject NODE)
   + Decide  contract  review: self  A request is admitted on behalf of the user its token was i...
   o Expiry  proposed  after Root  A session ends an hour after sign-in.
@@ -12,12 +5,7 @@ For the developer, in order (review, or accept / reject NODE)
 Mechanical: Lean proves them again, nothing in them is a choice (confirm decides all 1)
   + Root  review: parts  A user gets access to a resource exactly when they are signed in and a...
 
-For the agent
-  Forever: rejected by dev: sessions must end: a stolen token would work forever; propose what the
-    reason asks for in its place, or remove it from the Scala model
-
 Sample: 9 nodes, 5 accepted, 2 to review, 1 proposed, 1 rejected
 splits 3/3 proven, contracts 0/1 proven down to their code, examples 2/2 agree in Lean, trusted:
   StoreKeeps, 2 with something unproven
-Waiting: 3 for the developer (1 mechanical: confirm), 1 for the agent, 1 open request(s), 1
-  answer(s) to read
+Waiting: 3 for the developer (1 mechanical: confirm)

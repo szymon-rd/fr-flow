@@ -11,8 +11,8 @@ import io.circe.{Codec, Decoder, Encoder, Json, JsonObject}
 final case class NodeDetails(node: Reviewed, isRoot: Boolean, trusted: Boolean, idea: String, parents: List[Reviewed],
     beside: List[(NodeId, List[Reviewed])], above: List[Reviewed], parts: List[Reviewed], designs: List[Reviewed],
     definitions: List[Reviewed], usedBy: List[Reviewed], calls: List[Reviewed], calledBy: List[Reviewed], keptBy: List[Reviewed],
-    rivals: List[Reviewed], terms: List[Term], defs: List[DefText], codeProof: Option[CodeProof], requests: List[Request],
-    withAgent: Boolean, diff: NodeDiff) derives Codec.AsObject
+    rivals: List[Reviewed], terms: List[Term], defs: List[DefText], codeProof: Option[CodeProof], diff: NodeDiff)
+    derives Codec.AsObject
 
 /** A term of a node's vocabulary: what it means in the world, and the definition that fixes it. */
 final case class Term(name: String, means: String, operation: Boolean, definedBy: Option[NodeId]) derives Codec.AsObject
@@ -74,8 +74,7 @@ object Details:
       parents.map(p => p.id -> p.node.parts.filter(_ != r.id).flatMap(v.node)), above, parts, designs,
       r.node.uses.flatMap(v.node), v.nodes.filter(_.node.uses.contains(r.id)), r.node.relies.flatMap(v.node),
       v.nodes.filter(_.node.relies.contains(r.id)), v.nodes.filter(_.node.invariants.exists(_.id == r.id)),
-      r.review.rivals.flatMap(v.node), terms(v, r), defs(v, r), CodeProof.of(r.node),
-      v.requests.filter(q => q.node.contains(r.id) && q.status != RequestStatus.Closed), v.withAgent(r), diff(v, r, code))
+      r.review.rivals.flatMap(v.node), terms(v, r), defs(v, r), CodeProof.of(r.node), diff(v, r, code))
 
   /** The root's idea (its lead), the section of the nearest node naming one, and what is not modelled. */
   private def idea(v: View, r: Reviewed, up: List[Reviewed]): String =

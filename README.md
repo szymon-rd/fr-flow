@@ -8,6 +8,18 @@ it again when it changes.
 
 FrFlow is written in Scala 3 and uses Lean 4.
 
+## Two layers
+
+FrFlow itself is the core: the domain refined into a DAG of statements, the
+implementation on monads up to its boundaries, the Lean proofs that the code
+meets the root, and the signed decisions. Its CLI and web view browse the tree,
+show nodes, review and decide, and check, with no AI involved. The agent layer
+(`modules/agent`, package `frflow.agent`) sits on top and is optional: a project
+enables it with `extensions = List(frflow.agent.Agent)` on its main object, and
+gets the agent's commands, the developer's requests to the agent, the recorded
+conversation behind `IDEA.md`, and the matching parts of the web view. The core
+never reads the agent's files.
+
 ## The problem of using AI for coding
 
 - **Lost Theory.** Peter Naur argued that a program is the visible part of a
@@ -128,8 +140,8 @@ says and why, the formula, where it sits, and its parts with what Lean proved.
 **3. Review what changed.** Here an agent removed the check that the user is
 still enabled from the introspection code. `review` puts the contract back in
 front of you with the diff: three examples fail, and the proof of the code no
-longer goes through. You accept it, skip it, or ask the agent about it; the
-agent sees the question in its inbox.
+longer goes through. You accept it or skip it; with the agent layer, you can
+also ask the agent about it, and the agent sees the question in its inbox.
 
 ![bin/frflow keycloak review](docs/img/cli-review.png)
 
@@ -144,8 +156,9 @@ inbox. Decisions are signed the same way as in the CLI.
 
 ![The web view](docs/img/web-view.png)
 
-The agent has its own commands (`said`, `asked`, `replied` to record the
-conversation; `inbox`, `context`, `check`, `scaffold`, `answer`) and rules, in
+With the agent layer enabled, the agent has its own commands (`said`, `asked`,
+`replied` to record the conversation; `ask` and `close` for the developer's
+requests; `context` and `answer`) and rules, in
 [`.claude/skills/frflow/SKILL.md`](.claude/skills/frflow/SKILL.md).
 
 ## Getting started
@@ -162,8 +175,10 @@ sbt "keycloak/serve --as NAME"          # the web view on localhost, deciding as
 ```
 
 To start a project of your own, `sbt "frflowInit NAME"` sets up an empty one in
-`examples/NAME`. Then tell the agent your idea; it asks, writes `IDEA.md` for
-you to accept, and proposes the root.
+`examples/NAME`, on the core alone: write `IDEA.md`, accept it, and write the
+root. `sbt "frflowInitAgent NAME"` sets one up with the agent layer: tell the
+agent your idea; it asks, writes `IDEA.md` for you to accept, and proposes the
+root.
 
 The examples:
 

@@ -8,7 +8,7 @@ import frflow.protocol.ObligationStatus.*
 import java.nio.file.Path
 import scala.util.chaining.*
 
-/** The knowledge base as data, without decisions: what agents read (`.frflow/kb.json`), and what the ledger's review reads. */
+/** The knowledge base as data, without decisions (`.frflow/kb.json`): what tools read, and what the ledger's review reads. */
 object Snapshots:
   private def ids(ns: Seq[Node[?]]): List[NodeId] = ns.map(n => NodeId(n.id)).toList
 

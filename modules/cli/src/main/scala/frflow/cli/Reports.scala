@@ -3,12 +3,12 @@ package frflow.cli
 import frflow.api.*
 import frflow.protocol.*
 
-/** The DAG from the root, each node once under its first parent and `⇢ X` under the others. */
+/** The DAG from the root, each node once under its first parent and `⇢ X` under the others; `c`, what layers on top add. */
 object TreeText:
-  def lines(t: Tree, st: Style): List[String] =
+  def lines(t: Tree, st: Style, c: Contribution = Contribution.empty): List[String] =
     def rows(n: TreeNode, prefix: String, cont: String): List[String] =
       val r = n.node
-      val head = s"$prefix${st.glyph(r)} ${st.bold(r.id.value)}${Lines.marks(r, st, n.withAgent)}  "
+      val head = s"$prefix${st.glyph(r)} ${st.bold(r.id.value)}${Lines.marks(r, st, c.marks.get(r.id))}  "
       val kids = n.children.map(Left(_)) ++ n.seeAlso.map(Right(_))
       // The root is read whole: wrapped at its clauses, under its statement, not cut.
       val row =
@@ -29,11 +29,13 @@ object TreeText:
         t.gone.map(g => st.fit(s"${st.red(st.dot)} ${st.bold(g.id.value)}  ${st.dim(g.decision.content.statement)}"))
     (section("", t.main) ++ section("Assumptions, under no parent: trusted (the code calls them)", t.assumptions) ++
       section("Under no parent", t.unparented) ++ section("Definitions: they fix terms of the vocabulary (decided, not proven)", t.definitions))
-      .dropWhile(_.isEmpty) ++ gone ++ ("" :: SummaryText.lines(t.overview, st))
+      .dropWhile(_.isEmpty) ++ gone ++ ("" :: SummaryText.lines(t.overview, st, c.waiting(st)))
 
-/** The lines every view closes with: the counts, the proofs and what is trusted, what waits for whom. */
+/** The lines every view closes with: the counts, the proofs and what is trusted, what waits; `more`, what layers on top
+  * add to what waits.
+  */
 object SummaryText:
-  def lines(s: Overview, st: Style): List[String] =
+  def lines(s: Overview, st: Style, more: List[String] = Nil): List[String] =
     def some(n: Int, what: String, tone: String => String = identity) = Option.when(n > 0)(tone(s"$n $what"))
     val counts = (Some(st.green(s"${s.accepted} accepted")) :: List(some(s.review, "to review", st.yellow),
       some(s.proposed, "proposed", st.cyan), some(s.rejected, "rejected", st.red), some(s.gone, "gone", st.red))).flatten
@@ -53,77 +55,47 @@ object SummaryText:
     val waits = List(
       Option.when(s.forDeveloper > 0)(st.yellow(s"${s.forDeveloper} for the developer") +
         (if s.idea.exists(_ != ReviewState.Accepted) then " (IDEA.md first)" else "") +
-        (if s.mechanical > 0 then s" (${s.mechanical} mechanical: confirm)" else "")),
-      some(s.openQuestions, "question(s) for the developer to answer in chat", st.yellow),
-      some(s.withAgent, "asked of the agent", st.magenta), some(s.forAgent, "for the agent", st.magenta),
-      some(s.openRequests, "open request(s)"), some(s.answers, "answer(s) to read")).flatten
+        (if s.mechanical > 0 then s" (${s.mechanical} mechanical: confirm)" else ""))).flatten ++ more
     val sep = if st.unicode then s" ${st.dot} " else ", "
-    // Before the first node, the project is the conversation and IDEA.md: what comes next is said instead of the counts.
+    // Before the first node, the project is IDEA.md: what comes next is said instead of the counts.
     val start = if s.nodes > 0 then Nil
       else List(s.idea match
-        case None => "No IDEA.md yet: the agent writes it from your conversation, then proposes the root."
-        case Some(ReviewState.Accepted) => "IDEA.md is accepted: the agent proposes the root next."
-        case Some(_) => "IDEA.md waits for you: read it, then accept IDEA (or tell the agent what to change).")
+        case None => "No IDEA.md yet: write in it what the system is for, then accept it; the root comes next."
+        case Some(ReviewState.Accepted) => "IDEA.md is accepted: the root comes next."
+        case Some(_) => "IDEA.md waits for you: read it, then accept IDEA.")
     val head = if s.nodes > 0 then List(s"${st.bold(s.name)}: ${s.nodes} nodes${sep}${counts.mkString(sep)}", proofs.mkString(sep))
       else List(s"${st.bold(s.name)}: no nodes yet") ++ start
     (head :+ (if waits.isEmpty then (if s.complete then st.green("Nothing waits: every node is accepted and proven.") else "Nothing waits for a decision.")
       else s"Waiting: ${waits.mkString(sep)}")).flatMap(Lines.para(_, st, indent = 0))
 
-/** The conversation IDEA.md comes from: what the developer said, then each question with the answer assumed and theirs. */
-object ConversationText:
-  def lines(c: Conversation, st: Style): List[String] =
-    if c.said.isEmpty && c.questions.isEmpty then List("Nothing recorded yet: tell the agent your idea in chat.")
-    else
-      def under(text: String) = Lines.para(text, st, indent = 4).map("  " + _)
-      (Lines.section("What you said", c.said.flatMap(s => Lines.para(s.text, st)), st) ++
-        Lines.section("What the agent asked", c.questions.flatMap { q =>
-          Lines.para(s"[${q.id}] ${q.text}", st) ++ under(st.dim(s"assumed: ${q.assumed}")) ++
-            q.replies.dropRight(1).flatMap(r => under(st.dim(s"earlier: ${r.text}"))) ++
-            under(q.answer.fold(st.yellow("no reply yet"))(a => s"${st.cyan("you:")} $a"))
-        }, st)).dropWhile(_.isEmpty)
-
-/** What waits for whom, for both the developer and the agent; the summary last. */
+/** What waits for the developer; then what layers on top add (`c`); the summary last. */
 object InboxText:
   import Lines.section
 
   /** `v`: the view the inbox was read from, for a gone node renamed. */
-  def lines(i: Inbox, v: View, st: Style): List[String] =
-    def on(q: Request) = q.node.fold("the idea")(_.value)
+  def lines(i: Inbox, v: View, st: Style, c: Contribution = Contribution.empty): List[String] =
     def waiting(w: Queued) =
       Lines.node(w.node, st, 4, w.waitsFor.fold("")(x => st.dim(s"  after $x"))) ::
         w.followers.map(f => st.dim("  " + Words.follower(f, w.node.id, st)))
     val idea = i.idea.toList.flatMap { r =>
-      val how = if r.state == ReviewState.Review then "changed since you accepted it" else "written by the agent from your conversation"
+      val how = if r.state == ReviewState.Review then "changed since you accepted it" else "not accepted yet"
       Lines.para(s"${st.bold("IDEA")}  ${st.yellow(s"IDEA.md, $how")}: read it, then accept IDEA (the root is decided after it)", st)
     }
     val body =
       section("IDEA.md, first", idea, st) ++
-        section("Questions the agent asked: answer them in chat", i.questions.flatMap(q =>
-          Lines.para(s"[${q.id}] ${q.text}", st) ++ Lines.para(st.dim(s"assumed: ${q.assumed}"), st, indent = 4).map("  " + _)), st) ++
-        section("Requests from the developer", i.open.map(q => s"[${q.id}] on ${on(q)} ${st.dot} ${q.by}: ${q.text}"), st) ++
-        section("Answers to read (close REQUEST when read)", i.answers.flatMap(q =>
-          s"[${q.id}] on ${on(q)}: ${q.text}" :: q.answer.toList.map(a => s"  ${st.cyan("agent:")} $a")), st) ++
-        section("Warnings: status fails on each", i.warnings.map(w => st.red(s"${st.bullet} $w")), st) ++
+        section("Warnings: status fails on each", (i.warnings ++ c.warnings).map(w => st.red(s"${st.bullet} $w")), st) ++
         section("For the developer, in order (review, or accept / reject NODE)", i.queue.flatMap(waiting), st) ++
         section(s"Mechanical: Lean proves them again, nothing in them is a choice (confirm decides all ${i.mechanical.size})",
           i.mechanical.map(Lines.node(_, st, 4)), st) ++
         section("Gone from the model (gone NODE)", i.gone.map(Details.gone(v, _)).map(g => st.fit(s"${st.bold(g.gone.id.value)}" +
           s"${g.renamedTo.fold("")(y => st.yellow(s"  renamed to $y"))}: ${g.gone.decision.content.statement}", 2)), st) ++
-        section("With the agent: asked, until it answers or changes the node", i.withAgent.map(Lines.node(_, st, 4)), st) ++
-        section("For the agent", i.forAgent.flatMap(t => Lines.para(task(t, st), st)), st)
-    (body ++ ("" :: SummaryText.lines(i.overview, st))).dropWhile(_.isEmpty)
+        c.inbox(st)
+    (body ++ ("" :: SummaryText.lines(i.overview, st, c.waiting(st)))).dropWhile(_.isEmpty)
 
-  private def task(t: ForAgent, st: Style): String = t match
-    case ForAgent.Replace(node, by, reason) =>
-      s"${st.bold(node.value)}: ${st.red(s"rejected by $by")}: ${reason.trim.stripSuffix(".")}; " +
-        "propose what the reason asks for in its place, or remove it from the Scala model"
-    case ForAgent.Revisit(node, reason) =>
-      s"${st.bold(node.value)}: ${st.yellow("the developer asked to revisit it")} ($reason): propose a change, or `answer $node TEXT` why it still holds"
-    case ForAgent.Move(node, parents) => s"${st.bold(node.value)}: rests on rejected ${parents.mkString(", ")}; move it under the node chosen instead"
-
-/** The agent's reports: status, check, ci, find; and what a decision recorded. */
+/** The reports of status, check, ci and find; and what a decision recorded. `c`: what layers on top add. */
 object ReportText:
-  def status(v: View, tree: Tree, st: Style): List[String] = TreeText.lines(tree, st) ++ v.warnings.map(w => st.red(s"warning: $w"))
+  def status(v: View, tree: Tree, st: Style, c: Contribution = Contribution.empty): List[String] =
+    TreeText.lines(tree, st, c) ++ (v.warnings ++ c.warnings).map(w => st.red(s"warning: $w"))
 
   private def checked(c: CheckedNode, st: Style): List[String] =
     // Its status as `check` exits on (`ok`): proven by Lean with an obligation open, or an example failing, is not proven.
@@ -137,11 +109,12 @@ object ReportText:
         c.idle.map(i => st.red(s"! doing nothing meets it ($i): state what users can do, so it says exactly what the system does (status fails until then)")) ++
         (c.messages ++ c.hint).map(m => s"! ${m.linesIterator.mkString("\n    ")}")).map("  " + _)
 
-  def check(r: CheckReport, st: Style): List[String] =
-    r.nodes.flatMap(checked(_, st)) ++ ("" :: SummaryText.lines(r.overview, st)) ++ r.view.warnings.map(w => st.red(s"warning: $w"))
+  def check(r: CheckReport, st: Style, c: Contribution = Contribution.empty): List[String] =
+    r.nodes.flatMap(checked(_, st)) ++ ("" :: SummaryText.lines(r.overview, st, c.waiting(st))) ++
+      (r.view.warnings ++ c.warnings).map(w => st.red(s"warning: $w"))
 
-  def ci(r: CiReport, tree: Tree, st: Style): List[String] =
-    r.notProven.flatMap(checked(_, st)) ++ (if r.notProven.isEmpty then Nil else List("")) ++ status(r.view, tree, st)
+  def ci(r: CiReport, tree: Tree, st: Style, c: Contribution = Contribution.empty): List[String] =
+    r.notProven.flatMap(checked(_, st)) ++ (if r.notProven.isEmpty then Nil else List("")) ++ status(r.view, tree, st, c)
 
   /** Each node in one line, each mention with its sentence. */
   def found(f: Found, v: View, st: Style): List[String] = f match

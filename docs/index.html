@@ -128,10 +128,15 @@ statements fit together and that the code meets them. You decide every statement
 a <strong>tutorial</strong> to learn it, <strong>how-to guides</strong> for tasks, the <strong>reference</strong>,
 and <strong>explanations</strong> of why it works as it does. For the short pitch, read the
 <a href="../README.md">README</a>.</p>
+<p>FrFlow is in two layers. <strong>FrFlow (core)</strong>, every section up to <a href="#agent">With an AI
+agent</a>, is the method and its tools: the DAG, the proofs, the decisions, the CLI and the web view, which a developer
+uses with no AI. <strong><a href="#agent">With an AI agent</a></strong> is a layer on top, which a project enables:
+an agent proposes the nodes and writes the code and proofs, and the developer asks it for changes.</p>
 <ul>
   <li>New to FrFlow: start with <a href="#get-started">Get started</a>, then <a href="#tutorial">the tutorial</a>.</li>
   <li>Writing a model: see <a href="#ref-terms">Terms</a> and <a href="#ref-nodes">Nodes</a>.</li>
   <li>Using the command line: see <a href="#ref-cli">Commands</a>.</li>
+  <li>Working with an AI agent: see <a href="#agent">With an AI agent</a>.</li>
   <li>A check failed: see <a href="#troubleshooting">Troubleshooting</a>.</li>
 </ul>
 </section>
@@ -149,13 +154,12 @@ and <strong>explanations</strong> of why it works as it does. For the short pitc
 </ul>
 <p>FrFlow addresses them with a formal refinement flow:</p>
 <ol class="steps">
-  <li>You tell the agent your idea in chat. It asks what it needs, a few questions at a time, each with the answer it
-  assumes, and records the conversation.</li>
-  <li>The agent writes <code>IDEA.md</code> from the conversation: the purpose of the system, in prose, each section
-  naming the answers it comes from. You accept it.</li>
-  <li>The agent proposes a <em>root</em>: one statement that says the purpose exactly, both what users can do and
-  what must never happen.</li>
-  <li>The agent refines the root into <em>parts</em>, in your domain's words: claims, contracts on operations,
+  <li><code>IDEA.md</code> says the purpose of the system, in prose. You accept it. With the agent layer, you tell
+  the agent your idea in chat; it asks what it needs, records the conversation, and writes <code>IDEA.md</code> from
+  it.</li>
+  <li>A <em>root</em> states the purpose exactly, in one statement: both what users can do and what must never
+  happen.</li>
+  <li>The root is refined into <em>parts</em>, in your domain's words: claims, contracts on operations,
   assumptions, definitions of terms, and design decisions. Parts have parts, down to the code. The result is a DAG.</li>
   <li>FrFlow translates the DAG to Lean and proves that the parts of each node imply it, that the code meets its
   contract, and that the root follows from the code and a short list of trusted assumptions.</li>
@@ -211,13 +215,13 @@ Nothing waits: every node is accepted and proven.</code></pre></div>
 
 <section aria-labelledby="tutorial">
 <h2 id="tutorial">Tutorial: read a knowledge base, top to bottom <span class="kind">Tutorial</span></h2>
-<p>This walks through <code>examples/auth</code> in the order an agent writes it and you decide it. Every snippet is
+<p>This walks through <code>examples/auth</code> in the order it is written and decided. Every snippet is
 the example's code. Open <code>examples/auth/src/main/scala/auth/Auth.scala</code> beside this page.</p>
 
 <h3 id="t-idea">1. The idea</h3>
 <p>The purpose is in <code>IDEA.md</code>: a title, a lead paragraph, sections, and what is not modelled. In a new
-project the agent writes it from your conversation and you accept it (<a href="#how-new-project">Start a project</a>);
-this example's was written before that, and accepted as it stands.</p>
+project you write it, or the agent writes it from your conversation, and you accept it
+(<a href="#how-new-project">Start a project</a>); this example's is accepted as it stands.</p>
 <div class="code"><span class="label"><code>examples/auth/IDEA.md</code></span><pre><code># Auth
 
 A system decides which users may access which resources. No user may ever
@@ -349,22 +353,19 @@ object authCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/auth")</
 <ol class="steps">
   <li>Run <code>sbt "frflowInit library"</code>, then <code>sbt reload</code>. It creates
   <code>examples/library</code> with an empty knowledge base and its command line, and adds
-  <code>lazy val library = example("library")</code> to <code>build.sbt</code>. <code>bin/frflow library status</code>
-  works from here.</li>
-  <li>Tell the agent your idea in chat, in your own words. It records them (<code>said</code>).</li>
-  <li>Answer its questions. It asks three to five at a time, each with the answer it assumes, so you can just agree
-  or correct it. It records each question (<code>asked</code>, numbered <code>Q1</code>, <code>Q2</code>, …) and your
-  answer (<code>replied</code>). <code>bin/frflow library conversation</code> shows what is recorded; <code>inbox</code>
-  lists the questions not answered yet.</li>
-  <li>Confirm the purpose in one sentence when the agent restates it: it becomes the root.</li>
-  <li>Read <code>IDEA.md</code>, which the agent writes from the conversation (each section names the answers it comes
-  from on a <code>From:</code> line), and accept it: <code>accept IDEA --reason "…"</code>, or in
-  <code>review</code> or the web view. To change it, tell the agent.</li>
-  <li>The agent proposes the root and its parts; decide them as in <a href="#how-review">Review a change</a>.</li>
+  <code>lazy val library = example("library", layers = Nil)</code> to <code>build.sbt</code>.
+  <code>bin/frflow library status</code> works from here.</li>
+  <li>Write <code>examples/library/IDEA.md</code>: a title, a lead paragraph, and a section per part of the
+  purpose.</li>
+  <li>Accept it: <code>bin/frflow library accept IDEA --reason "…"</code>, or in <code>review</code> or the web
+  view.</li>
+  <li>Write the root and its parts, each naming the section of <code>IDEA.md</code> it comes from
+  (<code>idea = "…"</code>), and decide them as in <a href="#how-review">Review a change</a>.</li>
 </ol>
-<p>The conversation is a record the agent keeps in <code>.frflow/conversation.json</code>, not a decision: only
-<code>IDEA.md</code> and the nodes are signed. If <code>IDEA.md</code> changes later, it comes back to you, and so do
-the nodes that name a changed section.</p>
+
+
+<p>If <code>IDEA.md</code> changes later, it comes back to you, and so do the nodes that name a changed section. To
+start with an agent instead, see <a href="#agent-start">Start a project with the agent</a>.</p>
 
 <h3 id="how-split">Split a claim into parts</h3>
 <ol class="steps">
@@ -435,7 +436,7 @@ that takes several steps against the outside (load, store, log) is a flow over a
   <li>Run <code>bin/frflow PROJECT inbox</code> to see what waits for you.</li>
   <li>Run <code>bin/frflow PROJECT review</code>. It shows each node with its diff, parents first. Press
   <kbd>a</kbd> to accept, <kbd>r</kbd> to reject, <kbd>s</kbd> to skip, <kbd>v</kbd> to view the node,
-  <kbd>?</kbd> to ask the agent, <kbd>q</kbd> to quit.</li>
+  <kbd>q</kbd> to quit. A layer on top may offer a key of its own (the agent layer's <kbd>?</kbd>).</li>
   <li>Or decide one node: <code>accept NODE --reason "…"</code>, or <code>reject NODE --reason "…"</code>. A reason
   of a word or two is refused.</li>
   <li>For decisions in a browser, run <code>sbt "PROJECT/serve --as NAME"</code> and open the printed link.</li>
@@ -562,15 +563,13 @@ val aboutRecord = define { (s: Term[CrmStore], id: Term[BigInt]) =&gt;
 
 <h3 id="ref-cli">Commands</h3>
 <p><code>bin/frflow PROJECT COMMAND</code>, or <code>sbt "PROJECT/run COMMAND"</code>. The full help:</p>
-<div class="code"><span class="label">Output of <code>bin/frflow auth --help</code></span><pre><code>Usage: auth [--plain] COMMAND [ARGS]...
+<div class="code"><span class="label">Output of <code>--help</code>, in a project with no layer on top</span><pre><code>Usage: auth [--plain] COMMAND [ARGS]...
 
 FrFlow: one root refined by a DAG of small statements, each proven in Lean from its parts and decided by the developer.
 
-A project starts in chat: the developer tells the agent the idea; the agent asks, records the conversation (said,
-asked, replied) and writes IDEA.md from it; the developer accepts IDEA.md; then the agent proposes the root.
-The developer reads with tree, show, diff, inbox, conversation; decides with review, accept, reject, confirm, revisit,
-gone; asks with ask and close. The web view does the same in a browser: sbt "PROJECT/serve --as NAME".
-The agent works with said, asked, replied, render, check, status, ci, context, find, scaffold, answer, inbox.
+The developer writes IDEA.md (what the system is for) and accepts it; the root and its parts follow, as Scala, each
+decided in turn. Read with tree, show, diff, inbox, find; decide with review, accept, reject, confirm, revisit, gone;
+prove with render, check, status, ci, scaffold. The web view does the same in a browser: sbt "PROJECT/serve --as NAME".
 Exit codes: 0 fine; 1 something is not accepted or proven, or a decision was refused; 2 a usage error; 3 no Lean (lake).
 
 Options and flags:
@@ -587,31 +586,19 @@ Subcommands:
     diff
         what changed since NODE was decided: its fields, what moved above it, its code
     inbox
-        what waits for whom: requests, answers, decisions to take, the agent's tasks
+        what waits for the developer: IDEA.md, the decisions to take, in order, and the decided nodes gone
     review
-        decide what waits, node by node, parents first: [a]ccept [r]eject [s]kip [v]iew [q]uit [?]ask
+        decide what waits, node by node, parents first: [a]ccept [r]eject [s]kip [v]iew [q]uit (layers may add keys)
     accept
         accept nodes (rejecting their rivals); --revisit names decisions below a change to review again
     reject
-        reject a proposal, saying why: the agent proposes what the reason asks for, or removes it
+        reject a proposal, saying why: what the reason asks for is proposed instead, or it is removed
     confirm
         accept the mechanical decisions in one batch (Lean proves them again; nothing in them is a choice)
     revisit
         ask that an accepted node be reviewed again: a change elsewhere may affect it
     gone
         agree that a decided node is gone from the model
-    ask
-        ask the agent for a change on NODE (or, with --idea, about the whole idea)
-    close
-        close requests: an answer read, or a request withdrawn
-    conversation
-        what you told the agent and its questions, with the answers it assumed and yours: what IDEA.md comes from
-    said
-        record what the developer said in chat, word for word (the idea, a correction)
-    asked
-        record a question asked in chat, with the answer you assume (--assume): numbered Q1, Q2, ...
-    replied
-        record the developer's reply to a question, as they said it in chat
     render
         generate Lean and the snapshot .frflow/kb.json from the Scala definitions
     check
@@ -620,14 +607,10 @@ Subcommands:
         the tree and the summary; exits 1 unless the knowledge base is complete
     ci
         for CI: check, then status; exits 1 unless everything is proven and decided
-    context
-        show --full: everything needed to work on NODE, with the idea and what it rests on
     find
         the nodes that govern a file, or what mentions some words
     scaffold
-        a proof file with a stub for each obligation the last check left open
-    answer
-        reply to the developer's request; with a NODE instead, tell them about work they did not ask for</code></pre></div>
+        a proof file with a stub for each obligation the last check left open</code></pre></div>
 <ul>
   <li><code>--as NAME</code> names who decides (default: <code>FRFLOW_AS</code>, or the name the key is filed under).</li>
   <li><code>--json</code> on <code>tree</code>, <code>show</code>, <code>inbox</code>, <code>status</code> and
@@ -660,10 +643,9 @@ a small budget, which shows nothing.</p>
 <table>
 <thead><tr><th>Path</th><th>Holds</th><th>Committed</th></tr></thead>
 <tbody>
-<tr><td><code>IDEA.md</code></td><td>the purpose, in prose, written by the agent from the conversation and accepted by you</td><td>yes</td></tr>
+<tr><td><code>IDEA.md</code></td><td>the purpose, in prose, accepted by you</td><td>yes</td></tr>
 <tr><td><code>src/main/scala/…</code></td><td>the nodes and the code</td><td>yes</td></tr>
 <tr><td><code>.frflow/ledger.json</code></td><td>every decision, <code>IDEA.md</code>'s included: who, why, the alternatives, the commit, a signature</td><td>yes</td></tr>
-<tr><td><code>.frflow/conversation.json</code></td><td>what you told the agent, its questions with the answers it assumed, and yours: a record, not decisions</td><td>yes</td></tr>
 <tr><td><code>.frflow/keys/NAME.pub</code></td><td>the developers' public keys. The private key stays in <code>~/.config/frflow/signing.key</code> or <code>FRFLOW_KEY</code></td><td>yes</td></tr>
 <tr><td><code>lean/Proofs/&lt;KB&gt;/</code></td><td>proofs written by hand</td><td>yes</td></tr>
 <tr><td><code>lean/FrFlowGen/</code>, <code>.frflow/kb.json</code></td><td>generated Lean and the snapshot</td><td>no</td></tr>
@@ -802,8 +784,8 @@ that takes one is refused when the knowledge base is rendered.</p>
 
 <section aria-labelledby="decisions">
 <h2 id="decisions">How decisions and review work <span class="kind">Explanation</span></h2>
-<p>You decide every node, once. The agent proposes, with a <code>why</code> and examples; no command of the agent's
-decides. A decision binds your reason to the hash of what you saw, so whatever moves under it puts the node back up
+<p>You decide every node, once. Whoever writes a node proposes it, with a <code>why</code> and examples; only a
+decision signed with your key accepts it. A decision binds your reason to the hash of what you saw, so whatever moves under it puts the node back up
 for review, with the cause:</p>
 <table>
 <thead><tr><th>Cause</th><th>What moved</th></tr></thead>
@@ -819,7 +801,7 @@ for review, with the cause:</p>
 <p>Rewording a statement whose formula is unchanged reviews only that node; a change of formula reviews what rests
 on it. A node under review whose own content did not change and that Lean proves again is <em>mechanical</em>:
 <code>confirm</code> accepts all of them in one decision. Each decision is signed with your key, which is kept
-outside the repository the agent edits.</p>
+outside the repository, where neither a script nor an agent editing it can sign as you.</p>
 </section>
 
 <section aria-labelledby="trusted">
@@ -838,6 +820,85 @@ theory. Trusted:</p>
 </ul>
 <p>Limits: the tries are one-sided; running covers the examples and their combinations, not every input; ordering,
 liveness, failures of the outside world and concurrent access to a boundary are not covered; maps and sets cannot be iterated.</p>
+</section>
+
+<section aria-labelledby="agent">
+<h2 id="agent">With an AI agent <span class="kind">How-to</span></h2>
+<p>The agent layer (<code>modules/agent</code>, package <code>frflow.agent</code>) is on top of FrFlow's core, which
+does not depend on it. It adds what an agent working in the project needs: its commands, your requests to it, the
+conversation <code>IDEA.md</code> comes from, and their parts of <code>inbox</code>, <code>show</code>,
+<code>review</code>, <code>status</code> and the web view. The agent's rules are in
+<a href="../.claude/skills/frflow/SKILL.md">.claude/skills/frflow/SKILL.md</a>.</p>
+
+<h3 id="agent-enable">Enable it</h3>
+<p>Name it on the project's main object; <code>example("NAME")</code> in <code>build.sbt</code> depends on the module
+(<code>example("NAME", layers = Nil)</code> does not). The three examples enable it.</p>
+<div class="code"><pre><code>object authCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/auth", extensions = List(frflow.agent.Agent))</code></pre></div>
+<p>The layer is an <code>Extension</code> of the core's: a <code>CliExtension</code> (its commands, and what it adds to
+a view) and a <code>WebExtension</code> (its routes, and a script that hooks into the page with
+<code>FrFlow.extend</code>). Another layer is written the same way.</p>
+
+<h3 id="agent-start">Start a project with the agent</h3>
+<ol class="steps">
+  <li>Run <code>sbt "frflowInitAgent library"</code>, then <code>sbt reload</code>: as <code>frflowInit</code>, with the
+  agent layer enabled.</li>
+  <li>Tell the agent your idea in chat, in your own words. It records them (<code>said</code>).</li>
+  <li>Answer its questions. It asks three to five at a time, each with the answer it assumes, so you can just agree
+  or correct it. It records each question (<code>asked</code>, numbered <code>Q1</code>, <code>Q2</code>, …) and your
+  answer (<code>replied</code>). <code>bin/frflow library conversation</code> shows what is recorded; <code>inbox</code>
+  lists the questions not answered yet.</li>
+  <li>Confirm the purpose in one sentence when the agent restates it: it becomes the root.</li>
+  <li>Read <code>IDEA.md</code>, which the agent writes from the conversation (each section names the answers it comes
+  from on a <code>From:</code> line), and accept it: <code>accept IDEA --reason "…"</code>, or in
+  <code>review</code> or the web view. To change it, tell the agent.</li>
+  <li>The agent proposes the root and its parts; decide them as in <a href="#how-review">Review a change</a>.</li>
+</ol>
+<p>The conversation is a record the agent keeps in <code>.frflow/conversation.json</code>, not a decision: only
+<code>IDEA.md</code> and the nodes are signed. A changed answer is a warning in <code>status</code> until
+you look at <code>IDEA.md</code> again and accept it.</p>
+
+<h3 id="agent-ask">Ask the agent for a change</h3>
+<ul>
+  <li><code>ask NODE TEXT</code>, or <code>ask --idea TEXT</code>; in <code>review</code>, <kbd>?</kbd> on a node; in
+  the web view, on the node or on <code>IDEA.md</code>. The node waits with the agent, out of your queue, until it
+  answers or changes the node.</li>
+  <li>The agent's answers are in <code>inbox</code>; <code>close REQUEST</code> when you have read one.</li>
+  <li>A node you reject, and one you ask to revisit, are listed in <code>inbox</code> for the agent.</li>
+</ul>
+
+<h3 id="agent-cli">The agent layer's commands</h3>
+<p>They follow FrFlow's in <code>--help</code>:</p>
+<div class="code"><span class="label">From <code>bin/frflow auth --help</code></span><pre><code>With an AI agent (frflow.agent): the developer tells the agent the idea in chat; the agent records the conversation
+(said, asked, replied; read it with conversation) and writes IDEA.md from it. The developer asks for changes with ask
+(or [?] in review) and closes requests with close; the agent works with context and answer.
+
+Subcommands, after FrFlow's:
+    ask
+        ask the agent for a change on NODE (or, with --idea, about the whole idea)
+    close
+        close requests: an answer read, or a request withdrawn
+    conversation
+        what you told the agent and its questions, with the answers it assumed and yours: what IDEA.md comes from
+    said
+        record what the developer said in chat, word for word (the idea, a correction)
+    asked
+        record a question asked in chat, with the answer you assume (--assume): numbered Q1, Q2, ...
+    replied
+        record the developer's reply to a question, as they said it in chat
+    context
+        show --full: everything needed to work on NODE, with the idea and what it rests on, and its requests
+    answer
+        reply to the developer's request; with a NODE instead, tell them about work they did not ask for</code></pre></div>
+
+<h3 id="agent-files">Its files</h3>
+<table>
+<thead><tr><th>Path</th><th>Holds</th><th>Committed</th></tr></thead>
+<tbody>
+<tr><td><code>.frflow/conversation.json</code></td><td>what you told the agent, its questions with the answers it assumed, and yours: a record, not decisions</td><td>yes</td></tr>
+<tr><td><code>.frflow/requests.json</code></td><td>your requests to the agent and its answers</td><td>yes</td></tr>
+</tbody>
+</table>
+<p>The core reads neither: without the layer, the project works the same, and they are left as they are.</p>
 </section>
 
 <section aria-labelledby="troubleshooting">

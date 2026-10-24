@@ -1,6 +1,6 @@
 package frflow.api
 
-import frflow.ledger.{Decide, ForAgent, Proofs, Waiting}
+import frflow.ledger.{Decide, Proofs, Waiting}
 import frflow.protocol.*
 import io.circe.{Codec, Encoder, Json}
 
@@ -8,11 +8,8 @@ import io.circe.{Codec, Encoder, Json}
 final case class Developer(name: String)
 final case class Logged(node: NodeId, decision: Decision) derives Codec.AsObject
 
-/** Everything a front end shows, read once; `warnings` are what `status` fails on; `conversation`, what the developer said
-  * and the agent asked, which IDEA.md is written from.
-  */
-final case class View(annotated: Annotated, warnings: List[String], requests: List[Request], unsigned: List[Logged],
-    conversation: Conversation = Conversation.empty) derives Codec.AsObject:
+/** Everything a front end shows, read once; `warnings` are what `status` fails on. */
+final case class View(annotated: Annotated, warnings: List[String], unsigned: List[Logged]) derives Codec.AsObject:
   /** IDEA.md and every node accepted, proven and passing its examples, and nothing to warn of: the CI gate. */
   def ok: Boolean = Proofs.complete(annotated) && warnings.isEmpty
   def snapshot: Snapshot = annotated.snapshot
@@ -21,10 +18,6 @@ final case class View(annotated: Annotated, warnings: List[String], requests: Li
   def nodes: List[Reviewed] = annotated.nodes
   def node(id: NodeId): Option[Reviewed] = annotated.byId.get(id)
   def isRoot(r: Reviewed): Boolean = snapshot.root.contains(r.id)
-  /** The developer's open requests on a node they have not seen change since: the node is with the agent. */
-  def asked(r: Reviewed): List[Request] =
-    requests.filter(q => q.node.contains(r.id) && q.status == RequestStatus.Open && q.seen.forall(_ == r.review.version))
-  def withAgent(r: Reviewed): Boolean = asked(r).nonEmpty
 
 /** The decisions a `Decide` records, in order, and what is not proven, or fails, of the nodes it accepts. */
 final case class Decided(decisions: List[Logged], unproven: List[(NodeId, String)]) derives Codec.AsObject
@@ -36,10 +29,9 @@ object Decided:
 
 /** The counts every view closes with; `complete` is `View.ok`. */
 final case class Overview(name: String, nodes: Int, proposed: Int, review: Int, accepted: Int, rejected: Int, gone: Int,
-    proven: Int, trusted: List[NodeId], forDeveloper: Int, mechanical: Int, withAgent: Int, forAgent: Int, openRequests: Int,
-    answers: Int, unsigned: Int, splits: Int, splitsProven: Int, contracts: Int, contractsProvenDown: Int,
-    examplesInLean: Int, examplesAgreeing: Int, rootImpl: Option[ObligationStatus], warnings: Int, complete: Boolean,
-    idea: Option[ReviewState] = None, openQuestions: Int = 0) derives Codec.AsObject:
+    proven: Int, trusted: List[NodeId], forDeveloper: Int, mechanical: Int, unsigned: Int, splits: Int, splitsProven: Int,
+    contracts: Int, contractsProvenDown: Int, examplesInLean: Int, examplesAgreeing: Int, rootImpl: Option[ObligationStatus],
+    warnings: Int, complete: Boolean, idea: Option[ReviewState] = None) derives Codec.AsObject:
   def unproven: Int = nodes - proven
 object Overview:
   def of(v: View): Overview = of(v, Waiting.forDeveloper(v.annotated))
@@ -49,43 +41,36 @@ object Overview:
     val a = v.annotated
     val ns = a.nodes.map(_.node)
     def count(s: ReviewState) = a.nodes.count(_.state == s)
-    val asked = Inbox.asked(v, waiting)
     val contracts = ns.filter(_.kind == NodeKind.Contract)
     def provenDown(c: SnapNode) = c.status.contains(CheckStatus.Proven) && c.implementationProof.exists(_.status == ObligationStatus.Proven)
     val inLean = ns.flatMap(_.examples.flatMap(_.lean))
     Overview(name = v.snapshot.name, nodes = a.nodes.size, proposed = count(ReviewState.Proposed), review = count(ReviewState.Review),
       accepted = count(ReviewState.Accepted), rejected = count(ReviewState.Rejected), gone = a.gone.size,
       proven = ns.count(Proofs.unproven(_).isEmpty), trusted = v.snapshot.trusted,
-      forDeveloper = waiting.size + a.gone.size - asked.size + v.ideaWaits.size, mechanical = waiting.count(_.review.mechanical),
-      withAgent = asked.size,
-      forAgent = Waiting.forAgent(a, v.requests).size, openRequests = v.requests.count(_.status == RequestStatus.Open),
-      answers = v.requests.count(_.status == RequestStatus.Answered), unsigned = v.unsigned.size,
+      forDeveloper = waiting.size + a.gone.size + v.ideaWaits.size, mechanical = waiting.count(_.review.mechanical),
+      unsigned = v.unsigned.size,
       splits = ns.count(_.split.isDefined), splitsProven = ns.count(_.split.exists(_.proven)),
       contracts = contracts.size, contractsProvenDown = contracts.count(provenDown),
       examplesInLean = inLean.size, examplesAgreeing = inLean.count(_.status == ObligationStatus.Proven),
       rootImpl = v.snapshot.root.flatMap(v.node).flatMap(_.node.rootImpl).map(_.status), warnings = v.warnings.size, complete = v.ok,
-      idea = a.idea.map(_.state), openQuestions = v.conversation.unanswered.size)
+      idea = a.idea.map(_.state))
 
 final case class Queued(node: Reviewed, waitsFor: Option[NodeId], followers: List[NodeId]) derives Codec.AsObject
-/** What waits for whom; the developer's queue in the order the ledger takes decisions, less what is with the agent.
-  * `idea`: IDEA.md, first, when it waits for the developer; `questions`, the agent's questions with no reply yet (the
-  * developer answers them in chat).
+/** What waits for the developer, in the order the ledger takes decisions: IDEA.md first when it waits (`idea`), the
+  * mechanical batch, the nodes ready and those after others, the decided nodes gone; `aside`, the nodes waiting that a
+  * layer on top holds back from the queue (an AI agent's, while the developer's request on them is open).
   */
-final case class Inbox(open: List[Request], answers: List[Request], warnings: List[String], ready: List[Queued],
-    mechanical: List[Reviewed], later: List[Queued], gone: List[Gone], withAgent: List[Reviewed], forAgent: List[ForAgent],
-    overview: Overview, idea: Option[IdeaReview] = None, questions: List[Question] = Nil) derives Codec.AsObject:
+final case class Inbox(warnings: List[String], ready: List[Queued], mechanical: List[Reviewed], later: List[Queued],
+    gone: List[Gone], aside: List[Reviewed], overview: Overview, idea: Option[IdeaReview] = None) derives Codec.AsObject:
   def queue: List[Queued] = ready ++ later
 object Inbox:
-  /** Of the nodes waiting for the developer, those they asked the agent about. */
-  private[api] def asked(v: View, waiting: List[Reviewed]): List[Reviewed] = waiting.filter(r => !r.review.mechanical && v.withAgent(r))
-
   /** A review moving only with a node waiting is grouped under it: accepting the node confirms it once all it
-    * rests on holds (as the ledger's `Decide` does).
+    * rests on holds (as the ledger's `Decide` does). `held`: the nodes a layer on top holds back (not mechanical ones).
     */
-  def of(v: View): Inbox =
+  def of(v: View, held: Set[NodeId] = Set.empty): Inbox =
     val waiting = Waiting.forDeveloper(v.annotated)
     val (mechanical, judged) = waiting.partition(_.review.mechanical)
-    val mine = judged.filterNot(v.withAgent)
+    val (aside, mine) = judged.partition(r => held(r.id))
     val ids = mine.map(_.id).toSet
     def holds(id: NodeId) = v.node(id).forall(_.state == ReviewState.Accepted)
     def followers(r: Reviewed) =
@@ -96,12 +81,10 @@ object Inbox:
     val queued = mine.map(r => Queued(r, r.review.waitsFor, followers(r)))
     val following = queued.flatMap(_.followers).toSet
     val (later, ready) = queued.filterNot(q => following(q.node.id)).partition(_.waitsFor.isDefined)
-    Inbox(v.requests.filter(_.status == RequestStatus.Open), v.requests.filter(_.status == RequestStatus.Answered), v.warnings,
-      ready, mechanical, later, v.annotated.gone, asked(v, waiting), Waiting.forAgent(v.annotated, v.requests), Overview.of(v, waiting),
-      v.ideaWaits, v.conversation.unanswered)
+    Inbox(v.warnings, ready, mechanical, later, v.annotated.gone, aside, Overview.of(v, waiting), v.ideaWaits)
 
 /** A node of the tree, drawn once, under its first parent; `seeAlso` are the nodes below it drawn under another. */
-final case class TreeNode(node: Reviewed, seeAlso: List[NodeId], withAgent: Boolean, children: List[TreeNode]) derives Codec.AsObject
+final case class TreeNode(node: Reviewed, seeAlso: List[NodeId], children: List[TreeNode]) derives Codec.AsObject
 
 /** The DAG drawn as a tree from the root; then the assumptions and the other nodes under no parent (what code
   * calls), the definitions, and the decided nodes gone from the model.
@@ -136,7 +119,7 @@ object Trees:
       xs.sortBy(x => order.getOrElse(id(x), Int.MaxValue))
     // `path`: the nodes above, so a cycle (a problem the model reports) stops the drawing.
     def draw(path: Set[NodeId])(r: Reviewed): TreeNode =
-      TreeNode(r, inParts(r, elsewhere.getOrElse(r.id, Nil))(identity), v.withAgent(r),
+      TreeNode(r, inParts(r, elsewhere.getOrElse(r.id, Nil))(identity),
         inParts(r, under.getOrElse(r.id, Nil))(_.id).filterNot(c => path(c.id)).map(draw(path + r.id)))
     draw(Set.empty)
 

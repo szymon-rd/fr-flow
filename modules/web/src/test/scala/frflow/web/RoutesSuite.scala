@@ -6,7 +6,8 @@ import frflow.api.*
 import frflow.protocol.*
 import io.circe.Json
 import io.circe.syntax.*
-import org.http4s.{Header, Method, Request as Http, Status, Uri}
+import org.http4s.{Header, HttpRoutes, Method, Request as Http, Status, Uri}
+import org.http4s.dsl.io.*
 import org.http4s.circe.CirceEntityCodec.*
 import org.typelevel.ci.CIString
 
@@ -14,10 +15,10 @@ import org.typelevel.ci.CIString
 class RoutesSuite extends munit.CatsEffectSuite:
   private val token = "the-token"
   private val dev = Developer("dev")
-  private def routes(api: FakeApi) = api.modelFingerprint.map(Routes(api, dev, token, _).app)
-  private def call(api: FakeApi, method: Method, path: String, body: Option[Json] = None, as: String = token) =
+  private def routes(api: FakeApi, layers: List[WebPart] = Nil) = api.modelFingerprint.map(Routes(api, dev, token, _, layers).app)
+  private def call(api: FakeApi, method: Method, path: String, body: Option[Json] = None, as: String = token, layers: List[WebPart] = Nil) =
     val req = Http[IO](method, Uri.unsafeFromString(path)).putHeaders(Header.Raw(CIString(Routes.TokenHeader), as))
-    routes(api).flatMap(_.run(body.fold(req)(req.withEntity(_))))
+    routes(api, layers).flatMap(_.run(body.fold(req)(req.withEntity(_))))
   private def json(api: FakeApi, method: Method, path: String, body: Option[Json] = None) =
     call(api, method, path, body).flatMap(r => r.as[Json].map(r.status -> _))
   private def accept(reason: String) = (Decide.Accept(List(NodeId("Decide")), reason): Decide).asJson
@@ -46,7 +47,7 @@ class RoutesSuite extends munit.CatsEffectSuite:
       inbox <- json(api, Method.GET, "/api/inbox")
       details <- json(api, Method.GET, "/api/details/Decide")
       unknown <- json(api, Method.GET, "/api/details/Nope")
-      expected <- (api.view, api.tree(None), api.inbox, api.details(NodeId("Decide"))).tupled
+      expected <- (api.view, api.tree(None), api.inbox(), api.details(NodeId("Decide"))).tupled
     yield
       assertEquals(List(view, tree, inbox, details),
         List(expected._1.asJson, expected._2.asJson, expected._3.asJson, expected._4.asJson).map(Status.Ok -> _))
@@ -89,25 +90,27 @@ class RoutesSuite extends munit.CatsEffectSuite:
       assertEquals(ledger, Sample.ledgerNow)
   }
 
-  test("ask and close go through the API as the developer") {
+  test("a layer on top adds routes, behind the same token, and its script, served as /ext.js (empty with none)") {
+    val stub = WebPart(HttpRoutes.of[IO] { case GET -> Root / "api" / "stub" => Ok("from the layer") }, "window.stub = 1;")
     for
       api <- FakeApi()
-      asked <- json(api, Method.POST, "/api/ask", Some(Asking(Some(NodeId("Decide")), "Name the user.").asJson))
-      empty <- json(api, Method.POST, "/api/close", Some(List(RequestId("R9")).asJson))
-      closed <- json(api, Method.POST, "/api/close", Some(List(RequestId("R1")).asJson))
-      v <- api.view
+      none <- call(api, Method.GET, "/ext.js")
+      script <- call(api, Method.GET, "/ext.js", layers = List(stub))
+      route <- call(api, Method.GET, "/api/stub", layers = List(stub))
+      refused <- call(api, Method.GET, "/api/stub", as = "guess", layers = List(stub))
+      // the script as JavaScript, not a JSON string
+      texts <- List(none, script).traverse(_.bodyText.compile.string)
+      routed <- route.as[String]
     yield
-      assertEquals(asked._1, Status.Ok)
-      assertEquals(empty._1, Status.NotFound)
-      assertEquals(closed._1, Status.Ok)
-      assert(v.requests.exists(q => q.text == "Name the user." && q.by == dev.name && q.node.contains(NodeId("Decide"))), v.requests)
-      assertEquals(v.requests.find(_.id == RequestId("R1")).map(_.status), Some(RequestStatus.Closed))
+      assertEquals(List(none, script, route).map(_.status), List.fill(3)(Status.Ok))
+      assertEquals(texts :+ routed, List("", "window.stub = 1;", "from the layer"))
+      assertEquals(script.contentType.map(_.mediaType), Some(org.http4s.MediaType.application.javascript))
+      assertEquals(refused.status, Status.Forbidden)
   }
 
-  test("the inbox carries IDEA.md and the agent's open questions; the page accepts IDEA.md as it saw it") {
-    val talk = Conversation(questions = List(Question("Q1", "Can a token be shared?", "No: one user per token.", Sample.at)))
+  test("the inbox carries IDEA.md; the page accepts IDEA.md as it saw it") {
     for
-      api <- FakeApi(Sample.snapshot.copy(idea = "# Auth\n\nOnly the authorized get in.\n"), Sample.ledgerNow, Nil, talk)
+      api <- FakeApi(Sample.snapshot.copy(idea = "# Auth\n\nOnly the authorized get in.\n"), Sample.ledgerNow)
       inbox <- json(api, Method.GET, "/api/inbox")
       version = inbox._2.hcursor.downField("idea").downField("version").as[String].toOption.get
       stale <- json(api, Method.POST, "/api/decide", Some((Decide.Accept(List(IdeaReview.Id), "says what it is for", Nil, Map(IdeaReview.Id -> Version("old"))): Decide).asJson))
@@ -115,7 +118,6 @@ class RoutesSuite extends munit.CatsEffectSuite:
       v <- api.view
     yield
       assertEquals(inbox._2.hcursor.downField("idea").downField("text").as[String], Right("# Auth\n\nOnly the authorized get in.\n"))
-      assertEquals(inbox._2.hcursor.downField("questions").downN(0).downField("id").as[String], Right("Q1"))
       assertEquals((stale._1, accepted._1), (Status.Conflict, Status.Ok))
       assertEquals(v.annotated.idea.map(_.state), Some(ReviewState.Accepted))
   }

@@ -19,7 +19,7 @@ class ProtocolSuite extends munit.FunSuite:
     assertEquals((CheckStatus.ModelError.asJson, ObligationStatus.NotShown.toString), (Json.fromString("model-error"), "not-shown"))
     assert(decode[Action]("\"settle\"").isLeft)
     List(NodeKind.values, CheckStatus.values, ObligationStatus.values, ReviewState.values, Cause.values, Action.values,
-      RequestStatus.values, BelowKind.values).foreach(_.foreach(v => assertEquals(v.toString, v.toString.toLowerCase)))
+      BelowKind.values).foreach(_.foreach(v => assertEquals(v.toString, v.toString.toLowerCase)))
     NodeKind.values.foreach(roundTrip(_)); CheckStatus.values.foreach(roundTrip(_)); ObligationStatus.values.foreach(roundTrip(_))
   }
 
@@ -77,14 +77,11 @@ class ProtocolSuite extends munit.FunSuite:
       assert(l.decisions.nonEmpty)
       assertEquals(Canonical.file(l.asJson) + "\n", text, file)
     }
-    val requests = decode[List[Request]](Files.readString(examples.resolve("keycloak/.frflow/requests.json")))
-    assertEquals(requests.map(_.map(_.status)), Right(List(RequestStatus.Closed)))
   }
 
-  test("checks, requests, a snapshot and its review read back as written") {
+  test("checks, a snapshot and its review read back as written") {
     roundTrip(NodeCheck(Hash("h"), CheckStatus.Proven, List(Result(ObligationName.Complete, ObligationStatus.Proven, "auto"),
       Result(ObligationName.Tried(TryKind.Needed("A")), ObligationStatus.NotShown)), Nil, List("propext"), decision.at))
-    roundTrip(Request(RequestId("R1"), None, "Say more.", "dev", decision.at, RequestStatus.Open))
     val node = SnapNode(NodeId("A"), NodeKind.Contract, content, content.hash, parents = List(NodeId("Root")),
       status = Some(CheckStatus.Open), examples = List(ExampleView("one", List("x = 1"), "f(1)", true, None, None,
         Some(Outcome(ObligationStatus.Proven, "Lean agrees")), None)),

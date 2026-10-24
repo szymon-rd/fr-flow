@@ -3,7 +3,13 @@
 The reference for the CLI and what it checks. The [README](../README.md)
 explains the idea; [DAG.md](DAG.md) is the design.
 
-## Running
+FrFlow is in two layers. [FrFlow (core)](#frflow-core) is the method and its tools: the DAG, the proofs, the decisions,
+the CLI and the web view, used by a developer with no AI. [With an AI agent](#with-an-ai-agent) is a layer on top,
+which a project enables, for an agent that proposes the nodes and writes the code and proofs.
+
+## FrFlow (core)
+
+### Running
 
 Requirements: JDK 17+, sbt, and Lean 4.35.0 (`lake` on the `PATH`, or
 `FRFLOW_LAKE`). `bin/frflow PROJECT COMMAND` runs a project's CLI
@@ -13,22 +19,17 @@ Requirements: JDK 17+, sbt, and Lean 4.35.0 (`lake` on the `PATH`, or
 Tests: `sbt test` runs the fast ones (about a minute). The tests that run Lean end to end (tagged `Lean`, several
 minutes) run with `sbt leanTest`; `sbt testAll` runs both, as before a merge.
 
-## Commands
+### Commands
 
 | | command | what it does |
 |---|---|---|
-| developer | `tree [NODE]` | the DAG from the root (or below NODE): status, kind and state, statement |
-| | `show NODE`, `diff NODE` | a node in about a screen; what changed since it was decided |
-| | `inbox` | what waits for whom, then the summary |
-| | `review` | decide what waits, parents first: `[a]ccept [r]eject [s]kip [v]iew [q]uit [?]ask` |
+| read | `tree [NODE]` | the DAG from the root (or below NODE): status, kind and state, statement |
+| | `show NODE`, `diff NODE` | a node in about a screen (`--full`: all of it); what changed since it was decided |
+| | `inbox`, `find WORDS\|PATH` | what waits, then the summary; where a change belongs |
+| decide | `review` | decide what waits, parents first: `[a]ccept [r]eject [s]kip [v]iew [q]uit` |
 | | `accept NODE...`, `reject NODE`, `confirm`, `revisit NODE`, `gone NODE` | one decision, with `-m REASON`; confirmed on a terminal, `--yes` without one |
-| | `ask NODE TEXT`, `ask --idea TEXT`, `close REQUEST...` | ask the agent for a change; close an answer read |
-| | `conversation` | what you told the agent, its questions with the answers it assumed, and yours |
-| agent | `said TEXT`, `asked QUESTION --assume ANSWER`, `replied Q TEXT` | record the conversation the idea comes from (see [Starting a project](#starting-a-project)) |
-| | `inbox`, `context NODE`, `find WORDS\|PATH` | what to do; everything on a node (`show --full`); where a change belongs |
-| | `render`, `check [NODE]`, `scaffold NODE` | Lean and `.frflow/kb.json`; prove what changed; proof stubs for what is left open |
+| prove | `render`, `check [NODE]`, `scaffold NODE` | Lean and `.frflow/kb.json`; prove what changed; proof stubs for what is left open |
 | | `status`, `ci` | the tree, the summary and the warnings; exit 1 unless complete (`ci` checks first) |
-| | `answer REQUEST\|NODE TEXT` | reply to a request, or tell the developer of work they did not ask for |
 
 `--as NAME` names who decides (default: `FRFLOW_AS`, or the name the key is
 filed under). The commands that decide, and the web view, ask for it when neither is
@@ -39,29 +40,23 @@ set.
 The web view is not a command: it is an sbt task, `sbt "PROJECT/serve [--port N] [--as NAME]"`
 (see [Web view](#web-view)).
 
-## Starting a project
+### Starting a project
 
 1. `sbt "frflowInit NAME"` sets up an empty project in `examples/NAME`: a knowledge base with no nodes, its main
    object, its Lean project, and its line in `build.sbt` (then `sbt reload`).
-2. The developer tells the agent the idea in chat. The agent asks what it needs, three to five questions at a time,
-   each with the answer it assumes, and records the conversation as it goes: `said` (the developer's words, verbatim),
-   `asked` (a question and the assumed answer, numbered `Q1`, `Q2`, ...) and `replied` (the developer's answer, as
-   said in chat). This is a record, kept in `.frflow/conversation.json`, not a decision: the agent cannot sign as the
-   developer. `conversation` shows it; `inbox` and `status` list the questions with no reply yet.
-3. The agent writes `IDEA.md` from the conversation. Each section names the answers it comes from on a `From:` line
-   (`From: Q1, Q3`), which moves no node.
-4. `IDEA.md` waits for the developer, first in `inbox` and `review`: they accept it (`accept IDEA`, signed, or in the
-   web view) or tell the agent what to change. The root is decided after it.
-5. The agent proposes the root, then its parts, each naming the section of `IDEA.md` it comes from (`idea = "..."`).
+2. The developer writes `IDEA.md`: what the system is for, in prose, in sections.
+3. `IDEA.md` waits for the developer, first in `inbox` and `review`: they accept it (`accept IDEA`, signed, or in the
+   web view). The root is decided after it.
+4. The developer writes the root, then its parts, each naming the section of `IDEA.md` it comes from (`idea = "..."`),
+   and decides each in turn.
 
 Later, a change to `IDEA.md` brings it back for review, and the root waits for it again. A change to what a section
-says brings back the nodes that name that section; a change to its `From:` lines brings back only `IDEA.md`. A
-changed answer to a question is a warning in `status` until `IDEA.md` is looked at and accepted again.
+says brings back the nodes that name that section.
 
-## Output and exit codes
+### Output and exit codes
 
 On a terminal the output has colors and Unicode and fits the terminal's width:
-formulas, diffs and decisions wrap, other lines are cut (`context` shows them
+formulas, diffs and decisions wrap, other lines are cut (`show --full` shows them
 whole). `--plain`, `NO_COLOR` or `TERM=dumb` turn this off. Off a terminal (CI,
 agents, a pipe) the output is plain ASCII and no line is cut. `--json` on
 `tree`, `show`, `inbox`, `status` and `check` prints the typed value.
@@ -69,7 +64,7 @@ agents, a pipe) the output is plain ASCII and no line is cut. `--json` on
 Exit codes: 0 fine; 1 not complete, or a decision refused; 2 a usage error
 (an unknown node too); 3 no Lean.
 
-## Nodes
+### Nodes
 
 | Kind | Written as | In Lean |
 |---|---|---|
@@ -87,7 +82,7 @@ an alternative: accepting one rejects the other. Two definitions of one term
 are alternatives too. The root speaks in open terms (`Opaque` types, `Param`
 terms); definitions bring in the domain as it is needed.
 
-## Writing formulas and code
+### Writing formulas and code
 
 Formulas and proven code are written with terms: a `Term[A]` is a value of
 type `A` as FrFlow sees it. It prints as Lean for the proofs and compiles to
@@ -133,10 +128,10 @@ On lists: `contains`, `exists`, `forall`, `filter`, `filterNot`, `map`,
 iterated. Arithmetic is on `BigInt` (`+`, `-`, `*`, `max`, `min`, comparisons,
 `/` and `%` by a literal); `Int` and `Long` compare but do not add.
 
-## Decisions
+### Decisions
 
-The developer decides every node, once. The agent proposes, with a `why` and
-examples; no command of the agent's decides. `.frflow/ledger.json` holds each
+The developer decides every node, once. Whoever writes a node proposes it,
+with a `why` and examples; only a decision signed by the developer accepts it. `.frflow/ledger.json` holds each
 decision: who, the reason, the alternatives rejected, the commit, a signature,
 and the decision before it.
 
@@ -169,7 +164,7 @@ Rewording a `why` or a statement whose formula is unchanged does not cascade
 below; a change of formula does. Accepting a change lists every decision that
 rests on it, and the developer marks those it may affect (`--revisit`).
 
-## What Lean proves
+### What Lean proves
 
 For each node N with parts C1..Cn, over the open terms they mention, with the
 definitions in force applied:
@@ -215,7 +210,7 @@ on every call. In `examples/crm`, a seeded SQL bug (a dropped `WHERE`) is
 stopped this way while every proof still holds. Code that takes several steps
 against the outside is written as a flow (next section).
 
-## Effectful code: flows over boundaries
+### Effectful code: flows over boundaries
 
 A **boundary** is a plain trait of operations that take terms and return
 flows: what proven code calls but cannot see. Its behaviour is a **state
@@ -270,7 +265,7 @@ def expireOnce(now: Term[BigInt]): Flow[CrmStore] =
   implementation against the model on the contract's examples: both start
   from the same state, and must end with the same result and state.
 
-## What is trusted, and the limits
+### What is trusted, and the limits
 
 Lean proves the nodes consistent with each other and the root of the code;
 the developer decides that they are the right theory. Trusted:
@@ -293,7 +288,7 @@ examples and their combinations, not every input. Ordering, liveness, failures
 of the outside world, and concurrent access to a boundary are not covered. Maps and sets
 cannot be iterated.
 
-## Warnings
+### Warnings
 
 `status` exits 1 unless every node is accepted, nothing is left unproven, no
 node is gone, and there is no warning. The warnings:
@@ -307,37 +302,36 @@ node is gone, and there is no warning. The warnings:
 - a contract none of whose examples Lean evaluates;
 - a node that only restates its part.
 
-## CI
+### CI
 
-Committed: the Scala, `IDEA.md`, `.frflow/` (ledger, keys, requests, the conversation) and
+Committed: the Scala, `IDEA.md`, `.frflow/` (the ledger and keys; with the agent layer, its requests and conversation) and
 `lean/Proofs`; the rest is derived. CI runs `ci`, caching
 `.frflow/checks.json` and `lean/.lake` by branch, so only what changed is
 proven again.
 
-## A new project
+### A new project
 
 `sbt "frflowInit library"` makes `examples/library` with an empty knowledge base and its command line, and adds
-`lazy val library = example("library")` to `build.sbt` (add it to `root`'s `aggregate` to test it with the rest);
+`lazy val library = example("library", layers = Nil)` to `build.sbt` (add it to `root`'s `aggregate` to test it with the rest);
 then `sbt reload`. The rest follows [Starting a project](#starting-a-project). `bin/frflow library render` creates
 `lean/` (its `lakefile.toml`, toolchain and the generated Lean) once there are nodes; with several mains in the
 project, set `Compile / run / mainClass`.
 
-## Web view
+### Web view
 
 `sbt "PROJECT/serve [--port N] [--as NAME]"` serves the developer's flow
 in a browser, from the project's main object in a JVM of its own: the DAG with each node's state and status, a node with its diff
-since it was decided, the inbox, the decisions with their reasons, and
-requests to the agent. It listens on localhost (port 8765 by default) and
-prints a link with a random token, which every route asks for. `IDEA.md` waits there too, first, and the agent's
-open questions are listed (they are answered in chat).
+since it was decided, the inbox, and the decisions with their reasons. It listens on localhost (port 8765 by
+default) and prints a link with a random token, which every route asks for. `IDEA.md` waits there too, first.
+A layer on top adds its routes, behind the same token, and its script (`/ext.js`), which hooks into the page
+(`FrFlow.extend`).
 
 The page is a client of the same API as the CLI (`FrFlowApi`), so a decision is
 signed and recorded as `accept` records it, and the CLI can run beside it. The
 server runs the model it compiled when it started: once the model's sources
-change, the page says so and refuses decisions until it is restarted. Agents
-use the CLI, not the web view.
+change, the page says so and refuses decisions until it is restarted.
 
-## Modules
+### Modules
 
 One sbt subproject each, under `modules/`:
 
@@ -353,11 +347,12 @@ One sbt subproject each, under `modules/`:
 - `api`: `FrFlowApi`, the typed operations a front end calls.
 - `cli`: the command line over the API.
 - `web`: the web view over the API. The CLI does not depend on it.
+- `agent` (package `frflow.agent`): the AI agent's layer, on top of `cli` and `web`. No other module depends on it.
 
 The Lean library is in `lean/FrFlow/`. The MCP server is on the branch
 `web-view`, which will become a separate repository.
 
-## Measurements
+### Measurements
 
 `python3 bench/generate.py N` writes `examples/scale`, a synthetic project:
 one root over N services grouped five by five, each service a claim with two
@@ -373,3 +368,61 @@ with nothing else running:
 The code change is one service's code; the claim change strengthens one
 service's part; the definition change is a limit about a third of the nodes
 use. After a cold check, only what a change reaches is proven again.
+
+## With an AI agent
+
+The agent layer (`modules/agent`, package `frflow.agent`) adds what an agent working in the project needs: its
+commands, the developer's requests to it, the conversation the idea comes from, and their parts of `inbox`, `show`,
+`review`, `status` and the web view. It keeps its own files, `.frflow/requests.json` and
+`.frflow/conversation.json`; the core does not read them. The agent's rules are in
+[`.claude/skills/frflow/SKILL.md`](../.claude/skills/frflow/SKILL.md).
+
+### Enabling it
+
+A project enables it on its main object, and depends on the module in `build.sbt` (`example(NAME)` does, by
+default; `example(NAME, layers = Nil)` does not):
+
+```scala
+object authCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/auth", extensions = List(frflow.agent.Agent))
+```
+
+`sbt "frflowInitAgent NAME"` sets up a new project this way. The layer is an `Extension` of the core's: a
+`CliExtension` (its commands, and what it adds to a view) and a `WebExtension` (its routes and script); another
+layer is written the same way.
+
+### Its commands
+
+| | command | what it does |
+|---|---|---|
+| developer | `ask NODE TEXT`, `ask --idea TEXT`, `close REQUEST...` | ask the agent for a change; close an answer read |
+| | `conversation` | what you told the agent, its questions with the answers it assumed, and yours |
+| | `review` | also offers `[?]ask`: ask the agent for a change instead of deciding |
+| agent | `said TEXT`, `asked QUESTION --assume ANSWER`, `replied Q TEXT` | record the conversation the idea comes from |
+| | `context NODE` | everything on a node (`show --full`), its requests, and the agent's rules |
+| | `answer REQUEST\|NODE TEXT` | reply to a request, or tell the developer of work they did not ask for |
+
+A node asked of the agent waits with the agent, not in the developer's queue, until it answers or the node changes.
+A rejected node, and a revisit, are listed for the agent in `inbox`.
+
+### Starting a project with the agent
+
+1. `sbt "frflowInitAgent NAME"` sets up an empty project with the agent layer.
+2. The developer tells the agent the idea in chat. The agent asks what it needs, three to five questions at a time,
+   each with the answer it assumes, and records the conversation as it goes: `said` (the developer's words, verbatim),
+   `asked` (a question and the assumed answer, numbered `Q1`, `Q2`, ...) and `replied` (the developer's answer, as
+   said in chat). This is a record, kept in `.frflow/conversation.json`, not a decision: the agent cannot sign as the
+   developer. `conversation` shows it; `inbox` and `status` list the questions with no reply yet.
+3. The agent writes `IDEA.md` from the conversation. Each section names the answers it comes from on a `From:` line
+   (`From: Q1, Q3`), which moves no node.
+4. `IDEA.md` waits for the developer, who accepts it or asks the agent to change it (`ask --idea TEXT`).
+5. The agent proposes the root, then its parts, each naming the section of `IDEA.md` it comes from.
+
+A change to a section's `From:` lines brings back only `IDEA.md`. A changed answer to a question is a warning in
+`status` until `IDEA.md` is looked at and accepted again; so is a section naming a question the conversation does
+not have.
+
+### In the web view
+
+With the layer, the page lists the agent's open questions (answered in chat) and the requests, offers to ask the
+agent for a change on a node and on `IDEA.md`, and shows the nodes with the agent. Agents use the CLI, not the web
+view.

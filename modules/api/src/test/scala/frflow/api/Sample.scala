@@ -93,10 +93,4 @@ object Sample:
   val ledgerNow: Ledger = Decide(snapshot, ledger, Decide.Reject(NodeId("Forever"), "sessions must end: a stolen token would work forever"), by,
     Stamp(Instant.parse("2026-01-03T09:00:00Z"))).fold(e => sys.error(e.message), identity)
 
-  val requests: List[Request] = List(
-    Request(RequestId("R1"), Some(NodeId("NeedsGrant")), "Add an example: a revoked grant refuses access.", by, Instant.parse("2026-01-03T10:00:00Z"),
-      RequestStatus.Answered, Some("Added the example under Decide; it is proven."), None),
-    Request(RequestId("R2"), None, "Users can see who accessed their records.", by, Instant.parse("2026-01-03T11:00:00Z"), RequestStatus.Open))
-
-  def view(s: Snapshot = snapshot, l: Ledger = ledgerNow, rs: List[Request] = requests, c: Conversation = Conversation.empty): View =
-    View(Annotate(s, l), Nil, rs, Nil, c)
+  def view(s: Snapshot = snapshot, l: Ledger = ledgerNow): View = View(Annotate(s, l), Nil, Nil)

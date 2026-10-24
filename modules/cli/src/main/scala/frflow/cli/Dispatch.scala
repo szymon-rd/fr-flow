@@ -1,42 +1,46 @@
 package frflow.cli
 
 import cats.effect.{ExitCode, IO}
+import cats.syntax.all.*
 import frflow.api.*
 import frflow.protocol.*
 import io.circe.{Codec, Encoder, Json}
 import io.circe.derivation.ConfiguredCodec
 import io.circe.syntax.*
 
-/** Runs a parsed command: a read prints a view, or (`--json`) the typed value in brief; a decision is confirmed first. */
-final class Dispatch(api: FrFlowApi, term: Terminal, st: Style):
+/** Runs a parsed command: a read prints a view, or (`--json`) the typed value in brief; a decision is confirmed first.
+  * `layers`, the layers on top: their commands run on `host`, and what they add to a view is shown with it (a warning of
+  * theirs fails `status` and `ci` as FrFlow's do). `--json` prints FrFlow's values only.
+  */
+final class Dispatch(api: FrFlowApi, term: Terminal, st: Style, layers: List[CliExtension] = Nil,
+    host: Option[Host] = None):
   import Dispatch.*
+  private val on: Host = host.getOrElse(Host(api, java.nio.file.Path.of(".").toAbsolutePath.normalize, Map.empty))
+  private def added(v: View): IO[Contribution] = layers.traverse(_.contribute(on, v)).map(Contribution.all)
 
   def apply(c: Command): IO[ExitCode] = c match
-    case Command.Tree(from, json) => api.tree(from).flatMap(t => emit(json, Brief(t))(TreeText.lines(t, st)))
+    case Command.Tree(from, json) =>
+      api.view.flatMap(added).flatMap(x => api.tree(from).flatMap(t => emit(json, Brief(t))(TreeText.lines(t, st, x))))
     case Command.Show(id, depth, json) =>
-      node(id, json)(api.details(_, _).flatMap(d => emit(json, Brief(d))(NodeText.lines(d, st, depth))))
+      node(id, json)((v, r) => (api.details(v, r), added(v)).flatMapN((d, x) => emit(json, Brief(d))(NodeText.lines(d, st, depth, x))))
     case Command.Diff(id) => node(id, json = false)(api.diff(_, _).flatMap(d => ok(DiffText.lines(d, st))))
-    case Command.Inbox(json) => api.reviewing.flatMap((v, i) => emit(json, Brief(i))(InboxText.lines(i, v, st)))
-    case Command.Review(as) => ReviewSession(api, term, st).run(as)
+    case Command.Inbox(json) =>
+      api.view.flatMap(added).flatMap(x => api.reviewing(_ => IO.pure(x.aside))
+        .flatMap((v, i) => emit(json, Brief(i))(InboxText.lines(i, v, st, x))))
+    case Command.Review(as) => ReviewSession(api, term, st, added).run(as)
     case Command.Decision(make, a) => decision(a)(make)
-    case Command.Ask(node, text, as) => developer(as)(dev => api.ask(node, text, dev).flatMap(done(q =>
-      List(s"asked [${q.id}] on ${q.node.fold("the idea")(_.value)}: the agent sees it in its inbox"))))
-    case Command.Close(ids) => api.close(ids).flatMap(done(rs => rs.map(r => s"closed [${r.id}]")))
     case Command.Render => api.render.flatMap(r => ok(List(s"rendered ${r.changed.size} changed file(s); wrote ${r.snapshot}")))
     case Command.Check(node, json) =>
-      api.check(node, progress).flatMap(r => emit(json, Brief(r))(ReportText.check(r, st)).as(exit(r.ok)))
-    case Command.Status(json) => api.status.flatMap(s => emit(json, Brief(s))(ReportText.status(s.view, s.tree, st)).as(exit(s.ok)))
-    case Command.Ci => api.ci(progress).flatMap(r => ok(ReportText.ci(r, r.tree, st)).as(exit(r.ok)))
+      api.check(node, progress).flatMap(r => added(r.view).flatMap(x =>
+        emit(json, Brief(r))(ReportText.check(r, st, x)).as(exit(r.ok && x.warnings.isEmpty))))
+    case Command.Status(json) => api.status.flatMap(s => added(s.view).flatMap(x =>
+      emit(json, Brief(s))(ReportText.status(s.view, s.tree, st, x)).as(exit(s.ok && x.warnings.isEmpty))))
+    case Command.Ci => api.ci(progress).flatMap(r => added(r.view).flatMap(x =>
+      ok(ReportText.ci(r, r.tree, st, x)).as(exit(r.ok && x.warnings.isEmpty))))
     case Command.Find(query) => api.view.flatMap(v => api.find(v, query).flatMap(f => ok(ReportText.found(f, v, st))))
     case Command.Scaffold(node) =>
       api.scaffold(node).flatMap(s => ok(List(s.file.fold(s"nothing to stub: the last check of $node left nothing open that the proof file lacks")(f => s"created $f"))))
-    case Command.Answer(to, text) => api.answer(to, text).flatMap(done(id => List(s"answered $id")))
-    case Command.Said(text) => api.said(text).flatMap(done(_ => List("recorded what the developer said")))
-    case Command.QuestionAsked(text, assumed) =>
-      api.asked(text, assumed).flatMap(done(q => List(s"recorded [${q.id}]: ask it in chat, with the answer you assume")))
-    case Command.Replied(q, text) => api.replied(q, text).flatMap(done(x => List(s"recorded the reply to [${x.id}]")))
-    case Command.Conversation(json) =>
-      api.view.flatMap(v => emit(json, v.conversation.asJson)(ConversationText.lines(v.conversation, st)))
+    case Command.Layer(run) => run(on, term, st)
 
   /** A node in the model; or one gone from it, shown as gone with its last decision. */
   private def node(id: NodeId, json: Boolean)(f: (View, Reviewed) => IO[ExitCode]): IO[ExitCode] = api.view.flatMap(v =>
@@ -53,10 +57,9 @@ final class Dispatch(api: FrFlowApi, term: Terminal, st: Style):
   private def ok(lines: List[String]) = term.out(lines).as(ExitCode.Success)
   private def done[A](lines: A => List[String])(r: Either[Refusal, A]): IO[ExitCode] = r.fold(refused, a => ok(lines(a)))
 
-  /** Naming no such node or request, or asking nothing, is a usage error (2), as an unknown node is elsewhere. */
+  /** Naming no such node is a usage error (2), as an unknown node is elsewhere. */
   private def refused(r: Refusal): IO[ExitCode] = term.err(r.message).as(r match
-    case Refusal.UnknownNode(_) | Refusal.UnknownRequest(_) | Refusal.NoRequest(_) | Refusal.NoText | Refusal.UnknownQuestion(_) |
-        Refusal.NoAssumption => Usage
+    case Refusal.UnknownNode(_) => Usage
     case _ => Refused)
 
   private def developer(as: Option[String])(f: Developer => IO[ExitCode]): IO[ExitCode] =

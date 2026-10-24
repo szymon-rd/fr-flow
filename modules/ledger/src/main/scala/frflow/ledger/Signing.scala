@@ -44,7 +44,7 @@ object Keys:
   def decodePublic(line: String): Either[String, PublicKey] =
     unb64(line).flatMap(b => Either.catchNonFatal(factory.generatePublic(X509EncodedKeySpec(b))).leftMap(_.getMessage))
 
-/** Decisions signed by the developer's key, so one an agent wrote into the ledger shows. Pure: the keys are given. */
+/** Decisions signed by the developer's key, so one written into the ledger by anyone else shows. Pure: the keys are given. */
 object Signing:
   /** What is signed: everything the decision says, and which node it is about. */
   def payload(id: NodeId, d: Decision): Array[Byte] =
@@ -86,8 +86,8 @@ object Signing:
       "no developer key: the developer signs their decisions with their key, and commits its public key in .frflow/keys/").toList ++
     unsigned.map((id, d) => s"$id: the ${d.action} of ${d.at} by ${d.by} is not signed by a developer key: the developer decides it again")
 
-/** The keys on disk: the developer's signing key, outside the repository the agent edits, and the project's public
-  * keys in `.frflow/keys/NAME.pub`, committed.
+/** The keys on disk: the developer's signing key, outside the repository (which others may edit), and the project's
+  * public keys in `.frflow/keys/NAME.pub`, committed.
   */
 final class KeyStore private (keyFile: Path, keysDir: Path):
   /** The developer's key, created on first use, readable by its owner only (where the file system has permissions). */

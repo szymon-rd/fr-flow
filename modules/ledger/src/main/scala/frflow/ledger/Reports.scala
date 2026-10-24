@@ -26,25 +26,8 @@ object Annotate:
       .flatMap(id => l.current(id).map(Gone(id, _)))
     Annotated(v.snapshot, nodes, gone, v.graph.order, v.idea)
 
-/** What is the agent's to do: replace a rejected node (or remove it), revisit a node, move one resting on a rejected one. */
-enum ForAgent derives Codec.AsObject:
-  case Replace(node: NodeId, by: String, reason: String)
-  case Revisit(node: NodeId, reason: String)
-  case Move(node: NodeId, rejectedParents: List[NodeId])
-
 object Waiting:
-  /** A revisit is the agent's until it answers on the node (`answer NODE`), or changes it. */
-  def forAgent(a: Annotated, requests: List[Request]): List[ForAgent] =
-    def last(r: Reviewed, action: Action) = r.review.history.reverse.find(_.action == action)
-    def answeredSince(r: Reviewed, d: Decision) = requests.exists(q => q.node.contains(r.id) && q.answeredAt.exists(!_.isBefore(d.at)))
-    val rejected = a.nodes.filter(_.state == ReviewState.Rejected)
-      .flatMap(r => last(r, Action.Reject).map(d => ForAgent.Replace(r.id, d.by, d.reason)))
-    val revisits = a.nodes.filter(_.review.causes.contains(Cause.Revisit))
-      .flatMap(r => last(r, Action.Revisit).filterNot(answeredSince(r, _)).map(d => ForAgent.Revisit(r.id, d.reason)))
-    val moves = a.nodes.map(r => r -> rejectedParents(a, r)).collect { case (r, ps) if ps.nonEmpty => ForAgent.Move(r.id, ps) }
-    rejected ++ revisits ++ moves
-
-  /** A node with a parent rejected waits for the agent to move it. */
+  /** A node with a parent rejected waits to be moved under the node chosen instead. */
   def rejectedParents(a: Annotated, r: Reviewed): List[NodeId] =
     r.node.parents.filter(p => a.byId.get(p).exists(_.state == ReviewState.Rejected))
 

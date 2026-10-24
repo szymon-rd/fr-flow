@@ -6,9 +6,11 @@ import frflow.api.*
 import frflow.protocol.*
 
 /** The developer's review: IDEA.md when it waits, the mechanical batch, each node waiting in the order to decide it, then
-  * the gone nodes. The view is read again after each decision, so what it unblocked comes next.
+  * the gone nodes. The view is read again after each decision, so what it unblocked comes next. `added`: what layers on
+  * top add to a view (the nodes they hold back, and keys to offer on a node).
   */
-final class ReviewSession(api: FrFlowApi, term: Terminal, st: Style):
+final class ReviewSession(api: FrFlowApi, term: Terminal, st: Style,
+    added: View => IO[Contribution] = _ => IO.pure(Contribution.empty)):
   private final case class Pass(skipped: Set[NodeId], batchOffered: Boolean, decided: Int):
     def skip(id: NodeId): Pass = copy(skipped = skipped + id)
     def recorded(n: Int): Pass = copy(decided = decided + n)
@@ -19,17 +21,18 @@ final class ReviewSession(api: FrFlowApi, term: Terminal, st: Style):
         .as(Dispatch.Usage)
     else api.developer(as).flatMap(_.fold(r => term.err(r.message).as(Dispatch.Usage), dev => loop(dev, Pass(Set.empty, false, 0))))
 
-  private def loop(dev: Developer, p: Pass): IO[ExitCode] = api.reviewing.flatMap { (v, inbox) =>
+  private def loop(dev: Developer, p: Pass): IO[ExitCode] = api.view.flatMap(v => added(v).flatMap { x =>
+    val inbox = Inbox.of(v, x.aside)
     inbox.idea.filterNot(_ => p.skipped(IdeaReview.Id)) match
       case Some(idea) => ideaMd(dev, v, idea, p)
       case None if !p.batchOffered && inbox.mechanical.nonEmpty => batch(dev, v, inbox, p)
       case None => inbox.queue.find(w => !p.skipped(w.node.id)) match
-        case Some(w) => api.details(v, w.node).flatMap(one(dev, w, _, inbox.queue.count(x => !p.skipped(x.node.id)), p, Depth.Brief))
+        case Some(w) => api.details(v, w.node).flatMap(one(dev, w, _, inbox.queue.count(q => !p.skipped(q.node.id)), p, Depth.Brief, x))
         case None => inbox.gone.find(g => !p.skipped(g.id)).fold(finish(inbox, p))(g => gone(dev, Details.gone(v, g), p))
-  }
+  })
 
-  private val Keys = Map("a" -> "[a]ccept", "r" -> "[r]eject", "s" -> "[s]kip", "v" -> "[v]iew", "q" -> "[q]uit", "?" -> "[?]ask")
-  private def quit(p: Pass) = api.inbox.flatMap(finish(_, p))
+  private val Keys = Map("a" -> "[a]ccept", "r" -> "[r]eject", "s" -> "[s]kip", "v" -> "[v]iew", "q" -> "[q]uit")
+  private def quit(p: Pass) = api.inbox().flatMap(finish(_, p))
   /** Until the answer is one of `keys` (its first letter counts); none at the end of the input. */
   private def choose(prompt: String, keys: Set[String]): IO[Option[String]] =
     term.read(prompt).flatMap {
@@ -48,9 +51,9 @@ final class ReviewSession(api: FrFlowApi, term: Terminal, st: Style):
         term.out(st.green(s"recorded, signed by ${dev.name}:") :: ReportText.decided(done, st, notes = false)) *> loop(dev, p.recorded(done.decisions.size))
     }
 
-  /** IDEA.md first: the agent wrote it from the conversation, and the root is decided after it. */
+  /** IDEA.md first: the root is decided after it. */
   private def ideaMd(dev: Developer, v: View, i: IdeaReview, p: Pass): IO[ExitCode] =
-    val how = if i.state == ReviewState.Review then "changed since you accepted it" else "written by the agent from your conversation"
+    val how = if i.state == ReviewState.Review then "changed since you accepted it" else "not accepted yet"
     term.out("" :: st.bold(s"IDEA.md, $how: does it say what the system is for?") :: v.snapshot.idea.linesIterator.map("  " + _).toList) *>
       choose("[a]ccept  [s]kip  [q]uit: ", Set("a", "s", "q", "")).flatMap {
         case Some("a") => reason("Why (kept as part of the theory)? ").flatMap(_.fold(loop(dev, p))(why =>
@@ -75,27 +78,23 @@ final class ReviewSession(api: FrFlowApi, term: Terminal, st: Style):
         case _ => finish(inbox, p)
       }
 
-  private def one(dev: Developer, w: Queued, d: NodeDetails, left: Int, p: Pass, depth: Depth): IO[ExitCode] =
+  private def one(dev: Developer, w: Queued, d: NodeDetails, left: Int, p: Pass, depth: Depth, x: Contribution): IO[ExitCode] =
     val r = w.node
     val proposal = r.state == ReviewState.Proposed
     // One that waits for another is decided after it: its Decision section says which.
     val decides = if w.waitsFor.isDefined then Nil else if proposal then List("a", "r") else List("a")
-    val keys = (decides ++ List("s", "v", "q", "?")).map(Keys).mkString(" ")
-    term.out("" :: st.dim(s"${st.rule} $left waiting ${st.rule}") :: NodeText.lines(d, st, depth) ++
+    // A layer's key does not take one of the review's own.
+    val theirs = x.review.filterNot(k => Keys.contains(k.key) || k.key.isEmpty)
+    val keys = ((decides ++ List("s", "v", "q")).map(Keys) ++ theirs.map(_.label)).mkString(" ")
+    term.out("" :: st.dim(s"${st.rule} $left waiting ${st.rule}") :: NodeText.lines(d, st, depth, x) ++
       w.followers.map(f => st.dim(Words.follower(f, r.id, st)))) *>
-      choose(s"\n$keys: ", Set("s", "v", "q", "?", "") ++ decides).flatMap {
+      choose(s"\n$keys: ", Set("s", "v", "q", "") ++ decides ++ theirs.map(_.key)).flatMap {
         case Some("a") => accept(dev, r, p)
         case Some("r") => reason(s"Why not ${r.id}? ").flatMap(_.fold(loop(dev, p))(why =>
           record(dev, Decide.Reject(r.id, why, Some(r.review.version)), p, Some(r.id))))
-        case Some("v") => one(dev, w, d, left, p, Depth.Normal)
-        case Some("?") => term.read("What should change? ").flatMap {
-          case Some(text) if text.trim.nonEmpty => api.ask(Some(r.id), text, dev).flatMap {
-            case Left(e) => term.out(st.red(s"refused: ${e.message}"))
-            case Right(q) => term.out(List(s"asked [${q.id}]: ${r.id} is with the agent until it answers or changes it"))
-          } *> loop(dev, p.skip(r.id))
-          case _ => loop(dev, p)
-        }
+        case Some("v") => one(dev, w, d, left, p, Depth.Normal, x)
         case Some("s") | Some("") => loop(dev, p.skip(r.id))
+        case Some(k) if theirs.exists(_.key == k) => theirs.find(_.key == k).fold(loop(dev, p))(_.act(dev, r, term, st) *> loop(dev, p.skip(r.id)))
         case _ => quit(p)
       }
 

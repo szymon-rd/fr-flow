@@ -3,16 +3,16 @@ package frflow.cli
 import frflow.api.*
 import frflow.protocol.*
 
-/** `Brief` before a review prompt, `Normal` for `show` (about a screen), `Full` for `context` (nothing cut). */
+/** `Brief` before a review prompt, `Normal` for `show` (about a screen), `Full` for `show --full` (nothing cut). */
 enum Depth:
   case Brief, Normal, Full
 
-/** A node as `show`, `context` and the review print it. */
+/** A node as `show` and the review print it; `c`, what layers on top add (a mark beside it, lines after it). */
 object NodeText:
   private val Few = 4
 
-  /** Source, diffs and decisions are wrapped to the width; prose that `context` shows whole is cut to it. */
-  def lines(d: NodeDetails, style: Style, depth: Depth = Depth.Normal): List[String] =
+  /** Source, diffs and decisions are wrapped to the width; prose that `show --full` shows whole is cut to it. */
+  def lines(d: NodeDetails, style: Style, depth: Depth = Depth.Normal, c: Contribution = Contribution.empty): List[String] =
     val full = depth == Depth.Full
     val normal = depth != Depth.Brief
     val st = if full then style.copy(width = None) else style
@@ -43,21 +43,17 @@ object NodeText:
       (!normal, "Code", governs(d, st).filter(_ => d.diff.code.exists(_.inFull))),
       (normal, "Messages from the last check", cut(n.messages.flatMap(m => if full then m.linesIterator.toList else m.linesIterator.nextOption().toList))),
       (normal, "Decisions", r.review.history.flatMap(h => st.fold(s"${Words.date(h.at)}  ${Words.verb(h.action)} by ${h.by}: ${h.reason}", 2))),
-      (normal, "Alternatives rejected for it", cut(r.review.alternatives.map(a => s"${a.id}: ${a.content.statement}"))),
-      (normal, "Requests", d.requests.flatMap(q => s"[${q.id}] ${q.status} ${st.dot} ${q.by}: ${q.text}" ::
-        q.answer.filter(_.nonEmpty).map(a => s"  agent: $a").toList)))
+      (normal, "Alternatives rejected for it", cut(r.review.alternatives.map(a => s"${a.id}: ${a.content.statement}"))))
     val body = sections.flatMap((shown, title, ls) => if shown then Lines.section(title, ls, st) else Nil)
-    (header(d, st) ++ changed ++ decision(d, st) ++ body ++ (if full then "" :: Footer else Nil)).flatMap(st.fold(_))
+    (header(d, st, c.marks.get(r.id)) ++ changed ++ decision(d, st) ++ body ++ (if normal then c.node(r.id, st) else Nil)).flatMap(st.fold(_))
 
-  private val Footer = List("A new statement belongs under the lowest nodes it helps prove, as a part; never as a restatement of a node.",
-    "The developer decides; you propose. The rules are in the frflow skill (.claude/skills/frflow/SKILL.md).")
   private def indent(s: String): List[String] = s.linesIterator.map("  " + _).toList
 
-  private def header(d: NodeDetails, st: Style): List[String] =
+  private def header(d: NodeDetails, st: Style, mark: Option[String]): List[String] =
     val r = d.node
     val n = r.node
     val kind = n.shownKind + n.op.fold("")(o => s" on $o") + (if d.isRoot then " (the root)" else "")
-    val marks = List(Option.when(d.trusted)(st.yellow("trusted")), Option.when(d.withAgent)(st.magenta("asked of the agent")),
+    val marks = List(Option.when(d.trusted)(st.yellow("trusted")), mark.map(st.magenta),
       n.replaces.map(x => st.dim(s"replaces $x"))).flatten
     val room = st.width.fold(Int.MaxValue)(_ - 2)
     s"${st.glyph(r)} ${st.bold(r.id.value)}  ${st.dim(kind)}  ${st.state(r.state, Lines.state(r))}${marks.map("  " + _).mkString}" ::
@@ -82,7 +78,7 @@ object NodeText:
             v.below.flatMap(b => st.fold(s"  ${b.id}${if b.kind == BelowKind.Moved then " (moved with it)" else ""}: ${b.statement} " +
               s"— holds because: ${b.reason}", 2)))
     val rejected = Option.when(r.state == ReviewState.Rejected)(v.history.reverse.find(_.action == Action.Reject)).flatten
-      .map(h => st.red(s"rejected by ${h.by}: ${h.reason} (the agent removes it, or proposes what the reason asks for)")).toList
+      .map(h => st.red(s"rejected by ${h.by}: ${h.reason} (remove it from the model, or propose what the reason asks for instead)")).toList
     Lines.section("Decision", lines ++ rejected, st)
 
   private def idea(d: NodeDetails, st: Style, full: Boolean): List[String] =
@@ -210,7 +206,7 @@ object DiffText:
           val how = if m.acceptedAgain then st.green(s"you accepted that${m.reason.fold("")(r => s": $r")}") else st.yellow("not accepted yet")
           s"the meaning of ${st.bold(m.id.value)} changed (${how})" :: fields(m.changes, st).map("  " + _)
         } ++
-        d.rejectedParents.map(p => st.red(s"its parent $p was rejected: the agent moves it under the node chosen instead")) ++
+        d.rejectedParents.map(p => st.red(s"its parent $p was rejected: move it under the node chosen instead")) ++
         d.revisit.map(r => st.yellow(s"${r.by} asked to revisit it: ${r.reason}")) ++ codeLines
     d.since match
       case None => st.bold("New: never decided") :: codeLines.map("  " + _)
