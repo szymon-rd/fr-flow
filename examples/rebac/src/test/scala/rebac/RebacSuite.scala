@@ -262,7 +262,7 @@ class RebacSuite extends munit.CatsEffectSuite:
       def latest = 0
       def allowed(q: Query, v: Int) =
         if q.person == "slow" then { Thread.sleep(3000); true }
-        else throw ContractViolation("CheckContract", s"result true for ($q, $v) breaks its check")
+        else throw ContractViolation(Violation("CheckContract", "its check", List(q, v), Some(true)))
       def write(w: Write) = 1
     val err = java.io.ByteArrayOutputStream()
     val saved = System.err
