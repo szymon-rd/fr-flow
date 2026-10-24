@@ -71,6 +71,42 @@
           "ideaSection": "Versions and the cache",
           "notModelled": "Schema changes over time (the schema is fixed); exclusion, intersection and\nconditions; who may write tuples; listing the users of an object; a watch API;\nreplication across regions."
         }
+      },
+      {
+        "action": "confirm",
+        "by": "demo-developer",
+        "at": "2026-10-24T17:16:30.259335Z",
+        "reason": "LruCache gained plain get and put, which lookup and remember wrap, so the HTTP backend can use it outside a flow; behaviour unchanged, still tested against CacheModel, and a test now holds it to cacheSize answers (keeping one more is caught).",
+        "rejected": [],
+        "after": "ff3ecdaa8b8d13bd",
+        "code": "03a2faf397f55b242da582b8d4772225bf3765c8d4145db0894c3c3cbe717476",
+        "commit": "5662c10cbc2021918bef68f187972f57eeb64b5f",
+        "key": "b6e216cfdf46a202",
+        "sig": "vW2cOuQ3Awmfx8L0yARkd2AurRfeJwv10TtSjpT3Rv6WJ4X4s5VoLDwNLYJ6uRlf4Y6UXP7bIAye8d1TJMQ0Dw==",
+        "chain": "",
+        "content": {
+          "kind": "assumption",
+          "parents": [],
+          "statement": "The cache gives back the answer it last kept for a check at a version, if it still keeps it, and keeps the newest answers, a bounded number of them.",
+          "why": "Answers are kept by the check and its version, so a later write, which makes a new version, never meets an answer kept for an older one: staleness, the classic bug of an authorization cache, cannot happen by how the key is made (Q4), since the tuples of a version never change (Versions, ServiceWiring). The cache is the service's own code (LruCache.scala), tested against this model on generated runs of its operations; what is decided here is the model.",
+          "sources": {},
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [],
+          "uses": [],
+          "governs": [],
+          "definition": "val cacheKeepsAnswers = Node.assumption(cache)(CacheModel)(\"CacheKeepsAnswers\",\n  \"The cache gives back the answer it last kept for a check at a version, if it still keeps it, and keeps the newest answers, a bounded number of them.\",\n  why = \"Answers are kept by the check and its version, so a later write, which makes a new version, never meets an answer kept for an older one: staleness, the classic bug of an authorization cache, cannot happen by how the key is made (Q4), since the tuples of a version never change (Versions, ServiceWiring). The cache is the service's own code (LruCache.scala), tested against this model on generated runs of its operations; what is decided here is the model.\",\n  idea = \"Versions and the cache\")\n  .implementedBy(cs => LruCache.holding(cs), _.entries)",
+          "model": [
+            "lookup = fun (a : Ask) => do\n    let cs ← get\n    pure (match (List.find? (fun c => decide (c.ask = a)) cs) with | some c_1 => (some c_1.answer) | none => none)",
+            "remember = fun (a : Ask) (answer : Prop) => do\n    modify (fun cs => (List.take (Int.toNat 1024) ((Cached.mk a answer) :: (List.filter (fun c => decide (¬(c.ask = a))) cs))))"
+          ],
+          "implementations": [
+            "tested: cs => LruCache.holding(cs)"
+          ],
+          "idea": "## Versions and the cache\n\n\nEach write and delete gets the next version. A check answers from the tuples\nthe writes up to its version leave, never from another version's. A cache may\nanswer checks it has answered before, but never with an answer of another\nversion.",
+          "ideaSection": "Versions and the cache",
+          "notModelled": "Schema changes over time (the schema is fixed); exclusion, intersection and\nconditions; who may write tuples; listing the users of an object; a watch API;\nreplication across regions."
+        }
       }
     ],
     "CachedChecks": [
@@ -160,6 +196,53 @@
           ],
           "governs": [],
           "definition": "val cachedChecks = Node.contract(runCheck)(\"CachedChecks\",\n  \"A check served through the cache answers what the check gives at its version, and leaves the cache keeping only answers the check gives, when it kept only such answers before.\",\n  why = \"The cache must never change an answer (Q4): served from the cache or not, a check answers as CheckContract says. Proven of the code from the cache's model (CacheKeepsAnswers) and the check's contract; the cache's soundness is what a run keeps, so a sequence of runs keeps it.\",\n  idea = \"Versions and the cache\"\n)((a, result, before, after) =>\n  cacheSound(before(CacheModel)) ==> (result === allowed(a.query, a.at) && cacheSound(after(CacheModel))))\n  .examples(schema.bind(demoSchema), levels.bind(demoLevels), writes.bind(demoWrites))(\n    expect(annAt3, World(CacheModel -> Nil), true, World(CacheModel -> List(Cached(annAt3, true))),\n      \"a miss: the check is resolved, answered, and kept\"),\n    expect(annAt5, World(CacheModel -> List(Cached(annAt3, true))), false,\n      World(CacheModel -> List(Cached(annAt5, false), Cached(annAt3, true))),\n      \"a later version is another key: the answer kept at version 3 is not used at version 5\"),\n    expect(annAt3, World(CacheModel -> List(Cached(annAt3, true))), true, World(CacheModel -> List(Cached(annAt3, true))),\n      \"a hit: the kept answer, and the cache unchanged\"),\n    reject(annAt5, World(CacheModel -> List(Cached(annAt3, true))), true,\n      World(CacheModel -> List(Cached(annAt5, true), Cached(annAt3, true))),\n      \"an answer kept for version 3 never answers a check at version 5\"))",
+          "op": "runCheck",
+          "implementation": "proven: cachedCheck_run\ncachedCheck_run = cachedCheck\ncachedCheck = fun (a : Ask) => do\n    let hit ← AnswerCache.lookup a\n    if (hit ≠ none) then\n      pure (Option.getD hit False)\n    else\n      let fresh ← pure (allowed a.query a.«at»)\n      AnswerCache.remember a fresh\n      pure fresh",
+          "idea": "## Versions and the cache\n\n\nEach write and delete gets the next version. A check answers from the tuples\nthe writes up to its version leave, never from another version's. A cache may\nanswer checks it has answered before, but never with an answer of another\nversion.",
+          "ideaSection": "Versions and the cache",
+          "notModelled": "Schema changes over time (the schema is fixed); exclusion, intersection and\nconditions; who may write tuples; listing the users of an object; a watch API;\nreplication across regions."
+        }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-24T17:16:32.910948Z",
+        "reason": "Only the examples' world changed: it now names the HTTP model's state too (the single World needs every model's state), with an empty Served; the flow, its contract and its proof are unchanged.",
+        "rejected": [],
+        "after": "2c651f6c8ea4eafc",
+        "commit": "5662c10cbc2021918bef68f187972f57eeb64b5f",
+        "key": "b6e216cfdf46a202",
+        "sig": "2od1BOC1aRZ5wJhd6iRuKY55g4VDlQjpPLKaCYkhHo2r6xUmL2+cQ8/3N2ASubCfkfDpXagYghJ37vXkODj/Bw==",
+        "chain": "2b5b1779e309339b4e3841250a5e65a8832d75d4b2d8cff736f5364d4047db2f",
+        "content": {
+          "kind": "contract",
+          "parents": [],
+          "parts": [],
+          "statement": "A check served through the cache answers what the check gives at its version, and leaves the cache keeping only answers the check gives, when it kept only such answers before.",
+          "why": "The cache must never change an answer (Q4): served from the cache or not, a check answers as CheckContract says. Proven of the code from the cache's model (CacheKeepsAnswers) and the check's contract; the cache's soundness is what a run keeps, so a sequence of runs keeps it.",
+          "sources": {
+            "post": "(a, result, before, after) =>\n  cacheSound(before(CacheModel)) ==> (result === allowed(a.query, a.at) && cacheSound(after(CacheModel)))"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (Ask(Query(Obj(\"doc\", \"readme\"), \"viewer\", \"ann\"), 3), World(CacheModel = List(), HttpModel = Served(List(), List(), List()))) ⇒ Tuple2(true, World(CacheModel = List(Cached(Ask(Query(Obj(\"doc\", \"readme\"), \"viewer\", \"ann\"), 3), true)), HttpModel = Served(List(), List(), List())))  given schema = List(RelationDef(\"doc\", \"viewer\", List(Direct, Implied(\"editor\"), Inherited(\"parent\", \"viewer\"))), RelationDef(\"doc\", \"editor\", List(Direct)), RelationDef(\"folder\", \"viewer\", List(Direct)), RelationDef(\"group\", \"member\", List(Direct))), levels.bind(demoLevels), writes = List(Add(RelTuple(Obj(\"folder\", \"eng\"), \"viewer\", Members(Obj(\"group\", \"eng\"), \"member\"))), Add(RelTuple(Obj(\"doc\", \"readme\"), \"parent\", Link(Obj(\"folder\", \"eng\")))), Add(RelTuple(Obj(\"group\", \"eng\"), \"member\", Person(\"ann\"))), Add(RelTuple(Obj(\"doc\", \"readme\"), \"editor\", Person(\"bob\"))), Remove(RelTuple(Obj(\"group\", \"eng\"), \"member\", Person(\"ann\"))))  — a miss: the check is resolved, answered, and kept",
+            "expect (Ask(Query(Obj(\"doc\", \"readme\"), \"viewer\", \"ann\"), 5), World(CacheModel = List(Cached(Ask(Query(Obj(\"doc\", \"readme\"), \"viewer\", \"ann\"), 3), true)), HttpModel = Served(List(), List(), List()))) ⇒ Tuple2(false, World(CacheModel = List(Cached(Ask(Query(Obj(\"doc\", \"readme\"), \"viewer\", \"ann\"), 5), false), Cached(Ask(Query(Obj(\"doc\", \"readme\"), \"viewer\", \"ann\"), 3), true)), HttpModel = Served(List(), List(), List())))  given schema = List(RelationDef(\"doc\", \"viewer\", List(Direct, Implied(\"editor\"), Inherited(\"parent\", \"viewer\"))), RelationDef(\"doc\", \"editor\", List(Direct)), RelationDef(\"folder\", \"viewer\", List(Direct)), RelationDef(\"group\", \"member\", List(Direct))), levels.bind(demoLevels), writes = List(Add(RelTuple(Obj(\"folder\", \"eng\"), \"viewer\", Members(Obj(\"group\", \"eng\"), \"member\"))), Add(RelTuple(Obj(\"doc\", \"readme\"), \"parent\", Link(Obj(\"folder\", \"eng\")))), Add(RelTuple(Obj(\"group\", \"eng\"), \"member\", Person(\"ann\"))), Add(RelTuple(Obj(\"doc\", \"readme\"), \"editor\", Person(\"bob\"))), Remove(RelTuple(Obj(\"group\", \"eng\"), \"member\", Person(\"ann\"))))  — a later version is another key: the answer kept at version 3 is not used at version 5",
+            "expect (Ask(Query(Obj(\"doc\", \"readme\"), \"viewer\", \"ann\"), 3), World(CacheModel = List(Cached(Ask(Query(Obj(\"doc\", \"readme\"), \"viewer\", \"ann\"), 3), true)), HttpModel = Served(List(), List(), List()))) ⇒ Tuple2(true, World(CacheModel = List(Cached(Ask(Query(Obj(\"doc\", \"readme\"), \"viewer\", \"ann\"), 3), true)), HttpModel = Served(List(), List(), List())))  given schema = List(RelationDef(\"doc\", \"viewer\", List(Direct, Implied(\"editor\"), Inherited(\"parent\", \"viewer\"))), RelationDef(\"doc\", \"editor\", List(Direct)), RelationDef(\"folder\", \"viewer\", List(Direct)), RelationDef(\"group\", \"member\", List(Direct))), levels.bind(demoLevels), writes = List(Add(RelTuple(Obj(\"folder\", \"eng\"), \"viewer\", Members(Obj(\"group\", \"eng\"), \"member\"))), Add(RelTuple(Obj(\"doc\", \"readme\"), \"parent\", Link(Obj(\"folder\", \"eng\")))), Add(RelTuple(Obj(\"group\", \"eng\"), \"member\", Person(\"ann\"))), Add(RelTuple(Obj(\"doc\", \"readme\"), \"editor\", Person(\"bob\"))), Remove(RelTuple(Obj(\"group\", \"eng\"), \"member\", Person(\"ann\"))))  — a hit: the kept answer, and the cache unchanged",
+            "reject (Ask(Query(Obj(\"doc\", \"readme\"), \"viewer\", \"ann\"), 5), World(CacheModel = List(Cached(Ask(Query(Obj(\"doc\", \"readme\"), \"viewer\", \"ann\"), 3), true)), HttpModel = Served(List(), List(), List()))) ⇒ Tuple2(true, World(CacheModel = List(Cached(Ask(Query(Obj(\"doc\", \"readme\"), \"viewer\", \"ann\"), 5), true), Cached(Ask(Query(Obj(\"doc\", \"readme\"), \"viewer\", \"ann\"), 3), true)), HttpModel = Served(List(), List(), List())))  given schema = List(RelationDef(\"doc\", \"viewer\", List(Direct, Implied(\"editor\"), Inherited(\"parent\", \"viewer\"))), RelationDef(\"doc\", \"editor\", List(Direct)), RelationDef(\"folder\", \"viewer\", List(Direct)), RelationDef(\"group\", \"member\", List(Direct))), levels.bind(demoLevels), writes = List(Add(RelTuple(Obj(\"folder\", \"eng\"), \"viewer\", Members(Obj(\"group\", \"eng\"), \"member\"))), Add(RelTuple(Obj(\"doc\", \"readme\"), \"parent\", Link(Obj(\"folder\", \"eng\")))), Add(RelTuple(Obj(\"group\", \"eng\"), \"member\", Person(\"ann\"))), Add(RelTuple(Obj(\"doc\", \"readme\"), \"editor\", Person(\"bob\"))), Remove(RelTuple(Obj(\"group\", \"eng\"), \"member\", Person(\"ann\"))))  — an answer kept for version 3 never answers a check at version 5"
+          ],
+          "vocabulary": [
+            "allowed: the service's answer to a check at a version (whether it allows the request)",
+            "runCheck: a check served through the cache: what a client's request runs"
+          ],
+          "uses": [
+            "case class Obj(kind: String, id: String)",
+            "case class Query(obj: Obj, rel: String, person: String)",
+            "case class Ask(query: Query, at: Int)",
+            "case class Cached(ask: Ask, answer: Boolean)",
+            "cacheSound = (cs: Term[List[Cached]]) => cs.forall(c => c.answer === allowed(c.ask.query, c.ask.at))"
+          ],
+          "governs": [],
+          "definition": "val cachedChecks = Node.contract(runCheck)(\"CachedChecks\",\n  \"A check served through the cache answers what the check gives at its version, and leaves the cache keeping only answers the check gives, when it kept only such answers before.\",\n  why = \"The cache must never change an answer (Q4): served from the cache or not, a check answers as CheckContract says. Proven of the code from the cache's model (CacheKeepsAnswers) and the check's contract; the cache's soundness is what a run keeps, so a sequence of runs keeps it.\",\n  idea = \"Versions and the cache\"\n)((a, result, before, after) =>\n  cacheSound(before(CacheModel)) ==> (result === allowed(a.query, a.at) && cacheSound(after(CacheModel))))\n  .examples(schema.bind(demoSchema), levels.bind(demoLevels), writes.bind(demoWrites))(\n    expect(annAt3, cacheHolding(Nil), true, cacheHolding(List(Cached(annAt3, true))),\n      \"a miss: the check is resolved, answered, and kept\"),\n    expect(annAt5, cacheHolding(List(Cached(annAt3, true))), false,\n      cacheHolding(List(Cached(annAt5, false), Cached(annAt3, true))),\n      \"a later version is another key: the answer kept at version 3 is not used at version 5\"),\n    expect(annAt3, cacheHolding(List(Cached(annAt3, true))), true, cacheHolding(List(Cached(annAt3, true))),\n      \"a hit: the kept answer, and the cache unchanged\"),\n    reject(annAt5, cacheHolding(List(Cached(annAt3, true))), true,\n      cacheHolding(List(Cached(annAt5, true), Cached(annAt3, true))),\n      \"an answer kept for version 3 never answers a check at version 5\"))",
           "op": "runCheck",
           "implementation": "proven: cachedCheck_run\ncachedCheck_run = cachedCheck\ncachedCheck = fun (a : Ask) => do\n    let hit ← AnswerCache.lookup a\n    if (hit ≠ none) then\n      pure (Option.getD hit False)\n    else\n      let fresh ← pure (allowed a.query a.«at»)\n      AnswerCache.remember a fresh\n      pure fresh",
           "idea": "## Versions and the cache\n\n\nEach write and delete gets the next version. A check answers from the tuples\nthe writes up to its version leave, never from another version's. A cache may\nanswer checks it has answered before, but never with an answer of another\nversion.",
@@ -278,6 +361,62 @@
           "definition": "val checkContract = Node.contract(allowed)(\"CheckContract\",\n  \"A check at a version answers what resolving it gives: the rules of the relation asked, from the schema index, and the tuples of the objects they lead to, from the store's index at that version, step by step within the depth.\",\n  why = \"How the service answers, stated as the resolution it runs: one object's tuples at a time, as Zanzibar reads, instead of the whole store. That this resolution gives exactly what the tuples of the version give (Derivation) is the root's split, proven by induction on the depth from the two indexes' promises.\",\n  idea = \"Checks\"\n)((q, v, answer) => answer === resolve(levels, v, q.obj, q.rel, q.person))\n  .under(checksExactly)\n  .examples(schema.bind(demoSchema), levels.bind(demoLevels), writes.bind(demoWrites))(\n    expect(Query(readme, \"viewer\", \"ann\"), 3, true, \"at version 3 ann is in the eng group, whose members view the folder that holds the readme\"),\n    expect(Query(readme, \"viewer\", \"ann\"), 2, false, \"at version 2 ann is not yet in the group\"),\n    expect(Query(readme, \"viewer\", \"ann\"), 5, false, \"at version 5 she has left the group: the later write takes her access away\"),\n    expect(Query(readme, \"viewer\", \"bob\"), 4, true, \"bob edits the readme, and an editor is a viewer\"),\n    reject(Query(readme, \"editor\", \"ann\"), 3, true, \"viewing never implies editing\"),\n    reject(Query(readme, \"viewer\", \"ann\"), 3, false, \"a derivation through a group and a folder is not turned away\"))",
           "op": "allowed",
           "implementation": "proven: resolveCheck\nresolveCheck = (q: Term[Query], v: Term[Int]) => resolve(levels, v, q.obj, q.rel, q.person)\nresolve = (fuel: Term[List[Unit]], v: Term[Int], o: Term[Obj], r: Term[String], p: Term[String]) =>\n    fuel.on[Nil.type](False).on[::[Unit]]((_, rest) =>\n      rulesFor(o.kind, r).exists(rule =>\n        rule.on[Rule.Direct.type](\n              tuplesOf(v, o).exists(t => t.rel === r && t.subject\n                .on[Subject.Person](id => id === p)\n                .on[Subject.Members]((g, gr) => resolve(rest, v, g, gr, p))\n                .on[Subject.Link](_ => False)))\n            .on[Rule.Implied](by => resolve(rest, v, o, by, p))\n            .on[Rule.Inherited]((link, via) =>\n              tuplesOf(v, o).exists(t => t.rel === link && t.subject\n                .on[Subject.Person](_ => False)\n                .on[Subject.Members]((_, _) => False)\n                .on[Subject.Link](parent => resolve(rest, v, parent, via, p))))))",
+          "idea": "## Checks\n\n\nA check names an object, a relation and a person, and the version it reads.\nTuples say who has which relation on which object: `doc:readme#viewer@user:ann`.\nGroups and folders nest, so a check may follow several steps; it follows at most\nthe configured resolution depth (25 steps by default, as OpenFGA), and what is\ngiven only in more steps is answered no. The service also writes and deletes\ntuples.",
+          "ideaSection": "Checks",
+          "notModelled": "Schema changes over time (the schema is fixed); exclusion, intersection and\nconditions; who may write tuples; listing the users of an object; a watch API;\nreplication across regions."
+        }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-24T17:16:14.007525Z",
+        "reason": "The code under the contract is now the memoized Resolution (one answer per object, relation and steps left), so cycles and fan-out of groups stay polynomial; the depth still counts rules. It is tested against the proven resolveCheck on generated data, and a checkedBy that Lean proves the post implies (a yes needs a rule for the relation) runs on every call.",
+        "rejected": [],
+        "after": "cc5724859989daeb",
+        "code": "0a680d3bf6d8a7c6f2d26ec4041eee3855195df4f2da40f10fe82c529d173243",
+        "commit": "5662c10cbc2021918bef68f187972f57eeb64b5f",
+        "key": "b6e216cfdf46a202",
+        "sig": "t93xvVIPWfMtW89/VSPoUPultr2vaFbMpVfSzJjJl+VlSlLqWdbJ3Wj4PEre1CP3BtfCwR6nBMXcs4V50N4QAA==",
+        "chain": "008d655e754c26d6e2ff619375a6ed319d76987f347eca8a6869bea6f53c5d1b",
+        "content": {
+          "kind": "contract",
+          "parents": [
+            "ChecksExactly"
+          ],
+          "parts": [],
+          "statement": "A check at a version answers what resolving it gives: the rules of the relation asked, from the schema index, and the tuples of the objects they lead to, from the store's index at that version, step by step within the depth.",
+          "why": "How the service answers, stated as the resolution it runs: one object's tuples at a time, as Zanzibar reads, instead of the whole store. That this resolution gives exactly what the tuples of the version give (Derivation) is the root's split, proven by induction on the depth from the two indexes' promises.",
+          "sources": {
+            "post": "(q, v, answer) => answer === resolve(levels, v, q.obj, q.rel, q.person)",
+            "check": "(q, v, answer) => answer ==> rulesFor(q.obj.kind, q.rel).nonEmpty"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (Query(Obj(\"doc\", \"readme\"), \"viewer\", \"ann\"), 3) ⇒ true  given schema = List(RelationDef(\"doc\", \"viewer\", List(Direct, Implied(\"editor\"), Inherited(\"parent\", \"viewer\"))), RelationDef(\"doc\", \"editor\", List(Direct)), RelationDef(\"folder\", \"viewer\", List(Direct)), RelationDef(\"group\", \"member\", List(Direct))), levels.bind(demoLevels), writes = List(Add(RelTuple(Obj(\"folder\", \"eng\"), \"viewer\", Members(Obj(\"group\", \"eng\"), \"member\"))), Add(RelTuple(Obj(\"doc\", \"readme\"), \"parent\", Link(Obj(\"folder\", \"eng\")))), Add(RelTuple(Obj(\"group\", \"eng\"), \"member\", Person(\"ann\"))), Add(RelTuple(Obj(\"doc\", \"readme\"), \"editor\", Person(\"bob\"))), Remove(RelTuple(Obj(\"group\", \"eng\"), \"member\", Person(\"ann\"))))  — at version 3 ann is in the eng group, whose members view the folder that holds the readme",
+            "expect (Query(Obj(\"doc\", \"readme\"), \"viewer\", \"ann\"), 2) ⇒ false  given schema = List(RelationDef(\"doc\", \"viewer\", List(Direct, Implied(\"editor\"), Inherited(\"parent\", \"viewer\"))), RelationDef(\"doc\", \"editor\", List(Direct)), RelationDef(\"folder\", \"viewer\", List(Direct)), RelationDef(\"group\", \"member\", List(Direct))), levels.bind(demoLevels), writes = List(Add(RelTuple(Obj(\"folder\", \"eng\"), \"viewer\", Members(Obj(\"group\", \"eng\"), \"member\"))), Add(RelTuple(Obj(\"doc\", \"readme\"), \"parent\", Link(Obj(\"folder\", \"eng\")))), Add(RelTuple(Obj(\"group\", \"eng\"), \"member\", Person(\"ann\"))), Add(RelTuple(Obj(\"doc\", \"readme\"), \"editor\", Person(\"bob\"))), Remove(RelTuple(Obj(\"group\", \"eng\"), \"member\", Person(\"ann\"))))  — at version 2 ann is not yet in the group",
+            "expect (Query(Obj(\"doc\", \"readme\"), \"viewer\", \"ann\"), 5) ⇒ false  given schema = List(RelationDef(\"doc\", \"viewer\", List(Direct, Implied(\"editor\"), Inherited(\"parent\", \"viewer\"))), RelationDef(\"doc\", \"editor\", List(Direct)), RelationDef(\"folder\", \"viewer\", List(Direct)), RelationDef(\"group\", \"member\", List(Direct))), levels.bind(demoLevels), writes = List(Add(RelTuple(Obj(\"folder\", \"eng\"), \"viewer\", Members(Obj(\"group\", \"eng\"), \"member\"))), Add(RelTuple(Obj(\"doc\", \"readme\"), \"parent\", Link(Obj(\"folder\", \"eng\")))), Add(RelTuple(Obj(\"group\", \"eng\"), \"member\", Person(\"ann\"))), Add(RelTuple(Obj(\"doc\", \"readme\"), \"editor\", Person(\"bob\"))), Remove(RelTuple(Obj(\"group\", \"eng\"), \"member\", Person(\"ann\"))))  — at version 5 she has left the group: the later write takes her access away",
+            "expect (Query(Obj(\"doc\", \"readme\"), \"viewer\", \"bob\"), 4) ⇒ true  given schema = List(RelationDef(\"doc\", \"viewer\", List(Direct, Implied(\"editor\"), Inherited(\"parent\", \"viewer\"))), RelationDef(\"doc\", \"editor\", List(Direct)), RelationDef(\"folder\", \"viewer\", List(Direct)), RelationDef(\"group\", \"member\", List(Direct))), levels.bind(demoLevels), writes = List(Add(RelTuple(Obj(\"folder\", \"eng\"), \"viewer\", Members(Obj(\"group\", \"eng\"), \"member\"))), Add(RelTuple(Obj(\"doc\", \"readme\"), \"parent\", Link(Obj(\"folder\", \"eng\")))), Add(RelTuple(Obj(\"group\", \"eng\"), \"member\", Person(\"ann\"))), Add(RelTuple(Obj(\"doc\", \"readme\"), \"editor\", Person(\"bob\"))), Remove(RelTuple(Obj(\"group\", \"eng\"), \"member\", Person(\"ann\"))))  — bob edits the readme, and an editor is a viewer",
+            "reject (Query(Obj(\"doc\", \"readme\"), \"editor\", \"ann\"), 3) ⇒ true  given schema = List(RelationDef(\"doc\", \"viewer\", List(Direct, Implied(\"editor\"), Inherited(\"parent\", \"viewer\"))), RelationDef(\"doc\", \"editor\", List(Direct)), RelationDef(\"folder\", \"viewer\", List(Direct)), RelationDef(\"group\", \"member\", List(Direct))), levels.bind(demoLevels), writes = List(Add(RelTuple(Obj(\"folder\", \"eng\"), \"viewer\", Members(Obj(\"group\", \"eng\"), \"member\"))), Add(RelTuple(Obj(\"doc\", \"readme\"), \"parent\", Link(Obj(\"folder\", \"eng\")))), Add(RelTuple(Obj(\"group\", \"eng\"), \"member\", Person(\"ann\"))), Add(RelTuple(Obj(\"doc\", \"readme\"), \"editor\", Person(\"bob\"))), Remove(RelTuple(Obj(\"group\", \"eng\"), \"member\", Person(\"ann\"))))  — viewing never implies editing",
+            "reject (Query(Obj(\"doc\", \"readme\"), \"viewer\", \"ann\"), 3) ⇒ false  given schema = List(RelationDef(\"doc\", \"viewer\", List(Direct, Implied(\"editor\"), Inherited(\"parent\", \"viewer\"))), RelationDef(\"doc\", \"editor\", List(Direct)), RelationDef(\"folder\", \"viewer\", List(Direct)), RelationDef(\"group\", \"member\", List(Direct))), levels.bind(demoLevels), writes = List(Add(RelTuple(Obj(\"folder\", \"eng\"), \"viewer\", Members(Obj(\"group\", \"eng\"), \"member\"))), Add(RelTuple(Obj(\"doc\", \"readme\"), \"parent\", Link(Obj(\"folder\", \"eng\")))), Add(RelTuple(Obj(\"group\", \"eng\"), \"member\", Person(\"ann\"))), Add(RelTuple(Obj(\"doc\", \"readme\"), \"editor\", Person(\"bob\"))), Remove(RelTuple(Obj(\"group\", \"eng\"), \"member\", Person(\"ann\"))))  — a derivation through a group and a folder is not turned away"
+          ],
+          "vocabulary": [
+            "allowed: the service's answer to a check at a version (whether it allows the request)",
+            "levels: the resolution depth, one entry per step a check may take (a userset, an implied relation or a link is a step), as configured: 25 entries in production, as OpenFGA's default",
+            "rulesFor: the schema index's answer for a relation of a kind of object: the rules that give it",
+            "tuplesOf: the tuple store's answer to a read of one object's tuples at a version: the store keeps an index by object, as Zanzibar reads by object"
+          ],
+          "uses": [
+            "case class Obj(kind: String, id: String)",
+            "case class Query(obj: Obj, rel: String, person: String)",
+            "enum Rule: case Direct, case Implied(by: String), case Inherited(link: String, rel: String)",
+            "enum Subject: case Person(id: String), case Members(obj: Obj, rel: String), case Link(obj: Obj)",
+            "case class RelTuple(obj: Obj, rel: String, subject: Subject)",
+            "resolve = (fuel: Term[List[Unit]], v: Term[Int], o: Term[Obj], r: Term[String], p: Term[String]) =>\n    fuel.on[Nil.type](False).on[::[Unit]]((_, rest) =>\n      rulesFor(o.kind, r).exists(rule =>\n        rule.on[Rule.Direct.type](\n              tuplesOf(v, o).exists(t => t.rel === r && t.subject\n                .on[Subject.Person](id => id === p)\n                .on[Subject.Members]((g, gr) => resolve(rest, v, g, gr, p))\n                .on[Subject.Link](_ => False)))\n            .on[Rule.Implied](by => resolve(rest, v, o, by, p))\n            .on[Rule.Inherited]((link, via) =>\n              tuplesOf(v, o).exists(t => t.rel === link && t.subject\n                .on[Subject.Person](_ => False)\n                .on[Subject.Members]((_, _) => False)\n                .on[Subject.Link](parent => resolve(rest, v, parent, via, p))))))"
+          ],
+          "governs": [],
+          "definition": "val checkContract = Node.contract(allowed)(\"CheckContract\",\n  \"A check at a version answers what resolving it gives: the rules of the relation asked, from the schema index, and the tuples of the objects they lead to, from the store's index at that version, step by step within the depth.\",\n  why = \"How the service answers, stated as the resolution it runs: one object's tuples at a time, as Zanzibar reads, instead of the whole store. That this resolution gives exactly what the tuples of the version give (Derivation) is the root's split, proven by induction on the depth from the two indexes' promises.\",\n  idea = \"Checks\"\n)((q, v, answer) => answer === resolve(levels, v, q.obj, q.rel, q.person))\n  .under(checksExactly)\n  // What the running service checks on every call: cheap, and implied by the contract. The code that runs (Resolution,\n  // which remembers each step) is checked against the proven resolveCheck on generated data before it runs.\n  .checkedBy((q, v, answer) => answer ==> rulesFor(q.obj.kind, q.rel).nonEmpty)\n  .examples(schema.bind(demoSchema), levels.bind(demoLevels), writes.bind(demoWrites))(\n    expect(Query(readme, \"viewer\", \"ann\"), 3, true, \"at version 3 ann is in the eng group, whose members view the folder that holds the readme\"),\n    expect(Query(readme, \"viewer\", \"ann\"), 2, false, \"at version 2 ann is not yet in the group\"),\n    expect(Query(readme, \"viewer\", \"ann\"), 5, false, \"at version 5 she has left the group: the later write takes her access away\"),\n    expect(Query(readme, \"viewer\", \"bob\"), 4, true, \"bob edits the readme, and an editor is a viewer\"),\n    reject(Query(readme, \"editor\", \"ann\"), 3, true, \"viewing never implies editing\"),\n    reject(Query(readme, \"viewer\", \"ann\"), 3, false, \"a derivation through a group and a folder is not turned away\"))",
+          "op": "allowed",
+          "implementation": "proven: resolveCheck\nresolveCheck = (q: Term[Query], v: Term[Int]) => resolve(levels, v, q.obj, q.rel, q.person)\nresolve = (fuel: Term[List[Unit]], v: Term[Int], o: Term[Obj], r: Term[String], p: Term[String]) =>\n    fuel.on[Nil.type](False).on[::[Unit]]((_, rest) =>\n      rulesFor(o.kind, r).exists(rule =>\n        rule.on[Rule.Direct.type](\n              tuplesOf(v, o).exists(t => t.rel === r && t.subject\n                .on[Subject.Person](id => id === p)\n                .on[Subject.Members]((g, gr) => resolve(rest, v, g, gr, p))\n                .on[Subject.Link](_ => False)))\n            .on[Rule.Implied](by => resolve(rest, v, o, by, p))\n            .on[Rule.Inherited]((link, via) =>\n              tuplesOf(v, o).exists(t => t.rel === link && t.subject\n                .on[Subject.Person](_ => False)\n                .on[Subject.Members]((_, _) => False)\n                .on[Subject.Link](parent => resolve(rest, v, parent, via, p))))))\nruns: (q, v) => Resolution(tuplesOf.value, rulesFor.value).allowed(q, v, levels.value.size)",
           "idea": "## Checks\n\n\nA check names an object, a relation and a person, and the version it reads.\nTuples say who has which relation on which object: `doc:readme#viewer@user:ann`.\nGroups and folders nest, so a check may follow several steps; it follows at most\nthe configured resolution depth (25 steps by default, as OpenFGA), and what is\ngiven only in more steps is answered no. The service also writes and deletes\ntuples.",
           "ideaSection": "Checks",
           "notModelled": "Schema changes over time (the schema is fixed); exclusion, intersection and\nconditions; who may write tuples; listing the users of an object; a watch API;\nreplication across regions."
@@ -596,6 +735,42 @@
         }
       }
     ],
+    "HttpProtocol": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-24T17:16:03.568581Z",
+        "reason": "The HTTP layer is now a boundary with its own model: validation (declared relations, a version from 0 to the latest, a named person), the version returned, writes only on success. HttpLayer is tested against it on generated runs with every part reached; the inverted answer and swapped write/delete are found and shrunk.",
+        "rejected": [],
+        "code": "1880854c7913a30835ad84e514e2f16386313004eb8751badaf5a0a5a2b24be8",
+        "commit": "5662c10cbc2021918bef68f187972f57eeb64b5f",
+        "key": "b6e216cfdf46a202",
+        "sig": "dWR0/5LFEzQXq12t3+Bdalfy/1ELo7abAiwOGnhuQmJksz2hgFOtTY1cLB25tknFCoyvQnWnNLMp7w+6u5lNDA==",
+        "chain": "",
+        "content": {
+          "kind": "assumption",
+          "parents": [],
+          "statement": "A request is answered as the protocol says: a check of a person on a relation the schema declares, at a version from 0 to the latest (the latest when none is named), with what the check gives at that version and the version; a write or a delete of a tuple whose relations the schema declares, with the version it makes; anything else is refused (400), or not found (404), and writes nothing.",
+          "why": "Clients see the service through this layer; what a check answers is proven (CheckContract, CachedChecks), and this decides how a request reaches it. The layer (HttpLayer.scala) is the project's own code, tested against this model on generated runs of requests, with the check's answers given as a table: the test is of the layer alone, as the layer's answers are the check's in production (ServiceWiring).",
+          "sources": {},
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [],
+          "uses": [],
+          "governs": [],
+          "definition": "val httpProtocol = Node.assumption(http)(HttpModel)(\"HttpProtocol\",\n  \"A request is answered as the protocol says: a check of a person on a relation the schema declares, at a version from 0 to the latest (the latest when none is named), with what the check gives at that version and the version; a write or a delete of a tuple whose relations the schema declares, with the version it makes; anything else is refused (400), or not found (404), and writes nothing.\",\n  why = \"Clients see the service through this layer; what a check answers is proven (CheckContract, CachedChecks), and this decides how a request reaches it. The layer (HttpLayer.scala) is the project's own code, tested against this model on generated runs of requests, with the check's answers given as a table: the test is of the layer alone, as the layer's answers are the check's in production (ServiceWiring).\",\n  idea = \"Checks\")\n  .implementedBy(s => TableHttp(s), _.served)",
+          "model": [
+            "handle = fun (r : Request) => do\n    let s ← get\n    set (match r with | Request.Check _ _ => s | Request.Add g => (match g with | Given.Tuple t => (if ((∃ d ∈ s.schema, ((d.kind = t.obj.kind) ∧ ((d.rel = t.rel) ∨ (∃ r_1 ∈ d.rules, (match r_1 with | Rule.Direct => False | Rule.Implied _ => False | Rule.Inherited link _ => (link = t.rel)))))) ∧ (match t.subject with | Subject.Person _ => True | Subject.Members g_1 gr => (∃ d_1 ∈ s.schema, ((d_1.kind = g_1.kind) ∧ ((d_1.rel = gr) ∨ (∃ r_2 ∈ d_1.rules, (match r_2 with | Rule.Direct => False | Rule.Implied _ => False | Rule.Inherited link_1 _ => (link_1 = gr)))))) | Subject.Link _ => True)) then (Served.mk s.schema (s.log ++ [(Write.Add t)]) s.allows) else s) | Given.Missing => s | Given.Malformed _ => s) | Request.Delete g_2 => (match g_2 with | Given.Tuple t_1 => (if ((∃ d_2 ∈ s.schema, ((d_2.kind = t_1.obj.kind) ∧ ((d_2.rel = t_1.rel) ∨ (∃ r_3 ∈ d_2.rules, (match r_3 with | Rule.Direct => False | Rule.Implied _ => False | Rule.Inherited link_2 _ => (link_2 = t_1.rel)))))) ∧ (match t_1.subject with | Subject.Person _ => True | Subject.Members g_3 gr_1 => (∃ d_3 ∈ s.schema, ((d_3.kind = g_3.kind) ∧ ((d_3.rel = gr_1) ∨ (∃ r_4 ∈ d_3.rules, (match r_4 with | Rule.Direct => False | Rule.Implied _ => False | Rule.Inherited link_3 _ => (link_3 = gr_1)))))) | Subject.Link _ => True)) then (Served.mk s.schema (s.log ++ [(Write.Remove t_1)]) s.allows) else s) | Given.Missing => s | Given.Malformed _ => s) | Request.Unknown _ _ => s)\n    pure (match r with | Request.Check g_4 «at» => (match g_4 with | Given.Tuple t_2 => (match t_2.subject with | Subject.Person p => (if (∃ d_4 ∈ s.schema, ((d_4.kind = t_2.obj.kind) ∧ ((d_4.rel = t_2.rel) ∨ (∃ r_5 ∈ d_4.rules, (match r_5 with | Rule.Direct => False | Rule.Implied _ => False | Rule.Inherited link_4 _ => (link_4 = t_2.rel)))))) then (match (match «at» with | At.Latest => (some ((s.log).length : Int)) | At.Version v => (if ((v ≥ 0) ∧ (v ≤ ((s.log).length : Int))) then (some v) else none) | At.Invalid _ => none) with | some v_1 => (Reply.mk 200 (some ((Ask.mk (Query.mk t_2.obj t_2.rel p) v_1) ∈ s.allows)) v_1) | none => (Reply.mk 400 none ((s.log).length : Int))) else (Reply.mk 400 none ((s.log).length : Int))) | Subject.Members _ _ => (Reply.mk 400 none ((s.log).length : Int)) | Subject.Link _ => (Reply.mk 400 none ((s.log).length : Int))) | Given.Missing => (Reply.mk 400 none ((s.log).length : Int)) | Given.Malformed _ => (Reply.mk 400 none ((s.log).length : Int))) | Request.Add g_5 => (match g_5 with | Given.Tuple t_3 => (if ((∃ d_5 ∈ s.schema, ((d_5.kind = t_3.obj.kind) ∧ ((d_5.rel = t_3.rel) ∨ (∃ r_6 ∈ d_5.rules, (match r_6 with | Rule.Direct => False | Rule.Implied _ => False | Rule.Inherited link_5 _ => (link_5 = t_3.rel)))))) ∧ (match t_3.subject with | Subject.Person _ => True | Subject.Members g_6 gr_2 => (∃ d_6 ∈ s.schema, ((d_6.kind = g_6.kind) ∧ ((d_6.rel = gr_2) ∨ (∃ r_7 ∈ d_6.rules, (match r_7 with | Rule.Direct => False | Rule.Implied _ => False | Rule.Inherited link_6 _ => (link_6 = gr_2)))))) | Subject.Link _ => True)) then (Reply.mk 200 none (((match r with | Request.Check _ _ => s | Request.Add g_7 => (match g_7 with | Given.Tuple t_4 => (if ((∃ d_7 ∈ s.schema, ((d_7.kind = t_4.obj.kind) ∧ ((d_7.rel = t_4.rel) ∨ (∃ r_8 ∈ d_7.rules, (match r_8 with | Rule.Direct => False | Rule.Implied _ => False | Rule.Inherited link_7 _ => (link_7 = t_4.rel)))))) ∧ (match t_4.subject with | Subject.Person _ => True | Subject.Members g_8 gr_3 => (∃ d_8 ∈ s.schema, ((d_8.kind = g_8.kind) ∧ ((d_8.rel = gr_3) ∨ (∃ r_9 ∈ d_8.rules, (match r_9 with | Rule.Direct => False | Rule.Implied _ => False | Rule.Inherited link_8 _ => (link_8 = gr_3)))))) | Subject.Link _ => True)) then (Served.mk s.schema (s.log ++ [(Write.Add t_4)]) s.allows) else s) | Given.Missing => s | Given.Malformed _ => s) | Request.Delete g_9 => (match g_9 with | Given.Tuple t_5 => (if ((∃ d_9 ∈ s.schema, ((d_9.kind = t_5.obj.kind) ∧ ((d_9.rel = t_5.rel) ∨ (∃ r_10 ∈ d_9.rules, (match r_10 with | Rule.Direct => False | Rule.Implied _ => False | Rule.Inherited link_9 _ => (link_9 = t_5.rel)))))) ∧ (match t_5.subject with | Subject.Person _ => True | Subject.Members g_10 gr_4 => (∃ d_10 ∈ s.schema, ((d_10.kind = g_10.kind) ∧ ((d_10.rel = gr_4) ∨ (∃ r_11 ∈ d_10.rules, (match r_11 with | Rule.Direct => False | Rule.Implied _ => False | Rule.Inherited link_10 _ => (link_10 = gr_4)))))) | Subject.Link _ => True)) then (Served.mk s.schema (s.log ++ [(Write.Remove t_5)]) s.allows) else s) | Given.Missing => s | Given.Malformed _ => s) | Request.Unknown _ _ => s).log).length : Int)) else (Reply.mk 400 none ((s.log).length : Int))) | Given.Missing => (Reply.mk 400 none ((s.log).length : Int)) | Given.Malformed _ => (Reply.mk 400 none ((s.log).length : Int))) | Request.Delete g_11 => (match g_11 with | Given.Tuple t_6 => (if ((∃ d_11 ∈ s.schema, ((d_11.kind = t_6.obj.kind) ∧ ((d_11.rel = t_6.rel) ∨ (∃ r_12 ∈ d_11.rules, (match r_12 with | Rule.Direct => False | Rule.Implied _ => False | Rule.Inherited link_11 _ => (link_11 = t_6.rel)))))) ∧ (match t_6.subject with | Subject.Person _ => True | Subject.Members g_12 gr_5 => (∃ d_12 ∈ s.schema, ((d_12.kind = g_12.kind) ∧ ((d_12.rel = gr_5) ∨ (∃ r_13 ∈ d_12.rules, (match r_13 with | Rule.Direct => False | Rule.Implied _ => False | Rule.Inherited link_12 _ => (link_12 = gr_5)))))) | Subject.Link _ => True)) then (Reply.mk 200 none (((match r with | Request.Check _ _ => s | Request.Add g_13 => (match g_13 with | Given.Tuple t_7 => (if ((∃ d_13 ∈ s.schema, ((d_13.kind = t_7.obj.kind) ∧ ((d_13.rel = t_7.rel) ∨ (∃ r_14 ∈ d_13.rules, (match r_14 with | Rule.Direct => False | Rule.Implied _ => False | Rule.Inherited link_13 _ => (link_13 = t_7.rel)))))) ∧ (match t_7.subject with | Subject.Person _ => True | Subject.Members g_14 gr_6 => (∃ d_14 ∈ s.schema, ((d_14.kind = g_14.kind) ∧ ((d_14.rel = gr_6) ∨ (∃ r_15 ∈ d_14.rules, (match r_15 with | Rule.Direct => False | Rule.Implied _ => False | Rule.Inherited link_14 _ => (link_14 = gr_6)))))) | Subject.Link _ => True)) then (Served.mk s.schema (s.log ++ [(Write.Add t_7)]) s.allows) else s) | Given.Missing => s | Given.Malformed _ => s) | Request.Delete g_15 => (match g_15 with | Given.Tuple t_8 => (if ((∃ d_15 ∈ s.schema, ((d_15.kind = t_8.obj.kind) ∧ ((d_15.rel = t_8.rel) ∨ (∃ r_16 ∈ d_15.rules, (match r_16 with | Rule.Direct => False | Rule.Implied _ => False | Rule.Inherited link_15 _ => (link_15 = t_8.rel)))))) ∧ (match t_8.subject with | Subject.Person _ => True | Subject.Members g_16 gr_7 => (∃ d_16 ∈ s.schema, ((d_16.kind = g_16.kind) ∧ ((d_16.rel = gr_7) ∨ (∃ r_17 ∈ d_16.rules, (match r_17 with | Rule.Direct => False | Rule.Implied _ => False | Rule.Inherited link_16 _ => (link_16 = gr_7)))))) | Subject.Link _ => True)) then (Served.mk s.schema (s.log ++ [(Write.Remove t_8)]) s.allows) else s) | Given.Missing => s | Given.Malformed _ => s) | Request.Unknown _ _ => s).log).length : Int)) else (Reply.mk 400 none ((s.log).length : Int))) | Given.Missing => (Reply.mk 400 none ((s.log).length : Int)) | Given.Malformed _ => (Reply.mk 400 none ((s.log).length : Int))) | Request.Unknown _ _ => (Reply.mk 404 none ((s.log).length : Int)))"
+          ],
+          "implementations": [
+            "tested: s => TableHttp(s)"
+          ],
+          "idea": "## Checks\n\n\nA check names an object, a relation and a person, and the version it reads.\nTuples say who has which relation on which object: `doc:readme#viewer@user:ann`.\nGroups and folders nest, so a check may follow several steps; it follows at most\nthe configured resolution depth (25 steps by default, as OpenFGA), and what is\ngiven only in more steps is answered no. The service also writes and deletes\ntuples.",
+          "ideaSection": "Checks",
+          "notModelled": "Schema changes over time (the schema is fixed); exclusion, intersection and\nconditions; who may write tuples; listing the users of an object; a watch API;\nreplication across regions."
+        }
+      }
+    ],
     "IDEA": [
       {
         "action": "accept",
@@ -879,6 +1054,41 @@
           "ideaSection": "Versions and the cache",
           "notModelled": "Schema changes over time (the schema is fixed); exclusion, intersection and\nconditions; who may write tuples; listing the users of an object; a watch API;\nreplication across regions."
         }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-24T17:16:35.693288Z",
+        "reason": "The server now runs requests on a pool of 8 workers with a 10 s limit each (503 past it), answers an internal error 500 with a log line instead of dropping the connection, refuses bad URL encoding with 400, and returns the version in a Rebac-Version header; the routes go through the tested HttpLayer. The service refuses a schema defining a relation twice and a version past the latest. Writes unauthenticated and memory only, stated in the README and at startup.",
+        "rejected": [],
+        "after": "1a4a0a07cf773d8f",
+        "code": "b75776fece26baaad41e59aa950d86c22aafc2e1fa9d95554357d8d7d24b143b",
+        "commit": "5662c10cbc2021918bef68f187972f57eeb64b5f",
+        "key": "b6e216cfdf46a202",
+        "sig": "G9sH1f7KH7//snXJpnv1hEeNB6sWZCSVFp7u7BjZ5w0ODF4x/UXWnADPyz/scMkKeB+Ha1RKqFL8WafzfD5FCQ==",
+        "chain": "",
+        "content": {
+          "kind": "design",
+          "parents": [
+            "CachedChecks"
+          ],
+          "statement": "One process holds the tuple store and the cache; a write is applied atomically and gets the next version; the HTTP layer answers checks with CachedChecks' flow at the version they name, from 0 to the latest; requests are parsed into tuples (a malformed one is refused with its reason), run on a pool of workers with a time limit each, and an internal error is answered 500 and logged, never a dropped connection.",
+          "why": "What a check answers is proven (CheckContract, CachedChecks), and how a request is answered is tested (HttpProtocol). What joins them, and keeps the cache sound from one request to the next, is decided here: the log only grows and a check never names a version past the latest, so the tuples of a version never change after it is written (Versions) and a kept answer stays the check's. That, the routes, parsing and the server's threads are reviewed, not proven.",
+          "sources": {},
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [],
+          "uses": [],
+          "governs": [
+            "src/main/scala/rebac/Service.scala",
+            "src/main/scala/rebac/Server.scala",
+            "src/main/scala/rebac/TupleSyntax.scala"
+          ],
+          "definition": "val serviceWiring = Node.design(\"ServiceWiring\",\n  \"One process holds the tuple store and the cache; a write is applied atomically and gets the next version; the HTTP layer answers checks with CachedChecks' flow at the version they name, from 0 to the latest; requests are parsed into tuples (a malformed one is refused with its reason), run on a pool of workers with a time limit each, and an internal error is answered 500 and logged, never a dropped connection.\",\n  why = \"What a check answers is proven (CheckContract, CachedChecks), and how a request is answered is tested (HttpProtocol). What joins them, and keeps the cache sound from one request to the next, is decided here: the log only grows and a check never names a version past the latest, so the tuples of a version never change after it is written (Versions) and a kept answer stays the check's. That, the routes, parsing and the server's threads are reviewed, not proven.\",\n  idea = \"Versions and the cache\"\n)(\"src/main/scala/rebac/Service.scala\", \"src/main/scala/rebac/Server.scala\", \"src/main/scala/rebac/TupleSyntax.scala\").under(cachedChecks)",
+          "idea": "## Versions and the cache\n\n\nEach write and delete gets the next version. A check answers from the tuples\nthe writes up to its version leave, never from another version's. A cache may\nanswer checks it has answered before, but never with an answer of another\nversion.",
+          "ideaSection": "Versions and the cache",
+          "notModelled": "Schema changes over time (the schema is fixed); exclusion, intersection and\nconditions; who may write tuples; listing the users of an object; a watch API;\nreplication across regions."
+        }
       }
     ],
     "StoreIndex": [
@@ -940,6 +1150,54 @@
         "commit": "4b35027d343394900dd4478b6214300bcaedb1d5",
         "key": "b6e216cfdf46a202",
         "sig": "R96sKffKV7M753sxbgYzg19akQHpSuLrIxEu3tb27NyAEJB87LXiLdiwK6bm9DzQuhZff0F94Psh936HggCmDQ==",
+        "chain": "c271a483dd4775179acf907eb50aaa6b988fd7da472ccbf30b2e1b41bf95c43d",
+        "content": {
+          "kind": "assumption",
+          "parents": [
+            "ChecksExactly"
+          ],
+          "parts": [],
+          "statement": "A read of an object's tuples at a version returns exactly the tuples about it stored at that version, in the order they were added.",
+          "why": "The tuples live in the store, which keeps them by object and version; the check is proven from this promise, not from the store's code. The in-memory store (TupleStore) stands for a database here: its reads are checked against `storedOf` (this promise as code) on the examples and on generated logs of writes, and every read is checked to be about the object asked.",
+          "sources": {
+            "post": "(v, o, ts) => ts === stored(v, o)",
+            "check": "(v, o, ts) => ts.forall(t => t.obj === o)"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (2, Obj(\"doc\", \"readme\")) ⇒ List(RelTuple(Obj(\"doc\", \"readme\"), \"parent\", Link(Obj(\"folder\", \"eng\"))))  given writes = List(Add(RelTuple(Obj(\"folder\", \"eng\"), \"viewer\", Members(Obj(\"group\", \"eng\"), \"member\"))), Add(RelTuple(Obj(\"doc\", \"readme\"), \"parent\", Link(Obj(\"folder\", \"eng\")))), Add(RelTuple(Obj(\"group\", \"eng\"), \"member\", Person(\"ann\"))), Add(RelTuple(Obj(\"doc\", \"readme\"), \"editor\", Person(\"bob\"))), Remove(RelTuple(Obj(\"group\", \"eng\"), \"member\", Person(\"ann\"))))  — the first two writes leave the readme's link to its folder; the folder's own tuple is about another object",
+            "expect (5, Obj(\"group\", \"eng\")) ⇒ List()  given writes = List(Add(RelTuple(Obj(\"folder\", \"eng\"), \"viewer\", Members(Obj(\"group\", \"eng\"), \"member\"))), Add(RelTuple(Obj(\"doc\", \"readme\"), \"parent\", Link(Obj(\"folder\", \"eng\")))), Add(RelTuple(Obj(\"group\", \"eng\"), \"member\", Person(\"ann\"))), Add(RelTuple(Obj(\"doc\", \"readme\"), \"editor\", Person(\"bob\"))), Remove(RelTuple(Obj(\"group\", \"eng\"), \"member\", Person(\"ann\"))))  — ann was added to the group and removed again: nothing is left about it",
+            "reject (1, Obj(\"doc\", \"readme\")) ⇒ List(RelTuple(Obj(\"doc\", \"readme\"), \"parent\", Link(Obj(\"folder\", \"eng\"))))  given writes = List(Add(RelTuple(Obj(\"folder\", \"eng\"), \"viewer\", Members(Obj(\"group\", \"eng\"), \"member\"))), Add(RelTuple(Obj(\"doc\", \"readme\"), \"parent\", Link(Obj(\"folder\", \"eng\")))), Add(RelTuple(Obj(\"group\", \"eng\"), \"member\", Person(\"ann\"))), Add(RelTuple(Obj(\"doc\", \"readme\"), \"editor\", Person(\"bob\"))), Remove(RelTuple(Obj(\"group\", \"eng\"), \"member\", Person(\"ann\"))))  — at version 1 only the folder's tuple was written: a read never shows a later write"
+          ],
+          "vocabulary": [
+            "stored: the tuples about an object stored at a version: what the writes up to that version leave about it",
+            "tuplesOf: the tuple store's answer to a read of one object's tuples at a version: the store keeps an index by object, as Zanzibar reads by object"
+          ],
+          "uses": [
+            "case class Obj(kind: String, id: String)",
+            "enum Subject: case Person(id: String), case Members(obj: Obj, rel: String), case Link(obj: Obj)",
+            "case class RelTuple(obj: Obj, rel: String, subject: Subject)"
+          ],
+          "governs": [],
+          "definition": "val storeIndex = Node.assumption(tuplesOf)(\"StoreIndex\",\n  \"A read of an object's tuples at a version returns exactly the tuples about it stored at that version, in the order they were added.\",\n  why = \"The tuples live in the store, which keeps them by object and version; the check is proven from this promise, not from the store's code. The in-memory store (TupleStore) stands for a database here: its reads are checked against `storedOf` (this promise as code) on the examples and on generated logs of writes, and every read is checked to be about the object asked.\",\n  idea = \"Versions and the cache\"\n)((v, o, ts) => ts === stored(v, o))\n  .under(checksExactly)\n  .checkedBy((v, o, ts) => ts.forall(t => t.obj === o))\n  .examples(writes.bind(demoWrites))(\n    expect(2, Obj(\"doc\", \"readme\"), List(RelTuple(Obj(\"doc\", \"readme\"), \"parent\", Subject.Link(Obj(\"folder\", \"eng\")))),\n      \"the first two writes leave the readme's link to its folder; the folder's own tuple is about another object\"),\n    expect(5, Obj(\"group\", \"eng\"), Nil, \"ann was added to the group and removed again: nothing is left about it\"),\n    reject(1, Obj(\"doc\", \"readme\"), List(RelTuple(Obj(\"doc\", \"readme\"), \"parent\", Subject.Link(Obj(\"folder\", \"eng\")))),\n      \"at version 1 only the folder's tuple was written: a read never shows a later write\"))",
+          "op": "tuplesOf",
+          "implementation": "proven: storedOf\nstoredOf = (v: Term[Int], o: Term[Obj]) => stored(v, o)\nruns: (v, o) => TupleStore.of(writes.value).tuplesOf(v, o)",
+          "idea": "## Versions and the cache\n\n\nEach write and delete gets the next version. A check answers from the tuples\nthe writes up to its version leave, never from another version's. A cache may\nanswer checks it has answered before, but never with an answer of another\nversion.",
+          "ideaSection": "Versions and the cache",
+          "notModelled": "Schema changes over time (the schema is fixed); exclusion, intersection and\nconditions; who may write tuples; listing the users of an object; a watch API;\nreplication across regions."
+        }
+      },
+      {
+        "action": "confirm",
+        "by": "demo-developer",
+        "at": "2026-10-24T17:16:16.639490Z",
+        "reason": "TupleStore keeps the 64 most recent stores instead of only the last, matched by identity of the write log, so concurrent requests at different logs no longer replay; reads are unchanged and still tested against storedOf.",
+        "rejected": [],
+        "after": "824e8b1c1e58389c",
+        "code": "5f6ccc860ddde5d9cfce1d5c10ecb9e0df84e42dbbddfce2afe9e9e9599334a4",
+        "commit": "5662c10cbc2021918bef68f187972f57eeb64b5f",
+        "key": "b6e216cfdf46a202",
+        "sig": "VoVsjoPllUF0Y5jM1vgaEHPuK+P/x548VIQYQs6IQiPuakMgSp9/p9C4WNbLhISBdk09fsN/iajcggmJ3NZ6AQ==",
         "chain": "c271a483dd4775179acf907eb50aaa6b988fd7da472ccbf30b2e1b41bf95c43d",
         "content": {
           "kind": "assumption",

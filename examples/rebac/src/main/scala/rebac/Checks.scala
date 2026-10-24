@@ -99,6 +99,9 @@ val checkContract = Node.contract(allowed)("CheckContract",
   idea = "Checks"
 )((q, v, answer) => answer === resolve(levels, v, q.obj, q.rel, q.person))
   .under(checksExactly)
+  // What the running service checks on every call: cheap, and implied by the contract. The code that runs (Resolution,
+  // which remembers each step) is checked against the proven resolveCheck on generated data before it runs.
+  .checkedBy((q, v, answer) => answer ==> rulesFor(q.obj.kind, q.rel).nonEmpty)
   .examples(schema.bind(demoSchema), levels.bind(demoLevels), writes.bind(demoWrites))(
     expect(Query(readme, "viewer", "ann"), 3, true, "at version 3 ann is in the eng group, whose members view the folder that holds the readme"),
     expect(Query(readme, "viewer", "ann"), 2, false, "at version 2 ann is not yet in the group"),

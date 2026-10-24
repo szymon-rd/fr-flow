@@ -8,7 +8,10 @@ import java.util.concurrent.atomic.AtomicReference
   */
 final class TupleStore private (log: Vector[Write], byObject: Map[Obj, Vector[(Int, Write)]]):
   /** The writes so far, in order: one list per store, so the store can be found again by it (`TupleStore.of`). */
-  lazy val writes: List[Write] = log.toList
+  lazy val writes: List[Write] = { val ws = log.toList; built = ws; ws }
+  // The list `writes` gave, once asked: `of` compares lists by identity without building any.
+  @volatile private var built: List[Write] | Null = null
+  private def isLog(ws: List[Write]): Boolean = built != null && (built.nn eq ws)
   def version: Int = log.size
 
   /** The tuples about `o` that the first `v` writes leave, in the order they were added. */
@@ -29,12 +32,12 @@ object TupleStore:
   val empty: TupleStore = TupleStore(Vector.empty, Map.empty)
   def replaying(ws: List[Write]): TupleStore = ws.foldLeft(empty)(_.write(_))
 
-  // The store last written to. The checks name the tuples by the log (`writes`), as the contracts do; the running
-  // service binds the log of its store, and `of` finds that store again instead of rebuilding its index on each read.
-  private val last = AtomicReference(empty)
-  private def latest(s: TupleStore): TupleStore = { last.set(s); s }
+  // The stores last written to, newest first. The checks name the tuples by the log (`writes`), as the contracts do;
+  // the running service binds the log of the store a check started from, and `of` finds that store again instead of
+  // rebuilding its index on each read, also when writes landed while the check ran.
+  private val Recent = 64
+  private val recent = AtomicReference(List(empty))
+  private def latest(s: TupleStore): TupleStore = { recent.updateAndGet(rs => (s :: rs).take(Recent)); s }
 
-  /** The store a log was written into: the running one when `ws` is its log, else one built by replaying `ws`. */
-  def of(ws: List[Write]): TupleStore =
-    val s = last.get
-    if s.writes eq ws then s else replaying(ws)
+  /** The store a log was written into: a recent one when `ws` is its log, else one built by replaying `ws`. */
+  def of(ws: List[Write]): TupleStore = recent.get.find(_.isLog(ws)).getOrElse(replaying(ws))

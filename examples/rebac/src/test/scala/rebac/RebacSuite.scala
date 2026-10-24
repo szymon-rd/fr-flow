@@ -45,8 +45,8 @@ class RebacSuite extends munit.CatsEffectSuite:
       assert(knowledge.exampleResults(n).forall(r => r.contract == "ok" && r.implementation.forall(_ == "ok")), knowledge.exampleResults(n))
   }
 
-  test("the store's and the schema's indexes are checked against their promises on generated data") {
-    for n <- List(storeIndex, schemaIndex) do
+  test("the store's and the schema's indexes, and the running resolution, are checked against their proven code on generated data") {
+    for n <- List(storeIndex, schemaIndex, checkContract) do
       val r = knowledge.test(n).get
       assertEquals(r.failure, None, n.id)
   }
@@ -103,12 +103,94 @@ class RebacSuite extends munit.CatsEffectSuite:
     val s = RebacService(demoSchema, serviceLevels)
     demoWrites.take(3).foreach(s.write)
     val ann = Query(readme, "viewer", "ann")
-    assertEquals(s.check(ann, Some(3)), true)
+    assertEquals(s.allowed(ann, 3), true)
     demoWrites.drop(3).foreach(s.write)
-    assertEquals(List(1, 2, 3, 4, 5).map(v => s.check(ann, Some(v))), List(false, false, true, true, false))
-    assertEquals(s.check(ann, Some(99)), false) // never past the latest: version 5
-    assertEquals(s.check(Query(readme, "viewer", "bob"), None), true)
-    assertEquals(s.check(Query(readme, "editor", "ann"), Some(3)), false)
+    assertEquals(List(0, 1, 2, 3, 4, 5).map(v => s.allowed(ann, v)), List(false, false, false, true, true, false))
+    assertEquals(s.allowed(Query(readme, "viewer", "bob"), s.latest), true)
+    assertEquals(s.allowed(Query(readme, "editor", "ann"), 3), false)
+    intercept[IllegalArgumentException](s.allowed(ann, 6)) // never past the latest
+  }
+
+  test("a schema defining a kind and relation twice is refused: which definition would a check read?") {
+    val twice = demoSchema :+ RelationDef("doc", "viewer", List(Rule.Direct))
+    assertEquals(Schema.problems(twice), List("doc#viewer is defined 2 times"))
+    assertEquals(Schema.problems(demoSchema), Nil)
+    intercept[IllegalArgumentException](RebacService(twice, serviceLevels))
+  }
+
+  test("the cache keeps at most cacheSize answers: the newest, the oldest dropped") {
+    val c = LruCache.holding(Nil)
+    val asks = (0 until cacheSize + 5).map(i => Ask(Query(readme, "viewer", s"u$i"), 1))
+    asks.foreach(a => c.put(a, true))
+    assertEquals(c.entries.size, cacheSize)
+    assertEquals(c.entries.head.ask, asks.last)
+    assertEquals(asks.take(5).toList.map(c.get), List.fill(5)(Option.empty[Boolean]))
+    assertEquals(c.get(asks(5)), Some(true))
+  }
+
+  // k groups that are all members of each other: a check for someone in none of them explores every path unless it
+  // remembers what it already answered.
+  private def cycle(k: Int): List[Write] =
+    (for i <- 0 until k; j <- 0 until k if i != j
+    yield Write.Add(RelTuple(Obj("group", s"c$i"), "member", Subject.Members(Obj("group", s"c$j"), "member")))).toList
+
+  test("a cycle of groups: the running resolution remembers each step, and answers in milliseconds at OpenFGA's depth") {
+    for k <- List(3, 6, 12) do
+      val s = RebacService(demoSchema, serviceLevels)
+      (cycle(k) :+ Write.Add(RelTuple(Obj("group", s"c${k - 1}"), "member", Subject.Person("zed")))).foreach(s.write)
+      val t0 = System.nanoTime
+      assertEquals(s.allowed(Query(Obj("group", "c0"), "member", "nobody"), s.latest), false)
+      assertEquals(s.allowed(Query(Obj("group", "c0"), "member", "zed"), s.latest), true)
+      val ms = (System.nanoTime - t0) / 1000000
+      assert(ms < 2000, s"$k groups in a cycle took $ms ms")
+  }
+
+  test("the HTTP layer is tested against its protocol on generated runs of requests, every part of the protocol reached") {
+    val r = knowledge.test(httpProtocol).get
+    assertEquals(r.failure, None)
+    assertEquals(r.coverage.filter(_.held == 0).map(_.part), Nil)
+  }
+
+  /** The protocol's test of an HTTP layer with a seeded bug, put in the node in place of the layer: the failure, shrunk. */
+  private def seeded(bug: (HttpLayer, Request) => Reply): Option[String] =
+    final class Bugged(table: TableHttp.Table) extends HttpLayer(table):
+      private val inner = HttpLayer(table)
+      override def respond(r: Request): Reply = bug(inner, r)
+      def served: Served = table.served
+    val node = Node.assumption(rebac.http)(HttpModel)("HttpProtocol", httpProtocol.statement, httpProtocol.why)
+      .implementedBy(s => Bugged(TableHttp.Table(s)), _.served)
+    val kb = KnowledgeBase(knowledge.name, knowledge.idea, knowledge.implementations, knowledge.generators, knowledge.testing)(
+      knowledge.nodes.map(n => if n eq httpProtocol then node else n)*)
+    kb.test(node).flatMap(_.failure).map(f => s"${f.shown} — ${f.why}")
+
+  test("seeded bugs in the HTTP layer are found by the protocol's generated runs, and shrunk: the answer inverted; write and delete swapped") {
+    val inverted = seeded((l, r) => { val x = l.respond(r); x.copy(answer = x.answer.map(!_)) })
+    assert(inverted.isDefined, "an inverted answer passed")
+    val swapped = seeded((l, r) => l.respond(r match
+      case Request.Add(g)    => Request.Delete(g)
+      case Request.Delete(g) => Request.Add(g)
+      case other             => other))
+    assert(swapped.isDefined, "write and delete swapped passed")
+    println(s"inverted answer, shrunk: ${inverted.get}\nwrite and delete swapped, shrunk: ${swapped.get}")
+  }
+
+  test("requests are validated: relations the schema declares, versions from 0 to the latest, a person named; the version is returned") {
+    val s = RebacService(demoSchema, serviceLevels)
+    val layer = HttpLayer(s)
+    def call(m: String, path: String, params: (String, String)*) = RebacHttp.answer(layer, m, path, params.toMap)
+    assertEquals(call("POST", "/write", "tuple" -> "group:eng#member@user:ann")._1, 200)
+    assertEquals(call("POST", "/write", "tuple" -> "doc:x#veiwer@user:typo"),
+      (400, "the schema declares no relation veiwer on doc", Map("Rebac-Version" -> "1")))
+    assertEquals(call("POST", "/write", "tuple" -> "folder:eng#viewer@group:eng#membr")._2, "the schema declares no relation membr on group")
+    assertEquals(call("GET", "/check", "tuple" -> "group:eng#member@user:ann"), (200, "yes", Map("Rebac-Version" -> "1")))
+    assertEquals(call("GET", "/check", "tuple" -> "group:eng#member@user:ann", "at" -> "0"), (200, "no", Map("Rebac-Version" -> "0")))
+    for at <- List("abc", "-1", "2", "99999999999999999999") do
+      assertEquals(call("GET", "/check", "tuple" -> "group:eng#member@user:ann", "at" -> at)._1, 400, at)
+    assertEquals(call("GET", "/check", "tuple" -> "group:eng#member@user:ann", "at" -> "2")._2, "at must be a version from 0 to 1")
+    assertEquals(call("GET", "/check", "tuple" -> "group:eng#member@user:")._1, 400)
+    assertEquals(call("GET", "/check", "tuple" -> "doc:readme#viewer@group:eng#member")._2, "a check names a person: doc:readme#viewer@user:ann")
+    assertEquals(call("GET", "/nope")._1, 404)
+    assertEquals(s.latest, 1) // nothing refused was written
   }
 
   test("tuple strings: users, usersets and links parse and print back; anything else is refused with a reason") {
@@ -124,16 +206,96 @@ class RebacSuite extends munit.CatsEffectSuite:
       assert(TupleSyntax.parse(bad).isLeft, bad)
   }
 
+  private def http(server: com.sun.net.httpserver.HttpServer) =
+    val client = java.net.http.HttpClient.newHttpClient()
+    (m: String, pathAndQuery: String) =>
+      val req = java.net.http.HttpRequest.newBuilder(java.net.URI.create(s"http://127.0.0.1:${server.getAddress.getPort}$pathAndQuery"))
+        .method(m, java.net.http.HttpRequest.BodyPublishers.noBody()).build()
+      val res = client.send(req, java.net.http.HttpResponse.BodyHandlers.ofString())
+      (res.statusCode, res.body.trim, res.headers.firstValue("Rebac-Version").orElse(""))
+  private def enc(t: String) = java.net.URLEncoder.encode(t, "UTF-8")
+
+  test("black box over HTTP: random writes, deletes and checks, with cycles, against an oracle written from IDEA.md") {
+    val server = RebacHttp.serve(0, RebacService(demoSchema, serviceLevels))
+    try
+      val call = http(server)
+      val oracle = Oracle(demoSchema, serviceLevels.size)
+      val r = scala.util.Random(11)
+      def pick[A](xs: A*) = xs(r.nextInt(xs.size))
+      def doc = Obj("doc", s"d${r.nextInt(3)}")
+      def folder = Obj("folder", s"f${r.nextInt(2)}")
+      def group = Obj("group", s"g${r.nextInt(3)}")
+      def user = s"u${r.nextInt(3)}"
+      def tuple(): RelTuple = r.nextInt(6) match
+        case 0 => RelTuple(doc, pick("viewer", "editor"), Subject.Person(user))
+        case 1 => RelTuple(doc, "parent", Subject.Link(folder))
+        case 2 => RelTuple(folder, "viewer", Subject.Members(group, "member"))
+        case 3 => RelTuple(group, "member", Subject.Members(group, "member")) // cycles too
+        case _ => RelTuple(group, "member", Subject.Person(user))
+      val written = scala.collection.mutable.ArrayBuffer.empty[RelTuple]
+      var checks = 0
+      for _ <- 1 to 400 do
+        r.nextInt(10) match
+          case 0 | 1 | 2 =>
+            val t = tuple()
+            written += t
+            assertEquals(call("POST", s"/write?tuple=${enc(TupleSyntax.show(t))}")._2, oracle.write(true, t).toString)
+          case 3 =>
+            val t = if written.nonEmpty && r.nextBoolean() then pick(written.toSeq*) else tuple()
+            assertEquals(call("POST", s"/delete?tuple=${enc(TupleSyntax.show(t))}")._2, oracle.write(false, t).toString)
+          case _ =>
+            val (o, rel) = pick((doc, "viewer"), (doc, "editor"), (folder, "viewer"), (group, "member"))
+            val p = user
+            val at = Option.when(r.nextInt(3) == 0)(r.nextInt(oracle.latest + 1))
+            val v = at.getOrElse(oracle.latest)
+            val want = oracle.allowed(o, rel, p, v)
+            val got = call("GET", s"/check?tuple=${enc(TupleSyntax.show(RelTuple(o, rel, Subject.Person(p))))}${at.fold("")(a => s"&at=$a")}")
+            assertEquals(got, (200, if want then "yes" else "no", v.toString), (o, rel, p, v))
+            checks += 1
+      assert(checks > 150, checks)
+    finally server.stop(0)
+  }
+
+  test("the server answers 500 and logs a broken contract, 503 a request over its time, and keeps serving others meanwhile") {
+    val broken = new Backend:
+      def schemaInForce = demoSchema
+      def latest = 0
+      def allowed(q: Query, v: Int) =
+        if q.person == "slow" then { Thread.sleep(3000); true }
+        else throw ContractViolation("CheckContract", s"result true for ($q, $v) breaks its check")
+      def write(w: Write) = 1
+    val err = java.io.ByteArrayOutputStream()
+    val saved = System.err
+    System.setErr(java.io.PrintStream(err, true))
+    val server = RebacHttp.serve(0, broken, threads = 4, timeoutMs = 500)
+    try
+      val call = http(server)
+      val (code, body, _) = call("GET", s"/check?tuple=${enc("doc:readme#viewer@user:ann")}")
+      assertEquals(code, 500)
+      assert(body.startsWith("internal error: CheckContract:"), body)
+      assert(err.toString.contains("rebac: 500 for GET /check"), err.toString)
+      val slow = scala.concurrent.Future(call("GET", s"/check?tuple=${enc("doc:readme#viewer@user:slow")}"))(using scala.concurrent.ExecutionContext.global)
+      Thread.sleep(100)
+      val t0 = System.nanoTime
+      assertEquals(call("POST", s"/write?tuple=${enc("group:eng#member@user:ann")}")._1, 200)
+      assert((System.nanoTime - t0) / 1000000 < 400, "a write waited behind a slow check")
+      assertEquals(scala.concurrent.Await.result(slow, scala.concurrent.duration.Duration(10, "s"))._1, 503)
+      // a query that is not URL-encoded text (the JDK client refuses to send one, so it goes over a socket)
+      val socket = java.net.Socket("127.0.0.1", server.getAddress.getPort)
+      try
+        socket.getOutputStream.write("GET /check?tuple=%zz HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n".getBytes("UTF-8"))
+        val status = scala.io.Source.fromInputStream(socket.getInputStream, "UTF-8").getLines().next()
+        assert(status.contains(" 400 "), status)
+      finally socket.close()
+    finally
+      server.stop(0)
+      System.setErr(saved)
+  }
+
   test("the server over HTTP: a write through a group and a folder, checks before and after, at a past version") {
     val server = RebacHttp.serve(0, RebacService(demoSchema, serviceLevels))
     try
-      val http = java.net.http.HttpClient.newHttpClient()
-      def call(m: String, path: String) =
-        val req = java.net.http.HttpRequest.newBuilder(java.net.URI.create(s"http://127.0.0.1:${server.getAddress.getPort}$path"))
-          .method(m, java.net.http.HttpRequest.BodyPublishers.noBody()).build()
-        val res = http.send(req, java.net.http.HttpResponse.BodyHandlers.ofString())
-        (res.statusCode, res.body.trim)
-      def enc(t: String) = java.net.URLEncoder.encode(t, "UTF-8")
+      val call = http(server)
       val ann = enc("doc:readme#viewer@user:ann")
       val answers = List(
         call("POST", s"/write?tuple=${enc("folder:eng#viewer@group:eng#member")}"),
@@ -147,19 +309,6 @@ class RebacSuite extends munit.CatsEffectSuite:
         call("POST", s"/write?tuple=${enc("doc:readme#viewer@group:eng#")}"))
       assertEquals(answers.map(_._1), List(200, 200, 200, 200, 200, 200, 200, 200, 400))
       assertEquals(answers.take(8).map(_._2), List("1", "2", "no", "3", "yes", "4", "no", "yes"))
+      assertEquals(answers.take(8).map(_._3), List("1", "2", "2", "3", "3", "4", "4", "3"))
     finally server.stop(0)
-  }
-
-  test("the HTTP layer: checks and writes, and refusals with the reason") {
-    val s = RebacService(demoSchema, serviceLevels)
-    def call(m: String, path: String, tuple: String, at: Option[Int] = None) =
-      RebacHttp.answer(s, m, path, Map("tuple" -> tuple) ++ at.map(v => "at" -> v.toString))
-    assertEquals(call("POST", "/write", "folder:eng#viewer@group:eng#member"), (200, "1"))
-    assertEquals(call("POST", "/write", "doc:readme#parent@>folder:eng"), (200, "2"))
-    assertEquals(call("GET", "/check", "doc:readme#viewer@user:ann"), (200, "no"))
-    assertEquals(call("POST", "/write", "group:eng#member@user:ann"), (200, "3"))
-    assertEquals(call("GET", "/check", "doc:readme#viewer@user:ann"), (200, "yes"))
-    assertEquals(call("GET", "/check", "doc:readme#viewer@user:ann", Some(2)), (200, "no"))
-    assertEquals(call("GET", "/check", "doc:readme#viewer@group:eng#member")._1, 400)
-    assertEquals(call("POST", "/write", "doc:readme#viewer@group:eng#")._1, 400)
   }

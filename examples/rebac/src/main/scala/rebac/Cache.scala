@@ -53,6 +53,10 @@ def cachedCheck(a: Term[Ask]): Flow[Boolean] =
   yield answer
 
 private val annAt3 = Ask(Query(Obj("doc", "readme"), "viewer", "ann"), 3)
+/** A world of the examples: the cache's answers, and the HTTP layer's state, which a check does not touch (every
+  * boundary's state is part of a world).
+  */
+private def cacheHolding(cs: List[Cached]): World = World(CacheModel -> cs, HttpModel -> Served(Nil, Nil, Nil))
 private val annAt5 = Ask(Query(Obj("doc", "readme"), "viewer", "ann"), 5)
 
 val cachedChecks = Node.contract(runCheck)("CachedChecks",
@@ -62,13 +66,13 @@ val cachedChecks = Node.contract(runCheck)("CachedChecks",
 )((a, result, before, after) =>
   cacheSound(before(CacheModel)) ==> (result === allowed(a.query, a.at) && cacheSound(after(CacheModel))))
   .examples(schema.bind(demoSchema), levels.bind(demoLevels), writes.bind(demoWrites))(
-    expect(annAt3, World(CacheModel -> Nil), true, World(CacheModel -> List(Cached(annAt3, true))),
+    expect(annAt3, cacheHolding(Nil), true, cacheHolding(List(Cached(annAt3, true))),
       "a miss: the check is resolved, answered, and kept"),
-    expect(annAt5, World(CacheModel -> List(Cached(annAt3, true))), false,
-      World(CacheModel -> List(Cached(annAt5, false), Cached(annAt3, true))),
+    expect(annAt5, cacheHolding(List(Cached(annAt3, true))), false,
+      cacheHolding(List(Cached(annAt5, false), Cached(annAt3, true))),
       "a later version is another key: the answer kept at version 3 is not used at version 5"),
-    expect(annAt3, World(CacheModel -> List(Cached(annAt3, true))), true, World(CacheModel -> List(Cached(annAt3, true))),
+    expect(annAt3, cacheHolding(List(Cached(annAt3, true))), true, cacheHolding(List(Cached(annAt3, true))),
       "a hit: the kept answer, and the cache unchanged"),
-    reject(annAt5, World(CacheModel -> List(Cached(annAt3, true))), true,
-      World(CacheModel -> List(Cached(annAt5, true), Cached(annAt3, true))),
+    reject(annAt5, cacheHolding(List(Cached(annAt3, true))), true,
+      cacheHolding(List(Cached(annAt5, true), Cached(annAt3, true))),
       "an answer kept for version 3 never answers a check at version 5"))
