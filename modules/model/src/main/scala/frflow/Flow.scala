@@ -220,7 +220,7 @@ private[frflow] object Flows:
     case other                   => throw IllegalStateException(s"FrFlow: a proven flow takes no step of a model's own ($other)")
 
   /** A model's own operation, on its state. */
-  private def onModel(s: Steps, model: StateModel[?], st: Any, env: Env = Map.empty): (Any, Any) = s match
+  private[frflow] def onModel(s: Steps, model: StateModel[?], st: Any, env: Env = Map.empty): (Any, Any) = s match
     case Steps.Ret(t)              => (Eval.compile(t)(env), st)
     case Steps.Read(_)             => (st, st)
     case Steps.Write(_, t)         => ((), Eval.compile(t)(env))
@@ -229,7 +229,10 @@ private[frflow] object Flows:
     case Steps.Let(b, v, rest)     => onModel(rest, model, st, env + (b -> Eval.compile(v)(env)))
     case Steps.Loop(xs, b, body)   =>
       ((), Eval.compile(xs)(env).asInstanceOf[List[Any]].foldLeft(st)((acc, x) => onModel(body, model, acc, env + (b -> x))._2))
-    case Steps.Branch(c, a, b)     => if Eval.compile(c)(env).asInstanceOf[Boolean] then onModel(a, model, st, env) else onModel(b, model, st, env)
+    case Steps.Branch(c, a, b)     =>
+      val holds = Eval.compile(c)(env).asInstanceOf[Boolean]
+      Watch.hit(c, if holds then 1 else 2)
+      if holds then onModel(a, model, st, env) else onModel(b, model, st, env)
     case other                     => throw IllegalStateException(s"FrFlow: a model calls no boundary ($other)")
 
   /** A value handed to an implementation of a boundary, as the term its operation takes. */
@@ -291,7 +294,7 @@ private[frflow] object Trees:
     case Tree.RunOn(c, w)          => List(c, w)
     case Tree.Part(w, _)           => List(w)
 
-  private def trees(s: Steps): List[Tree] = Steps.fold(s, List.empty[Tree]) {
+  private[frflow] def trees(s: Steps): List[Tree] = Steps.fold(s, List.empty[Tree]) {
     case (acc, Steps.Ret(t))          => acc :+ t
     case (acc, Steps.Op(_, _, as))    => acc ++ as
     case (acc, Steps.Loop(xs, _, _))  => acc :+ xs

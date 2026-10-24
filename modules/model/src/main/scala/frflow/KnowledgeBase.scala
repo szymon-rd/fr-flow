@@ -158,7 +158,8 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
   lazy val runtimeAssumptions: List[Assumption] = Wiring.runtimeAssumptions(this)
   def exampleResults(n: Node[?]): List[ExampleResult] = ExampleRuns.results(this, n)
   /** Its code tested against the contract (plain code, or code beside a proven define); none when its code is proven or a flow. */
-  def test(n: Node[?], replay: List[Testing.Replay] = Nil): Option[Testing.Report] = Testing.run(this, n, testing, replay)
+  def test(n: Node[?], replay: List[Testing.Replay] = Nil, settings: TestSettings = testing): Option[Testing.Report] =
+    Testing.run(this, n, settings, replay)
   /** Structural problems; a knowledge base with problems is not checked. */
   lazy val problems: List[Problem] = Validation.problems(this)
 

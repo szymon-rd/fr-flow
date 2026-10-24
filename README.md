@@ -113,9 +113,16 @@ val noUnauthorizedAccess = Node.claim("NoUnauthorizedAccess",
 The sentence is what you decide. The formula is what Lean reads. Lean proves
 that `NoUnauthorizedAccess` and its sibling `SignedInAreAccepted` together give
 `RealmAccess`. Further down, the contract `Introspect` states what one call of
-the introspection endpoint must return, and the Scala function that implements
-it is proven to meet it. The running server also checks every result against
-the contract.
+the introspection endpoint must return. Its code is plain Scala: the proofs
+above rest on the contract, and FrFlow tests the code against it on cases it
+generates from the types, with the contract's own formula as the property. The
+running server also checks every result against the contract.
+
+Code is in one of three states, and `status` says which: **proven** (written
+with terms, and Lean proves it meets its contract), **tested** (plain Scala,
+tested against its contract, or against a boundary's model, on generated cases),
+or **assumed** (an outside system such as the database: you decide what it does,
+and FrFlow checks it at run time and on generated runs).
 
 Code that talks to the outside, such as a database, is written as a `Flow`, in
 the style of Cats or ZIO code, over a trait of operations whose behaviour you

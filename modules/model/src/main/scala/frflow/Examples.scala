@@ -97,36 +97,38 @@ private[frflow] object ExampleRuns:
         onReal(kb, n)
     }
 
-  /** A flow's examples run on the production implementations of its boundaries, started in each model's state before:
-    * what they give, read back, must be what the run on the models gives. Both are compared as the implementation
-    * holds a state: the model runs from the example's state stored and read back, and its state after is stored in a
-    * fresh implementation and read back. What the implementation does not keep (the order of rows a table returns
-    * sorted) is then not compared; what it keeps (the order of an event log) is.
+  /** A flow's examples run on each implementation of its boundaries (an outside system, or the project's own), started in
+    * each model's state before: what they give, read back, must be what the run on the models gives. Both are compared
+    * as the implementation holds a state: the model runs from the example's state stored and read back, and its state
+    * after is stored in a fresh implementation and read back. What the implementation does not keep (the order of rows a
+    * table returns sorted) is then not compared; what it keeps (the order of an event log) is.
     */
   private def onReal(kb: KnowledgeBase, n: Node[?]): List[ExampleResult] =
     (for
-      flow <- kb.implementation(n).flatMap(_.flowDef)
+      flow <- kb.implementation(n).flatMap(_.flowDef).toList
       (bs, body) = flow.lifted.built
-      steps <- body.termTree match { case Tree.Do(s) => Some(s); case _ => None }
-      reals = kb.models.filter(m => m.real.isDefined && Steps.boundaries(steps).contains(m.boundary))
-      if reals.nonEmpty
-    yield n.cases.filter(_.expected).flatMap { e =>
+      steps <- (body.termTree match { case Tree.Do(s) => Some(s); case _ => None }).toList
+      mo <- kb.models.filter(m => Steps.boundaries(steps).contains(m.boundary))
+      impl <- mo.impls
+      e <- n.cases.filter(_.expected)
+    yield
+      val m = mo.model.asInstanceOf[StateModel[Any]]
       val before = e.b.asInstanceOf[World]
-      def held(w: World): World = reals.foldLeft(w)((acc, m) => acc.updated(m.model, m.real.get._2(m.real.get._1(w(m.model.asInstanceOf[StateModel[Any]])))))
+      def held(w: World): World = w.updated(m, impl.read(impl.start(w(m))))
+      val name = ModelTests.implName(impl)
       val model = Try(Flows.onModels(steps, Map(bs.head -> e.a), held(before))).map((r, w) => (r, held(w)))
       val real = Try {
-        val impls = reals.map(m => m.boundary -> m.real.get._1(before(m.model.asInstanceOf[StateModel[Any]]))).toMap
-        val r = Flows.runNow(steps, Map(bs.head -> e.a), impls)
-        (r, reals.foldLeft(before)((w, m) => w.updated(m.model, m.real.get._2(impls(m.boundary)))))
+        val i = impl.start(before(m))
+        val r = Flows.runNow(steps, Map(bs.head -> e.a), Map(mo.boundary -> i))
+        (r, before.updated(m, impl.read(i)))
       }
       val verdict = (model, real) match
-        case (scala.util.Success(m), scala.util.Success(r)) if m == r => "ok"
-        case (scala.util.Success(m), scala.util.Success(r)) =>
-          s"on ${reals.map(_.boundary.name).mkString(", ")} gives ${Example.show(r)}, where the model gives ${Example.show(m)}"
-        case (_, scala.util.Failure(x)) => s"error on ${reals.map(_.boundary.name).mkString(", ")}: ${x.getMessage}"
+        case (scala.util.Success(x), scala.util.Success(y)) if x == y => "ok"
+        case (scala.util.Success(x), scala.util.Success(y)) => s"on $name gives ${Example.show(y)}, where the model gives ${Example.show(x)}"
+        case (_, scala.util.Failure(x)) => s"error on $name: ${x.getMessage}"
         case (scala.util.Failure(x), _) => s"error on the models: ${x.getMessage}"
-      List(ExampleResult(e.copy(note = s"${e.note} (run on ${reals.map(_.boundary.name).mkString(", ")})"), "ok", Some(verdict)))
-    }).getOrElse(Nil)
+      ExampleResult(e.copy(note = s"${e.note} (run on $name)"), "ok", Some(verdict))
+    )
 
 /** The one generator of inputs and values near the examples', for Lean's probes and for the code's runs. */
 object Probes:

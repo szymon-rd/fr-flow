@@ -22,7 +22,7 @@ object Tests:
   /** At most this many failed cases kept per node. */
   private val Kept = 20
 
-  def testable(a: Analysis): List[Node[?]] = a.kb.nodes.filter(Testing.testable(a.kb, _).isDefined)
+  def testable(a: Analysis): List[Node[?]] = a.kb.nodes.filter(Testing.tests(a.kb, _))
 
   /** What a node's test depends on: what it says (its Lean, through the definitions in force), its code, the settings
     * and the generators given.
@@ -30,11 +30,14 @@ object Tests:
   def key(a: Analysis, n: Node[?]): Hash =
     val g = a.generate
     val lean = scala.util.Try(g.spec(n)).getOrElse("") + scala.util.Try(g.provenImpl(n).fold("")(_ => g.impl(n))).getOrElse("")
-    Hash(Sha.parts(a.hash(n).value, lean, a.code(n).fold("")(_.fingerprint.value), a.kb.testing.toString,
+    Hash(Sha.parts(a.hash(n).value, lean, a.code(n).fold("")(_.fingerprint.value), settings(a).toString,
       a.kb.generators.map((t, gen) => s"${Types.scala(t)}: ${gen.describe}").mkString("\n"), Version.toString))
 
   def run(a: Analysis, n: Node[?], before: List[Counterexample]): IO[Option[TestReport]] =
-    IO.blocking(a.kb.test(n, before.map(c => Testing.Replay(c.seed, c.index, c.size))).map(report))
+    IO.blocking(a.kb.test(n, before.map(c => Testing.Replay(c.seed, c.index, c.size)), settings(a)).map(report))
+
+  /** The knowledge base's settings, with the seed `FRFLOW_SEED` gives for this run (a number, or `fresh`). */
+  def settings(a: Analysis): TestSettings = TestSettings.inForce(a.kb.testing, sys.env.get("FRFLOW_SEED"))
 
   private def report(r: Testing.Report): TestReport =
     TestReport(r.cases, r.seed, r.against, r.failure.map(f => TestFailure(f.shown, f.why, f.seed, f.index, f.size)),

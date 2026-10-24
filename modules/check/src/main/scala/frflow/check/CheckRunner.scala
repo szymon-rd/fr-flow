@@ -111,7 +111,7 @@ object CheckRunner:
     for
       found <- todo.parTraverseN(cfg.threads)(n => Tests.run(a, n, a.inputs.counterexamples.getOrElse(NodeId(n.id), Nil)).map(n -> _))
       fresh = found.collect { case (n, Some(r)) => NodeId(n.id) -> Recorded(Tests.key(a, n), r) }
-      kept = a.inputs.tests.filter((id, _) => a.kb.node(id.value).exists(Testing.testable(a.kb, _).isDefined))
+      kept = a.inputs.tests.filter((id, _) => a.kb.node(id.value).exists(Testing.tests(a.kb, _)))
       recorded = kept ++ fresh
       counterexamples = Tests.kept(a.inputs.counterexamples, fresh.map((id, r) => id -> r.report))
       _ <- Tests.save(a.ws, recorded, counterexamples).whenA(fresh.nonEmpty || kept.size != a.inputs.tests.size)

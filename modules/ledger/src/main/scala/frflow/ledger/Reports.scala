@@ -44,14 +44,25 @@ enum CodeProof derives Codec.AsObject:
   case ProvenDown(define: String, running: Option[String])
   case Define(name: String, status: ObligationStatus, running: Option[String])
   case Tested(report: Option[TestReport])
+  /** A boundary's model, with implementations run against it: the project's own (`own`: tested) and outside systems
+    * (`outside`: checked; the model stays assumed).
+    */
+  case Model(own: List[String], outside: List[String], report: Option[TestReport])
 
 object CodeProof:
+  /** How a model's implementations are written in its content: the project's own, or an outside system. */
+  val Own = "tested: "
+  val Outside = "assumed, checked: "
+
   def of(n: SnapNode): Option[CodeProof] =
     val impl = n.content.text("implementation")
     val running = impl.linesIterator.find(_.startsWith("runs: ")).map(r => Proofs.runningCode(r.stripPrefix("runs: ")))
+    val impls = n.content.strs("implementations")
     n.implementationProof match
       case Some(p) if p.status == ObligationStatus.Proven => Some(ProvenDown(p.name, running))
       case Some(p) => Some(Define(p.name, p.status, running))
+      case None if impls.nonEmpty =>
+        Some(Model(impls.filter(_.startsWith(Own)).map(_.stripPrefix(Own)), impls.filter(_.startsWith(Outside)).map(_.stripPrefix(Outside)), n.tested))
       case None => Option.when(impl.nonEmpty)(Tested(n.tested))
 
   /** Whether code of the node is tested, not proven: plain code, or code running beside a proven define. */
@@ -59,18 +70,25 @@ object CodeProof:
     case Tested(_)              => true
     case ProvenDown(_, running) => running.isDefined
     case Define(_, _, running)  => running.isDefined
+    case Model(own, _, _)       => own.nonEmpty
   }
+
+  /** Whether some code of the node is run against what it is decided to do: tested, or an outside system checked. */
+  def run(n: SnapNode): Boolean = tested(n) || of(n).exists { case Model(_, outside, _) => outside.nonEmpty; case _ => false }
 
 object Proofs:
   /** What of a node's tested code is not shown: a generated case that fails, a part of the contract no case reached,
     * or no test yet.
     */
   def tests(n: SnapNode): List[String] =
-    if !CodeProof.tested(n) then Nil
-    else n.tested.fold(List("its code is not tested yet: run check")) { r =>
-      r.failure.map(f => s"its code fails a generated case: ${f.shown}: ${f.why}").toList ++
-        r.unreached.map(c => s"its code's tests never reached a part of the contract: ${c.part} (add an example, or a generator)")
-    }
+    if !CodeProof.run(n) then Nil
+    else
+      val model = CodeProof.of(n).exists { case _: CodeProof.Model => true; case _ => false }
+      val (whose, against) = if model then ("its implementations'", "the model") else ("its code's", "the contract")
+      n.tested.fold(List(if model then "its implementations are not tested yet: run check" else "its code is not tested yet: run check")) { r =>
+        r.failure.map(f => s"${if model then "a generated run differs from the model" else "its code fails a generated case"}: ${f.shown}: ${f.why}").toList ++
+          r.unreached.map(c => s"$whose tests never reached a part of $against: ${c.part} (add an example, or a generator)")
+      }
 
   /** The CI gate: some node (a project still in its conversation is not done), IDEA.md accepted, every node accepted and
     * proven, every example passing; rejected nodes removed from the model, so that nothing rests on them or is governed by them.

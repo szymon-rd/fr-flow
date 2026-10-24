@@ -14,6 +14,16 @@ class TestingSuite extends munit.FunSuite:
     assertEquals(r.against, "Pick")
   }
 
+  test("FRFLOW_SEED replaces the seed: a number, or fresh; anything else keeps the settings") {
+    val s = TestSettings(cases = 50, seed = 3)
+    assertEquals(TestSettings.inForce(s, Some("42")), s.copy(seed = 42))
+    // fresh: one new seed for the run, the same each time it is asked
+    assertNotEquals(TestSettings.inForce(s, Some("fresh")).seed, 3L)
+    assertEquals(TestSettings.inForce(s, Some("fresh")), TestSettings.inForce(s, Some("fresh")))
+    assertEquals(TestSettings.inForce(s, Some("soon")), s)
+    assertEquals(TestSettings.inForce(s, None), s)
+  }
+
   test("a seeded bug is found, and the case is shrunk to its smallest") {
     // Off by one: a book of exactly the asked length is left on the shelf.
     val buggy = KnowledgeBase("Shelf", idea = "IDEA.md")((shelfNodes :+ pick)*).testedWith(few)

@@ -92,8 +92,10 @@ section come back to them.
 8. **`why` carries the theory**: why this step, and what it assumes. Every
    `Opaque` and `Param` says what it means and where its value comes from.
 9. **Offer real alternatives**: the second `.replaces` the first, its `why` the trade-off.
-10. **Never weaken a node to make a proof go through.** A false split means a
-    part is wrong or missing. If the idea or a decided node is wrong, say so.
+10. **Never weaken a node to make a proof or a test go through.** A false
+    split means a part is wrong or missing; a failing generated case means the
+    code is wrong, or the contract as decided is. If the idea or a decided node
+    is wrong, say so.
 11. **Never edit generated Lean** (`lean/FrFlowGen/`, `lean/FrFlowAudit/`). Lean
     you write goes only in `lean/Proofs/<KB>/`.
 12. **Every source file is governed by one node**: an implementation, or a
@@ -166,10 +168,10 @@ val decisionContract = Node.contract(admit)("DecisionContract",
   .examples(grants.bind(List(Grant(UserId("alice"), Path("/a")))), sessions.bindTable(Map("t1" -> UserId("alice"))))(
     expect("t1", Path("/a"), Some(UserId("alice")), "Alice's token and a grant for /a: she gets in"),
     reject("t1", Path("/b"), Some(UserId("alice")), "access without a grant is never given"))
-val admitted = define { (token: Term[String], path: Term[Path]) =>     // code Lean proves
-  sessions(token)
-    .on[Some[UserId]](u => If(grants.contains(Grant(u, path)))(some(u)).Else(none))
-    .on[None.type](none)
+// its code: plain Scala, tested against the contract (see "Terms or plain Scala"):
+//   knowledge.implement(decisionContract)(SessionStore(grants.value.toSet, sessions.value).decide)
+val expireCode = define { (s: Term[CrmStore], now: Term[BigInt]) =>      // crm: code Lean proves
+  CrmStore(s.records, s.shares.filter(sh => !ended(sh, s, now)), s.expiries.filter(e => !ended(Share(e.record, e.to), s, now)))
 }
 val inMemorySessions = Node.design("InMemorySessions",
   "Sessions and grants are loaded into memory, in one process that decides every request.", why = "..."
@@ -259,7 +261,8 @@ object DatabaseModel extends Database, StateModel[Tables]:   // what it does, as
   def storeAbout(id: Term[BigInt], s: Term[CrmStore]) = state.update(t => Tables(replaceAbout(t.store, id, aboutRecord(s, id)), t.events))
   def logEvent(e: Term[Event]) = state.update(t => Tables(t.store, t.events ++ List(e)))
 val tablesModel = Node.assumption(db)(DatabaseModel)("TablesModel", "...", why = "...")
-  .checkedAgainst(t => SqliteDatabase.holding(t), _.tables)
+  .checkedAgainst(t => SqliteDatabase.holding(t), _.tables)    // an outside system: assumed, checked
+  .implementedBy(t => MemoryDatabase.holding(t), _.tables)     // the project's own code: tested
 
 def expireOnce(now: Term[BigInt]): Flow[CrmStore] =   // the code: a plain def, Cats-style
   for
@@ -278,8 +281,11 @@ def expireOnce(now: Term[BigInt]): Flow[CrmStore] =   // the code: a plain def, 
   It must be deterministic (put unknowns, such as clock readings, into the
   state), never failing, and the flow's alone during a run: a design node says
   how that is ensured (a lock, a transaction). Loops are over lists
-  (`traverse_`). Give `.checkedAgainst` so the production implementation is
-  run beside the model on the examples.
+  (`traverse_`). Name every implementation of the trait on the model's node:
+  `.checkedAgainst(start, read)` for an outside system (a database; checked on
+  the examples and on generated runs, the model stays assumed),
+  `.implementedBy(start, read)` for the project's own (an in-memory store, a
+  cache; tested on generated runs of its operations against the model).
 - **Steps.** `state.get`, `state.set(s)`, `state.update(f)` in models only;
   `Flow.effect(...)` in production implementations only (a proven flow taking
   one is refused); `If(c)(f1).Else(f2)` and `Flow.when(c)(f)` for branches.
@@ -289,6 +295,40 @@ def expireOnce(now: Term[BigInt]): Flow[CrmStore] =   // the code: a plain def, 
   that operation's contract, not its code: prefer it to calling the define.
 - A contract on a flow may have no parent: production runs it, as an entry
   point. The design node over its scheduling goes under it.
+
+## Terms or plain Scala
+
+Code under a contract is **proven** (a `define` or a flow, written with terms),
+**tested** (plain Scala, tested against the contract on generated cases) or
+**assumed** (an outside system). Write terms where the proof is the point and
+the code is small (a decision rule, a flow's steps); write plain Scala for the
+lowest-level code (a lookup through an index, a parser, a store), and attach it
+with `implement`, naming the operations it calls:
+
+```scala
+.implement(decisionContract)(SessionStore(grants.value.toSet, sessions.value).decide)   // examples/auth
+.implement(introspectContract, lookup)(introspection)                                    // examples/keycloak
+```
+
+The proofs above rest on the contract alone, whichever it is. The test's
+property is the contract's own formula; its cases come from the types (and the
+world: the parameters the contract reads), seeded with the examples. Never
+write a property by hand, and never weaken a contract or an example to make a
+test pass.
+
+- **A failing case** (`its code fails a generated case: … ⇒ …  given …: why`)
+  is shrunk; reproduce it as an `expect` or `reject` example, fix the code, and
+  run `check` again (the case is replayed first).
+- **A coverage finding** (`its code's tests never reached a part of the
+  contract: <part>`) means no generated case made that premise, branch or case
+  hold. Add an example that reaches it, or give a generator for the type
+  (`.generating(gen.describedAs("…"))`) that makes such values. A generator for
+  an outside system's type says what the outside can hold (a table: one row per
+  key). Say in the `why` or the description what the generator leaves out.
+- **For a boundary's implementation**, a failing run reads `on <Impl>, from
+  <state>: <calls>` with what differed: fix the implementation, or tell the
+  developer the model is wrong; never change the model to match the code
+  without their decision.
 
 ## What check reports, and what to do
 
@@ -309,6 +349,8 @@ it shows nothing). Never write in a reason that Lean shows a part needed.
 | `impl` open | the define or flow does not provably meet the contract | Fix the code, or prove `impl` by hand. |
 | `feasible` open | an authored `complete` nothing witnesses | Prove that some world meets all the parts. |
 | examples fail | the code or the contract is wrong | Fix them before any proof. |
+| a generated case fails, a run differs from the model | tested code does not meet its contract or model | Add the shrunk case as an example; fix the code. |
+| tests "never reached a part" | no generated case reached a premise, branch or case | Add an example or a generator that reaches it. |
 | `ContractViolation` at run time | a result broke the contract, or a value an assumption | Fix the code or the data; never the check. |
 
 ## Proving by hand

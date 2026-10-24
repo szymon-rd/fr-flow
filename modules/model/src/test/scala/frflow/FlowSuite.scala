@@ -81,3 +81,33 @@ class FlowSuite extends munit.FunSuite:
     // a proven flow may not take a step of the outside world
     assert(Steps.effectful(Steps.of(Counter(0).count)._1))
   }
+
+  private def stockKb(model: Node[?]) = KnowledgeBase("Shelf", idea = "IDEA.md")(model).testedWith(TestSettings(cases = 300, seed = 5))
+  private def stockModel = Node.assumption(stock)(StockModel)("StockModel", "The stock counts the books added to it.", why = "A counter.")
+
+  test("the project's own implementation of a boundary is tested against its model: generated runs, every operation reached") {
+    val m = stockModel.implementedBy(c => Counter(c), _.held)
+    val r = stockKb(m).test(m).get
+    assertEquals(r.failure, None)
+    assertEquals(r.coverage.map(c => c.part -> (c.held > 0)), List("add called" -> true, "count called" -> true))
+    assertEquals(r.against, "the model StockModel")
+    assert(r.notes.head.startsWith("Counter (the project's own code, tested): 300 runs"), r.notes)
+  }
+
+  test("an implementation that differs from its model is found on a generated run, shrunk to its smallest") {
+    // Drops an addition of more than three books.
+    final class Capped(var held: BigInt) extends Stock:
+      def count = Flow.effect(held)
+      def add(n: Term[BigInt]) = Flow.effect(n)(k => if k <= 3 then held += k)
+    val m = stockModel.implementedBy(c => Capped(c), _.held)
+    val f = stockKb(m).test(m).get.failure.getOrElse(fail("the difference was not found"))
+    assertEquals(f.shown, "on Capped, from 0: add(4)")
+    assertEquals(f.why, "after add(4), Capped holds 0, where the model holds 4")
+  }
+
+  test("an outside system is checked against the model on fewer runs, and said to be assumed") {
+    val m = stockModel.checkedAgainst(c => Counter(c), _.held)
+    val r = stockKb(m).testedWith(TestSettings(cases = 1000)).test(m).get
+    assertEquals(r.failure, None)
+    assert(r.notes.head.startsWith(s"Counter (an outside system: its model is assumed; these runs check it): ${ModelTests.OutsideRuns} runs"), r.notes)
+  }

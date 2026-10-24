@@ -303,18 +303,22 @@ system can be checked. Examples are concrete calls: an <code>expect</code> the c
     reject("t2", Path("/a"), Some(UserId("alice")), "a token that is not Alice's never acts for her"),
     reject("t1", Path("/a"), None, "Alice with a grant for /a is not turned away"))</code></pre></div>
 
-<h3 id="t-code">7. Code that Lean proves</h3>
-<p>A <code>define</code> is a function written with terms. It runs as Scala and is printed as a Lean definition, so
-Lean can prove that it meets the contract (<code>impl</code>).</p>
-<div class="code"><pre><code>val admitted = define { (token: Term[String], path: Term[Path]) =&gt;
-  sessions(token)
-    .on[Some[UserId]](u =&gt; If(grants.contains(Grant(u, path)))(some(u)).Else(none))
-    .on[None.type](none)
+<h3 id="t-code">7. The code, tested against the contract</h3>
+<p>The decision is plain Scala. The proofs above rest on <code>DecisionContract</code> alone; <code>check</code> tests
+this code against it, on cases generated from the types (grant tables, session tables, tokens, paths) and on the
+examples, with the contract's own formula as the property (see <a href="#tested">Proven, tested, assumed</a>).</p>
+<div class="code"><span class="label"><code>examples/auth/src/main/scala/auth/SessionStore.scala</code></span><pre><code>final class SessionStore(grantTable: Set[Grant], tokens: String =&gt; Option[UserId]):
+  def decide(token: String, path: Path): Option[UserId] =
+    tokens(token).filter(u =&gt; grantTable.contains(Grant(u, path)))</code></pre></div>
+<p>Code Lean proves is written with terms instead: a <code>define</code> runs as Scala and prints as a Lean definition,
+and Lean proves it meets its contract (<code>impl</code>). The CRM's <code>SharesExpire</code> is met that way:</p>
+<div class="code"><pre><code>val expireCode = define { (s: Term[CrmStore], now: Term[BigInt]) =&gt;
+  CrmStore(s.records, s.shares.filter(sh =&gt; !ended(sh, s, now)), s.expiries.filter(e =&gt; !ended(Share(e.record, e.to), s, now)))
 }</code></pre></div>
 
 <h3 id="t-kb">8. The knowledge base and its command line</h3>
 <p>A design decision governs files no proof covers. The knowledge base lists the nodes and attaches the code; here
-the production class <code>SessionStore</code> runs, and is checked against the proven <code>admitted</code>.</p>
+the production class <code>SessionStore</code> runs, tested against <code>DecisionContract</code>.</p>
 <div class="code"><pre><code>val inMemorySessions = Node.design(
   "InMemorySessions",
   "Sessions and grants are loaded into memory, in one process that decides every request.",
@@ -332,9 +336,9 @@ val knowledge = KnowledgeBase("Auth", idea = "IDEA.md")(
   grantLetsIn,
   decisionContract,
   inMemorySessions
-).implementProven(decisionContract)(admitted, SessionStore(grants.value.toSet, sessions.value).decide)
+).implement(decisionContract)(SessionStore(grants.value.toSet, sessions.value).decide)
 
-object authCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/auth")</code></pre></div>
+object authCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/auth", extensions = List(frflow.agent.Agent))</code></pre></div>
 <p>Production calls the operation through <code>service</code>, which checks every result against the contract:</p>
 <div class="code"><span class="label"><code>examples/auth/src/main/scala/auth/Server.scala</code></span><pre><code>def service(grantTable: List[Grant], tokens: Map[String, UserId]): (String, Path) =&gt; Option[UserId] =
   knowledge.service(decisionContract)(grants.bind(grantTable), sessions.bind(t =&gt; tokens.get(t)))</code></pre></div>
@@ -401,11 +405,31 @@ choose one. See <a href="#t-domain">the tutorial's step 4</a>.</p>
 <tbody>
 <tr><td>Lean to prove the code</td><td><code>.implementProven(contract)(aDefine)</code></td><td>the define runs, and <code>impl</code> is proven</td></tr>
 <tr><td>Fast production code beside a proven reference</td><td><code>.implementProven(contract)(aDefine, (a, b) =&gt; fast(a, b))</code></td><td>the fast code runs, checked against the define on the examples and varied data</td></tr>
-<tr><td>Plain code, checked by running</td><td><code>.implement(contract)((a, b) =&gt; …)</code></td><td>the examples run, and <code>service</code> checks every call</td></tr>
+<tr><td>Plain Scala, tested against the contract</td><td><code>.implement(contract, calls*)((a, b) =&gt; …)</code></td><td><code>check</code> tests it on generated cases and the examples; <code>service</code> checks every call (<a href="#tested">Proven, tested, assumed</a>)</td></tr>
+<tr><td>The project's own implementation of a boundary, tested against its model</td><td><code>.implementedBy(start, read)</code> on the model's node</td><td><code>check</code> runs generated sequences of its operations against the model</td></tr>
+<tr><td>An outside system behind a boundary (a database)</td><td><code>.checkedAgainst(start, read)</code> on the model's node</td><td>the model stays assumed; it is checked on the flows' examples and on generated runs</td></tr>
 <tr><td>Lean to prove code that takes steps against the outside</td><td><code>.implementProven(flowContract)(aFlow)</code></td><td><code>impl</code> is proven on the boundaries' models; production runs it with <code>knowledge.run[F]</code> (<a href="#effects">Effectful code</a>)</td></tr>
 </tbody>
 </table>
 <p>Plain Scala code calls a define with <code>d.fn(…)</code> and reads a parameter with <code>p.value</code>.</p>
+
+<h3 id="how-finding">Answer a failing case or a coverage finding</h3>
+<p><code>status</code> and <code>show</code> say what the tests of plain code found. Never change the contract to make a
+test pass: a changed contract is a decision you review like any other.</p>
+<table>
+<thead><tr><th>It says</th><th>Do</th></tr></thead>
+<tbody>
+<tr><td><code>its code fails a generated case: … ⇒ …  given …: why</code></td><td>The case is already shrunk. Add it as an
+<code>expect</code> or <code>reject</code> example, fix the code, and run <code>check</code>: the case is tried first until it
+passes (<code>.frflow/counterexamples.json</code>).</td></tr>
+<tr><td><code>its code's tests never reached a part of the contract: &lt;part&gt;</code></td><td>No generated case made that
+premise, branch or case hold. Add an example that reaches it, or give a generator for the type that makes such
+values: <code>.generating(gen.describedAs("…"))</code>.</td></tr>
+<tr><td><code>a generated run differs from the model: on &lt;Impl&gt;, from &lt;state&gt;: &lt;calls&gt;</code></td><td>The
+implementation of a boundary does not do what its model says after those calls. Fix the implementation, or, if
+the model is wrong, change it: a decision.</td></tr>
+</tbody>
+</table>
 
 <h3 id="how-invariant">Keep a rule across every operation</h3>
 <p>An invariant is a rule over pairs that every contract in its scope keeps (<code>.keeps</code>) or is exempt from,
@@ -653,6 +677,53 @@ a small budget, which shows nothing.</p>
 </table>
 </section>
 
+<section aria-labelledby="tested">
+<h2 id="tested">Proven, tested, assumed <span class="kind">Explanation</span></h2>
+<p>The code under a contract, or behind a boundary, is in one of three states. <code>status</code>, <code>show</code> and
+the web view keep them apart.</p>
+<table>
+<thead><tr><th>State</th><th>The code</th><th>How it is shown to do what is decided</th></tr></thead>
+<tbody>
+<tr><td><b>proven</b></td><td>a <code>define</code> or a flow, written with terms</td><td>Lean proves it meets its contract (<code>impl</code>)</td></tr>
+<tr><td><b>tested</b></td><td>plain Scala: a function, or the project's own implementation of a boundary</td><td>FrFlow tests it against its contract, or the boundary's model, on generated cases</td></tr>
+<tr><td><b>assumed</b></td><td>an outside system (a database), or an assumption on an operation</td><td>you decide it; it is checked at run time, on the examples and on generated runs</td></tr>
+</tbody>
+</table>
+<p>Lean proves everything above tested and assumed code from the contract or the model alone, and <code>root_impl</code>
+names what it rests on. The tests are built from what you decided, so they cannot drift from it:</p>
+<ul>
+  <li><b>The property is the contract's formula.</b> The term tree Lean reads is evaluated in Scala on each case's
+  inputs and the code's result, with the contract's check and the invariants it keeps. No property is written by hand.</li>
+  <li><b>The cases come from the types.</b> Generators are derived from case classes, enums, lists, options, maps,
+  sets, numbers and opaque terms (through the definition in force), and the world is generated too: the parameters
+  the contract reads. The examples' values are seeds.</li>
+  <li><b>Coverage is measured on the formula.</b> Each implication's premise, each side of an <code>||</code>, each
+  branch and each case of a match must hold in some case; a part no case reached is a finding, so a test cannot pass
+  without reaching the contract.</li>
+  <li><b>Failures are shrunk</b> to their smallest, kept in <code>.frflow/counterexamples.json</code> and tried first on
+  every later run.</li>
+  <li><b>Generators you give</b> (<code>.generating(…)</code>) are typed, described beside the results, and share the
+  cases with the derived ones; the examples' values they never make stay seeds. For an outside system's types, they
+  say what the outside can hold, and are all those values are drawn from.</li>
+</ul>
+<p>For the auth example, <code>bin/frflow auth show DecisionContract</code> prints:</p>
+<div class="code"><pre><code>Code
+  plain code, tested against the contract, not proven
+    SessionStore(grants.value.toSet, sessions.value).decide
+  tested: 1,000 generated cases (seed 1), against DecisionContract
+    every case meets it, and every part of it was reached</code></pre></div>
+<p><b>A service of the project's own</b> implements a boundary's trait and is tested against the boundary's state
+model: generated runs (a state, then 1 to 12 calls with generated arguments) are run on the implementation and on the
+model, and every result and the state read back after each call must be the model's. A failing run is shrunk to the
+fewest, smallest calls. With a store that keeps a record's old shares, the CRM's run is reported as
+<code>on LeakyDatabase, from Tables(CrmStore(List(), List(Share(0, TenantId(""))), List()), List()): storeAbout(0,
+CrmStore(List(), List(), List()))</code>: it still holds the share, where the model holds none. An outside system given
+with <code>.checkedAgainst</code> goes through the same runs (at most 200), and its model stays assumed.</p>
+<p><b>Seeds.</b> Runs are seeded: <code>.testedWith(TestSettings(cases = 1000, seed = 1))</code>. A CI job runs
+<code>ci</code> twice, with the fixed seed and with <code>FRFLOW_SEED=fresh</code>, so a case the fixed seed never
+makes can still be found.</p>
+</section>
+
 <section aria-labelledby="effects">
 <h2 id="effects">Effectful code: flows over boundaries <span class="kind">Explanation</span></h2>
 <p>Code that takes several steps against the outside (load from a database, store, log) is written as a
@@ -698,16 +769,21 @@ val tablesModel = Node.assumption(db)(DatabaseModel)("TablesModel",
   "The database holds a store and an event log: it gives the store as it holds it, holds the rows a store has about a record in place of those it held about it, leaving the other records' rows, and appends an event to the log.",
   why = "…",
   idea = "Expiring shares")
-  .checkedAgainst(t =&gt; SqliteDatabase.holding(t), _.tables)</code></pre></div>
-<p><code>.checkedAgainst(start, read)</code> runs the production implementation beside the model on the examples of
-the flows that call it: both start from the same state and must end with the same result and state. The production
-implementation builds its operations with <code>Flow.effect</code>:</p>
+  .checkedAgainst(t =&gt; SqliteDatabase.holding(t), _.tables)
+  .implementedBy(t =&gt; MemoryDatabase.holding(t), _.tables)</code></pre></div>
+<p>The model's node names the boundary's implementations: <code>start</code> makes one holding a model's state,
+<code>read</code> reads its state back. SQLite is an outside system (<code>.checkedAgainst</code>): the model stays
+assumed, and SQLite is checked against it on the examples of the flows that call it and on generated runs.
+<code>MemoryDatabase</code>, the CRM's in-memory store for development and tests, is the project's own code
+(<code>.implementedBy</code>): it is tested against the model on generated runs (<a href="#tested">Proven, tested,
+assumed</a>). An implementation builds its operations with <code>Flow.effect</code>:</p>
 <div class="code"><span class="label"><code>examples/crm/…/Database.scala</code></span><pre><code>final class SqliteDatabase(sql: Db) extends Database:
   /** What it holds, read back. */
   def tables: Tables = Tables(sql.load(), sql.events())
   def load = Flow.effect(sql.load())
   def storeAbout(id: Term[BigInt], t: Term[CrmStore]) = Flow.effect(id, t)((i, s) =&gt; { sql.storeAbout(i, s); () })
   def logEvent(e: Term[Event]) = Flow.effect(e)(sql.logEvent)</code></pre></div>
+
 
 <h3 id="effects-flow">A flow and its contract</h3>
 <p>The flow is a plain <code>def</code>. It calls the operation <code>expire</code> (SharesExpire's), so it is proven
@@ -812,13 +888,15 @@ theory. Trusted:</p>
   <li>the assumptions you accept, which are the hypotheses of <code>root_impl</code>, checked where they can be;</li>
   <li>that a term means in Lean what it computes in Scala. Both come from one tree, and the examples and probes near
   them are evaluated in both and compared;</li>
-  <li>the state models of boundaries: that the production implementation behaves as its model, checked on the
-  examples where <code>.checkedAgainst</code> is given;</li>
+  <li>tested code: plain Scala under a contract and the project's own implementations of a boundary, tested on
+  generated cases, not proven. The tests say which parts of the contract or the model they never reached;</li>
+  <li>the state models of boundaries: that an outside system behaves as its model, checked on the examples and on
+  generated runs where <code>.checkedAgainst</code> is given;</li>
   <li>that parameters hold the data they are said to mean, and that every path to the data goes through
   <code>service</code> or a proven flow: design nodes are reviewed, not proven;</li>
   <li>your signing key.</li>
 </ul>
-<p>Limits: the tries are one-sided; running covers the examples and their combinations, not every input; ordering,
+<p>Limits: the tries are one-sided; testing covers the examples and the generated cases, not every input; ordering,
 liveness, failures of the outside world and concurrent access to a boundary are not covered; maps and sets cannot be iterated.</p>
 </section>
 

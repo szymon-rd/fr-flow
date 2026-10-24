@@ -90,13 +90,12 @@ Scala for the examples and the checks at run time. There is no macro: what you
 can write is what the library offers, and anything else is a type error.
 
 ```scala
-final case class Grant(user: UserId, path: Path)
-object Grant extends Data[Grant]          // builds a Grant from terms: Grant(u, p)
+final case class Claims(realm: RealmId, user: String, roles: List[String])
+object Claims extends Data[Claims]          // builds Claims from terms: Claims(r, u, rs)
 
-/** The decision as Lean proves it meets the contract: the reference the running code is checked against. */
-val admitted = define { (token: Term[String], path: Term[Path]) =>
-  sessions(token)
-    .on[Some[UserId]](u => If(grants.contains(Grant(u, path)))(some(u)).Else(none))
+/** The user and roles an answer names, if any. */
+val claimsOf = define { (c: Term[Option[Claims]]) =>
+  c.on[Some[Claims]](x => some((x.user, x.roles)))
     .on[None.type](none)
 }
 ```
@@ -127,6 +126,110 @@ On lists: `contains`, `exists`, `forall`, `filter`, `filterNot`, `map`,
 `contains`, `+`, `-`, `++`, `intersect`, `subsetOf`. Maps and sets cannot be
 iterated. Arithmetic is on `BigInt` (`+`, `-`, `*`, `max`, `min`, comparisons,
 `/` and `%` by a literal); `Int` and `Long` compare but do not add.
+
+### Proven, tested, assumed
+
+The code under a contract, or behind a boundary, is in one of three states:
+
+| State | The code | How it is shown to do what is decided |
+|---|---|---|
+| **proven** | a `define` or a flow, written with terms | Lean proves it meets its contract (`impl`) |
+| **tested** | plain Scala: a function, or the project's own implementation of a boundary | FrFlow tests it against its contract, or the boundary's model, on generated cases |
+| **assumed** | an outside system behind a boundary (a database), or an assumption on an operation | decided; checked at run time, on the examples and on generated runs |
+
+Lean proves everything above tested and assumed code from the contract or the
+model alone (the operation is a parameter, the contract a hypothesis), and
+`root_impl` names what it rests on: `trusted: … ; tested, not proven: …`.
+
+**Plain Scala under a contract.** Attach it with `implement`; name the
+operations it calls (a call it does not name fails the test):
+
+```scala
+.implement(decisionContract)(SessionStore(grants.value.toSet, sessions.value).decide)   // examples/auth
+.implement(introspectContract, lookup)(introspection)                                    // examples/keycloak
+```
+
+`check` tests it on generated cases (1,000 by default) and on the examples:
+
+- **The property is the contract's formula.** The same term tree Lean reads is
+  run in Scala on each case's inputs and the code's result, with the contract's
+  `checkedBy` check and the invariants it keeps. A hand-written property cannot
+  drift from the decided one, because there is none.
+- **The cases come from the types.** Generators are derived from each type:
+  case classes and enums by their fields and cases, lists, options, maps, sets,
+  numbers (biased to 0, ±1 and the examples' numbers), opaque terms through the
+  definition in force. The world is generated too: the parameters the contract
+  reads (`grants`, `sessions`) take generated values, so the code is tested
+  over many worlds. The examples' values are seeds, and a third of the cases
+  start from an example with one value changed.
+- **Coverage is measured on the formula.** Each implication's premise, each
+  side of an `||`, each branch and each case of a match must hold in some case.
+  A part no case reached is a finding: `its code's tests never reached a part of
+  the contract: <part> (add an example, or a generator)`.
+- **A failing case is shrunk** (a list loses elements, a number moves toward 0,
+  a case class shrinks field by field) and reported at its smallest:
+  `its code fails a generated case: ("1a", Path("")) ⇒ Some(UserId("1a")) given
+  sessions = {"1a" ↦ Some(UserId("1a")), else None}, grants = List(): …`. It is
+  saved in `.frflow/counterexamples.json` (committed) and tried first on every
+  later run, until it passes.
+
+`show` prints the result:
+
+```
+plain code, tested against the contract, not proven
+tested: 1,000 generated cases (seed 1), against DecisionContract
+  every case meets it, and every part of it was reached
+```
+
+**Generators you give.** Where the derived cases rarely reach a part of the
+contract, or where an outside system holds only some values (a table holds
+one row per key), give a generator for the type:
+
+```scala
+.generating(
+  (for rs <- Gen.derived[List[CrmRecord]]; ss <- Gen.derived[List[Share]]; es <- Gen.derived[List[Expiry]]
+  yield CrmStore(rs.distinctBy(_.id), ss.distinctBy(s => (s.record, s.to)), es.distinctBy(e => (e.record, e.to))))
+    .describedAs("stores with one row per key, as the tables hold them"))   // examples/crm
+```
+
+A given generator is typed, so its values are of the type. FrFlow says what it
+makes beside the results, keeps the examples' values it never makes as seeds,
+and keeps the derived generator making a quarter of the type's values, so a
+narrow generator never hides the rest. For an outside system's code, a given
+generator is all the type is drawn from: data the outside cannot hold is no
+finding.
+
+**A service of the project's own** (an in-memory store, a cache) implements a
+boundary's trait and is tested against the boundary's state model:
+
+```scala
+val tablesModel = Node.assumption(db)(DatabaseModel)("TablesModel", …)
+  .checkedAgainst(t => SqliteDatabase.holding(t), _.tables)    // an outside system: assumed, checked
+  .implementedBy(t => MemoryDatabase.holding(t), _.tables)     // the project's own code: tested
+```
+
+`start` makes an implementation holding a model's state, `read` reads its state
+back. FrFlow generates runs (a state, then 1 to 12 calls of the boundary's
+operations with generated arguments), runs each on the implementation and on
+the model, and compares every result and the state read back after every call.
+States are compared as the implementation holds them (stored and read back), so
+order it does not keep is not compared. Coverage is of the operations called
+and of each branch of the model. A failing run is shrunk to the fewest, smallest
+calls: `on LeakyDatabase, from Tables(CrmStore(List(), List(Share(0, TenantId(""))),
+List()), List()): storeAbout(0, CrmStore(List(), List(), List()))` with `after
+storeAbout(…), LeakyDatabase holds …, where the model holds …`. An outside system
+given with `checkedAgainst` goes through the same runs (at most 200), so it is
+checked on varied data, not only the examples; its model stays assumed.
+
+**Settings.** `.testedWith(TestSettings(cases = 1000, seed = 1))` on the
+knowledge base. `FRFLOW_SEED` replaces the seed for one `check` or `ci`: a
+number, or `fresh` for a new one (`FRFLOW_SEED=fresh bin/frflow crm check`). A test's
+result is kept while the node's meaning, its code, the settings and the
+generators are the same.
+
+**Never weaken a contract to make a test pass.** A failing case is a finding
+about the code, or about the contract as decided; changing the contract is a
+decision the developer reviews, like any other.
 
 ### Decisions
 
@@ -261,9 +364,12 @@ def expireOnce(now: Term[BigInt]): Flow[CrmStore] =
 - **Production** binds an implementation of the trait, its operations built
   with `Flow.effect`, and runs the flow in any `cats.effect.Sync`:
   `knowledge.run[SyncIO](expiryJob)(db.bind(SqliteDatabase(d)))(now)`.
-  `.checkedAgainst(start, read)` on the model's node checks the production
-  implementation against the model on the contract's examples: both start
-  from the same state, and must end with the same result and state.
+- **Implementations against the model.** `.checkedAgainst(start, read)` on the
+  model's node names an outside system (SQLite): its model stays assumed, and
+  it is checked against the model on the contract's examples and on generated
+  runs of its operations. `.implementedBy(start, read)` names the project's own
+  implementation (the CRM's `MemoryDatabase`): it is tested against the model
+  on generated runs, as described under "Proven, tested, assumed".
 
 ### What is trusted, and the limits
 
@@ -274,8 +380,12 @@ the developer decides that they are the right theory. Trusted:
 - the printing of terms as Lean and their evaluation as Scala, cross-checked
   on the examples and on probes near them; the library offers no operation it
   cannot print faithfully (`Int` arithmetic is a type error);
-- the state models of boundaries: that the production implementation behaves
-  as its model, checked on the examples where `.checkedAgainst` is given;
+- tested code: plain Scala under a contract, and the project's own
+  implementations of a boundary, tested on generated cases, not proven: the
+  tests show the code meets its contract or model on the cases they reached,
+  and say which parts of it they never reached;
+- the state models of boundaries: that an outside system behaves as its model,
+  checked on the examples and on generated runs where `.checkedAgainst` is given;
 - that parameters hold the data they are said to mean, and that every path to
   the data goes through `service`: design nodes are reviewed, not proven;
 - the signing key, kept outside the repository the agent edits;
@@ -283,8 +393,8 @@ the developer decides that they are the right theory. Trusted:
   an agent that writes code to subvert FrFlow.
 
 Limits: the tries are one-sided. Examples with function-valued parameters
-(other than `bindTable`) are not evaluated in Lean. Running covers the
-examples and their combinations, not every input. Ordering, liveness, failures
+(other than `bindTable`) are not evaluated in Lean. Testing covers the examples
+and the generated cases, not every input. Ordering, liveness, failures
 of the outside world, and concurrent access to a boundary are not covered. Maps and sets
 cannot be iterated.
 
@@ -307,7 +417,18 @@ node is gone, and there is no warning. The warnings:
 Committed: the Scala, `IDEA.md`, `.frflow/` (the ledger and keys; with the agent layer, its requests and conversation) and
 `lean/Proofs`; the rest is derived. CI runs `ci`, caching
 `.frflow/checks.json` and `lean/.lake` by branch, so only what changed is
-proven again.
+proven again. The repository has no CI configuration of its own; a CI job runs
+the tests twice, with the fixed seed and with a fresh one, so that a case the
+fixed seed never makes can still be found (a failing case is kept in
+`.frflow/counterexamples.json`, to commit):
+
+```
+bin/frflow crm ci
+FRFLOW_SEED=fresh bin/frflow crm ci
+```
+
+FrFlow's own suites (`sbt testAll`) keep the seeds they set, so their results do
+not depend on the environment.
 
 ### A new project
 

@@ -48,6 +48,7 @@ object SummaryText:
     val proofs = List(Option.when(s.splits > 0)(s"splits ${ratio(s.splitsProven, s.splits)} proven"),
       Option.when(s.contracts > 0)(s"contracts ${ratio(s.contractsProvenDown, s.contracts)} proven down to their code"),
       Option.when(s.contractsTested > 0)(s"code tested against its contract ${ratio(s.testsPassing, s.contractsTested)}"),
+      Option.when(s.modelsRun > 0)(s"boundaries' implementations run against their models ${ratio(s.modelsPassing, s.modelsRun)}"),
       rootImpl.map(r => s"root_impl $r"),
       Option.when(s.examplesInLean > 0)(s"examples ${ratio(s.examplesAgreeing, s.examplesInLean)} agree in Lean"),
       Some(s"trusted: ${s.trusted.filterNot(s.tested.contains) match { case Nil => "nothing"; case ts => ts.mkString(", ") }}" +

@@ -167,18 +167,26 @@ object NodeText:
       case CodeProof.ProvenDown(define, running) => s"proven define $define${runs(running)}"
       case CodeProof.Define(define, status, running) => s"define $define, $status${runs(running)}"
       case CodeProof.Tested(_) => "plain code, tested against the contract, not proven"
+      case CodeProof.Model(own, outside, _) =>
+        "implemented by: " + (own.map(i => s"$i (the project's own code, tested against the model)") ++
+          outside.map(i => s"$i (an outside system, checked against the model; the model stays assumed)")).mkString("; ")
     }
     // The define and the running code are named above.
     val impl = n.content.text("implementation").linesIterator.filterNot(l => l.startsWith("proven: ") || l.startsWith("runs: ")).toList
     val shown = if full || impl.size <= Few + 2 then impl else impl.take(Few) :+ s"${st.ellipsis} ${impl.size - Few} more line(s): context ${n.id}"
     how.toList ++ shown.map(l => st.dim("  " + l)) ++ tests(n, st, full) ++ governs(d, st)
 
-  /** What the tests of the code found: cases, seed, the failing case (shrunk), how often each part of the contract held. */
+  /** What the tests of the code found: cases, seed, the failing case (shrunk), how often each part of the contract (or
+    * each operation and branch of the model) was reached.
+    */
   private def tests(n: SnapNode, st: Style, full: Boolean): List[String] =
-    if !CodeProof.tested(n) then Nil
+    val model = CodeProof.of(n).exists { case _: CodeProof.Model => true; case _ => false }
+    if !CodeProof.run(n) then Nil
     else n.tested.fold(List(st.yellow("tested: not yet (run check)"))) { r =>
-      val head = s"tested: ${f"${r.cases}%,d"} generated cases (seed ${r.seed}), against ${r.against}"
-      val outcome = r.failure.fold(Option.when(r.unreached.isEmpty)(st.green("  every case meets it, and every part of it was reached")).toList)(f =>
+      val head = s"tested: ${f"${r.cases}%,d"} generated ${if model then "runs of its operations" else "cases"} (seed ${r.seed}), against ${r.against}"
+      val pass = if model then "  every run gives what the model gives and leaves what it leaves, and every operation and branch of it was reached"
+        else "  every case meets it, and every part of it was reached"
+      val outcome = r.failure.fold(Option.when(r.unreached.isEmpty)(st.green(pass)).toList)(f =>
         List(st.red(s"  fails: ${f.shown}"), st.red(s"    ${f.why}")))
       val parts = if full || r.unreached.nonEmpty then r.coverage.map(c =>
         if c.held == 0 then st.red(s"  never reached: ${c.part}") else st.dim(s"  ${c.part}: ${c.held}×")) else Nil

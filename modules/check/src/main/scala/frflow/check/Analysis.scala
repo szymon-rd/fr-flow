@@ -130,7 +130,9 @@ object Contents:
       Option.when(n.kept.nonEmpty)("keeps" -> strs(n.kept.map(_.describe))),
       Option.when(n.expected.nonEmpty)("expects" -> strs(n.expected.map((st, l) => s"$st: ${l.source}"))),
       implementation.map("implementation" -> str(_)),
-      n.modelOf.map(mo => "model" -> strs(a.generate.boundaryModules.modelText(mo)))
+      n.modelOf.map(mo => "model" -> strs(a.generate.boundaryModules.modelText(mo))),
+      n.modelOf.filter(_.impls.nonEmpty).map(mo => "implementations" -> strs(mo.impls.map(i =>
+        s"${if i.outside then CodeProof.Outside else CodeProof.Own}${i.source}")))
     ).flatten ++ idea)*)
 
   private val Statement = """^\s*(?:(?:private|protected|final|lazy|override|inline)\s+)*(?:val|def|given|var)\b.*""".r

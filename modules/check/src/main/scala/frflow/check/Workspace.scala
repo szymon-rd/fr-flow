@@ -114,10 +114,9 @@ object Inputs:
     val base = root.toAbsolutePath.normalize
     val explicit = kb.nodes.flatMap(_.governs).map(f => root.resolve(f).toAbsolutePath.normalize).toSet
     val governed = kb.nodes.map { n =>
-      val impl = kb.implementation(n).toList.flatMap { i =>
-        i.sources.filterNot(kb.modelFiles.contains).map(f => Path.of(f).toAbsolutePath.normalize)
-          .filterNot(p => explicit.exists(g => p == g || p.startsWith(g)))
-      }
+      val impl = (kb.implementation(n).toList.flatMap(_.sources) ++ n.modelOf.toList.flatMap(_.impls).flatMap(_.sources))
+        .filterNot(kb.modelFiles.contains).map(f => Path.of(f).toAbsolutePath.normalize)
+        .filterNot(p => explicit.exists(g => p == g || p.startsWith(g)))
       n.id -> (n.governs.map(root.resolve) ++ impl)
     }.filter(_._2.nonEmpty)
     governed.traverse { (id, paths) =>

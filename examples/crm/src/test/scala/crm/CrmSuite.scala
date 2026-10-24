@@ -185,8 +185,38 @@ class CrmSuite extends munit.CatsEffectSuite:
   }
 
   test("SQLite and the database's model agree on records the example lists out of the order SQLite returns them in") {
-    val onSqlite = knowledge.exampleResults(expiryJob).filter(r => r.example.note.startsWith("two records") && r.example.note.contains("run on database"))
+    val onSqlite = knowledge.exampleResults(expiryJob).filter(r => r.example.note.startsWith("two records") && r.example.note.contains("run on SqliteDatabase"))
     assertEquals(onSqlite.map(_.implementation), List(Some("ok")))
+  }
+
+  test("the database's implementations are run against its model: the CRM's own in-memory store tested, SQLite checked") {
+    val r = knowledge.test(tablesModel).get
+    assertEquals(r.failure, None)
+    assertEquals(r.coverage.filter(_.held == 0), Nil)
+    assert(r.notes.exists(_.startsWith("MemoryDatabase (the project's own code, tested)")), r.notes)
+    assert(r.notes.exists(_.startsWith("SqliteDatabase (an outside system")), r.notes)
+  }
+
+  test("a seeded bug in an in-memory store (a record's old shares kept) is found by generated runs and shrunk") {
+    // Holds the rows a store has about a record in place of the record's rows, but keeps its old shares.
+    final class LeakyDatabase(start: Tables) extends Database:
+      private var t = start
+      def tables: Tables = t
+      def load = Flow.effect(t.store)
+      def storeAbout(id: Term[BigInt], s: Term[CrmStore]) = Flow.effect(id, s) { (i, x) =>
+        t = t.copy(store = CrmStore(t.store.records.filter(_.id != i) ++ x.records.filter(_.id == i),
+          t.store.shares ++ x.shares.filter(_.record == i), t.store.expiries.filter(_.record != i) ++ x.expiries.filter(_.record == i)))
+      }
+      def logEvent(e: Term[Event]) = Flow.effect(e)(ev => { t = t.copy(events = t.events :+ ev) })
+    val leaky = Node.assumption(crm.db)(DatabaseModel)("TablesModel", tablesModel.statement, tablesModel.why)
+      .implementedBy(t => LeakyDatabase(t), _.tables)
+    val kb = KnowledgeBase(knowledge.name, knowledge.idea, knowledge.implementations, knowledge.generators, knowledge.testing)(
+      knowledge.nodes.map(n => if n eq tablesModel then leaky else n)*)
+    val f = kb.test(leaky).get.failure.get
+    assert(f.why.startsWith("after storeAbout("), f.why)
+    // Shrunk to one call, from a state holding a share of the record stored.
+    assertEquals(f.shown.count(_ == ';'), 0, f.shown)
+    assert(f.shown.startsWith("on LeakyDatabase, from Tables(CrmStore("), f.shown)
   }
 
   test("a write changes only what its author's company may change, and the write side checks it") {

@@ -10,6 +10,10 @@ private[frflow] trait Watch:
 private[frflow] object Watch:
   private val current = ThreadLocal[Watch | Null]()
   def get: Watch | Null = current.get
+  /** That a part went this way, under a test watching. */
+  def hit(t: Tree, outcome: Int): Unit =
+    val w = current.get
+    if w != null then w.hit(t, outcome)
   def within[T](w: Watch)(body: => T): T =
     val saved = current.get
     current.set(w)

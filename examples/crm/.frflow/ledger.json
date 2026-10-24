@@ -3092,6 +3092,44 @@
           "ideaSection": "Expiring shares",
           "notModelled": "- That the account a search or a write runs for is the caller's own\n  (authentication).\n- That the database's tables, which the running read side reads, are what its\n  event log led to: that nothing but the write side and the expiry job changes\n  them (a test replays the log).\n- Editing or removing records: a write only adds one."
         }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-24T02:59:03.819470Z",
+        "reason": "The database's model now names its implementations: MemoryDatabase, the CRM's own store, tested against it; SQLite, an outside system, checked against it",
+        "rejected": [],
+        "after": "66fe832a35759b71",
+        "code": "b0cfe8db3f277b62d86fd9caf975609d456c5f4be4dd9ffad6d382204a9842a1",
+        "commit": "e126a7d9bf183bb1067643fd585b8580cd976af2",
+        "key": "b6e216cfdf46a202",
+        "sig": "biOm8o9+5OFsjTo0DHsLdpqBBq52biLnp0NFF/uYHHFznut0hrKWjMghbb0Q4au2MUfxR9NTBeNUCBBC94gjCQ==",
+        "chain": "",
+        "content": {
+          "kind": "assumption",
+          "parents": [],
+          "statement": "The database holds a store and an event log: it gives the store as it holds it, holds the rows a store has about a record in place of those it held about it, leaving the other records' rows, and appends an event to the log.",
+          "why": "Records, shares, expiries and the event log live in SQLite. Proven flows are proven from this model, not from the SQL; the SQLite adapter (SqliteDatabase) does this by deleting and inserting the record's rows in one transaction, and by inserting into the events table. MemoryDatabase, the CRM's own in-memory store for development and tests, is tested against this model; SQLite, an outside system, is checked against it.",
+          "sources": {},
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [],
+          "uses": [],
+          "governs": [],
+          "definition": "val tablesModel = Node.assumption(db)(DatabaseModel)(\"TablesModel\",\n  \"The database holds a store and an event log: it gives the store as it holds it, holds the rows a store has about a record in place of those it held about it, leaving the other records' rows, and appends an event to the log.\",\n  why = \"Records, shares, expiries and the event log live in SQLite. Proven flows are proven from this model, not from the SQL; the SQLite adapter (SqliteDatabase) does this by deleting and inserting the record's rows in one transaction, and by inserting into the events table. MemoryDatabase, the CRM's own in-memory store for development and tests, is tested against this model; SQLite, an outside system, is checked against it.\",\n  idea = \"Expiring shares\")\n  .checkedAgainst(t => SqliteDatabase.holding(t), _.tables)\n  .implementedBy(t => MemoryDatabase.holding(t), _.tables)",
+          "model": [
+            "load = do\n    let t ← get\n    pure t.store",
+            "logEvent = fun (e : Event) => do\n    modify (fun t => (Tables.mk t.store (t.events ++ [e])))",
+            "storeAbout = fun (id_ : Int) (t : CrmStore) => do\n    modify (fun t_1 => (Tables.mk (Crm.replaceAbout t_1.store id_ (Crm.aboutRecord t id_)) t_1.events))"
+          ],
+          "implementations": [
+            "assumed, checked: t => SqliteDatabase.holding(t)",
+            "tested: t => MemoryDatabase.holding(t)"
+          ],
+          "idea": "## Expiring shares\n\nA company can share a record until a given time. When that time has passed,\nthe share ends: searches no longer find the record through it, whether or not\nthe expiry job has run. The job clears ended shares every minute, and changes\nnothing else.",
+          "ideaSection": "Expiring shares",
+          "notModelled": "- That the account a search or a write runs for is the caller's own\n  (authentication).\n- That the database's tables, which the running read side reads, are what its\n  event log led to: that nothing but the write side and the expiry job changes\n  them (a test replays the log).\n- Editing or removing records: a write only adds one."
+        }
       }
     ],
     "Visibility": [

@@ -74,8 +74,9 @@ the models together make `structure World` (one field per boundary), an instance
 assumes the boundary deterministic (unknowns go into the state; the proofs hold for every start
 state), never failing, the flow's alone during a run (a design node governs how), and loops over
 lists. The model's node is an assumption: decided and trusted, a hypothesis of nothing in Lean (the
-instance is the model). `.checkedAgainst(start, read)` runs the production implementation beside the
-model on the examples of the flows that call it.
+instance is the model). Its implementations are run against it (§1b): `.checkedAgainst(start, read)`
+names an outside system (assumed: checked on the flows' examples and on generated runs);
+`.implementedBy(start, read)` names the project's own code (tested on generated runs).
 
 A **contract on a flow** is on an operation `Param[A => Flow[R]]`; its post relates the input, the
 result and the worlds before and after (`before(Model)` is the model's state). Its `claim` takes the
@@ -84,6 +85,32 @@ operation as a run on the models, `A → World → R × World`. The attached flo
 Such a contract may have no parent: production code runs it (an entry point). A proven flow takes no
 step of the outside world (`Flow.effect`, which production implementations use); a validation
 problem says so.
+
+## 1b. Proven, tested, assumed
+
+The code under a contract, or behind a boundary, is in one of three states, kept apart in the
+snapshot, `status` and `show`:
+- **proven**: a define or a flow, and `impl` proves it meets the contract;
+- **tested**: plain Scala under a contract (`implement(contract, calls*)(code)`), or the project's own
+  implementation of a boundary (`.implementedBy`); in Lean the operation stays a parameter with the
+  contract (or the model) as its hypothesis, so the proofs above rest on the contract alone, and
+  `root_impl` lists it under "tested, not proven";
+- **assumed**: an outside system (`.checkedAgainst`), or an assumption on an operation.
+
+Tests are built from what is decided, so they cannot drift from it:
+- **the property** is the contract's own formula (with its `checkedBy` check and kept invariants),
+  evaluated on each case; for a boundary, the model run beside the implementation, results and states
+  (read back) compared after every call;
+- **the cases** come from generators derived from the types, the world included (the parameters the
+  contract reads), seeded with the examples' values; generators given with `.generating(gen)` are
+  typed, described, checked against the examples (their values they never make stay seeds), and share
+  the cases with the derived ones (for an outside system's types, they are all there is);
+- **coverage** is of the formula (each premise, disjunct, branch and match case) and of the model
+  (each operation called, each branch taken): a part no case reached is a finding;
+- **failures** are shrunk (smaller values, fewer calls), kept in `.frflow/counterexamples.json` and
+  replayed first. Runs are seeded (`TestSettings(cases, seed)`; `FRFLOW_SEED` for one `check`), and
+  a result is kept while the node's meaning, code, settings and generators are the same
+  (`.frflow/tests.json`, derived).
 
 ## 2. Nodes
 

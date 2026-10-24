@@ -144,9 +144,15 @@ final class FlowContractOn[A, R](val op: Param[A => Flow[R]]):
         ideaSection = idea, file = Source.here, at = Source.at)
     node()
 
-/** A boundary and the model it is decided to behave as. */
-/** `real`: how to start the production implementation in a model's state, and read its state back. */
-final case class ModelOf(boundary: Boundary[?], model: StateModel[?], real: Option[(Any => Any, Any => Any)] = None)
+/** A boundary and the model it is decided to behave as, with the implementations of the boundary checked against it. */
+final case class ModelOf(boundary: Boundary[?], model: StateModel[?], impls: List[ModelImpl] = Nil)
+
+/** An implementation of a boundary, started in a model's state (`start`) and read back (`read`): an outside system
+  * (`outside`: a database; its model stays assumed) or code of the project's own (tested against the model). `source`
+  * is how it is started, as written; `files`, the project files that expression refers to (the model's file last).
+  */
+final case class ModelImpl(start: Any => Any, read: Any => Any, outside: Boolean, source: String, files: List[String]):
+  def sources: List[String] = files.dropRight(1)
 
 /** A boundary's model, decided: `T` is the boundary's trait, `S` the model's state. */
 final class Modelled[T, S] private ()
@@ -161,13 +167,24 @@ final class ModelNode[T, S](m: ModelOf):
     node()
 
 extension [T, S](n: Node[Modelled[T, S]])
-  /** The production implementation, checked against the model on the examples of the flows calling it: `start` makes
-    * one holding a model's state, `read` reads its state back. Each example's run on it must give what the run on the
-    * model gives, both seen as the implementation holds a state (stored and read back): order it does not keep, such as
-    * rows a table returns sorted, is not compared.
+  /** An outside system implementing the boundary (a database): its model stays assumed. It is checked against the
+    * model on the examples of the flows calling it, and on generated runs of its operations from generated states.
+    * `start` makes one holding a model's state, `read` reads its state back; both are compared as it holds a state
+    * (stored and read back), so order it does not keep, such as rows a table returns sorted, is not compared.
     */
-  def checkedAgainst[I <: T](start: S => I, read: I => S): Node[Modelled[T, S]] =
-    n.copy(modelOf = n.modelOf.map(_.copy(real = Some((start.asInstanceOf[Any => Any], read.asInstanceOf[Any => Any])))))
+  inline def checkedAgainst[I <: T](inline start: S => I, inline read: I => S): Node[Modelled[T, S]] =
+    n.withImpl(ModelImpl(start.asInstanceOf[Any => Any], read.asInstanceOf[Any => Any], outside = true, Source.text(start),
+      Source.sourceFiles(start)))
+
+  /** The project's own code implementing the boundary (an in-memory store, a cache): tested against the model, not
+    * assumed. Generated runs of its operations, from generated states, must give what the model gives, and leave what
+    * the model leaves (read back with `read`); a run that does not is shrunk and reported.
+    */
+  inline def implementedBy[I <: T](inline start: S => I, inline read: I => S): Node[Modelled[T, S]] =
+    n.withImpl(ModelImpl(start.asInstanceOf[Any => Any], read.asInstanceOf[Any => Any], outside = false, Source.text(start),
+      Source.sourceFiles(start)))
+
+  private[frflow] def withImpl(i: ModelImpl): Node[Modelled[T, S]] = n.copy(modelOf = n.modelOf.map(m => m.copy(impls = m.impls :+ i)))
 
 /** `Node.assumption(op)(id, statement, why, idea)(post)`: a step of its own, so that both assumptions default `idea`. */
 final class AssumptionOn[A, B, R](val op: Param[(A, B) => R]):
