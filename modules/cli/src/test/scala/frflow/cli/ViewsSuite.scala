@@ -4,7 +4,7 @@ import frflow.api.*
 import frflow.protocol.*
 import io.circe.syntax.*
 
-/** The views in plain mode, against golden files: what an agent or CI reads. */
+/** The views in plain mode, against golden files: what CI reads. */
 class ViewsSuite extends munit.CatsEffectSuite with Golden:
   private val st = Style(color = false, unicode = false, width = Some(100))
   private def api = FakeApi()
@@ -23,7 +23,7 @@ class ViewsSuite extends munit.CatsEffectSuite with Golden:
     api.flatMap(_.diff(NodeId("Expiry"))).map(d => assertEquals(DiffText.lines(d, st).headOption, Some("New: never decided")))
   }
 
-  test("context (show --full): with the idea, what it rests on and the obligations; nothing cut") {
+  test("show --full: with the idea, what it rests on and the obligations; nothing cut") {
     api.flatMap(_.details(NodeId("Decide"))).map(d => golden("context", NodeText.lines(d, st, Depth.Full)))
   }
 
@@ -56,7 +56,7 @@ class ViewsSuite extends munit.CatsEffectSuite with Golden:
     }
   }
 
-  test("inbox: requests, the developer's queue, the agent's tasks, then the summary") {
+  test("inbox: the developer's queue, then the summary") {
     api.flatMap(_.view).map(v => golden("inbox", InboxText.lines(Inbox.of(v), v, st)))
   }
 

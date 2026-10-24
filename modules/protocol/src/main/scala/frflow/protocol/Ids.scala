@@ -29,8 +29,6 @@ object KeyId extends Id[KeyId]
 /** A short reference to one decision (see `Ledger.entry`). */
 opaque type EntryRef = String
 object EntryRef extends Id[EntryRef]
-opaque type RequestId = String
-object RequestId extends Id[RequestId]
 /** A node as the developer last saw it (see the ledger's `Reading.version`): a decision sent with one is refused if it moved. */
 opaque type Version = String
 object Version extends Id[Version]
@@ -89,11 +87,6 @@ enum Action:
   /** What a node is bound to. */
   def binds: Boolean = this == Accept || this == Confirm
 object Action extends Words[Action]
-
-enum RequestStatus:
-  case Open, Answered, Closed
-  override def toString: String = word(productPrefix)
-object RequestStatus extends Words[RequestStatus]
 
 /** A decision below a changed node: `moved` is under review only because the node's meaning moved. */
 enum BelowKind:

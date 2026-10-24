@@ -24,7 +24,7 @@ enum Decide derives Codec.AsObject:
     * version as the developer saw it: the decision is refused if it moved since.
     */
   case Accept(nodes: List[NodeId], reason: String, revisit: List[NodeId] = Nil, seen: Map[NodeId, Version] = Map.empty)
-  /** Reject a proposal, with the proposals that rest on it: the agent proposes what the reason asks for. */
+  /** Reject a proposal, with the proposals that rest on it: whoever wrote it proposes what the reason asks for instead. */
   case Reject(node: NodeId, reason: String, seen: Option[Version] = None)
   /** Accept every mechanical decision (see `Mechanical`). */
   case Confirm(reason: String)

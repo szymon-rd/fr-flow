@@ -104,11 +104,11 @@ object Lines:
   def state(r: Reviewed): String =
     if r.state == ReviewState.Review then s"review: ${r.review.causes.mkString(", ")}" else r.state.toString
 
-  /** Its kind unless a claim, its review state unless accepted. */
-  def marks(r: Reviewed, st: Style, asked: Boolean = false): String =
+  /** Its kind unless a claim, its review state unless accepted, and the word a layer on top shows beside it (`mark`). */
+  def marks(r: Reviewed, st: Style, mark: Option[String] = None): String =
     val kind = Option.when(r.node.shownKind != "claim")(st.dim(r.node.shownKind))
     val review = Option.when(r.state != ReviewState.Accepted)(st.state(r.state, state(r)))
-    (kind.toList ++ review ++ Option.when(asked)(st.magenta("asked"))).map("  " + _).mkString
+    (kind.toList ++ review ++ mark.map(st.magenta)).map("  " + _).mkString
 
   def statement(r: Reviewed): String = r.node.content.statement.replaceAll("\\s+", " ").trim
 

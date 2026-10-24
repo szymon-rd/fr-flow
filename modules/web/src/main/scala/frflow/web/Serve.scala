@@ -16,9 +16,10 @@ object Serve extends IOApp:
         for
           project <- project(main)
           env <- IO(sys.env)
-          api <- project.api(env)
-          dev <- api.developer(as)
-          code <- dev.fold(r => Console[IO].errorln(r.message).as(ExitCode(2)), WebView.serve(api, _, port).as(ExitCode.Success))
+          host <- project.host(env)
+          dev <- host.api.developer(as)
+          layers = project.extensions.collect { case w: WebExtension => w }
+          code <- dev.fold(r => Console[IO].errorln(r.message).as(ExitCode(2)), WebView.serve(host, _, port, layers).as(ExitCode.Success))
         yield code
       case Left(why) => Console[IO].errorln(s"$why\n$Usage").as(ExitCode(2))
     case Nil => Console[IO].errorln(Usage).as(ExitCode(2))

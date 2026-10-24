@@ -62,13 +62,6 @@ object Ledger:
   given Codec[Ledger] = Codec.from(Decoder[Map[NodeId, List[Decision]]].at("decisions").map(Ledger(_)),
     Encoder.instance(l => Json.obj("decisions" -> Json.fromFields(l.decisions.toList.sortBy(_._1).map((id, ds) => id.value -> ds.asJson)))))
 
-/** A request of the developer's, on a node or on the idea; the node is with the agent until it is answered
-  * (`answeredAt`) or the node changes from the `version` it was `seen` at.
-  */
-final case class Request(id: RequestId, node: Option[NodeId], text: String, by: String, at: Instant,
-    status: RequestStatus, answer: Option[String] = None, seen: Option[Version] = None, answeredAt: Option[Instant] = None)
-    derives Codec.AsObject
-
 final case class Moved(id: NodeId, before: Content) derives Codec.AsObject
 final case class RejectedBeside(id: NodeId, statement: String, why: String, reason: String) derives Codec.AsObject
 final case class Alternative(id: NodeId, content: Content) derives Codec.AsObject
@@ -95,3 +88,12 @@ final case class Gone(id: NodeId, decision: Decision) derives Codec.AsObject
 final case class Annotated(snapshot: Snapshot, nodes: List[Reviewed], gone: List[Gone], order: List[NodeId],
     idea: Option[IdeaReview] = None) derives ConfiguredCodec:
   lazy val byId: Map[NodeId, Reviewed] = nodes.map(r => r.id -> r).toMap
+
+/** IDEA.md as a decision of the developer's, kept in the ledger under `IDEA`: proposed until accepted, under review once
+  * it changes from what was accepted. `version` is the text as the developer saw it.
+  */
+final case class IdeaReview(state: ReviewState, version: Version, binding: Option[Decision], text: String) derives Codec.AsObject
+
+object IdeaReview:
+  /** The ledger's entry for IDEA.md: not a node, so no node may be called this. */
+  val Id: NodeId = NodeId("IDEA")

@@ -25,11 +25,13 @@ def leanTagged: Seq[Setting[?]] = inConfig(LeanTest)(Defaults.testTasks) ++ Seq(
     Tests.Argument(TestFrameworks.MUnit, "--include-tags=Lean"))
 addCommandAlias("leanTest", "Lean/test")
 addCommandAlias("testAll", "; test; Lean/test")
-// A new project, before the idea is told: `sbt "frflowInit toy"` (an empty knowledge base, its Lean project, its line below).
+// A new project: `sbt "frflowInit toy"` (an empty knowledge base and its line below); with an AI agent's layer on top,
+// `sbt "frflowInitAgent toy"` (the same, its main object passing the layer; the idea is then told in chat).
 addCommandAlias("frflowInit", "cli/runMain frflow.cli.Init")
+addCommandAlias("frflowInitAgent", "agent/runMain frflow.agent.Init")
 
 lazy val root = project.in(file("."))
-  .aggregate(model, protocol, lean, ledger, check, api, cli, web, auth, crm, keycloak)
+  .aggregate(model, protocol, lean, ledger, check, api, cli, web, agent, auth, crm, keycloak)
   .configs(LeanTest).settings(leanTagged)
   .settings(publish / skip := true)
 
@@ -37,18 +39,20 @@ def module(name: String, libraries: ModuleID*) = Project(name, file(s"modules/$n
   .configs(LeanTest).settings(leanTagged)
   .settings(Keys.name := s"frflow-$name", libraryDependencies ++= munit +: libraries)
 
-/** The DSL: nodes, the knowledge base, the macro from Scala to Lean, the runtime checks (package `frflow`). */
+// FrFlow's core: the modules below up to `web`, usable on their own. `agent` is a layer on top; no core module depends on it.
+
+/** The DSL: terms, flows, nodes, the knowledge base, the runtime checks (package `frflow`). */
 lazy val model = module("model", cats, catsEffectKernel).dependsOn(protocol)
 
-/** The data crossing modules and files: the snapshot, the review, the ledger, checks and requests,
-  * with their JSON codecs; ids and statuses as types (package `frflow.protocol`).
+/** The data crossing modules and files: the snapshot, the review, the ledger and checks, with their JSON codecs; ids and
+  * statuses as types (package `frflow.protocol`).
   */
 lazy val protocol = module("protocol", circe, circeParser % Test)
 
 /** The Lean of a knowledge base, and reading Lean's output. */
 lazy val lean = module("lean", cats).dependsOn(model % "compile->compile;test->test", protocol)
 
-/** The developer's decisions: review states, decide, signatures, reports; the ledger's, requests' and keys' files. */
+/** The developer's decisions: review states, decide, signatures, reports; the ledger's and keys' files. */
 lazy val ledger = module("ledger", cats, catsEffect, circe, circeParser, munitEffect).dependsOn(protocol)
 
 /** Rendering and checking a knowledge base against Lean; the snapshot; git. */
@@ -58,20 +62,29 @@ lazy val check = module("check", (Seq(cats, catsEffect, circe, circeParser, muni
 /** The one API a front end calls (the CLI, the web view): typed values over `IO`. */
 lazy val api = module("api", cats, catsEffect, circe, munitEffect).dependsOn(check % "compile->compile;test->test")
 
-/** The command line a project's main object extends (`FrFlowApp`): commands, colors, interactive review. */
+/** The command line a project's main object extends (`FrFlowApp`): commands, colors, interactive review; layers on top add
+  * their commands (`CliExtension`).
+  */
 lazy val cli = module("cli", cats, catsEffect, circe, decline, munitEffect).dependsOn(api % "compile->compile;test->test")
 
-/** The web view (`serve`): the page, and routes onto the API, over http4s on localhost. The CLI does not depend on it;
-  * a project's main object passes it to the CLI.
+/** The web view (`serve`): the page, and routes onto the API, over http4s on localhost; layers on top add routes and a
+  * script (`WebExtension`). The CLI does not depend on it.
   */
 lazy val web = module("web", (Seq(catsEffect, circe, munitEffect) ++ http4s)*).dependsOn(api % "compile->compile;test->test")
+
+/** A layer on top of the core for an AI agent building the system: the conversation a project starts from, the developer's
+  * requests and the agent's answers, the agent's queue, `context`, their commands and web panels (package `frflow.agent`).
+  */
+lazy val agent = module("agent", (Seq(cats, catsEffect, circe, circeParser, decline, munitEffect) ++ http4s)*)
+  .dependsOn(cli % "compile->compile;test->test", web % "compile->compile;test->test", ledger % "test->test")
 
 /** The java command that runs a project's CLI on a terminal (colors, the interactive review): what `bin/frflow` runs. */
 val cliLauncher = taskKey[File]("Writes the java command running this project's CLI, for bin/frflow")
 val serve = inputKey[Unit]("The project's web view on localhost, until stopped: serve [--port N] [--as NAME]")
 
-def example(name: String) = Project(name, file(s"examples/$name"))
-  .dependsOn(cli, web)
+/** A project; `layers`, the layers on top on its classpath (the AI agent's by default; none for a core-only project). */
+def example(name: String, layers: Seq[ClasspathDep[ProjectReference]] = Seq(agent)) = Project(name, file(s"examples/$name"))
+  .dependsOn((Seq[ClasspathDep[ProjectReference]](cli, web) ++ layers)*)
   .configs(LeanTest).settings(leanTagged)
   .settings(
     libraryDependencies ++= Seq(munit, munitEffect),

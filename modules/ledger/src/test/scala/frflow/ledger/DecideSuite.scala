@@ -102,17 +102,3 @@ class DecideSuite extends munit.FunSuite:
     assertEquals(Within(id("A"), NoReason).message, "A: give the reason for the decision in a few words: it is kept as part of the theory")
   }
 
-  test("answering a request: the one named, the open one on a node, or a new one from the agent") {
-    val now = java.time.Instant.parse("2026-01-01T00:00:00Z")
-    assertEquals(Requests.answer(Nil, "Nowhere", "text", _ => false, now), Left(UnknownRequest("Nowhere")))
-    val (asked, q) = Requests.ask(Nil, Some(id("A")), "Say which shelf.", "dev", now)
-    val (answered, a1) = right(Requests.answer(asked, "A", "On the first.", _ => true, now))
-    assertEquals((a1.id, a1.status, a1.answer), (q.id, RequestStatus.Answered, Some("On the first.")))
-    val (fromAgent, a2) = right(Requests.answer(answered, "B", "Shelves are now listed.", _ == id("B"), now))
-    assertEquals((a2.by, a2.node, fromAgent.size), ("agent", Some(id("B")), 2))
-    assert(a2.id != q.id)
-    assertEquals(Requests.close(fromAgent, List(q.id, RequestId("R0"))), Left(NoRequest(List(RequestId("R0")))))
-    assertEquals(right(Requests.close(fromAgent, List(q.id)))._2.map(_.status), List(RequestStatus.Closed))
-    // the version of the node the developer asked about
-    assertEquals(Requests.ask(Nil, Some(id("A")), "Say which shelf.", "dev", now, Some(Version("v1")))._2.seen, Some(Version("v1")))
-  }

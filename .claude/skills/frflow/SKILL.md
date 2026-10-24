@@ -21,10 +21,17 @@ Scala nodes: one root, and below it parts that together prove it, down to
 contracts on the code. Lean proves each split; the developer decides every node,
 and `IDEA.md`. The README explains the method, `docs/DAG.md` the design.
 
+These rules are the agent layer's (`frflow.agent`), on top of FrFlow's core. A
+project uses it when its main object names it,
+`FrFlowApp(knowledge, root = "examples/NAME", extensions = List(frflow.agent.Agent))`;
+without it, `said`, `asked`, `replied`, `conversation`, `ask`, `close`, `context`
+and `answer` are not there, and `inbox` lists no requests. Do not add it to a
+project whose developer set it up without the layer.
+
 ## Starting a project: the conversation
 
-1. **Set up.** `sbt "frflowInit NAME"` (a lowercase name), then `sbt reload`:
-   an empty knowledge base in `examples/NAME`. `bin/frflow NAME status` works
+1. **Set up.** `sbt "frflowInitAgent NAME"` (a lowercase name), then `sbt reload`:
+   an empty knowledge base in `examples/NAME`, with the agent layer. `bin/frflow NAME status` works
    from here.
 2. **Let the developer tell the idea**, in their own words, as long or short
    as they like. Record it verbatim: `said TEXT` (each message that tells the

@@ -39,7 +39,7 @@ class LiveApiSuite extends munit.CatsEffectSuite:
       assertEquals(named, Right(dev))
   }
 
-  dir.test("rejecting a proposal records it with the proposals resting on it, signed; the agent is to replace it") { d =>
+  dir.test("rejecting a proposal records it with the proposals resting on it, signed") { d =>
     val why = "a shelf is not where picked books come from"
     for
       live <- api(d)
@@ -49,20 +49,6 @@ class LiveApiSuite extends munit.CatsEffectSuite:
       assertEquals(done.map(_.decisions.map(_.node)), Right(List(NodeId("FromList"), NodeId("Pick"))))
       assertEquals(v.node(NodeId("FromList")).map(_.state), Some(ReviewState.Rejected))
       assertEquals(v.unsigned, Nil)
-      assert(Inbox.of(v).forAgent.contains(ForAgent.Replace(NodeId("FromList"), dev.name, why)), Inbox.of(v).forAgent)
-  }
-
-  dir.test("the developer asks; the agent answers the request") { d =>
-    for
-      live <- api(d)
-      asked <- live.ask(Some(NodeId("OnlyGood")), "Say what makes an item good.", dev)
-      id = asked.fold(r => fail(r.message), _.id)
-      answered <- live.answer(id.value, "Books says it: a book is good when it is long enough.")
-      v <- live.view
-    yield
-      assertEquals(answered, Right(id))
-      assertEquals(v.requests.map(q => (q.id, q.node, q.status, q.answer)),
-        List((id, Some(NodeId("OnlyGood")), RequestStatus.Answered, Some("Books says it: a book is good when it is long enough."))))
   }
 
   dir.test("a refusal records nothing; who decides comes from --as, FRFLOW_AS or the key's filed name") { d =>
@@ -70,8 +56,7 @@ class LiveApiSuite extends munit.CatsEffectSuite:
       live <- api(d)
       nobody <- live.developer(None)
       noNodes <- live.decide(Decide.Accept(Nil, "nothing at all to accept"), dev)
-      unknown <- live.ask(Some(NodeId("Nope")), "Say more.", dev)
-      empty <- live.ask(None, "  ", dev)
+      unknown <- live.decide(Decide.Accept(List(NodeId("Nope")), "it holds as written"), dev)
       filed <- IO.blocking(Files.exists(project(d).resolve(".frflow/keys")))
       l <- ledger(d)
       fromEnv <- api(d, "FRFLOW_AS" -> "ci-dev").flatMap(_.developer(None))
@@ -80,7 +65,6 @@ class LiveApiSuite extends munit.CatsEffectSuite:
       assertEquals(nobody, Left(Refusal.NoDeveloper))
       assertEquals(noNodes, Left(Refusal.NoNodes))
       assertEquals(unknown, Left(Refusal.UnknownNode(NodeId("Nope"))))
-      assertEquals(empty, Left(Refusal.NoText))
       assertEquals((filed, l), (false, Ledger.empty))
       assertEquals((fromEnv, named), (Right(Developer("ci-dev")), Right(dev)))
   }
@@ -99,54 +83,35 @@ class LiveApiSuite extends munit.CatsEffectSuite:
       assertNotEquals(after, before)
   }
 
-  dir.test("a project starts in chat: the words and questions recorded, IDEA.md written from them and accepted, then the root") { d =>
+  dir.test("IDEA.md is a decision: written, accepted (signed), then the root; a change to it brings it back") { d =>
     import frflow.{KnowledgeBase, Node, True}
     val empty = KnowledgeBase("Toy", idea = "IDEA.md")()
     val root = Node.claim("ToyRoot", "A reader borrows exactly the books on the shelf that nobody else holds.",
-      why = "The idea's purpose, as the developer confirmed it in chat.")(True)
+      why = "The idea's purpose.")(True)
     def at(kb: KnowledgeBase) = LiveApi(kb, Workspace(project(d), "../lean"), Map("FRFLOW_KEY" -> d.resolve("signing.key").toString))
-    val idea = "# Toy\n\nA shelf of books readers borrow.\nFrom: Q1\n\n## Borrowing\nFrom: Q1, Q2\nA reader borrows a book nobody holds.\n"
+    val idea = "# Toy\n\nA shelf of books readers borrow.\n\n## Borrowing\nA reader borrows a book nobody holds.\n"
     def write(text: String) = IO.blocking { Files.createDirectories(project(d)); Files.writeString(project(d).resolve("IDEA.md"), text) }
     for
       live <- at(empty)
-      // the developer's words, and the agent's questions, each with the answer it assumes
-      _ <- live.said("A shelf of books that readers borrow.")
-      q1 <- live.asked("Can a reader hold several books?", "Yes, any number.")
-      q2 <- live.asked("Can two readers hold one book?", "No: a book is held by one reader at a time.")
-      _ <- live.replied("Q1", "Yes.")
-      unknown <- live.replied("Q7", "Yes.")
-      noAssumption <- live.asked("Who runs the shelf?", " ")
-      talking <- live.view
-      // the agent writes IDEA.md from the conversation: it waits for the developer
+      before <- live.view
       _ <- write(idea)
       written <- live.view
       accepted <- live.decide(Decide.Accept(List(IdeaReview.Id), "it says what the shelf is for"), dev)
       confirmed <- live.view
-      // then the root, proposed: decided after IDEA.md
       withRoot <- at(KnowledgeBase("Toy", idea = "IDEA.md")(root))
       proposed <- withRoot.view
-      // a changed answer, and then a changed IDEA.md: it is back, and the root waits for it again
-      _ <- live.replied("Q1", "Yes, at most three.")
-      warned <- withRoot.view
       _ <- write(idea.replace("A reader borrows a book nobody holds.", "A reader borrows at most three books nobody holds."))
       changed <- withRoot.view
       l <- ledger(d)
     yield
-      assertEquals((q1.map(_.id), q2.map(_.id)), (Right("Q1"), Right("Q2")))
-      assertEquals((unknown, noAssumption), (Left(Refusal.UnknownQuestion("Q7")), Left(Refusal.NoAssumption)))
-      assertEquals(talking.conversation.said.map(_.text), List("A shelf of books that readers borrow."))
-      assertEquals(talking.conversation.unanswered.map(_.id), List("Q2"))
-      assertEquals((talking.annotated.idea, talking.nodes, talking.ok), (None, Nil, false))
-      assertEquals(Inbox.of(talking).questions.map(_.id), List("Q2"))
+      assertEquals((before.annotated.idea, before.nodes, before.ok), (None, Nil, false))
       assertEquals(written.annotated.idea.map(_.state), Some(ReviewState.Proposed))
       assertEquals(Inbox.of(written).idea.map(_.state), Some(ReviewState.Proposed))
       assertEquals(accepted.map(_.decisions.map(_.node)), Right(List(IdeaReview.Id)))
       assert(l.history(IdeaReview.Id).headOption.exists(_.sig.isDefined), l)
-      assertEquals(confirmed.annotated.idea.map(_.state), Some(ReviewState.Accepted))
-      assertEquals(confirmed.warnings, Nil)
+      assertEquals((confirmed.annotated.idea.map(_.state), confirmed.warnings), (Some(ReviewState.Accepted), Nil))
       val r = proposed.node(NodeId("ToyRoot")).get
       assertEquals((r.state, r.review.waitsFor), (ReviewState.Proposed, None))
-      assert(warned.warnings.exists(_.contains("the answer to Q1 changed after IDEA.md was accepted")), warned.warnings)
       assertEquals(changed.annotated.idea.map(_.state), Some(ReviewState.Review))
       assertEquals(changed.node(NodeId("ToyRoot")).flatMap(_.review.waitsFor), Some(IdeaReview.Id))
   }

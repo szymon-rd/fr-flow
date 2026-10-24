@@ -205,7 +205,7 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
   }
   private def introduce(names: List[String]): String = if names.isEmpty then "" else s"  intro ${names.mkString(" ")}\n"
 
-/** The files an agent proves in (`Proofs/<KB>/<Node>.lean`), their stubs, and the Lake project. */
+/** The files proofs are written in (`Proofs/<KB>/<Node>.lean`), their stubs, and the Lake project. */
 final class ProofFiles(kb: KnowledgeBase, layout: Layout, refinement: Refinement):
   private val K = kb.name
 

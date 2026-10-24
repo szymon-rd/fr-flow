@@ -5,8 +5,8 @@ import cats.effect.{ExitCode, IO, IOApp}
 import cats.effect.std.Console
 import cats.syntax.all.*
 import com.monovore.decline.{Command as Sub, Opts}
-import frflow.api.{Decide, FrFlowError, FrFlowProject, LiveApi}
-import frflow.protocol.{NodeId, RequestId}
+import frflow.api.{Decide, Extension, FrFlowError, FrFlowProject, Host, LiveApi}
+import frflow.protocol.NodeId
 import java.nio.file.Path
 
 /** The command line of a knowledge base, which a project's main object extends:
@@ -14,20 +14,23 @@ import java.nio.file.Path
   * object authCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/auth")
   * }}}
   * `root` is the project's directory (`FRFLOW_ROOT` overrides it); `kernelPath`, FrFlow's Lean kernel
-  * relative to the project's `lean/`. A usage error prints the help and exits 2. The web view runs from the
-  * same object, through sbt (`sbt "auth/serve --as NAME"`), not from here.
+  * relative to the project's `lean/`; `extensions`, the layers on top it uses (their commands follow FrFlow's, e.g.
+  * `extensions = List(frflow.agent.Agent)` for an AI agent's). A usage error prints the help and exits 2. The web
+  * view runs from the same object, through sbt (`sbt "auth/serve --as NAME"`), not from here.
   */
-abstract class FrFlowApp(knowledge: => KnowledgeBase, val root: String = ".", val kernelPath: String = "../../../lean")
-    extends IOApp with FrFlowProject:
+abstract class FrFlowApp(knowledge: => KnowledgeBase, val root: String = ".", val kernelPath: String = "../../../lean",
+    override val extensions: List[Extension] = Nil) extends IOApp with FrFlowProject:
   final def kb: KnowledgeBase = knowledge
+  private def cli: List[CliExtension] = extensions.collect { case c: CliExtension => c }
   final def run(args: List[String]): IO[ExitCode] = IO(sys.env).flatMap { env =>
     val name = Option(Path.of(root).normalize.getFileName).map(_.toString).filter(n => n.nonEmpty && n != ".").getOrElse("frflow")
-    Sub(name, Commands.header)(Commands.all).parse(args, env) match
+    Sub(name, Commands.header(cli))(Commands.all(cli)).parse(args, env) match
       case Right((command, plain)) =>
         for
           term <- Terminal.live
           st = Style.of(plain, env, term.interactive)
-          code <- LiveApi.fromEnv(knowledge, root, kernelPath, env).flatMap(api => Dispatch(api, term, st)(command))
+          code <- LiveApi.fromEnv(knowledge, root, kernelPath, env)
+            .flatMap(api => Dispatch(api, term, st, cli, Some(Host(api, directory(env), env)))(command))
             .handleErrorWith(FrFlowApp.failed(term, _))
         yield code
       case Left(help) =>
@@ -81,42 +84,39 @@ enum Command:
   case Review(as: Option[String])
   /** What it records, given the reason. */
   case Decision(make: String => Decide, asked: Asked)
-  case Ask(node: Option[NodeId], text: String, as: Option[String])
-  case Close(requests: List[RequestId])
   case Render
   case Check(node: Option[NodeId], json: Boolean)
   case Status(json: Boolean)
   case Ci
   case Find(query: String)
   case Scaffold(node: NodeId)
-  case Answer(to: String, text: String)
-  case Said(text: String)
-  case QuestionAsked(text: String, assumed: String)
-  case Replied(question: String, text: String)
-  case Conversation(json: Boolean)
+  /** One of a layer's commands (see `CliExtension`). */
+  case Layer(run: CliRun)
 
-/** The command line: the developer's commands, then the agent's (their names are SKILL.md's). */
+/** The command line: FrFlow's commands, then those of the layers on top (`CliExtension`). */
 object Commands:
-  val header: String =
-    """FrFlow: one root refined by a DAG of small statements, each proven in Lean from its parts and decided by the developer.
+  def header(layers: List[CliExtension] = Nil): String =
+    ("""FrFlow: one root refined by a DAG of small statements, each proven in Lean from its parts and decided by the developer.
       |
-      |A project starts in chat: the developer tells the agent the idea; the agent asks, records the conversation (said,
-      |asked, replied) and writes IDEA.md from it; the developer accepts IDEA.md; then the agent proposes the root.
-      |The developer reads with tree, show, diff, inbox, conversation; decides with review, accept, reject, confirm, revisit,
-      |gone; asks with ask and close. The web view does the same in a browser: sbt "PROJECT/serve --as NAME".
-      |The agent works with said, asked, replied, render, check, status, ci, context, find, scaffold, answer, inbox.
-      |Exit codes: 0 fine; 1 something is not accepted or proven, or a decision was refused; 2 a usage error; 3 no Lean (lake).""".stripMargin
+      |The developer writes IDEA.md (what the system is for) and accepts it; the root and its parts follow, as Scala, each
+      |decided in turn. Read with tree, show, diff, inbox, find; decide with review, accept, reject, confirm, revisit, gone;
+      |prove with render, check, status, ci, scaffold. The web view does the same in a browser: sbt "PROJECT/serve --as NAME".""".stripMargin ::
+      layers.map(_.header).filter(_.nonEmpty) :::
+      List("Exit codes: 0 fine; 1 something is not accepted or proven, or a decision was refused; 2 a usage error; 3 no Lean (lake).")
+    ).mkString("\n")
 
-  private val plain = Opts.flag("plain", "ASCII without colors (also when NO_COLOR is set or the output is not a terminal)").orFalse
-  private val json = Opts.flag("json", "print the typed value as JSON, each node in brief").orFalse
-  private def node(name: String = "NODE") = Opts.argument[String](name).map(NodeId(_))
-  private val as = Opts.option[String]("as", "who decides (default: FRFLOW_AS, or the name your key is filed under)").orNone
+  val plain: Opts[Boolean] = Opts.flag("plain", "ASCII without colors (also when NO_COLOR is set or the output is not a terminal)").orFalse
+  val json: Opts[Boolean] = Opts.flag("json", "print the typed value as JSON, each node in brief").orFalse
+  def node(name: String = "NODE"): Opts[NodeId] = Opts.argument[String](name).map(NodeId(_))
+  val as: Opts[Option[String]] = Opts.option[String]("as", "who decides (default: FRFLOW_AS, or the name your key is filed under)").orNone
   private val yes = Opts.flag("yes", "decide without asking (needed without a terminal)", "y").orFalse
   private val reason = Opts.option[String]("reason", "why: kept as part of the theory (asked for on a terminal)", "m").orNone
   private val asked = (reason, as, yes).mapN(Asked.apply)
-  private def words(name: String) = Opts.arguments[String](name).map(_.toList.mkString(" "))
+  def words(name: String): Opts[String] = Opts.arguments[String](name).map(_.toList.mkString(" "))
 
   private def command(name: String, help: String)(opts: Opts[Command]): Sub[(Command, Boolean)] = Sub(name, help)((opts, plain).tupled)
+  /** A layer's command: `run` on the project (with `--plain`, as FrFlow's take it). */
+  def layer(name: String, help: String)(run: Opts[CliRun]): Sub[(Command, Boolean)] = command(name, help)(run.map(Command.Layer(_)))
   private def decision(name: String, help: String)(make: Opts[String => Decide]): Sub[(Command, Boolean)] =
     command(name, help)((make, asked).mapN(Command.Decision.apply))
 
@@ -124,44 +124,29 @@ object Commands:
     command("tree", "the DAG from the root (or from NODE): each node's status, review state and statement")(
       (node().orNone, json).mapN(Command.Tree.apply)),
     command("show", "a node: what it says and why, what changed, its parts and parents, proofs, examples, code, decisions")(
-      (node(), Opts.flag("full", "everything, nothing cut: what context prints").orFalse.map(if _ then Depth.Full else Depth.Normal), json)
+      (node(), Opts.flag("full", "everything, nothing cut").orFalse.map(if _ then Depth.Full else Depth.Normal), json)
         .mapN(Command.Show.apply)),
     command("diff", "what changed since NODE was decided: its fields, what moved above it, its code")(node().map(Command.Diff.apply)),
-    command("inbox", "what waits for whom: requests, answers, decisions to take, the agent's tasks")(json.map(Command.Inbox.apply)),
-    command("review", "decide what waits, node by node, parents first: [a]ccept [r]eject [s]kip [v]iew [q]uit [?]ask")(as.map(Command.Review.apply)),
+    command("inbox", "what waits for the developer: IDEA.md, the decisions to take, in order, and the decided nodes gone")(json.map(Command.Inbox.apply)),
+    command("review", "decide what waits, node by node, parents first: [a]ccept [r]eject [s]kip [v]iew [q]uit (layers may add keys)")(as.map(Command.Review.apply)),
     decision("accept", "accept nodes (rejecting their rivals); --revisit names decisions below a change to review again")(
       (Opts.arguments[String]("NODE").map(_.toList.map(NodeId(_))),
         Opts.options[String]("revisit", "a decision below the change that it may affect").orEmpty.map(_.map(NodeId(_))))
         .mapN((nodes, revisit) => Decide.Accept(nodes, _, revisit))),
-    decision("reject", "reject a proposal, saying why: the agent proposes what the reason asks for, or removes it")(node().map(n => Decide.Reject(n, _))),
+    decision("reject", "reject a proposal, saying why: what the reason asks for is proposed instead, or it is removed")(node().map(n => Decide.Reject(n, _))),
     decision("confirm", "accept the mechanical decisions in one batch (Lean proves them again; nothing in them is a choice)")(Opts(Decide.Confirm(_))),
     decision("revisit", "ask that an accepted node be reviewed again: a change elsewhere may affect it")(node().map(n => Decide.Revisit(n, _))),
-    decision("gone", "agree that a decided node is gone from the model")(node().map(n => Decide.Gone(n, _))),
-    command("ask", "ask the agent for a change on NODE (or, with --idea, about the whole idea)")(
-      (Opts.flag("idea", "about the whole idea, not one node").map(_ => Option.empty[NodeId]).orElse(node().map(Some(_))), words("TEXT"), as)
-        .mapN(Command.Ask.apply)),
-    command("close", "close requests: an answer read, or a request withdrawn")(
-      Opts.arguments[String]("REQUEST").map(rs => Command.Close(rs.toList.map(RequestId(_))))),
-    command("conversation", "what you told the agent and its questions, with the answers it assumed and yours: what IDEA.md comes from")(
-      json.map(Command.Conversation.apply)))
+    decision("gone", "agree that a decided node is gone from the model")(node().map(n => Decide.Gone(n, _))))
 
-  private val agent = List(
-    command("said", "record what the developer said in chat, word for word (the idea, a correction)")(words("TEXT").map(Command.Said.apply)),
-    command("asked", "record a question asked in chat, with the answer you assume (--assume): numbered Q1, Q2, ...")(
-      (words("QUESTION"), Opts.option[String]("assume", "the answer you assume, which the developer can just confirm")).mapN(Command.QuestionAsked.apply)),
-    command("replied", "record the developer's reply to a question, as they said it in chat")(
-      (Opts.argument[String]("Q"), words("TEXT")).mapN(Command.Replied.apply)),
+  private val proving = List(
     command("render", "generate Lean and the snapshot .frflow/kb.json from the Scala definitions")(Opts(Command.Render)),
     command("check", "render, prove each node from its parts, record the results")((node().orNone, json).mapN(Command.Check.apply)),
     command("status", "the tree and the summary; exits 1 unless the knowledge base is complete")(json.map(Command.Status.apply)),
     command("ci", "for CI: check, then status; exits 1 unless everything is proven and decided")(Opts(Command.Ci)),
-    command("context", "show --full: everything needed to work on NODE, with the idea and what it rests on")(node().map(Command.Show(_, Depth.Full, json = false))),
     command("find", "the nodes that govern a file, or what mentions some words")(words("WORDS|PATH").map(Command.Find.apply)),
-    command("scaffold", "a proof file with a stub for each obligation the last check left open")(node().map(Command.Scaffold.apply)),
-    command("answer", "reply to the developer's request; with a NODE instead, tell them about work they did not ask for")(
-      (Opts.argument[String]("REQUEST|NODE"), words("TEXT")).mapN(Command.Answer.apply)))
+    command("scaffold", "a proof file with a stub for each obligation the last check left open")(node().map(Command.Scaffold.apply)))
 
   /** The command, and whether `--plain` was given before or after it. */
-  val all: Opts[(Command, Boolean)] =
-    val subs = developer ++ agent
+  def all(layers: List[CliExtension] = Nil): Opts[(Command, Boolean)] =
+    val subs = developer ++ proving ++ layers.flatMap(_.commands)
     (plain, Opts.subcommands(subs.head, subs.tail*)).mapN { case (before, (c, after)) => (c, before || after) }

@@ -14,13 +14,14 @@ class InitSuite extends munit.FunSuite:
     val kb = Files.readString(d.resolve("examples/toy/src/main/scala/toy/Knowledge.scala"))
     assert(kb.contains("""val knowledge = KnowledgeBase("Toy", idea = "IDEA.md")()"""), kb)
     assert(kb.contains("""object toyCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/toy")"""), kb)
-    assert(Files.readString(d.resolve("build.sbt")).linesIterator.contains("""lazy val toy = example("toy")"""))
-    // no IDEA.md: the agent writes it from the conversation
+    // a core project: no layer on top on its classpath
+    assert(Files.readString(d.resolve("build.sbt")).linesIterator.contains("""lazy val toy = example("toy", layers = Nil)"""))
+    // no IDEA.md: the developer writes what the system is for
     assert(!Files.exists(d.resolve("examples/toy/IDEA.md")))
     assertEquals(Init.write(d, "toy"), Left("examples/toy exists already"))
     assert(Init.write(d, "Toy").isLeft && Init.write(d, "auth").isLeft && Init.write(d.resolve("nowhere"), "x").isLeft)
   }
 
-  test("an empty knowledge base is valid: the conversation and IDEA.md come before the root") {
+  test("an empty knowledge base is valid: IDEA.md comes before the root") {
     assertEquals(KnowledgeBase("Toy", idea = "IDEA.md")().problems, Nil)
   }

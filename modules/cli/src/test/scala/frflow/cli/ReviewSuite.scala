@@ -1,6 +1,6 @@
 package frflow.cli
 
-import cats.effect.{ExitCode, IO}
+import cats.effect.{ExitCode, IO, Ref}
 import frflow.api.*
 import frflow.protocol.*
 
@@ -8,21 +8,25 @@ import frflow.protocol.*
 class ReviewSuite extends munit.CatsEffectSuite with Golden:
   private val st = Style(color = false, unicode = false, width = Some(100))
 
-  test("review: the mechanical batch, a request instead of a decision, then the proposal it unblocked") {
-    val typed = List("a", "the new parts are proven to make it", "v", "?", "Name the user as 'that user'.", "a", "an hour bounds a stolen token", "y")
+  test("review: the mechanical batch, a layer's key instead of a decision, then the proposal it unblocked") {
+    val typed = List("a", "the new parts are proven to make it", "v", "n", "Name the user as 'that user'.", "a", "an hour bounds a stolen token", "y")
     for
       api <- FakeApi()
+      noted <- Ref.of[IO, List[(NodeId, String)]](Nil)
+      // A layer on top offers a key of its own on each node: it reads a line, and the review moves on.
+      key = ReviewKey("n", "[n]ote", (_, r, term, _) =>
+        term.read("Note: ").flatMap(t => noted.update(_ :+ (r.id -> t.getOrElse(""))) *> term.out(s"noted on ${r.id}")))
       term <- Scripted(typed)
-      code <- ReviewSession(api, term, st).run(None)
+      code <- ReviewSession(api, term, st, _ => IO.pure(Contribution(review = List(key)))).run(None)
       out <- term.output
       ledger <- api.ledgerNow
-      asked <- api.view.map(_.requests.last)
+      notes <- noted.get
     yield
       assertEquals(code, ExitCode.Success)
       golden("review", out)
       assertEquals(ledger.current(NodeId("Root")).map(_.action), Some(Action.Confirm))
       assertEquals(ledger.current(NodeId("Expiry")).map(d => d.action -> d.reason), Some(Action.Accept -> "an hour bounds a stolen token"))
-      assertEquals((asked.node, asked.text), (Some(NodeId("Decide")), "Name the user as 'that user'."))
+      assertEquals(notes, List(NodeId("Decide") -> "Name the user as 'that user'."))
   }
 
   test("without a terminal: review is refused, and a decision needs --yes; with it, it is recorded") {
@@ -84,16 +88,16 @@ class ReviewSuite extends munit.CatsEffectSuite with Golden:
       ledger <- api.ledgerNow
     yield
       assertEquals(code, ExitCode.Success)
-      assert(out.contains("\n[s]kip [v]iew [q]uit [?]ask: a"), out.mkString("\n"))
-      assertEquals(out.count(_ == "one of: ? q s v"), 2, out.mkString("\n"))
+      assert(out.contains("\n[s]kip [v]iew [q]uit: a"), out.mkString("\n"))
+      assertEquals(out.count(_ == "one of: q s v"), 2, out.mkString("\n"))
       assertEquals(out.count(_.contains("Root first")), 1, out.mkString("\n"))
       assert(!out.exists(_.contains("waits for Root")), out.mkString("\n"))
       assertEquals(ledger.current(NodeId("Expiry")), None)) *>
-    FakeApi(rootMoved(reworded = true), Sample.ledger, Nil).flatMap(api => review(api, List("s", "a", "q"))).map { (_, out) =>
+    FakeApi(rootMoved(reworded = true), Sample.ledger).flatMap(api => review(api, List("s", "a", "q"))).map { (_, out) =>
       // Under review, waiting for what it rests on: one line says so.
       assert(out.contains("  decide NeedsGrant first: what rests on it is decided after it"), out.mkString("\n"))
       assert(!out.exists(_.contains("waits for NeedsGrant")), out.mkString("\n"))
-      assertEquals(out.count(_ == "one of: ? q s v"), 1, out.mkString("\n"))
+      assertEquals(out.count(_ == "one of: q s v"), 1, out.mkString("\n"))
     }
   }
 
@@ -113,8 +117,8 @@ class ReviewSuite extends munit.CatsEffectSuite with Golden:
   test("what moved only with a node: the inbox and the review say the same, and accepting the node confirms it") {
     val followers = List("NeedsGrant", "LetsIn", "Decide")
     for
-      api <- FakeApi(rootMoved(), Sample.ledger, Nil)
-      inbox <- api.reviewing.map((v, i) => InboxText.lines(i, v, st))
+      api <- FakeApi(rootMoved(), Sample.ledger)
+      inbox <- api.reviewing().map((v, i) => InboxText.lines(i, v, st))
       (_, out) <- review(api, List("a", "", "the formula says the same, in another order", "y"))
       ledger <- api.ledgerNow
     yield

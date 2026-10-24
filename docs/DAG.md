@@ -129,14 +129,11 @@ world before and after), `checkedBy`, `checkedAgainst`, `implement`, `implementP
 `IDEA.md`: the title and lead paragraph are the root's. Any node may name a section with
 `idea = "Section"`; a section no node names is a warning.
 
-The developer does not write `IDEA.md`. They tell the agent the idea in chat; the agent asks, three to five
-questions at a time, each with the answer it assumes, and records the conversation (`said`, `asked`, `replied`;
-`.frflow/conversation.json`, a record the agent writes, not a decision). It writes `IDEA.md` from it, each section
-naming the answers it comes from on a `From:` line. `IDEA.md` is a decision of the developer's, kept in the ledger
-under `IDEA`: proposed until accepted, back for review when it changes. The root is decided after it. A node's
-meaning carries the text of the section it names (without `From:` lines), so an edit to a section brings back the
-nodes naming it; an answer changed after `IDEA.md` was accepted is a warning until it is accepted again. A project
-starts empty (`sbt "frflowInit NAME"`): a knowledge base with no nodes is valid while the idea is told.
+`IDEA.md` is a decision of the developer's, kept in the ledger under `IDEA`: proposed until accepted, back for
+review when it changes. The root is decided after it. A node's meaning carries the text of the section it names
+(without `From:` lines, which say where a section comes from and move no node), so an edit to a section brings back
+the nodes naming it. A project starts empty (`sbt "frflowInit NAME"`): a knowledge base with no nodes is valid while
+`IDEA.md` is written.
 
 ## 3. Lean obligations
 
@@ -239,13 +236,12 @@ part stops being proven, or when the checker's version changes.
   bound to, the reason, the alternatives rejected, the commit (code diffs run against it), the
   decision it follows, and the developer's signature. A decision not signed by a key in
   `.frflow/keys/` is a warning.
-- **Requests.** The developer asks for a change on a node or on the idea; a request records the
-  version of the node asked about. The node is with the agent until the agent answers or the node
-  changes, and is not in the developer's queue meanwhile.
+- **Held aside.** A layer on top may hold a node out of the developer's queue (for example, while
+  the node is asked of someone); the inbox lists it apart, and nothing else about it changes.
 
-## 6. Agents
+## 6. Reading a node, and where a change belongs
 
-`context NODE` (`show --full`) gives what bears on a node: its idea section, the vocabulary it uses
+`show --full NODE` gives what bears on a node: its idea section, the vocabulary it uses
 with the definitions in force, its ancestors with their reasons, its co-parts under each parent, its
 parts, the rejected alternatives and why, what moved, and its obligations in Lean. `find` searches
 nodes, reasons, rejected options, gone nodes, the idea and Not modelled, and names the nodes that
@@ -254,7 +250,9 @@ restatement. A rejection's reason that asks for something is answered by a node 
 `scaffold` writes proof stubs that start with `unfold Obl.X`, `frflow_intro` and
 `simp only [frflow_defs] at *`; `check` prints the goal they leave when automation gives up.
 
-The developer's flow and the agent's are in the CLI. The `web` module serves the developer's flow in a
+The developer's flow is in the CLI. The `web` module serves it in a
 browser (the sbt task `sbt "PROJECT/serve --as NAME"`, not a CLI command) over the same API, so a decision is
-recorded alike from either. The MCP server is on
+recorded alike from either. Both take layers on top (`Extension`: a `CliExtension`'s commands and what it
+adds to a view; a `WebExtension`'s routes and script); the core depends on none. The AI agent's layer is one,
+described in [USAGE.md](USAGE.md#with-an-ai-agent). The MCP server is on
 the branch `web-view`, which will become a separate repository.

@@ -27,7 +27,7 @@ Decision
     confirmed):
     Memory: Sessions and grants are kept in memory. — holds because: Memory holds as stated
 
-[a]ccept [s]kip [v]iew [q]uit [?]ask: v
+[a]ccept [s]kip [v]iew [q]uit [n]ote: v
 
 --- 2 waiting ---
 + Decide  contract on admit  review: self
@@ -73,9 +73,9 @@ Code
 Decisions
   2026-01-02 10:00  accepted by dev: Decide holds as stated
 
-[a]ccept [s]kip [v]iew [q]uit [?]ask: ?
-What should change? Name the user as 'that user'.
-asked [Rmjzoj9c0]: Decide is with the agent until it answers or changes it
+[a]ccept [s]kip [v]iew [q]uit [n]ote: n
+Note: Name the user as 'that user'.
+noted on Decide
 
 --- 1 waiting ---
 o Expiry  claim  proposed
@@ -92,7 +92,7 @@ Formally (as written in Scala)
     forall((t: Token, now: Instant) => sessions(t, now).isDefined == (issued(t).exists(at =>
       now.isBefore(at.plus(hour)))))
 
-[a]ccept [r]eject [s]kip [v]iew [q]uit [?]ask: a
+[a]ccept [r]eject [s]kip [v]iew [q]uit [n]ote: a
 Why Expiry? an hour bounds a stolen token
 This records:
   - accept Expiry
@@ -105,4 +105,4 @@ Decided 2 decision(s).
 Sample: 9 nodes, 7 accepted, 1 to review, 1 rejected
 splits 3/3 proven, contracts 0/1 proven down to their code, examples 2/2 agree in Lean, trusted:
   StoreKeeps, 2 with something unproven
-Waiting: 1 asked of the agent, 1 for the agent, 2 open request(s), 1 answer(s) to read
+Waiting: 1 for the developer
