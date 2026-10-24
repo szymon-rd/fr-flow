@@ -31,7 +31,7 @@ addCommandAlias("frflowInit", "cli/runMain frflow.cli.Init")
 addCommandAlias("frflowInitAgent", "agent/runMain frflow.agent.Init")
 
 lazy val root = project.in(file("."))
-  .aggregate(model, protocol, lean, ledger, check, api, cli, web, agent, auth, crm, keycloak)
+  .aggregate(model, protocol, lean, ledger, check, api, cli, web, agent, auth, crm, keycloak, rebac)
   .configs(LeanTest).settings(leanTagged)
   .settings(publish / skip := true)
 
@@ -125,3 +125,5 @@ lazy val scale = example("scale")
 
 /** A Keycloak-like authentication server: realms, sign-in, token introspection, sign-out. */
 lazy val keycloak = example("keycloak").settings(Compile / run / mainClass := Some("keycloak.keycloakCli"))
+
+lazy val rebac = example("rebac").settings(Compile / run / mainClass := Some("rebac.rebacCli"))
