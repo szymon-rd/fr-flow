@@ -82,13 +82,6 @@ val decisionContract = Node.contract(admit)("DecisionContract",
     reject("t2", Path("/a"), Some(UserId("alice")), "a token that is not Alice's never acts for her"),
     reject("t1", Path("/a"), None, "Alice with a grant for /a is not turned away"))
 
-/** The decision as Lean proves it meets the contract: the reference the running code is checked against. */
-val admitted = define { (token: Term[String], path: Term[Path]) =>
-  sessions(token)
-    .on[Some[UserId]](u => If(grants.contains(Grant(u, path)))(some(u)).Else(none))
-    .on[None.type](none)
-}
-
 // ============================================================================
 // A design decision: no formal model, but decided and tracked like the rest
 // ============================================================================
@@ -110,7 +103,7 @@ val knowledge = KnowledgeBase("Auth", idea = "IDEA.md")(
   grantLetsIn,
   decisionContract,
   inMemorySessions
-).implementProven(decisionContract)(admitted, SessionStore(grants.value.toSet, sessions.value).decide)
+).implement(decisionContract)(SessionStore(grants.value.toSet, sessions.value).decide)
 
 
 object authCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/auth", extensions = List(frflow.agent.Agent))

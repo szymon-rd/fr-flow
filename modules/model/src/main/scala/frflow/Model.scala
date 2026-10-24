@@ -42,7 +42,7 @@ extension [A, B, C, D, E, R](p: Param[(A, B, C, D, E) => R])
   def apply(a: Term[A], b: Term[B], c: Term[C], e: Term[D], f: Term[E]): Term[R] = Term.applied(p, a, b, c, e, f)
 
 /** A definition of one term: a type (`User := of[UserId]`) or a function of the domain (`authorized := (u, p) => …`). */
-final class Subst private[frflow] (val name: String, val target: AnyRef, val isType: Boolean, typeOf: Option[LeanType[?]],
+final class Subst private[frflow] (val name: String, val target: AnyRef, val isType: Boolean, private[frflow] val typeOf: Option[LeanType[?]],
     val term: Option[Lifted[?]]):
   private lazy val walked = typeOf.map(Types.walk)
   def lean: String = walked.fold(term.fold("")(_.lean))(_.lean)
@@ -138,7 +138,7 @@ inline def define[A, B, C, D, E, R](inline f: (Term[A], Term[B], Term[C], Term[D
 private def called[R](d: Def[?], args: Term[?]*): Term[R] =
   Term(Tree.Call(d, args.toList.map(_.termTree)), d.resultType.asInstanceOf[LeanType[R]])
 
-// A define called in a model is a term; plain code runs it with `fn`: `admitted.fn(token, path)`. Called on plain values it
+// A define called in a model is a term; plain code runs it with `fn`: `matches.fn(query, record)`. Called on plain values it
 // is a term too (a model may call it on constants); plain code cannot use that term as a value, nor compare it with `==`.
 extension [A, R](d: Def[A => R])
   def apply(a: Term[A]): Term[R] = called(d, a)

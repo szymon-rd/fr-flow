@@ -19,11 +19,35 @@ final class ContractViolation(node: String, detail: String) extends RuntimeExcep
 
 object Bindings:
   private val current = ThreadLocal.withInitial[Map[String, () => Any]](() => Map.empty)
+  private val reads = ThreadLocal[scala.collection.mutable.Set[String] | Null]()
   def get[A](p: Param[A]): A =
     if Building.active then
       throw IllegalStateException(s"FrFlow: ${p.name}.value is read while a model is built, so the value it has now would be " +
         s"fixed into its Lean and its running code: use ${p.name} itself as a term")
-    current.get.get(p.name).fold(throw IllegalStateException(s"parameter ${p.name} is not bound"))(_().asInstanceOf[A])
+    val value = current.get.get(p.name).getOrElse(throw IllegalStateException(s"parameter ${p.name} is not bound"))
+    reads.get match
+      case null => value().asInstanceOf[A]
+      case seen =>
+        // What the code reads itself: not what a definition or an operation's code reads in turn.
+        seen += p.name
+        reads.set(null)
+        try value().asInstanceOf[A]
+        finally reads.set(seen)
+
+  /** A parameter as a term reads it (a definition's or a contract's formula, run): not a read of the plain code under test. */
+  private[frflow] def ofTerm[A](p: Param[A]): A =
+    val saved = reads.get
+    reads.set(null)
+    try get(p)
+    finally reads.set(saved)
+
+  /** What `body` returns, and the parameters it read itself: what a test learns of plain code it cannot see into. */
+  private[frflow] def reading[T](body: => T): (T, Set[String]) =
+    val saved = reads.get
+    val seen = scala.collection.mutable.Set.empty[String]
+    reads.set(seen)
+    try (body, seen.toSet)
+    finally reads.set(saved)
 
   def within[T](bs: Seq[Binding])(body: => T): T =
     val saved = current.get
@@ -46,7 +70,7 @@ final case class Assumption(what: String, reads: Set[String], holds: () => Boole
 
 /** The code registered for a contract's operation: `wiring` is its source; `proven`, the `define` Lean proves. */
 final case class Implementation(contract: String, factory: () => Any, files: List[String], wiring: String = "", proven: Option[Def[?]] = None,
-    flowDef: Option[Def[?]] = None):
+    flowDef: Option[Def[?]] = None, calls: List[String] = Nil):
   /** Proven code that is a flow: `proven` is its run on the models, `flowDef` the flow itself. */
   def flow: Boolean = flowDef.isDefined
   /** The running code is the proven `define` itself, not code checked against it (`runs`). */

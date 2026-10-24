@@ -92,17 +92,20 @@ class CrmSuite extends munit.CatsEffectSuite:
     val d = db()
     val e = intercept[ContractViolation](buggy.service(readContract)(reading(d)*)(ann, Search.OfKind(Kind.Deal)))
     assert(e.getMessage.contains("RecordsByQuery"), e.getMessage)
-    // and the SQL is checked against the define on the port's examples
-    assert(buggy.exampleResults(recordsByQuery).exists(_.implementation.exists(_.contains("where the proven define returns"))), buggy.exampleResults(recordsByQuery))
+    // and the SQL is tested against the define on generated histories
+    val f = buggy.test(recordsByQuery).flatMap(_.failure)
+    assert(f.exists(_.why.contains("where the proven define storedMatching returns")), f)
   }
 
-  test("SQL that is right on the examples but drops rows on other inputs is found by running every combination of them") {
+  test("SQL that is right on the examples but drops rows on other inputs is found by the generated cases") {
     // The port's examples ask for two records at most: a LIMIT 2 passes them all.
     val limited = knowledge.implementProven(recordsByQuery)(storedMatching, (u, q) => database.value.recordsMatching(q).take(2))
-    val (generated, written) = limited.exampleResults(recordsByQuery).partition(_.example.note.startsWith("generated"))
-    assert(written.filter(_.example.expected).forall(_.implementation.contains("ok")), written)
-    assert(generated.exists(_.implementation.exists(_.contains("where the proven define returns"))), generated)
-    assertEquals(knowledge.exampleResults(recordsByQuery).filter(_.example.note.startsWith("generated")), Nil)
+    assert(limited.exampleResults(recordsByQuery).filter(_.example.expected).forall(_.implementation.contains("ok")))
+    val f = limited.test(recordsByQuery).flatMap(_.failure)
+    assert(f.exists(_.why.contains("where the proven define storedMatching returns")), f)
+    // The SQL as written passes, and every part of the port's promise is reached.
+    val r = knowledge.test(recordsByQuery).get
+    assertEquals((r.failure, r.coverage.filter(_.held == 0)), (None, Nil))
   }
 
   test("the HTTP API: reads, deals and writes go through the screens and the write side") {

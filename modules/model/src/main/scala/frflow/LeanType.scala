@@ -13,10 +13,19 @@ trait LeanType[A]:
   def lean: String = Types.walk(this).lean
   def types: List[TypeDecl] = Types.walk(this).types
 
+/** Which Scala number a Lean `Int` is: what a generated value must be. */
+private[frflow] enum NumKind:
+  case IntN, LongN, BigN
+  def bounded: Boolean = this != BigN
+  def of(n: BigInt): Any = this match
+    case IntN  => n.toInt
+    case LongN => n.toLong
+    case BigN  => n
+
 private[frflow] enum Shape:
   case Prop, Str, UnitT, Unknown
-  /** `bounded`: a Scala Int or Long, which wraps around where Lean's Int does not. */
-  case Num(bounded: Boolean)
+  /** A Scala Int, Long or BigInt: the first two wrap around where Lean's Int does not. */
+  case Num(kind: NumKind)
   case ListOf(a: LeanType[?])
   case OptionOf(a: LeanType[?])
   case MapOf(k: LeanType[?], v: LeanType[?])
@@ -149,9 +158,9 @@ object LeanType:
   private[frflow] def unknown[A]: LeanType[A] = of(Shape.Unknown)
 
   given LeanType[Boolean] = of(Shape.Prop)
-  given LeanType[Int] = of(Shape.Num(bounded = true))
-  given LeanType[Long] = of(Shape.Num(bounded = true))
-  given LeanType[BigInt] = of(Shape.Num(bounded = false))
+  given LeanType[Int] = of(Shape.Num(NumKind.IntN))
+  given LeanType[Long] = of(Shape.Num(NumKind.LongN))
+  given LeanType[BigInt] = of(Shape.Num(NumKind.BigN))
   given LeanType[String] = of(Shape.Str)
   given LeanType[Unit] = of(Shape.UnitT)
   given [A](using a: LeanType[A]): LeanType[List[A]] = of(Shape.ListOf(a))
@@ -251,7 +260,7 @@ private[frflow] object Types:
   /** The Scala type as written: what a decision on a node using it binds. */
   def scala(t: LeanType[?]): String = t.shape match
     case Shape.Prop          => "Boolean"
-    case Shape.Num(b)        => if b then "Int" else "BigInt"
+    case Shape.Num(k)        => if k.bounded then "Int" else "BigInt"
     case Shape.Str           => "String"
     case Shape.UnitT         => "Unit"
     case Shape.Unknown       => "?"
@@ -279,7 +288,7 @@ private[frflow] object Types:
 
   /** Whether a value of the type holds an Int or a Long, however deep. */
   def bounded(t: LeanType[?], seen: Set[String] = Set.empty): Boolean = t.shape match
-    case Shape.Num(b)      => b
+    case Shape.Num(k)      => k.bounded
     case Shape.Data(a)     => !seen(a.name) && a.ctors.exists(_.fields.exists((_, f) => bounded(f, seen + a.name)))
     case Shape.ListOf(a)   => bounded(a, seen)
     case Shape.OptionOf(a) => bounded(a, seen)

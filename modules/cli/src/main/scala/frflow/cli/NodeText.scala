@@ -162,16 +162,29 @@ object NodeText:
 
   private def code(d: NodeDetails, st: Style, full: Boolean): List[String] =
     val n = d.node.node
-    def runs(r: Option[String]) = r.fold("")(c => s"; running code $c checked against it")
+    def runs(r: Option[String]) = r.fold("")(c => s"; running code $c tested against it")
     val how = d.codeProof.map {
       case CodeProof.ProvenDown(define, running) => s"proven define $define${runs(running)}"
       case CodeProof.Define(define, status, running) => s"define $define, $status${runs(running)}"
-      case CodeProof.ByRunning => "checked by running: a plain implementation, not proven"
+      case CodeProof.Tested(_) => "plain code, tested against the contract, not proven"
     }
     // The define and the running code are named above.
     val impl = n.content.text("implementation").linesIterator.filterNot(l => l.startsWith("proven: ") || l.startsWith("runs: ")).toList
     val shown = if full || impl.size <= Few + 2 then impl else impl.take(Few) :+ s"${st.ellipsis} ${impl.size - Few} more line(s): context ${n.id}"
-    how.toList ++ shown.map(l => st.dim("  " + l)) ++ governs(d, st)
+    how.toList ++ shown.map(l => st.dim("  " + l)) ++ tests(n, st, full) ++ governs(d, st)
+
+  /** What the tests of the code found: cases, seed, the failing case (shrunk), how often each part of the contract held. */
+  private def tests(n: SnapNode, st: Style, full: Boolean): List[String] =
+    if !CodeProof.tested(n) then Nil
+    else n.tested.fold(List(st.yellow("tested: not yet (run check)"))) { r =>
+      val head = s"tested: ${f"${r.cases}%,d"} generated cases (seed ${r.seed}), against ${r.against}"
+      val outcome = r.failure.fold(Option.when(r.unreached.isEmpty)(st.green("  every case meets it, and every part of it was reached")).toList)(f =>
+        List(st.red(s"  fails: ${f.shown}"), st.red(s"    ${f.why}")))
+      val parts = if full || r.unreached.nonEmpty then r.coverage.map(c =>
+        if c.held == 0 then st.red(s"  never reached: ${c.part}") else st.dim(s"  ${c.part}: ${c.held}×")) else Nil
+      val notes = r.notes.map(x => st.dim(s"  note: $x"))
+      (head :: outcome) ++ parts ++ notes
+    }
 
   private def governs(d: NodeDetails, st: Style): List[String] =
     d.node.node.code.toList.map(c => s"governs: ${c.files.mkString(", ")}" +

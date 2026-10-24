@@ -14,6 +14,7 @@ final case class Example(note: String, bindings: List[Binding], givenSource: Lis
 object Example:
   def show(v: Any): String = v match
     case s: String => "\"" + s + "\""
+    case t: Table  => t.shown
     case None      => "None"
     case Some(x)   => s"Some(${show(x)})"
     case l: List[?] => l.map(show).mkString("List(", ", ", ")")
@@ -93,7 +94,7 @@ private[frflow] object ExampleRuns:
     if n.cases.isEmpty then Nil
     else Bindings.within(kb.opCode ++ kb.definitionBindings) {
       untyped(n).checkExamples(kb.implementation(n).map(_.factory.asInstanceOf[() => (Any, Any) => Any]), kb.runtimeAssumptions) ++
-        generated(kb, n) ++ onReal(kb, n)
+        onReal(kb, n)
     }
 
   /** A flow's examples run on the production implementations of its boundaries, started in each model's state before:
@@ -126,60 +127,6 @@ private[frflow] object ExampleRuns:
         case (scala.util.Failure(x), _) => s"error on the models: ${x.getMessage}"
       List(ExampleResult(e.copy(note = s"${e.note} (run on ${reals.map(_.boundary.name).mkString(", ")})"), "ok", Some(verdict)))
     }).getOrElse(Nil)
-
-  // On `loose` (varied) data, a result in another order than the define's is the same result, and data the
-  // outside cannot hold (two rows with one key) is no finding.
-  private final case class Given(bindings: List[Binding], sources: List[String], loose: Boolean)
-
-  /** The calls (at most ten) on every combination of the examples' inputs whose result breaks the contract. */
-  def generated(kb: KnowledgeBase, n: Node[?]): List[ExampleResult] =
-    val c = untyped(n)
-    (for { i <- kb.implementation(n); post <- c.postFn if n.cases.nonEmpty } yield failures(c, i, post)).getOrElse(Nil)
-
-  private def failures(n: Untyped, i: Implementation, post: (Any, Any, Any) => Boolean): List[ExampleResult] =
-    val known = n.cases.map(e => (e.bindings, e.a, e.b)).toSet
-    // Once per set of parameter values: examples giving them in the same words are one group (a value with
-    // no structural equality, a database, is never equal to another).
-    val groups = n.cases.map(e => Given(e.bindings, e.givenSource, loose = false)).distinctBy(_.sources)
-    // Code beside a proven define must return what the define returns; run on varied data too, a query that drops
-    // rows or reads the wrong column is found where the examples' data hides it.
-    val besideDefine = i.proven.isDefined && !i.provenCode
-    val varied = if besideDefine then groups.flatMap(vary(_, n.cases)) else Nil
-    (groups ++ varied).flatMap { g =>
-      Bindings.within(g.bindings) {
-        val reference = if besideDefine then i.proven.map(_.lifted.value.asInstanceOf[(Any, Any) => Any]) else None
-        Try(i.factory.asInstanceOf[() => (Any, Any) => Any]()).toOption.toList.flatMap { impl =>
-          Probes.combinations(n.cases).filter((a, b) => reference.isDefined || !known((g.bindings, a, b))).flatMap { (a, b) =>
-            val (r, why) = finding(n, post, impl, reference, g.loose, a, b)
-            why.map(w => ExampleResult(Example("generated from the examples' inputs: the contract holds for every call", g.bindings,
-              g.sources, a, b, r, true), "ok", Some(w)))
-          }
-        }
-      }
-    }.distinctBy(r => (r.example.a, r.example.b, r.implementation)).take(10)
-
-  private def vary(g: Given, cases: List[Example]): List[Given] =
-    g.bindings.flatMap { b =>
-      Try(Bindings.within(g.bindings)(b.value())).toOption.toList.flatMap(Probes.variations(_, cases)).map { v =>
-        Given(g.bindings.map(x => if x eq b then Binding(b.param, () => v) else x),
-          g.sources.map(_ + s" (${b.param.name} varied: ${Example.show(v)})"), loose = true)
-      }
-    }
-
-  private def finding(n: Untyped, post: (Any, Any, Any) => Boolean, impl: (Any, Any) => Any, reference: Option[(Any, Any) => Any],
-      loose: Boolean, a: Any, b: Any): (Any, Option[String]) =
-    Try {
-      val r = impl(a, b)
-      val keeps = n.broken(a, b, r)
-      val expected = reference.map(_(a, b)).filterNot(same(_, r, loose))
-      (r, expected.map(x => s"returned ${Example.show(r)}, where the proven define returns ${Example.show(x)}")
-        .orElse(Option.when(!post(a, b, r))(s"returned ${Example.show(r)}, which breaks the contract"))
-        .orElse(keeps.map(i => s"returned ${Example.show(r)}, which breaks the invariant $i")))
-    }.fold(e => (Example.NoResult, Option.when(!loose)(s"error: ${e.getMessage}")), identity)
-
-  private def same(x: Any, y: Any, loose: Boolean): Boolean = (x, y) match
-    case (xs: List[?], ys: List[?]) if loose => xs.size == ys.size && xs.diff(ys).isEmpty
-    case _ => x == y
 
 /** The one generator of inputs and values near the examples', for Lean's probes and for the code's runs. */
 object Probes:
@@ -215,7 +162,3 @@ object Probes:
     val nums = boundaries(cases)
     val asked = cases.map(e => (e.a, e.b)).toSet
     cases.flatMap(e => for { a <- e.a :: near(e.a, nums); b <- e.b :: near(e.b, nums) } yield (a, b)).distinct.filterNot(asked)
-  def combinations(cases: List[Example]): List[(Any, Any)] =
-    for a <- cases.map(_.a).distinct; b <- cases.map(_.b).distinct yield (a, b)
-  /** Near a parameter value an example gives (a table with a row dropped, repeated or changed). */
-  def variations(v: Any, cases: List[Example]): List[Any] = near(v, boundaries(cases) ++ numbers(v)).take(8)

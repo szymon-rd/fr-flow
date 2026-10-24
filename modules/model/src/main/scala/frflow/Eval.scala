@@ -1,7 +1,23 @@
 package frflow
 
+/** What watches a contract's formula while its code is tested: which parts of it held (`hit`, with the branch taken),
+  * and the values a `forall` or `exists` over a type ranges over (`range`, sampled; none, and it cannot run).
+  */
+private[frflow] trait Watch:
+  def hit(t: Tree, outcome: Int): Unit
+  def range(types: List[LeanType[?]]): Option[List[List[Any]]]
+
+private[frflow] object Watch:
+  private val current = ThreadLocal[Watch | Null]()
+  def get: Watch | Null = current.get
+  def within[T](w: Watch)(body: => T): T =
+    val saved = current.get
+    current.set(w)
+    try body
+    finally current.set(saved)
+
 /** A term's tree compiled once into Scala: what the runtime, the examples and the probes call. Parameters are read
-  * from the values in force (`Bindings`) on each call; `forall` and `exists` cannot run.
+  * from the values in force (`Bindings`) on each call; `forall` and `exists` cannot run, unless a test samples them.
   */
 private[frflow] object Eval:
   type Env = Map[Binder, Any]
@@ -47,7 +63,7 @@ private[frflow] object Eval:
   def compile(t: Tree): Run = t match
     case Tree.Var(b)          => env => env(b)
     case Tree.Lit(v, _)       => _ => v
-    case Tree.Ref(p)          => _ => Bindings.get(p)
+    case Tree.Ref(p)          => _ => Bindings.ofTerm(p)
     case Tree.Call(d, args)   =>
       val as = args.map(compile)
       env => call(d.fn, as.map(_(env)))
@@ -57,17 +73,39 @@ private[frflow] object Eval:
     case Tree.Fun(bs, body)   =>
       val run = compile(body)
       env => closure(bs, run, env)
-    case Tree.Quant(all, _, _) => _ => throw NotExecutable(if all then "forall" else "exists")
+    case Tree.Quant(all, bs, body) =>
+      val run = compile(body)
+      env =>
+        val rows = Option(Watch.get).flatMap(_.range(bs.map(_.tpe))).getOrElse(throw NotExecutable(if all then "forall" else "exists"))
+        def holds(row: List[Any]) = bool(run(env ++ bs.zip(row)))
+        if all then rows.forall(holds) else rows.exists(holds)
     case Tree.If(c, a, b)     =>
       val (rc, ra, rb) = (compile(c), compile(a), compile(b))
-      env => if bool(rc(env)) then ra(env) else rb(env)
+      env =>
+        val yes = bool(rc(env))
+        seen(t, if yes then 1 else 2)
+        if yes then ra(env) else rb(env)
     case Tree.Match(on, cases) =>
       val ro = compile(on)
-      val rs = cases.map(c => (c.pat, compile(c.body)))
+      val rs = cases.map(c => (c.pat, compile(c.body))).zipWithIndex
       env =>
         val v = ro(env)
-        rs.iterator.map((pat, run) => matches(pat, v).map(bound => run(env ++ bound))).collectFirst { case Some(r) => r }
-          .getOrElse(throw MatchError(v))
+        rs.iterator.map { case ((pat, run), i) => matches(pat, v).map { bound => seen(t, i + 1); run(env ++ bound) } }
+          .collectFirst { case Some(r) => r }.getOrElse(throw MatchError(v))
+    case Tree.Op(Prim.Implies, List(a, b)) =>
+      val (ra, rb) = (compile(a), compile(b))
+      env =>
+        val held = bool(ra(env))
+        seen(t, if held then 1 else 0)
+        !held || bool(rb(env))
+    case Tree.Op(Prim.Or, List(a, b)) =>
+      val (ra, rb) = (compile(a), compile(b))
+      env =>
+        if bool(ra(env)) then { seen(t, 1); true }
+        else
+          val r = bool(rb(env))
+          if r then seen(t, 2)
+          r
     case Tree.Let(b, v, body) =>
       val (rv, rb) = (compile(v), compile(body))
       env => rb(env + (b -> rv(env)))
@@ -96,6 +134,9 @@ private[frflow] object Eval:
       val (ro, rb) = (compile(on), compile(body))
       env =>
         def p(x: Any) = bool(rb(env + (b -> x)))
+        if kind == Iter.All || kind == Iter.Some || kind == Iter.OptAll || kind == Iter.OptSome then
+          val v = ro(env)
+          if (v match { case o: Option[?] => o.isDefined; case l => list(l).nonEmpty }) then seen(t, 1)
         kind match
           case Iter.All       => list(ro(env)).forall(p)
           case Iter.Some      => list(ro(env)).exists(p)
@@ -115,6 +156,11 @@ private[frflow] object Eval:
           case other          => throw IllegalArgumentException(s"FrFlow: ${d.name} is not a flow")
     case Tree.RunOn(other, _) => throw IllegalArgumentException(s"FrFlow: only a flow's call runs on the models, not $other")
     case Tree.Do(_)           => _ => throw IllegalStateException("FrFlow: a flow runs on the models (FrFlow.runOn) or in production (run)")
+
+  /** Under a test: that this part of the formula went this way. */
+  private def seen(t: Tree, outcome: Int): Unit =
+    val w = Watch.get
+    if w != null then w.hit(t, outcome)
 
   private def matches(pat: Pat, v: Any): Option[Env] = pat match
     case Pat.Ctor(adt, c, bs) =>

@@ -37,7 +37,7 @@ class SnapshotSuite extends munit.FunSuite:
     assertEquals(ns("Pick").code, None) // its implementation lives in the model's own file
     // the model's files are where its nodes are written; a model may span several
     assertEquals(shelfKb.modelFiles.map(f => java.nio.file.Paths.get(f).getFileName.toString), List("Fixtures.scala"))
-    assertEquals((ns("Pick").examplesPassing, CodeProof.of(ns("Pick")), ns("Pick").parents), ((4, 4), Some(CodeProof.ByRunning), ids("FromList", "OnlyLong", "EveryLong")))
+    assertEquals((ns("Pick").examplesPassing, CodeProof.of(ns("Pick")), ns("Pick").parents), ((4, 4), Some(CodeProof.Tested(None)), ids("FromList", "OnlyLong", "EveryLong")))
   }
 
   test("the content holds how the implementation is built, and the definition as written, past comments between its calls") {
@@ -78,7 +78,9 @@ class SnapshotSuite extends munit.FunSuite:
   // Lean is not run here: these mark every node as Lean would.
   private def proven(s: Snapshot): Snapshot = s.copy(nodes = s.nodes.map(n => n.copy(
     status = n.status.map(_ => CheckStatus.Proven),
-    split = n.split.map(_ => Split(Outcome(ObligationStatus.Proven, "auto"), Nil, Outcome(ObligationStatus.NotShown))))))
+    split = n.split.map(_ => Split(Outcome(ObligationStatus.Proven, "auto"), Nil, Outcome(ObligationStatus.NotShown))),
+    // plain code: tested, and passing
+    tested = Option.when(frflow.ledger.CodeProof.tested(n))(TestReport(1000, 1, n.id.value)))))
   /** The snapshot with one node's content changed (and its hash with it). */
   private def changing(s: Snapshot, id: String)(f: PartialFunction[(String, Json), (String, Json)]): Snapshot =
     s.copy(nodes = s.nodes.map(n => if n.id != NodeId(id) then n else

@@ -44,6 +44,22 @@ class AuthSuite extends munit.CatsEffectSuite:
     intercept[ContractViolation](decide("t-1", Path("/admin")))
   }
 
+  test("the decision is tested against its contract: every generated case meets it, every part of it is reached") {
+    val r = knowledge.test(decisionContract).get
+    assertEquals(r.failure, None)
+    assertEquals(r.coverage.filter(_.held == 0), Nil)
+    assertEquals((r.cases, r.against), (1000, "DecisionContract"))
+  }
+
+  test("an implementation that ignores the grant table fails a generated case, shrunk to its smallest") {
+    val careless = knowledge.implement(decisionContract)((t, _) => sessions.value(t))
+    val f = careless.test(decisionContract).get.failure.getOrElse(fail("the bug was not found"))
+    // A token issued to a user, no grant at all: the user is let in.
+    assert(f.shown.matches("""\("[a-z0-9]*", Path\("[a-z0-9/]*"\)\) ⇒ Some\(UserId\("[a-z0-9]*"\)\)  given .*grants = List\(\).*"""), f.shown)
+    assert(f.shown.contains("sessions = {"), f.shown)
+    assert(f.why.contains("which DecisionContract refuses"), f.why)
+  }
+
   test("the examples pass against the contract and the implementation") {
     assert(knowledge.exampleResults(decisionContract).forall(r => r.contract == "ok" && r.implementation.contains("ok")),
       knowledge.exampleResults(decisionContract))
@@ -56,7 +72,7 @@ class AuthSuite extends munit.CatsEffectSuite:
   }
 
   // Runs Lean: `sbt leanTest`, not plain `sbt test`.
-  test("the knowledge base is proven, from the contract and its code to the root".tag(munit.Tag("Lean"))) {
+  test("the knowledge base is proven from the contract to the root; the code is tested against the contract".tag(munit.Tag("Lean"))) {
     // In the example's own workspace, as `auth/run check` checks it: its Lean build and recorded results
     // are reused while current.
     for
@@ -66,6 +82,9 @@ class AuthSuite extends munit.CatsEffectSuite:
       assertEquals(report.nodes.map(c => c.id.value -> c.status.toString),
         List("AccessExactly" -> "proven", "TokenNamesHolder" -> "proven", "AccessNeedsGrant" -> "proven", "GrantLetsIn" -> "proven", "DecisionContract" -> "proven"))
       assertEquals(report.view.snapshot.root.flatMap(report.view.node).flatMap(_.node.rootImpl).map(_.status.toString), Some("proven"))
-      assertEquals(report.view.snapshot.trusted, Nil)
+      // root_impl rests on the contract, whose plain code is tested, not proven: trusted, and said to be tested.
+      val decision = List(frflow.protocol.NodeId(decisionContract.id))
+      assertEquals((report.view.snapshot.trusted, report.view.snapshot.tested), (decision, decision))
+      assert(details.node.node.tested.exists(_.passed), details.node.node.tested)
       assert(details.idea.contains("No user may ever"), details.idea)
   }

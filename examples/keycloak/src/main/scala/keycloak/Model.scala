@@ -30,6 +30,6 @@ val knowledge = KnowledgeBase("Keycloak", idea = "IDEA.md")(
   .implementProven(storeKeepsState)(storedAs, (q, t) => sessionDb.value.storeAfter(q, t))
   .implementProven(sessionLookup)(storedSession, (realm, token) => sessionDb.value.find(realm, token))
   .implementProven(handleRequest)(handle)
-  .implementProven(introspectContract)(introspection)
+  .implement(introspectContract, lookup)(introspection)
 
 object keycloakCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/keycloak", extensions = List(frflow.agent.Agent))

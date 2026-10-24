@@ -154,7 +154,7 @@ class CheckSuite extends munit.FunSuite:
     assertEquals(j.results.find(_.name.lean == "needed_FromList").map(r => (r.status, r.detail)),
       Some((ObligationStatus.NotShown, "Lean found no proof that OnlyGood holds without it (a try)")))
     assertEquals(j.results.find(_.name.lean == "clash").map(_.status), Some(ObligationStatus.NotShown))
-    assertEquals(j.results.find(_.name.lean == "root_impl").map(_.detail), Some("the root holds of the code, trusting Pick"))
+    assertEquals(j.results.find(_.name.lean == "root_impl").map(_.detail), Some("the root holds of the code, trusting nothing; and the code of Pick, tested, not proven"))
     // an axiom outside what Lean's logic needs, or no audit at all: nothing is proven
     val unsound = Verdict.finish(a, onlyGood, results, None, checked(a, onlyGood, "depends on axioms: [cheat]"), root)
     assertEquals((unsound.status, unsound.messages), (CheckStatus.Failed, List("disallowed axioms: cheat")))

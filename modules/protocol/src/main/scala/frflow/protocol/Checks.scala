@@ -105,6 +105,18 @@ final case class CodeRef(files: List[String], fingerprint: Fingerprint) derives 
 final case class Kept(id: NodeId, view: String, rule: String, status: ObligationStatus, detail: String) derives Codec.AsObject
 final case class Expectation(statement: String, source: String, status: ObligationStatus, detail: String) derives Codec.AsObject
 final case class ImplProof(name: String, status: ObligationStatus, detail: String) derives Codec.AsObject
+/** A contract's code tested against it, not proven: how many cases, from which seed, against what (the contract, or the
+  * proven define the code runs beside); the case that failed, shrunk; how often each part of the contract held; and
+  * what to know about how the cases were made.
+  */
+final case class TestReport(cases: Int, seed: Long, against: String, failure: Option[TestFailure] = None,
+    coverage: List[Covered] = Nil, notes: List[String] = Nil) derives Codec.AsObject:
+  /** The parts of the contract no case reached: a test that passes without reaching them says little. */
+  def unreached: List[Covered] = coverage.filter(_.held == 0)
+  def passed: Boolean = failure.isEmpty && unreached.isEmpty
+final case class TestFailure(shown: String, why: String, seed: Long, index: Int, size: Int) derives Codec.AsObject
+final case class Covered(part: String, held: Int) derives Codec.AsObject
+
 final case class ObligationText(name: String, statement: String, description: String) derives Codec.AsObject
 final case class ProofFile(file: String, source: String) derives Codec.AsObject
 
@@ -118,7 +130,7 @@ final case class SnapNode(id: NodeId, kind: NodeKind, content: Content, hash: Ha
     split: Option[Split] = None, invariants: List[Kept] = Nil, expectations: List[Expectation] = Nil,
     implementationProof: Option[ImplProof] = None, rootImpl: Option[Outcome] = None, covers: List[NodeId] = Nil,
     exempts: List[NodeId] = Nil, obligations: List[ObligationText] = Nil, proof: Option[ProofFile] = None,
-    holds: String = "", lean: String = "", messages: List[String] = Nil) derives Codec.AsObject:
+    holds: String = "", lean: String = "", messages: List[String] = Nil, tested: Option[TestReport] = None) derives Codec.AsObject:
   def shownKind: String = kind.shown(rule)
   def examplesPassing: (Int, Int) = (examples.count(_.passes), examples.size)
 
@@ -131,4 +143,4 @@ final case class DefText(name: String, source: String) derives Codec.AsObject
 final case class Snapshot(name: String, nodes: List[SnapNode], idea: String = "", ideaFile: String = "",
     warnings: List[String] = Nil, root: Option[NodeId] = None, definitions: List[NodeId] = Nil, trusted: List[NodeId] = Nil,
     exportedAt: Instant = Instant.EPOCH, opaques: List[OpaqueTerm] = Nil, params: List[ParamTerm] = Nil,
-    types: List[TypeText] = Nil, defs: List[DefText] = Nil) derives Codec.AsObject
+    types: List[TypeText] = Nil, defs: List[DefText] = Nil, tested: List[NodeId] = Nil) derives Codec.AsObject

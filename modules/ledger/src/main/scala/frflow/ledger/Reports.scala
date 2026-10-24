@@ -37,11 +37,13 @@ object Waiting:
     a.nodes.filter(r => (r.state == ReviewState.Proposed || r.state == ReviewState.Review) && rejectedParents(a, r).isEmpty)
       .sortBy(r => rank.getOrElse(r.id, Int.MaxValue))
 
-/** How a contract's code is proven: down to its code (a proven define, and the running code), a define not proven yet, or by running. */
+/** How a contract's code meets it: proven down to its code (a proven define, and the code running beside it, tested
+  * against the define), a define not proven yet, or plain code tested against the contract (not proven).
+  */
 enum CodeProof derives Codec.AsObject:
   case ProvenDown(define: String, running: Option[String])
   case Define(name: String, status: ObligationStatus, running: Option[String])
-  case ByRunning
+  case Tested(report: Option[TestReport])
 
 object CodeProof:
   def of(n: SnapNode): Option[CodeProof] =
@@ -50,9 +52,26 @@ object CodeProof:
     n.implementationProof match
       case Some(p) if p.status == ObligationStatus.Proven => Some(ProvenDown(p.name, running))
       case Some(p) => Some(Define(p.name, p.status, running))
-      case None => Option.when(impl.nonEmpty)(ByRunning)
+      case None => Option.when(impl.nonEmpty)(Tested(n.tested))
+
+  /** Whether code of the node is tested, not proven: plain code, or code running beside a proven define. */
+  def tested(n: SnapNode): Boolean = of(n).exists {
+    case Tested(_)              => true
+    case ProvenDown(_, running) => running.isDefined
+    case Define(_, _, running)  => running.isDefined
+  }
 
 object Proofs:
+  /** What of a node's tested code is not shown: a generated case that fails, a part of the contract no case reached,
+    * or no test yet.
+    */
+  def tests(n: SnapNode): List[String] =
+    if !CodeProof.tested(n) then Nil
+    else n.tested.fold(List("its code is not tested yet: run check")) { r =>
+      r.failure.map(f => s"its code fails a generated case: ${f.shown}: ${f.why}").toList ++
+        r.unreached.map(c => s"its code's tests never reached a part of the contract: ${c.part} (add an example, or a generator)")
+    }
+
   /** The CI gate: some node (a project still in its conversation is not done), IDEA.md accepted, every node accepted and
     * proven, every example passing; rejected nodes removed from the model, so that nothing rests on them or is governed by them.
     */
@@ -74,6 +93,7 @@ object Proofs:
       n.invariants.filterNot(i => fine(i.status) || i.status == ObligationStatus.Exempt).map(i => s"invariant ${i.id} is ${i.status}") ++
       n.implementationProof.filterNot(p => fine(p.status)).map(p => s"its implementation ${p.name} is ${p.status}: not proven to meet the contract") ++
       n.rootImpl.filterNot(p => fine(p.status)).map(p => s"root_impl is ${p.status}: the root is not proven of the code") ++
+      tests(n) ++
       n.expectations.filterNot(e => fine(e.status)).map(e => s"an expectation is ${e.status}") ++
       // A root doing nothing meets says only what must not happen: the system can drop every feature unnoticed.
       n.idle.map(what => s"Lean shows doing nothing meets it ($what): say what users can do, so the root is stated as exactly")

@@ -21,7 +21,11 @@ object Snapshots:
       params = kb.params.map(p => ParamTerm(p.name, p.means, kb.isOp(p.name), g.inForce.get(p.name).map(d => NodeId(d.id)),
         kb.nodes.flatMap(_.referenced).flatMap(_.paramRefs).toMap.getOrElse(p.name, ""))),
       types = kb.types.map(t => TypeText(t.name, t.lean)),
-      defs = kb.defs.map(d => DefText(d.name, d.lifted.source)))
+      defs = kb.defs.map(d => DefText(d.name, d.lifted.source)),
+      tested = ids(Snapshots.tested(a)))
+
+  /** What root_impl assumes that is code tested against its contract (not an assumption about the outside). */
+  def tested(a: Analysis): List[Node[?]] = a.generate.trusted.filter(c => Testing.testable(a.kb, c).exists(_.proven.isEmpty))
 
   private def node(a: Analysis, n: Node[?]): SnapNode =
     val kb = a.kb
@@ -52,7 +56,8 @@ object Snapshots:
       obligations = g.obligations(n).map(o => ObligationText(o.name.lean, o.statement, o.description)),
       proof = a.proofOf(n).map(src => ProofFile("lean/" + g.layout.proofs(n.id).path, src)),
       holds = if g.formal(n) then g.holdsStatement(n) else "", lean = if g.formal(n) then g.spec(n) else "",
-      messages = check.orElse(a.checks.get(id).filter(_.status == CheckStatus.Waiting)).toList.flatMap(_.messages))
+      messages = check.orElse(a.checks.get(id).filter(_.status == CheckStatus.Waiting)).toList.flatMap(_.messages),
+      tested = a.tested(n))
 
   /** An invariant a contract keeps: the view lists all the result holds of it, and the invariant's `complete`, this contract
     * among its parts. Lean showing it holds without the contract leaves it `open`; a try that found no proof proves nothing.

@@ -394,8 +394,20 @@ function examples(n) {
         e.lean.status === "proven" ? "Lean agrees" : e.lean.status === "failed" ? "Lean disagrees" : esc(e.lean.status) + " in Lean"}</span>` : ""}
       <div class="mono muted">${esc(e.call)}</div>${ok ? "" : `<div class="err">${esc([e.fails, e.codeFails && "the implementation " + e.codeFails].filter(Boolean).join("; "))}</div>`}</div>`; }).join("");
 }
+/** The tests of a contract's code: cases and seed, the failing case (shrunk), how often each part of the contract held. */
+function tested(r, expected) {
+  if (!expected) return "";
+  if (!r) return `<div class="warn">Not tested yet: run check.</div>`;
+  const fail = r.failure ? `<div class="err">A generated case fails: <span class="mono">${esc(r.failure.shown)}</span><br>${esc(r.failure.why)}</div>` : "";
+  const unreached = r.coverage.filter(c => c.held === 0);
+  const verdict = !r.failure && !unreached.length ? `<div class="small ok">Every case meets it, and every part of it was reached.</div>` : "";
+  return `<div class="small">Tested on ${r.cases.toLocaleString()} generated cases (seed ${r.seed}), against ${esc(r.against)}.</div>${fail}${verdict}` +
+    `<details${unreached.length ? " open" : ""}><summary>what the cases reached</summary>` +
+    r.coverage.map(c => `<div class="small ${c.held ? "" : "err"}">${c.held ? `${c.held}×` : "never"}: <span class="mono">${esc(c.part)}</span></div>`).join("") +
+    r.notes.map(x => `<div class="small muted">${esc(x)}</div>`).join("") + `</details>`;
+}
 function formal(d) {
-  const n = d.node.node, c = n.content, p = d.codeProof && Object.entries(d.codeProof)[0], runs = p?.[1].running ? `; running code ${esc(p[1].running)} checked against it` : "";
+  const n = d.node.node, c = n.content, p = d.codeProof && Object.entries(d.codeProof)[0], runs = p?.[1].running ? `; running code ${esc(p[1].running)} tested against it` : "";
   return section("Formally (as written in Scala)", Object.entries(c.sources || {}).map(([k, v]) => `<div class="label">${esc(k)}${k === "post" && n.op ? ` (every call of ${esc(n.op)})` : ""}</div><pre>${esc(v)}</pre>`).join("") +
       (c.substitutions || []).map(s => `<pre>${esc(s)}</pre>`).join("") +
       n.invariants.map(i => i.status === "exempt" ? `<div class="small">exempt from ${go(i.id)}: ${esc(i.detail)}</div>` : `<div class="label">keeps ${go(i.id)} (${esc(i.status)}), showing the rule:</div><pre>${esc(i.view)}</pre>`).join("") +
@@ -404,7 +416,8 @@ function formal(d) {
       n.idle && `<div class="err">idle: Lean shows doing nothing meets it (${esc(n.idle)}): say what users can do.</div>`,
       n.leaf && `<div class="warn">Nothing below proves it yet: it is trusted as it stands.</div>`].filter(Boolean).join("")) +
     section("Code", (p ? `<div class="small">${p[0] === "ProvenDown" ? `<b>Proven down to its code</b>: proven define ${esc(p[1].define)}${runs}` : p[0] === "Define"
-      ? `define ${esc(p[1].name)}, ${esc(p[1].status)}${runs}` : "Checked by running: a plain implementation, not proven"}</div>` : "") +
+      ? `define ${esc(p[1].name)}, ${esc(p[1].status)}${runs}` : "<b>Plain code, tested</b> against the contract, not proven"}</div>` : "") +
+      tested(n.tested, p && (p[0] === "Tested" || p[1].running)) +
       (n.code ? `<div class="small">governs: <span class="mono">${esc(n.code.files.join(", "))}</span></div>` : "") +
       (c.implementation ? `<details><summary>the code</summary><pre>${esc(c.implementation)}</pre></details>` : ""));
 }

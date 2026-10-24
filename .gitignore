@@ -12,6 +12,7 @@ project/project/
 # ledger, the developer keys (.frflow/keys), the requests (.frflow/requests.json) and lean/Proofs.
 **/.frflow/kb.json
 **/.frflow/checks.json
+**/.frflow/tests.json
 **/.frflow/running.json
 **/.frflow/*.lock
 **/.frflow/*.tmp

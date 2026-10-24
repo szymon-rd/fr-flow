@@ -18,6 +18,11 @@ final class Analysis private (val kb: KnowledgeBase, val ws: Workspace, val inpu
 
   /** The same inputs with other checks recorded: the Lean and the contents are kept. */
   def withChecks(checks: Map[NodeId, NodeCheck]): Analysis = new Analysis(kb, ws, inputs.copy(checks = checks), Some(m))
+  def withTests(tests: Map[NodeId, Recorded], counterexamples: Map[NodeId, List[Counterexample]]): Analysis =
+    new Analysis(kb, ws, inputs.copy(tests = tests, counterexamples = counterexamples), Some(m))
+
+  /** The recorded test of a node's code, if still current: what it depends on has not changed since. */
+  def tested(n: Node[?]): Option[TestReport] = inputs.tests.get(NodeId(n.id)).filter(_.key == Tests.key(this, n)).map(_.report)
 
   /** Among two definitions of a term, the one in force: accepted, and not since rejected. */
   def chosen(id: String): Boolean =

@@ -102,7 +102,20 @@ object CheckRunner:
       results = plan.todo.flatMap(n => done.get(n.id).map(n -> _))
       all = a.checks.filter((id, _) => a.kb.node(id.value).isDefined) ++ results.map((n, c) => NodeId(n.id) -> c)
       _ <- Inputs.saveChecks(a.ws.checksFile, all)
-    yield (results, a.withChecks(all))
+      (recorded, counterexamples) <- test(a, cfg, only)
+    yield (results, a.withChecks(all).withTests(recorded, counterexamples))
+
+  /** Tests the code of the contracts it is not proven of, against them: those whose test is not current (or `only`). */
+  def test(a: Analysis, cfg: Config, only: Option[String]): IO[(Map[NodeId, Recorded], Map[NodeId, List[Counterexample]])] =
+    val todo = Tests.testable(a).filter(n => only.forall(_ == n.id) && (only.isDefined || a.tested(n).isEmpty))
+    for
+      found <- todo.parTraverseN(cfg.threads)(n => Tests.run(a, n, a.inputs.counterexamples.getOrElse(NodeId(n.id), Nil)).map(n -> _))
+      fresh = found.collect { case (n, Some(r)) => NodeId(n.id) -> Recorded(Tests.key(a, n), r) }
+      kept = a.inputs.tests.filter((id, _) => a.kb.node(id.value).exists(Testing.testable(a.kb, _).isDefined))
+      recorded = kept ++ fresh
+      counterexamples = Tests.kept(a.inputs.counterexamples, fresh.map((id, r) => id -> r.report))
+      _ <- Tests.save(a.ws, recorded, counterexamples).whenA(fresh.nonEmpty || kept.size != a.inputs.tests.size)
+    yield (recorded, counterexamples)
 
 /** Checks one node against Lean: each step runs Lean, then a pure judge (`Verdict`) says whether the check ends there (a `Left`). */
 final class NodeChecker(a: Analysis, lake: Lake, prebuilt: Set[String]):

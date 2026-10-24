@@ -57,7 +57,8 @@ class NodeSuite extends munit.FunSuite:
     assert(kb.exampleResults(kept).forall(_.implementation.contains("ok")), kb.exampleResults(kept))
     // every long book, twice: meets the post, breaks the invariant when one is asked for
     val bad = kb.implement(kept)((s, n) => s.filter(_.pages >= minPages.value) ++ s.filter(_.pages >= minPages.value))
-    assert(bad.exampleResults(kept).flatMap(_.implementation).exists(_.contains("breaks the invariant AtMostN")), bad.exampleResults(kept))
+    val broken = bad.testedWith(TestSettings(300)).test(kept).flatMap(_.failure)
+    assert(broken.exists(_.why.contains("breaks the invariant AtMostN")), broken)
     val run = bad.service(kept)(minPages.bind(100))
     intercept[ContractViolation](run(List(Book("Long", 300)), 1))
     // every contract whose result can hold what the rule is about keeps it or says why not; an invariant nobody keeps is a problem

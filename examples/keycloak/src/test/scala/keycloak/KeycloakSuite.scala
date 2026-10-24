@@ -31,6 +31,20 @@ class KeycloakSuite extends munit.CatsEffectSuite:
     assertEquals(knowledge.parts(realmAccess).map(_.id), List("NoUnauthorizedAccess", "SignedInAreAccepted"))
   }
 
+  test("the plain code is tested against its contracts: introspection, and the store's index and writes against their defines") {
+    for c <- List(introspectContract, sessionLookup, storeKeepsState) do
+      val r = knowledge.test(c).getOrElse(fail(s"${c.id} is not tested"))
+      assertEquals(r.failure, None, c.id)
+      assertEquals(r.coverage.filter(_.held == 0), Nil, c.id)
+  }
+
+  test("an introspection that forgets the account's state fails a generated case") {
+    val careless = knowledge.implement(introspectContract, lookup)((realm, token) =>
+      lookup.value(realm, token).map(x => Claims(realm, x.user, account.value(realm, x.user).fold(Nil)(_.roles))))
+    val f = careless.test(introspectContract).get.failure.getOrElse(fail("not found"))
+    assert(f.why.contains("which Introspect refuses"), f)
+  }
+
   test("every example passes, against its node and its code") {
     for n <- List(handleRequest, introspectContract, sessionLookup, storeKeepsState) do
       val bad = knowledge.exampleResults(n).filter(r => r.contract != "ok" || r.implementation.exists(_ != "ok"))

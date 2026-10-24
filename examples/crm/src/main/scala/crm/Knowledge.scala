@@ -26,5 +26,10 @@ val knowledge = KnowledgeBase("Crm", idea = "IDEA.md")(
   .implementProven(saveWrite)(saved)
   .implementProven(sharesExpire)(expireCode)
   .implementProven(expiryJob)(expireOnce)
+  // A store as its tables hold it: one row per key (a record by its id, a share and an expiry by record and company).
+  .generating(
+    (for rs <- Gen.derived[List[CrmRecord]]; ss <- Gen.derived[List[Share]]; es <- Gen.derived[List[Expiry]]
+    yield CrmStore(rs.distinctBy(_.id), ss.distinctBy(s => (s.record, s.to)), es.distinctBy(e => (e.record, e.to))))
+      .describedAs("stores with one row per key, as the tables hold them"))
 
 object crmCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/crm", extensions = List(frflow.agent.Agent))

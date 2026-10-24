@@ -4,7 +4,8 @@ import frflow.protocol.{NodeKind, Walk, tooFew}
 import java.util.regex.Pattern.quote
 
 /** The idea and its nodes: one root claim refined by a DAG of parts, told apart by identity; `name` is the Lean namespace. */
-final class KnowledgeBase(val name: String, val idea: String, val implementations: List[Implementation] = Nil)(nodeList: Node[?]*):
+final class KnowledgeBase(val name: String, val idea: String, val implementations: List[Implementation] = Nil,
+    val generators: List[(LeanType[?], Gen[?])] = Nil, val testing: TestSettings = TestSettings())(nodeList: Node[?]*):
   val nodes: List[Node[?]] = nodeList.toList
   private lazy val members: Set[Node[?]] = nodes.toSet
   def has(n: Node[?]): Boolean = members(n)
@@ -106,8 +107,12 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     Walk.postorder(all.map(_.name).distinct.flatMap(byName.get), _.name)(_.uses.flatMap(byName.get))
 
   /** Registers the code of a contract's operation, built under the values of each example and call (`grants.value`). */
-  inline def implement[A, B, R](contract: Node[(A, B) => R])(inline impl: (A, B) => R): KnowledgeBase =
-    withImplementation(Implementation(contract.id, () => impl, Source.sourceFiles(impl), Source.sources(impl).mkString))
+  /** `calls`: the operations the code calls (`lookup.value(…)` inside it): FrFlow cannot see into plain code, so the code
+    * says so, and its tests check that it calls only those.
+    */
+  inline def implement[A, B, R](contract: Node[(A, B) => R], calls: Param[?]*)(inline impl: (A, B) => R): KnowledgeBase =
+    withImplementation(Implementation(contract.id, () => impl, Source.sourceFiles(impl), Source.sources(impl).mkString,
+      calls = calls.map(_.name).toList))
 
   /** Code written as a `define`: Lean proves every result meets the contract, and the root holds of it (`root_impl`). */
   inline def implementProven[A, B, R](contract: Node[(A, B) => R])(inline impl: Def[(A, B) => R]): KnowledgeBase =
@@ -122,7 +127,15 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
   inline def implementProven[A, R](contract: Node[A => Flow[R]])(inline impl: Term[A] => Flow[R]): KnowledgeBase =
     withImplementation(Implementation.ofFlow(contract, impl, Source.text(impl), Source.sourceFiles(impl)))
   def withImplementation(i: Implementation): KnowledgeBase =
-    KnowledgeBase(name, idea, implementations.filterNot(_.contract == i.contract) :+ i)(nodes*)
+    KnowledgeBase(name, idea, implementations.filterNot(_.contract == i.contract) :+ i, generators, testing)(nodes*)
+
+  /** Values of `T` for the tests of code against contracts, where the ones derived from the type rarely reach what a
+    * contract is about: `.generating(Gen.oneOf(Path("/a"), Path("/b")))`.
+    */
+  def generating[T](g: Gen[T])(using t: LeanType[T]): KnowledgeBase =
+    KnowledgeBase(name, idea, implementations, generators :+ (t -> g), testing)(nodes*)
+  /** How many cases each contract's code is tested on, from which seed. */
+  def testedWith(settings: TestSettings): KnowledgeBase = KnowledgeBase(name, idea, implementations, generators, settings)(nodes*)
   private lazy val byContract = implementations.map(i => i.contract -> i).toMap
   def implementation(n: Node[?]): Option[Implementation] = byContract.get(n.id)
   def modelFiles: List[String] = (nodes.map(_.file) ++ implementations.flatMap(_.modelFile)).filter(_.nonEmpty).distinct
@@ -144,7 +157,8 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
   lazy val opCode: List[Binding] = Wiring.opCode(this)
   lazy val runtimeAssumptions: List[Assumption] = Wiring.runtimeAssumptions(this)
   def exampleResults(n: Node[?]): List[ExampleResult] = ExampleRuns.results(this, n)
-  def generated(n: Node[?]): List[ExampleResult] = ExampleRuns.generated(this, n)
+  /** Its code tested against the contract (plain code, or code beside a proven define); none when its code is proven or a flow. */
+  def test(n: Node[?], replay: List[Testing.Replay] = Nil): Option[Testing.Report] = Testing.run(this, n, testing, replay)
   /** Structural problems; a knowledge base with problems is not checked. */
   lazy val problems: List[Problem] = Validation.problems(this)
 
@@ -168,7 +182,7 @@ private[frflow] object Validation:
     import kb.{nodes, parentsOf}
     val ids = nodes.map(_.id)
     // The operations some code calls (plain code calls one through its parameter: `decide.value(...)`, `decide(...)`).
-    val called = kb.implementations.flatMap(_.proven).flatMap(kb.opsCalledBy).toSet ++
+    val called = kb.implementations.flatMap(_.proven).flatMap(kb.opsCalledBy).toSet ++ kb.implementations.flatMap(_.calls) ++
       kb.onOp.keySet.filter(o => kb.implementations.exists(i => s"\\b${quote(o)}\\b".r.findFirstIn(i.wiring).isDefined))
     def under(kind: NodeKind)(n: Node[?]) = parentsOf(n).exists(_.kind == kind)
     List(

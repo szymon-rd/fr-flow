@@ -176,7 +176,9 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
   def evalFile(n: Node[?]): Option[String] =
     val es = evals.evals(n)._1
     Option.when(es.nonEmpty) {
-      val uses = layout.spec(n.id) :: provenImpl(n).fold(Nil)(_ => callees(n).map(c => layout.spec(c.id)))
+      // Proven code's callees' specs hold the defines its world is computed with; without proven code, the defines do.
+      val uses = layout.spec(n.id) :: provenImpl(n).fold(vocabularyModules.modulesFor(es.flatMap(_.defs).distinct, Nil))(_ =>
+        callees(n).map(c => layout.spec(c.id)))
       module(uses, s"$K.${n.id}.Eval", es.map { e =>
         s"${doc(e.what)}theorem ${e.name} : ${e.claim} := by\n  frflow_eval\n\n" +
           s"theorem ${e.name}_opposite : ${e.opposite} := by\n  frflow_eval\n\n"

@@ -291,6 +291,55 @@
           "op": "admit",
           "implementation": "proven: admitted\nadmitted = (token: Term[String], path: Term[Path]) =>\n  sessions(token)\n    .on[Some[UserId]](u => If(grants.contains(Grant(u, path)))(some(u)).Else(none))\n    .on[None.type](none)\nruns: SessionStore(grants.value.toSet, sessions.value).decide"
         }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-24T02:36:41.102407Z",
+        "reason": "The decision is plain Scala now (SessionStore.decide), tested against this contract on 1,000 generated cases with every part reached; the proofs above rest on the contract, and the admitted define is gone",
+        "rejected": [],
+        "after": "c4d91c9e00f04280",
+        "code": "9405dae5390a9ab8635107c60a70ea3a7ec1a9967b56a76f44f73b1f2e630b24",
+        "commit": "85e21732b3cb199fabb86beed2cd5fbb641965cc",
+        "key": "b6e216cfdf46a202",
+        "sig": "F02ull8YZzbZ4lX6cHf77gp4nFr+wZxxYHzkylsFmUufpRQY9TszDyS78NmSlMgso6A3KiNj9y6jIDP71WjkCA==",
+        "chain": "b4442bf5297a321e45b1160cbadc0c78ae5c466220c5c384a301e8e7a4452a99",
+        "content": {
+          "kind": "contract",
+          "parents": [
+            "TokenNamesHolder",
+            "AccessNeedsGrant",
+            "GrantLetsIn"
+          ],
+          "parts": [],
+          "statement": "A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path.",
+          "why": "The three parts, stated for one call, so every result of the running system can be checked.",
+          "sources": {
+            "post": "(token, path, decision) => decision.forall(u => sessions(token) === Some(u) && grants.contains(Grant(u, path))) &&\n  sessions(token).forall(u => grants.contains(Grant(u, path)) ==> (decision === Some(u)))"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (\"t1\", Path(\"/a\")) ⇒ Some(UserId(\"alice\"))  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\")))  — Alice's token and a grant for /a: she gets in",
+            "expect (\"t1\", Path(\"/b\")) ⇒ None  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\")))  — no grant for /b: refused",
+            "reject (\"t1\", Path(\"/b\")) ⇒ Some(UserId(\"alice\"))  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\")))  — access without a grant is never given",
+            "reject (\"t2\", Path(\"/a\")) ⇒ Some(UserId(\"alice\"))  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\")))  — a token that is not Alice's never acts for her",
+            "reject (\"t1\", Path(\"/a\")) ⇒ None  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\")))  — Alice with a grant for /a is not turned away"
+          ],
+          "vocabulary": [
+            "admit: the system's decision on a request (a token and a path): the user it is admitted on behalf of, if any",
+            "grants: the grant table as stored when the request is decided",
+            "sessions: the session table as stored when the request is decided: a token to the user it was issued to at login"
+          ],
+          "uses": [
+            "case class Path(value: String)",
+            "case class UserId(name: String)",
+            "case class Grant(user: UserId, path: Path)"
+          ],
+          "governs": [],
+          "definition": "val decisionContract = Node.contract(admit)(\"DecisionContract\",\n  \"A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path.\",\n  why = \"The three parts, stated for one call, so every result of the running system can be checked.\"\n)((token, path, decision) => decision.forall(u => sessions(token) === Some(u) && grants.contains(Grant(u, path))) &&\n  sessions(token).forall(u => grants.contains(Grant(u, path)) ==> (decision === Some(u))))\n  .under(tokenNamesHolder, accessNeedsGrant, grantLetsIn)\n  .examples(grants.bind(List(Grant(UserId(\"alice\"), Path(\"/a\")))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\"))))(\n    expect(\"t1\", Path(\"/a\"), Some(UserId(\"alice\")), \"Alice's token and a grant for /a: she gets in\"),\n    expect(\"t1\", Path(\"/b\"), None, \"no grant for /b: refused\"),\n    reject(\"t1\", Path(\"/b\"), Some(UserId(\"alice\")), \"access without a grant is never given\"),\n    reject(\"t2\", Path(\"/a\"), Some(UserId(\"alice\")), \"a token that is not Alice's never acts for her\"),\n    reject(\"t1\", Path(\"/a\"), None, \"Alice with a grant for /a is not turned away\"))",
+          "op": "admit",
+          "implementation": "SessionStore(grants.value.toSet, sessions.value).decide"
+        }
       }
     ],
     "GrantLetsIn": [

@@ -179,7 +179,7 @@ object Verdict:
     // A view whose coverage cannot be stated keeps nothing proven.
     val uncovered = g.formalKeeps(n).flatMap((i, _) => g.coverage(n, i).left.toOption.map(w =>
       Result(ObligationName.Cover(i.id), Failed, s"what the view must list cannot be stated: $w")))
-    val (rootImpl, rootAxioms) = root.map(rootVerdict(g, _)).unzip
+    val (rootImpl, rootAxioms) = root.map(rootVerdict(g, Snapshots.tested(a).map(_.id).toSet, _)).unzip
     // None when Lean did not report the axioms of a theorem of the Checks file proven: its audit did not finish.
     val audited = (checks.lean.axiomsOf(LeanText.Holds) :: extra.map(_._2) ++ impl.filter(_._1.status == Proven).map(_._2).toList ++
       rootAxioms.toList).sequence.map(_.flatten.distinct.sorted)
@@ -194,14 +194,17 @@ object Verdict:
       case Some(used) => Judged(CheckStatus.Proven, all, Nil, used)
 
   /** The root, of the code, from what is trusted only: proven with the axioms Lean printed for it (none printed, it did not finish). */
-  private def rootVerdict(g: Generate, root: Either[String, Elaborated]): (Result, Option[List[String]]) =
+  private def rootVerdict(g: Generate, tested: Set[String], root: Either[String, Elaborated]): (Result, Option[List[String]]) =
     def notProven(why: String) = (Result(RootImpl, Open, s"the root is not proven of the code: $why"), Some(Nil))
     // A module that is missing, by name: not the path Lake keeps it at.
     def named(why: String) = MissingModule.replaceAllIn(why, m => scala.util.matching.Regex.quoteReplacement(s"${m.group(1)} did not build"))
     root.fold(notProven, e => (e.verdict(RootImpl), e.axiomsOf(RootImpl)) match
       case (TheoremVerdict.Proven, Some(axioms)) =>
-        val trusting = if g.trusted.isEmpty then "nothing" else g.trusted.map(_.id).mkString(", ")
-        (Result(RootImpl, Proven, s"the root holds of the code, trusting $trusting"), Some(axioms))
+        // What it rests on: assumptions about the outside, and contracts whose code is tested against them, not proven.
+        val (byTest, assumed) = g.trusted.partition(t => tested(t.id))
+        val trusting = if assumed.isEmpty then "nothing" else assumed.map(_.id).mkString(", ")
+        val tests = if byTest.isEmpty then "" else s"; and the code of ${byTest.map(_.id).mkString(", ")}, tested, not proven"
+        (Result(RootImpl, Proven, s"the root holds of the code, trusting $trusting$tests"), Some(axioms))
       case (TheoremVerdict.Proven, None) => notProven(s"Lean did not print its axioms: ${quoted(e.run)}")
       case (v, _) => notProven(named(clip(v.why(RootImpl.lean).getOrElse(""), 5000))))
   private val MissingModule = """object file '[^']*' of module (\S+) does not exist""".r

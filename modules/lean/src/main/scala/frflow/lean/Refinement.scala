@@ -154,9 +154,11 @@ final class Refinement(kb: KnowledgeBase, val vocabulary: Vocabulary):
     else
       val parts = splitParts(n).getOrElse(Nil)
       val below = parts.foldLeft(known)(witness)
-      below.updated(n.id, provenImpl(n).isDefined || n.kind == NodeKind.Assumption ||
+      below.updated(n.id, provenImpl(n).isDefined || tested(n) || n.kind == NodeKind.Assumption ||
         (parts.nonEmpty && parts.forall(p => below.getOrElse(p.id, false))))
   private lazy val witnesses: Map[String, Boolean] = kb.nodes.foldLeft(Map.empty[String, Boolean])(witness)
 
-  /** Shown to be met: by proven code, an assumption, or parts that all are (a part nothing proves witnesses nothing). */
+  /** Plain code `check` tests against the contract: trusted in `root_impl`, as an assumption is. */
+  def tested(n: Node[?]): Boolean = formal(n) && n.op.isDefined && kb.implementation(n).exists(_.proven.isEmpty)
+  /** Shown to be met: by proven or tested code, an assumption, or parts that all are (a part nothing proves witnesses nothing). */
   def witnessed(n: Node[?]): Boolean = witness(witnesses, n).getOrElse(n.id, false)

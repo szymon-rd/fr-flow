@@ -5,7 +5,7 @@ import cats.syntax.all.*
 import frflow.protocol.ObligationName
 
 /** An example evaluated in Lean: `claim` is what Scala computes; Lean proving `opposite` means the translation is wrong. */
-final case class Eval(name: ObligationName, what: String, claim: String, opposite: String)
+final case class Eval(name: ObligationName, what: String, claim: String, opposite: String, defs: List[Def[?]] = Nil)
 
 /** The examples of the contracts of a knowledge base, and probes near them, evaluated in Lean. */
 final class Evals(kb: KnowledgeBase, refinement: Refinement):
@@ -29,20 +29,23 @@ final class Evals(kb: KnowledgeBase, refinement: Refinement):
     // A flow's post takes the input, the result, the world before and the world after: `postFn` pairs them as a call's.
     private val holds = n.asInstanceOf[Node[(Any, Any) => Any]].postFn.getOrElse(post.value.asInstanceOf[(Any, Any, Any) => Boolean])
     private val impl = provenImpl(n)
+    // The other nodes' proven code the examples' world is computed with: the eval module imports it.
+    private val used = scala.collection.mutable.LinkedHashSet.empty[Def[?]]
 
     def all: (List[Eval], List[(ObligationName, String)]) =
       val (failed, evaluated) = n.cases.zipWithIndex.partitionMap { (e, i) =>
         val label = s"example ${i + 1} (${e.note})"
         one(ObligationName.Eval(i), label, e.bindings, e.a, e.b, Some(e.result)).left.map(why => (ObligationName.Eval(i), s"$label: $why"))
       }
-      (evaluated.flatten ++ probes, failed)
+      val es = evaluated.flatten ++ probes
+      (es.map(_.copy(defs = used.toList)), failed)
 
     private def valueOf(bindings: List[Binding], p: String, seen: Set[String]): Either[String, String] =
       paramObject.get(p).flatMap(po => bindings.find(_.param eq po)) match
         case Some(b) => b.table.fold(scala.util.Try(b.value()).toOption.flatMap(leanValue)
           .toRight(s"Lean has no value for $p (a function, or a type Lean does not have; give a lookup as bindTable)"))(tableValue(p, _))
         case None => kb.onOp.getOrElse(p, Nil).flatMap(provenImpl).headOption.filterNot(_ => seen(p)) match
-          case Some(d) => envOf(bindings, defCtx(d), seen + p).map(env => code(d, env)._1)
+          case Some(d) => envOf(bindings, defCtx(d), seen + p).map(env => { used += d; code(d, env)._1 })
           case None    => Left(s"it gives no value for $p")
 
     private def tableValue(p: String, table: Map[?, ?]): Either[String, String] =

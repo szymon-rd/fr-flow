@@ -24,6 +24,8 @@ final case class Workspace(root: Path, kernelPath: String):
   def lean: Path = root.resolve("lean")
   def ledgerFile: Path = root.resolve(".frflow/ledger.json")
   def checksFile: Path = root.resolve(".frflow/checks.json")
+  def testsFile: Path = root.resolve(".frflow/tests.json")
+  def counterexamplesFile: Path = root.resolve(".frflow/counterexamples.json")
   def snapshotFile: Path = root.resolve(".frflow/kb.json")
   def keysDir: Path = root.resolve(".frflow/keys")
 
@@ -70,7 +72,8 @@ object Disk:
 /** Everything the checker reads, read once: `proofs` (`lean/Proofs/<KB>/`) by node id or `Lemmas`; `texts`, the nodes' files. */
 final case class Inputs(idea: String, ledger: Ledger, checks: Map[NodeId, NodeCheck], proofs: Map[String, String],
     texts: Map[String, String], code: Map[String, CodeRef], missing: Set[String], sources: Map[Path, String],
-    keys: Map[KeyId, PublicKey], now: Instant)
+    keys: Map[KeyId, PublicKey], now: Instant, tests: Map[NodeId, Recorded] = Map.empty,
+    counterexamples: Map[NodeId, List[Counterexample]] = Map.empty)
 
 object Inputs:
   val empty: Inputs = Inputs("", Ledger.empty, Map.empty, Map.empty, Map.empty, Map.empty, Set.empty, Map.empty, Map.empty, Instant.EPOCH)
@@ -80,9 +83,9 @@ object Inputs:
       proofs(kb, ws), texts(kb, ws), code(kb, ws.root),
       kb.nodes.flatMap(_.governs).distinct.filterA(f => Disk.exists(ws.root.resolve(f)).map(!_)).map(_.toSet),
       projectSources(ws.root, cfg.sources).flatMap(_.traverse(p => Disk.read(p).map(p -> _.getOrElse("")))).map(_.toMap),
-      IO.realTimeInstant
-    ).parMapN { case (idea, ledger, keys, checks, proofs, texts, code, missing, sources, now) =>
-      Inputs(idea, ledger, checks, proofs, texts, code, missing, sources, keys, now)
+      IO.realTimeInstant, Tests.recorded(ws.testsFile), Tests.counterexamples(ws.counterexamplesFile)
+    ).parMapN { case (idea, ledger, keys, checks, proofs, texts, code, missing, sources, now, tests, counterexamples) =>
+      Inputs(idea, ledger, checks, proofs, texts, code, missing, sources, keys, now, tests, counterexamples)
     }
 
   /** The recorded checks (`.frflow/checks.json`, not committed); none when missing, or written by another version. */

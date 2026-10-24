@@ -47,9 +47,11 @@ object SummaryText:
     }
     val proofs = List(Option.when(s.splits > 0)(s"splits ${ratio(s.splitsProven, s.splits)} proven"),
       Option.when(s.contracts > 0)(s"contracts ${ratio(s.contractsProvenDown, s.contracts)} proven down to their code"),
+      Option.when(s.contractsTested > 0)(s"code tested against its contract ${ratio(s.testsPassing, s.contractsTested)}"),
       rootImpl.map(r => s"root_impl $r"),
       Option.when(s.examplesInLean > 0)(s"examples ${ratio(s.examplesAgreeing, s.examplesInLean)} agree in Lean"),
-      Some(s"trusted: ${if s.trusted.isEmpty then "nothing" else s.trusted.mkString(", ")}"),
+      Some(s"trusted: ${s.trusted.filterNot(s.tested.contains) match { case Nil => "nothing"; case ts => ts.mkString(", ") }}" +
+        (if s.tested.isEmpty then "" else s"; tested, not proven: ${s.tested.mkString(", ")}")),
       some(s.unproven, "with something unproven", st.red), some(s.warnings, "warning(s)", st.red),
       some(s.unsigned, "decision(s) not signed", st.red)).flatten
     val waits = List(
@@ -65,7 +67,7 @@ object SummaryText:
         case Some(_) => "IDEA.md waits for you: read it, then accept IDEA.")
     val head = if s.nodes > 0 then List(s"${st.bold(s.name)}: ${s.nodes} nodes${sep}${counts.mkString(sep)}", proofs.mkString(sep))
       else List(s"${st.bold(s.name)}: no nodes yet") ++ start
-    (head :+ (if waits.isEmpty then (if s.complete then st.green("Nothing waits: every node is accepted and proven.") else "Nothing waits for a decision.")
+    (head :+ (if waits.isEmpty then (if s.complete then st.green(s"Nothing waits: every node is accepted and proven${if s.tested.isEmpty then "" else ", or its code tested"}.") else "Nothing waits for a decision.")
       else s"Waiting: ${waits.mkString(sep)}")).flatMap(Lines.para(_, st, indent = 0))
 
 /** What waits for the developer; then what layers on top add (`c`); the summary last. */

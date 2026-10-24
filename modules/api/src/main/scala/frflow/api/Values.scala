@@ -31,7 +31,8 @@ object Decided:
 final case class Overview(name: String, nodes: Int, proposed: Int, review: Int, accepted: Int, rejected: Int, gone: Int,
     proven: Int, trusted: List[NodeId], forDeveloper: Int, mechanical: Int, unsigned: Int, splits: Int, splitsProven: Int,
     contracts: Int, contractsProvenDown: Int, examplesInLean: Int, examplesAgreeing: Int, rootImpl: Option[ObligationStatus],
-    warnings: Int, complete: Boolean, idea: Option[ReviewState] = None) derives Codec.AsObject:
+    warnings: Int, complete: Boolean, idea: Option[ReviewState] = None, contractsTested: Int = 0, testsPassing: Int = 0,
+    tested: List[NodeId] = Nil) derives Codec.AsObject:
   def unproven: Int = nodes - proven
 object Overview:
   def of(v: View): Overview = of(v, Waiting.forDeveloper(v.annotated))
@@ -53,7 +54,8 @@ object Overview:
       contracts = contracts.size, contractsProvenDown = contracts.count(provenDown),
       examplesInLean = inLean.size, examplesAgreeing = inLean.count(_.status == ObligationStatus.Proven),
       rootImpl = v.snapshot.root.flatMap(v.node).flatMap(_.node.rootImpl).map(_.status), warnings = v.warnings.size, complete = v.ok,
-      idea = a.idea.map(_.state))
+      idea = a.idea.map(_.state), contractsTested = ns.count(CodeProof.tested),
+      testsPassing = ns.count(n => CodeProof.tested(n) && n.tested.exists(_.passed)), tested = v.snapshot.tested)
 
 final case class Queued(node: Reviewed, waitsFor: Option[NodeId], followers: List[NodeId]) derives Codec.AsObject
 /** What waits for the developer, in the order the ledger takes decisions: IDEA.md first when it waits (`idea`), the
