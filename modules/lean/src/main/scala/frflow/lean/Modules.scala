@@ -81,12 +81,18 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
   private def everyCall(c: Node[?], what: String, rest: String = ""): String =
     c.post.zip(c.op).fold("True") { (p, op) =>
       if c.isFlow then
-        val List(a, _, w, _) = p.params.map(_._2): @unchecked
-        val run = s"(${op.name} x0 x1)"
-        s"∀ (x0 : $a) (x1 : $w), $what x0 $run.1 x1 $run.2$rest"
+        // The post's binders: the inputs, the result, the world before and the world after.
+        val ts = p.params.map(_._2)
+        val ins = ts.dropRight(3)
+        val (vars, xs) = call(ins :+ ts(ts.size - 2))
+        val w = s"x${ins.size}"
+        val args = ins.indices.map(i => s"x$i").mkString(" ")
+        val run = s"(${op.name} $xs)"
+        s"∀ $vars, $what ${if args.isEmpty then "" else args + " "}$run.1 $w $run.2$rest"
       else
         val (vars, xs) = call(p.params.init.map(_._2))
-        s"∀ $vars, $what $xs (${op.name} $xs)$rest"
+        // An operation of no inputs is a value: `what op`.
+        if vars.isEmpty then s"$what ${op.name}$rest" else s"∀ $vars, $what $xs (${op.name} $xs)$rest"
     }
 
   private def model(n: Node[?]): List[String] = (n.rule, n.post) match

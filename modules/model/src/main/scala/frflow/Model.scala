@@ -22,6 +22,15 @@ final class Param[A](val name: String, val means: String)(using t: LeanType[A] =
     Subst.term(this, Lifted.lambda(f, List(x, y), Source.text(f)))
   inline def :=[X, Y, Z, R](inline f: (Term[X], Term[Y], Term[Z]) => Term[R])(using x: LeanType[X], y: LeanType[Y], z: LeanType[Z]): Subst =
     Subst.term(this, Lifted.lambda(f, List(x, y, z), Source.text(f)))
+  inline def :=[X, Y, Z, W, R](inline f: (Term[X], Term[Y], Term[Z], Term[W]) => Term[R])(using x: LeanType[X], y: LeanType[Y],
+      z: LeanType[Z], w: LeanType[W]): Subst =
+    Subst.term(this, Lifted.lambda(f, List(x, y, z, w), Source.text(f)))
+  inline def :=[X, Y, Z, W, V, R](inline f: (Term[X], Term[Y], Term[Z], Term[W], Term[V]) => Term[R])(using x: LeanType[X], y: LeanType[Y],
+      z: LeanType[Z], w: LeanType[W], v: LeanType[V]): Subst =
+    Subst.term(this, Lifted.lambda(f, List(x, y, z, w, v), Source.text(f)))
+  inline def :=[X, Y, Z, W, V, U, R](inline f: (Term[X], Term[Y], Term[Z], Term[W], Term[V], Term[U]) => Term[R])(using x: LeanType[X],
+      y: LeanType[Y], z: LeanType[Z], w: LeanType[W], v: LeanType[V], u: LeanType[U]): Subst =
+    Subst.term(this, Lifted.lambda(f, List(x, y, z, w, v, u), Source.text(f)))
   /** Evaluated on every use. */
   def bind(v: => A): Binding = Binding(this, () => v)
   /** `bind(table.get)`, with the table given to Lean too, so the examples are evaluated there. */
@@ -30,6 +39,8 @@ final class Param[A](val name: String, val means: String)(using t: LeanType[A] =
 
 // A parameter called in a model is a term; plain code calls the value in force: `sessions.value(t)`. Called on plain values
 // it is a term too (a model may call it on constants); plain code cannot use that term as a value, nor compare it with `==`.
+extension [R](p: Param[() => R])
+  def apply(): Term[R] = Term.applied(p)
 extension [A, R](p: Param[A => R])
   def apply(a: Term[A]): Term[R] = Term.applied(p, a)
 extension [A, B, R](p: Param[(A, B) => R])
@@ -40,6 +51,8 @@ extension [A, B, C, D, R](p: Param[(A, B, C, D) => R])
   def apply(a: Term[A], b: Term[B], c: Term[C], e: Term[D]): Term[R] = Term.applied(p, a, b, c, e)
 extension [A, B, C, D, E, R](p: Param[(A, B, C, D, E) => R])
   def apply(a: Term[A], b: Term[B], c: Term[C], e: Term[D], f: Term[E]): Term[R] = Term.applied(p, a, b, c, e, f)
+extension [A, B, C, D, E, F, R](p: Param[(A, B, C, D, E, F) => R])
+  def apply(a: Term[A], b: Term[B], c: Term[C], e: Term[D], f: Term[E], g: Term[F]): Term[R] = Term.applied(p, a, b, c, e, f, g)
 
 /** A definition of one term: a type (`User := of[UserId]`) or a function of the domain (`authorized := (u, p) => …`). */
 final class Subst private[frflow] (val name: String, val target: AnyRef, val isType: Boolean, private[frflow] val typeOf: Option[LeanType[?]],
@@ -93,18 +106,19 @@ object Lifted:
   /** A term defined as a value. */
   @scala.annotation.publicInBinary private[frflow] def term(t: () => Term[?], source: String): Lifted[Any] = Lifted(() => (Nil, t()), null, source, asValue = true)
   /** A flow from its input: its steps. */
-  @scala.annotation.publicInBinary private[frflow] def flow(f: AnyRef, in: LeanType[?], source: String): Lifted[Nothing] =
+  @scala.annotation.publicInBinary private[frflow] def flow(f: AnyRef, ins: List[LeanType[?]], source: String): Lifted[Nothing] =
     Lifted(() => {
-      val b = Lambda.binders(f, List(in)).head
-      val (s, t) = Steps.of(f.asInstanceOf[Term[Any] => Flow[?]](b.term))
-      (List(b), Term(Tree.Do(s), t))
+      val bs = Lambda.binders(f, ins)
+      val (s, t) = Steps.of(Fn.call(f, bs.map(_.term[Any])).asInstanceOf[Flow[?]])
+      (bs, Term(Tree.Do(s), t))
     }, f, source)
-  /** The code of a flow's contract: the flow from an input, run on the models from a world. */
-  @scala.annotation.publicInBinary private[frflow] def runOn(flow: Def[?], in: LeanType[?], result: LeanType[?]): Lifted[Nothing] =
+  /** The code of a flow's contract: the flow from its inputs, run on the models from a world. */
+  @scala.annotation.publicInBinary private[frflow] def runOn(flow: Def[?], ins: List[LeanType[?]], result: LeanType[?]): Lifted[Nothing] =
     Lifted(() => {
-      val a = Binder(flow.lifted.built._1.headOption.fold("x")(_.hint), in)
+      val hints = flow.lifted.built._1.map(_.hint)
+      val as = ins.zipWithIndex.map((t, i) => Binder(hints.lift(i).getOrElse(if i == 0 then "x" else s"x$i"), t))
       val w = Binder("w", summon[LeanType[World]])
-      (List(a, w), Term(Tree.RunOn(Tree.Call(flow, List(Tree.Var(a))), Tree.Var(w)), result))
+      (as :+ w, Term(Tree.RunOn(Tree.Call(flow, as.map(Tree.Var(_))), Tree.Var(w)), result))
     }, null, flow.lifted.source)
   /** A lambda over terms of these types. */
   @scala.annotation.publicInBinary private[frflow] def lambda[F](f: AnyRef, types: List[LeanType[?]], source: String): Lifted[F] =
@@ -121,6 +135,8 @@ object Def:
   def closure(ds: Iterable[Def[?]]): List[Def[?]] = Walk.preorder(ds.toList, _.name)(_.lifted.defs)
 
 /** `define { (b: Term[Book]) => b.pages >= 100 }`: named in Lean as the val it is assigned to. */
+inline def define[R](inline f: () => Term[R])(using r: LeanType[R]): Def[() => R] =
+  Def(Lifted.lambda(f, Nil, Source.text(f)), r)
 inline def define[A, R](inline f: Term[A] => Term[R])(using a: LeanType[A], r: LeanType[R]): Def[A => R] =
   Def(Lifted.lambda(f, List(a), Source.text(f)), r)
 inline def define[A, B, R](inline f: (Term[A], Term[B]) => Term[R])(using a: LeanType[A], b: LeanType[B], r: LeanType[R]): Def[(A, B) => R] =
@@ -134,12 +150,17 @@ inline def define[A, B, C, D, R](inline f: (Term[A], Term[B], Term[C], Term[D]) 
 inline def define[A, B, C, D, E, R](inline f: (Term[A], Term[B], Term[C], Term[D], Term[E]) => Term[R])(using a: LeanType[A], b: LeanType[B],
     c: LeanType[C], d: LeanType[D], e: LeanType[E], r: LeanType[R]): Def[(A, B, C, D, E) => R] =
   Def(Lifted.lambda(f, List(a, b, c, d, e), Source.text(f)), r)
+inline def define[A, B, C, D, E, F, R](inline f: (Term[A], Term[B], Term[C], Term[D], Term[E], Term[F]) => Term[R])(using a: LeanType[A],
+    b: LeanType[B], c: LeanType[C], d: LeanType[D], e: LeanType[E], g: LeanType[F], r: LeanType[R]): Def[(A, B, C, D, E, F) => R] =
+  Def(Lifted.lambda(f, List(a, b, c, d, e, g), Source.text(f)), r)
 
 private def called[R](d: Def[?], args: Term[?]*): Term[R] =
   Term(Tree.Call(d, args.toList.map(_.termTree)), d.resultType.asInstanceOf[LeanType[R]])
 
 // A define called in a model is a term; plain code runs it with `fn`: `matches.fn(query, record)`. Called on plain values it
 // is a term too (a model may call it on constants); plain code cannot use that term as a value, nor compare it with `==`.
+extension [R](d: Def[() => R])
+  def apply(): Term[R] = called(d)
 extension [A, R](d: Def[A => R])
   def apply(a: Term[A]): Term[R] = called(d, a)
 extension [A, B, R](d: Def[(A, B) => R])
@@ -150,6 +171,8 @@ extension [A, B, C, D, R](d: Def[(A, B, C, D) => R])
   def apply(a: Term[A], b: Term[B], c: Term[C], e: Term[D]): Term[R] = called(d, a, b, c, e)
 extension [A, B, C, D, E, R](d: Def[(A, B, C, D, E) => R])
   def apply(a: Term[A], b: Term[B], c: Term[C], e: Term[D], f: Term[E]): Term[R] = called(d, a, b, c, e, f)
+extension [A, B, C, D, E, F, R](d: Def[(A, B, C, D, E, F) => R])
+  def apply(a: Term[A], b: Term[B], c: Term[C], e: Term[D], f: Term[E], g: Term[F]): Term[R] = called(d, a, b, c, e, f, g)
 
 /** `forall` and `exists` say something of every value: Scala cannot compute them, so running one throws this. */
 final class NotExecutable(what: String) extends RuntimeException(s"$what cannot be executed")

@@ -19,7 +19,7 @@ class SoundnessSuite extends munit.FunSuite:
     assert(e.getMessage.contains("limit.value is read while a model is built"), e.getMessage)
     assert(e.getMessage.contains("use limit itself as a term"), e.getMessage)
     // In a flow's steps too.
-    val inFlow = Def(Lifted.flow(underLimit, summon[LeanType[BigInt]], "underLimit"), summon[LeanType[Boolean]], Some("underLimit"), isFlow = true)
+    val inFlow = Def(Lifted.flow(underLimit, List(summon[LeanType[BigInt]]), "underLimit"), summon[LeanType[Boolean]], Some("underLimit"), isFlow = true)
     intercept[IllegalStateException](Bindings.within(Seq(limit.bind(10)))(inFlow.lifted.body))
   }
 

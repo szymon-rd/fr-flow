@@ -5,7 +5,7 @@ import java.util.SplittableRandom
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong, AtomicReference}
 import scala.collection.concurrent.TrieMap
 
-// The run-time path: the user's production code calls `service`'s plain function `(A, B) => R`, and the
+// The run-time path: the user's production code calls `service`'s plain function of the operation's inputs, and the
 // predicates it checks read parameters as `param.value` deep inside the user's own code. That path has no
 // effect type, and three things here follow from it:
 // - The values in force are a ThreadLocal (`Bindings`): there is no argument to pass them through.
@@ -104,17 +104,18 @@ final case class Implementation(contract: String, factory: () => Any, files: Lis
 
 object Implementation:
   private val Ident = "[A-Za-z_][A-Za-z0-9_]*".r
-  def ofFlow[A, R](contract: Node[A => Flow[R]], impl: Term[A] => Flow[R], text: String, files: List[String]): Implementation =
-    val (in, r) = Node.flowTypes(contract.op.getOrElse(throw IllegalArgumentException(s"${contract.id} is not a contract")))
+  /** A flow attached as a contract's code: `impl` takes the flow's inputs as terms and gives its steps. */
+  def ofFlow(contract: Node[?], impl: AnyRef, text: String, files: List[String]): Implementation =
+    val (ins, r) = Node.flowTypes(contract.op.getOrElse(throw IllegalArgumentException(s"${contract.id} is not a contract")))
     val name = if Ident.matches(text) then text else contract.id.head.toLower.toString + contract.id.tail
-    val flow = Def(Lifted.flow(impl, in, text), r, Some(name), isFlow = true)
+    val flow = Def(Lifted.flow(impl, ins, text), r, Some(name), isFlow = true)
     val pair = LeanType.of[Any](Shape.TupleOf(List(r, summon[LeanType[World]])))
-    val code = Def(Lifted.runOn(flow, in, pair), pair, Some(s"${name}_run"))
+    val code = Def(Lifted.runOn(flow, ins, pair), pair, Some(s"${name}_run"))
     Implementation(contract.id, () => code.lifted.value, files, "", Some(code), Some(flow))
 
-/** Runs a flow's proven code in `F`: `knowledge.run[IO](expiryJob)(db.bind(sqlite))` is the job, a function of its input. */
-final class Runner[F[_]] private[frflow] (kb: KnowledgeBase)(using F: cats.effect.kernel.Sync[F]):
-  def apply[A, R](contract: Node[A => Flow[R]])(bound: (Binding | Boundary.Bound)*): A => F[R] =
+/** Runs a flow's proven code in `G`: `knowledge.run[IO](expiryJob)(db.bind(sqlite))` is the job, a function of its inputs. */
+final class Runner[G[_]] private[frflow] (kb: KnowledgeBase)(using G: cats.effect.kernel.Sync[G]):
+  def apply[F](contract: Node[F])(using s: Sig[F])(bound: (Binding | Boundary.Bound)*): s.Runs[G] =
     val flow = kb.implementation(contract).flatMap(_.flowDef)
       .getOrElse(throw IllegalStateException(s"no flow implements ${contract.id}: implementProven(${contract.id})(…)"))
     val bindings = bound.collect { case b: Binding => b }
@@ -127,7 +128,7 @@ final class Runner[F[_]] private[frflow] (kb: KnowledgeBase)(using F: cats.effec
       throw IllegalStateException(s"${contract.id}: bind the boundary ${b.name} (${b.name}.bind(…))"))
     val bound2 = bindings.map(_.param.name).toSet
     val all = bindings ++ kb.definitionBindings.filterNot(b => bound2(b.param.name)) ++ Wiring.calls(kb, bindings).filterNot(b => bound2(b.param.name))
-    a => F.map(Flows.run[F](steps, Map(bs.head -> a), impls, all))(_.asInstanceOf[R])
+    Fn.of(bs.size)(args => Flows.run[G](steps, bs.zip(args).toMap, impls, all)).asInstanceOf[s.Runs[G]]
 
 /** A parameter's value for one call, read when first needed; a function it holds answers each question once. */
 private[frflow] final class Cell(val binding: Binding):
@@ -147,59 +148,58 @@ private[frflow] object Cell:
 
   def memoized(v: Any): Any = v match
     case f: Function1[?, ?] if lambda(f) => memo(f.asInstanceOf[Any => Any])
-    case f: Function2[?, ?, ?] if lambda(f) =>
-      val g = f.asInstanceOf[(Any, Any) => Any]
-      val m = memo { case (x, y) => g(x, y) }
-      (x: Any, y: Any) => m((x, y))
-    case f: Function3[?, ?, ?, ?] if lambda(f) =>
-      val g = f.asInstanceOf[(Any, Any, Any) => Any]
-      val m = memo { case (x, y, z) => g(x, y, z) }
-      (x: Any, y: Any, z: Any) => m((x, y, z))
+    // A function of more arguments answers each list of them once.
+    case f: AnyRef if lambda(f) && Fn.arity(f).exists(_ >= 2) =>
+      val m = memo(args => Fn.call(f, args.asInstanceOf[List[Any]]))
+      Fn.of(Fn.arity(f).get)(m)
     case other => other
 
-extension [A, B, R](n: Node[(A, B) => R])
-  // The IR is untyped; the builders gave the post this type.
-  // A flow's post reads the result and the world after apart: its "result" is the pair the run on the models gives.
-  private[frflow] def postFn: Option[(A, B, R) => Boolean] = n.post.map { p =>
-    if n.isFlow then
-      val f = p.value.asInstanceOf[(Any, Any, Any, Any) => Boolean]
-      (a: A, before: B, r: R) => r match { case (x, after) => f(a, x, before, after); case _ => false }
-    else p.value.asInstanceOf[(A, B, R) => Boolean]
+// The IR is untyped: the builders gave the post, the check and the views the types of a call of the operation, so here a
+// call is its inputs (a flow's run: its inputs and the world before) and its result (a flow's: the result and the world after).
+extension (n: Node[?])
+  private[frflow] def postFn: Option[(List[Any], Any) => Boolean] = n.post.map { p =>
+    if n.isFlow then (ins: List[Any], r: Any) => r match
+      case (x, after) => Fn.call(p.value, ins.init ++ List(x, ins.last, after)).asInstanceOf[Boolean]
+      case _          => false
+    else (ins: List[Any], r: Any) => Fn.call(p.value, ins :+ r).asInstanceOf[Boolean]
   }
-  def broken(a: A, b: B, r: R): Option[String] = n.kept.find(_.brokenBy(a, b, r)).map(_.invariant.id)
+  def broken(inputs: List[Any], r: Any): Option[String] = n.kept.find(_.brokenBy(inputs, r)).map(_.invariant.id)
 
-  private[frflow] def enforce(impl: (A, B) => R, assumes: List[Assumption] = Nil, runCheck: RunCheck = RunCheck.EveryCall,
-      report: Violation => Unit = Violation.log)(bindings: Binding*): (A, B) => R =
+extension [F](n: Node[F])
+  /** `impl` (a Scala function of the operation's inputs) wrapped as `service` runs it: a function of the same inputs. */
+  private[frflow] def enforce(impl: F, assumes: List[Assumption] = Nil, runCheck: RunCheck = RunCheck.EveryCall,
+      report: Violation => Unit = Violation.log)(bindings: Binding*): F =
     // The cheap check when the contract gives one (Lean proves the post implies it), else the post.
     val (lifted, what) = (n.local, n.post) match
       case (Some(l), Some(_)) => (l, "its check")
       case (None, Some(p))    => (p, "the contract")
       case _                  => throw IllegalArgumentException(s"${n.id} is not a contract")
-    val check = lifted.value.asInstanceOf[(A, B, R) => Boolean]
+    val check = lifted.value
     val sampled = RunTimeChecks.chooser(runCheck)
     // What each assumption was last found to hold of: checked again when a value it reads changes.
     val held = AtomicReference(Map.empty[String, List[Any]])
     def same(xs: List[Any], ys: List[Any]) =
       xs.size == ys.size && xs.zip(ys).forall((p, q) => p.asInstanceOf[AnyRef] eq q.asInstanceOf[AnyRef])
     def fail(v: Violation): Nothing = { report(v); throw ContractViolation(v) }
-    (a, b) =>
+    Fn.of(n.op.map(Node.arity).getOrElse(0)) { ins =>
       // Each parameter is read once per call, and only if something reads it (a whole table a cheap check does
       // not read is never loaded): the implementation and the check see the same values.
       val cells = bindings.map(b => b.param.name -> Cell(b)).toMap
       Bindings.within(cells.values.map(c => Binding(c.binding.param, () => c.get)).toSeq) {
-        val r = impl(a, b)
+        val r = Fn.call(impl.asInstanceOf[AnyRef], ins)
         if sampled() then
-          if !check(a, b, r) then fail(Violation(n.id, what, List(a, b), Some(r)))
-          n.broken(a, b, r).foreach(i => fail(Violation(n.id, s"the invariant $i", List(a, b), Some(r))))
+          if !Fn.call(check, ins :+ r).asInstanceOf[Boolean] then fail(Violation(n.id, what, ins, Some(r)))
+          n.broken(ins, r).foreach(i => fail(Violation(n.id, s"the invariant $i", ins, Some(r))))
         // The values it ran with are checked whatever the code: they are about the world, and cheap (once per change).
         assumes.filter(x => x.reads.forall(p => cells.get(p).exists(_.loaded))).foreach { x =>
           val vs = x.reads.toList.sorted.flatMap(cells.get).map(_.get)
           if !held.get.get(x.what).exists(same(_, vs)) then
-            if !x.holds() then fail(Violation(n.id, s"the assumption ${x.what}", List(a, b), None))
+            if !x.holds() then fail(Violation(n.id, s"the assumption ${x.what}", ins, None))
             held.updateAndGet(_.updated(x.what, vs))
         }
         r
       }
+    }.asInstanceOf[F]
 
 /** Which calls a run-time check checks. */
 private[frflow] object RunTimeChecks:
@@ -215,9 +215,8 @@ private[frflow] object RunTimeChecks:
 
 /** Wiring a knowledge base's code into a running system (see `KnowledgeBase.service`). */
 private[frflow] object Wiring:
-  def service[A, B, R](kb: KnowledgeBase, contract: Node[(A, B) => R], bindings: Seq[Binding]): (A, B) => R =
+  def service[F](kb: KnowledgeBase, contract: Node[F], bindings: Seq[Binding]): F =
     val i = kb.implementation(contract).getOrElse(throw IllegalStateException(s"no implementation of ${contract.id}"))
-    val f = i.factory.asInstanceOf[() => (A, B) => R]
     val bound = bindings.map(_.param.name).toSet
     val defined = kb.definitionBindings.filterNot(b => bound(b.param.name))
     val calls = Wiring.calls(kb, bindings).filterNot(b => bound(b.param.name) || contract.op.exists(_ eq b.param))
@@ -236,13 +235,15 @@ private[frflow] object Wiring:
       throw ContractViolation(v)
     }
     val runTime = kb.runTime(contract).map(_.check).getOrElse(RunCheck.EveryCall)
-    contract.enforce((a, b) => f()(a, b), assumes, runTime, kb.onViolation)(all*)
+    // The code is built on each call, under the values in force then.
+    val code = Fn.of(contract.op.map(Node.arity).getOrElse(0))(ins => Fn.call(i.factory(), ins)).asInstanceOf[F]
+    contract.enforce(code, assumes, runTime, kb.onViolation)(all*)
 
   /** Each operation some contract's code implements, bound to its service (made when first called). */
   def calls(kb: KnowledgeBase, bindings: Seq[Binding]): List[Binding] =
     opBindings(kb) { (c, _) =>
-      lazy val s = service(kb, c.asInstanceOf[Node[(Any, Any) => Any]], bindings)
-      val g = (x: Any, y: Any) => s(x, y)
+      lazy val s: AnyRef = service(kb, c.asInstanceOf[Node[AnyRef]], bindings)
+      val g = Fn.of(c.op.map(Node.arity).getOrElse(0))(ins => Fn.call(s, ins))
       () => g
     }
 

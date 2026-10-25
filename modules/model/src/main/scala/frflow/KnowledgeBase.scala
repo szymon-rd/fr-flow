@@ -107,26 +107,20 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     val byName = all.groupBy(_.name).view.mapValues(ds => ds.maxBy(_.lean.length)).toMap
     Walk.postorder(all.map(_.name).distinct.flatMap(byName.get), _.name)(_.uses.flatMap(byName.get))
 
-  /** Registers the code of a contract's operation, built under the values of each example and call (`grants.value`). */
+  /** Registers the code of a contract's operation, built under the values of each example and call (`grants.value`):
+    * `implement(share)((by, doc, withWhom) => …)`, a function of the operation's inputs.
+    */
   /** `calls`: the operations the code calls (`lookup.value(…)` inside it): FrFlow cannot see into plain code, so the code
     * says so, and its tests check that it calls only those.
     */
-  inline def implement[A, B, R](contract: Node[(A, B) => R], calls: Param[?]*)(inline impl: (A, B) => R): KnowledgeBase =
-    withImplementation(Implementation(contract.id, () => impl, Source.sourceFiles(impl), Source.sources(impl).mkString,
-      calls = calls.map(_.name).toList))
+  def implement[F](contract: Node[F], calls: Param[?]*): Implementing[F] = Implementing(this, contract, calls.map(_.name).toList)
 
-  /** Code written as a `define`: Lean proves every result meets the contract, and the root holds of it (`root_impl`). */
-  inline def implementProven[A, B, R](contract: Node[(A, B) => R])(inline impl: Def[(A, B) => R]): KnowledgeBase =
-    withImplementation(Implementation(contract.id, () => impl.lifted.value, Source.sourceFiles(impl), "", Some(impl)))
-
-  /** Production code (`runs`: a query) beside the proven `define`, checked against it and against the contract. */
-  inline def implementProven[A, B, R](contract: Node[(A, B) => R])(inline impl: Def[(A, B) => R], inline runs: (A, B) => R): KnowledgeBase =
-    withImplementation(Implementation(contract.id, () => runs, Source.sourceFiles(runs), Source.sources(runs).mkString, Some(impl)))
-  /** A flow attached as a contract's code: Lean proves every run of it on the models meets the contract. Named in Lean
-    * as the `def` it is (`expireOnce`), its run on the models as `expireOnce_run`.
+  /** Code proven to meet the contract. `implementProven(c)(d)`: a `define` (Lean proves every result meets the contract,
+    * and the root holds of it, `root_impl`); `implementProven(c)(d, runs)`: production code (a query) beside the proven
+    * `define`, checked against it and against the contract; `implementProven(job)((now, …) => for … yield …)`: a flow,
+    * proven on the models, named in Lean as the `def` it is (`expireOnce`) and its run as `expireOnce_run`.
     */
-  inline def implementProven[A, R](contract: Node[A => Flow[R]])(inline impl: Term[A] => Flow[R]): KnowledgeBase =
-    withImplementation(Implementation.ofFlow(contract, impl, Source.text(impl), Source.sourceFiles(impl)))
+  def implementProven[F](contract: Node[F])(using s: Sig[F]): Proving[F, s.Code] = Proving(this, contract)
   def withImplementation(i: Implementation): KnowledgeBase =
     KnowledgeBase(name, idea, implementations.filterNot(_.contract == i.contract) :+ i, generators, testing, onViolation)(nodes*)
 
@@ -165,11 +159,11 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
   /** The running system: the code of `contract`, every result checked against it; the operations it calls bound
     * to their services, and the assumptions whose terms are bound checked whenever the values they read change.
     */
-  def service[A, B, R](contract: Node[(A, B) => R])(bindings: Binding*): (A, B) => R = Wiring.service(this, contract, bindings)
+  def service[F](contract: Node[F])(bindings: Binding*): F = Wiring.service(this, contract, bindings)
   /** The running system of a flow: its proven code in `F` (`run[IO](expiryJob)(db.bind(sqlite))`), calling the bound
     * implementations of its boundaries; the operations it calls run as their services.
     */
-  def run[F[_]: cats.effect.kernel.Sync]: Runner[F] = Runner(this)
+  def run[G[_]: cats.effect.kernel.Sync]: Runner[G] = Runner(this)
   lazy val definitionBindings: List[Binding] = Wiring.definitionBindings(this)
   lazy val opCode: List[Binding] = Wiring.opCode(this)
   lazy val runtimeAssumptions: List[Assumption] = Wiring.runtimeAssumptions(this)
@@ -326,3 +320,18 @@ private[frflow] object Validation:
       kb.nodes.filter(n => n.runCheck.isDefined && kb.runTime(n).isEmpty)
         .map(n => s"${n.id}: checkedAtRunTime is for a contract or an assumption whose code service runs: attach its code, or remove it")
     ).flatten.map(Code(_))
+
+/** `kb.implement(contract)(code)`: the code is a Scala function of the operation's inputs. */
+final class Implementing[F] private[frflow] (kb: KnowledgeBase, contract: Node[F], calls: List[String]):
+  inline def apply(inline impl: F): KnowledgeBase =
+    kb.withImplementation(Implementation(contract.id, () => impl, Source.sourceFiles(impl), Source.sources(impl).mkString,
+      calls = calls))
+
+/** `kb.implementProven(contract)(…)`: `C` is a flow's code, its steps from its inputs as terms. */
+final class Proving[F, C] private[frflow] (kb: KnowledgeBase, contract: Node[F]):
+  inline def apply(inline impl: Def[F]): KnowledgeBase =
+    kb.withImplementation(Implementation(contract.id, () => impl.lifted.value, Source.sourceFiles(impl), "", Some(impl)))
+  inline def apply(inline impl: Def[F], inline runs: F): KnowledgeBase =
+    kb.withImplementation(Implementation(contract.id, () => runs, Source.sourceFiles(runs), Source.sources(runs).mkString, Some(impl)))
+  inline def apply(inline impl: C): KnowledgeBase =
+    kb.withImplementation(Implementation.ofFlow(contract, impl.asInstanceOf[AnyRef], Source.text(impl), Source.sourceFiles(impl)))

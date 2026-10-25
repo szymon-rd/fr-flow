@@ -70,12 +70,24 @@ Exit codes: 0 fine; 1 not complete, or a decision refused; 2 a usage error
 |---|---|---|
 | claim | `Node.claim(id, statement, why)(formula)`; the one with no parents is the root | proven from its parts (`complete`) |
 | invariant | `Node.invariant[A, B](id, statement, why)(rule)`, kept by contracts with `.keeps(inv)(view)` | a claim whose parts are its keepers |
-| contract | `Node.contract(op)(id, statement, why)(post)` on an operation `op: Param[(A, B) => R]` | every call of `op` meets `post`; an attached `define` is proven against it (`impl`) |
-| contract on a flow | `Node.contract(op)(id, statement, why)((a, result, before, after) => ...)` on `op: Param[A => Flow[R]]` | every run from any world meets `post`; the attached flow is proven against it on the models (`impl`) |
+| contract | `Node.contract(op)(id, statement, why)((a, b, result) => ...)` on an operation `op: Param[(A, B) => R]`, of 0 to 6 inputs | every call of `op` meets `post`; an attached `define` is proven against it (`impl`) |
+| contract on a flow | `Node.contract(op)(id, statement, why)((a, result, before, after) => ...)` on `op: Param[A => Flow[R]]`, of 0 to 6 inputs | every run from any world meets `post`; the attached flow is proven against it on the models (`impl`) |
 | assumption | `Node.assumption(op)(...)(post)`, or `Node.assumption(id, statement, why)(formula)` | trusted, not proven: what the outside does, or a fact of the world |
 | model of a boundary | `Node.assumption(boundary)(Model)(id, statement, why)` | trusted: the boundary behaves as the model; flows are proven from it |
 | definition | `Node.definition(id, statement, why)(Type := of[T], term := expr, ...)` | fixes terms of the vocabulary; decided, not proven |
 | design | `Node.design(id, statement, why)(files*)` | none: governs code no proof covers |
+
+An operation takes 0 to 6 inputs. Every lambda over a call takes them in order, then the result (a
+flow's, then the worlds before and after), and every example lists them the same way. An operation of
+no inputs (`Param[() => R]`, a reading of the world now) is called `op()`, its post is `result => ...`
+and its examples `expect(result, note)` under the bindings that give it:
+
+```scala
+val share = Param[(UserId, DocId, UserId) => Boolean]("share", "whether a user may share a document with another")
+Node.contract(share)("Share", "...", why = "...")((by, doc, withWhom, result) => result === owns(by, doc))
+  .examples()(expect(ann, readme, bob, true, "the owner shares"), reject(bob, readme, ann, true, "only the owner"))
+knowledge.implement(share)((by, doc, withWhom) => owners(doc) == by)
+```
 
 `.under(parents*)` makes a node a part of each parent. `.replaces(other)` marks
 an alternative: accepting one rejects the other. Two definitions of one term
@@ -372,11 +384,12 @@ def expireOnce(now: Term[BigInt]): Flow[CrmStore] =
   state), never fails, and is the flow's alone during a run; loops are over
   lists (`xs.traverse_(x => ...)`). A design node says how the exclusive
   access is ensured (in the CRM, a lock).
-- **The contract** is on an operation `Param[A => Flow[R]]`; its post relates
-  the input, the result and the states before and after:
+- **The contract** is on an operation `Param[A => Flow[R]]` (of 0 to 6 inputs:
+  `() => Flow[R]`, `(A, B) => Flow[R]`); its post relates the inputs, the result
+  and the states before and after:
   `(now, result, before, after) => sameRows(after(DatabaseModel).store, expire(before(DatabaseModel).store, now)) && ...`.
-  Its examples give a world before (`World(DatabaseModel -> Tables(...))`)
-  and the result and world after.
+  Its examples give the inputs, a world before (`World(DatabaseModel -> Tables(...))`)
+  and the result and world after: `expect(now, before, result, after, note)`.
 - **The code** is attached with `.implementProven(expiryJob)(expireOnce)`. In
   Lean it is a `do` block over any monad with the boundaries' classes, and
   `impl` runs it on the models (`StateM World`). Steps of the outside world

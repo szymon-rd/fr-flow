@@ -37,7 +37,7 @@ def restockTwice(d: Term[BigInt]): Flow[BigInt] =
   yield twice
 
 class FlowSuite extends munit.FunSuite:
-  private val flow = Def(Lifted.flow(restock, summon[LeanType[List[BigInt]]], "restock"), summon[LeanType[BigInt]], Some("restock"), isFlow = true)
+  private val flow = Def(Lifted.flow(restock, List(summon[LeanType[List[BigInt]]]), "restock"), summon[LeanType[BigInt]], Some("restock"), isFlow = true)
   private def steps = flow.lifted.built._2.termTree match { case Tree.Do(s) => s; case t => fail(s"not a flow: $t") }
 
   test("a flow prints as a do block over the boundary's class") {
@@ -52,7 +52,7 @@ class FlowSuite extends munit.FunSuite:
   }
 
   test("a value named in a for-comprehension is a let, computed once, named as the program names it") {
-    val twice = Def(Lifted.flow(restockTwice, summon[LeanType[BigInt]], "restockTwice"), summon[LeanType[BigInt]], Some("restockTwice"), isFlow = true)
+    val twice = Def(Lifted.flow(restockTwice, List(summon[LeanType[BigInt]]), "restockTwice"), summon[LeanType[BigInt]], Some("restockTwice"), isFlow = true)
     assertEquals(twice.lifted.lean,
       """fun (d : Int) => do
         |    let before ← Stock.count

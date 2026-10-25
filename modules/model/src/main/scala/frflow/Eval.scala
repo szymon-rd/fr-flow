@@ -27,26 +27,12 @@ private[frflow] object Eval:
   type Env = Map[Binder, Any]
   type Run = Env => Any
 
-  /** The Scala function of `bs` (of arity 0 to 5) that `body` computes. */
-  def function(bs: List[Binder], body: Tree): AnyRef = closure(bs, compile(body), Map.empty)
+  /** The Scala function of `bs` that `body` computes. */
+  def function(bs: List[Binder], body: Tree): AnyRef =
+    val run = compile(body)
+    Fn.of(bs.size)(args => run(bs.zip(args).toMap))
 
-  private def closure(bs: List[Binder], run: Run, env: Env): AnyRef = bs match
-    case Nil                   => () => run(env)
-    case List(a)               => (x: Any) => run(env + (a -> x))
-    case List(a, b)            => (x: Any, y: Any) => run(env + (a -> x) + (b -> y))
-    case List(a, b, c)         => (x: Any, y: Any, z: Any) => run(env + (a -> x) + (b -> y) + (c -> z))
-    case List(a, b, c, d)      => (x: Any, y: Any, z: Any, w: Any) => run(env + (a -> x) + (b -> y) + (c -> z) + (d -> w))
-    case List(a, b, c, d, e)   => (x: Any, y: Any, z: Any, w: Any, v: Any) => run(env + (a -> x) + (b -> y) + (c -> z) + (d -> w) + (e -> v))
-    case _                     => throw IllegalArgumentException("FrFlow: at most five parameters")
-
-  def call(f: Any, args: List[Any]): Any = (f, args) match
-    case (g: Function0[?], Nil)                                  => g()
-    case (g: Function1[Any, ?] @unchecked, List(a))              => g(a)
-    case (g: Function2[Any, Any, ?] @unchecked, List(a, b))      => g(a, b)
-    case (g: Function3[Any, Any, Any, ?] @unchecked, List(a, b, c)) => g(a, b, c)
-    case (g: Function4[Any, Any, Any, Any, ?] @unchecked, List(a, b, c, d)) => g(a, b, c, d)
-    case (g: Function5[Any, Any, Any, Any, Any, ?] @unchecked, List(a, b, c, d, e)) => g(a, b, c, d, e)
-    case _ => throw IllegalArgumentException(s"FrFlow: cannot call $f on ${args.size} arguments")
+  def call(f: Any, args: List[Any]): Any = Fn.call(f, args)
 
   private def num(v: Any): BigInt = v match
     case i: Int    => BigInt(i)
@@ -76,7 +62,7 @@ private[frflow] object Eval:
       env => call(cf(env), as.map(_(env)))
     case Tree.Fun(bs, body)   =>
       val run = compile(body)
-      env => closure(bs, run, env)
+      env => Fn.of(bs.size)(args => run(env ++ bs.zip(args)))
     case Tree.Quant(all, bs, body) =>
       val run = compile(body)
       env =>

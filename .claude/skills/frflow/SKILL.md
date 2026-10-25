@@ -198,6 +198,9 @@ val sessionLookup = Node.assumption(lookup)("SessionLookup",          // keycloa
   used before it is defined is `null`). `.keeps(inv)(view)`: the pairs a call
   shows the invariant; every contract and design node in its scope keeps it or
   is `.exempt`. `idea = "Section"`: the section of `IDEA.md` it is decided against.
+- **Arity.** An operation takes 0 to 6 inputs. The post, `checkedBy`, a `keeps`
+  view, an `expect`/`reject` and `implement` take them in order, then the result
+  (a flow's: then the worlds before and after): `(by, doc, withWhom, r) => ...`.
 - **Extras.** `.checkedBy((a, b, r) => ...)`: a cheap check of the result, run
   where the code runs, proven to follow from the post. `.expects(statement)(formula)`:
   a consequence the developer expects, proven from the node.

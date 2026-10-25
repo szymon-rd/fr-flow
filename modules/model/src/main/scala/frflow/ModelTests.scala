@@ -70,7 +70,7 @@ private[frflow] object ModelTests:
   /** The states the examples of the flows calling the boundary start from and end in: seeds of the generated ones. */
   private def worlds(kb: KnowledgeBase, mo: ModelOf): List[World] =
     kb.nodes.filter(_.isFlow).flatMap(_.cases).flatMap { e =>
-      List(e.b) ++ (e.result match { case (_, w) => List(w); case _ => Nil })
+      e.inputs.lastOption.toList ++ (e.result match { case (_, w) => List(w); case _ => Nil })
     }.collect { case w: World if w.parts.contains(mo.model) => w }
 
   /** What a test saw of the model: the operations called, and how often each branch went each way. */

@@ -84,17 +84,7 @@ private[frflow] object Lambda:
   def binders(f: AnyRef, types: List[LeanType[?]]): List[Binder] =
     val hints = Lambdas.params(f)
     types.zipWithIndex.map((t, i) => Binder(hints.lift(i).getOrElse("x"), t))
-  def body(f: AnyRef, bs: List[Binder]): Term[?] = Building {
-    val ts = bs.map(_.term[Any])
-    (f, ts) match
-      case (g: Function0[?], Nil)                      => g().asInstanceOf[Term[?]]
-      case (g: Function1[?, ?], List(a))               => g.asInstanceOf[Any => Term[?]](a)
-      case (g: Function2[?, ?, ?], List(a, b))         => g.asInstanceOf[(Any, Any) => Term[?]](a, b)
-      case (g: Function3[?, ?, ?, ?], List(a, b, c))   => g.asInstanceOf[(Any, Any, Any) => Term[?]](a, b, c)
-      case (g: Function4[?, ?, ?, ?, ?], List(a, b, c, d)) => g.asInstanceOf[(Any, Any, Any, Any) => Term[?]](a, b, c, d)
-      case (g: Function5[?, ?, ?, ?, ?, ?], List(a, b, c, d, e)) => g.asInstanceOf[(Any, Any, Any, Any, Any) => Term[?]](a, b, c, d, e)
-      case _ => throw IllegalArgumentException(s"FrFlow: a lambda of ${bs.size} terms expected")
-  }
+  def body(f: AnyRef, bs: List[Binder]): Term[?] = Building(Fn.call(f, bs.map(_.term[Any])).asInstanceOf[Term[?]])
 
 /** The Lean of `t` alone: for tests and messages. */
 def leanOf(t: Term[?]): String = LeanPrinter().expr(t.termTree)
@@ -104,6 +94,24 @@ def forall[A](p: Term[A] => Term[Boolean])(using a: LeanType[A]): Term[Boolean] 
 def forall[A, B](p: (Term[A], Term[B]) => Term[Boolean])(using a: LeanType[A], b: LeanType[B]): Term[Boolean] = Term.quant(all = true, p, List(a, b))
 def exists[A](p: Term[A] => Term[Boolean])(using a: LeanType[A]): Term[Boolean] = Term.quant(all = false, p, List(a))
 def exists[A, B](p: (Term[A], Term[B]) => Term[Boolean])(using a: LeanType[A], b: LeanType[B]): Term[Boolean] = Term.quant(all = false, p, List(a, b))
+def forall[A, B, C](p: (Term[A], Term[B], Term[C]) => Term[Boolean])(using a: LeanType[A], b: LeanType[B], c: LeanType[C]): Term[Boolean] =
+  Term.quant(all = true, p, List(a, b, c))
+def exists[A, B, C](p: (Term[A], Term[B], Term[C]) => Term[Boolean])(using a: LeanType[A], b: LeanType[B], c: LeanType[C]): Term[Boolean] =
+  Term.quant(all = false, p, List(a, b, c))
+def forall[A, B, C, D](p: (Term[A], Term[B], Term[C], Term[D]) => Term[Boolean])(using a: LeanType[A], b: LeanType[B], c: LeanType[C],
+    d: LeanType[D]): Term[Boolean] = Term.quant(all = true, p, List(a, b, c, d))
+def exists[A, B, C, D](p: (Term[A], Term[B], Term[C], Term[D]) => Term[Boolean])(using a: LeanType[A], b: LeanType[B], c: LeanType[C],
+    d: LeanType[D]): Term[Boolean] = Term.quant(all = false, p, List(a, b, c, d))
+def forall[A, B, C, D, E](p: (Term[A], Term[B], Term[C], Term[D], Term[E]) => Term[Boolean])(using a: LeanType[A], b: LeanType[B],
+    c: LeanType[C], d: LeanType[D], e: LeanType[E]): Term[Boolean] = Term.quant(all = true, p, List(a, b, c, d, e))
+def exists[A, B, C, D, E](p: (Term[A], Term[B], Term[C], Term[D], Term[E]) => Term[Boolean])(using a: LeanType[A], b: LeanType[B],
+    c: LeanType[C], d: LeanType[D], e: LeanType[E]): Term[Boolean] = Term.quant(all = false, p, List(a, b, c, d, e))
+def forall[A, B, C, D, E, F](p: (Term[A], Term[B], Term[C], Term[D], Term[E], Term[F]) => Term[Boolean])(using a: LeanType[A],
+    b: LeanType[B], c: LeanType[C], d: LeanType[D], e: LeanType[E], f: LeanType[F]): Term[Boolean] =
+  Term.quant(all = true, p, List(a, b, c, d, e, f))
+def exists[A, B, C, D, E, F](p: (Term[A], Term[B], Term[C], Term[D], Term[E], Term[F]) => Term[Boolean])(using a: LeanType[A],
+    b: LeanType[B], c: LeanType[C], d: LeanType[D], e: LeanType[E], f: LeanType[F]): Term[Boolean] =
+  Term.quant(all = false, p, List(a, b, c, d, e, f))
 
 val True: Term[Boolean] = Term.lit(true)
 val False: Term[Boolean] = Term.lit(false)

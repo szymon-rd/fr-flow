@@ -78,9 +78,9 @@ instance is the model). Its implementations are run against it (§1b): `.checked
 names an outside system (assumed: checked on the flows' examples and on generated runs);
 `.implementedBy(start, read)` names the project's own code (tested on generated runs).
 
-A **contract on a flow** is on an operation `Param[A => Flow[R]]`; its post relates the input, the
-result and the worlds before and after (`before(Model)` is the model's state). Its `claim` takes the
-operation as a run on the models, `A → World → R × World`. The attached flow `f` is `f_run` there
+A **contract on a flow** is on an operation `Param[A => Flow[R]]` (of 0 to 6 inputs, as any
+operation); its post relates the inputs, the result and the worlds before and after (`before(Model)`
+is the model's state). Its `claim` takes the operation as a run on the models, `A → World → R × World`. The attached flow `f` is `f_run` there
 (`FrFlow.runOn (f a) w`), and `impl` is proven of it from the promises of the operations it calls.
 Such a contract may have no parent: production code runs it (an entry point). A proven flow takes no
 step of the outside world (`Flow.effect`, which production implementations use); a validation
@@ -129,8 +129,8 @@ with a `rule`.
 | claim | `Node.claim(id, statement, why, idea = "")(formula)` | `def claim : Prop` over its open terms |
 | root | the claim with no parents | as a claim, plus `idle` |
 | invariant | `Node.invariant[A, B](id, statement, why, scope)(rule)` | a claim whose parts are its keepers |
-| contract | `Node.contract(op)(id, statement, why)(post)`, `op: Param[(A, B) => R]` | `∀ a b, post(a, b, op(a, b))`; `impl` when a `define` is attached |
-| contract on a flow | `Node.contract(op)(id, statement, why)((a, r, before, after) => ...)`, `op: Param[A => Flow[R]]` | `∀ a w, post a (op a w).1 w (op a w).2`; `impl` when a flow is attached |
+| contract | `Node.contract(op)(id, statement, why)(post)`, `op: Param[(A, B) => R]` (0 to 6 inputs) | `∀ a b, post(a, b, op(a, b))`; `impl` when a `define` is attached |
+| contract on a flow | `Node.contract(op)(id, statement, why)((a, r, before, after) => ...)`, `op: Param[A => Flow[R]]` (0 to 6 inputs) | `∀ a w, post a (op a w).1 w (op a w).2`; `impl` when a flow is attached |
 | assumption | `Node.assumption(op)(id, statement, why)(post)`, or `Node.assumption(id, statement, why)(formula)` | a hypothesis of `root_impl`: trusted |
 | model | `Node.assumption(boundary)(Model)(id, statement, why)` | the boundary's class instance on `StateM World`: trusted |
 | definition | `Node.definition(id, statement, why)(Opaque := of[T], param := expr, ...)` | an `abbrev` in `Types.lean`, a `def` in its term's module |
@@ -148,7 +148,7 @@ Edges:
   (directly or through other definitions).
 - A contract keeps an invariant with `.keeps(inv)(view)`, which makes it a part of the invariant: the
   invariant's formula is the conjunction, over its keepers, of `∀ a b, ∀ p ∈ view(a, b, op(a, b)),
-  rule(p)`. Every contract in the invariant's scope keeps it or is `.exempt` with a reason; so is every
+  rule(p)` (over as many inputs as the operation takes). Every contract in the invariant's scope keeps it or is `.exempt` with a reason; so is every
   design node in the scope.
 
 Structure rules (`KnowledgeBase.problems`): exactly one claim without parents; no cycles; an

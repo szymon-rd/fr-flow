@@ -26,8 +26,9 @@ final class Evals(kb: KnowledgeBase, refinement: Refinement):
 
   private final class Contract(n: Node[?], post: Lifted[?], op: String):
     // The post's Scala value takes the call's inputs and result: its type is erased in the node.
-    // A flow's post takes the input, the result, the world before and the world after: `postFn` pairs them as a call's.
-    private val holds = n.asInstanceOf[Node[(Any, Any) => Any]].postFn.getOrElse(post.value.asInstanceOf[(Any, Any, Any) => Boolean])
+    // A flow's post takes the inputs, the result, the world before and the world after: `postFn` gives it a call's.
+    private val holds: (List[Any], Any) => Boolean =
+      n.postFn.getOrElse((ins, r) => Fn.call(post.value, ins :+ r).asInstanceOf[Boolean])
     private val impl = provenImpl(n)
     // The other nodes' proven code the examples' world is computed with: the eval module imports it.
     private val used = scala.collection.mutable.LinkedHashSet.empty[Def[?]]
@@ -35,7 +36,7 @@ final class Evals(kb: KnowledgeBase, refinement: Refinement):
     def all: (List[Eval], List[(ObligationName, String)]) =
       val (failed, evaluated) = n.cases.zipWithIndex.partitionMap { (e, i) =>
         val label = s"example ${i + 1} (${e.note})"
-        one(ObligationName.Eval(i), label, e.bindings, e.a, e.b, Some(e.result)).left.map(why => (ObligationName.Eval(i), s"$label: $why"))
+        one(ObligationName.Eval(i), label, e.bindings, e.inputs, Some(e.result)).left.map(why => (ObligationName.Eval(i), s"$label: $why"))
       }
       val es = evaluated.flatten ++ probes
       (es.map(_.copy(defs = used.toList)), failed)
@@ -60,48 +61,50 @@ final class Evals(kb: KnowledgeBase, refinement: Refinement):
       if opens.opaques.nonEmpty then Left(s"the contract leaves ${opens.opaques.mkString(", ")} open")
       else opens.params.traverse(p => valueOf(bindings, p, seen).map(v => p -> (v, Ctx.empty))).map(_.toMap)
 
-    private def run(bindings: List[Binding], a: Any, b: Any, result: Option[Any]): Either[String, (Option[Boolean], Option[Any], Option[Any])] =
+    private def run(bindings: List[Binding], ins: List[Any], result: Option[Any]): Either[String, (Option[Boolean], Option[Any], Option[Any])] =
       scala.util.Try(Bindings.within(kb.opCode ++ kb.definitionBindings ++ bindings) {
         // A proven implementation's Scala value takes the call's inputs: its type is erased in the node.
-        val got = impl.map(d => d.fn.asInstanceOf[(Any, Any) => Any](a, b))
+        val got = impl.map(d => Fn.call(d.fn, ins))
         val r = result.orElse(got)
-        (r.map(holds(a, b, _)), got, r)
+        (r.map(holds(ins, _)), got, r)
       }).toEither.left.map(x => s"Scala cannot evaluate it: ${x.getMessage}")
 
-    private def one(name: ObligationName, label: String, bindings: List[Binding], a: Any, b: Any, result: Option[Any]): Either[String, List[Eval]] =
+    private def one(name: ObligationName, label: String, bindings: List[Binding], ins: List[Any], result: Option[Any]): Either[String, List[Eval]] =
       for
         env <- envOf(bindings, ctx(post) ++ impl.fold(Ctx.empty)(defCtx), Set(op))
-        ran <- run(bindings, a, b, result)
+        ran <- run(bindings, ins, result)
         (verdict, got, judged) = ran
-        ta <- leanValue(a).toRight("Lean has no value for its input")
-        tb <- leanValue(b).toRight("Lean has no value for its input")
+        tins <- ins.traverse(x => leanValue(x).toRight("Lean has no value for its input"))
         tr <- judged.traverse(r => leanValue(r).toRight("Lean has no value for its result"))
       yield
+        val args = tins.map(" " + _).mkString
         val onPost = (verdict, judged, tr).tupled.map { (v, r, t) =>
           val p = app(qualified(n, "post"), ctx(post), env)._1
           val call = r match
-            // A run's result and world after, as the post takes them: input, result, world before, world after.
-            case (x, w) if n.isFlow => (leanValue(x), leanValue(w)).tupled.fold(s"$p $ta $t $tb")((tx, tw) => s"$p $ta $tx $tb $tw")
-            case _                  => s"$p $ta $tb $t"
+            // A run's result and world after, as the post takes them: inputs, result, world before, world after.
+            case (x, w) if n.isFlow =>
+              val (as, before) = (tins.init.map(" " + _).mkString, tins.last)
+              (leanValue(x), leanValue(w)).tupled.fold(s"$p$as $t $before")((tx, tw) => s"$p$as $tx $before $tw")
+            case _ => s"$p$args $t"
           Eval(name, label, if v then call else s"¬ $call", if v then s"¬ $call" else call)
         }
         val onImpl = for { d <- impl; g <- got; tg <- leanValue(g) } yield
           val f = code(d, env)._1
-          Eval(name.ofCode, s"$label, run by ${d.name}", s"$f $ta $tb = $tg", s"$f $ta $tb ≠ $tg")
+          Eval(name.ofCode, s"$label, run by ${d.name}", s"$f$args = $tg", s"$f$args ≠ $tg")
         onPost.toList ++ onImpl.toList
 
-    /** Under the first example's bindings, half at a boundary (a number of one input equal to one of the other). */
+    /** Under the first example's bindings, half at a boundary (a number of one input equal to one of another's). */
     private def probes: List[Eval] = n.cases.headOption.toList.flatMap { first =>
       val inputs = Probes.inputs(n.cases)
       // Without code to run, the post is judged on the examples' results.
-      val calls = if impl.isDefined then inputs.map((a, b) => (a, b, None))
-        else inputs.flatMap((a, b) => n.cases.map(_.result).distinct.map(r => (a, b, Some(r))))
-      val (edge, rest) = scala.util.Random(n.id.hashCode).shuffle(calls)
-        .partition((a, b, _) => Probes.numbers(a).toSet.intersect(Probes.numbers(b).toSet).nonEmpty)
+      val calls = if impl.isDefined then inputs.map(ins => (ins, None))
+        else inputs.flatMap(ins => n.cases.map(_.result).distinct.map(r => (ins, Some(r))))
+      def edge(ins: List[Any]) = ins.map(Probes.numbers(_).toSet).combinations(2).exists(p => p(0).intersect(p(1)).nonEmpty)
+      val (edges, rest) = scala.util.Random(n.id.hashCode).shuffle(calls).partition((ins, _) => edge(ins))
       // `x0 y0 x1 y1 …`, the longer list's rest at the end.
-      val interleaved = edge.map(Some(_)).zipAll(rest.map(Some(_)), None, None).flatMap((x, y) => x.toList ++ y.toList)
+      val interleaved = edges.map(Some(_)).zipAll(rest.map(Some(_)), None, None).flatMap((x, y) => x.toList ++ y.toList)
       interleaved.iterator.zipWithIndex
-        .flatMap { case ((a, b, r), j) => one(ObligationName.Probe(j), s"probe ${j + 1}", first.bindings, a, b, r).toOption }
+        .flatMap { case ((ins, r), j) => one(ObligationName.Probe(j), s"probe ${j + 1}", first.bindings, ins, r).toOption }
         .filter(_.nonEmpty).take(Generate.ProbeCount).flatten.toList
     }
 

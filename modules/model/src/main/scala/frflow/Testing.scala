@@ -61,11 +61,28 @@ private[frflow] final case class Table2(entries: List[(List[Any], Any)], default
 private[frflow] final case class Table3(entries: List[(List[Any], Any)], default: Any) extends Table with ((Any, Any, Any) => Any):
   def apply(a: Any, b: Any, c: Any): Any = at(List(a, b, c))
   override def toString: String = shown
+private[frflow] final case class Table4(entries: List[(List[Any], Any)], default: Any) extends Table
+    with ((Any, Any, Any, Any) => Any):
+  def apply(a: Any, b: Any, c: Any, d: Any): Any = at(List(a, b, c, d))
+  override def toString: String = shown
+private[frflow] final case class Table5(entries: List[(List[Any], Any)], default: Any) extends Table
+    with ((Any, Any, Any, Any, Any) => Any):
+  def apply(a: Any, b: Any, c: Any, d: Any, e: Any): Any = at(List(a, b, c, d, e))
+  override def toString: String = shown
+private[frflow] final case class Table6(entries: List[(List[Any], Any)], default: Any) extends Table
+    with ((Any, Any, Any, Any, Any, Any) => Any):
+  def apply(a: Any, b: Any, c: Any, d: Any, e: Any, f: Any): Any = at(List(a, b, c, d, e, f))
+  override def toString: String = shown
 private[frflow] object Table:
+  /** The most arguments a generated function takes. */
+  val MaxArity = 6
   def apply(arity: Int, entries: List[(List[Any], Any)], default: Any): Table = arity match
     case 1 => Table1(entries, default)
     case 2 => Table2(entries, default)
     case 3 => Table3(entries, default)
+    case 4 => Table4(entries, default)
+    case 5 => Table5(entries, default)
+    case 6 => Table6(entries, default)
     case n => throw CannotGenerate(s"a function of $n arguments")
 
 private[frflow] final class CannotGenerate(what: String) extends RuntimeException(s"cannot generate $what")
@@ -285,12 +302,11 @@ private[frflow] object Testing:
   private[frflow] def random(seed: Long, i: Int): SplittableRandom = SplittableRandom(seed * 0x9E3779B97F4A7C15L + i)
 
   private final class Run(kb: KnowledgeBase, n: Node[?], impl: Implementation):
-    private val untyped = n.asInstanceOf[Node[(Any, Any) => Any]]
-    private val (ta, tb, tr) = n.op.get.termType.shape match
-      case Shape.FnOf(List(a, b), r) => (a, b, r)
-      case other => throw IllegalArgumentException(s"FrFlow: ${n.id}'s operation takes two arguments")
-    private val post = untyped.postFn.get
-    private val reference = impl.proven.map(d => (d.name, d.lifted.value.asInstanceOf[(Any, Any) => Any]))
+    private val (tins, tr) = n.op.get.termType.shape match
+      case Shape.FnOf(as, r) => (as, r)
+      case other => throw IllegalArgumentException(s"FrFlow: ${n.id}'s operation is not a function")
+    private val post = n.postFn.get
+    private val reference = impl.proven.map(d => (d.name, d.lifted.value.asInstanceOf[AnyRef]))
     private val against = reference.fold(n.id)((name, _) => s"the proven define $name, and ${n.id}")
 
     // The world: what the formula reads (through the definitions in force) and the examples bind, less the operations.
@@ -301,7 +317,7 @@ private[frflow] object Testing:
       .distinctBy(_.name).filterNot(p => kb.isOp(p.name) || defined(p))
     private val (generated, fixedParams) = params.partition(p => known(p.termType))
     private val fixed: List[Binding] = fixedParams.flatMap(p => n.cases.flatMap(_.bindings).find(_.param.name == p.name))
-    private val types: Vector[LeanType[?]] = (generated.map(_.termType) ++ List(ta, tb)).toVector
+    private val types: Vector[LeanType[?]] = (generated.map(_.termType) ++ tins).toVector
 
     private val opaques: Map[String, LeanType[?]] = Testing.opaques(kb)
     private val customs: Map[LeanType[?], Gen[?]] = kb.generators.toMap
@@ -310,7 +326,7 @@ private[frflow] object Testing:
       val seeds = mutable.LinkedHashMap.empty[String, Vector[Any]]
       def harvest(t: LeanType[?], v: Any) = Plan.harvest(t, v, opaques, keyOf.key, seeds)
       n.cases.foreach { e =>
-        Try { harvest(ta, e.a); harvest(tb, e.b); harvest(tr, e.result) }
+        Try { tins.zip(e.inputs).foreach(harvest(_, _)); harvest(tr, e.result) }
         generated.flatMap(p => e.bindings.find(_.param.name == p.name).map(b => p -> b)).foreach { (p, b) =>
           Try(Bindings.within(e.bindings)(harvest(p.termType, b.table.fold(b.value())(t => Table(1, t.toList.map((k, v) => (List(k), Some(v))), None)))))
         }
@@ -325,7 +341,7 @@ private[frflow] object Testing:
       case Shape.SetOf(a)    => known(a)
       case Shape.MapOf(k, v) => known(k) && known(v)
       case Shape.TupleOf(as) => as.forall(known)
-      case Shape.FnOf(as, r) => as.size <= 3 && (as :+ r).forall(known)
+      case Shape.FnOf(as, r) => as.nonEmpty && as.size <= Table.MaxArity && (as :+ r).forall(known)
       case Shape.Opq(o)      => opaques.contains(o.name)
       case _                 => true
 
@@ -351,29 +367,29 @@ private[frflow] object Testing:
       }.toOption
       def held(t: Tree, outcome: Int): Int = Option(hits.get(t)).flatMap(_.get(outcome)).getOrElse(0)
 
-    /** A case: its values (the world's, then the two arguments), what the code returned, and why it fails, if it does. */
+    /** A case: its values (the world's, then the call's inputs), what the code returned, and why it fails, if it does. */
     private def attempt(vals: Vector[Any], watch: Option[Watch]): (Option[Any], Option[String]) =
-      on(generated.zip(vals).map((p, v) => Binding(p, () => v)), vals(generated.size), vals(generated.size + 1), watch)
+      on(generated.zip(vals).map((p, v) => Binding(p, () => v)), vals.drop(generated.size).toList, watch)
 
     // The operations the code was seen to call: plain code says which it calls (`implement(c, op)`), and is held to it.
     private val calledOps = mutable.Set.empty[String]
     private val named = impl.calls.toSet ++ n.op.map(_.name) ++
       kb.onOp.keySet.filter(o => s"\\b${java.util.regex.Pattern.quote(o)}\\b".r.findFirstIn(impl.wiring).isDefined)
 
-    private def on(world: List[Binding], a: Any, b: Any, watch: Option[Watch]): (Option[Any], Option[String]) =
+    private def on(world: List[Binding], ins: List[Any], watch: Option[Watch]): (Option[Any], Option[String]) =
       Bindings.within(kb.opCode ++ kb.definitionBindings ++ fixed ++ world) {
-        Try(Bindings.reading(impl.factory().asInstanceOf[(Any, Any) => Any](a, b))) match
+        Try(Bindings.reading(Fn.call(impl.factory(), ins))) match
           case Failure(e) => (None, Some(s"error: ${Option(e.getMessage).getOrElse(e.toString)}"))
           case Success((r, read)) =>
             calledOps ++= read.filter(kb.isOp)
-            def onContract = Try(watch.fold(post(a, b, r))(Watch.within(_)(post(a, b, r)))) match
+            def onContract = Try(watch.fold(post(ins, r))(Watch.within(_)(post(ins, r)))) match
               case Success(true)  => None
               case Success(false) => Some(s"returned ${Example.show(r)}, which ${n.id} refuses")
               case Failure(e: NotExecutable) => Some(s"${n.id} cannot be run here: ${e.getMessage}")
               case Failure(e)     => Some(s"${n.id} could not be evaluated: ${Option(e.getMessage).getOrElse(e.toString)}")
-            val unlike = reference.flatMap((name, f) => Try(f(a, b)).toOption.filterNot(same(_, r))
+            val unlike = reference.flatMap((name, f) => Try(Fn.call(f, ins)).toOption.filterNot(same(_, r))
               .map(x => s"returned ${Example.show(r)}, where the proven define $name returns ${Example.show(x)}"))
-            (Some(r), unlike.orElse(onContract).orElse(untyped.broken(a, b, r).map(i => s"returned ${Example.show(r)}, which breaks the invariant $i")))
+            (Some(r), unlike.orElse(onContract).orElse(n.broken(ins, r).map(i => s"returned ${Example.show(r)}, which breaks the invariant $i")))
       }
 
     // A list the outside returns in its own order is the same result in another order.
@@ -385,7 +401,7 @@ private[frflow] object Testing:
     // so what holds only when the world's parts agree (a user signed in, then disabled) is reached.
     private val exampleCases: Vector[Vector[Option[Any]]] = n.cases.toVector.map { e =>
       generated.map(p => e.bindings.find(_.param.name == p.name).flatMap(b => Try(Bindings.within(e.bindings)(b.value())).toOption)).toVector ++
-        Vector(Some(e.a), Some(e.b))
+        e.inputs.map(Some(_))
     }
 
     private def generate(seed: Long, i: Int, size: Int): Vector[Any] =
@@ -400,9 +416,9 @@ private[frflow] object Testing:
       else types.map(d.value)
 
     private def shown(vals: Vector[Any], r: Option[Any]): String =
-      val (a, b) = (vals(generated.size), vals(generated.size + 1))
+      val ins = vals.drop(generated.size)
       val world = generated.zip(vals).map((p, v) => s"${p.name} = ${Example.show(v)}")
-      s"(${Example.show(a)}, ${Example.show(b)}) ⇒ ${r.fold("no result")(Example.show)}" +
+      s"${ins.map(Example.show).mkString("(", ", ", ")")} ⇒ ${r.fold("no result")(Example.show)}" +
         (if world.isEmpty then "" else s"  given ${world.mkString(", ")}")
 
     @tailrec private def shrink(vals: Vector[Any], why: String, rounds: Int): (Vector[Any], String) =
@@ -416,7 +432,7 @@ private[frflow] object Testing:
     def report(settings: TestSettings, replay: List[Replay]): Report =
       val counter = Counter(() => Draw(random(settings.seed, -1), 3, plan))
       // The examples first: what they reach counts (what fails of them, their own check says).
-      n.cases.filter(_.expected).foreach(e => Try(on(e.bindings, e.a, e.b, Some(counter))))
+      n.cases.filter(_.expected).foreach(e => Try(on(e.bindings, e.inputs, Some(counter))))
       // The cases that failed before, then new ones, small to large.
       val order = replay ++ (0 until settings.cases).map(i => Replay(settings.seed, i, sizeOf(i, settings.cases)))
       val failure = order.iterator.flatMap { c =>

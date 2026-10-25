@@ -173,6 +173,7 @@ object LeanType:
   given [A](using a: LeanType[A]): LeanType[Set[A]] = of(Shape.SetOf(a))
   given [A, B](using a: LeanType[A], b: LeanType[B]): LeanType[(A, B)] = of(Shape.TupleOf(List(a, b)))
   given [A, B, C](using a: LeanType[A], b: LeanType[B], c: LeanType[C]): LeanType[(A, B, C)] = of(Shape.TupleOf(List(a, b, c)))
+  given [R](using r: LeanType[R]): LeanType[() => R] = of(Shape.FnOf(Nil, r))
   given [A, R](using a: LeanType[A], r: LeanType[R]): LeanType[A => R] = of(Shape.FnOf(List(a), r))
   given [A, B, R](using a: LeanType[A], b: LeanType[B], r: LeanType[R]): LeanType[(A, B) => R] = of(Shape.FnOf(List(a, b), r))
   given [A, B, C, R](using a: LeanType[A], b: LeanType[B], c: LeanType[C], r: LeanType[R]): LeanType[(A, B, C) => R] =
@@ -181,6 +182,9 @@ object LeanType:
     of(Shape.FnOf(List(a, b, c, d), r))
   given [A, B, C, D, E, R](using a: LeanType[A], b: LeanType[B], c: LeanType[C], d: LeanType[D], e: LeanType[E], r: LeanType[R]): LeanType[(A, B, C, D, E) => R] =
     of(Shape.FnOf(List(a, b, c, d, e), r))
+  given [A, B, C, D, E, F, R](using a: LeanType[A], b: LeanType[B], c: LeanType[C], d: LeanType[D], e: LeanType[E], f: LeanType[F],
+      r: LeanType[R]): LeanType[(A, B, C, D, E, F) => R] =
+    of(Shape.FnOf(List(a, b, c, d, e, f), r))
   given [R](using r: LeanType[R]): LeanType[Flow[R]] = of(Shape.FlowOf(r))
 
   /** The owner chain without packages, as Lean names it: `Model.Session`, `Search.ById`. */

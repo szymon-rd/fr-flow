@@ -188,9 +188,9 @@ class RuntimeSuite extends munit.FunSuite:
     assertEquals(Probes.near(None, Nil), Nil)
     val cases = pick.cases
     val inputs = Probes.inputs(cases)
-    assert(inputs.forall(i => !cases.exists(e => (e.a, e.b) == i)))
+    assert(inputs.forall(i => !cases.exists(_.inputs == i)))
     assertEquals(inputs.distinct, inputs)
     // the numbers the examples hold are tried as the other input
-    assert(inputs.exists(_._2 == 300), inputs)
+    assert(inputs.exists(_(1) == 300), inputs)
     assertEquals(Probes.boundaries(cases), List(BigInt(300), BigInt(20), BigInt(5)))
   }
