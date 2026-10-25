@@ -2,6 +2,7 @@ package frflow
 
 import cats.effect.SyncIO
 import frflow.fixtures.StockLaws
+import frflow.flow.Flows
 
 /** Cats' combinators on flows, as Lean prints them and as they run; and the relative monad's laws, at run time. */
 class LawsSuite extends munit.FunSuite:

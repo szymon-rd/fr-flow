@@ -1,40 +1,7 @@
 package frflow
 
-/** A shelf's stock as a boundary: a flow over it is printed as a Lean `do` block, run on its model, and run on an
-  * implementation, which is checked against the model.
-  */
-trait Stock:
-  def count: Flow[BigInt]
-  def add(n: Term[BigInt]): Flow[Unit]
-
-object StockModel extends Stock, StateModel[BigInt]:
-  def count = state.get
-  def add(n: Term[BigInt]) = state.update(c => c + n)
-
-/** The stock in production: a mutable counter. */
-final class Counter(var held: BigInt) extends Stock:
-  def count = Flow.effect(held)
-  def add(n: Term[BigInt]) = Flow.effect(n)(k => held += k)
-
-val stock = Boundary[Stock]("stock", "the books in stock")
-
-/** Restocks each of the deliveries, then says how many there are. */
-def restock(ds: Term[List[BigInt]]): Flow[BigInt] =
-  for
-    before <- stock.count
-    _ <- ds.traverse_(d => stock.add(d))
-    after <- stock.count
-  yield after - before
-
-/** Restocks twice the delivery, naming the doubled amount once. */
-def restockTwice(d: Term[BigInt]): Flow[BigInt] =
-  for
-    before <- stock.count
-    twice = d + d
-    _ <- stock.add(twice)
-    _ <- stock.add(twice)
-    after <- stock.count
-  yield twice
+import frflow.flow.Flows
+import frflow.testing.ModelTests
 
 class FlowSuite extends munit.FunSuite:
   private val flow = Def(Lifted.flow(restock, List(summon[LeanType[List[BigInt]]]), "restock"), summon[LeanType[BigInt]], Some("restock"), isFlow = true)

@@ -625,10 +625,16 @@ change, the page says so and refuses decisions until it is restarted.
 
 One sbt subproject each, under `modules/`:
 
-- `protocol`: the data crossing modules and files, with JSON codecs.
+- `protocol` (package `frflow.protocol`): the data crossing modules and files,
+  with JSON codecs: ids, statuses and contents; the developer's decisions
+  (`decision`), what checks record (`obligation`), the snapshot (`snapshot`).
 - `model` (package `frflow`): nodes and knowledge bases; `Opaque`, `Param`,
   `define`; terms, their Lean and their evaluation; flows, boundaries and
-  state models; examples, probes, `service`, `run`.
+  state models; examples, probes, `service`, `run`. One type to a file, in a
+  package per concept (`term`, `types`, `vocabulary`, `node`, `kb`, `flow`,
+  `boundary`, `runtime`, `example`, `testing`, `program`); the trees and steps
+  a model is made into, their Lean and their Scala, are in `frflow` itself. A
+  model imports `frflow.*` alone: `frflow` re-exports what it writes.
 - `lean`: the Lean of a knowledge base, and reading Lean's output.
 - `ledger`: review states and decision rules; reports; stores, keys and
   signatures.

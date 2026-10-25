@@ -1,18 +1,7 @@
 package frflow
 
+import frflow.types.Shape
 import scala.collection.mutable
-
-/** One expression's Lean: the text, and what it mentions (in the order it meets them). */
-private[frflow] final case class Printed(params: List[(String, String)], result: String, body: String, types: List[TypeDecl],
-    opaques: List[Opaque], paramRefs: List[(String, String)], paramObjects: List[Param[?]], defs: List[Def[?]],
-    boundaries: List[Boundary[?]] = Nil, world: Boolean = false, errors: List[String] = Nil, commutes: List[Commute] = Nil)
-
-/** Branches a flow runs at once (`what`), and what the proof must show of them: that the two orders of their steps,
-  * `first` and `second` (lines of a `do` block, giving a value of type `result`), give the same result and the same
-  * world, for every value of the variables they use (`free`) that meets `hyps`.
-  */
-private[frflow] final case class Commute(what: String, free: List[(String, String)], hyps: List[String], first: List[String],
-    second: List[String], result: String)
 
 /** Prints a term's tree as Lean. Every local variable gets a name no other in the expression has (an inner one can
   * never capture an outer one), none a parameter's, an opaque type's or a type's.
