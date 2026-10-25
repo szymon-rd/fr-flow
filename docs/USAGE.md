@@ -644,7 +644,6 @@ One sbt subproject each, under `modules/`:
 - `check` (package `frflow.check`): the workspace and what the checker reads;
   `analysis`, the contents, the hashes and the snapshot; `proving`, render,
   check and scaffold; `process`, running `lake` and git.
-
 - `api`: `FrFlowApi`, the typed operations a front end calls.
 - `cli`: the command line over the API.
 - `web`: the web view over the API. The CLI does not depend on it.
