@@ -3,9 +3,11 @@ package frflow
 import java.lang.reflect.{InvocationHandler, Method, ParameterizedType, Proxy, Type}
 import scala.reflect.ClassTag
 
-/** Steps over boundaries (a database, a clock, an event log), written as Cats or ZIO code is: `for s <- db.load …
+/** Steps over boundaries (a database, a clock, an event log), written as Cats code is: `for s <- db.load …
   * yield t`. A flow is built once, on symbolic values: Lean reads it as a `do` block over any monad with the
-  * boundaries' operations, and Scala compiles it to run in any `cats.effect.Sync`.
+  * boundaries' operations, and Scala compiles it to run in any `cats.effect.Sync`. It is a monad relative to `Term`
+  * (`RelativeMonad[Flow, Term]`, in the companion), a free one: its laws hold of what a flow gives, in Lean and at
+  * run time, not of its tree.
   */
 sealed abstract class Flow[A]:
   def flatMap[B](f: Term[A] => Flow[B]): Flow[B] = Flow.Bind(this, f, f)
@@ -17,6 +19,8 @@ object Flow:
   /** `named`: the lambda the program wrote, which names the value bound. */
   private[frflow] final case class Bind[X, A](first: Flow[X], next: Term[X] => Flow[A], named: AnyRef) extends Flow[A]
   private[frflow] final case class Each[X](xs: Term[List[X]], body: Term[X] => Flow[?]) extends Flow[Unit]
+  private[frflow] final case class EachResult[X, B](xs: Term[List[X]], body: Term[X] => Flow[B]) extends Flow[List[B]]
+  private[frflow] final case class Fold[X, B](xs: Term[List[X]], z: Term[B], body: (Term[B], Term[X]) => Flow[B]) extends Flow[B]
   private[frflow] final case class Cond[A](c: Term[Boolean], a: Flow[A], b: Flow[A]) extends Flow[A]
   private[frflow] final case class Get[S](model: StateModel[S]) extends Flow[S]
   private[frflow] final case class Put[S](model: StateModel[S], s: Term[S]) extends Flow[Unit]
@@ -32,11 +36,23 @@ object Flow:
   def effect[X, Y, A](x: Term[X], y: Term[Y])(f: (X, Y) => A): Flow[A] = Effect(() => f(valueOf(x), valueOf(y)))
   def effect[X, Y, Z, A](x: Term[X], y: Term[Y], z: Term[Z])(f: (X, Y, Z) => A): Flow[A] = Effect(() => f(valueOf(x), valueOf(y), valueOf(z)))
   private def valueOf[X](t: Term[X]): X = Eval.compile(t.termTree)(Map.empty).asInstanceOf[X]
-  /** `Flow.when(c)(step)`: the step if `c` holds. */
-  def when(c: Term[Boolean])(step: Flow[?]): Flow[Unit] = Cond(c, step.map(_ => Term.lit(())), unit)
 
-final class ThenFlow[R](c: Term[Boolean], a: Flow[R]):
-  def Else(b: Flow[R]): Flow[R] = Flow.Cond(c, a, b)
+  /** The step if `c` holds, else nothing (Applicative's `whenA`): Lean's `if c then … else pure ()`. */
+  def whenA(c: Term[Boolean])(step: Flow[?]): Flow[Unit] = Cond(c, step.void, unit)
+  /** The step unless `c` holds (Applicative's `unlessA`). */
+  def unlessA(c: Term[Boolean])(step: Flow[?]): Flow[Unit] = Cond(c, unit, step.void)
+  /** One of two flows, by a condition a flow gives (Monad's `ifM`); on a condition at hand, `c.foldF(ifTrue, ifFalse)`. */
+  def ifM[A](c: Flow[Boolean])(ifTrue: Flow[A], ifFalse: Flow[A]): Flow[A] = c.flatMap(holds => holds.foldF(ifTrue, ifFalse))
+  /** Each flow in turn, their results in a list (Traverse's `sequence`). */
+  def sequence[A](fs: List[Flow[A]])(using a: LeanType[A]): Flow[List[A]] =
+    fs.foldRight(pure(Term.listOf[A](Nil)))((f, rest) => f.flatMap(x => rest.map(xs => x :: xs)))
+
+  given relativeMonad: RelativeMonad[Flow, Term] with
+    def pure[A](a: Term[A]): Flow[A] = Pure(a)
+    def flatMap[A, B](fa: Flow[A])(f: Term[A] => Flow[B]): Flow[B] = fa.flatMap(f)
+    override def map[A, B](fa: Flow[A])(f: Term[A] => Term[B]): Flow[B] = fa.map(f)
+    def unitValue: Term[Unit] = Term.lit(())
+    def pair[A, B](a: Term[A], b: Term[B]): Term[(A, B)] = Term.pairOf(a, b)
 
 /** What proven code calls but cannot see: a plain trait of operations taking terms and returning flows. The
   * model names one value for it, as `Param` does for a term; production binds an implementation of the trait.
@@ -110,6 +126,10 @@ private[frflow] enum Steps:
   /** `let b ← first; rest` (`b` unused when a wildcard). */
   case Seq(first: Steps, b: Binder, rest: Steps)
   case Loop(xs: Tree, b: Binder, body: Steps)
+  /** `xs.mapM fun b => body`: each element in turn, the results in a list (`traverse`). */
+  case Collect(xs: Tree, b: Binder, body: Steps)
+  /** `xs.foldlM (init := z) fun acc b => body` (`foldM`). */
+  case Accumulate(xs: Tree, z: Tree, acc: Binder, b: Binder, body: Steps)
   case Branch(c: Tree, a: Steps, b: Steps)
   case Read(model: StateModel[?])
   case Write(model: StateModel[?], s: Tree)
@@ -147,6 +167,8 @@ private[frflow] object Steps:
     f match
       case Flow.Bind(first, _, named) => shared(first) ++ captures(named)
       case Flow.Each(_, body)         => captures(body)
+      case Flow.EachResult(_, body)   => captures(body)
+      case Flow.Fold(_, _, body)      => captures(body)
       case Flow.Cond(_, a, b)         => shared(a) ++ shared(b)
       case Flow.Update(_, g)          => captures(g)
       case _                          => Nil
@@ -166,6 +188,14 @@ private[frflow] object Steps:
       // A loop's body yields nothing: a result of another type is dropped.
       val unitBody = if t.shape == Shape.UnitT then s else Seq(s, Binder("_$", t), Ret(Tree.Lit((), summon[LeanType[Unit]])))
       (Loop(xs.termTree, b, unitBody), summon[LeanType[Unit]])
+    case Flow.EachResult(xs, body) =>
+      val b = Lambda.binders(body, List(elemOf(xs))).head
+      val (s, t) = within(body.asInstanceOf[Term[Any] => Flow[?]](b.term), bound)
+      (Collect(xs.termTree, b, s), LeanType.of(Shape.ListOf(t)))
+    case Flow.Fold(xs, z, body) =>
+      val List(acc, b) = Lambda.binders(body, List(z.termType, elemOf(xs))): @unchecked
+      val (s, _) = within(body.asInstanceOf[(Term[Any], Term[Any]) => Flow[?]](acc.term, b.term), bound)
+      (Accumulate(xs.termTree, z.termTree, acc, b, s), z.termType)
     case Flow.Cond(c, a, b)    => val (sa, t) = within(a, bound); (Branch(c.termTree, sa, within(b, bound)._1), t)
     case Flow.Get(m)           => (Read(m), m.stateType)
     case Flow.Put(m, s)        => (Write(m, s.termTree), summon[LeanType[Unit]])
@@ -174,11 +204,15 @@ private[frflow] object Steps:
       (Modify(m, b, f.asInstanceOf[Term[Any] => Term[Any]](b.term).termTree), summon[LeanType[Unit]])
     case Flow.Effect(run)      => (Outside(run), LeanType.unknown)
 
+  private def elemOf(xs: Term[?]): LeanType[?] = xs.termType.shape match { case Shape.ListOf(a) => a; case _ => LeanType.unknown }
+
   def fold[A](s: Steps, z: A)(f: (A, Steps) => A): A =
     val here = f(z, s)
     s match
       case Seq(a, _, b)    => fold(b, fold(a, here)(f))(f)
       case Loop(_, _, b)   => fold(b, here)(f)
+      case Collect(_, _, b) => fold(b, here)(f)
+      case Accumulate(_, _, _, _, b) => fold(b, here)(f)
       case Branch(_, a, b) => fold(b, fold(a, here)(f))(f)
       case Let(_, _, r)    => fold(r, here)(f)
       case _               => here
@@ -216,6 +250,15 @@ private[frflow] object Flows:
     case Steps.Let(b, v, rest)   => onModels(rest, env + (b -> Eval.compile(v)(env)), w)
     case Steps.Loop(xs, b, body) =>
       Eval.compile(xs)(env).asInstanceOf[List[Any]].foldLeft(((): Any, w))((acc, x) => (((), onModels(body, env + (b -> x), acc._2)._2)))
+    case Steps.Collect(xs, b, body) =>
+      val (ys, w1) = Eval.compile(xs)(env).asInstanceOf[List[Any]].foldLeft((Vector.empty[Any], w)) { case ((ys, wi), x) =>
+        val (y, wj) = onModels(body, env + (b -> x), wi); (ys :+ y, wj)
+      }
+      (ys.toList, w1)
+    case Steps.Accumulate(xs, z, acc, b, body) =>
+      Eval.compile(xs)(env).asInstanceOf[List[Any]].foldLeft((Eval.compile(z)(env), w)) { case ((a, wi), x) =>
+        onModels(body, env + (acc -> a) + (b -> x), wi)
+      }
     case Steps.Branch(c, a, b)   => if Eval.compile(c)(env).asInstanceOf[Boolean] then onModels(a, env, w) else onModels(b, env, w)
     case other                   => throw IllegalStateException(s"FrFlow: a proven flow takes no step of a model's own ($other)")
 
@@ -229,6 +272,15 @@ private[frflow] object Flows:
     case Steps.Let(b, v, rest)     => onModel(rest, model, st, env + (b -> Eval.compile(v)(env)))
     case Steps.Loop(xs, b, body)   =>
       ((), Eval.compile(xs)(env).asInstanceOf[List[Any]].foldLeft(st)((acc, x) => onModel(body, model, acc, env + (b -> x))._2))
+    case Steps.Collect(xs, b, body) =>
+      val (ys, st1) = Eval.compile(xs)(env).asInstanceOf[List[Any]].foldLeft((Vector.empty[Any], st)) { case ((ys, si), x) =>
+        val (y, sj) = onModel(body, model, si, env + (b -> x)); (ys :+ y, sj)
+      }
+      (ys.toList, st1)
+    case Steps.Accumulate(xs, z, acc, b, body) =>
+      Eval.compile(xs)(env).asInstanceOf[List[Any]].foldLeft((Eval.compile(z)(env), st)) { case ((a, si), x) =>
+        onModel(body, model, si, env + (acc -> a) + (b -> x))
+      }
     case Steps.Branch(c, a, b)     =>
       val holds = Eval.compile(c)(env).asInstanceOf[Boolean]
       Watch.hit(c, if holds then 1 else 2)
@@ -247,6 +299,9 @@ private[frflow] object Flows:
     case Steps.Seq(a, b, rest)   => runNow(rest, env + (b -> runNow(a, env, impls)), impls)
     case Steps.Let(b, v, rest)   => runNow(rest, env + (b -> Eval.compile(v)(env)), impls)
     case Steps.Loop(xs, b, body) => Eval.compile(xs)(env).asInstanceOf[List[Any]].foreach(x => runNow(body, env + (b -> x), impls))
+    case Steps.Collect(xs, b, body) => Eval.compile(xs)(env).asInstanceOf[List[Any]].map(x => runNow(body, env + (b -> x), impls))
+    case Steps.Accumulate(xs, z, acc, b, body) =>
+      Eval.compile(xs)(env).asInstanceOf[List[Any]].foldLeft(Eval.compile(z)(env))((a, x) => runNow(body, env + (acc -> a) + (b -> x), impls))
     case Steps.Branch(c, a, b)   => if Eval.compile(c)(env).asInstanceOf[Boolean] then runNow(a, env, impls) else runNow(b, env, impls)
     case Steps.Outside(run)      => run()
     case other                   => throw IllegalStateException(s"FrFlow: production runs no model's step ($other)")
@@ -265,6 +320,9 @@ private[frflow] object Flows:
       case Steps.Seq(a, b, rest)   => go(a, env).flatMap(x => go(rest, env + (b -> x)))
       case Steps.Let(b, v, rest)   => eval(v, env).flatMap(x => go(rest, env + (b -> x)))
       case Steps.Loop(xs, b, body) => eval(xs, env).flatMap(v => v.asInstanceOf[List[Any]].traverse_(x => go(body, env + (b -> x)))).as(())
+      case Steps.Collect(xs, b, body) => eval(xs, env).flatMap(v => v.asInstanceOf[List[Any]].traverse(x => go(body, env + (b -> x)))).widen
+      case Steps.Accumulate(xs, z, acc, b, body) =>
+        (eval(xs, env), eval(z, env)).tupled.flatMap((v, z0) => v.asInstanceOf[List[Any]].foldM(z0)((a, x) => go(body, env + (acc -> a) + (b -> x))))
       case Steps.Branch(c, a, b)   => eval(c, env).flatMap(v => if v.asInstanceOf[Boolean] then go(a, env) else go(b, env))
       case Steps.Outside(run)      => F.delay(run())
       case other                   => F.raiseError(IllegalStateException(s"FrFlow: production runs no model's step ($other)"))
@@ -298,6 +356,8 @@ private[frflow] object Trees:
     case (acc, Steps.Ret(t))          => acc :+ t
     case (acc, Steps.Op(_, _, as))    => acc ++ as
     case (acc, Steps.Loop(xs, _, _))  => acc :+ xs
+    case (acc, Steps.Collect(xs, _, _)) => acc :+ xs
+    case (acc, Steps.Accumulate(xs, z, _, _, _)) => acc :+ xs :+ z
     case (acc, Steps.Branch(c, _, _)) => acc :+ c
     case (acc, Steps.Write(_, t))     => acc :+ t
     case (acc, Steps.Modify(_, _, t)) => acc :+ t
@@ -340,6 +400,8 @@ private[frflow] object Trees:
       case Steps.Op(b, m, as)        => Steps.Op(b, m, as.map(t))
       case Steps.Seq(a, b, rest)     => Steps.Seq(go(a), b, go(rest))
       case Steps.Loop(xs, b, body)   => Steps.Loop(t(xs), b, go(body))
+      case Steps.Collect(xs, b, body) => Steps.Collect(t(xs), b, go(body))
+      case Steps.Accumulate(xs, z, acc, b, body) => Steps.Accumulate(t(xs), t(z), acc, b, go(body))
       case Steps.Branch(c, a, b)     => Steps.Branch(t(c), go(a), go(b))
       case Steps.Write(m, a)         => Steps.Write(m, t(a))
       case Steps.Modify(m, b, body)  => Steps.Modify(m, b, t(body))

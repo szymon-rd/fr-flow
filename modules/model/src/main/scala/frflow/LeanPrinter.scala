@@ -121,6 +121,10 @@ private[frflow] final class LeanPrinter:
   /** A flow's steps as the lines of a `do` block, indented by `ind`. */
   def block(s: Steps, ind: String): List[String] = s match
     case Steps.Ret(t)            => List(s"${ind}pure ${expr(t)}")
+    // `(a *> b) *> c` is `a *> (b *> c)` (associativity): one block, not a `do` inside one. Names are unique, so
+    // the inner block's names stay its own.
+    case Steps.Seq(Steps.Seq(a, b1, r1), b, rest) if b.wildcard => block(Steps.Seq(a, b1, Steps.Seq(r1, b, rest)), ind)
+    case Steps.Seq(Steps.Let(b1, v, r1), b, rest) if b.wildcard => block(Steps.Let(b1, v, Steps.Seq(r1, b, rest)), ind)
     case Steps.Seq(first, b, rest) =>
       val bound = if b.wildcard then None else Some(local(b))
       val lines = (bound, first) match
@@ -129,6 +133,9 @@ private[frflow] final class LeanPrinter:
         case (None, Steps.Seq(_, _, _) | Steps.Let(_, _, _))     => s"${ind}do" :: block(first, ind + "  ")
         case (Some(n), Steps.Seq(_, _, _) | Steps.Let(_, _, _) | Steps.Loop(_, _, _) | Steps.Branch(_, _, _)) =>
           s"${ind}let $n ← do" :: block(first, ind + "  ")
+        // A traverse or a fold opens a `do` of its own, after its binding.
+        case (Some(n), Steps.Collect(_, _, _) | Steps.Accumulate(_, _, _, _, _)) => over(first, s"let $n ← ", ind)
+        case (None, Steps.Collect(_, _, _) | Steps.Accumulate(_, _, _, _, _))    => over(first, "let _ ← ", ind)
         case (None, one)                                         => List(ind + step(one))
         case (Some(n), one)                                      => List(s"${ind}let $n ← ${step(one)}")
       lines ++ block(rest, ind)
@@ -139,7 +146,19 @@ private[frflow] final class LeanPrinter:
     case Steps.Let(b, v, rest)   =>
       val tv = expr(v)
       s"${ind}let ${local(b)} := $tv" :: block(rest, ind)
+    case Steps.Collect(_, _, _) | Steps.Accumulate(_, _, _, _, _) => over(s, "", ind)
     case one                     => List(ind + step(one))
+
+  /** `xs.mapM fun x => do …` and `xs.foldlM (init := z) fun acc x => do …`, after `lead` (a binding, or none). */
+  private def over(s: Steps, lead: String, ind: String): List[String] = s match
+    case Steps.Collect(xs, b, body) =>
+      val r = expr(xs)
+      s"$ind$lead$r.mapM fun ${local(b)} => do" :: block(body, ind + "  ")
+    case Steps.Accumulate(xs, z, acc, b, body) =>
+      val r = expr(xs)
+      val tz = expr(z)
+      s"$ind$lead$r.foldlM (init := $tz) fun ${local(acc)} ${local(b)} => do" :: block(body, ind + "  ")
+    case other => block(other, ind)
 
   /** One step, on a line of its own. */
   private def step(s: Steps): String = s match

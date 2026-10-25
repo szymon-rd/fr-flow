@@ -15,8 +15,7 @@ val introspect = Param[(RealmId, String) => Option[Claims]]("introspect",
 
 /** The user and roles an answer names, if any. */
 val claimsOf = define { (c: Term[Option[Claims]]) =>
-  c.on[Some[Claims]](x => some((x.user, x.roles)))
-    .on[None.type](none)
+  c.fold(none[(String, List[String])])(x => some((x.user, x.roles)))
 }
 
 val referenceTokens = Node.definition("ReferenceTokens",
@@ -52,8 +51,7 @@ val introspectContract = Node.contract(introspect)("Introspect",
     (res === some(Claims(realm, x.user, rolesIn(account(realm, x.user)))))))
   .under(answersNameASession, disabledHaveNoAccess, rolesAsGranted, signedInAreAccepted)
   .keeps(realmIsolation)((realm, token, res) => res
-    .on[Some[Claims]](c => List((realm, c)))
-    .on[None.type](Nil))
+    .fold(List.empty[(RealmId, Claims)])(c => List((realm, c))))
   .examples(history.bind(events), seed.bind(atStart), sessionDb.bind(SessionDb.replaying(seed.value, history.value)))(
     expect(acme, "t1", Some(Claims(acme, "alice", List("admin", "user"))), "Alice's token at acme: accepted as hers, with her roles"),
     expect(globex, "t4", Some(Claims(globex, "carol", List("viewer"))), "Carol's token at globex: accepted as hers"),

@@ -160,8 +160,7 @@ val takesEffect = define { (s: Term[CrmStore], w: Term[WriteCmd], t: Term[CrmSto
     .on[Change.Add](r => (r.tenant === w.by.tenant && !s.records.exists(x => x.id === r.id)) ==> t.records.contains(r))
     .on[Change.ShareWith]((id, to, until) => s.records.exists(x => x.id === id && x.tenant === w.by.tenant) ==>
       (t.shares.contains(Share(id, to)) && until
-        .on[Some[BigInt]](u => t.expiries.contains(Expiry(id, to, u)) && t.expiries.forall(e => (e.record === id && e.to === to) ==> (e.until === u)))
-        .on[None.type](!t.expiries.exists(e => e.record === id && e.to === to))))
+        .fold(!t.expiries.exists(e => e.record === id && e.to === to))(u => t.expiries.contains(Expiry(id, to, u)) && t.expiries.forall(e => (e.record === id && e.to === to) ==> (e.until === u)))))
     .on[Change.Unshare]((id, to) => s.records.exists(x => x.id === id && x.tenant === w.by.tenant) ==> !t.shares.contains(Share(id, to)))
 }
 
@@ -232,15 +231,15 @@ val askedStep = define { (a: Term[Asked], e: Term[Event]) =>
   e.on[Event.Wrote](w =>
       w.change
         .on[Change.Add](r =>
-          If(r.tenant === w.by.tenant && !a.records.exists(x => x.id === r.id))(Asked(a.records ++ List(r), a.grants)).Else(a))
+          (r.tenant === w.by.tenant && !a.records.exists(x => x.id === r.id)).fold(Asked(a.records ++ List(r), a.grants), a))
         .on[Change.ShareWith]((id, to, until) =>
-          If(a.records.exists(x => x.id === id && x.tenant === w.by.tenant))(
-            Asked(a.records, a.grants.filter(g => !(g.record === id && g.to === to)) ++ List(Grant(id, to, until))))
-          .Else(a))
+          a.records.exists(x => x.id === id && x.tenant === w.by.tenant).fold(
+            Asked(a.records, a.grants.filter(g => !(g.record === id && g.to === to)) ++ List(Grant(id, to, until))),
+          a))
         .on[Change.Unshare]((id, to) =>
-          If(a.records.exists(x => x.id === id && x.tenant === w.by.tenant))(
-            Asked(a.records, a.grants.filter(g => !(g.record === id && g.to === to))))
-          .Else(a)))
+          a.records.exists(x => x.id === id && x.tenant === w.by.tenant).fold(
+            Asked(a.records, a.grants.filter(g => !(g.record === id && g.to === to))),
+          a)))
     .on[Event.Expired](now => Asked(a.records, a.grants.filter(g => g.until.forall(t => now < t))))
 }
 

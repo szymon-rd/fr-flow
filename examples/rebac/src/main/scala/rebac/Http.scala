@@ -65,13 +65,13 @@ private def fits(defs: Term[List[RelationDef]], t: Term[RelTuple]): Term[Boolean
 /** The version a check is answered at: the latest when none is named, a named one from 0 to the latest, else none. */
 private def versionAsked(s: Term[Served], at: Term[At]): Term[Option[Int]] =
   at.on[At.Latest.type](some(s.log.length))
-    .on[At.Version](v => If(v >= 0 && v <= s.log.length)(some(v)).Else(none[Int]))
+    .on[At.Version](v => (v >= 0 && v <= s.log.length).fold(some(v), none[Int]))
     .on[At.Invalid](_ => none[Int])
 
 private def refused(s: Term[Served]): Term[Reply] = Reply(400, none[Boolean], s.log.length)
 
 private def appended(s: Term[Served], g: Term[Given], w: Term[RelTuple] => Term[Write]): Term[Served] =
-  g.on[Given.Tuple](t => If(fits(s.schema, t))(Served(s.schema, s.log ++ List(w(t)), s.allows)).Else(s))
+  g.on[Given.Tuple](t => fits(s.schema, t).fold(Served(s.schema, s.log ++ List(w(t)), s.allows), s))
     .on[Given.Missing.type](s)
     .on[Given.Malformed](_ => s)
 
@@ -83,7 +83,7 @@ def afterRequest(s: Term[Served], r: Term[Request]): Term[Served] =
     .on[Request.Unknown]((_, _) => s)
 
 private def changed(s: Term[Served], r: Term[Request], g: Term[Given]): Term[Reply] =
-  g.on[Given.Tuple](t => If(fits(s.schema, t))(Reply(200, none[Boolean], afterRequest(s, r).log.length)).Else(refused(s)))
+  g.on[Given.Tuple](t => fits(s.schema, t).fold(Reply(200, none[Boolean], afterRequest(s, r).log.length), refused(s)))
     .on[Given.Missing.type](refused(s))
     .on[Given.Malformed](_ => refused(s))
 
@@ -94,9 +94,8 @@ def replyTo(s: Term[Served], r: Term[Request]): Term[Reply] =
   r.on[Request.Check]((g, at) =>
       g.on[Given.Tuple](t => t.subject
           .on[Subject.Person](p =>
-            If(declares(s.schema, t.obj.kind, t.rel))(versionAsked(s, at)
-              .on[Some[Int]](v => Reply(200, some(s.allows.contains(Ask(Query(t.obj, t.rel, p), v))), v))
-              .on[None.type](refused(s))).Else(refused(s)))
+            declares(s.schema, t.obj.kind, t.rel).fold(versionAsked(s, at)
+              .fold(refused(s))(v => Reply(200, some(s.allows.contains(Ask(Query(t.obj, t.rel, p), v))), v)), refused(s)))
           .on[Subject.Members]((_, _) => refused(s))
           .on[Subject.Link](_ => refused(s)))
         .on[Given.Missing.type](refused(s))

@@ -84,8 +84,7 @@ val storedAs = define { (q: Term[AuthRequest], after: Term[ServerState]) => afte
 /** The session a request opens: one the accounts grant, under a token no open session holds. */
 val opened = define { (s: Term[ServerState], q: Term[AuthRequest]) =>
   grantedBy(s.accounts, q)
-    .on[Some[Session]](x => If(s.sessions.exists(y => y.token === x.token))(none[Session]).Else(some(x)))
-    .on[None.type](none)
+    .fold(none[Session])(x => s.sessions.exists(y => y.token === x.token).fold(none[Session], some(x)))
 }
 
 /** Whether a request ends the session: a sign-out with its token, in its realm. */
@@ -133,8 +132,7 @@ val handleRequest = Node.contract(step)("HandleRequest",
   */
 val next = define { (s: Term[ServerState], q: Term[AuthRequest]) =>
   ServerState(administer(s.accounts, q), opened(s, q)
-    .on[Some[Session]](x => s.sessions ++ List(x))
-    .on[None.type](s.sessions.filter(y => !endedBy(q, y))))
+    .fold(s.sessions.filter(y => !endedBy(q, y)))(x => s.sessions ++ List(x)))
 }
 
 /** One request, handled: the state it leads to, stored with the request, as the store reads it back. */

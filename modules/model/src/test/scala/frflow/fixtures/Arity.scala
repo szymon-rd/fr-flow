@@ -18,7 +18,7 @@ val clamp = Node.contract(clamped)("Clamp", "A call shows the raw value when it 
     expect(BigInt(5), BigInt(5), "a positive value is shown"),
     expect(BigInt(-3), BigInt(0), "a negative value shows zero"),
     reject(BigInt(-3), BigInt(-3), "never a negative reading"))
-val clampAtZero = define { (x: Term[BigInt]) => If(x >= 0)(x).Else(BigInt(0)) }
+val clampAtZero = define { (x: Term[BigInt]) => (x >= 0).fold(x, BigInt(0)) }
 val clampKb = KnowledgeBase("Gauge", idea = "IDEA.md")(neverBelowZero, clamp)
 
 // Three inputs: a member of an access list grants access to another person.
@@ -41,7 +41,7 @@ val grant = Node.contract(granted)("Grant",
     reject(List("ann"), "eve", "eve", List("ann", "eve"), "never adds a person on their own say"),
     reject(List("ann", "bob"), "ann", "cid", List("ann", "cid"), "never drops a member"))
 val grantIfMember = define { (acl: Term[List[String]], by: Term[String], who: Term[String]) =>
-  If(acl.contains(by))(acl ++ List(who)).Else(acl)
+  acl.contains(by).fold(acl ++ List(who), acl)
 }
 val grantKb = KnowledgeBase("Access", idea = "IDEA.md")(onlyMembersGrant, grant)
 
@@ -95,7 +95,7 @@ val shows = Node.contract(gaugeShows)("Shows", "The gauge shows the raw reading 
   r => r >= 0 && ((rawReading >= 0) ==> (r === rawReading)) && ((rawReading < 0) ==> (r === BigInt(0)))).under(showsNow)
   .examples(rawReading.bind(5))(expect(BigInt(5), "the raw reading"), reject(BigInt(0), "never zero for a positive reading"))
   .examples(rawReading.bind(-3))(expect(BigInt(0), "zero for a fault"))
-val showRaw = define { () => If(rawReading >= 0)(rawReading: Term[BigInt]).Else(BigInt(0)) }
+val showRaw = define { () => (rawReading >= 0).fold(rawReading: Term[BigInt], BigInt(0)) }
 val gaugeKb = KnowledgeBase("Shows", idea = "IDEA.md")(showsNow, shows)
 
 // A flow of no input: the stock counted, left as it was.

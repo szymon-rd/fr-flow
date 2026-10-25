@@ -124,8 +124,8 @@ tested against its contract, or against a boundary's model, on generated cases),
 or **assumed** (an outside system such as the database: you decide what it does,
 and FrFlow checks it at run time and on generated runs).
 
-Code that talks to the outside, such as a database, is written as a `Flow`, in
-the style of Cats or ZIO code, over a trait of operations whose behaviour you
+Code that talks to the outside, such as a database, is written as a `Flow`, as
+Cats code is (a monad relative to `Term`, with Cats' combinators), over a trait of operations whose behaviour you
 decide as a model. Lean proves the flow's contract from that model. The CRM's
 expiry job is written this way.
 

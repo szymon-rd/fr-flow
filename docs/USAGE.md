@@ -107,8 +107,7 @@ object Claims extends Data[Claims]          // builds Claims from terms: Claims(
 
 /** The user and roles an answer names, if any. */
 val claimsOf = define { (c: Term[Option[Claims]]) =>
-  c.on[Some[Claims]](x => some((x.user, x.roles)))
-    .on[None.type](none)
+  c.fold(none[(String, List[String])])(x => some((x.user, x.roles)))
 }
 ```
 
@@ -119,8 +118,9 @@ val claimsOf = define { (c: Term[Option[Claims]]) =>
 | `forall((u: Term[User.T]) => ...)`, `exists(...)` | one or two variables; specification only | `∀`, `∃` |
 | `s.records`, `CrmStore(a, b, c)`, `a.copy((enabled = v))` | fields, construction, copy (with `object CrmStore extends Data[CrmStore]`) | fields, `CrmStore.mk`, `{ a with ... }` |
 | `Event[Event.Expired](now)` | an enum case built from terms (with `object Event extends Data[Event]`) | `Event.Expired now` |
-| `q.on[Search.ById](id => ...).on[Search.Everything.type](...)` | a match; a singleton case is written with `.type`; Options and lists alike (`.on[Some[A]]`, `.on[None.type]`) | `match` |
-| `If(c)(a).Else(b)` | a conditional | `if c then a else b` |
+| `q.on[Search.ById](id => ...).on[Search.Everything.type](...)` | a match on an enum (or a list: `.on[::[A]]`, `.on[Nil.type]`), its cases named, in any order; a singleton case is written with `.type` | `match` |
+| `c.fold(ifTrue, ifFalse)` | a conditional: Boolean's fold | `if c then a else b` |
+| `o.fold(ifEmpty)(x => ...)` | an Option's fold, as Scala's (`ifEmpty` is typed: `List.empty[Rule]`, `none[A]`); `.on` on an Option is refused | `match o with \| some x => ... \| none => ...` |
 | `let(v)(x => ...)` | a shared value, named | `let x : A := v; ...` |
 | `some(x)`, `none[A]`, `List(a, b)`, `(a, b)`, `t._1` | options, lists and pairs of terms | as Lean's |
 | `val d = define { (a: Term[A], b: Term[B]) => ... }` | a named function, in Lean by the val's name | a `def` |
@@ -351,8 +351,8 @@ against the outside is written as a flow (next section).
 A **boundary** is a plain trait of operations that take terms and return
 flows: what proven code calls but cannot see. Its behaviour is a **state
 model**, another implementation of the same trait over a state, which you
-decide as an assumption. A **flow** is code over boundaries, written as Cats or
-ZIO code is. Lean proves the flow's contract from the models. From
+decide as an assumption. A **flow** is code over boundaries, written as Cats
+code is. Lean proves the flow's contract from the models. From
 `examples/crm`:
 
 ```scala
@@ -377,12 +377,26 @@ def expireOnce(now: Term[BigInt]): Flow[CrmStore] =
   yield t
 ```
 
+A flow is a monad relative to `Term` (`RelativeMonad[Flow, Term]`): `pure` and
+`flatMap` take terms rather than values, so a flow can be printed as Lean as
+well as run. It is a free one: the laws (left unit, right unit,
+associativity) hold of what a flow gives in Lean's `do` and at run time, not
+of its tree; FrFlow's own suites test them on both. Its combinators are
+Cats', with Cats' names:
+
+| Write | For | In Lean |
+|---|---|---|
+| `for x <- f yield t`, `f.flatMap(x => g)`, `f.map(x => t)`, `Flow.pure(t)` | steps in order | `let x ← f`, `pure t` |
+| `f *> g`, `f <* g`, `f.as(t)`, `f.void`, `f.flatTap(x => g)`, `f.product(g)`, `(f, g).tupled` | steps whose result is kept or dropped | `do` steps |
+| `c.foldF(f, g)`, `Flow.whenA(c)(f)`, `Flow.unlessA(c)(f)`, `Flow.ifM(fc)(f, g)` | a branch on a term, on a term only when it holds or not, on a flow's result | `if c then ... else ...` |
+| `xs.traverse_(x => f)`, `xs.traverse(x => f)`, `xs.foldM(z)((acc, x) => f)`, `Flow.sequence(fs)` | each element in turn: nothing kept, the results, an accumulator, a list of flows | `for x in xs do`, `xs.mapM`, `xs.foldlM`, a `let` per flow |
+
 - **The model** is decided with `Node.assumption(db)(DatabaseModel)(id,
   statement, why)`. It reads and changes its state with `state.get`,
   `state.set(s)` and `state.update(f)`. A state model assumes the boundary is
   deterministic (what is unknown, such as a clock's readings, goes into the
   state), never fails, and is the flow's alone during a run; loops are over
-  lists (`xs.traverse_(x => ...)`). A design node says how the exclusive
+  lists (`xs.traverse_(x => ...)`, `xs.traverse`, `xs.foldM`). A design node says how the exclusive
   access is ensured (in the CRM, a lock).
 - **The contract** is on an operation `Param[A => Flow[R]]` (of 0 to 6 inputs:
   `() => Flow[R]`, `(A, B) => Flow[R]`); its post relates the inputs, the result

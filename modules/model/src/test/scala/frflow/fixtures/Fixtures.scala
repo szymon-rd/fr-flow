@@ -136,7 +136,7 @@ val fromService = define { (shelf: Term[List[Book]], n: Term[Int]) => shelf.filt
 val viaFetch = define { (shelf: Term[List[Book]], n: Term[Int]) => fetch(shelf, n).filter(b => shelf.contains(b)) }
 
 /** Code using flatMap: proven like a filter. */
-val firstLong = define { (shelf: Term[List[Book]], n: Term[Int]) => shelf.flatMap(b => If(b.pages >= minPages)(List(b)).Else(Nil)) }
+val firstLong = define { (shelf: Term[List[Book]], n: Term[Int]) => shelf.flatMap(b => (b.pages >= minPages).fold(List(b), Nil)) }
 
 /** State kept in a map: counts by name, each bump adding one to its own count only. */
 val bumps = Param[(Map[String, BigInt], String) => Map[String, BigInt]]("bumps", "the counts after a bump of a name")

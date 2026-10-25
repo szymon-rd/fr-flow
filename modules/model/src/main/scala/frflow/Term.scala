@@ -7,7 +7,8 @@ import scala.util.NotGiven
 
 /** A value of the domain as FrFlow sees it: a tree that prints as Lean and compiles to Scala. Models and `define`s
   * are written with terms: `s.records` (a field), `CrmStore(a, b, c)` (with `object CrmStore extends Data[CrmStore]`),
-  * `x === y`, `xs.filter(r => …)`, `forall((u: Term[User.T]) => …)`, `If(c)(a).Else(b)`, `q.on[Search.ById](id => …)`.
+  * `x === y`, `xs.filter(r => …)`, `forall((u: Term[User.T]) => …)`, `c.fold(ifTrue, ifFalse)`, `o.fold(ifEmpty)(x => …)`,
+  * `q.on[Search.ById](id => …)`.
   */
 class Term[A] private[frflow] (tree: Tree | Null, private[frflow] val termType: LeanType[A]) extends Selectable:
   type Fields = NamedTuple.Map[NamedTuple.From[A], Term]
@@ -118,13 +119,6 @@ val False: Term[Boolean] = Term.lit(false)
 def some[A](a: Term[A]): Term[Option[A]] = Term(Tree.SomeT(a.termTree), LeanType.of(Shape.OptionOf(a.termType)))
 def none[A](using a: LeanType[A]): Term[Option[A]] = Term(Tree.Lit(None, LeanType.of(Shape.OptionOf(a))), LeanType.of(Shape.OptionOf(a)))
 
-/** `If(c)(a).Else(b)`: Lean's `if c then a else b`. */
-def If[R](c: Term[Boolean])(a: Term[R]): Then[R] = Then(c, a)
-/** `If(c)(a).Else(b)` on flows: the steps of one branch. */
-def If[R](c: Term[Boolean])(a: Flow[R]): ThenFlow[R] = ThenFlow(c, a)
-final class Then[R](c: Term[Boolean], a: Term[R]):
-  def Else(b: Term[R]): Term[R] = Term(Tree.If(c.termTree, a.termTree, b.termTree), a.termType)
-
 /** A shared value, named in Lean: `let(shelf.toSet)(there => picked.filter(b => there.contains(b)))`. */
 def let[A, R](v: Term[A])(body: Term[A] => Term[R]): Term[R] =
   val b = Lambda.binders(body, List(v.termType)).head
@@ -167,15 +161,15 @@ type Fields[T <: Tuple, R] = T match
   case (a, b, c, d) => (Term[a], Term[b], Term[c], Term[d]) => Term[R]
   case (a, b, c, d, e) => (Term[a], Term[b], Term[c], Term[d], Term[e]) => Term[R]
 
-/** The first case of a match, given its body (whose type is the match's): `.on[Search.ById](id => …)`,
-  * `.on[Search.Everything.type](True)`, `.on[Some[UserId]](u => …)`, `.on[None.type](…)`.
+/** The first case of a match on an enum or a list, given its body (whose type is the match's):
+  * `.on[Search.ById](id => …)`, `.on[Search.Everything.type](True)`, `.on[Nil.type](…)`.
   */
 final class First[S, E <: Tuple] @scala.annotation.publicInBinary private[frflow] (scrutinee: Term[S], label: String):
-  def apply[R](f: Fields[E, R]): Cases[S, R] = Cases(scrutinee, List(Term.caseOf(scrutinee, label, f.asInstanceOf[AnyRef])))
+  def apply[R](f: Fields[E, R]): Cases[S, R] = Cases(scrutinee, List(Term.namedCase(scrutinee, label, f.asInstanceOf[AnyRef])))
 
 /** A further case of a match. */
 final class On[S, E <: Tuple, R] @scala.annotation.publicInBinary private[frflow] (scrutinee: Term[S], before: List[Arm], label: String):
-  def apply(f: Fields[E, R]): Cases[S, R] = Cases(scrutinee, before :+ Term.caseOf(scrutinee, label, f.asInstanceOf[AnyRef]))
+  def apply(f: Fields[E, R]): Cases[S, R] = Cases(scrutinee, before :+ Term.namedCase(scrutinee, label, f.asInstanceOf[AnyRef]))
 
 /** A match so far: a term of its result, to which `on` adds a case. Lean refuses one that misses a case. */
 final class Cases[S, R] private[frflow] (scrutinee: Term[S], cases: List[Arm])
@@ -192,6 +186,25 @@ private[frflow] trait TermsOfValues:
     ps => Term(Tree.ListT(ps.map(pair(_).termTree)), LeanType.of(Shape.ListOf(LeanType.of(Shape.TupleOf(List(a, b))))))
   private def pair[A, B](p: (Term[A], Term[B])): Term[(A, B)] =
     Term(Tree.Tup(List(p._1.termTree, p._2.termTree)), LeanType.of(Shape.TupleOf(List(p._1.termType, p._2.termType))))
+  private[frflow] def pairOf[A, B](a: Term[A], b: Term[B]): Term[(A, B)] = pair((a, b))
+  private[frflow] def listOf[A](es: List[Term[A]])(using a: LeanType[A]): Term[List[A]] =
+    Term(Tree.ListT(es.map(_.termTree)), LeanType.of(Shape.ListOf(es.headOption.fold(a)(_.termType))))
+
+/** What a Scala value given where a term is expected stands for: a term, or a plain value of a Lean type made one.
+  * `o.fold(ifEmpty)(f)` takes its result's type from `ifEmpty`, as Scala's does, so an empty is typed (`List.empty[Rule]`,
+  * `none[Session]`, `BigInt(0)`).
+  */
+trait AsTerm[E]:
+  type R
+  def apply(e: E): Term[R]
+
+private[frflow] trait AsTermValues:
+  given value[A](using t: LeanType[A], notTerm: NotGiven[A <:< Term[?]]): (AsTerm[A] { type R = A }) =
+    new AsTerm[A] { type R = A; def apply(e: A) = Term.lit(e) }
+
+object AsTerm extends AsTermValues:
+  given term[A]: (AsTerm[Term[A]] { type R = A }) = new AsTerm[Term[A]] { type R = A; def apply(e: Term[A]) = e }
+  given cases[S, A]: (AsTerm[Cases[S, A]] { type R = A }) = new AsTerm[Cases[S, A]] { type R = A; def apply(e: Cases[S, A]) = e }
 
 object Term extends TermsOfValues:
   private[frflow] def apply[A](t: Tree, tpe: LeanType[A]): Term[A] = new Term(t, tpe)
@@ -267,8 +280,13 @@ object Term extends TermsOfValues:
         bound(c.fields.map(_._2))(bs => Pat.Ctor(adt, c, bs))
       case _ => throw IllegalArgumentException(s"FrFlow: cannot match on case $label here")
 
+  /** A case named by the program (`.on[C]`): an enum's or a list's. An Option is folded instead, one way to say it. */
+  private[frflow] def namedCase(scrutinee: Term[?], label: String, f: AnyRef): Arm = scrutinee.termType.shape match
+    case Shape.OptionOf(_) => throw IllegalArgumentException("FrFlow: an Option is folded, not matched by case: o.fold(ifEmpty)(x => …)")
+    case _ => caseOf(scrutinee, label, f)
+
   extension [S](s: Term[S])
-    /** A case of a match on an enum, an Option or a List: the lambda takes the case's fields. */
+    /** A case of a match on an enum or a List: the lambda takes the case's fields. */
     inline def on[C <: S](using m: Mirror.ProductOf[C]): First[S, m.MirroredElemTypes] = First(s, constValue[m.MirroredLabel])
 
   extension [A](a: Term[A])
@@ -301,6 +319,10 @@ object Term extends TermsOfValues:
     def ||(b: Term[Boolean]): Term[Boolean] = opB(Prim.Or, a, b)
     def unary_! : Term[Boolean] = opB(Prim.Not, a)
     infix def ==>(b: Term[Boolean]): Term[Boolean] = opB(Prim.Implies, a, b)
+    /** Boolean's fold (its catamorphism): `ifTrue` when this holds, else `ifFalse`. Lean's `if … then … else …`. */
+    def fold[R](ifTrue: Term[R], ifFalse: Term[R]): Term[R] = Term(Tree.If(a.termTree, ifTrue.termTree, ifFalse.termTree), ifTrue.termType)
+    /** The same between two flows (Cats' `foldF`): the steps of one of them. */
+    def foldF[R](ifTrue: Flow[R], ifFalse: Flow[R]): Flow[R] = Flow.Cond(a, ifTrue, ifFalse)
 
   /** Int and Long compare, BigInt also computes: Scala's Int and Long wrap around, Lean's Int does not. */
   sealed trait Num[N]
@@ -364,8 +386,12 @@ object Term extends TermsOfValues:
     def toSet: Term[Set[A]] = op(Prim.ToSet, LeanType.of(Shape.SetOf(elem(xs))), xs)
     def take(n: Term[Int]): Term[List[A]] = op(Prim.Take, xs.termType, n, xs)
     def drop(n: Term[Int]): Term[List[A]] = op(Prim.Drop, xs.termType, n, xs)
-    /** Each element in turn, as Cats' `traverse_`: Lean's `for x in xs do`. */
+    /** Each element in turn, the results in a list (Traverse's `traverse`): Lean's `xs.mapM fun x => do …`. */
+    def traverse[B](f: Term[A] => Flow[B]): Flow[List[B]] = Flow.EachResult(xs, f)
+    /** Each element in turn, the results dropped (Foldable's `traverse_`): Lean's `for x in xs do …`. */
     def traverse_(f: Term[A] => Flow[?]): Flow[Unit] = Flow.Each(xs, f)
+    /** A value carried through the elements by a flow (Foldable's `foldM`): Lean's `xs.foldlM (init := z) fun acc x => do …`. */
+    def foldM[B](z: Term[B])(f: (Term[B], Term[A]) => Flow[B]): Flow[B] = Flow.Fold(xs, z, f)
     def zip[B](ys: Term[List[B]]): Term[List[(A, B)]] =
       op(Prim.Zip, LeanType.of(Shape.ListOf(LeanType.of(Shape.TupleOf(List(elem(xs), elem(ys)))))), xs, ys)
 
@@ -377,6 +403,9 @@ object Term extends TermsOfValues:
     @targetName("opt_nonEmpty") def nonEmpty: Term[Boolean] = opB(Prim.IsDefined, o)
     @targetName("opt_isEmpty") def isEmpty: Term[Boolean] = opB(Prim.OptIsEmpty, o)
     @targetName("opt_getOrElse") def getOrElse(d: Term[A]): Term[A] = op(Prim.OptGetOrElse, d.termType, o, d)
+    /** Option's fold (its catamorphism), as Scala's and Cats': `ifEmpty` for none, `f(x)` for `some x`. */
+    @targetName("opt_fold") def fold[E](ifEmpty: E)(using e: AsTerm[E])(f: Term[A] => Term[e.R]): Term[e.R] =
+      Cases(o, List(caseOf(o, "Some", f), caseOf(o, "None", e(ifEmpty))))
 
   extension [K, V](m: Term[Map[K, V]])
     @targetName("map_get") def get(k: Term[K]): Term[Option[V]] = op(Prim.Get, LeanType.of(Shape.OptionOf(mapTypes(m)._2)), m, k)

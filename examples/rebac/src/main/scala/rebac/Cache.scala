@@ -25,7 +25,7 @@ val cacheSize = 1024
 /** The cache as the proofs see it: the answers it keeps, newest first. */
 object CacheModel extends AnswerCache, StateModel[List[Cached]]:
   def lookup(a: Term[Ask]) =
-    state.get.map(cs => cs.find(c => c.ask === a).on[Some[Cached]](c => some(c.answer)).on[None.type](none[Boolean]))
+    state.get.map(cs => cs.find(c => c.ask === a).fold(none[Boolean])(c => some(c.answer)))
   def remember(a: Term[Ask], answer: Term[Boolean]) =
     state.update(cs => (Cached(a, answer) :: cs.filterNot(c => c.ask === a)).take(cacheSize))
 
@@ -45,7 +45,8 @@ val runCheck = Param[Ask => Flow[Boolean]]("runCheck",
 def cachedCheck(a: Term[Ask]): Flow[Boolean] =
   for
     hit <- cache.lookup(a)
-    answer <- If(hit.isDefined)(Flow.pure(hit.getOrElse(False))).Else(
+    answer <- hit.isDefined.foldF(
+      Flow.pure(hit.getOrElse(False)),
       for
         fresh <- Flow.pure(allowed(a.query, a.at))
         _     <- cache.remember(a, fresh)

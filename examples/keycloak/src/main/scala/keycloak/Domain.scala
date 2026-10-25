@@ -34,7 +34,7 @@ val history = Param[List[AuthRequest]]("history",
 
 /** An administrator's change: enabling or disabling a user of a realm; other requests change no account. */
 val administer = define { (as: Term[List[UserAccount]], q: Term[AuthRequest]) =>
-  q.on[AuthRequest.SetEnabled]((r, u, on) => as.map(a => If(a.realm === r && a.username === u)(a.copy((enabled = on))).Else(a)))
+  q.on[AuthRequest.SetEnabled]((r, u, on) => as.map(a => (a.realm === r && a.username === u).fold(a.copy((enabled = on)), a)))
     .on[AuthRequest.SignIn]((_, _, _, _) => as)
     .on[AuthRequest.SignOut]((_, _) => as)
 }
@@ -50,8 +50,7 @@ val isEnabled = define { (a: Term[Option[UserAccount]]) => a.exists(x => x.enabl
 
 /** The roles an account has (none without an account). */
 val rolesIn = define { (a: Term[Option[UserAccount]]) =>
-  a.on[Some[UserAccount]](x => x.roles)
-    .on[None.type](Nil)
+  a.fold(List.empty[String])(x => x.roles)
 }
 
 val accounts = Node.definition("Accounts",
@@ -66,7 +65,7 @@ val accounts = Node.definition("Accounts",
 
 /** The session a request asks for, when these accounts grant it: a sign-in by an enabled user with their password. */
 val grantedBy = define { (as: Term[List[UserAccount]], q: Term[AuthRequest]) =>
-  q.on[AuthRequest.SignIn]((r, u, h, t) => If(accountOf(as, r, u).exists(a => a.enabled && a.passwordHash === h))(some(Session(t, r, u))).Else(none))
+  q.on[AuthRequest.SignIn]((r, u, h, t) => accountOf(as, r, u).exists(a => a.enabled && a.passwordHash === h).fold(some(Session(t, r, u)), none))
     .on[AuthRequest.SignOut]((_, _) => none)
     .on[AuthRequest.SetEnabled]((_, _, _) => none)
 }

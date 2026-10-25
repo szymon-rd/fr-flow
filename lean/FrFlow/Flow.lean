@@ -29,6 +29,10 @@ def within {σ τ α : Type} (get : σ → τ) (put : σ → τ → σ) (x : Sta
 @[frflow_defs] theorem runOn_modify {σ : Type} (f : σ → σ) (s : σ) : runOn (modify f : StateM σ PUnit) s = (⟨⟩, f s) := rfl
 @[frflow_defs] theorem runOn_within {σ τ α : Type} (get : σ → τ) (put : σ → τ → σ) (x : StateM τ α) (s : σ) :
     runOn (within get put x) s = ((runOn x (get s)).1, put s (runOn x (get s)).2) := rfl
+/-- A branch (`c.foldF(a, b)`, `whenA`, `unlessA`, `ifM`): the run of the branch taken. -/
+@[frflow_defs ↓] theorem runOn_ite {σ α : Type} {c : Prop} {h : Decidable c} (x y : StateM σ α) (s : σ) :
+    runOn (@ite _ c h x y) s = @ite _ c h (runOn x s) (runOn y s) := by
+  split <;> rfl
 @[frflow_defs] theorem runOn_forIn_nil {σ β α : Type} (b : β) (f : α → β → StateM σ (ForInStep β)) (s : σ) :
     runOn (forIn ([] : List α) b f) s = (b, s) := rfl
 @[frflow_defs] theorem runOn_forIn_cons {σ β α : Type} (x : α) (xs : List α) (b : β) (f : α → β → StateM σ (ForInStep β)) (s : σ) :
@@ -48,5 +52,20 @@ def within {σ τ α : Type} (get : σ → τ) (put : σ → τ → σ) (x : Sta
   induction xs generalizing s with
   | nil => rfl
   | cons x xs ih => rw [runOn_forIn_cons]; exact ih _
+
+/-- `xs.mapM f` (`traverse`): each element in turn, the results in order. -/
+@[frflow_defs] theorem runOn_mapM_nil {σ α β : Type} (f : α → StateM σ β) (s : σ) :
+    runOn (([] : List α).mapM f) s = ([], s) := rfl
+@[frflow_defs] theorem runOn_mapM_cons {σ α β : Type} (f : α → StateM σ β) (x : α) (xs : List α) (s : σ) :
+    runOn ((x :: xs).mapM f) s =
+      ((runOn (f x) s).1 :: (runOn (xs.mapM f) (runOn (f x) s).2).1, (runOn (xs.mapM f) (runOn (f x) s).2).2) := by
+  rw [List.mapM_cons]; rfl
+
+/-- `xs.foldlM (init := b) f` (`foldM`): the accumulator through each element in turn. -/
+@[frflow_defs] theorem runOn_foldlM_nil {σ α β : Type} (f : β → α → StateM σ β) (b : β) (s : σ) :
+    runOn (([] : List α).foldlM f b) s = (b, s) := rfl
+@[frflow_defs] theorem runOn_foldlM_cons {σ α β : Type} (f : β → α → StateM σ β) (b : β) (x : α) (xs : List α) (s : σ) :
+    runOn ((x :: xs).foldlM f b) s = runOn (xs.foldlM f (runOn (f b x) s).1) (runOn (f b x) s).2 := by
+  rw [List.foldlM_cons]; rfl
 
 end FrFlow

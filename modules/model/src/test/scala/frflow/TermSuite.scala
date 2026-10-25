@@ -51,13 +51,16 @@ class TermSuite extends munit.FunSuite:
       // names Lean defines are not captured
       lean1((some: Term[Int]) => some > 1) -> "(some_ > 1)",
       // matches on an Option, with a wildcard
-      lean1((o: Term[Option[Book]]) => o.on[Some[Book]](b => b.pages).on[None.type](0)) -> "(match o with | some b => b.pages | none => 0)",
+      lean1((o: Term[Option[Book]]) => o.fold(0)(b => b.pages)) -> "(match o with | some b => b.pages | none => 0)",
       lean1((s: Term[Shelf]) => s.on[Shelf.Box](_ => True).on[Shelf.Top.type](False).on[Shelf.Bottom.type](False)) ->
         "(match s with | Shelf.Box _ => True | Shelf.Top => False | Shelf.Bottom => False)",
-      lean1((b: Term[Book]) => If(b.pages > 1)(b.title).Else("none")) -> "(if (b.pages > 1) then b.title else \"none\")",
+      lean1((b: Term[Book]) => (b.pages > 1).fold(b.title, "none")) -> "(if (b.pages > 1) then b.title else \"none\")",
       // an enum's case built from terms is a term of the enum
       lean2((xs: Term[List[Shelf]], l: Term[String]) => xs.contains(Shelf[Shelf.Box](l))) -> "((Shelf.Box l) ∈ xs)"
     ).foreach((got, want) => assertEquals(got, want))
+    // an Option is folded: one way to say it, so a match by case on one is refused
+    val byCase = intercept[IllegalArgumentException](lean1((o: Term[Option[Book]]) => o.on[Some[Book]](b => b.pages).on[None.type](0)))
+    assert(byCase.getMessage.contains("o.fold(ifEmpty)"), byCase.getMessage)
     // a parameter only plain code reads (a database handle) needs no Lean type
     assertEquals(Param[java.io.File]("store", "a handle").name, "store")
     val d = lean2((l: Term[List[Book]], x: Term[Book]) => l.forall(x_1 => l.exists(x => x === x_1)))

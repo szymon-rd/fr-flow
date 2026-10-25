@@ -180,7 +180,7 @@ val inMemorySessions = Node.design("InMemorySessions",
 val realmIsolation = Node.invariant[RealmId, Claims]("RealmIsolation",   // keycloak
   "No application is ever shown claims of a realm other than its own.", why = "..."
 )((asking, c) => c.realm === asking)
-// on the contract Introspect:  .keeps(realmIsolation)((realm, token, res) => res.on[Some[Claims]](c => List((realm, c))).on[None.type](Nil))
+// on the contract Introspect:  .keeps(realmIsolation)((realm, token, res) => res.fold(List.empty[(RealmId, Claims)])(c => List((realm, c))))
 // on the design ServiceWiring: .exempt(realmIsolation, "it returns what Introspect returns, which keeps the rule")
 val sessionLookup = Node.assumption(lookup)("SessionLookup",          // keycloak: trusted
   "The store's index returns a session it holds under the token in the realm asked, if it holds one, and never one of another realm or token.", why = "..."
@@ -234,10 +234,11 @@ operations; there is no macro, so what is not offered is a type error.
   makes `CrmStore(a, b, c)` a term (1 to 6 fields); `object Event extends Data[Event]`
   makes `Event[Event.Expired](now)` a term of the enum. Copy with a named tuple:
   `a.copy((enabled = v))`. Fields read as on values: `s.records`.
-- **Matches** are `.on[Case](fields => ...)` per case, in order: `q.on[Search.ById](id => ...)`;
-  a singleton case is `.on[Search.Everything.type](...)`; an option `.on[Some[A]](x => ...).on[None.type](...)`.
-  Missing cases fail when the Lean is rendered.
-- **`If(c)(a).Else(b)`**; `let(v)(x => ...)` names a shared value; `some(x)`, `none[A]`.
+- **Matches** on an enum or a list are `.on[Case](fields => ...)` per case, in order: `q.on[Search.ById](id => ...)`;
+  a singleton case is `.on[Search.Everything.type](...)`. Missing cases fail when the Lean is rendered.
+- **Folds** for the rest, as in Scala and Cats: a conditional is Boolean's fold, `c.fold(ifTrue, ifFalse)`;
+  an Option's is `o.fold(ifEmpty)(x => ...)`, its empty typed (`List.empty[Rule]`, `none[A]`); `.on` on an
+  Option is refused. `let(v)(x => ...)` names a shared value; `some(x)`, `none[A]`.
 - **In plain Scala** (implementations, wiring, tests): call a define with `d.fn(...)`
   and read a parameter with `p.value`.
 - Operations: on `List`: `contains`, `exists`, `forall`, `filter`, `filterNot`,
@@ -296,7 +297,11 @@ def expireOnce(now: Term[BigInt]): Flow[CrmStore] =   // the code: a plain def, 
   cache; tested on generated runs of its operations against the model).
 - **Steps.** `state.get`, `state.set(s)`, `state.update(f)` in models only;
   `Flow.effect(...)` in production implementations only (a proven flow taking
-  one is refused); `If(c)(f1).Else(f2)` and `Flow.when(c)(f)` for branches.
+  one is refused).
+- **Combinators are Cats'** (a flow is `RelativeMonad[Flow, Term]`): `f *> g`, `f <* g`, `f.as(t)`,
+  `f.void`, `f.flatTap(x => g)`, `f.product(g)`; branches `c.foldF(f1, f2)`, `Flow.whenA(c)(f)`,
+  `Flow.unlessA(c)(f)`, `Flow.ifM(fc)(f1, f2)`; lists `xs.traverse_`, `xs.traverse`, `xs.foldM(z)((acc, x) => f)`,
+  `Flow.sequence(fs)`. One way to say each: no `If`, no `when`.
 - **The contract's examples** give the world before and after:
   `expect(BigInt(150), World(DatabaseModel -> Tables(...)), result, World(DatabaseModel -> Tables(...)), "...")`.
 - **Calling an operation from a flow** (`expire` above) proves the flow from

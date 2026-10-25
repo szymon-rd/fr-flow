@@ -68,12 +68,12 @@ val granted = Param[(Query, Int) => Boolean]("granted",
 
 /** The rules the schema gives a relation of a kind of object; none if the schema does not name it. */
 val rulesOf = define { (kind: Term[String], rel: Term[String]) =>
-  schema.find(d => d.kind === kind && d.rel === rel).on[Some[RelationDef]](d => d.rules).on[None.type](Nil)
+  schema.find(d => d.kind === kind && d.rel === rel).fold(List.empty[Rule])(d => d.rules)
 }
 
 /** The tuples after one more write: an added tuple once, a removed one gone. */
 val applyWrite = define { (ts: Term[List[RelTuple]], w: Term[Write]) =>
-  w.on[Write.Add](t => If(ts.contains(t))(ts).Else(ts ++ List(t)))
+  w.on[Write.Add](t => ts.contains(t).fold(ts, ts ++ List(t)))
    .on[Write.Remove](t => ts.filterNot(x => x === t))
 }
 /** The tuples the first `v` writes leave, applied in order. */

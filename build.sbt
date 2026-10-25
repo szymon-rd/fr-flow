@@ -42,7 +42,7 @@ def module(name: String, libraries: ModuleID*) = Project(name, file(s"modules/$n
 // FrFlow's core: the modules below up to `web`, usable on their own. `agent` is a layer on top; no core module depends on it.
 
 /** The DSL: terms, flows, nodes, the knowledge base, the runtime checks (package `frflow`). */
-lazy val model = module("model", cats, catsEffectKernel).dependsOn(protocol)
+lazy val model = module("model", cats, catsEffectKernel, catsEffect % Test).dependsOn(protocol)
 
 /** The data crossing modules and files: the snapshot, the review, the ledger and checks, with their JSON codecs; ids and
   * statuses as types (package `frflow.protocol`).

@@ -441,7 +441,7 @@ with a reason (<code>.exempt</code>). A new endpoint then has to keep it or say 
 )((asking, c) =&gt; c.realm === asking)
   .under(onlyTheSignedIn)</code></pre></div>
 <p>On the contract <code>Introspect</code>, the result shows the rule each claim it returns:
-<code>.keeps(realmIsolation)((realm, token, res) =&gt; res.on[Some[Claims]](c =&gt; List((realm, c))).on[None.type](Nil))</code>.</p>
+<code>.keeps(realmIsolation)((realm, token, res) =&gt; res.fold(List.empty[(RealmId, Claims)])(c =&gt; List((realm, c))))</code>.</p>
 
 <h3 id="how-outside">State what the outside does</h3>
 <p>A database or a clock cannot be proven. State what it is trusted to do as an assumption on its operation; the code
@@ -496,8 +496,9 @@ prints as Lean and runs as Scala. A lambda over terms annotates its parameters
 <tr><td><code>&amp;&amp;</code>, <code>||</code>, <code>!</code>, <code>==&gt;</code></td><td>and, or, not, implies</td><td><code>∧ ∨ ¬ →</code></td></tr>
 <tr><td><code>True</code>, <code>False</code></td><td>the Boolean terms (a Scala <code>true</code> does not convert)</td><td><code>True</code>, <code>False</code></td></tr>
 <tr><td><code>forall((x: Term[A]) =&gt; …)</code>, <code>exists(…)</code></td><td>for every, for some value, of one or two variables. Specification only: Scala cannot run them</td><td><code>∀</code>, <code>∃</code></td></tr>
-<tr><td><code>If(c)(a).Else(b)</code></td><td>a conditional</td><td><code>if c then a else b</code></td></tr>
-<tr><td><code>t.on[Case](fields =&gt; …).on[Other.type](…)</code></td><td>a match: each case's lambda takes its fields; a singleton case takes <code>.type</code>; Options use <code>Some[A]</code> and <code>None.type</code></td><td><code>match t with | …</code></td></tr>
+<tr><td><code>c.fold(ifTrue, ifFalse)</code></td><td>a conditional: Boolean's fold</td><td><code>if c then a else b</code></td></tr>
+<tr><td><code>o.fold(ifEmpty)(x =&gt; …)</code></td><td>an Option's fold, as Scala's; the empty is typed (<code>List.empty[A]</code>, <code>none[A]</code>)</td><td><code>match o with | some x =&gt; … | none =&gt; …</code></td></tr>
+<tr><td><code>t.on[Case](fields =&gt; …).on[Other.type](…)</code></td><td>a match on an enum or a list: each case's lambda takes its fields; a singleton case takes <code>.type</code></td><td><code>match t with | …</code></td></tr>
 <tr><td><code>let(v)(x =&gt; body)</code></td><td>a named shared value</td><td><code>let x : A := v; body</code></td></tr>
 <tr><td><code>some(t)</code>, <code>none[A]</code></td><td>Option values</td><td><code>some t</code>, <code>none</code></td></tr>
 <tr><td><code>s.field</code>, <code>a.copy((field = v))</code>, <code>t._1</code></td><td>a field, a copy with one field changed, a tuple's part (tuples up to 3)</td><td><code>s.field</code>, <code>{ a with field := v }</code></td></tr>

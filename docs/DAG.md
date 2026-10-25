@@ -40,8 +40,8 @@ change that needs to depart from it says so in its commit message and in this fi
 
 Formulas and code are terms (`Term[A]`): a tree that prints as Lean and compiles to Scala, built by
 calling the Scala lambda once on variables. There is no macro; the library's operations are the
-language (`===`, `&&`, `forall`, `.on[Case]`, `If(...).Else(...)`, list, option, map and set
-operations), and anything else is a type error. Case classes and enums built from terms have
+language (`===`, `&&`, `forall`, `.on[Case]`, the folds `c.fold(a, b)` and `o.fold(z)(x => ...)`,
+list, option, map and set operations), and anything else is a type error. Case classes and enums built from terms have
 `object X extends Data[X]` as companion. Their Lean types are derived (structures and inductive
 types); a define's and a lambda's variable names are read from the lambda.
 
@@ -61,8 +61,10 @@ terms to them (`examples/auth`).
 
 ## 1a. Flows, boundaries and state models
 
-A **flow** (`Flow[A]`) is code over boundaries, a monad written with `for`/`<-`/`yield`: `db.load`,
-`xs.traverse_(x => ...)`, `If(c)(f1).Else(f2)`, `Flow.when(c)(f)`. It is built once on symbolic values.
+A **flow** (`Flow[A]`) is code over boundaries, a monad relative to `Term` (`RelativeMonad[Flow, Term]`)
+written with `for`/`<-`/`yield` and Cats' combinators: `db.load`, `f *> g`, `xs.traverse_(x => ...)`,
+`xs.traverse`, `xs.foldM`, `c.foldF(f1, f2)`, `Flow.whenA(c)(f)`, `Flow.ifM(fc)(f1, f2)`. It is built once on
+symbolic values; its laws hold of what it gives in Lean and at run time.
 In Lean it is a generic `do` block, `def f {m} [Monad m] [B m] … : A → m R`, one class `B` per boundary
 (declared from the trait in `Boundaries.lean`). In Scala it runs in any `cats.effect.Sync`
 (`knowledge.run[F](contract)(boundary.bind(impl))`).

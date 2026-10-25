@@ -73,18 +73,17 @@ val writeContract = Node.contract(write)("WriteContract",
 val applyWrite = define { (s: Term[CrmStore], w: Term[WriteCmd]) =>
   w.change
     .on[Change.Add](r =>
-      If(r.tenant === w.by.tenant && !s.records.exists(x => x.id === r.id))(CrmStore(s.records ++ List(r), s.shares, s.expiries)).Else(s))
+      (r.tenant === w.by.tenant && !s.records.exists(x => x.id === r.id)).fold(CrmStore(s.records ++ List(r), s.shares, s.expiries), s))
     .on[Change.ShareWith]((id, to, until) =>
-      If(s.records.exists(x => x.id === id && x.tenant === w.by.tenant))(
+      s.records.exists(x => x.id === id && x.tenant === w.by.tenant).fold(
         CrmStore(s.records, s.shares.filter(sh => sh =!= Share(id, to)) ++ List(Share(id, to)),
           s.expiries.filter(e => !(e.record === id && e.to === to)) ++ until
-            .on[Some[BigInt]](u => List(Expiry(id, to, u)))
-            .on[None.type](Nil)))
-      .Else(s))
+            .fold(List.empty[Expiry])(u => List(Expiry(id, to, u)))),
+      s))
     .on[Change.Unshare]((id, to) =>
-      If(s.records.exists(x => x.id === id && x.tenant === w.by.tenant))(
-        CrmStore(s.records, s.shares.filter(sh => sh =!= Share(id, to)), s.expiries.filter(e => !(e.record === id && e.to === to))))
-      .Else(s))
+      s.records.exists(x => x.id === id && x.tenant === w.by.tenant).fold(
+        CrmStore(s.records, s.shares.filter(sh => sh =!= Share(id, to)), s.expiries.filter(e => !(e.record === id && e.to === to))),
+      s))
 }
 
 val saveWrite = Node.contract(save)("SaveWrite",
