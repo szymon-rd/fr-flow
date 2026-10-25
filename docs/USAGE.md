@@ -419,6 +419,35 @@ Cats', with Cats' names:
   implementation (the CRM's `MemoryDatabase`): it is tested against the model
   on generated runs, as described under "Proven, tested, assumed".
 
+### Time: the clock, sleeping, deadlines
+
+Time is a boundary like any other: `Clock` (`now`, `sleep`) with its model
+`ClockModel`, whose state `ClockState(now, delays)` holds the time and the delays
+still to come. Steps take no time (the synchronous hypothesis): time passes at a
+sleep and between the system's events. A sleep of `d` wakes `d` seconds later plus
+the next delay, never earlier, so a flow is proven for every start time and every
+late wake-up. Decide the model with `Node.assumption(Clock.boundary)(ClockModel)(…)`
+and test a fake clock against it (`.implementedBy(c => FakeClock(c), _.state)`);
+the computer's clock (`SystemClock`) stays assumed.
+
+| Write | For | In Lean |
+|---|---|---|
+| `Flow.now`, `Flow.sleep(d)` | the time; waiting | `Clock.now`, `Clock.sleep d` |
+| `Flow.waitUntil(t)` | waiting until a time (no sleep when it is past) | `if now < t then Clock.sleep (t - now)` |
+| `f.timeout(d)` | `Some(result)` when `f` took at most `d`, `None` otherwise; no cancellation, `f`'s changes stay | two readings around `f` |
+| `Flow.every(period)(job)` | a periodic job: `.once`, `.runs(ticks)` (a `for` loop for proofs), `.schedule[G](clock, times, started)(run)` (the scheduler) | `for _ in ticks do job; Clock.sleep period` |
+
+Where time enters the tree is a choice: keep the root timeless, with the words
+that depend on time (a share *in force*, an invitation *open*) as operations the
+upper nodes leave open, and fix them with the clock lower down, in their contracts,
+marked `.leftOpenAbove`: a statement that names such an operation holds whatever it
+does, so a change to that contract (7 days become 14) does not bring it back. Claims over runs (deadlines:
+"within 30 days and the scheduler's period") are stated of the state after a list of
+events (`events.foldLeft(start)(step)`), with the scheduler's period and "the clock
+never goes back" as assumptions on the run (`events === pre ++ (e :: post) ==> …`),
+and proven by induction over the run (`FrFlow.always_when`, `FrFlow.along_when`).
+`examples/sharing` does all of this (`time/`, `housekeeping/`).
+
 ### What is trusted, and the limits
 
 Lean proves the nodes consistent with each other and the root of the code;

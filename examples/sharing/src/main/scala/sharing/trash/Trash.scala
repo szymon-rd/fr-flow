@@ -1,0 +1,68 @@
+package sharing.trash
+
+import frflow.*
+import sharing.*
+import sharing.domain.*
+import sharing.time.Lifetimes.gone
+
+/** The trash: someone who may edit a document puts it in the trash, where it gives nobody access; they may restore it
+  * until it is gone, and housekeeping purges it once it is. Each method is a function of the library and of the moment.
+  */
+trait Trash:
+  /** The library after `by` puts `doc` in the trash. */
+  def trash(library: Library, now: BigInt, by: PersonId, doc: DocumentId): Library
+  /** The library after `by` restores `doc` from the trash. */
+  def restore(library: Library, now: BigInt, by: PersonId, doc: DocumentId): Library
+
+/** The trash's contracts, each with its code. */
+object Trash:
+  import Demo.*
+
+  val trash = Param[(Library, BigInt, PersonId, DocumentId) => Library]("trash", "the library after someone asks to put a document in the trash")
+  val restore = Param[(Library, BigInt, PersonId, DocumentId) => Library]("restore", "the library after someone asks to restore a document from the trash")
+
+  private val planInTrash = library.copy(documents = List(planTrashed, q3ReportDoc))
+
+  val trashContract = Node.contract(trash)("TrashContract",
+    "Someone who may edit a document puts it in the trash: it is in the trash from now on, unless it was already, when it keeps the time it was put there. When anyone else asks, nothing changes.",
+    why = "Q8: deleting a document puts it in the trash for a while rather than deleting it for good. Deleting is a change to the document, so only someone who may edit it does it.",
+    idea = "Trash"
+  )((lib, t, by, d, result) =>
+    result === mayEdit(lib, t, by, Target[Target.Doc](d)).fold(
+      lib.copy((documents = lib.documents.map(doc => (doc.id === d && !doc.trashed.isDefined).fold(doc.copy((trashed = some(t))), doc)))), lib))
+    .under(accessFollowsShares)
+    .examples()(
+      expect(library, now - day, ann, plan, planInTrash, "Ann may edit the plan: it goes to the trash"),
+      expect(planInTrash, now, ann, plan, planInTrash, "already in the trash: it keeps its time"),
+      expect(library, now, bob, plan, library, "Bob may not edit the plan"),
+      reject(library, now, bob, q3Report, library.copy(documents = List(planDoc, q3ReportDoc.copy(trashed = Some(now)))),
+        "Bob may only view the Q3 report: he cannot delete it"))
+
+  val trashCode = define { (lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId]) =>
+    mayEdit(lib, t, by, Target[Target.Doc](d)).fold(
+      lib.copy((documents = lib.documents.map(doc => (doc.id === d && !doc.trashed.isDefined).fold(doc.copy((trashed = some(t))), doc)))), lib)
+  }
+
+  /** Whether `by` may restore the document now: they may edit it, and it is in the trash and not yet gone. */
+  val mayRestore = define { (lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId]) =>
+    mayEdit(lib, t, by, Target[Target.Doc](d)) && lib.documents.exists(doc => doc.id === d && doc.trashed.isDefined && !gone(doc, t))
+  }
+
+  val restoreContract = Node.contract(restore)("RestoreContract",
+    "Someone who may edit a document restores it from the trash before it is gone: it is out of the trash, and its shares give access again. When anyone else asks, or it is not in the trash, or it is gone, nothing changes.",
+    why = "Q8: a document in the trash can be restored until it is gone; its shares stayed, so restoring brings back exactly the access it had.",
+    idea = "Trash"
+  )((lib, t, by, d, result) =>
+    result === mayRestore(lib, t, by, d).fold(
+      lib.copy((documents = lib.documents.map(doc => (doc.id === d && !gone(doc, t)).fold(doc.copy((trashed = none[BigInt])), doc)))), lib))
+    .under(accessFollowsShares)
+    .examples()(
+      expect(planInTrash, now, ann, plan, library, "a day in the trash: Ann restores the plan"),
+      expect(planInTrash, now + 29 * day, ann, plan, planInTrash, "thirty days in the trash: it is gone"),
+      expect(planInTrash, now, bob, plan, planInTrash, "Bob may not edit the plan"),
+      reject(planInTrash, now + 40 * day, ann, plan, library, "a document gone is never restored"))
+
+  val restoreCode = define { (lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId]) =>
+    mayRestore(lib, t, by, d).fold(
+      lib.copy((documents = lib.documents.map(doc => (doc.id === d && !gone(doc, t)).fold(doc.copy((trashed = none[BigInt])), doc)))), lib)
+  }

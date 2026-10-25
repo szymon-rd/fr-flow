@@ -2,7 +2,8 @@
 
 People keep documents in folders and share them with people or teams, to view or to edit. The idea is in
 [IDEA.md](IDEA.md); the root, `AccessFollowsShares` (`Purpose.scala`), says the shares decide access exactly and
-only editors change shares or move documents.
+only editors change shares or move documents. The root is timeless: "in force", "open" and "gone" are left open
+there and fixed with the clock in `time/Lifetimes.scala`; the deadlines (`time/Deadlines.scala`) sit below them.
 
 ## Where things are
 
@@ -11,6 +12,10 @@ only editors change shares or move documents.
 | `sharing.domain` | the data: people, teams, documents, folders, shares, the library |
 | `sharing` (`Purpose.scala`) | the meaning (Reach, Cover, Permission) and the root |
 | `sharing.service` | `trait Sharing`, the service; `object Sharing`, one contract per method, each with its proven code; `SharingService` runs it |
+| `sharing.invitations` | `trait Invitations` (invite, accept, withdraw) and its contracts; `InvitationsService` |
+| `sharing.trash` | `trait Trash` (trash, restore) and its contracts; `TrashService` |
+| `sharing.housekeeping` | `trait Housekeeping` (tidy), its contract, and the job on the store and the clock (`HousekeepingJob`, every minute) |
+| `sharing.time` | how long things last (`Lifetimes`: in force, open, gone, fixed with the clock); the clock's assumption; the service as a run of events (`Run`) and the deadlines over it (`Deadlines`) |
 | `sharing.store` | `trait LibraryStore`, its model and assumption (`LibraryKept`); the memory store and the SQLite store |
 | `sharing.http` | requests and answers; `SharingHttp.handleContract`, the proven handling of a request on the store; the HTTP codec and the server |
 | `sharing` (`Knowledge.scala`) | the knowledge base: nodes, implementations, generators, the CLI |
@@ -20,6 +25,7 @@ only editors change shares or move documents.
     bin/frflow sharing status                                 # the tree; exits 0 when every node is accepted and proven
     sbt "sharing/test"                                        # examples, store against its model, HTTP against an oracle
     sbt "sharing/runMain sharing.http.sharingServer 8091 library.db"
+    sbt "sharing/runMain sharing.http.sharingServer 8091 library.db --fake-clock 1000000"   # time moves only by POST /clock
 
     curl "http://127.0.0.1:8091/access?person=bob&doc=q3-report"                 # {"access":"view"}
     curl -X POST -d '{"by":"ann","what":{"doc":"plan"},"with":{"team":"eng"},"level":"view"}' http://127.0.0.1:8091/share

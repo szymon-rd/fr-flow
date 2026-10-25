@@ -12,6 +12,16 @@ import scala.reflect.ClassTag
 sealed abstract class Flow[A]:
   def flatMap[B](f: Term[A] => Flow[B]): Flow[B] = Flow.Bind(this, f, f)
   def map[B](f: Term[A] => Term[B]): Flow[B] = Flow.Bind(this, (a: Term[A]) => Flow.Pure(f(a)), f)
+  /** The result when the flow took at most `seconds` on the clock, `None` when it took longer (Cats Effect's `timeout`,
+    * with `None` for its error until flows can fail). It does not cancel: the flow runs to its end and what it changed
+    * stays changed either way. Steps take no time, so only the flow's own sleeps count.
+    */
+  def timeout(seconds: Term[BigInt]): Flow[Option[A]] =
+    for
+      start <- Flow.now
+      a     <- this
+      stop  <- Flow.now
+    yield (stop - start <= seconds).fold(some(a), none[A](using a.termType))
 
 object Flow:
   private[frflow] final case class Pure[A](t: Term[A]) extends Flow[A]
@@ -46,6 +56,15 @@ object Flow:
   /** Each flow in turn, their results in a list (Traverse's `sequence`). */
   def sequence[A](fs: List[Flow[A]])(using a: LeanType[A]): Flow[List[A]] =
     fs.foldRight(pure(Term.listOf[A](Nil)))((f, rest) => f.flatMap(x => rest.map(xs => x :: xs)))
+
+  /** The time now, in seconds, on the clock (`Clock.boundary`). */
+  def now: Flow[BigInt] = Clock.boundary.ops.now
+  /** Waits `seconds` on the clock (Cats Effect's `sleep`): the time moves on by at least that much. */
+  def sleep(seconds: Term[BigInt]): Flow[Unit] = Clock.boundary.ops.sleep(seconds)
+  /** Waits until the clock reads `time` or later: a sleep of what is left, none when it is already past. */
+  def waitUntil(time: Term[BigInt]): Flow[Unit] = now.flatMap(t => whenA(t < time)(sleep(time - t)))
+  /** `job` every `period` seconds: each run is the job's flow; the period is the scheduler's (see `Every`). */
+  def every(period: BigInt)(job: Flow[Unit]): Every = Every(period, job)
 
   given relativeMonad: RelativeMonad[Flow, Term] with
     def pure[A](a: Term[A]): Flow[A] = Pure(a)

@@ -155,16 +155,19 @@ private[frflow] object ExampleRuns:
       impl <- mo.impls
       e <- n.cases.filter(_.expected)
     yield
-      val m = mo.model.asInstanceOf[StateModel[Any]]
       val (args, before) = (e.inputs.init, e.inputs.last.asInstanceOf[World])
-      def held(w: World): World = w.updated(m, impl.read(impl.start(w(m))))
+      // The flow's other boundaries run on their own first implementation (the project's own, when it has one).
+      val others = kb.models.filter(o => (o ne mo) && Steps.boundaries(steps).contains(o.boundary))
+        .flatMap(o => o.impls.sortBy(_.outside).headOption.map(o -> _))
+      val used = (mo -> impl) :: others
+      def held(w: World): World = used.foldLeft(w)((acc, x) => acc.updated(x._1.model, x._2.read(x._2.start(acc(x._1.model.asInstanceOf[StateModel[Any]])))))
       val name = ModelTests.implName(impl)
       // Under the example's own values too: the operations the flow calls read them.
       val model = Bindings.within(e.bindings)(Try(Flows.onModels(steps, bs.zip(args).toMap, held(before))).map((r, w) => (r, held(w))))
       val real = Bindings.within(e.bindings)(Try {
-        val i = impl.start(before(m))
-        val r = Flows.runNow(steps, bs.zip(args).toMap, Map(mo.boundary -> i))
-        (r, before.updated(m, impl.read(i)))
+        val started = used.map((o, oi) => (o, oi, oi.start(before(o.model.asInstanceOf[StateModel[Any]]))))
+        val r = Flows.runNow(steps, bs.zip(args).toMap, started.map((o, _, i) => o.boundary -> i).toMap)
+        (r, started.foldLeft(before)((w, x) => w.updated(x._1.model, x._2.read(x._3))))
       })
       val verdict = (model, real) match
         case (scala.util.Success(x), scala.util.Success(y)) if x == y => "ok"

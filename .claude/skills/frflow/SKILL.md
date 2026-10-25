@@ -308,6 +308,15 @@ def expireOnce(now: Term[BigInt]): Flow[CrmStore] =   // the code: a plain def, 
   that operation's contract, not its code: prefer it to calling the define.
 - A contract on a flow may have no parent: production runs it, as an entry
   point. The design node over its scheduling goes under it.
+- **Time** is the `Clock` boundary (`Flow.now`, `Flow.sleep(d)`, `Flow.waitUntil(t)`, `f.timeout(d)`
+  giving an `Option`, `Flow.every(period)(job)`), modelled by `ClockModel` (the time and the delays a
+  sleep may add, in the state): assume it with `Node.assumption(Clock.boundary)(ClockModel)(…)` and test
+  `FakeClock` against it. Introduce time low in the tree: the root and the logic above speak of words
+  such as "in force" or "open" as operations they leave open; the contracts of those operations fix
+  them with the clock (marked `.leftOpenAbove`, so a change there does not bring back the nodes that name
+  them). Deadlines are claims of the state after the run (`events.foldLeft(start)(step)`),
+  with the scheduler's period and the clock never going back as assumptions on the run, proven by
+  induction (`FrFlow.always_when`). See `examples/sharing` (`time/`).
 
 ## Terms or plain Scala
 

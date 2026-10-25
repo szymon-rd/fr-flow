@@ -19,6 +19,8 @@ enum Grantee:
   case Team(id: TeamId)
 object Grantee extends Data[Grantee]
 
-/** A share: what is shared, with whom, and at which level. */
-final case class Share(what: Target, withWhom: Grantee, level: Level)
+/** A share: what is shared, with whom, at which level, and until when (in seconds; `None`: no end). A share is in force
+  * until its end (Lifetimes.InForceContract); after it, it gives no access, whether or not housekeeping has removed it.
+  */
+final case class Share(what: Target, withWhom: Grantee, level: Level, until: Option[BigInt])
 object Share extends Data[Share]

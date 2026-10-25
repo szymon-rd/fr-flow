@@ -19,6 +19,18 @@
     {
       "text": "Yeah. Append those new things to the plan. Make sure that the design of the app stays domain-first and is well structured",
       "at": "2026-10-25T01:09:51.956982Z"
+    },
+    {
+      "text": "Yes. Do all that.",
+      "at": "2026-10-25T11:14:09.318397Z"
+    },
+    {
+      "text": "The Clock will be very interesting. Maybe think deep about how all that can be accomplished. Maybe structured async patterns, what assertions could work with time and what are useful",
+      "at": "2026-10-25T11:14:11.951163Z"
+    },
+    {
+      "text": "Usually time should be introduced at a nth refinement in model, not right away.",
+      "at": "2026-10-25T11:14:14.871807Z"
     }
   ],
   "questions": [
@@ -79,6 +91,78 @@
         {
           "text": "rebuild the example as discussed",
           "at": "2026-10-25T01:10:04.119151Z"
+        }
+      ]
+    },
+    {
+      "id": "Q6",
+      "text": "Can a share end at a time, and what happens then?",
+      "assumed": "A share may carry an end time; from then on it reaches no one, whether or not a job has run (access reads the clock); a job every minute removes ended shares; sharing again replaces the time.",
+      "at": "2026-10-25T11:14:17.527585Z",
+      "replies": [
+        {
+          "text": "All good. Merge to main",
+          "at": "2026-10-25T11:14:32.637504Z"
+        }
+      ]
+    },
+    {
+      "id": "Q7",
+      "text": "Can someone be invited, and does an invitation give access before it is accepted?",
+      "assumed": "An invitation names a person and a level, gives no access until accepted, lapses after 7 days, and any editor can withdraw it; accepting it makes the share.",
+      "at": "2026-10-25T11:14:20.164599Z",
+      "replies": [
+        {
+          "text": "All good. Merge to main",
+          "at": "2026-10-25T11:14:35.068623Z"
+        }
+      ]
+    },
+    {
+      "id": "Q8",
+      "text": "What does deleting a document do?",
+      "assumed": "It goes to the trash for 30 days, where its shares give no access; an editor can restore it, and its shares hold again; after 30 days a job deletes it and its shares for good.",
+      "at": "2026-10-25T11:14:22.692135Z",
+      "replies": [
+        {
+          "text": "All good. Merge to main",
+          "at": "2026-10-25T11:14:37.547521Z"
+        }
+      ]
+    },
+    {
+      "id": "Q9",
+      "text": "Whose time?",
+      "assumed": "The server's clock in seconds, read once per request, never going back; jobs run every minute, one at a time with the requests.",
+      "at": "2026-10-25T11:14:25.165395Z",
+      "replies": [
+        {
+          "text": "All good. Merge to main",
+          "at": "2026-10-25T11:14:40.040558Z"
+        }
+      ]
+    },
+    {
+      "id": "Q10",
+      "text": "Moving a document out of a folder can take away the mover's own access. Allowed?",
+      "assumed": "Yes, as now.",
+      "at": "2026-10-25T11:14:27.635555Z",
+      "replies": [
+        {
+          "text": "All good. Merge to main",
+          "at": "2026-10-25T11:14:42.569771Z"
+        }
+      ]
+    },
+    {
+      "id": "Q11",
+      "text": "May the last edit share of a document be unshared?",
+      "assumed": "Yes, as now.",
+      "at": "2026-10-25T11:14:30.148041Z",
+      "replies": [
+        {
+          "text": "All good. Merge to main",
+          "at": "2026-10-25T11:14:45.474530Z"
         }
       ]
     }

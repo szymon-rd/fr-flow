@@ -75,4 +75,41 @@ theorem tracks_eq {S A E : Type} {step : S → E → S} {α : S → A} {H : List
     ∀ es : List E, α (es.foldl step init) = H es :=
   tracks (R := fun s es => α s = H es) h0 h
 
+/-- An invariant over runs that keep to an assumption (a scheduler's, a clock's): when it holds initially and every
+event the assumption allows keeps it, it holds after a run each of whose events the assumption allows in the state
+it happens in. The assumption reads as stated of the run: `es = pre ++ e :: post → ok (pre.foldl step init) e`. -/
+theorem always_when {S E : Type} (step : S → E → S) (ok : S → E → Prop) (inv : S → Prop) (init : S)
+    (h0 : inv init) (h : ∀ s e, inv s → ok s e → inv (step s e)) :
+    ∀ es : List E, (∀ pre e post, es = pre ++ e :: post → ok (pre.foldl step init) e) → inv (es.foldl step init) := by
+  have key : ∀ (es pre : List E), inv (pre.foldl step init) →
+      (∀ p e q, pre ++ es = p ++ e :: q → ok (p.foldl step init) e) → inv ((pre ++ es).foldl step init) := by
+    intro es
+    induction es with
+    | nil => intro pre hi _; simpa using hi
+    | cons e es ih =>
+      intro pre hi hok
+      have he : inv ((pre ++ [e]).foldl step init) := by
+        rw [run_snoc]; exact h _ e hi (hok pre e es rfl)
+      have := ih (pre ++ [e]) he (fun p e' q hp => hok p e' q (by simpa using hp))
+      simpa using this
+  intro es hok
+  simpa using key es [] (by simpa using h0) (by simpa using hok)
+
+/-- The states of a run, from one point on: a relation each allowed event keeps between its start and end state
+(reflexive and transitive) holds between the state at any point and the state at the end: a monotone fact, such as a
+clock that never goes back. -/
+theorem along_when {S E : Type} (step : S → E → S) (ok : S → E → Prop) (rel : S → S → Prop) (init : S)
+    (refl : ∀ s, rel s s) (trans : ∀ a b c, rel a b → rel b c → rel a c) (h : ∀ s e, ok s e → rel s (step s e)) :
+    ∀ pre post : List E, (∀ p e q, pre ++ post = p ++ e :: q → ok (p.foldl step init) e) →
+      rel (pre.foldl step init) ((pre ++ post).foldl step init) := by
+  intro pre post
+  induction post generalizing pre with
+  | nil => intro _; simpa using refl _
+  | cons e post ih =>
+    intro hok
+    have h1 : rel (pre.foldl step init) ((pre ++ [e]).foldl step init) := by
+      rw [run_snoc]; exact h _ e (hok pre e post rfl)
+    have h2 := ih (pre ++ [e]) (fun p e' q hp => hok p e' q (by simpa using hp))
+    exact trans _ _ _ h1 (by simpa using h2)
+
 end FrFlow

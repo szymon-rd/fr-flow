@@ -750,6 +750,12 @@ reviewed. A single call whose result is checked can stay an assumption on an ope
   assumption; in Lean it is an instance on <code>StateM</code>.</li>
   <li><strong>A flow's contract</strong> relates the input and the result to the boundaries' states before and after
   the run. Lean proves the attached flow meets it, on the models.</li>
+  <li><strong>Time</strong> is the <code>Clock</code> boundary: <code>Flow.now</code>, <code>Flow.sleep(d)</code>,
+  <code>Flow.waitUntil(t)</code>, <code>f.timeout(d)</code> (an <code>Option</code>, no cancellation) and
+  <code>Flow.every(period)(job)</code>. Its model holds the time and the delays a sleep may add, so a flow is proven
+  for every start and every late wake-up; a fake clock is tested against it. Deadlines are claims over runs of
+  events, proven by induction (<code>FrFlow.always_when</code>) under the scheduler's assumption. See
+  <code>examples/sharing</code>.</li>
 </ul>
 
 <h3 id="effects-boundary">A boundary and its model</h3>

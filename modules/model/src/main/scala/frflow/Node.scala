@@ -24,7 +24,7 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (val id: St
     val substs: List[Subst] = Nil, val cases: List[Example] = Nil, val governs: List[String] = Nil, val kept: List[Keep] = Nil,
     val scope: List[Node[?]] = Nil, val ideaSection: String = "", val file: String = "", val expected: List[(String, Lifted[?])] = Nil,
     val at: Int = -1, val local: Option[Lifted[?]] = None, val replaced: Option[Node[?]] = None,
-    val modelOf: Option[ModelOf] = None, val runCheck: Option[RunCheck] = None):
+    val modelOf: Option[ModelOf] = None, val runCheck: Option[RunCheck] = None, val openAbove: Boolean = false):
   def parents: List[Node[?]] = (declaredParents ++ kept.collect { case Keep(i, Some(_), _) => i }).distinctBy(System.identityHashCode)
   def isInvariant: Boolean = rule.isDefined
   def shownKind: String = kind.shown(isInvariant)
@@ -43,6 +43,15 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (val id: St
     require(kind != NodeKind.Definition, s"$id: a definition has no parents; the nodes that use its terms rest on it")
     copy(declaredParents = declaredParents ++ ps)
 
+  /** This contract fixes a word the nodes above leave open ("a share in force"): a node whose statement names its
+    * operation holds whatever the operation does, so it does not rest on this contract even where its code calls the
+    * operation. A change here (7 days become 14) brings back what is stated with the word fixed, not what is proven
+    * for every meaning of it. Lean checks the code above again either way.
+    */
+  def leftOpenAbove: Node[M] =
+    require(kind == NodeKind.Contract, s"$id: only a contract fixes a word left open above")
+    copy(openAbove = true)
+
   /** An alternative to `other`: accepting one rejects the other. */
   def replaces(other: Node[?]): Node[M] =
     require(other != null, s"$id replaces a node declared after it: declare it first")
@@ -54,9 +63,9 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (val id: St
 
   private[frflow] def copy(declaredParents: List[Node[?]] = declaredParents, cases: List[Example] = cases, kept: List[Keep] = kept,
       expected: List[(String, Lifted[?])] = expected, local: Option[Lifted[?]] = local, replaced: Option[Node[?]] = replaced,
-      modelOf: Option[ModelOf] = modelOf, runCheck: Option[RunCheck] = runCheck): Node[M] =
+      modelOf: Option[ModelOf] = modelOf, runCheck: Option[RunCheck] = runCheck, openAbove: Boolean = openAbove): Node[M] =
     Node(id, statement, why, kind, declaredParents, formula, post, op, rule, substs, cases, governs, kept, scope, ideaSection,
-      file, expected, at, local, replaced, modelOf, runCheck)
+      file, expected, at, local, replaced, modelOf, runCheck, openAbove)
 
   /** The invariant does not apply to this contract or design decision, for the reason given (which the developer reads). */
   def exempt(invariant: Node[?], because: String): Node[M] =

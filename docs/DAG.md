@@ -214,7 +214,7 @@ imports them. Each `Def_`, `Term_` and `Spec` ends with `frflow_match_eqns`, so 
 `match`'s equations are made where it is declared and not again in two modules a third imports.
 
 Library (`lean/FrFlow/`): `frflow_auto`, `frflow_intro` (binders by their generated names, `h_<Part>`
-for each part), `FrFlow.always`, `simulates`, `tracks` and `tracks_eq`, `run_snoc`, list lemmas, and for
+for each part), `FrFlow.always`, `always_when` and `along_when` (over runs that keep to an assumption on each event), `simulates`, `tracks` and `tracks_eq`, `run_snoc`, list lemmas, and for
 flows `FrFlow.runOn` with its lemmas (`runOn_bind`, `runOn_pure`, `runOn_get`, `runOn_modify`,
 `runOn_within`, `runOn_forIn_unit`: a loop whose body yields nothing is a `foldl` over states).
 
@@ -226,7 +226,8 @@ part stops being proven, or when the checker's version changes.
 
 - `kind`, `parents`, `parts` (in the model's order), `replaces`, `op`, `rule` (an invariant).
 - `defines` (a definition's terms); `uses` (the definitions in force it depends on); `relies` (the
-  contracts its code calls).
+  contracts its code calls, but not one marked `leftOpenAbove` whose operation its statement names: such a
+  statement holds whatever that operation does).
 - `split`: `{complete, needed: [{id, status, detail}], clash}`. `complete` is `proven`, `open`,
   `failed`, `unchecked` or `timeout`; a try is `shown` or `not-shown` (with one part, `needed` holds
   `vacuous`).

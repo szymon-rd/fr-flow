@@ -18,7 +18,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, ObligationName)] 
   private val nodeModules = NodeModules(kb, layout, refinement, vocabularyModules, asked, evaluated)
   private val proofFiles = ProofFiles(kb, layout, refinement)
   export vocabulary.{inForce, undecided, term, waitsForDefinition}
-  export refinement.{formal, splitParts, formalKeeps, provenImpl, claim, callees, calls, leaves, holdsStatement, trusted, witnessed}
+  export refinement.{formal, splitParts, formalKeeps, provenImpl, claim, callees, reliedOn, calls, leaves, holdsStatement, trusted, witnessed}
   export coverages.coverage
   export asked.{isAuthored, obligations, obligation, extraObligations, tries, idle, idleWhat}
   export evaluated.evals
