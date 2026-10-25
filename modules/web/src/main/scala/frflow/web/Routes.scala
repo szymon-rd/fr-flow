@@ -5,7 +5,7 @@ import cats.effect.IO
 import cats.syntax.all.*
 import frflow.api.*
 import frflow.protocol.{Fingerprint, NodeId}
-import io.circe.{Codec, Encoder, Json}
+import io.circe.{Encoder, Json}
 import java.nio.charset.StandardCharsets.UTF_8
 import java.security.MessageDigest
 import org.http4s.{EntityEncoder, HttpApp, HttpRoutes, MediaType, MessageFailure, QueryParamDecoder, Response, Status, StaticFile, Request as Http}
@@ -13,9 +13,6 @@ import org.http4s.headers.`Content-Type`
 import org.http4s.circe.CirceEntityCodec.*
 import org.http4s.dsl.io.*
 import org.typelevel.ci.CIString
-
-/** Who decides on the page, and whether the model's sources changed since `serve` started: then nothing is decided. */
-final case class Serving(developer: String, modelChanged: Boolean) derives Codec.AsObject
 
 /** One route per operation of the API, in its JSON, all behind the token `serve` printed. Decisions are `dev`'s, signed by
   * `api.decide` as the CLI's are; refused once the model's sources are no longer those this process compiled (`started`).

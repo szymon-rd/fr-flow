@@ -2,6 +2,8 @@ package frflow.cli
 
 import cats.effect.{ExitCode, IO, Ref}
 import frflow.api.*
+import frflow.cli.command.*
+import frflow.cli.text.*
 import frflow.protocol.*
 
 /** The review and the decision commands on scripted input, over the in-memory API. */

@@ -2,42 +2,6 @@ package frflow.api
 
 import cats.effect.IO
 import frflow.protocol.*
-import java.nio.file.Path
-import scala.util.control.NoStackTrace
-
-// The ledger's types a front end reads, so it imports only this package and the protocol's.
-export frflow.ledger.{CodeProof, Decide, Found, Mention, Mentioned, Refusal}
-export frflow.check.Progress
-
-/** A layer on top of FrFlow, such as an AI agent's tools: a project's main object lists the ones it uses, and each front
-  * end takes the parts it knows (the CLI's `CliExtension`, the web view's `WebExtension`). FrFlow itself needs none.
-  */
-trait Extension
-
-/** What a layer on top works with: the project's API, its directory (where it keeps its own files, under `.frflow/`),
-  * and the environment.
-  */
-final case class Host(api: FrFlowApi, directory: Path, env: Map[String, String])
-
-/** A project as its front ends open it: the knowledge base, its directory (`FRFLOW_ROOT` overrides it), FrFlow's Lean
-  * kernel relative to its `lean/`, and the layers on top it uses. A project's main object is one (the CLI's `FrFlowApp`);
-  * the web view's `serve` task opens the same object.
-  */
-trait FrFlowProject:
-  def kb: frflow.KnowledgeBase
-  def root: String
-  def kernelPath: String
-  def extensions: List[Extension] = Nil
-  def directory(env: Map[String, String]): Path = Path.of(env.getOrElse("FRFLOW_ROOT", root)).toAbsolutePath.normalize
-  def api(env: Map[String, String]): IO[FrFlowApi] = LiveApi.fromEnv(kb, root, kernelPath, env)
-  def host(env: Map[String, String]): IO[Host] = api(env).map(Host(_, directory(env), env))
-
-/** What fails a command (refusals a user reads are `Refusal`s instead): mapped once, at each front end. */
-enum FrFlowError(val message: String) extends Exception(message) with NoStackTrace:
-  /** The model does not hold together: nothing else is computed until it does. */
-  case ModelProblems(problems: List[String]) extends FrFlowError(problems.mkString("\n"))
-  case UnknownNode(id: NodeId) extends FrFlowError(s"unknown node $id")
-  case LeanMissing extends FrFlowError("lake not found (set FRFLOW_LAKE)")
 
 /** FrFlow as a front end sees it: typed values, never text. The primitives read and write the project; the
   * rest is computed here from the `view`.

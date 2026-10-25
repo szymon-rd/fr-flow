@@ -1,7 +1,9 @@
 package frflow.agent
 
 import cats.effect.{IO, Resource}
-import frflow.api.{Decide, Developer, Host, Inbox, LiveApi, Refusal}
+import frflow.agent.queue.*
+import frflow.agent.request.*
+import frflow.api.{Decide, Developer, Host, Inbox, LiveApi}
 import frflow.check.Workspace
 import frflow.fixtures.shelfKb
 import frflow.protocol.*

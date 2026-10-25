@@ -644,10 +644,14 @@ One sbt subproject each, under `modules/`:
 - `check` (package `frflow.check`): the workspace and what the checker reads;
   `analysis`, the contents, the hashes and the snapshot; `proving`, render,
   check and scaffold; `process`, running `lake` and git.
-- `api`: `FrFlowApi`, the typed operations a front end calls.
-- `cli`: the command line over the API.
+- `api`: `FrFlowApi`, the typed operations a front end calls; a node's details and diff in `frflow.api.details`, what
+  the reads and operations return in `frflow.api.report` (both re-exported from `frflow.api`).
+- `cli`: the command line over the API; the commands and their dispatch in `frflow.cli.command`, the views as text in
+  `frflow.cli.text`.
 - `web`: the web view over the API. The CLI does not depend on it.
 - `agent` (package `frflow.agent`): the AI agent's layer, on top of `cli` and `web`. No other module depends on it.
+  Its sub-packages: `conversation`, `request`, `queue` (what is the agent's to do), `command` (its commands and their
+  text) and `panel` (its routes in the web view).
 
 `lean`, `ledger` and `check` re-export the names of their sub-packages (each
 `package.scala`), so `import frflow.ledger.*` reaches `Decide` and `JsonStore` alike.

@@ -1,6 +1,9 @@
 package frflow.agent
 
 import cats.effect.IO
+import frflow.agent.conversation.*
+import frflow.agent.panel.*
+import frflow.agent.request.*
 import frflow.api.*
 import frflow.check.TempDirs
 import frflow.ledger.JsonStore

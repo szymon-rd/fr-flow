@@ -1,17 +1,14 @@
 package frflow.agent
+package panel
 
 import cats.effect.IO
+import frflow.agent.request.{Request, RequestId}
 import frflow.api.{Developer, Host}
-import frflow.protocol.NodeId
 import frflow.web.{Routes, WebPart}
-import io.circe.{Codec, Encoder}
+import io.circe.Encoder
 import org.http4s.{HttpRoutes, Response, Status}
 import org.http4s.circe.CirceEntityCodec.*
 import org.http4s.dsl.io.*
-
-/** The arguments of `ask` and `answer`, as the page sends them. */
-final case class Asking(node: Option[NodeId], text: String) derives Codec.AsObject
-final case class Answering(to: String, text: String) derives Codec.AsObject
 
 /** The agent layer in the web view: its routes under `/api/agent/`, behind the page's token, and its panels (`agent.js`). */
 object AgentWeb:
