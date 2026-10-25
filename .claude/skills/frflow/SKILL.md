@@ -316,7 +316,9 @@ def expireOnce(now: Term[BigInt]): Flow[CrmStore] =   // the code: a plain def, 
   them with the clock (marked `.leftOpenAbove`, so a change there does not bring back the nodes that name
   them). Deadlines are claims of the state after the run (`events.foldLeft(start)(step)`),
   with the scheduler's period and the clock never going back as assumptions on the run, proven by
-  induction (`FrFlow.always_when`). See `examples/sharing` (`time/`).
+  induction (`FrFlow.always_when`). Put a deadline under the branch whose proof uses it (the branch
+  says it with the open word, the deadline with the clock); `idle` keeps open words open, so the root
+  never lists what they must at least allow. See `examples/sharing` (`time/`).
 
 ## Terms or plain Scala
 

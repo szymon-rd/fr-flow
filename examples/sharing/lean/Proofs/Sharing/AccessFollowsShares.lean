@@ -1,4 +1,5 @@
 import FrFlowGen.Sharing.AccessFollowsShares.Spec
+import Proofs.Sharing.Lemmas
 
 /-! Authored proofs of the obligations of AccessFollowsShares. Each states exactly its `Obl`. -/
 
@@ -41,50 +42,20 @@ theorem of_iff (lib : Library) (d : DocumentId) (t : Target) :
     · rintro ⟨a, ⟨h1, h2⟩, b, h3, rfl⟩; exact ⟨a, h1, h2, h3⟩
     · rintro ⟨a, h1, h2, h3⟩; exact ⟨a, ⟨h1, h2⟩, f, h3, rfl⟩
 
-/-- A change made by an `if` whose other branch changes nothing: its condition held. -/
-theorem changed {α : Type} {c : Prop} {inst : Decidable c} {a b : α} (h : @ite α c inst a b ≠ b) : c :=
-  Classical.byContradiction fun hn => h (ite_eq_right hn)
-
-/-- What reads a value the same on both branches of an `if` reads it the same on the `if`. -/
-theorem ite_same {α β : Type} {c : Prop} {inst : Decidable c} (f : α → β) (a b : α) (h : f a = f b) :
-    f (@ite α c inst a b) = f b := by
-  split
-  · exact h
-  · rfl
-
 theorem complete : Obl.complete := by
   unfold Obl.complete
   frflow_intro
-  -- The deadlines and the handling are parts the purpose does not need: it holds whatever the lifetimes are.
-  clear h_ExpiredSharesGiveNoAccess h_InvitationsAcceptedInTime h_TrashPurgedOnTime h_InvitationsLapseOnTime
-    h_EndedStaysEnded h_HandleContract
-  -- Housekeeping removes only what has ended (TidyContract), before the words are unfolded.
-  have tidyKeeps : ∀ lib t,
-      (∀ s ∈ lib.shares, (s ∈ (tidy lib t).shares ∨ ¬inForce s t) ∨ Sharing.Housekeeping.ofGone gone lib t s) ∧
-      (∀ i ∈ lib.invitations, i ∈ (tidy lib t).invitations ∨ ¬isOpen i t) ∧
-      (∀ doc ∈ lib.documents, doc ∈ (tidy lib t).documents ∨ gone doc t) := by
-    intro lib t
-    have h := h_TidyContract lib t
-    simp only [Sharing.TidyContract.post] at h
-    rw [h]
-    refine ⟨fun s hs => ?_, fun i hi => ?_, fun doc hd => ?_⟩
-    · by_cases hg : Sharing.Housekeeping.ofGone gone lib t s
-      · exact Or.inr hg
-      · by_cases hf : inForce s t
-        · exact Or.inl (Or.inl (List.mem_filter.mpr ⟨hs, decide_eq_true ⟨hf, hg⟩⟩))
-        · exact Or.inl (Or.inr hf)
-    · by_cases ho : isOpen i t
-      · exact Or.inl (List.mem_filter.mpr ⟨hi, decide_eq_true ho⟩)
-      · exact Or.inr ho
-    · by_cases hg : gone doc t
-      · exact Or.inr hg
-      · exact Or.inl (List.mem_filter.mpr ⟨hd, decide_eq_true hg⟩)
+  -- Handling is not needed for the purpose: root_impl composes it.
+  clear h_HandleContract
   simp only [frflow_defs] at *
-  refine ⟨⟨⟨⟨⟨⟨⟨⟨fun lib t p d => ?_, fun lib t by_ s h => ?_⟩, fun lib t by_ what withWhom h => ?_⟩,
-    fun lib t by_ d into h => ?_⟩, fun lib t by_ d => ⟨fun h => ?_, fun h => ?_⟩⟩,
-    fun lib t by_ to what => ⟨fun h => ?_, fun level => ⟨fun h => ?_, fun p d => ?_⟩⟩⟩,
-    fun lib t p what h => ?_⟩, fun lib t => ⟨⟨fun s hs => ?_, fun i hi => ?_⟩, fun doc hd => ?_⟩⟩,
-    ⟨⟨fun s t h => ?_, fun i => ?_⟩, fun doc t h => ?_⟩⟩
+  -- The branches give the second half: invitations, the trash and housekeeping each say who may change them.
+  obtain ⟨⟨hOffers, hAccept⟩, _⟩ := h_InvitationsAreOffers
+  obtain ⟨hTrash, _⟩ := h_TrashUntilGone
+  obtain ⟨hTidy, _⟩ := h_HousekeepingClearsOnlyTheEnded
+  refine ⟨⟨⟨⟨⟨⟨⟨fun lib t p d => ?_, fun lib t by_ s h => ?_⟩, fun lib t by_ what withWhom h => ?_⟩,
+    fun lib t by_ d into h => ?_⟩,
+    fun lib t by_ to what => ⟨(hOffers lib t by_ to what).1, fun level => ((hOffers lib t by_ to what).2 level).1⟩⟩,
+    hAccept⟩, fun lib t by_ d => ⟨(hTrash lib t by_ d).1, fun h => ((hTrash lib t by_ d).2 h).1⟩⟩, hTidy⟩
   · -- Access: the shares AccessContract keeps are those in force that reach the person and cover the document; and
     -- a document in the trash gives no access.
     have hf : ∀ s, s ∈ List.filter (fun s => decide ((inForce s t ∧ s.withWhom ∈ Grantee.Person p :: List.map
@@ -118,35 +89,13 @@ theorem complete : Obl.complete := by
         · next h => constructor
                     · intro he; split at he <;> simp at he
                     · rintro ⟨s, hs, hm, hl⟩; exact absurd ⟨s, (hf s).2 ⟨hs, hm⟩, hl⟩ h
-  · rw [h_ShareContract] at h; exact changed h
-  · rw [h_UnshareContract] at h; exact changed h
+  · rw [h_ShareContract] at h; exact Sharing.Lemmas.changed h
+  · rw [h_UnshareContract] at h; exact Sharing.Lemmas.changed h
   · rw [h_MoveContract] at h
-    obtain ⟨h1, h2⟩ := changed h
+    obtain ⟨h1, h2⟩ := Sharing.Lemmas.changed h
     refine ⟨h1, ?_⟩
     cases into with
     | none => trivial
     | some f => exact h2.2
-  · rw [h_TrashContract] at h; exact changed h
-  · rw [h_RestoreContract] at h; exact changed h
-  · rw [h_WithdrawContract] at h; exact changed h
-  · rw [h_InviteContract] at h; exact changed h
-  · -- An invitation changes only the invitations, which access does not read.
-    have key : ∀ X, access { lib with invitations := X } t p d = access lib t p d := by
-      intro X; rw [h_AccessContract, h_AccessContract]; rfl
-    rw [h_InviteContract]
-    exact ite_same (fun L => access L t p d) _ _ (key _)
-  · rw [h_AcceptContract] at h
-    split at h
-    · next i heq => exact ⟨i, List.mem_of_find?_eq_some heq, by simpa using List.find?_some heq⟩
-    · exact absurd rfl h
-  · exact (tidyKeeps lib t).1 s hs
-  · exact (tidyKeeps lib t).2.1 i hi
-  · exact (tidyKeeps lib t).2.2 doc hd
-  · -- What the purpose asks of the lifetimes, from their contracts.
-    have hn : s.«until» = none := by simpa using h
-    rw [h_InForceContract, hn]; trivial
-  · rw [h_IsOpenContract]; first | omega | (simp only [Sharing.invitationLasts]; omega)
-  · have hn : doc.trashed = none := by simpa using h
-    rw [h_GoneContract, hn]; simp
 
 end Sharing.AccessFollowsShares.Proofs

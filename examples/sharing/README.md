@@ -1,9 +1,12 @@
 # Sharing
 
 People keep documents in folders and share them with people or teams, to view or to edit. The idea is in
-[IDEA.md](IDEA.md); the root, `AccessFollowsShares` (`Purpose.scala`), says the shares decide access exactly and
-only editors change shares or move documents. The root is timeless: "in force", "open" and "gone" are left open
-there and fixed with the clock in `time/Lifetimes.scala`; the deadlines (`time/Deadlines.scala`) sit below them.
+[IDEA.md](IDEA.md); the root, `AccessFollowsShares` (`Purpose.scala`), says the shares in force decide access
+exactly, and that only an editor, an open invitation taken up, or housekeeping clearing what has ended changes them.
+Three branches say how: `InvitationsAreOffers` (`invitations/`), `TrashUntilGone` (`trash/`) and
+`HousekeepingClearsOnlyTheEnded` (`housekeeping/`). The root is timeless, and the branches name no lifetime: "in force", "open" and
+"gone" are left open there and fixed with the clock in `time/Lifetimes.scala`; the deadlines (`time/Deadlines.scala`)
+sit below the branches whose proofs use them.
 
 ## Where things are
 
@@ -12,9 +15,9 @@ there and fixed with the clock in `time/Lifetimes.scala`; the deadlines (`time/D
 | `sharing.domain` | the data: people, teams, documents, folders, shares, the library |
 | `sharing` (`Purpose.scala`) | the meaning (Reach, Cover, Permission) and the root |
 | `sharing.service` | `trait Sharing`, the service; `object Sharing`, one contract per method, each with its proven code; `SharingService` runs it |
-| `sharing.invitations` | `trait Invitations` (invite, accept, withdraw) and its contracts; `InvitationsService` |
-| `sharing.trash` | `trait Trash` (trash, restore) and its contracts; `TrashService` |
-| `sharing.housekeeping` | `trait Housekeeping` (tidy), its contract, and the job on the store and the clock (`HousekeepingJob`, every minute) |
+| `sharing.invitations` | `trait Invitations` (invite, accept, withdraw); `object Invitations`, the branch `InvitationsAreOffers` and the contracts; `InvitationsService` |
+| `sharing.trash` | `trait Trash` (trash, restore); `object Trash`, the branch `TrashUntilGone` and the contracts; `TrashService` |
+| `sharing.housekeeping` | `trait Housekeeping` (tidy); the branch `HousekeepingClearsOnlyTheEnded`, the contract, and the job on the store and the clock (`HousekeepingJob`, every minute) |
 | `sharing.time` | how long things last (`Lifetimes`: in force, open, gone, fixed with the clock); the clock's assumption; the service as a run of events (`Run`) and the deadlines over it (`Deadlines`) |
 | `sharing.store` | `trait LibraryStore`, its model and assumption (`LibraryKept`); the memory store and the SQLite store |
 | `sharing.http` | requests and answers; `SharingHttp.handleContract`, the proven handling of a request on the store; the HTTP codec and the server |

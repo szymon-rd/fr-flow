@@ -49,13 +49,19 @@ object Sharing:
     ss.exists(s => s.level === Level.Edit).fold(some(Level.Edit: Term[Level]), ss.isEmpty.fold(none[Level], some(Level.View: Term[Level])))
   }
 
+  /** The shares, less any of `what` with `withWhom`. Declared before AccessContract, a part of Invitations' branch:
+    * Invitations, set up from there, uses it. */
+  val sharesWithout = define { (ss: Term[List[Share]], what: Term[Target], withWhom: Term[Grantee]) =>
+    ss.filterNot(s => s.what === what && s.withWhom === withWhom)
+  }
+
   val accessContract = Node.contract(access)("AccessContract",
     "A person's access to a document not in the trash is worked out from their teams and the document's folders: among the shares in force with them or one of their teams, of the document or one of the folders around it, it is edit if one is an edit share, view if there is any, and none otherwise. A document in the trash gives no access.",
     why = "This is how the service finds the shares that matter without asking every share whether it reaches the person and covers the document: it lists who a share must be with and what it must be of, once each. That this finds exactly the shares the meaning names (Reach, Cover) is what the purpose's proof shows.",
     idea = "Who can see and change what"
   )((lib, t, p, d, result) => result === inTrash(lib, d).fold(none[Level],
       strongest(lib.shares.filter(s => inForce(s, t) && granteesOf(lib, p).contains(s.withWhom) && placesOf(lib, d).contains(s.what)))))
-    .under(accessFollowsShares)
+    .under(accessFollowsShares, sharing.invitations.Invitations.invitationsAreOffers)
     .examples()(
       expect(library, now, bob, q3Report, Some(Level.View), "Bob's team may view the reports folder, which the Q3 report is in"),
       expect(library, now, ann, q3Report, Some(Level.Edit), "Ann may edit the reports folder"),
@@ -109,11 +115,6 @@ object Sharing:
   // ---------------------------------------------------------------------------
   // share, unshare, move: changes, made only by someone who may edit what they change
   // ---------------------------------------------------------------------------
-
-  /** The shares, less any of `what` with `withWhom`. */
-  val sharesWithout = define { (ss: Term[List[Share]], what: Term[Target], withWhom: Term[Grantee]) =>
-    ss.filterNot(s => s.what === what && s.withWhom === withWhom)
-  }
 
   private val bobViewsPlan = Share(Target.Doc(plan), Grantee.Person(bob), Level.View, None)
   private val catViewsReports = Share(Target.InFolder(reports), Grantee.Person(cat), Level.View, None)

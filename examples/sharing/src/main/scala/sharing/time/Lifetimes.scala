@@ -47,7 +47,7 @@ object Lifetimes:
     idea = "Expiring shares"
   )((s, t, result) => result === s.until.fold(True)(end => t < end))
     .leftOpenAbove
-    .under(accessFollowsShares, Deadlines.expiredSharesGiveNoAccess, Deadlines.endedStaysEnded)
+    .under(Deadlines.endedStaysEnded)
     .examples()(
       expect(annEditsPlan, now, true, "a share with no end"),
       expect(bobViewsPlanForAnHour, now, true, "an hour before its end"),
@@ -62,7 +62,7 @@ object Lifetimes:
     idea = "Invitations"
   )((i, t, result) => result === (t < i.sent + invitationLasts))
     .leftOpenAbove
-    .under(accessFollowsShares, Deadlines.invitationsAcceptedInTime, Deadlines.invitationsLapseOnTime, Deadlines.endedStaysEnded)
+    .under(sharing.invitations.Invitations.invitationsAreOffers, Deadlines.invitationsLapseOnTime, Deadlines.endedStaysEnded)
     .examples()(
       expect(catInvited, now, true, "sent a day ago"),
       expect(catInvited, now + 6 * day - 1, true, "a second before seven days have passed"),
@@ -77,7 +77,7 @@ object Lifetimes:
     idea = "Trash"
   )((doc, t, result) => result === doc.trashed.fold(False)(at => at + trashKeeps <= t))
     .leftOpenAbove
-    .under(accessFollowsShares, Deadlines.trashPurgedOnTime, Deadlines.endedStaysEnded)
+    .under(sharing.trash.Trash.trashUntilGone, Deadlines.trashPurgedOnTime, Deadlines.endedStaysEnded)
     .examples()(
       expect(planTrashed, now, false, "trashed a day ago: still restorable"),
       expect(planTrashed, now + 29 * day, true, "thirty days after it was trashed"),

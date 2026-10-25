@@ -292,7 +292,7 @@ definitions in force applied:
 | `restates` (n = 1), tried | N → C1 | Lean proves it: N says what its part says (a warning) |
 | `clash`, tried | C1 → … → Cn → False | Lean proves it: the parts contradict each other |
 | `unsat` (every claim), tried | ¬ N | Lean proves it: no world meets N |
-| `idle` (the root), tried | the root, with every operation doing nothing | Lean proves it: the root does not say what users can do |
+| `idle` (the root), tried | the root, with every operation doing nothing (a word marked `.leftOpenAbove` stays open) | Lean proves it: the root does not say what users can do |
 
 `complete` is proven by `frflow_auto` or by hand. The tries use automation
 with a small budget, so they catch only what it can show. Then:
@@ -446,6 +446,11 @@ does, so a change to that contract (7 days become 14) does not bring it back. Cl
 events (`events.foldLeft(start)(step)`), with the scheduler's period and "the clock
 never goes back" as assumptions on the run (`events === pre ++ (e :: post) ==> …`),
 and proven by induction over the run (`FrFlow.always_when`, `FrFlow.along_when`).
+Put each deadline under the branch whose proof uses it: the branch says it with the
+open word ("no invitation is pending a housekeeping period after it lapses"), the
+deadline with the clock ("7 days and two minutes"), and the timed contract links the
+two. The `idle` try keeps such words open, so the root need not list what they must
+at least allow to keep "doing nothing" from meeting it.
 `examples/sharing` does all of this (`time/`, `housekeeping/`).
 
 ### What is trusted, and the limits

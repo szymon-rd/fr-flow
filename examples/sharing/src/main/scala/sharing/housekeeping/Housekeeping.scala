@@ -20,6 +20,22 @@ object Housekeeping:
 
   val tidy = Param[(Library, BigInt) => Library]("tidy", "the library tidied at a moment")
 
+  /** The branch: what housekeeping may do. Its parts are tidying and, below the timed words, that they change one way. */
+  val clearsOnlyTheEnded = Node.claim("HousekeepingClearsOnlyTheEnded",
+    "Housekeeping clears away only what has ended: shares no longer in force or of a document gone, invitations no longer open, and documents gone; and what has ended stays ended, so nothing it clears could have counted again.",
+    why = "Q6-Q8: tidying keeps the library from growing with what gives nothing; it is safe because ending is for good. Whether something has ended is left open here (Lifetimes); that it stays ended rests on the clock never going back (EndedStaysEnded).",
+    idea = "Time and housekeeping"
+  )(forall((lib: Term[Library], t: Term[BigInt]) =>
+    lib.shares.forall(s => tidy(lib, t).shares.contains(s) || !inForce(s, t) ||
+      lib.documents.exists(doc => gone(doc, t) && s.what === Target[Target.Doc](doc.id))) &&
+    lib.invitations.forall(i => tidy(lib, t).invitations.contains(i) || !isOpen(i, t)) &&
+    lib.documents.forall(doc => tidy(lib, t).documents.contains(doc) || gone(doc, t))) &&
+    forall((t: Term[BigInt], u: Term[BigInt]) => (t <= u) ==>
+      (forall((s: Term[Share]) => !inForce(s, t) ==> !inForce(s, u)) &&
+       forall((i: Term[Invitation]) => !isOpen(i, t) ==> !isOpen(i, u)) &&
+       forall((doc: Term[Document]) => gone(doc, t) ==> gone(doc, u)))))
+    .under(accessFollowsShares)
+
   /** Whether a share is of a document gone at a moment. */
   val ofGone = define { (lib: Term[Library], t: Term[BigInt], s: Term[Share]) =>
     lib.documents.exists(doc => gone(doc, t) && s.what === Target[Target.Doc](doc.id))
@@ -36,7 +52,7 @@ object Housekeeping:
     result === lib.copy((documents = lib.documents.filterNot(doc => gone(doc, t)),
       shares = lib.shares.filter(s => inForce(s, t) && !ofGone(lib, t, s)),
       invitations = lib.invitations.filter(i => isOpen(i, t)))))
-    .under(accessFollowsShares)
+    .under(clearsOnlyTheEnded)
     .examples()(
       expect(ended, now, ended, "nothing has ended yet"),
       expect(ended, now + 3600, ended.copy(shares = library.shares), "Bob's share of the plan has ended"),

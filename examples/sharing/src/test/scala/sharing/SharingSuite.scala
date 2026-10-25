@@ -39,13 +39,20 @@ class SharingSuite extends munit.CatsEffectSuite:
     }
   }
 
-  test("the model is well formed: one timeless root over the services' contracts; the timed words and deadlines below") {
+  test("the model is well formed: one timeless root; invitations, trash and housekeeping as branches; the timed words and deadlines below") {
     assertEquals(knowledge.problems, Nil)
     assertEquals(knowledge.root.map(_.id), Some("AccessFollowsShares"))
-    val parts = knowledge.parts(accessFollowsShares).map(_.id).toSet
-    for id <- List("AccessContract", "ShareContract", "InviteContract", "AcceptContract", "TrashContract", "RestoreContract",
-        "TidyContract", "HandleContract", "InForceContract", "ExpiredSharesGiveNoAccess", "TrashPurgedOnTime", "InvitationsLapseOnTime") do
-      assert(parts(id), s"$id is not under the root: $parts")
+    def parts(n: frflow.Node[?]) = knowledge.parts(n).map(_.id).toSet
+    assertEquals(parts(accessFollowsShares), Set("AccessContract", "CanViewContract", "CanEditContract", "ShareContract", "UnshareContract",
+      "MoveContract", "InvitationsAreOffers", "TrashUntilGone", "HousekeepingClearsOnlyTheEnded", "HandleContract"))
+    assertEquals(parts(Invitations.invitationsAreOffers), Set("InviteContract", "AcceptContract", "WithdrawContract", "AccessContract",
+      "IsOpenContract", "InvitationsLapseOnTime"))
+    assertEquals(parts(Trash.trashUntilGone), Set("TrashContract", "RestoreContract", "GoneContract", "TrashPurgedOnTime"))
+    assertEquals(parts(Housekeeping.clearsOnlyTheEnded), Set("TidyContract", "EndedStaysEnded"))
+    // The branches name no lifetime either: 7 days or 30 days enter only below them.
+    for b <- List(Invitations.invitationsAreOffers, Trash.trashUntilGone, Housekeeping.clearsOnlyTheEnded) do
+      val terms = knowledge.termsOf(b).toSet
+      assert(!terms("invitationLasts") && !terms("trashKeeps"), (b.id, terms))
     assertEquals(knowledge.nodes.filter(_.kind == frflow.protocol.NodeKind.Design).map(_.id), List("ServerWiring", "DomainTypes"))
     // The purpose names no clock and no duration: the lifetimes are open there.
     val rootTerms = knowledge.termsOf(accessFollowsShares).toSet

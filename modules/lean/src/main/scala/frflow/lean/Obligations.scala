@@ -93,8 +93,12 @@ final class Obligations(kb: KnowledgeBase, refinement: Refinement, coverage: Cov
     })
     needed ++ conjuncts :+ tried(TryKind.Clash, stated(o, hs.map(_._1), "False"), s"The parts of ${n.id} contradict each other.",
       s"the parts of ${n.id} contradict each other: no world meets them all")
+  /** The operations the root's service performs, each replaced by "nothing". A word left open above (`leftOpenAbove`:
+    * "a share in force") is not one of them: it is the vocabulary a lower refinement fixes, and the root must hold for
+    * every meaning of it, so it stays open. */
   private def nothings(n: Node[?]): List[(String, String)] =
-    claim(n)._2.params.filter(kb.isOp).flatMap(o => LeanType.nothing(paramType(o).getOrElse("")).map(o -> _))
+    claim(n)._2.params.filter(o => kb.isOp(o) && !kb.onOp(o).exists(_.openAbove))
+      .flatMap(o => LeanType.nothing(paramType(o).getOrElse("")).map(o -> _))
 
   def idle(n: Node[?]): Option[Obligation] =
     if !kb.root.exists(_ eq n) || !formal(n) then None

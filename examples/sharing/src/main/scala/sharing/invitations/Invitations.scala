@@ -3,8 +3,10 @@ package sharing.invitations
 import frflow.*
 import sharing.*
 import sharing.domain.*
+import sharing.service.Sharing
 import sharing.service.Sharing.sharesWithout
 import sharing.time.Lifetimes.isOpen
+import sharing.time.Run.{after, events, housekeepingWithin}
 
 /** Invitations: someone who may edit a document or folder invites a person to it; the person accepts while the
   * invitation is open, and only then has the share. Each method is a function of the library and of the moment.
@@ -25,6 +27,23 @@ object Invitations:
   val accept = Param[(Library, BigInt, PersonId, Target) => Library]("accept", "the library after a person asks to accept an invitation")
   val withdraw = Param[(Library, BigInt, PersonId, PersonId, Target) => Library]("withdraw", "the library after someone asks to withdraw an invitation")
 
+  /** The branch: what an invitation is. Its parts are the three operations, access (to show an invitation gives none),
+    * and, below the timed word "open", the deadline by which housekeeping clears a lapsed one away.
+    */
+  val invitationsAreOffers = Node.claim("InvitationsAreOffers",
+    "An invitation is an offer from someone who may edit: only they send it or take it back, it gives nobody access, it is taken up only by the person invited while it is open, and housekeeping clears it away within one of its periods of its lapsing.",
+    why = "Q7: an invitation is how someone gets a share they have not asked for; it is a share offered, not given, so until it is accepted access is as before. Whether it is open is left open here (Lifetimes); that a lapsed one does not linger is what InvitationsLapseOnTime says with the clock.",
+    idea = "Invitations"
+  )(forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], to: Term[PersonId], what: Term[Target]) =>
+    (withdraw(lib, t, by, to, what) =!= lib ==> mayEdit(lib, t, by, what)) &&
+    forall((level: Term[Level]) => (invite(lib, t, by, to, what, level) =!= lib ==> mayEdit(lib, t, by, what)) &&
+      forall((p: Term[PersonId], d: Term[DocumentId]) =>
+        Sharing.access(invite(lib, t, by, to, what, level), t, p, d) === Sharing.access(lib, t, p, d)))) &&
+    forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], what: Term[Target]) =>
+      accept(lib, t, p, what) =!= lib ==> lib.invitations.exists(i => i.to === p && i.what === what && isOpen(i, t))) &&
+    after(events).library.invitations.forall(i => isOpen(i, after(events).now - housekeepingWithin)))
+    .under(accessFollowsShares)
+
   /** The invitations, less any of `to` to `what`. */
   val invitationsWithout = define { (is: Term[List[Invitation]], to: Term[PersonId], what: Term[Target]) =>
     is.filterNot(i => i.to === to && i.what === what)
@@ -39,7 +58,7 @@ object Invitations:
   )((lib, t, by, to, what, level, result) =>
     result === mayEdit(lib, t, by, what).fold(
       lib.copy((invitations = Invitation(to, what, level, by, t) :: invitationsWithout(lib.invitations, to, what))), lib))
-    .under(accessFollowsShares)
+    .under(invitationsAreOffers)
     .examples()(
       expect(library, now - day, ann, cat, Target.Doc(plan), Level.View, withCat, "Ann may edit the plan: she invites Cat to view it"),
       expect(library, now, bob, cat, Target.Doc(plan), Level.View, library, "Bob may not edit the plan: nothing changes"),
@@ -61,7 +80,7 @@ object Invitations:
     result === lib.invitations.find(i => i.to === p && i.what === what && isOpen(i, t)).fold(lib)(i =>
       lib.copy((shares = Share(what, Grantee[Grantee.Person](p), i.level, none[BigInt]) :: sharesWithout(lib.shares, what, Grantee[Grantee.Person](p)),
         invitations = invitationsWithout(lib.invitations, p, what)))))
-    .under(accessFollowsShares)
+    .under(invitationsAreOffers)
     .examples()(
       expect(withCat, now, cat, Target.Doc(plan), library.copy(shares = catViewsPlan :: library.shares),
         "Cat accepts Ann's invitation, sent a day ago: she may view the plan"),
@@ -82,7 +101,7 @@ object Invitations:
     idea = "Invitations"
   )((lib, t, by, to, what, result) =>
     result === mayEdit(lib, t, by, what).fold(lib.copy((invitations = invitationsWithout(lib.invitations, to, what))), lib))
-    .under(accessFollowsShares)
+    .under(invitationsAreOffers)
     .examples()(
       expect(withCat, now, ann, cat, Target.Doc(plan), library, "Ann withdraws Cat's invitation"),
       expect(withCat, now, bob, cat, Target.Doc(plan), withCat, "Bob may not edit the plan: the invitation stays"),

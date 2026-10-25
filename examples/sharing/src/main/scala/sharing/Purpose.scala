@@ -56,8 +56,8 @@ val trashed = Node.definition("InTrash", "A document is in the trash when it was
 // ============================================================================
 
 val accessFollowsShares = Node.claim("AccessFollowsShares",
-  "At any moment, a person can view a document exactly when it is not in the trash and they may view it, and edit it exactly when it is not in the trash and they may edit it. Only someone who may edit a document or folder changes whom it is shared with or invited to, or moves, trashes or restores a document; a document is restored only before it is gone. An invitation gives no access, and is accepted only while it is open. Housekeeping removes only what has ended: shares no longer in force, invitations no longer open, documents gone and their shares. A share given for good stays in force, an invitation is open when it is sent, and a document not in the trash is never gone.",
-  why = "The idea in one statement: the shares in force decide who sees and who changes what (Q1, Q2), the trash hides a document until it is restored (Q8), an invitation is an offer, not a share (Q7), and tidying never takes away anything still in force. The last sentence is all the purpose asks of the lifetimes: without it, nothing ever being in force would meet it. Whether a share is in force, an invitation open or a document gone is left open here: Lifetimes fixes it with the clock below, and this holds whatever it says.",
+  "At any moment, a person can view a document exactly when it is not in the trash and a share in force lets them view it, and edit it exactly when that share is an edit share; and what is shared, offered or kept changes only at the hand of someone who may edit it, of a person taking up an open invitation, or of housekeeping clearing away what has ended.",
+  why = "The idea in one statement, in two halves as in stage 1: the shares in force decide who sees and who changes what (Q1, Q2), the trash hides a document (Q8); and nothing changes that but an editor, an invitation an editor sent (Q7), or housekeeping removing what gives nothing any more. How invitations, the trash and housekeeping do their part is said in their own branches below. Whether a share is in force, an invitation open or a document gone is left open here: Lifetimes fixes it with the clock below, and this holds whatever it says.",
   idea = "Who can see and change what"
 )(forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], d: Term[DocumentId]) =>
     Sharing.canView(lib, t, p, d) === (!inTrash(lib, d) && mayView(lib, t, p, Target[Target.Doc](d))) &&
@@ -69,22 +69,16 @@ val accessFollowsShares = Node.claim("AccessFollowsShares",
   forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId], into: Term[Option[FolderId]]) =>
     Sharing.move(lib, t, by, d, into) =!= lib ==>
       (mayEdit(lib, t, by, Target[Target.Doc](d)) && into.fold(True)(f => mayEdit(lib, t, by, Target[Target.InFolder](f))))) &&
-  forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId]) =>
-    (Trash.trash(lib, t, by, d) =!= lib ==> mayEdit(lib, t, by, Target[Target.Doc](d))) &&
-    (Trash.restore(lib, t, by, d) =!= lib ==> (mayEdit(lib, t, by, Target[Target.Doc](d)) &&
-      lib.documents.exists(doc => doc.id === d && doc.trashed.isDefined && !gone(doc, t))))) &&
   forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], to: Term[PersonId], what: Term[Target]) =>
     (Invitations.withdraw(lib, t, by, to, what) =!= lib ==> mayEdit(lib, t, by, what)) &&
-    forall((level: Term[Level]) => (Invitations.invite(lib, t, by, to, what, level) =!= lib ==> mayEdit(lib, t, by, what)) &&
-      forall((p: Term[PersonId], d: Term[DocumentId]) =>
-        Sharing.access(Invitations.invite(lib, t, by, to, what, level), t, p, d) === Sharing.access(lib, t, p, d)))) &&
+    forall((level: Term[Level]) => Invitations.invite(lib, t, by, to, what, level) =!= lib ==> mayEdit(lib, t, by, what))) &&
   forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], what: Term[Target]) =>
     Invitations.accept(lib, t, p, what) =!= lib ==> lib.invitations.exists(i => i.to === p && i.what === what && isOpen(i, t))) &&
+  forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId]) =>
+    (Trash.trash(lib, t, by, d) =!= lib ==> mayEdit(lib, t, by, Target[Target.Doc](d))) &&
+    (Trash.restore(lib, t, by, d) =!= lib ==> mayEdit(lib, t, by, Target[Target.Doc](d)))) &&
   forall((lib: Term[Library], t: Term[BigInt]) =>
     lib.shares.forall(s => Housekeeping.tidy(lib, t).shares.contains(s) || !inForce(s, t) ||
       lib.documents.exists(doc => gone(doc, t) && s.what === Target[Target.Doc](doc.id))) &&
     lib.invitations.forall(i => Housekeeping.tidy(lib, t).invitations.contains(i) || !isOpen(i, t)) &&
-    lib.documents.forall(doc => Housekeeping.tidy(lib, t).documents.contains(doc) || gone(doc, t))) &&
-  (forall((s: Term[Share], t: Term[BigInt]) => !s.until.isDefined ==> inForce(s, t)) &&
-    forall((i: Term[Invitation]) => isOpen(i, i.sent)) &&
-    forall((doc: Term[Document], t: Term[BigInt]) => !doc.trashed.isDefined ==> !gone(doc, t))))
+    lib.documents.forall(doc => Housekeeping.tidy(lib, t).documents.contains(doc) || gone(doc, t))))

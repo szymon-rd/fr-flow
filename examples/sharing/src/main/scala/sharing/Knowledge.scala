@@ -29,7 +29,7 @@ val domainTypes = Node.design("DomainTypes",
 
 val knowledge = KnowledgeBase("Sharing", idea = "IDEA.md")(
   reach, cover, permission, trashed,
-  accessFollowsShares,
+  accessFollowsShares, Invitations.invitationsAreOffers, Trash.trashUntilGone, Housekeeping.clearsOnlyTheEnded,
   Sharing.accessContract, Sharing.canViewContract, Sharing.canEditContract,
   Sharing.shareContract, Sharing.unshareContract, Sharing.moveContract,
   Invitations.inviteContract, Invitations.acceptContract, Invitations.withdrawContract,
@@ -37,7 +37,7 @@ val knowledge = KnowledgeBase("Sharing", idea = "IDEA.md")(
   Housekeeping.tidyContract, Housekeeping.jobContract,
   Lifetimes.invitationLifetime, Lifetimes.trashLifetime, Run.housekeepingPeriod,
   Lifetimes.inForceContract, Lifetimes.isOpenContract, Lifetimes.goneContract,
-  Deadlines.expiredSharesGiveNoAccess, Deadlines.invitationsAcceptedInTime, Deadlines.trashPurgedOnTime,
+  Deadlines.trashPurgedOnTime,
   Deadlines.invitationsLapseOnTime, Deadlines.endedStaysEnded,
   Run.clockNeverGoesBack, Run.housekeepingOnTime,
   LibraryStore.libraryKept, ClockKept.clockKept,

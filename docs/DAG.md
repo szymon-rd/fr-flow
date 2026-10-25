@@ -185,7 +185,7 @@ For each node N with parts C1..Cn (n ≥ 1), over the union U of the open terms 
 | `clash` | tried: `∀ U, C1 → … → Cn → False` | as above | proven: the parts contradict each other; failed |
 | `unsat` (every claim) | tried: `∀ U, ¬ N` | as above | proven: no world meets N; failed |
 | `feasible` | `∃ U, C1 ∧ … ∧ Cn` | in the proof file | asked only of an authored `complete` on a node nothing witnesses |
-| `idle` (root only) | tried: the root with every operation doing nothing (`[]`, `none`, `False`, its input unchanged) | Lean's default budget | proven: doing nothing meets the purpose; unproven |
+| `idle` (root only) | tried: the root with every operation doing nothing (`[]`, `none`, `False`, its input unchanged); a word left open above (`leftOpenAbove`) stays open, since the root holds for every meaning of it | Lean's default budget | proven: doing nothing meets the purpose; unproven |
 | `impl` | `∀ U, promises of the callees → claim[op := code]` | `frflow_auto` or authored | the `define` does not meet the contract |
 | `check` | post → the `checkedBy` check | as above | the cheap check does not follow |
 | `cover_X`, `expect_i` | the view lists every value the rule is about; the expectation follows from N | as above | |
