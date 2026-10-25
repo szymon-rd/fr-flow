@@ -629,11 +629,18 @@ One sbt subproject each, under `modules/`:
 - `model` (package `frflow`): nodes and knowledge bases; `Opaque`, `Param`,
   `define`; terms, their Lean and their evaluation; flows, boundaries and
   state models; examples, probes, `service`, `run`.
-- `lean`: the Lean of a knowledge base, and reading Lean's output.
-- `ledger`: review states and decision rules; reports; stores, keys and
-  signatures.
-- `check`: render and check (running `lake`), the snapshot, status, scaffold,
-  git.
+- `lean` (package `frflow.lean`): the Lean of a knowledge base; `printing`, its
+  modules and proof files; `obligation`, what Lean is asked of each node and the
+  examples it evaluates; `reading`, reading Lean's output and proof files.
+- `ledger` (package `frflow.ledger`): decisions and refusals; `review`, review
+  states and decision rules; `report`, reports; `signing`, keys and signatures;
+  `store`, the files.
+- `check` (package `frflow.check`): the workspace and what the checker reads;
+  `analysis`, the contents, the hashes and the snapshot; `proving`, render,
+  check and scaffold; `process`, running `lake` and git.
+
+`lean`, `ledger` and `check` re-export the names of their sub-packages (each
+`package.scala`), so `import frflow.ledger.*` reaches `Decide` and `JsonStore` alike.
 - `api`: `FrFlowApi`, the typed operations a front end calls.
 - `cli`: the command line over the API.
 - `web`: the web view over the API. The CLI does not depend on it.
