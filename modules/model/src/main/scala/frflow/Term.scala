@@ -47,6 +47,8 @@ private[frflow] enum Pat:
   /** A case class or an enum case, its fields bound (a wildcard binds none). */
   case Ctor(adt: Adt, ctor: frflow.Ctor, binders: List[Binder])
   case SomeP(b: Binder)
+  /** `Except.error b` (`left`) or `Except.ok b`. */
+  case InjP(left: Boolean, b: Binder)
   case NoneP
   case ConsP(h: Binder, t: Binder)
   case NilP
@@ -70,13 +72,17 @@ private[frflow] enum Tree:
   case Tup(es: List[Tree])
   case Proj(on: Tree, i: Int, n: Int)
   case SomeT(a: Tree)
+  /** An outcome: `Except.error a` (`left`) or `Except.ok a`. */
+  case Inj(left: Boolean, a: Tree)
   case ListT(es: List[Tree])
   case Over(kind: Iter, on: Tree, b: Binder, body: Tree)
   case Op(op: Prim, args: List[Tree])
   /** A flow's steps: the body of a `def` over a monad. */
   case Do(steps: Steps)
-  /** A flow (a call of one) run on the models from a world: its result and the world after. */
-  case RunOn(call: Tree, world: Tree)
+  /** A flow (a call of one) run on the models from a world: its result and the world after; for a flow that may fail
+    * with an error of type `err`, its outcome (`Except E R`) and the world after.
+    */
+  case RunOn(call: Tree, world: Tree, err: Option[LeanType[?]] = None)
   /** A model's state in a world. */
   case Part(world: Tree, model: StateModel[?])
 
@@ -118,6 +124,10 @@ val True: Term[Boolean] = Term.lit(true)
 val False: Term[Boolean] = Term.lit(false)
 def some[A](a: Term[A]): Term[Option[A]] = Term(Tree.SomeT(a.termTree), LeanType.of(Shape.OptionOf(a.termType)))
 def none[A](using a: LeanType[A]): Term[Option[A]] = Term(Tree.Lit(None, LeanType.of(Shape.OptionOf(a))), LeanType.of(Shape.OptionOf(a)))
+/** An outcome that failed with `e` (Lean's `Except.error e`): what `attempt` gives for a flow that raised `e`. */
+def left[E, A](e: Term[E])(using a: LeanType[A]): Term[Either[E, A]] = Term(Tree.Inj(true, e.termTree), LeanType.of(Shape.EitherOf(e.termType, a)))
+/** An outcome that gave `a` (Lean's `Except.ok a`). */
+def right[E, A](a: Term[A])(using e: LeanType[E]): Term[Either[E, A]] = Term(Tree.Inj(false, a.termTree), LeanType.of(Shape.EitherOf(e, a.termType)))
 
 /** A shared value, named in Lean: `let(shelf.toSet)(there => picked.filter(b => there.contains(b)))`. */
 def let[A, R](v: Term[A])(body: Term[A] => Term[R]): Term[R] =
@@ -273,6 +283,8 @@ object Term extends TermsOfValues:
     scrutinee.termType.shape match
       case Shape.OptionOf(a) if label == "Some" => bound(List(a))(bs => Pat.SomeP(bs.head))
       case Shape.OptionOf(_) if label == "None" => bound(Nil)(_ => Pat.NoneP)
+      case Shape.EitherOf(e, _) if label == "Left" => bound(List(e))(bs => Pat.InjP(true, bs.head))
+      case Shape.EitherOf(_, a) if label == "Right" => bound(List(a))(bs => Pat.InjP(false, bs.head))
       case Shape.ListOf(a) if label == "::" => bound(List(a, scrutinee.termType))(bs => Pat.ConsP(bs(0), bs(1)))
       case Shape.ListOf(_) if label == "Nil" => bound(Nil)(_ => Pat.NilP)
       case Shape.Data(adt) =>
@@ -406,6 +418,15 @@ object Term extends TermsOfValues:
     /** Option's fold (its catamorphism), as Scala's and Cats': `ifEmpty` for none, `f(x)` for `some x`. */
     @targetName("opt_fold") def fold[E](ifEmpty: E)(using e: AsTerm[E])(f: Term[A] => Term[e.R]): Term[e.R] =
       Cases(o, List(caseOf(o, "Some", f), caseOf(o, "None", e(ifEmpty))))
+
+  extension [E, A](o: Term[Either[E, A]])
+    /** Either's fold (its catamorphism): `onError(e)` for an error, `onValue(a)` for a value. Lean's `match … with
+      * | .error e => … | .ok a => …`.
+      */
+    @targetName("either_fold") def fold[R](onError: Term[E] => Term[R], onValue: Term[A] => Term[R]): Term[R] =
+      Cases(o, List(caseOf(o, "Left", onError), caseOf(o, "Right", onValue)))
+    @targetName("either_isLeft") def isLeft: Term[Boolean] = o.fold(_ => True, _ => False)
+    @targetName("either_isRight") def isRight: Term[Boolean] = o.fold(_ => False, _ => True)
 
   extension [K, V](m: Term[Map[K, V]])
     @targetName("map_get") def get(k: Term[K]): Term[Option[V]] = op(Prim.Get, LeanType.of(Shape.OptionOf(mapTypes(m)._2)), m, k)

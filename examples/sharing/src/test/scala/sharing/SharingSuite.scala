@@ -9,10 +9,14 @@ import java.net.http.{HttpClient, HttpRequest, HttpResponse}
 import java.nio.file.Paths
 import scala.util.Random
 import sharing.Demo.*
+import sharing.audit.Audit
 import sharing.domain.*
 import sharing.housekeeping.{Housekeeping, HousekeepingService}
 import sharing.http.*
 import sharing.invitations.{Invitations, InvitationsService}
+import sharing.notifications.{MemoryMailer, Notifications}
+import sharing.ownership.{Ownership, OwnershipService}
+import sharing.requests.{AccessRequests, AccessRequestsService}
 import sharing.service.{Sharing, SharingService}
 import sharing.store.{LibraryStore, MemoryLibraryStore, SqlLibraryStore}
 import sharing.time.{ClockKept, Lifetimes}
@@ -28,7 +32,9 @@ class SharingSuite extends munit.CatsEffectSuite:
   private val contracts = List(Sharing.accessContract, Sharing.canViewContract, Sharing.canEditContract, Sharing.shareContract,
     Sharing.unshareContract, Sharing.moveContract, Invitations.inviteContract, Invitations.acceptContract, Invitations.withdrawContract,
     Trash.trashContract, Trash.restoreContract, Housekeeping.tidyContract, Housekeeping.jobContract, Lifetimes.inForceContract,
-    Lifetimes.isOpenContract, Lifetimes.goneContract, SharingHttp.handleContract)
+    Lifetimes.isOpenContract, Lifetimes.goneContract, SharingHttp.handleContract, AccessRequests.askContract, AccessRequests.approveContract,
+    AccessRequests.declineContract, AccessRequests.chaseContract, Ownership.transferContract, Audit.recordContract,
+    Notifications.announceContract, Notifications.deliveryJob, Lifetimes.isPendingContract, Lifetimes.reminderDueContract)
 
   test("the committed ledger accepts every node: none is up for review, none is gone") {
     api.flatMap(_.view).map { v =>
@@ -39,20 +45,25 @@ class SharingSuite extends munit.CatsEffectSuite:
     }
   }
 
-  test("the model is well formed: one timeless root; invitations, trash and housekeeping as branches; the timed words and deadlines below") {
+  test("the model is well formed: one timeless root; each feature a branch; the timed words and deadlines below") {
     assertEquals(knowledge.problems, Nil)
     assertEquals(knowledge.root.map(_.id), Some("AccessFollowsShares"))
     def parts(n: frflow.Node[?]) = knowledge.parts(n).map(_.id).toSet
     assertEquals(parts(accessFollowsShares), Set("AccessContract", "CanViewContract", "CanEditContract", "ShareContract", "UnshareContract",
-      "MoveContract", "InvitationsAreOffers", "TrashUntilGone", "HousekeepingClearsOnlyTheEnded", "HandleContract"))
+      "MoveContract", "InvitationsAreOffers", "TrashUntilGone", "HousekeepingClearsOnlyTheEnded", "HandleContract",
+      "AccessRequestsAreAsks", "OwnersKeepTheirDocuments", "AuditTrail", "NoticesFollowChanges"))
+    assertEquals(parts(AccessRequests.requestsAreAsks), Set("AskContract", "ApproveContract", "DeclineContract", "ChaseContract",
+      "PendingContract", "ReminderDueContract", "RequestsAnsweredOnTime"))
+    assertEquals(parts(Ownership.ownersKeepTheirDocuments), Set("TransferContract", "UnshareContract", "ShareContract"))
     assertEquals(parts(Invitations.invitationsAreOffers), Set("InviteContract", "AcceptContract", "WithdrawContract", "AccessContract",
       "IsOpenContract", "InvitationsLapseOnTime"))
     assertEquals(parts(Trash.trashUntilGone), Set("TrashContract", "RestoreContract", "GoneContract", "TrashPurgedOnTime"))
     assertEquals(parts(Housekeeping.clearsOnlyTheEnded), Set("TidyContract", "EndedStaysEnded"))
     // The branches name no lifetime either: 7 days or 30 days enter only below them.
-    for b <- List(Invitations.invitationsAreOffers, Trash.trashUntilGone, Housekeeping.clearsOnlyTheEnded) do
+    for b <- List(Invitations.invitationsAreOffers, Trash.trashUntilGone, Housekeeping.clearsOnlyTheEnded, AccessRequests.requestsAreAsks,
+        Ownership.ownersKeepTheirDocuments, Audit.auditTrail, Notifications.noticesFollowChanges) do
       val terms = knowledge.termsOf(b).toSet
-      assert(!terms("invitationLasts") && !terms("trashKeeps"), (b.id, terms))
+      assert(!terms("invitationLasts") && !terms("trashKeeps") && !terms("requestLasts") && !terms("remindAfter"), (b.id, terms))
     assertEquals(knowledge.nodes.filter(_.kind == frflow.protocol.NodeKind.Design).map(_.id), List("ServerWiring", "DomainTypes"))
     // The purpose names no clock and no duration: the lifetimes are open there.
     val rootTerms = knowledge.termsOf(accessFollowsShares).toSet
@@ -109,6 +120,23 @@ class SharingSuite extends munit.CatsEffectSuite:
     assertEquals(TrashService.restore(trashed, now + 30 * day, ann, plan), trashed) // gone
     assertEquals(HousekeepingService.tidy(trashed, now + 29 * day).documents.map(_.id), List(plan, q3Report))
     assertEquals(HousekeepingService.tidy(trashed, now + 30 * day).documents.map(_.id), List(q3Report))
+    // Access requests: asking gives nothing; an editor approves it; housekeeping reminds, then declines.
+    val asked = AccessRequestsService.ask(library, now, cat, plan, Level.View)
+    assertEquals(SharingService.access(asked, now, cat, plan), None)
+    assertEquals(SharingService.access(AccessRequestsService.approve(asked, now + day, ann, cat, plan), now + day, cat, plan), Some(Level.View))
+    assertEquals(AccessRequestsService.approve(asked, now + day, bob, cat, plan), asked)
+    assertEquals(AccessRequestsService.chase(asked, now + day), asked)
+    val reminded = AccessRequestsService.chase(asked, now + 2 * day)
+    assertEquals(reminded.requests.map(_.reminded), List(true))
+    assertEquals(reminded.outbox.map(_.to), List(ann))
+    assertEquals(AccessRequestsService.chase(reminded, now + 3 * day), reminded) // reminded once
+    assertEquals(AccessRequestsService.chase(reminded, now + 7 * day).requests, Nil)
+    // Ownership: Ann hands the plan on to Bob once he may edit it; her own share cannot be unshared.
+    val bobEdits = SharingService.share(library, now, ann, Share(Target.Doc(plan), Grantee.Person(bob), Level.Edit, None))
+    val handed = OwnershipService.transfer(bobEdits, now, ann, plan, bob)
+    assertEquals(handed.documents.find(_.id == plan).map(_.owner), Some(bob))
+    assertEquals(OwnershipService.transfer(library, now, ann, plan, bob), library)
+    assertEquals(SharingService.unshare(bobEdits, now, bob, Target.Doc(plan), Grantee.Person(ann)), bobEdits)
   }
 
   // ---------------------------------------------------------------------------
@@ -176,7 +204,7 @@ class SharingSuite extends munit.CatsEffectSuite:
     val g = pick(Grantee.Person(ann), Grantee.Person(bob), Grantee.Person(cat), Grantee.Team(eng))
     val l = pick(Level.View, Level.Edit)
     def done(ok: Boolean) = if ok then (200, """{"done":true}""") else (403, """{"refused":"you may not make this change"}""")
-    rnd.nextInt(12) match
+    rnd.nextInt(16) match
       case 0 | 1 =>
         val level = o.access(now, p, d).fold("none")(_.toString.toLowerCase)
         ("GET", s"/access?person=${p.name}&doc=${d.name}", "", (200, s"""{"access":"$level"}"""))
@@ -200,6 +228,16 @@ class SharingSuite extends munit.CatsEffectSuite:
         ("POST", "/withdraw", s"""{"by":"${p.name}","to":"${to.name}","what":${json(t)}}""", done(o.withdraw(now, p, to, t)))
       case 8 => ("POST", "/trash", s"""{"by":"${p.name}","doc":"${d.name}"}""", done(o.trash(now, p, d)))
       case 9 => ("POST", "/restore", s"""{"by":"${p.name}","doc":"${d.name}"}""", done(o.restore(now, p, d)))
+      case 12 => ("POST", "/ask", s"""{"person":"${p.name}","doc":"${d.name}","level":"${l.toString.toLowerCase}"}""", done(o.ask(now, p, d, l)))
+      case 13 =>
+        val who = pick(ann, bob, cat)
+        ("POST", "/approve", s"""{"by":"${p.name}","person":"${who.name}","doc":"${d.name}"}""", done(o.approve(now, p, who, d)))
+      case 14 =>
+        val who = pick(ann, bob, cat)
+        ("POST", "/decline", s"""{"by":"${p.name}","person":"${who.name}","doc":"${d.name}"}""", done(o.decline(now, p, who, d)))
+      case 15 =>
+        val to = pick(ann, bob, cat)
+        ("POST", "/transfer", s"""{"by":"${p.name}","doc":"${d.name}","to":"${to.name}"}""", done(o.transfer(now, p, d, to)))
       case 10 =>
         val wait = pick(BigInt(60), BigInt(3600), day, 5 * day, 20 * day)
         ("POST", "/clock", s"""{"advance":$wait}""", (200, s"""{"now":${now + wait}}"""))
@@ -239,6 +277,62 @@ class SharingSuite extends munit.CatsEffectSuite:
       assertEquals(send(18734, "GET", "/access?person=bob&doc=plan"), (503, """{"error":"over 200 ms"}"""))
       assertEquals(send(18735, "GET", "/access?person=bob&doc=plan"), (500, """{"error":"internal error"}"""))
     finally List((s1, w1), (s2, w2), (s3, w3)).foreach { (s, w) => s.stop(0); w.shutdownNow() }
+  }
+
+  /** A session against the server on a fake clock, with failures injected into the store and the mail server: each
+    * request and its answer, as a client sees them. What the stage report shows.
+    */
+  test("a scripted session: a request reminded and declined, a notice retried and delivered once, a 503 that changes nothing, a yes explained") {
+    val clock = FakeClock(now)
+    val service = StoreHttp(MemoryLibraryStore(library), clock)
+    val port = 18736
+    val (server, workers) = Server.serve(port, service, extra = Server.testing(service, clock, _, _, _))
+    val transcript = List.newBuilder[String]
+    def call(method: String, path: String, body: String = ""): (Int, String) =
+      val r = send(port, method, path, body)
+      transcript += s"$method $path ${body.trim}".trim + s"\n  -> ${r._1} ${r._2}"
+      r
+    try
+      // An access request: no answer for two days, so the owner is reminded; none for seven, so it is declined.
+      assertEquals(call("POST", "/ask", """{"person":"cat","doc":"plan","level":"view"}"""), (200, """{"done":true}"""))
+      assertEquals(call("GET", "/access?person=cat&doc=plan"), (200, """{"access":"none"}"""))
+      call("POST", "/clock", """{"advance":172800}""")
+      call("POST", "/housekeep")
+      assert(call("GET", "/requests")._2.contains("true"), "reminded")
+      call("POST", "/clock", """{"advance":432000}""")
+      call("POST", "/housekeep")
+      assertEquals(call("GET", "/requests"), (200, "[]"))
+      assertEquals(call("POST", "/approve", """{"by":"ann","person":"cat","doc":"plan"}""")._1, 403)
+      // Delivery: the outbox holds the notice of the ask (to Ann), the reminder (to Ann) and the decline (to Cat).
+      assertEquals(call("GET", "/outbox")._2.split("Notice").length - 1, 3)
+      // The mail server is down for three tries: the run fails, the notice stays.
+      call("POST", "/faults", """{"fail":[false,true,true,true]}""")
+      assertEquals(call("POST", "/deliver")._1, 503)
+      assertEquals(call("GET", "/mailbox"), (200, "[]"))
+      // Delivered on the second try, but the store fails as the notice leaves the outbox: it stays, and is sent again.
+      call("POST", "/faults", """{"fail":[false,true,false,true]}""")
+      assertEquals(call("POST", "/deliver")._1, 503)
+      assertEquals(call("GET", "/mailbox")._2.split("Notice").length - 1, 1)
+      assertEquals(call("POST", "/deliver")._1, 200)
+      assertEquals(call("GET", "/mailbox")._2.split("Notice").length - 1, 1) // delivered once
+      call("POST", "/deliver"); call("POST", "/deliver")
+      assertEquals(call("GET", "/outbox"), (200, "[]"))
+      assertEquals(call("GET", "/mailbox")._2.split("Notice").length - 1, 3)
+      // A store failure mid-request: 503, and nothing changes.
+      call("POST", "/faults", """{"fail":[false,true]}""")
+      assertEquals(call("POST", "/share", """{"by":"ann","what":{"doc":"plan"},"with":{"person":"bob"},"level":"view"}"""),
+        (503, """{"error":"the store is unavailable: nothing was changed"}"""))
+      assertEquals(call("GET", "/access?person=bob&doc=plan"), (200, """{"access":"none"}"""))
+      val entries = call("GET", "/log")._2
+      assert(!entries.contains("Made(Share("), entries)
+      // The same request again: done, and its entry in the log explains Bob's yes.
+      assertEquals(call("POST", "/share", """{"by":"ann","what":{"doc":"plan"},"with":{"person":"bob"},"level":"view"}""")._1, 200)
+      assertEquals(call("GET", "/access?person=bob&doc=plan"), (200, """{"access":"view"}"""))
+      val explained = call("GET", "/log")._2
+      assert(explained.contains("""Made(Share(PersonId(\"ann\"), Doc(DocumentId(\"plan\")), Person(PersonId(\"bob\")), View, None))"""), explained)
+    finally
+      server.stop(0); workers.shutdownNow()
+      println(transcript.result().mkString("scripted session:\n", "\n", ""))
   }
 
   // ---------------------------------------------------------------------------

@@ -23,4 +23,5 @@ object Grantee extends Data[Grantee]
   * until its end (Lifetimes.InForceContract); after it, it gives no access, whether or not housekeeping has removed it.
   */
 final case class Share(what: Target, withWhom: Grantee, level: Level, until: Option[BigInt])
-object Share extends Data[Share]
+object Share extends Data[Share]:
+  given LeanType[Share] = LeanType.product[Share]

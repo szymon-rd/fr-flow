@@ -16,6 +16,12 @@ final class Oracle(start: Library):
   private var shares: List[Share] = start.shares
   /** Pending invitations: to whom, to what, at which level, when sent. */
   private var invited: List[Invitation] = start.invitations
+  private var ownerOf: Map[DocumentId, PersonId] = start.documents.map(d => d.id -> d.owner).toMap
+  /** Pending access requests, and the notices sent so far (to whom, of what kind). */
+  private var asking: List[AccessRequest] = start.requests
+  private var told: List[(PersonId, String)] = Nil
+  def notices: List[(PersonId, String)] = told.reverse
+  private val twoDays = BigInt(2 * 86400)
 
   /** The folders a folder is inside, walking up the tree; the folder itself first. */
   private def upFrom(f: FolderId): List[FolderId] = f :: parentOf.get(f).flatten.fold(Nil)(upFrom)
@@ -43,14 +49,21 @@ final class Oracle(start: Library):
       val mine = shares.filter(s => live(s, now) && reaches(s, p) && covers(s, Target.Doc(d)))
       if mine.exists(_.level == Level.Edit) then Some(Level.Edit) else mine.headOption.map(_ => Level.View)
 
-  /** Anyone who can edit a document or folder shares it; sharing again with the same person or team replaces the share. */
+  private def owners(what: Target, withWhom: Grantee): Boolean = what match
+    case Target.Doc(d) => ownerOf.get(d).exists(o => withWhom == Grantee.Person(o))
+    case _             => false
+
+  /** Anyone who can edit a document or folder shares it; sharing again with the same person or team replaces the share,
+    * except an owner's own share of their document, which stays.
+    */
   def share(now: BigInt, by: PersonId, what: Target, withWhom: Grantee, level: Level, until: Option[BigInt]): Boolean =
-    canEdit(now, by, what) && {
+    canEdit(now, by, what) && !owners(what, withWhom) && {
       shares = Share(what, withWhom, level, until) :: shares.filterNot(s => s.what == what && s.withWhom == withWhom); true
     }
 
+  /** An owner's own share of their document is never unshared. */
   def unshare(now: BigInt, by: PersonId, what: Target, withWhom: Grantee): Boolean =
-    canEdit(now, by, what) && { shares = shares.filterNot(s => s.what == what && s.withWhom == withWhom); true }
+    canEdit(now, by, what) && !owners(what, withWhom) && { shares = shares.filterNot(s => s.what == what && s.withWhom == withWhom); true }
 
   /** Moving a document into a folder needs edit on both; out of every folder, edit on the document. */
   def move(now: BigInt, by: PersonId, d: DocumentId, into: Option[FolderId]): Boolean =
@@ -61,13 +74,16 @@ final class Oracle(start: Library):
   /** An editor invites a person; inviting again renews the invitation. No access until accepted. */
   def invite(now: BigInt, by: PersonId, to: PersonId, what: Target, level: Level): Boolean =
     canEdit(now, by, what) && {
-      invited = Invitation(to, what, level, by, now) :: invited.filterNot(i => i.to == to && i.what == what); true
+      invited = Invitation(to, what, level, by, now) :: invited.filterNot(i => i.to == to && i.what == what)
+      told = (to, "invited") :: told
+      true
     }
 
   /** Accepting within 7 days of the sending makes the share. */
   def accept(now: BigInt, p: PersonId, what: Target): Boolean =
     invited.find(i => i.to == p && i.what == what && now < i.sent + week) match
       case Some(i) =>
+        told = invited.filter(j => j.to == p && j.what == what).map(j => (j.by, "accepted")).reverse ++ told
         shares = Share(what, Grantee.Person(p), i.level, None) :: shares.filterNot(s => s.what == what && s.withWhom == Grantee.Person(p))
         invited = invited.filterNot(j => j.to == p && j.what == what)
         true
@@ -89,10 +105,55 @@ final class Oracle(start: Library):
     if ok then trashedAt = trashedAt.removed(d)
     ok
 
-  /** Housekeeping: what has ended goes; a document 30 days in the trash goes with its shares. */
+  /** Anyone asks for a document that exists; asking again renews the request. The owner is told. */
+  def ask(now: BigInt, p: PersonId, d: DocumentId, level: Level): Boolean =
+    ownerOf.contains(d) && {
+      asking = AccessRequest(p, d, level, now, false) :: asking.filterNot(r => r.person == p && r.doc == d)
+      told = (ownerOf(d), "asked") :: told
+      true
+    }
+
+  /** An editor approves a pending request (made less than 7 days ago): the share is made, the person told. */
+  def approve(now: BigInt, by: PersonId, p: PersonId, d: DocumentId): Boolean =
+    asking.find(r => r.person == p && r.doc == d && now < r.asked + week) match
+      case Some(r) if canEdit(now, by, Target.Doc(d)) =>
+        shares = Share(Target.Doc(d), Grantee.Person(p), r.level, None) ::
+          shares.filterNot(s => s.what == Target.Doc(d) && s.withWhom == Grantee.Person(p))
+        asking = asking.filterNot(q => q.person == p && q.doc == d)
+        told = (p, "approved") :: told
+        true
+      case _ => false
+
+  def decline(now: BigInt, by: PersonId, p: PersonId, d: DocumentId): Boolean =
+    canEdit(now, by, Target.Doc(d)) && {
+      asking = asking.filterNot(q => q.person == p && q.doc == d)
+      told = (p, "declined") :: told
+      true
+    }
+
+  /** The owner, while they may edit it, hands a document on to someone who may edit it, who gets an edit share. */
+  def transfer(now: BigInt, by: PersonId, d: DocumentId, to: PersonId): Boolean =
+    ownerOf.get(d).contains(by) && canEdit(now, by, Target.Doc(d)) && canEdit(now, to, Target.Doc(d)) && {
+      ownerOf = ownerOf.updated(d, to)
+      shares = Share(Target.Doc(d), Grantee.Person(to), Level.Edit, None) ::
+        shares.filterNot(s => s.what == Target.Doc(d) && s.withWhom == Grantee.Person(to))
+      told = (to, "handed on") :: told
+      true
+    }
+
+  def requests: List[AccessRequest] = asking
+
+  /** Housekeeping: what has ended goes; a document 30 days in the trash goes with its shares; a request 7 days old is
+    * declined (the person told), one 48 hours old is reminded of once (the owner told).
+    */
   def housekeep(now: BigInt): Unit =
     val purged = trashedAt.keySet.filter(gone(_, now))
     shares = shares.filter(s => live(s, now) && !s.what.match { case Target.Doc(d) => purged(d); case _ => false })
     invited = invited.filter(i => now < i.sent + week)
     folderOf = folderOf -- purged
     trashedAt = trashedAt -- purged
+    ownerOf = ownerOf -- purged
+    val lapsed = asking.filterNot(r => now < r.asked + week)
+    val due = asking.filter(r => now < r.asked + week && r.asked + twoDays <= now && !r.reminded)
+    told = due.flatMap(r => ownerOf.get(r.doc).map(o => (o, "reminded"))).reverse ++ lapsed.map(r => (r.person, "lapsed")).reverse ++ told
+    asking = asking.filter(r => now < r.asked + week).map(r => if due.contains(r) then r.copy(reminded = true) else r)

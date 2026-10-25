@@ -119,6 +119,7 @@ private[frflow] object Eval:
       val r = compile(on)
       env => r(env).asInstanceOf[Product].productElement(k - 1)
     case Tree.SomeT(a)        => val r = compile(a); env => Some(r(env))
+    case Tree.Inj(l, a)       => val r = compile(a); env => if l then Left(r(env)) else Right(r(env))
     case Tree.ListT(es)       => val rs = es.map(compile); env => rs.map(_(env))
     case Tree.Over(kind, on, b, body) =>
       val (ro, rb) = (compile(on), compile(body))
@@ -137,14 +138,17 @@ private[frflow] object Eval:
           case Iter.OptSome   => ro(env).asInstanceOf[Option[Any]].exists(p)
     case Tree.Op(op, args)    => prim(op, args.map(compile))
     case Tree.Part(w, m)      => val r = compile(w); env => r(env).asInstanceOf[World](m)
-    case Tree.RunOn(Tree.Call(d, args), w) =>
+    case Tree.RunOn(Tree.Call(d, args), w, _) =>
       val (as, rw) = (args.map(compile), compile(w))
       env =>
         val (bs, body) = d.lifted.built
         body.termTree match
-          case Tree.Do(steps) => Flows.onModels(steps, bs.zip(as.map(_(env))).toMap, rw(env).asInstanceOf[World])
+          // A run that fails gives `Failed(error)` and the world as it was when it failed.
+          case Tree.Do(steps) =>
+            try Flows.onModels(steps, bs.zip(as.map(_(env))).toMap, rw(env).asInstanceOf[World])
+            catch case Flows.Raised(e, at) => (Failed(e), at)
           case other          => throw IllegalArgumentException(s"FrFlow: ${d.name} is not a flow")
-    case Tree.RunOn(other, _) => throw IllegalArgumentException(s"FrFlow: only a flow's call runs on the models, not $other")
+    case Tree.RunOn(other, _, _) => throw IllegalArgumentException(s"FrFlow: only a flow's call runs on the models, not $other")
     case Tree.Do(_)           => _ => throw IllegalStateException("FrFlow: a flow runs on the models (FrFlow.runOn) or in production (run)")
 
   /** Under a test: that this part of the formula went this way. */
@@ -157,6 +161,7 @@ private[frflow] object Eval:
       Option.when(adt.ctorOf(v) eq c)((if c.fields.isEmpty then Nil else fields(v)).zip(bs).map((x, b) => b -> x).toMap)
     case Pat.SomeP(b)    => v match { case Some(x) => Some(Map(b -> x)); case _ => None }
     case Pat.NoneP       => Option.when(v == None)(Map.empty)
+    case Pat.InjP(l, b)  => v match { case Left(x) if l => Some(Map(b -> x)); case Right(x) if !l => Some(Map(b -> x)); case _ => None }
     case Pat.ConsP(h, t) => v match { case x :: rest => Some(Map(h -> x, t -> rest)); case _ => None }
     case Pat.NilP        => Option.when(v == Nil)(Map.empty)
 

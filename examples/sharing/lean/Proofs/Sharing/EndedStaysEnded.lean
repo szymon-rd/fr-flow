@@ -15,15 +15,16 @@ open Sharing.EndedStaysEnded
 once over, is over at every later time (its contract). -/
 theorem complete : Obl.complete := by
   unfold Obl.complete
-  intro events inForce isOpen gone startedAt hF hO hG hC
+  intro events inForce isOpen gone startedAt announce record isPending reminderDue hF hO hG hC
   unfold Sharing.EndedStaysEnded.claim
   refine ⟨fun pre post hev => ?_, fun t u htu => ⟨⟨fun s hs => ?_, fun i hi => ?_⟩, fun doc hd => ?_⟩⟩
   · subst hev
     unfold Sharing.Run.after
-    exact FrFlow.along_when (Sharing.Run.step (Sharing.mayEdit inForce Sharing.reaches Sharing.covers) isOpen gone inForce)
-      (fun _ e => match e with | Event.Asked _ => True | Event.Housekept => True | Event.Waited d => d ≥ 0)
+    exact FrFlow.along_when (Sharing.Run.step announce record (Sharing.mayEdit inForce Sharing.reaches Sharing.covers) Sharing.ownedBy
+        isOpen gone isPending reminderDue inForce)
+      (fun _ e => match e with | Event.Asked _ => True | Event.Housekept => True | Event.Delivered => True | Event.Waited d => d ≥ 0)
       (fun a b => a.now ≤ b.now) _ (fun _ => Int.le_refl _) (fun _ _ _ h1 h2 => Int.le_trans h1 h2)
-      (fun m e ok => by cases e <;> simp [Sharing.Run.step] at ok ⊢ <;> omega)
+      (fun m e ok => by cases e <;> simp [Sharing.Run.step] at ok ⊢ <;> (try split) <;> (try simp) <;> omega)
       pre post (fun p e q h => hC p q e h)
   · have h1 := hF s t; have h2 := hF s u
     simp only [Sharing.InForceContract.post] at h1 h2

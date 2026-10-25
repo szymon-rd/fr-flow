@@ -5,19 +5,23 @@ import java.sql.{Connection, DriverManager, ResultSet}
 import sharing.domain.*
 
 /** The library in SQLite: one table per kind of row, each row with its place in its list (`pos`), so the library is
-  * read back in the order it was saved. Times (seconds) are kept as text, exactly; none is null. A save replaces every row in one transaction. Checked against LibraryModel
-  * (LibraryKept).
+  * read back in the order it was saved. Times (seconds) are kept as text, exactly; none is null. A log entry and a notice
+  * are kept whole, each in a row of its own (serialized). A save replaces every row in one transaction: a save that fails
+  * changes nothing, and a change is saved with its entry and its notices. Checked against LibraryModel (LibraryKept).
   */
 final class SqlLibraryStore private (conn: Connection) extends LibraryStore:
   private val tables = List(
-    "documents (pos integer primary key, id text not null, title text not null, trashed text)",
+    "documents (pos integer primary key, id text not null, title text not null, trashed text, owner text not null)",
     "document_folders (doc integer not null, pos integer not null, folder text not null, primary key (doc, pos))",
     "folders (pos integer primary key, id text not null, name text not null)",
     "folder_folders (folder integer not null, pos integer not null, around text not null, primary key (folder, pos))",
     "teams (pos integer primary key, id text not null)",
     "members (team integer not null, pos integer not null, person text not null, primary key (team, pos))",
     "shares (pos integer primary key, what text not null, what_id text not null, with_whom text not null, with_id text not null, level text not null, until text)",
-    "invitations (pos integer primary key, to_person text not null, what text not null, what_id text not null, level text not null, by_person text not null, sent text not null)")
+    "invitations (pos integer primary key, to_person text not null, what text not null, what_id text not null, level text not null, by_person text not null, sent text not null)",
+    "requests (pos integer primary key, person text not null, doc text not null, level text not null, asked text not null, reminded integer not null)",
+    "log (pos integer primary key, entry text not null)",
+    "outbox (pos integer primary key, notice text not null)")
   tables.foreach(t => conn.createStatement().executeUpdate(s"create table if not exists $t"))
 
   def load = Flow.effect(library)
@@ -32,16 +36,30 @@ final class SqlLibraryStore private (conn: Connection) extends LibraryStore:
     val members = rows("select team, person from members order by team, pos")(r => r.getInt(1) -> PersonId(r.getString(2)))
       .groupMap(_._1)(_._2)
     Library(
-      rows("select pos, id, title, trashed from documents order by pos")(r =>
-        Document(DocumentId(r.getString(2)), r.getString(3), docFolders.getOrElse(r.getInt(1), Nil), time(r, 4))),
+      rows("select pos, id, title, trashed, owner from documents order by pos")(r =>
+        Document(DocumentId(r.getString(2)), r.getString(3), docFolders.getOrElse(r.getInt(1), Nil), time(r, 4), PersonId(r.getString(5)))),
       rows("select pos, id, name from folders order by pos")(r =>
         Folder(FolderId(r.getString(2)), r.getString(3), around.getOrElse(r.getInt(1), Nil))),
       rows("select pos, id from teams order by pos")(r => Team(TeamId(r.getString(2)), members.getOrElse(r.getInt(1), Nil))),
       rows("select what, what_id, with_whom, with_id, level, until from shares order by pos")(share),
       rows("select to_person, what, what_id, level, by_person, sent from invitations order by pos")(r =>
         Invitation(PersonId(r.getString(1)), target(r.getString(2), r.getString(3)), Level.valueOf(r.getString(4)), PersonId(r.getString(5)),
-          BigInt(r.getString(6)))))
+          BigInt(r.getString(6)))),
+      rows("select person, doc, level, asked, reminded from requests order by pos")(r =>
+        AccessRequest(PersonId(r.getString(1)), DocumentId(r.getString(2)), Level.valueOf(r.getString(3)), BigInt(r.getString(4)), r.getInt(5) != 0)),
+      rows("select entry from log order by pos")(r => whole[Entry](r.getString(1))),
+      rows("select notice from outbox order by pos")(r => whole[Notice](r.getString(1))))
   }
+
+  /** A value kept whole in a row: serialized, as text. */
+  private def kept(v: java.io.Serializable): String =
+    val out = java.io.ByteArrayOutputStream()
+    val o = java.io.ObjectOutputStream(out)
+    o.writeObject(v)
+    o.close()
+    java.util.Base64.getEncoder.encodeToString(out.toByteArray)
+  private def whole[T](s: String): T =
+    java.io.ObjectInputStream(java.io.ByteArrayInputStream(java.util.Base64.getDecoder.decode(s))).readObject().asInstanceOf[T]
 
   private def time(r: ResultSet, i: Int): Option[BigInt] = Option(r.getString(i)).map(BigInt(_))
   private def target(kind: String, id: String): Target = if kind == "doc" then Target.Doc(DocumentId(id)) else Target.InFolder(FolderId(id))
@@ -57,10 +75,10 @@ final class SqlLibraryStore private (conn: Connection) extends LibraryStore:
   def replaceWith(l: Library): Unit = synchronized {
     conn.setAutoCommit(false)
     try
-      List("documents", "document_folders", "folders", "folder_folders", "teams", "members", "shares", "invitations")
+      List("documents", "document_folders", "folders", "folder_folders", "teams", "members", "shares", "invitations", "requests", "log", "outbox")
         .foreach(t => conn.createStatement().executeUpdate(s"delete from $t"))
       l.documents.zipWithIndex.foreach { (d, i) =>
-        insert("documents", i, d.id.name, d.title, d.trashed.map(_.toString).orNull)
+        insert("documents", i, d.id.name, d.title, d.trashed.map(_.toString).orNull, d.owner.name)
         d.folders.zipWithIndex.foreach((f, j) => insert("document_folders", i, j, f.name))
       }
       l.folders.zipWithIndex.foreach { (f, i) =>
@@ -82,6 +100,9 @@ final class SqlLibraryStore private (conn: Connection) extends LibraryStore:
         val (what, whatId) = targetRow(v.what)
         insert("invitations", i, v.to.name, what, whatId, v.level.toString, v.by.name, v.sent.toString)
       }
+      l.requests.zipWithIndex.foreach((q, i) => insert("requests", i, q.person.name, q.doc.name, q.level.toString, q.asked.toString, if q.reminded then 1 else 0))
+      l.log.zipWithIndex.foreach((e, i) => insert("log", i, kept(e)))
+      l.outbox.zipWithIndex.foreach((n, i) => insert("outbox", i, kept(n)))
       conn.commit()
     catch case e: Throwable => { conn.rollback(); throw e }
     finally conn.setAutoCommit(true)

@@ -97,6 +97,8 @@ final class Lifted[+F] private[frflow] (build: () => (List[Binder], Term[?]), pr
   /** The boundaries a flow calls, and whether it mentions the boundaries' world. */
   def boundaries: List[Boundary[?]] = printed.boundaries
   def world: Boolean = printed.world
+  /** The error types a flow raises or handles (Lean's `[MonadExceptOf E m]`). */
+  def errors: List[String] = printed.errors
   def lean: String = if params.isEmpty then body else s"fun ${params.map((n, t) => s"($n : $t)").mkString(" ")} => $body"
   def leanType: String = (params.map(_._2) :+ result).mkString(" → ")
 
@@ -113,12 +115,17 @@ object Lifted:
       (bs, Term(Tree.Do(s), t))
     }, f, source)
   /** The code of a flow's contract: the flow from its inputs, run on the models from a world. */
-  @scala.annotation.publicInBinary private[frflow] def runOn(flow: Def[?], ins: List[LeanType[?]], result: LeanType[?]): Lifted[Nothing] =
+  @scala.annotation.publicInBinary private[frflow] def runOn(flow: Def[?], ins: List[LeanType[?]], result: LeanType[?],
+      err: Option[LeanType[?]] = None): Lifted[Nothing] =
     Lifted(() => {
       val hints = flow.lifted.built._1.map(_.hint)
       val as = ins.zipWithIndex.map((t, i) => Binder(hints.lift(i).getOrElse(if i == 0 then "x" else s"x$i"), t))
       val w = Binder("w", summon[LeanType[World]])
-      (as :+ w, Term(Tree.RunOn(Tree.Call(flow, as.map(Tree.Var(_))), Tree.Var(w)), result))
+      // A run that may fail gives its outcome: `Except E R`, and the world after.
+      val r = (err, result.shape) match
+        case (Some(e), Shape.TupleOf(List(x, world))) => LeanType.of(Shape.TupleOf(List(LeanType.of(Shape.EitherOf(e, x)), world)))
+        case _                                        => result
+      (as :+ w, Term(Tree.RunOn(Tree.Call(flow, as.map(Tree.Var(_))), Tree.Var(w), err), r))
     }, null, flow.lifted.source)
   /** A lambda over terms of these types. */
   @scala.annotation.publicInBinary private[frflow] def lambda[F](f: AnyRef, types: List[LeanType[?]], source: String): Lifted[F] =

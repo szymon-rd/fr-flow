@@ -12,6 +12,8 @@ trait Lifetimes:
   def inForce(share: Share, now: BigInt): Boolean
   def isOpen(invitation: Invitation, now: BigInt): Boolean
   def gone(document: Document, now: BigInt): Boolean
+  def isPending(request: AccessRequest, now: BigInt): Boolean
+  def reminderDue(request: AccessRequest, now: BigInt): Boolean
 
 /** The lifetimes' contracts, each with its code, and the durations they are stated with. */
 object Lifetimes:
@@ -21,6 +23,8 @@ object Lifetimes:
   val isOpen = Param[(Invitation, BigInt) => Boolean]("isOpen", "whether an invitation is open at a moment: it can be accepted then")
   val gone = Param[(Document, BigInt) => Boolean]("gone",
     "whether a document is gone at a moment: past restoring, purged by the next housekeeping")
+  val isPending = Param[(AccessRequest, BigInt) => Boolean]("isPending", "whether an access request is pending at a moment: it can be approved then")
+  val reminderDue = Param[(AccessRequest, BigInt) => Boolean]("reminderDue", "whether the owner is due a reminder of an access request at a moment")
 
   // ---------------------------------------------------------------------------
   // the durations
@@ -28,6 +32,13 @@ object Lifetimes:
 
   val invitationLasts = Param[BigInt]("invitationLasts", "how long an invitation stays open after it is sent, in seconds")
   val trashKeeps = Param[BigInt]("trashKeeps", "how long a document stays in the trash before it is gone, in seconds")
+  val requestLasts = Param[BigInt]("requestLasts", "how long an access request stays pending after it is made, in seconds")
+  val remindAfter = Param[BigInt]("remindAfter", "how long after an access request is made its document's owner is reminded of it, in seconds")
+
+  val requestLifetime = Node.definition("RequestLifetime",
+    "An access request stays pending for 7 days after it is made; its document's owner is reminded of it after 48 hours.",
+    why = "Q12: a reminder after 48 h; declined automatically after 7 days."
+  )(requestLasts := (7 * 86400: Term[BigInt]), remindAfter := (2 * 86400: Term[BigInt]))
 
   val invitationLifetime = Node.definition("InvitationLifetime", "An invitation stays open for 7 days after it is sent.",
     why = "Q7: an invitation lapses after 7 days; a week is long enough to answer, short enough not to leave stale offers."
@@ -85,3 +96,33 @@ object Lifetimes:
       reject(planTrashed, now + 28 * day, true, "never before thirty days"))
 
   val goneCode = define { (doc: Term[Document], t: Term[BigInt]) => doc.trashed.fold(False)(at => at + trashKeeps <= t) }
+
+  private val catAsks = AccessRequest(cat, plan, Level.View, now - day, false)
+
+  val isPendingContract = Node.contract(isPending)("PendingContract",
+    "An access request is pending from when it is made until 7 days after; then it has lapsed.",
+    why = "Q12: a request nobody answers is declined automatically after 7 days.",
+    idea = "Access requests"
+  )((r, t, result) => result === (t < r.asked + requestLasts))
+    .leftOpenAbove
+    .under(sharing.requests.AccessRequests.requestsAreAsks, Deadlines.requestsAnsweredOnTime)
+    .examples()(
+      expect(catAsks, now, true, "made a day ago"),
+      expect(catAsks, now + 6 * day, false, "seven days after it was made"),
+      reject(catAsks, now + 30 * day, true, "a month later it has long lapsed"))
+
+  val isPendingCode = define { (r: Term[AccessRequest], t: Term[BigInt]) => t < r.asked + requestLasts }
+
+  val reminderDueContract = Node.contract(reminderDue)("ReminderDueContract",
+    "The owner is due a reminder of an access request from 48 hours after it is made.",
+    why = "Q12: a reminder after 48 hours, so a request is not forgotten; once reminded, never again (ChaseContract).",
+    idea = "Access requests"
+  )((r, t, result) => result === (r.asked + remindAfter <= t))
+    .leftOpenAbove
+    .under(sharing.requests.AccessRequests.requestsAreAsks, Deadlines.requestsAnsweredOnTime)
+    .examples()(
+      expect(catAsks, now, false, "made a day ago"),
+      expect(catAsks, now + day, true, "two days after it was made"),
+      reject(catAsks, now - day, true, "never before it was made"))
+
+  val reminderDueCode = define { (r: Term[AccessRequest], t: Term[BigInt]) => r.asked + remindAfter <= t }

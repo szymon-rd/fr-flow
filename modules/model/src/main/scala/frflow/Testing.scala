@@ -110,6 +110,7 @@ private[frflow] final class Plan(custom: Map[String, Gen[?]], seeds: Map[String,
       only(u) || !seen(k) && (u.shape match
         case Shape.ListOf(a)   => go(a, seen + k)
         case Shape.OptionOf(a) => go(a, seen + k)
+        case Shape.EitherOf(e, a) => go(e, seen + k) || go(a, seen + k)
         case Shape.SetOf(a)    => go(a, seen + k)
         case Shape.MapOf(x, y) => go(x, seen + k) || go(y, seen + k)
         case Shape.TupleOf(as) => as.exists(go(_, seen + k))
@@ -128,6 +129,7 @@ private[frflow] object Plan:
     case Shape.Opq(o)      => s"${o.name}.T"
     case Shape.ListOf(a)   => s"List[${name(a)}]"
     case Shape.OptionOf(a) => s"Option[${name(a)}]"
+    case Shape.EitherOf(e, a) => s"Either[${name(e)}, ${name(a)}]"
     case Shape.SetOf(a)    => s"Set[${name(a)}]"
     case Shape.MapOf(k, v) => s"Map[${name(k)}, ${name(v)}]"
     case Shape.TupleOf(as) => as.map(name).mkString("(", ", ", ")")
@@ -142,6 +144,8 @@ private[frflow] object Plan:
     (t.shape, v) match
       case (Shape.ListOf(a), xs: List[?])     => add(v); xs.foreach(go(a, _))
       case (Shape.OptionOf(a), Some(x))       => add(v); go(a, x)
+      case (Shape.EitherOf(e, _), Left(x))    => add(v); go(e, x)
+      case (Shape.EitherOf(_, a), Right(x))   => add(v); go(a, x)
       case (Shape.SetOf(a), xs: Set[?])       => add(v); xs.foreach(go(a, _))
       case (Shape.MapOf(k, w), m: Map[?, ?])  => add(v); m.foreach((x, y) => { go(k, x); go(w, y) })
       case (Shape.TupleOf(as), p: Product)    => add(v); as.zip(p.productIterator.toList).foreach(go(_, _))
@@ -215,6 +219,7 @@ final class Draw private[frflow] (rnd: SplittableRandom, val size: Int, plan: Pl
     case Shape.UnitT       => ()
     case Shape.ListOf(a)   => nested(List.fill(length)(value(a)))
     case Shape.OptionOf(a) => if chance(0.25) then None else Some(nested(value(a)))
+    case Shape.EitherOf(e, a) => if chance(0.25) then Left(nested(value(e))) else Right(nested(value(a)))
     case Shape.MapOf(k, v) => nested(List.fill(length)(value(k) -> value(v)).toMap)
     case Shape.SetOf(a)    => nested(List.fill(length)(value(a)).toSet)
     case Shape.TupleOf(as) => Tuple.fromArray(as.map(value(_).asInstanceOf[Object]).toArray)
@@ -252,6 +257,8 @@ private[frflow] object Shrink:
       case (Shape.SetOf(a), xs: Set[?])      => list(a, xs.toList).map(_.toSet)
       case (Shape.MapOf(k, w), m: Map[?, ?]) => list(LeanType.of[Any](Shape.TupleOf(List(k, w))), m.toList).map(_.asInstanceOf[List[(Any, Any)]].toMap)
       case (Shape.OptionOf(a), Some(x))      => None #:: go(a, x).map(Some(_))
+      case (Shape.EitherOf(e, _), Left(x))   => go(e, x).map(Left(_))
+      case (Shape.EitherOf(_, a), Right(x))  => go(a, x).map(Right(_))
       case (Shape.TupleOf(as), p: Product)   =>
         val xs = p.productIterator.toList
         LazyList.from(xs.indices).flatMap(i => go(as(i), xs(i)).map(y => Tuple.fromArray(xs.updated(i, y).map(_.asInstanceOf[Object]).toArray)))
@@ -338,6 +345,7 @@ private[frflow] object Testing:
       case Shape.Unknown | Shape.WorldT | Shape.FlowOf(_) => false
       case Shape.ListOf(a)   => known(a)
       case Shape.OptionOf(a) => known(a)
+      case Shape.EitherOf(e, a) => known(e) && known(a)
       case Shape.SetOf(a)    => known(a)
       case Shape.MapOf(k, v) => known(k) && known(v)
       case Shape.TupleOf(as) => as.forall(known)
@@ -494,6 +502,7 @@ private[frflow] object Coverage:
     case Pat.Ctor(_, c, _) => c.label
     case Pat.SomeP(_)      => "some value"
     case Pat.NoneP         => "none"
+    case Pat.InjP(l, _)    => if l then "an error" else "a value"
     case Pat.ConsP(_, _)   => "not empty"
     case Pat.NilP          => "empty"
 
@@ -511,6 +520,7 @@ private[frflow] object Coverage:
     case Tree.Tup(es)            => es
     case Tree.Proj(on, _, _)     => List(on)
     case Tree.SomeT(a)           => List(a)
+    case Tree.Inj(_, a)          => List(a)
     case Tree.ListT(es)          => es
     case Tree.Over(_, on, _, b)  => List(on, b)
     case Tree.Op(_, as)          => as

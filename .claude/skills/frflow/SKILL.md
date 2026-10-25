@@ -319,6 +319,14 @@ def expireOnce(now: Term[BigInt]): Flow[CrmStore] =   // the code: a plain def, 
   induction (`FrFlow.always_when`). Put a deadline under the branch whose proof uses it (the branch
   says it with the open word, the deadline with the clock); `idle` keeps open words open, so the root
   never lists what they must at least allow. See `examples/sharing` (`time/`).
+- **Failures**: declare a boundary that may fail with its error (`Boundary.failing[T](name, means)(error)`);
+  proofs then hold for every pattern of the world's faults. Errors are Cats': `Flow.raiseError[A](e)`,
+  `f.handleErrorWith[E](e => g)`, `f.attempt[E]`, `f.retry[E](Schedule.exponential(1, retries = 2))`,
+  `f.guarantee[E](fin)`, `Flow.bracket[E](acquire)(use)(release)`. A contract on a flow that may fail says
+  what a failed run leaves: `.failsChangingNothing[E]` or `.onFailure[E]((e, before, after) => …)`; its
+  examples give `Failed(error)` from `before.failing(false, true)`. Make a request one save, so that
+  "fails and changes nothing" is provable; keep what must be saved together (an audit entry, an outbox
+  notice) in the one state the save writes.
 
 ## Terms or plain Scala
 

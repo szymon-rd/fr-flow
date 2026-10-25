@@ -28,6 +28,8 @@ private[frflow] enum Shape:
   case Num(kind: NumKind)
   case ListOf(a: LeanType[?])
   case OptionOf(a: LeanType[?])
+  /** A flow's outcome (`attempt`): an error or a value. Lean's `Except E A`. */
+  case EitherOf(e: LeanType[?], a: LeanType[?])
   case MapOf(k: LeanType[?], v: LeanType[?])
   case SetOf(a: LeanType[?])
   case TupleOf(as: List[LeanType[?]])
@@ -138,6 +140,7 @@ object LeanType:
         case "frflow.Term" | "frflow.Flow" => as.head
         case "scala.collection.immutable.List" => of(Shape.ListOf(as.head))
         case "scala.Option" => of(Shape.OptionOf(as.head))
+        case "scala.util.Either" => of(Shape.EitherOf(as(0), as(1)))
         case "scala.collection.immutable.Map" => of(Shape.MapOf(as(0), as(1)))
         case "scala.collection.immutable.Set" => of(Shape.SetOf(as.head))
         case n if n.startsWith("scala.Tuple") => of(Shape.TupleOf(as))
@@ -169,6 +172,7 @@ object LeanType:
   given [A](using a: LeanType[A]): LeanType[Option[A]] = of(Shape.OptionOf(a))
   given [A](using a: LeanType[A]): LeanType[Some[A]] = of(Shape.OptionOf(a))
   given LeanType[None.type] = of(Shape.OptionOf(unknown))
+  given [E, A](using e: LeanType[E], a: LeanType[A]): LeanType[Either[E, A]] = of(Shape.EitherOf(e, a))
   given [K, V](using k: LeanType[K], v: LeanType[V]): LeanType[Map[K, V]] = of(Shape.MapOf(k, v))
   given [A](using a: LeanType[A]): LeanType[Set[A]] = of(Shape.SetOf(a))
   given [A, B](using a: LeanType[A], b: LeanType[B]): LeanType[(A, B)] = of(Shape.TupleOf(List(a, b)))
@@ -213,6 +217,7 @@ private[frflow] final class Types:
     case Shape.SetOf(a)      => s"(${tpe(a)} → Prop)"
     case Shape.ListOf(a)     => s"(List ${tpe(a)})"
     case Shape.OptionOf(a)   => s"(Option ${tpe(a)})"
+    case Shape.EitherOf(e, a) => val te = tpe(e); s"(Except $te ${tpe(a)})"
     case Shape.TupleOf(as)   => as.map(tpe).mkString("(", " × ", ")")
     case Shape.FnOf(as, r)   => "(" + (as :+ r).map(tpe).mkString(" → ") + ")"
     case Shape.Opq(o)        => val n = Names.ident(o.name); opaques.getOrElseUpdate(n, o); n
@@ -254,6 +259,7 @@ private[frflow] object Types:
     case Shape.Data(a)                     => List(a)
     case Shape.ListOf(a)                   => adts(a)
     case Shape.OptionOf(a)                 => adts(a)
+    case Shape.EitherOf(e, a)              => adts(e) ++ adts(a)
     case Shape.SetOf(a)                    => adts(a)
     case Shape.MapOf(k, v)                 => adts(k) ++ adts(v)
     case Shape.TupleOf(as)                 => as.flatMap(adts)
@@ -270,6 +276,7 @@ private[frflow] object Types:
     case Shape.Unknown       => "?"
     case Shape.ListOf(a)     => s"List[${scala(a)}]"
     case Shape.OptionOf(a)   => s"Option[${scala(a)}]"
+    case Shape.EitherOf(e, a) => s"Either[${scala(e)}, ${scala(a)}]"
     case Shape.MapOf(k, v)   => s"Map[${scala(k)}, ${scala(v)}]"
     case Shape.SetOf(a)      => s"Set[${scala(a)}]"
     case Shape.TupleOf(as)   => as.map(scala).mkString("(", ", ", ")")
@@ -284,6 +291,7 @@ private[frflow] object Types:
     case Shape.WorldT | Shape.FlowOf(_) => true
     case Shape.ListOf(a)   => mentionsWorld(a)
     case Shape.OptionOf(a) => mentionsWorld(a)
+    case Shape.EitherOf(e, a) => mentionsWorld(e) || mentionsWorld(a)
     case Shape.SetOf(a)    => mentionsWorld(a)
     case Shape.MapOf(k, v) => mentionsWorld(k) || mentionsWorld(v)
     case Shape.TupleOf(as) => as.exists(mentionsWorld)
@@ -296,6 +304,7 @@ private[frflow] object Types:
     case Shape.Data(a)     => !seen(a.name) && a.ctors.exists(_.fields.exists((_, f) => bounded(f, seen + a.name)))
     case Shape.ListOf(a)   => bounded(a, seen)
     case Shape.OptionOf(a) => bounded(a, seen)
+    case Shape.EitherOf(e, a) => bounded(e, seen) || bounded(a, seen)
     case Shape.SetOf(a)    => bounded(a, seen)
     case Shape.MapOf(k, v) => bounded(k, seen) || bounded(v, seen)
     case Shape.TupleOf(as) => as.exists(bounded(_, seen))

@@ -31,6 +31,10 @@
     {
       "text": "Usually time should be introduced at a nth refinement in model, not right away.",
       "at": "2026-10-25T11:14:14.871807Z"
+    },
+    {
+      "text": "Yes. Go",
+      "at": "2026-10-25T12:25:00.000000Z"
     }
   ],
   "questions": [
@@ -163,6 +167,66 @@
         {
           "text": "All good. Merge to main",
           "at": "2026-10-25T11:14:45.474530Z"
+        }
+      ]
+    },
+    {
+      "id": "Q12",
+      "text": "Access requests. Who can ask, and who answers?",
+      "assumed": "Anyone named in the library asks for view or edit on a document or folder; any editor of it approves or declines; a reminder to the editors after 48 h; declined automatically after 7 days; approving makes the share.",
+      "at": "2026-10-25T12:20:00.000000Z",
+      "replies": [
+        {
+          "text": "Yes. Go",
+          "at": "2026-10-25T12:25:00.000000Z"
+        }
+      ]
+    },
+    {
+      "id": "Q13",
+      "text": "Notifications. What is notified, and what if delivery fails?",
+      "assumed": "Invitations, accepted invitations, access requests and their answers, and shares ending within a day; through an outbox, retried until delivered, at least once and never twice for one event (idempotent by event id).",
+      "at": "2026-10-25T12:20:00.000000Z",
+      "replies": [
+        {
+          "text": "Yes. Go",
+          "at": "2026-10-25T12:25:00.000000Z"
+        }
+      ]
+    },
+    {
+      "id": "Q14",
+      "text": "Ownership.",
+      "assumed": "Every document has exactly one owner (its creator); only the owner transfers it, to someone who may edit it; the owner always may edit; an owner leaving a team keeps their documents; the owner's share cannot be unshared or expire.",
+      "at": "2026-10-25T12:20:00.000000Z",
+      "replies": [
+        {
+          "text": "Yes. Go",
+          "at": "2026-10-25T12:25:00.000000Z"
+        }
+      ]
+    },
+    {
+      "id": "Q15",
+      "text": "Audit.",
+      "assumed": "Every change (share, unshare, move, invite, accept, withdraw, trash, restore, purge, transfer) is logged with who, what and when; every yes of canView is traceable to the log entries of the shares that gave it; the log is append-only and kept for a year.",
+      "at": "2026-10-25T12:20:00.000000Z",
+      "replies": [
+        {
+          "text": "Yes. Go",
+          "at": "2026-10-25T12:25:00.000000Z"
+        }
+      ]
+    },
+    {
+      "id": "Q16",
+      "text": "Failures. What does a client see when the store fails mid-request?",
+      "assumed": "The request fails with 503 and changes nothing (one transaction per request); a failed housekeeping run is retried at the next minute and changes nothing until it succeeds.",
+      "at": "2026-10-25T12:20:00.000000Z",
+      "replies": [
+        {
+          "text": "Yes. Go",
+          "at": "2026-10-25T12:25:00.000000Z"
         }
       ]
     }

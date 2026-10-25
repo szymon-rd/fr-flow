@@ -110,7 +110,7 @@ object Implementation:
     val name = if Ident.matches(text) then text else contract.id.head.toLower.toString + contract.id.tail
     val flow = Def(Lifted.flow(impl, ins, text), r, Some(name), isFlow = true)
     val pair = LeanType.of[Any](Shape.TupleOf(List(r, summon[LeanType[World]])))
-    val code = Def(Lifted.runOn(flow, ins, pair), pair, Some(s"${name}_run"))
+    val code = Def(Lifted.runOn(flow, ins, pair, contract.failure.map(_.err)), pair, Some(s"${name}_run"))
     Implementation(contract.id, () => code.lifted.value, files, "", Some(code), Some(flow))
 
 /** Runs a flow's proven code in `G`: `knowledge.run[IO](expiryJob)(db.bind(sqlite))` is the job, a function of its inputs. */
@@ -159,6 +159,9 @@ private[frflow] object Cell:
 extension (n: Node[?])
   private[frflow] def postFn: Option[(List[Any], Any) => Boolean] = n.post.map { p =>
     if n.isFlow then (ins: List[Any], r: Any) => r match
+      // A run that failed: what the contract says of one (nothing changed, or its failure clause).
+      case (Failed(e), after) => n.failure.exists(f => f.post.fold(after == ins.last)(fp =>
+        Fn.call(fp.value, List(e, ins.last, after)).asInstanceOf[Boolean]))
       case (x, after) => Fn.call(p.value, ins.init ++ List(x, ins.last, after)).asInstanceOf[Boolean]
       case _          => false
     else (ins: List[Any], r: Any) => Fn.call(p.value, ins :+ r).asInstanceOf[Boolean]

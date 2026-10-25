@@ -27,7 +27,8 @@ final class VocabularyModules(kb: KnowledgeBase, layout: Layout, vocabulary: Voc
     val defs = kb.defs.map { d =>
       // A flow is generic in its monad: any with the boundaries' operations.
       val (monad, tpe) =
-        if d.isFlow then (s"{m : Type → Type} [Monad m]${d.lifted.boundaries.map(b => s" [${b.lean} m]").mkString}",
+        if d.isFlow then (s"{m : Type → Type} [Monad m]${d.lifted.errors.map(e => s" [MonadExceptOf $e m]").mkString}" +
+          d.lifted.boundaries.map(b => s" [${b.lean} m]").mkString,
           (d.lifted.params.map(_._2) :+ s"m ${d.lifted.result}").mkString(" → "))
         else ("", d.lifted.leanType)
       val uses = boundariesFor(List(d.lifted)) ++ d.lifted.defs.map(_.name).filter(x => x != d.name && defNames(x)).map(layout.definition)
@@ -88,7 +89,11 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
         val w = s"x${ins.size}"
         val args = ins.indices.map(i => s"x$i").mkString(" ")
         val run = s"(${op.name} $xs)"
-        s"∀ $vars, $what ${if args.isEmpty then "" else args + " "}$run.1 $w $run.2$rest"
+        // A run that may fail: what holds of its outcome, the post of a result, the failure clause of an error.
+        if c.failure.isDefined then
+          val fail = c.failure.flatMap(_.post).fold(qualified(c, "failure"))(fp => ref(qualified(c, "failure"), ctx(fp)))
+          s"∀ $vars, FrFlow.outcome (fun r' w' => $what ${if args.isEmpty then "" else args + " "}r' $w w') (fun e' w' => $fail e' $w w') $run$rest"
+        else s"∀ $vars, $what ${if args.isEmpty then "" else args + " "}$run.1 $w $run.2$rest"
       else
         val (vars, xs) = call(p.params.init.map(_._2))
         // An operation of no inputs is a value: `what op`.
@@ -103,10 +108,18 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
       List(lifted("rule", r)) ++ ks.map((c, v) => lifted(s"view_${c.id}", v)) ++ List(declared("claim", claimCtx(n), "Prop", claim))
     case (_, Some(post)) =>
       val kept = formalKeeps(n).flatMap((inv, v) => inv.rule.toList.map(lifted(s"rule_${inv.id}", _)) :+ lifted(s"view_${inv.id}", v))
-      List(lifted("post", post)) ++ kept ++ n.local.map(lifted("runCheck", _)) ++
+      List(lifted("post", post)) ++ n.failure.map(failure(n, _)).toList ++ kept ++ n.local.map(lifted("runCheck", _)) ++
         List(declared("claim", claimCtx(n), "Prop", everyCall(n, ref(qualified(n, "post"), ctx(post)))))
     case _ => n.formula.map(lifted("claim", _)).toList ++ conjunctsOf(n).zipWithIndex.map((c, i) =>
       doc(s"Conjunct ${i + 1} of the claim: a part that says only this restates it.") + declared(s"conjunct_${i + 1}", claimCtx(n), "Prop", resolve(c)))
+  /** What a contract on a flow says of a run that fails: its clause, or that every model's state is as before. */
+  private def failure(n: Node[?], f: FailureClause): String = f.post.fold {
+    val same = kb.models.map(m => s"w'.${m.model.field} = w.${m.model.field}")
+    doc("A run that fails changes nothing: every model's state after it is as before.") +
+      declared("failure", Ctx.empty, s"${frflow.Types.walk(f.err).lean} → World → World → Prop",
+        s"fun (_ : ${frflow.Types.walk(f.err).lean}) (w w' : World) => ${if same.isEmpty then "True" else same.mkString(" ∧ ")}")
+  }(lifted("failure", _))
+
   private def keeps(n: Node[?], c: Node[?], view: Lifted[?], rule: String): String =
     s"(${everyCall(c, s"∀ p ∈ ${ref(qualified(n, s"view_${c.id}"), ctx(view))}", s", $rule p.1 p.2")})"
 

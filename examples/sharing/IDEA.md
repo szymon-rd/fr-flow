@@ -3,7 +3,9 @@
 People keep documents in folders and share them with other people, or with
 teams. The shares decide who can view a document and who can edit it, and who
 may change whom it is shared with. Shares can end, invitations lapse, and
-documents in the trash are deleted for good after a while.
+documents in the trash are deleted for good after a while. People can ask for
+access; every document has an owner; every change is logged; people are told
+of what concerns them; and a failure leaves things as they were.
 
 From: Q1, Q5
 
@@ -63,7 +65,54 @@ From: Q9
 ## Serving
 
 The service answers these questions and makes these changes over HTTP, keeping
-the library in memory or in a SQLite file. Versions, deny rules, audit logs and
-outside identity providers are not part of it yet.
+the library in memory or in a SQLite file. Versions, deny rules and outside
+identity providers are not part of it yet.
 
 From: Q5
+
+## Access requests
+
+Anyone named in the library can ask for view or edit on a document. Asking
+gives no access. Anyone who can edit the document approves the request, which
+makes the share asked for, or declines it. A request nobody answers is
+reminded of to the document's owner after 48 hours, once, and declined
+automatically after 7 days; housekeeping does both.
+
+From: Q12
+
+## Ownership
+
+Every document has exactly one owner. Only the owner, while they can edit it,
+hands it on, and only to someone who can edit it; the new owner then has an
+edit share of it for good. Nobody can unshare or replace an owner's own share
+of their document, so the owner always can edit it, and leaving a team never takes their
+documents from them.
+
+From: Q14
+
+## Audit
+
+Every change is logged with who asked, what and when, in the same save as the
+change, so no change is seen before its entry. Every yes of "can view" can be
+traced to the log entries of the shares that gave it. The log only grows.
+
+From: Q15
+
+## Notifications
+
+Invitations, accepted invitations, access requests and their answers,
+reminders, and documents handed on are notified to the person they concern.
+Each notice goes to an outbox in the same save as its change, and is sent from
+there, retried until the mail server has it: a person is told of each event at
+least once and never twice, because the mail server keeps each event once.
+
+From: Q13
+
+## Failures
+
+When the store fails in the middle of a request, the request is answered 503
+and changes nothing: each request is one save. A run of housekeeping that fails
+changes nothing and is tried again at the next minute; a run of delivery that
+fails leaves its notice in the outbox, to be sent again.
+
+From: Q16

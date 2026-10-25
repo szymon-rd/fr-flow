@@ -118,14 +118,15 @@ object Sharing:
 
   private val bobViewsPlan = Share(Target.Doc(plan), Grantee.Person(bob), Level.View, None)
   private val catViewsReports = Share(Target.InFolder(reports), Grantee.Person(cat), Level.View, None)
+  private val bobEditsPlan = Share(Target.Doc(plan), Grantee.Person(bob), Level.Edit, None)
 
   val shareContract = Node.contract(share)("ShareContract",
-    "Someone who may edit a document or folder shares it with a person or a team at a level, for good or until a time: the new share takes the place of any earlier share of it with them. When anyone else asks, nothing changes.",
-    why = "Anyone who can edit a document can share it (Q2), and a person or team has one share of a thing at a time, so sharing again changes the level and the end rather than adding a second share (Q6).",
+    "Someone who may edit a document or folder shares it with a person or a team at a level, for good or until a time: the new share takes the place of any earlier share of it with them, unless it is the owner's share of their own document, which stays. When anyone else asks, nothing changes.",
+    why = "Anyone who can edit a document can share it (Q2), and a person or team has one share of a thing at a time, so sharing again changes the level and the end rather than adding a second share (Q6); the owner's own share is not replaced, so it never becomes a view share or one that ends (Q14).",
     idea = "Who can see and change what"
   )((lib, t, by, s, result) =>
-    result === mayEdit(lib, t, by, s.what).fold(lib.copy((shares = s :: sharesWithout(lib.shares, s.what, s.withWhom))), lib))
-    .under(accessFollowsShares)
+    result === (mayEdit(lib, t, by, s.what) && !ownedBy(lib, s.what, s.withWhom)).fold(lib.copy((shares = s :: sharesWithout(lib.shares, s.what, s.withWhom))), lib))
+    .under(accessFollowsShares, sharing.ownership.Ownership.ownersKeepTheirDocuments)
     .examples()(
       expect(library, now, ann, bobViewsPlan, library.copy(shares = bobViewsPlan :: library.shares),
         "Ann may edit the plan, so she shares it with Bob"),
@@ -134,29 +135,33 @@ object Sharing:
       expect(library, now, bob, Share(Target.Doc(plan), Grantee.Person(bob), Level.Edit, None), library,
         "Bob may not edit the plan: his request changes nothing"),
       reject(library, now, bob, catViewsReports, library.copy(shares = catViewsReports :: library.shares),
-        "Bob may only view the reports folder, so he cannot share it"))
+        "Bob may only view the reports folder, so he cannot share it"),
+      expect(library.copy(shares = bobEditsPlan :: library.shares), now, bob, Share(Target.Doc(plan), Grantee.Person(ann), Level.View, Some(now + 3600)),
+        library.copy(shares = bobEditsPlan :: library.shares), "Bob may edit the plan, but Ann owns it: her edit share stays as it is"))
 
   val shareCode = define { (lib: Term[Library], t: Term[BigInt], by: Term[PersonId], s: Term[Share]) =>
-    mayEdit(lib, t, by, s.what).fold(lib.copy((shares = s :: sharesWithout(lib.shares, s.what, s.withWhom))), lib)
+    (mayEdit(lib, t, by, s.what) && !ownedBy(lib, s.what, s.withWhom)).fold(lib.copy((shares = s :: sharesWithout(lib.shares, s.what, s.withWhom))), lib)
   }
 
   val unshareContract = Node.contract(unshare)("UnshareContract",
-    "Someone who may edit a document or folder unshares it from a person or a team: their share of it goes. When anyone else asks, nothing changes.",
-    why = "Unsharing is changing who a document is shared with, which only someone who may edit it does (Q2).",
+    "Someone who may edit a document or folder unshares it from a person or a team: their share of it goes, unless it is the owner's share of their own document. When anyone else asks, nothing changes.",
+    why = "Unsharing is changing who a document is shared with, which only someone who may edit it does (Q2); the owner's own share stays, so the owner always may edit (Q14).",
     idea = "Who can see and change what"
   )((lib, t, by, what, withWhom, result) =>
-    result === mayEdit(lib, t, by, what).fold(lib.copy((shares = sharesWithout(lib.shares, what, withWhom))), lib))
-    .under(accessFollowsShares)
+    result === (mayEdit(lib, t, by, what) && !ownedBy(lib, what, withWhom)).fold(lib.copy((shares = sharesWithout(lib.shares, what, withWhom))), lib))
+    .under(accessFollowsShares, sharing.ownership.Ownership.ownersKeepTheirDocuments)
     .examples()(
       expect(library, now, ann, Target.InFolder(reports), Grantee.Team(eng), library.copy(shares = List(annEditsPlan, annEditsReports)),
         "Ann may edit the reports folder, so she unshares it from the engineering team"),
       expect(library, now, bob, Target.InFolder(reports), Grantee.Team(eng), library,
         "Bob may only view the folder: his request changes nothing"),
+      expect(library.copy(shares = bobEditsPlan :: library.shares), now, bob, Target.Doc(plan), Grantee.Person(ann),
+        library.copy(shares = bobEditsPlan :: library.shares), "Bob may edit the plan, but Ann owns it: her share stays"),
       reject(library, now, bob, Target.Doc(plan), Grantee.Person(ann), library.copy(shares = List(annEditsReports, engViewsReports)),
         "Bob cannot take Ann's share of the plan away"))
 
   val unshareCode = define { (lib: Term[Library], t: Term[BigInt], by: Term[PersonId], what: Term[Target], withWhom: Term[Grantee]) =>
-    mayEdit(lib, t, by, what).fold(lib.copy((shares = sharesWithout(lib.shares, what, withWhom))), lib)
+    (mayEdit(lib, t, by, what) && !ownedBy(lib, what, withWhom)).fold(lib.copy((shares = sharesWithout(lib.shares, what, withWhom))), lib)
   }
 
   /** Whether `by` may move the document into the folder (or out of every folder): they may edit the document, and the

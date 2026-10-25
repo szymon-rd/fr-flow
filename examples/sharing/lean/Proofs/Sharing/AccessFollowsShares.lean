@@ -45,17 +45,23 @@ theorem of_iff (lib : Library) (d : DocumentId) (t : Target) :
 theorem complete : Obl.complete := by
   unfold Obl.complete
   frflow_intro
-  -- Handling is not needed for the purpose: root_impl composes it.
-  clear h_HandleContract
+  -- Handling is not needed for the purpose: root_impl composes it. Nor are the audit trail and the notices: they say
+  -- what the service records and tells, which the purpose leaves out.
+  clear h_HandleContract h_AuditTrail h_NoticesFollowChanges
   simp only [frflow_defs] at *
-  -- The branches give the second half: invitations, the trash and housekeeping each say who may change them.
+  -- The branches give the second half: invitations, the trash, housekeeping, access requests and ownership each say
+  -- who may change them.
   obtain ⟨⟨hOffers, hAccept⟩, _⟩ := h_InvitationsAreOffers
   obtain ⟨hTrash, _⟩ := h_TrashUntilGone
   obtain ⟨hTidy, _⟩ := h_HousekeepingClearsOnlyTheEnded
-  refine ⟨⟨⟨⟨⟨⟨⟨fun lib t p d => ?_, fun lib t by_ s h => ?_⟩, fun lib t by_ what withWhom h => ?_⟩,
+  obtain ⟨⟨hAsk, hAnswer⟩, _⟩ := h_AccessRequestsAreAsks
+  obtain ⟨⟨hTransfer, _⟩, _⟩ := h_OwnersKeepTheirDocuments
+  refine ⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨fun lib t p d => ?_, fun lib t by_ s h => ?_⟩, fun lib t by_ what withWhom h => ?_⟩,
     fun lib t by_ d into h => ?_⟩,
     fun lib t by_ to what => ⟨(hOffers lib t by_ to what).1, fun level => ((hOffers lib t by_ to what).2 level).1⟩⟩,
-    hAccept⟩, fun lib t by_ d => ⟨(hTrash lib t by_ d).1, fun h => ((hTrash lib t by_ d).2 h).1⟩⟩, hTidy⟩
+    hAccept⟩, fun lib t by_ d => ⟨(hTrash lib t by_ d).1, fun h => ((hTrash lib t by_ d).2 h).1⟩⟩, hAsk⟩,
+    fun lib t by_ p d => ⟨fun h => ((hAnswer lib t by_ p d).1 h).1, (hAnswer lib t by_ p d).2⟩⟩,
+    fun lib t by_ d to h => (hTransfer lib t by_ d to h).1.1.1.2⟩, hTidy⟩
   · -- Access: the shares AccessContract keeps are those in force that reach the person and cover the document; and
     -- a document in the trash gives no access.
     have hf : ∀ s, s ∈ List.filter (fun s => decide ((inForce s t ∧ s.withWhom ∈ Grantee.Person p :: List.map
@@ -89,8 +95,8 @@ theorem complete : Obl.complete := by
         · next h => constructor
                     · intro he; split at he <;> simp at he
                     · rintro ⟨s, hs, hm, hl⟩; exact absurd ⟨s, (hf s).2 ⟨hs, hm⟩, hl⟩ h
-  · rw [h_ShareContract] at h; exact Sharing.Lemmas.changed h
-  · rw [h_UnshareContract] at h; exact Sharing.Lemmas.changed h
+  · rw [h_ShareContract] at h; exact (Sharing.Lemmas.changed h).1
+  · rw [h_UnshareContract] at h; exact (Sharing.Lemmas.changed h).1
   · rw [h_MoveContract] at h
     obtain ⟨h1, h2⟩ := Sharing.Lemmas.changed h
     refine ⟨h1, ?_⟩

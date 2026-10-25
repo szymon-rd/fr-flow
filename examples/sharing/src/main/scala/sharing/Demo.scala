@@ -5,7 +5,8 @@ import sharing.domain.*
 /** A small library the examples and the demo server start from, at a moment `now` (in seconds).
   *  - Ann may edit the plan, and everything in the reports folder.
   *  - The engineering team (Bob) may view everything in the reports folder.
-  *  - Cat has no share at all; nobody is invited; nothing is in the trash.
+  *  - Cat has no share at all; nobody is invited or asking; nothing is in the trash; the log and the outbox are empty.
+  *  - Ann owns both documents.
   *  - The Q3 report is in the q3 folder, inside reports.
   */
 object Demo:
@@ -26,15 +27,15 @@ object Demo:
   val annEditsReports = Share(Target.InFolder(reports), Grantee.Person(ann), Level.Edit, None)
   val engViewsReports = Share(Target.InFolder(reports), Grantee.Team(eng), Level.View, None)
 
-  val planDoc = Document(plan, "Plan", Nil, None)
-  val q3ReportDoc = Document(q3Report, "Q3 report", List(reports, q3), None)
+  val planDoc = Document(plan, "Plan", Nil, None, ann)
+  val q3ReportDoc = Document(q3Report, "Q3 report", List(reports, q3), None, ann)
 
   val library = Library(
     documents = List(planDoc, q3ReportDoc),
     folders = List(Folder(reports, "Reports", Nil), Folder(q3, "Q3", List(reports))),
     teams = List(Team(eng, List(bob))),
     shares = List(annEditsPlan, annEditsReports, engViewsReports),
-    invitations = Nil)
+    invitations = Nil, requests = Nil, log = Nil, outbox = Nil)
 
   /** Cat, invited by Ann a day before `now` to view the plan. */
   val catInvited = Invitation(cat, Target.Doc(plan), Level.View, ann, now - day)

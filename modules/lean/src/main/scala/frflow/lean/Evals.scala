@@ -82,13 +82,19 @@ final class Evals(kb: KnowledgeBase, refinement: Refinement):
           val p = app(qualified(n, "post"), ctx(post), env)._1
           val call = r match
             // A run's result and world after, as the post takes them: inputs, result, world before, world after.
+            // A run that may fail: the post of a result, the failure clause of an error (`FrFlow.outcome`).
+            case (x, w) if n.isFlow && n.failure.isDefined =>
+              val (as, before) = (tins.init.map(" " + _).mkString, tins.last)
+              val fail = n.failure.flatMap(_.post).fold(qualified(n, "failure"))(fp => app(qualified(n, "failure"), ctx(fp), env)._1)
+              (leanValue(outcome(x)), leanValue(w)).tupled.fold(s"$p$as $t $before")((tx, tw) =>
+                s"FrFlow.outcome (fun r' w' => $p$as r' $before w') (fun e' w' => $fail e' $before w') ($tx, $tw)")
             case (x, w) if n.isFlow =>
               val (as, before) = (tins.init.map(" " + _).mkString, tins.last)
               (leanValue(x), leanValue(w)).tupled.fold(s"$p$as $t $before")((tx, tw) => s"$p$as $tx $before $tw")
             case _ => s"$p$args $t"
           Eval(name, label, if v then call else s"¬ $call", if v then s"¬ $call" else call)
         }
-        val onImpl = for { d <- impl; g <- got; tg <- leanValue(g) } yield
+        val onImpl = for { d <- impl; g <- got; tg <- leanValue(if n.failure.isDefined then g match { case (x, w) => (outcome(x), w); case o => o } else g) } yield
           val f = code(d, env)._1
           Eval(name.ofCode, s"$label, run by ${d.name}", s"$f$args = $tg", s"$f$args ≠ $tg")
         onPost.toList ++ onImpl.toList
@@ -119,9 +125,16 @@ final class Evals(kb: KnowledgeBase, refinement: Refinement):
   private def lookup(pairs: List[(String, String)]): String =
     pairs.foldRight("none")((kv, rest) => s"if k' = ${kv._1} then some ${kv._2} else $rest")
 
+  /** A run's outcome as Lean's `Except`: `Failed(e)` an error, anything else a result. */
+  private def outcome(x: Any): Either[Any, Any] = x match
+    case Failed(e) => Left(e)
+    case r         => Right(r)
+
   private def leanValue(v: Any): Option[String] = v match
     case b: Boolean => Some(if b then "True" else "False")
+    // The faults, where a boundary may fail: Lean's `List Bool`.
     case w: World   => w.parts.toList.sortBy(_._1.field).traverse((m, s) => leanValue(s).map(t => s"${m.field} := $t"))
+      .map(fs => if kb.faulty then fs :+ s"faults := ${w.faults.mkString("[", ", ", "]")}" else fs)
       .map(fs => s"({ ${fs.mkString(", ")} } : $K.World)")
     case i: Int     => Some(int(BigInt(i)))
     case l: Long    => Some(int(BigInt(l)))
@@ -130,6 +143,9 @@ final class Evals(kb: KnowledgeBase, refinement: Refinement):
     case ()         => Some("()")
     case None       => Some("none")
     case Some(x)    => leanValue(x).map(t => s"(some $t)")
+    case Left(x)    => leanValue(x).map(t => s"(Except.error $t)")
+    case Failed(x)  => leanValue(x).map(t => s"(Except.error $t)")
+    case Right(x)   => leanValue(x).map(t => s"(Except.ok $t)")
     case l: List[?] => all(l.iterator).map(_.mkString("[", ", ", "]"))
     // A map, as the function Lean has for it (see `Lift.tpe`); a set, as its membership.
     case m: Map[?, ?] => m.toList.traverse((k, v) => (leanValue(k), leanValue(v)).tupled).map(kvs => s"(fun k' => ${lookup(kvs)})")

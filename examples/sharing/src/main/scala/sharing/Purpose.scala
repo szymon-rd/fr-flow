@@ -4,6 +4,8 @@ import frflow.*
 import sharing.domain.*
 import sharing.housekeeping.Housekeeping
 import sharing.invitations.Invitations
+import sharing.ownership.Ownership
+import sharing.requests.AccessRequests
 import sharing.service.Sharing
 import sharing.time.Lifetimes.{gone, inForce, isOpen}
 import sharing.trash.Trash
@@ -20,6 +22,7 @@ val covers = Param[(Library, Share, Target) => Boolean]("covers",
 val mayView = Param[(Library, BigInt, PersonId, Target) => Boolean]("mayView", "whether a person may view a document or folder at a moment")
 val mayEdit = Param[(Library, BigInt, PersonId, Target) => Boolean]("mayEdit", "whether a person may edit a document or folder at a moment")
 val inTrash = Param[(Library, DocumentId) => Boolean]("inTrash", "whether a document is in the trash")
+val ownedBy = Param[(Library, Target, Grantee) => Boolean]("ownedBy", "whether a share of a document or folder with someone is the owner's share of their own document")
 
 val reach = Node.definition("Reach", "A share reaches the person it is with, and everyone in the team it is with.",
   why = "Teams contain people only (Q3), so a share with a team reaches exactly its members, and nobody else."
@@ -51,6 +54,13 @@ val trashed = Node.definition("InTrash", "A document is in the trash when it was
   why = "Q8: a document in the trash gives nobody access, whatever its shares say; restoring it brings them back."
 )(inTrash := ((lib: Term[Library], d: Term[DocumentId]) => lib.documents.exists(doc => doc.id === d && doc.trashed.isDefined)))
 
+val owner = Node.definition("OwnersShare", "An owner's share of a document is a share of it with the document's owner in person.",
+  why = "Q14: what nobody may unshare is the owner's own share of their document; a share with a team the owner is in is not theirs in person."
+)(ownedBy := ((lib: Term[Library], what: Term[Target], withWhom: Term[Grantee]) =>
+  what
+    .on[Target.Doc](d => lib.documents.exists(doc => doc.id === d && withWhom === Grantee[Grantee.Person](doc.owner)))
+    .on[Target.InFolder](_ => False)))
+
 // ============================================================================
 // The purpose: no clock and no durations in it
 // ============================================================================
@@ -77,6 +87,14 @@ val accessFollowsShares = Node.claim("AccessFollowsShares",
   forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId]) =>
     (Trash.trash(lib, t, by, d) =!= lib ==> mayEdit(lib, t, by, Target[Target.Doc](d))) &&
     (Trash.restore(lib, t, by, d) =!= lib ==> mayEdit(lib, t, by, Target[Target.Doc](d)))) &&
+  forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], d: Term[DocumentId], level: Term[Level]) =>
+    AccessRequests.ask(lib, t, p, d, level).shares === lib.shares && AccessRequests.ask(lib, t, p, d, level).invitations === lib.invitations &&
+      AccessRequests.ask(lib, t, p, d, level).documents === lib.documents) &&
+  forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], p: Term[PersonId], d: Term[DocumentId]) =>
+    (AccessRequests.approve(lib, t, by, p, d) =!= lib ==> mayEdit(lib, t, by, Target[Target.Doc](d))) &&
+    (AccessRequests.decline(lib, t, by, p, d) =!= lib ==> mayEdit(lib, t, by, Target[Target.Doc](d)))) &&
+  forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId], to: Term[PersonId]) =>
+    Ownership.transfer(lib, t, by, d, to) =!= lib ==> mayEdit(lib, t, by, Target[Target.Doc](d))) &&
   forall((lib: Term[Library], t: Term[BigInt]) =>
     lib.shares.forall(s => Housekeeping.tidy(lib, t).shares.contains(s) || !inForce(s, t) ||
       lib.documents.exists(doc => gone(doc, t) && s.what === Target[Target.Doc](doc.id))) &&

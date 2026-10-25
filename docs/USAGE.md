@@ -395,7 +395,8 @@ Cats', with Cats' names:
   statement, why)`. It reads and changes its state with `state.get`,
   `state.set(s)` and `state.update(f)`. A state model assumes the boundary is
   deterministic (what is unknown, such as a clock's readings, goes into the
-  state), never fails, and is the flow's alone during a run; loops are over
+  state), never fails on its own (a boundary that may fail is declared so: see
+  "Failures" below), and is the flow's alone during a run; loops are over
   lists (`xs.traverse_(x => ...)`, `xs.traverse`, `xs.foldM`). A design node says how the exclusive
   access is ensured (in the CRM, a lock).
 - **The contract** is on an operation `Param[A => Flow[R]]` (of 0 to 6 inputs:
@@ -452,6 +453,43 @@ deadline with the clock ("7 days and two minutes"), and the timed contract links
 two. The `idle` try keeps such words open, so the root need not list what they must
 at least allow to keep "doing nothing" from meeting it.
 `examples/sharing` does all of this (`time/`, `housekeeping/`).
+
+### Failures: errors, retries, what a failed run leaves
+
+A boundary that may fail is declared with its error:
+`Boundary.failing[LibraryStore]("store", "...")(Failure.StoreUnavailable)`. Any call
+of it may then fail with that error, changing nothing of its model. In the proofs,
+the world holds the faults (`faults : List Bool`): each call of a failing boundary
+takes the next, and `true` fails it; a flow is proven for every pattern of faults,
+so for a store that fails at any step. A flow that may fail runs in Lean's
+`ExceptT E (StateM World)`: a step that fails changes nothing, the steps before it
+stay done (the clock moved, a mail sent), and the run gives its outcome and the
+world after (`FrFlow.runOnE`). "A failed request changes nothing" is then a claim
+of the flow, proven, not an axiom of the semantics: true of a flow whose only
+change is one save, false of one that saves twice. In production an exception from a
+failing boundary's implementation is its error.
+
+| Write | For | In Lean |
+|---|---|---|
+| `Flow.raiseError[A](e)` | failing with `e` (MonadError's `raiseError`) | `throwThe E e` |
+| `f.handleErrorWith[E](e => g)` | `g` on an error of type `E` | `tryCatchThe E (do f) (fun e => do g)` |
+| `f.attempt[E]` | the outcome: `Left(error)` or `Right(result)`, never failing; `o.fold(e => …, r => …)` | `tryCatchThe` to an `Except E R` |
+| `f.retry[E](Schedule.exponential(1, retries = 2))` | `f` tried again after each wait of the schedule (a value: `Schedule(waits)`, `fixed`, `exponential`) | one `tryCatchThe` inside the other, a `Clock.sleep` before each |
+| `f.guarantee[E](fin)`, `Flow.bracket[E](acquire)(use)(release)` | `fin` (`release`) after `f` (`use`) whether it gave a result or failed; the error raised again | a handler that runs `fin` and throws again, `fin` after the result |
+
+A contract on a flow that may fail says what holds when a run fails:
+`.failsChangingNothing[E]` (every model's state after it is as before), or
+`.onFailure[E]((error, before, after) => …)`; its post is what holds of a run that
+succeeds. Lean's claim is `FrFlow.outcome post failure (op x w)` of every input and
+every world. A flow that may fail under a contract that says nothing of failing is a
+problem `check` reports. The examples give a run that fails as `Failed(error)`,
+from a world that fails some calls: `expect(r, before.failing(false, true),
+Failed(Failure.StoreUnavailable), before, "the store fails as it saves")`.
+Generated runs then fail each call of a failing boundary in turn, from each example,
+on the models and on the implementations with the same fault injected (`FaultPlan`),
+and check the failure clause; `frflow_auto` takes each case of the faults
+(`frflow_faults`). `examples/sharing` does this (`store/`, `notifications/`,
+`http/SharingHttp.scala`).
 
 ### What is trusted, and the limits
 

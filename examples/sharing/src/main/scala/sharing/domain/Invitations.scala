@@ -6,4 +6,5 @@ import frflow.*
   * access: accepting it, while it is open, makes the share. It is pending until accepted, withdrawn or lapsed.
   */
 final case class Invitation(to: PersonId, what: Target, level: Level, by: PersonId, sent: BigInt)
-object Invitation extends Data[Invitation]
+object Invitation extends Data[Invitation]:
+  given LeanType[Invitation] = LeanType.product[Invitation]

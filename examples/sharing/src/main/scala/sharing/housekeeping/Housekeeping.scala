@@ -3,6 +3,9 @@ package sharing.housekeeping
 import frflow.*
 import sharing.*
 import sharing.domain.*
+import sharing.audit.Audit
+import sharing.notifications.MailerModel
+import sharing.requests.AccessRequests
 import sharing.store.LibraryModel
 import sharing.store.LibraryStore.store
 import sharing.time.Lifetimes.{gone, inForce, isOpen}
@@ -72,27 +75,38 @@ object Housekeeping:
 
   val housekeep = Param[() => Flow[Unit]]("housekeep", "a run of housekeeping on the store, at the time the clock gives")
 
+  private def at(l: Library, t: BigInt) = World(LibraryModel -> l, MailerModel -> Nil, ClockModel -> ClockState(t, Nil))
+  private val tidiedAnHourOn = ended.copy(shares = library.shares, log = List(Entry(0, now + 3600, Change.Housekept)))
+
   val jobContract = Node.contract(housekeep)("HousekeepingJob",
-    "A run of housekeeping leaves the store holding the library it held, tidied at the time the clock gives; it does not move the clock.",
-    why = "The job is how tidying reaches the store. Proven of its flow from the store's and the clock's models (LibraryKept, ClockKept); how often it runs is the scheduler's (HousekeepingOnTime).",
+    "A run of housekeeping leaves the store holding the library it held, tidied and its access requests chased at the time the clock gives, and, when that changed it, recorded in the log; it does not move the clock. A run that fails changes nothing, and the next minute's run tries again.",
+    why = "The job is how tidying and chasing reach the store. Proven of its flow from the store's and the clock's models (LibraryKept, ClockKept), for every pattern of the store's failures; how often it runs is the scheduler's (HousekeepingOnTime). Q16: a failed run changes nothing until one succeeds.",
     idea = "Time and housekeeping"
   )((result, before, after) =>
-    after(LibraryModel) === tidy(before(LibraryModel), before(ClockModel).now) && after(ClockModel) === before(ClockModel))
-    .under(sharing.time.Deadlines.trashPurgedOnTime, sharing.time.Deadlines.invitationsLapseOnTime)
+    let(AccessRequests.chase(tidy(before(LibraryModel), before(ClockModel).now), before(ClockModel).now))(next =>
+      after(LibraryModel) === (next =!= before(LibraryModel)).fold(Audit.record(next, before(ClockModel).now, Change.Housekept: Term[Change]),
+        before(LibraryModel))) && after(ClockModel) === before(ClockModel) &&
+      after(MailerModel) === before(MailerModel))
+    .failsChangingNothing[Failure]
+    .under(sharing.time.Deadlines.trashPurgedOnTime, sharing.time.Deadlines.invitationsLapseOnTime, sharing.time.Deadlines.requestsAnsweredOnTime)
     .examples()(
-      expect(World(LibraryModel -> ended, ClockModel -> ClockState(now + 3600, Nil)), (),
-        World(LibraryModel -> ended.copy(shares = library.shares), ClockModel -> ClockState(now + 3600, Nil)), "an hour on: Bob's share goes"),
-      expect(World(LibraryModel -> ended, ClockModel -> ClockState(now, Nil)), (),
-        World(LibraryModel -> ended, ClockModel -> ClockState(now, Nil)), "nothing has ended yet"),
-      reject(World(LibraryModel -> ended, ClockModel -> ClockState(now + 3600, Nil)), (),
-        World(LibraryModel -> ended, ClockModel -> ClockState(now + 3600, Nil)), "a run removes what has ended"))
+      expect(at(ended, now + 3600), (), at(tidiedAnHourOn, now + 3600), "an hour on: Bob's share goes, and the run is logged"),
+      expect(at(ended, now), (), at(ended, now), "nothing has ended yet: nothing to log"),
+      expect(at(ended, now + 3600).failing(false, true), Failed(Failure.StoreUnavailable), at(ended, now + 3600),
+        "the store fails as the run saves: nothing changes, the next run tries again"),
+      reject(at(ended, now + 3600), (), at(ended, now + 3600), "a run removes what has ended"),
+      reject(at(ended, now + 3600).failing(false, true), Failed(Failure.StoreUnavailable), at(tidiedAnHourOn, now + 3600),
+        "a failed run changes nothing"))
 
-  /** One run: the time, the library, the library tidied saved. HousekeepingJob is proven of it. */
+  /** One run: the time, the library, the library tidied and its requests chased, saved with its entry when that changed
+    * it. HousekeepingJob is proven of it.
+    */
   def housekeeping: Flow[Unit] =
     for
-      t   <- Flow.now
-      lib <- store.load
-      _   <- store.save(tidy(lib, t))
+      t    <- Flow.now
+      lib  <- store.load
+      next  = AccessRequests.chase(tidy(lib, t), t)
+      _    <- Flow.whenA(next =!= lib)(store.save(Audit.record(next, t, Change.Housekept: Term[Change])))
     yield ()
 
   /** Housekeeping every minute: the scheduler, run in the server. That runs come at least every two minutes is

@@ -20,7 +20,12 @@ enum Invalid:
   *   POST /withdraw {"by":"ann","to":"cat","what":{"doc":"plan"}}
   *   POST /trash    {"by":"ann","doc":"plan"}
   *   POST /restore  {"by":"ann","doc":"plan"}
-  * A refused change is 403; an unreadable request 400 with the reason; an unknown route 404.
+  *   POST /ask      {"person":"cat","doc":"plan","level":"view"}
+  *   POST /approve  {"by":"ann","person":"cat","doc":"plan"}
+  *   POST /decline  {"by":"ann","person":"cat","doc":"plan"}
+  *   POST /transfer {"by":"ann","doc":"plan","to":"bob"}
+  * A refused change is 403; an unreadable request 400 with the reason; an unknown route 404; a request the store failed
+  * 503 (the server's: the proven flow fails, changing nothing).
   */
 object HttpCodec:
   def request(method: String, path: String, query: Map[String, String], body: String): Either[Invalid, Request] =
@@ -58,6 +63,17 @@ object HttpCodec:
         json(body).flatMap(j => for by <- name(j, "by"); doc <- name(j, "doc") yield Request.Trash(PersonId(by), DocumentId(doc)))
       case ("POST", "/restore") =>
         json(body).flatMap(j => for by <- name(j, "by"); doc <- name(j, "doc") yield Request.Restore(PersonId(by), DocumentId(doc)))
+      case ("POST", "/ask") =>
+        json(body).flatMap(j => for p <- name(j, "person"); doc <- name(j, "doc"); l <- level(j) yield Request.Ask(PersonId(p), DocumentId(doc), l))
+      case ("POST", "/approve") =>
+        json(body).flatMap(j =>
+          for by <- name(j, "by"); p <- name(j, "person"); doc <- name(j, "doc") yield Request.Approve(PersonId(by), PersonId(p), DocumentId(doc)))
+      case ("POST", "/decline") =>
+        json(body).flatMap(j =>
+          for by <- name(j, "by"); p <- name(j, "person"); doc <- name(j, "doc") yield Request.Decline(PersonId(by), PersonId(p), DocumentId(doc)))
+      case ("POST", "/transfer") =>
+        json(body).flatMap(j =>
+          for by <- name(j, "by"); doc <- name(j, "doc"); to <- name(j, "to") yield Request.Transfer(PersonId(by), DocumentId(doc), PersonId(to)))
       case _ => Left(Invalid.NoRoute(method, path))
 
   /** The status and body an answer is sent with. */
@@ -65,6 +81,11 @@ object HttpCodec:
     case Answer.Access(level) => 200 -> Json.obj("access" -> Json.fromString(level.fold("none")(_.toString.toLowerCase)))
     case Answer.Done          => 200 -> Json.obj("done" -> Json.True)
     case Answer.Refused       => 403 -> Json.obj("refused" -> Json.fromString("you may not make this change"))
+
+  /** A request the flow could not complete: the store or the mail server is down. */
+  def reply(f: Failure): (Int, Json) = 503 -> Json.obj("error" -> Json.fromString(f match
+    case Failure.StoreUnavailable  => "the store is unavailable: nothing was changed"
+    case Failure.MailerUnavailable => "the mail server is unavailable"))
 
   def reply(i: Invalid): (Int, Json) = i match
     case Invalid.NoRoute(m, p)  => 404 -> Json.obj("error" -> Json.fromString(s"no route $m $p"))

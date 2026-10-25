@@ -23,6 +23,14 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
     n.kind == NodeKind.Claim || n.kind == NodeKind.Contract || (n.kind == NodeKind.Assumption && n.modelOf.isEmpty)
   /** Each boundary with the model it is decided to behave as. */
   lazy val models: List[ModelOf] = nodes.flatMap(_.modelOf)
+  /** The types the flows may fail with (the failing boundaries' errors, the contracts' failure clauses): one at most.
+    * With one, the proven flows that may fail run in Lean's `ExceptT E (StateM World)`.
+    */
+  lazy val failureTypes: List[LeanType[?]] =
+    (models.flatMap(_.boundary.failure.map(_.termType)) ++ nodes.flatMap(_.failure.map(_.err))).distinctBy(t => Types.walk(t).lean)
+  def failureType: Option[LeanType[?]] = failureTypes.headOption
+  /** Whether a boundary of the models may fail: the world then holds the faults. */
+  def faulty: Boolean = models.exists(_.boundary.fails)
   def roots: List[Node[?]] = nodes.filter(n => n.kind == NodeKind.Claim && n.parents.isEmpty)
   def root: Option[Node[?]] = roots.headOption.filter(_ => roots.size == 1)
   def definitions: List[Node[?]] = nodes.filter(_.kind == NodeKind.Definition)
@@ -312,6 +320,17 @@ private[frflow] object Validation:
       kb.models.filterNot(m => m.boundary.cls.isInstance(m.model)).map(m => s"${m.model.lean} is not an implementation of ${m.boundary.cls.getSimpleName}"),
       kb.implementations.flatMap(_.flowDef).filter(d => d.lifted.built._2.termTree match { case Tree.Do(s) => Steps.effectful(s); case _ => false })
         .map(d => s"${d.name}: a proven flow takes no step of the outside world (Flow.effect): call a boundary"),
+      // A flow that may fail is attached to a contract that says what holds when it does, with the error's type.
+      kb.implementations.flatMap(i => i.flowDef.map(i.contract -> _)).flatMap { (c, d) =>
+        val errs = d.lifted.built._2.termTree match { case Tree.Do(s) => Flows.errorTypes(s); case _ => Nil }
+        val said = kb.nodes.find(_.id == c).flatMap(_.failure).map(f => Types.walk(f.err).lean)
+        errs.map(e => Types.walk(e).lean).distinct match
+          case Nil => Nil
+          case List(e) if said.forall(_ == e) =>
+            Option.when(said.isEmpty)(s"$c: its flow may fail with $e: say what holds when a run fails (.failsChangingNothing[…] or .onFailure[…](…))").toList
+          case es => List(s"$c: its flow may fail with ${es.mkString(" or ")}${said.fold("")(s => s", its contract says $s")}: one error type for a flow")
+      },
+      kb.failureTypes.drop(1).headOption.map(_ => s"the flows fail with ${kb.failureTypes.mkString(" and ")}: one error type for a knowledge base").toList,
       // Code that calls its own operation would be proven assuming what it proves.
       kb.nodes.flatMap(c => c.op.filter(o => kb.implementation(c).flatMap(_.proven).exists(d => kb.opsCalledBy(d).contains(o.name)))
         .map(o => s"${c.id}: its implementation calls ${o.name} itself: it cannot be proven from its own promise")),

@@ -63,33 +63,34 @@ def expect[A, B, C, D, E, X, R](a: A, b: B, c: C, d: D, e: E, x: X, result: R, n
 def reject[A, B, C, D, E, X, R](a: A, b: B, c: C, d: D, e: E, x: X, result: R, note: String): Case[(A, B, C, D, E, X) => R] =
   Case(List(a, b, c, d, e, x), result, false, note)
 
-def expect[R](before: World, result: R, after: World, note: String): Case[() => Flow[R]] =
+/** A flow's run: from the world before, its result (or `Failed(error)` for a run that fails) and the world after. */
+def expect[R](before: World, result: R | Failed, after: World, note: String): Case[() => Flow[R]] =
   Case(List(before), (result, after), true, note)
-def reject[R](before: World, result: R, after: World, note: String): Case[() => Flow[R]] =
+def reject[R](before: World, result: R | Failed, after: World, note: String): Case[() => Flow[R]] =
   Case(List(before), (result, after), false, note)
-def expect[A, R](a: A, before: World, result: R, after: World, note: String): Case[A => Flow[R]] =
+def expect[A, R](a: A, before: World, result: R | Failed, after: World, note: String): Case[A => Flow[R]] =
   Case(List(a, before), (result, after), true, note)
-def reject[A, R](a: A, before: World, result: R, after: World, note: String): Case[A => Flow[R]] =
+def reject[A, R](a: A, before: World, result: R | Failed, after: World, note: String): Case[A => Flow[R]] =
   Case(List(a, before), (result, after), false, note)
-def expect[A, B, R](a: A, b: B, before: World, result: R, after: World, note: String): Case[(A, B) => Flow[R]] =
+def expect[A, B, R](a: A, b: B, before: World, result: R | Failed, after: World, note: String): Case[(A, B) => Flow[R]] =
   Case(List(a, b, before), (result, after), true, note)
-def reject[A, B, R](a: A, b: B, before: World, result: R, after: World, note: String): Case[(A, B) => Flow[R]] =
+def reject[A, B, R](a: A, b: B, before: World, result: R | Failed, after: World, note: String): Case[(A, B) => Flow[R]] =
   Case(List(a, b, before), (result, after), false, note)
-def expect[A, B, C, R](a: A, b: B, c: C, before: World, result: R, after: World, note: String): Case[(A, B, C) => Flow[R]] =
+def expect[A, B, C, R](a: A, b: B, c: C, before: World, result: R | Failed, after: World, note: String): Case[(A, B, C) => Flow[R]] =
   Case(List(a, b, c, before), (result, after), true, note)
-def reject[A, B, C, R](a: A, b: B, c: C, before: World, result: R, after: World, note: String): Case[(A, B, C) => Flow[R]] =
+def reject[A, B, C, R](a: A, b: B, c: C, before: World, result: R | Failed, after: World, note: String): Case[(A, B, C) => Flow[R]] =
   Case(List(a, b, c, before), (result, after), false, note)
-def expect[A, B, C, D, R](a: A, b: B, c: C, d: D, before: World, result: R, after: World, note: String): Case[(A, B, C, D) => Flow[R]] =
+def expect[A, B, C, D, R](a: A, b: B, c: C, d: D, before: World, result: R | Failed, after: World, note: String): Case[(A, B, C, D) => Flow[R]] =
   Case(List(a, b, c, d, before), (result, after), true, note)
-def reject[A, B, C, D, R](a: A, b: B, c: C, d: D, before: World, result: R, after: World, note: String): Case[(A, B, C, D) => Flow[R]] =
+def reject[A, B, C, D, R](a: A, b: B, c: C, d: D, before: World, result: R | Failed, after: World, note: String): Case[(A, B, C, D) => Flow[R]] =
   Case(List(a, b, c, d, before), (result, after), false, note)
-def expect[A, B, C, D, E, R](a: A, b: B, c: C, d: D, e: E, before: World, result: R, after: World, note: String)
+def expect[A, B, C, D, E, R](a: A, b: B, c: C, d: D, e: E, before: World, result: R | Failed, after: World, note: String)
     : Case[(A, B, C, D, E) => Flow[R]] = Case(List(a, b, c, d, e, before), (result, after), true, note)
-def reject[A, B, C, D, E, R](a: A, b: B, c: C, d: D, e: E, before: World, result: R, after: World, note: String)
+def reject[A, B, C, D, E, R](a: A, b: B, c: C, d: D, e: E, before: World, result: R | Failed, after: World, note: String)
     : Case[(A, B, C, D, E) => Flow[R]] = Case(List(a, b, c, d, e, before), (result, after), false, note)
-def expect[A, B, C, D, E, X, R](a: A, b: B, c: C, d: D, e: E, x: X, before: World, result: R, after: World, note: String)
+def expect[A, B, C, D, E, X, R](a: A, b: B, c: C, d: D, e: E, x: X, before: World, result: R | Failed, after: World, note: String)
     : Case[(A, B, C, D, E, X) => Flow[R]] = Case(List(a, b, c, d, e, x, before), (result, after), true, note)
-def reject[A, B, C, D, E, X, R](a: A, b: B, c: C, d: D, e: E, x: X, before: World, result: R, after: World, note: String)
+def reject[A, B, C, D, E, X, R](a: A, b: B, c: C, d: D, e: E, x: X, before: World, result: R | Failed, after: World, note: String)
     : Case[(A, B, C, D, E, X) => Flow[R]] = Case(List(a, b, c, d, e, x, before), (result, after), false, note)
 
 /** The outcome of one example: against the contract, and against the implementation. */
@@ -137,8 +138,51 @@ private[frflow] object ExampleRuns:
     if n.cases.isEmpty then Nil
     else Bindings.within(kb.opCode ++ kb.definitionBindings) {
       n.checkExamples(kb.implementation(n).map(_.factory), kb.runtimeAssumptions) ++
-        onReal(kb, n)
+        onReal(kb, n) ++ faultSweep(kb, n)
     }
+
+  /** A flow that may fail, run from each of its examples with one call of its failing boundaries failing, each in turn
+    * (the first, the second, …, until the run makes no more): on the models and on the boundaries' implementations,
+    * with the same fault injected. Each run must meet the contract (its failure clause, for one that fails), and give
+    * on the implementations what it gives on the models.
+    */
+  private def faultSweep(kb: KnowledgeBase, n: Node[?]): List[ExampleResult] =
+    (for
+      flow <- kb.implementation(n).flatMap(_.flowDef).toList if n.failure.isDefined
+      (bs, body) = flow.lifted.built
+      steps <- (body.termTree match { case Tree.Do(s) => Some(s); case _ => None }).toList
+      if Steps.boundaries(steps).exists(_.fails)
+      post <- n.postFn.toList
+      e <- n.cases.filter(c => c.expected && c.inputs.lastOption.exists { case w: World => w.faults.isEmpty; case _ => false })
+      used = kb.models.filter(m => Steps.boundaries(steps).contains(m.boundary)).flatMap(m => m.impls.sortBy(_.outside).headOption.map(m -> _))
+      k <- 1 to 12
+      before = e.inputs.last.asInstanceOf[World].failing((List.fill(k - 1)(false) :+ true)*)
+      args = e.inputs.init
+      model = Bindings.within(e.bindings)(Try(
+        try Flows.onModels(steps, bs.zip(args).toMap, before) catch case Flows.Raised(err, at) => (Failed(err), at)))
+      // Past the run's last call of a failing boundary, the fault is never taken: the sweep ends there.
+      if model.toOption.exists { case (Failed(_), at: World) => at.faults.isEmpty; case _ => false }
+    yield
+      val name = used.map((_, i) => ModelTests.implName(i)).mkString(" and ")
+      val onContract = model match
+        case scala.util.Success(r @ (Failed(err), w)) =>
+          if post(args :+ before, r) then "ok" else s"the run fails with ${Example.show(err)} and leaves $w, which the contract refuses"
+        case scala.util.Success(r) => if post(args :+ before, r) then "ok" else s"the run gives ${Example.show(r)}, which the contract refuses"
+        case scala.util.Failure(x) => s"error on the models: ${x.getMessage}"
+      def held(w: World): World = used.foldLeft(w)((acc, x) => acc.updated(x._1.model, x._2.read(x._2.start(acc(x._1.model.asInstanceOf[StateModel[Any]])))))
+      val real = Bindings.within(e.bindings)(Try {
+        val started = used.map((o, oi) => (o, oi, oi.start(before(o.model.asInstanceOf[StateModel[Any]]))))
+        val impls = FaultPlan(before.faults).all(started.map((o, _, i) => o.boundary -> i).toMap)
+        val r = try Flows.runNow(steps, bs.zip(args).toMap, impls) catch case FlowFailed(err) => Failed(err)
+        (r, started.foldLeft(before)((w, x) => w.updated(x._1.model, x._2.read(x._3))))
+      })
+      val onCode = (model.map((r, w) => (r, held(w))), real) match
+        case (scala.util.Success(x), scala.util.Success(y)) if x == y => "ok"
+        case (scala.util.Success(x), scala.util.Success(y)) => s"on $name gives ${Example.show(y)}, where the model gives ${Example.show(x)}"
+        case (_, scala.util.Failure(x)) => s"error on $name: ${x.getMessage}"
+        case (scala.util.Failure(x), _) => s"error on the models: ${x.getMessage}"
+      ExampleResult(e.copy(note = s"${e.note}, its call $k of a failing boundary failing (run on $name)"), onContract, Some(onCode))
+    )
 
   /** A flow's examples run on each implementation of its boundaries (an outside system, or the project's own), started in
     * each model's state before: what they give, read back, must be what the run on the models gives. Both are compared
@@ -163,10 +207,15 @@ private[frflow] object ExampleRuns:
       def held(w: World): World = used.foldLeft(w)((acc, x) => acc.updated(x._1.model, x._2.read(x._2.start(acc(x._1.model.asInstanceOf[StateModel[Any]])))))
       val name = ModelTests.implName(impl)
       // Under the example's own values too: the operations the flow calls read them.
-      val model = Bindings.within(e.bindings)(Try(Flows.onModels(steps, bs.zip(args).toMap, held(before))).map((r, w) => (r, held(w))))
+      // A run that fails gives `Failed(error)`: on the models as the world's faults say, on the implementations with the
+      // same faults injected into the failing boundaries' calls.
+      val model = Bindings.within(e.bindings)(Try(
+        try Flows.onModels(steps, bs.zip(args).toMap, held(before)) catch case Flows.Raised(err, at) => (Failed(err), at))
+        .map((r, w) => (r, held(w))))
       val real = Bindings.within(e.bindings)(Try {
         val started = used.map((o, oi) => (o, oi, oi.start(before(o.model.asInstanceOf[StateModel[Any]]))))
-        val r = Flows.runNow(steps, bs.zip(args).toMap, started.map((o, _, i) => o.boundary -> i).toMap)
+        val impls = FaultPlan(before.faults).all(started.map((o, _, i) => o.boundary -> i).toMap)
+        val r = try Flows.runNow(steps, bs.zip(args).toMap, impls) catch case FlowFailed(err) => Failed(err)
         (r, started.foldLeft(before)((w, x) => w.updated(x._1.model, x._2.read(x._3))))
       })
       val verdict = (model, real) match

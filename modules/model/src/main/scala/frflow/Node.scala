@@ -24,15 +24,22 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (val id: St
     val substs: List[Subst] = Nil, val cases: List[Example] = Nil, val governs: List[String] = Nil, val kept: List[Keep] = Nil,
     val scope: List[Node[?]] = Nil, val ideaSection: String = "", val file: String = "", val expected: List[(String, Lifted[?])] = Nil,
     val at: Int = -1, val local: Option[Lifted[?]] = None, val replaced: Option[Node[?]] = None,
-    val modelOf: Option[ModelOf] = None, val runCheck: Option[RunCheck] = None, val openAbove: Boolean = false):
+    val modelOf: Option[ModelOf] = None, val runCheck: Option[RunCheck] = None, val openAbove: Boolean = false,
+    val failure: Option[FailureClause] = None):
   def parents: List[Node[?]] = (declaredParents ++ kept.collect { case Keep(i, Some(_), _) => i }).distinctBy(System.identityHashCode)
   def isInvariant: Boolean = rule.isDefined
   def shownKind: String = kind.shown(isInvariant)
   /** A contract on a flow: its operation runs from a world (`A => Flow[R]`), its post relates the worlds before and after. */
   def isFlow: Boolean = op.exists(o => o.termType.shape match { case Shape.FnOf(_, r) => r.shape.isInstanceOf[Shape.FlowOf]; case _ => false })
+  /** The Lean type of the operation: a flow's that may fail gives its outcome, `Except E R`, and the world after. */
+  private[frflow] def opType: Option[LeanType[?]] = op.map(o => (o.termType.shape, failure) match
+    case (Shape.FnOf(as, r), Some(f)) => r.shape match
+      case Shape.FlowOf(x) => LeanType.of(Shape.FnOf(as, LeanType.of(Shape.FlowOf(LeanType.of(Shape.EitherOf(f.err, x))))))
+      case _               => o.termType
+    case _ => o.termType)
   def defines: List[String] = substs.map(_.name)
   def referenced: List[Lifted[?]] = formula.toList ++ post.toList ++ rule.toList ++ local.toList ++ substs.flatMap(_.term) ++
-    kept.flatMap(_.view) ++ expected.map(_._2)
+    kept.flatMap(_.view) ++ expected.map(_._2) ++ failure.flatMap(_.post)
 
   // `require` in the builders: a node built from one declared after it gets `null` (Scala initializes vals in
   // order), and failing as the model loads, naming the node, is what the developer can act on.
@@ -52,6 +59,18 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (val id: St
     require(kind == NodeKind.Contract, s"$id: only a contract fixes a word left open above")
     copy(openAbove = true)
 
+  /** A run of this flow may fail with an error of type `E` (a failing boundary's, or one it raises); one that fails
+    * changes nothing: every model's state after it is as before. The post is what holds of a run that succeeds.
+    */
+  def failsChangingNothing[E](using e: LeanType[E]): Node[M] =
+    require(isFlow, s"$id: only a contract on a flow says what holds when a run fails")
+    copy(failure = Some(FailureClause(e, None)))
+
+  /** A run of this flow may fail with an error of type `E`; `post(error, before, after)` holds of one that fails. */
+  inline def onFailure[E](inline post: (Term[E], Term[World], Term[World]) => Term[Boolean])(using e: LeanType[E]): Node[M] =
+    require(isFlow, s"$id: only a contract on a flow says what holds when a run fails")
+    copy(failure = Some(FailureClause(e, Some(Lifted.lambda(post, List(e, summon[LeanType[World]], summon[LeanType[World]]), Source.text(post))))))
+
   /** An alternative to `other`: accepting one rejects the other. */
   def replaces(other: Node[?]): Node[M] =
     require(other != null, s"$id replaces a node declared after it: declare it first")
@@ -63,9 +82,10 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (val id: St
 
   private[frflow] def copy(declaredParents: List[Node[?]] = declaredParents, cases: List[Example] = cases, kept: List[Keep] = kept,
       expected: List[(String, Lifted[?])] = expected, local: Option[Lifted[?]] = local, replaced: Option[Node[?]] = replaced,
-      modelOf: Option[ModelOf] = modelOf, runCheck: Option[RunCheck] = runCheck, openAbove: Boolean = openAbove): Node[M] =
+      modelOf: Option[ModelOf] = modelOf, runCheck: Option[RunCheck] = runCheck, openAbove: Boolean = openAbove,
+      failure: Option[FailureClause] = failure): Node[M] =
     Node(id, statement, why, kind, declaredParents, formula, post, op, rule, substs, cases, governs, kept, scope, ideaSection,
-      file, expected, at, local, replaced, modelOf, runCheck, openAbove)
+      file, expected, at, local, replaced, modelOf, runCheck, openAbove, failure)
 
   /** The invariant does not apply to this contract or design decision, for the reason given (which the developer reads). */
   def exempt(invariant: Node[?], because: String): Node[M] =
@@ -149,6 +169,13 @@ object Node:
   private[frflow] def arity(op: Param[?]): Int = op.termType.shape match
     case Shape.FnOf(as, _) => as.size
     case _                 => throw IllegalArgumentException(s"FrFlow: ${op.name} is not an operation (a function)")
+
+/** What a contract on a flow says of a run that fails with an error of type `err`: `post(error, before, after)`, or,
+  * with none, that it changes nothing (every model's state after it is as before).
+  */
+final case class FailureClause(err: LeanType[?], post: Option[Lifted[?]]):
+  def changesNothing: Boolean = post.isEmpty
+  def describe: String = post.fold(s"a run that fails (${Types.scala(err)}) changes nothing")(p => s"a run that fails (${Types.scala(err)}): ${p.source}")
 
 /** A boundary and the model it is decided to behave as, with the implementations of the boundary checked against it. */
 final case class ModelOf(boundary: Boundary[?], model: StateModel[?], impls: List[ModelImpl] = Nil)

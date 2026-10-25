@@ -11,18 +11,22 @@ open Classical
 namespace Sharing.HandleContract.Proofs
 open Sharing.HandleContract
 
-/-- The handling reads the clock and the library, saves what the request leads to when it differs, and answers: the
-store then holds what the request leads to either way, and the clock is as it was. Nothing of the operations is used. -/
+/-- The handling reads the clock and the library, saves what the request leaves when it differs, and answers. For each
+case of the store's faults: the load fails, and nothing has changed; the save fails, and nothing has changed (a failed
+save changes nothing); or both go through, and the store holds what the request leaves. The clock and the mail server
+are as they were either way. Nothing of the operations is used. -/
 theorem impl : Obl.impl := by
   unfold Obl.impl
-  intro share unshare move invite accept withdraw trash restore access inForce isOpen gone _ _ _ _ _ _ _ _ _ _ _
-  unfold Sharing.HandleContract.claim Sharing.HandleContract.post Sharing.handleContract_run Sharing.handleContract
+  intros
+  unfold Sharing.HandleContract.claim Sharing.HandleContract.post Sharing.HandleContract.failure
+    Sharing.handleContract_run Sharing.handleContract
   intro r w
-  simp only [FrFlow.runOn_bind, Clock.now_onWorld, LibraryStore.load_onWorld, FrFlow.runOn_within, ClockModel.now,
-    LibraryModel.load, FrFlow.runOn_get, FrFlow.runOn_pure]
-  by_cases h : SharingHttp.afterRequest share unshare move invite accept withdraw trash restore w.libraryStore w.clock.now r =
-    w.libraryStore
-  · simp [h, FrFlow.runOn_pure]
-  · simp [h, FrFlow.runOn_map, LibraryStore.save_onWorld, FrFlow.runOn_within, LibraryModel.save, FrFlow.runOn_set]
+  simp only [FrFlow.runOnE_bind, Clock.now_onWorldE, LibraryStore.load_onWorldE, LibraryStore.save_onWorldE, FrFlow.runOnE_lift,
+    FrFlow.runOnE_failing, FrFlow.runOn_within, ClockModel.now, LibraryModel.load, LibraryModel.save, FrFlow.runOn_get,
+    FrFlow.runOn_set, FrFlow.runOn_bind, FrFlow.runOn_pure, FrFlow.runOnE_pure, FrFlow.runOnE_ite, FrFlow.runOnE_seqRight]
+  frflow_faults
+  all_goals (try split)
+  all_goals frflow_faults
+  all_goals simp_all [FrFlow.outcome]
 
 end Sharing.HandleContract.Proofs

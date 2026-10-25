@@ -5,6 +5,7 @@ import sharing.*
 import sharing.domain.*
 import sharing.housekeeping.Housekeeping
 import sharing.invitations.Invitations
+import sharing.requests.AccessRequests
 import sharing.trash.Trash
 import sharing.time.Lifetimes.*
 import sharing.time.Run.*
@@ -30,6 +31,14 @@ object Deadlines:
     idea = "Invitations"
   )(after(events).library.invitations.forall(i => after(events).now < i.sent + invitationLasts + housekeepingWithin))
     .under(Invitations.invitationsAreOffers)
+
+  val requestsAnsweredOnTime = Node.claim("RequestsAnsweredOnTime",
+    "While housekeeping runs at least every two minutes, no access request stays pending longer than 7 days and two minutes after it was made, and none goes more than 48 hours and two minutes without its reminder.",
+    why = "Q12: a reminder after 48 h and a decline after 7 days, as bounded responses, given the scheduler's period (HousekeepingOnTime).",
+    idea = "Access requests"
+  )(after(events).library.requests.forall(r => after(events).now < r.asked + requestLasts + housekeepingWithin &&
+    (r.reminded || after(events).now < r.asked + remindAfter + housekeepingWithin)))
+    .under(AccessRequests.requestsAreAsks)
 
   val endedStaysEnded = Node.claim("EndedStaysEnded",
     "What has ended stays ended: time in the service never goes back, so a share once ended, an invitation once lapsed and a document once gone stay so for the rest of the run.",

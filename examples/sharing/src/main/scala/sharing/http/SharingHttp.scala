@@ -2,12 +2,16 @@ package sharing.http
 
 import frflow.*
 import sharing.*
+import sharing.audit.Audit
 import sharing.domain.*
 import sharing.invitations.Invitations
+import sharing.notifications.{MailerModel, Notifications}
+import sharing.ownership.Ownership
+import sharing.requests.AccessRequests
 import sharing.service.Sharing
 import sharing.store.LibraryModel
 import sharing.store.LibraryStore.store
-import sharing.time.Lifetimes.isOpen
+import sharing.time.Lifetimes.{isOpen, isPending}
 import sharing.trash.Trash
 
 /** The service as clients reach it: a request, answered at the time the clock gives from the library the store keeps,
@@ -34,6 +38,18 @@ object SharingHttp:
       .on[Request.Withdraw]((by, to, what) => Invitations.withdraw(lib, t, by, to, what))
       .on[Request.Trash]((by, d) => Trash.trash(lib, t, by, d))
       .on[Request.Restore]((by, d) => Trash.restore(lib, t, by, d))
+      .on[Request.Ask]((p, d, level) => AccessRequests.ask(lib, t, p, d, level))
+      .on[Request.Approve]((by, p, d) => AccessRequests.approve(lib, t, by, p, d))
+      .on[Request.Decline]((by, p, d) => AccessRequests.decline(lib, t, by, p, d))
+      .on[Request.Transfer]((by, d, to) => Ownership.transfer(lib, t, by, d, to))
+  }
+
+  /** The library a request leaves in the store: when it changes the library, the change, recorded in the log and
+    * announced in the outbox, all in the one save.
+    */
+  val served = define { (lib: Term[Library], t: Term[BigInt], r: Term[Request]) =>
+    let(afterRequest(lib, t, r))(next => (next =!= lib).fold(
+      Notifications.announce(Audit.record(next, t, Change[Change.Made](r)), lib, r, Entry(next.log.length, t, Change[Change.Made](r))), lib))
   }
 
   /** Done when the asker may make the change, refused otherwise. */
@@ -42,32 +58,45 @@ object SharingHttp:
   /** The answer to a request at a moment: the person's access to the document; for a change, whether it may be made. */
   val answerTo = define { (lib: Term[Library], t: Term[BigInt], r: Term[Request]) =>
     r.on[Request.Access]((p, d) => Answer[Answer.Access](Sharing.access(lib, t, p, d)))
-      .on[Request.Share]((by, what, _, _, _) => allowedWhen(mayEdit(lib, t, by, what)))
-      .on[Request.Unshare]((by, what, _) => allowedWhen(mayEdit(lib, t, by, what)))
+      .on[Request.Share]((by, what, withWhom, _, _) => allowedWhen(mayEdit(lib, t, by, what) && !ownedBy(lib, what, withWhom)))
+      .on[Request.Unshare]((by, what, withWhom) => allowedWhen(mayEdit(lib, t, by, what) && !ownedBy(lib, what, withWhom)))
       .on[Request.Move]((by, d, into) => allowedWhen(Sharing.mayMove(lib, t, by, d, into)))
       .on[Request.Invite]((by, _, what, _) => allowedWhen(mayEdit(lib, t, by, what)))
       .on[Request.Accept]((p, what) => allowedWhen(lib.invitations.exists(i => i.to === p && i.what === what && isOpen(i, t))))
       .on[Request.Withdraw]((by, _, what) => allowedWhen(mayEdit(lib, t, by, what)))
       .on[Request.Trash]((by, d) => allowedWhen(mayEdit(lib, t, by, Target[Target.Doc](d))))
       .on[Request.Restore]((by, d) => allowedWhen(Trash.mayRestore(lib, t, by, d)))
+      .on[Request.Ask]((_, d, _) => allowedWhen(lib.documents.exists(doc => doc.id === d)))
+      .on[Request.Approve]((by, p, d) => allowedWhen(mayEdit(lib, t, by, Target[Target.Doc](d)) &&
+        lib.requests.exists(q => q.person === p && q.doc === d && isPending(q, t))))
+      .on[Request.Decline]((by, _, d) => allowedWhen(mayEdit(lib, t, by, Target[Target.Doc](d))))
+      .on[Request.Transfer]((by, d, to) => allowedWhen(Ownership.owns(lib, by, d) && mayEdit(lib, t, by, Target[Target.Doc](d)) &&
+        mayEdit(lib, t, to, Target[Target.Doc](d))))
   }
 
-  private val bobViewsPlan = library.copy(shares = Share(Target.Doc(plan), Grantee.Person(bob), Level.View, None) :: library.shares)
-  private def at(l: Library) = World(LibraryModel -> l, ClockModel -> ClockState(now, Nil))
+  private val shareWithBob = Request.Share(ann, Target.Doc(plan), Grantee.Person(bob), Level.View, None)
+  private val bobViewsPlan = library.copy(shares = Share(Target.Doc(plan), Grantee.Person(bob), Level.View, None) :: library.shares,
+    log = List(Entry(0, now, Change.Made(shareWithBob))))
+  private def at(l: Library) = World(LibraryModel -> l, MailerModel -> Nil, ClockModel -> ClockState(now, Nil))
 
   val handleContract = Node.contract(handle)("HandleContract",
-    "A request is answered at the time the clock gives, from the library the store holds, and leaves the store holding the library it leads to: a question is answered with the person's access and changes nothing; a change is made as its operation makes it, and answered done when it may be made and refused otherwise. Handling does not move the clock.",
-    why = "This is the service as a client sees it, in the store's and the clock's terms (LibraryKept, ClockKept). What the answers and changes are is the operations' (their contracts); what this adds is that each request reads the library the last one left and the clock once, and leaves the library it leads to, so a client's next request sees its change.",
-    idea = "Serving"
+    "A request is answered at the time the clock gives, from the library the store holds, and leaves the store holding the library it leads to: a question is answered with the person's access and changes nothing; a change is made as its operation makes it, recorded in the log and announced in the outbox in the same save, and answered done when it may be made and refused otherwise. Handling does not move the clock. A request the store fails changes nothing.",
+    why = "This is the service as a client sees it, in the store's and the clock's terms (LibraryKept, ClockKept). What the answers and changes are is the operations' (their contracts); what this adds is that each request reads the library the last one left and the clock once, and leaves the library it leads to, so a client's next request sees its change. One save per request is one transaction: Q16, a store failure mid-request changes nothing, proven for every pattern of the store's failures; the server answers it 503 (ServerWiring).",
+    idea = "Failures"
   )((r, result, before, after) =>
-    after(LibraryModel) === afterRequest(before(LibraryModel), before(ClockModel).now, r) && after(ClockModel) === before(ClockModel) &&
-      result === answerTo(before(LibraryModel), before(ClockModel).now, r))
+    after(LibraryModel) === served(before(LibraryModel), before(ClockModel).now, r) && after(ClockModel) === before(ClockModel) &&
+      after(MailerModel) === before(MailerModel) && result === answerTo(before(LibraryModel), before(ClockModel).now, r))
+    .failsChangingNothing[Failure]
     .under(accessFollowsShares)
     .examples()(
       expect(Request.Access(bob, q3Report), at(library), Answer.Access(Some(Level.View)), at(library),
         "Bob's team may view the reports folder: Bob can view the Q3 report, and nothing changes"),
-      expect(Request.Share(ann, Target.Doc(plan), Grantee.Person(bob), Level.View, None), at(library), Answer.Done,
-        at(bobViewsPlan), "Ann shares the plan with Bob: the store holds the new share"),
+      expect(shareWithBob, at(library), Answer.Done,
+        at(bobViewsPlan), "Ann shares the plan with Bob: the store holds the new share, and its entry in the log"),
+      expect(shareWithBob, at(library).failing(false, true), Failed(Failure.StoreUnavailable), at(library),
+        "the store fails as the share is saved: nothing changes"),
+      reject(shareWithBob, at(library).failing(false, true), Failed(Failure.StoreUnavailable), at(bobViewsPlan),
+        "a request the store fails is never half kept"),
       expect(Request.Share(bob, Target.Doc(plan), Grantee.Person(bob), Level.Edit, None), at(library), Answer.Refused,
         at(library), "Bob may not edit the plan: refused, and the store keeps the library"),
       reject(Request.Share(ann, Target.Doc(plan), Grantee.Person(bob), Level.View, None), at(library), Answer.Done,
@@ -75,13 +104,13 @@ object SharingHttp:
       reject(Request.Access(cat, plan), at(library), Answer.Access(Some(Level.View)), at(library),
         "Cat has no access to the plan"))
 
-  /** The handling: the time, the library, the one the request leads to kept when it differs, the answer.
-    * HandleContract is proven of it, on the store's and the clock's models.
+  /** The handling: the time, the library, the one the request leaves kept when it differs, the answer.
+    * HandleContract is proven of it, on the store's and the clock's models, for every pattern of the store's failures.
     */
   def handleRequest(r: Term[Request]): Flow[Answer] =
     for
       t    <- Flow.now
       lib  <- store.load
-      next = afterRequest(lib, t, r)
+      next = served(lib, t, r)
       _    <- Flow.whenA(next =!= lib)(store.save(next))
     yield answerTo(lib, t, r)

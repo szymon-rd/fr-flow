@@ -5,7 +5,7 @@ import scala.collection.mutable
 /** One expression's Lean: the text, and what it mentions (in the order it meets them). */
 private[frflow] final case class Printed(params: List[(String, String)], result: String, body: String, types: List[TypeDecl],
     opaques: List[Opaque], paramRefs: List[(String, String)], paramObjects: List[Param[?]], defs: List[Def[?]],
-    boundaries: List[Boundary[?]] = Nil, world: Boolean = false)
+    boundaries: List[Boundary[?]] = Nil, world: Boolean = false, errors: List[String] = Nil)
 
 /** Prints a term's tree as Lean. Every local variable gets a name no other in the expression has (an inner one can
   * never capture an outer one), none a parameter's, an opaque type's or a type's.
@@ -19,6 +19,8 @@ private[frflow] final class LeanPrinter:
   private val binders = mutable.LinkedHashSet.empty[String]
   private val names = mutable.Map.empty[Binder, String]
   private val boundaries = mutable.LinkedHashSet.empty[Boundary[?]]
+  // The error types the steps raise or handle: a flow's `[MonadExceptOf E m]`.
+  private val errors = mutable.LinkedHashSet.empty[String]
   private var world = false
   // The negations (`!`, the left of `==>`) the term is under: a `forall` under an odd number says something exists.
   private var negations = 0
@@ -34,7 +36,7 @@ private[frflow] final class LeanPrinter:
     val r = tpe(result)
     world ||= (result :: bs.map(_.tpe)).exists(Types.mentionsWorld)
     Printed(params, r, text, types.decls.values.toList, types.opaques.values.toList, paramRefs.toList, paramObjects.toList, defs.toList,
-      boundaries.toList, world)
+      boundaries.toList, world, errors.toList)
 
   def tpe(t: LeanType[?]): String =
     world ||= Types.mentionsWorld(t)
@@ -100,6 +102,7 @@ private[frflow] final class LeanPrinter:
     // Lean's A × B × C is A × (B × C): the k-th of n is k-1 steps right, then left (but the last).
     case Tree.Proj(on, k, n)   => expr(on) + ".2" * (k - 1) + (if k == n then "" else ".1")
     case Tree.SomeT(a)         => p(s"some ${expr(a)}")
+    case Tree.Inj(l, a)        => p(s"${if l then "Except.error" else "Except.ok"} ${expr(a)}")
     case Tree.ListT(es)        => es.map(expr).mkString("[", ", ", "]")
     case Tree.Over(kind, on, b, body) =>
       lazy val r = expr(on)
@@ -117,7 +120,9 @@ private[frflow] final class LeanPrinter:
         case Iter.OptSome   => p(s"∃ $x, $r = some $x ∧ $tb")
     case Tree.Op(op, args)     => prim(op, args)
     case Tree.Do(steps)        => "do\n" + block(steps, "    ").mkString("\n")
-    case Tree.RunOn(call, w)   => world = true; val c = expr(call); p(s"FrFlow.runOn $c ${expr(w)}")
+    case Tree.RunOn(call, w, None) => world = true; val c = expr(call); p(s"FrFlow.runOn $c ${expr(w)}")
+    // A flow that may fail runs in `ExceptT E (StateM World)`: its outcome, and the world after.
+    case Tree.RunOn(call, w, Some(e)) => world = true; val te = tpe(e); val c = expr(call); p(s"FrFlow.runOnE (ε := $te) $c ${expr(w)}")
     case Tree.Part(w, m)       => world = true; s"${expr(w)}.${m.field}"
 
   /** A flow's steps as the lines of a `do` block, indented by `ind`. */
@@ -138,6 +143,8 @@ private[frflow] final class LeanPrinter:
         // A traverse or a fold opens a `do` of its own, after its binding.
         case (Some(n), Steps.Collect(_, _, _) | Steps.Accumulate(_, _, _, _, _)) => over(first, s"let $n ← ", ind)
         case (None, Steps.Collect(_, _, _) | Steps.Accumulate(_, _, _, _, _))    => over(first, "let _ ← ", ind)
+        case (None, c @ Steps.Catch(_, _, _, _))                => tryCatch(c, "", ind)
+        case (Some(n), c @ Steps.Catch(_, _, _, _))             => tryCatch(c, s"let $n ← ", ind)
         case (None, one)                                         => List(ind + step(one))
         case (Some(n), one)                                      => List(s"${ind}let $n ← ${step(one)}")
       lines ++ block(rest, ind)
@@ -149,7 +156,17 @@ private[frflow] final class LeanPrinter:
       val tv = expr(v)
       s"${ind}let ${local(b)} := $tv" :: block(rest, ind)
     case Steps.Collect(_, _, _) | Steps.Accumulate(_, _, _, _, _) => over(s, "", ind)
+    case c @ Steps.Catch(_, _, _, _) => tryCatch(c, "", ind)
     case one                     => List(ind + step(one))
+
+  /** `tryCatchThe E (do …) (fun e => do …)`, after `lead` (a binding, or none): the handler on the line below. */
+  private def tryCatch(c: Steps.Catch, lead: String, ind: String): List[String] =
+    def closed(ls: List[String]) = ls.init :+ (ls.last + ")")
+    val te = tpe(c.err)
+    errors += te
+    val body = block(c.body, ind + "    ")
+    val handler = s"$ind  (fun ${if c.b.wildcard then "_" else local(c.b)} => do" :: block(c.handler, ind + "    ")
+    (s"$ind${lead}tryCatchThe $te (do" :: closed(body)) ++ closed(handler)
 
   /** `xs.mapM fun x => do …` and `xs.foldlM (init := z) fun acc x => do …`, after `lead` (a binding, or none). */
   private def over(s: Steps, lead: String, ind: String): List[String] = s match
@@ -171,6 +188,7 @@ private[frflow] final class LeanPrinter:
     case Steps.Modify(_, b, body)  =>
       val n = local(b)
       s"modify (fun $n => ${expr(body)})"
+    case Steps.Raise(e, t)         => val te = tpe(t); errors += te; s"throwThe $te ${expr(e)}"
     case Steps.Outside(_)          => fail("a step of the outside world (Flow.effect) in a flow Lean proves: only a production implementation of a boundary takes one")
     case other                     => block(other, "").mkString("; ")
 
@@ -185,6 +203,7 @@ private[frflow] final class LeanPrinter:
         if ctor.singleton.isDefined && adt.isEnum then ctor.lean else (ctor.lean :: args).mkString(" ")
       case Pat.SomeP(b)    => s"some ${if b.wildcard then "_" else local(b)}"
       case Pat.NoneP       => "none"
+      case Pat.InjP(l, b)  => s"${if l then "Except.error" else "Except.ok"} ${if b.wildcard then "_" else local(b)}"
       case Pat.ConsP(h, t) =>
         val (a, b) = (if h.wildcard then "_" else local(h), if t.wildcard then "_" else local(t))
         s"$a :: $b"
@@ -266,6 +285,10 @@ private[frflow] final class LeanPrinter:
     case Shape.OptionOf(a) => v match
       case Some(x) => p(s"some ${value(x, a)}")
       case _       => "none"
+    case Shape.EitherOf(e, a) => v match
+      case Left(x)  => p(s"Except.error ${value(x, e)}")
+      case Right(x) => p(s"Except.ok ${value(x, a)}")
+      case _        => fail(s"$v is not an outcome")
     case Shape.TupleOf(as) => v.asInstanceOf[Product].productIterator.toList.zip(as).map(value).mkString("(", ", ", ")")
     case Shape.MapOf(kt, vt) =>
       val m = v.asInstanceOf[Map[Any, Any]]

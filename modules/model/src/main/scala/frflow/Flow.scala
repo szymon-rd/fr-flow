@@ -23,6 +23,25 @@ sealed abstract class Flow[A]:
       stop  <- Flow.now
     yield (stop - start <= seconds).fold(some(a), none[A](using a.termType))
 
+  /** This flow, or, when it fails with an error of type `E` (one it raises, or a failing boundary's), the handler's
+    * flow on that error (MonadError's `handleErrorWith`). What the flow did before it failed stays done: a step that
+    * fails changes nothing, the steps before it are not undone. Lean's `tryCatchThe E (do …) (fun e => do …)`.
+    */
+  def handleErrorWith[E](handler: Term[E] => Flow[A])(using e: LeanType[E]): Flow[A] = Flow.Catch(this, handler, e)
+  /** The flow's outcome, never failing: its error (`Left`) or its result (`Right`), MonadError's `attempt`. */
+  def attempt[E](using e: LeanType[E]): Flow[Either[E, A]] = Flow.Attempt(this, e)
+  /** The flow, tried again after each wait of `schedule` while it fails with an error of type `E`; the last try's
+    * error when every try failed. The schedule is a value (`Schedule.exponential(1, retries = 3)`): Lean reads the
+    * tries one inside the other, each after its sleep.
+    */
+  def retry[E](schedule: Schedule)(using e: LeanType[E]): Flow[A] =
+    schedule.waits.foldRight(this)((wait, rest) => this.handleErrorWith[E](_ => Flow.sleep(wait).flatMap(_ => rest)))
+  /** `finalizer` after the flow, whether it gave a result or failed with an error of type `E`, which it then fails
+    * with again (Cats Effect's `guarantee`; no cancellation yet).
+    */
+  def guarantee[E](finalizer: Flow[?])(using e: LeanType[E]): Flow[A] =
+    this.handleErrorWith[E](err => finalizer.flatMap(_ => Flow.raiseError[A](err))).flatMap(a => finalizer.map(_ => a))
+
 object Flow:
   private[frflow] final case class Pure[A](t: Term[A]) extends Flow[A]
   private[frflow] final case class Call[A](boundary: Boundary[?], method: Method, args: List[Term[?]]) extends Flow[A]
@@ -36,6 +55,9 @@ object Flow:
   private[frflow] final case class Put[S](model: StateModel[S], s: Term[S]) extends Flow[Unit]
   private[frflow] final case class Update[S](model: StateModel[S], f: Term[S] => Term[S]) extends Flow[Unit]
   private[frflow] final case class Effect[A](run: () => A) extends Flow[A]
+  private[frflow] final case class Raise[A](e: Term[?]) extends Flow[A]
+  private[frflow] final case class Catch[E, A](first: Flow[A], handler: Term[E] => Flow[A], err: LeanType[E]) extends Flow[A]
+  private[frflow] final case class Attempt[E, A](first: Flow[A], err: LeanType[E]) extends Flow[Either[E, A]]
 
   def pure[A](t: Term[A]): Flow[A] = Pure(t)
   val unit: Flow[Unit] = Pure(Term.lit(()))
@@ -46,6 +68,18 @@ object Flow:
   def effect[X, Y, A](x: Term[X], y: Term[Y])(f: (X, Y) => A): Flow[A] = Effect(() => f(valueOf(x), valueOf(y)))
   def effect[X, Y, Z, A](x: Term[X], y: Term[Y], z: Term[Z])(f: (X, Y, Z) => A): Flow[A] = Effect(() => f(valueOf(x), valueOf(y), valueOf(z)))
   private def valueOf[X](t: Term[X]): X = Eval.compile(t.termTree)(Map.empty).asInstanceOf[X]
+
+  /** A flow that fails with `e` (MonadError's `raiseError`): Lean's `throwThe E e`. The steps after it do not run;
+    * a `handleErrorWith` around it, or the caller, decides what follows.
+    */
+  def raiseError[A](e: Term[?]): Flow[A] = Raise(e)
+  /** `use` of what `acquire` gives, then `release` of it whether `use` gave a result or failed with an error of type
+    * `E` (Cats Effect's `bracket`): `Flow.bracket[Failure](lock)(l => work(l))(l => unlock(l))`.
+    */
+  def bracket[E](using e: LeanType[E]): Bracket[E] = Bracket(e)
+  final class Bracket[E] private[Flow] (e: LeanType[E]):
+    def apply[R, A](acquire: Flow[R])(use: Term[R] => Flow[A])(release: Term[R] => Flow[?]): Flow[A] =
+      acquire.flatMap(r => use(r).guarantee[E](release(r))(using e))
 
   /** The step if `c` holds, else nothing (Applicative's `whenA`): Lean's `if c then … else pure ()`. */
   def whenA(c: Term[Boolean])(step: Flow[?]): Flow[Unit] = Cond(c, step.void, unit)
@@ -77,7 +111,7 @@ object Flow:
   * model names one value for it, as `Param` does for a term; production binds an implementation of the trait.
   * `db.load` calls the operation (an implicit conversion to the trait).
   */
-final class Boundary[T] private (val name: String, val means: String, val cls: Class[T]):
+final class Boundary[T] private (val name: String, val means: String, val cls: Class[T], private[frflow] val failure: Option[Term[?]]):
   /** The trait, recording each call as a step. */
   lazy val ops: T = Proxy.newProxyInstance(cls.getClassLoader, Array(cls), new InvocationHandler:
     def invoke(p: AnyRef, m: Method, args: Array[AnyRef] | Null): AnyRef =
@@ -87,6 +121,8 @@ final class Boundary[T] private (val name: String, val means: String, val cls: C
         case "equals" if m.getParameterCount == 1   => java.lang.Boolean.valueOf(p eq args.nn(0))
         case _ => Flow.Call[Any](Boundary.this, m, Option(args).fold(Nil)(_.toList.map(_.asInstanceOf[Term[?]])))
   ).asInstanceOf[T]
+  /** Whether a call may fail (`Boundary.failing`). */
+  def fails: Boolean = failure.isDefined
   /** The production implementation. */
   def bind(impl: T): Boundary.Bound = Boundary.Bound(this, impl)
   /** The operations, in the trait's order: what Lean's class declares. */
@@ -100,7 +136,14 @@ object Boundary:
   def apply[T](name: String, means: String)(using ct: ClassTag[T]): Boundary[T] =
     val c = ct.runtimeClass.asInstanceOf[Class[T]]
     require(c.isInterface, s"FrFlow: the boundary $name is a trait of operations, not ${c.getName}")
-    new Boundary(name, means, c)
+    new Boundary(name, means, c, None)
+  /** A boundary any call of which may fail with `error` (a store that is down, a mail server that refuses): a failed
+    * call changes nothing of its model. The proofs hold for every pattern of failures (the world's `faults`); in
+    * production, an exception from the implementation's call is that error.
+    */
+  def failing[T](name: String, means: String)(error: Term[?])(using ct: ClassTag[T]): Boundary[T] =
+    val b = apply[T](name, means)
+    new Boundary(name, means, b.cls, Some(error))
   given ops[T]: Conversion[Boundary[T], T] = _.ops
   final case class Bound(boundary: Boundary[?], impl: Any)
 
@@ -125,12 +168,22 @@ final class State[S] private[frflow] (model: StateModel[S]):
   def update(f: Term[S] => Term[S]): Flow[Unit] = Flow.Update(model, f)
 
 /** The states of the boundaries' models, before or after a flow runs: `before(DatabaseModel)`. */
-final class World private[frflow] (private[frflow] val parts: Map[StateModel[?], Any]):
+/** `faults`: which calls of the failing boundaries fail, in order (`true`: that call fails; when the list runs out,
+  * none does). They are the outside's, not a model's state: two worlds whose models hold the same are equal.
+  */
+final class World private[frflow] (private[frflow] val parts: Map[StateModel[?], Any], val faults: List[Boolean] = Nil):
   def apply[S](m: StateModel[S]): S = parts(m).asInstanceOf[S]
-  private[frflow] def updated(m: StateModel[?], s: Any): World = new World(parts.updated(m, s))
+  private[frflow] def updated(m: StateModel[?], s: Any): World = new World(parts.updated(m, s), faults)
+  /** The same world, where the next calls of failing boundaries fail as `fs` says: `w.failing(false, true)`, the
+    * second call fails.
+    */
+  def failing(fs: Boolean*): World = new World(parts, fs.toList)
+  private[frflow] def withFaults(fs: List[Boolean]): World = new World(parts, fs)
   override def equals(o: Any): Boolean = o match { case w: World => w.parts == parts; case _ => false }
   override def hashCode: Int = parts.hashCode
-  override def toString: String = parts.map((m, s) => s"${m.lean} = ${Example.show(s)}").mkString("World(", ", ", ")")
+  override def toString: String =
+    (parts.map((m, s) => s"${m.lean} = ${Example.show(s)}") ++ Option.when(faults.nonEmpty)(s"faults = ${faults.mkString("[", ", ", "]")}"))
+      .mkString("World(", ", ", ")")
 
 object World:
   def apply(parts: (StateModel[?], Any)*): World = new World(parts.toMap)
@@ -156,6 +209,10 @@ private[frflow] enum Steps:
   case Outside(run: () => Any)
   /** `let b := v; rest`: a value the program named (`t = …` in a for-comprehension), computed once. */
   case Let(b: Binder, v: Tree, rest: Steps)
+  /** `throwThe E e`. */
+  case Raise(e: Tree, err: LeanType[?])
+  /** `tryCatchThe E (do body) (fun b => do handler)`. */
+  case Catch(body: Steps, err: LeanType[?], b: Binder, handler: Steps)
 
 private[frflow] object Steps:
   /** The steps of a flow, and the type of its result. */
@@ -189,6 +246,8 @@ private[frflow] object Steps:
       case Flow.EachResult(_, body)   => captures(body)
       case Flow.Fold(_, _, body)      => captures(body)
       case Flow.Cond(_, a, b)         => shared(a) ++ shared(b)
+      case Flow.Catch(first, h, _)    => shared(first) ++ captures(h)
+      case Flow.Attempt(first, _)     => shared(first)
       case Flow.Update(_, g)          => captures(g)
       case _                          => Nil
 
@@ -215,13 +274,29 @@ private[frflow] object Steps:
       val List(acc, b) = Lambda.binders(body, List(z.termType, elemOf(xs))): @unchecked
       val (s, _) = within(body.asInstanceOf[(Term[Any], Term[Any]) => Flow[?]](acc.term, b.term), bound)
       (Accumulate(xs.termTree, z.termTree, acc, b, s), z.termType)
-    case Flow.Cond(c, a, b)    => val (sa, t) = within(a, bound); (Branch(c.termTree, sa, within(b, bound)._1), t)
+    case Flow.Cond(c, a, b)    =>
+      val (sa, t) = within(a, bound)
+      val (sb, u) = within(b, bound)
+      (Branch(c.termTree, sa, sb), known(t, u))
+    case Flow.Raise(e)         => (Raise(e.termTree, e.termType), LeanType.unknown)
+    case Flow.Catch(first, h, err) =>
+      val (s, t) = within(first, bound)
+      val b = Lambda.binders(h, List(err)).head
+      val (hs, u) = within(h.asInstanceOf[Term[Any] => Flow[?]](b.term), bound)
+      (Catch(s, err, b, hs), known(t, u))
+    case Flow.Attempt(first, err) =>
+      val (s, t) = within(first, bound)
+      val (a, e) = (Binder("a", t), Binder("e", err))
+      (Catch(Seq(s, a, Ret(Tree.Inj(false, Tree.Var(a)))), err, e, Ret(Tree.Inj(true, Tree.Var(e)))), LeanType.of(Shape.EitherOf(err, t)))
     case Flow.Get(m)           => (Read(m), m.stateType)
     case Flow.Put(m, s)        => (Write(m, s.termTree), summon[LeanType[Unit]])
     case Flow.Update(m, f)     =>
       val b = Lambda.binders(f, List(m.stateType)).head
       (Modify(m, b, f.asInstanceOf[Term[Any] => Term[Any]](b.term).termTree), summon[LeanType[Unit]])
     case Flow.Effect(run)      => (Outside(run), LeanType.unknown)
+
+  /** A flow's type, from either side: a side that raises has none. */
+  private def known(t: LeanType[?], u: LeanType[?]): LeanType[?] = if t.shape == Shape.Unknown then u else t
 
   private def elemOf(xs: Term[?]): LeanType[?] = xs.termType.shape match { case Shape.ListOf(a) => a; case _ => LeanType.unknown }
 
@@ -234,6 +309,7 @@ private[frflow] object Steps:
       case Accumulate(_, _, _, _, b) => fold(b, here)(f)
       case Branch(_, a, b) => fold(b, fold(a, here)(f))(f)
       case Let(_, _, r)    => fold(r, here)(f)
+      case Catch(a, _, _, b) => fold(b, fold(a, here)(f))(f)
       case _               => here
 
   def boundaries(s: Steps): List[Boundary[?]] = fold(s, List.empty[Boundary[?]]) {
@@ -241,6 +317,12 @@ private[frflow] object Steps:
     case (acc, _)                               => acc
   }
   def effectful(s: Steps): Boolean = fold(s, false)((acc, x) => acc || x.isInstanceOf[Outside])
+  /** The types of the errors the steps raise or handle. */
+  def errors(s: Steps): List[LeanType[?]] = fold(s, List.empty[LeanType[?]]) {
+    case (acc, Raise(_, e))       => acc :+ e
+    case (acc, Catch(_, e, _, _)) => acc :+ e
+    case (acc, _)                 => acc
+  }
 
 /** A program attached to a contract as its proven code: a `def` from its input to a flow. */
 final class FlowDef[A, R] @scala.annotation.publicInBinary private[frflow] (val name: String, f: Term[A] => Flow[R],
@@ -256,15 +338,40 @@ final class FlowDef[A, R] @scala.annotation.publicInBinary private[frflow] (val 
 private[frflow] object Flows:
   import Eval.Env
 
-  /** The flow on the models: its result and the world after. A call goes to the model of its boundary. */
+  /** A flow on the models that failed with `error`, in the world `at` as it was then. */
+  final case class Raised(error: Any, at: World) extends RuntimeException(s"the flow failed with $error", null, false, false)
+
+  /** The types of the errors a flow's run may end in: those it raises or handles, and its failing boundaries'. */
+  def errorTypes(s: Steps): List[LeanType[?]] =
+    (Steps.errors(s) ++ Steps.boundaries(s).flatMap(_.failure.map(_.termType))).distinctBy(t => Types.walk(t).lean)
+
+  /** Whether an error is one of type `t`: what a handler of `t` handles. */
+  def handles(t: LeanType[?], error: Any): Boolean = t.shape match
+    case Shape.Data(adt) => adt.cls.isInstance(error)
+    case Shape.Str       => error.isInstanceOf[String]
+    case Shape.Num(_)    => error.isInstanceOf[Int] || error.isInstanceOf[Long] || error.isInstanceOf[BigInt]
+    case _               => true
+
+  /** The flow on the models: its result and the world after; `Raised` when it fails. A call goes to the model of its
+    * boundary; a call of a failing boundary takes the next of the world's faults, and fails, changing nothing, on `true`.
+    */
   def onModels(s: Steps, env: Env, w: World): (Any, World) = s match
     case Steps.Ret(t)            => (Eval.compile(t)(env), w)
     case Steps.Op(b, m, args)    =>
       val model = w.parts.keys.find(x => b.cls.isInstance(x))
         .getOrElse(throw IllegalStateException(s"FrFlow: no model of the boundary ${b.name} in $w"))
+      val w0 = b.failure.fold(w) { e =>
+        val rest = w.withFaults(w.faults.drop(1))
+        if w.faults.headOption.contains(true) then throw Raised(Eval.compile(e.termTree)(Map.empty), rest)
+        rest
+      }
       val inner = Steps.of(m.invoke(model, args.map(a => literal(Eval.compile(a)(env)))*).asInstanceOf[Flow[?]])._1
-      val (r, own) = onModel(inner, model, w(model.asInstanceOf[StateModel[Any]]))
-      (r, w.updated(model, own))
+      val (r, own) = onModel(inner, model, w0(model.asInstanceOf[StateModel[Any]]))
+      (r, w0.updated(model, own))
+    case Steps.Raise(e, _)       => throw Raised(Eval.compile(e)(env), w)
+    case Steps.Catch(body, t, b, handler) =>
+      try onModels(body, env, w)
+      catch case Raised(err, at) if handles(t, err) => onModels(handler, env + (b -> err), at)
     case Steps.Seq(a, b, rest)   => val (x, w1) = onModels(a, env, w); onModels(rest, env + (b -> x), w1)
     case Steps.Let(b, v, rest)   => onModels(rest, env + (b -> Eval.compile(v)(env)), w)
     case Steps.Loop(xs, b, body) =>
@@ -313,8 +420,9 @@ private[frflow] object Flows:
   def runNow(s: Steps, env: Env, impls: Map[Boundary[?], Any]): Any = s match
     case Steps.Ret(t)            => Eval.compile(t)(env)
     case Steps.Op(b, m, args)    =>
-      val f = m.invoke(impls(b), args.map(a => literal(Eval.compile(a)(env)))*).asInstanceOf[Flow[?]]
-      runNow(Steps.of(f)._1, Map.empty, impls)
+      val vs = args.map(a => literal(Eval.compile(a)(env)))
+      def call = runNow(Steps.of(m.invoke(impls(b), vs*).asInstanceOf[Flow[?]])._1, Map.empty, impls)
+      b.failure.fold(call)(e => try call catch case x: Exception if !x.isInstanceOf[FlowFailed] => throw FlowFailed(Eval.compile(e.termTree)(Map.empty)))
     case Steps.Seq(a, b, rest)   => runNow(rest, env + (b -> runNow(a, env, impls)), impls)
     case Steps.Let(b, v, rest)   => runNow(rest, env + (b -> Eval.compile(v)(env)), impls)
     case Steps.Loop(xs, b, body) => Eval.compile(xs)(env).asInstanceOf[List[Any]].foreach(x => runNow(body, env + (b -> x), impls))
@@ -322,6 +430,10 @@ private[frflow] object Flows:
     case Steps.Accumulate(xs, z, acc, b, body) =>
       Eval.compile(xs)(env).asInstanceOf[List[Any]].foldLeft(Eval.compile(z)(env))((a, x) => runNow(body, env + (acc -> a) + (b -> x), impls))
     case Steps.Branch(c, a, b)   => if Eval.compile(c)(env).asInstanceOf[Boolean] then runNow(a, env, impls) else runNow(b, env, impls)
+    case Steps.Raise(e, _)       => throw FlowFailed(Eval.compile(e)(env))
+    case Steps.Catch(body, t, b, handler) =>
+      try runNow(body, env, impls)
+      catch case FlowFailed(err) if handles(t, err) => runNow(handler, env + (b -> err), impls)
     case Steps.Outside(run)      => run()
     case other                   => throw IllegalStateException(s"FrFlow: production runs no model's step ($other)")
 
@@ -333,8 +445,16 @@ private[frflow] object Flows:
       case Steps.Ret(t)            => eval(t, env)
       case Steps.Op(b, m, args)    =>
         val impl = impls.getOrElse(b, throw IllegalStateException(s"FrFlow: bind the boundary ${b.name} (${b.name}.bind(…))"))
-        args.traverse(eval(_, env)).flatMap { vs =>
+        val call = args.traverse(eval(_, env)).flatMap { vs =>
           F.delay(m.invoke(impl, vs.map(literal)*).asInstanceOf[Flow[?]]).flatMap(f => go(Steps.of(f)._1, Map.empty))
+        }
+        // A failing boundary's exception is its error, as the proofs see it.
+        b.failure.fold(call)(e => call.adaptError { case x: Exception if !x.isInstanceOf[FlowFailed] => FlowFailed(Eval.compile(e.termTree)(Map.empty)) })
+      case Steps.Raise(e, _)       => eval(e, env).flatMap(v => F.raiseError(FlowFailed(v)))
+      case Steps.Catch(body, t, b, handler) =>
+        go(body, env).handleErrorWith {
+          case FlowFailed(err) if handles(t, err) => go(handler, env + (b -> err))
+          case other                          => F.raiseError(other)
         }
       case Steps.Seq(a, b, rest)   => go(a, env).flatMap(x => go(rest, env + (b -> x)))
       case Steps.Let(b, v, rest)   => eval(v, env).flatMap(x => go(rest, env + (b -> x)))
@@ -364,11 +484,12 @@ private[frflow] object Trees:
     case Tree.Tup(es)              => es
     case Tree.Proj(on, _, _)       => List(on)
     case Tree.SomeT(a)             => List(a)
+    case Tree.Inj(_, a)            => List(a)
     case Tree.ListT(es)            => es
     case Tree.Over(_, on, _, b)    => List(on, b)
     case Tree.Op(_, as)            => as
     case Tree.Do(s)                => trees(s)
-    case Tree.RunOn(c, w)          => List(c, w)
+    case Tree.RunOn(c, w, _)       => List(c, w)
     case Tree.Part(w, _)           => List(w)
 
   private[frflow] def trees(s: Steps): List[Tree] = Steps.fold(s, List.empty[Tree]) {
@@ -381,6 +502,7 @@ private[frflow] object Trees:
     case (acc, Steps.Write(_, t))     => acc :+ t
     case (acc, Steps.Modify(_, _, t)) => acc :+ t
     case (acc, Steps.Let(_, v, _))    => acc :+ v
+    case (acc, Steps.Raise(e, _))     => acc :+ e
     case (acc, _)                     => acc
   }
 
@@ -404,11 +526,12 @@ private[frflow] object Trees:
       case Tree.Tup(es)              => Tree.Tup(es.map(go))
       case Tree.Proj(on, i, n)       => Tree.Proj(go(on), i, n)
       case Tree.SomeT(a)             => Tree.SomeT(go(a))
+      case Tree.Inj(l, a)            => Tree.Inj(l, go(a))
       case Tree.ListT(es)            => Tree.ListT(es.map(go))
       case Tree.Over(k, on, b, body) => Tree.Over(k, go(on), b, go(body))
       case Tree.Op(op, as)           => Tree.Op(op, as.map(go))
       case Tree.Do(s)                => Tree.Do(replaceIn(s, x, by))
-      case Tree.RunOn(c, w)          => Tree.RunOn(go(c), go(w))
+      case Tree.RunOn(c, w, e)       => Tree.RunOn(go(c), go(w), e)
       case Tree.Part(w, m)           => Tree.Part(go(w), m)
     go(in)
 
@@ -425,5 +548,7 @@ private[frflow] object Trees:
       case Steps.Write(m, a)         => Steps.Write(m, t(a))
       case Steps.Modify(m, b, body)  => Steps.Modify(m, b, t(body))
       case Steps.Let(b, v, rest)     => Steps.Let(b, t(v), go(rest))
+      case Steps.Raise(e, err)       => Steps.Raise(t(e), err)
+      case Steps.Catch(a, err, b, h) => Steps.Catch(go(a), err, b, go(h))
       case other                     => other
     go(s)
