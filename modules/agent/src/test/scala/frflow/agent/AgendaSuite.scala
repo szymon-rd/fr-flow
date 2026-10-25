@@ -1,5 +1,8 @@
 package frflow.agent
 
+import frflow.agent.conversation.*
+import frflow.agent.queue.*
+import frflow.agent.request.*
 import frflow.ledger.{Annotate, Decide}
 import frflow.ledger.Dag.*
 import frflow.protocol.*

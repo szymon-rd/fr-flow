@@ -634,10 +634,14 @@ One sbt subproject each, under `modules/`:
   signatures.
 - `check`: render and check (running `lake`), the snapshot, status, scaffold,
   git.
-- `api`: `FrFlowApi`, the typed operations a front end calls.
-- `cli`: the command line over the API.
+- `api`: `FrFlowApi`, the typed operations a front end calls; a node's details and diff in `frflow.api.details`, what
+  the reads and operations return in `frflow.api.report` (both re-exported from `frflow.api`).
+- `cli`: the command line over the API; the commands and their dispatch in `frflow.cli.command`, the views as text in
+  `frflow.cli.text`.
 - `web`: the web view over the API. The CLI does not depend on it.
 - `agent` (package `frflow.agent`): the AI agent's layer, on top of `cli` and `web`. No other module depends on it.
+  Its sub-packages: `conversation`, `request`, `queue` (what is the agent's to do), `command` (its commands and their
+  text) and `panel` (its routes in the web view).
 
 The Lean library is in `lean/FrFlow/`. The MCP server is on the branch
 `web-view`, which will become a separate repository.

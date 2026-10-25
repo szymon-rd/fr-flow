@@ -3,6 +3,8 @@ package frflow.agent
 import cats.effect.{ExitCode, IO}
 import cats.syntax.all.*
 import com.monovore.decline.Command as Sub
+import frflow.agent.queue.*
+import frflow.agent.request.*
 import frflow.api.*
 import frflow.check.TempDirs
 import frflow.cli.*

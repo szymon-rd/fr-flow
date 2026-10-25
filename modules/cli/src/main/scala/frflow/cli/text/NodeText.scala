@@ -1,11 +1,8 @@
 package frflow.cli
+package text
 
 import frflow.api.*
 import frflow.protocol.*
-
-/** `Brief` before a review prompt, `Normal` for `show` (about a screen), `Full` for `show --full` (nothing cut). */
-enum Depth:
-  case Brief, Normal, Full
 
 /** A node as `show` and the review print it; `c`, what layers on top add (a mark beside it, lines after it). */
 object NodeText:
@@ -197,84 +194,3 @@ object NodeText:
   private def governs(d: NodeDetails, st: Style): List[String] =
     d.node.node.code.toList.map(c => s"governs: ${c.files.mkString(", ")}" +
       (if d.diff.code.exists(_.inFull) then st.yellow(s"  (diff ${d.node.id} shows them in full: read them before accepting)") else ""))
-
-/** A decided node gone from the model, as `show` and `diff` print it: what it said, and its last decision. */
-object GoneText:
-  def lines(g: GoneNode, st: Style): List[String] =
-    val d = g.gone.decision
-    val room = st.width.fold(Int.MaxValue)(_ - 2)
-    val id = g.gone.id
-    (s"${st.red(st.dot)} ${st.bold(id.value)}  ${st.red("gone from the model")}" ::
-      st.wrap(d.content.statement, room).map("  " + _) ++ st.wrap(s"why: ${d.content.why}", room).map(l => "  " + st.dim(l))) ++
-      Lines.section("Decision", Lines.para(s"last ${Words.verb(d.action)} by ${d.by} (${Words.date(d.at)}): ${d.reason}", st) ++
-        Lines.para(s"${what(g)}: gone $id agrees that it is gone", st), st)
-
-  /** "renamed to Y" when a node in the model says the same. */
-  def what(g: GoneNode): String = g.renamedTo.fold("it is no longer in the model")(y => s"renamed to $y (it says the same)")
-
-/** What changed since a node was decided, as lines wrapped to the width less 2 (room for a caller's indent). */
-object DiffText:
-  def lines(d: NodeDiff, st: Style): List[String] = unwrapped(d, st).flatMap(st.fold(_, 2))
-
-  private def unwrapped(d: NodeDiff, st: Style): List[String] =
-    val parts = List(Option.when(d.partsAdded.nonEmpty)(s"parts added: ${d.partsAdded.mkString(", ")}"),
-      Option.when(d.partsRemoved.nonEmpty)(s"parts removed: ${d.partsRemoved.mkString(", ")}")).flatten
-    val codeLines = d.code.toList.flatMap(code(_, st))
-    val body = fields(d.self, st) ++
-        Option.when(d.statementStale)(st.yellow("! what it says formally changed and its statement did not: does the statement still say it?")) ++
-        parts.map(p => s"${st.yellow(p)}: do these parts, together, still make it?") ++
-        d.moved.flatMap { m =>
-          val how = if m.acceptedAgain then st.green(s"you accepted that${m.reason.fold("")(r => s": $r")}") else st.yellow("not accepted yet")
-          s"the meaning of ${st.bold(m.id.value)} changed (${how})" :: fields(m.changes, st).map("  " + _)
-        } ++
-        d.rejectedParents.map(p => st.red(s"its parent $p was rejected: move it under the node chosen instead")) ++
-        d.revisit.map(r => st.yellow(s"${r.by} asked to revisit it: ${r.reason}")) ++ codeLines
-    d.since match
-      case None => st.bold("New: never decided") :: codeLines.map("  " + _)
-      case Some(x) =>
-        val since = s"since it was ${Words.verb(x.action)} (${x.by}, ${Words.date(x.at)})"
-        if body.isEmpty then List(st.dim(s"Nothing changed $since."))
-        else st.bold(s"What changed $since") :: body.map("  " + _)
-
-  private def fields(fs: List[FieldChange], st: Style): List[String] =
-    fs.flatMap(f => st.bold(f.field) :: f.lines.map {
-      case DiffLine.Same(t)    => "  " + st.dim(s"  $t")
-      case DiffLine.Added(t)   => "  " + st.green(s"+ $t")
-      case DiffLine.Removed(t) => "  " + st.red(s"- $t")
-      case DiffLine.Folded(n)  => "  " + st.dim(s"${st.ellipsis} $n unchanged line(s)")
-    })
-
-  private def code(c: CodeChange, st: Style): List[String] =
-    val text = c.text.linesIterator.toList
-    val title = if c.inFull then s"the files it governs, in full: read them before accepting (${c.files.mkString(", ")})"
-      else s"the code it governs changed (${c.files.mkString(", ")})"
-    st.bold(title) :: (if text.isEmpty then List(st.dim("  no git diff available (decided outside git, or before the code was committed)"))
-      else text.map { l =>
-        if c.inFull then "  " + l
-        else if l.startsWith("+") && !l.startsWith("+++") then "  " + st.green(l)
-        else if l.startsWith("-") && !l.startsWith("---") then "  " + st.red(l)
-        else if l.startsWith("@@") then "  " + st.cyan(l)
-        else "  " + st.dim(l)
-      })
-
-/** Words shared by the views. */
-object Words:
-  def verb(a: Action): String = a match
-    case Action.Accept  => "accepted"
-    case Action.Confirm => "confirmed"
-    case Action.Reject  => "rejected"
-    case Action.Revisit => "asked to revisit"
-    case Action.Remove  => "agreed gone"
-
-  /** A review under `node` that moved only with it: `Decide` confirms it with the node (`Inbox.followers`). */
-  def follower(f: NodeId, node: NodeId, st: Style): String = s"${st.follows} $f moved only with it: accepting $node confirms it too"
-
-  def date(at: java.time.Instant): String = at.toString.take(16).replace('T', ' ')
-
-  val causes: Map[Cause, String] = Map(Cause.Self -> "it changed", Cause.Above -> "the meaning of what it rests on changed",
-    Cause.Parts -> "its parts changed", Cause.Code -> "the code it governs changed", Cause.Revisit -> "a change elsewhere may affect it",
-    Cause.Merged -> "two branches decided it and both were kept")
-
-  def decided(l: Logged): String =
-    val d = l.decision
-    s"${d.action} ${l.node}${if d.rejected.isEmpty then "" else s", rejecting ${d.rejected.mkString(", ")}"}"

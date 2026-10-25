@@ -3,17 +3,8 @@ package frflow.web
 import cats.effect.IO
 import cats.syntax.all.*
 import com.comcast.ip4s.{Port, ipv4}
-import frflow.api.{Developer, Extension, Host}
-import org.http4s.HttpRoutes
+import frflow.api.{Developer, Host}
 import org.http4s.ember.server.EmberServerBuilder
-
-/** What a layer on top adds to the web view: its routes (behind the page's token; under `/api/NAME/`, say), and a script
-  * the page runs after its own, which registers with `FrFlow.extend({...})` (see the page).
-  */
-trait WebExtension extends Extension:
-  def part(host: Host, dev: Developer): IO[WebPart]
-
-final case class WebPart(routes: HttpRoutes[IO], script: String)
 
 /** The web view: the page and the API's routes on localhost, in the project's own process (its model compiled once). */
 object WebView:
