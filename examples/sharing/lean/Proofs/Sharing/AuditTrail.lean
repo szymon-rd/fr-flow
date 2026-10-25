@@ -19,7 +19,7 @@ removes shares and adds an entry; delivery and waiting change neither. A yes of 
 has its entry. -/
 theorem complete : Obl.complete := by
   unfold Obl.complete
-  intro events inForce startedAt announce record isOpen gone isPending reminderDue hR hA
+  intro events inForce startedAt announce record isOpen gone isPending reminderDue forget hR _ hA
   have hR' : ∀ l t c, record l t c = { l with log := l.log ++ [Entry.mk (l.log.length : Int) t c] } := fun l t c => hR l t c
   have hA' : ∀ l b r e, announce l b r e = { l with outbox := l.outbox ++ Notifications.noticesOf b r e } := fun l b r e => hA l b r e
   unfold Sharing.AuditTrail.claim
@@ -51,10 +51,12 @@ theorem complete : Obl.complete := by
       split at hs
       · next hc =>
         rw [if_pos hc]
-        simp only [Sharing.AccessRequests.chaseCode, Sharing.Housekeeping.tidyCode, List.mem_filter, List.mem_append,
+        simp only [Sharing.Notifications.warnCode, Sharing.Audit.forgetCode, Sharing.AccessRequests.chaseCode, Sharing.Housekeeping.tidyCode, List.mem_filter, List.mem_append,
           List.mem_singleton] at hs ⊢
         obtain ⟨e, he, hm⟩ := h s hs.1
-        exact ⟨e, Or.inl he, hm⟩
+        -- the entry explains a share held after tidying: it is not forgotten
+        refine ⟨e, Or.inl (List.mem_map.2 ⟨e, he, ?_⟩), hm⟩
+        exact if_neg (fun hx => hx.2 (Or.inl ⟨s, List.mem_filter.2 hs, hm⟩))
       · next hc => rw [if_neg hc]; exact h s hs
     | Delivered =>
       simp only [inv, step, Sharing.Run.step]

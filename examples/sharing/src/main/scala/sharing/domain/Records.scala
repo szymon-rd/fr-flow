@@ -6,14 +6,17 @@ import frflow.*
   * who may edit the document approves it (which makes the share) or declines it. `reminded`: whether the owner has been
   * reminded of it, which housekeeping does once, after 48 hours; after 7 days it lapses (it is declined).
   */
-final case class AccessRequest(person: PersonId, doc: DocumentId, level: Level, asked: BigInt, reminded: Boolean)
+final case class AccessRequest(person: PersonId, what: Target, level: Level, asked: BigInt, reminded: Boolean)
 object AccessRequest extends Data[AccessRequest]:
   given LeanType[AccessRequest] = LeanType.product[AccessRequest]
 
-/** A change the log keeps: a request that changed the library, or a run of housekeeping that did. */
+/** A change the log keeps: a request that changed the library, or a run of housekeeping that did; or, for an entry more
+  * than a year old, nothing any more: its change is forgotten (Q15: the log is kept for a year).
+  */
 enum Change:
   case Made(request: Request)
   case Housekept
+  case Forgotten
 object Change extends Data[Change]:
   given LeanType[Change] = LeanType.sum[Change]
 
@@ -29,6 +32,7 @@ enum Subject:
   case Logged(entry: Entry)
   case Reminder(request: AccessRequest)
   case Lapsed(request: AccessRequest)
+  case Ending(share: Share)
 object Subject extends Data[Subject]:
   given LeanType[Subject] = LeanType.sum[Subject]
 

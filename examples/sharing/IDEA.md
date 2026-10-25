@@ -5,9 +5,10 @@ teams. The shares decide who can view a document and who can edit it, and who
 may change whom it is shared with. Shares can end, invitations lapse, and
 documents in the trash are deleted for good after a while. People can ask for
 access; every document has an owner; every change is logged; people are told
-of what concerns them; and a failure leaves things as they were.
+of what concerns them; a failure leaves things as they were; and many people
+can use it at once.
 
-From: Q1, Q5
+From: Q1, Q5, Q17
 
 ## Who can see and change what
 
@@ -56,9 +57,9 @@ From: Q8
 ## Time and housekeeping
 
 Time is the server's clock, in seconds, read once for each request: a request
-is answered at one moment. Housekeeping runs every minute, one at a time with
-the requests; it removes shares that have ended, invitations that have lapsed,
-and documents gone from the trash. Nothing waits for it: it only tidies.
+is answered at one moment. Housekeeping runs every minute, as one transaction
+beside the requests; it removes shares that have ended, invitations that have
+lapsed, and documents gone from the trash. Nothing waits for it: it only tidies.
 
 From: Q9
 
@@ -72,11 +73,11 @@ From: Q5
 
 ## Access requests
 
-Anyone named in the library can ask for view or edit on a document. Asking
-gives no access. Anyone who can edit the document approves the request, which
-makes the share asked for, or declines it. A request nobody answers is
-reminded of to the document's owner after 48 hours, once, and declined
-automatically after 7 days; housekeeping does both.
+Anyone named in the library can ask for view or edit on a document or a
+folder. Asking gives no access. Anyone who can edit it approves the request,
+which makes the share asked for, or declines it. A request nobody answers is
+reminded of to the owner of each document it is for after 48 hours, once, and
+declined automatically after 7 days; housekeeping does both.
 
 From: Q12
 
@@ -85,7 +86,8 @@ From: Q12
 Every document has exactly one owner. Only the owner, while they can edit it,
 hands it on, and only to someone who can edit it; the new owner then has an
 edit share of it for good. Nobody can unshare or replace an owner's own share
-of their document, so the owner always can edit it, and leaving a team never takes their
+of their document, not by sharing, accepting an invitation or approving a
+request, so the owner always can edit it, and leaving a team never takes their
 documents from them.
 
 From: Q14
@@ -94,17 +96,22 @@ From: Q14
 
 Every change is logged with who asked, what and when, in the same save as the
 change, so no change is seen before its entry. Every yes of "can view" can be
-traced to the log entries of the shares that gave it. The log only grows.
+traced to the log entries of the shares that gave it. Entries are never taken
+away; after a year, housekeeping forgets what an entry tells, unless it is the
+making of a share still held or of a change a waiting notice tells of.
 
 From: Q15
 
 ## Notifications
 
 Invitations, accepted invitations, access requests and their answers,
-reminders, and documents handed on are notified to the person they concern.
+reminders, documents handed on, and shares ending within a day are notified to
+the person they concern.
 Each notice goes to an outbox in the same save as its change, and is sent from
 there, retried until the mail server has it: a person is told of each event at
 least once and never twice, because the mail server keeps each event once.
+Four notices are sent at once, each person's in order: a run sends the oldest
+notice of each person, and the next run the next.
 
 From: Q13
 
@@ -116,3 +123,15 @@ changes nothing and is tried again at the next minute; a run of delivery that
 fails leaves its notice in the outbox, to be sent again.
 
 From: Q16
+
+## Concurrency
+
+Many people use the service at once. Each request, and each run of
+housekeeping, is one transaction on the store: two requests on one document at
+once leave it as one after the other does, in the order they were made to the
+store, and housekeeping comes before or after a request, never in the middle.
+Delivery runs beside the requests: it only takes notices out of the outbox,
+each in a transaction of its own, while requests only add to it. The service is
+one process with one store.
+
+From: Q17, Q18, Q19, Q20, Q21, Q22

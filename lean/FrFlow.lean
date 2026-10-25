@@ -1,6 +1,7 @@
 import FrFlow.Attr
 import FrFlow.Flow
 import FrFlow.Faults
+import FrFlow.Commute
 import FrFlow.Auto
 import FrFlow.Intro
 import FrFlow.Machine

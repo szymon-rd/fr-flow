@@ -864,9 +864,12 @@ does is then proven by induction on the list. The CRM's proof is
 <ul>
   <li><strong>Deterministic.</strong> Each operation has one outcome. What is unknown, such as a clock's readings, goes
   into the state; the proofs hold for every start state.</li>
-  <li><strong>No failures.</strong> An operation always succeeds. Failures are not modelled yet.</li>
-  <li><strong>Exclusive.</strong> Nothing else changes the state during a run. A design node says how that is ensured
-  (a lock, a transaction).</li>
+  <li><strong>Failures as faults.</strong> A boundary declared failing may fail at any call, changing nothing; the
+  world's faults say which calls fail, and a proof holds for every pattern of them.</li>
+  <li><strong>Exclusive, or one step.</strong> Nothing else changes the state between two steps of a transaction
+  (<code>Flow.atomically</code>), which Lean reads as one step; a design node says how that is ensured (in one process,
+  FrFlow's lock). Branches at once (<code>parTupled</code>, <code>parTraverse</code>) are read in turn, with the proof
+  that whole branches commute (<code>commute_i</code>); their steps interleaved are tested, not proven.</li>
   <li><strong>Loops over lists.</strong> A flow loops with <code>xs.traverse_(x =&gt; …)</code>, so it terminates.</li>
 </ul>
 <p>Steps of the outside world (<code>Flow.effect</code>) belong to production implementations only: a proven flow

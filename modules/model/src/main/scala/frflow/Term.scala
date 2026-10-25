@@ -404,6 +404,15 @@ object Term extends TermsOfValues:
     def traverse_(f: Term[A] => Flow[?]): Flow[Unit] = Flow.Each(xs, f)
     /** A value carried through the elements by a flow (Foldable's `foldM`): Lean's `xs.foldlM (init := z) fun acc x => do …`. */
     def foldM[B](z: Term[B])(f: (Term[B], Term[A]) => Flow[B]): Flow[B] = Flow.Fold(xs, z, f)
+    /** Each element at once, the results in the list's order (Cats' `parTraverse`); structured, as `parTupled`. Lean
+      * reads it as `traverse` and asks the proof that any two elements' flows commute, so every order of whole branches
+      * gives the same.
+      */
+    def parTraverse[B](f: Term[A] => Flow[B]): Flow[List[B]] = Flow.ParEach(xs, f, None)
+    /** The same, at most `n` at once (Cats Effect's `parTraverseN`). */
+    def parTraverseN[B](n: Int)(f: Term[A] => Flow[B]): Flow[List[B]] =
+      require(n >= 1, "FrFlow: parTraverseN runs at least one at once")
+      Flow.ParEach(xs, f, Some(n))
     def zip[B](ys: Term[List[B]]): Term[List[(A, B)]] =
       op(Prim.Zip, LeanType.of(Shape.ListOf(LeanType.of(Shape.TupleOf(List(elem(xs), elem(ys)))))), xs, ys)
 

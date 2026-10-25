@@ -3,13 +3,15 @@ package sharing.notifications
 import frflow.*
 import sharing.*
 import sharing.domain.*
+import sharing.requests.AccessRequests
 import sharing.store.LibraryModel
 import sharing.store.LibraryStore.store
 import sharing.time.Run.{after, events}
 
 /** Notifications: a change that concerns someone puts a notice of it in the outbox, in the same save as the change;
-  * delivery sends the outbox to the mail server, a notice leaving the outbox only once the mail server has it. The mail
-  * server delivers a notice once (its event is its id), so a notice sent again after a failure is not delivered twice.
+  * delivery sends the outbox to the mail server, four people's notices at once, a notice leaving the outbox only once
+  * the mail server has it. The mail server keeps each person's notices in the order it got them, and takes a notice
+  * once (its event is its id), so a notice sent again after a failure is not delivered twice.
   */
 trait Notifications:
   /** The library with notices of a change, made by `request` and logged as `entry`, added to its outbox; `before`: the
@@ -21,15 +23,20 @@ trait Notifications:
 trait Mailer:
   def send(notice: Term[Notice]): Flow[Unit]
 
-/** The mail server as the proofs see it: the notices delivered, each once, oldest first. */
-object MailerModel extends Mailer, StateModel[List[Notice]]:
-  def send(notice: Term[Notice]) = state.update(ns => ns.contains(notice).fold(ns, ns ++ List(notice)))
+/** The mail server as the proofs see it: each person's mailbox, the notices delivered to them, each once, oldest
+  * first. Order is kept per person, not across people (Q17): two people's deliveries change two mailboxes.
+  */
+object MailerModel extends Mailer, StateModel[Map[PersonId, List[Notice]]]:
+  def send(notice: Term[Notice]) = state.update(boxes => boxes.updated(notice.to, Notifications.taken(Notifications.mailbox(boxes, notice.to), notice)))
 
-/** The mail server of the project's own: it keeps what it delivered, in memory. Tested against MailerModel. */
-final class MemoryMailer(start: List[Notice] = Nil) extends Mailer:
+/** The mail server of the project's own: it keeps each person's mailbox, in memory. Tested against MailerModel. */
+final class MemoryMailer(start: Map[PersonId, List[Notice]] = Map.empty) extends Mailer:
   private val held = java.util.concurrent.atomic.AtomicReference(start)
-  def delivered: List[Notice] = held.get
-  def send(notice: Term[Notice]) = Flow.effect(notice)(n => held.updateAndGet(ns => if ns.contains(n) then ns else ns :+ n))
+  def boxes: Map[PersonId, List[Notice]] = held.get
+  /** Every notice delivered, person by person. */
+  def delivered: List[Notice] = held.get.toList.sortBy(_._1.name).flatMap(_._2)
+  def send(notice: Term[Notice]) = Flow.effect(notice)(n =>
+    held.updateAndGet(m => m.updated(n.to, m.getOrElse(n.to, Nil) match { case ns if ns.contains(n) => ns; case ns => ns :+ n })))
 
 object Notifications:
   import Demo.*
@@ -40,10 +47,15 @@ object Notifications:
     Failure.MailerUnavailable: Term[Failure])
 
   val mailerKept = Node.assumption(mailer)(MailerModel)("MailerKept",
-    "The mail server delivers a notice it is given, and one it has already delivered is not delivered again; any call may fail because it is down, and then delivers nothing.",
-    why = "Q13: notices are delivered at least once and never twice for one event: the outbox sends again after a failure, and the mail server keeps the notices it has delivered, by their event, so the second is dropped. An outside mail server would be checked against this model; MemoryMailer, the service's own, is tested against it.",
+    "The mail server delivers a notice it is given into the mailbox of the person it is to, after the ones delivered there before, and one it has already delivered is not delivered again; any call may fail because it is down, and then delivers nothing.",
+    why = "Q13: notices are delivered at least once and never twice for one event: the outbox sends again after a failure, and the mail server keeps the notices it has delivered, by their event, so the second is dropped. Q17: each person's notices keep their order, two people's need not, so deliveries to two people at once commute. An outside mail server would be checked against this model; MemoryMailer, the service's own, is tested against it.",
     idea = "Notifications")
-    .implementedBy(ns => MemoryMailer(ns), _.delivered)
+    .implementedBy(boxes => MemoryMailer(boxes), _.boxes)
+
+  /** A person's mailbox: the notices delivered to them, oldest first. */
+  val mailbox = define { (boxes: Term[Map[PersonId, List[Notice]]], p: Term[PersonId]) => boxes.getOrElse(p, List.empty[Notice]) }
+  /** A mailbox after a notice is given to the mail server: the notice at the end, unless it is there already. */
+  val taken = define { (ns: Term[List[Notice]], n: Term[Notice]) => ns.contains(n).fold(ns, ns ++ List(n)) }
 
   /** The notices a change made by a request tells of, logged as `e`, on the library `lib` it was made on: the person
     * invited; the person who sent an invitation now accepted; the owner of a document asked for; the person whose request
@@ -61,7 +73,7 @@ object Notifications:
       .on[Request.Withdraw]((_, _, _) => nobody)
       .on[Request.Trash]((_, _) => nobody)
       .on[Request.Restore]((_, _) => nobody)
-      .on[Request.Ask]((_, d, _) => lib.documents.filter(doc => doc.id === d).map(doc => Notice(doc.owner, Subject[Subject.Logged](e))))
+      .on[Request.Ask]((_, w, _) => lib.documents.filter(doc => AccessRequests.isFor(w, doc)).map(doc => Notice(doc.owner, Subject[Subject.Logged](e))))
       .on[Request.Approve]((_, p, _) => List(Notice(p, Subject[Subject.Logged](e))))
       .on[Request.Decline]((_, p, _) => List(Notice(p, Subject[Subject.Logged](e))))
       .on[Request.Transfer]((_, _, to) => List(Notice(to, Subject[Subject.Logged](e))))
@@ -71,13 +83,14 @@ object Notifications:
     * mail server's (MailerKept).
     */
   val noticesFollowChanges = Node.claim("NoticesFollowChanges",
-    "A notice is sent only of a change already kept: at every moment, every notice of a logged change, in the outbox or delivered, is of an entry in the log. A notice leaves the outbox only once the mail server has it, and the mail server has each notice once, so a person is told of each event at least once and never twice.",
-    why = "Q13: invitations, accepted invitations, access requests and their answers, and transfers are notified, through an outbox, retried until delivered, at least once and never twice for one event. Putting the notice in the outbox in the save that makes the change orders them (assertion 5 of the time design): the change is kept before anyone is told of it. Shares ending within a day are not notified yet.",
+    "A notice is sent only of a change already kept: at every moment, every notice of a logged change waiting in the outbox is of an entry in the log. A notice leaves the outbox only once the mail server has it, and the mail server has each notice once, so a person is told of each event at least once and never twice.",
+    why = "Q13: invitations, accepted invitations, access requests and their answers, transfers, and shares ending within a day are notified, through an outbox, retried until delivered, at least once and never twice for one event. Putting the notice in the outbox in the save that makes the change orders them (assertion 5 of the time design): the change is kept before anyone is told of it, and kept while the notice waits (ForgetContract); a notice delivered may outlive its entry's year.",
     idea = "Notifications"
-  )((after(events).library.outbox ++ after(events).mailbox).forall(n => n.about
+  )(after(events).library.outbox.forall(n => n.about
       .on[Subject.Logged](e => after(events).library.log.contains(e))
       .on[Subject.Reminder](_ => True)
-      .on[Subject.Lapsed](_ => True)) &&
+      .on[Subject.Lapsed](_ => True)
+      .on[Subject.Ending](_ => True)) &&
     after(events).mailbox.forall(n => after(events).mailbox.filter(m => m === n).length === 1))
     .under(accessFollowsShares)
 
@@ -102,47 +115,116 @@ object Notifications:
   }
 
   // ---------------------------------------------------------------------------
-  // delivery: the outbox sent to the mail server, retried
+  // shares ending within a day: housekeeping tells the people they reach
+  // ---------------------------------------------------------------------------
+
+  val warn = Param[(Library, BigInt) => Library]("warn", "the library with notices of the shares ending within a day")
+
+  /** The people a share reaches, by name: the person it is with, or the members of the team. */
+  val reachedBy = define { (lib: Term[Library], s: Term[Share]) =>
+    s.withWhom.on[Grantee.Person](p => List(p)).on[Grantee.Team](t => lib.teams.filter(team => team.id === t).flatMap(team => team.members))
+  }
+  /** The window a share's end is told of in: two minutes, the longest housekeeping goes without a run
+    * (HousekeepingPeriod). A value, not the open term: the term would become an input of every definition of the run.
+    */
+  val window: BigInt = 120
+  /** Whether a share ends a day after a moment, within the window: the run of housekeeping nearest a day before its end
+    * tells of it.
+    */
+  val endsInADay = define { (s: Term[Share], t: Term[BigInt]) =>
+    s.until.exists(u => u <= t + day && u > t + day - window)
+  }
+  /** The notices of the shares ending in a day, to each person each reaches. */
+  val endingNotices = define { (lib: Term[Library], t: Term[BigInt]) =>
+    lib.shares.filter(s => endsInADay(s, t)).flatMap(s => reachedBy(lib, s).map(p => Notice(p, Subject[Subject.Ending](s))))
+  }
+
+  private val bobsHourEndsInADay = Share(Target.Doc(plan), Grantee.Person(bob), Level.View, Some(now + day - 30))
+
+  val warnContract = Node.contract(warn)("WarnContract",
+    "Housekeeping tells of the shares ending within a day: at a moment, it adds at the end of the outbox a notice, to each person a share reaches, of each share whose end comes a day on, within one housekeeping period. Nothing else changes.",
+    why = "Q13 as assumed: shares ending within a day are notified. Housekeeping runs every minute and never two minutes apart (HousekeepingOnTime), so a share's end falls in the window of one run or two; the mail server keeps a notice once (MailerKept), so each person is told once.",
+    idea = "Notifications"
+  )((lib, t, result) => result === lib.copy((outbox = lib.outbox ++ endingNotices(lib, t))))
+    .under(noticesFollowChanges)
+    .examples()(
+      expect(library.copy(shares = bobsHourEndsInADay :: library.shares), now,
+        library.copy(shares = bobsHourEndsInADay :: library.shares, outbox = List(Notice(bob, Subject.Ending(bobsHourEndsInADay)))),
+        "Bob's share ends in a day: he is told"),
+      expect(library.copy(shares = bobsHourEndsInADay :: library.shares), now - 3600, library.copy(shares = bobsHourEndsInADay :: library.shares),
+        "a day and an hour before: not yet"),
+      reject(library.copy(shares = bobsHourEndsInADay :: library.shares), now, library.copy(shares = bobsHourEndsInADay :: library.shares),
+        "a share ending is never left untold"))
+
+  val warnCode = define { (lib: Term[Library], t: Term[BigInt]) =>
+    lib.copy((outbox = lib.outbox ++ endingNotices(lib, t)))
+  }
+
+  // ---------------------------------------------------------------------------
+  // delivery: the outbox sent to the mail server, four people at once, retried
   // ---------------------------------------------------------------------------
 
   /** How a notice is tried at the mail server: three tries, a second and then two seconds apart. */
   val retrying: Schedule = Schedule.exponential(1, retries = 2)
+  /** How many notices are sent at once (Q17). */
+  val atOnce: Int = 4
 
-  val deliver = Param[() => Flow[Unit]]("deliver", "a run of delivery: the oldest notice in the outbox sent to the mail server")
+  /** The oldest notice of each person in an outbox, in the outbox's order: what a run of delivery sends. Two of them are
+    * never to the same person, so each person's notices go in order, one a run.
+    */
+  val firstOfEach = define { (outbox: Term[List[Notice]]) => outbox.filter(n => outbox.find(m => m.to === n.to).contains(n)) }
+
+  val deliver = Param[() => Flow[Unit]]("deliver", "a run of delivery: the oldest notice of each person in the outbox sent to the mail server")
 
   private val told = Notice(cat, Subject.Logged(entry))
-  private def at(outbox: List[Notice], delivered: List[Notice], now: BigInt = now) =
+  private val toldBob = Notice(bob, Subject.Logged(entry.copy(id = 1)))
+  private val toldCatAgain = Notice(cat, Subject.Logged(entry.copy(id = 2)))
+  private def boxes(ns: Notice*): Map[PersonId, List[Notice]] = ns.toList.groupBy(_.to)
+  private def at(outbox: List[Notice], delivered: Map[PersonId, List[Notice]], now: BigInt = now) =
     World(LibraryModel -> library.copy(outbox = outbox), MailerModel -> delivered, ClockModel -> ClockState(now, Nil))
 
   val deliveryJob = Node.contract(deliver)("DeliveryJob",
-    "A run of delivery sends the oldest notice in the outbox to the mail server, trying three times, a second and then two seconds apart; once the mail server has it, it leaves the outbox. A run that fails leaves the outbox as it was, so the notice is sent again at the next run. Nothing else in the library changes.",
-    why = "Q13: at least once, through an outbox, retried with a schedule. A notice the mail server took whose removal from the outbox then failed is sent again and dropped by the mail server (MailerKept): never twice.",
+    "A run of delivery reads the outbox and sends the oldest notice of each person in it to the mail server, four at once, each tried three times, a second and then two seconds apart. A notice leaves the outbox only once the mail server has it, and only such a notice: one the mail server did not take stays, to be sent at the next run. The mailbox of each person sent to is as it was, or holds that notice too. Nothing else in the library changes. When the outbox cannot be read, nothing changes.",
+    why = "Q13: at least once, through an outbox, retried with a schedule; a notice the mail server took whose removal from the outbox then failed is sent again and dropped by the mail server (MailerKept): never twice. Q17: up to four at once, order kept per person (one notice of each person a run). Each branch handles its own failures, so one person's notice failing never stops another's; the branches are proven to commute (two people's notices change two mailboxes, and leave the outbox by their own removal), and each removal is one transaction, so a request adding to the outbox meanwhile is kept (Q20).",
     idea = "Notifications"
   )((result, before, after) =>
-    before(LibraryModel).outbox.take(1).forall(n => after(MailerModel).contains(n) &&
-      after(LibraryModel) === before(LibraryModel).copy((outbox = before(LibraryModel).outbox.filterNot(m => m === n)))) &&
-    (before(LibraryModel).outbox.isEmpty ==> (after(LibraryModel) === before(LibraryModel))))
-    .onFailure[Failure]((e, before, after) => after(LibraryModel) === before(LibraryModel))
+    let(firstOfEach(before(LibraryModel).outbox))(heads =>
+      after(LibraryModel) === before(LibraryModel).copy((outbox = before(LibraryModel).outbox.filter(n => after(LibraryModel).outbox.contains(n)))) &&
+      before(LibraryModel).outbox.forall(n => after(LibraryModel).outbox.contains(n) ||
+        (heads.contains(n) && mailbox(after(MailerModel), n.to).contains(n))) &&
+      heads.forall(n => mailbox(after(MailerModel), n.to) === mailbox(before(MailerModel), n.to) ||
+        mailbox(after(MailerModel), n.to) === taken(mailbox(before(MailerModel), n.to), n))))
+    .onFailure[Failure]((e, before, after) => after(LibraryModel) === before(LibraryModel) && after(MailerModel) === before(MailerModel))
     .under(noticesFollowChanges)
     .examples()(
-      expect(at(List(told), Nil), (), at(Nil, List(told)), "Cat's notice delivered"),
-      expect(at(List(told), Nil).failing(false, true), (), at(Nil, List(told), now + 1), "the mail server was down once: delivered a second later"),
-      expect(at(List(told), Nil).failing(false, true, true, true), Failed(Failure.MailerUnavailable), at(List(told), Nil, now + 3),
-        "down three times: the notice stays in the outbox"),
-      expect(at(List(told), Nil).failing(false, false, true), Failed(Failure.StoreUnavailable), at(List(told), List(told)),
+      expect(at(List(told), Map.empty), (), at(Nil, boxes(told)), "Cat's notice delivered"),
+      expect(at(List(told, toldBob, toldCatAgain), Map.empty), (), at(List(toldCatAgain), boxes(told, toldBob)),
+        "Cat's first and Bob's go at once; Cat's second waits for the next run"),
+      expect(at(List(told), Map.empty).failing(false, true), (), at(Nil, boxes(told), now + 1), "the mail server was down once: delivered a second later"),
+      expect(at(List(told), Map.empty).failing(false, true, true, true), (), at(List(told), Map.empty, now + 3),
+        "down three times: the notice stays in the outbox, for the next run"),
+      expect(at(List(told), Map.empty).failing(false, false, true), (), at(List(told), boxes(told)),
         "delivered, but the store failed: the notice stays, to be sent again (and dropped by the mail server)"),
-      expect(at(List(told), List(told)), (), at(Nil, List(told)), "sent again after that: not delivered twice"),
-      reject(at(List(told), Nil).failing(false, true, true, true), Failed(Failure.MailerUnavailable), at(Nil, Nil, now + 3),
+      expect(at(List(told), boxes(told)), (), at(Nil, boxes(told)), "sent again after that: not delivered twice"),
+      expect(at(List(told), Map.empty).failing(true), Failed(Failure.StoreUnavailable), at(List(told), Map.empty),
+        "the outbox cannot be read: nothing changes"),
+      reject(at(List(told), Map.empty).failing(false, true, true, true), (), at(Nil, Map.empty, now + 3),
         "a notice never leaves the outbox undelivered"))
 
-  /** One run: the outbox read, its oldest notice sent with retries, then taken out of the outbox. DeliveryJob is proven of
-    * it, on the store's, the mail server's and the clock's models.
+  /** One person's notice: sent with retries; once the mail server has it, taken out of the outbox in one transaction.
+    * Its failures end here: one notice failing never cancels another's delivery.
+    */
+  def deliverOne(n: Term[Notice]): Flow[Unit] =
+    mailer.send(n).retry[Failure](retrying).attempt[Failure].flatMap(sent => Flow.whenA(sent.isRight)(
+      Flow.atomically(store.load.flatMap(l => store.save(l.copy((outbox = l.outbox.filterNot(m => m === n)))))).attempt[Failure]))
+
+  /** One run: the outbox read, and the oldest notice of each person in it delivered, four at once. DeliveryJob is proven
+    * of it, on the store's, the mail server's and the clock's models, with its branches proven to commute.
     */
   def delivery: Flow[Unit] =
     for
       lib <- store.load
-      _   <- lib.outbox.take(1).traverse_(n =>
-        mailer.send(n).retry[Failure](retrying) *> store.load.flatMap(l => store.save(l.copy((outbox = l.outbox.filterNot(m => m === n))))))
+      _   <- firstOfEach(lib.outbox).parTraverseN(atOnce)(n => deliverOne(n))
     yield ()
 
   /** Delivery every ten seconds, run in the server. */

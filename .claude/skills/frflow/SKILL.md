@@ -327,6 +327,12 @@ def expireOnce(now: Term[BigInt]): Flow[CrmStore] =   // the code: a plain def, 
   examples give `Failed(error)` from `before.failing(false, true)`. Make a request one save, so that
   "fails and changes nothing" is provable; keep what must be saved together (an audit entry, an outbox
   notice) in the one state the save writes.
+- **Concurrency**: `(fa, fb).parTupled`, `xs.parTraverse(f)` / `parTraverseN(n)(f)`, `f.race(g)`,
+  `Flow.atomically(f)`. Lean reads branches in turn and asks `commute_i` (whole branches in either order give the
+  same; prove it by hand with `FrFlow.Commute` lemmas when automation does not); a transaction is one step. Branches
+  in proven code handle their own errors; shared read-and-write goes in `atomically`; the generated tests run the
+  branches interleaved in IO and compare with the models. Prove a flow over a `parTraverse` with
+  `FrFlow.outcome_mapM_void`. Interleavings are tested, not proven; say so.
 
 ## Terms or plain Scala
 

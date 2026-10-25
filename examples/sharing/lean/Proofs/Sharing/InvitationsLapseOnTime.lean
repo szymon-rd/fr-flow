@@ -19,7 +19,7 @@ invitations only now (recording and announcing it touch only the log and the out
 minutes of the last run (HousekeepingOnTime) and never goes back (ClockNeverGoesBack). -/
 theorem complete : Obl.complete := by
   unfold Obl.complete
-  intro events startedAt announce record inForce isOpen gone isPending reminderDue chase tidy housekeep hR hA _ hO hC hH
+  intro events startedAt announce record inForce isOpen gone isPending reminderDue warn chase forget tidy housekeep hR hA _ hO hC hH
   have hR' : ∀ l t c, record l t c = { l with log := l.log ++ [Entry.mk (l.log.length : Int) t c] } := fun l t c => hR l t c
   have hA' : ∀ l b r e, announce l b r e = { l with outbox := l.outbox ++ Notifications.noticesOf b r e } := fun l b r e => hA l b r e
   unfold Sharing.InvitationsLapseOnTime.claim
@@ -51,12 +51,12 @@ theorem complete : Obl.complete := by
       refine ⟨Int.le_refl _, by omega, fun i hi => ?_⟩
       rw [Sharing.Lemmas.housekept_eq _ hR'] at hi
       split at hi
-      · simp only [Sharing.AccessRequests.chaseCode, Sharing.Housekeeping.tidyCode, List.mem_filter, decide_eq_true_eq] at hi
+      · simp only [Sharing.Notifications.warnCode, Sharing.Audit.forgetCode, Sharing.AccessRequests.chaseCode, Sharing.Housekeeping.tidyCode, List.mem_filter, decide_eq_true_eq] at hi
         exact (openIs i m.now).1 hi.2
       · next hn =>
-        have hi' : i ∈ (Sharing.AccessRequests.chaseCode isPending reminderDue (Sharing.Housekeeping.tidyCode gone inForce isOpen m.library m.now) m.now).invitations := by
+        have hi' : i ∈ (Sharing.Notifications.warnCode (Sharing.AccessRequests.chaseCode isPending reminderDue (Sharing.Audit.forgetCode (Sharing.Housekeeping.tidyCode gone inForce isOpen m.library m.now) m.now) m.now) m.now).invitations := by
           rw [Classical.not_not.mp hn]; exact hi
-        simp only [Sharing.AccessRequests.chaseCode, Sharing.Housekeeping.tidyCode, List.mem_filter, decide_eq_true_eq] at hi'
+        simp only [Sharing.Notifications.warnCode, Sharing.Audit.forgetCode, Sharing.AccessRequests.chaseCode, Sharing.Housekeeping.tidyCode, List.mem_filter, decide_eq_true_eq] at hi'
         exact (openIs i m.now).1 hi'.2
     | Delivered =>
       simp only [inv, step, Sharing.Run.step]

@@ -18,14 +18,15 @@ final case class Moment(library: Library, now: BigInt, tidied: BigInt, mailbox: 
 object Moment extends Data[Moment]:
   given LeanType[Moment] = LeanType.product[Moment]
 
-/** What happens to the service: a request answered, a run of housekeeping, a run of delivery, or time passing (in
-  * seconds). A request or a run that fails changes nothing (HandleContract, HousekeepingJob, DeliveryJob): it is no
+/** What happens to the service: a request answered, a run of housekeeping, a notice of a person delivered, or time
+  * passing (in seconds). A run of delivery is the deliveries of its notices, one person's after another's, in any
+  * order: its branches commute (DeliveryJob). A request or a run that fails changes nothing (HandleContract, HousekeepingJob, DeliveryJob): it is no
   * event of the run; a run of housekeeping that failed is tried again at the next minute.
   */
 enum Event:
   case Asked(request: Request)
   case Housekept
-  case Delivered
+  case Delivered(to: PersonId)
   case Waited(seconds: BigInt)
 object Event extends Data[Event]:
   given LeanType[Event] = LeanType.sum[Event]
@@ -68,18 +69,18 @@ object Run:
     * when that changes it, recorded in the log.
     */
   val housekept = define { (lib: Term[Library], t: Term[BigInt]) =>
-    let(AccessRequests.chaseCode(Housekeeping.tidyCode(lib, t), t))(next =>
+    let(Notifications.warnCode(AccessRequests.chaseCode(Audit.forgetCode(Housekeeping.tidyCode(lib, t), t), t), t))(next =>
       (next =!= lib).fold(Audit.record(next, t, Change.Housekept: Term[Change]), lib))
   }
 
   /** The next moment: a request changes the library as it is served at this moment, a run of housekeeping tidies it, a
-    * run of delivery moves the oldest notice of the outbox to the mail server (which keeps it once), and waiting moves the
-    * time on.
+    * delivery moves the oldest notice of a person in the outbox to the mail server (which keeps it once), and waiting
+    * moves the time on.
     */
   val step = define { (m: Term[Moment], e: Term[Event]) =>
     e.on[Event.Asked](r => m.copy((library = served(m.library, m.now, r))))
       .on[Event.Housekept.type](m.copy((library = housekept(m.library, m.now), tidied = m.now)))
-      .on[Event.Delivered.type](m.library.outbox.headOption.fold(m)(n =>
+      .on[Event.Delivered](p => m.library.outbox.find(x => x.to === p).fold(m)(n =>
         m.copy((library = m.library.copy((outbox = m.library.outbox.filterNot(x => x === n))),
           mailbox = m.mailbox.contains(n).fold(m.mailbox, m.mailbox ++ List(n))))))
       .on[Event.Waited](d => m.copy((now = m.now + d)))
@@ -101,7 +102,7 @@ object Run:
     idea = "Time and housekeeping"
   )(forall((pre: Term[List[Event]], post: Term[List[Event]]) => forall((e: Term[Event]) =>
     (events === pre ++ (e :: post)) ==>
-      e.on[Event.Asked](_ => True).on[Event.Housekept.type](True).on[Event.Delivered.type](True).on[Event.Waited](d => d >= 0))))
+      e.on[Event.Asked](_ => True).on[Event.Housekept.type](True).on[Event.Delivered](_ => True).on[Event.Waited](d => d >= 0))))
     .under(Deadlines.trashPurgedOnTime, Deadlines.invitationsLapseOnTime, Deadlines.endedStaysEnded, Deadlines.requestsAnsweredOnTime)
 
   val housekeepingOnTime = Node.assumption("HousekeepingOnTime",
@@ -110,6 +111,6 @@ object Run:
     idea = "Time and housekeeping"
   )(forall((pre: Term[List[Event]], post: Term[List[Event]]) => forall((e: Term[Event]) =>
     (events === pre ++ (e :: post)) ==>
-      e.on[Event.Asked](_ => True).on[Event.Housekept.type](True).on[Event.Delivered.type](True)
+      e.on[Event.Asked](_ => True).on[Event.Housekept.type](True).on[Event.Delivered](_ => True)
         .on[Event.Waited](d => after(pre).now + d <= after(pre).tidied + housekeepingWithin))))
     .under(Deadlines.trashPurgedOnTime, Deadlines.invitationsLapseOnTime, Deadlines.requestsAnsweredOnTime)

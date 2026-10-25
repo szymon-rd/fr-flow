@@ -36,11 +36,18 @@ sealed abstract class Flow[A]:
     */
   def retry[E](schedule: Schedule)(using e: LeanType[E]): Flow[A] =
     schedule.waits.foldRight(this)((wait, rest) => this.handleErrorWith[E](_ => Flow.sleep(wait).flatMap(_ => rest)))
-  /** `finalizer` after the flow, whether it gave a result or failed with an error of type `E`, which it then fails
-    * with again (Cats Effect's `guarantee`; no cancellation yet).
+  /** `finalizer` after the flow, whether it gave a result, failed with an error of type `E` (which it then fails
+    * with again) or was cancelled (Cats Effect's `guarantee`): a branch that loses a `race`, or the other branch of a
+    * `parTupled` whose one branch failed, runs its finalizers as it stops.
     */
-  def guarantee[E](finalizer: Flow[?])(using e: LeanType[E]): Flow[A] =
-    this.handleErrorWith[E](err => finalizer.flatMap(_ => Flow.raiseError[A](err))).flatMap(a => finalizer.map(_ => a))
+  def guarantee[E](finalizer: Flow[?])(using e: LeanType[E]): Flow[A] = Flow.Guard(this, finalizer, e)
+  /** This flow and `that` at once; the first to finish gives the result (`Left` this one's, `Right` that one's) and the
+    * other is cancelled, running its finalizers (Cats Effect's `race`). Structured: neither outlives the race. Lean
+    * reads it as the scheduler's choice of the winner (the `Races` boundary, unknown to the proofs, so a claim holds for
+    * either); the loser leaves nothing, or, when it is one `atomically` block, nothing or all of it. A race in proven
+    * code is between a timer (a flow of the clock only) and one transaction, or two timers.
+    */
+  def race[B](that: Flow[B]): Flow[Either[A, B]] = Flow.Race(this, that)
 
 object Flow:
   private[frflow] final case class Pure[A](t: Term[A]) extends Flow[A]
@@ -58,6 +65,11 @@ object Flow:
   private[frflow] final case class Raise[A](e: Term[?]) extends Flow[A]
   private[frflow] final case class Catch[E, A](first: Flow[A], handler: Term[E] => Flow[A], err: LeanType[E]) extends Flow[A]
   private[frflow] final case class Attempt[E, A](first: Flow[A], err: LeanType[E]) extends Flow[Either[E, A]]
+  private[frflow] final case class Guard[E, A](body: Flow[A], finalizer: Flow[?], err: LeanType[E]) extends Flow[A]
+  private[frflow] final case class Par[A, B](left: Flow[A], right: Flow[B]) extends Flow[(A, B)]
+  private[frflow] final case class ParEach[X, B](xs: Term[List[X]], body: Term[X] => Flow[B], limit: Option[Int]) extends Flow[List[B]]
+  private[frflow] final case class Atomic[A](body: Flow[A]) extends Flow[A]
+  private[frflow] final case class Race[A, B](left: Flow[A], right: Flow[B]) extends Flow[Either[A, B]]
 
   def pure[A](t: Term[A]): Flow[A] = Pure(t)
   val unit: Flow[Unit] = Pure(Term.lit(()))
@@ -90,6 +102,21 @@ object Flow:
   /** Each flow in turn, their results in a list (Traverse's `sequence`). */
   def sequence[A](fs: List[Flow[A]])(using a: LeanType[A]): Flow[List[A]] =
     fs.foldRight(pure(Term.listOf[A](Nil)))((f, rest) => f.flatMap(x => rest.map(xs => x :: xs)))
+
+  /** `body` as one step of the world (a transaction): no other flow's step comes between two of its steps, so two
+    * transactions at once give what one after the other gives, in the order they commit. Lean reads it as its body: a
+    * proof of a run of requests, one step each, is a proof of their serial order; that the store gives this is a decided
+    * assumption (`Node.assumption`). At run time it holds a lock on each boundary it calls (one process), and once
+    * begun it runs to its end: cancelled, it leaves nothing or all. No transaction or parallel branch inside one.
+    */
+  def atomically[A](body: Flow[A]): Flow[A] = Atomic(body)
+
+  extension [A, B](p: (Flow[A], Flow[B]))
+    /** Both at once, their results paired (Cats' `parTupled`); structured: neither outlives the pair, and when one
+      * fails the other is cancelled. Lean reads it as `tupled` (the left, then the right), and asks the proof that the
+      * two commute: that the right then the left gives the same (`commute_i`). Each branch handles its own errors.
+      */
+    def parTupled: Flow[(A, B)] = Par(p._1, p._2)
 
   /** The time now, in seconds, on the clock (`Clock.boundary`). */
   def now: Flow[BigInt] = Clock.boundary.ops.now
@@ -213,10 +240,58 @@ private[frflow] enum Steps:
   case Raise(e: Tree, err: LeanType[?])
   /** `tryCatchThe E (do body) (fun b => do handler)`. */
   case Catch(body: Steps, err: LeanType[?], b: Binder, handler: Steps)
+  /** Flows at once, or a transaction, or a finalizer kept on cancellation: what Lean, the models and a sequential run
+    * read is `Steps.reading` of it (the branches in turn, the body); only a concurrent run (`Flows.run` in a
+    * `GenConcurrent`, IO) runs the branches at once.
+    */
+  /** `parTupled`: read as `let a ← left; let b ← right; pure (a, b)`. */
+  case Par(left: Steps, a: Binder, right: Steps, b: Binder)
+  /** `parTraverseN`: read as `Collect`. */
+  case ParEach(xs: Tree, b: Binder, body: Steps, limit: Option[Int], out: LeanType[?])
+  /** `atomically`: read as its body. */
+  case Atomic(body: Steps)
+  /** `race`: read as `reading` (the scheduler's choice of the winner, `Races`). */
+  case Race(left: Steps, right: Steps, reading: Steps)
+  /** `guarantee`: read as `reading` (the finalizer after a result, and before an error is raised again). */
+  case Guard(body: Steps, err: LeanType[?], fin: Steps, reading: Steps)
 
 private[frflow] object Steps:
   /** The steps of a flow, and the type of its result. */
   def of(f: Flow[?]): (Steps, LeanType[?]) = within(f, Nil)
+
+  /** What a concurrent step means one step at a time: the branches in turn, the transaction's body; `None` of others. */
+  def reading(s: Steps): Option[Steps] = s match
+    case Par(l, a, r, b)       => Some(Seq(l, a, Seq(r, b, Ret(Tree.Tup(List(Tree.Var(a), Tree.Var(b)))))))
+    case ParEach(xs, b, body, _, _) => Some(Collect(xs, b, body))
+    case Atomic(body)          => Some(body)
+    case Race(_, _, r)         => Some(r)
+    case Guard(_, _, _, r)     => Some(r)
+    case _                     => None
+  /** The steps with every concurrent step read as `reading` says. */
+  def sequential(s: Steps): Steps = reading(s).getOrElse(s)
+
+  /** Whether the steps may end in an error: a failing boundary's call, or a raise, not handled where it happens. */
+  def mayFail(s: Steps): Boolean = s match
+    case Op(b, _, _)           => b.fails
+    case Raise(_, _)           => true
+    case Catch(_, _, _, h)     => mayFail(h)
+    case Seq(a, _, r)          => mayFail(a) || mayFail(r)
+    case Loop(_, _, b)         => mayFail(b)
+    case Collect(_, _, b)      => mayFail(b)
+    case Accumulate(_, _, _, _, b) => mayFail(b)
+    case Branch(_, a, b)       => mayFail(a) || mayFail(b)
+    case Let(_, _, r)          => mayFail(r)
+    case other                 => reading(other).exists(mayFail)
+
+  private def concurrent(s: Steps): Boolean = fold(s, false)((acc, x) => acc || PartialFunction.cond(x) {
+    case Par(_, _, _, _) | ParEach(_, _, _, _, _) | Atomic(_) | Race(_, _, _) => true
+  })
+  /** Whether the steps run branches at once (`parTupled`, `parTraverse`, `race`). */
+  def parallel(s: Steps): Boolean = fold(s, false)((acc, x) => acc || PartialFunction.cond(x) {
+    case Par(_, _, _, _) | ParEach(_, _, _, _, _) | Race(_, _, _) => true
+  })
+  /** Whether the steps race: who wins is the scheduler's, so a run is compared with the contract, not with the models. */
+  def racing(s: Steps): Boolean = fold(s, false)((acc, x) => acc || x.isInstanceOf[Race])
 
   /** A value the program named and later steps use (`t = expire(s, now)` is a `val t` their lambdas capture) is
     * computed once, in a `let` named as the program names it, where the flow that first uses it begins; `bound`
@@ -248,6 +323,11 @@ private[frflow] object Steps:
       case Flow.Cond(_, a, b)         => shared(a) ++ shared(b)
       case Flow.Catch(first, h, _)    => shared(first) ++ captures(h)
       case Flow.Attempt(first, _)     => shared(first)
+      case Flow.Guard(body, fin, _)   => shared(body) ++ shared(fin)
+      case Flow.Par(l, r)             => shared(l) ++ shared(r)
+      case Flow.ParEach(_, body, _)   => captures(body)
+      case Flow.Atomic(body)          => shared(body)
+      case Flow.Race(l, r)            => shared(l) ++ shared(r)
       case Flow.Update(_, g)          => captures(g)
       case _                          => Nil
 
@@ -294,6 +374,47 @@ private[frflow] object Steps:
       val b = Lambda.binders(f, List(m.stateType)).head
       (Modify(m, b, f.asInstanceOf[Term[Any] => Term[Any]](b.term).termTree), summon[LeanType[Unit]])
     case Flow.Effect(run)      => (Outside(run), LeanType.unknown)
+    case Flow.Guard(body, fin, err) =>
+      val (s, t) = within(body, bound)
+      val (f, _) = within(fin, bound)
+      val reading = body.handleErrorWith[Any](e => fin.flatMap(_ => Flow.raiseError(e)))(using err.asInstanceOf[LeanType[Any]]).flatMap(a => fin.map(_ => a))
+      (Guard(s, err, f, within(reading, bound)._1), t)
+    case Flow.Par(l, r) =>
+      val (sl, tl) = within(l, bound)
+      val (sr, tr) = within(r, bound)
+      (Par(sl, Binder("left", tl), sr, Binder("right", tr)), LeanType.of(Shape.TupleOf(List(tl, tr))))
+    case Flow.ParEach(xs, body, limit) =>
+      val b = Lambda.binders(body, List(elemOf(xs))).head
+      val (s, t) = within(body.asInstanceOf[Term[Any] => Flow[?]](b.term), bound)
+      (ParEach(xs.termTree, b, s, limit, t), LeanType.of(Shape.ListOf(t)))
+    case Flow.Atomic(body) =>
+      val (s, t) = within(body, bound)
+      if concurrent(s) then throw IllegalArgumentException(
+        "FrFlow: a transaction (atomically) holds no transaction, parallel branch or race inside it: it is one step of the world")
+      (Atomic(s), t)
+    case Flow.Race(l, r) =>
+      val (sl, tl) = within(l, bound)
+      val (sr, tr) = within(r, bound)
+      (Race(sl, sr, raceReading(sl, tl, sr, tr)), LeanType.of(Shape.EitherOf(tl, tr)))
+
+  /** A race one step at a time: the scheduler says which side finishes first (`Races.leftFirst`); the winner runs and
+    * gives the result. The loser is cancelled: it leaves nothing, or, when it is one transaction (which once begun runs
+    * to its end), it may have committed before the winner finished (`Races.committed`).
+    */
+  private def raceReading(l: Steps, tl: LeanType[?], r: Steps, tr: LeanType[?]): Steps =
+    val bool = summon[LeanType[Boolean]]
+    val unit = Ret(Tree.Lit((), summon[LeanType[Unit]]))
+    def pick(m: java.lang.reflect.Method) = Op(Races.boundary, m, Nil)
+    def wins(winner: Steps, t: LeanType[?], left: Boolean, loser: Steps): Steps =
+      val x = Binder(if left then "won" else "wonRight", t)
+      val result = Seq(winner, x, Ret(Tree.Inj(left, Tree.Var(x))))
+      loser match
+        case Atomic(_) =>
+          val c = Binder("committed", bool)
+          Seq(pick(Races.committed), c, Seq(Branch(Tree.Var(c), Seq(loser, Binder("_$", LeanType.unknown), unit), unit), Binder("_$", summon[LeanType[Unit]]), result))
+        case _ => result
+    val first = Binder("leftFirst", bool)
+    Seq(pick(Races.leftFirst), first, Branch(Tree.Var(first), wins(l, tl, true, r), wins(r, tr, false, l)))
 
   /** A flow's type, from either side: a side that raises has none. */
   private def known(t: LeanType[?], u: LeanType[?]): LeanType[?] = if t.shape == Shape.Unknown then u else t
@@ -310,7 +431,7 @@ private[frflow] object Steps:
       case Branch(_, a, b) => fold(b, fold(a, here)(f))(f)
       case Let(_, _, r)    => fold(r, here)(f)
       case Catch(a, _, _, b) => fold(b, fold(a, here)(f))(f)
-      case _               => here
+      case other           => reading(other).fold(here)(fold(_, here)(f))
 
   def boundaries(s: Steps): List[Boundary[?]] = fold(s, List.empty[Boundary[?]]) {
     case (acc, Op(b, _, _)) if !acc.contains(b) => acc :+ b
@@ -365,7 +486,12 @@ private[frflow] object Flows:
         if w.faults.headOption.contains(true) then throw Raised(Eval.compile(e.termTree)(Map.empty), rest)
         rest
       }
-      val inner = Steps.of(m.invoke(model, args.map(a => literal(Eval.compile(a)(env)))*).asInstanceOf[Flow[?]])._1
+      // Typed as the operation takes them: a model may read their fields.
+      val typed = args.zip(m.getGenericParameterTypes.toList).map { (a, t) =>
+        val lt = LeanType.ofJava(t)
+        Term(Tree.Lit(Eval.compile(a)(env), lt), lt)
+      }
+      val inner = Steps.of(m.invoke(model, typed*).asInstanceOf[Flow[?]])._1
       val (r, own) = onModel(inner, model, w0(model.asInstanceOf[StateModel[Any]]))
       (r, w0.updated(model, own))
     case Steps.Raise(e, _)       => throw Raised(Eval.compile(e)(env), w)
@@ -386,6 +512,8 @@ private[frflow] object Flows:
         onModels(body, env + (acc -> a) + (b -> x), wi)
       }
     case Steps.Branch(c, a, b)   => if Eval.compile(c)(env).asInstanceOf[Boolean] then onModels(a, env, w) else onModels(b, env, w)
+    // Branches at once, on the models: in turn, as Lean reads them (the proofs show the order does not matter).
+    case other if Steps.reading(other).isDefined => onModels(Steps.sequential(other), env, w)
     case other                   => throw IllegalStateException(s"FrFlow: a proven flow takes no step of a model's own ($other)")
 
   /** A model's own operation, on its state. */
@@ -435,11 +563,23 @@ private[frflow] object Flows:
       try runNow(body, env, impls)
       catch case FlowFailed(err) if handles(t, err) => runNow(handler, env + (b -> err), impls)
     case Steps.Outside(run)      => run()
+    // Now, one step at a time: a race's left side wins.
+    case Steps.Race(l, _, _)     => Left(runNow(l, env, impls))
+    case other if Steps.reading(other).isDefined => runNow(Steps.sequential(other), env, impls)
     case other                   => throw IllegalStateException(s"FrFlow: production runs no model's step ($other)")
 
-  /** The flow in `F`, its calls going to the bound implementations; a term is evaluated under `bindings`. */
-  def run[F[_]](s: Steps, env: Env, impls: Map[Boundary[?], Any], bindings: Seq[Binding])(using F: cats.effect.kernel.Sync[F]): F[Any] =
+  /** The flow in `F`, its calls going to the bound implementations; a term is evaluated under `bindings`. In a
+    * concurrent `F` (`GenConcurrent`: cats-effect's `IO`), branches run at once on fibers, a race cancels its loser and
+    * a transaction holds its boundaries' locks; in another (`SyncIO`) they run in turn, as the proofs read them.
+    * `beforeCall` runs before each call of a boundary: where a test lets the scheduler interleave the branches.
+    */
+  def run[F[_]](s: Steps, env: Env, impls: Map[Boundary[?], Any], bindings: Seq[Binding], beforeCall: Option[F[Unit]] = None)(
+      using F: cats.effect.kernel.Sync[F]): F[Any] =
     import cats.syntax.all.*
+    import cats.effect.kernel.syntax.all.*
+    val conc: Option[cats.effect.kernel.GenConcurrent[F, Throwable]] = F match
+      case c: cats.effect.kernel.GenConcurrent[F, Throwable] @unchecked => Some(c)
+      case _                                                           => None
     val bound = Bindings.prepare(bindings)
     def eval(t: Tree, env: Env): F[Any] = F.delay(Bindings.within(bound)(Eval.compile(t)(env)))
     def go(s: Steps, env: Env): F[Any] = s match
@@ -447,10 +587,17 @@ private[frflow] object Flows:
       case Steps.Op(b, m, args)    =>
         val impl = impls.getOrElse(b, throw IllegalStateException(s"FrFlow: bind the boundary ${b.name} (${b.name}.bind(…))"))
         val call = args.traverse(eval(_, env)).flatMap { vs =>
-          F.delay(m.invoke(impl, vs.map(literal)*).asInstanceOf[Flow[?]]).flatMap(f => go(Steps.of(f)._1, Map.empty))
+          (impl, F) match
+            // The computer's clock on fibers: a sleep that blocks no thread, and is cancelled when its fiber is.
+            case (SystemClock, t: cats.effect.kernel.GenTemporal[F, Throwable] @unchecked) if m.getName == "sleep" =>
+              val s = vs.head match { case b: BigInt => b; case i: Int => BigInt(i); case l: Long => BigInt(l); case _ => BigInt(0) }
+              t.sleep(scala.concurrent.duration.FiniteDuration(s.max(0).toLong, java.util.concurrent.TimeUnit.SECONDS)).widen
+            case _ =>
+              F.delay(m.invoke(impl, vs.map(literal)*).asInstanceOf[Flow[?]]).flatMap(f => go(Steps.of(f)._1, Map.empty))
         }
         // A failing boundary's exception is its error, as the proofs see it.
-        b.failure.fold(call)(e => call.adaptError { case x: Exception if !x.isInstanceOf[FlowFailed] => FlowFailed(Eval.compile(e.termTree)(Map.empty)) })
+        val failing = b.failure.fold(call)(e => call.adaptError { case x: Exception if !x.isInstanceOf[FlowFailed] => FlowFailed(Eval.compile(e.termTree)(Map.empty)) })
+        beforeCall.fold(failing)(_ *> failing)
       case Steps.Raise(e, _)       => eval(e, env).flatMap(v => F.raiseError(FlowFailed(v)))
       case Steps.Catch(body, t, b, handler) =>
         go(body, env).handleErrorWith {
@@ -465,6 +612,20 @@ private[frflow] object Flows:
         (eval(xs, env), eval(z, env)).tupled.flatMap((v, z0) => v.asInstanceOf[List[Any]].foldM(z0)((a, x) => go(body, env + (acc -> a) + (b -> x))))
       case Steps.Branch(c, a, b)   => eval(c, env).flatMap(v => if v.asInstanceOf[Boolean] then go(a, env) else go(b, env))
       case Steps.Outside(run)      => F.delay(run())
+      case Steps.Par(l, _, r, _) => conc.fold(go(Steps.sequential(s), env))(c => c.both(go(l, env), go(r, env)).widen)
+      case Steps.ParEach(xs, b, body, limit, _) => eval(xs, env).flatMap { v =>
+          val ys = v.asInstanceOf[List[Any]]
+          conc.fold(ys.traverse(x => go(body, env + (b -> x))))(c => c.parTraverseN(limit.getOrElse(ys.size).max(1))(ys)(x => go(body, env + (b -> x)))).widen
+        }
+      case Steps.Atomic(body)      => Transactions.atomically(Steps.boundaries(body))(go(body, env))
+      case Steps.Race(l, r, _)     => conc.fold(go(l, env).map(Left(_)))(c => c.race(go(l, env), go(r, env))).widen
+      // The finalizer after a result, and after an error of `t` (raised again); and when the body is cancelled.
+      case Steps.Guard(body, t, fin, _) =>
+        F.uncancelable(poll => poll(go(body, env)).onCancel(go(fin, env).void).attempt.flatMap {
+          case Right(a)                                => go(fin, env).as(a)
+          case Left(FlowFailed(err)) if handles(t, err) => go(fin, env) *> F.raiseError(FlowFailed(err))
+          case Left(other)                             => F.raiseError(other)
+        })
       case other                   => F.raiseError(IllegalStateException(s"FrFlow: production runs no model's step ($other)"))
     go(s, env)
 
@@ -551,5 +712,10 @@ private[frflow] object Trees:
       case Steps.Let(b, v, rest)     => Steps.Let(b, t(v), go(rest))
       case Steps.Raise(e, err)       => Steps.Raise(t(e), err)
       case Steps.Catch(a, err, b, h) => Steps.Catch(go(a), err, b, go(h))
+      case Steps.Par(l, a, r, b)     => Steps.Par(go(l), a, go(r), b)
+      case Steps.ParEach(xs, b, body, n, o) => Steps.ParEach(t(xs), b, go(body), n, o)
+      case Steps.Atomic(body)        => Steps.Atomic(go(body))
+      case Steps.Race(l, r, reading) => Steps.Race(go(l), go(r), go(reading))
+      case Steps.Guard(body, err, fin, reading) => Steps.Guard(go(body), err, go(fin), go(reading))
       case other                     => other
     go(s)

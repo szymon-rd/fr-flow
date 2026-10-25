@@ -179,7 +179,7 @@ final class Runner[G[_]] private[frflow] (kb: KnowledgeBase)(using G: cats.effec
     val steps = body.termTree match
       case Tree.Do(s) => s
       case _          => throw IllegalStateException(s"${flow.name} is not a flow")
-    Steps.boundaries(steps).filterNot(impls.contains).foreach(b =>
+    Steps.boundaries(steps).filterNot(b => impls.contains(b) || (b eq Races.boundary)).foreach(b =>
       throw IllegalStateException(s"${contract.id}: bind the boundary ${b.name} (${b.name}.bind(…))"))
     val bound2 = bindings.map(_.param.name).toSet
     val all = bindings ++ kb.definitionBindings.filterNot(b => bound2(b.param.name)) ++ Wiring.calls(kb, bindings).filterNot(b => bound2(b.param.name))

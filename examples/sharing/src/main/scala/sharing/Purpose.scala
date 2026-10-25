@@ -87,12 +87,12 @@ val accessFollowsShares = Node.claim("AccessFollowsShares",
   forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId]) =>
     (Trash.trash(lib, t, by, d) =!= lib ==> mayEdit(lib, t, by, Target[Target.Doc](d))) &&
     (Trash.restore(lib, t, by, d) =!= lib ==> mayEdit(lib, t, by, Target[Target.Doc](d)))) &&
-  forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], d: Term[DocumentId], level: Term[Level]) =>
-    AccessRequests.ask(lib, t, p, d, level).shares === lib.shares && AccessRequests.ask(lib, t, p, d, level).invitations === lib.invitations &&
-      AccessRequests.ask(lib, t, p, d, level).documents === lib.documents) &&
-  forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], p: Term[PersonId], d: Term[DocumentId]) =>
-    (AccessRequests.approve(lib, t, by, p, d) =!= lib ==> mayEdit(lib, t, by, Target[Target.Doc](d))) &&
-    (AccessRequests.decline(lib, t, by, p, d) =!= lib ==> mayEdit(lib, t, by, Target[Target.Doc](d)))) &&
+  forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], w: Term[Target], level: Term[Level]) =>
+    AccessRequests.ask(lib, t, p, w, level).shares === lib.shares && AccessRequests.ask(lib, t, p, w, level).invitations === lib.invitations &&
+      AccessRequests.ask(lib, t, p, w, level).documents === lib.documents) &&
+  forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], p: Term[PersonId], w: Term[Target]) =>
+    (AccessRequests.approve(lib, t, by, p, w) =!= lib ==> mayEdit(lib, t, by, w)) &&
+    (AccessRequests.decline(lib, t, by, p, w) =!= lib ==> mayEdit(lib, t, by, w))) &&
   forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId], to: Term[PersonId]) =>
     Ownership.transfer(lib, t, by, d, to) =!= lib ==> mayEdit(lib, t, by, Target[Target.Doc](d))) &&
   forall((lib: Term[Library], t: Term[BigInt]) =>

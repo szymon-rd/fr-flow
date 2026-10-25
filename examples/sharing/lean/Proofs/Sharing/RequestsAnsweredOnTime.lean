@@ -20,7 +20,7 @@ when it changes nothing every one is so already; delivery touches only the outbo
 the last run (HousekeepingOnTime) and never goes back (ClockNeverGoesBack). -/
 theorem complete : Obl.complete := by
   unfold Obl.complete
-  intro events startedAt announce record inForce isOpen gone isPending reminderDue chase tidy housekeep hR hA _ hP hD hC hH
+  intro events startedAt announce record inForce isOpen gone isPending reminderDue warn chase forget tidy housekeep hR hA _ hP hD hC hH
   have hR' : ∀ l t c, record l t c = { l with log := l.log ++ [Entry.mk (l.log.length : Int) t c] } := fun l t c => hR l t c
   have hA' : ∀ l b r e, announce l b r e = { l with outbox := l.outbox ++ Notifications.noticesOf b r e } := fun l b r e => hA l b r e
   unfold Sharing.RequestsAnsweredOnTime.claim
@@ -42,10 +42,10 @@ theorem complete : Obl.complete := by
     gone isPending reminderDue inForce m e
   -- What housekeeping leaves of the requests at a moment is fine at that moment.
   have chasedFine : ∀ (lib : Library) (t : Int) q,
-      q ∈ (Sharing.AccessRequests.chaseCode isPending reminderDue (Sharing.Housekeeping.tidyCode gone inForce isOpen lib t) t).requests →
+      q ∈ (Sharing.Notifications.warnCode (Sharing.AccessRequests.chaseCode isPending reminderDue (Sharing.Audit.forgetCode (Sharing.Housekeeping.tidyCode gone inForce isOpen lib t) t) t) t).requests →
       fine t q := by
     intro lib t q hq
-    simp only [Sharing.AccessRequests.chaseCode, Sharing.Housekeeping.tidyCode, List.mem_map, List.mem_filter,
+    simp only [Sharing.Notifications.warnCode, Sharing.Audit.forgetCode, Sharing.AccessRequests.chaseCode, Sharing.Housekeeping.tidyCode, List.mem_map, List.mem_filter,
       decide_eq_true_eq] at hq
     obtain ⟨r, ⟨_, hp⟩, rfl⟩ := hq
     rw [pendingIs] at hp

@@ -19,7 +19,7 @@ final class SqlLibraryStore private (conn: Connection) extends LibraryStore:
     "members (team integer not null, pos integer not null, person text not null, primary key (team, pos))",
     "shares (pos integer primary key, what text not null, what_id text not null, with_whom text not null, with_id text not null, level text not null, until text)",
     "invitations (pos integer primary key, to_person text not null, what text not null, what_id text not null, level text not null, by_person text not null, sent text not null)",
-    "requests (pos integer primary key, person text not null, doc text not null, level text not null, asked text not null, reminded integer not null)",
+    "requests (pos integer primary key, person text not null, what text not null, what_id text not null, level text not null, asked text not null, reminded integer not null)",
     "log (pos integer primary key, entry text not null)",
     "outbox (pos integer primary key, notice text not null)")
   tables.foreach(t => conn.createStatement().executeUpdate(s"create table if not exists $t"))
@@ -45,8 +45,8 @@ final class SqlLibraryStore private (conn: Connection) extends LibraryStore:
       rows("select to_person, what, what_id, level, by_person, sent from invitations order by pos")(r =>
         Invitation(PersonId(r.getString(1)), target(r.getString(2), r.getString(3)), Level.valueOf(r.getString(4)), PersonId(r.getString(5)),
           BigInt(r.getString(6)))),
-      rows("select person, doc, level, asked, reminded from requests order by pos")(r =>
-        AccessRequest(PersonId(r.getString(1)), DocumentId(r.getString(2)), Level.valueOf(r.getString(3)), BigInt(r.getString(4)), r.getInt(5) != 0)),
+      rows("select person, what, what_id, level, asked, reminded from requests order by pos")(r =>
+        AccessRequest(PersonId(r.getString(1)), target(r.getString(2), r.getString(3)), Level.valueOf(r.getString(4)), BigInt(r.getString(5)), r.getInt(6) != 0)),
       rows("select entry from log order by pos")(r => whole[Entry](r.getString(1))),
       rows("select notice from outbox order by pos")(r => whole[Notice](r.getString(1))))
   }
@@ -100,7 +100,10 @@ final class SqlLibraryStore private (conn: Connection) extends LibraryStore:
         val (what, whatId) = targetRow(v.what)
         insert("invitations", i, v.to.name, what, whatId, v.level.toString, v.by.name, v.sent.toString)
       }
-      l.requests.zipWithIndex.foreach((q, i) => insert("requests", i, q.person.name, q.doc.name, q.level.toString, q.asked.toString, if q.reminded then 1 else 0))
+      l.requests.zipWithIndex.foreach { (q, i) =>
+        val (what, whatId) = targetRow(q.what)
+        insert("requests", i, q.person.name, what, whatId, q.level.toString, q.asked.toString, if q.reminded then 1 else 0)
+      }
       l.log.zipWithIndex.foreach((e, i) => insert("log", i, kept(e)))
       l.outbox.zipWithIndex.foreach((n, i) => insert("outbox", i, kept(n)))
       conn.commit()

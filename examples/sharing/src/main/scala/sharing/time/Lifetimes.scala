@@ -97,7 +97,7 @@ object Lifetimes:
 
   val goneCode = define { (doc: Term[Document], t: Term[BigInt]) => doc.trashed.fold(False)(at => at + trashKeeps <= t) }
 
-  private val catAsks = AccessRequest(cat, plan, Level.View, now - day, false)
+  private val catAsks = AccessRequest(cat, Target.Doc(plan), Level.View, now - day, false)
 
   val isPendingContract = Node.contract(isPending)("PendingContract",
     "An access request is pending from when it is made until 7 days after; then it has lapsed.",

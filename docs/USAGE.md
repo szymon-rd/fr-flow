@@ -492,6 +492,54 @@ and check the failure clause; `frflow_auto` takes each case of the faults
 (`frflow_faults`). `examples/sharing` does this (`store/`, `notifications/`,
 `http/SharingHttp.scala`).
 
+### Concurrency: branches at once, races, transactions
+
+Flows can run branches at once, with Cats Effect's names; all are structured (no
+branch outlives the flow that started it; a cancelled branch runs its finalizers).
+
+| Write | For | In Lean | At run time (IO) |
+|---|---|---|---|
+| `(fa, fb).parTupled` | both at once, results paired | `fa` then `fb` (`tupled`), and `commute_i`: the two orders give the same | `IO.both` on fibers |
+| `xs.parTraverse(f)`, `xs.parTraverseN(4)(f)` | each element at once (at most 4) | `xs.mapM f`, and `commute_i`: any two elements commute | `parTraverseN` |
+| `f.race(g)` | the first to finish; the other cancelled | the scheduler's choice (`Races` boundary, a model whose state is the outcomes, so a claim holds for either); a losing transaction left nothing or all of itself | `IO.race` |
+| `Flow.atomically(f)` | one step of the world: a transaction | `f` (one event of a run) | a lock on each boundary `f` calls, taken in one order; once begun, not cancelled |
+| `f.guarantee[E](fin)` | as before, and `fin` when `f` is cancelled | as before | `onCancel` |
+
+What is proven, and what is not:
+- **Whole branches commute.** For each `parTupled` and `parTraverse` of proven code,
+  the obligation `commute_i` says the two orders of whole branches give the same
+  result and world, for every world with no call failing (the faults are taken in
+  the order calls come, so which call fails depends on the order). `frflow_auto`
+  closes it for branches on different models or whose changes commute
+  (`FrFlow.Commute` and its lemmas in `lean/FrFlow/Commute.lean`); otherwise it is
+  proven by hand. A node with a branch not proven to commute is open, not proven.
+  Pairwise commutation of a traverse's elements gives every order of whole branches
+  (by swapping neighbours, `Commute.swap`); that step is not mechanized.
+- **Interleavings are tested, not proven.** Two branches' steps can interleave. Where
+  branches share a model, the shared read-and-write goes in `atomically`; the
+  generated tests then run each example's flow on the implementations in IO, eight
+  times, with a random pause before each call, and compare with the models' run in
+  turn. A flow that reads and writes shared state outside a transaction is caught
+  there (a lost update), not by `commute_i`.
+- **A transaction is one step by decision.** Lean reads `atomically` as its body: a
+  run of requests proven event by event is a proof of their serial orders. That the
+  runtime gives it is FrFlow's lock (one process) and, in a project, a decided node
+  (`examples/sharing`: `Transactions`). More than one process needs the store to
+  give it (compare-and-set, or the database's transactions).
+- **Proven branches may not fail**: each handles its errors (`attempt`,
+  `handleErrorWith`), so one branch failing never cancels the other halfway; no
+  transaction or branch inside a transaction; a race in proven code is between a
+  timer (a flow of the clock only) and one transaction, or two timers.
+- In `SyncIO` (and on the models) branches run in turn: the reading the proofs make.
+  On the computer's clock in IO a sleep blocks no thread and is cancelled with its
+  fiber.
+
+A flow over a `parTraverse` is proven with `FrFlow.outcome_mapM_void` (each branch
+keeps an invariant from any state it holds of, and never fails). `examples/sharing`
+delivers four notices at once (`notifications/`, `DeliveryJob`), runs each request
+and housekeeping as a transaction, and tests many clients at once against the log's
+commit order (`SharingSuite`).
+
 ### What is trusted, and the limits
 
 Lean proves the nodes consistent with each other and the root of the code;

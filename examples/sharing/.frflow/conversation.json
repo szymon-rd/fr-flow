@@ -35,6 +35,10 @@
     {
       "text": "Yes. Go",
       "at": "2026-10-25T12:25:00.000000Z"
+    },
+    {
+      "text": "Q22 it is okay. Proceed.",
+      "at": "2026-10-25T15:00:00.000000Z"
     }
   ],
   "questions": [
@@ -227,6 +231,78 @@
         {
           "text": "Yes. Go",
           "at": "2026-10-25T12:25:00.000000Z"
+        }
+      ]
+    },
+    {
+      "id": "Q17",
+      "text": "Parallel delivery.",
+      "assumed": "Up to 4 notices delivered at once, each taken by one worker; order kept per person, not across people; a notice leaves the outbox by its own removal (by value), so two deliveries commute.",
+      "at": "2026-10-25T14:00:00.000000Z",
+      "replies": [
+        {
+          "text": "Q22 it is okay. Proceed.",
+          "at": "2026-10-25T15:00:00.000000Z"
+        }
+      ]
+    },
+    {
+      "id": "Q18",
+      "text": "Two requests on one document at once (share and unshare by two editors).",
+      "assumed": "Each request is one atomically transaction on the store (compare-and-set on a version; on conflict it is run again from a fresh read); the result is as if they ran one after the other, in commit order.",
+      "at": "2026-10-25T14:00:00.000000Z",
+      "replies": [
+        {
+          "text": "Q22 it is okay. Proceed.",
+          "at": "2026-10-25T15:00:00.000000Z"
+        }
+      ]
+    },
+    {
+      "id": "Q19",
+      "text": "Housekeeping and requests at once.",
+      "assumed": "A housekeeping run is one transaction too; every request is either before it or after it.",
+      "at": "2026-10-25T14:00:00.000000Z",
+      "replies": [
+        {
+          "text": "Q22 it is okay. Proceed.",
+          "at": "2026-10-25T15:00:00.000000Z"
+        }
+      ]
+    },
+    {
+      "id": "Q20",
+      "text": "Delivery and requests at once.",
+      "assumed": "Delivery touches only the outbox (removal) and the mail server; requests append to the outbox. Proven to commute (disjoint parts of the record, appends vs removal of a present notice) with par; no lock.",
+      "at": "2026-10-25T14:00:00.000000Z",
+      "replies": [
+        {
+          "text": "Q22 it is okay. Proceed.",
+          "at": "2026-10-25T15:00:00.000000Z"
+        }
+      ]
+    },
+    {
+      "id": "Q21",
+      "text": "More than one server process.",
+      "assumed": "No; one process with a pool of workers, SQLite as the one store.",
+      "at": "2026-10-25T14:00:00.000000Z",
+      "replies": [
+        {
+          "text": "Q22 it is okay. Proceed.",
+          "at": "2026-10-25T15:00:00.000000Z"
+        }
+      ]
+    },
+    {
+      "id": "Q22",
+      "text": "A client retries after a 503 or a timeout.",
+      "assumed": "Requests need no ids: every change replaces (share, invite, ask) or removes, so running one twice leaves the library as once; the log may hold the entry twice only if the first run did commit (a timeout after the commit) — acceptable, or the client sends a request id. Which?",
+      "at": "2026-10-25T14:00:00.000000Z",
+      "replies": [
+        {
+          "text": "Q22 it is okay. Proceed.",
+          "at": "2026-10-25T15:00:00.000000Z"
         }
       ]
     }

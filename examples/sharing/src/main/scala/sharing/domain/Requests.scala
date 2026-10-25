@@ -14,11 +14,11 @@ enum Request:
   case Trash(by: PersonId, doc: DocumentId)
   case Restore(by: PersonId, doc: DocumentId)
   /** A person asks for access to a document, at a level. */
-  case Ask(person: PersonId, doc: DocumentId, level: Level)
+  case Ask(person: PersonId, what: Target, level: Level)
   /** Someone who may edit a document approves a person's request for it. */
-  case Approve(by: PersonId, person: PersonId, doc: DocumentId)
+  case Approve(by: PersonId, person: PersonId, what: Target)
   /** Someone who may edit a document declines a person's request for it. */
-  case Decline(by: PersonId, person: PersonId, doc: DocumentId)
+  case Decline(by: PersonId, person: PersonId, what: Target)
   /** A document's owner hands it on to another person. */
   case Transfer(by: PersonId, doc: DocumentId, to: PersonId)
 object Request extends Data[Request]:

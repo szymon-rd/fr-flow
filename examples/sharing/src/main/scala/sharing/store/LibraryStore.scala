@@ -24,3 +24,11 @@ object LibraryStore:
     idea = "Who can see and change what")
     .implementedBy(l => MemoryLibraryStore(l), _.library)
     .checkedAgainst(l => SqlLibraryStore.holding(l), _.library)
+
+  /** What the store gives requests at once: transactions. Decided, not proven: Lean reads a transaction as one step. */
+  val transactions = Node.design("Transactions",
+    "Each request, each run of housekeeping and each notice's removal from the outbox is one transaction on the store (atomically): no step of another comes between two of its steps, so requests at once leave the store as one after the other leaves it, in the order they take the store; once begun, a transaction runs to its end. Reading the clock is not part of the store's transaction.",
+    why = "Q18, Q19, Q21: the service is one process with SQLite as its one store, so FrFlow's atomically, a lock on the store held for the transaction, gives what Q18 asked of compare-and-set on a version (a transaction run again on a conflict); with more than one process the store would have to give it. The proofs read each transaction as one step of the run (HandleContract, HousekeepingJob, DeliveryJob, the run's events), and are proofs of the serial orders; that the runtime keeps to them is this decision, tested with many clients at once (SharingSuite).",
+    idea = "Concurrency"
+  )("src/main/scala/sharing/store/MemoryLibraryStore.scala")
+    .under(sharing.http.SharingHttp.handleContract, sharing.housekeeping.Housekeeping.jobContract, sharing.notifications.Notifications.deliveryJob)

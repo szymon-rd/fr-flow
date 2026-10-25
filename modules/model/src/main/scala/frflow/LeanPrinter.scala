@@ -5,7 +5,14 @@ import scala.collection.mutable
 /** One expression's Lean: the text, and what it mentions (in the order it meets them). */
 private[frflow] final case class Printed(params: List[(String, String)], result: String, body: String, types: List[TypeDecl],
     opaques: List[Opaque], paramRefs: List[(String, String)], paramObjects: List[Param[?]], defs: List[Def[?]],
-    boundaries: List[Boundary[?]] = Nil, world: Boolean = false, errors: List[String] = Nil)
+    boundaries: List[Boundary[?]] = Nil, world: Boolean = false, errors: List[String] = Nil, commutes: List[Commute] = Nil)
+
+/** Branches a flow runs at once (`what`), and what the proof must show of them: that the two orders of their steps,
+  * `first` and `second` (lines of a `do` block, giving a value of type `result`), give the same result and the same
+  * world, for every value of the variables they use (`free`) that meets `hyps`.
+  */
+private[frflow] final case class Commute(what: String, free: List[(String, String)], hyps: List[String], first: List[String],
+    second: List[String], result: String)
 
 /** Prints a term's tree as Lean. Every local variable gets a name no other in the expression has (an inner one can
   * never capture an outer one), none a parameter's, an opaque type's or a type's.
@@ -17,11 +24,12 @@ private[frflow] final class LeanPrinter:
   private val defs = mutable.ListBuffer.empty[Def[?]]
   private val taken = mutable.Map.empty[String, AnyRef]
   private val binders = mutable.LinkedHashSet.empty[String]
-  private val names = mutable.Map.empty[Binder, String]
+  private val names = mutable.LinkedHashMap.empty[Binder, String]
   private val boundaries = mutable.LinkedHashSet.empty[Boundary[?]]
   // The error types the steps raise or handle: a flow's `[MonadExceptOf E m]`.
   private val errors = mutable.LinkedHashSet.empty[String]
   private var world = false
+  private val commutes = mutable.ListBuffer.empty[Commute]
   // The negations (`!`, the left of `==>`) the term is under: a `forall` under an odd number says something exists.
   private var negations = 0
   private def negated[T](f: => T): T = { negations += 1; try f finally negations -= 1 }
@@ -36,7 +44,7 @@ private[frflow] final class LeanPrinter:
     val r = tpe(result)
     world ||= (result :: bs.map(_.tpe)).exists(Types.mentionsWorld)
     Printed(params, r, text, types.decls.values.toList, types.opaques.values.toList, paramRefs.toList, paramObjects.toList, defs.toList,
-      boundaries.toList, world, errors.toList)
+      boundaries.toList, world, errors.toList, commutes.toList)
 
   def tpe(t: LeanType[?]): String =
     world ||= Types.mentionsWorld(t)
@@ -127,6 +135,11 @@ private[frflow] final class LeanPrinter:
 
   /** A flow's steps as the lines of a `do` block, indented by `ind`. */
   def block(s: Steps, ind: String): List[String] = s match
+    case c if Steps.reading(c).isDefined => block(concurrent(c), ind)
+    // Bound as a whole (`let x ← do …`): the branches' own block is not merged into this one.
+    case Steps.Seq(c, b, rest) if Steps.reading(c).isDefined =>
+      val r = concurrent(c)
+      (s"${ind}let ${if b.wildcard then "_" else local(b)} ← do" :: block(r, ind + "  ")) ++ block(rest, ind)
     case Steps.Ret(t)            => List(s"${ind}pure ${expr(t)}")
     // `(a *> b) *> c` is `a *> (b *> c)` (associativity): one block, not a `do` inside one. Names are unique, so
     // the inner block's names stay its own.
@@ -143,6 +156,9 @@ private[frflow] final class LeanPrinter:
         // A traverse or a fold opens a `do` of its own, after its binding.
         case (Some(n), Steps.Collect(_, _, _) | Steps.Accumulate(_, _, _, _, _)) => over(first, s"let $n ← ", ind)
         case (None, Steps.Collect(_, _, _) | Steps.Accumulate(_, _, _, _, _))    => over(first, "let _ ← ", ind)
+        // An `attempt` whose outcome is dropped gives an `Except`, not nothing: bound to `_`.
+        case (None, c @ Steps.Catch(Steps.Seq(_, a, _), e, _, Steps.Ret(Tree.Inj(true, _)))) =>
+          tryCatch(c, s"let ${unique(c, "outcome")} : Except ${tpe(e)} ${tpe(a.tpe)} ← ", ind)
         case (None, c @ Steps.Catch(_, _, _, _))                => tryCatch(c, "", ind)
         case (Some(n), c @ Steps.Catch(_, _, _, _))             => tryCatch(c, s"let $n ← ", ind)
         case (None, one)                                         => List(ind + step(one))
@@ -158,6 +174,48 @@ private[frflow] final class LeanPrinter:
     case Steps.Collect(_, _, _) | Steps.Accumulate(_, _, _, _, _) => over(s, "", ind)
     case c @ Steps.Catch(_, _, _, _) => tryCatch(c, "", ind)
     case one                     => List(ind + step(one))
+
+  /** A step of flows at once, checked and its commutation recorded; what Lean reads of it, one step at a time. */
+  private def concurrent(s: Steps): Steps =
+    def total(branch: Steps, what: String) = if Steps.mayFail(branch) then
+      fail(s"a branch of $what in proven code may fail: handle its errors inside it (`attempt`, `handleErrorWith`), so that one branch failing never cancels the other halfway")
+    def occurring(before: List[(Binder, String)], lines: List[String]) =
+      before.filter((_, n) => lines.exists(l => !free(l)(n))).map((b, n) => n -> tpe(b.tpe))
+    s match
+      case Steps.Par(l, a, r, b) =>
+        total(l, "parTupled"); total(r, "parTupled")
+        val before = names.toList
+        val (an, bn) = (local(a), local(b))
+        val (ls, rs) = (block(l, "  "), block(r, "  "))
+        val first = (s"let $an ← do" :: ls) ++ (s"let $bn ← do" :: rs) :+ s"pure ($an, $bn)"
+        val second = (s"let $bn ← do" :: rs) ++ (s"let $an ← do" :: ls) :+ s"pure ($an, $bn)"
+        commutes += Commute("parTupled", occurring(before, first), Nil, first, second, s"(${tpe(a.tpe)} × ${tpe(b.tpe)})")
+      case Steps.ParEach(xs, b, body, _, out) =>
+        total(body, "parTraverse")
+        val before = names.toList.filterNot(_._1 eq b)
+        val in = expr(xs)
+        val base = Names.ident(b.hint).stripPrefix("«").stripSuffix("»")
+        val (x1, x2) = (unique(new Object, s"${base}_one"), unique(new Object, s"${base}_two"))
+        val (r1, r2) = (unique(new Object, "one"), unique(new Object, "two"))
+        names(b) = x1
+        val b1 = block(body, "  ")
+        names(b) = x2
+        val b2 = block(body, "  ")
+        names.remove(b)
+        val first = (s"let $r1 ← do" :: b1) ++ (s"let $r2 ← do" :: b2) :+ s"pure ($r1, $r2)"
+        val second = (s"let $r2 ← do" :: b2) ++ (s"let $r1 ← do" :: b1) :+ s"pure ($r1, $r2)"
+        val elem = tpe(b.tpe)
+        commutes += Commute("parTraverse", occurring(before, in :: first) ++ List(x1 -> elem, x2 -> elem),
+          List(s"$x1 ∈ $in", s"$x2 ∈ $in", s"$x1 ≠ $x2"), first, second, s"(${tpe(out)} × ${tpe(out)})")
+      case Steps.Race(l, r, _) =>
+        def timer(x: Steps) = Steps.boundaries(x).forall(_ eq Clock.boundary) && !Steps.effectful(x)
+        def sleeps(x: Steps) = Steps.fold(x, false)((acc, y) => acc || PartialFunction.cond(y) {
+          case Steps.Op(c, m, _) => (c eq Clock.boundary) && m.getName == "sleep" })
+        def transaction(x: Steps) = PartialFunction.cond(x) { case Steps.Atomic(body) => !sleeps(body) }
+        if !(timer(l) || transaction(l)) || !(timer(r) || transaction(r)) || (transaction(l) && transaction(r)) then
+          fail("a race in proven code is between a timer (a flow of the clock only) and one transaction (`atomically`, which sleeps not), or two timers: a cancelled side must leave nothing, or all of itself")
+      case _ => ()
+    Steps.sequential(s)
 
   /** `tryCatchThe E (do …) (fun e => do …)`, after `lead` (a binding, or none): the handler on the line below. */
   private def tryCatch(c: Steps.Catch, lead: String, ind: String): List[String] =

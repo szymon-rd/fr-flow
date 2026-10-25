@@ -34,7 +34,8 @@ class SharingSuite extends munit.CatsEffectSuite:
     Trash.trashContract, Trash.restoreContract, Housekeeping.tidyContract, Housekeeping.jobContract, Lifetimes.inForceContract,
     Lifetimes.isOpenContract, Lifetimes.goneContract, SharingHttp.handleContract, AccessRequests.askContract, AccessRequests.approveContract,
     AccessRequests.declineContract, AccessRequests.chaseContract, Ownership.transferContract, Audit.recordContract,
-    Notifications.announceContract, Notifications.deliveryJob, Lifetimes.isPendingContract, Lifetimes.reminderDueContract)
+    Notifications.announceContract, Notifications.deliveryJob, Lifetimes.isPendingContract, Lifetimes.reminderDueContract,
+    Notifications.warnContract, Audit.forgetContract)
 
   test("the committed ledger accepts every node: none is up for review, none is gone") {
     api.flatMap(_.view).map { v =>
@@ -64,7 +65,7 @@ class SharingSuite extends munit.CatsEffectSuite:
         Ownership.ownersKeepTheirDocuments, Audit.auditTrail, Notifications.noticesFollowChanges) do
       val terms = knowledge.termsOf(b).toSet
       assert(!terms("invitationLasts") && !terms("trashKeeps") && !terms("requestLasts") && !terms("remindAfter"), (b.id, terms))
-    assertEquals(knowledge.nodes.filter(_.kind == frflow.protocol.NodeKind.Design).map(_.id), List("ServerWiring", "DomainTypes"))
+    assertEquals(knowledge.nodes.filter(_.kind == frflow.protocol.NodeKind.Design).map(_.id), List("Transactions", "ServerWiring", "DomainTypes"))
     // The purpose names no clock and no duration: the lifetimes are open there.
     val rootTerms = knowledge.termsOf(accessFollowsShares).toSet
     assert(!rootTerms("invitationLasts") && !rootTerms("trashKeeps") && !rootTerms("housekeepingWithin"), rootTerms)
@@ -121,10 +122,10 @@ class SharingSuite extends munit.CatsEffectSuite:
     assertEquals(HousekeepingService.tidy(trashed, now + 29 * day).documents.map(_.id), List(plan, q3Report))
     assertEquals(HousekeepingService.tidy(trashed, now + 30 * day).documents.map(_.id), List(q3Report))
     // Access requests: asking gives nothing; an editor approves it; housekeeping reminds, then declines.
-    val asked = AccessRequestsService.ask(library, now, cat, plan, Level.View)
+    val asked = AccessRequestsService.ask(library, now, cat, Target.Doc(plan), Level.View)
     assertEquals(SharingService.access(asked, now, cat, plan), None)
-    assertEquals(SharingService.access(AccessRequestsService.approve(asked, now + day, ann, cat, plan), now + day, cat, plan), Some(Level.View))
-    assertEquals(AccessRequestsService.approve(asked, now + day, bob, cat, plan), asked)
+    assertEquals(SharingService.access(AccessRequestsService.approve(asked, now + day, ann, cat, Target.Doc(plan)), now + day, cat, plan), Some(Level.View))
+    assertEquals(AccessRequestsService.approve(asked, now + day, bob, cat, Target.Doc(plan)), asked)
     assertEquals(AccessRequestsService.chase(asked, now + day), asked)
     val reminded = AccessRequestsService.chase(asked, now + 2 * day)
     assertEquals(reminded.requests.map(_.reminded), List(true))
@@ -228,13 +229,13 @@ class SharingSuite extends munit.CatsEffectSuite:
         ("POST", "/withdraw", s"""{"by":"${p.name}","to":"${to.name}","what":${json(t)}}""", done(o.withdraw(now, p, to, t)))
       case 8 => ("POST", "/trash", s"""{"by":"${p.name}","doc":"${d.name}"}""", done(o.trash(now, p, d)))
       case 9 => ("POST", "/restore", s"""{"by":"${p.name}","doc":"${d.name}"}""", done(o.restore(now, p, d)))
-      case 12 => ("POST", "/ask", s"""{"person":"${p.name}","doc":"${d.name}","level":"${l.toString.toLowerCase}"}""", done(o.ask(now, p, d, l)))
+      case 12 => ("POST", "/ask", s"""{"person":"${p.name}","what":${json(t)},"level":"${l.toString.toLowerCase}"}""", done(o.ask(now, p, t, l)))
       case 13 =>
         val who = pick(ann, bob, cat)
-        ("POST", "/approve", s"""{"by":"${p.name}","person":"${who.name}","doc":"${d.name}"}""", done(o.approve(now, p, who, d)))
+        ("POST", "/approve", s"""{"by":"${p.name}","person":"${who.name}","what":${json(t)}}""", done(o.approve(now, p, who, t)))
       case 14 =>
         val who = pick(ann, bob, cat)
-        ("POST", "/decline", s"""{"by":"${p.name}","person":"${who.name}","doc":"${d.name}"}""", done(o.decline(now, p, who, d)))
+        ("POST", "/decline", s"""{"by":"${p.name}","person":"${who.name}","what":${json(t)}}""", done(o.decline(now, p, who, t)))
       case 15 =>
         val to = pick(ann, bob, cat)
         ("POST", "/transfer", s"""{"by":"${p.name}","doc":"${d.name}","to":"${to.name}"}""", done(o.transfer(now, p, d, to)))
@@ -282,6 +283,61 @@ class SharingSuite extends munit.CatsEffectSuite:
   /** A session against the server on a fake clock, with failures injected into the store and the mail server: each
     * request and its answer, as a client sees them. What the stage report shows.
     */
+  /** Many clients at once, on fibers (IO): requests on the same documents, runs of housekeeping and of delivery, all
+    * concurrent, each request and run of housekeeping one transaction (Q18, Q19) and delivery four at once (Q17, Q20). The
+    * library they leave must be what the logged requests make one after the other, in the log's (commit) order; every
+    * notice announced must have reached the mail server once, or wait in the outbox.
+    */
+  test("many clients at once: serializable results in commit order, and every notice delivered once or waiting") {
+    import cats.effect.unsafe.implicits.global
+    import cats.effect.syntax.all.*
+    val rnd = Random(17)
+    val people = List(ann, bob, cat)
+    def pick[A](xs: List[A]): A = xs(rnd.nextInt(xs.size))
+    val targets = List(Target.Doc(plan), Target.Doc(q3Report), Target.InFolder(FolderId("reports")), Target.InFolder(FolderId("q3")))
+    val grantees = people.map(Grantee.Person(_)) :+ Grantee.Team(TeamId("eng"))
+    val levels = List(Level.View, Level.Edit)
+    def request(): Request = rnd.nextInt(9) match
+      case 0 | 1 => Request.Share(ann, pick(targets), pick(grantees), pick(levels), None)
+      case 2     => Request.Unshare(ann, pick(targets), pick(grantees))
+      case 3     => Request.Invite(ann, pick(people), pick(targets), pick(levels))
+      case 4     => Request.Accept(pick(people), pick(targets))
+      case 5     => Request.Ask(pick(people), pick(targets), pick(levels))
+      case 6     => Request.Approve(ann, pick(people), pick(targets))
+      case 7     => Request.Decline(ann, pick(people), pick(targets))
+      case _     => Request.Access(pick(people), plan)
+    // A share that has ended, and an invitation lapsed: housekeeping has something to clear.
+    val start = library.copy(shares = Share(Target.Doc(plan), Grantee.Person(cat), Level.View, Some(now - 10)) :: library.shares,
+      invitations = List(Invitation(bob, Target.Doc(plan), Level.View, ann, now - 8 * day)))
+    val store = MemoryLibraryStore(start)
+    val service = StoreHttp(store, FakeClock(now))
+    val requests = List.fill(400)(request())
+    val clients = requests.parTraverseN(32)(r => IO.cede *> service.attemptIO(r))
+    val jobs = (1 to 20).toList.parTraverseN(4)(i => if i % 4 == 0 then service.housekeepIO else service.deliverIO)
+    val t0 = System.nanoTime
+    val (answers, _) = IO.both(clients, jobs).unsafeRunSync()
+    val ms = (System.nanoTime - t0) / 1000000
+    // Deliver what is left.
+    while store.library.outbox.nonEmpty do service.deliver()
+    val after = store.library
+    // The logged requests, one after the other, in the order they committed, from the same start.
+    val replayStore = MemoryLibraryStore(start)
+    val replay = StoreHttp(replayStore, FakeClock(now))
+    after.log.foreach(e => e.change match
+      case Change.Made(r)   => replay.attempt(r)
+      case Change.Housekept => replay.housekeep()
+      case Change.Forgotten => ())
+    val serial = replayStore.library
+    assertEquals(after.copy(outbox = Nil), serial.copy(outbox = Nil), "the library is what the logged requests make, in commit order")
+    assertEquals(after.log, serial.log)
+    val delivered = service.mailer.boxes
+    assert(delivered.values.forall(ns => ns.distinct == ns), "a notice delivered twice")
+    assertEquals(delivered.values.flatten.toSet, serial.outbox.toSet, "every notice announced reached the mail server, once")
+    assert(answers.forall(_.isRight), answers.filter(_.isLeft))
+    println(s"many clients: ${requests.size} requests by 32 clients, ${after.log.size} logged changes, " +
+      s"${delivered.values.map(_.size).sum} notices delivered to ${delivered.size} people, $ms ms")
+  }
+
   test("a scripted session: a request reminded and declined, a notice retried and delivered once, a 503 that changes nothing, a yes explained") {
     val clock = FakeClock(now)
     val service = StoreHttp(MemoryLibraryStore(library), clock)
@@ -305,19 +361,28 @@ class SharingSuite extends munit.CatsEffectSuite:
       assertEquals(call("POST", "/approve", """{"by":"ann","person":"cat","doc":"plan"}""")._1, 403)
       // Delivery: the outbox holds the notice of the ask (to Ann), the reminder (to Ann) and the decline (to Cat).
       assertEquals(call("GET", "/outbox")._2.split("Notice").length - 1, 3)
-      // The mail server is down for three tries: the run fails, the notice stays.
-      call("POST", "/faults", """{"fail":[false,true,true,true]}""")
+      def count(path: String) = call("GET", path)._2.split("Notice").length - 1
+      // The outbox cannot be read: the run fails, nothing changes.
+      call("POST", "/faults", """{"fail":[true]}""")
       assertEquals(call("POST", "/deliver")._1, 503)
-      assertEquals(call("GET", "/mailbox"), (200, "[]"))
-      // Delivered on the second try, but the store fails as the notice leaves the outbox: it stays, and is sent again.
-      call("POST", "/faults", """{"fail":[false,true,false,true]}""")
-      assertEquals(call("POST", "/deliver")._1, 503)
-      assertEquals(call("GET", "/mailbox")._2.split("Notice").length - 1, 1)
+      // A run sends Ann's oldest and Cat's at once. The mail server is down for every try of both: the run is done,
+      // and both notices stay in the outbox.
+      call("POST", "/faults", """{"fail":[false,true,true,true,true,true,true]}""")
       assertEquals(call("POST", "/deliver")._1, 200)
-      assertEquals(call("GET", "/mailbox")._2.split("Notice").length - 1, 1) // delivered once
-      call("POST", "/deliver"); call("POST", "/deliver")
+      assertEquals(call("GET", "/mailbox"), (200, "[]"))
+      assertEquals(count("/outbox"), 3)
+      // Then both go through: Ann's reminder, her second, waits for the next run.
+      assertEquals(call("POST", "/deliver")._1, 200)
+      assertEquals(count("/mailbox"), 2)
+      assertEquals(count("/outbox"), 1)
+      // The reminder is delivered, but the store fails as it leaves the outbox: it stays, and is sent again.
+      call("POST", "/faults", """{"fail":[false,false,true]}""")
+      assertEquals(call("POST", "/deliver")._1, 200)
+      assertEquals(count("/mailbox"), 3)
+      assertEquals(count("/outbox"), 1)
+      assertEquals(call("POST", "/deliver")._1, 200)
       assertEquals(call("GET", "/outbox"), (200, "[]"))
-      assertEquals(call("GET", "/mailbox")._2.split("Notice").length - 1, 3)
+      assertEquals(count("/mailbox"), 3) // each delivered once
       // A store failure mid-request: 503, and nothing changes.
       call("POST", "/faults", """{"fail":[false,true]}""")
       assertEquals(call("POST", "/share", """{"by":"ann","what":{"doc":"plan"},"with":{"person":"bob"},"level":"view"}"""),

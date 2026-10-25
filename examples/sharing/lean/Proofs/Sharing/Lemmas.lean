@@ -43,10 +43,10 @@ theorem served_eq (announce : Library → Library → Request → Entry → Libr
 theorem housekept_eq (record : Library → Int → Change → Library) (hR : ∀ l t c, record l t c = { l with log := l.log ++ [Entry.mk (l.log.length : Int) t c] }) isPending reminderDue gone inForce isOpen
     (lib : Library) (t : Int) :
     Run.housekept record isPending reminderDue gone inForce isOpen lib t =
-      if AccessRequests.chaseCode isPending reminderDue (Housekeeping.tidyCode gone inForce isOpen lib t) t ≠ lib then
-        { AccessRequests.chaseCode isPending reminderDue (Housekeeping.tidyCode gone inForce isOpen lib t) t with
-          log := (AccessRequests.chaseCode isPending reminderDue (Housekeeping.tidyCode gone inForce isOpen lib t) t).log ++
-            [Entry.mk ((AccessRequests.chaseCode isPending reminderDue (Housekeeping.tidyCode gone inForce isOpen lib t) t).log.length : Int) t Change.Housekept] }
+      if Notifications.warnCode (AccessRequests.chaseCode isPending reminderDue (Audit.forgetCode (Housekeeping.tidyCode gone inForce isOpen lib t) t) t) t ≠ lib then
+        { Notifications.warnCode (AccessRequests.chaseCode isPending reminderDue (Audit.forgetCode (Housekeeping.tidyCode gone inForce isOpen lib t) t) t) t with
+          log := (Notifications.warnCode (AccessRequests.chaseCode isPending reminderDue (Audit.forgetCode (Housekeeping.tidyCode gone inForce isOpen lib t) t) t) t).log ++
+            [Entry.mk ((Notifications.warnCode (AccessRequests.chaseCode isPending reminderDue (Audit.forgetCode (Housekeeping.tidyCode gone inForce isOpen lib t) t) t) t).log.length : Int) t Change.Housekept] }
       else lib := by
   simp only [Run.housekept, hR]
 

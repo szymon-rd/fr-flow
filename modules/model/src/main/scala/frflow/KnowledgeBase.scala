@@ -96,7 +96,13 @@ final class KnowledgeBase(val name: String, val idea: String, val implementation
   private def paramsIn(l: Lifted[?]): List[String] = (l.paramObjects ++ Def.closure(l.defs).flatMap(_.lifted.paramObjects)).map(_.name).distinct
   private[frflow] lazy val lifteds: List[Lifted[?]] = nodes.flatMap(_.referenced) ++ defs.map(_.lifted)
   lazy val defs: List[Def[?]] = Walk.postorder(defRoots, _.name)(_.lifted.defs)
-  private def defRoots: List[Def[?]] = nodes.flatMap(_.referenced).flatMap(_.defs) ++ implementations.flatMap(_.proven)
+  private def defRoots: List[Def[?]] = nodes.flatMap(_.referenced).flatMap(_.defs) ++ implementations.flatMap(_.proven) ++ modelDefs
+  /** The defines a model's operations use: Lean's models need them too. */
+  private def modelDefs: List[Def[?]] = models.flatMap(mo => mo.boundary.operations.flatMap { m =>
+    val bs = m.getParameters.toList.zip(m.getGenericParameterTypes.toList).map((p, t) => Binder(Names.ident(p.getName), LeanType.ofJava(t)))
+    scala.util.Try(Lifted(() => (bs, Term(Tree.Do(Steps.of(m.invoke(mo.model, bs.map(_.term[Any])*).asInstanceOf[Flow[?]])._1),
+      LeanType.ofJava(m.getGenericReturnType))), null, "").defs).getOrElse(Nil)
+  })
   /** Each object once: two by one name are two here. */
   private[frflow] lazy val allDefs: List[Def[?]] = Walk.preorder(defRoots, identity)(_.lifted.defs)
   private[frflow] lazy val paramObjects: List[Param[?]] =

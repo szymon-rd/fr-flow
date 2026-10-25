@@ -64,13 +64,13 @@ object HttpCodec:
       case ("POST", "/restore") =>
         json(body).flatMap(j => for by <- name(j, "by"); doc <- name(j, "doc") yield Request.Restore(PersonId(by), DocumentId(doc)))
       case ("POST", "/ask") =>
-        json(body).flatMap(j => for p <- name(j, "person"); doc <- name(j, "doc"); l <- level(j) yield Request.Ask(PersonId(p), DocumentId(doc), l))
+        json(body).flatMap(j => for p <- name(j, "person"); what <- asked(j); l <- level(j) yield Request.Ask(PersonId(p), what, l))
       case ("POST", "/approve") =>
         json(body).flatMap(j =>
-          for by <- name(j, "by"); p <- name(j, "person"); doc <- name(j, "doc") yield Request.Approve(PersonId(by), PersonId(p), DocumentId(doc)))
+          for by <- name(j, "by"); p <- name(j, "person"); what <- asked(j) yield Request.Approve(PersonId(by), PersonId(p), what))
       case ("POST", "/decline") =>
         json(body).flatMap(j =>
-          for by <- name(j, "by"); p <- name(j, "person"); doc <- name(j, "doc") yield Request.Decline(PersonId(by), PersonId(p), DocumentId(doc)))
+          for by <- name(j, "by"); p <- name(j, "person"); what <- asked(j) yield Request.Decline(PersonId(by), PersonId(p), what))
       case ("POST", "/transfer") =>
         json(body).flatMap(j =>
           for by <- name(j, "by"); doc <- name(j, "doc"); to <- name(j, "to") yield Request.Transfer(PersonId(by), DocumentId(doc), PersonId(to)))
@@ -107,6 +107,13 @@ object HttpCodec:
     name(w, "doc").map(d => Target.Doc(DocumentId(d)))
       .orElse(name(w, "folder").map(f => Target.InFolder(FolderId(f))))
       .left.map(_ => Invalid.Unreadable("what is neither a doc nor a folder"))
+
+  /** What a request asks for: `"doc":"plan"` or `"folder":"reports"` beside the person, or `"what":{…}` as a share's. */
+  private def asked(j: ACursor): Either[Invalid, Target] =
+    name(j, "doc").map(d => Target.Doc(DocumentId(d)))
+      .orElse(name(j, "folder").map(f => Target.InFolder(FolderId(f))))
+      .orElse(target(j))
+      .left.map(_ => Invalid.Unreadable("neither a doc nor a folder is asked for"))
 
   private def grantee(j: ACursor): Either[Invalid, Grantee] =
     val w = j.downField("with")

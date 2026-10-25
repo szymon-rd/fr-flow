@@ -27,7 +27,7 @@ theorem complete : Obl.complete := by
       have hm := List.mem_of_find?_eq_some hf
       have hc := List.find?_some hf
       simp only [decide_eq_true_eq] at hc
-      exact ⟨Sharing.Lemmas.changed h, r, hm, hc⟩
+      exact ⟨(Sharing.Lemmas.changed h).1, r, hm, hc⟩
     · exact absurd rfl h
   · rw [hDec lib t by_ p d] at h; exact Sharing.Lemmas.changed h
   · have ⟨h1, h2⟩ := hT r hr

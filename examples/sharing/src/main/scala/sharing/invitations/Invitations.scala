@@ -50,6 +50,7 @@ object Invitations:
   }
 
   private val withCat = library.copy(invitations = List(catInvited))
+  private val annInvited = library.copy(invitations = List(Invitation(ann, Target.Doc(plan), Level.View, bob, now - day)))
 
   val inviteContract = Node.contract(invite)("InviteContract",
     "Someone who may edit a document or folder invites a person to it at a level: the invitation, sent now, takes the place of any earlier invitation of them to it. When anyone else asks, nothing changes.",
@@ -73,26 +74,29 @@ object Invitations:
   private val catViewsPlan = Share(Target.Doc(plan), Grantee.Person(cat), Level.View, None)
 
   val acceptContract = Node.contract(accept)("AcceptContract",
-    "A person accepts their open invitation to a document or folder: they then have a share of it at the invitation's level, in place of any share of it they had, and the invitation goes. Without an open invitation, nothing changes.",
-    why = "Q7: an invitation gives no access until it is accepted, and only while it is open; accepting is what makes the share.",
+    "A person accepts their open invitation to a document or folder: they then have a share of it at the invitation's level, in place of any share of it they had, and the invitation goes. Without an open invitation, or when the document is their own (their share of it is the owner's), nothing changes.",
+    why = "Q7: an invitation gives no access until it is accepted, and only while it is open; accepting is what makes the share. Q14: nothing replaces an owner's share of their own document, so an owner invited to it keeps their edit share for good.",
     idea = "Invitations"
   )((lib, t, p, what, result) =>
     result === lib.invitations.find(i => i.to === p && i.what === what && isOpen(i, t)).fold(lib)(i =>
-      lib.copy((shares = Share(what, Grantee[Grantee.Person](p), i.level, none[BigInt]) :: sharesWithout(lib.shares, what, Grantee[Grantee.Person](p)),
-        invitations = invitationsWithout(lib.invitations, p, what)))))
+      ownedBy(lib, what, Grantee[Grantee.Person](p)).fold(lib,
+        lib.copy((shares = Share(what, Grantee[Grantee.Person](p), i.level, none[BigInt]) :: sharesWithout(lib.shares, what, Grantee[Grantee.Person](p)),
+          invitations = invitationsWithout(lib.invitations, p, what))))))
     .under(invitationsAreOffers)
     .examples()(
       expect(withCat, now, cat, Target.Doc(plan), library.copy(shares = catViewsPlan :: library.shares),
         "Cat accepts Ann's invitation, sent a day ago: she may view the plan"),
       expect(withCat, now + 7 * day, cat, Target.Doc(plan), withCat, "eight days after it was sent the invitation has lapsed"),
       expect(withCat, now, bob, Target.Doc(plan), withCat, "Bob was not invited"),
+      expect(annInvited, now, ann, Target.Doc(plan), annInvited, "Ann owns the plan: accepting a view invitation to it changes nothing"),
       reject(withCat, now + 7 * day, cat, Target.Doc(plan), library.copy(shares = catViewsPlan :: library.shares),
         "a lapsed invitation is never accepted"))
 
   val acceptCode = define { (lib: Term[Library], t: Term[BigInt], p: Term[PersonId], what: Term[Target]) =>
     lib.invitations.find(i => i.to === p && i.what === what && isOpen(i, t)).fold(lib)(i =>
-      lib.copy((shares = Share(what, Grantee[Grantee.Person](p), i.level, none[BigInt]) :: sharesWithout(lib.shares, what, Grantee[Grantee.Person](p)),
-        invitations = invitationsWithout(lib.invitations, p, what))))
+      ownedBy(lib, what, Grantee[Grantee.Person](p)).fold(lib,
+        lib.copy((shares = Share(what, Grantee[Grantee.Person](p), i.level, none[BigInt]) :: sharesWithout(lib.shares, what, Grantee[Grantee.Person](p)),
+          invitations = invitationsWithout(lib.invitations, p, what)))))
   }
 
   val withdrawContract = Node.contract(withdraw)("WithdrawContract",

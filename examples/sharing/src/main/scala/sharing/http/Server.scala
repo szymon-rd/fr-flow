@@ -1,6 +1,7 @@
 package sharing.http
 
-import cats.effect.SyncIO
+import cats.effect.{IO, SyncIO}
+import cats.effect.unsafe.implicits.global
 import com.sun.net.httpserver.{HttpExchange, HttpServer}
 import frflow.{Clock, FakeClock, FaultPlan, FlowFailed, SystemClock}
 import io.circe.Json
@@ -15,10 +16,11 @@ import sharing.notifications.{Mailer, MemoryMailer, Notifications}
 import sharing.store.{LibraryStore, MemoryLibraryStore, SqlLibraryStore}
 
 /** The service on a store, a mail server and a clock: HandleContract's proven flow, HousekeepingJob's and DeliveryJob's,
-  * run on them, one at a time (each reads the library the last one left). A flow that fails (the store or the mail
-  * server down) changed nothing it was proven not to change; a request is then answered 503, a job's run is tried again
-  * at its next tick. `faults`: failures to inject into the store's and the mail server's next calls (tests, and the
-  * scripted session).
+  * run on them in IO, as many at once as the workers call them: each request and each run of housekeeping is one
+  * transaction (Transactions), so each reads the library the last one to commit left; a run of delivery sends its
+  * notices on fibers, four at once. A flow that fails (the store or the mail server down) changed nothing it was proven
+  * not to change; a request is then answered 503, a job's run is tried again at its next tick. `faults`: failures to
+  * inject into the store's and the mail server's next calls (tests, and the scripted session).
   */
 final class StoreHttp(s: LibraryStore, val clock: Clock = SystemClock, val mailer: MemoryMailer = MemoryMailer()) extends SharingHttp:
   private val faults = AtomicReference(FaultPlan(Nil))
@@ -30,18 +32,22 @@ final class StoreHttp(s: LibraryStore, val clock: Clock = SystemClock, val maile
   private val mail: Mailer = new Mailer:
     def send(n: frflow.Term[Notice]) = faults.get.apply(Notifications.mailer, mailer: Mailer).send(n)
   private val bound = Seq(LibraryStore.store.bind(store), Notifications.mailer.bind(mail), Clock.boundary.bind(clock))
-  private val run = knowledge.run[SyncIO](SharingHttp.handleContract)(bound*)
-  private val job = knowledge.run[SyncIO](Housekeeping.jobContract)(bound*)
-  private val delivery = knowledge.run[SyncIO](Notifications.deliveryJob)(bound*)
+  private val run = knowledge.run[IO](SharingHttp.handleContract)(bound*)
+  private val job = knowledge.run[IO](Housekeeping.jobContract)(bound*)
+  private val delivery = knowledge.run[IO](Notifications.deliveryJob)(bound*)
   /** The answer, or why the flow failed. */
-  def attempt(request: Request): Either[Failure, Answer] =
-    synchronized(run(request).attempt.unsafeRunSync()).left.map { case FlowFailed(f: Failure) => f; case e => throw e }
+  def attempt(request: Request): Either[Failure, Answer] = attemptIO(request).unsafeRunSync()
+  /** The same, as a fiber's work: what many clients at once run. */
+  def attemptIO(request: Request): IO[Either[Failure, Answer]] =
+    run(request).attempt.map(_.left.map { case FlowFailed(f: Failure) => f; case e => throw e })
   /** A failure is the server's 503: `Server.answer` turns it into one. */
   def handle(request: Request): Answer = attempt(request).fold(f => throw FlowFailed(f), identity)
   /** A run of housekeeping; false when it failed (it changed nothing). */
-  def housekeep(): Boolean = synchronized(job().attempt.unsafeRunSync()).isRight
-  /** A run of delivery; false when it failed (the notice stays in the outbox). */
-  def deliver(): Boolean = synchronized(delivery().attempt.unsafeRunSync()).isRight
+  def housekeep(): Boolean = housekeepIO.unsafeRunSync()
+  def housekeepIO: IO[Boolean] = job().attempt.map(_.isRight)
+  /** A run of delivery; false when the outbox could not be read (a notice the mail server did not take stays in it). */
+  def deliver(): Boolean = deliverIO.unsafeRunSync()
+  def deliverIO: IO[Boolean] = delivery().attempt.map(_.isRight)
   /** What the store holds now (for the testing routes). */
   def held: Library = s match
     case m: MemoryLibraryStore => m.library

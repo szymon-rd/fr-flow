@@ -62,14 +62,15 @@ object SharingHttp:
       .on[Request.Unshare]((by, what, withWhom) => allowedWhen(mayEdit(lib, t, by, what) && !ownedBy(lib, what, withWhom)))
       .on[Request.Move]((by, d, into) => allowedWhen(Sharing.mayMove(lib, t, by, d, into)))
       .on[Request.Invite]((by, _, what, _) => allowedWhen(mayEdit(lib, t, by, what)))
-      .on[Request.Accept]((p, what) => allowedWhen(lib.invitations.exists(i => i.to === p && i.what === what && isOpen(i, t))))
+      .on[Request.Accept]((p, what) => allowedWhen(lib.invitations.exists(i => i.to === p && i.what === what && isOpen(i, t)) &&
+        !ownedBy(lib, what, Grantee[Grantee.Person](p))))
       .on[Request.Withdraw]((by, _, what) => allowedWhen(mayEdit(lib, t, by, what)))
       .on[Request.Trash]((by, d) => allowedWhen(mayEdit(lib, t, by, Target[Target.Doc](d))))
       .on[Request.Restore]((by, d) => allowedWhen(Trash.mayRestore(lib, t, by, d)))
-      .on[Request.Ask]((_, d, _) => allowedWhen(lib.documents.exists(doc => doc.id === d)))
-      .on[Request.Approve]((by, p, d) => allowedWhen(mayEdit(lib, t, by, Target[Target.Doc](d)) &&
-        lib.requests.exists(q => q.person === p && q.doc === d && isPending(q, t))))
-      .on[Request.Decline]((by, _, d) => allowedWhen(mayEdit(lib, t, by, Target[Target.Doc](d))))
+      .on[Request.Ask]((_, w, _) => allowedWhen(AccessRequests.holds(lib, w)))
+      .on[Request.Approve]((by, p, w) => allowedWhen(mayEdit(lib, t, by, w) && !ownedBy(lib, w, Grantee[Grantee.Person](p)) &&
+        lib.requests.exists(q => q.person === p && q.what === w && isPending(q, t))))
+      .on[Request.Decline]((by, _, w) => allowedWhen(mayEdit(lib, t, by, w)))
       .on[Request.Transfer]((by, d, to) => allowedWhen(Ownership.owns(lib, by, d) && mayEdit(lib, t, by, Target[Target.Doc](d)) &&
         mayEdit(lib, t, to, Target[Target.Doc](d))))
   }
@@ -77,7 +78,7 @@ object SharingHttp:
   private val shareWithBob = Request.Share(ann, Target.Doc(plan), Grantee.Person(bob), Level.View, None)
   private val bobViewsPlan = library.copy(shares = Share(Target.Doc(plan), Grantee.Person(bob), Level.View, None) :: library.shares,
     log = List(Entry(0, now, Change.Made(shareWithBob))))
-  private def at(l: Library) = World(LibraryModel -> l, MailerModel -> Nil, ClockModel -> ClockState(now, Nil))
+  private def at(l: Library) = World(LibraryModel -> l, MailerModel -> Map.empty[PersonId, List[Notice]], ClockModel -> ClockState(now, Nil))
 
   val handleContract = Node.contract(handle)("HandleContract",
     "A request is answered at the time the clock gives, from the library the store holds, and leaves the store holding the library it leads to: a question is answered with the person's access and changes nothing; a change is made as its operation makes it, recorded in the log and announced in the outbox in the same save, and answered done when it may be made and refused otherwise. Handling does not move the clock. A request the store fails changes nothing.",
@@ -104,13 +105,15 @@ object SharingHttp:
       reject(Request.Access(cat, plan), at(library), Answer.Access(Some(Level.View)), at(library),
         "Cat has no access to the plan"))
 
-  /** The handling: the time, the library, the one the request leaves kept when it differs, the answer.
-    * HandleContract is proven of it, on the store's and the clock's models, for every pattern of the store's failures.
+  /** The handling, one transaction (Q18): the time, the library, the one the request leaves kept when it differs, the
+    * answer. HandleContract is proven of it, on the store's and the clock's models, for every pattern of the store's
+    * failures; that requests at once leave what one after the other leaves is the store's transactions' (Transactions).
     */
   def handleRequest(r: Term[Request]): Flow[Answer] =
-    for
-      t    <- Flow.now
-      lib  <- store.load
-      next = served(lib, t, r)
-      _    <- Flow.whenA(next =!= lib)(store.save(next))
-    yield answerTo(lib, t, r)
+    Flow.atomically(
+      for
+        t    <- Flow.now
+        lib  <- store.load
+        next = served(lib, t, r)
+        _    <- Flow.whenA(next =!= lib)(store.save(next))
+      yield answerTo(lib, t, r))

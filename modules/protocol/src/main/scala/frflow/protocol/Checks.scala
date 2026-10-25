@@ -15,6 +15,8 @@ enum ObligationName:
   case Probe(j: Int)
   case ProbeImpl(j: Int)
   case RootImpl
+  /** The branches of the `i`-th parallel step of a node's proven code commute. */
+  case Commute(i: Int)
 
   def lean: String = this match
     case Complete     => "complete"
@@ -29,6 +31,7 @@ enum ObligationName:
     case Probe(j)     => s"probe_$j"
     case ProbeImpl(j) => s"probeImpl_$j"
     case RootImpl     => "root_impl"
+    case Commute(i)   => s"commute_$i"
 
   override def toString: String = lean
   def isProbe: Boolean = PartialFunction.cond(this) { case Probe(_) | ProbeImpl(_) => true }
@@ -56,7 +59,8 @@ object ObligationName:
     (List(Complete, Feasible, Impl, Check, RootImpl) ++
       List(TryKind.Vacuous, TryKind.Restates, TryKind.Clash, TryKind.Unsat, TryKind.Idle).map(Tried(_))).map(o => o.lean -> o).toMap
   private val indexed: Map[String, Int => ObligationName] = Map("expect" -> Expect.apply, "eval" -> Eval.apply,
-    "vacuous_expect" -> (i => Tried(TryKind.VacuousExpect(i))), "evalImpl" -> EvalImpl.apply, "probe" -> Probe.apply, "probeImpl" -> ProbeImpl.apply)
+    "vacuous_expect" -> (i => Tried(TryKind.VacuousExpect(i))), "evalImpl" -> EvalImpl.apply, "probe" -> Probe.apply, "probeImpl" -> ProbeImpl.apply,
+    "commute" -> Commute.apply)
   private val Indexed = s"(${indexed.keys.mkString("|")})_(\\d{1,9})".r
   private val OfNode = """(cover|needed)_(.+)""".r
   private val Conjunct = """restates_(\d{1,9})_(.+)""".r

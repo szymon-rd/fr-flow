@@ -99,6 +99,8 @@ final class Lifted[+F] private[frflow] (build: () => (List[Binder], Term[?]), pr
   def world: Boolean = printed.world
   /** The error types a flow raises or handles (Lean's `[MonadExceptOf E m]`). */
   def errors: List[String] = printed.errors
+  /** The branches a flow runs at once, each with what its proof must show (that they commute). */
+  private[frflow] def commutes: List[Commute] = printed.commutes
   def lean: String = if params.isEmpty then body else s"fun ${params.map((n, t) => s"($n : $t)").mkString(" ")} => $body"
   def leanType: String = (params.map(_._2) :+ result).mkString(" → ")
 

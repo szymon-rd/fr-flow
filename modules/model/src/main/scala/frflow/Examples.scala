@@ -138,8 +138,64 @@ private[frflow] object ExampleRuns:
     if n.cases.isEmpty then Nil
     else Bindings.within(kb.opCode ++ kb.definitionBindings) {
       n.checkExamples(kb.implementation(n).map(_.factory), kb.runtimeAssumptions) ++
-        onReal(kb, n) ++ faultSweep(kb, n)
+        onReal(kb, n) ++ faultSweep(kb, n) ++ interleavings(kb, n)
     }
+
+  /** How many times each example of a flow with branches at once is run on fibers. */
+  val InterleavedRuns: Int = 8
+
+  /** A flow that runs branches at once, run from each of its examples (with no faults) on the boundaries'
+    * implementations in IO: the branches on fibers, a random pause before each call of a boundary, so that each run
+    * interleaves their steps differently. Each run must give what the proven reading gives on the models (the branches
+    * one after the other); a race, whose winner is the scheduler's, must give what the contract allows. A flow whose
+    * branches share state outside a transaction is caught here (a lost update), not by the commutation proof, which
+    * compares whole branches.
+    */
+  private def interleavings(kb: KnowledgeBase, n: Node[?]): List[ExampleResult] =
+    import cats.effect.IO
+    import cats.effect.unsafe.implicits.global
+    import scala.concurrent.duration.*
+    (for
+      flow <- kb.implementation(n).flatMap(_.flowDef).toList
+      (bs, body) = flow.lifted.built
+      steps <- (body.termTree match { case Tree.Do(s) => Some(s); case _ => None }).toList
+      if Steps.parallel(steps)
+      post <- n.postFn.toList
+      e <- n.cases.filter(c => c.expected && c.inputs.lastOption.exists { case w: World => w.faults.isEmpty; case _ => false })
+      used = kb.models.filter(m => Steps.boundaries(steps).contains(m.boundary)).flatMap(m => m.impls.sortBy(_.outside).headOption.map(m -> _))
+    yield
+      val (args, before) = (e.inputs.init, e.inputs.last.asInstanceOf[World])
+      val env = bs.zip(args).toMap
+      val name = if used.isEmpty then "no implementation" else used.map((_, i) => ModelTests.implName(i)).mkString(" and ")
+      def held(w: World): World = used.foldLeft(w)((acc, x) => acc.updated(x._1.model, x._2.read(x._2.start(acc(x._1.model.asInstanceOf[StateModel[Any]])))))
+      val model = Bindings.within(e.bindings)(Try(
+        try Flows.onModels(steps, env, held(before)) catch case Flows.Raised(err, at) => (Failed(err), at)).map((r, w) => (r, held(w))))
+      val bindings = kb.opCode ++ kb.definitionBindings ++ e.bindings
+      val runs = (1 to InterleavedRuns).toList.map { i =>
+        val rnd = java.util.SplittableRandom(i * 7919L)
+        val pause = IO(rnd.synchronized(rnd.nextInt(300))).flatMap(us => IO.sleep(us.micros))
+        Try {
+          val started = used.map((o, oi) => (o, oi, oi.start(before(o.model.asInstanceOf[StateModel[Any]]))))
+          val impls: Map[Boundary[?], Any] = started.map((o, _, i) => o.boundary -> i).toMap
+          val r = Flows.run[IO](steps, env, impls, bindings, Some(pause)).attempt.unsafeRunSync() match
+            case Right(v)             => v
+            case Left(FlowFailed(err)) => Failed(err)
+            case Left(other)          => throw other
+          (r, started.foldLeft(before)((w, x) => w.updated(x._1.model, x._2.read(x._3))))
+        }
+      }
+      val racing = Steps.racing(steps)
+      val verdict = runs.zipWithIndex.collectFirst(Function.unlift { case (run, i) =>
+        (model, run) match
+          case (_, scala.util.Failure(x)) => Some(s"run ${i + 1} on $name: error ${x.getMessage}")
+          case (scala.util.Failure(x), _) => Some(s"error on the models: ${x.getMessage}")
+          case (scala.util.Success(m), scala.util.Success(y)) =>
+            if racing then Option.when(!Bindings.within(e.bindings)(Try(post(args :+ before, y)).getOrElse(false)))(
+              s"run ${i + 1} on $name gives ${Example.show(y)}, which the contract refuses")
+            else Option.when(m != y)(s"run ${i + 1} on $name, its branches interleaved, gives ${Example.show(y)}, where the models (the branches in turn) give ${Example.show(m)}")
+      }).getOrElse("ok")
+      ExampleResult(e.copy(note = s"${e.note}, its branches at once ($InterleavedRuns runs on fibers, interleaved, on $name)"), "ok", Some(verdict))
+    )
 
   /** A flow that may fail, run from each of its examples with one call of its failing boundaries failing, each in turn
     * (the first, the second, …, until the run makes no more): on the models and on the boundaries' implementations,
@@ -151,7 +207,7 @@ private[frflow] object ExampleRuns:
       flow <- kb.implementation(n).flatMap(_.flowDef).toList if n.failure.isDefined
       (bs, body) = flow.lifted.built
       steps <- (body.termTree match { case Tree.Do(s) => Some(s); case _ => None }).toList
-      if Steps.boundaries(steps).exists(_.fails)
+      if Steps.boundaries(steps).exists(_.fails) && !Steps.racing(steps)
       post <- n.postFn.toList
       e <- n.cases.filter(c => c.expected && c.inputs.lastOption.exists { case w: World => w.faults.isEmpty; case _ => false })
       used = kb.models.filter(m => Steps.boundaries(steps).contains(m.boundary)).flatMap(m => m.impls.sortBy(_.outside).headOption.map(m -> _))
@@ -195,6 +251,7 @@ private[frflow] object ExampleRuns:
       flow <- kb.implementation(n).flatMap(_.flowDef).toList
       (bs, body) = flow.lifted.built
       steps <- (body.termTree match { case Tree.Do(s) => Some(s); case _ => None }).toList
+      if !Steps.racing(steps)
       mo <- kb.models.filter(m => Steps.boundaries(steps).contains(m.boundary))
       impl <- mo.impls
       e <- n.cases.filter(_.expected)

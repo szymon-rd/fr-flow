@@ -16,8 +16,8 @@ import sharing.trash.Trash
 
 /** How the service is served, owned as a design decision. */
 val serverWiring = Node.design("ServerWiring",
-  "The server reads each HTTP request into a request (an unreadable one is answered 400 with its reason, an unknown route 404), answers it with HandleContract's flow on the store and the clock, one request or housekeeping run at a time, and writes the answer as JSON (a refused change is 403); requests run on a pool of workers with a time limit each (503 past it), a request the store fails is answered 503 and changes nothing, and an internal error is answered 500 and logged. On the computer's clock, housekeeping runs every minute on a thread of its own, each start checked against HousekeepingOnTime, and delivery every ten seconds; a run that fails is tried again at its next start; on a fake clock (tests), time moves and housekeeping runs only when a test asks.",
-  why = "What a request is answered with, and what it leaves in the store, is proven (HandleContract); what a run of housekeeping leaves is proven too (HousekeepingJob). Reading HTTP, the routes, the threads, the schedule and the time limits are decided here and reviewed; the reading and writing of HTTP is tested against the routes this states (SharingSuite). One at a time makes each read the library the last one left, which both flows assume. The services' plain Scala objects run the same proven code.",
+  "The server reads each HTTP request into a request (an unreadable one is answered 400 with its reason, an unknown route 404), answers it with HandleContract's flow on the store and the clock, in IO, as many at once as its workers take, and writes the answer as JSON (a refused change is 403); requests run on a pool of workers with a time limit each (503 past it), a request the store fails is answered 503 and changes nothing, and an internal error is answered 500 and logged. On the computer's clock, housekeeping runs every minute on a thread of its own, each start checked against HousekeepingOnTime, and delivery every ten seconds; a run that fails is tried again at its next start; on a fake clock (tests), time moves and housekeeping runs only when a test asks.",
+  why = "What a request is answered with, and what it leaves in the store, is proven (HandleContract); what a run of housekeeping or of delivery leaves is proven too (HousekeepingJob, DeliveryJob). Reading HTTP, the routes, the threads, the schedule and the time limits are decided here and reviewed; the reading and writing of HTTP is tested against the routes this states (SharingSuite). Requests, housekeeping and delivery run at once (Q18-Q20); each reads the library the last transaction left (Transactions). The services' plain Scala objects run the same proven code.",
   idea = "Serving"
 )("src/main/scala/sharing/http/Server.scala", "src/main/scala/sharing/http/HttpCodec.scala",
   "src/main/scala/sharing/service/SharingService.scala", "src/main/scala/sharing/invitations/InvitationsService.scala",
@@ -41,14 +41,14 @@ val knowledge = KnowledgeBase("Sharing", idea = "IDEA.md")(
   Invitations.inviteContract, Invitations.acceptContract, Invitations.withdrawContract,
   Trash.trashContract, Trash.restoreContract,
   AccessRequests.askContract, AccessRequests.approveContract, AccessRequests.declineContract, AccessRequests.chaseContract,
-  Ownership.transferContract, Audit.recordContract, Notifications.announceContract,
+  Ownership.transferContract, Audit.recordContract, Audit.forgetContract, Notifications.announceContract, Notifications.warnContract,
   Housekeeping.tidyContract, Housekeeping.jobContract, Notifications.deliveryJob,
   Lifetimes.invitationLifetime, Lifetimes.trashLifetime, Lifetimes.requestLifetime, Run.housekeepingPeriod,
   Lifetimes.inForceContract, Lifetimes.isOpenContract, Lifetimes.goneContract, Lifetimes.isPendingContract, Lifetimes.reminderDueContract,
   Deadlines.trashPurgedOnTime,
   Deadlines.invitationsLapseOnTime, Deadlines.requestsAnsweredOnTime, Deadlines.endedStaysEnded,
   Run.clockNeverGoesBack, Run.housekeepingOnTime,
-  LibraryStore.libraryKept, Notifications.mailerKept, ClockKept.clockKept,
+  LibraryStore.libraryKept, LibraryStore.transactions, Notifications.mailerKept, ClockKept.clockKept,
   SharingHttp.handleContract,
   serverWiring, domainTypes)
   .implementProven(Sharing.accessContract)(Sharing.accessCode)
@@ -69,6 +69,8 @@ val knowledge = KnowledgeBase("Sharing", idea = "IDEA.md")(
   .implementProven(Ownership.transferContract)(Ownership.transferCode)
   .implementProven(Audit.recordContract)(Audit.recordCode)
   .implementProven(Notifications.announceContract)(Notifications.announceCode)
+  .implementProven(Audit.forgetContract)(Audit.forgetCode)
+  .implementProven(Notifications.warnContract)(Notifications.warnCode)
   .implementProven(Notifications.deliveryJob)(() => Notifications.delivery)
   .implementProven(Housekeeping.tidyContract)(Housekeeping.tidyCode)
   .implementProven(Housekeeping.jobContract)(() => Housekeeping.housekeeping)
@@ -107,7 +109,7 @@ object vocabulary:
   val shares: Gen[Share] = for t <- targets; g <- grantees; l <- levels; u <- maybe(times) yield Share(t, g, l, u)
   val invitations: Gen[Invitation] = for to <- people; t <- targets; l <- levels; by <- people; s <- times yield Invitation(to, t, l, by, s)
   val accessRequests: Gen[AccessRequest] =
-    for p <- people; d <- documents; l <- levels; at <- times; r <- Gen.oneOf(true, false) yield AccessRequest(p, d, l, at, r)
+    for p <- people; w <- targets; l <- levels; at <- times; r <- Gen.oneOf(true, false) yield AccessRequest(p, w, l, at, r)
   private val (reports, q3) = (FolderId("reports"), FolderId("q3"))
 
   /** Two folders, q3 inside reports or beside it; each document in no folder or in one of them, in the trash or not;
@@ -148,9 +150,9 @@ object vocabulary:
     case 6 => for by <- people; to <- people; t <- targets yield Request.Withdraw(by, to, t)
     case 7 => for by <- people; d <- documents yield Request.Trash(by, d)
     case 8 => for by <- people; d <- documents yield Request.Restore(by, d)
-    case 9 => for p <- people; d <- documents; l <- levels yield Request.Ask(p, d, l)
-    case 10 => for by <- people; p <- people; d <- documents yield Request.Approve(by, p, d)
-    case 11 => for by <- people; p <- people; d <- documents yield Request.Decline(by, p, d)
+    case 9 => for p <- people; w <- targets; l <- levels yield Request.Ask(p, w, l)
+    case 10 => for by <- people; p <- people; w <- targets yield Request.Approve(by, p, w)
+    case 11 => for by <- people; p <- people; w <- targets yield Request.Decline(by, p, w)
     case _ => for by <- people; d <- documents; to <- people yield Request.Transfer(by, d, to)
   }
 

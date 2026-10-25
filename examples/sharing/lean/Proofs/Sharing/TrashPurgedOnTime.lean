@@ -19,7 +19,7 @@ housekeeping keeps only documents not gone, and when it changes nothing none is 
 a wait keeps within two minutes of the last run (HousekeepingOnTime) and never goes back (ClockNeverGoesBack). -/
 theorem complete : Obl.complete := by
   unfold Obl.complete
-  intro events startedAt announce record inForce isOpen gone isPending reminderDue chase tidy housekeep hR hA _ hG hC hH
+  intro events startedAt announce record inForce isOpen gone isPending reminderDue warn chase forget tidy housekeep hR hA _ hG hC hH
   have hR' : ∀ l t c, record l t c = { l with log := l.log ++ [Entry.mk (l.log.length : Int) t c] } := fun l t c => hR l t c
   have hA' : ∀ l b r e, announce l b r e = { l with outbox := l.outbox ++ Notifications.noticesOf b r e } := fun l b r e => hA l b r e
   unfold Sharing.TrashPurgedOnTime.claim
@@ -63,12 +63,12 @@ theorem complete : Obl.complete := by
       refine ⟨Int.le_refl _, by omega, fun doc hd => ?_⟩
       rw [Sharing.Lemmas.housekept_eq _ hR'] at hd
       split at hd
-      · simp only [Sharing.AccessRequests.chaseCode, Sharing.Housekeeping.tidyCode, List.mem_filter, decide_eq_true_eq] at hd
+      · simp only [Sharing.Notifications.warnCode, Sharing.Audit.forgetCode, Sharing.AccessRequests.chaseCode, Sharing.Housekeeping.tidyCode, List.mem_filter, decide_eq_true_eq] at hd
         exact notGone m doc hd.2
       · next hn =>
-        have hd' : doc ∈ (Sharing.AccessRequests.chaseCode isPending reminderDue (Sharing.Housekeeping.tidyCode gone inForce isOpen m.library m.now) m.now).documents := by
+        have hd' : doc ∈ (Sharing.Notifications.warnCode (Sharing.AccessRequests.chaseCode isPending reminderDue (Sharing.Audit.forgetCode (Sharing.Housekeeping.tidyCode gone inForce isOpen m.library m.now) m.now) m.now) m.now).documents := by
           rw [Classical.not_not.mp hn]; exact hd
-        simp only [Sharing.AccessRequests.chaseCode, Sharing.Housekeeping.tidyCode, List.mem_filter, decide_eq_true_eq] at hd'
+        simp only [Sharing.Notifications.warnCode, Sharing.Audit.forgetCode, Sharing.AccessRequests.chaseCode, Sharing.Housekeeping.tidyCode, List.mem_filter, decide_eq_true_eq] at hd'
         exact notGone m doc hd'.2
     | Delivered =>
       simp only [inv, step, Sharing.Run.step]

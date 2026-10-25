@@ -79,15 +79,15 @@ final class Oracle(start: Library):
       true
     }
 
-  /** Accepting within 7 days of the sending makes the share. */
+  /** Accepting within 7 days of the sending makes the share; an owner's own share of their document is never replaced. */
   def accept(now: BigInt, p: PersonId, what: Target): Boolean =
     invited.find(i => i.to == p && i.what == what && now < i.sent + week) match
-      case Some(i) =>
+      case Some(i) if !owners(what, Grantee.Person(p)) =>
         told = invited.filter(j => j.to == p && j.what == what).map(j => (j.by, "accepted")).reverse ++ told
         shares = Share(what, Grantee.Person(p), i.level, None) :: shares.filterNot(s => s.what == what && s.withWhom == Grantee.Person(p))
         invited = invited.filterNot(j => j.to == p && j.what == what)
         true
-      case None => false
+      case _ => false
 
   def withdraw(now: BigInt, by: PersonId, to: PersonId, what: Target): Boolean =
     canEdit(now, by, what) && { invited = invited.filterNot(i => i.to == to && i.what == what); true }
@@ -105,28 +105,41 @@ final class Oracle(start: Library):
     if ok then trashedAt = trashedAt.removed(d)
     ok
 
-  /** Anyone asks for a document that exists; asking again renews the request. The owner is told. */
-  def ask(now: BigInt, p: PersonId, d: DocumentId, level: Level): Boolean =
-    ownerOf.contains(d) && {
-      asking = AccessRequest(p, d, level, now, false) :: asking.filterNot(r => r.person == p && r.doc == d)
-      told = (ownerOf(d), "asked") :: told
+  /** The documents, in the library's order, a request for `what` is for: that one, or every one inside the folder. */
+  private def documentsOf(what: Target): List[DocumentId] =
+    start.documents.map(_.id).filter(ownerOf.contains).filter(d => what match
+      case Target.Doc(x)      => x == d
+      case Target.InFolder(f) => folderOf.get(d).flatten.exists(upFrom(_).contains(f)))
+
+  /** Anyone asks for a document or folder that exists; asking again renews the request. The owners of what it is for
+    * are told.
+    */
+  def ask(now: BigInt, p: PersonId, what: Target, level: Level): Boolean =
+    val exists = what match
+      case Target.Doc(d)      => ownerOf.contains(d)
+      case Target.InFolder(f) => parentOf.contains(f)
+    exists && {
+      asking = AccessRequest(p, what, level, now, false) :: asking.filterNot(r => r.person == p && r.what == what)
+      told = documentsOf(what).map(d => (ownerOf(d), "asked")).reverse ++ told
       true
     }
 
-  /** An editor approves a pending request (made less than 7 days ago): the share is made, the person told. */
-  def approve(now: BigInt, by: PersonId, p: PersonId, d: DocumentId): Boolean =
-    asking.find(r => r.person == p && r.doc == d && now < r.asked + week) match
-      case Some(r) if canEdit(now, by, Target.Doc(d)) =>
-        shares = Share(Target.Doc(d), Grantee.Person(p), r.level, None) ::
-          shares.filterNot(s => s.what == Target.Doc(d) && s.withWhom == Grantee.Person(p))
-        asking = asking.filterNot(q => q.person == p && q.doc == d)
+  /** An editor approves a pending request (made less than 7 days ago): the share is made, the person told; an owner's
+    * own share of their document is never replaced.
+    */
+  def approve(now: BigInt, by: PersonId, p: PersonId, what: Target): Boolean =
+    asking.find(r => r.person == p && r.what == what && now < r.asked + week) match
+      case Some(r) if canEdit(now, by, what) && !owners(what, Grantee.Person(p)) =>
+        shares = Share(what, Grantee.Person(p), r.level, None) ::
+          shares.filterNot(s => s.what == what && s.withWhom == Grantee.Person(p))
+        asking = asking.filterNot(q => q.person == p && q.what == what)
         told = (p, "approved") :: told
         true
       case _ => false
 
-  def decline(now: BigInt, by: PersonId, p: PersonId, d: DocumentId): Boolean =
-    canEdit(now, by, Target.Doc(d)) && {
-      asking = asking.filterNot(q => q.person == p && q.doc == d)
+  def decline(now: BigInt, by: PersonId, p: PersonId, what: Target): Boolean =
+    canEdit(now, by, what) && {
+      asking = asking.filterNot(q => q.person == p && q.what == what)
       told = (p, "declined") :: told
       true
     }
@@ -155,5 +168,5 @@ final class Oracle(start: Library):
     ownerOf = ownerOf -- purged
     val lapsed = asking.filterNot(r => now < r.asked + week)
     val due = asking.filter(r => now < r.asked + week && r.asked + twoDays <= now && !r.reminded)
-    told = due.flatMap(r => ownerOf.get(r.doc).map(o => (o, "reminded"))).reverse ++ lapsed.map(r => (r.person, "lapsed")).reverse ++ told
+    told = due.flatMap(r => documentsOf(r.what).map(d => (ownerOf(d), "reminded"))).reverse ++ lapsed.map(r => (r.person, "lapsed")).reverse ++ told
     asking = asking.filter(r => now < r.asked + week).map(r => if due.contains(r) then r.copy(reminded = true) else r)

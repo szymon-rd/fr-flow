@@ -15,7 +15,7 @@ final class Obligations(kb: KnowledgeBase, refinement: Refinement, coverage: Cov
   import refinement.vocabulary.*
   def isAuthored(n: Node[?], name: ObligationName): Boolean = authored((n.id, name))
   def obligations(n: Node[?]): List[Obligation] =
-    complete(n).toList ++ feasible(n) ++ implementation(n) ++ check(n) ++ covers(n) ++ expects(n)
+    complete(n).toList ++ feasible(n) ++ implementation(n) ++ commutes(n) ++ check(n) ++ covers(n) ++ expects(n)
   def obligation(n: Node[?], name: ObligationName): Option[Obligation] = obligations(n).find(_.name == name)
   def extraObligations(n: Node[?]): List[Obligation] = obligations(n).filterNot(o => o.name == Complete || o.name == Impl)
 
@@ -37,6 +37,24 @@ final class Obligations(kb: KnowledgeBase, refinement: Refinement, coverage: Cov
       val hs = hyps(calls(n))
       Obligation(Impl, stated(opens, hs.map(_._1), concl),
         s"Every result of ${d.name} meets ${n.id}${if hs.isEmpty then "" else s", given what ${calls(n).map(_.id).mkString(", ")} promise"}.")
+
+  /** Each parallel step of the proven code: its branches in either order give the same result and the same world, from
+    * every world (with no call failing, where boundaries may fail: the faults are taken in the order calls come, so
+    * which call fails depends on the order). Whole branches: what each order does step by step is not compared.
+    */
+  private def commutes(n: Node[?]): List[Obligation] =
+    (for { _ <- provenImpl(n).toList; d <- kb.implementation(n).flatMap(_.flowDef).toList } yield d.lifted.commutes.zipWithIndex.map { (c, i) =>
+      val err = n.failure.map(f => frflow.Types.walk(f.err).lean)
+      val monad = err.fold("StateM World")(e => s"ExceptT $e (StateM World)")
+      def run(lines: List[String]) =
+        val body = lines.map(l => s"\n        $l").mkString
+        err.fold(s"FrFlow.runOn ((do$body) : $monad ${c.result})")(e => s"FrFlow.runOnE (ε := $e) ((do$body) : $monad ${c.result})")
+      val vars = (c.free.map((x, t) => s"($x : $t)") :+ "(w : World)").mkString(" ")
+      val noFaults = if kb.faulty then List("w.faults = []") else Nil
+      val concl = resolve(s"∀ $vars, ${(c.hyps ++ noFaults).map(_ + " → ").mkString}\n      ${run(c.first)} w =\n      ${run(c.second)} w")
+      Obligation(Commute(i), stated(defCtx(d), Nil, concl),
+        s"The branches of the ${c.what} (number ${i + 1}) in ${d.name} commute: either order gives the same result and leaves the same world.")
+    }).flatten
 
   private def check(n: Node[?]): Option[Obligation] =
     for { l <- n.local; post <- n.post if formal(n) } yield

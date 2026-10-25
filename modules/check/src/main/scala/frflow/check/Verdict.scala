@@ -191,6 +191,9 @@ object Verdict:
       case Some(used) if used.exists(a => !ProofRules.allowedAxioms(a)) =>
         Judged(CheckStatus.Failed, all, List(s"disallowed axioms: ${used.filterNot(ProofRules.allowedAxioms).mkString(", ")}"), used)
       // (What is left open is in the results, once: not repeated as messages.)
+      // Branches at once not proven to commute: the proof of the code read them in one order only.
+      case Some(used) if extra.exists((r, _) => r.name.isInstanceOf[ObligationName.Commute] && r.status != Proven) =>
+        Judged(CheckStatus.Open, all, List("its branches at once are not proven to commute: the proof of its code holds of one order of them only"), used)
       case Some(used) => Judged(CheckStatus.Proven, all, Nil, used)
 
   /** The root, of the code, from what is trusted only: proven with the axioms Lean printed for it (none printed, it did not finish). */

@@ -4,7 +4,7 @@ import frflow.*
 import sharing.*
 import sharing.domain.*
 import sharing.audit.Audit
-import sharing.notifications.MailerModel
+import sharing.notifications.{MailerModel, Notifications}
 import sharing.requests.AccessRequests
 import sharing.store.LibraryModel
 import sharing.store.LibraryStore.store
@@ -75,15 +75,16 @@ object Housekeeping:
 
   val housekeep = Param[() => Flow[Unit]]("housekeep", "a run of housekeeping on the store, at the time the clock gives")
 
-  private def at(l: Library, t: BigInt) = World(LibraryModel -> l, MailerModel -> Nil, ClockModel -> ClockState(t, Nil))
+  private def at(l: Library, t: BigInt) = World(LibraryModel -> l, MailerModel -> Map.empty[PersonId, List[Notice]], ClockModel -> ClockState(t, Nil))
   private val tidiedAnHourOn = ended.copy(shares = library.shares, log = List(Entry(0, now + 3600, Change.Housekept)))
 
   val jobContract = Node.contract(housekeep)("HousekeepingJob",
-    "A run of housekeeping leaves the store holding the library it held, tidied and its access requests chased at the time the clock gives, and, when that changed it, recorded in the log; it does not move the clock. A run that fails changes nothing, and the next minute's run tries again.",
-    why = "The job is how tidying and chasing reach the store. Proven of its flow from the store's and the clock's models (LibraryKept, ClockKept), for every pattern of the store's failures; how often it runs is the scheduler's (HousekeepingOnTime). Q16: a failed run changes nothing until one succeeds.",
+    "A run of housekeeping leaves the store holding the library it held, tidied, its old log entries forgotten, its access requests chased and the shares ending in a day told of, at the time the clock gives, and, when that changed it, recorded in the log; it does not move the clock. A run that fails changes nothing, and the next minute's run tries again.",
+    why = "The job is how tidying, forgetting, chasing and telling of ending shares reach the store; one transaction (Q19). Proven of its flow from the store's and the clock's models (LibraryKept, ClockKept), for every pattern of the store's failures; how often it runs is the scheduler's (HousekeepingOnTime). Q16: a failed run changes nothing until one succeeds.",
     idea = "Time and housekeeping"
   )((result, before, after) =>
-    let(AccessRequests.chase(tidy(before(LibraryModel), before(ClockModel).now), before(ClockModel).now))(next =>
+    let(Notifications.warn(AccessRequests.chase(Audit.forget(tidy(before(LibraryModel), before(ClockModel).now), before(ClockModel).now),
+      before(ClockModel).now), before(ClockModel).now))(next =>
       after(LibraryModel) === (next =!= before(LibraryModel)).fold(Audit.record(next, before(ClockModel).now, Change.Housekept: Term[Change]),
         before(LibraryModel))) && after(ClockModel) === before(ClockModel) &&
       after(MailerModel) === before(MailerModel))
@@ -98,16 +99,17 @@ object Housekeeping:
       reject(at(ended, now + 3600).failing(false, true), Failed(Failure.StoreUnavailable), at(tidiedAnHourOn, now + 3600),
         "a failed run changes nothing"))
 
-  /** One run: the time, the library, the library tidied and its requests chased, saved with its entry when that changed
-    * it. HousekeepingJob is proven of it.
+  /** One run, one transaction (Q19): the time, the library, the library tidied and its requests chased, saved with its
+    * entry when that changed it. HousekeepingJob is proven of it; every request is before it or after it (Transactions).
     */
   def housekeeping: Flow[Unit] =
-    for
-      t    <- Flow.now
-      lib  <- store.load
-      next  = AccessRequests.chase(tidy(lib, t), t)
-      _    <- Flow.whenA(next =!= lib)(store.save(Audit.record(next, t, Change.Housekept: Term[Change])))
-    yield ()
+    Flow.atomically(
+      for
+        t    <- Flow.now
+        lib  <- store.load
+        next  = Notifications.warn(AccessRequests.chase(Audit.forget(tidy(lib, t), t), t), t)
+        _    <- Flow.whenA(next =!= lib)(store.save(Audit.record(next, t, Change.Housekept: Term[Change])))
+      yield ())
 
   /** Housekeeping every minute: the scheduler, run in the server. That runs come at least every two minutes is
     * assumed (HousekeepingOnTime), and checked where it runs.

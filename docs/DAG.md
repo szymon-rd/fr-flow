@@ -187,6 +187,7 @@ For each node N with parts C1..Cn (n ≥ 1), over the union U of the open terms 
 | `feasible` | `∃ U, C1 ∧ … ∧ Cn` | in the proof file | asked only of an authored `complete` on a node nothing witnesses |
 | `idle` (root only) | tried: the root with every operation doing nothing (`[]`, `none`, `False`, its input unchanged); a word left open above (`leftOpenAbove`) stays open, since the root holds for every meaning of it | Lean's default budget | proven: doing nothing meets the purpose; unproven |
 | `impl` | `∀ U, promises of the callees → claim[op := code]` | `frflow_auto` or authored | the `define` does not meet the contract |
+| `commute_i` | the `i`-th `parTupled` or `parTraverse` of the code: its branches in either order give the same result and world, from every world with no call failing | `frflow_auto` or authored | the branches need not commute: the code is proven of one order only, and the node stays open |
 | `check` | post → the `checkedBy` check | as above | the cheap check does not follow |
 | `cover_X`, `expect_i` | the view lists every value the rule is about; the expectation follows from N | as above | |
 | `eval_i`, `probe_j` | an example, or an input near one, evaluated as Scala computes it | `frflow_eval` | Lean and Scala disagree: the Lean printer or the evaluator is wrong |
