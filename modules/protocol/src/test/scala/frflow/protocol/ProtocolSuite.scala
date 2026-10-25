@@ -57,11 +57,24 @@ class ProtocolSuite extends munit.FunSuite:
   test("a ledger reads back as written; decisions are ordered by when they were taken, to the nanosecond") {
     val again = decision.copy(action = Action.Confirm, at = Instant.parse("2026-01-01T00:00:00.4Z"), rejected = Nil)
     val l = Ledger.empty.add(NodeId("A"), again).add(NodeId("A"), decision).add(NodeId("Alt"), decision.copy(action = Action.Reject))
-    val text = Canonical.file(l.asJson)
+    val text = Ledger.file(l)
     assert(!text.contains("null"), text)
     assertEquals(l.all.map(_._2.at), List(again.at, decision.at, decision.at))
     assertEquals(decode[Ledger](text), Right(l))
+    // Each content once, each of its values once; a ledger with the contents inside its decisions reads the same.
+    assertEquals(text.split("\n").count(_.contains(Canonical.print(Json.fromString(content.ref)) + ": {")), 1)
+    val inline = Json.obj("decisions" -> Json.fromFields(l.decisions.toList.map((id, ds) => id.value -> ds.asJson)))
+    assertEquals(decode[Ledger](Canonical.file(inline)), Right(l))
     assertEquals(l.history(NodeId("A")).last.after, Some(Ledger.entry(again)))
+  }
+
+  test("a ledger whose content does not hash to its name, or names a content it does not hold, does not read") {
+    val text = Ledger.file(Ledger.empty.add(NodeId("A"), decision))
+    val value = content.fields.head._2
+    val changed = text.replace(Canonical.print(value), Canonical.print(Json.fromString("something else")))
+    assert(decode[Ledger](changed).left.exists(_.getMessage.contains("does not hash to its name")), changed)
+    val missing = text.replace(s"\"content\": \"${content.ref}\"", "\"content\": \"0000000000000000\"")
+    assert(decode[Ledger](missing).left.exists(_.getMessage.contains("which the ledger does not hold")), missing)
   }
 
   /** The examples' committed files, found from wherever the tests run. */
@@ -70,12 +83,12 @@ class ProtocolSuite extends munit.FunSuite:
       .find(p => Files.isDirectory(p.resolve("auth"))).getOrElse(fail("no examples directory"))
 
   test("the examples' committed ledgers and requests read, and are written back as they are") {
-    List("auth", "keycloak", "crm").foreach { e =>
+    List("auth", "keycloak", "crm", "sharing").foreach { e =>
       val file = examples.resolve(s"$e/.frflow/ledger.json")
       val text = Files.readString(file)
       val l = decode[Ledger](text).fold(err => fail(s"$file: $err"), identity)
       assert(l.decisions.nonEmpty)
-      assertEquals(Canonical.file(l.asJson) + "\n", text, file)
+      assertEquals(Ledger.file(l), text, file)
     }
   }
 

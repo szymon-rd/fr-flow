@@ -1,6 +1,7 @@
 package frflow.protocol
 
-import io.circe.{Codec, Decoder, Encoder, Json}
+import cats.syntax.all.*
+import io.circe.{Codec, Decoder, DecodingFailure, Encoder, Json, JsonObject}
 import io.circe.derivation.{Configuration, ConfiguredCodec}
 import io.circe.syntax.*
 import java.time.Instant
@@ -58,9 +59,57 @@ object Ledger:
   def entry(d: Decision): EntryRef =
     EntryRef(Sha.parts(d.action.toString, d.by, d.at.toString, d.reason, d.content.ref).take(16))
 
-  /** On disk, nodes in the order of their ids. */
-  given Codec[Ledger] = Codec.from(Decoder[Map[NodeId, List[Decision]]].at("decisions").map(Ledger(_)),
-    Encoder.instance(l => Json.obj("decisions" -> Json.fromFields(l.decisions.toList.sortBy(_._1).map((id, ds) => id.value -> ds.asJson)))))
+  /** On disk (`.frflow/ledger.json`), nodes in the order of their ids, and each part of a content written once:
+    *  - a decision names its content by `content.ref`, the reference its signature covers;
+    *  - `contents` holds each content once, as its fields in order, each field the reference of its value, a list
+    *    field the references of its elements;
+    *  - `values` holds each value or element once, by the first 16 hex digits of the SHA-256 of its canonical print.
+    * So a decision that changes one example of a node adds that example, not the node again. A content is checked as
+    * it is read: it must hash to its name. A ledger with the contents written inside its decisions reads too.
+    */
+  given Codec[Ledger] = Codec.from(OnDisk.decoder, OnDisk.encoder)
+
+  /** The file's text: the decisions indented as FrFlow's files are, each content and each value on a line of its own. */
+  def file(l: Ledger): String =
+    val o = l.asJson.asObject.getOrElse(JsonObject.empty)
+    def lines(table: String) = o(table).flatMap(_.asObject).filter(_.nonEmpty).fold("{}")(_.toList
+      .map((ref, v) => s"    ${Canonical.print(Json.fromString(ref))}: ${Canonical.print(v)}").mkString("{\n", ",\n", "\n  }"))
+    s"{\n  \"decisions\": ${o("decisions").fold("{}")(Canonical.file(_, 1))},\n  \"contents\": ${lines("contents")},\n" +
+      s"  \"values\": ${lines("values")}\n}\n"
+
+  private object OnDisk:
+    def name(j: Json): String = Sha(Canonical.print(j)).take(16)
+    private def elements(v: Json): List[Json] = v.asArray.fold(List(v))(_.toList)
+    private def fields(c: Content): Json =
+      Json.fromFields(c.fields.map((k, v) => k -> v.asArray.fold(Json.fromString(name(v)))(xs => Json.fromValues(xs.map(x => Json.fromString(name(x)))))))
+
+    val encoder: Encoder[Ledger] = Encoder.instance { l =>
+      val nodes = l.decisions.toList.sortBy(_._1)
+      val contents = nodes.flatMap(_._2.map(_.content)).distinctBy(_.ref)
+      Json.obj(
+        "decisions" -> Json.fromFields(nodes.map((id, ds) =>
+          id.value -> Json.fromValues(ds.map(d => d.asJson.mapObject(_.add("content", Json.fromString(d.content.ref))))))),
+        "contents" -> Json.fromFields(contents.map(c => c.ref -> fields(c))),
+        "values" -> Json.fromFields(contents.flatMap(_.fields.flatMap((_, v) => elements(v))).distinctBy(name).map(v => name(v) -> v)))
+    }
+
+    val decoder: Decoder[Ledger] = Decoder.instance { c =>
+      def fail(why: String) = DecodingFailure(why, c.history)
+      for
+        values   <- c.getOrElse[Map[String, Json]]("values")(Map.empty)
+        written  <- c.getOrElse[Map[String, JsonObject]]("contents")(Map.empty)
+        value     = (r: Json) => r.asString.flatMap(values.get).toRight(fail(s"no value $r in the ledger's values"))
+        contents <- written.toList.traverse { (ref, fs) =>
+                      fs.toList.traverse((k, r) => r.asArray.fold(value(r))(_.toList.traverse(value).map(Json.fromValues)).map(k -> _))
+                        .map(Content(_*)).filterOrElse(_.ref == ref, fail(s"the content $ref in the ledger does not hash to its name"))
+                        .map(ref -> _)
+                    }.map(_.toMap)
+        raw      <- c.get[Map[NodeId, List[Json]]]("decisions")
+        ledger   <- raw.toList.traverse((id, ds) => ds.traverse(d => d.hcursor.get[String]("content").toOption.fold(d.as[Decision])(ref =>
+                      contents.get(ref).toRight(fail(s"$id names the content $ref, which the ledger does not hold"))
+                        .flatMap(content => d.mapObject(_.add("content", content.json)).as[Decision]))).map(id -> _))
+      yield Ledger(ledger.toMap)
+    }
 
 final case class Moved(id: NodeId, before: Content) derives Codec.AsObject
 final case class RejectedBeside(id: NodeId, statement: String, why: String, reason: String) derives Codec.AsObject

@@ -440,7 +440,8 @@ private[frflow] object Flows:
   /** The flow in `F`, its calls going to the bound implementations; a term is evaluated under `bindings`. */
   def run[F[_]](s: Steps, env: Env, impls: Map[Boundary[?], Any], bindings: Seq[Binding])(using F: cats.effect.kernel.Sync[F]): F[Any] =
     import cats.syntax.all.*
-    def eval(t: Tree, env: Env): F[Any] = F.delay(Bindings.within(bindings)(Eval.compile(t)(env)))
+    val bound = Bindings.prepare(bindings)
+    def eval(t: Tree, env: Env): F[Any] = F.delay(Bindings.within(bound)(Eval.compile(t)(env)))
     def go(s: Steps, env: Env): F[Any] = s match
       case Steps.Ret(t)            => eval(t, env)
       case Steps.Op(b, m, args)    =>

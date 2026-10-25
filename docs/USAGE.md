@@ -248,7 +248,8 @@ decision the developer reviews, like any other.
 The developer decides every node, once. Whoever writes a node proposes it,
 with a `why` and examples; only a decision signed by the developer accepts it. `.frflow/ledger.json` holds each
 decision: who, the reason, the alternatives rejected, the commit, a signature,
-and the decision before it.
+and the decision before it. The node's content as decided is kept once per
+distinct value, so a change adds only what changed.
 
 - **A parent decides its parts.** Adding or removing a part puts the parent up
   for review.

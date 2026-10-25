@@ -385,7 +385,8 @@ private[frflow] object Testing:
       kb.onOp.keySet.filter(o => s"\\b${java.util.regex.Pattern.quote(o)}\\b".r.findFirstIn(impl.wiring).isDefined)
 
     private def on(world: List[Binding], ins: List[Any], watch: Option[Watch]): (Option[Any], Option[String]) =
-      Bindings.within(kb.opCode ++ kb.definitionBindings ++ fixed ++ world) {
+      // In one case the world is fixed: a definition's term (a store replayed from a history) is computed once.
+      Bindings.within(kb.opCode ++ Bindings.oncePerScope(kb.definitionBindings) ++ fixed ++ world) {
         Try(Bindings.reading(Fn.call(impl.factory(), ins))) match
           case Failure(e) => (None, Some(s"error: ${Option(e.getMessage).getOrElse(e.toString)}"))
           case Success((r, read)) =>

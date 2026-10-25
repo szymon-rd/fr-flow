@@ -1,4 +1,5 @@
-import Lean
+import Lean.Elab.Tactic.Basic
+import Lean.Meta.AppBuilder
 
 /-!
 `frflow_faults`: a run of a flow that may fail matches on the world's faults, one call of a failing

@@ -272,7 +272,10 @@ part stops being proven, or when the checker's version changes.
 - **The ledger** holds, per node, its decisions in order. Each records the content and chain it was
   bound to, the reason, the alternatives rejected, the commit (code diffs run against it), the
   decision it follows, and the developer's signature. A decision not signed by a key in
-  `.frflow/keys/` is a warning.
+  `.frflow/keys/` is a warning. On disk a decision names its content by the reference its signature
+  covers; `contents` holds each content once, as references to its fields' values (one per element of
+  a list), and `values` each value once. A decision that changes one example adds that example and a
+  line for the content, not the node again; a content that does not hash to its name does not read.
 - **Held aside.** A layer on top may hold a node out of the developer's queue (for example, while
   the node is asked of someone); the inbox lists it apart, and nothing else about it changes.
 

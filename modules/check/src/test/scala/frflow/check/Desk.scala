@@ -60,7 +60,7 @@ object OnDisk:
     for
       cfg <- Config.load
       lake <- Lake(ws.lean, cfg)
-      ledger <- JsonStore.make(ws.ledgerFile, Ledger.empty)
+      ledger <- JsonStore.ledger(ws.ledgerFile)
     yield new OnDisk(kb, ws, cfg, lake, ledger)
 
   /** What `status` passes: every node accepted and proven, and nothing to warn of. */

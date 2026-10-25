@@ -95,13 +95,13 @@ class StoresSuite extends munit.CatsEffectSuite:
   temp.test("the ledger survives its file, each of concurrent updates seeing the one before; one refused writes nothing; a file that does not read is an error") { dir =>
     val f = dir.resolve(".frflow/ledger.json")
     for
-      store   <- JsonStore.make(f, Ledger.empty)
+      store   <- JsonStore.ledger(f)
       empty   <- store.load
       refused <- store.update[Refusal, Unit](_ => Left(Refusal.NoReason))
       exists  <- IO.blocking(Files.exists(f))
       _       <- (1 to 20).toList.parTraverse_(i =>
                    store.update[Refusal, Unit](l => Right(l.add(NodeId(s"N$i"), decision(s"reason number $i")) -> ())))
-      back    <- JsonStore.make(f, Ledger.empty).flatMap(_.load)
+      back    <- JsonStore.ledger(f).flatMap(_.load)
       _       <- IO.blocking(Files.writeString(f, "{ not json"))
       bad     <- store.load.attempt
     yield

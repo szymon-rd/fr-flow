@@ -17,7 +17,7 @@ class LiveApiSuite extends munit.CatsEffectSuite:
   private def project(d: Path) = d.resolve("project")
   private def api(d: Path, env: (String, String)*) =
     LiveApi(shelfKb, Workspace(project(d), "../lean"), Map("FRFLOW_KEY" -> d.resolve("signing.key").toString) ++ env)
-  private def ledger(d: Path) = JsonStore.make(project(d).resolve(".frflow/ledger.json"), Ledger.empty).flatMap(_.load)
+  private def ledger(d: Path) = JsonStore.ledger(project(d).resolve(".frflow/ledger.json")).flatMap(_.load)
   private val dev = Developer("demo")
 
   dir.test("accepting records a decision signed with the developer's key, which it files under their name") { d =>

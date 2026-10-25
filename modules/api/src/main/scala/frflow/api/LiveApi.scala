@@ -88,7 +88,7 @@ object LiveApi:
   def apply(kb: KnowledgeBase, ws: Workspace, env: Map[String, String]): IO[FrFlowApi] =
     IO(kb.problems.map(_.message) ++ Generate.problems(kb)).flatMap(ps => IO.raiseWhen(ps.nonEmpty)(FrFlowError.ModelProblems(ps))) *>
       Config.load(env).flatMap { cfg =>
-        (Lake(ws.lean, cfg), JsonStore.make(ws.ledgerFile, Ledger.empty))
+        (Lake(ws.lean, cfg), JsonStore.ledger(ws.ledgerFile))
           .mapN(new LiveApi(kb, ws, cfg, _, Git.at(ws.root), _, KeyStore.at(cfg.key, ws.keysDir)))
       }
 
