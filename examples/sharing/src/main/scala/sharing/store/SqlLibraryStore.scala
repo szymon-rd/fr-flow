@@ -1,0 +1,98 @@
+package sharing.store
+
+import frflow.*
+import java.sql.{Connection, DriverManager, ResultSet}
+import sharing.domain.*
+
+/** The library in SQLite: one table per kind of row, each row with its place in its list (`pos`), so the library is
+  * read back in the order it was saved. A save replaces every row in one transaction. Checked against LibraryModel
+  * (LibraryKept).
+  */
+final class SqlLibraryStore private (conn: Connection) extends LibraryStore:
+  private val tables = List(
+    "documents (pos integer primary key, id text not null, title text not null)",
+    "document_folders (doc integer not null, pos integer not null, folder text not null, primary key (doc, pos))",
+    "folders (pos integer primary key, id text not null, name text not null)",
+    "folder_folders (folder integer not null, pos integer not null, around text not null, primary key (folder, pos))",
+    "teams (pos integer primary key, id text not null)",
+    "members (team integer not null, pos integer not null, person text not null, primary key (team, pos))",
+    "shares (pos integer primary key, what text not null, what_id text not null, with_whom text not null, with_id text not null, level text not null)")
+  tables.foreach(t => conn.createStatement().executeUpdate(s"create table if not exists $t"))
+
+  def load = Flow.effect(library)
+  def save(library: Term[Library]) = Flow.effect(library)(replaceWith)
+
+  /** The library the rows make. */
+  def library: Library = synchronized {
+    val docFolders = rows("select doc, folder from document_folders order by doc, pos")(r => r.getInt(1) -> FolderId(r.getString(2)))
+      .groupMap(_._1)(_._2)
+    val around = rows("select folder, around from folder_folders order by folder, pos")(r => r.getInt(1) -> FolderId(r.getString(2)))
+      .groupMap(_._1)(_._2)
+    val members = rows("select team, person from members order by team, pos")(r => r.getInt(1) -> PersonId(r.getString(2)))
+      .groupMap(_._1)(_._2)
+    Library(
+      rows("select pos, id, title from documents order by pos")(r =>
+        Document(DocumentId(r.getString(2)), r.getString(3), docFolders.getOrElse(r.getInt(1), Nil))),
+      rows("select pos, id, name from folders order by pos")(r =>
+        Folder(FolderId(r.getString(2)), r.getString(3), around.getOrElse(r.getInt(1), Nil))),
+      rows("select pos, id from teams order by pos")(r => Team(TeamId(r.getString(2)), members.getOrElse(r.getInt(1), Nil))),
+      rows("select what, what_id, with_whom, with_id, level from shares order by pos")(share))
+  }
+
+  private def share(r: ResultSet): Share =
+    val what = if r.getString(1) == "doc" then Target.Doc(DocumentId(r.getString(2))) else Target.InFolder(FolderId(r.getString(2)))
+    val withWhom = if r.getString(3) == "person" then Grantee.Person(PersonId(r.getString(4))) else Grantee.Team(TeamId(r.getString(4)))
+    Share(what, withWhom, Level.valueOf(r.getString(5)))
+
+  /** Every row replaced by the library's, in one transaction. */
+  def replaceWith(l: Library): Unit = synchronized {
+    conn.setAutoCommit(false)
+    try
+      List("documents", "document_folders", "folders", "folder_folders", "teams", "members", "shares")
+        .foreach(t => conn.createStatement().executeUpdate(s"delete from $t"))
+      l.documents.zipWithIndex.foreach { (d, i) =>
+        insert("documents", i, d.id.name, d.title)
+        d.folders.zipWithIndex.foreach((f, j) => insert("document_folders", i, j, f.name))
+      }
+      l.folders.zipWithIndex.foreach { (f, i) =>
+        insert("folders", i, f.id.name, f.name)
+        f.folders.zipWithIndex.foreach((g, j) => insert("folder_folders", i, j, g.name))
+      }
+      l.teams.zipWithIndex.foreach { (t, i) =>
+        insert("teams", i, t.id.name)
+        t.members.zipWithIndex.foreach((p, j) => insert("members", i, j, p.name))
+      }
+      l.shares.zipWithIndex.foreach { (s, i) =>
+        val (what, whatId) = s.what match
+          case Target.Doc(d)      => ("doc", d.name)
+          case Target.InFolder(f) => ("folder", f.name)
+        val (withWhom, withId) = s.withWhom match
+          case Grantee.Person(p) => ("person", p.name)
+          case Grantee.Team(t)   => ("team", t.name)
+        insert("shares", i, what, whatId, withWhom, withId, s.level.toString)
+      }
+      conn.commit()
+    catch case e: Throwable => { conn.rollback(); throw e }
+    finally conn.setAutoCommit(true)
+  }
+
+  private def insert(table: String, values: Any*): Unit =
+    val st = conn.prepareStatement(s"insert into $table values (${values.map(_ => "?").mkString(", ")})")
+    values.zipWithIndex.foreach((v, i) => st.setObject(i + 1, v))
+    st.executeUpdate()
+
+  private def rows[T](sql: String)(read: ResultSet => T): List[T] =
+    val rs = conn.createStatement().executeQuery(sql)
+    val out = List.newBuilder[T]
+    while rs.next() do out += read(rs)
+    out.result()
+
+object SqlLibraryStore:
+  /** A store in a SQLite file, created if missing. */
+  def open(path: String): SqlLibraryStore = SqlLibraryStore(DriverManager.getConnection(s"jdbc:sqlite:$path"))
+
+  /** A store in memory holding the library: for examples and tests. */
+  def holding(l: Library): SqlLibraryStore =
+    val s = SqlLibraryStore(DriverManager.getConnection("jdbc:sqlite::memory:"))
+    s.replaceWith(l)
+    s

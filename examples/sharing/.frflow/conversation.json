@@ -1,0 +1,86 @@
+{
+  "said": [
+    {
+      "text": "I mean the app. Its really weird. No nice structure or patterns. I dont know where contracts on services are. Its all really odd code",
+      "at": "2026-10-25T01:09:30.297518Z"
+    },
+    {
+      "text": "We can still model all nicely. Contracts can be in companion objects. Files can follow the domain.",
+      "at": "2026-10-25T01:09:47.723374Z"
+    },
+    {
+      "text": "Oh that's bad. Make frflow support any number of params and rebuild the example as discussed",
+      "at": "2026-10-25T01:09:49.164050Z"
+    },
+    {
+      "text": "I also feel we lack a bit of material there. Some more logic, some more flows, so we have more nodes, what could be there? Would it help, if we had concepts of time, temporarlity? Flow could model waiting, sleeping, joining, sync, etc, and then we can prove things on this model",
+      "at": "2026-10-25T01:09:50.457284Z"
+    },
+    {
+      "text": "Yeah. Append those new things to the plan. Make sure that the design of the app stays domain-first and is well structured",
+      "at": "2026-10-25T01:09:51.956982Z"
+    }
+  ],
+  "questions": [
+    {
+      "id": "Q1",
+      "text": "What can a person do with a document?",
+      "assumed": "View or edit; being able to edit includes being able to view.",
+      "at": "2026-10-25T01:09:53.224690Z",
+      "replies": [
+        {
+          "text": "rebuild the example as discussed",
+          "at": "2026-10-25T01:09:59.187083Z"
+        }
+      ]
+    },
+    {
+      "id": "Q2",
+      "text": "Who can share or unshare a document?",
+      "assumed": "Anyone who can edit it.",
+      "at": "2026-10-25T01:09:54.414155Z",
+      "replies": [
+        {
+          "text": "rebuild the example as discussed",
+          "at": "2026-10-25T01:10:00.415576Z"
+        }
+      ]
+    },
+    {
+      "id": "Q3",
+      "text": "Can teams contain other teams?",
+      "assumed": "No: teams contain people only; nested teams come later.",
+      "at": "2026-10-25T01:09:55.580495Z",
+      "replies": [
+        {
+          "text": "rebuild the example as discussed",
+          "at": "2026-10-25T01:10:01.633857Z"
+        }
+      ]
+    },
+    {
+      "id": "Q4",
+      "text": "Do folders nest, and does sharing a folder share everything inside it?",
+      "assumed": "Yes to both: folders form a tree, a document is in at most one folder, and a share of a folder covers everything inside it, at any depth.",
+      "at": "2026-10-25T01:09:56.757388Z",
+      "replies": [
+        {
+          "text": "rebuild the example as discussed",
+          "at": "2026-10-25T01:10:02.858053Z"
+        }
+      ]
+    },
+    {
+      "id": "Q5",
+      "text": "What is out of scope for the first version?",
+      "assumed": "Consistency snapshots (versions), deny rules, expiring shares, audit logs and outside identity providers.",
+      "at": "2026-10-25T01:09:57.947112Z",
+      "replies": [
+        {
+          "text": "rebuild the example as discussed",
+          "at": "2026-10-25T01:10:04.119151Z"
+        }
+      ]
+    }
+  ]
+}

@@ -42,7 +42,9 @@ private[frflow] final class LeanPrinter:
 
   private def unique(owner: AnyRef, base: String, ok: String => Boolean = _ => true): String =
     // Nor a name a domain type starts with: `Share.mk` would read a field of a variable `Share`.
-    val n = (Iterator(base) ++ Iterator.from(1).map(i => s"${base}_$i"))
+    // An escaped keyword (`«by»`) numbered is a plain name (`by_1`): `«by»_1` is not one.
+    val stem = base.stripPrefix("«").stripSuffix("»")
+    val n = (Iterator(base) ++ Iterator.from(1).map(i => s"${stem}_$i"))
       .filter(c => taken.get(c).forall(_ eq owner) && !paramRefs.contains(c) && !types.opaques.contains(c) &&
         !types.decls.keys.exists(t => t == c || t.startsWith(c + ".")) && ok(c)).next() // (the candidates never end)
     taken(n) = owner

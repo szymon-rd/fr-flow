@@ -1,0 +1,771 @@
+{
+  "decisions": {
+    "AccessContract": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-25T01:31:38.891065Z",
+        "reason": "Computing access from the person's grantees and the document's places is the efficient reading of Reach and Cover; the root proof shows they agree.",
+        "rejected": [],
+        "commit": "0c742bf9cbb6c3fe2bee5ff368a89e1558c40f9b",
+        "key": "b6e216cfdf46a202",
+        "sig": "dQyqgFDh/wMfftzh5RV2IRVUL6wZwIPBCd9vuojtlP9w2+27VMpwoi+CPDa/LV4Tvqelxd7UeXRwne9xKZkUCw==",
+        "chain": "c11881c737c7dd2899f822b25a00828f47b3575671509c98e34ab647b64ca3c8",
+        "content": {
+          "kind": "contract",
+          "parents": [
+            "AccessFollowsShares"
+          ],
+          "parts": [],
+          "statement": "A person's access to a document is worked out from their teams and the document's folders: among the shares with them or one of their teams, of the document or one of the folders around it, it is edit if one is an edit share, view if there is any, and none otherwise.",
+          "why": "This is how the service finds the shares that matter without asking every share whether it reaches the person and covers the document: it lists who a share must be with and what it must be of, once each. That this finds exactly the shares the meaning names (Reach, Cover) is what the purpose's proof shows.",
+          "sources": {
+            "post": "(lib, p, d, result) => result === strongest(lib.shares.filter(s => granteesOf(lib, p).contains(s.withWhom) && placesOf(lib, d).contains(s.what)))"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View))), PersonId(\"bob\"), DocumentId(\"q3-report\")) ⇒ Some(View)  given   — Bob's team may view the reports folder, which the Q3 report is in",
+            "expect (Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View))), PersonId(\"ann\"), DocumentId(\"q3-report\")) ⇒ Some(Edit)  given   — Ann may edit the reports folder",
+            "expect (Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View))), PersonId(\"cat\"), DocumentId(\"plan\")) ⇒ None  given   — nothing is shared with Cat",
+            "reject (Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View))), PersonId(\"bob\"), DocumentId(\"plan\")) ⇒ Some(View)  given   — nothing shares the plan with Bob or his team",
+            "reject (Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View))), PersonId(\"ann\"), DocumentId(\"plan\")) ⇒ Some(View)  given   — Ann's share of the plan is an edit share: her access is edit"
+          ],
+          "vocabulary": [
+            "access: a person's access to a document, as the service works it out"
+          ],
+          "uses": [
+            "case class DocumentId(name: String)",
+            "case class FolderId(name: String)",
+            "case class Document(id: DocumentId, title: String, folders: List[FolderId])",
+            "case class Folder(id: FolderId, name: String, folders: List[FolderId])",
+            "case class TeamId(name: String)",
+            "case class PersonId(name: String)",
+            "case class Team(id: TeamId, members: List[PersonId])",
+            "enum Target: case Doc(id: DocumentId), case InFolder(id: FolderId)",
+            "enum Grantee: case Person(id: PersonId), case Team(id: TeamId)",
+            "enum Level: case View, case Edit",
+            "case class Share(what: Target, withWhom: Grantee, level: Level)",
+            "case class Library(documents: List[Document], folders: List[Folder], teams: List[Team], shares: List[Share])",
+            "Sharing.strongest = (ss: Term[List[Share]]) =>\n    ss.exists(s => s.level === Level.Edit).fold(some(Level.Edit: Term[Level]), ss.isEmpty.fold(none[Level], some(Level.View: Term[Level])))",
+            "Sharing.granteesOf = (lib: Term[Library], p: Term[PersonId]) =>\n    Grantee[Grantee.Person](p) :: lib.teams.filter(t => t.members.contains(p)).map(t => Grantee[Grantee.Team](t.id))",
+            "Sharing.placesOf = (lib: Term[Library], d: Term[DocumentId]) =>\n    Target[Target.Doc](d) :: lib.documents.filter(doc => doc.id === d).flatMap(doc => doc.folders.map(f => Target[Target.InFolder](f)))"
+          ],
+          "governs": [],
+          "definition": "val accessContract = Node.contract(access)(\"AccessContract\",\n  \"A person's access to a document is worked out from their teams and the document's folders: among the shares with them or one of their teams, of the document or one of the folders around it, it is edit if one is an edit share, view if there is any, and none otherwise.\",\n  why = \"This is how the service finds the shares that matter without asking every share whether it reaches the person and covers the document: it lists who a share must be with and what it must be of, once each. That this finds exactly the shares the meaning names (Reach, Cover) is what the purpose's proof shows.\",\n  idea = \"Who can see and change what\"\n)((lib, p, d, result) => result === strongest(lib.shares.filter(s => granteesOf(lib, p).contains(s.withWhom) && placesOf(lib, d).contains(s.what))))\n  .under(accessFollowsShares)\n  .examples()(\n    expect(library, bob, q3Report, Some(Level.View), \"Bob's team may view the reports folder, which the Q3 report is in\"),\n    expect(library, ann, q3Report, Some(Level.Edit), \"Ann may edit the reports folder\"),\n    expect(library, cat, plan, None, \"nothing is shared with Cat\"),\n    reject(library, bob, plan, Some(Level.View), \"nothing shares the plan with Bob or his team\"),\n    reject(library, ann, plan, Some(Level.View), \"Ann's share of the plan is an edit share: her access is edit\"))",
+          "op": "access",
+          "implementation": "proven: Sharing.accessCode\nSharing.accessCode = (lib: Term[Library], p: Term[PersonId], d: Term[DocumentId]) =>\n    val (grantees, places) = (granteesOf(lib, p), placesOf(lib, d))\n    strongest(lib.shares.filter(s => grantees.contains(s.withWhom) && places.contains(s.what)))\nSharing.strongest = (ss: Term[List[Share]]) =>\n    ss.exists(s => s.level === Level.Edit).fold(some(Level.Edit: Term[Level]), ss.isEmpty.fold(none[Level], some(Level.View: Term[Level])))\nSharing.granteesOf = (lib: Term[Library], p: Term[PersonId]) =>\n    Grantee[Grantee.Person](p) :: lib.teams.filter(t => t.members.contains(p)).map(t => Grantee[Grantee.Team](t.id))\nSharing.placesOf = (lib: Term[Library], d: Term[DocumentId]) =>\n    Target[Target.Doc](d) :: lib.documents.filter(doc => doc.id === d).flatMap(doc => doc.folders.map(f => Target[Target.InFolder](f)))",
+          "idea": "## Who can see and change what\n\nA person can view or edit a document; being able to edit it includes being able\nto view it. A share gives one person, or everyone in one team, view or edit on\none document, or on a folder and everything inside it, at any depth. Teams\ncontain people only. Folders form a tree, and a document is in at most one\nfolder. A person can view a document exactly when some share reaches them and\ncovers it, and edit it exactly when such a share is an edit share.\n\nAnyone who can edit a document or folder can share it, or unshare it; sharing\nit again with the same person or team changes the level. Moving a document into\na folder needs edit on both. Nobody else changes the shares, or where a\ndocument is.\n\nThe service answers these questions and makes these changes over HTTP, keeping\nthe library in memory or in a SQLite file. Versions, deny rules, expiring\nshares, audit logs and outside identity providers are not part of it yet.",
+          "ideaSection": "Who can see and change what",
+          "notModelled": ""
+        }
+      }
+    ],
+    "AccessFollowsShares": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-25T01:31:35.783377Z",
+        "reason": "The idea in one statement: the shares decide access exactly, and only editors change shares or move documents (Q1, Q2).",
+        "rejected": [],
+        "commit": "0c742bf9cbb6c3fe2bee5ff368a89e1558c40f9b",
+        "key": "b6e216cfdf46a202",
+        "sig": "gILz36tA4q53B5mVqHmpmHPzS9ZztdR7lN2DZqE3gYqkxIDtoFgTpFlWfwBzABEyfcrIKnfeBGxN+t1AZ4yaBg==",
+        "chain": "73ea0d9b065b030a5b1875b00a9bbe78f4d016ed0cd3831927fab19ea6dd7bb9",
+        "content": {
+          "kind": "claim",
+          "parents": [],
+          "parts": [
+            "AccessContract",
+            "CanViewContract",
+            "CanEditContract",
+            "ShareContract",
+            "UnshareContract",
+            "MoveContract",
+            "HandleContract"
+          ],
+          "statement": "A person can view a document exactly when they may view it, and edit it exactly when they may edit it; and only someone who may edit a document or folder changes who it is shared with, or moves a document, and only into a folder they may edit.",
+          "why": "The idea in one sentence: the shares decide who sees and who changes what (Q1, Q2). Both halves are exact: the service answers no more and no less than the shares give, and nobody else changes the shares or where a document is.",
+          "sources": {
+            "formula": "forall((lib: Term[Library], p: Term[PersonId], d: Term[DocumentId]) =>\n    Sharing.canView(lib, p, d) === mayView(lib, p, Target[Target.Doc](d)) &&\n    Sharing.canEdit(lib, p, d) === mayEdit(lib, p, Target[Target.Doc](d))) &&\n  forall((lib: Term[Library], by: Term[PersonId], what: Term[Target], withWhom: Term[Grantee], level: Term[Level]) =>\n    (Sharing.share(lib, by, what, withWhom, level) =!= lib ==> mayEdit(lib, by, what)) &&\n    (Sharing.unshare(lib, by, what, withWhom) =!= lib ==> mayEdit(lib, by, what))) &&\n  forall((lib: Term[Library], by: Term[PersonId], d: Term[DocumentId], into: Term[Option[FolderId]]) =>\n    Sharing.move(lib, by, d, into) =!= lib ==>\n      (mayEdit(lib, by, Target[Target.Doc](d)) && into.fold(True)(f => mayEdit(lib, by, Target[Target.InFolder](f)))))"
+          },
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [
+            "canEdit: the service's answer to whether a person can edit a document",
+            "canView: the service's answer to whether a person can view a document",
+            "mayEdit: whether a person may edit a document or folder",
+            "mayView: whether a person may view a document or folder",
+            "move: the library after someone asks to move a document",
+            "share: the library after someone asks to share a document or folder",
+            "unshare: the library after someone asks to unshare a document or folder"
+          ],
+          "uses": [
+            "case class DocumentId(name: String)",
+            "case class FolderId(name: String)",
+            "case class Document(id: DocumentId, title: String, folders: List[FolderId])",
+            "case class Folder(id: FolderId, name: String, folders: List[FolderId])",
+            "case class TeamId(name: String)",
+            "case class PersonId(name: String)",
+            "case class Team(id: TeamId, members: List[PersonId])",
+            "enum Target: case Doc(id: DocumentId), case InFolder(id: FolderId)",
+            "enum Grantee: case Person(id: PersonId), case Team(id: TeamId)",
+            "enum Level: case View, case Edit",
+            "case class Share(what: Target, withWhom: Grantee, level: Level)",
+            "case class Library(documents: List[Document], folders: List[Folder], teams: List[Team], shares: List[Share])"
+          ],
+          "governs": [],
+          "definition": "val accessFollowsShares = Node.claim(\"AccessFollowsShares\",\n  \"A person can view a document exactly when they may view it, and edit it exactly when they may edit it; and only someone who may edit a document or folder changes who it is shared with, or moves a document, and only into a folder they may edit.\",\n  why = \"The idea in one sentence: the shares decide who sees and who changes what (Q1, Q2). Both halves are exact: the service answers no more and no less than the shares give, and nobody else changes the shares or where a document is.\",\n  idea = \"Who can see and change what\"\n)(forall((lib: Term[Library], p: Term[PersonId], d: Term[DocumentId]) =>\n    Sharing.canView(lib, p, d) === mayView(lib, p, Target[Target.Doc](d)) &&\n    Sharing.canEdit(lib, p, d) === mayEdit(lib, p, Target[Target.Doc](d))) &&\n  forall((lib: Term[Library], by: Term[PersonId], what: Term[Target], withWhom: Term[Grantee], level: Term[Level]) =>\n    (Sharing.share(lib, by, what, withWhom, level) =!= lib ==> mayEdit(lib, by, what)) &&\n    (Sharing.unshare(lib, by, what, withWhom) =!= lib ==> mayEdit(lib, by, what))) &&\n  forall((lib: Term[Library], by: Term[PersonId], d: Term[DocumentId], into: Term[Option[FolderId]]) =>\n    Sharing.move(lib, by, d, into) =!= lib ==>\n      (mayEdit(lib, by, Target[Target.Doc](d)) && into.fold(True)(f => mayEdit(lib, by, Target[Target.InFolder](f))))))",
+          "idea": "## Who can see and change what\n\nA person can view or edit a document; being able to edit it includes being able\nto view it. A share gives one person, or everyone in one team, view or edit on\none document, or on a folder and everything inside it, at any depth. Teams\ncontain people only. Folders form a tree, and a document is in at most one\nfolder. A person can view a document exactly when some share reaches them and\ncovers it, and edit it exactly when such a share is an edit share.\n\nAnyone who can edit a document or folder can share it, or unshare it; sharing\nit again with the same person or team changes the level. Moving a document into\na folder needs edit on both. Nobody else changes the shares, or where a\ndocument is.\n\nThe service answers these questions and makes these changes over HTTP, keeping\nthe library in memory or in a SQLite file. Versions, deny rules, expiring\nshares, audit logs and outside identity providers are not part of it yet.",
+          "ideaSection": "Who can see and change what",
+          "notModelled": ""
+        }
+      }
+    ],
+    "CanEditContract": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-25T01:31:45.011379Z",
+        "reason": "Editing is having edit access (Q1).",
+        "rejected": [],
+        "commit": "0c742bf9cbb6c3fe2bee5ff368a89e1558c40f9b",
+        "key": "b6e216cfdf46a202",
+        "sig": "PfsUblF0ghwlkAdeP7geOSubWw8K4azJ+MRSXyLXAPNfFWfh17LKuGyRzPuw8jD3y5NskzmRo6AlaVVx8eAgBQ==",
+        "chain": "7846892e5a956b4e5c69199840fc61e2bcc452092456a9c3d81c3802fdb57e2b",
+        "content": {
+          "kind": "contract",
+          "parents": [
+            "AccessFollowsShares"
+          ],
+          "parts": [],
+          "statement": "A person can edit a document exactly when their access to it is edit.",
+          "why": "Only an edit share lets someone change a document (Q1).",
+          "sources": {
+            "post": "(lib, p, d, result) => result === (access(lib, p, d) === some(Level.Edit: Term[Level]))"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View))), PersonId(\"ann\"), DocumentId(\"q3-report\")) ⇒ true  given   — Ann may edit the reports folder, around the Q3 report",
+            "expect (Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View))), PersonId(\"bob\"), DocumentId(\"q3-report\")) ⇒ false  given   — Bob's team may only view it",
+            "reject (Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View))), PersonId(\"bob\"), DocumentId(\"q3-report\")) ⇒ true  given   — a view share never lets anyone edit"
+          ],
+          "vocabulary": [
+            "access: a person's access to a document, as the service works it out",
+            "canEdit: the service's answer to whether a person can edit a document"
+          ],
+          "uses": [
+            "case class DocumentId(name: String)",
+            "case class FolderId(name: String)",
+            "case class Document(id: DocumentId, title: String, folders: List[FolderId])",
+            "case class Folder(id: FolderId, name: String, folders: List[FolderId])",
+            "case class TeamId(name: String)",
+            "case class PersonId(name: String)",
+            "case class Team(id: TeamId, members: List[PersonId])",
+            "enum Target: case Doc(id: DocumentId), case InFolder(id: FolderId)",
+            "enum Grantee: case Person(id: PersonId), case Team(id: TeamId)",
+            "enum Level: case View, case Edit",
+            "case class Share(what: Target, withWhom: Grantee, level: Level)",
+            "case class Library(documents: List[Document], folders: List[Folder], teams: List[Team], shares: List[Share])"
+          ],
+          "governs": [],
+          "definition": "val canEditContract = Node.contract(canEdit)(\"CanEditContract\",\n  \"A person can edit a document exactly when their access to it is edit.\",\n  why = \"Only an edit share lets someone change a document (Q1).\",\n  idea = \"Who can see and change what\"\n)((lib, p, d, result) => result === (access(lib, p, d) === some(Level.Edit: Term[Level])))\n  .under(accessFollowsShares)\n  .examples()(\n    expect(library, ann, q3Report, true, \"Ann may edit the reports folder, around the Q3 report\"),\n    expect(library, bob, q3Report, false, \"Bob's team may only view it\"),\n    reject(library, bob, q3Report, true, \"a view share never lets anyone edit\"))",
+          "op": "canEdit",
+          "implementation": "proven: Sharing.canEditCode\nSharing.canEditCode = (lib: Term[Library], p: Term[PersonId], d: Term[DocumentId]) =>\n    access(lib, p, d) === some(Level.Edit: Term[Level])",
+          "idea": "## Who can see and change what\n\nA person can view or edit a document; being able to edit it includes being able\nto view it. A share gives one person, or everyone in one team, view or edit on\none document, or on a folder and everything inside it, at any depth. Teams\ncontain people only. Folders form a tree, and a document is in at most one\nfolder. A person can view a document exactly when some share reaches them and\ncovers it, and edit it exactly when such a share is an edit share.\n\nAnyone who can edit a document or folder can share it, or unshare it; sharing\nit again with the same person or team changes the level. Moving a document into\na folder needs edit on both. Nobody else changes the shares, or where a\ndocument is.\n\nThe service answers these questions and makes these changes over HTTP, keeping\nthe library in memory or in a SQLite file. Versions, deny rules, expiring\nshares, audit logs and outside identity providers are not part of it yet.",
+          "ideaSection": "Who can see and change what",
+          "notModelled": ""
+        }
+      }
+    ],
+    "CanViewContract": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-25T01:31:41.941970Z",
+        "reason": "Viewing is having some access (Q1).",
+        "rejected": [],
+        "commit": "0c742bf9cbb6c3fe2bee5ff368a89e1558c40f9b",
+        "key": "b6e216cfdf46a202",
+        "sig": "kdMxEJeyhqCAKof8ckybl1md9DzQJ+/WFH1xcCfZBgcDAdP//mNWWz/ub88m5MJuzbwn57u5AHZF3uctkXwbCA==",
+        "chain": "7846892e5a956b4e5c69199840fc61e2bcc452092456a9c3d81c3802fdb57e2b",
+        "content": {
+          "kind": "contract",
+          "parents": [
+            "AccessFollowsShares"
+          ],
+          "parts": [],
+          "statement": "A person can view a document exactly when they have some access to it.",
+          "why": "Viewing needs a share of any level, and editing includes viewing (Q1).",
+          "sources": {
+            "post": "(lib, p, d, result) => result === access(lib, p, d).isDefined"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View))), PersonId(\"bob\"), DocumentId(\"q3-report\")) ⇒ true  given   — Bob's team may view the reports folder",
+            "expect (Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View))), PersonId(\"cat\"), DocumentId(\"q3-report\")) ⇒ false  given   — nothing is shared with Cat",
+            "reject (Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View))), PersonId(\"cat\"), DocumentId(\"plan\")) ⇒ true  given   — Cat has no access to the plan"
+          ],
+          "vocabulary": [
+            "access: a person's access to a document, as the service works it out",
+            "canView: the service's answer to whether a person can view a document"
+          ],
+          "uses": [
+            "case class DocumentId(name: String)",
+            "case class FolderId(name: String)",
+            "case class Document(id: DocumentId, title: String, folders: List[FolderId])",
+            "case class Folder(id: FolderId, name: String, folders: List[FolderId])",
+            "case class TeamId(name: String)",
+            "case class PersonId(name: String)",
+            "case class Team(id: TeamId, members: List[PersonId])",
+            "enum Target: case Doc(id: DocumentId), case InFolder(id: FolderId)",
+            "enum Grantee: case Person(id: PersonId), case Team(id: TeamId)",
+            "enum Level: case View, case Edit",
+            "case class Share(what: Target, withWhom: Grantee, level: Level)",
+            "case class Library(documents: List[Document], folders: List[Folder], teams: List[Team], shares: List[Share])"
+          ],
+          "governs": [],
+          "definition": "val canViewContract = Node.contract(canView)(\"CanViewContract\",\n  \"A person can view a document exactly when they have some access to it.\",\n  why = \"Viewing needs a share of any level, and editing includes viewing (Q1).\",\n  idea = \"Who can see and change what\"\n)((lib, p, d, result) => result === access(lib, p, d).isDefined)\n  .under(accessFollowsShares)\n  .examples()(\n    expect(library, bob, q3Report, true, \"Bob's team may view the reports folder\"),\n    expect(library, cat, q3Report, false, \"nothing is shared with Cat\"),\n    reject(library, cat, plan, true, \"Cat has no access to the plan\"))",
+          "op": "canView",
+          "implementation": "proven: Sharing.canViewCode\nSharing.canViewCode = (lib: Term[Library], p: Term[PersonId], d: Term[DocumentId]) => access(lib, p, d).isDefined",
+          "idea": "## Who can see and change what\n\nA person can view or edit a document; being able to edit it includes being able\nto view it. A share gives one person, or everyone in one team, view or edit on\none document, or on a folder and everything inside it, at any depth. Teams\ncontain people only. Folders form a tree, and a document is in at most one\nfolder. A person can view a document exactly when some share reaches them and\ncovers it, and edit it exactly when such a share is an edit share.\n\nAnyone who can edit a document or folder can share it, or unshare it; sharing\nit again with the same person or team changes the level. Moving a document into\na folder needs edit on both. Nobody else changes the shares, or where a\ndocument is.\n\nThe service answers these questions and makes these changes over HTTP, keeping\nthe library in memory or in a SQLite file. Versions, deny rules, expiring\nshares, audit logs and outside identity providers are not part of it yet.",
+          "ideaSection": "Who can see and change what",
+          "notModelled": ""
+        }
+      }
+    ],
+    "Cover": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-25T01:31:26.109134Z",
+        "reason": "A folder share covers everything inside at any depth (Q4); inside is read off the folders listed around a document or folder.",
+        "rejected": [],
+        "commit": "0c742bf9cbb6c3fe2bee5ff368a89e1558c40f9b",
+        "key": "b6e216cfdf46a202",
+        "sig": "RnhWenTX7sGT0rHU16cS9hudOC0zkX7TqVMBh+Hc8Uxa0eWGMnhnUpSLc0MEo0pNfkZZi4Ny3yHp5hBDYlA0Cg==",
+        "chain": "",
+        "content": {
+          "kind": "definition",
+          "parents": [],
+          "statement": "A share of a document covers that document; a share of a folder covers the folder, every folder inside it, and every document inside any of them.",
+          "why": "Sharing a folder shares everything inside it, at any depth (Q4). A document or folder is inside a folder when that folder is among the folders around it.",
+          "sources": {},
+          "substitutions": [
+            "covers := (lib: Term[Library], s: Term[Share], t: Term[Target]) =>\n  s.what\n    .on[Target.Doc](d => t === Target[Target.Doc](d))\n    .on[Target.InFolder](f => t\n      .on[Target.Doc](d => lib.documents.exists(doc => doc.id === d && doc.folders.contains(f)))\n      .on[Target.InFolder](g => g === f || lib.folders.exists(folder => folder.id === g && folder.folders.contains(f))))"
+          ],
+          "examples": [],
+          "vocabulary": [
+            "covers: whether a share covers a document or a folder: it is a share of it, or of a folder around it"
+          ],
+          "uses": [
+            "case class DocumentId(name: String)",
+            "case class FolderId(name: String)",
+            "case class Document(id: DocumentId, title: String, folders: List[FolderId])",
+            "case class Folder(id: FolderId, name: String, folders: List[FolderId])",
+            "case class TeamId(name: String)",
+            "case class PersonId(name: String)",
+            "case class Team(id: TeamId, members: List[PersonId])",
+            "enum Target: case Doc(id: DocumentId), case InFolder(id: FolderId)",
+            "enum Grantee: case Person(id: PersonId), case Team(id: TeamId)",
+            "enum Level: case View, case Edit",
+            "case class Share(what: Target, withWhom: Grantee, level: Level)",
+            "case class Library(documents: List[Document], folders: List[Folder], teams: List[Team], shares: List[Share])"
+          ],
+          "governs": [],
+          "definition": "val cover = Node.definition(\"Cover\",\n  \"A share of a document covers that document; a share of a folder covers the folder, every folder inside it, and every document inside any of them.\",\n  why = \"Sharing a folder shares everything inside it, at any depth (Q4). A document or folder is inside a folder when that folder is among the folders around it.\"\n)(covers := ((lib: Term[Library], s: Term[Share], t: Term[Target]) =>\n  s.what\n    .on[Target.Doc](d => t === Target[Target.Doc](d))\n    .on[Target.InFolder](f => t\n      .on[Target.Doc](d => lib.documents.exists(doc => doc.id === d && doc.folders.contains(f)))\n      .on[Target.InFolder](g => g === f || lib.folders.exists(folder => folder.id === g && folder.folders.contains(f))))))"
+        }
+      }
+    ],
+    "DomainTypes": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-25T01:32:03.676934Z",
+        "reason": "Materialized folder paths keep every folder statement a list question with no depth; the demo library is small and covers teams and nesting.",
+        "rejected": [],
+        "code": "0cb95cc4adac0a7d84310bf6a839b0c0ae9d60b075c5d63c78f42f216904490b",
+        "commit": "0c742bf9cbb6c3fe2bee5ff368a89e1558c40f9b",
+        "key": "b6e216cfdf46a202",
+        "sig": "e8Z5K2Y877NeS88dUXW2ddneNZPFfbzmAssD3T7MSom963WIe01nNmPahWxfGJTtM1YBRXC3/B/xrlNxw5IrBw==",
+        "chain": "",
+        "content": {
+          "kind": "design",
+          "parents": [
+            "AccessFollowsShares"
+          ],
+          "statement": "People, teams, documents, folders and shares are plain data: a document and a folder each list the folders around them, outermost first; a team lists its people. The demo library (Demo.scala) is the data the examples are decided on.",
+          "why": "Listing the folders around a document, rather than only its parent, says what is inside a folder without walking the tree: every statement about folders is then a question about a list, with no depth to bound. A move keeps the lists right (MoveContract). Owning these files makes a change to the types or to the example data a decision.",
+          "sources": {},
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [],
+          "uses": [],
+          "governs": [
+            "src/main/scala/sharing/domain",
+            "src/main/scala/sharing/Demo.scala"
+          ],
+          "definition": "val domainTypes = Node.design(\"DomainTypes\",\n  \"People, teams, documents, folders and shares are plain data: a document and a folder each list the folders around them, outermost first; a team lists its people. The demo library (Demo.scala) is the data the examples are decided on.\",\n  why = \"Listing the folders around a document, rather than only its parent, says what is inside a folder without walking the tree: every statement about folders is then a question about a list, with no depth to bound. A move keeps the lists right (MoveContract). Owning these files makes a change to the types or to the example data a decision.\",\n  idea = \"Who can see and change what\"\n)(\"src/main/scala/sharing/domain\", \"src/main/scala/sharing/Demo.scala\").under(accessFollowsShares)",
+          "idea": "## Who can see and change what\n\nA person can view or edit a document; being able to edit it includes being able\nto view it. A share gives one person, or everyone in one team, view or edit on\none document, or on a folder and everything inside it, at any depth. Teams\ncontain people only. Folders form a tree, and a document is in at most one\nfolder. A person can view a document exactly when some share reaches them and\ncovers it, and edit it exactly when such a share is an edit share.\n\nAnyone who can edit a document or folder can share it, or unshare it; sharing\nit again with the same person or team changes the level. Moving a document into\na folder needs edit on both. Nobody else changes the shares, or where a\ndocument is.\n\nThe service answers these questions and makes these changes over HTTP, keeping\nthe library in memory or in a SQLite file. Versions, deny rules, expiring\nshares, audit logs and outside identity providers are not part of it yet.",
+          "ideaSection": "Who can see and change what",
+          "notModelled": ""
+        }
+      }
+    ],
+    "HandleContract": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-25T01:31:57.577195Z",
+        "reason": "A request reads the library the last one left and leaves the one it leads to; the answers and changes are Sharing's.",
+        "rejected": [],
+        "commit": "0c742bf9cbb6c3fe2bee5ff368a89e1558c40f9b",
+        "key": "b6e216cfdf46a202",
+        "sig": "XrBK0bQb2cibI5XA2nkuISRia9QdWtYfEFfqgdOyV9h1W6lnSp4SsPaABuCqMs5p+VB1P32TQo7X4xQkwfBVBA==",
+        "chain": "5dc215e4adf98dddb233ac24e8541d93a767f98253611445a2b5e7b79c43ee0a",
+        "content": {
+          "kind": "contract",
+          "parents": [
+            "AccessFollowsShares"
+          ],
+          "parts": [],
+          "statement": "A request is answered from the library the store holds, and leaves the store holding the library it leads to: a question is answered with the person's access and changes nothing; a change is made as Sharing makes it, and answered done when the asker may make it and refused otherwise.",
+          "why": "This is the service as a client sees it, in the store's terms (LibraryKept). What the answers and changes are is Sharing's (its contracts); what this adds is that each request reads the library the last one left and leaves the one it leads to, so a client's next request sees its change.",
+          "sources": {
+            "post": "(r, result, before, after) =>\n    after(LibraryModel) === afterRequest(before(LibraryModel), r) && result === answerTo(before(LibraryModel), r)"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (Access(PersonId(\"bob\"), DocumentId(\"q3-report\")), World(LibraryModel = Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View))))) ⇒ Tuple2(Access(Some(View)), World(LibraryModel = Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View)))))  given   — Bob's team may view the reports folder: Bob can view the Q3 report, and nothing changes",
+            "expect (Share(PersonId(\"ann\"), Doc(DocumentId(\"plan\")), Person(PersonId(\"bob\")), View), World(LibraryModel = Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View))))) ⇒ Tuple2(Done, World(LibraryModel = Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"bob\")), View), Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View)))))  given   — Ann shares the plan with Bob: the store holds the new share",
+            "expect (Share(PersonId(\"bob\"), Doc(DocumentId(\"plan\")), Person(PersonId(\"bob\")), Edit), World(LibraryModel = Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View))))) ⇒ Tuple2(Refused, World(LibraryModel = Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View)))))  given   — Bob may not edit the plan: refused, and the store keeps the library",
+            "reject (Share(PersonId(\"ann\"), Doc(DocumentId(\"plan\")), Person(PersonId(\"bob\")), View), World(LibraryModel = Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View))))) ⇒ Tuple2(Done, World(LibraryModel = Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View)))))  given   — a change answered done is kept",
+            "reject (Access(PersonId(\"cat\"), DocumentId(\"plan\")), World(LibraryModel = Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View))))) ⇒ Tuple2(Access(Some(View)), World(LibraryModel = Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View)))))  given   — Cat has no access to the plan"
+          ],
+          "vocabulary": [
+            "access: a person's access to a document, as the service works it out",
+            "handle: a request handled on the store: the answer, the store left holding the change",
+            "mayEdit: whether a person may edit a document or folder",
+            "move: the library after someone asks to move a document",
+            "share: the library after someone asks to share a document or folder",
+            "unshare: the library after someone asks to unshare a document or folder"
+          ],
+          "uses": [
+            "case class PersonId(name: String)",
+            "case class DocumentId(name: String)",
+            "case class FolderId(name: String)",
+            "enum Target: case Doc(id: DocumentId), case InFolder(id: FolderId)",
+            "case class TeamId(name: String)",
+            "enum Grantee: case Person(id: PersonId), case Team(id: TeamId)",
+            "enum Level: case View, case Edit",
+            "enum Request: case Access(person: PersonId, doc: DocumentId), case Share(by: PersonId, what: Target, withWhom: Grantee, level: Level), case Unshare(by: PersonId, what: Target, withWhom: Grantee), case Move(by: PersonId, doc: DocumentId, into: Option[FolderId])",
+            "enum Answer: case Access(level: Option[Level]), case Done, case Refused",
+            "case class Document(id: DocumentId, title: String, folders: List[FolderId])",
+            "case class Folder(id: FolderId, name: String, folders: List[FolderId])",
+            "case class Team(id: TeamId, members: List[PersonId])",
+            "case class Share(what: Target, withWhom: Grantee, level: Level)",
+            "case class Library(documents: List[Document], folders: List[Folder], teams: List[Team], shares: List[Share])",
+            "SharingHttp.afterRequest = (lib: Term[Library], r: Term[Request]) =>\n    r.on[Request.Access]((_, _) => lib)\n      .on[Request.Share]((by, what, withWhom, level) => Sharing.share(lib, by, what, withWhom, level))\n      .on[Request.Unshare]((by, what, withWhom) => Sharing.unshare(lib, by, what, withWhom))\n      .on[Request.Move]((by, d, into) => Sharing.move(lib, by, d, into))",
+            "SharingHttp.answerTo = (lib: Term[Library], r: Term[Request]) =>\n    r.on[Request.Access]((p, d) => Answer[Answer.Access](Sharing.access(lib, p, d)))\n      .on[Request.Share]((by, what, _, _) => allowedWhen(mayEdit(lib, by, what)))\n      .on[Request.Unshare]((by, what, _) => allowedWhen(mayEdit(lib, by, what)))\n      .on[Request.Move]((by, d, into) => allowedWhen(Sharing.mayMove(lib, by, d, into)))",
+            "Sharing.mayMove = (lib: Term[Library], by: Term[PersonId], d: Term[DocumentId], into: Term[Option[FolderId]]) =>\n    mayEdit(lib, by, Target[Target.Doc](d)) &&\n      into.fold(True)(f => lib.folders.exists(folder => folder.id === f) && mayEdit(lib, by, Target[Target.InFolder](f)))"
+          ],
+          "governs": [],
+          "definition": "val handleContract = Node.contract(handle)(\"HandleContract\",\n  \"A request is answered from the library the store holds, and leaves the store holding the library it leads to: a question is answered with the person's access and changes nothing; a change is made as Sharing makes it, and answered done when the asker may make it and refused otherwise.\",\n  why = \"This is the service as a client sees it, in the store's terms (LibraryKept). What the answers and changes are is Sharing's (its contracts); what this adds is that each request reads the library the last one left and leaves the one it leads to, so a client's next request sees its change.\",\n  idea = \"Who can see and change what\"\n)((r, result, before, after) =>\n  after(LibraryModel) === afterRequest(before(LibraryModel), r) && result === answerTo(before(LibraryModel), r))\n  .under(accessFollowsShares)\n  .examples()(\n    expect(Request.Access(bob, q3Report), World(LibraryModel -> library), Answer.Access(Some(Level.View)), World(LibraryModel -> library),\n      \"Bob's team may view the reports folder: Bob can view the Q3 report, and nothing changes\"),\n    expect(Request.Share(ann, Target.Doc(plan), Grantee.Person(bob), Level.View), World(LibraryModel -> library), Answer.Done,\n      World(LibraryModel -> bobViewsPlan), \"Ann shares the plan with Bob: the store holds the new share\"),\n    expect(Request.Share(bob, Target.Doc(plan), Grantee.Person(bob), Level.Edit), World(LibraryModel -> library), Answer.Refused,\n      World(LibraryModel -> library), \"Bob may not edit the plan: refused, and the store keeps the library\"),\n    reject(Request.Share(ann, Target.Doc(plan), Grantee.Person(bob), Level.View), World(LibraryModel -> library), Answer.Done,\n      World(LibraryModel -> library), \"a change answered done is kept\"),\n    reject(Request.Access(cat, plan), World(LibraryModel -> library), Answer.Access(Some(Level.View)), World(LibraryModel -> library),\n      \"Cat has no access to the plan\"))",
+          "op": "handle",
+          "implementation": "proven: handleContract_run\nhandleContract_run = SharingHttp.handleRequest\nhandleContract = fun (r : Request) => do\n    let lib ← LibraryStore.load\n    if ((⟦SharingHttp.afterRequest⟧ lib r) ≠ lib) then\n      LibraryStore.save (⟦SharingHttp.afterRequest⟧ lib r)\n      pure ()\n    else\n      pure ()\n    pure (⟦SharingHttp.answerTo⟧ lib r)\nSharingHttp.afterRequest = (lib: Term[Library], r: Term[Request]) =>\n    r.on[Request.Access]((_, _) => lib)\n      .on[Request.Share]((by, what, withWhom, level) => Sharing.share(lib, by, what, withWhom, level))\n      .on[Request.Unshare]((by, what, withWhom) => Sharing.unshare(lib, by, what, withWhom))\n      .on[Request.Move]((by, d, into) => Sharing.move(lib, by, d, into))\nSharingHttp.answerTo = (lib: Term[Library], r: Term[Request]) =>\n    r.on[Request.Access]((p, d) => Answer[Answer.Access](Sharing.access(lib, p, d)))\n      .on[Request.Share]((by, what, _, _) => allowedWhen(mayEdit(lib, by, what)))\n      .on[Request.Unshare]((by, what, _) => allowedWhen(mayEdit(lib, by, what)))\n      .on[Request.Move]((by, d, into) => allowedWhen(Sharing.mayMove(lib, by, d, into)))\nSharing.mayMove = (lib: Term[Library], by: Term[PersonId], d: Term[DocumentId], into: Term[Option[FolderId]]) =>\n    mayEdit(lib, by, Target[Target.Doc](d)) &&\n      into.fold(True)(f => lib.folders.exists(folder => folder.id === f) && mayEdit(lib, by, Target[Target.InFolder](f)))",
+          "idea": "## Who can see and change what\n\nA person can view or edit a document; being able to edit it includes being able\nto view it. A share gives one person, or everyone in one team, view or edit on\none document, or on a folder and everything inside it, at any depth. Teams\ncontain people only. Folders form a tree, and a document is in at most one\nfolder. A person can view a document exactly when some share reaches them and\ncovers it, and edit it exactly when such a share is an edit share.\n\nAnyone who can edit a document or folder can share it, or unshare it; sharing\nit again with the same person or team changes the level. Moving a document into\na folder needs edit on both. Nobody else changes the shares, or where a\ndocument is.\n\nThe service answers these questions and makes these changes over HTTP, keeping\nthe library in memory or in a SQLite file. Versions, deny rules, expiring\nshares, audit logs and outside identity providers are not part of it yet.",
+          "ideaSection": "Who can see and change what",
+          "notModelled": ""
+        }
+      }
+    ],
+    "IDEA": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-25T01:31:19.849497Z",
+        "reason": "It states the five answers (Q1-Q5) as assumed: view and edit, editors share, teams of people, a folder tree whose shares cover everything inside, and what is out of scope.",
+        "rejected": [],
+        "commit": "0c742bf9cbb6c3fe2bee5ff368a89e1558c40f9b",
+        "key": "b6e216cfdf46a202",
+        "sig": "tYm9vCTYiD59U3MGPd2kZatbG9XVy7fRcbbJjZ/gs7+98vWMR3bO8YdkbnSjiLbXIssKCpuv1KEDmMFI543bBQ==",
+        "chain": "",
+        "content": {
+          "idea": "# Sharing documents\n\nPeople keep documents in folders and share them with other people, or with\nteams. The shares decide who can view a document and who can edit it, and who\nmay change whom it is shared with.\n\nFrom: Q1, Q5\n\n## Who can see and change what\n\nA person can view or edit a document; being able to edit it includes being able\nto view it. A share gives one person, or everyone in one team, view or edit on\none document, or on a folder and everything inside it, at any depth. Teams\ncontain people only. Folders form a tree, and a document is in at most one\nfolder. A person can view a document exactly when some share reaches them and\ncovers it, and edit it exactly when such a share is an edit share.\n\nAnyone who can edit a document or folder can share it, or unshare it; sharing\nit again with the same person or team changes the level. Moving a document into\na folder needs edit on both. Nobody else changes the shares, or where a\ndocument is.\n\nThe service answers these questions and makes these changes over HTTP, keeping\nthe library in memory or in a SQLite file. Versions, deny rules, expiring\nshares, audit logs and outside identity providers are not part of it yet.\n\nFrom: Q1, Q2, Q3, Q4, Q5\n"
+        }
+      }
+    ],
+    "LibraryKept": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-25T01:31:29.297196Z",
+        "reason": "The store is a boundary with one state; memory is tested and SQLite checked against it, which is what a store should promise.",
+        "rejected": [],
+        "code": "1ec08f10e217a0e03d97b11fec86100fccf69a4e49bbf0241d5143b912cb79b2",
+        "commit": "0c742bf9cbb6c3fe2bee5ff368a89e1558c40f9b",
+        "key": "b6e216cfdf46a202",
+        "sig": "u+AZrk3J1cMDaVw/azocoHBxAQwKAI2F4wajFJP5yRu7BiAv+jdBZLDe8GlgEIaRAij5KWwLpLh/64A0uFWtDQ==",
+        "chain": "",
+        "content": {
+          "kind": "assumption",
+          "parents": [],
+          "statement": "The store gives the library it holds, and after a save holds the library saved, in place of the one it held.",
+          "why": "Proven flows are proven from this model, not from the store's code. MemoryLibraryStore, the service's own store, is tested against it; SQLite, an outside system, is checked against it: SqlLibraryStore keeps each list's order in its rows and replaces every row in one transaction.",
+          "sources": {},
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [],
+          "uses": [],
+          "governs": [],
+          "definition": "val libraryKept = Node.assumption(store)(LibraryModel)(\"LibraryKept\",\n  \"The store gives the library it holds, and after a save holds the library saved, in place of the one it held.\",\n  why = \"Proven flows are proven from this model, not from the store's code. MemoryLibraryStore, the service's own store, is tested against it; SQLite, an outside system, is checked against it: SqlLibraryStore keeps each list's order in its rows and replaces every row in one transaction.\",\n  idea = \"Who can see and change what\")\n  .implementedBy(l => MemoryLibraryStore(l), _.library)\n  .checkedAgainst(l => SqlLibraryStore.holding(l), _.library)",
+          "model": [
+            "load = do\n    get",
+            "save = fun (library : Library) => do\n    set library"
+          ],
+          "implementations": [
+            "tested: l => MemoryLibraryStore(l)",
+            "assumed, checked: l => SqlLibraryStore.holding(l)"
+          ],
+          "idea": "## Who can see and change what\n\nA person can view or edit a document; being able to edit it includes being able\nto view it. A share gives one person, or everyone in one team, view or edit on\none document, or on a folder and everything inside it, at any depth. Teams\ncontain people only. Folders form a tree, and a document is in at most one\nfolder. A person can view a document exactly when some share reaches them and\ncovers it, and edit it exactly when such a share is an edit share.\n\nAnyone who can edit a document or folder can share it, or unshare it; sharing\nit again with the same person or team changes the level. Moving a document into\na folder needs edit on both. Nobody else changes the shares, or where a\ndocument is.\n\nThe service answers these questions and makes these changes over HTTP, keeping\nthe library in memory or in a SQLite file. Versions, deny rules, expiring\nshares, audit logs and outside identity providers are not part of it yet.",
+          "ideaSection": "Who can see and change what",
+          "notModelled": ""
+        }
+      }
+    ],
+    "MoveContract": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-25T01:31:54.552292Z",
+        "reason": "A move changes who sees the document through folder shares, so it needs edit on the document and on the target folder.",
+        "rejected": [],
+        "commit": "0c742bf9cbb6c3fe2bee5ff368a89e1558c40f9b",
+        "key": "b6e216cfdf46a202",
+        "sig": "7bIJotyXlvesveL/fNr7FCIFnXCOtXP/IULIOkmLf5Bt/RW+gIcnUj+NhIW6D+bSrflDbXaZ3ZNkF5mwDH8zAQ==",
+        "chain": "66f575124d47532e4bd2102b908a61c22c528d997176dbc898af851a201a7d42",
+        "content": {
+          "kind": "contract",
+          "parents": [
+            "AccessFollowsShares"
+          ],
+          "parts": [],
+          "statement": "Someone who may edit a document moves it into a folder they may edit, or out of every folder: the document is then in that folder and in every folder around it. When anyone else asks, or the folder does not exist, nothing changes.",
+          "why": "Moving a document changes who may see it, through the folders' shares (Cover), so it needs the right to edit both the document and the folder it goes into.",
+          "sources": {
+            "post": "(lib, by, d, into, result) =>\n    result === mayMove(lib, by, d, into).fold(\n      lib.copy((documents = lib.documents.map(doc => (doc.id === d).fold(doc.copy((folders = foldersAt(lib, into))), doc)))),\n      lib)"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View))), PersonId(\"ann\"), DocumentId(\"plan\"), Some(FolderId(\"reports\"))) ⇒ Library(List(Document(DocumentId(\"plan\"), \"Plan\", List(FolderId(\"reports\"))), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View)))  given   — Ann may edit the plan and the reports folder: the plan moves into it",
+            "expect (Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View))), PersonId(\"bob\"), DocumentId(\"q3-report\"), None) ⇒ Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View)))  given   — Bob may only view the Q3 report: it stays where it is",
+            "reject (Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View))), PersonId(\"ann\"), DocumentId(\"plan\"), Some(FolderId(\"nowhere\"))) ⇒ Library(List(Document(DocumentId(\"plan\"), \"Plan\", List(FolderId(\"nowhere\"))), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View)))  given   — a document never moves into a folder that does not exist"
+          ],
+          "vocabulary": [
+            "mayEdit: whether a person may edit a document or folder",
+            "move: the library after someone asks to move a document"
+          ],
+          "uses": [
+            "case class DocumentId(name: String)",
+            "case class FolderId(name: String)",
+            "case class Document(id: DocumentId, title: String, folders: List[FolderId])",
+            "case class Folder(id: FolderId, name: String, folders: List[FolderId])",
+            "case class TeamId(name: String)",
+            "case class PersonId(name: String)",
+            "case class Team(id: TeamId, members: List[PersonId])",
+            "enum Target: case Doc(id: DocumentId), case InFolder(id: FolderId)",
+            "enum Grantee: case Person(id: PersonId), case Team(id: TeamId)",
+            "enum Level: case View, case Edit",
+            "case class Share(what: Target, withWhom: Grantee, level: Level)",
+            "case class Library(documents: List[Document], folders: List[Folder], teams: List[Team], shares: List[Share])",
+            "Sharing.mayMove = (lib: Term[Library], by: Term[PersonId], d: Term[DocumentId], into: Term[Option[FolderId]]) =>\n    mayEdit(lib, by, Target[Target.Doc](d)) &&\n      into.fold(True)(f => lib.folders.exists(folder => folder.id === f) && mayEdit(lib, by, Target[Target.InFolder](f)))",
+            "Sharing.foldersAt = (lib: Term[Library], into: Term[Option[FolderId]]) =>\n    into.fold(List.empty[FolderId])(f => lib.folders.find(folder => folder.id === f).fold(List.empty[FolderId])(folder => folder.folders ++ List(f)))"
+          ],
+          "governs": [],
+          "definition": "val moveContract = Node.contract(move)(\"MoveContract\",\n  \"Someone who may edit a document moves it into a folder they may edit, or out of every folder: the document is then in that folder and in every folder around it. When anyone else asks, or the folder does not exist, nothing changes.\",\n  why = \"Moving a document changes who may see it, through the folders' shares (Cover), so it needs the right to edit both the document and the folder it goes into.\",\n  idea = \"Who can see and change what\"\n)((lib, by, d, into, result) =>\n  result === mayMove(lib, by, d, into).fold(\n    lib.copy((documents = lib.documents.map(doc => (doc.id === d).fold(doc.copy((folders = foldersAt(lib, into))), doc)))),\n    lib))\n  .under(accessFollowsShares)\n  .examples()(\n    expect(library, ann, plan, Some(reports),\n      library.copy(documents = List(Document(plan, \"Plan\", List(reports)), Document(q3Report, \"Q3 report\", List(reports, q3)))),\n      \"Ann may edit the plan and the reports folder: the plan moves into it\"),\n    expect(library, bob, q3Report, None, library, \"Bob may only view the Q3 report: it stays where it is\"),\n    reject(library, ann, plan, Some(FolderId(\"nowhere\")),\n      library.copy(documents = List(Document(plan, \"Plan\", List(FolderId(\"nowhere\"))), Document(q3Report, \"Q3 report\", List(reports, q3)))),\n      \"a document never moves into a folder that does not exist\"))",
+          "op": "move",
+          "implementation": "proven: Sharing.moveCode\nSharing.moveCode = (lib: Term[Library], by: Term[PersonId], d: Term[DocumentId], into: Term[Option[FolderId]]) =>\n    val placed = foldersAt(lib, into)\n    mayMove(lib, by, d, into).fold(lib.copy((documents = lib.documents.map(doc => (doc.id === d).fold(doc.copy((folders = placed)), doc)))), lib)\nSharing.mayMove = (lib: Term[Library], by: Term[PersonId], d: Term[DocumentId], into: Term[Option[FolderId]]) =>\n    mayEdit(lib, by, Target[Target.Doc](d)) &&\n      into.fold(True)(f => lib.folders.exists(folder => folder.id === f) && mayEdit(lib, by, Target[Target.InFolder](f)))\nSharing.foldersAt = (lib: Term[Library], into: Term[Option[FolderId]]) =>\n    into.fold(List.empty[FolderId])(f => lib.folders.find(folder => folder.id === f).fold(List.empty[FolderId])(folder => folder.folders ++ List(f)))",
+          "idea": "## Who can see and change what\n\nA person can view or edit a document; being able to edit it includes being able\nto view it. A share gives one person, or everyone in one team, view or edit on\none document, or on a folder and everything inside it, at any depth. Teams\ncontain people only. Folders form a tree, and a document is in at most one\nfolder. A person can view a document exactly when some share reaches them and\ncovers it, and edit it exactly when such a share is an edit share.\n\nAnyone who can edit a document or folder can share it, or unshare it; sharing\nit again with the same person or team changes the level. Moving a document into\na folder needs edit on both. Nobody else changes the shares, or where a\ndocument is.\n\nThe service answers these questions and makes these changes over HTTP, keeping\nthe library in memory or in a SQLite file. Versions, deny rules, expiring\nshares, audit logs and outside identity providers are not part of it yet.",
+          "ideaSection": "Who can see and change what",
+          "notModelled": ""
+        }
+      }
+    ],
+    "Permission": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-25T01:31:32.513485Z",
+        "reason": "View needs any share that reaches and covers; edit needs an edit share (Q1).",
+        "rejected": [],
+        "commit": "0c742bf9cbb6c3fe2bee5ff368a89e1558c40f9b",
+        "key": "b6e216cfdf46a202",
+        "sig": "pd8UW8Adti7oLXrWW0ToWNyBE1tu0T5xjnUfNCrzbT0cCBTgcdjQACK6D45QmR2/7FcqO3Mfr6ixNVMWVeS1BQ==",
+        "chain": "98c35848ebba2f6a52a0b112b2a7b718c5ea03f72697c6793a2e1ea3b4da1d75",
+        "content": {
+          "kind": "definition",
+          "parents": [],
+          "statement": "A person may view a document or folder when a share reaches them and covers it; they may edit it when such a share is an edit share.",
+          "why": "Viewing and editing are the two things a person can do with a document, and editing includes viewing (Q1).",
+          "sources": {},
+          "substitutions": [
+            "mayView := (lib: Term[Library], p: Term[PersonId], t: Term[Target]) => lib.shares.exists(s => reaches(lib, s, p) && covers(lib, s, t))",
+            "mayEdit := (lib: Term[Library], p: Term[PersonId], t: Term[Target]) =>\n    lib.shares.exists(s => reaches(lib, s, p) && covers(lib, s, t) && s.level === Level.Edit)"
+          ],
+          "examples": [],
+          "vocabulary": [
+            "covers: whether a share covers a document or a folder: it is a share of it, or of a folder around it",
+            "mayEdit: whether a person may edit a document or folder",
+            "mayView: whether a person may view a document or folder",
+            "reaches: whether a share reaches a person: it is with them, or with a team they are in"
+          ],
+          "uses": [
+            "case class DocumentId(name: String)",
+            "case class FolderId(name: String)",
+            "case class Document(id: DocumentId, title: String, folders: List[FolderId])",
+            "case class Folder(id: FolderId, name: String, folders: List[FolderId])",
+            "case class TeamId(name: String)",
+            "case class PersonId(name: String)",
+            "case class Team(id: TeamId, members: List[PersonId])",
+            "enum Target: case Doc(id: DocumentId), case InFolder(id: FolderId)",
+            "enum Grantee: case Person(id: PersonId), case Team(id: TeamId)",
+            "enum Level: case View, case Edit",
+            "case class Share(what: Target, withWhom: Grantee, level: Level)",
+            "case class Library(documents: List[Document], folders: List[Folder], teams: List[Team], shares: List[Share])"
+          ],
+          "governs": [],
+          "definition": "val permission = Node.definition(\"Permission\",\n  \"A person may view a document or folder when a share reaches them and covers it; they may edit it when such a share is an edit share.\",\n  why = \"Viewing and editing are the two things a person can do with a document, and editing includes viewing (Q1).\"\n)(\n  mayView := ((lib: Term[Library], p: Term[PersonId], t: Term[Target]) => lib.shares.exists(s => reaches(lib, s, p) && covers(lib, s, t))),\n  mayEdit := ((lib: Term[Library], p: Term[PersonId], t: Term[Target]) =>\n    lib.shares.exists(s => reaches(lib, s, p) && covers(lib, s, t) && s.level === Level.Edit)))"
+        }
+      }
+    ],
+    "Reach": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-25T01:31:23.036774Z",
+        "reason": "Teams contain people only (Q3), so a team share reaches exactly its members.",
+        "rejected": [],
+        "commit": "0c742bf9cbb6c3fe2bee5ff368a89e1558c40f9b",
+        "key": "b6e216cfdf46a202",
+        "sig": "nRDo56GQs4Yg4Xc2yZGx8fUxEDUrml2AhB0jq++I4We/sddlTGPj/4ND+pWx8xa7qjecY4oVhxOWhiHZzfeaDQ==",
+        "chain": "",
+        "content": {
+          "kind": "definition",
+          "parents": [],
+          "statement": "A share reaches the person it is with, and everyone in the team it is with.",
+          "why": "Teams contain people only (Q3), so a share with a team reaches exactly its members, and nobody else.",
+          "sources": {},
+          "substitutions": [
+            "reaches := (lib: Term[Library], s: Term[Share], p: Term[PersonId]) =>\n  s.withWhom\n    .on[Grantee.Person](q => q === p)\n    .on[Grantee.Team](t => lib.teams.exists(team => team.id === t && team.members.contains(p)))"
+          ],
+          "examples": [],
+          "vocabulary": [
+            "reaches: whether a share reaches a person: it is with them, or with a team they are in"
+          ],
+          "uses": [
+            "case class DocumentId(name: String)",
+            "case class FolderId(name: String)",
+            "case class Document(id: DocumentId, title: String, folders: List[FolderId])",
+            "case class Folder(id: FolderId, name: String, folders: List[FolderId])",
+            "case class TeamId(name: String)",
+            "case class PersonId(name: String)",
+            "case class Team(id: TeamId, members: List[PersonId])",
+            "enum Target: case Doc(id: DocumentId), case InFolder(id: FolderId)",
+            "enum Grantee: case Person(id: PersonId), case Team(id: TeamId)",
+            "enum Level: case View, case Edit",
+            "case class Share(what: Target, withWhom: Grantee, level: Level)",
+            "case class Library(documents: List[Document], folders: List[Folder], teams: List[Team], shares: List[Share])"
+          ],
+          "governs": [],
+          "definition": "val reach = Node.definition(\"Reach\", \"A share reaches the person it is with, and everyone in the team it is with.\",\n  why = \"Teams contain people only (Q3), so a share with a team reaches exactly its members, and nobody else.\"\n)(reaches := ((lib: Term[Library], s: Term[Share], p: Term[PersonId]) =>\n  s.withWhom\n    .on[Grantee.Person](q => q === p)\n    .on[Grantee.Team](t => lib.teams.exists(team => team.id === t && team.members.contains(p)))))"
+        }
+      }
+    ],
+    "ServerWiring": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-25T01:32:00.721577Z",
+        "reason": "Routes, codes, pool, time limits and 500s as decided for the HTTP layer; the codec is tested and the server checked against an oracle.",
+        "rejected": [],
+        "code": "6daeb48050a9519ae1d55c51414e3f7880b1002d544df99a7f99c63307642328",
+        "commit": "0c742bf9cbb6c3fe2bee5ff368a89e1558c40f9b",
+        "key": "b6e216cfdf46a202",
+        "sig": "37GKqk/BOARmfdNu+lVVeeR7lzbdRtNBdVksbUzqbvCq4Rs0qC3N48s52UU5H9LvR0srGH5MuZQ5mTvFwIg+AQ==",
+        "chain": "",
+        "content": {
+          "kind": "design",
+          "parents": [
+            "HandleContract"
+          ],
+          "statement": "The server reads each HTTP request into a request (an unreadable one is answered 400 with its reason, an unknown route 404), answers it with HandleContract's flow on the store, one request at a time, and writes the answer as JSON (a refused change is 403); requests run on a pool of workers with a time limit each (503 past it), and an internal error is answered 500 and logged.",
+          "why": "What a request is answered with, and what it leaves in the store, is proven (HandleContract). Reading HTTP, the routes, the threads and the time limits are decided here and reviewed; the reading and writing of HTTP is tested against the routes this states (SharingSuite). One request at a time makes each read the library the last one left, which HandleContract assumes. SharingService, Sharing's methods as plain Scala, runs the same proven code.",
+          "sources": {},
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [],
+          "uses": [],
+          "governs": [
+            "src/main/scala/sharing/http/Server.scala",
+            "src/main/scala/sharing/http/HttpCodec.scala",
+            "src/main/scala/sharing/http/Requests.scala",
+            "src/main/scala/sharing/service/SharingService.scala"
+          ],
+          "definition": "val serverWiring = Node.design(\"ServerWiring\",\n  \"The server reads each HTTP request into a request (an unreadable one is answered 400 with its reason, an unknown route 404), answers it with HandleContract's flow on the store, one request at a time, and writes the answer as JSON (a refused change is 403); requests run on a pool of workers with a time limit each (503 past it), and an internal error is answered 500 and logged.\",\n  why = \"What a request is answered with, and what it leaves in the store, is proven (HandleContract). Reading HTTP, the routes, the threads and the time limits are decided here and reviewed; the reading and writing of HTTP is tested against the routes this states (SharingSuite). One request at a time makes each read the library the last one left, which HandleContract assumes. SharingService, Sharing's methods as plain Scala, runs the same proven code.\",\n  idea = \"Who can see and change what\"\n)(\"src/main/scala/sharing/http/Server.scala\", \"src/main/scala/sharing/http/HttpCodec.scala\", \"src/main/scala/sharing/http/Requests.scala\",\n  \"src/main/scala/sharing/service/SharingService.scala\").under(SharingHttp.handleContract)",
+          "idea": "## Who can see and change what\n\nA person can view or edit a document; being able to edit it includes being able\nto view it. A share gives one person, or everyone in one team, view or edit on\none document, or on a folder and everything inside it, at any depth. Teams\ncontain people only. Folders form a tree, and a document is in at most one\nfolder. A person can view a document exactly when some share reaches them and\ncovers it, and edit it exactly when such a share is an edit share.\n\nAnyone who can edit a document or folder can share it, or unshare it; sharing\nit again with the same person or team changes the level. Moving a document into\na folder needs edit on both. Nobody else changes the shares, or where a\ndocument is.\n\nThe service answers these questions and makes these changes over HTTP, keeping\nthe library in memory or in a SQLite file. Versions, deny rules, expiring\nshares, audit logs and outside identity providers are not part of it yet.",
+          "ideaSection": "Who can see and change what",
+          "notModelled": ""
+        }
+      },
+      {
+        "action": "confirm",
+        "by": "demo-developer",
+        "at": "2026-10-25T01:40:35.674932Z",
+        "reason": "Answers are sent without waiting on the client's delayed ACK (TCP no-delay); nothing else in the server changes.",
+        "rejected": [],
+        "after": "c9007771487675d5",
+        "code": "c019958cc443c5286deb88603acc53773eff4ae0da390a379c209ecad9b34804",
+        "commit": "4ff05e5b9749a72aadb85423d134da58c137c2c1",
+        "key": "b6e216cfdf46a202",
+        "sig": "uLxTj1g0mef+s3OxC8SdOeqpUZ3+MZ+gyL3Dtvn2xVamFge07+FrQfAUmC14VB5F59skkuX7fFSzcSXOPj+VCg==",
+        "chain": "",
+        "content": {
+          "kind": "design",
+          "parents": [
+            "HandleContract"
+          ],
+          "statement": "The server reads each HTTP request into a request (an unreadable one is answered 400 with its reason, an unknown route 404), answers it with HandleContract's flow on the store, one request at a time, and writes the answer as JSON (a refused change is 403); requests run on a pool of workers with a time limit each (503 past it), and an internal error is answered 500 and logged.",
+          "why": "What a request is answered with, and what it leaves in the store, is proven (HandleContract). Reading HTTP, the routes, the threads and the time limits are decided here and reviewed; the reading and writing of HTTP is tested against the routes this states (SharingSuite). One request at a time makes each read the library the last one left, which HandleContract assumes. SharingService, Sharing's methods as plain Scala, runs the same proven code.",
+          "sources": {},
+          "substitutions": [],
+          "examples": [],
+          "vocabulary": [],
+          "uses": [],
+          "governs": [
+            "src/main/scala/sharing/http/Server.scala",
+            "src/main/scala/sharing/http/HttpCodec.scala",
+            "src/main/scala/sharing/http/Requests.scala",
+            "src/main/scala/sharing/service/SharingService.scala"
+          ],
+          "definition": "val serverWiring = Node.design(\"ServerWiring\",\n  \"The server reads each HTTP request into a request (an unreadable one is answered 400 with its reason, an unknown route 404), answers it with HandleContract's flow on the store, one request at a time, and writes the answer as JSON (a refused change is 403); requests run on a pool of workers with a time limit each (503 past it), and an internal error is answered 500 and logged.\",\n  why = \"What a request is answered with, and what it leaves in the store, is proven (HandleContract). Reading HTTP, the routes, the threads and the time limits are decided here and reviewed; the reading and writing of HTTP is tested against the routes this states (SharingSuite). One request at a time makes each read the library the last one left, which HandleContract assumes. SharingService, Sharing's methods as plain Scala, runs the same proven code.\",\n  idea = \"Who can see and change what\"\n)(\"src/main/scala/sharing/http/Server.scala\", \"src/main/scala/sharing/http/HttpCodec.scala\", \"src/main/scala/sharing/http/Requests.scala\",\n  \"src/main/scala/sharing/service/SharingService.scala\").under(SharingHttp.handleContract)",
+          "idea": "## Who can see and change what\n\nA person can view or edit a document; being able to edit it includes being able\nto view it. A share gives one person, or everyone in one team, view or edit on\none document, or on a folder and everything inside it, at any depth. Teams\ncontain people only. Folders form a tree, and a document is in at most one\nfolder. A person can view a document exactly when some share reaches them and\ncovers it, and edit it exactly when such a share is an edit share.\n\nAnyone who can edit a document or folder can share it, or unshare it; sharing\nit again with the same person or team changes the level. Moving a document into\na folder needs edit on both. Nobody else changes the shares, or where a\ndocument is.\n\nThe service answers these questions and makes these changes over HTTP, keeping\nthe library in memory or in a SQLite file. Versions, deny rules, expiring\nshares, audit logs and outside identity providers are not part of it yet.",
+          "ideaSection": "Who can see and change what",
+          "notModelled": ""
+        }
+      }
+    ],
+    "ShareContract": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-25T01:31:48.172797Z",
+        "reason": "Editors share (Q2); one share per thing and grantee, so sharing again sets the level.",
+        "rejected": [],
+        "commit": "0c742bf9cbb6c3fe2bee5ff368a89e1558c40f9b",
+        "key": "b6e216cfdf46a202",
+        "sig": "h7DJp9y96udzPFcVgfgpfOeY0aCFQQMbG7NQztjkljK0YiI6nmAzeVhRzbCWN9+IdssKgPTEQI4FR0+/TOSiCQ==",
+        "chain": "66f575124d47532e4bd2102b908a61c22c528d997176dbc898af851a201a7d42",
+        "content": {
+          "kind": "contract",
+          "parents": [
+            "AccessFollowsShares"
+          ],
+          "parts": [],
+          "statement": "Someone who may edit a document or folder shares it with a person or a team at a level: the new share takes the place of any earlier share of it with them. When anyone else asks, nothing changes.",
+          "why": "Anyone who can edit a document can share it (Q2), and a person or team has one share of a thing at a time, so sharing again changes the level rather than adding a second share.",
+          "sources": {
+            "post": "(lib, by, what, withWhom, level, result) =>\n    result === mayEdit(lib, by, what).fold(\n      lib.copy((shares = Share(what, withWhom, level) :: sharesWithout(lib.shares, what, withWhom))),\n      lib)"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View))), PersonId(\"ann\"), Doc(DocumentId(\"plan\")), Person(PersonId(\"bob\")), View) ⇒ Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"bob\")), View), Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View)))  given   — Ann may edit the plan, so she shares it with Bob",
+            "expect (Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View))), PersonId(\"bob\"), Doc(DocumentId(\"plan\")), Person(PersonId(\"bob\")), Edit) ⇒ Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View)))  given   — Bob may not edit the plan: his request changes nothing",
+            "reject (Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View))), PersonId(\"bob\"), InFolder(FolderId(\"reports\")), Person(PersonId(\"cat\")), View) ⇒ Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"cat\")), View), Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View)))  given   — Bob may only view the reports folder, so he cannot share it"
+          ],
+          "vocabulary": [
+            "mayEdit: whether a person may edit a document or folder",
+            "share: the library after someone asks to share a document or folder"
+          ],
+          "uses": [
+            "case class DocumentId(name: String)",
+            "case class FolderId(name: String)",
+            "case class Document(id: DocumentId, title: String, folders: List[FolderId])",
+            "case class Folder(id: FolderId, name: String, folders: List[FolderId])",
+            "case class TeamId(name: String)",
+            "case class PersonId(name: String)",
+            "case class Team(id: TeamId, members: List[PersonId])",
+            "enum Target: case Doc(id: DocumentId), case InFolder(id: FolderId)",
+            "enum Grantee: case Person(id: PersonId), case Team(id: TeamId)",
+            "enum Level: case View, case Edit",
+            "case class Share(what: Target, withWhom: Grantee, level: Level)",
+            "case class Library(documents: List[Document], folders: List[Folder], teams: List[Team], shares: List[Share])",
+            "Sharing.sharesWithout = (ss: Term[List[Share]], what: Term[Target], withWhom: Term[Grantee]) =>\n    ss.filterNot(s => s.what === what && s.withWhom === withWhom)"
+          ],
+          "governs": [],
+          "definition": "val shareContract = Node.contract(share)(\"ShareContract\",\n  \"Someone who may edit a document or folder shares it with a person or a team at a level: the new share takes the place of any earlier share of it with them. When anyone else asks, nothing changes.\",\n  why = \"Anyone who can edit a document can share it (Q2), and a person or team has one share of a thing at a time, so sharing again changes the level rather than adding a second share.\",\n  idea = \"Who can see and change what\"\n)((lib, by, what, withWhom, level, result) =>\n  result === mayEdit(lib, by, what).fold(\n    lib.copy((shares = Share(what, withWhom, level) :: sharesWithout(lib.shares, what, withWhom))),\n    lib))\n  .under(accessFollowsShares)\n  .examples()(\n    expect(library, ann, Target.Doc(plan), Grantee.Person(bob), Level.View,\n      library.copy(shares = Share(Target.Doc(plan), Grantee.Person(bob), Level.View) :: library.shares),\n      \"Ann may edit the plan, so she shares it with Bob\"),\n    expect(library, bob, Target.Doc(plan), Grantee.Person(bob), Level.Edit, library,\n      \"Bob may not edit the plan: his request changes nothing\"),\n    reject(library, bob, Target.InFolder(reports), Grantee.Person(cat), Level.View,\n      library.copy(shares = Share(Target.InFolder(reports), Grantee.Person(cat), Level.View) :: library.shares),\n      \"Bob may only view the reports folder, so he cannot share it\"))",
+          "op": "share",
+          "implementation": "proven: Sharing.shareCode\nSharing.shareCode = (lib: Term[Library], by: Term[PersonId], what: Term[Target], withWhom: Term[Grantee], level: Term[Level]) =>\n    mayEdit(lib, by, what).fold(lib.copy((shares = Share(what, withWhom, level) :: sharesWithout(lib.shares, what, withWhom))), lib)\nSharing.sharesWithout = (ss: Term[List[Share]], what: Term[Target], withWhom: Term[Grantee]) =>\n    ss.filterNot(s => s.what === what && s.withWhom === withWhom)",
+          "idea": "## Who can see and change what\n\nA person can view or edit a document; being able to edit it includes being able\nto view it. A share gives one person, or everyone in one team, view or edit on\none document, or on a folder and everything inside it, at any depth. Teams\ncontain people only. Folders form a tree, and a document is in at most one\nfolder. A person can view a document exactly when some share reaches them and\ncovers it, and edit it exactly when such a share is an edit share.\n\nAnyone who can edit a document or folder can share it, or unshare it; sharing\nit again with the same person or team changes the level. Moving a document into\na folder needs edit on both. Nobody else changes the shares, or where a\ndocument is.\n\nThe service answers these questions and makes these changes over HTTP, keeping\nthe library in memory or in a SQLite file. Versions, deny rules, expiring\nshares, audit logs and outside identity providers are not part of it yet.",
+          "ideaSection": "Who can see and change what",
+          "notModelled": ""
+        }
+      }
+    ],
+    "UnshareContract": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-25T01:31:51.369145Z",
+        "reason": "Editors unshare (Q2); others change nothing.",
+        "rejected": [],
+        "commit": "0c742bf9cbb6c3fe2bee5ff368a89e1558c40f9b",
+        "key": "b6e216cfdf46a202",
+        "sig": "9GBS5BNUioDnv5tpwr4ag0IzeVe/y03Pu+pmI5vrAnTCD9pr7l399BDlOvWsa7p6rci7zPFTkhJ+DljhEB+5Ag==",
+        "chain": "66f575124d47532e4bd2102b908a61c22c528d997176dbc898af851a201a7d42",
+        "content": {
+          "kind": "contract",
+          "parents": [
+            "AccessFollowsShares"
+          ],
+          "parts": [],
+          "statement": "Someone who may edit a document or folder unshares it from a person or a team: their share of it goes. When anyone else asks, nothing changes.",
+          "why": "Unsharing is changing who a document is shared with, which only someone who may edit it does (Q2).",
+          "sources": {
+            "post": "(lib, by, what, withWhom, result) =>\n    result === mayEdit(lib, by, what).fold(lib.copy((shares = sharesWithout(lib.shares, what, withWhom))), lib)"
+          },
+          "substitutions": [],
+          "examples": [
+            "expect (Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View))), PersonId(\"ann\"), InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\"))) ⇒ Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit)))  given   — Ann may edit the reports folder, so she unshares it from the engineering team",
+            "expect (Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View))), PersonId(\"bob\"), InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\"))) ⇒ Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View)))  given   — Bob may only view the folder: his request changes nothing",
+            "reject (Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View))), PersonId(\"bob\"), Doc(DocumentId(\"plan\")), Person(PersonId(\"ann\"))) ⇒ Library(List(Document(DocumentId(\"plan\"), \"Plan\", List()), Document(DocumentId(\"q3-report\"), \"Q3 report\", List(FolderId(\"reports\"), FolderId(\"q3\")))), List(Folder(FolderId(\"reports\"), \"Reports\", List()), Folder(FolderId(\"q3\"), \"Q3\", List(FolderId(\"reports\")))), List(Team(TeamId(\"eng\"), List(PersonId(\"bob\")))), List(Share(InFolder(FolderId(\"reports\")), Person(PersonId(\"ann\")), Edit), Share(InFolder(FolderId(\"reports\")), Team(TeamId(\"eng\")), View)))  given   — Bob cannot take Ann's share of the plan away"
+          ],
+          "vocabulary": [
+            "mayEdit: whether a person may edit a document or folder",
+            "unshare: the library after someone asks to unshare a document or folder"
+          ],
+          "uses": [
+            "case class DocumentId(name: String)",
+            "case class FolderId(name: String)",
+            "case class Document(id: DocumentId, title: String, folders: List[FolderId])",
+            "case class Folder(id: FolderId, name: String, folders: List[FolderId])",
+            "case class TeamId(name: String)",
+            "case class PersonId(name: String)",
+            "case class Team(id: TeamId, members: List[PersonId])",
+            "enum Target: case Doc(id: DocumentId), case InFolder(id: FolderId)",
+            "enum Grantee: case Person(id: PersonId), case Team(id: TeamId)",
+            "enum Level: case View, case Edit",
+            "case class Share(what: Target, withWhom: Grantee, level: Level)",
+            "case class Library(documents: List[Document], folders: List[Folder], teams: List[Team], shares: List[Share])",
+            "Sharing.sharesWithout = (ss: Term[List[Share]], what: Term[Target], withWhom: Term[Grantee]) =>\n    ss.filterNot(s => s.what === what && s.withWhom === withWhom)"
+          ],
+          "governs": [],
+          "definition": "val unshareContract = Node.contract(unshare)(\"UnshareContract\",\n  \"Someone who may edit a document or folder unshares it from a person or a team: their share of it goes. When anyone else asks, nothing changes.\",\n  why = \"Unsharing is changing who a document is shared with, which only someone who may edit it does (Q2).\",\n  idea = \"Who can see and change what\"\n)((lib, by, what, withWhom, result) =>\n  result === mayEdit(lib, by, what).fold(lib.copy((shares = sharesWithout(lib.shares, what, withWhom))), lib))\n  .under(accessFollowsShares)\n  .examples()(\n    expect(library, ann, Target.InFolder(reports), Grantee.Team(eng), library.copy(shares = List(annEditsPlan, annEditsReports)),\n      \"Ann may edit the reports folder, so she unshares it from the engineering team\"),\n    expect(library, bob, Target.InFolder(reports), Grantee.Team(eng), library,\n      \"Bob may only view the folder: his request changes nothing\"),\n    reject(library, bob, Target.Doc(plan), Grantee.Person(ann), library.copy(shares = List(annEditsReports, engViewsReports)),\n      \"Bob cannot take Ann's share of the plan away\"))",
+          "op": "unshare",
+          "implementation": "proven: Sharing.unshareCode\nSharing.unshareCode = (lib: Term[Library], by: Term[PersonId], what: Term[Target], withWhom: Term[Grantee]) =>\n    mayEdit(lib, by, what).fold(lib.copy((shares = sharesWithout(lib.shares, what, withWhom))), lib)\nSharing.sharesWithout = (ss: Term[List[Share]], what: Term[Target], withWhom: Term[Grantee]) =>\n    ss.filterNot(s => s.what === what && s.withWhom === withWhom)",
+          "idea": "## Who can see and change what\n\nA person can view or edit a document; being able to edit it includes being able\nto view it. A share gives one person, or everyone in one team, view or edit on\none document, or on a folder and everything inside it, at any depth. Teams\ncontain people only. Folders form a tree, and a document is in at most one\nfolder. A person can view a document exactly when some share reaches them and\ncovers it, and edit it exactly when such a share is an edit share.\n\nAnyone who can edit a document or folder can share it, or unshare it; sharing\nit again with the same person or team changes the level. Moving a document into\na folder needs edit on both. Nobody else changes the shares, or where a\ndocument is.\n\nThe service answers these questions and makes these changes over HTTP, keeping\nthe library in memory or in a SQLite file. Versions, deny rules, expiring\nshares, audit logs and outside identity providers are not part of it yet.",
+          "ideaSection": "Who can see and change what",
+          "notModelled": ""
+        }
+      }
+    ]
+  }
+}
