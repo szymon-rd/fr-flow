@@ -3,6 +3,7 @@ package frflow
 import cats.effect.SyncIO
 import frflow.fixtures.Errors
 import frflow.fixtures.Errors.*
+import frflow.flow.Flows
 
 /** Errors on flows: raiseError, handleErrorWith, attempt, retry and guarantee, as Lean prints them, as they run on the
   * models (with the world's faults) and in production (an exception of a failing boundary is its error), and

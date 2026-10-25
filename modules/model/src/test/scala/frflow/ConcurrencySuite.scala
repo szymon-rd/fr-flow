@@ -4,6 +4,7 @@ import cats.effect.{IO, SyncIO}
 import cats.effect.unsafe.implicits.global
 import frflow.fixtures.Concurrency
 import frflow.fixtures.Concurrency.*
+import frflow.flow.Flows
 
 /** Flows at once: parTupled, parTraverse, race and atomically, as Lean prints them (the branches in turn, and what the
   * proof must show: that they commute), as they run on the models (in turn) and at run time (on fibers in IO, in turn in

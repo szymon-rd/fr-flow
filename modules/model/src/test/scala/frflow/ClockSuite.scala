@@ -2,6 +2,7 @@ package frflow
 
 import cats.effect.SyncIO
 import frflow.fixtures.Timing
+import frflow.flow.Flows
 
 /** Time on flows: `now`, `sleep`, `waitUntil`, `timeout` and `every`, as Lean prints them, and run the same on the
   * clock's model, on a fake clock now and in `SyncIO`, for any start time and any delays a sleep adds.

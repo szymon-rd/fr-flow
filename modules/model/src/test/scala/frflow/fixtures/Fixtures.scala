@@ -13,13 +13,6 @@ val onlyGood = Node.claim("OnlyGood", "An item is picked from a list exactly whe
   why = "Picking a bad item is what the idea rules out; leaving a good one is what it asks not to.")(
   forall((l: Term[List[Item.T]], x: Term[Item.T]) => shown(l, x) === (l.contains(x) && good(x))))
 
-final case class Book(title: String, pages: Int)
-object Book extends Data[Book]
-enum Shelf:
-  case Top, Bottom
-  case Box(label: String)
-object Shelf extends Data[Shelf]
-
 val minPages = Param[Int]("minPages", "the length readers asked for, from the settings")
 val picks = Param[(List[Book], Int) => List[Book]]("picks", "the books the shelf service picks from a shelf, asked for n")
 

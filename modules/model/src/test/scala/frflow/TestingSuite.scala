@@ -1,6 +1,7 @@
 package frflow
 
 import frflow.fixtures.*
+import frflow.testing.Plan
 
 /** Plain code tested against its contract: the property is the contract's formula, the cases come from the types. */
 class TestingSuite extends munit.FunSuite:

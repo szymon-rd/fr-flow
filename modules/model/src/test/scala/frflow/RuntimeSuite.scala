@@ -1,6 +1,7 @@
 package frflow
 
 import frflow.fixtures.*
+import frflow.runtime.Cell
 
 /** The running system (contracts enforced on every call, the wiring of `service`, assumptions checked), the
   * examples run against the contract and the code, and the calls and values generated beyond them.
