@@ -2,18 +2,12 @@ package frflow
 package check
 
 import cats.effect.IO
+import frflow.ledger.Store
 import frflow.protocol.*
-import io.circe.{Codec, Json}
+import io.circe.Json
 import io.circe.parser.decode
 import io.circe.syntax.*
 import java.nio.file.Path
-import frflow.ledger.Store
-
-/** A test result, with the hash of what it depends on: kept while that holds (`.frflow/tests.json`, derived, not committed). */
-final case class Recorded(key: Hash, report: TestReport) derives Codec.AsObject
-
-/** A case that failed, kept so that every later run tries it first (`.frflow/counterexamples.json`, committed). */
-final case class Counterexample(seed: Long, index: Int, size: Int, shown: String) derives Codec.AsObject
 
 /** Testing contracts' code against them as the checker does it: which nodes, what a result depends on, and its files. */
 object Tests:
