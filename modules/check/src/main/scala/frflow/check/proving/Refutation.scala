@@ -24,9 +24,9 @@ object Refutation:
       values <- scala.util.Try(found.values.map((name, v, t) => (name, Example.show(v), LeanPrinter().value(v, t)))).toOption
     yield
       val what = found.answer match
-        case false => s"the contract refuses it, and the claim needs it ${op.name}"
-        case true  => s"the contract has it ${op.name}, and the claim needs it not ${op.name}"
-        case r     => s"the contract gives ${Example.show(r)}, which the claim refuses"
+        case false => s"the contract forbids it ${op.name}, and the claim needs it ${op.name}"
+        case true  => s"the contract has it ${op.name}, and the claim forbids it ${op.name}"
+        case r     => s"the contract gives ${Example.show(r)}, which the claim forbids"
       Candidate(values.map((name, v, _) => s"$name = $v").mkString(", "), what, lean(kb.name, n.id, c.id, resolve(answer.lean), values.map(_._3)))
 
   /** The inputs and `e` of a post `guard implies result === e` or `result === e`, `e` not mentioning the result. */

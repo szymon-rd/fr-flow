@@ -122,7 +122,7 @@ label { font-size: 12.5px; display: block; margin-top: 4px; }
     <div id="wrap"><div id="canvas"></div></div>
     <div class="legend">
       <span><i style="border-color:var(--accent);border-top-style:dashed"></i>proposed: waiting for you</span>
-      <span><i style="border-color:var(--open)"></i>review: something moved under it</span>
+      <span><i style="border-color:var(--open)"></i>to review: it, or what it rests on, changed</span>
       <span><i style="border-color:var(--proven)"></i>parts proven to make it</span>
       <span><i style="border-color:var(--open);border-top-style:dashed"></i>open</span>
       <span><i style="border-color:var(--failed);border-top-style:dotted"></i>failed, or a part not needed</span>
@@ -203,7 +203,7 @@ function splitLabel(n) {
 }
 function chips(r) {
   const n = r.node, ex = n.examples, bad = ex.filter(e => e.fails || e.codeFails || e.lean?.status === "failed").length;
-  return `<span class="chip s-${r.review.state}">${esc(r.review.state === "review" ? `review: ${r.review.causes.join(", ")}` : r.review.state)}</span>` +
+  return `<span class="chip s-${r.review.state}">${esc(r.review.state === "review" ? `to review: ${r.review.causes.map(c => SHORT[c] || c).join(", ")}` : r.review.state)}</span>` +
     each("chip", r).join("") +
     (trusted(r) ? `<span class="chip s-trusted" title="a hypothesis of root_impl: trusted, not proven">trusted</span>` : "") +
     (n.status && n.status !== "proven" ? `<span class="chip s-${n.status}">${esc(n.status)}</span>` : "") +
@@ -318,6 +318,8 @@ function renderHeader() {
 const go = id => `<a data-goto="${esc(id)}">${esc(id)}</a>`;
 const when = at => new Date(at).toLocaleString();
 const VERB = { accept: "accepted", confirm: "confirmed", reject: "rejected", revisit: "asked to revisit", remove: "agreed gone" };
+const SHORT = { self: "it changed", above: "above it changed", parts: "its parts changed", code: "its code changed",
+  revisit: "asked to revisit", merged: "kept from two branches" };
 const CAUSE = { self: "it changed", above: "the meaning of what it rests on changed", parts: "its parts changed", code: "the code it governs changed",
   revisit: "a change elsewhere may affect it", merged: "two branches decided it and both were kept" };
 const line = r => `<div class="small"><span class="kind ${kindOf(r)}">${esc(kindOf(r))}</span> <b>${go(r.node.id)}</b> <span class="chip s-${r.review.state}">${esc(r.review.state)}</span> ${esc(C(r).statement)}</div>`;

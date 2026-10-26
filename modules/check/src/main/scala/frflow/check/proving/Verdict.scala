@@ -105,8 +105,8 @@ object Verdict:
     * message about the proof is left out, the step being false.
     */
   def refuted(r: Result, c: Refutation.Candidate): Result =
-    r.copy(detail = s"$Refuted: ${c.shown}: ${c.what}\nLean proves the step false on it")
-  private val Refuted = "the step from its parts does not hold"
+    r.copy(detail = s"$Refuted on ${c.shown}:\n${c.what}; Lean confirms this case")
+  private val Refuted = "the contract does not give this claim"
   def isRefuted(r: Result): Boolean = r.detail.startsWith(Refuted)
 
   /** Lean's message gives a counterexample (omega's constraints, a model, `decide` evaluating to false): the step it

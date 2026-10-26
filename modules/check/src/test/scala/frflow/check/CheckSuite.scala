@@ -154,7 +154,7 @@ class CheckSuite extends munit.FunSuite:
       .refines(doubles).examples(allows(BigInt(1), BigInt(3), "one"), forbids(BigInt(1), BigInt(2), "not two"))
     val kb = KnowledgeBase("Twice")(doubles, one)
     val found = Refutation.candidate(kb, doubles, identity).getOrElse(fail("no case found"))
-    assertEquals((found.shown, found.what), ("x = 0", "the contract gives 1, which the claim refuses"))
+    assertEquals((found.shown, found.what), ("x = 0", "the contract gives 1, which the claim forbids"))
     assert(found.lean.contains("theorem refutes : ¬ Twice.Doubles.Obl.complete := by") && found.lean.contains("have h := h 0"), found.lean)
     // a contract that only bounds its result gives no answer to try
     val bounded = Node.contract("Doubling gives at least the number.", why = "w")(forall((x: Term[BigInt]) => double(x) >= x))
@@ -162,7 +162,7 @@ class CheckSuite extends munit.FunSuite:
     assertEquals(Refutation.candidate(KnowledgeBase("Twice")(doubles, bounded), doubles, identity), None)
     // on the step's line: the case, then the hint to look at the change first
     val r = Verdict.refuted(Result(ObligationName.Complete, ObligationStatus.Open, "omega could not prove the goal"), found)
-    assertEquals(r.detail, "the step from its parts does not hold: x = 0: the contract gives 1, which the claim refuses\nLean proves the step false on it")
+    assertEquals(r.detail, "the contract does not give this claim on x = 0:\nthe contract gives 1, which the claim forbids; Lean confirms this case")
     val g = Generate(shelfKb)
     assertEquals(Verdict.obligations(g, onlyGood, List(r), List(r), Nil, proofFile = true, changed = List("overlaps")).flatMap(_.hint),
       Some("check the change to overlaps: with it, the contract no longer gives the claim"))

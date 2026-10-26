@@ -22,7 +22,7 @@ object Lines:
     if c.why.trim.isEmpty then Nil else st.wrap(s"why: ${c.why}", room).map(l => "  " + st.dim(l))
 
   def state(r: Reviewed): String =
-    if r.state == ReviewState.Review then s"review: ${r.review.causes.mkString(", ")}" else r.state.toString
+    if r.state == ReviewState.Review then s"to review: ${r.review.causes.map(Words.cause).mkString(", ")}" else r.state.toString
 
   /** Its kind unless a claim, its review state unless accepted, and the word a layer on top shows beside it (`mark`). */
   def marks(r: Reviewed, st: Style, mark: Option[String] = None): String =

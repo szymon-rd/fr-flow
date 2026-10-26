@@ -84,7 +84,7 @@ class ErrorsSuite extends munit.FunSuite:
         forbids(BigInt(1), World(VaultModel -> BigInt(0)), (), World(VaultModel -> BigInt(1)), "not the first"))
     val kb = KnowledgeBase("Twice", idea = "IDEA.md")(vaultKept, c).implementProven(c)((n: Term[BigInt]) => vault.put(n) *> vault.put(n + 1))
     val half = kb.exampleResults(c).filter(_.example.note.contains("call 2"))
-    assertEquals(half.map(_.contract), List("the run fails with Down and leaves World(VaultModel = 1), which the contract refuses"))
+    assertEquals(half.map(_.contract), List("the run fails with Down and leaves World(VaultModel = 1), which the contract forbids"))
   }
 
   /** The three interpretations: on the model with faults, on the vault's code now, and on it in SyncIO. Each gives the

@@ -33,7 +33,7 @@ class TestingSuite extends munit.FunSuite:
     // One book, at the length asked, the rest as small as the generator allows; the inputs by the contract's names, the
     // result said once, by why it fails.
     assert(f.shown.matches("""shelf = List\(Book\("", (-?\d+)\)\), n = 0, given minPages = \1"""), f.shown)
-    assertEquals(f.why, "returned List(), which Pick refuses")
+    assertEquals(f.why, "returned List(), which Pick forbids")
   }
 
   test("the same seed gives the same cases; a failing case replays first") {

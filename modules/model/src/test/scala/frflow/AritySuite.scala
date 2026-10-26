@@ -17,7 +17,7 @@ class AritySuite extends munit.FunSuite:
     assertEquals(clampKb.implement(clamp)(x => x.max(0)).testedWith(settings).test(clamp).flatMap(_.failure), None)
     val f = clampKb.implement(clamp)(x => x.abs).testedWith(settings).test(clamp).flatMap(_.failure).getOrElse(fail("the bug was not found"))
     assertEquals(f.shown, "x = -1")
-    assert(f.why.contains("Clamp refuses"), f.why)
+    assert(f.why.contains("Clamp forbids"), f.why)
     // the service: a function of one input, every result checked
     assertEquals(kb.service(clamp)()(BigInt(-2)), BigInt(0))
     intercept[ContractViolation](clampKb.implement(clamp)(x => x).service(clamp)()(BigInt(-2)))
@@ -35,7 +35,7 @@ class AritySuite extends munit.FunSuite:
     val f = bad.testedWith(settings).test(grant).flatMap(_.failure).getOrElse(fail("the bug was not found"))
     assert(f.shown.matches("""acl = List\("[^"]*"\), by = "[^"]*", who = "[^"]*""""), f.shown)
     assert(f.why.startsWith("returned List()"), f.why)
-    assert(f.why.contains("Grant refuses"), f.why)
+    assert(f.why.contains("Grant forbids"), f.why)
     val s = kb.service(grant)()
     assertEquals(s(List("ann"), "ann", "bob"), List("ann", "bob"))
     intercept[ContractViolation](bad.service(grant)()(List("ann"), "eve", "bob"))
@@ -50,7 +50,7 @@ class AritySuite extends munit.FunSuite:
     assertEquals(pickBetween.broken(List(shelf, 0, 100), shelf), None)
     // a generated call breaking it is found
     val off = betweenKb.implement(pickBetween)((s, lo, hi) => List(Book("C", lo))).testedWith(settings).test(pickBetween)
-    assert(off.flatMap(_.failure).exists(f => f.why.contains("PickBetween refuses") || f.why.contains("InStock")), off)
+    assert(off.flatMap(_.failure).exists(f => f.why.contains("PickBetween forbids") || f.why.contains("InStock")), off)
   }
 
   test("a flow of two inputs: its examples run on the models and on an implementation") {

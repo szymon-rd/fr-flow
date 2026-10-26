@@ -1,8 +1,9 @@
 + LetsIn  A request with a grant for the path is admitted.
-`- + Decide  contract  review: self  A request is admitted on behalf of the user its token was is...
+`- + Decide  contract  to review: it changed  A request is admitted on behalf of the user its tok...
    `- - Memory  design  Sessions and grants are kept in memory.
 
 Sample: 9 nodes, 5 accepted, 2 to review, 1 proposed, 1 rejected
 splits 3/3 proven, contracts 0/1 proven down to their code, examples 2/2 agree in Lean, trusted:
   StoreKeeps, 2 with something unproven
 Waiting: 3 for the developer (1 mechanical: confirm)
+marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! what to do

@@ -58,7 +58,7 @@ final class Obligations(kb: KnowledgeBase, refinement: Refinement, coverage: Cov
       val (p, po) = app(qualified(n, "post"), ctx(post))
       val (c, cc) = app(qualified(n, "runCheck"), ctx(l))
       Obligation(Check, stated(po ++ cc, Nil, s"∀ $vars, $p $xs → $c $xs"),
-        s"What service checks of ${n.id} on every call follows from its post: it refuses nothing the contract allows.")
+        s"What service checks of ${n.id} on every call follows from its post: it forbids nothing the contract allows.")
 
   private def covers(n: Node[?]): List[Obligation] = formalKeeps(n).flatMap { (inv, _) =>
     coverage.coverage(n, inv).toOption.flatten.map((stmt, o) => Obligation(Cover(inv.id), stated(o, Nil, stmt),

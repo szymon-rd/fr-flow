@@ -148,7 +148,7 @@ private[frflow] object Testing:
             calledOps ++= read.filter(kb.isOp)
             def onContract = Try(watch.fold(post(ins, r))(Watch.within(_)(post(ins, r)))) match
               case Success(true)  => None
-              case Success(false) => Some(s"returned ${Example.show(r)}, which ${n.id} refuses")
+              case Success(false) => Some(s"returned ${Example.show(r)}, which ${n.id} forbids")
               case Failure(e: NotExecutable) => Some(s"${n.id} cannot be run here: ${e.getMessage}")
               case Failure(e)     => Some(s"${n.id} could not be evaluated: ${Option(e.getMessage).getOrElse(e.toString)}")
             val unlike = reference.flatMap((name, f) => Try(Fn.call(f, ins)).toOption.filterNot(same(_, r))

@@ -65,7 +65,7 @@ private[frflow] object ExampleRuns:
           case (scala.util.Failure(x), _) => Some(s"error on the models: ${x.getMessage}")
           case (scala.util.Success(m), scala.util.Success(y)) =>
             if racing then Option.when(!Bindings.within(e.bindings)(Try(post(args :+ before, y)).getOrElse(false)))(
-              s"run ${i + 1} on $name gives ${Example.show(y)}, which the contract refuses")
+              s"run ${i + 1} on $name gives ${Example.show(y)}, which the contract forbids")
             else Option.when(m != y)(s"run ${i + 1} on $name, its branches interleaved, gives ${Example.show(y)}, where the models (the branches in turn) give ${Example.show(m)}")
       }).getOrElse("ok")
       ExampleResult(e.copy(note = s"${e.note}, its branches at once ($InterleavedRuns runs on fibers, interleaved, on $name)"), "ok", Some(verdict))
@@ -96,8 +96,8 @@ private[frflow] object ExampleRuns:
       val name = used.map((_, i) => ModelTests.implName(i)).mkString(" and ")
       val onContract = model match
         case scala.util.Success(r @ (Failed(err), w)) =>
-          if post(args :+ before, r) then "ok" else s"the run fails with ${Example.show(err)} and leaves $w, which the contract refuses"
-        case scala.util.Success(r) => if post(args :+ before, r) then "ok" else s"the run gives ${Example.show(r)}, which the contract refuses"
+          if post(args :+ before, r) then "ok" else s"the run fails with ${Example.show(err)} and leaves $w, which the contract forbids"
+        case scala.util.Success(r) => if post(args :+ before, r) then "ok" else s"the run gives ${Example.show(r)}, which the contract forbids"
         case scala.util.Failure(x) => s"error on the models: ${x.getMessage}"
       def held(w: World): World = used.foldLeft(w)((acc, x) => acc.updated(x._1.model, x._2.read(x._2.start(acc(x._1.model.asInstanceOf[StateModel[Any]])))))
       val real = Bindings.within(e.bindings)(Try {

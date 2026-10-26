@@ -1,4 +1,4 @@
-+ Decide  contract on admit  review: self
++ Decide  contract on admit  to review: it changed
   A request is admitted on behalf of the user its token was issued to, exactly when a grant names
   them and the path.
   why: One call meets both rules at once.

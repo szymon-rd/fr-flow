@@ -22,6 +22,15 @@ object Words:
     Cause.Parts -> "its parts changed", Cause.Code -> "the code it governs changed", Cause.Revisit -> "a change elsewhere may affect it",
     Cause.Merged -> "two branches decided it and both were kept")
 
+  /** Why a node waits for review, in a few words: `to review: it changed, its code changed`. */
+  def cause(c: Cause): String = c match
+    case Cause.Self    => "it changed"
+    case Cause.Above   => "above it changed"
+    case Cause.Parts   => "its parts changed"
+    case Cause.Code    => "its code changed"
+    case Cause.Revisit => "asked to revisit"
+    case Cause.Merged  => "kept from two branches"
+
   def decided(l: Logged): String =
     val d = l.decision
     s"${d.action} ${l.node}${if d.rejected.isEmpty then "" else s", rejecting ${d.rejected.mkString(", ")}"}"

@@ -45,4 +45,9 @@ object SummaryText:
     val head = if s.nodes > 0 then List(s"${st.bold(s.name)}: ${s.nodes} nodes${sep}${counts.mkString(sep)}", proofs.mkString(sep))
       else List(s"${st.bold(s.name)}: no nodes yet") ++ start
     (head :+ (if waits.isEmpty then (if s.complete then st.green(s"Nothing waits: every node is accepted and proven${if s.tested.isEmpty then "" else ", or its code tested"}.") else "Nothing waits for a decision.")
-      else s"Waiting: ${waits.mkString(sep)}")).flatMap(Lines.para(_, st, indent = 0))
+      else s"Waiting: ${waits.mkString(sep)}")).flatMap(Lines.para(_, st, indent = 0)) ++ Option.when(s.nodes > 0)(legend(st))
+
+  /** What the marks before the nodes say, on one line. */
+  def legend(st: Style): String =
+    st.dim("marks: ") + List(st.proven -> "proven or tested", st.failed -> "fails", st.open -> "not proven",
+      "?" -> "not checked yet", st.dim(st.dot) -> "nothing to prove", "!" -> "what to do").map((m, w) => s"$m ${st.dim(w)}").mkString("  ")

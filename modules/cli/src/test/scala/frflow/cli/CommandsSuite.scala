@@ -63,12 +63,12 @@ class CommandsSuite extends munit.CatsEffectSuite:
   }
 
   test("check: a contract whose code fails a generated case reads failed, with the case, shrunk") {
-    val failure = TestFailure("token = \"t1\", path = Path(\"/b\")", "returned Some(UserId(\"alice\")), which Decide refuses", 1, 0, 1)
+    val failure = TestFailure("token = \"t1\", path = Path(\"/b\")", "returned Some(UserId(\"alice\")), which Decide forbids", 1, 0, 1)
     val failing = CheckedNode(NodeId("Decide"), CheckStatus.Proven, Nil, Nil, Nil, None, Nil, None, Some(failure))
     FakeApi().flatMap(_.view).map { v =>
       val text = ReportText.check(CheckReport(List(failing), v, Overview.of(v)), st)
       assertEquals(text.take(2), List("x Decide: failed",
-        "  its code fails a generated case: token = \"t1\", path = Path(\"/b\"): returned Some(UserId(\"alice\")), which Decide refuses"))
+        "  its code fails a generated case: token = \"t1\", path = Path(\"/b\"): returned Some(UserId(\"alice\")), which Decide forbids"))
       assert(!CheckReport(List(failing), v, Overview.of(v)).ok)
     }
   }
@@ -87,12 +87,12 @@ class CommandsSuite extends munit.CatsEffectSuite:
   }
 
   test("check: code failing a contract that changed under it says the contract changed, on the node's line") {
-    val failure = TestFailure("held = List(Booking(\"Oak\", 12, 17)), request = Booking(\"Oak\", 0, 12)", "returned true, which Decide refuses", 1, 0, 1)
+    val failure = TestFailure("held = List(Booking(\"Oak\", 12, 17)), request = Booking(\"Oak\", 0, 12)", "returned true, which Decide forbids", 1, 0, 1)
     val moved = CheckedNode(NodeId("Decide"), CheckStatus.Proven, Nil, Nil, Nil, None, Nil, None, Some(failure), contractChanged = true)
     FakeApi().flatMap(_.view).map { v =>
       val text = ReportText.check(CheckReport(List(moved), v, Overview.of(v)), st).takeWhile(_.nonEmpty)
       assertEquals(text, List("x Decide: the contract changed and its code no longer meets it: held = List(Booking(\"Oak\", 12, 17)), " +
-        "request = Booking(\"Oak\", 0, 12): returned true, which the contract now refuses"))
+        "request = Booking(\"Oak\", 0, 12): returned true, which the contract now forbids"))
       assert(!moved.ok)
     }
   }

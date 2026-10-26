@@ -241,8 +241,8 @@ object Node:
               val ok = post(ins, r)
               assumes.find(x => x.reads.forall(p => e.bindings.exists(_.param.name == p)) && !x.holds()) match
                 case Some(x)                   => s"the values it gives break the assumption ${x.what}"
-                case None if ok != e.expected => if e.expected then "the contract refuses it" else "the contract accepts it"
-                case None if e.expected        => n.broken(ins, r).fold("ok")(i => s"the invariant $i refuses it")
+                case None if ok != e.expected => if e.expected then "the contract forbids it" else "the contract allows it"
+                case None if e.expected        => n.broken(ins, r).fold("ok")(i => s"the invariant $i forbids it")
                 case None                      => "ok"
             })
             def returned(got: Any): String =

@@ -8,7 +8,7 @@ recorded, signed by dev:
   - confirm Root
 
 --- 2 waiting ---
-+ Decide  contract on admit  review: self
++ Decide  contract on admit  to review: it changed
   A request is admitted on behalf of the user its token was issued to, exactly when a grant names
   them and the path.
   why: One call meets both rules at once.
@@ -30,7 +30,7 @@ Decision
 [a]ccept [s]kip [v]iew [q]uit [n]ote: v
 
 --- 2 waiting ---
-+ Decide  contract on admit  review: self
++ Decide  contract on admit  to review: it changed
   A request is admitted on behalf of the user its token was issued to, exactly when a grant names
   them and the path.
   why: One call meets both rules at once.
@@ -106,3 +106,4 @@ Sample: 9 nodes, 7 accepted, 1 to review, 1 rejected
 splits 3/3 proven, contracts 0/1 proven down to their code, examples 2/2 agree in Lean, trusted:
   StoreKeeps, 2 with something unproven
 Waiting: 1 for the developer
+marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! what to do

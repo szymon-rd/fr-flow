@@ -14,7 +14,7 @@ Formally (as written in Scala)
       now.isBefore(at.plus(hour)))))
 
 Where it sits
-  part of    + Root  review: parts  with NeedsGrant, LetsIn, Forever  A user gets access to a res...
+  part of    + Root  to review: its parts changed  with NeedsGrant, LetsIn, Forever  A user gets...
 
 Proofs
   check: open

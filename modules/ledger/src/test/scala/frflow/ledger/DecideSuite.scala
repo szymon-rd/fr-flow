@@ -52,18 +52,18 @@ class DecideSuite extends munit.FunSuite:
 
   test("a node whose code fails an example or a generated case is not accepted, with the reason; it may be rejected") {
     val example = ExampleView("back to back", Nil, "(9, 10)", expected = true, fails = None, codeFails = Some("returned false"), None, None)
-    val failure = TestFailure("held = List(), request = 3", "returned false, which R refuses", 1, 0, 1)
+    val failure = TestFailure("held = List(), request = 3", "returned false, which R forbids", 1, 0, 1)
     val withExample = replacing(shelf, r.copy(examples = List(example)))
     val withCase = replacing(shelf, r.copy(tested = Some(TestReport(1000, 1, "R", Some(failure)))))
     assertEquals(decide(withExample, Ledger.empty, accept("R")), Left(ExamplesFail(id("R"), 1)))
-    assertEquals(decide(withCase, Ledger.empty, accept("R")), Left(CodeFails(id("R"), "held = List(), request = 3: returned false, which R refuses")))
+    assertEquals(decide(withCase, Ledger.empty, accept("R")), Left(CodeFails(id("R"), "held = List(), request = 3: returned false, which R forbids")))
     assert(CodeFails(id("R"), failure.line).message.startsWith("R: its code fails a generated case: held = List(), request = 3: returned false"))
     assert(decide(withCase, Ledger.empty, Decide.Reject(id("R"), "it refuses free rooms")).isRight)
     // decided, then its meaning changed while the code did not: the contract is what moved
     val decided = acceptAll(shelf)
     val restatedCase = replacing(shelf, restated(r, "Readers find every book, at once.").copy(tested = Some(TestReport(1000, 1, "R", Some(failure)))))
     assertEquals(decide(restatedCase, decided, accept("R")),
-      Left(ContractChanged(id("R"), "held = List(), request = 3: returned false, which the contract now refuses")))
+      Left(ContractChanged(id("R"), "held = List(), request = 3: returned false, which the contract now forbids")))
     assert(ContractChanged(id("R"), "x").message.startsWith("R: the contract changed and its code no longer meets it: x"))
     // one of several refused: its name said once
     assertEquals(Within(id("R"), ContractChanged(id("R"), "x")).message, ContractChanged(id("R"), "x").message)

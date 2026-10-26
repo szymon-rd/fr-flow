@@ -15,7 +15,7 @@ final case class TestFailure(shown: String, why: String, seed: Long, index: Int,
     if contractChanged then s"the contract changed and its code no longer meets it: ${against(id)}"
     else s"its code fails a generated case: $line"
 
-  /** The case and why it fails, the contract that refuses it being the one that changed. */
+  /** The case and why it fails, the contract that forbids it being the one that changed. */
   def against(id: String): String =
-    val now = why.replace(s"which $id refuses", "which the contract now refuses")
+    val now = why.replace(s"which $id forbids", "which the contract now forbids")
     if shown.isEmpty then now else s"$shown: $now"
