@@ -9,16 +9,21 @@ the examples are in `rules.md`.
 - **H (high)**: the design is wrong in a way that spreads. The fix changes a
   type or a dependency, and callers change with it. Examples: a union of
   concepts in one type (D1), an illegal state the types allow (D2), duplicated
-  state (D3), a core package depending on an interpreter or on `IO` (B3, E1), a
-  side effect outside `IO` (E3), an unreleased resource (E4), shared mutable
-  state outside a `Ref` (E5), exceptions as control flow in the core (F9), a
-  flattened view of a union (V2), a builder that accepts calls it must then
-  reject (S2).
+  state (D3), a core package depending on an interpreter or on `cats.effect`
+  (B3, E1), a service or boundary written as a concrete class over `IO` (A1,
+  A2), a program that requires `Sync` or `Async` (A3), a side effect outside an
+  interpreter's `delay` or `blocking` (E3), an unreleased resource (E4),
+  shared mutable state outside a `Ref` (E5), `unsafeRun` outside `IOApp` (E6),
+  a type class instance with no law test (T4, X1), an algebra with no law
+  suite (X2), exceptions as control flow (F8), a flattened view of a union
+  (V2), a builder that accepts calls it must then reject (S2).
 - **M (medium)**: a local defect. The fix stays inside one file or one package.
   Examples: a function with several jobs (F1), a budget exceeded by more than
   half (F2), a stringly typed or primitive domain value (D4, D5), `String`
-  errors (R1), visibility wider than its call sites need (M4), missing return
-  types (F5), missing law tests for a core operation (X1).
+  errors (R1), the wrong error channel (R2), a hand-written fold where
+  `traverse` or `foldMap` says it (T1), a domain type missing `Eq`, `Show` or
+  `Order` (T3), a service passed as a given (A4), visibility wider than its
+  call sites need (M4), missing return types (F5).
 - **L (low)**: readability. Examples: a budget exceeded by up to half (a def
   of 21 to 30 lines, a record of 7 to 9 fields), names (F4), comments (C1 to
   C4), line width, package size (M5), one type per file (M3).
@@ -43,14 +48,17 @@ Examples:
 [M] modules/model/src/main/scala/frflow/node/Keep.scala:5 D1 — Keep(view = Some, exempt = "") or Keep(view = None, exempt = reason) → enum Keeping { Kept; Exempt }
 [H] modules/protocol/src/main/scala/frflow/protocol/snapshot/SnapNode.scala:9 V2 — 31 fields, 27 optional or defaulted, one record for every kind → header + enum SnapBody + checks kept apart
 [M] modules/api/src/main/scala/frflow/api/report/Overview.scala:9 V3 — 30 counts in one record → ReviewCounts, ProofCounts, TestCounts, RunCheckCounts
-[H] modules/model/src/main/scala/frflow/boundary/Boundary.scala:44 T3 — Conversion[Boundary[T], T] hides an access → explicit .ops
+[H] modules/model/src/main/scala/frflow/boundary/Boundary.scala:44 T6 — Conversion[Boundary[T], T] hides an access → explicit .ops
+[H] modules/ledger/src/main/scala/frflow/ledger/store/JsonStore.scala:15 A1 — the ledger is a concrete class over IO → trait Ledger[F[_]], live Ledger.make[F[_]: Async]: Resource[F, Ledger[F]], InMemoryLedger for tests
+[H] modules/api/src/main/scala/frflow/api/FrFlowApi.scala:9 A1 — the API is a trait over IO → FrFlowApi[F[_]], with IO fixed in the CLI's and web's IOApp
+[M] modules/model/src/main/scala/frflow/LeanPrinter.scala:12 F9 — ten mutable fields and a var depth counter → expr(t, negations): (Lean, Uses) with Monoid[Uses]
 [L] modules/model/src/main/scala/frflow/LeanPrinter.scala:1 Z — 341 non-blank lines (budget 200) → split by what is printed
 ```
 
 Report a finding only after reading the code. `measure.py` and the greps point
 at places to look and are not findings in themselves. Do not report the same
 cause twice: if `Node` is a union (D1), its optional fields (D7) and its
-`require`s (D2, F8) belong to that one finding, listed as evidence.
+`require`s (D2, F7) belong to that one finding, listed as evidence.
 
 ## Pass 0: measurements
 
@@ -60,9 +68,13 @@ Run from the repository root:
 python3 -I .claude/skills/scala-fp/references/measure.py modules/<m>/src/main/scala          # over budget
 python3 -I .claude/skills/scala-fp/references/measure.py modules/<m>/src/main/scala --summary
 grep -rn "asInstanceOf\|isInstanceOf" modules/<m>/src/main --include=*.scala                    # D11
-grep -rn "throw \|require(\|\.get\b\|\.head\b\|\.last\b" modules/<m>/src/main --include=*.scala   # F3 F8 F9
-grep -rn "AtomicReference\|\bvar \|mutable\.\|unsafeRun" modules/<m>/src/main --include=*.scala  # E5 E6 F10
-grep -rn "Conversion\[\|implicit \|given " modules/<m>/src/main --include=*.scala                # T1 to T3
+grep -rn "throw \|require(\|\.get\b\|\.head\b\|\.last\b" modules/<m>/src/main --include=*.scala   # F3 F7 F8
+grep -rn "AtomicReference\|\bvar \|mutable\.\|unsafeRun" modules/<m>/src/main --include=*.scala  # E5 E6 F9
+grep -rn "Conversion\[\|implicit \|given " modules/<m>/src/main --include=*.scala                # T3 to T7
+grep -rln "cats.effect.IO\b\|: IO\[\|IO\.\(blocking\|delay\|pure\)" modules/<m>/src/main --include=*.scala  # A1 A5: concrete IO
+grep -rn "F\[_\]: *\(Sync\|Async\|LiftIO\)" modules/<m>/src/main --include=*.scala            # A2 A3: only in interpreters
+grep -rn "given .*\(Eq\|Order\|Show\|Semigroup\|Monoid\|Functor\|Traverse\)\[" modules/<m>/src/main --include=*.scala  # T3 T4
+grep -rln "checkAll(" modules/<m>/src/test --include=*.scala                                    # X1: law suites present
 grep -rn "Instant.now\|System.currentTimeMillis\|Random\|UUID.random" modules/<m>/src/main --include=*.scala  # E7
 grep -rn "private\[frflow\]" modules/<m>/src/main --include=*.scala | wc -l                    # M4
 grep -rh "^import frflow\." modules/<m>/src/main --include=*.scala \
@@ -111,7 +123,8 @@ finding under the rule given.
 3. Can the type hold a value the domain forbids? Look for `require`, `throw`,
    `case _ =>`, `.get` and `assert` that reject combinations. (D2, F3)
 4. Is any field derivable from others, or stored again elsewhere? (D3)
-5. Are ids, paths, hashes, positions and quantities their own types? (D4)
+5. Is every domain value its own type, with `Eq`, `Show` (and `Order` when
+   ordered) in its companion? (D4, T3)
 6. Is it a `final case class` or `enum`? Is a plain class justified by an
    internal invariant? (D12)
 7. Are `Any`, `?` and casts kept out of its signatures? (D11)
@@ -133,35 +146,60 @@ finding under the rule given.
 15. If it is public or `private[pkg]`, does it have a return type? (F5)
 16. Are its defaults limited to optional settings on a published entry point?
     (F6)
-17. Is `require` used only for FrFlow bugs? (F8)
+17. Is `require` used only for FrFlow bugs? (F7)
+
+**Architecture** (for each service, boundary or program)
+
+18. Is each effectful service or boundary an algebra `X[F[_]]` over domain
+    types, with at most 8 operations? (A1)
+19. Are its interpreters built by `make` (live in the companion, others in their
+    own files), returning `F[X[F]]` or `Resource[F, X[F]]`? Does each algebra
+    have an in-memory interpreter? (A2)
+20. Does each program require only the capabilities it uses, and never `Sync`,
+    `Async` or `LiftIO`? (A3)
+21. Are algebras passed explicitly and capabilities as context bounds? (A4)
+22. Is `IO` fixed only in `IOApp`, wiring and tests, or with a stated reason?
+    (A5)
+23. For a DSL concept: is the encoding initial where FrFlow inspects it and
+    final where it is only run? (A6)
 
 **Effects and errors**
 
-18. If this is a core package, is it free of `IO`, the clock, files and logging?
-    (E1)
-19. Is every side effect inside `IO.delay`, `IO.blocking` or `IO.async`? Is
-    every acquired thing a `Resource`? (E3, E4)
-20. Is mutable state a `Ref`, or a commented `AtomicReference` in synchronous
-    user-called code? Does `unsafeRun` appear outside the entry point? (E5, E6)
-21. Are the errors an ADT? Are they converted where they cross a module, and
-    rendered only in `cli` and `web`? (R1 to R4)
-22. Is `F[_]` used only where at least two interpreters exist? (E8)
+24. If this is a core package, does it take no `F` and perform no effect? (E1)
+25. Are side effects suspended only in interpreters (`delay`, `blocking`,
+    `async`)? Is every lifecycle a `Resource`? (E3, E4)
+26. Is state a `Ref`, signalling a `Deferred`, queueing a `Queue`, and
+    incremental data a `Stream`? Is any `AtomicReference` in synchronous
+    user-called code, with a comment? Does `unsafeRun` appear outside `IOApp`
+    or the one named bridge? (E5, E6)
+27. Do time, randomness and ids come from `Clock`, `Random` and `UUIDGen`? (E7)
+28. Are the errors an ADT, in the channel that fits who handles them, mapped
+    in interpreters and rendered only in `cli` and `web`? (R1 to R4)
 
-**Givens, modules, DSL, views**
+**Instances and laws**
 
-23. Is each given canonical, in a companion, and the only instance for its
-    type? Are conversions limited to literal lifting? (T1 to T3)
-24. Is visibility as narrow as the call sites allow? (M4)
-25. For a DSL entry point: does it return the precise case? Does it only build
+29. Is structure written with cats (`traverse`, `foldMap`, `mapN`,
+    `parTraverse`), and combination with a `Monoid`? (T1, T2)
+30. Is each given canonical, lawful, in a companion, and law-tested with
+    `checkAll`? (T3 to T5, X1)
+31. Are conversions limited to literal lifting, and `using` to type classes,
+    capabilities and witnesses? (T6, T7)
+32. Does each algebra have a law suite that every interpreter runs? (X2)
+
+**Modules, DSL, views**
+
+33. Is visibility as narrow as the call sites allow? (M4)
+34. For a DSL entry point: does it return the precise case? Does it only build
     data? Is its inline part short? (S2 to S4)
-26. For a view or DTO: is it built by one function, does it keep the domain's
+35. For a view or DTO: is it built by one function, does it keep the domain's
     unions, are its fields grouped, and does it stay free of display text?
     (V1 to V5)
 
 **Comments**
 
-27. Does each public member have Scaladoc in domain words? Are the comments free
-    of history and of defences of the obvious? (C1 to C4)
+36. Does each public member have Scaladoc in domain words, with the laws of
+    each operation of an algebra or instance? Are the comments free of history
+    and of defences of the obvious? (C1 to C4)
 
 ## Pass 3: summary
 
@@ -174,7 +212,10 @@ After the findings, write:
 3. **Concepts to rebuild**: each core type that needs a new theory, with its
    two-sentence statement and the findings it resolves. These are the inputs to
    `refactoring.md`, step 2.
-4. **Deletions**: features, fields and functions that nothing uses, or that
+4. **Algebras to introduce**: each service or boundary written over `IO` today
+   (the ledger store, git, `lake`, the disk, `FrFlowApi`), with its operations,
+   its laws and the interpreters it needs.
+5. **Deletions**: features, fields and functions that nothing uses, or that
    duplicate another, to remove first (`refactoring.md`, step 5).
 
 ## Reviewing a diff

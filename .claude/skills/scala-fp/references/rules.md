@@ -70,12 +70,13 @@ node match
 
 Source: King, "Avoid denormalized representations of data".
 
-### D4 Opaque types for ids, paths, hashes, quantities
+### D4 Every domain value its own type, with its instances
 
 ```scala
-// bad
+// bad: paths as strings, and three Strings in a row that a caller can swap without a compile error
 val governs: List[String] = Nil   // file paths
 val file: String = ""             // the file the node is written in
+Node(id: String, statement: String, why: String, ...)
 ```
 
 ```scala
@@ -86,15 +87,20 @@ object RelPath:
     val p = java.nio.file.Path.of(s).normalize
     Either.cond(!p.isAbsolute && !p.startsWith(".."), p.toString, PathError.OutsideRoot(s))
   extension (p: RelPath) def under(root: java.nio.file.Path): java.nio.file.Path = root.resolve(p)
+  given Eq[RelPath] = Eq.fromUniversalEquals
+  given Order[RelPath] = Order.fromComparable[String]
+  given Show[RelPath] = Show.fromToString
 
+opaque type StatementText = String   // and `Why`, so the two cannot be swapped
 final case class SourcePos(file: RelPath, line: Int)
 ```
 
-`NodeId`, `Hash`, `KeyId` and `Fingerprint` in `protocol` already follow this rule.
+`NodeId`, `Hash`, `KeyId` and `Fingerprint` in `protocol` are opaque types
+already, and still need their `Eq`, `Show` and `Order` instances (T3).
 
-Source: Scala 3 reference, "Opaque type aliases"; Li Haoyi, "Practical Type
-Safety" (box integer ids, avoid strings in favour of structured data); Volpe,
-*Practical FP in Scala* (newtypes).
+Source: Volpe, *Practical FP in Scala* (a newtype for every domain value, with
+derived instances); Scala 3 reference, "Opaque type aliases"; Li Haoyi,
+"Practical Type Safety" (box ids, structured data instead of strings).
 
 ### D5 No stringly typed data, no sentinels
 
@@ -260,7 +266,7 @@ extension [F](n: Node[F]) private[frflow] def enforce(impl: F, ...)(bindings: Bi
 ```scala
 // good: one interpreter per package, each depending on node
 package frflow.example: object ExampleCheck { def results(c: Node.Contract, impl: Option[Impl]): List[ExampleResult] }
-package frflow.runtime: object Enforce     { def wrap[F](c: Node.Contract, impl: F, plan: RunPlan): F }
+package frflow.runtime: object Enforce     { def wrap[Op](c: Node.Contract, impl: Op, plan: RunPlan): Op }
 ```
 
 Source: Ghosh; Volpe (algebras, interpreters, programs); Bernhardt.
@@ -313,11 +319,527 @@ n.copy(runCheck = Some(RunCheck.Sampled(100)))
 
 ```scala
 // good: the wiring says how each contract is checked where it runs
-final case class RunPlan(checks: Map[NodeId, RunCheck], report: Violation => IO[Unit])
+final case class RunPlan(checks: Map[NodeId, RunCheck], report: Violation => Unit)   // the wrapper runs inside the user's synchronous code
 ```
 
 Source: Bernhardt (values at the boundary, the shell decides how to run);
 Wlaschin, DMMF (workflows take their dependencies as parameters).
+
+## Architecture: algebras, interpreters, programs, modules
+
+### A1 Services and boundaries are algebras
+
+```scala
+// bad: a concrete class over IO, so every caller is tied to the file system and to IO
+final class JsonStore[A: Decoder] private (file: Path, empty: A, print: A => String, lock: FileLock):
+  def load: IO[A]
+  def update[E, B](f: A => Either[E, (A, B)]): IO[Either[E, B]]
+```
+
+```scala
+// good: what the ledger is to its users, in domain types, over any F
+/** The developer's recorded decisions.
+  * Laws: `record(d)` then `decisions` contains `d`; a refused record leaves `decisions` unchanged.
+  */
+trait Ledger[F[_]]:
+  def decisions: F[List[Decision]]
+  def record(d: Decision): F[Either[Refusal, Recorded]]
+```
+
+The same applies to `Git`, `Lake` (Lean's build tool) and `FrFlowApi`, which today
+return `IO`.
+
+Source: Volpe, *Practical FP in Scala* (algebras: `trait Brands[F[_]]`);
+Ghosh (the algebra of a module); Effective Scala (short, orthogonal traits).
+
+### A2 Interpreters built by smart constructors
+
+```scala
+// bad: construction is a side effect that happens outside F
+val lock = new FileLock(file)   // opens the lock file
+val ledger = new FileLedger(file, lock)
+```
+
+```scala
+// good: the live interpreter is the companion's `make`, and holds its lock as a Resource
+object Ledger:
+  def make[F[_]: Async](file: Path): Resource[F, Ledger[F]] =
+    FileLock.make[F](file).map(lock => FileLedger(file, lock))
+
+// another interpreter, in its own file, for tests and dry runs; a Ref needs only Concurrent
+final class InMemoryLedger[F[_]] private (ref: Ref[F, List[Decision]]) extends Ledger[F]:
+  def decisions: F[List[Decision]] = ref.get
+  def record(d: Decision): F[Either[Refusal, Recorded]] =
+    ref.modify(ds => if ds.exists(_.node === d.node) then (ds, Left(Refusal.Twice(d.node))) else (d :: ds, Right(Recorded(d))))
+object InMemoryLedger:
+  def make[F[_]: Concurrent]: F[Ledger[F]] = Ref.of[F, List[Decision]](Nil).map(InMemoryLedger(_))
+```
+
+Source: Volpe (`Brands.make[F[_]: GenUUID: MonadCancelThrow](postgres: Resource[F, Session[F]])`);
+cats-effect, "Resource" and "Ref".
+
+### A3 Programs ask for the least capability
+
+```scala
+// bad: Sync lets the program do anything, so its type says nothing
+def accept[F[_]: Sync](ledger: Ledger[F], keys: Keys[F])(id: NodeId, by: Developer): F[Either[Refusal, Decided]]
+```
+
+```scala
+// good: the program composes algebras; it can sequence and read the clock, and nothing else
+def accept[F[_]: Monad: Clock](ledger: Ledger[F], keys: Keys[F])(id: NodeId, by: Developer): F[Either[Refusal, Decided]] =
+  (keys.of(by), Clock[F].realTimeInstant).tupled.flatMap((key, at) => ledger.record(Decision.accept(id, by, key, at)))
+    .map(_.map(Decided(_)))
+```
+
+Source: Volpe (programs: `Checkout[F[_]: Background: Logger: MonadThrow: Retry]`);
+cats-effect, "Type classes" overview (the capabilities in order of increasing
+power, with capturing side effects the most powerful); De Goes ("Sync bloat"),
+answered here by keeping `Sync` out of programs.
+
+### A4 Algebras explicit, capabilities implicit
+
+```scala
+// bad: a service passed as a given, so a reader cannot see which ledger a program uses
+def accept[F[_]: MonadThrow](id: NodeId)(using ledger: Ledger[F]): F[Decided]
+```
+
+```scala
+// good: the algebra is a parameter; a capability is a context bound with a summoner
+def accept[F[_]: MonadThrow: Clock](ledger: Ledger[F])(id: NodeId): F[Decided]
+
+trait Processes[F[_]]:
+  def run(cmd: Command): F[Run.Done]
+object Processes:
+  def apply[F[_]](using p: Processes[F]): Processes[F] = p
+  given [F[_]: Async]: Processes[F] = ...   // one canonical instance
+```
+
+Source: Volpe, "Implicit vs explicit parameters" (`GenUUID[F]`, `Background[F]`
+as capabilities with summoners; services passed explicitly).
+
+### A5 Modules wire; IO is chosen once
+
+```scala
+// bad: IO fixed deep inside, and pieces built wherever they are needed
+final class LiveApi private (kb: KnowledgeBase, ws: Workspace, cfg: Config, lake: Lake, git: Git, ledger: JsonStore[Ledger], ...)
+```
+
+```scala
+// good: each layer has one `make`; the composition root fixes F = IO
+final case class Services[F[_]](ledger: Ledger[F], git: Git[F], lake: Lake[F], disk: Disk[F])
+object Services:
+  def make[F[_]: Async](ws: Workspace): Resource[F, Services[F]] =
+    (Ledger.make[F](ws.ledgerFile), Resource.pure(Git.make[F](ws.root)), Lake.make[F](ws.lean), Resource.pure(Disk.make[F]))
+      .mapN(Services(_, _, _, _))
+
+object Main extends IOApp.Simple:
+  def run: IO[Unit] = Services.make[IO](Workspace.here).use(s => Cli.run(Programs.make(s)))
+```
+
+Source: Volpe (modules `Services`, `Programs`, `HttpApi`, and `Main` as the
+composition root); cats-effect, `IOApp` and "Resource".
+
+### A6 Initial or final encoding
+
+```scala
+// bad: terms as a tagless algebra, so FrFlow cannot print them to Lean, hash them or rewrite them
+trait TermAlg[R[_]]:
+  def lit(v: BigInt): R[BigInt]
+  def add(a: R[BigInt], b: R[BigInt]): R[BigInt]
+```
+
+```scala
+// good: what FrFlow inspects is an ADT; every interpreter is a total fold over it
+enum Term[A]:
+  case Lit(v: A)
+  case Add(a: Term[BigInt], b: Term[BigInt]) extends Term[BigInt]
+object LeanPrinter:  def print[A](t: Term[A]): Lean = ...
+object Eval:         def eval[A](t: Term[A], env: Env): A = ...
+
+// and what is only run stays final: a user's flow, run over models and over real boundaries
+def expireOnce[F[_]: Monad](store: CrmStore[F], now: Instant): F[Unit]
+```
+
+Source: Chiusano and Bjarnason, *FPiS* (a description with separate
+interpreters; algebraic design); Ghosh (algebra and interpreters).
+
+## Type classes, instances and laws
+
+### T1 Structure with cats
+
+```scala
+// bad: a hand-written fold with an accumulator and a mutable builder
+val out = Vector.newBuilder[ExampleResult]
+for e <- n.cases do out += run(e)
+out.result().toList
+```
+
+```scala
+// good
+n.cases.traverse(run)               // F[List[ExampleResult]] when run returns F
+kb.nodes.foldMap(n => Counts.of(n))  // with a Monoid[Counts]
+(load, keys, checks).parMapN(Inputs(_, _, _))
+```
+
+Source: cats documentation, "Traverse", "Foldable", "Parallel".
+
+### T2 Semigroup and Monoid for combining
+
+```scala
+// bad: Overview computed by thirty separate counts over the same list
+contracts = contracts.size, contractsProvenDown = contracts.count(provenDown), examplesInLean = inLean.size, ...
+```
+
+```scala
+// good: one count per node, combined by the Monoid
+final case class ProofCounts(proven: Int, splits: Int, splitsProven: Int)
+object ProofCounts:
+  given Monoid[ProofCounts] = Monoid.instance(ProofCounts(0, 0, 0),
+    (a, b) => ProofCounts(a.proven + b.proven, a.splits + b.splits, a.splitsProven + b.splitsProven))
+  def of(n: SnapNode): ProofCounts = ...
+val proofs = nodes.foldMap(ProofCounts.of)
+```
+
+Source: cats documentation, "Semigroup" and "Monoid".
+
+### T3 Instances in companions
+
+```scala
+// bad: equality by `==` on an opaque String, sorting with an ad hoc Ordering at call sites
+nodes.sortBy(_.id.value)
+if a.id == b.id then ...
+```
+
+```scala
+// good
+opaque type NodeId = String
+object NodeId:
+  def parse(s: String): Either[IdError, NodeId] = ...
+  given Eq[NodeId] = Eq.fromUniversalEquals
+  given Order[NodeId] = Order.by(_.value)
+  given Show[NodeId] = Show.show(_.value)
+  given Ordering[NodeId] = Order[NodeId].toOrdering   // for the standard library's sortBy and sorted
+  extension (id: NodeId) def value: String = id
+
+nodes.sortBy(_.id)
+if a.id === b.id then ...
+```
+
+Source: cats documentation, "Eq", "Order", "Show"; Volpe (instances derived
+for every newtype).
+
+### T4 Canonical, lawful instances
+
+```scala
+// bad: a Monoid whose combine keeps the left side, so it is not associative with its empty for every value
+given Monoid[Content] = Monoid.instance(Content.empty, (a, _) => a)
+```
+
+```scala
+// good: the instance obeys the laws and a law test says so (X1); an unlawful operation is a named function
+given Monoid[Diagnostics] = Monoid.instance(Diagnostics.empty, _ ++ _)
+def preferFirst(a: Content, b: Content): Content = a
+```
+
+Source: cats, "Law testing"; Scala 3 reference, "Given instances" (canonical
+values).
+
+### T5 Coherence
+
+```scala
+// bad: an instance in an unrelated object, imported in some files and not others
+object JsonStuff:
+  given Codec[NodeId] = ...
+```
+
+```scala
+// good
+object NodeId:
+  given Codec[NodeId] = Codec.from(Decoder.decodeString, Encoder.encodeString)
+```
+
+Source: Scala 3 reference (implicit scope); cats guidelines (instance placement
+and priority).
+
+### T6 Implicit conversions only for DSL literal lifting
+
+```scala
+// bad: a conversion that hides an access
+given ops[T]: Conversion[Boundary[T], T] = _.ops
+```
+
+```scala
+// good: lifting literals into terms, all in one file, and an explicit accessor elsewhere
+given int: Conversion[Int, Term[BigInt]] = i => Term.lit(BigInt(i))
+db.ops.fetch(user)
+```
+
+Source: Scala 3 reference, "Contextual abstractions" (most implicit conversions
+are of dubious value).
+
+### T7 `using` for type classes, capabilities and witnesses
+
+```scala
+// bad: configuration and a service smuggled in as givens
+def check(node: NodeId)(using cfg: Config, lake: Lake[IO]): IO[Verdict]
+```
+
+```scala
+// good
+def check[F[_]: MonadThrow](lake: Lake[F], cfg: Config)(node: NodeId): F[Verdict]
+def contract[F](op: Param[F])(using s: Sig[F]): ...   // a typing witness is context
+```
+
+Source: Scala 3 reference, "Using clauses"; Volpe (A4).
+
+### T8 Extension methods for opaque APIs and syntax
+
+```scala
+// bad: interpreters attached to Node through extensions in Node.scala
+extension (n: Node[?]) private[frflow] def postFn: Option[(List[Any], Any) => Boolean]
+```
+
+```scala
+// good
+object Hash:
+  extension (h: Hash) def short: String = h.take(8)
+```
+
+Source: Scala 3 reference, "Opaque type aliases".
+
+### T9 Codecs on DTOs only
+
+```scala
+// bad
+enum Node derives Codec.AsObject
+```
+
+```scala
+// good
+final case class SnapNode(...) derives Codec.AsObject   // in protocol
+```
+
+Source: Volpe (domain types separate from request and response types).
+
+### T10 Transformers inside programs and out of algebras
+
+```scala
+// bad: a transformer in the algebra's signature leaks into every interpreter and caller
+trait Ledger[F[_]]:
+  def record(d: Decision): EitherT[F, Refusal, Recorded]
+```
+
+```scala
+// good: the algebra returns F[Either[...]]; a program chaining several such steps uses EitherT locally
+def acceptAll[F[_]: Monad](ledger: Ledger[F])(ds: List[Decision]): F[Either[Refusal, List[Recorded]]] =
+  ds.traverse(d => EitherT(ledger.record(d))).value
+```
+
+Source: cats documentation, "EitherT".
+
+## Effects
+
+### E1 Pure core
+
+```scala
+// bad: the knowledge base, a core aggregate, imports cats.effect and the runtime wiring
+package frflow.kb
+import cats.effect.IO
+import frflow.runtime.Wiring
+```
+
+```scala
+// good: the core is values and functions; the runtime module takes a KnowledgeBase
+package frflow.runtime
+def wire[F[_]: Async](kb: KnowledgeBase, impls: Implementations[F]): Resource[F, Running[F]]
+```
+
+Source: *FPiS* chapter 13 ("inside every function with side effects is a pure
+function waiting to get out"); Bernhardt.
+
+### E2 Read inputs once, then call the core
+
+```scala
+// good, the shape of check.Inputs.read, over F: all reads in parallel and once, then pure code
+def verdict[F[_]: MonadThrow: Parallel: Clock](disk: Disk[F], ledger: Ledger[F])(kb: KnowledgeBase): F[Verdict] =
+  (disk.read(kb.idea), ledger.decisions, Clock[F].realTimeInstant).parMapN(Inputs(_, _, _)).map(Verdict.of(kb, _))
+```
+
+```scala
+// bad: the pure function reaches for the file system itself
+def verdict(kb: KnowledgeBase): Verdict = Verdict(kb, Files.readString(Path.of(kb.idea)))
+```
+
+Source: Bernhardt; Volpe (programs compose algebras).
+
+### E3 Side effects suspended in interpreters
+
+```scala
+// bad: the write happens when the method is called, outside F
+def save(f: Path, s: String): IO[Unit] = { Files.writeString(f, s); IO.unit }
+```
+
+```scala
+// good: in the interpreter, blocking file I/O on the blocking pool
+def save(f: Path, s: String): F[Unit] = Sync[F].blocking(Files.writeString(f, s)).void
+```
+
+Source: cats-effect, "Concepts" and "Thread model".
+
+### E4 Every lifecycle is a Resource
+
+```scala
+// good, as in check/process/Run: fs2's spawn is a Resource, so the process ends with `use`
+ProcessBuilder(command, args).withWorkingDirectory(dir).spawn[F].use(p => collect(p))
+// a background fiber that ends with the server
+Supervisor[F].flatMap(sup => Resource.eval(sup.supervise(watchSources)))
+```
+
+```scala
+// bad: a process that is never destroyed when the fiber is cancelled
+Sync[F].blocking(java.lang.ProcessBuilder(cmd*).start()).flatMap(read)
+```
+
+Source: cats-effect, "Resource" and "Supervisor"; fs2 `Processes`.
+
+### E5 cats-effect and fs2 for state, coordination and streams
+
+```scala
+// bad: a class holding state in an AtomicReference, and a callback for progress
+final class FaultPlan(faults: List[Boolean]):
+  private val left = AtomicReference(faults)
+def check(node: Option[NodeId], progress: Progress => IO[Unit] = _ => IO.unit): IO[CheckReport]
+```
+
+```scala
+// good: state in a Ref, a one-time signal in a Deferred, progress as a Stream
+final class Faults[F[_]] private (left: Ref[F, List[Fault]]):
+  def next: F[Option[Fault]] = left.modify(fs => (fs.drop(1), fs.headOption))
+def ready: F[Deferred[F, Unit]]
+def check(node: Option[NodeId]): Stream[F, CheckEvent]   // enum CheckEvent { case Level(p: Progress); case Done(r: CheckReport) }
+```
+
+Allowed with a comment: the function `service` returns is called synchronously
+by the user's program, outside `F`, so its per-wrapper cache is an
+`AtomicReference` local to that wrapper.
+
+Source: cats-effect, "Ref", "Deferred", "Queue"; fs2 guide.
+
+### E6 Effects run in IOApp; callbacks through a Dispatcher
+
+```scala
+// bad: deep inside the example runner
+Flows.run[IO](steps, env, impls, bindings, Some(pause)).attempt.unsafeRunSync()
+```
+
+```scala
+// good: an impure callback enters F through a Dispatcher held for the server's lifetime
+Dispatcher.parallel[F].map(d => (msg: String) => d.unsafeRunAndForget(queue.offer(msg)))
+// and the one synchronous bridge, named and documented
+object RunWhileLoading:
+  /** The examples run while the model loads, before any IOApp exists. */
+  def apply[A](io: IO[A])(using IORuntime): Either[Throwable, A] = io.attempt.unsafeRunSync()
+```
+
+Source: cats-effect, "Dispatcher" and `IOApp`.
+
+### E7 Time, randomness and ids as capabilities
+
+```scala
+// bad
+def sign(d: Decision): Signed = Signed(d, Instant.now())
+```
+
+```scala
+// good
+def sign[F[_]: Functor: Clock](d: Decision): F[Signed] = Clock[F].realTimeInstant.map(Signed(d, _))
+```
+
+Source: cats-effect, "Clock", "Random" and `UUIDGen`.
+
+### E8 Warnings for discarded effects
+
+```scala
+// bad: compiles, and the log line never runs
+def accept[F[_]: Monad: Log](...): F[Decided] =
+  Log[F].info(s"accepted $id")
+  ledger.record(d)
+```
+
+With `-Wnonunit-statement` this is an error. The fix is `Log[F].info(...) *> ledger.record(d)`.
+
+Source: cats-effect FAQ ("What do non-unit statement warnings mean?"); VirtusLab.
+
+## Errors
+
+### R1 Error ADTs per module
+
+```scala
+// bad
+def accept(id: NodeId): IO[Either[String, Decision]]
+```
+
+```scala
+// good
+enum Refusal extends NoStackTrace:
+  case NotWaiting(id: NodeId, state: ReviewState)
+  case Unsigned(id: NodeId)
+  case StaleHash(id: NodeId, decided: Hash, now: Hash)
+```
+
+Source: Volpe (error ADTs extending `NoStackTrace`); cats, "ApplicativeError and
+MonadError".
+
+### R2 Choose the channel by who handles the error
+
+```scala
+// bad: a refusal the CLI must explain is thrown, and an I/O failure nobody can fix is returned as a value
+def record(d: Decision): F[Recorded]                          // raises Refusal
+def load: F[Either[IOException, Ledger]]
+```
+
+```scala
+// good
+def record(d: Decision): F[Either[Refusal, Recorded]]   // the caller branches on the refusal
+def load: F[Ledger]                                     // a broken file is raised as LedgerError.BadFile
+api.status.recoverWith { case e: LedgerError => Console[F].errorln(Show[LedgerError].show(e)).as(ExitCode(3)) }
+```
+
+Source: cats documentation, "ApplicativeError and MonadError"; Volpe.
+
+### R3 Accumulate independent errors
+
+```scala
+// bad: the developer fixes one problem per run
+for
+  _ <- uniqueIds(kb)
+  _ <- parentsDeclared(kb)
+yield kb
+```
+
+```scala
+// good
+(uniqueIds(kb), parentsDeclared(kb), pathsExist(kb)).parMapN((_, _, _) => kb)   // EitherNec[ModelError, _]
+```
+
+Source: cats, "Validated" and "Parallel".
+
+### R4 Map errors in interpreters, render at the edge
+
+```scala
+// bad: a circe error escapes the ledger, and the ledger builds CLI text
+IO.fromEither(decode[A](text))
+Left(s"${Colors.red("refused")}: $id is not waiting")
+```
+
+```scala
+// good
+Sync[F].fromEither(decode[A](text)).adaptError(e => LedgerError.BadFile(file, e.getMessage))
+// cli renders with Show[Refusal]
+```
+
+Source: Volpe (`adaptError` in programs and interpreters).
 
 ## Functions
 
@@ -329,7 +851,7 @@ reports and throws: about eight jobs in 30 lines.
 
 ```scala
 // good: an orchestration of named steps, each testable alone
-def wrap[F](c: Node.Contract, impl: F, plan: RunPlan): F =
+def wrap[Op](c: Node.Contract, impl: Op, plan: RunPlan): Op =
   val check = Check.of(c)                     // pure: the cheap check if given, else the post
   val watch = AssumptionWatch(plan.assumes)   // what each assumption was last checked against
   Fn.of(c.op.arity)(ins => Call.run(check, watch, plan, impl, ins))
@@ -364,7 +886,7 @@ case _ => throw IllegalArgumentException(s"${n.id} is not a contract")
 
 ```scala
 // good: take the case you need, so there is nothing to reject
-def wrap[F](c: Node.Contract, impl: F, plan: RunPlan): F
+def wrap[Op](c: Node.Contract, impl: Op, plan: RunPlan): Op
 ```
 
 Source: King, "Turning partial functions total".
@@ -410,30 +932,15 @@ def enforce(impl: F, assumes: List[Assumption] = Nil, runCheck: RunCheck = RunCh
 
 ```scala
 // good: internal code passes everything; a published entry point may default an optional setting
-def wrap[F](c: Node.Contract, impl: F, plan: RunPlan): F
-def service[F](c: Contract[F], impl: F, check: RunCheck = RunCheck.EveryCall): Service[F]   // DSL entry point
+def wrap[Op](c: Node.Contract, impl: Op, plan: RunPlan): Op
+def service[Op](c: Contract[Op], impl: Op, check: RunCheck = RunCheck.EveryCall): Service[Op]   // DSL entry point
 ```
 
 Source: Effective Scala, "Dependency injection"; VirtusLab (lawful APIs); Li
 Haoyi ranks default arguments as a low-power form of dependency injection,
 which is why they stay allowed on published entry points.
 
-### F7 Take a function when one method is used
-
-```scala
-// bad
-def run(reporter: Reporter): Unit = reporter.report(v)
-```
-
-```scala
-// good
-def run(report: Violation => IO[Unit]): IO[Unit] = report(v)
-```
-
-Source: Li Haoyi, "Principle of Least Power" (published interfaces); Effective
-Scala (factories as functions).
-
-### F8 `require` only for FrFlow bugs
+### F7 `require` only for FrFlow bugs
 
 ```scala
 // bad: a mistake in the developer's model reported by an exception from a builder
@@ -451,7 +958,7 @@ Source: Effective Scala, "`require` and `assert`" (executable documentation
 where types cannot express the invariant); VirtusLab (`Either` instead of
 `require` for recoverable failures); King.
 
-### F9 No exceptions for control flow in the core
+### F8 No exceptions for control flow
 
 ```scala
 // bad
@@ -468,332 +975,27 @@ final case class FlowOp(name: String, inputs: List[LeanType[?]], result: LeanTyp
 Source: Effective Scala, "Error handling" (no exceptions for errors the
 programmer must handle; `NonFatal` when catching).
 
-### F10 `var` only inside a method
+### F9 `var` only inside a method
 
 ```scala
-// bad
-final class FaultPlan(faults: List[Boolean]):
-  private val left = AtomicReference(faults)
-  private[frflow] def next(): Boolean = left.getAndUpdate(_.drop(1)).headOption.contains(true)
+// bad: a printer object with ten mutable fields and a mutable depth counter, so printing has hidden order
+private val defs = mutable.ListBuffer.empty[Def[?]]
+private val boundaries = mutable.LinkedHashSet.empty[Boundary[?]]
+private var negations = 0
+private def negated[T](f: => T): T = { negations += 1; try f finally negations -= 1 }
 ```
 
 ```scala
-// good: the plan is a value and the state is threaded through the run (or held in a Ref by the IO interpreter)
-final case class FaultPlan(faults: List[Fault]):
-  def next: (Option[Fault], FaultPlan) = (faults.headOption, FaultPlan(faults.drop(1)))
+// good: what printing collects is a value with a Monoid, and the depth is a parameter
+final case class Uses(defs: List[Def[?]], boundaries: Set[Boundary[?]], errors: Set[ErrorType])
+object Uses:
+  given Monoid[Uses] = Monoid.instance(Uses(Nil, Set.empty, Set.empty), (a, b) =>
+    Uses(a.defs ++ b.defs, a.boundaries ++ b.boundaries, a.errors ++ b.errors))
+def expr(t: Tree, negations: Int): (Lean, Uses)
 ```
 
-Source: Li Haoyi, "Principle of Least Power" (immutability; mutation scoped as
-narrowly as possible); VirtusLab (no class-level `var`).
-
-## Effects
-
-### E1 Pure core
-
-```scala
-// bad: the knowledge base, a core aggregate, imports cats.effect and the runtime wiring
-package frflow.kb
-import cats.effect.IO
-import frflow.runtime.Wiring
-```
-
-```scala
-// good: the core is values and functions; the runtime module takes a KnowledgeBase
-package frflow.runtime
-def wire(kb: KnowledgeBase, impls: Implementations): Resource[IO, Running]
-```
-
-Source: Bernhardt ("Functional core, imperative shell"); *FPiS* chapter 13
-("inside every function with side effects is a pure function waiting to get
-out"); De Goes ("minimize effectful code").
-
-### E2 Read inputs once, then call the core
-
-```scala
-// good, as in check.Inputs.read: all reads in parallel, once, then pure code
-(Disk.read(idea), ledger, KeyStore.projectKeys(dir), checks(file), IO.realTimeInstant).parMapN(Inputs(_, _, _, _, _))
-  .map(Verdict.of(kb, _))
-```
-
-```scala
-// bad: the pure function reaches for the file system itself
-def verdict(kb: KnowledgeBase): Verdict = Verdict(kb, Files.readString(Path.of(kb.idea)))
-```
-
-Source: Bernhardt; cats-effect, "Concepts" (effects are descriptions; wrap side
-effects).
-
-### E3 Every side effect in IO
-
-```scala
-// bad
-def save(f: Path, s: String): IO[Unit] = { Files.writeString(f, s); IO.unit }
-```
-
-```scala
-// good: blocking file I/O on the blocking pool
-def save(f: Path, s: String): IO[Unit] = IO.blocking(Files.writeString(f, s)).void
-```
-
-Source: cats-effect, "Concepts" (side effects inside `IO(...)`, `IO.blocking`,
-`IO.async`); "Thread model".
-
-### E4 Resource for anything released
-
-```scala
-// bad: a process that is never destroyed when the fiber is cancelled
-def lean(cmd: List[String]): IO[String] = IO.blocking(java.lang.ProcessBuilder(cmd*).start()).flatMap(read)
-```
-
-```scala
-// good, as in check/process/Run: fs2's spawn is a Resource, so the process ends with `use`
-ProcessBuilder(command, args).withWorkingDirectory(dir).spawn[IO].use(p => collect(p))
-// and for a Java resource without one
-Resource.make(IO.blocking(java.lang.ProcessBuilder(cmd*).start()))(p => IO.blocking(p.destroy()))
-```
-
-Source: cats-effect, "Resource".
-
-### E5 Ref in IO code; AtomicReference only in synchronous wrappers, with a reason
-
-```scala
-// bad: IO code holding state in an AtomicReference
-final class Sessions(private val open: AtomicReference[Map[SessionId, Session]])
-```
-
-```scala
-// good
-final class Sessions private (open: Ref[IO, Map[SessionId, Session]])
-object Sessions:
-  def make: IO[Sessions] = Ref.of[IO, Map[SessionId, Session]](Map.empty).map(Sessions(_))
-```
-
-Allowed with a comment: the function `service` returns is called synchronously
-by the user's program, outside `IO`, so its per-wrapper cache is an
-`AtomicReference` local to that wrapper.
-
-Source: cats-effect, "Ref" (a purely functional wrapper over an
-`AtomicReference`); VirtusLab.
-
-### E6 `unsafeRun*` only at the entry point
-
-```scala
-// bad: deep inside the example runner
-Flows.run[IO](steps, env, impls, bindings, Some(pause)).attempt.unsafeRunSync()
-```
-
-```scala
-// good: one bridge, named and documented, that the synchronous API goes through
-object RunNow:
-  /** Runs a flow for a caller that is not in IO (the examples run as the model loads). */
-  def run[A](io: IO[A])(using rt: IORuntime): Either[Throwable, A] = io.attempt.unsafeRunSync()
-```
-
-Source: cats-effect FAQ and `IOApp` documentation.
-
-### E7 Clock, randomness and ids passed in
-
-```scala
-// bad
-def sign(d: Decision): Signed = Signed(d, Instant.now())
-```
-
-```scala
-// good
-def sign(d: Decision, at: Instant): Signed = Signed(d, at)   // caller reads IO.realTimeInstant once
-```
-
-Source: VirtusLab, "Lawful APIs".
-
-### E8 Concrete IO; F[_] only with two interpreters and laws
-
-```scala
-// bad: effect polymorphism with one interpreter, and Sync, which can capture any side effect
-def check[F[_]: Sync](kb: KnowledgeBase): F[Verdict]
-```
-
-```scala
-// good
-def check(kb: KnowledgeBase): IO[Verdict]
-// F[_] stays where it earns its place: user flows, interpreted over models and over real boundaries
-def run[F[_]: Monad](steps: Steps, env: Env[F]): F[Outcome]
-```
-
-Source: De Goes, "The false hope of managing effects with tagless-final in
-Scala" (premature indirection, `Sync` bloat; recommends a concrete effect for
-applications); Volpe and the cats-effect tutorial (polymorphic code); Odersky,
-"Lean Scala". See `sources.md`.
-
-## Errors
-
-### R1 Error ADTs per module
-
-```scala
-// bad
-def accept(id: NodeId): IO[Either[String, Decision]]
-```
-
-```scala
-// good
-enum DecideError:
-  case NotWaiting(id: NodeId, state: ReviewState)
-  case Unsigned(id: NodeId)
-  case StaleHash(id: NodeId, decided: Hash, now: Hash)
-def accept(id: NodeId): IO[Either[DecideError, Decision]]
-```
-
-Source: Effective Scala, "Error handling"; VirtusLab (typed error hierarchies);
-Volpe (error ADTs).
-
-### R2 Either in pure code, IO for unhandled failures
-
-```scala
-// bad: a pure decision throws
-def decide(r: Review): Decision = if r.hash != current then throw StaleHash(...) else ...
-```
-
-```scala
-// good
-def decide(r: Review, current: Hash): Either[DecideError, Decision]
-```
-
-Source: Effective Scala; cats, "Either".
-
-### R3 Accumulate independent errors
-
-```scala
-// bad: the developer fixes one problem per run
-for
-  _ <- uniqueIds(kb)
-  _ <- parentsDeclared(kb)
-yield kb
-```
-
-```scala
-// good
-(uniqueIds(kb), parentsDeclared(kb), pathsExist(kb)).mapN((_, _, _) => kb)   // ValidatedNec[ModelError, _]
-```
-
-Source: cats, "Validated".
-
-### R4 Convert at the boundary, render at the edge
-
-```scala
-// bad: the ledger builds CLI text
-Left(s"${Colors.red("refused")}: $id is not waiting")
-```
-
-```scala
-// good: the ledger returns DecideError; api maps it into FrFlowError; cli and web render it
-def accept(id: NodeId): IO[Either[FrFlowError, Decision]] = ledger.accept(id).map(_.leftMap(FrFlowError.Decide(_)))
-```
-
-Source: Volpe (error handling per layer); Effective Scala.
-
-## Type classes and givens
-
-### T1 Type classes for canonical, generic operations
-
-```scala
-// bad: a type class with one use, standing in for a parameter
-trait Reporter[A]: def report(a: A): Unit
-def enforce[A: Reporter](...)
-```
-
-```scala
-// good
-given LeanType[NodeId] = LeanType.string.as[NodeId]   // one canonical instance per type
-def wrap(..., report: Violation => IO[Unit])          // a plain parameter for a policy
-```
-
-Source: Scala 3 reference, "Given instances" ("canonical values"); Effective
-Scala, "Implicits".
-
-### T2 Coherence
-
-```scala
-// bad: an instance in an unrelated object, imported in some files and not others
-object JsonStuff:
-  given Codec[NodeId] = ...
-```
-
-```scala
-// good
-opaque type NodeId = String
-object NodeId:
-  given Codec[NodeId] = Codec.from(Decoder.decodeString, Encoder.encodeString)
-```
-
-Source: Scala 3 reference (implicit scope); cats guidelines (instance placement
-and priority).
-
-### T3 Implicit conversions only for DSL literal lifting
-
-```scala
-// bad: a conversion that hides an access
-given ops[T]: Conversion[Boundary[T], T] = _.ops
-```
-
-```scala
-// good: lifting literals into terms, all in one file
-given int: Conversion[Int, Term[BigInt]] = i => Term.lit(BigInt(i))
-// and an explicit accessor
-db.ops.fetch(user)
-```
-
-Source: Scala 3 reference, "Contextual abstractions" (most applications of
-implicit conversions are of dubious value); Odersky, "Lean Scala" (use
-conversions and macros only when simpler means are not enough).
-
-### T4 `using` for context, parameters for dependencies
-
-```scala
-// bad
-def accept(id: NodeId)(using store: Store, keys: KeyStore, clock: Clock): IO[Decision]
-```
-
-```scala
-// good
-final class Decide(store: Store, keys: KeyStore):
-  def accept(id: NodeId, at: Instant): IO[Either[DecideError, Decision]]
-def contract[F](op: Param[F])(using s: Sig[F]): ...   // a typing witness is context
-```
-
-Source: Scala 3 reference, "Using clauses"; Effective Scala, "Dependency
-injection".
-
-### T5 Extension methods for opaque APIs and syntax
-
-```scala
-// bad: interpreters attached to Node through extensions in Node.scala
-extension (n: Node[?]) private[frflow] def postFn: Option[(List[Any], Any) => Boolean]
-```
-
-```scala
-// good
-opaque type Hash = String
-object Hash:
-  extension (h: Hash) def short: String = h.take(8)
-```
-
-Source: Scala 3 reference, "Opaque type aliases" ("extension methods define
-opaque types' public APIs").
-
-### T6 Codecs on DTOs only
-
-```scala
-// bad
-enum Node derives Codec.AsObject
-```
-
-```scala
-// good
-final case class SnapNode(...) derives Codec.AsObject   // in protocol
-object SnapNode:
-  def of(n: Node, found: Checked): SnapNode = ...         // in check/analysis, which sees both
-```
-
-Source: Volpe (domain types separate from request and response types).
+Source: VirtusLab (no class-level `var`; immutable collections); cats
+documentation, "Monoid".
 
 ## Modules and packages
 
@@ -843,10 +1045,17 @@ final case class Exempt(...)
 enum Keeping:
   case Kept(invariant: NodeId, view: View)
   case Exempt(invariant: NodeId, because: String)
+
+// good: an algebra and its companion, whose `make` is the live interpreter (Ledger.scala)
+trait Ledger[F[_]]: ...
+object Ledger:
+  def make[F[_]: Async](file: Path): Resource[F, Ledger[F]] = ...
+// the in-memory interpreter in InMemoryLedger.scala, a class and its companion
 ```
 
 Source: the owner's rule (`docs/USAGE.md`: "One type to a file, in a package per
-concept"); Scala style guide, "Files". VirtusLab bundles a sealed hierarchy, or
+concept"); Volpe (`trait Brands[F[_]]` and `object Brands { def make ... }` in
+one file); Scala style guide, "Files". VirtusLab bundles a sealed hierarchy, or
 a service and the types only it builds, in one file. This repository uses an
 enum instead.
 
@@ -1029,26 +1238,65 @@ Source: B2 applied to views.
 
 ## Testing
 
-### X1 Laws as property tests
+### X1 Law-test every instance with discipline
 
 ```scala
-// bad: one example per operation
-test("parents"): assertEquals(kb.parents(a), Set(b))
+// bad: an instance given and never checked against its laws
+given Monoid[ProofCounts] = ...
 ```
 
 ```scala
 // good
-property("a node rests on every invariant it keeps"):
-  forAll(genKb)(kb => kb.nodes.forall(n => kb.kept(n.id).subsetOf(kb.parents(n.id))))
+import cats.kernel.laws.discipline.{MonoidTests, OrderTests}
+import munit.DisciplineSuite
+
+class CountsLaws extends DisciplineSuite:
+  import Generators.given          // Arbitrary and Cogen instances, one generators file per module
+  checkAll("Monoid[ProofCounts]", MonoidTests[ProofCounts].monoid)
+  checkAll("Order[NodeId]", OrderTests[NodeId].order)
 ```
 
-Use the project's own generators (`frflow.testing`) or, with the owner's
-approval, `munit-scalacheck`.
+A `Functor` or `Traverse` instance on a FrFlow container (a tree of nodes, a
+term with holes) is checked with `FunctorTests[T].functor[Int, Int, String]`
+or `TraverseTests[T].traverse[...]`, and needs `Eq[T[A]]` and `Arbitrary[T[A]]`.
+
+Test dependencies to add, at versions matching cats and munit: `cats-laws`,
+`cats-kernel-laws`, `discipline-munit`, `munit-scalacheck`, `scalacheck`, and
+`scalacheck-effect-munit` for properties in `F` (`forAllF`, X2).
+
+Source: cats documentation, "Law testing"; discipline; discipline-munit; Volpe
+(`checkAll("Monoid[Money]", MonoidTests[Money].monoid)` in the companion
+repository).
+
+### X2 Laws for algebras, run against every interpreter
+
+```scala
+// bad: the in-memory ledger is tested, the file ledger is not, and nothing says they agree
+test("record then list"): ...
+```
+
+```scala
+// good: one property suite states the algebra's laws; each interpreter runs it
+abstract class LedgerLaws(make: Resource[IO, Ledger[IO]]) extends CatsEffectSuite with ScalaCheckEffectSuite:
+  test("a recorded decision is listed"):
+    forAllF((d: Decision) => make.use(l => l.record(d) *> l.decisions).map(ds => assert(ds.exists(_ === d))))
+  test("a refused record changes nothing"):
+    forAllF((d: Decision) => make.use(l => l.record(d) *> l.decisions.flatMap(before =>
+      l.record(d) *> l.decisions.map(after => assertEquals(after, before)))))
+
+class InMemoryLedgerSuite extends LedgerLaws(Resource.eval(InMemoryLedger.make[IO]))
+class FileLedgerSuite     extends LedgerLaws(Files[IO].tempDirectory.flatMap(d => Ledger.make[IO](d.toNioPath.resolve("ledger.json"))))
+```
+
+The DSL's algebras get property tests too: `parents` contains every invariant
+a node keeps; evaluating a term in Scala agrees with Lean's evaluation on
+generated examples; printing then parsing a snapshot is the identity.
 
 Source: *FPiS* chapter 8 (property-based testing) and chapters 7 to 9 (laws);
-Ghosh (laws of the algebra).
+Ghosh (laws of the algebra); Volpe (interpreters tested against the same
+expectations).
 
-### X2 Golden outputs
+### X3 Golden outputs
 
 ```scala
 // good, as in cli/ViewsSuite: the views in plain mode against files in src/test/resources/golden
@@ -1058,7 +1306,7 @@ api.flatMap(_.tree(None)).map(t => golden("tree", TreeText.lines(t, st)))
 Extend this to the generated Lean and the `--json` snapshot of each example
 before a refactor of a core type.
 
-### X3 Values in, values out
+### X4 Values in, values out; fakes are interpreters
 
 ```scala
 // bad: asserting that the API called the ledger
@@ -1066,14 +1314,21 @@ assert(fakeLedger.calls.contains("accept"))
 ```
 
 ```scala
-// good: asserting what the operation returns and what state it leaves
-assertEquals(api.accept(id).map(_.state), IO.pure(ReviewState.Accepted))
+// good: an in-memory interpreter, and assertions on what the program returns and leaves
+for
+  ledger <- InMemoryLedger.make[IO]
+  out    <- Programs.accept(ledger, keys)(id, alice)
+  ds     <- ledger.decisions
+yield assertEquals((out.isRight, ds.map(_.node)), (true, List(id)))
 ```
 
-Source: Bernhardt (isolated tests of a functional core need no doubles);
-Effective Scala (code to interfaces; fakes as implementations).
+Time-dependent code (timeouts, retries, sampling) is tested with
+`cats.effect.testkit.TestControl`, never with real sleeps.
 
-### X4 One scenario per test
+Source: Bernhardt (no doubles for a functional core); Volpe (test
+interpreters); cats-effect testkit.
+
+### X5 One scenario per test
 
 ```scala
 // bad

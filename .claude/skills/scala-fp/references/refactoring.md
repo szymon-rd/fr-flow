@@ -53,6 +53,10 @@ Write a short note, a page at most, in domain words:
 - **Its relations**: what it refers to, by id or by value, and what refers to
   it. Edges between instances (parents, replaces, keeps) are often a concept of
   their own.
+- **For a service or boundary**: its algebra `X[F[_]]` (operations in domain
+  types), the laws relating the operations, the interpreters it needs (live,
+  in-memory), and the capabilities each interpreter and each program using it
+  requires (A1 to A4).
 
 Present the note to the owner and wait for approval. Do not write code that
 depends on an unapproved theory.
@@ -126,7 +130,9 @@ difference was planned in step 3. List every planned difference, with its
 reason, for the owner. A change to the snapshot's JSON shape is a protocol
 change: old files must still decode, or the change says how they are migrated.
 
-Add the property tests for the laws stated in step 2 (X1), and keep them.
+Add the law suites for the laws stated in step 2, and keep them: `checkAll`
+for every new instance (X1), and one property suite per algebra run against
+every interpreter (X2).
 
 ## 8. Re-measure and describe
 
@@ -213,3 +219,41 @@ decisions for the owner in step 2.
    protocol change (step 7).
 
 Each commit passes steps 6 to 8 on its own.
+
+## Worked plan: the ledger store as an algebra
+
+This is also a starting point for step 2. The owner approves the design.
+
+**Findings it resolves.** `JsonStore[A]`
+(`modules/ledger/src/main/scala/frflow/ledger/store/JsonStore.scala`) is a
+concrete class over `IO` holding a file, a lock and a printer, and its callers
+are tied to the file system (A1, A2). Its users cannot be tested without files
+(X4).
+
+**A possible algebra.**
+
+```scala
+/** The developer's recorded decisions.
+  * Laws: a recorded decision is listed; a refused record leaves the list unchanged;
+  * recording is serialised, so two concurrent records both appear or one is refused.
+  */
+trait Ledger[F[_]]:
+  def decisions: F[List[Decision]]
+  def record(d: Decision): F[Either[Refusal, Recorded]]
+
+object Ledger:
+  def make[F[_]: Async](file: Path): Resource[F, Ledger[F]]   // the JSON file under its lock
+final class InMemoryLedger[F[_]] ...                           // a Ref, for tests and dry runs
+```
+
+**Order of commits.**
+
+1. Add the algebra and the in-memory interpreter, with the law suite (X2)
+   running against it.
+2. Write the live interpreter over the existing file format, and run the same
+   law suite against it on a temporary directory.
+3. Move the programs that use `JsonStore` to `Ledger[F]`, each requiring only
+   the capabilities it uses (A3).
+4. Delete `JsonStore` once nothing uses it.
+5. Repeat for `Git`, `Lake`, the disk, and finally `FrFlowApi[F[_]]`, with `IO`
+   fixed in the CLI's and the web view's `IOApp`.
