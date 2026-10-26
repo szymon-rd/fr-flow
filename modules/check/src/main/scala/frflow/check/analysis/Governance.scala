@@ -28,10 +28,16 @@ object Governance:
     // A proof file of no node (after a rename or a removal) proves nothing any more.
     val orphans = a.inputs.proofs.keys.toList.filterNot(id => id == "Lemmas" || kb.node(id).isDefined).sorted
       .map(id => s"lean/Proofs/${kb.name}/$id.lean is the proof file of no node: move it with its node's new id (and its namespace), or remove it")
-    // Formal contracts whose translation no example cross-checks: checked, and none of their examples evaluated in Lean.
+    // Formal contracts whose translation no example cross-checks: checked, and none of their examples evaluated in Lean,
+    // unless only because an operation they run is plain code (tested against its own contract): Lean has no value for it,
+    // and no binding can give one; the node's line in check says so.
     val uncrossed = kb.nodes.filter(c => c.kind == NodeKind.Contract && c.cases.nonEmpty).flatMap { c =>
-      def evaluated(o: Result) = o.status == Proven && PartialFunction.cond(o.name) { case Eval(_) => true }
-      a.current(c).filter(!_.obligations.exists(evaluated)).map(_ =>
+      def isEval(o: Result) = PartialFunction.cond(o.name) { case Eval(_) => true }
+      def plainCode(o: Result) = o.status == Unevaluated && o.detail.endsWith(frflow.lean.obligation.Evals.NoDefine)
+      a.current(c).filter { r =>
+        val evals = r.obligations.filter(isEval)
+        !evals.exists(_.status == Proven) && !(evals.nonEmpty && evals.forall(plainCode))
+      }.map(_ =>
         s"${c.id}: none of its examples is evaluated in Lean, so nothing checks that the Lean means what the Scala does: " +
           "give its parameters values Lean has (bindTable for a lookup)")
     }

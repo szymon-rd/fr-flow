@@ -45,7 +45,7 @@ final class Evals(kb: KnowledgeBase, refinement: Refinement):
           .toRight(s"Lean has no value for $p (a function, or a type Lean does not have; give a lookup as bindTable)"))(tableValue(p, _))
         case None => kb.onOp.getOrElse(p, Nil).flatMap(provenImpl).headOption.filterNot(_ => seen(p)) match
           case Some(d) => envOf(bindings, defCtx(d), seen + p).map(env => { used += d; code(d, env)._1 })
-          case None    => Left(s"Lean has no value for $p, which no define implements")
+          case None    => Left(s"Lean has no value for $p, ${Evals.NoDefine}")
 
     private def tableValue(p: String, table: Map[?, ?]): Either[String, String] =
       val domain = paramType(p).map(LeanType.parse) match
@@ -154,3 +154,7 @@ final class Evals(kb: KnowledgeBase, refinement: Refinement):
       Option.when(typeNames(leanName(c)))(leanName(c)).flatMap(t => all(e.productIterator).map(ctor(s"$t.${Names.ident(e.productPrefix)}", _)))
     case p: Product if typeNames(leanName(p.getClass)) => all(p.productIterator).map(ctor(s"${leanName(p.getClass)}.mk", _))
     case _ => None
+
+object Evals:
+  /** Why an example is not evaluated when an operation it runs is plain code: Lean has no value for it. */
+  val NoDefine = "which no define implements"
