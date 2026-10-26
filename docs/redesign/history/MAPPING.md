@@ -52,9 +52,9 @@ and where its content now is, or why it was left in the log only. Section number
 | 4.6 Error model | 7.1 |
 | 4.7 Effects: where `F[_]` is used | 7.2 |
 | 4.8 The owner's decisions A–G and the rest | Appendix A; each applied where it acts (4.2, 4.4, 6, 8, 9) |
-| 4.9 Decisions: content, deciders, signatures, fingerprints, review, rules | 6 |
+| 4.9 Decisions: content, deciders, signatures, fingerprints, review, rules | 6 (the mechanical rule and `Seals.signAdded` included) |
 | 4.10 Patterns | 11 (the pattern table, with its example files) |
-| 4.11 The planned code: reading guide table | left in the log; each concept names its files where it is described |
+| 4.11 The planned code: reading guide table | 1.5 (a reading order of about twelve files); the full table stays in the log |
 | 4.11 The Lean evidence (crm byte for byte) | 4.8 |
 | 4.11 The program evidence (`RecordingSuite`, `RunningSuite`) | 4.4, 4.9 |
 | 4.11 The term, calendar, whole-theory and testing evidence | 2.3–2.10, 3.5, 3.7, 3.8, 4.2 |
@@ -128,6 +128,6 @@ names in 4.7 are likewise those of the planned code.
 
 ## Not carried over
 
-Kept only in the log: the file-by-file reading guide of the planned code (old 4.11), today's concept and data-flow
-tables (old 2.2, 2.3), the sources' URLs, the per-revision size deltas, and some detail of the decision rules
-(`Seals.signAdded`, `Mechanical.why`, `Reading.notMechanical`, the snapshot's row names).
+Kept only in the log: the full file-by-file reading guide of the planned code (old 4.11; 1.5 gives a reading order),
+today's concept and data-flow tables (old 2.2, 2.3), the sources' URLs, the per-revision size deltas, and the
+snapshot's row names.

@@ -1,15 +1,15 @@
 # FrFlow: architecture of the rebuild
 
-This is the approved design of FrFlow's rebuild (`review.md`, round 15: approved, no blocking or major findings). It
-says what the design is, not how it was reached. The revision log it was first written as is kept in
-`history/ARCHITECTURE-r15-log.md`; `history/MAPPING.md` says where each of its sections went.
+This is the approved design of FrFlow's rebuild; `review.md` is the approving review. It says what the design is, not
+how it was reached. The revision log it was first written as is kept in `history/ARCHITECTURE-r15-log.md`;
+`history/MAPPING.md` says where each of its sections went.
 
 Beside this file, in `docs/redesign/`:
 
 | File | What it holds |
 |---|---|
 | `owner-decisions.md` | the owner's decisions, cited here as "owner §n" |
-| `review.md` | the approving review: what approving means, placeholders, risks, first steps |
+| `review.md` | the approving review, kept as written (its paths are the design workspace's) |
 | `features.md` | every feature of today's library, its concept here, its use, what the rebuild does |
 | `dependencies.txt` | today's package and module dependencies, measured |
 | `planned/` | the planned code: nine of the twelve modules, compiled, with suites |
@@ -27,9 +27,10 @@ FrFlow is a compiler. It reads a model written in a Scala DSL, checks it, and pr
 run, and property tests. Around that sits a ledger of the developer's signed decisions about each statement. Today's
 code (12,008 main lines) does all this but is not organised as a compiler: no IR between phases (what a term mentions
 is learned by printing it); a string-typed Lean back end; one `Node` class (24 fields) for six kinds and a 52-member
-`KnowledgeBase`; a core that depends on the wire format; package cycles everywhere; concepts held two to five times;
-decided content cut from source text; and `IDEA.md` stating the purpose a second time. Appendix B maps the seventeen
-measured problems.
+`KnowledgeBase`; a core that depends on the wire format; package cycles everywhere; the same concept represented in
+two to five classes (a Lean type, a test report, "proven, tested or assumed"); what the developer decides cut out of
+the source text by line heuristics, so a comment edit reopens a node; and `IDEA.md` stating the purpose a second time.
+Appendix B lists the seventeen measured problems and where each is addressed.
 
 ### 1.2 What it becomes
 
@@ -71,10 +72,31 @@ cd docs/redesign/planned
 sbt clean compile proof/test decision/test dsl/test project/test evaluation/test testing/test
 ```
 
+### 1.5 Reading the planned code
+
+In this order, under `planned/src/` unless a suite:
+
+1. rooms' `Rooms.scala`, `Book.scala` and `Knowledge.scala` (`planned/test/project/frflow/rooms/`): a model as the
+   user writes it;
+2. `core/frflow/core/spec/Statement.scala`, `Range.scala`, `CallForms.scala`: what a node says, and its readings;
+3. `dsl/frflow/dsl/vocab/Definition.scala` and `Stating.scala`: the two kinds of values;
+4. `core/frflow/core/term/Sym.scala` and `interpret/Forward.scala`: the term algebras and the transformer base;
+5. `proof/frflow/proof/lean/term/LeanTerm.scala` and `eval/frflow/eval/term/Evaluate.scala`: the one printer and the
+   one evaluator;
+6. `core/frflow/core/analysis/Validate.scala`: the structural rules;
+7. `core/frflow/core/consistency/Consistency.scala`: groups and witnesses;
+8. `proof/frflow/proof/obligation/Required.scala`: what Lean is asked of each node;
+9. `decision/frflow/decision/rules/Decide.scala`: one rule per command;
+10. the suites `BookSuite` and `CalendarSuite` (rooms' tests): what is shown.
+
 ## 2. The concepts
 
 Each concept: a definition, an example from the planned rooms model, and how FrFlow checks it. Section 3 shows the
-whole model.
+whole model; the names used before it: a `Booking` has a room, a start and an end; `RoomBookings` is a room's bookings
+as the store gives them; `stored` is the store's model, holding every booking; `book` is the booking program and
+`granted` the calendar's decision on a request; `apart` and `noOverlap` say two bookings share no time (over moments,
+and over start and end times); `isFree` says a request is apart from every booking held; `bookWhenFree` is the root
+claim about `book`; `storeModel`, `oneAtATime` and the other premises are the assumptions of 2.6.
 
 ### 2.1 Nodes: claim, assumption, design
 
@@ -188,13 +210,19 @@ Checked before production only:
   (`cover_<op>`) from every start (`start_<node>`); that this covers every reached state rests on four store facts
   (2.6).
 
-`cover_<op>`: every run from a world meeting every `always`, on inputs meeting theirs, ends in one meeting A.
-`made_<maker>`, the soundness side of assuming `always[T]` of every value: of a proven define `d`,
-`∀ x₁ … xₙ, H(x₁) → … → H(xₙ) → A(d x₁ … xₙ)`; of a store operation on its model,
-`∀ p (w : World), H(p) → H(w) → A(op_of p w.s)` with `op_of p s = Id.run ((Stored.op p).run' s)`; each `H` every
-`always`'s guard. A rule met by generated values needs a Scala value, since draws and the witness search use the
-evaluator; so rooms states `roomBookingsApart` in start and end times and proves its link to `neverOverlap`'s moments
-in Lean (`room_apart` in `lean-spike/Proofs.lean`).
+For an `always` A, each `H` below being every `always`'s guard on the variable:
+
+| Obligation | States | Asked of |
+|---|---|---|
+| `cover_<op>` | every run from a world meeting every `always`, on inputs meeting theirs, ends in one meeting A | each program writing a store A is about |
+| `made_<maker>` of a define `d` | `∀ x₁ … xₙ, H(x₁) → … → H(xₙ) → A(d x₁ … xₙ)` | each proven define whose result A applies to |
+| `made_<maker>` of a store operation | `∀ p (w : World), H(p) → H(w) → A(op_of p w.s)` | each store operation on its model whose result A applies to |
+
+`op_of p s` is `Id.run ((Stored.op p).run' s)`. `made_` is the soundness side of assuming `always[T]` of every value.
+
+A rule met by generated values needs a Scala value, since draws and the witness search use the evaluator; so rooms
+states `roomBookingsApart` in start and end times and proves its link to `neverOverlap`'s moments in Lean
+(`room_apart` in `lean-spike/Proofs.lean`).
 
 ### 2.4 Edges
 
@@ -281,8 +309,8 @@ of it.
 **A claim read as a call.** Where a claim applies one Definition to exactly its leading `forall` variables (alone, or
 one side of its equation) and mentions it nowhere else, `CallForms` reads it as a call; a program's claim
 `forall((request, before) => book(request).from(before) { (booked, after) => … })` reads as a run, with a failure
-clause where it states one (`.failing { (error, after) => … }`, `.failsChangingNothing[E]`). Another Definition on the
-same variables is an ordinary mention.
+clause where it states one (`.failing { (error, after) => … }`, `.failsChangingNothing[E]`). Another Definition on
+the same variables is an ordinary mention.
 
 ```scala
 enum CallForm:
@@ -429,8 +457,8 @@ val bookIfGranted = program { (request: Term[Booking]) => BookIfGranted(store.re
 ```
 
 The model is written as a program is, an instance of the boundary's trait over the model's state (`Model[F, S]`:
-`get`, `set`); `store.model(…)(Stored(_))` declares it with its instance, and `stored.in(world)` reads its state in a
-world. Lean prints the boundary as a class, the model's operations as `do` blocks, `World`, and the instance on
+`get`, `set`); `store.model(…)(Stored(_))` declares it with its instance, and `stored.in(world)` reads its state in
+a world. Lean prints the boundary as a class, the model's operations as `do` blocks, `World`, and the instance on
 `StateM World` (`planned/test/proof/resources/rooms/Boundaries.decls.lean`). The program's run on the models is
 `bookIfGranted_run`.
 
@@ -493,8 +521,8 @@ final class Calendar(held: RoomBookings):
 
 It is correct as stated on what the store can give (`CalendarSuite`): on 500 generated cases meeting what always holds
 (over 50 with two bookings of one room) it meets `grantWhenNoOverlap`; on a list the store cannot give (Oak 0–10 and
-Oak 1–2, a request for 3–4) it is wrong, and that list breaks `roomBookingsApart`, so no case draws it; the README's
-step-4 calendar, which forgets the booking after the request, is found by a generated case.
+Oak 1–2, a request for 3–4) it is wrong, and that list breaks `roomBookingsApart`, so no case draws it; the
+README's step-4 calendar, which forgets the booking after the request, is found by a generated case.
 
 ### 3.6 The knowledge base
 
@@ -655,19 +683,21 @@ Run by any other interpreter, the variable fails at once ("FrFlow bug: a bound v
 tested).
 
 **The hard constructs are algebra operations** in all three interpreters (`Changes.scala`): a sum's eliminator,
-`c.on[Change.Book](b => …).on(Change.Clear)(…)`, each arm's type test written by `CaseMacros` (no cast), printed as a
-`match`; records made (`make[Booking](room, t, t + 1)`) and copied (`b.updated(_.start, t)`); the folds and `let`;
-`allDistinct`, `pairwise` and `forall` of a define; a program's runs. A define is one `term.Body` (name, curried type,
-a `lam` per input) applied one argument at a time, so `param`, `define`, `lam` and `app` cover every arity.
+`c.on[Change.Book](b => …).on(Change.Clear)(…)`, each arm's type test written by `CaseMacros` (no cast), printed
+as a `match`; records made (`make[Booking](room, t, t + 1)`) and copied (`b.updated(_.start, t)`); the folds and
+`let`; `allDistinct`, `pairwise` and `forall` of a define; a program's runs. A define is one `term.Body` (name,
+curried type, a `lam` per input) applied one argument at a time, so `param`, `define`, `lam` and `app` cover every
+arity.
 
 **Notes are an interpretation**: what a term declares, and faults, are on the term (`noted`), gathered once by
 `Collect` into a monoid (`Declarations`); there is no registry. A project's own operation is a define, or an algebra
 outside the core found by a typed key (`Count` in the tests, via `Sym.extension`, falling back to its meaning in the
 core).
 
-**What is not compositional** (§2.4, §3.3) reads the initial form (the "what changed" view, the refutation's hint, the
-layout, `CallForms`, where a witness sits) or passes context (`LeanTerm`'s scope, `Opened`, `Guarded`, `Hypotheses`,
-`PartialEval`, which folds what is known: `1 < 2 && p` is `p`). The code fingerprint hashes source, not terms.
+**What is not compositional** (§2.4, §3.3) reads the initial form (the "what changed" view, the refutation's hint,
+the layout, `CallForms`, where a witness sits) or passes context (`LeanTerm`'s scope, `Opened`, `Guarded`,
+`Hypotheses`, `PartialEval`, which folds what is known: `1 < 2 && p` is `p`). The code fingerprint hashes source, not
+terms.
 
 **Syntax and laws.** `implies` is alphanumeric, so it binds last; a macro refuses `a implies b implies c` without
 parentheses. On 300 generated terms (`TermLawsSuite`): a written lambda gives the evaluator's value, folding keeps
@@ -701,9 +731,11 @@ trait Flow[F[_]] extends Monad[F]:
   def handle[E: LeanType, A](fa: F[A])(handler: Term[E] => F[A]): F[A]
 ```
 
-Also `guarantee`, `race`, `parTupled`, `atomically`, `collect`, `fold`, `parCollect`, `attempt`, and `ifM`, `bracket`,
-`timeout` made of them. Every combinator is kept (owner §2), each recorded as a step Lean reads (`RecordingSuite`) and
-used in an example. `F` has three interpreters:
+`Flow.scala` also has `guarantee`, `race`, `parTupled` and `atomically`, and `ifM`, `bracket` and `timeout` made of
+them; `RecordingSuite` records each as the step Lean reads (with `each`, `raise` and `handle`). Every combinator is
+kept (owner §2) and given a use in an example. `collect`, `fold`, `parCollect` and `attempt` (today's `traverse`,
+`foldM`, `parTraverse`, `attempt`) are not in the planned code: step 2 adds them, each with a `RecordingSuite` test.
+`F` has three interpreters:
 
 - **Lean's**: `Recording`, a pure `Flow[Recorded]`, with the boundary's recording instance (`store.recording`).
   `program { … }` reads the recording into `Prog[Stated[?]]` (`ReadRecording`, steps numbered in its own `State`);
@@ -718,7 +750,8 @@ used in an example. `F` has three interpreters:
 
 `BoundaryOps[B]`, which `derives BoundaryOps` will write (rooms writes it by hand), gives the class Lean declares,
 `recording`, `call`, `model` and `lifted`. `LowerModels` prints boundaries, models, `World` and each program's run on
-them (`f_run`). Law: the recording run on the models gives what `Running` gives.
+them (`f_run`). Step 4 adds the law that a program's recording run on the models gives what `Running` gives on the
+models' instances; no suite states it yet.
 
 ### 4.5 The front end: nodes, names, errors
 
@@ -867,6 +900,14 @@ first (`Standings`). A node returns for a cause: `self`, `above` (unless only wo
 change. Rules see a `Subject`, never the IR or Lean; `Decide` refuses a reason under three words, then applies one
 rule class per `Command`. Ledgers start fresh (owner §2, G).
 
+**The mechanical rule.** A decision is mechanical when the developer can take it in a batch: `Mechanical.why` gives
+today's chain, in its order, of why one is not (it holds a choice; it is not under review; a cause other than `self`,
+`above` or `parts` moved it; its meaning moved; its new parts are not proven to make it; it is not proven again; it
+waits for a node the batch does not accept first). "Not proven again" reads the checks through `ProofStanding`, made
+by `ReadProof` as today's `Proofs.unproven`, one `Unproven` case per line, with `Unproven.Consistency` added.
+`Reading.notMechanical` folds this parents first, and `confirm` accepts every node it finds mechanical. Once a rule
+has added decisions, `Seals.signAdded(before, after, sign)` signs those `after` has and `before` did not.
+
 **Who may decide.** `.frflow/deciders` is committed (`decision/frflow/decision/ledger/Deciders.scala`):
 
 ```scala
@@ -909,10 +950,10 @@ to `f(x)`).
 | the shell (no Lean, unknown node) | `FrFlowError` | raised in `F` |
 | FrFlow bugs | `IllegalStateException`, "FrFlow bug" | where types rule the case out |
 
-`Fault` has thirteen cases (`NoType`, `NotData`, `NoField`, `NotAClaim`, `ProgramMentioned`, `MeantWhereWritten`, …).
-`Broken.Always` is an `always[T]` a call's value breaks. Production code has no `Either` to return, so plain code
-evaluating a term with no Scala value throws `NotEvaluated`; inside the evaluator `app` turns it back into `Left`.
-Text for the developer is made only in `cli` and `web`.
+`Fault` has thirteen cases (`NoType`, `NotData`, `NoField`, `NotAClaim`, `ProgramMentioned`, `MeantWhereWritten`,
+…). `Broken.Always` is an `always[T]` a call's value breaks. Production code has no `Either` to return, so plain
+code evaluating a term with no Scala value throws `NotEvaluated`; inside the evaluator `app` turns it back into
+`Left`. Text for the developer is made only in `cli` and `web`.
 
 ### 7.2 Effects: where F[_] is used, and why
 
@@ -946,8 +987,8 @@ untyped given values; no unchecked type test is left outside `Fn`.
 
 `features.md` is the full table, feature by feature.
 
-**Run-time checking** ("FrFlow is for testing before production and strict static guarantees", owner §2). Removed: the
-`runtime` module (service wiring, `Guard`, the assumption watch, sampling, the reporter, `ContractViolation`),
+**Run-time checking** ("FrFlow is for testing before production and strict static guarantees", owner §2). Removed:
+the `runtime` module (service wiring, `Guard`, the assumption watch, sampling, the reporter, `ContractViolation`),
 `.checkedBy` and its `check` obligation, `.checkedAtRunTime`, `kb.reporting`. `knowledge.code(d)(bindings*)` is
 `service`'s wiring returning the plain function, so servers lose their `ContractViolation` branches. Where each check
 went:
@@ -1000,9 +1041,9 @@ new never share a classpath: no new module depends on an old one, and a ported e
 every node proven in the reference is proven, and each is proven, tested or assumed as there, differences listed and
 judged; (2) each seeded bug is caught; (3) examples and property and model tests pass with the reference's seeds; (4)
 no statement is weakened: a generated `example : Old.claim ↔ New.claim` per node, proven by `simp [frflow_defs]` or
-listed. `WalkthroughSuite` replays the README's rooms changes (steps 4–6) on a copy and compares `check` and `review`
-output line by line: the failing case (Oak 0–4, a request 0–1), the step refuted by a case Lean proves (Elm 2–4, a
-request 0–2), the claim back for review.
+listed. `WalkthroughSuite` replays the README's rooms changes (steps 4–6) on a copy and compares `check` and
+`review` output line by line: the failing case (Oak 0–4, a request 0–1), the step refuted by a case Lean proves
+(Elm 2–4, a request 0–2), the claim back for review.
 
 **Steps**, each one reviewable change, green on `sbt test` (old and new) and `sbt leanTest`:
 
@@ -1033,11 +1074,12 @@ gains its `ifM`, and `noCrossTenantRead` becomes a root over two Definitions. In
 `race`, `bracket` and `parTupled`, each under a proven claim. Step 14 rewrites `docs/USAGE.md`, `docs/DAG.md`,
 `docs/index.html` and the frflow and scala-fp skills.
 
-**Stubs by step** (40 `???`, `review.md` lists the first ones the owner will meet): step 2, `derives BoundaryOps`; 3,
-`feasible`, `commutes`, `made_` of a program's result, module layouts, a few `LowerProg` steps; 4, `FlowInterpreter`'s
-loops and errors, `Literals` of maps and sets, `CodeSyntax.code`; 5, `ModelTests.of`, derived generators, shrinking,
-the examples' runner; 6, three review functions; 8, the port interpreters, `NodeChecker`, the lexer's passes; 9,
-`FrFlowApi.make`, `Views.tree`, `Views.inbox`.
+**Stubs by step** (40 `???`, `review.md` lists the first ones the owner will meet): step 2, `derives BoundaryOps`, and
+`Flow`'s `collect`, `fold`, `parCollect` and `attempt` (not yet written at all); 3, `feasible`, `commutes`, `made_` of
+a program's result, module layouts, a few `LowerProg` steps; 4, `FlowInterpreter`'s loops and errors, `Literals` of
+maps and sets, `CodeSyntax.code`; 5, `ModelTests.of`, derived generators, shrinking, the examples' runner; 6, three
+review functions; 8, the port interpreters, `NodeChecker`, the lexer's passes; 9, `FrFlowApi.make`, `Views.tree`,
+`Views.inbox`.
 
 **Seeded bugs after the port.**
 
@@ -1078,25 +1120,25 @@ the examples' runner; 6, three review functions; 8, the port interpreters, `Node
 | the macros meet a case the examples lack | medium | `ElabError`s name the site; `BoundaryOps` tested per example |
 | rewriting 5,176 lines of tests lets a case slip | medium | ported suites keep case names; a step lists what it drops |
 
-### 10.2 Open questions and minor findings
+### 10.2 Open questions
 
-From the review, none blocking, in order of value:
+In order of value; none blocks a step.
 
-- **Drawn values must meet their fields' rules** (R15.3). Lean assumes `always[Booking]` of every booking inside a
+- **Step 5: drawn values must meet their fields' rules.** Lean assumes `always[Booking]` of every booking inside a
   `RoomBookings`, but `Respecting` applies only the top-level rule; `CalendarSuite` uses a hand-written `Draw`. Step
   5's derived generators must respect every `always[T]` of every `T` inside a drawn value, with a test that a drawn
   `RoomBookings` meets `endsAfterStart` for each booking.
-- **The README readers' remaining items** (R15.2): `outside.calls(book)` should name what it guarantees, or `show`
-  spell out the rules it covers (`book.calledOnlyWith(endsAfterStart)` would change the formula: the owner's call);
-  `checkedAgainst`'s parameters could say their roles (`startFrom`, `readBack`); introduce `World` where first used;
-  `Calendar` should filter by the request's room rather than group, or the rule say "of one room"; warn when a node
-  reached by an edge is missing from the `KnowledgeBase` list, or collect the list.
-- **Names pending today's renames** (R15.1): today's library is renaming the store (`bookingTable`, `storedBookings`)
-  and `startsMeetingItsRules`; settle `store`, `stored` and `startsEmpty` at step 11.
-- **Rules without a Scala value** (R15.4): `roomBookingsApart` says "apart" while its rule is `noOverlap`; rename it
-  or say so. Make the limit a validation message, not only a risk.
-- **Long premise lists** (R15.5): the store's four facts recur on every claim about the store; an assumption could
-  group them, if the owner agrees, still one edge and one kind.
+- **Step 11: the README's forms.** `outside.calls(book)` should name what it guarantees, or `show` spell out the rules
+  it covers (`book.calledOnlyWith(endsAfterStart)` would change the formula: the owner's call); `checkedAgainst`'s
+  parameters could say their roles (`startFrom`, `readBack`); introduce `World` where first used; `Calendar` should
+  filter by the request's room rather than group, or the rule say "of one room"; warn when a node reached by an edge
+  is missing from the `KnowledgeBase` list, or collect the list.
+- **Step 11: names shared with today's library.** Today's library is renaming the store (`bookingTable`,
+  `storedBookings`) and `startsMeetingItsRules`; settle `store`, `stored` and `startsEmpty` at step 11.
+- **Steps 1 and 11: rules without a Scala value.** `roomBookingsApart` says "apart" while its rule is `noOverlap`;
+  rename it or say so. Make the limit a validation message, not only a risk.
+- **Long premise lists (the owner's call).** The store's four facts recur on every claim about the store; an
+  assumption could group them, if the owner agrees, still one edge and one kind.
 - **The double reading of `always`** (of a type, of a store) is the owner's to keep or split; asynchrony is out of
   scope (owner §17).
 

@@ -1,34 +1,11 @@
-# r43 appendix: feature audit (revision 15: the owner's core concepts applied; terms in tagless-final style)
+# Feature audit
 
-Every user-visible feature and DSL operation, the concept it belongs to in the target (section 4 of
-`r43-architecture.md`), where the examples use it, and what the rebuild does with it. The owner has decided (section
-4.8 of the architecture, and `r43-owner-changes.md` §2 and §5); this table applies the decisions, and the rebuild
-plan (section 6) says when each example is ported. Revision 8 changes how terms are represented (algebras with
-interpreters, binders as host functions; 4.13), not what the user writes. Revision 9 applies the owner's forms
-(`r43-owner-changes.md` §6, which today's library adopts too): names from the `val`, `implies` for `==>`, a contract
-written as a claim, `.refines` for `.under`, `allows`/`forbids` for `expect`/`reject`; and every term construct below
-is an algebra operation, printed by the one printer and run by the one evaluator. Revision 10 (review round 9):
-`Operation[F]` and `Open[A]` for `Param` (the owner's names), `returning` for `result` in examples, a contract
-naming its operation when its formula applies two, a flow contract written as a run from a world, the owner's list
-relations, and a domain type's `LeanType` derived once (`derives LeanType`). Revision 11 (round 10, owner §9): a
-contract may be the root (rooms' is the statement about `book`), a node with proven code is proven from its parts by
-`impl`, a run states both outcomes in one formula, and a missing `derives LeanType` is named. Revision 12 (round 11):
-a boundary is named from its val, and its model is written as an instance of its trait, elaborated, printed as
-`Boundaries.lean` and run against an adapter by the model tests. Revision 13 (round 12, owner §10): one idea per
-statement, what always holds an invariant (of a type's values, of a store's state); and the README readers' forms:
-`stored.in(before)`, `store.model(…)(Stored(_))`, `when(…)(…).otherwise(…)`, `stored.checkedAgainst(start = …,
-observe = …)`, `.assuming`, one contract shape naming its operation, ids the vals' names as written; and several root
-statements, on any operations (owner §11). Revision 14 (owner §10–§18; architecture 4.14) says every feature in the
-owner's core concepts and no others: three kinds of nodes (`Node.claim`, `Node.assumption`, `Node.design`), two kinds
-of values (`Declaration[A]`, abstract, only in statements; `Definition[A]`, given its meaning by proven code, tested
-Scala, a fixed value or a value provided where the code runs), two quantifiers (`forall`, `always`). Contracts,
-invariants, models and definitions as kinds of node, `Operation`/`Open`, `allows`/`forbids` and `expects` are gone
-under every name; examples are tests beside the knowledge base; the world outside is said by assumptions; the
-theory is proven consistent and not vacuous in Lean. Revision 15 (review round 14): `define` and `program` give a
-`Definition` carrying its meaning, the one user type (`Def1`, `Def2`, `Steps` gone); premises are written with
-`.assuming`, the derivation only checking the list; today's library's names (`FrFlowExamples`,
-`changedOneRunAtATime`, `initially`); `implementProvided`; `made_<maker>`; claims tested whole; the calendar's
-claims over `RoomBookings`. Where a row below says what an earlier revision did, its last revision is the one that
+Every user-visible feature and DSL operation of today's library, the concept it belongs to in the rebuild
+(`ARCHITECTURE.md`: section 2 for the concepts, section 4 for the compiler), where the examples use it, and what the
+rebuild does with it. The owner's decisions (`owner-decisions.md`, mainly §2, §5 and §10–§18) are applied;
+`ARCHITECTURE.md` section 8 summarises what is removed and section 9 says when each example is ported. Ids such as
+R14.2 name findings of the design's review rounds, and "revision n" a revision of the design; both are in
+`history/ARCHITECTURE-r15-log.md`. Where a row says what an earlier revision did, the last revision is the one that
 holds.
 
 Use counts are occurrences in `examples/*/src` (auth, keycloak, crm, sharing; rooms is noted where it adds a use),
@@ -42,7 +19,7 @@ measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" means only Fr
 | `Param[T](name, means)` (fact or operation) | `vocab.Symbol` with its `ValueKind`; `Named.param`; `dsl.vocab.Declaration`, `Definition` | all | change (owner §14, §15; it replaces revision 10's `Operation`/`Open`): `Declaration[A](means)` for a value only statements speak of (auth's `access`, `authorized`, `signedIn`: applied only under `Stating`, so code using one does not compile), `Definition[A](means)` for a value code uses, given its meaning once (`implementProven`, `implementTested`, `implementValue`, `provided`); each of any type, named from its val (`val granted = Definition[…](…)` is `granted`); `Problem.Undefined`, `DeclarationInCode` (`FormsSuite`, `AuthSuite`) |
 | `Param` without a Lean type (code-only) | `SymbolType.CodeOnly`; one a statement mentions is `Problem.CodeOnlyInStatement` | crm, sharing (connections) | keep, as a Definition without a `LeanType`, `provided` where the code runs |
 | `define { … }` (0 to 6 inputs), `program { … }` | a `Definition` carrying its meaning (owner §15, R14.2): `Definition.onTheSpot` (`Code.Proven`/`ProvenFlow`, its written lambda, the define's `core.term.Body`, whose body is a `lam` per input); `vocab.Define` (its term and IR in `Written`); `dsl.shape.Defines`, named as its val at compile time; called by `Definition.apply` (`Named.define`, `Functions.app` one argument at a time), passed as a function by `DefinitionSyntax`, printed once as its Lean `def`, run by the evaluator | 0 / 18 / 30 / 58 | change: `val covers = define { … }` is a `Definition[(Booking, BigInt) => Boolean]`; `Def1`, `Def2`, `Steps` are gone; a meaning is given once (`MeantWhereWritten`) |
-| `object X extends Data[X]` | `LeanType` derivation (`DataMacros`), once per type: `enum X derives LeanType` (and `final case class … derives LeanType`); `Data[X]` keeps only the constructor on terms (`Claims(r, u, rs)`) | 1 / 4 / 13 / 23 | change: add `derives LeanType` to each domain type (revision 9's derivation at every use passed the JVM's size limits on sharing's largest file, 4.13); forgetting it says "X is not a domain type yet: add derives LeanType to its declaration" |
+| `object X extends Data[X]` | `LeanType` derivation (`DataMacros`), once per type: `enum X derives LeanType` (and `final case class … derives LeanType`); `Data[X]` keeps only the constructor on terms (`Claims(r, u, rs)`) | 1 / 4 / 13 / 23 | change: add `derives LeanType` to each domain type (revision 9's derivation at every use passed the JVM's size limits on sharing's largest file, `ARCHITECTURE.md` 10.1); forgetting it says "X is not a domain type yet: add derives LeanType to its declaration" |
 | `b.start` (a record's field) | `Records.field` by a `Selector` with Scala's getter, derived per record from its `Mirror` | all | keep |
 | `==` on terms refused with a message | `Term.NoEquality` (today's message) | — | keep |
 | `LeanType.product[T]`, `LeanType.sum[T]` | the same derivation, without the term constructor | sharing 8 + 5 | keep |
@@ -58,7 +35,7 @@ measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" means only Fr
 | `make[R](fields…)`, `x.updated(_.field, v)` (a record made, copied) | `Records.construct` with a derived curried `Constructor`, `Records.copy` by the field's `Selector` (`set` through `copy`); `Expr.Make`, `Expr.Copy` | not counted (records are made in terms through today's constructors) | keep (`ChangesSuite`) |
 | list, option, map, set operations | `Lists`, `Options` algebras, growing to today's set (`PrimOp`, `Iterate`, `Fold` in the IR) | all | keep |
 | `xs.allDistinct`, `xs.pairwise(r)`, `xs.forall(d)` with a define (owner §4, today's `ListRelations`) | `Lists.nodup`, `Lists.pairwise` (two host-function variables), printed `(List.Nodup xs)` and `(List.Pairwise (fun (a : A) (b : A) => …) xs)`; a define is a function of terms, so `forall` takes it | rooms 3 | keep (`RoomsSuite`, the generator) |
-| a project's own operation (`count`) | a define; or an algebra outside the core with its meaning in the core and, optionally, interpreters that know it (`Count`, 4.13) | — | keep |
+| a project's own operation (`count`) | a define; or an algebra outside the core with its meaning in the core and, optionally, interpreters that know it (`Count`, `ARCHITECTURE.md` 4.2) | — | keep |
 | `BigInt` arithmetic; `Int`/`Long` compare only | `NumKind` | all | keep |
 | `p.value` in plain code | `env(d)` on the values the code is given (`dsl.kb.ValuesSyntax`), `d` a Definition | 34 | change (owner B: no ambient state); every use rewritten when its example is ported |
 | `d.fn` in plain code | `d.fn(env)` (`eval.term.DefSyntax`): the define's term run by the evaluator (`Evaluate`, curried), nothing compiled | 8 (main) | change: the values passed explicitly |
@@ -163,7 +140,7 @@ measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" means only Fr
 
 | Feature | Rebuild |
 |---|---|
-| the `runtime` module: `service` wrapping code to check each call (`enforce`, `Service`, `Guard`), sampling (`RunCheck`, `checkedAtRunTime`), the assumption watch, the violation reporter, `ContractViolation` | **removed**; section 4.12 of the architecture says what this removes and what moved to tests |
+| the `runtime` module: `service` wrapping code to check each call (`enforce`, `Service`, `Guard`), sampling (`RunCheck`, `checkedAtRunTime`), the assumption watch, the violation reporter, `ContractViolation` | **removed**; section 8 of `ARCHITECTURE.md` says what this removes and what moved to tests |
 | facts about the values a service runs with, checked when wired and on change (sharing's `HousekeepingOnTime`, "the server checks it as it runs") | trusted, as every assumption; checked under the examples' `:=` values and the tests' values only |
 
 ## Decisions and review (concept: Content, Ledger, review)
