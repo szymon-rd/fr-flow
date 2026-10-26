@@ -90,7 +90,8 @@ object Verdict:
         case v => Result(o, Open, clip(v.why(name).getOrElse("")))
 
   /** An authored `complete` that does not go through, in FrFlow's words first (`changed`: what changed since it and
-    * its parts were decided, as `whatChanged` names it), then Lean's.
+    * its parts were decided, as `whatChanged` names it), then Lean's. A proof file still a stub (`sorry`) is not
+    * written yet, not broken: it is said as Lean says it.
     */
   def brokenProof(r: Result, changed: List[String]): Result =
     val names = changed.mkString(" and ")
@@ -99,7 +100,7 @@ object Verdict:
       case (true, true)   => "the step from its parts may not hold"
       case (false, false) => s"the proof from its parts no longer goes through: $names changed"
       case (false, true)  => "the proof from its parts does not go through"
-    r.copy(detail = s"$why\nLean: ${r.detail}")
+    if TheoremVerdict.UsesSorry.why("complete").contains(r.detail) then r else r.copy(detail = s"$why\nLean: ${r.detail}")
 
   /** A step Lean proves false on a case (`Refutation`): the case, and what the contract answers on it; Lean's own
     * message about the proof is left out, the step being false.
