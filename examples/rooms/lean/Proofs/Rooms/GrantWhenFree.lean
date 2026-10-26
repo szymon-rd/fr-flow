@@ -28,7 +28,7 @@ theorem complete : Obl.complete := by
     · exact Or.inl hab
     · refine Or.inr fun ⟨⟨hRoom, h1⟩, h2⟩ => ?_
       obtain ⟨t, hat, hbt⟩ := shared a b (hHeld a ha) (hHeld b hb) (by omega) (by omega)
-      exact hApart a ha b hb ⟨hab, hRoom⟩ t ⟨hat, hbt⟩⟩]
+      exact ((hApart a ha b hb).resolve_left hab).resolve_left (· hRoom) t ⟨hat, hbt⟩⟩]
   apply propext
   constructor
   · intro hNone t ht ⟨b, hb, hRoom, hbt⟩

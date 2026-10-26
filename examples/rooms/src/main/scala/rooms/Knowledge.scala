@@ -6,6 +6,10 @@ final case class Booking(room: String, start: BigInt, end: BigInt)
 
 val granted = Param[(List[Booking], Booking) => Boolean]("granted", "whether a request is granted, given the bookings held")
 
+// What both levels ask of the bookings, with no moments in it.
+val endsAfterStart = define { (b: Term[Booking]) => b.start < b.end }
+val heldOnce = define { (held: Term[List[Booking]], b: Term[Booking]) => held.filter(x => x === b).length === 1 }
+
 // The root, over moments.
 val covers = define { (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end }
 
@@ -13,10 +17,13 @@ val freeFor = define { (held: Term[List[Booking]], request: Term[Booking]) =>
   forall((t: Term[BigInt]) => covers(request, t) ==> !held.exists(b => b.room === request.room && covers(b, t)))
 }
 
+val apart = define { (a: Term[Booking], b: Term[Booking]) =>
+  a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t))) }
+
 val sensible = define { (held: Term[List[Booking]], request: Term[Booking]) =>
-  (request :: held).forall(b => b.start < b.end) && held.forall(a => held.filter(b => b === a).length === 1) &&
-    held.forall(a => held.forall(b => (a =!= b && a.room === b.room) ==> forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))))
-}
+  (request :: held).forall(b => endsAfterStart(b)) &&
+  held.forall(b => heldOnce(held, b)) &&
+  held.forall(a => held.forall(b => a === b || apart(a, b))) }
 
 val grantWhenFree = Node.claim("GrantWhenFree",
   "A request is granted exactly when its room is free for its whole time.",
@@ -25,12 +32,13 @@ val grantWhenFree = Node.claim("GrantWhenFree",
   sensible(held, request) ==> (granted(held, request) === freeFor(held, request))))
 
 // The contract, over start and end times.
-val overlaps = define { (a: Term[Booking], b: Term[Booking]) => a.room === b.room && a.start < b.end && b.start < a.end }
+val overlaps = define { (a: Term[Booking], b: Term[Booking]) =>
+  a.room === b.room && a.start < b.end && b.start < a.end }
 
 val consistent = define { (held: Term[List[Booking]], request: Term[Booking]) =>
-  (request :: held).forall(b => b.start < b.end) && held.forall(a => held.filter(b => b === a).length === 1) &&
-    held.forall(a => held.forall(b => a === b || !overlaps(a, b)))
-}
+  (request :: held).forall(b => endsAfterStart(b)) &&
+  held.forall(b => heldOnce(held, b)) &&
+  held.forall(a => held.forall(b => a === b || !overlaps(a, b))) }
 
 val grantWhenNoOverlap = Node.contract(granted)("GrantWhenNoOverlap",
   "A request is granted exactly when it overlaps no booking of its room.",
