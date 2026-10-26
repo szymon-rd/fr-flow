@@ -2,6 +2,7 @@ package frflow
 package node
 
 import frflow.example.ExampleRuns
+import frflow.program.ContractMacros
 import frflow.protocol.{NodeKind, RunCheck}
 import frflow.runtime.RunTimeChecks
 import frflow.types.Shape
@@ -109,6 +110,17 @@ object Node:
       Node(id, statement, why, NodeKind.Contract, post = Some(Lifted.lambda(post, lambdaTypes(op), Source.text(post))), op = Some(op),
         ideaSection = idea, file = Source.here, at = Source.at)
     node()
+
+  /** A contract written as a claim, `forall((a, b) => … op(a, b) …)`, with one operation applied to the forall's
+    * variables in order: the same contract as `contract(op)(id, statement)((a, b, result) => …)`, `op(a, b)` read as
+    * `result`.
+    */
+  transparent inline def contract(id: String, statement: String)(inline formula: Term[Boolean]): Node[?] =
+    ${ ContractMacros.claimShaped('id, 'statement, 'formula) }
+
+  @scala.annotation.publicInBinary private[frflow] def claimShaped[F](op: Param[F], id: String, statement: String,
+      formula: Lifted[?], file: String, at: Int): Node[F] =
+    Node(id, statement, "", NodeKind.Contract, post = Some(ClaimShaped.post(op, formula)), op = Some(op), file = file, at = at)
 
   /** What the outside (a database, the clock) is trusted to do on each call: code calling it is proven from it, its
     * adapter checked: `Node.assumption(fetch)(id, statement, why)((user, query, rows) => …)`.

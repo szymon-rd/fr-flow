@@ -70,6 +70,7 @@ Exit codes: 0 fine; 1 not complete, or a decision refused; 2 a usage error
 |---|---|---|
 | claim | `Node.claim(id, statement)(formula)`; the one with no parents is the root | proven from its parts (`complete`) |
 | invariant | `Node.invariant[A, B](id, statement, why)(rule)`, kept by contracts with `.keeps(inv)(view)` | a claim whose parts are its keepers |
+| contract written as a claim | `Node.contract(id, statement)(forall((a: Term[A], b: Term[B]) => ... op(a, b) ...))`, one operation applied to the forall's variables in order | the same contract as the lambda form, `op(a, b)` read as `result`; a formula of another shape does not compile |
 | contract | `Node.contract(op)(id, statement)((a, b, result) => ...)` on an operation `op: Param[(A, B) => R]`, of 0 to 6 inputs | every call of `op` meets `post`; an attached `define` is proven against it (`impl`) |
 | contract on a flow | `Node.contract(op)(id, statement)((a, result, before, after) => ...)` on `op: Param[A => Flow[R]]`, of 0 to 6 inputs | every run from any world meets `post`; the attached flow is proven against it on the models (`impl`) |
 | assumption | `Node.assumption(op)(...)(post)`, or `Node.assumption(id, statement, why)(formula)` | trusted, not proven: what the outside does, or a fact of the world |
