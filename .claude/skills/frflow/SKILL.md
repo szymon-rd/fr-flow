@@ -371,9 +371,9 @@ test pass.
   an outside system's type says what the outside can hold (a table: one row per
   key). Say in the `why` or the description what the generator leaves out.
 - **For a boundary's implementation**, a failing run reads `on <Impl>, from
-  <state>: <calls>` with what differed: fix the implementation, or tell the
-  developer the model is wrong; never change the model to match the code
-  without their decision.
+  <state>, after <calls>: <call> returned …, where the model returns …`: fix
+  the implementation, or tell the developer the model is wrong; never change
+  the model to match the code without their decision.
 
 ## What check reports, and what to do
 

@@ -68,8 +68,8 @@ class FlowSuite extends munit.FunSuite:
       def add(n: Term[BigInt]) = Flow.effect(n)(k => if k <= 3 then held += k)
     val m = stockModel.implementedBy(c => Capped(c), _.held)
     val f = stockKb(m).test(m).get.failure.getOrElse(fail("the difference was not found"))
-    assertEquals(f.shown, "on Capped, from 0: add(4)")
-    assertEquals(f.why, "after add(4), Capped holds 0, where the model holds 4")
+    assertEquals(f.shown, "on Capped, from 0")
+    assertEquals(f.why, "add(4) leaves it holding 0, where the model holds 4")
   }
 
   test("an outside system is checked against the model on fewer runs, and said to be assumed") {

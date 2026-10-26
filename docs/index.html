@@ -421,7 +421,7 @@ passes (<code>.frflow/counterexamples.json</code>).</td></tr>
 <tr><td><code>its code's tests never reached a part of the contract: &lt;part&gt;</code></td><td>No generated case made that
 premise, branch or case hold. Add an example that reaches it, or give a generator for the type that makes such
 values: <code>.generating(gen.describedAs("…"))</code>.</td></tr>
-<tr><td><code>a generated run differs from the model: on &lt;Impl&gt;, from &lt;state&gt;: &lt;calls&gt;</code></td><td>The
+<tr><td><code>a generated run differs from the model: on &lt;Impl&gt;, from &lt;state&gt;, after &lt;calls&gt;: &lt;call&gt; returned …</code></td><td>The
 implementation of a boundary does not do what its model says after those calls. Fix the implementation, or, if
 the model is wrong, change it: a decision.</td></tr>
 </tbody>
@@ -722,7 +722,7 @@ model: generated runs (a state, then 1 to 12 calls with generated arguments) are
 model, and every result and the state read back after each call must be the model's. A failing run is shrunk to the
 fewest, smallest calls. With a store that keeps a record's old shares, the CRM's run is reported as
 <code>on LeakyDatabase, from Tables(CrmStore(List(), List(Share(0, TenantId(""))), List()), List()): storeAbout(0,
-CrmStore(List(), List(), List()))</code>: it still holds the share, where the model holds none. An outside system given
+CrmStore(List(), List(), List())) leaves it holding …</code>: it still holds the share, where the model holds none. An outside system given
 with <code>.checkedAgainst</code> goes through the same runs (at most 200), and its model stays assumed.</p>
 <p><b>Seeds.</b> Runs are seeded: <code>.testedWith(TestSettings(cases = 1000, seed = 1))</code>. A CI job runs
 <code>ci</code> twice, with the fixed seed and with <code>FRFLOW_SEED=fresh</code>, so a case the fixed seed never

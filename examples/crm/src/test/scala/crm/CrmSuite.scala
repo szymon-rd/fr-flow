@@ -213,10 +213,11 @@ class CrmSuite extends munit.CatsEffectSuite:
     val kb = KnowledgeBase(knowledge.name, knowledge.idea, knowledge.implementations, knowledge.generators, knowledge.testing)(
       knowledge.nodes.map(n => if n eq crm.tablesModel then tablesModel else n)*)
     val f = kb.test(tablesModel).get.failure.get
-    assert(f.why.startsWith("after storeAbout("), f.why)
+    assert(f.why.startsWith("storeAbout("), f.why)
+    assert(f.why.contains(") leaves it holding "), f.why)
     // Shrunk to one call, from a state holding a share of the record stored.
-    assertEquals(f.shown.count(_ == ';'), 0, f.shown)
     assert(f.shown.startsWith("on LeakyDatabase, from Tables(CrmStore("), f.shown)
+    assert(!f.shown.contains(", after "), f.shown)
   }
 
   test("a write changes only what its author's company may change, and the write side checks it") {

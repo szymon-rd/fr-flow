@@ -108,17 +108,18 @@ private[frflow] object ModelTests:
             val (expected, next) =
               if watch then Watch.within(counter)(Flows.onModel(c.op.steps, model, st, env)) else Flows.onModel(c.op.steps, model, st, env)
             Try(Flows.runNow(Steps.of(c.op.method.invoke(real, c.args.map(Flows.literal)*).asInstanceOf[Flow[?]])._1, Map.empty, Map.empty)) match
-              case Failure(e) => (st, Some(k -> s"${c.shown} failed on $name: ${message(e)}"))
+              case Failure(e) => (st, Some(k -> s"${c.shown} failed: ${message(e)}"))
               case Success(got) if got != expected =>
-                (st, Some(k -> s"${c.shown} returned ${Example.show(got)} on $name, where the model returns ${Example.show(expected)}"))
+                (st, Some(k -> s"${c.shown} returned ${Example.show(got)}, where the model returns ${Example.show(expected)}"))
               case Success(_) =>
                 val (want, now) = (held(next), impl.read(real))
-                if want != now then (st, Some(k -> s"after ${c.shown}, $name holds ${Example.show(now)}, where the model holds ${Example.show(want)}"))
+                if want != now then
+                  (st, Some(k -> s"${c.shown} leaves it holding ${Example.show(now)}, where the model holds ${Example.show(want)}"))
                 else (want, None)
         }._2
       } match
         case Success(r) => r
-        case Failure(e) => Some(0 -> s"error on $name: ${message(e)}")
+        case Failure(e) => Some(0 -> s"it fails: ${message(e)}")
 
     private def message(e: Throwable): String = e match
       case x: java.lang.reflect.InvocationTargetException if x.getCause != null => message(x.getCause)
@@ -147,7 +148,8 @@ private[frflow] object ModelTests:
         Try(generate(c.seed, c.index, c.size)).toOption.flatMap { r =>
           attempt(r, watch = true).map { found =>
             val (small, (k, why)) = shrink(r, found, 100)
-            val shown = s"on $name, from ${Example.show(small.start)}: ${small.calls.take(k + 1).map(_.shown).mkString("; ")}"
+            val after = if k == 0 then "" else s", after ${small.calls.take(k).map(_.shown).mkString("; ")}"
+            val shown = s"on $name, from ${Example.show(small.start)}$after"
             Failed(shown, why, c.seed, c.index, c.size)
           }
         }
