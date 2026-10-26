@@ -1,0 +1,64 @@
+{
+  "decisions": {
+    "AddWhenNoOverlap": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T03:09:41.346535Z",
+        "reason": "Overlap of start and end times decides it, as Lean proves.",
+        "rejected": [],
+        "code": "fdad5afc4ce6e1b95136e7fcb0c1e308a401831a9642f283c4b39b18467cd630",
+        "commit": "6abd20b8cdc1988965e3bd5df74fab3f343a2666",
+        "key": "b6e216cfdf46a202",
+        "sig": "7VP8we420o9bEHvP+JaqxtEvc9dyXHbI6AzZA3LIROdQO/oDnJ/ggqJwYc7lAHG+Z/lZc+7P8HADvNzuftyZBQ==",
+        "chain": "8cb0b608c103c493968a58ef1caf5361a28c52822e03a33f16ec2479162b18a3",
+        "content": "5bc0d6219205d9ec"
+      }
+    ],
+    "GrantWhenFree": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T03:09:38.932238Z",
+        "reason": "The rule people booking rooms rely on, stated over moments.",
+        "rejected": [],
+        "commit": "6abd20b8cdc1988965e3bd5df74fab3f343a2666",
+        "key": "b6e216cfdf46a202",
+        "sig": "zeLVdMZXr/tCmRWPnGF90MsIxK8yeUI262Pw8sy05Ihime8a09QpCAcha6zSJWnB1z6rpiJyXSG7b+CAiB5KCg==",
+        "chain": "",
+        "content": "382a2fb97694dbea"
+      }
+    ]
+  },
+  "contents": {
+    "5bc0d6219205d9ec": {"kind":"304aeb6aeb928120","parents":["e72512f596f0fa39"],"parts":[],"statement":"fb444335d680910d","why":"03288b643fc162e4","sources":"b32e7dd50677ac95","substitutions":[],"examples":["c0e7c5429bd89551","914c24e6082a23f3","dbd0dcaa68f71ba9"],"vocabulary":["dafc4fe66ec097b5"],"uses":["a47ee2f71b1ac7c0","efd2c3af61877513","c1c017abb3f04bb8","df67d584972a5787"],"governs":[],"definition":"b3ae407931ced050","op":"f10eb448275d33b2","expects":["28ecf430180e6038"],"implementation":"cda41dbe7d3a7a5d"},
+    "382a2fb97694dbea": {"kind":"f0c4b6b1b355b1eb","parents":[],"parts":["c7deef4a9d7ee41d"],"statement":"b956e1b15fce89ae","why":"8048e6664ee1cce5","sources":"e2cb41d6a7a0d5c4","substitutions":[],"examples":[],"vocabulary":["dafc4fe66ec097b5"],"uses":["a47ee2f71b1ac7c0","e0823bbe58f381e6","df67d584972a5787"],"governs":[],"definition":"fdf33746c2d12193","idea":"12ae32cb1ec02d01","notModelled":"12ae32cb1ec02d01"}
+  },
+  "values": {
+    "304aeb6aeb928120": "contract",
+    "e72512f596f0fa39": "GrantWhenFree",
+    "fb444335d680910d": "A new request is added exactly when it overlaps no booking held of its room; the bookings held are kept and nothing else is added.",
+    "03288b643fc162e4": "Bookings that end after they start share a moment exactly when they overlap.",
+    "b32e7dd50677ac95": {"post":"(held, request, result) =>\n  (!held.contains(request) ==> (result.contains(request) === !held.exists(b => overlaps(b, request)))) &&\n    held.forall(b => result.contains(b)) && result.forall(b => held.contains(b) || b === request)"},
+    "c0e7c5429bd89551": "expect (List(Booking(\"Oak\", 9, 10)), Booking(\"Oak\", 10, 11)) ⇒ List(Booking(\"Oak\", 9, 10), Booking(\"Oak\", 10, 11))  given   — back to back: granted",
+    "914c24e6082a23f3": "expect (List(Booking(\"Oak\", 9, 10)), Booking(\"Oak\", 9, 11)) ⇒ List(Booking(\"Oak\", 9, 10))  given   — overlapping: refused",
+    "dbd0dcaa68f71ba9": "reject (List(Booking(\"Oak\", 9, 10)), Booking(\"Oak\", 9, 11)) ⇒ List(Booking(\"Oak\", 9, 10), Booking(\"Oak\", 9, 11))  given   — never double-booked",
+    "dafc4fe66ec097b5": "book: the bookings held after a request, from the bookings held before",
+    "a47ee2f71b1ac7c0": "case class Booking(room: String, start: BigInt, end: BigInt)",
+    "efd2c3af61877513": "overlaps = (a: Term[Booking], b: Term[Booking]) => a.room === b.room && a.start < b.end && b.start < a.end",
+    "c1c017abb3f04bb8": "doubleBooked = (bookings: Term[List[Booking]], t: Term[BigInt]) =>\n  bookings.exists(a => bookings.exists(b => a =!= b && a.room === b.room && covers(a, t) && covers(b, t)))",
+    "df67d584972a5787": "covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end",
+    "b3ae407931ced050": "val addWhenNoOverlap = Node.contract(book)(\"AddWhenNoOverlap\",\n  \"A new request is added exactly when it overlaps no booking held of its room; the bookings held are kept and nothing else is added.\",\n  why = \"Bookings that end after they start share a moment exactly when they overlap.\"\n)((held, request, result) =>\n  (!held.contains(request) ==> (result.contains(request) === !held.exists(b => overlaps(b, request)))) &&\n    held.forall(b => result.contains(b)) && result.forall(b => held.contains(b) || b === request))\n  .under(grantWhenFree)\n  .examples()(\n    expect(List(Booking(\"Oak\", 9, 10)), Booking(\"Oak\", 10, 11), List(Booking(\"Oak\", 9, 10), Booking(\"Oak\", 10, 11)), \"back to back: granted\"),\n    expect(List(Booking(\"Oak\", 9, 10)), Booking(\"Oak\", 9, 11), List(Booking(\"Oak\", 9, 10)), \"overlapping: refused\"),\n    reject(List(Booking(\"Oak\", 9, 10)), Booking(\"Oak\", 9, 11), List(Booking(\"Oak\", 9, 10), Booking(\"Oak\", 9, 11)), \"never double-booked\"))\n  .expects(\"A room is never held by two meetings at the same moment.\")(\n    forall((held: Term[List[Booking]], request: Term[Booking]) => forall((t: Term[BigInt]) =>\n      !doubleBooked(held, t) ==> !doubleBooked(book(held, request), t))))",
+    "f10eb448275d33b2": "book",
+    "28ecf430180e6038": "A room is never held by two meetings at the same moment.: forall((held: Term[List[Booking]], request: Term[Booking]) => forall((t: Term[BigInt]) =>\n      !doubleBooked(held, t) ==> !doubleBooked(book(held, request), t)))",
+    "cda41dbe7d3a7a5d": "Rooms.book",
+    "f0c4b6b1b355b1eb": "claim",
+    "c7deef4a9d7ee41d": "AddWhenNoOverlap",
+    "b956e1b15fce89ae": "A new request is granted exactly when its room is free for its whole time.",
+    "8048e6664ee1cce5": "This is what people booking a room rely on.",
+    "e2cb41d6a7a0d5c4": {"formula":"forall((held: Term[List[Booking]], request: Term[Booking]) =>\n  (request.start < request.end && held.forall(b => b.start < b.end) && !held.contains(request)) ==>\n    (book(held, request).contains(request) === freeFor(held, request)))"},
+    "e0823bbe58f381e6": "freeFor = (held: Term[List[Booking]], request: Term[Booking]) =>\n  forall((t: Term[BigInt]) => covers(request, t) ==> !held.exists(b => b.room === request.room && covers(b, t)))",
+    "fdf33746c2d12193": "val grantWhenFree = Node.claim(\"GrantWhenFree\",\n  \"A new request is granted exactly when its room is free for its whole time.\",\n  why = \"This is what people booking a room rely on.\"\n)(forall((held: Term[List[Booking]], request: Term[Booking]) =>\n  (request.start < request.end && held.forall(b => b.start < b.end) && !held.contains(request)) ==>\n    (book(held, request).contains(request) === freeFor(held, request))))",
+    "12ae32cb1ec02d01": ""
+  }
+}
