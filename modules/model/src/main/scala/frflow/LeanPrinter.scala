@@ -304,6 +304,8 @@ private[frflow] final class LeanPrinter:
       case Prim.Take      => val n = r; p(s"List.take (Int.toNat $n) $arg")
       case Prim.Drop      => val n = r; p(s"List.drop (Int.toNat $n) $arg")
       case Prim.Zip       => val x = r; p(s"List.zip $x $arg")
+      case Prim.Nodup     => p(s"List.Nodup $r")
+      case Prim.Pairwise  => val f = r; p(s"List.Pairwise $f $arg")
       case Prim.Get       => val x = r; p(s"$x $arg")
       case Prim.HasKey    => val x = r; p(s"$x $arg ≠ none")
       case Prim.GetOrElse => val x = r; val k = arg; p(s"Option.getD ($x $k) ${e(args(2))}")

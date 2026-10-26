@@ -108,6 +108,27 @@ class TermSuite extends munit.FunSuite:
     intercept[NotExecutable](lifted1((a: Term[BigInt]) => exists((c: Term[BigInt]) => c > a)).value(BigInt(1)))
   }
 
+  test("a list's elements: each by a define, none twice, every two in order") {
+    List(
+      lean1((l: Term[List[Book]]) => l.forall(long) && l.exists(long)) ->
+        "((∀ x ∈ l, (⟦long⟧ x)) ∧ (∃ x_1 ∈ l, (⟦long⟧ x_1)))",
+      lean1((l: Term[List[Book]]) => l.allDistinct) -> "(List.Nodup l)",
+      lean1((l: Term[List[Book]]) => l.pairwise((a, b) => a.pages < b.pages)) ->
+        "(List.Pairwise (fun (a : Book) (b : Book) => (a.pages < b.pages)) l)",
+      lean1((l: Term[List[Book]]) => l.pairwise(otherTitles)) ->
+        "(List.Pairwise (fun (a : Book) (b : Book) => (⟦otherTitles⟧ a b)) l)"
+    ).foreach((got, want) => assertEquals(got, want))
+    val (a, b, c) = (Book("A", 100), Book("B", 200), Book("C", 50))
+    def run(f: Term[List[Book]] => Term[Boolean], l: List[Book]): Boolean = lifted1(f).value(l)
+    assertEquals(List(List(a, b), List(a, c)).map(run(_.forall(long), _)), List(true, false))
+    assertEquals(List(List(c, a), List(c)).map(run(_.exists(long), _)), List(true, false))
+    assertEquals(List(Nil, List(a, b), List(a, b, a)).map(run(_.allDistinct, _)), List(true, true, false))
+    // the earlier element first: in start order, not in any order
+    val ascending = (l: Term[List[Book]]) => l.pairwise((x, y) => x.pages < y.pages)
+    assertEquals(List(List(c, a, b), List(a, c, b)).map(run(ascending, _)), List(true, false))
+    assertEquals(List(List(a, b, c), List(a, b, Book("A", 1))).map(run(_.pairwise(otherTitles), _)), List(true, false))
+  }
+
   test("what would mean something else in Lean is refused, saying why") {
     def refused(l: => Lifted[?], says: String): Unit =
       val e = intercept[IllegalArgumentException](l.body)

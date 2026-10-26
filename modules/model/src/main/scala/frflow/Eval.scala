@@ -147,6 +147,10 @@ private[frflow] object Eval:
     case Pat.ConsP(h, t) => v match { case x :: rest => Some(Map(h -> x, t -> rest)); case _ => None }
     case Pat.NilP        => Option.when(v == Nil)(Map.empty)
 
+  /** `r` holds of every element with each later one: Lean's `List.Pairwise`. */
+  private def pairwise(xs: List[Any])(r: (Any, Any) => Boolean): Boolean =
+    xs.tails.forall { case x :: later => later.forall(r(x, _)); case Nil => true }
+
   private def prim(op: Prim, rs: List[Run]): Run =
     def one(f: Any => Any): Run = { val a = rs.head; env => f(a(env)) }
     def two(f: (Any, Any) => Any): Run = { val (a, b) = (rs(0), rs(1)); env => f(a(env), b(env)) }
@@ -186,6 +190,8 @@ private[frflow] object Eval:
       case Prim.Take       => two((n, xs) => list(xs).take(num(n).toInt))
       case Prim.Drop       => two((n, xs) => list(xs).drop(num(n).toInt))
       case Prim.Zip        => two((xs, ys) => list(xs).zip(list(ys)))
+      case Prim.Nodup      => one(xs => list(xs).distinct.size == list(xs).size)
+      case Prim.Pairwise   => two((r, xs) => pairwise(list(xs))((x, y) => bool(call(r, List(x, y)))))
       case Prim.Get        => two((m, k) => map(m).get(k))
       case Prim.HasKey     => two((m, k) => map(m).contains(k))
       case Prim.GetOrElse  => three((m, k, d) => map(m).getOrElse(k, d))

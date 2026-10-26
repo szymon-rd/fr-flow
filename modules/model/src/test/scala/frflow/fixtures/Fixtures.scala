@@ -49,6 +49,7 @@ def shelfWith(c: Node[?], more: Node[?]*): KnowledgeBase = KnowledgeBase("Shelf"
 
 /** Defined functions. */
 val long = define { (b: Term[Book]) => b.pages >= 100 }
+val otherTitles = define { (a: Term[Book], b: Term[Book]) => a.title =!= b.title }
 val where = define { (s: Term[Shelf]) =>
   s.on[Shelf.Top.type]("top")
     .on[Shelf.Bottom.type]("bottom")

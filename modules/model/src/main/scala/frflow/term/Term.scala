@@ -23,7 +23,7 @@ class Term[A] private[frflow] (tree: Tree | Null, private[frflow] val termType: 
   def !=(that: Any)(using NoEquality): Boolean = false
   override def toString: String = s"Term($termTree)"
 
-object Term extends TermsOfValues:
+object Term extends TermsOfValues, ListRelations:
   private[frflow] def apply[A](t: Tree, tpe: LeanType[A]): Term[A] = new Term(t, tpe)
   private[frflow] def lit[A](v: A)(using t: LeanType[A]): Term[A] = Term(Tree.Lit(v, t), t)
   private def bool(t: Tree): Term[Boolean] = Term(t, summon[LeanType[Boolean]])
@@ -64,12 +64,12 @@ object Term extends TermsOfValues:
   private def iter(kind: Iter, on: Term[?], elem: LeanType[?], p: Term[Any] => Term[Boolean]): Term[Boolean] =
     val (b, body) = over(kind, on, elem, p)
     bool(Tree.Over(kind, on.termTree, b, body))
-  private def fun(f: AnyRef, types: List[LeanType[?]]): (Tree, LeanType[?]) =
+  private[term] def fun(f: AnyRef, types: List[LeanType[?]]): (Tree, LeanType[?]) =
     val bs = Lambda.binders(f, types)
     val body = Lambda.body(f, bs)
     (Tree.Fun(bs, body.termTree), body.termType)
 
-  private def elem(t: Term[?]): LeanType[?] = t.termType.shape match
+  private[term] def elem(t: Term[?]): LeanType[?] = t.termType.shape match
     case Shape.ListOf(a) => a
     case Shape.OptionOf(a) => a
     case Shape.SetOf(a) => a
@@ -183,6 +183,9 @@ object Term extends TermsOfValues:
     def size: Term[Int] = length
     def forall(p: Term[A] => Term[Boolean]): Term[Boolean] = iter(Iter.All, xs, elem(xs), p.asInstanceOf[Term[Any] => Term[Boolean]])
     def exists(p: Term[A] => Term[Boolean]): Term[Boolean] = iter(Iter.Some, xs, elem(xs), p.asInstanceOf[Term[Any] => Term[Boolean]])
+    /** `xs.forall(endsAfterStart)`: a define of one element, as `xs.forall(x => endsAfterStart(x))`. */
+    def forall(d: Def[A => Boolean]): Term[Boolean] = xs.forall(x => vocabulary.DefCalls.apply(d)(x))
+    def exists(d: Def[A => Boolean]): Term[Boolean] = xs.exists(x => vocabulary.DefCalls.apply(d)(x))
     def filter(p: Term[A] => Term[Boolean]): Term[List[A]] =
       val (b, body) = over(Iter.Filter, xs, elem(xs), p)
       Term(Tree.Over(Iter.Filter, xs.termTree, b, body), xs.termType)

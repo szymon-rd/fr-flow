@@ -132,7 +132,12 @@ with `d.fn(...)` and read a parameter's value with `p.value`.
 
 On lists: `contains`, `exists`, `forall`, `filter`, `filterNot`, `map`,
 `flatMap`, `foldLeft`, `find`, `headOption`, `take`, `drop`, `zip`,
-`length`/`size`, `isEmpty`/`nonEmpty`, `::`, `++`, `toSet`. On options:
+`length`/`size`, `isEmpty`/`nonEmpty`, `::`, `++`, `toSet`. `forall` and
+`exists` also take a define of one element (`xs.forall(endsAfterStart)`).
+`xs.allDistinct` says no element occurs twice (Lean's `List.Nodup`), and
+`xs.pairwise(r)` that `r` holds of every two elements at different positions,
+the earlier one first (Lean's `List.Pairwise`; for a symmetric `r`, of every
+two); `r` is a define of two elements or a lambda `(a, b) => ...`. On options:
 `forall`, `exists`, `contains`, `isDefined`, `isEmpty`, `getOrElse`. On maps:
 `get`, `getOrElse`, `contains`, `updated`, `removed`, `+`, `-`. On sets:
 `contains`, `+`, `-`, `++`, `intersect`, `subsetOf`. Maps and sets cannot be
