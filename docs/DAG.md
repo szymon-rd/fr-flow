@@ -5,13 +5,15 @@ change that needs to depart from it says so in its commit message and in this fi
 
 ## 0. Principles
 
-1. **One root.** A knowledge base has exactly one root: the idea's purpose, in one sentence, stated
-   as *exactly* (what users can do and what must never happen, together), so that a system that does
-   nothing does not meet it. Where the purpose has one, the root is one relation (`===`, "exactly
-   when") between what users observe and what their requests entitle them to, defined over the
-   history of requests; a part proves that the state mirrors the history (keycloak's
-   `SessionsMirrorSignIns`). A conjunction at the root asks for a better observable. A service's purpose may
-   instead be stated of its flow: the root is then a contract on the flow, with parts (§1a; `examples/rooms`).
+1. **A small set of roots.** A knowledge base has one or a few root statements, on any of its Definitions and
+   relating them too, kept concise by its author: each states one idea, and together they are the idea's
+   purpose. A root claim is stated as *exactly* (what users can do and what must never happen, together), so
+   that a system that does nothing does not meet it. Where the purpose has one, the root is one relation
+   (`===`, "exactly when") between what users observe and what their requests entitle them to, defined over
+   the history of requests; a part proves that the state mirrors the history (keycloak's
+   `SessionsMirrorSignIns`). A conjunction at the root asks for a better observable, or for a second root. A
+   service's purpose may be stated of its flow: a root is then a claim on the flow's Definition, with parts
+   (§1a; `examples/rooms`: what booking stores, what it answers, and what the store always holds).
 2. **A tree of refinements, as a DAG.** Every other node refines the nodes above it, and may refine
    several. Every edge is proven and every node is decided: a knowledge base of why the system is as
    it is.
@@ -27,6 +29,41 @@ change that needs to depart from it says so in its commit message and in this fi
 5. **Proofs are central.** Every edge is a Lean theorem; the code at the leaves is proven against its
    contract where it is a `define`; what is trusted is a named, visible list.
 
+## 0a. The core concepts
+
+Three kinds of nodes, two kinds of values, two quantifiers; `examples/rooms` is written with these alone. The
+older kinds (contract, invariant, definition, `Param`, `allows`/`forbids`) still work, for the other
+examples, and are described below where they differ.
+
+- **Nodes.** `Node.claim(statement)(formula)`: proven from its parts, or tested where the Definitions it is
+  about are plain Scala. `Node.assumption(statement)(formula)`: trusted, the developer's decision: the outside
+  world, as a store's model (`store.behavesAs(stored)`) or a fact of how the system is run
+  (`stored.writtenOnlyBy(book)`, `stored.changedOneRunAtATime`, `stored.initially(held => …)`); a fact is
+  read by FrFlow, Lean has nothing to say of it. `Node.design(statement, why)(files*)`: a decision about code
+  no proof covers.
+- **Values.** `Declaration[A](means)`: an abstract idea, known only through the claims and assumptions about
+  it: no code or flow uses it, nothing implements it. `Definition[A](means)`: of any type, the only kind code
+  may use; it must get a meaning: a flow or a `define` (proven), plain Scala (tested against the claims on
+  it), or a value. `check` refuses a Definition nothing defines, and code using a Declaration. `define { … }`
+  is a Definition given its meaning on the spot.
+- **Quantifiers.** `forall` is every possible value (proven). `always[T](x => …)` is every value of `T` that
+  can be made: a hypothesis of every statement about such values, of each element of a list of them and of
+  what the models hold in a world; the tests draw only values that hold it. `always(stored)(s => …)` is every
+  state the store reaches, kept by every program using it. `always` holds where FrFlow covers the code: the
+  statements (assumptions included), flows and term-API code, and the boundaries of plain Scala
+  Definitions (their inputs and results); values entering from outside are covered by assumptions about
+  the outside world. There is no run-time check.
+- **A claim constrains every Definition and Declaration it mentions.** One applied to its `forall`'s
+  variables in order, and named nowhere else, is the claim's operation: its post is the formula with each
+  call read as the result, the code given to the Definition is checked against it, and code calling the
+  Definition is proven from it. A flow's runs are `book(request).answer(before)` and
+  `book(request).after(before)`, over `forall((request, before) => …)`.
+- **Edges.** `.refines(parent)` makes a node a part; `.assuming(assumption)` a premise, drawn below the node.
+- **One idea per statement**: no concepts glued with `&&`. A style guide for the library and its agents: no
+  check, no warning.
+- **Atomicity**: each program runs as one step. Where a proof needs it, an assumption node says so
+  (`changedOneRunAtATime`); asynchrony is out of scope.
+
 ## 1. Vocabulary
 
 - `Opaque("Realm", means)`: a domain type, open until a definition fixes it.
@@ -38,11 +75,16 @@ change that needs to depart from it says so in its commit message and in this fi
 - `Boundary[T]("db", means)`: what proven code calls but cannot see, a trait `T` of operations that
   take terms and return flows; `Node.assumption(boundary)(Model)` decides the state model it behaves
   as (§1a).
+- `always[T](rule)` and `always(stored)(rule)` (§0a): the rule is a `define` named as the claim's val. Lean
+  assumes the rule of each variable of the type a statement quantifies over (and of each element of a list
+  of them), and of what the models hold in the world before a flow runs; every program writing a store
+  that holds such values is proven to keep the rule of the states it leaves (`kept_by_<program>`, on the
+  `always` claim); a store's start meets its rule (`initially`, from the fact that says what it holds).
 
 Formulas and code are terms (`Term[A]`): a tree that prints as Lean and compiles to Scala, built by
 calling the Scala lambda once on variables. The library's operations are the language (`===`,
-`&&`, `forall`, `.on[Case]`, the folds `c.fold(a, b)` and `o.fold(z)(x => ...)`, list, option, map
-and set operations); anything else is a type error. Case classes and enums built from terms have
+`&&`, `forall`, `.on[Case]`, `when(c)(a).otherwise(b)` (`c.fold(a, b)`) and `o.fold(z)(x => ...)`, list
+(`xs :+ x` among them), option, map and set operations, a pair's `===`); anything else is a type error. Case classes and enums built from terms have
 `object X extends Data[X]` as companion. Their Lean types are derived (structures and inductive
 types); a define's and a lambda's variable names are read from the lambda.
 
@@ -82,8 +124,8 @@ names an outside system (assumed: checked on the flows' examples and on generate
 `.implementedBy(start, read)` names the project's own code (tested on generated runs).
 
 A **contract on a flow** is on an operation `Param[A => Flow[R]]` (of 0 to 6 inputs, as any
-operation); its post relates the inputs, the result and the worlds before and after (`before(Model)`
-is the model's state). Its `claim` takes the operation as a run on the models, `A → World → R × World`. The attached flow `f` is `f_run` there
+operation); its post relates the inputs, the result and the worlds before and after (`Model.in(before)`
+is the model's state before the call). Its `claim` takes the operation as a run on the models, `A → World → R × World`. The attached flow `f` is `f_run` there
 (`FrFlow.runOn (f a) w`), and `impl` is proven of it from the promises of the operations it calls.
 Such a contract may have no parent: production code runs it (an entry point). A proven flow takes no
 step of the outside world (`Flow.effect`, which production implementations use); a validation
@@ -103,7 +145,7 @@ no examples (it is stated as a claim is, made by its parts).
 The code under a contract, or behind a boundary, is in one of three states, kept apart in the
 snapshot, `status` and `show`:
 - **proven**: a define or a flow, and `impl` proves it meets the contract;
-- **tested**: plain Scala under a contract (`implement(contract, calls*)(code)`), or the project's own
+- **tested**: plain Scala under a contract (`implementTested(contract, calls*)(code)`), or the project's own
   implementation of a boundary (`.implementedBy`); in Lean the operation stays a parameter with the
   contract (or the model) as its hypothesis, so the proofs above rest on the contract alone, and
   `root_impl` lists it under "tested, not proven";
@@ -139,20 +181,25 @@ with a `rule`.
 | Kind | Scala | Lean |
 |---|---|---|
 | claim | `Node.claim(statement, why, idea = "")(formula)` | `def claim : Prop` over its open terms |
-| root | the claim with no parents, or a contract on a flow with parts and no parents | as a claim (the flow's: its step is of its code), plus `idle` |
+| claim on a Definition | `Node.claim(statement)(forall((a: Term[A], b: Term[B]) => … op(a, b) …))`, `op` a `Definition` (or `Declaration`) applied to the forall's variables; a flow's `forall((a, before: Term[World]) => … op(a).after(before) …)` | as a contract's: `∀ a b, post(a, b, op(a, b))`, of every run for a flow; `impl` when proven code is attached |
+| `always` | `Node.claim(statement)(always[T](x => …))`, or `always(stored)(s => …)` | `claim := True`: a hypothesis of the others; `kept_by_<program>`, `initially` |
+| root | a claim with no parents (a small set of them), or a contract on a flow with parts and no parents | as a claim (the flow's: its step is of its code), plus `idle` |
 | invariant | `Node.invariant[A, B](statement, why, scope)(rule)` | a claim whose parts are its keepers |
-| contract | `Node.contract(statement, why)(forall((a: Term[A], b: Term[B]) => … op(a, b) …))`, `op: Param[(A, B) => R]` (0 to 6 inputs), or `Node.contract(op)(statement, why)(post)` when another operation is applied to the same inputs | `∀ a b, post(a, b, op(a, b))`; `impl` when a `define` is attached |
+| contract | `Node.contract(statement, why)(forall((a: Term[A], b: Term[B]) => … op(a, b) …))`, `op: Param[(A, B) => R]` (0 to 6 inputs), the same naming its operation (`Node.contract(op)(statement)(forall(…))`), or `Node.contract(op)(statement, why)(post)` when another operation is applied to the same inputs | `∀ a b, post(a, b, op(a, b))`; `impl` when a `define` is attached |
 | contract on a flow | `Node.contract(op)(statement, why)((a, r, before, after) => ...)`, `op: Param[A => Flow[R]]` (0 to 6 inputs) | `∀ a w, post a (op a w).1 w (op a w).2`; `impl` when a flow is attached |
 | assumption | `Node.assumption(op)(statement, why)(post)`, or `Node.assumption(statement, why)(formula)` | a hypothesis of `root_impl`: trusted |
-| model | `Node.assumption(boundary)(Model)(statement, why)` | the boundary's class instance on `StateM World`: trusted |
+| fact | `Node.assumption(statement)(stored.writtenOnlyBy(book))`, `stored.changedOneRunAtATime`, `stored.initially(s => …)` | none: FrFlow reads it (an `always` of the store rests on the three) |
+| model | `Node.assumption(statement)(store.behavesAs(stored))`, or `Node.assumption(boundary)(Model)(statement, why)` | the boundary's class instance on `StateM World`: trusted |
 | definition | `Node.definition(statement, why)(Opaque := of[T], param := expr, ...)` | an `abbrev` in `Types.lean`, a `def` in its term's module |
 | design | `Node.design(statement, why)(files*)` | none: it governs code no proof covers |
 
 Edges:
 
-- `.refines(parents*)` on a claim, contract, assumption or design node: this node is a **part** of each
+- `.refines(parents*)` on a claim, contract or design node: this node is a **part** of each
   parent. Edges point up: adding a part never edits the parent's file. A design node under a node is
   not a part of what it says.
+- `.assuming(assumptions*)` on a statement: each is a **premise** of its proof, trusted and drawn below it (a
+  formula's, a part in Lean; a model's, what its flow is proven on; a fact's, what FrFlow reads).
 - `.replaces(other)`: an **alternative**. Accepting one rejects the other. Two definitions of one term
   are alternatives without `replaces`; until one is chosen, the nodes using the term are `waiting`,
   and examples and `service` use the first listed.
@@ -163,8 +210,8 @@ Edges:
   rule(p)` (over as many inputs as the operation takes). Every contract in the invariant's scope keeps it or is `.exempt` with a reason; so is every
   design node in the scope.
 
-Structure rules (`KnowledgeBase.problems`): exactly one root (a claim without parents, or a contract on a
-flow with parts and without parents); no cycles; an assumption or a contract has no parents only when code
+Structure rules (`KnowledgeBase.problems`): at least one root (a claim without parents, or a contract without
+parents whose operation no code calls: on a flow, its purpose stated of its run); no cycles; an assumption or a contract has no parents only when code
 calls its operation, it is a model, or a flow implements it; a contract on a flow with parts has its flow
 proven (`implementProven`); a design node has a parent; a definition has none; at most one definition in
 force per term.
@@ -173,7 +220,7 @@ Also part of the DSL: `examples(bindings*)(allows/forbids...)` (on a flow's cont
 world before and after), `checkedBy`, `checkedAgainst`, `implement`, `implementProven(contract)(define)`,
 `(define, runs)` and `(flow)`, `service`, `run`, `expects`, `forall`/`exists`.
 
-`IDEA.md`: the title and lead paragraph are the root's. Any node may name a section with
+`IDEA.md`: the title and lead paragraph are the root claims'. Any node may name a section with
 `idea = "Section"`; a section no node names is a warning.
 
 `IDEA.md` is a decision of the developer's, kept in the ledger under `IDEA`: proposed until accepted, back for
@@ -196,11 +243,12 @@ For each node N with parts C1..Cn (n ≥ 1), over the union U of the open terms 
 | `clash` | tried: `∀ U, C1 → … → Cn → False` | as above | proven: the parts contradict each other; failed |
 | `unsat` (every claim) | tried: `∀ U, ¬ N` | as above | proven: no world meets N; failed |
 | `feasible` | `∃ U, C1 ∧ … ∧ Cn` | in the proof file | asked only of an authored `complete` on a node nothing witnesses |
-| `idle` (root only) | tried: the root with every operation doing nothing (`[]`, `none`, `False`, its input unchanged); a word left open above (`leftOpenAbove`) stays open, since the root holds for every meaning of it | Lean's default budget | proven: doing nothing meets the purpose; unproven |
+| `idle` (roots only) | tried: the root with every operation doing nothing (`[]`, `none`, `False`, its input unchanged); a word left open above (`leftOpenAbove`) stays open, since the root holds for every meaning of it | Lean's default budget | proven: doing nothing meets the purpose; unproven |
 | `impl` | `∀ U, promises of the callees → claim[op := code]` | `frflow_auto` or authored | the `define` does not meet the contract |
 | `commute_i` | the `i`-th `parTupled` or `parTraverse` of the code: its branches in either order give the same result and world, from every world with no call failing | `frflow_auto` or authored | the branches need not commute: the code is proven of one order only, and the node stays open |
 | `check` | post → the `checkedBy` check | as above | the cheap check does not follow |
 | `cover_X`, `expect_i` | the view lists every value the rule is about; the expectation follows from N | as above | |
+| `kept_by_P`, `initially` (an `always` claim) | program `P`'s proven code keeps the claim's rule of the states it leaves, from a world where everything that always holds does, given what the operations it calls promise; what the store starts with meets the rule | as above | the code can leave a state the rule forbids |
 | `eval_i`, `probe_j` | an example, or an input near one, evaluated as Scala computes it | `frflow_eval` | Lean and Scala disagree: the Lean printer or the evaluator is wrong |
 
 A try is one-sided: `shown` means Lean proved it; `not-shown` means it found no proof within its
@@ -231,8 +279,38 @@ flows `FrFlow.runOn` with its lemmas (`runOn_bind`, `runOn_pure`, `runOn_get`, `
 `runOn_within`, `runOn_forIn_unit`: a loop whose body yields nothing is a `foldl` over states).
 
 A node's check hash covers its own Lean, and its parts' statements (`holds`), not their proofs or
-code; the root's covers everything (`root_impl`). A node is checked again when the hash moves, when a
+code; a root's covers everything below it (its `root_impl`). A node is checked again when the hash moves, when a
 part stops being proven, or when the checker's version changes.
+
+## 3a. Consistency and vacuity
+
+Beside each node's obligations, `check` asks Lean of the knowledge base as a whole, in
+`FrFlowGen/<KB>/Consistency.lean` (recorded in `.frflow/consistency.json`, checked again when it changes):
+
+- **The statements hold together.** The statements at the bottom of the DAG (formal, with no parts, not an
+  `always`), grouped by the open terms they share: `∃ terms, C1 ∧ … ∧ Cn`, each term given a witness: what an
+  equation of a statement in the group says it is (`granted(held, request) === e` gives `fun held request =>
+  e`), its proven code, or a value the tests draw (a term no statement is about). The proven steps carry it up:
+  every node above holds of the same meanings. A term with no witness, or a Definition whose code is tested
+  Scala and that no equation gives, leaves its group not proven, and `check` says which; tested code is
+  evidence, not proof. The search for parts that contradict each other (`clash`) stays, as an early refuter.
+- **Nothing is vacuous.** Every `always` admits a value; some state meets what each store starts with; some
+  case meets each claim's condition (`a` in `forall(xs => a implies b)`). Witnesses are drawn as the tests draw
+  values (a few tried, the empty one first); Lean proves the rule of one.
+
+The summary says `consistency proven` or `consistency not proven`, and `nothing vacuous` or `something may be
+vacuous`; `check` lists each thing asked. It is a status of its own: it does not fail `status`.
+
+## 3b. Examples written as tests
+
+Examples leave the nodes: in a project's tests, `class GrantedExamples extends FrFlowExamples(rooms):` with
+`example("back to back: granted"):` and `granted(List(Booking("Oak", 9, 10)), Booking("Oak", 10, 11)) is true`.
+`sbt test` runs each on the code and on the claims about the Definition Scala can evaluate. `check` reads the
+compiled suites (the project's test classes, `-Dfrflow.tests`), makes each a case of every claim on its
+Definition, evaluates it in Lean (where Scala cannot evaluate the claim, Lean alone decides it: a claim that
+refuses the example fails), and runs it on the code. They are not part of what a node is decided as, and
+nothing (consistency, vacuity, any rule) depends on them; a contract no longer needs an `allows` and a
+`forbids`.
 
 ## 4. Snapshot (`.frflow/kb.json`), per node
 

@@ -68,7 +68,8 @@ Exit codes: 0 fine; 1 not complete, or a decision refused; 2 a usage error
 
 | Kind | Written as | In Lean |
 |---|---|---|
-| claim | `Node.claim(statement)(formula)`; the one with no parents is the root | proven from its parts (`complete`) |
+| claim | `Node.claim(statement)(formula)`; one with no parents is a root (a small set of them, kept concise) | proven from its parts (`complete`) |
+| claim on a Definition | `Node.claim(statement)(forall((held: Term[List[Booking]], request: Term[Booking]) => granted(held, request) === free(held, request)))`, with `val granted = Definition[(List[Booking], Booking) => Boolean]("…")` | as a contract: the code attached to the Definition (`implementTested(granted)(…)`, `implementProven(book)(flow)`) is tested or proven against it |
 | root stated of the service's flow | a contract on a flow with parts (the statements about what its code calls, and the models it uses) and no parents | its code is proven from its parts (`complete`, which is its `impl`) |
 | invariant | `Node.invariant[A, B](statement, why)(rule)`, kept by contracts with `.keeps(inv)(view)` | a claim whose parts are its keepers |
 | contract | `Node.contract(statement)(forall((a: Term[A], b: Term[B]) => ... op(a, b) ...))`, a claim about every call of an operation `op: Param[(A, B) => R]` of 0 to 6 inputs: the one Param applied to the forall's variables, in order (other Params it applies are what it reads) | every call of `op` meets the formula with the call in place of `op(a, b)`; an attached `define` is proven against it (`impl`); a formula of another shape does not compile |
@@ -77,6 +78,8 @@ Exit codes: 0 fine; 1 not complete, or a decision refused; 2 a usage error
 | assumption | `Node.assumption(op)(...)(post)`, or `Node.assumption(statement, why)(formula)` | trusted, not proven: what the outside does, or a fact of the world |
 | model of a boundary | `Node.assumption(boundary)(Model)(statement, why)` | trusted: the boundary behaves as the model; flows are proven from it |
 | definition | `Node.definition(statement, why)(Type := of[T], term := expr, ...)` | fixes terms of the vocabulary; decided, not proven |
+| `always` | `Node.claim("Every booking ends after it starts.")(always[Booking](b => b.start < b.end))`; of a store, `always(stored)(held => held.pairwise(apart))` | assumed of every value of the type a statement quantifies over (and of a list's elements, and of what the models hold); kept by every program writing the store (`kept_by_<program>`); tests draw only values that hold it |
+| fact | `Node.assumption("Only booking writes to the store.")(stored.writtenOnlyBy(book))`, `stored.changedOneRunAtATime`, `stored.initially(held => …)` | none: read by FrFlow, decided by the developer; what an `always` of the store rests on (`.assuming`) |
 | design | `Node.design(statement, why)(files*)` | none: governs code no proof covers |
 
 A node is named by the `val` it is assigned to, its first letter capitalised (`val grantWhenFree = Node.claim(...)`
@@ -96,10 +99,17 @@ val share = Param[(UserId, DocId, UserId) => Boolean]("whether a user may share 
 val sharing = Node.contract("...")(forall((by: Term[UserId], doc: Term[DocId], withWhom: Term[UserId]) =>
   share(by, doc, withWhom) === owns(by, doc)))
   .examples()(allows(ann, readme, bob, true, "the owner shares"), forbids(bob, readme, ann, true, "only the owner"))
-knowledge.implement(share)((by, doc, withWhom) => owners(doc) == by)
+knowledge.implementTested(share)((by, doc, withWhom) => owners(doc) == by)
 ```
 
-`.refines(parents*)` makes a node a part of each parent. `.replaces(other)` marks
+`Definition[A](means)` names what code may use and must get a meaning (proven code, tested Scala, or a
+value); `Declaration[A](means)` an abstract idea known only through what is said of it, which no code uses.
+Examples of a Definition are tests (`class GrantedExamples extends FrFlowExamples(rooms):` with
+`example("back to back: granted"):` and `granted(List(Booking("Oak", 9, 10)), Booking("Oak", 10, 11)) is true`),
+which `check` reads and evaluates against the claims in Lean and against the code (docs/DAG.md §3b). `check`
+also says whether the statements hold together and nothing is vacuous (§3a).
+
+`.refines(parents*)` makes a node a part of each parent, `.assuming(assumptions*)` a premise. `.replaces(other)` marks
 an alternative: accepting one rejects the other. Two definitions of one term
 are alternatives too. The root speaks in open terms (`Opaque` types, `Param`
 terms); definitions bring in the domain as it is needed.
@@ -172,8 +182,8 @@ model alone (the operation is a parameter, the contract a hypothesis), and
 operations it calls (a call it does not name fails the test):
 
 ```scala
-.implement(decisionContract)(SessionStore(grants.value.toSet, sessions.value).decide)   // examples/auth
-.implement(introspectContract, lookup)(introspection)                                    // examples/keycloak
+.implementTested(decisionContract)(SessionStore(grants.value.toSet, sessions.value).decide)   // examples/auth
+.implementTested(introspectContract, lookup)(introspection)                                    // examples/keycloak
 ```
 
 `check` tests it on generated cases (1,000 by default) and on the examples:

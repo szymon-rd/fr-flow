@@ -1,14 +1,15 @@
 ---
 name: frflow
 description: >-
-  Develop a system with FrFlow: one root (the idea's purpose) refined by a DAG
+  Develop a system with FrFlow: a small set of root statements (the idea's purpose, kept concise) refined by a DAG
   of small statements in the domain's words, each proven in Lean from its
   parts and decided by the developer. Use when turning an idea
   into a root, proposing or changing nodes, introducing domain terms, adding
   examples, answering the developer's requests, proving a split, or attaching
   an implementation; or when the work touches IDEA.md, `Node.claim`,
-  `Node.contract`, `Node.assumption`, `Node.definition`, `Node.design`,
-  `Node.invariant`, `.refines`, `.replaces`, `implementProven` or `service`;
+  `Node.assumption`, `Node.design`, `Definition`, `Declaration`, `always`,
+  `FrFlowExamples`, `Node.contract`, `Node.definition`, `Node.invariant`,
+  `.refines`, `.assuming`, `.replaces`, `implementProven`, `implementTested` or `service`;
   or terms (`Term`, `define`, `Data`), flows (`Flow`), boundaries
   (`Boundary`) or state models (`StateModel`).
 ---
@@ -17,7 +18,7 @@ description: >-
 
 The developer tells you the idea in chat; you ask what you need, record the
 conversation, and write `IDEA.md` from it for them to accept. Then you write
-Scala nodes: one root, and below it parts that together prove it, down to
+Scala nodes: a small set of roots, kept concise (one idea each), and below them parts that together prove them, down to
 contracts on the code. Lean proves each split; the developer decides every node,
 and `IDEA.md`. The README explains the method, `docs/DAG.md` the design.
 
@@ -147,6 +148,51 @@ gives the rest.
 
 `ci` is `check`, then `status`. Exit codes: 0 fine; 1 not complete, or refused; 2 a usage error; 3 no Lean.
 
+## The core concepts
+
+Three kinds of nodes, two kinds of values, two quantifiers. `examples/rooms` uses only these; the other
+examples still use the older kinds below (contract, invariant, definition), which work as before.
+
+- **Nodes.** `Node.claim(statement)(formula)`: proven from its parts, or tested where the Definitions it is
+  about are plain Scala. `Node.assumption(statement)(formula)`: trusted, decided by the developer: the outside
+  world, as a store's model (`store.behavesAs(stored)`) or a fact of how the system is run
+  (`stored.writtenOnlyBy(book)`, `stored.changedOneRunAtATime`, `stored.initially(held => …)`).
+  `Node.design(statement, why)(files*)`: a decision about code no proof covers.
+- **Values.** `Declaration[A](means)`: an abstract idea, known only through the claims and assumptions about
+  it; no code or flow uses it, and nothing implements it. `Definition[A](means)`: of any type (a function, a
+  flow over a store, a plain value), what code may use; it must get a meaning: proven code
+  (`implementProven(book)(bookIfGranted)`, a flow or a `define`), plain Scala tested against the claims on it
+  (`implementTested(granted)((held, request) => Calendar(held).grants(request))`), or a value. `check` refuses
+  a Definition nothing defines, and code using a Declaration. `define { … }` is a Definition given its
+  meaning on the spot.
+- **Quantifiers.** `forall(x => …)`: every possible value, proven. `always[T](x => …)`: every value of `T`
+  that can be made: a hypothesis in Lean of every statement about such values, and the tests draw only
+  values that hold it (no run-time check: values from outside are an assumption's business).
+  `always(stored)(held => …)`: every state the store reaches: Lean proves every program writing it keeps it
+  (`kept_by_<program>`), and that what it holds when the system starts meets it (`initially`).
+- **A claim constrains every Definition and Declaration it mentions.** `forall((held: Term[List[Booking]],
+  request: Term[Booking]) => granted(held, request) === free(held, request))` is a claim on `granted`: its
+  code is checked against it, and the code calling it is proven from it. A flow's runs are read as
+  `book(request).answer(before)` and `stored.in(book(request).after(before))`, over
+  `forall((request: Term[Booking], before: Term[World]) => …)`.
+- **Edges.** `.refines(parent)`: a part. `.assuming(assumption)`: a premise, trusted, drawn below the node.
+- **Roots.** A knowledge base may have several roots, on any of its Definitions, relating them too; keep the
+  set small and each one idea.
+- **One idea per statement.** Do not glue concepts with `&&`: two ideas are two claims, and what always holds
+  of a value or a store is an `always` claim of its own. A guideline for you, not a rule FrFlow checks.
+- **Examples are tests**, not nodes: in `src/test/scala`,
+  `class GrantedExamples extends FrFlowExamples(rooms):` then `example("back to back: granted"):` with
+  `granted(List(Booking("Oak", 9, 10)), Booking("Oak", 10, 11)) is true`. `sbt test` runs each on the code and
+  on the claims Scala can evaluate; `check` reads them and evaluates each against every claim on the
+  Definition in Lean (where Scala cannot, Lean alone), and against the code. Nothing rests on them.
+- **Consistency and vacuity.** `check` asks Lean that the statements at the bottom of the DAG hold together,
+  grouped by the open terms they share, each term given a witness: what an equation says it is
+  (`granted(…) === …`), its proven code, or a drawn value; the proven steps carry it up. It also asks that
+  every `always` admits a value, that some state meets each store's start, and that some case meets each
+  claim's condition (`a implies b`). The summary says `consistency proven, nothing vacuous`, or what is
+  missing: give a term with no witness an equation that says what it equals. The search for parts that
+  contradict each other (`clash`) stays, as an early refuter.
+
 ## Writing nodes
 
 One of each kind, from the examples (`why` cut):
@@ -169,7 +215,7 @@ val decisionContract = Node.contract("A request is admitted on behalf of the use
     allows("t1", Path("/a"), Some(UserId("alice")), "Alice's token and a grant for /a: she gets in"),
     forbids("t1", Path("/b"), Some(UserId("alice")), "access without a grant is never given"))
 // its code: plain Scala, tested against the contract (see "Terms or plain Scala"):
-//   knowledge.implement(decisionContract)(SessionStore(grants.value.toSet, sessions.value).decide)
+//   knowledge.implementTested(decisionContract)(SessionStore(grants.value.toSet, sessions.value).decide)
 val expireCode = define { (s: Term[CrmStore], now: Term[BigInt]) =>      // crm: code Lean proves
   CrmStore(s.records, s.shares.filter(sh => !ended(sh, s, now)), s.expiries.filter(e => !ended(Share(e.record, e.to), s, now)))
 }
@@ -212,15 +258,15 @@ val sessionLookup = Node.assumption(lookup)(// keycloak: trusted
   plain code and outside adapters, none for a proven define). It is the
   developer's decision: propose it with the cost that motivates it (a check that
   restates an expensive specification), never to hide a failing check.
-- **Examples.** Every contract needs an `allows` and a `forbids`, and expects
-  with different results. Bind every parameter the post reads; a lookup as
+- **Examples.** Write new ones as tests (`FrFlowExamples`, above); on a contract
+  of the older kinds, `allows` and `forbids` still work. Bind every parameter the post reads; a lookup as
   `bindTable(Map(...))` so Lean can evaluate it. "Lean and Scala disagree"
   means FrFlow's Lean printer or evaluator is wrong: report it; never change
   the example to hide it.
 - **Implementations.** `implementProven(contract)(define {...})`: Lean proves it.
   `implementProven(c)(define {...}, (a, b) => fast)`: the fast code (an index,
   SQL; an assumption's adapter) runs, checked against the define.
-  `implement(c)((a, b) => ...)`: plain code, checked by running. Code calls
+  `implementTested(c)((a, b) => ...)`: plain code, checked by running. Code calls
   another operation through its `Param`, and is proven from its promise.
   Production calls `knowledge.service(contract)(bindings*)`, which checks every result.
 
@@ -315,13 +361,15 @@ def expireOnce(now: Term[BigInt]): Flow[CrmStore] =   // the code, in Cats style
   that operation's contract, not its code: prefer it to calling the define.
 - A contract on a flow may have no parent: production runs it, as an entry
   point. The design node over its scheduling goes under it.
-- **A service's purpose stated of its flow.** Its parts are the statements
-  about what the flow calls and the models it uses (`.refines(contract)`);
-  Lean proves the code from them (`complete`, which is its `impl`). With no
-  parents it is the root (`examples/rooms`). Keep a statement over the root's
-  words between the root and a contract in the code's words (rooms:
-  `GrantWhenFree` over moments, `GrantWhenNoOverlap` over times), so a
-  misread contract is refuted against it.
+- **What always holds** is an `always` claim of its own (see "The core concepts"): of a store's states,
+  kept by every program writing it, resting on three assumptions (`.assuming`): what the store holds when
+  the system starts, which programs write it, one run at a time.
+- **A service's purpose stated of its flow.** A claim on the flow's Definition (rooms: `BookWhenFree`, what
+  `book` stores; `AnswerWhenFree`, what it answers). Its parts are the claims about what the flow calls
+  (`.refines`), its premises the store's model (`.assuming(storeModel)`); Lean proves the code from them
+  (`complete`, which is its `impl`). With no parents it is a root. Keep a statement over the root's
+  words between the root and the claim in the code's words (rooms: `GrantWhenFree` over moments,
+  `GrantWhenNoOverlap` over times), so a misread claim is refuted against it.
 - **Time** is the `Clock` boundary (`Flow.now`, `Flow.sleep(d)`, `Flow.waitUntil(t)`, `f.timeout(d)`
   giving an `Option`, `Flow.every(period)(job)`), modelled by `ClockModel` (the time and the delays a
   sleep may add, in the state): assume it with `Node.assumption(Clock.boundary)(ClockModel)(…)` and test
@@ -355,11 +403,11 @@ Code under a contract is **proven** (a `define` or a flow, written with terms),
 **assumed** (an outside system). Write terms where the code is small and worth
 proving (a decision rule, a flow's steps); write plain Scala for the
 lowest-level code (a lookup through an index, a parser, a store), and attach it
-with `implement`, naming the operations it calls:
+with `implementTested`, naming the operations it calls:
 
 ```scala
-.implement(decisionContract)(SessionStore(grants.value.toSet, sessions.value).decide)   // examples/auth
-.implement(introspectContract, lookup)(introspection)                                    // examples/keycloak
+.implementTested(decisionContract)(SessionStore(grants.value.toSet, sessions.value).decide)   // examples/auth
+.implementTested(introspectContract, lookup)(introspection)                                    // examples/keycloak
 ```
 
 The proofs above rest on the contract alone, whichever it is. The test's
