@@ -27,7 +27,7 @@ object SummaryText:
         some(s.runEveryCall, "checked on every call", identity), some(s.runSampled, "sampled", identity),
         some(s.runNotChecked, "not checked (proven)", identity)).flatten.mkString(", ")),
       Option.when(s.examplesInLean > 0)(s"examples ${ratio(s.examplesAgreeing, s.examplesInLean)} agree in Lean"),
-      Some(s"trusted: ${s.trusted.filterNot(s.tested.contains) match { case Nil => "nothing"; case ts => ts.mkString(", ") }}" +
+      Some(s"trusted: ${trusted(s) match { case Nil => "nothing"; case ts => ts.mkString(", ") }}" +
         (if s.tested.isEmpty then "" else s"; tested, not proven: ${s.tested.mkString(", ")}")),
       some(s.unproven, "with something unproven", st.red), some(s.warnings, "warning(s)", st.red),
       some(s.unsigned, "decision(s) not signed", st.red)).flatten
@@ -46,6 +46,10 @@ object SummaryText:
       else List(s"${st.bold(s.name)}: no nodes yet") ++ start
     (head :+ (if waits.isEmpty then (if s.complete then st.green(s"Nothing waits: every node is accepted and proven${if s.tested.isEmpty then "" else ", or its code tested"}.") else "Nothing waits for a decision.")
       else s"Waiting: ${waits.mkString(sep)}")).flatMap(Lines.para(_, st, indent = 0)) ++ Option.when(s.nodes > 0)(legend(st))
+
+  /** What is trusted, not proven: the assumptions the root rests on, and the boundaries' models. */
+  private def trusted(s: Overview): List[String] =
+    s.trusted.filterNot(s.tested.contains).map(_.value) ++ s.models.map(m => s"${m.value} (a model)")
 
   /** What the marks before the nodes say, on one line. */
   def legend(st: Style): String =

@@ -304,7 +304,7 @@ function renderHeader() {
   $("#summary").innerHTML = `${esc(o.name)} · <b>${o.accepted}</b>/${o.nodes} accepted${o.proposed ? ` · <b>${o.proposed}</b> proposed` : ""}${o.review ? ` · <b>${o.review}</b> to review` : ""}` +
     ` · splits ${o.splitsProven < o.splits ? red(`${o.splitsProven}/${o.splits}`) : `<b>${o.splitsProven}/${o.splits}</b>`} proven` +
     (o.rootImpl ? ` · root_impl ${o.rootImpl === "proven" ? "<b>proven</b>" : red(esc(o.rootImpl))}` : "") +
-    ` · trusted: <b>${o.trusted.length || "nothing"}</b>` + (o.warnings ? ` · ${red(`${o.warnings} warning(s)`)}` : "");
+    ` · trusted: <b>${o.trusted.length + (o.models || []).length || "nothing"}</b>` + (o.warnings ? ` · ${red(`${o.warnings} warning(s)`)}` : "");
   const w = [o.forDeveloper ? `${o.forDeveloper} waiting for you` : "", ...each("waiting").flat()].filter(Boolean);
   $("#waiting").hidden = !w.length; $("#waiting").textContent = w.join(" · ");
   $("#stale").hidden = !changed();

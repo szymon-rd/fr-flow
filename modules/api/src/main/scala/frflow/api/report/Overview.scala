@@ -5,13 +5,15 @@ import frflow.ledger.{Proofs, Waiting}
 import frflow.protocol.*
 import io.circe.Codec
 
-/** The counts every view closes with; `complete` is `View.ok`. */
+/** The counts every view closes with; `complete` is `View.ok`; `models`, the boundaries' models, trusted as `trusted`'s
+  * nodes are, though no theorem takes them as hypotheses.
+  */
 final case class Overview(name: String, nodes: Int, proposed: Int, review: Int, accepted: Int, rejected: Int, gone: Int,
     proven: Int, trusted: List[NodeId], forDeveloper: Int, mechanical: Int, unsigned: Int, splits: Int, splitsProven: Int,
     contracts: Int, contractsProvenDown: Int, examplesInLean: Int, examplesAgreeing: Int, rootImpl: Option[ObligationStatus],
     warnings: Int, complete: Boolean, idea: Option[ReviewState] = None, contractsTested: Int = 0, testsPassing: Int = 0,
     tested: List[NodeId] = Nil, modelsRun: Int = 0, modelsPassing: Int = 0, runEveryCall: Int = 0, runSampled: Int = 0,
-    runNotChecked: Int = 0) derives Codec.AsObject:
+    runNotChecked: Int = 0, models: List[NodeId] = Nil) derives Codec.AsObject:
   def unproven: Int = nodes - proven
 
 object Overview:
@@ -40,6 +42,6 @@ object Overview:
       testsPassing = ns.count(n => CodeProof.tested(n) && !model(n) && n.tested.exists(_.passed)), tested = v.snapshot.tested,
       modelsRun = ns.count(model), modelsPassing = ns.count(n => model(n) && n.tested.exists(_.passed)),
       runEveryCall = runs.count(_ == RunCheck.EveryCall), runSampled = runs.count(_.isInstanceOf[RunCheck.Sampled]),
-      runNotChecked = runs.count(_ == RunCheck.Never))
+      runNotChecked = runs.count(_ == RunCheck.Never), models = a.nodes.filter(r => model(r.node)).map(_.id))
 
   private def model(n: SnapNode): Boolean = CodeProof.of(n).exists { case _: CodeProof.Model => true; case _ => false }
