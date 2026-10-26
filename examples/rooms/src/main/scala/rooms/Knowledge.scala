@@ -20,7 +20,7 @@ val consistent = define { (held: Term[List[Booking]], request: Term[Booking]) =>
 
 val grantWhenFree = Node.claim("GrantWhenFree",
   "A request is granted exactly when its room is free for its whole time.",
-  why = "This is what people booking a room rely on."
+  why = "Booking is first come, first served: a free room goes to whoever asks."
 )(forall((held: Term[List[Booking]], request: Term[Booking]) =>
   consistent(held, request) ==> (granted(held, request) === freeFor(held, request))))
 
@@ -33,7 +33,7 @@ val grantWhenNoOverlap = Node.contract(granted)("GrantWhenNoOverlap",
     expect(List(Booking("Oak", 9, 10)), Booking("Oak", 10, 11), true, "back to back: granted"),
     reject(List(Booking("Oak", 9, 11)), Booking("Oak", 10, 12), true, "overlapping: never granted"))
 
-val knowledge = KnowledgeBase("Rooms", idea = "")(grantWhenFree, grantWhenNoOverlap)
+val knowledge = KnowledgeBase("Rooms")(grantWhenFree, grantWhenNoOverlap)
   .implement(grantWhenNoOverlap)((held, request) => Calendar(held).granted(request))
 
 object roomsCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/rooms")
