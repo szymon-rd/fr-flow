@@ -42,7 +42,7 @@ object Proofs:
       tests(n) ++
       n.expectations.filterNot(e => fine(e.status)).map(e => s"an expectation is ${e.status}") ++
       // A root doing nothing meets says only what must not happen: the system can drop every feature unnoticed.
-      n.idle.map(what => s"Lean shows doing nothing meets it ($what): say what users can do, so the root is stated as exactly")
+      n.idle.map(what => s"Lean shows doing nothing meets it ($what): state the root as \"exactly when\", so that doing nothing does not meet it")
 
   /** Running code as named in a summary: `LoanIndex(...).borrow` as `LoanIndex.borrow`. */
   def runningCode(wiring: String): String =

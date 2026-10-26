@@ -295,5 +295,4 @@ The developer's flow is in the CLI. The `web` module serves it in a
 browser (the sbt task `sbt "PROJECT/serve --as NAME"`, not a CLI command) over the same API, so a decision is
 recorded alike from either. Both take layers on top (`Extension`: a `CliExtension`'s commands and what it
 adds to a view; a `WebExtension`'s routes and script); the core depends on none. The AI agent's layer is one,
-described in [USAGE.md](USAGE.md#with-an-ai-agent). The MCP server is on
-the branch `web-view`, which will become a separate repository.
+described in [USAGE.md](USAGE.md#with-an-ai-agent).

@@ -194,6 +194,9 @@ The examples:
   HTTP. The sessions are proven to follow the history of requests.
 - `examples/crm`: a multi-tenant CRM on SQLite with an HTTP API. Its expiry
   job is a flow over the database, proven from the database's model.
+- `examples/sharing`: documents, folders and teams shared between people, with
+  expiring shares, invitations, a trash, access requests, notifications and an
+  audit log; time, failures and concurrency are modelled.
 
 ## More
 

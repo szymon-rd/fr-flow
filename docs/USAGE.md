@@ -563,9 +563,9 @@ the developer decides that they are the right theory. Trusted:
 
 Limits: the tries are one-sided. Examples with function-valued parameters
 (other than `bindTable`) are not evaluated in Lean. Testing covers the examples
-and the generated cases, not every input. Ordering, liveness, failures
-of the outside world, and concurrent access to a boundary are not covered. Maps and sets
-cannot be iterated.
+and the generated cases, not every input. Liveness is not covered. Interleavings of
+concurrent branches are tested, not proven (see [Concurrency](#concurrency-branches-at-once-races-transactions)).
+Maps and sets cannot be iterated.
 
 ### Warnings
 
@@ -656,8 +656,7 @@ One sbt subproject each, under `modules/`:
 `lean`, `ledger` and `check` re-export the names of their sub-packages (each
 `package.scala`), so `import frflow.ledger.*` reaches `Decide` and `JsonStore` alike.
 
-The Lean library is in `lean/FrFlow/`. The MCP server is on the branch
-`web-view`, which will become a separate repository.
+The Lean library is in `lean/FrFlow/`.
 
 ### Measurements
 

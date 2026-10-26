@@ -204,12 +204,14 @@ Nothing waits: every node is accepted and proven.</code></pre></div>
 <div class="code"><span class="label">End of <code>bin/frflow auth status --plain</code></span><pre><code>Auth: 10 nodes, 10 accepted
 splits 4/4 proven, contracts 1/1 proven down to their code, root_impl proven, examples 5/5 agree in Lean, trusted: nothing
 Nothing waits: every node is accepted and proven.</code></pre></div>
-<p>The repository has three examples:</p>
+<p>The repository has four examples:</p>
 <ul>
   <li><code>examples/auth</code>: access control by a table of grants. The smallest; the tutorial below walks through it.</li>
   <li><code>examples/keycloak</code>: realms, sign-in, token introspection and sign-out over HTTP. The sessions are
   proven to follow the history of requests.</li>
   <li><code>examples/crm</code>: a multi-tenant CRM on SQLite with an HTTP API.</li>
+  <li><code>examples/sharing</code>: documents, folders and teams shared between people, with expiring shares,
+  invitations, a trash, access requests, notifications and an audit log; time, failures and concurrency are modelled.</li>
 </ul>
 </section>
 
@@ -914,8 +916,8 @@ theory. Trusted:</p>
   <code>service</code> or a proven flow: design nodes are reviewed, not proven;</li>
   <li>your signing key.</li>
 </ul>
-<p>Limits: the tries are one-sided; testing covers the examples and the generated cases, not every input; ordering,
-liveness, failures of the outside world and concurrent access to a boundary are not covered; maps and sets cannot be iterated.</p>
+<p>Limits: the tries are one-sided; testing covers the examples and the generated cases, not every input; liveness
+is not covered; interleavings of concurrent branches are tested, not proven; maps and sets cannot be iterated.</p>
 </section>
 
 <section aria-labelledby="agent">
@@ -928,7 +930,7 @@ conversation <code>IDEA.md</code> comes from, and their parts of <code>inbox</co
 
 <h3 id="agent-enable">Enable it</h3>
 <p>Name it on the project's main object; <code>example("NAME")</code> in <code>build.sbt</code> depends on the module
-(<code>example("NAME", layers = Nil)</code> does not). The three examples enable it.</p>
+(<code>example("NAME", layers = Nil)</code> does not). The examples enable it.</p>
 <div class="code"><pre><code>object authCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/auth", extensions = List(frflow.agent.Agent))</code></pre></div>
 <p>The layer is an <code>Extension</code> of the core's: a <code>CliExtension</code> (its commands, and what it adds to
 a view) and a <code>WebExtension</code> (its routes, and a script that hooks into the page with
