@@ -11,6 +11,18 @@ class NodeSuite extends munit.FunSuite:
     assertEquals(shelfKb.params.map(_.name), List("good", "minPages", "picks", "shown"))
   }
 
+  test("examples where nothing is bound take one list: the same cases as with an empty list of bindings") {
+    def base = Node.contract(picks)("Picks", "s", "w")((shelf, n, picked) => picked.length <= n).under(onlyGood)
+    // (with one list, the cases are typed before the overload is chosen: an empty list says its type)
+    val none = List.empty[Book]
+    val one = base.examples(expect(none, 1, none, "nothing to pick"), reject(none, 0, List(Book("A", 1)), "never more than asked"))
+    val two = base.examples()(expect(Nil, 1, Nil, "nothing to pick"), reject(Nil, 0, List(Book("A", 1)), "never more than asked"))
+    assertEquals(one.cases.map(c => (c.describe, c.bindings, c.inputs, c.result, c.expected)),
+      two.cases.map(c => (c.describe, c.bindings, c.inputs, c.result, c.expected)))
+    // how often service checks a result is said with frflow.* alone
+    assertEquals(one.checkedAtRunTime(RunCheck.Sampled(100)).runCheck, Some(RunCheck.Sampled(100)))
+  }
+
   test("a contract's post has its operation's type") {
     assert(compileErrors("""frflow.Node.contract(frflow.fixtures.picks)("C", "c", "w")((a: Int, b: Int, r: Int) => true)""").nonEmpty)
   }

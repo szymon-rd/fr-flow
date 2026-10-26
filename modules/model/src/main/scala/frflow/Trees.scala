@@ -2,7 +2,7 @@ package frflow
 
 /** Trees by identity: a named value's tree is the same object at each of its uses. */
 private[frflow] object Trees:
-  private def children(t: Tree): List[Tree] = t match
+  def children(t: Tree): List[Tree] = t match
     case Tree.Var(_) | Tree.Lit(_, _) | Tree.Ref(_) => Nil
     case Tree.Call(_, as)          => as
     case Tree.Apply(f, as)         => f :: as

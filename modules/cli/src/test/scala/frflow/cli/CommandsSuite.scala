@@ -82,6 +82,7 @@ class CommandsSuite extends munit.CatsEffectSuite:
       assertEquals(line(ok.copy(codeTested = Some(tested.copy(coverage = List(Covered("x", 0)))))),
         "+ Decide: code tested on 1,000 cases, but they never reached a part of the contract")
       assertEquals(line(ok.copy(codeTested = None)), "+ Decide: proven")
+      assertEquals(line(ok.copy(codeTested = None, step = true)), "+ Decide: step proven")
     }
   }
 

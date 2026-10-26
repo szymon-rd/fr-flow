@@ -146,6 +146,27 @@ class CheckSuite extends munit.FunSuite:
       "the proof from its parts does not go through\nLean: omega could not prove the goal")
   }
 
+  test("a step refuted: a case the contract's own answer breaks the claim on, with the Lean that proves it") {
+    val double = Param[BigInt => BigInt]("double", "twice a number")
+    val doubles = Node.claim("Doubles", "Doubling a number adds it to itself.", why = "w")(forall((x: Term[BigInt]) => double(x) === x + x))
+    val one = Node.contract(double)("AddsOne", "Doubling adds the number and one.", why = "w")((x, r) => r === x + x + 1)
+      .under(doubles).examples(expect(BigInt(1), BigInt(3), "one"), reject(BigInt(1), BigInt(2), "not two"))
+    val kb = KnowledgeBase("Twice")(doubles, one)
+    val found = Refutation.candidate(kb, doubles, identity).getOrElse(fail("no case found"))
+    assertEquals((found.shown, found.what), ("x = 0", "the contract gives 1, which the claim refuses"))
+    assert(found.lean.contains("theorem refutes : ¬ Twice.Doubles.Obl.complete := by") && found.lean.contains("have h := h 0"), found.lean)
+    // a contract that only bounds its result gives no answer to try
+    val bounded = Node.contract(double)("AtLeast", "Doubling gives at least the number.", why = "w")((x, r) => r >= x)
+      .under(doubles).examples(expect(BigInt(1), BigInt(2), "two"), reject(BigInt(1), BigInt(0), "not less"))
+    assertEquals(Refutation.candidate(KnowledgeBase("Twice")(doubles, bounded), doubles, identity), None)
+    // on the step's line: the case, then the hint to look at the change first
+    val r = Verdict.refuted(Result(ObligationName.Complete, ObligationStatus.Open, "omega could not prove the goal"), found)
+    assertEquals(r.detail, "the step from its parts does not hold: x = 0: the contract gives 1, which the claim refuses\nLean proves the step false on it")
+    val g = Generate(shelfKb)
+    assertEquals(Verdict.obligations(g, onlyGood, List(r), List(r), Nil, proofFile = true, changed = List("overlaps")).flatMap(_.hint),
+      Some("check the change to overlaps: with it, the contract no longer gives the claim"))
+  }
+
   test("a broken proof whose Lean gives a counterexample says the step may be false, and to check the change first") {
     val omega = "omega could not prove the goal:\na possible counterexample may satisfy the constraints\n  c - d ≤ -1"
     val open = Result(ObligationName.Complete, ObligationStatus.Open, omega)

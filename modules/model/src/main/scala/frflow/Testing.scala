@@ -37,6 +37,24 @@ private[frflow] object Testing:
     if ModelTests.testable(n) then Some(ModelTests.run(kb, n, settings, replay))
     else testable(kb, n).map(i => Run(kb, n, i).report(settings, replay))
 
+  /** A case the step from `contract` to `claim` fails on, shrunk: the claim's outer `forall` over the contract's inputs,
+    * the operation answering as `answer` (a function the contract allows), the claim's other quantifiers sampled as in
+    * the tests. Its values: the world the contract reads, then the inputs. None when the claim is not of that shape,
+    * or no generated case breaks it.
+    */
+  def refute(kb: KnowledgeBase, contract: Node[?], claim: Node[?], answer: AnyRef, settings: TestSettings): Option[Refuted] =
+    for
+      formula <- claim.formula
+      op <- contract.op
+      (bs, body) <- formula.built._2.termTree match
+        case Tree.Quant(true, bs, body) => Some((bs, body))
+        case _                          => None
+      found <- Run(kb, contract, Implementation(contract.id, () => answer, Nil)).refute(bs, body, op, answer, settings)
+    yield found
+
+  /** A case a step fails on: its values by name, and what the contract's answer was on it. */
+  final case class Refuted(values: List[(String, Any, LeanType[?])], answer: Any)
+
   /** The types the definitions in force give the opaque terms: what an opaque value is generated as. */
   def opaques(kb: KnowledgeBase): Map[String, LeanType[?]] =
     kb.opaques.flatMap(o => kb.provisional.get(o.name).flatMap(_.substs.find(_.name == o.name)).flatMap(_.typeOf).map(o.name -> _)).toMap
@@ -175,6 +193,43 @@ private[frflow] object Testing:
         case (_, Nil)   => ins.mkString(", ")
         case (Nil, _)   => s"given ${world.mkString(", ")}"
         case _          => s"${ins.mkString(", ")}, given ${world.mkString(", ")}"
+
+    /** The first generated case on which `body` (the claim's, over `bs`, the contract's inputs) is false, shrunk. */
+    def refute(bs: List[Binder], body: Tree, op: Param[?], answer: AnyRef, settings: TestSettings): Option[Refuted] =
+      val same = bs.size == tins.size && bs.map(b => Types.walk(b.tpe).lean) == tins.map(t => Types.walk(t).lean)
+      Option.when(same)(Eval.compile(body)).flatMap { run =>
+        val counter = Counter(() => Draw(random(settings.seed, -1), 3, plan))
+        // A quantifier over numbers ranges over the case's own numbers and their neighbours: a claim of order over them
+        // (a moment between a start and an end) holds of all numbers when it holds of those.
+        def numbers(v: Any): List[BigInt] = v match
+          case b: BigInt       => List(b - 1, b, b + 1)
+          case xs: Iterable[?] => xs.toList.flatMap(numbers)
+          case p: Product      => p.productIterator.toList.flatMap(numbers)
+          case _               => Nil
+        def watching(vals: Vector[Any]): Watch = new Watch:
+          private val ns = (BigInt(0) :: vals.toList.flatMap(numbers)).distinct
+          def hit(t: Tree, outcome: Int): Unit = ()
+          def range(ts: List[LeanType[?]]): Option[List[List[Any]]] =
+            if ts.forall(t => Types.scala(t) == "BigInt") then Some(ts.foldRight(List(List.empty[Any]))((_, rows) => for n <- ns; r <- rows yield n :: r))
+            else counter.range(ts)
+        def breaks(vals: Vector[Any]): Boolean =
+          val world = generated.zip(vals).map((p, v) => Binding(p, () => v))
+          val env = bs.zip(vals.drop(generated.size)).toMap
+          Try(Bindings.within(kb.opCode ++ Bindings.oncePerScope(kb.definitionBindings) ++ fixed ++ world :+ Binding(op, () => answer))(
+            Watch.within(watching(vals))(!run(env).asInstanceOf[Boolean]))).getOrElse(false)
+        @tailrec def smallest(vals: Vector[Any], rounds: Int): Vector[Any] =
+          LazyList.from(types.indices).flatMap(i => Shrink.of(types(i), vals(i), opaques, plan.only).take(40).map(v => vals.updated(i, v)))
+            .take(400).find(breaks) match
+            case Some(c) if rounds > 0 => smallest(c, rounds - 1)
+            case _                     => vals
+        (0 until settings.cases).iterator.flatMap(i => Try(generate(settings.seed, i, sizeOf(i, settings.cases))).toOption)
+          .find(breaks).map { vals =>
+            val small = smallest(vals, 100)
+            val ins = small.drop(generated.size).toList
+            val named = generated.zip(small).map((p, v) => (p.name, v, p.termType)) ++ bs.zip(ins).map((b, v) => (b.hint, v, b.tpe))
+            Refuted(named, Try(Bindings.within(kb.opCode ++ kb.definitionBindings)(Fn.call(answer, ins))).getOrElse(None))
+          }
+      }
 
     @tailrec private def shrink(vals: Vector[Any], why: String, rounds: Int): (Vector[Any], String) =
       val smaller = LazyList.from(types.indices)

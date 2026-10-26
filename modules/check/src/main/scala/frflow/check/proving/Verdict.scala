@@ -101,6 +101,14 @@ object Verdict:
       case (false, true)  => "the proof from its parts does not go through"
     r.copy(detail = s"$why\nLean: ${r.detail}")
 
+  /** A step Lean proves false on a case (`Refutation`): the case, and what the contract answers on it; Lean's own
+    * message about the proof is left out, the step being false.
+    */
+  def refuted(r: Result, c: Refutation.Candidate): Result =
+    r.copy(detail = s"$Refuted: ${c.shown}: ${c.what}\nLean proves the step false on it")
+  private val Refuted = "the step from its parts does not hold"
+  def isRefuted(r: Result): Boolean = r.detail.startsWith(Refuted)
+
   /** Lean's message gives a counterexample (omega's constraints, a model, `decide` evaluating to false): the step it
     * was asked may be false, not only its proof wrong.
     */
@@ -143,8 +151,12 @@ object Verdict:
     val notYet = parts.filterNot(_._2.contains(CheckStatus.Proven))
     // A step Lean gives a counterexample to: what changed is to look at first, the proof only if the step still holds.
     val mayBe = proofFile && split.exists(r => r.status == Open && mayBeFalse(r.detail))
+    val names = changed.mkString(" and ")
     val hint =
-      if !mayBe then scaffold(g, n, proofFile)
+      if split.exists(isRefuted) then
+        if changed.isEmpty then "the contract does not give the claim: fix the contract, or the claim"
+        else s"check the change to $names: with it, the contract no longer gives the claim"
+      else if !mayBe then scaffold(g, n, proofFile)
       else if changed.isEmpty then s"if the step holds, fix the proof in ${proofPath(g, n)}"
       else s"check the change to ${changed.mkString(" and ")}; if the step still holds, fix the proof in ${proofPath(g, n)}"
     if results.exists(_.status == Failed) then Some(Judged(CheckStatus.Failed, results, Nil))

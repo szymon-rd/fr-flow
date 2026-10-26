@@ -21,6 +21,8 @@ object ReportText:
         (ls.headOption.filter(_.trim.nonEmpty).getOrElse(s"$status$notProven"), ls.drop(1) match { case Nil => Nil; case rest => List("  " + rest.mkString("\n    ")) })
       // Lean checked what it holds of the node; its code, plain code, is tested, not proven: say that, not "proven".
       case Nil if c.ok && c.codeTested.isDefined => (c.codeTested.fold("")(tested), Nil)
+      // A node made of parts: what Lean proved is the step from them.
+      case Nil if c.ok && c.step => ("step proven", Nil)
       case rs => (s"$status$notProven", rs.map(r => s"${r.name} ${r.status}: ${r.detail.linesIterator.mkString("\n    ")}"))
     // The contract changed and its code did not: the code is not what moved.
     val moved = c.testFailure.filter(_ => c.contractChanged).map(f => st.red(f.said(c.id.value, contractChanged = true)))

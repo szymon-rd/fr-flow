@@ -78,10 +78,18 @@ final class NodeChecker(a: Analysis, lake: Lake, prebuilt: Set[String]):
       prebuilt.ifM(IO.pure(Result(o.name, ObligationStatus.Proven, "auto")),
         judged.flatMap { r =>
           if r.status != ObligationStatus.Open then IO.pure(r)
-          else if authored then IO.pure(Verdict.brokenProof(r, changed(n)))
-          else state(n, Complete).map(Verdict.gaveUp(g, n, r, _))
+          else (if authored then IO.pure(Verdict.brokenProof(r, changed(n))) else state(n, Complete).map(Verdict.gaveUp(g, n, r, _)))
+            .flatMap(open => refuted(n).map(_.fold(open)(Verdict.refuted(open, _))))
         })
     }
+
+  // A step that did not go through, refuted by a case Lean proves breaks it (`Refutation`); None when there is none.
+  private def refuted(n: Node[?]): IO[Option[Refutation.Candidate]] =
+    IO.blocking(Refutation.candidate(a.kb, n, g.vocabulary.resolve)).handleError(_ => None).flatMap(_.flatTraverse { c =>
+      val rel = s".lake/frflow/${a.kb.name}/${n.id}/Refutes.lean"
+      Disk.update(a.ws.lean.resolve(rel), c.lean) *>
+        elaborate(rel, c.lean).map(e => Option.when(e.run.ok && e.lean.verdict("refutes").proven)(c))
+    })
 
   // What changed, of the node and its parts, since they were decided: what a proof that went through may no longer
   // hold of.
