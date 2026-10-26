@@ -444,7 +444,8 @@ function nodePane() {
     ...d.calls.map(p => ["calls", p]), ...d.calledBy.map(p => ["called by", p]), ...d.keptBy.map(p => ["kept by", p])];
   return `${note("top")}<div style="display:flex;align-items:center;gap:8px"><span class="kind ${k}">${esc(k)}${n.op ? " on " + esc(n.op) : ""}</span><h2>${esc(n.id)}</h2></div>
     <div class="chips" style="margin-top:6px">${chips(r)}${n.replaces ? `<span class="chip">replaces ${esc(n.replaces)}</span>` : ""}</div>
-    <p class="lead">${esc(C(r).statement)}</p><div class="why"><div class="label">why</div>${esc(C(r).why)}</div>
+    <p class="lead">${esc(C(r).statement)}</p>
+    ${C(r).why ? `<div class="why"><div class="label">why</div>${esc(C(r).why)}</div>` : ""}
     <h3>Decision</h3>${note("done")}${decision(d)}
     ${d.idea && (d.isRoot || v.state === "proposed") ? `<details${d.isRoot ? " open" : ""}><summary>The idea it is decided against</summary><pre>${esc(d.idea)}</pre></details>` : ""}
     ${formal(d)}

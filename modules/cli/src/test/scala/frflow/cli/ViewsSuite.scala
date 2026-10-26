@@ -4,6 +4,7 @@ import frflow.api.*
 import frflow.cli.command.*
 import frflow.cli.text.*
 import frflow.protocol.*
+import io.circe.Json
 import io.circe.syntax.*
 
 /** The views in plain mode, against golden files: what CI reads. */
@@ -19,6 +20,12 @@ class ViewsSuite extends munit.CatsEffectSuite with Golden:
   test("show: a node under review, with what changed and what deciding it acts on; a proposal waiting for its parent") {
     api.flatMap(_.details(NodeId("Decide"))).map(d => golden("show-review", NodeText.lines(d, st))) *>
       api.flatMap(_.details(NodeId("Expiry"))).map(d => golden("show-proposed", NodeText.lines(d, st)))
+  }
+
+  test("a node that gives no reason shows no why line") {
+    def why(text: String) = Lines.why(Content("statement" -> Json.fromString("s"), "why" -> Json.fromString(text)), 100, st)
+    assertEquals(why(""), Nil)
+    assertEquals(why("a reason"), List("  why: a reason"))
   }
 
   test("diff: a proposal is new") {

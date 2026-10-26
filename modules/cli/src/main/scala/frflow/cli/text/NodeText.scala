@@ -54,7 +54,7 @@ object NodeText:
       n.replaces.map(x => st.dim(s"replaces $x"))).flatten
     val room = st.width.fold(Int.MaxValue)(_ - 2)
     s"${st.glyph(r)} ${st.bold(r.id.value)}  ${st.dim(kind)}  ${st.state(r.state, Lines.state(r))}${marks.map("  " + _).mkString}" ::
-      st.wrap(n.content.statement, room).map("  " + _) ++ st.wrap(s"why: ${n.content.why}", room).map(l => "  " + st.dim(l))
+      st.wrap(n.content.statement, room).map("  " + _) ++ Lines.why(n.content, room, st)
 
   /** What deciding it acts on; or why it was rejected. */
   private def decision(d: NodeDetails, st: Style): List[String] =

@@ -10,6 +10,8 @@ private[frflow] object Validation:
   def problems(kb: KnowledgeBase): List[Problem] =
     structure(kb) ++ vocabulary(kb) ++ names(kb) ++ wording(kb) ++ examples(kb) ++ invariants(kb) ++ code(kb)
   private def isOperation(n: Node[?]) = n.kind == NodeKind.Contract || n.kind == NodeKind.Assumption
+  /** A claim or a contract may leave `why` out: the reason is kept with the decision. */
+  private def whyOptional(k: NodeKind) = k == NodeKind.Claim || k == NodeKind.Contract
 
   private def structure(kb: KnowledgeBase): List[Problem] =
     import kb.{nodes, parentsOf}
@@ -83,7 +85,8 @@ private[frflow] object Validation:
 
   private def wording(kb: KnowledgeBase): List[Problem] =
     List(
-      kb.nodes.filter(_.why.trim.isEmpty).map(n => s"${n.id}: say why (the reason for this node)"),
+      kb.nodes.filter(n => n.why.trim.isEmpty && !whyOptional(n.kind))
+        .map(n => s"${n.id}: say why (the reason for this node)"),
       (kb.params.filter(_.means.trim.isEmpty).map(_.name) ++ kb.opaques.filter(_.means.trim.isEmpty).map(_.name))
         .map(n => s"$n: say what it means in the world"),
       kb.nodes.filter(_.statement.trim.isEmpty).map(n => s"${n.id}: empty statement")

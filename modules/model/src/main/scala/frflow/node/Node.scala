@@ -89,8 +89,11 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (val id: St
 object Node:
   // Each is built in a method of its own: a file's top-level vals initialize in one JVM method (at most 64 KB).
 
-  /** With no parents, the root: the idea's purpose, stated precisely enough that doing nothing does not meet it. */
-  inline def claim(id: String, statement: String, why: String, idea: String = "")(inline formula: Term[Boolean]): Node[Unit] =
+  /** With no parents, the root: the idea's purpose, stated precisely enough that doing nothing does not meet it.
+    * A claim, like a contract, needs no `why`: the reason it holds is kept with the developer's signed decision.
+    */
+  inline def claim(id: String, statement: String, why: String = "", idea: String = "")(
+      inline formula: Term[Boolean]): Node[Unit] =
     def node(): Node[Unit] =
       Node(id, statement, why, NodeKind.Claim, formula = Some(Lifted.thunk(() => formula, Source.text(formula))), ideaSection = idea,
         file = Source.here, at = Source.at)
@@ -100,8 +103,8 @@ object Node:
     * against it. On a flow's operation (`A => Flow[R]`), every run of `op(a, …)` from a world meets
     * `post(a, …, result, before, after)`, where `before(Model)` is a model's state before the run.
     */
-  inline def contract[F](op: Param[F])(using s: Sig[F])(id: String, statement: String, why: String, idea: String = "")(
-      inline post: s.Lam[Term[Boolean]]): Node[F] =
+  inline def contract[F](op: Param[F])(using s: Sig[F])(id: String, statement: String, why: String = "",
+      idea: String = "")(inline post: s.Lam[Term[Boolean]]): Node[F] =
     def node(): Node[F] =
       Node(id, statement, why, NodeKind.Contract, post = Some(Lifted.lambda(post, lambdaTypes(op), Source.text(post))), op = Some(op),
         ideaSection = idea, file = Source.here, at = Source.at)

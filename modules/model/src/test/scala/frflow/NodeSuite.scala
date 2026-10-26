@@ -126,8 +126,11 @@ class NodeSuite extends munit.FunSuite:
     val c = shelfWith(Node.contract(picks)("Clash", "s", "w")((shelf, n, picked) => picked.length <= clash).under(shelfParts*)).problems
     assert(c.exists { case Problem.Vocabulary(t) => t.startsWith("two different parameters are named minPages"); case _ => false }, c)
     assert(c.exists(_.isInstanceOf[Problem.Examples]), c)
-    val noWhy = Node.claim("NoWhy", "s", " ")(forall((x: Term[BigInt]) => sq(x) >= 0)).under(onlyGood)
-    assert(shelfWith(pick, noWhy).problems.exists { case Problem.Wording(t) => t.contains("say why"); case _ => false })
+    // a claim or a contract may leave its reason to the decision; another node says why
+    def sayWhy(n: Node[?]) =
+      shelfWith(pick, n).problems.exists { case Problem.Wording(t) => t.contains("say why"); case _ => false }
+    assert(!sayWhy(Node.claim("NoWhy", "s")(forall((x: Term[BigInt]) => sq(x) >= 0)).under(onlyGood)))
+    assert(sayWhy(Node.assumption("NoWhy", "s", " ")(forall((x: Term[BigInt]) => sq(x) >= 0)).under(onlyGood)))
   }
 
   test("a definition: at least one term, none defined through itself, none an operation") {

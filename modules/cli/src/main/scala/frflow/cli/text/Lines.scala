@@ -1,7 +1,7 @@
 package frflow.cli
 package text
 
-import frflow.protocol.{ReviewState, Reviewed}
+import frflow.protocol.{Content, ReviewState, Reviewed}
 
 /** The pieces views are made of: a section, wrapped prose, and a node in one line. */
 object Lines:
@@ -16,6 +16,10 @@ object Lines:
         case first :: rest => first :: rest.map(" " * hang + _)
         case Nil => Nil
     }
+
+  /** The node's reason, dimmed and indented; nothing when it gives none. */
+  def why(c: Content, room: Int, st: Style): List[String] =
+    if c.why.trim.isEmpty then Nil else st.wrap(s"why: ${c.why}", room).map(l => "  " + st.dim(l))
 
   def state(r: Reviewed): String =
     if r.state == ReviewState.Review then s"review: ${r.review.causes.mkString(", ")}" else r.state.toString

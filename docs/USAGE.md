@@ -68,14 +68,17 @@ Exit codes: 0 fine; 1 not complete, or a decision refused; 2 a usage error
 
 | Kind | Written as | In Lean |
 |---|---|---|
-| claim | `Node.claim(id, statement, why)(formula)`; the one with no parents is the root | proven from its parts (`complete`) |
+| claim | `Node.claim(id, statement)(formula)`; the one with no parents is the root | proven from its parts (`complete`) |
 | invariant | `Node.invariant[A, B](id, statement, why)(rule)`, kept by contracts with `.keeps(inv)(view)` | a claim whose parts are its keepers |
-| contract | `Node.contract(op)(id, statement, why)((a, b, result) => ...)` on an operation `op: Param[(A, B) => R]`, of 0 to 6 inputs | every call of `op` meets `post`; an attached `define` is proven against it (`impl`) |
-| contract on a flow | `Node.contract(op)(id, statement, why)((a, result, before, after) => ...)` on `op: Param[A => Flow[R]]`, of 0 to 6 inputs | every run from any world meets `post`; the attached flow is proven against it on the models (`impl`) |
+| contract | `Node.contract(op)(id, statement)((a, b, result) => ...)` on an operation `op: Param[(A, B) => R]`, of 0 to 6 inputs | every call of `op` meets `post`; an attached `define` is proven against it (`impl`) |
+| contract on a flow | `Node.contract(op)(id, statement)((a, result, before, after) => ...)` on `op: Param[A => Flow[R]]`, of 0 to 6 inputs | every run from any world meets `post`; the attached flow is proven against it on the models (`impl`) |
 | assumption | `Node.assumption(op)(...)(post)`, or `Node.assumption(id, statement, why)(formula)` | trusted, not proven: what the outside does, or a fact of the world |
 | model of a boundary | `Node.assumption(boundary)(Model)(id, statement, why)` | trusted: the boundary behaves as the model; flows are proven from it |
 | definition | `Node.definition(id, statement, why)(Type := of[T], term := expr, ...)` | fixes terms of the vocabulary; decided, not proven |
 | design | `Node.design(id, statement, why)(files*)` | none: governs code no proof covers |
+
+A claim or a contract may also give `why = "..."`; without one, the reason it holds is the one the developer
+signs with the decision. The other kinds say why.
 
 An operation takes 0 to 6 inputs. Every lambda over a call takes them in order, then the result (a
 flow's, then the worlds before and after), and every example lists them the same way. An operation of
