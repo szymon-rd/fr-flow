@@ -73,6 +73,18 @@ class CommandsSuite extends munit.CatsEffectSuite:
     }
   }
 
+  test("check: a contract whose code is tested, not proven, says it is tested; proven stays for what Lean proves") {
+    val tested = TestReport(1000, 1, "Decide")
+    val ok = CheckedNode(NodeId("Decide"), CheckStatus.Proven, Nil, Nil, Nil, None, Nil, None, codeTested = Some(tested))
+    FakeApi().flatMap(_.view).map { v =>
+      def line(c: CheckedNode) = ReportText.check(CheckReport(List(c), v, Overview.of(v)), st).head
+      assertEquals(line(ok), "+ Decide: code tested on 1,000 cases")
+      assertEquals(line(ok.copy(codeTested = Some(tested.copy(coverage = List(Covered("x", 0)))))),
+        "+ Decide: code tested on 1,000 cases, but they never reached a part of the contract")
+      assertEquals(line(ok.copy(codeTested = None)), "+ Decide: proven")
+    }
+  }
+
   test("check: code failing a contract that changed under it says the contract changed, on the node's line") {
     val failure = TestFailure("held = List(Booking(\"Oak\", 12, 17)), request = Booking(\"Oak\", 0, 12)", "returned true, which Decide refuses", 1, 0, 1)
     val moved = CheckedNode(NodeId("Decide"), CheckStatus.Proven, Nil, Nil, Nil, None, Nil, None, Some(failure), contractChanged = true)
