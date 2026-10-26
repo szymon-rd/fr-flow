@@ -14,7 +14,6 @@ val visibility = Node.claim("Visibility",
   results(u, q).contains(r) === (store.contains(r) && askMatches(q, r) && mayRead(u, r)))))
   .under(sharedCrm)
 
-/** One rule for every read path, stated once: a reader is shown a record only if their company may see it. */
 val noCrossTenantRead = Node.invariant[Account, CrmRecord](
   "NoCrossTenantRead",
   "No search returns a record of another company unless that company shared it with the reader's, for good or until a time not yet come.",
@@ -35,7 +34,6 @@ val searchesMatch = Node.claim("SearchesMatch",
 // Port: the database's answer to a search
 // ============================================================================
 
-/** What the database is trusted to do: return exactly the stored records a search asks for. */
 val recordsByQuery = Node.assumption(fetch)("RecordsByQuery",
   "The database returns exactly the stored records that match a search, of every company.",
   why = "Records live in SQLite. The read side is proven from this promise, not from the SQL; the SQL is checked against the define the port is decided with on its examples and on varied data, and every result it returns is checked to match the search."
@@ -130,7 +128,6 @@ val dealSearch = Node.contract(deals)("DealSearch",
 /** Deals: what the records screen returns, keeping only deals. */
 val dealsOf = define { (user: Term[Account], query: Term[Search]) => read(user, query).filter(r => r.kind === Kind.Deal) }
 
-/** The production wiring of reads, owned as a design decision: changes to it are reviewed. */
 val readSideWiring = Node.design(
   "ReadSideWiring",
   "The records screen and the sales screen serve searches through service, which checks every result against ReadContract or DealSearch and the invariant they keep; they read the store, shares and expiries from the database's tables, the history from its event log, and the clock.",

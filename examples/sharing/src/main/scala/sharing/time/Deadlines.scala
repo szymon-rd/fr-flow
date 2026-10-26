@@ -11,8 +11,8 @@ import sharing.time.Lifetimes.*
 import sharing.time.Run.*
 
 // ============================================================================
-// What the lifetimes mean for the service, with the clock: the claims below the timed words. The purpose above says
-// none of this; it holds whatever the lifetimes are. A change to a lifetime brings back only what is stated here.
+// What the lifetimes mean for the service, with the clock. The purpose holds whatever the lifetimes are; a change to
+// a lifetime affects only the claims here.
 // ============================================================================
 
 /** The service's deadlines: what holds at every moment, and of every run that keeps to its assumptions. */

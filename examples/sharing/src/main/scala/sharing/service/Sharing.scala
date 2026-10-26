@@ -21,7 +21,7 @@ trait Sharing:
   /** The library after `by` moves `doc` into a folder, or out of every folder (`None`). */
   def move(library: Library, now: BigInt, by: PersonId, doc: DocumentId, into: Option[FolderId]): Library
 
-/** Sharing's operations: for each method, its contract and its code (a `define`, proven in Lean to meet it). */
+/** Sharing's operations: for each method, its contract and its code. */
 object Sharing:
   import Demo.*
 

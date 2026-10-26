@@ -115,7 +115,6 @@ val saved = define { (s: Term[CrmStore], w: Term[WriteCmd]) => storeRows(about(w
 // Port: the database storing the rows about one record
 // ============================================================================
 
-/** What the database is trusted to do with a write: store what a store holds about one record. */
 val storeEdits = Node.assumption(storeRows)("StoreEdits",
   "Storing what a store holds about one record replaces what the database holds about it, and nothing else; read back, the rows about it are what the store holds about it.",
   why = "The database is outside the proofs: the write side is proven from this promise. The rows are read back after storing, and checked: a write the database dropped or changed is seen on the call. That it changes nothing else is trusted (CrmRun)."
@@ -130,7 +129,6 @@ val storeEdits = Node.assumption(storeRows)("StoreEdits",
 /** The rows about a record, as the port promises them: what the SQL is checked against. */
 val storedAbout = define { (id: Term[BigInt], t: Term[CrmStore]) => aboutRecord(t, id) }
 
-/** The production wiring of writes, owned as a design decision: changes to it are reviewed. */
 val writeSideWiring = Node.design(
   "WriteSideWiring",
   "The write side saves each write through service, on the store loaded from the database, one write at a time, and logs it in the event log.",

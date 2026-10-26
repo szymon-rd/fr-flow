@@ -3,7 +3,7 @@ package keycloak
 import frflow.*
 
 // ============================================================================
-// The purpose: who a realm's applications accept, stated as exactly, in the idea's words
+// The purpose: who a realm's applications accept
 // ============================================================================
 
 val Realm = Opaque("Realm", "an organisation using the server, with its own users and applications")

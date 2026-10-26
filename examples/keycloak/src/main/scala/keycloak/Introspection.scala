@@ -89,9 +89,7 @@ val sessionLookup = Node.assumption(lookup)("SessionLookup",
 /** The session the store holds under a token in a realm: what the index is checked against. */
 val storedSession = define { (realm: Term[RealmId], token: Term[String]) => sessions(realm).find(x => x.token === token && x.realm === realm) }
 
-/** An introspection, in plain Scala: the realm's session the token names, if its user is enabled there, with their
-  * roles. Not proven: `check` tests it against Introspect, and the proofs above rest on that contract.
-  */
+/** An introspection: the realm's session the token names, if its user is enabled there, with their roles. */
 def introspection(realm: RealmId, token: String): Option[Claims] =
   for
     x <- lookup.value(realm, token)

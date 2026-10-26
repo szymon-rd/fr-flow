@@ -2,7 +2,6 @@ package crm
 
 import frflow.*
 
-/** The HTTP API, owned as a design decision: every request goes through the screens and the write side. */
 val httpApi = Node.design(
   "HttpApi",
   "The HTTP API answers searches through the records screen and the sales screen, and writes through the write side; who calls is the account in the request's headers.",
