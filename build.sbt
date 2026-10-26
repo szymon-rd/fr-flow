@@ -132,4 +132,4 @@ lazy val sharing = example("sharing").settings(libraryDependencies += "org.xeria
   Compile / run / mainClass := Some("sharing.sharingCli"))
 
 /** Booking meeting rooms: a request is granted exactly when its room is free; the README's example. */
-lazy val rooms = example("rooms", layers = Nil)
+lazy val rooms = example("rooms", layers = Nil).settings(libraryDependencies += "org.xerial" % "sqlite-jdbc" % "3.46.1.3")

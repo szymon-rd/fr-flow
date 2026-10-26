@@ -39,21 +39,25 @@ val grantWhenNoOverlap =
     allows(List(Booking("Oak", 9, 10)), Booking("Oak", 10, 11), returning = true, "back to back: granted"),
     forbids(List(Booking("Oak", 9, 11)), Booking("Oak", 10, 12), returning = true, "overlapping: never granted"))
 
-// The tests' cases: requests that end after they start, and calendars as the code holds them.
+// The tests' cases: rooms, requests that end after they start, and calendars as the code and the store hold them.
+val roomNames = Gen.oneOf("Oak", "Elm")
+
 val requests = for
-  room <- Gen.oneOf("Oak", "Elm"); start <- Gen.chooseBig(0, 8); length <- Gen.chooseBig(1, 3)
+  room <- roomNames; start <- Gen.chooseBig(0, 8); length <- Gen.chooseBig(1, 3)
 yield Booking(room, start, start + length)
 
 val slots = for
-  room <- Gen.oneOf("Oak", "Elm"); gap <- Gen.chooseBig(0, 1); length <- Gen.chooseBig(1, 3)
+  room <- roomNames; gap <- Gen.chooseBig(0, 1); length <- Gen.chooseBig(1, 3)
 yield (room, gap, length)
 
 val calendars = Gen.listOf(slots)
   .map(_.foldLeft((List.empty[Booking], BigInt(0))) { case ((held, end), (room, gap, length)) =>
     (Booking(room, end + gap, end + gap + length) :: held, end + gap + length) }._1)
 
-val rooms = KnowledgeBase("Rooms")(grantWhenFree, grantWhenNoOverlap)
+val rooms = KnowledgeBase("Rooms")(grantWhenFree, grantWhenNoOverlap, storeKeepsBookings, bookWhenGranted)
   .implement(grantWhenNoOverlap)((held, request) => Calendar(held).granted(request))
+  .implementProven(bookWhenGranted)(bookIfGranted)
+  .generating(roomNames.describedAs("Oak or Elm"))
   .generating(requests.describedAs("bookings of Oak or Elm that end after they start"))
   .generating(calendars.describedAs("calendars: bookings that never overlap, some back to back"))
 
