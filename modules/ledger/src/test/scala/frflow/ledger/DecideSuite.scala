@@ -65,6 +65,9 @@ class DecideSuite extends munit.FunSuite:
     assertEquals(decide(restatedCase, decided, accept("R")),
       Left(ContractChanged(id("R"), "held = List(), request = 3: returned false, which the contract now refuses")))
     assert(ContractChanged(id("R"), "x").message.startsWith("R: the contract changed and its code no longer meets it: x"))
+    // one of several refused: its name said once
+    assertEquals(Within(id("R"), ContractChanged(id("R"), "x")).message, ContractChanged(id("R"), "x").message)
+    assertEquals(Within(id("R"), NoReason).message, s"R: ${NoReason.message}")
     assert(decide(replacing(shelf, r.copy(examples = List(example.copy(codeFails = None)))), Ledger.empty, accept("R")).isRight)
   }
 

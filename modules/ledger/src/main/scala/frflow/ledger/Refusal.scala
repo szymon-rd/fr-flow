@@ -29,6 +29,7 @@ enum Refusal(val message: String):
   /** No name to decide under: none given, and the developer's key is filed under none. */
   case NoDeveloper extends Refusal("say who decides: the name your key's public half is filed under (.frflow/keys/NAME.pub)")
   /** One decision of several refused: none is recorded. */
-  case Within(node: NodeId, refusal: Refusal) extends Refusal(s"$node: ${refusal.message}")
+  case Within(node: NodeId, refusal: Refusal)
+      extends Refusal(if refusal.message.startsWith(s"$node: ") then refusal.message else s"$node: ${refusal.message}")
 
   override def toString: String = message
