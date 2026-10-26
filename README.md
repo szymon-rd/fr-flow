@@ -64,62 +64,170 @@ developed software.
 
 ## A small app, step by step
 
-Let's build a part of a CRM that several companies share. Each company keeps its own records, and can share some of
-them with other companies. This is a simplified version of `examples/crm`.
+Let's build the booking of meeting rooms. People ask for a room for some time, and a room can hold only one meeting
+at a time. The whole example is in [`examples/rooms`](examples/rooms).
 
-**1. The specification.** We start with one statement at the root. It says what a search returns, in words and as a
-formula that Lean reads:
-
-```scala
-val mayRead = define { (u: Term[Account], r: Term[CrmRecord]) => r.tenant === u.tenant || shares.contains(Share(r.id, u.tenant)) }
-
-val sharedCrm = Node.claim("SharedCrm",
-  "A user's search finds exactly the stored records of their company and those shared with it.",
-  why = "Companies keep their own records and choose what to share."
-)(forall((u: Term[Account], r: Term[CrmRecord]) => search(u).contains(r) === (store.contains(r) && mayRead(u, r))))
-```
-
-**2. A refinement step.** We refine the root into two statements, one for isolation and one for completeness. Lean
-proves that together they imply the root:
+**1. What we want.** A booking is a room with a start and an end time. `granted` is the operation we will implement.
+It is a `Param`: statements can talk about it before it has code.
 
 ```scala
-val noCrossTenantRead = Node.claim("NoCrossTenantRead",
-  "A search never returns a record the user may not read.",
-  why = "The isolation every company relies on."
-)(forall((u: Term[Account]) => search(u).forall(r => store.contains(r) && mayRead(u, r)))).under(sharedCrm)
+final case class Booking(room: String, start: BigInt, end: BigInt)
 
-val searchFindsAll = Node.claim("SearchFindsAll",
-  "A search returns every stored record the user may read.",
-  why = "A CRM that returns nothing would meet the isolation claim alone."
-)(forall((u: Term[Account]) => store.forall(r => mayRead(u, r) ==> search(u).contains(r)))).under(sharedCrm)
+val granted = Param[(List[Booking], Booking) => Boolean]("granted", "whether a request is granted, given the bookings held")
 ```
 
-**3. A contract.** We state what every single call of `search` must return. Lean proves that it gives both statements
-above:
+We say what we want in terms of moments. A booking covers every moment from its start up to its end. A room is free
+for a request when no booking of that room covers any moment the request covers.
 
 ```scala
-val searchContract = Node.contract(search)("SearchContract",
-  "A search returns the stored records the user may read, and all of them.",
-  why = "The two claims, for one call, so every result can be checked."
-)((u, result) => result.forall(r => store.contains(r) && mayRead(u, r)) && store.forall(r => mayRead(u, r) ==> result.contains(r)))
-  .under(noCrossTenantRead, searchFindsAll)
+val covers   = define { (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end }
+val freeFor  = define { (held: Term[List[Booking]], request: Term[Booking]) =>
+  forall((t: Term[BigInt]) => covers(request, t) ==> !held.exists(b => b.room === request.room && covers(b, t))) }
+val sensible = define { (held: Term[List[Booking]], request: Term[Booking]) =>
+  (request :: held).forall(b => b.start < b.end) && held.forall(a => held.filter(b => b === a).length === 1) &&
+    held.forall(a => held.forall(b => (a =!= b && a.room === b.room) ==> forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t))))) }
+
+val grantWhenFree = Node.claim("GrantWhenFree",
+  "A request is granted exactly when its room is free for its whole time.",
+  why = "Refusing a free room wastes it, and granting a taken one double-books it."
+)(forall((held: Term[List[Booking]], request: Term[Booking]) =>
+  sensible(held, request) ==> (granted(held, request) === freeFor(held, request))))
 ```
 
-**4. The code.** Finally, we write the implementation in plain Scala and attach it to the contract:
+A `define` is written with FrFlow's terms (`Term`, `===`, `==>`, `forall`; `b.start` is the field of the booking
+term), so it can be printed as Lean, and run as Scala where its quantifiers allow. `sensible` says the input makes
+sense: every booking ends after it starts, no booking is held twice, and no two bookings held for a room cover the
+same moment. The developer
+accepts or rejects each statement with `bin/frflow rooms review`, and each decision is signed (step 6).
+
+**2. A contract the code can meet.** The claim speaks of moments; code compares start and end times. We refine the
+claim into a contract on `granted` stated in those terms. A claim is any statement; a contract
+is a statement about every call of one operation. Its examples are calls: an `expect` gives a call and the result it
+must have, a `reject` a result it must never have.
 
 ```scala
-final class Records(db: Database):
-  def search(u: Account): List[CrmRecord] =
-    db.records.filter(r => r.tenant == u.tenant || db.shares.contains(Share(r.id, u.tenant)))
+val overlaps   = define { (a: Term[Booking], b: Term[Booking]) => a.room === b.room && a.start < b.end && b.start < a.end }
+val consistent = define { (held: Term[List[Booking]], request: Term[Booking]) =>
+  (request :: held).forall(b => b.start < b.end) && held.forall(a => held.filter(b => b === a).length === 1) &&
+    held.forall(a => held.forall(b => a === b || !overlaps(a, b))) }
 
-val knowledge = KnowledgeBase("Crm")(sharedCrm, noCrossTenantRead, searchFindsAll, searchContract)
-  .implement(searchContract)(Records(db).search)
+val grantWhenNoOverlap = Node.contract(granted)("GrantWhenNoOverlap",
+  "A request is granted exactly when it overlaps no booking of its room.",
+  why = "Bookings that end after they start share a moment exactly when they overlap."
+)((held, request, result) => consistent(held, request) ==> (result === !held.exists(b => overlaps(b, request))))
+  .under(grantWhenFree)
+  .examples(
+    expect(List(Booking("Oak", 9, 10)), Booking("Oak", 10, 11), true, "back to back: granted"),
+    reject(List(Booking("Oak", 9, 11)), Booking("Oak", 10, 12), true, "overlapping: never granted"))
 ```
 
-Now `check` proves steps 2 and 3 in Lean, and tests `search` against its contract on stores it generates. The running
-service checks every result as well. The developer accepts each statement, and when the code or any statement changes
-later, the affected statements come back for review. Had we written `search` in the DSL, as a `Flow` over a model of
-the database, it would be proven too.
+`consistent` says what `sensible` says, without a quantifier over moments, so code and tests can evaluate it.
+`.under` says the contract refines `GrantWhenFree`: Lean must prove that whatever meets the contract meets the claim,
+using that `sensible` gives `consistent`. FrFlow also asks Lean to prove that the parts contradict each other, which
+would make the step hold for no reason, and reports it if Lean can; failing to prove it does not show they are
+consistent. What Lean proves is the Lean that FrFlow prints from these definitions, so that printing is trusted; the
+examples cross-check it by running the same definitions as Scala. The [proof](examples/rooms/lean/Proofs/Rooms/GrantWhenFree.lean)
+is 22 lines of Lean. When FrFlow is used with an agent, the agent writes it; `check` has Lean check it, and refuses a
+proof left unfinished (`sorry`) or one that adds an axiom.
+
+**3. The code.** The calendar keeps each room's bookings in start order, finds the request's place by binary search,
+and compares it with the bookings on either side:
+
+```scala
+final class Calendar(bookings: List[Booking]):
+  private val byRoom = bookings.groupBy(_.room).view.mapValues(_.sortBy(_.start).toVector).toMap
+
+  def granted(request: Booking): Boolean =
+    val room = byRoom.getOrElse(request.room, Vector.empty)
+    val next = room.search(request)(using Ordering.by(_.start)).insertionPoint
+    room.lift(next - 1).forall(_.end <= request.start) && room.lift(next).forall(_.start >= request.end)
+
+val knowledge = KnowledgeBase("Rooms")(grantWhenFree, grantWhenNoOverlap)
+  .implement(grantWhenNoOverlap)((held, request) => Calendar(held).granted(request))
+```
+
+`.implement` attaches the code to the contract. `bin/frflow rooms check` runs it on the examples and on 1,000
+generated inputs. The inputs come from nine lines of FrFlow `Gen` generators in the example, which build consistent
+calendars, some with back-to-back bookings. Each test builds a calendar from its input; a service would keep one.
+`check` takes about 14 seconds cold and 2.5 seconds warm.
+
+In the running service, answers are checked against the contract, on every call by default. Here the check is
+quadratic in the bookings held (3.4 seconds per call with 3,000 of them, against 1.5 milliseconds for the code), and it
+runs inside the call, so this contract would be sampled: `.checkedAtRunTime(RunCheck.Sampled(100))` checks one call in a hundred. An answer
+that breaks the contract is reported and throws a `ContractViolation`. A call with an inconsistent calendar is not
+checked, since the contract promises nothing about it.
+
+**4. When the code is wrong.** Suppose we forget the booking after the request:
+
+```diff
+-    room.lift(next - 1).forall(_.end <= request.start) && room.lift(next).forall(_.start >= request.end)
++    room.lift(next - 1).forall(_.end <= request.start)
+```
+
+`check` finds an input where the code breaks the contract (`x` marks a failure, `+` a pass):
+
+```
++ GrantWhenFree: step proven
+x GrantWhenNoOverlap: failed
+  its code fails a generated case: held = List(Booking("Oak", 0, 4)), request = Booking("Oak", 0, 1): returned true, which GrantWhenNoOverlap refuses
+```
+
+Oak is booked from 0 to 4, and a request for 0 to 1 was granted. A good property test would find this too. While the
+code fails, FrFlow does not let the developer accept the change.
+
+**5. When the agent misreads the requirement.** Suppose the agent takes meetings that touch to be overlapping, and
+writes the contract, the code and the examples from that reading:
+
+```scala
+val overlaps = define { (a: Term[Booking], b: Term[Booking]) => a.room === b.room && a.start <= b.end && b.start <= a.end }
+
+// GrantWhenNoOverlap's examples
+  .examples(
+    expect(List(Booking("Oak", 9, 10)), Booking("Oak", 11, 12), true, "a gap between them: granted"),
+    expect(List(Booking("Oak", 9, 10)), Booking("Oak", 10, 11), false, "back to back: refused"),
+    reject(List(Booking("Oak", 9, 11)), Booking("Oak", 10, 12), true, "overlapping: never granted"))
+
+// Calendar.granted
+    room.lift(next - 1).forall(_.end < request.start) && room.lift(next).forall(_.start > request.end)
+```
+
+Everything below the claim agrees with itself, so every test passes. The claim above it does not agree, and `check`
+shows a case, which Lean confirms (`o` marks a step that does not hold, `!` what to do):
+
+```
+o GrantWhenFree: the step from its parts does not hold: held = List(Booking("Elm", 2, 4)), request = Booking("Elm", 0, 2): the contract refuses it, and the claim needs it granted
+    Lean proves the step false on it
+  ! check the change to overlaps: with it, the contract no longer gives the claim
++ GrantWhenNoOverlap: code tested on 1,000 cases
+```
+
+A request from 0 to 2 and a booking from 2 to 4 share no moment, so the room is free. (The misread `consistent` also
+leaves calendars with back-to-back bookings outside the contract, so fewer generated cases test anything.) An example
+written by a person
+("back to back: granted") would also catch this; when the agent writes the examples from the same misreading, the
+claim it was refined from catches it.
+
+**6. When the misreading reaches the claim.** Suppose the agent also changes `covers` to include the end moment, and
+adjusts everything below so that Lean proves the step again. Then `check` passes, and the claim comes back to the
+developer instead (`review: self`: the claim itself changed), with what changed since it was accepted:
+
+```
++ GrantWhenFree  claim (the root)  review: self
+What changed since it was accepted (demo-developer, 2026-10-26 04:34)
+  definitions used
+    - covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end
+    + covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <= b.end
+```
+
+The claim's sentence has not changed, but its meaning has, and the diff shows where: one `<` became `<=`. The claim is
+in the words of the domain, which makes it the place to review. A decision counts only when it verifies against the public key committed under the developer's name. The
+public keys are committed like any other file, and FrFlow trusts only the committed versions. The private key stays
+outside the repository; an agent that cannot read it cannot accept the changed claim as the developer, so the agent
+should run where it cannot.
+
+This example decides a single request, for a calendar that is already sensible. Storing the bookings so that it
+stays sensible, and two people booking one room at the same moment, are further refinements; [`examples/sharing`](examples/sharing) shows how FrFlow models stored state and concurrent
+requests.
 
 ## Statements
 
@@ -210,6 +318,7 @@ the agent layer enabled.
 
 ## Examples
 
+- `examples/rooms` books meeting rooms: the example above.
 - `examples/auth` is access control by a table of grants, and the smallest example.
 - `examples/keycloak` has realms, sign-in, token introspection and sign-out over HTTP. Its sessions are proven to
   follow the history of requests.
