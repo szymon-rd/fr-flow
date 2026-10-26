@@ -1,0 +1,496 @@
+# FrFlow package dependencies (measured on branch claude/kind-bardeen-465vv8, fbea98d)
+# Method: each main source file's package; a reference is an occurrence of a top-level type or object name defined
+# in another file of a visible module (name-based, imports and same-package access both count). Counts are files x names.
+
+## Module edges (name uses across modules)
+agent -> api : 11 name-uses
+agent -> cli : 14 name-uses
+agent -> ledger : 4 name-uses
+agent -> model : 1 name-uses
+agent -> protocol : 21 name-uses
+agent -> web : 4 name-uses
+api -> check : 12 name-uses
+api -> lean : 1 name-uses
+api -> ledger : 27 name-uses
+api -> model : 8 name-uses
+api -> protocol : 78 name-uses
+check -> lean : 17 name-uses
+check -> ledger : 17 name-uses
+check -> model : 30 name-uses
+check -> protocol : 91 name-uses
+cli -> api : 56 name-uses
+cli -> check : 4 name-uses
+cli -> lean : 1 name-uses
+cli -> ledger : 14 name-uses
+cli -> model : 12 name-uses
+cli -> protocol : 57 name-uses
+lean -> model : 60 name-uses
+lean -> protocol : 12 name-uses
+ledger -> protocol : 119 name-uses
+model -> protocol : 17 name-uses
+web -> api : 9 name-uses
+web -> ledger : 2 name-uses
+web -> protocol : 4 name-uses
+
+## Strongly connected components of the package graph (each line is one cycle family)
+SCC: ['frflow.protocol', 'frflow.protocol.decision', 'frflow.protocol.obligation', 'frflow.protocol.snapshot']
+SCC: ['frflow', 'frflow.boundary', 'frflow.example', 'frflow.flow', 'frflow.kb', 'frflow.node', 'frflow.program', 'frflow.runtime', 'frflow.term', 'frflow.testing', 'frflow.types', 'frflow.vocabulary']
+SCC: ['frflow.lean', 'frflow.lean.obligation', 'frflow.lean.printing']
+SCC: ['frflow.ledger', 'frflow.ledger.report', 'frflow.ledger.review']
+SCC: ['frflow.check', 'frflow.check.analysis', 'frflow.check.process', 'frflow.check.proving']
+SCC: ['frflow.api', 'frflow.api.details', 'frflow.api.report']
+SCC: ['frflow.cli', 'frflow.cli.command', 'frflow.cli.text']
+SCC: ['frflow.agent', 'frflow.agent.command', 'frflow.agent.conversation', 'frflow.agent.panel', 'frflow.agent.queue', 'frflow.agent.request']
+2-cycle frflow <-> frflow.boundary: 20/3
+2-cycle frflow <-> frflow.example: 6/2
+2-cycle frflow <-> frflow.flow: 11/11
+2-cycle frflow <-> frflow.kb: 5/9
+2-cycle frflow <-> frflow.node: 12/2
+2-cycle frflow <-> frflow.program: 3/2
+2-cycle frflow <-> frflow.runtime: 10/6
+2-cycle frflow <-> frflow.term: 16/14
+2-cycle frflow <-> frflow.testing: 11/14
+2-cycle frflow <-> frflow.types: 28/2
+2-cycle frflow <-> frflow.vocabulary: 22/14
+2-cycle frflow.agent <-> frflow.agent.command: 1/4
+2-cycle frflow.agent <-> frflow.agent.conversation: 6/1
+2-cycle frflow.agent <-> frflow.agent.panel: 1/3
+2-cycle frflow.agent <-> frflow.agent.request: 6/1
+2-cycle frflow.api <-> frflow.api.details: 16/1
+2-cycle frflow.api <-> frflow.api.report: 24/6
+2-cycle frflow.boundary <-> frflow.flow: 10/11
+2-cycle frflow.boundary <-> frflow.types: 3/1
+2-cycle frflow.check <-> frflow.check.analysis: 7/6
+2-cycle frflow.check <-> frflow.check.process: 3/1
+2-cycle frflow.check <-> frflow.check.proving: 9/7
+2-cycle frflow.cli <-> frflow.cli.command: 10/6
+2-cycle frflow.cli <-> frflow.cli.text: 7/13
+2-cycle frflow.cli.command <-> frflow.cli.text: 8/2
+2-cycle frflow.example <-> frflow.kb: 1/4
+2-cycle frflow.example <-> frflow.node: 1/4
+2-cycle frflow.example <-> frflow.runtime: 2/1
+2-cycle frflow.example <-> frflow.testing: 2/3
+2-cycle frflow.flow <-> frflow.runtime: 1/1
+2-cycle frflow.flow <-> frflow.term: 5/1
+2-cycle frflow.flow <-> frflow.types: 4/1
+2-cycle frflow.flow <-> frflow.vocabulary: 1/1
+2-cycle frflow.kb <-> frflow.runtime: 8/2
+2-cycle frflow.kb <-> frflow.testing: 2/1
+2-cycle frflow.lean <-> frflow.lean.obligation: 8/10
+2-cycle frflow.lean <-> frflow.lean.printing: 14/6
+2-cycle frflow.lean.obligation <-> frflow.lean.printing: 2/2
+2-cycle frflow.ledger <-> frflow.ledger.report: 8/3
+2-cycle frflow.ledger <-> frflow.ledger.review: 11/1
+2-cycle frflow.ledger.report <-> frflow.ledger.review: 3/1
+2-cycle frflow.node <-> frflow.runtime: 7/4
+2-cycle frflow.program <-> frflow.types: 1/1
+2-cycle frflow.protocol <-> frflow.protocol.decision: 13/33
+2-cycle frflow.protocol <-> frflow.protocol.obligation: 7/6
+2-cycle frflow.protocol <-> frflow.protocol.snapshot: 16/15
+2-cycle frflow.runtime <-> frflow.vocabulary: 8/1
+2-cycle frflow.term <-> frflow.types: 12/2
+2-cycle frflow.types <-> frflow.vocabulary: 1/10
+
+## private[frflow] declarations of model used from other modules (verified by grep)
+  lean/src/main/scala/frflow/lean/Generate.scala:54:Names.Prelude
+  lean/src/main/scala/frflow/lean/Vocabulary.scala:22:.opType
+  lean/src/main/scala/frflow/lean/Vocabulary.scala:22:.termType
+  lean/src/main/scala/frflow/lean/printing/BoundaryModules.scala:23:Names.ident
+  lean/src/main/scala/frflow/lean/printing/BoundaryModules.scala:23:LeanType.ofJava
+  lean/src/main/scala/frflow/lean/printing/BoundaryModules.scala:24:LeanType.ofJava
+  lean/src/main/scala/frflow/lean/printing/BoundaryModules.scala:30:Binder(
+  lean/src/main/scala/frflow/lean/printing/BoundaryModules.scala:32:Tree.Do
+  lean/src/main/scala/frflow/lean/printing/BoundaryModules.scala:32:Steps.of
+  lean/src/main/scala/frflow/lean/printing/BoundaryModules.scala:44:Names.ident
+  lean/src/main/scala/frflow/lean/printing/BoundaryModules.scala:49:.stateType
+  lean/src/main/scala/frflow/lean/printing/BoundaryModules.scala:50:Names.ident
+  lean/src/main/scala/frflow/lean/printing/BoundaryModules.scala:55:.stateType
+  lean/src/main/scala/frflow/lean/printing/BoundaryModules.scala:63:Names.ident
+  lean/src/main/scala/frflow/lean/printing/BoundaryModules.scala:63:Names.ident
+  lean/src/main/scala/frflow/lean/printing/BoundaryModules.scala:66:Names.ident
+  lean/src/main/scala/frflow/lean/printing/BoundaryModules.scala:76:Types.walk
+  lean/src/main/scala/frflow/lean/printing/BoundaryModules.scala:86:Names.ident
+  lean/src/main/scala/frflow/lean/printing/BoundaryModules.scala:86:Names.ident
+  lean/src/main/scala/frflow/lean/printing/BoundaryModules.scala:89:Names.ident
+  lean/src/main/scala/frflow/lean/printing/BoundaryModules.scala:103:Names.ident
+  lean/src/main/scala/frflow/lean/printing/NodeModules.scala:65:Types.walk
+  lean/src/main/scala/frflow/lean/printing/NodeModules.scala:66:Types.walk
+  lean/src/main/scala/frflow/lean/obligation/Obligations.scala:42:.commutes
+  lean/src/main/scala/frflow/lean/obligation/Obligations.scala:43:Types.walk
+  lean/src/main/scala/frflow/lean/obligation/Evals.scala:16:.paramObjects
+  lean/src/main/scala/frflow/lean/obligation/Evals.scala:29:.postFn
+  lean/src/main/scala/frflow/lean/obligation/Evals.scala:29:Fn.call
+  lean/src/main/scala/frflow/lean/obligation/Evals.scala:65:Fn.call
+  lean/src/main/scala/frflow/lean/obligation/Evals.scala:119:Names.ident
+  lean/src/main/scala/frflow/lean/obligation/Evals.scala:140:Names.string
+  lean/src/main/scala/frflow/lean/obligation/Evals.scala:154:Names.ident
+  check/src/main/scala/frflow/check/Tests.scala:19:Testing.tests
+  check/src/main/scala/frflow/check/Tests.scala:28:Types.scala
+  check/src/main/scala/frflow/check/Tests.scala:31:Testing.Replay
+  check/src/main/scala/frflow/check/Tests.scala:36:Testing.Report
+  check/src/main/scala/frflow/check/proving/CheckRunner.scala:67:Testing.tests
+  check/src/main/scala/frflow/check/proving/NodeChecker.scala:18:.built
+  check/src/main/scala/frflow/check/proving/NodeChecker.scala:66:.built
+  check/src/main/scala/frflow/check/analysis/Snapshots.scala:27:Testing.testable
+
+## Package sizes
+agent     frflow.agent                   5 files   137 lines
+agent     frflow.agent.command           2 files   126 lines
+agent     frflow.agent.conversation      7 files   111 lines
+agent     frflow.agent.panel             4 files    57 lines
+agent     frflow.agent.queue             2 files    28 lines
+agent     frflow.agent.request           4 files    69 lines
+api       frflow.api                    11 files   246 lines
+api       frflow.api.details            11 files   225 lines
+api       frflow.api.report             13 files   215 lines
+check     frflow.check                   8 files   230 lines
+check     frflow.check.analysis          6 files   364 lines
+check     frflow.check.process           3 files   103 lines
+check     frflow.check.proving           9 files   536 lines
+cli       frflow.cli                     9 files   423 lines
+cli       frflow.cli.command             5 files   238 lines
+cli       frflow.cli.text               10 files   507 lines
+lean      frflow.lean                    6 files   301 lines
+lean      frflow.lean.obligation         6 files   375 lines
+lean      frflow.lean.printing           7 files   471 lines
+lean      frflow.lean.reading            8 files   193 lines
+ledger    frflow.ledger                  6 files   230 lines
+ledger    frflow.ledger.report           8 files   217 lines
+ledger    frflow.ledger.review           7 files   283 lines
+ledger    frflow.ledger.signing          4 files   157 lines
+ledger    frflow.ledger.store            4 files    88 lines
+model     frflow                        21 files  1446 lines
+model     frflow.boundary               12 files   209 lines
+model     frflow.example                 6 files   314 lines
+model     frflow.flow                    9 files   467 lines
+model     frflow.kb                      5 files   376 lines
+model     frflow.node                   11 files   445 lines
+model     frflow.program                 4 files   204 lines
+model     frflow.runtime                 9 files   290 lines
+model     frflow.term                   13 files   460 lines
+model     frflow.testing                 9 files   504 lines
+model     frflow.types                   9 files   230 lines
+model     frflow.vocabulary              9 files   208 lines
+protocol  frflow.protocol               24 files   286 lines
+protocol  frflow.protocol.decision      12 files   199 lines
+protocol  frflow.protocol.obligation     7 files   135 lines
+protocol  frflow.protocol.snapshot      16 files   138 lines
+web       frflow.web                     6 files   167 lines
+
+## Package edges (from -> to : references)
+frflow -> frflow.boundary : 20
+frflow -> frflow.example : 6
+frflow -> frflow.flow : 11
+frflow -> frflow.kb : 5
+frflow -> frflow.node : 12
+frflow -> frflow.program : 3
+frflow -> frflow.protocol : 1
+frflow -> frflow.protocol.obligation : 1
+frflow -> frflow.runtime : 10
+frflow -> frflow.term : 16
+frflow -> frflow.testing : 11
+frflow -> frflow.types : 28
+frflow -> frflow.vocabulary : 22
+frflow.agent -> frflow.agent.command : 1
+frflow.agent -> frflow.agent.conversation : 6
+frflow.agent -> frflow.agent.panel : 1
+frflow.agent -> frflow.agent.queue : 2
+frflow.agent -> frflow.agent.request : 6
+frflow.agent -> frflow.api : 7
+frflow.agent -> frflow.cli : 2
+frflow.agent -> frflow.cli.command : 1
+frflow.agent -> frflow.ledger.store : 1
+frflow.agent -> frflow.protocol : 3
+frflow.agent -> frflow.protocol.decision : 1
+frflow.agent -> frflow.web : 2
+frflow.agent.command -> frflow.agent : 4
+frflow.agent.command -> frflow.agent.conversation : 1
+frflow.agent.command -> frflow.agent.queue : 1
+frflow.agent.command -> frflow.agent.request : 3
+frflow.agent.command -> frflow.api : 2
+frflow.agent.command -> frflow.cli : 5
+frflow.agent.command -> frflow.cli.command : 3
+frflow.agent.command -> frflow.cli.text : 3
+frflow.agent.command -> frflow.protocol : 2
+frflow.agent.conversation -> frflow.agent : 1
+frflow.agent.conversation -> frflow.ledger : 2
+frflow.agent.conversation -> frflow.protocol.decision : 1
+frflow.agent.panel -> frflow.agent : 3
+frflow.agent.panel -> frflow.agent.conversation : 2
+frflow.agent.panel -> frflow.agent.queue : 1
+frflow.agent.panel -> frflow.agent.request : 3
+frflow.agent.panel -> frflow.api : 2
+frflow.agent.panel -> frflow.program : 1
+frflow.agent.panel -> frflow.protocol : 2
+frflow.agent.panel -> frflow.web : 2
+frflow.agent.queue -> frflow.agent.request : 1
+frflow.agent.queue -> frflow.ledger.report : 1
+frflow.agent.queue -> frflow.protocol : 4
+frflow.agent.queue -> frflow.protocol.decision : 3
+frflow.agent.request -> frflow.agent : 1
+frflow.agent.request -> frflow.protocol : 5
+frflow.api -> frflow : 5
+frflow.api -> frflow.api.details : 16
+frflow.api -> frflow.api.report : 24
+frflow.api -> frflow.check : 4
+frflow.api -> frflow.check.analysis : 1
+frflow.api -> frflow.check.process : 2
+frflow.api -> frflow.check.proving : 5
+frflow.api -> frflow.kb : 2
+frflow.api -> frflow.lean : 1
+frflow.api -> frflow.ledger : 8
+frflow.api -> frflow.ledger.report : 8
+frflow.api -> frflow.ledger.signing : 2
+frflow.api -> frflow.ledger.store : 1
+frflow.api -> frflow.protocol : 13
+frflow.api -> frflow.protocol.decision : 8
+frflow.api -> frflow.protocol.snapshot : 2
+frflow.api.details -> frflow.api : 1
+frflow.api.details -> frflow.ledger.report : 3
+frflow.api.details -> frflow.ledger.review : 1
+frflow.api.details -> frflow.protocol : 15
+frflow.api.details -> frflow.protocol.decision : 5
+frflow.api.details -> frflow.protocol.snapshot : 2
+frflow.api.report -> frflow.api : 6
+frflow.api.report -> frflow.ledger.report : 4
+frflow.api.report -> frflow.protocol : 17
+frflow.api.report -> frflow.protocol.decision : 11
+frflow.api.report -> frflow.protocol.obligation : 3
+frflow.api.report -> frflow.protocol.snapshot : 2
+frflow.api.report -> frflow.runtime : 1
+frflow.boundary -> frflow : 3
+frflow.boundary -> frflow.flow : 10
+frflow.boundary -> frflow.term : 9
+frflow.boundary -> frflow.types : 3
+frflow.check -> frflow : 1
+frflow.check -> frflow.check.analysis : 7
+frflow.check -> frflow.check.process : 3
+frflow.check -> frflow.check.proving : 9
+frflow.check -> frflow.kb : 1
+frflow.check -> frflow.lean.obligation : 1
+frflow.check -> frflow.ledger.signing : 2
+frflow.check -> frflow.ledger.store : 3
+frflow.check -> frflow.node : 1
+frflow.check -> frflow.protocol : 9
+frflow.check -> frflow.protocol.decision : 1
+frflow.check -> frflow.protocol.obligation : 5
+frflow.check -> frflow.protocol.snapshot : 2
+frflow.check -> frflow.testing : 1
+frflow.check.analysis -> frflow : 3
+frflow.check.analysis -> frflow.check : 6
+frflow.check.analysis -> frflow.example : 1
+frflow.check.analysis -> frflow.flow : 1
+frflow.check.analysis -> frflow.kb : 1
+frflow.check.analysis -> frflow.lean : 1
+frflow.check.analysis -> frflow.lean.reading : 2
+frflow.check.analysis -> frflow.ledger : 4
+frflow.check.analysis -> frflow.ledger.report : 4
+frflow.check.analysis -> frflow.ledger.signing : 1
+frflow.check.analysis -> frflow.ledger.store : 1
+frflow.check.analysis -> frflow.node : 6
+frflow.check.analysis -> frflow.protocol : 21
+frflow.check.analysis -> frflow.protocol.decision : 3
+frflow.check.analysis -> frflow.protocol.obligation : 10
+frflow.check.analysis -> frflow.protocol.snapshot : 16
+frflow.check.analysis -> frflow.vocabulary : 1
+frflow.check.process -> frflow.check : 1
+frflow.check.proving -> frflow : 3
+frflow.check.proving -> frflow.check : 7
+frflow.check.proving -> frflow.check.analysis : 6
+frflow.check.proving -> frflow.check.process : 8
+frflow.check.proving -> frflow.flow : 3
+frflow.check.proving -> frflow.kb : 1
+frflow.check.proving -> frflow.lean : 2
+frflow.check.proving -> frflow.lean.printing : 2
+frflow.check.proving -> frflow.lean.reading : 9
+frflow.check.proving -> frflow.ledger.report : 1
+frflow.check.proving -> frflow.ledger.store : 1
+frflow.check.proving -> frflow.node : 6
+frflow.check.proving -> frflow.protocol : 11
+frflow.check.proving -> frflow.protocol.obligation : 13
+frflow.cli -> frflow.api : 12
+frflow.cli -> frflow.api.details : 4
+frflow.cli -> frflow.api.report : 2
+frflow.cli -> frflow.cli.command : 10
+frflow.cli -> frflow.cli.text : 7
+frflow.cli -> frflow.flow : 1
+frflow.cli -> frflow.kb : 1
+frflow.cli -> frflow.lean.obligation : 1
+frflow.cli -> frflow.ledger : 1
+frflow.cli -> frflow.ledger.report : 1
+frflow.cli -> frflow.ledger.signing : 1
+frflow.cli -> frflow.protocol : 8
+frflow.cli -> frflow.protocol.decision : 7
+frflow.cli.command -> frflow : 4
+frflow.cli.command -> frflow.api : 7
+frflow.cli.command -> frflow.api.details : 4
+frflow.cli.command -> frflow.api.report : 9
+frflow.cli.command -> frflow.check.proving : 4
+frflow.cli.command -> frflow.cli : 6
+frflow.cli.command -> frflow.cli.text : 8
+frflow.cli.command -> frflow.ledger : 4
+frflow.cli.command -> frflow.ledger.report : 3
+frflow.cli.command -> frflow.protocol : 8
+frflow.cli.command -> frflow.protocol.decision : 12
+frflow.cli.text -> frflow : 2
+frflow.cli.text -> frflow.api : 4
+frflow.cli.text -> frflow.api.details : 7
+frflow.cli.text -> frflow.api.report : 7
+frflow.cli.text -> frflow.cli : 13
+frflow.cli.text -> frflow.cli.command : 2
+frflow.cli.text -> frflow.flow : 2
+frflow.cli.text -> frflow.ledger : 1
+frflow.cli.text -> frflow.ledger.report : 3
+frflow.cli.text -> frflow.node : 1
+frflow.cli.text -> frflow.protocol : 13
+frflow.cli.text -> frflow.protocol.decision : 6
+frflow.cli.text -> frflow.protocol.obligation : 1
+frflow.cli.text -> frflow.protocol.snapshot : 2
+frflow.cli.text -> frflow.term : 1
+frflow.example -> frflow : 2
+frflow.example -> frflow.boundary : 5
+frflow.example -> frflow.flow : 5
+frflow.example -> frflow.kb : 1
+frflow.example -> frflow.node : 1
+frflow.example -> frflow.runtime : 2
+frflow.example -> frflow.testing : 2
+frflow.example -> frflow.vocabulary : 1
+frflow.flow -> frflow : 11
+frflow.flow -> frflow.boundary : 11
+frflow.flow -> frflow.runtime : 1
+frflow.flow -> frflow.term : 5
+frflow.flow -> frflow.types : 4
+frflow.flow -> frflow.vocabulary : 1
+frflow.kb -> frflow : 9
+frflow.kb -> frflow.example : 4
+frflow.kb -> frflow.flow : 2
+frflow.kb -> frflow.node : 6
+frflow.kb -> frflow.program : 2
+frflow.kb -> frflow.protocol : 3
+frflow.kb -> frflow.protocol.snapshot : 2
+frflow.kb -> frflow.runtime : 8
+frflow.kb -> frflow.term : 1
+frflow.kb -> frflow.testing : 2
+frflow.kb -> frflow.types : 2
+frflow.kb -> frflow.vocabulary : 6
+frflow.lean -> frflow : 2
+frflow.lean -> frflow.kb : 3
+frflow.lean -> frflow.lean.obligation : 8
+frflow.lean -> frflow.lean.printing : 14
+frflow.lean -> frflow.lean.reading : 8
+frflow.lean -> frflow.node : 4
+frflow.lean -> frflow.protocol : 1
+frflow.lean -> frflow.protocol.obligation : 1
+frflow.lean -> frflow.runtime : 1
+frflow.lean -> frflow.vocabulary : 6
+frflow.lean.obligation -> frflow : 4
+frflow.lean.obligation -> frflow.boundary : 1
+frflow.lean.obligation -> frflow.example : 1
+frflow.lean.obligation -> frflow.flow : 1
+frflow.lean.obligation -> frflow.kb : 3
+frflow.lean.obligation -> frflow.lean : 10
+frflow.lean.obligation -> frflow.lean.printing : 2
+frflow.lean.obligation -> frflow.node : 3
+frflow.lean.obligation -> frflow.protocol : 2
+frflow.lean.obligation -> frflow.protocol.obligation : 4
+frflow.lean.obligation -> frflow.runtime : 1
+frflow.lean.obligation -> frflow.types : 1
+frflow.lean.obligation -> frflow.vocabulary : 6
+frflow.lean.printing -> frflow : 5
+frflow.lean.printing -> frflow.boundary : 1
+frflow.lean.printing -> frflow.flow : 1
+frflow.lean.printing -> frflow.kb : 4
+frflow.lean.printing -> frflow.lean : 6
+frflow.lean.printing -> frflow.lean.obligation : 2
+frflow.lean.printing -> frflow.node : 5
+frflow.lean.printing -> frflow.protocol : 1
+frflow.lean.printing -> frflow.protocol.obligation : 3
+frflow.lean.printing -> frflow.term : 1
+frflow.lean.printing -> frflow.vocabulary : 4
+frflow.lean.reading -> frflow.flow : 2
+frflow.ledger -> frflow.ledger.report : 8
+frflow.ledger -> frflow.ledger.review : 11
+frflow.ledger -> frflow.ledger.signing : 4
+frflow.ledger -> frflow.ledger.store : 4
+frflow.ledger -> frflow.protocol : 16
+frflow.ledger -> frflow.protocol.decision : 9
+frflow.ledger -> frflow.protocol.snapshot : 3
+frflow.ledger.report -> frflow.ledger : 3
+frflow.ledger.report -> frflow.ledger.review : 3
+frflow.ledger.report -> frflow.protocol : 10
+frflow.ledger.report -> frflow.protocol.decision : 14
+frflow.ledger.report -> frflow.protocol.obligation : 1
+frflow.ledger.report -> frflow.protocol.snapshot : 3
+frflow.ledger.review -> frflow.ledger : 1
+frflow.ledger.review -> frflow.ledger.report : 1
+frflow.ledger.review -> frflow.protocol : 33
+frflow.ledger.review -> frflow.protocol.decision : 11
+frflow.ledger.review -> frflow.protocol.snapshot : 8
+frflow.ledger.signing -> frflow.ledger.store : 2
+frflow.ledger.signing -> frflow.protocol : 6
+frflow.ledger.signing -> frflow.protocol.decision : 2
+frflow.ledger.store -> frflow.protocol : 2
+frflow.ledger.store -> frflow.protocol.decision : 1
+frflow.node -> frflow : 2
+frflow.node -> frflow.boundary : 7
+frflow.node -> frflow.example : 4
+frflow.node -> frflow.flow : 2
+frflow.node -> frflow.program : 3
+frflow.node -> frflow.protocol : 3
+frflow.node -> frflow.protocol.snapshot : 1
+frflow.node -> frflow.runtime : 7
+frflow.node -> frflow.term : 3
+frflow.node -> frflow.types : 3
+frflow.node -> frflow.vocabulary : 8
+frflow.program -> frflow : 2
+frflow.program -> frflow.term : 1
+frflow.program -> frflow.types : 1
+frflow.protocol -> frflow.protocol.decision : 13
+frflow.protocol -> frflow.protocol.obligation : 7
+frflow.protocol -> frflow.protocol.snapshot : 16
+frflow.protocol.decision -> frflow.protocol : 33
+frflow.protocol.decision -> frflow.protocol.snapshot : 2
+frflow.protocol.obligation -> frflow.protocol : 6
+frflow.protocol.snapshot -> frflow.protocol : 15
+frflow.protocol.snapshot -> frflow.protocol.obligation : 4
+frflow.runtime -> frflow : 6
+frflow.runtime -> frflow.boundary : 3
+frflow.runtime -> frflow.example : 1
+frflow.runtime -> frflow.flow : 1
+frflow.runtime -> frflow.kb : 2
+frflow.runtime -> frflow.node : 4
+frflow.runtime -> frflow.protocol : 1
+frflow.runtime -> frflow.protocol.snapshot : 2
+frflow.runtime -> frflow.types : 2
+frflow.runtime -> frflow.vocabulary : 8
+frflow.term -> frflow : 14
+frflow.term -> frflow.flow : 1
+frflow.term -> frflow.types : 12
+frflow.testing -> frflow : 14
+frflow.testing -> frflow.boundary : 2
+frflow.testing -> frflow.example : 3
+frflow.testing -> frflow.flow : 3
+frflow.testing -> frflow.kb : 1
+frflow.testing -> frflow.node : 3
+frflow.testing -> frflow.protocol.obligation : 1
+frflow.testing -> frflow.term : 3
+frflow.testing -> frflow.types : 9
+frflow.testing -> frflow.vocabulary : 1
+frflow.types -> frflow : 2
+frflow.types -> frflow.boundary : 1
+frflow.types -> frflow.flow : 1
+frflow.types -> frflow.program : 1
+frflow.types -> frflow.protocol : 1
+frflow.types -> frflow.term : 2
+frflow.types -> frflow.vocabulary : 1
+frflow.vocabulary -> frflow : 14
+frflow.vocabulary -> frflow.boundary : 2
+frflow.vocabulary -> frflow.flow : 1
+frflow.vocabulary -> frflow.program : 3
+frflow.vocabulary -> frflow.protocol : 1
+frflow.vocabulary -> frflow.runtime : 1
+frflow.vocabulary -> frflow.term : 5
+frflow.vocabulary -> frflow.types : 10
+frflow.web -> frflow.api : 9
+frflow.web -> frflow.ledger : 2
+frflow.web -> frflow.protocol : 4
