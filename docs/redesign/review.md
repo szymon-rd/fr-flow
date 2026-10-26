@@ -1,6 +1,6 @@
 > Kept as written. Its paths are those of the design workspace: `r43-design/` is `planned/`, `r43-spike/` is
 > `lean-spike/` (its `rooms-lean-r15/` build), `r43tools/` is `tools/`, all under `docs/redesign/`; its section numbers
-> are those of `history/ARCHITECTURE-r15-log.md`.
+> are those of `history/ARCHITECTURE-r15-log.md`. Its tables are as written; wide rows scroll.
 
 # r43 review, round 15 (revision 15)
 
