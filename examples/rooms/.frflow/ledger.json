@@ -51,6 +51,19 @@
         "sig": "T2HbjNnrvzi0+6276GQmt2VG62oNpMSM72lhTTmn0U5UgS3eW9rr+Kluq0KrN6l5kUlNDvIc+wGtpO+s7EV9CQ==",
         "chain": "",
         "content": "5ef47a69a98f91f7"
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T12:37:29.098668Z",
+        "reason": "The same precondition, written from small named definitions, one idea each.",
+        "rejected": [],
+        "after": "56b372caa4067bf2",
+        "commit": "0d71f2f0822b5125c22bc52a0986250d69808c2c",
+        "key": "b6e216cfdf46a202",
+        "sig": "Wj6XRo5slClxnbafdXnafPmpMD3eok1/yX0kD4i5ETfsUxCZw/rrr2mYZRgqtamM2FBvMBOeiuKXl4hwVkc8BA==",
+        "chain": "",
+        "content": "fec73dbd120b3c14"
       }
     ],
     "GrantWhenNoOverlap": [
@@ -122,6 +135,20 @@
         "sig": "U/b3p1kx4M6pMq4S787xPMQNUq5u6wJeHI4ArPNqjtiv2frNtphgXcolnplhYJGzB3xuph0glOIJLEhZhIU1AA==",
         "chain": "7a3c8546f255a6303d17bac8a226e5629f40c223f6dc7838d601b1fc11ba7b27",
         "content": "bcb614244ce688c0"
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T12:37:31.569055Z",
+        "reason": "The same precondition, from named definitions; the code still meets it.",
+        "rejected": [],
+        "after": "a45ae0162b62af56",
+        "code": "7e36276b9e3743b2e9448b2a73d1c079353b627e421ad003fa8bb1c52a84b2c3",
+        "commit": "0d71f2f0822b5125c22bc52a0986250d69808c2c",
+        "key": "b6e216cfdf46a202",
+        "sig": "yKeIP0zgrpDT3+MB4y8gl+BHfIvyhGJlob90YccRJWtQM2KentfghVVs7ziR3mQgva/VUO1Z51kbMVckvCOpAw==",
+        "chain": "e02f1b6c7b50f73997cfdc750be167948982ee388975e39f6b8899d5707883bc",
+        "content": "f27c9dc7d14408b5"
       }
     ]
   },
@@ -130,9 +157,11 @@
     "3f5556a8d3c08045": {"kind":"f0c4b6b1b355b1eb","parents":[],"parts":["30898cc7841d7a38"],"statement":"f4a34603beac61c4","why":"a49088fd91286f38","sources":"560d5e57406c2894","substitutions":[],"examples":[],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","5c3bea1d8243b41a","efd2c3af61877513","e0823bbe58f381e6","df67d584972a5787"],"governs":[],"definition":"ea200e98491bdb91","idea":"12ae32cb1ec02d01","notModelled":"12ae32cb1ec02d01"},
     "811b7498f54bec2b": {"kind":"f0c4b6b1b355b1eb","parents":[],"parts":["30898cc7841d7a38"],"statement":"f4a34603beac61c4","why":"a0bf977e1eb17181","sources":"cd41a306349d2450","substitutions":[],"examples":[],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","17f01caec8d8e3d6","df67d584972a5787","e0823bbe58f381e6"],"governs":[],"definition":"678ab818c4280986","idea":"12ae32cb1ec02d01","notModelled":"12ae32cb1ec02d01"},
     "5ef47a69a98f91f7": {"kind":"f0c4b6b1b355b1eb","parents":[],"parts":["30898cc7841d7a38"],"statement":"f4a34603beac61c4","why":"a0bf977e1eb17181","sources":"cd41a306349d2450","substitutions":[],"examples":[],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","ca4e519e6c7776db","df67d584972a5787","e0823bbe58f381e6"],"governs":[],"definition":"678ab818c4280986","idea":"12ae32cb1ec02d01","notModelled":"12ae32cb1ec02d01"},
+    "fec73dbd120b3c14": {"kind":"f0c4b6b1b355b1eb","parents":[],"parts":["30898cc7841d7a38"],"statement":"f4a34603beac61c4","why":"a0bf977e1eb17181","sources":"cd41a306349d2450","substitutions":[],"examples":[],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","fc2f8749c88d1438","b19152feb947df4a","c2534157cd87a929","ee1da66ec0c05500","df67d584972a5787","e0823bbe58f381e6"],"governs":[],"definition":"678ab818c4280986","idea":"12ae32cb1ec02d01","notModelled":"12ae32cb1ec02d01"},
     "a24fe3a9b0d1ab7a": {"kind":"304aeb6aeb928120","parents":["e72512f596f0fa39"],"parts":[],"statement":"bc04883931e3f63f","why":"03288b643fc162e4","sources":"afe7014e712774cf","substitutions":[],"examples":["c6a0956780bf1b32","7d481f8a773a26d8"],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","5c3bea1d8243b41a","efd2c3af61877513"],"governs":[],"definition":"85ea9cac7b787a61","op":"7804505e6feac9b3","implementation":"e8127d1d5945658b"},
     "5d4d11efce23f524": {"kind":"304aeb6aeb928120","parents":["e72512f596f0fa39"],"parts":[],"statement":"bc04883931e3f63f","why":"03288b643fc162e4","sources":"afe7014e712774cf","substitutions":[],"examples":["c6a0956780bf1b32","7d481f8a773a26d8"],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","5c3bea1d8243b41a","efd2c3af61877513"],"governs":[],"definition":"01084f01196fb200","op":"7804505e6feac9b3","implementation":"e8127d1d5945658b"},
-    "bcb614244ce688c0": {"kind":"304aeb6aeb928120","parents":["e72512f596f0fa39"],"parts":[],"statement":"bc04883931e3f63f","why":"03288b643fc162e4","sources":"afe7014e712774cf","substitutions":[],"examples":["c6a0956780bf1b32","7d481f8a773a26d8"],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","d6fd28fc82132024","efd2c3af61877513"],"governs":[],"definition":"01084f01196fb200","op":"7804505e6feac9b3","implementation":"e8127d1d5945658b"}
+    "bcb614244ce688c0": {"kind":"304aeb6aeb928120","parents":["e72512f596f0fa39"],"parts":[],"statement":"bc04883931e3f63f","why":"03288b643fc162e4","sources":"afe7014e712774cf","substitutions":[],"examples":["c6a0956780bf1b32","7d481f8a773a26d8"],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","d6fd28fc82132024","efd2c3af61877513"],"governs":[],"definition":"01084f01196fb200","op":"7804505e6feac9b3","implementation":"e8127d1d5945658b"},
+    "f27c9dc7d14408b5": {"kind":"304aeb6aeb928120","parents":["e72512f596f0fa39"],"parts":[],"statement":"bc04883931e3f63f","why":"03288b643fc162e4","sources":"afe7014e712774cf","substitutions":[],"examples":["c6a0956780bf1b32","7d481f8a773a26d8"],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","a3cb80ce0f0268be","b19152feb947df4a","c2534157cd87a929","5695214e60e2de9c"],"governs":[],"definition":"01084f01196fb200","op":"7804505e6feac9b3","implementation":"e8127d1d5945658b"}
   },
   "values": {
     "f0c4b6b1b355b1eb": "claim",
@@ -155,6 +184,10 @@
     "17f01caec8d8e3d6": "sensible = (held: Term[List[Booking]], request: Term[Booking]) =>\n  (request :: held).forall(b => b.start < b.end) && held.forall(a => held.forall(b =>\n    (a =!= b && a.room === b.room) ==> forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))))",
     "678ab818c4280986": "val grantWhenFree = Node.claim(\"GrantWhenFree\",\n  \"A request is granted exactly when its room is free for its whole time.\",\n  why = \"Refusing a free room wastes it, and granting a taken one double-books it.\"\n)(forall((held: Term[List[Booking]], request: Term[Booking]) =>\n  sensible(held, request) ==> (granted(held, request) === freeFor(held, request))))",
     "ca4e519e6c7776db": "sensible = (held: Term[List[Booking]], request: Term[Booking]) =>\n  (request :: held).forall(b => b.start < b.end) && held.forall(a => held.filter(b => b === a).length === 1) &&\n    held.forall(a => held.forall(b => (a =!= b && a.room === b.room) ==> forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))))",
+    "fc2f8749c88d1438": "sensible = (held: Term[List[Booking]], request: Term[Booking]) =>\n  (request :: held).forall(b => endsAfterStart(b)) &&\n  held.forall(b => heldOnce(held, b)) &&\n  held.forall(a => held.forall(b => a === b || apart(a, b)))",
+    "b19152feb947df4a": "endsAfterStart = (b: Term[Booking]) => b.start < b.end",
+    "c2534157cd87a929": "heldOnce = (held: Term[List[Booking]], b: Term[Booking]) => held.filter(x => x === b).length === 1",
+    "ee1da66ec0c05500": "apart = (a: Term[Booking], b: Term[Booking]) =>\n  a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))",
     "304aeb6aeb928120": "contract",
     "e72512f596f0fa39": "GrantWhenFree",
     "bc04883931e3f63f": "A request is granted exactly when it overlaps no booking of its room.",
@@ -166,6 +199,8 @@
     "7804505e6feac9b3": "granted",
     "e8127d1d5945658b": "(held, request) => Calendar(held).granted(request)",
     "01084f01196fb200": "val grantWhenNoOverlap = Node.contract(granted)(\"GrantWhenNoOverlap\",\n  \"A request is granted exactly when it overlaps no booking of its room.\",\n  why = \"Bookings that end after they start share a moment exactly when they overlap.\"\n)((held, request, result) => consistent(held, request) ==> (result === !held.exists(b => overlaps(b, request))))\n  .under(grantWhenFree)\n  .examples(\n    expect(List(Booking(\"Oak\", 9, 10)), Booking(\"Oak\", 10, 11), true, \"back to back: granted\"),\n    reject(List(Booking(\"Oak\", 9, 11)), Booking(\"Oak\", 10, 12), true, \"overlapping: never granted\"))",
-    "d6fd28fc82132024": "consistent = (held: Term[List[Booking]], request: Term[Booking]) =>\n  (request :: held).forall(b => b.start < b.end) && held.forall(a => held.filter(b => b === a).length === 1) &&\n    held.forall(a => held.forall(b => a === b || !overlaps(a, b)))"
+    "d6fd28fc82132024": "consistent = (held: Term[List[Booking]], request: Term[Booking]) =>\n  (request :: held).forall(b => b.start < b.end) && held.forall(a => held.filter(b => b === a).length === 1) &&\n    held.forall(a => held.forall(b => a === b || !overlaps(a, b)))",
+    "a3cb80ce0f0268be": "consistent = (held: Term[List[Booking]], request: Term[Booking]) =>\n  (request :: held).forall(b => endsAfterStart(b)) &&\n  held.forall(b => heldOnce(held, b)) &&\n  held.forall(a => held.forall(b => a === b || !overlaps(a, b)))",
+    "5695214e60e2de9c": "overlaps = (a: Term[Booking], b: Term[Booking]) =>\n  a.room === b.room && a.start < b.end && b.start < a.end"
   }
 }
