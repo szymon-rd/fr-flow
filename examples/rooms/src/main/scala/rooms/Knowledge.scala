@@ -15,28 +15,25 @@ val covers = define { (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <
 val apart = define { (a: Term[Booking], b: Term[Booking]) =>
   a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t))) }
 
-val freeFor = define { (held: Term[List[Booking]], request: Term[Booking]) => held.forall(b => apart(b, request)) }
-
-val sensible = define { (held: Term[List[Booking]], request: Term[Booking]) =>
+val allApart = define { (held: Term[List[Booking]], request: Term[Booking]) =>
   (request :: held).forall(endsAfterStart) && held.pairwise(apart) }
 
-val grantWhenFree = Node.claim("GrantWhenFree",
-  "A request is granted exactly when its room is free for its whole time.",
-  why = "Refusing a free room wastes it, and granting a taken one double-books it."
-)(forall((held: Term[List[Booking]], request: Term[Booking]) =>
-  sensible(held, request) ==> (granted(held, request) === freeFor(held, request))))
+val grantWhenFree =
+  Node.claim("GrantWhenFree", "A request is granted exactly when its room is free for its whole time."):
+    forall((held: Term[List[Booking]], request: Term[Booking]) =>
+      allApart(held, request) ==> (granted(held, request) === held.forall(b => apart(b, request))))
 
 // The contract, over start and end times.
-val disjoint = define { (a: Term[Booking], b: Term[Booking]) =>
+val noOverlap = define { (a: Term[Booking], b: Term[Booking]) =>
   a.room =!= b.room || a.end <= b.start || b.end <= a.start }
 
-val consistent = define { (held: Term[List[Booking]], request: Term[Booking]) =>
-  (request :: held).forall(endsAfterStart) && held.pairwise(disjoint) }
+val noneOverlapping = define { (held: Term[List[Booking]], request: Term[Booking]) =>
+  (request :: held).forall(endsAfterStart) && held.pairwise(noOverlap) }
 
-val grantWhenNoOverlap = Node.contract(granted)("GrantWhenNoOverlap",
-  "A request is granted exactly when it overlaps no booking of its room.",
-  why = "Bookings that end after they start share a moment exactly when they overlap."
-)((held, request, result) => consistent(held, request) ==> (result === held.forall(b => disjoint(b, request))))
+val grantWhenNoOverlap =
+  Node.contract(granted)("GrantWhenNoOverlap", "A request is granted exactly when it overlaps no booking of its room."):
+    (held, request, granted) =>
+      noneOverlapping(held, request) ==> (granted === held.forall(b => noOverlap(b, request)))
   .under(grantWhenFree)
   .examples(
     expect(List(Booking("Oak", 9, 10)), Booking("Oak", 10, 11), result = true, "back to back: granted"),
