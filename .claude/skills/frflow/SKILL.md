@@ -243,7 +243,11 @@ operations; what it does not offer is a type error.
   and read a parameter with `p.value`.
 - Operations: on `List`: `contains`, `exists`, `forall`, `filter`, `filterNot`,
   `map`, `flatMap`, `foldLeft`, `find`, `headOption`, `take`, `drop`, `zip`,
-  `length`/`size`, `isEmpty`/`nonEmpty`, `::`, `++`, `toSet`; on `Option`:
+  `length`/`size`, `isEmpty`/`nonEmpty`, `::`, `++`, `toSet`; `forall` and
+  `exists` also take a define of one element (`xs.forall(endsAfterStart)`);
+  `xs.allDistinct` (Lean's `List.Nodup`) and `xs.pairwise(r)` (Lean's
+  `List.Pairwise`: `r` of every earlier element with every later one, `r` a
+  define of two elements or `(a, b) => ...`); on `Option`:
   `forall`, `exists`, `contains`, `isDefined`, `isEmpty`, `getOrElse`; on `Map`:
   `get`, `getOrElse`, `contains`, `updated`, `removed`, `+`, `-`; on `Set`:
   `contains`, `+`, `-`, `++`, `intersect`, `subsetOf`. Maps and sets cannot be
