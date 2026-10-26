@@ -59,11 +59,13 @@ final class Refinement(kb: KnowledgeBase, val vocabulary: Vocabulary):
   def callees(n: Node[?]): List[Node[?]] = onOps(n, provenImpl(n).toList.flatMap(d => code(d)._2.params))
   /** The callees a node's meaning rests on: all but those that fix a word left open above (`leftOpenAbove`) whose
     * operation its statement names. Such a statement holds whatever the operation does, so a change to that contract
-    * moves only the Lean check of the code, not what the developer decided.
+    * moves only the Lean check of the code, not what the developer decided. Nor those below it: a node whose code is
+    * made from its parts rests on them, and they are decided after it.
     */
   def reliedOn(n: Node[?]): List[Node[?]] =
     val named = claimCtx(n).params.toSet
-    callees(n).filterNot(c => c.openAbove && c.op.exists(o => named(o.name)))
+    val below = within(n).drop(1).map(_.id).toSet
+    callees(n).filterNot(c => (c.openAbove && c.op.exists(o => named(o.name))) || below(c.id))
   /** Whose operations the code calls: `impl`'s hypotheses (a term's definition is in the statement, not one of them). */
   def calls(n: Node[?]): List[Node[?]] = onOps(n, provenImpl(n).toList.flatMap(d => defCtx(d).params))
 

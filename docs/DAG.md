@@ -239,7 +239,8 @@ part stops being proven, or when the checker's version changes.
 - `kind`, `parents`, `parts` (in the model's order), `replaces`, `op`, `rule` (an invariant).
 - `defines` (a definition's terms); `uses` (the definitions in force it depends on); `relies` (the
   contracts its code calls, but not one marked `leftOpenAbove` whose operation its statement names: such a
-  statement holds whatever that operation does).
+  statement holds whatever that operation does; nor one below it: a contract on a flow made by its code from its
+  parts rests on them, and they are decided after it).
 - `split`: `{complete, needed: [{id, status, detail}], clash}`. `complete` is `proven`, `open`,
   `failed`, `unchecked` or `timeout`; a try is `shown` or `not-shown` (with one part, `needed` holds
   `vacuous`).

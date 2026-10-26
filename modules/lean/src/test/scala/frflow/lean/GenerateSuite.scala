@@ -90,6 +90,16 @@ class GenerateSuite extends munit.FunSuite:
     assert(c.obligation(Again.again, ObligationName.Impl).get.statement.contains("h_PickPromise"), c.obligation(Again.again, ObligationName.Impl))
   }
 
+  test("a root stated of its flow is proven of its code from its parts, and rests on none of them as a callee") {
+    val g = Generate(Service.kb())
+    // the flow calls price, whose contract is the root's part: below it, so decided after it, not rested on
+    assertEquals(g.callees(Service.sold).map(_.id), List("PricePositive"))
+    assertEquals(g.reliedOn(Service.sold), Nil)
+    val step = g.obligation(Service.sold, ObligationName.Complete).get.statement
+    assert(step.contains("(Service.Sold.claim (Service.selling_run price))"), step)
+    assertEquals(g.obligation(Service.sold, ObligationName.Impl).map(_.statement), Some(step))
+  }
+
   test("a node is witnessed by proven code, an assumption, or parts that all are; a part nothing proves witnesses nothing") {
     val unrefined = Node.claim("Some books are kept aside.", why = "A part not refined yet.")(
       forall((l: Term[List[Item.T]], x: Term[Item.T]) => shown(l, x) implies l.contains(x))).refines(onlyGood)
