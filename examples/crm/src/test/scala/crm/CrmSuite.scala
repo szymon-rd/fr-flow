@@ -79,12 +79,14 @@ class CrmSuite extends munit.CatsEffectSuite:
   test("an implementation that leaks another company's records is stopped by its check, on every call") {
     val leaky: (Account, Search) => List[CrmRecord] = (_, _) => records
     val d = db()
-    intercept[ContractViolation](knowledge.implement(readContract)(leaky).service(readContract)(reading(d)*)(ann, Search.Everything))
+    intercept[ContractViolation](
+      knowledge.implementTested(readContract)(leaky).service(readContract)(reading(d)*)(ann, Search.Everything))
   }
 
   test("an implementation that relabels another company's records fails its examples (the cheap check sees the label only)") {
     val relabel: (Account, Search) => List[CrmRecord] = (u, _) => store.value.map(_.copy(tenant = u.tenant))
-    assert(knowledge.implement(readContract)(relabel).exampleResults(readContract).exists(_.implementation.exists(_ != "ok")))
+    val results = knowledge.implementTested(readContract)(relabel).exampleResults(readContract)
+    assert(results.exists(_.implementation.exists(_ != "ok")))
   }
 
   test("a seeded SQL bug (the search's WHERE dropped) is stopped by the port's check; the proofs still hold") {
@@ -230,7 +232,8 @@ class CrmSuite extends munit.CatsEffectSuite:
     assertEquals(write(start, WriteCmd(ann, Change.Add(CrmRecord(5, globex, Kind.Deal, "Not hers")))), start)
     // an implementation that drops another company's record is stopped by the contract
     val careless: (CrmStore, WriteCmd) => CrmStore = (s, _) => s.copy(records = s.records.filter(_.tenant == acme))
-    intercept[ContractViolation](knowledge.implement(writeContract)(careless).service(writeContract)()(start, WriteCmd(ann, Change.Unshare(1, globex))))
+    intercept[ContractViolation](knowledge.implementTested(writeContract)(careless).service(writeContract)()(
+      start, WriteCmd(ann, Change.Unshare(1, globex))))
   }
 
   test("a write on the database stores only its record's rows, read back; the store's size does not matter") {

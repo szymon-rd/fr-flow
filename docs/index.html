@@ -334,7 +334,7 @@ val knowledge = KnowledgeBase("Auth", idea = "IDEA.md")(
   grantLetsIn,
   decisionContract,
   inMemorySessions
-).implement(decisionContract)(SessionStore(grants.value.toSet, sessions.value).decide)
+).implementTested(decisionContract)(SessionStore(grants.value.toSet, sessions.value).decide)
 
 object authCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/auth", extensions = List(frflow.agent.Agent))</code></pre></div>
 <p>Production calls the operation through <code>service</code>, which checks every result against the contract:</p>
@@ -401,7 +401,7 @@ choose one. See <a href="#t-domain">the tutorial's step 4</a>.</p>
 <tbody>
 <tr><td>Lean to prove the code</td><td><code>.implementProven(contract)(aDefine)</code></td><td>the define runs, and <code>impl</code> is proven</td></tr>
 <tr><td>Fast production code beside a proven reference</td><td><code>.implementProven(contract)(aDefine, (a, b) =&gt; fast(a, b))</code></td><td>the fast code runs, checked against the define on the examples and varied data</td></tr>
-<tr><td>Plain Scala, tested against the contract</td><td><code>.implement(contract, calls*)((a, b) =&gt; …)</code></td><td><code>check</code> tests it on generated cases and the examples; <code>service</code> checks every call (<a href="#tested">Proven, tested, assumed</a>)</td></tr>
+<tr><td>Plain Scala, tested against the contract</td><td><code>.implementTested(contract, calls*)((a, b) =&gt; …)</code></td><td><code>check</code> tests it on generated cases and the examples; <code>service</code> checks every call (<a href="#tested">Proven, tested, assumed</a>)</td></tr>
 <tr><td>The project's own implementation of a boundary, tested against its model</td><td><code>.implementedBy(start, read)</code> on the model's node</td><td><code>check</code> runs generated sequences of its operations against the model</td></tr>
 <tr><td>An outside system behind a boundary (a database)</td><td><code>.checkedAgainst(start, read)</code> on the model's node</td><td>the model stays assumed; it is checked on the flows' examples and on generated runs</td></tr>
 <tr><td>Lean to prove code that takes steps against the outside</td><td><code>.implementProven(flowContract)(aFlow)</code></td><td><code>impl</code> is proven on the boundaries' models; production runs it with <code>knowledge.run[F]</code> (<a href="#effects">Effectful code</a>)</td></tr>

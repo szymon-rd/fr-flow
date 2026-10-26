@@ -94,7 +94,7 @@ class SharingSuite extends munit.CatsEffectSuite:
         val places = Target.Doc(d) :: lib.documents.filter(_.id == d).flatMap(_.folders.map(Target.InFolder(_)))
         val mine = lib.shares.filter(s => (s.withWhom == Grantee.Person(p) || teams.contains(s.withWhom)) && places.contains(s.what))
         if mine.exists(_.level == Level.Edit) then Some(Level.Edit) else mine.headOption.map(_ => Level.View)
-    val buggy = knowledge.implement(Sharing.accessContract)(forgetful)
+    val buggy = knowledge.implementTested(Sharing.accessContract)(forgetful)
     val results = buggy.exampleResults(Sharing.accessContract)
     assert(results.exists(_.implementation.contains("ok")) && results.exists(r => r.implementation.exists(_ != "ok")), results)
     val f = buggy.test(Sharing.accessContract).flatMap(_.failure).get

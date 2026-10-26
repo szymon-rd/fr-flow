@@ -39,7 +39,7 @@ class KeycloakSuite extends munit.CatsEffectSuite:
   }
 
   test("an introspection that forgets the account's state fails a generated case") {
-    val careless = knowledge.implement(Introspection.introspect, lookup)((realm, token) =>
+    val careless = knowledge.implementTested(Introspection.introspect, lookup)((realm, token) =>
       lookup.value(realm, token).map(x => Claims(realm, x.user, account.value(realm, x.user).fold(Nil)(_.roles))))
     val f = careless.test(Introspection.introspect).get.failure.getOrElse(fail("not found"))
     assert(f.why.contains("which Introspect forbids"), f)

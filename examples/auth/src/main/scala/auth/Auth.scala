@@ -97,7 +97,7 @@ val knowledge = KnowledgeBase("Auth", idea = "IDEA.md")(
   grantLetsIn,
   decisionContract,
   inMemorySessions
-).implement(decisionContract)(SessionStore(grants.value.toSet, sessions.value).decide)
+).implementTested(decisionContract)(SessionStore(grants.value.toSet, sessions.value).decide)
 
 
 object authCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/auth", extensions = List(frflow.agent.Agent))
