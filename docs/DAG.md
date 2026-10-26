@@ -140,7 +140,7 @@ with a `rule`.
 
 Edges:
 
-- `.under(parents*)` on a claim, contract, assumption or design node: this node is a **part** of each
+- `.refines(parents*)` on a claim, contract, assumption or design node: this node is a **part** of each
   parent. Edges point up: adding a part never edits the parent's file. A design node under a node is
   not a part of what it says.
 - `.replaces(other)`: an **alternative**. Accepting one rejects the other. Two definitions of one term
@@ -246,7 +246,7 @@ part stops being proven, or when the checker's version changes.
 
 - A node is decided once, whatever the number of its parents. Its decided content includes its
   statement, formula and `why`, and for a node with parts, the list of its parts.
-- **Causes.** `self`: its content changed, without `parts` and `parents`, and with the `.under(...)`
+- **Causes.** `self`: its content changed, without `parts` and `parents`, and with the `.refines(...)`
   calls taken out of its source (a design node keeps `parents`). `parts`: the set of its parts changed.
   `above`: its `parentChain` changed, that is the meaning of its parents, of the definitions it uses
   and of the contracts its code calls, each with its own chain. A node's meaning has no `parts`, so a

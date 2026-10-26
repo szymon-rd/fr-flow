@@ -53,17 +53,17 @@ val requests = Node.definition("Requests", "A user has access to a path when som
 val tokenNamesHolder = Node.claim("TokenNamesHolder",
   "A request is admitted only on behalf of the user its token was issued to.",
   why = "A token stands for the user it was issued to: acting for anyone else would let one user in as another."
-)(forall((t: Term[String], p: Term[Path]) => admit(t, p).forall(u => sessions(t) === Some(u)))).under(accessExactly)
+)(forall((t: Term[String], p: Term[Path]) => admit(t, p).forall(u => sessions(t) === Some(u)))).refines(accessExactly)
 
 val accessNeedsGrant = Node.claim("AccessNeedsGrant",
   "A request is admitted on behalf of a user only if a grant names that user and the path.",
   why = "No one may access what they are not authorized to, and a grant is what authorizes."
-)(forall((t: Term[String], p: Term[Path]) => admit(t, p).forall(u => grants.contains(Grant(u, p))))).under(accessExactly)
+)(forall((t: Term[String], p: Term[Path]) => admit(t, p).forall(u => grants.contains(Grant(u, p))))).refines(accessExactly)
 
 val grantLetsIn = Node.claim("GrantLetsIn",
   "A request whose token was issued to a user with a grant for the path is admitted on their behalf.",
   why = "A grant is there to be used: a system that turned a granted user away would meet the rules by serving no one."
-)(forall((t: Term[String], p: Term[Path]) => sessions(t).forall(u => grants.contains(Grant(u, p)) ==> (admit(t, p) === Some(u))))).under(accessExactly)
+)(forall((t: Term[String], p: Term[Path]) => sessions(t).forall(u => grants.contains(Grant(u, p)) ==> (admit(t, p) === Some(u))))).refines(accessExactly)
 
 // ============================================================================
 // The contract: what every call of the decision must satisfy
@@ -74,7 +74,7 @@ val decisionContract = Node.contract(admit)("DecisionContract",
   why = "The three parts, stated for one call, so every result of the running system can be checked."
 )((token, path, decision) => decision.forall(u => sessions(token) === Some(u) && grants.contains(Grant(u, path))) &&
   sessions(token).forall(u => grants.contains(Grant(u, path)) ==> (decision === Some(u))))
-  .under(tokenNamesHolder, accessNeedsGrant, grantLetsIn)
+  .refines(tokenNamesHolder, accessNeedsGrant, grantLetsIn)
   .examples(grants.bind(List(Grant(UserId("alice"), Path("/a")))), sessions.bindTable(Map("t1" -> UserId("alice"))))(
     expect("t1", Path("/a"), Some(UserId("alice")), "Alice's token and a grant for /a: she gets in"),
     expect("t1", Path("/b"), None, "no grant for /b: refused"),
@@ -90,7 +90,7 @@ val inMemorySessions = Node.design(
   "InMemorySessions",
   "Sessions and grants are loaded into memory, in one process that decides every request.",
   why = "One service decides access, and the tables fit in memory. A shared store would only be needed with several instances."
-)("src/main/scala/auth/Server.scala").under(decisionContract)
+)("src/main/scala/auth/Server.scala").refines(decisionContract)
 
 val knowledge = KnowledgeBase("Auth", idea = "IDEA.md")(
   accessExactly,

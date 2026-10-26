@@ -22,13 +22,13 @@ val serverWiring = Node.design("ServerWiring",
   "src/main/scala/sharing/service/SharingService.scala", "src/main/scala/sharing/invitations/InvitationsService.scala",
   "src/main/scala/sharing/trash/TrashService.scala", "src/main/scala/sharing/housekeeping/HousekeepingService.scala",
   "src/main/scala/sharing/time/LifetimesService.scala", "src/main/scala/sharing/requests/AccessRequestsService.scala",
-  "src/main/scala/sharing/ownership/OwnershipService.scala").under(SharingHttp.handleContract)
+  "src/main/scala/sharing/ownership/OwnershipService.scala").refines(SharingHttp.handleContract)
 
 val domainTypes = Node.design("DomainTypes",
   "People, teams, documents, folders, shares, invitations, access requests, log entries and notices are plain data: a document and a folder each list the folders around them, outermost first; a document names its owner; a team lists its people; a share may carry its end, a document the time it went to the trash, an invitation the time it was sent, a request the time it was made, all in seconds. The library keeps its log and its outbox with it. The demo library (Demo.scala) is the data the examples are decided on.",
   why = "Listing the folders around a document, rather than only its parent, says what is inside a folder without walking the tree: every statement about folders is then a question about a list, with no depth to bound. A move keeps the lists right (MoveContract). Times are kept on the things they belong to, so what has ended is read off the data and the clock, never off a job having run. Owning these files makes a change to the types or to the example data a decision.",
   idea = "Who can see and change what"
-)("src/main/scala/sharing/domain", "src/main/scala/sharing/Demo.scala").under(accessFollowsShares)
+)("src/main/scala/sharing/domain", "src/main/scala/sharing/Demo.scala").refines(accessFollowsShares)
 
 val knowledge = KnowledgeBase("Sharing", idea = "IDEA.md")(
   reach, cover, permission, trashed, owner,

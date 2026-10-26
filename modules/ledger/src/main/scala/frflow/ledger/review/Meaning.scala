@@ -7,12 +7,14 @@ import io.circe.Json
 
 /** What a node's content means, apart from its wording: what a decision is bound to, and what moves the decisions below. */
 object Meaning:
-  /** Its content without parts, parents and `.under(...)` calls (its causes `parts` and `above`); a design keeps its place. */
+  /** Its content without parts, parents and `.refines(...)` calls (its causes `parts` and `above`; contents recorded
+    * earlier say `.under(...)`); a design keeps its place.
+    */
   def own(c: Content): Content =
     if c.isDesign then c.without(_ == "parts")
     else Content(c.fields.flatMap {
       case ("parts" | "parents", _) => None
-      case ("definition", j) => Some("definition" -> j.asString.fold(j)(src => Json.fromString(src.replaceAll("""\s*\.under\([^()]*\)""", ""))))
+      case ("definition", j) => Some("definition" -> j.asString.fold(j)(src => Json.fromString(src.replaceAll("""\s*\.(?:refines|under)\([^()]*\)""", ""))))
       case f => Some(f)
     }*)
 

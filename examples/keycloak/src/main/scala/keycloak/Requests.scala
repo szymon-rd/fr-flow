@@ -33,27 +33,27 @@ val sessionsMirrorSignIns = Node.claim("SessionsMirrorSignIns",
   why = "Applications learn about tokens from the sessions the server holds, so these must be exactly the sign-ins that still stand: one more would let someone in, one less would turn a user away.",
   idea = "Signing in and out"
 )(forall((r: Term[RealmId], x: Term[Session]) => sessions(r).contains(x) === (x.realm === r && liveIn(history, x))))
-  .under(onlyTheSignedIn, signedInAreAccepted)
+  .refines(onlyTheSignedIn, signedInAreAccepted)
 
 val accountsAsAdministered = Node.claim("AccountsAsAdministered",
   "The server holds every user's account as loaded at start, with each administrator's change applied in turn.",
   why = "Whether a user is enabled is read from the accounts the server holds: they must be the ones administrators set, so disabling a user takes effect at the next request.",
   idea = "Administering users"
 )(forall((r: Term[RealmId], u: Term[String]) => account(r, u) === accountOf(accountsAfter(history), r, u)))
-  .under(disabledHaveNoAccess, rolesAsGranted, signedInAreAccepted)
+  .refines(disabledHaveNoAccess, rolesAsGranted, signedInAreAccepted)
 
 val oneSignInPerToken = Node.claim("OneSignInPerToken",
   "Two sign-ins that still stand never share a token: a token names one session at most.",
   why = "A token must say whose it is: if two users could get the same one, an application could be told either of them."
 )(forall((x: Term[Session], y: Term[Session]) => (liveIn(history, x) && liveIn(history, y) && x.token === y.token) ==> (x === y)))
-  .under(signedInAreAccepted)
+  .refines(signedInAreAccepted)
 
 val freshTokens = Node.assumption("FreshTokens",
   "Every sign-in carries a token no earlier sign-in carried.",
   why = "The server draws 256 random bits for each sign-in (HttpApi): a repeat does not happen in practice. Trusted, not proven; the server also refuses a token an open session holds."
 )(forall((pre: Term[List[AuthRequest]], post: Term[List[AuthRequest]]) => forall((q: Term[AuthRequest]) =>
   (history === pre ++ (q :: post)) ==> fresh(pre, q))))
-  .under(oneSignInPerToken, sessionsMirrorSignIns)
+  .refines(oneSignInPerToken, sessionsMirrorSignIns)
 
 // ============================================================================
 // Storing the state: the store, outside the proven core
@@ -102,7 +102,7 @@ val handleRequest = Node.contract(step)("HandleRequest",
   t.sessions.forall(x => (s.sessions.contains(x) && !endedBy(q, x)) || opened(s, q) === some(x)) &&
   s.sessions.forall(x => endedBy(q, x) || t.sessions.contains(x)) &&
   opened(s, q).forall(x => t.sessions.contains(x)))
-  .under(sessionsMirrorSignIns, accountsAsAdministered)
+  .refines(sessionsMirrorSignIns, accountsAsAdministered)
   .examples(sessionDb.bind(SessionDb.empty))(
     expect(ServerState(loaded, Nil), AuthRequest.SignIn(acme, "alice", "h-alice", "t1"), ServerState(loaded, List(Session("t1", acme, "alice"))),
       "Alice signs in to acme with her password: a session under t1"),

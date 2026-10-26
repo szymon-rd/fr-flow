@@ -33,7 +33,7 @@ val noUnauthorizedAccess = Node.claim("NoUnauthorizedAccess",
   why = "The safety half of the purpose: whatever an application is told about a token must be true of a sign-in that still stands.",
   idea = "No unauthorized access"
 )(forall((r: Term[Realm.T], t: Term[Token.T]) => accepted(r, t).forall(a => signedIn(r, a._1, t) && enabled(r, a._1) && a._2 === rolesOf(r, a._1))))
-  .under(realmAccess)
+  .refines(realmAccess)
 
 val signedInAreAccepted = Node.claim("SignedInAreAccepted",
   "A user who signed in to a realm and got a token, has not signed out with it since and is still enabled, has it accepted there as theirs, with their roles.",
@@ -41,7 +41,7 @@ val signedInAreAccepted = Node.claim("SignedInAreAccepted",
   idea = "Signed-in users are let in"
 )(forall((r: Term[Realm.T], t: Term[Token.T]) => forall((u: Term[User.T]) =>
   (signedIn(r, u, t) && enabled(r, u)) ==> (accepted(r, t) === some((u, rolesOf(r, u)))))))
-  .under(realmAccess)
+  .refines(realmAccess)
 
 // ============================================================================
 // No unauthorized access, in three independent rules
@@ -51,17 +51,17 @@ val onlyTheSignedIn = Node.claim("OnlyTheSignedIn",
   "A token is accepted in a realm only as the user who signed in to that realm with it and has not signed out with it since.",
   why = "A token stands for one sign-in: accepting it as anyone else, in another realm, or after its sign-out would let someone in who is not signed in."
 )(forall((r: Term[Realm.T], t: Term[Token.T]) => accepted(r, t).forall(a => signedIn(r, a._1, t))))
-  .under(noUnauthorizedAccess)
+  .refines(noUnauthorizedAccess)
 
 val disabledHaveNoAccess = Node.claim("DisabledHaveNoAccess",
   "A token is never accepted as a user who is disabled now, whenever they signed in.",
   why = "Disabling a user is how an administrator takes access away: it must hold at once, for the sessions the user already has too.",
   idea = "Administering users"
 )(forall((r: Term[Realm.T], t: Term[Token.T]) => accepted(r, t).forall(a => enabled(r, a._1))))
-  .under(noUnauthorizedAccess)
+  .refines(noUnauthorizedAccess)
 
 val rolesAsGranted = Node.claim("RolesAsGranted",
   "A token is accepted only with the roles the realm gives its user now.",
   why = "Applications decide what a user may do from the roles they are told: a role made up, or kept after the realm took it away, is access the realm did not give."
 )(forall((r: Term[Realm.T], t: Term[Token.T]) => accepted(r, t).forall(a => a._2 === rolesOf(r, a._1))))
-  .under(noUnauthorizedAccess)
+  .refines(noUnauthorizedAccess)

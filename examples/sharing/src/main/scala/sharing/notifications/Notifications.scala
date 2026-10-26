@@ -92,7 +92,7 @@ object Notifications:
       .on[Subject.Lapsed](_ => True)
       .on[Subject.Ending](_ => True)) &&
     after(events).mailbox.forall(n => after(events).mailbox.filter(m => m === n).length === 1))
-    .under(accessFollowsShares)
+    .refines(accessFollowsShares)
 
   private val catInvitedBy = Request.Invite(ann, cat, Target.Doc(plan), Level.View)
   private val entry = Entry(0, now, Change.Made(catInvitedBy))
@@ -102,7 +102,7 @@ object Notifications:
     why = "Q13: what is notified and to whom. Who sent an invitation, and who owns a document, are read from the library the request was made on.",
     idea = "Notifications"
   )((lib, before, r, e, result) => result === lib.copy((outbox = lib.outbox ++ noticesOf(before, r, e))))
-    .under(noticesFollowChanges, sharing.audit.Audit.auditTrail, sharing.time.Deadlines.invitationsLapseOnTime,
+    .refines(noticesFollowChanges, sharing.audit.Audit.auditTrail, sharing.time.Deadlines.invitationsLapseOnTime,
       sharing.time.Deadlines.trashPurgedOnTime, sharing.time.Deadlines.requestsAnsweredOnTime)
     .examples()(
       expect(library, library, catInvitedBy, entry, library.copy(outbox = List(Notice(cat, Subject.Logged(entry)))), "Cat is told of her invitation"),
@@ -146,7 +146,7 @@ object Notifications:
     why = "Q13 as assumed: shares ending within a day are notified. Housekeeping runs every minute and never two minutes apart (HousekeepingOnTime), so a share's end falls in the window of one run or two; the mail server keeps a notice once (MailerKept), so each person is told once.",
     idea = "Notifications"
   )((lib, t, result) => result === lib.copy((outbox = lib.outbox ++ endingNotices(lib, t))))
-    .under(noticesFollowChanges)
+    .refines(noticesFollowChanges)
     .examples()(
       expect(library.copy(shares = bobsHourEndsInADay :: library.shares), now,
         library.copy(shares = bobsHourEndsInADay :: library.shares, outbox = List(Notice(bob, Subject.Ending(bobsHourEndsInADay)))),
@@ -195,7 +195,7 @@ object Notifications:
       heads.forall(n => mailbox(after(MailerModel), n.to) === mailbox(before(MailerModel), n.to) ||
         mailbox(after(MailerModel), n.to) === taken(mailbox(before(MailerModel), n.to), n))))
     .onFailure[Failure]((e, before, after) => after(LibraryModel) === before(LibraryModel) && after(MailerModel) === before(MailerModel))
-    .under(noticesFollowChanges)
+    .refines(noticesFollowChanges)
     .examples()(
       expect(at(List(told), Map.empty), (), at(Nil, boxes(told)), "Cat's notice delivered"),
       expect(at(List(told, toldBob, toldCatAgain), Map.empty), (), at(List(toldCatAgain), boxes(told, toldBob)),

@@ -31,4 +31,4 @@ object LibraryStore:
     why = "Q18, Q19, Q21: the service is one process with SQLite as its one store, so FrFlow's atomically, a lock on the store held for the transaction, gives what Q18 asked of compare-and-set on a version (a transaction run again on a conflict); with more than one process the store would have to give it. The proofs read each transaction as one step of the run (HandleContract, HousekeepingJob, DeliveryJob, the run's events), and are proofs of the serial orders; that the runtime keeps to them is this decision, tested with many clients at once (SharingSuite).",
     idea = "Concurrency"
   )("src/main/scala/sharing/store/MemoryLibraryStore.scala")
-    .under(sharing.http.SharingHttp.handleContract, sharing.housekeeping.Housekeeping.jobContract, sharing.notifications.Notifications.deliveryJob)
+    .refines(sharing.http.SharingHttp.handleContract, sharing.housekeeping.Housekeeping.jobContract, sharing.notifications.Notifications.deliveryJob)

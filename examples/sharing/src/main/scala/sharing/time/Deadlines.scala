@@ -23,14 +23,14 @@ object Deadlines:
     why = "Q8 as a bounded response: every moment the service reaches, given the scheduler's period (HousekeepingOnTime). Unbounded \"eventually purged\" is weaker and could not be tested. That housekeeping never purges before is HousekeepingClearsOnlyTheEnded's, with GoneContract.",
     idea = "Trash"
   )(after(events).library.documents.forall(doc => doc.trashed.fold(True)(at => after(events).now < at + trashKeeps + housekeepingWithin)))
-    .under(Trash.trashUntilGone)
+    .refines(Trash.trashUntilGone)
 
   val invitationsLapseOnTime = Node.claim("InvitationsLapseOnTime",
     "While housekeeping runs at least every two minutes, no invitation stays pending longer than 7 days and two minutes after it was sent.",
     why = "Q7: an invitation lapses after 7 days, and housekeeping removes it at its next run (HousekeepingOnTime).",
     idea = "Invitations"
   )(after(events).library.invitations.forall(i => after(events).now < i.sent + invitationLasts + housekeepingWithin))
-    .under(Invitations.invitationsAreOffers)
+    .refines(Invitations.invitationsAreOffers)
 
   val requestsAnsweredOnTime = Node.claim("RequestsAnsweredOnTime",
     "While housekeeping runs at least every two minutes, no access request stays pending longer than 7 days and two minutes after it was made, and none goes more than 48 hours and two minutes without its reminder.",
@@ -38,7 +38,7 @@ object Deadlines:
     idea = "Access requests"
   )(after(events).library.requests.forall(r => after(events).now < r.asked + requestLasts + housekeepingWithin &&
     (r.reminded || after(events).now < r.asked + remindAfter + housekeepingWithin)))
-    .under(AccessRequests.requestsAreAsks)
+    .refines(AccessRequests.requestsAreAsks)
 
   val endedStaysEnded = Node.claim("EndedStaysEnded",
     "What has ended stays ended: time in the service never goes back, so a share once ended, an invitation once lapsed and a document once gone stay so for the rest of the run.",
@@ -49,4 +49,4 @@ object Deadlines:
       (forall((s: Term[Share]) => !inForce(s, t) ==> !inForce(s, u)) &&
        forall((i: Term[Invitation]) => !isOpen(i, t) ==> !isOpen(i, u)) &&
        forall((doc: Term[Document]) => gone(doc, t) ==> gone(doc, u)))))
-    .under(Housekeeping.clearsOnlyTheEnded)
+    .refines(Housekeeping.clearsOnlyTheEnded)

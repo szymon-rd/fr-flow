@@ -286,7 +286,7 @@ each one is needed. This is the capability part: a granted user gets in.</p>
 <div class="code"><pre><code>val grantLetsIn = Node.claim("GrantLetsIn",
   "A request whose token was issued to a user with a grant for the path is admitted on their behalf.",
   why = "A grant is there to be used: a system that turned a granted user away would meet the rules by serving no one."
-)(forall((t: Term[String], p: Term[Path]) =&gt; sessions(t).forall(u =&gt; grants.contains(Grant(u, p)) ==&gt; (admit(t, p) === Some(u))))).under(accessExactly)</code></pre></div>
+)(forall((t: Term[String], p: Term[Path]) =&gt; sessions(t).forall(u =&gt; grants.contains(Grant(u, p)) ==&gt; (admit(t, p) === Some(u))))).refines(accessExactly)</code></pre></div>
 
 <h3 id="t-contract">6. A contract, with examples</h3>
 <p>A contract states, for one call of an operation, what every result must satisfy, so each result of the running
@@ -297,7 +297,7 @@ system can be checked. Examples are concrete calls: an <code>expect</code> the c
   why = "The three parts, stated for one call, so every result of the running system can be checked."
 )((token, path, decision) =&gt; decision.forall(u =&gt; sessions(token) === Some(u) &amp;&amp; grants.contains(Grant(u, path))) &amp;&amp;
   sessions(token).forall(u =&gt; grants.contains(Grant(u, path)) ==&gt; (decision === Some(u))))
-  .under(tokenNamesHolder, accessNeedsGrant, grantLetsIn)
+  .refines(tokenNamesHolder, accessNeedsGrant, grantLetsIn)
   .examples(grants.bind(List(Grant(UserId("alice"), Path("/a")))), sessions.bindTable(Map("t1" -&gt; UserId("alice"))))(
     expect("t1", Path("/a"), Some(UserId("alice")), "Alice's token and a grant for /a: she gets in"),
     expect("t1", Path("/b"), None, "no grant for /b: refused"),
@@ -325,7 +325,7 @@ the production class <code>SessionStore</code> runs, tested against <code>Decisi
   "InMemorySessions",
   "Sessions and grants are loaded into memory, in one process that decides every request.",
   why = "One service decides access, and the tables fit in memory. A shared store would only be needed with several instances."
-)("src/main/scala/auth/Server.scala").under(decisionContract)
+)("src/main/scala/auth/Server.scala").refines(decisionContract)
 
 val knowledge = KnowledgeBase("Auth", idea = "IDEA.md")(
   accessExactly,
@@ -377,7 +377,7 @@ start with an agent instead, see <a href="#agent-start">Start a project with the
 <ol class="steps">
   <li>Write each part as a <code>Node.claim</code> (or a contract, or an assumption) with one sentence, a
   <code>why</code>, and a formula that says exactly that sentence.</li>
-  <li>Attach it with <code>.under(parent)</code>. Edges point up, so the parent's code does not change.</li>
+  <li>Attach it with <code>.refines(parent)</code>. Edges point up, so the parent's code does not change.</li>
   <li>Aim for 2 to 5 parts. Split the root first into what must never happen and what users can do (keycloak's
   <code>NoUnauthorizedAccess</code> and <code>SignedInAreAccepted</code>), or into state and reads.</li>
   <li>Run <code>check</code>. If <code>complete</code> stays open, a part is missing or too weak; see
@@ -394,7 +394,7 @@ val noUnauthorizedAccess = Node.claim("NoUnauthorizedAccess",
   why = "The safety half of the purpose: whatever an application is told about a token must be true of a sign-in that still stands.",
   idea = "No unauthorized access"
 )(forall((r: Term[Realm.T], t: Term[Token.T]) =&gt; accepted(r, t).forall(a =&gt; signedIn(r, a._1, t) &amp;&amp; enabled(r, a._1) &amp;&amp; a._2 === rolesOf(r, a._1))))
-  .under(realmAccess)</code></pre></div>
+  .refines(realmAccess)</code></pre></div>
 
 <h3 id="how-term">Define a domain term</h3>
 <p>Fix an open type with <code>Opaque := of[T]</code> and an open term with <code>param := expression</code>, inside a
@@ -441,7 +441,7 @@ with a reason (<code>.exempt</code>). A new endpoint then has to keep it or say 
   why = "The idea says a token is only ever good in the realm that issued it. Stated once over every answer the server gives, so a new endpoint (user info, an admin view of sessions) must keep it or say why not.",
   idea = "Realms"
 )((asking, c) =&gt; c.realm === asking)
-  .under(onlyTheSignedIn)</code></pre></div>
+  .refines(onlyTheSignedIn)</code></pre></div>
 <p>On the contract <code>Introspect</code>, the result shows the rule each claim it returns:
 <code>.keeps(realmIsolation)((realm, token, res) =&gt; res.fold(List.empty[(RealmId, Claims)])(c =&gt; List((realm, c))))</code>.</p>
 
@@ -586,7 +586,7 @@ then the worlds before and after): <code>Node.contract(share)(…)((by, doc, wit
 <code>expect(ann, readme, bob, true, "the owner shares")</code>, <code>implement(share)((by, doc, withWhom) =&gt; …)</code>.</p>
 <p>Edges and extras:</p>
 <ul>
-  <li><code>.under(parents*)</code>: a part of each parent. Declare parents first.</li>
+  <li><code>.refines(parents*)</code>: a part of each parent. Declare parents first.</li>
   <li><code>.replaces(other)</code>: an alternative; accepting one rejects the other.</li>
   <li><code>.keeps(invariant)(view)</code> and <code>.exempt(invariant, reason)</code>.</li>
   <li><code>.examples(bindings*)(expect(…), never(…))</code>: every contract needs at least one of each.</li>

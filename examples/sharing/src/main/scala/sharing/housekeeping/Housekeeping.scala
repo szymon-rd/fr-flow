@@ -37,7 +37,7 @@ object Housekeeping:
       (forall((s: Term[Share]) => !inForce(s, t) ==> !inForce(s, u)) &&
        forall((i: Term[Invitation]) => !isOpen(i, t) ==> !isOpen(i, u)) &&
        forall((doc: Term[Document]) => gone(doc, t) ==> gone(doc, u)))))
-    .under(accessFollowsShares)
+    .refines(accessFollowsShares)
 
   /** Whether a share is of a document gone at a moment. */
   val ofGone = define { (lib: Term[Library], t: Term[BigInt], s: Term[Share]) =>
@@ -55,7 +55,7 @@ object Housekeeping:
     result === lib.copy((documents = lib.documents.filterNot(doc => gone(doc, t)),
       shares = lib.shares.filter(s => inForce(s, t) && !ofGone(lib, t, s)),
       invitations = lib.invitations.filter(i => isOpen(i, t)))))
-    .under(clearsOnlyTheEnded)
+    .refines(clearsOnlyTheEnded)
     .examples()(
       expect(ended, now, ended, "nothing has ended yet"),
       expect(ended, now + 3600, ended.copy(shares = library.shares), "Bob's share of the plan has ended"),
@@ -89,7 +89,7 @@ object Housekeeping:
         before(LibraryModel))) && after(ClockModel) === before(ClockModel) &&
       after(MailerModel) === before(MailerModel))
     .failsChangingNothing[Failure]
-    .under(sharing.time.Deadlines.trashPurgedOnTime, sharing.time.Deadlines.invitationsLapseOnTime, sharing.time.Deadlines.requestsAnsweredOnTime)
+    .refines(sharing.time.Deadlines.trashPurgedOnTime, sharing.time.Deadlines.invitationsLapseOnTime, sharing.time.Deadlines.requestsAnsweredOnTime)
     .examples()(
       expect(at(ended, now + 3600), (), at(tidiedAnHourOn, now + 3600), "an hour on: Bob's share goes, and the run is logged"),
       expect(at(ended, now), (), at(ended, now), "nothing has ended yet: nothing to log"),

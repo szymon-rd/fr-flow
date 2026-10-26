@@ -92,7 +92,7 @@ class GenerateSuite extends munit.FunSuite:
 
   test("a node is witnessed by proven code, an assumption, or parts that all are; a part nothing proves witnesses nothing") {
     val unrefined = Node.claim("Unrefined", "Some books are kept aside.", why = "A part not refined yet.")(
-      forall((l: Term[List[Item.T]], x: Term[Item.T]) => shown(l, x) ==> l.contains(x))).under(onlyGood)
+      forall((l: Term[List[Item.T]], x: Term[Item.T]) => shown(l, x) ==> l.contains(x))).refines(onlyGood)
     val g = Generate(KnowledgeBase("Shelf", idea = "IDEA.md")((shelfNodes :+ pick :+ unrefined)*).implementProven(pick)(longOnes))
     assert(g.witnessed(pick) && g.witnessed(fromList))
     assert(!g.witnessed(unrefined))

@@ -32,7 +32,7 @@ private[frflow] object Validation:
       nodes.filter(n => isOperation(n) && n.parents.isEmpty && !n.op.exists(o => called(o.name)) && n.modelOf.isEmpty &&
           !kb.implementation(n).exists(_.flow))
         .map(n => s"${n.id} has no parents: a ${n.kind.toString.toLowerCase} is a part of the nodes it helps prove, unless code calls its operation"),
-      nodes.filter(n => n.kind == NodeKind.Design && n.parents.isEmpty).map(n => s"${n.id}: a design decision is under the nodes it serves (.under)"),
+      nodes.filter(n => n.kind == NodeKind.Design && n.parents.isEmpty).map(n => s"${n.id}: a design decision is under the nodes it serves (.refines)"),
       nodes.filter(n => n.kind == NodeKind.Definition && n.parents.nonEmpty).map(n => s"${n.id}: a definition has no parents"),
       nodes.flatMap(n => n.parents.filterNot(kb.has).map(p => s"${n.id}: its parent ${p.id} is not in the knowledge base")),
       nodes.filter(n => n.kind != NodeKind.Design && under(NodeKind.Design)(n))

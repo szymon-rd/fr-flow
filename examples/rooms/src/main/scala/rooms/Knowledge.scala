@@ -34,7 +34,7 @@ val grantWhenNoOverlap =
       (wellFormed(held, request) && held.pairwise(noOverlap)) ==>
         (granted(held, request) === held.forall(b => noOverlap(b, request))))
   )
-  .under(grantWhenFree)
+  .refines(grantWhenFree)
   .examples(
     expect(List(Booking("Oak", 9, 10)), Booking("Oak", 10, 11), result = true, "back to back: granted"),
     never(List(Booking("Oak", 9, 11)), Booking("Oak", 10, 12), result = true, "overlapping: never granted"))

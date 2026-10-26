@@ -13,7 +13,7 @@ val neverBelowZero = Node.claim("NeverBelowZero", "The gauge shows a raw value w
   forall((x: Term[BigInt]) => clamped(x) >= 0 && ((x >= 0) ==> (clamped(x) === x)) && ((x < 0) ==> (clamped(x) === BigInt(0)))))
 val clamp = Node.contract(clamped)("Clamp", "A call shows the raw value when it is not negative, and zero otherwise.",
   why = "NeverBelowZero, for one call.")(
-  (x, r) => r >= 0 && ((x >= 0) ==> (r === x)) && ((x < 0) ==> (r === BigInt(0)))).under(neverBelowZero)
+  (x, r) => r >= 0 && ((x >= 0) ==> (r === x)) && ((x < 0) ==> (r === BigInt(0)))).refines(neverBelowZero)
   .examples()(
     expect(BigInt(5), BigInt(5), "a positive value is shown"),
     expect(BigInt(-3), BigInt(0), "a negative value shows zero"),
@@ -34,7 +34,7 @@ val grant = Node.contract(granted)("Grant",
   "A call keeps everyone on the list, adds the person when the granter is on it, and adds no one else.",
   why = "OnlyMembersGrant, for one call.")(
   (acl, by, who, r) => acl.forall(x => r.contains(x)) && (acl.contains(by) ==> r.contains(who)) &&
-    r.forall(x => acl.contains(x) || (x === who && acl.contains(by)))).under(onlyMembersGrant)
+    r.forall(x => acl.contains(x) || (x === who && acl.contains(by)))).refines(onlyMembersGrant)
   .examples()(
     expect(List("ann"), "ann", "bob", List("ann", "bob"), "a member adds bob"),
     expect(List("ann"), "eve", "bob", List("ann"), "someone off the list adds no one"),
@@ -51,10 +51,10 @@ val betweenRoot = Node.claim("Between", "Books picked between two lengths come f
   why = "Readers ask for a range.")(
   forall((s: Term[List[Book]], lo: Term[Int], hi: Term[Int]) => between(s, lo, hi).forall(b => s.contains(b) && b.pages >= lo && b.pages <= hi)))
 val inStock = Node.invariant[List[Book], Book]("InStock", "Only books on the shelf are picked.", "Nothing else can be handed out.")(
-  (shelf, b) => shelf.contains(b)).under(betweenRoot)
+  (shelf, b) => shelf.contains(b)).refines(betweenRoot)
 val pickBetween = Node.contract(between)("PickBetween", "A call returns only books of the shelf between the two lengths.",
   why = "Between, for one call.")(
-  (shelf, lo, hi, r) => r.forall(b => shelf.contains(b) && b.pages >= lo && b.pages <= hi)).under(betweenRoot)
+  (shelf, lo, hi, r) => r.forall(b => shelf.contains(b) && b.pages >= lo && b.pages <= hi)).refines(betweenRoot)
   .examples()(
     expect(List(Book("A", 50), Book("B", 150)), 100, 200, List(Book("B", 150)), "the book in the range"),
     expect(List(Book("A", 50), Book("B", 150)), 0, 40, Nil, "none in the range"),
@@ -92,7 +92,7 @@ val showsNow = Node.claim("ShowsNow", "The gauge shows the raw reading when it i
   gaugeShows() >= 0 && ((rawReading >= 0) ==> (gaugeShows() === rawReading)) && ((rawReading < 0) ==> (gaugeShows() === BigInt(0))))
 val shows = Node.contract(gaugeShows)("Shows", "The gauge shows the raw reading when it is not negative, and zero otherwise.",
   why = "ShowsNow, for one reading.")(
-  r => r >= 0 && ((rawReading >= 0) ==> (r === rawReading)) && ((rawReading < 0) ==> (r === BigInt(0)))).under(showsNow)
+  r => r >= 0 && ((rawReading >= 0) ==> (r === rawReading)) && ((rawReading < 0) ==> (r === BigInt(0)))).refines(showsNow)
   .examples(rawReading.bind(5))(expect(BigInt(5), "the raw reading"), never(BigInt(0), "never zero for a positive reading"))
   .examples(rawReading.bind(-3))(expect(BigInt(0), "zero for a fault"))
 val showRaw = define { () => (rawReading >= 0).fold(rawReading: Term[BigInt], BigInt(0)) }

@@ -17,7 +17,7 @@ class LeanCodeSuite extends LeanLab:
     // A parameter that is no fixed value: Lean is given one value of it, Scala's post reads another.
     var flip = false
     val unstable = Node.contract(picks)("Unstable", "Picking returns only long enough books.", why = "w")(
-      (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages)).under(shelfParts*)
+      (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages)).refines(shelfParts*)
       .examples(minPages.bind { flip = !flip; if flip then 100 else 10 })(
         expect(List(Book("Mid", 50)), 5, List(Book("Mid", 50)), "a book of 50 pages"),
         never(List(Book("Mid", 50)), 5, List(Book("Other", 50)), "not a book from the shelf"))

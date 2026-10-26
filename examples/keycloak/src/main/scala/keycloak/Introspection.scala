@@ -28,14 +28,14 @@ val realmIsolation = Node.invariant[RealmId, Claims]("RealmIsolation",
   why = "The idea says a token is only ever good in the realm that issued it. Stated once over every answer the server gives, so a new endpoint (user info, an admin view of sessions) must keep it or say why not.",
   idea = "Realms"
 )((asking, c) => c.realm === asking)
-  .under(onlyTheSignedIn)
+  .refines(onlyTheSignedIn)
 
 val answersNameASession = Node.claim("AnswersNameASession",
   "An introspection answers only with the realm and user of a session the server holds under the token.",
   why = "A token is a reference to a session: what the server says about it must come from that session, not from the token or the request.",
   idea = "Checking tokens"
 )(forall((r: Term[RealmId], t: Term[String]) => introspect(r, t).forall(c => sessions(c.realm).contains(Session(t, c.realm, c.user)))))
-  .under(onlyTheSignedIn)
+  .refines(onlyTheSignedIn)
 
 /** Whether `x` is the only session the list holds under its token. */
 val onlyOne = define { (ss: Term[List[Session]], x: Term[Session]) => ss.forall(y => (y.token === x.token) ==> (y === x)) }
@@ -49,7 +49,7 @@ val introspectContract = Node.contract(introspect)("Introspect",
     isEnabled(account(realm, c.user)) && c.roles === rolesIn(account(realm, c.user))) &&
   sessions(realm).forall(x => (x.token === token && isEnabled(account(realm, x.user)) && onlyOne(sessions(realm), x)) ==>
     (res === some(Claims(realm, x.user, rolesIn(account(realm, x.user)))))))
-  .under(answersNameASession, disabledHaveNoAccess, rolesAsGranted, signedInAreAccepted)
+  .refines(answersNameASession, disabledHaveNoAccess, rolesAsGranted, signedInAreAccepted)
   .keeps(realmIsolation)((realm, token, res) => res
     .fold(List.empty[(RealmId, Claims)])(c => List((realm, c))))
   .examples(history.bind(events), seed.bind(atStart), sessionDb.bind(SessionDb.replaying(seed.value, history.value)))(

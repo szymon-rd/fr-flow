@@ -52,7 +52,7 @@ object Audit:
       mayView(after(events).library, after(events).now, p, Target[Target.Doc](d)) ==>
         after(events).library.shares.exists(s => inForce(s, after(events).now) && reaches(after(events).library, s, p) &&
           covers(after(events).library, s, Target[Target.Doc](d)) && after(events).library.log.exists(e => makes(e, s)))))
-    .under(accessFollowsShares)
+    .refines(accessFollowsShares)
 
   private val bobViewsPlan = Share(Target.Doc(plan), Grantee.Person(bob), Level.View, None)
   private val shared = Request.Share(ann, Target.Doc(plan), Grantee.Person(bob), Level.View, None)
@@ -62,7 +62,7 @@ object Audit:
     why = "Q15: the log is append-only; an entry's number is its place, so entries are never renumbered, and a notice can name the entry it is about.",
     idea = "Audit"
   )((lib, t, c, result) => result === lib.copy((log = lib.log ++ List(Entry(lib.log.length, t, c)))))
-    .under(auditTrail, sharing.notifications.Notifications.noticesFollowChanges, sharing.time.Deadlines.invitationsLapseOnTime,
+    .refines(auditTrail, sharing.notifications.Notifications.noticesFollowChanges, sharing.time.Deadlines.invitationsLapseOnTime,
       sharing.time.Deadlines.trashPurgedOnTime, sharing.time.Deadlines.requestsAnsweredOnTime)
     .examples()(
       expect(library, now, Change.Made(shared), library.copy(log = List(Entry(0, now, Change.Made(shared)))), "the first entry is number 0"),
@@ -95,7 +95,7 @@ object Audit:
     idea = "Audit"
   )((lib, t, result) => result === lib.copy((log = lib.log.map(e =>
     (e.at <= t - year && !explains(lib, e)).fold(Entry(e.id, e.at, Change.Forgotten: Term[Change]), e)))))
-    .under(auditTrail)
+    .refines(auditTrail)
     .examples()(
       expect(library.copy(shares = bobViewsPlan :: library.shares, log = List(oldShare, oldUnshare)), now,
         library.copy(shares = bobViewsPlan :: library.shares, log = List(oldShare, oldUnshare.copy(change = Change.Forgotten))),

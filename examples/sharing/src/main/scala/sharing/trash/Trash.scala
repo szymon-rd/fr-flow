@@ -34,7 +34,7 @@ object Trash:
     (restore(lib, t, by, d) =!= lib ==> (mayEdit(lib, t, by, Target[Target.Doc](d)) &&
       lib.documents.exists(doc => doc.id === d && doc.trashed.isDefined && !gone(doc, t))))) &&
     after(events).library.documents.forall(doc => !gone(doc, after(events).now - housekeepingWithin)))
-    .under(accessFollowsShares)
+    .refines(accessFollowsShares)
 
   private val planInTrash = library.copy(documents = List(planTrashed, q3ReportDoc))
 
@@ -45,7 +45,7 @@ object Trash:
   )((lib, t, by, d, result) =>
     result === mayEdit(lib, t, by, Target[Target.Doc](d)).fold(
       lib.copy((documents = lib.documents.map(doc => (doc.id === d && !doc.trashed.isDefined).fold(doc.copy((trashed = some(t))), doc)))), lib))
-    .under(trashUntilGone)
+    .refines(trashUntilGone)
     .examples()(
       expect(library, now - day, ann, plan, planInTrash, "Ann may edit the plan: it goes to the trash"),
       expect(planInTrash, now, ann, plan, planInTrash, "already in the trash: it keeps its time"),
@@ -70,7 +70,7 @@ object Trash:
   )((lib, t, by, d, result) =>
     result === mayRestore(lib, t, by, d).fold(
       lib.copy((documents = lib.documents.map(doc => (doc.id === d && !gone(doc, t)).fold(doc.copy((trashed = none[BigInt])), doc)))), lib))
-    .under(trashUntilGone)
+    .refines(trashUntilGone)
     .examples()(
       expect(planInTrash, now, ann, plan, library, "a day in the trash: Ann restores the plan"),
       expect(planInTrash, now + 29 * day, ann, plan, planInTrash, "thirty days in the trash: it is gone"),

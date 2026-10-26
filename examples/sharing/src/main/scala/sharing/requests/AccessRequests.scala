@@ -46,7 +46,7 @@ object AccessRequests:
       (decline(lib, t, by, p, w) =!= lib ==> mayEdit(lib, t, by, w))) &&
     after(events).library.requests.forall(r => isPending(r, after(events).now - housekeepingWithin) &&
       (r.reminded || !reminderDue(r, after(events).now - housekeepingWithin))))
-    .under(accessFollowsShares)
+    .refines(accessFollowsShares)
 
   /** The requests, less any of `person` for `what`. */
   val requestsWithout = define { (rs: Term[List[AccessRequest]], p: Term[PersonId], w: Term[Target]) =>
@@ -74,7 +74,7 @@ object AccessRequests:
   )((lib, t, p, w, level, result) =>
     result === holds(lib, w).fold(
       lib.copy((requests = AccessRequest(p, w, level, t, False) :: requestsWithout(lib.requests, p, w))), lib))
-    .under(requestsAreAsks)
+    .refines(requestsAreAsks)
     .examples()(
       expect(library, now - day, cat, Target.Doc(plan), Level.View, withCatAsking, "Cat asks to view the plan"),
       expect(library, now - day, cat, Target.InFolder(reports), Level.View, library.copy(requests = List(catAsksForReports)),
@@ -97,7 +97,7 @@ object AccessRequests:
         lib.copy((shares = Share(w, Grantee[Grantee.Person](p), r.level, none[BigInt]) ::
           sharesWithout(lib.shares, w, Grantee[Grantee.Person](p)),
           requests = requestsWithout(lib.requests, p, w))), lib)))
-    .under(requestsAreAsks)
+    .refines(requestsAreAsks)
     .examples()(
       expect(withCatAsking, now, ann, cat, Target.Doc(plan), library.copy(shares = catViewsPlan :: library.shares), "Ann approves: Cat may view the plan"),
       expect(withCatAsking, now, bob, cat, Target.Doc(plan), withCatAsking, "Bob may not edit the plan: the request stays"),
@@ -119,7 +119,7 @@ object AccessRequests:
     idea = "Access requests"
   )((lib, t, by, p, w, result) =>
     result === mayEdit(lib, t, by, w).fold(lib.copy((requests = requestsWithout(lib.requests, p, w))), lib))
-    .under(requestsAreAsks)
+    .refines(requestsAreAsks)
     .examples()(
       expect(withCatAsking, now, ann, cat, Target.Doc(plan), library, "Ann declines Cat's request"),
       expect(withCatAsking, now, bob, cat, Target.Doc(plan), withCatAsking, "Bob may not edit the plan: the request stays"),
@@ -153,7 +153,7 @@ object AccessRequests:
   )((lib, t, result) =>
     result === lib.copy((requests = lib.requests.filter(r => isPending(r, t)).map(r => chased(r, t)),
       outbox = lib.outbox ++ chaseNotices(lib, t))))
-    .under(requestsAreAsks)
+    .refines(requestsAreAsks)
     .examples()(
       expect(withCatAsking, now, withCatAsking, "asked a day ago: nothing to do"),
       expect(library.copy(requests = List(catAskedLongAgo)), now,

@@ -12,7 +12,7 @@ val storeMirrorsRequests = Node.claim("StoreMirrorsRequests",
   idea = "Writing records"
 )(forall((r: Term[CrmRecord]) => store.contains(r) === askedIn(history).records.contains(r)) &&
   forall((id: Term[BigInt], c: Term[TenantId]) => sharedNow(id, c) === sharedIn(history, id, c, clock)))
-  .under(sharedCrm)
+  .refines(sharedCrm)
 
 // ============================================================================
 // Writing records: what a write does, and what it never does
@@ -23,21 +23,21 @@ val writesTakeEffect = Node.claim("WritesTakeEffect",
   why = "What the idea says users can do with their company's records. It is about what the database holds after the write, not only what the write computes: a write that is not stored has not happened. A share until a time holds that time only, so sharing again replaces the time it had.",
   idea = "Writing records"
 )(forall((s: Term[CrmStore], w: Term[WriteCmd]) => takesEffect(s, w, afterSave(s, w))))
-  .under(storeMirrorsRequests)
+  .refines(storeMirrorsRequests)
 
 val writesOnlyAsAsked = Node.claim("WritesOnlyAsAsked",
   "A write changes nothing its author did not ask of their company's records: it adds no other record, and changes no other share or share's time.",
   why = "The other half of a write doing what was asked: a record added beside the one asked, or a share changed beside it, is something no user asked. A write about another company's record, or a record its author's company does not hold, changes nothing; so no write changes another company's records or whom they are shared with.",
   idea = "Writing records"
 )(forall((s: Term[CrmStore], w: Term[WriteCmd]) => onlyAsked(s, w, afterSave(s, w))))
-  .under(storeMirrorsRequests)
+  .refines(storeMirrorsRequests)
 
 val recordsKept = Node.claim("RecordsKept",
   "No write and no run of the expiry job removes a record: after each, the CRM holds every record it held before.",
   why = "Editing or removing records is not modelled, so a record once added stays: a write changes shares or adds a record, and the job ends shares only. This is what keeps an added record found from then on, not only right after its write.",
   idea = "Writing records"
 )(forall((s: Term[CrmStore], e: Term[Event]) => s.records.forall(r => stepOf(s, e).records.contains(r))))
-  .under(storeMirrorsRequests)
+  .refines(storeMirrorsRequests)
 
 // ============================================================================
 // Contracts: one write, and the write side that stores it
@@ -50,7 +50,7 @@ val writeContract = Node.contract(write)("WriteContract",
 )((s, w, t) => s.records.forall(r => t.records.contains(r)) &&
   t.records.filter(r => r.tenant =!= w.by.tenant) === s.records.filter(r => r.tenant =!= w.by.tenant) && takesEffect(s, w, t) &&
   onlyAsked(s, w, t))
-  .under(writesTakeEffect, writesOnlyAsAsked, recordsKept)
+  .refines(writesTakeEffect, writesOnlyAsAsked, recordsKept)
   // Per call, in time linear in the store: the write took effect, and other companies' records are as they were.
   // The rest (no record lost, nothing else changed) is proven of the code, and would read every pair of rows.
   .checkedBy((s, w, t) => takesEffect(s, w, t) && t.records.filter(r => r.tenant =!= w.by.tenant) === s.records.filter(r => r.tenant =!= w.by.tenant))
@@ -91,7 +91,7 @@ val saveWrite = Node.contract(save)("SaveWrite",
   why = "A write changes only its own record's rows, so storing those rows stores the write, whatever the size of the store: the database then holds what CrmRun says. The rows are read back, so a write the database dropped or changed is seen on the call.",
   idea = "Writing records"
 )((s, w, back) => back === aboutRecord(write(s, w), about(w)))
-  .under(writesTakeEffect, writesOnlyAsAsked, recordsKept)
+  .refines(writesTakeEffect, writesOnlyAsAsked, recordsKept)
   // Per call: the rows read back are about the written record. That they are the write's is proven of the
   // code, from StoreEdits; checking it would run the write twice.
   .checkedBy((s, w, back) => back.records.forall(r => r.id === about(w)) && back.shares.forall(sh => sh.record === about(w)) &&
@@ -134,5 +134,5 @@ val writeSideWiring = Node.design(
   "The write side saves each write through service, on the store loaded from the database, one write at a time, and logs it in the event log.",
   why = "Every write must go through service, which checks what each step returns; one write at a time, so each starts from the store the last one left. The event log is the CRM's history (CrmRun): the write side and the expiry job each log their event after storing it. Keeping the wiring in governed files makes a change to it visible."
 )("src/main/scala/crm/WriteSide.scala", "src/main/scala/crm/EventLog.scala")
-  .under(saveWrite)
+  .refines(saveWrite)
   .exempt(noCrossTenantRead, "the write side hands rows to storage and returns them to its caller, never records to a reader")

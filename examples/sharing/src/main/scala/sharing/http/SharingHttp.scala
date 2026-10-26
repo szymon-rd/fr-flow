@@ -88,7 +88,7 @@ object SharingHttp:
     after(LibraryModel) === served(before(LibraryModel), before(ClockModel).now, r) && after(ClockModel) === before(ClockModel) &&
       after(MailerModel) === before(MailerModel) && result === answerTo(before(LibraryModel), before(ClockModel).now, r))
     .failsChangingNothing[Failure]
-    .under(accessFollowsShares)
+    .refines(accessFollowsShares)
     .examples()(
       expect(Request.Access(bob, q3Report), at(library), Answer.Access(Some(Level.View)), at(library),
         "Bob's team may view the reports folder: Bob can view the Q3 report, and nothing changes"),

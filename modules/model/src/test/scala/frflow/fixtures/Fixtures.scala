@@ -24,16 +24,16 @@ val picking = Node.definition("Picking", "A book is picked from a shelf when the
   shown := ((l: Term[List[Book]], b: Term[Book]) => picks(l, l.length).contains(b)))
 
 val fromList = Node.claim("FromList", "Picked books come from the shelf.", why = "Nothing else can be handed out.")(
-  forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => l.contains(b)))).under(onlyGood)
+  forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => l.contains(b)))).refines(onlyGood)
 val onlyLong = Node.claim("OnlyLong", "Picked books are long enough.", why = "A short book is not worth picking.")(
-  forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => b.pages >= minPages))).under(onlyGood)
+  forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => b.pages >= minPages))).refines(onlyGood)
 val everyLong = Node.claim("EveryLong", "Every long enough book on the shelf is picked.", why = "Readers want every good book.")(
-  forall((l: Term[List[Book]], n: Term[Int]) => l.forall(b => b.pages >= minPages ==> picks(l, n).contains(b)))).under(onlyGood)
+  forall((l: Term[List[Book]], n: Term[Int]) => l.forall(b => b.pages >= minPages ==> picks(l, n).contains(b)))).refines(onlyGood)
 val shelfParts = Seq(fromList, onlyLong, everyLong)
 
 val pick = Node.contract(picks)("Pick", "A call returns exactly the long enough books of the shelf.", why = "The three parts, for one call, checked on every result.")(
   (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages) && shelf.forall(b => b.pages >= minPages ==> picked.contains(b)))
-  .under(fromList, onlyLong, everyLong)
+  .refines(fromList, onlyLong, everyLong)
   .examples(minPages.bind(100))(
     expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
     expect(List(Book("Short", 20)), 5, Nil, "no book is long enough: none is picked"),
@@ -58,7 +58,7 @@ val where = define { (s: Term[Shelf]) =>
 
 /** A part that does not make its parent: picking few items says nothing about goodness. */
 val sloppy = Node.claim("Sloppy", "At most n books are picked.", why = "A bound on the number of books.")(
-  forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).length <= n)).under(onlyGood)
+  forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).length <= n)).refines(onlyGood)
 val sloppyKb = KnowledgeBase("Sloppy", idea = "IDEA.md")(onlyGood, books, picking, sloppy)
 
 /** A split `frflow_auto` does not prove (nonlinear arithmetic): it needs an authored proof. */
@@ -66,7 +66,7 @@ val sq = Param[BigInt => BigInt]("sq", "what the calculator returns for a number
 val nonNegative = Node.claim("NonNegative", "Results are never negative.", why = "Negative results are meaningless here.")(
   forall((x: Term[BigInt]) => sq(x) >= 0))
 val squares = Node.claim("Squares", "The result is the square of the input.", why = "Squares are never negative.")(
-  forall((x: Term[BigInt]) => sq(x) === x * x)).under(nonNegative)
+  forall((x: Term[BigInt]) => sq(x) === x * x)).refines(nonNegative)
 val squareKb = KnowledgeBase("Square", idea = "IDEA.md")(nonNegative, squares)
 
 /** Implementations written as definitions, for proven implementations. */
@@ -87,7 +87,7 @@ val pickPromise = Node.contract(picks)("PickPromise", "A call returns only long 
     never(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
 val viaPick = define { (shelf: Term[List[Book]], n: Term[Int]) => picks(shelf, n).filter(b => shelf.contains(b)) }
 val againC = Node.contract(again)("Again", "Picking again, through the service, returns only long books from the shelf.", why = "It reuses the service.")(
-  (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages)).under(pickedAgain)
+  (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages)).refines(pickedAgain)
   .examples(minPages.bind(100))(
     expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
     never(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
@@ -109,7 +109,7 @@ val longPicked = Param[(List[Book], Int) => List[Book]]("longPicked", "the long 
 val pickedLong = Node.claim("PickedLong", "Books picked through the capped service come from the shelf and are long enough.", why = "Readers want long books.")(
   forall((l: Term[List[Book]], n: Term[Int]) => longPicked(l, n).forall(b => l.contains(b) && b.pages >= minPages)))
 val longPick = Node.contract(longPicked)("LongPick", "Picking through Capped returns only long books from the shelf.", why = "It reuses Capped.")(
-  (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages)).under(pickedLong)
+  (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages)).refines(pickedLong)
 // what it is decided on: these examples (a comment does not end the definition)
   .examples(minPages.bind(100), maxPages.bind(500))(
     expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
@@ -138,7 +138,7 @@ val counts = Node.claim("Counts", "A bump adds one to its name's count, and leav
   forall((m: Term[Map[String, BigInt]], k: Term[String]) => bumps(m, k).get(k) === Some(m.getOrElse(k, BigInt(0)) + 1)) &&
     forall((m: Term[Map[String, BigInt]], k: Term[String]) => forall((j: Term[String]) => j === k || bumps(m, k).get(j) === m.get(j))))
 val bump = Node.contract(bumps)("Bump", "A bump adds one to its name's count, and leaves the others.", why = "Per call.")(
-  (m, k, r) => r.get(k) === Some(m.getOrElse(k, BigInt(0)) + 1) && r.removed(k) === m.removed(k)).under(counts)
+  (m, k, r) => r.get(k) === Some(m.getOrElse(k, BigInt(0)) + 1) && r.removed(k) === m.removed(k)).refines(counts)
   .examples()(
     expect(Map("a" -> BigInt(1)), "a", Map("a" -> BigInt(2)), "a counted twice"),
     expect(Map("a" -> BigInt(1)), "b", Map("a" -> BigInt(1), "b" -> BigInt(1)), "b counted once, a left"),
@@ -150,7 +150,7 @@ val retained = Param[(List[BigInt], BigInt) => List[BigInt]]("retained", "the va
 val floorRoot = Node.claim("Floor", "A value is kept exactly when it is on the list and not under the floor.", why = "The floor is the rule.")(
   forall((xs: Term[List[BigInt]], f: Term[BigInt]) => retained(xs, f).forall(x => xs.contains(x) && x >= f) && xs.forall(x => x >= f ==> retained(xs, f).contains(x))))
 val floorKeep = Node.contract(retained)("FloorKeep", "A call keeps exactly the values of the list not under the floor.", why = "Floor, for one call.")(
-  (xs, f, r) => r.forall(x => xs.contains(x) && x >= f) && xs.forall(x => x >= f ==> r.contains(x))).under(floorRoot)
+  (xs, f, r) => r.forall(x => xs.contains(x) && x >= f) && xs.forall(x => x >= f ==> r.contains(x))).refines(floorRoot)
   .examples()(
     expect(List(BigInt(1), BigInt(5)), BigInt(3), List(BigInt(5)), "the value over the floor"),
     expect(List(BigInt(1)), BigInt(3), Nil, "nothing over the floor"),
@@ -176,7 +176,7 @@ val kept = Param[(List[Book], List[Book]) => List[Book]]("kept", "the picked boo
 val keptOnShelf = Node.claim("KeptOnShelf", "A book is kept exactly when it was picked and is on the shelf.", why = "Only books of the shelf leave it.")(
   forall((s: Term[List[Book]], p: Term[List[Book]]) => forall((b: Term[Book]) => kept(s, p).contains(b) === (p.contains(b) && s.contains(b)))))
 val keep = Node.contract(kept)("Keep", "A call keeps exactly the picked books that are on the shelf.", why = "KeptOnShelf, for one call.")(
-  (s, p, r) => r.forall(b => p.contains(b) && s.toSet.contains(b)) && p.forall(b => s.toSet.contains(b) ==> r.contains(b))).under(keptOnShelf)
+  (s, p, r) => r.forall(b => p.contains(b) && s.toSet.contains(b)) && p.forall(b => s.toSet.contains(b) ==> r.contains(b))).refines(keptOnShelf)
   .examples()(
     expect(List(Book("A", 100)), List(Book("A", 100), Book("B", 200)), List(Book("A", 100)), "the book on the shelf"),
     never(List(Book("A", 100)), List(Book("B", 200)), List(Book("B", 200)), "never a book off the shelf"),
@@ -195,11 +195,11 @@ val worth = Node.definition("Worth", "A book is worth handing out when it has at
 val handedOut = Node.claim("HandedOut", "Picked books come from the shelf and are worth handing out.", why = "What the shelf hands out.")(
   forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => l.contains(b))) && forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => worthy(b))))
 val fromShelfAgain = Node.claim("FromShelfAgain", "Every picked book is on the shelf.", why = "w")(
-  forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => l.contains(b)))).under(handedOut)
+  forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => l.contains(b)))).refines(handedOut)
 val hundredPages = Node.claim("HundredPages", "Every picked book has at least 100 pages.", why = "w")(
-  forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => b.pages >= 100))).under(handedOut)
+  forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => b.pages >= 100))).refines(handedOut)
 val fromShelfOnce = Node.claim("FromShelfOnce", "Picked books come from the shelf, and no more are picked than it holds.", why = "w")(
-  forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => l.contains(b)) && picks(l, n).length <= l.length)).under(handedOut)
+  forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => l.contains(b)) && picks(l, n).length <= l.length)).refines(handedOut)
 val twoHundredPages = Node.claim("TwoHundredPages", "Every picked book has at least 200 pages.", why = "w")(
-  forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => b.pages >= 200))).under(handedOut)
+  forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => b.pages >= 200))).refines(handedOut)
 def handedOutKb(parts: Node[?]*): KnowledgeBase = KnowledgeBase("HandedOut", idea = "IDEA.md")((handedOut +: worth +: parts)*)

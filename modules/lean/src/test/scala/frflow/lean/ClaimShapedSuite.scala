@@ -12,14 +12,14 @@ class ClaimShapedSuite extends munit.FunSuite:
 
   private val asLambda = Node.contract(picks)("Pick", statement)((shelf, n, result) =>
     result.forall(b => shelf.contains(b) && b.pages >= minPages) && shelf.forall(b => b.pages >= minPages ==> result.contains(b)))
-    .under(fromList, onlyLong, everyLong)
+    .refines(fromList, onlyLong, everyLong)
     .examples(minPages.bind(100))(cases*)
 
   private val asClaim = Node.contract("Pick", statement)(
     forall((shelf: Term[List[Book]], n: Term[Int]) =>
       picks(shelf, n).forall(b => shelf.contains(b) && b.pages >= minPages) &&
         shelf.forall(b => b.pages >= minPages ==> picks(shelf, n).contains(b))))
-    .under(fromList, onlyLong, everyLong)
+    .refines(fromList, onlyLong, everyLong)
     .examples(minPages.bind(100))(cases*)
 
   private def kb(c: Node[(List[Book], Int) => List[Book]]) =

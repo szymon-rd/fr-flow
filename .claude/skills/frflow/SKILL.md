@@ -8,7 +8,7 @@ description: >-
   examples, answering the developer's requests, proving a split, or attaching
   an implementation; or when the work touches IDEA.md, `Node.claim`,
   `Node.contract`, `Node.assumption`, `Node.definition`, `Node.design`,
-  `Node.invariant`, `.under`, `.replaces`, `implementProven` or `service`;
+  `Node.invariant`, `.refines`, `.replaces`, `implementProven` or `service`;
   or terms (`Term`, `define`, `Data`), flows (`Flow`), boundaries
   (`Boundary`) or state models (`StateModel`).
 ---
@@ -164,7 +164,7 @@ val identities = Node.definition("Identities", "Users are named by ids, and reso
 val decisionContract = Node.contract(admit)("DecisionContract",
   "A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path.", why = "..."
 )((token, path, decision) => decision.forall(u => sessions(token) === Some(u) && grants.contains(Grant(u, path))) && ...)
-  .under(tokenNamesHolder, accessNeedsGrant, grantLetsIn)
+  .refines(tokenNamesHolder, accessNeedsGrant, grantLetsIn)
   .examples(grants.bind(List(Grant(UserId("alice"), Path("/a")))), sessions.bindTable(Map("t1" -> UserId("alice"))))(
     expect("t1", Path("/a"), Some(UserId("alice")), "Alice's token and a grant for /a: she gets in"),
     never("t1", Path("/b"), Some(UserId("alice")), "access without a grant is never given"))
@@ -175,7 +175,7 @@ val expireCode = define { (s: Term[CrmStore], now: Term[BigInt]) =>      // crm:
 }
 val inMemorySessions = Node.design("InMemorySessions",
   "Sessions and grants are loaded into memory, in one process that decides every request.", why = "..."
-)("src/main/scala/auth/Server.scala").under(decisionContract)
+)("src/main/scala/auth/Server.scala").refines(decisionContract)
 
 val realmIsolation = Node.invariant[RealmId, Claims]("RealmIsolation",   // keycloak
   "No application is ever shown claims of a realm other than its own.", why = "..."
@@ -194,7 +194,7 @@ val sessionLookup = Node.assumption(lookup)("SessionLookup",          // keycloa
 - **Kinds.** A contract states a claim for one call of an operation, so each
   result can be checked. An assumption states what you cannot prove: a port, or
   a fact of the world (`Node.assumption(id, statement, why)(formula)`).
-- **Edges.** `.under(p1, p2)`: a part of each; declare parents first (a `val`
+- **Edges.** `.refines(p1, p2)`: a part of each; declare parents first (a `val`
   used before it is defined is `null`). `.keeps(inv)(view)`: the pairs a call
   shows the invariant; every contract and design node in its scope keeps it or
   is `.exempt`. `idea = "Section"`: the section of `IDEA.md` it is decided against.

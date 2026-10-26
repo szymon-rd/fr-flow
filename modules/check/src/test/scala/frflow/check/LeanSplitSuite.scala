@@ -19,26 +19,26 @@ class LeanSplitSuite extends LeanLab:
     // with the goal a proof by hand starts from: after the stub's first steps, the parts by their names
     assert(result(sloppy, "complete").exists(d => d.detail.contains("the goal is:") && d.detail.contains("h_Sloppy :") && d.detail.contains("⊢")), sloppy.obligations)
     val bounded = Node.claim("Bounded", "No more books are picked than the shelf holds.", why = "w")(
-      forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).length <= l.length)).under(onlyGood)
+      forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).length <= l.length)).refines(onlyGood)
     val w = workflow(shelfWith(pick, bounded))
     val root = of(w.check(), "OnlyGood")
     assertEquals(List("complete", "needed_Bounded", "needed_FromList").map(result(root, _).map(_.status.toString)),
       List(Some("proven"), Some("shown"), Some("not-shown")), root.obligations)
     assertEquals(splitOf(w, onlyGood).needed.find(_.id == NodeId("Bounded")).map(_.status.toString), Some("shown"))
     assert(Proofs.unproven(node(w, "OnlyGood")).exists(_.startsWith("Bounded is not needed for it")), Proofs.unproven(node(w, "OnlyGood")))
-    val none = Node.claim("NoneLong", "No book is ever picked.", why = "w")(forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).isEmpty)).under(onlyGood)
-    val one = Node.claim("OneAlways", "One book is always picked.", why = "w")(forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).length === 1)).under(onlyGood)
+    val none = Node.claim("NoneLong", "No book is ever picked.", why = "w")(forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).isEmpty)).refines(onlyGood)
+    val one = Node.claim("OneAlways", "One book is always picked.", why = "w")(forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).length === 1)).refines(onlyGood)
     val cw = workflow(KnowledgeBase("Clash", idea = "IDEA.md")(onlyGood, books, picking, none, one))
     val clash = of(cw.check(), "OnlyGood")
     assertEquals((clash.status.toString, result(clash, "clash").map(_.status.toString), st(splitOf(cw, onlyGood), "clash")),
       ("failed", Some("shown"), Some("shown")), clash)
     // a parent that holds whatever its one part says is vacuous; one that says what its one part says restates it
     val trivial = Node.claim("Trivial", "Nothing is wrong.", why = "w")(forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => True)))
-    val part = Node.claim("Part", "Picked books come from the shelf.", why = "w")(forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => l.contains(b)))).under(trivial)
+    val part = Node.claim("Part", "Picked books come from the shelf.", why = "w")(forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => l.contains(b)))).refines(trivial)
     val vac = of(workflow(KnowledgeBase("Vac", idea = "IDEA.md")(trivial, part)).check(), "Trivial")
     assertEquals(List("vacuous", "restates").map(result(vac, _).map(_.status.toString)), List(Some("shown"), Some("not-shown")), vac)
     val same = Node.claim("Same", "Picked books come from the shelf.", why = "w")(forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => l.contains(b))))
-    val again = Node.claim("Again", "Every book picked is on the shelf.", why = "w")(forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => l.contains(b)))).under(same)
+    val again = Node.claim("Again", "Every book picked is on the shelf.", why = "w")(forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => l.contains(b)))).refines(same)
     val sameLab = workflow(KnowledgeBase("Same", idea = "IDEA.md")(same, again))
     val restates = of(sameLab.check(), "Same")
     assertEquals(result(restates, "restates").map(r => (r.status.toString, r.detail)),
@@ -46,7 +46,7 @@ class LeanSplitSuite extends LeanLab:
     // and status warns of it
     assert(sameLab.analysis.warnings.contains("Same says what Again says: merge them, or say what Same adds"), sameLab.analysis.warnings)
     val never = Node.claim("Never", "The service picks more books than it picks.", why = "w")(
-      picks(List(Book("A", 1)), 1).length > picks(List(Book("A", 1)), 1).length).under(onlyGood)
+      picks(List(Book("A", 1)), 1).length > picks(List(Book("A", 1)), 1).length).refines(onlyGood)
     val u = of(workflow(KnowledgeBase("Unsat", idea = "IDEA.md")(onlyGood, books, picking, never)).check(), "Never")
     assert(u.status.toString == "failed" && u.messages.exists(_.contains("no world meets it")), u)
   }

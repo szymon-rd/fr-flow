@@ -40,7 +40,7 @@ object Ownership:
       ownedBy(lib, what, withWhom) ==> (Sharing.unshare(lib, t, by, what, withWhom) === lib)) &&
     forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], s: Term[Share]) =>
       ownedBy(lib, s.what, s.withWhom) ==> (Sharing.share(lib, t, by, s) === lib)))
-    .under(accessFollowsShares)
+    .refines(accessFollowsShares)
 
   private val bobEditsPlan = Share(Target.Doc(plan), Grantee.Person(bob), Level.Edit, None)
   private val bobMayEdit = library.copy(shares = bobEditsPlan :: library.shares)
@@ -54,7 +54,7 @@ object Ownership:
       lib.copy((documents = lib.documents.map(doc => (doc.id === d).fold(doc.copy((owner = to)), doc)),
         shares = Share(Target[Target.Doc](d), Grantee[Grantee.Person](to), Level.Edit, none[BigInt]) ::
           sharesWithout(lib.shares, Target[Target.Doc](d), Grantee[Grantee.Person](to)))), lib))
-    .under(ownersKeepTheirDocuments)
+    .refines(ownersKeepTheirDocuments)
     .examples()(
       expect(bobMayEdit, now, ann, plan, bob,
         library.copy(documents = List(planDoc.copy(owner = bob), q3ReportDoc), shares = bobEditsPlan :: library.shares),

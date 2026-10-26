@@ -103,7 +103,7 @@ object Run:
   )(forall((pre: Term[List[Event]], post: Term[List[Event]]) => forall((e: Term[Event]) =>
     (events === pre ++ (e :: post)) ==>
       e.on[Event.Asked](_ => True).on[Event.Housekept.type](True).on[Event.Delivered](_ => True).on[Event.Waited](d => d >= 0))))
-    .under(Deadlines.trashPurgedOnTime, Deadlines.invitationsLapseOnTime, Deadlines.endedStaysEnded, Deadlines.requestsAnsweredOnTime)
+    .refines(Deadlines.trashPurgedOnTime, Deadlines.invitationsLapseOnTime, Deadlines.endedStaysEnded, Deadlines.requestsAnsweredOnTime)
 
   val housekeepingOnTime = Node.assumption("HousekeepingOnTime",
     "Housekeeping runs often enough: time never moves on more than two minutes past its last run.",
@@ -113,4 +113,4 @@ object Run:
     (events === pre ++ (e :: post)) ==>
       e.on[Event.Asked](_ => True).on[Event.Housekept.type](True).on[Event.Delivered](_ => True)
         .on[Event.Waited](d => after(pre).now + d <= after(pre).tidied + housekeepingWithin))))
-    .under(Deadlines.trashPurgedOnTime, Deadlines.invitationsLapseOnTime, Deadlines.requestsAnsweredOnTime)
+    .refines(Deadlines.trashPurgedOnTime, Deadlines.invitationsLapseOnTime, Deadlines.requestsAnsweredOnTime)

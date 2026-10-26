@@ -7,7 +7,7 @@ val httpApi = Node.design(
   "The HTTP API answers searches through the records screen and the sales screen, and writes through the write side; who calls is the account in the request's headers.",
   why = "Every request must reach the records only through service. Authentication is not modelled: the headers name the account."
 )("src/main/scala/crm/Server.scala")
-  .under(sharedCrm)
+  .refines(sharedCrm)
   .exempt(noCrossTenantRead, "it returns only what the records screen and the sales screen return, which keep the rule")
 
 val knowledge = KnowledgeBase("Crm", idea = "IDEA.md")(

@@ -93,7 +93,7 @@ Node.contract(share)("Share", "...", why = "...")((by, doc, withWhom, result) =>
 knowledge.implement(share)((by, doc, withWhom) => owners(doc) == by)
 ```
 
-`.under(parents*)` makes a node a part of each parent. `.replaces(other)` marks
+`.refines(parents*)` makes a node a part of each parent. `.replaces(other)` marks
 an alternative: accepting one rejects the other. Two definitions of one term
 are alternatives too. The root speaks in open terms (`Opaque` types, `Param`
 terms); definitions bring in the domain as it is needed.

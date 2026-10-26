@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.util.Try
 
 /** One statement in the developer's domain words, decided by them and proven in Lean from its parts (the nodes
-  * that name it `under`). `M` is the operation's type, which the examples and checks are written against.
+  * that name it in `refines`). `M` is the operation's type, which the examples and checks are written against.
   */
 final class Node[M] @scala.annotation.publicInBinary private[frflow] (val id: String, val statement: String, val why: String,
     val kind: NodeKind, val declaredParents: List[Node[?]] = Nil, val formula: Option[Lifted[?]] = None,
@@ -39,8 +39,8 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (val id: St
   // order), and failing as the model loads, naming the node, is what the developer can act on.
 
   /** A part of each of `ps`: with its co-parts, it refines each. */
-  def under(ps: Node[?]*): Node[M] =
-    require(ps.forall(_ != null), s"$id is under a node declared after it: declare the parent first")
+  def refines(ps: Node[?]*): Node[M] =
+    require(ps.forall(_ != null), s"$id refines a node declared after it: declare the parent first")
     require(kind != NodeKind.Definition, s"$id: a definition has no parents; the nodes that use its terms rest on it")
     copy(declaredParents = declaredParents ++ ps)
 

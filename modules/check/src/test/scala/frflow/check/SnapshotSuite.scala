@@ -101,7 +101,7 @@ class SnapshotSuite extends munit.FunSuite:
 
   test("any node may name a section of the idea; a section no node names is a warning") {
     val long2 = Node.claim("OnlyLong", onlyLong.statement, onlyLong.why, idea = "Picking")(
-      forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => b.pages >= minPages))).under(onlyGood)
+      forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => b.pages >= minPages))).refines(onlyGood)
     val d = Desk(KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, books, picking, long2))
       .withIdea("# Shelf\n\nPick good items.\n\n## Picking\n\nPick only long books.\n\n## Selling\n\nSell them.\n\n## Not modelled\n\n- Prices.\n")
     assert(d.node("OnlyLong").node.content.str("notModelled").exists(_.contains("Prices")))
@@ -114,7 +114,7 @@ class SnapshotSuite extends munit.FunSuite:
 
   test("IDEA.md is decided first; an edit to a section brings back IDEA.md and the nodes naming it, a From: line nothing") {
     val long2 = Node.claim("OnlyLong", onlyLong.statement, onlyLong.why, idea = "Picking")(
-      forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => b.pages >= minPages))).under(onlyGood)
+      forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => b.pages >= minPages))).refines(onlyGood)
     val idea = "# Shelf\n\nPick good items.\n\n## Picking\nFrom: Q1\nPick only long books.\n\n## Not modelled\n\n- Prices.\n"
     val d = Desk(KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, books, picking, long2)).withIdea(idea)
     val defined = Desk.ok(Desk.ok(d.accept(books, "books are the items")).accept(picking, "picking is the service's"))
@@ -149,7 +149,7 @@ class SnapshotSuite extends munit.FunSuite:
   /** The shelf's nodes and more, with Pick implemented as in `shelfKb`. */
   private def shelfAnd(ns: Node[?]*) = kbOf(shelfNodes ++ ns).implement(pick)((shelf, n) => shelf.filter(_.pages >= minPages.value))
   private val newPart = Node.claim("Bounded", "At most n books are picked.", why = "Readers want few books.")(
-    forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).length <= n)).under(fromList)
+    forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).length <= n)).refines(fromList)
 
   test("a change of parts is mechanical when Lean proves the parts make it, each needed; not otherwise") {
     val d = Desk(shelfKb).acceptAll.withKb(shelfAnd(pick, newPart))
@@ -174,10 +174,10 @@ class SnapshotSuite extends munit.FunSuite:
     // A diamond: D a part of B and of C, both parts of A; before, D a part of B only.
     def diamond(dUnderC: Boolean): List[Node[?]] =
       val a = Node.claim("A", "Results are never negative.", why = "The purpose.")(forall((x: Term[BigInt]) => sq(x) >= 0))
-      val b = Node.claim("B", "Results are at least zero.", why = "Zero is the floor.")(forall((x: Term[BigInt]) => sq(x) >= 0)).under(a)
-      val c = Node.claim("C", "Results are zero or more.", why = "Said otherwise.")(forall((x: Term[BigInt]) => sq(x) >= 0)).under(a)
+      val b = Node.claim("B", "Results are at least zero.", why = "Zero is the floor.")(forall((x: Term[BigInt]) => sq(x) >= 0)).refines(a)
+      val c = Node.claim("C", "Results are zero or more.", why = "Said otherwise.")(forall((x: Term[BigInt]) => sq(x) >= 0)).refines(a)
       val d = Node.claim("D", "The result is the square of the input.", why = "Squares are never negative.")(forall((x: Term[BigInt]) => sq(x) === x * x))
-      List(a, b, c, if dUnderC then d.under(b, c) else d.under(b))
+      List(a, b, c, if dUnderC then d.refines(b, c) else d.refines(b))
     val d = Desk(kbOf(diamond(dUnderC = false))).acceptAll.withKb(kbOf(diamond(dUnderC = true)))
     assertEquals(List("A", "B", "C", "D").map(d.causes), List(Nil, Nil, List("parts"), List("above")))
     val snap = proven(d.analysis.snapshot)
@@ -188,7 +188,7 @@ class SnapshotSuite extends munit.FunSuite:
   test("placing a node under another parent changes where it rests, not what it says") {
     def node(parents: List[String], under: String) =
       val c = Content("kind" -> str("claim"), "parents" -> Json.fromValues(parents.map(str)), "parts" -> Json.arr(), "statement" -> str("The result is a square."),
-        "definition" -> str(s"val d = Node.claim(\"D\", \"The result is a square.\", why = \"w\")(f)\n  .under($under)\n  .examples()()"))
+        "definition" -> str(s"val d = Node.claim(\"D\", \"The result is a square.\", why = \"w\")(f)\n  .refines($under)\n  .examples()()"))
       SnapNode(NodeId("D"), Kind.Claim, c, c.hash, parents = ids(parents*))
     val before = node(List("B"), "b")
     val ledger = Ledger.empty.add(NodeId("D"), Decision(Action.Accept, "dev", Instant.EPOCH, "it is right", content = before.content))

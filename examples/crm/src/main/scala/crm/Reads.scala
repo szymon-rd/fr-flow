@@ -12,7 +12,7 @@ val visibility = Node.claim("Visibility",
   idea = "Finding records"
 )(forall((u: Term[Account], q: Term[Ask]) => forall((r: Term[CrmRecord]) =>
   results(u, q).contains(r) === (store.contains(r) && askMatches(q, r) && mayRead(u, r)))))
-  .under(sharedCrm)
+  .refines(sharedCrm)
 
 val noCrossTenantRead = Node.invariant[Account, CrmRecord](
   "NoCrossTenantRead",
@@ -20,7 +20,7 @@ val noCrossTenantRead = Node.invariant[Account, CrmRecord](
   why = "The isolation every read path must keep, stated once. Every contract keeps it, listing the records a call shows to whom, or says why it shows none; so a new read path (an export, an admin view) cannot leave it out unnoticed.",
   idea = "Finding records"
 )((reader, r) => mayRead(reader, r))
-  .under(visibility)
+  .refines(visibility)
 
 val searchesMatch = Node.claim("SearchesMatch",
   "A search, on either screen, returns only stored records it asks for, and every stored record it asks for that the user may read.",
@@ -28,7 +28,7 @@ val searchesMatch = Node.claim("SearchesMatch",
   idea = "Finding records"
 )(forall((u: Term[Account], q: Term[Ask]) => results(u, q).forall(r => store.contains(r) && askMatches(q, r)) &&
   store.forall(r => (askMatches(q, r) && mayRead(u, r)) ==> results(u, q).contains(r))))
-  .under(visibility)
+  .refines(visibility)
 
 // ============================================================================
 // Port: the database's answer to a search
@@ -65,7 +65,7 @@ val readContract = Node.contract(read)("ReadContract",
   idea = "Finding records"
 )((user, query, result) => result.forall(r => store.contains(r) && matches(query, r) && mayRead(user, r)) &&
   store.forall(r => (matches(query, r) && mayRead(user, r)) ==> result.contains(r)))
-  .under(searchesMatch)
+  .refines(searchesMatch)
   .examples(
     history.bind(List(
       Event.Wrote(WriteCmd(Account("ann@acme", TenantId("acme")), Change.Add(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")))),
@@ -111,7 +111,7 @@ val dealSearch = Node.contract(deals)("DealSearch",
   idea = "Sales screen"
 )((user, query, result) => result.forall(r => store.contains(r) && r.kind === Kind.Deal && matches(query, r) && mayRead(user, r)) &&
   store.forall(r => (r.kind === Kind.Deal && matches(query, r) && mayRead(user, r)) ==> result.contains(r)))
-  .under(searchesMatch)
+  .refines(searchesMatch)
   .examples(
     history.bind(List(
       Event.Wrote(WriteCmd(Account("ann@acme", TenantId("acme")), Change.Add(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")))),
@@ -133,5 +133,5 @@ val readSideWiring = Node.design(
   "The records screen and the sales screen serve searches through service, which checks every result against ReadContract or DealSearch and the invariant they keep; they read the store, shares and expiries from the database's tables, the history from its event log, and the clock.",
   why = "Every path to the records must go through service; keeping the wiring in one governed file makes a change to it visible. The tables are bound as they are, not replayed from the event log on every search: they hold what the history led to (CrmRun) because only the write side and the expiry job change them, each also logging its event."
 )("src/main/scala/crm/ReadSide.scala")
-  .under(readContract, dealSearch)
+  .refines(readContract, dealSearch)
   .exempt(noCrossTenantRead, "it returns no records itself: every read goes through service, which checks each result against the contract and the invariant")

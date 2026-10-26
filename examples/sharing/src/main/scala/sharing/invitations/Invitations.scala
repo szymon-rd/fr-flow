@@ -42,7 +42,7 @@ object Invitations:
     forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], what: Term[Target]) =>
       accept(lib, t, p, what) =!= lib ==> lib.invitations.exists(i => i.to === p && i.what === what && isOpen(i, t))) &&
     after(events).library.invitations.forall(i => isOpen(i, after(events).now - housekeepingWithin)))
-    .under(accessFollowsShares)
+    .refines(accessFollowsShares)
 
   /** The invitations, less any of `to` to `what`. */
   val invitationsWithout = define { (is: Term[List[Invitation]], to: Term[PersonId], what: Term[Target]) =>
@@ -59,7 +59,7 @@ object Invitations:
   )((lib, t, by, to, what, level, result) =>
     result === mayEdit(lib, t, by, what).fold(
       lib.copy((invitations = Invitation(to, what, level, by, t) :: invitationsWithout(lib.invitations, to, what))), lib))
-    .under(invitationsAreOffers)
+    .refines(invitationsAreOffers)
     .examples()(
       expect(library, now - day, ann, cat, Target.Doc(plan), Level.View, withCat, "Ann may edit the plan: she invites Cat to view it"),
       expect(library, now, bob, cat, Target.Doc(plan), Level.View, library, "Bob may not edit the plan: nothing changes"),
@@ -82,7 +82,7 @@ object Invitations:
       ownedBy(lib, what, Grantee[Grantee.Person](p)).fold(lib,
         lib.copy((shares = Share(what, Grantee[Grantee.Person](p), i.level, none[BigInt]) :: sharesWithout(lib.shares, what, Grantee[Grantee.Person](p)),
           invitations = invitationsWithout(lib.invitations, p, what))))))
-    .under(invitationsAreOffers)
+    .refines(invitationsAreOffers)
     .examples()(
       expect(withCat, now, cat, Target.Doc(plan), library.copy(shares = catViewsPlan :: library.shares),
         "Cat accepts Ann's invitation, sent a day ago: she may view the plan"),
@@ -105,7 +105,7 @@ object Invitations:
     idea = "Invitations"
   )((lib, t, by, to, what, result) =>
     result === mayEdit(lib, t, by, what).fold(lib.copy((invitations = invitationsWithout(lib.invitations, to, what))), lib))
-    .under(invitationsAreOffers)
+    .refines(invitationsAreOffers)
     .examples()(
       expect(withCat, now, ann, cat, Target.Doc(plan), library, "Ann withdraws Cat's invitation"),
       expect(withCat, now, bob, cat, Target.Doc(plan), withCat, "Bob may not edit the plan: the invitation stays"),

@@ -20,7 +20,7 @@ class NodeSuite extends munit.FunSuite:
   }
 
   test("examples where nothing is bound take one list: the same cases as with an empty list of bindings") {
-    def base = Node.contract(picks)("Picks", "s", "w")((shelf, n, picked) => picked.length <= n).under(onlyGood)
+    def base = Node.contract(picks)("Picks", "s", "w")((shelf, n, picked) => picked.length <= n).refines(onlyGood)
     // (with one list, the cases are typed before the overload is chosen: an empty list says its type)
     val none = List.empty[Book]
     val one = base.examples(expect(none, 1, none, "nothing to pick"), never(none, 0, List(Book("A", 1)), "never more than asked"))
@@ -62,9 +62,9 @@ class NodeSuite extends munit.FunSuite:
 
   test("a cross-cutting invariant is a claim kept by the contracts that name it, on examples, generated calls and at run time") {
     val atMostN = Node.invariant[Int, Int]("AtMostN", "No more books are picked than asked for.", "Readers carry what they asked for.")(
-      (asked, picked) => picked <= asked).under(onlyGood)
+      (asked, picked) => picked <= asked).refines(onlyGood)
     val kept = Node.contract(picks)("Kept", "Picking returns only long enough books.", "w")(
-      (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages)).under(shelfParts*)
+      (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages)).refines(shelfParts*)
       .examples(minPages.bind(100))(
         expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
         expect(List(Book("Short", 20)), 1, Nil, "no long book"),
@@ -82,7 +82,7 @@ class NodeSuite extends munit.FunSuite:
     val run = bad.service(kept)(minPages.bind(100))
     intercept[ContractViolation](run(List(Book("Long", 300)), 1))
     // every contract whose result can hold what the rule is about keeps it or says why not; an invariant nobody keeps is a problem
-    val fromShelf = Node.invariant[List[Book], Book]("FromShelf", "Only books on the shelf are picked.", "w")((shelf, b) => shelf.contains(b)).under(onlyGood)
+    val fromShelf = Node.invariant[List[Book], Book]("FromShelf", "Only books on the shelf are picked.", "w")((shelf, b) => shelf.contains(b)).refines(onlyGood)
     val unkept = shelfWith(pick, fromShelf).problems.map(_.message)
     assert(unkept.exists(_.contains("no contract keeps")), unkept)
     assert(unkept.exists(_.startsWith("Pick: keep FromShelf")), unkept)
@@ -91,7 +91,7 @@ class NodeSuite extends munit.FunSuite:
     // a rule about numbers does not reach a contract that returns books
     assert(!shelfWith(pick, kept, atMostN).problems.exists(_.message.startsWith("Pick: keep AtMostN")))
     // an invariant scoped to another subtree does not apply
-    val scoped = Node.invariant[List[Book], Book]("Scoped", "s", "w", scope = List(everyLong))((shelf, b) => shelf.contains(b)).under(onlyGood)
+    val scoped = Node.invariant[List[Book], Book]("Scoped", "s", "w", scope = List(everyLong))((shelf, b) => shelf.contains(b)).refines(onlyGood)
     assert(shelfWith(pick, scoped).problems.exists(_.message.startsWith("Pick: keep Scoped")))
   }
 
@@ -118,12 +118,12 @@ class NodeSuite extends munit.FunSuite:
     assert(shelfWith(pick, pickPromise).problems.exists(_.message.startsWith("PickPromise has no parents")))
     val loose = Node.design("Loose", "Shelves are cached.", "They change once a day.")()
     assert(shelfWith(pick, loose).problems.exists { case Problem.Structure(t) => t.startsWith("Loose: a design decision is under"); case _ => false })
-    intercept[IllegalArgumentException](books.under(onlyGood))
+    intercept[IllegalArgumentException](books.refines(onlyGood))
     // (a node names its parents when it is built, from nodes built before it: no cycle can be written)
   }
 
   test("a contract's examples must tell a constant implementation apart") {
-    val lazyPick = Node.contract(picks)("LazyPick", "s", "w")((_, _, picked) => picked.isEmpty).under(shelfParts*)
+    val lazyPick = Node.contract(picks)("LazyPick", "s", "w")((_, _, picked) => picked.isEmpty).refines(shelfParts*)
       .examples(minPages.bind(100))(expect(Nil, 1, Nil, "nothing"), never(List(Book("L", 300)), 1, List(Book("L", 300)), "x"))
     assert(shelfWith(lazyPick).problems.exists(_.message.contains("always returns it")))
   }
@@ -131,14 +131,14 @@ class NodeSuite extends munit.FunSuite:
   test("a problem says what part of the model it is about, and prints as its message") {
     // two different parameters with one name; a contract with no examples
     val clash = Param[Int]("minPages", "the pages a reader can carry")
-    val c = shelfWith(Node.contract(picks)("Clash", "s", "w")((shelf, n, picked) => picked.length <= clash).under(shelfParts*)).problems
+    val c = shelfWith(Node.contract(picks)("Clash", "s", "w")((shelf, n, picked) => picked.length <= clash).refines(shelfParts*)).problems
     assert(c.exists { case Problem.Vocabulary(t) => t.startsWith("two different parameters are named minPages"); case _ => false }, c)
     assert(c.exists(_.isInstanceOf[Problem.Examples]), c)
     // a claim or a contract may leave its reason to the decision; another node says why
     def sayWhy(n: Node[?]) =
       shelfWith(pick, n).problems.exists { case Problem.Wording(t) => t.contains("say why"); case _ => false }
-    assert(!sayWhy(Node.claim("NoWhy", "s")(forall((x: Term[BigInt]) => sq(x) >= 0)).under(onlyGood)))
-    assert(sayWhy(Node.assumption("NoWhy", "s", " ")(forall((x: Term[BigInt]) => sq(x) >= 0)).under(onlyGood)))
+    assert(!sayWhy(Node.claim("NoWhy", "s")(forall((x: Term[BigInt]) => sq(x) >= 0)).refines(onlyGood)))
+    assert(sayWhy(Node.assumption("NoWhy", "s", " ")(forall((x: Term[BigInt]) => sq(x) >= 0)).refines(onlyGood)))
   }
 
   test("a definition: at least one term, none defined through itself, none an operation") {

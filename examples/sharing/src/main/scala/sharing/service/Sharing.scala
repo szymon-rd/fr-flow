@@ -61,7 +61,7 @@ object Sharing:
     idea = "Who can see and change what"
   )((lib, t, p, d, result) => result === inTrash(lib, d).fold(none[Level],
       strongest(lib.shares.filter(s => inForce(s, t) && granteesOf(lib, p).contains(s.withWhom) && placesOf(lib, d).contains(s.what)))))
-    .under(accessFollowsShares, sharing.invitations.Invitations.invitationsAreOffers)
+    .refines(accessFollowsShares, sharing.invitations.Invitations.invitationsAreOffers)
     .examples()(
       expect(library, now, bob, q3Report, Some(Level.View), "Bob's team may view the reports folder, which the Q3 report is in"),
       expect(library, now, ann, q3Report, Some(Level.Edit), "Ann may edit the reports folder"),
@@ -89,7 +89,7 @@ object Sharing:
     why = "Viewing needs a share of any level, and editing includes viewing (Q1).",
     idea = "Who can see and change what"
   )((lib, t, p, d, result) => result === access(lib, t, p, d).isDefined)
-    .under(accessFollowsShares)
+    .refines(accessFollowsShares)
     .examples()(
       expect(library, now, bob, q3Report, true, "Bob's team may view the reports folder"),
       expect(library, now, cat, q3Report, false, "nothing is shared with Cat"),
@@ -102,7 +102,7 @@ object Sharing:
     why = "Only an edit share lets someone change a document (Q1).",
     idea = "Who can see and change what"
   )((lib, t, p, d, result) => result === (access(lib, t, p, d) === some(Level.Edit: Term[Level])))
-    .under(accessFollowsShares)
+    .refines(accessFollowsShares)
     .examples()(
       expect(library, now, ann, q3Report, true, "Ann may edit the reports folder, around the Q3 report"),
       expect(library, now, bob, q3Report, false, "Bob's team may only view it"),
@@ -126,7 +126,7 @@ object Sharing:
     idea = "Who can see and change what"
   )((lib, t, by, s, result) =>
     result === (mayEdit(lib, t, by, s.what) && !ownedBy(lib, s.what, s.withWhom)).fold(lib.copy((shares = s :: sharesWithout(lib.shares, s.what, s.withWhom))), lib))
-    .under(accessFollowsShares, sharing.ownership.Ownership.ownersKeepTheirDocuments)
+    .refines(accessFollowsShares, sharing.ownership.Ownership.ownersKeepTheirDocuments)
     .examples()(
       expect(library, now, ann, bobViewsPlan, library.copy(shares = bobViewsPlan :: library.shares),
         "Ann may edit the plan, so she shares it with Bob"),
@@ -149,7 +149,7 @@ object Sharing:
     idea = "Who can see and change what"
   )((lib, t, by, what, withWhom, result) =>
     result === (mayEdit(lib, t, by, what) && !ownedBy(lib, what, withWhom)).fold(lib.copy((shares = sharesWithout(lib.shares, what, withWhom))), lib))
-    .under(accessFollowsShares, sharing.ownership.Ownership.ownersKeepTheirDocuments)
+    .refines(accessFollowsShares, sharing.ownership.Ownership.ownersKeepTheirDocuments)
     .examples()(
       expect(library, now, ann, Target.InFolder(reports), Grantee.Team(eng), library.copy(shares = List(annEditsPlan, annEditsReports)),
         "Ann may edit the reports folder, so she unshares it from the engineering team"),
@@ -184,7 +184,7 @@ object Sharing:
     result === mayMove(lib, t, by, d, into).fold(
       lib.copy((documents = lib.documents.map(doc => (doc.id === d).fold(doc.copy((folders = foldersAt(lib, into))), doc)))),
       lib))
-    .under(accessFollowsShares)
+    .refines(accessFollowsShares)
     .examples()(
       expect(library, now, ann, plan, Some(reports),
         library.copy(documents = List(planDoc.copy(folders = List(reports)), q3ReportDoc)),

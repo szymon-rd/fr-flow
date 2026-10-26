@@ -11,7 +11,7 @@ val sharesExpire = Node.contract(expire)("SharesExpire",
   why = "The idea lets a company share a record until a given time. A search already ignores a share past its time (Sharing): the job clears such shares from the tables, and it touches nothing else, so it never ends a share early nor keeps one past its time. Keeping the records is what keeps them found (RecordsKept).",
   idea = "Expiring shares"
 )((s, now, t) => endsDueAt(s, now, t))
-  .under(storeMirrorsRequests, recordsKept)
+  .refines(storeMirrorsRequests, recordsKept)
   .examples()(
     expect(CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("globex")), Share(1, TenantId("initech"))), List(Expiry(1, TenantId("globex"), 100))), 150,
       CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("initech"))), Nil), "Globex's share ended at 100; Initech's stays"),
@@ -86,5 +86,5 @@ val expiryJobWiring = Node.design(
   why = "What a run does is proven (ExpiryJob); when it runs, and that no write interleaves with it, is decided here and reviewed: the model assumes a run has the database to itself.",
   idea = "Expiring shares"
 )("src/main/scala/crm/Job.scala")
-  .under(expiryJob)
+  .refines(expiryJob)
   .exempt(noCrossTenantRead, "it hands the new store to storage and returns nothing to a reader")
