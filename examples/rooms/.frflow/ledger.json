@@ -195,6 +195,19 @@
         "sig": "2/gwG4pmZVrPJfMLrV2iEdjLoy2/VJu3LX+UVyeImmIU4xk9jSk6s5bFDmHkNpjhw8yGiXQJpUFDFnBNv0NoDQ==",
         "chain": "9f2281fa5f8cac4a87fe71d022e69469e192aceb892b1806aeabef2fef263214",
         "content": "919002e2e70b5cbe"
+      },
+      {
+        "action": "confirm",
+        "by": "demo-developer",
+        "at": "2026-10-26T17:33:47.141868Z",
+        "reason": "still holds after NeverDoubleBooked changed: The same root, written with the bookings held before and after named once and its three promises in the order the sentence gives them.",
+        "rejected": [],
+        "after": "6a06552c3eaa5179",
+        "commit": "872252a4bd51b0cd0e9541b264a15985336e1a16",
+        "key": "b6e216cfdf46a202",
+        "sig": "xujwBYU+6NL2laWG6nDvVaaShkAYHSa5PzMzceSa9MopzaDrU7SWaYY5isvDxVB6ruZqlACAEufZs/FQl/xGBA==",
+        "chain": "26be39575f2368f01041645b6e93d8033471282da24aaf4c2272e96d18403d9f",
+        "content": "919002e2e70b5cbe"
       }
     ],
     "GrantWhenNoOverlap": [
@@ -392,6 +405,20 @@
         "sig": "f3txcoLfZlDh6YW1CmGFaiQ6sxC9XoggXMYyHqPKj1s8mYSH/SMSns4dVV6mrYpeJtPb2uKNVOc3vEVcx9VPDA==",
         "chain": "24db9a3753d358da1a0506b1e335653575e80888adc3c20c57aba0537d3763cc",
         "content": "c9a094f6d7898477"
+      },
+      {
+        "action": "confirm",
+        "by": "demo-developer",
+        "at": "2026-10-26T17:33:47.141868Z",
+        "reason": "still holds after NeverDoubleBooked changed: The same root, written with the bookings held before and after named once and its three promises in the order the sentence gives them.",
+        "rejected": [],
+        "after": "566fd66f0e7e4999",
+        "code": "852e97d68e4ec8f2936f1c9c1bd13fe4cc2830eb6ff7b185d12fbceca3c28708",
+        "commit": "872252a4bd51b0cd0e9541b264a15985336e1a16",
+        "key": "b6e216cfdf46a202",
+        "sig": "GYExw2gXCwS5uodKEgwK6GBPMxyuAqs/H42+IEUwNLTbiDAoIj+kB9wDq3wrwzfGYutF8x0U/hp87CNHjag4Bg==",
+        "chain": "384f4bbc6d0e7d0be36dc7a9be7cadedb5839c385d6a343e9a6d625b826bc9f3",
+        "content": "c9a094f6d7898477"
       }
     ],
     "NeverDoubleBooked": [
@@ -407,6 +434,20 @@
         "sig": "1vwUtXpn6g/dnm62n95LHFH8TqZYxUJxgzdII5ugw5AwL23bEwfx9p4wBXCy30XSIoEm8dDfbFEvq5hGsn0KBw==",
         "chain": "",
         "content": "a5d05b23df05991d"
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T17:33:47.141868Z",
+        "reason": "The same root, written with the bookings held before and after named once and its three promises in the order the sentence gives them.",
+        "rejected": [],
+        "after": "54f6dc8437edb757",
+        "code": "d35f6f6c64304cc69a31f45a0fb56df6a6dfd6f8e85a61612b08560e1d7f8b62",
+        "commit": "872252a4bd51b0cd0e9541b264a15985336e1a16",
+        "key": "b6e216cfdf46a202",
+        "sig": "tVYYqVcceNOCCRTYpmKB2oNSw8P0n5ViqQSotoNZ177mcGOtEvQ1JANUfe60zj4yQ/TOl55GHdtqfskKthzBCA==",
+        "chain": "",
+        "content": "a583c73cf76ffdd9"
       }
     ],
     "StoreKeepsBookings": [
@@ -435,6 +476,20 @@
         "key": "b6e216cfdf46a202",
         "sig": "Xie+grzi0egjHrd8mKKauK8y0+tJqeaC+8W3RtsZeDNpjtUSO3iOdvzxVU/0Llroif7j5ZziV6UtPWfRWTqkBg==",
         "chain": "9f2281fa5f8cac4a87fe71d022e69469e192aceb892b1806aeabef2fef263214",
+        "content": "93603d9b1575dc05"
+      },
+      {
+        "action": "confirm",
+        "by": "demo-developer",
+        "at": "2026-10-26T17:33:47.141868Z",
+        "reason": "still holds after NeverDoubleBooked changed: The same root, written with the bookings held before and after named once and its three promises in the order the sentence gives them.",
+        "rejected": [],
+        "after": "7250e062f80ba1e0",
+        "code": "d272da1ce4eea351c0a92c2f63f427d14c735d49496b830ad0ab4e3d03b5e643",
+        "commit": "872252a4bd51b0cd0e9541b264a15985336e1a16",
+        "key": "b6e216cfdf46a202",
+        "sig": "KwpE9b+WjEKMOQFCjCZ22lqnu/Ku/kxSjTxuiG+/Waf93HwVGUgCRqLJkARu/9SJSN9t+fQNHGjfJ2FWMlwcAQ==",
+        "chain": "26be39575f2368f01041645b6e93d8033471282da24aaf4c2272e96d18403d9f",
         "content": "93603d9b1575dc05"
       }
     ]
@@ -466,6 +521,7 @@
     "9036a919d316ea40": {"kind":"304aeb6aeb928120","parents":["e72512f596f0fa39"],"parts":[],"statement":"bc04883931e3f63f","why":"12ae32cb1ec02d01","sources":"997ff685556dc042","substitutions":[],"examples":["4f8683a7f95951ed","9d55af25df311d97"],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","d72fcda1215e0dd8","b19152feb947df4a","444005fd2a425d98"],"governs":[],"definition":"a02d0236214103ce","op":"7804505e6feac9b3","implementation":"e8127d1d5945658b"},
     "c9a094f6d7898477": {"kind":"304aeb6aeb928120","parents":["e72512f596f0fa39"],"parts":[],"statement":"bc04883931e3f63f","why":"12ae32cb1ec02d01","sources":"4d7931778ceebbe1","substitutions":[],"examples":["4f8683a7f95951ed","9d55af25df311d97"],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","15f471c9f04720cf","b19152feb947df4a","444005fd2a425d98"],"governs":[],"definition":"316b96b9c278d20a","op":"7804505e6feac9b3","implementation":"e8127d1d5945658b"},
     "a5d05b23df05991d": {"kind":"304aeb6aeb928120","parents":[],"parts":["e72512f596f0fa39"],"statement":"be6fd385fc37b7f8","why":"12ae32cb1ec02d01","sources":"e514a993774a18fa","substitutions":[],"examples":[],"vocabulary":["baba82b9a73e1053"],"uses":["a47ee2f71b1ac7c0","15f471c9f04720cf","b19152feb947df4a","ee1da66ec0c05500","df67d584972a5787"],"governs":[],"definition":"07e9e460167375e0","op":"f10eb448275d33b2","implementation":"54b0cd7bf6d961df","idea":"12ae32cb1ec02d01","notModelled":"12ae32cb1ec02d01"},
+    "a583c73cf76ffdd9": {"kind":"304aeb6aeb928120","parents":[],"parts":["e72512f596f0fa39"],"statement":"be6fd385fc37b7f8","why":"12ae32cb1ec02d01","sources":"a3bf636445cfeb14","substitutions":[],"examples":[],"vocabulary":["baba82b9a73e1053"],"uses":["a47ee2f71b1ac7c0","15f471c9f04720cf","b19152feb947df4a","ee1da66ec0c05500","df67d584972a5787"],"governs":[],"definition":"0956b3f3b7320a0e","op":"f10eb448275d33b2","implementation":"54b0cd7bf6d961df","idea":"12ae32cb1ec02d01","notModelled":"12ae32cb1ec02d01"},
     "db909405faf736e3": {"kind":"8eb6bddfbc96acaa","parents":[],"statement":"0ba0735fdca28ed2","why":"4a72dc52dd476cad","sources":"44136fa355b3678a","substitutions":[],"examples":[],"vocabulary":[],"uses":[],"governs":[],"definition":"f5e68303703e5dd0","model":["e841ad4d58d36012","83f5246eebd4b97d"],"implementations":["48d9ef896211511f"]},
     "93603d9b1575dc05": {"kind":"8eb6bddfbc96acaa","parents":["d5cc8f27a2e5a71e"],"statement":"0ba0735fdca28ed2","why":"4a72dc52dd476cad","sources":"44136fa355b3678a","substitutions":[],"examples":[],"vocabulary":[],"uses":[],"governs":[],"definition":"cbabaaaf3e6cd7d8","model":["e841ad4d58d36012","83f5246eebd4b97d"],"implementations":["48d9ef896211511f"]}
   },
@@ -558,6 +614,8 @@
     "be6fd385fc37b7f8": "A room is never double-booked, and a request is booked exactly when its room is free for its whole time.",
     "e514a993774a18fa": {"post":"(request, booked, before, after) =>\n  (allEndAfterStart(before(Stored), request) && before(Stored).pairwise(apart)) implies\n    (booked === before(Stored).forall(b => apart(b, request)) &&\n      after(Stored) === booked.fold(before(Stored) ++ List(request), before(Stored)) &&\n      after(Stored).pairwise(apart))"},
     "07e9e460167375e0": "val neverDoubleBooked = Node.contract(book)(\n  \"A room is never double-booked, and a request is booked exactly when its room is free for its whole time.\")(\n  (request, booked, before, after) =>\n    (allEndAfterStart(before(Stored), request) && before(Stored).pairwise(apart)) implies\n      (booked === before(Stored).forall(b => apart(b, request)) &&\n        after(Stored) === booked.fold(before(Stored) ++ List(request), before(Stored)) &&\n        after(Stored).pairwise(apart)))",
+    "a3bf636445cfeb14": {"post":"(request: Term[Booking], booked: Term[Boolean], before: Term[World], after: Term[World]) =>\n  val held = before(Stored)\n  val heldAfter = after(Stored)\n  (allEndAfterStart(held, request) && held.pairwise(apart)) implies\n    (heldAfter.pairwise(apart) &&\n      booked === held.forall(b => apart(b, request)) &&\n      heldAfter === booked.fold(held ++ List(request), held))"},
+    "0956b3f3b7320a0e": "val neverDoubleBooked = Node.contract(book)(\n  \"A room is never double-booked, and a request is booked exactly when its room is free for its whole time.\")(\n  (request: Term[Booking], booked: Term[Boolean], before: Term[World], after: Term[World]) =>\n    val held = before(Stored)\n    val heldAfter = after(Stored)\n    (allEndAfterStart(held, request) && held.pairwise(apart)) implies\n      (heldAfter.pairwise(apart) &&\n        booked === held.forall(b => apart(b, request)) &&\n        heldAfter === booked.fold(held ++ List(request), held)))",
     "8eb6bddfbc96acaa": "assumption",
     "0ba0735fdca28ed2": "The store gives the bookings of a room in the order they were added, and adds a booking.",
     "4a72dc52dd476cad": "Booking is proven from this model, not from the SQL; SqliteBookings is checked against it on generated runs.",
