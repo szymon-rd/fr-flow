@@ -59,7 +59,7 @@ On a terminal the output has colors and Unicode and fits the terminal's width:
 formulas, diffs and decisions wrap, other lines are cut (`show --full` shows them
 whole). `--plain`, `NO_COLOR` or `TERM=dumb` turn this off. Off a terminal (CI,
 agents, a pipe) the output is plain ASCII and no line is cut. `--json` on
-`tree`, `show`, `inbox`, `status` and `check` prints the typed value.
+`tree`, `show`, `inbox`, `status` and `check` prints the result as JSON.
 
 Exit codes: 0 fine; 1 not complete, or a decision refused; 2 a usage error
 (an unknown node too); 3 no Lean.
@@ -96,10 +96,10 @@ terms); definitions bring in the domain as it is needed.
 
 ### Writing formulas and code
 
-Formulas and proven code are written with terms: a `Term[A]` is a value of
-type `A` as FrFlow sees it. It prints as Lean for the proofs and compiles to
-Scala for the examples and the checks at run time. There is no macro: what you
-can write is what the library offers, and anything else is a type error.
+Formulas and proven code are written with terms: a `Term[A]` is an expression
+of type `A`. It prints as Lean for the proofs and compiles to Scala for the
+examples and the checks at run time. What you can write is what the library
+offers; anything else is a type error.
 
 ```scala
 final case class Claims(realm: RealmId, user: String, roles: List[String])
@@ -165,8 +165,8 @@ operations it calls (a call it does not name fails the test):
 
 - **The property is the contract's formula.** The same term tree Lean reads is
   run in Scala on each case's inputs and the code's result, with the contract's
-  `checkedBy` check and the invariants it keeps. A hand-written property cannot
-  drift from the decided one, because there is none.
+  `checkedBy` check and the invariants it keeps. No property is written by
+  hand.
 - **The cases come from the types.** Generators are derived from each type:
   case classes and enums by their fields and cases, lists, options, maps, sets,
   numbers (biased to 0, ±1 and the examples' numbers), opaque terms through the
@@ -204,10 +204,10 @@ one row per key), give a generator for the type:
     .describedAs("stores with one row per key, as the tables hold them"))   // examples/crm
 ```
 
-A given generator is typed, so its values are of the type. FrFlow says what it
-makes beside the results, keeps the examples' values it never makes as seeds,
-and keeps the derived generator making a quarter of the type's values, so a
-narrow generator never hides the rest. For an outside system's code, a given
+FrFlow says what a given generator makes beside the results, keeps the
+examples' values it never makes as seeds, and keeps the derived generator
+making a quarter of the type's values, so a narrow generator never hides the
+rest. For an outside system's code, a given
 generator is all the type is drawn from: data the outside cannot hold is no
 finding.
 
@@ -349,7 +349,7 @@ against the outside is written as a flow (next section).
 
 ### Effectful code: flows over boundaries
 
-A **boundary** is a plain trait of operations that take terms and return
+A **boundary** is a trait of operations that take terms and return
 flows: what proven code calls but cannot see. Its behaviour is a **state
 model**, another implementation of the same trait over a state, which you
 decide as an assumption. A **flow** is code over boundaries, written as Cats
@@ -630,11 +630,11 @@ One sbt subproject each, under `modules/`:
   (`decision`), what checks record (`obligation`), the snapshot (`snapshot`).
 - `model` (package `frflow`): nodes and knowledge bases; `Opaque`, `Param`,
   `define`; terms, their Lean and their evaluation; flows, boundaries and
-  state models; examples, probes, `service`, `run`. One type to a file, in a
-  package per concept (`term`, `types`, `vocabulary`, `node`, `kb`, `flow`,
-  `boundary`, `runtime`, `example`, `testing`, `program`); the trees and steps
-  a model is made into, their Lean and their Scala, are in `frflow` itself. A
-  model imports `frflow.*` alone: `frflow` re-exports what it writes.
+  state models; examples, probes, `service`, `run`. A package per concept
+  (`term`, `types`, `vocabulary`, `node`, `kb`, `flow`, `boundary`, `runtime`,
+  `example`, `testing`, `program`); the trees and steps a model is made into,
+  their Lean and their Scala, are in `frflow` itself. A model needs only
+  `import frflow.*`.
 - `lean` (package `frflow.lean`): the Lean of a knowledge base; `printing`, its
   modules and proof files; `obligation`, what Lean is asked of each node and the
   examples it evaluates; `reading`, reading Lean's output and proof files.
@@ -644,7 +644,7 @@ One sbt subproject each, under `modules/`:
 - `check` (package `frflow.check`): the workspace and what the checker reads;
   `analysis`, the contents, the hashes and the snapshot; `proving`, render,
   check and scaffold; `process`, running `lake` and git.
-- `api`: `FrFlowApi`, the typed operations a front end calls; a node's details and diff in `frflow.api.details`, what
+- `api`: `FrFlowApi`, the operations a front end calls; a node's details and diff in `frflow.api.details`, what
   the reads and operations return in `frflow.api.report` (both re-exported from `frflow.api`).
 - `cli`: the command line over the API; the commands and their dispatch in `frflow.cli.command`, the views as text in
   `frflow.cli.text`.

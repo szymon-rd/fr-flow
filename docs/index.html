@@ -126,7 +126,7 @@ software is for. The agent writes the code and a tree of small statements that e
 statements fit together and that the code meets them. You decide every statement, and you see it again when it changes.</p>
 <p>FrFlow is written in Scala 3 and uses Lean 4. This page has four kinds of section, marked next to each heading:
 a <strong>tutorial</strong> to learn it, <strong>how-to guides</strong> for tasks, the <strong>reference</strong>,
-and <strong>explanations</strong> of why it works as it does. For the short pitch, read the
+and <strong>explanations</strong> of why it works as it does. For an overview, read the
 <a href="../README.md">README</a>.</p>
 <p>FrFlow is in two layers. <strong>FrFlow (core)</strong>, every section up to <a href="#agent">With an AI
 agent</a>, is the method and its tools: the DAG, the proofs, the decisions, the CLI and the web view, which a developer
@@ -486,7 +486,7 @@ that takes several steps against the outside (load, store, log) is a flow over a
 <h2 id="reference">Reference <span class="kind">Reference</span></h2>
 
 <h3 id="ref-terms">Terms</h3>
-<p>Formulas and defines are written with <code>Term[A]</code>: a value of the domain as FrFlow sees it, a tree that
+<p>Formulas and defines are written with <code>Term[A]</code>: an expression of type <code>A</code>, a tree that
 prints as Lean and runs as Scala. A lambda over terms annotates its parameters
 (<code>(s: Term[CrmStore]) =&gt; …</code>); a contract's post gets them from the operation's type.</p>
 <table>
@@ -647,7 +647,7 @@ Subcommands:
 <ul>
   <li><code>--as NAME</code> names who decides (default: <code>FRFLOW_AS</code>, or the name the key is filed under).</li>
   <li><code>--json</code> on <code>tree</code>, <code>show</code>, <code>inbox</code>, <code>status</code> and
-  <code>check</code> prints the typed value.</li>
+  <code>check</code> prints the result as JSON.</li>
   <li>On a terminal the output has colors and fits its width; <code>--plain</code>, <code>NO_COLOR</code>,
   <code>TERM=dumb</code> or a pipe give plain ASCII with no line cut.</li>
   <li>Exit codes: 0 fine; 1 not complete, or a decision refused; 2 a usage error; 3 no Lean.</li>
@@ -699,7 +699,7 @@ the web view keep them apart.</p>
 </tbody>
 </table>
 <p>Lean proves everything above tested and assumed code from the contract or the model alone, and <code>root_impl</code>
-names what it rests on. The tests are built from what you decided, so they cannot drift from it:</p>
+names what it rests on. The tests are built from what you decided:</p>
 <ul>
   <li><b>The property is the contract's formula.</b> The term tree Lean reads is evaluated in Scala on each case's
   inputs and the code's result, with the contract's check and the invariants it keeps. No property is written by hand.</li>
@@ -711,7 +711,7 @@ names what it rests on. The tests are built from what you decided, so they canno
   without reaching the contract.</li>
   <li><b>Failures are shrunk</b> to their smallest, kept in <code>.frflow/counterexamples.json</code> and tried first on
   every later run.</li>
-  <li><b>Generators you give</b> (<code>.generating(…)</code>) are typed, described beside the results, and share the
+  <li><b>Generators you give</b> (<code>.generating(…)</code>) are described beside the results, and share the
   cases with the derived ones; the examples' values they never make stay seeds. For an outside system's types, they
   say what the outside can hold, and are all those values are drawn from.</li>
 </ul>
@@ -743,7 +743,7 @@ reviewed. A single call whose result is checked can stay an assumption on an ope
   <li><strong><code>Flow[A]</code></strong> is FrFlow's monad, written with <code>for</code>, <code>&lt;-</code> and
   <code>yield</code>. It is printed as a Lean <code>do</code> block over any monad with the boundaries' operations,
   and runs in any <code>cats.effect.Sync</code>.</li>
-  <li><strong>A boundary</strong> is a plain trait whose operations take terms and return flows: what proven code
+  <li><strong>A boundary</strong> is a trait whose operations take terms and return flows: what proven code
   calls but cannot see. The model names one value for it, <code>Boundary[T]</code>.</li>
   <li><strong>A state model</strong> says what a boundary does: another implementation of the same trait, over a
   state, written with <code>state.get</code>, <code>state.set</code> and <code>state.update</code>. You decide it as an
@@ -801,8 +801,8 @@ assumed</a>). An implementation builds its operations with <code>Flow.effect</co
 
 
 <h3 id="effects-flow">A flow and its contract</h3>
-<p>The flow is a plain <code>def</code>. It calls the operation <code>expire</code> (SharesExpire's), so it is proven
-from that contract, not from its code.</p>
+<p>The flow calls the operation <code>expire</code> (SharesExpire's), so it is proven from that contract, not
+from its code.</p>
 <div class="code"><span class="label"><code>examples/crm/…/Job.scala</code></span><pre><code>def expireOnce(now: Term[BigInt]): Flow[CrmStore] =
   for
     s &lt;- db.load
@@ -894,8 +894,8 @@ for review, with the cause:</p>
 </table>
 <p>Rewording a statement whose formula is unchanged reviews only that node; a change of formula reviews what rests
 on it. A node under review whose own content did not change and that Lean proves again is <em>mechanical</em>:
-<code>confirm</code> accepts all of them in one decision. Each decision is signed with your key, which is kept
-outside the repository, where neither a script nor an agent editing it can sign as you.</p>
+<code>confirm</code> accepts all of them in one decision. Your key is kept outside the repository, where neither a
+script nor an agent editing it can sign as you.</p>
 </section>
 
 <section aria-labelledby="trusted">
@@ -939,7 +939,7 @@ a view) and a <code>WebExtension</code> (its routes, and a script that hooks int
   <li>Run <code>sbt "frflowInitAgent library"</code>, then <code>sbt reload</code>: as <code>frflowInit</code>, with the
   agent layer enabled.</li>
   <li>Tell the agent your idea in chat, in your own words. It records them (<code>said</code>).</li>
-  <li>Answer its questions. It asks three to five at a time, each with the answer it assumes, so you can just agree
+  <li>Answer its questions. It asks three to five at a time, each with the answer it assumes, so you can agree
   or correct it. It records each question (<code>asked</code>, numbered <code>Q1</code>, <code>Q2</code>, …) and your
   answer (<code>replied</code>). <code>bin/frflow library conversation</code> shows what is recorded; <code>inbox</code>
   lists the questions not answered yet.</li>

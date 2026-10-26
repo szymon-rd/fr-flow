@@ -39,9 +39,9 @@ change that needs to depart from it says so in its commit message and in this fi
   as (§1a).
 
 Formulas and code are terms (`Term[A]`): a tree that prints as Lean and compiles to Scala, built by
-calling the Scala lambda once on variables. There is no macro; the library's operations are the
-language (`===`, `&&`, `forall`, `.on[Case]`, the folds `c.fold(a, b)` and `o.fold(z)(x => ...)`,
-list, option, map and set operations), and anything else is a type error. Case classes and enums built from terms have
+calling the Scala lambda once on variables. The library's operations are the language (`===`,
+`&&`, `forall`, `.on[Case]`, the folds `c.fold(a, b)` and `o.fold(z)(x => ...)`, list, option, map
+and set operations); anything else is a type error. Case classes and enums built from terms have
 `object X extends Data[X]` as companion. Their Lean types are derived (structures and inductive
 types); a define's and a lambda's variable names are read from the lambda.
 
@@ -106,13 +106,13 @@ result is what Lean proves), or what the developer decided (`checkedAtRunTime`: 
 the values the code runs with are checked whatever the choice. A failed check is reported (`Violation`,
 to the knowledge base's reporter: a log line by default) before `ContractViolation` is thrown.
 
-Tests are built from what is decided, so they cannot drift from it:
+Tests are built from what is decided:
 - **the property** is the contract's own formula (with its `checkedBy` check and kept invariants),
   evaluated on each case; for a boundary, the model run beside the implementation, results and states
   (read back) compared after every call;
 - **the cases** come from generators derived from the types, the world included (the parameters the
   contract reads), seeded with the examples' values; generators given with `.generating(gen)` are
-  typed, described, checked against the examples (their values they never make stay seeds), and share
+  described, checked against the examples (their values they never make stay seeds), and share
   the cases with the derived ones (for an outside system's types, they are all there is);
 - **coverage** is of the formula (each premise, disjunct, branch and match case) and of the model
   (each operation called, each branch taken): a part no case reached is a finding;

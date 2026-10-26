@@ -35,7 +35,7 @@ never reads the agent's files.
 ## Formal refinement agentic flow
 
 1. You tell the agent your idea in chat. It asks what it needs to know, a few
-   questions at a time, each with the answer it assumes, so you can just agree
+   questions at a time, each with the answer it assumes, so you can agree
    or correct it. It records what you said and answered.
 2. The agent writes `IDEA.md` from the conversation, and you accept it: the
    purpose of the system, in prose, each section naming the answers it comes
@@ -59,8 +59,8 @@ How this addresses the two problems:
 - **The theory is written down.** Each node is one sentence with a `why`, and
   you decided it. A new developer, or a new agent session, can read from the
   repository why the system is the way it is.
-- **The links are proven.** You do not have to trust that a contract on one
-  endpoint really gives the property stated at the root. Lean checks each step.
+- **The links are proven.** Lean checks each step from a contract on one
+  endpoint up to the property stated at the root.
 - **Drift shows up for review.** A change to code, to a statement, or to a term
   that a decision rests on puts that node back in your queue, with the diff.
 
