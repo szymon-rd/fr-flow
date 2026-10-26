@@ -20,8 +20,8 @@ val apart = define { (a: Term[Booking], b: Term[Booking]) =>
 val grantWhenFree =
   Node.claim("A request is granted exactly when its room is free for its whole time.")(
     forall((held: Term[List[Booking]], request: Term[Booking]) =>
-      (wellFormed(held, request) && held.pairwise(apart)) implies
-        (granted(held, request) === held.forall(b => apart(b, request))))
+      wellFormed(held, request) && held.pairwise(apart) implies
+        granted(held, request) === held.forall(b => apart(b, request)))
   )
 
 // The contract, over start and end times.
@@ -31,8 +31,8 @@ val noOverlap = define { (a: Term[Booking], b: Term[Booking]) =>
 val grantWhenNoOverlap =
   Node.contract("A request is granted exactly when it overlaps no booking of its room.")(
     forall((held: Term[List[Booking]], request: Term[Booking]) =>
-      (wellFormed(held, request) && held.pairwise(noOverlap)) implies
-        (granted(held, request) === held.forall(b => noOverlap(b, request))))
+      wellFormed(held, request) && held.pairwise(noOverlap) implies
+        granted(held, request) === held.forall(b => noOverlap(b, request)))
   )
   .refines(grantWhenFree)
   .examples(

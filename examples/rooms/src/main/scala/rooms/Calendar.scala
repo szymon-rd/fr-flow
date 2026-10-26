@@ -2,7 +2,7 @@ package rooms
 
 final class Calendar(bookings: List[Booking]):
   private val startOrder: Ordering[Booking] = Ordering.by(_.start)
-  private val byRoom = bookings.sorted(using startOrder).toVector.groupBy(_.room)
+  private val byRoom = bookings.groupBy(_.room).map((room, bs) => room -> bs.sorted(using startOrder).toVector)
 
   /** Only the bookings just before and just after the request's start can overlap it. */
   def granted(request: Booking): Boolean =
