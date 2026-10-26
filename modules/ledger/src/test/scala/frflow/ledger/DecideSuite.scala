@@ -123,3 +123,28 @@ class DecideSuite extends munit.FunSuite:
     assertEquals(Within(id("A"), NoReason).message, "A: give the reason for the decision in a few words: it is kept as part of the theory")
   }
 
+  test("the trusted keys: each name's as committed; a rewritten file is not trusted; a new name's as filed") {
+    val (dev, agent) = (Keys.generate().public, Keys.generate().public)
+    val outside = TrustedKeys.of(List("dev" -> dev), None)
+    assertEquals(outside.byName.keySet, Set("dev"))
+    val rewritten = TrustedKeys.of(List("dev" -> agent), Some(List("dev" -> dev)))
+    assertEquals((rewritten.byId.keySet, rewritten.changed), (Set(Keys.id(dev)), List("dev")))
+    val newName = TrustedKeys.of(List("dev" -> dev, "agent" -> agent), Some(List("dev" -> dev)))
+    assertEquals((newName.byId.size, newName.uncommitted), (2, List("agent")))
+    assert(newName.warnings.exists(_.startsWith(".frflow/keys/agent.pub is not committed yet")), newName.warnings)
+    // refused: another key under the name, as committed or as filed; the key under another name
+    assertEquals(rewritten.refusal("dev", agent, List("dev" -> agent)), Some(OtherKey("dev")))
+    assertEquals(outside.refusal("dev", agent, List("dev" -> dev)), Some(OtherKey("dev")))
+    assertEquals(newName.refusal("dev", agent, Nil), Some(OtherKey("dev")))
+    assertEquals(newName.refusal("ann", agent, Nil), Some(KeyFiledAs("agent", "ann")))
+    assertEquals(newName.refusal("dev", dev, Nil), None)
+    assertEquals(TrustedKeys.of(Nil, Some(Nil)).refusal("newcomer", agent, Nil), None)
+  }
+
+  test("a decision counts by the key of the name it is made under") {
+    val k = Keys.generate()
+    val signed = Signing.sign(k, id("R"), Decision(Action.Accept, "dev", stamp(1).at, "as said"))
+    val l = Ledger.empty.add(id("R"), signed)
+    assertEquals(Signing.unsigned(l, Map(k.id -> k.public), Map(k.id -> "dev")), Nil)
+    assertEquals(Signing.unsigned(l, Map(k.id -> k.public), Map(k.id -> "agent")).map(_._1), List(id("R")))
+  }

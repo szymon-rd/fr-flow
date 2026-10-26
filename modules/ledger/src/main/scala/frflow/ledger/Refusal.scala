@@ -28,6 +28,12 @@ enum Refusal(val message: String):
   case NoIdea extends Refusal("there is no IDEA.md yet: write the purpose of the system in it first")
   /** No name to decide under: none given, and the developer's key is filed under none. */
   case NoDeveloper extends Refusal("say who decides: the name your key's public half is filed under (.frflow/keys/NAME.pub)")
+  /** A key other than the one filed under the name: FrFlow never replaces a filed key. */
+  case OtherKey(name: String) extends Refusal(s"$name's key in .frflow/keys is a different key: decisions as $name are signed " +
+    s"with that key only; a new key is filed only after the developer removes .frflow/keys/$name.pub in a commit of their own")
+  /** The key is filed under another name: a decision counts by the key of the name it is made under. */
+  case KeyFiledAs(filed: String, name: String)
+      extends Refusal(s"this key is filed as $filed (.frflow/keys/$filed.pub): decide as $filed, not as $name")
   /** One decision of several refused: none is recorded. */
   case Within(node: NodeId, refusal: Refusal)
       extends Refusal(if refusal.message.startsWith(s"$node: ") then refusal.message else s"$node: ${refusal.message}")

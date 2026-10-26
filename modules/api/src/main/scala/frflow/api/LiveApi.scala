@@ -33,14 +33,16 @@ final class LiveApi private (kb: KnowledgeBase, ws: Workspace, cfg: Config, lake
   def decide(d: Decide, by: Developer): IO[Either[Refusal, Decided]] =
     for
       key <- keys.developer
+      (trusted, filed) <- Keyring.read(ws)
       a <- analysis
       st <- (IO.realTimeInstant, git.head).parMapN(Stamp(_, _))
-      out <- ledger.update { before =>
+      // Another key under the name, or this key under another name: refused before anything is written.
+      out <- trusted.refusal(by.name, key.public, filed).fold(ledger.update { before =>
         Decide(a.snapshot, before, d, by.name, st).map { after =>
           val signed = Signing.signNew(before, after, key)
           signed -> Decided.of(a.snapshot, before, signed)
         }
-      }
+      })(r => IO.pure(Left(r)))
       _ <- out.traverse_(_ => keys.publish(key.public, by.name))
     yield out
 

@@ -1,6 +1,7 @@
 package frflow.api
 
 import cats.effect.{IO, Resource}
+import cats.syntax.all.*
 import frflow.check.Workspace
 import frflow.fixtures.shelfKb
 import frflow.ledger.{JsonStore, KeyStore, Signing}
@@ -114,4 +115,54 @@ class LiveApiSuite extends munit.CatsEffectSuite:
       assertEquals((r.state, r.review.waitsFor), (ReviewState.Proposed, None))
       assertEquals(changed.annotated.idea.map(_.state), Some(ReviewState.Review))
       assertEquals(changed.node(NodeId("ToyRoot")).flatMap(_.review.waitsFor), Some(IdeaReview.Id))
+  }
+
+  // The developer's key, and another key: what an agent with a key of its own signs with.
+  private def other(d: Path, env: (String, String)*) =
+    LiveApi(shelfKb, Workspace(project(d), "../lean"), Map("FRFLOW_KEY" -> d.resolve("other.key").toString) ++ env)
+  private def keyFile(d: Path) = project(d).resolve(".frflow/keys/demo.pub")
+
+  dir.test("a key other than the one filed under a name is refused before anything is written; a filed key is never replaced") { d =>
+    for
+      live <- api(d)
+      _ <- live.decide(Decide.Accept(List(NodeId("Books")), "books are what the shelf holds"), dev)
+      filed <- IO.blocking(Files.readString(keyFile(d)))
+      before <- ledger(d)
+      agent <- other(d)
+      asDev <- agent.decide(Decide.Accept(List(NodeId("OnlyGood")), "the agent accepting its own change"), dev)
+      after <- ledger(d)
+      still <- IO.blocking(Files.readString(keyFile(d)))
+      // the developer's key under another name: a decision counts by the key of the name it is made under
+      asAnn <- live.decide(Decide.Accept(List(NodeId("OnlyGood")), "the developer under another name"), Developer("ann"))
+    yield
+      assertEquals(asDev, Left(frflow.ledger.Refusal.OtherKey("demo")))
+      assert(asDev.left.exists(_.message.startsWith("demo's key in .frflow/keys is a different key")), asDev)
+      assertEquals((after, still), (before, filed))
+      assertEquals(asAnn, Left(frflow.ledger.Refusal.KeyFiledAs("demo", "ann")))
+  }
+
+  dir.test("keys count as committed: a key file rewritten in the working tree makes no decision verify, and is warned of") { d =>
+    def git(args: String*) = IO.blocking {
+      val p = new ProcessBuilder(("git" +: args)*).directory(d.toFile).redirectErrorStream(true).start()
+      p.getInputStream.readAllBytes(); p.waitFor()
+    }
+    for
+      live <- api(d)
+      _ <- live.decide(Decide.Accept(List(NodeId("Books")), "books are what the shelf holds"), dev)
+      codes <- List(List("init", "-q"), List("config", "user.email", "t@example.com"), List("config", "user.name", "t"),
+        List("add", "-A"), List("commit", "-q", "-m", "the developer's key and decision")).traverse(a => git(a*))
+      _ = assertEquals(codes, List(0, 0, 0, 0, 0))
+      committed <- frflow.check.Git.at(project(d)).committed(".frflow/keys")
+      _ = assertEquals(committed.map(_.map(_._1)), Some(List(".frflow/keys/demo.pub")))
+      // an agent's key, written over the developer's filed key, and a decision it signs as them
+      forger <- IO(frflow.ledger.Keys.generate())
+      _ <- IO.blocking(Files.writeString(keyFile(d), frflow.ledger.Keys.encodePublic(forger.public)))
+      l <- ledger(d)
+      forged = l.add(NodeId("OnlyGood"), Signing.sign(forger, NodeId("OnlyGood"),
+        Decision(Action.Accept, "demo", java.time.Instant.EPOCH, "forged as the developer")))
+      _ <- JsonStore.ledger(project(d).resolve(".frflow/ledger.json")).flatMap(_.update[String, Unit](_ => Right((forged, ()))))
+      v <- live.view
+    yield
+      assertEquals(v.unsigned.map(_._1), List(NodeId("OnlyGood")))
+      assert(v.warnings.exists(_.startsWith(".frflow/keys/demo.pub differs from the committed key")), v.warnings)
   }

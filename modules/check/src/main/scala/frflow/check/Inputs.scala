@@ -16,19 +16,20 @@ import java.time.Instant
 final case class Inputs(idea: String, ledger: Ledger, checks: Map[NodeId, NodeCheck], proofs: Map[String, String],
     texts: Map[String, String], code: Map[String, CodeRef], missing: Set[String], sources: Map[Path, String],
     keys: Map[KeyId, PublicKey], now: Instant, tests: Map[NodeId, Recorded] = Map.empty,
-    counterexamples: Map[NodeId, List[Counterexample]] = Map.empty)
+    counterexamples: Map[NodeId, List[Counterexample]] = Map.empty, keyNames: Map[KeyId, String] = Map.empty,
+    keyWarnings: List[String] = Nil)
 
 object Inputs:
   val empty: Inputs = Inputs("", Ledger.empty, Map.empty, Map.empty, Map.empty, Map.empty, Set.empty, Map.empty, Map.empty, Instant.EPOCH)
 
   def read(kb: KnowledgeBase, ws: Workspace, cfg: Config, ledger: IO[Ledger]): IO[Inputs] =
-    (if kb.idea.isEmpty then IO.pure("") else Disk.read(ws.root.resolve(kb.idea)).map(_.getOrElse("")), ledger, KeyStore.projectKeys(ws.keysDir), checks(ws.checksFile),
+    (if kb.idea.isEmpty then IO.pure("") else Disk.read(ws.root.resolve(kb.idea)).map(_.getOrElse("")), ledger, Keyring.read(ws).map(_._1), checks(ws.checksFile),
       proofs(kb, ws), texts(kb, ws), code(kb, ws.root),
       kb.nodes.flatMap(_.governs).distinct.filterA(f => Disk.exists(ws.root.resolve(f)).map(!_)).map(_.toSet),
       projectSources(ws.root, cfg.sources).flatMap(_.traverse(p => Disk.read(p).map(p -> _.getOrElse("")))).map(_.toMap),
       IO.realTimeInstant, Tests.recorded(ws.testsFile), Tests.counterexamples(ws.counterexamplesFile)
     ).parMapN { case (idea, ledger, keys, checks, proofs, texts, code, missing, sources, now, tests, counterexamples) =>
-      Inputs(idea, ledger, checks, proofs, texts, code, missing, sources, keys, now, tests, counterexamples)
+      Inputs(idea, ledger, checks, proofs, texts, code, missing, sources, keys.byId, now, tests, counterexamples, keys.names, keys.warnings)
     }
 
   /** The recorded checks (`.frflow/checks.json`, not committed); none when missing, or written by another version. */

@@ -34,8 +34,11 @@ object Signing:
       }.getOrElse(false)
     }
 
-  def unsigned(l: Ledger, keys: Map[KeyId, PublicKey]): List[(NodeId, Decision)] =
-    l.decisions.toList.sortBy(_._1).flatMap((id, ds) => ds.filterNot(d => verify(keys, id, d)).map(id -> _))
+  def unsigned(l: Ledger, keys: Map[KeyId, PublicKey], names: Map[KeyId, String] = Map.empty): List[(NodeId, Decision)] =
+    l.decisions.toList.sortBy(_._1).flatMap((id, ds) => ds.filterNot(d => verify(keys, id, d) && byItsName(names, d)).map(id -> _))
+
+  /** Made under the name its key is filed under (when the names are known): a filed key signs only as its developer. */
+  def byItsName(names: Map[KeyId, String], d: Decision): Boolean = d.key.forall(k => names.get(k).forall(_ == d.by))
 
   /** Signs the decisions in `now` that `before` did not have: the developer's new ones. */
   def signNew(before: Ledger, now: Ledger, key: DeveloperKey): Ledger =

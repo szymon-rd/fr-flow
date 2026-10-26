@@ -34,12 +34,17 @@ final class KeyStore private (keyFile: Path, keysDir: Path):
       (read, KeyStore.filed(keysDir)).mapN((k, all) => all.collectFirst { case (name, pub) if Keys.id(pub) == k.id => name }),
       IO.pure(None))
 
-  /** Files the public key as `NAME.pub` (`ID.pub` with no name), unless it is there under any name. */
+  /** Files the public key as `NAME.pub` (`ID.pub` with no name), unless it is there under any name; a file there
+    * already is never replaced (`TrustedKeys.refusal` refuses a decision with another key before this).
+    */
   def publish(key: PublicKey, name: String): IO[Unit] =
     KeyStore.projectKeys(keysDir).flatMap { known =>
       val file = keysDir.resolve(s"${if name.trim.isEmpty then Keys.id(key).value else name.trim}.pub")
-      Store.write(file, Keys.encodePublic(key)).unlessA(known.contains(Keys.id(key)))
+      IO.blocking(Files.exists(file)).flatMap(there => Store.write(file, Keys.encodePublic(key)).unlessA(there || known.contains(Keys.id(key))))
     }
+
+  /** The keys as filed now, by name. */
+  def filed: IO[List[(String, PublicKey)]] = KeyStore.filed(keysDir)
 
 object KeyStore:
   /** `FRFLOW_KEY`, or `~/.config/frflow/signing.key`. */
@@ -51,7 +56,7 @@ object KeyStore:
   def projectKeys(keysDir: Path): IO[Map[KeyId, PublicKey]] = filed(keysDir).map(_.map((_, pub) => Keys.id(pub) -> pub).toMap)
 
   /** Every `.pub` in `keysDir` that reads: its name (the file's, without `.pub`), and the key. */
-  private def filed(keysDir: Path): IO[List[(String, PublicKey)]] =
+  def filed(keysDir: Path): IO[List[(String, PublicKey)]] =
     val pubs = Resource.fromAutoCloseable(IO.blocking(Files.list(keysDir)))
       .use(files => IO.blocking(files.iterator.asScala.toList.filter(_.toString.endsWith(".pub")).sortBy(_.toString)))
     IO.blocking(Files.isDirectory(keysDir)).ifM(pubs, IO.pure(Nil)).flatMap(_.traverseFilter(f =>

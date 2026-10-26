@@ -3,6 +3,7 @@ package check
 package process
 
 import cats.effect.{IO, Resource}
+import cats.syntax.all.*
 import java.nio.file.{Files, Path}
 import scala.concurrent.duration.*
 
@@ -16,6 +17,19 @@ final class Git private (dir: Path):
     }.handleError(_ => None)
 
   def head: IO[Option[String]] = run(Map.empty, "rev-parse", "HEAD").map(_.map(_.trim).filter(_.nonEmpty))
+
+  /** The files under `path` (relative to this directory) as committed at HEAD, with their text: None outside git, or
+    * before a first commit.
+    */
+  def committed(path: String): IO[Option[List[(String, String)]]] =
+    head.flatMap {
+      case None => IO.pure(None)
+      case Some(_) => run(Map.empty, "ls-tree", "-r", "--name-only", "HEAD", "--", path).flatMap {
+        case None      => IO.pure(None)
+        case Some(out) => out.linesIterator.map(_.trim).filter(_.nonEmpty).toList
+          .traverse(f => run(Map.empty, "show", s"HEAD:./$f").map(_.map(f -> _))).map(_.sequence)
+      }
+    }
 
   /** The working tree against a commit, on an index of its own holding the files as they are, so a file git does not track is
     * compared as it is, not shown as deleted; the repository's index and working tree are untouched.
