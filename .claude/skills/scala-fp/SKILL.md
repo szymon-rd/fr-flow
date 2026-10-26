@@ -115,15 +115,23 @@ The source tags are expanded in `references/sources.md`.
 
 ### Architecture: algebras, interpreters, programs, modules (A)
 
-- **A1 (H)** An effectful service or boundary is an algebra: `trait Ledger[F[_]]`,
-  `trait Git[F[_]]`, `trait Lake[F[_]]`, `trait FrFlowApi[F[_]]`. Its operations
-  take and return domain types in `F`. Keep it short and orthogonal. [Volpe, Ghosh, EffSc]
+- **A1 (H)** An effectful service or boundary is an algebra over `F[_]`
+  (`trait Ledger[F[_]]`) when there is a point in it: a second interpreter
+  exists or is wanted (in-memory, pure `State`, `TestControl`), a law suite
+  runs against it, or the programs using it gain from being limited to the
+  capabilities they declare. Candidates in FrFlow: the ledger, the clock, git,
+  Lake, the disk, the `FrFlowApi`, user flows. Otherwise use concrete `IO`: a
+  single-use launcher, HTTP server wiring, `main`. The pure core (nodes, terms,
+  IR, obligations, Lean printing) has no effect type at all. Operations take
+  and return domain types; keep the algebra short and orthogonal. Review
+  question: which second interpreter, which law, or which restriction does
+  this `F` serve? None is a finding. [Volpe, Ghosh, De Goes]
 - **A2 (H)** Interpreters are built by smart constructors: the live one as
   `make` in the algebra's companion, others (in-memory over a `Ref`) in their
   own files. A constructor returns `F[X[F]]`, or `Resource[F, X[F]]` when the
   interpreter holds something. Only interpreters require `Sync` or `Async`.
   [Volpe, CE]
-- **A3 (H)** A program is polymorphic in `F` and requires the least capability
+- **A3 (H)** A program written against algebras over `F` requires the least capability
   it uses: `Functor`, `Monad`, `MonadThrow`, `Parallel`, `Clock`, `Temporal`,
   `Concurrent`. A program never requires `Sync`, `Async` or `LiftIO`, because
   those let it capture any side effect. [Volpe, CE type classes, De Goes]
@@ -132,8 +140,8 @@ The source tags are expanded in `references/sources.md`.
   capability's companion. [Volpe]
 - **A5 (M)** Modules wire: `Services[F]`, `Programs[F]` and `Api[F]` are each
   built by one `make`, and the composition root in `IOApp` builds them in one
-  `Resource` and fixes `F = IO`. Concrete `IO` elsewhere needs a stated reason
-  in a comment. [Volpe, CE]
+  `Resource` and fixes `F = IO`. Concrete `IO` elsewhere only for the cases A1
+  lists. [Volpe, CE]
 - **A6 (M)** DSL encodings: use an initial encoding (an ADT and interpreters
   that fold it) for what FrFlow inspects, prints, hashes or rewrites, such as
   nodes and terms. Use a final (tagless) encoding where the program is only
@@ -364,7 +372,7 @@ The owner's direction decides the architecture rows. Details and reasons are in
 
 | Question | Sources | Rule here |
 |---|---|---|
-| Tagless final or concrete `IO` | Volpe, the cats-effect docs and the CE tutorial write algebras and programs over `F[_]`; De Goes says to use a concrete effect in applications; Odersky prefers direct style | Algebras over `F[_]` with separate interpreters for every service, boundary and effectful program. Programs take the least capability and never `Sync` or `Async`. `IO` only in `IOApp`, in wiring and in tests, or with a stated reason (A1 to A5) |
+| Tagless final or concrete `IO` | Volpe, the cats-effect docs and the CE tutorial write algebras and programs over `F[_]`; De Goes says to use a concrete effect in applications; Odersky prefers direct style | The owner: "don't use it everywhere, only when there is a point in that". `F[_]` where a second interpreter, a law suite or a capability restriction serves it (A1); concrete `IO` at the edges and for single-use plumbing; no effect type in the pure core. Programs over algebras take the least capability and never `Sync` or `Async` (A3) |
 | Direct style or monadic effects | Odersky, or Typelevel | Typelevel: cats-effect and fs2 throughout |
 | Where Odersky and Li Haoyi apply | Lean Scala and Strategic Scala Style cover both architecture and local style | Local clarity only: names, conciseness, least power inside a function. Not the architecture |
 | Initial or final encoding for the DSL | FPiS and Ghosh build both; tagless final is the Typelevel default for effects | Initial (ADT) for what FrFlow inspects, prints or hashes; final for programs that are only run (A6) |

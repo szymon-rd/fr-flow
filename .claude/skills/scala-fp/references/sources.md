@@ -214,6 +214,8 @@ No text from that project is copied verbatim.
 
 ### Tagless final or concrete `IO` (A1 to A5)
 
+The owner, after the Typelevel revision: "don't use it everywhere, only when there is a point in that". A1 now asks for `F[_]` only where a second interpreter, a law suite or a capability restriction serves it; concrete `IO` at the edges and for single-use plumbing.
+
 - Volpe builds the application in tagless final, with algebras over `F[_]`,
   interpreters built by `make`, programs with capability constraints, and `IO`
   only in `Main`. The cats-effect documentation and tutorial write polymorphic

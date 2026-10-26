@@ -158,7 +158,7 @@ finding under the rule given.
 20. Does each program require only the capabilities it uses, and never `Sync`,
     `Async` or `LiftIO`? (A3)
 21. Are algebras passed explicitly and capabilities as context bounds? (A4)
-22. Is `IO` fixed only in `IOApp`, wiring and tests, or with a stated reason?
+22. Does each `F[_]` serve a second interpreter, a law suite or a capability restriction (A1)? An `F` with none is a finding; so is concrete `IO` in a program that has such a reason. The pure core has no effect type.
     (A5)
 23. For a DSL concept: is the encoding initial where FrFlow inspects it and
     final where it is only run? (A6)
