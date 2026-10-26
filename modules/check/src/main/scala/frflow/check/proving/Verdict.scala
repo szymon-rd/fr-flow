@@ -26,7 +26,9 @@ object Verdict:
 
   private def failed(msg: String): Judged = Judged(CheckStatus.Failed, Nil, List(msg))
   private def proofPath(g: Generate, n: Node[?]) = s"lean/${g.layout.proofs(n.id).path}"
-  private def scaffold(g: Generate, n: Node[?]) = s"prove it in ${proofPath(g, n)} (run `scaffold ${n.id}`)"
+  // With a proof file, the proof in it is what to fix; without one, `scaffold` starts it.
+  private def scaffold(g: Generate, n: Node[?], proofFile: Boolean) =
+    if proofFile then s"fix the proof in ${proofPath(g, n)}" else s"prove it in ${proofPath(g, n)} (run `scaffold ${n.id}`)"
 
   /** Two definitions of a term it uses, neither chosen: what it says is not known yet. */
   def waiting(kb: KnowledgeBase, g: Generate, n: Node[?]): Option[Judged] =
@@ -87,6 +89,13 @@ object Verdict:
         case TheoremVerdict.Proven => Result(o, Open, "not checked: " + clip(e.run.output))
         case v => Result(o, Open, clip(v.why(name).getOrElse("")))
 
+  /** An authored `complete` that does not go through, in FrFlow's words first (`changed`: the nodes, among it and its
+    * parts, that changed since they were decided), then Lean's.
+    */
+  def brokenProof(n: Node[?], r: Result, changed: List[String]): Result =
+    val why = if changed.isEmpty then "does not go through" else s"no longer goes through: ${changed.mkString(" and ")} changed"
+    r.copy(detail = s"the proof of ${n.id} from its parts $why\nLean: ${r.detail}")
+
   /** Automation gave up on `complete`: what to do next, and the goal its first steps leave. */
   def gaveUp(g: Generate, n: Node[?], r: Result, state: Option[String]): Result =
     r.copy(detail = s"automation gave up: write theorem complete : Obl.complete in ${proofPath(g, n)} (run `scaffold ${n.id}`)\n" +
@@ -108,10 +117,11 @@ object Verdict:
       state.fold("Lean: " + quoted(run))(ProofState.text(Impl, _))), Some(Nil))
 
   /** The obligations judged: failed, open, or waiting for the parts (a node is proven with its parts). */
-  def obligations(g: Generate, n: Node[?], split: List[Result], results: List[Result], parts: List[(String, Option[CheckStatus])]): Option[Judged] =
+  def obligations(g: Generate, n: Node[?], split: List[Result], results: List[Result], parts: List[(String, Option[CheckStatus])],
+      proofFile: Boolean = false): Option[Judged] =
     val notYet = parts.filterNot(_._2.contains(CheckStatus.Proven))
     if results.exists(_.status == Failed) then Some(Judged(CheckStatus.Failed, results, Nil))
-    else if split.exists(_.status == Open) then Some(Judged(CheckStatus.Open, results, Nil, hint = Some(scaffold(g, n))))
+    else if split.exists(_.status == Open) then Some(Judged(CheckStatus.Open, results, Nil, hint = Some(scaffold(g, n, proofFile))))
     else Option.when(notYet.nonEmpty)(Judged(CheckStatus.Waiting, results, List(s"waiting for its parts: ${notYet.map(_._1).mkString(", ")}")))
 
   def theorems(results: List[Result], run: Run): Option[Judged] = run match

@@ -49,7 +49,7 @@ final class NodeChecker(a: Analysis, lake: Lake, prebuilt: Set[String]):
       split <- lift(complete(n))
       impl <- lift(implementation(n, proof))
       results = split ++ impl.map(_._1)
-      _ <- stop(Verdict.obligations(g, n, split, results, parts))
+      _ <- stop(Verdict.obligations(g, n, split, results, parts, a.proofOf(n).isDefined))
       _ <- lift(build(g.layout.theorems(n.id).name)).flatMap(r => stop(Verdict.theorems(results, r)))
       _ <- proofFile(n, proof, results)
       checks <- lift(generated(g.layout.checks(n.id).path))
@@ -77,9 +77,17 @@ final class NodeChecker(a: Analysis, lake: Lake, prebuilt: Set[String]):
         else generated(g.layout.auto(n.id).path).map(Verdict.judge(o.name, _, false))
       prebuilt.ifM(IO.pure(Result(o.name, ObligationStatus.Proven, "auto")),
         judged.flatMap { r =>
-          if authored || r.status != ObligationStatus.Open then IO.pure(r) else state(n, Complete).map(Verdict.gaveUp(g, n, r, _))
+          if r.status != ObligationStatus.Open then IO.pure(r)
+          else if authored then IO.pure(Verdict.brokenProof(n, r, changed(n)))
+          else state(n, Complete).map(Verdict.gaveUp(g, n, r, _))
         })
     }
+
+  // Among the node and its parts, those that changed since they were decided: what a proof that went through may
+  // no longer hold of.
+  private def changed(n: Node[?]): List[String] =
+    (n :: a.kb.parts(n)).map(_.id).filter(id => a.annotated.byId.get(NodeId(id)).exists(r =>
+      r.state == ReviewState.Review && r.review.causes.exists(c => c == Cause.Self || c == Cause.Above)))
 
   // Its code meets it, from what the contracts it calls promise: with the axioms its build rests on.
   private def implementation(n: Node[?], proof: String): IO[Option[(Result, Option[List[String]])]] =

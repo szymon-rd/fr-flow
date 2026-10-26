@@ -61,6 +61,7 @@ class ApiSuite extends munit.FunSuite:
     assert(!proven.copy(notProven = List(ObligationName.Impl)).ok)
     assert(!proven.copy(failing = List(FailingExample("expect", "fails"))).ok)
     assert(!proven.copy(idle = Some("admit doing nothing")).ok)
+    assert(!proven.copy(testFailure = Some(TestFailure("(\"t\", Path(\"/a\")) ⇒ None", "returned None", 1, 0, 1))).ok)
     assert(!CheckReport(List(proven, proven.copy(notProven = List(ObligationName.Impl))), v, Overview.of(v)).ok)
   }
 

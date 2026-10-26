@@ -17,6 +17,7 @@ object ReportText:
     s"$glyph ${st.bold(c.id.value)}: $status$notProven" ::
       (Option.when(c.failing.nonEmpty)(st.red(s"${c.failing.size} example(s) fail: the code or the contract is wrong; fix that, not the proof")).toList ++
         c.failing.take(5).map(f => s"  ${f.example}: ${f.verdict}") ++
+        c.testFailure.toList.flatMap(f => List(st.red(s"its code fails a generated case: ${f.shown}"), s"  ${f.why}")) ++
         c.problems.map(r => s"${r.name} ${r.status}: ${r.detail.linesIterator.mkString("\n    ")}") ++
         c.idle.map(i => st.red(s"! doing nothing meets it ($i): state what users can do, so it says exactly what the system does (status fails until then)")) ++
         (c.messages ++ c.hint).map(m => s"! ${m.linesIterator.mkString("\n    ")}")).map("  " + _)

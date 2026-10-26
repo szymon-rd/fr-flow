@@ -62,6 +62,18 @@ class CommandsSuite extends munit.CatsEffectSuite:
     }
   }
 
+  test("check: a contract whose code fails a generated case reads failed, with the case, shrunk") {
+    val failure = TestFailure("(\"t1\", Path(\"/b\")) ⇒ Some(UserId(\"alice\"))", "returned Some(UserId(\"alice\")), which Decide refuses", 1, 0, 1)
+    val failing = CheckedNode(NodeId("Decide"), CheckStatus.Proven, Nil, Nil, Nil, None, Nil, None, Some(failure))
+    FakeApi().flatMap(_.view).map { v =>
+      val text = ReportText.check(CheckReport(List(failing), v, Overview.of(v)), st)
+      assertEquals(text.take(3), List("x Decide: failed",
+        "  its code fails a generated case: (\"t1\", Path(\"/b\")) ⇒ Some(UserId(\"alice\"))",
+        "    returned Some(UserId(\"alice\")), which Decide refuses"))
+      assert(!CheckReport(List(failing), v, Overview.of(v)).ok)
+    }
+  }
+
   test("find: a path that names no file says so; one no node governs says that") {
     def find(q: String) = FakeApi().flatMap(api => api.view.flatMap(v => api.find(v, q).map(f => ReportText.found(f, v, st).mkString(" "))))
     (find("nope/Cache.scala"), find("src/main/scala/auth/Cache.scala")).mapN { (missing, ungoverned) =>

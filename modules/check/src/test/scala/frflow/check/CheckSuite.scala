@@ -133,6 +133,17 @@ class CheckSuite extends munit.FunSuite:
     val open = List(Result(ObligationName.Complete, ObligationStatus.Open, "x"))
     assertEquals(Verdict.obligations(g, onlyGood, open, open, Nil).flatMap(_.hint),
       Some("prove it in lean/Proofs/Shelf/OnlyGood.lean (run `scaffold OnlyGood`)"))
+    // with a proof file, the proof in it is what to fix: no scaffold
+    assertEquals(Verdict.obligations(g, onlyGood, open, open, Nil, proofFile = true).flatMap(_.hint),
+      Some("fix the proof in lean/Proofs/Shelf/OnlyGood.lean"))
+  }
+
+  test("an authored proof that does not go through says so in FrFlow's words first, naming what changed, then Lean's") {
+    val lean = Result(ObligationName.Complete, ObligationStatus.Open, "omega could not prove the goal")
+    assertEquals(Verdict.brokenProof(onlyGood, lean, List("FromList")).detail,
+      "the proof of OnlyGood from its parts no longer goes through: FromList changed\nLean: omega could not prove the goal")
+    assertEquals(Verdict.brokenProof(onlyGood, lean, Nil).detail,
+      "the proof of OnlyGood from its parts does not go through\nLean: omega could not prove the goal")
   }
 
   /** The node's Checks file as generated, and an output where Lean proves `holds` and the obligations, and none of the tries. */
