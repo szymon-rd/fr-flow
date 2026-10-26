@@ -33,7 +33,7 @@ final class StoreHttp(s: LibraryStore, val clock: Clock = SystemClock, val maile
     def send(n: frflow.Term[Notice]) = faults.get.apply(Notifications.mailer, mailer: Mailer).send(n)
   private val bound = Seq(LibraryStore.store.bind(store), Notifications.mailer.bind(mail), Clock.boundary.bind(clock))
   private val run = knowledge.run[IO](SharingHttp.handleContract)(bound*)
-  private val job = knowledge.run[IO](Housekeeping.jobContract)(bound*)
+  private val job = knowledge.run[IO](Housekeeping.housekeepingJob)(bound*)
   private val delivery = knowledge.run[IO](Notifications.deliveryJob)(bound*)
   /** The answer, or why the flow failed. */
   def attempt(request: Request): Either[Failure, Answer] = attemptIO(request).unsafeRunSync()

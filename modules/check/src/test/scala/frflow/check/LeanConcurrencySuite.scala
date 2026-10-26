@@ -20,8 +20,8 @@ class LeanConcurrencySuite extends LeanLab:
 
   test("branches that do not commute (one reads what the other changes) are not proven to: commute_0 stays open") {
     import Concurrency.*
-    val p = Param[BigInt => Flow[(BigInt, Unit)]]("peek", "the count read while goods come in")
-    val c = Node.contract(p)("Peek", "Goods come in.", why = "A test.")((n, r, before, after) =>
+    val p = Param[BigInt => Flow[(BigInt, Unit)]]("the count read while goods come in")
+    val c = Node.contract(p)("Goods come in.", why = "A test.")((n, r, before, after) =>
       after(StockModel) === before(StockModel) + n)
       .examples()(allows(BigInt(2), World(StockModel -> BigInt(1), TillModel -> BigInt(0)), (BigInt(1), ()),
           World(StockModel -> BigInt(3), TillModel -> BigInt(0)), "two in"),

@@ -41,13 +41,12 @@ final class MemoryMailer(start: Map[PersonId, List[Notice]] = Map.empty) extends
 object Notifications:
   import Demo.*
 
-  val announce = Param[(Library, Library, Request, Entry) => Library]("announce", "the library with notices of a change added to its outbox")
+  val announce = Param[(Library, Library, Request, Entry) => Library]("the library with notices of a change added to its outbox")
 
   val mailer: Boundary[Mailer] = Boundary.failing[Mailer]("mailer", "the mail server the service sends notices to; it may be down")(
     Failure.MailerUnavailable: Term[Failure])
 
-  val mailerKept = Node.assumption(mailer)(MailerModel)("MailerKept",
-    "The mail server delivers a notice it is given into the mailbox of the person it is to, after the ones delivered there before, and one it has already delivered is not delivered again; any call may fail because it is down, and then delivers nothing.",
+  val mailerKept = Node.assumption(mailer)(MailerModel)("The mail server delivers a notice it is given into the mailbox of the person it is to, after the ones delivered there before, and one it has already delivered is not delivered again; any call may fail because it is down, and then delivers nothing.",
     why = "Q13: notices are delivered at least once and never twice for one event: the outbox sends again after a failure, and the mail server keeps the notices it has delivered, by their event, so the second is dropped. Q17: each person's notices keep their order, two people's need not, so deliveries to two people at once commute. An outside mail server would be checked against this model; MemoryMailer, the service's own, is tested against it.",
     idea = "Notifications")
     .implementedBy(boxes => MemoryMailer(boxes), _.boxes)
@@ -82,8 +81,7 @@ object Notifications:
   /** The branch: what a notice is. Its parts are announcing and delivery; that each notice is delivered once is the
     * mail server's (MailerKept).
     */
-  val noticesFollowChanges = Node.claim("NoticesFollowChanges",
-    "A notice is sent only of a change already kept: at every moment, every notice of a logged change waiting in the outbox is of an entry in the log. A notice leaves the outbox only once the mail server has it, and the mail server has each notice once, so a person is told of each event at least once and never twice.",
+  val noticesFollowChanges = Node.claim("A notice is sent only of a change already kept: at every moment, every notice of a logged change waiting in the outbox is of an entry in the log. A notice leaves the outbox only once the mail server has it, and the mail server has each notice once, so a person is told of each event at least once and never twice.",
     why = "Q13: invitations, accepted invitations, access requests and their answers, transfers, and shares ending within a day are notified, through an outbox, retried until delivered, at least once and never twice for one event. Putting the notice in the outbox in the save that makes the change orders them (assertion 5 of the time design): the change is kept before anyone is told of it, and kept while the notice waits (ForgetContract); a notice delivered may outlive its entry's year.",
     idea = "Notifications"
   )(after(events).library.outbox.forall(n => n.about
@@ -97,8 +95,7 @@ object Notifications:
   private val catInvitedBy = Request.Invite(ann, cat, Target.Doc(plan), Level.View)
   private val entry = Entry(0, now, Change.Made(catInvitedBy))
 
-  val announceContract = Node.contract(announce)("AnnounceContract",
-    "Announcing a change adds, at the end of the outbox, a notice of its entry to each person it tells, as the library before the change says who: the person invited; whoever sent an invitation now accepted; the owner of a document asked for; the person whose request was approved or declined; the new owner of a document. Nothing else changes.",
+  val announceContract = Node.contract(announce)("Announcing a change adds, at the end of the outbox, a notice of its entry to each person it tells, as the library before the change says who: the person invited; whoever sent an invitation now accepted; the owner of a document asked for; the person whose request was approved or declined; the new owner of a document. Nothing else changes.",
     why = "Q13: what is notified and to whom. Who sent an invitation, and who owns a document, are read from the library the request was made on.",
     idea = "Notifications"
   )((lib, before, r, e, result) => result === lib.copy((outbox = lib.outbox ++ noticesOf(before, r, e))))
@@ -118,7 +115,7 @@ object Notifications:
   // shares ending within a day: housekeeping tells the people they reach
   // ---------------------------------------------------------------------------
 
-  val warn = Param[(Library, BigInt) => Library]("warn", "the library with notices of the shares ending within a day")
+  val warn = Param[(Library, BigInt) => Library]("the library with notices of the shares ending within a day")
 
   /** The people a share reaches, by name: the person it is with, or the members of the team. */
   val reachedBy = define { (lib: Term[Library], s: Term[Share]) =>
@@ -141,8 +138,7 @@ object Notifications:
 
   private val bobsHourEndsInADay = Share(Target.Doc(plan), Grantee.Person(bob), Level.View, Some(now + day - 30))
 
-  val warnContract = Node.contract(warn)("WarnContract",
-    "Housekeeping tells of the shares ending within a day: at a moment, it adds at the end of the outbox a notice, to each person a share reaches, of each share whose end comes a day on, within one housekeeping period. Nothing else changes.",
+  val warnContract = Node.contract(warn)("Housekeeping tells of the shares ending within a day: at a moment, it adds at the end of the outbox a notice, to each person a share reaches, of each share whose end comes a day on, within one housekeeping period. Nothing else changes.",
     why = "Q13 as assumed: shares ending within a day are notified. Housekeeping runs every minute and never two minutes apart (HousekeepingOnTime), so a share's end falls in the window of one run or two; the mail server keeps a notice once (MailerKept), so each person is told once.",
     idea = "Notifications"
   )((lib, t, result) => result === lib.copy((outbox = lib.outbox ++ endingNotices(lib, t))))
@@ -174,7 +170,7 @@ object Notifications:
     */
   val firstOfEach = define { (outbox: Term[List[Notice]]) => outbox.filter(n => outbox.find(m => m.to === n.to).contains(n)) }
 
-  val deliver = Param[() => Flow[Unit]]("deliver", "a run of delivery: the oldest notice of each person in the outbox sent to the mail server")
+  val deliver = Param[() => Flow[Unit]]("a run of delivery: the oldest notice of each person in the outbox sent to the mail server")
 
   private val told = Notice(cat, Subject.Logged(entry))
   private val toldBob = Notice(bob, Subject.Logged(entry.copy(id = 1)))
@@ -183,8 +179,7 @@ object Notifications:
   private def at(outbox: List[Notice], delivered: Map[PersonId, List[Notice]], now: BigInt = now) =
     World(LibraryModel -> library.copy(outbox = outbox), MailerModel -> delivered, ClockModel -> ClockState(now, Nil))
 
-  val deliveryJob = Node.contract(deliver)("DeliveryJob",
-    "A run of delivery reads the outbox and sends the oldest notice of each person in it to the mail server, four at once, each tried three times, a second and then two seconds apart. A notice leaves the outbox only once the mail server has it, and only such a notice: one the mail server did not take stays, to be sent at the next run. The mailbox of each person sent to is as it was, or holds that notice too. Nothing else in the library changes. When the outbox cannot be read, nothing changes.",
+  val deliveryJob = Node.contract(deliver)("A run of delivery reads the outbox and sends the oldest notice of each person in it to the mail server, four at once, each tried three times, a second and then two seconds apart. A notice leaves the outbox only once the mail server has it, and only such a notice: one the mail server did not take stays, to be sent at the next run. The mailbox of each person sent to is as it was, or holds that notice too. Nothing else in the library changes. When the outbox cannot be read, nothing changes.",
     why = "Q13: at least once, through an outbox, retried with a schedule; a notice the mail server took whose removal from the outbox then failed is sent again and dropped by the mail server (MailerKept): never twice. Q17: up to four at once, order kept per person (one notice of each person a run). Each branch handles its own failures, so one person's notice failing never stops another's; the branches are proven to commute (two people's notices change two mailboxes, and leave the outbox by their own removal), and each removal is one transaction, so a request adding to the outbox meanwhile is kept (Q20).",
     idea = "Notifications"
   )((result, before, after) =>

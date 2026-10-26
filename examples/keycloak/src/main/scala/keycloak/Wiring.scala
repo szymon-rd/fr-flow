@@ -8,7 +8,7 @@ import frflow.*
   */
 final class Realms(atStart: List[UserAccount], val db: SessionDb):
   private val handleSide = knowledge.service(handleRequest)(sessionDb.bind(db))
-  private val introspectSide = knowledge.service(introspectContract)(
+  private val introspectSide = knowledge.service(Introspection.introspect)(
     sessionDb.bind(db), seed.bind(atStart), history.bind(db.events()),
     sessions.bind((r: RealmId) => db.load().sessions.filter(_.realm == r)),
     account.bind((r: RealmId, u: String) => accountOf.fn(db.load().accounts, r, u)))

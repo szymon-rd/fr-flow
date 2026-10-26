@@ -6,8 +6,7 @@ import frflow.*
 // Expiring shares: a job clears the shares whose time has come
 // ============================================================================
 
-val sharesExpire = Node.contract(expire)("SharesExpire",
-  "A run of the expiry job at a time removes exactly the shares given until then or earlier, with their times, and keeps every record and every other share's time.",
+val sharesExpire = Node.contract(expire)("A run of the expiry job at a time removes exactly the shares given until then or earlier, with their times, and keeps every record and every other share's time.",
   why = "The idea lets a company share a record until a given time. A search already ignores a share past its time (Sharing): the job clears such shares from the tables, and it touches nothing else, so it never ends a share early nor keeps one past its time. Keeping the records is what keeps them found (RecordsKept).",
   idea = "Expiring shares"
 )((s, now, t) => endsDueAt(s, now, t))
@@ -32,8 +31,7 @@ val expireCode = define { (s: Term[CrmStore], now: Term[BigInt]) =>
 // The job on the database: a flow, proven from the database's model
 // ============================================================================
 
-val runExpiry = Param[BigInt => Flow[CrmStore]]("runExpiry",
-  "a run of the expiry job at a time (in seconds), on the database: the store it computes; the database holds it after")
+val runExpiry = Param[BigInt => Flow[CrmStore]]("a run of the expiry job at a time (in seconds), on the database: the store it computes; the database holds it after")
 
 /** The ids of the records a store holds anything about: its records, their shares and their expiries. */
 val idsIn = define { (s: Term[CrmStore]) => s.records.map(r => r.id) ++ s.shares.map(sh => sh.record) ++ s.expiries.map(e => e.record) }
@@ -59,8 +57,7 @@ private val twoExpired = CrmStore(List(acmeContact, acmeDeal), List(Share(1, Ten
 private val twoStored = CrmStore(List(acmeDeal, acmeContact), List(Share(1, TenantId("initech"))), Nil)
 private val earlier = List(Event.Wrote(WriteCmd(Account("ann@acme", TenantId("acme")), Change.Add(acmeDeal))))
 
-val expiryJob = Node.contract(runExpiry)("ExpiryJob",
-  "A run of the expiry job at a time leaves the database holding, about each record, what SharesExpire's run on what it held gives, logs the run at the end of the event log, and returns that store.",
+val expiryJob = Node.contract(runExpiry)("A run of the expiry job at a time leaves the database holding, about each record, what SharesExpire's run on what it held gives, logs the run at the end of the event log, and returns that store.",
   why = "The job is how SharesExpire's operation reaches the database: it loads what the database holds, runs the operation on it, stores the rows of each record whose rows changed, and logs the run, which is what makes the event log the history CrmRun replays. Proven of the code from the database's model (TablesModel), it is no longer only reviewed wiring.",
   idea = "Expiring shares"
 )((now, result, before, after) =>
@@ -81,7 +78,6 @@ val expiryJob = Node.contract(runExpiry)("ExpiryJob",
   .exempt(noCrossTenantRead, "it hands the new store to the database and returns nothing to a reader")
 
 val expiryJobWiring = Node.design(
-  "ExpiryJobWiring",
   "The expiry job runs every minute, holding the database's lock during a run so no write interleaves with it; its code is the flow ExpiryJob is proven of, run on SQLite.",
   why = "What a run does is proven (ExpiryJob); when it runs, and that no write interleaves with it, is decided here and reviewed: the model assumes a run has the database to itself.",
   idea = "Expiring shares"

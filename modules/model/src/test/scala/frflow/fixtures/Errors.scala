@@ -34,8 +34,7 @@ object Errors:
 
   val vault: Boundary[Vault] = Boundary.failing[Vault]("vault", "where the money is kept; it may be down")(VaultError.Down)
 
-  val vaultKept = Node.assumption(vault)(VaultModel)("VaultKept",
-    "The vault gives the amount it holds and holds what is put in it; any call may fail because it is down, and then changes nothing.",
+  val vaultKept = Node.assumption(vault)(VaultModel)("The vault gives the amount it holds and holds what is put in it; any call may fail because it is down, and then changes nothing.",
     why = "A remote store: a call either happens whole or not at all.")
     .implementedBy(a => FlakyVault(a), _.amount)
   val clockKept = Timing.clockKept
@@ -54,16 +53,15 @@ object Errors:
   /** A deposit, then a second's rest, whether it went in or not. */
   def depositThenRest(n: Term[BigInt]): Flow[Unit] = vault.put(n).guarantee[VaultError](Flow.sleep(BigInt(1)))
 
-  private val withdrawing = Param[BigInt => Flow[BigInt]]("withdrawing", "a withdrawal from the vault")
-  private val withdrawingSafely = Param[BigInt => Flow[BigInt]]("withdrawingSafely", "a withdrawal that never fails")
-  private val depositing = Param[BigInt => Flow[Unit]]("depositing", "a deposit, retried")
-  private val resting = Param[BigInt => Flow[Unit]]("resting", "a deposit, then a rest")
+  private val withdrawing = Param[BigInt => Flow[BigInt]]("a withdrawal from the vault")
+  private val withdrawingSafely = Param[BigInt => Flow[BigInt]]("a withdrawal that never fails")
+  private val depositing = Param[BigInt => Flow[Unit]]("a deposit, retried")
+  private val resting = Param[BigInt => Flow[Unit]]("a deposit, then a rest")
 
   private def at(amount: BigInt) = World(VaultModel -> amount, ClockModel -> ClockState(0, Nil))
   private def at(amount: BigInt, now: BigInt) = World(VaultModel -> amount, ClockModel -> ClockState(now, Nil))
 
-  val withdrawContract = Node.contract(withdrawing)("Withdraw",
-    "A withdrawal of no more than the vault holds leaves the rest and gives it; one that fails changes nothing.",
+  val withdrawContract = Node.contract(withdrawing)("A withdrawal of no more than the vault holds leaves the rest and gives it; one that fails changes nothing.",
     why = "Refused before anything is changed, and the vault's calls change nothing when they fail.")(
     (n, r, before, after) => n <= before(VaultModel) && after(VaultModel) === before(VaultModel) - n && r === after(VaultModel) &&
       after(ClockModel) === before(ClockModel))
@@ -74,8 +72,7 @@ object Errors:
       allows(BigInt(3), at(10).failing(false, true), Failed(VaultError.Down), at(10), "the vault is down as the rest is put"),
       forbids(BigInt(3), at(10).failing(false, true), Failed(VaultError.Down), at(7), "a failed withdrawal changes nothing"))
 
-  val safelyContract = Node.contract(withdrawingSafely)("WithdrawSafely",
-    "A safe withdrawal gives the rest when it could be made, and zero when not; it never fails.",
+  val safelyContract = Node.contract(withdrawingSafely)("A safe withdrawal gives the rest when it could be made, and zero when not; it never fails.",
     why = "attempt turns the withdrawal's errors into its outcome.")(
     (n, r, before, after) => (r === after(VaultModel) && after(VaultModel) === before(VaultModel) - n) ||
       (r === BigInt(0) && after(VaultModel) === before(VaultModel)))
@@ -86,8 +83,7 @@ object Errors:
       allows(BigInt(3), at(10).failing(true), BigInt(0), at(10), "the vault is down: zero"),
       forbids(BigInt(3), at(10).failing(true), Failed(VaultError.Down), at(10), "it never fails"))
 
-  val depositContract = Node.contract(depositing)("Deposit",
-    "A deposit, when it goes in, adds to what the vault held; when every try failed, the vault holds what it held.",
+  val depositContract = Node.contract(depositing)("A deposit, when it goes in, adds to what the vault held; when every try failed, the vault holds what it held.",
     why = "Each try changes nothing when it fails; the waits between tries move only the clock.")(
     (n, r, before, after) => after(VaultModel) === before(VaultModel) + n)
     .onFailure[VaultError]((e, before, after) => after(VaultModel) === before(VaultModel))
@@ -98,8 +94,7 @@ object Errors:
       allows(BigInt(5), at(10).failing(true, true, true), Failed(VaultError.Down), at(10, 3), "down three times: the vault keeps what it held"),
       forbids(BigInt(5), at(10).failing(true, true, true), Failed(VaultError.Down), at(15, 3), "a deposit that failed is not in"))
 
-  val restContract = Node.contract(resting)("DepositThenRest",
-    "A deposit is followed by a second's rest, whether it went in or not.",
+  val restContract = Node.contract(resting)("A deposit is followed by a second's rest, whether it went in or not.",
     why = "guarantee runs the rest either way.")(
     (n, r, before, after) => after(VaultModel) === n && after(ClockModel).now >= before(ClockModel).now + 1)
     .onFailure[VaultError]((e, before, after) => after(VaultModel) === before(VaultModel) &&

@@ -29,7 +29,7 @@ change that needs to depart from it says so in its commit message and in this fi
 ## 1. Vocabulary
 
 - `Opaque("Realm", means)`: a domain type, open until a definition fixes it.
-- `Param[T]("sessions", means)`: a domain term of type `T`, open until a definition fixes it. It is a
+- `Param[T](means)`: a domain term of type `T`, open until a definition fixes it. It is a
   fact of the world (`enabled`), or an **operation** of the system (`introspect`): a term some
   contract or assumption is about (`op`), which code implements.
 - `define { (a: Term[A]) => ... }`: a named function over terms, a Lean `def` named as its val, run
@@ -128,15 +128,15 @@ with a `rule`.
 
 | Kind | Scala | Lean |
 |---|---|---|
-| claim | `Node.claim(id, statement, why, idea = "")(formula)` | `def claim : Prop` over its open terms |
+| claim | `Node.claim(statement, why, idea = "")(formula)` | `def claim : Prop` over its open terms |
 | root | the claim with no parents | as a claim, plus `idle` |
-| invariant | `Node.invariant[A, B](id, statement, why, scope)(rule)` | a claim whose parts are its keepers |
-| contract | `Node.contract(op)(id, statement, why)(post)`, `op: Param[(A, B) => R]` (0 to 6 inputs) | `∀ a b, post(a, b, op(a, b))`; `impl` when a `define` is attached |
-| contract on a flow | `Node.contract(op)(id, statement, why)((a, r, before, after) => ...)`, `op: Param[A => Flow[R]]` (0 to 6 inputs) | `∀ a w, post a (op a w).1 w (op a w).2`; `impl` when a flow is attached |
-| assumption | `Node.assumption(op)(id, statement, why)(post)`, or `Node.assumption(id, statement, why)(formula)` | a hypothesis of `root_impl`: trusted |
-| model | `Node.assumption(boundary)(Model)(id, statement, why)` | the boundary's class instance on `StateM World`: trusted |
-| definition | `Node.definition(id, statement, why)(Opaque := of[T], param := expr, ...)` | an `abbrev` in `Types.lean`, a `def` in its term's module |
-| design | `Node.design(id, statement, why)(files*)` | none: it governs code no proof covers |
+| invariant | `Node.invariant[A, B](statement, why, scope)(rule)` | a claim whose parts are its keepers |
+| contract | `Node.contract(op)(statement, why)(post)`, `op: Param[(A, B) => R]` (0 to 6 inputs) | `∀ a b, post(a, b, op(a, b))`; `impl` when a `define` is attached |
+| contract on a flow | `Node.contract(op)(statement, why)((a, r, before, after) => ...)`, `op: Param[A => Flow[R]]` (0 to 6 inputs) | `∀ a w, post a (op a w).1 w (op a w).2`; `impl` when a flow is attached |
+| assumption | `Node.assumption(op)(statement, why)(post)`, or `Node.assumption(statement, why)(formula)` | a hypothesis of `root_impl`: trusted |
+| model | `Node.assumption(boundary)(Model)(statement, why)` | the boundary's class instance on `StateM World`: trusted |
+| definition | `Node.definition(statement, why)(Opaque := of[T], param := expr, ...)` | an `abbrev` in `Types.lean`, a `def` in its term's module |
+| design | `Node.design(statement, why)(files*)` | none: it governs code no proof covers |
 
 Edges:
 

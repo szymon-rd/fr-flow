@@ -50,7 +50,7 @@ class FlowSuite extends munit.FunSuite:
   }
 
   private def stockKb(model: Node[?]) = KnowledgeBase("Shelf", idea = "IDEA.md")(model).testedWith(TestSettings(cases = 300, seed = 5))
-  private def stockModel = Node.assumption(stock)(StockModel)("StockModel", "The stock counts the books added to it.", why = "A counter.")
+  private val stockModel = Node.assumption(stock)(StockModel)("The stock counts the books added to it.", why = "A counter.")
 
   test("the project's own implementation of a boundary is tested against its model: generated runs, every operation reached") {
     val m = stockModel.implementedBy(c => Counter(c), _.held)

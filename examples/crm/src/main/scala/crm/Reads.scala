@@ -6,8 +6,7 @@ import frflow.*
 // Finding records: what a search returns, on either screen
 // ============================================================================
 
-val visibility = Node.claim("Visibility",
-  "A search, on either screen, returns exactly the stored records it asks for that the user may read now: of their company, or shared with it now.",
+val visibility = Node.claim("A search, on either screen, returns exactly the stored records it asks for that the user may read now: of their company, or shared with it now.",
   why = "The read side of the purpose: what a user finds is what the screens return, of what the CRM holds now (CrmRun), its shares counted until their time. With StoreMirrorsRequests, what the CRM holds is what users asked, so a search finds what the purpose says.",
   idea = "Finding records"
 )(forall((u: Term[Account], q: Term[Ask]) => forall((r: Term[CrmRecord]) =>
@@ -15,15 +14,13 @@ val visibility = Node.claim("Visibility",
   .refines(sharedCrm)
 
 val noCrossTenantRead = Node.invariant[Account, CrmRecord](
-  "NoCrossTenantRead",
   "No search returns a record of another company unless that company shared it with the reader's, for good or until a time not yet come.",
   why = "The isolation every read path must keep, stated once. Every contract keeps it, listing the records a call shows to whom, or says why it shows none; so a new read path (an export, an admin view) cannot leave it out unnoticed.",
   idea = "Finding records"
 )((reader, r) => mayRead(reader, r))
   .refines(visibility)
 
-val searchesMatch = Node.claim("SearchesMatch",
-  "A search, on either screen, returns only stored records it asks for, and every stored record it asks for that the user may read.",
+val searchesMatch = Node.claim("A search, on either screen, returns only stored records it asks for, and every stored record it asks for that the user may read.",
   why = "Users find records by id, by kind, or by listing everything, on the records screen or on the sales screen, which lists deals only: a search returns what it asks for, all of it that the user may read. That it returns nothing else to read is NoCrossTenantRead's.",
   idea = "Finding records"
 )(forall((u: Term[Account], q: Term[Ask]) => results(u, q).forall(r => store.contains(r) && askMatches(q, r)) &&
@@ -34,8 +31,7 @@ val searchesMatch = Node.claim("SearchesMatch",
 // Port: the database's answer to a search
 // ============================================================================
 
-val recordsByQuery = Node.assumption(fetch)("RecordsByQuery",
-  "The database returns exactly the stored records that match a search, of every company.",
+val recordsByQuery = Node.assumption(fetch)("The database returns exactly the stored records that match a search, of every company.",
   why = "Records live in SQLite. The read side is proven from this promise, not from the SQL; the SQL is checked against the define the port is decided with on its examples and on varied data, and every result it returns is checked to match the search."
 )((user, query, rs) => rs.forall(r => store.contains(r) && matches(query, r)) && store.forall(r => matches(query, r) implies rs.contains(r)))
   .checkedBy((user, query, rs) => rs.forall(r => matches(query, r)))
@@ -59,8 +55,7 @@ val storedMatching = define { (user: Term[Account], query: Term[Search]) => stor
 // Contracts: the records screen and the sales screen
 // ============================================================================
 
-val readContract = Node.contract(read)("ReadContract",
-  "A search on the records screen returns exactly the stored records that match it and the user may read: each of the user's company or shared with it now.",
+val readContract = Node.contract(read)("A search on the records screen returns exactly the stored records that match it and the user may read: each of the user's company or shared with it now.",
   why = "The records screen, stated for one call. A returned record must be one of the stored records, so code cannot relabel another company's record as the user's; and every such record is returned, since users find records.",
   idea = "Finding records"
 )((user, query, result) => result.forall(r => store.contains(r) && matches(query, r) && mayRead(user, r)) &&
@@ -105,8 +100,7 @@ val readContract = Node.contract(read)("ReadContract",
 /** A search: what the database returns for it, of the user's company or shared with it now. */
 val search = define { (user: Term[Account], query: Term[Search]) => fetch(user, query).filter(r => mayRead(user, r)) }
 
-val dealSearch = Node.contract(deals)("DealSearch",
-  "A deal search returns exactly the stored deals that match it and the user may read.",
+val dealSearch = Node.contract(deals)("A deal search returns exactly the stored deals that match it and the user may read.",
   why = "The sales screen, stated for one call. Its code calls the records screen and keeps the deals, so it is proven from ReadContract's promise and shows only what the records screen may show.",
   idea = "Sales screen"
 )((user, query, result) => result.forall(r => store.contains(r) && r.kind === Kind.Deal && matches(query, r) && mayRead(user, r)) &&
@@ -129,7 +123,6 @@ val dealSearch = Node.contract(deals)("DealSearch",
 val dealsOf = define { (user: Term[Account], query: Term[Search]) => read(user, query).filter(r => r.kind === Kind.Deal) }
 
 val readSideWiring = Node.design(
-  "ReadSideWiring",
   "The records screen and the sales screen serve searches through service, which checks every result against ReadContract or DealSearch and the invariant they keep; they read the store, shares and expiries from the database's tables, the history from its event log, and the clock.",
   why = "Every path to the records must go through service; keeping the wiring in one governed file makes a change to it visible. The tables are bound as they are, not replayed from the event log on every search: they hold what the history led to (CrmRun) because only the write side and the expiry job change them, each also logging its event."
 )("src/main/scala/crm/ReadSide.scala")

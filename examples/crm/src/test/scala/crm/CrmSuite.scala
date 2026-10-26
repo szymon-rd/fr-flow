@@ -208,11 +208,11 @@ class CrmSuite extends munit.CatsEffectSuite:
           t.store.shares ++ x.shares.filter(_.record == i), t.store.expiries.filter(_.record != i) ++ x.expiries.filter(_.record == i)))
       }
       def logEvent(e: Term[Event]) = Flow.effect(e)(ev => { t = t.copy(events = t.events :+ ev) })
-    val leaky = Node.assumption(crm.db)(DatabaseModel)("TablesModel", tablesModel.statement, tablesModel.why)
+    val tablesModel = Node.assumption(crm.db)(DatabaseModel)(crm.tablesModel.statement, crm.tablesModel.why)
       .implementedBy(t => LeakyDatabase(t), _.tables)
     val kb = KnowledgeBase(knowledge.name, knowledge.idea, knowledge.implementations, knowledge.generators, knowledge.testing)(
-      knowledge.nodes.map(n => if n eq tablesModel then leaky else n)*)
-    val f = kb.test(leaky).get.failure.get
+      knowledge.nodes.map(n => if n eq crm.tablesModel then tablesModel else n)*)
+    val f = kb.test(tablesModel).get.failure.get
     assert(f.why.startsWith("after storeAbout("), f.why)
     // Shrunk to one call, from a state holding a share of the record stored.
     assertEquals(f.shown.count(_ == ';'), 0, f.shown)

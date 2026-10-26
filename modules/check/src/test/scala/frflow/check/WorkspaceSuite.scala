@@ -51,7 +51,7 @@ class WorkspaceSuite extends munit.CatsEffectSuite with TempDirs:
   }
 
   test("a design decision governs files and has nothing to prove; a file it governs changing reviews it") {
-    val cache = Node.design("Cache", "Shelves are cached in memory.", why = "They change once a day.")("Store.scala").refines(pick)
+    val cache = Node.design("Shelves are cached in memory.", why = "They change once a day.")("Store.scala").refines(pick)
     def governing(fingerprint: String)(d: Desk) = d.copy(inputs = d.inputs.copy(code = Map("Cache" -> CodeRef(List("Store.scala"), Fingerprint(fingerprint)))))
     val d = governing("a")(Desk(shelfWith(pick, cache))).acceptAll
     assertEquals(d.kb.problems, Nil)
@@ -60,8 +60,8 @@ class WorkspaceSuite extends munit.CatsEffectSuite with TempDirs:
   }
 
   test("a node governing a file that does not exist, a file governed by two nodes, and a proof file of no node are warned of") {
-    val one = Node.design("One", "The store is kept in one file.", why = "Simple.")("Store.scala").refines(pick)
-    val two = Node.design("Two", "The store and the cache are kept apart.", why = "Clear.")("Store.scala", "Cache.scala").refines(pick)
+    val one = Node.design("The store is kept in one file.", why = "Simple.")("Store.scala").refines(pick)
+    val two = Node.design("The store and the cache are kept apart.", why = "Clear.")("Store.scala", "Cache.scala").refines(pick)
     val d = Desk(shelfWith(pick, one, two))
     val warnings = Governance.warnings(Desk(d.kb, d.inputs.copy(missing = Set("Cache.scala"), proofs = Map("Gone" -> "-- a node renamed\n"),
       code = Map("One" -> CodeRef(List("Store.scala"), Fingerprint("f")), "Two" -> CodeRef(List("Store.scala", "Cache.scala"), Fingerprint("g"))))).analysis)

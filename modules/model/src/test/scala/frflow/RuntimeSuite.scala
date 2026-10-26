@@ -60,10 +60,10 @@ class RuntimeSuite extends munit.FunSuite:
     assertEquals(e.violation.line,
       "frflow contract violation: contract=Pick check=\"the contract\" inputs=(List(Book(\"Short\", 20)), 1) result=List(Book(\"Short\", 20))")
     // A proven define's result is not checked again, but an assumption about the values it runs with is.
-    val positive = Node.assumption("PositiveLength", "Readers ask for books of at least one page.", why = "A length of zero would let empty books in.")(
+    val positiveLength = Node.assumption("Readers ask for books of at least one page.", why = "A length of zero would let empty books in.")(
       minPages > 0).refines(onlyLong)
     var min = 100
-    val proven = shelfWith(pick, positive).implementProven(pick)(longOnes).reporting(seen += _).service(pick)(minPages.bind(min))
+    val proven = shelfWith(pick, positiveLength).implementProven(pick)(longOnes).reporting(seen += _).service(pick)(minPages.bind(min))
     assertEquals(proven(List(Book("Long", 300)), 1), List(Book("Long", 300)))
     min = 0
     val a = intercept[ContractViolation](proven(List(Book("Long", 300)), 1))
@@ -72,13 +72,13 @@ class RuntimeSuite extends munit.FunSuite:
 
   test("service binds each operation with code to that code, and each defined term to its definition") {
     // Again's code calls the shelf service's operation: the service runs PickPromise's code for it
-    val s = callsKb.service(againC)(minPages.bind(100))
+    val s = callsKb.service(Again.again)(minPages.bind(100))
     assertEquals(s(List(Book("Long", 300), Book("Short", 20)), 5), List(Book("Long", 300)))
     // a contract stated in a defined term: the term is bound to its definition where it runs
-    val longEnough = Param[Book => Boolean]("longEnough", "whether a book is long enough for readers")
-    val lengths = Node.definition("Lengths", "A book is long enough when it has the pages readers asked for.", "w")(
+    val longEnough = Param[Book => Boolean]("whether a book is long enough for readers")
+    val lengths = Node.definition("A book is long enough when it has the pages readers asked for.", "w")(
       longEnough := ((b: Term[Book]) => b.pages >= minPages))
-    val byTerm = Node.contract(picks)("ByTerm", "Picked books are long enough.", "w")((shelf, n, picked) => picked.forall(b => longEnough(b)))
+    val byTerm = Node.contract(picks)("Picked books are long enough.", "w")((shelf, n, picked) => picked.forall(b => longEnough(b)))
       .refines(shelfParts*)
       .examples(minPages.bind(100))(
         allows(List(Book("Long", 300)), 1, List(Book("Long", 300)), "the long book"),
@@ -92,10 +92,10 @@ class RuntimeSuite extends munit.FunSuite:
   }
 
   test("a term defined by an expression, not a function, is evaluated where it is used, under the bindings in force") {
-    val shelfNow = Param[List[Book]]("shelfNow", "the books on the shelf now")
-    val onShelf = Param[Int]("onShelf", "how many books the shelf holds")
+    val shelfNow = Param[List[Book]]("the books on the shelf now")
+    val onShelf = Param[Int]("how many books the shelf holds")
     // Evaluated when the model loads, the definition would read shelfNow before anything binds it.
-    val counting = Node.definition("Counting", "The shelf holds as many books as are on it.", "w")(onShelf := shelfNow.length)
+    val counting = Node.definition("The shelf holds as many books as are on it.", "w")(onShelf := shelfNow.length)
     val term = counting.substs.head.term.get
     assertEquals(term.body, "((shelfNow).length : Int)")
     assertEquals(Bindings.within(Seq(shelfNow.bind(List(Book("A", 100), Book("B", 200)))))(term.value), 2)
@@ -107,9 +107,9 @@ class RuntimeSuite extends munit.FunSuite:
   }
 
   test("an assumption whose terms are bound is checked when the service starts, and when its values change") {
-    val positive = Node.assumption("PositiveLength", "Readers ask for books of at least one page.", why = "A length of zero would let empty books in.")(
+    val positiveLength = Node.assumption("Readers ask for books of at least one page.", why = "A length of zero would let empty books in.")(
       minPages > 0).refines(onlyLong)
-    val kb = shelfWith(pick, positive).implement(pick)((shelf, n) => shelf.filter(_.pages >= minPages.value))
+    val kb = shelfWith(pick, positiveLength).implement(pick)((shelf, n) => shelf.filter(_.pages >= minPages.value))
     assertEquals(kb.problems, Nil)
     intercept[ContractViolation](kb.service(pick)(minPages.bind(0)))
     var min = 100
@@ -119,13 +119,13 @@ class RuntimeSuite extends munit.FunSuite:
     val e = intercept[ContractViolation](s(List(Book("Long", 300)), 1))
     assert(e.getMessage.contains("PositiveLength"), e.getMessage)
     // an assumption over a quantifier cannot be computed: it is trusted only
-    val world = Node.assumption("Shelved", "Every book has a title.", why = "The library labels books.")(forall((b: Term[Book]) => b.title =!= "")).refines(onlyLong)
-    assert(shelfWith(pick, world).implement(pick)((shelf, n) => shelf).runtimeAssumptions.head.holds())
+    val shelved = Node.assumption("Every book has a title.", why = "The library labels books.")(forall((b: Term[Book]) => b.title =!= "")).refines(onlyLong)
+    assert(shelfWith(pick, shelved).implement(pick)((shelf, n) => shelf).runtimeAssumptions.head.holds())
   }
 
   test("a function a call reads answers each question once, and only what is read is loaded") {
     val asked = scala.collection.mutable.ListBuffer.empty[Int]
-    val square = Param[Int => Int]("square", "a slow service")
+    val square = Param[Int => Int]("a slow service")
     val cell = Cell(square.bind((x: Int) => { asked += x; x * x }))
     assert(!cell.loaded)
     val f = cell.get.asInstanceOf[Int => Int]
@@ -142,7 +142,7 @@ class RuntimeSuite extends munit.FunSuite:
 
   test("the implementation is tested beyond its examples: a case that breaks the contract is found, code that throws too") {
     assertEquals(shelfKb.testedWith(TestSettings(300)).test(pick).flatMap(_.failure), None)
-    val two = Node.contract(picks)("Two", "Picking returns only long enough books.", "w")(
+    val two = Node.contract(picks)("Picking returns only long enough books.", "w")(
       (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages)).refines(shelfParts*)
       .examples(minPages.bind(100))(
         allows(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
@@ -165,7 +165,7 @@ class RuntimeSuite extends munit.FunSuite:
     val lazyKb = shelfKb.implement(pick)((_, _) => Nil)
     assertEquals(lazyKb.exampleResults(pick).head.implementation, Some("returned List()"))
     // a contract that refuses what was decided
-    val strict = Node.contract(picks)("Strict", "Nothing is picked.", "w")((_, _, picked) => picked.isEmpty)
+    val strict = Node.contract(picks)("Nothing is picked.", "w")((_, _, picked) => picked.isEmpty)
       .examples(minPages.bind(100))(allows(List(Book("Long", 300)), 1, List(Book("Long", 300)), "the long book"))
     assertEquals(strict.checkExamples(None).head.contract, "the contract refuses it")
   }

@@ -35,12 +35,11 @@ object Concurrency:
   val stock: Boundary[Stock] = Boundary[Stock]("stock", "the goods on the shelves")
   val till: Boundary[Till] = Boundary[Till]("till", "the money taken")
 
-  val stockKept = Node.assumption(stock)(StockModel)("StockKept", "The stock counts what is added to it.", why = "Memory.")
+  val stockKept = Node.assumption(stock)(StockModel)("The stock counts what is added to it.", why = "Memory.")
     .implementedBy(a => MemoryStock(a), _.amount)
-  val tillKept = Node.assumption(till)(TillModel)("TillKept", "The till adds up what is rung.", why = "Memory.")
+  val tillKept = Node.assumption(till)(TillModel)("The till adds up what is rung.", why = "Memory.")
     .implementedBy(a => MemoryTill(a), _.amount)
-  val racesKept = Node.assumption(Races.boundary)(RacesModel)("RacesKept",
-    "Which side of a race finishes first is the scheduler's: unknown, so a claim holds for either.", why = "Fibers.")
+  val racesKept = Node.assumption(Races.boundary)(RacesModel)("Which side of a race finishes first is the scheduler's: unknown, so a claim holds for either.", why = "Fibers.")
   val clockKept = Timing.clockKept
 
   /** Goods in, and their price rung, at once: different boundaries, so they commute. */
@@ -54,29 +53,26 @@ object Concurrency:
   /** A sale given five seconds: either it is done (or it had committed), or nothing changed. */
   def saleWithin(n: Term[BigInt]): Flow[Either[Unit, Unit]] = sell(n).race(Flow.sleep(BigInt(5)))
 
-  private val restocking = Param[(BigInt, BigInt) => Flow[Unit]]("restocking", "goods in, their price paid")
-  private val delivering = Param[(BigInt, BigInt) => Flow[List[Unit]]]("delivering", "two deliveries at once")
-  private val selling = Param[BigInt => Flow[Either[Unit, Unit]]]("selling", "a sale given five seconds")
+  private val restocking = Param[(BigInt, BigInt) => Flow[Unit]]("goods in, their price paid")
+  private val delivering = Param[(BigInt, BigInt) => Flow[List[Unit]]]("two deliveries at once")
+  private val selling = Param[BigInt => Flow[Either[Unit, Unit]]]("a sale given five seconds")
 
   private def at(s: BigInt, t: BigInt, races: List[Boolean] = Nil, now: BigInt = 0) =
     World(StockModel -> s, TillModel -> t, RacesModel -> races, ClockModel -> ClockState(now, Nil))
 
-  val restockContract = Node.contract(restocking)("Restock",
-    "Restocking adds the goods to the stock and takes their price from the till.", why = "Both, at once.")(
+  val restockContract = Node.contract(restocking)("Restocking adds the goods to the stock and takes their price from the till.", why = "Both, at once.")(
     (n, p, r, before, after) => after(StockModel) === before(StockModel) + n && after(TillModel) === before(TillModel) - p)
     .examples()(allows(BigInt(3), BigInt(10), at(1, 50), (), at(4, 40), "three in, ten paid"),
       allows(BigInt(0), BigInt(0), at(2, 5), (), at(2, 5), "nothing in"),
       forbids(BigInt(3), BigInt(10), at(1, 50), (), at(4, 50), "never in without paying"))
 
-  val deliveriesContract = Node.contract(delivering)("TwoDeliveries",
-    "Two deliveries at once add both to the stock.", why = "Additions commute.")(
+  val deliveriesContract = Node.contract(delivering)("Two deliveries at once add both to the stock.", why = "Additions commute.")(
     (n, m, r, before, after) => after(StockModel) === before(StockModel) + n + m && after(TillModel) === before(TillModel))
     .examples()(allows(BigInt(3), BigInt(4), at(1, 0), List((), ()), at(8, 0), "three and four"),
       allows(BigInt(1), BigInt(1), at(0, 2), List((), ()), at(2, 2), "one each"),
       forbids(BigInt(3), BigInt(4), at(1, 0), List((), ()), at(5, 0), "neither lost"))
 
-  val saleContract = Node.contract(selling)("SaleWithin",
-    "A sale given five seconds leaves the stock and the till as they were, or as the whole sale leaves them; never half.",
+  val saleContract = Node.contract(selling)("A sale given five seconds leaves the stock and the till as they were, or as the whole sale leaves them; never half.",
     why = "The sale is one transaction: cancelled by the timer, it left nothing, or had committed in full.")(
     (n, r, before, after) => (after(StockModel) === before(StockModel) && after(TillModel) === before(TillModel)) ||
       (after(StockModel) === before(StockModel) - n && after(TillModel) === before(TillModel) + n))

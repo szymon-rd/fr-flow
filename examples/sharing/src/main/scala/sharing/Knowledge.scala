@@ -14,8 +14,7 @@ import sharing.store.LibraryStore
 import sharing.time.{ClockKept, Deadlines, Lifetimes, Run}
 import sharing.trash.Trash
 
-val serverWiring = Node.design("ServerWiring",
-  "The server reads each HTTP request into a request (an unreadable one is answered 400 with its reason, an unknown route 404), answers it with HandleContract's flow on the store and the clock, in IO, as many at once as its workers take, and writes the answer as JSON (a refused change is 403); requests run on a pool of workers with a time limit each (503 past it), a request the store fails is answered 503 and changes nothing, and an internal error is answered 500 and logged. On the computer's clock, housekeeping runs every minute on a thread of its own, each start checked against HousekeepingOnTime, and delivery every ten seconds; a run that fails is tried again at its next start; on a fake clock (tests), time moves and housekeeping runs only when a test asks.",
+val serverWiring = Node.design("The server reads each HTTP request into a request (an unreadable one is answered 400 with its reason, an unknown route 404), answers it with HandleContract's flow on the store and the clock, in IO, as many at once as its workers take, and writes the answer as JSON (a refused change is 403); requests run on a pool of workers with a time limit each (503 past it), a request the store fails is answered 503 and changes nothing, and an internal error is answered 500 and logged. On the computer's clock, housekeeping runs every minute on a thread of its own, each start checked against HousekeepingOnTime, and delivery every ten seconds; a run that fails is tried again at its next start; on a fake clock (tests), time moves and housekeeping runs only when a test asks.",
   why = "What a request is answered with, and what it leaves in the store, is proven (HandleContract); what a run of housekeeping or of delivery leaves is proven too (HousekeepingJob, DeliveryJob). Reading HTTP, the routes, the threads, the schedule and the time limits are decided here and reviewed; the reading and writing of HTTP is tested against the routes this states (SharingSuite). Requests, housekeeping and delivery run at once (Q18-Q20); each reads the library the last transaction left (Transactions). The services' plain Scala objects run the same proven code.",
   idea = "Serving"
 )("src/main/scala/sharing/http/Server.scala", "src/main/scala/sharing/http/HttpCodec.scala",
@@ -24,25 +23,24 @@ val serverWiring = Node.design("ServerWiring",
   "src/main/scala/sharing/time/LifetimesService.scala", "src/main/scala/sharing/requests/AccessRequestsService.scala",
   "src/main/scala/sharing/ownership/OwnershipService.scala").refines(SharingHttp.handleContract)
 
-val domainTypes = Node.design("DomainTypes",
-  "People, teams, documents, folders, shares, invitations, access requests, log entries and notices are plain data: a document and a folder each list the folders around them, outermost first; a document names its owner; a team lists its people; a share may carry its end, a document the time it went to the trash, an invitation the time it was sent, a request the time it was made, all in seconds. The library keeps its log and its outbox with it. The demo library (Demo.scala) is the data the examples are decided on.",
+val domainTypes = Node.design("People, teams, documents, folders, shares, invitations, access requests, log entries and notices are plain data: a document and a folder each list the folders around them, outermost first; a document names its owner; a team lists its people; a share may carry its end, a document the time it went to the trash, an invitation the time it was sent, a request the time it was made, all in seconds. The library keeps its log and its outbox with it. The demo library (Demo.scala) is the data the examples are decided on.",
   why = "Listing the folders around a document, rather than only its parent, says what is inside a folder without walking the tree: every statement about folders is then a question about a list, with no depth to bound. A move keeps the lists right (MoveContract). Times are kept on the things they belong to, so what has ended is read off the data and the clock, never off a job having run. Owning these files makes a change to the types or to the example data a decision.",
   idea = "Who can see and change what"
 )("src/main/scala/sharing/domain", "src/main/scala/sharing/Demo.scala").refines(accessFollowsShares)
 
 val knowledge = KnowledgeBase("Sharing", idea = "IDEA.md")(
-  reach, cover, permission, trashed, owner,
-  accessFollowsShares, Invitations.invitationsAreOffers, Trash.trashUntilGone, Housekeeping.clearsOnlyTheEnded,
-  AccessRequests.requestsAreAsks, Ownership.ownersKeepTheirDocuments, Audit.auditTrail, Notifications.noticesFollowChanges,
+  reach, cover, permission, Definitions.inTrash, ownersShare,
+  accessFollowsShares, Invitations.invitationsAreOffers, Trash.trashUntilGone, Housekeeping.housekeepingClearsOnlyTheEnded,
+  AccessRequests.accessRequestsAreAsks, Ownership.ownersKeepTheirDocuments, Audit.auditTrail, Notifications.noticesFollowChanges,
   Sharing.accessContract, Sharing.canViewContract, Sharing.canEditContract,
   Sharing.shareContract, Sharing.unshareContract, Sharing.moveContract,
   Invitations.inviteContract, Invitations.acceptContract, Invitations.withdrawContract,
   Trash.trashContract, Trash.restoreContract,
   AccessRequests.askContract, AccessRequests.approveContract, AccessRequests.declineContract, AccessRequests.chaseContract,
   Ownership.transferContract, Audit.recordContract, Audit.forgetContract, Notifications.announceContract, Notifications.warnContract,
-  Housekeeping.tidyContract, Housekeeping.jobContract, Notifications.deliveryJob,
+  Housekeeping.tidyContract, Housekeeping.housekeepingJob, Notifications.deliveryJob,
   Lifetimes.invitationLifetime, Lifetimes.trashLifetime, Lifetimes.requestLifetime, Run.housekeepingPeriod,
-  Lifetimes.inForceContract, Lifetimes.isOpenContract, Lifetimes.goneContract, Lifetimes.isPendingContract, Lifetimes.reminderDueContract,
+  Lifetimes.inForceContract, Lifetimes.isOpenContract, Lifetimes.goneContract, Lifetimes.pendingContract, Lifetimes.reminderDueContract,
   Deadlines.trashPurgedOnTime,
   Deadlines.invitationsLapseOnTime, Deadlines.requestsAnsweredOnTime, Deadlines.endedStaysEnded,
   Run.clockNeverGoesBack, Run.housekeepingOnTime,
@@ -71,11 +69,11 @@ val knowledge = KnowledgeBase("Sharing", idea = "IDEA.md")(
   .implementProven(Notifications.warnContract)(Notifications.warnCode)
   .implementProven(Notifications.deliveryJob)(() => Notifications.delivery)
   .implementProven(Housekeeping.tidyContract)(Housekeeping.tidyCode)
-  .implementProven(Housekeeping.jobContract)(() => Housekeeping.housekeeping)
+  .implementProven(Housekeeping.housekeepingJob)(() => Housekeeping.housekeeping)
   .implementProven(Lifetimes.inForceContract)(Lifetimes.inForceCode)
   .implementProven(Lifetimes.isOpenContract)(Lifetimes.isOpenCode)
   .implementProven(Lifetimes.goneContract)(Lifetimes.goneCode)
-  .implementProven(Lifetimes.isPendingContract)(Lifetimes.isPendingCode)
+  .implementProven(Lifetimes.pendingContract)(Lifetimes.isPendingCode)
   .implementProven(Lifetimes.reminderDueContract)(Lifetimes.reminderDueCode)
   .implementProven(SharingHttp.handleContract)(SharingHttp.handleRequest)
   // Names from a small vocabulary, so generated shares meet the generated people, teams, documents and folders; times

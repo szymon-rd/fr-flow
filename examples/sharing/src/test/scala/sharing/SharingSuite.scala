@@ -31,10 +31,10 @@ class SharingSuite extends munit.CatsEffectSuite:
 
   private val contracts = List(Sharing.accessContract, Sharing.canViewContract, Sharing.canEditContract, Sharing.shareContract,
     Sharing.unshareContract, Sharing.moveContract, Invitations.inviteContract, Invitations.acceptContract, Invitations.withdrawContract,
-    Trash.trashContract, Trash.restoreContract, Housekeeping.tidyContract, Housekeeping.jobContract, Lifetimes.inForceContract,
+    Trash.trashContract, Trash.restoreContract, Housekeeping.tidyContract, Housekeeping.housekeepingJob, Lifetimes.inForceContract,
     Lifetimes.isOpenContract, Lifetimes.goneContract, SharingHttp.handleContract, AccessRequests.askContract, AccessRequests.approveContract,
     AccessRequests.declineContract, AccessRequests.chaseContract, Ownership.transferContract, Audit.recordContract,
-    Notifications.announceContract, Notifications.deliveryJob, Lifetimes.isPendingContract, Lifetimes.reminderDueContract,
+    Notifications.announceContract, Notifications.deliveryJob, Lifetimes.pendingContract, Lifetimes.reminderDueContract,
     Notifications.warnContract, Audit.forgetContract)
 
   test("the committed ledger accepts every node: none is up for review, none is gone") {
@@ -53,15 +53,15 @@ class SharingSuite extends munit.CatsEffectSuite:
     assertEquals(parts(accessFollowsShares), Set("AccessContract", "CanViewContract", "CanEditContract", "ShareContract", "UnshareContract",
       "MoveContract", "InvitationsAreOffers", "TrashUntilGone", "HousekeepingClearsOnlyTheEnded", "HandleContract",
       "AccessRequestsAreAsks", "OwnersKeepTheirDocuments", "AuditTrail", "NoticesFollowChanges"))
-    assertEquals(parts(AccessRequests.requestsAreAsks), Set("AskContract", "ApproveContract", "DeclineContract", "ChaseContract",
+    assertEquals(parts(AccessRequests.accessRequestsAreAsks), Set("AskContract", "ApproveContract", "DeclineContract", "ChaseContract",
       "PendingContract", "ReminderDueContract", "RequestsAnsweredOnTime"))
     assertEquals(parts(Ownership.ownersKeepTheirDocuments), Set("TransferContract", "UnshareContract", "ShareContract"))
     assertEquals(parts(Invitations.invitationsAreOffers), Set("InviteContract", "AcceptContract", "WithdrawContract", "AccessContract",
       "IsOpenContract", "InvitationsLapseOnTime"))
     assertEquals(parts(Trash.trashUntilGone), Set("TrashContract", "RestoreContract", "GoneContract", "TrashPurgedOnTime"))
-    assertEquals(parts(Housekeeping.clearsOnlyTheEnded), Set("TidyContract", "EndedStaysEnded"))
+    assertEquals(parts(Housekeeping.housekeepingClearsOnlyTheEnded), Set("TidyContract", "EndedStaysEnded"))
     // The branches name no lifetime either: 7 days or 30 days enter only below them.
-    for b <- List(Invitations.invitationsAreOffers, Trash.trashUntilGone, Housekeeping.clearsOnlyTheEnded, AccessRequests.requestsAreAsks,
+    for b <- List(Invitations.invitationsAreOffers, Trash.trashUntilGone, Housekeeping.housekeepingClearsOnlyTheEnded, AccessRequests.accessRequestsAreAsks,
         Ownership.ownersKeepTheirDocuments, Audit.auditTrail, Notifications.noticesFollowChanges) do
       val terms = knowledge.termsOf(b).toSet
       assert(!terms("invitationLasts") && !terms("trashKeeps") && !terms("requestLasts") && !terms("remindAfter"), (b.id, terms))

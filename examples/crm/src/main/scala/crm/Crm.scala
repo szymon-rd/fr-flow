@@ -11,13 +11,12 @@ val Company = Opaque("Company", "a company that uses the CRM")
 val Record  = Opaque("Record", "a contact or a deal kept in the CRM")
 val Query   = Opaque("Query", "a search a user runs")
 
-val companyOf  = Param[User.T => Company.T]("companyOf", "the company a user works for")
-val owner      = Param[Record.T => Company.T]("owner", "the company a record belongs to")
-val sharedWith = Param[(Record.T, Company.T) => Boolean]("sharedWith",
-  "whether the record's company has shared it with the company, and that share holds now")
-val asksFor    = Param[(Query.T, Record.T) => Boolean]("asksFor", "whether the record is one the search asks for")
-val finds      = Param[(User.T, Query.T, Record.T) => Boolean]("finds", "whether the user's search, run now, returns the record")
-val added      = Param[(Company.T, Record.T) => Boolean]("added", "whether a user of the company has added the record to the CRM, for that company")
+val companyOf  = Param[User.T => Company.T]("the company a user works for")
+val owner      = Param[Record.T => Company.T]("the company a record belongs to")
+val sharedWith = Param[(Record.T, Company.T) => Boolean]("whether the record's company has shared it with the company, and that share holds now")
+val asksFor    = Param[(Query.T, Record.T) => Boolean]("whether the record is one the search asks for")
+val finds      = Param[(User.T, Query.T, Record.T) => Boolean]("whether the user's search, run now, returns the record")
+val added      = Param[(Company.T, Record.T) => Boolean]("whether a user of the company has added the record to the CRM, for that company")
 
 // ============================================================================
 // The domain: companies, records, shares, searches, writes, the expiry job
@@ -77,24 +76,21 @@ final case class Asked(records: List[CrmRecord], grants: List[Grant])
 object Asked extends Data[Asked]
 
 // What the CRM holds now, its history, the clock, and the database
-val history  = Param[List[Event]]("history",
-  "the CRM's history since it started empty: every write the write side saved and every run of the expiry job, in order (its event log)")
-val store    = Param[List[CrmRecord]]("store", "the records the CRM holds now")
-val shares   = Param[List[Share]]("shares", "the shares the CRM holds now")
-val expiries = Param[List[Expiry]]("expiries", "the times until which the CRM's shares are given, as it holds them now")
-val clock    = Param[BigInt]("clock", "the time now, in seconds, by the server's clock: when a search runs")
-val database = Param[Db]("database", "the SQLite database the CRM keeps its records, shares, expiries and event log in")
+val history  = Param[List[Event]]("the CRM's history since it started empty: every write the write side saved and every run of the expiry job, in order (its event log)")
+val store    = Param[List[CrmRecord]]("the records the CRM holds now")
+val shares   = Param[List[Share]]("the shares the CRM holds now")
+val expiries = Param[List[Expiry]]("the times until which the CRM's shares are given, as it holds them now")
+val clock    = Param[BigInt]("the time now, in seconds, by the server's clock: when a search runs")
+val database = Param[Db]("the SQLite database the CRM keeps its records, shares, expiries and event log in")
 
 // The operations: what the system does
-val read      = Param[(Account, Search) => List[CrmRecord]]("read", "the records screen: the records a user's search returns")
-val deals     = Param[(Account, Search) => List[CrmRecord]]("deals", "the sales screen: the deals a user's search returns")
-val fetch     = Param[(Account, Search) => List[CrmRecord]]("fetch", "the database's answer to a search: the stored records, of every company, that match it")
-val write     = Param[(CrmStore, WriteCmd) => CrmStore]("write", "a write applied to a store: the store it leads to")
-val save      = Param[(CrmStore, WriteCmd) => CrmStore]("save",
-  "the write side: a write applied to the store the database holds, the rows about its record stored; it returns those rows as read back")
-val storeRows = Param[(BigInt, CrmStore) => CrmStore]("storeRows",
-  "the database storing what a store holds about one record in place of what it held about it; it returns the rows about the record, read back")
-val expire    = Param[(CrmStore, BigInt) => CrmStore]("expire", "a run of the expiry job at a time (in seconds) on a store: the store it leads to")
+val read      = Param[(Account, Search) => List[CrmRecord]]("the records screen: the records a user's search returns")
+val deals     = Param[(Account, Search) => List[CrmRecord]]("the sales screen: the deals a user's search returns")
+val fetch     = Param[(Account, Search) => List[CrmRecord]]("the database's answer to a search: the stored records, of every company, that match it")
+val write     = Param[(CrmStore, WriteCmd) => CrmStore]("a write applied to a store: the store it leads to")
+val save      = Param[(CrmStore, WriteCmd) => CrmStore]("the write side: a write applied to the store the database holds, the rows about its record stored; it returns those rows as read back")
+val storeRows = Param[(BigInt, CrmStore) => CrmStore]("the database storing what a store holds about one record in place of what it held about it; it returns the rows about the record, read back")
+val expire    = Param[(CrmStore, BigInt) => CrmStore]("a run of the expiry job at a time (in seconds) on a store: the store it leads to")
 
 /** Whether a record is one a search asks for. */
 val matches = define { (q: Term[Search], r: Term[CrmRecord]) =>
@@ -257,8 +253,7 @@ val sharedIn = define { (es: Term[List[Event]], id: Term[BigInt], c: Term[Tenant
 // The root: what a user's search finds, of what users asked
 // ============================================================================
 
-val sharedCrm = Node.claim("SharedCrm",
-  "A user's search finds a record exactly when it asks for that record, a user of the record's company added it, and it is of the user's company or currently shared with it by its own.",
+val sharedCrm = Node.claim("A user's search finds a record exactly when it asks for that record, a user of the record's company added it, and it is of the user's company or currently shared with it by its own.",
   why = "The idea in one sentence, stated as exactly over what users asked: what a search finds is fixed by the history of adds, shares and unshares, with their times (Adding, Sharing), whatever the CRM keeps. Both halves matter: a search must never show a record of another company that did not share it, and must show every record a user added that the searcher may see, so a CRM that stores nothing does not meet it. It splits into what the CRM holds (StoreMirrorsRequests) and what searches read of it (Visibility)."
 )(forall((u: Term[User.T], q: Term[Query.T]) => forall((r: Term[Record.T]) =>
     finds(u, q, r) === (asksFor(q, r) && added(owner(r), r) && (owner(r) === companyOf(u) || sharedWith(r, companyOf(u)))))))
@@ -289,29 +284,24 @@ val sharedCrm = Node.claim("SharedCrm",
 // Definitions: the domain
 // ============================================================================
 
-val companies = Node.definition("Companies",
-  "Companies are named by ids; a user is an account of one company; a record, a contact or a deal, belongs to the company stored on it.",
+val companies = Node.definition("Companies are named by ids; a user is an account of one company; a record, a contact or a deal, belongs to the company stored on it.",
   why = "The CRM knows a company by its id, a user by their account, and stores each record with its company. That the account a request comes with is the caller's own is authentication, not modelled."
 )(Company := of[TenantId], User := of[Account], Record := of[CrmRecord],
   companyOf := ((a: Term[Account]) => a.tenant), owner := ((r: Term[CrmRecord]) => r.tenant))
 
-val searches = Node.definition("Searches",
-  "A user searches by id, by kind or for everything, on the records screen or on the sales screen, which asks for deals only, and finds what the search returns.",
+val searches = Node.definition("A user searches by id, by kind or for everything, on the records screen or on the sales screen, which asks for deals only, and finds what the search returns.",
   why = "The idea's two ways of finding records: the records screen, and the sales team's screen of deals. What a user finds is what the screen returns, so the screens' code is what the purpose is about."
 )(Query := of[Ask], asksFor := ((q: Term[Ask], r: Term[CrmRecord]) => askMatches(q, r)),
   finds := ((u: Term[Account], q: Term[Ask], r: Term[CrmRecord]) => results(u, q).contains(r)))
 
-val adding = Node.definition("Adding",
-  "A user of a company has added a record when a write of theirs in the CRM's history asked to add it, of their company, under an id no record added before it had.",
+val adding = Node.definition("A user of a company has added a record when a write of theirs in the CRM's history asked to add it, of their company, under an id no record added before it had.",
   why = "What the idea calls adding a record, said of the history of requests alone, whatever the CRM keeps: the CRM's records are proven to follow it (StoreMirrorsRequests). A record of another company, or one with an id already taken, is not added: a share names a record by its id, so no two records have one."
 )(added := ((c: Term[TenantId], r: Term[CrmRecord]) => r.tenant === c && askedIn(history).records.contains(r)))
 
-val sharing = Node.definition("Sharing",
-  "A record is shared with a company now when the last share or unshare of it with that company, by a user of its company once it was added, was a share, and neither the clock now nor a run of the expiry job since has reached that share's time.",
+val sharing = Node.definition("A record is shared with a company now when the last share or unshare of it with that company, by a user of its company once it was added, was a share, and neither the clock now nor a run of the expiry job since has reached that share's time.",
   why = "What sharing, unsharing and a share's time mean, said of the history alone: the shares the CRM holds are proven to follow it (StoreMirrorsRequests). A share given until a time ends then, whether or not the job has run. A run of the job is in the history with its time: a share it ended stays ended, even before a clock set back."
 )(sharedWith := ((r: Term[CrmRecord], c: Term[TenantId]) => sharedIn(history, r.id, c, clock)))
 
-val crmRun = Node.definition("CrmRun",
-  "What the CRM holds now, its records, their shares and the shares' expiries, is what its history led to: from empty, each write saved by the write side, the rows about its record replaced by those it stored, and each run of the expiry job, in turn.",
+val crmRun = Node.definition("What the CRM holds now, its records, their shares and the shares' expiries, is what its history led to: from empty, each write saved by the write side, the rows about its record replaced by those it stored, and each run of the expiry job, in turn.",
   why = "Nothing else changes the CRM: users write through the write side, and the job ends shares, one at a time, each on what the last left (WriteSideWiring, ExpiryJob); the database replaces the rows about the written record and nothing else (StoreEdits). So the store searches read is the one writes made, and it follows what users asked (StoreMirrorsRequests). The running read side reads these tables from the database, and the event log is this history (ReadSideWiring)."
 )(store := runOf(history).records, shares := runOf(history).shares, expiries := runOf(history).expiries)

@@ -23,15 +23,14 @@ trait Invitations:
 object Invitations:
   import Demo.*
 
-  val invite = Param[(Library, BigInt, PersonId, PersonId, Target, Level) => Library]("invite", "the library after someone asks to invite a person")
-  val accept = Param[(Library, BigInt, PersonId, Target) => Library]("accept", "the library after a person asks to accept an invitation")
-  val withdraw = Param[(Library, BigInt, PersonId, PersonId, Target) => Library]("withdraw", "the library after someone asks to withdraw an invitation")
+  val invite = Param[(Library, BigInt, PersonId, PersonId, Target, Level) => Library]("the library after someone asks to invite a person")
+  val accept = Param[(Library, BigInt, PersonId, Target) => Library]("the library after a person asks to accept an invitation")
+  val withdraw = Param[(Library, BigInt, PersonId, PersonId, Target) => Library]("the library after someone asks to withdraw an invitation")
 
   /** The branch: what an invitation is. Its parts are the three operations, access (to show an invitation gives none),
     * and, below the timed word "open", the deadline by which housekeeping clears a lapsed one away.
     */
-  val invitationsAreOffers = Node.claim("InvitationsAreOffers",
-    "An invitation is an offer from someone who may edit: only they send it or take it back, it gives nobody access, it is taken up only by the person invited while it is open, and housekeeping clears it away within one of its periods of its lapsing.",
+  val invitationsAreOffers = Node.claim("An invitation is an offer from someone who may edit: only they send it or take it back, it gives nobody access, it is taken up only by the person invited while it is open, and housekeeping clears it away within one of its periods of its lapsing.",
     why = "Q7: an invitation is how someone gets a share they have not asked for; it is a share offered, not given, so until it is accepted access is as before. Whether it is open is left open here (Lifetimes); that a lapsed one does not linger is what InvitationsLapseOnTime says with the clock.",
     idea = "Invitations"
   )(forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], to: Term[PersonId], what: Term[Target]) =>
@@ -52,8 +51,7 @@ object Invitations:
   private val withCat = library.copy(invitations = List(catInvited))
   private val annInvited = library.copy(invitations = List(Invitation(ann, Target.Doc(plan), Level.View, bob, now - day)))
 
-  val inviteContract = Node.contract(invite)("InviteContract",
-    "Someone who may edit a document or folder invites a person to it at a level: the invitation, sent now, takes the place of any earlier invitation of them to it. When anyone else asks, nothing changes.",
+  val inviteContract = Node.contract(invite)("Someone who may edit a document or folder invites a person to it at a level: the invitation, sent now, takes the place of any earlier invitation of them to it. When anyone else asks, nothing changes.",
     why = "Q7: an invitation is how someone gets a share they have not asked for yet; inviting is offering a share, which only someone who may share it does. One invitation per person and thing, so inviting again renews it.",
     idea = "Invitations"
   )((lib, t, by, to, what, level, result) =>
@@ -73,8 +71,7 @@ object Invitations:
 
   private val catViewsPlan = Share(Target.Doc(plan), Grantee.Person(cat), Level.View, None)
 
-  val acceptContract = Node.contract(accept)("AcceptContract",
-    "A person accepts their open invitation to a document or folder: they then have a share of it at the invitation's level, in place of any share of it they had, and the invitation goes. Without an open invitation, or when the document is their own (their share of it is the owner's), nothing changes.",
+  val acceptContract = Node.contract(accept)("A person accepts their open invitation to a document or folder: they then have a share of it at the invitation's level, in place of any share of it they had, and the invitation goes. Without an open invitation, or when the document is their own (their share of it is the owner's), nothing changes.",
     why = "Q7: an invitation gives no access until it is accepted, and only while it is open; accepting is what makes the share. Q14: nothing replaces an owner's share of their own document, so an owner invited to it keeps their edit share for good.",
     idea = "Invitations"
   )((lib, t, p, what, result) =>
@@ -99,8 +96,7 @@ object Invitations:
           invitations = invitationsWithout(lib.invitations, p, what)))))
   }
 
-  val withdrawContract = Node.contract(withdraw)("WithdrawContract",
-    "Someone who may edit a document or folder withdraws a person's invitation to it: the invitation goes. When anyone else asks, nothing changes.",
+  val withdrawContract = Node.contract(withdraw)("Someone who may edit a document or folder withdraws a person's invitation to it: the invitation goes. When anyone else asks, nothing changes.",
     why = "Q7: an editor can take an offer back before it is accepted.",
     idea = "Invitations"
   )((lib, t, by, to, what, result) =>

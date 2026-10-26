@@ -17,7 +17,7 @@ trait Audit:
 object Audit:
   import Demo.*
 
-  val record = Param[(Library, BigInt, Change) => Library]("record", "the library with a change recorded in its log")
+  val record = Param[(Library, BigInt, Change) => Library]("the library with a change recorded in its log")
 
   /** Whether a log entry is of the request that made a share: the share asked for, an accepted invitation, an approved
     * access request, or a document handed on (the new owner's share).
@@ -43,8 +43,7 @@ object Audit:
   }
 
   /** The branch: what the log is for. Its part is recording; that each change is recorded is the service's run. */
-  val auditTrail = Node.claim("AuditTrail",
-    "Every change the service makes is recorded in its log, with the request that made it and when, in the same save as the change; so at every moment, every share the library holds was made by a request in the log. A share is never seen before its entry is there, and every yes of canView rests on shares whose making is logged.",
+  val auditTrail = Node.claim("Every change the service makes is recorded in its log, with the request that made it and when, in the same save as the change; so at every moment, every share the library holds was made by a request in the log. A share is never seen before its entry is there, and every yes of canView rests on shares whose making is logged.",
     why = "Q15: every change is logged with who, what and when, and every yes of canView is traceable to the log entries of the shares that gave it. Recording the change in the save that makes it is what puts the entry there first (an ordering of the run, assertion 5 of the time design): no moment of the service shows a share whose entry is not already kept. Nothing removes an entry (LibraryKept); housekeeping forgets what an entry tells after a year, but not while it explains a share held (ForgetContract).",
     idea = "Audit"
   )(after(events).library.shares.forall(s => after(events).library.log.exists(e => makes(e, s))) &&
@@ -57,8 +56,7 @@ object Audit:
   private val bobViewsPlan = Share(Target.Doc(plan), Grantee.Person(bob), Level.View, None)
   private val shared = Request.Share(ann, Target.Doc(plan), Grantee.Person(bob), Level.View, None)
 
-  val recordContract = Node.contract(record)("RecordContract",
-    "Recording a change at a moment adds one entry at the end of the log: numbered by its place in it, with the moment and the change. Nothing else changes, and no entry is taken away.",
+  val recordContract = Node.contract(record)("Recording a change at a moment adds one entry at the end of the log: numbered by its place in it, with the moment and the change. Nothing else changes, and no entry is taken away.",
     why = "Q15: the log is append-only; an entry's number is its place, so entries are never renumbered, and a notice can name the entry it is about.",
     idea = "Audit"
   )((lib, t, c, result) => result === lib.copy((log = lib.log ++ List(Entry(lib.log.length, t, c)))))
@@ -75,7 +73,7 @@ object Audit:
     lib.copy((log = lib.log ++ List(Entry(lib.log.length, t, c))))
   }
 
-  val forget = Param[(Library, BigInt) => Library]("forget", "the library with the changes of its old log entries forgotten")
+  val forget = Param[(Library, BigInt) => Library]("the library with the changes of its old log entries forgotten")
 
   /** A year, in seconds: how long the log keeps what an entry tells. */
   val year: BigInt = 365 * day
@@ -89,8 +87,7 @@ object Audit:
   private val oldShare = Entry(0, now - 400 * day, Change.Made(shared))
   private val oldUnshare = Entry(1, now - 400 * day, Change.Made(Request.Unshare(ann, Target.Doc(plan), Grantee.Person(bob))))
 
-  val forgetContract = Node.contract(forget)("ForgetContract",
-    "Housekeeping forgets, at a moment, the change of each log entry made more than a year before, unless the entry is the making of a share the library holds or of a change a notice waiting in the outbox tells of: the entry stays in its place, with its number and time, and its change is forgotten. Nothing else changes.",
+  val forgetContract = Node.contract(forget)("Housekeeping forgets, at a moment, the change of each log entry made more than a year before, unless the entry is the making of a share the library holds or of a change a notice waiting in the outbox tells of: the entry stays in its place, with its number and time, and its change is forgotten. Nothing else changes.",
     why = "Q15: the log is kept for a year. An entry keeps its place, so numbers stay unique and no entry is taken away (RecordContract); what it told is gone. An entry that explains a share held, or a notice not yet sent, is kept as long as it does (AuditTrail, NoticesFollowChanges).",
     idea = "Audit"
   )((lib, t, result) => result === lib.copy((log = lib.log.map(e =>

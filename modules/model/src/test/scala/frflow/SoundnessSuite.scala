@@ -4,7 +4,7 @@ import frflow.fixtures.*
 
 /** What would let the Scala that runs and the Lean that is proven say different things, refused. */
 class SoundnessSuite extends munit.FunSuite:
-  private val limit = Param[BigInt]("limit", "the most a reader may borrow")
+  private val limit = Param[BigInt]("the most a reader may borrow")
 
   /** Steps on the stock, comparing what it holds with the limit. */
   private def underLimit(d: Term[BigInt]): Flow[Boolean] =
@@ -43,7 +43,7 @@ class SoundnessSuite extends munit.FunSuite:
   }
 
   test("=== between functions is refused: Scala compares them by reference, Lean by their values") {
-    val shown = Param[Book => Boolean]("shownAs", "a test of a function-valued parameter")
+    val shown = Param[Book => Boolean]("a test of a function-valued parameter")
     val e = intercept[IllegalArgumentException](leanOf(shown === shown))
     assert(e.getMessage.contains("between functions"), e.getMessage)
   }

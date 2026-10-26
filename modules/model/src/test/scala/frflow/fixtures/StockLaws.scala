@@ -24,23 +24,27 @@ object StockLaws:
     r === (before(StockModel) + a) + (before(StockModel) + a) &&
       after(StockModel) === r + (r > 10).fold(BigInt(0): Term[BigInt], BigInt(1))
 
-  /** A law's two sides as two contracts with the one post, each proven of its side. */
-  private def side(law: String, s: String, post: (Term[BigInt], Term[BigInt], Term[World], Term[World]) => Term[Boolean],
-      example: Case[BigInt => Flow[BigInt]]) =
-    val p = Param[BigInt => Flow[BigInt]](s"$law$s", s"the $s side of the law $law")
-    Node.contract(p)(s"$law${s.capitalize}", s"The $s side of $law gives what the post says.", why = s"$law of a relative monad.")(post)
-      .examples()(example)
-
   private val once = allows(BigInt(2), World(StockModel -> BigInt(3)), BigInt(5), World(StockModel -> BigInt(5)), "two delivered to three")
   private val twice = allows(BigInt(2), World(StockModel -> BigInt(1)), BigInt(6), World(StockModel -> BigInt(7)), "three, doubled, then one more")
-  val leftLhs = side("LeftUnit", "lhs", delivered, once)
-  val leftRhs = side("LeftUnit", "rhs", delivered, once)
-  val rightLhs = side("RightUnit", "lhs", delivered, once)
-  val rightRhs = side("RightUnit", "rhs", delivered, once)
-  val assocLhs = side("Associativity", "lhs", deliveredTwiceToppedUp, twice)
-  val assocRhs = side("Associativity", "rhs", deliveredTwiceToppedUp, twice)
 
-  val kb = KnowledgeBase("Laws", idea = "IDEA.md")(neverBelowZero, clamp, countsStock, leftLhs, leftRhs, rightLhs, rightRhs, assocLhs, assocRhs)
+  // A law's two sides: an operation each, and two contracts with the one post, each proven of its side.
+  val leftUnitLhs = Param[BigInt => Flow[BigInt]]("the lhs side of the law LeftUnit")
+  val leftUnitRhs = Param[BigInt => Flow[BigInt]]("the rhs side of the law LeftUnit")
+  val rightUnitLhs = Param[BigInt => Flow[BigInt]]("the lhs side of the law RightUnit")
+  val rightUnitRhs = Param[BigInt => Flow[BigInt]]("the rhs side of the law RightUnit")
+  val associativityLhs = Param[BigInt => Flow[BigInt]]("the lhs side of the law Associativity")
+  val associativityRhs = Param[BigInt => Flow[BigInt]]("the rhs side of the law Associativity")
+
+  val leftLhs = Node.contract(leftUnitLhs)("The lhs side of LeftUnit gives what the post says.")(delivered).examples()(once)
+  val leftRhs = Node.contract(leftUnitRhs)("The rhs side of LeftUnit gives what the post says.")(delivered).examples()(once)
+  val rightLhs = Node.contract(rightUnitLhs)("The lhs side of RightUnit gives what the post says.")(delivered).examples()(once)
+  val rightRhs = Node.contract(rightUnitRhs)("The rhs side of RightUnit gives what the post says.")(delivered).examples()(once)
+  val assocLhs = Node.contract(associativityLhs)("The lhs side of Associativity gives what the post says.")(deliveredTwiceToppedUp)
+    .examples()(twice)
+  val assocRhs = Node.contract(associativityRhs)("The rhs side of Associativity gives what the post says.")(deliveredTwiceToppedUp)
+    .examples()(twice)
+
+  val kb = KnowledgeBase("Laws", idea = "IDEA.md")(neverBelowZero, clamp, stockModel, leftLhs, leftRhs, rightLhs, rightRhs, assocLhs, assocRhs)
     .implementProven(clamp)(clampAtZero)
     .implementProven(leftLhs)((a: Term[BigInt]) => leftUnit(a).lhs).implementProven(leftRhs)((a: Term[BigInt]) => leftUnit(a).rhs)
     .implementProven(rightLhs)((a: Term[BigInt]) => rightUnit(a).lhs).implementProven(rightRhs)((a: Term[BigInt]) => rightUnit(a).rhs)

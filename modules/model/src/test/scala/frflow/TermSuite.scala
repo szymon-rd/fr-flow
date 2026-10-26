@@ -4,7 +4,7 @@ import frflow.fixtures.*
 
 /** Terms: written in Scala, printed as Lean, and run as Scala. */
 class TermSuite extends munit.FunSuite:
-  private val four = Param[(Book, Int, Int, String) => Boolean]("four", "a test of four arguments")
+  private val four = Param[(Book, Int, Int, String) => Boolean]("a test of four arguments")
 
   private def lifted1[A, R](f: Term[A] => Term[R])(using a: LeanType[A]): Lifted[A => R] = Lifted.lambda(f, List(a), "")
   private def lifted2[A, B, R](f: (Term[A], Term[B]) => Term[R])(using a: LeanType[A], b: LeanType[B]): Lifted[(A, B) => R] =
@@ -62,7 +62,8 @@ class TermSuite extends munit.FunSuite:
     val byCase = intercept[IllegalArgumentException](lean1((o: Term[Option[Book]]) => o.on[Some[Book]](b => b.pages).on[None.type](0)))
     assert(byCase.getMessage.contains("o.fold(ifEmpty)"), byCase.getMessage)
     // a parameter only plain code reads (a database handle) needs no Lean type
-    assertEquals(Param[java.io.File]("store", "a handle").name, "store")
+    val store = Param[java.io.File]("a handle")
+    assertEquals(store.name, "store")
     val d = lean2((l: Term[List[Book]], x: Term[Book]) => l.forall(x_1 => l.exists(x => x === x_1)))
     assert(!d.contains("(x = x)") && !d.contains("(x_1 = x_1)"), d)
     // calls hidden in strings stay strings
@@ -139,7 +140,8 @@ class TermSuite extends munit.FunSuite:
     refused(lifted1((b: Term[Book]) => !forall((c: Term[Book]) => c.pages > b.pages)), "negated forall")
     // a local name may not shadow a parameter, which is a Lean variable of the same name
     refused(lifted1((minPages: Term[Int]) => minPages > fixtures.minPages), "names both a parameter")
-    intercept[IllegalArgumentException](Param[BigInt]("z", "a number") / 0)
+    val z = Param[BigInt]("a number")
+    intercept[IllegalArgumentException](z / 0)
     // and what Scala would compute otherwise does not compile
     List(
       compileErrors("(m: frflow.Term[Map[String, BigInt]], k: frflow.Term[String]) => m(k)"),

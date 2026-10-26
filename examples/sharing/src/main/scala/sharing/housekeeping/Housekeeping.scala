@@ -21,11 +21,10 @@ trait Housekeeping:
 object Housekeeping:
   import Demo.*
 
-  val tidy = Param[(Library, BigInt) => Library]("tidy", "the library tidied at a moment")
+  val tidy = Param[(Library, BigInt) => Library]("the library tidied at a moment")
 
   /** The branch: what housekeeping may do. Its parts are tidying and, below the timed words, that they change one way. */
-  val clearsOnlyTheEnded = Node.claim("HousekeepingClearsOnlyTheEnded",
-    "Housekeeping clears away only what has ended: shares no longer in force or of a document gone, invitations no longer open, and documents gone; and what has ended stays ended, so nothing it clears could have counted again.",
+  val housekeepingClearsOnlyTheEnded = Node.claim("Housekeeping clears away only what has ended: shares no longer in force or of a document gone, invitations no longer open, and documents gone; and what has ended stays ended, so nothing it clears could have counted again.",
     why = "Q6-Q8: tidying keeps the library from growing with what gives nothing; it is safe because ending is for good. Whether something has ended is left open here (Lifetimes); that it stays ended rests on the clock never going back (EndedStaysEnded).",
     idea = "Time and housekeeping"
   )(forall((lib: Term[Library], t: Term[BigInt]) =>
@@ -47,15 +46,14 @@ object Housekeeping:
   private val ended = library.copy(shares = bobViewsPlanForAnHour :: library.shares, invitations = List(catInvited),
     documents = List(planTrashed, q3ReportDoc))
 
-  val tidyContract = Node.contract(tidy)("TidyContract",
-    "Tidying at a moment keeps the shares in force, except those of a document gone; keeps the invitations still open; and keeps the documents not gone. Everything else stays as it was.",
+  val tidyContract = Node.contract(tidy)("Tidying at a moment keeps the shares in force, except those of a document gone; keeps the invitations still open; and keeps the documents not gone. Everything else stays as it was.",
     why = "Q6–Q8: ended shares and lapsed invitations give nothing and are removed; a document 30 days in the trash is deleted for good, with its shares (Q8), so they cannot come back to anything. The folders and teams are not touched.",
     idea = "Time and housekeeping"
   )((lib, t, result) =>
     result === lib.copy((documents = lib.documents.filterNot(doc => gone(doc, t)),
       shares = lib.shares.filter(s => inForce(s, t) && !ofGone(lib, t, s)),
       invitations = lib.invitations.filter(i => isOpen(i, t)))))
-    .refines(clearsOnlyTheEnded)
+    .refines(housekeepingClearsOnlyTheEnded)
     .examples()(
       allows(ended, now, ended, "nothing has ended yet"),
       allows(ended, now + 3600, ended.copy(shares = library.shares), "Bob's share of the plan has ended"),
@@ -73,13 +71,12 @@ object Housekeeping:
   // the job: a run reads the clock and tidies what the store holds
   // ---------------------------------------------------------------------------
 
-  val housekeep = Param[() => Flow[Unit]]("housekeep", "a run of housekeeping on the store, at the time the clock gives")
+  val housekeep = Param[() => Flow[Unit]]("a run of housekeeping on the store, at the time the clock gives")
 
   private def at(l: Library, t: BigInt) = World(LibraryModel -> l, MailerModel -> Map.empty[PersonId, List[Notice]], ClockModel -> ClockState(t, Nil))
   private val tidiedAnHourOn = ended.copy(shares = library.shares, log = List(Entry(0, now + 3600, Change.Housekept)))
 
-  val jobContract = Node.contract(housekeep)("HousekeepingJob",
-    "A run of housekeeping leaves the store holding the library it held, tidied, its old log entries forgotten, its access requests chased and the shares ending in a day told of, at the time the clock gives, and, when that changed it, recorded in the log; it does not move the clock. A run that fails changes nothing, and the next minute's run tries again.",
+  val housekeepingJob = Node.contract(housekeep)("A run of housekeeping leaves the store holding the library it held, tidied, its old log entries forgotten, its access requests chased and the shares ending in a day told of, at the time the clock gives, and, when that changed it, recorded in the log; it does not move the clock. A run that fails changes nothing, and the next minute's run tries again.",
     why = "The job is how tidying, forgetting, chasing and telling of ending shares reach the store; one transaction (Q19). Proven of its flow from the store's and the clock's models (LibraryKept, ClockKept), for every pattern of the store's failures; how often it runs is the scheduler's (HousekeepingOnTime). Q16: a failed run changes nothing until one succeeds.",
     idea = "Time and housekeeping"
   )((result, before, after) =>

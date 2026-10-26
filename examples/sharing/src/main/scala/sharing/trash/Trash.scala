@@ -19,14 +19,13 @@ trait Trash:
 object Trash:
   import Demo.*
 
-  val trash = Param[(Library, BigInt, PersonId, DocumentId) => Library]("trash", "the library after someone asks to put a document in the trash")
-  val restore = Param[(Library, BigInt, PersonId, DocumentId) => Library]("restore", "the library after someone asks to restore a document from the trash")
+  val trash = Param[(Library, BigInt, PersonId, DocumentId) => Library]("the library after someone asks to put a document in the trash")
+  val restore = Param[(Library, BigInt, PersonId, DocumentId) => Library]("the library after someone asks to restore a document from the trash")
 
   /** The branch: what the trash is. Its parts are the two operations and, below the timed word "gone", the deadline by
     * which housekeeping purges a document gone.
     */
-  val trashUntilGone = Node.claim("TrashUntilGone",
-    "Only someone who may edit a document puts it in the trash or takes it out, and only before it is gone; and housekeeping purges it within one of its periods of its being gone.",
+  val trashUntilGone = Node.claim("Only someone who may edit a document puts it in the trash or takes it out, and only before it is gone; and housekeeping purges it within one of its periods of its being gone.",
     why = "Q8: the trash is a delay before deleting: what is in it can be brought back until it is gone, and not after. Whether it is gone is left open here (Lifetimes); that a gone document does not linger is what TrashPurgedOnTime says with the clock.",
     idea = "Trash"
   )(forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId]) =>
@@ -38,8 +37,7 @@ object Trash:
 
   private val planInTrash = library.copy(documents = List(planTrashed, q3ReportDoc))
 
-  val trashContract = Node.contract(trash)("TrashContract",
-    "Someone who may edit a document puts it in the trash: it is in the trash from now on, unless it was already, when it keeps the time it was put there. When anyone else asks, nothing changes.",
+  val trashContract = Node.contract(trash)("Someone who may edit a document puts it in the trash: it is in the trash from now on, unless it was already, when it keeps the time it was put there. When anyone else asks, nothing changes.",
     why = "Q8: deleting a document puts it in the trash for a while rather than deleting it for good. Deleting is a change to the document, so only someone who may edit it does it.",
     idea = "Trash"
   )((lib, t, by, d, result) =>
@@ -63,8 +61,7 @@ object Trash:
     mayEdit(lib, t, by, Target[Target.Doc](d)) && lib.documents.exists(doc => doc.id === d && doc.trashed.isDefined && !gone(doc, t))
   }
 
-  val restoreContract = Node.contract(restore)("RestoreContract",
-    "Someone who may edit a document restores it from the trash before it is gone: it is out of the trash, and its shares give access again. When anyone else asks, or it is not in the trash, or it is gone, nothing changes.",
+  val restoreContract = Node.contract(restore)("Someone who may edit a document restores it from the trash before it is gone: it is out of the trash, and its shares give access again. When anyone else asks, or it is not in the trash, or it is gone, nothing changes.",
     why = "Q8: a document in the trash can be restored until it is gone; its shares stayed, so restoring brings back exactly the access it had.",
     idea = "Trash"
   )((lib, t, by, d, result) =>

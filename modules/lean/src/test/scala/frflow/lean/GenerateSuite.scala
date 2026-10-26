@@ -58,7 +58,7 @@ class GenerateSuite extends munit.FunSuite:
   }
 
   test("a definition with an alternative: both stay, as alternatives, and what uses the term waits for the choice") {
-    val thick = Node.definition("Thick", "A book is good when it is thick.", why = "Readers want long reads.")(good := ((b: Term[Book]) => b.pages >= 500))
+    val thick = Node.definition("A book is good when it is thick.", why = "Readers want long reads.")(good := ((b: Term[Book]) => b.pages >= 500))
     val kb = shelfWith(pick, thick)
     assertEquals(kb.problems, Nil)
     val undecided = Generate(kb)
@@ -73,25 +73,25 @@ class GenerateSuite extends munit.FunSuite:
   }
 
   test("generated names are reserved") {
-    val m = Param[Int => Int]("m", "a bound")
-    val clash = Node.claim("Clash", "s", "w")(forall((x: Term[Int]) => m(x) >= 0))
+    val m = Param[Int => Int]("a bound")
+    val clash = Node.claim("s", "w")(forall((x: Term[Int]) => m(x) >= 0))
     assert(Generate.problems(KnowledgeBase("K", "IDEA.md")(clash)).exists(_.contains("reserved")))
   }
 
   test("impl is proven from the promises of the operations its code calls, not those a term it reads is defined with") {
     // Again's code reads pickedFrom, defined by the shelf service's operation: it depends on PickPromise, calls nothing
     val g = Generate(readsKb)
-    assertEquals(g.callees(againC).map(_.id), List("PickPromise"))
-    assertEquals(g.calls(againC), Nil)
-    assert(!g.obligation(againC, ObligationName.Impl).get.statement.contains("h_PickPromise"), g.obligation(againC, ObligationName.Impl))
+    assertEquals(g.callees(Again.again).map(_.id), List("PickPromise"))
+    assertEquals(g.calls(Again.again), Nil)
+    assert(!g.obligation(Again.again, ObligationName.Impl).get.statement.contains("h_PickPromise"), g.obligation(Again.again, ObligationName.Impl))
     // code calling the operation itself is proven from its promise
     val c = Generate(callsKb)
-    assertEquals(c.calls(againC).map(_.id), List("PickPromise"))
-    assert(c.obligation(againC, ObligationName.Impl).get.statement.contains("h_PickPromise"), c.obligation(againC, ObligationName.Impl))
+    assertEquals(c.calls(Again.again).map(_.id), List("PickPromise"))
+    assert(c.obligation(Again.again, ObligationName.Impl).get.statement.contains("h_PickPromise"), c.obligation(Again.again, ObligationName.Impl))
   }
 
   test("a node is witnessed by proven code, an assumption, or parts that all are; a part nothing proves witnesses nothing") {
-    val unrefined = Node.claim("Unrefined", "Some books are kept aside.", why = "A part not refined yet.")(
+    val unrefined = Node.claim("Some books are kept aside.", why = "A part not refined yet.")(
       forall((l: Term[List[Item.T]], x: Term[Item.T]) => shown(l, x) implies l.contains(x))).refines(onlyGood)
     val g = Generate(KnowledgeBase("Shelf", idea = "IDEA.md")((shelfNodes :+ pick :+ unrefined)*).implementProven(pick)(longOnes))
     assert(g.witnessed(pick) && g.witnessed(fromList))

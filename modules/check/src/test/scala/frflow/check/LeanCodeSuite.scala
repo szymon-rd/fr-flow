@@ -16,7 +16,7 @@ class LeanCodeSuite extends LeanLab:
   test("Lean evaluates each example as Scala does, and a disagreement fails the node") {
     // A parameter that is no fixed value: Lean is given one value of it, Scala's post reads another.
     var flip = false
-    val unstable = Node.contract(picks)("Unstable", "Picking returns only long enough books.", why = "w")(
+    val unstable = Node.contract(picks)("Picking returns only long enough books.", why = "w")(
       (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages)).refines(shelfParts*)
       .examples(minPages.bind { flip = !flip; if flip then 100 else 10 })(
         allows(List(Book("Mid", 50)), 5, List(Book("Mid", 50)), "a book of 50 pages"),
@@ -29,7 +29,7 @@ class LeanCodeSuite extends LeanLab:
   }
 
   test("probes near the examples find a translation bug the examples miss") {
-    def kb(d: Def[(List[BigInt], BigInt) => List[BigInt]]) = KnowledgeBase("Probe", idea = "IDEA.md")(floorRoot, floorKeep).implementProven(floorKeep)(d)
+    def kb(d: Def[(List[BigInt], BigInt) => List[BigInt]]) = KnowledgeBase("Probe", idea = "IDEA.md")(floor, floorKeep).implementProven(floorKeep)(d)
     val good = of(workflow(kb(keepAtLeast)).check(), "FloorKeep")
     assertEquals(good.status.toString, "proven", good)
     assert(good.obligations.count(o => o.name.lean.startsWith("probe") && o.status.toString == "proven") >= 3, good.obligations)

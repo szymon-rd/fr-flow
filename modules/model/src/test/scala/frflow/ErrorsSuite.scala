@@ -64,8 +64,8 @@ class ErrorsSuite extends munit.FunSuite:
   }
 
   test("a flow that may fail needs a contract that says what holds when it does") {
-    val p = Param[BigInt => Flow[BigInt]]("silent", "a withdrawal whose contract says nothing of failing")
-    val c = Node.contract(p)("Silent", "A withdrawal leaves the rest.", why = "A test.")((n, r, before, after) => r === after(VaultModel))
+    val p = Param[BigInt => Flow[BigInt]]("a withdrawal whose contract says nothing of failing")
+    val c = Node.contract(p)("A withdrawal leaves the rest.", why = "A test.")((n, r, before, after) => r === after(VaultModel))
     val kb = KnowledgeBase("Silent", idea = "IDEA.md")(vaultKept, c).implementProven(c)((n: Term[BigInt]) => withdraw(n))
     assert(kb.problems.exists(_.toString.contains("say what holds when a run fails")), kb.problems)
   }
@@ -77,8 +77,8 @@ class ErrorsSuite extends munit.FunSuite:
       "three of ten, its call 2 of a failing boundary failing (run on FlakyVault)",
       "more than it holds, its call 1 of a failing boundary failing (run on FlakyVault)"))
     assert(sweep.forall(r => r.contract == "ok" && r.implementation.contains("ok")), sweep)
-    val p = Param[BigInt => Flow[Unit]]("twice", "two puts")
-    val c = Node.contract(p)("Twice", "Two puts leave the second.", why = "A test.")((n, r, before, after) => after(VaultModel) === n + 1)
+    val p = Param[BigInt => Flow[Unit]]("two puts")
+    val c = Node.contract(p)("Two puts leave the second.", why = "A test.")((n, r, before, after) => after(VaultModel) === n + 1)
       .failsChangingNothing[VaultError]
       .examples()(allows(BigInt(1), World(VaultModel -> BigInt(0)), (), World(VaultModel -> BigInt(2)), "both"),
         forbids(BigInt(1), World(VaultModel -> BigInt(0)), (), World(VaultModel -> BigInt(1)), "not the first"))

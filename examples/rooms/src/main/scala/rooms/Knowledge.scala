@@ -5,7 +5,7 @@ import frflow.*
 final case class Booking(room: String, start: BigInt, end: BigInt)
 
 val granted =
-  Param[(List[Booking], Booking) => Boolean]("granted", "whether a request is granted, given the bookings held")
+  Param[(List[Booking], Booking) => Boolean]("whether a request is granted, given the bookings held")
 
 val endsAfterStart = define { (b: Term[Booking]) => b.start < b.end }
 val wellFormed = define { (held: Term[List[Booking]], request: Term[Booking]) =>
@@ -18,7 +18,7 @@ val apart = define { (a: Term[Booking], b: Term[Booking]) =>
   a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t))) }
 
 val grantWhenFree =
-  Node.claim("GrantWhenFree", "A request is granted exactly when its room is free for its whole time.")(
+  Node.claim("A request is granted exactly when its room is free for its whole time.")(
     forall((held: Term[List[Booking]], request: Term[Booking]) =>
       (wellFormed(held, request) && held.pairwise(apart)) implies
         (granted(held, request) === held.forall(b => apart(b, request))))
@@ -29,7 +29,7 @@ val noOverlap = define { (a: Term[Booking], b: Term[Booking]) =>
   a.room =!= b.room || a.end <= b.start || b.end <= a.start }
 
 val grantWhenNoOverlap =
-  Node.contract("GrantWhenNoOverlap", "A request is granted exactly when it overlaps no booking of its room.")(
+  Node.contract("A request is granted exactly when it overlaps no booking of its room.")(
     forall((held: Term[List[Booking]], request: Term[Booking]) =>
       (wellFormed(held, request) && held.pairwise(noOverlap)) implies
         (granted(held, request) === held.forall(b => noOverlap(b, request))))

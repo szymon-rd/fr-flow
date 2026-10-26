@@ -78,11 +78,11 @@ class ConcurrencySuite extends munit.FunSuite:
       def count = Flow.effect(held.get)
       def put(n: Term[BigInt]) = Flow.effect(n)(x => held.set(x))
     val shelf = Boundary[Shelf]("shelf", "goods on a shelf")
-    val kept = Node.assumption(shelf)(ShelfModel)("ShelfKept", "The shelf holds what is put.", why = "Memory.")
+    val kept = Node.assumption(shelf)(ShelfModel)("The shelf holds what is put.", why = "Memory.")
       .implementedBy(a => MemoryShelf(a), _.amount)
-    val p = Param[(BigInt, BigInt) => Flow[List[Unit]]]("byHand", "two deliveries, each read and put back")
+    val p = Param[(BigInt, BigInt) => Flow[List[Unit]]]("two deliveries, each read and put back")
     def add(x: Term[BigInt]) = shelf.ops.count.flatMap(s => shelf.ops.put(s + x))
-    val c = Node.contract(p)("ByHand", "Both deliveries are on the shelf.", why = "A test.")(
+    val c = Node.contract(p)("Both deliveries are on the shelf.", why = "A test.")(
       (a, b, r, before, after) => after(ShelfModel) === before(ShelfModel) + a + b)
       .examples()(allows(BigInt(3), BigInt(4), World(ShelfModel -> BigInt(1)), List((), ()), World(ShelfModel -> BigInt(8)), "both"),
         forbids(BigInt(3), BigInt(4), World(ShelfModel -> BigInt(1)), List((), ()), World(ShelfModel -> BigInt(5)), "not one lost"))

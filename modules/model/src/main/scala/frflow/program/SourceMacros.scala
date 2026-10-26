@@ -2,6 +2,7 @@ package frflow
 package program
 
 import java.nio.file.{Files, Paths}
+import java.util.regex.Pattern
 import scala.collection.mutable
 import scala.quoted.*
 
@@ -10,6 +11,25 @@ private[frflow] object SourceMacros:
   def at(using Quotes): Expr[Int] = Expr(quotes.reflect.Position.ofMacroExpansion.start)
 
   def text(x: Expr[Any])(using Quotes): Expr[String] = Expr(written(x))
+
+  def nodeId(using Quotes): Expr[String] = Expr(valName("a node", "Node.claim(\"…\")(…)").capitalize)
+  def paramName(using Quotes): Expr[String] = Expr(valName("a Param", "Param[A](\"…\")"))
+
+  /** The name of the val whose right-hand side the call is: `val name = Node.claim(…)(…).refines(…)`. */
+  private[frflow] def valName(what: String, example: String)(using Quotes): String =
+    import quotes.reflect.*
+    val call = Position.ofMacroExpansion
+    def named(s: Symbol): Option[Symbol] =
+      if s.isNoSymbol || s.isPackageDef || s.isClassDef then None
+      else if s.isValDef && !s.flags.is(Flags.Synthetic) && !s.flags.is(Flags.Param) then Some(s)
+      else named(s.owner)
+    val name = named(Symbol.spliceOwner).filter { v =>
+      val content = call.sourceFile.content.orElse(scala.util.Try(Files.readString(Paths.get(call.sourceFile.path))).toOption)
+      val written = s"(?s)(?:(?:private|protected|lazy|override|final)\\s+)*(?:val\\s+)?${Pattern.quote(v.name)}\\s*(?::.*)?=\\s*"
+      v.pos.exists(p => content.exists(c => p.start <= call.start && c.substring(p.start, call.start).matches(written)))
+    }
+    name.map(_.name).getOrElse(report.errorAndAbort(
+      s"FrFlow: $what is named by the val it is assigned to: write `val name = $example`", call))
 
   def sources(xs: Expr[Seq[Any]])(using Quotes): Expr[List[String]] =
     xs match

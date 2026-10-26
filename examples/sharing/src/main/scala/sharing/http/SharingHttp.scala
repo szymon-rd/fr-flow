@@ -25,7 +25,7 @@ trait SharingHttp:
 object SharingHttp:
   import Demo.*
 
-  val handle = Param[Request => Flow[Answer]]("handle", "a request handled on the store and the clock: the answer, the store left holding the change")
+  val handle = Param[Request => Flow[Answer]]("a request handled on the store and the clock: the answer, the store left holding the change")
 
   /** The library a request leads to at a moment: the operation's change for a change; the same library for a question. */
   val afterRequest = define { (lib: Term[Library], t: Term[BigInt], r: Term[Request]) =>
@@ -80,8 +80,7 @@ object SharingHttp:
     log = List(Entry(0, now, Change.Made(shareWithBob))))
   private def at(l: Library) = World(LibraryModel -> l, MailerModel -> Map.empty[PersonId, List[Notice]], ClockModel -> ClockState(now, Nil))
 
-  val handleContract = Node.contract(handle)("HandleContract",
-    "A request is answered at the time the clock gives, from the library the store holds, and leaves the store holding the library it leads to: a question is answered with the person's access and changes nothing; a change is made as its operation makes it, recorded in the log and announced in the outbox in the same save, and answered done when it may be made and refused otherwise. Handling does not move the clock. A request the store fails changes nothing.",
+  val handleContract = Node.contract(handle)("A request is answered at the time the clock gives, from the library the store holds, and leaves the store holding the library it leads to: a question is answered with the person's access and changes nothing; a change is made as its operation makes it, recorded in the log and announced in the outbox in the same save, and answered done when it may be made and refused otherwise. Handling does not move the clock. A request the store fails changes nothing.",
     why = "This is the service as a client sees it, in the store's and the clock's terms (LibraryKept, ClockKept). What the answers and changes are is the operations' (their contracts); what this adds is that each request reads the library the last one left and the clock once, and leaves the library it leads to, so a client's next request sees its change. One save per request is one transaction: Q16, a store failure mid-request changes nothing, proven for every pattern of the store's failures; the server answers it 503 (ServerWiring).",
     idea = "Failures"
   )((r, result, before, after) =>

@@ -17,7 +17,7 @@ trait Ownership:
 object Ownership:
   import Demo.*
 
-  val transfer = Param[(Library, BigInt, PersonId, DocumentId, PersonId) => Library]("transfer", "the library after someone asks to hand a document on")
+  val transfer = Param[(Library, BigInt, PersonId, DocumentId, PersonId) => Library]("the library after someone asks to hand a document on")
 
   /** Whether `by` owns the document. */
   val owns = define { (lib: Term[Library], by: Term[PersonId], d: Term[DocumentId]) =>
@@ -27,8 +27,7 @@ object Ownership:
   /** The branch: what owning a document means. Its parts are the transfer, and unsharing (which leaves an owner's
     * shares alone).
     */
-  val ownersKeepTheirDocuments = Node.claim("OwnersKeepTheirDocuments",
-    "A document has one owner. Only its owner, while they may edit it, hands it on, and only to someone who may edit it, who then has an edit share of it for good; and nobody unshares or replaces an owner's shares of their own document. An owner's share is with them in person, not through a team, so leaving a team never takes their documents from them.",
+  val ownersKeepTheirDocuments = Node.claim("A document has one owner. Only its owner, while they may edit it, hands it on, and only to someone who may edit it, who then has an edit share of it for good; and nobody unshares or replaces an owner's shares of their own document. An owner's share is with them in person, not through a team, so leaving a team never takes their documents from them.",
     why = "Q14: every document has exactly one owner, its creator; only the owner transfers it, to someone who may edit it; the owner always may edit; an owner leaving a team keeps their documents; the owner's share cannot be unshared or expire. Exactly one owner is the type: a document names its owner.",
     idea = "Ownership"
   )(forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId], to: Term[PersonId]) =>
@@ -45,8 +44,7 @@ object Ownership:
   private val bobEditsPlan = Share(Target.Doc(plan), Grantee.Person(bob), Level.Edit, None)
   private val bobMayEdit = library.copy(shares = bobEditsPlan :: library.shares)
 
-  val transferContract = Node.contract(transfer)("TransferContract",
-    "The owner of a document, while they may edit it, hands it on to someone who may edit it: that person is then its owner, with an edit share of it for good in place of any share of it they had. When anyone else asks, or the new owner may not edit it, nothing changes.",
+  val transferContract = Node.contract(transfer)("The owner of a document, while they may edit it, hands it on to someone who may edit it: that person is then its owner, with an edit share of it for good in place of any share of it they had. When anyone else asks, or the new owner may not edit it, nothing changes.",
     why = "Q14: only the owner transfers a document, to someone who may edit it; the new owner's share makes sure they always may edit it.",
     idea = "Ownership"
   )((lib, t, by, d, to, result) =>

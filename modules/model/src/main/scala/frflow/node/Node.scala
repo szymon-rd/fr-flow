@@ -93,30 +93,29 @@ object Node:
   /** With no parents, the root: the idea's purpose, stated precisely enough that doing nothing does not meet it.
     * A claim, like a contract, needs no `why`: the reason it holds is kept with the developer's signed decision.
     */
-  inline def claim(id: String, statement: String, why: String = "", idea: String = "")(
-      inline formula: Term[Boolean]): Node[Unit] =
-    def node(): Node[Unit] =
+  inline def claim(statement: String, why: String = "", idea: String = "")(inline formula: Term[Boolean]): Node[Unit] =
+    def node(id: String): Node[Unit] =
       Node(id, statement, why, NodeKind.Claim, formula = Some(Lifted.thunk(() => formula, Source.text(formula))), ideaSection = idea,
         file = Source.here, at = Source.at)
-    node()
+    node(Source.nodeId)
 
   /** Every call `op(a, b, …)` meets `post(a, b, …, op(a, b, …))`: code attached to the operation is proven or checked
     * against it. On a flow's operation (`A => Flow[R]`), every run of `op(a, …)` from a world meets
     * `post(a, …, result, before, after)`, where `before(Model)` is a model's state before the run.
     */
-  inline def contract[F](op: Param[F])(using s: Sig[F])(id: String, statement: String, why: String = "",
-      idea: String = "")(inline post: s.Lam[Term[Boolean]]): Node[F] =
-    def node(): Node[F] =
+  inline def contract[F](op: Param[F])(using s: Sig[F])(statement: String, why: String = "", idea: String = "")(
+      inline post: s.Lam[Term[Boolean]]): Node[F] =
+    def node(id: String): Node[F] =
       Node(id, statement, why, NodeKind.Contract, post = Some(Lifted.lambda(post, lambdaTypes(op), Source.text(post))), op = Some(op),
         ideaSection = idea, file = Source.here, at = Source.at)
-    node()
+    node(Source.nodeId)
 
   /** A contract written as a claim, `forall((a, b) => … op(a, b) …)`, with one operation applied to the forall's
     * variables in order: the same contract as `contract(op)(id, statement)((a, b, result) => …)`, `op(a, b)` read as
     * `result`.
     */
-  transparent inline def contract(id: String, statement: String)(inline formula: Term[Boolean]): Node[?] =
-    ${ ContractMacros.claimShaped('id, 'statement, 'formula) }
+  transparent inline def contract(statement: String)(inline formula: Term[Boolean]): Node[?] =
+    ${ ContractMacros.claimShaped('statement, 'formula) }
 
   @scala.annotation.publicInBinary private[frflow] def claimShaped[F](op: Param[F], id: String, statement: String,
       formula: Lifted[?], file: String, at: Int): Node[F] =
@@ -140,31 +139,31 @@ object Node:
     case _ => throw IllegalArgumentException(s"FrFlow: ${op.name} is not a flow's operation (A => Flow[R])")
 
   /** A fact of the world, trusted; checked at run time where the terms it reads are bound, when it can be computed. */
-  inline def assumption(id: String, statement: String, why: String, idea: String = "")(inline formula: Term[Boolean]): Node[Unit] =
-    def node(): Node[Unit] =
+  inline def assumption(statement: String, why: String, idea: String = "")(inline formula: Term[Boolean]): Node[Unit] =
+    def node(id: String): Node[Unit] =
       Node(id, statement, why, NodeKind.Assumption, formula = Some(Lifted.thunk(() => formula, Source.text(formula))), ideaSection = idea,
         file = Source.here, at = Source.at)
-    node()
+    node(Source.nodeId)
 
   /** Fixes terms of the vocabulary (`User := of[UserId]`, `authorized := (u, p) => ...`): decided, not proven. */
-  inline def definition(id: String, statement: String, why: String)(substs: Subst*): Node[Unit] =
-    def node(): Node[Unit] =
+  inline def definition(statement: String, why: String)(substs: Subst*): Node[Unit] =
+    def node(id: String): Node[Unit] =
       Node(id, statement, why, NodeKind.Definition, substs = substs.toList, file = Source.here, at = Source.at)
-    node()
+    node(Source.nodeId)
 
   /** `rule(a, b)` holds for every pair a call exposes: every contract below `scope` that can expose one keeps it or is `exempt`. */
-  inline def invariant[A, B](id: String, statement: String, why: String, scope: List[Node[?]] = Nil, idea: String = "")(
+  inline def invariant[A, B](statement: String, why: String, scope: List[Node[?]] = Nil, idea: String = "")(
       inline rule: (Term[A], Term[B]) => Term[Boolean])(using a: LeanType[A], b: LeanType[B]): Node[(A, B) => Boolean] =
-    def node(): Node[(A, B) => Boolean] =
+    def node(id: String): Node[(A, B) => Boolean] =
       Node(id, statement, why, NodeKind.Claim, rule = Some(Lifted.lambda(rule, List(a, b), Source.text(rule))), scope = scope,
         ideaSection = idea, file = Source.here, at = Source.at)
-    node()
+    node(Source.nodeId)
 
   /** An architecture choice or a convention, with no formal model; a change to the files it `governs` is noticed. */
-  inline def design(id: String, statement: String, why: String, idea: String = "")(governs: String*): Node[Unit] =
-    def node(): Node[Unit] =
+  inline def design(statement: String, why: String, idea: String = "")(governs: String*): Node[Unit] =
+    def node(id: String): Node[Unit] =
       Node(id, statement, why, NodeKind.Design, governs = governs.toList, ideaSection = idea, file = Source.here, at = Source.at)
-    node()
+    node(Source.nodeId)
 
   /** What a lambda over a call of the operation takes: its inputs and result; a flow's, then the worlds before and after. */
   private[frflow] def lambdaTypes(op: Param[?]): List[LeanType[?]] = op.termType.shape match

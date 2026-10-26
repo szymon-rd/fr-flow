@@ -153,16 +153,15 @@ One of each kind, from the examples (`why` cut):
 
 ```scala
 val User   = Opaque("User", "a person who uses the system")
-val access = Param[(User.T, Resource.T) => Boolean]("access", "whether the system lets the user access the resource")
-val admit  = Param[(String, Path) => Option[UserId]]("admit", "the system's decision on a request (a token and a path): the user it is admitted on behalf of, if any")
+val access = Param[(User.T, Resource.T) => Boolean]("whether the system lets the user access the resource")
+val admit  = Param[(String, Path) => Option[UserId]]("the system's decision on a request (a token and a path): the user it is admitted on behalf of, if any")
 
-val accessExactly = Node.claim("AccessExactly",          // the root: the claim with no parents
+val accessExactly = Node.claim(// the root: the claim with no parents
   "A user gets access to a resource exactly when they are signed in and authorized for it.", why = "..."
 )(forall((u: Term[User.T], r: Term[Resource.T]) => access(u, r) === (signedIn(u) && authorized(u, r))))
-val identities = Node.definition("Identities", "Users are named by ids, and resources are paths.", why = "..."
+val identities = Node.definition("Users are named by ids, and resources are paths.", why = "..."
 )(User := of[UserId], Resource := of[Path])
-val decisionContract = Node.contract(admit)("DecisionContract",
-  "A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path.", why = "..."
+val decisionContract = Node.contract(admit)("A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path.", why = "..."
 )((token, path, decision) => decision.forall(u => sessions(token) === Some(u) && grants.contains(Grant(u, path))) && ...)
   .refines(tokenNamesHolder, accessNeedsGrant, grantLetsIn)
   .examples(grants.bind(List(Grant(UserId("alice"), Path("/a")))), sessions.bindTable(Map("t1" -> UserId("alice"))))(
@@ -173,16 +172,15 @@ val decisionContract = Node.contract(admit)("DecisionContract",
 val expireCode = define { (s: Term[CrmStore], now: Term[BigInt]) =>      // crm: code Lean proves
   CrmStore(s.records, s.shares.filter(sh => !ended(sh, s, now)), s.expiries.filter(e => !ended(Share(e.record, e.to), s, now)))
 }
-val inMemorySessions = Node.design("InMemorySessions",
-  "Sessions and grants are loaded into memory, in one process that decides every request.", why = "..."
+val inMemorySessions = Node.design("Sessions and grants are loaded into memory, in one process that decides every request.", why = "..."
 )("src/main/scala/auth/Server.scala").refines(decisionContract)
 
-val realmIsolation = Node.invariant[RealmId, Claims]("RealmIsolation",   // keycloak
+val realmIsolation = Node.invariant[RealmId, Claims](// keycloak
   "No application is ever shown claims of a realm other than its own.", why = "..."
 )((asking, c) => c.realm === asking)
 // on the contract Introspect:  .keeps(realmIsolation)((realm, token, res) => res.fold(List.empty[(RealmId, Claims)])(c => List((realm, c))))
 // on the design ServiceWiring: .exempt(realmIsolation, "it returns what Introspect returns, which keeps the rule")
-val sessionLookup = Node.assumption(lookup)("SessionLookup",          // keycloak: trusted
+val sessionLookup = Node.assumption(lookup)(// keycloak: trusted
   "The store's index returns a session it holds under the token in the realm asked, if it holds one, and never one of another realm or token.", why = "..."
 )((realm, token, r) => r.forall(x => sessions(realm).contains(x) && x.token === token && x.realm === realm) && ...)
 ```
@@ -193,7 +191,9 @@ val sessionLookup = Node.assumption(lookup)("SessionLookup",          // keycloa
   over terms: Lean's `def` of the same name, and Scala runs it.
 - **Kinds.** A contract states a claim for one call of an operation, so each
   result can be checked. An assumption states what you cannot prove: a port, or
-  a fact of the world (`Node.assumption(id, statement, why)(formula)`).
+  a fact of the world (`Node.assumption(statement, why)(formula)`).
+- **Names.** A node's id is its `val`'s name, first letter capitalised (`val grantWhenFree` is `GrantWhenFree`);
+  a `Param`'s name is its `val`'s name. Assign each node and `Param` directly to a `val`.
 - **Edges.** `.refines(p1, p2)`: a part of each; declare parents first (a `val`
   used before it is defined is `null`). `.keeps(inv)(view)`: the pairs a call
   shows the invariant; every contract and design node in its scope keeps it or
@@ -273,7 +273,7 @@ object DatabaseModel extends Database, StateModel[Tables]:   // the model the pr
   def load = state.get.map(t => t.store)
   def storeAbout(id: Term[BigInt], s: Term[CrmStore]) = state.update(t => Tables(replaceAbout(t.store, id, aboutRecord(s, id)), t.events))
   def logEvent(e: Term[Event]) = state.update(t => Tables(t.store, t.events ++ List(e)))
-val tablesModel = Node.assumption(db)(DatabaseModel)("TablesModel", "...", why = "...")
+val tablesModel = Node.assumption(db)(DatabaseModel)("...", why = "...")
   .checkedAgainst(t => SqliteDatabase.holding(t), _.tables)    // an outside system: assumed, checked
   .implementedBy(t => MemoryDatabase.holding(t), _.tables)     // the project's own code: tested
 
@@ -285,7 +285,7 @@ def expireOnce(now: Term[BigInt]): Flow[CrmStore] =   // the code, in Cats style
     _ <- db.logEvent(Event[Event.Expired](now))
   yield t
 // the contract, on runExpiry: Param[BigInt => Flow[CrmStore]]:
-//   Node.contract(runExpiry)("ExpiryJob", "...", why = "...")((now, result, before, after) =>
+//   Node.contract(runExpiry)("...", why = "...")((now, result, before, after) =>
 //     sameRows(after(DatabaseModel).store, expire(before(DatabaseModel).store, now)) && ...)
 // knowledge.implementProven(expiryJob)(expireOnce); production: knowledge.run[SyncIO](expiryJob)(db.bind(SqliteDatabase(d)))(now)
 ```

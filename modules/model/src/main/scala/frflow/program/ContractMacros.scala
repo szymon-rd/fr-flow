@@ -10,7 +10,7 @@ private[frflow] object ContractMacros:
   private val Shape = "a contract written as a claim applies one operation to its forall's variables, in order: " +
     "forall((held: Term[List[Booking]], request: Term[Booking]) => … granted(held, request) …)"
 
-  def claimShaped(id: Expr[String], statement: Expr[String], formula: Expr[Term[Boolean]])(using Quotes): Expr[Node[?]] =
+  def claimShaped(statement: Expr[String], formula: Expr[Term[Boolean]])(using Quotes): Expr[Node[?]] =
     import quotes.reflect.*
     val body = formula.asTerm
     val bound = variables(body)
@@ -28,7 +28,7 @@ private[frflow] object ContractMacros:
             if TypeRepr.of[f].typeArgs.lastOption.exists(_ <:< TypeRepr.of[Flow[?]]) then
               report.errorAndAbort(s"FrFlow: ${op.show} runs a flow: its contract is written as a lambda over the run", op.pos)
             val p = op.asExprOf[Param[f]]
-            '{ Node.claimShaped[f]($p, $id, $statement, Lifted.thunk(() => $formula, Source.text($formula)),
+            '{ Node.claimShaped[f]($p, Source.nodeId, $statement, Lifted.thunk(() => $formula, Source.text($formula)),
               ${ SourceMacros.here }, ${ SourceMacros.at }) }
           case _ => report.errorAndAbort(s"FrFlow: ${op.show} is not a Param: $Shape", op.pos)
       case many => report.errorAndAbort(s"FrFlow: this formula applies ${many.map(_.name).mkString(" and ")}: $Shape", body.pos)

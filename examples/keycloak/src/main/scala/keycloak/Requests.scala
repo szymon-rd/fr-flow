@@ -10,16 +10,14 @@ import frflow.*
 final case class ServerState(accounts: List[UserAccount], sessions: List[Session])
 object ServerState extends Data[ServerState]
 
-val step = Param[(ServerState, AuthRequest) => ServerState]("step",
-  "the server's handling of one request: the state it stores, from the state before it")
-val sessions = Param[RealmId => List[Session]]("sessions", "the sessions a realm has open, as the server holds them now")
-val account = Param[(RealmId, String) => Option[UserAccount]]("account", "the user's account in a realm, as the server holds it now")
+val step = Param[(ServerState, AuthRequest) => ServerState]("the server's handling of one request: the state it stores, from the state before it")
+val sessions = Param[RealmId => List[Session]]("the sessions a realm has open, as the server holds them now")
+val account = Param[(RealmId, String) => Option[UserAccount]]("the user's account in a realm, as the server holds it now")
 
 /** The state after some requests: from the accounts loaded at start and no session, each request handled in turn. */
 val stateAfter = define { (hs: Term[List[AuthRequest]]) => hs.foldLeft(ServerState(seed, Nil))((s, q) => step(s, q)) }
 
-val serverRun = Node.definition("ServerRun",
-  "The server's sessions and accounts now are what its requests led to: from the accounts loaded at start and no session, each request handled in turn.",
+val serverRun = Node.definition("The server's sessions and accounts now are what its requests led to: from the accounts loaded at start and no session, each request handled in turn.",
   why = "The server handles one request at a time on the state it stored after the last one (ServiceWiring), so its state is the requests of its history applied in turn."
 )(sessions := ((r: Term[RealmId]) => stateAfter(history).sessions.filter(x => x.realm === r)),
   account := ((r: Term[RealmId], u: Term[String]) => accountOf(stateAfter(history).accounts, r, u)))
@@ -28,28 +26,24 @@ val serverRun = Node.definition("ServerRun",
 // The server keeps what the history says
 // ============================================================================
 
-val sessionsMirrorSignIns = Node.claim("SessionsMirrorSignIns",
-  "The server holds a session open in a realm exactly when its user is signed in to that realm with its token.",
+val sessionsMirrorSignIns = Node.claim("The server holds a session open in a realm exactly when its user is signed in to that realm with its token.",
   why = "Applications learn about tokens from the sessions the server holds, so these must be exactly the sign-ins that still stand: one more would let someone in, one less would turn a user away.",
   idea = "Signing in and out"
 )(forall((r: Term[RealmId], x: Term[Session]) => sessions(r).contains(x) === (x.realm === r && liveIn(history, x))))
   .refines(onlyTheSignedIn, signedInAreAccepted)
 
-val accountsAsAdministered = Node.claim("AccountsAsAdministered",
-  "The server holds every user's account as loaded at start, with each administrator's change applied in turn.",
+val accountsAsAdministered = Node.claim("The server holds every user's account as loaded at start, with each administrator's change applied in turn.",
   why = "Whether a user is enabled is read from the accounts the server holds: they must be the ones administrators set, so disabling a user takes effect at the next request.",
   idea = "Administering users"
 )(forall((r: Term[RealmId], u: Term[String]) => account(r, u) === accountOf(accountsAfter(history), r, u)))
   .refines(disabledHaveNoAccess, rolesAsGranted, signedInAreAccepted)
 
-val oneSignInPerToken = Node.claim("OneSignInPerToken",
-  "Two sign-ins that still stand never share a token: a token names one session at most.",
+val oneSignInPerToken = Node.claim("Two sign-ins that still stand never share a token: a token names one session at most.",
   why = "A token must say whose it is: if two users could get the same one, an application could be told either of them."
 )(forall((x: Term[Session], y: Term[Session]) => (liveIn(history, x) && liveIn(history, y) && x.token === y.token) implies (x === y)))
   .refines(signedInAreAccepted)
 
-val freshTokens = Node.assumption("FreshTokens",
-  "Every sign-in carries a token no earlier sign-in carried.",
+val freshTokens = Node.assumption("Every sign-in carries a token no earlier sign-in carried.",
   why = "The server draws 256 random bits for each sign-in (HttpApi): a repeat does not happen in practice. Trusted, not proven; the server also refuses a token an open session holds."
 )(forall((pre: Term[List[AuthRequest]], post: Term[List[AuthRequest]]) => forall((q: Term[AuthRequest]) =>
   (history === pre ++ (q :: post)) implies fresh(pre, q))))
@@ -59,12 +53,10 @@ val freshTokens = Node.assumption("FreshTokens",
 // Storing the state: the store, outside the proven core
 // ============================================================================
 
-val sessionDb = Param[SessionDb]("sessionDb", "the server's store: its accounts, its open sessions indexed by realm and token, and its event log")
-val record = Param[(AuthRequest, ServerState) => ServerState]("record",
-  "storing a request in the event log, with the state it led to: what the store holds afterwards, read back")
+val sessionDb = Param[SessionDb]("the server's store: its accounts, its open sessions indexed by realm and token, and its event log")
+val record = Param[(AuthRequest, ServerState) => ServerState]("storing a request in the event log, with the state it led to: what the store holds afterwards, read back")
 
-val storeKeepsState = Node.assumption(record)("StoreKeepsState",
-  "Storing a request with the state it led to keeps that state: read back, the store holds exactly it.",
+val storeKeepsState = Node.assumption(record)("Storing a request with the state it led to keeps that state: read back, the store holds exactly it.",
   why = "The state lives in a store (in memory here; a database in a cluster). The handling of a request is proven from this promise, not from the store's code; what is stored is read back on every call, so a write the store dropped or changed is seen at once."
 )((q, after, back) => back === after)
   .examples(sessionDb.bind(SessionDb.empty))(
@@ -94,8 +86,7 @@ val endedBy = define { (q: Term[AuthRequest], x: Term[Session]) =>
     .on[AuthRequest.SetEnabled]((_, _, _) => False)
 }
 
-val handleRequest = Node.contract(step)("HandleRequest",
-  "A request opens the session a sign-in asks for when the user is enabled, the password theirs and no session holds the token; ends the sessions its sign-out names in its realm; changes accounts only as an administrator's change sets them; and changes nothing else.",
+val handleRequest = Node.contract(step)("A request opens the session a sign-in asks for when the user is enabled, the password theirs and no session holds the token; ends the sessions its sign-out names in its realm; changes accounts only as an administrator's change sets them; and changes nothing else.",
   why = "One request at a time, so each result of the running server is checked; the history's meaning (SignInHistory, Accounts) follows by induction over the requests. Refusing a token an open session holds keeps a token naming one session even if a token were ever drawn twice.",
   idea = "Signing in and out"
 )((s, q, t) => t.accounts === administer(s.accounts, q) &&

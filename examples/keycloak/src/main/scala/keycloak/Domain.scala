@@ -19,14 +19,12 @@ enum AuthRequest:
   case SetEnabled(realm: RealmId, user: String, on: Boolean)
 object AuthRequest extends Data[AuthRequest]
 
-val identities = Node.definition("Identities",
-  "Realms are named; a user is named by their username in a realm; tokens and roles are strings.",
+val identities = Node.definition("Realms are named; a user is named by their username in a realm; tokens and roles are strings.",
   why = "The same username in two realms is two users: a user is always looked up with the realm. A token is an opaque random string, a role a name the realm's applications know."
 )(Realm := of[RealmId], User := of[String], Token := of[String], Role := of[String])
 
-val seed = Param[List[UserAccount]]("seed", "every realm's accounts as loaded at start: username, salted password hash, whether enabled, realm roles")
-val history = Param[List[AuthRequest]]("history",
-  "the requests the server has handled since it started, in order: sign-ins, sign-outs and administrators' changes (the server's event log)")
+val seed = Param[List[UserAccount]]("every realm's accounts as loaded at start: username, salted password hash, whether enabled, realm roles")
+val history = Param[List[AuthRequest]]("the requests the server has handled since it started, in order: sign-ins, sign-outs and administrators' changes (the server's event log)")
 
 // ============================================================================
 // Accounts: as loaded, and as administrators set them since
@@ -53,8 +51,7 @@ val rolesIn = define { (a: Term[Option[UserAccount]]) =>
   a.fold(List.empty[String])(x => x.roles)
 }
 
-val accounts = Node.definition("Accounts",
-  "A user is enabled, and has the roles, that their account in the realm says, as loaded at start and as administrators have set it since.",
+val accounts = Node.definition("A user is enabled, and has the roles, that their account in the realm says, as loaded at start and as administrators have set it since.",
   why = "Realms and users are loaded at start (managing them is not modelled); an administrator can enable or disable a user, and the next request sees it."
 )(enabled := ((r: Term[RealmId], u: Term[String]) => isEnabled(accountOf(accountsAfter(history), r, u))),
   rolesOf := ((r: Term[RealmId], u: Term[String]) => rolesIn(accountOf(accountsAfter(history), r, u))))
@@ -79,8 +76,7 @@ val liveIn = define { (hs: Term[List[AuthRequest]], x: Term[Session]) =>
       !post.contains(AuthRequest[AuthRequest.SignOut](x.realm, x.token)))
 }
 
-val signInHistory = Node.definition("SignInHistory",
-  "A user is signed in to a realm with a token when a sign-in of theirs to that realm got the token, while they were enabled and with their password, and no sign-out with the token in that realm came after it.",
+val signInHistory = Node.definition("A user is signed in to a realm with a token when a sign-in of theirs to that realm got the token, while they were enabled and with their password, and no sign-out with the token in that realm came after it.",
   why = "This is what signing in and out means, said of the history of requests alone, whatever the server keeps: the server's sessions are proven to follow it (SessionsMirrorSignIns)."
 )(signedIn := ((r: Term[RealmId], u: Term[String], t: Term[String]) => liveIn(history, Session(t, r, u))))
 

@@ -68,15 +68,19 @@ Exit codes: 0 fine; 1 not complete, or a decision refused; 2 a usage error
 
 | Kind | Written as | In Lean |
 |---|---|---|
-| claim | `Node.claim(id, statement)(formula)`; the one with no parents is the root | proven from its parts (`complete`) |
-| invariant | `Node.invariant[A, B](id, statement, why)(rule)`, kept by contracts with `.keeps(inv)(view)` | a claim whose parts are its keepers |
-| contract written as a claim | `Node.contract(id, statement)(forall((a: Term[A], b: Term[B]) => ... op(a, b) ...))`, one operation applied to the forall's variables in order | the same contract as the lambda form, `op(a, b)` read as `result`; a formula of another shape does not compile |
-| contract | `Node.contract(op)(id, statement)((a, b, result) => ...)` on an operation `op: Param[(A, B) => R]`, of 0 to 6 inputs | every call of `op` meets `post`; an attached `define` is proven against it (`impl`) |
-| contract on a flow | `Node.contract(op)(id, statement)((a, result, before, after) => ...)` on `op: Param[A => Flow[R]]`, of 0 to 6 inputs | every run from any world meets `post`; the attached flow is proven against it on the models (`impl`) |
-| assumption | `Node.assumption(op)(...)(post)`, or `Node.assumption(id, statement, why)(formula)` | trusted, not proven: what the outside does, or a fact of the world |
-| model of a boundary | `Node.assumption(boundary)(Model)(id, statement, why)` | trusted: the boundary behaves as the model; flows are proven from it |
-| definition | `Node.definition(id, statement, why)(Type := of[T], term := expr, ...)` | fixes terms of the vocabulary; decided, not proven |
-| design | `Node.design(id, statement, why)(files*)` | none: governs code no proof covers |
+| claim | `Node.claim(statement)(formula)`; the one with no parents is the root | proven from its parts (`complete`) |
+| invariant | `Node.invariant[A, B](statement, why)(rule)`, kept by contracts with `.keeps(inv)(view)` | a claim whose parts are its keepers |
+| contract written as a claim | `Node.contract(statement)(forall((a: Term[A], b: Term[B]) => ... op(a, b) ...))`, one operation applied to the forall's variables in order | the same contract as the lambda form, `op(a, b)` read as `result`; a formula of another shape does not compile |
+| contract | `Node.contract(op)(statement)((a, b, result) => ...)` on an operation `op: Param[(A, B) => R]`, of 0 to 6 inputs | every call of `op` meets `post`; an attached `define` is proven against it (`impl`) |
+| contract on a flow | `Node.contract(op)(statement)((a, result, before, after) => ...)` on `op: Param[A => Flow[R]]`, of 0 to 6 inputs | every run from any world meets `post`; the attached flow is proven against it on the models (`impl`) |
+| assumption | `Node.assumption(op)(...)(post)`, or `Node.assumption(statement, why)(formula)` | trusted, not proven: what the outside does, or a fact of the world |
+| model of a boundary | `Node.assumption(boundary)(Model)(statement, why)` | trusted: the boundary behaves as the model; flows are proven from it |
+| definition | `Node.definition(statement, why)(Type := of[T], term := expr, ...)` | fixes terms of the vocabulary; decided, not proven |
+| design | `Node.design(statement, why)(files*)` | none: governs code no proof covers |
+
+A node is named by the `val` it is assigned to, its first letter capitalised (`val grantWhenFree = Node.claim(...)`
+is `GrantWhenFree`), and a `Param` by its `val` as written (`val granted = Param[...]("what it means")` is
+`granted`). A node or a `Param` that is not the right-hand side of a `val` does not compile.
 
 A claim or a contract may also give `why = "..."`; without one, the reason it holds is the one the developer
 signs with the decision. The other kinds say why.
@@ -87,8 +91,8 @@ no inputs (`Param[() => R]`, a reading of the world now) is called `op()`, its p
 and its examples `allows(result, note)` under the bindings that give it:
 
 ```scala
-val share = Param[(UserId, DocId, UserId) => Boolean]("share", "whether a user may share a document with another")
-Node.contract(share)("Share", "...", why = "...")((by, doc, withWhom, result) => result === owns(by, doc))
+val share = Param[(UserId, DocId, UserId) => Boolean]("whether a user may share a document with another")
+Node.contract(share)("...", why = "...")((by, doc, withWhom, result) => result === owns(by, doc))
   .examples()(allows(ann, readme, bob, true, "the owner shares"), forbids(bob, readme, ann, true, "only the owner"))
 knowledge.implement(share)((by, doc, withWhom) => owners(doc) == by)
 ```
@@ -224,7 +228,7 @@ finding.
 boundary's trait and is tested against the boundary's state model:
 
 ```scala
-val tablesModel = Node.assumption(db)(DatabaseModel)("TablesModel", …)
+val tablesModel = Node.assumption(db)(DatabaseModel)(…)
   .checkedAgainst(t => SqliteDatabase.holding(t), _.tables)    // an outside system: assumed, checked
   .implementedBy(t => MemoryDatabase.holding(t), _.tables)     // the project's own code: tested
 ```

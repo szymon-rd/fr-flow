@@ -16,23 +16,21 @@ import sharing.trash.Trash
 // clock, below), so what is proven here holds whatever they come to mean.
 // ============================================================================
 
-val reaches = Param[(Library, Share, PersonId) => Boolean]("reaches", "whether a share reaches a person: it is with them, or with a team they are in")
-val covers = Param[(Library, Share, Target) => Boolean]("covers",
-  "whether a share covers a document or a folder: it is a share of it, or of a folder around it")
-val mayView = Param[(Library, BigInt, PersonId, Target) => Boolean]("mayView", "whether a person may view a document or folder at a moment")
-val mayEdit = Param[(Library, BigInt, PersonId, Target) => Boolean]("mayEdit", "whether a person may edit a document or folder at a moment")
-val inTrash = Param[(Library, DocumentId) => Boolean]("inTrash", "whether a document is in the trash")
-val ownedBy = Param[(Library, Target, Grantee) => Boolean]("ownedBy", "whether a share of a document or folder with someone is the owner's share of their own document")
+val reaches = Param[(Library, Share, PersonId) => Boolean]("whether a share reaches a person: it is with them, or with a team they are in")
+val covers = Param[(Library, Share, Target) => Boolean]("whether a share covers a document or a folder: it is a share of it, or of a folder around it")
+val mayView = Param[(Library, BigInt, PersonId, Target) => Boolean]("whether a person may view a document or folder at a moment")
+val mayEdit = Param[(Library, BigInt, PersonId, Target) => Boolean]("whether a person may edit a document or folder at a moment")
+val inTrash = Param[(Library, DocumentId) => Boolean]("whether a document is in the trash")
+val ownedBy = Param[(Library, Target, Grantee) => Boolean]("whether a share of a document or folder with someone is the owner's share of their own document")
 
-val reach = Node.definition("Reach", "A share reaches the person it is with, and everyone in the team it is with.",
+val reach = Node.definition("A share reaches the person it is with, and everyone in the team it is with.",
   why = "Teams contain people only (Q3), so a share with a team reaches exactly its members, and nobody else."
 )(reaches := ((lib: Term[Library], s: Term[Share], p: Term[PersonId]) =>
   s.withWhom
     .on[Grantee.Person](q => q === p)
     .on[Grantee.Team](t => lib.teams.exists(team => team.id === t && team.members.contains(p)))))
 
-val cover = Node.definition("Cover",
-  "A share of a document covers that document; a share of a folder covers the folder, every folder inside it, and every document inside any of them.",
+val cover = Node.definition("A share of a document covers that document; a share of a folder covers the folder, every folder inside it, and every document inside any of them.",
   why = "Sharing a folder shares everything inside it, at any depth (Q4). A document or folder is inside a folder when that folder is among the folders around it."
 )(covers := ((lib: Term[Library], s: Term[Share], t: Term[Target]) =>
   s.what
@@ -41,8 +39,7 @@ val cover = Node.definition("Cover",
       .on[Target.Doc](d => lib.documents.exists(doc => doc.id === d && doc.folders.contains(f)))
       .on[Target.InFolder](g => g === f || lib.folders.exists(folder => folder.id === g && folder.folders.contains(f))))))
 
-val permission = Node.definition("Permission",
-  "A person may view a document or folder when a share in force reaches them and covers it; they may edit it when such a share is an edit share.",
+val permission = Node.definition("A person may view a document or folder when a share in force reaches them and covers it; they may edit it when such a share is an edit share.",
   why = "Viewing and editing are the two things a person can do with a document, and editing includes viewing (Q1). Only a share in force counts: a share that has ended gives nothing (Q6)."
 )(
   mayView := ((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], x: Term[Target]) =>
@@ -50,11 +47,14 @@ val permission = Node.definition("Permission",
   mayEdit := ((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], x: Term[Target]) =>
     lib.shares.exists(s => inForce(s, t) && reaches(lib, s, p) && covers(lib, s, x) && s.level === Level.Edit)))
 
-val trashed = Node.definition("InTrash", "A document is in the trash when it was put there and not restored since.",
-  why = "Q8: a document in the trash gives nobody access, whatever its shares say; restoring it brings them back."
-)(inTrash := ((lib: Term[Library], d: Term[DocumentId]) => lib.documents.exists(doc => doc.id === d && doc.trashed.isDefined)))
+/** The definition of `inTrash`, in an object of its own: named `inTrash` too, it would hide the term it defines. */
+object Definitions:
+  val inTrash = Node.definition("A document is in the trash when it was put there and not restored since.",
+    why = "Q8: a document in the trash gives nobody access, whatever its shares say; restoring it brings them back."
+  )(sharing.inTrash := ((lib: Term[Library], d: Term[DocumentId]) =>
+    lib.documents.exists(doc => doc.id === d && doc.trashed.isDefined)))
 
-val owner = Node.definition("OwnersShare", "An owner's share of a document is a share of it with the document's owner in person.",
+val ownersShare = Node.definition("An owner's share of a document is a share of it with the document's owner in person.",
   why = "Q14: what nobody may unshare is the owner's own share of their document; a share with a team the owner is in is not theirs in person."
 )(ownedBy := ((lib: Term[Library], what: Term[Target], withWhom: Term[Grantee]) =>
   what
@@ -65,8 +65,7 @@ val owner = Node.definition("OwnersShare", "An owner's share of a document is a 
 // The purpose: no clock and no durations in it
 // ============================================================================
 
-val accessFollowsShares = Node.claim("AccessFollowsShares",
-  "At any moment, a person can view a document exactly when it is not in the trash and a share in force lets them view it, and edit it exactly when that share is an edit share; and what is shared, offered or kept changes only at the hand of someone who may edit it, of a person taking up an open invitation, or of housekeeping clearing away what has ended.",
+val accessFollowsShares = Node.claim("At any moment, a person can view a document exactly when it is not in the trash and a share in force lets them view it, and edit it exactly when that share is an edit share; and what is shared, offered or kept changes only at the hand of someone who may edit it, of a person taking up an open invitation, or of housekeeping clearing away what has ended.",
   why = "The idea in one statement, in two halves as in stage 1: the shares in force decide who sees and who changes what (Q1, Q2), the trash hides a document (Q8); and nothing changes that but an editor, an invitation an editor sent (Q7), or housekeeping removing what gives nothing any more. How invitations, the trash and housekeeping do their part is said in their own branches below. Whether a share is in force, an invitation open or a document gone is left open here: Lifetimes fixes it with the clock below, and this holds whatever it says.",
   idea = "Who can see and change what"
 )(forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], d: Term[DocumentId]) =>

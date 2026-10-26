@@ -36,9 +36,9 @@ object Event extends Data[Event]:
   * over the run (`FrFlow.always_when`): each event keeps them, where the assumptions on the run allow it.
   */
 object Run:
-  val startedAt = Param[BigInt]("startedAt", "when the service started, in seconds")
-  val events = Param[List[Event]]("events", "what has happened to the service since it started, in order: the requests answered, the runs of housekeeping, and time passing")
-  val housekeepingWithin = Param[BigInt]("housekeepingWithin", "the longest the service goes without a run of housekeeping, in seconds")
+  val startedAt = Param[BigInt]("when the service started, in seconds")
+  val events = Param[List[Event]]("what has happened to the service since it started, in order: the requests answered, the runs of housekeeping, and time passing")
+  val housekeepingWithin = Param[BigInt]("the longest the service goes without a run of housekeeping, in seconds")
 
   /** The library a request leads to, by the operations' proven code: what HandleContract's flow leaves in the store. */
   val answered = define { (lib: Term[Library], t: Term[BigInt], r: Term[Request]) =>
@@ -91,13 +91,11 @@ object Run:
     es.foldLeft(Moment(Library(Nil, Nil, Nil, Nil, Nil, Nil, Nil, Nil), startedAt, startedAt, Nil): Term[Moment])((m, e) => step(m, e))
   }
 
-  val housekeepingPeriod = Node.definition("HousekeepingPeriod",
-    "Housekeeping is started every minute; the service never goes more than two minutes without a run.",
+  val housekeepingPeriod = Node.definition("Housekeeping is started every minute; the service never goes more than two minutes without a run.",
     why = "Q9: jobs run every minute. A run may start late (a sleep wakes late, the run takes time), so the bound the deadlines are stated with leaves a minute for that."
   )(housekeepingWithin := (120: Term[BigInt]))
 
-  val clockNeverGoesBack = Node.assumption("ClockNeverGoesBack",
-    "Time never goes back between the service's events: each wait is of no time or more.",
+  val clockNeverGoesBack = Node.assumption("Time never goes back between the service's events: each wait is of no time or more.",
     why = "Q9: the server's clock never goes back. A clock set back (by hand, or by a time server) would break this; the server reads the clock once per request, so it would answer as if earlier.",
     idea = "Time and housekeeping"
   )(forall((pre: Term[List[Event]], post: Term[List[Event]]) => forall((e: Term[Event]) =>
@@ -105,8 +103,7 @@ object Run:
       e.on[Event.Asked](_ => True).on[Event.Housekept.type](True).on[Event.Delivered](_ => True).on[Event.Waited](d => d >= 0))))
     .refines(Deadlines.trashPurgedOnTime, Deadlines.invitationsLapseOnTime, Deadlines.endedStaysEnded, Deadlines.requestsAnsweredOnTime)
 
-  val housekeepingOnTime = Node.assumption("HousekeepingOnTime",
-    "Housekeeping runs often enough: time never moves on more than two minutes past its last run.",
+  val housekeepingOnTime = Node.assumption("Housekeeping runs often enough: time never moves on more than two minutes past its last run.",
     why = "The scheduler starts housekeeping every minute (Housekeeping.schedule); this is what the deadlines need of it. A run that fails changes nothing (HousekeepingJob) and is tried again at the next minute (Q16), so this asks for a run that succeeds every two minutes: a store down longer breaks it. Not proven: the server checks it as it runs, and the tests show which claims fail without it.",
     idea = "Time and housekeeping"
   )(forall((pre: Term[List[Event]], post: Term[List[Event]]) => forall((e: Term[Event]) =>

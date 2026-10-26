@@ -27,8 +27,7 @@ object DatabaseModel extends Database, StateModel[Tables]:
   def storeAbout(id: Term[BigInt], s: Term[CrmStore]) = state.update(t => Tables(replaceAbout(t.store, id, aboutRecord(s, id)), t.events))
   def logEvent(e: Term[Event]) = state.update(t => Tables(t.store, t.events ++ List(e)))
 
-val tablesModel = Node.assumption(db)(DatabaseModel)("TablesModel",
-  "The database holds a store and an event log: it gives the store as it holds it, holds the rows a store has about a record in place of those it held about it, leaving the other records' rows, and appends an event to the log.",
+val tablesModel = Node.assumption(db)(DatabaseModel)("The database holds a store and an event log: it gives the store as it holds it, holds the rows a store has about a record in place of those it held about it, leaving the other records' rows, and appends an event to the log.",
   why = "Records, shares, expiries and the event log live in SQLite. Proven flows are proven from this model, not from the SQL; the SQLite adapter (SqliteDatabase) does this by deleting and inserting the record's rows in one transaction, and by inserting into the events table. MemoryDatabase, the CRM's own in-memory store for development and tests, is tested against this model; SQLite, an outside system, is checked against it.",
   idea = "Expiring shares")
   .checkedAgainst(t => SqliteDatabase.holding(t), _.tables)

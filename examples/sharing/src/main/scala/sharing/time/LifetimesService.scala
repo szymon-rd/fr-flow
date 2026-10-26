@@ -8,7 +8,7 @@ object LifetimesService extends Lifetimes:
   private lazy val inForceRun = knowledge.service(Lifetimes.inForceContract)()
   private lazy val isOpenRun = knowledge.service(Lifetimes.isOpenContract)()
   private lazy val goneRun = knowledge.service(Lifetimes.goneContract)()
-  private lazy val pendingRun = knowledge.service(Lifetimes.isPendingContract)()
+  private lazy val pendingRun = knowledge.service(Lifetimes.pendingContract)()
   private lazy val reminderRun = knowledge.service(Lifetimes.reminderDueContract)()
 
   def inForce(share: Share, now: BigInt) = inForceRun(share, now)

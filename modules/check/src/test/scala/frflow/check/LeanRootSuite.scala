@@ -14,9 +14,9 @@ import java.nio.file.{Files, Path, Paths}
 class LeanRootSuite extends LeanLab:
 
   test("a root doing nothing meets is unproven: it must say what users can do") {
-    val guard = Node.claim("Guard", "A picked item is on the list and good.", why = "w")(
+    val guard = Node.claim("A picked item is on the list and good.", why = "w")(
       forall((l: Term[List[Item.T]], x: Term[Item.T]) => shown(l, x) implies (l.contains(x) && good(x))))
-    val c = Node.contract(picks)("GuardPick", "A call returns only long books from the shelf.", why = "w")(
+    val c = Node.contract(picks)("A call returns only long books from the shelf.", why = "w")(
       (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages)).refines(guard)
       .examples(minPages.bind(100))(
         allows(List(Book("Long", 300)), 5, List(Book("Long", 300)), "the long book"),
@@ -30,10 +30,10 @@ class LeanRootSuite extends LeanLab:
   }
 
   test("an invariant is a claim proven from the contracts that keep it, or left open") {
-    val fromShelf = Node.invariant[List[Book], Book]("FromShelf", "Only books on the shelf are picked.", "w")((shelf, b) => shelf.contains(b)).refines(onlyGood)
-    val atMostN = Node.invariant[Int, Int]("AtMostN", "No more books are picked than asked for.", "w")((asked, picked) => picked <= asked).refines(onlyGood)
-    val inName = Node.invariant[List[Book], Book]("InName", "Only books on the shelf are picked.", "w")((shelf, b) => shelf.contains(b)).refines(onlyGood)
-    val hidden = Node.invariant[List[Book], Book]("Hidden", "Only books on the shelf are picked.", "w")((shelf, b) => shelf.contains(b)).refines(onlyGood)
+    val fromShelf = Node.invariant[List[Book], Book]("Only books on the shelf are picked.", "w")((shelf, b) => shelf.contains(b)).refines(onlyGood)
+    val atMostN = Node.invariant[Int, Int]("No more books are picked than asked for.", "w")((asked, picked) => picked <= asked).refines(onlyGood)
+    val inName = Node.invariant[List[Book], Book]("Only books on the shelf are picked.", "w")((shelf, b) => shelf.contains(b)).refines(onlyGood)
+    val hidden = Node.invariant[List[Book], Book]("Only books on the shelf are picked.", "w")((shelf, b) => shelf.contains(b)).refines(onlyGood)
     val kept = pick.keeps(fromShelf)((shelf, n, picked) => picked.map(b => (shelf, b)))
       .keeps(atMostN)((shelf, n, picked) => List((n, picked.length)))
       // a view that shows the rule only what it accepts keeps nothing

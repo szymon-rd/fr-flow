@@ -26,27 +26,27 @@ class KeycloakSuite extends munit.CatsEffectSuite:
   test("the model is well formed: one root, refined by a DAG of parts; Introspect serves five parents") {
     assertEquals(knowledge.problems, Nil)
     assertEquals(knowledge.root.map(_.id), Some("RealmAccess"))
-    assertEquals(knowledge.parentsOf(introspectContract).map(_.id),
+    assertEquals(knowledge.parentsOf(Introspection.introspect).map(_.id),
       List("AnswersNameASession", "DisabledHaveNoAccess", "RolesAsGranted", "SignedInAreAccepted", "RealmIsolation"))
     assertEquals(knowledge.parts(realmAccess).map(_.id), List("NoUnauthorizedAccess", "SignedInAreAccepted"))
   }
 
   test("the plain code is tested against its contracts: introspection, and the store's index and writes against their defines") {
-    for c <- List(introspectContract, sessionLookup, storeKeepsState) do
+    for c <- List(Introspection.introspect, sessionLookup, storeKeepsState) do
       val r = knowledge.test(c).getOrElse(fail(s"${c.id} is not tested"))
       assertEquals(r.failure, None, c.id)
       assertEquals(r.coverage.filter(_.held == 0), Nil, c.id)
   }
 
   test("an introspection that forgets the account's state fails a generated case") {
-    val careless = knowledge.implement(introspectContract, lookup)((realm, token) =>
+    val careless = knowledge.implement(Introspection.introspect, lookup)((realm, token) =>
       lookup.value(realm, token).map(x => Claims(realm, x.user, account.value(realm, x.user).fold(Nil)(_.roles))))
-    val f = careless.test(introspectContract).get.failure.getOrElse(fail("not found"))
+    val f = careless.test(Introspection.introspect).get.failure.getOrElse(fail("not found"))
     assert(f.why.contains("which Introspect refuses"), f)
   }
 
   test("every example passes, against its node and its code") {
-    for n <- List(handleRequest, introspectContract, sessionLookup, storeKeepsState) do
+    for n <- List(handleRequest, Introspection.introspect, sessionLookup, storeKeepsState) do
       val bad = knowledge.exampleResults(n).filter(r => r.contract != "ok" || r.implementation.exists(_ != "ok"))
       assert(bad.isEmpty, s"${n.id}: ${bad.map(r => r.example.describe + ": " + r.verdict).mkString("\n")}")
   }
@@ -76,7 +76,7 @@ class KeycloakSuite extends munit.CatsEffectSuite:
   test("an index that answers with another realm's session is seen on the call: SessionLookup checks each answer") {
     val leaky = knowledge.implementProven(sessionLookup)(storedSession, (realm, token) => Some(Session(token, globex, "carol")))
     val db = SessionDb.loaded(atStart)
-    val introspectSide = leaky.service(introspectContract)(sessionDb.bind(db), seed.bind(atStart), history.bind(db.events()),
+    val introspectSide = leaky.service(Introspection.introspect)(sessionDb.bind(db), seed.bind(atStart), history.bind(db.events()),
       sessions.bind((r: RealmId) => db.load().sessions.filter(_.realm == r)),
       account.bind((r: RealmId, u: String) => accountOf.fn(db.load().accounts, r, u)))
     val e = intercept[ContractViolation](introspectSide(acme, "t9"))

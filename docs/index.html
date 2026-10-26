@@ -243,16 +243,15 @@ user and that path.
 a <code>Param</code> is a term: a fact of the world or an operation of the system. Each says what it means.</p>
 <div class="code"><pre><code>val User       = Opaque("User", "a person who uses the system")
 val Resource   = Opaque("Resource", "something a user may want to access")
-val access     = Param[(User.T, Resource.T) =&gt; Boolean]("access", "whether the system lets the user access the resource")
-val authorized = Param[(User.T, Resource.T) =&gt; Boolean]("authorized", "whether the user is allowed the resource, by whatever rule the system adopts")
-val signedIn   = Param[User.T =&gt; Boolean]("signedIn", "whether the user has signed in, so can present who they are")</code></pre></div>
+val access     = Param[(User.T, Resource.T) =&gt; Boolean]("whether the system lets the user access the resource")
+val authorized = Param[(User.T, Resource.T) =&gt; Boolean]("whether the user is allowed the resource, by whatever rule the system adopts")
+val signedIn   = Param[User.T =&gt; Boolean]("whether the user has signed in, so can present who they are")</code></pre></div>
 
 <h3 id="t-root">3. The root</h3>
 <p>The root states the purpose <em>exactly</em>: access holds exactly when the user is signed in and authorized.
 The sentence is what you decide; the formula is what Lean reads. Formulas are written with
 <a href="#ref-terms">terms</a>: lambdas over <code>Term[…]</code>, compared with <code>===</code>.</p>
-<div class="code"><pre><code>val accessExactly = Node.claim("AccessExactly",
-  "A user gets access to a resource exactly when they are signed in and authorized for it.",
+<div class="code"><pre><code>val accessExactly = Node.claim("A user gets access to a resource exactly when they are signed in and authorized for it.",
   why = "The idea says no one may access what they are not authorized to; and authorization is what lets a signed-in user in, or the system would serve no one. Who is authorized, and how a user signs in, the domain says below."
 )(forall((u: Term[User.T], r: Term[Resource.T]) =&gt; access(u, r) === (signedIn(u) &amp;&amp; authorized(u, r))))</code></pre></div>
 
@@ -264,27 +263,26 @@ final case class Path(value: String)
 final case class Grant(user: UserId, path: Path)
 object Grant extends Data[Grant]
 
-val grants   = Param[List[Grant]]("grants", "the grant table as stored when the request is decided")
-val sessions = Param[String =&gt; Option[UserId]]("sessions", "the session table as stored when the request is decided: a token to the user it was issued to at login")
-val admit    = Param[(String, Path) =&gt; Option[UserId]]("admit", "the system's decision on a request (a token and a path): the user it is admitted on behalf of, if any")
+val grants   = Param[List[Grant]]("the grant table as stored when the request is decided")
+val sessions = Param[String =&gt; Option[UserId]]("the session table as stored when the request is decided: a token to the user it was issued to at login")
+val admit    = Param[(String, Path) =&gt; Option[UserId]]("the system's decision on a request (a token and a path): the user it is admitted on behalf of, if any")
 
-val identities = Node.definition("Identities", "Users are named by ids, and resources are paths.",
+val identities = Node.definition("Users are named by ids, and resources are paths.",
   why = "The grant table names users by id and resources by path, so these are what the system knows them by."
 )(User := of[UserId], Resource := of[Path])
 
-val grantTable = Node.definition("GrantTable", "A user is authorized for a path when a grant names that user and that path.",
+val grantTable = Node.definition("A user is authorized for a path when a grant names that user and that path.",
   why = "The idea defines authorization as a table of grants; who may change the table is not modelled."
 )(authorized := ((u: Term[UserId], p: Term[Path]) =&gt; grants.contains(Grant(u, p))))
 
-val sessionTable = Node.definition("SessionTable", "A user is signed in when some session token was issued to them.",
+val sessionTable = Node.definition("A user is signed in when some session token was issued to them.",
   why = "Users identify themselves with tokens they receive at login; the session table records which token was issued to whom. How tokens are issued is not modelled."
 )(signedIn := ((u: Term[UserId]) =&gt; exists((t: Term[String]) =&gt; sessions(t) === Some(u))))</code></pre></div>
 
 <h3 id="t-parts">5. The parts</h3>
 <p>The root has three parts. Lean proves that together they imply it (<code>complete</code>), and tries to show that
 each one is needed. This is the capability part: a granted user gets in.</p>
-<div class="code"><pre><code>val grantLetsIn = Node.claim("GrantLetsIn",
-  "A request whose token was issued to a user with a grant for the path is admitted on their behalf.",
+<div class="code"><pre><code>val grantLetsIn = Node.claim("A request whose token was issued to a user with a grant for the path is admitted on their behalf.",
   why = "A grant is there to be used: a system that turned a granted user away would meet the rules by serving no one."
 )(forall((t: Term[String], p: Term[Path]) =&gt; sessions(t).forall(u =&gt; grants.contains(Grant(u, p)) implies (admit(t, p) === Some(u))))).refines(accessExactly)</code></pre></div>
 
@@ -292,8 +290,7 @@ each one is needed. This is the capability part: a granted user gets in.</p>
 <p>A contract states, for one call of an operation, what every result must satisfy, so each result of the running
 system can be checked. Examples are concrete calls: an <code>allows</code> the contract must allow and a
 <code>forbids</code> it must refuse. Lean evaluates them too, and must agree with Scala.</p>
-<div class="code"><pre><code>val decisionContract = Node.contract(admit)("DecisionContract",
-  "A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path.",
+<div class="code"><pre><code>val decisionContract = Node.contract(admit)("A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path.",
   why = "The three parts, stated for one call, so every result of the running system can be checked."
 )((token, path, decision) =&gt; decision.forall(u =&gt; sessions(token) === Some(u) &amp;&amp; grants.contains(Grant(u, path))) &amp;&amp;
   sessions(token).forall(u =&gt; grants.contains(Grant(u, path)) implies (decision === Some(u))))
@@ -322,7 +319,6 @@ and Lean proves it meets its contract (<code>impl</code>). The CRM's <code>Share
 <p>A design decision governs files no proof covers. The knowledge base lists the nodes and attaches the code; here
 the production class <code>SessionStore</code> runs, tested against <code>DecisionContract</code>.</p>
 <div class="code"><pre><code>val inMemorySessions = Node.design(
-  "InMemorySessions",
   "Sessions and grants are loaded into memory, in one process that decides every request.",
   why = "One service decides access, and the tables fit in memory. A shared store would only be needed with several instances."
 )("src/main/scala/auth/Server.scala").refines(decisionContract)
@@ -383,14 +379,12 @@ start with an agent instead, see <a href="#agent-start">Start a project with the
   <li>Run <code>check</code>. If <code>complete</code> stays open, a part is missing or too weak; see
   <a href="#troubleshooting">Troubleshooting</a>.</li>
 </ol>
-<div class="code"><span class="label">The keycloak root and its safety half (<code>examples/keycloak/…/Access.scala</code>)</span><pre><code>val realmAccess = Node.claim("RealmAccess",
-  "A realm's application accepts a token as a user's, with the user's roles, exactly when the user signed in to that realm and got the token, has not signed out with it since, and is still enabled.",
+<div class="code"><span class="label">The keycloak root and its safety half (<code>examples/keycloak/…/Access.scala</code>)</span><pre><code>val realmAccess = Node.claim("A realm's application accepts a token as a user's, with the user's roles, exactly when the user signed in to that realm and got the token, has not signed out with it since, and is still enabled.",
   why = "The idea in one sentence: applications never see passwords, they ask the server whose a token is. Both halves matter: a token must never let anyone else in (no unauthorized access), and a user who signed in must be let in, or a server that accepts nothing would do."
 )(forall((r: Term[Realm.T], t: Term[Token.T]) =&gt; forall((u: Term[User.T]) =&gt;
   (accepted(r, t) === some((u, rolesOf(r, u)))) === (signedIn(r, u, t) &amp;&amp; enabled(r, u)))))
 
-val noUnauthorizedAccess = Node.claim("NoUnauthorizedAccess",
-  "A token is accepted only as a user who signed in to that realm with it, has not signed out since and is still enabled, and only with that user's roles.",
+val noUnauthorizedAccess = Node.claim("A token is accepted only as a user who signed in to that realm with it, has not signed out since and is still enabled, and only with that user's roles.",
   why = "The safety half of the purpose: whatever an application is told about a token must be true of a sign-in that still stands.",
   idea = "No unauthorized access"
 )(forall((r: Term[Realm.T], t: Term[Token.T]) =&gt; accepted(r, t).forall(a =&gt; signedIn(r, a._1, t) &amp;&amp; enabled(r, a._1) &amp;&amp; a._2 === rolesOf(r, a._1))))
@@ -436,8 +430,7 @@ the model is wrong, change it: a decision.</td></tr>
 <h3 id="how-invariant">Keep a rule across every operation</h3>
 <p>An invariant is a rule over pairs that every contract in its scope keeps (<code>.keeps</code>) or is exempt from,
 with a reason (<code>.exempt</code>). A new endpoint then has to keep it or say why not.</p>
-<div class="code"><span class="label"><code>examples/keycloak/…/Introspection.scala</code></span><pre><code>val realmIsolation = Node.invariant[RealmId, Claims]("RealmIsolation",
-  "No application is ever shown claims of a realm other than its own.",
+<div class="code"><span class="label"><code>examples/keycloak/…/Introspection.scala</code></span><pre><code>val realmIsolation = Node.invariant[RealmId, Claims]("No application is ever shown claims of a realm other than its own.",
   why = "The idea says a token is only ever good in the realm that issued it. Stated once over every answer the server gives, so a new endpoint (user info, an admin view of sessions) must keep it or say why not.",
   idea = "Realms"
 )((asking, c) =&gt; c.realm === asking)
@@ -450,8 +443,7 @@ with a reason (<code>.exempt</code>). A new endpoint then has to keep it or say 
 that calls it is proven from that promise, and <code>checkedBy</code> gives a cheap check run where the code runs. Code
 that takes several steps against the outside (load, store, log) is a flow over a boundary instead: see
 <a href="#effects">Effectful code</a>.</p>
-<div class="code"><pre><code>val sessionLookup = Node.assumption(lookup)("SessionLookup",
-  "The store's index returns a session it holds under the token in the realm asked, if it holds one, and never one of another realm or token.",
+<div class="code"><pre><code>val sessionLookup = Node.assumption(lookup)("The store's index returns a session it holds under the token in the realm asked, if it holds one, and never one of another realm or token.",
   why = "Sessions live in a store indexed by realm and token (in memory here; a database or cache in a cluster). Introspection is proven from this promise, not from the index; the index is checked against the define it is decided with on its examples, and every session it returns is checked to be of the realm and token asked."
 )((realm, token, r) =&gt; r.forall(x =&gt; sessions(realm).contains(x) &amp;&amp; x.token === token &amp;&amp; x.realm === realm) &amp;&amp;
   (sessions(realm).exists(x =&gt; x.token === token) implies r.isDefined))
@@ -559,7 +551,7 @@ val aboutRecord = define { (s: Term[CrmStore], id: Term[BigInt]) =&gt;
 <thead><tr><th>Write</th><th>Is</th></tr></thead>
 <tbody>
 <tr><td><code>Opaque("User", means)</code></td><td>a domain type, open until a definition fixes it; used as <code>User.T</code></td></tr>
-<tr><td><code>Param[T]("grants", means)</code></td><td>a term: a fact of the world or an operation, open until a definition fixes it. It is a term itself (<code>grants.contains(g)</code>)</td></tr>
+<tr><td><code>Param[T](means)</code></td><td>a term: a fact of the world or an operation, open until a definition fixes it. It is a term itself (<code>grants.contains(g)</code>)</td></tr>
 <tr><td><code>define { (a: Term[A], b: Term[B]) =&gt; … }</code></td><td>a named function: a Lean definition named after its <code>val</code>, run as Scala. A plain <code>def</code> returning a term is inlined</td></tr>
 <tr><td><code>p.bind(v)</code>, <code>p.bindTable(map)</code></td><td>a parameter's value for examples and <code>service</code>; a table Lean can evaluate</td></tr>
 <tr><td><code>t := expression</code>, <code>T := of[X]</code></td><td>what a definition fixes</td></tr>
@@ -570,14 +562,14 @@ val aboutRecord = define { (s: Term[CrmStore], id: Term[BigInt]) =&gt;
 <table>
 <thead><tr><th>Kind</th><th>Written as</th><th>In Lean</th></tr></thead>
 <tbody>
-<tr><td>claim</td><td><code>Node.claim(id, statement, why, idea = "")(formula)</code>; the claim with no parents is the root</td><td>proven from its parts (<code>complete</code>)</td></tr>
-<tr><td>invariant</td><td><code>Node.invariant[A, B](id, statement, why, scope)(rule)</code></td><td>a claim whose parts are the contracts that keep it</td></tr>
-<tr><td>contract</td><td><code>Node.contract(op)(id, statement, why)(post)</code>, <code>op: Param[(A, B) =&gt; R]</code> (0 to 6 inputs)</td><td>every call of <code>op</code> meets <code>post</code>; <code>impl</code> when a define is attached</td></tr>
-<tr><td>contract on a flow</td><td><code>Node.contract(op)(id, statement, why)((a, result, before, after) =&gt; …)</code>, <code>op: Param[A =&gt; Flow[R]]</code> (0 to 6 inputs)</td><td>every run from any world meets <code>post</code>; <code>impl</code> when a flow is attached</td></tr>
-<tr><td>assumption</td><td><code>Node.assumption(op)(…)(post)</code>, or <code>Node.assumption(id, statement, why)(formula)</code></td><td>trusted: a hypothesis of <code>root_impl</code></td></tr>
-<tr><td>model of a boundary</td><td><code>Node.assumption(boundary)(Model)(id, statement, why)</code></td><td>trusted: the boundary behaves as the model, and flows are proven from it</td></tr>
-<tr><td>definition</td><td><code>Node.definition(id, statement, why)(T := of[X], term := expression, …)</code></td><td>decided, not proven</td></tr>
-<tr><td>design</td><td><code>Node.design(id, statement, why)(files*)</code></td><td>none: a change to its files is noticed</td></tr>
+<tr><td>claim</td><td><code>Node.claim(statement, why, idea = "")(formula)</code>; the claim with no parents is the root</td><td>proven from its parts (<code>complete</code>)</td></tr>
+<tr><td>invariant</td><td><code>Node.invariant[A, B](statement, why, scope)(rule)</code></td><td>a claim whose parts are the contracts that keep it</td></tr>
+<tr><td>contract</td><td><code>Node.contract(op)(statement, why)(post)</code>, <code>op: Param[(A, B) =&gt; R]</code> (0 to 6 inputs)</td><td>every call of <code>op</code> meets <code>post</code>; <code>impl</code> when a define is attached</td></tr>
+<tr><td>contract on a flow</td><td><code>Node.contract(op)(statement, why)((a, result, before, after) =&gt; …)</code>, <code>op: Param[A =&gt; Flow[R]]</code> (0 to 6 inputs)</td><td>every run from any world meets <code>post</code>; <code>impl</code> when a flow is attached</td></tr>
+<tr><td>assumption</td><td><code>Node.assumption(op)(…)(post)</code>, or <code>Node.assumption(statement, why)(formula)</code></td><td>trusted: a hypothesis of <code>root_impl</code></td></tr>
+<tr><td>model of a boundary</td><td><code>Node.assumption(boundary)(Model)(statement, why)</code></td><td>trusted: the boundary behaves as the model, and flows are proven from it</td></tr>
+<tr><td>definition</td><td><code>Node.definition(statement, why)(T := of[X], term := expression, …)</code></td><td>decided, not proven</td></tr>
+<tr><td>design</td><td><code>Node.design(statement, why)(files*)</code></td><td>none: a change to its files is noticed</td></tr>
 </tbody>
 </table>
 <p>An operation takes 0 to 6 inputs. The post, <code>checkedBy</code>, a <code>keeps</code> view, each
@@ -784,8 +776,7 @@ object DatabaseModel extends Database, StateModel[Tables]:
   def storeAbout(id: Term[BigInt], s: Term[CrmStore]) = state.update(t =&gt; Tables(replaceAbout(t.store, id, aboutRecord(s, id)), t.events))
   def logEvent(e: Term[Event]) = state.update(t =&gt; Tables(t.store, t.events ++ List(e)))
 
-val tablesModel = Node.assumption(db)(DatabaseModel)("TablesModel",
-  "The database holds a store and an event log: it gives the store as it holds it, holds the rows a store has about a record in place of those it held about it, leaving the other records' rows, and appends an event to the log.",
+val tablesModel = Node.assumption(db)(DatabaseModel)("The database holds a store and an event log: it gives the store as it holds it, holds the rows a store has about a record in place of those it held about it, leaving the other records' rows, and appends an event to the log.",
   why = "…",
   idea = "Expiring shares")
   .checkedAgainst(t =&gt; SqliteDatabase.holding(t), _.tables)
@@ -817,11 +808,9 @@ from its code.</p>
 <p>The contract is on an operation whose type is a flow, <code>Param[A =&gt; Flow[R]]</code>. Its post takes the inputs,
 the result and the worlds before and after; <code>before(DatabaseModel)</code> is the database's state before the run.
 Its examples give a world before, the result, and the world after:</p>
-<div class="code"><span class="label"><code>examples/crm/…/Expiry.scala</code></span><pre><code>val runExpiry = Param[BigInt =&gt; Flow[CrmStore]]("runExpiry",
-  "a run of the expiry job at a time (in seconds), on the database: the store it computes; the database holds it after")
+<div class="code"><span class="label"><code>examples/crm/…/Expiry.scala</code></span><pre><code>val runExpiry = Param[BigInt =&gt; Flow[CrmStore]]("a run of the expiry job at a time (in seconds), on the database: the store it computes; the database holds it after")
 
-val expiryJob = Node.contract(runExpiry)("ExpiryJob",
-  "A run of the expiry job at a time leaves the database holding, about each record, what SharesExpire's run on what it held gives, logs the run at the end of the event log, and returns that store.",
+val expiryJob = Node.contract(runExpiry)("A run of the expiry job at a time leaves the database holding, about each record, what SharesExpire's run on what it held gives, logs the run at the end of the event log, and returns that store.",
   why = "…",
   idea = "Expiring shares"
 )((now, result, before, after) =&gt;

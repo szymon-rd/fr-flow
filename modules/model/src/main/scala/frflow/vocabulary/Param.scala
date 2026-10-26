@@ -5,7 +5,8 @@ package vocabulary
   * It is a term: `grants.contains(g)`, `sessions(t)`. Plain code reads its value in force with `value`. One that only
   * code reads (a database connection) needs no Lean type: it cannot appear in a model.
   */
-final class Param[A](val name: String, val means: String)(using t: LeanType[A] = LeanType.unknown[A]) extends Term[A](null, t):
+final class Param[A] @scala.annotation.publicInBinary private[frflow] (val name: String, val means: String)(using
+    t: LeanType[A] = LeanType.unknown[A]) extends Term[A](null, t):
   override private[frflow] def termTree: Tree = Tree.Ref(this)
   def value: A = Bindings.get(this)
   inline def :=(inline v: Term[A]): Subst = Subst.term(this, Lifted.term(() => v, Source.text(v)))
@@ -29,3 +30,7 @@ final class Param[A](val name: String, val means: String)(using t: LeanType[A] =
   /** `bind(table.get)`, with the table given to Lean too, so the examples are evaluated there. */
   def bindTable[K, V](table: Map[K, V])(using A =:= (K => Option[V])): Binding = Binding(this, () => table.get, Some(table))
   override def toString: String = name
+
+object Param:
+  /** `val granted = Param[(List[Booking], Booking) => Boolean]("whether a request is granted …")`: named `granted`. */
+  inline def apply[A](means: String)(using t: LeanType[A] = LeanType.unknown[A]): Param[A] = new Param[A](Source.paramName, means)
