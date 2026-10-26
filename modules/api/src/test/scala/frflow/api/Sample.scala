@@ -7,7 +7,7 @@ import java.time.Instant
 
 /** A small knowledge base as a snapshot, decided by hand: a root with two claims sharing a contract, a
   * definition, an assumption under no parent, and a design node; then the contract reworded (under
-  * review), a new proposal, a rejected one, and requests. Pure: no files, no Lean.
+  * review), a new proposal, a rejected one, and requests. It reads no files and runs no Lean.
   */
 object Sample:
   val by = "dev"

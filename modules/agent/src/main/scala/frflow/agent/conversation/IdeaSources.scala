@@ -13,7 +13,7 @@ object IdeaSources:
       text.linesIterator.collect { case IdeaDecision.FromLine(ids) => ids.split("[,\\s]+").toList.filter(_.nonEmpty) }.flatten.toList
     (("" -> named(lead)) :: sections.map((h, body) => h -> named(body))).filter(_._2.nonEmpty)
 
-  /** What the conversation says of IDEA.md now: a section naming a question there is not, and the sections whose answers
+  /** What the conversation says of IDEA.md: a section naming a question there is not, and the sections whose answers
     * changed after IDEA.md was accepted (they need a look, and then IDEA.md is accepted again).
     */
   def warnings(idea: String, talk: Conversation, accepted: Option[Decision]): List[String] =

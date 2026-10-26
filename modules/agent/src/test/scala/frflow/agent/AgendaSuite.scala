@@ -11,7 +11,7 @@ import io.circe.syntax.*
 import java.nio.file.{Files, Path}
 import java.time.Instant
 
-/** The agent layer's records and rules, as values: requests, the conversation, IDEA.md's sources, the agent's queue. */
+/** The agent layer's records and rules: requests, the conversation, IDEA.md's sources, the agent's queue. */
 class AgendaSuite extends munit.FunSuite:
   private def ok[A](e: Either[AgentRefusal, A]): A = e.fold(r => throw AssertionError(r.message), identity)
   private val now = Instant.parse("2026-01-01T00:00:00Z")

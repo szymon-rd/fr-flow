@@ -4,7 +4,7 @@ package request
 import frflow.protocol.*
 import java.time.Instant
 
-/** The developer's requests ("ask for a change") and the agent's answers, as values. Pure. */
+/** The developer's requests ("ask for a change") and the agent's answers: each operation returns the new list. */
 object Requests:
   /** A new request on a node (or on the idea); `seen`, the node's version the developer asked about. */
   def ask(rs: List[Request], node: Option[NodeId], text: String, by: String, now: Instant, seen: Option[Version] = None): (List[Request], Request) =

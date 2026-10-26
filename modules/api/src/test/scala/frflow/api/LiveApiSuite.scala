@@ -9,7 +9,7 @@ import java.nio.file.{Files, Path}
 import java.util.Comparator
 import scala.util.Using
 
-/** The live API over a project on disk, deciding with a key of its own: the one path that signs a decision. */
+/** The live API over a project on disk, deciding with a key of its own: the only suite whose decisions are signed. */
 class LiveApiSuite extends munit.CatsEffectSuite:
   /** A directory holding the project and the developer's key, deleted after the test. */
   private val dir = ResourceFunFixture(Resource.make(IO.blocking(Files.createTempDirectory("frflow-live")))(d =>
