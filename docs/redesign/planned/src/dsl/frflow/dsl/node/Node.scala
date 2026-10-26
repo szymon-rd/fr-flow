@@ -1,25 +1,37 @@
 package frflow.dsl.node
 
 import cats.data.NonEmptyList
-import frflow.core.spec.{Prose, Statement}
-import frflow.dsl.build.{Deferred, Site, Source}
-import frflow.dsl.shape.{CallShape, Elab}
-import frflow.dsl.term.{Param, Term}
+import frflow.core.spec.Statement
+import frflow.dsl.build.{Deferred, Source}
+import frflow.dsl.term.Term
+import frflow.dsl.vocab.Stating
 
-/** A node as the model writes it. `S` is the statement's case, so fluent methods exist only where they apply. */
-final case class Node[S <: Statement, F](head: Head, statement: Deferred[S])
+/** A node as the model writes it, its id its val's name as written (`val grantWhenFree = Node.claim(…)` is
+  * `grantWhenFree`). Three kinds and no other (owner §15): a claim and an assumption are a sentence and a formula,
+  * the one proven (or tested), the other trusted; a design is a decision about code no proof covers. How a claim is
+  * checked is read off its formula and what defines the Definitions it mentions, never written beside it.
+  */
+final case class Node(head: Head, statement: Deferred[Statement])
 
 object Node:
-  inline def claim(id: String, statement: String, why: String)(
-      inline formula: Term[Boolean]): Node[Statement.Claim, Unit] =
-    Nodes.claim(Heads.make(id, Prose(statement, why), Source.file, Source.offset), () => formula, Source.of(formula))
+  /** A claim: `forall` over every possible value; `always[T](x => …)`, every value of `T` that can be made;
+    * `always(stored)(s => …)`, every state the store reaches. It constrains every Declaration and Definition it
+    * mentions.
+    */
+  inline def claim(statement: String)(inline formula: Stating ?=> Term[Boolean]): Node =
+    Nodes.claim(Head.make(Source.valName, statement, Source.file, Source.offset), () => formula(using Stating.writing),
+      Source.of(Node.writing(formula)))
 
-  inline def contract[F](op: Param[F])(using s: CallShape[F])(id: String, statement: String, why: String)(
-      inline post: s.Lam[Term[Boolean]]): Node[s.Made, F] =
-    val head = Heads.make(id, Prose(statement, why), Source.file, Source.offset)
-    Node(head, s.contract(op, Elab.lambda(Site.Node(head.id), s.types)(s.call(post, _), Source.of(post))))
+  /** The same form, trusted: the world outside (`store.behavesAs(stored)`, `stored.initially(held => held === Nil)`,
+    * `stored.writtenOnlyBy(book)`, `stored.changedOneRunAtATime`, `outside.calls(book)`), or an outside system's
+    * promise.
+    */
+  inline def assumption(statement: String)(inline formula: Stating ?=> Term[Boolean]): Node =
+    Nodes.assumption(Head.make(Source.valName, statement, Source.file, Source.offset),
+      () => formula(using Stating.writing), Source.of(Node.writing(formula)))
 
-  inline def design(id: String, statement: String, why: String)(governs: String, more: String*)
-      : Node[Statement.Design, Unit] =
-    Nodes.design(Heads.make(id, Prose(statement, why), Source.file, Source.offset), NonEmptyList(governs, more.toList))
-  // … `invariant`, `assumption` (a fact, an operation's promise, a boundary's model) and `definition`, the same way.
+  /** A statement's formula, written where a statement is being written. */
+  inline def writing(inline formula: Stating ?=> Term[Boolean]): Term[Boolean] = formula(using Stating.writing)
+
+  inline def design(statement: String)(governs: String, more: String*): Node =
+    Nodes.design(Head.make(Source.valName, statement, Source.file, Source.offset), NonEmptyList(governs, more.toList))

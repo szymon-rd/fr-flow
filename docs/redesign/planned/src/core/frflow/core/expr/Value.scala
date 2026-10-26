@@ -13,5 +13,7 @@ enum Value:
   case Maybe(elem: Option[Value])
   case Pairs(entries: List[(Value, Value)])
   case Tuple(elems: List[Value])
+  /** One side of an outcome or an `Either`: the error (`Left`) or the value (`Right`). */
+  case Inject(side: Side, elem: Value)
   /** The models' states, and the faults a failing boundary's calls take in turn. */
   case World(states: List[(ModelName, Value)], faults: List[Boolean])

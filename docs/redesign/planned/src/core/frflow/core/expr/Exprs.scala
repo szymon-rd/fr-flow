@@ -7,7 +7,7 @@ import frflow.core.ty.Ty
 object Exprs:
   /** The immediate subexpressions, in order (a `Do` block's: the expressions of its steps). */
   def children(e: Expr): List[Expr] = e match
-    case Expr.Var(_) | Expr.Lit(_, _) | Expr.Sym(_, _) => Nil
+    case Expr.Var(_) | Expr.Lit(_, _) | Expr.Sym(_, _) | Expr.Outside(_) => Nil
     case Expr.Call(_, as, _)       => as
     case Expr.Apply(f, as, _)      => f :: as
     case Expr.Fun(l)               => List(l.body)
@@ -19,15 +19,15 @@ object Exprs:
     case Expr.Copy(on, _, us)      => on :: us.map(_._2)
     case Expr.Make(_, _, as)       => as
     case Expr.Tuple(es)            => es
-    case Expr.Proj(on, _, _)       => List(on)
     case Expr.SomeOf(a)            => List(a)
     case Expr.Inject(_, a, _)      => List(a)
     case Expr.ListOf(es, _)        => es
     case Expr.Iterate(_, on, _, b, _) => List(on, b)
     case Expr.Fold(on, z, _, _, b) => List(on, z, b)
+    case Expr.Pairwise(on, _, _, b) => List(on, b)
     case Expr.Prim(_, as, _)       => as
-    case Expr.Do(p, _)             => Progs.exprs(p)
-    case Expr.RunOn(c, w, _, _)    => List(c, w)
+    case Expr.Do(p, _)             => Progs.terms(p)
+    case Expr.Runs(r, w, _, _, _, b) => List(r, w, b)
     case Expr.Part(w, _, _)        => List(w)
 
   /** Every subexpression, `e` first. */
@@ -43,7 +43,15 @@ object Exprs:
     case Expr.Make(n, _, _)    => Mentions.empty.copy(types = List(n))
     case Expr.Part(_, m, t)    => Mentions(Nil, Nil, Ty.names(t), Nil, List(m))
     case Expr.Do(p, _)         => Progs.mentions(p)
+    case Expr.Outside(f)       => outside(f)
     case other                 => Mentions.empty.copy(types = binders(other).flatMap(x => Ty.names(x.ty)).distinct)
+
+  private def outside(f: OutsideFact): Mentions = f match
+    case OutsideFact.BehavesAs(b, m)      => Mentions(Nil, Nil, Nil, List(b), List(m))
+    case OutsideFact.WrittenOnlyBy(m, ps) => Mentions(ps, Nil, Nil, Nil, List(m))
+    case OutsideFact.OneRunAtATime(m)     => Mentions.empty.copy(models = List(m))
+    case OutsideFact.Initially(m, d)      => Mentions(Nil, List(d), Nil, Nil, List(m))
+    case OutsideFact.Calls(d)             => Mentions.empty.copy(symbols = List(d))
 
   /** The variables `e` binds itself (not those of its subexpressions). */
   def binders(e: Expr): List[Binder] = e match
@@ -52,6 +60,8 @@ object Exprs:
     case Expr.Let(x, _, _)          => List(x)
     case Expr.Iterate(_, _, x, _, _) => List(x)
     case Expr.Fold(_, _, acc, x, _) => List(acc, x)
+    case Expr.Pairwise(_, x, y, _)  => List(x, y)
+    case Expr.Runs(_, _, _, o, a, _) => List(o, a)
     case Expr.Match(_, arms, _)     => arms.flatMap(_.pattern.binders)
     case _                          => Nil
 
@@ -71,16 +81,17 @@ object Exprs:
     case Expr.Copy(on, _, _)      => typeOf(on)
     case Expr.Make(n, _, _)       => Ty.Data(n)
     case Expr.Tuple(es)           => Ty.TupleOf(es.map(typeOf))
-    case Expr.Proj(_, _, t)       => t
     case Expr.SomeOf(a)           => Ty.OptionOf(typeOf(a))
     case Expr.Inject(_, _, t)     => t
     case Expr.ListOf(_, t)        => Ty.ListOf(t)
     case Expr.Iterate(_, _, _, _, t) => t
     case Expr.Fold(_, z, _, _, _) => typeOf(z)
+    case Expr.Pairwise(_, _, _, _) => Ty.Bool
     case Expr.Prim(_, _, t)       => t
     case Expr.Do(_, t)            => t
-    case Expr.RunOn(_, _, _, t)   => t
+    case Expr.Runs(_, _, _, _, _, _) => Ty.Bool
     case Expr.Part(_, _, t)       => t
+    case Expr.Outside(_)          => Ty.Bool
 
   /** The top-level conjuncts of a proposition (`a && (b && c)` gives `a`, `b`, `c`); itself when it is not a
     * conjunction.

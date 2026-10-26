@@ -1,10 +1,11 @@
 package frflow.project.pipeline
 
-import frflow.core.name.NodeId
-import frflow.eval.run.ExampleResult
-import frflow.proof.obligation.Evaluation
+import frflow.core.consistency.Vacuity
+import frflow.core.example.Example
+import frflow.eval.run.OnCode
+import frflow.proof.obligation.Constant
 
-/** What running Scala gave, computed by `program.Evaluate` before the pure phases: each node's examples run, and the
-  * examples and probes evaluated for Lean to agree with.
+/** What running Scala gave, computed by `program.RunScala` before the pure phases: each example against the code,
+  * and the witnesses the search found for what must be shown possible.
   */
-final case class Computed(examples: Map[NodeId, List[ExampleResult]], evaluations: Map[NodeId, List[Evaluation]])
+final case class Computed(examples: List[(Example, OnCode)], found: Map[Vacuity, List[Constant]])

@@ -29,5 +29,9 @@ enum LExpr:
   case Do(lines: List[DoLine], indent: Int)
   /** `(e : T)`. */
   case Typed(e: LExpr, ty: LExpr)
+  /** `⟨a, b, h⟩`: an anonymous constructor (the witnesses of an `∃`, then its proof). */
+  case Anonymous(elems: List[LExpr])
+  /** `by t`: a proof by one of FrFlow's own tactics, named (never built from a model). */
+  case By(tactic: LeanName)
   /** `name (x := v)`: a named argument (`FrFlow.runOnE (ε := E) …`). */
   case Named(fn: LExpr, name: LeanName, value: LExpr)

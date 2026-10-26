@@ -8,7 +8,7 @@ class MeaningSuite extends munit.FunSuite:
   private def node(kind: String, parent: String) = Content(List("kind" -> FieldValue.Text(kind),
     "parents" -> FieldValue.Texts(List(parent)), "statement" -> FieldValue.Text("It holds.")))
 
-  test("a design moved under another contract is under review for itself") {
+  test("a design moved under another claim is under review for itself") {
     assertNotEquals(Meaning.own(node("design", "A")).hash, Meaning.own(node("design", "B")).hash)
   }
 

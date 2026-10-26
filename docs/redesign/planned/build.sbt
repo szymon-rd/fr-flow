@@ -1,7 +1,8 @@
 // The planned core of FrFlow's redesign (r43): one sbt project per target module, sources under src/<module>/.
 // It compiles to show the types hold together; bodies that do not carry the design are `???`.
 ThisBuild / scalaVersion := "3.10.0"
-ThisBuild / scalacOptions ++= Seq("-deprecation", "-feature", "-Werror", "-Wunused:all", "-Wnonunit-statement", "-Wvalue-discard")
+ThisBuild / scalacOptions ++= Seq("-deprecation", "-feature", "-Werror", "-Wunused:all", "-Wnonunit-statement", "-Wvalue-discard",
+  "-language:implicitConversions") // as today's build: a value where a term is expected (`Term.value`)
 
 val cats = "org.typelevel" %% "cats-core" % "2.13.0"
 val catsEffect = "org.typelevel" %% "cats-effect" % "3.6.3"
@@ -21,28 +22,27 @@ def suites(dir: String) = Seq(
 
 /** The IR: vocabulary, expressions, programs, statements, the refinement graph, code attachments; and the analyses. */
 lazy val core = module("core", cats)
-/** The DSL a model is written in, and its elaboration into the IR. */
+/** The DSL a model is written in (terms, nodes, programs over tagless boundaries), and its elaboration into the IR. */
 lazy val dsl = module("dsl", cats).dependsOn(core).settings(suites("dsl"))
 /** Obligations (what Lean is asked), the Lean AST, its printing, reading Lean's output, and the judges. */
 lazy val proof = module("proof", cats).dependsOn(core).settings(suites("proof")).settings(
   Test / resourceDirectory := (ThisBuild / baseDirectory).value / "test" / "proof" / "resources")
-/** The Scala meaning of the IR and of the plain-code path: terms as functions, flows run (on the models, in a `Sync`
-  * against bound implementations), examples. */
+/** The Scala meaning of the IR and of plain code: terms as functions, examples, the values a call reads, recorded
+  * programs run on models or adapters, production's interpreter of programs; and the facade `frflow.*`. */
 lazy val evaluation = module("eval", cats, catsEffectKernel, catsEffectStd).withId("evaluation").dependsOn(dsl)
-  .settings(suites("eval"))
-/** The running system: services checked against their contracts, flows run concurrently, the facade. */
-lazy val runtime = module("runtime", cats, catsEffect).dependsOn(evaluation % "compile->compile;test->test")
-  .settings(suites("runtime"))
-/** Property tests of code against contracts and models. */
-lazy val testing = module("testing", cats, catsEffect).dependsOn(evaluation)
+  .settings(suites("eval"), libraryDependencies += catsEffect % Test)
+/** Property-based tests: plain code against contracts, implementations against models, interleavings, refutations. */
+lazy val testing = module("testing", cats, catsEffect).dependsOn(evaluation % "compile->compile;test->test")
+  .settings(suites("testing"))
 /** Decisions: contents, the ledger, review states, the decision rules. Of `core`, only names and `graph.Walk`. */
 lazy val decision = module("decision", cats).dependsOn(core).settings(suites("decision"))
 /** The wire formats: the snapshot by kind, and (not planned here) the codecs of the ledger, checks and tests. */
 lazy val wire = module("wire", cats).dependsOn(proof, decision, testing)
 /** The imperative shell: workspace, Lean, git, keys, the pipeline of phases, code fingerprints. */
-lazy val project = module("project", cats, catsEffect, fs2).dependsOn(proof, testing, decision, wire)
+lazy val project = module("project", cats, catsEffect, fs2)
+  .dependsOn(proof % "compile->compile;test->test", testing % "compile->compile;test->test", decision, wire)
   .settings(suites("project"))
 /** The API front ends call. */
 lazy val api = module("api", cats, catsEffect, fs2).dependsOn(project)
 
-lazy val root = Project("root", file(".")).aggregate(core, dsl, proof, evaluation, runtime, testing, decision, wire, project, api)
+lazy val root = Project("root", file(".")).aggregate(core, dsl, proof, evaluation, testing, decision, wire, project, api)

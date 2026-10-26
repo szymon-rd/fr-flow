@@ -28,6 +28,8 @@ object Print:
     case LExpr.Do(lines, indent)  => "do\n" + lines.flatMap(PrintDo.line(_, " " * indent)).mkString("\n")
     case LExpr.Typed(x, t)        => s"(${expr(x)} : ${expr(t)})"
     case LExpr.Named(f, n, v)     => s"${expr(f)} (${n.text} := ${expr(v)})"
+    case LExpr.Anonymous(es)      => es.map(expr).mkString("⟨", ", ", "⟩")
+    case LExpr.By(t)              => s"by ${t.text}"
 
   def binder(b: LBinder): String = b match
     case LBinder.Explicit(n, t) => s"(${n.text} : ${expr(t)})"

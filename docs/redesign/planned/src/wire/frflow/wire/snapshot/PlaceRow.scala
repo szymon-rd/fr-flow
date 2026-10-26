@@ -1,7 +1,7 @@
 package frflow.wire.snapshot
 
-/** Where a node sits: its parents and parts, the definitions it uses, the callees it relies on, and, for a contract,
-  * the invariants it covers (keeps) and is exempt from.
+/** Where a node sits: its parents and parts, the premises it assumes, the callees it relies on, and, for an `always`,
+  * the programs keeping it.
   */
-final case class PlaceRow(parents: List[String], parts: List[String], uses: List[String], relies: List[String],
-    covers: List[String], exempts: List[String])
+final case class PlaceRow(parents: List[String], parts: List[String], assumes: List[String], relies: List[String],
+    keptBy: List[String])

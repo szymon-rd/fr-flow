@@ -1,13 +1,15 @@
 package frflow.wire.snapshot
 
-import frflow.core.analysis.{Assumed, Shown, Tested}
-import frflow.core.expr.Value
+import frflow.core.checking.{Assumed, Shown, Tested}
+import frflow.core.consistency.{Group, Standing, Witness}
+import frflow.core.example.Example
+import frflow.core.expr.{Side, Value}
 import frflow.decision.content.{Content, FieldValue}
 import frflow.eval.EvalError
-import frflow.eval.run.{Agreement, Broken, ExampleResult}
+import frflow.eval.run.{Broken, OnCode}
 import frflow.proof.lean.lower.LowerObligation
 import frflow.proof.verdict.{ObligationStatus, Result}
-import frflow.testing.{Against, TestReport}
+import frflow.testing.report.{Against, TestReport}
 
 /** The one mapping from domain values to the export's rows, each written out here: a rename in the domain does not
   * move the export.
@@ -20,7 +22,13 @@ object Rows:
 
   def code(s: Shown): CodeRow = CodeRow(s.proven.map(_.value), s.tested.map(tested), s.assumed.map(assumed))
 
-  def example(e: ExampleResult): ExampleRow = ExampleRow(e.index, agreement(e.onPromise), e.onCode.map(agreement))
+  def example(e: Example, onClaims: Option[ObligationStatus], onCode: OnCode): ExampleRow =
+    ExampleRow(e.name, if e.givens.nonEmpty then "checked in Scala only" else onClaims.fold("unchecked")(status),
+      code(onCode))
+
+  def group(g: Group.Sharing): GroupRow =
+    GroupRow(g.statements.map(_.value), g.open.map(_.value), g.provided.map(_.value), g.witnesses.map(witness),
+      standing(g.standing))
 
   def obligation(r: Result, statement: String): ObligationRow =
     ObligationRow(LowerObligation.name(r.name).text, status(r.status), statement)
@@ -39,28 +47,37 @@ object Rows:
     case Value.Maybe(x)      => x.fold("None")(y => s"Some(${shown(y)})")
     case Value.Pairs(es)     => es.map((k, x) => s"${shown(k)} -> ${shown(x)}").mkString("Map(", ", ", ")")
     case Value.Tuple(xs)     => xs.map(shown).mkString("(", ", ", ")")
+    case Value.Inject(s, x)  => s"${if s == Side.Error then "Left" else "Right"}(${shown(x)})"
     case Value.World(ss, fs) => ss.map((m, s) => s"${m.value}: ${shown(s)}").mkString("World(", ", ", s"; faults $fs)")
 
   private def tested(t: Tested): String = t match
     case Tested.Plain     => "plain"
-    case Tested.Beside(d) => s"beside ${d.value}"
     case Tested.Own(i)    => s"own $i"
 
   private def assumed(a: Assumed): String = a match
-    case Assumed.Promise    => "promise"
+    case Assumed.Assumption => "assumption"
     case Assumed.Outside(i) => s"outside $i"
 
-  private def agreement(a: Agreement): AgreementRow = a match
-    case Agreement.Agrees         => AgreementRow("agrees", None)
-    case Agreement.PromiseRefuses => AgreementRow("promise-refuses", None)
-    case Agreement.PromiseAccepts => AgreementRow("promise-accepts", None)
-    case Agreement.Returned(v)    => AgreementRow("returned", Some(shown(v)))
-    case Agreement.Breaks(b)      => AgreementRow("breaks", Some(broken(b)))
+  private def code(c: OnCode): String = c match
+    case OnCode.Holds           => "holds"
+    case OnCode.Fails           => "fails"
+    case OnCode.NotEvaluated(e) => s"not-evaluated: ${notEvaluated(e)}"
+    case OnCode.Abstract(ds)    => s"abstract: ${ds.map(_.value).mkString(", ")}"
 
-  private def broken(b: Broken): String = b match
+  private def witness(w: Witness): String = w match
+    case Witness.Equation(s, from, _) => s"${s.value}: the equation of ${from.value}"
+    case Witness.Bound(s, from, _)    => s"${s.value}: the bound of ${from.value}"
+    case Witness.Tested(s)            => s"${s.value}: tested Scala (evidence)"
+    case Witness.Missing(s)           => s"${s.value}: none"
+
+  private def standing(s: Standing): String = s match
+    case Standing.Witnessed    => "witnessed"
+    case Standing.Evidence(ts) => s"evidence: ${ts.map(_.value).mkString(", ")} tested"
+    case Standing.Unwitnessed(_) => "consistency not proven"
+
+  def broken(b: Broken): String = b match
     case Broken.Post            => "post"
-    case Broken.Check           => "check"
-    case Broken.Invariant(i)    => s"invariant ${i.value}"
+    case Broken.Always(i)       => s"always ${i.value}"
     case Broken.Assumption(i)   => s"assumption ${i.value}"
     case Broken.NotEvaluated(e) => s"not evaluated: ${notEvaluated(e)}"
     case Broken.Threw(m)        => s"threw: $m"
@@ -69,6 +86,9 @@ object Rows:
     case EvalError.Quantified  => "it quantifies"
     case EvalError.Unbound(s)  => s"${s.value} is not bound"
     case EvalError.NoDefine(d) => s"no define ${d.value}"
+    case EvalError.NoCase      => "no arm for its case"
+    case EvalError.NoModel(m)  => s"no state of ${m.value}"
+    case EvalError.Steps       => "it is a program's steps"
 
   /** As today's statuses are written (`not-shown`). */
   private def status(s: ObligationStatus): String = s match
@@ -82,6 +102,6 @@ object Rows:
     case ObligationStatus.Timeout     => "timeout"
 
   private def against(a: Against): String = a match
-    case Against.Promise(n)  => s"promise ${n.value}"
+    case Against.Claim(n)    => s"claim ${n.value}"
     case Against.Define(d)   => s"define ${d.value}"
     case Against.Model(n, i) => s"model ${n.value} realization $i"

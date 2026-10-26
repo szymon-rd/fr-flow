@@ -1,6 +1,6 @@
 package frflow.core.name
 
-/** The name of an open term of the vocabulary (`grants`, `admit`): a parameter or an operation. */
+/** The name of a Declaration or a Definition (`authorized`, `grants`, `granted`). */
 opaque type SymbolName = String
 
 object SymbolName extends Label[SymbolName]

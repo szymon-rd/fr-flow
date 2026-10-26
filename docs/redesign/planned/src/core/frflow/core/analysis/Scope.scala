@@ -1,48 +1,60 @@
 package frflow.core.analysis
 
-import frflow.core.graph.Edge
-import frflow.core.name.{NodeId, TypeName}
-import frflow.core.spec.{Node, Statement}
+import frflow.core.name.{BoundaryName, NodeId, SymbolName, TypeName}
+import frflow.core.spec.{NodeKind, Range}
 import frflow.core.Theory
 import frflow.core.ty.Ty
+import frflow.core.vocab.{OpSig, StateModel, SymbolType}
 
-/** The nodes an invariant applies to (docs/DAG.md §2), within the nodes it names as its scope: the contracts whose
-  * result can hold what its rule is about, and the designs governing code no proof below the rule covers. A type
-  * holds what the rule is about when it names that type or a type whose fields hold it.
+/** Where a claim of `always` must hold, each Definition there keeping it (owner §16: wherever FrFlow covers the
+  * code). Of `always[T](…)`: the Definitions whose result can hold a `T` (where a value is made) and the programs
+  * calling a store whose state can; of `always(stored)(…)`: the programs calling the store. An assumption of
+  * `always` is about the outside: nothing here keeps it. A type holds a value of another when it names it or a type
+  * whose fields hold it.
   */
 object Scope:
-  def of(t: Theory, invariant: NodeId): List[NodeId] =
-    t.node(invariant).map(_.statement).collect { case Statement.Invariant(rule, scope) =>
-      val about = rule.value.params.lift(1).flatMap(x => Ty.names(x.ty).headOption)
-      t.refinement.nodes.filter(c => within(t, scope, c.id) && applies(t, invariant, about, c)).map(_.id)
+  def of(t: Theory, always: NodeId): List[SymbolName] =
+    t.node(always).filter(_.statement.kind == NodeKind.Claim).flatMap(_.statement.range).collect {
+      case r @ (Range.Made(_) | Range.Reached(_)) =>
+        val boundaries = models(t, r).map(_.boundary).toSet
+        val ops = t.vocabulary.symbols.map(_.name).filter(Constrained.isFunction(t, _))
+          .filterNot(Constrained.isDeclaration(t, _))
+        ops.filter(op => makes(t, r, op) || calls(t, boundaries, op))
     }.getOrElse(Nil)
 
-  private def within(t: Theory, scope: List[NodeId], c: NodeId): Boolean =
-    scope.isEmpty || (c :: t.refinement.ancestors(c)).exists(scope.contains)
+  /** The models whose state an `always` is about: those its rule reads, or each one whose state can hold its type. */
+  def models(t: Theory, r: Range): List[StateModel] = r match
+    case Range.Reached(ms) => ms.flatMap(t.vocabulary.model)
+    case Range.Made(ty)    => t.vocabulary.models.filter(m => holds(t, ty, m.state))
+    case Range.Possible    => Nil
 
-  private def applies(t: Theory, invariant: NodeId, about: Option[TypeName], c: Node): Boolean = c.statement match
-    case Statement.Contract(_, p, _)        => returns(t, about, p.post.value.params.lastOption.map(_.ty))
-    case Statement.FlowContract(_, p, _, _) => returns(t, about, p.post.value.params.lastOption.map(_.ty))
-    case Statement.Design(_)                =>
-      val contracts = t.refinement.ancestors(c.id).flatMap(t.node).filter(isContract)
-      contracts.isEmpty || contracts.exists(a => answers(t, invariant, a.id) || applies(t, invariant, about, a))
-    case _                                  => false
+  /** The store operations whose result `always[T]`'s guard applies to (a `T`, a list of them, a record holding
+    * either), by the store's model: where its values are made by the models FrFlow covers (`made_<op>`).
+    */
+  def modelMakers(t: Theory, r: Range): List[(StateModel, OpSig)] = r match
+    case Range.Made(ty) =>
+      for
+        m   <- t.vocabulary.models
+        b   <- t.vocabulary.boundary(m.boundary).toList
+        sig <- b.ops if Guards.applies(t, ty, sig.result)
+      yield m -> sig
+    case _              => Nil
 
-  private def returns(t: Theory, about: Option[TypeName], result: Option[Ty]): Boolean =
-    result.forall(r => about.forall(holds(t, _, r, Set.empty)))
+  /** The claims of `always` a Definition keeps. */
+  def keeps(t: Theory, op: SymbolName): List[NodeId] = t.nodes.map(_.node.id).filter(of(t, _).contains(op))
 
-  private def holds(t: Theory, about: TypeName, ty: Ty, seen: Set[TypeName]): Boolean =
+  /** `ty` can hold a value of `about`. */
+  def holds(t: Theory, about: Ty, ty: Ty): Boolean = Ty.names(about).exists(named(t, _, ty, Set.empty))
+
+  private def makes(t: Theory, r: Range, op: SymbolName): Boolean = r match
+    case Range.Made(ty) =>
+      t.vocabulary.symbol(op).map(_.ty).collect { case SymbolType.Typed(f) => Ty.resultOf(f) }.exists(holds(t, ty, _))
+    case _              => false
+
+  private def calls(t: Theory, boundaries: Set[BoundaryName], op: SymbolName): Boolean =
+    Callees.ofDefinition(t, op).exists(_.calls.boundaries.exists(boundaries))
+
+  private def named(t: Theory, about: TypeName, ty: Ty, seen: Set[TypeName]): Boolean =
     val names = Ty.names(ty)
     names.contains(about) || names.filterNot(seen).exists(n =>
-      t.vocabulary.dataType(n).exists(_.fieldTypes.exists(holds(t, about, _, seen + n))))
-
-  /** `c` keeps the invariant or is exempt from it. */
-  def answers(t: Theory, invariant: NodeId, c: NodeId): Boolean = t.edges.exists {
-    case Edge.Keeps(`c`, `invariant`, _)  => true
-    case Edge.Exempt(`c`, `invariant`, _) => true
-    case _                                => false
-  }
-
-  private def isContract(n: Node): Boolean = n.statement match
-    case Statement.Contract(_, _, _) | Statement.FlowContract(_, _, _, _) => true
-    case _                                                                => false
+      t.vocabulary.dataType(n).exists(_.fieldTypes.exists(named(t, about, _, seen + n))))

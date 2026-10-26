@@ -1,6 +1,7 @@
 package frflow.project.code
 
-import frflow.core.code.Code
+import frflow.core.analysis.Constrained
+import frflow.core.analysis.Outsides
 import frflow.core.name.{NodeId, RelPath}
 import frflow.core.spec.Statement
 import frflow.core.Theory
@@ -24,11 +25,12 @@ object Governance:
     case Statement.Design(gs) => gs.toList
     case _                    => Nil
 
+  /** A Definition's plain code's files, governed by every statement mentioning it. */
   private def attachedFiles(t: Theory): List[(NodeId, RelPath)] =
-    t.code.attached.toList.flatMap((id, a) => (a.code match
-    case Code.ProvenBeside(_, r) => r.files
-    case Code.Tested(r, _)       => r.files
-    case _                       => Nil).map(id -> _))
+    t.code.attached.toList.flatMap((d, a) => a.code.scala.toList.flatMap(_.files)
+      .flatMap(f => Constrained.statements(t, d).map(_ -> f)))
 
+  /** A store's implementations' files, governed by the assumption that it behaves as its model. */
   private def realizedFiles(t: Theory): List[(NodeId, RelPath)] =
-    t.code.realized.toList.flatMap((id, rs) => rs.toList.flatMap(_.runs.files).map(id -> _))
+    t.code.realized.toList.flatMap((b, rs) => rs.toList.flatMap(_.runs.files).flatMap(f =>
+      Outsides.modelled(t, b).map(_ -> f)))

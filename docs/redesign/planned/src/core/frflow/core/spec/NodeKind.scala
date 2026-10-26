@@ -1,7 +1,7 @@
 package frflow.core.spec
 
-/** The kinds a developer reads and the snapshot writes (`kind`): a classification of statements, computed by
-  * `Statement.kind`, never stored beside one.
+/** The three kinds of nodes (owner §15), as a developer reads them and the snapshot writes them (`kind`): the
+  * `Statement` case without its data.
   */
 enum NodeKind:
-  case Claim, Invariant, Contract, Assumption, Definition, Design
+  case Claim, Assumption, Design

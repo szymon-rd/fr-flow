@@ -1,7 +1,7 @@
 package frflow.decision.review
 
 import frflow.core.name.NodeId
-import frflow.decision.content.{Chain, Formats}
+import frflow.decision.content.Chain
 import frflow.decision.ledger.{Action, Decision, Ledger}
 
 /** The review states: a fold of the ledger over the subjects, parents first (a parent rejected moves its parts). */
@@ -18,7 +18,7 @@ final class Standings(subjects: Subjects, ledger: Ledger):
     Standing(state(ledger.current(s.id), s, causes), causes)
 
   private def causesOf(s: Subject, d: Decision, above: Chain, done: Map[NodeId, Standing]): List[Cause] =
-    val (was, now) = Formats.aligned(d.bound.content, s.content)
+    val (was, now) = (d.bound.content, s.content)
     val moved = was.hash != now.hash
     List(
       Cause.Self  -> (moved && Meaning.own(was).hash != Meaning.own(now).hash),
@@ -40,8 +40,7 @@ final class Standings(subjects: Subjects, ledger: Ledger):
 
   private def state(current: Option[Decision], s: Subject, causes: List[Cause]): ReviewState = current match
     case Some(d) if d.action == Action.Reject =>
-      val (was, now) = Formats.aligned(d.bound.content, s.content)
-      if was.hash == now.hash then ReviewState.Rejected else ReviewState.Proposed
+      if d.bound.content.hash == s.content.hash then ReviewState.Rejected else ReviewState.Proposed
     case Some(d) if d.action.binds || d.action == Action.Revisit =>
       if causes.nonEmpty then ReviewState.Review else ReviewState.Accepted
     case _ => ReviewState.Proposed

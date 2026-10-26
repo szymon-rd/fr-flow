@@ -8,7 +8,6 @@ import frflow.core.name.NodeId
 enum TryKind:
   case Needed(part: NodeId)
   case Vacuous, Restates, Clash, Unsat, Idle
-  case VacuousExpect(i: Int)
   case RestatesConjunct(part: NodeId, i: Int)
 
   /** Proven, the node fails: nothing it says can hold. */

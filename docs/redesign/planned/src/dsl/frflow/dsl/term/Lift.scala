@@ -1,15 +1,12 @@
 package frflow.dsl.term
 
-import frflow.core.expr.{Expr, Value}
-import scala.util.NotGiven
+import frflow.core.expr.Value
+import frflow.core.term.Sym
 
-/** The DSL's implicit conversions, all of them: a value where a term is expected is the constant (Booleans are
-  * written `True` and `False`), an `Int` literal a `BigInt` term. A value that is not data is noted on the term.
+/** A value as a constant term: what the DSL's implicit conversions (`Term.value`, `Term.int`) make, noting its type;
+  * a value that is not data is noted as a fault on the term, which fails its node.
   */
 object Lift:
-  given value[A](using t: LeanType[A], notBoolean: NotGiven[A =:= Boolean]): Conversion[A, Term[A]] = constant(_)
-  given int[A <: Int]: Conversion[A, Term[BigInt]] = i => constant(BigInt(i))
-
   def constant[A](a: A)(using t: LeanType[A]): Term[A] = Reify(t, a) match
-    case Right(v) => Term(Expr.Lit(v, t.ty), Notes.of(t.declares))
-    case Left(f)  => Term(Expr.Lit(Value.Unit, t.ty), Notes.fault(f)) // never elaborated: the fault fails the node
+    case Right(v) => Term.noted(Notes.of(t.declares))([T[_]] => (s: Sym[T]) => s.lit(a, v, t.ty))
+    case Left(f)  => Term.noted(Notes.fault(f))([T[_]] => (s: Sym[T]) => s.lit(a, Value.Unit, t.ty))

@@ -3,7 +3,6 @@ package frflow.proof.obligation
 import frflow.core.analysis.Resolved
 import frflow.core.expr.Exprs
 import frflow.core.name.NodeId
-import frflow.core.spec.Statement
 import frflow.proof.terms.TermTable
 
 /** What is tried of a node, in today's order and with today's sentences. One-sided: proven, they show something
@@ -13,7 +12,7 @@ object Tries:
   val Heartbeats: Int = 4000
 
   def of(r: Resolved, table: TermTable, n: NodeId): List[Obligation] =
-    (split(r, n) ++ List(unsat(n)) ++ vacuousExpects(r, n)).map(tried) ++ Idle.of(r, table, n)
+    (split(r, n) ++ List(unsat(n))).map(tried) ++ Idle.of(r, table, n)
 
   private def tried(k: TryKind, p: Prop, doc: String) =
     Obligation(ObligationName.Tried(k), p, Discharge.Attempt(Heartbeats), doc)
@@ -35,16 +34,13 @@ object Tries:
 
   /** Each part against each conjunct, when the claim has as many top-level conjuncts as parts. */
   private def conjuncts(r: Resolved, n: NodeId, ps: List[NodeId]): List[(TryKind, Prop, String)] =
-    val cs = r.theory.node(n).map(_.statement).collect { case Statement.Claim(f, _) => Exprs.conjuncts(f.value) }
-      .getOrElse(Nil)
+    val cs = r.theory.node(n).flatMap(_.statement.said).fold(Nil)(f => Exprs.conjuncts(f.value))
     if cs.size != ps.size then Nil
     else for { p <- ps; i <- cs.indices.toList.map(_ + 1) }
     yield (TryKind.RestatesConjunct(p, i), Prop.Iff(Prop.claim(p), Prop.ConjunctOf(n, i)),
       s"${p.value} says what conjunct $i of ${n.value} says.")
 
+  /** The contradiction search: an early refuter only, proven when nothing meets the claim. Consistency is shown
+    * by witnesses (`Joint`), never by this try failing.
+    */
   private def unsat(n: NodeId) = (TryKind.Unsat, Prop.over(Nil, Prop.Not(Prop.claim(n))), s"No world meets ${n.value}.")
-
-  private def vacuousExpects(r: Resolved, n: NodeId): List[(TryKind, Prop, String)] =
-    r.theory.node(n).map(_.statement).collect { case Statement.Claim(_, es) => es.indices.toList }.getOrElse(Nil)
-      .map(i => (TryKind.VacuousExpect(i), Prop.over(Nil, Prop.Expected(n, i)),
-        s"The expectation holds whatever ${n.value} says."))

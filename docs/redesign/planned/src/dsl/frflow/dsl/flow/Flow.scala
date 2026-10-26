@@ -1,22 +1,45 @@
 package frflow.dsl.flow
 
-import frflow.core.name.{BoundaryName, OpName}
+import cats.Monad
 import frflow.dsl.term.{LeanType, Term}
+import frflow.dsl.term.TermSyntax.*
+import scala.annotation.targetName
 
-/** Steps over boundaries as the developer writes them: a higher-order tree. A proven flow elaborates to `Prog`; an
-  * implementation's flows (with `Effect` steps) are run as they are by `eval.run.FlowRun`.
+/** What a program over boundaries may do besides calling them: the capability its effect `F` gives. A program is
+  * written once, `final class Expiry[F[_]: Flow](db: Database[F, Term])`, its values `Term`s as everywhere in a
+  * model. Lean reads it recorded (`F = Recorded`, `Recording`); production runs it in `IO` (`eval.Running`). Each
+  * combinator is Cats Effect's of the same name, on terms; `ifM`, `bracket` and `timeout` are made of the others.
   */
-enum Flow[A]:
-  case Pure(result: Term[A])
-  case Call(boundary: BoundaryName, op: OpName, args: List[Term[?]])
-  case Bind[X, B](first: Flow[X], next: Term[X] => Flow[B]) extends Flow[B]
-  /** A step of the outside world, on the values of the terms it is given: production implementations only. */
-  case Effect(args: List[Term[?]], run: List[Any] => A, result: LeanType[A])
-  // … Each, EachResult, Fold, Cond, Get, Put, Update, Raise, Catch, Attempt, ParEach, Atomic, as today.
+trait Flow[F[_]] extends Monad[F]:
+  /** One of two programs by a condition at hand. */
+  def cond[A](c: Term[Boolean])(ifTrue: => F[A], ifFalse: => F[A]): F[A]
+  def each[X: LeanType](xs: Term[List[X]])(body: Term[X] => F[Unit]): F[Unit]
+  def raise[E, A](error: Term[E]): F[A]
+  def handle[E: LeanType, A](fa: F[A])(handler: Term[E] => F[A]): F[A]
+  /** `finalizer` after `fa`, whether it gave a result, failed with an error of type `E` or was cancelled. */
+  def guarantee[E: LeanType, A](fa: F[A], finalizer: F[Unit]): F[A]
+  /** The first of the two to finish gives the result; the other is cancelled, running its finalizers. */
+  def race[A: LeanType, B: LeanType](fa: F[Term[A]], fb: F[Term[B]]): F[Term[Either[A, B]]]
+  /** Both at once, their results paired; when one fails the other is cancelled. */
+  def parTupled[A: LeanType, B: LeanType](fa: F[Term[A]], fb: F[Term[B]]): F[Term[(A, B)]]
+  /** `fa` as one step of the world (a transaction). */
+  def atomically[A](fa: F[A]): F[A]
+  // … `collect`, `fold` and `parCollect` over a list term, `attempt`, as today's `Flow`.
 
-  def flatMap[B](f: Term[A] => Flow[B]): Flow[B] = Bind(this, f)
+  /** One of two programs by a condition a program gives (Monad's `ifM`, on a term). */
+  @targetName("ifTermM")
+  def ifM[A](c: F[Term[Boolean]])(ifTrue: => F[A], ifFalse: => F[A]): F[A] = flatMap(c)(cond(_)(ifTrue, ifFalse))
+
+  /** `use` of what `acquire` gives, then `release` of it, whatever `use` did. */
+  def bracket[E: LeanType, R, A](acquire: F[Term[R]])(use: Term[R] => F[A])(release: Term[R] => F[Unit]): F[A] =
+    flatMap(acquire)(r => guarantee[E, A](use(r), release(r)))
+
+  /** The result when `fa` took at most `seconds` on `clock`, none when it took longer. It does not cancel: `fa` runs
+    * to its end either way, and only the clock's own sleeps count.
+    */
+  def timeout[A: LeanType](clock: Clock[F, Term])(fa: F[Term[A]], seconds: Term[BigInt]): F[Term[Option[A]]] =
+    flatMap(clock.now)(start =>
+      flatMap(fa)(a => map(clock.now)(stop => when(stop - start <= seconds)(some(a)).otherwise(none[A]))))
 
 object Flow:
-  def effect[X, A](x: Term[X])(f: X => A)(using a: LeanType[A]): Flow[A] =
-    Effect(List(x), vs => f(vs.head.asInstanceOf[X]), a) // the value of `x`, a term of type `X`
-  // … `effect` of 0 to 3 terms, `whenA`, `unlessA`, `sequence`, `atomically`, `now`, `sleep`, `every`, as today.
+  def apply[F[_]](using f: Flow[F]): Flow[F] = f

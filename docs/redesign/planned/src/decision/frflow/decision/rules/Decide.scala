@@ -17,7 +17,6 @@ object Decide:
     case Command.Confirm(why)                    => Accepting(r, by, why).mechanical
     case Command.Revisit(id, why)                => Revisiting(r, by, why).node(id)
     case Command.Gone(id, why)                   => Removing(r, by, why).node(id)
-    case Command.Rebind(why)                     => Rebinding(r, by, why).all
 
   /** The decisions `after` has that `before` did not, subjects parents first, then gone nodes: what the shell signs
     * and reports.

@@ -10,8 +10,6 @@ object Judge:
       Some(Judged(CheckStatus.ModelError, Nil, List(Finding.ModelDoesNotBuild(errors(out)))))
     case ProverRun.Built(_)    => None
 
-  def waiting(undecided: List[String]): Option[Judged] =
-    Option.when(undecided.nonEmpty)(Judged(CheckStatus.Waiting, Nil, List(Finding.WaitsForChoice(undecided))))
-  // … lemmas, evaluations (Lean and Scala agree), complete, impl, tries: one function each.
+  // … lemmas, complete, impl, tries, the theory's consistency and examples: one function each.
 
   private def errors(out: String) = LeanOutput.diagnostics(out).filter(_.error)

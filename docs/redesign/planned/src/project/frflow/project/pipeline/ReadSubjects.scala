@@ -1,6 +1,6 @@
 package frflow.project.pipeline
 
-import frflow.core.analysis.{Fixed, Resolved}
+import frflow.core.analysis.Resolved
 import frflow.core.graph.{Edge, Walk}
 import frflow.core.name.{NodeId, RelPath}
 import frflow.core.spec.Node
@@ -22,15 +22,12 @@ object ReadSubjects:
   private def place(r: Resolved, n: Node): Place =
     Place(r.theory.refinement.parents(n.id), r.restsOn(n.id), rivals(r, n), n.statement.kind)
 
-  /** The nodes it replaces or that replace it, and the other definitions of a term it defines. */
+  /** The nodes it replaces or that replace it. */
   private def rivals(r: Resolved, n: Node): List[NodeId] =
-    val replacing = r.theory.edges.collect {
+    r.theory.edges.collect {
       case Edge.Replaces(a, o) if o == n.id => a
       case Edge.Replaces(a, o) if a == n.id => o
-    }
-    val defining = Fixed.of(n.statement).flatMap(f =>
-      r.theory.refinement.nodes.filter(m => m.id != n.id && Fixed.of(m.statement).contains(f)).map(_.id))
-    (replacing ++ defining).distinct
+    }.distinct
 
   private def code(a: Analysis, files: List[RelPath]): CodeNow =
     CodeFingerprints.of(files.map(f => f -> a.inputs.sources.get(f)))

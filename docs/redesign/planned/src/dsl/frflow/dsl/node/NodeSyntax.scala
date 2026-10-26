@@ -1,25 +1,24 @@
 package frflow.dsl.node
 
-import cats.syntax.all.*
-import frflow.core.spec.Statement
-import frflow.dsl.build.Deferred
-import scala.util.NotGiven
+import frflow.core.spec.{Reliance, Statement}
+import frflow.dsl.build.{Deferred, Fault, Site}
 
-/** The fluent methods of nodes, each on the kinds it applies to. */
+/** The fluent methods of nodes: the edges (`.refines`, `.assuming`, `.replaces`) and how the nodes above stand to a
+  * claim (`.leftOpenAbove`).
+  */
 object NodeSyntax:
-  extension [S <: Statement, F](n: Node[S, F])(using NotGiven[S <:< Statement.Definition])
-    def under(wholes: (Node[?, ?] | Null)*): Node[S, F] =
-      linked(n)(l => l.copy(under = l.under ++ wholes.map(Parent.of)))
-    def replaces(other: Node[?, ?] | Null): Node[S, F] = linked(n)(_.copy(replaces = Some(Parent.of(other))))
-    def exempt(invariant: Node[Statement.Invariant, ?] | Null, because: String): Node[S, F] =
-      linked(n)(l => l.copy(keeping = l.keeping :+ Keeping.Exempt(Parent.of(invariant), because)))
+  extension (n: Node)
+    /** The node refines `wholes` (the refinement calculus' word): what it says, with its siblings', gives theirs. */
+    def refines(wholes: (Node | Null)*): Node = linked(n)(l => l.copy(refines = l.refines ++ wholes.map(Parent.of)))
+    /** Its proof takes `premises` as hypotheses: assumptions, or statements of what always holds; never parts. */
+    def assuming(premises: (Node | Null)*): Node =
+      linked(n)(l => l.copy(assumes = l.assumes ++ premises.map(Parent.of)))
+    def replaces(other: Node | Null): Node = linked(n)(_.copy(replaces = Some(Parent.of(other))))
 
-  extension [S <: Statement, F](c: Node[S, F])(using k: OnPromise[S])
-    def examples(givens: Binding*)(cases: Case[F]*): Node[S, F] =
-      c.copy(statement = (c.statement, k.examples(c.head, givens.toList, cases.toList)).mapN(k.withExamples))
+    /** The claim fixes a word the nodes above leave open: they do not rely on it for that word. */
+    def leftOpenAbove: Node = n.copy(statement = n.statement.andThen {
+      case c @ Statement.Claim(_, _) => Deferred.pure(c.copy(reliance = Reliance.LeftOpen))
+      case _                         => Deferred.failed(Site.Node(n.head.id), Fault.NotAClaim("leftOpenAbove"))
+    })
 
-  extension [S <: Statement, F](c: Node[S, F])(using k: OnContract[S])
-    def leftOpenAbove: Node[S, F] = c.copy(statement = c.statement.map(k.leftOpen))
-
-  private def linked[S <: Statement, F](n: Node[S, F])(f: Links => Links): Node[S, F] =
-    n.copy(head = n.head.copy(links = f(n.head.links)))
+  private def linked(n: Node)(f: Links => Links): Node = n.copy(head = n.head.copy(links = f(n.head.links)))

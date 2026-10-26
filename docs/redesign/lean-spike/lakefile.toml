@@ -1,0 +1,15 @@
+name = "roomscheck"
+defaultTargets = ["Dump", "Proofs", "AuthDump"]
+
+[[require]]
+name = "frflow"
+path = "frflow"
+
+[[lean_lib]]
+name = "Dump"
+
+[[lean_lib]]
+name = "Proofs"
+
+[[lean_lib]]
+name = "AuthDump"

@@ -22,6 +22,17 @@ enum Ty:
   case FlowOf(result: Ty)
 
 object Ty:
+  /** A function type applied to one argument: the rest of its inputs, or its result. */
+  def applied(t: Ty): Ty = t match
+    case FnOf(_ :: Nil, r)  => r
+    case FnOf(_ :: rest, r) => FnOf(rest, r)
+    case other              => other
+
+  /** A function type's result; any other type is its own. */
+  def resultOf(t: Ty): Ty = t match
+    case FnOf(_, r) => r
+    case other      => other
+
   /** The element type of a list, an option or a set. */
   def elementOf(t: Ty): Option[Ty] = t match
     case ListOf(a)   => Some(a)

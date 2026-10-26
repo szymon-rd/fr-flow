@@ -3,21 +3,28 @@ package frflow.testing
 import cats.effect.Async
 import cats.effect.std.Random
 import cats.syntax.all.*
-import frflow.core.analysis.Resolved
-import frflow.core.name.{BoundaryName, NodeId}
-import frflow.dsl.flow.Bound
-import frflow.eval.Denote
-import frflow.eval.run.{ExampleResult, Examples, FlowRun}
+import frflow.core.expr.Prog
+import frflow.core.name.{BoundaryName, ModelName, OpName}
+import frflow.core.term.Stated
+import frflow.eval.flow.{FlowInterpreter, World}
+import frflow.eval.{Env, ScalaValue, Semantics}
 import scala.concurrent.duration.*
 
-/** A flow with concurrent steps run from each example on the implementations, with a random pause before each call,
-  * `Runs` times, each run compared with the models' sequential reading. Deterministic under `TestControl`.
+/** A program with concurrent steps run on the adapters from each generated start, its branches at once and each call
+  * after a random pause, `Runs` times each, for its runs to be compared with the models' (which Lean agrees with).
+  * It runs the recorded `Prog`, the object Lean proves; production's interpreter (`eval.Running`) is tested
+  * concurrently on its own (`RunningSuite`). Deterministic under `TestControl`.
   */
-final class Interleavings[F[_]: Async: Random](denote: Denote, bound: Map[BoundaryName, Bound]):
+final class Interleavings[F[_]: Async: Random](semantics: Semantics, adapters: World[F]):
   val Runs: Int = 8
 
-  def of(r: Resolved, node: NodeId): F[List[ExampleResult]] =
-    FlowRun.concurrent(denote, bound, pause).flatMap(run => Examples(denote, run).of(r, node).replicateA(Runs))
-      .map(_.flatten)
+  def of(steps: Prog[Stated[?]], starts: List[Env]): F[List[ScalaValue]] =
+    FlowInterpreter.concurrent(semantics, paused).flatMap(run =>
+      starts.flatTraverse(start => run.prog(steps, start).replicateA(Runs)))
+
+  private val paused: World[F] = new World[F]:
+    def call(b: BoundaryName, op: OpName, args: List[ScalaValue]): F[ScalaValue] = pause *> adapters.call(b, op, args)
+    def read(m: ModelName): F[ScalaValue] = adapters.read(m)
+    def write(m: ModelName, s: ScalaValue): F[Unit] = adapters.write(m, s)
 
   private def pause: F[Unit] = Random[F].betweenLong(0, 5).flatMap(ms => Async[F].sleep(ms.millis))

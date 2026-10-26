@@ -4,7 +4,7 @@ import scala.quoted.*
 
 /** What the compiler knows of a model's parts at the call site: where they are written, their text, a lambda's
   * parameter names, and the name of the `val` a define is assigned to. Read at compile time, so elaboration needs no
-  * reflection on the developer's lambdas but to find what a flow's lambda captures (`Captures`).
+  * reflection on the developer's lambdas.
   */
 object Source:
   inline def of(inline x: Any): AsWritten = ${ writtenOf('x) }
@@ -15,7 +15,12 @@ object Source:
 
   private def writtenOf(x: Expr[Any])(using Quotes): Expr[AsWritten] =
     import quotes.reflect.*
-    val text = x.asTerm.pos.sourceCode.getOrElse(x.show).trim
+    def written(t: Term): Term = t match
+      case Inlined(None, _, b) => written(b)
+      case other               => other
+    val pos = written(x.asTerm).pos
+    val text = pos.sourceFile.content.filter(_ => pos.start <= pos.end).flatMap(c =>
+      Option.when(pos.end <= c.length)(c.substring(pos.start, pos.end))).getOrElse("").trim
     '{ AsWritten(${ Expr(text) }, ${ Expr(params(x)) }) }
 
   /** A lambda's parameter names; none for an expression that is not a lambda. */

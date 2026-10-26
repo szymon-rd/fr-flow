@@ -3,7 +3,8 @@ package frflow.core.expr
 import frflow.core.name.{CtorName, DefName, ModelName, SymbolName, TypeName}
 import frflow.core.ty.Ty
 
-/** An expression of the term language: a simply typed lambda calculus over the vocabulary. Binders are unique. */
+/** An expression of the term language, the initial form of a term (`ToExpr`): a simply typed lambda calculus over
+  * the vocabulary. A binder is numbered by its level (`VarId`), so none captures another. */
 enum Expr:
   case Var(x: Binder)
   case Lit(value: Value, ty: Ty)
@@ -20,16 +21,21 @@ enum Expr:
   case Copy(on: Expr, data: TypeName, updates: List[(Int, Expr)])
   case Make(data: TypeName, ctor: CtorName, args: List[Expr])
   case Tuple(elems: List[Expr])
-  case Proj(on: Expr, index: Int, ty: Ty)
   case SomeOf(elem: Expr)
   case Inject(side: Side, elem: Expr, ty: Ty)
   case ListOf(elems: List[Expr], elem: Ty)
   case Iterate(how: Iteration, over: Expr, x: Binder, body: Expr, ty: Ty)
   case Fold(over: Expr, init: Expr, acc: Binder, x: Binder, body: Expr)
+  /** `body` of every element with each later one (Lean's `List.Pairwise`). */
+  case Pairwise(over: Expr, x: Binder, y: Binder, body: Expr)
   case Prim(op: PrimOp, args: List[Expr], ty: Ty)
   /** A flow's steps: the body of a `def` over a monad with the boundaries' classes. */
-  case Do(prog: Prog, ty: Ty)
-  /** A flow (a call of one) run on the models from a world: its result, or outcome, and the world after. */
-  case RunOn(call: Expr, world: Expr, failsWith: Option[Ty], ty: Ty)
+  case Do(prog: Prog[Expr], ty: Ty)
+  /** A run of a program on the models from the world `before`: `post` of what it gives (the result, or the error when
+    * `failing`) and the world after.
+    */
+  case Runs(run: Expr, before: Expr, failing: Boolean, outcome: Binder, after: Binder, post: Expr)
   /** A model's state in a world. */
   case Part(world: Expr, model: ModelName, ty: Ty)
+  /** A fact about the world outside the code, as an assumption says it. */
+  case Outside(fact: OutsideFact)

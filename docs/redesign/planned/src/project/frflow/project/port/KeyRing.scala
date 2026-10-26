@@ -1,11 +1,13 @@
 package frflow.project.port
 
-import frflow.decision.ledger.Seals
+import frflow.decision.ledger.{Deciders, Seals}
 
-/** The developer's signing key and the project's public keys. An algebra so tests sign with a key made in memory. */
+/** The developer's signing key, and the committed deciders' list (`Deciders.committed` over the file's committed
+  * versions, read through `Git`). An algebra so tests sign with a key made in memory.
+  */
 trait KeyRing[F[_]]:
-  /** The developer's key, created on first use. */
   def signer: F[Seals.Signer]
+  /** The id of the key `signer` signs with. */
+  def key: F[String]
   def verifier: F[Seals.Verifier]
-  def publish(name: String): F[Unit]
-  def filedName: F[Option[String]]
+  def deciders: F[Option[Deciders]]

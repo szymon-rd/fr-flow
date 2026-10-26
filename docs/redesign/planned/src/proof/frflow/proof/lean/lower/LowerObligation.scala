@@ -17,15 +17,15 @@ object LowerObligation:
     case ObligationName.Complete      => "complete"
     case ObligationName.Feasible      => "feasible"
     case ObligationName.Impl          => "impl"
-    case ObligationName.Check         => "check"
     case ObligationName.RootImpl      => "root_impl"
-    case ObligationName.Cover(i)      => s"cover_$i"
-    case ObligationName.Expect(i)     => s"expect_$i"
-    case ObligationName.Eval(i)       => s"eval_$i"
-    case ObligationName.EvalImpl(i)   => s"eval_impl_$i"
-    case ObligationName.Probe(j)      => s"probe_$j"
-    case ObligationName.ProbeImpl(j)  => s"probe_impl_$j"
+    case ObligationName.Cover(op)     => s"cover_$op"
+    case ObligationName.Made(m)       => s"made_$m"
     case ObligationName.Commute(i)    => s"commute_$i"
+    case ObligationName.Consistent(i) => s"consistent_$i"
+    case ObligationName.Start(n)      => s"start_${n.value}"
+    case ObligationName.Inhabited(n)  => s"inhabited_${n.value}"
+    case ObligationName.Satisfiable(n, i) => s"satisfiable_${i + 1}_${n.value}"
+    case ObligationName.Example(i)    => s"example_$i"
     case ObligationName.Tried(kind)   => tried(kind))
 
   private def tried(k: TryKind): String = k match
@@ -35,5 +35,4 @@ object LowerObligation:
     case TryKind.Clash                  => "clash"
     case TryKind.Unsat                  => "unsat"
     case TryKind.Idle                   => "idle"
-    case TryKind.VacuousExpect(i)       => s"vacuous_expect_$i"
     case TryKind.RestatesConjunct(p, i) => s"restates_${i}_${p.value}"

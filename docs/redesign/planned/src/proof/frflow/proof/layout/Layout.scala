@@ -10,6 +10,8 @@ final case class Layout(kb: KbName):
   def domain: ModuleName = generated("Domain")
   def boundaries: ModuleName = generated("Boundaries")
   def rootImpl: ModuleName = generated("RootImpl")
+  /** What is asked of the theory as a whole: consistency, vacuity, the examples. */
+  def whole: ModuleName = generated("Whole")
   def ofNode(n: NodeId, part: NodePart): ModuleName = generated(n.value, part.toString)
   def proofs(n: NodeId): ModuleName = ModuleName(Names.path("Proofs", kb.value, n.value))
   def proofsDir: RelPath = RelPath.fromIdentifiers("lean", s"Proofs/${kb.value}")

@@ -5,8 +5,9 @@ import frflow.core.name.{NodeId, SymbolName}
 import frflow.core.spec.{Reliance, Statement}
 import frflow.proof.terms.{OpenTerms, TermTable}
 
-/** The root's `idle` try: the root with every operation its statement names doing nothing, but the words left open
-  * above (`.leftOpenAbove`), which it must hold for whatever they mean. Within Lean's default budget.
+/** A root's `idle` try: the root statement with every Definition it names doing nothing, but the words left open
+  * above (`.leftOpenAbove`), which it must hold for whatever they mean. Within Lean's default budget. A root about a
+  * program (rooms' `BookWhenFree`) has none: a run has no "nothing" to give (`Substitute.canDoNothing`).
   */
 object Idle:
   val DefaultHeartbeats: Int = 200000
@@ -21,9 +22,6 @@ object Idle:
         s"${n.value} is met by doing nothing (${ops.map(_.value).sorted.mkString(", ")}: returning nothing)."))
 
   private def onOperation(r: Resolved, s: SymbolName): List[Statement] =
-    r.theory.refinement.nodes.map(_.statement).filter(_.operation.contains(s))
+    r.theory.refinement.nodes.map(_.statement).filter(_.definition.contains(s))
 
-  private def leftOpen(s: Statement): Boolean = s match
-    case Statement.Contract(_, _, Reliance.LeftOpen)        => true
-    case Statement.FlowContract(_, _, _, Reliance.LeftOpen) => true
-    case _                                                  => false
+  private def leftOpen(s: Statement): Boolean = s.relied == Reliance.LeftOpen

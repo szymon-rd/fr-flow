@@ -1,8 +1,10 @@
 package frflow.proof.lean
 
-import frflow.core.name.SymbolName
+import frflow.core.name.{DefName, SymbolName, TypeName}
+import frflow.core.ty.{NumKind, Ty}
+import frflow.core.vocab.{Define, DefineForm}
 import frflow.proof.lean.ast.*
-import frflow.proof.lean.lower.{LowerObligation, LowerProp}
+import frflow.proof.lean.lower.{LowerModels, LowerObligation, LowerProp}
 import frflow.proof.lean.print.*
 import frflow.proof.obligation.*
 import L.*
@@ -14,55 +16,15 @@ class CrmModulesSuite extends munit.FunSuite:
   private def file(path: String): String =
     scala.io.Source.fromResource(s"crm/$path", getClass.getClassLoader)(using scala.io.Codec.UTF8).mkString
 
+  private val (store, big) = (Ty.Data(TypeName("CrmStore")), Ty.Num(NumKind.Big))
   private val crmStore = n("CrmStore")
   private val world = n("World")
   private val expireType = arrows(crmStore, n("Int"), crmStore)
-  private def stateM(s: String, r: String) = app(n("StateM"), n(s), n(r))
-  private def dots(on: String, fields: String*) = fields.foldLeft(n(on))(LExpr.Dot(_, _))
 
-  private val database = Decl.Documented(
-    "The boundary database: the SQLite database the CRM keeps its records, shares, expiries and event log in.",
-    Decl.Class(nm("Database"), List(x("m", arrows(n("Type"), n("Type")))), List(
-      nm("load") -> app(n("m"), crmStore),
-      nm("logEvent") -> arrows(n("Event"), app(n("m"), n("Unit"))),
-      nm("storeAbout") -> arrows(n("Int"), crmStore, app(n("m"), n("Unit"))))))
-
-  private def modify(v: String, body: LExpr) =
-    DoLine.Step(app(n("modify"), par(LExpr.Fun(List(LBinder.Bare(nm(v))), body))))
-  private def tablesMk(store: LExpr, events: LExpr) = par(app(c("Tables.mk"), store, events))
-  private val logEvent = tablesMk(dots("t", "store"),
-    par(LExpr.Infix(LOp.Append, dots("t", "events"), LExpr.ListLit(List(n("e"))))))
-  private val storeAbout = tablesMk(
-    par(app(c("Crm.replaceAbout"), dots("t_1", "store"), n("id_"), par(app(c("Crm.aboutRecord"), n("t"), n("id_"))))),
-    dots("t_1", "events"))
-  private val model = Decl.Namespace(ns("DatabaseModel"), List(
-    Decl.Def(defs, nm("load"), Nil, stateM("Tables", "CrmStore"),
-      LExpr.Do(List(DoLine.Bind(nm("t"), n("get")), DoLine.Step(app(n("pure"), dots("t", "store")))), 4)),
-    Decl.Def(defs, nm("logEvent"), Nil, arrows(n("Event"), stateM("Tables", "Unit")),
-      LExpr.Fun(List(x("e", n("Event"))), LExpr.Do(List(modify("t", logEvent)), 4))),
-    Decl.Def(defs, nm("storeAbout"), Nil, arrows(n("Int"), crmStore, stateM("Tables", "Unit")),
-      LExpr.Fun(List(x("id_", n("Int")), x("t", crmStore)), LExpr.Do(List(modify("t_1", storeAbout)), 4)))))
-
-  private val worldDecl = Decl.Documented("The models' states: what proven flows run on.",
-    Decl.Structure(nm("World"), List(nm("database") -> n("Tables"))))
-
-  private def onWorld(op: String, args: String*) = within("database", app(c(s"DatabaseModel.$op"), args.map(n)*))
-  private val instance = Decl.Instance(app(n("Database"), par(app(n("StateM"), world))), List(
-    InstanceField(nm("load"), Nil, onWorld("load")),
-    InstanceField(nm("logEvent"), List(nm("e")), onWorld("logEvent", "e")),
-    InstanceField(nm("storeAbout"), List(nm("id_"), nm("t")), onWorld("storeAbout", "id_", "t"))))
-
-  private def lemma(op: String, params: List[(String, LExpr)], result: String) =
-    Decl.Theorem(defs, nm(s"Database.${op}_onWorld"), params.map(x(_, _)),
-      LExpr.Infix(LOp.Eq, LExpr.Typed(par(app(c(s"Database.$op"), params.map(p => n(p._1))*)), stateM("World", result)),
-        onWorld(op, params.map(_._1)*)), Proof.Rfl, Break.NextLine)
-
-  test("Boundaries.lean: the class, the model, World, the instance and its lemmas") {
+  test("Boundaries.lean: the class, the model, World, the instance and its lemmas, from the boundary and its model") {
     val imports = List("Types", "Domain.Def_replaceAbout", "Domain.Def_aboutRecord").map("FrFlowGen.Crm." + _)
-    val m = module("FrFlowGen.Crm.Boundaries", imports, "Crm",
-      database, model, worldDecl, instance, lemma("load", Nil, "CrmStore"),
-      lemma("logEvent", List("e" -> n("Event")), "Unit"),
-      lemma("storeAbout", List("id_" -> n("Int"), "t" -> crmStore), "Unit"))
+    val decls = LowerModels(ExpiryIr.env, ExpiryIr.reserved).decls(List(CrmModels.boundary -> CrmModels.model))
+    val m = module("FrFlowGen.Crm.Boundaries", imports, "Crm", decls*)
     assertEquals(Print.module(m), file("Boundaries.lean"))
   }
 
@@ -77,10 +39,9 @@ class CrmModulesSuite extends munit.FunSuite:
   }
 
   test("Domain/Def_expireOnce_run.lean: a flow's run on the models") {
-    val d = Decl.Def(defs, nm("expireOnce_run"), List(x("expire", expireType)),
-      arrows(n("Int"), world, par(times(crmStore, world))),
-      LExpr.Fun(List(x("now", n("Int")), x("w", world)),
-        par(app(c("FrFlow.runOn"), par(app(par(app(c("Crm.expireOnce"), n("expire"))), n("now"))), n("w")))))
+    val run = Define(DefName("expireOnce_run"), ExpiryIr.expireOnce, DefineForm.RunOf(DefName("expireOnce")))
+    val d = LowerModels(ExpiryIr.env, ExpiryIr.reserved)
+      .run(run, DefName("expireOnce"), List(SymbolName("expire") -> Ty.FnOf(List(store, big), store)))
     val imports = List("Types", "Boundaries", "Domain.Def_expireOnce").map("FrFlowGen.Crm." + _)
     val m = module("FrFlowGen.Crm.Domain.Def_expireOnce_run", imports, "Crm", d, Decl.MatchEqns)
     assertEquals(Print.module(m), file("Domain/Def_expireOnce_run.lean"))

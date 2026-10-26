@@ -2,7 +2,7 @@ package frflow.proof.lean.lower
 
 import cats.data.State
 import cats.syntax.all.*
-import frflow.core.expr.Value
+import frflow.core.expr.{Side, Value}
 import frflow.core.name.{CtorName, TypeName}
 import frflow.core.ty.Ty
 import frflow.proof.lean.ast.*
@@ -21,11 +21,15 @@ final class LowerValue(env: LowerEnv):
     case (Value.Maybe(None), _)                 => State.pure(name("none"))
     case (Value.Maybe(Some(x)), Ty.OptionOf(a)) => apply(x, a).map(y => call(name("some"), List(y)))
     case (Value.Data(c, fs), Ty.Data(d))        => data(d, c, fs)
-    case _                                      => ??? // tuples, outcomes, maps and sets (with their helper), worlds
+    case (Value.Inject(side, x), Ty.EitherOf(l, r)) =>
+      val (ctor, ty) = if side == Side.Error then ("Except.error", l) else ("Except.ok", r)
+      apply(x, ty).map(y => call(Atoms.const(ctor), List(y)))
+    case (Value.Tuple(xs), Ty.TupleOf(ts))      => xs.zip(ts).traverse(apply(_, _)).map(LExpr.Tuple(_))
+    case _                                      => ??? // maps and sets (with their helper), worlds
 
   /** A constructor applied to its fields; a case of an enum without fields alone. */
   private def data(d: TypeName, c: CtorName, fs: List[Value]): L[LExpr] =
-    val head = Lower.ctor(d, c)
+    val head = Atoms.ctor(d, c)
     val decl = env.data(d)
     if fs.isEmpty && decl.exists(_.isEnum) then State.pure(head)
     else fs.zip(decl.toList.flatMap(_.fieldsOf(c))).traverse(apply(_, _)).map(call(head, _))

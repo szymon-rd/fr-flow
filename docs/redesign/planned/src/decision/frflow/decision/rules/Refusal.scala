@@ -7,6 +7,8 @@ import frflow.decision.review.*
 enum Refusal:
   case NoOneDecides, NoReason, NoNodes, NothingToConfirm
   case UnknownNode(id: NodeId)
+  /** The key at hand is not listed under this name in the committed deciders' list. */
+  case NotADecider(name: String)
   case MovedSinceSeen(id: NodeId)
   case NotAProposal(id: NodeId, state: ReviewState)
   case NotDecided(id: NodeId)

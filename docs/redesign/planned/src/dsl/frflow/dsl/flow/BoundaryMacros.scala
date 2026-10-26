@@ -2,8 +2,8 @@ package frflow.dsl.flow
 
 import scala.quoted.*
 
-/** `BoundaryOps[T]` from the trait's declared methods: each method's parameters and result with their `LeanType`s
-  * summoned, and a `call` that matches on the operation's name.
+/** `BoundaryOps[B]` from the trait's declared methods: each method's parameters and result with their `LeanType`s
+  * summoned, and the three instances, each method one line (a call recorded, a call by name, a call lifted).
   */
 object BoundaryMacros:
-  def derived[T: Type](using Quotes): Expr[BoundaryOps[T]] = ???
+  def derived[B[_[_], _[_]]: Type](using Quotes): Expr[BoundaryOps[B]] = ???

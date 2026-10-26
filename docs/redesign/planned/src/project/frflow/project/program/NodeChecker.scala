@@ -15,7 +15,6 @@ final class NodeChecker[F[_]: Monad](lake: Lake[F]):
   def apply(a: Analysis, n: NodeId): F[NodeCheck] =
     val steps: Step[Judged] =
       for
-        _ <- stop(Judge.waiting(Nil))
         spec = Layout(a.valid.theory.name).ofNode(n, NodePart.Spec)
         _ <- EitherT.liftF(lake.build(NonEmptyList.one(spec))).flatMap(r => stop(Judge.model(r)))
         j <- proven(a, n)

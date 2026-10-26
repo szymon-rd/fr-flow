@@ -1,6 +1,7 @@
 package frflow.core.example
 
-import frflow.core.name.{SourceText, SymbolName}
+import frflow.core.expr.Value
+import frflow.core.name.SymbolName
 
-/** A symbol's value under which an example is run (`grants.bind(List(…))`), with its expression as written. */
-final case class Given(symbol: SymbolName, supply: Supply, written: SourceText)
+/** A value an example gives a Definition provided where the code runs (`grants`), as data. */
+final case class Given(symbol: SymbolName, value: Value)

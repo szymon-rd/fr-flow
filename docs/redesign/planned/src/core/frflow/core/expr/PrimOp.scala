@@ -6,7 +6,7 @@ package frflow.core.expr
 enum PrimOp:
   case Eq, Ne, And, Or, Not, Implies
   case Add, Sub, Mul, Div, Mod, Lt, Le, Gt, Ge, Max, Min, Neg, Concat
-  case Cons, Append, Contains, IsEmpty, NonEmpty, Length, HeadOption, ToSet, Take, Drop, Zip
+  case Cons, Append, Nodup, Contains, IsEmpty, NonEmpty, Length, HeadOption, ToSet, Take, Drop, Zip
   /** `GetOrElse`: an option's value or a default; `GetOrElseAt`: a map's value at a key, or a default. */
   case Get, HasKey, GetOrElse, GetOrElseAt, Updated, Removed
   case Incl, Excl, Union, Intersect, SubsetOf

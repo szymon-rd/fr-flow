@@ -2,8 +2,11 @@ package frflow.api.view
 
 import cats.syntax.all.*
 import frflow.api.node.{CodeView, NodeView, NodeViews, Relation}
+import frflow.core.checking.Checking
 import frflow.core.name.NodeId
+import frflow.eval.run.OnCode
 import frflow.project.pipeline.Analysis
+import frflow.proof.verdict.{CheckStatus, ObligationStatus}
 
 /** The read side: the view derived from the analysis, and what front ends print of it (`tree`, `inbox`, `beside`,
   * `above`, the overview) as functions of the view.
@@ -12,13 +15,22 @@ object Views:
   def of(a: Analysis, warnings: List[Warning]): View =
     val views = NodeViews(a)
     val nodes = a.subjects.inOrder.flatMap(s => a.decided.theory.node(s.id)).map(views.of)
-    View(nodes, a.decided.theory.refinement.roots.headOption.map(_.id), overview(nodes), warnings)
+    val whole = Wholes.of(a)
+    View(nodes, a.decided.theory.refinement.roots.map(_.id), whole, overview(nodes, whole),
+      warnings ++ Wholes.warnings(whole) ++ unchecked(a))
 
-  def overview(nodes: List[NodeView]): Overview = Overview(
+  /** `status` says it of each claim nothing checks (`Checking.unchecked`): its parts do not prove it, and the plain
+    * Scala it is about cannot be tested against it.
+    */
+  def unchecked(a: Analysis): List[Warning] =
+    a.decided.theory.nodes.map(_.node.id).filter(Checking.unchecked(a.decided.theory, _)).map(Warning.NotChecked(_))
+
+  def overview(nodes: List[NodeView], whole: WholeView): Overview = Overview(
     nodes.foldMap(n => Tally.one(n.review.standing.state)), nodes.foldMap(n => Tally.one(n.proof.status)),
-    nodes.foldMap(_.code.foldMap(pieces)), nodes.foldMap(_.code.flatMap(_.runCheck).foldMap(Tally.one)),
-    nodes.foldMap(_.proof.examples.foldMap(e => Tally.one(e.onPromise == frflow.eval.run.Agreement.Agrees))),
-    nodes.forall(_.proof.status == frflow.proof.verdict.CheckStatus.Proven))
+    nodes.foldMap(_.code.foldMap(pieces)), whole.groups.foldMap(g => Tally.one(g.status)),
+    whole.examples.foldMap(e =>
+      Tally.one(e.onClaims == OnClaims.Lean(ObligationStatus.Proven) && e.onCode == OnCode.Holds)),
+    nodes.forall(_.proof.status == CheckStatus.Proven) && whole.groups.forall(_.status == GroupStatus.Proven))
 
   private def pieces(c: CodeView): Tally[Piece] =
     c.shown.proven.foldMap(_ => Tally.one(Piece.Proven)) |+| c.shown.tested.foldMap(_ => Tally.one(Piece.Tested)) |+|

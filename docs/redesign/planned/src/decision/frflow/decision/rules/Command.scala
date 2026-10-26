@@ -10,8 +10,6 @@ enum Command:
   case Confirm(reason: String)
   case Revisit(node: NodeId, reason: String)
   case Gone(node: NodeId, reason: String)
-  /** Bind every unmoved decision to its content in `Format.V2` and its code by tokens: one signed step. */
-  case Rebind(reason: String)
 
   /** Every command has one. */
   def reason: String

@@ -1,13 +1,9 @@
 package frflow.wire.snapshot
 
-/** What a node of each kind has beyond the rows every node has. */
+/** What a node has beyond the rows every node has: a statement (claimed or assumed), or a design. */
 enum Body:
-  /** Whether it is a leaf (`root_impl` takes it as a hypothesis), its expectations, the operations `idle` replaced. */
-  case Claim(leaf: Boolean, expectations: List[String], idle: List[String])
-  case Invariant(keptBy: List[String], exempt: List[String])
-  case Contract(op: String, examples: List[ExampleRow], code: Option[CodeRow], tested: Option[TestRow],
-      runCheck: Option[String])
-  /** An assumption about an operation (its adapter's examples and code), a fact, or a model (its realizations). */
-  case Assumption(op: Option[String], examples: List[ExampleRow], code: Option[CodeRow])
-  case Definition(fixes: List[String])
+  /** How it is checked (`Checking`, in words), the Definition it reads as a call of, the code of the Definitions it
+    * mentions and their tests.
+    */
+  case Stated(checking: List[String], call: Option[String], code: Option[CodeRow], tested: Option[TestRow])
   case Design(governs: List[String])
