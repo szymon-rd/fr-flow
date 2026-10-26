@@ -1,9 +1,8 @@
 import FrFlowGen.Rooms.GrantWhenFree.Spec
 
 /-! The root, over moments, from the contract, over start and end times. Two bookings that end after they start
-share a moment exactly when they overlap: the later of the two starts is before both ends. So a calendar that holds
-no booking twice and whose bookings never share a moment never overlaps (the contract applies), and a request
-overlaps a booking exactly when the two share a moment (the contract's answer is the root's). -/
+are apart exactly when they are disjoint: if they share a room and neither ends before the other starts, the later
+of the two starts is a moment both cover. So `sensible` gives `consistent`, and the contract's answer is `freeFor`. -/
 
 set_option autoImplicit false
 noncomputable section
@@ -12,29 +11,26 @@ open Classical
 namespace Rooms.GrantWhenFree.Proofs
 open Rooms.GrantWhenFree
 
+theorem apart_iff_disjoint {a b : Booking} (ha : endsAfterStart a) (hb : endsAfterStart b) :
+    apart a b ↔ disjoint a b := by
+  simp only [apart, disjoint, covers, endsAfterStart] at *
+  constructor
+  · rintro (h | h)
+    · exact .inl (.inl h)
+    · have := h (max a.start b.start); omega
+  · rintro ((h | h) | h)
+    · exact .inl h
+    all_goals exact .inr fun t => by omega
+
 theorem complete : Obl.complete := by
   unfold Obl.complete
   frflow_intro
-  simp only [frflow_defs] at *
-  intro held request ⟨⟨hEnds, hOnce⟩, hApart⟩
-  -- the moment two overlapping bookings share
-  have shared : ∀ a b : Booking, a.start < a.end → b.start < b.end → a.start < b.end → b.start < a.end →
-      ∃ t, (a.start ≤ t ∧ t < a.end) ∧ (b.start ≤ t ∧ t < b.end) := fun a b ha hb h1 h2 =>
-    if h : a.start ≤ b.start then ⟨b.start, ⟨h, h2⟩, ⟨by omega, hb⟩⟩ else ⟨a.start, ⟨by omega, ha⟩, ⟨by omega, h1⟩⟩
-  have hHeld : ∀ b ∈ held, b.start < b.end := fun b hb => hEnds b (by simp [hb])
-  have hRequest := hEnds request (by simp)
-  rw [h_GrantWhenNoOverlap held request ⟨⟨hEnds, hOnce⟩, fun a ha b hb => by
-    by_cases hab : a = b
-    · exact Or.inl hab
-    · refine Or.inr fun ⟨⟨hRoom, h1⟩, h2⟩ => ?_
-      obtain ⟨t, hat, hbt⟩ := shared a b (hHeld a ha) (hHeld b hb) (by omega) (by omega)
-      exact ((hApart a ha b hb).resolve_left hab).resolve_left (· hRoom) t ⟨hat, hbt⟩⟩]
-  apply propext
-  constructor
-  · intro hNone t ht ⟨b, hb, hRoom, hbt⟩
-    exact hNone ⟨b, hb, ⟨hRoom, by omega⟩, by omega⟩
-  · intro hFree ⟨b, hb, ⟨hRoom, h1⟩, h2⟩
-    obtain ⟨t, hbt, ht⟩ := shared b request (hHeld b hb) hRequest (by omega) (by omega)
-    exact hFree t ht ⟨b, hb, hRoom, hbt⟩
+  simp only [claim, GrantWhenNoOverlap.claim, GrantWhenNoOverlap.post, sensible, consistent, freeFor] at *
+  intro held request ⟨⟨hEnds, hNodup⟩, hApart⟩
+  have key {a b : Booking} (ha : a ∈ request :: held) (hb : b ∈ request :: held) :=
+    apart_iff_disjoint (hEnds a ha) (hEnds b hb)
+  rw [h_GrantWhenNoOverlap held request
+    ⟨⟨hEnds, hNodup⟩, hApart.imp_of_mem fun ha hb => (key (.tail _ ha) (.tail _ hb)).1⟩]
+  exact propext (forall₂_congr fun b hb => (key (.tail _ hb) (.head _)).symm)
 
 end Rooms.GrantWhenFree.Proofs
