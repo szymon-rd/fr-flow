@@ -25,6 +25,19 @@
         "sig": "x5bTLBbiXwNjfTwco63l/wcLrN5qcZJbRTllAnoeKQ8pmr8V3v3FprqEjQ+lvlZeaz3WJEkcl2DaRM2bB9DXDA==",
         "chain": "b2d5b5f4caec419b228679351d83a77b64266105426fb39ea1b4cf1ee0a2a833",
         "content": "ac93eb01e09ed9f7"
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T15:22:45.999489Z",
+        "reason": "The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.",
+        "rejected": [],
+        "after": "28eb6d539f1035d3",
+        "commit": "06e7a6ea1ed318093787023d94345d3716d6fb92",
+        "key": "b6e216cfdf46a202",
+        "sig": "MLekDcXrV2Ew1Vjwea/qdUh4Wxdjzx3UsOurOt7Ow5TtF0rnMY1XTYgU4JWptHfdiZriBv++BiBRELVbTexHBw==",
+        "chain": "b2d5b5f4caec419b228679351d83a77b64266105426fb39ea1b4cf1ee0a2a833",
+        "content": "4919df128d102ca8"
       }
     ],
     "AccessNeedsGrant": [
@@ -52,6 +65,19 @@
         "sig": "Xhc0wGDYNSnsZwuTeE1iaToCNq2tdCC2D+J091g1HLhRcyVk0s8Q6xTJAgpujrTZNcQdRyIgPWkDfrPR7Q3wCQ==",
         "chain": "bbf2189eb532533f420710d68302aef390e80a6a90eb8875d9ddb95f199cbe29",
         "content": "e8a1bdea440d2e7c"
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T15:22:45.999489Z",
+        "reason": "The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.",
+        "rejected": [],
+        "after": "869abc233daad6c1",
+        "commit": "06e7a6ea1ed318093787023d94345d3716d6fb92",
+        "key": "b6e216cfdf46a202",
+        "sig": "GwHIu921cradoQt/v57+ne85CZ5iGxQOhibqp0kfQaZqNgjF/ZW1zlctS7FAPsGu/0bJOqyihNUmOhbauAkICQ==",
+        "chain": "bbf2189eb532533f420710d68302aef390e80a6a90eb8875d9ddb95f199cbe29",
+        "content": "baf7d378305a72bb"
       }
     ],
     "ClientAsserted": [
@@ -123,6 +149,20 @@
         "sig": "0f2Q2ZuyGxJ6eZ4Kl9aMFgRXI9vbpo1wEU6gRO3SDgw/wbCXkIM+1HcMZNRJ1jtjYk6eAFE/qknF40WwCVJBCQ==",
         "chain": "b4442bf5297a321e45b1160cbadc0c78ae5c466220c5c384a301e8e7a4452a99",
         "content": "5b92662e68ef3d94"
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T15:22:45.999489Z",
+        "reason": "The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.",
+        "rejected": [],
+        "after": "cd4b8a6f5274d141",
+        "code": "9405dae5390a9ab8635107c60a70ea3a7ec1a9967b56a76f44f73b1f2e630b24",
+        "commit": "06e7a6ea1ed318093787023d94345d3716d6fb92",
+        "key": "b6e216cfdf46a202",
+        "sig": "1GClm8wPNLuPmMlU+kqLP8izd252RXjhOLbv8qyJADNYjZaIamfRfpgqLCe24ZXYcBXBqJ48vD78IM+H4AYDAA==",
+        "chain": "59919dca76c1d39318647dece441fa8bd4b9e163ec43b52e3882d01258340b7e",
+        "content": "f1c9b1f4e83cf363"
       }
     ],
     "GrantLetsIn": [
@@ -150,6 +190,19 @@
         "sig": "WXSSK2kAna1bvLa7pnHf3Aw+BZimPG+g764e6uoHc0elmJJGrPuGB+yjVPQDMXEkou/lzux/7VnsoHYdWBMQCA==",
         "chain": "bbf2189eb532533f420710d68302aef390e80a6a90eb8875d9ddb95f199cbe29",
         "content": "f4af330a797c3e4a"
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T15:22:45.999489Z",
+        "reason": "The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.",
+        "rejected": [],
+        "after": "85a84f2e425e9f41",
+        "commit": "06e7a6ea1ed318093787023d94345d3716d6fb92",
+        "key": "b6e216cfdf46a202",
+        "sig": "3FzDKzW7a63R4D61V7eY5kcNeMGtKVxvu9K5hwTNRoKfO2bE5EZ/wlXBQXwOvGf074NFraKcL2H0R+VISfGLCQ==",
+        "chain": "bbf2189eb532533f420710d68302aef390e80a6a90eb8875d9ddb95f199cbe29",
+        "content": "4f33df10641827bf"
       }
     ],
     "GrantTable": [
@@ -177,6 +230,19 @@
         "sig": "yNHmc5x/A4UFd7HUO8+8DOxsMWR7GS3oo7xcx9KvKjqaOJ/KANCABObyGfqJF5fYuccMshGg3H6oqOn4NNk1AQ==",
         "chain": "",
         "content": "c7bc4dc5846c658b"
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T15:22:45.999489Z",
+        "reason": "The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.",
+        "rejected": [],
+        "after": "630e6459a21b8d08",
+        "commit": "06e7a6ea1ed318093787023d94345d3716d6fb92",
+        "key": "b6e216cfdf46a202",
+        "sig": "5TDitSsvr9Cro0xzV8IyYo+S7tAjRxVOJad9SMOmVJo2HyMSYNmG6bx+7+cXgfGachNlbWe9041Dz2DpEsl+Aw==",
+        "chain": "",
+        "content": "0c82f94f9df60670"
       }
     ],
     "IDEA": [
@@ -205,6 +271,19 @@
         "sig": "qghES/jUQTcsJ36zsXwoqfay0pj7QEn90iJ/ceD/tmPoloYyXZcohZn56kENYEO/WGsAJsWAic6M59fIQQaNAw==",
         "chain": "",
         "content": "44ef50d0f86afbc7"
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T15:22:45.999489Z",
+        "reason": "The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.",
+        "rejected": [],
+        "after": "8b9946e608065ed0",
+        "commit": "06e7a6ea1ed318093787023d94345d3716d6fb92",
+        "key": "b6e216cfdf46a202",
+        "sig": "9CJIDCD3wVTJBXg3wxSIcs5YkTaVfPud6SE25yxGWc3cPZ20pmN/M/C5Pm3oSVBgnlVCTY3cGd+Gj+Uej/JnCg==",
+        "chain": "",
+        "content": "a19c667d9a602b9f"
       }
     ],
     "InMemorySessions": [
@@ -220,6 +299,20 @@
         "sig": "aOM2FhDeHVtXSmSj/b2F+Cd0aXpwFdRUO1Oef5Z2AdTq3VMF8iwfhPFO2Elg1nhl3fY9TFyMxHI0JWdO/IUWAA==",
         "chain": "",
         "content": "47957eb303d39b30"
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T15:22:45.999489Z",
+        "reason": "The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.",
+        "rejected": [],
+        "after": "f1b6cffc36d91de9",
+        "code": "52539509c7da06d579e8542609d85bfea0994e4a98a959dfd4295233580fa151",
+        "commit": "06e7a6ea1ed318093787023d94345d3716d6fb92",
+        "key": "b6e216cfdf46a202",
+        "sig": "txMPK+Lhh2GG4qCQ3esT/RCx6ke06Ke9aIuSBQC065+S68sFoxbaOMVvd3ihlrnQ27fa92t5nj4JdV1MWhR5AQ==",
+        "chain": "",
+        "content": "cad0eaa61615d5b3"
       }
     ],
     "Requests": [
@@ -249,6 +342,19 @@
         "sig": "4PRphKD6FCZ16fnJbeA12e4eZ8C67eX+XcP1wYimwLvAdbM+Chsj+eSkFuJpJAQwqfXqg4ra55H5R8RAc+s7CQ==",
         "chain": "",
         "content": "75e573e03316f3c5"
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T15:22:45.999489Z",
+        "reason": "The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.",
+        "rejected": [],
+        "after": "f78dacac739e0fbe",
+        "commit": "06e7a6ea1ed318093787023d94345d3716d6fb92",
+        "key": "b6e216cfdf46a202",
+        "sig": "fDbnVvm1kKViuxSLbf44rrI4OFLNIfHMzdEztT1cpDtBDZgU8AOFFDitOyDFJnarHWSENM+LXjw0eit5LxFnBA==",
+        "chain": "",
+        "content": "5235173680a8a839"
       }
     ],
     "SessionTable": [
@@ -276,6 +382,19 @@
         "sig": "dMmPVn9lai7/sfw4TCj6yC+o5ihQgKQrraIzEQ9BGYeVCMrO57djyTPChze3+MslE95fZiMeuUDuhEuWEir5AA==",
         "chain": "",
         "content": "1ef60719b15c03f5"
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T15:22:45.999489Z",
+        "reason": "The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.",
+        "rejected": [],
+        "after": "b210c3351e9c4963",
+        "commit": "06e7a6ea1ed318093787023d94345d3716d6fb92",
+        "key": "b6e216cfdf46a202",
+        "sig": "qeQ04UMwTEBnP0a1qa/T4Elt7Z6Ah91H9RwoBtbpiiAmUPT28ddeO2QJq2jDo4mYtA2xludfLpkGj6WaLRCyBQ==",
+        "chain": "",
+        "content": "80ba58343cc351fe"
       }
     ],
     "TokenNamesHolder": [
@@ -303,32 +422,55 @@
         "sig": "Sj7PW0s02cVlUsjjPdnlrRVwLWJQSRj6XsCGAKc2RXTgIVJ2cn/MlQoVm6mUe8M7s4AtsNGO5LP1pDRQxjICBg==",
         "chain": "bbf2189eb532533f420710d68302aef390e80a6a90eb8875d9ddb95f199cbe29",
         "content": "a561d24b59cdcc55"
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T15:22:45.999489Z",
+        "reason": "The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.",
+        "rejected": [],
+        "after": "e302dbdaa2bfd470",
+        "commit": "06e7a6ea1ed318093787023d94345d3716d6fb92",
+        "key": "b6e216cfdf46a202",
+        "sig": "2P4tLz9JtC/AgGMZW+6AAKsFkzQCDVmrJ5xx7UA+GMMh6ibslrMMo7DkEClYtRts2C9UHDHq54pZsOsoA2G2Aw==",
+        "chain": "bbf2189eb532533f420710d68302aef390e80a6a90eb8875d9ddb95f199cbe29",
+        "content": "1df95f2180ba7d4f"
       }
     ]
   },
   "contents": {
     "818179ba67d9b4a5": {"kind":"f0c4b6b1b355b1eb","parents":[],"parts":["783be5116e1c56f8","99710bf52d25f5a2","907f90167e4c472b"],"statement":"fdfda76ee49f7947","why":"bf0b7d65e3d0d692","sources":"05e939f6ab8b3834","substitutions":[],"examples":[],"vocabulary":["7d63be9665338c19","55388294235a30ee","c139d777e94db296","6b67ea71172436ff","a36b1b88f95ad9bb"],"uses":[],"governs":[],"definition":"c6b28419dcc21007","idea":"e52c31c2652612b7","notModelled":"dae5b83b799d7e5f"},
     "ac93eb01e09ed9f7": {"kind":"f0c4b6b1b355b1eb","parents":[],"parts":["783be5116e1c56f8","99710bf52d25f5a2","907f90167e4c472b"],"statement":"fdfda76ee49f7947","why":"bf0b7d65e3d0d692","sources":"d2093f942fb9eb64","substitutions":[],"examples":[],"vocabulary":["7d63be9665338c19","55388294235a30ee","c139d777e94db296","6b67ea71172436ff","a36b1b88f95ad9bb"],"uses":[],"governs":[],"definition":"79885c6a66d61da2","idea":"e52c31c2652612b7","notModelled":"dae5b83b799d7e5f"},
+    "4919df128d102ca8": {"kind":"f0c4b6b1b355b1eb","parents":[],"parts":["783be5116e1c56f8","99710bf52d25f5a2","907f90167e4c472b"],"statement":"fdfda76ee49f7947","why":"bf0b7d65e3d0d692","sources":"d2093f942fb9eb64","substitutions":[],"examples":[],"vocabulary":["7d63be9665338c19","55388294235a30ee","c139d777e94db296","6b67ea71172436ff","a36b1b88f95ad9bb"],"uses":[],"governs":[],"definition":"27a2251f838565db","idea":"e52c31c2652612b7","notModelled":"dae5b83b799d7e5f"},
     "9d43192731e3f062": {"kind":"f0c4b6b1b355b1eb","parents":["e7632d8a60a13b45"],"parts":["bedc1b961582ea4d"],"statement":"bf800c7095f9d79e","why":"fbf2c1b9f66fb2e0","sources":"1825988b18aefa98","substitutions":[],"examples":[],"vocabulary":["e8aa8ad7ebddd576","a5503f975422ef01"],"uses":["b1894db1dfcbfc2d","f14bd21d9764c138","ec6b6ef62a2b573c"],"governs":[],"definition":"780bb34315051241"},
     "e8a1bdea440d2e7c": {"kind":"f0c4b6b1b355b1eb","parents":["e7632d8a60a13b45"],"parts":["bedc1b961582ea4d"],"statement":"bf800c7095f9d79e","why":"fbf2c1b9f66fb2e0","sources":"42b34d4c6a7d6758","substitutions":[],"examples":[],"vocabulary":["e8aa8ad7ebddd576","a5503f975422ef01"],"uses":["b1894db1dfcbfc2d","f14bd21d9764c138","ec6b6ef62a2b573c"],"governs":[],"definition":"1394d4006d26ffbf"},
+    "baf7d378305a72bb": {"kind":"f0c4b6b1b355b1eb","parents":["e7632d8a60a13b45"],"parts":["bedc1b961582ea4d"],"statement":"bf800c7095f9d79e","why":"fbf2c1b9f66fb2e0","sources":"42b34d4c6a7d6758","substitutions":[],"examples":[],"vocabulary":["e8aa8ad7ebddd576","a5503f975422ef01"],"uses":["b1894db1dfcbfc2d","f14bd21d9764c138","ec6b6ef62a2b573c"],"governs":[],"definition":"f3563003439bf771"},
     "d315d1519213d310": {"kind":"58f154c54e004d23","parents":[],"statement":"d19a4b744daf9b1c","why":"59d1107057daca8a","sources":"44136fa355b3678a","substitutions":["b4d60074d7488e27"],"examples":[],"vocabulary":["c139d777e94db296","e8aa8ad7ebddd576"],"uses":["f14bd21d9764c138","b1894db1dfcbfc2d"],"governs":[],"definition":"0d7535631148d17a"},
     "a63b1af26a125ebc": {"kind":"304aeb6aeb928120","parents":["783be5116e1c56f8","99710bf52d25f5a2","907f90167e4c472b"],"parts":[],"statement":"0670f7bcc8c8a88e","why":"8a34f3b13c14da3e","sources":"53bd76d449c6bc6d","substitutions":[],"examples":["cb0f174ba18b2ce8","9101bc25152d8717","d741a22295ece153","2f07d5e0cdbf2631","55b93756d4cdb415"],"vocabulary":["e8aa8ad7ebddd576","a5503f975422ef01","6865a61aa90188dd"],"uses":["b1894db1dfcbfc2d","f14bd21d9764c138","ec6b6ef62a2b573c"],"governs":[],"definition":"f2560a664ff54b98","op":"a352c99db5954a83","implementation":"a536aad86ab546aa"},
     "2a8bd1da52f434fa": {"kind":"304aeb6aeb928120","parents":["783be5116e1c56f8","99710bf52d25f5a2","907f90167e4c472b"],"parts":[],"statement":"0670f7bcc8c8a88e","why":"8a34f3b13c14da3e","sources":"b877869a9a16414c","substitutions":[],"examples":["cb0f174ba18b2ce8","9101bc25152d8717","d741a22295ece153","2f07d5e0cdbf2631","55b93756d4cdb415"],"vocabulary":["e8aa8ad7ebddd576","a5503f975422ef01","6865a61aa90188dd"],"uses":["b1894db1dfcbfc2d","f14bd21d9764c138","ec6b6ef62a2b573c"],"governs":[],"definition":"74c94fd0ddb7885d","op":"a352c99db5954a83","implementation":"ddc8d564d58446e9"},
     "ed0f3642434d19e4": {"kind":"304aeb6aeb928120","parents":["783be5116e1c56f8","99710bf52d25f5a2","907f90167e4c472b"],"parts":[],"statement":"0670f7bcc8c8a88e","why":"8a34f3b13c14da3e","sources":"b877869a9a16414c","substitutions":[],"examples":["cb0f174ba18b2ce8","9101bc25152d8717","d741a22295ece153","2f07d5e0cdbf2631","55b93756d4cdb415"],"vocabulary":["e8aa8ad7ebddd576","a5503f975422ef01","6865a61aa90188dd"],"uses":["b1894db1dfcbfc2d","f14bd21d9764c138","ec6b6ef62a2b573c"],"governs":[],"definition":"74c94fd0ddb7885d","op":"a352c99db5954a83","implementation":"74c3ddb1e3c678e2"},
     "5b92662e68ef3d94": {"kind":"304aeb6aeb928120","parents":["783be5116e1c56f8","99710bf52d25f5a2","907f90167e4c472b"],"parts":[],"statement":"0670f7bcc8c8a88e","why":"8a34f3b13c14da3e","sources":"b877869a9a16414c","substitutions":[],"examples":["cb0f174ba18b2ce8","9101bc25152d8717","a74ee0ac09e844e7","04faf9f804777756","421aa04ef5cf357d"],"vocabulary":["e8aa8ad7ebddd576","a5503f975422ef01","6865a61aa90188dd"],"uses":["b1894db1dfcbfc2d","f14bd21d9764c138","ec6b6ef62a2b573c"],"governs":[],"definition":"091ee048e8351399","op":"a352c99db5954a83","implementation":"74c3ddb1e3c678e2"},
+    "f1c9b1f4e83cf363": {"kind":"304aeb6aeb928120","parents":["783be5116e1c56f8","99710bf52d25f5a2","907f90167e4c472b"],"parts":[],"statement":"0670f7bcc8c8a88e","why":"8a34f3b13c14da3e","sources":"6227266d7595f442","substitutions":[],"examples":["6b6b6b1ef220da3c","ff35739acf9d6b98","9607020d97473545","0fe01b3bfc2c7a7c","05ce09dd4ce5e33e"],"vocabulary":["e8aa8ad7ebddd576","a5503f975422ef01","6865a61aa90188dd"],"uses":["b1894db1dfcbfc2d","f14bd21d9764c138","ec6b6ef62a2b573c"],"governs":[],"definition":"5e04853e9d80117e","op":"a352c99db5954a83","implementation":"74c3ddb1e3c678e2"},
     "9d6bffd5fc6e6bc1": {"kind":"f0c4b6b1b355b1eb","parents":["e7632d8a60a13b45"],"parts":["bedc1b961582ea4d"],"statement":"91c1953056c443d1","why":"5d70fed51acc2570","sources":"5c49788909c20034","substitutions":[],"examples":[],"vocabulary":["e8aa8ad7ebddd576","a5503f975422ef01","6865a61aa90188dd"],"uses":["b1894db1dfcbfc2d","f14bd21d9764c138","ec6b6ef62a2b573c"],"governs":[],"definition":"dda91cc82bec465d"},
     "f4af330a797c3e4a": {"kind":"f0c4b6b1b355b1eb","parents":["e7632d8a60a13b45"],"parts":["bedc1b961582ea4d"],"statement":"91c1953056c443d1","why":"5d70fed51acc2570","sources":"12f16a70fe5588bf","substitutions":[],"examples":[],"vocabulary":["e8aa8ad7ebddd576","a5503f975422ef01","6865a61aa90188dd"],"uses":["b1894db1dfcbfc2d","f14bd21d9764c138","ec6b6ef62a2b573c"],"governs":[],"definition":"69a82ba0b50f5344"},
+    "4f33df10641827bf": {"kind":"f0c4b6b1b355b1eb","parents":["e7632d8a60a13b45"],"parts":["bedc1b961582ea4d"],"statement":"91c1953056c443d1","why":"5d70fed51acc2570","sources":"4df6e607be1d9a63","substitutions":[],"examples":[],"vocabulary":["e8aa8ad7ebddd576","a5503f975422ef01","6865a61aa90188dd"],"uses":["b1894db1dfcbfc2d","f14bd21d9764c138","ec6b6ef62a2b573c"],"governs":[],"definition":"b689cee0aeea670a"},
     "b937edbeb30656bc": {"kind":"58f154c54e004d23","parents":[],"statement":"55fb904221c12c73","why":"d9384116c8cea512","sources":"44136fa355b3678a","substitutions":["cca507e658973c31"],"examples":[],"vocabulary":["6b67ea71172436ff","a5503f975422ef01"],"uses":["f14bd21d9764c138","b1894db1dfcbfc2d","ec6b6ef62a2b573c"],"governs":[],"definition":"9d5429994e257fb1"},
     "c7bc4dc5846c658b": {"kind":"58f154c54e004d23","parents":[],"statement":"55fb904221c12c73","why":"d9384116c8cea512","sources":"44136fa355b3678a","substitutions":["2766b485284fa251"],"examples":[],"vocabulary":["6b67ea71172436ff","a5503f975422ef01"],"uses":["f14bd21d9764c138","b1894db1dfcbfc2d","ec6b6ef62a2b573c"],"governs":[],"definition":"1bfe21e0f4a6c167"},
+    "0c82f94f9df60670": {"kind":"58f154c54e004d23","parents":[],"statement":"55fb904221c12c73","why":"d9384116c8cea512","sources":"44136fa355b3678a","substitutions":["2766b485284fa251"],"examples":[],"vocabulary":["6b67ea71172436ff","a5503f975422ef01"],"uses":["f14bd21d9764c138","b1894db1dfcbfc2d","ec6b6ef62a2b573c"],"governs":[],"definition":"26f30ef909c76a45"},
     "2c3a869cabb2aebd": {"idea":"762fb9ab4e9254f7"},
     "44ef50d0f86afbc7": {"kind":"58f154c54e004d23","parents":[],"statement":"b529fab2714530c2","why":"b25ba41b87f53748","sources":"44136fa355b3678a","substitutions":["0aeaa49153bd032e","4137c91992ddd029"],"examples":[],"vocabulary":["7d63be9665338c19","55388294235a30ee"],"uses":["f14bd21d9764c138","b1894db1dfcbfc2d"],"governs":[],"definition":"b37d94a2d7edce1a"},
+    "a19c667d9a602b9f": {"kind":"58f154c54e004d23","parents":[],"statement":"b529fab2714530c2","why":"b25ba41b87f53748","sources":"44136fa355b3678a","substitutions":["0aeaa49153bd032e","4137c91992ddd029"],"examples":[],"vocabulary":["7d63be9665338c19","55388294235a30ee"],"uses":["f14bd21d9764c138","b1894db1dfcbfc2d"],"governs":[],"definition":"f07453c741ec16b9"},
     "47957eb303d39b30": {"kind":"528784b364a2e471","parents":["bedc1b961582ea4d"],"statement":"e5f79a9855babc6a","why":"f434ec26e814461a","sources":"44136fa355b3678a","substitutions":[],"examples":[],"vocabulary":[],"uses":[],"governs":["e4a67d7c97e46196"],"definition":"33dd2c70026d8cb8"},
+    "cad0eaa61615d5b3": {"kind":"528784b364a2e471","parents":["bedc1b961582ea4d"],"statement":"e5f79a9855babc6a","why":"f434ec26e814461a","sources":"44136fa355b3678a","substitutions":[],"examples":[],"vocabulary":[],"uses":[],"governs":["e4a67d7c97e46196"],"definition":"f787bb26e3ae5f27"},
     "d51e12cb09f5d083": {"kind":"58f154c54e004d23","parents":[],"statement":"94b8ce8f84ad8e12","why":"bcda87eaba347dc6","sources":"44136fa355b3678a","substitutions":["bf3487b630bfcd91"],"examples":[],"vocabulary":["c139d777e94db296","e8aa8ad7ebddd576"],"uses":["f14bd21d9764c138","b1894db1dfcbfc2d"],"governs":[],"definition":"0841d367a175a5c3"},
     "75e573e03316f3c5": {"kind":"58f154c54e004d23","parents":[],"statement":"94b8ce8f84ad8e12","why":"bcda87eaba347dc6","sources":"44136fa355b3678a","substitutions":["aa8d16caa57eba71"],"examples":[],"vocabulary":["c139d777e94db296","e8aa8ad7ebddd576"],"uses":["f14bd21d9764c138","b1894db1dfcbfc2d"],"governs":[],"definition":"d080ede5ddd1dda1"},
+    "5235173680a8a839": {"kind":"58f154c54e004d23","parents":[],"statement":"94b8ce8f84ad8e12","why":"bcda87eaba347dc6","sources":"44136fa355b3678a","substitutions":["aa8d16caa57eba71"],"examples":[],"vocabulary":["c139d777e94db296","e8aa8ad7ebddd576"],"uses":["f14bd21d9764c138","b1894db1dfcbfc2d"],"governs":[],"definition":"5acc4f313782ac9b"},
     "adeb31491c97afa7": {"kind":"58f154c54e004d23","parents":[],"statement":"d77ae938d6055efd","why":"ca6463d7dba62275","sources":"44136fa355b3678a","substitutions":["23db7892d76453e9"],"examples":[],"vocabulary":["6865a61aa90188dd","a36b1b88f95ad9bb"],"uses":["f14bd21d9764c138"],"governs":[],"definition":"df976927d6c4a830"},
     "1ef60719b15c03f5": {"kind":"58f154c54e004d23","parents":[],"statement":"d77ae938d6055efd","why":"ca6463d7dba62275","sources":"44136fa355b3678a","substitutions":["cf37112571cff4ef"],"examples":[],"vocabulary":["6865a61aa90188dd","a36b1b88f95ad9bb"],"uses":["f14bd21d9764c138"],"governs":[],"definition":"36b7a9401a6234ea"},
+    "80ba58343cc351fe": {"kind":"58f154c54e004d23","parents":[],"statement":"d77ae938d6055efd","why":"ca6463d7dba62275","sources":"44136fa355b3678a","substitutions":["cf37112571cff4ef"],"examples":[],"vocabulary":["6865a61aa90188dd","a36b1b88f95ad9bb"],"uses":["f14bd21d9764c138"],"governs":[],"definition":"45aad5e881d2507d"},
     "8b4adb9110104f14": {"kind":"f0c4b6b1b355b1eb","parents":["e7632d8a60a13b45"],"parts":["bedc1b961582ea4d"],"statement":"4dffa9d5a38f125b","why":"6d805636753e9f23","sources":"d21610ccea405e11","substitutions":[],"examples":[],"vocabulary":["e8aa8ad7ebddd576","6865a61aa90188dd"],"uses":["b1894db1dfcbfc2d","f14bd21d9764c138"],"governs":[],"definition":"c426409940afff20"},
-    "a561d24b59cdcc55": {"kind":"f0c4b6b1b355b1eb","parents":["e7632d8a60a13b45"],"parts":["bedc1b961582ea4d"],"statement":"4dffa9d5a38f125b","why":"6d805636753e9f23","sources":"e056a234a0058c35","substitutions":[],"examples":[],"vocabulary":["e8aa8ad7ebddd576","6865a61aa90188dd"],"uses":["b1894db1dfcbfc2d","f14bd21d9764c138"],"governs":[],"definition":"a126af199e84ce9f"}
+    "a561d24b59cdcc55": {"kind":"f0c4b6b1b355b1eb","parents":["e7632d8a60a13b45"],"parts":["bedc1b961582ea4d"],"statement":"4dffa9d5a38f125b","why":"6d805636753e9f23","sources":"e056a234a0058c35","substitutions":[],"examples":[],"vocabulary":["e8aa8ad7ebddd576","6865a61aa90188dd"],"uses":["b1894db1dfcbfc2d","f14bd21d9764c138"],"governs":[],"definition":"a126af199e84ce9f"},
+    "1df95f2180ba7d4f": {"kind":"f0c4b6b1b355b1eb","parents":["e7632d8a60a13b45"],"parts":["bedc1b961582ea4d"],"statement":"4dffa9d5a38f125b","why":"6d805636753e9f23","sources":"e056a234a0058c35","substitutions":[],"examples":[],"vocabulary":["e8aa8ad7ebddd576","6865a61aa90188dd"],"uses":["b1894db1dfcbfc2d","f14bd21d9764c138"],"governs":[],"definition":"bb53dc541ef8fd0c"}
   },
   "values": {
     "f0c4b6b1b355b1eb": "claim",
@@ -348,6 +490,7 @@
     "dae5b83b799d7e5f": "- How tokens are issued at login, and when they expire.\n- Who may change the table of grants.",
     "d2093f942fb9eb64": {"formula":"forall((u: Term[User.T], r: Term[Resource.T]) => access(u, r) === (signedIn(u) && authorized(u, r)))"},
     "79885c6a66d61da2": "val accessExactly = Node.claim(\"AccessExactly\",\n  \"A user gets access to a resource exactly when they are signed in and authorized for it.\",\n  why = \"The idea says no one may access what they are not authorized to; and authorization is what lets a signed-in user in, or the system would serve no one. Who is authorized, and how a user signs in, the domain says below.\"\n)(forall((u: Term[User.T], r: Term[Resource.T]) => access(u, r) === (signedIn(u) && authorized(u, r))))",
+    "27a2251f838565db": "val accessExactly = Node.claim(\"A user gets access to a resource exactly when they are signed in and authorized for it.\",\n  why = \"The idea says no one may access what they are not authorized to; and authorization is what lets a signed-in user in, or the system would serve no one. Who is authorized, and how a user signs in, the domain says below.\"\n)(forall((u: Term[User.T], r: Term[Resource.T]) => access(u, r) === (signedIn(u) && authorized(u, r))))",
     "e7632d8a60a13b45": "AccessExactly",
     "bedc1b961582ea4d": "DecisionContract",
     "bf800c7095f9d79e": "A request is admitted on behalf of a user only if a grant names that user and the path.",
@@ -361,6 +504,7 @@
     "780bb34315051241": "val accessNeedsGrant = Node.claim(\"AccessNeedsGrant\",\n  \"A request is admitted on behalf of a user only if a grant names that user and the path.\",\n  why = \"No one may access what they are not authorized to, and a grant is what authorizes.\"\n)(forall((t: String, p: Path) => admit(t, p).forall(u => grants.value.contains(Grant(u, p))))).under(accessExactly)",
     "42b34d4c6a7d6758": {"formula":"forall((t: Term[String], p: Term[Path]) => admit(t, p).forall(u => grants.contains(Grant(u, p))))"},
     "1394d4006d26ffbf": "val accessNeedsGrant = Node.claim(\"AccessNeedsGrant\",\n  \"A request is admitted on behalf of a user only if a grant names that user and the path.\",\n  why = \"No one may access what they are not authorized to, and a grant is what authorizes.\"\n)(forall((t: Term[String], p: Term[Path]) => admit(t, p).forall(u => grants.contains(Grant(u, p))))).under(accessExactly)",
+    "f3563003439bf771": "val accessNeedsGrant = Node.claim(\"A request is admitted on behalf of a user only if a grant names that user and the path.\",\n  why = \"No one may access what they are not authorized to, and a grant is what authorizes.\"\n)(forall((t: Term[String], p: Term[Path]) => admit(t, p).forall(u => grants.contains(Grant(u, p))))).refines(accessExactly)",
     "58f154c54e004d23": "definition",
     "d19a4b744daf9b1c": "A user has access to a path when a request naming that user is admitted on their behalf.",
     "59d1107057daca8a": "Simplest: the client says who it is, and the request carries that name. It trusts the client's claim about its identity.",
@@ -388,46 +532,61 @@
     "04faf9f804777756": "never (\"t2\", Path(\"/a\")) ⇒ Some(UserId(\"alice\"))  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\")))  — a token that is not Alice's never acts for her",
     "421aa04ef5cf357d": "never (\"t1\", Path(\"/a\")) ⇒ None  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\")))  — Alice with a grant for /a is not turned away",
     "091ee048e8351399": "val decisionContract = Node.contract(admit)(\"DecisionContract\",\n  \"A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path.\",\n  why = \"The three parts, stated for one call, so every result of the running system can be checked.\"\n)((token, path, decision) => decision.forall(u => sessions(token) === Some(u) && grants.contains(Grant(u, path))) &&\n  sessions(token).forall(u => grants.contains(Grant(u, path)) ==> (decision === Some(u))))\n  .under(tokenNamesHolder, accessNeedsGrant, grantLetsIn)\n  .examples(grants.bind(List(Grant(UserId(\"alice\"), Path(\"/a\")))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\"))))(\n    expect(\"t1\", Path(\"/a\"), Some(UserId(\"alice\")), \"Alice's token and a grant for /a: she gets in\"),\n    expect(\"t1\", Path(\"/b\"), None, \"no grant for /b: refused\"),\n    never(\"t1\", Path(\"/b\"), Some(UserId(\"alice\")), \"access without a grant is never given\"),\n    never(\"t2\", Path(\"/a\"), Some(UserId(\"alice\")), \"a token that is not Alice's never acts for her\"),\n    never(\"t1\", Path(\"/a\"), None, \"Alice with a grant for /a is not turned away\"))",
+    "6227266d7595f442": {"post":"forall((token: Term[String], path: Term[Path]) => admit(token, path).forall(u => sessions(token) === Some(u) && grants.contains(Grant(u, path))) &&\n  sessions(token).forall(u => grants.contains(Grant(u, path)) implies (admit(token, path) === Some(u))))"},
+    "6b6b6b1ef220da3c": "allows (\"t1\", Path(\"/a\")) ⇒ Some(UserId(\"alice\"))  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\")))  — Alice's token and a grant for /a: she gets in",
+    "ff35739acf9d6b98": "allows (\"t1\", Path(\"/b\")) ⇒ None  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\")))  — no grant for /b: refused",
+    "9607020d97473545": "forbids (\"t1\", Path(\"/b\")) ⇒ Some(UserId(\"alice\"))  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\")))  — access without a grant is never given",
+    "0fe01b3bfc2c7a7c": "forbids (\"t2\", Path(\"/a\")) ⇒ Some(UserId(\"alice\"))  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\")))  — a token that is not Alice's never acts for her",
+    "05ce09dd4ce5e33e": "forbids (\"t1\", Path(\"/a\")) ⇒ None  given grants = List(Grant(UserId(\"alice\"), Path(\"/a\"))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\")))  — Alice with a grant for /a is not turned away",
+    "5e04853e9d80117e": "val decisionContract = Node.contract(\"A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path.\",\n  why = \"The three parts, stated for one call, so every result of the running system can be checked.\"\n)(forall((token: Term[String], path: Term[Path]) => admit(token, path).forall(u => sessions(token) === Some(u) && grants.contains(Grant(u, path))) &&\n  sessions(token).forall(u => grants.contains(Grant(u, path)) implies (admit(token, path) === Some(u)))))\n  .refines(tokenNamesHolder, accessNeedsGrant, grantLetsIn)\n  .examples(grants.bind(List(Grant(UserId(\"alice\"), Path(\"/a\")))), sessions.bindTable(Map(\"t1\" -> UserId(\"alice\"))))(\n    allows(\"t1\", Path(\"/a\"), Some(UserId(\"alice\")), \"Alice's token and a grant for /a: she gets in\"),\n    allows(\"t1\", Path(\"/b\"), None, \"no grant for /b: refused\"),\n    forbids(\"t1\", Path(\"/b\"), Some(UserId(\"alice\")), \"access without a grant is never given\"),\n    forbids(\"t2\", Path(\"/a\"), Some(UserId(\"alice\")), \"a token that is not Alice's never acts for her\"),\n    forbids(\"t1\", Path(\"/a\"), None, \"Alice with a grant for /a is not turned away\"))",
     "91c1953056c443d1": "A request whose token was issued to a user with a grant for the path is admitted on their behalf.",
     "5d70fed51acc2570": "A grant is there to be used: a system that turned a granted user away would meet the rules by serving no one.",
     "5c49788909c20034": {"formula":"forall((t: String, p: Path) => sessions(t).forall(u => grants.value.contains(Grant(u, p)) ==> (admit(t, p) == Some(u))))"},
     "dda91cc82bec465d": "val grantLetsIn = Node.claim(\"GrantLetsIn\",\n  \"A request whose token was issued to a user with a grant for the path is admitted on their behalf.\",\n  why = \"A grant is there to be used: a system that turned a granted user away would meet the rules by serving no one.\"\n)(forall((t: String, p: Path) => sessions(t).forall(u => grants.value.contains(Grant(u, p)) ==> (admit(t, p) == Some(u))))).under(accessExactly)",
     "12f16a70fe5588bf": {"formula":"forall((t: Term[String], p: Term[Path]) => sessions(t).forall(u => grants.contains(Grant(u, p)) ==> (admit(t, p) === Some(u))))"},
     "69a82ba0b50f5344": "val grantLetsIn = Node.claim(\"GrantLetsIn\",\n  \"A request whose token was issued to a user with a grant for the path is admitted on their behalf.\",\n  why = \"A grant is there to be used: a system that turned a granted user away would meet the rules by serving no one.\"\n)(forall((t: Term[String], p: Term[Path]) => sessions(t).forall(u => grants.contains(Grant(u, p)) ==> (admit(t, p) === Some(u))))).under(accessExactly)",
+    "4df6e607be1d9a63": {"formula":"forall((t: Term[String], p: Term[Path]) => sessions(t).forall(u => grants.contains(Grant(u, p)) implies (admit(t, p) === Some(u))))"},
+    "b689cee0aeea670a": "val grantLetsIn = Node.claim(\"A request whose token was issued to a user with a grant for the path is admitted on their behalf.\",\n  why = \"A grant is there to be used: a system that turned a granted user away would meet the rules by serving no one.\"\n)(forall((t: Term[String], p: Term[Path]) => sessions(t).forall(u => grants.contains(Grant(u, p)) implies (admit(t, p) === Some(u))))).refines(accessExactly)",
     "55fb904221c12c73": "A user is authorized for a path when a grant names that user and that path.",
     "d9384116c8cea512": "The idea defines authorization as a table of grants; who may change the table is not modelled.",
     "cca507e658973c31": "authorized := (u: UserId, p: Path) => grants.value.contains(Grant(u, p))",
     "9d5429994e257fb1": "val grantTable = Node.definition(\"GrantTable\", \"A user is authorized for a path when a grant names that user and that path.\",\n  why = \"The idea defines authorization as a table of grants; who may change the table is not modelled.\"\n)(authorized := ((u: UserId, p: Path) => grants.value.contains(Grant(u, p))))",
     "2766b485284fa251": "authorized := (u: Term[UserId], p: Term[Path]) => grants.contains(Grant(u, p))",
     "1bfe21e0f4a6c167": "val grantTable = Node.definition(\"GrantTable\", \"A user is authorized for a path when a grant names that user and that path.\",\n  why = \"The idea defines authorization as a table of grants; who may change the table is not modelled.\"\n)(authorized := ((u: Term[UserId], p: Term[Path]) => grants.contains(Grant(u, p))))",
+    "26f30ef909c76a45": "val grantTable = Node.definition(\"A user is authorized for a path when a grant names that user and that path.\",\n  why = \"The idea defines authorization as a table of grants; who may change the table is not modelled.\"\n)(authorized := ((u: Term[UserId], p: Term[Path]) => grants.contains(Grant(u, p))))",
     "762fb9ab4e9254f7": "# Auth\n\nA system decides which users may access which resources. No user may ever\naccess a resource they are not authorized to access.\n\nUsers identify themselves with tokens they receive at login. Authorization is\ngiven by a table of grants: a user may access a path when a grant names that\nuser and that path.\n\n## Not modelled\n\n- How tokens are issued at login, and when they expire.\n- Who may change the table of grants.\n",
     "b529fab2714530c2": "Users are named by ids, and resources are paths.",
     "b25ba41b87f53748": "The grant table names users by id and resources by path, so these are what the system knows them by.",
     "0aeaa49153bd032e": "User := UserId",
     "4137c91992ddd029": "Resource := Path",
     "b37d94a2d7edce1a": "val identities = Node.definition(\"Identities\", \"Users are named by ids, and resources are paths.\",\n  why = \"The grant table names users by id and resources by path, so these are what the system knows them by.\"\n)(User := of[UserId], Resource := of[Path])",
+    "f07453c741ec16b9": "val identities = Node.definition(\"Users are named by ids, and resources are paths.\",\n  why = \"The grant table names users by id and resources by path, so these are what the system knows them by.\"\n)(User := of[UserId], Resource := of[Path])",
     "528784b364a2e471": "design",
     "e5f79a9855babc6a": "Sessions and grants are loaded into memory, in one process that decides every request.",
     "f434ec26e814461a": "One service decides access, and the tables fit in memory. A shared store would only be needed with several instances.",
     "e4a67d7c97e46196": "src/main/scala/auth/Server.scala",
     "33dd2c70026d8cb8": "val inMemorySessions = Node.design(\n  \"InMemorySessions\",\n  \"Sessions and grants are loaded into memory, in one process that decides every request.\",\n  why = \"One service decides access, and the tables fit in memory. A shared store would only be needed with several instances.\"\n)(\"src/main/scala/auth/Server.scala\").under(decisionContract)",
+    "f787bb26e3ae5f27": "val inMemorySessions = Node.design(\n  \"Sessions and grants are loaded into memory, in one process that decides every request.\",\n  why = \"One service decides access, and the tables fit in memory. A shared store would only be needed with several instances.\"\n)(\"src/main/scala/auth/Server.scala\").refines(decisionContract)",
     "94b8ce8f84ad8e12": "A user has access to a path when some request for it is admitted on their behalf.",
     "bcda87eaba347dc6": "A user reaches a resource only through requests, and a request carries a token, not a user: the system sees tokens.",
     "bf3487b630bfcd91": "access := (u: UserId, p: Path) => exists((t: String) => admit(t, p) == Some(u))",
     "0841d367a175a5c3": "val requests = Node.definition(\"Requests\", \"A user has access to a path when some request for it is admitted on their behalf.\",\n  why = \"A user reaches a resource only through requests, and a request carries a token, not a user: the system sees tokens.\"\n)(access := ((u: UserId, p: Path) => exists((t: String) => admit(t, p) == Some(u))))",
     "aa8d16caa57eba71": "access := (u: Term[UserId], p: Term[Path]) => exists((t: Term[String]) => admit(t, p) === Some(u))",
     "d080ede5ddd1dda1": "val requests = Node.definition(\"Requests\", \"A user has access to a path when some request for it is admitted on their behalf.\",\n  why = \"A user reaches a resource only through requests, and a request carries a token, not a user: the system sees tokens.\"\n)(access := ((u: Term[UserId], p: Term[Path]) => exists((t: Term[String]) => admit(t, p) === Some(u))))",
+    "5acc4f313782ac9b": "val requests = Node.definition(\"A user has access to a path when some request for it is admitted on their behalf.\",\n  why = \"A user reaches a resource only through requests, and a request carries a token, not a user: the system sees tokens.\"\n)(access := ((u: Term[UserId], p: Term[Path]) => exists((t: Term[String]) => admit(t, p) === Some(u))))",
     "d77ae938d6055efd": "A user is signed in when some session token was issued to them.",
     "ca6463d7dba62275": "Users identify themselves with tokens they receive at login; the session table records which token was issued to whom. How tokens are issued is not modelled.",
     "23db7892d76453e9": "signedIn := (u: UserId) => exists((t: String) => sessions(t) == Some(u))",
     "df976927d6c4a830": "val sessionTable = Node.definition(\"SessionTable\", \"A user is signed in when some session token was issued to them.\",\n  why = \"Users identify themselves with tokens they receive at login; the session table records which token was issued to whom. How tokens are issued is not modelled.\"\n)(signedIn := ((u: UserId) => exists((t: String) => sessions(t) == Some(u))))",
     "cf37112571cff4ef": "signedIn := (u: Term[UserId]) => exists((t: Term[String]) => sessions(t) === Some(u))",
     "36b7a9401a6234ea": "val sessionTable = Node.definition(\"SessionTable\", \"A user is signed in when some session token was issued to them.\",\n  why = \"Users identify themselves with tokens they receive at login; the session table records which token was issued to whom. How tokens are issued is not modelled.\"\n)(signedIn := ((u: Term[UserId]) => exists((t: Term[String]) => sessions(t) === Some(u))))",
+    "45aad5e881d2507d": "val sessionTable = Node.definition(\"A user is signed in when some session token was issued to them.\",\n  why = \"Users identify themselves with tokens they receive at login; the session table records which token was issued to whom. How tokens are issued is not modelled.\"\n)(signedIn := ((u: Term[UserId]) => exists((t: Term[String]) => sessions(t) === Some(u))))",
     "4dffa9d5a38f125b": "A request is admitted only on behalf of the user its token was issued to.",
     "6d805636753e9f23": "A token stands for the user it was issued to: acting for anyone else would let one user in as another.",
     "d21610ccea405e11": {"formula":"forall((t: String, p: Path) => admit(t, p).forall(u => sessions(t) == Some(u)))"},
     "c426409940afff20": "val tokenNamesHolder = Node.claim(\"TokenNamesHolder\",\n  \"A request is admitted only on behalf of the user its token was issued to.\",\n  why = \"A token stands for the user it was issued to: acting for anyone else would let one user in as another.\"\n)(forall((t: String, p: Path) => admit(t, p).forall(u => sessions(t) == Some(u)))).under(accessExactly)",
     "e056a234a0058c35": {"formula":"forall((t: Term[String], p: Term[Path]) => admit(t, p).forall(u => sessions(t) === Some(u)))"},
-    "a126af199e84ce9f": "val tokenNamesHolder = Node.claim(\"TokenNamesHolder\",\n  \"A request is admitted only on behalf of the user its token was issued to.\",\n  why = \"A token stands for the user it was issued to: acting for anyone else would let one user in as another.\"\n)(forall((t: Term[String], p: Term[Path]) => admit(t, p).forall(u => sessions(t) === Some(u)))).under(accessExactly)"
+    "a126af199e84ce9f": "val tokenNamesHolder = Node.claim(\"TokenNamesHolder\",\n  \"A request is admitted only on behalf of the user its token was issued to.\",\n  why = \"A token stands for the user it was issued to: acting for anyone else would let one user in as another.\"\n)(forall((t: Term[String], p: Term[Path]) => admit(t, p).forall(u => sessions(t) === Some(u)))).under(accessExactly)",
+    "bb53dc541ef8fd0c": "val tokenNamesHolder = Node.claim(\"A request is admitted only on behalf of the user its token was issued to.\",\n  why = \"A token stands for the user it was issued to: acting for anyone else would let one user in as another.\"\n)(forall((t: Term[String], p: Term[Path]) => admit(t, p).forall(u => sessions(t) === Some(u)))).refines(accessExactly)"
   }
 }
