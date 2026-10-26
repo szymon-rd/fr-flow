@@ -12,7 +12,7 @@ final case class Example(note: String, bindings: List[Binding], givenSource: Lis
     val v = Bindings.within(bindings)(b.value())
     if Example.isData(v) then s"${b.param.name} = ${Example.show(v)}" else src
   }
-  def describe: String = s"${if expected then "expect" else "reject"} $call  given ${givens.mkString(", ")}  — $note"
+  def describe: String = s"${if expected then "expect" else "never"} $call  given ${givens.mkString(", ")}  — $note"
 
 object Example:
   def show(v: Any): String = v match
