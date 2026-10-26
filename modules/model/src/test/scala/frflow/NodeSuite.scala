@@ -11,6 +11,14 @@ class NodeSuite extends munit.FunSuite:
     assertEquals(shelfKb.params.map(_.name), List("good", "minPages", "picks", "shown"))
   }
 
+  test("a formula in a block of its own reads from its first line, as one written inline does") {
+    val claim = Node.claim("Block", "Every number is itself."):
+      forall((x: Term[BigInt]) =>
+        x === x)
+    assertEquals(claim.formula.map(_.source), Some("forall((x: Term[BigInt]) =>\n  x === x)"))
+    assertEquals(claim.why, "")
+  }
+
   test("examples where nothing is bound take one list: the same cases as with an empty list of bindings") {
     def base = Node.contract(picks)("Picks", "s", "w")((shelf, n, picked) => picked.length <= n).under(onlyGood)
     // (with one list, the cases are typed before the overload is chosen: an empty list says its type)

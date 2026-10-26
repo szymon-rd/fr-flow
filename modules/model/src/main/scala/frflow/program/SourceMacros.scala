@@ -20,9 +20,19 @@ private[frflow] object SourceMacros:
   private def written(e: Expr[Any])(using Quotes): String =
     import quotes.reflect.*
     val t = unwrap(e.asTerm)
-    t.pos.sourceCode.filter(_.nonEmpty).orElse {
+    val text = t.pos.sourceCode.filter(_.nonEmpty).orElse {
       scala.util.Try(Files.readString(Paths.get(t.pos.sourceFile.path)).substring(t.pos.start, t.pos.end)).toOption
     }.getOrElse(e.show).trim
+    if startsItsLine(t.pos) then dedent(text, t.pos.startColumn) else text
+
+  // A block on lines of its own (after `:`) reads from its first line's column, as a lambda written inline does.
+  private def startsItsLine(using q: Quotes)(pos: q.reflect.Position): Boolean =
+    val content = pos.sourceFile.content.orElse(scala.util.Try(Files.readString(Paths.get(pos.sourceFile.path))).toOption)
+    content.exists(c => c.substring(c.lastIndexOf('\n', pos.start - 1) + 1, pos.start).isBlank)
+
+  private def dedent(text: String, column: Int): String =
+    text.linesIterator.zipWithIndex.map((l, i) => if i == 0 then l else l.drop(l.takeWhile(_ == ' ').length.min(column)))
+      .mkString("\n")
 
   private def unwrap(using q: Quotes)(t: q.reflect.Term): q.reflect.Term =
     import q.reflect.*
