@@ -5,16 +5,16 @@ import frflow.protocol.{NodeKind, RunCheck}
 
 // The run-time path: the user's production code calls `service`'s plain function of the operation's inputs, and the
 // predicates it checks read parameters as `param.value` deep inside the user's own code. That path has no
-// effect type, and three things here follow from it:
+// effect type, so:
 // - The values in force are a ThreadLocal (`Bindings`): there is no argument to pass them through.
 // - A broken contract or assumption is reported (`Violation`, to the knowledge base's reporter: a log line by
-//   default), then thrown as the documented `ContractViolation`, so that a result that breaks it is never
-//   returned (fail closed); a wiring mistake (no implementation, an unbound parameter) is an
-//   `IllegalStateException` when the service is wired, not on the first call.
+//   default), then thrown as `ContractViolation`, so that a result that breaks it is never returned (fail closed);
+//   a wiring mistake (no implementation, an unbound parameter) is an `IllegalStateException` when the service is
+//   wired, not on the first call.
 // - Which calls are checked is the contract's `RunCheck`: every call for code Lean does not prove, none for
 //   code it proves, or a sample, as the developer decides.
-// - A running service remembers, in an atomic reference to an immutable map, what each assumption was last
-//   found to hold of; a call reads each parameter once, through a `Cell`.
+// - A running service remembers, in an atomic reference, what each assumption was last found to hold of; a call
+//   reads each parameter once, through a `Cell`.
 
 /** Wiring a knowledge base's code into a running system (see `KnowledgeBase.service`). */
 private[frflow] object Wiring:

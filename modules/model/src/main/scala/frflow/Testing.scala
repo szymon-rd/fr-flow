@@ -14,7 +14,7 @@ import scala.util.{Failure, Success, Try}
 
 /** Testing a contract's code against the contract: the property is the contract's own formula, run in Scala on cases
   * generated from the types (the examples' values among them), on the code's result; the formula's parts are counted,
-  * so a part no case reaches is said, not passed.
+  * so a part no case reaches is reported.
   */
 private[frflow] object Testing:
   /** A failing case, shrunk: shown, why it fails, and where it came from (the same seed, index and size make it again). */

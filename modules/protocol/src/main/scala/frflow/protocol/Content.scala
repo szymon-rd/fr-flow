@@ -29,7 +29,7 @@ object Content:
     def :+(field: (String, Json)): Content = JsonObject.fromIterable(c.toList :+ field)
     /** Runs of whitespace count as one space, so reformatting changes nothing that was decided. */
     def hash: Hash = Hash(Sha(Canonical.print(normal(json))))
-    /** A short reference to the content exactly as recorded. */
+    /** A short reference to the content as recorded, whitespace included. */
     def ref: String = Sha(Canonical.print(json)).take(16)
 
   private def normal(j: Json): Json = j.fold(j, _ => j, _ => j,

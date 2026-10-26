@@ -3,8 +3,7 @@ package term
 
 import frflow.types.Shape
 
-/** Terms written as values: `True`, `False`, `some`, `none`, `left`, `right`, a shared `let`; and the Lean of a term
-  * (re-exported by `frflow`).
+/** Terms written as values: `True`, `False`, `some`, `none`, `left`, `right`, a shared `let`; and the Lean of a term.
   */
 object Terms:
   /** The Lean of `t` alone: for tests and messages. */

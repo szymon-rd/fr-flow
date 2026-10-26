@@ -4,7 +4,7 @@ package boundary
 import java.lang.reflect.{InvocationHandler, Method, Proxy}
 import scala.reflect.ClassTag
 
-/** What proven code calls but cannot see: a plain trait of operations taking terms and returning flows. The
+/** What proven code calls but cannot see: a trait of operations taking terms and returning flows. The
   * model names one value for it, as `Param` does for a term; production binds an implementation of the trait.
   * `db.load` calls the operation (an implicit conversion to the trait).
   */

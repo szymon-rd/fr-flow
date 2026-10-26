@@ -2,8 +2,8 @@ package frflow
 package testing
 
 /** A generator a developer or an agent gives for a type the derived one serves badly: `Gen.oneOf(Path("/a"), Path("/b"))`.
-  * It is typed, so its values are of the type. What it says it makes is shown beside the results, and the derived
-  * generator keeps making a share of the type's values, so a narrow generator never hides the rest.
+  * What it says it makes is shown beside the results, and the derived generator keeps making a share of the type's
+  * values, so a narrow generator never hides the rest.
   */
 final class Gen[A] private[frflow] (val describe: String, private[frflow] val draw: Draw => A):
   def map[B](f: A => B): Gen[B] = Gen(describe, d => f(draw(d)))

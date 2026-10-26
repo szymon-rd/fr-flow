@@ -13,7 +13,7 @@ sealed abstract class Flow[A]:
   def flatMap[B](f: Term[A] => Flow[B]): Flow[B] = Flow.Bind(this, f, f)
   def map[B](f: Term[A] => Term[B]): Flow[B] = Flow.Bind(this, (a: Term[A]) => Flow.Pure(f(a)), f)
   /** The result when the flow took at most `seconds` on the clock, `None` when it took longer (Cats Effect's `timeout`,
-    * with `None` for its error until flows can fail). It does not cancel: the flow runs to its end and what it changed
+    * with `None` in place of its error). It does not cancel: the flow runs to its end and what it changed
     * stays changed either way. Steps take no time, so only the flow's own sleeps count.
     */
   def timeout(seconds: Term[BigInt]): Flow[Option[A]] =

@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.util.Try
 
 /** One statement in the developer's domain words, decided by them and proven in Lean from its parts (the nodes
-  * that name it `under`). `M` is the operation's type, so examples and checks are typed.
+  * that name it `under`). `M` is the operation's type, which the examples and checks are written against.
   */
 final class Node[M] @scala.annotation.publicInBinary private[frflow] (val id: String, val statement: String, val why: String,
     val kind: NodeKind, val declaredParents: List[Node[?]] = Nil, val formula: Option[Lifted[?]] = None,
@@ -89,7 +89,7 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (val id: St
 object Node:
   // Each is built in a method of its own: a file's top-level vals initialize in one JVM method (at most 64 KB).
 
-  /** With no parents, the root: the idea's purpose, stated as *exactly*, so that doing nothing does not meet it. */
+  /** With no parents, the root: the idea's purpose, stated precisely enough that doing nothing does not meet it. */
   inline def claim(id: String, statement: String, why: String, idea: String = "")(inline formula: Term[Boolean]): Node[Unit] =
     def node(): Node[Unit] =
       Node(id, statement, why, NodeKind.Claim, formula = Some(Lifted.thunk(() => formula, Source.text(formula))), ideaSection = idea,

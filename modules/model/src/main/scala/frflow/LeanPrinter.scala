@@ -320,7 +320,7 @@ private[frflow] final class LeanPrinter:
       case Prim.OptIsEmpty => p(s"$r = none")
       case Prim.OptGetOrElse => val x = r; p(s"Option.getD $x $arg")
 
-  /** A Scala value as Lean writes it: what the macro made of the same value written in a model. */
+  /** A Scala value as Lean writes it: the same Lean as for that value written in a model. */
   def value(v: Any, t: LeanType[?]): String = t.shape match
     case Shape.Prop   => if v.asInstanceOf[Boolean] then "True" else "False"
     case Shape.Num(_) =>

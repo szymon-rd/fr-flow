@@ -1,8 +1,7 @@
 package frflow
 
-/** Scala functions of any arity, as FrFlow handles them inside: an operation's code, a post, a check, a view and a
-  * lambda over terms are Scala functions of their inputs (and a result, and a flow's worlds), at most nine arguments.
-  * Inside, a call is a list of arguments; at the edges, the user's own `FunctionN`.
+/** Scala functions of up to nine arguments, called with a list of arguments. An operation's code, a post, a check, a
+  * view and a lambda over terms are Scala functions of their inputs (and a result, and a flow's worlds).
   */
 private[frflow] object Fn:
   val MaxArity = 9
