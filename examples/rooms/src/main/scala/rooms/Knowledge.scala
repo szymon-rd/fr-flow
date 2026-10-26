@@ -14,8 +14,8 @@ val freeFor = define { (held: Term[List[Booking]], request: Term[Booking]) =>
 }
 
 val sensible = define { (held: Term[List[Booking]], request: Term[Booking]) =>
-  (request :: held).forall(b => b.start < b.end) && held.forall(a => held.forall(b =>
-    (a =!= b && a.room === b.room) ==> forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))))
+  (request :: held).forall(b => b.start < b.end) && held.forall(a => held.filter(b => b === a).length === 1) &&
+    held.forall(a => held.forall(b => (a =!= b && a.room === b.room) ==> forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))))
 }
 
 val grantWhenFree = Node.claim("GrantWhenFree",
@@ -28,7 +28,8 @@ val grantWhenFree = Node.claim("GrantWhenFree",
 val overlaps = define { (a: Term[Booking], b: Term[Booking]) => a.room === b.room && a.start < b.end && b.start < a.end }
 
 val consistent = define { (held: Term[List[Booking]], request: Term[Booking]) =>
-  (request :: held).forall(b => b.start < b.end) && held.forall(a => held.forall(b => a === b || !overlaps(a, b)))
+  (request :: held).forall(b => b.start < b.end) && held.forall(a => held.filter(b => b === a).length === 1) &&
+    held.forall(a => held.forall(b => a === b || !overlaps(a, b)))
 }
 
 val grantWhenNoOverlap = Node.contract(granted)("GrantWhenNoOverlap",
