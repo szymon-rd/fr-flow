@@ -85,7 +85,7 @@ val expiries = Param[List[Expiry]]("expiries", "the times until which the CRM's 
 val clock    = Param[BigInt]("clock", "the time now, in seconds, by the server's clock: when a search runs")
 val database = Param[Db]("database", "the SQLite database the CRM keeps its records, shares, expiries and event log in")
 
-// The operations: what the system does, each implemented by code
+// The operations: what the system does
 val read      = Param[(Account, Search) => List[CrmRecord]]("read", "the records screen: the records a user's search returns")
 val deals     = Param[(Account, Search) => List[CrmRecord]]("deals", "the sales screen: the deals a user's search returns")
 val fetch     = Param[(Account, Search) => List[CrmRecord]]("fetch", "the database's answer to a search: the stored records, of every company, that match it")
@@ -286,7 +286,7 @@ val sharedCrm = Node.claim("SharedCrm",
           (r.tenant === u.tenant || sharedIn(es, r.id, u.tenant, clock))))))))
 
 // ============================================================================
-// Definitions: the domain, introduced step by step
+// Definitions: the domain
 // ============================================================================
 
 val companies = Node.definition("Companies",

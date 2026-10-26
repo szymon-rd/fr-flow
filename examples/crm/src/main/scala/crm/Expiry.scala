@@ -80,7 +80,6 @@ val expiryJob = Node.contract(runExpiry)("ExpiryJob",
       World(DatabaseModel -> Tables(initechOnly, earlier)), "a run is never left out of the event log"))
   .exempt(noCrossTenantRead, "it hands the new store to the database and returns nothing to a reader")
 
-/** The job's schedule and its code, owned as a design decision. */
 val expiryJobWiring = Node.design(
   "ExpiryJobWiring",
   "The expiry job runs every minute, holding the database's lock during a run so no write interleaves with it; its code is the flow ExpiryJob is proven of, run on SQLite.",

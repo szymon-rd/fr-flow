@@ -3,7 +3,7 @@ package auth
 import frflow.*
 
 // ============================================================================
-// The purpose: who can access what, stated as exactly, in the idea's words
+// The purpose: who can access what
 // ============================================================================
 
 val User       = Opaque("User", "a person who uses the system")
@@ -47,7 +47,7 @@ val requests = Node.definition("Requests", "A user has access to a path when som
 )(access := ((u: Term[UserId], p: Term[Path]) => exists((t: Term[String]) => admit(t, p) === Some(u))))
 
 // ============================================================================
-// The parts: together they make the purpose, each in the domain's terms
+// The parts of the purpose
 // ============================================================================
 
 val tokenNamesHolder = Node.claim("TokenNamesHolder",
@@ -83,7 +83,7 @@ val decisionContract = Node.contract(admit)("DecisionContract",
     reject("t1", Path("/a"), None, "Alice with a grant for /a is not turned away"))
 
 // ============================================================================
-// A design decision: no formal model, but decided and tracked like the rest
+// A design decision: how the service runs
 // ============================================================================
 
 val inMemorySessions = Node.design(

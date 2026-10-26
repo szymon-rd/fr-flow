@@ -280,9 +280,6 @@ class SharingSuite extends munit.CatsEffectSuite:
     finally List((s1, w1), (s2, w2), (s3, w3)).foreach { (s, w) => s.stop(0); w.shutdownNow() }
   }
 
-  /** A session against the server on a fake clock, with failures injected into the store and the mail server: each
-    * request and its answer, as a client sees them. What the stage report shows.
-    */
   /** Many clients at once, on fibers (IO): requests on the same documents, runs of housekeeping and of delivery, all
     * concurrent, each request and run of housekeeping one transaction (Q18, Q19) and delivery four at once (Q17, Q20). The
     * library they leave must be what the logged requests make one after the other, in the log's (commit) order; every

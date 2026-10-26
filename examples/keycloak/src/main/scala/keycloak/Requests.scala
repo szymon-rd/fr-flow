@@ -74,7 +74,7 @@ val storeKeepsState = Node.assumption(record)("StoreKeepsState",
     reject(AuthRequest.SignIn(acme, "alice", "h-alice", "t1"), ServerState(loaded, List(Session("t1", acme, "alice"))),
       ServerState(loaded, Nil), "a session the store dropped is seen"))
 
-/** What the store is decided to hold after storing a state: that state. What its code is checked against. */
+/** What the store holds after storing a state: that state. The store's code is checked against it. */
 val storedAs = define { (q: Term[AuthRequest], after: Term[ServerState]) => after }
 
 // ============================================================================
