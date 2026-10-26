@@ -55,7 +55,8 @@ class AuthSuite extends munit.CatsEffectSuite:
     val careless = knowledge.implement(decisionContract)((t, _) => sessions.value(t))
     val f = careless.test(decisionContract).get.failure.getOrElse(fail("the bug was not found"))
     // A token issued to a user, no grant at all: the user is let in.
-    assert(f.shown.matches("""\("[a-z0-9]*", Path\("[a-z0-9/]*"\)\) ⇒ Some\(UserId\("[a-z0-9]*"\)\)  given .*grants = List\(\).*"""), f.shown)
+    assert(f.shown.matches("""token = "[a-z0-9]*", path = Path\("[a-z0-9/]*"\), given .*grants = List\(\).*"""), f.shown)
+    assert(f.why.matches("""returned Some\(UserId\("[a-z0-9]*"\)\), which DecisionContract refuses"""), f.why)
     assert(f.shown.contains("sessions = {"), f.shown)
     assert(f.why.contains("which DecisionContract refuses"), f.why)
   }

@@ -78,16 +78,16 @@ final class NodeChecker(a: Analysis, lake: Lake, prebuilt: Set[String]):
       prebuilt.ifM(IO.pure(Result(o.name, ObligationStatus.Proven, "auto")),
         judged.flatMap { r =>
           if r.status != ObligationStatus.Open then IO.pure(r)
-          else if authored then IO.pure(Verdict.brokenProof(n, r, changed(n)))
+          else if authored then IO.pure(Verdict.brokenProof(r, changed(n)))
           else state(n, Complete).map(Verdict.gaveUp(g, n, r, _))
         })
     }
 
-  // Among the node and its parts, those that changed since they were decided: what a proof that went through may
-  // no longer hold of.
+  // What changed, of the node and its parts, since they were decided: what a proof that went through may no longer
+  // hold of.
   private def changed(n: Node[?]): List[String] =
-    (n :: a.kb.parts(n)).map(_.id).filter(id => a.annotated.byId.get(NodeId(id)).exists(r =>
-      r.state == ReviewState.Review && r.review.causes.exists(c => c == Cause.Self || c == Cause.Above)))
+    (n :: a.kb.parts(n)).flatMap(x => a.ledger.binding(NodeId(x.id)).filter(_.hash != a.hash(x)).toList
+      .flatMap(d => Verdict.whatChanged(x.id, d.content, a.content(x)))).distinct
 
   // Its code meets it, from what the contracts it calls promise: with the axioms its build rests on.
   private def implementation(n: Node[?], proof: String): IO[Option[(Result, Option[List[String]])]] =

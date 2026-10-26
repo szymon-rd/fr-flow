@@ -14,7 +14,7 @@ object Proofs:
       val model = CodeProof.of(n).exists { case _: CodeProof.Model => true; case _ => false }
       val (whose, against) = if model then ("its implementations'", "the model") else ("its code's", "the contract")
       n.tested.fold(List(if model then "its implementations are not tested yet: run check" else "its code is not tested yet: run check")) { r =>
-        r.failure.map(f => s"${if model then "a generated run differs from the model" else "its code fails a generated case"}: ${f.shown}: ${f.why}").toList ++
+        r.failure.map(f => s"${if model then "a generated run differs from the model" else "its code fails a generated case"}: ${f.line}").toList ++
           r.unreached.map(c => s"$whose tests never reached a part of $against: ${c.part} (add an example, or a generator)")
       }
 

@@ -161,11 +161,20 @@ private[frflow] object Testing:
           case near => if d.chance(0.5) then near(d.below(near.size)) else d.value(types(k)))
       else types.map(d.value)
 
-    private def shown(vals: Vector[Any], r: Option[Any]): String =
-      val ins = vals.drop(generated.size)
+    // The inputs' names, as the contract's lambda gives them (by position where it gives none).
+    private val inputNames: List[String] =
+      val binders = Try(n.post.get.built._1).getOrElse(Nil)
+      tins.indices.toList.map(i => binders.lift(i).filterNot(_.wildcard).fold(s"input ${i + 1}")(_.hint))
+
+    /** A case: its inputs by name, then the world it ran in; what the code returned is said by why it fails. */
+    private def shown(vals: Vector[Any]): String =
+      val ins = inputNames.zip(vals.drop(generated.size)).map((name, v) => s"$name = ${Example.show(v)}")
       val world = generated.zip(vals).map((p, v) => s"${p.name} = ${Example.show(v)}")
-      s"${ins.map(Example.show).mkString("(", ", ", ")")} ⇒ ${r.fold("no result")(Example.show)}" +
-        (if world.isEmpty then "" else s"  given ${world.mkString(", ")}")
+      (ins, world) match
+        case (Nil, Nil) => "no inputs"
+        case (_, Nil)   => ins.mkString(", ")
+        case (Nil, _)   => s"given ${world.mkString(", ")}"
+        case _          => s"${ins.mkString(", ")}, given ${world.mkString(", ")}"
 
     @tailrec private def shrink(vals: Vector[Any], why: String, rounds: Int): (Vector[Any], String) =
       val smaller = LazyList.from(types.indices)
@@ -185,7 +194,7 @@ private[frflow] object Testing:
         Try(generate(c.seed, c.index, c.size)).toOption.flatMap { vals =>
           attempt(vals, Some(counter))._2.map { why =>
             val (small, w) = shrink(vals, why, 100)
-            Failed(shown(small, attempt(small, None)._1), w, c.seed, c.index, c.size)
+            Failed(shown(small), w, c.seed, c.index, c.size)
           }
         }
       }.nextOption().orElse(Option.when((calledOps.toSet -- named).nonEmpty) {

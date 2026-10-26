@@ -102,7 +102,7 @@ object Decide:
   private def failing(n: SnapNode): Option[Refusal] =
     val examples = n.examples.count(!_.passes)
     Option.when(examples > 0)(Refusal.ExamplesFail(n.id, examples))
-      .orElse(n.tested.flatMap(_.failure).map(f => Refusal.CodeFails(n.id, f.shown)))
+      .orElse(n.tested.flatMap(_.failure).map(f => Refusal.CodeFails(n.id, f.line)))
 
   // Each confirmed once all it rests on holds; one still waiting for another node stays under review.
   private def confirmBelow(g: Graph, start: Ledger, n: SnapNode, confirm: List[NodeId], reason: String, record: Record): Ledger =

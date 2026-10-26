@@ -16,7 +16,7 @@ class AritySuite extends munit.FunSuite:
     // plain code: tested on generated values
     assertEquals(clampKb.implement(clamp)(x => x.max(0)).testedWith(settings).test(clamp).flatMap(_.failure), None)
     val f = clampKb.implement(clamp)(x => x.abs).testedWith(settings).test(clamp).flatMap(_.failure).getOrElse(fail("the bug was not found"))
-    assertEquals(f.shown, "(-1) ⇒ 1")
+    assertEquals(f.shown, "x = -1")
     assert(f.why.contains("Clamp refuses"), f.why)
     // the service: a function of one input, every result checked
     assertEquals(kb.service(clamp)()(BigInt(-2)), BigInt(0))
@@ -33,7 +33,8 @@ class AritySuite extends munit.FunSuite:
     // someone off the list makes the code drop the first member
     val bad = grantKb.implement(grant)((acl, by, who) => if acl.contains(by) then acl :+ who else acl.drop(1))
     val f = bad.testedWith(settings).test(grant).flatMap(_.failure).getOrElse(fail("the bug was not found"))
-    assert(f.shown.matches("""\(List\("[^"]*"\), "[^"]*", "[^"]*"\) ⇒ List\(\)"""), f.shown)
+    assert(f.shown.matches("""acl = List\("[^"]*"\), by = "[^"]*", who = "[^"]*""""), f.shown)
+    assert(f.why.startsWith("returned List()"), f.why)
     assert(f.why.contains("Grant refuses"), f.why)
     val s = kb.service(grant)()
     assertEquals(s(List("ann"), "ann", "bob"), List("ann", "bob"))
@@ -68,7 +69,7 @@ class AritySuite extends munit.FunSuite:
     assertEquals(gaugeKb.implement(shows)(() => rawReading.value.max(0)).testedWith(settings).test(shows).flatMap(_.failure), None)
     val f = gaugeKb.implement(shows)(() => rawReading.value).testedWith(settings).test(shows).flatMap(_.failure)
       .getOrElse(fail("the bug was not found"))
-    assertEquals(f.shown, "() ⇒ -1  given rawReading = -1")
+    assertEquals(f.shown, "given rawReading = -1")
     assertEquals(kb.service(shows)(rawReading.bind(-4))(), BigInt(0))
   }
 

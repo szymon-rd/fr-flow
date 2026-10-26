@@ -184,7 +184,7 @@ object NodeText:
       val pass = if model then "  every run gives what the model gives and leaves what it leaves, and every operation and branch of it was reached"
         else "  every case meets it, and every part of it was reached"
       val outcome = r.failure.fold(Option.when(r.unreached.isEmpty)(st.green(pass)).toList)(f =>
-        List(st.red(s"  fails: ${f.shown}"), st.red(s"    ${f.why}")))
+        List(st.red(s"  fails: ${f.line}")))
       val parts = if full || r.unreached.nonEmpty then r.coverage.map(c =>
         if c.held == 0 then st.red(s"  never reached: ${c.part}") else st.dim(s"  ${c.part}: ${c.held}×")) else Nil
       val notes = r.notes.map(x => st.dim(s"  note: $x"))

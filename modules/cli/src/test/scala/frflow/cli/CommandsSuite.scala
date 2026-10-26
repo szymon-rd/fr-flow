@@ -63,14 +63,28 @@ class CommandsSuite extends munit.CatsEffectSuite:
   }
 
   test("check: a contract whose code fails a generated case reads failed, with the case, shrunk") {
-    val failure = TestFailure("(\"t1\", Path(\"/b\")) ⇒ Some(UserId(\"alice\"))", "returned Some(UserId(\"alice\")), which Decide refuses", 1, 0, 1)
+    val failure = TestFailure("token = \"t1\", path = Path(\"/b\")", "returned Some(UserId(\"alice\")), which Decide refuses", 1, 0, 1)
     val failing = CheckedNode(NodeId("Decide"), CheckStatus.Proven, Nil, Nil, Nil, None, Nil, None, Some(failure))
     FakeApi().flatMap(_.view).map { v =>
       val text = ReportText.check(CheckReport(List(failing), v, Overview.of(v)), st)
-      assertEquals(text.take(3), List("x Decide: failed",
-        "  its code fails a generated case: (\"t1\", Path(\"/b\")) ⇒ Some(UserId(\"alice\"))",
-        "    returned Some(UserId(\"alice\")), which Decide refuses"))
+      assertEquals(text.take(2), List("x Decide: failed",
+        "  its code fails a generated case: token = \"t1\", path = Path(\"/b\"): returned Some(UserId(\"alice\")), which Decide refuses"))
       assert(!CheckReport(List(failing), v, Overview.of(v)).ok)
+    }
+  }
+
+  test("check: a node with one obligation open says it on its line, its name left out; with several, each by name") {
+    val broken = Result(ObligationName.Complete, ObligationStatus.Open,
+      "the proof from its parts no longer goes through: overlaps changed\nLean: omega could not prove the goal:\na - c ≤ -1")
+    val open = CheckedNode(NodeId("Decide"), CheckStatus.Open, List(ObligationName.Complete), List(broken), Nil, None, Nil,
+      Some("fix the proof in lean/Proofs/Auth/Decide.lean"))
+    FakeApi().flatMap(_.view).map { v =>
+      def text(c: CheckedNode) = ReportText.check(CheckReport(List(c), v, Overview.of(v)), st).takeWhile(_.nonEmpty)
+      assertEquals(text(open), List("o Decide: the proof from its parts no longer goes through: overlaps changed",
+        "    Lean: omega could not prove the goal:\n    a - c ≤ -1", "  ! fix the proof in lean/Proofs/Auth/Decide.lean"))
+      val two = open.copy(problems = List(broken, Result(ObligationName.Impl, ObligationStatus.Open, "not proven")))
+      assertEquals(text(two).head, "o Decide: open")
+      assert(text(two)(1).startsWith("  complete open: the proof from its parts no longer goes through: overlaps changed\n"), text(two))
     }
   }
 

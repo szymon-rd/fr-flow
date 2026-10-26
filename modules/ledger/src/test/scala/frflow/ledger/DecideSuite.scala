@@ -52,12 +52,12 @@ class DecideSuite extends munit.FunSuite:
 
   test("a node whose code fails an example or a generated case is not accepted, with the reason; it may be rejected") {
     val example = ExampleView("back to back", Nil, "(9, 10)", expected = true, fails = None, codeFails = Some("returned false"), None, None)
-    val failure = TestFailure("(List(), 3) ⇒ false", "returned false, which R refuses", 1, 0, 1)
+    val failure = TestFailure("held = List(), request = 3", "returned false, which R refuses", 1, 0, 1)
     val withExample = replacing(shelf, r.copy(examples = List(example)))
     val withCase = replacing(shelf, r.copy(tested = Some(TestReport(1000, 1, "R", Some(failure)))))
     assertEquals(decide(withExample, Ledger.empty, accept("R")), Left(ExamplesFail(id("R"), 1)))
-    assertEquals(decide(withCase, Ledger.empty, accept("R")), Left(CodeFails(id("R"), "(List(), 3) ⇒ false")))
-    assert(CodeFails(id("R"), "(List(), 3) ⇒ false").message.startsWith("R: its code fails a generated case: (List(), 3) ⇒ false"))
+    assertEquals(decide(withCase, Ledger.empty, accept("R")), Left(CodeFails(id("R"), "held = List(), request = 3: returned false, which R refuses")))
+    assert(CodeFails(id("R"), failure.line).message.startsWith("R: its code fails a generated case: held = List(), request = 3: returned false"))
     assert(decide(withCase, Ledger.empty, Decide.Reject(id("R"), "it refuses free rooms")).isRight)
     assert(decide(replacing(shelf, r.copy(examples = List(example.copy(codeFails = None)))), Ledger.empty, accept("R")).isRight)
   }

@@ -399,7 +399,7 @@ function examples(n) {
 function tested(r, expected, model) {
   if (!expected) return "";
   if (!r) return `<div class="warn">Not tested yet: run check.</div>`;
-  const fail = r.failure ? `<div class="err">${model ? "A generated run differs from the model" : "A generated case fails"}: <span class="mono">${esc(r.failure.shown)}</span><br>${esc(r.failure.why)}</div>` : "";
+  const fail = r.failure ? `<div class="err">${model ? "A generated run differs from the model" : "A generated case fails"}: <span class="mono">${esc(r.failure.shown)}</span>: ${esc(r.failure.why)}</div>` : "";
   const unreached = r.coverage.filter(c => c.held === 0);
   const verdict = !r.failure && !unreached.length ? `<div class="small ok">${model ? "Every run gives what the model gives and leaves what it leaves, and every operation and branch of it was reached."
     : "Every case meets it, and every part of it was reached."}</div>` : "";

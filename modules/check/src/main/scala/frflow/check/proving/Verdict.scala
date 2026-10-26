@@ -89,12 +89,22 @@ object Verdict:
         case TheoremVerdict.Proven => Result(o, Open, "not checked: " + clip(e.run.output))
         case v => Result(o, Open, clip(v.why(name).getOrElse("")))
 
-  /** An authored `complete` that does not go through, in FrFlow's words first (`changed`: the nodes, among it and its
-    * parts, that changed since they were decided), then Lean's.
+  /** An authored `complete` that does not go through, in FrFlow's words first (`changed`: what changed since it and
+    * its parts were decided, as `whatChanged` names it), then Lean's.
     */
-  def brokenProof(n: Node[?], r: Result, changed: List[String]): Result =
+  def brokenProof(r: Result, changed: List[String]): Result =
     val why = if changed.isEmpty then "does not go through" else s"no longer goes through: ${changed.mkString(" and ")} changed"
-    r.copy(detail = s"the proof of ${n.id} from its parts $why\nLean: ${r.detail}")
+    r.copy(detail = s"the proof from its parts $why\nLean: ${r.detail}")
+
+  /** What changed of a node since it was decided, as a proof reads it: the definitions and types it uses, by name, and
+    * the node itself when its own formula did.
+    */
+  def whatChanged(id: String, before: Content, now: Content): List[String] =
+    def uses(c: Content) = c.strs("uses").map(u => UsedName.findFirstMatchIn(u).fold(u)(_.group(1)) -> u)
+    val (was, is) = (uses(before), uses(now))
+    val own = List("sources", "substitutions").exists(k => before(k) != now(k))
+    (Option.when(own)(id).toList ++ (is.filterNot(was.contains) ++ was.filterNot(is.contains)).map(_._1)).distinct
+  private val UsedName = """^(?:(?:final\s+)?case\s+class\s+|enum\s+)?([A-Za-z_]\w*)""".r
 
   /** Automation gave up on `complete`: what to do next, and the goal its first steps leave. */
   def gaveUp(g: Generate, n: Node[?], r: Result, state: Option[String]): Result =

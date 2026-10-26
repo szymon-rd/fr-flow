@@ -14,11 +14,17 @@ object ReportText:
     val status = if c.status != CheckStatus.Proven || c.ok then c.status else if c.notProven.isEmpty then CheckStatus.Failed else CheckStatus.Open
     val notProven = if status != c.status && c.notProven.nonEmpty then s" (${c.notProven.mkString(", ")} not proven)" else ""
     val glyph = if c.ok then st.proven else if status == CheckStatus.Failed || c.failing.nonEmpty then st.failed else st.open
-    s"$glyph ${st.bold(c.id.value)}: $status$notProven" ::
+    // One obligation left: what it says is the node's line, its name left out; several are listed by name.
+    val (head, problems) = c.problems match
+      case List(r) =>
+        val ls = r.detail.linesIterator.toList
+        (ls.headOption.filter(_.trim.nonEmpty).getOrElse(s"$status$notProven"), ls.drop(1) match { case Nil => Nil; case rest => List("  " + rest.mkString("\n    ")) })
+      case rs => (s"$status$notProven", rs.map(r => s"${r.name} ${r.status}: ${r.detail.linesIterator.mkString("\n    ")}"))
+    s"$glyph ${st.bold(c.id.value)}: $head" ::
       (Option.when(c.failing.nonEmpty)(st.red(s"${c.failing.size} example(s) fail: the code or the contract is wrong; fix that, not the proof")).toList ++
         c.failing.take(5).map(f => s"  ${f.example}: ${f.verdict}") ++
-        c.testFailure.toList.flatMap(f => List(st.red(s"its code fails a generated case: ${f.shown}"), s"  ${f.why}")) ++
-        c.problems.map(r => s"${r.name} ${r.status}: ${r.detail.linesIterator.mkString("\n    ")}") ++
+        c.testFailure.toList.map(f => st.red(s"its code fails a generated case: ${f.line}")) ++
+        problems ++
         c.idle.map(i => st.red(s"! doing nothing meets it ($i): state what users can do, so it says exactly what the system does (status fails until then)")) ++
         (c.messages ++ c.hint).map(m => s"! ${m.linesIterator.mkString("\n    ")}")).map("  " + _)
 

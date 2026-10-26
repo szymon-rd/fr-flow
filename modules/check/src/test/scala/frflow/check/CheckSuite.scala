@@ -140,10 +140,22 @@ class CheckSuite extends munit.FunSuite:
 
   test("an authored proof that does not go through says so in FrFlow's words first, naming what changed, then Lean's") {
     val lean = Result(ObligationName.Complete, ObligationStatus.Open, "omega could not prove the goal")
-    assertEquals(Verdict.brokenProof(onlyGood, lean, List("FromList")).detail,
-      "the proof of OnlyGood from its parts no longer goes through: FromList changed\nLean: omega could not prove the goal")
-    assertEquals(Verdict.brokenProof(onlyGood, lean, Nil).detail,
-      "the proof of OnlyGood from its parts does not go through\nLean: omega could not prove the goal")
+    assertEquals(Verdict.brokenProof(lean, List("overlaps")).detail,
+      "the proof from its parts no longer goes through: overlaps changed\nLean: omega could not prove the goal")
+    assertEquals(Verdict.brokenProof(lean, Nil).detail,
+      "the proof from its parts does not go through\nLean: omega could not prove the goal")
+  }
+
+  test("what changed since a node was decided, as its proof reads it: the definitions it uses by name, its own formula") {
+    import io.circe.Json
+    def node(formula: String, uses: String*) = Content("sources" -> Json.obj("formula" -> Json.fromString(formula)),
+      "why" -> Json.fromString("w"), "uses" -> Json.fromValues(uses.map(Json.fromString)))
+    val before = node("f", "case class Booking(room: String)", "overlaps = (a, b) => a.start < b.end", "covers = (b, t) => b.start <= t")
+    assertEquals(Verdict.whatChanged("Root", before, node("f", "case class Booking(room: String)", "overlaps = (a, b) => a.start <= b.end",
+      "covers = (b, t) => b.start <= t")), List("overlaps"))
+    assertEquals(Verdict.whatChanged("Root", before, node("g", "case class Booking(room: String, start: BigInt)",
+      "overlaps = (a, b) => a.start < b.end", "covers = (b, t) => b.start <= t")), List("Root", "Booking"))
+    assertEquals(Verdict.whatChanged("Root", before, before), Nil)
   }
 
   /** The node's Checks file as generated, and an output where Lean proves `holds` and the obligations, and none of the tries. */
