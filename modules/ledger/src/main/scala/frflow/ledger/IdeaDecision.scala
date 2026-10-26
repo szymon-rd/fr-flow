@@ -30,8 +30,6 @@ object IdeaDecision:
       case Some(_) =>
         Right(ledger.add(Id, Decision(Action.Accept, by, stamp.at, reason, commit = stamp.commit, content = content(snapshot.idea))))
 
-  /** `From:` lines in IDEA.md say where a section comes from (a meeting, a document, a conversation). Provenance, not
-    * meaning: they move no node.
-    */
+  /** `From:` lines in IDEA.md say where a section comes from (a meeting, a document, a conversation); they move no node. */
   val FromLine = """(?i)^\s*From:\s*(.*)$""".r
   def withoutSources(idea: String): String = idea.linesIterator.filterNot(FromLine.matches).mkString("\n")

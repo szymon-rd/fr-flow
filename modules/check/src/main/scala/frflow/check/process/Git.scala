@@ -6,7 +6,7 @@ import cats.effect.{IO, Resource}
 import java.nio.file.{Files, Path}
 import scala.concurrent.duration.*
 
-/** The little FrFlow asks of git: the current commit, and how files changed since one. Outside git each says so. */
+/** What FrFlow asks of git: the current commit, and how files changed since one. Outside git each says so. */
 final class Git private (dir: Path):
   // git's output, if it ran and succeeded within 20 seconds.
   private def run(env: Map[String, String], args: String*): IO[Option[String]] =

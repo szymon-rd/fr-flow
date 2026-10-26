@@ -25,7 +25,7 @@ enum Decide derives Codec.AsObject:
 
   def reason: String
 
-/** The one way to record a decision: the new ledger, or why it is refused. Pure. */
+/** Records a decision: the new ledger, or why it is refused. */
 object Decide:
   private final case class Record(g: Graph, by: String, stamp: Stamp):
     def apply(action: Action, n: SnapNode, reason: String, rejected: List[NodeId] = Nil): Decision =

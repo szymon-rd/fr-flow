@@ -28,5 +28,5 @@ object Mechanical:
       .orElse(Option.when(ok != total)(s"${total - ok} of $id's examples fail"))
       .orElse(Option.when(n.invariants.exists(i => i.status != ObligationStatus.Proven && i.status != ObligationStatus.Exempt))(
         s"an invariant $id keeps is not proven"))
-      // Waiting for a node that is itself mechanical is no wait: the batch accepts it first.
+      // A wait for a node that is itself mechanical does not count: the batch accepts that node first.
       .orElse(v.waitsFor(n).filter(w => v.graph.byId.get(w).forall(_ => others.get(w).forall(_.isDefined))).map(w => s"$id waits for $w"))

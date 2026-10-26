@@ -8,7 +8,7 @@ import java.nio.charset.StandardCharsets.UTF_8
 import java.security.{PublicKey, Signature}
 import java.util.Base64
 
-/** Decisions signed by the developer's key, so one written into the ledger by anyone else shows. Pure: the keys are given. */
+/** Decisions signed by the developer's key, so one written into the ledger by anyone else shows. The keys are passed in. */
 object Signing:
   /** What is signed: everything the decision says, and which node it is about. */
   def payload(id: NodeId, d: Decision): Array[Byte] =

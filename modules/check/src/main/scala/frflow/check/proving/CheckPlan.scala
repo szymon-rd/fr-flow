@@ -29,7 +29,7 @@ final case class CheckPlan(a: Analysis, only: Option[String]):
     val level = todo.foldLeft(Map.empty[String, Int])((known, n) => go(n, Set.empty, known)._2)
     todo.groupBy(n => level.getOrElse(n.id, 0)).toList.sortBy(_._1).map(_._2)
 
-  /** The models, and the proofs of the code (which import only models), first in one build: one at a time, they were most of a cold check. */
+  /** The models, and the proofs of the code (which import only models), first in one build: built one at a time, they take most of a cold check. */
   val prebuild: List[String] =
     val ready = pending.filter(g.waitsForDefinition(_).isEmpty)
     ready.map(n => g.layout.spec(n.id).name) ++ ready.filter(g.obligation(_, ObligationName.Impl).isDefined).map(n => g.layout.impl(n.id).name)

@@ -3,9 +3,8 @@ import FrFlow.Faults
 
 /-!
 `frflow_auto`: the tactic tried first on every link obligation. It unfolds the
-generated definitions, simplifies, and closes what remains with `grind` (splitting
-conjunctions under quantifiers first, if that is what it takes). It only
-produces proofs; Lean checks them.
+generated definitions, simplifies, and closes what remains with `grind` (after splitting
+conjunctions under quantifiers, when `grind` alone fails).
 -/
 
 syntax "frflow_auto" : tactic
@@ -31,7 +30,7 @@ open Lean Elab Tactic
 /-- `frflow_eval`: decides an example. `simp` computes it; a map or a set (a function) is compared
 key by key, splitting on the keys the example names. An example `simp` computes to `False` is
 false (simp's rewrites keep the goal's meaning), so nothing else is tried on it: half of the
-examples' theorems are opposites that do not hold, and trying `grind` on each was most of their time. -/
+examples' theorems are opposites that do not hold, and `grind` on each takes most of their time. -/
 elab "frflow_eval" : tactic => do
   let start ← saveState
   let computed ← try

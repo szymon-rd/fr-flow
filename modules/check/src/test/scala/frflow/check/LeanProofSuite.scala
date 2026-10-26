@@ -24,7 +24,7 @@ class LeanProofSuite extends LeanLab:
     assertEquals(root.obligations.filter(o => o.name.lean.startsWith("needed_") || Set("complete", "clash", "unsat")(o.name.lean)).map(o => o.name.lean -> o.status.toString),
       List("complete" -> "proven", "needed_FromList" -> "not-shown", "needed_OnlyLong" -> "not-shown", "needed_EveryLong" -> "not-shown", "clash" -> "not-shown", "unsat" -> "not-shown"))
     assertEquals(result(root, "idle").map(_.status.toString), Some("not-shown"))
-    // each said plainly in the snapshot's split too
+    // the same in the snapshot's split
     assertEquals(splitOf(w, onlyGood).needed.map(_.status), List.fill(3)(ObligationStatus.NotShown))
     assertEquals(st(splitOf(w, onlyGood), "clash"), Some("not-shown"))
     // Pick has three parents: each is proven from it, and it is proven once
