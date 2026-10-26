@@ -31,7 +31,7 @@ addCommandAlias("frflowInit", "cli/runMain frflow.cli.Init")
 addCommandAlias("frflowInitAgent", "agent/runMain frflow.agent.Init")
 
 lazy val root = project.in(file("."))
-  .aggregate(model, protocol, lean, ledger, check, api, cli, web, agent, auth, crm, keycloak, sharing)
+  .aggregate(model, protocol, lean, ledger, check, api, cli, web, agent, auth, crm, keycloak, sharing, rooms)
   .configs(LeanTest).settings(leanTagged)
   .settings(publish / skip := true)
 
@@ -130,3 +130,6 @@ lazy val keycloak = example("keycloak").settings(Compile / run / mainClass := So
 /** People, teams, documents and folders: who can view and edit what, and who may change it. */
 lazy val sharing = example("sharing").settings(libraryDependencies += "org.xerial" % "sqlite-jdbc" % "3.46.1.3",
   Compile / run / mainClass := Some("sharing.sharingCli"))
+
+/** Booking meeting rooms: a request is granted exactly when its room is free; the README's example. */
+lazy val rooms = example("rooms", layers = Nil)
