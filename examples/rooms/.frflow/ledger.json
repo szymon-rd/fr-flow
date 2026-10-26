@@ -27,6 +27,20 @@
         "sig": "0P8KVvDeWcazI+JIStZpX/3hMSGiMl8wdS6W78ZJ9h61OQu8ZezxbEKSd+83X8c2lAoeSCJn9sr/wEbw2ejvDg==",
         "chain": "218c7995af6753b8a67deddab22201da0b137da1db99df91babe6a8e8d00ea73",
         "content": "a24fe3a9b0d1ab7a"
+      },
+      {
+        "action": "confirm",
+        "by": "demo-developer",
+        "at": "2026-10-26T03:53:13.330865Z",
+        "reason": "Binary search finds the same neighbours; the tests pass.",
+        "rejected": [],
+        "after": "58f5639ede752dc9",
+        "code": "7e36276b9e3743b2e9448b2a73d1c079353b627e421ad003fa8bb1c52a84b2c3",
+        "commit": "a687e38c2b465c9fd8836f8b5a36203a759901d1",
+        "key": "b6e216cfdf46a202",
+        "sig": "KdrqSFFNqR29l08waVXxKuHSHazjOp3rUjtX1rtweolWTMpmzTHQ6A3moQFle0OAuBC62hrhlP0eQUrGVfK4Dw==",
+        "chain": "218c7995af6753b8a67deddab22201da0b137da1db99df91babe6a8e8d00ea73",
+        "content": "a24fe3a9b0d1ab7a"
       }
     ]
   },
