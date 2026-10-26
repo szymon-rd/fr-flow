@@ -4,7 +4,8 @@ import frflow.*
 
 final case class Booking(room: String, start: BigInt, end: BigInt)
 
-val granted = Param[(List[Booking], Booking) => Boolean]("granted", "whether a request is granted, given the bookings held")
+val granted =
+  Param[(List[Booking], Booking) => Boolean]("granted", "whether a request is granted, given the bookings held")
 
 // What both levels ask of the bookings, with no moments in it.
 val endsAfterStart = define { (b: Term[Booking]) => b.start < b.end }
@@ -54,7 +55,11 @@ val requests = for
   room <- Gen.oneOf("Oak", "Elm"); start <- Gen.chooseBig(0, 8); length <- Gen.chooseBig(1, 3)
 yield Booking(room, start, start + length)
 
-val calendars = Gen.listOf(for room <- Gen.oneOf("Oak", "Elm"); gap <- Gen.chooseBig(0, 1); length <- Gen.chooseBig(1, 3) yield (room, gap, length))
+val slots = for
+  room <- Gen.oneOf("Oak", "Elm"); gap <- Gen.chooseBig(0, 1); length <- Gen.chooseBig(1, 3)
+yield (room, gap, length)
+
+val calendars = Gen.listOf(slots)
   .map(_.foldLeft((List.empty[Booking], BigInt(0))) { case ((held, end), (room, gap, length)) =>
     (Booking(room, end + gap, end + gap + length) :: held, end + gap + length) }._1)
 
