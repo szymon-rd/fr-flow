@@ -1,18 +1,15 @@
 package rooms
 
-/** Each room's bookings in start order, each with the booking ending last among those up to it. */
-final class Calendar(bookings: List[Booking]):
+/** Whether a request is granted: it overlaps neither of its neighbours, by start, among its room's bookings. A room's
+  * bookings never overlap, so they end in the order they start, and only the neighbours can overlap a request.
+  */
+final class Calendar(held: RoomBookings):
   private val startOrder: Ordering[Booking] = Ordering.by(_.start)
-  private val byRoom = bookings.groupBy(_.room).map((room, bs) => room -> bs.sorted(using startOrder).toVector)
-  private val endingLast = byRoom.map((room, bs) => room -> bs.scanLeft(Option.empty[Booking])((last, b) =>
-    Some(last.filter(_.end >= b.end).getOrElse(b))).flatten)
+  private val byRoom = held.bookings.groupBy(_.room).map((room, bs) => room -> bs.sorted(using startOrder).toVector)
 
-  /** The bookings starting before the request must have ended by its start: the one ending last among them tells.
-    * Of those starting at or after it, the first must start once the request has ended.
-    */
   def grants(request: Booking): Boolean =
     val roomBookings = byRoom.getOrElse(request.room, Vector.empty)
     val i = roomBookings.search(request)(using startOrder).insertionPoint
-    val previous = endingLast.getOrElse(request.room, Vector.empty).lift(i - 1)
+    val previous = roomBookings.lift(i - 1)
     val following = roomBookings.lift(i)
     previous.forall(_.end <= request.start) && following.forall(_.start >= request.end)

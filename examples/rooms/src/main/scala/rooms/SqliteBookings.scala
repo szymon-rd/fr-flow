@@ -3,12 +3,12 @@ package rooms
 import frflow.*
 import java.sql.{Connection, DriverManager, PreparedStatement}
 
-/** The bookings in SQLite, a row each, read back in the order they were added. Checked against `stored`. */
-final class SqliteBookings private (conn: Connection) extends BookingStore:
+/** The bookings in SQLite, a row each, read back in the order they were added. Checked against `storedBookings`. */
+final class SqliteBookings private (conn: Connection) extends BookingTable:
   conn.createStatement().executeUpdate("create table if not exists bookings " +
     "(id integer primary key, room text not null, starts text not null, ends text not null)")
 
-  def inRoom(room: Term[String]) = Flow.effect(room)(bookingsIn)
+  def inRoom(room: Term[String]) = Flow.effect(room)(r => RoomBookings(bookingsIn(r)))
   def add(booking: Term[Booking]) = Flow.effect(booking)(insert)
 
   def held: List[Booking] = synchronized {

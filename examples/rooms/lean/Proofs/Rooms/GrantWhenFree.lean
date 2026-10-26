@@ -24,9 +24,9 @@ theorem apart_iff_noOverlap {a b : Booking} (ha : endsAfterStart a) (hb : endsAf
 
 theorem complete : Obl.complete := by
   unfold Obl.complete
-  intro granted h_GrantWhenNoOverlap held request hHeld hRequest
+  intro granted h_GrantWhenNoOverlap held request hApart hHeld hRequest
   simp only [post, free]
-  rw [h_GrantWhenNoOverlap held request hHeld hRequest]
+  rw [h_GrantWhenNoOverlap held request hApart hHeld hRequest]
   exact propext (forall₂_congr fun b hb => (apart_iff_noOverlap (hHeld b hb) hRequest).symm)
 
 end Rooms.GrantWhenFree.Proofs
