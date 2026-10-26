@@ -99,6 +99,8 @@ object NodeText:
       Option.when(n.covers.nonEmpty)(s"kept by ${n.covers.mkString(", ")}").toList ++
       Option.when(n.alwaysProofs.exists(_.obligation.startsWith("kept_by")))(
         s"kept by ${n.alwaysProofs.filter(_.obligation.startsWith("kept_by")).map(_.by).mkString(", ")}").toList ++
+      Option.when(n.alwaysProofs.exists(_.obligation == "complete"))(s"proven where code hands one on: in the steps " +
+        s"of ${n.alwaysProofs.filter(_.obligation == "complete").map(_.by).mkString(" and ")}").toList ++
       Option.when(n.exempts.nonEmpty)(s"exempt: ${n.exempts.mkString(", ")}").toList ++
       n.expectations.flatMap(e => s"expects (${e.status}): ${e.statement}" :: indent(e.source))
 
@@ -136,7 +138,8 @@ object NodeText:
 
   private def proofs(n: SnapNode, st: Style, full: Boolean): List[String] =
     n.split.map(sp => s"complete: ${outcome(sp.complete, st, full)}").toList ++
-      n.alwaysProofs.map(p => s"${p.obligation}: ${outcome(p.outcome, st, full)}") ++
+      n.alwaysProofs.map(p => s"${p.obligation}${if p.obligation == "complete" then s" of ${p.by}" else ""}: " +
+        outcome(p.outcome, st, full)) ++
       n.implementationProof.map(p => s"impl (${p.name}): ${outcome(Outcome(p.status, p.detail), st, full)}") ++
       n.rootImpl.map(o => s"root_impl: ${outcome(o, st, full)}") ++
       n.idle.map(i => st.red(s"idle: Lean shows doing nothing meets it ($i): say what users can do")) ++

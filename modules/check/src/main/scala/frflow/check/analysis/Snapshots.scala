@@ -65,12 +65,21 @@ object Snapshots:
       tested = a.tested(n), runtime = kb.runTime(n), premises = ids(n.premises),
       alwaysProofs = alwaysProofs(a, n, outcome))
 
-  /** What an `always` claim about a store rests on, as proven: each program writing it keeps it; its start meets it. */
+  /** What an `always` claim rests on, as proven: each program writing what holds it keeps it; a store's start meets
+    * it; and the steps whose code hands a value of its type to a claim assuming it (a part assumes it, the step
+    * does not) show it of that value (`complete` of the step).
+    */
   private def alwaysProofs(a: Analysis, n: Node[?], outcome: ObligationName => Outcome): List[AlwaysProof] =
-    val kept = a.kb.writers(n).flatMap(_.op).map(_.name).map(p => AlwaysProof(KeptBy(p).lean, p, outcome(KeptBy(p))))
+    val kb = a.kb
+    val kept = kb.writers(n).flatMap(_.op).map(_.name).map(p => AlwaysProof(KeptBy(p).lean, p, outcome(KeptBy(p))))
     val start = n.premises.find(_.initially.isDefined).filter(_ => n.always.exists(_.store.isDefined))
       .map(s => AlwaysProof(Initially.lean, s.id, outcome(Initially)))
-    if n.isAlways then kept ++ start else Nil
+    def assumes(c: Node[?]) = kb.invariantsUsedBy(c).exists(_ eq n)
+    val handed = kb.nodes.filter(p => kb.isStatement(p) && !assumes(p) && kb.parts(p).exists(assumes)).map { p =>
+      val o = a.current(p).flatMap(_.result(ObligationName.Complete)).fold(Outcome.unchecked)(Outcome.of)
+      AlwaysProof(ObligationName.Complete.lean, p.id, o)
+    }
+    if n.isAlways then kept ++ start ++ handed else Nil
 
   /** An invariant a contract keeps: the view lists all the result holds of it, and the invariant's `complete`, this contract
     * among its parts. Lean showing it holds without the contract leaves it `open`; a try that found no proof proves nothing.
