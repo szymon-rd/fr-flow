@@ -4,7 +4,9 @@ final class Calendar(bookings: List[Booking]):
   private val startOrder: Ordering[Booking] = Ordering.by(_.start)
   private val byRoom = bookings.groupBy(_.room).map((room, bs) => room -> bs.sorted(using startOrder).toVector)
 
-  /** Only the bookings just before and just after the request's start can overlap it. */
+  /** The bookings of a room never overlap, so only the ones just before and just after the request's start can overlap
+    * it.
+    */
   def granted(request: Booking): Boolean =
     val inRoom = byRoom.getOrElse(request.room, Vector.empty)
     val i = inRoom.search(request)(using startOrder).insertionPoint

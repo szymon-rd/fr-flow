@@ -8,7 +8,7 @@ val granted =
   Param[(List[Booking], Booking) => Boolean]("whether a request is granted, given the bookings held")
 
 val endsAfterStart = define { (b: Term[Booking]) => b.start < b.end }
-val wellFormed = define { (held: Term[List[Booking]], request: Term[Booking]) =>
+val allEndAfterStart = define { (held: Term[List[Booking]], request: Term[Booking]) =>
   endsAfterStart(request) && held.forall(endsAfterStart) }
 
 // The root, over moments.
@@ -20,8 +20,8 @@ val apart = define { (a: Term[Booking], b: Term[Booking]) =>
 val grantWhenFree =
   Node.claim("A request is granted exactly when its room is free for its whole time.")(
     forall((held: Term[List[Booking]], request: Term[Booking]) =>
-      wellFormed(held, request) && held.pairwise(apart) implies
-        granted(held, request) === held.forall(b => apart(b, request)))
+      (allEndAfterStart(held, request) && held.pairwise(apart)) implies
+        (granted(held, request) === held.forall(b => apart(b, request))))
   )
 
 // The contract, over start and end times.
@@ -31,8 +31,8 @@ val noOverlap = define { (a: Term[Booking], b: Term[Booking]) =>
 val grantWhenNoOverlap =
   Node.contract("A request is granted exactly when it overlaps no booking of its room.")(
     forall((held: Term[List[Booking]], request: Term[Booking]) =>
-      wellFormed(held, request) && held.pairwise(noOverlap) implies
-        granted(held, request) === held.forall(b => noOverlap(b, request)))
+      (allEndAfterStart(held, request) && held.pairwise(noOverlap)) implies
+        (granted(held, request) === held.forall(b => noOverlap(b, request))))
   )
   .refines(grantWhenFree)
   .examples(
@@ -52,9 +52,9 @@ val calendars = Gen.listOf(slots)
   .map(_.foldLeft((List.empty[Booking], BigInt(0))) { case ((held, end), (room, gap, length)) =>
     (Booking(room, end + gap, end + gap + length) :: held, end + gap + length) }._1)
 
-val knowledge = KnowledgeBase("Rooms")(grantWhenFree, grantWhenNoOverlap)
+val rooms = KnowledgeBase("Rooms")(grantWhenFree, grantWhenNoOverlap)
   .implement(grantWhenNoOverlap)((held, request) => Calendar(held).granted(request))
   .generating(requests.describedAs("bookings of Oak or Elm that end after they start"))
   .generating(calendars.describedAs("calendars: bookings that never overlap, some back to back"))
 
-object roomsCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/rooms")
+object roomsCli extends frflow.cli.FrFlowApp(rooms, root = "examples/rooms")
