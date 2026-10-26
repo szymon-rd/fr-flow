@@ -57,11 +57,11 @@ object Housekeeping:
       invitations = lib.invitations.filter(i => isOpen(i, t)))))
     .refines(clearsOnlyTheEnded)
     .examples()(
-      expect(ended, now, ended, "nothing has ended yet"),
-      expect(ended, now + 3600, ended.copy(shares = library.shares), "Bob's share of the plan has ended"),
-      expect(ended, now + 29 * day, library.copy(documents = List(q3ReportDoc), shares = List(annEditsReports, engViewsReports)),
+      allows(ended, now, ended, "nothing has ended yet"),
+      allows(ended, now + 3600, ended.copy(shares = library.shares), "Bob's share of the plan has ended"),
+      allows(ended, now + 29 * day, library.copy(documents = List(q3ReportDoc), shares = List(annEditsReports, engViewsReports)),
         "a month on: the invitation has lapsed, and the plan is gone with its shares"),
-      never(ended, now, library, "nothing is removed before its time"))
+      forbids(ended, now, library, "nothing is removed before its time"))
 
   val tidyCode = define { (lib: Term[Library], t: Term[BigInt]) =>
     lib.copy((documents = lib.documents.filterNot(doc => gone(doc, t)),
@@ -91,12 +91,12 @@ object Housekeeping:
     .failsChangingNothing[Failure]
     .refines(sharing.time.Deadlines.trashPurgedOnTime, sharing.time.Deadlines.invitationsLapseOnTime, sharing.time.Deadlines.requestsAnsweredOnTime)
     .examples()(
-      expect(at(ended, now + 3600), (), at(tidiedAnHourOn, now + 3600), "an hour on: Bob's share goes, and the run is logged"),
-      expect(at(ended, now), (), at(ended, now), "nothing has ended yet: nothing to log"),
-      expect(at(ended, now + 3600).failing(false, true), Failed(Failure.StoreUnavailable), at(ended, now + 3600),
+      allows(at(ended, now + 3600), (), at(tidiedAnHourOn, now + 3600), "an hour on: Bob's share goes, and the run is logged"),
+      allows(at(ended, now), (), at(ended, now), "nothing has ended yet: nothing to log"),
+      allows(at(ended, now + 3600).failing(false, true), Failed(Failure.StoreUnavailable), at(ended, now + 3600),
         "the store fails as the run saves: nothing changes, the next run tries again"),
-      never(at(ended, now + 3600), (), at(ended, now + 3600), "a run removes what has ended"),
-      never(at(ended, now + 3600).failing(false, true), Failed(Failure.StoreUnavailable), at(tidiedAnHourOn, now + 3600),
+      forbids(at(ended, now + 3600), (), at(ended, now + 3600), "a run removes what has ended"),
+      forbids(at(ended, now + 3600).failing(false, true), Failed(Failure.StoreUnavailable), at(tidiedAnHourOn, now + 3600),
         "a failed run changes nothing"))
 
   /** One run, one transaction (Q19): the time, the library, the library tidied and its requests chased, saved with its

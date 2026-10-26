@@ -19,9 +19,9 @@ class LeanRootSuite extends LeanLab:
     val c = Node.contract(picks)("GuardPick", "A call returns only long books from the shelf.", why = "w")(
       (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages)).refines(guard)
       .examples(minPages.bind(100))(
-        expect(List(Book("Long", 300)), 5, List(Book("Long", 300)), "the long book"),
-        expect(List(Book("Short", 20)), 5, Nil, "none"),
-        never(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
+        allows(List(Book("Long", 300)), 5, List(Book("Long", 300)), "the long book"),
+        allows(List(Book("Short", 20)), 5, Nil, "none"),
+        forbids(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
     val w = workflow(KnowledgeBase("Guard", idea = "IDEA.md")(guard, books, picking, c))
     val root = of(w.check(), "Guard")
     assertEquals(result(root, "idle").map(_.status.toString), Some("shown"), root)

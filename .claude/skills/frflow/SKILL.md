@@ -105,7 +105,7 @@ section come back to them.
 14. **Names.** Node ids are unique identifiers, distinct from every type,
     function and term. A `Param` or `Opaque` named after a Lean word (`decide`,
     `max`, `id`, `holds`, `m`, `x0`, ...) is refused; a val named after a FrFlow
-    function (`keeps`, `expect`) hides it. To rename a node, change its id and
+    function (`keeps`, `allows`) hides it. To rename a node, change its id and
     val, and move its proof file.
 15. **Changes.** A change of formula reviews what rests on the node; a change
     to governed code reviews the node (`code`): say why its invariants still hold.
@@ -166,8 +166,8 @@ val decisionContract = Node.contract(admit)("DecisionContract",
 )((token, path, decision) => decision.forall(u => sessions(token) === Some(u) && grants.contains(Grant(u, path))) && ...)
   .refines(tokenNamesHolder, accessNeedsGrant, grantLetsIn)
   .examples(grants.bind(List(Grant(UserId("alice"), Path("/a")))), sessions.bindTable(Map("t1" -> UserId("alice"))))(
-    expect("t1", Path("/a"), Some(UserId("alice")), "Alice's token and a grant for /a: she gets in"),
-    never("t1", Path("/b"), Some(UserId("alice")), "access without a grant is never given"))
+    allows("t1", Path("/a"), Some(UserId("alice")), "Alice's token and a grant for /a: she gets in"),
+    forbids("t1", Path("/b"), Some(UserId("alice")), "access without a grant is never given"))
 // its code: plain Scala, tested against the contract (see "Terms or plain Scala"):
 //   knowledge.implement(decisionContract)(SessionStore(grants.value.toSet, sessions.value).decide)
 val expireCode = define { (s: Term[CrmStore], now: Term[BigInt]) =>      // crm: code Lean proves
@@ -199,7 +199,7 @@ val sessionLookup = Node.assumption(lookup)("SessionLookup",          // keycloa
   shows the invariant; every contract and design node in its scope keeps it or
   is `.exempt`. `idea = "Section"`: the section of `IDEA.md` it is decided against.
 - **Arity.** An operation takes 0 to 6 inputs. The post, `checkedBy`, a `keeps`
-  view, an `expect`/`never` and `implement` take them in order, then the result
+  view, an `allows`/`forbids` and `implement` take them in order, then the result
   (a flow's: then the worlds before and after): `(by, doc, withWhom, r) => ...`.
 - **Extras.** `.checkedBy((a, b, r) => ...)`: a cheap check of the result, run
   where the code runs, proven to follow from the post. `.expects(statement)(formula)`:
@@ -209,7 +209,7 @@ val sessionLookup = Node.assumption(lookup)("SessionLookup",          // keycloa
   plain code and outside adapters, none for a proven define). It is the
   developer's decision: propose it with the cost that motivates it (a check that
   restates an expensive specification), never to hide a failing check.
-- **Examples.** Every contract needs an `expect` and a `never`, and expects
+- **Examples.** Every contract needs an `allows` and a `forbids`, and expects
   with different results. Bind every parameter the post reads; a lookup as
   `bindTable(Map(...))` so Lean can evaluate it. "Lean and Scala disagree"
   means FrFlow's Lean printer or evaluator is wrong: report it; never change
@@ -307,7 +307,7 @@ def expireOnce(now: Term[BigInt]): Flow[CrmStore] =   // the code, in Cats style
   `Flow.unlessA(c)(f)`, `Flow.ifM(fc)(f1, f2)`; lists `xs.traverse_`, `xs.traverse`, `xs.foldM(z)((acc, x) => f)`,
   `Flow.sequence(fs)`. One way to say each: no `If`, no `when`.
 - **The contract's examples** give the world before and after:
-  `expect(BigInt(150), World(DatabaseModel -> Tables(...)), result, World(DatabaseModel -> Tables(...)), "...")`.
+  `allows(BigInt(150), World(DatabaseModel -> Tables(...)), result, World(DatabaseModel -> Tables(...)), "...")`.
 - **Calling an operation from a flow** (`expire` above) proves the flow from
   that operation's contract, not its code: prefer it to calling the define.
 - A contract on a flow may have no parent: production runs it, as an entry
@@ -359,7 +359,7 @@ write a property by hand, and never weaken a contract or an example to make a
 test pass.
 
 - **A failing case** (`its code fails a generated case: … ⇒ …  given …: why`)
-  is shrunk; reproduce it as an `expect` or `never` example, fix the code, and
+  is shrunk; reproduce it as an `allows` or `forbids` example, fix the code, and
   run `check` again (the case is replayed first).
 - **A coverage finding** (`its code's tests never reached a part of the
   contract: <part>`) means no generated case made that premise, branch or case

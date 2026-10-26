@@ -158,7 +158,7 @@ assumption or a contract has no parents only when code calls its operation, it i
 implements it; a design node has a
 parent; a definition has none; at most one definition in force per term.
 
-Also part of the DSL: `examples(bindings*)(expect/reject...)` (on a flow's contract, each with the
+Also part of the DSL: `examples(bindings*)(allows/forbids...)` (on a flow's contract, each with the
 world before and after), `checkedBy`, `checkedAgainst`, `implement`, `implementProven(contract)(define)`,
 `(define, runs)` and `(flow)`, `service`, `run`, `expects`, `forall`/`exists`.
 

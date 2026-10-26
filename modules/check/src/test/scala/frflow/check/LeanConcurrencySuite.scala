@@ -23,11 +23,11 @@ class LeanConcurrencySuite extends LeanLab:
     val p = Param[BigInt => Flow[(BigInt, Unit)]]("peek", "the count read while goods come in")
     val c = Node.contract(p)("Peek", "Goods come in.", why = "A test.")((n, r, before, after) =>
       after(StockModel) === before(StockModel) + n)
-      .examples()(expect(BigInt(2), World(StockModel -> BigInt(1), TillModel -> BigInt(0)), (BigInt(1), ()),
+      .examples()(allows(BigInt(2), World(StockModel -> BigInt(1), TillModel -> BigInt(0)), (BigInt(1), ()),
           World(StockModel -> BigInt(3), TillModel -> BigInt(0)), "two in"),
-        expect(BigInt(0), World(StockModel -> BigInt(4), TillModel -> BigInt(0)), (BigInt(4), ()),
+        allows(BigInt(0), World(StockModel -> BigInt(4), TillModel -> BigInt(0)), (BigInt(4), ()),
           World(StockModel -> BigInt(4), TillModel -> BigInt(0)), "none in"),
-        never(BigInt(2), World(StockModel -> BigInt(1), TillModel -> BigInt(0)), (BigInt(1), ()),
+        forbids(BigInt(2), World(StockModel -> BigInt(1), TillModel -> BigInt(0)), (BigInt(1), ()),
           World(StockModel -> BigInt(1), TillModel -> BigInt(0)), "not lost"))
     val kb = KnowledgeBase("Peek", idea = "IDEA.md")(stockKept, tillKept, c)
       .implementProven(c)((n: Term[BigInt]) => (stock.count, stock.add(n)).parTupled)

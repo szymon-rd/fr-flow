@@ -65,10 +65,10 @@ object Audit:
     .refines(auditTrail, sharing.notifications.Notifications.noticesFollowChanges, sharing.time.Deadlines.invitationsLapseOnTime,
       sharing.time.Deadlines.trashPurgedOnTime, sharing.time.Deadlines.requestsAnsweredOnTime)
     .examples()(
-      expect(library, now, Change.Made(shared), library.copy(log = List(Entry(0, now, Change.Made(shared)))), "the first entry is number 0"),
-      expect(library.copy(log = List(Entry(0, now, Change.Made(shared)))), now + 60, Change.Housekept,
+      allows(library, now, Change.Made(shared), library.copy(log = List(Entry(0, now, Change.Made(shared)))), "the first entry is number 0"),
+      allows(library.copy(log = List(Entry(0, now, Change.Made(shared)))), now + 60, Change.Housekept,
         library.copy(log = List(Entry(0, now, Change.Made(shared)), Entry(1, now + 60, Change.Housekept))), "the next is number 1"),
-      never(library.copy(log = List(Entry(0, now, Change.Made(shared)))), now + 60, Change.Housekept,
+      forbids(library.copy(log = List(Entry(0, now, Change.Made(shared)))), now + 60, Change.Housekept,
         library.copy(log = List(Entry(1, now + 60, Change.Housekept))), "an entry is never taken away"))
 
   val recordCode = define { (lib: Term[Library], t: Term[BigInt], c: Term[Change]) =>
@@ -97,11 +97,11 @@ object Audit:
     (e.at <= t - year && !explains(lib, e)).fold(Entry(e.id, e.at, Change.Forgotten: Term[Change]), e)))))
     .refines(auditTrail)
     .examples()(
-      expect(library.copy(shares = bobViewsPlan :: library.shares, log = List(oldShare, oldUnshare)), now,
+      allows(library.copy(shares = bobViewsPlan :: library.shares, log = List(oldShare, oldUnshare)), now,
         library.copy(shares = bobViewsPlan :: library.shares, log = List(oldShare, oldUnshare.copy(change = Change.Forgotten))),
         "over a year on: the unshare is forgotten; the share it made, still held, keeps its entry"),
-      expect(library.copy(log = List(oldUnshare)), now - 100 * day, library.copy(log = List(oldUnshare)), "under a year: kept"),
-      never(library.copy(log = List(oldUnshare)), now, library, "an entry is never taken away"))
+      allows(library.copy(log = List(oldUnshare)), now - 100 * day, library.copy(log = List(oldUnshare)), "under a year: kept"),
+      forbids(library.copy(log = List(oldUnshare)), now, library, "an entry is never taken away"))
 
   val forgetCode = define { (lib: Term[Library], t: Term[BigInt]) =>
     lib.copy((log = lib.log.map(e => (e.at <= t - year && !explains(lib, e)).fold(Entry(e.id, e.at, Change.Forgotten: Term[Change]), e))))

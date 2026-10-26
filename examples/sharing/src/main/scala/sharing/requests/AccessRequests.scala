@@ -76,11 +76,11 @@ object AccessRequests:
       lib.copy((requests = AccessRequest(p, w, level, t, False) :: requestsWithout(lib.requests, p, w))), lib))
     .refines(requestsAreAsks)
     .examples()(
-      expect(library, now - day, cat, Target.Doc(plan), Level.View, withCatAsking, "Cat asks to view the plan"),
-      expect(library, now - day, cat, Target.InFolder(reports), Level.View, library.copy(requests = List(catAsksForReports)),
+      allows(library, now - day, cat, Target.Doc(plan), Level.View, withCatAsking, "Cat asks to view the plan"),
+      allows(library, now - day, cat, Target.InFolder(reports), Level.View, library.copy(requests = List(catAsksForReports)),
         "Cat asks to view the reports folder"),
-      expect(library, now, cat, Target.Doc(DocumentId("nowhere")), Level.View, library, "no such document: nothing changes"),
-      never(library, now, cat, Target.Doc(plan), Level.View, library.copy(shares = catViewsPlan :: library.shares), "asking gives no access"))
+      allows(library, now, cat, Target.Doc(DocumentId("nowhere")), Level.View, library, "no such document: nothing changes"),
+      forbids(library, now, cat, Target.Doc(plan), Level.View, library.copy(shares = catViewsPlan :: library.shares), "asking gives no access"))
 
   val askCode = define { (lib: Term[Library], t: Term[BigInt], p: Term[PersonId], w: Term[Target], level: Term[Level]) =>
     holds(lib, w).fold(
@@ -99,11 +99,11 @@ object AccessRequests:
           requests = requestsWithout(lib.requests, p, w))), lib)))
     .refines(requestsAreAsks)
     .examples()(
-      expect(withCatAsking, now, ann, cat, Target.Doc(plan), library.copy(shares = catViewsPlan :: library.shares), "Ann approves: Cat may view the plan"),
-      expect(withCatAsking, now, bob, cat, Target.Doc(plan), withCatAsking, "Bob may not edit the plan: the request stays"),
-      expect(withCatAsking, now + 7 * day, ann, cat, Target.Doc(plan), withCatAsking, "eight days on the request has lapsed"),
-      expect(annAsks, now, ann, ann, Target.Doc(plan), annAsks, "Ann owns the plan: her request for view of it changes nothing"),
-      never(withCatAsking, now, bob, cat, Target.Doc(plan), library.copy(shares = catViewsPlan :: library.shares), "only an editor approves"))
+      allows(withCatAsking, now, ann, cat, Target.Doc(plan), library.copy(shares = catViewsPlan :: library.shares), "Ann approves: Cat may view the plan"),
+      allows(withCatAsking, now, bob, cat, Target.Doc(plan), withCatAsking, "Bob may not edit the plan: the request stays"),
+      allows(withCatAsking, now + 7 * day, ann, cat, Target.Doc(plan), withCatAsking, "eight days on the request has lapsed"),
+      allows(annAsks, now, ann, ann, Target.Doc(plan), annAsks, "Ann owns the plan: her request for view of it changes nothing"),
+      forbids(withCatAsking, now, bob, cat, Target.Doc(plan), library.copy(shares = catViewsPlan :: library.shares), "only an editor approves"))
 
   val approveCode = define { (lib: Term[Library], t: Term[BigInt], by: Term[PersonId], p: Term[PersonId], w: Term[Target]) =>
     lib.requests.find(r => r.person === p && r.what === w && isPending(r, t)).fold(lib)(r =>
@@ -121,9 +121,9 @@ object AccessRequests:
     result === mayEdit(lib, t, by, w).fold(lib.copy((requests = requestsWithout(lib.requests, p, w))), lib))
     .refines(requestsAreAsks)
     .examples()(
-      expect(withCatAsking, now, ann, cat, Target.Doc(plan), library, "Ann declines Cat's request"),
-      expect(withCatAsking, now, bob, cat, Target.Doc(plan), withCatAsking, "Bob may not edit the plan: the request stays"),
-      never(withCatAsking, now, bob, cat, Target.Doc(plan), library, "only an editor declines"))
+      allows(withCatAsking, now, ann, cat, Target.Doc(plan), library, "Ann declines Cat's request"),
+      allows(withCatAsking, now, bob, cat, Target.Doc(plan), withCatAsking, "Bob may not edit the plan: the request stays"),
+      forbids(withCatAsking, now, bob, cat, Target.Doc(plan), library, "only an editor declines"))
 
   val declineCode = define { (lib: Term[Library], t: Term[BigInt], by: Term[PersonId], p: Term[PersonId], w: Term[Target]) =>
     mayEdit(lib, t, by, w).fold(lib.copy((requests = requestsWithout(lib.requests, p, w))), lib)
@@ -155,13 +155,13 @@ object AccessRequests:
       outbox = lib.outbox ++ chaseNotices(lib, t))))
     .refines(requestsAreAsks)
     .examples()(
-      expect(withCatAsking, now, withCatAsking, "asked a day ago: nothing to do"),
-      expect(library.copy(requests = List(catAskedLongAgo)), now,
+      allows(withCatAsking, now, withCatAsking, "asked a day ago: nothing to do"),
+      allows(library.copy(requests = List(catAskedLongAgo)), now,
         library.copy(requests = List(catAskedLongAgo.copy(reminded = true)), outbox = List(Notice(ann, Subject.Reminder(catAskedLongAgo)))),
         "asked three days ago: Ann, the plan's owner, is reminded"),
-      expect(withCatAsking, now + 7 * day, library.copy(outbox = List(Notice(cat, Subject.Lapsed(catAsks)))),
+      allows(withCatAsking, now + 7 * day, library.copy(outbox = List(Notice(cat, Subject.Lapsed(catAsks)))),
         "eight days on: declined, and Cat is told"),
-      never(library.copy(requests = List(catAskedLongAgo.copy(reminded = true))), now,
+      forbids(library.copy(requests = List(catAskedLongAgo.copy(reminded = true))), now,
         library.copy(requests = List(catAskedLongAgo.copy(reminded = true)), outbox = List(Notice(ann, Subject.Reminder(catAskedLongAgo)))),
         "a request is reminded of once"))
 

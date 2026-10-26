@@ -60,10 +60,10 @@ object Lifetimes:
     .leftOpenAbove
     .refines(Deadlines.endedStaysEnded)
     .examples()(
-      expect(annEditsPlan, now, true, "a share with no end"),
-      expect(bobViewsPlanForAnHour, now, true, "an hour before its end"),
-      expect(bobViewsPlanForAnHour, now + 3600, false, "at its end it has ended"),
-      never(bobViewsPlanForAnHour, now + 7200, true, "never after its end"))
+      allows(annEditsPlan, now, true, "a share with no end"),
+      allows(bobViewsPlanForAnHour, now, true, "an hour before its end"),
+      allows(bobViewsPlanForAnHour, now + 3600, false, "at its end it has ended"),
+      forbids(bobViewsPlanForAnHour, now + 7200, true, "never after its end"))
 
   val inForceCode = define { (s: Term[Share], t: Term[BigInt]) => s.until.fold(True)(end => t < end) }
 
@@ -75,10 +75,10 @@ object Lifetimes:
     .leftOpenAbove
     .refines(sharing.invitations.Invitations.invitationsAreOffers, Deadlines.invitationsLapseOnTime, Deadlines.endedStaysEnded)
     .examples()(
-      expect(catInvited, now, true, "sent a day ago"),
-      expect(catInvited, now + 6 * day - 1, true, "a second before seven days have passed"),
-      expect(catInvited, now + 6 * day, false, "seven days after it was sent"),
-      never(catInvited, now + 30 * day, true, "a month later it has long lapsed"))
+      allows(catInvited, now, true, "sent a day ago"),
+      allows(catInvited, now + 6 * day - 1, true, "a second before seven days have passed"),
+      allows(catInvited, now + 6 * day, false, "seven days after it was sent"),
+      forbids(catInvited, now + 30 * day, true, "a month later it has long lapsed"))
 
   val isOpenCode = define { (i: Term[Invitation], t: Term[BigInt]) => t < i.sent + invitationLasts }
 
@@ -90,10 +90,10 @@ object Lifetimes:
     .leftOpenAbove
     .refines(sharing.trash.Trash.trashUntilGone, Deadlines.trashPurgedOnTime, Deadlines.endedStaysEnded)
     .examples()(
-      expect(planTrashed, now, false, "trashed a day ago: still restorable"),
-      expect(planTrashed, now + 29 * day, true, "thirty days after it was trashed"),
-      expect(planDoc, now + 100 * day, false, "not in the trash"),
-      never(planTrashed, now + 28 * day, true, "never before thirty days"))
+      allows(planTrashed, now, false, "trashed a day ago: still restorable"),
+      allows(planTrashed, now + 29 * day, true, "thirty days after it was trashed"),
+      allows(planDoc, now + 100 * day, false, "not in the trash"),
+      forbids(planTrashed, now + 28 * day, true, "never before thirty days"))
 
   val goneCode = define { (doc: Term[Document], t: Term[BigInt]) => doc.trashed.fold(False)(at => at + trashKeeps <= t) }
 
@@ -107,9 +107,9 @@ object Lifetimes:
     .leftOpenAbove
     .refines(sharing.requests.AccessRequests.requestsAreAsks, Deadlines.requestsAnsweredOnTime)
     .examples()(
-      expect(catAsks, now, true, "made a day ago"),
-      expect(catAsks, now + 6 * day, false, "seven days after it was made"),
-      never(catAsks, now + 30 * day, true, "a month later it has long lapsed"))
+      allows(catAsks, now, true, "made a day ago"),
+      allows(catAsks, now + 6 * day, false, "seven days after it was made"),
+      forbids(catAsks, now + 30 * day, true, "a month later it has long lapsed"))
 
   val isPendingCode = define { (r: Term[AccessRequest], t: Term[BigInt]) => t < r.asked + requestLasts }
 
@@ -121,8 +121,8 @@ object Lifetimes:
     .leftOpenAbove
     .refines(sharing.requests.AccessRequests.requestsAreAsks, Deadlines.requestsAnsweredOnTime)
     .examples()(
-      expect(catAsks, now, false, "made a day ago"),
-      expect(catAsks, now + day, true, "two days after it was made"),
-      never(catAsks, now - day, true, "never before it was made"))
+      allows(catAsks, now, false, "made a day ago"),
+      allows(catAsks, now + day, true, "two days after it was made"),
+      forbids(catAsks, now - day, true, "never before it was made"))
 
   val reminderDueCode = define { (r: Term[AccessRequest], t: Term[BigInt]) => r.asked + remindAfter <= t }

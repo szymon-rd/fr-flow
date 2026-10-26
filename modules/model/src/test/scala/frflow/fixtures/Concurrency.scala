@@ -64,16 +64,16 @@ object Concurrency:
   val restockContract = Node.contract(restocking)("Restock",
     "Restocking adds the goods to the stock and takes their price from the till.", why = "Both, at once.")(
     (n, p, r, before, after) => after(StockModel) === before(StockModel) + n && after(TillModel) === before(TillModel) - p)
-    .examples()(expect(BigInt(3), BigInt(10), at(1, 50), (), at(4, 40), "three in, ten paid"),
-      expect(BigInt(0), BigInt(0), at(2, 5), (), at(2, 5), "nothing in"),
-      never(BigInt(3), BigInt(10), at(1, 50), (), at(4, 50), "never in without paying"))
+    .examples()(allows(BigInt(3), BigInt(10), at(1, 50), (), at(4, 40), "three in, ten paid"),
+      allows(BigInt(0), BigInt(0), at(2, 5), (), at(2, 5), "nothing in"),
+      forbids(BigInt(3), BigInt(10), at(1, 50), (), at(4, 50), "never in without paying"))
 
   val deliveriesContract = Node.contract(delivering)("TwoDeliveries",
     "Two deliveries at once add both to the stock.", why = "Additions commute.")(
     (n, m, r, before, after) => after(StockModel) === before(StockModel) + n + m && after(TillModel) === before(TillModel))
-    .examples()(expect(BigInt(3), BigInt(4), at(1, 0), List((), ()), at(8, 0), "three and four"),
-      expect(BigInt(1), BigInt(1), at(0, 2), List((), ()), at(2, 2), "one each"),
-      never(BigInt(3), BigInt(4), at(1, 0), List((), ()), at(5, 0), "neither lost"))
+    .examples()(allows(BigInt(3), BigInt(4), at(1, 0), List((), ()), at(8, 0), "three and four"),
+      allows(BigInt(1), BigInt(1), at(0, 2), List((), ()), at(2, 2), "one each"),
+      forbids(BigInt(3), BigInt(4), at(1, 0), List((), ()), at(5, 0), "neither lost"))
 
   val saleContract = Node.contract(selling)("SaleWithin",
     "A sale given five seconds leaves the stock and the till as they were, or as the whole sale leaves them; never half.",
@@ -81,10 +81,10 @@ object Concurrency:
     (n, r, before, after) => (after(StockModel) === before(StockModel) && after(TillModel) === before(TillModel)) ||
       (after(StockModel) === before(StockModel) - n && after(TillModel) === before(TillModel) + n))
     .examples()(
-      expect(BigInt(2), at(5, 0), Left(()), at(3, 2), "sold in time"),
-      expect(BigInt(2), at(5, 0, List(false)), Right(()), at(5, 0, Nil, 5), "the timer first: nothing sold"),
-      expect(BigInt(2), at(5, 0, List(false, true)), Right(()), at(3, 2, Nil, 5), "the timer first, but the sale had committed"),
-      never(BigInt(2), at(5, 0), Left(()), at(3, 0), "never half a sale"))
+      allows(BigInt(2), at(5, 0), Left(()), at(3, 2), "sold in time"),
+      allows(BigInt(2), at(5, 0, List(false)), Right(()), at(5, 0, Nil, 5), "the timer first: nothing sold"),
+      allows(BigInt(2), at(5, 0, List(false, true)), Right(()), at(3, 2, Nil, 5), "the timer first, but the sale had committed"),
+      forbids(BigInt(2), at(5, 0), Left(()), at(3, 0), "never half a sale"))
 
   val kb = KnowledgeBase("Concurrency", idea = "IDEA.md")(stockKept, tillKept, racesKept, clockKept, restockContract,
       deliveriesContract, saleContract)

@@ -61,9 +61,9 @@ object Invitations:
       lib.copy((invitations = Invitation(to, what, level, by, t) :: invitationsWithout(lib.invitations, to, what))), lib))
     .refines(invitationsAreOffers)
     .examples()(
-      expect(library, now - day, ann, cat, Target.Doc(plan), Level.View, withCat, "Ann may edit the plan: she invites Cat to view it"),
-      expect(library, now, bob, cat, Target.Doc(plan), Level.View, library, "Bob may not edit the plan: nothing changes"),
-      never(library, now, bob, cat, Target.InFolder(reports), Level.View,
+      allows(library, now - day, ann, cat, Target.Doc(plan), Level.View, withCat, "Ann may edit the plan: she invites Cat to view it"),
+      allows(library, now, bob, cat, Target.Doc(plan), Level.View, library, "Bob may not edit the plan: nothing changes"),
+      forbids(library, now, bob, cat, Target.InFolder(reports), Level.View,
         library.copy(invitations = List(Invitation(cat, Target.InFolder(reports), Level.View, bob, now))),
         "Bob may only view the reports folder, so he cannot invite anyone to it"))
 
@@ -84,12 +84,12 @@ object Invitations:
           invitations = invitationsWithout(lib.invitations, p, what))))))
     .refines(invitationsAreOffers)
     .examples()(
-      expect(withCat, now, cat, Target.Doc(plan), library.copy(shares = catViewsPlan :: library.shares),
+      allows(withCat, now, cat, Target.Doc(plan), library.copy(shares = catViewsPlan :: library.shares),
         "Cat accepts Ann's invitation, sent a day ago: she may view the plan"),
-      expect(withCat, now + 7 * day, cat, Target.Doc(plan), withCat, "eight days after it was sent the invitation has lapsed"),
-      expect(withCat, now, bob, Target.Doc(plan), withCat, "Bob was not invited"),
-      expect(annInvited, now, ann, Target.Doc(plan), annInvited, "Ann owns the plan: accepting a view invitation to it changes nothing"),
-      never(withCat, now + 7 * day, cat, Target.Doc(plan), library.copy(shares = catViewsPlan :: library.shares),
+      allows(withCat, now + 7 * day, cat, Target.Doc(plan), withCat, "eight days after it was sent the invitation has lapsed"),
+      allows(withCat, now, bob, Target.Doc(plan), withCat, "Bob was not invited"),
+      allows(annInvited, now, ann, Target.Doc(plan), annInvited, "Ann owns the plan: accepting a view invitation to it changes nothing"),
+      forbids(withCat, now + 7 * day, cat, Target.Doc(plan), library.copy(shares = catViewsPlan :: library.shares),
         "a lapsed invitation is never accepted"))
 
   val acceptCode = define { (lib: Term[Library], t: Term[BigInt], p: Term[PersonId], what: Term[Target]) =>
@@ -107,9 +107,9 @@ object Invitations:
     result === mayEdit(lib, t, by, what).fold(lib.copy((invitations = invitationsWithout(lib.invitations, to, what))), lib))
     .refines(invitationsAreOffers)
     .examples()(
-      expect(withCat, now, ann, cat, Target.Doc(plan), library, "Ann withdraws Cat's invitation"),
-      expect(withCat, now, bob, cat, Target.Doc(plan), withCat, "Bob may not edit the plan: the invitation stays"),
-      never(withCat, now, bob, cat, Target.Doc(plan), library, "only an editor withdraws an invitation"))
+      allows(withCat, now, ann, cat, Target.Doc(plan), library, "Ann withdraws Cat's invitation"),
+      allows(withCat, now, bob, cat, Target.Doc(plan), withCat, "Bob may not edit the plan: the invitation stays"),
+      forbids(withCat, now, bob, cat, Target.Doc(plan), library, "only an editor withdraws an invitation"))
 
   val withdrawCode = define { (lib: Term[Library], t: Term[BigInt], by: Term[PersonId], to: Term[PersonId], what: Term[Target]) =>
     mayEdit(lib, t, by, what).fold(lib.copy((invitations = invitationsWithout(lib.invitations, to, what))), lib)

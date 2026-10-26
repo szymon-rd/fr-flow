@@ -91,8 +91,8 @@ class SnapshotSuite extends munit.FunSuite:
     val promise2 = Node.contract(picks)("PickPromise", "A call returns only long enough books, from the shelf.", why = pickPromise.why)(
       (shelf, n, picked) => picked.forall(b => b.pages >= minPages && shelf.contains(b)))
       .examples(minPages.bind(100))(
-        expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
-        never(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
+        allows(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
+        forbids(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
     val kb = KnowledgeBase("Calls", idea = "IDEA.md")(pickedAgain, againC, promise2).implementProven(promise2)(longOnes).implementProven(againC)(viaPick)
     val d = Desk(callsKb).acceptAll.withKb(kb)
     assertEquals(Graph(d.analysis.snapshot).restsOn(d.node("Again").node), ids("PickedAgain", "PickPromise"))
@@ -195,7 +195,7 @@ class SnapshotSuite extends munit.FunSuite:
     val now = node(List("B", "C"), "b, c")
     assertEquals(Reading(Snapshot("S", List(now)), ledger).causes(now), Nil)
     // what it says, changed beside the call that places it: itself
-    val c = now.content.mapFields { case ("definition", d) => "definition" -> str(d.asString.getOrElse("").replace(".examples()()", ".examples()(expect(1))")) }
+    val c = now.content.mapFields { case ("definition", d) => "definition" -> str(d.asString.getOrElse("").replace(".examples()()", ".examples()(allows(1))")) }
     val reworded = now.copy(content = c, hash = c.hash)
     assertEquals(Reading(Snapshot("S", List(reworded)), ledger).causes(reworded), List(Cause.Self))
   }

@@ -31,8 +31,8 @@ object StockLaws:
     Node.contract(p)(s"$law${s.capitalize}", s"The $s side of $law gives what the post says.", why = s"$law of a relative monad.")(post)
       .examples()(example)
 
-  private val once = expect(BigInt(2), World(StockModel -> BigInt(3)), BigInt(5), World(StockModel -> BigInt(5)), "two delivered to three")
-  private val twice = expect(BigInt(2), World(StockModel -> BigInt(1)), BigInt(6), World(StockModel -> BigInt(7)), "three, doubled, then one more")
+  private val once = allows(BigInt(2), World(StockModel -> BigInt(3)), BigInt(5), World(StockModel -> BigInt(5)), "two delivered to three")
+  private val twice = allows(BigInt(2), World(StockModel -> BigInt(1)), BigInt(6), World(StockModel -> BigInt(7)), "three, doubled, then one more")
   val leftLhs = side("LeftUnit", "lhs", delivered, once)
   val leftRhs = side("LeftUnit", "rhs", delivered, once)
   val rightLhs = side("RightUnit", "lhs", delivered, once)

@@ -7,8 +7,8 @@ import frflow.fixtures.*
 class ClaimShapedSuite extends munit.FunSuite:
   private val statement = "A call returns exactly the long enough books of the shelf."
   private def cases = List(
-    expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
-    never(List(Book("Long", 300)), 5, Nil, "a long book is not left on the shelf"))
+    allows(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
+    forbids(List(Book("Long", 300)), 5, Nil, "a long book is not left on the shelf"))
 
   private val asLambda = Node.contract(picks)("Pick", statement)((shelf, n, result) =>
     result.forall(b => shelf.contains(b) && b.pages >= minPages) && shelf.forall(b => b.pages >= minPages implies result.contains(b)))

@@ -45,11 +45,11 @@ val recordsByQuery = Node.assumption(fetch)("RecordsByQuery",
       Event.Wrote(WriteCmd(Account("gil@globex", TenantId("globex")), Change.Add(CrmRecord(2, TenantId("globex"), Kind.Contact, "Globex contact")))),
       Event.Wrote(WriteCmd(Account("ann@acme", TenantId("acme")), Change.Add(CrmRecord(3, TenantId("acme"), Kind.Contact, "Acme contact")))))),
     database.bind(Db.replaying(history.value)))(
-    expect(Account("ann@acme", TenantId("acme")), Search.OfKind(Kind.Contact),
+    allows(Account("ann@acme", TenantId("acme")), Search.OfKind(Kind.Contact),
       List(CrmRecord(2, TenantId("globex"), Kind.Contact, "Globex contact"), CrmRecord(3, TenantId("acme"), Kind.Contact, "Acme contact")),
       "every company's contacts: the database does not filter by company, the read side does"),
-    expect(Account("ann@acme", TenantId("acme")), Search.ById(1), List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), "a record by its id"),
-    never(Account("ann@acme", TenantId("acme")), Search.Everything, List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")),
+    allows(Account("ann@acme", TenantId("acme")), Search.ById(1), List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), "a record by its id"),
+    forbids(Account("ann@acme", TenantId("acme")), Search.Everything, List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")),
       "a stored record is never left out"))
 
 /** The records a search asks for, as the port promises them: what the SQL is checked against. */
@@ -71,30 +71,30 @@ val readContract = Node.contract(read)("ReadContract",
       Event.Wrote(WriteCmd(Account("ann@acme", TenantId("acme")), Change.Add(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")))),
       Event.Wrote(WriteCmd(Account("gil@globex", TenantId("globex")), Change.Add(CrmRecord(2, TenantId("globex"), Kind.Contact, "Globex contact")))))),
     clock.bind(BigInt(0)), database.bind(Db.replaying(history.value)))(
-    expect(Account("ann@acme", TenantId("acme")), Search.Everything, List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")),
+    allows(Account("ann@acme", TenantId("acme")), Search.Everything, List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")),
       "Ann lists everything she can see: the deal she added"),
-    expect(Account("ann@acme", TenantId("acme")), Search.ById(2), Nil, "Globex's contact is not shared with Acme"),
-    never(Account("ann@acme", TenantId("acme")), Search.ById(2), List(CrmRecord(2, TenantId("globex"), Kind.Contact, "Globex contact")),
+    allows(Account("ann@acme", TenantId("acme")), Search.ById(2), Nil, "Globex's contact is not shared with Acme"),
+    forbids(Account("ann@acme", TenantId("acme")), Search.ById(2), List(CrmRecord(2, TenantId("globex"), Kind.Contact, "Globex contact")),
       "another company's record is never returned"),
-    never(Account("ann@acme", TenantId("acme")), Search.Everything, List(CrmRecord(2, TenantId("acme"), Kind.Contact, "Globex contact")),
+    forbids(Account("ann@acme", TenantId("acme")), Search.Everything, List(CrmRecord(2, TenantId("acme"), Kind.Contact, "Globex contact")),
       "a record relabelled as Acme's is not a stored record"),
-    never(Account("ann@acme", TenantId("acme")), Search.OfKind(Kind.Contact), List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")),
+    forbids(Account("ann@acme", TenantId("acme")), Search.OfKind(Kind.Contact), List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")),
       "a search for contacts does not return deals"))
   .examples(
     history.bind(List(
       Event.Wrote(WriteCmd(Account("gil@globex", TenantId("globex")), Change.Add(CrmRecord(2, TenantId("globex"), Kind.Contact, "Globex contact")))),
       Event.Wrote(WriteCmd(Account("gil@globex", TenantId("globex")), Change.ShareWith(2, TenantId("acme"), Some(100)))))),
     clock.bind(BigInt(50)), database.bind(Db.replaying(history.value)))(
-    expect(Account("ann@acme", TenantId("acme")), Search.OfKind(Kind.Contact), List(CrmRecord(2, TenantId("globex"), Kind.Contact, "Globex contact")),
+    allows(Account("ann@acme", TenantId("acme")), Search.OfKind(Kind.Contact), List(CrmRecord(2, TenantId("globex"), Kind.Contact, "Globex contact")),
       "Globex shared its contact with Acme until 100: at 50 Ann finds it by kind"))
   .examples(
     history.bind(List(
       Event.Wrote(WriteCmd(Account("gil@globex", TenantId("globex")), Change.Add(CrmRecord(2, TenantId("globex"), Kind.Contact, "Globex contact")))),
       Event.Wrote(WriteCmd(Account("gil@globex", TenantId("globex")), Change.ShareWith(2, TenantId("acme"), Some(100)))))),
     clock.bind(BigInt(150)), database.bind(Db.replaying(history.value)))(
-    expect(Account("ann@acme", TenantId("acme")), Search.OfKind(Kind.Contact), Nil,
+    allows(Account("ann@acme", TenantId("acme")), Search.OfKind(Kind.Contact), Nil,
       "at 150 the share has ended, though the expiry job has not run: Ann no longer finds the contact"),
-    never(Account("ann@acme", TenantId("acme")), Search.OfKind(Kind.Contact), List(CrmRecord(2, TenantId("globex"), Kind.Contact, "Globex contact")),
+    forbids(Account("ann@acme", TenantId("acme")), Search.OfKind(Kind.Contact), List(CrmRecord(2, TenantId("globex"), Kind.Contact, "Globex contact")),
       "a share past its time never shows the record"))
   .keeps(noCrossTenantRead)((user, query, result) => result.map(r => (user, r)))
   .checkedBy((user, query, result) => result.forall(r => matches(query, r) && mayRead(user, r)))
@@ -117,12 +117,12 @@ val dealSearch = Node.contract(deals)("DealSearch",
       Event.Wrote(WriteCmd(Account("ann@acme", TenantId("acme")), Change.Add(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")))),
       Event.Wrote(WriteCmd(Account("ann@acme", TenantId("acme")), Change.Add(CrmRecord(2, TenantId("acme"), Kind.Contact, "Acme contact")))))),
     clock.bind(BigInt(0)), database.bind(Db.replaying(history.value)))(
-    expect(Account("ann@acme", TenantId("acme")), Search.Everything, List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")),
+    allows(Account("ann@acme", TenantId("acme")), Search.Everything, List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")),
       "Ann's deal search lists Acme's deal, not its contact"),
-    expect(Account("ann@acme", TenantId("acme")), Search.OfKind(Kind.Contact), Nil, "a search for contacts finds no deal"),
-    never(Account("ann@acme", TenantId("acme")), Search.Everything, List(CrmRecord(2, TenantId("acme"), Kind.Contact, "Acme contact")),
+    allows(Account("ann@acme", TenantId("acme")), Search.OfKind(Kind.Contact), Nil, "a search for contacts finds no deal"),
+    forbids(Account("ann@acme", TenantId("acme")), Search.Everything, List(CrmRecord(2, TenantId("acme"), Kind.Contact, "Acme contact")),
       "a contact is never listed as a deal"),
-    never(Account("ann@acme", TenantId("acme")), Search.Everything, Nil, "a deal Ann may see is never left out"))
+    forbids(Account("ann@acme", TenantId("acme")), Search.Everything, Nil, "a deal Ann may see is never left out"))
   .keeps(noCrossTenantRead)((user, query, result) => result.map(r => (user, r)))
 
 /** Deals: what the records screen returns, keeping only deals. */

@@ -23,8 +23,8 @@ class NodeSuite extends munit.FunSuite:
     def base = Node.contract(picks)("Picks", "s", "w")((shelf, n, picked) => picked.length <= n).refines(onlyGood)
     // (with one list, the cases are typed before the overload is chosen: an empty list says its type)
     val none = List.empty[Book]
-    val one = base.examples(expect(none, 1, none, "nothing to pick"), never(none, 0, List(Book("A", 1)), "never more than asked"))
-    val two = base.examples()(expect(Nil, 1, Nil, "nothing to pick"), never(Nil, 0, List(Book("A", 1)), "never more than asked"))
+    val one = base.examples(allows(none, 1, none, "nothing to pick"), forbids(none, 0, List(Book("A", 1)), "never more than asked"))
+    val two = base.examples()(allows(Nil, 1, Nil, "nothing to pick"), forbids(Nil, 0, List(Book("A", 1)), "never more than asked"))
     assertEquals(one.cases.map(c => (c.describe, c.bindings, c.inputs, c.result, c.expected)),
       two.cases.map(c => (c.describe, c.bindings, c.inputs, c.result, c.expected)))
     // how often service checks a result is said with frflow.* alone
@@ -66,9 +66,9 @@ class NodeSuite extends munit.FunSuite:
     val kept = Node.contract(picks)("Kept", "Picking returns only long enough books.", "w")(
       (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages)).refines(shelfParts*)
       .examples(minPages.bind(100))(
-        expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
-        expect(List(Book("Short", 20)), 1, Nil, "no long book"),
-        never(List(Book("Short", 20)), 1, List(Book("Short", 20)), "never a short one"))
+        allows(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
+        allows(List(Book("Short", 20)), 1, Nil, "no long book"),
+        forbids(List(Book("Short", 20)), 1, List(Book("Short", 20)), "never a short one"))
       .keeps(atMostN)((shelf, n, picked) => List((n, picked.length)))
     val kb = shelfWith(kept, atMostN).implement(kept)((s, n) => s.filter(_.pages >= minPages.value).take(n))
     assertEquals(kb.problems, Nil)
@@ -124,7 +124,7 @@ class NodeSuite extends munit.FunSuite:
 
   test("a contract's examples must tell a constant implementation apart") {
     val lazyPick = Node.contract(picks)("LazyPick", "s", "w")((_, _, picked) => picked.isEmpty).refines(shelfParts*)
-      .examples(minPages.bind(100))(expect(Nil, 1, Nil, "nothing"), never(List(Book("L", 300)), 1, List(Book("L", 300)), "x"))
+      .examples(minPages.bind(100))(allows(Nil, 1, Nil, "nothing"), forbids(List(Book("L", 300)), 1, List(Book("L", 300)), "x"))
     assert(shelfWith(lazyPick).problems.exists(_.message.contains("always returns it")))
   }
 

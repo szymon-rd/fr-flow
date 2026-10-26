@@ -47,10 +47,10 @@ object Trash:
       lib.copy((documents = lib.documents.map(doc => (doc.id === d && !doc.trashed.isDefined).fold(doc.copy((trashed = some(t))), doc)))), lib))
     .refines(trashUntilGone)
     .examples()(
-      expect(library, now - day, ann, plan, planInTrash, "Ann may edit the plan: it goes to the trash"),
-      expect(planInTrash, now, ann, plan, planInTrash, "already in the trash: it keeps its time"),
-      expect(library, now, bob, plan, library, "Bob may not edit the plan"),
-      never(library, now, bob, q3Report, library.copy(documents = List(planDoc, q3ReportDoc.copy(trashed = Some(now)))),
+      allows(library, now - day, ann, plan, planInTrash, "Ann may edit the plan: it goes to the trash"),
+      allows(planInTrash, now, ann, plan, planInTrash, "already in the trash: it keeps its time"),
+      allows(library, now, bob, plan, library, "Bob may not edit the plan"),
+      forbids(library, now, bob, q3Report, library.copy(documents = List(planDoc, q3ReportDoc.copy(trashed = Some(now)))),
         "Bob may only view the Q3 report: he cannot delete it"))
 
   val trashCode = define { (lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId]) =>
@@ -72,10 +72,10 @@ object Trash:
       lib.copy((documents = lib.documents.map(doc => (doc.id === d && !gone(doc, t)).fold(doc.copy((trashed = none[BigInt])), doc)))), lib))
     .refines(trashUntilGone)
     .examples()(
-      expect(planInTrash, now, ann, plan, library, "a day in the trash: Ann restores the plan"),
-      expect(planInTrash, now + 29 * day, ann, plan, planInTrash, "thirty days in the trash: it is gone"),
-      expect(planInTrash, now, bob, plan, planInTrash, "Bob may not edit the plan"),
-      never(planInTrash, now + 40 * day, ann, plan, library, "a document gone is never restored"))
+      allows(planInTrash, now, ann, plan, library, "a day in the trash: Ann restores the plan"),
+      allows(planInTrash, now + 29 * day, ann, plan, planInTrash, "thirty days in the trash: it is gone"),
+      allows(planInTrash, now, bob, plan, planInTrash, "Bob may not edit the plan"),
+      forbids(planInTrash, now + 40 * day, ann, plan, library, "a document gone is never restored"))
 
   val restoreCode = define { (lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId]) =>
     mayRestore(lib, t, by, d).fold(

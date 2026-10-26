@@ -105,10 +105,10 @@ object Notifications:
     .refines(noticesFollowChanges, sharing.audit.Audit.auditTrail, sharing.time.Deadlines.invitationsLapseOnTime,
       sharing.time.Deadlines.trashPurgedOnTime, sharing.time.Deadlines.requestsAnsweredOnTime)
     .examples()(
-      expect(library, library, catInvitedBy, entry, library.copy(outbox = List(Notice(cat, Subject.Logged(entry)))), "Cat is told of her invitation"),
-      expect(library, library, Request.Share(ann, Target.Doc(plan), Grantee.Person(bob), Level.View, None), entry, library,
+      allows(library, library, catInvitedBy, entry, library.copy(outbox = List(Notice(cat, Subject.Logged(entry)))), "Cat is told of her invitation"),
+      allows(library, library, Request.Share(ann, Target.Doc(plan), Grantee.Person(bob), Level.View, None), entry, library,
         "a share tells nobody"),
-      never(library, library, catInvitedBy, entry, library, "an invitation is never kept from the person invited"))
+      forbids(library, library, catInvitedBy, entry, library, "an invitation is never kept from the person invited"))
 
   val announceCode = define { (lib: Term[Library], before: Term[Library], r: Term[Request], e: Term[Entry]) =>
     lib.copy((outbox = lib.outbox ++ noticesOf(before, r, e)))
@@ -148,12 +148,12 @@ object Notifications:
   )((lib, t, result) => result === lib.copy((outbox = lib.outbox ++ endingNotices(lib, t))))
     .refines(noticesFollowChanges)
     .examples()(
-      expect(library.copy(shares = bobsHourEndsInADay :: library.shares), now,
+      allows(library.copy(shares = bobsHourEndsInADay :: library.shares), now,
         library.copy(shares = bobsHourEndsInADay :: library.shares, outbox = List(Notice(bob, Subject.Ending(bobsHourEndsInADay)))),
         "Bob's share ends in a day: he is told"),
-      expect(library.copy(shares = bobsHourEndsInADay :: library.shares), now - 3600, library.copy(shares = bobsHourEndsInADay :: library.shares),
+      allows(library.copy(shares = bobsHourEndsInADay :: library.shares), now - 3600, library.copy(shares = bobsHourEndsInADay :: library.shares),
         "a day and an hour before: not yet"),
-      never(library.copy(shares = bobsHourEndsInADay :: library.shares), now, library.copy(shares = bobsHourEndsInADay :: library.shares),
+      forbids(library.copy(shares = bobsHourEndsInADay :: library.shares), now, library.copy(shares = bobsHourEndsInADay :: library.shares),
         "a share ending is never left untold"))
 
   val warnCode = define { (lib: Term[Library], t: Term[BigInt]) =>
@@ -197,18 +197,18 @@ object Notifications:
     .onFailure[Failure]((e, before, after) => after(LibraryModel) === before(LibraryModel) && after(MailerModel) === before(MailerModel))
     .refines(noticesFollowChanges)
     .examples()(
-      expect(at(List(told), Map.empty), (), at(Nil, boxes(told)), "Cat's notice delivered"),
-      expect(at(List(told, toldBob, toldCatAgain), Map.empty), (), at(List(toldCatAgain), boxes(told, toldBob)),
+      allows(at(List(told), Map.empty), (), at(Nil, boxes(told)), "Cat's notice delivered"),
+      allows(at(List(told, toldBob, toldCatAgain), Map.empty), (), at(List(toldCatAgain), boxes(told, toldBob)),
         "Cat's first and Bob's go at once; Cat's second waits for the next run"),
-      expect(at(List(told), Map.empty).failing(false, true), (), at(Nil, boxes(told), now + 1), "the mail server was down once: delivered a second later"),
-      expect(at(List(told), Map.empty).failing(false, true, true, true), (), at(List(told), Map.empty, now + 3),
+      allows(at(List(told), Map.empty).failing(false, true), (), at(Nil, boxes(told), now + 1), "the mail server was down once: delivered a second later"),
+      allows(at(List(told), Map.empty).failing(false, true, true, true), (), at(List(told), Map.empty, now + 3),
         "down three times: the notice stays in the outbox, for the next run"),
-      expect(at(List(told), Map.empty).failing(false, false, true), (), at(List(told), boxes(told)),
+      allows(at(List(told), Map.empty).failing(false, false, true), (), at(List(told), boxes(told)),
         "delivered, but the store failed: the notice stays, to be sent again (and dropped by the mail server)"),
-      expect(at(List(told), boxes(told)), (), at(Nil, boxes(told)), "sent again after that: not delivered twice"),
-      expect(at(List(told), Map.empty).failing(true), Failed(Failure.StoreUnavailable), at(List(told), Map.empty),
+      allows(at(List(told), boxes(told)), (), at(Nil, boxes(told)), "sent again after that: not delivered twice"),
+      allows(at(List(told), Map.empty).failing(true), Failed(Failure.StoreUnavailable), at(List(told), Map.empty),
         "the outbox cannot be read: nothing changes"),
-      never(at(List(told), Map.empty).failing(false, true, true, true), (), at(Nil, Map.empty, now + 3),
+      forbids(at(List(told), Map.empty).failing(false, true, true, true), (), at(Nil, Map.empty, now + 3),
         "a notice never leaves the outbox undelivered"))
 
   /** One person's notice: sent with retries; once the mail server has it, taken out of the outbox in one transaction.

@@ -69,10 +69,10 @@ object Errors:
       after(ClockModel) === before(ClockModel))
     .failsChangingNothing[VaultError]
     .examples()(
-      expect(BigInt(3), at(10), BigInt(7), at(7), "three of ten"),
-      expect(BigInt(30), at(10), Failed(VaultError.Overdrawn), at(10), "more than it holds"),
-      expect(BigInt(3), at(10).failing(false, true), Failed(VaultError.Down), at(10), "the vault is down as the rest is put"),
-      never(BigInt(3), at(10).failing(false, true), Failed(VaultError.Down), at(7), "a failed withdrawal changes nothing"))
+      allows(BigInt(3), at(10), BigInt(7), at(7), "three of ten"),
+      allows(BigInt(30), at(10), Failed(VaultError.Overdrawn), at(10), "more than it holds"),
+      allows(BigInt(3), at(10).failing(false, true), Failed(VaultError.Down), at(10), "the vault is down as the rest is put"),
+      forbids(BigInt(3), at(10).failing(false, true), Failed(VaultError.Down), at(7), "a failed withdrawal changes nothing"))
 
   val safelyContract = Node.contract(withdrawingSafely)("WithdrawSafely",
     "A safe withdrawal gives the rest when it could be made, and zero when not; it never fails.",
@@ -81,10 +81,10 @@ object Errors:
       (r === BigInt(0) && after(VaultModel) === before(VaultModel)))
     .onFailure[VaultError]((e, before, after) => False)
     .examples()(
-      expect(BigInt(3), at(10), BigInt(7), at(7), "three of ten"),
-      expect(BigInt(30), at(10), BigInt(0), at(10), "more than it holds: zero"),
-      expect(BigInt(3), at(10).failing(true), BigInt(0), at(10), "the vault is down: zero"),
-      never(BigInt(3), at(10).failing(true), Failed(VaultError.Down), at(10), "it never fails"))
+      allows(BigInt(3), at(10), BigInt(7), at(7), "three of ten"),
+      allows(BigInt(30), at(10), BigInt(0), at(10), "more than it holds: zero"),
+      allows(BigInt(3), at(10).failing(true), BigInt(0), at(10), "the vault is down: zero"),
+      forbids(BigInt(3), at(10).failing(true), Failed(VaultError.Down), at(10), "it never fails"))
 
   val depositContract = Node.contract(depositing)("Deposit",
     "A deposit, when it goes in, adds to what the vault held; when every try failed, the vault holds what it held.",
@@ -92,11 +92,11 @@ object Errors:
     (n, r, before, after) => after(VaultModel) === before(VaultModel) + n)
     .onFailure[VaultError]((e, before, after) => after(VaultModel) === before(VaultModel))
     .examples()(
-      expect(BigInt(5), at(10), (), at(15), "in at once"),
-      expect(BigInt(5), at(10).failing(true), (), at(15, 1), "the second try, a second later"),
-      expect(BigInt(5), at(10).failing(false, true, true), (), at(15, 3), "the third: the first failed as it put, the second as it read"),
-      expect(BigInt(5), at(10).failing(true, true, true), Failed(VaultError.Down), at(10, 3), "down three times: the vault keeps what it held"),
-      never(BigInt(5), at(10).failing(true, true, true), Failed(VaultError.Down), at(15, 3), "a deposit that failed is not in"))
+      allows(BigInt(5), at(10), (), at(15), "in at once"),
+      allows(BigInt(5), at(10).failing(true), (), at(15, 1), "the second try, a second later"),
+      allows(BigInt(5), at(10).failing(false, true, true), (), at(15, 3), "the third: the first failed as it put, the second as it read"),
+      allows(BigInt(5), at(10).failing(true, true, true), Failed(VaultError.Down), at(10, 3), "down three times: the vault keeps what it held"),
+      forbids(BigInt(5), at(10).failing(true, true, true), Failed(VaultError.Down), at(15, 3), "a deposit that failed is not in"))
 
   val restContract = Node.contract(resting)("DepositThenRest",
     "A deposit is followed by a second's rest, whether it went in or not.",
@@ -105,9 +105,9 @@ object Errors:
     .onFailure[VaultError]((e, before, after) => after(VaultModel) === before(VaultModel) &&
       after(ClockModel).now >= before(ClockModel).now + 1)
     .examples()(
-      expect(BigInt(5), at(10), (), at(5, 1), "in, then a rest"),
-      expect(BigInt(5), at(10).failing(true), Failed(VaultError.Down), at(10, 1), "down, then a rest all the same"),
-      never(BigInt(5), at(10).failing(true), Failed(VaultError.Down), at(10), "never without the rest"))
+      allows(BigInt(5), at(10), (), at(5, 1), "in, then a rest"),
+      allows(BigInt(5), at(10).failing(true), Failed(VaultError.Down), at(10, 1), "down, then a rest all the same"),
+      forbids(BigInt(5), at(10).failing(true), Failed(VaultError.Down), at(10), "never without the rest"))
 
   val kb = KnowledgeBase("Errors", idea = "IDEA.md")(vaultKept, clockKept, withdrawContract, safelyContract, depositContract, restContract)
     .implementProven(withdrawContract)((n: Term[BigInt]) => withdraw(n))

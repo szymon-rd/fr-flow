@@ -84,12 +84,12 @@ signs with the decision. The other kinds say why.
 An operation takes 0 to 6 inputs. Every lambda over a call takes them in order, then the result (a
 flow's, then the worlds before and after), and every example lists them the same way. An operation of
 no inputs (`Param[() => R]`, a reading of the world now) is called `op()`, its post is `result => ...`
-and its examples `expect(result, note)` under the bindings that give it:
+and its examples `allows(result, note)` under the bindings that give it:
 
 ```scala
 val share = Param[(UserId, DocId, UserId) => Boolean]("share", "whether a user may share a document with another")
 Node.contract(share)("Share", "...", why = "...")((by, doc, withWhom, result) => result === owns(by, doc))
-  .examples()(expect(ann, readme, bob, true, "the owner shares"), never(bob, readme, ann, true, "only the owner"))
+  .examples()(allows(ann, readme, bob, true, "the owner shares"), forbids(bob, readme, ann, true, "only the owner"))
 knowledge.implement(share)((by, doc, withWhom) => owners(doc) == by)
 ```
 
@@ -414,7 +414,7 @@ Cats', with Cats' names:
   and the states before and after:
   `(now, result, before, after) => sameRows(after(DatabaseModel).store, expire(before(DatabaseModel).store, now)) && ...`.
   Its examples give the inputs, a world before (`World(DatabaseModel -> Tables(...))`)
-  and the result and world after: `expect(now, before, result, after, note)`.
+  and the result and world after: `allows(now, before, result, after, note)`.
 - **The code** is attached with `.implementProven(expiryJob)(expireOnce)`. In
   Lean it is a `do` block over any monad with the boundaries' classes, and
   `impl` runs it on the models (`StateM World`). Steps of the outside world
@@ -493,7 +493,7 @@ A contract on a flow that may fail says what holds when a run fails:
 succeeds. Lean's claim is `FrFlow.outcome post failure (op x w)` of every input and
 every world. A flow that may fail under a contract that says nothing of failing is a
 problem `check` reports. The examples give a run that fails as `Failed(error)`,
-from a world that fails some calls: `expect(r, before.failing(false, true),
+from a world that fails some calls: `allows(r, before.failing(false, true),
 Failed(Failure.StoreUnavailable), before, "the store fails as it saves")`.
 Generated runs then fail each call of a failing boundary in turn, from each example,
 on the models and on the implementations with the same fault injected (`FaultPlan`),

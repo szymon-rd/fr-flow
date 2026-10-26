@@ -41,8 +41,8 @@ Vocabulary
 
 Examples: 2 of 2 pass; Lean agrees on 2 of 2
   given grants = List(Grant(alice, /a))
-    + Alice's token and a grant: she gets in  expect admit(t1, /a) == Some(alice)
-    + no grant for /b: refused  expect admit(t1, /b) == None
+    + Alice's token and a grant: she gets in  allows admit(t1, /a) == Some(alice)
+    + no grant for /b: refused  allows admit(t1, /b) == None
 
 Code
   governs: src/main/scala/auth/Store.scala

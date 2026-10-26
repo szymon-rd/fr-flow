@@ -219,7 +219,7 @@ object Node:
       n.copy(kept = n.kept :+ Keep(invariant, Some(Lifted.lambda(view, n.op.toList.flatMap(Node.lambdaTypes), Source.text(view)))))
 
     /** Concrete cases, under the given parameter values: they fail when the contract or the code is not what was decided.
-      * A call's (`expect(a, b, result, note)`), or a flow's run (`expect(a, before, result, after, note)`).
+      * A call's (`allows(a, b, result, note)`), or a flow's run (`allows(a, before, result, after, note)`).
       */
     inline def examples(inline bindings: Binding*)(inline cases: Case[F]*): Node[F] =
       // Built in a method of its own (a file's top-level vals initialize in one JVM method of at most 64 KB).
@@ -227,7 +227,7 @@ object Node:
         cases.toList.map(c => Example(c.note, bindings.toList, Source.sources(bindings*), c.inputs, c.result, c.expected))
       n.copy(cases = n.cases ++ exampleList())
 
-    /** Concrete cases where nothing is to be bound: `.examples(expect(…), never(…))`, as `.examples()(…)`. */
+    /** Concrete cases where nothing is to be bound: `.examples(allows(…), forbids(…))`, as `.examples()(…)`. */
     inline def examples(inline cases: Case[F]*): Node[F] =
       def exampleList(): List[Example] = cases.toList.map(c => Example(c.note, Nil, Nil, c.inputs, c.result, c.expected))
       n.copy(cases = n.cases ++ exampleList())

@@ -81,9 +81,9 @@ class RuntimeSuite extends munit.FunSuite:
     val byTerm = Node.contract(picks)("ByTerm", "Picked books are long enough.", "w")((shelf, n, picked) => picked.forall(b => longEnough(b)))
       .refines(shelfParts*)
       .examples(minPages.bind(100))(
-        expect(List(Book("Long", 300)), 1, List(Book("Long", 300)), "the long book"),
-        expect(List(Book("Short", 20)), 1, Nil, "no long book"),
-        never(List(Book("Short", 20)), 1, List(Book("Short", 20)), "not a short one"))
+        allows(List(Book("Long", 300)), 1, List(Book("Long", 300)), "the long book"),
+        allows(List(Book("Short", 20)), 1, Nil, "no long book"),
+        forbids(List(Book("Short", 20)), 1, List(Book("Short", 20)), "not a short one"))
     val kb = shelfWith(byTerm, lengths).implement(byTerm)((shelf, n) => shelf.filter(_.pages >= minPages.value))
     assertEquals(kb.problems, Nil)
     assert(kb.exampleResults(byTerm).forall(r => r.contract == "ok" && r.implementation.contains("ok")), kb.exampleResults(byTerm))
@@ -145,9 +145,9 @@ class RuntimeSuite extends munit.FunSuite:
     val two = Node.contract(picks)("Two", "Picking returns only long enough books.", "w")(
       (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages)).refines(shelfParts*)
       .examples(minPages.bind(100))(
-        expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
-        expect(List(Book("Short", 20)), 1, Nil, "no long book"),
-        never(List(Book("Short", 20)), 1, List(Book("Short", 20)), "never a short one"))
+        allows(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
+        allows(List(Book("Short", 20)), 1, Nil, "no long book"),
+        forbids(List(Book("Short", 20)), 1, List(Book("Short", 20)), "never a short one"))
     // passes every example, but returns the whole shelf when asked for one book from several
     val kb = shelfWith(two).testedWith(TestSettings(300)).implement(two)((s, n) => if s.size > 1 && n == 1 then s else s.filter(_.pages >= minPages.value).take(n))
     assertEquals(kb.exampleResults(two).flatMap(_.implementation), List("ok", "ok", "ok"))
@@ -166,7 +166,7 @@ class RuntimeSuite extends munit.FunSuite:
     assertEquals(lazyKb.exampleResults(pick).head.implementation, Some("returned List()"))
     // a contract that refuses what was decided
     val strict = Node.contract(picks)("Strict", "Nothing is picked.", "w")((_, _, picked) => picked.isEmpty)
-      .examples(minPages.bind(100))(expect(List(Book("Long", 300)), 1, List(Book("Long", 300)), "the long book"))
+      .examples(minPages.bind(100))(allows(List(Book("Long", 300)), 1, List(Book("Long", 300)), "the long book"))
     assertEquals(strict.checkExamples(None).head.contract, "the contract refuses it")
   }
 

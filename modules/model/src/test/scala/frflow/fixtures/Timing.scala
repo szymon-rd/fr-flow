@@ -27,17 +27,17 @@ object Timing:
     why = "waitUntil sleeps what is left; a sleep may wake late.")(
     (t, r, before, after) => r >= t && r >= before(ClockModel).now && after(ClockModel).now === r)
     .examples()(
-      expect(BigInt(10), World(ClockModel -> ClockState(BigInt(4), Nil)), BigInt(10), World(ClockModel -> ClockState(BigInt(10), Nil)), "six seconds to wait"),
-      expect(BigInt(10), World(ClockModel -> ClockState(BigInt(12), List[BigInt](3))), BigInt(12), World(ClockModel -> ClockState(BigInt(12), List[BigInt](3))), "already past: no sleep"),
-      expect(BigInt(10), World(ClockModel -> ClockState(BigInt(4), List[BigInt](3))), BigInt(13), World(ClockModel -> ClockState(BigInt(13), Nil)), "woken three seconds late"))
+      allows(BigInt(10), World(ClockModel -> ClockState(BigInt(4), Nil)), BigInt(10), World(ClockModel -> ClockState(BigInt(10), Nil)), "six seconds to wait"),
+      allows(BigInt(10), World(ClockModel -> ClockState(BigInt(12), List[BigInt](3))), BigInt(12), World(ClockModel -> ClockState(BigInt(12), List[BigInt](3))), "already past: no sleep"),
+      allows(BigInt(10), World(ClockModel -> ClockState(BigInt(4), List[BigInt](3))), BigInt(13), World(ClockModel -> ClockState(BigInt(13), Nil)), "woken three seconds late"))
   val timeoutContract = Node.contract(napped)("Timeout",
     "A sleep given five seconds gives a result exactly when the clock moved on by five seconds or less; it sleeps either way.",
     why = "timeout does not cancel: it says whether the flow took longer than its time.")(
     (d, r, before, after) => r.isDefined === (after(ClockModel).now - before(ClockModel).now <= 5) &&
       after(ClockModel).now >= before(ClockModel).now + d)
     .examples()(
-      expect(BigInt(3), World(ClockModel -> ClockState(BigInt(0), Nil)), Some(()), World(ClockModel -> ClockState(BigInt(3), Nil)), "three seconds: in time"),
-      expect(BigInt(3), World(ClockModel -> ClockState(BigInt(0), List[BigInt](4))), None, World(ClockModel -> ClockState(BigInt(7), Nil)), "woken late: too late"))
+      allows(BigInt(3), World(ClockModel -> ClockState(BigInt(0), Nil)), Some(()), World(ClockModel -> ClockState(BigInt(3), Nil)), "three seconds: in time"),
+      allows(BigInt(3), World(ClockModel -> ClockState(BigInt(0), List[BigInt](4))), None, World(ClockModel -> ClockState(BigInt(7), Nil)), "woken late: too late"))
   val twoNightsContract = Node.contract(nights)("TwoNights",
     "Two nights after a time end two days after it, or later.",
     why = "Sleeps add up; each may wake late.")(

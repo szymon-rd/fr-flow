@@ -389,7 +389,7 @@ function parts(d) {
 function examples(n) {
   let given = null;
   return n.examples.map(e => { const g = e.given.join(", ") || "nothing", head = g !== given ? `<div class="label mono">given ${esc(g)}</div>` : "", ok = !e.fails && !e.codeFails; given = g;
-    return head + `<div class="row small"><span class="chip ${ok ? "s-ok" : "s-bad"}">${e.expected ? "expect" : "reject"}</span> ${esc(e.note)}
+    return head + `<div class="row small"><span class="chip ${ok ? "s-ok" : "s-bad"}">${e.expected ? "allows" : "forbids"}</span> ${esc(e.note)}
       ${e.lean ? `<span class="chip ${e.lean.status === "proven" ? "s-ok" : e.lean.status === "failed" ? "s-bad" : ""}" title="${esc(e.lean.detail)}">${
         e.lean.status === "proven" ? "Lean agrees" : e.lean.status === "failed" ? "Lean disagrees" : esc(e.lean.status) + " in Lean"}</span>` : ""}
       <div class="mono muted">${esc(e.call)}</div>${ok ? "" : `<div class="err">${esc([e.fails, e.codeFails && "the implementation " + e.codeFails].filter(Boolean).join("; "))}</div>`}</div>`; }).join("");

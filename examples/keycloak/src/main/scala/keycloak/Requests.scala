@@ -68,10 +68,10 @@ val storeKeepsState = Node.assumption(record)("StoreKeepsState",
   why = "The state lives in a store (in memory here; a database in a cluster). The handling of a request is proven from this promise, not from the store's code; what is stored is read back on every call, so a write the store dropped or changed is seen at once."
 )((q, after, back) => back === after)
   .examples(sessionDb.bind(SessionDb.empty))(
-    expect(AuthRequest.SignIn(acme, "alice", "h-alice", "t1"), ServerState(loaded, List(Session("t1", acme, "alice"))),
+    allows(AuthRequest.SignIn(acme, "alice", "h-alice", "t1"), ServerState(loaded, List(Session("t1", acme, "alice"))),
       ServerState(loaded, List(Session("t1", acme, "alice"))), "Alice's new session is stored, and read back"),
-    expect(AuthRequest.SignOut(acme, "t1"), ServerState(loaded, Nil), ServerState(loaded, Nil), "after her sign-out, no session is stored"),
-    never(AuthRequest.SignIn(acme, "alice", "h-alice", "t1"), ServerState(loaded, List(Session("t1", acme, "alice"))),
+    allows(AuthRequest.SignOut(acme, "t1"), ServerState(loaded, Nil), ServerState(loaded, Nil), "after her sign-out, no session is stored"),
+    forbids(AuthRequest.SignIn(acme, "alice", "h-alice", "t1"), ServerState(loaded, List(Session("t1", acme, "alice"))),
       ServerState(loaded, Nil), "a session the store dropped is seen"))
 
 /** What the store holds after storing a state: that state. The store's code is checked against it. */
@@ -104,27 +104,27 @@ val handleRequest = Node.contract(step)("HandleRequest",
   opened(s, q).forall(x => t.sessions.contains(x)))
   .refines(sessionsMirrorSignIns, accountsAsAdministered)
   .examples(sessionDb.bind(SessionDb.empty))(
-    expect(ServerState(loaded, Nil), AuthRequest.SignIn(acme, "alice", "h-alice", "t1"), ServerState(loaded, List(Session("t1", acme, "alice"))),
+    allows(ServerState(loaded, Nil), AuthRequest.SignIn(acme, "alice", "h-alice", "t1"), ServerState(loaded, List(Session("t1", acme, "alice"))),
       "Alice signs in to acme with her password: a session under t1"),
-    expect(ServerState(loaded, Nil), AuthRequest.SignIn(acme, "bob", "h-bob", "t2"), ServerState(loaded, Nil),
+    allows(ServerState(loaded, Nil), AuthRequest.SignIn(acme, "bob", "h-bob", "t2"), ServerState(loaded, Nil),
       "Bob is disabled: no session, even with his password"),
-    expect(ServerState(loaded, List(Session("t1", acme, "alice"))), AuthRequest.SignOut(acme, "t1"), ServerState(loaded, Nil),
+    allows(ServerState(loaded, List(Session("t1", acme, "alice"))), AuthRequest.SignOut(acme, "t1"), ServerState(loaded, Nil),
       "Alice signs out: her session ends"),
-    expect(ServerState(loaded, List(Session("t1", acme, "alice"))), AuthRequest.SetEnabled(acme, "alice", false),
+    allows(ServerState(loaded, List(Session("t1", acme, "alice"))), AuthRequest.SetEnabled(acme, "alice", false),
       ServerState(List(alice.copy(enabled = false), bob), List(Session("t1", acme, "alice"))), "an administrator disables Alice; her session stays, and is no longer accepted"),
-    never(ServerState(loaded, Nil), AuthRequest.SignIn(acme, "alice", "wrong", "t1"), ServerState(loaded, List(Session("t1", acme, "alice"))),
+    forbids(ServerState(loaded, Nil), AuthRequest.SignIn(acme, "alice", "wrong", "t1"), ServerState(loaded, List(Session("t1", acme, "alice"))),
       "a wrong password never opens a session"),
-    never(ServerState(loaded, Nil), AuthRequest.SignIn(globex, "alice", "h-alice", "t1"), ServerState(loaded, List(Session("t1", globex, "alice"))),
+    forbids(ServerState(loaded, Nil), AuthRequest.SignIn(globex, "alice", "h-alice", "t1"), ServerState(loaded, List(Session("t1", globex, "alice"))),
       "Alice is a user of acme, not of globex"),
-    never(ServerState(List(alice, bobOn), List(Session("t1", acme, "alice"))), AuthRequest.SignIn(acme, "bob", "h-bob", "t1"),
+    forbids(ServerState(List(alice, bobOn), List(Session("t1", acme, "alice"))), AuthRequest.SignIn(acme, "bob", "h-bob", "t1"),
       ServerState(List(alice, bobOn), List(Session("t1", acme, "alice"), Session("t1", acme, "bob"))), "a token an open session holds never opens another"),
-    never(ServerState(loaded, List(Session("t1", acme, "alice"))), AuthRequest.SignOut(globex, "t1"), ServerState(loaded, Nil),
+    forbids(ServerState(loaded, List(Session("t1", acme, "alice"))), AuthRequest.SignOut(globex, "t1"), ServerState(loaded, Nil),
       "globex cannot end acme's session"),
-    never(ServerState(loaded, List(Session("t1", acme, "alice"))), AuthRequest.SignOut(acme, "t1"), ServerState(loaded, List(Session("t1", acme, "alice"))),
+    forbids(ServerState(loaded, List(Session("t1", acme, "alice"))), AuthRequest.SignOut(acme, "t1"), ServerState(loaded, List(Session("t1", acme, "alice"))),
       "a sign-out is never ignored"),
-    never(ServerState(loaded, Nil), AuthRequest.SignIn(acme, "alice", "h-alice", "t1"), ServerState(loaded, Nil),
+    forbids(ServerState(loaded, Nil), AuthRequest.SignIn(acme, "alice", "h-alice", "t1"), ServerState(loaded, Nil),
       "Alice with her password is not turned away"),
-    never(ServerState(loaded, Nil), AuthRequest.SetEnabled(acme, "bob", true), ServerState(loaded, Nil),
+    forbids(ServerState(loaded, Nil), AuthRequest.SetEnabled(acme, "bob", true), ServerState(loaded, Nil),
       "an administrator's change is never ignored"))
 
 /** The state a request leads to: the accounts as an administrator's change sets them; the session a

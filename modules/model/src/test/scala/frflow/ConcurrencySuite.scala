@@ -84,8 +84,8 @@ class ConcurrencySuite extends munit.FunSuite:
     def add(x: Term[BigInt]) = shelf.ops.count.flatMap(s => shelf.ops.put(s + x))
     val c = Node.contract(p)("ByHand", "Both deliveries are on the shelf.", why = "A test.")(
       (a, b, r, before, after) => after(ShelfModel) === before(ShelfModel) + a + b)
-      .examples()(expect(BigInt(3), BigInt(4), World(ShelfModel -> BigInt(1)), List((), ()), World(ShelfModel -> BigInt(8)), "both"),
-        never(BigInt(3), BigInt(4), World(ShelfModel -> BigInt(1)), List((), ()), World(ShelfModel -> BigInt(5)), "not one lost"))
+      .examples()(allows(BigInt(3), BigInt(4), World(ShelfModel -> BigInt(1)), List((), ()), World(ShelfModel -> BigInt(8)), "both"),
+        forbids(BigInt(3), BigInt(4), World(ShelfModel -> BigInt(1)), List((), ()), World(ShelfModel -> BigInt(5)), "not one lost"))
     def kb(f: Term[BigInt] => Flow[Unit]) = KnowledgeBase("ByHand", idea = "IDEA.md")(kept, c)
       .implementProven(c)((a: Term[BigInt], b: Term[BigInt]) => Term.listOf[BigInt](List(a, b)).parTraverse(f))
     val lost = kb(add).exampleResults(c).filter(_.example.note.contains("on fibers"))

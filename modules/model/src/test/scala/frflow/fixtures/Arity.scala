@@ -15,9 +15,9 @@ val clamp = Node.contract(clamped)("Clamp", "A call shows the raw value when it 
   why = "NeverBelowZero, for one call.")(
   (x, r) => r >= 0 && ((x >= 0) implies (r === x)) && ((x < 0) implies (r === BigInt(0)))).refines(neverBelowZero)
   .examples()(
-    expect(BigInt(5), BigInt(5), "a positive value is shown"),
-    expect(BigInt(-3), BigInt(0), "a negative value shows zero"),
-    never(BigInt(-3), BigInt(-3), "never a negative reading"))
+    allows(BigInt(5), BigInt(5), "a positive value is shown"),
+    allows(BigInt(-3), BigInt(0), "a negative value shows zero"),
+    forbids(BigInt(-3), BigInt(-3), "never a negative reading"))
 val clampAtZero = define { (x: Term[BigInt]) => (x >= 0).fold(x, BigInt(0)) }
 val clampKb = KnowledgeBase("Gauge", idea = "IDEA.md")(neverBelowZero, clamp)
 
@@ -36,10 +36,10 @@ val grant = Node.contract(granted)("Grant",
   (acl, by, who, r) => acl.forall(x => r.contains(x)) && (acl.contains(by) implies r.contains(who)) &&
     r.forall(x => acl.contains(x) || (x === who && acl.contains(by)))).refines(onlyMembersGrant)
   .examples()(
-    expect(List("ann"), "ann", "bob", List("ann", "bob"), "a member adds bob"),
-    expect(List("ann"), "eve", "bob", List("ann"), "someone off the list adds no one"),
-    never(List("ann"), "eve", "eve", List("ann", "eve"), "never adds a person on their own say"),
-    never(List("ann", "bob"), "ann", "cid", List("ann", "cid"), "never drops a member"))
+    allows(List("ann"), "ann", "bob", List("ann", "bob"), "a member adds bob"),
+    allows(List("ann"), "eve", "bob", List("ann"), "someone off the list adds no one"),
+    forbids(List("ann"), "eve", "eve", List("ann", "eve"), "never adds a person on their own say"),
+    forbids(List("ann", "bob"), "ann", "cid", List("ann", "cid"), "never drops a member"))
 val grantIfMember = define { (acl: Term[List[String]], by: Term[String], who: Term[String]) =>
   acl.contains(by).fold(acl ++ List(who), acl)
 }
@@ -56,9 +56,9 @@ val pickBetween = Node.contract(between)("PickBetween", "A call returns only boo
   why = "Between, for one call.")(
   (shelf, lo, hi, r) => r.forall(b => shelf.contains(b) && b.pages >= lo && b.pages <= hi)).refines(betweenRoot)
   .examples()(
-    expect(List(Book("A", 50), Book("B", 150)), 100, 200, List(Book("B", 150)), "the book in the range"),
-    expect(List(Book("A", 50), Book("B", 150)), 0, 40, Nil, "none in the range"),
-    never(List(Book("A", 50)), 0, 100, List(Book("C", 60)), "never a book off the shelf"))
+    allows(List(Book("A", 50), Book("B", 150)), 100, 200, List(Book("B", 150)), "the book in the range"),
+    allows(List(Book("A", 50), Book("B", 150)), 0, 40, Nil, "none in the range"),
+    forbids(List(Book("A", 50)), 0, 100, List(Book("C", 60)), "never a book off the shelf"))
   .keeps(inStock)((shelf, lo, hi, r) => r.map(b => (shelf, b)))
 val inRange = define { (shelf: Term[List[Book]], lo: Term[Int], hi: Term[Int]) => shelf.filter(b => b.pages >= lo && b.pages <= hi) }
 val betweenKb = KnowledgeBase("Between", idea = "IDEA.md")(betweenRoot, pickBetween, inStock).implementProven(pickBetween)(inRange)
@@ -77,9 +77,9 @@ val twoDeliveries = Node.contract(restockBoth)("TwoDeliveries",
   "A restock of two deliveries adds both to the stock, and gives the stock after.", why = "Deliveries are counted as they arrive.")(
   (first, second, r, before, after) => after(StockModel) === before(StockModel) + first + second && r === after(StockModel))
   .examples()(
-    expect(BigInt(2), BigInt(3), World(StockModel -> BigInt(10)), BigInt(15), World(StockModel -> BigInt(15)), "both deliveries counted"),
-    expect(BigInt(0), BigInt(4), World(StockModel -> BigInt(1)), BigInt(5), World(StockModel -> BigInt(5)), "an empty first delivery"),
-    never(BigInt(2), BigInt(3), World(StockModel -> BigInt(10)), BigInt(12), World(StockModel -> BigInt(12)), "never only the first"))
+    allows(BigInt(2), BigInt(3), World(StockModel -> BigInt(10)), BigInt(15), World(StockModel -> BigInt(15)), "both deliveries counted"),
+    allows(BigInt(0), BigInt(4), World(StockModel -> BigInt(1)), BigInt(5), World(StockModel -> BigInt(5)), "an empty first delivery"),
+    forbids(BigInt(2), BigInt(3), World(StockModel -> BigInt(10)), BigInt(12), World(StockModel -> BigInt(12)), "never only the first"))
 /** Beside the gauge: a flow need not refine the root, as a job need not (the CRM's expiry job). */
 val deliveriesKb = KnowledgeBase("Deliveries", idea = "IDEA.md")(neverBelowZero, clamp, countsStock, twoDeliveries)
   .implementProven(clamp)(clampAtZero).implementProven(twoDeliveries)(restockTwo)
@@ -93,8 +93,8 @@ val showsNow = Node.claim("ShowsNow", "The gauge shows the raw reading when it i
 val shows = Node.contract(gaugeShows)("Shows", "The gauge shows the raw reading when it is not negative, and zero otherwise.",
   why = "ShowsNow, for one reading.")(
   r => r >= 0 && ((rawReading >= 0) implies (r === rawReading)) && ((rawReading < 0) implies (r === BigInt(0)))).refines(showsNow)
-  .examples(rawReading.bind(5))(expect(BigInt(5), "the raw reading"), never(BigInt(0), "never zero for a positive reading"))
-  .examples(rawReading.bind(-3))(expect(BigInt(0), "zero for a fault"))
+  .examples(rawReading.bind(5))(allows(BigInt(5), "the raw reading"), forbids(BigInt(0), "never zero for a positive reading"))
+  .examples(rawReading.bind(-3))(allows(BigInt(0), "zero for a fault"))
 val showRaw = define { () => (rawReading >= 0).fold(rawReading: Term[BigInt], BigInt(0)) }
 val gaugeKb = KnowledgeBase("Shows", idea = "IDEA.md")(showsNow, shows)
 
@@ -106,8 +106,8 @@ def countStock(): Flow[BigInt] =
 val counting = Node.contract(countNow)("Counting", "A count gives the stock, and leaves it as it was.", why = "Counting changes nothing.")(
   (r, before, after) => r === before(StockModel) && after(StockModel) === before(StockModel))
   .examples()(
-    expect(World(StockModel -> BigInt(5)), BigInt(5), World(StockModel -> BigInt(5)), "five in stock"),
-    expect(World(StockModel -> BigInt(2)), BigInt(2), World(StockModel -> BigInt(2)), "two in stock"),
-    never(World(StockModel -> BigInt(5)), BigInt(5), World(StockModel -> BigInt(0)), "never empties the stock"))
+    allows(World(StockModel -> BigInt(5)), BigInt(5), World(StockModel -> BigInt(5)), "five in stock"),
+    allows(World(StockModel -> BigInt(2)), BigInt(2), World(StockModel -> BigInt(2)), "two in stock"),
+    forbids(World(StockModel -> BigInt(5)), BigInt(5), World(StockModel -> BigInt(0)), "never empties the stock"))
 val countingKb = KnowledgeBase("Counting", idea = "IDEA.md")(neverBelowZero, clamp, countsStock, counting)
   .implementProven(clamp)(clampAtZero).implementProven(counting)(() => countStock())
