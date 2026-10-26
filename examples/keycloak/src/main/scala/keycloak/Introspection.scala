@@ -38,7 +38,7 @@ val answersNameASession = Node.claim("AnswersNameASession",
   .refines(onlyTheSignedIn)
 
 /** Whether `x` is the only session the list holds under its token. */
-val onlyOne = define { (ss: Term[List[Session]], x: Term[Session]) => ss.forall(y => (y.token === x.token) ==> (y === x)) }
+val onlyOne = define { (ss: Term[List[Session]], x: Term[Session]) => ss.forall(y => (y.token === x.token) implies (y === x)) }
 
 val introspectContract = Node.contract(introspect)("Introspect",
   "An introspection names the realm asking, and a user enabled there with their roles, only for a session that realm holds under the token; and it names that session's user whenever the user is enabled and the token names no other session there.",
@@ -47,7 +47,7 @@ val introspectContract = Node.contract(introspect)("Introspect",
 )((realm, token, res) =>
   res.forall(c => c.realm === realm && sessions(c.realm).contains(Session(token, c.realm, c.user)) &&
     isEnabled(account(realm, c.user)) && c.roles === rolesIn(account(realm, c.user))) &&
-  sessions(realm).forall(x => (x.token === token && isEnabled(account(realm, x.user)) && onlyOne(sessions(realm), x)) ==>
+  sessions(realm).forall(x => (x.token === token && isEnabled(account(realm, x.user)) && onlyOne(sessions(realm), x)) implies
     (res === some(Claims(realm, x.user, rolesIn(account(realm, x.user)))))))
   .refines(answersNameASession, disabledHaveNoAccess, rolesAsGranted, signedInAreAccepted)
   .keeps(realmIsolation)((realm, token, res) => res
@@ -77,7 +77,7 @@ val sessionLookup = Node.assumption(lookup)("SessionLookup",
   "The store's index returns a session it holds under the token in the realm asked, if it holds one, and never one of another realm or token.",
   why = "Sessions live in a store indexed by realm and token (in memory here; a database or cache in a cluster). Introspection is proven from this promise, not from the index; the index is checked against the define it is decided with on its examples, and every session it returns is checked to be of the realm and token asked."
 )((realm, token, r) => r.forall(x => sessions(realm).contains(x) && x.token === token && x.realm === realm) &&
-  (sessions(realm).exists(x => x.token === token) ==> r.isDefined))
+  (sessions(realm).exists(x => x.token === token) implies r.isDefined))
   .checkedBy((realm, token, r) => r.forall(x => x.token === token && x.realm === realm))
   .examples(history.bind(events), seed.bind(atStart), sessionDb.bind(SessionDb.replaying(seed.value, history.value)))(
     expect(acme, "t1", Some(Session("t1", acme, "alice")), "acme's session of t1"),

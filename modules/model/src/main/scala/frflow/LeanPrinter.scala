@@ -19,7 +19,7 @@ private[frflow] final class LeanPrinter:
   private val errors = mutable.LinkedHashSet.empty[String]
   private var world = false
   private val commutes = mutable.ListBuffer.empty[Commute]
-  // The negations (`!`, the left of `==>`) the term is under: a `forall` under an odd number says something exists.
+  // The negations (`!`, the left of `implies`) the term is under: a `forall` under an odd number says something exists.
   private var negations = 0
   private def negated[T](f: => T): T = { negations += 1; try f finally negations -= 1 }
   private def fail(msg: String): Nothing = throw IllegalArgumentException(s"FrFlow: $msg")

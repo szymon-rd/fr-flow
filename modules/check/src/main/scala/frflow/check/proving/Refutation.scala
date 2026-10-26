@@ -4,7 +4,7 @@ package proving
 
 import frflow.example.Example
 
-/** A step whose proof does not go through, refuted: its part is a contract that fixes its result (`guard ==> result === e`),
+/** A step whose proof does not go through, refuted: its part is a contract that fixes its result (`guard implies result === e`),
   * so `e` is an answer the contract allows; a generated case where the claim fails with that answer, confirmed by Lean,
   * shows the step itself is false. (Shown on the claim's line only once Lean has proven it.)
   */
@@ -29,7 +29,7 @@ object Refutation:
         case r     => s"the contract gives ${Example.show(r)}, which the claim refuses"
       Candidate(values.map((name, v, _) => s"$name = $v").mkString(", "), what, lean(kb.name, n.id, c.id, resolve(answer.lean), values.map(_._3)))
 
-  /** The inputs and `e` of a post `guard ==> result === e` or `result === e`, `e` not mentioning the result. */
+  /** The inputs and `e` of a post `guard implies result === e` or `result === e`, `e` not mentioning the result. */
   private def answerOf(post: Lifted[?]): Option[(List[Binder], Tree)] =
     val (bs, body) = (post.built._1, post.built._2.termTree)
     bs.lastOption.flatMap { result =>

@@ -31,10 +31,10 @@ class TermSuite extends munit.FunSuite:
       lean2((l: Term[List[Book]], b: Term[Book]) => l.toSet.contains(b)) -> "((fun y => y ∈ l) b)",
       keptOnce.lifted.body -> "(let there : (Book → Prop) := (fun y => y ∈ shelf); (List.filter (fun b => decide (there b)) picked))",
       // specification logic, and the quantifier forms of roots
-      lean1((l: Term[List[Book]]) => forall((a: Term[Book], b: Term[Book]) => (l.contains(a) && l.contains(b)) ==> a.pages <= b.pages)) ->
+      lean1((l: Term[List[Book]]) => forall((a: Term[Book], b: Term[Book]) => (l.contains(a) && l.contains(b)) implies a.pages <= b.pages)) ->
         "(∀ (a : Book) (b : Book), (((a ∈ l) ∧ (b ∈ l)) → (a.pages ≤ b.pages)))",
       lean1((o: Term[Option[Book]]) => o.forall(b => b.pages > 0)) -> "(∀ b, o = some b → (b.pages > 0))",
-      lean1((f: Term[(BigInt, BigInt) => Boolean]) => forall((x: Term[BigInt], y: Term[BigInt]) => forall((z: Term[BigInt]) => f(x, z) ==> f(y, z)))) ->
+      lean1((f: Term[(BigInt, BigInt) => Boolean]) => forall((x: Term[BigInt], y: Term[BigInt]) => forall((z: Term[BigInt]) => f(x, z) implies f(y, z)))) ->
         "(∀ (x : Int) (y : Int), (∀ (z : Int), ((f x z) → (f y z))))",
       lean1((name: Term[String]) => exists((s: Term[Shelf]) => where(s) === name)) -> "(∃ (s : Shelf), ((⟦«where»⟧ s) = name))",
       lean1((xs: Term[List[Book]]) => xs.forall(b => xs.exists(c => c.title === b.title && c.pages >= b.pages))) ->

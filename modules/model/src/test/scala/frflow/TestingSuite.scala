@@ -48,7 +48,7 @@ class TestingSuite extends munit.FunSuite:
   }
 
   test("a part no case reaches is said, not passed") {
-    // Every book is long: `b.pages >= minPages ==> …` never fails to hold its premise, and the other way never holds.
+    // Every book is long: `b.pages >= minPages implies …` never fails to hold its premise, and the other way never holds.
     val lazyGen = KnowledgeBase("Shelf", idea = "IDEA.md")((shelfNodes :+ pick)*).testedWith(few)
       .implement(pick)((shelf, n) => shelf.filter(_.pages >= minPages.value))
       .generating(Gen.listOf(Gen.const(Book("Short", 1))).describedAs("only short books"))

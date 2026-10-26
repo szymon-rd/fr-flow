@@ -40,7 +40,7 @@ val signedInAreAccepted = Node.claim("SignedInAreAccepted",
   why = "The capability half of the purpose: a server that turned everyone away would meet the safety half alone.",
   idea = "Signed-in users are let in"
 )(forall((r: Term[Realm.T], t: Term[Token.T]) => forall((u: Term[User.T]) =>
-  (signedIn(r, u, t) && enabled(r, u)) ==> (accepted(r, t) === some((u, rolesOf(r, u)))))))
+  (signedIn(r, u, t) && enabled(r, u)) implies (accepted(r, t) === some((u, rolesOf(r, u)))))))
   .refines(realmAccess)
 
 // ============================================================================

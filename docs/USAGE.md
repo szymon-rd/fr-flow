@@ -118,7 +118,7 @@ val claimsOf = define { (c: Term[Option[Claims]]) =>
 | Write | For | In Lean |
 |---|---|---|
 | `x === y`, `x =!= y` | equality (`==` between terms does not compile) | `=`, `≠` |
-| `&&`, `\|\|`, `!`, `==>`, `True`, `False` | logic | `∧`, `∨`, `¬`, `→` |
+| `&&`, `\|\|`, `!`, `implies`, `True`, `False` | logic; `implies` is a word, so it binds after `&&` and `\|\|`: `a && b implies c` is `(a && b) implies c` | `∧`, `∨`, `¬`, `→` |
 | `forall((u: Term[User.T]) => ...)`, `exists(...)` | one or two variables; specification only | `∀`, `∃` |
 | `s.records`, `CrmStore(a, b, c)`, `a.copy((enabled = v))` | fields, construction, copy (with `object CrmStore extends Data[CrmStore]`) | fields, `CrmStore.mk`, `{ a with ... }` |
 | `Event[Event.Expired](now)` | an enum case built from terms (with `object Event extends Data[Event]`) | `Event.Expired now` |
@@ -455,7 +455,7 @@ marked `.leftOpenAbove`: a statement that names such an operation holds whatever
 does, so a change to that contract (7 days become 14) does not bring it back. Claims over runs (deadlines:
 "within 30 days and the scheduler's period") are stated of the state after a list of
 events (`events.foldLeft(start)(step)`), with the scheduler's period and "the clock
-never goes back" as assumptions on the run (`events === pre ++ (e :: post) ==> …`),
+never goes back" as assumptions on the run (`events === pre ++ (e :: post) implies …`),
 and proven by induction over the run (`FrFlow.always_when`, `FrFlow.along_when`).
 Put each deadline under the branch whose proof uses it: the branch says it with the
 open word ("no invitation is pending a housekeeping period after it lapses"), the

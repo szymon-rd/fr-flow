@@ -11,14 +11,14 @@ class ClaimShapedSuite extends munit.FunSuite:
     never(List(Book("Long", 300)), 5, Nil, "a long book is not left on the shelf"))
 
   private val asLambda = Node.contract(picks)("Pick", statement)((shelf, n, result) =>
-    result.forall(b => shelf.contains(b) && b.pages >= minPages) && shelf.forall(b => b.pages >= minPages ==> result.contains(b)))
+    result.forall(b => shelf.contains(b) && b.pages >= minPages) && shelf.forall(b => b.pages >= minPages implies result.contains(b)))
     .refines(fromList, onlyLong, everyLong)
     .examples(minPages.bind(100))(cases*)
 
   private val asClaim = Node.contract("Pick", statement)(
     forall((shelf: Term[List[Book]], n: Term[Int]) =>
       picks(shelf, n).forall(b => shelf.contains(b) && b.pages >= minPages) &&
-        shelf.forall(b => b.pages >= minPages ==> picks(shelf, n).contains(b))))
+        shelf.forall(b => b.pages >= minPages implies picks(shelf, n).contains(b))))
     .refines(fromList, onlyLong, everyLong)
     .examples(minPages.bind(100))(cases*)
 

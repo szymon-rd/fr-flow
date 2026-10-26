@@ -15,7 +15,7 @@ class LeanRootSuite extends LeanLab:
 
   test("a root doing nothing meets is unproven: it must say what users can do") {
     val guard = Node.claim("Guard", "A picked item is on the list and good.", why = "w")(
-      forall((l: Term[List[Item.T]], x: Term[Item.T]) => shown(l, x) ==> (l.contains(x) && good(x))))
+      forall((l: Term[List[Item.T]], x: Term[Item.T]) => shown(l, x) implies (l.contains(x) && good(x))))
     val c = Node.contract(picks)("GuardPick", "A call returns only long books from the shelf.", why = "w")(
       (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages)).refines(guard)
       .examples(minPages.bind(100))(

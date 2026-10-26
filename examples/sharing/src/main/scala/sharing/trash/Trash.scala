@@ -30,8 +30,8 @@ object Trash:
     why = "Q8: the trash is a delay before deleting: what is in it can be brought back until it is gone, and not after. Whether it is gone is left open here (Lifetimes); that a gone document does not linger is what TrashPurgedOnTime says with the clock.",
     idea = "Trash"
   )(forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId]) =>
-    (trash(lib, t, by, d) =!= lib ==> mayEdit(lib, t, by, Target[Target.Doc](d))) &&
-    (restore(lib, t, by, d) =!= lib ==> (mayEdit(lib, t, by, Target[Target.Doc](d)) &&
+    (trash(lib, t, by, d) =!= lib implies mayEdit(lib, t, by, Target[Target.Doc](d))) &&
+    (restore(lib, t, by, d) =!= lib implies (mayEdit(lib, t, by, Target[Target.Doc](d)) &&
       lib.documents.exists(doc => doc.id === d && doc.trashed.isDefined && !gone(doc, t))))) &&
     after(events).library.documents.forall(doc => !gone(doc, after(events).now - housekeepingWithin)))
     .refines(accessFollowsShares)

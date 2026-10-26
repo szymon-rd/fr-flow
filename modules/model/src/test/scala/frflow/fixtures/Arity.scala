@@ -10,10 +10,10 @@ import frflow.*
 val clamped = Param[BigInt => BigInt]("clamped", "the reading the gauge shows for a raw value")
 val neverBelowZero = Node.claim("NeverBelowZero", "The gauge shows a raw value when it is not negative, and zero otherwise.",
   why = "A negative reading is a sensor fault.")(
-  forall((x: Term[BigInt]) => clamped(x) >= 0 && ((x >= 0) ==> (clamped(x) === x)) && ((x < 0) ==> (clamped(x) === BigInt(0)))))
+  forall((x: Term[BigInt]) => clamped(x) >= 0 && ((x >= 0) implies (clamped(x) === x)) && ((x < 0) implies (clamped(x) === BigInt(0)))))
 val clamp = Node.contract(clamped)("Clamp", "A call shows the raw value when it is not negative, and zero otherwise.",
   why = "NeverBelowZero, for one call.")(
-  (x, r) => r >= 0 && ((x >= 0) ==> (r === x)) && ((x < 0) ==> (r === BigInt(0)))).refines(neverBelowZero)
+  (x, r) => r >= 0 && ((x >= 0) implies (r === x)) && ((x < 0) implies (r === BigInt(0)))).refines(neverBelowZero)
   .examples()(
     expect(BigInt(5), BigInt(5), "a positive value is shown"),
     expect(BigInt(-3), BigInt(0), "a negative value shows zero"),
@@ -28,12 +28,12 @@ val onlyMembersGrant = Node.claim("OnlyMembersGrant",
   "A grant keeps everyone on the list, adds the person when the granter is on it, and adds no one else.",
   why = "Access is shared only by those who have it.")(
   forall((acl: Term[List[String]], by: Term[String], who: Term[String]) =>
-    acl.forall(x => granted(acl, by, who).contains(x)) && (acl.contains(by) ==> granted(acl, by, who).contains(who)) &&
+    acl.forall(x => granted(acl, by, who).contains(x)) && (acl.contains(by) implies granted(acl, by, who).contains(who)) &&
       granted(acl, by, who).forall(x => acl.contains(x) || (x === who && acl.contains(by)))))
 val grant = Node.contract(granted)("Grant",
   "A call keeps everyone on the list, adds the person when the granter is on it, and adds no one else.",
   why = "OnlyMembersGrant, for one call.")(
-  (acl, by, who, r) => acl.forall(x => r.contains(x)) && (acl.contains(by) ==> r.contains(who)) &&
+  (acl, by, who, r) => acl.forall(x => r.contains(x)) && (acl.contains(by) implies r.contains(who)) &&
     r.forall(x => acl.contains(x) || (x === who && acl.contains(by)))).refines(onlyMembersGrant)
   .examples()(
     expect(List("ann"), "ann", "bob", List("ann", "bob"), "a member adds bob"),
@@ -89,10 +89,10 @@ val rawReading = Param[BigInt]("rawReading", "the sensor's raw reading now")
 val gaugeShows = Param[() => BigInt]("gaugeShows", "what the gauge shows now")
 val showsNow = Node.claim("ShowsNow", "The gauge shows the raw reading when it is not negative, and zero otherwise.",
   why = "A negative reading is a sensor fault.")(
-  gaugeShows() >= 0 && ((rawReading >= 0) ==> (gaugeShows() === rawReading)) && ((rawReading < 0) ==> (gaugeShows() === BigInt(0))))
+  gaugeShows() >= 0 && ((rawReading >= 0) implies (gaugeShows() === rawReading)) && ((rawReading < 0) implies (gaugeShows() === BigInt(0))))
 val shows = Node.contract(gaugeShows)("Shows", "The gauge shows the raw reading when it is not negative, and zero otherwise.",
   why = "ShowsNow, for one reading.")(
-  r => r >= 0 && ((rawReading >= 0) ==> (r === rawReading)) && ((rawReading < 0) ==> (r === BigInt(0)))).refines(showsNow)
+  r => r >= 0 && ((rawReading >= 0) implies (r === rawReading)) && ((rawReading < 0) implies (r === BigInt(0)))).refines(showsNow)
   .examples(rawReading.bind(5))(expect(BigInt(5), "the raw reading"), never(BigInt(0), "never zero for a positive reading"))
   .examples(rawReading.bind(-3))(expect(BigInt(0), "zero for a fault"))
 val showRaw = define { () => (rawReading >= 0).fold(rawReading: Term[BigInt], BigInt(0)) }

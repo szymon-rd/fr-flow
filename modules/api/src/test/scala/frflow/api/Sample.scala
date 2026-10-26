@@ -55,7 +55,7 @@ object Sample:
   val needsGrant = node("NeedsGrant", NodeKind.Claim, List("Root"), List("Decide"), "A request is admitted only with a grant for the path.",
     "Access needs a grant.", List("formula" -> "forall((t, p) => admit(t, p).forall(u => grants(u, p)))"), uses = List("Identities"))
   val letsIn = node("LetsIn", NodeKind.Claim, List("Root"), List("Decide"), "A request with a grant for the path is admitted.",
-    "A grant is enough.", List("formula" -> "forall((t, p) => sessions(t).forall(u => grants(u, p) ==> admit(t, p) == Some(u)))"))
+    "A grant is enough.", List("formula" -> "forall((t, p) => sessions(t).forall(u => grants(u, p) implies admit(t, p) == Some(u)))"))
   val root = node("Root", NodeKind.Claim, Nil, List("NeedsGrant", "LetsIn"),
     "A user gets access to a resource exactly when they are signed in and authorized for it.", "The purpose of the system.",
     List("formula" -> "forall((u, r) => access(u, r) == (signedIn(u) && authorized(u, r)))"))

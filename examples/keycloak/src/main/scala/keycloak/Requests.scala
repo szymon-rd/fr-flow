@@ -45,14 +45,14 @@ val accountsAsAdministered = Node.claim("AccountsAsAdministered",
 val oneSignInPerToken = Node.claim("OneSignInPerToken",
   "Two sign-ins that still stand never share a token: a token names one session at most.",
   why = "A token must say whose it is: if two users could get the same one, an application could be told either of them."
-)(forall((x: Term[Session], y: Term[Session]) => (liveIn(history, x) && liveIn(history, y) && x.token === y.token) ==> (x === y)))
+)(forall((x: Term[Session], y: Term[Session]) => (liveIn(history, x) && liveIn(history, y) && x.token === y.token) implies (x === y)))
   .refines(signedInAreAccepted)
 
 val freshTokens = Node.assumption("FreshTokens",
   "Every sign-in carries a token no earlier sign-in carried.",
   why = "The server draws 256 random bits for each sign-in (HttpApi): a repeat does not happen in practice. Trusted, not proven; the server also refuses a token an open session holds."
 )(forall((pre: Term[List[AuthRequest]], post: Term[List[AuthRequest]]) => forall((q: Term[AuthRequest]) =>
-  (history === pre ++ (q :: post)) ==> fresh(pre, q))))
+  (history === pre ++ (q :: post)) implies fresh(pre, q))))
   .refines(oneSignInPerToken, sessionsMirrorSignIns)
 
 // ============================================================================

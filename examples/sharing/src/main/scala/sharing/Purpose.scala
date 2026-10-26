@@ -73,28 +73,28 @@ val accessFollowsShares = Node.claim("AccessFollowsShares",
     Sharing.canView(lib, t, p, d) === (!inTrash(lib, d) && mayView(lib, t, p, Target[Target.Doc](d))) &&
     Sharing.canEdit(lib, t, p, d) === (!inTrash(lib, d) && mayEdit(lib, t, p, Target[Target.Doc](d)))) &&
   forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], s: Term[Share]) =>
-    Sharing.share(lib, t, by, s) =!= lib ==> mayEdit(lib, t, by, s.what)) &&
+    Sharing.share(lib, t, by, s) =!= lib implies mayEdit(lib, t, by, s.what)) &&
   forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], what: Term[Target], withWhom: Term[Grantee]) =>
-    Sharing.unshare(lib, t, by, what, withWhom) =!= lib ==> mayEdit(lib, t, by, what)) &&
+    Sharing.unshare(lib, t, by, what, withWhom) =!= lib implies mayEdit(lib, t, by, what)) &&
   forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId], into: Term[Option[FolderId]]) =>
-    Sharing.move(lib, t, by, d, into) =!= lib ==>
+    Sharing.move(lib, t, by, d, into) =!= lib implies
       (mayEdit(lib, t, by, Target[Target.Doc](d)) && into.fold(True)(f => mayEdit(lib, t, by, Target[Target.InFolder](f))))) &&
   forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], to: Term[PersonId], what: Term[Target]) =>
-    (Invitations.withdraw(lib, t, by, to, what) =!= lib ==> mayEdit(lib, t, by, what)) &&
-    forall((level: Term[Level]) => Invitations.invite(lib, t, by, to, what, level) =!= lib ==> mayEdit(lib, t, by, what))) &&
+    (Invitations.withdraw(lib, t, by, to, what) =!= lib implies mayEdit(lib, t, by, what)) &&
+    forall((level: Term[Level]) => Invitations.invite(lib, t, by, to, what, level) =!= lib implies mayEdit(lib, t, by, what))) &&
   forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], what: Term[Target]) =>
-    Invitations.accept(lib, t, p, what) =!= lib ==> lib.invitations.exists(i => i.to === p && i.what === what && isOpen(i, t))) &&
+    Invitations.accept(lib, t, p, what) =!= lib implies lib.invitations.exists(i => i.to === p && i.what === what && isOpen(i, t))) &&
   forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId]) =>
-    (Trash.trash(lib, t, by, d) =!= lib ==> mayEdit(lib, t, by, Target[Target.Doc](d))) &&
-    (Trash.restore(lib, t, by, d) =!= lib ==> mayEdit(lib, t, by, Target[Target.Doc](d)))) &&
+    (Trash.trash(lib, t, by, d) =!= lib implies mayEdit(lib, t, by, Target[Target.Doc](d))) &&
+    (Trash.restore(lib, t, by, d) =!= lib implies mayEdit(lib, t, by, Target[Target.Doc](d)))) &&
   forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], w: Term[Target], level: Term[Level]) =>
     AccessRequests.ask(lib, t, p, w, level).shares === lib.shares && AccessRequests.ask(lib, t, p, w, level).invitations === lib.invitations &&
       AccessRequests.ask(lib, t, p, w, level).documents === lib.documents) &&
   forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], p: Term[PersonId], w: Term[Target]) =>
-    (AccessRequests.approve(lib, t, by, p, w) =!= lib ==> mayEdit(lib, t, by, w)) &&
-    (AccessRequests.decline(lib, t, by, p, w) =!= lib ==> mayEdit(lib, t, by, w))) &&
+    (AccessRequests.approve(lib, t, by, p, w) =!= lib implies mayEdit(lib, t, by, w)) &&
+    (AccessRequests.decline(lib, t, by, p, w) =!= lib implies mayEdit(lib, t, by, w))) &&
   forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId], to: Term[PersonId]) =>
-    Ownership.transfer(lib, t, by, d, to) =!= lib ==> mayEdit(lib, t, by, Target[Target.Doc](d))) &&
+    Ownership.transfer(lib, t, by, d, to) =!= lib implies mayEdit(lib, t, by, Target[Target.Doc](d))) &&
   forall((lib: Term[Library], t: Term[BigInt]) =>
     lib.shares.forall(s => Housekeeping.tidy(lib, t).shares.contains(s) || !inForce(s, t) ||
       lib.documents.exists(doc => gone(doc, t) && s.what === Target[Target.Doc](doc.id))) &&

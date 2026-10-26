@@ -44,9 +44,9 @@ object Deadlines:
     "What has ended stays ended: time in the service never goes back, so a share once ended, an invitation once lapsed and a document once gone stay so for the rest of the run.",
     why = "Stability in time: these facts change only one way, which is what lets the service cache them and housekeeping remove them for good. It rests on the clock never going back (ClockNeverGoesBack).",
     idea = "Time and housekeeping"
-  )(forall((pre: Term[List[Event]], post: Term[List[Event]]) => (events === pre ++ post) ==> (after(pre).now <= after(events).now)) &&
-    forall((t: Term[BigInt], u: Term[BigInt]) => (t <= u) ==>
-      (forall((s: Term[Share]) => !inForce(s, t) ==> !inForce(s, u)) &&
-       forall((i: Term[Invitation]) => !isOpen(i, t) ==> !isOpen(i, u)) &&
-       forall((doc: Term[Document]) => gone(doc, t) ==> gone(doc, u)))))
+  )(forall((pre: Term[List[Event]], post: Term[List[Event]]) => (events === pre ++ post) implies (after(pre).now <= after(events).now)) &&
+    forall((t: Term[BigInt], u: Term[BigInt]) => (t <= u) implies
+      (forall((s: Term[Share]) => !inForce(s, t) implies !inForce(s, u)) &&
+       forall((i: Term[Invitation]) => !isOpen(i, t) implies !isOpen(i, u)) &&
+       forall((doc: Term[Document]) => gone(doc, t) implies gone(doc, u)))))
     .refines(Housekeeping.clearsOnlyTheEnded)

@@ -101,7 +101,7 @@ object Run:
     why = "Q9: the server's clock never goes back. A clock set back (by hand, or by a time server) would break this; the server reads the clock once per request, so it would answer as if earlier.",
     idea = "Time and housekeeping"
   )(forall((pre: Term[List[Event]], post: Term[List[Event]]) => forall((e: Term[Event]) =>
-    (events === pre ++ (e :: post)) ==>
+    (events === pre ++ (e :: post)) implies
       e.on[Event.Asked](_ => True).on[Event.Housekept.type](True).on[Event.Delivered](_ => True).on[Event.Waited](d => d >= 0))))
     .refines(Deadlines.trashPurgedOnTime, Deadlines.invitationsLapseOnTime, Deadlines.endedStaysEnded, Deadlines.requestsAnsweredOnTime)
 
@@ -110,7 +110,7 @@ object Run:
     why = "The scheduler starts housekeeping every minute (Housekeeping.schedule); this is what the deadlines need of it. A run that fails changes nothing (HousekeepingJob) and is tried again at the next minute (Q16), so this asks for a run that succeeds every two minutes: a store down longer breaks it. Not proven: the server checks it as it runs, and the tests show which claims fail without it.",
     idea = "Time and housekeeping"
   )(forall((pre: Term[List[Event]], post: Term[List[Event]]) => forall((e: Term[Event]) =>
-    (events === pre ++ (e :: post)) ==>
+    (events === pre ++ (e :: post)) implies
       e.on[Event.Asked](_ => True).on[Event.Housekept.type](True).on[Event.Delivered](_ => True)
         .on[Event.Waited](d => after(pre).now + d <= after(pre).tidied + housekeepingWithin))))
     .refines(Deadlines.trashPurgedOnTime, Deadlines.invitationsLapseOnTime, Deadlines.requestsAnsweredOnTime)

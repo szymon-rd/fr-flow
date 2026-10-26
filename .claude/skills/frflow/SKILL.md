@@ -229,7 +229,7 @@ operations; what it does not offer is a type error.
 - **Annotate lambda parameters** as terms: `(s: Term[CrmStore], now: Term[BigInt]) => ...`.
   Quantifiers too: `forall((u: Term[User.T]) => ...)`, `exists(...)`, one or two variables.
 - **`===` and `=!=`**, never `==` (between terms it does not compile). `&&`,
-  `||`, `!`, `==>`; `True` and `False` for the constants.
+  `||`, `!`, `implies`; `True` and `False` for the constants.
 - **Build data from terms through its companion**: `object CrmStore extends Data[CrmStore]`
   makes `CrmStore(a, b, c)` a term (1 to 6 fields); `object Event extends Data[Event]`
   makes `Event[Event.Expired](now)` a term of the enum. Copy with a named tuple:

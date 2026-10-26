@@ -32,14 +32,14 @@ object Ownership:
     why = "Q14: every document has exactly one owner, its creator; only the owner transfers it, to someone who may edit it; the owner always may edit; an owner leaving a team keeps their documents; the owner's share cannot be unshared or expire. Exactly one owner is the type: a document names its owner.",
     idea = "Ownership"
   )(forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId], to: Term[PersonId]) =>
-    transfer(lib, t, by, d, to) =!= lib ==>
+    transfer(lib, t, by, d, to) =!= lib implies
       (owns(lib, by, d) && mayEdit(lib, t, by, Target[Target.Doc](d)) && mayEdit(lib, t, to, Target[Target.Doc](d)) &&
         owns(transfer(lib, t, by, d, to), to, d) &&
         transfer(lib, t, by, d, to).shares.contains(Share(Target[Target.Doc](d), Grantee[Grantee.Person](to), Level.Edit, none[BigInt])))) &&
     forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], what: Term[Target], withWhom: Term[Grantee]) =>
-      ownedBy(lib, what, withWhom) ==> (Sharing.unshare(lib, t, by, what, withWhom) === lib)) &&
+      ownedBy(lib, what, withWhom) implies (Sharing.unshare(lib, t, by, what, withWhom) === lib)) &&
     forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], s: Term[Share]) =>
-      ownedBy(lib, s.what, s.withWhom) ==> (Sharing.share(lib, t, by, s) === lib)))
+      ownedBy(lib, s.what, s.withWhom) implies (Sharing.share(lib, t, by, s) === lib)))
     .refines(accessFollowsShares)
 
   private val bobEditsPlan = Share(Target.Doc(plan), Grantee.Person(bob), Level.Edit, None)

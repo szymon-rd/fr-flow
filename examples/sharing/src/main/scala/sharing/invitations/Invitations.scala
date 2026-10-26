@@ -35,12 +35,12 @@ object Invitations:
     why = "Q7: an invitation is how someone gets a share they have not asked for; it is a share offered, not given, so until it is accepted access is as before. Whether it is open is left open here (Lifetimes); that a lapsed one does not linger is what InvitationsLapseOnTime says with the clock.",
     idea = "Invitations"
   )(forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], to: Term[PersonId], what: Term[Target]) =>
-    (withdraw(lib, t, by, to, what) =!= lib ==> mayEdit(lib, t, by, what)) &&
-    forall((level: Term[Level]) => (invite(lib, t, by, to, what, level) =!= lib ==> mayEdit(lib, t, by, what)) &&
+    (withdraw(lib, t, by, to, what) =!= lib implies mayEdit(lib, t, by, what)) &&
+    forall((level: Term[Level]) => (invite(lib, t, by, to, what, level) =!= lib implies mayEdit(lib, t, by, what)) &&
       forall((p: Term[PersonId], d: Term[DocumentId]) =>
         Sharing.access(invite(lib, t, by, to, what, level), t, p, d) === Sharing.access(lib, t, p, d)))) &&
     forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], what: Term[Target]) =>
-      accept(lib, t, p, what) =!= lib ==> lib.invitations.exists(i => i.to === p && i.what === what && isOpen(i, t))) &&
+      accept(lib, t, p, what) =!= lib implies lib.invitations.exists(i => i.to === p && i.what === what && isOpen(i, t))) &&
     after(events).library.invitations.forall(i => isOpen(i, after(events).now - housekeepingWithin)))
     .refines(accessFollowsShares)
 

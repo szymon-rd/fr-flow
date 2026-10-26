@@ -27,7 +27,7 @@ val searchesMatch = Node.claim("SearchesMatch",
   why = "Users find records by id, by kind, or by listing everything, on the records screen or on the sales screen, which lists deals only: a search returns what it asks for, all of it that the user may read. That it returns nothing else to read is NoCrossTenantRead's.",
   idea = "Finding records"
 )(forall((u: Term[Account], q: Term[Ask]) => results(u, q).forall(r => store.contains(r) && askMatches(q, r)) &&
-  store.forall(r => (askMatches(q, r) && mayRead(u, r)) ==> results(u, q).contains(r))))
+  store.forall(r => (askMatches(q, r) && mayRead(u, r)) implies results(u, q).contains(r))))
   .refines(visibility)
 
 // ============================================================================
@@ -37,7 +37,7 @@ val searchesMatch = Node.claim("SearchesMatch",
 val recordsByQuery = Node.assumption(fetch)("RecordsByQuery",
   "The database returns exactly the stored records that match a search, of every company.",
   why = "Records live in SQLite. The read side is proven from this promise, not from the SQL; the SQL is checked against the define the port is decided with on its examples and on varied data, and every result it returns is checked to match the search."
-)((user, query, rs) => rs.forall(r => store.contains(r) && matches(query, r)) && store.forall(r => matches(query, r) ==> rs.contains(r)))
+)((user, query, rs) => rs.forall(r => store.contains(r) && matches(query, r)) && store.forall(r => matches(query, r) implies rs.contains(r)))
   .checkedBy((user, query, rs) => rs.forall(r => matches(query, r)))
   .examples(
     history.bind(List(
@@ -64,7 +64,7 @@ val readContract = Node.contract(read)("ReadContract",
   why = "The records screen, stated for one call. A returned record must be one of the stored records, so code cannot relabel another company's record as the user's; and every such record is returned, since users find records.",
   idea = "Finding records"
 )((user, query, result) => result.forall(r => store.contains(r) && matches(query, r) && mayRead(user, r)) &&
-  store.forall(r => (matches(query, r) && mayRead(user, r)) ==> result.contains(r)))
+  store.forall(r => (matches(query, r) && mayRead(user, r)) implies result.contains(r)))
   .refines(searchesMatch)
   .examples(
     history.bind(List(
@@ -99,8 +99,8 @@ val readContract = Node.contract(read)("ReadContract",
   .keeps(noCrossTenantRead)((user, query, result) => result.map(r => (user, r)))
   .checkedBy((user, query, result) => result.forall(r => matches(query, r) && mayRead(user, r)))
   .expects("Someone at Acme never sees a Globex record that Globex did not share with Acme, whatever they search for")(
-    forall((u: Term[Account], q: Term[Search]) => (u.tenant === TenantId("acme")) ==>
-      read(u, q).forall(r => (r.tenant === TenantId("globex")) ==> shares.contains(Share(r.id, TenantId("acme"))))))
+    forall((u: Term[Account], q: Term[Search]) => (u.tenant === TenantId("acme")) implies
+      read(u, q).forall(r => (r.tenant === TenantId("globex")) implies shares.contains(Share(r.id, TenantId("acme"))))))
 
 /** A search: what the database returns for it, of the user's company or shared with it now. */
 val search = define { (user: Term[Account], query: Term[Search]) => fetch(user, query).filter(r => mayRead(user, r)) }
@@ -110,7 +110,7 @@ val dealSearch = Node.contract(deals)("DealSearch",
   why = "The sales screen, stated for one call. Its code calls the records screen and keeps the deals, so it is proven from ReadContract's promise and shows only what the records screen may show.",
   idea = "Sales screen"
 )((user, query, result) => result.forall(r => store.contains(r) && r.kind === Kind.Deal && matches(query, r) && mayRead(user, r)) &&
-  store.forall(r => (r.kind === Kind.Deal && matches(query, r) && mayRead(user, r)) ==> result.contains(r)))
+  store.forall(r => (r.kind === Kind.Deal && matches(query, r) && mayRead(user, r)) implies result.contains(r)))
   .refines(searchesMatch)
   .examples(
     history.bind(List(

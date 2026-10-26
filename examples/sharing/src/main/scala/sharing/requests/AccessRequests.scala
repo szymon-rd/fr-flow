@@ -41,9 +41,9 @@ object AccessRequests:
     ask(lib, t, p, w, level).shares === lib.shares && ask(lib, t, p, w, level).invitations === lib.invitations &&
       ask(lib, t, p, w, level).documents === lib.documents) &&
     forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], p: Term[PersonId], w: Term[Target]) =>
-      (approve(lib, t, by, p, w) =!= lib ==>
+      (approve(lib, t, by, p, w) =!= lib implies
         (mayEdit(lib, t, by, w) && lib.requests.exists(r => r.person === p && r.what === w && isPending(r, t)))) &&
-      (decline(lib, t, by, p, w) =!= lib ==> mayEdit(lib, t, by, w))) &&
+      (decline(lib, t, by, p, w) =!= lib implies mayEdit(lib, t, by, w))) &&
     after(events).library.requests.forall(r => isPending(r, after(events).now - housekeepingWithin) &&
       (r.reminded || !reminderDue(r, after(events).now - housekeepingWithin))))
     .refines(accessFollowsShares)

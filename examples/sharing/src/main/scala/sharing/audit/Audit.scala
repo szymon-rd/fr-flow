@@ -49,7 +49,7 @@ object Audit:
     idea = "Audit"
   )(after(events).library.shares.forall(s => after(events).library.log.exists(e => makes(e, s))) &&
     forall((p: Term[PersonId], d: Term[DocumentId]) =>
-      mayView(after(events).library, after(events).now, p, Target[Target.Doc](d)) ==>
+      mayView(after(events).library, after(events).now, p, Target[Target.Doc](d)) implies
         after(events).library.shares.exists(s => inForce(s, after(events).now) && reaches(after(events).library, s, p) &&
           covers(after(events).library, s, Target[Target.Doc](d)) && after(events).library.log.exists(e => makes(e, s)))))
     .refines(accessFollowsShares)

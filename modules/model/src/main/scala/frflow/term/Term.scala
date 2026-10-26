@@ -137,7 +137,8 @@ object Term extends TermsOfValues, ListRelations:
     def &&(b: Term[Boolean]): Term[Boolean] = opB(Prim.And, a, b)
     def ||(b: Term[Boolean]): Term[Boolean] = opB(Prim.Or, a, b)
     def unary_! : Term[Boolean] = opB(Prim.Not, a)
-    infix def ==>(b: Term[Boolean]): Term[Boolean] = opB(Prim.Implies, a, b)
+    /** `a implies b`: a word, so it binds after `&&` and `||`: `a && b implies c` is `(a && b) implies c`. */
+    infix def implies(b: Term[Boolean]): Term[Boolean] = opB(Prim.Implies, a, b)
     /** Boolean's fold (its catamorphism): `ifTrue` when this holds, else `ifFalse`. Lean's `if … then … else …`. */
     def fold[R](ifTrue: Term[R], ifFalse: Term[R]): Term[R] = Term(Tree.If(a.termTree, ifTrue.termTree, ifFalse.termTree), ifTrue.termType)
     /** The same between two flows (Cats' `foldF`): the steps of one of them. */

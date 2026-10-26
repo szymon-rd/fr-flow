@@ -157,11 +157,11 @@ val afterSave = define { (s: Term[CrmStore], w: Term[WriteCmd]) => replaceAbout(
   */
 val takesEffect = define { (s: Term[CrmStore], w: Term[WriteCmd], t: Term[CrmStore]) =>
   w.change
-    .on[Change.Add](r => (r.tenant === w.by.tenant && !s.records.exists(x => x.id === r.id)) ==> t.records.contains(r))
-    .on[Change.ShareWith]((id, to, until) => s.records.exists(x => x.id === id && x.tenant === w.by.tenant) ==>
+    .on[Change.Add](r => (r.tenant === w.by.tenant && !s.records.exists(x => x.id === r.id)) implies t.records.contains(r))
+    .on[Change.ShareWith]((id, to, until) => s.records.exists(x => x.id === id && x.tenant === w.by.tenant) implies
       (t.shares.contains(Share(id, to)) && until
-        .fold(!t.expiries.exists(e => e.record === id && e.to === to))(u => t.expiries.contains(Expiry(id, to, u)) && t.expiries.forall(e => (e.record === id && e.to === to) ==> (e.until === u)))))
-    .on[Change.Unshare]((id, to) => s.records.exists(x => x.id === id && x.tenant === w.by.tenant) ==> !t.shares.contains(Share(id, to)))
+        .fold(!t.expiries.exists(e => e.record === id && e.to === to))(u => t.expiries.contains(Expiry(id, to, u)) && t.expiries.forall(e => (e.record === id && e.to === to) implies (e.until === u)))))
+    .on[Change.Unshare]((id, to) => s.records.exists(x => x.id === id && x.tenant === w.by.tenant) implies !t.shares.contains(Share(id, to)))
 }
 
 /** Whether a write adds the record: it asks to add it, of its author's company, under an id no record
@@ -266,22 +266,22 @@ val sharedCrm = Node.claim("SharedCrm",
     (history === List(
       Event.Wrote(WriteCmd(Account("ann@acme", TenantId("acme")), Change.Add(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact")))),
       Event.Wrote(WriteCmd(Account("gil@globex", TenantId("globex")), Change.Add(CrmRecord(2, TenantId("globex"), Kind.Deal, "Globex deal")))),
-      Event.Wrote(WriteCmd(Account("gil@globex", TenantId("globex")), Change.ShareWith(2, TenantId("acme"), Some(100)))))) ==>
-    (((clock === BigInt(50)) ==>
+      Event.Wrote(WriteCmd(Account("gil@globex", TenantId("globex")), Change.ShareWith(2, TenantId("acme"), Some(100)))))) implies
+    (((clock === BigInt(50)) implies
         (results(Account("ann@acme", TenantId("acme")), Ask(Screen.Records, Search.Everything)).contains(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact")) &&
          results(Account("ann@acme", TenantId("acme")), Ask(Screen.Records, Search.Everything)).contains(CrmRecord(2, TenantId("globex"), Kind.Deal, "Globex deal")))) &&
-     ((clock === BigInt(150)) ==>
+     ((clock === BigInt(150)) implies
         (results(Account("ann@acme", TenantId("acme")), Ask(Screen.Records, Search.Everything)).contains(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact")) &&
          !results(Account("ann@acme", TenantId("acme")), Ask(Screen.Records, Search.Everything)).contains(CrmRecord(2, TenantId("globex"), Kind.Deal, "Globex deal")))) &&
      !results(Account("gil@globex", TenantId("globex")), Ask(Screen.Records, Search.Everything)).contains(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact"))))
   .expects("A record a user adds to their company, under an id no record added before has, is found from then on by each of their searches that asks for it")(
     forall((u: Term[Account], r: Term[CrmRecord]) => forall((pre: Term[List[Event]], post: Term[List[Event]]) =>
       (history === pre ++ (Event[Event.Wrote](WriteCmd(u, Change[Change.Add](r))) :: post) && r.tenant === u.tenant &&
-        !askedIn(pre).records.exists(x => x.id === r.id)) ==>
-        forall((q: Term[Ask]) => askMatches(q, r) ==> results(u, q).contains(r)))))
+        !askedIn(pre).records.exists(x => x.id === r.id)) implies
+        forall((q: Term[Ask]) => askMatches(q, r) implies results(u, q).contains(r)))))
   .expects("Nothing a user writes changes what anyone finds of another company's records: after the write, a search finds of them what the history before it entitled it to")(
     forall((es: Term[List[Event]], w: Term[WriteCmd]) => forall((u: Term[Account], q: Term[Ask]) => forall((r: Term[CrmRecord]) =>
-      (history === es ++ List(Event[Event.Wrote](w)) && r.tenant =!= w.by.tenant) ==>
+      (history === es ++ List(Event[Event.Wrote](w)) && r.tenant =!= w.by.tenant) implies
         (results(u, q).contains(r) === (askMatches(q, r) && askedIn(es).records.contains(r) &&
           (r.tenant === u.tenant || sharedIn(es, r.id, u.tenant, clock))))))))
 

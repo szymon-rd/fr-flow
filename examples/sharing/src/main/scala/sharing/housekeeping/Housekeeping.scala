@@ -33,10 +33,10 @@ object Housekeeping:
       lib.documents.exists(doc => gone(doc, t) && s.what === Target[Target.Doc](doc.id))) &&
     lib.invitations.forall(i => tidy(lib, t).invitations.contains(i) || !isOpen(i, t)) &&
     lib.documents.forall(doc => tidy(lib, t).documents.contains(doc) || gone(doc, t))) &&
-    forall((t: Term[BigInt], u: Term[BigInt]) => (t <= u) ==>
-      (forall((s: Term[Share]) => !inForce(s, t) ==> !inForce(s, u)) &&
-       forall((i: Term[Invitation]) => !isOpen(i, t) ==> !isOpen(i, u)) &&
-       forall((doc: Term[Document]) => gone(doc, t) ==> gone(doc, u)))))
+    forall((t: Term[BigInt], u: Term[BigInt]) => (t <= u) implies
+      (forall((s: Term[Share]) => !inForce(s, t) implies !inForce(s, u)) &&
+       forall((i: Term[Invitation]) => !isOpen(i, t) implies !isOpen(i, u)) &&
+       forall((doc: Term[Document]) => gone(doc, t) implies gone(doc, u)))))
     .refines(accessFollowsShares)
 
   /** Whether a share is of a document gone at a moment. */

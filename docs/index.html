@@ -286,7 +286,7 @@ each one is needed. This is the capability part: a granted user gets in.</p>
 <div class="code"><pre><code>val grantLetsIn = Node.claim("GrantLetsIn",
   "A request whose token was issued to a user with a grant for the path is admitted on their behalf.",
   why = "A grant is there to be used: a system that turned a granted user away would meet the rules by serving no one."
-)(forall((t: Term[String], p: Term[Path]) =&gt; sessions(t).forall(u =&gt; grants.contains(Grant(u, p)) ==&gt; (admit(t, p) === Some(u))))).refines(accessExactly)</code></pre></div>
+)(forall((t: Term[String], p: Term[Path]) =&gt; sessions(t).forall(u =&gt; grants.contains(Grant(u, p)) implies (admit(t, p) === Some(u))))).refines(accessExactly)</code></pre></div>
 
 <h3 id="t-contract">6. A contract, with examples</h3>
 <p>A contract states, for one call of an operation, what every result must satisfy, so each result of the running
@@ -296,7 +296,7 @@ system can be checked. Examples are concrete calls: an <code>expect</code> the c
   "A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path.",
   why = "The three parts, stated for one call, so every result of the running system can be checked."
 )((token, path, decision) =&gt; decision.forall(u =&gt; sessions(token) === Some(u) &amp;&amp; grants.contains(Grant(u, path))) &amp;&amp;
-  sessions(token).forall(u =&gt; grants.contains(Grant(u, path)) ==&gt; (decision === Some(u))))
+  sessions(token).forall(u =&gt; grants.contains(Grant(u, path)) implies (decision === Some(u))))
   .refines(tokenNamesHolder, accessNeedsGrant, grantLetsIn)
   .examples(grants.bind(List(Grant(UserId("alice"), Path("/a")))), sessions.bindTable(Map("t1" -&gt; UserId("alice"))))(
     expect("t1", Path("/a"), Some(UserId("alice")), "Alice's token and a grant for /a: she gets in"),
@@ -454,7 +454,7 @@ that takes several steps against the outside (load, store, log) is a flow over a
   "The store's index returns a session it holds under the token in the realm asked, if it holds one, and never one of another realm or token.",
   why = "Sessions live in a store indexed by realm and token (in memory here; a database or cache in a cluster). Introspection is proven from this promise, not from the index; the index is checked against the define it is decided with on its examples, and every session it returns is checked to be of the realm and token asked."
 )((realm, token, r) =&gt; r.forall(x =&gt; sessions(realm).contains(x) &amp;&amp; x.token === token &amp;&amp; x.realm === realm) &amp;&amp;
-  (sessions(realm).exists(x =&gt; x.token === token) ==&gt; r.isDefined))
+  (sessions(realm).exists(x =&gt; x.token === token) implies r.isDefined))
   .checkedBy((realm, token, r) =&gt; r.forall(x =&gt; x.token === token &amp;&amp; x.realm === realm))</code></pre></div>
 
 <h3 id="how-review">Review a change</h3>
@@ -495,7 +495,7 @@ prints as Lean and runs as Scala. A lambda over terms annotates its parameters
 <thead><tr><th>Write</th><th>Means</th><th>Lean</th></tr></thead>
 <tbody>
 <tr><td><code>a === b</code>, <code>a =!= b</code></td><td>equal, not equal. <code>==</code> between terms does not compile</td><td><code>=</code>, <code>≠</code></td></tr>
-<tr><td><code>&amp;&amp;</code>, <code>||</code>, <code>!</code>, <code>==&gt;</code></td><td>and, or, not, implies</td><td><code>∧ ∨ ¬ →</code></td></tr>
+<tr><td><code>&amp;&amp;</code>, <code>||</code>, <code>!</code>, <code>implies</code></td><td>and, or, not, implies</td><td><code>∧ ∨ ¬ →</code></td></tr>
 <tr><td><code>True</code>, <code>False</code></td><td>the Boolean terms (a Scala <code>true</code> does not convert)</td><td><code>True</code>, <code>False</code></td></tr>
 <tr><td><code>forall((x: Term[A]) =&gt; …)</code>, <code>exists(…)</code></td><td>for every, for some value, of one or two variables. Specification only: Scala cannot run them</td><td><code>∀</code>, <code>∃</code></td></tr>
 <tr><td><code>c.fold(ifTrue, ifFalse)</code></td><td>a conditional: Boolean's fold</td><td><code>if c then a else b</code></td></tr>
