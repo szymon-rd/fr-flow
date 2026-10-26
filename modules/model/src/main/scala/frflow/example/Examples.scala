@@ -1,7 +1,7 @@
 package frflow
 package example
 
-/** `expect` and `reject`: a contract's cases, by how many inputs its operation takes (re-exported by `frflow`). */
+/** `expect` and `reject`: a contract's cases, by how many inputs its operation takes. */
 object Examples:
   // `expect`: the contract accepts this result, and the implementation must return it. `reject`: the contract must refuse it.
   // One of each per number of inputs; a flow's run takes the world before after its inputs, and the world after its result.

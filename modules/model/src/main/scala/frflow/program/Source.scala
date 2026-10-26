@@ -3,8 +3,8 @@ package program
 
 import scala.quoted.*
 
-/** Where a model's parts are written, and their text as written: what the developer reads and decides. Nothing
-  * here translates anything; the Lean comes from the terms themselves.
+/** Where a model's parts are written, and their text as written: what the developer reads and decides. The Lean
+  * is printed from the terms.
   */
 object Source:
   /** The source file of the call site. */

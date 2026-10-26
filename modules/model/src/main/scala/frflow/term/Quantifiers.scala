@@ -1,7 +1,7 @@
 package frflow
 package term
 
-/** `forall` and `exists`, over one to six variables (re-exported by `frflow`). */
+/** `forall` and `exists`, over one to six variables. */
 object Quantifiers:
   /** `x` stands for any value: specification only (Lean proves it, Scala cannot run it). */
   def forall[A](p: Term[A] => Term[Boolean])(using a: LeanType[A]): Term[Boolean] = Term.quant(all = true, p, List(a))

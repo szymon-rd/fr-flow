@@ -2,7 +2,7 @@ package frflow.protocol
 
 import io.circe.Json
 
-/** The one printing of JSON that is hashed: compact, fields in their order, integral numbers without a
+/** The printing of JSON that is hashed: compact, fields in their order, integral numbers without a
   * fraction, and only `"`, `\`, newline, return and tab escaped by name. Every hash and reference of a
   * content goes through it, so the ledgers stay valid.
   */

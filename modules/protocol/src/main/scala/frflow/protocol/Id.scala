@@ -2,7 +2,7 @@ package frflow.protocol
 
 import io.circe.{Codec, Decoder, Encoder, KeyDecoder, KeyEncoder}
 
-/** Identifiers and hashes: strings on the wire, apart in the types. */
+/** Identifiers and hashes: each a distinct type over `String`, written as a JSON string. */
 private[protocol] trait Id[T](using ev: T =:= String, back: String =:= T):
   def apply(s: String): T = back(s)
   extension (t: T) def value: String = ev(t)

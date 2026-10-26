@@ -3,7 +3,7 @@ package example
 
 import scala.util.Try
 
-/** The one generator of inputs and values near the examples', for Lean's probes and for the code's runs. */
+/** Inputs and values near the examples', shared by Lean's probes and the code's runs. */
 object Probes:
   def numbers(v: Any): List[BigInt] = v match
     case i: Int     => List(BigInt(i))

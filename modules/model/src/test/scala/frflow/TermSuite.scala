@@ -2,7 +2,7 @@ package frflow
 
 import frflow.fixtures.*
 
-/** Terms: written in Scala, printed as the Lean the macro printed for the same Scala, and run as Scala. */
+/** Terms: written in Scala, printed as Lean, and run as Scala. */
 class TermSuite extends munit.FunSuite:
   private val four = Param[(Book, Int, Int, String) => Boolean]("four", "a test of four arguments")
 
@@ -72,7 +72,7 @@ class TermSuite extends munit.FunSuite:
     val ls = lean2((l: Term[List[BigInt]], n: Term[Int]) =>
       l.flatMap(x => List(x, x)).take(n).drop(1).headOption === l.find(x => x > 0) && l.zip(l).filterNot(p => p._1 > p._2).nonEmpty)
     assert(List("List.flatMap", "List.take (Int.toNat n)", "List.find?", "List.zip l l").forall(ls.contains), ls)
-    // values print as the macro printed them written in Scala
+    // a Scala value prints as a Lean literal
     assertEquals(lean1((o: Term[Option[Book]]) => o === Some(Book("A", -1))), "(o = (some (Book.mk \"A\" (-1))))")
     assertEquals(lean1((s: Term[Shelf]) => s === Shelf.Box("x") || s === Shelf.Top), "((s = (Shelf.Box \"x\")) ∨ (s = Shelf.Top))")
     // an enum's case built from terms, through its companion

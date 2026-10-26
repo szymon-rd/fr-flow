@@ -1,7 +1,7 @@
 package frflow
 package vocabulary
 
-/** A define called on terms, in a model (re-exported by `frflow`; in `Def`, an `apply` would hide its constructor). */
+/** A define called on terms, in a model (outside `Def`, where an `apply` would hide its constructor). */
 object DefCalls:
   private def called[R](d: Def[?], args: Term[?]*): Term[R] =
     Term(Tree.Call(d, args.toList.map(_.termTree)), d.resultType.asInstanceOf[LeanType[R]])

@@ -1,7 +1,7 @@
 package frflow
 package vocabulary
 
-/** A parameter called on terms, in a model (re-exported by `frflow`; in `Param`, an `apply` would hide its constructor). */
+/** A parameter called on terms, in a model (outside `Param`, where an `apply` would hide its constructor). */
 object ParamCalls:
   // A parameter called in a model is a term; plain code calls the value in force: `sessions.value(t)`. Called on plain values
   // it is a term too (a model may call it on constants); plain code cannot use that term as a value, nor compare it with `==`.

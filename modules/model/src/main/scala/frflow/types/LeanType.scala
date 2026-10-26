@@ -5,7 +5,7 @@ import scala.deriving.Mirror
 import scala.reflect.ClassTag
 
 /** What a Scala type is in Lean, and how its values are taken apart: given for the standard types, derived for
-  * case classes and enums (by their `Mirror`, at compile time; nothing reads their code). `of[T]` summons one.
+  * case classes and enums (by their `Mirror`, at compile time). `of[T]` summons one.
   */
 trait LeanType[A]:
   private[frflow] def shape: Shape
