@@ -6,6 +6,18 @@ import frflow.protocol.*
 
 /** Words shared by the views. */
 object Words:
+  /** What Lean was asked, in words: `the step from its parts`, `the proof of its code`, `kept by book`. */
+  def obligation(o: ObligationName): String = o match
+    case ObligationName.Complete      => "the step from its parts"
+    case ObligationName.Impl          => "the proof of its code"
+    case ObligationName.RootImpl      => "the roots of the code (root_impl)"
+    case ObligationName.Check         => "its run-time check"
+    case ObligationName.KeptBy(p)     => s"kept by $p"
+    case ObligationName.Initially     => "what the store starts with"
+    case ObligationName.CalledWith(p) => s"what $p is called with"
+    case ObligationName.Expect(i)     => s"expectation ${i + 1}"
+    case other                        => other.lean
+
   def verb(a: Action): String = a match
     case Action.Accept  => "accepted"
     case Action.Confirm => "confirmed"
@@ -22,14 +34,24 @@ object Words:
     Cause.Parts -> "its parts changed", Cause.Code -> "the code it governs changed", Cause.Revisit -> "a change elsewhere may affect it",
     Cause.Merged -> "two branches decided it and both were kept")
 
-  /** Why a node waits for review, in a word: `review (changed, code)`. */
-  def cause(c: Cause): String = c match
-    case Cause.Self    => "changed"
-    case Cause.Above   => "above"
-    case Cause.Parts   => "parts"
-    case Cause.Code    => "code"
-    case Cause.Revisit => "revisit"
-    case Cause.Merged  => "two branches"
+  /** Why a node waits for review, in a few words: `it and its code changed: review it`. What changed is said as
+    * one subject (it, what is above it, its parts, its code); being asked to revisit it, or kept from two branches,
+    * as a clause of its own.
+    */
+  def review(causes: List[Cause]): String =
+    val subjects = causes.collect {
+      case Cause.Self  => "it"
+      case Cause.Above => "what is above it"
+      case Cause.Parts => "its parts"
+      case Cause.Code  => "its code"
+    }
+    val changed = subjects match
+      case Nil       => Nil
+      case List(one) => List(s"$one changed")
+      case more      => List(s"${more.init.mkString(", ")} and ${more.last} changed")
+    val others =
+      causes.collect { case Cause.Revisit => "asked to revisit it"; case Cause.Merged => "kept from two branches" }
+    s"${(changed ++ others).mkString("; ")}: review it"
 
   def decided(l: Logged): String =
     val d = l.decision

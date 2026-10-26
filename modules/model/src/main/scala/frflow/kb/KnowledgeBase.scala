@@ -19,7 +19,14 @@ final class KnowledgeBase(val name: String, val idea: String = "", val implement
   /** What it is a part of, and what it is a premise of (`.assuming`). */
   def parentsOf(n: Node[?]): List[Node[?]] = n.parents.filter(has) ++ premiseOf.getOrElse(n, Nil)
   private lazy val premiseOf: Map[Node[?], List[Node[?]]] =
-    nodes.flatMap(c => c.premises.filter(has).map(_ -> c)).groupMap(_._1)(_._2)
+    nodes.flatMap(c => premisesOf(c).map(_ -> c)).groupMap(_._1)(_._2)
+  /** The assumptions a node rests on: those it names (`.assuming`), and a fact naming it as what a store starts
+    * satisfying (`storedBookings.startsSatisfying(neverOverlap)`, written after the claim it names).
+    */
+  def premisesOf(n: Node[?]): List[Node[?]] =
+    (n.premises.filter(has) ++ startsOf.getOrElse(n, Nil)).distinctBy(System.identityHashCode)
+  private lazy val startsOf: Map[Node[?], List[Node[?]]] =
+    nodes.flatMap(f => f.startsSatisfying.map(_ -> f)).groupMap(_._1)(_._2)
   private lazy val childrenOf: Map[Node[?], List[Node[?]]] = nodes.flatMap(c => parentsOf(c).map(_ -> c)).groupMap(_._1)(_._2)
   /** In the model's order: its parts, and the design decisions below it. */
   def children(n: Node[?]): List[Node[?]] = childrenOf.getOrElse(n, Nil)
@@ -90,8 +97,10 @@ final class KnowledgeBase(val name: String, val idea: String = "", val implement
     types.filter(_.body.startsWith("structure")).flatMap(t => t.ctors.headOption.map(c => t.name -> c._2)).toMap
   /** Whether a value of type `t` holds the invariants of its type (and its parts those of theirs), run as Scala. */
   def holds(t: LeanType[?])(v: Any): Boolean = invariantsOn(t).forall { (_, d, reach) =>
-    // A rule Scala cannot run (a `forall` over numbers) refuses nothing here.
-    scala.util.Try(reach.holds(v, d.fn.asInstanceOf[Any => Boolean])).getOrElse(true)
+    // A `forall` over numbers ranges over the value's own numbers and their neighbours; a rule Scala cannot run
+    // still (a `forall` over another type) refuses nothing here.
+    scala.util.Try(Watch.within(Watch.overNumbers(List(v)))(reach.holds(v, d.fn.asInstanceOf[Any => Boolean])))
+      .getOrElse(true)
   }
   /** What always holds of what a model holds in a world: the rules of its state's type, and its store's. */
   def worldRules(m: ModelOf): List[(Node[?], Def[?], Reach)] =
@@ -183,7 +192,8 @@ final class KnowledgeBase(val name: String, val idea: String = "", val implement
   private[frflow] lazy val lifteds: List[Lifted[?]] = nodes.flatMap(_.referenced) ++ defs.map(_.lifted)
   lazy val defs: List[Def[?]] = Walk.postorder(defRoots, _.name)(_.lifted.defs)
   private def defRoots: List[Def[?]] =
-    nodes.flatMap(_.referenced).flatMap(_.defs) ++ nodes.flatMap(n => n.holds ++ n.initially) ++
+    nodes.flatMap(_.referenced).flatMap(_.defs) ++
+      nodes.flatMap(n => n.holds ++ n.initially ++ n.calledOnlyWith.map(_._2)) ++
       implementations.flatMap(_.proven) ++ modelDefs
   /** The defines a model's operations use: Lean's models need them too. */
   private def modelDefs: List[Def[?]] = models.flatMap(mo => mo.boundary.operations.flatMap { m =>

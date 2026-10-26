@@ -157,9 +157,11 @@ examples still use the older kinds below (contract, invariant, definition), whic
   about are plain Scala. `Node.assumption(statement)(formula)`: trusted, decided by the developer: the outside
   world, as a store's model (`bookingTable.behavesAs(storedBookings)`) or a fact of how the system is run
   (`storedBookings.writtenOnlyBy(book)`, `storedBookings.changedOneRunAtATime`,
-  `storedBookings.startsMeetingItsRules`, or `storedBookings.initially(held => …)` when the start is not just
-  "meeting its rules"), or of what comes from outside (`book.calledWithInputsMeetingTheirRules`). Name the
-  boundary for the real thing (`bookingTable`) and the model for what the proofs see (`storedBookings`).
+  `storedBookings.startsSatisfying(neverOverlap)`, written after the claim it names and a premise of it, or
+  `storedBookings.initially(held => …)`), or of what comes from outside, with the condition written out
+  (`book.calledOnlyWith(request => request.start < request.end)`: Lean proves it gives the `always` of the
+  input's type). Name the boundary for the real thing (`val bookingTable = Boundary[BookingTable]("the SQLite
+  table …")`, named from its val) and the model for what the proofs see (`storedBookings`).
   `Node.design(statement, why)(files*)`: a decision about code no proof covers.
 - **Values.** `Declaration[A](means)`: an abstract idea, known only through the claims and assumptions about
   it; no code or flow uses it, and nothing implements it. `Definition[A](means)`: of any type (a function, a
@@ -171,7 +173,7 @@ examples still use the older kinds below (contract, invariant, definition), whic
 - **Quantifiers.** `forall(x => …)`: every possible value, proven. `always[T](x => …)`: every value of `T`
   that can be made: a hypothesis in Lean of every statement about such values, and the tests draw only
   values that hold it (no run-time check: values from outside are an assumption's business, and `check` asks
-  for one, `book.calledWithInputsMeetingTheirRules`, for each program given such inputs).
+  for one, `book.calledOnlyWith(request => …)`, for each program given such inputs).
   `always(storedBookings)(held => …)`: every state the store reaches: Lean proves every program writing it
   keeps it (`kept_by_<program>`), and that what it holds when the system starts meets it (`initially`).
 - **A claim constrains every Definition and Declaration it mentions.** `forall((held: Term[RoomBookings],
@@ -189,7 +191,7 @@ examples still use the older kinds below (contract, invariant, definition), whic
   of a value or a store is an `always` claim of its own. A guideline for you, not a rule FrFlow checks.
 - **Examples are tests**, not nodes: in `src/test/scala`,
   `class GrantedExamples extends FrFlowExamples(rooms):` then `example("back to back: granted"):` with
-  `granted(RoomBookings(List(Booking("Oak", 9, 10))), Booking("Oak", 10, 11)) is true`. `sbt test` runs each
+  `granted(RoomBookings("Oak", List(Booking("Oak", 9, 10))), Booking("Oak", 10, 11)) is true`. `sbt test` runs each
   on the code and on the claims Scala can evaluate; `check` reads them and evaluates each against every claim on the
   Definition in Lean (where Scala cannot, Lean alone), and against the code. Nothing rests on them.
 - **Consistency and vacuity.** `check` asks Lean that the statements at the bottom of the DAG hold together,
@@ -351,9 +353,9 @@ def expireOnce(now: Term[BigInt]): Flow[CrmStore] =   // the code, in Cats style
   state), never failing, and the flow's alone during a run: a design node says
   how that is ensured (a lock, a transaction). Loops are over lists
   (`traverse_`). Name every implementation of the trait on the model's node:
-  `.checkedAgainst(start, read)` for an outside system (a database; checked on
+  `.checkedAgainst(holding, readBack)` for an outside system (a database; checked on
   the examples and on generated runs, the model stays assumed),
-  `.implementedBy(start, read)` for the project's own (an in-memory store, a
+  `.implementedBy(holding, readBack)` for the project's own (an in-memory store, a
   cache; tested on generated runs of its operations against the model).
 - **Steps.** `state.get`, `state.set(s)`, `state.update(f)` in models only;
   `Flow.effect(...)` in production implementations only (a proven flow taking

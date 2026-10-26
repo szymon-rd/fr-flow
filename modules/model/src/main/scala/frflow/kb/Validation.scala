@@ -9,7 +9,7 @@ private[frflow] object Validation:
   import Problem.*
   def problems(kb: KnowledgeBase): List[Problem] =
     structure(kb) ++ vocabulary(kb) ++ meanings(kb) ++ names(kb) ++ wording(kb) ++ examples(kb) ++ invariants(kb) ++
-      code(kb) ++ always(kb) ++ outside(kb)
+      code(kb) ++ always(kb) ++ outside(kb) ++ starts(kb)
   private def isOperation(n: Node[?]) = n.kind == NodeKind.Contract || n.kind == NodeKind.Assumption
   /** A claim, a contract or an assumption may leave `why` out: the reason is kept with the decision. */
   private def whyOptional(k: NodeKind) = k == NodeKind.Claim || k == NodeKind.Contract || k == NodeKind.Assumption
@@ -82,12 +82,14 @@ private[frflow] object Validation:
     val proven = kb.implementations.filter(_.flow)
       .flatMap(i => i.definition.orElse(kb.node(i.contract).flatMap(_.op).map(_.name)))
     kb.nodes.flatMap(n => n.always.flatMap(_.store).map(n -> _)).flatMap { (n, m) =>
-      val facts = n.premises.flatMap(_.fact).filter(_.store.exists(_ eq m)).map(_.says)
+      val facts = kb.premisesOf(n).flatMap(_.fact).filter(_.store.exists(_ eq m)).map(_.says)
       val writers = facts.collect { case FactKind.WrittenOnlyBy(ps) => ps.map(_.name) }.flatten
       List(
-        Option.when(!facts.exists(f => f.isInstanceOf[FactKind.Initially] || f == FactKind.StartsMeetingItsRules))(
+        Option.when(!facts.exists(f => f.isInstanceOf[FactKind.Initially]) &&
+            !kb.premisesOf(n).exists(_.startsSatisfying.exists(_ eq n)))(
           s"${n.id}: say what the store holds when the system starts, an assumption it rests on: " +
-          s".assuming(Node.assumption(\"…\")(${m.lean}.startsMeetingItsRules)) or ${m.lean}.initially(…)"),
+          s".assuming(Node.assumption(\"…\")(${m.lean}.startsSatisfying(${n.id.head.toLower}${n.id.tail}))), or " +
+          s"${m.lean}.initially(…)"),
         Option.when(!facts.exists(_.isInstanceOf[FactKind.WrittenOnlyBy]))(s"${n.id}: say which programs change the " +
           s"store, an assumption it rests on: .assuming(Node.assumption(\"…\")(${m.lean}.writtenOnlyBy(…)))"),
         Option.when(!facts.contains(FactKind.OneRunAtATime))(s"${n.id}: say that one run changes the store at a " +
@@ -106,12 +108,18 @@ private[frflow] object Validation:
       case frflow.types.Shape.FnOf(as, _) => as
       case _                              => Nil
     kb.nodes.filter(_.always.exists(_.store.isEmpty)).flatMap { n =>
-      val said = n.premises.flatMap(_.fact).map(_.says).collect { case FactKind.CalledWithInputsMeetingTheirRules(p) =>
-        p.name }
+      val said = kb.premisesOf(n).flatMap(_.calledOnlyWith).map(_._1.name)
       programs.filter(p => !said.contains(p.name) && inputs(p).exists(t => kb.invariantsOn(t).exists(_._1 eq n)))
         .map(p => Invariants(s"${n.id}: ${p.name} is given its inputs from outside: say they meet it, an assumption " +
-          s"it rests on: .assuming(Node.assumption(\"…\")(${p.name}.calledWithInputsMeetingTheirRules))"))
+          s"it rests on: .assuming(Node.assumption(\"…\")(${p.name}.calledOnlyWith(x => …)))"))
     }
+
+  /** What a store starts satisfying is an `always` claim about that store. */
+  private def starts(kb: KnowledgeBase): List[Problem] =
+    kb.nodes.flatMap(n => n.fact.flatMap(_.store).toList.flatMap(m => n.startsSatisfying.map(c => (n, m, c))))
+      .filterNot((_, m, c) => c.always.exists(_.store.exists(_ eq m)))
+      .map((n, m, c) => Invariants(s"${n.id}: ${c.id} is not an always claim about " +
+        s"${m.lean}: say what the store starts satisfying with always(${m.lean})(…)"))
 
   private def names(kb: KnowledgeBase): List[Problem] =
     val ids = kb.nodes.map(_.id)

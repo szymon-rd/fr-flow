@@ -28,9 +28,13 @@ object ReportText:
       case Nil if c.ok && c.modelRuns.isDefined => (c.modelRuns.fold("")(matches), Nil)
       // A node made of parts: what Lean proved is the step from them.
       case Nil if c.ok && c.step => ("step proven", Nil)
-      // An example Lean evaluated says what it is; another obligation, its name and status first.
-      case rs => (s"$status$notProven", rs.map(r =>
-        (if r.name.isEvaluation then "" else s"${r.name} ${r.status}: ") + r.detail.linesIterator.mkString("\n    ")))
+      // An example Lean evaluated, or a step whose words say it is one, says what it is; another obligation is named
+      // in words, with its status.
+      case rs => (s"$status$notProven", rs.map { r =>
+        val said = r.name.isEvaluation ||
+          (r.name == ObligationName.Complete && List("the step", "the proof").exists(r.detail.startsWith))
+        (if said then "" else s"${Words.obligation(r.name)} ${r.status}: ") + r.detail.linesIterator.mkString("\n    ")
+      })
     // Said in place of its status: the contract changed and its code did not (the code is not what moved), or a run of
     // a model's implementation differs from the model.
     val moved = c.testFailure.filter(_ => c.contractChanged).map(f => st.red(f.said(c.id.value, contractChanged = true)))

@@ -20,7 +20,8 @@ object Commands:
 
   val plain: Opts[Boolean] = Opts.flag("plain", "ASCII without colors (also when NO_COLOR is set or the output is not a terminal)").orFalse
   val json: Opts[Boolean] = Opts.flag("json", "print the output as JSON, each node in brief").orFalse
-  def node(name: String = "NODE"): Opts[NodeId] = Opts.argument[String](name).map(NodeId(_))
+  /** A node, by its id or its val's name (`grantWhenFree` is `GrantWhenFree`). */
+  def node(name: String = "NODE"): Opts[NodeId] = Opts.argument[String](name).map(n => NodeId(n.capitalize))
   val as: Opts[Option[String]] = Opts.option[String]("as", "who decides (default: FRFLOW_AS, or the name your key is filed under)").orNone
   private val yes = Opts.flag("yes", "decide without asking (needed without a terminal)", "y").orFalse
   private val reason = Opts.option[String]("reason", "why: kept as part of the theory (asked for on a terminal)", "m").orNone
@@ -43,8 +44,9 @@ object Commands:
     command("inbox", "what waits for the developer: IDEA.md, the decisions to take, in order, and the decided nodes gone")(json.map(Command.Inbox.apply)),
     command("review", "decide what waits, node by node, parents first: [a]ccept [r]eject [s]kip [v]iew [q]uit (layers may add keys)")(as.map(Command.Review.apply)),
     decision("accept", "accept nodes (rejecting their rivals); --revisit names decisions below a change to review again")(
-      (Opts.arguments[String]("NODE").map(_.toList.map(NodeId(_))),
-        Opts.options[String]("revisit", "a decision below the change that it may affect").orEmpty.map(_.map(NodeId(_))))
+      (Opts.arguments[String]("NODE").map(_.toList.map(n => NodeId(n.capitalize))),
+        Opts.options[String]("revisit", "a decision below the change that it may affect").orEmpty
+          .map(_.map(n => NodeId(n.capitalize))))
         .mapN((nodes, revisit) => Decide.Accept(nodes, _, revisit))),
     decision("reject", "reject a proposal, saying why: what the reason asks for is proposed instead, or it is removed")(node().map(n => Decide.Reject(n, _))),
     decision("confirm", "accept the mechanical decisions in one batch (Lean proves them again; nothing in them is a choice)")(Opts(Decide.Confirm(_))),

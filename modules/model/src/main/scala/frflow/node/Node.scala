@@ -34,7 +34,7 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (val id: St
   def defines: List[String] = substs.map(_.name)
   def referenced: List[Lifted[?]] = formula.toList ++ post.toList ++ rule.toList ++ local.toList ++ substs.flatMap(_.term) ++
     kept.flatMap(_.view) ++ expected.map(_._2) ++ failure.flatMap(_.post) ++ holds.map(_.lifted) ++
-    initially.map(_.lifted)
+    initially.map(_.lifted) ++ calledOnlyWith.map(_._2.lifted)
   /** What an `always` claim says always holds: its rule, a `define` named as the claim's val, and the store whose
     * states it is about (none: every value of its type that can be made).
     */
@@ -48,13 +48,24 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (val id: St
   lazy val fact: Option[Fact] = if kind != NodeKind.Assumption then None else formula.flatMap(f => f.built._2 match
     case x: Fact => Some(x)
     case _       => None)
-  /** What a fact says the store holds when the system starts (`stored.initially(…)`): a `define` named as its val. */
+  /** What a fact says the store holds when the system starts (`storedBookings.initially(…)`): a `define` named as
+    * its val.
+    */
   lazy val initially: Option[Def[?]] = fact.map(_.says).collect {
-    case FactKind.Initially(Tree.Quant(true, List(b), body)) =>
-      val bool = summon[LeanType[Boolean]]
-      val name = id.head.toLower.toString + id.tail
-      Def(Lifted(() => (List(b), Term(body, bool)), null, formula.fold("")(_.source)), bool, Some(name))
+    case FactKind.Initially(Tree.Quant(true, List(b), body)) => named(b, body)
   }
+  /** What a fact says a program is called with from outside (`book.calledOnlyWith(request => …)`): the program, and
+    * the condition, a `define` named as its val.
+    */
+  lazy val calledOnlyWith: Option[(Param[?], Def[?])] = fact.map(_.says).collect {
+    case FactKind.CalledOnlyWith(p, Tree.Quant(true, List(b), body)) => p -> named(b, body)
+  }
+  /** The `always` claims a fact says the store starts satisfying (`storedBookings.startsSatisfying(neverOverlap)`). */
+  def startsSatisfying: List[Node[?]] = fact.map(_.says).toList.collect { case FactKind.StartsSatisfying(c) => c }
+  private def named(b: Binder, body: Tree): Def[?] =
+    val bool = summon[LeanType[Boolean]]
+    Def(Lifted(() => (List(b), Term(body, bool)), null, formula.fold("")(_.source)), bool,
+      Some(id.head.toLower.toString + id.tail))
   /** A statement about every call or run of one Definition (or Declaration, or Param), its operation. */
   def onOperation: Boolean = op.isDefined && post.isDefined && kind != NodeKind.Assumption
 
@@ -233,20 +244,21 @@ object Node:
   extension [T, S](n: Node[Modelled[T, S]])
     /** An outside system implementing the boundary (a database): its model stays assumed. It is checked against the
       * model on the examples of the flows calling it, and on generated runs of its operations from generated states.
-      * `start` makes one holding a model's state, `read` reads its state back; both are compared as it holds a state
-      * (stored and read back), so order it does not keep, such as rows a table returns sorted, is not compared.
+      * `holding` makes one holding a model's state, `readBack` reads its state back; both are compared as it holds a
+      * state (stored and read back), so order it does not keep, such as rows a table returns sorted, is not compared:
+      * `.checkedAgainst(holding = held => SqliteBookings.holding(held), readBack = sqlite => sqlite.held)`.
       */
-    inline def checkedAgainst[I <: T](inline start: S => I, inline observe: I => S): Node[Modelled[T, S]] =
-      n.withImpl(ModelImpl(start.asInstanceOf[Any => Any], observe.asInstanceOf[Any => Any], outside = true,
-        Source.text(start), Source.sourceFiles(start)))
+    inline def checkedAgainst[I <: T](inline holding: S => I, inline readBack: I => S): Node[Modelled[T, S]] =
+      n.withImpl(ModelImpl(holding.asInstanceOf[Any => Any], readBack.asInstanceOf[Any => Any], outside = true,
+        Source.text(holding), Source.sourceFiles(holding)))
 
     /** The project's own code implementing the boundary (an in-memory store, a cache): tested against the model, not
-      * assumed. Generated runs of its operations, from generated states, must give what the model gives, and leave what
-      * the model leaves (read back with `read`); a run that does not is shrunk and reported.
+      * assumed. Generated runs of its operations, from generated states (`holding`), must give what the model gives,
+      * and leave what the model leaves (read back with `readBack`); a run that does not is shrunk and reported.
       */
-    inline def implementedBy[I <: T](inline start: S => I, inline observe: I => S): Node[Modelled[T, S]] =
-      n.withImpl(ModelImpl(start.asInstanceOf[Any => Any], observe.asInstanceOf[Any => Any], outside = false,
-        Source.text(start), Source.sourceFiles(start)))
+    inline def implementedBy[I <: T](inline holding: S => I, inline readBack: I => S): Node[Modelled[T, S]] =
+      n.withImpl(ModelImpl(holding.asInstanceOf[Any => Any], readBack.asInstanceOf[Any => Any], outside = false,
+        Source.text(holding), Source.sourceFiles(holding)))
 
     private[frflow] def withImpl(i: ModelImpl): Node[Modelled[T, S]] = n.copy(modelOf = n.modelOf.map(m => m.copy(impls = m.impls :+ i)))
 

@@ -53,7 +53,8 @@ class CoreOnlySuite extends munit.CatsEffectSuite:
       // status exits 0 once Lean has proven the nodes here (`sbt leanTest` checks that); the decisions are all made
       assertEquals(codes.take(2), List(ExitCode.Success, ExitCode.Success))
       assertEquals(codes(2), Dispatch.exit(v.ok))
-      List("AccessExactly", "DecisionContract", "Auth: 10 nodes, 10 accepted").foreach(l => assert(text.contains(l), s"$l\n$text"))
+      List("accessExactly", "decisionContract", "Auth: 10 nodes, 10 accepted")
+        .foreach(l => assert(text.contains(l), s"$l\n$text"))
       assertEquals(v.annotated.nodes.filter(_.state != ReviewState.Accepted).map(_.id), Nil)
       assertEquals((inbox.queue, inbox.aside, inbox.gone, inbox.idea), (Nil, Nil, Nil, None))
       noAgent(text)

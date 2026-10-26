@@ -30,6 +30,9 @@ final class Boundary[T] private (val name: String, val means: String, val cls: C
   override def toString: String = name
 
 object Boundary:
+  /** Named by the val it is assigned to: `val bookingTable = Boundary[BookingTable]("the SQLite table …")`. */
+  inline def apply[T](means: String)(using ct: ClassTag[T]): Boundary[T] =
+    apply[T](frflow.program.Source.boundaryName, means)
   def apply[T](name: String, means: String)(using ct: ClassTag[T]): Boundary[T] =
     val c = ct.runtimeClass.asInstanceOf[Class[T]]
     require(c.isInterface, s"FrFlow: the boundary $name is a trait of operations, not ${c.getName}")

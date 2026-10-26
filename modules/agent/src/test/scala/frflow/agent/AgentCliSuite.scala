@@ -85,9 +85,10 @@ class AgentCliSuite extends munit.CatsEffectSuite with TempDirs:
       b <- Agent.api(moved).flatMap(_.read(v))
     yield
       val text = out.mkString("\n")
-      List("Requests from the developer", "[R2] on the idea", "Answers to read (close REQUEST when read)", "agent: Added the example under Decide",
-        "With the agent: asked, until it answers or changes the node", "For the agent",
-        "Forever: rejected by dev: sessions must end: a stolen token would work forever").foreach(l => assert(text.contains(l), s"$l\n$text"))
+      List("Requests from the developer", "[R2] on the idea", "Answers to read (close REQUEST when read)",
+        "agent: Added the example under decide", "With the agent: asked, until it answers or changes the node",
+        "For the agent", "forever: rejected by dev: sessions must end: a stolen token would work forever")
+        .foreach(l => assert(text.contains(l), s"$l\n$text"))
       assertEquals(a.forAgent, List(ForAgent.Replace(NodeId("Forever"), Sample.by, "sessions must end: a stolen token would work forever")))
       assertEquals((a.open.map(_.id), a.answers.map(_.id)), (List(RequestId("R2"), RequestId("R3")), List(RequestId("R1"))))
       assertEquals(heldInbox.aside.map(_.id), List(NodeId("Decide")))

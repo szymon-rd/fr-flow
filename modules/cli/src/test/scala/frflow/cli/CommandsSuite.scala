@@ -98,7 +98,7 @@ class CommandsSuite extends munit.CatsEffectSuite:
     }
   }
 
-  test("check: a node with one obligation open says it on its line, its name left out; with several, each by name") {
+  test("check: a node with one obligation open says it on its line, its name left out; with several, each in words") {
     val broken = Result(ObligationName.Complete, ObligationStatus.Open,
       "the proof from its parts no longer goes through: overlaps changed\nLean: omega could not prove the goal:\na - c ≤ -1")
     val open = CheckedNode(NodeId("Decide"), CheckStatus.Open, List(ObligationName.Complete), List(broken), Nil, None, Nil,
@@ -109,7 +109,8 @@ class CommandsSuite extends munit.CatsEffectSuite:
         "    Lean: omega could not prove the goal:\n    a - c ≤ -1", "  ! fix the proof in lean/Proofs/Auth/Decide.lean"))
       val two = open.copy(problems = List(broken, Result(ObligationName.Impl, ObligationStatus.Open, "not proven")))
       assertEquals(text(two).head, "o Decide: open")
-      assert(text(two)(1).startsWith("  complete open: the proof from its parts no longer goes through: overlaps changed\n"), text(two))
+      assert(text(two)(1).startsWith("  the proof from its parts no longer goes through: overlaps changed\n"),
+        text(two))
     }
   }
 
@@ -132,10 +133,13 @@ class CommandsSuite extends munit.CatsEffectSuite:
       out <- term.output
     yield
       assertEquals(codes, List(ExitCode.Success, ExitCode.Success, ExitCode.Success, ExitCode(2)))
-      assertEquals(out.count(_ == "- StoreKeeps  gone from the model"), 2, out.mkString("\n"))
-      assertEquals(out.count(_ == "  last accepted by dev (2026-01-02 10:00): StoreKeeps holds as stated"), 2, out.mkString("\n"))
-      assertEquals(out.count(_ == "  renamed to StoreReturnsLast (it says the same): gone StoreKeeps agrees that it is gone"), 2, out.mkString("\n"))
-      assert(out.contains("  StoreKeeps  renamed to StoreReturnsLast: The store returns what was last written."), out.mkString("\n"))
+      // named as the code names them: the val's name
+      assertEquals(out.count(_ == "- storeKeeps  gone from the model"), 2, out.mkString("\n"))
+      val all = out.mkString("\n")
+      assertEquals(out.count(_ == "  last accepted by dev (2026-01-02 10:00): storeKeeps holds as stated"), 2, all)
+      val renamed = "  renamed to storeReturnsLast (it says the same): gone storeKeeps agrees that it is gone"
+      assertEquals(out.count(_ == renamed), 2, all)
+      assert(out.contains("  storeKeeps  renamed to storeReturnsLast: The store returns what was last written."), all)
       assert(out.contains("error: unknown node Nope"), out.mkString("\n"))
   }
 

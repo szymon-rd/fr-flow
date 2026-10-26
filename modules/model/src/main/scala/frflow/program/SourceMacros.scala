@@ -14,6 +14,7 @@ private[frflow] object SourceMacros:
 
   def nodeId(using Quotes): Expr[String] = Expr(valName("a node", "Node.claim(\"…\")(…)").capitalize)
   def paramName(using Quotes): Expr[String] = Expr(valName("a Param", "Param[A](\"…\")"))
+  def boundaryName(using Quotes): Expr[String] = Expr(valName("a boundary", "Boundary[T](\"…\")"))
 
   /** The name of the val whose right-hand side the call is: `val name = Node.claim(…)(…).refines(…)`. */
   private[frflow] def valName(what: String, example: String)(using Quotes): String =

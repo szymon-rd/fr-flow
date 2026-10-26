@@ -8,7 +8,7 @@ recorded, signed by dev:
   - confirm Root
 
 --- 2 waiting ---
-! Decide  contract on admit  review (changed)
+! Decide  contract on admit  it changed: review it
   A request is admitted on behalf of the user its token was issued to, exactly when a grant names
   them and the path.
   why: One call meets both rules at once.
@@ -30,7 +30,7 @@ Decision
 [a]ccept [s]kip [v]iew [q]uit [n]ote: v
 
 --- 2 waiting ---
-! Decide  contract on admit  review (changed)
+! Decide  contract on admit  it changed: review it
   A request is admitted on behalf of the user its token was issued to, exactly when a grant names
   them and the path.
   why: One call meets both rules at once.
@@ -78,7 +78,7 @@ Note: Name the user as 'that user'.
 noted on Decide
 
 --- 1 waiting ---
-! Expiry  claim  new
+! Expiry  claim  new: decide it
   A session ends an hour after sign-in.
   why: Stolen tokens expire.
 

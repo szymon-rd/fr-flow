@@ -39,8 +39,9 @@ examples, and are described below where they differ.
   about are plain Scala. `Node.assumption(statement)(formula)`: trusted, the developer's decision: the outside
   world, as a store's model (`bookingTable.behavesAs(storedBookings)`) or a fact of how the system is run
   (`storedBookings.writtenOnlyBy(book)`, `storedBookings.changedOneRunAtATime`,
-  `storedBookings.startsMeetingItsRules` or `storedBookings.initially(held => …)`, and of what comes from
-  outside, `book.calledWithInputsMeetingTheirRules`); a fact is read by FrFlow, Lean has nothing to say of it.
+  `storedBookings.startsSatisfying(neverOverlap)` or `storedBookings.initially(held => …)`, and of what comes
+  from outside, `book.calledOnlyWith(request => request.start < request.end)`); a fact is read by FrFlow, Lean
+  has nothing to say of it.
   `Node.design(statement, why)(files*)`: a decision about code no proof covers.
 - **Values.** `Declaration[A](means)`: an abstract idea, known only through the claims and assumptions about
   it: no code or flow uses it, nothing implements it. `Definition[A](means)`: of any type, the only kind code
@@ -85,7 +86,9 @@ examples, and are described below where they differ.
   list of them, and of a record's fields of the type), and of what the models hold in the world before a
   flow runs; every program writing a store that holds such values is proven to keep the rule of the states
   it leaves (`kept_by_<program>`, on the `always` claim); a store's start meets its rule (`initially`, from
-  the fact that says what it holds; with `startsMeetingItsRules`, Lean shows only that some state does).
+  the fact that says what it holds; a fact naming the claim, `startsSatisfying(neverOverlap)`, is a premise
+  of it, and Lean shows only that some state meets it); what a program is called with from outside meets the
+  rule of its input's type (`called_with_<program>`, from `calledOnlyWith`).
 
 Formulas and code are terms (`Term[A]`): a tree that prints as Lean and compiles to Scala, built by
 calling the Scala lambda once on variables. The library's operations are the language (`===`,
@@ -125,9 +128,9 @@ the models together make `structure World` (one field per boundary), an instance
 assumes the boundary deterministic (unknowns go into the state; the proofs hold for every start
 state), never failing, the flow's alone during a run (a design node governs how), and loops over
 lists. The model's node is an assumption: decided and trusted, a hypothesis of nothing in Lean (the
-instance is the model). Its implementations are run against it (§1b): `.checkedAgainst(start, read)`
+instance is the model). Its implementations are run against it (§1b): `.checkedAgainst(holding, readBack)`
 names an outside system (assumed: checked on the flows' examples and on generated runs);
-`.implementedBy(start, read)` names the project's own code (tested on generated runs).
+`.implementedBy(holding, readBack)` names the project's own code (tested on generated runs).
 
 A **contract on a flow** is on an operation `Param[A => Flow[R]]` (of 0 to 6 inputs, as any
 operation); its post relates the inputs, the result and the worlds before and after (`Model.in(before)`
@@ -194,7 +197,7 @@ with a `rule`.
 | contract | `Node.contract(statement, why)(forall((a: Term[A], b: Term[B]) => … op(a, b) …))`, `op: Param[(A, B) => R]` (0 to 6 inputs), the same naming its operation (`Node.contract(op)(statement)(forall(…))`), or `Node.contract(op)(statement, why)(post)` when another operation is applied to the same inputs | `∀ a b, post(a, b, op(a, b))`; `impl` when a `define` is attached |
 | contract on a flow | `Node.contract(op)(statement, why)((a, r, before, after) => ...)`, `op: Param[A => Flow[R]]` (0 to 6 inputs) | `∀ a w, post a (op a w).1 w (op a w).2`; `impl` when a flow is attached |
 | assumption | `Node.assumption(op)(statement, why)(post)`, or `Node.assumption(statement, why)(formula)` | a hypothesis of `root_impl`: trusted |
-| fact | `Node.assumption(statement)(storedBookings.writtenOnlyBy(book))`, `….changedOneRunAtATime`, `….startsMeetingItsRules` (or `….initially(s => …)`); `book.calledWithInputsMeetingTheirRules` | none: FrFlow reads it (an `always` of the store rests on the three; an `always` of a type, on the last for each program given inputs from outside) |
+| fact | `Node.assumption(statement)(storedBookings.writtenOnlyBy(book))`, `….changedOneRunAtATime`, `….startsSatisfying(neverOverlap)` (or `….initially(s => …)`); `book.calledOnlyWith(request => …)` | none: FrFlow reads it (an `always` of the store rests on the three; an `always` of a type, on the last for each program given inputs from outside) |
 | model | `Node.assumption(statement)(bookingTable.behavesAs(storedBookings))`, or `Node.assumption(boundary)(Model)(statement, why)` | the boundary's class instance on `StateM World`: trusted |
 | definition | `Node.definition(statement, why)(Opaque := of[T], param := expr, ...)` | an `abbrev` in `Types.lean`, a `def` in its term's module |
 | design | `Node.design(statement, why)(files*)` | none: it governs code no proof covers |
@@ -311,7 +314,7 @@ vacuous`; `check` lists each thing asked. It is a status of its own: it does not
 
 Examples leave the nodes: in a project's tests, `class GrantedExamples extends FrFlowExamples(rooms):` with
 `example("back to back: granted"):` and
-`granted(RoomBookings(List(Booking("Oak", 9, 10))), Booking("Oak", 10, 11)) is true`. `sbt test` runs each on the
+`granted(RoomBookings("Oak", List(Booking("Oak", 9, 10))), Booking("Oak", 10, 11)) is true`. `sbt test` runs each on the
 code and on the claims about the Definition Scala can evaluate. `check` reads the compiled suites (the project's
 test classes, `-Dfrflow.tests`), makes each a case of every claim on its Definition, evaluates it in Lean (where
 Scala cannot evaluate the claim, Lean alone decides it: a claim that refuses the example fails), and runs it on

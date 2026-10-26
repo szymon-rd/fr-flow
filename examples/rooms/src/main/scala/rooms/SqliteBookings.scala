@@ -8,7 +8,7 @@ final class SqliteBookings private (conn: Connection) extends BookingTable:
   conn.createStatement().executeUpdate("create table if not exists bookings " +
     "(id integer primary key, room text not null, starts text not null, ends text not null)")
 
-  def inRoom(room: Term[String]) = Flow.effect(room)(r => RoomBookings(bookingsIn(r)))
+  def inRoom(room: Term[String]) = Flow.effect(room)(r => RoomBookings(r, bookingsIn(r)))
   def add(booking: Term[Booking]) = Flow.effect(booking)(insert)
 
   def held: List[Booking] = synchronized {

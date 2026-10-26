@@ -112,7 +112,9 @@ object NodeText:
   private def place(d: NodeDetails, st: Style, full: Boolean): List[String] =
     def rows(label: String, rs: List[Reviewed], extra: Reviewed => String = _ => "") =
       rs.map(x => label.padTo(11, ' ') + Lines.node(x, st, 13, extra(x)))
-    rows("part of", d.parents, partOf(_, d.node, st)) ++ rows("design", d.designs) ++ rows("uses", d.definitions) ++ rows("used by", d.usedBy) ++
+    val (assumedBy, partOfThem) = d.parents.partition(_.node.premises.contains(d.node.id))
+    rows("part of", partOfThem, partOf(_, d.node, st)) ++ rows("assumed by", assumedBy) ++ rows("design", d.designs) ++
+      rows("uses", d.definitions) ++ rows("used by", d.usedBy) ++
       d.calls.flatMap(c => rows("calls", List(c)) ++ (if full then sources(c.node).filter(_._1 == "post").flatMap((_, src) => indent(src)).map(" " * 11 + _) else Nil)) ++
       rows("called by", d.calledBy)
 

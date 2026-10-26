@@ -8,7 +8,7 @@ import frflow.protocol.*
 /** What a check depends on: the formal parts only, so rewording a statement does not re-run Lean. */
 object CheckHash:
   /** How checks are run and read: a change to it re-runs every check. */
-  val CheckerVersion: Int = 8
+  val CheckerVersion: Int = 9
 
   /** What `root_impl` composes: every proof and every implementation. */
   def composed(a: Analysis, root: Node[?]): List[Node[?]] =

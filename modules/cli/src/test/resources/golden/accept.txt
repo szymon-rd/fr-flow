@@ -1,6 +1,6 @@
 Why (kept as part of the theory)? the wording names the user plainly
 This records, as dev:
-  - accept Decide
+  - accept decide
 Record it? [y/N] y
 Recorded, signed by dev:
-  - accept Decide
+  - accept decide

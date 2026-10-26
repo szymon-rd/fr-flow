@@ -174,7 +174,7 @@ class CheckSuite extends munit.FunSuite:
     // on the step's line: the case, then the hint to look at the change first
     val r = Verdict.refuted(Result(ObligationName.Complete, ObligationStatus.Open, "omega could not prove the goal"), found)
     assertEquals(r.detail,
-      "One does not give this claim on x = 0:\nOne gives 1, which this claim forbids; Lean confirms this case")
+      "the step from One does not hold on x = 0:\nOne gives 1, which this claim forbids; Lean confirms this case")
     val g = Generate(shelfKb)
     assertEquals(Verdict.obligations(g, onlyGood, List(r), List(r), Nil, proofFile = true, changed = List("overlaps")).flatMap(_.hint),
       Some("check the change to overlaps: with it, One no longer gives this claim"))

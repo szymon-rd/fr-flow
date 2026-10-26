@@ -80,22 +80,26 @@ class ConceptsSuite extends munit.FunSuite:
     assertEquals(startsAtNothing.initially.map(_.name), Some("startsAtNothing"))
   }
 
-  test("a store may start meeting its rules; a program given values from outside rests on an assumption") {
+  test("a store starts satisfying the always claim it names; a program given values from outside, on a condition") {
     import Concepts.*
-    val startsRight = Node.assumption("The counter starts meeting its rules.")(counted.startsMeetingItsRules)
-    val kept = Node.claim("The count is never negative.")(always(counted)(c => c >= BigInt(0)))
-      .assuming(writes, oneAtATime, startsRight)
     def made(ns: Node[?]*) = KnowledgeBase("Concepts")((List(grows, kept, stepPositive, model, writes, oneAtATime,
       startsRight) ++ ns)*).implementProven(add)(adding).implementTested(step)(x => x.abs + 1)
-    assertEquals((made().problems, startsRight.initially), (Nil, None))
-    // values of a type with an `always` that enter from outside: an assumption about the outside says they meet it
+    assertEquals(made().problems, Nil)
+    assertEquals((startsRight.startsSatisfying.map(_.id), startsRight.initially), (List("Kept"), None))
+    assertEquals(made().premisesOf(kept).map(_.id), List("Writes", "OneAtATime", "StartsRight"))
+    // naming a claim that is not an always of the store is refused
+    val wrong = Node.assumption("The counter starts growing.")(counted.startsSatisfying(grows))
+    assert(made(wrong).problems.exists(_.message.startsWith("Wrong: Grows is not an always claim about")),
+      made(wrong).problems)
+    // values of a type with an `always` that enter from outside: an assumption about the outside says what they meet
     val sized = Node.claim("Every amount is a size.")(always[BigInt](x => x >= BigInt(0)))
     assert(made(sized).problems.exists(_.message.startsWith("Sized: add is given its inputs from outside")),
       made(sized).problems)
-    val fromOutside = Node.assumption("Requests are sizes.")(add.calledWithInputsMeetingTheirRules)
+    val fromOutside = Node.assumption("Requests are sizes.")(add.calledOnlyWith(x => x >= BigInt(0)))
     val sizedOutside = Node.claim("Every amount is a size.")(always[BigInt](x => x >= BigInt(0)))
       .assuming(fromOutside)
     assertEquals(made(sizedOutside, fromOutside).problems, Nil)
+    assertEquals(fromOutside.calledOnlyWith.map((p, d) => (p.name, d.name)), Some(("add", "fromOutside")))
   }
 
   test("a claim on one Definition is about every call of it; one on a flow, about every run") {

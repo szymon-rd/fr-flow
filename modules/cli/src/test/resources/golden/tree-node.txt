@@ -1,5 +1,5 @@
 + LetsIn: "A request with a grant for the path is admitted."
-`- ! Decide (contract) — review (changed): "A request is admitted on behalf of the user its token...
+`- ! Decide (contract) — it changed: review it: "A request is admitted on behalf of the user its...
    `- - Memory (design): "Sessions and grants are kept in memory."
 
 Sample: 9 nodes, 5 accepted, 2 to review, 1 proposed, 1 rejected
