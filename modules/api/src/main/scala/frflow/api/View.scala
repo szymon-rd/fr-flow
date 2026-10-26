@@ -13,4 +13,4 @@ final case class View(annotated: Annotated, warnings: List[String], unsigned: Li
   def ideaWaits: Option[IdeaReview] = annotated.idea.filter(_.state != ReviewState.Accepted)
   def nodes: List[Reviewed] = annotated.nodes
   def node(id: NodeId): Option[Reviewed] = annotated.byId.get(id)
-  def isRoot(r: Reviewed): Boolean = snapshot.root.contains(r.id)
+  def isRoot(r: Reviewed): Boolean = snapshot.roots.contains(r.id) || snapshot.root.contains(r.id)

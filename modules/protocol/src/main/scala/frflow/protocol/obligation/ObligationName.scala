@@ -7,6 +7,10 @@ import io.circe.{Codec, Decoder, Encoder}
 enum ObligationName:
   case Complete, Feasible, Impl, Check
   case Cover(invariant: String)
+  /** A program (a proven flow) keeps an `always` claim of the states it leaves. */
+  case KeptBy(program: String)
+  /** What a store holds when the system starts holds an `always` claim about it. */
+  case Initially
   case Expect(i: Int)
   case Tried(kind: TryKind)
   /** Example `i` (probe `j`: an input near the examples'), of the contract and of its proven code. */
@@ -24,6 +28,8 @@ enum ObligationName:
     case Impl         => "impl"
     case Check        => "check"
     case Cover(i)     => s"cover_$i"
+    case KeptBy(p)    => s"kept_by_$p"
+    case Initially    => "initially"
     case Expect(i)    => s"expect_$i"
     case Tried(k)     => ObligationName.tryName(k)
     case Eval(i)      => s"eval_$i"
@@ -56,19 +62,20 @@ object ObligationName:
     case TryKind.RestatesConjunct(p, i) => s"restates_${i}_$p"
 
   private val fixed: Map[String, ObligationName] =
-    (List(Complete, Feasible, Impl, Check, RootImpl) ++
+    (List(Complete, Feasible, Impl, Check, RootImpl, Initially) ++
       List(TryKind.Vacuous, TryKind.Restates, TryKind.Clash, TryKind.Unsat, TryKind.Idle).map(Tried(_))).map(o => o.lean -> o).toMap
   private val indexed: Map[String, Int => ObligationName] = Map("expect" -> Expect.apply, "eval" -> Eval.apply,
     "vacuous_expect" -> (i => Tried(TryKind.VacuousExpect(i))), "evalImpl" -> EvalImpl.apply, "probe" -> Probe.apply, "probeImpl" -> ProbeImpl.apply,
     "commute" -> Commute.apply)
   private val Indexed = s"(${indexed.keys.mkString("|")})_(\\d{1,9})".r
-  private val OfNode = """(cover|needed)_(.+)""".r
+  private val OfNode = """(cover|kept_by|needed)_(.+)""".r
   private val Conjunct = """restates_(\d{1,9})_(.+)""".r
 
   def parse(s: String): Option[ObligationName] = fixed.get(s).orElse(s match
     case Indexed(kind, i)    => indexed.get(kind).map(_(i.toInt))
     case Conjunct(i, id)     => Some(Tried(TryKind.RestatesConjunct(id, i.toInt)))
     case OfNode("cover", id) => Some(Cover(id))
+    case OfNode("kept_by", p) => Some(KeptBy(p))
     case OfNode(_, id)       => Some(Tried(TryKind.Needed(id)))
     case _                   => None)
 

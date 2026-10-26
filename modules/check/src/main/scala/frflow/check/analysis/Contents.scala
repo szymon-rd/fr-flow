@@ -23,12 +23,15 @@ object Contents:
     // The root is decided against the idea's title and lead; a node naming a section, against that section.
     val idea =
       if n.ideaSection.nonEmpty then Seq("idea" -> str(a.ideaOf(n)), "ideaSection" -> str(n.ideaSection), "notModelled" -> str(a.notModelled))
-      else if kb.isRoot(n) then Seq("idea" -> str(Idea.sections(a.ideaDecided)._1), "notModelled" -> str(a.notModelled))
+      else if kb.isRoot(n) && n.kind == NodeKind.Claim then
+        Seq("idea" -> str(Idea.sections(a.ideaDecided)._1), "notModelled" -> str(a.notModelled))
       else Nil
     val terms = kb.termsOf(n).toSet ++ n.defines
     val vocabulary = (kb.opaques.filter(o => terms(o.name)).map(o => s"${o.name}: ${o.means}") ++
       kb.params.filter(p => terms(p.name)).map(p => s"${p.name}: ${p.means}")).sorted
-    val sources = Seq("formula" -> n.formula, "post" -> n.post, "rule" -> n.rule, "check" -> n.local)
+    // A claim on an operation is decided as written: its post is read from its formula.
+    val sources =
+      Seq("formula" -> n.formula, "post" -> n.post.filter(_ => n.formula.isEmpty), "rule" -> n.rule, "check" -> n.local)
       .collect { case (k, Some(l)) => k -> str(l.source) }
     // The fields in this order: the order is part of the hash, so a change of it reviews every node again.
     Content((List(

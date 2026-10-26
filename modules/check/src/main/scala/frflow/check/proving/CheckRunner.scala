@@ -55,8 +55,9 @@ object CheckRunner:
       results = plan.todo.flatMap(n => done.get(n.id).map(n -> _))
       all = a.checks.filter((id, _) => a.kb.node(id.value).isDefined) ++ results.map((n, c) => NodeId(n.id) -> c)
       _ <- Inputs.saveChecks(a.ws.checksFile, all)
+      consistency <- Consistent.run(a, lake).map(_.orElse(a.inputs.consistency))
       (recorded, counterexamples) <- test(a, cfg, only)
-    yield (results, a.withChecks(all).withTests(recorded, counterexamples))
+    yield (results, a.withChecks(all).withTests(recorded, counterexamples).withConsistency(consistency))
 
   /** Tests the code of the contracts it is not proven of, against them: those whose test is not current (or `only`). */
   def test(a: Analysis, cfg: Config, only: Option[String]): IO[(Map[NodeId, Recorded], Map[NodeId, List[Counterexample]])] =

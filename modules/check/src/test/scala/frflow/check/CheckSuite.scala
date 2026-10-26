@@ -240,10 +240,13 @@ class CheckSuite extends munit.FunSuite:
     val results = List(Result(ObligationName.Complete, ObligationStatus.Proven, "auto"))
     val source = "import FrFlowGen.Shelf.Pick.Impl\n\ntheorem root_impl : Obl.root_impl := by\n  auto\n"
     val checks = checked(a, onlyGood, "depends on axioms: [propext]")
-    def judged(run: Run) = Verdict.finish(a, onlyGood, results, None, checks, Some(Right(elaborated(run, source, "FrFlowGen/Shelf/RootImpl.lean"))))
+    def judged(run: Run) =
+      val root = elaborated(run, source, "FrFlowGen/Shelf/OnlyGood/RootImpl.lean")
+      Verdict.finish(a, onlyGood, results, None, checks, Some(Right(root)))
     def rootImpl(run: Run) = judged(run).results.find(_.name == ObligationName.RootImpl).map(r => (r.status, r.detail))
     // the import did not build: Lean says so before the theorem, and the message names the module, not where Lake keeps it
-    val noImport = Run.Done(1, "FrFlowGen/Shelf/RootImpl.lean:1:0: error: object file '/w/lean/.lake/build/lib/lean/FrFlowGen/Shelf/Pick/Impl.olean' " +
+    val noImport = Run.Done(1, "FrFlowGen/Shelf/OnlyGood/RootImpl.lean:1:0: error: object file " +
+      "'/w/lean/.lake/build/lib/lean/FrFlowGen/Shelf/Pick/Impl.olean' " +
       "of module FrFlowGen.Shelf.Pick.Impl does not exist")
     assertEquals(rootImpl(noImport),
       Some((ObligationStatus.Open, "the root is not proven of the code: FrFlowGen.Shelf.Pick.Impl did not build")))
@@ -258,7 +261,7 @@ class CheckSuite extends munit.FunSuite:
   test("root_impl is elaborated only once the proofs of the code it composes are built: one that does not build is the reason, by name") {
     val withCode = Desk(shelfKb.implementProven(pick)(longOnes)).analysis
     val g = withCode.generate
-    val composed = Verdict.composed(withCode.kb, g, withCode.files.getOrElse(g.layout.rootImpl.path, ""))
+    val composed = Verdict.composed(withCode.kb, g, withCode.files.getOrElse(g.layout.rootImpl(onlyGood.id).path, ""))
     assertEquals(ids(composed), List("Pick"))
     assertEquals(Verdict.composedBuilt(g, composed, Run.Done(0, "Build completed successfully")), None)
     // as Lake prints a target that failed

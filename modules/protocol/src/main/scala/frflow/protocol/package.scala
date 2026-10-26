@@ -5,5 +5,6 @@ export frflow.protocol.Spelling.word
 export frflow.protocol.decision.{Alternative, Annotated, Below, Decision, Gone, IdeaReview, Ledger, Moved, RejectedBeside, Review,
   Reviewed}
 export frflow.protocol.obligation.{Covered, NodeCheck, ObligationName, Outcome, Result, TestFailure, TestReport}
-export frflow.protocol.snapshot.{CodeRef, DefText, ExampleView, Expectation, ImplProof, Kept, ObligationText, OpaqueTerm, ParamTerm,
+export frflow.protocol.snapshot.{CodeRef, Consistency, DefText, ExampleView, Expectation, ImplProof, Kept,
+  ObligationText, OpaqueTerm, ParamTerm,
   ProofFile, RunCheck, RunTime, SnapNode, Snapshot, Split, TypeText}

@@ -98,4 +98,4 @@ object LiveApi:
   /** The project at `root` (`FRFLOW_ROOT` overrides it); `kernelPath` is FrFlow's Lean kernel relative to its `lean/`. */
   def fromEnv(kb: => KnowledgeBase, root: String, kernelPath: String, env: Map[String, String]): IO[FrFlowApi] =
     IO(Workspace(Path.of(env.getOrElse("FRFLOW_ROOT", root)).toAbsolutePath.normalize, kernelPath))
-      .flatMap(ws => IO(kb).flatMap(LiveApi(_, ws, env)))
+      .flatMap(ws => IO(kb).flatMap(frflow.check.WrittenExamples.load).flatMap(LiveApi(_, ws, env)))

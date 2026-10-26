@@ -56,7 +56,8 @@ object ReportText:
     s"code tested on ${f"${t.cases}%,d"} cases" + (if t.unreached.isEmpty then "" else ", but they never reached a part of the contract")
 
   def check(r: CheckReport, st: Style, c: Contribution = Contribution.empty): List[String] =
-    r.nodes.flatMap(checked(_, st)) ++ ("" :: SummaryText.lines(r.overview, st, c.waiting(st))) ++
+    r.nodes.flatMap(checked(_, st)) ++ ConsistencyText.lines(r.overview.consistency, st) ++
+      ("" :: SummaryText.lines(r.overview, st, c.waiting(st))) ++
       (r.view.warnings ++ c.warnings).map(w => st.red(s"warning: $w"))
 
   def ci(r: CiReport, tree: Tree, st: Style, c: Contribution = Contribution.empty): List[String] =

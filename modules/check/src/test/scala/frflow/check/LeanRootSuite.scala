@@ -42,6 +42,21 @@ class LeanRootSuite extends LeanLab:
     assertEquals(result(weak, "complete").map(_.status.toString), Some("open"), weak)
   }
 
+  test("the statements hold together, a term given what an equation says it is; nothing they rest on is vacuous") {
+    val c = workflow(frflow.fixtures.Concepts.kb).consistency.getOrElse(fail("nothing asked"))
+    assertEquals(c.items.map(i => (i.kind.toString, i.about.map(_.value), i.status.toString)), List(
+      ("together", List("StepPositive"), "proven"), ("admits", List("NeverNegative"), "proven"),
+      ("starts", List("StartsAtNothing"), "proven")), c)
+    assert(c.proven && c.notVacuous && c.items.head.witness == "step as StepPositive says", c)
+  }
+
+  test("what always holds of a type is kept by every program writing a store that holds it: proven of its code") {
+    val r = workflow(Invariants.service).check()
+    val kept = of(r, "NotNegative")
+    assertEquals(result(kept, "kept_by_sell").map(_.status.toString), Some("proven"), kept)
+    assertEquals((kept.status.toString, of(r, "Sold").status.toString), ("proven", "proven"), kept)
+  }
+
   test("an invariant is a claim proven from the contracts that keep it, or left open") {
     val fromShelf = Node.invariant[List[Book], Book]("Only books on the shelf are picked.", "w")((shelf, b) => shelf.contains(b)).refines(onlyGood)
     val atMostN = Node.invariant[Int, Int]("No more books are picked than asked for.", "w")((asked, picked) => picked <= asked).refines(onlyGood)
@@ -53,7 +68,8 @@ class LeanRootSuite extends LeanLab:
       .keeps(inName)((shelf, n, picked) => picked.filter(b => shelf.contains(b)).map(b => (shelf, b)))
       // however it hides the condition
       .keeps(hidden)((shelf, n, picked) => onShelf(shelf, picked).map(b => (shelf, b)))
-    val kb = shelfWith(kept, fromShelf, atMostN, inName, hidden).implement(kept)((shelf, n) => shelf.filter(_.pages >= minPages.value))
+    val kb = shelfWith(kept, fromShelf, atMostN, inName, hidden)
+      .implementTested(kept)((shelf, n) => shelf.filter(_.pages >= minPages.value))
     assertEquals(kb.problems, Nil)
     val w = workflow(kb)
     val r = w.check()

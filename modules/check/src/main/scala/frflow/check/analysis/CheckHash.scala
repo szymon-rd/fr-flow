@@ -8,7 +8,7 @@ import frflow.protocol.*
 /** What a check depends on: the formal parts only, so rewording a statement does not re-run Lean. */
 object CheckHash:
   /** How checks are run and read: a change to it re-runs every check. */
-  val CheckerVersion: Int = 7
+  val CheckerVersion: Int = 8
 
   /** What `root_impl` composes: every proof and every implementation. */
   def composed(a: Analysis, root: Node[?]): List[Node[?]] =
@@ -31,6 +31,6 @@ object CheckHash:
     val below = (readBelow.map(g.spec) ++ readBelow.flatMap(g.declarationsUsedBy).distinct).mkString
     val partsHold = kb.parts(n).filter(g.formal).filterNot(_ eq n).map(g.holdsStatement).mkString
     Hash(Sha.parts((Seq(g.spec(n), g.auto(n), g.theorems(n), g.checks(n), g.evalFile(n).getOrElse(""),
-      g.provenImpl(n).fold("")(_ => g.impl(n)), if kb.isRoot(n) then g.rootImpl.fold("")(_._2) else "",
+      g.provenImpl(n).fold("")(_ => g.impl(n)), g.rootImpl(n).fold("")(_._2),
       proof.getOrElse(""), lemmas, imported, below, partsHold, composed.map(_.value).mkString,
       CheckerVersion.toString) ++ g.declarationsUsedBy(n))*))

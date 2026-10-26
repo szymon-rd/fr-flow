@@ -3,9 +3,10 @@ package vocabulary
 
 /** A domain term, open until a definition fixes it: a fact of the world, or an operation some contract is about.
   * It is a term: `grants.contains(g)`, `sessions(t)`. Plain code reads its value in force with `value`. One that only
-  * code reads (a database connection) needs no Lean type: it cannot appear in a model.
+  * code reads (a database connection) needs no Lean type: it cannot appear in a model. Its two kinds, as statements
+  * use them: a `Definition` (given a meaning by code) and a `Declaration` (known only by the statements about it).
   */
-final class Param[A] @scala.annotation.publicInBinary private[frflow] (val name: String, val means: String)(using
+class Param[A] @scala.annotation.publicInBinary private[frflow] (val name: String, val means: String)(using
     t: LeanType[A] = LeanType.unknown[A]) extends Term[A](null, t):
   override private[frflow] def termTree: Tree = Tree.Ref(this)
   def value: A = Bindings.get(this)

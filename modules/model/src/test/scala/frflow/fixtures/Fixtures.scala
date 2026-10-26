@@ -41,7 +41,7 @@ val pick = Node.contract("A call returns exactly the long enough books of the sh
 
 def shelfNodes: List[Node[?]] = List(onlyGood, books, picking, fromList, onlyLong, everyLong)
 val shelfKb = KnowledgeBase("Shelf", idea = "IDEA.md")((shelfNodes :+ pick)*)
-  .implement(pick)((shelf, n) => shelf.filter(_.pages >= minPages.value))
+  .implementTested(pick)((shelf, n) => shelf.filter(_.pages >= minPages.value))
 
 /** The shelf with another contract in Pick's place. */
 def shelfWith(c: Node[?], more: Node[?]*): KnowledgeBase = KnowledgeBase("Shelf", idea = "IDEA.md")((shelfNodes ++ (c +: more))*)

@@ -28,7 +28,9 @@ object NodeText:
       (full && !proposal, "Rejected beside it", r.review.rejectedBeside.map(x => s"${x.id}: ${x.statement} — because ${x.reason}")),
       (true, n.split.fold("Parts")(sp => s"Parts: together they make it (${outcome(sp.complete, st)})"), parts(d, st)),
       (normal, "Kept by", d.keptBy.flatMap(k => k.node.invariants.find(_.id == r.id).map(i =>
-        if i.status == ObligationStatus.Exempt then s"${k.id} is exempt: ${i.detail}" else s"${k.id} (${i.status}), showing: ${i.view}"))),
+        if i.status == ObligationStatus.Exempt then s"${k.id} is exempt: ${i.detail}"
+        else if i.view.isEmpty then s"${k.id} (${i.status}), of what its models hold after a run"
+        else s"${k.id} (${i.status}), showing: ${i.view}"))),
       (full, "What it rests on, nearest first, with the reasons", d.above.flatMap(above(_, st))),
       (normal, "Vocabulary", d.terms.flatMap(t => Lines.para(s"${t.name}${if t.operation then " (operation)" else ""}: ${t.means} " +
         t.definedBy.fold("(open)")(x => s"(defined by $x)"), st))),
@@ -49,7 +51,7 @@ object NodeText:
   private def header(d: NodeDetails, st: Style, mark: Option[String]): List[String] =
     val r = d.node
     val n = r.node
-    val kind = n.shownKind + n.op.fold("")(o => s" on $o") + (if d.isRoot then " (the root)" else "")
+    val kind = n.shownKind + n.op.fold("")(o => s" on $o") + (if d.isRoot then " (a root)" else "")
     val marks = List(Option.when(d.trusted)(st.yellow("trusted")), mark.map(st.magenta),
       n.replaces.map(x => st.dim(s"replaces $x"))).flatten
     val room = st.width.fold(Int.MaxValue)(_ - 2)
@@ -91,6 +93,7 @@ object NodeText:
       // A boundary's model, as Lean has it: what the developer decides the outside does.
       Option.when(n.content.strs("model").nonEmpty)("model:").toList ++ n.content.strs("model").flatMap(indent) ++
       n.invariants.flatMap(i => if i.status == ObligationStatus.Exempt then List(s"exempt from ${i.id}: ${i.detail}")
+        else if i.view.isEmpty then List(s"keeps ${i.id} (${i.status}) of what its models hold after a run")
         else s"keeps ${i.id} (${i.status}), showing the rule:" :: indent(i.view)) ++
       Option.when(n.covers.nonEmpty)(s"kept by ${n.covers.mkString(", ")}").toList ++
       Option.when(n.exempts.nonEmpty)(s"exempt: ${n.exempts.mkString(", ")}").toList ++

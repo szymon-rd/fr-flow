@@ -5,6 +5,12 @@ import frflow.flow.Flows
 
 /** Runs a flow's proven code in `G`: `knowledge.run[IO](expiryJob)(db.bind(sqlite))` is the job, a function of its inputs. */
 final class Runner[G[_]] private[frflow] (kb: KnowledgeBase)(using G: cats.effect.kernel.Sync[G]):
+  /** The proven flow of a Definition: `knowledge.run[IO](book)(store.bind(sqlite))`. */
+  def apply[F](d: Definition[F])(using s: Sig[F])(bound: (Binding | Boundary.Bound)*): s.Runs[G] =
+    val contract = kb.claimsOn(d).find(c => kb.implementation(c).exists(_.flowDef.isDefined))
+      .getOrElse(throw IllegalStateException(s"no flow gives ${d.name} its meaning: implementProven(${d.name})(…)"))
+    apply(contract.asInstanceOf[Node[F]])(bound*)
+
   def apply[F](contract: Node[F])(using s: Sig[F])(bound: (Binding | Boundary.Bound)*): s.Runs[G] =
     val flow = kb.implementation(contract).flatMap(_.flowDef)
       .getOrElse(throw IllegalStateException(s"no flow implements ${contract.id}: implementProven(${contract.id})(…)"))

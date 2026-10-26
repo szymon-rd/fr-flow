@@ -10,13 +10,38 @@ import scala.collection.mutable
   */
 final class Draw private[frflow] (rnd: SplittableRandom, val size: Int, plan: Plan):
   private val pools = mutable.Map.empty[String, mutable.ArrayBuffer[Any]]
+  /** How many draws a value of a type with invariants gets before the case is given up. */
+  private val Tries = 20
   private var depth = 0
   def below(n: Int): Int = if n <= 1 then 0 else rnd.nextInt(n)
   def chance(p: Double): Boolean = rnd.nextDouble() < p
   /** How many elements a list gets: fewer the deeper it is. */
   def length: Int = below(size / (depth + 1) + 2)
 
+  /** A value of `t` that holds the invariants of its type: drawn again (a few times) when one does not, or when its
+    * constructor refuses the fields drawn.
+    */
   private[frflow] def value(t: LeanType[?]): Any =
+    @scala.annotation.tailrec def attempt(left: Int): Any =
+      val drawn =
+        try Some(if left < Tries then retrying(once(t)) else once(t))
+        catch
+          case e: CannotGenerate                       => throw e
+          case _: IllegalArgumentException if left > 1 => None
+      drawn match
+        case Some(v) if scala.util.Try(plan.holds(t)(v)).getOrElse(true) => v
+        case _ if left > 1 => attempt(left - 1)
+        case _             => throw CannotGenerate(s"${Types.scala(t)}: no value drawn holds what always holds of it")
+    attempt(Tries)
+
+  // Drawn again: fresh values all the way down, not the ones pooled, which may be why the first did not hold.
+  private var retries = 0
+  private def retrying[A](f: => A): A =
+    retries += 1
+    try f
+    finally retries -= 1
+
+  private def once(t: LeanType[?]): Any =
     val seeds = plan.seedsOf(t)
     plan.customFor(t) match
       case Some(g) if chance(0.75) || plan.only(t) && (seeds.isEmpty || chance(0.8)) => g.draw(this)
@@ -30,10 +55,11 @@ final class Draw private[frflow] (rnd: SplittableRandom, val size: Int, plan: Pl
           (if plan.holdsOnly(t) then Nil else Probes.near(s, plan.numbers)) match
             case Nil  => s
             case near => near(below(near.size))
-        else if pooled(t) && pool.nonEmpty && chance(0.6) then pool(below(pool.size))
+        else if pooled(t) && pool.nonEmpty && retries == 0 && chance(0.6) then pool(below(pool.size))
         else
           val v = fresh(t)
-          if pooled(t) && pool.size < 4 then pool += v
+          // Only a value that holds what always holds of its type is drawn again.
+          if pooled(t) && pool.size < 4 && scala.util.Try(plan.holds(t)(v)).getOrElse(true) then pool += v
           v
 
   private def pooled(t: LeanType[?]): Boolean = t.shape match

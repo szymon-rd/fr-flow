@@ -150,7 +150,8 @@ class SnapshotSuite extends munit.FunSuite:
   }
 
   /** The shelf's nodes and more, with Pick implemented as in `shelfKb`. */
-  private def shelfAnd(ns: Node[?]*) = kbOf(shelfNodes ++ ns).implement(pick)((shelf, n) => shelf.filter(_.pages >= minPages.value))
+  private def shelfAnd(ns: Node[?]*) =
+    kbOf(shelfNodes ++ ns).implementTested(pick)((shelf, n) => shelf.filter(_.pages >= minPages.value))
   private val bounded = Node.claim("At most n books are picked.", why = "Readers want few books.")(
     forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).length <= n)).refines(fromList)
 

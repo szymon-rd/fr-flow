@@ -32,7 +32,7 @@ final class Evals(kb: KnowledgeBase, refinement: Refinement):
     private val used = scala.collection.mutable.LinkedHashSet.empty[Def[?]]
 
     def all: (List[Eval], List[(ObligationName, String)]) =
-      val (failed, evaluated) = n.cases.zipWithIndex.partitionMap { (e, i) =>
+      val (failed, evaluated) = kb.casesOf(n).zipWithIndex.partitionMap { (e, i) =>
         val label = s"example ${i + 1} (${e.note})"
         one(ObligationName.Eval(i), label, e.bindings, e.inputs, Some(e.result)).left.map(why => (ObligationName.Eval(i), s"$label: $why"))
       }
@@ -66,6 +66,12 @@ final class Evals(kb: KnowledgeBase, refinement: Refinement):
         val r = result.orElse(got)
         (r.map(holds(ins, _)), got, r)
       }).toEither.left.map(x => s"Scala cannot evaluate it: ${x.getMessage}")
+        // An example written as a test, of a contract Scala cannot evaluate (a `forall` over numbers): Lean alone does.
+        .orElse(result.filter(_ => written(ins, result)).map(r => (None, None, Some(r)))
+          .toRight("Scala cannot evaluate it"))
+
+    private def written(ins: List[Any], result: Option[Any]): Boolean =
+      kb.written.exists(w => n.op.exists(_ eq w.op) && w.inputs == ins && result.contains(w.answer))
 
     private def one(name: ObligationName, label: String, bindings: List[Binding], ins: List[Any], result: Option[Any]): Either[String, List[Eval]] =
       for
@@ -91,18 +97,22 @@ final class Evals(kb: KnowledgeBase, refinement: Refinement):
               (leanValue(x), leanValue(w)).tupled.fold(s"$p$as $t $before")((tx, tw) => s"$p$as $tx $before $tw")
             case _ => s"$p$args $t"
           Eval(name, label, if v then call else s"¬ $call", if v then s"¬ $call" else call)
-        }
+        }.orElse(Option.when(verdict.isEmpty && n.post.isDefined && !n.isFlow)(tr).flatten.map { t =>
+          val call = s"${app(qualified(n, "post"), ctx(post), env)._1}$args $t"
+          val shown = s"$label, $op(${ins.map(Example.show).mkString(", ")}) is ${judged.fold("")(Example.show)}"
+          Eval(name, shown, call, s"¬ $call", against = Eval.Against.Answer)
+        })
         val onImpl = for { d <- impl; g <- got; tg <- leanValue(if n.failure.isDefined then g match { case (x, w) => (outcome(x), w); case o => o } else g) } yield
           val f = code(d, env)._1
           Eval(name.ofCode, s"$label, run by ${d.name}", s"$f$args = $tg", s"$f$args ≠ $tg")
         onPost.toList ++ onImpl.toList
 
     /** Under the first example's bindings, half at a boundary (a number of one input equal to one of another's). */
-    private def probes: List[Eval] = n.cases.headOption.toList.flatMap { first =>
-      val inputs = Probes.inputs(n.cases)
+    private def probes: List[Eval] = kb.casesOf(n).headOption.toList.flatMap { first =>
+      val inputs = Probes.inputs(kb.casesOf(n))
       // Without code to run, the post is judged on the examples' results.
       val calls = if impl.isDefined then inputs.map(ins => (ins, None))
-        else inputs.flatMap(ins => n.cases.map(_.result).distinct.map(r => (ins, Some(r))))
+        else inputs.flatMap(ins => kb.casesOf(n).map(_.result).distinct.map(r => (ins, Some(r))))
       def edge(ins: List[Any]) = ins.map(Probes.numbers(_).toSet).combinations(2).exists(p => p(0).intersect(p(1)).nonEmpty)
       val (edges, rest) = scala.util.Random(n.id.hashCode).shuffle(calls).partition((ins, _) => edge(ins))
       // `x0 y0 x1 y1 …`, the longer list's rest at the end.

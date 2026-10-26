@@ -47,7 +47,9 @@ private[frflow] object ModelTests:
     val states = worlds(kb, mo).map(_(model.asInstanceOf[StateModel[Any]]))
     states.foreach(s => Try(Plan.harvest(model.stateType, s, opaques, keyOf.key, seeds)))
     val numbers = states.flatMap(Probes.numbers).distinct.flatMap(x => List(x - 1, x, x + 1)).distinct
-    def plan(outside: Boolean) = Plan(kb.generators.toMap.map((t, g) => keyOf.key(t) -> g), seeds.toMap, numbers, opaques, outside)
+    def plan(outside: Boolean) =
+      Plan(kb.generators.toMap.map((t, g) => keyOf.key(t) -> g), seeds.toMap, numbers, opaques, outside,
+        holds = kb.holds)
 
     // The parts to reach: each operation called, and each branch of the model's operations.
     val printer = LeanPrinter()

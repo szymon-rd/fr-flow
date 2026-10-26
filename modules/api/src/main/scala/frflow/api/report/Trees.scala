@@ -8,7 +8,9 @@ object Trees:
   def all(v: View): Tree =
     val ids = v.nodes.map(_.id).toSet
     val draw = drawing(v, ids)
-    val (main, rest) = v.nodes.filterNot(_.node.parents.exists(ids)).partition(v.isRoot)
+    val (roots, rest) = v.nodes.filterNot(_.node.parents.exists(ids)).partition(v.isRoot)
+    // The roots in the order the knowledge base lists them: the author's.
+    val main = roots.sortBy(r => v.snapshot.roots.indexOf(r.id) match { case -1 => Int.MaxValue; case i => i })
     val (definitions, others) = rest.partition(_.node.kind == NodeKind.Definition)
     val (assumptions, unparented) = others.partition(_.node.kind == NodeKind.Assumption)
     Tree(main.map(draw), assumptions.map(draw), unparented.map(draw), definitions.map(draw), v.annotated.gone, Overview.of(v))

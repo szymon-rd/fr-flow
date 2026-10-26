@@ -66,16 +66,26 @@ object Verdict:
     (e.lean.proves(name), e.lean.proves(name + "_opposite")) match
       case _ if e.lean.diagnostics.isEmpty && !e.run.ok => Result(x.name, Unevaluated, s"${x.what}: Lean did not run: ${clip(e.run.output)}")
       case (true, false) => Result(x.name, Proven, s"Lean agrees: ${x.claim}")
+      case (false, true) if x.against == Eval.Against.Answer =>
+        Result(x.name, Failed, s"${x.what}$Refuses")
       case (false, true) => Result(x.name, Failed, s"${x.what}: Scala computes ${x.claim}, Lean proves ${x.opposite}")
       case (true, true) => Result(x.name, Failed, s"${x.what}: Lean proves both ${x.claim} and its opposite")
       case (false, false) => Result(x.name, Unevaluated, s"${x.what}: Lean decides neither ${x.claim} nor its opposite")
 
   /** A disagreement means the translation does not mean what the Scala does: nothing proven of the node is about the code. */
   def agree(n: Node[?], evaluated: List[Result]): Option[Judged] =
-    val disagree = evaluated.filter(_.status == Failed)
+    val disagree = evaluated.filter(r => r.status == Failed && !refuses(r))
     Option.when(disagree.nonEmpty)(Judged(CheckStatus.Failed, evaluated,
       s"Lean and Scala disagree on ${disagree.size} example(s) or probe(s): the Lean translation does not mean what the Scala does, " +
         s"so nothing proven of ${n.id} is about the code" :: disagree.map(_.detail)))
+
+  /** An example written as a test that the claim refuses, as Lean evaluates it: the node fails, and is still judged
+    * (its step, its code), which is often what the example is wrong about.
+    */
+  def refusedExamples(evaluated: List[Result])(j: Judged): Judged =
+    if evaluated.exists(refuses) then j.copy(status = CheckStatus.Failed) else j
+  private def refuses(r: Result): Boolean = r.status == Failed && r.detail.endsWith(Refuses)
+  private val Refuses = ": the claim refuses it, and Lean confirms"
 
   /** Proven when Lean reports no error and no `sorry` in it; an authored one states exactly its obligation, with only what a proof file may. */
   def judge(o: ObligationName, e: Elaborated, isAuthored: Boolean): Result =

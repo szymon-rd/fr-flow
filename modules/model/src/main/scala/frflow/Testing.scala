@@ -75,10 +75,12 @@ private[frflow] object Testing:
     // (A parameter only plain code reads, a database handle, the model does not know: the examples bind it.)
     private val read = (n.post.toList ++ n.kept.flatMap(k => k.view.toList ++ k.invariant.rule.toList)).flatMap(kb.reads)
     private def defined(p: Param[?]) = kb.provisional.get(p.name).exists(_.substs.exists(s => s.name == p.name && s.term.isDefined))
-    private val params = (read.flatMap(r => kb.params.find(_.name == r)) ++ n.cases.flatMap(_.bindings.map(_.param)))
+    private val params =
+      (read.flatMap(r => kb.params.find(_.name == r)) ++ kb.casesOf(n).flatMap(_.bindings.map(_.param)))
       .distinctBy(_.name).filterNot(p => kb.isOp(p.name) || defined(p))
     private val (generated, fixedParams) = params.partition(p => known(p.termType))
-    private val fixed: List[Binding] = fixedParams.flatMap(p => n.cases.flatMap(_.bindings).find(_.param.name == p.name))
+    private val fixed: List[Binding] =
+      fixedParams.flatMap(p => kb.casesOf(n).flatMap(_.bindings).find(_.param.name == p.name))
     private val types: Vector[LeanType[?]] = (generated.map(_.termType) ++ tins).toVector
 
     private val opaques: Map[String, LeanType[?]] = Testing.opaques(kb)
@@ -87,14 +89,15 @@ private[frflow] object Testing:
       val keyOf = Plan(Map.empty, Map.empty, Nil, opaques)
       val seeds = mutable.LinkedHashMap.empty[String, Vector[Any]]
       def harvest(t: LeanType[?], v: Any) = Plan.harvest(t, v, opaques, keyOf.key, seeds)
-      n.cases.foreach { e =>
+      kb.casesOf(n).foreach { e =>
         Try { tins.zip(e.inputs).foreach(harvest(_, _)); harvest(tr, e.result) }
         generated.flatMap(p => e.bindings.find(_.param.name == p.name).map(b => p -> b)).foreach { (p, b) =>
           Try(Bindings.within(e.bindings)(harvest(p.termType, b.table.fold(b.value())(t => Table(1, t.toList.map((k, v) => (List(k), Some(v))), None)))))
         }
       }
-      Plan(customs.map((t, g) => keyOf.key(t) -> g), seeds.toMap, Probes.boundaries(n.cases).flatMap(x => List(x - 1, x, x + 1)).distinct,
-        opaques, outside = n.kind == NodeKind.Assumption)
+      Plan(customs.map((t, g) => keyOf.key(t) -> g), seeds.toMap,
+        Probes.boundaries(kb.casesOf(n)).flatMap(x => List(x - 1, x, x + 1)).distinct,
+        opaques, outside = n.kind == NodeKind.Assumption, holds = kb.holds)
 
     private def known(t: LeanType[?]): Boolean = t.shape match
       case Shape.Unknown | Shape.WorldT | Shape.FlowOf(_) => false
@@ -134,7 +137,8 @@ private[frflow] object Testing:
     private def attempt(vals: Vector[Any], watch: Option[Watch]): (Option[Any], Option[String]) =
       on(generated.zip(vals).map((p, v) => Binding(p, () => v)), vals.drop(generated.size).toList, watch)
 
-    // The operations the code was seen to call: plain code says which it calls (`implement(c, op)`), and is held to it.
+    // The operations the code was seen to call: plain code says which it calls (`implementTested(c, op)`), and is
+    // held to it.
     private val calledOps = mutable.Set.empty[String]
     private val named = impl.calls.toSet ++ n.op.map(_.name) ++
       kb.onOp.keySet.filter(o => s"\\b${java.util.regex.Pattern.quote(o)}\\b".r.findFirstIn(impl.wiring).isDefined)
@@ -163,7 +167,7 @@ private[frflow] object Testing:
 
     // Each example as a whole case (its world and its call): a third of the cases start from one, with one value changed,
     // so what holds only when the world's parts agree (a user signed in, then disabled) is reached.
-    private val exampleCases: Vector[Vector[Option[Any]]] = n.cases.toVector.map { e =>
+    private val exampleCases: Vector[Vector[Option[Any]]] = kb.casesOf(n).toVector.map { e =>
       generated.map(p => e.bindings.find(_.param.name == p.name).flatMap(b => Try(Bindings.within(e.bindings)(b.value())).toOption)).toVector ++
         e.inputs.map(Some(_))
     }
@@ -173,8 +177,10 @@ private[frflow] object Testing:
       if exampleCases.nonEmpty && d.chance(0.35) then
         val base = exampleCases(d.below(exampleCases.size)).zip(types).map((v, t) => v.getOrElse(d.value(t)))
         val k = d.below(types.size)
+        val near =
+          if plan.holdsOnly(types(k)) then Nil else Probes.near(base(k), plan.numbers).filter(plan.holds(types(k)))
         if d.chance(0.25) then base
-        else base.updated(k, (if plan.holdsOnly(types(k)) then Nil else Probes.near(base(k), plan.numbers)) match
+        else base.updated(k, near match
           case Nil  => d.value(types(k))
           case near => if d.chance(0.5) then near(d.below(near.size)) else d.value(types(k)))
       else types.map(d.value)
@@ -218,7 +224,9 @@ private[frflow] object Testing:
           Try(Bindings.within(kb.opCode ++ Bindings.oncePerScope(kb.definitionBindings) ++ fixed ++ world :+ Binding(op, () => answer))(
             Watch.within(watching(vals))(!run(env).asInstanceOf[Boolean]))).getOrElse(false)
         @tailrec def smallest(vals: Vector[Any], rounds: Int): Vector[Any] =
-          LazyList.from(types.indices).flatMap(i => Shrink.of(types(i), vals(i), opaques, plan.only).take(40).map(v => vals.updated(i, v)))
+          LazyList.from(types.indices).flatMap(i =>
+            Shrink.of(types(i), vals(i), opaques, plan.only).filter(plan.holds(types(i))).take(40)
+              .map(v => vals.updated(i, v)))
             .take(400).find(breaks) match
             case Some(c) if rounds > 0 => smallest(c, rounds - 1)
             case _                     => vals
@@ -233,7 +241,8 @@ private[frflow] object Testing:
 
     @tailrec private def shrink(vals: Vector[Any], why: String, rounds: Int): (Vector[Any], String) =
       val smaller = LazyList.from(types.indices)
-        .flatMap(i => Shrink.of(types(i), vals(i), opaques, plan.only).take(40).map(v => vals.updated(i, v)))
+        .flatMap(i => Shrink.of(types(i), vals(i), opaques, plan.only).filter(plan.holds(types(i))).take(40)
+          .map(v => vals.updated(i, v)))
         .take(400).map(c => c -> attempt(c, None)._2).collectFirst { case (c, Some(w)) => (c, w) }
       smaller match
         case Some((c, w)) if rounds > 0 => shrink(c, w, rounds - 1)
@@ -242,7 +251,7 @@ private[frflow] object Testing:
     def report(settings: TestSettings, replay: List[Replay]): Report =
       val counter = Counter(() => Draw(random(settings.seed, -1), 3, plan))
       // The examples first: what they reach counts (what fails of them, their own check says).
-      n.cases.filter(_.expected).foreach(e => Try(on(e.bindings, e.inputs, Some(counter))))
+      kb.casesOf(n).filter(_.expected).foreach(e => Try(on(e.bindings, e.inputs, Some(counter))))
       // The cases that failed before, then new ones, small to large.
       val order = replay ++ (0 until settings.cases).map(i => Replay(settings.seed, i, sizeOf(i, settings.cases)))
       val failure = order.iterator.flatMap { c =>
@@ -261,7 +270,8 @@ private[frflow] object Testing:
       val notes = List(
         Option.when(counter.sampled.nonEmpty)(s"forall/exists over ${counter.sampled.mkString(", ")}: sampled, not every value"),
         Option.when(fixed.nonEmpty)(s"${fixed.map(_.param.name).mkString(", ")}: the examples' value (no Lean type to generate it from)"),
-        Option.when(generated.isEmpty && n.cases.isEmpty)("nothing to vary: no examples, and the contract reads no parameter")
+        Option.when(generated.isEmpty && kb.casesOf(n).isEmpty)(
+          "nothing to vary: no examples, and the contract reads no parameter")
       ).flatten ++ customs.toList.map((t, g) => s"${Types.scala(t)}: ${g.describe} " +
         (if plan.only(t) then "(given: what the outside holds, with the examples' values)" else "(given; derived values for a quarter of them)")) ++
         unreached(settings)

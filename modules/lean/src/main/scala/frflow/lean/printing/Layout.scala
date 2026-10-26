@@ -11,8 +11,11 @@ final case class Layout(kb: String):
   private def plain(name: String) = name.filterNot("«»".contains(_))
   val types: LeanModule = generated("Types")
   val domain: LeanModule = generated("Domain")
-  val rootImpl: LeanModule = generated("RootImpl")
+  /** A root's `root_impl`. */
+  def rootImpl(id: String): LeanModule = generated(s"$id.RootImpl")
   val boundaries: LeanModule = generated("Boundaries")
+  /** What the knowledge base as a whole is asked: that its statements hold together, and are not vacuous. */
+  val consistency: LeanModule = generated("Consistency")
   val lemmas: LeanModule = LeanModule(s"Proofs.$kb.Lemmas")
   def definition(name: String): LeanModule = generated(s"Domain.Def_${plain(name)}")
   def term(name: String): LeanModule = generated(s"Domain.Term_${plain(name)}")

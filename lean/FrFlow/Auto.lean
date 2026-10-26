@@ -25,7 +25,30 @@ macro_rules
         | fail "frflow_auto found no proof; prove this obligation in the node's proof file"))
 
 namespace FrFlow
-open Lean Elab Tactic
+open Lean Elab Tactic Meta
+
+/-- The integers a goal names, each with its neighbours: the witnesses `frflow_witness` tries. -/
+def intCandidates (e : Expr) : MetaM (Array Int) := do
+  let found ← IO.mkRef (#[] : Array Int)
+  forEachExpr e fun s => do
+    if let some n := s.int? then found.modify (·.push n)
+    else if let some n := s.nat? then found.modify (·.push (Int.ofNat n))
+  let ks := (← found.get).foldl (fun acc k => if acc.contains k then acc else acc.push k) #[]
+  return ks.foldl (fun acc k => acc ++ #[k, k - 1, k + 1]) #[]
+
+/-- `frflow_witness`: an integer that exists, as an example's `¬ ∀` over moments leaves it (`∃ t, 9 ≤ t ∧ …`): each
+integer the goal names, and its neighbours, tried as the witness, `omega` proving the rest. -/
+elab "frflow_witness" : tactic => do
+  let ks ← intCandidates (← instantiateMVars (← getMainTarget))
+  for k in ks do
+    let s ← saveState
+    try
+      let lit := Syntax.mkNumLit (toString k.natAbs)
+      if k < 0 then evalTactic (← `(tactic| (refine ⟨-$lit, ?_⟩; omega)))
+      else evalTactic (← `(tactic| (refine ⟨$lit, ?_⟩; omega)))
+      if (← getGoals).isEmpty then return
+    catch _ => s.restore
+  throwError "frflow_witness: no integer the goal names is a witness"
 
 /-- `frflow_eval`: decides an example. `simp` computes it; a map or a set (a function) is compared
 key by key, splitting on the keys the example names. An example `simp` computes to `False` is
@@ -46,6 +69,7 @@ elab "frflow_eval" : tactic => do
     start.restore
     evalTactic (← `(tactic| first
       | (simp [frflow_defs, funext_iff]; done)
-      | (simp [frflow_defs, funext_iff] <;> grind)))
+      | (simp [frflow_defs, funext_iff] <;> grind)
+      | (simp [frflow_defs]; frflow_witness)))
 
 end FrFlow

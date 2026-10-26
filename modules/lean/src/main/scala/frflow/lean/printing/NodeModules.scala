@@ -16,7 +16,8 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
 
   private def vocabularyOf(n: Node[?]): List[LeanModule] =
     val ls = n.referenced ++ formalKeeps(n).flatMap(_._1.rule)
-    val code = provenImpl(n).toList
+    val code = provenImpl(n).toList ++ kb.invariantsUsedBy(n).flatMap(_.holds) ++ n.holds ++
+      kb.writers(n).flatMap(provenImpl) ++ n.premises.flatMap(_.initially) ++ worldRuleDefs(n)
     vocabularyModules.boundariesFor(ls ++ code.map(_.lifted)) ++
       vocabularyModules.modulesFor(ls.flatMap(_.defs) ++ code, ls.flatMap(ctx(_).names) ++ code.flatMap(defCtx(_).names) ++ n.op.map(_.name))
   private def declared(name: String, c: Ctx, tpe: String, body: String): String = definition(name, binders(c), tpe, body) + "\n\n"
@@ -33,18 +34,23 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
         val ins = ts.dropRight(3)
         val (vars, xs) = call(ins :+ ts(ts.size - 2))
         val w = s"x${ins.size}"
+        val hs = arrows(ins.zipWithIndex.flatMap((t, i) => assumed(s"x$i", t)) ++ worldAssumed(w))
         val args = ins.indices.map(i => s"x$i").mkString(" ")
         val run = s"(${op.name} $xs)"
         // A run that may fail: what holds of its outcome, the post of a result, the failure clause of an error.
         if c.failure.isDefined then
           val fail = c.failure.flatMap(_.post).fold(qualified(c, "failure"))(fp => ref(qualified(c, "failure"), ctx(fp)))
-          s"∀ $vars, FrFlow.outcome (fun r' w' => $what ${if args.isEmpty then "" else args + " "}r' $w w') (fun e' w' => $fail e' $w w') $run$rest"
-        else s"∀ $vars, $what ${if args.isEmpty then "" else args + " "}$run.1 $w $run.2$rest"
+          val as = if args.isEmpty then "" else args + " "
+          s"∀ $vars, ${hs}FrFlow.outcome (fun r' w' => $what ${as}r' $w w') (fun e' w' => $fail e' $w w') $run$rest"
+        else s"∀ $vars, $hs$what ${if args.isEmpty then "" else args + " "}$run.1 $w $run.2$rest"
       else
         val (vars, xs) = call(p.params.init.map(_._2))
+        val hs = arrows(p.params.init.map(_._2).zipWithIndex.flatMap((t, i) => assumed(s"x$i", t)))
         // An operation of no inputs is a value: `what op`.
-        if vars.isEmpty then s"$what ${op.name}$rest" else s"∀ $vars, $what $xs (${op.name} $xs)$rest"
+        if vars.isEmpty then s"$what ${op.name}$rest" else s"∀ $vars, $hs$what $xs (${op.name} $xs)$rest"
     }
+
+  private def arrows(hs: List[String]): String = hs.map(_ + " → ").mkString
 
   private def model(n: Node[?]): List[String] = (n.rule, n.post) match
     case (Some(r), _) =>
@@ -56,7 +62,14 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
       val kept = formalKeeps(n).flatMap((inv, v) => inv.rule.toList.map(lifted(s"rule_${inv.id}", _)) :+ lifted(s"view_${inv.id}", v))
       List(lifted("post", post)) ++ n.failure.map(failure(n, _)).toList ++ kept ++ n.local.map(lifted("runCheck", _)) ++
         List(declared("claim", claimCtx(n), "Prop", everyCall(n, ref(qualified(n, "post"), ctx(post)))))
-    case _ => n.formula.map(lifted("claim", _)).toList ++ conjunctsOf(n).zipWithIndex.map((c, i) =>
+    case _ if n.isAlways =>
+      List(doc("Always holds: a hypothesis of every statement about what it is about, proven kept by the code " +
+        "(kept_by_…).") +
+        declared("claim", Ctx.empty, "Prop", "True"))
+    case _ =>
+      n.formula.map(f => declared("claim", claimCtx(n), f.leanType, LeanText.assuming(resolve(f.lean), assumed)))
+        .toList ++
+      conjunctsOf(n).zipWithIndex.map((c, i) =>
       doc(s"Conjunct ${i + 1} of the claim: a part that says only this restates it.") + declared(s"conjunct_${i + 1}", claimCtx(n), "Prop", resolve(c)))
   /** What a contract on a flow says of a run that fails: its clause, or that every model's state is as before. */
   private def failure(n: Node[?], f: FailureClause): String = f.post.fold {
@@ -69,8 +82,15 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
   private def keeps(n: Node[?], c: Node[?], view: Lifted[?], rule: String): String =
     s"(${everyCall(c, s"∀ p ∈ ${ref(qualified(n, s"view_${c.id}"), ctx(view))}", s", $rule p.1 p.2")})"
 
+  /** The rules an `always` claim's proof that it is kept assumes of the world before. */
+  private def worldRuleDefs(n: Node[?]): List[Def[?]] =
+    if !n.isAlways then Nil else kb.models.flatMap(m => kb.worldRules(m).map(_._2))
+
   def spec(n: Node[?]): String =
-    val uses = (layout.types :: vocabularyOf(n) ++ (kb.parts(n).filter(formal) ++ callees(n) ++ keepers(n).map(_._1)).map(c => layout.spec(c.id))).distinct
+    val promised = kb.writers(n).flatMap(calls)
+    val uses = (layout.types :: vocabularyOf(n) ++
+      (kb.parts(n).filter(formal) ++ callees(n) ++ keepers(n).map(_._1) ++ promised).map(c => layout.spec(c.id)))
+      .distinct
     val expected = n.expected.zipWithIndex.map { case ((_, l), i) => lifted(s"expected_$i", l) }
     val obls = (obligations.obligations(n) ++ tries(n).map(_.obligation)).map { o =>
       s"namespace Obl\n\n${doc(o.description)}@[frflow_defs] def ${o.name} : Prop :=\n  ${o.statement}\n\nend Obl\n\n"
@@ -155,8 +175,12 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
       }.mkString)
     }
 
-  /** `root_impl`, composed of `holds` and `impl`: its statement, and the module. */
-  def rootImpl: Option[(String, String)] = kb.root.filter(formal).map { r =>
+  /** A root's `root_impl`, composed of `holds` and `impl`: its statement, and the module. */
+  def rootImpl(r: Node[?]): Option[(String, String)] =
+    Option.when(kb.isRoot(r) && formal(r) && !r.isAlways)(r).map(rootImplOf)
+
+  private def rootImplOf(r: Node[?]): (String, String) =
+    val trusted = trustedBy(r)
     def proofIn(n: Node[?]): String = implementing(n).fold(s"h_${n.id}") { (d, op) =>
       s"(${qualified(n, "Impl.impl")} ${named(ofCode(n, d, op)._2, codeEnv)} ${calls(n).map(c => s"(h_${c.id} := ${proofIn(c)})").mkString(" ")})"
     }
@@ -171,8 +195,8 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
     val proof = s"by\n${introduce(intro)}  exact ${qualified(r, Holds)} ${named(holdsOpens(r), codeEnv)} " +
       leaves(r).map(l => s"(h_${l.id} := ${proofIn(l)})").mkString(" ")
     val uses = (layout.theorems(r.id) :: implemented.map((n, _) => layout.impl(n.id))).distinct
-    (statement, module(uses, s"$K.RootImpl",
-      s"/-- The root holds of the code, from what is trusted: ${if trusted.isEmpty then "nothing" else trusted.map(_.id).mkString(", ")}. -/\n" +
-        s"theorem root_impl : $statement :=\n  $proof\n\n#print axioms $K.RootImpl.root_impl\n\n"))
-  }
+    val from = if trusted.isEmpty then "nothing" else trusted.map(_.id).mkString(", ")
+    (statement, module(uses, s"$K.${r.id}.RootImpl",
+      s"/-- The root holds of the code, from what is trusted: $from. -/\n" +
+      s"theorem root_impl : $statement :=\n  $proof\n\n#print axioms $K.${r.id}.RootImpl.root_impl\n\n"))
   private def introduce(names: List[String]): String = if names.isEmpty then "" else s"  intro ${names.mkString(" ")}\n"

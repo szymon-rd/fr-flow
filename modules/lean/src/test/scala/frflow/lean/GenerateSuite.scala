@@ -100,6 +100,20 @@ class GenerateSuite extends munit.FunSuite:
     assertEquals(g.obligation(Service.sold, ObligationName.Impl).map(_.statement), Some(step))
   }
 
+  test("what always holds of a type is assumed of what a statement quantifies over, and proven kept by the code") {
+    val g = Generate(Invariants.shelf)
+    val spec = g.spec(pick)
+    assert(spec.contains("(∀ y ∈ x0, Shelf.hasPages y) → (Shelf.shelvedOnce x0) → "), spec)
+    val service = Generate(Invariants.service)
+    // the till's money and the item's price, both amounts: assumed of the input and of the world before
+    val sold = service.spec(Service.sold)
+    assert(sold.contains("(Service.notNegative x0) → (Service.notNegative x1.till) → "), sold)
+    // the selling flow, the till's one writer, keeps it, given what the price's contract promises
+    val kept = service.obligation(Invariants.notNegative, ObligationName.KeptBy("sell")).get.statement
+    assert(kept.contains("(h_PricePositive : (Service.PricePositive.claim price))") &&
+      kept.endsWith("(Service.notNegative ((Service.sold_run price) x0 x1).2.till)"), kept)
+  }
+
   test("a node is witnessed by proven code, an assumption, or parts that all are; a part nothing proves witnesses nothing") {
     val unrefined = Node.claim("Some books are kept aside.", why = "A part not refined yet.")(
       forall((l: Term[List[Item.T]], x: Term[Item.T]) => shown(l, x) implies l.contains(x))).refines(onlyGood)

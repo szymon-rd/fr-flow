@@ -15,13 +15,14 @@ object Snapshots:
     val kb = a.kb
     val g = a.generate
     Snapshot(name = kb.name, nodes = kb.ordered.map(node(a, _)), idea = a.idea, ideaFile = kb.idea, warnings = Governance.warnings(a),
-      root = kb.root.map(r => NodeId(r.id)), definitions = ids(kb.definitions), trusted = ids(g.trusted), exportedAt = a.inputs.now,
+      root = kb.root.map(r => NodeId(r.id)), roots = ids(kb.roots), definitions = ids(kb.definitions),
+      trusted = ids(g.trusted), exportedAt = a.inputs.now,
       opaques = kb.opaques.map(o => OpaqueTerm(o.name, o.means, g.inForce.get(o.name).map(d => NodeId(d.id)))),
       params = kb.params.map(p => ParamTerm(p.name, p.means, kb.isOp(p.name), g.inForce.get(p.name).map(d => NodeId(d.id)),
         kb.nodes.flatMap(_.referenced).flatMap(_.paramRefs).toMap.getOrElse(p.name, ""))),
       types = kb.types.map(t => TypeText(t.name, t.lean)),
       defs = kb.defs.map(d => DefText(d.name, d.lifted.source)),
-      tested = ids(Snapshots.tested(a)))
+      tested = ids(Snapshots.tested(a)), consistency = proving.Consistent.current(a))
 
   /** What root_impl assumes that is code tested against its contract (not an assumption about the outside). */
   def tested(a: Analysis): List[Node[?]] = a.generate.trusted.filter(c => Testing.testable(a.kb, c).exists(_.proven.isEmpty))
@@ -35,22 +36,27 @@ object Snapshots:
     val c = a.content(n)
     // What Lean computes of each example written (not generated ones), against what Scala does.
     val examples = a.examples(n).zipWithIndex.map { (r, i) =>
-      def lean(name: ObligationName) = Option.when(i < n.cases.size)(outcome(name))
-      ExampleView(r.example.note, r.example.givens, r.example.call, r.example.expected, Option.when(r.contract != "ok")(r.contract),
+      def lean(name: ObligationName) = Option.when(i < kb.casesOf(n).size)(outcome(name))
+      ExampleView(r.example.note, r.example.givens, r.example.call, r.example.expected, r.failing,
         r.implementation.filter(_ != "ok"), lean(Eval(i)), if g.provenImpl(n).isEmpty then None else lean(EvalImpl(i)))
     }
     SnapNode(id = id, kind = n.kind, content = c, hash = c.hash, parents = ids(kb.parentsOf(n)), parts = ids(kb.children(n)),
       replaces = n.replaced.map(r => NodeId(r.id)), op = n.op.map(_.name), defines = n.defines,
-      uses = ids(kb.definitionsUsed(n, g.inForce)), relies = ids(g.reliedOn(n)), rule = n.isInvariant,
+      uses = ids(kb.definitionsUsed(n, g.inForce)), relies = ids(g.reliedOn(n)),
+      rule = n.isInvariant,
       // The root met by doing nothing: it says only what must not happen (see the ledger's `Proofs.unproven`).
       idle = Option.when(kb.isRoot(n))(a.idleOf(n)).flatten,
       status = Option.when(kb.isStatement(n))(check.orElse(a.checks.get(id).filter(_.hash == a.checkHash(n))).fold(CheckStatus.Unchecked)(_.status)),
-      leaf = n.kind == NodeKind.Claim && kb.parts(n).isEmpty, examples = examples, code = a.code(n), split = a.split(n),
+      // A claim nothing below proves: no parts, no code, not an `always` (proven kept by the code that writes it).
+      leaf = n.kind == NodeKind.Claim && kb.parts(n).isEmpty && !n.isAlways && kb.implementation(n).isEmpty,
+      examples = examples, code = a.code(n), split = a.split(n),
       invariants = n.kept.map(kept(a, n, _)),
       expectations = n.expected.zipWithIndex.map { case ((st, l), i) => outcome(Expect(i)).pipe(o => Expectation(st, l.source, o.status, o.detail)) },
       implementationProof = g.provenImpl(n).map(d => outcome(Impl).pipe(o => ImplProof(d.name, o.status, o.detail))),
-      rootImpl = Option.when(kb.isRoot(n))(outcome(RootImpl)),
-      covers = if !n.isInvariant then Nil else ids(kb.nodes.filter(_.kept.exists(k => (k.invariant eq n) && k.view.nonEmpty))),
+      rootImpl = Option.when(kb.isRoot(n) && !n.isAlways)(outcome(RootImpl)),
+      covers = if n.isAlways then ids(kb.writers(n))
+        else if !n.isInvariant then Nil
+        else ids(kb.nodes.filter(_.kept.exists(k => (k.invariant eq n) && k.view.nonEmpty))),
       exempts = if !n.isInvariant then Nil else ids(kb.nodes.filter(_.kept.exists(k => (k.invariant eq n) && k.view.isEmpty))),
       obligations = g.obligations(n).map(o => ObligationText(o.name.lean, o.statement, o.description)),
       proof = a.proofOf(n).map(src => ProofFile("lean/" + g.layout.proofs(n.id).path, src)),

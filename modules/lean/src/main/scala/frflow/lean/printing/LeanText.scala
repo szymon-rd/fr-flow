@@ -24,6 +24,33 @@ object LeanText:
     (if binders.isEmpty then "" else s"∀ $binders, ") +
       (if hyps.isEmpty then "" else s"∀ ${hyps.map((h, t) => s"($h : $t)").mkString(" ")}, ") + conclusion
 
+  /** `∀ (a : A) (b : B), body` with hypotheses on its variables after them: `∀ (a : A) (b : B), H a → body`. Any
+    * other proposition stays as it is.
+    */
+  def assuming(prop: String, hyps: (String, String) => List[String]): String =
+    if prop.startsWith("(∀ (") && enclosed(prop) then s"(${assuming(prop.substring(1, prop.length - 1), hyps)})"
+    else if !prop.startsWith("∀ (") then prop
+    else
+      // The binders `(name : type)`, each a balanced group, up to the comma after them.
+      val groups = scala.collection.mutable.ListBuffer.empty[(String, String)]
+      var i = 2
+      while i < prop.length && prop.charAt(i) == '(' do
+        var depth = 0
+        var j = i
+        while
+          if prop.charAt(j) == '(' then depth += 1 else if prop.charAt(j) == ')' then depth -= 1
+          j += 1
+          depth > 0
+        do ()
+        val group = prop.substring(i + 1, j - 1)
+        val colon = group.indexOf(" : ")
+        groups += group.take(colon) -> group.drop(colon + 3)
+        i = if prop.startsWith(" (", j) then j + 1 else j
+      if !prop.startsWith(", ", i) then prop
+      else
+        val hs = groups.toList.flatMap(hyps.tupled)
+        if hs.isEmpty then prop else prop.take(i + 2) + hs.map(_ + " → ").mkString + prop.drop(i + 2)
+
   /** The binders and the arguments of a call `op x0 x1` of an operation taking `types`. */
   def call(types: List[String]): (String, String) =
     (types.zipWithIndex.map((t, i) => s"(x$i : $t)").mkString(" "), types.indices.map(i => s"x$i").mkString(" "))

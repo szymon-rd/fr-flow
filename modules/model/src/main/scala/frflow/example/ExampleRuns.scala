@@ -9,9 +9,9 @@ import scala.util.Try
 private[frflow] object ExampleRuns:
   def results(kb: KnowledgeBase, n: Node[?]): List[ExampleResult] =
     // An example need not bind the operations its code calls, nor the defined terms: they run as in service.
-    if n.cases.isEmpty then Nil
+    if kb.casesOf(n).isEmpty then Nil
     else Bindings.within(kb.opCode ++ kb.definitionBindings) {
-      n.checkExamples(kb.implementation(n).map(_.factory), kb.runtimeAssumptions) ++
+      n.checkExamples(kb.implementation(n).map(_.factory), kb.runtimeAssumptions, kb.casesOf(n)) ++
         onReal(kb, n) ++ faultSweep(kb, n) ++ interleavings(kb, n)
     }
 
@@ -35,7 +35,7 @@ private[frflow] object ExampleRuns:
       steps <- (body.termTree match { case Tree.Do(s) => Some(s); case _ => None }).toList
       if Steps.parallel(steps)
       post <- n.postFn.toList
-      e <- n.cases.filter(c => c.expected && c.inputs.lastOption.exists { case w: World => w.faults.isEmpty; case _ => false })
+      e <- kb.casesOf(n).filter(c => c.expected && noFaults(c))
       used = kb.models.filter(m => Steps.boundaries(steps).contains(m.boundary)).flatMap(m => m.impls.sortBy(_.outside).headOption.map(m -> _))
     yield
       val (args, before) = (e.inputs.init, e.inputs.last.asInstanceOf[World])
@@ -83,7 +83,7 @@ private[frflow] object ExampleRuns:
       steps <- (body.termTree match { case Tree.Do(s) => Some(s); case _ => None }).toList
       if Steps.boundaries(steps).exists(_.fails) && !Steps.racing(steps)
       post <- n.postFn.toList
-      e <- n.cases.filter(c => c.expected && c.inputs.lastOption.exists { case w: World => w.faults.isEmpty; case _ => false })
+      e <- kb.casesOf(n).filter(c => c.expected && noFaults(c))
       used = kb.models.filter(m => Steps.boundaries(steps).contains(m.boundary)).flatMap(m => m.impls.sortBy(_.outside).headOption.map(m -> _))
       k <- 1 to 12
       before = e.inputs.last.asInstanceOf[World].failing((List.fill(k - 1)(false) :+ true)*)
@@ -128,7 +128,7 @@ private[frflow] object ExampleRuns:
       if !Steps.racing(steps)
       mo <- kb.models.filter(m => Steps.boundaries(steps).contains(m.boundary))
       impl <- mo.impls
-      e <- n.cases.filter(_.expected)
+      e <- kb.casesOf(n).filter(_.expected)
     yield
       val (args, before) = (e.inputs.init, e.inputs.last.asInstanceOf[World])
       // The flow's other boundaries run on their own first implementation (the project's own, when it has one).
@@ -157,6 +157,13 @@ private[frflow] object ExampleRuns:
       ExampleResult(e.copy(note = s"${e.note} (run on $name)"), "ok", Some(verdict))
     )
 
+  /** A run's case with no fault in its world before. */
+  private def noFaults(c: Example): Boolean =
+    c.inputs.lastOption.exists { case w: World => w.faults.isEmpty; case _ => false }
+
   // The examples run the developer's code: what it throws is a finding about that code, said in the verdict
   // ("error: …"), never a failure of the run.
-  private[frflow] def verdict(t: Try[String]): String = t.fold(e => s"error: ${e.getMessage}", identity)
+  private[frflow] def verdict(t: Try[String]): String = t.fold({
+    case _: NotExecutable => ExampleResult.NotEvaluated
+    case e                => s"error: ${e.getMessage}"
+  }, identity)

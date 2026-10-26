@@ -13,6 +13,7 @@ project/project/
 **/.frflow/kb.json
 **/.frflow/checks.json
 **/.frflow/tests.json
+**/.frflow/consistency.json
 **/.frflow/running.json
 **/.frflow/*.lock
 **/.frflow/*.tmp

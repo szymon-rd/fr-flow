@@ -28,6 +28,7 @@ final class NodeChecker(a: Analysis, lake: Lake, prebuilt: Set[String]):
       _ <- lemmas(proof)
       evaluated <- evaluate(n)
       j <- proven(n, proof, parts).bimap(_.withEvaluations(evaluated), _.withEvaluations(evaluated))
+        .bimap(Verdict.refusedExamples(evaluated), Verdict.refusedExamples(evaluated))
     yield j
     steps.merge.flatMap(j => IO.realTimeInstant.map(j.stamp(a.checkHash(n), _)))
 
@@ -54,13 +55,13 @@ final class NodeChecker(a: Analysis, lake: Lake, prebuilt: Set[String]):
       _ <- proofFile(n, proof, results)
       checks <- lift(generated(g.layout.checks(n.id).path))
       _ <- stop(Verdict.checksRan(results, checks.run))
-      root <- lift(g.rootImpl.filter(_ => a.kb.isRoot(n)).traverse(_ => rootImpl))
+      root <- lift(g.rootImpl(n).traverse(_ => rootImpl(n)))
     yield Verdict.finish(a, n, results, impl, checks, root)
 
   // `root_impl` composes the proofs of the code; `lake env lean` builds nothing it imports, so they are built first:
   // else it reads what an earlier build left of them, or nothing. One that does not build is the reason, by name.
-  private def rootImpl: IO[Either[String, Elaborated]] =
-    val rel = g.layout.rootImpl.path
+  private def rootImpl(n: Node[?]): IO[Either[String, Elaborated]] =
+    val rel = g.layout.rootImpl(n.id).path
     val composed = Verdict.composed(a.kb, g, a.files.getOrElse(rel, ""))
     NonEmptyList.fromList(composed.map(c => g.layout.impl(c.id).name).filterNot(prebuilt))
       .fold(IO.pure(Run.built))(lake.build)

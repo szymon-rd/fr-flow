@@ -20,13 +20,20 @@ final case class Style(color: Boolean, unicode: Boolean, width: Option[Int]):
   def open: String = yellow(pick("○", "o"))
   def failed: String = red(pick("✗", "x"))
 
-  /** ✓ proven (nothing of it unproven), ○ open, ✗ failed (or an example failing), … waiting, ? unchecked, · no check. */
+  /** ✓ proven (nothing of it unproven), ○ open, ✗ failed (or an example failing), … waiting, ? unchecked, · no check;
+    * ! a node the developer is to decide (new, or back for review), unless it fails: its proof is not what to look at.
+    */
   def glyph(r: Reviewed): String =
     val (ok, total) = r.node.examplesPassing
+    val decide = r.state == ReviewState.Review || r.state == ReviewState.Proposed
+    val fails = r.node.status match
+      case Some(CheckStatus.Failed | CheckStatus.ModelError) => true
+      case None                                             => r.node.tested.exists(_.failure.isDefined)
+      case Some(_)                                          => ok != total
     r.node.status match
-      case None => if r.node.tested.exists(_.failure.isDefined) then failed else dim(pick("·", "-"))
-      case Some(CheckStatus.Failed | CheckStatus.ModelError) => failed
-      case Some(_) if ok != total => failed
+      case _ if fails => failed
+      case _ if decide => yellow("!")
+      case None | Some(CheckStatus.Failed | CheckStatus.ModelError) => dim(pick("·", "-"))
       case Some(CheckStatus.Open) => open
       case Some(CheckStatus.Waiting | CheckStatus.Timeout) => yellow(pick("…", "."))
       case Some(CheckStatus.Unchecked) => dim("?")

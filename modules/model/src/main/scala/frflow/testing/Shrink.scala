@@ -43,5 +43,6 @@ private[frflow] object Shrink:
         val simpler = if adt.isEnum then adt.ctors.takeWhile(_ ne c).flatMap(_.singleton).to(LazyList) else LazyList.empty
         val fs = x.asInstanceOf[Product].productIterator.toList
         simpler ++ (if c.fields.isEmpty then LazyList.empty
-          else LazyList.from(fs.indices).flatMap(i => go(c.fields(i)._2, fs(i)).map(y => c.make(fs.updated(i, y)))))
+          else LazyList.from(fs.indices).flatMap(i =>
+            go(c.fields(i)._2, fs(i)).flatMap(y => scala.util.Try(c.make(fs.updated(i, y))).toOption)))
       case _ => LazyList.empty

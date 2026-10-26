@@ -1,12 +1,12 @@
 For the developer, in order (review, or accept / reject NODE)
-  + Decide  contract  to review: it changed  A request is admitted on behalf of the user its to...
-  o Expiry  proposed  after Root  A session ends an hour after sign-in.
+  ! Decide (contract) — it changed, review it: "A request is admitted on behalf of the user its...
+  ! Expiry — new, decide on it  after Root: "A session ends an hour after sign-in."
 
 Mechanical: Lean proves them again, nothing in them is a choice (confirm decides all 1)
-  + Root  to review: its parts changed  A user gets access to a resource exactly when they are...
+  ! Root — its parts changed, review it: "A user gets access to a resource exactly when they ar...
 
 Sample: 9 nodes, 5 accepted, 2 to review, 1 proposed, 1 rejected
-splits 3/3 proven, contracts 0/1 proven down to their code, examples 2/2 agree in Lean, trusted:
-  StoreKeeps, 2 with something unproven
+splits 3/3 proven, contracts 0/1 proven down to their code, examples 2/2 agree in Lean,
+  consistency not checked yet, trusted: StoreKeeps, 2 with something unproven
 Waiting: 3 for the developer (1 mechanical: confirm)
-marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! what to do
+marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do

@@ -27,6 +27,7 @@ object SummaryText:
         some(s.runEveryCall, "checked on every call", identity), some(s.runSampled, "sampled", identity),
         some(s.runNotChecked, "not checked (proven)", identity)).flatten.mkString(", ")),
       Option.when(s.examplesInLean > 0)(s"examples ${ratio(s.examplesAgreeing, s.examplesInLean)} agree in Lean"),
+      consistency(s, st),
       Some(s"trusted: ${trusted(s) match { case Nil => "nothing"; case ts => ts.mkString(", ") }}" +
         (if s.tested.isEmpty then "" else s"; tested, not proven: ${s.tested.mkString(", ")}")),
       some(s.unproven, "with something unproven", st.red), some(s.warnings, "warning(s)", st.red),
@@ -47,11 +48,24 @@ object SummaryText:
     (head :+ (if waits.isEmpty then (if s.complete then st.green(s"Nothing waits: every node is accepted and proven${if s.tested.isEmpty then "" else ", or its code tested"}.") else "Nothing waits for a decision.")
       else s"Waiting: ${waits.mkString(sep)}")).flatMap(Lines.para(_, st, indent = 0)) ++ Option.when(s.nodes > 0)(legend(st))
 
+  /** Whether the statements are shown to hold together, and to rest on nothing vacuous; what is missing if not. */
+  private def consistency(s: Overview, st: Style): Option[String] =
+    Option.when(s.nodes > 0)(s.consistency.fold(st.dim("consistency not checked yet")) { c =>
+      val missing = c.items.filter(_.status != ObligationStatus.Proven)
+      val together = if c.proven then st.green("consistency proven") else st.red("consistency not proven")
+      val vacuous = if c.notVacuous then "nothing vacuous" else st.red("something may be vacuous")
+      val what =
+        if missing.isEmpty then "" else s" (${missing.map(ConsistencyText.what).mkString(", ")}: check says why)"
+      s"$together, $vacuous$what"
+    })
+
   /** What is trusted, not proven: the assumptions the root rests on, and the boundaries' models. */
   private def trusted(s: Overview): List[String] =
-    s.trusted.filterNot(s.tested.contains).map(_.value) ++ s.models.map(m => s"${m.value} (a model)")
+    s.trusted.filterNot(s.tested.contains).map(_.value) ++ s.models.map(m => s"${m.value} (a model)") ++
+      s.facts.map(f => s"${f.value} (a fact)")
 
   /** What the marks before the nodes say, on one line. */
   def legend(st: Style): String =
     st.dim("marks: ") + List(st.proven -> "proven or tested", st.failed -> "fails", st.open -> "not proven",
-      "?" -> "not checked yet", st.dim(st.dot) -> "nothing to prove", "!" -> "what to do").map((m, w) => s"$m ${st.dim(w)}").mkString("  ")
+      "?" -> "not checked yet", st.dim(st.dot) -> "nothing to prove", "!" -> "to decide, or what to do")
+      .map((m, w) => s"$m ${st.dim(w)}").mkString("  ")

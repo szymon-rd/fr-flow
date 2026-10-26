@@ -69,13 +69,14 @@ class NodeSuite extends munit.FunSuite:
         allows(List(Book("Short", 20)), 1, Nil, "no long book"),
         forbids(List(Book("Short", 20)), 1, List(Book("Short", 20)), "never a short one"))
       .keeps(atMostN)((shelf, n, picked) => List((n, picked.length)))
-    val kb = shelfWith(kept, atMostN).implement(kept)((s, n) => s.filter(_.pages >= minPages.value).take(n))
+    val kb = shelfWith(kept, atMostN).implementTested(kept)((s, n) => s.filter(_.pages >= minPages.value).take(n))
     assertEquals(kb.problems, Nil)
     // keeping makes the contract a part of the invariant
     assertEquals(kb.parts(atMostN).map(_.id), List("Kept"))
     assert(kb.exampleResults(kept).forall(_.implementation.contains("ok")), kb.exampleResults(kept))
     // every long book, twice: meets the post, breaks the invariant when one is asked for
-    val bad = kb.implement(kept)((s, n) => s.filter(_.pages >= minPages.value) ++ s.filter(_.pages >= minPages.value))
+    val bad =
+      kb.implementTested(kept)((s, n) => s.filter(_.pages >= minPages.value) ++ s.filter(_.pages >= minPages.value))
     val broken = bad.testedWith(TestSettings(300)).test(kept).flatMap(_.failure)
     assert(broken.exists(_.why.contains("breaks the invariant AtMostN")), broken)
     val run = bad.service(kept)(minPages.bind(100))
@@ -111,7 +112,9 @@ class NodeSuite extends munit.FunSuite:
 
   test("structure: one root, no cycles, a part under the nodes it proves, a design under what it serves") {
     val other = Node.claim("s", "w")(forall((x: Term[BigInt]) => sq(x) >= 0))
-    assert(shelfWith(pick, other).problems.exists(_.message.startsWith("one root only")), shelfWith(pick, other).problems)
+    // several roots, each a claim no node is above: the author keeps the set small
+    assertEquals(shelfWith(pick, other).roots.map(_.id), List("OnlyGood", "Other"))
+    assertEquals(shelfWith(pick, other).problems, Nil)
     assert(KnowledgeBase("K", "IDEA.md")(fromList).problems.exists(_.message.contains("a root is required")))
     // a contract no code calls and nothing is above
     assert(shelfWith(pick, pickPromise).problems.exists(_.message.startsWith("PickPromise has no parents")))
@@ -130,34 +133,38 @@ class NodeSuite extends munit.FunSuite:
     // its code makes it from its parts: without the proven flow there is nothing to make it
     val unproven = KnowledgeBase("Service", idea = "IDEA.md")(Service.sold, Service.pricePositive, Service.tillKept)
     assert(unproven.problems.exists(_.message.startsWith("Sold has parts: its flow makes it from them")), unproven.problems)
-    // a claim with no parents beside it is a second root
+    // a claim with no parents beside it is a second root; the first root claim is the one the idea's lead is for
     val other = Node.claim("s", "w")(forall((x: Term[BigInt]) => sq(x) >= 0))
     val two = KnowledgeBase("Service", idea = "IDEA.md")(Service.sold, Service.pricePositive, Service.tillKept, other)
       .implementProven(Service.sold)(Service.selling)
-    assert(two.problems.exists(_.message.startsWith("one root only: Sold, Other")), two.problems)
+      .implementTested(Service.pricePositive)(item => item.abs + 1)
+    assertEquals((two.problems, two.roots.map(_.id), two.root.map(_.id)), (Nil, List("Sold", "Other"), Some("Other")))
+    // a contract whose operation code calls is no root: it is what that code rests on
+    assertEquals(callsKb.roots.map(_.id), List("PickedAgain"))
   }
 
-  test("a contract's examples must tell a constant implementation apart") {
+  test("examples are not asked for: a contract with none, or with one result only, is no problem") {
     val lazyPick = Node.contract(picks)("s", "w")((_, _, picked) => picked.isEmpty).refines(shelfParts*)
       .examples(minPages.bind(100))(allows(Nil, 1, Nil, "nothing"), forbids(List(Book("L", 300)), 1, List(Book("L", 300)), "x"))
-    assert(shelfWith(lazyPick).problems.exists(_.message.contains("always returns it")))
+    assertEquals(shelfWith(lazyPick).problems.filter(_.isInstanceOf[Problem.Examples]), Nil)
   }
 
   test("a problem says what part of the model it is about, and prints as its message") {
-    // two different parameters with one name; a contract with no examples
+    // two different parameters with one name
     object other:
       val minPages = Param[Int]("the pages a reader can carry")
     val clashing = Node.contract("s", "w")(forall((shelf: Term[List[Book]], n: Term[Int]) => picks(shelf, n).length <= other.minPages)).refines(shelfParts*)
     val c = shelfWith(clashing).problems
     assert(c.exists { case Problem.Vocabulary(t) => t.startsWith("two different parameters are named minPages"); case _ => false }, c)
-    assert(c.exists(_.isInstanceOf[Problem.Examples]), c)
-    // a claim or a contract may leave its reason to the decision; another node says why
+    // a claim, a contract or an assumption may leave its reason to the decision; a design decision says why
     def sayWhy(n: Node[?]) =
       shelfWith(pick, n).problems.exists { case Problem.Wording(t) => t.contains("say why"); case _ => false }
     val noWhy = Node.claim("s")(forall((x: Term[BigInt]) => sq(x) >= 0)).refines(onlyGood)
-    val factWithNoWhy = Node.assumption("s", " ")(forall((x: Term[BigInt]) => sq(x) >= 0)).refines(onlyGood)
+    val factWithNoWhy = Node.assumption("s")(forall((x: Term[BigInt]) => sq(x) >= 0)).refines(onlyGood)
+    val designWithNoWhy = Node.design("s", " ")().refines(onlyGood)
     assert(!sayWhy(noWhy))
-    assert(sayWhy(factWithNoWhy))
+    assert(!sayWhy(factWithNoWhy))
+    assert(sayWhy(designWithNoWhy))
   }
 
   test("a definition: at least one term, none defined through itself, none an operation") {

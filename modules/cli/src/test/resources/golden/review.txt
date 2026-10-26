@@ -1,6 +1,6 @@
 
 1 mechanical decision(s): Lean proves them again, and nothing in them is a choice
-  + Root  A user gets access to a resource exactly when they are signed in and authorized for it.
+  ! Root  A user gets access to a resource exactly when they are signed in and authorized for it.
     parts added: Expiry, Forever: do these parts, together, still make it?
 [a]ccept all, with one reason  [s]kip  [q]uit: a
 Why do they hold (e.g. a new field no rule reads)? the new parts are proven to make it
@@ -8,7 +8,7 @@ recorded, signed by dev:
   - confirm Root
 
 --- 2 waiting ---
-+ Decide  contract on admit  to review: it changed
+! Decide  contract on admit  it changed, review it
   A request is admitted on behalf of the user its token was issued to, exactly when a grant names
   them and the path.
   why: One call meets both rules at once.
@@ -30,7 +30,7 @@ Decision
 [a]ccept [s]kip [v]iew [q]uit [n]ote: v
 
 --- 2 waiting ---
-+ Decide  contract on admit  to review: it changed
+! Decide  contract on admit  it changed, review it
   A request is admitted on behalf of the user its token was issued to, exactly when a grant names
   them and the path.
   why: One call meets both rules at once.
@@ -54,9 +54,9 @@ Formally (as written in Scala)
     (t, p, d) => d == sessions(t).filter(u => grants(u, p))
 
 Where it sits
-  part of    + NeedsGrant  its only part  A request is admitted only with a grant for the path.
-  part of    + LetsIn  its only part  A request with a grant for the path is admitted.
-  design     - Memory  design  Sessions and grants are kept in memory.
+  part of    + NeedsGrant  its only part: "A request is admitted only with a grant for the path."
+  part of    + LetsIn  its only part: "A request with a grant for the path is admitted."
+  design     - Memory (design): "Sessions and grants are kept in memory."
 
 Vocabulary
   admit: the system's decision on a request (open)
@@ -78,7 +78,7 @@ Note: Name the user as 'that user'.
 noted on Decide
 
 --- 1 waiting ---
-o Expiry  claim  proposed
+! Expiry  claim  new, decide on it
   A session ends an hour after sign-in.
   why: Stolen tokens expire.
 
@@ -103,7 +103,7 @@ recorded, signed by dev:
 
 Decided 2 decision(s).
 Sample: 9 nodes, 7 accepted, 1 to review, 1 rejected
-splits 3/3 proven, contracts 0/1 proven down to their code, examples 2/2 agree in Lean, trusted:
-  StoreKeeps, 2 with something unproven
+splits 3/3 proven, contracts 0/1 proven down to their code, examples 2/2 agree in Lean,
+  consistency not checked yet, trusted: StoreKeeps, 2 with something unproven
 Waiting: 1 for the developer
-marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! what to do
+marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do

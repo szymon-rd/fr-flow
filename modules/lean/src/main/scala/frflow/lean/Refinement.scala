@@ -19,10 +19,22 @@ final class Refinement(kb: KnowledgeBase, val vocabulary: Vocabulary):
   def qualified(n: Node[?], decl: String): String = s"$K.${n.id}.$decl"
   private def opLeaf(n: Node[?]): Ctx = n.op.fold(Ctx.empty)(o => leaf(o.name))
 
-  def claimCtx(n: Node[?]): Ctx = (n.rule, n.post) match
+  /** What an invariant of a type gives of `x`, of Lean type `t`: its rule of it, or of each of its elements. */
+  def assumed(x: String, t: String): List[String] = kb.invariantsOn(t).map((_, d, each) => ruleOf(d, x, each))
+  /** The rule `d` of `x`, or of each of its elements. */
+  def ruleOf(d: Def[?], x: String, each: Boolean): String =
+    val f = app(s"$K.${d.name}", defCtx(d))._1
+    if each then s"(∀ y ∈ $x, $f y)" else s"($f $x)"
+  /** What always holds of the states the models hold in world `w`: their types' rules, and their stores'. */
+  def worldAssumed(w: String): List[String] =
+    kb.models.flatMap(m => kb.worldRules(m).map((_, d, each) => ruleOf(d, s"$w.${m.model.field}", each)))
+  private def invariantsCtx(n: Node[?]): Ctx = Ctx.all(kb.invariantsUsedBy(n).flatMap(_.holds).map(defCtx))
+
+  /** An `always` claim says nothing Lean proves of every value: a hypothesis of the others, it is proven kept. */
+  def claimCtx(n: Node[?]): Ctx = if n.isAlways then Ctx.empty else invariantsCtx(n) ++ ((n.rule, n.post) match
     case (Some(r), _) => ctx(r) ++ Ctx.all(keepers(n).map((c, v) => ctx(v) ++ opLeaf(c)))
     case (_, Some(p)) => ctx(p) ++ opLeaf(n)
-    case _            => n.formula.fold(Ctx.empty)(ctx(_))
+    case _            => n.formula.fold(Ctx.empty)(ctx(_)))
   def claim(n: Node[?], env: Env = Map.empty): (String, Ctx) = app(qualified(n, "claim"), claimCtx(n), env)
   /** What a node's parts make: its claim, or, for a contract whose proven code its parts are about (a root stated of
     * the service's flow), its claim of that code: the parts state what the code calls, not the operation itself.
@@ -83,7 +95,7 @@ final class Refinement(kb: KnowledgeBase, val vocabulary: Vocabulary):
     if leafy(n) then s"h_${n.id}"
     else s"(${qualified(n, LeanText.Holds)} ${named(holdsOpens(n))} ${leaves(n).map(l => s"(h_${l.id} := h_${l.id})").mkString(" ")})"
   private lazy val implemented: List[(Node[?], Def[?], String)] =
-    kb.nodes.flatMap(c => for { d <- provenImpl(c) if c.kind == NodeKind.Contract; op <- c.op } yield (c, d, op.name))
+    kb.nodes.flatMap(c => for { d <- provenImpl(c) if c.onOperation; op <- c.op } yield (c, d, op.name))
 
   lazy val codeEnv: Env =
     def go(env: Env, impl: (Node[?], Def[?], String), seen: Set[String]): Env =
@@ -96,9 +108,11 @@ final class Refinement(kb: KnowledgeBase, val vocabulary: Vocabulary):
   def implementing(n: Node[?]): Option[(Def[?], String)] =
     implemented.collectFirst { case (c, d, op) if (c eq n) && codeEnv.contains(op) => (d, op) }
 
-  /** What `root_impl` assumes: the assumptions, leaves and called contracts no proven code implements. */
-  lazy val trusted: List[Node[?]] =
-    kb.root.filter(formal).toList.flatMap { r =>
+  /** What the roots' `root_impl` assume: the assumptions, leaves and called contracts no proven code implements. */
+  lazy val trusted: List[Node[?]] = kb.roots.flatMap(trustedBy).distinctBy(_.id)
+  /** What one root's `root_impl` assumes. */
+  def trustedBy(root: Node[?]): List[Node[?]] =
+    Option.when(formal(root) && !root.isAlways)(root).toList.flatMap { r =>
       def need(n: Node[?], seen: Set[String], via: Node[?] => List[Node[?]]): List[Node[?]] =
         if seen(n.id) then Nil
         else if implementing(n).isDefined then via(n).flatMap(need(_, seen + n.id, via))

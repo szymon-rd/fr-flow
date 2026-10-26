@@ -203,7 +203,7 @@ function splitLabel(n) {
 }
 function chips(r) {
   const n = r.node, ex = n.examples, bad = ex.filter(e => e.fails || e.codeFails || e.lean?.status === "failed").length;
-  return `<span class="chip s-${r.review.state}">${esc(r.review.state === "review" ? `to review: ${r.review.causes.map(c => SHORT[c] || c).join(", ")}` : r.review.state)}</span>` +
+  return `<span class="chip s-${r.review.state}">${esc(r.review.state === "review" ? `${r.review.causes.map(c => SHORT[c] || c).join(", ")}, review it` : r.review.state === "proposed" ? "new, decide on it" : r.review.state)}</span>` +
     each("chip", r).join("") +
     (trusted(r) ? `<span class="chip s-trusted" title="a hypothesis of root_impl: trusted, not proven">trusted</span>` : "") +
     (n.status && n.status !== "proven" ? `<span class="chip s-${n.status}">${esc(n.status)}</span>` : "") +

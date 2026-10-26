@@ -14,4 +14,5 @@ final case class Workspace(root: Path, kernelPath: String):
   def testsFile: Path = root.resolve(".frflow/tests.json")
   def counterexamplesFile: Path = root.resolve(".frflow/counterexamples.json")
   def snapshotFile: Path = root.resolve(".frflow/kb.json")
+  def consistencyFile: Path = root.resolve(".frflow/consistency.json")
   def keysDir: Path = root.resolve(".frflow/keys")

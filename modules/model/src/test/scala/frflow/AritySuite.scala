@@ -14,13 +14,15 @@ class AritySuite extends munit.FunSuite:
     assertEquals(kb.exampleResults(clamp).map(r => (r.contract, r.implementation)), List.fill(3)(("ok", Some("ok"))))
     assertEquals(clamp.cases.map(_.call), List("(5) ⇒ 5", "(-3) ⇒ 0", "(-3) ⇒ -3"))
     // plain code: tested on generated values
-    assertEquals(clampKb.implement(clamp)(x => x.max(0)).testedWith(settings).test(clamp).flatMap(_.failure), None)
-    val f = clampKb.implement(clamp)(x => x.abs).testedWith(settings).test(clamp).flatMap(_.failure).getOrElse(fail("the bug was not found"))
+    assertEquals(clampKb.implementTested(clamp)(x => x.max(0)).testedWith(settings).test(clamp).flatMap(_.failure),
+      None)
+    val f = clampKb.implementTested(clamp)(x => x.abs).testedWith(settings).test(clamp).flatMap(_.failure)
+      .getOrElse(fail("the bug was not found"))
     assertEquals(f.shown, "x = -1")
     assert(f.why.contains("Clamp forbids"), f.why)
     // the service: a function of one input, every result checked
     assertEquals(kb.service(clamp)()(BigInt(-2)), BigInt(0))
-    intercept[ContractViolation](clampKb.implement(clamp)(x => x).service(clamp)()(BigInt(-2)))
+    intercept[ContractViolation](clampKb.implementTested(clamp)(x => x).service(clamp)()(BigInt(-2)))
   }
 
   test("three inputs: examples, a generated test that finds a bug and shrinks it, the running service") {
@@ -28,10 +30,10 @@ class AritySuite extends munit.FunSuite:
     assertEquals(kb.problems, Nil)
     assert(kb.exampleResults(grant).forall(r => r.contract == "ok" && r.implementation.contains("ok")), kb.exampleResults(grant))
     assertEquals(grant.cases.head.call, """(List("ann"), "ann", "bob") ⇒ List("ann", "bob")""")
-    val good = grantKb.implement(grant)((acl, by, who) => if acl.contains(by) then acl :+ who else acl)
+    val good = grantKb.implementTested(grant)((acl, by, who) => if acl.contains(by) then acl :+ who else acl)
     assertEquals(good.testedWith(settings).test(grant).flatMap(_.failure), None)
     // someone off the list makes the code drop the first member
-    val bad = grantKb.implement(grant)((acl, by, who) => if acl.contains(by) then acl :+ who else acl.drop(1))
+    val bad = grantKb.implementTested(grant)((acl, by, who) => if acl.contains(by) then acl :+ who else acl.drop(1))
     val f = bad.testedWith(settings).test(grant).flatMap(_.failure).getOrElse(fail("the bug was not found"))
     assert(f.shown.matches("""acl = List\("[^"]*"\), by = "[^"]*", who = "[^"]*""""), f.shown)
     assert(f.why.startsWith("returned List()"), f.why)
@@ -49,7 +51,8 @@ class AritySuite extends munit.FunSuite:
     assertEquals(pickBetween.broken(List(shelf, 0, 100), List(Book("C", 60))), Some("InStock"))
     assertEquals(pickBetween.broken(List(shelf, 0, 100), shelf), None)
     // a generated call breaking it is found
-    val off = betweenKb.implement(pickBetween)((s, lo, hi) => List(Book("C", lo))).testedWith(settings).test(pickBetween)
+    val off = betweenKb.implementTested(pickBetween)((s, lo, hi) => List(Book("C", lo))).testedWith(settings)
+      .test(pickBetween)
     assert(off.flatMap(_.failure).exists(f => f.why.contains("PickBetween forbids") || f.why.contains("InStock")), off)
   }
 
@@ -66,8 +69,9 @@ class AritySuite extends munit.FunSuite:
     assertEquals(kb.problems, Nil)
     assertEquals(kb.exampleResults(shows).map(r => (r.contract, r.implementation)), List.fill(3)(("ok", Some("ok"))))
     assertEquals(shows.cases.head.call, "() ⇒ 5")
-    assertEquals(gaugeKb.implement(shows)(() => rawReading.value.max(0)).testedWith(settings).test(shows).flatMap(_.failure), None)
-    val f = gaugeKb.implement(shows)(() => rawReading.value).testedWith(settings).test(shows).flatMap(_.failure)
+    assertEquals(gaugeKb.implementTested(shows)(() => rawReading.value.max(0)).testedWith(settings).test(shows)
+      .flatMap(_.failure), None)
+    val f = gaugeKb.implementTested(shows)(() => rawReading.value).testedWith(settings).test(shows).flatMap(_.failure)
       .getOrElse(fail("the bug was not found"))
     assertEquals(f.shown, "given rawReading = -1")
     assertEquals(kb.service(shows)(rawReading.bind(-4))(), BigInt(0))

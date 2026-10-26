@@ -38,4 +38,4 @@ object Service:
   def kb(part: Node[BigInt => BigInt] = pricePositive): KnowledgeBase =
     KnowledgeBase("Service", idea = "IDEA.md")(sold, part, tillKept)
       .implementProven(sold)(selling)
-      .implement(part)(item => item.abs + 1)
+      .implementTested(part)(item => item.abs + 1)

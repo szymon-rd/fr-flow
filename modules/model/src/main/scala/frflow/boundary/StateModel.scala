@@ -7,6 +7,8 @@ package boundary
   */
 trait StateModel[S](using private[frflow] val stateType: LeanType[S]):
   protected final val state: State[S] = State(this)
+  /** What the model holds in a world: `StoreModel.in(before)`, the store's state before the call. */
+  def in(world: Term[World]): Term[S] = world(this)
   /** Lean's namespace of the model's operations. */
   private[frflow] def lean: String = Names.ident(getClass.getSimpleName.stripSuffix("$"))
   /** The boundary's trait this models: the one interface of the model's whose methods are flows. */

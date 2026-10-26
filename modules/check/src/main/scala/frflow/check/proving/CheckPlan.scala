@@ -16,7 +16,8 @@ final case class CheckPlan(a: Analysis, only: Option[String]):
   /** By level: one more than the highest below it. */
   val levels: List[List[Node[?]]] =
     def below(n: Node[?]): List[Node[?]] =
-      (kb.parts(n) ++ g.callees(n) ++ (if kb.isRoot(n) then kb.nodes.filter(c => g.provenImpl(c).isDefined) else Nil))
+      val code = if kb.isRoot(n) then kb.nodes.filter(c => g.provenImpl(c).isDefined && !kb.isRoot(c)) else Nil
+      (kb.parts(n) ++ g.callees(n) ++ code)
         .filter(x => g.formal(x) && !(x eq n))
     def go(n: Node[?], seen: Set[String], known: Map[String, Int]): (Int, Map[String, Int]) =
       known.get(n.id).fold {

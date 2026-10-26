@@ -21,16 +21,23 @@ object Lines:
   def why(c: Content, room: Int, st: Style): List[String] =
     if c.why.trim.isEmpty then Nil else st.wrap(s"why: ${c.why}", room).map(l => "  " + st.dim(l))
 
-  def state(r: Reviewed): String =
-    if r.state == ReviewState.Review then s"to review: ${r.review.causes.map(Words.cause).mkString(", ")}" else r.state.toString
+  /** What the developer is to do with it, in words: `it changed, its code changed, review it`; `new, decide on it`. */
+  def state(r: Reviewed): String = r.state match
+    case ReviewState.Review   => s"${r.review.causes.map(Words.cause).mkString(", ")}, review it"
+    case ReviewState.Proposed => "new, decide on it"
+    case other                => other.toString
 
-  /** Its kind unless a claim, its review state unless accepted, and the word a layer on top shows beside it (`mark`). */
+  /** Its kind unless a claim, in brackets; what to do with it unless accepted, after a dash; and the word a layer on
+    * top shows beside it (`mark`): `NeverDoubleBooked (contract) — it changed, review it`.
+    */
   def marks(r: Reviewed, st: Style, mark: Option[String] = None): String =
-    val kind = Option.when(r.node.shownKind != "claim")(st.dim(r.node.shownKind))
-    val review = Option.when(r.state != ReviewState.Accepted)(st.state(r.state, state(r)))
-    (kind.toList ++ review ++ mark.map(st.magenta)).map("  " + _).mkString
+    val kind = Option.when(r.node.shownKind != "claim")(" " + st.dim(s"(${r.node.shownKind})"))
+    val review = Option.when(r.state != ReviewState.Accepted)(" — " + st.state(r.state, state(r)))
+    (kind.toList ++ review ++ mark.map("  " + st.magenta(_))).mkString
 
   def statement(r: Reviewed): String = r.node.content.statement.replaceAll("\\s+", " ").trim
+  /** The statement as a line shows it, after its id: in quotes. */
+  def quoted(r: Reviewed): String = s"\"${statement(r)}\""
 
   /** A statement after `indent` characters, whole: on one line when it fits the width, else a clause a line (cut after
     * each ";" and before each ", and"), a clause longer than a line wrapped at its words; the later lines start with
@@ -45,4 +52,4 @@ object Lines:
 
   /** Its status, id, marks and statement, cut to the width (less `indent`). */
   def node(r: Reviewed, st: Style, indent: Int = 2, extra: String = ""): String =
-    st.fit(s"${st.glyph(r)} ${st.bold(r.id.value)}${marks(r, st)}$extra  ${statement(r)}", indent)
+    st.fit(s"${st.glyph(r)} ${st.bold(r.id.value)}${marks(r, st)}$extra: ${quoted(r)}", indent)

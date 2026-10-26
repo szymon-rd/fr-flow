@@ -1,4 +1,4 @@
-o Expiry  claim  proposed
+! Expiry  claim  new, decide on it
   A session ends an hour after sign-in.
   why: Stolen tokens expire.
 
@@ -14,7 +14,7 @@ Formally (as written in Scala)
       now.isBefore(at.plus(hour)))))
 
 Where it sits
-  part of    + Root  to review: its parts changed  with NeedsGrant, LetsIn, Forever  A user gets...
+  part of    ! Root — its parts changed, review it  with NeedsGrant, LetsIn, Forever: "A user get...
 
 Proofs
   check: open

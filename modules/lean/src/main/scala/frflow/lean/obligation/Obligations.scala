@@ -11,7 +11,8 @@ final class Obligations(kb: KnowledgeBase, refinement: Refinement, coverage: Cov
   import refinement.vocabulary.*
   def isAuthored(n: Node[?], name: ObligationName): Boolean = authored((n.id, name))
   def obligations(n: Node[?]): List[Obligation] =
-    complete(n).toList ++ feasible(n) ++ implementation(n) ++ commutes(n) ++ check(n) ++ covers(n) ++ expects(n)
+    complete(n).toList ++ feasible(n) ++ implementation(n) ++ commutes(n) ++ check(n) ++ covers(n) ++ keptBy(n) ++
+      initially(n) ++ expects(n)
   def obligation(n: Node[?], name: ObligationName): Option[Obligation] = obligations(n).find(_.name == name)
   def extraObligations(n: Node[?]): List[Obligation] = obligations(n).filterNot(o => o.name == Complete || o.name == Impl)
 
@@ -65,6 +66,46 @@ final class Obligations(kb: KnowledgeBase, refinement: Refinement, coverage: Cov
       Obligation(Check, stated(po ++ cc, Nil, s"∀ $vars, $p $xs → $c $xs"),
         s"What service checks of ${n.id} on every call follows from its post: it forbids nothing the contract allows.")
 
+  /** An `always` claim is kept by each program writing what it is about: its proven code, run from a world where
+    * everything that always holds does (and on inputs that hold their types' rules), leaves a state that holds the
+    * claim's rule, given what the operations the code calls promise.
+    */
+  private def keptBy(n: Node[?]): List[Obligation] =
+    for
+      rule      <- n.holds.toList
+      c         <- kb.writers(n)
+      d         <- provenImpl(c).toList
+      post      <- c.post.toList
+      m         <- kb.models.filter(m => kb.worldRules(m).exists(_._1 eq n))
+      (_, _, each) <- kb.worldRules(m).find(_._1 eq n).toList
+    yield
+      val ts = post.params.map(_._2)
+      val ins = ts.dropRight(3)
+      val (vars, xs) = LeanText.call(ins :+ ts(ts.size - 2))
+      val hs = ins.zipWithIndex.flatMap((t, i) => assumed(s"x$i", t)) ++ worldAssumed(s"x${ins.size}")
+      val (run, co) = code(d)
+      val promised = hyps(calls(c))
+      val kept = ruleOf(rule, s"($run $xs).2.${m.model.field}", each)
+      val worldRules = Ctx.all(kb.models.flatMap(kb.worldRules).map(r => defCtx(r._2)))
+      val opens = co ++ Ctx.all(promised.map(_._2)) ++ defCtx(rule) ++ worldRules
+      val program = c.op.fold(d.name)(_.name)
+      Obligation(KeptBy(program), stated(opens, promised.map(_._1), s"∀ $vars, ${hs.map(_ + " → ").mkString}$kept"),
+        s"$program (${d.name}) keeps ${n.id} of what ${m.model.lean} holds after a run.")
+
+  /** What a store holds when the system starts, as an assumption says, holds an `always` claim's rule about it. */
+  private def initially(n: Node[?]): List[Obligation] =
+    for
+      rule  <- n.holds.toList
+      m     <- n.always.flatMap(_.store).toList
+      start <- n.premises.filter(_.fact.exists(_.store eq m)).flatMap(_.initially)
+    yield
+      val t = frflow.Types.walk(m.stateType).lean
+      val (r, ro) = code(rule)
+      val (i, io) = code(start)
+      val by = n.premises.find(_.initially.exists(_ eq start)).fold("")(_.id)
+      Obligation(Initially, stated(ro ++ io, Nil, s"∀ (s : $t), $i s → $r s"),
+        s"What ${m.lean} holds when the system starts ($by) holds ${n.id}.")
+
   private def covers(n: Node[?]): List[Obligation] = formalKeeps(n).flatMap { (inv, _) =>
     coverage.coverage(n, inv).toOption.flatten.map((stmt, o) => Obligation(Cover(inv.id), stated(o, Nil, stmt),
       s"The view of ${inv.id} lists all the result holds of it, each with the caller."))
@@ -89,7 +130,7 @@ final class Obligations(kb: KnowledgeBase, refinement: Refinement, coverage: Cov
       tried(TryKind.VacuousExpect(i), stated(eo, Nil, e), s"The expectation holds whatever ${n.id} says.",
         "the expectation holds whatever the node says: it checks nothing")
     }
-    if !formal(n) then Nil
+    if !formal(n) || n.isAlways then Nil
     else splitParts(n).toList.flatMap(splitTries(n, _)) ++ List(unsat) ++ vacuousExpects ++
       idle(n).map(o => Try(TryKind.Idle, o, s"doing nothing meets ${n.id}"))
 
@@ -120,7 +161,7 @@ final class Obligations(kb: KnowledgeBase, refinement: Refinement, coverage: Cov
       .flatMap(o => LeanType.nothing(paramType(o).getOrElse("")).map(o -> _))
 
   def idle(n: Node[?]): Option[Obligation] =
-    if !kb.root.exists(_ eq n) || !formal(n) then None
+    if !kb.isRoot(n) || !formal(n) then None
     else
       val env: Env = nothings(n).map((o, v) => o -> (v, leaf(o).copy(params = Nil))).toMap
       Option.when(env.nonEmpty) {

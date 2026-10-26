@@ -16,7 +16,8 @@ class RuntimeSuite extends munit.FunSuite:
     val unbound = pick.enforce((shelf, n) => shelf)()
     intercept[IllegalStateException](unbound(List(Book("a", 500)), 1))
     // an assumption's service runs its check, not its post: a book off the shelf passes it, a short book does not
-    def port(code: (List[Book], Int) => List[Book]) = shelfWith(pick, shelfPort).implement(shelfPort)(code).service(shelfPort)(minPages.bind(100))(Nil, 1)
+    def port(code: (List[Book], Int) => List[Book]) =
+      shelfWith(pick, shelfPort).implementTested(shelfPort)(code).service(shelfPort)(minPages.bind(100))(Nil, 1)
     assertEquals(port((shelf, n) => List(Book("Elsewhere", 500))), List(Book("Elsewhere", 500)))
     intercept[ContractViolation](port((shelf, n) => List(Book("Short", 20))))
   }
@@ -30,7 +31,7 @@ class RuntimeSuite extends munit.FunSuite:
     assertEquals(proven.runTime(pick).map(_.check), Some(RunCheck.Never))
     // A choice is a decision: on the node, and so in what the developer decides.
     val sampled = pick.checkedAtRunTime(RunCheck.Sampled(3))
-    val kb = shelfWith(sampled).implement(sampled)((shelf, n) => shelf.take(n))
+    val kb = shelfWith(sampled).implementTested(sampled)((shelf, n) => shelf.take(n))
     assertEquals(kb.runTime(sampled), Some(RunTime(RunCheck.Sampled(3), "the contract", chosen = true)))
     // One call in three, the first included: calls 0, 3, 6 are checked, the others pass unchecked.
     val reported = scala.collection.mutable.ListBuffer.empty[Violation]
@@ -41,7 +42,8 @@ class RuntimeSuite extends munit.FunSuite:
     assertEquals(reported.size, 3)
     // At random, at that rate, with a seed: the same calls each run.
     def drawn(seed: Long) =
-      val k = shelfWith(pick.checkedAtRunTime(RunCheck.Sampled(4, Some(seed)))).implement(pick)((shelf, n) => shelf.take(n))
+      val k = shelfWith(pick.checkedAtRunTime(RunCheck.Sampled(4, Some(seed))))
+        .implementTested(pick)((shelf, n) => shelf.take(n))
         .reporting(_ => ()).service(pick)(minPages.bind(100))
       (0 until 40).map(_ => scala.util.Try(k(short, 1)).isFailure).toList
     assertEquals(drawn(7), drawn(7))
@@ -53,7 +55,8 @@ class RuntimeSuite extends munit.FunSuite:
 
   test("a broken contract is reported with its fields before service throws; the values a proven define runs with still are") {
     val seen = scala.collection.mutable.ListBuffer.empty[Violation]
-    val s = shelfKb.implement(pick)((shelf, n) => shelf.take(n)).reporting(seen += _).service(pick)(minPages.bind(100))
+    val s = shelfKb.implementTested(pick)((shelf, n) => shelf.take(n)).reporting(seen += _)
+      .service(pick)(minPages.bind(100))
     val e = intercept[ContractViolation](s(List(Book("Short", 20)), 1))
     assertEquals(e.violation, Violation("Pick", "the contract", List(List(Book("Short", 20)), 1), Some(List(Book("Short", 20)))))
     assertEquals(seen.toList, List(e.violation))
@@ -84,7 +87,7 @@ class RuntimeSuite extends munit.FunSuite:
         allows(List(Book("Long", 300)), 1, List(Book("Long", 300)), "the long book"),
         allows(List(Book("Short", 20)), 1, Nil, "no long book"),
         forbids(List(Book("Short", 20)), 1, List(Book("Short", 20)), "not a short one"))
-    val kb = shelfWith(byTerm, lengths).implement(byTerm)((shelf, n) => shelf.filter(_.pages >= minPages.value))
+    val kb = shelfWith(byTerm, lengths).implementTested(byTerm)((shelf, n) => shelf.filter(_.pages >= minPages.value))
     assertEquals(kb.problems, Nil)
     assert(kb.exampleResults(byTerm).forall(r => r.contract == "ok" && r.implementation.contains("ok")), kb.exampleResults(byTerm))
     assertEquals(kb.service(byTerm)(minPages.bind(100))(List(Book("Long", 300), Book("Short", 20)), 1), List(Book("Long", 300)))
@@ -109,7 +112,8 @@ class RuntimeSuite extends munit.FunSuite:
   test("an assumption whose terms are bound is checked when the service starts, and when its values change") {
     val positiveLength = Node.assumption("Readers ask for books of at least one page.", why = "A length of zero would let empty books in.")(
       minPages > 0).refines(onlyLong)
-    val kb = shelfWith(pick, positiveLength).implement(pick)((shelf, n) => shelf.filter(_.pages >= minPages.value))
+    val kb =
+      shelfWith(pick, positiveLength).implementTested(pick)((shelf, n) => shelf.filter(_.pages >= minPages.value))
     assertEquals(kb.problems, Nil)
     intercept[ContractViolation](kb.service(pick)(minPages.bind(0)))
     var min = 100
@@ -120,7 +124,7 @@ class RuntimeSuite extends munit.FunSuite:
     assert(e.getMessage.contains("PositiveLength"), e.getMessage)
     // an assumption over a quantifier cannot be computed: it is trusted only
     val shelved = Node.assumption("Every book has a title.", why = "The library labels books.")(forall((b: Term[Book]) => b.title =!= "")).refines(onlyLong)
-    assert(shelfWith(pick, shelved).implement(pick)((shelf, n) => shelf).runtimeAssumptions.head.holds())
+    assert(shelfWith(pick, shelved).implementTested(pick)((shelf, n) => shelf).runtimeAssumptions.head.holds())
   }
 
   test("a function a call reads answers each question once, and only what is read is loaded") {
@@ -148,12 +152,14 @@ class RuntimeSuite extends munit.FunSuite:
         allows(List(Book("Short", 20)), 1, Nil, "no long book"),
         forbids(List(Book("Short", 20)), 1, List(Book("Short", 20)), "never a short one"))
     // passes every example, but returns the whole shelf when asked for one book from several
-    val kb = shelfWith(two).testedWith(TestSettings(300)).implement(two)((s, n) => if s.size > 1 && n == 1 then s else s.filter(_.pages >= minPages.value).take(n))
+    val kb = shelfWith(two).testedWith(TestSettings(300))
+      .implementTested(two)((s, n) => if s.size > 1 && n == 1 then s else s.filter(_.pages >= minPages.value).take(n))
     assertEquals(kb.exampleResults(two).flatMap(_.implementation), List("ok", "ok", "ok"))
     val f = kb.test(two).get.failure.getOrElse(fail("not found"))
     assert(f.why.contains("which Two forbids") && f.shown.contains("n = 1"), f)
     val boom = shelfWith(two).testedWith(TestSettings(300))
-      .implement(two)((s, n) => if s.size > 1 && n == 1 then sys.error("boom") else s.filter(_.pages >= minPages.value))
+      .implementTested(two)((s, n) =>
+        if s.size > 1 && n == 1 then sys.error("boom") else s.filter(_.pages >= minPages.value))
     assertEquals(boom.test(two).get.failure.map(_.why), Some("error: boom"))
   }
 
@@ -161,7 +167,7 @@ class RuntimeSuite extends munit.FunSuite:
     val rs = shelfKb.exampleResults(pick)
     assertEquals(rs.map(r => (r.contract, r.implementation)), List.fill(4)(("ok", Some("ok"))))
     // a useless implementation: it does not do what was decided
-    val lazyKb = shelfKb.implement(pick)((_, _) => Nil)
+    val lazyKb = shelfKb.implementTested(pick)((_, _) => Nil)
     assertEquals(lazyKb.exampleResults(pick).head.implementation, Some("returned List()"))
     // a contract that refuses what was decided
     val strict = Node.contract(picks)("Nothing is picked.", "w")((_, _, picked) => picked.isEmpty)

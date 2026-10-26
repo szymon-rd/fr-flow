@@ -38,6 +38,51 @@ private[frflow] object ContractMacros:
         s"FrFlow: this formula applies ${many.map(_.name).mkString(" and ")} to its forall's variables, so its operation is not one: $Shape",
         body.pos)
 
+  /** `Node.claim`: on one operation when the formula applies one Definition (or Declaration) to its forall's variables,
+    * in order, and names it nowhere else; a flow's applied to all of them but the last, the world it runs from. Stated
+    * as written otherwise (`always`, a relation of several operations).
+    */
+  def claim(statement: Expr[String], why: Expr[String], idea: Expr[String], formula: Expr[Term[Boolean]])(using
+      Quotes): Expr[Node[?]] =
+    import quotes.reflect.*
+    val body = formula.asTerm
+    val bound = variables(body)
+    val named = TypeRepr.of[frflow.vocabulary.Definition[?]]
+    val declared = TypeRepr.of[frflow.vocabulary.Declaration[?]]
+    def runs(op: Term) =
+      op.tpe.widen.typeArgs.headOption.flatMap(_.typeArgs.lastOption).exists(_ <:< TypeRepr.of[Flow[?]])
+    def world(s: Symbol) = s.termRef.widen <:< TypeRepr.of[frflow.term.Term[frflow.boundary.World]]
+    def onIt(op: Term, args: List[Term]) =
+      val xs = args.map(_.symbol)
+      if runs(op) then bound.nonEmpty && world(bound.last) && xs == bound.init else xs == bound
+    val calls = applications(body).filter((op, _) => op.tpe.widen <:< named || op.tpe.widen <:< declared)
+    val plain = '{ Node.plainClaim(Source.nodeId, $statement, $why, $idea,
+      Lifted.thunk(() => $formula, Source.text($formula)), ${ SourceMacros.here }, ${ SourceMacros.at }) }
+    calls.filter(onIt).map(_._1.symbol).distinct match
+      case List(sym) if calls.forall((op, args) => op.symbol != sym || onIt(op, args)) &&
+          references(body, sym) == calls.count(_._1.symbol == sym) =>
+        val op = calls.find(_._1.symbol == sym).get._1
+        op.tpe.widen.asType match
+          case '[Param[f]] =>
+            val p = op.asExprOf[Param[f]]
+            '{ Node.claimOn[f]($p, Source.nodeId, $statement, $why, $idea,
+              Lifted.thunk(() => $formula, Source.text($formula)), ${ SourceMacros.here }, ${ SourceMacros.at }) }
+          case _ => plain
+      case _ => plain
+
+  /** `Node.assumption`: of a boundary's model when the formula is `store.behavesAs(Model)`, else a fact as written. */
+  def assumption(statement: Expr[String], why: Expr[String], idea: Expr[String], formula: Expr[Term[Boolean]])(using
+      Quotes): Expr[Node[?]] =
+    import quotes.reflect.*
+    unwrap(formula.asTerm).tpe.widen.asType match
+      case '[BehavesAs[t, s]] =>
+        val m = unwrap(formula.asTerm).asExprOf[BehavesAs[t, s]]
+        '{ Node.modelled[t, s]($m.model, Source.nodeId, $statement, $why, $idea, ${ SourceMacros.here },
+          ${ SourceMacros.at }) }
+      case _ =>
+        '{ Node.fact(Source.nodeId, $statement, $why, $idea, Lifted.thunk(() => $formula, Source.text($formula)),
+          ${ SourceMacros.here }, ${ SourceMacros.at }) }
+
   private def unwrap(using q: Quotes)(t: q.reflect.Term): q.reflect.Term =
     import q.reflect.*
     t match

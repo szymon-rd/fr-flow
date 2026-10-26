@@ -1,8 +1,12 @@
 package frflow
 package example
 
-/** `allows` and `forbids`: a contract's cases, by how many inputs its operation takes. */
+/** `allows` and `forbids`: a contract's cases, by how many inputs its operation takes; `is`, an example's answer. */
 object Examples:
+  extension [A](call: Term[A])
+    /** The answer the call must give, in an example written as a test: `granted(held, request) is true`. */
+    infix def is(answer: A): Expected = Expected(call, answer)
+
   // `allows`: the contract allows the call returning this, and the implementation must return it. `forbids`: the contract
   // forbids the call returning it.
   // One of each per number of inputs; a flow's run takes the world before after its inputs, and the world after its result.

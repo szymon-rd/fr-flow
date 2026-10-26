@@ -17,6 +17,8 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, ObligationName)] 
   val boundaryModules: BoundaryModules = BoundaryModules(kb, layout, vocabulary, vocabularyModules)
   private val nodeModules = NodeModules(kb, layout, refinement, vocabularyModules, asked, evaluated)
   private val proofFiles = ProofFiles(kb, layout, refinement)
+  /** What the knowledge base as a whole is asked (docs/DAG.md §3a). */
+  val witnessing: Witnessing = Witnessing(kb, refinement, layout, vocabularyModules)
   export vocabulary.{inForce, undecided, term, waitsForDefinition}
   export refinement.{formal, splitParts, formalKeeps, provenImpl, claim, callees, reliedOn, calls, leaves, holdsStatement, trusted, witnessed}
   export coverages.coverage
@@ -31,13 +33,16 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, ObligationName)] 
       List(layout.spec(n.id) -> spec(n), layout.auto(n.id) -> auto(n), layout.theorems(n.id) -> theorems(n), layout.checks(n.id) -> checks(n)) ++
         provenImpl(n).map(_ => layout.impl(n.id) -> impl(n)) ++ evalFile(n).map(layout.eval(n.id) -> _)
     }
-    val modules = List(layout.domain -> domainModule, layout.types -> types) ++ rootImpl.map(r => layout.rootImpl -> r._2) ++
-      Option.when(boundaryModules.exist)(layout.boundaries -> boundaryModules.file) ++ perNode
+    val modules = List(layout.domain -> domainModule, layout.types -> types) ++
+      kb.roots.flatMap(r => rootImpl(r).map(x => layout.rootImpl(r.id) -> x._2)) ++
+      Option.when(boundaryModules.exist)(layout.boundaries -> boundaryModules.file) ++
+      Option.when(witnessing.asked.nonEmpty)(layout.consistency -> witnessing.file) ++ perNode
     (modules.map((m, text) => m.path -> text) ++ vocabularyModules.files).toMap
 
   def declarationsUsedBy(n: Node[?]): List[String] =
     val rules = formalKeeps(n).flatMap(_._1.rule)
-    val defs = Def.closure((n.referenced ++ rules).flatMap(_.defs) ++ provenImpl(n))
+    val defs =
+      Def.closure((n.referenced ++ rules).flatMap(_.defs) ++ provenImpl(n) ++ kb.invariantsUsedBy(n).flatMap(_.holds))
     val ls = n.referenced ++ rules ++ defs.map(_.lifted)
     ls.flatMap(_.types).map(_.body).distinct ++ defs.map(d => vocabulary.resolve(d.lifted.lean)) ++
       kb.definitionsUsed(n, inForce).flatMap(_.substs).map(s => s"${s.name} := ${s.lean}")

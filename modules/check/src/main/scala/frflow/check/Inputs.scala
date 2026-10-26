@@ -17,7 +17,7 @@ final case class Inputs(idea: String, ledger: Ledger, checks: Map[NodeId, NodeCh
     texts: Map[String, String], code: Map[String, CodeRef], missing: Set[String], sources: Map[Path, String],
     keys: Map[KeyId, PublicKey], now: Instant, tests: Map[NodeId, Recorded] = Map.empty,
     counterexamples: Map[NodeId, List[Counterexample]] = Map.empty, keyNames: Map[KeyId, String] = Map.empty,
-    keyWarnings: List[String] = Nil)
+    keyWarnings: List[String] = Nil, consistency: Option[Consistency] = None)
 
 object Inputs:
   val empty: Inputs = Inputs("", Ledger.empty, Map.empty, Map.empty, Map.empty, Map.empty, Set.empty, Map.empty, Map.empty, Instant.EPOCH)
@@ -27,14 +27,20 @@ object Inputs:
       proofs(kb, ws), texts(kb, ws), code(kb, ws.root),
       kb.nodes.flatMap(_.governs).distinct.filterA(f => Disk.exists(ws.root.resolve(f)).map(!_)).map(_.toSet),
       projectSources(ws.root, cfg.sources).flatMap(_.traverse(p => Disk.read(p).map(p -> _.getOrElse("")))).map(_.toMap),
-      IO.realTimeInstant, Tests.recorded(ws.testsFile), Tests.counterexamples(ws.counterexamplesFile)
-    ).parMapN { case (idea, ledger, keys, checks, proofs, texts, code, missing, sources, now, tests, counterexamples) =>
-      Inputs(idea, ledger, checks, proofs, texts, code, missing, sources, keys.byId, now, tests, counterexamples, keys.names, keys.warnings)
+      IO.realTimeInstant, Tests.recorded(ws.testsFile), Tests.counterexamples(ws.counterexamplesFile),
+      consistency(ws.consistencyFile)
+    ).parMapN { case (idea, ledger, keys, checks, proofs, texts, code, missing, sources, now, tests, counterexamples,
+        consistency) =>
+      Inputs(idea, ledger, checks, proofs, texts, code, missing, sources, keys.byId, now, tests, counterexamples,
+        keys.names, keys.warnings, consistency)
     }
 
   /** The recorded checks (`.frflow/checks.json`, not committed); none when missing, or written by another version. */
   def checks(file: Path): IO[Map[NodeId, NodeCheck]] =
     Disk.read(file).map(_.flatMap(decode[Map[NodeId, NodeCheck]](_).toOption).getOrElse(Map.empty))
+
+  /** The recorded check of the knowledge base as a whole (`.frflow/consistency.json`, not committed). */
+  def consistency(file: Path): IO[Option[Consistency]] = Disk.read(file).map(_.flatMap(decode[Consistency](_).toOption))
 
   def saveChecks(file: Path, checks: Map[NodeId, NodeCheck]): IO[Unit] =
     Store.writeJson(file, Json.fromFields(checks.toList.sortBy(_._1).map((id, c) => id.value -> c.asJson)))
@@ -58,7 +64,8 @@ object Inputs:
     val base = root.toAbsolutePath.normalize
     val explicit = kb.nodes.flatMap(_.governs).map(f => root.resolve(f).toAbsolutePath.normalize).toSet
     val governed = kb.nodes.map { n =>
-      val impl = (kb.implementation(n).toList.flatMap(_.sources) ++ n.modelOf.toList.flatMap(_.impls).flatMap(_.sources))
+      val impl = (kb.ownImplementation(n).toList.flatMap(_.sources) ++
+          n.modelOf.toList.flatMap(_.impls).flatMap(_.sources))
         .filterNot(kb.modelFiles.contains).map(f => Path.of(f).toAbsolutePath.normalize)
         .filterNot(p => explicit.exists(g => p == g || p.startsWith(g)))
       n.id -> (n.governs.map(root.resolve) ++ impl)

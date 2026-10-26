@@ -23,7 +23,7 @@ class Term[A] private[frflow] (tree: Tree | Null, private[frflow] val termType: 
   def !=(that: Any)(using NoEquality): Boolean = false
   override def toString: String = s"Term($termTree)"
 
-object Term extends TermsOfValues, ListRelations:
+object Term extends TermsOfValues, ListRelations, Runs:
   private[frflow] def apply[A](t: Tree, tpe: LeanType[A]): Term[A] = new Term(t, tpe)
   private[frflow] def lit[A](v: A)(using t: LeanType[A]): Term[A] = Term(Tree.Lit(v, t), t)
   private def bool(t: Tree): Term[Boolean] = Term(t, summon[LeanType[Boolean]])
@@ -177,6 +177,9 @@ object Term extends TermsOfValues, ListRelations:
 
   extension [A](xs: Term[List[A]])
     def ++(ys: Term[List[A]]): Term[List[A]] = op(Prim.Append, xs.termType, xs, ys)
+    /** The list with `x` added at its end. */
+    def :+(x: Term[A]): Term[List[A]] =
+      op(Prim.Append, xs.termType, xs, Term(Tree.ListT(List(x.termTree)), xs.termType))
     def contains(x: Term[A]): Term[Boolean] = opB(Prim.Contains, xs, x)
     def isEmpty: Term[Boolean] = opB(Prim.IsEmpty, xs)
     def nonEmpty: Term[Boolean] = opB(Prim.NonEmpty, xs)

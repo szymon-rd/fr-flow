@@ -31,7 +31,7 @@ addCommandAlias("frflowInit", "cli/runMain frflow.cli.Init")
 addCommandAlias("frflowInitAgent", "agent/runMain frflow.agent.Init")
 
 lazy val root = project.in(file("."))
-  .aggregate(model, protocol, lean, ledger, check, api, cli, web, agent, auth, crm, keycloak, sharing, rooms)
+  .aggregate(model, protocol, lean, ledger, check, api, cli, web, testkit, agent, auth, crm, keycloak, sharing, rooms)
   .configs(LeanTest).settings(leanTagged)
   .settings(publish / skip := true)
 
@@ -72,6 +72,9 @@ lazy val cli = module("cli", cats, catsEffect, circe, decline, munitEffect).depe
   */
 lazy val web = module("web", (Seq(catsEffect, circe, munitEffect) ++ http4s)*).dependsOn(api % "compile->compile;test->test")
 
+/** Examples written as tests (`FrFlowExamples`): run by munit, and read by `check` from a project's test classes. */
+lazy val testkit = module("testkit", "org.scalameta" %% "munit" % "1.1.1").dependsOn(model)
+
 /** A layer on top of the core for an AI agent building the system: the conversation a project starts from, the developer's
   * requests and the agent's answers, the agent's queue, `context`, their commands and web panels (package `frflow.agent`).
   */
@@ -84,7 +87,7 @@ val serve = inputKey[Unit]("The project's web view on localhost, until stopped: 
 
 /** A project; `layers`, the layers on top on its classpath (the AI agent's by default; none for a core-only project). */
 def example(name: String, layers: Seq[ClasspathDep[ProjectReference]] = Seq(agent)) = Project(name, file(s"examples/$name"))
-  .dependsOn((Seq[ClasspathDep[ProjectReference]](cli, web) ++ layers)*)
+  .dependsOn((Seq[ClasspathDep[ProjectReference]](cli, web, testkit % Test) ++ layers)*)
   .configs(LeanTest).settings(leanTagged)
   .settings(
     libraryDependencies ++= Seq(munit, munitEffect),
@@ -94,11 +97,18 @@ def example(name: String, layers: Seq[ClasspathDep[ProjectReference]] = Seq(agen
     run / javaOptions ++= Seq("-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "-Dfile.encoding=UTF-8"),
     // Every source the build compiles, so code in a source directory added here is governed too.
     run / javaOptions += "-Dfrflow.sources=" + (Compile / sources).value.map(_.getAbsolutePath).mkString(java.io.File.pathSeparator),
+    // The examples written as tests (`FrFlowExamples`), which `check` reads: the test classes are on the CLI's
+    // classpath.
+    run / javaOptions += "-Dfrflow.tests=" + (Test / classDirectory).value.getAbsolutePath,
+    Compile / run :=
+      Defaults.runTask(Test / fullClasspath, Compile / run / mainClass, Compile / run / runner).evaluated,
+    Compile / runMain := Defaults.runMainTask(Test / fullClasspath, Compile / run / runner).evaluated,
     run / baseDirectory := (ThisBuild / baseDirectory).value,
     cliLauncher := {
       val launch = target.value / "frflow.launch"
       val main = (Compile / run / mainClass).value.getOrElse(sys.error(s"${Keys.name.value} has no main class"))
-      IO.writeLines(launch, (run / javaOptions).value ++ Seq("-cp", (Runtime / fullClasspath).value.files.mkString(java.io.File.pathSeparator), main))
+      val classpath = (Test / fullClasspath).value.files.mkString(java.io.File.pathSeparator)
+      IO.writeLines(launch, (run / javaOptions).value ++ Seq("-cp", classpath, main))
       launch
     },
     // The web view runs the project's main object (its knowledge base) in a forked JVM, over the API the CLI uses.

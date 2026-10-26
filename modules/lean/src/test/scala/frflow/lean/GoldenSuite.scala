@@ -20,8 +20,8 @@ class GoldenSuite extends munit.FunSuite:
 
   private def text(ss: List[(String, String)]): String = ss.map((p, s) => s"=== $p ===\n$s").mkString("\n")
 
-  private val hashes = List(shelfKb -> "04f1374132245b8f09b052cdac2b408f112f1fff79bcad68eac966963b5837af",
-    callsKb -> "b14edd4d8ff10e7ba7cc28e54242df55ba39d722badb891ddf56518dbb520886")
+  private val hashes = List(shelfKb -> "eddf3bcfce03b7482e9c30c7c11b9559dd629811879e2ccf0bc959eb4b83e5c2",
+    callsKb -> "fa75699897724c96d8846ef8c9ef0b1a9283c9cd65650ab925c4aee78ea5cbae")
 
   test("the whole Lean of each fixture is as recorded, byte for byte") {
     hashes.foreach { (kb, hash) =>
@@ -36,8 +36,9 @@ class GoldenSuite extends munit.FunSuite:
   /** One file of each kind: a node with parts, proven code, the root of the code, the vocabulary, a proof
     * file, what a decision is bound to, and the examples evaluated (not the probes).
     */
-  private val recorded = List("PickedAgain/Spec", "PickedAgain/Auto", "PickedAgain/Theorems", "PickedAgain/Checks", "PickPromise/Impl",
-    "RootImpl", "Types", "Domain", "Domain/Def_viaPick", "Again/Eval").map(m => s"FrFlowGen/Calls/$m.lean") ++
+  private val recorded = List("PickedAgain/Spec", "PickedAgain/Auto", "PickedAgain/Theorems", "PickedAgain/Checks",
+    "PickPromise/Impl", "PickedAgain/RootImpl", "Types", "Domain", "Domain/Def_viaPick", "Again/Eval")
+    .map(m => s"FrFlowGen/Calls/$m.lean") ++
     List("proof file of PickedAgain", "used by Again")
 
   test("one file of each kind reads as recorded") {

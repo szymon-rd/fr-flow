@@ -18,6 +18,7 @@ final class Analysis private (val kb: KnowledgeBase, val ws: Workspace, val inpu
   def withChecks(checks: Map[NodeId, NodeCheck]): Analysis = new Analysis(kb, ws, inputs.copy(checks = checks), Some(m))
   def withTests(tests: Map[NodeId, Recorded], counterexamples: Map[NodeId, List[Counterexample]]): Analysis =
     new Analysis(kb, ws, inputs.copy(tests = tests, counterexamples = counterexamples), Some(m))
+  def withConsistency(c: Option[Consistency]): Analysis = new Analysis(kb, ws, inputs.copy(consistency = c), Some(m))
 
   /** The recorded test of a node's code, if still current: what it depends on has not changed since. */
   def tested(n: Node[?]): Option[TestReport] = inputs.tests.get(NodeId(n.id)).filter(_.key == Tests.key(this, n)).map(_.report)
@@ -38,7 +39,8 @@ final class Analysis private (val kb: KnowledgeBase, val ws: Workspace, val inpu
     Idea.sections(ideaDecided)._2.find(_._1.equalsIgnoreCase(n.ideaSection.trim)).map(_._2).getOrElse("")
 
   def checkHash(n: Node[?]): Hash =
-    if kb.isRoot(n) then m.rootHash.getOrElse(CheckHash.of(this, n, Nil)) else m.hashes.getOrElse(n.id, CheckHash.of(this, n, Nil))
+    if kb.isRoot(n) then m.rootHashes.getOrElse(n.id, CheckHash.of(this, n, Nil))
+    else m.hashes.getOrElse(n.id, CheckHash.of(this, n, Nil))
 
   /** The recorded check of a node, if still current. A result that waited, or timed out, is not final: it is checked again. */
   def current(n: Node[?]): Option[NodeCheck] =
@@ -74,11 +76,14 @@ object Analysis:
     lazy val generate: Generate = Generate(a.kb, proofs, a.chosen)
     lazy val files: Map[String, String] = generate.files
     lazy val contents: Map[String, Content] = a.kb.nodes.map(n => n.id -> Contents.of(a, n)).toMap
-    // Every node's but the root's depends on its own Lean only; the root's on what `root_impl` composes too.
+    // Every node's but a root's depends on its own Lean only; a root's on what its `root_impl` composes too.
     lazy val hashes: Map[String, Hash] =
       a.kb.nodes.filter(n => generate.formal(n) && !a.kb.isRoot(n)).map(n => n.id -> CheckHash.of(a, n, Nil)).toMap
-    lazy val rootHash: Option[Hash] =
-      a.kb.root.map(r => CheckHash.of(a, r, CheckHash.composed(a, r).map(c => hashes.getOrElse(c.id, CheckHash.of(a, c, Nil)))))
+    lazy val rootHashes: Map[String, Hash] =
+      a.kb.roots.map { r =>
+        val composed = CheckHash.composed(a, r).map(c => hashes.getOrElse(c.id, CheckHash.of(a, c, Nil)))
+        r.id -> CheckHash.of(a, r, composed)
+      }.toMap
     private lazy val runs: Map[String, List[ExampleResult]] = a.kb.nodes.map(n => n.id -> a.kb.exampleResults(n)).toMap
     def examples(n: Node[?]): List[ExampleResult] = runs.getOrElse(n.id, a.kb.exampleResults(n))
 

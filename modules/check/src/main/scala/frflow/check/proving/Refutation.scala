@@ -3,6 +3,7 @@ package check
 package proving
 
 import frflow.example.Example
+import frflow.lean.obligation.Equations
 
 /** A step whose proof does not go through, refuted: its part is a contract that fixes its result (`guard implies result === e`),
   * so `e` is an answer the contract allows; a generated case where the claim fails with that answer, confirmed by Lean,
@@ -18,37 +19,22 @@ object Refutation:
       c <- kb.parts(n) match { case List(c) => Some(c); case _ => None }
       op <- c.op
       post <- c.post
-      (bs, e) <- answerOf(post)
-      answer = Lifted(() => (bs, Term(e, c.op.map(resultType).getOrElse(LeanType.unknown))), null, "")
+      (bs, e) <- Equations.answerOf(post)
+      answer = Lifted(() => (bs, Term(e, Equations.resultType(c))), null, "")
       found <- Testing.refute(kb, c, n, answer.value.asInstanceOf[AnyRef], kb.testing)
       values <- scala.util.Try(found.values.map((name, v, t) => (name, Example.show(v), LeanPrinter().value(v, t)))).toOption
     yield
-      val what = found.answer match
-        case false => s"the contract forbids it ${op.name}, and the claim needs it ${op.name}"
-        case true  => s"the contract has it ${op.name}, and the claim forbids it ${op.name}"
-        case r     => s"the contract gives ${Example.show(r)}, which the claim forbids"
-      Candidate(values.map((name, v, _) => s"$name = $v").mkString(", "), what, lean(kb.name, n.id, c.id, resolve(answer.lean), values.map(_._3)))
+      Candidate(values.map((name, v, _) => s"$name = $v").mkString(", "), said(op.name, found.answer),
+        lean(kb.name, n.id, c.id, resolve(answer.lean), values.map(_._3)))
 
-  /** The inputs and `e` of a post `guard implies result === e` or `result === e`, `e` not mentioning the result. */
-  private def answerOf(post: Lifted[?]): Option[(List[Binder], Tree)] =
-    val (bs, body) = (post.built._1, post.built._2.termTree)
-    bs.lastOption.flatMap { result =>
-      def mentions(t: Tree): Boolean = t match
-        case Tree.Var(b) => b eq result
-        case _           => Trees.children(t).exists(mentions)
-      def eq(t: Tree): Option[Tree] = t match
-        case Tree.Op(Prim.Eq, List(Tree.Var(r), e)) if (r eq result) && !mentions(e) => Some(e)
-        case Tree.Op(Prim.Eq, List(e, Tree.Var(r))) if (r eq result) && !mentions(e) => Some(e)
-        case _                                                                       => None
-      (body match
-        case Tree.Op(Prim.Implies, List(_, conclusion)) => eq(conclusion)
-        case other                                => eq(other)
-      ).map(bs.init -> _)
-    }
-
-  private def resultType(op: Param[?]): LeanType[?] = op.termType.shape match
-    case frflow.types.Shape.FnOf(_, r) => r
-    case _                             => LeanType.unknown
+  /** What the contract answers on the case, against what the claim needs: "the contract forbids granting it, and the
+    * claim needs it granted" for a Boolean operation named as a past participle; its value otherwise.
+    */
+  private def said(op: String, answer: Any): String = (answer, op) match
+    case (false, Participle(stem)) => s"the contract forbids ${stem}ing it, and the claim needs it $op"
+    case (true, Participle(stem))  => s"the contract has it $op, and the claim forbids ${stem}ing it"
+    case (r, _)                    => s"the contract gives ${Example.show(r)}, which the claim forbids"
+  private val Participle = "(.+)ed".r
 
   /** The step refuted: the contract's claim holds of the answer `e` (by `simp`), and the case breaks the node's claim. */
   private def lean(kb: String, node: String, part: String, answer: String, values: List[String]): String =

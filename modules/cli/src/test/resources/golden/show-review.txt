@@ -1,4 +1,4 @@
-+ Decide  contract on admit  to review: it changed
+! Decide  contract on admit  it changed, review it
   A request is admitted on behalf of the user its token was issued to, exactly when a grant names
   them and the path.
   why: One call meets both rules at once.
@@ -22,9 +22,9 @@ Formally (as written in Scala)
     (t, p, d) => d == sessions(t).filter(u => grants(u, p))
 
 Where it sits
-  part of    + NeedsGrant  its only part  A request is admitted only with a grant for the path.
-  part of    + LetsIn  its only part  A request with a grant for the path is admitted.
-  design     - Memory  design  Sessions and grants are kept in memory.
+  part of    + NeedsGrant  its only part: "A request is admitted only with a grant for the path."
+  part of    + LetsIn  its only part: "A request with a grant for the path is admitted."
+  design     - Memory (design): "Sessions and grants are kept in memory."
 
 Vocabulary
   admit: the system's decision on a request (open)

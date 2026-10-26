@@ -23,6 +23,8 @@ trait LeanLab extends munit.FunSuite with TempDirs:
   protected final class Lab(w: OnDisk):
     def ws: Workspace = w.ws
     def check(only: Option[String] = None): List[(Node[?], NodeCheck)] = w.check(only).unsafeRunSync()._1
+    /** A check, and the knowledge base as a whole as it then is: its statements together, nothing vacuous. */
+    def consistency: Option[Consistency] = w.check(None).unsafeRunSync()._2.snapshot.consistency
     def analysis: Analysis = w.analysis.unsafeRunSync()
     def generate: Generate = analysis.generate
     def baseSnapshot: Snapshot = analysis.snapshot

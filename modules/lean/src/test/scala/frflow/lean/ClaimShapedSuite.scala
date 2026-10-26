@@ -25,9 +25,9 @@ class ClaimShapedSuite extends munit.FunSuite:
       .examples(minPages.bind(100))(cases*)
 
   private def kb(c: Node[(List[Book], Int) => List[Book]]) =
-    shelfWith(c).implement(c)((shelf, n) => shelf.filter(_.pages >= minPages.value))
+    shelfWith(c).implementTested(c)((shelf, n) => shelf.filter(_.pages >= minPages.value))
   private def buggy(c: Node[(List[Book], Int) => List[Book]]) =
-    shelfWith(c).testedWith(TestSettings(100)).implement(c)((shelf, n) => shelf.filter(_.pages > minPages.value))
+    shelfWith(c).testedWith(TestSettings(100)).implementTested(c)((shelf, n) => shelf.filter(_.pages > minPages.value))
 
   test("the two forms give the same Lean, file by file") {
     val (a, b) = (Generate(kb(asLambda.pick)), Generate(kb(asClaim.pick)))

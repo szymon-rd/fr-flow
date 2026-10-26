@@ -10,7 +10,8 @@ import scala.collection.mutable
   * with the examples' values: data it cannot hold (two rows with one key) is no finding.
   */
 private[frflow] final class Plan(custom: Map[String, Gen[?]], seeds: Map[String, Vector[Any]], val numbers: List[BigInt],
-    opaques: Map[String, LeanType[?]], outside: Boolean = false):
+    opaques: Map[String, LeanType[?]], outside: Boolean = false,
+    val holds: LeanType[?] => Any => Boolean = _ => _ => true):
   private val keys = new java.util.IdentityHashMap[LeanType[?], String]()
   /** A type's name, as Scala tells its values apart (an Int is not a Long, though Lean names both `Int`). */
   def key(t: LeanType[?]): String =

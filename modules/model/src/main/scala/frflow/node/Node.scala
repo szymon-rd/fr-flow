@@ -19,7 +19,7 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (val id: St
     val scope: List[Node[?]] = Nil, val ideaSection: String = "", val file: String = "", val expected: List[(String, Lifted[?])] = Nil,
     val at: Int = -1, val local: Option[Lifted[?]] = None, val replaced: Option[Node[?]] = None,
     val modelOf: Option[ModelOf] = None, val runCheck: Option[RunCheck] = None, val openAbove: Boolean = false,
-    val failure: Option[FailureClause] = None):
+    val failure: Option[FailureClause] = None, val premises: List[Node[?]] = Nil):
   def parents: List[Node[?]] = (declaredParents ++ kept.collect { case Keep(i, Some(_), _) => i }).distinctBy(System.identityHashCode)
   def isInvariant: Boolean = rule.isDefined
   def shownKind: String = kind.shown(isInvariant)
@@ -33,7 +33,30 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (val id: St
     case _ => o.termType)
   def defines: List[String] = substs.map(_.name)
   def referenced: List[Lifted[?]] = formula.toList ++ post.toList ++ rule.toList ++ local.toList ++ substs.flatMap(_.term) ++
-    kept.flatMap(_.view) ++ expected.map(_._2) ++ failure.flatMap(_.post)
+    kept.flatMap(_.view) ++ expected.map(_._2) ++ failure.flatMap(_.post) ++ holds.map(_.lifted) ++
+    initially.map(_.lifted)
+  /** What an `always` claim says always holds: its rule, a `define` named as the claim's val, and the store whose
+    * states it is about (none: every value of its type that can be made).
+    */
+  lazy val always: Option[AlwaysRule] = formula.flatMap(f => f.built._2 match
+    case a: frflow.term.Always => Some(AlwaysRule.of(id.head.toLower.toString + id.tail, a, f.source))
+    case _                     => None)
+  /** The rule of an `always` claim. */
+  def holds: Option[Def[?]] = always.map(_.rule)
+  def isAlways: Boolean = always.isDefined
+  /** What an assumption says of how the system is run (`stored.initially(…)`, …), if that is its formula. */
+  lazy val fact: Option[Fact] = if kind != NodeKind.Assumption then None else formula.flatMap(f => f.built._2 match
+    case x: Fact => Some(x)
+    case _       => None)
+  /** What a fact says the store holds when the system starts (`stored.initially(…)`): a `define` named as its val. */
+  lazy val initially: Option[Def[?]] = fact.map(_.says).collect {
+    case FactKind.Initially(Tree.Quant(true, List(b), body)) =>
+      val bool = summon[LeanType[Boolean]]
+      val name = id.head.toLower.toString + id.tail
+      Def(Lifted(() => (List(b), Term(body, bool)), null, formula.fold("")(_.source)), bool, Some(name))
+  }
+  /** A statement about every call or run of one Definition (or Declaration, or Param), its operation. */
+  def onOperation: Boolean = op.isDefined && post.isDefined && kind != NodeKind.Assumption
 
   // `require` in the builders: a node built from one declared after it gets `null` (Scala initializes vals in
   // order), and failing as the model loads, naming the node, is what the developer can act on.
@@ -43,6 +66,15 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (val id: St
     require(ps.forall(_ != null), s"$id refines a node declared after it: declare the parent first")
     require(kind != NodeKind.Definition, s"$id: a definition has no parents; the nodes that use its terms rest on it")
     copy(declaredParents = declaredParents ++ ps)
+
+  /** Its premises: assumptions its proof rests on (a store's model, a fact of the outside), trusted, not proven,
+    * and below it in the DAG.
+    */
+  def assuming(as: Node[?]*): Node[M] =
+    require(as.forall(_ != null), s"$id assumes a node declared after it: declare the assumption first")
+    require(as.forall(_.kind == NodeKind.Assumption),
+      s"$id: a premise is an assumption (Node.assumption); a part refines it")
+    copy(premises = premises ++ as)
 
   /** This contract fixes a word the nodes above leave open ("a share in force"): a node whose statement names its
     * operation holds whatever the operation does, so it does not rest on this contract even where its code calls the
@@ -77,9 +109,9 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (val id: St
   private[frflow] def copy(declaredParents: List[Node[?]] = declaredParents, cases: List[Example] = cases, kept: List[Keep] = kept,
       expected: List[(String, Lifted[?])] = expected, local: Option[Lifted[?]] = local, replaced: Option[Node[?]] = replaced,
       modelOf: Option[ModelOf] = modelOf, runCheck: Option[RunCheck] = runCheck, openAbove: Boolean = openAbove,
-      failure: Option[FailureClause] = failure): Node[M] =
+      failure: Option[FailureClause] = failure, premises: List[Node[?]] = premises): Node[M] =
     Node(id, statement, why, kind, declaredParents, formula, post, op, rule, substs, cases, governs, kept, scope, ideaSection,
-      file, expected, at, local, replaced, modelOf, runCheck, openAbove, failure)
+      file, expected, at, local, replaced, modelOf, runCheck, openAbove, failure, premises)
 
   /** The invariant does not apply to this contract or design decision, for the reason given (which the developer reads). */
   def exempt(invariant: Node[?], because: String): Node[M] =
@@ -90,14 +122,29 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (val id: St
 object Node:
   // Each is built in a method of its own: a file's top-level vals initialize in one JVM method (at most 64 KB).
 
-  /** With no parents, the root: the idea's purpose, stated precisely enough that doing nothing does not meet it.
-    * A claim, like a contract, needs no `why`: the reason it holds is kept with the developer's signed decision.
+  /** A statement, proven from its parts (or tested, where its Definitions are plain Scala). With no parents, a root.
+    * It constrains every Definition and Declaration it mentions: one applied to its `forall`'s variables, in order
+    * (`forall((held, request) => granted(held, request) === free(held, request))`), is its operation, and code for it
+    * is checked against the claim; a flow's, applied to all but the last, a world: `book(request).after(before)`.
+    * `always[T](rule)` and `always(store)(rule)` say what holds always. A claim needs no `why`: the reason it holds is
+    * kept with the developer's signed decision.
     */
-  inline def claim(statement: String, why: String = "", idea: String = "")(inline formula: Term[Boolean]): Node[Unit] =
-    def node(id: String): Node[Unit] =
-      Node(id, statement, why, NodeKind.Claim, formula = Some(Lifted.thunk(() => formula, Source.text(formula))), ideaSection = idea,
-        file = Source.here, at = Source.at)
-    node(Source.nodeId)
+  transparent inline def claim(statement: String, why: String = "", idea: String = "")(
+      inline formula: Term[Boolean]): Node[?] =
+    ${ ContractMacros.claim('statement, 'why, 'idea, 'formula) }
+
+  /** A claim whose formula says nothing of one operation: stated as written. */
+  @scala.annotation.publicInBinary private[frflow] def plainClaim(id: String, statement: String, why: String,
+      idea: String, formula: Lifted[?], file: String, at: Int): Node[Unit] =
+    Node(id, statement, why, NodeKind.Claim, formula = Some(formula), ideaSection = idea, file = file, at = at)
+
+  /** A claim on one operation, `op`: its post is the formula with each call (a flow's run) read as the result; the
+    * formula is kept as written, for a step to be refuted by a case of it.
+    */
+  @scala.annotation.publicInBinary private[frflow] def claimOn[F](op: Param[F], id: String, statement: String,
+      why: String, idea: String, formula: Lifted[?], file: String, at: Int): Node[F] =
+    Node(id, statement, why, NodeKind.Claim, formula = Some(formula), post = Some(ClaimShaped.post(op, formula)),
+      op = Some(op), ideaSection = idea, file = file, at = at)
 
   /** A contract written as a lambda over the call, for what a claim about every call cannot say: a flow's run, where
     * `post(a, …, result, before, after)` holds of every run of `op(a, …)` from a world (`before(Model)` a model's state
@@ -134,12 +181,22 @@ object Node:
       case _               => throw IllegalArgumentException(s"FrFlow: ${op.name} is not a flow's operation (A => Flow[R])")
     case _ => throw IllegalArgumentException(s"FrFlow: ${op.name} is not a flow's operation (A => Flow[R])")
 
-  /** A fact of the world, trusted; checked at run time where the terms it reads are bound, when it can be computed. */
-  inline def assumption(statement: String, why: String, idea: String = "")(inline formula: Term[Boolean]): Node[Unit] =
-    def node(id: String): Node[Unit] =
-      Node(id, statement, why, NodeKind.Assumption, formula = Some(Lifted.thunk(() => formula, Source.text(formula))), ideaSection = idea,
-        file = Source.here, at = Source.at)
-    node(Source.nodeId)
+  /** A fact of the outside world, trusted; checked at run time where the terms it reads are bound, when it can be
+    * computed. `Node.assumption("…")(store.behavesAs(StoreModel))`: what a store does, as its model says; proven flows
+    * calling it are proven from the model. Facts of how the system is run: `stored.initially(…)`,
+    * `stored.writtenOnlyBy(book)`, `stored.changedOneRunAtATime`.
+    */
+  transparent inline def assumption(statement: String, why: String = "", idea: String = "")(
+      inline formula: Term[Boolean]): Node[?] =
+    ${ ContractMacros.assumption('statement, 'why, 'idea, 'formula) }
+
+  @scala.annotation.publicInBinary private[frflow] def fact(id: String, statement: String, why: String, idea: String,
+      formula: Lifted[?], file: String, at: Int): Node[Unit] =
+    Node(id, statement, why, NodeKind.Assumption, formula = Some(formula), ideaSection = idea, file = file, at = at)
+
+  @scala.annotation.publicInBinary private[frflow] def modelled[T, S](m: ModelOf, id: String, statement: String,
+      why: String, idea: String, file: String, at: Int): Node[Modelled[T, S]] =
+    Node(id, statement, why, NodeKind.Assumption, ideaSection = idea, file = file, at = at, modelOf = Some(m))
 
   /** Fixes terms of the vocabulary (`User := of[UserId]`, `authorized := (u, p) => ...`): decided, not proven. */
   inline def definition(statement: String, why: String)(substs: Subst*): Node[Unit] =
@@ -179,17 +236,17 @@ object Node:
       * `start` makes one holding a model's state, `read` reads its state back; both are compared as it holds a state
       * (stored and read back), so order it does not keep, such as rows a table returns sorted, is not compared.
       */
-    inline def checkedAgainst[I <: T](inline start: S => I, inline read: I => S): Node[Modelled[T, S]] =
-      n.withImpl(ModelImpl(start.asInstanceOf[Any => Any], read.asInstanceOf[Any => Any], outside = true, Source.text(start),
-        Source.sourceFiles(start)))
+    inline def checkedAgainst[I <: T](inline start: S => I, inline observe: I => S): Node[Modelled[T, S]] =
+      n.withImpl(ModelImpl(start.asInstanceOf[Any => Any], observe.asInstanceOf[Any => Any], outside = true,
+        Source.text(start), Source.sourceFiles(start)))
 
     /** The project's own code implementing the boundary (an in-memory store, a cache): tested against the model, not
       * assumed. Generated runs of its operations, from generated states, must give what the model gives, and leave what
       * the model leaves (read back with `read`); a run that does not is shrunk and reported.
       */
-    inline def implementedBy[I <: T](inline start: S => I, inline read: I => S): Node[Modelled[T, S]] =
-      n.withImpl(ModelImpl(start.asInstanceOf[Any => Any], read.asInstanceOf[Any => Any], outside = false, Source.text(start),
-        Source.sourceFiles(start)))
+    inline def implementedBy[I <: T](inline start: S => I, inline observe: I => S): Node[Modelled[T, S]] =
+      n.withImpl(ModelImpl(start.asInstanceOf[Any => Any], observe.asInstanceOf[Any => Any], outside = false,
+        Source.text(start), Source.sourceFiles(start)))
 
     private[frflow] def withImpl(i: ModelImpl): Node[Modelled[T, S]] = n.copy(modelOf = n.modelOf.map(m => m.copy(impls = m.impls :+ i)))
 
@@ -231,10 +288,11 @@ object Node:
     /** Each example against the contract, and against `impl` (code built once per set of given values, as a running
       * system would build it: a Scala function of the call's inputs).
       */
-    private[frflow] def checkExamples(impl: Option[() => Any], assumes: List[Assumption] = Nil): List[ExampleResult] =
+    private[frflow] def checkExamples(impl: Option[() => Any], assumes: List[Assumption] = Nil,
+        cases: List[Example] = n.cases): List[ExampleResult] =
       n.postFn.toList.flatMap { post =>
         type Built = Map[List[Binding], Try[Any]]
-        n.cases.foldLeft((Map.empty: Built, Vector.empty[ExampleResult])) { case ((built, out), e) =>
+        cases.foldLeft((Map.empty: Built, Vector.empty[ExampleResult])) { case ((built, out), e) =>
           val (ins, r) = (e.inputs, e.result)
           Bindings.within(e.bindings) {
             val onContract = ExampleRuns.verdict(Try {
