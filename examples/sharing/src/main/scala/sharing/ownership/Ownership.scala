@@ -61,7 +61,7 @@ object Ownership:
         "Ann hands the plan on to Bob, who may edit it"),
       expect(library, now, ann, plan, bob, library, "Bob may not edit the plan: Ann keeps it"),
       expect(bobMayEdit, now, bob, plan, cat, bobMayEdit, "Bob does not own the plan"),
-      reject(bobMayEdit, now, bob, plan, bob,
+      never(bobMayEdit, now, bob, plan, bob,
         bobMayEdit.copy(documents = List(planDoc.copy(owner = bob), q3ReportDoc)), "only the owner hands a document on"))
 
   val transferCode = define { (lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId], to: Term[PersonId]) =>

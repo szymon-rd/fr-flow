@@ -20,7 +20,7 @@ class LeanCodeSuite extends LeanLab:
       (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages)).under(shelfParts*)
       .examples(minPages.bind { flip = !flip; if flip then 100 else 10 })(
         expect(List(Book("Mid", 50)), 5, List(Book("Mid", 50)), "a book of 50 pages"),
-        reject(List(Book("Mid", 50)), 5, List(Book("Other", 50)), "not a book from the shelf"))
+        never(List(Book("Mid", 50)), 5, List(Book("Other", 50)), "not a book from the shelf"))
     val u = of(workflow(shelfWith(unstable)).check(), "Unstable")
     assertEquals(u.status.toString, "failed", u)
     assertEquals(result(u, "eval_0").map(_.status.toString), Some("failed"), u)

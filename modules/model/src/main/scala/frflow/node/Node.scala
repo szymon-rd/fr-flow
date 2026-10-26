@@ -215,7 +215,7 @@ object Node:
         cases.toList.map(c => Example(c.note, bindings.toList, Source.sources(bindings*), c.inputs, c.result, c.expected))
       n.copy(cases = n.cases ++ exampleList())
 
-    /** Concrete cases where nothing is to be bound: `.examples(expect(…), reject(…))`, as `.examples()(…)`. */
+    /** Concrete cases where nothing is to be bound: `.examples(expect(…), never(…))`, as `.examples()(…)`. */
     inline def examples(inline cases: Case[F]*): Node[F] =
       def exampleList(): List[Example] = cases.toList.map(c => Example(c.note, Nil, Nil, c.inputs, c.result, c.expected))
       n.copy(cases = n.cases ++ exampleList())

@@ -78,9 +78,9 @@ val decisionContract = Node.contract(admit)("DecisionContract",
   .examples(grants.bind(List(Grant(UserId("alice"), Path("/a")))), sessions.bindTable(Map("t1" -> UserId("alice"))))(
     expect("t1", Path("/a"), Some(UserId("alice")), "Alice's token and a grant for /a: she gets in"),
     expect("t1", Path("/b"), None, "no grant for /b: refused"),
-    reject("t1", Path("/b"), Some(UserId("alice")), "access without a grant is never given"),
-    reject("t2", Path("/a"), Some(UserId("alice")), "a token that is not Alice's never acts for her"),
-    reject("t1", Path("/a"), None, "Alice with a grant for /a is not turned away"))
+    never("t1", Path("/b"), Some(UserId("alice")), "access without a grant is never given"),
+    never("t2", Path("/a"), Some(UserId("alice")), "a token that is not Alice's never acts for her"),
+    never("t1", Path("/a"), None, "Alice with a grant for /a is not turned away"))
 
 // ============================================================================
 // A design decision: how the service runs

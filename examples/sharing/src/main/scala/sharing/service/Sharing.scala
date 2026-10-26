@@ -69,8 +69,8 @@ object Sharing:
       expect(library.copy(shares = bobViewsPlanForAnHour :: library.shares), now, bob, plan, Some(Level.View), "Bob's share of the plan is in force"),
       expect(library.copy(shares = bobViewsPlanForAnHour :: library.shares), now + 3600, bob, plan, None, "Bob's share of the plan has ended"),
       expect(library.copy(documents = List(planTrashed, q3ReportDoc)), now, ann, plan, None, "the plan is in the trash"),
-      reject(library, now, bob, plan, Some(Level.View), "nothing shares the plan with Bob or his team"),
-      reject(library, now, ann, plan, Some(Level.View), "Ann's share of the plan is an edit share: her access is edit"))
+      never(library, now, bob, plan, Some(Level.View), "nothing shares the plan with Bob or his team"),
+      never(library, now, ann, plan, Some(Level.View), "Ann's share of the plan is an edit share: her access is edit"))
 
   /** Access, worked out: none in the trash; else the shares in force with the person or one of their teams, of the
     * document or a folder around it; the strongest of them.
@@ -93,7 +93,7 @@ object Sharing:
     .examples()(
       expect(library, now, bob, q3Report, true, "Bob's team may view the reports folder"),
       expect(library, now, cat, q3Report, false, "nothing is shared with Cat"),
-      reject(library, now, cat, plan, true, "Cat has no access to the plan"))
+      never(library, now, cat, plan, true, "Cat has no access to the plan"))
 
   val canViewCode = define { (lib: Term[Library], t: Term[BigInt], p: Term[PersonId], d: Term[DocumentId]) => access(lib, t, p, d).isDefined }
 
@@ -106,7 +106,7 @@ object Sharing:
     .examples()(
       expect(library, now, ann, q3Report, true, "Ann may edit the reports folder, around the Q3 report"),
       expect(library, now, bob, q3Report, false, "Bob's team may only view it"),
-      reject(library, now, bob, q3Report, true, "a view share never lets anyone edit"))
+      never(library, now, bob, q3Report, true, "a view share never lets anyone edit"))
 
   val canEditCode = define { (lib: Term[Library], t: Term[BigInt], p: Term[PersonId], d: Term[DocumentId]) =>
     access(lib, t, p, d) === some(Level.Edit: Term[Level])
@@ -134,7 +134,7 @@ object Sharing:
         "Ann shares the plan with Bob for an hour"),
       expect(library, now, bob, Share(Target.Doc(plan), Grantee.Person(bob), Level.Edit, None), library,
         "Bob may not edit the plan: his request changes nothing"),
-      reject(library, now, bob, catViewsReports, library.copy(shares = catViewsReports :: library.shares),
+      never(library, now, bob, catViewsReports, library.copy(shares = catViewsReports :: library.shares),
         "Bob may only view the reports folder, so he cannot share it"),
       expect(library.copy(shares = bobEditsPlan :: library.shares), now, bob, Share(Target.Doc(plan), Grantee.Person(ann), Level.View, Some(now + 3600)),
         library.copy(shares = bobEditsPlan :: library.shares), "Bob may edit the plan, but Ann owns it: her edit share stays as it is"))
@@ -157,7 +157,7 @@ object Sharing:
         "Bob may only view the folder: his request changes nothing"),
       expect(library.copy(shares = bobEditsPlan :: library.shares), now, bob, Target.Doc(plan), Grantee.Person(ann),
         library.copy(shares = bobEditsPlan :: library.shares), "Bob may edit the plan, but Ann owns it: her share stays"),
-      reject(library, now, bob, Target.Doc(plan), Grantee.Person(ann), library.copy(shares = List(annEditsReports, engViewsReports)),
+      never(library, now, bob, Target.Doc(plan), Grantee.Person(ann), library.copy(shares = List(annEditsReports, engViewsReports)),
         "Bob cannot take Ann's share of the plan away"))
 
   val unshareCode = define { (lib: Term[Library], t: Term[BigInt], by: Term[PersonId], what: Term[Target], withWhom: Term[Grantee]) =>
@@ -190,7 +190,7 @@ object Sharing:
         library.copy(documents = List(planDoc.copy(folders = List(reports)), q3ReportDoc)),
         "Ann may edit the plan and the reports folder: the plan moves into it"),
       expect(library, now, bob, q3Report, None, library, "Bob may only view the Q3 report: it stays where it is"),
-      reject(library, now, ann, plan, Some(FolderId("nowhere")),
+      never(library, now, ann, plan, Some(FolderId("nowhere")),
         library.copy(documents = List(planDoc.copy(folders = List(FolderId("nowhere"))), q3ReportDoc)),
         "a document never moves into a folder that does not exist"))
 

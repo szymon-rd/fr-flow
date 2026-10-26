@@ -155,7 +155,7 @@ object NodeText:
     val verdict = if e.passes then "" else st.red(s"  contract: ${e.fails.getOrElse("holds")}${e.codeFails.fold("")(i => s", implementation: $i")}")
     val lean = e.lean.filter(_ => !allAgree).fold("")(o => if o.status == ObligationStatus.Proven then st.dim("  Lean agrees")
       else if o.status == ObligationStatus.Failed then st.red(s"  Lean disagrees: ${o.detail}") else st.dim(s"  ${o.status} in Lean"))
-    s"$mark ${e.note}$verdict$lean  ${st.dim(s"${if e.expected then "expect" else "reject"} ${e.call}")}"
+    s"$mark ${e.note}$verdict$lean  ${st.dim(s"${if e.expected then "expect" else "never"} ${e.call}")}"
 
   private def code(d: NodeDetails, st: Style, full: Boolean): List[String] =
     val n = d.node.node

@@ -81,7 +81,7 @@ class ErrorsSuite extends munit.FunSuite:
     val c = Node.contract(p)("Twice", "Two puts leave the second.", why = "A test.")((n, r, before, after) => after(VaultModel) === n + 1)
       .failsChangingNothing[VaultError]
       .examples()(expect(BigInt(1), World(VaultModel -> BigInt(0)), (), World(VaultModel -> BigInt(2)), "both"),
-        reject(BigInt(1), World(VaultModel -> BigInt(0)), (), World(VaultModel -> BigInt(1)), "not the first"))
+        never(BigInt(1), World(VaultModel -> BigInt(0)), (), World(VaultModel -> BigInt(1)), "not the first"))
     val kb = KnowledgeBase("Twice", idea = "IDEA.md")(vaultKept, c).implementProven(c)((n: Term[BigInt]) => vault.put(n) *> vault.put(n + 1))
     val half = kb.exampleResults(c).filter(_.example.note.contains("call 2"))
     assertEquals(half.map(_.contract), List("the run fails with Down and leaves World(VaultModel = 1), which the contract refuses"))

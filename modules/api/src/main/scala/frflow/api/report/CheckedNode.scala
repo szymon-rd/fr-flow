@@ -26,7 +26,7 @@ object CheckedNode:
 
   def of(r: Reviewed, c: NodeCheck): CheckedNode =
     val failing = r.node.examples.filterNot(_.passes).map(e =>
-      FailingExample(s"${if e.expected then "expect" else "reject"} ${e.call}  given ${e.`given`.mkString(", ")}  — ${e.note}",
+      FailingExample(s"${if e.expected then "expect" else "never"} ${e.call}  given ${e.`given`.mkString(", ")}  — ${e.note}",
         (e.fails.toList ++ e.codeFails.map(i => s"the implementation $i")).mkString("; ")))
     val testFailure = r.node.tested.flatMap(_.failure)
     val contractChanged = testFailure.isDefined && Cause.movedUnderCode(r.review.causes)

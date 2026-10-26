@@ -291,7 +291,7 @@ each one is needed. This is the capability part: a granted user gets in.</p>
 <h3 id="t-contract">6. A contract, with examples</h3>
 <p>A contract states, for one call of an operation, what every result must satisfy, so each result of the running
 system can be checked. Examples are concrete calls: an <code>expect</code> the contract must allow and a
-<code>reject</code> it must refuse. Lean evaluates them too, and must agree with Scala.</p>
+<code>never</code> it must refuse. Lean evaluates them too, and must agree with Scala.</p>
 <div class="code"><pre><code>val decisionContract = Node.contract(admit)("DecisionContract",
   "A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path.",
   why = "The three parts, stated for one call, so every result of the running system can be checked."
@@ -301,9 +301,9 @@ system can be checked. Examples are concrete calls: an <code>expect</code> the c
   .examples(grants.bind(List(Grant(UserId("alice"), Path("/a")))), sessions.bindTable(Map("t1" -&gt; UserId("alice"))))(
     expect("t1", Path("/a"), Some(UserId("alice")), "Alice's token and a grant for /a: she gets in"),
     expect("t1", Path("/b"), None, "no grant for /b: refused"),
-    reject("t1", Path("/b"), Some(UserId("alice")), "access without a grant is never given"),
-    reject("t2", Path("/a"), Some(UserId("alice")), "a token that is not Alice's never acts for her"),
-    reject("t1", Path("/a"), None, "Alice with a grant for /a is not turned away"))</code></pre></div>
+    never("t1", Path("/b"), Some(UserId("alice")), "access without a grant is never given"),
+    never("t2", Path("/a"), Some(UserId("alice")), "a token that is not Alice's never acts for her"),
+    never("t1", Path("/a"), None, "Alice with a grant for /a is not turned away"))</code></pre></div>
 
 <h3 id="t-code">7. The code, tested against the contract</h3>
 <p>The decision is plain Scala. The proofs above rest on <code>DecisionContract</code> alone; <code>check</code> tests
@@ -422,7 +422,7 @@ test pass: a changed contract is a decision you review like any other.</p>
 <thead><tr><th>It says</th><th>Do</th></tr></thead>
 <tbody>
 <tr><td><code>its code fails a generated case: … ⇒ …  given …: why</code></td><td>The case is already shrunk. Add it as an
-<code>expect</code> or <code>reject</code> example, fix the code, and run <code>check</code>: the case is tried first until it
+<code>expect</code> or <code>never</code> example, fix the code, and run <code>check</code>: the case is tried first until it
 passes (<code>.frflow/counterexamples.json</code>).</td></tr>
 <tr><td><code>its code's tests never reached a part of the contract: &lt;part&gt;</code></td><td>No generated case made that
 premise, branch or case hold. Add an example that reaches it, or give a generator for the type that makes such
@@ -581,7 +581,7 @@ val aboutRecord = define { (s: Term[CrmStore], id: Term[BigInt]) =&gt;
 </tbody>
 </table>
 <p>An operation takes 0 to 6 inputs. The post, <code>checkedBy</code>, a <code>keeps</code> view, each
-<code>expect</code> and <code>reject</code>, and <code>implement</code> take them in order, then the result (a flow's,
+<code>expect</code> and <code>never</code>, and <code>implement</code> take them in order, then the result (a flow's,
 then the worlds before and after): <code>Node.contract(share)(…)((by, doc, withWhom, result) =&gt; …)</code>,
 <code>expect(ann, readme, bob, true, "the owner shares")</code>, <code>implement(share)((by, doc, withWhom) =&gt; …)</code>.</p>
 <p>Edges and extras:</p>
@@ -589,7 +589,7 @@ then the worlds before and after): <code>Node.contract(share)(…)((by, doc, wit
   <li><code>.under(parents*)</code>: a part of each parent. Declare parents first.</li>
   <li><code>.replaces(other)</code>: an alternative; accepting one rejects the other.</li>
   <li><code>.keeps(invariant)(view)</code> and <code>.exempt(invariant, reason)</code>.</li>
-  <li><code>.examples(bindings*)(expect(…), reject(…))</code>: every contract needs at least one of each.</li>
+  <li><code>.examples(bindings*)(expect(…), never(…))</code>: every contract needs at least one of each.</li>
   <li><code>.checkedBy((a, b, r) =&gt; …)</code>: a cheaper check run where the code runs, proven to follow from the post.</li>
   <li><code>.checkedAtRunTime(RunCheck.Sampled(100))</code> (or <code>EveryCall</code>, <code>Never</code>): how often <code>service</code> checks
     the code's results, instead of the default: every call for plain code and outside adapters, none for a proven define that is the

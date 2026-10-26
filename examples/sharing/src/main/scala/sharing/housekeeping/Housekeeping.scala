@@ -61,7 +61,7 @@ object Housekeeping:
       expect(ended, now + 3600, ended.copy(shares = library.shares), "Bob's share of the plan has ended"),
       expect(ended, now + 29 * day, library.copy(documents = List(q3ReportDoc), shares = List(annEditsReports, engViewsReports)),
         "a month on: the invitation has lapsed, and the plan is gone with its shares"),
-      reject(ended, now, library, "nothing is removed before its time"))
+      never(ended, now, library, "nothing is removed before its time"))
 
   val tidyCode = define { (lib: Term[Library], t: Term[BigInt]) =>
     lib.copy((documents = lib.documents.filterNot(doc => gone(doc, t)),
@@ -95,8 +95,8 @@ object Housekeeping:
       expect(at(ended, now), (), at(ended, now), "nothing has ended yet: nothing to log"),
       expect(at(ended, now + 3600).failing(false, true), Failed(Failure.StoreUnavailable), at(ended, now + 3600),
         "the store fails as the run saves: nothing changes, the next run tries again"),
-      reject(at(ended, now + 3600), (), at(ended, now + 3600), "a run removes what has ended"),
-      reject(at(ended, now + 3600).failing(false, true), Failed(Failure.StoreUnavailable), at(tidiedAnHourOn, now + 3600),
+      never(at(ended, now + 3600), (), at(ended, now + 3600), "a run removes what has ended"),
+      never(at(ended, now + 3600).failing(false, true), Failed(Failure.StoreUnavailable), at(tidiedAnHourOn, now + 3600),
         "a failed run changes nothing"))
 
   /** One run, one transaction (Q19): the time, the library, the library tidied and its requests chased, saved with its

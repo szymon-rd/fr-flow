@@ -167,7 +167,7 @@ val decisionContract = Node.contract(admit)("DecisionContract",
   .under(tokenNamesHolder, accessNeedsGrant, grantLetsIn)
   .examples(grants.bind(List(Grant(UserId("alice"), Path("/a")))), sessions.bindTable(Map("t1" -> UserId("alice"))))(
     expect("t1", Path("/a"), Some(UserId("alice")), "Alice's token and a grant for /a: she gets in"),
-    reject("t1", Path("/b"), Some(UserId("alice")), "access without a grant is never given"))
+    never("t1", Path("/b"), Some(UserId("alice")), "access without a grant is never given"))
 // its code: plain Scala, tested against the contract (see "Terms or plain Scala"):
 //   knowledge.implement(decisionContract)(SessionStore(grants.value.toSet, sessions.value).decide)
 val expireCode = define { (s: Term[CrmStore], now: Term[BigInt]) =>      // crm: code Lean proves
@@ -199,7 +199,7 @@ val sessionLookup = Node.assumption(lookup)("SessionLookup",          // keycloa
   shows the invariant; every contract and design node in its scope keeps it or
   is `.exempt`. `idea = "Section"`: the section of `IDEA.md` it is decided against.
 - **Arity.** An operation takes 0 to 6 inputs. The post, `checkedBy`, a `keeps`
-  view, an `expect`/`reject` and `implement` take them in order, then the result
+  view, an `expect`/`never` and `implement` take them in order, then the result
   (a flow's: then the worlds before and after): `(by, doc, withWhom, r) => ...`.
 - **Extras.** `.checkedBy((a, b, r) => ...)`: a cheap check of the result, run
   where the code runs, proven to follow from the post. `.expects(statement)(formula)`:
@@ -209,7 +209,7 @@ val sessionLookup = Node.assumption(lookup)("SessionLookup",          // keycloa
   plain code and outside adapters, none for a proven define). It is the
   developer's decision: propose it with the cost that motivates it (a check that
   restates an expensive specification), never to hide a failing check.
-- **Examples.** Every contract needs an `expect` and a `reject`, and expects
+- **Examples.** Every contract needs an `expect` and a `never`, and expects
   with different results. Bind every parameter the post reads; a lookup as
   `bindTable(Map(...))` so Lean can evaluate it. "Lean and Scala disagree"
   means FrFlow's Lean printer or evaluator is wrong: report it; never change
@@ -359,7 +359,7 @@ write a property by hand, and never weaken a contract or an example to make a
 test pass.
 
 - **A failing case** (`its code fails a generated case: … ⇒ …  given …: why`)
-  is shrunk; reproduce it as an `expect` or `reject` example, fix the code, and
+  is shrunk; reproduce it as an `expect` or `never` example, fix the code, and
   run `check` again (the case is replayed first).
 - **A coverage finding** (`its code's tests never reached a part of the
   contract: <part>`) means no generated case made that premise, branch or case

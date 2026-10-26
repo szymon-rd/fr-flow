@@ -88,7 +88,7 @@ and its examples `expect(result, note)` under the bindings that give it:
 ```scala
 val share = Param[(UserId, DocId, UserId) => Boolean]("share", "whether a user may share a document with another")
 Node.contract(share)("Share", "...", why = "...")((by, doc, withWhom, result) => result === owns(by, doc))
-  .examples()(expect(ann, readme, bob, true, "the owner shares"), reject(bob, readme, ann, true, "only the owner"))
+  .examples()(expect(ann, readme, bob, true, "the owner shares"), never(bob, readme, ann, true, "only the owner"))
 knowledge.implement(share)((by, doc, withWhom) => owners(doc) == by)
 ```
 

@@ -37,8 +37,8 @@ val pick = Node.contract(picks)("Pick", "A call returns exactly the long enough 
   .examples(minPages.bind(100))(
     expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
     expect(List(Book("Short", 20)), 5, Nil, "no book is long enough: none is picked"),
-    reject(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Short", 20)), "a short book is never picked"),
-    reject(List(Book("Long", 300)), 5, Nil, "a long book is not left on the shelf"))
+    never(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Short", 20)), "a short book is never picked"),
+    never(List(Book("Long", 300)), 5, Nil, "a long book is not left on the shelf"))
 
 def shelfNodes: List[Node[?]] = List(onlyGood, books, picking, fromList, onlyLong, everyLong)
 val shelfKb = KnowledgeBase("Shelf", idea = "IDEA.md")((shelfNodes :+ pick)*)
@@ -84,13 +84,13 @@ val pickPromise = Node.contract(picks)("PickPromise", "A call returns only long 
   (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages))
   .examples(minPages.bind(100))(
     expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
-    reject(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
+    never(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
 val viaPick = define { (shelf: Term[List[Book]], n: Term[Int]) => picks(shelf, n).filter(b => shelf.contains(b)) }
 val againC = Node.contract(again)("Again", "Picking again, through the service, returns only long books from the shelf.", why = "It reuses the service.")(
   (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages)).under(pickedAgain)
   .examples(minPages.bind(100))(
     expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
-    reject(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
+    never(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
 val callsKb = KnowledgeBase("Calls", idea = "IDEA.md")(pickedAgain, againC, pickPromise)
   .implementProven(pickPromise)(longOnes).implementProven(againC)(viaPick)
 
@@ -102,7 +102,7 @@ val capped = Node.contract(cappedOp)("Capped", "Picking returns long books no lo
   .examples(minPages.bind(100), maxPages.bind(500))(
     expect(List(Book("Long", 300), Book("Huge", 900)), 5, List(Book("Long", 300)), "only the long book under the cap"),
     expect(List(Book("Short", 20)), 5, Nil, "no long book"),
-    reject(List(Book("Huge", 900)), 5, List(Book("Huge", 900)), "never one over the cap"))
+    never(List(Book("Huge", 900)), 5, List(Book("Huge", 900)), "never one over the cap"))
 val cappedOnes = define { (shelf: Term[List[Book]], n: Term[Int]) => shelf.filter(b => b.pages >= minPages && b.pages <= maxPages) }
 val viaCapped = define { (shelf: Term[List[Book]], n: Term[Int]) => cappedOp(shelf, n).filter(b => shelf.contains(b)) }
 val longPicked = Param[(List[Book], Int) => List[Book]]("longPicked", "the long books picked through the capped service")
@@ -114,7 +114,7 @@ val longPick = Node.contract(longPicked)("LongPick", "Picking through Capped ret
   .examples(minPages.bind(100), maxPages.bind(500))(
     expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
     expect(List(Book("Short", 20)), 5, Nil, "no long book"),
-    reject(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
+    never(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
 
 /** An assumption on an operation: what an outside shelf service is trusted to return, with a cheap
   * check of each result; Pick's code calls it.
@@ -125,7 +125,7 @@ val shelfPort = Node.assumption(fetch)("ShelfPort", "The shelf service returns e
   .checkedBy((shelf, n, r) => r.forall(b => b.pages >= minPages))
   .examples(minPages.bind(100))(
     expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "the long book"),
-    reject(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
+    never(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
 val fromService = define { (shelf: Term[List[Book]], n: Term[Int]) => shelf.filter(b => b.pages >= minPages) }
 val viaFetch = define { (shelf: Term[List[Book]], n: Term[Int]) => fetch(shelf, n).filter(b => shelf.contains(b)) }
 
@@ -142,7 +142,7 @@ val bump = Node.contract(bumps)("Bump", "A bump adds one to its name's count, an
   .examples()(
     expect(Map("a" -> BigInt(1)), "a", Map("a" -> BigInt(2)), "a counted twice"),
     expect(Map("a" -> BigInt(1)), "b", Map("a" -> BigInt(1), "b" -> BigInt(1)), "b counted once, a left"),
-    reject(Map("a" -> BigInt(1)), "b", Map("b" -> BigInt(1)), "a lost"))
+    never(Map("a" -> BigInt(1)), "b", Map("b" -> BigInt(1)), "a lost"))
 val bumped = define { (m: Term[Map[String, BigInt]], k: Term[String]) => m.updated(k, m.getOrElse(k, BigInt(0)) + 1) }
 
 /** Code keeping values at least a floor, whose examples do not reach the boundary (a value equal to the floor). */
@@ -154,7 +154,7 @@ val floorKeep = Node.contract(retained)("FloorKeep", "A call keeps exactly the v
   .examples()(
     expect(List(BigInt(1), BigInt(5)), BigInt(3), List(BigInt(5)), "the value over the floor"),
     expect(List(BigInt(1)), BigInt(3), Nil, "nothing over the floor"),
-    reject(List(BigInt(1), BigInt(5)), BigInt(3), List(BigInt(1)), "a value under the floor is never kept"))
+    never(List(BigInt(1), BigInt(5)), BigInt(3), List(BigInt(1)), "a value under the floor is never kept"))
 val keepAtLeast = define { (xs: Term[List[BigInt]], f: Term[BigInt]) => xs.filter(x => x >= f) }
 
 /** Defined functions of four and five arguments, called like the others. */
@@ -179,8 +179,8 @@ val keep = Node.contract(kept)("Keep", "A call keeps exactly the picked books th
   (s, p, r) => r.forall(b => p.contains(b) && s.toSet.contains(b)) && p.forall(b => s.toSet.contains(b) ==> r.contains(b))).under(keptOnShelf)
   .examples()(
     expect(List(Book("A", 100)), List(Book("A", 100), Book("B", 200)), List(Book("A", 100)), "the book on the shelf"),
-    reject(List(Book("A", 100)), List(Book("B", 200)), List(Book("B", 200)), "never a book off the shelf"),
-    reject(List(Book("A", 100)), List(Book("A", 100)), Nil, "never drops a book on the shelf"))
+    never(List(Book("A", 100)), List(Book("B", 200)), List(Book("B", 200)), "never a book off the shelf"),
+    never(List(Book("A", 100)), List(Book("A", 100)), Nil, "never drops a book on the shelf"))
 val keptOnce = define { (shelf: Term[List[Book]], picked: Term[List[Book]]) =>
   let(shelf.toSet)(there => picked.filter(b => there.contains(b)))
 }

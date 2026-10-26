@@ -83,7 +83,7 @@ class RuntimeSuite extends munit.FunSuite:
       .examples(minPages.bind(100))(
         expect(List(Book("Long", 300)), 1, List(Book("Long", 300)), "the long book"),
         expect(List(Book("Short", 20)), 1, Nil, "no long book"),
-        reject(List(Book("Short", 20)), 1, List(Book("Short", 20)), "not a short one"))
+        never(List(Book("Short", 20)), 1, List(Book("Short", 20)), "not a short one"))
     val kb = shelfWith(byTerm, lengths).implement(byTerm)((shelf, n) => shelf.filter(_.pages >= minPages.value))
     assertEquals(kb.problems, Nil)
     assert(kb.exampleResults(byTerm).forall(r => r.contract == "ok" && r.implementation.contains("ok")), kb.exampleResults(byTerm))
@@ -147,7 +147,7 @@ class RuntimeSuite extends munit.FunSuite:
       .examples(minPages.bind(100))(
         expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
         expect(List(Book("Short", 20)), 1, Nil, "no long book"),
-        reject(List(Book("Short", 20)), 1, List(Book("Short", 20)), "never a short one"))
+        never(List(Book("Short", 20)), 1, List(Book("Short", 20)), "never a short one"))
     // passes every example, but returns the whole shelf when asked for one book from several
     val kb = shelfWith(two).testedWith(TestSettings(300)).implement(two)((s, n) => if s.size > 1 && n == 1 then s else s.filter(_.pages >= minPages.value).take(n))
     assertEquals(kb.exampleResults(two).flatMap(_.implementation), List("ok", "ok", "ok"))

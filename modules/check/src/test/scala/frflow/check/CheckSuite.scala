@@ -150,14 +150,14 @@ class CheckSuite extends munit.FunSuite:
     val double = Param[BigInt => BigInt]("double", "twice a number")
     val doubles = Node.claim("Doubles", "Doubling a number adds it to itself.", why = "w")(forall((x: Term[BigInt]) => double(x) === x + x))
     val one = Node.contract(double)("AddsOne", "Doubling adds the number and one.", why = "w")((x, r) => r === x + x + 1)
-      .under(doubles).examples(expect(BigInt(1), BigInt(3), "one"), reject(BigInt(1), BigInt(2), "not two"))
+      .under(doubles).examples(expect(BigInt(1), BigInt(3), "one"), never(BigInt(1), BigInt(2), "not two"))
     val kb = KnowledgeBase("Twice")(doubles, one)
     val found = Refutation.candidate(kb, doubles, identity).getOrElse(fail("no case found"))
     assertEquals((found.shown, found.what), ("x = 0", "the contract gives 1, which the claim refuses"))
     assert(found.lean.contains("theorem refutes : ¬ Twice.Doubles.Obl.complete := by") && found.lean.contains("have h := h 0"), found.lean)
     // a contract that only bounds its result gives no answer to try
     val bounded = Node.contract(double)("AtLeast", "Doubling gives at least the number.", why = "w")((x, r) => r >= x)
-      .under(doubles).examples(expect(BigInt(1), BigInt(2), "two"), reject(BigInt(1), BigInt(0), "not less"))
+      .under(doubles).examples(expect(BigInt(1), BigInt(2), "two"), never(BigInt(1), BigInt(0), "not less"))
     assertEquals(Refutation.candidate(KnowledgeBase("Twice")(doubles, bounded), doubles, identity), None)
     // on the step's line: the case, then the hint to look at the change first
     val r = Verdict.refuted(Result(ObligationName.Complete, ObligationStatus.Open, "omega could not prove the goal"), found)

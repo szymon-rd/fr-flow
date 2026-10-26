@@ -97,7 +97,7 @@ private[frflow] object Validation:
     List(
       kb.nodes.filter(n => n.cases.nonEmpty && n.post.isEmpty).map(n => s"${n.id}: only contracts and assumptions on an operation have examples"),
       contracts.filterNot(n => n.cases.exists(_.expected) && n.cases.exists(!_.expected))
-        .map(n => s"${n.id}: a contract needs examples: at least one expect (what it must allow) and one reject"),
+        .map(n => s"${n.id}: a contract needs examples: at least one expect (what it must allow) and one never (what it must refuse)"),
       // An implementation that always returns the same value must fail some example.
       contracts.flatMap { n =>
         n.cases.filter(_.expected).map(_.result).distinct match

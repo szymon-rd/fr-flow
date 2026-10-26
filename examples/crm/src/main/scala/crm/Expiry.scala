@@ -17,9 +17,9 @@ val sharesExpire = Node.contract(expire)("SharesExpire",
       CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("initech"))), Nil), "Globex's share ended at 100; Initech's stays"),
     expect(CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("globex"))), List(Expiry(1, TenantId("globex"), 100))), 50,
       CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("globex"))), List(Expiry(1, TenantId("globex"), 100))), "before 100 nothing ends"),
-    reject(CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("globex")), Share(1, TenantId("initech"))), List(Expiry(1, TenantId("globex"), 100))), 150,
+    never(CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("globex")), Share(1, TenantId("initech"))), List(Expiry(1, TenantId("globex"), 100))), 150,
       CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), Nil, Nil), "a share that has not ended is never removed"),
-    reject(CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("globex"))), List(Expiry(1, TenantId("globex"), 100))), 150,
+    never(CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("globex"))), List(Expiry(1, TenantId("globex"), 100))), 150,
       CrmStore(Nil, Nil, Nil), "a run never removes a record"))
   .exempt(noCrossTenantRead, "the store it returns goes to storage, never to a reader")
 
@@ -74,9 +74,9 @@ val expiryJob = Node.contract(runExpiry)("ExpiryJob",
       World(DatabaseModel -> Tables(twoStored, earlier :+ Event.Expired(150))), "two records: the contact's share with Globex ended; the database stores the contact's rows again"),
     expect(BigInt(50), World(DatabaseModel -> Tables(globexUntil100, earlier)), globexUntil100,
       World(DatabaseModel -> Tables(globexUntil100, earlier :+ Event.Expired(50))), "before 100 nothing ends, and the run is still logged"),
-    reject(BigInt(150), World(DatabaseModel -> Tables(globexUntil100, earlier)), initechOnly,
+    never(BigInt(150), World(DatabaseModel -> Tables(globexUntil100, earlier)), initechOnly,
       World(DatabaseModel -> Tables(globexUntil100, earlier :+ Event.Expired(150))), "a run that stores nothing leaves an ended share in the database"),
-    reject(BigInt(150), World(DatabaseModel -> Tables(globexUntil100, earlier)), initechOnly,
+    never(BigInt(150), World(DatabaseModel -> Tables(globexUntil100, earlier)), initechOnly,
       World(DatabaseModel -> Tables(initechOnly, earlier)), "a run is never left out of the event log"))
   .exempt(noCrossTenantRead, "it hands the new store to the database and returns nothing to a reader")
 

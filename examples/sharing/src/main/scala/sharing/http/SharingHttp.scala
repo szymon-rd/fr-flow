@@ -96,13 +96,13 @@ object SharingHttp:
         at(bobViewsPlan), "Ann shares the plan with Bob: the store holds the new share, and its entry in the log"),
       expect(shareWithBob, at(library).failing(false, true), Failed(Failure.StoreUnavailable), at(library),
         "the store fails as the share is saved: nothing changes"),
-      reject(shareWithBob, at(library).failing(false, true), Failed(Failure.StoreUnavailable), at(bobViewsPlan),
+      never(shareWithBob, at(library).failing(false, true), Failed(Failure.StoreUnavailable), at(bobViewsPlan),
         "a request the store fails is never half kept"),
       expect(Request.Share(bob, Target.Doc(plan), Grantee.Person(bob), Level.Edit, None), at(library), Answer.Refused,
         at(library), "Bob may not edit the plan: refused, and the store keeps the library"),
-      reject(Request.Share(ann, Target.Doc(plan), Grantee.Person(bob), Level.View, None), at(library), Answer.Done,
+      never(Request.Share(ann, Target.Doc(plan), Grantee.Person(bob), Level.View, None), at(library), Answer.Done,
         at(library), "a change answered done is kept"),
-      reject(Request.Access(cat, plan), at(library), Answer.Access(Some(Level.View)), at(library),
+      never(Request.Access(cat, plan), at(library), Answer.Access(Some(Level.View)), at(library),
         "Cat has no access to the plan"))
 
   /** The handling, one transaction (Q18): the time, the library, the one the request leaves kept when it differs, the

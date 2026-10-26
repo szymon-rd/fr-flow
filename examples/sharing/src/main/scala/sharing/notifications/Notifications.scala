@@ -108,7 +108,7 @@ object Notifications:
       expect(library, library, catInvitedBy, entry, library.copy(outbox = List(Notice(cat, Subject.Logged(entry)))), "Cat is told of her invitation"),
       expect(library, library, Request.Share(ann, Target.Doc(plan), Grantee.Person(bob), Level.View, None), entry, library,
         "a share tells nobody"),
-      reject(library, library, catInvitedBy, entry, library, "an invitation is never kept from the person invited"))
+      never(library, library, catInvitedBy, entry, library, "an invitation is never kept from the person invited"))
 
   val announceCode = define { (lib: Term[Library], before: Term[Library], r: Term[Request], e: Term[Entry]) =>
     lib.copy((outbox = lib.outbox ++ noticesOf(before, r, e)))
@@ -153,7 +153,7 @@ object Notifications:
         "Bob's share ends in a day: he is told"),
       expect(library.copy(shares = bobsHourEndsInADay :: library.shares), now - 3600, library.copy(shares = bobsHourEndsInADay :: library.shares),
         "a day and an hour before: not yet"),
-      reject(library.copy(shares = bobsHourEndsInADay :: library.shares), now, library.copy(shares = bobsHourEndsInADay :: library.shares),
+      never(library.copy(shares = bobsHourEndsInADay :: library.shares), now, library.copy(shares = bobsHourEndsInADay :: library.shares),
         "a share ending is never left untold"))
 
   val warnCode = define { (lib: Term[Library], t: Term[BigInt]) =>
@@ -208,7 +208,7 @@ object Notifications:
       expect(at(List(told), boxes(told)), (), at(Nil, boxes(told)), "sent again after that: not delivered twice"),
       expect(at(List(told), Map.empty).failing(true), Failed(Failure.StoreUnavailable), at(List(told), Map.empty),
         "the outbox cannot be read: nothing changes"),
-      reject(at(List(told), Map.empty).failing(false, true, true, true), (), at(Nil, Map.empty, now + 3),
+      never(at(List(told), Map.empty).failing(false, true, true, true), (), at(Nil, Map.empty, now + 3),
         "a notice never leaves the outbox undelivered"))
 
   /** One person's notice: sent with retries; once the mail server has it, taken out of the outbox in one transaction.

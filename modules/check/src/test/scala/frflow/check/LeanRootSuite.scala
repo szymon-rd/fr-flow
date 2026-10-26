@@ -21,7 +21,7 @@ class LeanRootSuite extends LeanLab:
       .examples(minPages.bind(100))(
         expect(List(Book("Long", 300)), 5, List(Book("Long", 300)), "the long book"),
         expect(List(Book("Short", 20)), 5, Nil, "none"),
-        reject(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
+        never(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
     val w = workflow(KnowledgeBase("Guard", idea = "IDEA.md")(guard, books, picking, c))
     val root = of(w.check(), "Guard")
     assertEquals(result(root, "idle").map(_.status.toString), Some("shown"), root)

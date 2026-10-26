@@ -92,7 +92,7 @@ class SnapshotSuite extends munit.FunSuite:
       (shelf, n, picked) => picked.forall(b => b.pages >= minPages && shelf.contains(b)))
       .examples(minPages.bind(100))(
         expect(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
-        reject(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
+        never(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
     val kb = KnowledgeBase("Calls", idea = "IDEA.md")(pickedAgain, againC, promise2).implementProven(promise2)(longOnes).implementProven(againC)(viaPick)
     val d = Desk(callsKb).acceptAll.withKb(kb)
     assertEquals(Graph(d.analysis.snapshot).restsOn(d.node("Again").node), ids("PickedAgain", "PickPromise"))

@@ -59,12 +59,12 @@ val introspectContract = Node.contract(introspect)("Introspect",
     expect(acme, "t2", None, "Bob was disabled after signing in: his token is no longer accepted"),
     expect(acme, "t3", None, "Alice signed out with t3"),
     expect(acme, "t9", None, "a token no sign-in got"),
-    reject(globex, "t1", Some(Claims(globex, "alice", List("admin", "user"))), "a token is never good in another realm"),
-    reject(acme, "t4", Some(Claims(acme, "carol", List("viewer"))), "nor is globex's token good at acme"),
-    reject(acme, "t2", Some(Claims(acme, "bob", List("user"))), "a disabled user's token is never accepted"),
-    reject(acme, "t3", Some(Claims(acme, "alice", List("admin", "user"))), "a token signed out with is never accepted again"),
-    reject(acme, "t1", Some(Claims(acme, "alice", List("admin", "user", "owner"))), "roles are never made up"),
-    reject(acme, "t1", None, "Alice's token is not turned away"))
+    never(globex, "t1", Some(Claims(globex, "alice", List("admin", "user"))), "a token is never good in another realm"),
+    never(acme, "t4", Some(Claims(acme, "carol", List("viewer"))), "nor is globex's token good at acme"),
+    never(acme, "t2", Some(Claims(acme, "bob", List("user"))), "a disabled user's token is never accepted"),
+    never(acme, "t3", Some(Claims(acme, "alice", List("admin", "user"))), "a token signed out with is never accepted again"),
+    never(acme, "t1", Some(Claims(acme, "alice", List("admin", "user", "owner"))), "roles are never made up"),
+    never(acme, "t1", None, "Alice's token is not turned away"))
 
 // ============================================================================
 // Looking up a session: the store, outside the proven core
@@ -83,8 +83,8 @@ val sessionLookup = Node.assumption(lookup)("SessionLookup",
     expect(acme, "t1", Some(Session("t1", acme, "alice")), "acme's session of t1"),
     expect(globex, "t1", None, "the store keeps sessions per realm: none of globex under t1"),
     expect(acme, "t3", None, "Alice signed out with t3: its session is gone"),
-    reject(acme, "t1", None, "a session the store holds is never lost"),
-    reject(globex, "t1", Some(Session("t1", acme, "alice")), "another realm's session is never returned"))
+    never(acme, "t1", None, "a session the store holds is never lost"),
+    never(globex, "t1", Some(Session("t1", acme, "alice")), "another realm's session is never returned"))
 
 /** The session the store holds under a token in a realm: what the index is checked against. */
 val storedSession = define { (realm: Term[RealmId], token: Term[String]) => sessions(realm).find(x => x.token === token && x.realm === realm) }
