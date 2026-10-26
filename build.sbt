@@ -1,7 +1,7 @@
 ThisBuild / scalaVersion := "3.10.0"
 ThisBuild / scalacOptions ++= Seq("-deprecation", "-feature", "-Werror", "-language:implicitConversions")
 
-// One version of each library, for every module; each module lists the ones it imports.
+// Library versions, shared by every module.
 val circe = "io.circe" %% "circe-core" % "0.14.17"
 val circeParser = "io.circe" %% "circe-parser" % "0.14.17"
 val cats = "org.typelevel" %% "cats-core" % "2.13.0"
@@ -10,7 +10,7 @@ val catsEffectKernel = "org.typelevel" %% "cats-effect-kernel" % "3.6.3"
 val fs2 = Seq("co.fs2" %% "fs2-core" % "3.12.2", "co.fs2" %% "fs2-io" % "3.12.2")
 val decline = "com.monovore" %% "decline" % "2.5.0"
 val http4s = Seq("http4s-ember-server", "http4s-dsl", "http4s-circe").map("org.http4s" %% _ % "0.23.33") :+
-  // Ember logs through SLF4J: without a binding it warns on start. The routes answer every failure themselves.
+  // Ember logs through SLF4J and warns on start without a binding. The routes handle their own failures, so its log is discarded.
   "org.slf4j" % "slf4j-nop" % "1.7.36"
 val munit = "org.scalameta" %% "munit" % "1.1.1" % Test
 val munitEffect = "org.typelevel" %% "munit-cats-effect" % "2.1.0" % Test
@@ -45,7 +45,7 @@ def module(name: String, libraries: ModuleID*) = Project(name, file(s"modules/$n
 lazy val model = module("model", cats, catsEffectKernel, catsEffect).dependsOn(protocol)
 
 /** The data crossing modules and files: the snapshot, the review, the ledger and checks, with their JSON codecs; ids and
-  * statuses as types (package `frflow.protocol`).
+  * statuses (package `frflow.protocol`).
   */
 lazy val protocol = module("protocol", circe, circeParser % Test)
 
@@ -59,7 +59,7 @@ lazy val ledger = module("ledger", cats, catsEffect, circe, circeParser, munitEf
 lazy val check = module("check", (Seq(cats, catsEffect, circe, circeParser, munitEffect) ++ fs2)*)
   .dependsOn(lean % "compile->compile;test->test", ledger)
 
-/** The one API a front end calls (the CLI, the web view): typed values over `IO`. */
+/** The API the front ends (the CLI, the web view) call, over `IO`. */
 lazy val api = module("api", cats, catsEffect, circe, munitEffect).dependsOn(check % "compile->compile;test->test")
 
 /** The command line a project's main object extends (`FrFlowApp`): commands, colors, interactive review; layers on top add

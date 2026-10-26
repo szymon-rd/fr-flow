@@ -37,7 +37,7 @@ project whose developer set it up without the layer.
    as they like. Record it verbatim: `said TEXT` (each message that tells the
    idea or corrects it). Do not write files yet.
 3. **Ask, 3 to 5 questions at a time**, each with the answer you assume, so
-   the developer can just agree or correct it: "Can a company share a record
+   the developer can agree or correct it: "Can a company share a record
    with another? I assume yes, only the owner can, until a date." Ask what
    decides the root and the first split: who the users are, what they can do,
    what must never happen, what the system keeps, what is out of scope. Record
@@ -129,7 +129,7 @@ section come back to them.
 
 `bin/frflow <kb> COMMAND` from the repository root (`sbt "<kb>/run COMMAND"`
 works too, slower). Piped, the output is plain ASCII and not cut; `--json` on
-`tree`, `show`, `inbox`, `status` and `check` prints the typed value. `--help`
+`tree`, `show`, `inbox`, `status` and `check` prints JSON. `--help`
 gives the rest.
 
 | command | use |
@@ -224,7 +224,7 @@ val sessionLookup = Node.assumption(lookup)("SessionLookup",          // keycloa
 ## Writing terms
 
 Formulas and proven code are terms (`Term[A]`), built from the library's
-operations; there is no macro, so what is not offered is a type error.
+operations; what it does not offer is a type error.
 
 - **Annotate lambda parameters** as terms: `(s: Term[CrmStore], now: Term[BigInt]) => ...`.
   Quantifiers too: `forall((u: Term[User.T]) => ...)`, `exists(...)`, one or two variables.
@@ -265,7 +265,7 @@ trait Database:                                       // the boundary: what prov
   def logEvent(e: Term[Event]): Flow[Unit]
 val db = Boundary[Database]("database", "the SQLite database the CRM keeps its records, shares, expiries and event log in")
 
-object DatabaseModel extends Database, StateModel[Tables]:   // what it does, as the proofs see it
+object DatabaseModel extends Database, StateModel[Tables]:   // the model the proofs use
   def load = state.get.map(t => t.store)
   def storeAbout(id: Term[BigInt], s: Term[CrmStore]) = state.update(t => Tables(replaceAbout(t.store, id, aboutRecord(s, id)), t.events))
   def logEvent(e: Term[Event]) = state.update(t => Tables(t.store, t.events ++ List(e)))
@@ -273,7 +273,7 @@ val tablesModel = Node.assumption(db)(DatabaseModel)("TablesModel", "...", why =
   .checkedAgainst(t => SqliteDatabase.holding(t), _.tables)    // an outside system: assumed, checked
   .implementedBy(t => MemoryDatabase.holding(t), _.tables)     // the project's own code: tested
 
-def expireOnce(now: Term[BigInt]): Flow[CrmStore] =   // the code: a plain def, Cats-style
+def expireOnce(now: Term[BigInt]): Flow[CrmStore] =   // the code, in Cats style
   for
     s <- db.load
     t  = expire(s, now)
@@ -338,8 +338,8 @@ def expireOnce(now: Term[BigInt]): Flow[CrmStore] =   // the code: a plain def, 
 
 Code under a contract is **proven** (a `define` or a flow, written with terms),
 **tested** (plain Scala, tested against the contract on generated cases) or
-**assumed** (an outside system). Write terms where the proof is the point and
-the code is small (a decision rule, a flow's steps); write plain Scala for the
+**assumed** (an outside system). Write terms where the code is small and worth
+proving (a decision rule, a flow's steps); write plain Scala for the
 lowest-level code (a lookup through an index, a parser, a store), and attach it
 with `implement`, naming the operations it calls:
 
