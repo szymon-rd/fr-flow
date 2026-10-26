@@ -1,5 +1,34 @@
 {
   "decisions": {
+    "AnswerWhenFree": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T21:48:16.484724Z",
+        "reason": "What booking answers, as a root of its own: booked exactly when the room is free.",
+        "rejected": [],
+        "commit": "5dfd26d3e3a4e189330405ba025c7b408c8e0d6b",
+        "key": "b6e216cfdf46a202",
+        "sig": "Shb1Z4xS7eJnZ05uDXyL21s3POkm97g0EUwABhrwQWiQn0I68E4GQGWm3reeJXwO8vtKxKDAezgMKdiA0XHJAQ==",
+        "chain": "c182d4664cd771bde270bc06bb7b1c02d3cd4587b07e325daa988d872e330b9d",
+        "content": "969670ba2aac31cc"
+      }
+    ],
+    "BookWhenFree": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T21:48:13.515294Z",
+        "reason": "The service's purpose as one equation: after a request the store holds it added exactly when its room is free, and is unchanged otherwise.",
+        "rejected": [],
+        "code": "b521dd910a9d3e116f97f7b6214c82c6a56466bfa452c45d5b5b2cdf51f1d5d0",
+        "commit": "5dfd26d3e3a4e189330405ba025c7b408c8e0d6b",
+        "key": "b6e216cfdf46a202",
+        "sig": "ZOpFo1VayhLPSACMpz8B3aPXpZnsUmatNjnNg2DGCYNvmORhzkCymm28A8Afwvv2EDB8/UOQtWZVubLgnMrcDQ==",
+        "chain": "c182d4664cd771bde270bc06bb7b1c02d3cd4587b07e325daa988d872e330b9d",
+        "content": "4badc410b7e685f3"
+      }
+    ],
     "BookWhenGranted": [
       {
         "action": "accept",
@@ -25,6 +54,20 @@
         "sig": "yZL9wNoOT57wINiZunO/m5GtLWy4+zkhbT4+Z3CGWkU/7cDGAqihG6WVxvOO1aySrIovChv2wUPB0jur6qc2Bg==",
         "chain": "e4a98148a7d04f3a28f967016d49af8c13d53392d86c2898fd40f237af15ad5c",
         "content": "b0f14c28f199e36d"
+      }
+    ],
+    "EndsAfterStart": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T21:47:38.105176Z",
+        "reason": "Every booking that can be made ends after it starts, so no statement has to say it again.",
+        "rejected": [],
+        "commit": "5dfd26d3e3a4e189330405ba025c7b408c8e0d6b",
+        "key": "b6e216cfdf46a202",
+        "sig": "oTTAMBcu7OzIHZyspXPNtYWSnJJD4fv3a1PCVx2zWIo4iP/Nkrg1UPS5WyLZnnfH9kuuL44lr34Pf6mhSLq/Cw==",
+        "chain": "",
+        "content": "d54f877fcc19d24d"
       }
     ],
     "GrantWhenFree": [
@@ -208,6 +251,19 @@
         "sig": "xujwBYU+6NL2laWG6nDvVaaShkAYHSa5PzMzceSa9MopzaDrU7SWaYY5isvDxVB6ruZqlACAEufZs/FQl/xGBA==",
         "chain": "26be39575f2368f01041645b6e93d8033471282da24aaf4c2272e96d18403d9f",
         "content": "919002e2e70b5cbe"
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T21:48:19.240152Z",
+        "reason": "The calendar's part over moments, one equation: a request is granted exactly when its room is free.",
+        "rejected": [],
+        "after": "9f9fdc49f3006119",
+        "commit": "5dfd26d3e3a4e189330405ba025c7b408c8e0d6b",
+        "key": "b6e216cfdf46a202",
+        "sig": "lbvzBGGNZkyFY40F/bK+Ne+/58ZmQ+3X+vhRte67q1ivNtcE0E1ZlROOyPOadxWVD4mIxfFxXXC41WGTYXC8Ag==",
+        "chain": "e084c565dd4434fd9db34459357f020d69cbbf2ce8d824436e7e6c5706507df6",
+        "content": "b51b8fb56cbc24ad"
       }
     ],
     "GrantWhenNoOverlap": [
@@ -419,6 +475,20 @@
         "sig": "GYExw2gXCwS5uodKEgwK6GBPMxyuAqs/H42+IEUwNLTbiDAoIj+kB9wDq3wrwzfGYutF8x0U/hp87CNHjag4Bg==",
         "chain": "384f4bbc6d0e7d0be36dc7a9be7cadedb5839c385d6a343e9a6d625b826bc9f3",
         "content": "c9a094f6d7898477"
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T21:48:22.396038Z",
+        "reason": "The same answer over start and end times, the claim the calendar's code is tested against.",
+        "rejected": [],
+        "after": "55e9350a335ff4ff",
+        "code": "d5bd118eef959836cc40ab68515c6918f2ac6e97823d5d612d781e5ce63e6fcc",
+        "commit": "5dfd26d3e3a4e189330405ba025c7b408c8e0d6b",
+        "key": "b6e216cfdf46a202",
+        "sig": "PsIuq9yp1tzGfqMO6p/GpX38cy8Gfnb9TsFJn7zn96myacqNLZm449O4QpHqWj9vlTjn32VnkaJW0YTiSNwMAw==",
+        "chain": "a4e8447ce6ab8d6fb2ba5361a9d272ab47f496d60ec27d5c36adf082a37c7a7b",
+        "content": "c90f5fba5dda031e"
       }
     ],
     "NeverDoubleBooked": [
@@ -448,6 +518,76 @@
         "sig": "tVYYqVcceNOCCRTYpmKB2oNSw8P0n5ViqQSotoNZ177mcGOtEvQ1JANUfe60zj4yQ/TOl55GHdtqfskKthzBCA==",
         "chain": "",
         "content": "a583c73cf76ffdd9"
+      },
+      {
+        "action": "remove",
+        "by": "demo-developer",
+        "at": "2026-10-26T21:47:25.027094Z",
+        "reason": "Its ideas are now roots of their own: what booking stores, what it answers, and what the store always holds.",
+        "rejected": [],
+        "after": "d11aa199a078d512",
+        "code": "d35f6f6c64304cc69a31f45a0fb56df6a6dfd6f8e85a61612b08560e1d7f8b62",
+        "commit": "5dfd26d3e3a4e189330405ba025c7b408c8e0d6b",
+        "key": "b6e216cfdf46a202",
+        "sig": "f03W1w0/CwrFVgUyNKQmxW1AZfWhRuj3qRho/CTcvI99UNKsd9VKpAEVJPQmivxe9+SV+RfEkdq8z9IWFb83DQ==",
+        "chain": "",
+        "content": "a583c73cf76ffdd9"
+      }
+    ],
+    "NeverOverlap": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T21:47:35.324073Z",
+        "reason": "What the store always holds, proven kept by booking, the one program writing it, from a start that holds it.",
+        "rejected": [],
+        "commit": "5dfd26d3e3a4e189330405ba025c7b408c8e0d6b",
+        "key": "b6e216cfdf46a202",
+        "sig": "wAcwGDUWVbDgppIqGPryabRac09Q+8jwnHhm2j3gnatluuEZrn3AZdhK3S90UgcTjLRYm42f6oAyWktJm820Bg==",
+        "chain": "",
+        "content": "5e70cefcd85d3d61"
+      }
+    ],
+    "OneAtATime": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T21:48:28.317164Z",
+        "reason": "One process books, in a transaction, so bookings are made one at a time.",
+        "rejected": [],
+        "commit": "5dfd26d3e3a4e189330405ba025c7b408c8e0d6b",
+        "key": "b6e216cfdf46a202",
+        "sig": "LHlRFKmqaZ8x2qLCEo1ihipDUlKoo17EXFEoZA3QPZlsj2e07JsxYGFBygRCN+iEmfFStmzUsL9440ZXHl5UAw==",
+        "chain": "4d556aabb191d6b35ba6cbe93f4069c0f501b461105b00468fc652abf41d73f7",
+        "content": "a3a0a46b7b62956f"
+      }
+    ],
+    "OnlyBookingWrites": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T21:47:48.665563Z",
+        "reason": "Only the booking service writes the bookings table: no other program or person changes it.",
+        "rejected": [],
+        "commit": "5dfd26d3e3a4e189330405ba025c7b408c8e0d6b",
+        "key": "b6e216cfdf46a202",
+        "sig": "adQNlpxGx7TH8LSLyFALrY6zzcMdSLXdNct8HKtvXP0YuT8zFGCNA6KgQZLKcK6XdU/S+DH/Ln/vLb8SXhOMCQ==",
+        "chain": "377c4e3b1b36ec77df908997cb510adaf49e2d0ff8cdb95b67c0c70589dc0278",
+        "content": "ed5a91f7bbd9af85"
+      }
+    ],
+    "StartsApart": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T21:47:54.186321Z",
+        "reason": "The bookings table is created empty, and so starts with no two bookings overlapping.",
+        "rejected": [],
+        "commit": "5dfd26d3e3a4e189330405ba025c7b408c8e0d6b",
+        "key": "b6e216cfdf46a202",
+        "sig": "jJfRUoD0yBdmv4XXv1UDoLRwbLZ32YwSrwG5pWA+2pI3/DBHU0n0927DRqcceTe1WH52iZ6/fFYVlTXgnWn3AA==",
+        "chain": "377c4e3b1b36ec77df908997cb510adaf49e2d0ff8cdb95b67c0c70589dc0278",
+        "content": "84ac6da69633b8f0"
       }
     ],
     "StoreKeepsBookings": [
@@ -491,11 +631,43 @@
         "sig": "KwpE9b+WjEKMOQFCjCZ22lqnu/Ku/kxSjTxuiG+/Waf93HwVGUgCRqLJkARu/9SJSN9t+fQNHGjfJ2FWMlwcAQ==",
         "chain": "26be39575f2368f01041645b6e93d8033471282da24aaf4c2272e96d18403d9f",
         "content": "93603d9b1575dc05"
+      },
+      {
+        "action": "remove",
+        "by": "demo-developer",
+        "at": "2026-10-26T21:47:27.639565Z",
+        "reason": "The store's model is now the assumption StoreModel, one idea, a premise of the booking claims.",
+        "rejected": [],
+        "after": "1949e6c954b06ba1",
+        "code": "d272da1ce4eea351c0a92c2f63f427d14c735d49496b830ad0ab4e3d03b5e643",
+        "commit": "5dfd26d3e3a4e189330405ba025c7b408c8e0d6b",
+        "key": "b6e216cfdf46a202",
+        "sig": "yDRsnzefnmqyUyhcieNuHWGWRA7G5qDrfoGtYR2lnlOC+GihEowOA0HIG3hT6Iqo/KsbV0TcM9ZqY6ESEASKAA==",
+        "chain": "26be39575f2368f01041645b6e93d8033471282da24aaf4c2272e96d18403d9f",
+        "content": "93603d9b1575dc05"
+      }
+    ],
+    "StoreModel": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T21:48:25.295536Z",
+        "reason": "The store's model booking is proven from; SqliteBookings is checked against it on generated runs.",
+        "rejected": [],
+        "code": "30daa531d0632d7453d5e6b060f9d7e3bada5efe62b769dcf49bad043d737178",
+        "commit": "5dfd26d3e3a4e189330405ba025c7b408c8e0d6b",
+        "key": "b6e216cfdf46a202",
+        "sig": "iGN8wbUeweC056qWMDJGK88rk9vcKRewDCrrYgU+4fj//wk8nVNhZ9JzkY8MefrMW96LKRboct4F1RToL2rnDw==",
+        "chain": "de3126fd65d5c6afad36bca8215578dede3e2f263e7a9596b1750f0f86ac3479",
+        "content": "4d5828f1049db2f9"
       }
     ]
   },
   "contents": {
+    "969670ba2aac31cc": {"kind":"f0c4b6b1b355b1eb","parents":[],"parts":["e72512f596f0fa39"],"statement":"7ae91038a442db68","why":"12ae32cb1ec02d01","sources":"807f323ae40282e1","substitutions":[],"examples":[],"vocabulary":["baba82b9a73e1053"],"uses":["a47ee2f71b1ac7c0","abd21bfab553bb63","ee1da66ec0c05500","df67d584972a5787"],"governs":[],"definition":"1cc557a8bcddf50b","op":"f10eb448275d33b2","implementation":"3db318f09d7fe8d5","idea":"12ae32cb1ec02d01","notModelled":"12ae32cb1ec02d01"},
+    "4badc410b7e685f3": {"kind":"f0c4b6b1b355b1eb","parents":[],"parts":["e72512f596f0fa39"],"statement":"3670973bf0c34ecb","why":"12ae32cb1ec02d01","sources":"362708e47fb323d3","substitutions":[],"examples":[],"vocabulary":["baba82b9a73e1053"],"uses":["a47ee2f71b1ac7c0","abd21bfab553bb63","ee1da66ec0c05500","df67d584972a5787"],"governs":[],"definition":"722b02ed06f2e6b9","op":"f10eb448275d33b2","implementation":"3db318f09d7fe8d5","idea":"12ae32cb1ec02d01","notModelled":"12ae32cb1ec02d01"},
     "b0f14c28f199e36d": {"kind":"304aeb6aeb928120","parents":[],"parts":[],"statement":"9650d769e46ff70d","why":"12ae32cb1ec02d01","sources":"08abad91b585ccd8","substitutions":[],"examples":["53115e1af16c6d95","9bb38717f9f68218","1c5a1ffbc5a0520f"],"vocabulary":["baba82b9a73e1053","b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","15f471c9f04720cf","b19152feb947df4a","444005fd2a425d98"],"governs":[],"definition":"fc2922c91dc2653e","op":"f10eb448275d33b2","implementation":"54b0cd7bf6d961df"},
+    "d54f877fcc19d24d": {"kind":"f0c4b6b1b355b1eb","parents":[],"parts":[],"statement":"87100f4c3a915cf2","why":"12ae32cb1ec02d01","sources":"756d74934089c4a1","substitutions":[],"examples":[],"vocabulary":[],"uses":["a47ee2f71b1ac7c0"],"governs":[],"definition":"cd2953b1bf38b5ee","idea":"12ae32cb1ec02d01","notModelled":"12ae32cb1ec02d01"},
     "d4d79991dc0587e7": {"kind":"f0c4b6b1b355b1eb","parents":[],"parts":["30898cc7841d7a38"],"statement":"f4a34603beac61c4","why":"8048e6664ee1cce5","sources":"560d5e57406c2894","substitutions":[],"examples":[],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","5c3bea1d8243b41a","efd2c3af61877513","e0823bbe58f381e6","df67d584972a5787"],"governs":[],"definition":"0af968b51955fd5d","idea":"12ae32cb1ec02d01","notModelled":"12ae32cb1ec02d01"},
     "3f5556a8d3c08045": {"kind":"f0c4b6b1b355b1eb","parents":[],"parts":["30898cc7841d7a38"],"statement":"f4a34603beac61c4","why":"a49088fd91286f38","sources":"560d5e57406c2894","substitutions":[],"examples":[],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","5c3bea1d8243b41a","efd2c3af61877513","e0823bbe58f381e6","df67d584972a5787"],"governs":[],"definition":"ea200e98491bdb91","idea":"12ae32cb1ec02d01","notModelled":"12ae32cb1ec02d01"},
     "811b7498f54bec2b": {"kind":"f0c4b6b1b355b1eb","parents":[],"parts":["30898cc7841d7a38"],"statement":"f4a34603beac61c4","why":"a0bf977e1eb17181","sources":"cd41a306349d2450","substitutions":[],"examples":[],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","17f01caec8d8e3d6","df67d584972a5787","e0823bbe58f381e6"],"governs":[],"definition":"678ab818c4280986","idea":"12ae32cb1ec02d01","notModelled":"12ae32cb1ec02d01"},
@@ -509,6 +681,7 @@
     "f2c4848be4038460": {"kind":"f0c4b6b1b355b1eb","parents":[],"parts":["30898cc7841d7a38"],"statement":"f4a34603beac61c4","why":"12ae32cb1ec02d01","sources":"c9882d9367c76989","substitutions":[],"examples":[],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","d72fcda1215e0dd8","b19152feb947df4a","ee1da66ec0c05500","df67d584972a5787"],"governs":[],"definition":"6ec4764cfb44d376","idea":"12ae32cb1ec02d01","notModelled":"12ae32cb1ec02d01"},
     "dbbd176838c1a8d2": {"kind":"f0c4b6b1b355b1eb","parents":[],"parts":["30898cc7841d7a38"],"statement":"f4a34603beac61c4","why":"12ae32cb1ec02d01","sources":"9cdd3cb98cf45d1f","substitutions":[],"examples":[],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","15f471c9f04720cf","b19152feb947df4a","ee1da66ec0c05500","df67d584972a5787"],"governs":[],"definition":"de099b89ca72ff0a","idea":"12ae32cb1ec02d01","notModelled":"12ae32cb1ec02d01"},
     "919002e2e70b5cbe": {"kind":"f0c4b6b1b355b1eb","parents":["d5cc8f27a2e5a71e"],"parts":["30898cc7841d7a38"],"statement":"f4a34603beac61c4","why":"12ae32cb1ec02d01","sources":"9cdd3cb98cf45d1f","substitutions":[],"examples":[],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","15f471c9f04720cf","b19152feb947df4a","ee1da66ec0c05500","df67d584972a5787"],"governs":[],"definition":"871eb0e04404dea3"},
+    "b51b8fb56cbc24ad": {"kind":"f0c4b6b1b355b1eb","parents":["9ac19434769a3b60","3ba7cc61fd1fbfff"],"parts":["30898cc7841d7a38"],"statement":"f4a34603beac61c4","why":"12ae32cb1ec02d01","sources":"15c797807dbacc81","substitutions":[],"examples":[],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","abd21bfab553bb63","ee1da66ec0c05500","df67d584972a5787"],"governs":[],"definition":"9d435d3db4bb2cfb","op":"7804505e6feac9b3"},
     "a24fe3a9b0d1ab7a": {"kind":"304aeb6aeb928120","parents":["e72512f596f0fa39"],"parts":[],"statement":"bc04883931e3f63f","why":"03288b643fc162e4","sources":"afe7014e712774cf","substitutions":[],"examples":["c6a0956780bf1b32","7d481f8a773a26d8"],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","5c3bea1d8243b41a","efd2c3af61877513"],"governs":[],"definition":"85ea9cac7b787a61","op":"7804505e6feac9b3","implementation":"e8127d1d5945658b"},
     "5d4d11efce23f524": {"kind":"304aeb6aeb928120","parents":["e72512f596f0fa39"],"parts":[],"statement":"bc04883931e3f63f","why":"03288b643fc162e4","sources":"afe7014e712774cf","substitutions":[],"examples":["c6a0956780bf1b32","7d481f8a773a26d8"],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","5c3bea1d8243b41a","efd2c3af61877513"],"governs":[],"definition":"01084f01196fb200","op":"7804505e6feac9b3","implementation":"e8127d1d5945658b"},
     "bcb614244ce688c0": {"kind":"304aeb6aeb928120","parents":["e72512f596f0fa39"],"parts":[],"statement":"bc04883931e3f63f","why":"03288b643fc162e4","sources":"afe7014e712774cf","substitutions":[],"examples":["c6a0956780bf1b32","7d481f8a773a26d8"],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","d6fd28fc82132024","efd2c3af61877513"],"governs":[],"definition":"01084f01196fb200","op":"7804505e6feac9b3","implementation":"e8127d1d5945658b"},
@@ -520,29 +693,49 @@
     "e488ab14ff481e21": {"kind":"304aeb6aeb928120","parents":["e72512f596f0fa39"],"parts":[],"statement":"bc04883931e3f63f","why":"12ae32cb1ec02d01","sources":"3b99a245da9e43e6","substitutions":[],"examples":["c6a0956780bf1b32","9e02e590180ba9d2"],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","d72fcda1215e0dd8","b19152feb947df4a","444005fd2a425d98"],"governs":[],"definition":"446345f7a908a246","op":"7804505e6feac9b3","implementation":"e8127d1d5945658b"},
     "9036a919d316ea40": {"kind":"304aeb6aeb928120","parents":["e72512f596f0fa39"],"parts":[],"statement":"bc04883931e3f63f","why":"12ae32cb1ec02d01","sources":"997ff685556dc042","substitutions":[],"examples":["4f8683a7f95951ed","9d55af25df311d97"],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","d72fcda1215e0dd8","b19152feb947df4a","444005fd2a425d98"],"governs":[],"definition":"a02d0236214103ce","op":"7804505e6feac9b3","implementation":"e8127d1d5945658b"},
     "c9a094f6d7898477": {"kind":"304aeb6aeb928120","parents":["e72512f596f0fa39"],"parts":[],"statement":"bc04883931e3f63f","why":"12ae32cb1ec02d01","sources":"4d7931778ceebbe1","substitutions":[],"examples":["4f8683a7f95951ed","9d55af25df311d97"],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","15f471c9f04720cf","b19152feb947df4a","444005fd2a425d98"],"governs":[],"definition":"316b96b9c278d20a","op":"7804505e6feac9b3","implementation":"e8127d1d5945658b"},
+    "c90f5fba5dda031e": {"kind":"f0c4b6b1b355b1eb","parents":["e72512f596f0fa39"],"parts":[],"statement":"bc04883931e3f63f","why":"12ae32cb1ec02d01","sources":"4980899720ebcbef","substitutions":[],"examples":[],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","444005fd2a425d98"],"governs":[],"definition":"dfe7eade44e19cfd","op":"7804505e6feac9b3","implementation":"b2aad07a373baae1"},
     "a5d05b23df05991d": {"kind":"304aeb6aeb928120","parents":[],"parts":["e72512f596f0fa39"],"statement":"be6fd385fc37b7f8","why":"12ae32cb1ec02d01","sources":"e514a993774a18fa","substitutions":[],"examples":[],"vocabulary":["baba82b9a73e1053"],"uses":["a47ee2f71b1ac7c0","15f471c9f04720cf","b19152feb947df4a","ee1da66ec0c05500","df67d584972a5787"],"governs":[],"definition":"07e9e460167375e0","op":"f10eb448275d33b2","implementation":"54b0cd7bf6d961df","idea":"12ae32cb1ec02d01","notModelled":"12ae32cb1ec02d01"},
     "a583c73cf76ffdd9": {"kind":"304aeb6aeb928120","parents":[],"parts":["e72512f596f0fa39"],"statement":"be6fd385fc37b7f8","why":"12ae32cb1ec02d01","sources":"a3bf636445cfeb14","substitutions":[],"examples":[],"vocabulary":["baba82b9a73e1053"],"uses":["a47ee2f71b1ac7c0","15f471c9f04720cf","b19152feb947df4a","ee1da66ec0c05500","df67d584972a5787"],"governs":[],"definition":"0956b3f3b7320a0e","op":"f10eb448275d33b2","implementation":"54b0cd7bf6d961df","idea":"12ae32cb1ec02d01","notModelled":"12ae32cb1ec02d01"},
+    "5e70cefcd85d3d61": {"kind":"f0c4b6b1b355b1eb","parents":[],"parts":[],"statement":"b5e7acbbf9c8de6a","why":"12ae32cb1ec02d01","sources":"ac72cdf354cb0c88","substitutions":[],"examples":[],"vocabulary":[],"uses":["a47ee2f71b1ac7c0","ee1da66ec0c05500","df67d584972a5787"],"governs":[],"definition":"8d7b00a5e5f54ef9","idea":"12ae32cb1ec02d01","notModelled":"12ae32cb1ec02d01"},
+    "a3a0a46b7b62956f": {"kind":"8eb6bddfbc96acaa","parents":[],"statement":"6a963644f28e0b8b","why":"12ae32cb1ec02d01","sources":"949910526feb7b95","substitutions":[],"examples":[],"vocabulary":[],"uses":[],"governs":[],"definition":"1216016c5762070c"},
+    "ed5a91f7bbd9af85": {"kind":"8eb6bddfbc96acaa","parents":[],"statement":"548d39757e56529c","why":"12ae32cb1ec02d01","sources":"f5ceb50fda553139","substitutions":[],"examples":[],"vocabulary":[],"uses":[],"governs":[],"definition":"5c48b883ff026130"},
+    "84ac6da69633b8f0": {"kind":"8eb6bddfbc96acaa","parents":[],"statement":"133b1bc81f8dd8de","why":"12ae32cb1ec02d01","sources":"b06cdc5b384a5c92","substitutions":[],"examples":[],"vocabulary":[],"uses":["a47ee2f71b1ac7c0","ee1da66ec0c05500","df67d584972a5787"],"governs":[],"definition":"5363497a47a2ec56"},
     "db909405faf736e3": {"kind":"8eb6bddfbc96acaa","parents":[],"statement":"0ba0735fdca28ed2","why":"4a72dc52dd476cad","sources":"44136fa355b3678a","substitutions":[],"examples":[],"vocabulary":[],"uses":[],"governs":[],"definition":"f5e68303703e5dd0","model":["e841ad4d58d36012","83f5246eebd4b97d"],"implementations":["48d9ef896211511f"]},
-    "93603d9b1575dc05": {"kind":"8eb6bddfbc96acaa","parents":["d5cc8f27a2e5a71e"],"statement":"0ba0735fdca28ed2","why":"4a72dc52dd476cad","sources":"44136fa355b3678a","substitutions":[],"examples":[],"vocabulary":[],"uses":[],"governs":[],"definition":"cbabaaaf3e6cd7d8","model":["e841ad4d58d36012","83f5246eebd4b97d"],"implementations":["48d9ef896211511f"]}
+    "93603d9b1575dc05": {"kind":"8eb6bddfbc96acaa","parents":["d5cc8f27a2e5a71e"],"statement":"0ba0735fdca28ed2","why":"4a72dc52dd476cad","sources":"44136fa355b3678a","substitutions":[],"examples":[],"vocabulary":[],"uses":[],"governs":[],"definition":"cbabaaaf3e6cd7d8","model":["e841ad4d58d36012","83f5246eebd4b97d"],"implementations":["48d9ef896211511f"]},
+    "4d5828f1049db2f9": {"kind":"8eb6bddfbc96acaa","parents":[],"statement":"70bd0c29482bdeca","why":"12ae32cb1ec02d01","sources":"44136fa355b3678a","substitutions":[],"examples":[],"vocabulary":[],"uses":[],"governs":[],"definition":"689f5bb8ca939efb","model":["e841ad4d58d36012","83f5246eebd4b97d"],"implementations":["48d9ef896211511f"]}
   },
   "values": {
+    "f0c4b6b1b355b1eb": "claim",
+    "e72512f596f0fa39": "GrantWhenFree",
+    "7ae91038a442db68": "A request is answered booked exactly when its room is free for its whole time.",
+    "12ae32cb1ec02d01": "",
+    "807f323ae40282e1": {"formula":"forall((request: Term[Booking], before: Term[World]) =>\n  book(request).answer(before) === free(stored.in(before), request))"},
+    "baba82b9a73e1053": "book: booking a request: whether it was booked",
+    "a47ee2f71b1ac7c0": "case class Booking(room: String, start: BigInt, end: BigInt)",
+    "abd21bfab553bb63": "free = (held: Term[List[Booking]], request: Term[Booking]) => held.forall(b => apart(b, request))",
+    "ee1da66ec0c05500": "apart = (a: Term[Booking], b: Term[Booking]) =>\n  a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))",
+    "df67d584972a5787": "covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end",
+    "1cc557a8bcddf50b": "val answerWhenFree = Node.claim(\"A request is answered booked exactly when its room is free for its whole time.\")(\n  forall((request: Term[Booking], before: Term[World]) =>\n    book(request).answer(before) === free(stored.in(before), request)))\n  .assuming(storeModel, oneAtATime)",
+    "f10eb448275d33b2": "book",
+    "3db318f09d7fe8d5": "proven: bookIfGranted_run\nbookIfGranted_run = bookIfGranted\nbookIfGranted = fun (request : Booking) => do\n    let held ← BookingStore.inRoom request.room\n    let booked := (granted held request)\n    if booked then\n      BookingStore.add request\n      pure ()\n    else\n      pure ()\n    pure booked",
+    "3670973bf0c34ecb": "A request is stored exactly when its room is free for its whole time.",
+    "362708e47fb323d3": {"formula":"forall((request: Term[Booking], before: Term[World]) =>\n  val held = stored.in(before)\n  stored.in(book(request).after(before)) === when(free(held, request))(held :+ request).otherwise(held))"},
+    "722b02ed06f2e6b9": "val bookWhenFree = Node.claim(\"A request is stored exactly when its room is free for its whole time.\")(\n  forall((request: Term[Booking], before: Term[World]) =>\n    val held = stored.in(before)\n    stored.in(book(request).after(before)) === when(free(held, request))(held :+ request).otherwise(held)))\n  .assuming(storeModel, oneAtATime)",
     "304aeb6aeb928120": "contract",
     "9650d769e46ff70d": "A request is booked exactly when granted, and stored only then, so bookings never overlap.",
-    "12ae32cb1ec02d01": "",
     "08abad91b585ccd8": {"post":"(request, booked, before, after) =>\n  val (held, heldAfter) = (before(Stored), after(Stored))\n  (allEndAfterStart(held, request) && held.pairwise(noOverlap)) implies\n    (booked === granted(held.filter(b => b.room === request.room), request) &&\n      heldAfter === booked.fold(held ++ List(request), held) && heldAfter.pairwise(noOverlap))"},
     "53115e1af16c6d95": "allows (Booking(\"Oak\", 10, 11), World(Stored = List(Booking(\"Oak\", 9, 10)))) ⇒ Tuple2(true, World(Stored = List(Booking(\"Oak\", 9, 10), Booking(\"Oak\", 10, 11))))  given   — back to back: booked",
     "9bb38717f9f68218": "allows (Booking(\"Oak\", 10, 12), World(Stored = List(Booking(\"Oak\", 9, 11)))) ⇒ Tuple2(false, World(Stored = List(Booking(\"Oak\", 9, 11))))  given   — overlapping: not booked",
     "1c5a1ffbc5a0520f": "forbids (Booking(\"Oak\", 10, 12), World(Stored = List(Booking(\"Oak\", 9, 11)))) ⇒ Tuple2(true, World(Stored = List(Booking(\"Oak\", 9, 11), Booking(\"Oak\", 10, 12))))  given   — overlapping: never double-booked",
-    "baba82b9a73e1053": "book: booking a request: whether it was booked",
     "b2e584fea7550590": "granted: whether a request is granted, given the bookings held",
-    "a47ee2f71b1ac7c0": "case class Booking(room: String, start: BigInt, end: BigInt)",
     "15f471c9f04720cf": "allEndAfterStart = (held: Term[List[Booking]], request: Term[Booking]) =>\n  endsAfterStart(request) && held.forall(endsAfterStart)",
     "b19152feb947df4a": "endsAfterStart = (b: Term[Booking]) => b.start < b.end",
     "444005fd2a425d98": "noOverlap = (a: Term[Booking], b: Term[Booking]) =>\n  a.room =!= b.room || a.end <= b.start || b.end <= a.start",
     "fc2922c91dc2653e": "val bookWhenGranted =\n  Node.contract(book)(\"A request is booked exactly when granted, and stored only then, so bookings never overlap.\")(\n    (request, booked, before, after) =>\n      val (held, heldAfter) = (before(Stored), after(Stored))\n      (allEndAfterStart(held, request) && held.pairwise(noOverlap)) implies\n        (booked === granted(held.filter(b => b.room === request.room), request) &&\n          heldAfter === booked.fold(held ++ List(request), held) && heldAfter.pairwise(noOverlap)))\n  .examples(\n    allows(Booking(\"Oak\", 10, 11), holding(Booking(\"Oak\", 9, 10)), returning = true,\n      holding(Booking(\"Oak\", 9, 10), Booking(\"Oak\", 10, 11)), \"back to back: booked\"),\n    allows(Booking(\"Oak\", 10, 12), holding(Booking(\"Oak\", 9, 11)), returning = false,\n      holding(Booking(\"Oak\", 9, 11)), \"overlapping: not booked\"),\n    forbids(Booking(\"Oak\", 10, 12), holding(Booking(\"Oak\", 9, 11)), returning = true,\n      holding(Booking(\"Oak\", 9, 11), Booking(\"Oak\", 10, 12)), \"overlapping: never double-booked\"))",
-    "f10eb448275d33b2": "book",
     "54b0cd7bf6d961df": "proven: bookIfGranted_run\nbookIfGranted_run = bookIfGranted\nbookIfGranted = fun (request : Booking) => do\n    let held ← Bookings.inRoom request.room\n    let booked := (granted held request)\n    if booked then\n      Bookings.add request\n      pure ()\n    else\n      pure ()\n    pure booked",
-    "f0c4b6b1b355b1eb": "claim",
+    "87100f4c3a915cf2": "Every booking ends after it starts.",
+    "756d74934089c4a1": {"formula":"always[Booking](b => b.start < b.end)"},
+    "cd2953b1bf38b5ee": "val endsAfterStart = Node.claim(\"Every booking ends after it starts.\")(always[Booking](b => b.start < b.end))",
     "30898cc7841d7a38": "GrantWhenNoOverlap",
     "f4a34603beac61c4": "A request is granted exactly when its room is free for its whole time.",
     "8048e6664ee1cce5": "This is what people booking a room rely on.",
@@ -550,7 +743,6 @@
     "5c3bea1d8243b41a": "consistent = (held: Term[List[Booking]], request: Term[Booking]) =>\n  (request :: held).forall(b => b.start < b.end) && held.forall(a => held.forall(b => a === b || !overlaps(a, b)))",
     "efd2c3af61877513": "overlaps = (a: Term[Booking], b: Term[Booking]) => a.room === b.room && a.start < b.end && b.start < a.end",
     "e0823bbe58f381e6": "freeFor = (held: Term[List[Booking]], request: Term[Booking]) =>\n  forall((t: Term[BigInt]) => covers(request, t) ==> !held.exists(b => b.room === request.room && covers(b, t)))",
-    "df67d584972a5787": "covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end",
     "0af968b51955fd5d": "val grantWhenFree = Node.claim(\"GrantWhenFree\",\n  \"A request is granted exactly when its room is free for its whole time.\",\n  why = \"This is what people booking a room rely on.\"\n)(forall((held: Term[List[Booking]], request: Term[Booking]) =>\n  consistent(held, request) ==> (granted(held, request) === freeFor(held, request))))",
     "a49088fd91286f38": "Booking is first come, first served: a free room goes to whoever asks.",
     "ea200e98491bdb91": "val grantWhenFree = Node.claim(\"GrantWhenFree\",\n  \"A request is granted exactly when its room is free for its whole time.\",\n  why = \"Booking is first come, first served: a free room goes to whoever asks.\"\n)(forall((held: Term[List[Booking]], request: Term[Booking]) =>\n  consistent(held, request) ==> (granted(held, request) === freeFor(held, request))))",
@@ -561,7 +753,6 @@
     "ca4e519e6c7776db": "sensible = (held: Term[List[Booking]], request: Term[Booking]) =>\n  (request :: held).forall(b => b.start < b.end) && held.forall(a => held.filter(b => b === a).length === 1) &&\n    held.forall(a => held.forall(b => (a =!= b && a.room === b.room) ==> forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))))",
     "fc2f8749c88d1438": "sensible = (held: Term[List[Booking]], request: Term[Booking]) =>\n  (request :: held).forall(b => endsAfterStart(b)) &&\n  held.forall(b => heldOnce(held, b)) &&\n  held.forall(a => held.forall(b => a === b || apart(a, b)))",
     "c2534157cd87a929": "heldOnce = (held: Term[List[Booking]], b: Term[Booking]) => held.filter(x => x === b).length === 1",
-    "ee1da66ec0c05500": "apart = (a: Term[Booking], b: Term[Booking]) =>\n  a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))",
     "fdfbc7ab86f39e6b": "sensible = (held: Term[List[Booking]], request: Term[Booking]) =>\n  (request :: held).forall(endsAfterStart) && held.allDistinct && held.pairwise(apart)",
     "c3637982a5605e2b": "freeFor = (held: Term[List[Booking]], request: Term[Booking]) => held.forall(b => apart(b, request))",
     "2d9bc8a45d710065": "sensible = (held: Term[List[Booking]], request: Term[Booking]) =>\n  (request :: held).forall(endsAfterStart) && held.pairwise(apart)",
@@ -579,14 +770,17 @@
     "de099b89ca72ff0a": "val grantWhenFree =\n  Node.claim(\"A request is granted exactly when its room is free for its whole time.\")(\n    forall((held: Term[List[Booking]], request: Term[Booking]) =>\n      (allEndAfterStart(held, request) && held.pairwise(apart)) implies\n        (granted(held, request) === held.forall(b => apart(b, request))))\n  )",
     "d5cc8f27a2e5a71e": "NeverDoubleBooked",
     "871eb0e04404dea3": "val grantWhenFree =\n  Node.claim(\"A request is granted exactly when its room is free for its whole time.\")(\n    forall((held: Term[List[Booking]], request: Term[Booking]) =>\n      (allEndAfterStart(held, request) && held.pairwise(apart)) implies\n        (granted(held, request) === held.forall(b => apart(b, request))))\n  )\n  .refines(neverDoubleBooked)",
-    "e72512f596f0fa39": "GrantWhenFree",
+    "9ac19434769a3b60": "BookWhenFree",
+    "3ba7cc61fd1fbfff": "AnswerWhenFree",
+    "15c797807dbacc81": {"formula":"forall((held: Term[List[Booking]], request: Term[Booking]) => granted(held, request) === free(held, request))"},
+    "9d435d3db4bb2cfb": "val grantWhenFree = Node.claim(\"A request is granted exactly when its room is free for its whole time.\")(\n  forall((held: Term[List[Booking]], request: Term[Booking]) => granted(held, request) === free(held, request)))\n  .refines(bookWhenFree, answerWhenFree)",
+    "7804505e6feac9b3": "granted",
     "bc04883931e3f63f": "A request is granted exactly when it overlaps no booking of its room.",
     "03288b643fc162e4": "Bookings that end after they start share a moment exactly when they overlap.",
     "afe7014e712774cf": {"post":"(held, request, result) => consistent(held, request) ==> (result === !held.exists(b => overlaps(b, request)))"},
     "c6a0956780bf1b32": "expect (List(Booking(\"Oak\", 9, 10)), Booking(\"Oak\", 10, 11)) ⇒ true  given   — back to back: granted",
     "7d481f8a773a26d8": "reject (List(Booking(\"Oak\", 9, 11)), Booking(\"Oak\", 10, 12)) ⇒ true  given   — overlapping: never granted",
     "85ea9cac7b787a61": "val grantWhenNoOverlap = Node.contract(granted)(\"GrantWhenNoOverlap\",\n  \"A request is granted exactly when it overlaps no booking of its room.\",\n  why = \"Bookings that end after they start share a moment exactly when they overlap.\"\n)((held, request, result) => consistent(held, request) ==> (result === !held.exists(b => overlaps(b, request))))\n  .under(grantWhenFree)\n  .examples()(\n    expect(List(Booking(\"Oak\", 9, 10)), Booking(\"Oak\", 10, 11), true, \"back to back: granted\"),\n    reject(List(Booking(\"Oak\", 9, 11)), Booking(\"Oak\", 10, 12), true, \"overlapping: never granted\"))",
-    "7804505e6feac9b3": "granted",
     "e8127d1d5945658b": "(held, request) => Calendar(held).granted(request)",
     "01084f01196fb200": "val grantWhenNoOverlap = Node.contract(granted)(\"GrantWhenNoOverlap\",\n  \"A request is granted exactly when it overlaps no booking of its room.\",\n  why = \"Bookings that end after they start share a moment exactly when they overlap.\"\n)((held, request, result) => consistent(held, request) ==> (result === !held.exists(b => overlaps(b, request))))\n  .under(grantWhenFree)\n  .examples(\n    expect(List(Booking(\"Oak\", 9, 10)), Booking(\"Oak\", 10, 11), true, \"back to back: granted\"),\n    reject(List(Booking(\"Oak\", 9, 11)), Booking(\"Oak\", 10, 12), true, \"overlapping: never granted\"))",
     "d6fd28fc82132024": "consistent = (held: Term[List[Booking]], request: Term[Booking]) =>\n  (request :: held).forall(b => b.start < b.end) && held.forall(a => held.filter(b => b === a).length === 1) &&\n    held.forall(a => held.forall(b => a === b || !overlaps(a, b)))",
@@ -611,12 +805,27 @@
     "a02d0236214103ce": "val grantWhenNoOverlap =\n  Node.contract(\"A request is granted exactly when it overlaps no booking of its room.\")(\n    forall((held: Term[List[Booking]], request: Term[Booking]) =>\n      wellFormed(held, request) && held.pairwise(noOverlap) implies\n        granted(held, request) === held.forall(b => noOverlap(b, request)))\n  )\n  .refines(grantWhenFree)\n  .examples(\n    allows(List(Booking(\"Oak\", 9, 10)), Booking(\"Oak\", 10, 11), result = true, \"back to back: granted\"),\n    forbids(List(Booking(\"Oak\", 9, 11)), Booking(\"Oak\", 10, 12), result = true, \"overlapping: never granted\"))",
     "4d7931778ceebbe1": {"post":"forall((held: Term[List[Booking]], request: Term[Booking]) =>\n  (allEndAfterStart(held, request) && held.pairwise(noOverlap)) implies\n    (granted(held, request) === held.forall(b => noOverlap(b, request))))"},
     "316b96b9c278d20a": "val grantWhenNoOverlap =\n  Node.contract(\"A request is granted exactly when it overlaps no booking of its room.\")(\n    forall((held: Term[List[Booking]], request: Term[Booking]) =>\n      (allEndAfterStart(held, request) && held.pairwise(noOverlap)) implies\n        (granted(held, request) === held.forall(b => noOverlap(b, request))))\n  )\n  .refines(grantWhenFree)\n  .examples(\n    allows(List(Booking(\"Oak\", 9, 10)), Booking(\"Oak\", 10, 11), returning = true, \"back to back: granted\"),\n    forbids(List(Booking(\"Oak\", 9, 11)), Booking(\"Oak\", 10, 12), returning = true, \"overlapping: never granted\"))",
+    "4980899720ebcbef": {"formula":"forall((held: Term[List[Booking]], request: Term[Booking]) =>\n  granted(held, request) === held.forall(b => noOverlap(b, request)))"},
+    "dfe7eade44e19cfd": "val grantWhenNoOverlap = Node.claim(\"A request is granted exactly when it overlaps no booking of its room.\")(\n  forall((held: Term[List[Booking]], request: Term[Booking]) =>\n    granted(held, request) === held.forall(b => noOverlap(b, request))))\n  .refines(grantWhenFree)",
+    "b2aad07a373baae1": "(held, request) => Calendar(held).grants(request)",
     "be6fd385fc37b7f8": "A room is never double-booked, and a request is booked exactly when its room is free for its whole time.",
     "e514a993774a18fa": {"post":"(request, booked, before, after) =>\n  (allEndAfterStart(before(Stored), request) && before(Stored).pairwise(apart)) implies\n    (booked === before(Stored).forall(b => apart(b, request)) &&\n      after(Stored) === booked.fold(before(Stored) ++ List(request), before(Stored)) &&\n      after(Stored).pairwise(apart))"},
     "07e9e460167375e0": "val neverDoubleBooked = Node.contract(book)(\n  \"A room is never double-booked, and a request is booked exactly when its room is free for its whole time.\")(\n  (request, booked, before, after) =>\n    (allEndAfterStart(before(Stored), request) && before(Stored).pairwise(apart)) implies\n      (booked === before(Stored).forall(b => apart(b, request)) &&\n        after(Stored) === booked.fold(before(Stored) ++ List(request), before(Stored)) &&\n        after(Stored).pairwise(apart)))",
     "a3bf636445cfeb14": {"post":"(request: Term[Booking], booked: Term[Boolean], before: Term[World], after: Term[World]) =>\n  val held = before(Stored)\n  val heldAfter = after(Stored)\n  (allEndAfterStart(held, request) && held.pairwise(apart)) implies\n    (heldAfter.pairwise(apart) &&\n      booked === held.forall(b => apart(b, request)) &&\n      heldAfter === booked.fold(held ++ List(request), held))"},
     "0956b3f3b7320a0e": "val neverDoubleBooked = Node.contract(book)(\n  \"A room is never double-booked, and a request is booked exactly when its room is free for its whole time.\")(\n  (request: Term[Booking], booked: Term[Boolean], before: Term[World], after: Term[World]) =>\n    val held = before(Stored)\n    val heldAfter = after(Stored)\n    (allEndAfterStart(held, request) && held.pairwise(apart)) implies\n      (heldAfter.pairwise(apart) &&\n        booked === held.forall(b => apart(b, request)) &&\n        heldAfter === booked.fold(held ++ List(request), held)))",
+    "b5e7acbbf9c8de6a": "The bookings stored never overlap.",
+    "ac72cdf354cb0c88": {"formula":"always(stored)(held => held.pairwise(apart))"},
+    "8d7b00a5e5f54ef9": "val neverOverlap = Node.claim(\"The bookings stored never overlap.\")(always(stored)(held => held.pairwise(apart)))\n  .assuming(onlyBookingWrites, oneAtATime, startsApart)",
     "8eb6bddfbc96acaa": "assumption",
+    "6a963644f28e0b8b": "Bookings are processed one at a time.",
+    "949910526feb7b95": {"formula":"stored.changedOneRunAtATime"},
+    "1216016c5762070c": "val oneAtATime = Node.assumption(\"Bookings are processed one at a time.\")(stored.changedOneRunAtATime)",
+    "548d39757e56529c": "Only booking writes to the store.",
+    "f5ceb50fda553139": {"formula":"stored.writtenOnlyBy(book)"},
+    "5c48b883ff026130": "val onlyBookingWrites = Node.assumption(\"Only booking writes to the store.\")(stored.writtenOnlyBy(book))",
+    "133b1bc81f8dd8de": "The store starts with no two bookings overlapping.",
+    "b06cdc5b384a5c92": {"formula":"stored.initially(held => held.pairwise(apart))"},
+    "5363497a47a2ec56": "val startsApart = Node.assumption(\"The store starts with no two bookings overlapping.\")(\n  stored.initially(held => held.pairwise(apart)))",
     "0ba0735fdca28ed2": "The store gives the bookings of a room in the order they were added, and adds a booking.",
     "4a72dc52dd476cad": "Booking is proven from this model, not from the SQL; SqliteBookings is checked against it on generated runs.",
     "44136fa355b3678a": {},
@@ -624,6 +833,8 @@
     "e841ad4d58d36012": "add = fun (booking : Booking) => do\n    modify (fun held => (held ++ [booking]))",
     "83f5246eebd4b97d": "inRoom = fun (room : String) => do\n    let held ← get\n    pure (List.filter (fun b => decide (b.room = room)) held)",
     "48d9ef896211511f": "assumed, checked: held => SqliteBookings.holding(held)",
-    "cbabaaaf3e6cd7d8": "val storeKeepsBookings = Node.assumption(store)(Stored)(\n  \"The store gives the bookings of a room in the order they were added, and adds a booking.\",\n  why = \"Booking is proven from this model, not from the SQL; SqliteBookings is checked against it on generated runs.\")\n  .checkedAgainst(held => SqliteBookings.holding(held), _.held)\n  .refines(neverDoubleBooked)"
+    "cbabaaaf3e6cd7d8": "val storeKeepsBookings = Node.assumption(store)(Stored)(\n  \"The store gives the bookings of a room in the order they were added, and adds a booking.\",\n  why = \"Booking is proven from this model, not from the SQL; SqliteBookings is checked against it on generated runs.\")\n  .checkedAgainst(held => SqliteBookings.holding(held), _.held)\n  .refines(neverDoubleBooked)",
+    "70bd0c29482bdeca": "The store gives a room's bookings in the order they were added, and adds one at the end.",
+    "689f5bb8ca939efb": "val storeModel =\n  Node.assumption(\"The store gives a room's bookings in the order they were added, and adds one at the end.\")(\n    store.behavesAs(stored))\n  .checkedAgainst(start = held => SqliteBookings.holding(held), observe = sqlite => sqlite.held)"
   }
 }
