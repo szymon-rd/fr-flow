@@ -36,7 +36,7 @@ val grantWhenNoOverlap = Node.contract(granted)("GrantWhenNoOverlap",
   why = "Bookings that end after they start share a moment exactly when they overlap."
 )((held, request, result) => consistent(held, request) ==> (result === !held.exists(b => overlaps(b, request))))
   .under(grantWhenFree)
-  .examples()(
+  .examples(
     expect(List(Booking("Oak", 9, 10)), Booking("Oak", 10, 11), true, "back to back: granted"),
     reject(List(Booking("Oak", 9, 11)), Booking("Oak", 10, 12), true, "overlapping: never granted"))
 
