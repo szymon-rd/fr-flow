@@ -36,8 +36,8 @@ val grantWhenNoOverlap =
   )
   .refines(grantWhenFree)
   .examples(
-    allows(List(Booking("Oak", 9, 10)), Booking("Oak", 10, 11), result = true, "back to back: granted"),
-    forbids(List(Booking("Oak", 9, 11)), Booking("Oak", 10, 12), result = true, "overlapping: never granted"))
+    allows(List(Booking("Oak", 9, 10)), Booking("Oak", 10, 11), returning = true, "back to back: granted"),
+    forbids(List(Booking("Oak", 9, 11)), Booking("Oak", 10, 12), returning = true, "overlapping: never granted"))
 
 // The tests' cases: requests that end after they start, and calendars as the code holds them.
 val requests = for

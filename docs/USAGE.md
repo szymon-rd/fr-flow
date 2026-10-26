@@ -88,7 +88,7 @@ signs with the decision. The other kinds say why.
 An operation takes 0 to 6 inputs. Every lambda over a call takes them in order, then the result (a
 flow's, then the worlds before and after), and every example lists them the same way. An operation of
 no inputs (`Param[() => R]`, a reading of the world now) is called `op()`, its post is `result => ...`
-and its examples `allows(result, note)` under the bindings that give it:
+and its examples `allows(returning, note)` under the bindings that give it:
 
 ```scala
 val share = Param[(UserId, DocId, UserId) => Boolean]("whether a user may share a document with another")
