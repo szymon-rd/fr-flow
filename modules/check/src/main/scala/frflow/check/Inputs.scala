@@ -22,7 +22,7 @@ object Inputs:
   val empty: Inputs = Inputs("", Ledger.empty, Map.empty, Map.empty, Map.empty, Map.empty, Set.empty, Map.empty, Map.empty, Instant.EPOCH)
 
   def read(kb: KnowledgeBase, ws: Workspace, cfg: Config, ledger: IO[Ledger]): IO[Inputs] =
-    (Disk.read(ws.root.resolve(kb.idea)).map(_.getOrElse("")), ledger, KeyStore.projectKeys(ws.keysDir), checks(ws.checksFile),
+    (if kb.idea.isEmpty then IO.pure("") else Disk.read(ws.root.resolve(kb.idea)).map(_.getOrElse("")), ledger, KeyStore.projectKeys(ws.keysDir), checks(ws.checksFile),
       proofs(kb, ws), texts(kb, ws), code(kb, ws.root),
       kb.nodes.flatMap(_.governs).distinct.filterA(f => Disk.exists(ws.root.resolve(f)).map(!_)).map(_.toSet),
       projectSources(ws.root, cfg.sources).flatMap(_.traverse(p => Disk.read(p).map(p -> _.getOrElse("")))).map(_.toMap),

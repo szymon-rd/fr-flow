@@ -73,6 +73,17 @@ class CommandsSuite extends munit.CatsEffectSuite:
     }
   }
 
+  test("check: code failing a contract that changed under it says the contract changed, on the node's line") {
+    val failure = TestFailure("held = List(Booking(\"Oak\", 12, 17)), request = Booking(\"Oak\", 0, 12)", "returned true, which Decide refuses", 1, 0, 1)
+    val moved = CheckedNode(NodeId("Decide"), CheckStatus.Proven, Nil, Nil, Nil, None, Nil, None, Some(failure), contractChanged = true)
+    FakeApi().flatMap(_.view).map { v =>
+      val text = ReportText.check(CheckReport(List(moved), v, Overview.of(v)), st).takeWhile(_.nonEmpty)
+      assertEquals(text, List("x Decide: the contract changed and its code no longer meets it: held = List(Booking(\"Oak\", 12, 17)), " +
+        "request = Booking(\"Oak\", 0, 12): returned true, which the contract now refuses"))
+      assert(!moved.ok)
+    }
+  }
+
   test("check: a node with one obligation open says it on its line, its name left out; with several, each by name") {
     val broken = Result(ObligationName.Complete, ObligationStatus.Open,
       "the proof from its parts no longer goes through: overlaps changed\nLean: omega could not prove the goal:\na - c ≤ -1")

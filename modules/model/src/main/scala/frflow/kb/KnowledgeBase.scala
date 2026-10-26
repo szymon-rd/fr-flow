@@ -5,8 +5,10 @@ import frflow.example.ExampleRuns
 import frflow.protocol.{NodeKind, RunCheck, RunTime, Walk}
 import frflow.runtime.Wiring
 
-/** The idea and its nodes: one root claim refined by a DAG of parts, told apart by identity; `name` is the Lean namespace. */
-final class KnowledgeBase(val name: String, val idea: String, val implementations: List[Implementation] = Nil,
+/** The idea and its nodes: one root claim refined by a DAG of parts, told apart by identity; `name` is the Lean namespace;
+  * `idea`, the file the purpose is written in (`IDEA.md`), if any.
+  */
+final class KnowledgeBase(val name: String, val idea: String = "", val implementations: List[Implementation] = Nil,
     val generators: List[(LeanType[?], Gen[?])] = Nil, val testing: TestSettings = TestSettings(),
     val onViolation: Violation => Unit = Violation.log)(nodeList: Node[?]*):
   val nodes: List[Node[?]] = nodeList.toList

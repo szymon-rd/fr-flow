@@ -65,6 +65,14 @@ class ApiSuite extends munit.FunSuite:
     assert(!CheckReport(List(proven, proven.copy(notProven = List(ObligationName.Impl))), v, Overview.of(v)).ok)
   }
 
+  test("a failing case is the contract's change when the contract moved and its code did not") {
+    assert(CheckedNode.movedUnderCode(List(Cause.Self)))
+    assert(CheckedNode.movedUnderCode(List(Cause.Self, Cause.Above)))
+    assert(!CheckedNode.movedUnderCode(List(Cause.Self, Cause.Code)))
+    assert(!CheckedNode.movedUnderCode(List(Cause.Code)))
+    assert(!CheckedNode.movedUnderCode(Nil))
+  }
+
   test("--json: a node checked says whether it is ok, beside how its check ended, and reads back") {
     import io.circe.syntax.*
     val open = CheckedNode(id("Decide"), CheckStatus.Proven, List(ObligationName.Impl), Nil, Nil, None, Nil, None)
