@@ -18,7 +18,7 @@ val apart = define { (a: Term[Booking], b: Term[Booking]) =>
 val freeFor = define { (held: Term[List[Booking]], request: Term[Booking]) => held.forall(b => apart(b, request)) }
 
 val sensible = define { (held: Term[List[Booking]], request: Term[Booking]) =>
-  (request :: held).forall(endsAfterStart) && held.allDistinct && held.pairwise(apart) }
+  (request :: held).forall(endsAfterStart) && held.pairwise(apart) }
 
 val grantWhenFree = Node.claim("GrantWhenFree",
   "A request is granted exactly when its room is free for its whole time.",
@@ -31,7 +31,7 @@ val disjoint = define { (a: Term[Booking], b: Term[Booking]) =>
   a.room =!= b.room || a.end <= b.start || b.end <= a.start }
 
 val consistent = define { (held: Term[List[Booking]], request: Term[Booking]) =>
-  (request :: held).forall(endsAfterStart) && held.allDistinct && held.pairwise(disjoint) }
+  (request :: held).forall(endsAfterStart) && held.pairwise(disjoint) }
 
 val grantWhenNoOverlap = Node.contract(granted)("GrantWhenNoOverlap",
   "A request is granted exactly when it overlaps no booking of its room.",
