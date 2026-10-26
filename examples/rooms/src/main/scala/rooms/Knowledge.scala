@@ -8,6 +8,8 @@ val granted =
   Param[(List[Booking], Booking) => Boolean]("granted", "whether a request is granted, given the bookings held")
 
 val endsAfterStart = define { (b: Term[Booking]) => b.start < b.end }
+val wellFormed = define { (held: Term[List[Booking]], request: Term[Booking]) =>
+  endsAfterStart(request) && held.forall(endsAfterStart) }
 
 // The root, over moments.
 val covers = define { (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end }
@@ -18,7 +20,7 @@ val apart = define { (a: Term[Booking], b: Term[Booking]) =>
 val grantWhenFree =
   Node.claim("GrantWhenFree", "A request is granted exactly when its room is free for its whole time.")(
     forall((held: Term[List[Booking]], request: Term[Booking]) =>
-      ((request :: held).forall(endsAfterStart) && held.pairwise(apart)) ==>
+      (wellFormed(held, request) && held.pairwise(apart)) ==>
         (granted(held, request) === held.forall(b => apart(b, request))))
   )
 
@@ -27,14 +29,15 @@ val noOverlap = define { (a: Term[Booking], b: Term[Booking]) =>
   a.room =!= b.room || a.end <= b.start || b.end <= a.start }
 
 val grantWhenNoOverlap =
-  Node.contract(granted)("GrantWhenNoOverlap", "A request is granted exactly when it overlaps no booking of its room.")(
-    (held, request, result) =>
-      ((request :: held).forall(endsAfterStart) && held.pairwise(noOverlap)) ==>
-        (result === held.forall(b => noOverlap(b, request)))
-  ).under(grantWhenFree)
-    .examples(
-      expect(List(Booking("Oak", 9, 10)), Booking("Oak", 10, 11), result = true, "back to back: granted"),
-      never(List(Booking("Oak", 9, 11)), Booking("Oak", 10, 12), result = true, "overlapping: never granted"))
+  Node.contract("GrantWhenNoOverlap", "A request is granted exactly when it overlaps no booking of its room.")(
+    forall((held: Term[List[Booking]], request: Term[Booking]) =>
+      (wellFormed(held, request) && held.pairwise(noOverlap)) ==>
+        (granted(held, request) === held.forall(b => noOverlap(b, request))))
+  )
+  .under(grantWhenFree)
+  .examples(
+    expect(List(Booking("Oak", 9, 10)), Booking("Oak", 10, 11), result = true, "back to back: granted"),
+    never(List(Booking("Oak", 9, 11)), Booking("Oak", 10, 12), result = true, "overlapping: never granted"))
 
 // The tests' cases: requests that end after they start, and calendars as the code holds them.
 val requests = for

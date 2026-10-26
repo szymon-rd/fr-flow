@@ -26,10 +26,10 @@ theorem complete : Obl.complete := by
   unfold Obl.complete
   frflow_intro
   simp only [claim, GrantWhenNoOverlap.claim, GrantWhenNoOverlap.post] at *
-  intro held request ⟨hEnds, hApart⟩
-  have key {a b : Booking} (ha : a ∈ request :: held) (hb : b ∈ request :: held) :=
-    apart_iff_noOverlap (hEnds a ha) (hEnds b hb)
-  rw [h_GrantWhenNoOverlap held request ⟨hEnds, hApart.imp_of_mem fun ha hb => (key (.tail _ ha) (.tail _ hb)).1⟩]
-  exact propext (forall₂_congr fun b hb => (key (.tail _ hb) (.head _)).symm)
+  intro held request ⟨hWellFormed, hApart⟩
+  have ⟨hRequest, hHeld⟩ : endsAfterStart request ∧ ∀ b ∈ held, endsAfterStart b := hWellFormed
+  rw [h_GrantWhenNoOverlap held request
+    ⟨hWellFormed, hApart.imp_of_mem fun ha hb => (apart_iff_noOverlap (hHeld _ ha) (hHeld _ hb)).1⟩]
+  exact propext (forall₂_congr fun b hb => (apart_iff_noOverlap (hHeld b hb) hRequest).symm)
 
 end Rooms.GrantWhenFree.Proofs
