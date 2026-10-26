@@ -33,11 +33,13 @@ val apart = define { (a: Term[Booking], b: Term[Booking]) =>
 
 val neverDoubleBooked = Node.contract(book)(
   "A room is never double-booked, and a request is booked exactly when its room is free for its whole time.")(
-  (request, booked, before, after) =>
-    (allEndAfterStart(before(Stored), request) && before(Stored).pairwise(apart)) implies
-      (booked === before(Stored).forall(b => apart(b, request)) &&
-        after(Stored) === booked.fold(before(Stored) ++ List(request), before(Stored)) &&
-        after(Stored).pairwise(apart)))
+  (request: Term[Booking], booked: Term[Boolean], before: Term[World], after: Term[World]) =>
+    val held = before(Stored)
+    val heldAfter = after(Stored)
+    (allEndAfterStart(held, request) && held.pairwise(apart)) implies
+      (heldAfter.pairwise(apart) &&
+        booked === held.forall(b => apart(b, request)) &&
+        heldAfter === booked.fold(held ++ List(request), held)))
 
 // What booking's code calls: the calendar, and the store.
 val grantWhenFree =
