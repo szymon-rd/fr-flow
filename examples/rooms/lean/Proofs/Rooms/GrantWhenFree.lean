@@ -27,14 +27,14 @@ theorem complete : Obl.complete := by
     by_cases hab : a = b
     · exact Or.inl hab
     · refine Or.inr fun ⟨⟨hRoom, h1⟩, h2⟩ => ?_
-      obtain ⟨t, hat, hbt⟩ := shared a b (hHeld a ha) (hHeld b hb) h1 h2
+      obtain ⟨t, hat, hbt⟩ := shared a b (hHeld a ha) (hHeld b hb) (by omega) (by omega)
       exact hApart a ha b hb ⟨hab, hRoom⟩ t ⟨hat, hbt⟩⟩]
   apply propext
   constructor
   · intro hNone t ht ⟨b, hb, hRoom, hbt⟩
     exact hNone ⟨b, hb, ⟨hRoom, by omega⟩, by omega⟩
   · intro hFree ⟨b, hb, ⟨hRoom, h1⟩, h2⟩
-    obtain ⟨t, hbt, ht⟩ := shared b request (hHeld b hb) hRequest h1 h2
+    obtain ⟨t, hbt, ht⟩ := shared b request (hHeld b hb) hRequest (by omega) (by omega)
     exact hFree t ht ⟨b, hb, hRoom, hbt⟩
 
 end Rooms.GrantWhenFree.Proofs
