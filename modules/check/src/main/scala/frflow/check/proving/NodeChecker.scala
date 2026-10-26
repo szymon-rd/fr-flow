@@ -49,7 +49,7 @@ final class NodeChecker(a: Analysis, lake: Lake, prebuilt: Set[String]):
       split <- lift(complete(n))
       impl <- lift(implementation(n, proof))
       results = split ++ impl.map(_._1)
-      _ <- stop(Verdict.obligations(g, n, split, results, parts))
+      _ <- stop(Verdict.obligations(g, n, split, results, parts, a.proofOf(n).isDefined, changed(n)))
       _ <- lift(build(g.layout.theorems(n.id).name)).flatMap(r => stop(Verdict.theorems(results, r)))
       _ <- proofFile(n, proof, results)
       checks <- lift(generated(g.layout.checks(n.id).path))
@@ -77,9 +77,25 @@ final class NodeChecker(a: Analysis, lake: Lake, prebuilt: Set[String]):
         else generated(g.layout.auto(n.id).path).map(Verdict.judge(o.name, _, false))
       prebuilt.ifM(IO.pure(Result(o.name, ObligationStatus.Proven, "auto")),
         judged.flatMap { r =>
-          if authored || r.status != ObligationStatus.Open then IO.pure(r) else state(n, Complete).map(Verdict.gaveUp(g, n, r, _))
+          if r.status != ObligationStatus.Open then IO.pure(r)
+          else (if authored then IO.pure(Verdict.brokenProof(r, changed(n))) else state(n, Complete).map(Verdict.gaveUp(g, n, r, _)))
+            .flatMap(open => refuted(n).map(_.fold(open)(Verdict.refuted(open, _))))
         })
     }
+
+  // A step that did not go through, refuted by a case Lean proves breaks it (`Refutation`); None when there is none.
+  private def refuted(n: Node[?]): IO[Option[Refutation.Candidate]] =
+    IO.blocking(Refutation.candidate(a.kb, n, g.vocabulary.resolve)).handleError(_ => None).flatMap(_.flatTraverse { c =>
+      val rel = s".lake/frflow/${a.kb.name}/${n.id}/Refutes.lean"
+      Disk.update(a.ws.lean.resolve(rel), c.lean) *>
+        elaborate(rel, c.lean).map(e => Option.when(e.run.ok && e.lean.verdict("refutes").proven)(c))
+    })
+
+  // What changed, of the node and its parts, since they were decided: what a proof that went through may no longer
+  // hold of.
+  private def changed(n: Node[?]): List[String] =
+    (n :: a.kb.parts(n)).flatMap(x => a.ledger.binding(NodeId(x.id)).filter(_.hash != a.hash(x)).toList
+      .flatMap(d => Verdict.whatChanged(x.id, d.content, a.content(x)))).distinct
 
   // Its code meets it, from what the contracts it calls promise: with the axioms its build rests on.
   private def implementation(n: Node[?], proof: String): IO[Option[(Result, Option[List[String]])]] =

@@ -212,6 +212,11 @@ object Node:
         cases.toList.map(c => Example(c.note, bindings.toList, Source.sources(bindings*), c.inputs, c.result, c.expected))
       n.copy(cases = n.cases ++ exampleList())
 
+    /** Concrete cases where nothing is to be bound: `.examples(expect(…), reject(…))`, as `.examples()(…)`. */
+    inline def examples(inline cases: Case[F]*): Node[F] =
+      def exampleList(): List[Example] = cases.toList.map(c => Example(c.note, Nil, Nil, c.inputs, c.result, c.expected))
+      n.copy(cases = n.cases ++ exampleList())
+
   extension (n: Node[?])
     /** Each example against the contract, and against `impl` (code built once per set of given values, as a running
       * system would build it: a Scala function of the call's inputs).

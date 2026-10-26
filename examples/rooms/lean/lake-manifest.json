@@ -1,0 +1,14 @@
+{"version": "1.3.0",
+ "packagesDir": ".lake/packages",
+ "packages":
+ [{"type": "path",
+   "scope": "",
+   "name": "frflow",
+   "manifestFile": "lake-manifest.json",
+   "inherited": false,
+   "dir": "../../../lean",
+   "copy": false,
+   "configFile": "lakefile.toml"}],
+ "name": "rooms",
+ "lakeDir": ".lake",
+ "fixedToolchain": false}

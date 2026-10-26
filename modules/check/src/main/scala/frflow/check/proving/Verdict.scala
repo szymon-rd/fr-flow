@@ -26,7 +26,9 @@ object Verdict:
 
   private def failed(msg: String): Judged = Judged(CheckStatus.Failed, Nil, List(msg))
   private def proofPath(g: Generate, n: Node[?]) = s"lean/${g.layout.proofs(n.id).path}"
-  private def scaffold(g: Generate, n: Node[?]) = s"prove it in ${proofPath(g, n)} (run `scaffold ${n.id}`)"
+  // With a proof file, the proof in it is what to fix; without one, `scaffold` starts it.
+  private def scaffold(g: Generate, n: Node[?], proofFile: Boolean) =
+    if proofFile then s"fix the proof in ${proofPath(g, n)}" else s"prove it in ${proofPath(g, n)} (run `scaffold ${n.id}`)"
 
   /** Two definitions of a term it uses, neither chosen: what it says is not known yet. */
   def waiting(kb: KnowledgeBase, g: Generate, n: Node[?]): Option[Judged] =
@@ -87,6 +89,42 @@ object Verdict:
         case TheoremVerdict.Proven => Result(o, Open, "not checked: " + clip(e.run.output))
         case v => Result(o, Open, clip(v.why(name).getOrElse("")))
 
+  /** An authored `complete` that does not go through, in FrFlow's words first (`changed`: what changed since it and
+    * its parts were decided, as `whatChanged` names it), then Lean's.
+    */
+  def brokenProof(r: Result, changed: List[String]): Result =
+    val names = changed.mkString(" and ")
+    val why = (mayBeFalse(r.detail), changed.isEmpty) match
+      case (true, false)  => s"the step from its parts may no longer hold: $names changed"
+      case (true, true)   => "the step from its parts may not hold"
+      case (false, false) => s"the proof from its parts no longer goes through: $names changed"
+      case (false, true)  => "the proof from its parts does not go through"
+    r.copy(detail = s"$why\nLean: ${r.detail}")
+
+  /** A step Lean proves false on a case (`Refutation`): the case, and what the contract answers on it; Lean's own
+    * message about the proof is left out, the step being false.
+    */
+  def refuted(r: Result, c: Refutation.Candidate): Result =
+    r.copy(detail = s"$Refuted: ${c.shown}: ${c.what}\nLean proves the step false on it")
+  private val Refuted = "the step from its parts does not hold"
+  def isRefuted(r: Result): Boolean = r.detail.startsWith(Refuted)
+
+  /** Lean's message gives a counterexample (omega's constraints, a model, `decide` evaluating to false): the step it
+    * was asked may be false, not only its proof wrong.
+    */
+  def mayBeFalse(lean: String): Boolean = Counterexample.findFirstIn(lean).isDefined
+  private val Counterexample = """(?i)counterexample|evaluates to false""".r
+
+  /** What changed of a node since it was decided, as a proof reads it: the definitions and types it uses, by name, and
+    * the node itself when its own formula did.
+    */
+  def whatChanged(id: String, before: Content, now: Content): List[String] =
+    def uses(c: Content) = c.strs("uses").map(u => UsedName.findFirstMatchIn(u).fold(u)(_.group(1)) -> u)
+    val (was, is) = (uses(before), uses(now))
+    val own = List("sources", "substitutions").exists(k => before(k) != now(k))
+    (Option.when(own)(id).toList ++ (is.filterNot(was.contains) ++ was.filterNot(is.contains)).map(_._1)).distinct
+  private val UsedName = """^(?:(?:final\s+)?case\s+class\s+|enum\s+)?([A-Za-z_]\w*)""".r
+
   /** Automation gave up on `complete`: what to do next, and the goal its first steps leave. */
   def gaveUp(g: Generate, n: Node[?], r: Result, state: Option[String]): Result =
     r.copy(detail = s"automation gave up: write theorem complete : Obl.complete in ${proofPath(g, n)} (run `scaffold ${n.id}`)\n" +
@@ -108,10 +146,21 @@ object Verdict:
       state.fold("Lean: " + quoted(run))(ProofState.text(Impl, _))), Some(Nil))
 
   /** The obligations judged: failed, open, or waiting for the parts (a node is proven with its parts). */
-  def obligations(g: Generate, n: Node[?], split: List[Result], results: List[Result], parts: List[(String, Option[CheckStatus])]): Option[Judged] =
+  def obligations(g: Generate, n: Node[?], split: List[Result], results: List[Result], parts: List[(String, Option[CheckStatus])],
+      proofFile: Boolean = false, changed: List[String] = Nil): Option[Judged] =
     val notYet = parts.filterNot(_._2.contains(CheckStatus.Proven))
+    // A step Lean gives a counterexample to: what changed is to look at first, the proof only if the step still holds.
+    val mayBe = proofFile && split.exists(r => r.status == Open && mayBeFalse(r.detail))
+    val names = changed.mkString(" and ")
+    val hint =
+      if split.exists(isRefuted) then
+        if changed.isEmpty then "the contract does not give the claim: fix the contract, or the claim"
+        else s"check the change to $names: with it, the contract no longer gives the claim"
+      else if !mayBe then scaffold(g, n, proofFile)
+      else if changed.isEmpty then s"if the step holds, fix the proof in ${proofPath(g, n)}"
+      else s"check the change to ${changed.mkString(" and ")}; if the step still holds, fix the proof in ${proofPath(g, n)}"
     if results.exists(_.status == Failed) then Some(Judged(CheckStatus.Failed, results, Nil))
-    else if split.exists(_.status == Open) then Some(Judged(CheckStatus.Open, results, Nil, hint = Some(scaffold(g, n))))
+    else if split.exists(_.status == Open) then Some(Judged(CheckStatus.Open, results, Nil, hint = Some(hint)))
     else Option.when(notYet.nonEmpty)(Judged(CheckStatus.Waiting, results, List(s"waiting for its parts: ${notYet.map(_._1).mkString(", ")}")))
 
   def theorems(results: List[Result], run: Run): Option[Judged] = run match

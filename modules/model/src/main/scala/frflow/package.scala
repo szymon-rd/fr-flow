@@ -7,6 +7,8 @@ export frflow.flow.{Every, Failed, Flow, FlowDef, FlowFailed, RelativeMonad, Sch
 export frflow.kb.{Implementing, KnowledgeBase, Problem, Proving}
 export frflow.node.{AssumptionOn, FailureClause, Keep, ModelFor, ModelImpl, ModelNode, ModelOf, Modelled, Node, OperationSigs, Sig}
 export frflow.program.Source
+// How often `service` checks a result: `.checkedAtRunTime(RunCheck.Sampled(100))`.
+export frflow.protocol.RunCheck
 export frflow.runtime.{Assumption, Bindings, ContractViolation, Implementation, Runner, Violation}
 export frflow.term.{AsTerm, CaseOf, Cases, Data, First, NoEquality, On, Term}
 export frflow.term.Cases.Fields

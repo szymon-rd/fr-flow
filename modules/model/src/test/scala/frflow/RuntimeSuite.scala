@@ -152,7 +152,7 @@ class RuntimeSuite extends munit.FunSuite:
     val kb = shelfWith(two).testedWith(TestSettings(300)).implement(two)((s, n) => if s.size > 1 && n == 1 then s else s.filter(_.pages >= minPages.value).take(n))
     assertEquals(kb.exampleResults(two).flatMap(_.implementation), List("ok", "ok", "ok"))
     val f = kb.test(two).get.failure.getOrElse(fail("not found"))
-    assert(f.why.contains("which Two refuses") && f.shown.contains(", 1) ⇒"), f)
+    assert(f.why.contains("which Two refuses") && f.shown.contains("n = 1"), f)
     val boom = shelfWith(two).testedWith(TestSettings(300))
       .implement(two)((s, n) => if s.size > 1 && n == 1 then sys.error("boom") else s.filter(_.pages >= minPages.value))
     assertEquals(boom.test(two).get.failure.map(_.why), Some("error: boom"))

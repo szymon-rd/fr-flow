@@ -62,6 +62,56 @@ class CommandsSuite extends munit.CatsEffectSuite:
     }
   }
 
+  test("check: a contract whose code fails a generated case reads failed, with the case, shrunk") {
+    val failure = TestFailure("token = \"t1\", path = Path(\"/b\")", "returned Some(UserId(\"alice\")), which Decide refuses", 1, 0, 1)
+    val failing = CheckedNode(NodeId("Decide"), CheckStatus.Proven, Nil, Nil, Nil, None, Nil, None, Some(failure))
+    FakeApi().flatMap(_.view).map { v =>
+      val text = ReportText.check(CheckReport(List(failing), v, Overview.of(v)), st)
+      assertEquals(text.take(2), List("x Decide: failed",
+        "  its code fails a generated case: token = \"t1\", path = Path(\"/b\"): returned Some(UserId(\"alice\")), which Decide refuses"))
+      assert(!CheckReport(List(failing), v, Overview.of(v)).ok)
+    }
+  }
+
+  test("check: a contract whose code is tested, not proven, says it is tested; proven stays for what Lean proves") {
+    val tested = TestReport(1000, 1, "Decide")
+    val ok = CheckedNode(NodeId("Decide"), CheckStatus.Proven, Nil, Nil, Nil, None, Nil, None, codeTested = Some(tested))
+    FakeApi().flatMap(_.view).map { v =>
+      def line(c: CheckedNode) = ReportText.check(CheckReport(List(c), v, Overview.of(v)), st).head
+      assertEquals(line(ok), "+ Decide: code tested on 1,000 cases")
+      assertEquals(line(ok.copy(codeTested = Some(tested.copy(coverage = List(Covered("x", 0)))))),
+        "+ Decide: code tested on 1,000 cases, but they never reached a part of the contract")
+      assertEquals(line(ok.copy(codeTested = None)), "+ Decide: proven")
+      assertEquals(line(ok.copy(codeTested = None, step = true)), "+ Decide: step proven")
+    }
+  }
+
+  test("check: code failing a contract that changed under it says the contract changed, on the node's line") {
+    val failure = TestFailure("held = List(Booking(\"Oak\", 12, 17)), request = Booking(\"Oak\", 0, 12)", "returned true, which Decide refuses", 1, 0, 1)
+    val moved = CheckedNode(NodeId("Decide"), CheckStatus.Proven, Nil, Nil, Nil, None, Nil, None, Some(failure), contractChanged = true)
+    FakeApi().flatMap(_.view).map { v =>
+      val text = ReportText.check(CheckReport(List(moved), v, Overview.of(v)), st).takeWhile(_.nonEmpty)
+      assertEquals(text, List("x Decide: the contract changed and its code no longer meets it: held = List(Booking(\"Oak\", 12, 17)), " +
+        "request = Booking(\"Oak\", 0, 12): returned true, which the contract now refuses"))
+      assert(!moved.ok)
+    }
+  }
+
+  test("check: a node with one obligation open says it on its line, its name left out; with several, each by name") {
+    val broken = Result(ObligationName.Complete, ObligationStatus.Open,
+      "the proof from its parts no longer goes through: overlaps changed\nLean: omega could not prove the goal:\na - c ≤ -1")
+    val open = CheckedNode(NodeId("Decide"), CheckStatus.Open, List(ObligationName.Complete), List(broken), Nil, None, Nil,
+      Some("fix the proof in lean/Proofs/Auth/Decide.lean"))
+    FakeApi().flatMap(_.view).map { v =>
+      def text(c: CheckedNode) = ReportText.check(CheckReport(List(c), v, Overview.of(v)), st).takeWhile(_.nonEmpty)
+      assertEquals(text(open), List("o Decide: the proof from its parts no longer goes through: overlaps changed",
+        "    Lean: omega could not prove the goal:\n    a - c ≤ -1", "  ! fix the proof in lean/Proofs/Auth/Decide.lean"))
+      val two = open.copy(problems = List(broken, Result(ObligationName.Impl, ObligationStatus.Open, "not proven")))
+      assertEquals(text(two).head, "o Decide: open")
+      assert(text(two)(1).startsWith("  complete open: the proof from its parts no longer goes through: overlaps changed\n"), text(two))
+    }
+  }
+
   test("find: a path that names no file says so; one no node governs says that") {
     def find(q: String) = FakeApi().flatMap(api => api.view.flatMap(v => api.find(v, q).map(f => ReportText.found(f, v, st).mkString(" "))))
     (find("nope/Cache.scala"), find("src/main/scala/auth/Cache.scala")).mapN { (missing, ungoverned) =>

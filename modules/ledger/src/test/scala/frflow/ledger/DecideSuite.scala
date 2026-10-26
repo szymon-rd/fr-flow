@@ -50,6 +50,27 @@ class DecideSuite extends munit.FunSuite:
     assertEquals(decide(c, right(decide(c, Ledger.empty, accept("R"))), accept("C")), Left(AcceptFirst(id("A"))))
   }
 
+  test("a node whose code fails an example or a generated case is not accepted, with the reason; it may be rejected") {
+    val example = ExampleView("back to back", Nil, "(9, 10)", expected = true, fails = None, codeFails = Some("returned false"), None, None)
+    val failure = TestFailure("held = List(), request = 3", "returned false, which R refuses", 1, 0, 1)
+    val withExample = replacing(shelf, r.copy(examples = List(example)))
+    val withCase = replacing(shelf, r.copy(tested = Some(TestReport(1000, 1, "R", Some(failure)))))
+    assertEquals(decide(withExample, Ledger.empty, accept("R")), Left(ExamplesFail(id("R"), 1)))
+    assertEquals(decide(withCase, Ledger.empty, accept("R")), Left(CodeFails(id("R"), "held = List(), request = 3: returned false, which R refuses")))
+    assert(CodeFails(id("R"), failure.line).message.startsWith("R: its code fails a generated case: held = List(), request = 3: returned false"))
+    assert(decide(withCase, Ledger.empty, Decide.Reject(id("R"), "it refuses free rooms")).isRight)
+    // decided, then its meaning changed while the code did not: the contract is what moved
+    val decided = acceptAll(shelf)
+    val restatedCase = replacing(shelf, restated(r, "Readers find every book, at once.").copy(tested = Some(TestReport(1000, 1, "R", Some(failure)))))
+    assertEquals(decide(restatedCase, decided, accept("R")),
+      Left(ContractChanged(id("R"), "held = List(), request = 3: returned false, which the contract now refuses")))
+    assert(ContractChanged(id("R"), "x").message.startsWith("R: the contract changed and its code no longer meets it: x"))
+    // one of several refused: its name said once
+    assertEquals(Within(id("R"), ContractChanged(id("R"), "x")).message, ContractChanged(id("R"), "x").message)
+    assertEquals(Within(id("R"), NoReason).message, s"R: ${NoReason.message}")
+    assert(decide(replacing(shelf, r.copy(examples = List(example.copy(codeFails = None)))), Ledger.empty, accept("R")).isRight)
+  }
+
   test("accepting a change acts on the decisions below it: those named revisited, those that moved only with it confirmed") {
     assertEquals(decide(moved, accepted, accept("R", revisit = List("Nowhere"))), Left(NotBelow(id("R"), ids("Nowhere"))))
     val l = right(decide(moved, accepted, accept("R", revisit = List("B"))))
@@ -102,3 +123,28 @@ class DecideSuite extends munit.FunSuite:
     assertEquals(Within(id("A"), NoReason).message, "A: give the reason for the decision in a few words: it is kept as part of the theory")
   }
 
+  test("the trusted keys: each name's as committed; a rewritten file is not trusted; a new name's as filed") {
+    val (dev, agent) = (Keys.generate().public, Keys.generate().public)
+    val outside = TrustedKeys.of(List("dev" -> dev), None)
+    assertEquals(outside.byName.keySet, Set("dev"))
+    val rewritten = TrustedKeys.of(List("dev" -> agent), Some(List("dev" -> dev)))
+    assertEquals((rewritten.byId.keySet, rewritten.changed), (Set(Keys.id(dev)), List("dev")))
+    val newName = TrustedKeys.of(List("dev" -> dev, "agent" -> agent), Some(List("dev" -> dev)))
+    assertEquals((newName.byId.size, newName.uncommitted), (2, List("agent")))
+    assert(newName.warnings.exists(_.startsWith(".frflow/keys/agent.pub is not committed yet")), newName.warnings)
+    // refused: another key under the name, as committed or as filed; the key under another name
+    assertEquals(rewritten.refusal("dev", agent, List("dev" -> agent)), Some(OtherKey("dev")))
+    assertEquals(outside.refusal("dev", agent, List("dev" -> dev)), Some(OtherKey("dev")))
+    assertEquals(newName.refusal("dev", agent, Nil), Some(OtherKey("dev")))
+    assertEquals(newName.refusal("ann", agent, Nil), Some(KeyFiledAs("agent", "ann")))
+    assertEquals(newName.refusal("dev", dev, Nil), None)
+    assertEquals(TrustedKeys.of(Nil, Some(Nil)).refusal("newcomer", agent, Nil), None)
+  }
+
+  test("a decision counts by the key of the name it is made under") {
+    val k = Keys.generate()
+    val signed = Signing.sign(k, id("R"), Decision(Action.Accept, "dev", stamp(1).at, "as said"))
+    val l = Ledger.empty.add(id("R"), signed)
+    assertEquals(Signing.unsigned(l, Map(k.id -> k.public), Map(k.id -> "dev")), Nil)
+    assertEquals(Signing.unsigned(l, Map(k.id -> k.public), Map(k.id -> "agent")).map(_._1), List(id("R")))
+  }

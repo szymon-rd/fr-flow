@@ -84,6 +84,8 @@ class StoresSuite extends munit.CatsEffectSuite:
       dev   <- store.developer
       _     <- store.publish(dev.public, "dev")
       _     <- store.publish(dev.public, "someone-else")
+      // another key under the name is never filed over it
+      _     <- store.publish(Keys.generate().public, "dev")
       files <- IO.blocking(Files.list(keysDir).toArray.toList.map(_.toString))
       known <- KeyStore.projectKeys(keysDir)
     yield

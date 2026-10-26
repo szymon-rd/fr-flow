@@ -94,8 +94,18 @@ object Decide:
     for
       _ <- v.waitsFor(n).map(Refusal.AcceptFirst(_)).toLeft(())
       _ <- Either.cond(!(state == Accepted && rivals.isEmpty), (), Refusal.AlreadyAccepted(n.id))
+      _ <- failing(n, v.causes(n)).toLeft(())
     yield rivals.flatMap(v.graph.byId.get).foldLeft(v.ledger.add(n.id, record(action, n, reason, rivals)))((l, x) =>
       l.add(x.id, record(Action.Reject, x, s"${n.id} was chosen instead: $reason")))
+
+  /** Code that fails an example or a generated case is not accepted: the code, or the node, is wrong. A contract that
+    * changed under code that did not is said to be what moved.
+    */
+  private def failing(n: SnapNode, causes: List[Cause]): Option[Refusal] =
+    val examples = n.examples.count(!_.passes)
+    Option.when(examples > 0)(Refusal.ExamplesFail(n.id, examples))
+      .orElse(n.tested.flatMap(_.failure).map(f =>
+        if Cause.movedUnderCode(causes) then Refusal.ContractChanged(n.id, f.against(n.id.value)) else Refusal.CodeFails(n.id, f.line)))
 
   // Each confirmed once all it rests on holds; one still waiting for another node stays under review.
   private def confirmBelow(g: Graph, start: Ledger, n: SnapNode, confirm: List[NodeId], reason: String, record: Record): Ledger =

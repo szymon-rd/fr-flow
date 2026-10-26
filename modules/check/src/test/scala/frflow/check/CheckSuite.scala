@@ -133,6 +133,67 @@ class CheckSuite extends munit.FunSuite:
     val open = List(Result(ObligationName.Complete, ObligationStatus.Open, "x"))
     assertEquals(Verdict.obligations(g, onlyGood, open, open, Nil).flatMap(_.hint),
       Some("prove it in lean/Proofs/Shelf/OnlyGood.lean (run `scaffold OnlyGood`)"))
+    // with a proof file, the proof in it is what to fix: no scaffold
+    assertEquals(Verdict.obligations(g, onlyGood, open, open, Nil, proofFile = true).flatMap(_.hint),
+      Some("fix the proof in lean/Proofs/Shelf/OnlyGood.lean"))
+  }
+
+  test("an authored proof that does not go through says so in FrFlow's words first, naming what changed, then Lean's") {
+    val lean = Result(ObligationName.Complete, ObligationStatus.Open, "omega could not prove the goal")
+    assertEquals(Verdict.brokenProof(lean, List("overlaps")).detail,
+      "the proof from its parts no longer goes through: overlaps changed\nLean: omega could not prove the goal")
+    assertEquals(Verdict.brokenProof(lean, Nil).detail,
+      "the proof from its parts does not go through\nLean: omega could not prove the goal")
+  }
+
+  test("a step refuted: a case the contract's own answer breaks the claim on, with the Lean that proves it") {
+    val double = Param[BigInt => BigInt]("double", "twice a number")
+    val doubles = Node.claim("Doubles", "Doubling a number adds it to itself.", why = "w")(forall((x: Term[BigInt]) => double(x) === x + x))
+    val one = Node.contract(double)("AddsOne", "Doubling adds the number and one.", why = "w")((x, r) => r === x + x + 1)
+      .under(doubles).examples(expect(BigInt(1), BigInt(3), "one"), reject(BigInt(1), BigInt(2), "not two"))
+    val kb = KnowledgeBase("Twice")(doubles, one)
+    val found = Refutation.candidate(kb, doubles, identity).getOrElse(fail("no case found"))
+    assertEquals((found.shown, found.what), ("x = 0", "the contract gives 1, which the claim refuses"))
+    assert(found.lean.contains("theorem refutes : ¬ Twice.Doubles.Obl.complete := by") && found.lean.contains("have h := h 0"), found.lean)
+    // a contract that only bounds its result gives no answer to try
+    val bounded = Node.contract(double)("AtLeast", "Doubling gives at least the number.", why = "w")((x, r) => r >= x)
+      .under(doubles).examples(expect(BigInt(1), BigInt(2), "two"), reject(BigInt(1), BigInt(0), "not less"))
+    assertEquals(Refutation.candidate(KnowledgeBase("Twice")(doubles, bounded), doubles, identity), None)
+    // on the step's line: the case, then the hint to look at the change first
+    val r = Verdict.refuted(Result(ObligationName.Complete, ObligationStatus.Open, "omega could not prove the goal"), found)
+    assertEquals(r.detail, "the step from its parts does not hold: x = 0: the contract gives 1, which the claim refuses\nLean proves the step false on it")
+    val g = Generate(shelfKb)
+    assertEquals(Verdict.obligations(g, onlyGood, List(r), List(r), Nil, proofFile = true, changed = List("overlaps")).flatMap(_.hint),
+      Some("check the change to overlaps: with it, the contract no longer gives the claim"))
+  }
+
+  test("a broken proof whose Lean gives a counterexample says the step may be false, and to check the change first") {
+    val omega = "omega could not prove the goal:\na possible counterexample may satisfy the constraints\n  c - d ≤ -1"
+    val open = Result(ObligationName.Complete, ObligationStatus.Open, omega)
+    val said = Verdict.brokenProof(open, List("overlaps"))
+    assertEquals(said.detail, s"the step from its parts may no longer hold: overlaps changed\nLean: $omega")
+    assertEquals(Verdict.brokenProof(open, Nil).detail.linesIterator.next(), "the step from its parts may not hold")
+    assert(Verdict.mayBeFalse("decide failed: the proposition evaluates to false"))
+    assert(!Verdict.mayBeFalse("omega could not prove the goal: no usable constraints found"))
+    val g = Generate(shelfKb)
+    assertEquals(Verdict.obligations(g, onlyGood, List(said), List(said), Nil, proofFile = true, changed = List("overlaps")).flatMap(_.hint),
+      Some("check the change to overlaps; if the step still holds, fix the proof in lean/Proofs/Shelf/OnlyGood.lean"))
+    // no counterexample: the proof is what to fix
+    val plain = Verdict.brokenProof(Result(ObligationName.Complete, ObligationStatus.Open, "unsolved goals"), List("overlaps"))
+    assertEquals(Verdict.obligations(g, onlyGood, List(plain), List(plain), Nil, proofFile = true, changed = List("overlaps")).flatMap(_.hint),
+      Some("fix the proof in lean/Proofs/Shelf/OnlyGood.lean"))
+  }
+
+  test("what changed since a node was decided, as its proof reads it: the definitions it uses by name, its own formula") {
+    import io.circe.Json
+    def node(formula: String, uses: String*) = Content("sources" -> Json.obj("formula" -> Json.fromString(formula)),
+      "why" -> Json.fromString("w"), "uses" -> Json.fromValues(uses.map(Json.fromString)))
+    val before = node("f", "case class Booking(room: String)", "overlaps = (a, b) => a.start < b.end", "covers = (b, t) => b.start <= t")
+    assertEquals(Verdict.whatChanged("Root", before, node("f", "case class Booking(room: String)", "overlaps = (a, b) => a.start <= b.end",
+      "covers = (b, t) => b.start <= t")), List("overlaps"))
+    assertEquals(Verdict.whatChanged("Root", before, node("g", "case class Booking(room: String, start: BigInt)",
+      "overlaps = (a, b) => a.start < b.end", "covers = (b, t) => b.start <= t")), List("Root", "Booking"))
+    assertEquals(Verdict.whatChanged("Root", before, before), Nil)
   }
 
   /** The node's Checks file as generated, and an output where Lean proves `holds` and the obligations, and none of the tries. */

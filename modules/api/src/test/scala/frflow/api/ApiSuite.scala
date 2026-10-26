@@ -61,7 +61,20 @@ class ApiSuite extends munit.FunSuite:
     assert(!proven.copy(notProven = List(ObligationName.Impl)).ok)
     assert(!proven.copy(failing = List(FailingExample("expect", "fails"))).ok)
     assert(!proven.copy(idle = Some("admit doing nothing")).ok)
+    assert(!proven.copy(testFailure = Some(TestFailure("(\"t\", Path(\"/a\")) ⇒ None", "returned None", 1, 0, 1))).ok)
     assert(!CheckReport(List(proven, proven.copy(notProven = List(ObligationName.Impl))), v, Overview.of(v)).ok)
+  }
+
+  test("a failing case is the contract's change when the contract moved and its code did not") {
+    assert(Cause.movedUnderCode(List(Cause.Self)))
+    assert(Cause.movedUnderCode(List(Cause.Self, Cause.Above)))
+    assert(!Cause.movedUnderCode(List(Cause.Self, Cause.Code)))
+    assert(!Cause.movedUnderCode(List(Cause.Code)))
+    assert(!Cause.movedUnderCode(Nil))
+    val f = TestFailure("held = List()", "returned true, which Decide refuses", 1, 0, 1)
+    assertEquals(f.said("Decide", contractChanged = true),
+      "the contract changed and its code no longer meets it: held = List(): returned true, which the contract now refuses")
+    assertEquals(f.said("Decide", contractChanged = false), "its code fails a generated case: held = List(): returned true, which Decide refuses")
   }
 
   test("--json: a node checked says whether it is ok, beside how its check ended, and reads back") {

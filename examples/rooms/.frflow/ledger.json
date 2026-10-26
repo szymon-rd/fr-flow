@@ -1,0 +1,140 @@
+{
+  "decisions": {
+    "GrantWhenFree": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T03:32:39.486881Z",
+        "reason": "The rule people booking rooms rely on, stated over moments.",
+        "rejected": [],
+        "commit": "11a98eaf90fd43d01d607c129998ed92d7723380",
+        "key": "b6e216cfdf46a202",
+        "sig": "qXn06STuj2CZ6Jsd36flBmfRIKcH58MkJbBYuiqUCOsQKFbgRvACeA/Q9uIyZV//DqJZJj6zl5fZjdw7kwPtDQ==",
+        "chain": "",
+        "content": "d4d79991dc0587e7"
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T04:05:10.481302Z",
+        "reason": "The reason now says why a free room is granted: first come, first served.",
+        "rejected": [],
+        "after": "81c3f7a8565e712d",
+        "commit": "31a10f14e9b5292f91b462b53057095f045e9b2a",
+        "key": "b6e216cfdf46a202",
+        "sig": "vm3CHgZKalx7v3gTOBpQVV0vAMPFGDfjc+kTJZpqyb6717L3nC/LF28L+KOKyWUcD2HuE2TYuNWU0LEewTDRBQ==",
+        "chain": "",
+        "content": "3f5556a8d3c08045"
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T04:34:07.498340Z",
+        "reason": "Its precondition is now its own, in moments: a change to the contract's overlap no longer changes it; the reason says what goes wrong otherwise.",
+        "rejected": [],
+        "after": "b04d536c3c22c627",
+        "commit": "cb194afa8d6fb30706ed21ce6456766dd0ddeb92",
+        "key": "b6e216cfdf46a202",
+        "sig": "DSe1myCqSZabjeibcjnl70asbgYK2k4SWDd6chU75yYV4FyksaA4f5Fb88iwOmT1NBxQqAIkJgvz1tVWHQP+DA==",
+        "chain": "",
+        "content": "811b7498f54bec2b"
+      }
+    ],
+    "GrantWhenNoOverlap": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T03:32:41.878567Z",
+        "reason": "Overlap of start and end times decides it, as Lean proves.",
+        "rejected": [],
+        "code": "6cf007a7acfd79d7a11f381cf8f48555affea5570f8f31f5a25bf87a4a6be946",
+        "commit": "11a98eaf90fd43d01d607c129998ed92d7723380",
+        "key": "b6e216cfdf46a202",
+        "sig": "0P8KVvDeWcazI+JIStZpX/3hMSGiMl8wdS6W78ZJ9h61OQu8ZezxbEKSd+83X8c2lAoeSCJn9sr/wEbw2ejvDg==",
+        "chain": "218c7995af6753b8a67deddab22201da0b137da1db99df91babe6a8e8d00ea73",
+        "content": "a24fe3a9b0d1ab7a"
+      },
+      {
+        "action": "confirm",
+        "by": "demo-developer",
+        "at": "2026-10-26T03:53:13.330865Z",
+        "reason": "Binary search finds the same neighbours; the tests pass.",
+        "rejected": [],
+        "after": "58f5639ede752dc9",
+        "code": "7e36276b9e3743b2e9448b2a73d1c079353b627e421ad003fa8bb1c52a84b2c3",
+        "commit": "a687e38c2b465c9fd8836f8b5a36203a759901d1",
+        "key": "b6e216cfdf46a202",
+        "sig": "KdrqSFFNqR29l08waVXxKuHSHazjOp3rUjtX1rtweolWTMpmzTHQ6A3moQFle0OAuBC62hrhlP0eQUrGVfK4Dw==",
+        "chain": "218c7995af6753b8a67deddab22201da0b137da1db99df91babe6a8e8d00ea73",
+        "content": "a24fe3a9b0d1ab7a"
+      },
+      {
+        "action": "confirm",
+        "by": "demo-developer",
+        "at": "2026-10-26T04:34:07.498340Z",
+        "reason": "still holds after GrantWhenFree changed: Its precondition is now its own, in moments: a change to the contract's overlap no longer changes it; the reason says what goes wrong otherwise.",
+        "rejected": [],
+        "after": "0d5c44bb106342f8",
+        "code": "7e36276b9e3743b2e9448b2a73d1c079353b627e421ad003fa8bb1c52a84b2c3",
+        "commit": "cb194afa8d6fb30706ed21ce6456766dd0ddeb92",
+        "key": "b6e216cfdf46a202",
+        "sig": "aoTcIUp/Iy9rVmv7N058J5bLB5KmZiXZIXpqDWL9FJXp1Ehih3+EWxEPxs16JSt5pEhSUmF8FKRTKAVrjZfcBw==",
+        "chain": "42cbba05b0cc72714a3977d7637d1b3260cf3e47d94dc0b8542953528a19d800",
+        "content": "a24fe3a9b0d1ab7a"
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-26T05:01:04.647143Z",
+        "reason": "Only the examples' list changed form; the cases are the same.",
+        "rejected": [],
+        "after": "17d5f2861ecc33d0",
+        "code": "7e36276b9e3743b2e9448b2a73d1c079353b627e421ad003fa8bb1c52a84b2c3",
+        "commit": "dd7311aec8dd0d22124e3f31202e1e0e8782f9f9",
+        "key": "b6e216cfdf46a202",
+        "sig": "25ty/z0xFoADGnFku1VHw5+DqPT0itXxgKwhl9G9yxeZc3GpOWx7165vGQ9VR2drEFSZrPVMq7U18XUvKfBWBw==",
+        "chain": "42cbba05b0cc72714a3977d7637d1b3260cf3e47d94dc0b8542953528a19d800",
+        "content": "5d4d11efce23f524"
+      }
+    ]
+  },
+  "contents": {
+    "d4d79991dc0587e7": {"kind":"f0c4b6b1b355b1eb","parents":[],"parts":["30898cc7841d7a38"],"statement":"f4a34603beac61c4","why":"8048e6664ee1cce5","sources":"560d5e57406c2894","substitutions":[],"examples":[],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","5c3bea1d8243b41a","efd2c3af61877513","e0823bbe58f381e6","df67d584972a5787"],"governs":[],"definition":"0af968b51955fd5d","idea":"12ae32cb1ec02d01","notModelled":"12ae32cb1ec02d01"},
+    "3f5556a8d3c08045": {"kind":"f0c4b6b1b355b1eb","parents":[],"parts":["30898cc7841d7a38"],"statement":"f4a34603beac61c4","why":"a49088fd91286f38","sources":"560d5e57406c2894","substitutions":[],"examples":[],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","5c3bea1d8243b41a","efd2c3af61877513","e0823bbe58f381e6","df67d584972a5787"],"governs":[],"definition":"ea200e98491bdb91","idea":"12ae32cb1ec02d01","notModelled":"12ae32cb1ec02d01"},
+    "811b7498f54bec2b": {"kind":"f0c4b6b1b355b1eb","parents":[],"parts":["30898cc7841d7a38"],"statement":"f4a34603beac61c4","why":"a0bf977e1eb17181","sources":"cd41a306349d2450","substitutions":[],"examples":[],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","17f01caec8d8e3d6","df67d584972a5787","e0823bbe58f381e6"],"governs":[],"definition":"678ab818c4280986","idea":"12ae32cb1ec02d01","notModelled":"12ae32cb1ec02d01"},
+    "a24fe3a9b0d1ab7a": {"kind":"304aeb6aeb928120","parents":["e72512f596f0fa39"],"parts":[],"statement":"bc04883931e3f63f","why":"03288b643fc162e4","sources":"afe7014e712774cf","substitutions":[],"examples":["c6a0956780bf1b32","7d481f8a773a26d8"],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","5c3bea1d8243b41a","efd2c3af61877513"],"governs":[],"definition":"85ea9cac7b787a61","op":"7804505e6feac9b3","implementation":"e8127d1d5945658b"},
+    "5d4d11efce23f524": {"kind":"304aeb6aeb928120","parents":["e72512f596f0fa39"],"parts":[],"statement":"bc04883931e3f63f","why":"03288b643fc162e4","sources":"afe7014e712774cf","substitutions":[],"examples":["c6a0956780bf1b32","7d481f8a773a26d8"],"vocabulary":["b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","5c3bea1d8243b41a","efd2c3af61877513"],"governs":[],"definition":"01084f01196fb200","op":"7804505e6feac9b3","implementation":"e8127d1d5945658b"}
+  },
+  "values": {
+    "f0c4b6b1b355b1eb": "claim",
+    "30898cc7841d7a38": "GrantWhenNoOverlap",
+    "f4a34603beac61c4": "A request is granted exactly when its room is free for its whole time.",
+    "8048e6664ee1cce5": "This is what people booking a room rely on.",
+    "560d5e57406c2894": {"formula":"forall((held: Term[List[Booking]], request: Term[Booking]) =>\n  consistent(held, request) ==> (granted(held, request) === freeFor(held, request)))"},
+    "b2e584fea7550590": "granted: whether a request is granted, given the bookings held",
+    "a47ee2f71b1ac7c0": "case class Booking(room: String, start: BigInt, end: BigInt)",
+    "5c3bea1d8243b41a": "consistent = (held: Term[List[Booking]], request: Term[Booking]) =>\n  (request :: held).forall(b => b.start < b.end) && held.forall(a => held.forall(b => a === b || !overlaps(a, b)))",
+    "efd2c3af61877513": "overlaps = (a: Term[Booking], b: Term[Booking]) => a.room === b.room && a.start < b.end && b.start < a.end",
+    "e0823bbe58f381e6": "freeFor = (held: Term[List[Booking]], request: Term[Booking]) =>\n  forall((t: Term[BigInt]) => covers(request, t) ==> !held.exists(b => b.room === request.room && covers(b, t)))",
+    "df67d584972a5787": "covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end",
+    "0af968b51955fd5d": "val grantWhenFree = Node.claim(\"GrantWhenFree\",\n  \"A request is granted exactly when its room is free for its whole time.\",\n  why = \"This is what people booking a room rely on.\"\n)(forall((held: Term[List[Booking]], request: Term[Booking]) =>\n  consistent(held, request) ==> (granted(held, request) === freeFor(held, request))))",
+    "12ae32cb1ec02d01": "",
+    "a49088fd91286f38": "Booking is first come, first served: a free room goes to whoever asks.",
+    "ea200e98491bdb91": "val grantWhenFree = Node.claim(\"GrantWhenFree\",\n  \"A request is granted exactly when its room is free for its whole time.\",\n  why = \"Booking is first come, first served: a free room goes to whoever asks.\"\n)(forall((held: Term[List[Booking]], request: Term[Booking]) =>\n  consistent(held, request) ==> (granted(held, request) === freeFor(held, request))))",
+    "a0bf977e1eb17181": "Refusing a free room wastes it, and granting a taken one double-books it.",
+    "cd41a306349d2450": {"formula":"forall((held: Term[List[Booking]], request: Term[Booking]) =>\n  sensible(held, request) ==> (granted(held, request) === freeFor(held, request)))"},
+    "17f01caec8d8e3d6": "sensible = (held: Term[List[Booking]], request: Term[Booking]) =>\n  (request :: held).forall(b => b.start < b.end) && held.forall(a => held.forall(b =>\n    (a =!= b && a.room === b.room) ==> forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))))",
+    "678ab818c4280986": "val grantWhenFree = Node.claim(\"GrantWhenFree\",\n  \"A request is granted exactly when its room is free for its whole time.\",\n  why = \"Refusing a free room wastes it, and granting a taken one double-books it.\"\n)(forall((held: Term[List[Booking]], request: Term[Booking]) =>\n  sensible(held, request) ==> (granted(held, request) === freeFor(held, request))))",
+    "304aeb6aeb928120": "contract",
+    "e72512f596f0fa39": "GrantWhenFree",
+    "bc04883931e3f63f": "A request is granted exactly when it overlaps no booking of its room.",
+    "03288b643fc162e4": "Bookings that end after they start share a moment exactly when they overlap.",
+    "afe7014e712774cf": {"post":"(held, request, result) => consistent(held, request) ==> (result === !held.exists(b => overlaps(b, request)))"},
+    "c6a0956780bf1b32": "expect (List(Booking(\"Oak\", 9, 10)), Booking(\"Oak\", 10, 11)) ⇒ true  given   — back to back: granted",
+    "7d481f8a773a26d8": "reject (List(Booking(\"Oak\", 9, 11)), Booking(\"Oak\", 10, 12)) ⇒ true  given   — overlapping: never granted",
+    "85ea9cac7b787a61": "val grantWhenNoOverlap = Node.contract(granted)(\"GrantWhenNoOverlap\",\n  \"A request is granted exactly when it overlaps no booking of its room.\",\n  why = \"Bookings that end after they start share a moment exactly when they overlap.\"\n)((held, request, result) => consistent(held, request) ==> (result === !held.exists(b => overlaps(b, request))))\n  .under(grantWhenFree)\n  .examples()(\n    expect(List(Booking(\"Oak\", 9, 10)), Booking(\"Oak\", 10, 11), true, \"back to back: granted\"),\n    reject(List(Booking(\"Oak\", 9, 11)), Booking(\"Oak\", 10, 12), true, \"overlapping: never granted\"))",
+    "7804505e6feac9b3": "granted",
+    "e8127d1d5945658b": "(held, request) => Calendar(held).granted(request)",
+    "01084f01196fb200": "val grantWhenNoOverlap = Node.contract(granted)(\"GrantWhenNoOverlap\",\n  \"A request is granted exactly when it overlaps no booking of its room.\",\n  why = \"Bookings that end after they start share a moment exactly when they overlap.\"\n)((held, request, result) => consistent(held, request) ==> (result === !held.exists(b => overlaps(b, request))))\n  .under(grantWhenFree)\n  .examples(\n    expect(List(Booking(\"Oak\", 9, 10)), Booking(\"Oak\", 10, 11), true, \"back to back: granted\"),\n    reject(List(Booking(\"Oak\", 9, 11)), Booking(\"Oak\", 10, 12), true, \"overlapping: never granted\"))"
+  }
+}

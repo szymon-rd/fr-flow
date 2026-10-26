@@ -30,9 +30,10 @@ class TestingSuite extends munit.FunSuite:
     val buggy = KnowledgeBase("Shelf", idea = "IDEA.md")((shelfNodes :+ pick)*).testedWith(few)
       .implement(pick)((shelf, n) => shelf.filter(_.pages > minPages.value))
     val f = buggy.test(pick).get.failure.getOrElse(fail("the bug was not found"))
-    // One book, at the length asked, the rest as small as the generator allows.
-    assert(f.shown.matches("""\(List\(Book\("", (-?\d+)\)\), 0\) ⇒ List\(\)  given minPages = \1"""), f.shown)
-    assert(f.why.contains("Pick refuses"), f.why)
+    // One book, at the length asked, the rest as small as the generator allows; the inputs by the contract's names, the
+    // result said once, by why it fails.
+    assert(f.shown.matches("""shelf = List\(Book\("", (-?\d+)\)\), n = 0, given minPages = \1"""), f.shown)
+    assertEquals(f.why, "returned List(), which Pick refuses")
   }
 
   test("the same seed gives the same cases; a failing case replays first") {

@@ -54,10 +54,10 @@ final class Analysis private (val kb: KnowledgeBase, val ws: Workspace, val inpu
 
   lazy val snapshot: Snapshot = Snapshots.of(this)
   lazy val annotated: Annotated = Annotate(snapshot, ledger)
-  lazy val unsigned: List[(NodeId, Decision)] = Signing.unsigned(ledger, inputs.keys)
+  lazy val unsigned: List[(NodeId, Decision)] = Signing.unsigned(ledger, inputs.keys, inputs.keyNames)
 
   /** Everything `status` warns of: the model and the code (the snapshot's), and the ledger's signatures. */
-  lazy val warnings: List[String] = snapshot.warnings ++ Signing.warnings(inputs.keys, ledger, unsigned)
+  lazy val warnings: List[String] = snapshot.warnings ++ inputs.keyWarnings ++ Signing.warnings(inputs.keys, ledger, unsigned)
 
 object Analysis:
   def apply(kb: KnowledgeBase, ws: Workspace, inputs: Inputs): Analysis = new Analysis(kb, ws, inputs, None)

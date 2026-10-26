@@ -84,6 +84,20 @@ class WorkspaceSuite extends munit.CatsEffectSuite with TempDirs:
     yield assertEquals(u, List("src/fast/scala/Fast.scala", "src/main/scala/Leak.scala"))
   }
 
+  test("a knowledge base without an idea reads none, though the project has an IDEA.md") {
+    val noIdea = KnowledgeBase("Shelf")(shelfKb.nodes*)
+    for
+      ws <- workspace
+      _ <- write(ws.root.resolve("IDEA.md"), "# Shelf\n\nReaders find books.\n")
+      cfg <- Config.load
+      without <- Inputs.read(noIdea, ws, cfg, IO.pure(Ledger.empty))
+      withIdea <- Inputs.read(shelfKb, ws, cfg, IO.pure(Ledger.empty))
+    yield
+      assertEquals((noIdea.idea, without.idea), ("", ""))
+      assert(withIdea.idea.contains("Readers find books."), withIdea.idea)
+      assertEquals(Governance.warnings(Analysis(noIdea, ws, without)).filter(_.contains("IDEA")), Nil)
+  }
+
   test("the code diffed against a commit: a file git does not track is compared as it is, not shown as deleted") {
     for
       repo <- IO.blocking(tempDir("frflow-git"))
