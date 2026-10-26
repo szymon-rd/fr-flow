@@ -21,11 +21,14 @@ object ReportText:
         (ls.headOption.filter(_.trim.nonEmpty).getOrElse(s"$status$notProven"), ls.drop(1) match { case Nil => Nil; case rest => List("  " + rest.mkString("\n    ")) })
       // Lean checked what it holds of the node; its code, plain code, is tested, not proven: say that, not "proven".
       case Nil if c.ok && c.codeTested.isDefined => (c.codeTested.fold("")(tested), Nil)
+      case Nil if c.ok && c.modelRuns.isDefined => (c.modelRuns.fold("")(matches), Nil)
       // A node made of parts: what Lean proved is the step from them.
       case Nil if c.ok && c.step => ("step proven", Nil)
       case rs => (s"$status$notProven", rs.map(r => s"${r.name} ${r.status}: ${r.detail.linesIterator.mkString("\n    ")}"))
-    // The contract changed and its code did not: the code is not what moved.
+    // Said in place of its status: the contract changed and its code did not (the code is not what moved), or a run of
+    // a model's implementation differs from the model.
     val moved = c.testFailure.filter(_ => c.contractChanged).map(f => st.red(f.said(c.id.value, contractChanged = true)))
+      .orElse(c.testFailure.filter(_ => c.modelRuns.isDefined).map(f => st.red(s"a generated run differs from the model: ${f.line}")))
     s"$glyph ${st.bold(c.id.value)}: ${moved.getOrElse(head)}" ::
       (Option.when(c.failing.nonEmpty)(st.red(s"${c.failing.size} example(s) fail: the code or the contract is wrong; fix that, not the proof")).toList ++
         c.failing.take(5).map(f => s"  ${f.example}: ${f.verdict}") ++
@@ -33,6 +36,11 @@ object ReportText:
         problems ++
         c.idle.map(i => st.red(s"! doing nothing meets it ($i): state what users can do, so it says exactly what the system does (status fails until then)")) ++
         (c.messages ++ c.hint).map(m => s"! ${m.linesIterator.mkString("\n    ")}")).map("  " + _)
+
+  /** A model's implementations, when their runs give what the model gives. */
+  private def matches(m: ModelRuns): String =
+    val give = if m.implementations.size == 1 then "gives" else "give"
+    s"${m.implementations.mkString(" and ")} $give what the model gives on ${f"${m.runs}%,d"} generated runs"
 
   /** Plain code's tests, when they pass: what holds of a contract whose code is tested, not proven. */
   private def tested(t: TestReport): String =

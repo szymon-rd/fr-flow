@@ -9,5 +9,5 @@ export frflow.api.details.{CodeChange, Details, DiffLine, FieldChange, Fields, G
   NodeDiff, Term}
 
 // What the reads and the operations return.
-export frflow.api.report.{CheckReport, CheckedNode, CiReport, FailingExample, Inbox, Overview, Queued, Rendered, Scaffolded,
+export frflow.api.report.{CheckReport, CheckedNode, CiReport, FailingExample, Inbox, ModelRuns, Overview, Queued, Rendered, Scaffolded,
   StatusReport, Tree, TreeNode, Trees}

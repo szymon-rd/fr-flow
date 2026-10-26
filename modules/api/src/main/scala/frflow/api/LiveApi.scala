@@ -62,7 +62,8 @@ final class LiveApi private (kb: KnowledgeBase, ws: Workspace, cfg: Config, lake
       (results, after) <- CheckRunner.check(a, lake, cfg, node.map(_.value), progress)
       _ <- CheckRunner.writeSnapshot(after)
       v <- viewOf(after)
-    yield (results.flatMap((n, c) => v.node(NodeId(n.id)).map(CheckedNode.of(_, c))), v)
+      models = v.annotated.nodes.filter(r => node.forall(_ == r.id) && !results.exists(_._1.id == r.id.value))
+    yield (results.flatMap((n, c) => v.node(NodeId(n.id)).map(CheckedNode.of(_, c))) ++ models.flatMap(CheckedNode.ofModel), v)
 
   def check(node: Option[NodeId], progress: Progress => IO[Unit]): IO[CheckReport] =
     checked(node, progress).map((ns, v) => CheckReport(ns, v, Overview.of(v)))

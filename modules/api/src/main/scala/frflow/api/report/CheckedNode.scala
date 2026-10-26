@@ -7,12 +7,14 @@ import io.circe.{Codec, Encoder, Json}
 /** One node as `check` left it; `idle`, for a root, is what doing nothing is when it meets the root; `testFailure`, the
   * generated case its code fails, shrunk; `contractChanged`, that it fails because the contract changed, not its code;
   * `codeTested`, the tests of its code when that code is plain code, tested and not proven; `step`, that it is made of
-  * parts, so what Lean proves of it is the step from them. `status` is how its check ended: `proven` with an obligation still open (its
-  * `impl`, `root_impl`) is not `ok`.
+  * parts, so what Lean proves of it is the step from them; `modelRuns`, for a boundary's model, the runs of its
+  * implementations against it (Lean has nothing to prove of a model: its `status` is `proven`). `status` is how its check
+  * ended: `proven` with an obligation still open (its `impl`, `root_impl`) is not `ok`.
   */
 final case class CheckedNode(id: NodeId, status: CheckStatus, notProven: List[ObligationName], problems: List[Result],
     failing: List[FailingExample], idle: Option[String], messages: List[String], hint: Option[String],
-    testFailure: Option[TestFailure] = None, contractChanged: Boolean = false, codeTested: Option[TestReport] = None, step: Boolean = false):
+    testFailure: Option[TestFailure] = None, contractChanged: Boolean = false, codeTested: Option[TestReport] = None, step: Boolean = false,
+    modelRuns: Option[ModelRuns] = None):
   /** Proven, nothing of it left open, its examples and the tests of its code passing, and (for the root) not met by
     * doing nothing: what `check` exits 0 on.
     */
@@ -35,3 +37,13 @@ object CheckedNode:
       failing, r.node.idle, c.messages,
       // With an example or a generated case failing, the code or the node is wrong: no hint to prove it.
       c.hint.filter(_ => failing.isEmpty && testFailure.isEmpty), testFailure, contractChanged, codeTested, r.node.split.isDefined)
+
+  /** A boundary's model whose implementations were run against it. */
+  def ofModel(r: Reviewed): Option[CheckedNode] =
+    frflow.ledger.CodeProof.of(r.node).collect { case frflow.ledger.CodeProof.Model(own, outside, Some(t)) =>
+      CheckedNode(r.id, CheckStatus.Proven, Nil, Nil, Nil, None, Nil, None, t.failure,
+        modelRuns = Some(ModelRuns((own ++ outside).map(frflow.ledger.CodeProof.named), t.cases)))
+    }
+
+/** The implementations of a boundary run against its model, by name, and on how many generated runs. */
+final case class ModelRuns(implementations: List[String], runs: Int) derives Codec.AsObject

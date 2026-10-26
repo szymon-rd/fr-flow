@@ -24,7 +24,7 @@ final case class Style(color: Boolean, unicode: Boolean, width: Option[Int]):
   def glyph(r: Reviewed): String =
     val (ok, total) = r.node.examplesPassing
     r.node.status match
-      case None => dim(pick("·", "-"))
+      case None => if r.node.tested.exists(_.failure.isDefined) then failed else dim(pick("·", "-"))
       case Some(CheckStatus.Failed | CheckStatus.ModelError) => failed
       case Some(_) if ok != total => failed
       case Some(CheckStatus.Open) => open

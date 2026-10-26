@@ -33,6 +33,10 @@ object CodeProof:
         Some(Model(impls.filter(_.startsWith(Own)).map(_.stripPrefix(Own)), impls.filter(_.startsWith(Outside)).map(_.stripPrefix(Outside)), n.tested))
       case None => Option.when(impl.nonEmpty)(Tested(n.tested))
 
+  /** An implementation by the class its start makes, as written: `SqliteDatabase.holding(t)` names `SqliteDatabase`. */
+  def named(start: String): String =
+    """[A-Z]\w*""".r.findFirstIn(start.replaceFirst("""^[^=]*=>""", "")).getOrElse(start.trim)
+
   /** Whether code of the node is tested, not proven: plain code, or code running beside a proven define. */
   def tested(n: SnapNode): Boolean = of(n).exists {
     case Tested(_)              => true
