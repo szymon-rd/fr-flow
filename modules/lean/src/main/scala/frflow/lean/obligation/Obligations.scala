@@ -12,7 +12,7 @@ final class Obligations(kb: KnowledgeBase, refinement: Refinement, coverage: Cov
   def isAuthored(n: Node[?], name: ObligationName): Boolean = authored((n.id, name))
   def obligations(n: Node[?]): List[Obligation] =
     complete(n).toList ++ feasible(n) ++ implementation(n) ++ commutes(n) ++ check(n) ++ covers(n) ++ keptBy(n) ++
-      initially(n) ++ expects(n)
+      initially(n) ++ calledWith(n) ++ expects(n)
   def obligation(n: Node[?], name: ObligationName): Option[Obligation] = obligations(n).find(_.name == name)
   def extraObligations(n: Node[?]): List[Obligation] = obligations(n).filterNot(o => o.name == Complete || o.name == Impl)
 
@@ -97,14 +97,29 @@ final class Obligations(kb: KnowledgeBase, refinement: Refinement, coverage: Cov
     for
       rule  <- n.holds.toList
       m     <- n.always.flatMap(_.store).toList
-      start <- n.premises.filter(_.fact.exists(_.store.exists(_ eq m))).flatMap(_.initially)
+      start <- kb.premisesOf(n).filter(_.fact.exists(_.store.exists(_ eq m))).flatMap(_.initially)
     yield
       val t = frflow.Types.walk(m.stateType).lean
       val (r, ro) = code(rule)
       val (i, io) = code(start)
-      val by = n.premises.find(_.initially.exists(_ eq start)).fold("")(_.id)
+      val by = kb.premisesOf(n).find(_.initially.exists(_ eq start)).fold("")(_.id)
       Obligation(Initially, stated(ro ++ io, Nil, s"∀ (s : $t), $i s → $r s"),
         s"What ${m.lean} holds when the system starts ($by) holds ${n.id}.")
+
+  /** What an assumption says a program is called with from outside holds an `always` claim about its input's type. */
+  private def calledWith(n: Node[?]): List[Obligation] =
+    for
+      rule <- n.holds.toList if n.always.exists(_.store.isEmpty)
+      premise <- kb.premisesOf(n)
+      (program, condition) <- premise.calledOnlyWith.toList
+      input <- program.termType.shape match { case frflow.types.Shape.FnOf(List(a), _) => List(a); case _ => Nil }
+      (_, _, reach) <- kb.invariantsOn(input).find(_._1 eq n).toList
+    yield
+      val (r, ro) = code(rule)
+      val (c, co) = code(condition)
+      Obligation(CalledWith(program.name), stated(ro ++ co, Nil,
+        s"∀ (x : ${frflow.Types.walk(input).lean}), $c x → ${reach.lean("x", r)}"),
+        s"What ${premise.id} says ${program.name} is called with holds ${n.id}.")
 
   private def covers(n: Node[?]): List[Obligation] = formalKeeps(n).flatMap { (inv, _) =>
     coverage.coverage(n, inv).toOption.flatten.map((stmt, o) => Obligation(Cover(inv.id), stated(o, Nil, stmt),

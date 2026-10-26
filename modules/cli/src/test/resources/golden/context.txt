@@ -1,4 +1,4 @@
-! Decide  contract on admit  review (changed)
+! Decide  contract on admit  it changed: review it
   A request is admitted on behalf of the user its token was issued to, exactly when a grant names them and the path.
   why: One call meets both rules at once.
 
@@ -29,7 +29,7 @@ What it rests on, nearest first, with the reasons
   + LetsIn: "A request with a grant for the path is admitted."
     holds because: LetsIn holds as stated
       forall((t, p) => sessions(t).forall(u => grants(u, p) implies admit(t, p) == Some(u)))
-  ! Root — review (parts): "A user gets access to a resource exactly when they are signed in and authorized for it."
+  ! Root — its parts changed: review it: "A user gets access to a resource exactly when they are signed in and authorized for it."
     holds because: Root holds as stated
       forall((u, r) => access(u, r) == (signedIn(u) && authorized(u, r)))
   - Identities (definition): "Users are named by ids, and resources are paths."

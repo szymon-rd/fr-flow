@@ -23,7 +23,7 @@ export frflow.term.Quantifiers.*
 export frflow.term.Terms.*
 export frflow.term.When.when
 export frflow.term.Always.always
-export frflow.boundary.Fact.{calledWithInputsMeetingTheirRules, changedOneRunAtATime, initially, startsMeetingItsRules,
+export frflow.boundary.Fact.{calledOnlyWith, changedOneRunAtATime, initially, startsSatisfying,
   writtenOnlyBy}
 export frflow.boundary.BehavesAs.behavesAs
 export frflow.types.LeanTypes.*

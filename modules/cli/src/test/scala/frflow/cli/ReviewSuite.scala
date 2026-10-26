@@ -67,7 +67,7 @@ class ReviewSuite extends munit.CatsEffectSuite with Golden:
       out <- term.output
     yield
       assertEquals(code, Dispatch.Refused)
-      assert(out.exists(_.contains("accept Root first")), out)
+      assert(out.exists(_.contains("accept root first")), out)
   }
 
   /** Root's formula changed, so what rests on it moved with it (and Decide reworded, if `reworded`). */

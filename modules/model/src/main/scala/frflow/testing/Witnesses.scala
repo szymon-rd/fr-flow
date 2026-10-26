@@ -14,7 +14,8 @@ private[frflow] object Witnesses:
     */
   def values(kb: KnowledgeBase, t: LeanType[?], count: Int, rules: List[Def[?]] = Nil): List[Any] =
     val plan = planOf(kb)
-    def meets(v: Any) = rules.forall(d => Try(Fn.call(d.fn, List(v)).asInstanceOf[Boolean]).getOrElse(true))
+    def meets(v: Any) = rules.forall(d =>
+      Try(Watch.within(Watch.overNumbers(List(v)))(Fn.call(d.fn, List(v)).asInstanceOf[Boolean])).getOrElse(true))
     val drawn =
       (0 until Draws).iterator.flatMap(i => Try(Draw(Testing.random(3, i), 1 + i % 4, plan).value(t)).toOption)
     (empty(t).iterator ++ drawn).filter(v => Try(kb.holds(t)(v)).getOrElse(false) && meets(v)).distinct.take(count)

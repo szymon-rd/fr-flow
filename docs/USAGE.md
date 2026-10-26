@@ -79,7 +79,7 @@ Exit codes: 0 fine; 1 not complete, or a decision refused; 2 a usage error
 | model of a boundary | `Node.assumption(boundary)(Model)(statement, why)` | trusted: the boundary behaves as the model; flows are proven from it |
 | definition | `Node.definition(statement, why)(Type := of[T], term := expr, ...)` | fixes terms of the vocabulary; decided, not proven |
 | `always` | `Node.claim("Every booking ends after it starts.")(always[Booking](b => b.start < b.end))`; of a store, `always(storedBookings)(held => held.pairwise(apart))` | assumed of every value of the type a statement quantifies over (and of a list's elements, a record's fields, and what the models hold); kept by every program writing the store (`kept_by_<program>`); tests draw only values that hold it |
-| fact | `Node.assumption("Only booking writes to the table.")(storedBookings.writtenOnlyBy(book))`, `storedBookings.changedOneRunAtATime`, `storedBookings.startsMeetingItsRules` (or `storedBookings.initially(held => …)`); of the outside, `book.calledWithInputsMeetingTheirRules` | none: read by FrFlow, decided by the developer; what an `always` rests on (`.assuming`): of a store, the first three; of a type, the last, for each program given such inputs from outside |
+| fact | `Node.assumption("Only booking writes to the table.")(storedBookings.writtenOnlyBy(book))`, `storedBookings.changedOneRunAtATime`, `storedBookings.startsSatisfying(neverOverlap)` (or `storedBookings.initially(held => …)`); of the outside, `book.calledOnlyWith(request => request.start < request.end)` | none: read by FrFlow, decided by the developer; what an `always` rests on (`.assuming`): of a store, the first three; of a type, the last, for each program given such inputs from outside |
 | design | `Node.design(statement, why)(files*)` | none: governs code no proof covers |
 
 A node is named by the `val` it is assigned to, its first letter capitalised (`val grantWhenFree = Node.claim(...)`
@@ -106,7 +106,7 @@ knowledge.implementTested(share)((by, doc, withWhom) => owners(doc) == by)
 value); `Declaration[A](means)` an abstract idea known only through what is said of it, which no code uses.
 Examples of a Definition are tests (`class GrantedExamples extends FrFlowExamples(rooms):` with
 `example("back to back: granted"):` and
-`granted(RoomBookings(List(Booking("Oak", 9, 10))), Booking("Oak", 10, 11)) is true`), which `check` reads and
+`granted(RoomBookings("Oak", List(Booking("Oak", 9, 10))), Booking("Oak", 10, 11)) is true`), which `check` reads and
 evaluates against the claims in Lean and against the code (docs/DAG.md §3b). `check` also says whether the
 statements hold together and nothing is vacuous (§3a).
 
@@ -140,7 +140,7 @@ val claimsOf = define { (c: Term[Option[Claims]]) =>
 | `s.records`, `CrmStore(a, b, c)`, `a.copy((enabled = v))` | fields, construction, copy (with `object CrmStore extends Data[CrmStore]`) | fields, `CrmStore.mk`, `{ a with ... }` |
 | `Event[Event.Expired](now)` | an enum case built from terms (with `object Event extends Data[Event]`) | `Event.Expired now` |
 | `q.on[Search.ById](id => ...).on[Search.Everything.type](...)` | a match on an enum (or a list: `.on[::[A]]`, `.on[Nil.type]`), its cases named, in any order; a singleton case is written with `.type` | `match` |
-| `c.fold(ifTrue, ifFalse)` | a conditional: Boolean's fold | `if c then a else b` |
+| `when(c)(a).otherwise(b)`, `c.fold(a, b)` | a conditional on a term (Scala's `if` needs a Boolean, and a term has no truth value while the formula is built; a conversion to one would also capture the terms' `&&` and `\|\|`) | `if c then a else b` |
 | `o.fold(ifEmpty)(x => ...)` | an Option's fold, as Scala's (`ifEmpty` is typed: `List.empty[Rule]`, `none[A]`); `.on` on an Option is refused | `match o with \| some x => ... \| none => ...` |
 | `let(v)(x => ...)` | a shared value, named | `let x : A := v; ...` |
 | `some(x)`, `none[A]`, `List(a, b)`, `(a, b)`, `t._1` | options, lists and pairs of terms | as Lean's |
@@ -246,8 +246,8 @@ val tablesModel = Node.assumption(db)(DatabaseModel)(…)
   .implementedBy(t => MemoryDatabase.holding(t), _.tables)     // the project's own code: tested
 ```
 
-`start` makes an implementation holding a model's state, `read` reads its state
-back. FrFlow generates runs (a state, then 1 to 12 calls of the boundary's
+`holding` makes an implementation holding a model's state, `readBack` reads its
+state back. FrFlow generates runs (a state, then 1 to 12 calls of the boundary's
 operations with generated arguments), runs each on the implementation and on
 the model, and compares every result and the state read back after every call.
 States are compared as the implementation holds them (stored and read back), so
@@ -446,10 +446,10 @@ Cats', with Cats' names:
 - **Production** binds an implementation of the trait, its operations built
   with `Flow.effect`, and runs the flow in any `cats.effect.Sync`:
   `knowledge.run[SyncIO](expiryJob)(db.bind(SqliteDatabase(d)))(now)`.
-- **Implementations against the model.** `.checkedAgainst(start, read)` on the
+- **Implementations against the model.** `.checkedAgainst(holding, readBack)` on the
   model's node names an outside system (SQLite): its model stays assumed, and
   it is checked against the model on the contract's examples and on generated
-  runs of its operations. `.implementedBy(start, read)` names the project's own
+  runs of its operations. `.implementedBy(holding, readBack)` names the project's own
   implementation (the CRM's `MemoryDatabase`): it is tested against the model
   on generated runs, as described under "Proven, tested, assumed".
 

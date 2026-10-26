@@ -203,8 +203,8 @@ function splitLabel(n) {
 }
 function chips(r) {
   const n = r.node, ex = n.examples, bad = ex.filter(e => e.fails || e.codeFails || e.lean?.status === "failed").length;
-  const state = r.review.state === "review" ? `review (${r.review.causes.map(c => SHORT[c] || c).join(", ")})`
-    : r.review.state === "proposed" ? "new" : r.review.state;
+  const state = r.review.state === "review" ? reviewWords(r.review.causes)
+    : r.review.state === "proposed" ? "new: decide it" : r.review.state;
   return `<span class="chip s-${r.review.state}">${esc(state)}</span>` +
     each("chip", r).join("") +
     (trusted(r) ? `<span class="chip s-trusted" title="a hypothesis of root_impl: trusted, not proven">trusted</span>` : "") +
@@ -320,8 +320,15 @@ function renderHeader() {
 const go = id => `<a data-goto="${esc(id)}">${esc(id)}</a>`;
 const when = at => new Date(at).toLocaleString();
 const VERB = { accept: "accepted", confirm: "confirmed", reject: "rejected", revisit: "asked to revisit", remove: "agreed gone" };
-const SHORT = { self: "changed", above: "above", parts: "parts", code: "code", revisit: "revisit",
-  merged: "two branches" };
+const SUBJECT = { self: "it", above: "what is above it", parts: "its parts", code: "its code" };
+const CLAUSE = { revisit: "asked to revisit it", merged: "kept from two branches" };
+/** `it and its code changed: review it`, as the CLI says it. */
+function reviewWords(causes) {
+  const subjects = causes.filter(c => SUBJECT[c]).map(c => SUBJECT[c]);
+  const changed = subjects.length === 0 ? [] : subjects.length === 1 ? [`${subjects[0]} changed`]
+    : [`${subjects.slice(0, -1).join(", ")} and ${subjects[subjects.length - 1]} changed`];
+  return [...changed, ...causes.filter(c => CLAUSE[c]).map(c => CLAUSE[c])].join("; ") + ": review it";
+}
 const CAUSE = { self: "it changed", above: "the meaning of what it rests on changed", parts: "its parts changed", code: "the code it governs changed",
   revisit: "a change elsewhere may affect it", merged: "two branches decided it and both were kept" };
 const line = r => `<div class="small"><span class="kind ${kindOf(r)}">${esc(kindOf(r))}</span> <b>${go(r.node.id)}</b> <span class="chip s-${r.review.state}">${esc(r.review.state)}</span> ${esc(C(r).statement)}</div>`;

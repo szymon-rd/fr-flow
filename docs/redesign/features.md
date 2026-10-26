@@ -50,7 +50,7 @@ only" means only FrFlow's own suites use it.
 | `.checkedAtRunTime(RunCheck)` | `code.Attachment.runCheck` | none (tests only) | merge into the attachment; drop candidate | no example chooses a policy; the default per code state covers all |
 | `.leftOpenAbove` | `reliance = LeftOpen`; a `V2` content field; one extension over `OnContract` for both contract cases | sharing 5 | keep | |
 | `.failsChangingNothing[E]`, `.onFailure[E]` | `FlowContract.failure: FailureClause`; a `V2` content field | sharing 2 / 1 | keep | |
-| `.checkedAgainst(start, read)`, `.implementedBy(start, read)` | `CodeTable.realized` (`Realizes.Outside`, `Own`); shown per realization in `Shown` | crm 1+2, sharing 1+3 | keep | |
+| `.checkedAgainst(holding, readBack)`, `.implementedBy(holding, readBack)` | `CodeTable.realized` (`Realizes.Outside`, `Own`); shown per realization in `Shown` | crm 1+2, sharing 1+3 | keep | |
 
 ## The DSL: code and running (concept: Code, runtime, testing)
 

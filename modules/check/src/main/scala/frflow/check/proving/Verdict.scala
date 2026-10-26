@@ -116,10 +116,12 @@ object Verdict:
     * message about the proof is left out, the step being false.
     */
   def refuted(r: Result, c: Refutation.Candidate): Result =
-    r.copy(detail = s"${c.part}$Refuted ${c.shown}:\n${c.what}; Lean confirms this case")
-  private val Refuted = " does not give this claim on"
-  def isRefuted(r: Result): Boolean = r.detail.linesIterator.nextOption().exists(_.contains(Refuted))
-  private def refutedBy(r: Result): String = r.detail.takeWhile(_ != ' ')
+    r.copy(detail = s"$From${c.part}$Refuted ${c.shown}:\n${c.what}; Lean confirms this case")
+  private val From = "the step from "
+  private val Refuted = " does not hold on"
+  def isRefuted(r: Result): Boolean =
+    r.detail.linesIterator.nextOption().exists(l => l.startsWith(From) && l.contains(Refuted))
+  private def refutedBy(r: Result): String = r.detail.stripPrefix(From).takeWhile(_ != ' ')
 
   /** Lean's message gives a counterexample (omega's constraints, a model, `decide` evaluating to false): the step it
     * was asked may be false, not only its proof wrong.

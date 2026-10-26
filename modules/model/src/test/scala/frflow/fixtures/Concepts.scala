@@ -29,6 +29,10 @@ object Concepts:
     .assuming(model)
   val neverNegative = Node.claim("The count is never negative.")(always(counted)(c => c >= BigInt(0)))
     .assuming(writes, oneAtATime, startsAtNothing)
+  // The same rule, its start said by naming it: the fact follows the claim, and the claim rests on it.
+  val kept = Node.claim("The count is never negative.")(always(counted)(c => c >= BigInt(0)))
+    .assuming(writes, oneAtATime)
+  val startsRight = Node.assumption("The counter starts never negative.")(counted.startsSatisfying(kept))
   val stepPositive = Node.claim("A step adds one more than the request's size.")(
     forall((x: Term[BigInt]) => step(x) === when(x >= BigInt(0))(x + 1).otherwise(-x + 1))).refines(grows)
 

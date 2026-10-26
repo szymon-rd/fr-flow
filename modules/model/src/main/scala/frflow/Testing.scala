@@ -205,19 +205,8 @@ private[frflow] object Testing:
       val same = bs.size == tins.size && bs.map(b => Types.walk(b.tpe).lean) == tins.map(t => Types.walk(t).lean)
       Option.when(same)(Eval.compile(body)).flatMap { run =>
         val counter = Counter(() => Draw(random(settings.seed, -1), 3, plan))
-        // A quantifier over numbers ranges over the case's own numbers and their neighbours: a claim of order over them
-        // (a moment between a start and an end) holds of all numbers when it holds of those.
-        def numbers(v: Any): List[BigInt] = v match
-          case b: BigInt       => List(b - 1, b, b + 1)
-          case xs: Iterable[?] => xs.toList.flatMap(numbers)
-          case p: Product      => p.productIterator.toList.flatMap(numbers)
-          case _               => Nil
-        def watching(vals: Vector[Any]): Watch = new Watch:
-          private val ns = (BigInt(0) :: vals.toList.flatMap(numbers)).distinct
-          def hit(t: Tree, outcome: Int): Unit = ()
-          def range(ts: List[LeanType[?]]): Option[List[List[Any]]] =
-            if ts.forall(t => Types.scala(t) == "BigInt") then Some(ts.foldRight(List(List.empty[Any]))((_, rows) => for n <- ns; r <- rows yield n :: r))
-            else counter.range(ts)
+        // A quantifier over numbers ranges over the case's own numbers and their neighbours.
+        def watching(vals: Vector[Any]): Watch = Watch.overNumbers(vals.toList, counter.range)
         def breaks(vals: Vector[Any]): Boolean =
           val world = generated.zip(vals).map((p, v) => Binding(p, () => v))
           val env = bs.zip(vals.drop(generated.size)).toMap

@@ -14,6 +14,8 @@ object Source:
   inline def nodeId: String = ${ SourceMacros.nodeId }
   /** A Param's name: the name of the val it is assigned to. */
   inline def paramName: String = ${ SourceMacros.paramName }
+  /** A boundary's name: the name of the val it is assigned to. */
+  inline def boundaryName: String = ${ SourceMacros.boundaryName }
   /** The text of an expression, as written. */
   inline def text(inline x: Any): String = ${ SourceMacros.text('x) }
   inline def sources(inline xs: Any*): List[String] = ${ SourceMacros.sources('xs) }

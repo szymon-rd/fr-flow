@@ -12,9 +12,12 @@ import io.circe.Json
   * `layers`, the layers on top: their commands run on `host`, and what they add to a view is shown with it (a warning of
   * theirs fails `status` and `ci` as FrFlow's do). `--json` prints FrFlow's values only.
   */
-final class Dispatch(api: FrFlowApi, term: Terminal, st: Style, layers: List[CliExtension] = Nil,
+final class Dispatch(api: FrFlowApi, raw: Terminal, st: Style, layers: List[CliExtension] = Nil,
     host: Option[Host] = None):
   import Dispatch.*
+  // Text names the nodes as the code does (`grantWhenFree`); JSON keeps their ids.
+  private val term: Terminal = Names.terminal(raw, api.view.map(v =>
+    (v.snapshot.nodes.map(_.id.value) ++ v.annotated.gone.map(_.id.value)).toSet))
   private val on: Host = host.getOrElse(Host(api, java.nio.file.Path.of(".").toAbsolutePath.normalize, Map.empty))
   private def added(v: View): IO[Contribution] = layers.traverse(_.contribute(on, v)).map(Contribution.all)
 
@@ -53,7 +56,8 @@ final class Dispatch(api: FrFlowApi, term: Terminal, st: Style, layers: List[Cli
     else if p.level == 0 then term.err(st.dim(s"check: building the models (${p.levels} level(s) to prove)"))
     else term.err(st.dim(st.fit(s"check: level ${p.level} of ${p.levels}: ${p.nodes.mkString(", ")}")))
 
-  private def emit(json: Boolean, j: => Json)(text: => List[String]): IO[ExitCode] = ok(if json then List(Canonical.file(j)) else text)
+  private def emit(json: Boolean, j: => Json)(text: => List[String]): IO[ExitCode] =
+    if json then raw.out(List(Canonical.file(j))).as(ExitCode.Success) else ok(text)
   private def ok(lines: List[String]) = term.out(lines).as(ExitCode.Success)
   private def done[A](lines: A => List[String])(r: Either[Refusal, A]): IO[ExitCode] = r.fold(refused, a => ok(lines(a)))
 

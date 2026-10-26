@@ -3,7 +3,7 @@ package check
 package analysis
 
 import frflow.protocol.*
-import frflow.protocol.ObligationName.{Cover, Eval, EvalImpl, Expect, Impl, Initially, KeptBy, RootImpl}
+import frflow.protocol.ObligationName.{CalledWith, Cover, Eval, EvalImpl, Expect, Impl, Initially, KeptBy, RootImpl}
 import frflow.protocol.ObligationStatus.*
 import scala.util.chaining.*
 
@@ -62,7 +62,7 @@ object Snapshots:
       proof = a.proofOf(n).map(src => ProofFile("lean/" + g.layout.proofs(n.id).path, src)),
       holds = if g.formal(n) then g.holdsStatement(n) else "", lean = if g.formal(n) then g.spec(n) else "",
       messages = check.orElse(a.checks.get(id).filter(_.status == CheckStatus.Waiting)).toList.flatMap(_.messages),
-      tested = a.tested(n), runtime = kb.runTime(n), premises = ids(n.premises),
+      tested = a.tested(n), runtime = kb.runTime(n), premises = ids(kb.premisesOf(n)),
       alwaysProofs = alwaysProofs(a, n, outcome))
 
   /** What an `always` claim rests on, as proven: each program writing what holds it keeps it; a store's start meets
@@ -72,14 +72,16 @@ object Snapshots:
   private def alwaysProofs(a: Analysis, n: Node[?], outcome: ObligationName => Outcome): List[AlwaysProof] =
     val kb = a.kb
     val kept = kb.writers(n).flatMap(_.op).map(_.name).map(p => AlwaysProof(KeptBy(p).lean, p, outcome(KeptBy(p))))
-    val start = n.premises.find(_.initially.isDefined).filter(_ => n.always.exists(_.store.isDefined))
+    val start = kb.premisesOf(n).find(_.initially.isDefined).filter(_ => n.always.exists(_.store.isDefined))
       .map(s => AlwaysProof(Initially.lean, s.id, outcome(Initially)))
+    val outside = kb.premisesOf(n).flatMap(p => p.calledOnlyWith.map(_._1.name).map(prog =>
+      AlwaysProof(CalledWith(prog).lean, p.id, outcome(CalledWith(prog)))))
     def assumes(c: Node[?]) = kb.invariantsUsedBy(c).exists(_ eq n)
     val handed = kb.nodes.filter(p => kb.isStatement(p) && !assumes(p) && kb.parts(p).exists(assumes)).map { p =>
       val o = a.current(p).flatMap(_.result(ObligationName.Complete)).fold(Outcome.unchecked)(Outcome.of)
       AlwaysProof(ObligationName.Complete.lean, p.id, o)
     }
-    if n.isAlways then kept ++ start ++ handed else Nil
+    if n.isAlways then kept ++ start ++ outside ++ handed else Nil
 
   /** An invariant a contract keeps: the view lists all the result holds of it, and the invariant's `complete`, this contract
     * among its parts. Lean showing it holds without the contract leaves it `open`; a try that found no proof proves nothing.

@@ -21,16 +21,14 @@ object Lines:
   def why(c: Content, room: Int, st: Style): List[String] =
     if c.why.trim.isEmpty then Nil else st.wrap(s"why: ${c.why}", room).map(l => "  " + st.dim(l))
 
-  /** What the developer is to do with it, in a few words: `review (changed, code)` (what changed: it, what it rests
-    * on, its parts, its code); `new`.
-    */
+  /** What the developer is to do with it, in a few words: `it and its code changed: review it`; `new: decide it`. */
   def state(r: Reviewed): String = r.state match
-    case ReviewState.Review   => s"review (${r.review.causes.map(Words.cause).mkString(", ")})"
-    case ReviewState.Proposed => "new"
+    case ReviewState.Review   => Words.review(r.review.causes)
+    case ReviewState.Proposed => "new: decide it"
     case other                => other.toString
 
   /** Its kind unless a claim, in brackets; what to do with it unless accepted, after a dash; and the word a layer on
-    * top shows beside it (`mark`): `BookWhenFree — review (changed, code)`.
+    * top shows beside it (`mark`): `bookWhenFree — it and its code changed: review it`.
     */
   def marks(r: Reviewed, st: Style, mark: Option[String] = None): String =
     val kind = Option.when(r.node.shownKind != "claim")(" " + st.dim(s"(${r.node.shownKind})"))

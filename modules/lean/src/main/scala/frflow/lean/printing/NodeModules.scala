@@ -17,7 +17,8 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
   private def vocabularyOf(n: Node[?]): List[LeanModule] =
     val ls = n.referenced ++ formalKeeps(n).flatMap(_._1.rule)
     val code = provenImpl(n).toList ++ kb.invariantsUsedBy(n).flatMap(_.holds) ++ n.holds ++
-      kb.writers(n).flatMap(provenImpl) ++ n.premises.flatMap(_.initially) ++ worldRuleDefs(n)
+      kb.writers(n).flatMap(provenImpl) ++ kb.premisesOf(n).flatMap(_.initially) ++
+      kb.premisesOf(n).flatMap(_.calledOnlyWith).map(_._2) ++ worldRuleDefs(n)
     vocabularyModules.boundariesFor(ls ++ code.map(_.lifted)) ++
       vocabularyModules.modulesFor(ls.flatMap(_.defs) ++ code, ls.flatMap(ctx(_).names) ++ code.flatMap(defCtx(_).names) ++ n.op.map(_.name))
   private def declared(name: String, c: Ctx, tpe: String, body: String): String = definition(name, binders(c), tpe, body) + "\n\n"
