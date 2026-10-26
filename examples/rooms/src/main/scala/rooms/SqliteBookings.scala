@@ -3,8 +3,8 @@ package rooms
 import frflow.*
 import java.sql.{Connection, DriverManager, PreparedStatement}
 
-/** The bookings in SQLite, a row each, read back in the order they were added. Checked against Stored. */
-final class SqliteBookings private (conn: Connection) extends Bookings:
+/** The bookings in SQLite, a row each, read back in the order they were added. Checked against `stored`. */
+final class SqliteBookings private (conn: Connection) extends BookingStore:
   conn.createStatement().executeUpdate("create table if not exists bookings " +
     "(id integer primary key, room text not null, starts text not null, ends text not null)")
 

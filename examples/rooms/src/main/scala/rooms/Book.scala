@@ -11,5 +11,5 @@ def bookIfGranted(request: Term[Booking]): Flow[Boolean] =
       _     <- Flow.whenA(booked)(store.add(request))
     yield booked)
 
-/** Booking on SQLite: the flow NeverDoubleBooked is proven of, deciding with the Calendar. */
-def bookOn(sql: SqliteBookings): Booking => IO[Boolean] = rooms.run[IO](neverDoubleBooked)(store.bind(sql))
+/** Booking on SQLite: the flow proven of `book`, deciding with the Calendar. */
+def bookOn(sql: SqliteBookings): Booking => IO[Boolean] = rooms.run[IO](book)(store.bind(sql))
