@@ -3,7 +3,7 @@ package conversation
 
 import java.time.Instant
 
-/** The conversation as the agent records it. Pure: each returns the new record, or why not. */
+/** The conversation as the agent records it: each operation returns the new record, or why not. */
 object Talk:
   def say(c: Conversation, text: String, now: Instant): Either[AgentRefusal, (Conversation, Said)] =
     nonEmpty(text).map { t =>

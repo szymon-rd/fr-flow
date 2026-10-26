@@ -8,7 +8,7 @@ import frflow.cli.text.*
 import frflow.protocol.*
 import io.circe.Json
 
-/** Runs a parsed command: a read prints a view, or (`--json`) the typed value in brief; a decision is confirmed first.
+/** Runs a parsed command: a read prints a view, or (`--json`) the API's value as JSON, in brief; a decision is confirmed first.
   * `layers`, the layers on top: their commands run on `host`, and what they add to a view is shown with it (a warning of
   * theirs fails `status` and `ci` as FrFlow's do). `--json` prints FrFlow's values only.
   */

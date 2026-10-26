@@ -3,7 +3,7 @@ package frflow.cli
 import cats.effect.IO
 import cats.effect.std.Console
 
-/** Where the CLI writes and, on a terminal, reads: a service, so the review is tested with scripted input. */
+/** Where the CLI writes and, on a terminal, reads; tests pass one with scripted input to drive the review. */
 trait Terminal:
   def interactive: Boolean
   def out(lines: List[String]): IO[Unit]

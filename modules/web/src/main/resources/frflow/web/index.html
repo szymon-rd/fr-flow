@@ -519,7 +519,7 @@ async function select(id) {
   await load(id).catch(e => { S.details = null; S.notes.top = { cls: "err", text: e.message }; render(true); });
 }
 
-// --- actions: each through the API's own operation; what it recorded, or why it was refused, is said where it was asked
+// --- actions: each calls the API's operation; what it recorded, or why it was refused, is said where it was asked
 
 const text = key => document.getElementById("t-" + key)?.value.trim() || "";
 const DESCRIBE = l => `${l.decision.action} ${l.node}${l.decision.rejected.length ? ", rejecting " + l.decision.rejected.join(", ") : ""}`;

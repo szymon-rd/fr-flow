@@ -3,8 +3,8 @@ package frflow.api
 import cats.effect.IO
 import frflow.protocol.*
 
-/** FrFlow as a front end sees it: typed values, never text. The primitives read and write the project; the
-  * rest is computed here from the `view`.
+/** What a front end calls on a project. The abstract operations read and write the project; the rest are computed
+  * from the `view`.
   */
 trait FrFlowApi:
   def view: IO[View]

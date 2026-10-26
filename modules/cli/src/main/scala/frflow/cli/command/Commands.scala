@@ -19,7 +19,7 @@ object Commands:
     ).mkString("\n")
 
   val plain: Opts[Boolean] = Opts.flag("plain", "ASCII without colors (also when NO_COLOR is set or the output is not a terminal)").orFalse
-  val json: Opts[Boolean] = Opts.flag("json", "print the typed value as JSON, each node in brief").orFalse
+  val json: Opts[Boolean] = Opts.flag("json", "print the output as JSON, each node in brief").orFalse
   def node(name: String = "NODE"): Opts[NodeId] = Opts.argument[String](name).map(NodeId(_))
   val as: Opts[Option[String]] = Opts.option[String]("as", "who decides (default: FRFLOW_AS, or the name your key is filed under)").orNone
   private val yes = Opts.flag("yes", "decide without asking (needed without a terminal)", "y").orFalse

@@ -39,7 +39,7 @@ abstract class FrFlowApp(knowledge: => KnowledgeBase, val root: String = ".", va
   }
 
 object FrFlowApp:
-  /** The one place failures become exit codes: the model's problems 1, an unknown node 2, no Lean 3. */
+  /** A failure's exit code: the model's problems 1, an unknown node 2, no Lean 3. */
   private[cli] def failed(term: Terminal, e: Throwable): IO[ExitCode] = e match
     case FrFlowError.ModelProblems(ps) => ps.traverse_(p => term.err(s"error: $p")).as(Dispatch.Refused)
     case FrFlowError.UnknownNode(id) => term.err(s"unknown node $id").as(Dispatch.Usage)
