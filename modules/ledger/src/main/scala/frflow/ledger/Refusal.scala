@@ -16,6 +16,8 @@ enum Refusal(val message: String):
       extends Refusal(s"$node: $failing of its examples fail: fix the code or the contract, run check, then decide")
   case CodeFails(node: NodeId, failure: String)
       extends Refusal(s"$node: its code fails a generated case: $failure; fix the code or the contract, run check, then decide")
+  case ContractChanged(node: NodeId, failure: String)
+      extends Refusal(s"$node: the contract changed and its code no longer meets it: $failure; fix the code or the contract, run check, then decide")
   case NotBelow(node: NodeId, named: List[NodeId])
       extends Refusal(s"not among the decisions below $node that this decision can act on: ${named.mkString(", ")}")
   case NotDecided(node: NodeId, state: ReviewState) extends Refusal(s"$node is $state: only a decided node is revisited")

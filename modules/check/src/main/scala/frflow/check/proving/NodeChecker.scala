@@ -49,7 +49,7 @@ final class NodeChecker(a: Analysis, lake: Lake, prebuilt: Set[String]):
       split <- lift(complete(n))
       impl <- lift(implementation(n, proof))
       results = split ++ impl.map(_._1)
-      _ <- stop(Verdict.obligations(g, n, split, results, parts, a.proofOf(n).isDefined))
+      _ <- stop(Verdict.obligations(g, n, split, results, parts, a.proofOf(n).isDefined, changed(n)))
       _ <- lift(build(g.layout.theorems(n.id).name)).flatMap(r => stop(Verdict.theorems(results, r)))
       _ <- proofFile(n, proof, results)
       checks <- lift(generated(g.layout.checks(n.id).path))

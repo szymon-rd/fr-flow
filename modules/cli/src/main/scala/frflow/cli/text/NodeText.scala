@@ -171,12 +171,13 @@ object NodeText:
     // The define and the running code are named above.
     val impl = n.content.text("implementation").linesIterator.filterNot(l => l.startsWith("proven: ") || l.startsWith("runs: ")).toList
     val shown = if full || impl.size <= Few + 2 then impl else impl.take(Few) :+ s"${st.ellipsis} ${impl.size - Few} more line(s): context ${n.id}"
-    how.toList ++ shown.map(l => st.dim("  " + l)) ++ tests(n, st, full) ++ n.runtime.map(_.describe).toList ++ governs(d, st)
+    how.toList ++ shown.map(l => st.dim("  " + l)) ++ tests(n, st, full, Cause.movedUnderCode(d.node.review.causes)) ++
+      n.runtime.map(_.describe).toList ++ governs(d, st)
 
   /** What the tests of the code found: cases, seed, the failing case (shrunk), how often each part of the contract (or
     * each operation and branch of the model) was reached.
     */
-  private def tests(n: SnapNode, st: Style, full: Boolean): List[String] =
+  private def tests(n: SnapNode, st: Style, full: Boolean, contractChanged: Boolean): List[String] =
     val model = CodeProof.of(n).exists { case _: CodeProof.Model => true; case _ => false }
     if !CodeProof.run(n) then Nil
     else n.tested.fold(List(st.yellow("tested: not yet (run check)"))) { r =>
@@ -184,7 +185,7 @@ object NodeText:
       val pass = if model then "  every run gives what the model gives and leaves what it leaves, and every operation and branch of it was reached"
         else "  every case meets it, and every part of it was reached"
       val outcome = r.failure.fold(Option.when(r.unreached.isEmpty)(st.green(pass)).toList)(f =>
-        List(st.red(s"  fails: ${f.line}")))
+        List(st.red(if !model && contractChanged then s"  ${f.said(n.id.value, contractChanged = true)}" else s"  fails: ${f.line}")))
       val parts = if full || r.unreached.nonEmpty then r.coverage.map(c =>
         if c.held == 0 then st.red(s"  never reached: ${c.part}") else st.dim(s"  ${c.part}: ${c.held}×")) else Nil
       val notes = r.notes.map(x => st.dim(s"  note: $x"))

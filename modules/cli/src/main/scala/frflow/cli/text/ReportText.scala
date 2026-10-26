@@ -21,13 +21,11 @@ object ReportText:
         (ls.headOption.filter(_.trim.nonEmpty).getOrElse(s"$status$notProven"), ls.drop(1) match { case Nil => Nil; case rest => List("  " + rest.mkString("\n    ")) })
       case rs => (s"$status$notProven", rs.map(r => s"${r.name} ${r.status}: ${r.detail.linesIterator.mkString("\n    ")}"))
     // The contract changed and its code did not: the code is not what moved.
-    val moved = c.testFailure.filter(_ => c.contractChanged).map(f =>
-      st.red(s"the contract changed and its code no longer meets it: ${f.shown}: " +
-        f.why.replace(s"which ${c.id.value} refuses", "which the contract now refuses")))
+    val moved = c.testFailure.filter(_ => c.contractChanged).map(f => st.red(f.said(c.id.value, contractChanged = true)))
     s"$glyph ${st.bold(c.id.value)}: ${moved.getOrElse(head)}" ::
       (Option.when(c.failing.nonEmpty)(st.red(s"${c.failing.size} example(s) fail: the code or the contract is wrong; fix that, not the proof")).toList ++
         c.failing.take(5).map(f => s"  ${f.example}: ${f.verdict}") ++
-        c.testFailure.filter(_ => moved.isEmpty).toList.map(f => st.red(s"its code fails a generated case: ${f.line}")) ++
+        c.testFailure.filter(_ => moved.isEmpty).toList.map(f => st.red(f.said(c.id.value, contractChanged = false))) ++
         problems ++
         c.idle.map(i => st.red(s"! doing nothing meets it ($i): state what users can do, so it says exactly what the system does (status fails until then)")) ++
         (c.messages ++ c.hint).map(m => s"! ${m.linesIterator.mkString("\n    ")}")).map("  " + _)

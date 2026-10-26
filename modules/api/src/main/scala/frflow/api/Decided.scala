@@ -11,4 +11,4 @@ object Decided:
   def of(s: Snapshot, before: Ledger, after: Ledger): Decided =
     val added = Decide.added(s, before, after).map(Logged.apply)
     val nodes = s.nodes.map(n => n.id -> n).toMap
-    Decided(added, added.filter(_.decision.action.binds).flatMap(l => nodes.get(l.node).toList.flatMap(Proofs.unproven).map(l.node -> _)))
+    Decided(added, added.filter(_.decision.action.binds).flatMap(l => nodes.get(l.node).toList.flatMap(n => Proofs.unproven(n)).map(l.node -> _)))

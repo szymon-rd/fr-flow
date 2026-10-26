@@ -59,6 +59,12 @@ class DecideSuite extends munit.FunSuite:
     assertEquals(decide(withCase, Ledger.empty, accept("R")), Left(CodeFails(id("R"), "held = List(), request = 3: returned false, which R refuses")))
     assert(CodeFails(id("R"), failure.line).message.startsWith("R: its code fails a generated case: held = List(), request = 3: returned false"))
     assert(decide(withCase, Ledger.empty, Decide.Reject(id("R"), "it refuses free rooms")).isRight)
+    // decided, then its meaning changed while the code did not: the contract is what moved
+    val decided = acceptAll(shelf)
+    val restatedCase = replacing(shelf, restated(r, "Readers find every book, at once.").copy(tested = Some(TestReport(1000, 1, "R", Some(failure)))))
+    assertEquals(decide(restatedCase, decided, accept("R")),
+      Left(ContractChanged(id("R"), "held = List(), request = 3: returned false, which the contract now refuses")))
+    assert(ContractChanged(id("R"), "x").message.startsWith("R: the contract changed and its code no longer meets it: x"))
     assert(decide(replacing(shelf, r.copy(examples = List(example.copy(codeFails = None)))), Ledger.empty, accept("R")).isRight)
   }
 

@@ -8,13 +8,13 @@ object Proofs:
   /** What of a node's tested code is not shown: a generated case that fails, a part of the contract no case reached,
     * or no test yet.
     */
-  def tests(n: SnapNode): List[String] =
+  def tests(n: SnapNode, causes: List[Cause] = Nil): List[String] =
     if !CodeProof.run(n) then Nil
     else
       val model = CodeProof.of(n).exists { case _: CodeProof.Model => true; case _ => false }
       val (whose, against) = if model then ("its implementations'", "the model") else ("its code's", "the contract")
       n.tested.fold(List(if model then "its implementations are not tested yet: run check" else "its code is not tested yet: run check")) { r =>
-        r.failure.map(f => s"${if model then "a generated run differs from the model" else "its code fails a generated case"}: ${f.line}").toList ++
+        r.failure.map(f => if model then s"a generated run differs from the model: ${f.line}" else f.said(n.id.value, Cause.movedUnderCode(causes))).toList ++
           r.unreached.map(c => s"$whose tests never reached a part of $against: ${c.part} (add an example, or a generator)")
       }
 
@@ -26,7 +26,7 @@ object Proofs:
       a.gone.isEmpty && a.nodes.forall(r => r.state == ReviewState.Accepted && unproven(r.node).isEmpty)
 
   /** What of a node is not proven or fails, as `status` lists it. */
-  def unproven(n: SnapNode): List[String] =
+  def unproven(n: SnapNode, causes: List[Cause] = Nil): List[String] =
     def fine(s: ObligationStatus) = s == ObligationStatus.Proven
     val (ok, total) = n.examplesPassing
     n.status.filterNot(_ == CheckStatus.Proven)
@@ -39,7 +39,7 @@ object Proofs:
       n.invariants.filterNot(i => fine(i.status) || i.status == ObligationStatus.Exempt).map(i => s"invariant ${i.id} is ${i.status}") ++
       n.implementationProof.filterNot(p => fine(p.status)).map(p => s"its implementation ${p.name} is ${p.status}: not proven to meet the contract") ++
       n.rootImpl.filterNot(p => fine(p.status)).map(p => s"root_impl is ${p.status}: the root is not proven of the code") ++
-      tests(n) ++
+      tests(n, causes) ++
       n.expectations.filterNot(e => fine(e.status)).map(e => s"an expectation is ${e.status}") ++
       // A root doing nothing meets says only what must not happen: the system can drop every feature unnoticed.
       n.idle.map(what => s"Lean shows doing nothing meets it ($what): state the root as \"exactly when\", so that doing nothing does not meet it")

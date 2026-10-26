@@ -33,6 +33,17 @@ class ReportsSuite extends munit.FunSuite:
     assertEquals(Find(ann, "dragons"), Found.Nothing("dragons"))
   }
 
+  test("a case its code fails is said as the contract's change when the contract moved and the code did not") {
+    val failure = TestFailure("held = List()", "returned true, which R refuses", 1, 0, 1)
+    val tested = r.copy(code = Some(CodeRef(List("Calendar.scala"), Fingerprint("f"))), content = r.content :+
+      ("implementation" -> io.circe.Json.fromString("(held, request) => Calendar(held).granted(request)")),
+      tested = Some(TestReport(1000, 1, "R", Some(failure))))
+    assert(Proofs.unproven(tested, List(Cause.Self, Cause.Above)).contains(
+      "the contract changed and its code no longer meets it: held = List(): returned true, which the contract now refuses"), Proofs.unproven(tested))
+    assert(Proofs.unproven(tested, List(Cause.Self, Cause.Code)).contains(
+      "its code fails a generated case: held = List(): returned true, which R refuses"), Proofs.unproven(tested))
+  }
+
   test("what is not proven of a node, and how its code is") {
     val leaf = b.copy(leaf = true, status = Some(CheckStatus.Open))
     assertEquals(Proofs.unproven(leaf), List("its check is open", "nothing below proves it: add the parts that make it, or a contract"))

@@ -16,7 +16,7 @@ object Annotate:
       Reviewed(n, Review(state = st, causes = v.causes(n), version = v.version(n), waitsFor = v.waitsFor(n),
         moved = Downstream.moved(v, n), decision = l.chosen(id), binding = l.binding(id),
         reasonNow = l.binding(id).map(_ => Reasons.now(l, id)), notMechanical = v.notMechanical.getOrElse(id, v.mechanical(n)),
-        unproven = Proofs.unproven(n),
+        unproven = Proofs.unproven(n, v.causes(n)),
         rejectedBeside = n.parents.flatMap(l.rejectedUnder).distinctBy(_._1).filter(_._1 != id)
           .map((r, c, why) => RejectedBeside(r, c.statement, c.why, why)),
         below = if st == ReviewState.Accepted then Nil else Downstream.below(v, n),

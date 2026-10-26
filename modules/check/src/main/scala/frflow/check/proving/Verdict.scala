@@ -93,8 +93,19 @@ object Verdict:
     * its parts were decided, as `whatChanged` names it), then Lean's.
     */
   def brokenProof(r: Result, changed: List[String]): Result =
-    val why = if changed.isEmpty then "does not go through" else s"no longer goes through: ${changed.mkString(" and ")} changed"
-    r.copy(detail = s"the proof from its parts $why\nLean: ${r.detail}")
+    val names = changed.mkString(" and ")
+    val why = (mayBeFalse(r.detail), changed.isEmpty) match
+      case (true, false)  => s"the step from its parts may no longer hold: $names changed"
+      case (true, true)   => "the step from its parts may not hold"
+      case (false, false) => s"the proof from its parts no longer goes through: $names changed"
+      case (false, true)  => "the proof from its parts does not go through"
+    r.copy(detail = s"$why\nLean: ${r.detail}")
+
+  /** Lean's message gives a counterexample (omega's constraints, a model, `decide` evaluating to false): the step it
+    * was asked may be false, not only its proof wrong.
+    */
+  def mayBeFalse(lean: String): Boolean = Counterexample.findFirstIn(lean).isDefined
+  private val Counterexample = """(?i)counterexample|evaluates to false""".r
 
   /** What changed of a node since it was decided, as a proof reads it: the definitions and types it uses, by name, and
     * the node itself when its own formula did.
@@ -128,10 +139,16 @@ object Verdict:
 
   /** The obligations judged: failed, open, or waiting for the parts (a node is proven with its parts). */
   def obligations(g: Generate, n: Node[?], split: List[Result], results: List[Result], parts: List[(String, Option[CheckStatus])],
-      proofFile: Boolean = false): Option[Judged] =
+      proofFile: Boolean = false, changed: List[String] = Nil): Option[Judged] =
     val notYet = parts.filterNot(_._2.contains(CheckStatus.Proven))
+    // A step Lean gives a counterexample to: what changed is to look at first, the proof only if the step still holds.
+    val mayBe = proofFile && split.exists(r => r.status == Open && mayBeFalse(r.detail))
+    val hint =
+      if !mayBe then scaffold(g, n, proofFile)
+      else if changed.isEmpty then s"if the step holds, fix the proof in ${proofPath(g, n)}"
+      else s"check the change to ${changed.mkString(" and ")}; if the step still holds, fix the proof in ${proofPath(g, n)}"
     if results.exists(_.status == Failed) then Some(Judged(CheckStatus.Failed, results, Nil))
-    else if split.exists(_.status == Open) then Some(Judged(CheckStatus.Open, results, Nil, hint = Some(scaffold(g, n, proofFile))))
+    else if split.exists(_.status == Open) then Some(Judged(CheckStatus.Open, results, Nil, hint = Some(hint)))
     else Option.when(notYet.nonEmpty)(Judged(CheckStatus.Waiting, results, List(s"waiting for its parts: ${notYet.map(_._1).mkString(", ")}")))
 
   def theorems(results: List[Result], run: Run): Option[Judged] = run match

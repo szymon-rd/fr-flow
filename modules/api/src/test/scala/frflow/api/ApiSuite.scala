@@ -66,11 +66,15 @@ class ApiSuite extends munit.FunSuite:
   }
 
   test("a failing case is the contract's change when the contract moved and its code did not") {
-    assert(CheckedNode.movedUnderCode(List(Cause.Self)))
-    assert(CheckedNode.movedUnderCode(List(Cause.Self, Cause.Above)))
-    assert(!CheckedNode.movedUnderCode(List(Cause.Self, Cause.Code)))
-    assert(!CheckedNode.movedUnderCode(List(Cause.Code)))
-    assert(!CheckedNode.movedUnderCode(Nil))
+    assert(Cause.movedUnderCode(List(Cause.Self)))
+    assert(Cause.movedUnderCode(List(Cause.Self, Cause.Above)))
+    assert(!Cause.movedUnderCode(List(Cause.Self, Cause.Code)))
+    assert(!Cause.movedUnderCode(List(Cause.Code)))
+    assert(!Cause.movedUnderCode(Nil))
+    val f = TestFailure("held = List()", "returned true, which Decide refuses", 1, 0, 1)
+    assertEquals(f.said("Decide", contractChanged = true),
+      "the contract changed and its code no longer meets it: held = List(): returned true, which the contract now refuses")
+    assertEquals(f.said("Decide", contractChanged = false), "its code fails a generated case: held = List(): returned true, which Decide refuses")
   }
 
   test("--json: a node checked says whether it is ok, beside how its check ended, and reads back") {

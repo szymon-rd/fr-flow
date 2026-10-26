@@ -146,6 +146,23 @@ class CheckSuite extends munit.FunSuite:
       "the proof from its parts does not go through\nLean: omega could not prove the goal")
   }
 
+  test("a broken proof whose Lean gives a counterexample says the step may be false, and to check the change first") {
+    val omega = "omega could not prove the goal:\na possible counterexample may satisfy the constraints\n  c - d ≤ -1"
+    val open = Result(ObligationName.Complete, ObligationStatus.Open, omega)
+    val said = Verdict.brokenProof(open, List("overlaps"))
+    assertEquals(said.detail, s"the step from its parts may no longer hold: overlaps changed\nLean: $omega")
+    assertEquals(Verdict.brokenProof(open, Nil).detail.linesIterator.next(), "the step from its parts may not hold")
+    assert(Verdict.mayBeFalse("decide failed: the proposition evaluates to false"))
+    assert(!Verdict.mayBeFalse("omega could not prove the goal: no usable constraints found"))
+    val g = Generate(shelfKb)
+    assertEquals(Verdict.obligations(g, onlyGood, List(said), List(said), Nil, proofFile = true, changed = List("overlaps")).flatMap(_.hint),
+      Some("check the change to overlaps; if the step still holds, fix the proof in lean/Proofs/Shelf/OnlyGood.lean"))
+    // no counterexample: the proof is what to fix
+    val plain = Verdict.brokenProof(Result(ObligationName.Complete, ObligationStatus.Open, "unsolved goals"), List("overlaps"))
+    assertEquals(Verdict.obligations(g, onlyGood, List(plain), List(plain), Nil, proofFile = true, changed = List("overlaps")).flatMap(_.hint),
+      Some("fix the proof in lean/Proofs/Shelf/OnlyGood.lean"))
+  }
+
   test("what changed since a node was decided, as its proof reads it: the definitions it uses by name, its own formula") {
     import io.circe.Json
     def node(formula: String, uses: String*) = Content("sources" -> Json.obj("formula" -> Json.fromString(formula)),
