@@ -85,7 +85,7 @@ object Verdict:
   def refusedExamples(evaluated: List[Result])(j: Judged): Judged =
     if evaluated.exists(refuses) then j.copy(status = CheckStatus.Failed) else j
   private def refuses(r: Result): Boolean = r.status == Failed && r.detail.endsWith(Refuses)
-  private val Refuses = ": the claim refuses it, and Lean confirms"
+  private val Refuses = ", which this claim refuses"
 
   /** Proven when Lean reports no error and no `sorry` in it; an authored one states exactly its obligation, with only what a proof file may. */
   def judge(o: ObligationName, e: Elaborated, isAuthored: Boolean): Result =
@@ -112,13 +112,14 @@ object Verdict:
       case (false, true)  => "the proof from its parts does not go through"
     if TheoremVerdict.UsesSorry.why("complete").contains(r.detail) then r else r.copy(detail = s"$why\nLean: ${r.detail}")
 
-  /** A step Lean proves false on a case (`Refutation`): the case, and what the contract answers on it; Lean's own
+  /** A step Lean proves false on a case (`Refutation`): the case, and what the part answers on it; Lean's own
     * message about the proof is left out, the step being false.
     */
   def refuted(r: Result, c: Refutation.Candidate): Result =
-    r.copy(detail = s"$Refuted on ${c.shown}:\n${c.what}; Lean confirms this case")
-  private val Refuted = "the contract does not give this claim"
-  def isRefuted(r: Result): Boolean = r.detail.startsWith(Refuted)
+    r.copy(detail = s"${c.part}$Refuted ${c.shown}:\n${c.what}; Lean confirms this case")
+  private val Refuted = " does not give this claim on"
+  def isRefuted(r: Result): Boolean = r.detail.linesIterator.nextOption().exists(_.contains(Refuted))
+  private def refutedBy(r: Result): String = r.detail.takeWhile(_ != ' ')
 
   /** Lean's message gives a counterexample (omega's constraints, a model, `decide` evaluating to false): the step it
     * was asked may be false, not only its proof wrong.
@@ -165,8 +166,11 @@ object Verdict:
     val names = changed.mkString(" and ")
     val hint =
       if split.exists(isRefuted) then
-        if changed.isEmpty then "the contract does not give the claim: fix the contract, or the claim"
-        else s"check the change to $names: with it, the contract no longer gives the claim"
+        val part = split.find(isRefuted).fold("its part")(refutedBy)
+        if changed.isEmpty then s"$part does not give this claim: fix $part, or this claim"
+        else
+          val them = if changed.size == 1 then "it" else "them"
+          s"check the change to $names: with $them, $part no longer gives this claim"
       else if !mayBe then scaffold(g, n, proofFile)
       else if changed.isEmpty then s"if the step holds, fix the proof in ${proofPath(g, n)}"
       else s"check the change to ${changed.mkString(" and ")}; if the step still holds, fix the proof in ${proofPath(g, n)}"

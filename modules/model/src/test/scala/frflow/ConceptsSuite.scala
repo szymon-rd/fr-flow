@@ -1,5 +1,6 @@
 package frflow
 
+import frflow.kb.Reach
 import frflow.fixtures.*
 import frflow.testing.{Draw, Plan}
 
@@ -11,15 +12,25 @@ class ConceptsSuite extends munit.FunSuite:
   test("always of a type: what every value of it that can be made holds, assumed of what statements quantify over") {
     val kb = Invariants.shelf
     assertEquals(kb.problems, Nil)
-    assertEquals(kb.invariantsOn(summon[LeanType[Book]]).map((n, _, each) => n.id -> each), List("HasPages" -> false))
-    assertEquals(kb.invariantsOn(summon[LeanType[List[Book]]]).map((n, _, each) => n.id -> each),
-      List("HasPages" -> true, "ShelvedOnce" -> false))
+    assertEquals(kb.invariantsOn(summon[LeanType[Book]]).map((n, _, r) => n.id -> r), List("HasPages" -> Reach.It))
+    assertEquals(kb.invariantsOn(summon[LeanType[List[Book]]]).map((n, _, r) => n.id -> r),
+      List("HasPages" -> Reach.Each, "ShelvedOnce" -> Reach.It))
     // Pick quantifies over shelves of books: it assumes both, and is reviewed when either changes
     assertEquals(kb.invariantsUsedBy(pick).map(_.id), List("HasPages", "ShelvedOnce"))
     assert(kb.definitionsUsed(pick, kb.inForce(_ => false)).map(_.id).contains("ShelvedOnce"))
     // run as Scala
     assertEquals(List(Book("A", 0), Book("A", 3)).map(kb.holds(summon[LeanType[Book]])), List(false, true))
     assertEquals(kb.holds(summon[LeanType[List[Book]]])(List(Book("A", 3), Book("A", 3))), false)
+  }
+
+  test("always of a type reaches the fields of a record holding its values, in Lean and as Scala") {
+    val kb = Invariants.boxes
+    assertEquals(kb.problems, Nil)
+    assertEquals(kb.invariantsOn(summon[LeanType[Box]]).map((n, _, r) => n.id -> r),
+      List("HasPages" -> Reach.Field("books", 1, Reach.Each)))
+    assertEquals(Reach.Field("books", 1, Reach.Each).lean("x0", "f"), "(∀ y ∈ x0.books, f y)")
+    assertEquals(List(Box("a", List(Book("A", 3))), Box("b", List(Book("B", 0)))).map(kb.holds(summon[LeanType[Box]])),
+      List(true, false))
   }
 
   test("tests draw only values that hold what always holds of their types") {
@@ -67,6 +78,24 @@ class ConceptsSuite extends munit.FunSuite:
     // the facts it rests on are decided, not stated in Lean
     assertEquals(List(writes, oneAtATime, startsAtNothing).map(kb.isStatement), List(false, false, false))
     assertEquals(startsAtNothing.initially.map(_.name), Some("startsAtNothing"))
+  }
+
+  test("a store may start meeting its rules; a program given values from outside rests on an assumption") {
+    import Concepts.*
+    val startsRight = Node.assumption("The counter starts meeting its rules.")(counted.startsMeetingItsRules)
+    val kept = Node.claim("The count is never negative.")(always(counted)(c => c >= BigInt(0)))
+      .assuming(writes, oneAtATime, startsRight)
+    def made(ns: Node[?]*) = KnowledgeBase("Concepts")((List(grows, kept, stepPositive, model, writes, oneAtATime,
+      startsRight) ++ ns)*).implementProven(add)(adding).implementTested(step)(x => x.abs + 1)
+    assertEquals((made().problems, startsRight.initially), (Nil, None))
+    // values of a type with an `always` that enter from outside: an assumption about the outside says they meet it
+    val sized = Node.claim("Every amount is a size.")(always[BigInt](x => x >= BigInt(0)))
+    assert(made(sized).problems.exists(_.message.startsWith("Sized: add is given its inputs from outside")),
+      made(sized).problems)
+    val fromOutside = Node.assumption("Requests are sizes.")(add.calledWithInputsMeetingTheirRules)
+    val sizedOutside = Node.claim("Every amount is a size.")(always[BigInt](x => x >= BigInt(0)))
+      .assuming(fromOutside)
+    assertEquals(made(sizedOutside, fromOutside).problems, Nil)
   }
 
   test("a claim on one Definition is about every call of it; one on a flow, about every run") {

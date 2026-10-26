@@ -80,7 +80,7 @@ class CommandsSuite extends munit.CatsEffectSuite:
       def line(c: CheckedNode) = ReportText.check(CheckReport(List(c), v, Overview.of(v)), st).head
       assertEquals(line(ok), "+ Decide: code tested on 1,000 cases")
       assertEquals(line(ok.copy(codeTested = Some(tested.copy(coverage = List(Covered("x", 0)))))),
-        "+ Decide: code tested on 1,000 cases, but they never reached a part of the contract")
+        "+ Decide: code tested on 1,000 cases, but they never reached a part of the claim")
       assertEquals(line(ok.copy(codeTested = None)), "+ Decide: proven")
       assertEquals(line(ok.copy(codeTested = None, step = true)), "+ Decide: step proven")
     }
@@ -91,8 +91,9 @@ class CommandsSuite extends munit.CatsEffectSuite:
     val moved = CheckedNode(NodeId("Decide"), CheckStatus.Proven, Nil, Nil, Nil, None, Nil, None, Some(failure), contractChanged = true)
     FakeApi().flatMap(_.view).map { v =>
       val text = ReportText.check(CheckReport(List(moved), v, Overview.of(v)), st).takeWhile(_.nonEmpty)
-      assertEquals(text, List("x Decide: the contract changed and its code no longer meets it: held = List(Booking(\"Oak\", 12, 17)), " +
-        "request = Booking(\"Oak\", 0, 12): returned true, which the contract now forbids"))
+      assertEquals(text, List("x Decide: the claim changed and its code no longer meets it: " +
+        "held = List(Booking(\"Oak\", 12, 17)), " +
+        "request = Booking(\"Oak\", 0, 12): returned true, which the claim now forbids"))
       assert(!moved.ok)
     }
   }

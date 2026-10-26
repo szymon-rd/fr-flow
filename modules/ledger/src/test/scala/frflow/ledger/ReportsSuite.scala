@@ -39,7 +39,8 @@ class ReportsSuite extends munit.FunSuite:
       ("implementation" -> io.circe.Json.fromString("(held, request) => Calendar(held).granted(request)")),
       tested = Some(TestReport(1000, 1, "R", Some(failure))))
     assert(Proofs.unproven(tested, List(Cause.Self, Cause.Above)).contains(
-      "the contract changed and its code no longer meets it: held = List(): returned true, which the contract now forbids"), Proofs.unproven(tested))
+      "the claim changed and its code no longer meets it: held = List(): returned true, which the claim now forbids"),
+      Proofs.unproven(tested))
     assert(Proofs.unproven(tested, List(Cause.Self, Cause.Code)).contains(
       "its code fails a generated case: held = List(): returned true, which R forbids"), Proofs.unproven(tested))
   }

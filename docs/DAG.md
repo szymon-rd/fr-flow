@@ -37,22 +37,27 @@ examples, and are described below where they differ.
 
 - **Nodes.** `Node.claim(statement)(formula)`: proven from its parts, or tested where the Definitions it is
   about are plain Scala. `Node.assumption(statement)(formula)`: trusted, the developer's decision: the outside
-  world, as a store's model (`store.behavesAs(stored)`) or a fact of how the system is run
-  (`stored.writtenOnlyBy(book)`, `stored.changedOneRunAtATime`, `stored.initially(held => …)`); a fact is
-  read by FrFlow, Lean has nothing to say of it. `Node.design(statement, why)(files*)`: a decision about code
-  no proof covers.
+  world, as a store's model (`bookingTable.behavesAs(storedBookings)`) or a fact of how the system is run
+  (`storedBookings.writtenOnlyBy(book)`, `storedBookings.changedOneRunAtATime`,
+  `storedBookings.startsMeetingItsRules` or `storedBookings.initially(held => …)`, and of what comes from
+  outside, `book.calledWithInputsMeetingTheirRules`); a fact is read by FrFlow, Lean has nothing to say of it.
+  `Node.design(statement, why)(files*)`: a decision about code no proof covers.
 - **Values.** `Declaration[A](means)`: an abstract idea, known only through the claims and assumptions about
   it: no code or flow uses it, nothing implements it. `Definition[A](means)`: of any type, the only kind code
   may use; it must get a meaning: a flow or a `define` (proven), plain Scala (tested against the claims on
   it), or a value. `check` refuses a Definition nothing defines, and code using a Declaration. `define { … }`
   is a Definition given its meaning on the spot.
 - **Quantifiers.** `forall` is every possible value (proven). `always[T](x => …)` is every value of `T` that
-  can be made: a hypothesis of every statement about such values, of each element of a list of them and of
-  what the models hold in a world; the tests draw only values that hold it. `always(stored)(s => …)` is every
-  state the store reaches, kept by every program using it. `always` holds where FrFlow covers the code: the
+  can be made: a hypothesis of every statement about such values, wherever they are held (each element of a
+  list of them, a field of a record holding one, what the models hold in a world); the tests draw only values
+  that hold it. `always(storedBookings)(s => …)` is every state the store reaches, kept by every program using
+  it, from a start that meets it. `always` holds where FrFlow covers the code: the
   statements (assumptions included), flows and term-API code, and the boundaries of plain Scala
   Definitions (their inputs and results); values entering from outside are covered by assumptions about
-  the outside world. There is no run-time check.
+  the outside world (`check` asks for one for each program given inputs from outside). There is no run-time
+  check. A claim needing a property of its inputs states it as the `always` of a domain type
+  (`always[RoomBookings](held => held.bookings.pairwise(apart))`), not as a precondition: Lean then proves it
+  wherever code makes such a value.
 - **A claim constrains every Definition and Declaration it mentions.** One applied to its `forall`'s
   variables in order, and named nowhere else, is the claim's operation: its post is the formula with each
   call read as the result, the code given to the Definition is checked against it, and code calling the
@@ -75,11 +80,12 @@ examples, and are described below where they differ.
 - `Boundary[T]("db", means)`: what proven code calls but cannot see, a trait `T` of operations that
   take terms and return flows; `Node.assumption(boundary)(Model)` decides the state model it behaves
   as (§1a).
-- `always[T](rule)` and `always(stored)(rule)` (§0a): the rule is a `define` named as the claim's val. Lean
-  assumes the rule of each variable of the type a statement quantifies over (and of each element of a list
-  of them), and of what the models hold in the world before a flow runs; every program writing a store
-  that holds such values is proven to keep the rule of the states it leaves (`kept_by_<program>`, on the
-  `always` claim); a store's start meets its rule (`initially`, from the fact that says what it holds).
+- `always[T](rule)` and `always(storedBookings)(rule)` (§0a): the rule is a `define` named as the claim's val.
+  Lean assumes the rule of each variable of the type a statement quantifies over (and of each element of a
+  list of them, and of a record's fields of the type), and of what the models hold in the world before a
+  flow runs; every program writing a store that holds such values is proven to keep the rule of the states
+  it leaves (`kept_by_<program>`, on the `always` claim); a store's start meets its rule (`initially`, from
+  the fact that says what it holds; with `startsMeetingItsRules`, Lean shows only that some state does).
 
 Formulas and code are terms (`Term[A]`): a tree that prints as Lean and compiles to Scala, built by
 calling the Scala lambda once on variables. The library's operations are the language (`===`,
@@ -182,14 +188,14 @@ with a `rule`.
 |---|---|---|
 | claim | `Node.claim(statement, why, idea = "")(formula)` | `def claim : Prop` over its open terms |
 | claim on a Definition | `Node.claim(statement)(forall((a: Term[A], b: Term[B]) => … op(a, b) …))`, `op` a `Definition` (or `Declaration`) applied to the forall's variables; a flow's `forall((a, before: Term[World]) => … op(a).after(before) …)` | as a contract's: `∀ a b, post(a, b, op(a, b))`, of every run for a flow; `impl` when proven code is attached |
-| `always` | `Node.claim(statement)(always[T](x => …))`, or `always(stored)(s => …)` | `claim := True`: a hypothesis of the others; `kept_by_<program>`, `initially` |
+| `always` | `Node.claim(statement)(always[T](x => …))`, or `always(storedBookings)(s => …)` | `claim := True`: a hypothesis of the others; `kept_by_<program>`, `initially` |
 | root | a claim with no parents (a small set of them), or a contract on a flow with parts and no parents | as a claim (the flow's: its step is of its code), plus `idle` |
 | invariant | `Node.invariant[A, B](statement, why, scope)(rule)` | a claim whose parts are its keepers |
 | contract | `Node.contract(statement, why)(forall((a: Term[A], b: Term[B]) => … op(a, b) …))`, `op: Param[(A, B) => R]` (0 to 6 inputs), the same naming its operation (`Node.contract(op)(statement)(forall(…))`), or `Node.contract(op)(statement, why)(post)` when another operation is applied to the same inputs | `∀ a b, post(a, b, op(a, b))`; `impl` when a `define` is attached |
 | contract on a flow | `Node.contract(op)(statement, why)((a, r, before, after) => ...)`, `op: Param[A => Flow[R]]` (0 to 6 inputs) | `∀ a w, post a (op a w).1 w (op a w).2`; `impl` when a flow is attached |
 | assumption | `Node.assumption(op)(statement, why)(post)`, or `Node.assumption(statement, why)(formula)` | a hypothesis of `root_impl`: trusted |
-| fact | `Node.assumption(statement)(stored.writtenOnlyBy(book))`, `stored.changedOneRunAtATime`, `stored.initially(s => …)` | none: FrFlow reads it (an `always` of the store rests on the three) |
-| model | `Node.assumption(statement)(store.behavesAs(stored))`, or `Node.assumption(boundary)(Model)(statement, why)` | the boundary's class instance on `StateM World`: trusted |
+| fact | `Node.assumption(statement)(storedBookings.writtenOnlyBy(book))`, `….changedOneRunAtATime`, `….startsMeetingItsRules` (or `….initially(s => …)`); `book.calledWithInputsMeetingTheirRules` | none: FrFlow reads it (an `always` of the store rests on the three; an `always` of a type, on the last for each program given inputs from outside) |
+| model | `Node.assumption(statement)(bookingTable.behavesAs(storedBookings))`, or `Node.assumption(boundary)(Model)(statement, why)` | the boundary's class instance on `StateM World`: trusted |
 | definition | `Node.definition(statement, why)(Opaque := of[T], param := expr, ...)` | an `abbrev` in `Types.lean`, a `def` in its term's module |
 | design | `Node.design(statement, why)(files*)` | none: it governs code no proof covers |
 
@@ -304,13 +310,13 @@ vacuous`; `check` lists each thing asked. It is a status of its own: it does not
 ## 3b. Examples written as tests
 
 Examples leave the nodes: in a project's tests, `class GrantedExamples extends FrFlowExamples(rooms):` with
-`example("back to back: granted"):` and `granted(List(Booking("Oak", 9, 10)), Booking("Oak", 10, 11)) is true`.
-`sbt test` runs each on the code and on the claims about the Definition Scala can evaluate. `check` reads the
-compiled suites (the project's test classes, `-Dfrflow.tests`), makes each a case of every claim on its
-Definition, evaluates it in Lean (where Scala cannot evaluate the claim, Lean alone decides it: a claim that
-refuses the example fails), and runs it on the code. They are not part of what a node is decided as, and
-nothing (consistency, vacuity, any rule) depends on them; a contract no longer needs an `allows` and a
-`forbids`.
+`example("back to back: granted"):` and
+`granted(RoomBookings(List(Booking("Oak", 9, 10))), Booking("Oak", 10, 11)) is true`. `sbt test` runs each on the
+code and on the claims about the Definition Scala can evaluate. `check` reads the compiled suites (the project's
+test classes, `-Dfrflow.tests`), makes each a case of every claim on its Definition, evaluates it in Lean (where
+Scala cannot evaluate the claim, Lean alone decides it: a claim that refuses the example fails), and runs it on
+the code. They are not part of what a node is decided as, and nothing (consistency, vacuity, any rule) depends on
+them; a contract no longer needs an `allows` and a `forbids`.
 
 ## 4. Snapshot (`.frflow/kb.json`), per node
 

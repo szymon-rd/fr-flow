@@ -6,7 +6,8 @@ package example
   */
 final case class Written(name: String, op: Param[?], inputs: List[Any], answer: Any, suite: String):
   /** As a claim's case: the call allowed, with its answer. */
-  def asCase: Example = Example(name, Nil, Nil, inputs, answer, expected = true)
+  def asCase: Example = Example(name, Nil, Nil, inputs, answer, expected = true,
+    written = Some(s"${op.name}${inputs.map(Example.show).mkString("(", ", ", ")")} is ${Example.show(answer)}"))
 
 object Written:
   /** `granted(List(…), Booking(…)) is true`, read as a call of `granted` on those values. */

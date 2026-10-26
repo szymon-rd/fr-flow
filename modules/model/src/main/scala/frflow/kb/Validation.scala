@@ -9,7 +9,7 @@ private[frflow] object Validation:
   import Problem.*
   def problems(kb: KnowledgeBase): List[Problem] =
     structure(kb) ++ vocabulary(kb) ++ meanings(kb) ++ names(kb) ++ wording(kb) ++ examples(kb) ++ invariants(kb) ++
-      code(kb) ++ always(kb)
+      code(kb) ++ always(kb) ++ outside(kb)
   private def isOperation(n: Node[?]) = n.kind == NodeKind.Contract || n.kind == NodeKind.Assumption
   /** A claim, a contract or an assumption may leave `why` out: the reason is kept with the decision. */
   private def whyOptional(k: NodeKind) = k == NodeKind.Claim || k == NodeKind.Contract || k == NodeKind.Assumption
@@ -82,11 +82,12 @@ private[frflow] object Validation:
     val proven = kb.implementations.filter(_.flow)
       .flatMap(i => i.definition.orElse(kb.node(i.contract).flatMap(_.op).map(_.name)))
     kb.nodes.flatMap(n => n.always.flatMap(_.store).map(n -> _)).flatMap { (n, m) =>
-      val facts = n.premises.flatMap(_.fact).filter(_.store eq m).map(_.says)
+      val facts = n.premises.flatMap(_.fact).filter(_.store.exists(_ eq m)).map(_.says)
       val writers = facts.collect { case FactKind.WrittenOnlyBy(ps) => ps.map(_.name) }.flatten
       List(
-        Option.when(!facts.exists(_.isInstanceOf[FactKind.Initially]))(s"${n.id}: say what the store holds when the " +
-          s"system starts, an assumption it rests on: .assuming(Node.assumption(\"…\")(${m.lean}.initially(…)))"),
+        Option.when(!facts.exists(f => f.isInstanceOf[FactKind.Initially] || f == FactKind.StartsMeetingItsRules))(
+          s"${n.id}: say what the store holds when the system starts, an assumption it rests on: " +
+          s".assuming(Node.assumption(\"…\")(${m.lean}.startsMeetingItsRules)) or ${m.lean}.initially(…)"),
         Option.when(!facts.exists(_.isInstanceOf[FactKind.WrittenOnlyBy]))(s"${n.id}: say which programs change the " +
           s"store, an assumption it rests on: .assuming(Node.assumption(\"…\")(${m.lean}.writtenOnlyBy(…)))"),
         Option.when(!facts.contains(FactKind.OneRunAtATime))(s"${n.id}: say that one run changes the store at a " +
@@ -95,6 +96,22 @@ private[frflow] object Validation:
       ).flatten ++ writers.filterNot(proven.contains)
         .map(w => s"${n.id}: $w changes the store, so it keeps ${n.id}: give it proven code (implementProven($w)(…))")
     }.map(Invariants(_))
+
+  /** An `always` claim about a type holds of the values entering from outside: the inputs of the programs with
+    * proven code, as an assumption about who calls them says.
+    */
+  private def outside(kb: KnowledgeBase): List[Problem] =
+    val programs = kb.implementations.filter(_.flow).flatMap(i => kb.node(i.contract).flatMap(_.op)).distinctBy(_.name)
+    def inputs(p: Param[?]) = p.termType.shape match
+      case frflow.types.Shape.FnOf(as, _) => as
+      case _                              => Nil
+    kb.nodes.filter(_.always.exists(_.store.isEmpty)).flatMap { n =>
+      val said = n.premises.flatMap(_.fact).map(_.says).collect { case FactKind.CalledWithInputsMeetingTheirRules(p) =>
+        p.name }
+      programs.filter(p => !said.contains(p.name) && inputs(p).exists(t => kb.invariantsOn(t).exists(_._1 eq n)))
+        .map(p => Invariants(s"${n.id}: ${p.name} is given its inputs from outside: say they meet it, an assumption " +
+          s"it rests on: .assuming(Node.assumption(\"…\")(${p.name}.calledWithInputsMeetingTheirRules))"))
+    }
 
   private def names(kb: KnowledgeBase): List[Problem] =
     val ids = kb.nodes.map(_.id)

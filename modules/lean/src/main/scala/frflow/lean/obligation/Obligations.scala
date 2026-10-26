@@ -77,7 +77,7 @@ final class Obligations(kb: KnowledgeBase, refinement: Refinement, coverage: Cov
       d         <- provenImpl(c).toList
       post      <- c.post.toList
       m         <- kb.models.filter(m => kb.worldRules(m).exists(_._1 eq n))
-      (_, _, each) <- kb.worldRules(m).find(_._1 eq n).toList
+      (_, _, reach) <- kb.worldRules(m).find(_._1 eq n).toList
     yield
       val ts = post.params.map(_._2)
       val ins = ts.dropRight(3)
@@ -85,7 +85,7 @@ final class Obligations(kb: KnowledgeBase, refinement: Refinement, coverage: Cov
       val hs = ins.zipWithIndex.flatMap((t, i) => assumed(s"x$i", t)) ++ worldAssumed(s"x${ins.size}")
       val (run, co) = code(d)
       val promised = hyps(calls(c))
-      val kept = ruleOf(rule, s"($run $xs).2.${m.model.field}", each)
+      val kept = ruleOf(rule, s"($run $xs).2.${m.model.field}", reach)
       val worldRules = Ctx.all(kb.models.flatMap(kb.worldRules).map(r => defCtx(r._2)))
       val opens = co ++ Ctx.all(promised.map(_._2)) ++ defCtx(rule) ++ worldRules
       val program = c.op.fold(d.name)(_.name)
@@ -97,7 +97,7 @@ final class Obligations(kb: KnowledgeBase, refinement: Refinement, coverage: Cov
     for
       rule  <- n.holds.toList
       m     <- n.always.flatMap(_.store).toList
-      start <- n.premises.filter(_.fact.exists(_.store eq m)).flatMap(_.initially)
+      start <- n.premises.filter(_.fact.exists(_.store.exists(_ eq m))).flatMap(_.initially)
     yield
       val t = frflow.Types.walk(m.stateType).lean
       val (r, ro) = code(rule)

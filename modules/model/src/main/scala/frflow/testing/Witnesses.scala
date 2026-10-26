@@ -9,12 +9,12 @@ import scala.util.Try
 private[frflow] object Witnesses:
   private val Draws = 300
 
-  /** Up to `count` values of `t`, as the tests draw them, the empty value of a list or an option first: those `rule`
-    * holds of, as Scala runs it (all, where it cannot).
+  /** Up to `count` values of `t`, as the tests draw them, the empty value of a list or an option first: those the
+    * `rules` hold of, as Scala runs them (all, where it cannot).
     */
-  def values(kb: KnowledgeBase, t: LeanType[?], count: Int, rule: Option[Def[?]] = None): List[Any] =
+  def values(kb: KnowledgeBase, t: LeanType[?], count: Int, rules: List[Def[?]] = Nil): List[Any] =
     val plan = planOf(kb)
-    def meets(v: Any) = rule.forall(d => Try(Fn.call(d.fn, List(v)).asInstanceOf[Boolean]).getOrElse(true))
+    def meets(v: Any) = rules.forall(d => Try(Fn.call(d.fn, List(v)).asInstanceOf[Boolean]).getOrElse(true))
     val drawn =
       (0 until Draws).iterator.flatMap(i => Try(Draw(Testing.random(3, i), 1 + i % 4, plan).value(t)).toOption)
     (empty(t).iterator ++ drawn).filter(v => Try(kb.holds(t)(v)).getOrElse(false) && meets(v)).distinct.take(count)

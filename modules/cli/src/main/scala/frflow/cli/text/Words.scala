@@ -22,14 +22,14 @@ object Words:
     Cause.Parts -> "its parts changed", Cause.Code -> "the code it governs changed", Cause.Revisit -> "a change elsewhere may affect it",
     Cause.Merged -> "two branches decided it and both were kept")
 
-  /** Why a node waits for review, in a few words: `to review: it changed, its code changed`. */
+  /** Why a node waits for review, in a word: `review (changed, code)`. */
   def cause(c: Cause): String = c match
-    case Cause.Self    => "it changed"
-    case Cause.Above   => "above it changed"
-    case Cause.Parts   => "its parts changed"
-    case Cause.Code    => "its code changed"
-    case Cause.Revisit => "asked to revisit"
-    case Cause.Merged  => "kept from two branches"
+    case Cause.Self    => "changed"
+    case Cause.Above   => "above"
+    case Cause.Parts   => "parts"
+    case Cause.Code    => "code"
+    case Cause.Revisit => "revisit"
+    case Cause.Merged  => "two branches"
 
   def decided(l: Logged): String =
     val d = l.decision

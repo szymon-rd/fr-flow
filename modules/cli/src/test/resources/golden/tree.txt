@@ -1,11 +1,11 @@
-! Root — its parts changed, review it: "A user gets access to a resource exactly when they are
-|                                      signed in and authorized for it."
+! Root — review (parts): "A user gets access to a resource exactly when they are signed in and
+|                        authorized for it."
 |- + NeedsGrant: "A request is admitted only with a grant for the path."
-|  `- ! Decide (contract) — it changed, review it: "A request is admitted on behalf of the user i...
+|  `- ! Decide (contract) — review (changed): "A request is admitted on behalf of the user its to...
 |     `- - Memory (design): "Sessions and grants are kept in memory."
 |- + LetsIn: "A request with a grant for the path is admitted."
 |  `- -> Decide
-|- ! Expiry — new, decide on it: "A session ends an hour after sign-in."
+|- ! Expiry — new: "A session ends an hour after sign-in."
 `- o Forever — rejected: "A session never ends."
 
 Assumptions, under no parent: trusted (the code calls them)
@@ -15,7 +15,9 @@ Definitions: they fix terms of the vocabulary (decided, not proven)
 - Identities (definition): "Users are named by ids, and resources are paths."
 
 Sample: 9 nodes, 5 accepted, 2 to review, 1 proposed, 1 rejected
-splits 3/3 proven, contracts 0/1 proven down to their code, examples 2/2 agree in Lean,
-  consistency not checked yet, trusted: StoreKeeps, 2 with something unproven
+Proofs: splits 3/3, claims down to their code 0/1, consistency not checked yet
+Tests: examples in Lean 2/2
+Trusted: StoreKeeps
+2 with something unproven
 Waiting: 3 for the developer (1 mechanical: confirm)
 marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do

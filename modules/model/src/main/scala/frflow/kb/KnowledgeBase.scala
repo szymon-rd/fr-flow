@@ -67,26 +67,35 @@ final class KnowledgeBase(val name: String, val idea: String = "", val implement
   /** The `always` claims about a store's states, each with its rule. */
   def storeRules(m: StateModel[?]): List[(Node[?], Def[?])] =
     nodes.flatMap(n => n.always.filter(_.store.exists(_ eq m)).map(n -> _.rule))
-  /** The invariants a value of type `t` holds: of its type, and, for a list, of its elements' (`true`). */
-  def invariantsOn(t: LeanType[?]): List[(Node[?], Def[?], Boolean)] =
+  /** The invariants a value of type `t` holds: of its type, for a list of its elements', and within a record of its
+    * fields'.
+    */
+  def invariantsOn(t: LeanType[?]): List[(Node[?], Def[?], Reach)] =
     if typeInvariants.isEmpty then Nil
     else onType.synchronized(onType.computeIfAbsent(t, u => invariantsOn(Types.walk(u).lean)))
-  private val onType = new java.util.IdentityHashMap[LeanType[?], List[(Node[?], Def[?], Boolean)]]()
+  private val onType = new java.util.IdentityHashMap[LeanType[?], List[(Node[?], Def[?], Reach)]]()
   /** The same, of a type as Lean writes it. */
-  def invariantsOn(lean: String): List[(Node[?], Def[?], Boolean)] =
-    ruleTypes.flatMap { (n, d, of) =>
-      if of == lean then List((n, d, false)) else if lean == s"(List $of)" then List((n, d, true)) else Nil
+  def invariantsOn(lean: String): List[(Node[?], Def[?], Reach)] = within(lean, Set.empty)
+  private def within(lean: String, seen: Set[String]): List[(Node[?], Def[?], Reach)] =
+    val direct = ruleTypes.flatMap { (n, d, of) =>
+      if of == lean then List((n, d, Reach.It)) else if lean == s"(List $of)" then List((n, d, Reach.Each)) else Nil
     }
+    val fields = if seen(lean) then Nil else records.getOrElse(lean, Nil).zipWithIndex.flatMap { case ((f, t), i) =>
+      within(t, seen + lean).map((n, d, r) => (n, d, Reach.Field(f, i, r)))
+    }
+    direct ++ fields
   private lazy val ruleTypes = typeInvariants.map((n, d) => (n, d, Types.walk(d.lifted.built._1.head.tpe).lean))
-  /** Whether a value of type `t` holds the invariants of its type (and its elements those of theirs), run as Scala. */
-  def holds(t: LeanType[?])(v: Any): Boolean = invariantsOn(t).forall { (_, d, each) =>
-    val rule = d.fn.asInstanceOf[Any => Boolean]
+  /** The records' fields, as Lean names and types. */
+  private lazy val records: Map[String, List[(String, String)]] =
+    types.filter(_.body.startsWith("structure")).flatMap(t => t.ctors.headOption.map(c => t.name -> c._2)).toMap
+  /** Whether a value of type `t` holds the invariants of its type (and its parts those of theirs), run as Scala. */
+  def holds(t: LeanType[?])(v: Any): Boolean = invariantsOn(t).forall { (_, d, reach) =>
     // A rule Scala cannot run (a `forall` over numbers) refuses nothing here.
-    scala.util.Try(if each then v.asInstanceOf[Iterable[Any]].forall(rule) else rule(v)).getOrElse(true)
+    scala.util.Try(reach.holds(v, d.fn.asInstanceOf[Any => Boolean])).getOrElse(true)
   }
   /** What always holds of what a model holds in a world: the rules of its state's type, and its store's. */
-  def worldRules(m: ModelOf): List[(Node[?], Def[?], Boolean)] =
-    invariantsOn(m.model.stateType) ++ storeRules(m.model).map((n, d) => (n, d, false))
+  def worldRules(m: ModelOf): List[(Node[?], Def[?], Reach)] =
+    invariantsOn(m.model.stateType) ++ storeRules(m.model).map((n, d) => (n, d, Reach.It))
   /** The programs that write what an `always` claim is about, each by the first statement on it its proven flow meets:
     * the flows calling a boundary whose model holds it.
     */

@@ -99,7 +99,10 @@ final class Evals(kb: KnowledgeBase, refinement: Refinement):
           Eval(name, label, if v then call else s"¬ $call", if v then s"¬ $call" else call)
         }.orElse(Option.when(verdict.isEmpty && n.post.isDefined && !n.isFlow)(tr).flatten.map { t =>
           val call = s"${app(qualified(n, "post"), ctx(post), env)._1}$args $t"
-          val shown = s"$label, $op(${ins.map(Example.show).mkString(", ")}) is ${judged.fold("")(Example.show)}"
+          // An example written as a test, as written: `example "back to back": granted(…) is true`.
+          val note = label.drop(label.indexOf('(') + 1).dropRight(1)
+          val written = s"$op(${ins.map(Example.show).mkString(", ")})"
+          val shown = s"example \"$note\": $written is ${judged.fold("")(Example.show)}"
           Eval(name, shown, call, s"¬ $call", against = Eval.Against.Answer)
         })
         val onImpl = for { d <- impl; g <- got; tg <- leanValue(if n.failure.isDefined then g match { case (x, w) => (outcome(x), w); case o => o } else g) } yield

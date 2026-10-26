@@ -2,6 +2,7 @@ package frflow
 package lean
 package obligation
 
+import frflow.boundary.FactKind
 import frflow.example.Example
 import frflow.lean.printing.{Layout, LeanText, VocabularyModules}
 import frflow.protocol.snapshot.Consistency.Kind
@@ -99,19 +100,29 @@ final class Witnessing(kb: KnowledgeBase, refinement: Refinement, layout: Layout
     valued(Kind.Admits, n, rule, s"admits_${n.id}")
   }
 
-  private def starts: List[Asked] = kb.nodes.flatMap(n => n.initially.map(r => n -> r)).map { (n, rule) =>
-    valued(Kind.Starts, n, rule, s"starts_${n.id}")
+  private def starts: List[Asked] = kb.nodes.flatMap { n =>
+    val meeting = n.fact.filter(_.says == FactKind.StartsMeetingItsRules).flatMap(_.store)
+      .flatMap(m => kb.models.find(_.model eq m)).map { m =>
+        val rules = kb.worldRules(m)
+        valued(Kind.Starts, n, m.model.stateType, rules.map(_._2), rules.map((_, d, r) => ruleOf(d, "x", r)),
+          s"starts_${n.id}")
+      }
+    n.initially.map(r => valued(Kind.Starts, n, r, s"starts_${n.id}")).toList ++ meeting
   }
 
   /** Some value of the rule's type holds it: each of a few drawn values, smallest first, tried as the witness. */
   private def valued(kind: Kind, n: Node[?], rule: Def[?], name: String): Asked =
-    val t = rule.lifted.built._1.head.tpe
+    valued(kind, n, rule.lifted.built._1.head.tpe, List(rule), List(s"${code(rule)._1} x"), name)
+
+  /** Some value of type `t` meets each of the rules, of `x` in Lean. */
+  private def valued(kind: Kind, n: Node[?], t: frflow.types.LeanType[?], rules: List[Def[?]], of: List[String],
+      name: String): Asked =
     val tpe = Types.walk(t).lean
-    val values = scala.util.Try(Witnesses.values(kb, t, 3, Some(rule))).getOrElse(Nil)
-    val (f, _) = code(rule)
+    val values = scala.util.Try(Witnesses.values(kb, t, 3, rules)).getOrElse(Nil)
+    val meets = if of.isEmpty then "True" else of.mkString(" ∧ ")
     val theorems = values.zipWithIndex.flatMap { (v, i) =>
       scala.util.Try(LeanPrinter().value(v, t)).toOption
-        .map(lv => s"${name}_$i" -> s"∃ (x : $tpe), $f x := ⟨$lv, by frflow_auto⟩")
+        .map(lv => s"${name}_$i" -> s"∃ (x : $tpe), $meets := ⟨$lv, by frflow_auto⟩")
     }
     Asked(kind, List(n), theorems, values.map(Example.show).mkString(" or "),
       Option.when(theorems.isEmpty)(s"no value of ${Types.scala(t)} was drawn to try"))

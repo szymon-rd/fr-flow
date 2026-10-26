@@ -13,7 +13,8 @@ object Details:
     GoneNode(g, v.nodes.find(r => statement.nonEmpty && said(r.node.content.statement) == statement).map(_.id))
 
   def of(v: View, r: Reviewed, code: Option[CodeChange]): NodeDetails =
-    val (designs, parts) = r.node.parts.flatMap(v.node).partition(_.node.kind == NodeKind.Design)
+    val (premises, below) = r.node.parts.flatMap(v.node).partition(x => r.node.premises.contains(x.id))
+    val (designs, parts) = below.partition(_.node.kind == NodeKind.Design)
     val parents = r.node.parents.flatMap(v.node)
     // Nearest first (see `Graph.ancestry`): their reasons say when to revisit them.
     val above = Graph(v.snapshot).ancestry(r.node).filter(_ != r.id).flatMap(v.node)
@@ -21,7 +22,7 @@ object Details:
       parents.map(p => p.id -> p.node.parts.filter(_ != r.id).flatMap(v.node)), above, parts, designs,
       r.node.uses.flatMap(v.node), v.nodes.filter(_.node.uses.contains(r.id)), r.node.relies.flatMap(v.node),
       v.nodes.filter(_.node.relies.contains(r.id)), v.nodes.filter(_.node.invariants.exists(_.id == r.id)),
-      r.review.rivals.flatMap(v.node), terms(v, r), defs(v, r), CodeProof.of(r.node), diff(v, r, code))
+      r.review.rivals.flatMap(v.node), terms(v, r), defs(v, r), CodeProof.of(r.node), diff(v, r, code), premises)
 
   /** The root's idea (its lead), the section of the nearest node naming one, and what is not modelled. */
   private def idea(v: View, r: Reviewed, up: List[Reviewed]): String =

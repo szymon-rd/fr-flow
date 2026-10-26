@@ -63,8 +63,8 @@ class DecideSuite extends munit.FunSuite:
     val decided = acceptAll(shelf)
     val restatedCase = replacing(shelf, restated(r, "Readers find every book, at once.").copy(tested = Some(TestReport(1000, 1, "R", Some(failure)))))
     assertEquals(decide(restatedCase, decided, accept("R")),
-      Left(ContractChanged(id("R"), "held = List(), request = 3: returned false, which the contract now forbids")))
-    assert(ContractChanged(id("R"), "x").message.startsWith("R: the contract changed and its code no longer meets it: x"))
+      Left(ContractChanged(id("R"), "held = List(), request = 3: returned false, which the claim now forbids")))
+    assert(ContractChanged(id("R"), "x").message.startsWith("R: the claim changed and its code no longer meets it: x"))
     // one of several refused: its name said once
     assertEquals(Within(id("R"), ContractChanged(id("R"), "x")).message, ContractChanged(id("R"), "x").message)
     assertEquals(Within(id("R"), NoReason).message, s"R: ${NoReason.message}")

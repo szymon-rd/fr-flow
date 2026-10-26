@@ -27,6 +27,7 @@ object NodeText:
     ) ++ d.beside.map((p, co) => (full, s"Beside it under $p: together they make $p", co.map(Lines.node(_, st)))) ++ List(
       (full && !proposal, "Rejected beside it", r.review.rejectedBeside.map(x => s"${x.id}: ${x.statement} — because ${x.reason}")),
       (true, n.split.fold("Parts")(sp => s"Parts: together they make it (${outcome(sp.complete, st)})"), parts(d, st)),
+      (true, "Assumes", d.premises.map(Lines.node(_, st))),
       (normal, "Kept by", d.keptBy.flatMap(k => k.node.invariants.find(_.id == r.id).map(i =>
         if i.status == ObligationStatus.Exempt then s"${k.id} is exempt: ${i.detail}"
         else if i.view.isEmpty then s"${k.id} (${i.status}), of what its models hold after a run"
@@ -96,6 +97,8 @@ object NodeText:
         else if i.view.isEmpty then List(s"keeps ${i.id} (${i.status}) of what its models hold after a run")
         else s"keeps ${i.id} (${i.status}), showing the rule:" :: indent(i.view)) ++
       Option.when(n.covers.nonEmpty)(s"kept by ${n.covers.mkString(", ")}").toList ++
+      Option.when(n.alwaysProofs.exists(_.obligation.startsWith("kept_by")))(
+        s"kept by ${n.alwaysProofs.filter(_.obligation.startsWith("kept_by")).map(_.by).mkString(", ")}").toList ++
       Option.when(n.exempts.nonEmpty)(s"exempt: ${n.exempts.mkString(", ")}").toList ++
       n.expectations.flatMap(e => s"expects (${e.status}): ${e.statement}" :: indent(e.source))
 
@@ -113,7 +116,7 @@ object NodeText:
 
   private def partOf(p: Reviewed, r: Reviewed, st: Style): String =
     val need = p.node.split.flatMap(_.needed.find(_.id == r.id))
-    val co = p.node.parts.filter(_ != r.id)
+    val co = p.node.parts.filter(x => x != r.id && !p.node.premises.contains(x))
     st.dim(s"  ${if co.isEmpty then "its only part" else s"with ${co.mkString(", ")}"}") +
       need.filter(_.status == ObligationStatus.Shown).fold("")(x => st.red(s"; not needed: ${x.detail}"))
 
@@ -133,6 +136,7 @@ object NodeText:
 
   private def proofs(n: SnapNode, st: Style, full: Boolean): List[String] =
     n.split.map(sp => s"complete: ${outcome(sp.complete, st, full)}").toList ++
+      n.alwaysProofs.map(p => s"${p.obligation}: ${outcome(p.outcome, st, full)}") ++
       n.implementationProof.map(p => s"impl (${p.name}): ${outcome(Outcome(p.status, p.detail), st, full)}") ++
       n.rootImpl.map(o => s"root_impl: ${outcome(o, st, full)}") ++
       n.idle.map(i => st.red(s"idle: Lean shows doing nothing meets it ($i): say what users can do")) ++
@@ -149,16 +153,19 @@ object NodeText:
     val (failing, passing) = n.examples.partition(e => !e.passes || !e.lean.forall(_.status == ObligationStatus.Proven))
     val shown = if full then n.examples else n.examples.filter(e => failing.contains(e) || passing.take(Few).contains(e))
     shown.zip(None :: shown.map(e => Some(e.`given`))).flatMap((e, before) =>
-      Option.when(!before.contains(e.`given`))(st.dim(s"given ${if e.`given`.isEmpty then "nothing" else e.`given`.mkString(", ")}")).toList :+
+      Option.when(!before.contains(e.`given`) && e.asWritten.isEmpty)(
+        st.dim(s"given ${if e.`given`.isEmpty then "nothing" else e.`given`.mkString(", ")}")).toList :+
         ("  " + example(e, st, allAgree))) ++
       Option.when(shown.size < n.examples.size)(st.dim(s"${st.ellipsis} ${n.examples.size - shown.size} more: context ${n.id}")).toList
 
   private def example(e: ExampleView, st: Style, allAgree: Boolean): String =
     val mark = if e.passes then st.proven else st.failed
-    val verdict = if e.passes then "" else st.red(s"  contract: ${e.fails.getOrElse("holds")}${e.codeFails.fold("")(i => s", implementation: $i")}")
+    val verdict = if e.passes then ""
+      else st.red(s"  claim: ${e.fails.getOrElse("holds")}${e.codeFails.fold("")(i => s", implementation: $i")}")
     val lean = e.lean.filter(_ => !allAgree).fold("")(o => if o.status == ObligationStatus.Proven then st.dim("  Lean agrees")
       else if o.status == ObligationStatus.Failed then st.red(s"  Lean disagrees: ${o.detail}") else st.dim(s"  ${o.status} in Lean"))
-    s"$mark ${e.note}$verdict$lean  ${st.dim(s"${if e.expected then "allows" else "forbids"} ${e.call}")}"
+    val call = e.asWritten.getOrElse(s"${if e.expected then "allows" else "forbids"} ${e.call}")
+    s"$mark ${e.note}$verdict$lean  ${st.dim(call)}"
 
   private def code(d: NodeDetails, st: Style, full: Boolean): List[String] =
     val n = d.node.node
@@ -166,7 +173,7 @@ object NodeText:
     val how = d.codeProof.map {
       case CodeProof.ProvenDown(define, running) => s"proven define $define${runs(running)}"
       case CodeProof.Define(define, status, running) => s"define $define, $status${runs(running)}"
-      case CodeProof.Tested(_) => "plain code, tested against the contract, not proven"
+      case CodeProof.Tested(_) => "plain code, tested against the claim, not proven"
       case CodeProof.Model(own, outside, _) =>
         "implemented by: " + (own.map(i => s"$i (the project's own code, tested against the model)") ++
           outside.map(i => s"$i (an outside system, checked against the model; the model stays assumed)")).mkString("; ")

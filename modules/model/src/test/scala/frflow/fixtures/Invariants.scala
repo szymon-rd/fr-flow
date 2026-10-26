@@ -10,6 +10,9 @@ object Invariants:
   val shelvedOnce = Node.claim("No book is shelved twice.")(always[List[Book]](shelf => shelf.allDistinct))
   val shelf: KnowledgeBase = shelfWith(pick, hasPages, shelvedOnce)
 
+  val boxed = Node.claim("A box holds what it holds.")(forall((box: Term[Box]) => box.books === box.books))
+  val boxes: KnowledgeBase = KnowledgeBase("Boxes")(boxed, hasPages)
+
   val notNegative = Node.claim("No amount is less than nothing.")(always[BigInt](x => x >= BigInt(0)))
   val service: KnowledgeBase =
     KnowledgeBase("Service", idea = "IDEA.md")(Service.sold, Service.pricePositive, Service.tillKept, notNegative)

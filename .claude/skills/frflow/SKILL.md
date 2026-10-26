@@ -155,8 +155,11 @@ examples still use the older kinds below (contract, invariant, definition), whic
 
 - **Nodes.** `Node.claim(statement)(formula)`: proven from its parts, or tested where the Definitions it is
   about are plain Scala. `Node.assumption(statement)(formula)`: trusted, decided by the developer: the outside
-  world, as a store's model (`store.behavesAs(stored)`) or a fact of how the system is run
-  (`stored.writtenOnlyBy(book)`, `stored.changedOneRunAtATime`, `stored.initially(held => …)`).
+  world, as a store's model (`bookingTable.behavesAs(storedBookings)`) or a fact of how the system is run
+  (`storedBookings.writtenOnlyBy(book)`, `storedBookings.changedOneRunAtATime`,
+  `storedBookings.startsMeetingItsRules`, or `storedBookings.initially(held => …)` when the start is not just
+  "meeting its rules"), or of what comes from outside (`book.calledWithInputsMeetingTheirRules`). Name the
+  boundary for the real thing (`bookingTable`) and the model for what the proofs see (`storedBookings`).
   `Node.design(statement, why)(files*)`: a decision about code no proof covers.
 - **Values.** `Declaration[A](means)`: an abstract idea, known only through the claims and assumptions about
   it; no code or flow uses it, and nothing implements it. `Definition[A](means)`: of any type (a function, a
@@ -167,13 +170,17 @@ examples still use the older kinds below (contract, invariant, definition), whic
   meaning on the spot.
 - **Quantifiers.** `forall(x => …)`: every possible value, proven. `always[T](x => …)`: every value of `T`
   that can be made: a hypothesis in Lean of every statement about such values, and the tests draw only
-  values that hold it (no run-time check: values from outside are an assumption's business).
-  `always(stored)(held => …)`: every state the store reaches: Lean proves every program writing it keeps it
-  (`kept_by_<program>`), and that what it holds when the system starts meets it (`initially`).
-- **A claim constrains every Definition and Declaration it mentions.** `forall((held: Term[List[Booking]],
-  request: Term[Booking]) => granted(held, request) === free(held, request))` is a claim on `granted`: its
-  code is checked against it, and the code calling it is proven from it. A flow's runs are read as
-  `book(request).answer(before)` and `stored.in(book(request).after(before))`, over
+  values that hold it (no run-time check: values from outside are an assumption's business, and `check` asks
+  for one, `book.calledWithInputsMeetingTheirRules`, for each program given such inputs).
+  `always(storedBookings)(held => …)`: every state the store reaches: Lean proves every program writing it
+  keeps it (`kept_by_<program>`), and that what it holds when the system starts meets it (`initially`).
+- **A claim constrains every Definition and Declaration it mentions.** `forall((held: Term[RoomBookings],
+  request: Term[Booking]) => granted(held, request) === free(held.bookings, request))` is a claim on
+  `granted`: its code is checked against it, and the code calling it is proven from it. When a claim holds
+  only of some inputs (a room's bookings never overlap), give them a domain type whose `always` says so
+  (`always[RoomBookings](held => held.bookings.pairwise(apart))`) rather than a precondition: the claim stays
+  one equation, the tests draw only such values, and Lean proves the rule wherever code makes one. A flow's
+  runs are read as `book(request).answer(before)` and `storedBookings.in(book(request).after(before))`, over
   `forall((request: Term[Booking], before: Term[World]) => …)`.
 - **Edges.** `.refines(parent)`: a part. `.assuming(assumption)`: a premise, trusted, drawn below the node.
 - **Roots.** A knowledge base may have several roots, on any of its Definitions, relating them too; keep the
@@ -182,8 +189,8 @@ examples still use the older kinds below (contract, invariant, definition), whic
   of a value or a store is an `always` claim of its own. A guideline for you, not a rule FrFlow checks.
 - **Examples are tests**, not nodes: in `src/test/scala`,
   `class GrantedExamples extends FrFlowExamples(rooms):` then `example("back to back: granted"):` with
-  `granted(List(Booking("Oak", 9, 10)), Booking("Oak", 10, 11)) is true`. `sbt test` runs each on the code and
-  on the claims Scala can evaluate; `check` reads them and evaluates each against every claim on the
+  `granted(RoomBookings(List(Booking("Oak", 9, 10))), Booking("Oak", 10, 11)) is true`. `sbt test` runs each
+  on the code and on the claims Scala can evaluate; `check` reads them and evaluates each against every claim on the
   Definition in Lean (where Scala cannot, Lean alone), and against the code. Nothing rests on them.
 - **Consistency and vacuity.** `check` asks Lean that the statements at the bottom of the DAG hold together,
   grouped by the open terms they share, each term given a witness: what an equation says it is

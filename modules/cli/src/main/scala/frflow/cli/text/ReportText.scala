@@ -28,13 +28,16 @@ object ReportText:
       case Nil if c.ok && c.modelRuns.isDefined => (c.modelRuns.fold("")(matches), Nil)
       // A node made of parts: what Lean proved is the step from them.
       case Nil if c.ok && c.step => ("step proven", Nil)
-      case rs => (s"$status$notProven", rs.map(r => s"${r.name} ${r.status}: ${r.detail.linesIterator.mkString("\n    ")}"))
+      // An example Lean evaluated says what it is; another obligation, its name and status first.
+      case rs => (s"$status$notProven", rs.map(r =>
+        (if r.name.isEvaluation then "" else s"${r.name} ${r.status}: ") + r.detail.linesIterator.mkString("\n    ")))
     // Said in place of its status: the contract changed and its code did not (the code is not what moved), or a run of
     // a model's implementation differs from the model.
     val moved = c.testFailure.filter(_ => c.contractChanged).map(f => st.red(f.said(c.id.value, contractChanged = true)))
       .orElse(c.testFailure.filter(_ => c.modelRuns.isDefined).map(f => st.red(s"a generated run differs from the model: ${f.line}")))
     s"$glyph ${st.bold(c.id.value)}: ${moved.getOrElse(head)}" ::
-      (Option.when(c.failing.nonEmpty)(st.red(s"${c.failing.size} example(s) fail: the code or the contract is wrong; fix that, not the proof")).toList ++
+      (Option.when(c.failing.nonEmpty)(st.red(
+          s"${c.failing.size} example(s) fail: the code or the claim is wrong; fix that, not the proof")).toList ++
         c.failing.take(5).map(f => s"  ${f.example}: ${f.verdict}") ++
         c.testFailure.filter(_ => moved.isEmpty).toList.map(f => st.red(f.said(c.id.value, contractChanged = false))) ++
         problems ++ notEvaluated ++
@@ -53,7 +56,8 @@ object ReportText:
 
   /** Plain code's tests, when they pass: what holds of a contract whose code is tested, not proven. */
   private def tested(t: TestReport): String =
-    s"code tested on ${f"${t.cases}%,d"} cases" + (if t.unreached.isEmpty then "" else ", but they never reached a part of the contract")
+    s"code tested on ${f"${t.cases}%,d"} cases" +
+      (if t.unreached.isEmpty then "" else ", but they never reached a part of the claim")
 
   def check(r: CheckReport, st: Style, c: Contribution = Contribution.empty): List[String] =
     r.nodes.flatMap(checked(_, st)) ++ ConsistencyText.lines(r.overview.consistency, st) ++
@@ -69,7 +73,8 @@ object ReportText:
     case Found.Missing(path) =>
       Lines.para(s"There is no file or directory $path (paths are relative to the project's directory).", st, indent = 0)
     case Found.Ungoverned(path) =>
-      Lines.para(s"No node governs $path: code there changes unnoticed (status fails on a source file no node governs). Give it a home: the contract whose implementation it is, or a design node.", st, indent = 0)
+      Lines.para(s"No node governs $path: code there changes unnoticed (status fails on a source file no node " +
+        "governs). Give it a home: the claim whose implementation it is, or a design node.", st, indent = 0)
     case Found.Nothing(q) =>
       Lines.para(s"No node, rejected option or not-modelled line mentions \"$q\": a new concern may need a new node (and a governed home for its code).", st, indent = 0)
     case Found.Mentions(_, ms) => "What mentions it:" :: ms.flatMap { m =>

@@ -73,7 +73,7 @@ class ApiSuite extends munit.FunSuite:
     assert(!Cause.movedUnderCode(Nil))
     val f = TestFailure("held = List()", "returned true, which Decide forbids", 1, 0, 1)
     assertEquals(f.said("Decide", contractChanged = true),
-      "the contract changed and its code no longer meets it: held = List(): returned true, which the contract now forbids")
+      "the claim changed and its code no longer meets it: held = List(): returned true, which the claim now forbids")
     assertEquals(f.said("Decide", contractChanged = false), "its code fails a generated case: held = List(): returned true, which Decide forbids")
   }
 

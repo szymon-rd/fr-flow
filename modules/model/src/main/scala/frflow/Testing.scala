@@ -271,7 +271,7 @@ private[frflow] object Testing:
         Option.when(counter.sampled.nonEmpty)(s"forall/exists over ${counter.sampled.mkString(", ")}: sampled, not every value"),
         Option.when(fixed.nonEmpty)(s"${fixed.map(_.param.name).mkString(", ")}: the examples' value (no Lean type to generate it from)"),
         Option.when(generated.isEmpty && kb.casesOf(n).isEmpty)(
-          "nothing to vary: no examples, and the contract reads no parameter")
+          "nothing to vary: no examples, and the claim reads no parameter")
       ).flatten ++ customs.toList.map((t, g) => s"${Types.scala(t)}: ${g.describe} " +
         (if plan.only(t) then "(given: what the outside holds, with the examples' values)" else "(given; derived values for a quarter of them)")) ++
         unreached(settings)

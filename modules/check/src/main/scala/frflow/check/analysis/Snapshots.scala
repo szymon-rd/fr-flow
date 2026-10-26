@@ -3,7 +3,7 @@ package check
 package analysis
 
 import frflow.protocol.*
-import frflow.protocol.ObligationName.{Cover, Eval, EvalImpl, Expect, Impl, RootImpl}
+import frflow.protocol.ObligationName.{Cover, Eval, EvalImpl, Expect, Impl, Initially, KeptBy, RootImpl}
 import frflow.protocol.ObligationStatus.*
 import scala.util.chaining.*
 
@@ -38,7 +38,8 @@ object Snapshots:
     val examples = a.examples(n).zipWithIndex.map { (r, i) =>
       def lean(name: ObligationName) = Option.when(i < kb.casesOf(n).size)(outcome(name))
       ExampleView(r.example.note, r.example.givens, r.example.call, r.example.expected, r.failing,
-        r.implementation.filter(_ != "ok"), lean(Eval(i)), if g.provenImpl(n).isEmpty then None else lean(EvalImpl(i)))
+        r.implementation.filter(_ != "ok"), lean(Eval(i)), if g.provenImpl(n).isEmpty then None else lean(EvalImpl(i)),
+        r.example.written)
     }
     SnapNode(id = id, kind = n.kind, content = c, hash = c.hash, parents = ids(kb.parentsOf(n)), parts = ids(kb.children(n)),
       replaces = n.replaced.map(r => NodeId(r.id)), op = n.op.map(_.name), defines = n.defines,
@@ -54,15 +55,22 @@ object Snapshots:
       expectations = n.expected.zipWithIndex.map { case ((st, l), i) => outcome(Expect(i)).pipe(o => Expectation(st, l.source, o.status, o.detail)) },
       implementationProof = g.provenImpl(n).map(d => outcome(Impl).pipe(o => ImplProof(d.name, o.status, o.detail))),
       rootImpl = Option.when(kb.isRoot(n) && !n.isAlways)(outcome(RootImpl)),
-      covers = if n.isAlways then ids(kb.writers(n))
-        else if !n.isInvariant then Nil
+      covers = if !n.isInvariant then Nil
         else ids(kb.nodes.filter(_.kept.exists(k => (k.invariant eq n) && k.view.nonEmpty))),
       exempts = if !n.isInvariant then Nil else ids(kb.nodes.filter(_.kept.exists(k => (k.invariant eq n) && k.view.isEmpty))),
       obligations = g.obligations(n).map(o => ObligationText(o.name.lean, o.statement, o.description)),
       proof = a.proofOf(n).map(src => ProofFile("lean/" + g.layout.proofs(n.id).path, src)),
       holds = if g.formal(n) then g.holdsStatement(n) else "", lean = if g.formal(n) then g.spec(n) else "",
       messages = check.orElse(a.checks.get(id).filter(_.status == CheckStatus.Waiting)).toList.flatMap(_.messages),
-      tested = a.tested(n), runtime = kb.runTime(n))
+      tested = a.tested(n), runtime = kb.runTime(n), premises = ids(n.premises),
+      alwaysProofs = alwaysProofs(a, n, outcome))
+
+  /** What an `always` claim about a store rests on, as proven: each program writing it keeps it; its start meets it. */
+  private def alwaysProofs(a: Analysis, n: Node[?], outcome: ObligationName => Outcome): List[AlwaysProof] =
+    val kept = a.kb.writers(n).flatMap(_.op).map(_.name).map(p => AlwaysProof(KeptBy(p).lean, p, outcome(KeptBy(p))))
+    val start = n.premises.find(_.initially.isDefined).filter(_ => n.always.exists(_.store.isDefined))
+      .map(s => AlwaysProof(Initially.lean, s.id, outcome(Initially)))
+    if n.isAlways then kept ++ start else Nil
 
   /** An invariant a contract keeps: the view lists all the result holds of it, and the invariant's `complete`, this contract
     * among its parts. Lean showing it holds without the contract leaves it `open`; a try that found no proof proves nothing.

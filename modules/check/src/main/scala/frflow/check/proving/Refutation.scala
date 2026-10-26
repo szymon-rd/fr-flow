@@ -5,13 +5,14 @@ package proving
 import frflow.example.Example
 import frflow.lean.obligation.Equations
 
-/** A step whose proof does not go through, refuted: its part is a contract that fixes its result (`guard implies result === e`),
-  * so `e` is an answer the contract allows; a generated case where the claim fails with that answer, confirmed by Lean,
-  * shows the step itself is false. (Shown on the claim's line only once Lean has proven it.)
+/** A step whose proof does not go through, refuted: its part is a claim that fixes its operation's result
+  * (`guard implies result === e`), so `e` is an answer the part allows; a generated case where the claim fails with
+  * that answer, confirmed by Lean, shows the step itself is false. (Shown on the claim's line only once Lean has
+  * proven it.)
   */
 object Refutation:
   /** A case and the Lean that proves it refutes the step, if the step is of that shape and a generated case breaks it. */
-  final case class Candidate(shown: String, what: String, lean: String)
+  final case class Candidate(part: String, shown: String, what: String, lean: String)
 
   /** `resolve`: Lean's names for the definitions the answer calls (`Vocabulary.resolve`). */
   def candidate(kb: KnowledgeBase, n: Node[?], resolve: String => String): Option[Candidate] =
@@ -24,17 +25,17 @@ object Refutation:
       found <- Testing.refute(kb, c, n, answer.value.asInstanceOf[AnyRef], kb.testing)
       values <- scala.util.Try(found.values.map((name, v, t) => (name, Example.show(v), LeanPrinter().value(v, t)))).toOption
     yield
-      Candidate(values.map((name, v, _) => s"$name = $v").mkString(", "), said(op.name, found.answer),
+      Candidate(c.id, values.map((name, v, _) => s"$name = $v").mkString(", "), said(c.id, op.name, found.answer),
         lean(kb.name, n.id, c.id, resolve(answer.lean), values.map(_._3)))
 
-  /** What the contract answers on the case, against what the claim needs: "the contract forbids granting it, and the
+  /** What the part answers on the case, against what the claim needs: "GrantWhenNoOverlap has it not granted, and this
     * claim needs it granted" for a Boolean operation named as a past participle; its value otherwise.
     */
-  private def said(op: String, answer: Any): String = (answer, op) match
-    case (false, Participle(stem)) => s"the contract forbids ${stem}ing it, and the claim needs it $op"
-    case (true, Participle(stem))  => s"the contract has it $op, and the claim forbids ${stem}ing it"
-    case (r, _)                    => s"the contract gives ${Example.show(r)}, which the claim forbids"
-  private val Participle = "(.+)ed".r
+  private def said(part: String, op: String, answer: Any): String = (answer, op) match
+    case (false, Participle()) => s"$part has it not $op, and this claim needs it $op"
+    case (true, Participle())  => s"$part has it $op, and this claim needs it not $op"
+    case (r, _)                => s"$part gives ${Example.show(r)}, which this claim forbids"
+  private val Participle = ".+ed".r
 
   /** The step refuted: the contract's claim holds of the answer `e` (by `simp`), and the case breaks the node's claim. */
   private def lean(kb: String, node: String, part: String, answer: String, values: List[String]): String =

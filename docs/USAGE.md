@@ -78,8 +78,8 @@ Exit codes: 0 fine; 1 not complete, or a decision refused; 2 a usage error
 | assumption | `Node.assumption(op)(...)(post)`, or `Node.assumption(statement, why)(formula)` | trusted, not proven: what the outside does, or a fact of the world |
 | model of a boundary | `Node.assumption(boundary)(Model)(statement, why)` | trusted: the boundary behaves as the model; flows are proven from it |
 | definition | `Node.definition(statement, why)(Type := of[T], term := expr, ...)` | fixes terms of the vocabulary; decided, not proven |
-| `always` | `Node.claim("Every booking ends after it starts.")(always[Booking](b => b.start < b.end))`; of a store, `always(stored)(held => held.pairwise(apart))` | assumed of every value of the type a statement quantifies over (and of a list's elements, and of what the models hold); kept by every program writing the store (`kept_by_<program>`); tests draw only values that hold it |
-| fact | `Node.assumption("Only booking writes to the store.")(stored.writtenOnlyBy(book))`, `stored.changedOneRunAtATime`, `stored.initially(held => …)` | none: read by FrFlow, decided by the developer; what an `always` of the store rests on (`.assuming`) |
+| `always` | `Node.claim("Every booking ends after it starts.")(always[Booking](b => b.start < b.end))`; of a store, `always(storedBookings)(held => held.pairwise(apart))` | assumed of every value of the type a statement quantifies over (and of a list's elements, a record's fields, and what the models hold); kept by every program writing the store (`kept_by_<program>`); tests draw only values that hold it |
+| fact | `Node.assumption("Only booking writes to the table.")(storedBookings.writtenOnlyBy(book))`, `storedBookings.changedOneRunAtATime`, `storedBookings.startsMeetingItsRules` (or `storedBookings.initially(held => …)`); of the outside, `book.calledWithInputsMeetingTheirRules` | none: read by FrFlow, decided by the developer; what an `always` rests on (`.assuming`): of a store, the first three; of a type, the last, for each program given such inputs from outside |
 | design | `Node.design(statement, why)(files*)` | none: governs code no proof covers |
 
 A node is named by the `val` it is assigned to, its first letter capitalised (`val grantWhenFree = Node.claim(...)`
@@ -105,9 +105,10 @@ knowledge.implementTested(share)((by, doc, withWhom) => owners(doc) == by)
 `Definition[A](means)` names what code may use and must get a meaning (proven code, tested Scala, or a
 value); `Declaration[A](means)` an abstract idea known only through what is said of it, which no code uses.
 Examples of a Definition are tests (`class GrantedExamples extends FrFlowExamples(rooms):` with
-`example("back to back: granted"):` and `granted(List(Booking("Oak", 9, 10)), Booking("Oak", 10, 11)) is true`),
-which `check` reads and evaluates against the claims in Lean and against the code (docs/DAG.md §3b). `check`
-also says whether the statements hold together and nothing is vacuous (§3a).
+`example("back to back: granted"):` and
+`granted(RoomBookings(List(Booking("Oak", 9, 10))), Booking("Oak", 10, 11)) is true`), which `check` reads and
+evaluates against the claims in Lean and against the code (docs/DAG.md §3b). `check` also says whether the
+statements hold together and nothing is vacuous (§3a).
 
 `.refines(parents*)` makes a node a part of each parent, `.assuming(assumptions*)` a premise. `.replaces(other)` marks
 an alternative: accepting one rejects the other. Two definitions of one term

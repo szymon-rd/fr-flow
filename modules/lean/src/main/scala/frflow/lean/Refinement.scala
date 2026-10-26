@@ -1,6 +1,7 @@
 package frflow
 package lean
 
+import frflow.kb.Reach
 import frflow.protocol.NodeKind
 
 /** How the nodes refine each other in Lean: their claims and splits, their proven code, `holds` and `root_impl`. */
@@ -19,15 +20,13 @@ final class Refinement(kb: KnowledgeBase, val vocabulary: Vocabulary):
   def qualified(n: Node[?], decl: String): String = s"$K.${n.id}.$decl"
   private def opLeaf(n: Node[?]): Ctx = n.op.fold(Ctx.empty)(o => leaf(o.name))
 
-  /** What an invariant of a type gives of `x`, of Lean type `t`: its rule of it, or of each of its elements. */
-  def assumed(x: String, t: String): List[String] = kb.invariantsOn(t).map((_, d, each) => ruleOf(d, x, each))
-  /** The rule `d` of `x`, or of each of its elements. */
-  def ruleOf(d: Def[?], x: String, each: Boolean): String =
-    val f = app(s"$K.${d.name}", defCtx(d))._1
-    if each then s"(∀ y ∈ $x, $f y)" else s"($f $x)"
+  /** What an invariant of a type gives of `x`, of Lean type `t`: its rule, where it reaches. */
+  def assumed(x: String, t: String): List[String] = kb.invariantsOn(t).map((_, d, r) => ruleOf(d, x, r))
+  /** The rule `d` of `x`, where it reaches: of it, of each of its elements, or within its fields. */
+  def ruleOf(d: Def[?], x: String, reach: Reach): String = reach.lean(x, app(s"$K.${d.name}", defCtx(d))._1)
   /** What always holds of the states the models hold in world `w`: their types' rules, and their stores'. */
   def worldAssumed(w: String): List[String] =
-    kb.models.flatMap(m => kb.worldRules(m).map((_, d, each) => ruleOf(d, s"$w.${m.model.field}", each)))
+    kb.models.flatMap(m => kb.worldRules(m).map((_, d, r) => ruleOf(d, s"$w.${m.model.field}", r)))
   private def invariantsCtx(n: Node[?]): Ctx = Ctx.all(kb.invariantsUsedBy(n).flatMap(_.holds).map(defCtx))
 
   /** An `always` claim says nothing Lean proves of every value: a hypothesis of the others, it is proven kept. */

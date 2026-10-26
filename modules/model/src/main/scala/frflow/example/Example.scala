@@ -4,9 +4,11 @@ package example
 import frflow.testing.Table
 
 /** A concrete case of a contract, under given parameter values: the call on `inputs` with `result`. A flow's run has the
-  * world before as its last input, and the pair of its result and the world after as its result.
+  * world before as its last input, and the pair of its result and the world after as its result. `written`: an example
+  * written as a test, as written (`granted(…) is true`).
   */
-final case class Example(note: String, bindings: List[Binding], givenSource: List[String], inputs: List[Any], result: Any, expected: Boolean):
+final case class Example(note: String, bindings: List[Binding], givenSource: List[String], inputs: List[Any],
+    result: Any, expected: Boolean, written: Option[String] = None):
   def call: String = s"${inputs.map(Example.show).mkString("(", ", ", ")")} ⇒ ${Example.show(result)}"
   def givens: List[String] = bindings.zip(givenSource).map { (b, src) =>
     val v = Bindings.within(bindings)(b.value())
