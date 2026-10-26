@@ -121,6 +121,22 @@ class NodeSuite extends munit.FunSuite:
     // (a node names its parents when it is built, from nodes built before it: no cycle can be written)
   }
 
+  test("a contract on a flow with parts may be the root: the service's purpose, made by its code from what it calls") {
+    assertEquals(Service.kb().problems, Nil)
+    assertEquals(Service.kb().root.map(_.id), Some("Sold"))
+    // its parts are its statements below; the till's model is under it, not a statement
+    assertEquals(Service.kb().parts(Service.sold).map(_.id), List("PricePositive"))
+    assertEquals(Service.kb().children(Service.sold).map(_.id), List("PricePositive", "TillKept"))
+    // its code makes it from its parts: without the proven flow there is nothing to make it
+    val unproven = KnowledgeBase("Service", idea = "IDEA.md")(Service.sold, Service.pricePositive, Service.tillKept)
+    assert(unproven.problems.exists(_.message.startsWith("Sold has parts: its flow makes it from them")), unproven.problems)
+    // a claim with no parents beside it is a second root
+    val other = Node.claim("s", "w")(forall((x: Term[BigInt]) => sq(x) >= 0))
+    val two = KnowledgeBase("Service", idea = "IDEA.md")(Service.sold, Service.pricePositive, Service.tillKept, other)
+      .implementProven(Service.sold)(Service.selling)
+    assert(two.problems.exists(_.message.startsWith("one root only: Sold, Other")), two.problems)
+  }
+
   test("a contract's examples must tell a constant implementation apart") {
     val lazyPick = Node.contract(picks)("s", "w")((_, _, picked) => picked.isEmpty).refines(shelfParts*)
       .examples(minPages.bind(100))(allows(Nil, 1, Nil, "nothing"), forbids(List(Book("L", 300)), 1, List(Book("L", 300)), "x"))

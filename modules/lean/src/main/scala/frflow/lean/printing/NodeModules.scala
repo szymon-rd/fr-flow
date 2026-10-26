@@ -110,7 +110,12 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
 
   def impl(n: Node[?]): String =
     val ns = s"$K.${n.id}.Impl"
-    val (uses, proof) = if isAuthored(n, Impl) then (layout.proofs(n.id), s"$K.${n.id}.Proofs.impl") else (layout.spec(n.id), byAuto(Impl))
+    val (uses, proof) =
+      if isAuthored(n, Impl) then (layout.proofs(n.id), s"$K.${n.id}.Proofs.impl")
+      // A step of code: `impl` is `complete`, proven once.
+      else if ofCodeStep(n) && isAuthored(n, Complete) then (layout.proofs(n.id), s"$K.${n.id}.Proofs.complete")
+      else if ofCodeStep(n) then (layout.auto(n.id), s"$K.${n.id}.Auto.complete")
+      else (layout.spec(n.id), byAuto(Impl))
     module(List(uses), ns, s"theorem impl : Obl.impl :=\n  $proof\n\n#print axioms $ns.impl\n\n", Some(s"$K.${n.id}"))
 
   def theorems(n: Node[?]): String =

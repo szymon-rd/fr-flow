@@ -69,6 +69,7 @@ Exit codes: 0 fine; 1 not complete, or a decision refused; 2 a usage error
 | Kind | Written as | In Lean |
 |---|---|---|
 | claim | `Node.claim(statement)(formula)`; the one with no parents is the root | proven from its parts (`complete`) |
+| root stated of the service's flow | a contract on a flow with parts (the statements about what its code calls, and the models it uses) and no parents | its code is proven from its parts (`complete`, which is its `impl`) |
 | invariant | `Node.invariant[A, B](statement, why)(rule)`, kept by contracts with `.keeps(inv)(view)` | a claim whose parts are its keepers |
 | contract | `Node.contract(statement)(forall((a: Term[A], b: Term[B]) => ... op(a, b) ...))`, a claim about every call of an operation `op: Param[(A, B) => R]` of 0 to 6 inputs: the one Param applied to the forall's variables, in order (other Params it applies are what it reads) | every call of `op` meets the formula with the call in place of `op(a, b)`; an attached `define` is proven against it (`impl`); a formula of another shape does not compile |
 | contract relating two operations | `Node.contract(op)(statement)((a, b, result) => ...)`, when another operation is applied to the same inputs (`canView(lib, t, p, d) === access(lib, t, p, d).isDefined`) | every call of `op` meets `post` |
@@ -425,6 +426,12 @@ Cats', with Cats' names:
   `impl` runs it on the models (`StateM World`). Steps of the outside world
   (`Flow.effect`) belong to production implementations only; a proven flow
   takes none.
+- **A contract on a flow with parts.** The statements about what the flow
+  calls, and the models of its boundaries, may refine the flow's contract
+  (`.refines(contract)`): its code then makes it from them (`complete` is
+  `impl`, the step of the code). With no parents it is the root, the
+  service's purpose stated of its run (`examples/rooms`: booking, its parts
+  the calendar's claim and the store's model); it asks no examples.
 - **Production** binds an implementation of the trait, its operations built
   with `Flow.effect`, and runs the flow in any `cats.effect.Sync`:
   `knowledge.run[SyncIO](expiryJob)(db.bind(SqliteDatabase(d)))(now)`.

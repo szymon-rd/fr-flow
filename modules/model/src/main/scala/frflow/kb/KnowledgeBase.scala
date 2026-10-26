@@ -35,7 +35,11 @@ final class KnowledgeBase(val name: String, val idea: String = "", val implement
   def failureType: Option[LeanType[?]] = failureTypes.headOption
   /** Whether a boundary of the models may fail: the world then holds the faults. */
   def faulty: Boolean = models.exists(_.boundary.fails)
-  def roots: List[Node[?]] = nodes.filter(n => n.kind == NodeKind.Claim && n.parents.isEmpty)
+  /** The nodes with no parents that state a purpose: a claim, or a contract on a flow with parts (a service's purpose,
+    * stated of its run, whose parts state what its code calls).
+    */
+  def roots: List[Node[?]] =
+    nodes.filter(n => n.parents.isEmpty && (n.kind == NodeKind.Claim || (n.isFlow && parts(n).nonEmpty)))
   def root: Option[Node[?]] = roots.headOption.filter(_ => roots.size == 1)
   def definitions: List[Node[?]] = nodes.filter(_.kind == NodeKind.Definition)
   /** Nearest first. */

@@ -24,6 +24,17 @@ final class Refinement(kb: KnowledgeBase, val vocabulary: Vocabulary):
     case (_, Some(p)) => ctx(p) ++ opLeaf(n)
     case _            => n.formula.fold(Ctx.empty)(ctx(_))
   def claim(n: Node[?], env: Env = Map.empty): (String, Ctx) = app(qualified(n, "claim"), claimCtx(n), env)
+  /** What a node's parts make: its claim, or, for a contract whose proven code its parts are about (a root stated of
+    * the service's flow), its claim of that code: the parts state what the code calls, not the operation itself.
+    */
+  def stepClaim(n: Node[?], env: Env = Map.empty): (String, Ctx) =
+    val code = for
+      d <- provenImpl(n) if kb.parts(n).nonEmpty
+      op <- n.op if !env.contains(op.name)
+    yield op.name -> this.code(d, env)
+    claim(n, env ++ code)
+  /** Whether the node's step is proven of its code (`stepClaim`). */
+  def ofCodeStep(n: Node[?]): Boolean = provenImpl(n).isDefined && kb.parts(n).nonEmpty
   /** A claim's top-level conjuncts (in Lean), when it has as many as its parts, two or more: then a part may only restate
     * one of them with the definitions applied, which `restates_<i>_<part>` tries. None otherwise.
     */
@@ -37,7 +48,10 @@ final class Refinement(kb: KnowledgeBase, val vocabulary: Vocabulary):
   def conjunct(n: Node[?], i: Int): (String, Ctx) = app(qualified(n, s"conjunct_$i"), claimCtx(n))
   def hyps(ns: List[Node[?]], env: Env = Map.empty): List[((String, String), Ctx)] =
     ns.map(c => { val (t, o) = claim(c, env); ((s"h_${c.id}", t), o) })
-  def splitOpens(n: Node[?], parts: List[Node[?]]): Ctx = claim(n)._2 ++ Ctx.all(hyps(parts).map(_._2))
+  /** The parts as hypotheses of a step: what each one's own parts make. */
+  def partHyps(ps: List[Node[?]]): List[((String, String), Ctx)] =
+    ps.map(c => { val (t, o) = stepClaim(c); ((s"h_${c.id}", t), o) })
+  def splitOpens(n: Node[?], parts: List[Node[?]]): Ctx = stepClaim(n)._2 ++ Ctx.all(partHyps(parts).map(_._2))
   def code(d: Def[?], env: Env = Map.empty): (String, Ctx) = app(s"$K.${d.name}", defCtx(d), env)
   private def onOps(n: Node[?], ops: List[String]): List[Node[?]] =
     ops.filterNot(n.op.map(_.name).contains).flatMap(p => kb.onOp.getOrElse(p, Nil)).filter(formal).distinct
@@ -60,8 +74,8 @@ final class Refinement(kb: KnowledgeBase, val vocabulary: Vocabulary):
   def leaves(n: Node[?]): List[Node[?]] = splitParts(n).fold(List(n))(_.flatMap(leaves).distinctBy(_.id))
   private def within(n: Node[?]): List[Node[?]] = (n :: splitParts(n).fold(Nil)(_.flatMap(within))).distinctBy(_.id)
   /** Of every node `holds` goes through: an intermediate node may mention a term neither the node nor its leaves do. */
-  def holdsOpens(n: Node[?], env: Env = Map.empty): Ctx = Ctx.all(within(n).map(claim(_, env)._2))
-  def holdsStatement(n: Node[?]): String = stated(holdsOpens(n), hyps(leaves(n)).map(_._1), claim(n)._1)
+  def holdsOpens(n: Node[?], env: Env = Map.empty): Ctx = Ctx.all(within(n).map(stepClaim(_, env)._2))
+  def holdsStatement(n: Node[?]): String = stated(holdsOpens(n), hyps(leaves(n)).map(_._1), stepClaim(n)._1)
 
   def proofOf(n: Node[?]): String =
     if leafy(n) then s"h_${n.id}"

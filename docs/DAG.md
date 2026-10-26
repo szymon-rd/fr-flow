@@ -10,7 +10,8 @@ change that needs to depart from it says so in its commit message and in this fi
    nothing does not meet it. Where the purpose has one, the root is one relation (`===`, "exactly
    when") between what users observe and what their requests entitle them to, defined over the
    history of requests; a part proves that the state mirrors the history (keycloak's
-   `SessionsMirrorSignIns`). A conjunction at the root asks for a better observable.
+   `SessionsMirrorSignIns`). A conjunction at the root asks for a better observable. A service's purpose may
+   instead be stated of its flow: the root is then a contract on the flow, with parts (§1a; `examples/rooms`).
 2. **A tree of refinements, as a DAG.** Every other node refines the nodes above it, and may refine
    several. Every edge is proven and every node is decided: a knowledge base of why the system is as
    it is.
@@ -88,6 +89,15 @@ Such a contract may have no parent: production code runs it (an entry point). A 
 step of the outside world (`Flow.effect`, which production implementations use); a validation
 problem says so.
 
+A contract on a flow may have **parts**: the statements about what its code calls (a decision the flow
+makes with an operation, stated over the root's words), and the models of the boundaries it uses. Its
+code then makes it from them: `complete` is the step of the code, `∀ U, C1 → … → claim[op := f_run]`,
+the parts stated of the operations the code calls (the models are not hypotheses: the instance is the
+model), and `impl` is that step. Such a contract with no parents is the **root**: the service's purpose
+stated of its run (`examples/rooms`: "A room is never double-booked, and a request is booked exactly when
+its room is free", its parts the calendar's claim and the store's model). It needs its proven flow, and
+no examples (it is stated as a claim is, made by its parts).
+
 ## 1b. Proven, tested, assumed
 
 The code under a contract, or behind a boundary, is in one of three states, kept apart in the
@@ -129,7 +139,7 @@ with a `rule`.
 | Kind | Scala | Lean |
 |---|---|---|
 | claim | `Node.claim(statement, why, idea = "")(formula)` | `def claim : Prop` over its open terms |
-| root | the claim with no parents | as a claim, plus `idle` |
+| root | the claim with no parents, or a contract on a flow with parts and no parents | as a claim (the flow's: its step is of its code), plus `idle` |
 | invariant | `Node.invariant[A, B](statement, why, scope)(rule)` | a claim whose parts are its keepers |
 | contract | `Node.contract(statement, why)(forall((a: Term[A], b: Term[B]) => … op(a, b) …))`, `op: Param[(A, B) => R]` (0 to 6 inputs), or `Node.contract(op)(statement, why)(post)` when another operation is applied to the same inputs | `∀ a b, post(a, b, op(a, b))`; `impl` when a `define` is attached |
 | contract on a flow | `Node.contract(op)(statement, why)((a, r, before, after) => ...)`, `op: Param[A => Flow[R]]` (0 to 6 inputs) | `∀ a w, post a (op a w).1 w (op a w).2`; `impl` when a flow is attached |
@@ -153,10 +163,11 @@ Edges:
   rule(p)` (over as many inputs as the operation takes). Every contract in the invariant's scope keeps it or is `.exempt` with a reason; so is every
   design node in the scope.
 
-Structure rules (`KnowledgeBase.problems`): exactly one claim without parents; no cycles; an
-assumption or a contract has no parents only when code calls its operation, it is a model, or a flow
-implements it; a design node has a
-parent; a definition has none; at most one definition in force per term.
+Structure rules (`KnowledgeBase.problems`): exactly one root (a claim without parents, or a contract on a
+flow with parts and without parents); no cycles; an assumption or a contract has no parents only when code
+calls its operation, it is a model, or a flow implements it; a contract on a flow with parts has its flow
+proven (`implementProven`); a design node has a parent; a definition has none; at most one definition in
+force per term.
 
 Also part of the DSL: `examples(bindings*)(allows/forbids...)` (on a flow's contract, each with the
 world before and after), `checkedBy`, `checkedAgainst`, `implement`, `implementProven(contract)(define)`,
@@ -177,7 +188,7 @@ For each node N with parts C1..Cn (n ≥ 1), over the union U of the open terms 
 
 | Name | Statement | Proven by | Failing means |
 |---|---|---|---|
-| `complete` | `∀ U, C1 → … → Cn → N` | matching, `frflow_auto`, or `theorem complete` in `lean/Proofs/<KB>/<N>.lean` | the parts do not make N: open |
+| `complete` | `∀ U, C1 → … → Cn → N`; for a contract on a flow with parts, `N[op := f_run]` (its code) | matching, `frflow_auto`, or `theorem complete` in `lean/Proofs/<KB>/<N>.lean` | the parts do not make N: open |
 | `needed_C` (n ≥ 2) | tried: `∀ U, (∧ the other parts) → N` | `frflow_auto`, 4000 heartbeats | proven: C is not needed for N; the split is unproven |
 | `vacuous` (n = 1) | tried: `∀ U, N` | as above | proven: N says nothing its part adds; unproven |
 | `restates` (n = 1) | tried: `∀ U, N → C1` | as above | proven (with `complete`): N says what its part says; `status` warns of it |

@@ -13,7 +13,7 @@ object TreeText:
       val kids = n.children.map(Left(_)) ++ n.seeAlso.map(Right(_))
       // The root is read whole: wrapped at its clauses, under its statement, not cut.
       val row =
-        if r.node.parents.isEmpty && prefix.isEmpty && r.node.kind == NodeKind.Claim then
+        if r.node.parents.isEmpty && prefix.isEmpty && (r.node.kind == NodeKind.Claim || kids.nonEmpty) then
           Lines.clauses(Lines.statement(r), st, Style.visible(head), if kids.isEmpty then "" else st.bar) match
             case first :: rest => (head + first) :: rest
             case Nil           => List(head)

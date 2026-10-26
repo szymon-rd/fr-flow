@@ -26,8 +26,11 @@ private[frflow] object Validation:
         case List(_) => Nil
         // A new project has no nodes while the idea is being written: the root comes first once there are any.
         case Nil if nodes.isEmpty => Nil
-        case Nil     => List("a root is required: one claim with no parents, the idea's purpose")
-        case rs      => List(s"one root only: ${rs.map(_.id).mkString(", ")} are claims with no parents; put all but one under the nodes they help prove"),
+        case Nil     => List("a root is required: one claim with no parents, the idea's purpose (or a contract on the service's flow, with parts)")
+        case rs      => List(s"one root only: ${rs.map(_.id).mkString(", ")} have no parents; put all but one under the nodes they help prove"),
+      // A contract on a flow with parts is made by its code from them: the code must be the proven flow.
+      nodes.filter(n => n.isFlow && kb.parts(n).nonEmpty && !kb.implementation(n).exists(_.flow))
+        .map(n => s"${n.id} has parts: its flow makes it from them, so implement it with implementProven(${n.id})(flow)"),
       nodes.filter(n => kb.ancestors(n).exists(_ eq n)).map(n => s"${n.id} is above itself: what it is a part of must not lead back to it"),
       nodes.filter(n => isOperation(n) && n.parents.isEmpty && !n.op.exists(o => called(o.name)) && n.modelOf.isEmpty &&
           !kb.implementation(n).exists(_.flow))
@@ -96,7 +99,8 @@ private[frflow] object Validation:
     val contracts = kb.nodes.filter(_.kind == NodeKind.Contract)
     List(
       kb.nodes.filter(n => n.cases.nonEmpty && n.post.isEmpty).map(n => s"${n.id}: only contracts and assumptions on an operation have examples"),
-      contracts.filterNot(n => n.cases.exists(_.expected) && n.cases.exists(!_.expected))
+      // A contract with parts is stated as a claim is, made by them: its examples are not asked for.
+      contracts.filterNot(n => kb.parts(n).nonEmpty || (n.cases.exists(_.expected) && n.cases.exists(!_.expected)))
         .map(n => s"${n.id}: a contract needs examples: at least one allows (a result it must allow) and one forbids (a result it must refuse)"),
       // An implementation that always returns the same value must fail some example.
       contracts.flatMap { n =>

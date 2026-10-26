@@ -16,19 +16,24 @@ final class Obligations(kb: KnowledgeBase, refinement: Refinement, coverage: Cov
   def extraObligations(n: Node[?]): List[Obligation] = obligations(n).filterNot(o => o.name == Complete || o.name == Impl)
 
   private def complete(n: Node[?]): Option[Obligation] = splitParts(n).map { ps =>
-    Obligation(Complete, stated(splitOpens(n, ps), hyps(ps).map(_._1), claim(n)._1), s"The parts of ${n.id} (${ps.map(_.id).mkString(", ")}) together make it.")
+    val of = provenImpl(n).filter(_ => ofCodeStep(n)).fold("")(d => s", run as ${d.name}")
+    Obligation(Complete, stated(splitOpens(n, ps), partHyps(ps).map(_._1), stepClaim(n)._1),
+      s"The parts of ${n.id} (${ps.map(_.id).mkString(", ")}) together make it$of.")
   }
 
   // An authored proof may rest on a contradiction automation missed: something must meet the parts, unless witnessed.
   private def feasible(n: Node[?]): Option[Obligation] =
     splitParts(n).filter(_ => isAuthored(n, Complete) && (!witnessed(n) || isAuthored(n, Feasible))).map { ps =>
       val b = binders(splitOpens(n, ps))
-      Obligation(Feasible, s"${if b.isEmpty then "" else s"∃ $b, "}${hyps(ps).map(_._1._2).mkString(" ∧ ")}",
+      Obligation(Feasible, s"${if b.isEmpty then "" else s"∃ $b, "}${partHyps(ps).map(_._1._2).mkString(" ∧ ")}",
         s"Some world meets the parts of ${n.id}: its authored proof does not rest on a contradiction.")
     }
 
   private def implementation(n: Node[?]): Option[Obligation] =
-    for { d <- provenImpl(n); op <- n.op } yield
+    // A step of code: what its parts make is its code meeting it, so `impl` is `complete`.
+    if ofCodeStep(n) then complete(n).map(c =>
+      c.copy(name = Impl, description = s"Every result of ${provenImpl(n).fold("")(_.name)} meets ${n.id}, given what its parts say."))
+    else for { d <- provenImpl(n); op <- n.op } yield
       val (concl, opens) = ofCode(n, d, op.name)
       val hs = hyps(calls(n))
       Obligation(Impl, stated(opens, hs.map(_._1), concl),
@@ -90,13 +95,13 @@ final class Obligations(kb: KnowledgeBase, refinement: Refinement, coverage: Cov
 
   private def splitTries(n: Node[?], ps: List[Node[?]]): List[Try] =
     val o = splitOpens(n, ps)
-    val hs = hyps(ps)
-    val goal = claim(n)._1
+    val hs = partHyps(ps)
+    val goal = stepClaim(n)._1
     val needed = ps match
       case List(p) => List(
         tried(TryKind.Vacuous, stated(o, Nil, goal), s"${n.id} holds whatever ${p.id} says.", s"${n.id} holds whatever ${p.id} says: it says nothing its part adds"),
         // With `complete`, the node and its part are then equivalent: one says what the other does.
-        tried(TryKind.Restates, stated(o, List(s"h_${n.id}" -> goal), claim(p)._1), s"${p.id} follows from ${n.id}.",
+        tried(TryKind.Restates, stated(o, List(s"h_${n.id}" -> goal), stepClaim(p)._1), s"${p.id} follows from ${n.id}.",
           s"${n.id} says what ${p.id} says: merge them, or say what ${n.id} adds"))
       case _ => ps.map(c => tried(TryKind.Needed(c.id), stated(o, hs.filterNot(_._1._1 == s"h_${c.id}").map(_._1), goal),
           s"${n.id} holds without ${c.id}.", s"${c.id} is not needed for ${n.id}"))
@@ -111,7 +116,7 @@ final class Obligations(kb: KnowledgeBase, refinement: Refinement, coverage: Cov
     * "a share in force") is not one of them: it is the vocabulary a lower refinement fixes, and the root must hold for
     * every meaning of it, so it stays open. */
   private def nothings(n: Node[?]): List[(String, String)] =
-    claim(n)._2.params.filter(o => kb.isOp(o) && !kb.onOp(o).exists(_.openAbove))
+    stepClaim(n)._2.params.filter(o => kb.isOp(o) && !kb.onOp(o).exists(_.openAbove))
       .flatMap(o => LeanType.nothing(paramType(o).getOrElse("")).map(o -> _))
 
   def idle(n: Node[?]): Option[Obligation] =
@@ -119,7 +124,7 @@ final class Obligations(kb: KnowledgeBase, refinement: Refinement, coverage: Cov
     else
       val env: Env = nothings(n).map((o, v) => o -> (v, leaf(o).copy(params = Nil))).toMap
       Option.when(env.nonEmpty) {
-        val (c, o) = claim(n, env)
+        val (c, o) = stepClaim(n, env)
         Obligation(Tried(TryKind.Idle), stated(o, Nil, c), s"${n.id} is met by doing nothing (${env.keys.toList.sorted.mkString(", ")}: returning nothing).")
       }
   def idleWhat(n: Node[?]): String = nothings(n).map(_._1).mkString(", ") + " doing nothing"

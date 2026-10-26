@@ -28,6 +28,20 @@ class LeanRootSuite extends LeanLab:
     assert(Proofs.unproven(n).exists(_.contains("doing nothing meets it")), Proofs.unproven(n))
   }
 
+  test("a root stated of the service's flow is made by its code from its parts, and the root of the code follows") {
+    val w = workflow(Service.kb())
+    val step = w.generate.obligation(Service.sold, ObligationName.Complete).get.statement
+    // the parts are about what the code calls: the step is of the code, not of the operation
+    assert(step.contains("(h_PricePositive : (Service.PricePositive.claim price))") && step.contains("Service.selling_run"), step)
+    assertEquals(w.generate.obligation(Service.sold, ObligationName.Impl).map(_.statement), Some(step))
+    val sold = of(w.check(), "Sold")
+    assertEquals(sold.status.toString, "proven", sold)
+    assertEquals(List("complete", "impl", "root_impl").map(result(sold, _).map(_.status.toString)), List.fill(3)(Some("proven")), sold)
+    // a part too weak for the root: an item may be free, so a sale may take nothing
+    val weak = of(workflow(Service.kb(Service.priceNotNegative)).check(), "Sold")
+    assertEquals(result(weak, "complete").map(_.status.toString), Some("open"), weak)
+  }
+
   test("an invariant is a claim proven from the contracts that keep it, or left open") {
     val fromShelf = Node.invariant[List[Book], Book]("Only books on the shelf are picked.", "w")((shelf, b) => shelf.contains(b)).refines(onlyGood)
     val atMostN = Node.invariant[Int, Int]("No more books are picked than asked for.", "w")((asked, picked) => picked <= asked).refines(onlyGood)

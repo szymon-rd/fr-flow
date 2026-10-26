@@ -315,6 +315,13 @@ def expireOnce(now: Term[BigInt]): Flow[CrmStore] =   // the code, in Cats style
   that operation's contract, not its code: prefer it to calling the define.
 - A contract on a flow may have no parent: production runs it, as an entry
   point. The design node over its scheduling goes under it.
+- **A service's purpose stated of its flow.** Its parts are the statements
+  about what the flow calls and the models it uses (`.refines(contract)`);
+  Lean proves the code from them (`complete`, which is its `impl`). With no
+  parents it is the root (`examples/rooms`). Keep a statement over the root's
+  words between the root and a contract in the code's words (rooms:
+  `GrantWhenFree` over moments, `GrantWhenNoOverlap` over times), so a
+  misread contract is refuted against it.
 - **Time** is the `Clock` boundary (`Flow.now`, `Flow.sleep(d)`, `Flow.waitUntil(t)`, `f.timeout(d)`
   giving an `Option`, `Flow.every(period)(job)`), modelled by `ClockModel` (the time and the delays a
   sleep may add, in the state): assume it with `Node.assumption(Clock.boundary)(ClockModel)(…)` and test
