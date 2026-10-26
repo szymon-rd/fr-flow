@@ -56,6 +56,17 @@ class CheckSuite extends munit.FunSuite:
     assertNotEquals(a.checkHash(onlyGood), Desk(shelfKb.implementProven(pick)(longOnes)).analysis.checkHash(onlyGood))
   }
 
+  test("a node's check hash moves with a term only its part uses: its proof reads the part's statement through it") {
+    def team(floored: Def[BigInt => Boolean]) =
+      val top = Node.claim("Results are never negative.", why = "w")(forall((x: Term[BigInt]) => sq(x) >= 0))
+      val middle = Node.claim("Results are never negative, again.", why = "w")(forall((x: Term[BigInt]) => sq(x) >= 0)).refines(top)
+      val floor = Node.claim("Results are at least the floor.", why = "w")(forall((x: Term[BigInt]) => floored(x))).refines(middle)
+      Desk(KnowledgeBase("Team", idea = "IDEA.md")(top, middle, floor)).analysis
+    val (zero, one) = (team(FloorZero.floored), team(FloorOne.floored))
+    def hash(a: Analysis, id: String) = a.checkHash(a.kb.node(id).getOrElse(fail(id)))
+    assertNotEquals(hash(zero, "Middle"), hash(one, "Middle"))
+  }
+
   test("an obligation is judged by its theorem: its statement, what Lean said in it, whether Lean ran") {
     val proof = "theorem complete : Obl.complete := by\n  sorry\n\ntheorem weak : True := trivial\n"
     def judge(output: String, exit: Int = 0, authored: Boolean = false) =
@@ -269,3 +280,8 @@ class CheckSuite extends munit.FunSuite:
     assertEquals(ProofState.goal(Run.Done(1, "/tmp/frflow-state1.lean:3:0: error: unknown module"), "frflow-state1.lean"), None)
   }
 
+/** One term, defined two ways: a floor of zero, and of one. */
+private object FloorZero:
+  val floored = define { (x: Term[BigInt]) => sq(x) >= 0 }
+private object FloorOne:
+  val floored = define { (x: Term[BigInt]) => sq(x) >= 1 }
