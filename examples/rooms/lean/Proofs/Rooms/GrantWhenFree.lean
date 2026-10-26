@@ -2,7 +2,7 @@ import FrFlowGen.Rooms.GrantWhenFree.Spec
 
 /-! The root, over moments, from the contract, over start and end times. Two bookings that end after they start
 are apart exactly when they do not overlap: if they share a room and neither ends before the other starts, the later
-of the two starts is a moment both cover. So `allApart` gives `noneOverlapping`, and the two answers agree. -/
+of the two starts is a moment both cover. So the claim's precondition gives the contract's, and the answers agree. -/
 
 set_option autoImplicit false
 noncomputable section
@@ -25,7 +25,7 @@ theorem apart_iff_noOverlap {a b : Booking} (ha : endsAfterStart a) (hb : endsAf
 theorem complete : Obl.complete := by
   unfold Obl.complete
   frflow_intro
-  simp only [claim, GrantWhenNoOverlap.claim, GrantWhenNoOverlap.post, allApart, noneOverlapping] at *
+  simp only [claim, GrantWhenNoOverlap.claim, GrantWhenNoOverlap.post] at *
   intro held request ⟨hEnds, hApart⟩
   have key {a b : Booking} (ha : a ∈ request :: held) (hb : b ∈ request :: held) :=
     apart_iff_noOverlap (hEnds a ha) (hEnds b hb)
