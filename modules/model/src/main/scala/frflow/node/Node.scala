@@ -99,27 +99,23 @@ object Node:
         file = Source.here, at = Source.at)
     node(Source.nodeId)
 
-  /** Every call `op(a, b, …)` meets `post(a, b, …, op(a, b, …))`: code attached to the operation is proven or checked
-    * against it. On a flow's operation (`A => Flow[R]`), every run of `op(a, …)` from a world meets
-    * `post(a, …, result, before, after)`, where `before(Model)` is a model's state before the run.
+  /** A contract written as a lambda over the call, for what a claim about every call cannot say: a flow's run, where
+    * `post(a, …, result, before, after)` holds of every run of `op(a, …)` from a world (`before(Model)` a model's state
+    * before it); or a contract that relates its operation to another applied to the same inputs.
     */
-  inline def contract[F](op: Param[F])(using s: Sig[F])(statement: String, why: String = "", idea: String = "")(
-      inline post: s.Lam[Term[Boolean]]): Node[F] =
-    def node(id: String): Node[F] =
-      Node(id, statement, why, NodeKind.Contract, post = Some(Lifted.lambda(post, lambdaTypes(op), Source.text(post))), op = Some(op),
-        ideaSection = idea, file = Source.here, at = Source.at)
-    node(Source.nodeId)
+  def contract[F](op: Param[F])(using s: Sig[F]): ContractOn[F, s.Lam[Term[Boolean]]] = ContractOn(op)
 
-  /** A contract written as a claim, `forall((a, b) => … op(a, b) …)`, with one operation applied to the forall's
-    * variables in order: the same contract as `contract(op)(id, statement)((a, b, result) => …)`, `op(a, b)` read as
-    * `result`.
+  /** A contract, written as a claim about every call: `forall((a: Term[A], b: Term[B]) => … op(a, b) …)`, the one
+    * operation applied to the forall's variables in order. Every call `op(a, b)` meets the formula with the call in
+    * place of `op(a, b)`: code attached to the operation is proven or checked against it.
     */
-  transparent inline def contract(statement: String)(inline formula: Term[Boolean]): Node[?] =
-    ${ ContractMacros.claimShaped('statement, 'formula) }
+  transparent inline def contract(statement: String, why: String = "", idea: String = "")(inline formula: Term[Boolean]): Node[?] =
+    ${ ContractMacros.claimShaped('statement, 'why, 'idea, 'formula) }
 
-  @scala.annotation.publicInBinary private[frflow] def claimShaped[F](op: Param[F], id: String, statement: String,
-      formula: Lifted[?], file: String, at: Int): Node[F] =
-    Node(id, statement, "", NodeKind.Contract, post = Some(ClaimShaped.post(op, formula)), op = Some(op), file = file, at = at)
+  @scala.annotation.publicInBinary private[frflow] def claimShaped[F](op: Param[F], id: String, statement: String, why: String,
+      idea: String, formula: Lifted[?], file: String, at: Int): Node[F] =
+    Node(id, statement, why, NodeKind.Contract, post = Some(ClaimShaped.post(op, formula)), op = Some(op), ideaSection = idea,
+      file = file, at = at)
 
   /** What the outside (a database, the clock) is trusted to do on each call: code calling it is proven from it, its
     * adapter checked: `Node.assumption(fetch)(id, statement, why)((user, query, rows) => …)`.

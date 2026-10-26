@@ -50,9 +50,11 @@ class ClaimShapedSuite extends munit.FunSuite:
   test("a formula of another shape does not compile, and says the shape") {
     val noOp = compileErrors("""val c = Node.contract("s")(forall((l: Term[List[Book]], n: Term[Int]) => l.isEmpty))""")
     assert(noOp.contains("applies no operation"), noOp)
-    val two = compileErrors(
-      """val c = Node.contract("s")(forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).isEmpty && shown(Nil, Book("a", 1))))""")
-    assert(two.contains("applies picks and shown") || two.contains("applies shown and picks"), two)
+    val two = compileErrors("""val c = Node.contract("s")(forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n) === again(l, n)))""")
+    assert(two.contains("applies picks and again") || two.contains("applies again and picks"), two)
+    // another Param applied to other inputs is what the contract reads, not its operation
+    val readsPickedFrom = Node.contract("s")(forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => pickedFrom(l, b))))
+    assertEquals(readsPickedFrom.op.map(_.name), Some("picks"))
     val other = compileErrors("""val c = Node.contract("s")(forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n + 1).isEmpty))""")
     assert(other.contains("applies one operation to its forall's variables, in order"), other)
     val swapped = compileErrors("""val c = Node.contract("s")(forall((n: Term[Int], l: Term[List[Book]]) => picks(l, n).isEmpty))""")

@@ -51,12 +51,12 @@ object Invitations:
   private val withCat = library.copy(invitations = List(catInvited))
   private val annInvited = library.copy(invitations = List(Invitation(ann, Target.Doc(plan), Level.View, bob, now - day)))
 
-  val inviteContract = Node.contract(invite)("Someone who may edit a document or folder invites a person to it at a level: the invitation, sent now, takes the place of any earlier invitation of them to it. When anyone else asks, nothing changes.",
+  val inviteContract = Node.contract("Someone who may edit a document or folder invites a person to it at a level: the invitation, sent now, takes the place of any earlier invitation of them to it. When anyone else asks, nothing changes.",
     why = "Q7: an invitation is how someone gets a share they have not asked for yet; inviting is offering a share, which only someone who may share it does. One invitation per person and thing, so inviting again renews it.",
     idea = "Invitations"
-  )((lib, t, by, to, what, level, result) =>
-    result === mayEdit(lib, t, by, what).fold(
-      lib.copy((invitations = Invitation(to, what, level, by, t) :: invitationsWithout(lib.invitations, to, what))), lib))
+  )(forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], to: Term[PersonId], what: Term[Target], level: Term[Level]) =>
+    invite(lib, t, by, to, what, level) === mayEdit(lib, t, by, what).fold(
+      lib.copy((invitations = Invitation(to, what, level, by, t) :: invitationsWithout(lib.invitations, to, what))), lib)))
     .refines(invitationsAreOffers)
     .examples()(
       allows(library, now - day, ann, cat, Target.Doc(plan), Level.View, withCat, "Ann may edit the plan: she invites Cat to view it"),
@@ -71,14 +71,14 @@ object Invitations:
 
   private val catViewsPlan = Share(Target.Doc(plan), Grantee.Person(cat), Level.View, None)
 
-  val acceptContract = Node.contract(accept)("A person accepts their open invitation to a document or folder: they then have a share of it at the invitation's level, in place of any share of it they had, and the invitation goes. Without an open invitation, or when the document is their own (their share of it is the owner's), nothing changes.",
+  val acceptContract = Node.contract("A person accepts their open invitation to a document or folder: they then have a share of it at the invitation's level, in place of any share of it they had, and the invitation goes. Without an open invitation, or when the document is their own (their share of it is the owner's), nothing changes.",
     why = "Q7: an invitation gives no access until it is accepted, and only while it is open; accepting is what makes the share. Q14: nothing replaces an owner's share of their own document, so an owner invited to it keeps their edit share for good.",
     idea = "Invitations"
-  )((lib, t, p, what, result) =>
-    result === lib.invitations.find(i => i.to === p && i.what === what && isOpen(i, t)).fold(lib)(i =>
+  )(forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], what: Term[Target]) =>
+    accept(lib, t, p, what) === lib.invitations.find(i => i.to === p && i.what === what && isOpen(i, t)).fold(lib)(i =>
       ownedBy(lib, what, Grantee[Grantee.Person](p)).fold(lib,
         lib.copy((shares = Share(what, Grantee[Grantee.Person](p), i.level, none[BigInt]) :: sharesWithout(lib.shares, what, Grantee[Grantee.Person](p)),
-          invitations = invitationsWithout(lib.invitations, p, what))))))
+          invitations = invitationsWithout(lib.invitations, p, what)))))))
     .refines(invitationsAreOffers)
     .examples()(
       allows(withCat, now, cat, Target.Doc(plan), library.copy(shares = catViewsPlan :: library.shares),
@@ -96,11 +96,11 @@ object Invitations:
           invitations = invitationsWithout(lib.invitations, p, what)))))
   }
 
-  val withdrawContract = Node.contract(withdraw)("Someone who may edit a document or folder withdraws a person's invitation to it: the invitation goes. When anyone else asks, nothing changes.",
+  val withdrawContract = Node.contract("Someone who may edit a document or folder withdraws a person's invitation to it: the invitation goes. When anyone else asks, nothing changes.",
     why = "Q7: an editor can take an offer back before it is accepted.",
     idea = "Invitations"
-  )((lib, t, by, to, what, result) =>
-    result === mayEdit(lib, t, by, what).fold(lib.copy((invitations = invitationsWithout(lib.invitations, to, what))), lib))
+  )(forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], to: Term[PersonId], what: Term[Target]) =>
+    withdraw(lib, t, by, to, what) === mayEdit(lib, t, by, what).fold(lib.copy((invitations = invitationsWithout(lib.invitations, to, what))), lib)))
     .refines(invitationsAreOffers)
     .examples()(
       allows(withCat, now, ann, cat, Target.Doc(plan), library, "Ann withdraws Cat's invitation"),

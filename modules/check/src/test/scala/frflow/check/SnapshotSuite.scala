@@ -92,8 +92,7 @@ class SnapshotSuite extends munit.FunSuite:
       n.copy(content = c, hash = c.hash)))
 
   test("a node whose code calls another contract's operation rests on that contract") {
-    val pickPromise = Node.contract(picks)("A call returns only long enough books, from the shelf.", why = fixtures.pickPromise.why)(
-      (shelf, n, picked) => picked.forall(b => b.pages >= minPages && shelf.contains(b)))
+    val pickPromise = Node.contract("A call returns only long enough books, from the shelf.", why = fixtures.pickPromise.why)(forall((shelf: Term[List[Book]], n: Term[Int]) => picks(shelf, n).forall(b => b.pages >= minPages && shelf.contains(b))))
       .examples(minPages.bind(100))(
         allows(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
         forbids(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))

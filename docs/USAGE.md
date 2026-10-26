@@ -70,8 +70,8 @@ Exit codes: 0 fine; 1 not complete, or a decision refused; 2 a usage error
 |---|---|---|
 | claim | `Node.claim(statement)(formula)`; the one with no parents is the root | proven from its parts (`complete`) |
 | invariant | `Node.invariant[A, B](statement, why)(rule)`, kept by contracts with `.keeps(inv)(view)` | a claim whose parts are its keepers |
-| contract written as a claim | `Node.contract(statement)(forall((a: Term[A], b: Term[B]) => ... op(a, b) ...))`, one operation applied to the forall's variables in order | the same contract as the lambda form, `op(a, b)` read as `result`; a formula of another shape does not compile |
-| contract | `Node.contract(op)(statement)((a, b, result) => ...)` on an operation `op: Param[(A, B) => R]`, of 0 to 6 inputs | every call of `op` meets `post`; an attached `define` is proven against it (`impl`) |
+| contract | `Node.contract(statement)(forall((a: Term[A], b: Term[B]) => ... op(a, b) ...))`, a claim about every call of an operation `op: Param[(A, B) => R]` of 0 to 6 inputs: the one Param applied to the forall's variables, in order (other Params it applies are what it reads) | every call of `op` meets the formula with the call in place of `op(a, b)`; an attached `define` is proven against it (`impl`); a formula of another shape does not compile |
+| contract relating two operations | `Node.contract(op)(statement)((a, b, result) => ...)`, when another operation is applied to the same inputs (`canView(lib, t, p, d) === access(lib, t, p, d).isDefined`) | every call of `op` meets `post` |
 | contract on a flow | `Node.contract(op)(statement)((a, result, before, after) => ...)` on `op: Param[A => Flow[R]]`, of 0 to 6 inputs | every run from any world meets `post`; the attached flow is proven against it on the models (`impl`) |
 | assumption | `Node.assumption(op)(...)(post)`, or `Node.assumption(statement, why)(formula)` | trusted, not proven: what the outside does, or a fact of the world |
 | model of a boundary | `Node.assumption(boundary)(Model)(statement, why)` | trusted: the boundary behaves as the model; flows are proven from it |
@@ -92,7 +92,8 @@ and its examples `allows(result, note)` under the bindings that give it:
 
 ```scala
 val share = Param[(UserId, DocId, UserId) => Boolean]("whether a user may share a document with another")
-Node.contract(share)("...", why = "...")((by, doc, withWhom, result) => result === owns(by, doc))
+val sharing = Node.contract("...")(forall((by: Term[UserId], doc: Term[DocId], withWhom: Term[UserId]) =>
+  share(by, doc, withWhom) === owns(by, doc)))
   .examples()(allows(ann, readme, bob, true, "the owner shares"), forbids(bob, readme, ann, true, "only the owner"))
 knowledge.implement(share)((by, doc, withWhom) => owners(doc) == by)
 ```

@@ -46,13 +46,13 @@ object Housekeeping:
   private val ended = library.copy(shares = bobViewsPlanForAnHour :: library.shares, invitations = List(catInvited),
     documents = List(planTrashed, q3ReportDoc))
 
-  val tidyContract = Node.contract(tidy)("Tidying at a moment keeps the shares in force, except those of a document gone; keeps the invitations still open; and keeps the documents not gone. Everything else stays as it was.",
+  val tidyContract = Node.contract("Tidying at a moment keeps the shares in force, except those of a document gone; keeps the invitations still open; and keeps the documents not gone. Everything else stays as it was.",
     why = "Q6–Q8: ended shares and lapsed invitations give nothing and are removed; a document 30 days in the trash is deleted for good, with its shares (Q8), so they cannot come back to anything. The folders and teams are not touched.",
     idea = "Time and housekeeping"
-  )((lib, t, result) =>
-    result === lib.copy((documents = lib.documents.filterNot(doc => gone(doc, t)),
+  )(forall((lib: Term[Library], t: Term[BigInt]) =>
+    tidy(lib, t) === lib.copy((documents = lib.documents.filterNot(doc => gone(doc, t)),
       shares = lib.shares.filter(s => inForce(s, t) && !ofGone(lib, t, s)),
-      invitations = lib.invitations.filter(i => isOpen(i, t)))))
+      invitations = lib.invitations.filter(i => isOpen(i, t))))))
     .refines(housekeepingClearsOnlyTheEnded)
     .examples()(
       allows(ended, now, ended, "nothing has ended yet"),

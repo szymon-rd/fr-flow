@@ -6,10 +6,10 @@ import frflow.*
 // Expiring shares: a job clears the shares whose time has come
 // ============================================================================
 
-val sharesExpire = Node.contract(expire)("A run of the expiry job at a time removes exactly the shares given until then or earlier, with their times, and keeps every record and every other share's time.",
+val sharesExpire = Node.contract("A run of the expiry job at a time removes exactly the shares given until then or earlier, with their times, and keeps every record and every other share's time.",
   why = "The idea lets a company share a record until a given time. A search already ignores a share past its time (Sharing): the job clears such shares from the tables, and it touches nothing else, so it never ends a share early nor keeps one past its time. Keeping the records is what keeps them found (RecordsKept).",
   idea = "Expiring shares"
-)((s, now, t) => endsDueAt(s, now, t))
+)(forall((s: Term[CrmStore], now: Term[BigInt]) => endsDueAt(s, now, expire(s, now))))
   .refines(storeMirrorsRequests, recordsKept)
   .examples()(
     allows(CrmStore(List(CrmRecord(1, TenantId("acme"), Kind.Deal, "Acme deal")), List(Share(1, TenantId("globex")), Share(1, TenantId("initech"))), List(Expiry(1, TenantId("globex"), 100))), 150,

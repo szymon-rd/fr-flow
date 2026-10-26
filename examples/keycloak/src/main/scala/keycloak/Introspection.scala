@@ -38,14 +38,14 @@ val onlyOne = define { (ss: Term[List[Session]], x: Term[Session]) => ss.forall(
 
 /** The contract on `introspect`, in an object of its own: named `introspect` too, it would hide the operation. */
 object Introspection:
-  val introspect = Node.contract(keycloak.introspect)("An introspection names the realm asking, and a user enabled there with their roles, only for a session that realm holds under the token; and it names that session's user whenever the user is enabled and the token names no other session there.",
+  val introspect = Node.contract("An introspection names the realm asking, and a user enabled there with their roles, only for a session that realm holds under the token; and it names that session's user whenever the user is enabled and the token names no other session there.",
     why = "Keycloak's introspection endpoint, for one request, so each answer of the running server is checked. The claims carry the user's realm roles, which applications use to authorise.",
     idea = "Checking tokens"
-  )((realm, token, res) =>
-    res.forall(c => c.realm === realm && sessions(c.realm).contains(Session(token, c.realm, c.user)) &&
+  )(forall((realm: Term[RealmId], token: Term[String]) =>
+    keycloak.introspect(realm, token).forall(c => c.realm === realm && sessions(c.realm).contains(Session(token, c.realm, c.user)) &&
       isEnabled(account(realm, c.user)) && c.roles === rolesIn(account(realm, c.user))) &&
     sessions(realm).forall(x => (x.token === token && isEnabled(account(realm, x.user)) && onlyOne(sessions(realm), x)) implies
-      (res === some(Claims(realm, x.user, rolesIn(account(realm, x.user)))))))
+      (keycloak.introspect(realm, token) === some(Claims(realm, x.user, rolesIn(account(realm, x.user))))))))
     .refines(answersNameASession, disabledHaveNoAccess, rolesAsGranted, signedInAreAccepted)
     .keeps(realmIsolation)((realm, token, res) => res
       .fold(List.empty[(RealmId, Claims)])(c => List((realm, c))))

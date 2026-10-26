@@ -11,9 +11,8 @@ val clamped = Param[BigInt => BigInt]("the reading the gauge shows for a raw val
 val neverBelowZero = Node.claim("The gauge shows a raw value when it is not negative, and zero otherwise.",
   why = "A negative reading is a sensor fault.")(
   forall((x: Term[BigInt]) => clamped(x) >= 0 && ((x >= 0) implies (clamped(x) === x)) && ((x < 0) implies (clamped(x) === BigInt(0)))))
-val clamp = Node.contract(clamped)("A call shows the raw value when it is not negative, and zero otherwise.",
-  why = "NeverBelowZero, for one call.")(
-  (x, r) => r >= 0 && ((x >= 0) implies (r === x)) && ((x < 0) implies (r === BigInt(0)))).refines(neverBelowZero)
+val clamp = Node.contract("A call shows the raw value when it is not negative, and zero otherwise.",
+  why = "NeverBelowZero, for one call.")(forall((x: Term[BigInt]) => clamped(x) >= 0 && ((x >= 0) implies (clamped(x) === x)) && ((x < 0) implies (clamped(x) === BigInt(0))))).refines(neverBelowZero)
   .examples()(
     allows(BigInt(5), BigInt(5), "a positive value is shown"),
     allows(BigInt(-3), BigInt(0), "a negative value shows zero"),
@@ -28,10 +27,9 @@ val onlyMembersGrant = Node.claim("A grant keeps everyone on the list, adds the 
   forall((acl: Term[List[String]], by: Term[String], who: Term[String]) =>
     acl.forall(x => granted(acl, by, who).contains(x)) && (acl.contains(by) implies granted(acl, by, who).contains(who)) &&
       granted(acl, by, who).forall(x => acl.contains(x) || (x === who && acl.contains(by)))))
-val grant = Node.contract(granted)("A call keeps everyone on the list, adds the person when the granter is on it, and adds no one else.",
-  why = "OnlyMembersGrant, for one call.")(
-  (acl, by, who, r) => acl.forall(x => r.contains(x)) && (acl.contains(by) implies r.contains(who)) &&
-    r.forall(x => acl.contains(x) || (x === who && acl.contains(by)))).refines(onlyMembersGrant)
+val grant = Node.contract("A call keeps everyone on the list, adds the person when the granter is on it, and adds no one else.",
+  why = "OnlyMembersGrant, for one call.")(forall((acl: Term[List[String]], by: Term[String], who: Term[String]) => acl.forall(x => granted(acl, by, who).contains(x)) && (acl.contains(by) implies granted(acl, by, who).contains(who)) &&
+    granted(acl, by, who).forall(x => acl.contains(x) || (x === who && acl.contains(by))))).refines(onlyMembersGrant)
   .examples()(
     allows(List("ann"), "ann", "bob", List("ann", "bob"), "a member adds bob"),
     allows(List("ann"), "eve", "bob", List("ann"), "someone off the list adds no one"),
@@ -49,9 +47,8 @@ val betweenRoot = Node.claim("Books picked between two lengths come from the she
   forall((s: Term[List[Book]], lo: Term[Int], hi: Term[Int]) => between(s, lo, hi).forall(b => s.contains(b) && b.pages >= lo && b.pages <= hi)))
 val inStock = Node.invariant[List[Book], Book]("Only books on the shelf are picked.", "Nothing else can be handed out.")(
   (shelf, b) => shelf.contains(b)).refines(betweenRoot)
-val pickBetween = Node.contract(between)("A call returns only books of the shelf between the two lengths.",
-  why = "Between, for one call.")(
-  (shelf, lo, hi, r) => r.forall(b => shelf.contains(b) && b.pages >= lo && b.pages <= hi)).refines(betweenRoot)
+val pickBetween = Node.contract("A call returns only books of the shelf between the two lengths.",
+  why = "Between, for one call.")(forall((shelf: Term[List[Book]], lo: Term[Int], hi: Term[Int]) => between(shelf, lo, hi).forall(b => shelf.contains(b) && b.pages >= lo && b.pages <= hi))).refines(betweenRoot)
   .examples()(
     allows(List(Book("A", 50), Book("B", 150)), 100, 200, List(Book("B", 150)), "the book in the range"),
     allows(List(Book("A", 50), Book("B", 150)), 0, 40, Nil, "none in the range"),
@@ -86,9 +83,8 @@ val gaugeShows = Param[() => BigInt]("what the gauge shows now")
 val showsNow = Node.claim("The gauge shows the raw reading when it is not negative, and zero otherwise.",
   why = "A negative reading is a sensor fault.")(
   gaugeShows() >= 0 && ((rawReading >= 0) implies (gaugeShows() === rawReading)) && ((rawReading < 0) implies (gaugeShows() === BigInt(0))))
-val shows = Node.contract(gaugeShows)("The gauge shows the raw reading when it is not negative, and zero otherwise.",
-  why = "ShowsNow, for one reading.")(
-  r => r >= 0 && ((rawReading >= 0) implies (r === rawReading)) && ((rawReading < 0) implies (r === BigInt(0)))).refines(showsNow)
+val shows = Node.contract("The gauge shows the raw reading when it is not negative, and zero otherwise.",
+  why = "ShowsNow, for one reading.")(gaugeShows() >= 0 && ((rawReading >= 0) implies (gaugeShows() === rawReading)) && ((rawReading < 0) implies (gaugeShows() === BigInt(0)))).refines(showsNow)
   .examples(rawReading.bind(5))(allows(BigInt(5), "the raw reading"), forbids(BigInt(0), "never zero for a positive reading"))
   .examples(rawReading.bind(-3))(allows(BigInt(0), "zero for a fault"))
 val showRaw = define { () => (rawReading >= 0).fold(rawReading: Term[BigInt], BigInt(0)) }

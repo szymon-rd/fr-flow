@@ -78,7 +78,7 @@ class RuntimeSuite extends munit.FunSuite:
     val longEnough = Param[Book => Boolean]("whether a book is long enough for readers")
     val lengths = Node.definition("A book is long enough when it has the pages readers asked for.", "w")(
       longEnough := ((b: Term[Book]) => b.pages >= minPages))
-    val byTerm = Node.contract(picks)("Picked books are long enough.", "w")((shelf, n, picked) => picked.forall(b => longEnough(b)))
+    val byTerm = Node.contract("Picked books are long enough.", "w")(forall((shelf: Term[List[Book]], n: Term[Int]) => picks(shelf, n).forall(b => longEnough(b))))
       .refines(shelfParts*)
       .examples(minPages.bind(100))(
         allows(List(Book("Long", 300)), 1, List(Book("Long", 300)), "the long book"),
@@ -142,8 +142,7 @@ class RuntimeSuite extends munit.FunSuite:
 
   test("the implementation is tested beyond its examples: a case that breaks the contract is found, code that throws too") {
     assertEquals(shelfKb.testedWith(TestSettings(300)).test(pick).flatMap(_.failure), None)
-    val two = Node.contract(picks)("Picking returns only long enough books.", "w")(
-      (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages)).refines(shelfParts*)
+    val two = Node.contract("Picking returns only long enough books.", "w")(forall((shelf: Term[List[Book]], n: Term[Int]) => picks(shelf, n).forall(b => shelf.contains(b) && b.pages >= minPages))).refines(shelfParts*)
       .examples(minPages.bind(100))(
         allows(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
         allows(List(Book("Short", 20)), 1, Nil, "no long book"),

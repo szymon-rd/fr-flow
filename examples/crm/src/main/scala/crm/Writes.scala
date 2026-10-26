@@ -39,12 +39,12 @@ val recordsKept = Node.claim("No write and no run of the expiry job removes a re
 // Contracts: one write, and the write side that stores it
 // ============================================================================
 
-val writeContract = Node.contract(write)("A write keeps every record, leaves the records of other companies as they were, does what its author asked of their company's records, and changes nothing else.",
+val writeContract = Node.contract("A write keeps every record, leaves the records of other companies as they were, does what its author asked of their company's records, and changes nothing else.",
   why = "The writing rules, stated for one write on a store: what the user asked takes effect, no record is lost, and nothing else changes, of their company or another's. A write the author's company may not make changes nothing.",
   idea = "Writing records"
-)((s, w, t) => s.records.forall(r => t.records.contains(r)) &&
-  t.records.filter(r => r.tenant =!= w.by.tenant) === s.records.filter(r => r.tenant =!= w.by.tenant) && takesEffect(s, w, t) &&
-  onlyAsked(s, w, t))
+)(forall((s: Term[CrmStore], w: Term[WriteCmd]) => s.records.forall(r => write(s, w).records.contains(r)) &&
+  write(s, w).records.filter(r => r.tenant =!= w.by.tenant) === s.records.filter(r => r.tenant =!= w.by.tenant) && takesEffect(s, w, write(s, w)) &&
+  onlyAsked(s, w, write(s, w))))
   .refines(writesTakeEffect, writesOnlyAsAsked, recordsKept)
   // Per call, in time linear in the store: the write took effect, and other companies' records are as they were.
   // The rest (no record lost, nothing else changed) is proven of the code, and would read every pair of rows.

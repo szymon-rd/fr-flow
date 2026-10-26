@@ -20,8 +20,8 @@ class GoldenSuite extends munit.FunSuite:
 
   private def text(ss: List[(String, String)]): String = ss.map((p, s) => s"=== $p ===\n$s").mkString("\n")
 
-  private val hashes = List(shelfKb -> "b13c0e165d5b522d33430730f19b0a4bdd21b2d5bc6ac43fea48493326ca4299",
-    callsKb -> "94d48ce2f06640cc5cd92beb8a69c279b3797bf4cef8427d81829b0794cccd91")
+  private val hashes = List(shelfKb -> "04f1374132245b8f09b052cdac2b408f112f1fff79bcad68eac966963b5837af",
+    callsKb -> "b14edd4d8ff10e7ba7cc28e54242df55ba39d722badb891ddf56518dbb520886")
 
   test("the whole Lean of each fixture is as recorded, byte for byte") {
     hashes.foreach { (kb, hash) =>

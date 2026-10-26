@@ -55,11 +55,11 @@ val storedMatching = define { (user: Term[Account], query: Term[Search]) => stor
 // Contracts: the records screen and the sales screen
 // ============================================================================
 
-val readContract = Node.contract(read)("A search on the records screen returns exactly the stored records that match it and the user may read: each of the user's company or shared with it now.",
+val readContract = Node.contract("A search on the records screen returns exactly the stored records that match it and the user may read: each of the user's company or shared with it now.",
   why = "The records screen, stated for one call. A returned record must be one of the stored records, so code cannot relabel another company's record as the user's; and every such record is returned, since users find records.",
   idea = "Finding records"
-)((user, query, result) => result.forall(r => store.contains(r) && matches(query, r) && mayRead(user, r)) &&
-  store.forall(r => (matches(query, r) && mayRead(user, r)) implies result.contains(r)))
+)(forall((user: Term[Account], query: Term[Search]) => read(user, query).forall(r => store.contains(r) && matches(query, r) && mayRead(user, r)) &&
+  store.forall(r => (matches(query, r) && mayRead(user, r)) implies read(user, query).contains(r))))
   .refines(searchesMatch)
   .examples(
     history.bind(List(
@@ -100,11 +100,11 @@ val readContract = Node.contract(read)("A search on the records screen returns e
 /** A search: what the database returns for it, of the user's company or shared with it now. */
 val search = define { (user: Term[Account], query: Term[Search]) => fetch(user, query).filter(r => mayRead(user, r)) }
 
-val dealSearch = Node.contract(deals)("A deal search returns exactly the stored deals that match it and the user may read.",
+val dealSearch = Node.contract("A deal search returns exactly the stored deals that match it and the user may read.",
   why = "The sales screen, stated for one call. Its code calls the records screen and keeps the deals, so it is proven from ReadContract's promise and shows only what the records screen may show.",
   idea = "Sales screen"
-)((user, query, result) => result.forall(r => store.contains(r) && r.kind === Kind.Deal && matches(query, r) && mayRead(user, r)) &&
-  store.forall(r => (r.kind === Kind.Deal && matches(query, r) && mayRead(user, r)) implies result.contains(r)))
+)(forall((user: Term[Account], query: Term[Search]) => deals(user, query).forall(r => store.contains(r) && r.kind === Kind.Deal && matches(query, r) && mayRead(user, r)) &&
+  store.forall(r => (r.kind === Kind.Deal && matches(query, r) && mayRead(user, r)) implies deals(user, query).contains(r))))
   .refines(searchesMatch)
   .examples(
     history.bind(List(

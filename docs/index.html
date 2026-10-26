@@ -290,10 +290,10 @@ each one is needed. This is the capability part: a granted user gets in.</p>
 <p>A contract states, for one call of an operation, what every result must satisfy, so each result of the running
 system can be checked. Examples are concrete calls: an <code>allows</code> the contract must allow and a
 <code>forbids</code> it must refuse. Lean evaluates them too, and must agree with Scala.</p>
-<div class="code"><pre><code>val decisionContract = Node.contract(admit)("A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path.",
+<div class="code"><pre><code>val decisionContract = Node.contract("A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path.",
   why = "The three parts, stated for one call, so every result of the running system can be checked."
-)((token, path, decision) =&gt; decision.forall(u =&gt; sessions(token) === Some(u) &amp;&amp; grants.contains(Grant(u, path))) &amp;&amp;
-  sessions(token).forall(u =&gt; grants.contains(Grant(u, path)) implies (decision === Some(u))))
+)(forall((token: Term[String], path: Term[Path]) =&gt; admit(token, path).forall(u =&gt; sessions(token) === Some(u) &amp;&amp; grants.contains(Grant(u, path))) &amp;&amp;
+  sessions(token).forall(u =&gt; grants.contains(Grant(u, path)) implies (admit(token, path) === Some(u)))))
   .refines(tokenNamesHolder, accessNeedsGrant, grantLetsIn)
   .examples(grants.bind(List(Grant(UserId("alice"), Path("/a")))), sessions.bindTable(Map("t1" -&gt; UserId("alice"))))(
     allows("t1", Path("/a"), Some(UserId("alice")), "Alice's token and a grant for /a: she gets in"),
@@ -564,7 +564,7 @@ val aboutRecord = define { (s: Term[CrmStore], id: Term[BigInt]) =&gt;
 <tbody>
 <tr><td>claim</td><td><code>Node.claim(statement, why, idea = "")(formula)</code>; the claim with no parents is the root</td><td>proven from its parts (<code>complete</code>)</td></tr>
 <tr><td>invariant</td><td><code>Node.invariant[A, B](statement, why, scope)(rule)</code></td><td>a claim whose parts are the contracts that keep it</td></tr>
-<tr><td>contract</td><td><code>Node.contract(op)(statement, why)(post)</code>, <code>op: Param[(A, B) =&gt; R]</code> (0 to 6 inputs)</td><td>every call of <code>op</code> meets <code>post</code>; <code>impl</code> when a define is attached</td></tr>
+<tr><td>contract</td><td><code>Node.contract(statement, why)(forall((a: Term[A], b: Term[B]) =&gt; … op(a, b) …))</code>, <code>op: Param[(A, B) =&gt; R]</code> (0 to 6 inputs), applied to the forall's variables in order; <code>Node.contract(op)(statement, why)((a, b, result) =&gt; …)</code> when another operation is applied to the same inputs</td><td>every call of <code>op</code> meets the formula; <code>impl</code> when a define is attached</td></tr>
 <tr><td>contract on a flow</td><td><code>Node.contract(op)(statement, why)((a, result, before, after) =&gt; …)</code>, <code>op: Param[A =&gt; Flow[R]]</code> (0 to 6 inputs)</td><td>every run from any world meets <code>post</code>; <code>impl</code> when a flow is attached</td></tr>
 <tr><td>assumption</td><td><code>Node.assumption(op)(…)(post)</code>, or <code>Node.assumption(statement, why)(formula)</code></td><td>trusted: a hypothesis of <code>root_impl</code></td></tr>
 <tr><td>model of a boundary</td><td><code>Node.assumption(boundary)(Model)(statement, why)</code></td><td>trusted: the boundary behaves as the model, and flows are proven from it</td></tr>
@@ -574,7 +574,7 @@ val aboutRecord = define { (s: Term[CrmStore], id: Term[BigInt]) =&gt;
 </table>
 <p>An operation takes 0 to 6 inputs. The post, <code>checkedBy</code>, a <code>keeps</code> view, each
 <code>allows</code> and <code>forbids</code>, and <code>implement</code> take them in order, then the result (a flow's,
-then the worlds before and after): <code>Node.contract(share)(…)((by, doc, withWhom, result) =&gt; …)</code>,
+then the worlds before and after): <code>Node.contract(…)(forall((by: Term[UserId], doc: Term[DocId], withWhom: Term[UserId]) =&gt; … share(by, doc, withWhom) …))</code>,
 <code>allows(ann, readme, bob, true, "the owner shares")</code>, <code>implement(share)((by, doc, withWhom) =&gt; …)</code>.</p>
 <p>Edges and extras:</p>
 <ul>

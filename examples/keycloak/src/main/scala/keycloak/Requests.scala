@@ -86,13 +86,13 @@ val endedBy = define { (q: Term[AuthRequest], x: Term[Session]) =>
     .on[AuthRequest.SetEnabled]((_, _, _) => False)
 }
 
-val handleRequest = Node.contract(step)("A request opens the session a sign-in asks for when the user is enabled, the password theirs and no session holds the token; ends the sessions its sign-out names in its realm; changes accounts only as an administrator's change sets them; and changes nothing else.",
+val handleRequest = Node.contract("A request opens the session a sign-in asks for when the user is enabled, the password theirs and no session holds the token; ends the sessions its sign-out names in its realm; changes accounts only as an administrator's change sets them; and changes nothing else.",
   why = "One request at a time, so each result of the running server is checked; the history's meaning (SignInHistory, Accounts) follows by induction over the requests. Refusing a token an open session holds keeps a token naming one session even if a token were ever drawn twice.",
   idea = "Signing in and out"
-)((s, q, t) => t.accounts === administer(s.accounts, q) &&
-  t.sessions.forall(x => (s.sessions.contains(x) && !endedBy(q, x)) || opened(s, q) === some(x)) &&
-  s.sessions.forall(x => endedBy(q, x) || t.sessions.contains(x)) &&
-  opened(s, q).forall(x => t.sessions.contains(x)))
+)(forall((s: Term[ServerState], q: Term[AuthRequest]) => step(s, q).accounts === administer(s.accounts, q) &&
+  step(s, q).sessions.forall(x => (s.sessions.contains(x) && !endedBy(q, x)) || opened(s, q) === some(x)) &&
+  s.sessions.forall(x => endedBy(q, x) || step(s, q).sessions.contains(x)) &&
+  opened(s, q).forall(x => step(s, q).sessions.contains(x))))
   .refines(sessionsMirrorSignIns, accountsAsAdministered)
   .examples(sessionDb.bind(SessionDb.empty))(
     allows(ServerState(loaded, Nil), AuthRequest.SignIn(acme, "alice", "h-alice", "t1"), ServerState(loaded, List(Session("t1", acme, "alice"))),

@@ -20,7 +20,7 @@ class NodeSuite extends munit.FunSuite:
   }
 
   test("examples where nothing is bound take one list: the same cases as with an empty list of bindings") {
-    val base = Node.contract(picks)("s", "w")((shelf, n, picked) => picked.length <= n).refines(onlyGood)
+    val base = Node.contract("s", "w")(forall((shelf: Term[List[Book]], n: Term[Int]) => picks(shelf, n).length <= n)).refines(onlyGood)
     // (with one list, the cases are typed before the overload is chosen: an empty list says its type)
     val none = List.empty[Book]
     val one = base.examples(allows(none, 1, none, "nothing to pick"), forbids(none, 0, List(Book("A", 1)), "never more than asked"))
@@ -63,8 +63,7 @@ class NodeSuite extends munit.FunSuite:
   test("a cross-cutting invariant is a claim kept by the contracts that name it, on examples, generated calls and at run time") {
     val atMostN = Node.invariant[Int, Int]("No more books are picked than asked for.", "Readers carry what they asked for.")(
       (asked, picked) => picked <= asked).refines(onlyGood)
-    val kept = Node.contract(picks)("Picking returns only long enough books.", "w")(
-      (shelf, n, picked) => picked.forall(b => shelf.contains(b) && b.pages >= minPages)).refines(shelfParts*)
+    val kept = Node.contract("Picking returns only long enough books.", "w")(forall((shelf: Term[List[Book]], n: Term[Int]) => picks(shelf, n).forall(b => shelf.contains(b) && b.pages >= minPages))).refines(shelfParts*)
       .examples(minPages.bind(100))(
         allows(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
         allows(List(Book("Short", 20)), 1, Nil, "no long book"),
@@ -132,7 +131,7 @@ class NodeSuite extends munit.FunSuite:
     // two different parameters with one name; a contract with no examples
     object other:
       val minPages = Param[Int]("the pages a reader can carry")
-    val clashing = Node.contract(picks)("s", "w")((shelf, n, picked) => picked.length <= other.minPages).refines(shelfParts*)
+    val clashing = Node.contract("s", "w")(forall((shelf: Term[List[Book]], n: Term[Int]) => picks(shelf, n).length <= other.minPages)).refines(shelfParts*)
     val c = shelfWith(clashing).problems
     assert(c.exists { case Problem.Vocabulary(t) => t.startsWith("two different parameters are named minPages"); case _ => false }, c)
     assert(c.exists(_.isInstanceOf[Problem.Examples]), c)

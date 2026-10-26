@@ -95,10 +95,10 @@ object Notifications:
   private val catInvitedBy = Request.Invite(ann, cat, Target.Doc(plan), Level.View)
   private val entry = Entry(0, now, Change.Made(catInvitedBy))
 
-  val announceContract = Node.contract(announce)("Announcing a change adds, at the end of the outbox, a notice of its entry to each person it tells, as the library before the change says who: the person invited; whoever sent an invitation now accepted; the owner of a document asked for; the person whose request was approved or declined; the new owner of a document. Nothing else changes.",
+  val announceContract = Node.contract("Announcing a change adds, at the end of the outbox, a notice of its entry to each person it tells, as the library before the change says who: the person invited; whoever sent an invitation now accepted; the owner of a document asked for; the person whose request was approved or declined; the new owner of a document. Nothing else changes.",
     why = "Q13: what is notified and to whom. Who sent an invitation, and who owns a document, are read from the library the request was made on.",
     idea = "Notifications"
-  )((lib, before, r, e, result) => result === lib.copy((outbox = lib.outbox ++ noticesOf(before, r, e))))
+  )(forall((lib: Term[Library], before: Term[Library], r: Term[Request], e: Term[Entry]) => announce(lib, before, r, e) === lib.copy((outbox = lib.outbox ++ noticesOf(before, r, e)))))
     .refines(noticesFollowChanges, sharing.audit.Audit.auditTrail, sharing.time.Deadlines.invitationsLapseOnTime,
       sharing.time.Deadlines.trashPurgedOnTime, sharing.time.Deadlines.requestsAnsweredOnTime)
     .examples()(
@@ -138,10 +138,10 @@ object Notifications:
 
   private val bobsHourEndsInADay = Share(Target.Doc(plan), Grantee.Person(bob), Level.View, Some(now + day - 30))
 
-  val warnContract = Node.contract(warn)("Housekeeping tells of the shares ending within a day: at a moment, it adds at the end of the outbox a notice, to each person a share reaches, of each share whose end comes a day on, within one housekeeping period. Nothing else changes.",
+  val warnContract = Node.contract("Housekeeping tells of the shares ending within a day: at a moment, it adds at the end of the outbox a notice, to each person a share reaches, of each share whose end comes a day on, within one housekeeping period. Nothing else changes.",
     why = "Q13 as assumed: shares ending within a day are notified. Housekeeping runs every minute and never two minutes apart (HousekeepingOnTime), so a share's end falls in the window of one run or two; the mail server keeps a notice once (MailerKept), so each person is told once.",
     idea = "Notifications"
-  )((lib, t, result) => result === lib.copy((outbox = lib.outbox ++ endingNotices(lib, t))))
+  )(forall((lib: Term[Library], t: Term[BigInt]) => warn(lib, t) === lib.copy((outbox = lib.outbox ++ endingNotices(lib, t)))))
     .refines(noticesFollowChanges)
     .examples()(
       allows(library.copy(shares = bobsHourEndsInADay :: library.shares), now,

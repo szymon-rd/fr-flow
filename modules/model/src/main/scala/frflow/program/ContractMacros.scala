@@ -3,24 +3,27 @@ package program
 
 import scala.quoted.*
 
-/** `Node.contract(id, statement)(forall((a, b) => … op(a, b) …))`: the operation a contract written as a claim is
-  * about, found as it compiles, so the node has the operation's type and a formula of another shape does not compile.
+/** `Node.contract(statement)(forall((a, b) => … op(a, b) …))`: the operation a contract written as a claim is about,
+  * found as it compiles, so the node has the operation's type and a formula of another shape does not compile. The
+  * operation is the one Param applied to the forall's variables, in order; other Params it applies are what it reads.
   */
 private[frflow] object ContractMacros:
   private val Shape = "a contract written as a claim applies one operation to its forall's variables, in order: " +
     "forall((held: Term[List[Booking]], request: Term[Booking]) => … granted(held, request) …)"
 
-  def claimShaped(statement: Expr[String], formula: Expr[Term[Boolean]])(using Quotes): Expr[Node[?]] =
+  def claimShaped(statement: Expr[String], why: Expr[String], idea: Expr[String], formula: Expr[Term[Boolean]])(using
+      Quotes): Expr[Node[?]] =
     import quotes.reflect.*
     val body = formula.asTerm
     val bound = variables(body)
     val calls = applications(body)
-    calls.map(_._1.symbol).distinct match
-      case Nil       => report.errorAndAbort(s"FrFlow: this formula applies no operation (a Param): $Shape", body.pos)
+    calls.filter((_, args) => args.map(_.symbol) == bound).map(_._1.symbol).distinct match
+      case Nil       => report.errorAndAbort(s"FrFlow: this formula applies no operation (a Param) to its forall's variables: $Shape",
+        body.pos)
       case List(sym) =>
-        calls.find((_, args) => args.map(_.symbol) != bound).foreach((op, args) =>
+        calls.find((op, args) => op.symbol == sym && args.map(_.symbol) != bound).foreach((op, args) =>
           report.errorAndAbort(s"FrFlow: ${op.show}(${args.map(_.show).mkString(", ")}): $Shape", args.headOption.fold(op.pos)(_.pos)))
-        if references(body, sym) > calls.size then
+        if references(body, sym) > calls.count(_._1.symbol == sym) then
           report.errorAndAbort(s"FrFlow: ${sym.name} is used other than applied to the forall's variables: $Shape", body.pos)
         val op = calls.head._1
         op.tpe.widen.asType match
@@ -28,10 +31,12 @@ private[frflow] object ContractMacros:
             if TypeRepr.of[f].typeArgs.lastOption.exists(_ <:< TypeRepr.of[Flow[?]]) then
               report.errorAndAbort(s"FrFlow: ${op.show} runs a flow: its contract is written as a lambda over the run", op.pos)
             val p = op.asExprOf[Param[f]]
-            '{ Node.claimShaped[f]($p, Source.nodeId, $statement, Lifted.thunk(() => $formula, Source.text($formula)),
+            '{ Node.claimShaped[f]($p, Source.nodeId, $statement, $why, $idea, Lifted.thunk(() => $formula, Source.text($formula)),
               ${ SourceMacros.here }, ${ SourceMacros.at }) }
           case _ => report.errorAndAbort(s"FrFlow: ${op.show} is not a Param: $Shape", op.pos)
-      case many => report.errorAndAbort(s"FrFlow: this formula applies ${many.map(_.name).mkString(" and ")}: $Shape", body.pos)
+      case many => report.errorAndAbort(
+        s"FrFlow: this formula applies ${many.map(_.name).mkString(" and ")} to its forall's variables, so its operation is not one: $Shape",
+        body.pos)
 
   private def unwrap(using q: Quotes)(t: q.reflect.Term): q.reflect.Term =
     import q.reflect.*

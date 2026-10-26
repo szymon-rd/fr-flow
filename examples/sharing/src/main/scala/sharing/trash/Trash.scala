@@ -37,12 +37,12 @@ object Trash:
 
   private val planInTrash = library.copy(documents = List(planTrashed, q3ReportDoc))
 
-  val trashContract = Node.contract(trash)("Someone who may edit a document puts it in the trash: it is in the trash from now on, unless it was already, when it keeps the time it was put there. When anyone else asks, nothing changes.",
+  val trashContract = Node.contract("Someone who may edit a document puts it in the trash: it is in the trash from now on, unless it was already, when it keeps the time it was put there. When anyone else asks, nothing changes.",
     why = "Q8: deleting a document puts it in the trash for a while rather than deleting it for good. Deleting is a change to the document, so only someone who may edit it does it.",
     idea = "Trash"
-  )((lib, t, by, d, result) =>
-    result === mayEdit(lib, t, by, Target[Target.Doc](d)).fold(
-      lib.copy((documents = lib.documents.map(doc => (doc.id === d && !doc.trashed.isDefined).fold(doc.copy((trashed = some(t))), doc)))), lib))
+  )(forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId]) =>
+    trash(lib, t, by, d) === mayEdit(lib, t, by, Target[Target.Doc](d)).fold(
+      lib.copy((documents = lib.documents.map(doc => (doc.id === d && !doc.trashed.isDefined).fold(doc.copy((trashed = some(t))), doc)))), lib)))
     .refines(trashUntilGone)
     .examples()(
       allows(library, now - day, ann, plan, planInTrash, "Ann may edit the plan: it goes to the trash"),
@@ -61,12 +61,12 @@ object Trash:
     mayEdit(lib, t, by, Target[Target.Doc](d)) && lib.documents.exists(doc => doc.id === d && doc.trashed.isDefined && !gone(doc, t))
   }
 
-  val restoreContract = Node.contract(restore)("Someone who may edit a document restores it from the trash before it is gone: it is out of the trash, and its shares give access again. When anyone else asks, or it is not in the trash, or it is gone, nothing changes.",
+  val restoreContract = Node.contract("Someone who may edit a document restores it from the trash before it is gone: it is out of the trash, and its shares give access again. When anyone else asks, or it is not in the trash, or it is gone, nothing changes.",
     why = "Q8: a document in the trash can be restored until it is gone; its shares stayed, so restoring brings back exactly the access it had.",
     idea = "Trash"
-  )((lib, t, by, d, result) =>
-    result === mayRestore(lib, t, by, d).fold(
-      lib.copy((documents = lib.documents.map(doc => (doc.id === d && !gone(doc, t)).fold(doc.copy((trashed = none[BigInt])), doc)))), lib))
+  )(forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId]) =>
+    restore(lib, t, by, d) === mayRestore(lib, t, by, d).fold(
+      lib.copy((documents = lib.documents.map(doc => (doc.id === d && !gone(doc, t)).fold(doc.copy((trashed = none[BigInt])), doc)))), lib)))
     .refines(trashUntilGone)
     .examples()(
       allows(planInTrash, now, ann, plan, library, "a day in the trash: Ann restores the plan"),

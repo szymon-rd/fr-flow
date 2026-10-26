@@ -161,8 +161,9 @@ val accessExactly = Node.claim(// the root: the claim with no parents
 )(forall((u: Term[User.T], r: Term[Resource.T]) => access(u, r) === (signedIn(u) && authorized(u, r))))
 val identities = Node.definition("Users are named by ids, and resources are paths.", why = "..."
 )(User := of[UserId], Resource := of[Path])
-val decisionContract = Node.contract(admit)("A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path.", why = "..."
-)((token, path, decision) => decision.forall(u => sessions(token) === Some(u) && grants.contains(Grant(u, path))) && ...)
+val decisionContract = Node.contract("A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path.", why = "..."
+)(forall((token: Term[String], path: Term[Path]) =>
+  admit(token, path).forall(u => sessions(token) === Some(u) && grants.contains(Grant(u, path))) && ...))
   .refines(tokenNamesHolder, accessNeedsGrant, grantLetsIn)
   .examples(grants.bind(List(Grant(UserId("alice"), Path("/a")))), sessions.bindTable(Map("t1" -> UserId("alice"))))(
     allows("t1", Path("/a"), Some(UserId("alice")), "Alice's token and a grant for /a: she gets in"),
@@ -190,7 +191,9 @@ val sessionLookup = Node.assumption(lookup)(// keycloak: trusted
   term (`grants.contains(g)`, `sessions(t)`). A `define` is a named function
   over terms: Lean's `def` of the same name, and Scala runs it.
 - **Kinds.** A contract states a claim for one call of an operation, so each
-  result can be checked. An assumption states what you cannot prove: a port, or
+  result can be checked; write it as a claim, `Node.contract(statement)(forall((a: Term[A]) => … op(a) …))`,
+  and as a lambda over the call (`Node.contract(op)(statement)((a, result) => …)`) only for a flow's run or
+  when it relates the operation to another one applied to the same inputs. An assumption states what you cannot prove: a port, or
   a fact of the world (`Node.assumption(statement, why)(formula)`).
 - **Names.** A node's id is its `val`'s name, first letter capitalised (`val grantWhenFree` is `GrantWhenFree`);
   a `Param`'s name is its `val`'s name. Assign each node and `Param` directly to a `val`.

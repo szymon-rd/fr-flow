@@ -44,14 +44,14 @@ object Ownership:
   private val bobEditsPlan = Share(Target.Doc(plan), Grantee.Person(bob), Level.Edit, None)
   private val bobMayEdit = library.copy(shares = bobEditsPlan :: library.shares)
 
-  val transferContract = Node.contract(transfer)("The owner of a document, while they may edit it, hands it on to someone who may edit it: that person is then its owner, with an edit share of it for good in place of any share of it they had. When anyone else asks, or the new owner may not edit it, nothing changes.",
+  val transferContract = Node.contract("The owner of a document, while they may edit it, hands it on to someone who may edit it: that person is then its owner, with an edit share of it for good in place of any share of it they had. When anyone else asks, or the new owner may not edit it, nothing changes.",
     why = "Q14: only the owner transfers a document, to someone who may edit it; the new owner's share makes sure they always may edit it.",
     idea = "Ownership"
-  )((lib, t, by, d, to, result) =>
-    result === (owns(lib, by, d) && mayEdit(lib, t, by, Target[Target.Doc](d)) && mayEdit(lib, t, to, Target[Target.Doc](d))).fold(
+  )(forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId], to: Term[PersonId]) =>
+    transfer(lib, t, by, d, to) === (owns(lib, by, d) && mayEdit(lib, t, by, Target[Target.Doc](d)) && mayEdit(lib, t, to, Target[Target.Doc](d))).fold(
       lib.copy((documents = lib.documents.map(doc => (doc.id === d).fold(doc.copy((owner = to)), doc)),
         shares = Share(Target[Target.Doc](d), Grantee[Grantee.Person](to), Level.Edit, none[BigInt]) ::
-          sharesWithout(lib.shares, Target[Target.Doc](d), Grantee[Grantee.Person](to)))), lib))
+          sharesWithout(lib.shares, Target[Target.Doc](d), Grantee[Grantee.Person](to)))), lib)))
     .refines(ownersKeepTheirDocuments)
     .examples()(
       allows(bobMayEdit, now, ann, plan, bob,

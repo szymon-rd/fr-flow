@@ -65,10 +65,10 @@ val grantLetsIn = Node.claim("A request whose token was issued to a user with a 
 // The contract: what every call of the decision must satisfy
 // ============================================================================
 
-val decisionContract = Node.contract(admit)("A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path.",
+val decisionContract = Node.contract("A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path.",
   why = "The three parts, stated for one call, so every result of the running system can be checked."
-)((token, path, decision) => decision.forall(u => sessions(token) === Some(u) && grants.contains(Grant(u, path))) &&
-  sessions(token).forall(u => grants.contains(Grant(u, path)) implies (decision === Some(u))))
+)(forall((token: Term[String], path: Term[Path]) => admit(token, path).forall(u => sessions(token) === Some(u) && grants.contains(Grant(u, path))) &&
+  sessions(token).forall(u => grants.contains(Grant(u, path)) implies (admit(token, path) === Some(u)))))
   .refines(tokenNamesHolder, accessNeedsGrant, grantLetsIn)
   .examples(grants.bind(List(Grant(UserId("alice"), Path("/a")))), sessions.bindTable(Map("t1" -> UserId("alice"))))(
     allows("t1", Path("/a"), Some(UserId("alice")), "Alice's token and a grant for /a: she gets in"),

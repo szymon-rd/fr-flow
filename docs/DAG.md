@@ -131,7 +131,7 @@ with a `rule`.
 | claim | `Node.claim(statement, why, idea = "")(formula)` | `def claim : Prop` over its open terms |
 | root | the claim with no parents | as a claim, plus `idle` |
 | invariant | `Node.invariant[A, B](statement, why, scope)(rule)` | a claim whose parts are its keepers |
-| contract | `Node.contract(op)(statement, why)(post)`, `op: Param[(A, B) => R]` (0 to 6 inputs) | `∀ a b, post(a, b, op(a, b))`; `impl` when a `define` is attached |
+| contract | `Node.contract(statement, why)(forall((a: Term[A], b: Term[B]) => … op(a, b) …))`, `op: Param[(A, B) => R]` (0 to 6 inputs), or `Node.contract(op)(statement, why)(post)` when another operation is applied to the same inputs | `∀ a b, post(a, b, op(a, b))`; `impl` when a `define` is attached |
 | contract on a flow | `Node.contract(op)(statement, why)((a, r, before, after) => ...)`, `op: Param[A => Flow[R]]` (0 to 6 inputs) | `∀ a w, post a (op a w).1 w (op a w).2`; `impl` when a flow is attached |
 | assumption | `Node.assumption(op)(statement, why)(post)`, or `Node.assumption(statement, why)(formula)` | a hypothesis of `root_impl`: trusted |
 | model | `Node.assumption(boundary)(Model)(statement, why)` | the boundary's class instance on `StateM World`: trusted |

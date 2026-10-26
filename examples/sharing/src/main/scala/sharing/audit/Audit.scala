@@ -56,10 +56,10 @@ object Audit:
   private val bobViewsPlan = Share(Target.Doc(plan), Grantee.Person(bob), Level.View, None)
   private val shared = Request.Share(ann, Target.Doc(plan), Grantee.Person(bob), Level.View, None)
 
-  val recordContract = Node.contract(record)("Recording a change at a moment adds one entry at the end of the log: numbered by its place in it, with the moment and the change. Nothing else changes, and no entry is taken away.",
+  val recordContract = Node.contract("Recording a change at a moment adds one entry at the end of the log: numbered by its place in it, with the moment and the change. Nothing else changes, and no entry is taken away.",
     why = "Q15: the log is append-only; an entry's number is its place, so entries are never renumbered, and a notice can name the entry it is about.",
     idea = "Audit"
-  )((lib, t, c, result) => result === lib.copy((log = lib.log ++ List(Entry(lib.log.length, t, c)))))
+  )(forall((lib: Term[Library], t: Term[BigInt], c: Term[Change]) => record(lib, t, c) === lib.copy((log = lib.log ++ List(Entry(lib.log.length, t, c))))))
     .refines(auditTrail, sharing.notifications.Notifications.noticesFollowChanges, sharing.time.Deadlines.invitationsLapseOnTime,
       sharing.time.Deadlines.trashPurgedOnTime, sharing.time.Deadlines.requestsAnsweredOnTime)
     .examples()(
@@ -87,11 +87,11 @@ object Audit:
   private val oldShare = Entry(0, now - 400 * day, Change.Made(shared))
   private val oldUnshare = Entry(1, now - 400 * day, Change.Made(Request.Unshare(ann, Target.Doc(plan), Grantee.Person(bob))))
 
-  val forgetContract = Node.contract(forget)("Housekeeping forgets, at a moment, the change of each log entry made more than a year before, unless the entry is the making of a share the library holds or of a change a notice waiting in the outbox tells of: the entry stays in its place, with its number and time, and its change is forgotten. Nothing else changes.",
+  val forgetContract = Node.contract("Housekeeping forgets, at a moment, the change of each log entry made more than a year before, unless the entry is the making of a share the library holds or of a change a notice waiting in the outbox tells of: the entry stays in its place, with its number and time, and its change is forgotten. Nothing else changes.",
     why = "Q15: the log is kept for a year. An entry keeps its place, so numbers stay unique and no entry is taken away (RecordContract); what it told is gone. An entry that explains a share held, or a notice not yet sent, is kept as long as it does (AuditTrail, NoticesFollowChanges).",
     idea = "Audit"
-  )((lib, t, result) => result === lib.copy((log = lib.log.map(e =>
-    (e.at <= t - year && !explains(lib, e)).fold(Entry(e.id, e.at, Change.Forgotten: Term[Change]), e)))))
+  )(forall((lib: Term[Library], t: Term[BigInt]) => forget(lib, t) === lib.copy((log = lib.log.map(e =>
+    (e.at <= t - year && !explains(lib, e)).fold(Entry(e.id, e.at, Change.Forgotten: Term[Change]), e))))))
     .refines(auditTrail)
     .examples()(
       allows(library.copy(shares = bobViewsPlan :: library.shares, log = List(oldShare, oldUnshare)), now,

@@ -66,12 +66,12 @@ object AccessRequests:
   private val catViewsPlan = Share(Target.Doc(plan), Grantee.Person(cat), Level.View, None)
   private val annAsks = library.copy(requests = List(AccessRequest(ann, Target.Doc(plan), Level.View, now - day, false)))
 
-  val askContract = Node.contract(ask)("A person asks for access to a document or a folder at a level: the request, made now, takes the place of any earlier request of theirs for it. Asking for a document or folder that does not exist changes nothing.",
+  val askContract = Node.contract("A person asks for access to a document or a folder at a level: the request, made now, takes the place of any earlier request of theirs for it. Asking for a document or folder that does not exist changes nothing.",
     why = "Q12: anyone named in the library may ask, for a document or a folder; one request per person and document or folder, so asking again renews it.",
     idea = "Access requests"
-  )((lib, t, p, w, level, result) =>
-    result === holds(lib, w).fold(
-      lib.copy((requests = AccessRequest(p, w, level, t, False) :: requestsWithout(lib.requests, p, w))), lib))
+  )(forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], w: Term[Target], level: Term[Level]) =>
+    ask(lib, t, p, w, level) === holds(lib, w).fold(
+      lib.copy((requests = AccessRequest(p, w, level, t, False) :: requestsWithout(lib.requests, p, w))), lib)))
     .refines(accessRequestsAreAsks)
     .examples()(
       allows(library, now - day, cat, Target.Doc(plan), Level.View, withCatAsking, "Cat asks to view the plan"),
@@ -85,15 +85,15 @@ object AccessRequests:
       lib.copy((requests = AccessRequest(p, w, level, t, False) :: requestsWithout(lib.requests, p, w))), lib)
   }
 
-  val approveContract = Node.contract(approve)("Someone who may edit a document or folder approves a person's pending request for it: the person then has a share of it at the level asked, for good, in place of any share of it they had, and the request goes. Otherwise, or when it is the person's own document (their share of it is the owner's), nothing changes.",
+  val approveContract = Node.contract("Someone who may edit a document or folder approves a person's pending request for it: the person then has a share of it at the level asked, for good, in place of any share of it they had, and the request goes. Otherwise, or when it is the person's own document (their share of it is the owner's), nothing changes.",
     why = "Q12: approving makes the share; a request that has lapsed can no longer be approved, the person asks again. Q14: nothing replaces an owner's share of their own document.",
     idea = "Access requests"
-  )((lib, t, by, p, w, result) =>
-    result === lib.requests.find(r => r.person === p && r.what === w && isPending(r, t)).fold(lib)(r =>
+  )(forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], p: Term[PersonId], w: Term[Target]) =>
+    approve(lib, t, by, p, w) === lib.requests.find(r => r.person === p && r.what === w && isPending(r, t)).fold(lib)(r =>
       (mayEdit(lib, t, by, w) && !ownedBy(lib, w, Grantee[Grantee.Person](p))).fold(
         lib.copy((shares = Share(w, Grantee[Grantee.Person](p), r.level, none[BigInt]) ::
           sharesWithout(lib.shares, w, Grantee[Grantee.Person](p)),
-          requests = requestsWithout(lib.requests, p, w))), lib)))
+          requests = requestsWithout(lib.requests, p, w))), lib))))
     .refines(accessRequestsAreAsks)
     .examples()(
       allows(withCatAsking, now, ann, cat, Target.Doc(plan), library.copy(shares = catViewsPlan :: library.shares), "Ann approves: Cat may view the plan"),
@@ -110,11 +110,11 @@ object AccessRequests:
           requests = requestsWithout(lib.requests, p, w))), lib))
   }
 
-  val declineContract = Node.contract(decline)("Someone who may edit a document or folder declines a person's request for it: the request goes. When anyone else asks, nothing changes.",
+  val declineContract = Node.contract("Someone who may edit a document or folder declines a person's request for it: the request goes. When anyone else asks, nothing changes.",
     why = "Q12: an editor may say no; the person may ask again.",
     idea = "Access requests"
-  )((lib, t, by, p, w, result) =>
-    result === mayEdit(lib, t, by, w).fold(lib.copy((requests = requestsWithout(lib.requests, p, w))), lib))
+  )(forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], p: Term[PersonId], w: Term[Target]) =>
+    decline(lib, t, by, p, w) === mayEdit(lib, t, by, w).fold(lib.copy((requests = requestsWithout(lib.requests, p, w))), lib)))
     .refines(accessRequestsAreAsks)
     .examples()(
       allows(withCatAsking, now, ann, cat, Target.Doc(plan), library, "Ann declines Cat's request"),
@@ -142,12 +142,12 @@ object AccessRequests:
 
   private val catAskedLongAgo = AccessRequest(cat, Target.Doc(plan), Level.View, now - 3 * day, false)
 
-  val chaseContract = Node.contract(chase)("Housekeeping chases the access requests at a moment: a request no longer pending is declined (it goes, and the person is told); a pending one due a reminder, not reminded yet, is marked reminded and the owner of each document it is for is told. Everything else stays as it was.",
+  val chaseContract = Node.contract("Housekeeping chases the access requests at a moment: a request no longer pending is declined (it goes, and the person is told); a pending one due a reminder, not reminded yet, is marked reminded and the owner of each document it is for is told. Everything else stays as it was.",
     why = "Q12: a reminder after 48 hours, once; declined automatically after 7 days. The notices go to the outbox with the change, so they are sent once it is saved (Q13).",
     idea = "Access requests"
-  )((lib, t, result) =>
-    result === lib.copy((requests = lib.requests.filter(r => isPending(r, t)).map(r => chased(r, t)),
-      outbox = lib.outbox ++ chaseNotices(lib, t))))
+  )(forall((lib: Term[Library], t: Term[BigInt]) =>
+    chase(lib, t) === lib.copy((requests = lib.requests.filter(r => isPending(r, t)).map(r => chased(r, t)),
+      outbox = lib.outbox ++ chaseNotices(lib, t)))))
     .refines(accessRequestsAreAsks)
     .examples()(
       allows(withCatAsking, now, withCatAsking, "asked a day ago: nothing to do"),

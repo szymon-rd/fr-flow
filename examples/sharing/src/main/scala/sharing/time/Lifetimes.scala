@@ -50,10 +50,10 @@ object Lifetimes:
   // in force, open, gone
   // ---------------------------------------------------------------------------
 
-  val inForceContract = Node.contract(inForce)("A share is in force while now is before its end; a share with no end is always in force.",
+  val inForceContract = Node.contract("A share is in force while now is before its end; a share with no end is always in force.",
     why = "Q6: a share may be given until a time; from that time on it gives no access, whether or not housekeeping has removed it yet, because access reads the clock.",
     idea = "Expiring shares"
-  )((s, t, result) => result === s.until.fold(True)(end => t < end))
+  )(forall((s: Term[Share], t: Term[BigInt]) => inForce(s, t) === s.until.fold(True)(end => t < end)))
     .leftOpenAbove
     .refines(Deadlines.endedStaysEnded)
     .examples()(
@@ -64,10 +64,10 @@ object Lifetimes:
 
   val inForceCode = define { (s: Term[Share], t: Term[BigInt]) => s.until.fold(True)(end => t < end) }
 
-  val isOpenContract = Node.contract(isOpen)("An invitation is open from its sending until 7 days after; then it has lapsed.",
+  val isOpenContract = Node.contract("An invitation is open from its sending until 7 days after; then it has lapsed.",
     why = "Q7: an invitation lapses after 7 days. Accepting it removes it, so an accepted invitation is no longer pending at all.",
     idea = "Invitations"
-  )((i, t, result) => result === (t < i.sent + invitationLasts))
+  )(forall((i: Term[Invitation], t: Term[BigInt]) => isOpen(i, t) === (t < i.sent + invitationLasts)))
     .leftOpenAbove
     .refines(sharing.invitations.Invitations.invitationsAreOffers, Deadlines.invitationsLapseOnTime, Deadlines.endedStaysEnded)
     .examples()(
@@ -78,10 +78,10 @@ object Lifetimes:
 
   val isOpenCode = define { (i: Term[Invitation], t: Term[BigInt]) => t < i.sent + invitationLasts }
 
-  val goneContract = Node.contract(gone)("A document in the trash is gone 30 days after it was put there; a document not in the trash is never gone.",
+  val goneContract = Node.contract("A document in the trash is gone 30 days after it was put there; a document not in the trash is never gone.",
     why = "Q8: the trash keeps a document for 30 days, during which it can be restored; after that it is purged.",
     idea = "Trash"
-  )((doc, t, result) => result === doc.trashed.fold(False)(at => at + trashKeeps <= t))
+  )(forall((doc: Term[Document], t: Term[BigInt]) => gone(doc, t) === doc.trashed.fold(False)(at => at + trashKeeps <= t)))
     .leftOpenAbove
     .refines(sharing.trash.Trash.trashUntilGone, Deadlines.trashPurgedOnTime, Deadlines.endedStaysEnded)
     .examples()(
@@ -94,10 +94,10 @@ object Lifetimes:
 
   private val catAsks = AccessRequest(cat, Target.Doc(plan), Level.View, now - day, false)
 
-  val pendingContract = Node.contract(isPending)("An access request is pending from when it is made until 7 days after; then it has lapsed.",
+  val pendingContract = Node.contract("An access request is pending from when it is made until 7 days after; then it has lapsed.",
     why = "Q12: a request nobody answers is declined automatically after 7 days.",
     idea = "Access requests"
-  )((r, t, result) => result === (t < r.asked + requestLasts))
+  )(forall((r: Term[AccessRequest], t: Term[BigInt]) => isPending(r, t) === (t < r.asked + requestLasts)))
     .leftOpenAbove
     .refines(sharing.requests.AccessRequests.accessRequestsAreAsks, Deadlines.requestsAnsweredOnTime)
     .examples()(
@@ -107,10 +107,10 @@ object Lifetimes:
 
   val isPendingCode = define { (r: Term[AccessRequest], t: Term[BigInt]) => t < r.asked + requestLasts }
 
-  val reminderDueContract = Node.contract(reminderDue)("The owner is due a reminder of an access request from 48 hours after it is made.",
+  val reminderDueContract = Node.contract("The owner is due a reminder of an access request from 48 hours after it is made.",
     why = "Q12: a reminder after 48 hours, so a request is not forgotten; once reminded, never again (ChaseContract).",
     idea = "Access requests"
-  )((r, t, result) => result === (r.asked + remindAfter <= t))
+  )(forall((r: Term[AccessRequest], t: Term[BigInt]) => reminderDue(r, t) === (r.asked + remindAfter <= t)))
     .leftOpenAbove
     .refines(sharing.requests.AccessRequests.accessRequestsAreAsks, Deadlines.requestsAnsweredOnTime)
     .examples()(
