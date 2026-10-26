@@ -5,7 +5,7 @@ import frflow.protocol.*
 import io.circe.Json
 import java.time.Instant
 
-/** Snapshots written by hand, for the pure tests: a root `R`, its part `A`, and `A`'s part `B`. */
+/** Snapshots written by hand, for the ledger's tests: a root `R`, its part `A`, and `A`'s part `B`. */
 object Dag:
   def str(s: String): Json = Json.fromString(s)
   private def strs(xs: List[String]): Json = Json.fromValues(xs.map(str))

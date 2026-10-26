@@ -58,7 +58,7 @@ object Contents:
 
   private val Statement = """^\s*(?:(?:private|protected|final|lazy|override|inline)\s+)*(?:val|def|given|var)\b.*""".r
 
-  /** The top-level definition at `at`, with every call chained on it: what is decided is what is written, nothing hidden. */
+  /** The top-level definition at `at`, with every call chained on it: the text the developer decides. */
   def definition(text: String, at: Int): String =
     val lines = text.split("\n", -1).toList
     val starts = lines.scanLeft(0)(_ + _.length + 1)

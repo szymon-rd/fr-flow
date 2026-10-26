@@ -25,7 +25,7 @@ object Proofs:
     a.nodes.nonEmpty && a.idea.forall(_.state == ReviewState.Accepted) &&
       a.gone.isEmpty && a.nodes.forall(r => r.state == ReviewState.Accepted && unproven(r.node).isEmpty)
 
-  /** What of a node is not proven or fails: the one list `status` uses. */
+  /** What of a node is not proven or fails, as `status` lists it. */
   def unproven(n: SnapNode): List[String] =
     def fine(s: ObligationStatus) = s == ObligationStatus.Proven
     val (ok, total) = n.examplesPassing

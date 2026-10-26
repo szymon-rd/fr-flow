@@ -4,7 +4,7 @@ package ledger
 import frflow.protocol.*
 import Dag.*
 
-/** What the developer reads, as typed values. */
+/** What the developer reads: the decisions waiting, whether the project is complete, where a change belongs, what is not proven. */
 class ReportsSuite extends munit.FunSuite:
 
   private val c = node("C", "Each shelf is labelled.", parents = List("A", "R"))
