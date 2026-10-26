@@ -14,8 +14,12 @@ object ReportText:
     val status = if c.status != CheckStatus.Proven || c.ok then c.status else if c.notProven.isEmpty then CheckStatus.Failed else CheckStatus.Open
     val notProven = if status != c.status && c.notProven.nonEmpty then s" (${c.notProven.mkString(", ")} not proven)" else ""
     val glyph = if c.ok then st.proven else if status == CheckStatus.Failed || c.failing.nonEmpty then st.failed else st.open
+    // Examples Lean cannot evaluate are said once, with why; they run in Scala all the same.
+    val (unevaluated, rest) = c.problems.partition(r => r.name.isEvaluation && r.status == ObligationStatus.Unevaluated)
+    val notEvaluated = Option.when(unevaluated.nonEmpty)(
+      s"${unevaluated.size} example(s) not evaluated: ${unevaluated.map(r => why(r.detail)).distinct.mkString("; ")}")
     // One obligation left: what it says is the node's line, its name left out; several are listed by name.
-    val (head, problems) = c.problems match
+    val (head, problems) = rest match
       case List(r) =>
         val ls = r.detail.linesIterator.toList
         (ls.headOption.filter(_.trim.nonEmpty).getOrElse(s"$status$notProven"), ls.drop(1) match { case Nil => Nil; case rest => List("  " + rest.mkString("\n    ")) })
@@ -33,9 +37,14 @@ object ReportText:
       (Option.when(c.failing.nonEmpty)(st.red(s"${c.failing.size} example(s) fail: the code or the contract is wrong; fix that, not the proof")).toList ++
         c.failing.take(5).map(f => s"  ${f.example}: ${f.verdict}") ++
         c.testFailure.filter(_ => moved.isEmpty).toList.map(f => st.red(f.said(c.id.value, contractChanged = false))) ++
-        problems ++
+        problems ++ notEvaluated ++
         c.idle.map(i => st.red(s"! doing nothing meets it ($i): state what users can do, so it says exactly what the system does (status fails until then)")) ++
         (c.messages ++ c.hint).map(m => s"! ${m.linesIterator.mkString("\n    ")}")).map("  " + _)
+
+  /** Why an example is not evaluated, from `example 1 (note): why`. */
+  private def why(detail: String): String =
+    val at = detail.lastIndexOf("): ")
+    if at < 0 then detail else detail.drop(at + 3)
 
   /** A model's implementations, when their runs give what the model gives. */
   private def matches(m: ModelRuns): String =
