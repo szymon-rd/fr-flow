@@ -70,7 +70,6 @@ val requests = Node.claim("A user has access to a path when some request for it 
 val tokenNamesHolder = Node.claim("A request is admitted only on behalf of the user its token was issued to.")(
   forall((t: Term[String], p: Term[Path]) => admit(t, p).fold(True)(u => issuedTo(t, u))))
   .refines(accessExactly)
-  .assuming(tokensIssuedOnce)
 
 val accessNeedsGrant = Node.claim(
     "A request is admitted on behalf of a user only if a grant names that user and the path.")(
@@ -82,7 +81,6 @@ val grantLetsIn = Node.claim(
   forall((t: Term[String], p: Term[Path]) => sessions.open.forall(s => s.token === t implies
     (grantFor(s.user, p) implies (admit(t, p) === some(s.user))))))
   .refines(accessExactly)
-  .assuming(tokensIssuedOnce)
 
 // ============================================================================
 // What every call of the decision must satisfy
@@ -94,7 +92,6 @@ val decisionContract = Node.claim("A request is admitted on behalf of the user i
     admit(token, path) === sessions.open.foldLeft(none[UserId])((found, s) =>
       when(s.token === token && grantFor(s.user, path))(some(s.user)).otherwise(found))))
   .refines(tokenNamesHolder, accessNeedsGrant, grantLetsIn)
-  .assuming(tokensIssuedOnce)
 
 // ============================================================================
 // A design decision: how the service runs

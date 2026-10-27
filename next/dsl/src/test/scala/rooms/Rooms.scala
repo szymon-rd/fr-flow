@@ -56,19 +56,19 @@ val bookWhenFree = Node.claim("A request is stored exactly when its room is free
     val stored = storedBookings.in(before)
     book(request).from(before) { (_, after) =>
       storedBookings.in(after) === when(free(stored, asked(request)))(stored :+ asked(request)).otherwise(stored) }))
-  .assuming(tableMatchesModel, oneAtATime)
+  .assuming(tableMatchesModel, oneAtATime, requestsEndAfterStart)
 
 val answerWhenFree = Node.claim("A request is answered booked exactly when its room is free for its whole time.")(
   forall((request: Term[Request], before: Term[World]) =>
     book(request).from(before) { (booked, _) => booked === free(storedBookings.in(before), asked(request)) }))
-  .assuming(tableMatchesModel, oneAtATime)
+  .assuming(tableMatchesModel, oneAtATime, requestsEndAfterStart)
 
 val endsAfterStart = Node.claim("Every booking ends after it starts.")(always[Booking](b => b.start < b.end))
   .assuming(requestsEndAfterStart, tableMatchesModel, oneAtATime, startsEmpty, onlyBookingWrites)
 
 val neverOverlap = Node.claim("The bookings stored never overlap.")(
   always(storedBookings)(stored => stored.pairwise(apart)))
-  .assuming(tableMatchesModel, onlyBookingWrites, oneAtATime, startsEmpty)
+  .assuming(tableMatchesModel, onlyBookingWrites, oneAtATime, startsEmpty, requestsEndAfterStart)
 
 // What booking's code calls: the calendar, given a room's bookings.
 val bookingsOfTheRoom = Node.claim("A room's bookings are all of that room.")(

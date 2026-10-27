@@ -18,12 +18,14 @@ class CheckingSuite extends munit.FunSuite:
   private def checking(n: String): List[Checking] = Checking.of(t, NodeId(n))
   private val (book, held) = (SymbolName("book"), ModelName("storedBookings"))
 
-  test("the root: proven of book's program, assumed by its callers, resting on the table's model, one run at a time") {
+  test("the root: proven of book's program, assumed by its callers, resting on the table's model, one run at a " +
+    "time, and on what the booking form sends") {
     assertEquals(checking("bookWhenFree"), List(
       Checking.AgainstCode(book, Code.ProvenFlow(DefName("bookIfGranted"))),
       Checking.AssumedByCallers(List(book)),
       Checking.RestsOn(Premise.BehavesAs(held), Some(NodeId("tableMatchesModel"))),
-      Checking.RestsOn(Premise.OneRunAtATime(held), Some(NodeId("oneAtATime")))))
+      Checking.RestsOn(Premise.OneRunAtATime(held), Some(NodeId("oneAtATime"))),
+      Checking.RestsOn(Premise.FromOutside(Ty.Data(TypeName("Request"))), Some(NodeId("requestsEndAfterStart")))))
   }
 
   test("the calendar's claim: tested against granted's Scala, call by call, consistent by its witness") {
