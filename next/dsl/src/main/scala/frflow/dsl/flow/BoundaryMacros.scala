@@ -1,11 +1,11 @@
 package frflow.dsl.flow
 
-import cats.{Functor, Id}
+import cats.{Functor, Id, MonadThrow}
 import cats.syntax.all.*
 import frflow.core.expr.Binder
 import frflow.core.name.{BoundaryName, OpName, VarId}
 import frflow.core.ty.Ty
-import frflow.core.vocab.{ModelOp, OpSig}
+import frflow.core.vocab.{Fails, ModelOp, OpSig}
 import frflow.dsl.build.Declarations
 import frflow.dsl.flow.BoundaryTrait.Op
 import frflow.dsl.term.{LeanType, Term}
@@ -26,8 +26,8 @@ object BoundaryMacros:
         def recording(name: BoundaryName): B[Recorded, Term] = ${ recorded[B](read, 'name) }
         def call[F[_]: Functor](adapter: B[F, Id], op: OpName, args: List[Any]): F[Any] =
           ${ called[B, F](read, 'adapter, 'op, 'args) }
-        def lifted[F[_]: Functor](adapter: B[F, Id], values: Terms): B[F, Term] =
-          ${ liftedOf[B, F](read, 'adapter, 'values) }
+        def lifted[F[_]: MonadThrow](adapter: B[F, Id], values: Terms, fails: Option[Fails]): B[F, Term] =
+          ${ liftedOf[B, F](read, 'adapter, 'values, 'fails) }
         def model(instance: B[Recorded, Term]): List[ModelOp] = ${ modelled[B](read, 'instance) }
     }
 
@@ -65,20 +65,33 @@ object BoundaryMacros:
         '{ if $op.value == ${ Expr(o.name) } then $one else $rest }
     }
 
-  /** The adapter as programs call it: each argument its term's value, each result its value's term. */
-  private def liftedOf[B[_[_], _[_]]: Type, F[_]: Type](ops: List[Op], adapter: Expr[B[F, Id]], values: Expr[Terms])(
-      using q: Quotes): Expr[B[F, Term]] =
+  /** The adapter as programs call it: each argument its term's value, evaluated in `F` before the call; the call,
+    * its failures as the boundary says it fails (`BoundaryOps.failures`); each result its value's term.
+    */
+  private def liftedOf[B[_[_], _[_]]: Type, F[_]: Type](ops: List[Op], adapter: Expr[B[F, Id]], values: Expr[Terms],
+      fails: Expr[Option[Fails]])(using q: Quotes): Expr[B[F, Term]] =
     import q.reflect.asTerm
-    val functor = summonOrAbort[Functor[F]]
+    val monad = summonOrAbort[MonadThrow[F]]
     BoundaryInstance.of[B, F, Term](ops) { (o, args) =>
-      val plain = o.params.map(_._2).zip(args).map((ty, t) => ty match
-        case '[a] => '{ $values.value[a](${ t.asExprOf[Term[a]] }) })
+      def call[R: Type](plain: List[Expr[Any]]): Expr[F[R]] = '{ BoundaryOps.failures[F, R]($fails, $values.fail)(
+        $monad.flatten($monad.catchNonFatal(${ invoke[F[R]](adapter, o, plain) })))(using $monad) }
+      def deferred[R: Type](e: Expr[F[R]]): q.reflect.Term = '{ $monad.flatMap($monad.unit)(_ => $e) }.asTerm
+      val typedArgs = o.params.map(_._2).zip(args.map(_.asExpr))
       o.result match
-        case Some('[r]) =>
-          '{ $functor.map(${ invoke[F[r]](adapter, o, plain) })(x => $values.term[r](x)(using ${ typed[r] })) }
-            .asTerm
-        case _ => invoke[F[Unit]](adapter, o, plain).asTerm
+        case Some('[r]) => deferred(evaluated[F, Term[r]](monad, values, typedArgs, Nil)(plain =>
+          '{ $monad.map(${ call[r](plain) })(x => $values.term[r](x)(using ${ typed[r] })) }))
+        case _ => deferred(evaluated[F, Unit](monad, values, typedArgs, Nil)(call[Unit]))
     }
+
+  /** Each argument's value, in `F`, one after the other, and then `k` of them. */
+  private def evaluated[F[_]: Type, R: Type](monad: Expr[MonadThrow[F]], values: Expr[Terms],
+      args: List[(Type[?], Expr[Any])], done: List[Expr[Any]])(k: List[Expr[Any]] => Expr[F[R]])(using Quotes)
+      : Expr[F[R]] =
+    args match
+      case Nil             => k(done.reverse)
+      case (ty, t) :: rest => ty match
+        case '[a] => '{ $monad.flatMap($monad.catchNonFatal($values.value[a](${ t.asExprOf[Term[a]] })))((x: a) =>
+            ${ evaluated[F, R](monad, values, rest, 'x :: done)(k) }) }
 
   /** Each operation's steps on the model, from its parameters' variables (levels from 0, named as the trait names
     * them).

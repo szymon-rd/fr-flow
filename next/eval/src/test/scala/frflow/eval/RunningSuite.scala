@@ -3,7 +3,9 @@ package frflow.eval
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import frflow.core.code.Values
-import frflow.dsl.flow.Flow
+import frflow.dsl.flow.{Clock, Flow}
+import frflow.eval.flow.{PlainShelf, Shelf, Trouble}
+import java.io.IOException
 import frflow.dsl.term.{Lift, Term}
 import frflow.dsl.term.TermSyntax.*
 import scala.concurrent.duration.*
@@ -13,7 +15,9 @@ import scala.concurrent.duration.*
   */
 class RunningSuite extends munit.FunSuite:
   private def n(i: Int): Term[BigInt] = Lift.constant(BigInt(i))
-  private def running: IO[Running[IO]] = Running.make[IO](Values.none)
+  private val literals = Literals(Shelf.knowledge.elaborated.fold(es => throw AssertionError(es.iterator.mkString),
+    identity))
+  private def running: IO[Running[IO]] = Running.make[IO](Values.none, literals)
 
   /** The branch a condition picks, both its programs at once. */
   private def program[F[_]](f: Flow[F]): F[Term[(BigInt, BigInt)]] =
@@ -88,4 +92,40 @@ class RunningSuite extends munit.FunSuite:
     val ran = running.flatMap(run => run.handle[BigInt, Term[BigInt]](run.raise(Lift.constant("no")))(_ =>
       run.pure(n(7))).attempt)
     assertEquals(ran.unsafeRunSync().left.toOption.collect { case r: Raised => r.error.unwrap }, Some("no"))
+  }
+
+  /** A clock whose every call throws, as an adapter on a failing service does. */
+  private val broken = IOException("no clock")
+  private object Stopped extends Clock[IO, cats.Id]:
+    def now: IO[BigInt] = IO.raiseError(broken)
+    def sleep(seconds: BigInt): IO[Unit] = IO.raiseError(broken)
+
+  test("lifted: a failing boundary's adapter failure is the boundary's error, its cause kept") {
+    val ran = for
+      run    <- running
+      shelf  <- IO.ref(List.empty[BigInt])
+      faults <- IO.ref(List(true))
+      out    <- Shelf.shelf.lifted(PlainShelf(shelf, faults), run).items.attempt
+    yield out
+    ran.unsafeRunSync() match
+      case Left(r: Raised) => assertEquals((r.error.unwrap, r.ty, r.cause.map(_.getMessage)),
+          (Trouble.Down, summon[frflow.dsl.term.LeanType[Trouble]].ty, Some("the shelf is down")))
+      case other           => fail(s"not the boundary's error: $other")
+  }
+
+  test("lifted: a boundary that may not fail lets its adapter's exception escape unchanged") {
+    val ran = running.flatMap(run => Shelf.clock.lifted(Stopped, run).now.attempt)
+    assertEquals(ran.unsafeRunSync().left.toOption, Some(broken))
+  }
+
+  test("lifted: an argument with no value fails in F, not where the call is built, and is no boundary error") {
+    val unbound = frflow.dsl.vocab.Definition[BigInt]("a value nothing gives")
+    val ran = for
+      run    <- running
+      shelf  <- IO.ref(List.empty[BigInt])
+      faults <- IO.ref(List.empty[Boolean])
+      put     = Shelf.shelf.lifted(PlainShelf(shelf, faults), run).put(unbound)
+      out    <- put.attempt
+    yield out
+    assert(ran.unsafeRunSync().left.exists(_.isInstanceOf[NotEvaluated]))
   }

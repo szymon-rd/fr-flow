@@ -1,6 +1,7 @@
 package frflow.eval.flow
 
-import cats.effect.kernel.{Ref, Sync}
+import cats.MonadThrow
+import cats.effect.kernel.Ref
 import cats.syntax.all.*
 import frflow.core.name.{BoundaryName, ModelName, OpName}
 import frflow.core.vocab.{Fails, Vocabulary}
@@ -20,8 +21,8 @@ object World:
     * next of the faults, as Lean's `FrFlow.failing` does: `true` fails it with the boundary's error, changing
     * nothing else. What a program runs on in Scala, and what `ModelTests` compares an adapter with.
     */
-  def models[F[_]](semantics: Semantics, v: Vocabulary, states: Ref[F, Map[ModelName, ScalaValue]])(using F: Sync[F])
-      : World[F] = new World[F]:
+  def models[F[_]](semantics: Semantics, v: Vocabulary, states: Ref[F, Map[ModelName, ScalaValue]])(
+      using F: MonadThrow[F]): World[F] = new World[F]:
     self =>
     def read(m: ModelName): F[ScalaValue] =
       states.get.flatMap(_.get(m).liftTo[F](FlowError.NotEvaluated(EvalError.NoModel(m))))

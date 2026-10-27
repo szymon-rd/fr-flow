@@ -1,6 +1,7 @@
 package frflow.dsl.flow
 
 import cats.Id
+import frflow.core.vocab.Fails
 import frflow.core.expr.{Expr, Prog, Progs}
 import frflow.core.name.{BoundaryName, ModelName, OpName}
 import frflow.core.term.Stated
@@ -12,6 +13,8 @@ import frflow.dsl.term.TermSyntax.*
 
 /** The clock's operations, written by hand in the DSL's module (`ClockOps`), are what `derives BoundaryOps` writes. */
 class ClockOpsSuite extends munit.FunSuite:
+  private type Tried[A] = Either[Throwable, A]
+  private final case class Declared(fails: Fails, cause: Throwable) extends Exception("declared")
   private val derived: BoundaryOps[Clock] = BoundaryOps.derived[Clock]
   private val name = BoundaryName("clock")
 
@@ -32,8 +35,15 @@ class ClockOpsSuite extends munit.FunSuite:
     def now: BigInt = slept + BigInt(100)
     def sleep(seconds: BigInt): Unit = slept += seconds
 
-  /** Plain values and their terms, one way. */
+  /** A clock on plain values that may fail: a failed call is a `Left`. */
+  private final class Ticking(fail: Boolean) extends Clock[Tried, Id]:
+    var slept: BigInt = 0
+    def now: Tried[BigInt] = if fail then Left(java.io.IOException("no clock")) else Right(slept + BigInt(100))
+    def sleep(seconds: BigInt): Tried[Unit] = Right(slept += seconds)
+
+  /** Plain values and their terms, one way; an adapter's failure as the error it is declared with. */
   private final class Known extends Terms:
+    def fail(fails: Fails, cause: Throwable): Throwable = Declared(fails, cause)
     private val known = scala.collection.mutable.Map.empty[Term[?], Any]
     def value[A](t: Term[A]): A = known(t).asInstanceOf[A] // only terms made by `term` below, of type `A`
     def term[A: LeanType](a: A): Term[A] =
@@ -61,7 +71,20 @@ class ClockOpsSuite extends munit.FunSuite:
     assertEquals(ClockOps.call[Id](mine, OpName("sleep"), List(BigInt(5))),
       derived.call[Id](theirs, OpName("sleep"), List(BigInt(5))))
     assertEquals(ClockOps.call[Id](mine, OpName("now"), Nil), derived.call[Id](theirs, OpName("now"), Nil))
-    val known = Known()
-    ClockOps.lifted[Id](mine, known).sleep(known.term(BigInt(2)))
-    assertEquals(known.value(ClockOps.lifted[Id](mine, known).now), BigInt(107))
+    val (known, wall) = (Known(), Ticking(fail = false))
+    assertEquals(ClockOps.lifted[Tried](wall, known, None).sleep(known.term(BigInt(2))), Right(()))
+    assertEquals(ClockOps.lifted[Tried](wall, known, None).now.map(known.value), Right(BigInt(102)))
+    assertEquals(derived.lifted[Tried](wall, known, None).now.map(known.value), Right(BigInt(102)))
+  }
+
+  test("lifted: a failing boundary's adapter failure is its declared error; a non-failing one's escapes as it is") {
+    val (known, down) = (Known(), Ticking(fail = true))
+    val fails = Some(Fails(frflow.core.ty.Ty.Str, frflow.core.expr.Value.Str("down")))
+    List(ClockOps, derived).foreach { ops =>
+      assert(ops.lifted[Tried](down, known, fails).now.left.exists {
+        case Declared(f, cause) => fails.contains(f) && cause.getMessage == "no clock"
+        case _                  => false
+      })
+      assert(ops.lifted[Tried](down, known, None).now.left.exists(_.isInstanceOf[java.io.IOException]))
+    }
   }

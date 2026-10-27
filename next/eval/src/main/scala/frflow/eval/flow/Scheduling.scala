@@ -1,6 +1,7 @@
 package frflow.eval.flow
 
-import cats.effect.kernel.{Async, Sync}
+import cats.Monad
+import cats.effect.kernel.Async
 import cats.syntax.all.*
 
 /** How a recorded program's concurrent steps run in Scala: one after the other, as Lean reads them (the models), or
@@ -20,7 +21,7 @@ object Scheduling:
   /** Steps one after the other, as Lean reads them: a pair's left then right, a race won by its left (the right
     * never runs), a guarded body read as the finalizer after its result or before its error is raised again.
     */
-  def sequential[F[_]](using F: Sync[F]): Scheduling[F] = new Scheduling[F]:
+  def sequential[F[_]](using F: Monad[F]): Scheduling[F] = new Scheduling[F]:
     def both[A, B](fa: F[A], fb: F[B]): F[(A, B)] = fa.product(fb)
     def each[A, B](limit: Option[Int])(xs: List[A])(body: A => F[B]): F[List[B]] = xs.traverse(body)
     def race[A, B](fa: F[A], fb: F[B]): F[Either[A, B]] = fa.map(Left(_))

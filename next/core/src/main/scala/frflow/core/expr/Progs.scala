@@ -72,6 +72,15 @@ object Progs:
       case other                  => children(other).flatMap(go(_, caught))
     go(p, Set.empty).distinct
 
+  /** Whether a transaction holds another (`Atomic` inside `Atomic`). */
+  def nestsAtomic[E](p: Prog[E]): Boolean = all(p).exists {
+    case Prog.Atomic(body) => all(body).exists {
+        case Prog.Atomic(_) => true
+        case _              => false
+      }
+    case _                 => false
+  }
+
   /** The parallel steps (`parTupled`, `parTraverse`), in order: each gives a `commute_i` obligation. */
   def parallel[E](p: Prog[E]): List[Prog[E]] = all(p).filter {
     case Prog.Par(_, _, _, _) | Prog.ParEach(_, _, _, _) => true

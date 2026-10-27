@@ -27,6 +27,10 @@ object Steps:
         f.cond(held.length > 0)(f.raise(make[Trouble.TooBig](held.length)), f.pure(0)))))(_ =>
         f.as(s.put(9), 7)))
 
+  val otherType = Shelved[BigInt]("an error passes a handler of another type by, to its own type's", Nil,
+    ok(BigInt(2), Nil, 0))([F[_]] => (_: Shelf[F, Term], _: Clock[F, Term], f: Flow[F]) =>
+      f.handle[Trouble, Term[BigInt]](f.handle[String, Term[BigInt]](f.raise(down))(_ => f.pure(1)))(_ => f.pure(2)))
+
   val unhandled = Shelved[BigInt]("an error raised and not handled: the run fails with it", Nil,
     failed(Trouble.TooBig(1), List(3), 0))([F[_]] => (s: Shelf[F, Term], _: Clock[F, Term], f: Flow[F]) =>
       f.flatMap(s.put(3))(_ => f.flatMap(s.items)(held => f.raise[Trouble, Term[BigInt]](
@@ -53,5 +57,5 @@ object Steps:
       f.retry[Trouble, Term[BigInt]](c, List(1, 2))(f.as(s.put(5), 5)))
 
   val all: List[Shelved[?]] =
-    List(collectAndFold, eachAndCondition, handled, unhandled, attempted, failingCall, failingHandled, retried,
-      retriedOut)
+    List(collectAndFold, eachAndCondition, handled, otherType, unhandled, attempted, failingCall, failingHandled,
+      retried, retriedOut)

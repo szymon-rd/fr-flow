@@ -25,7 +25,7 @@ object CodeSyntax:
 
     /** What a program and its lifted adapters run with in production: `Running` over the values given. */
     def running[F[_]](bindings: Binding*)(using F: Async[F]): F[Flow[F] & Terms] =
-      F.defer(F.widen(Running.make[F](CodeSyntax.values(kb, bindings))))
+      F.defer(F.widen(Running.make[F](CodeSyntax.values(kb, bindings), Literals(elaborated(kb)))))
 
   /** Every Definition's meaning, and the values given, which win. */
   private def values(kb: KnowledgeBase, bindings: Seq[Binding]): Values =

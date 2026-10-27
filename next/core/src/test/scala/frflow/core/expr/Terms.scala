@@ -46,7 +46,7 @@ final class Terms(seed: Long):
     case _  => Tm.eq(booking(d - 1, k), booking(d - 1, k))
 
   /** Whether a list, an option or a set holds a value, or one meeting a rule. */
-  def held(d: Int, k: Int): Tm[Boolean] = r.nextInt(6) match
+  def held(d: Int, k: Int): Tm[Boolean] = r.nextInt(8) match
     case 0 => contains(nums(d - 1, k), num(d - 1, k))
     case 1 => isEmpty(nums(d - 1, k))
     case 2 => optionAll(opt(d - 1, k), bool(d - 1, k + 1))
@@ -54,7 +54,7 @@ final class Terms(seed: Long):
     case 4 => isDefined(opt(d - 1, k))
     case _ => member(set(d - 1, k), num(d - 1, k))
 
-  def num(d: Int, k: Int): Tm[BigInt] = if d <= 0 then numLeaf(k) else r.nextInt(11) match
+  def num(d: Int, k: Int): Tm[BigInt] = if d <= 0 then numLeaf(k) else r.nextInt(12) match
     case 0 => add(num(d - 1, k), num(d - 1, k))
     case 1 => sub(num(d - 1, k), num(d - 1, k))
     case 2 => cond(bool(d - 1, k), num(d - 1, k), num(d - 1, k))
@@ -63,7 +63,7 @@ final class Terms(seed: Long):
     case 5 => foldLeft(nums(d - 1, k), num(d - 1, k), num(d - 1, k + 2))
     case 6 => let(num(d - 1, k), num(d - 1, k + 1))
     case 7 => getOrElse(opt(d - 1, k), num(d - 1, k))
-    case 8 => getOrElseAt(table(d - 1, k), num(d - 1, k), num(d - 1, k))
+    case 8 | 11 => getOrElseAt(table(d - 1, k), num(d - 1, k), num(d - 1, k))
     case 9 => second(num(d - 1, k), num(d - 1, k))
     case _ => foldOption(opt(d - 1, k), num(d - 1, k), num(d - 1, k + 1))
 
@@ -83,9 +83,9 @@ final class Terms(seed: Long):
     case 3 => get(table(d - 1, k), num(d - 1, k))
     case _ => symbol("o", Ty.OptionOf(Lang.big))
 
-  def set(d: Int, k: Int): Tm[Set[BigInt]] = if d <= 0 then symbol("s", Ty.SetOf(Lang.big)) else r.nextInt(3) match
-    case 0 => incl(set(d - 1, k), num(d - 1, k))
-    case 1 => union(set(d - 1, k), set(d - 1, k))
+  def set(d: Int, k: Int): Tm[Set[BigInt]] = if d <= 0 then symbol("s", Ty.SetOf(Lang.big)) else r.nextInt(5) match
+    case 0 | 1 => incl(set(d - 1, k), num(d - 1, k))
+    case 2 | 3 => union(set(d - 1, k), set(d - 1, k))
     case _ => symbol("s", Ty.SetOf(Lang.big))
 
   /** A map of numbers to numbers. */

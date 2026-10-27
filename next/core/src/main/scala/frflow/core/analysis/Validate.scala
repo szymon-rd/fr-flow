@@ -4,7 +4,7 @@ import cats.data.{NonEmptyChain, Validated, ValidatedNec}
 import cats.syntax.all.*
 import frflow.core.{Elaborated, Failing, Theory}
 import frflow.core.code.Code
-import frflow.core.expr.{Expr, Exprs, PrimOp}
+import frflow.core.expr.{Expr, Exprs, PrimOp, Progs}
 import frflow.core.graph.Edge
 import frflow.core.name.{NodeId, SymbolName}
 import frflow.core.spec.{Node, NodeKind, Range}
@@ -104,8 +104,11 @@ object Validate:
       .flatMap((op, ty) => failingClause(t, n.id, op, ty)))
     val runs = t.nodes.map(_.node).filter(_.statement.said.exists(f => Failing.runsNoDefinition(f.value)))
       .map(n => Problem.RunOfNoDefinition(n.id))
+    val nested = t.vocabulary.defines.filter(d => d.form == DefineForm.Flow && (d.lambda.body match
+      case Expr.Do(p, _) => Progs.nestsAtomic(p)
+      case _             => false)).map(d => Problem.NestedAtomic(d.name))
     all(unclaimed.map(Problem.CodeWithoutClaim(_)) ++ Resolve.circles(t).map(Problem.RestsOnItself(_)) ++ runs ++
-      differing ++ clauses)
+      differing ++ clauses ++ nested)
 
   /** A failing run's clause on a program that cannot fail, or of another type than it fails with. */
   private def failingClause(t: Theory, id: NodeId, op: SymbolName, clause: Ty): Option[Problem] =

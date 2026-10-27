@@ -17,7 +17,7 @@ class CodeSyntaxSuite extends munit.FunSuite:
   private def booked(requests: List[Request]): (List[Boolean], List[Booking]) = (for
     run    <- rooms.rooms.running[IO]()
     held   <- IO.ref(List(Booking("Oak", 9, 10)))
-    table   = summon[BoundaryOps[BookingTable]].lifted(Memory(held), run)
+    table   = rooms.bookingTable.lifted(Memory(held), run)
     asked  <- IO.parTraverseN(1)(requests)(r => BookIfGranted[IO](table)(using run).run(run.term(r)).map(run.value))
     stored <- held.get
   yield (asked, stored)).unsafeRunSync()

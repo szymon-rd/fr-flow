@@ -1,11 +1,11 @@
 package rooms
 
-import cats.{Functor, Id}
+import cats.{Functor, Id, MonadThrow}
 import cats.syntax.all.*
 import frflow.core.expr.Binder
 import frflow.core.name.{BoundaryName, OpName, VarId}
 import frflow.core.ty.Ty
-import frflow.core.vocab.{ModelOp, OpSig}
+import frflow.core.vocab.{Fails, ModelOp, OpSig}
 import frflow.dsl.build.Declarations
 import frflow.dsl.flow.{BoundaryOps, ReadRecording, Recorded, Terms}
 import frflow.dsl.flow.Recording.given
@@ -27,10 +27,12 @@ object HandWrittenOps extends BoundaryOps[BookingTable]:
     case ("inRoom", List(room: String))  => adapter.inRoom(room).widen
     case ("add", List(booking: Booking)) => adapter.add(booking).widen
     case _                               => throw IllegalArgumentException(s"no ${op.value} on BookingTable")
-  def lifted[F[_]: Functor](adapter: BookingTable[F, Id], values: Terms): BookingTable[F, Term] =
-    new BookingTable[F, Term]:
-      def inRoom(room: Term[String]): F[Term[RoomBookings]] = adapter.inRoom(values.value(room)).map(values.term(_))
-      def add(booking: Term[Booking]): F[Unit] = adapter.add(values.value(booking))
+  def lifted[F[_]](adapter: BookingTable[F, Id], values: Terms, fails: Option[Fails])(using F: MonadThrow[F])
+      : BookingTable[F, Term] = new BookingTable[F, Term]:
+    def inRoom(room: Term[String]): F[Term[RoomBookings]] = F.catchNonFatal(values.value(room)).flatMap(r =>
+      BoundaryOps.failures(fails, values.fail)(F.unit.flatMap(_ => adapter.inRoom(r)))).map(values.term(_))
+    def add(booking: Term[Booking]): F[Unit] = F.catchNonFatal(values.value(booking)).flatMap(b =>
+      BoundaryOps.failures(fails, values.fail)(F.unit.flatMap(_ => adapter.add(b))))
   def model(instance: BookingTable[Recorded, Term]): List[ModelOp] =
     val (room, b) = (Binder(VarId.level(0), "room", Ty.Str), Binder(VarId.level(0), "booking", booking))
     List(ModelOp(OpName("inRoom"), List(room), ReadRecording.steps(instance.inRoom(Term.free(room)))._1),
