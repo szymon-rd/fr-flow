@@ -1,6 +1,6 @@
 package frflow.core.analysis
 
-import frflow.core.{Kb, Lang}
+import frflow.core.{Kb, Lang, Store}
 import frflow.core.Nodes.*
 import frflow.core.code.Code
 import frflow.core.expr.{Binder, Value}
@@ -38,8 +38,11 @@ object ValueCases:
     .linking(partOf("aboutFree", "top"), partOf("stray", "top"))
 
   val all: List[ProblemCase] = List(
-    ProblemCase(Kb.of(root).declaring(_.copy(sorts = List(Sort(TypeName("World"), "a world")))),
-      List(Problem.ReservedName("World"))),
+    ProblemCase(Kb.of(root).naming(declaration("get", test))
+      .declaring(v => v.copy(sorts = List(Sort(TypeName("World"), "a world")), defines = List(calling("Obl", "get")),
+        boundaries = List(Store.sig.copy(className = "StateM")))),
+      List(Problem.ReservedName("World"), Problem.ReservedName("get"), Problem.ReservedName("Obl"),
+        Problem.ReservedName("StateM"))),
     ProblemCase(Kb.of(root).naming(declaration("access", test), declaration("access", test)),
       List(Problem.DeclaredTwice("access"))),
     ProblemCase(Kb.of(connected).naming(codeOnly("connection")).coding(name("connection") -> Code.Provided),
