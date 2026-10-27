@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "checks": {
+    "Book": {
+      "key": "77aa01",
+      "status": "failed",
+      "results": [
+        {
+          "name": "impl",
+          "status": "open",
+          "messages": [
+            {
+              "file": "Proofs/Rooms/Book.lean",
+              "line": 12,
+              "error": true,
+              "message": "unsolved goals"
+            }
+          ]
+        }
+      ],
+      "findings": [
+        {
+          "kind": "proof-not-allowed",
+          "what": [
+            {
+              "line": 3,
+              "rule": {
+                "kind": "native-decide"
+              }
+            },
+            {
+              "line": 5,
+              "rule": {
+                "kind": "import",
+                "module": "Mathlib.Tactic"
+              }
+            }
+          ]
+        },
+        {
+          "kind": "disallowed-axioms",
+          "axioms": [
+            "sorryAx"
+          ]
+        }
+      ],
+      "at": "2026-10-03T08:00:00Z"
+    },
+    "Free": {
+      "key": "90bc12",
+      "status": "failed",
+      "results": [
+        {
+          "name": "clash",
+          "status": "shown",
+          "messages": []
+        },
+        {
+          "name": "restates_2_Root",
+          "status": "not-shown",
+          "messages": []
+        }
+      ],
+      "findings": [
+        {
+          "kind": "refuted",
+          "tries": [
+            "clash"
+          ]
+        },
+        {
+          "kind": "not-proven",
+          "errors": [
+            {
+              "file": "Proofs/Rooms/Book.lean",
+              "line": 12,
+              "error": true,
+              "message": "unsolved goals"
+            }
+          ]
+        },
+        {
+          "kind": "lean-timed-out"
+        }
+      ],
+      "at": "2026-10-03T08:00:00Z"
+    },
+    "Root": {
+      "key": "4e1f0c",
+      "status": "proven",
+      "results": [
+        {
+          "name": "complete",
+          "status": "proven",
+          "messages": []
+        },
+        {
+          "name": "cover_add",
+          "status": "proven",
+          "messages": []
+        },
+        {
+          "name": "needed_Free",
+          "status": "not-shown",
+          "messages": []
+        },
+        {
+          "name": "satisfiable_1_Root",
+          "status": "shown",
+          "messages": []
+        }
+      ],
+      "findings": [],
+      "at": "2026-10-03T08:00:00Z"
+    }
+  }
+}

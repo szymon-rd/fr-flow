@@ -1,0 +1,235 @@
+{
+  "version": 1,
+  "tests": {
+    "Book": {
+      "key": "a1b2c3",
+      "cases": 500,
+      "seed": 42,
+      "against": {
+        "kind": "claim",
+        "node": "Book"
+      },
+      "failure": {
+        "kind": "call",
+        "inputs": [
+          {
+            "kind": "many",
+            "elems": [
+              {
+                "kind": "data",
+                "ctor": "mk",
+                "fields": [
+                  {
+                    "kind": "str",
+                    "value": "Oak"
+                  },
+                  {
+                    "kind": "num",
+                    "value": 9
+                  },
+                  {
+                    "kind": "num",
+                    "value": 10
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "data",
+            "ctor": "mk",
+            "fields": [
+              {
+                "kind": "str",
+                "value": "Oak"
+              },
+              {
+                "kind": "num",
+                "value": 9
+              },
+              {
+                "kind": "num",
+                "value": 11
+              }
+            ]
+          }
+        ],
+        "givens": [
+          {
+            "symbol": "rooms",
+            "value": {
+              "kind": "pairs",
+              "entries": [
+                {
+                  "key": {
+                    "kind": "str",
+                    "value": "Oak"
+                  },
+                  "value": {
+                    "kind": "maybe",
+                    "elem": {
+                      "kind": "num",
+                      "value": 4
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "broke": {
+          "kind": "always",
+          "node": "NoOverlap"
+        },
+        "from": {
+          "seed": 42,
+          "index": 17,
+          "size": 3
+        }
+      },
+      "unreached": [
+        1
+      ],
+      "made": [
+        {
+          "type": {
+            "kind": "list",
+            "elem": {
+              "kind": "data",
+              "name": "Booking"
+            }
+          },
+          "says": "bookings on one day"
+        },
+        {
+          "type": {
+            "kind": "map",
+            "key": {
+              "kind": "str"
+            },
+            "value": {
+              "kind": "num",
+              "num": "int32"
+            }
+          }
+        }
+      ]
+    },
+    "Free": {
+      "key": "070809",
+      "cases": 100,
+      "seed": 1,
+      "against": {
+        "kind": "define",
+        "define": "free"
+      },
+      "unreached": [],
+      "made": [
+        {
+          "type": {
+            "kind": "tuple",
+            "elems": [
+              {
+                "kind": "either",
+                "error": {
+                  "kind": "bool"
+                },
+                "value": {
+                  "kind": "unit"
+                }
+              },
+              {
+                "kind": "option",
+                "elem": {
+                  "kind": "set",
+                  "elem": {
+                    "kind": "world"
+                  }
+                }
+              },
+              {
+                "kind": "fn",
+                "params": [
+                  {
+                    "kind": "never"
+                  }
+                ],
+                "result": {
+                  "kind": "str"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "Store": {
+      "key": "d4e5f6",
+      "cases": 200,
+      "seed": -7,
+      "against": {
+        "kind": "model",
+        "node": "Store",
+        "realization": 0
+      },
+      "failure": {
+        "kind": "run",
+        "start": {
+          "kind": "world",
+          "states": [
+            {
+              "model": "stored",
+              "state": {
+                "kind": "many",
+                "elems": []
+              }
+            }
+          ],
+          "faults": [
+            false,
+            true
+          ]
+        },
+        "steps": [
+          {
+            "boundary": "Bookings",
+            "op": "add",
+            "args": [
+              "Booking(Oak,9,10)"
+            ]
+          }
+        ],
+        "difference": {
+          "kind": "answer",
+          "step": {
+            "boundary": "Bookings",
+            "op": "list",
+            "args": []
+          },
+          "implementation": "List()",
+          "model": "List(Booking(Oak,9,10))"
+        },
+        "from": {
+          "seed": -7,
+          "index": 2,
+          "size": 1
+        }
+      },
+      "unreached": [],
+      "made": [
+        {
+          "type": {
+            "kind": "flow",
+            "result": {
+              "kind": "unit"
+            },
+            "error": {
+              "kind": "sort",
+              "name": "Fault"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

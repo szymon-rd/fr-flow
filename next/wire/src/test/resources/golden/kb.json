@@ -1,0 +1,134 @@
+{
+  "version": 1,
+  "kb": "Rooms",
+  "roots": [
+    "Root"
+  ],
+  "trusted": [
+    "StoreBehaves"
+  ],
+  "vocabulary": [
+    {
+      "name": "free",
+      "means": "no booking overlaps the request"
+    }
+  ],
+  "nodes": [
+    {
+      "header": {
+        "id": "Book",
+        "kind": "claim",
+        "hash": "9f8e7d",
+        "content": {
+          "kind": "claim",
+          "parts": [],
+          "statement": "Booking a free room books it."
+        }
+      },
+      "place": {
+        "parents": [
+          "Root"
+        ],
+        "parts": [],
+        "assumes": [
+          "StoreBehaves"
+        ],
+        "relies": [
+          "free"
+        ],
+        "keptBy": []
+      },
+      "check": {
+        "status": "open",
+        "holds": "∀ b, book b",
+        "obligations": [
+          {
+            "name": "impl",
+            "status": "open",
+            "statement": "theorem impl : Obl.impl"
+          }
+        ]
+      },
+      "body": {
+        "kind": "stated",
+        "checking": [
+          "as a call of book"
+        ],
+        "call": "book",
+        "code": {
+          "proven": [
+            "free"
+          ],
+          "tested": [
+            "plain"
+          ],
+          "assumed": []
+        },
+        "tested": {
+          "cases": 500,
+          "seed": 42,
+          "against": "claim Book",
+          "failed": true
+        }
+      }
+    },
+    {
+      "header": {
+        "id": "Store",
+        "kind": "design",
+        "hash": "1a2b3c",
+        "content": {
+          "implementations": {
+            "store": "Store.scala"
+          }
+        }
+      },
+      "place": {
+        "parents": [
+          "Root"
+        ],
+        "parts": [],
+        "assumes": [],
+        "relies": [],
+        "keptBy": [
+          "bookings"
+        ]
+      },
+      "check": {
+        "status": "proven",
+        "holds": "",
+        "obligations": []
+      },
+      "body": {
+        "kind": "design",
+        "governs": [
+          "Store.scala"
+        ]
+      }
+    }
+  ],
+  "consistency": [
+    {
+      "statements": [
+        "Book"
+      ],
+      "open": [
+        "free"
+      ],
+      "provided": [
+        "rooms"
+      ],
+      "witnesses": [
+        "free: the equation of Book"
+      ],
+      "standing": "witnessed"
+    }
+  ],
+  "examples": [
+    {
+      "name": "Oak at ten",
+      "onClaims": "proven",
+      "onCode": "holds"
+    }
+  ]
+}
