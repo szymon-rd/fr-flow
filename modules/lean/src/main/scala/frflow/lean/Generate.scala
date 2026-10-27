@@ -3,10 +3,10 @@ package lean
 
 import frflow.protocol.ObligationName
 
-/** The Lean of a knowledge base (docs/DAG.md §3), put together from its parts. `authored` are the
+/** The Lean of a FrModel (docs/DAG.md §3), put together from its parts. `authored` are the
   * (node, obligation) its proof files prove; `chosen`, the definitions decided among alternatives.
   */
-final class Generate(kb: KnowledgeBase, authored: Set[(String, ObligationName)] = Set.empty, chosen: String => Boolean = _ => false):
+final class Generate(kb: FrModel, authored: Set[(String, ObligationName)] = Set.empty, chosen: String => Boolean = _ => false):
   val layout: Layout = Layout(kb.name)
   val vocabulary: Vocabulary = Vocabulary(kb, chosen)
   val refinement: Refinement = Refinement(kb, vocabulary)
@@ -17,7 +17,7 @@ final class Generate(kb: KnowledgeBase, authored: Set[(String, ObligationName)] 
   val boundaryModules: BoundaryModules = BoundaryModules(kb, layout, vocabulary, vocabularyModules)
   private val nodeModules = NodeModules(kb, layout, refinement, vocabularyModules, asked, evaluated)
   private val proofFiles = ProofFiles(kb, layout, refinement)
-  /** What the knowledge base as a whole is asked (docs/DAG.md §3a). */
+  /** What the FrModel as a whole is asked (docs/DAG.md §3a). */
   val witnessing: Witnessing = Witnessing(kb, refinement, layout, vocabularyModules)
   export vocabulary.{inForce, undecided, term, waitsForDefinition}
   export refinement.{formal, splitParts, formalKeeps, provenImpl, claim, callees, reliedOn, calls, leaves, holdsStatement, trusted, witnessed}
@@ -62,6 +62,6 @@ object Generate:
   /** A try is one-sided and cheap; the root's `idle` runs at Lean's default: at this it gives up on the CRM's root. */
   val TryHeartbeats = 4000
 
-  def problems(kb: KnowledgeBase): List[String] =
+  def problems(kb: FrModel): List[String] =
     (kb.params.map(_.name) ++ kb.opaques.map(_.name)).distinct.filter(reserved)
       .map(n => s"parameter or opaque type $n: the name is reserved in generated Lean")

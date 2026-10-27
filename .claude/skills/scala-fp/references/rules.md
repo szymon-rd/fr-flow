@@ -422,7 +422,7 @@ as capabilities with summoners; services passed explicitly).
 
 ```scala
 // bad: IO fixed deep inside, and pieces built wherever they are needed
-final class LiveApi private (kb: KnowledgeBase, ws: Workspace, cfg: Config, lake: Lake, git: Git, ledger: JsonStore[Ledger], ...)
+final class LiveApi private (kb: FrModel, ws: Workspace, cfg: Config, lake: Lake, git: Git, ledger: JsonStore[Ledger], ...)
 ```
 
 ```scala
@@ -643,16 +643,16 @@ Source: cats documentation, "EitherT".
 ### E1 Pure core
 
 ```scala
-// bad: the knowledge base, a core aggregate, imports cats.effect and the runtime wiring
+// bad: the FrModel, a core aggregate, imports cats.effect and the runtime wiring
 package frflow.kb
 import cats.effect.IO
 import frflow.runtime.Wiring
 ```
 
 ```scala
-// good: the core is values and functions; the runtime module takes a KnowledgeBase
+// good: the core is values and functions; the runtime module takes a FrModel
 package frflow.runtime
-def wire[F[_]: Async](kb: KnowledgeBase, impls: Implementations[F]): Resource[F, Running[F]]
+def wire[F[_]: Async](kb: FrModel, impls: Implementations[F]): Resource[F, Running[F]]
 ```
 
 Source: *FPiS* chapter 13 ("inside every function with side effects is a pure
@@ -662,13 +662,13 @@ function waiting to get out"); Bernhardt.
 
 ```scala
 // good, the shape of check.Inputs.read, over F: all reads in parallel and once, then pure code
-def verdict[F[_]: MonadThrow: Parallel: Clock](disk: Disk[F], ledger: Ledger[F])(kb: KnowledgeBase): F[Verdict] =
+def verdict[F[_]: MonadThrow: Parallel: Clock](disk: Disk[F], ledger: Ledger[F])(kb: FrModel): F[Verdict] =
   (disk.read(kb.idea), ledger.decisions, Clock[F].realTimeInstant).parMapN(Inputs(_, _, _)).map(Verdict.of(kb, _))
 ```
 
 ```scala
 // bad: the pure function reaches for the file system itself
-def verdict(kb: KnowledgeBase): Verdict = Verdict(kb, Files.readString(Path.of(kb.idea)))
+def verdict(kb: FrModel): Verdict = Verdict(kb, Files.readString(Path.of(kb.idea)))
 ```
 
 Source: Bernhardt; Volpe (programs compose algebras).
@@ -949,7 +949,7 @@ require(kind == NodeKind.Contract, s"$id: only a contract fixes a word left open
 
 ```scala
 // good: the method exists only on Contract (S2); what types cannot express is collected
-def validate(kb: KnowledgeBase): ValidatedNec[ModelError, KnowledgeBase]
+def validate(kb: FrModel): ValidatedNec[ModelError, FrModel]
 // and a FrFlow bug may still be asserted
 assert(index.size == all.size, "Bindings.index dropped a parameter")
 ```
@@ -1140,14 +1140,14 @@ Scala 3 reference, "Inline".
 ### S4 The DSL builds data
 
 ```scala
-// bad: the knowledge base, which the DSL builds, also offers to run what it describes
-final case class KnowledgeBase(...):
+// bad: the FrModel, which the DSL builds, also offers to run what it describes
+final case class FrModel(...):
   def service[F](contract: Node[F])(bindings: Binding*): F = Wiring.service(this, contract, bindings)
   def exampleResults(n: Node[?]): List[ExampleResult] = ExampleRuns.results(this, n)
 ```
 
 ```scala
-// good: the knowledge base is data; the interpreters take it as an argument
+// good: the FrModel is data; the interpreters take it as an argument
 Wiring.service(kb, contract, bindings)    // in frflow.runtime
 ExampleRuns.results(kb, contract)         // in frflow.example
 ```

@@ -51,7 +51,7 @@ class ReadingSuite extends munit.CatsEffectSuite:
     "file of no node, and a deciders' list not committed") {
     val (other, gone) = (RelPath.fromIdentifiers("src/main", "Other.scala"),
       RelPath.fromIdentifiers("lean", "Proofs/Governed/gone.lean"))
-    val files = Map(other -> "// KnowledgeBase(\"Other\") is not here", gone -> "",
+    val files = Map(other -> "// FrModel(\"Other\") is not here", gone -> "",
       RelPath.fromIdentifiers(".frflow", "deciders") -> "{}")
     Opened.ports(files).flatMap(p => Opened.over(Opened.project(Shelf.Governed.kb), p).reading.view).map { v =>
       assertEquals(v.warnings.collect {
@@ -63,7 +63,7 @@ class ReadingSuite extends munit.CatsEffectSuite:
     }
   }
 
-  test("the file a knowledge base is assembled in is the model's own, not code nothing governs") {
+  test("the file a FrModel is assembled in is the model's own, not code nothing governs") {
     val e = Projects.elaborated(Assembled.kb)
     val assembled = e.theory.writtenIn.getOrElse(fail("no file recorded"))
     assert(!e.theory.nodes.exists(_.at.file == assembled), assembled)

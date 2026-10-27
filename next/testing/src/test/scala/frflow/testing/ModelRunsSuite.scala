@@ -17,7 +17,7 @@ import java.util.SplittableRandom
   */
 class ModelRunsSuite extends munit.FunSuite:
   private val counted = ModelRunsSuite.counter.model("the count so far")(ModelRunsSuite.Counting(_))
-  private val kb = KnowledgeBase("Counter")(
+  private val kb = FrModel("Counter")(
     Node.assumption("The counter counts as its model.")(ModelRunsSuite.counter.behavesAs(counted)))
   private val e = kb.elaborated.fold(es => fail(es.toString), identity)
 

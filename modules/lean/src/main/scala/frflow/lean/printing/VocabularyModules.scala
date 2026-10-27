@@ -6,7 +6,7 @@ import scala.collection.immutable.ListSet
 import LeanText.*
 
 /** The vocabulary, a module per `define` and per defined term: a change to one rebuilds only the nodes that use it. */
-final class VocabularyModules(kb: KnowledgeBase, layout: Layout, vocabulary: Vocabulary):
+final class VocabularyModules(kb: FrModel, layout: Layout, vocabulary: Vocabulary):
   import vocabulary.*
   private val K = kb.name
 

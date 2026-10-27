@@ -4,7 +4,7 @@ package lean
 import frflow.fixtures.*
 import frflow.protocol.ObligationName
 
-/** The Lean of a knowledge base: terms, obligations, tries, and what a proof file may hold, on the shelf fixture. */
+/** The Lean of a FrModel: terms, obligations, tries, and what a proof file may hold, on the shelf fixture. */
 class GenerateSuite extends munit.FunSuite:
 
   private val g = Generate(shelfKb)
@@ -75,7 +75,7 @@ class GenerateSuite extends munit.FunSuite:
   test("generated names are reserved") {
     val m = Param[Int => Int]("a bound")
     val clash = Node.claim("s", "w")(forall((x: Term[Int]) => m(x) >= 0))
-    assert(Generate.problems(KnowledgeBase("K", "IDEA.md")(clash)).exists(_.contains("reserved")))
+    assert(Generate.problems(FrModel("K", "IDEA.md")(clash)).exists(_.contains("reserved")))
   }
 
   test("impl is proven from the promises of the operations its code calls, not those a term it reads is defined with") {
@@ -117,7 +117,7 @@ class GenerateSuite extends munit.FunSuite:
   test("a node is witnessed by proven code, an assumption, or parts that all are; a part nothing proves witnesses nothing") {
     val unrefined = Node.claim("Some books are kept aside.", why = "A part not refined yet.")(
       forall((l: Term[List[Item.T]], x: Term[Item.T]) => shown(l, x) implies l.contains(x))).refines(onlyGood)
-    val g = Generate(KnowledgeBase("Shelf", idea = "IDEA.md")((shelfNodes :+ pick :+ unrefined)*).implementProven(pick)(longOnes))
+    val g = Generate(FrModel("Shelf", idea = "IDEA.md")((shelfNodes :+ pick :+ unrefined)*).implementProven(pick)(longOnes))
     assert(g.witnessed(pick) && g.witnessed(fromList))
     assert(!g.witnessed(unrefined))
     assert(!g.witnessed(onlyGood)) // one of its parts has no witness, though the others have proven code

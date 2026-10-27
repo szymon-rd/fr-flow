@@ -11,7 +11,7 @@ import frflow.core.term.{Bound, Final, Sym}
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Define, DefineForm}
 
-/** A small knowledge base reaching every kind of module: the store of bookings and its program `book` (proven code,
+/** A small FrModel reaching every kind of module: the store of bookings and its program `book` (proven code,
   * `impl`, `root_impl`), what always holds of a booking (`cover_book`, `start_`, `inhabited_`), and a Declaration
   * refined by one claim (`complete`, the tries, a consistency group FrFlow witnesses), with an example.
   */

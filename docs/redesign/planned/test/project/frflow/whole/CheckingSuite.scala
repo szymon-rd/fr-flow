@@ -73,7 +73,7 @@ class CheckingSuite extends munit.FunSuite:
     val moments = Node.claim("A request granted covers no moment a booking covers.")(
       forall((held: Term[RoomBookings], request: Term[Booking]) => granted(held, request) implies
         isFree(held.bookings, request)))
-    val kb = KnowledgeBase("Rooms")(whole, moments).implementTested(granted)(_ => (h, r) => Calendar(h).grants(r))
+    val kb = FrModel("Rooms")(whole, moments).implementTested(granted)(_ => (h, r) => Calendar(h).grants(r))
     val u = Whole(kb, Nil).resolved.theory
     assertEquals(List("whole", "moments").map(n => Texts.checking(u, NodeId(n)).head), List(
       "tested against granted's Scala on generated cases, the statement evaluated whole",

@@ -8,7 +8,7 @@ import frflow.lean.*
 import frflow.protocol.*
 import frflow.protocol.snapshot.Consistency
 
-/** The knowledge base as a whole (docs/DAG.md §3a): its statements hold together, and nothing they rest on is
+/** The FrModel as a whole (docs/DAG.md §3a): its statements hold together, and nothing they rest on is
   * vacuous. Lean is run on `Consistency.lean` once what it asks changes: the modules it imports built, then each
   * theorem judged (any of an item's theorems shows it).
   */

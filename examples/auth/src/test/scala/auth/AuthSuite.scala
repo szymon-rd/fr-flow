@@ -74,7 +74,7 @@ class AuthSuite extends munit.CatsEffectSuite:
   }
 
   // Runs Lean: `sbt leanTest`, not plain `sbt test`.
-  test("the knowledge base is proven from the contract to the root; the code is tested against the contract".tag(munit.Tag("Lean"))) {
+  test("the FrModel is proven from the contract to the root; the code is tested against the contract".tag(munit.Tag("Lean"))) {
     // In the example's own workspace, as `auth/run check` checks it: its Lean build and recorded results
     // are reused while current.
     for

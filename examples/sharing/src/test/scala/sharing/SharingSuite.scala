@@ -475,7 +475,7 @@ class SharingSuite extends munit.CatsEffectSuite:
   }
 
   // Runs Lean: `sbt leanTest`, not plain `sbt test`.
-  test("the knowledge base is proven, from the code to the root".tag(munit.Tag("Lean"))) {
+  test("the FrModel is proven, from the code to the root".tag(munit.Tag("Lean"))) {
     for report <- checked
     yield
       val v = report.view

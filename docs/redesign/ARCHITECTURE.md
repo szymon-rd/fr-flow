@@ -27,7 +27,7 @@ FrFlow is a compiler. It reads a model written in a Scala DSL, checks it, and pr
 run, and property tests. Around that sits a ledger of the developer's signed decisions about each statement. Today's
 code (12,008 main lines) does all this but is not organised as a compiler: no IR between phases (what a term mentions
 is learned by printing it); a string-typed Lean back end; one `Node` class (24 fields) for six kinds and a 52-member
-`KnowledgeBase`; a core that depends on the wire format; package cycles everywhere; the same concept represented in
+`FrModel`; a core that depends on the wire format; package cycles everywhere; the same concept represented in
 two to five classes (a Lean type, a test report, "proven, tested or assumed"); what the developer decides cut out of
 the source text by line heuristics, so a comment edit reopens a node; and `IDEA.md` stating the purpose a second time.
 Appendix B lists the seventeen measured problems and where each is addressed.
@@ -150,7 +150,7 @@ sealed trait Stating
 ```
 
 A **Definition** is a value code and programs use, of any type (a function, a program over a store, a plain value). It
-is a `Term` and gets its meaning exactly once, in the knowledge base or where it is written:
+is a `Term` and gets its meaning exactly once, in the FrModel or where it is written:
 
 ```scala
 val granted = Definition[(RoomBookings, Booking) => Boolean]("whether a request is granted, given the room's bookings")
@@ -447,7 +447,7 @@ shown "checked in Scala only". Nothing depends on examples: the theory and its L
 Rooms books meeting rooms, in five files: `Rooms.scala` (the nodes, in the order they are named), `Book.scala` (the
 store, its model, the program), `Calendar.scala`, `Knowledge.scala`, `RoomsExamples.scala`. An example's files form a
 DAG, so that no val is read before it is set, whichever file is touched first: the words (types, Declarations,
-Definitions, defines), then the store, its model and the program, then the nodes, then the knowledge base, then the
+Definitions, defines), then the store, its model and the program, then the nodes, then the FrModel, then the
 examples. The planned code keeps rooms' words in `Rooms.scala` beside the nodes, which `Book.scala` both reads and is
 read by; the port gives the words their own file.
 
@@ -584,10 +584,10 @@ It is correct as stated on what the store can give (`CalendarSuite`): on 500 gen
 Oak 1–2, a request for 3–4) it is wrong, and that list breaks `roomBookingsApart`, so no case draws it; the
 README's step-4 calendar, which forgets the booking after the request, is found by a generated case.
 
-### 3.6 The knowledge base
+### 3.6 The FrModel
 
 ```scala
-val rooms = KnowledgeBase("Rooms")(bookWhenFree, answersWhetherBooked, neverOverlap, endsAfterStart,
+val rooms = FrModel("Rooms")(bookWhenFree, answersWhetherBooked, neverOverlap, endsAfterStart,
   roomBookingsApart, grantWhenFree, grantWhenNoOverlap, storeModel, startsEmpty, onlyBookingWrites, oneAtATime,
   fromTheForm)
   .implementProven(book)(bookIfGranted)
@@ -672,8 +672,8 @@ the three are solved in substitution order; with nothing tying them to the domai
 
 | Phase | From → to | Where | Effects |
 |---|---|---|---|
-| construct | the user's vals → `Node`, `Term`, values, `KnowledgeBase` | `dsl` | none |
-| elaborate | `KnowledgeBase` → `ValidatedNec[ElabError, Elaborated]` | `dsl.kb.Elaborate` | runs each lambda once |
+| construct | the user's vals → `Node`, `Term`, values, `FrModel` | `dsl` | none |
+| elaborate | `FrModel` → `ValidatedNec[ElabError, Elaborated]` | `dsl.kb.Elaborate` | runs each lambda once |
 | validate | `Elaborated` → `ValidatedNec[Problem, Valid]` | `core.analysis.Validate` | pure |
 | resolve | `Valid` → `Resolved` | `core.analysis.Resolve` | pure |
 | run Scala | `Resolved`, examples → `Computed` | `project.program.RunScala` | `F: Sync` |
@@ -1090,7 +1090,7 @@ Concrete `IO` appears only in the web server, the CLI's `main` and the terminal;
 
 ### 7.3 State and casts
 
-State, each piece named: `KnowledgeBase.elaborated` (a `lazy val`), `Running`'s lock, and a recording's reading's
+State, each piece named: `FrModel.elaborated` (a `lazy val`), `Running`'s lock, and a recording's reading's
 `State`. Atomics and locks are allowed only in `eval.Running` and `FlowInterpreter.concurrent`, `ThreadLocal` nowhere.
 Casts are in fourteen named places (`Guards`, `Keeping`, `Making`, `Definition.called`, `Term.bound`, `eval.Fn`,
 `ReadRecording`, `Running.handle`, `ValuesSyntax.apply`, `Defining`, `Conditions`, `AtValue`, `Written.term`, and the
@@ -1246,7 +1246,7 @@ In order of value; none blocks a step.
 
 - **Step 11: the README's forms.** `checkedAgainst`'s parameters could say their roles (`startFrom`, `readBack`);
   introduce `World` where first used; `Calendar` should filter by the request's room rather than group, or the rule
-  say "of one room"; warn when a node reached by an edge is missing from the `KnowledgeBase` list, or collect the
+  say "of one room"; warn when a node reached by an edge is missing from the `FrModel` list, or collect the
   list.
 - **Step 11: names shared with today's library.** Today's library is renaming the store (`bookingTable`,
   `storedBookings`) and `startsMeetingItsRules`; settle `store`, `stored` and `startsEmpty` at step 11.
@@ -1373,7 +1373,7 @@ depends on `protocol`, and `lean` on `model`'s test configuration (`dependencies
 | P1. No IR between front end and back ends | algebras, one printer, one evaluator; the IR for analyses (4.2, 4.3) |
 | P2. A string-typed Lean back end | the Lean AST, `LeanTerm`, lowering over `Prop`; the read-back law (4.8) |
 | P3. One `Node` class for every kind | `Statement` cases; edges, positions, code apart; no `why` (2.1, 4.5) |
-| P4. `KnowledgeBase` a god object | `Theory` (five fields), `Resolved`, `testing.Settings` (4.1) |
+| P4. `FrModel` a god object | `Theory` (five fields), `Resolved`, `testing.Settings` (4.1) |
 | P5. The core depends on the wire format | `wire` depends on the domain (5) |
 | P6. The ledger's node is the wire record | `Subject`, `Standings`, `Shown` (6) |
 | P7. Package cycles, visibility bounding nothing | a top package per module; the architecture test (5, 11) |

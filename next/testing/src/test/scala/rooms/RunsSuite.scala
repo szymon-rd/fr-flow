@@ -32,11 +32,11 @@ class RunsSuite extends munit.FunSuite:
         when(stored.forall(b => noOverlap(b, asBooking(request))))(stored :+ asBooking(request)).otherwise(stored) }))
 
   private def booking(meaning: Definition[Request => Program[Boolean]]) =
-    KnowledgeBase("Rooms")((rooms.nodes :+ answerWhenApart :+ storeWhenApart)*).copy(generators = rooms.generators)
+    FrModel("Rooms")((rooms.nodes :+ answerWhenApart :+ storeWhenApart)*).copy(generators = rooms.generators)
       .implementProven(book)(meaning)
       .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
 
-  private def tested(kb: KnowledgeBase, claim: String) =
+  private def tested(kb: FrModel, claim: String) =
     val e = kb.elaborated.fold(es => fail(es.toString), identity)
     PropertyTests(Semantics(e), e.theory).of(NodeId(claim), Plan(Settings(300, Seed(1)), Nil), Derive.of(e, Nil))
       .getOrElse(fail(s"$claim is not tested"))

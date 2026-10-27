@@ -49,7 +49,7 @@ class FlowSuite extends munit.FunSuite:
     assert(Steps.effectful(Steps.of(Counter(0).count)._1))
   }
 
-  private def stockKb(model: Node[?]) = KnowledgeBase("Shelf", idea = "IDEA.md")(model).testedWith(TestSettings(cases = 300, seed = 5))
+  private def stockKb(model: Node[?]) = FrModel("Shelf", idea = "IDEA.md")(model).testedWith(TestSettings(cases = 300, seed = 5))
   private val stockModel = Node.assumption(stock)(StockModel)("The stock counts the books added to it.", why = "A counter.")
 
   test("the project's own implementation of a boundary is tested against its model: generated runs, every operation reached") {

@@ -2,7 +2,7 @@ package frflow
 package lean
 
 /** The terms in Lean: an open one is a binder of each declaration mentioning it, a defined one a `def` statements apply. */
-final class Vocabulary(kb: KnowledgeBase, chosen: String => Boolean):
+final class Vocabulary(kb: FrModel, chosen: String => Boolean):
   private val K = kb.name
   val inForce: Map[String, Node[?]] = kb.inForce(chosen)
   /** Terms with several definitions, none chosen yet: the nodes that use them wait for the choice. */

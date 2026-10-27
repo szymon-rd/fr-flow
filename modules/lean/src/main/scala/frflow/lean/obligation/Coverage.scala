@@ -3,7 +3,7 @@ package lean
 package obligation
 
 /** `cover_<invariant>`: a contract's view of an invariant lists every value of the rule's type its result holds. */
-final class Coverage(kb: KnowledgeBase, refinement: Refinement):
+final class Coverage(kb: FrModel, refinement: Refinement):
   import refinement.*
   import refinement.vocabulary.*
   import LeanType.*

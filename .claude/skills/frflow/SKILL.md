@@ -32,7 +32,7 @@ project whose developer set it up without the layer.
 ## Starting a project: the conversation
 
 1. **Set up.** `sbt "frflowInitAgent NAME"` (a lowercase name), then `sbt reload`:
-   an empty knowledge base in `examples/NAME`, with the agent layer. `bin/frflow NAME status` works
+   an empty FrModel in `examples/NAME`, with the agent layer. `bin/frflow NAME status` works
    from here.
 2. **Let the developer tell the idea**, in their own words, as long or short
    as they like. Record it verbatim: `said TEXT` (each message that tells the
@@ -98,7 +98,7 @@ section come back to them.
     code is wrong, or the contract as decided is. If the idea or a decided node
     is wrong, say so.
 11. **Never edit generated Lean** (`lean/FrFlowGen/`, `lean/FrFlowAudit/`). Lean
-    you write goes only in `lean/Proofs/<KB>/`.
+    you write goes only in `lean/Proofs/<Model>/`.
 12. **Every source file is governed by one node**: an implementation, or a
     design node (production wiring, the call to `service`, goes in one).
 13. **Say what is not modelled** (`## Not modelled` in `IDEA.md`), and in your
@@ -117,7 +117,7 @@ section come back to them.
 2. For each request, read `IDEA.md` and `context NODE`, and `find` where the
    change belongs. Place a new statement **under the lowest nodes it helps
    prove, as a part**. Extend what exists; do not add a near-duplicate.
-3. Write the proposal with `why` and examples, add it to `KnowledgeBase(...)`,
+3. Write the proposal with `why` and examples, add it to `FrModel(...)`,
    then `render` and `check`. Fix failing examples first, then the splits.
 4. `answer REQUEST TEXT`: the proposals, the trade-off, what is left open.
 5. For a rejected node: if its reason asks for something, propose a node in its
@@ -128,7 +128,7 @@ section come back to them.
 
 ## Tools
 
-`bin/frflow <kb> COMMAND` from the repository root (`sbt "<kb>/run COMMAND"`
+`bin/frflow <project> COMMAND` from the repository root (`sbt "<project>/run COMMAND"`
 works too, slower). Piped, the output is plain ASCII and not cut; `--json` on
 `tree`, `show`, `inbox`, `status` and `check` prints JSON. `--help`
 gives the rest.
@@ -142,7 +142,7 @@ gives the rest.
 | `find WORDS\|PATH` | The nodes that govern a file, or what mentions some words. |
 | `render` | Rebuild from the Scala; compile errors and structural problems come back here. |
 | `check [NODE]` | Prove what changed, evaluate the examples in Lean. Slow. A `timeout` is not a failure: run it again. |
-| `status` | The tree, the summary and the warnings; exits 1 unless the knowledge base is complete. |
+| `status` | The tree, the summary and the warnings; exits 1 unless the FrModel is complete. |
 | `scaffold NODE` | Stubs in the node's proof file for what the last check left open. |
 | `answer REQUEST\|NODE TEXT` | Reply to a request, or tell the developer of work they did not ask for. |
 
@@ -188,7 +188,7 @@ examples still use the older kinds below (contract, invariant, definition), whic
   runs are read as `book(request).answer(before)` and `storedBookings.in(book(request).after(before))`, over
   `forall((request: Term[Request], before: Term[World]) => …)`.
 - **Edges.** `.refines(parent)`: a part. `.assuming(assumption)`: a premise, trusted, drawn below the node.
-- **Roots.** A knowledge base may have several roots, on any of its Definitions, relating them too; keep the
+- **Roots.** A FrModel may have several roots, on any of its Definitions, relating them too; keep the
   set small and each one idea.
 - **One idea per statement.** Do not glue concepts with `&&`: two ideas are two claims, and what always holds
   of a value or a store is an `always` claim of its own. A guideline for you, not a rule FrFlow checks.
@@ -291,10 +291,12 @@ operations; what it does not offer is a type error.
   Quantifiers too: `forall((u: Term[User.T]) => ...)`, `exists(...)`, one or two variables.
 - **`===` and `=!=`**, never `==` (between terms it does not compile). `&&`,
   `||`, `!`, `implies`; `True` and `False` for the constants.
-- **Build data from terms through its companion**: `object CrmStore extends Data[CrmStore]`
-  makes `CrmStore(a, b, c)` a term (1 to 6 fields); `object Event extends Data[Event]`
-  makes `Event[Event.Expired](now)` a term of the enum. Copy with a named tuple:
-  `a.copy((enabled = v))`. Fields read as on values: `s.records`.
+- **Build data from terms by its name**: a case class needs nothing written for it,
+  `Booking(r.room, r.start, r.end)` on terms is a term (1 to 6 fields; `Construct`).
+  `extends Data[…]` is needed only for an enum's cases, `object Event extends Data[Event]`
+  makes `Event[Event.Expired](now)` a term of the enum, and for a companion written by hand
+  (it hides the one Scala makes): `object CrmStore extends Data[CrmStore]`. Copy with a
+  named tuple: `a.copy((enabled = v))`. Fields read as on values: `s.records`.
 - **Matches** on an enum or a list are `.on[Case](fields => ...)` per case, in order: `q.on[Search.ById](id => ...)`;
   a singleton case is `.on[Search.Everything.type](...)`. Missing cases fail when the Lean is rendered.
 - **Folds** for the rest, as in Scala and Cats: a conditional is Boolean's fold, `c.fold(ifTrue, ifFalse)`;
@@ -467,19 +469,19 @@ it shows nothing). Never write in a reason that Lean shows a part needed.
 
 ## Proving by hand
 
-1. `scaffold NODE` writes `lean/Proofs/<KB>/<Node>.lean`: per open obligation,
+1. `scaffold NODE` writes `lean/Proofs/<Model>/<Node>.lean`: per open obligation,
    `theorem <name> : Obl.<name>`, starting with `unfold`, `frflow_intro` and
    `simp only [frflow_defs] at *`, the goal they leave, then `sorry`.
 2. `frflow_intro` names the open terms and the parts, `h_<Part>`: use the names,
    so the proof survives a part added. Iterate with
-   `lake env lean Proofs/<KB>/<Node>.lean` in `lean/`, then `check`.
+   `lake env lean Proofs/<Model>/<Node>.lean` in `lean/`, then `check`.
 3. The library: `FrFlow.always`, `simulates` (`simulates_rel`,
    `simulates_of_inv`), `tracks`, `tracks_eq`, `run_snoc`, and list lemmas.
-   Shared lemmas go in `lean/Proofs/<KB>/Lemmas.lean`. Lean 4.35 deprecates
+   Shared lemmas go in `lean/Proofs/<Model>/Lemmas.lean`. Lean 4.35 deprecates
    `if_pos`/`if_neg`: use `ite_eq_left`/`ite_eq_right`, or `split`.
 4. A proof file holds theorems with tactic proofs only (no `sorry`, `axiom`,
-   attributes or metaprograms), and imports only `FrFlowGen.<KB>.Domain`,
-   `FrFlowGen.<KB>.<Node>.Spec`, `FrFlow`, `Std`, `Init`, `Proofs.<KB>.Lemmas`.
+   attributes or metaprograms), and imports only `FrFlowGen.<Model>.Domain`,
+   `FrFlowGen.<Model>.<Node>.Spec`, `FrFlow`, `Std`, `Init`, `Proofs.<Model>.Lemmas`.
 5. Never prove a split from a contradiction in the parts, or without them.
 6. **A flow's `impl`.** Run it on the models with
    `simp only [<Node>.post, f_run, f, FrFlow.runOn_bind, FrFlow.runOn_pure, FrFlow.runOn_within,

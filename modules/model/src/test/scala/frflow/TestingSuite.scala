@@ -27,7 +27,7 @@ class TestingSuite extends munit.FunSuite:
 
   test("a seeded bug is found, and the case is shrunk to its smallest") {
     // Off by one: a book of exactly the asked length is left on the shelf.
-    val buggy = KnowledgeBase("Shelf", idea = "IDEA.md")((shelfNodes :+ pick)*).testedWith(few)
+    val buggy = FrModel("Shelf", idea = "IDEA.md")((shelfNodes :+ pick)*).testedWith(few)
       .implementTested(pick)((shelf, n) => shelf.filter(_.pages > minPages.value))
     val f = buggy.test(pick).get.failure.getOrElse(fail("the bug was not found"))
     // One book, at the length asked, the rest as small as the generator allows; the inputs by the contract's names, the
@@ -37,7 +37,7 @@ class TestingSuite extends munit.FunSuite:
   }
 
   test("the same seed gives the same cases; a failing case replays first") {
-    val buggy = KnowledgeBase("Shelf", idea = "IDEA.md")((shelfNodes :+ pick)*).testedWith(few)
+    val buggy = FrModel("Shelf", idea = "IDEA.md")((shelfNodes :+ pick)*).testedWith(few)
       .implementTested(pick)((shelf, n) => shelf.filter(_.pages > minPages.value))
     val a = buggy.test(pick).get.failure.get
     val b = buggy.test(pick).get.failure.get
@@ -49,7 +49,7 @@ class TestingSuite extends munit.FunSuite:
 
   test("a part no case reaches is said, not passed") {
     // Every book is long: `b.pages >= minPages implies …` never fails to hold its premise, and the other way never holds.
-    val lazyGen = KnowledgeBase("Shelf", idea = "IDEA.md")((shelfNodes :+ pick)*).testedWith(few)
+    val lazyGen = FrModel("Shelf", idea = "IDEA.md")((shelfNodes :+ pick)*).testedWith(few)
       .implementTested(pick)((shelf, n) => shelf.filter(_.pages >= minPages.value))
       .generating(Gen.listOf(Gen.const(Book("Short", 1))).describedAs("only short books"))
       .generating(Gen.const(100).describedAs("always 100"))

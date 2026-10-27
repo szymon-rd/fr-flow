@@ -8,12 +8,12 @@ import frflow.lean.printing.{Layout, LeanText, VocabularyModules}
 import frflow.protocol.snapshot.Consistency.Kind
 import frflow.testing.Witnesses
 
-/** What Lean is asked of the knowledge base as a whole (docs/DAG.md §3a): that the statements at the bottom of the
+/** What Lean is asked of the FrModel as a whole (docs/DAG.md §3a): that the statements at the bottom of the
   * DAG hold together, each group sharing open terms with a witness for them (an equation a statement gives,
   * `granted(held, request) === …`, or proven code), so the proven steps above carry it up; and that nothing they rest
   * on is vacuous: each `always` admits a value, each store's start some state, each claim's condition some case.
   */
-final class Witnessing(kb: KnowledgeBase, refinement: Refinement, layout: Layout, vocabularyModules: VocabularyModules):
+final class Witnessing(kb: FrModel, refinement: Refinement, layout: Layout, vocabularyModules: VocabularyModules):
   import refinement.*
   import refinement.vocabulary.*
   private val K = kb.name

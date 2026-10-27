@@ -29,7 +29,7 @@ final class WholeModule(props: LowerProp, witness: LowerWitness):
     Decl.PrintAxioms(Names.path(kb.value, "Whole", LowerObligation.name(o.name).text))
 
 object WholeModule:
-  /** Over the knowledge base's lowering environment, importing what its statements name. */
+  /** Over the FrModel's lowering environment, importing what its statements name. */
   def of(r: Resolved, table: TermTable, obligations: List[Obligation]): LeanModule =
     of(Lowering(r, table), obligations)
 

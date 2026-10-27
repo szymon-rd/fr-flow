@@ -5,7 +5,7 @@ import frflow.protocol.*
 import io.circe.Json
 import java.time.Instant
 
-/** A small knowledge base as a snapshot, decided by hand: a root with two claims sharing a contract, a
+/** A small FrModel as a snapshot, decided by hand: a root with two claims sharing a contract, a
   * definition, an assumption under no parent, and a design node; then the contract reworded (under
   * review), a new proposal, a rejected one, and requests. It reads no files and runs no Lean.
   */

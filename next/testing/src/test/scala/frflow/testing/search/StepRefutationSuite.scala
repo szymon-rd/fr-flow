@@ -29,7 +29,7 @@ class StepRefutationSuite extends munit.FunSuite:
     forall((n: Term[BigInt]) => (n > 0) implies (d(n) === n))).refines(nonNegative)
 
   test("a step whose part fixes the answer only above zero is refuted at a case below it, with that answer") {
-    val e = KnowledgeBase("Steps")(nonNegative, sameAbove).implementTested(d)(_ => n => n.abs).elaborated
+    val e = FrModel("Steps")(nonNegative, sameAbove).implementTested(d)(_ => n => n.abs).elaborated
       .fold(es => fail(es.toString), identity)
     val r = Resolve(Validate(e).fold(ps => fail(ps.toString), identity))
     val cases = List(1, 0, -1, -2).map(n => Case(List(Value.Num(n)), Nil))

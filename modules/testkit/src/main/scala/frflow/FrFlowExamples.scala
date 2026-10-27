@@ -2,7 +2,7 @@ package frflow
 
 import frflow.example.{ExampleSuite, Expected, Written}
 
-/** Examples of what a knowledge base's Definitions do, written as tests:
+/** Examples of what a FrModel's Definitions do, written as tests:
   * {{{
   * class GrantedExamples extends FrFlowExamples(rooms):
   *   example("back to back: granted"):
@@ -11,7 +11,7 @@ import frflow.example.{ExampleSuite, Expected, Written}
   * `sbt test` runs each against the code and against the claims on the Definition Scala can evaluate; `check` reads
   * them too, and evaluates each against those claims in Lean. They show how things work; nothing rests on them.
   */
-abstract class FrFlowExamples(val knowledge: KnowledgeBase) extends munit.FunSuite, ExampleSuite:
+abstract class FrFlowExamples(val knowledge: FrModel) extends munit.FunSuite, ExampleSuite:
   /** The examples, as munit holds them: each test carries its example as a tag. */
   def written: List[Written] = munitTests().toList.flatMap(_.tags.collect { case t: FrFlowExamples.Of => t.example })
 

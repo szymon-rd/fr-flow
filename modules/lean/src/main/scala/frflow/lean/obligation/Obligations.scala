@@ -6,7 +6,7 @@ import frflow.protocol.{ObligationName, TryKind}
 import ObligationName.*
 
 /** What Lean is asked of each node: its obligations, proven by `frflow_auto` or `authored`, and its tries. */
-final class Obligations(kb: KnowledgeBase, refinement: Refinement, coverage: Coverage, authored: Set[(String, ObligationName)]):
+final class Obligations(kb: FrModel, refinement: Refinement, coverage: Coverage, authored: Set[(String, ObligationName)]):
   import refinement.*
   import refinement.vocabulary.*
   def isAuthored(n: Node[?], name: ObligationName): Boolean = authored((n.id, name))

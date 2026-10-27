@@ -2,7 +2,7 @@ package frflow.api
 
 import cats.effect.IO
 import cats.syntax.all.*
-import frflow.KnowledgeBase
+import frflow.FrModel
 import frflow.check.*
 import frflow.lean.Generate
 import frflow.ledger.{Decide, JsonStore, KeyStore, Refusal, Signing, Stamp}
@@ -12,7 +12,7 @@ import java.nio.file.Path
 /** The API over a project on disk. Each operation reads the workspace once (`Analysis.read`), computes, and
   * writes what it changed.
   */
-final class LiveApi private (kb: KnowledgeBase, ws: Workspace, cfg: Config, lake: Lake, git: Git, ledger: JsonStore[Ledger],
+final class LiveApi private (kb: FrModel, ws: Workspace, cfg: Config, lake: Lake, git: Git, ledger: JsonStore[Ledger],
     keys: KeyStore) extends FrFlowApi:
   private def analysis: IO[Analysis] = Analysis.read(kb, ws, cfg, ledger)
   private def viewOf(a: Analysis): IO[View] = IO.pure(View(a.annotated, a.warnings, a.unsigned.map(Logged.apply)))
@@ -88,7 +88,7 @@ final class LiveApi private (kb: KnowledgeBase, ws: Workspace, cfg: Config, lake
 
 object LiveApi:
   /** The project in `ws`, run as `env` says (see `Config`); the model's problems, if any, fail it (nothing else is computed). */
-  def apply(kb: KnowledgeBase, ws: Workspace, env: Map[String, String]): IO[FrFlowApi] =
+  def apply(kb: FrModel, ws: Workspace, env: Map[String, String]): IO[FrFlowApi] =
     IO(kb.problems.map(_.message) ++ Generate.problems(kb)).flatMap(ps => IO.raiseWhen(ps.nonEmpty)(FrFlowError.ModelProblems(ps))) *>
       Config.load(env).flatMap { cfg =>
         (Lake(ws.lean, cfg), JsonStore.ledger(ws.ledgerFile))
@@ -96,6 +96,6 @@ object LiveApi:
       }
 
   /** The project at `root` (`FRFLOW_ROOT` overrides it); `kernelPath` is FrFlow's Lean kernel relative to its `lean/`. */
-  def fromEnv(kb: => KnowledgeBase, root: String, kernelPath: String, env: Map[String, String]): IO[FrFlowApi] =
+  def fromEnv(kb: => FrModel, root: String, kernelPath: String, env: Map[String, String]): IO[FrFlowApi] =
     IO(Workspace(Path.of(env.getOrElse("FRFLOW_ROOT", root)).toAbsolutePath.normalize, kernelPath))
       .flatMap(ws => IO(kb).flatMap(frflow.check.WrittenExamples.load).flatMap(LiveApi(_, ws, env)))

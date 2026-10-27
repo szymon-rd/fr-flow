@@ -30,7 +30,7 @@ object Tests:
   def run(a: Analysis, n: Node[?], before: List[Counterexample]): IO[Option[TestReport]] =
     IO.blocking(a.kb.test(n, before.map(c => Testing.Replay(c.seed, c.index, c.size)), settings(a)).map(report))
 
-  /** The knowledge base's settings, with the seed `FRFLOW_SEED` gives for this run (a number, or `fresh`). */
+  /** The FrModel's settings, with the seed `FRFLOW_SEED` gives for this run (a number, or `fresh`). */
   def settings(a: Analysis): TestSettings = TestSettings.inForce(a.kb.testing, sys.env.get("FRFLOW_SEED"))
 
   private def report(r: Testing.Report): TestReport =

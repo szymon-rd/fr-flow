@@ -25,7 +25,7 @@ import frflow.proof.terms.TermTable
   * value is made (at a tested Definition's boundary in Scala), the other kept by every program writing the store.
   */
 class AlwaysSuite extends munit.FunSuite:
-  private def resolved(kb: KnowledgeBase) =
+  private def resolved(kb: FrModel) =
     Resolve(Validate(kb.elaborated.fold(es => fail(es.toString), identity)).fold(ps => fail(ps.toString), identity))
   private val e = rooms.elaborated.fold(es => fail(es.toString), identity)
   private val r = Resolve(Validate(e).fold(ps => fail(ps.toString), identity))
@@ -120,7 +120,7 @@ class AlwaysSuite extends munit.FunSuite:
   test("an assumption of `always` is kept by the code making or storing its values: covered code breaking it fails") {
     val guarded = List(bookWhenFree, answersWhetherBooked, neverOverlap, roomBookingsApart, grantWhenFree,
       grantWhenNoOverlap)
-    val desk = KnowledgeBase("Rooms")((guarded.map(_.assuming(fromTheDesk)) ++ List(storeModel, startsEmpty,
+    val desk = FrModel("Rooms")((guarded.map(_.assuming(fromTheDesk)) ++ List(storeModel, startsEmpty,
       onlyBookingWrites, oneAtATime, fromTheForm, fromTheDesk, movedInRoom))*)
       .implementProven(book)(bookEndFirst).implementProven(moved)(endFirst)
       .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))

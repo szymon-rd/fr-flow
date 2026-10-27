@@ -3,12 +3,12 @@ package frflow.api
 import cats.effect.IO
 import java.nio.file.Path
 
-/** A project as its front ends open it: the knowledge base, its directory (`FRFLOW_ROOT` overrides it), FrFlow's Lean
+/** A project as its front ends open it: the FrModel, its directory (`FRFLOW_ROOT` overrides it), FrFlow's Lean
   * kernel relative to its `lean/`, and the layers on top it uses. A project's main object is one (the CLI's `FrFlowApp`);
   * the web view's `serve` task opens the same object.
   */
 trait FrFlowProject:
-  def kb: frflow.KnowledgeBase
+  def kb: frflow.FrModel
   def root: String
   def kernelPath: String
   def extensions: List[Extension] = Nil

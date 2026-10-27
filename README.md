@@ -161,7 +161,7 @@ final class Calendar(bookings: List[Booking]):
     val next = room.search(request)(using Ordering.by(_.start)).insertionPoint
     room.lift(next - 1).forall(_.end <= request.start) && room.lift(next).forall(_.start >= request.end)
 
-val knowledge = KnowledgeBase("Rooms")(grantWhenFree, grantWhenNoOverlap)
+val rooms = FrModel("Rooms")(grantWhenFree, grantWhenNoOverlap)
   .implement(grantWhenNoOverlap)((held, request) => Calendar(held).granted(request))
 ```
 

@@ -7,7 +7,7 @@ import frflow.protocol.ObligationName.{Cover, Eval, EvalImpl, Expect, Impl, Init
 import frflow.protocol.ObligationStatus.*
 import scala.util.chaining.*
 
-/** The knowledge base as data, without decisions (`.frflow/kb.json`): what tools read, and what the ledger's review reads. */
+/** The FrModel as data, without decisions (`.frflow/kb.json`): what tools read, and what the ledger's review reads. */
 object Snapshots:
   private def ids(ns: Seq[Node[?]]): List[NodeId] = ns.map(n => NodeId(n.id)).toList
 

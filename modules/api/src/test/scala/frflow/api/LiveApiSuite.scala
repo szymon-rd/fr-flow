@@ -85,11 +85,11 @@ class LiveApiSuite extends munit.CatsEffectSuite:
   }
 
   dir.test("IDEA.md is a decision: written, accepted (signed), then the root; a change to it brings it back") { d =>
-    import frflow.{KnowledgeBase, Node, True}
-    val empty = KnowledgeBase("Toy", idea = "IDEA.md")()
+    import frflow.{FrModel, Node, True}
+    val empty = FrModel("Toy", idea = "IDEA.md")()
     val toyRoot = Node.claim("A reader borrows exactly the books on the shelf that nobody else holds.",
       why = "The idea's purpose.")(True)
-    def at(kb: KnowledgeBase) = LiveApi(kb, Workspace(project(d), "../lean"), Map("FRFLOW_KEY" -> d.resolve("signing.key").toString))
+    def at(kb: FrModel) = LiveApi(kb, Workspace(project(d), "../lean"), Map("FRFLOW_KEY" -> d.resolve("signing.key").toString))
     val idea = "# Toy\n\nA shelf of books readers borrow.\n\n## Borrowing\nA reader borrows a book nobody holds.\n"
     def write(text: String) = IO.blocking { Files.createDirectories(project(d)); Files.writeString(project(d).resolve("IDEA.md"), text) }
     for
@@ -99,7 +99,7 @@ class LiveApiSuite extends munit.CatsEffectSuite:
       written <- live.view
       accepted <- live.decide(Decide.Accept(List(IdeaReview.Id), "it says what the shelf is for"), dev)
       confirmed <- live.view
-      withRoot <- at(KnowledgeBase("Toy", idea = "IDEA.md")(toyRoot))
+      withRoot <- at(FrModel("Toy", idea = "IDEA.md")(toyRoot))
       proposed <- withRoot.view
       _ <- write(idea.replace("A reader borrows a book nobody holds.", "A reader borrows at most three books nobody holds."))
       changed <- withRoot.view

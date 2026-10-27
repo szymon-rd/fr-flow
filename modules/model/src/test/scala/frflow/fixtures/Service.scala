@@ -35,7 +35,7 @@ object Service:
 
   val tillKept = Node.assumption(till)(TillModel)("The till adds up what is rung.", why = "Memory.").refines(sold)
 
-  def kb(part: Node[BigInt => BigInt] = pricePositive): KnowledgeBase =
-    KnowledgeBase("Service", idea = "IDEA.md")(sold, part, tillKept)
+  def kb(part: Node[BigInt => BigInt] = pricePositive): FrModel =
+    FrModel("Service", idea = "IDEA.md")(sold, part, tillKept)
       .implementProven(sold)(selling)
       .implementTested(part)(item => item.abs + 1)

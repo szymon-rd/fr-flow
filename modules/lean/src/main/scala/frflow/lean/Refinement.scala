@@ -5,7 +5,7 @@ import frflow.kb.Reach
 import frflow.protocol.NodeKind
 
 /** How the nodes refine each other in Lean: their claims and splits, their proven code, `holds` and `root_impl`. */
-final class Refinement(kb: KnowledgeBase, val vocabulary: Vocabulary):
+final class Refinement(kb: FrModel, val vocabulary: Vocabulary):
   import vocabulary.*
   private val K = kb.name
   def formal(n: Node[?]): Boolean = kb.isStatement(n)

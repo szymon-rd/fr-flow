@@ -9,7 +9,7 @@ import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
 import frflow.proof.terms.TermTable
 
-/** How one knowledge base's Lean is lowered, computed once for every module: its environment (each model's field of
+/** How one FrModel's Lean is lowered, computed once for every module: its environment (each model's field of
   * the world is its boundary's name, each model's namespace its name capitalized), the names a binder may not take
   * (every symbol, every domain type, `World`), what always holds, and the lowering of propositions. `canonical`
   * names every variable by the order it is bound (`Naming`): the lowering a node's content prints its meaning with.

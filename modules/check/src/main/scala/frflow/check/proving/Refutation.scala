@@ -15,7 +15,7 @@ object Refutation:
   final case class Candidate(part: String, shown: String, what: String, lean: String)
 
   /** `resolve`: Lean's names for the definitions the answer calls (`Vocabulary.resolve`). */
-  def candidate(kb: KnowledgeBase, n: Node[?], resolve: String => String): Option[Candidate] =
+  def candidate(kb: FrModel, n: Node[?], resolve: String => String): Option[Candidate] =
     for
       c <- kb.parts(n) match { case List(c) => Some(c); case _ => None }
       op <- c.op

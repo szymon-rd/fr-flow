@@ -6,7 +6,7 @@ import frflow.core.analysis.Validate
 import frflow.core.example.Example
 import frflow.core.name.RelPath
 import frflow.decision.ledger.{Counted, Ledger}
-import frflow.dsl.kb.KnowledgeBase
+import frflow.dsl.kb.FrModel
 import frflow.project.pipeline.{Analysis, Computed, Inputs, LeanSources, Recorded}
 import frflow.project.port.memory.{MemoryFiles, MemoryGit, MemoryKeys, MemoryLedger}
 import frflow.project.port.{LeanLibrary, RunCode}
@@ -14,7 +14,7 @@ import frflow.project.program.{Analyse, Ports, Project}
 import frflow.testing.{Seed, Settings}
 import java.time.Instant
 
-/** Projects in memory for the shell's suites: a knowledge base elaborated, its ports in memory (the files, the
+/** Projects in memory for the shell's suites: a FrModel elaborated, its ports in memory (the files, the
   * ledger, git, a key made for the run), and its analysis as `Analyse` makes it.
   */
 object Projects:
@@ -25,7 +25,7 @@ object Projects:
   val library: LeanLibrary = LeanLibrary("lean", "the library under test")
   val project: Project = Project(List(sources), settings, library)
 
-  def elaborated(kb: KnowledgeBase): Elaborated = kb.elaborated.fold(e => throw AssertionError(e.toString), identity)
+  def elaborated(kb: FrModel): Elaborated = kb.elaborated.fold(e => throw AssertionError(e.toString), identity)
   lazy val rooms: Elaborated = elaborated(_root_.rooms.rooms)
   lazy val roomsExamples: List[Example] =
     _root_.rooms.GrantedExamples().elaborated.fold(e => throw AssertionError(e.toString), identity)

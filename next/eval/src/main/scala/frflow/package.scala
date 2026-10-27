@@ -7,7 +7,7 @@ export frflow.dsl.node.Node
 export frflow.dsl.node.NodeSyntax.*
 export frflow.dsl.node.AlwaysSyntax.*
 export frflow.dsl.node.OutsideSyntax.*
-export frflow.dsl.kb.KnowledgeBase
+export frflow.dsl.kb.FrModel
 export frflow.dsl.kb.Implementing.*
 export frflow.dsl.example.FrFlowExamples
 export frflow.dsl.example.ExampleSyntax.*

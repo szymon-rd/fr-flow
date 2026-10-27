@@ -7,7 +7,7 @@ import frflow.api.view.{CheckEvent, View}
 import frflow.core.example.Example
 import frflow.core.name.{NodeId, RelPath}
 import frflow.decision.rules.Command
-import frflow.dsl.kb.KnowledgeBase
+import frflow.dsl.kb.FrModel
 import frflow.project.Projects
 import frflow.project.pipeline.Analysis
 import frflow.project.program.Ports
@@ -20,7 +20,7 @@ object Opened:
   val sources: RelPath = Projects.sources
   val lean: Lean = Lean.Proving(Set.empty, Set.empty)
 
-  def project(kb: KnowledgeBase, examples: List[Example] = Nil): Project[IO] =
+  def project(kb: FrModel, examples: List[Example] = Nil): Project[IO] =
     Project(Projects.elaborated(kb), examples, Nil, List(sources), Path.of("../../lean"))
 
   lazy val rooms: Project[IO] =

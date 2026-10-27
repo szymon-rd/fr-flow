@@ -5,8 +5,8 @@ package obligation
 import cats.syntax.all.*
 import frflow.protocol.ObligationName
 
-/** The examples of the contracts of a knowledge base, and probes near them, evaluated in Lean. */
-final class Evals(kb: KnowledgeBase, refinement: Refinement):
+/** The examples of the contracts of a FrModel, and probes near them, evaluated in Lean. */
+final class Evals(kb: FrModel, refinement: Refinement):
   import refinement.*
   import refinement.vocabulary.*
   private val K = kb.name

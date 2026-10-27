@@ -66,7 +66,7 @@ class ErrorsSuite extends munit.FunSuite:
   test("a flow that may fail needs a contract that says what holds when it does") {
     val p = Param[BigInt => Flow[BigInt]]("a withdrawal whose contract says nothing of failing")
     val c = Node.contract(p)("A withdrawal leaves the rest.", why = "A test.")((n, r, before, after) => r === after(VaultModel))
-    val kb = KnowledgeBase("Silent", idea = "IDEA.md")(vaultKept, c).implementProven(c)((n: Term[BigInt]) => withdraw(n))
+    val kb = FrModel("Silent", idea = "IDEA.md")(vaultKept, c).implementProven(c)((n: Term[BigInt]) => withdraw(n))
     assert(kb.problems.exists(_.toString.contains("say what holds when a run fails")), kb.problems)
   }
 
@@ -82,7 +82,7 @@ class ErrorsSuite extends munit.FunSuite:
       .failsChangingNothing[VaultError]
       .examples()(allows(BigInt(1), World(VaultModel -> BigInt(0)), (), World(VaultModel -> BigInt(2)), "both"),
         forbids(BigInt(1), World(VaultModel -> BigInt(0)), (), World(VaultModel -> BigInt(1)), "not the first"))
-    val kb = KnowledgeBase("Twice", idea = "IDEA.md")(vaultKept, c).implementProven(c)((n: Term[BigInt]) => vault.put(n) *> vault.put(n + 1))
+    val kb = FrModel("Twice", idea = "IDEA.md")(vaultKept, c).implementProven(c)((n: Term[BigInt]) => vault.put(n) *> vault.put(n + 1))
     val half = kb.exampleResults(c).filter(_.example.note.contains("call 2"))
     assertEquals(half.map(_.contract), List("the run fails with Down and leaves World(VaultModel = 1), which the contract forbids"))
   }

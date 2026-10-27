@@ -3,7 +3,7 @@ package frflow.decision.review
 import frflow.core.graph.Walk
 import frflow.core.name.NodeId
 
-/** The subjects of a knowledge base, every one after all it rests on: the order decisions are taken in. */
+/** The subjects of a FrModel, every one after all it rests on: the order decisions are taken in. */
 final case class Subjects(inOrder: List[Subject]):
   private lazy val byId: Map[NodeId, Subject] = inOrder.map(s => s.id -> s).toMap
   def get(id: NodeId): Option[Subject] = byId.get(id)

@@ -13,7 +13,7 @@ import frflow.proof.lean.term.Printed
 import frflow.proof.terms.{OpenTerms, TermTable}
 
 /** crm's expiry job, written as elaboration gives it: `ExpiryJob`'s post as a term over its inputs, `expireOnce`'s
-  * recorded steps (their terms terms too), and the lowering environment of the crm knowledge base for them.
+  * recorded steps (their terms terms too), and the lowering environment of the crm FrModel for them.
   */
 object ExpiryIr:
   private val store = Ty.Data(TypeName("CrmStore"))

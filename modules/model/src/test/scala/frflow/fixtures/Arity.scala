@@ -18,7 +18,7 @@ val clamp = Node.contract("A call shows the raw value when it is not negative, a
     allows(BigInt(-3), BigInt(0), "a negative value shows zero"),
     forbids(BigInt(-3), BigInt(-3), "never a negative reading"))
 val clampAtZero = define { (x: Term[BigInt]) => (x >= 0).fold(x, BigInt(0)) }
-val clampKb = KnowledgeBase("Gauge", idea = "IDEA.md")(neverBelowZero, clamp)
+val clampKb = FrModel("Gauge", idea = "IDEA.md")(neverBelowZero, clamp)
 
 // Three inputs: a member of an access list grants access to another person.
 val granted = Param[(List[String], String, String) => List[String]]("the access list after its member (the second) grants access to a person (the third)")
@@ -38,7 +38,7 @@ val grant = Node.contract("A call keeps everyone on the list, adds the person wh
 val grantIfMember = define { (acl: Term[List[String]], by: Term[String], who: Term[String]) =>
   acl.contains(by).fold(acl ++ List(who), acl)
 }
-val grantKb = KnowledgeBase("Access", idea = "IDEA.md")(onlyMembersGrant, grant)
+val grantKb = FrModel("Access", idea = "IDEA.md")(onlyMembersGrant, grant)
 
 // Three inputs, and an invariant kept through a view of the call: the books of a shelf between two lengths.
 val between = Param[(List[Book], Int, Int) => List[Book]]("the books the shelf service picks between two lengths")
@@ -55,7 +55,7 @@ val pickBetween = Node.contract("A call returns only books of the shelf between 
     forbids(List(Book("A", 50)), 0, 100, List(Book("C", 60)), "never a book off the shelf"))
   .keeps(inStock)((shelf, lo, hi, r) => r.map(b => (shelf, b)))
 val inRange = define { (shelf: Term[List[Book]], lo: Term[Int], hi: Term[Int]) => shelf.filter(b => b.pages >= lo && b.pages <= hi) }
-val betweenKb = KnowledgeBase("Between", idea = "IDEA.md")(betweenRoot, pickBetween, inStock).implementProven(pickBetween)(inRange)
+val betweenKb = FrModel("Between", idea = "IDEA.md")(betweenRoot, pickBetween, inStock).implementProven(pickBetween)(inRange)
 
 // A flow of two inputs: two deliveries restocked, then the stock counted.
 val restockBoth = Param[(BigInt, BigInt) => Flow[BigInt]]("a restock of two deliveries: the stock it counts after")
@@ -74,7 +74,7 @@ val twoDeliveries = Node.contract(restockBoth)("A restock of two deliveries adds
     allows(BigInt(0), BigInt(4), World(StockModel -> BigInt(1)), BigInt(5), World(StockModel -> BigInt(5)), "an empty first delivery"),
     forbids(BigInt(2), BigInt(3), World(StockModel -> BigInt(10)), BigInt(12), World(StockModel -> BigInt(12)), "never only the first"))
 /** Beside the gauge: a flow need not refine the root, as a job need not (the CRM's expiry job). */
-val deliveriesKb = KnowledgeBase("Deliveries", idea = "IDEA.md")(neverBelowZero, clamp, stockModel, twoDeliveries)
+val deliveriesKb = FrModel("Deliveries", idea = "IDEA.md")(neverBelowZero, clamp, stockModel, twoDeliveries)
   .implementProven(clamp)(clampAtZero).implementProven(twoDeliveries)(restockTwo)
 
 // No input: what the gauge shows now, from the raw reading in force.
@@ -88,7 +88,7 @@ val shows = Node.contract("The gauge shows the raw reading when it is not negati
   .examples(rawReading.bind(5))(allows(BigInt(5), "the raw reading"), forbids(BigInt(0), "never zero for a positive reading"))
   .examples(rawReading.bind(-3))(allows(BigInt(0), "zero for a fault"))
 val showRaw = define { () => (rawReading >= 0).fold(rawReading: Term[BigInt], BigInt(0)) }
-val gaugeKb = KnowledgeBase("Shows", idea = "IDEA.md")(showsNow, shows)
+val gaugeKb = FrModel("Shows", idea = "IDEA.md")(showsNow, shows)
 
 // A flow of no input: the stock counted, left as it was.
 val countNow = Param[() => Flow[BigInt]]("a count of the stock: the number it gives")
@@ -101,5 +101,5 @@ val counting = Node.contract(countNow)("A count gives the stock, and leaves it a
     allows(World(StockModel -> BigInt(5)), BigInt(5), World(StockModel -> BigInt(5)), "five in stock"),
     allows(World(StockModel -> BigInt(2)), BigInt(2), World(StockModel -> BigInt(2)), "two in stock"),
     forbids(World(StockModel -> BigInt(5)), BigInt(5), World(StockModel -> BigInt(0)), "never empties the stock"))
-val countingKb = KnowledgeBase("Counting", idea = "IDEA.md")(neverBelowZero, clamp, stockModel, counting)
+val countingKb = FrModel("Counting", idea = "IDEA.md")(neverBelowZero, clamp, stockModel, counting)
   .implementProven(clamp)(clampAtZero).implementProven(counting)(() => countStock())

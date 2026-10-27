@@ -1,6 +1,6 @@
 ---
 name: scala-fp
-description: Typelevel-style functional architecture and code rules for FrFlow's Scala 3 (cats, cats-effect, fs2, circe, http4s), with size budgets, a review checklist and a refactoring procedure. Use whenever you write, refactor or review Scala in this repository, including when you add a field, a case class, a function, an algebra or interpreter, a package or a module; change a core type such as `Node`, `KnowledgeBase`, `Term`, `SnapNode` or `Overview`; touch effects (`F[_]`, `IO`, `Resource`, `Ref`, `Stream`), errors, type class instances, laws, givens or the DSL; or audit code for quality.
+description: Typelevel-style functional architecture and code rules for FrFlow's Scala 3 (cats, cats-effect, fs2, circe, http4s), with size budgets, a review checklist and a refactoring procedure. Use whenever you write, refactor or review Scala in this repository, including when you add a field, a case class, a function, an algebra or interpreter, a package or a module; change a core type such as `Node`, `FrModel`, `Term`, `SnapNode` or `Overview`; touch effects (`F[_]`, `IO`, `Resource`, `Ref`, `Stream`), errors, type class instances, laws, givens or the DSL; or audit code for quality.
 ---
 
 # Scala FP in FrFlow

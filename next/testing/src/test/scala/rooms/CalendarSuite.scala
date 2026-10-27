@@ -21,7 +21,7 @@ class CalendarSuite extends munit.FunSuite:
   private val semantics = Semantics(e)
   private val draw = Derive.of(e, Nil)
   private val plan = Plan(Settings(500, Seed(14)), Nil)
-  private def tested(kb: KnowledgeBase, claim: String) =
+  private def tested(kb: FrModel, claim: String) =
     val k = kb.elaborated.fold(es => fail(es.toString), identity)
     PropertyTests(Semantics(k), k.theory).of(NodeId(claim), plan, Derive.of(k, Nil))
       .getOrElse(fail(s"$claim is not tested"))
@@ -50,7 +50,7 @@ class CalendarSuite extends munit.FunSuite:
   }
 
   test("README step 4: a calendar that forgets the booking after the request is found by a generated case") {
-    val forgets = KnowledgeBase("Rooms")(rooms.nodes*).copy(generators = rooms.generators)
+    val forgets = FrModel("Rooms")(rooms.nodes*).copy(generators = rooms.generators)
       .implementProven(book)(bookIfGranted)
       .implementTested(granted)(_ => (held, request) =>
         val room = held.bookings.sortBy(_.start).toVector
@@ -64,7 +64,7 @@ class CalendarSuite extends munit.FunSuite:
     val moved = Definition[Request => Booking]("the booking a request is moved to")
     val sameRoom = Node.claim("A request is moved within its room.")(
       forall((r: Term[Request]) => moved(r).room === r.room))
-    val endFirst = KnowledgeBase("Rooms")((rooms.nodes :+ sameRoom)*).implementProven(book)(bookIfGranted)
+    val endFirst = FrModel("Rooms")((rooms.nodes :+ sameRoom)*).implementProven(book)(bookIfGranted)
       .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
       .implementTested(moved)(_ => r => Booking(r.room, r.end, r.start))
     assertEquals(tested(endFirst, "sameRoom").failure.collect { case Failure.Call(_, _, b, _) => b },

@@ -34,7 +34,7 @@ class WorldsSuite extends munit.FunSuite:
     forall((n: Term[BigInt], before: Term[World]) =>
       racing(n).from(before) { (read, _) => read.fold(xs => xs.contains(n), ys => ys.contains(n)) }))
 
-  private val kb = KnowledgeBase("Shelves")((Shelf.knowledge.nodes ++ List(putIsKept, readSeesPut))*)
+  private val kb = FrModel("Shelves")((Shelf.knowledge.nodes ++ List(putIsKept, readSeesPut))*)
     .implementProven(putting)(puts).implementProven(racing)(races)
   private val e = kb.elaborated.fold(es => fail(es.toString), identity)
 

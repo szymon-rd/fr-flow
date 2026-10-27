@@ -3,7 +3,7 @@ package cli
 
 import java.nio.file.{Files, Path, StandardOpenOption}
 
-/** A new project in this build: `sbt "frflowInit toy"`. It writes an empty knowledge base and its main object, and the
+/** A new project in this build: `sbt "frflowInit toy"`. It writes an empty FrModel and its main object, and the
   * project's line in build.sbt (`render` makes `lean/`). What comes next is IDEA.md: what the system is for, in prose,
   * which the developer accepts before the root. A layer on top (`frflow.agent.Init`) makes the same project with its
   * extensions in the main object.
@@ -35,7 +35,7 @@ object Init:
            |import frflow.*
            |
            |/** $kb: empty until the developer accepts IDEA.md; the root comes next. */
-           |val knowledge = KnowledgeBase("$kb", idea = "IDEA.md")()
+           |val knowledge = FrModel("$kb", idea = "IDEA.md")()
            |
            |object ${name}Cli extends frflow.cli.FrFlowApp(knowledge, root = "examples/$name"$layers)
            |""".stripMargin)

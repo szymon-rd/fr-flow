@@ -2,7 +2,7 @@ package frflow.eval
 
 import cats.effect.kernel.Async
 import frflow.dsl.flow.{Flow, Terms}
-import frflow.dsl.kb.KnowledgeBase
+import frflow.dsl.kb.FrModel
 import frflow.dsl.example.Binding
 import frflow.dsl.vocab.Definition
 
@@ -11,7 +11,7 @@ import frflow.dsl.vocab.Definition
   * with. What `service` was, less the check: nothing checks a call in production.
   */
 object CodeSyntax:
-  extension (kb: KnowledgeBase)
+  extension (kb: FrModel)
     def code[F](d: Definition[F])(bindings: Binding*): F = ???
 
     /** What a program and its lifted adapters run with in production: `Running` over the values given. */

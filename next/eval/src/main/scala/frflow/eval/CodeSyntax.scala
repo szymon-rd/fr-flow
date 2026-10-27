@@ -6,7 +6,7 @@ import frflow.core.code.Values
 import frflow.core.example.Given
 import frflow.dsl.example.Binding
 import frflow.dsl.flow.{Flow, Terms}
-import frflow.dsl.kb.KnowledgeBase
+import frflow.dsl.kb.FrModel
 import frflow.dsl.vocab.Definition
 import frflow.eval.run.Wiring
 
@@ -15,7 +15,7 @@ import frflow.eval.run.Wiring
   * with. What `service` was, less the check: nothing checks a call in production.
   */
 object CodeSyntax:
-  extension (kb: KnowledgeBase)
+  extension (kb: FrModel)
     /** `d`'s meaning as plain code calls it (its plain Scala, its proven define run by the evaluator, its value), or
       * the value given it.
       */
@@ -28,12 +28,12 @@ object CodeSyntax:
       F.defer(F.widen(Running.make[F](CodeSyntax.values(kb, bindings), Literals(elaborated(kb)))))
 
   /** Every Definition's meaning, and the values given, which win. */
-  private def values(kb: KnowledgeBase, bindings: Seq[Binding]): Values =
+  private def values(kb: FrModel, bindings: Seq[Binding]): Values =
     val e = elaborated(kb)
     val wiring = Wiring(Semantics(e), e.theory)
     wiring.values(wiring.supplied(bindings.toList.map(b => Given(b.of, b.value.fold(f =>
       throw IllegalArgumentException(s"FrFlow: the value given ${b.of.value} is not data: $f"), identity)))))
 
-  private def elaborated(kb: KnowledgeBase): Elaborated = kb.elaborated.fold(errors =>
+  private def elaborated(kb: FrModel): Elaborated = kb.elaborated.fold(errors =>
     throw IllegalArgumentException(s"FrFlow: ${kb.name.value} does not elaborate: ${errors.iterator.mkString("; ")}"),
     identity)

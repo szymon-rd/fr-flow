@@ -4,7 +4,7 @@ import cats.data.ValidatedNec
 import cats.syntax.all.*
 import frflow.core.example.Example as Elaborated
 import frflow.dsl.build.{ElabError, Site, Source}
-import frflow.dsl.kb.KnowledgeBase
+import frflow.dsl.kb.FrModel
 import frflow.dsl.node.Node
 import frflow.dsl.shape.Elab
 import frflow.dsl.term.Term
@@ -18,10 +18,10 @@ import scala.collection.mutable.ListBuffer
   *     granted(RoomBookings(List(Booking("Oak", 9, 10))), Booking("Oak", 10, 11)) is true
   * }}}
   * Each `example` registers one as the class is built, as a test suite registers its tests; FrFlow reads them beside
-  * the knowledge base, checks each against the code and, where it sets no value, against the claims in Lean. They
-  * show how things work; nothing in the knowledge base depends on them.
+  * the FrModel, checks each against the code and, where it sets no value, against the claims in Lean. They
+  * show how things work; nothing in the FrModel depends on them.
   */
-abstract class FrFlowExamples(val knowledge: KnowledgeBase):
+abstract class FrFlowExamples(val knowledge: FrModel):
   private val written = ListBuffer.empty[Example]
 
   /** One example: its name, the values it gives provided Definitions, its fact. */

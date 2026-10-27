@@ -42,7 +42,7 @@ The web view is not a command: it is an sbt task, `sbt "PROJECT/serve [--port N]
 
 ### Starting a project
 
-1. `sbt "frflowInit NAME"` sets up an empty project in `examples/NAME`: a knowledge base with no nodes, its main
+1. `sbt "frflowInit NAME"` sets up an empty project in `examples/NAME`: a FrModel with no nodes, its main
    object, its Lean project, and its line in `build.sbt` (then `sbt reload`).
 2. The developer writes `IDEA.md`: what the system is for, in prose, in sections.
 3. `IDEA.md` waits for the developer, first in `inbox` and `review`: they accept it (`accept IDEA`, signed, or in the
@@ -260,7 +260,7 @@ given with `checkedAgainst` goes through the same runs (at most 200), so it is
 checked on varied data, not only the examples; its model stays assumed.
 
 **Settings.** `.testedWith(TestSettings(cases = 1000, seed = 1))` on the
-knowledge base. `FRFLOW_SEED` replaces the seed for one `check` or `ci`: a
+FrModel. `FRFLOW_SEED` replaces the seed for one `check` or `ci`: a
 number, or `fresh` for a new one (`FRFLOW_SEED=fresh bin/frflow crm check`). A test's
 result is kept while the node's meaning, its code, the settings and the
 generators are the same.
@@ -337,7 +337,7 @@ with a small budget, so they catch only what it can show. Then:
   Scala computes and not its opposite.
 - **State.** A run is `es.foldLeft(init)(step)`; the library (`FrFlow.always`,
   `simulates`, `tracks`) proves properties of every run.
-- **Authored proofs** (`lean/Proofs/<KB>/<Node>.lean`) state exactly the
+- **Authored proofs** (`lean/Proofs/<Model>/<Node>.lean`) state exactly the
   generated obligation and have their axioms audited (`sorry` fails).
 
 **Checked by running.** Examples run against the contract and the
@@ -358,7 +358,7 @@ random, reproducibly), `RunCheck.EveryCall` checks every call (for proven code
 too), `RunCheck.Never` checks none. Assumptions about the values the code runs
 with are checked whatever the choice (once per change of a value they read).
 
-A broken check is reported first, then thrown: the knowledge base's reporter
+A broken check is reported first, then thrown: the FrModel's reporter
 gets a `Violation` (the contract, which check, the inputs, the result), by
 default one line to the platform logger named `frflow`
 (`frflow contract violation: contract=Pick check="the contract" inputs=(…) result=…`);
@@ -633,7 +633,7 @@ not depend on the environment.
 
 ### A new project
 
-`sbt "frflowInit library"` makes `examples/library` with an empty knowledge base and its command line, and adds
+`sbt "frflowInit library"` makes `examples/library` with an empty FrModel and its command line, and adds
 `lazy val library = example("library", layers = Nil)` to `build.sbt` (add it to `root`'s `aggregate` to test it with the rest);
 then `sbt reload`. The rest follows [Starting a project](#starting-a-project). `bin/frflow library render` creates
 `lean/` (its `lakefile.toml`, toolchain and the generated Lean) once there are nodes; with several mains in the
@@ -660,14 +660,14 @@ One sbt subproject each, under `modules/`:
 - `protocol` (package `frflow.protocol`): the data crossing modules and files,
   with JSON codecs: ids, statuses and contents; the developer's decisions
   (`decision`), what checks record (`obligation`), the snapshot (`snapshot`).
-- `model` (package `frflow`): nodes and knowledge bases; `Opaque`, `Param`,
+- `model` (package `frflow`): nodes and FrModels; `Opaque`, `Param`,
   `define`; terms, their Lean and their evaluation; flows, boundaries and
   state models; examples, probes, `service`, `run`. A package per concept
   (`term`, `types`, `vocabulary`, `node`, `kb`, `flow`, `boundary`, `runtime`,
   `example`, `testing`, `program`); the trees and steps a model is made into,
   their Lean and their Scala, are in `frflow` itself. A model needs only
   `import frflow.*`.
-- `lean` (package `frflow.lean`): the Lean of a knowledge base; `printing`, its
+- `lean` (package `frflow.lean`): the Lean of a FrModel; `printing`, its
   modules and proof files; `obligation`, what Lean is asked of each node and the
   examples it evaluates; `reading`, reading Lean's output and proof files.
 - `ledger` (package `frflow.ledger`): decisions and refusals; `review`, review

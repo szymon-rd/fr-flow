@@ -121,7 +121,7 @@ val roomBookings = for
   room <- roomNames; count <- Gen.choose(0, 4); bookings <- laidEndToEnd(room, 0, count)
 yield RoomBookings(room, bookings)
 
-val rooms = KnowledgeBase("Rooms")(bookWhenFree, answerWhenFree, neverOverlap, endsAfterStart, bookingsOfTheRoom,
+val rooms = FrModel("Rooms")(bookWhenFree, answerWhenFree, neverOverlap, endsAfterStart, bookingsOfTheRoom,
   roomBookingsApart, grantWhenFree, grantWhenNoOverlap, tableMatchesModel, onlyBookingWrites, oneAtATime,
   startsEmpty, requestsEndAfterStart)
   .implementProven(book)(bookIfGranted)

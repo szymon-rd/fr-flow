@@ -101,7 +101,7 @@ val inMemorySessions = Node.design(
   "Sessions and grants are loaded into memory, in one process that decides every request.")(
   "src/main/scala/auth/Server.scala").refines(decisionContract)
 
-val knowledge = KnowledgeBase("Auth")(accessExactly, grantTable, sessionTable, requests, tokenNamesHolder,
+val knowledge = FrModel("Auth")(accessExactly, grantTable, sessionTable, requests, tokenNamesHolder,
   accessNeedsGrant, grantLetsIn, decisionContract, inMemorySessions, tokensIssuedOnce)
   .implementProvided(grants, sessions)
   .implementTested(admit)(env => SessionStore(env(grants), env(sessions)).decide)

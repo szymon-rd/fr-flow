@@ -1,7 +1,7 @@
 package frflow
 package kb
 
-/** What keeps a knowledge base from being checked, said so that its author can fix it. */
+/** What keeps a FrModel from being checked, said so that its author can fix it. */
 enum Problem(val message: String):
   case Structure(text: String) extends Problem(text)
   case Vocabulary(text: String) extends Problem(text)

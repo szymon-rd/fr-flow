@@ -212,7 +212,7 @@ class CrmSuite extends munit.CatsEffectSuite:
       def logEvent(e: Term[Event]) = Flow.effect(e)(ev => { t = t.copy(events = t.events :+ ev) })
     val tablesModel = Node.assumption(crm.db)(DatabaseModel)(crm.tablesModel.statement, crm.tablesModel.why)
       .implementedBy(t => LeakyDatabase(t), _.tables)
-    val kb = KnowledgeBase(knowledge.name, knowledge.idea, knowledge.implementations, knowledge.generators, knowledge.testing)(
+    val kb = FrModel(knowledge.name, knowledge.idea, knowledge.implementations, knowledge.generators, knowledge.testing)(
       knowledge.nodes.map(n => if n eq crm.tablesModel then tablesModel else n)*)
     val f = kb.test(tablesModel).get.failure.get
     assert(f.why.startsWith("storeAbout("), f.why)
@@ -265,7 +265,7 @@ class CrmSuite extends munit.CatsEffectSuite:
   }
 
   // Runs Lean: `sbt leanTest`, not plain `sbt test`.
-  test("the knowledge base is proven, from the contracts, their code and the ports to the root".tag(munit.Tag("Lean"))) {
+  test("the FrModel is proven, from the contracts, their code and the ports to the root".tag(munit.Tag("Lean"))) {
     // In the example's own workspace, as `crm/run check` checks it: its Lean build and the results it
     // recorded are reused while current (a node whose Lean changed is checked again). The check module's
     // Lean suites check from scratch.

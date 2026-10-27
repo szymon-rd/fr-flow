@@ -31,7 +31,7 @@ object Verdict:
     if proofFile then s"fix the proof in ${proofPath(g, n)}" else s"prove it in ${proofPath(g, n)} (run `scaffold ${n.id}`)"
 
   /** Two definitions of a term it uses, neither chosen: what it says is not known yet. */
-  def waiting(kb: KnowledgeBase, g: Generate, n: Node[?]): Option[Judged] =
+  def waiting(kb: FrModel, g: Generate, n: Node[?]): Option[Judged] =
     val waits = g.waitsForDefinition(n)
     Option.when(waits.nonEmpty)(Judged(CheckStatus.Waiting, Nil, List(
       s"waits for the choice between the definitions of ${waits.mkString(", ")} (${waits.flatMap(t => kb.definitionsOf(t).map(_.id)).mkString(", ")})")))
@@ -264,7 +264,7 @@ object Verdict:
   private val MissingModule = """object file '[^']*' of module (\S+) does not exist""".r
 
   /** The nodes whose proofs of the code `root_impl` composes: the `Impl` modules RootImpl imports. */
-  def composed(kb: KnowledgeBase, g: Generate, rootImpl: String): List[Node[?]] =
+  def composed(kb: FrModel, g: Generate, rootImpl: String): List[Node[?]] =
     val imports = """(?m)^import\s+(\S+)""".r.findAllMatchIn(rootImpl).map(_.group(1)).toSet
     kb.nodes.filter(c => imports(g.layout.impl(c.id).name))
 

@@ -12,7 +12,7 @@ private[frflow] object Witnesses:
   /** Up to `count` values of `t`, as the tests draw them, the empty value of a list or an option first: those the
     * `rules` hold of, as Scala runs them (all, where it cannot).
     */
-  def values(kb: KnowledgeBase, t: LeanType[?], count: Int, rules: List[Def[?]] = Nil): List[Any] =
+  def values(kb: FrModel, t: LeanType[?], count: Int, rules: List[Def[?]] = Nil): List[Any] =
     val plan = planOf(kb)
     def meets(v: Any) = rules.forall(d =>
       Try(Watch.within(Watch.overNumbers(List(v)))(Fn.call(d.fn, List(v)).asInstanceOf[Boolean])).getOrElse(true))
@@ -24,7 +24,7 @@ private[frflow] object Witnesses:
   /** A case of the binders on which `condition` holds, as Scala evaluates it: none when none drawn does, or Scala
     * cannot evaluate it.
     */
-  def caseOf(kb: KnowledgeBase, bs: List[Binder], condition: Tree): Option[List[Any]] =
+  def caseOf(kb: FrModel, bs: List[Binder], condition: Tree): Option[List[Any]] =
     val plan = planOf(kb)
     val run = Try(Eval.compile(condition)).toOption
     run.flatMap { f =>
@@ -35,7 +35,7 @@ private[frflow] object Witnesses:
         .flatMap(i => Try(bs.map(b => Draw(Testing.random(5, i), 1 + i % 4, plan).value(b.tpe))).toOption).find(holds)
     }
 
-  private def planOf(kb: KnowledgeBase): Plan =
+  private def planOf(kb: FrModel): Plan =
     val keyOf = Plan(Map.empty, Map.empty, Nil, Testing.opaques(kb))
     Plan(kb.generators.toMap.map((t, g) => keyOf.key(t) -> g), Map.empty, Nil, Testing.opaques(kb), holds = kb.holds)
 

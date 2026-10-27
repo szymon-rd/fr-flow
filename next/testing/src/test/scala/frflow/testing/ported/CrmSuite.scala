@@ -18,7 +18,7 @@ import frflow.testing.report.Failure
   */
 class CrmSuite extends munit.FunSuite:
   private def with_(fetched: (CrmStore, Search) => List[CrmRecord], stored: (BigInt, CrmStore) => CrmStore) =
-    KnowledgeBase("Crm")(knowledge.nodes*).copy(generators = knowledge.generators)
+    FrModel("Crm")(knowledge.nodes*).copy(generators = knowledge.generators)
       .implementProvided(history, held, clock)
       .implementTested(fetch)(env => (_, q) => fetched(env(held), q))
       .implementTested(storeRows)(_ => stored)

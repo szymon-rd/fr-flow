@@ -16,11 +16,11 @@ import java.util.SplittableRandom
   */
 class TestingSuite extends munit.FunSuite:
   private val few = Settings(300, Seed(3))
-  private def tested(kb: KnowledgeBase, node: String = "pick", settings: Settings = few,
+  private def tested(kb: FrModel, node: String = "pick", settings: Settings = few,
       replay: List[Failure] = Nil): Option[TestReport] =
     val e = kb.elaborated.fold(es => fail(es.iterator.mkString("\n")), identity)
     PropertyTests(Semantics(e), e.theory).of(NodeId(node), Plan(settings, replay), Derive.of(e, Nil))
-  private def failing(kb: KnowledgeBase, node: String = "pick"): Failure.Call =
+  private def failing(kb: FrModel, node: String = "pick"): Failure.Call =
     tested(kb, node).flatMap(_.failure).collect { case f: Failure.Call => f }.getOrElse(fail("the bug was not found"))
   private val offByOne = withCode(min => (shelf, _) => shelf.filter(_.pages > min))
 
@@ -89,7 +89,7 @@ class TestingSuite extends munit.FunSuite:
   }
 
   test("generated values cover the types: numbers, strings, lists, options, enums") {
-    val e = KnowledgeBase("Places")(Node.claim("A place is itself.")(forall((p: Term[Place]) => p === p)))
+    val e = FrModel("Places")(Node.claim("A place is itself.")(forall((p: Term[Place]) => p === p)))
       .elaborated.fold(es => fail(es.toString), identity)
     val d = Derive.of(e, Nil)
     val places = (0 until 200).flatMap(i => d(Gen.Derived[Place](LeanType[Place].ty), 6, Seed(5).forCase(i)))
@@ -101,20 +101,20 @@ class TestingSuite extends munit.FunSuite:
   }
 
   test("a proven define has nothing to test") {
-    val proven = KnowledgeBase("Shelf")(pick).implementProvided(minPages)
+    val proven = FrModel("Shelf")(pick).implementProvided(minPages)
       .implementProven(picks)(define((shelf: Term[List[Book]], _: Term[BigInt]) =>
         shelf.filter(b => b.pages >= minPages)))
     assertEquals(tested(proven), None)
   }
 
   test("one input: a generated test finds a bug and shrinks it") {
-    val wrong = KnowledgeBase("Shelf")(noLonger)
+    val wrong = FrModel("Shelf")(noLonger)
       .implementTested(longest)(_ => shelf => shelf.headOption.fold(BigInt(0))(_.pages))
     assertEquals(failing(wrong, "noLonger").inputs.map(shrunkBooks), List(2))
   }
 
   test("three inputs: a generated test finds a bug and shrinks it") {
-    val wrong = KnowledgeBase("Shelf")(inRange).implementTested(between)(_ => (shelf, lo, _) =>
+    val wrong = FrModel("Shelf")(inRange).implementTested(between)(_ => (shelf, lo, _) =>
       shelf.filter(_.pages >= lo))
     val f = failing(wrong, "inRange")
     assertEquals((f.inputs.size, f.broke), (3, Broken.Post))
@@ -122,7 +122,7 @@ class TestingSuite extends munit.FunSuite:
   }
 
   test("no input: a generated test under the values given finds a bug and shrinks it") {
-    val wrong = KnowledgeBase("Shelf")(todayLong).implementProvided(minPages)
+    val wrong = FrModel("Shelf")(todayLong).implementProvided(minPages)
       .implementTested(today)(_ => List(Book("Short", 1)))
     val f = failing(wrong, "todayLong")
     assertEquals((f.inputs, f.givens.map(_.value)), (Nil, List(Value.Num(2))))

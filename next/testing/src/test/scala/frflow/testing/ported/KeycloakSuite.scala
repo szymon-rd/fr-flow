@@ -13,8 +13,8 @@ class KeycloakSuite extends munit.FunSuite:
   private type Introspecting =
     (Looking, (RealmId, String) => Option[UserAccount]) => (RealmId, String) => Option[Claims]
 
-  private def with_(introspected: Introspecting, recorded: (AuthRequest, ServerState) => ServerState): KnowledgeBase =
-    KnowledgeBase("Keycloak")(knowledge.nodes*).implementProvided(seed, history, state)
+  private def with_(introspected: Introspecting, recorded: (AuthRequest, ServerState) => ServerState): FrModel =
+    FrModel("Keycloak")(knowledge.nodes*).implementProvided(seed, history, state)
       .implementProven(step)(handle)
       .implementTested(record)(_ => recorded)
       .implementTested(lookup)(env => (realm, token) => SessionDb.holding(env(state)).find(realm, token))

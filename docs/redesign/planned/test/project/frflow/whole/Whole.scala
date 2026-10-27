@@ -3,7 +3,7 @@ package whole
 import frflow.core.analysis.{Resolve, Resolved, Validate}
 import frflow.core.example.Example
 import frflow.core.name.DefName
-import frflow.dsl.kb.KnowledgeBase
+import frflow.dsl.kb.FrModel
 import frflow.eval.Semantics
 import frflow.proof.lean.ast.{Decl, LeanName, Names}
 import frflow.proof.lean.lower.{LowerEnv, LowerProp, LowerWitness, Naming}
@@ -14,10 +14,10 @@ import frflow.proof.whole.{ExampleGoals, Joint, Possible}
 import frflow.proof.terms.TermTable
 import frflow.testing.search.Witnesses
 
-/** A knowledge base's theory-level obligations as `project.pipeline.Analysis` makes them (the witnesses searched
+/** A FrModel's theory-level obligations as `project.pipeline.Analysis` makes them (the witnesses searched
   * for as `program.RunScala` does), and their Lean as `Whole.lean` declares it.
   */
-final class Whole(kb: KnowledgeBase, examples: List[Example]):
+final class Whole(kb: FrModel, examples: List[Example]):
   private val e = kb.elaborated.fold(es => throw AssertionError(es.toString), identity)
   val resolved: Resolved = Resolve(Validate(e).fold(ps => throw AssertionError(ps.toString), identity))
   val table: TermTable = TermTable.of(resolved)

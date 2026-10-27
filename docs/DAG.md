@@ -5,7 +5,7 @@ change that needs to depart from it says so in its commit message and in this fi
 
 ## 0. Principles
 
-1. **A small set of roots.** A knowledge base has one or a few root statements, on any of its Definitions and
+1. **A small set of roots.** A FrModel has one or a few root statements, on any of its Definitions and
    relating them too, kept concise by its author: each states one idea, and together they are the idea's
    purpose. A root claim is stated as *exactly* (what users can do and what must never happen, together), so
    that a system that does nothing does not meet it. Where the purpose has one, the root is one relation
@@ -15,7 +15,7 @@ change that needs to depart from it says so in its commit message and in this fi
    service's purpose may be stated of its flow: a root is then a claim on the flow's Definition, with parts
    (§1a; `examples/rooms`: what booking stores, what it answers, and what the store always holds).
 2. **A tree of refinements, as a DAG.** Every other node refines the nodes above it, and may refine
-   several. Every edge is proven and every node is decided: a knowledge base of why the system is as
+   several. Every edge is proven and every node is decided: a FrModel of why the system is as
    it is.
 3. **Granular and understandable.** One node says one thing, in the developer's domain words, in one
    sentence. A node that only restates its parent, or one conjunct of it, is not a node; one that
@@ -104,7 +104,7 @@ types); a define's and a lambda's variable names are read from the lambda.
 
 An open term is a Lean binder: what is proven holds for every value of it. Every term is open or has
 exactly one definition in force. The vocabulary is in modules of its own, so a change to one term
-rebuilds only the nodes that use it: `FrFlowGen/<KB>/Types.lean` holds the domain types and each type
+rebuilds only the nodes that use it: `FrFlowGen/<Model>/Types.lean` holds the domain types and each type
 in force as an `abbrev`; each `define` and each defined term has a module, `Domain/Def_<name>.lean`
 and `Domain/Term_<name>.lean`, a term as a `def`; `Domain.lean` only imports them all. A node's
 own declarations (`claim`, `post`, `rule`) take every term they mention as a binder; its statements
@@ -170,7 +170,7 @@ default for plain code and outside adapters, none for a proven define that is th
 result is what Lean proves), or what the developer decided (`checkedAtRunTime`: `EveryCall`,
 `Sampled(n[, seed])`, `Never`; part of the node's content, so decided like the rest). Assumptions about
 the values the code runs with are checked whatever the choice. A failed check is reported (`Violation`,
-to the knowledge base's reporter: a log line by default) before `ContractViolation` is thrown.
+to the FrModel's reporter: a log line by default) before `ContractViolation` is thrown.
 
 Tests are built from what is decided:
 - **the property** is the contract's own formula (with its `checkedBy` check and kept invariants),
@@ -225,7 +225,7 @@ Edges:
   rule(p)` (over as many inputs as the operation takes). Every contract in the invariant's scope keeps it or is `.exempt` with a reason; so is every
   design node in the scope.
 
-Structure rules (`KnowledgeBase.problems`): at least one root (a claim without parents, or a contract without
+Structure rules (`FrModel.problems`): at least one root (a claim without parents, or a contract without
 parents whose operation no code calls: on a flow, its purpose stated of its run); no cycles; an assumption or a contract has no parents only when code
 calls its operation, it is a model, or a flow implements it; a contract on a flow with parts has its flow
 proven (`implementProven`); a design node has a parent; a definition has none; at most one definition in
@@ -241,7 +241,7 @@ world before and after), `checkedBy`, `checkedAgainst`, `implement`, `implementP
 `IDEA.md` is a decision of the developer's, kept in the ledger under `IDEA`: proposed until accepted, back for
 review when it changes. The root is decided after it. A node's meaning carries the text of the section it names
 (without `From:` lines, which say where a section comes from and move no node), so an edit to a section brings back
-the nodes naming it. A project starts empty (`sbt "frflowInit NAME"`): a knowledge base with no nodes is valid while
+the nodes naming it. A project starts empty (`sbt "frflowInit NAME"`): a FrModel with no nodes is valid while
 `IDEA.md` is written.
 
 ## 3. Lean obligations
@@ -250,7 +250,7 @@ For each node N with parts C1..Cn (n ≥ 1), over the union U of the open terms 
 
 | Name | Statement | Proven by | Failing means |
 |---|---|---|---|
-| `complete` | `∀ U, C1 → … → Cn → N`; for a contract on a flow with parts, `N[op := f_run]` (its code) | matching, `frflow_auto`, or `theorem complete` in `lean/Proofs/<KB>/<N>.lean` | the parts do not make N: open |
+| `complete` | `∀ U, C1 → … → Cn → N`; for a contract on a flow with parts, `N[op := f_run]` (its code) | matching, `frflow_auto`, or `theorem complete` in `lean/Proofs/<Model>/<N>.lean` | the parts do not make N: open |
 | `needed_C` (n ≥ 2) | tried: `∀ U, (∧ the other parts) → N` | `frflow_auto`, 4000 heartbeats | proven: C is not needed for N; the split is unproven |
 | `vacuous` (n = 1) | tried: `∀ U, N` | as above | proven: N says nothing its part adds; unproven |
 | `restates` (n = 1) | tried: `∀ U, N → C1` | as above | proven (with `complete`): N says what its part says; `status` warns of it |
@@ -276,7 +276,7 @@ assumptions' joint consistency is trusted.
 
 Composition: each node gets `theorem holds : ∀ U, Leaves → N` (the contracts, assumptions and
 part-less claims below N), built from the `complete` theorems in topological order; a shared node is
-proven once. The knowledge base gets `theorem root_impl : ∀ U', Assumptions → Root[op := code for
+proven once. The FrModel gets `theorem root_impl : ∀ U', Assumptions → Root[op := code for
 every op with a proven define]`. Its hypotheses are the trusted base, shown by `status`. `impl` is
 proven from the promises of the operations the code calls, never from their code.
 
@@ -299,8 +299,8 @@ part stops being proven, or when the checker's version changes.
 
 ## 3a. Consistency and vacuity
 
-Beside each node's obligations, `check` asks Lean of the knowledge base as a whole, in
-`FrFlowGen/<KB>/Consistency.lean` (recorded in `.frflow/consistency.json`, checked again when it changes):
+Beside each node's obligations, `check` asks Lean of the FrModel as a whole, in
+`FrFlowGen/<Model>/Consistency.lean` (recorded in `.frflow/consistency.json`, checked again when it changes):
 
 - **The statements hold together.** The statements at the bottom of the DAG (formal, with no parts, not an
   `always`), grouped by the open terms they share: `∃ terms, C1 ∧ … ∧ Cn`, each term given a witness: what an

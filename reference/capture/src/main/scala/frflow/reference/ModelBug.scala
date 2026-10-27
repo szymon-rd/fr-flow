@@ -1,7 +1,7 @@
 package frflow.reference
 
 import _root_.crm.*
-import frflow.{Flow, KnowledgeBase, Node, Term}
+import frflow.{Flow, FrModel, Node, Term}
 
 /** crm's in-memory store that keeps a record's old shares, a copy of `CrmSuite`'s (`var` and all): found by the model
   * test.
@@ -25,7 +25,7 @@ object ModelBug:
     // Named as the suite names it, so that the node keeps its id.
     val tablesModel = Node.assumption(db)(DatabaseModel)(original.statement, original.why)
       .implementedBy(t => LeakyDatabase(t), _.tables)
-    val kb = KnowledgeBase(knowledge.name, knowledge.idea, knowledge.implementations, knowledge.generators,
+    val kb = FrModel(knowledge.name, knowledge.idea, knowledge.implementations, knowledge.generators,
       knowledge.testing)(knowledge.nodes.map(n => if n eq original then tablesModel else n)*)
     Seeded("in-memory store that keeps a record's old shares", inTable = false,
       "the Database's own in-memory implementation keeps the shares of a record it stores again",

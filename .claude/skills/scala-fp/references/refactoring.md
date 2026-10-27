@@ -1,7 +1,7 @@
 # Changing a core type
 
 This procedure is for changing a type that several packages or modules use:
-`Node`, `KnowledgeBase`, `Term`, `SnapNode`, `Overview`, `Review`, `Decision`
+`Node`, `FrModel`, `Term`, `SnapNode`, `Overview`, `Review`, `Decision`
 and others like them. A small change inside one package needs only steps 1, 6,
 7 and 8.
 

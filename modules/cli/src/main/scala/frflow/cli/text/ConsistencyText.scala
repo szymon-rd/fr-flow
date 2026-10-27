@@ -4,7 +4,7 @@ package text
 import frflow.protocol.*
 import frflow.protocol.snapshot.Consistency
 
-/** What `check` says of the knowledge base as a whole: its statements hold together, and nothing is vacuous. */
+/** What `check` says of the FrModel as a whole: its statements hold together, and nothing is vacuous. */
 object ConsistencyText:
   def lines(c: Option[Consistency], st: Style): List[String] = c.toList.flatMap(_.items).map { i =>
     val glyph = if i.status == ObligationStatus.Proven then st.proven else st.open

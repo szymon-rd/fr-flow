@@ -7,11 +7,11 @@ import java.nio.file.{Files, Path}
 import scala.jdk.CollectionConverters.*
 import scala.util.Try
 
-/** The examples written as tests of a knowledge base (`FrFlowExamples`): the suites compiled into the directories
+/** The examples written as tests of a FrModel (`FrFlowExamples`): the suites compiled into the directories
   * `-Dfrflow.tests` names (the project's test classes), each built once and read.
   */
 object WrittenExamples:
-  def load(kb: KnowledgeBase): IO[KnowledgeBase] = IO.blocking {
+  def load(kb: FrModel): IO[FrModel] = IO.blocking {
     val suites = dirs.flatMap(classesIn).flatMap(suite).filter(_.knowledge.name == kb.name)
     if suites.isEmpty then kb else kb.withWritten(suites.flatMap(_.written))
   }

@@ -13,7 +13,7 @@ import frflow.proof.obligation.Constant
 import frflow.testing.search.Witnesses
 
 /** Running Scala before the pure phases (the developer's code runs): each example against the code, and the search
-  * for the witnesses of what must be shown possible (owner §18), from the knowledge base's generators (`drawn`) and
+  * for the witnesses of what must be shown possible (owner §18), from the FrModel's generators (`drawn`) and
   * small values.
   */
 final class RunScala[F[_]: Sync](semantics: Semantics, drawn: Ty => List[Value]):

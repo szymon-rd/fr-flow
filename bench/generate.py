@@ -1,4 +1,4 @@
-"""Generates examples/scale: a synthetic knowledge base on the DAG of refinements (docs/DAG.md), to
+"""Generates examples/scale: a synthetic FrModel on the DAG of refinements (docs/DAG.md), to
 measure how FrFlow behaves as a project grows. No statement grows with the project: each node says
 one thing in words the vocabulary defines, and has at most six parts.
 
@@ -311,7 +311,7 @@ end Scale.Service{i}.Proofs
 ''')
 
 # ---------------------------------------------------------------------------------------------
-# The knowledge base
+# The FrModel
 # ---------------------------------------------------------------------------------------------
 service_nodes = []
 for i in range(n):
@@ -328,7 +328,7 @@ write(os.path.join(src, "Scale.scala"), f'''package scale
 import frflow.*
 
 /** Every node, listed: the root, the vocabulary, the groups, then each service's. */
-val knowledge = KnowledgeBase("Scale", idea = "IDEA.md")(
+val knowledge = FrModel("Scale", idea = "IDEA.md")(
   {(",\n  ").join(nodes)}){impls}
 
 object scaleCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/scale")

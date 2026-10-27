@@ -26,7 +26,7 @@ sit below the branches whose proofs use them.
 | `sharing.time` | how long things last (`Lifetimes`: in force, open, gone, fixed with the clock); the clock's assumption; the service as a run of events (`Run`) and the deadlines over it (`Deadlines`) |
 | `sharing.store` | `trait LibraryStore`, its model and assumption (`LibraryKept`); the memory store and the SQLite store |
 | `sharing.http` | requests and answers; `SharingHttp.handleContract`, the proven handling of a request on the store; the HTTP codec and the server |
-| `sharing` (`Knowledge.scala`) | the knowledge base: nodes, implementations, generators, the CLI |
+| `sharing` (`Knowledge.scala`) | the FrModel: nodes, implementations, generators, the CLI |
 
 ## Running it
 

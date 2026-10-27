@@ -2,10 +2,10 @@ package frflow
 
 import frflow.fixtures.*
 
-/** Nodes, the knowledge base's queries, and the structural problems that keep it from being checked. */
+/** Nodes, the FrModel's queries, and the structural problems that keep it from being checked. */
 class NodeSuite extends munit.FunSuite:
 
-  test("the knowledge base is well formed: one root, parts under it, definitions beside") {
+  test("the FrModel is well formed: one root, parts under it, definitions beside") {
     assertEquals(shelfKb.problems, Nil)
     assertEquals(shelfKb.root.map(_.id), Some("OnlyGood"))
     assertEquals(shelfKb.params.map(_.name), List("good", "minPages", "picks", "shown"))
@@ -98,8 +98,8 @@ class NodeSuite extends munit.FunSuite:
   test("the DAG's queries: parents, parts, ancestors nearest first, the root") {
     assertEquals(shelfKb.children(fromList).map(_.id), List("Pick"))
     assertEquals(shelfKb.ancestors(pick).map(_.id), List("FromList", "OnlyLong", "EveryLong", "OnlyGood"))
-    // a parent outside the knowledge base is not one of its parents
-    assertEquals(KnowledgeBase("K", "IDEA.md")(fromList).parentsOf(fromList), Nil)
+    // a parent outside the FrModel is not one of its parents
+    assertEquals(FrModel("K", "IDEA.md")(fromList).parentsOf(fromList), Nil)
   }
 
   test("the vocabulary's queries: the definitions a node uses, the terms it reads, the operations its code calls") {
@@ -115,7 +115,7 @@ class NodeSuite extends munit.FunSuite:
     // several roots, each a claim no node is above: the author keeps the set small
     assertEquals(shelfWith(pick, other).roots.map(_.id), List("OnlyGood", "Other"))
     assertEquals(shelfWith(pick, other).problems, Nil)
-    assert(KnowledgeBase("K", "IDEA.md")(fromList).problems.exists(_.message.contains("a root is required")))
+    assert(FrModel("K", "IDEA.md")(fromList).problems.exists(_.message.contains("a root is required")))
     // a contract no code calls and nothing is above
     assert(shelfWith(pick, pickPromise).problems.exists(_.message.startsWith("PickPromise has no parents")))
     val loose = Node.design("Shelves are cached.", "They change once a day.")()
@@ -131,11 +131,11 @@ class NodeSuite extends munit.FunSuite:
     assertEquals(Service.kb().parts(Service.sold).map(_.id), List("PricePositive"))
     assertEquals(Service.kb().children(Service.sold).map(_.id), List("PricePositive", "TillKept"))
     // its code makes it from its parts: without the proven flow there is nothing to make it
-    val unproven = KnowledgeBase("Service", idea = "IDEA.md")(Service.sold, Service.pricePositive, Service.tillKept)
+    val unproven = FrModel("Service", idea = "IDEA.md")(Service.sold, Service.pricePositive, Service.tillKept)
     assert(unproven.problems.exists(_.message.startsWith("Sold has parts: its flow makes it from them")), unproven.problems)
     // a claim with no parents beside it is a second root; the first root claim is the one the idea's lead is for
     val other = Node.claim("s", "w")(forall((x: Term[BigInt]) => sq(x) >= 0))
-    val two = KnowledgeBase("Service", idea = "IDEA.md")(Service.sold, Service.pricePositive, Service.tillKept, other)
+    val two = FrModel("Service", idea = "IDEA.md")(Service.sold, Service.pricePositive, Service.tillKept, other)
       .implementProven(Service.sold)(Service.selling)
       .implementTested(Service.pricePositive)(item => item.abs + 1)
     assertEquals((two.problems, two.roots.map(_.id), two.root.map(_.id)), (Nil, List("Sold", "Other"), Some("Other")))
@@ -177,7 +177,7 @@ class NodeSuite extends munit.FunSuite:
     assert(shelfWith(pick, op).problems.exists(_.message.startsWith("Op defines picks, an operation")))
   }
 
-  test("code attached to something that is not a contract of the knowledge base is a problem") {
+  test("code attached to something that is not a contract of the FrModel is a problem") {
     val kb = shelfWith(pick).withImplementation(Implementation("Nowhere", () => (), Nil))
     assert(kb.problems.exists { case Problem.Code(t) => t.startsWith("implementation of Nowhere"); case _ => false }, kb.problems)
   }

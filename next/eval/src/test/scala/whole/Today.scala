@@ -1,12 +1,12 @@
 package whole
 
-import frflow.dsl.kb.KnowledgeBase
+import frflow.dsl.kb.FrModel
 
-/** The examples' nodes as today's library has them (each knowledge base's list under examples), by id, and the
-  * knowledge bases written in the three kinds.
+/** The examples' nodes as today's library has them (each FrModel's list under examples), by id, and the
+  * FrModels written in the three kinds.
   */
 object Today:
-  val all: List[(String, KnowledgeBase)] = List("rooms" -> _root_.rooms.rooms,
+  val all: List[(String, FrModel)] = List("rooms" -> _root_.rooms.rooms,
     "auth" -> _root_.auth.knowledge, "keycloak" -> _root_.keycloak.knowledge, "crm" -> _root_.crm.knowledge,
     "sharing" -> _root_.sharing.knowledge)
 

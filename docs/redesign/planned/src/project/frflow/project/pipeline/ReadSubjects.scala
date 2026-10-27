@@ -8,7 +8,7 @@ import frflow.decision.content.CodeNow
 import frflow.decision.review.{Place, Subject, Subjects}
 import frflow.project.code.{CodeFingerprints, Governance}
 
-/** The subjects of decisions, read once off the analysis: the ledger's whole view of the knowledge base, every node
+/** The subjects of decisions, read once off the analysis: the ledger's whole view of the FrModel, every node
   * after all it rests on.
   */
 object ReadSubjects:

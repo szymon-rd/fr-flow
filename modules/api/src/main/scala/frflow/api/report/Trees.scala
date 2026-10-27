@@ -9,7 +9,7 @@ object Trees:
     val ids = v.nodes.map(_.id).toSet
     val draw = drawing(v, ids)
     val (roots, rest) = v.nodes.filterNot(_.node.parents.exists(ids)).partition(v.isRoot)
-    // The roots in the order the knowledge base lists them: the author's.
+    // The roots in the order the FrModel lists them: the author's.
     val main = roots.sortBy(r => v.snapshot.roots.indexOf(r.id) match { case -1 => Int.MaxValue; case i => i })
     val (definitions, others) = rest.partition(_.node.kind == NodeKind.Definition)
     val (assumptions, unparented) = others.partition(_.node.kind == NodeKind.Assumption)

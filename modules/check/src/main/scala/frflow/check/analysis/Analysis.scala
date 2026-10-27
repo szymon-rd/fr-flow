@@ -7,8 +7,8 @@ import frflow.lean.*
 import frflow.ledger.*
 import frflow.protocol.*
 
-/** What the checker knows of a knowledge base, computed from `Inputs` alone: the Lean, the contents, the checks still current. */
-final class Analysis private (val kb: KnowledgeBase, val ws: Workspace, val inputs: Inputs, model: Option[Analysis.Model]):
+/** What the checker knows of a FrModel, computed from `Inputs` alone: the Lean, the contents, the checks still current. */
+final class Analysis private (val kb: FrModel, val ws: Workspace, val inputs: Inputs, model: Option[Analysis.Model]):
   // What does not depend on the checks: kept when only they change (after a check).
   private val m: Analysis.Model = model.getOrElse(Analysis.Model(this))
   export inputs.{checks, idea, ledger}
@@ -62,8 +62,8 @@ final class Analysis private (val kb: KnowledgeBase, val ws: Workspace, val inpu
   lazy val warnings: List[String] = snapshot.warnings ++ inputs.keyWarnings ++ Signing.warnings(inputs.keys, ledger, unsigned)
 
 object Analysis:
-  def apply(kb: KnowledgeBase, ws: Workspace, inputs: Inputs): Analysis = new Analysis(kb, ws, inputs, None)
-  def read(kb: KnowledgeBase, ws: Workspace, cfg: Config, ledger: JsonStore[Ledger]): IO[Analysis] =
+  def apply(kb: FrModel, ws: Workspace, inputs: Inputs): Analysis = new Analysis(kb, ws, inputs, None)
+  def read(kb: FrModel, ws: Workspace, cfg: Config, ledger: JsonStore[Ledger]): IO[Analysis] =
     Inputs.read(kb, ws, cfg, ledger.load).map(Analysis(kb, ws, _))
 
   private final class Model(a: Analysis):

@@ -36,7 +36,7 @@ class CalendarSuite extends munit.FunSuite:
 
   private val respecting = Respecting(Anything, Made.of(semantics, e.theory), tries = 200)
   private val plan = Plan(Settings(500, Seed(14)), Nil)
-  private def tested(kb: KnowledgeBase, draw: Draw, claim: String) =
+  private def tested(kb: FrModel, draw: Draw, claim: String) =
     val k = kb.elaborated.fold(es => fail(es.toString), identity)
     PropertyTests(Semantics(k), k.theory).of(NodeId(claim), plan, draw).getOrElse(fail(s"$claim is not tested"))
 
@@ -64,7 +64,7 @@ class CalendarSuite extends munit.FunSuite:
   }
 
   test("README step 4: a calendar that forgets the booking after the request is found by a generated case") {
-    val forgets = KnowledgeBase("Rooms")(rooms.nodes*).implementProven(book)(bookIfGranted)
+    val forgets = FrModel("Rooms")(rooms.nodes*).implementProven(book)(bookIfGranted)
       .implementTested(granted)(_ => (held, request) =>
         val room = held.bookings.filter(_.room == request.room).sortBy(_.start).toVector
         val next = room.search(request)(using Ordering.by(_.start)).insertionPoint

@@ -7,14 +7,14 @@ import java.util.regex.Pattern.quote
 
 private[frflow] object Validation:
   import Problem.*
-  def problems(kb: KnowledgeBase): List[Problem] =
+  def problems(kb: FrModel): List[Problem] =
     structure(kb) ++ vocabulary(kb) ++ meanings(kb) ++ names(kb) ++ wording(kb) ++ examples(kb) ++ invariants(kb) ++
       code(kb) ++ always(kb) ++ outside(kb) ++ starts(kb)
   private def isOperation(n: Node[?]) = n.kind == NodeKind.Contract || n.kind == NodeKind.Assumption
   /** A claim, a contract or an assumption may leave `why` out: the reason is kept with the decision. */
   private def whyOptional(k: NodeKind) = k == NodeKind.Claim || k == NodeKind.Contract || k == NodeKind.Assumption
 
-  private def structure(kb: KnowledgeBase): List[Problem] =
+  private def structure(kb: FrModel): List[Problem] =
     import kb.{nodes, parentsOf}
     val ids = nodes.map(_.id)
     val called = kb.calledOps
@@ -34,13 +34,13 @@ private[frflow] object Validation:
         .map(n => s"${n.id} has no parents: a ${n.kind.toString.toLowerCase} is a part of the nodes it helps prove, unless code calls its operation"),
       nodes.filter(n => n.kind == NodeKind.Design && n.parents.isEmpty).map(n => s"${n.id}: a design decision is under the nodes it serves (.refines)"),
       nodes.filter(n => n.kind == NodeKind.Definition && n.parents.nonEmpty).map(n => s"${n.id}: a definition has no parents"),
-      nodes.flatMap(n => n.parents.filterNot(kb.has).map(p => s"${n.id}: its parent ${p.id} is not in the knowledge base")),
+      nodes.flatMap(n => n.parents.filterNot(kb.has).map(p => s"${n.id}: its parent ${p.id} is not in the FrModel")),
       nodes.filter(n => n.kind != NodeKind.Design && under(NodeKind.Design)(n))
         .map(n => s"${n.id}: a design decision has no statement to refine; only design decisions go below it"),
       nodes.filter(under(NodeKind.Definition)).map(n => s"${n.id}: nothing is under a definition; a node uses its terms")
     ).flatten.map(Structure(_))
 
-  private def vocabulary(kb: KnowledgeBase): List[Problem] =
+  private def vocabulary(kb: FrModel): List[Problem] =
     import kb.{definitions, nodes}
     List(
       definitions.filter(n => n.substs.isEmpty).map(n => s"${n.id}: a definition fixes at least one term"),
@@ -58,7 +58,7 @@ private[frflow] object Validation:
     ).flatten.map(Vocabulary(_))
 
   /** A Definition gets a meaning from code; a Declaration never does, and no code uses it. */
-  private def meanings(kb: KnowledgeBase): List[Problem] =
+  private def meanings(kb: FrModel): List[Problem] =
     val declarations = kb.params.collect { case d: Declaration[?] => d.name }.toSet
     val usedByCode = kb.implementations.flatMap(i =>
       i.proven.toList.flatMap(d => Def.closure(List(d)).flatMap(_.lifted.paramObjects)).map(_.name) ++ i.calls).distinct
@@ -78,7 +78,7 @@ private[frflow] object Validation:
     ).flatten.map(Vocabulary(_))
 
   /** What an `always` claim about a store rests on: the store's start, who writes it, and one run at a time. */
-  private def always(kb: KnowledgeBase): List[Problem] =
+  private def always(kb: FrModel): List[Problem] =
     val proven = kb.implementations.filter(_.flow)
       .flatMap(i => i.definition.orElse(kb.node(i.contract).flatMap(_.op).map(_.name)))
     kb.nodes.flatMap(n => n.always.flatMap(_.store).map(n -> _)).flatMap { (n, m) =>
@@ -103,7 +103,7 @@ private[frflow] object Validation:
     * meets is an assumption `always` of its type. An `always` claim about a type such values have, with no such
     * assumption, has nothing to rest on there.
     */
-  private def outside(kb: KnowledgeBase): List[Problem] =
+  private def outside(kb: FrModel): List[Problem] =
     val programs = kb.implementations.filter(_.flow).flatMap(i => kb.node(i.contract).flatMap(_.op)).distinctBy(_.name)
     def inputs(p: Param[?]) = p.termType.shape match
       case frflow.types.Shape.FnOf(as, _) => as
@@ -124,13 +124,13 @@ private[frflow] object Validation:
     }
 
   /** What a store starts satisfying is an `always` claim about that store. */
-  private def starts(kb: KnowledgeBase): List[Problem] =
+  private def starts(kb: FrModel): List[Problem] =
     kb.nodes.flatMap(n => n.fact.flatMap(_.store).toList.flatMap(m => n.startsSatisfying.map(c => (n, m, c))))
       .filterNot((_, m, c) => c.always.exists(_.store.exists(_ eq m)))
       .map((n, m, c) => Invariants(s"${n.id}: ${c.id} is not an always claim about " +
         s"${m.lean}: say what the store starts satisfying with always(${m.lean})(…)"))
 
-  private def names(kb: KnowledgeBase): List[Problem] =
+  private def names(kb: FrModel): List[Problem] =
     val ids = kb.nodes.map(_.id)
     val Ident = """[A-Za-z_][A-Za-z0-9_]*""".r
     val declared = kb.types.map(_.name) ++ kb.defs.map(_.name)
@@ -156,7 +156,7 @@ private[frflow] object Validation:
       }.toList
     ).flatten.map(Vocabulary(_))
 
-  private def wording(kb: KnowledgeBase): List[Problem] =
+  private def wording(kb: FrModel): List[Problem] =
     List(
       kb.nodes.filter(n => n.why.trim.isEmpty && !whyOptional(n.kind))
         .map(n => s"${n.id}: say why (the reason for this node)"),
@@ -166,17 +166,17 @@ private[frflow] object Validation:
     ).flatten.map(Wording(_))
 
   /** Examples are cases the developer reads, not what anything rests on: only where there is a call to give them of. */
-  private def examples(kb: KnowledgeBase): List[Problem] =
+  private def examples(kb: FrModel): List[Problem] =
     kb.nodes.filter(n => n.cases.nonEmpty && n.post.isEmpty)
       .map(n => Examples(s"${n.id}: only contracts and assumptions on an operation have examples"))
 
-  private def invariants(kb: KnowledgeBase): List[Problem] =
+  private def invariants(kb: FrModel): List[Problem] =
     import kb.nodes
     val rules = nodes.filter(_.isInvariant)
     def keeps(n: Node[?], i: Node[?]) = n.kept.exists(k => (k.invariant eq i) && k.view.nonEmpty)
     List(
       nodes.flatMap(n => n.kept.map(_.invariant).filterNot(i => kb.has(i) && i.isInvariant)
-        .map(i => s"${n.id} keeps ${i.id}, which is not an invariant of this knowledge base")),
+        .map(i => s"${n.id} keeps ${i.id}, which is not an invariant of this FrModel")),
       nodes.filter(n => n.kept.exists(_.view.nonEmpty) && !n.onOperation)
         .map(n => s"${n.id}: only contracts keep invariants"),
       nodes.filter(n => n.kept.nonEmpty && !n.onOperation && n.kind != NodeKind.Design)
@@ -188,10 +188,10 @@ private[frflow] object Validation:
         .map(c => if c.kind == NodeKind.Design then s"${c.id}: say why ${i.id} does not apply to the code it governs (.exempt): a design decision in its scope does"
           else s"${c.id}: keep ${i.id} (.keeps) or say why it does not apply (.exempt): every contract in its scope does one")),
       rules.filterNot(i => nodes.exists(keeps(_, i))).map(i => s"${i.id}: no contract keeps this invariant"),
-      rules.flatMap(i => i.scope.filterNot(kb.has).map(s => s"${i.id}: its scope ${s.id} is not in the knowledge base"))
+      rules.flatMap(i => i.scope.filterNot(kb.has).map(s => s"${i.id}: its scope ${s.id} is not in the FrModel"))
     ).flatten.map(Invariants(_))
 
-  private def code(kb: KnowledgeBase): List[Problem] =
+  private def code(kb: FrModel): List[Problem] =
     val boundaries = kb.implementations.flatMap(_.flowDef).flatMap(_.lifted.boundaries).distinct
     List(
       boundaries.filterNot(b => kb.models.exists(_.boundary eq b))
@@ -210,12 +210,12 @@ private[frflow] object Validation:
             Option.when(said.isEmpty)(s"$c: its flow may fail with $e: say what holds when a run fails (.failsChangingNothing[…] or .onFailure[…](…))").toList
           case es => List(s"$c: its flow may fail with ${es.mkString(" or ")}${said.fold("")(s => s", its contract says $s")}: one error type for a flow")
       },
-      kb.failureTypes.drop(1).headOption.map(_ => s"the flows fail with ${kb.failureTypes.mkString(" and ")}: one error type for a knowledge base").toList,
+      kb.failureTypes.drop(1).headOption.map(_ => s"the flows fail with ${kb.failureTypes.mkString(" and ")}: one error type for a FrModel").toList,
       // Code that calls its own operation would be proven assuming what it proves.
       kb.nodes.flatMap(c => c.op.filter(o => kb.implementation(c).flatMap(_.proven).exists(d => kb.opsCalledBy(d).contains(o.name)))
         .map(o => s"${c.id}: its implementation calls ${o.name} itself: it cannot be proven from its own promise")),
       kb.implementations.map(_.contract).filterNot(c => kb.nodes.exists(n => n.id == c && n.op.isDefined))
-        .map(c => s"implementation of $c: not a contract (or an assumption on an operation) of this knowledge base"),
+        .map(c => s"implementation of $c: not a contract (or an assumption on an operation) of this FrModel"),
       kb.nodes.filter(n => n.runCheck.isDefined && kb.runTime(n).isEmpty)
         .map(n => s"${n.id}: checkedAtRunTime is for a contract or an assumption whose code service runs: attach its code, or remove it")
     ).flatten.map(Code(_))

@@ -44,7 +44,7 @@ object StockLaws:
   val assocRhs = Node.contract(associativityRhs)("The rhs side of Associativity gives what the post says.")(deliveredTwiceToppedUp)
     .examples()(twice)
 
-  val kb = KnowledgeBase("Laws", idea = "IDEA.md")(neverBelowZero, clamp, stockModel, leftLhs, leftRhs, rightLhs, rightRhs, assocLhs, assocRhs)
+  val kb = FrModel("Laws", idea = "IDEA.md")(neverBelowZero, clamp, stockModel, leftLhs, leftRhs, rightLhs, rightRhs, assocLhs, assocRhs)
     .implementProven(clamp)(clampAtZero)
     .implementProven(leftLhs)((a: Term[BigInt]) => leftUnit(a).lhs).implementProven(leftRhs)((a: Term[BigInt]) => leftUnit(a).rhs)
     .implementProven(rightLhs)((a: Term[BigInt]) => rightUnit(a).lhs).implementProven(rightRhs)((a: Term[BigInt]) => rightUnit(a).rhs)

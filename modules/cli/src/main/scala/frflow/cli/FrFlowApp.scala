@@ -8,7 +8,7 @@ import com.monovore.decline.Command as Sub
 import frflow.api.{Extension, FrFlowError, FrFlowProject, Host, LiveApi}
 import java.nio.file.Path
 
-/** The command line of a knowledge base, which a project's main object extends:
+/** The command line of a FrModel, which a project's main object extends:
   * {{{
   * object authCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/auth")
   * }}}
@@ -17,9 +17,9 @@ import java.nio.file.Path
   * `extensions = List(frflow.agent.Agent)` for an AI agent's). A usage error prints the help and exits 2. The web
   * view runs from the same object, through sbt (`sbt "auth/serve --as NAME"`), not from here.
   */
-abstract class FrFlowApp(knowledge: => KnowledgeBase, val root: String = ".", val kernelPath: String = "../../../lean",
+abstract class FrFlowApp(knowledge: => FrModel, val root: String = ".", val kernelPath: String = "../../../lean",
     override val extensions: List[Extension] = Nil) extends IOApp with FrFlowProject:
-  final def kb: KnowledgeBase = knowledge
+  final def kb: FrModel = knowledge
   private def cli: List[CliExtension] = extensions.collect { case c: CliExtension => c }
   final def run(args: List[String]): IO[ExitCode] = IO(sys.env).flatMap { env =>
     val name = Option(Path.of(root).normalize.getFileName).map(_.toString).filter(n => n.nonEmpty && n != ".").getOrElse("frflow")

@@ -28,18 +28,18 @@ class LeanSplitSuite extends LeanLab:
     assert(Proofs.unproven(node(w, "OnlyGood")).exists(_.startsWith("Bounded is not needed for it")), Proofs.unproven(node(w, "OnlyGood")))
     val none = Node.claim("No book is ever picked.", why = "w")(forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).isEmpty)).refines(onlyGood)
     val one = Node.claim("One book is always picked.", why = "w")(forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).length === 1)).refines(onlyGood)
-    val cw = workflow(KnowledgeBase("Clash", idea = "IDEA.md")(onlyGood, books, picking, none, one))
+    val cw = workflow(FrModel("Clash", idea = "IDEA.md")(onlyGood, books, picking, none, one))
     val clash = of(cw.check(), "OnlyGood")
     assertEquals((clash.status.toString, result(clash, "clash").map(_.status.toString), st(splitOf(cw, onlyGood), "clash")),
       ("failed", Some("shown"), Some("shown")), clash)
     // a parent that holds whatever its one part says is vacuous; one that says what its one part says restates it
     val trivial = Node.claim("Nothing is wrong.", why = "w")(forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => True)))
     val part = Node.claim("Picked books come from the shelf.", why = "w")(forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => l.contains(b)))).refines(trivial)
-    val vac = of(workflow(KnowledgeBase("Vac", idea = "IDEA.md")(trivial, part)).check(), "Trivial")
+    val vac = of(workflow(FrModel("Vac", idea = "IDEA.md")(trivial, part)).check(), "Trivial")
     assertEquals(List("vacuous", "restates").map(result(vac, _).map(_.status.toString)), List(Some("shown"), Some("not-shown")), vac)
     val same = Node.claim("Picked books come from the shelf.", why = "w")(forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => l.contains(b))))
     val again = Node.claim("Every book picked is on the shelf.", why = "w")(forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => l.contains(b)))).refines(same)
-    val sameLab = workflow(KnowledgeBase("Same", idea = "IDEA.md")(same, again))
+    val sameLab = workflow(FrModel("Same", idea = "IDEA.md")(same, again))
     val restates = of(sameLab.check(), "Same")
     assertEquals(result(restates, "restates").map(r => (r.status.toString, r.detail)),
       Some(("shown", "Same says what Again says: merge them, or say what Same adds")), restates)
@@ -47,7 +47,7 @@ class LeanSplitSuite extends LeanLab:
     assert(sameLab.analysis.warnings.contains("Same says what Again says: merge them, or say what Same adds"), sameLab.analysis.warnings)
     val never = Node.claim("The service picks more books than it picks.", why = "w")(
       picks(List(Book("A", 1)), 1).length > picks(List(Book("A", 1)), 1).length).refines(onlyGood)
-    val u = of(workflow(KnowledgeBase("Unsat", idea = "IDEA.md")(onlyGood, books, picking, never)).check(), "Never")
+    val u = of(workflow(FrModel("Unsat", idea = "IDEA.md")(onlyGood, books, picking, never)).check(), "Never")
     assert(u.status.toString == "failed" && u.messages.exists(_.contains("no world meets it")), u)
   }
 

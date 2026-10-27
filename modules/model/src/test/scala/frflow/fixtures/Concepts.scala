@@ -42,7 +42,7 @@ object Concepts:
       c <- counter.read
     yield c
 
-  val kb: KnowledgeBase =
-    KnowledgeBase("Concepts")(grows, neverNegative, stepPositive, model, writes, oneAtATime, startsAtNothing)
+  val kb: FrModel =
+    FrModel("Concepts")(grows, neverNegative, stepPositive, model, writes, oneAtATime, startsAtNothing)
       .implementProven(add)(adding)
       .implementTested(step)(x => x.abs + 1)

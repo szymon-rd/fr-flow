@@ -4,7 +4,7 @@ import frflow.*
 import frflow.eval.Semantics
 import frflow.eval.run.{ExampleRun, OnCode}
 
-/** The examples' code as production and the examples run it, from the knowledge base alone: every example of the
+/** The examples' code as production and the examples run it, from the FrModel alone: every example of the
   * five checked against the code (`ExampleRun`), a Definition's code as plain code calls it (`knowledge.code`), and a
   * define called from plain code (`d.fn`).
   */

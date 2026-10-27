@@ -71,6 +71,6 @@ object Governance:
     val root = abs(a.ws.root)
     val governed = a.kb.nodes.flatMap(a.code).flatMap(_.files).map(f => abs(a.ws.root.resolve(f))).toSet ++
       a.kb.modelFiles.map(f => abs(Path.of(f)))
-    // The file that puts the knowledge base together (its concerns listed) is the model's too.
-    a.inputs.sources.toList.collect { case (p, text) if !governed(p) && !text.contains("KnowledgeBase(\"") => p }
+    // The file that puts the FrModel together (its concerns listed) is the model's too.
+    a.inputs.sources.toList.collect { case (p, text) if !governed(p) && !text.contains("FrModel(\"") => p }
       .map(p => if p.startsWith(root) then root.relativize(p).toString else p.toString).sorted

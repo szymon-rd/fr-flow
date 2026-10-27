@@ -13,7 +13,7 @@ enum FrFlowError extends scala.util.control.NoStackTrace:
   case NotRead(problem: Unreadable)
   case NoKey(file: String)
   case NotAKey(file: String, problem: String)
-  /** `.lean` files under `lean/Proofs/` that are no node's proof file (`lean/Proofs/<KB>/<Node>.lean`): Lake builds
+  /** `.lean` files under `lean/Proofs/` that are no node's proof file (`lean/Proofs/<Model>/<Node>.lean`): Lake builds
     * one a proof imports, unread by the proof rules, so nothing is checked while one is there.
     */
   case StrayProofs(files: List[RelPath])

@@ -77,7 +77,7 @@ class WorkspaceSuite extends munit.CatsEffectSuite with TempDirs:
     assert(warnings.exists(_.startsWith("Costs rests on NoNegativeAmounts:")), warnings)
     val listed = Refunds.costs.assuming(Refunds.noNegativeAmounts)
     val kb =
-      KnowledgeBase("Refunds", idea = "IDEA.md")(Refunds.refunded, listed, Refunds.tillAdds, Refunds.noNegativeAmounts)
+      FrModel("Refunds", idea = "IDEA.md")(Refunds.refunded, listed, Refunds.tillAdds, Refunds.noNegativeAmounts)
     assert(!Governance.warnings(Desk(kb).analysis).exists(_.startsWith("Costs rests on")))
   }
 
@@ -95,8 +95,8 @@ class WorkspaceSuite extends munit.CatsEffectSuite with TempDirs:
     yield assertEquals(u, List("src/fast/scala/Fast.scala", "src/main/scala/Leak.scala"))
   }
 
-  test("a knowledge base without an idea reads none, though the project has an IDEA.md") {
-    val noIdea = KnowledgeBase("Shelf")(shelfKb.nodes*)
+  test("a FrModel without an idea reads none, though the project has an IDEA.md") {
+    val noIdea = FrModel("Shelf")(shelfKb.nodes*)
     for
       ws <- workspace
       _ <- write(ws.root.resolve("IDEA.md"), "# Shelf\n\nReaders find books.\n")

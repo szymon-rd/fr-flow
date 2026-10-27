@@ -90,7 +90,7 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
 | `Node.contract(op)((a, b, result) => …)` | a claim read as a call | all | change, note 3 |
 | a flow contract's lambda `(input, result, before, after) => …` | a claim read as a run | crm 1, sharing 3 | change, note 4 |
 | `why = "…"` on every node | the signed decision's reason | 10 / 23 / 26 / 58 (rooms 2) | remove, note 5 |
-| `idea = "Section"`, `KnowledgeBase(…, idea = …)` | none | 77, all four | remove (owner §1) |
+| `idea = "Section"`, `FrModel(…, idea = …)` | none | 77, all four | remove (owner §1) |
 | `Node.assumption(store)(Stored)(statement)` | a model and `store.behavesAs(stored)` | crm, sharing, rooms | change, note 6 |
 | `stored.initially`, `writtenOnlyBy`, `changedOneRunAtATime` | `OutsideFact`, said by assumptions | rooms 3 | new, note 7 |
 | `book.calledOnlyWith(request => …)` | a type for what comes from outside, `always` assumed on it | rooms 1 | change, note 21 |

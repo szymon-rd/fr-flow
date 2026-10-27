@@ -27,13 +27,13 @@ private[frflow] object Testing:
     def passed: Boolean = failure.isEmpty && coverage.forall(_.held > 0)
 
   /** The code of a contract that is tested, not proven: plain code on its operation, or code run beside a proven define. */
-  def testable(kb: KnowledgeBase, n: Node[?]): Option[Implementation] =
+  def testable(kb: FrModel, n: Node[?]): Option[Implementation] =
     kb.implementation(n).filter(i => !i.flow && !i.provenCode && !n.isFlow && n.post.isDefined && n.op.isDefined)
 
   /** Whether the node has code tested by `run`: a contract's plain code, or implementations of a boundary's model. */
-  def tests(kb: KnowledgeBase, n: Node[?]): Boolean = testable(kb, n).isDefined || ModelTests.testable(n)
+  def tests(kb: FrModel, n: Node[?]): Boolean = testable(kb, n).isDefined || ModelTests.testable(n)
 
-  def run(kb: KnowledgeBase, n: Node[?], settings: TestSettings, replay: List[Replay] = Nil): Option[Report] =
+  def run(kb: FrModel, n: Node[?], settings: TestSettings, replay: List[Replay] = Nil): Option[Report] =
     if ModelTests.testable(n) then Some(ModelTests.run(kb, n, settings, replay))
     else testable(kb, n).map(i => Run(kb, n, i).report(settings, replay))
 
@@ -42,7 +42,7 @@ private[frflow] object Testing:
     * the tests. Its values: the world the contract reads, then the inputs. None when the claim is not of that shape,
     * or no generated case breaks it.
     */
-  def refute(kb: KnowledgeBase, contract: Node[?], claim: Node[?], answer: AnyRef, settings: TestSettings): Option[Refuted] =
+  def refute(kb: FrModel, contract: Node[?], claim: Node[?], answer: AnyRef, settings: TestSettings): Option[Refuted] =
     for
       formula <- claim.formula
       op <- contract.op
@@ -56,14 +56,14 @@ private[frflow] object Testing:
   final case class Refuted(values: List[(String, Any, LeanType[?])], answer: Any)
 
   /** The types the definitions in force give the opaque terms: what an opaque value is generated as. */
-  def opaques(kb: KnowledgeBase): Map[String, LeanType[?]] =
+  def opaques(kb: FrModel): Map[String, LeanType[?]] =
     kb.opaques.flatMap(o => kb.provisional.get(o.name).flatMap(_.substs.find(_.name == o.name)).flatMap(_.typeOf).map(o.name -> _)).toMap
 
   /** The size a case is made at: small first, larger later. */
   def sizeOf(i: Int, cases: Int): Int = 1 + i * 10 / cases.max(1)
   private[frflow] def random(seed: Long, i: Int): SplittableRandom = SplittableRandom(seed * 0x9E3779B97F4A7C15L + i)
 
-  private final class Run(kb: KnowledgeBase, n: Node[?], impl: Implementation):
+  private final class Run(kb: FrModel, n: Node[?], impl: Implementation):
     private val (tins, tr) = n.op.get.termType.shape match
       case Shape.FnOf(as, r) => (as, r)
       case other => throw IllegalArgumentException(s"FrFlow: ${n.id}'s operation is not a function")

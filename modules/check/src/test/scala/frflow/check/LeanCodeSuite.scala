@@ -28,7 +28,7 @@ class LeanCodeSuite extends LeanLab:
   }
 
   test("probes near the examples find a translation bug the examples miss") {
-    def kb(d: Def[(List[BigInt], BigInt) => List[BigInt]]) = KnowledgeBase("Probe", idea = "IDEA.md")(floor, floorKeep).implementProven(floorKeep)(d)
+    def kb(d: Def[(List[BigInt], BigInt) => List[BigInt]]) = FrModel("Probe", idea = "IDEA.md")(floor, floorKeep).implementProven(floorKeep)(d)
     val good = of(workflow(kb(keepAtLeast)).check(), "FloorKeep")
     assertEquals(good.status.toString, "proven", good)
     assert(good.obligations.count(o => o.name.lean.startsWith("probe") && o.status.toString == "proven") >= 3, good.obligations)
@@ -47,7 +47,7 @@ class LeanCodeSuite extends LeanLab:
   }
 
   test("code is proven to meet its contract and evaluated in Lean: with flatMap, through a list's set, with state in a Map") {
-    def proven(kb: KnowledgeBase, id: String) =
+    def proven(kb: FrModel, id: String) =
       val r = workflow(kb).check()
       assertEquals(result(of(r, id), "impl").map(_.status.toString), Some("proven"), of(r, id))
       r
@@ -56,7 +56,7 @@ class LeanCodeSuite extends LeanLab:
     val keep = proven(keepKb, "Keep")
     assert(evals(keep, "Keep").nonEmpty && evals(keep, "Keep").forall(_ == "proven"), of(keep, "Keep"))
     assertEquals(result(of(keep, "KeptOnShelf"), "root_impl").map(_.status.toString), Some("proven"), of(keep, "KeptOnShelf"))
-    val counter = proven(KnowledgeBase("Counter", idea = "IDEA.md")(counts, bump).implementProven(bump)(bumped), "Bump")
+    val counter = proven(FrModel("Counter", idea = "IDEA.md")(counts, bump).implementProven(bump)(bumped), "Bump")
     assertEquals(List("complete", "root_impl").map(n => result(of(counter, "Counts"), n).map(_.status.toString)), List(Some("proven"), Some("proven")), of(counter, "Counts"))
     // maps compared key by key; one that differs at a key the call does not name is not found
     assertEquals(evals(counter, "Bump"), List("proven", "proven", "unevaluated"), of(counter, "Bump"))
@@ -86,7 +86,7 @@ class LeanCodeSuite extends LeanLab:
   }
 
   test("a callee's parameters the caller does not read are bound once, beside the caller's; its examples need no wiring") {
-    val kb = KnowledgeBase("Capped", idea = "IDEA.md")(pickedLong, longPick, capped)
+    val kb = FrModel("Capped", idea = "IDEA.md")(pickedLong, longPick, capped)
       .implementProven(capped)(cappedOnes).implementProven(longPick)(viaCapped)
     assertEquals(kb.problems, Nil)
     val w = workflow(kb)

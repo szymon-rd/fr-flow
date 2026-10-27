@@ -45,7 +45,7 @@ class AuthSuite extends munit.FunSuite:
   }
 
   test("with no equation for it, a Declaration leaves its group unwitnessed: consistency not proven, said so") {
-    val alone = Whole(KnowledgeBase("Auth")(accessExactly), Nil).resolved.theory
+    val alone = Whole(FrModel("Auth")(accessExactly), Nil).resolved.theory
     assertEquals(Consistency.of(alone).map(_.standing),
       List(Standing.Unwitnessed(names(List("access", "signedIn", "authorized")))))
     assertEquals(Texts.checking(alone, NodeId("accessExactly")).last,
@@ -57,7 +57,7 @@ class AuthSuite extends munit.FunSuite:
       forall((u: Term[UserId]) => signedIn(u) === sessions.exists(s => s.user === u)))
     val authorizedByGrants = Node.claim("A user is authorized for a path exactly when a grant names them and it.")(
       forall((u: Term[UserId], p: Term[Path]) => authorized(u, p) === grants.exists(g => g === make[Grant](u, p))))
-    val bottom = Whole(KnowledgeBase("Auth")(accessExactly, signedInBySessions, authorizedByGrants)
+    val bottom = Whole(FrModel("Auth")(accessExactly, signedInBySessions, authorizedByGrants)
       .implementProvided(grants, sessions), Nil)
     val groups = Consistency.of(bottom.resolved.theory).collect { case g: Group.Sharing => (g.open, g.witnesses) }
     assertEquals(groups, List((names(List("access", "signedIn", "authorized")), List(

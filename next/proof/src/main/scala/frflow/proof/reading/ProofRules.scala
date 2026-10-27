@@ -22,7 +22,7 @@ object ProofRules:
   def notAllowed(f: ProofFile): List[(Int, NotAllowed)] =
     LeanSource.code(f.source).linesIterator.zipWithIndex.toList.flatMap((l, i) => onLine(l).map(i + 1 -> _))
 
-  /** The shared lemmas (`Proofs/<KB>/Lemmas.lean`): a proof file's rules, and no import of lemmas. */
+  /** The shared lemmas (`Proofs/<Model>/Lemmas.lean`): a proof file's rules, and no import of lemmas. */
   def notAllowedInLemmas(f: ProofFile): List[(Int, NotAllowed)] =
     notAllowed(f) ++ LeanSource.code(f.source).linesIterator.zipWithIndex.toList.flatMap((l, i) =>
       Lemmas.findFirstMatchIn(l).map(m => i + 1 -> NotAllowed.LemmaImport(m.group(1))))

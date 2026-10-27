@@ -17,7 +17,7 @@ class AgentLiveSuite extends munit.CatsEffectSuite:
     IO.blocking(Using.resource(Files.walk(d))(_.sorted(Comparator.reverseOrder()).forEach(Files.delete(_))))))
   private def project(d: Path) = d.resolve("project")
   private def env(d: Path) = Map("FRFLOW_KEY" -> d.resolve("signing.key").toString)
-  private def host(d: Path, kb: frflow.KnowledgeBase = shelfKb) =
+  private def host(d: Path, kb: frflow.FrModel = shelfKb) =
     LiveApi(kb, Workspace(project(d), "../lean"), env(d)).map(Host(_, project(d), env(d)))
   private val dev = Developer("demo")
 
@@ -44,8 +44,8 @@ class AgentLiveSuite extends munit.CatsEffectSuite:
   }
 
   dir.test("a project starts in chat: the words and questions recorded, IDEA.md written from them and accepted, then the root") { d =>
-    import frflow.{KnowledgeBase, Node, True}
-    val empty = KnowledgeBase("Toy", idea = "IDEA.md")()
+    import frflow.{FrModel, Node, True}
+    val empty = FrModel("Toy", idea = "IDEA.md")()
     val toyRoot = Node.claim("A reader borrows exactly the books on the shelf that nobody else holds.",
       why = "The idea's purpose, as the developer confirmed it in chat.")(True)
     val idea = "# Toy\n\nA shelf of books readers borrow.\nFrom: Q1\n\n## Borrowing\nFrom: Q1, Q2\nA reader borrows a book nobody holds.\n"
@@ -65,7 +65,7 @@ class AgentLiveSuite extends munit.CatsEffectSuite:
       accepted <- h.api.decide(Decide.Accept(List(IdeaReview.Id), "it says what the shelf is for"), dev)
       confirmed <- h.api.view.flatMap(a.read)
       // then the root, proposed: decided after IDEA.md
-      withRoot <- host(d, KnowledgeBase("Toy", idea = "IDEA.md")(toyRoot))
+      withRoot <- host(d, FrModel("Toy", idea = "IDEA.md")(toyRoot))
       proposed <- withRoot.api.view
       // a changed answer: a warning of the agent layer's, beside FrFlow's
       _ <- a.replied("Q1", "Yes, at most three.")

@@ -44,7 +44,7 @@ class ConceptsSuite extends munit.FunSuite:
   test("an assumption is a premise of what assumes it: below it in the DAG, and only an assumption is one") {
     val premise = Node.assumption("Prices are set by the shop.")(Service.price(BigInt(1)) > BigInt(0))
     val assumes = Node.claim("Some item costs something.")(Service.price(BigInt(1)) > BigInt(0)).assuming(premise)
-    val kb = KnowledgeBase("Service")(assumes, premise)
+    val kb = FrModel("Service")(assumes, premise)
     assertEquals((kb.parentsOf(premise).map(_.id), kb.roots.map(_.id)), (List("Assumes"), List("Assumes")))
     val notOne = intercept[IllegalArgumentException](premise.assuming(assumes))
     assert(notOne.getMessage.contains("a premise is an assumption"), notOne.getMessage)
@@ -82,7 +82,7 @@ class ConceptsSuite extends munit.FunSuite:
 
   test("a store starts satisfying the always claim it names; what comes from outside meets an assumption of its type") {
     import Concepts.*
-    def made(ns: Node[?]*) = KnowledgeBase("Concepts")((List(grows, kept, stepPositive, model, writes, oneAtATime,
+    def made(ns: Node[?]*) = FrModel("Concepts")((List(grows, kept, stepPositive, model, writes, oneAtATime,
       startsRight) ++ ns)*).implementProven(add)(adding).implementTested(step)(x => x.abs + 1)
     assertEquals(made().problems, Nil)
     assertEquals((startsRight.startsSatisfying.map(_.id), startsRight.initially), (List("Kept"), None))
@@ -111,15 +111,15 @@ class ConceptsSuite extends munit.FunSuite:
   test("a Definition gets a meaning from code, a Declaration never does, and no code uses one") {
     import Concepts.*
     val unmade =
-      KnowledgeBase("Concepts")(grows, neverNegative, stepPositive, model, writes, oneAtATime, startsAtNothing)
+      FrModel("Concepts")(grows, neverNegative, stepPositive, model, writes, oneAtATime, startsAtNothing)
       .implementProven(add)(adding)
     assert(unmade.problems.exists(_.message.startsWith("step is a Definition nothing defines")), unmade.problems)
     val idea = Declaration[BigInt => Boolean]("whether a request is welcome")
     val welcome =
       Node.claim("A request of size zero is welcome.")(forall((x: Term[BigInt]) => idea(x) === (x === BigInt(0))))
-    val coded = KnowledgeBase("Idea")(welcome).implementTested(welcome)(x => x == 0)
+    val coded = FrModel("Idea")(welcome).implementTested(welcome)(x => x == 0)
     assert(coded.problems.exists(_.message.startsWith("idea is a Declaration")), coded.problems)
-    assertEquals(KnowledgeBase("Idea")(welcome).problems, Nil)
+    assertEquals(FrModel("Idea")(welcome).problems, Nil)
   }
 
   test("a Definition's code is not checked where it runs: a flow calls it as written, proofs and tests check it before") {

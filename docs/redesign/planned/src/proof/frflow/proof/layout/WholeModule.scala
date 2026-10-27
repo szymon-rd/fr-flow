@@ -24,5 +24,5 @@ final class WholeModule(props: LowerProp, witness: LowerWitness):
       })
 
 object WholeModule:
-  /** Over the knowledge base's lowering environment and its claims' modules (`VocabularyModules`'). */
+  /** Over the FrModel's lowering environment and its claims' modules (`VocabularyModules`'). */
   def of(r: Resolved, table: TermTable, obligations: List[Obligation]): LeanModule = ???

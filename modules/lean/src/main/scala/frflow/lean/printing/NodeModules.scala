@@ -7,7 +7,7 @@ import ObligationName.*
 import LeanText.*
 
 /** The Lean modules of each formal node: its model and the theorems proven of it. */
-final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinement, vocabularyModules: VocabularyModules,
+final class NodeModules(kb: FrModel, layout: Layout, refinement: Refinement, vocabularyModules: VocabularyModules,
     obligations: Obligations, evals: Evals):
   import refinement.*
   import refinement.vocabulary.*

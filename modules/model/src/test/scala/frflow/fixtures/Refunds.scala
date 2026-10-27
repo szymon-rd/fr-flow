@@ -25,7 +25,7 @@ object Refunds:
 
   val noNegativeAmounts = Node.assumption("No amount is less than nothing.")(always[BigInt](x => x >= BigInt(0)))
 
-  val kb: KnowledgeBase =
-    KnowledgeBase("Refunds", idea = "IDEA.md")(refunded, costs, tillAdds, noNegativeAmounts)
+  val kb: FrModel =
+    FrModel("Refunds", idea = "IDEA.md")(refunded, costs, tillAdds, noNegativeAmounts)
       .implementProven(refunded)(refunding)
       .implementTested(costs)(item => item.abs + 1)

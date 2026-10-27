@@ -18,7 +18,7 @@ val httpApi = Node.design("The HTTP API serves Keycloak's token, introspection a
   "src/main/scala/keycloak/Server.scala")
   .refines(serviceWiring, freshTokens)
 
-val knowledge = KnowledgeBase("Keycloak")(realmAccess, noUnauthorizedAccess, signedInAreAccepted, onlyTheSignedIn,
+val knowledge = FrModel("Keycloak")(realmAccess, noUnauthorizedAccess, signedInAreAccepted, onlyTheSignedIn,
   disabledHaveNoAccess, rolesAsGranted, accounts, accountRoles, signInHistory, serverRun, referenceTokens,
   realmIsolation, answersNameASession, sessionsMirrorSignIns, accountsAsAdministered, oneSignInPerToken, freshTokens,
   handleRequest, storeKeepsState, Introspection.introspect, sessionLookup, serviceWiring, httpApi)

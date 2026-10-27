@@ -8,10 +8,10 @@ import frflow.protocol.*
 import java.nio.file.Path
 import java.time.Instant
 
-/** A knowledge base analysed over inputs held in memory: decisions change the ledger it holds, and nothing
+/** A FrModel analysed over inputs held in memory: decisions change the ledger it holds, and nothing
   * is read or written but the files the nodes are written in (their definitions are part of what is decided).
   */
-final case class Desk(kb: KnowledgeBase, inputs: Inputs):
+final case class Desk(kb: FrModel, inputs: Inputs):
   lazy val analysis: Analysis = Analysis(kb, Desk.ws, inputs)
   def annotated: Annotated = analysis.annotated
   def ledger: Ledger = inputs.ledger
@@ -21,7 +21,7 @@ final case class Desk(kb: KnowledgeBase, inputs: Inputs):
   def notAccepted: List[(String, String)] = kb.ordered.map(n => n.id -> state(n).toString).filter(_._2 != "accepted")
 
   /** The same decisions over another model, or another idea. */
-  def withKb(other: KnowledgeBase): Desk = Desk(other, inputs.copy(texts = Desk.texts(other)))
+  def withKb(other: FrModel): Desk = Desk(other, inputs.copy(texts = Desk.texts(other)))
   def withIdea(idea: String): Desk = copy(inputs = inputs.copy(idea = idea))
 
   /** Decided one second after the decision before (the review compares when decisions were taken). */
@@ -40,9 +40,9 @@ object Desk:
   val idea = "# Shelf\n\nPick good items.\n\n## Not modelled\n\n- Prices.\n"
   val ws: Workspace = Workspace(Path.of("/nowhere"), "../lean")
 
-  def apply(kb: KnowledgeBase): Desk = Desk(kb, Inputs.empty.copy(idea = idea, texts = texts(kb)))
+  def apply(kb: FrModel): Desk = Desk(kb, Inputs.empty.copy(idea = idea, texts = texts(kb)))
 
   /** The files the nodes are written in (the test sources). */
-  def texts(kb: KnowledgeBase): Map[String, String] = Inputs.texts(kb, ws).unsafeRunSync()
+  def texts(kb: FrModel): Map[String, String] = Inputs.texts(kb, ws).unsafeRunSync()
 
   def ok(e: Either[String, Desk]): Desk = e.fold(e => throw AssertionError(e), identity)

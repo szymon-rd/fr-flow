@@ -40,11 +40,11 @@ val pick = Node.contract("A call returns exactly the long enough books of the sh
     forbids(List(Book("Long", 300)), 5, Nil, "a long book is not left on the shelf"))
 
 def shelfNodes: List[Node[?]] = List(onlyGood, books, picking, fromList, onlyLong, everyLong)
-val shelfKb = KnowledgeBase("Shelf", idea = "IDEA.md")((shelfNodes :+ pick)*)
+val shelfKb = FrModel("Shelf", idea = "IDEA.md")((shelfNodes :+ pick)*)
   .implementTested(pick)((shelf, n) => shelf.filter(_.pages >= minPages.value))
 
 /** The shelf with another contract in Pick's place. */
-def shelfWith(c: Node[?], more: Node[?]*): KnowledgeBase = KnowledgeBase("Shelf", idea = "IDEA.md")((shelfNodes ++ (c +: more))*)
+def shelfWith(c: Node[?], more: Node[?]*): FrModel = FrModel("Shelf", idea = "IDEA.md")((shelfNodes ++ (c +: more))*)
 
 /** Defined functions. */
 val long = define { (b: Term[Book]) => b.pages >= 100 }
@@ -58,7 +58,7 @@ val where = define { (s: Term[Shelf]) =>
 /** A part that does not make its parent: picking few items says nothing about goodness. */
 val sloppy = Node.claim("At most n books are picked.", why = "A bound on the number of books.")(
   forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).length <= n)).refines(onlyGood)
-val sloppyKb = KnowledgeBase("Sloppy", idea = "IDEA.md")(onlyGood, books, picking, sloppy)
+val sloppyKb = FrModel("Sloppy", idea = "IDEA.md")(onlyGood, books, picking, sloppy)
 
 /** A split `frflow_auto` does not prove (nonlinear arithmetic): it needs an authored proof. */
 val sq = Param[BigInt => BigInt]("what the calculator returns for a number")
@@ -66,7 +66,7 @@ val nonNegative = Node.claim("Results are never negative.", why = "Negative resu
   forall((x: Term[BigInt]) => sq(x) >= 0))
 val squares = Node.claim("The result is the square of the input.", why = "Squares are never negative.")(
   forall((x: Term[BigInt]) => sq(x) === x * x)).refines(nonNegative)
-val squareKb = KnowledgeBase("Square", idea = "IDEA.md")(nonNegative, squares)
+val squareKb = FrModel("Square", idea = "IDEA.md")(nonNegative, squares)
 
 /** Implementations written as definitions, for proven implementations. */
 val longOnes = define { (shelf: Term[List[Book]], n: Term[Int]) => shelf.filter(b => b.pages >= minPages) }
@@ -91,7 +91,7 @@ object Again:
     .examples(minPages.bind(100))(
       allows(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
       forbids(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
-val callsKb = KnowledgeBase("Calls", idea = "IDEA.md")(pickedAgain, Again.again, pickPromise)
+val callsKb = FrModel("Calls", idea = "IDEA.md")(pickedAgain, Again.again, pickPromise)
   .implementProven(pickPromise)(longOnes).implementProven(Again.again)(viaPick)
 
 /** A callee reading a parameter its caller does not (the cap): the caller is proven for one cap, any cap. */
@@ -164,7 +164,7 @@ val pickedFrom = Param[(List[Book], Book) => Boolean]("whether the shelf service
 val pickedFromDef = Node.definition("A book is picked from a shelf when the service picks it, asked for the whole shelf.",
   why = "The service is how books leave the shelf.")(pickedFrom := ((l: Term[List[Book]], b: Term[Book]) => picks(l, l.length).contains(b)))
 val viaPickedFrom = define { (shelf: Term[List[Book]], n: Term[Int]) => shelf.filter(b => pickedFrom(shelf, b) && b.pages >= minPages) }
-val readsKb = KnowledgeBase("Reads", idea = "IDEA.md")(pickedAgain, Again.again, pickPromise, pickedFromDef)
+val readsKb = FrModel("Reads", idea = "IDEA.md")(pickedAgain, Again.again, pickPromise, pickedFromDef)
   .implementProven(pickPromise)(longOnes).implementProven(Again.again)(viaPickedFrom)
 
 /** Membership through a set built once (`toSet`): a hash set in Scala, the list's membership in Lean. */
@@ -179,7 +179,7 @@ val keep = Node.contract("A call keeps exactly the picked books that are on the 
 val keptOnce = define { (shelf: Term[List[Book]], picked: Term[List[Book]]) =>
   let(shelf.toSet)(there => picked.filter(b => there.contains(b)))
 }
-val keepKb = KnowledgeBase("Keep", idea = "IDEA.md")(keptOnShelf, keep).implementProven(keep)(keptOnce)
+val keepKb = FrModel("Keep", idea = "IDEA.md")(keptOnShelf, keep).implementProven(keep)(keptOnce)
 
 /** A root of two conjuncts in general terms, and parts that each say one of them again with the definition applied
   * (folded), or say more than it (refined).
@@ -197,4 +197,4 @@ val fromShelfOnce = Node.claim("Picked books come from the shelf, and no more ar
   forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => l.contains(b)) && picks(l, n).length <= l.length)).refines(handedOut)
 val twoHundredPages = Node.claim("Every picked book has at least 200 pages.", why = "w")(
   forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => b.pages >= 200))).refines(handedOut)
-def handedOutKb(parts: Node[?]*): KnowledgeBase = KnowledgeBase("HandedOut", idea = "IDEA.md")((handedOut +: worth +: parts)*)
+def handedOutKb(parts: Node[?]*): FrModel = FrModel("HandedOut", idea = "IDEA.md")((handedOut +: worth +: parts)*)

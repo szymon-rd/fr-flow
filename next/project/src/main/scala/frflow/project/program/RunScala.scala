@@ -15,7 +15,7 @@ import frflow.testing.search.Witnesses
 
 /** Running Scala before the pure phases (the developer's code runs, through `RunCode`): each example against the
   * code (a throw said as one), and the search for the witnesses of what must be shown possible (owner §18), from the
-  * values the knowledge base's generators draw and small values. A value Lean is given holds no races' winners
+  * values the FrModel's generators draw and small values. A value Lean is given holds no races' winners
   * (Lean's `World` has no field for them).
   */
 final class RunScala[F[_]](run: RunCode[F], semantics: Semantics, draw: Derive):

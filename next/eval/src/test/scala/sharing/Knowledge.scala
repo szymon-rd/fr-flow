@@ -40,7 +40,7 @@ val domainTypes = Node.design("People, teams, documents, folders, shares, invita
     "keeps its log and its outbox with it.")(
   "src/main/scala/sharing/domain", "src/main/scala/sharing/Demo.scala").refines(accessFollowsShares)
 
-val knowledge = KnowledgeBase("Sharing")(
+val knowledge = FrModel("Sharing")(
   reach, cover, permission, editPermission, Definitions.inTrash, ownersShare, accessFollowsShares,
   sharing.invitationsAreOffers, sharing.trashUntilGone, sharing.housekeepingClearsOnlyTheEnded,
   sharing.accessRequestsAreAsks, sharing.ownersKeepTheirDocuments, sharing.auditTrail, sharing.noticesFollowChanges,

@@ -80,7 +80,7 @@ object Derive:
   /** How many values a given generator is drawn for, to say which of the examples' values it never makes. */
   val NeverMadeTries: Int = 200
 
-  /** The derived generators of an elaborated knowledge base, seeded by its examples. */
+  /** The derived generators of an elaborated FrModel, seeded by its examples. */
   def of(e: Elaborated, examples: List[Example]): Derive =
     val semantics = Semantics(e)
     Derive(semantics, e.theory.vocabulary, Always.of(semantics, e.theory),

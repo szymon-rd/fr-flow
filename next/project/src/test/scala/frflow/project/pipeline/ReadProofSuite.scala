@@ -72,4 +72,4 @@ object ReadProofSuite:
   val positive = Node.claim("A number above zero is not below it.")(
     forall((n: Term[BigInt]) => (n > 0) implies (n >= 0)))
   /** A claim with no parts, about no code: nothing checks it. */
-  val unchecked = KnowledgeBase("Unchecked")(positive)
+  val unchecked = FrModel("Unchecked")(positive)

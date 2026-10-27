@@ -4,13 +4,13 @@ package printing
 
 import LeanText.*
 
-/** The boundaries in Lean (`FrFlowGen/<KB>/Boundaries.lean`): a class per boundary, its operations over any monad;
+/** The boundaries in Lean (`FrFlowGen/<Model>/Boundaries.lean`): a class per boundary, its operations over any monad;
   * each model's operations over its own state; `World`, a model's state per field; and each boundary's operations
   * on `StateM World` as its model's, on its field (what proven flows are proven with). Where flows may fail with `E`,
   * also on `ExceptT E (StateM World)`: a failing boundary's call takes the next of the world's `faults` and fails on
   * `true` (`FrFlow.failing`), the others' are lifted.
   */
-final class BoundaryModules(kb: KnowledgeBase, layout: Layout, vocabulary: Vocabulary, vocabularyModules: VocabularyModules):
+final class BoundaryModules(kb: FrModel, layout: Layout, vocabulary: Vocabulary, vocabularyModules: VocabularyModules):
   import vocabulary.*
   private val K = kb.name
 

@@ -12,7 +12,7 @@ import java.nio.file.Path
 import java.security.PublicKey
 import java.time.Instant
 
-/** Everything the checker reads, read once: `proofs` (`lean/Proofs/<KB>/`) by node id or `Lemmas`; `texts`, the nodes' files. */
+/** Everything the checker reads, read once: `proofs` (`lean/Proofs/<Model>/`) by node id or `Lemmas`; `texts`, the nodes' files. */
 final case class Inputs(idea: String, ledger: Ledger, checks: Map[NodeId, NodeCheck], proofs: Map[String, String],
     texts: Map[String, String], code: Map[String, CodeRef], missing: Set[String], sources: Map[Path, String],
     keys: Map[KeyId, PublicKey], now: Instant, tests: Map[NodeId, Recorded] = Map.empty,
@@ -22,7 +22,7 @@ final case class Inputs(idea: String, ledger: Ledger, checks: Map[NodeId, NodeCh
 object Inputs:
   val empty: Inputs = Inputs("", Ledger.empty, Map.empty, Map.empty, Map.empty, Map.empty, Set.empty, Map.empty, Map.empty, Instant.EPOCH)
 
-  def read(kb: KnowledgeBase, ws: Workspace, cfg: Config, ledger: IO[Ledger]): IO[Inputs] =
+  def read(kb: FrModel, ws: Workspace, cfg: Config, ledger: IO[Ledger]): IO[Inputs] =
     (if kb.idea.isEmpty then IO.pure("") else Disk.read(ws.root.resolve(kb.idea)).map(_.getOrElse("")), ledger, Keyring.read(ws).map(_._1), checks(ws.checksFile),
       proofs(kb, ws), texts(kb, ws), code(kb, ws.root),
       kb.nodes.flatMap(_.governs).distinct.filterA(f => Disk.exists(ws.root.resolve(f)).map(!_)).map(_.toSet),
@@ -39,20 +39,20 @@ object Inputs:
   def checks(file: Path): IO[Map[NodeId, NodeCheck]] =
     Disk.read(file).map(_.flatMap(decode[Map[NodeId, NodeCheck]](_).toOption).getOrElse(Map.empty))
 
-  /** The recorded check of the knowledge base as a whole (`.frflow/consistency.json`, not committed). */
+  /** The recorded check of the FrModel as a whole (`.frflow/consistency.json`, not committed). */
   def consistency(file: Path): IO[Option[Consistency]] = Disk.read(file).map(_.flatMap(decode[Consistency](_).toOption))
 
   def saveChecks(file: Path, checks: Map[NodeId, NodeCheck]): IO[Unit] =
     Store.writeJson(file, Json.fromFields(checks.toList.sortBy(_._1).map((id, c) => id.value -> c.asJson)))
 
-  private def proofs(kb: KnowledgeBase, ws: Workspace): IO[Map[String, String]] =
+  private def proofs(kb: FrModel, ws: Workspace): IO[Map[String, String]] =
     Disk.list(ws.lean.resolve(s"Proofs/${kb.name}"))
       .map(_.filter(_.getFileName.toString.endsWith(".lean")))
       .flatMap(_.traverseFilter(p => Disk.read(p).map(_.map(p.getFileName.toString.stripSuffix(".lean") -> _))))
       .map(_.toMap)
 
   /** The files the nodes are written in, by the name each node gives. */
-  def texts(kb: KnowledgeBase, ws: Workspace): IO[Map[String, String]] =
+  def texts(kb: FrModel, ws: Workspace): IO[Map[String, String]] =
     kb.nodes.filter(_.at >= 0).map(_.file).distinct.traverseFilter { f =>
       Disk.read(Path.of(f)).flatMap(t => t.fold(Disk.read(ws.root.resolve(f)))(x => IO.pure(Some(x)))).map(_.map(f -> _))
     }.map(_.toMap)
@@ -60,7 +60,7 @@ object Inputs:
   /** The files each node governs (its `governs`, and those of its implementation but the model's), fingerprinted by their
     * names relative to `root`, the same in every checkout. Anything else the code uses is governed explicitly, or reported.
     */
-  private def code(kb: KnowledgeBase, root: Path): IO[Map[String, CodeRef]] =
+  private def code(kb: FrModel, root: Path): IO[Map[String, CodeRef]] =
     val base = root.toAbsolutePath.normalize
     val explicit = kb.nodes.flatMap(_.governs).map(f => root.resolve(f).toAbsolutePath.normalize).toSet
     val governed = kb.nodes.map { n =>

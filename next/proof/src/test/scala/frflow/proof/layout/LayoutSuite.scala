@@ -14,7 +14,7 @@ class LayoutSuite extends munit.FunSuite:
   private def module(name: String): LeanModule =
     MiniProject.modules.find(_.name.dotted == s"FrFlowGen.Test.$name").getOrElse(fail(s"no module $name"))
 
-  test("every module of a knowledge base, the vocabulary's first") {
+  test("every module of a FrModel, the vocabulary's first") {
     assertEquals(named(MiniProject.modules).take(7), List("Types", "Boundaries", "Domain.Def_bookIfFree",
       "Domain.Def_bookIfFree_run", "Domain.Def_endsAfterStart", "Domain.Def_startsEmpty", "Domain"))
     assertEquals(named(MiniProject.modules).filter(_.startsWith("allowsOne")),

@@ -16,7 +16,7 @@ class VacuitySuite extends munit.FunSuite:
       held.bookings.forall(b => b.room =!= request.room) implies granted(held, request)))
   private val never = Node.claim("Were a request to start before it starts, it would end after it starts.")(
     forall((request: Term[Booking]) => request.start < request.start implies (request.start < request.end)))
-  private val kb = KnowledgeBase("Rooms")(roomFirst, never)
+  private val kb = FrModel("Rooms")(roomFirst, never)
     .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
   private val w = Whole(kb, Nil)
 

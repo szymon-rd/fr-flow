@@ -39,7 +39,7 @@ object Timing:
     why = "Sleeps add up; each may wake late.")(
     (t, r, before, after) => r >= t + 2 * 86400 && after(ClockModel).now === r)
 
-  val kb = KnowledgeBase("Timing", idea = "IDEA.md")(clockKept, waitUntilContract, timeoutContract, twoNightsContract)
+  val kb = FrModel("Timing", idea = "IDEA.md")(clockKept, waitUntilContract, timeoutContract, twoNightsContract)
     .implementProven(waitUntilContract)((t: Term[BigInt]) => waitThenRead(t))
     .implementProven(timeoutContract)((d: Term[BigInt]) => napWithin(d))
     .implementProven(twoNightsContract)((t: Term[BigInt]) => twoNights(t))

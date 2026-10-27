@@ -7,7 +7,7 @@ import frflow.eval.run.{ExampleRun, OnCode}
 import frflow.testing.NoValue
 import scala.util.Try
 
-/** Each example of a class, in the order written, checked against the code of the knowledge base it is about. */
+/** Each example of a class, in the order written, checked against the code of the FrModel it is about. */
 object Verdicts:
   def of(written: FrFlowExamples): List[(String, Verdict)] = written.knowledge.elaborated.fold(
     es => written.examples.map(_.name -> Verdict.NotRead(es.iterator.toList)),

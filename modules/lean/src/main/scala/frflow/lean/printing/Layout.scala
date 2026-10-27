@@ -2,8 +2,8 @@ package frflow
 package lean
 package printing
 
-/** Where the Lean of a knowledge base lives (docs/DAG.md §3): generated in `FrFlowGen/<KB>/`, authored in
-  * `Proofs/<KB>/` (per node, and the shared `Lemmas`).
+/** Where the Lean of a FrModel lives (docs/DAG.md §3): generated in `FrFlowGen/<Model>/`, authored in
+  * `Proofs/<Model>/` (per node, and the shared `Lemmas`).
   */
 final case class Layout(kb: String):
   private def generated(rest: String) = LeanModule(s"FrFlowGen.$kb.$rest")
@@ -14,7 +14,7 @@ final case class Layout(kb: String):
   /** A root's `root_impl`. */
   def rootImpl(id: String): LeanModule = generated(s"$id.RootImpl")
   val boundaries: LeanModule = generated("Boundaries")
-  /** What the knowledge base as a whole is asked: that its statements hold together, and are not vacuous. */
+  /** What the FrModel as a whole is asked: that its statements hold together, and are not vacuous. */
   val consistency: LeanModule = generated("Consistency")
   val lemmas: LeanModule = LeanModule(s"Proofs.$kb.Lemmas")
   def definition(name: String): LeanModule = generated(s"Domain.Def_${plain(name)}")

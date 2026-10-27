@@ -82,7 +82,7 @@ object Concurrency:
       allows(BigInt(2), at(5, 0, List(false, true)), Right(()), at(3, 2, Nil, 5), "the timer first, but the sale had committed"),
       forbids(BigInt(2), at(5, 0), Left(()), at(3, 0), "never half a sale"))
 
-  val kb = KnowledgeBase("Concurrency", idea = "IDEA.md")(stockKept, tillKept, racesKept, clockKept, restockContract,
+  val kb = FrModel("Concurrency", idea = "IDEA.md")(stockKept, tillKept, racesKept, clockKept, restockContract,
       deliveriesContract, saleContract)
     .implementProven(restockContract)((n: Term[BigInt], p: Term[BigInt]) => restock(n, p))
     .implementProven(deliveriesContract)((n: Term[BigInt], m: Term[BigInt]) => twoDeliveries(n, m))

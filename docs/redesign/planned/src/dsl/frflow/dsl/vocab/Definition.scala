@@ -9,7 +9,7 @@ import scala.annotation.publicInBinary
 
 /** A value code and programs use (owner §15), of any type: a function (`val granted =
   * Definition[(RoomBookings, Booking) => Boolean]("whether …")`), a program (`Booking => Program[Boolean]`), a plain
-  * value. Named as its val. It gets its meaning once: from the knowledge base (`implementProven`, `implementTested`,
+  * value. Named as its val. It gets its meaning once: from the FrModel (`implementProven`, `implementTested`,
   * `implementValue`, `implementProvided`), or where it is written: `define { … }` and `program { … }` are
   * Definitions carrying their proven code (`onTheSpot`). Every claim mentioning it constrains it, and its code is
   * checked against them.

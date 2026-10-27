@@ -5,9 +5,9 @@ import frflow.flow.Flows
 import frflow.testing.ModelTests
 import scala.util.Try
 
-/** Running a knowledge base's examples, and its code beyond them. */
+/** Running a FrModel's examples, and its code beyond them. */
 private[frflow] object ExampleRuns:
-  def results(kb: KnowledgeBase, n: Node[?]): List[ExampleResult] =
+  def results(kb: FrModel, n: Node[?]): List[ExampleResult] =
     // An example need not bind the operations its code calls, nor the defined terms: they run as in service.
     if kb.casesOf(n).isEmpty then Nil
     else Bindings.within(kb.opCode ++ kb.definitionBindings) {
@@ -25,7 +25,7 @@ private[frflow] object ExampleRuns:
     * branches share state outside a transaction is caught here (a lost update), not by the commutation proof, which
     * compares whole branches.
     */
-  private def interleavings(kb: KnowledgeBase, n: Node[?]): List[ExampleResult] =
+  private def interleavings(kb: FrModel, n: Node[?]): List[ExampleResult] =
     import cats.effect.IO
     import cats.effect.unsafe.implicits.global
     import scala.concurrent.duration.*
@@ -76,7 +76,7 @@ private[frflow] object ExampleRuns:
     * with the same fault injected. Each run must meet the contract (its failure clause, for one that fails), and give
     * on the implementations what it gives on the models.
     */
-  private def faultSweep(kb: KnowledgeBase, n: Node[?]): List[ExampleResult] =
+  private def faultSweep(kb: FrModel, n: Node[?]): List[ExampleResult] =
     (for
       flow <- kb.implementation(n).flatMap(_.flowDef).toList if n.failure.isDefined
       (bs, body) = flow.lifted.built
@@ -120,7 +120,7 @@ private[frflow] object ExampleRuns:
     * after is stored in a fresh implementation and read back. What the implementation does not keep (the order of rows a
     * table returns sorted) is then not compared; what it keeps (the order of an event log) is.
     */
-  private def onReal(kb: KnowledgeBase, n: Node[?]): List[ExampleResult] =
+  private def onReal(kb: FrModel, n: Node[?]): List[ExampleResult] =
     (for
       flow <- kb.implementation(n).flatMap(_.flowDef).toList
       (bs, body) = flow.lifted.built

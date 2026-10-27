@@ -4,7 +4,7 @@ import frflow.core.expr.Exprs
 import frflow.core.name.{BoundaryName, DefName, ModelName, SymbolName, TypeName}
 import frflow.core.ty.DataType
 
-/** The signature a knowledge base is written over: its domain types (opaque and declared), its symbols, its
+/** The signature a FrModel is written over: its domain types (opaque and declared), its symbols, its
   * defines, its boundaries and their models. Each name is declared once (`analysis.Validate` checks it).
   */
 final case class Vocabulary(sorts: List[Sort], types: List[DataType], symbols: List[Symbol], defines: List[Define],

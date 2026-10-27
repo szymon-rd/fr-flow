@@ -5,7 +5,7 @@ import frflow.eval.run.OnCode
 
 /** What `sbt test` says of one example: what the code says of it (`ExampleRun`); that it has no Scala value, so is
   * checked against the claims in Lean only (`NoValue`, or about Declarations); that its code threw (its message: a
-  * fault of the code or its wiring, a value it reads not given); or that it, or the knowledge base it is about,
+  * fault of the code or its wiring, a value it reads not given); or that it, or the FrModel it is about,
   * could not be read.
   */
 enum Verdict:

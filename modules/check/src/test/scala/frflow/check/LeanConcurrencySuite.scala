@@ -29,7 +29,7 @@ class LeanConcurrencySuite extends LeanLab:
           World(StockModel -> BigInt(4), TillModel -> BigInt(0)), "none in"),
         forbids(BigInt(2), World(StockModel -> BigInt(1), TillModel -> BigInt(0)), (BigInt(1), ()),
           World(StockModel -> BigInt(1), TillModel -> BigInt(0)), "not lost"))
-    val kb = KnowledgeBase("Peek", idea = "IDEA.md")(stockKept, tillKept, peek)
+    val kb = FrModel("Peek", idea = "IDEA.md")(stockKept, tillKept, peek)
       .implementProven(peek)((n: Term[BigInt]) => (stock.count, stock.add(n)).parTupled)
     val r = workflow(kb).check()
     val got = of(r, "Peek")

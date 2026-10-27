@@ -216,7 +216,7 @@ Nothing waits: every node is accepted and proven.</code></pre></div>
 </section>
 
 <section aria-labelledby="tutorial">
-<h2 id="tutorial">Tutorial: read a knowledge base, top to bottom <span class="kind">Tutorial</span></h2>
+<h2 id="tutorial">Tutorial: read a FrModel, top to bottom <span class="kind">Tutorial</span></h2>
 <p>This walks through <code>examples/auth</code> in the order it is written and decided. Every snippet is
 the example's code. Open <code>examples/auth/src/main/scala/auth/Auth.scala</code> beside this page.</p>
 
@@ -315,15 +315,15 @@ and Lean proves it meets its contract (<code>impl</code>). The CRM's <code>Share
   CrmStore(s.records, s.shares.filter(sh =&gt; !ended(sh, s, now)), s.expiries.filter(e =&gt; !ended(Share(e.record, e.to), s, now)))
 }</code></pre></div>
 
-<h3 id="t-kb">8. The knowledge base and its command line</h3>
-<p>A design decision governs files no proof covers. The knowledge base lists the nodes and attaches the code; here
+<h3 id="t-kb">8. The FrModel and its command line</h3>
+<p>A design decision governs files no proof covers. The FrModel lists the nodes and attaches the code; here
 the production class <code>SessionStore</code> runs, tested against <code>DecisionContract</code>.</p>
 <div class="code"><pre><code>val inMemorySessions = Node.design(
   "Sessions and grants are loaded into memory, in one process that decides every request.",
   why = "One service decides access, and the tables fit in memory. A shared store would only be needed with several instances."
 )("src/main/scala/auth/Server.scala").refines(decisionContract)
 
-val knowledge = KnowledgeBase("Auth", idea = "IDEA.md")(
+val knowledge = FrModel("Auth", idea = "IDEA.md")(
   accessExactly,
   identities,
   grantTable,
@@ -354,7 +354,7 @@ object authCli extends frflow.cli.FrFlowApp(knowledge, root = "examples/auth", e
 <h3 id="how-new-project">Start a project</h3>
 <ol class="steps">
   <li>Run <code>sbt "frflowInit library"</code>, then <code>sbt reload</code>. It creates
-  <code>examples/library</code> with an empty knowledge base and its command line, and adds
+  <code>examples/library</code> with an empty FrModel and its command line, and adds
   <code>lazy val library = example("library", layers = Nil)</code> to <code>build.sbt</code>.
   <code>bin/frflow library status</code> works from here.</li>
   <li>Write <code>examples/library/IDEA.md</code>: a title, a lead paragraph, and a section per part of the
@@ -462,11 +462,11 @@ that takes several steps against the outside (load, store, log) is a flow over a
 
 <h3 id="how-prove">Prove a split by hand</h3>
 <ol class="steps">
-  <li>Run <code>bin/frflow PROJECT scaffold NODE</code>. It writes <code>lean/Proofs/&lt;KB&gt;/&lt;Node&gt;.lean</code>
+  <li>Run <code>bin/frflow PROJECT scaffold NODE</code>. It writes <code>lean/Proofs/&lt;Model&gt;/&lt;Node&gt;.lean</code>
   with a stub per open obligation.</li>
   <li>Use the names <code>frflow_intro</code> gives (<code>h_&lt;Part&gt;</code> for each part), so the proof
   survives a part being added.</li>
-  <li>Iterate in <code>lean/</code> with <code>lake env lean Proofs/&lt;KB&gt;/&lt;Node&gt;.lean</code>, then run
+  <li>Iterate in <code>lean/</code> with <code>lake env lean Proofs/&lt;Model&gt;/&lt;Node&gt;.lean</code>, then run
   <code>check</code>. A proof file may not use <code>sorry</code> or <code>axiom</code>.</li>
 </ol>
 
@@ -633,7 +633,7 @@ Subcommands:
     check
         render, prove each node from its parts, record the results
     status
-        the tree and the summary; exits 1 unless the knowledge base is complete
+        the tree and the summary; exits 1 unless the FrModel is complete
     ci
         for CI: check, then status; exits 1 unless everything is proven and decided
     find
@@ -676,7 +676,7 @@ a small budget, which shows nothing.</p>
 <tr><td><code>src/main/scala/…</code></td><td>the nodes and the code</td><td>yes</td></tr>
 <tr><td><code>.frflow/ledger.json</code></td><td>every decision, <code>IDEA.md</code>'s included: who, why, the alternatives, the commit, a signature</td><td>yes</td></tr>
 <tr><td><code>.frflow/keys/NAME.pub</code></td><td>the developers' public keys. The private key stays in <code>~/.config/frflow/signing.key</code> or <code>FRFLOW_KEY</code></td><td>yes</td></tr>
-<tr><td><code>lean/Proofs/&lt;KB&gt;/</code></td><td>proofs written by hand</td><td>yes</td></tr>
+<tr><td><code>lean/Proofs/&lt;Model&gt;/</code></td><td>proofs written by hand</td><td>yes</td></tr>
 <tr><td><code>lean/FrFlowGen/</code>, <code>.frflow/kb.json</code></td><td>generated Lean and the snapshot</td><td>no</td></tr>
 </tbody>
 </table>
@@ -866,7 +866,7 @@ does is then proven by induction on the list. The CRM's proof is
   <li><strong>Loops over lists.</strong> A flow loops with <code>xs.traverse_(x =&gt; …)</code>, so it terminates.</li>
 </ul>
 <p>Steps of the outside world (<code>Flow.effect</code>) belong to production implementations only: a proven flow
-that takes one is refused when the knowledge base is rendered.</p>
+that takes one is refused when the FrModel is rendered.</p>
 </section>
 
 <section aria-labelledby="decisions">

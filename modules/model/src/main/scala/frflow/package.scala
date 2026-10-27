@@ -4,7 +4,7 @@ export frflow.boundary.{BehavesAs, Boundary, Clock, ClockModel, ClockState, Fact
   RacesModel, State, StateModel, SystemClock, World}
 export frflow.example.{Case, Example, ExampleResult, ExampleSuite, Expected, Probes, Written}
 export frflow.flow.{Every, Failed, Flow, FlowDef, FlowFailed, RelativeMonad, Schedule}
-export frflow.kb.{Defining, Implementing, KnowledgeBase, Problem, Proving, ProvingDefinition}
+export frflow.kb.{Defining, Implementing, FrModel, Problem, Proving, ProvingDefinition}
 export frflow.node.{AlwaysRule, AssumptionOn, FailureClause, Keep, ModelFor, ModelImpl, ModelNode, ModelOf, Modelled,
   Node, OperationSigs, Sig}
 export frflow.program.Source

@@ -17,10 +17,10 @@ import frflow.proof.terms.TermTable
   * §17), and the list is checked against what the check rests on.
   */
 class BookSuite extends munit.FunSuite:
-  private def valid(kb: KnowledgeBase) = kb.elaborated.fold(e => fail(e.toString), Validate(_))
+  private def valid(kb: FrModel) = kb.elaborated.fold(e => fail(e.toString), Validate(_))
   private val all = List(bookWhenFree, answersWhetherBooked, grantWhenFree, grantWhenNoOverlap, neverOverlap,
     endsAfterStart, roomBookingsApart, storeModel, startsEmpty, onlyBookingWrites, oneAtATime, fromTheForm)
-  private def problems(nodes: List[Node]) = valid(KnowledgeBase("Rooms")(nodes*).implementProven(book)(bookIfGranted)
+  private def problems(nodes: List[Node]) = valid(FrModel("Rooms")(nodes*).implementProven(book)(bookIfGranted)
     .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))).fold(_.toList, _ => Nil)
 
   private val strayPart = Node.claim("Every booking ends after it starts.")(
@@ -99,10 +99,10 @@ class BookSuite extends munit.FunSuite:
 
   test("values from outside (owner §21): an assumption of `always` on their type, listed where a check rests on it") {
     val (booking, deskId) = (LeanType[Booking].ty, NodeId("fromTheDesk"))
-    val desk = KnowledgeBase("Rooms")((all :+ cancelsWhenFuture)*).implementProven(book)(bookIfGranted)
+    val desk = FrModel("Rooms")((all :+ cancelsWhenFuture)*).implementProven(book)(bookIfGranted)
       .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
       .implementTested(cancels)(_ => b => b.start < b.end)
-    def problemsOf(kb: KnowledgeBase) = valid(kb).fold(_.toList, _ => Nil)
+    def problemsOf(kb: FrModel) = valid(kb).fold(_.toList, _ => Nil)
     assertEquals(problemsOf(desk),
       List(Problem.PremiseMissing(NodeId("endsAfterStart"), Premise.FromOutside(booking), None)))
     // Every check whose Lean form carries a Booking's guard (a Booking bound, or the store) now rests on the desk.

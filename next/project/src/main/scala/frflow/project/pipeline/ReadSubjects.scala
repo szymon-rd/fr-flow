@@ -6,7 +6,7 @@ import frflow.core.name.NodeId
 import frflow.core.spec.Node
 import frflow.decision.review.{Place, Subject, Subjects}
 
-/** The subjects of decisions, read once off the analysis: the ledger's whole view of the knowledge base, every node
+/** The subjects of decisions, read once off the analysis: the ledger's whole view of the FrModel, every node
   * after all it rests on (its parents, the premises it assumes, the callees it relies on), in the model's order
   * otherwise.
   */

@@ -12,7 +12,7 @@ import frflow.testing.derive.{Always, Derive, Hints, Seeds}
 class DrawnSuite extends munit.FunSuite:
   /** Rooms without the generators it gives: every value derived from its type. */
   private val derivedOnly = rooms.copy(generators = Nil)
-  private def derive(kb: KnowledgeBase) = Derive.of(kb.elaborated.fold(es => fail(es.toString), identity), Nil)
+  private def derive(kb: FrModel) = Derive.of(kb.elaborated.fold(es => fail(es.toString), identity), Nil)
   private def drawn(d: Derive, n: Int): List[RoomBookings] = (0 until n).toList.flatMap(i =>
     d(Gen.Derived[RoomBookings](LeanType[RoomBookings].ty), Seed.sizeOf(i, n), Seed(1).forCase(i)))
 

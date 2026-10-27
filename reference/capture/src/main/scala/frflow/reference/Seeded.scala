@@ -1,6 +1,6 @@
 package frflow.reference
 
-import frflow.{ContractViolation, KnowledgeBase, Node}
+import frflow.{ContractViolation, FrModel, Node}
 import frflow.example.ExampleResult
 
 /** One seeded bug: what is seeded, where today's suites seed it, and what stops it today, as lines. */
@@ -21,7 +21,7 @@ object Stops:
     s"on the call: $call" :: outcome
 
   /** The node's examples run against the seeded code: those whose implementation verdict is not ok. */
-  def examples(kb: KnowledgeBase, n: Node[?]): List[String] =
+  def examples(kb: FrModel, n: Node[?]): List[String] =
     val results = kb.exampleResults(n)
     val failing = results.filter(_.implementation.exists(_ != "ok"))
     s"the examples of ${n.id}: ${results.size} run, ${failing.size} failing on the implementation" ::
@@ -30,7 +30,7 @@ object Stops:
   /** The generated cases (or runs) of the node's code: the failure, shrunk, with the seed, index and size that remake
     * it.
     */
-  def generated(kb: KnowledgeBase, n: Node[?]): List[String] =
+  def generated(kb: FrModel, n: Node[?]): List[String] =
     kb.test(n) match
       case None => List(s"generated cases of ${n.id}: none (not tested)")
       case Some(r) =>
@@ -43,7 +43,7 @@ object Stops:
               ("  why:" :: indented(f.why))
 
   /** The example runs of a node whose note says `kind` (a fault sweep, interleavings), with their verdicts. */
-  def runs(kb: KnowledgeBase, n: Node[?], kind: String): List[String] =
+  def runs(kb: FrModel, n: Node[?], kind: String): List[String] =
     kb.exampleResults(n).filter(_.example.note.contains(kind)).map(r => s"  ${r.example.note}: ${verdict(r)}")
 
   private def verdict(r: ExampleResult): String =

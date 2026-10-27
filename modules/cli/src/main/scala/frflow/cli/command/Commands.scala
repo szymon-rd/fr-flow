@@ -56,7 +56,7 @@ object Commands:
   private val proving = List(
     command("render", "generate Lean and the snapshot .frflow/kb.json from the Scala definitions")(Opts(Command.Render)),
     command("check", "render, prove each node from its parts, record the results")((node().orNone, json).mapN(Command.Check.apply)),
-    command("status", "the tree and the summary; exits 1 unless the knowledge base is complete")(json.map(Command.Status.apply)),
+    command("status", "the tree and the summary; exits 1 unless the FrModel is complete")(json.map(Command.Status.apply)),
     command("ci", "for CI: check, then status; exits 1 unless everything is proven and decided")(Opts(Command.Ci)),
     command("find", "the nodes that govern a file, or what mentions some words")(words("WORDS|PATH").map(Command.Find.apply)),
     command("scaffold", "a proof file with a stub for each obligation the last check left open")(node().map(Command.Scaffold.apply)))

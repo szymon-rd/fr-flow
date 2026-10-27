@@ -14,7 +14,7 @@ class SnapshotSuite extends munit.FunSuite:
   private def snapOf(s: Snapshot): Map[String, SnapNode] = s.nodes.map(n => n.id.value -> n).toMap
   private def ids(xs: String*): List[NodeId] = xs.map(NodeId(_)).toList
   private def str(s: String): Json = Json.fromString(s)
-  private def kbOf(ns: Seq[Node[?]]) = KnowledgeBase("Shelf", idea = "IDEA.md")(ns*)
+  private def kbOf(ns: Seq[Node[?]]) = FrModel("Shelf", idea = "IDEA.md")(ns*)
 
   test("the snapshot is the DAG of the Scala definitions: parents, parts, definitions, the root") {
     val a = Desk(shelfKb).annotated
@@ -63,7 +63,7 @@ class SnapshotSuite extends munit.FunSuite:
       val good = Param[Item.T => Boolean]("whether an item is cheap")
       val onlyGood = Node.claim(fixtures.onlyGood.statement, fixtures.onlyGood.why)(
         forall((l: Term[List[Item.T]], x: Term[Item.T]) => shown(l, x) === (l.contains(x) && good(x))))
-    assertEquals(Desk(shelfKb).acceptAll.withKb(KnowledgeBase("Shelf", idea = "IDEA.md")(cheap.onlyGood, books, picking))
+    assertEquals(Desk(shelfKb).acceptAll.withKb(FrModel("Shelf", idea = "IDEA.md")(cheap.onlyGood, books, picking))
       .state(cheap.onlyGood), ReviewState.Review)
     val d = Desk(shelfKb).acceptAll.withKb(kbOf((thick.books :: shelfNodes.filterNot(_ eq books)) :+ pick))
     // what does not use the term rests on what does: the root, whose meaning moved
@@ -96,7 +96,7 @@ class SnapshotSuite extends munit.FunSuite:
       .examples(minPages.bind(100))(
         allows(List(Book("Long", 300), Book("Short", 20)), 5, List(Book("Long", 300)), "only the long book"),
         forbids(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
-    val kb = KnowledgeBase("Calls", idea = "IDEA.md")(pickedAgain, Again.again, pickPromise).implementProven(pickPromise)(longOnes).implementProven(Again.again)(viaPick)
+    val kb = FrModel("Calls", idea = "IDEA.md")(pickedAgain, Again.again, pickPromise).implementProven(pickPromise)(longOnes).implementProven(Again.again)(viaPick)
     val d = Desk(callsKb).acceptAll.withKb(kb)
     assertEquals(Graph(d.analysis.snapshot).restsOn(d.node("Again").node), ids("PickedAgain", "PickPromise"))
     assertEquals((d.causes("Again"), d.node("Again").node.relies), (List("above"), ids("PickPromise")))
@@ -105,7 +105,7 @@ class SnapshotSuite extends munit.FunSuite:
   test("any node may name a section of the idea; a section no node names is a warning") {
     val onlyLong = Node.claim(fixtures.onlyLong.statement, fixtures.onlyLong.why, idea = "Picking")(
       forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => b.pages >= minPages))).refines(onlyGood)
-    val d = Desk(KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, books, picking, onlyLong))
+    val d = Desk(FrModel("Shelf", idea = "IDEA.md")(onlyGood, books, picking, onlyLong))
       .withIdea("# Shelf\n\nPick good items.\n\n## Picking\n\nPick only long books.\n\n## Selling\n\nSell them.\n\n## Not modelled\n\n- Prices.\n")
     assert(d.node("OnlyLong").node.content.str("notModelled").exists(_.contains("Prices")))
     assert(d.node("OnlyLong").node.content.str("idea").exists(_.contains("Pick only long books")))
@@ -119,7 +119,7 @@ class SnapshotSuite extends munit.FunSuite:
     val onlyLong = Node.claim(fixtures.onlyLong.statement, fixtures.onlyLong.why, idea = "Picking")(
       forall((l: Term[List[Book]], n: Term[Int]) => picks(l, n).forall(b => b.pages >= minPages))).refines(onlyGood)
     val idea = "# Shelf\n\nPick good items.\n\n## Picking\nFrom: Q1\nPick only long books.\n\n## Not modelled\n\n- Prices.\n"
-    val d = Desk(KnowledgeBase("Shelf", idea = "IDEA.md")(onlyGood, books, picking, onlyLong)).withIdea(idea)
+    val d = Desk(FrModel("Shelf", idea = "IDEA.md")(onlyGood, books, picking, onlyLong)).withIdea(idea)
     val defined = Desk.ok(Desk.ok(d.accept(books, "books are the items")).accept(picking, "picking is the service's"))
     assertEquals(defined.accept(onlyGood, "as said").left.toOption, Some(Refusal.AcceptFirst(IdeaDecision.Id).message))
     val all = d.acceptAll

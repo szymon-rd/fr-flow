@@ -9,7 +9,7 @@ val httpApi = Node.design(
   .refines(sharedCrm)
   .exempt(noCrossTenantRead, "it returns only what the records screen and the sales screen return, which keep the rule")
 
-val knowledge = KnowledgeBase("Crm", idea = "IDEA.md")(
+val knowledge = FrModel("Crm", idea = "IDEA.md")(
   sharedCrm,
   companies, searches, adding, sharing, crmRun,
   storeMirrorsRequests, visibility, noCrossTenantRead, searchesMatch, readContract, dealSearch, recordsByQuery, readSideWiring,

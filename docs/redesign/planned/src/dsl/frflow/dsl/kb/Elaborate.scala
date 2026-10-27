@@ -12,11 +12,11 @@ import frflow.core.vocab.{Define, DefineForm, Vocabulary}
 import frflow.dsl.build.{Declarations, Deferred, ElabError}
 import frflow.dsl.node.{Edges, Node}
 
-/** The front end's last phase: the knowledge base as written to the `Theory`. Every part's lambdas are called once
+/** The front end's last phase: the FrModel as written to the `Theory`. Every part's lambdas are called once
   * on their variables, every error is collected, and the vocabulary is what the parts declare.
   */
 object Elaborate:
-  def apply(kb: KnowledgeBase): ValidatedNec[ElabError, Elaborated] =
+  def apply(kb: FrModel): ValidatedNec[ElabError, Elaborated] =
     val attached = kb.code.traverse((id, a) => a.map(id -> _))
     (kb.nodes.traverse(node), attached).tupled.run.andThen { case (declared, (ns, code)) =>
       vocabulary(declared).map { (all, v) =>

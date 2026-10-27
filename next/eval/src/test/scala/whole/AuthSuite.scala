@@ -13,7 +13,7 @@ import frflow.core.vocab.ValueKind
 class AuthSuite extends munit.FunSuite:
   private val t = Theories.resolved(knowledge).theory
   private def names(ss: String*) = ss.toList.map(SymbolName(_))
-  private def groups(kb: KnowledgeBase) = Consistency.of(Theories.resolved(kb).theory).collect {
+  private def groups(kb: FrModel) = Consistency.of(Theories.resolved(kb).theory).collect {
     case g: Group.Sharing => (g.statements.map(_.value), g.open, g.witnesses) }
 
   test("authorized, signedIn and access are Declarations; grants, sessions and admit Definitions") {
@@ -39,7 +39,7 @@ class AuthSuite extends munit.FunSuite:
   }
 
   test("with no equation for it, a Declaration leaves its group unwitnessed: consistency not proven, said so") {
-    val alone = Theories.resolved(KnowledgeBase("Auth")(accessExactly)).theory
+    val alone = Theories.resolved(FrModel("Auth")(accessExactly)).theory
     assertEquals(Consistency.of(alone).map(_.standing),
       List(Standing.Unwitnessed(names("access", "signedIn", "authorized"))))
   }
@@ -49,7 +49,7 @@ class AuthSuite extends munit.FunSuite:
       forall((u: Term[UserId]) => signedIn(u) === sessions.open.exists(s => s.user === u)))
     val authorizedByGrants = Node.claim("A user is authorized for a path exactly when a grant names them and it.")(
       forall((u: Term[UserId], p: Term[Path]) => authorized(u, p) === grants.exists(g => g === make[Grant](u, p))))
-    val bottom = KnowledgeBase("Auth")(accessExactly, signedInBySessions, authorizedByGrants)
+    val bottom = FrModel("Auth")(accessExactly, signedInBySessions, authorizedByGrants)
       .implementProvided(grants, sessions)
     assertEquals(groups(bottom), List((List("accessExactly", "signedInBySessions", "authorizedByGrants"),
       names("access", "signedIn", "authorized"), List(

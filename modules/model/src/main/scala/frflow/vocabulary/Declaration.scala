@@ -2,7 +2,7 @@ package frflow
 package vocabulary
 
 /** An abstract idea, known only through the claims and assumptions about it (`authorized`): never called by code or a
-  * flow, never implemented. The knowledge base is consistent only if some meaning of it meets them all: a witness,
+  * flow, never implemented. The FrModel is consistent only if some meaning of it meets them all: a witness,
   * derived from a claim that says what it equals.
   */
 final class Declaration[A] @scala.annotation.publicInBinary private[frflow] (named: String, meaning: String)(using

@@ -12,7 +12,7 @@ import frflow.eval.run.Wiring
 import frflow.eval.{Env, Fn, ScalaValue, Semantics}
 
 /** The values that show what always holds possible and each condition able to hold (owner §18), found by a search:
-  * first what the knowledge base's generators draw (`drawn`), then the small values of each type (`Small`), each
+  * first what the FrModel's generators draw (`drawn`), then the small values of each type (`Small`), each
   * judged by the evaluator; the first that holds, in order, so the search is deterministic. A witness Lean is then
   * given (`proof.obligation.Joint`); none found leaves the statement "not shown".
   */

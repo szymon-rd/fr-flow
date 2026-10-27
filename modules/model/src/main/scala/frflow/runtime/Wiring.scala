@@ -7,7 +7,7 @@ import frflow.protocol.{NodeKind, RunCheck}
 // predicates it checks read parameters as `param.value` deep inside the user's own code. That path has no
 // effect type, so:
 // - The values in force are a ThreadLocal (`Bindings`): there is no argument to pass them through.
-// - A broken contract or assumption is reported (`Violation`, to the knowledge base's reporter: a log line by
+// - A broken contract or assumption is reported (`Violation`, to the FrModel's reporter: a log line by
 //   default), then thrown as `ContractViolation`, so that a result that breaks it is never returned (fail closed);
 //   a wiring mistake (no implementation, an unbound parameter) is an `IllegalStateException` when the service is
 //   wired, not on the first call.
@@ -16,9 +16,9 @@ import frflow.protocol.{NodeKind, RunCheck}
 // - A running service remembers, in an atomic reference, what each assumption was last found to hold of; a call
 //   reads each parameter once, through a `Cell`.
 
-/** Wiring a knowledge base's code into a running system (see `KnowledgeBase.service`). */
+/** Wiring a FrModel's code into a running system (see `FrModel.service`). */
 private[frflow] object Wiring:
-  def service[F](kb: KnowledgeBase, contract: Node[F], bindings: Seq[Binding]): F =
+  def service[F](kb: FrModel, contract: Node[F], bindings: Seq[Binding]): F =
     val i = kb.implementation(contract).getOrElse(throw IllegalStateException(s"no implementation of ${contract.id}"))
     val bound = bindings.map(_.param.name).toSet
     val defined = kb.definitionBindings.filterNot(b => bound(b.param.name))
@@ -47,7 +47,7 @@ private[frflow] object Wiring:
   /** Each operation some contract's code implements, bound to its service (made when first called); a Definition's
     * code, to that code itself.
     */
-  def calls(kb: KnowledgeBase, bindings: Seq[Binding]): List[Binding] =
+  def calls(kb: FrModel, bindings: Seq[Binding]): List[Binding] =
     opBindings(kb) { (c, i) =>
       if i.definition.isDefined then () => i.factory()
       else
@@ -56,19 +56,19 @@ private[frflow] object Wiring:
         () => g
     }
 
-  def definitionBindings(kb: KnowledgeBase): List[Binding] =
+  def definitionBindings(kb: FrModel): List[Binding] =
     kb.provisional.toList.sortBy(_._1).flatMap((t, d) => d.substs.find(_.name == t))
       .flatMap(s => s.param.zip(s.term).map((p, l) => Binding(p, () => l.value)))
-  def opCode(kb: KnowledgeBase): List[Binding] = opBindings(kb)((_, i) => () => i.factory())
+  def opCode(kb: FrModel): List[Binding] = opBindings(kb)((_, i) => () => i.factory())
 
   /** By the code of the first contract on each operation that has some. */
-  private def opBindings(kb: KnowledgeBase)(bind: (Node[?], Implementation) => () => Any): List[Binding] =
+  private def opBindings(kb: FrModel)(bind: (Node[?], Implementation) => () => Any): List[Binding] =
     kb.onOp.toList.sortBy(_._1).flatMap { (_, ns) =>
       (for c <- ns; op <- c.op; i <- kb.implementation(c) yield Binding(op, bind(c, i))).take(1)
     }
 
   /** The assumptions of facts, to check where code runs; one over a quantifier cannot be computed: it is trusted only. */
-  def runtimeAssumptions(kb: KnowledgeBase): List[Assumption] =
+  def runtimeAssumptions(kb: FrModel): List[Assumption] =
     kb.nodes.filter(_.kind == NodeKind.Assumption).flatMap { n =>
       n.formula.map { l =>
         val f = l.value.asInstanceOf[() => Boolean]

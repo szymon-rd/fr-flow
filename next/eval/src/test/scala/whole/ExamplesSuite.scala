@@ -6,16 +6,16 @@ import frflow.core.name.NodeId
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Symbol, SymbolType}
 import frflow.core.spec.Statement
-import frflow.dsl.kb.KnowledgeBase
+import frflow.dsl.kb.FrModel
 
 /** Every node of the five examples, written in the three kinds before any port (ARCHITECTURE.md, section 9, step 2):
-  * each knowledge base elaborates, its nodes are today's, named as today's, but for the differences listed, and the
+  * each FrModel elaborates, its nodes are today's, named as today's, but for the differences listed, and the
   * analyses find no problem in it, but for those listed.
   */
 class ExamplesSuite extends munit.FunSuite:
-  private def ids(kb: KnowledgeBase): Set[String] = Theories.theory(kb).nodes.map(_.node.id.value).toSet
+  private def ids(kb: FrModel): Set[String] = Theories.theory(kb).nodes.map(_.node.id.value).toSet
 
-  private def kinds(kb: KnowledgeBase): Map[String, Int] = Theories.theory(kb).nodes.groupMapReduce(_.node.statement
+  private def kinds(kb: FrModel): Map[String, Int] = Theories.theory(kb).nodes.groupMapReduce(_.node.statement
     match
       case Statement.Claim(_, _)   => "claim"
       case Statement.Assumption(_) => "assumption"
@@ -91,7 +91,7 @@ class ExamplesSuite extends munit.FunSuite:
   }
 
   /** Each program Definition's error once resolved: what its code may fail with (`Failing`), read off its steps. */
-  private def errors(kb: KnowledgeBase): Map[String, Option[Ty]] =
+  private def errors(kb: FrModel): Map[String, Option[Ty]] =
     Theories.resolved(kb).theory.vocabulary.symbols.collect {
       case Symbol(n, _, SymbolType.Typed(ty), _) if Ty.resultOf(ty).isInstanceOf[Ty.FlowOf] => n.value -> Ty.errorOf(ty)
     }.toMap
@@ -108,7 +108,7 @@ class ExamplesSuite extends munit.FunSuite:
     * or Declarations. `impl` takes every part as a hypothesis, the code put in it (sound: each part is checked against
     * the same code, and the graph is acyclic), so these are valid as written.
     */
-  private def notAboutCallees(kb: KnowledgeBase): List[(String, String)] =
+  private def notAboutCallees(kb: FrModel): List[(String, String)] =
     val t = Theories.theory(kb)
     for
       n    <- t.nodes.map(_.node.id)

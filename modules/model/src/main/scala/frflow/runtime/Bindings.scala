@@ -3,7 +3,7 @@ package runtime
 
 object Bindings:
   /** What is bound where code runs: a scope's own bindings, then those of the scope it is in. Entering one costs
-    * nothing for what is bound around it, so a call of a service in a large knowledge base stays cheap.
+    * nothing for what is bound around it, so a call of a service in a large FrModel stays cheap.
     */
   private[frflow] abstract class Scope(val outer: Scope | Null):
     def own(name: String): (() => Any) | Null

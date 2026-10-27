@@ -7,19 +7,19 @@ import frflow.eval.run.{ExampleRun, OnCode}
 import frflow.proof.obligation.{Discharge, ObligationName}
 import rooms.*
 
-/** Examples as ordinary tests (owner §18): read beside the knowledge base, checked against the code in Scala and
+/** Examples as ordinary tests (owner §18): read beside the FrModel, checked against the code in Scala and
   * against the claims in Lean; nothing else depends on them.
   */
 class ExamplesSuite extends munit.FunSuite:
   private val examples: List[Example] = roomsExamples.elaborated.fold(e => fail(e.toString), identity)
 
-  private def onCode(kb: KnowledgeBase): List[OnCode] =
+  private def onCode(kb: FrModel): List[OnCode] =
     val e = kb.elaborated.fold(es => fail(es.toString), identity)
     examples.map(ExampleRun(Semantics(e), e.theory).of)
 
   test("each example holds of the calendar's code; one a wrong calendar breaks fails") {
     assertEquals(onCode(rooms), List.fill(3)(OnCode.Holds))
-    val lenient = KnowledgeBase("Rooms")(rooms.nodes*).implementProven(book)(bookIfGranted)
+    val lenient = FrModel("Rooms")(rooms.nodes*).implementProven(book)(bookIfGranted)
       .implementTested(granted)(_ => (_, _) => true)
     assertEquals(onCode(lenient), List(OnCode.Holds, OnCode.Fails, OnCode.Holds))
   }
@@ -33,7 +33,7 @@ class ExamplesSuite extends munit.FunSuite:
       "(granted (RoomBookings.mk [(Booking.mk \"Oak\" 9 10)]) (Booking.mk \"Oak\" 10 11))")), w.lean)
   }
 
-  test("nothing in the knowledge base depends on an example: its theory and obligations are the same without them") {
+  test("nothing in the FrModel depends on an example: its theory and obligations are the same without them") {
     val aboutExamples: ObligationName => Boolean = { case ObligationName.Example(_) => true; case _ => false }
     val (withThem, without) = (Whole(rooms, examples), Whole(rooms, Nil))
     assertEquals(withThem.obligations.filterNot(o => aboutExamples(o.name)).map(o => (o.name, o.doc)),

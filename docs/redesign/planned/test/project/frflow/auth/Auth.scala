@@ -39,5 +39,5 @@ val requestsReach = Node.claim("A user reaches a path exactly when a request for
   forall((u: Term[UserId], p: Term[Path]) => access(u, p) === sessions.exists(s => s.user === u && admits(s, p))))
   .refines(accessExactly)
 
-val knowledge = KnowledgeBase("Auth")(accessExactly, grantsAuthorize, sessionsSignIn, requestsReach)
+val knowledge = FrModel("Auth")(accessExactly, grantsAuthorize, sessionsSignIn, requestsReach)
   .implementProvided(grants, sessions)

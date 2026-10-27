@@ -22,11 +22,11 @@ object Shelf:
         shelf.forall(b => b.pages >= minPages implies picks(shelf, n).contains(b))))
 
   /** The shelf with `code` as the picking service's. */
-  def withCode(code: BigInt => (List[Book], BigInt) => List[Book]): KnowledgeBase =
-    KnowledgeBase("Shelf")(pick).implementProvided(minPages)
+  def withCode(code: BigInt => (List[Book], BigInt) => List[Book]): FrModel =
+    FrModel("Shelf")(pick).implementProvided(minPages)
       .implementTested(picks)(env => code(env(minPages)))
 
-  val kb: KnowledgeBase = withCode(min => (shelf, _) => shelf.filter(_.pages >= min))
+  val kb: FrModel = withCode(min => (shelf, _) => shelf.filter(_.pages >= min))
 
   // One input: the longest book's pages.
   val longest = Definition[List[Book] => BigInt]("the most pages of a book on the shelf, 0 for none")

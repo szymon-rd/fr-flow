@@ -8,7 +8,7 @@ import frflow.runtime.Wiring
 /** The idea and its nodes: one root claim refined by a DAG of parts, told apart by identity; `name` is the Lean namespace;
   * `idea`, the file the purpose is written in (`IDEA.md`), if any.
   */
-final class KnowledgeBase(val name: String, val idea: String = "", val implementations: List[Implementation] = Nil,
+final class FrModel(val name: String, val idea: String = "", val implementations: List[Implementation] = Nil,
     val generators: List[(LeanType[?], Gen[?])] = Nil, val testing: TestSettings = TestSettings(),
     val onViolation: Violation => Unit = Violation.log, val written: List[Written] = Nil)(nodeList: Node[?]*):
   val nodes: List[Node[?]] = nodeList.toList
@@ -243,13 +243,13 @@ final class KnowledgeBase(val name: String, val idea: String = "", val implement
   /** Registers code for `d`: a copy for each claim on it that `check` holds it to (all, or those nothing below
     * proves).
     */
-  private[frflow] def withDefinition(d: Param[?], i: Implementation, leavesOnly: Boolean): KnowledgeBase =
+  private[frflow] def withDefinition(d: Param[?], i: Implementation, leavesOnly: Boolean): FrModel =
     val held = claimsOn(d).filter(c => !leavesOnly || parts(c).isEmpty)
     val is =
       if held.isEmpty then List(i.copy(contract = "", definition = Some(d.name)))
       else held.map(c => i.copy(contract = c.id, definition = Some(d.name)))
     val others = implementations.filterNot(_.definition.contains(d.name))
-    KnowledgeBase(name, idea, others ++ is, generators, testing, onViolation, written)(nodes*)
+    FrModel(name, idea, others ++ is, generators, testing, onViolation, written)(nodes*)
   /** Whether code gives `d` its meaning. */
   def defines(d: Param[?]): Boolean =
     implementations.exists(_.definition.contains(d.name)) || claimsOn(d).exists(implementation(_).isDefined)
@@ -265,23 +265,23 @@ final class KnowledgeBase(val name: String, val idea: String = "", val implement
     * Lean proves it meets every claim on `d`.
     */
   def implementProven[F](d: Definition[F])(using s: Sig[F]): ProvingDefinition[F, s.Code] = ProvingDefinition(this, d)
-  def withImplementation(i: Implementation): KnowledgeBase =
+  def withImplementation(i: Implementation): FrModel =
     val others = implementations.filterNot(_.contract == i.contract)
-    KnowledgeBase(name, idea, others :+ i, generators, testing, onViolation, written)(nodes*)
+    FrModel(name, idea, others :+ i, generators, testing, onViolation, written)(nodes*)
 
   /** Values of `T` for the tests of code against contracts, where the ones derived from the type rarely reach what a
     * contract is about: `.generating(Gen.oneOf(Path("/a"), Path("/b")))`.
     */
-  def generating[T](g: Gen[T])(using t: LeanType[T]): KnowledgeBase =
-    KnowledgeBase(name, idea, implementations, generators :+ (t -> g), testing, onViolation, written)(nodes*)
+  def generating[T](g: Gen[T])(using t: LeanType[T]): FrModel =
+    FrModel(name, idea, implementations, generators :+ (t -> g), testing, onViolation, written)(nodes*)
   /** How many cases each contract's code is tested on, from which seed. */
-  def testedWith(settings: TestSettings): KnowledgeBase =
-    KnowledgeBase(name, idea, implementations, generators, settings, onViolation, written)(nodes*)
+  def testedWith(settings: TestSettings): FrModel =
+    FrModel(name, idea, implementations, generators, settings, onViolation, written)(nodes*)
   /** Where a broken contract or assumption is reported before `service` throws: a log line by default; an application
     * adds its own (a metric, an alert) here, and maps the thrown `ContractViolation` to its own failure (an HTTP 500).
     */
-  def reporting(report: Violation => Unit): KnowledgeBase =
-    KnowledgeBase(name, idea, implementations, generators, testing, report, written)(nodes*)
+  def reporting(report: Violation => Unit): FrModel =
+    FrModel(name, idea, implementations, generators, testing, report, written)(nodes*)
 
   /** How a contract's code is checked where `service` runs it: as the developer chose (`checkedAtRunTime`), else on every
     * call, unless the running code is the code Lean proves (a proven define's result needs no second look; the values it
@@ -289,7 +289,7 @@ final class KnowledgeBase(val name: String, val idea: String = "", val implement
     * and tests check it before production (`None`).
     */
   def runTime(n: Node[?]): Option[RunTime] =
-    // As this knowledge base holds the node: a choice made on it is the one in force, whichever copy is passed.
+    // As this FrModel holds the node: a choice made on it is the one in force, whichever copy is passed.
     val m = node(n.id).getOrElse(n)
     implementation(m).filter(i => !i.flow && i.definition.isEmpty && m.post.isDefined).map { i =>
       val check = m.runCheck.getOrElse(if i.provenCode then RunCheck.Never else RunCheck.EveryCall)
@@ -325,10 +325,10 @@ final class KnowledgeBase(val name: String, val idea: String = "", val implement
   def test(n: Node[?], replay: List[Testing.Replay] = Nil, settings: TestSettings = testing): Option[Testing.Report] =
     Testing.run(this, n, settings, replay)
   /** With the examples written as tests: each a case of every claim on its Definition, read by `check`. */
-  def withWritten(ws: List[Written]): KnowledgeBase =
-    KnowledgeBase(name, idea, implementations, generators, testing, onViolation, ws)(nodes*)
+  def withWritten(ws: List[Written]): FrModel =
+    FrModel(name, idea, implementations, generators, testing, onViolation, ws)(nodes*)
   /** Its cases: its own (`.examples`), and those written as tests of its operation. */
   def casesOf(n: Node[?]): List[Example] =
     n.cases ++ (if n.post.isEmpty then Nil else written.filter(w => n.op.exists(_ eq w.op)).map(_.asCase))
-  /** Structural problems; a knowledge base with problems is not checked. */
+  /** Structural problems; a FrModel with problems is not checked. */
   lazy val problems: List[Problem] = Validation.problems(this)

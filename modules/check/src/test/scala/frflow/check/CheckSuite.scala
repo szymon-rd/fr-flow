@@ -45,7 +45,7 @@ class CheckSuite extends munit.FunSuite:
     def team(statement: String) =
       val top = Node.claim(statement, why = "w")(forall((x: Term[BigInt]) => sq(x) >= 0))
       val floor = Node.claim("Results are at least zero.", why = "w")(forall((x: Term[BigInt]) => sq(x) >= 0)).refines(top)
-      Desk(KnowledgeBase("Team", idea = "IDEA.md")(top, floor)).analysis
+      Desk(FrModel("Team", idea = "IDEA.md")(top, floor)).analysis
     val (before, after) = (team("Results are never negative."), team("Results are never below zero."))
     def both(f: Analysis => Node[?] => Any, id: String) = (f(before)(before.kb.node(id).getOrElse(fail(id))), f(after)(after.kb.node(id).getOrElse(fail(id))))
     val (h1, h2) = both(_.checkHash, "Top")
@@ -61,7 +61,7 @@ class CheckSuite extends munit.FunSuite:
       val top = Node.claim("Results are never negative.", why = "w")(forall((x: Term[BigInt]) => sq(x) >= 0))
       val middle = Node.claim("Results are never negative, again.", why = "w")(forall((x: Term[BigInt]) => sq(x) >= 0)).refines(top)
       val floor = Node.claim("Results are at least the floor.", why = "w")(forall((x: Term[BigInt]) => floored(x))).refines(middle)
-      Desk(KnowledgeBase("Team", idea = "IDEA.md")(top, middle, floor)).analysis
+      Desk(FrModel("Team", idea = "IDEA.md")(top, middle, floor)).analysis
     val (zero, one) = (team(FloorZero.floored), team(FloorOne.floored))
     def hash(a: Analysis, id: String) = a.checkHash(a.kb.node(id).getOrElse(fail(id)))
     assertNotEquals(hash(zero, "Middle"), hash(one, "Middle"))
@@ -163,14 +163,14 @@ class CheckSuite extends munit.FunSuite:
     val doubles = Node.claim("Doubling a number adds it to itself.", why = "w")(forall((x: Term[BigInt]) => double(x) === x + x))
     val one = Node.contract("Doubling adds the number and one.", why = "w")(forall((x: Term[BigInt]) => double(x) === x + x + 1))
       .refines(doubles).examples(allows(BigInt(1), BigInt(3), "one"), forbids(BigInt(1), BigInt(2), "not two"))
-    val kb = KnowledgeBase("Twice")(doubles, one)
+    val kb = FrModel("Twice")(doubles, one)
     val found = Refutation.candidate(kb, doubles, identity).getOrElse(fail("no case found"))
     assertEquals((found.shown, found.what), ("x = 0", "One gives 1, which this claim forbids"))
     assert(found.lean.contains("theorem refutes : ¬ Twice.Doubles.Obl.complete := by") && found.lean.contains("have h := h 0"), found.lean)
     // a contract that only bounds its result gives no answer to try
     val bounded = Node.contract("Doubling gives at least the number.", why = "w")(forall((x: Term[BigInt]) => double(x) >= x))
       .refines(doubles).examples(allows(BigInt(1), BigInt(2), "two"), forbids(BigInt(1), BigInt(0), "not less"))
-    assertEquals(Refutation.candidate(KnowledgeBase("Twice")(doubles, bounded), doubles, identity), None)
+    assertEquals(Refutation.candidate(FrModel("Twice")(doubles, bounded), doubles, identity), None)
     // on the step's line: the case, then the hint to look at the change first
     val r = Verdict.refuted(Result(ObligationName.Complete, ObligationStatus.Open, "omega could not prove the goal"), found)
     assertEquals(r.detail,

@@ -4,7 +4,7 @@ import frflow.*
 
 // The examples, as an ordinary test file writes them (owner §18; `FrFlowExamples`, as today's library): FrFlow
 // checks each against the claims in Lean and against the code; they show how `granted` behaves, and nothing in the
-// knowledge base depends on them.
+// FrModel depends on them.
 
 class GrantedExamples extends FrFlowExamples(rooms):
   example("back to back: granted"):

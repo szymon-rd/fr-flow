@@ -9,8 +9,8 @@ import frflow.protocol.{ObligationName, Sha}
   */
 class GoldenSuite extends munit.FunSuite:
 
-  /** Every file of a knowledge base's Lean, the proof file stubs of its nodes and what check hashes are made of. */
-  private def sections(kb: KnowledgeBase): List[(String, String)] =
+  /** Every file of a FrModel's Lean, the proof file stubs of its nodes and what check hashes are made of. */
+  private def sections(kb: FrModel): List[(String, String)] =
     val g = Generate(kb)
     val perNode = kb.nodes.filter(g.formal).flatMap(n => List(
       s"proof file of ${n.id}" -> g.proofFile(n, List(ObligationName.Complete, ObligationName.Impl)),

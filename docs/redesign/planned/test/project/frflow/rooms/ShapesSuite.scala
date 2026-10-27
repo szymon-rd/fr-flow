@@ -44,7 +44,7 @@ class ShapesSuite extends munit.FunSuite:
   private def shaped[A: LeanType](d: Definition[Request => A], code: Definition[Request => A], tested: Node) =
     val about = Node.claim(s"${d.name.value} is determined by the request.")(
       forall((r: Term[Request]) => d(r) === d(r))).assuming(fromTheForm)
-    val kb = KnowledgeBase("Rooms")((rooms.nodes ++ List(about, tested))*).implementProven(book)(bookIfGranted)
+    val kb = FrModel("Rooms")((rooms.nodes ++ List(about, tested))*).implementProven(book)(bookIfGranted)
       .implementProven(d)(code).implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
     kb.elaborated.fold(es => fail(es.toString), identity)
 

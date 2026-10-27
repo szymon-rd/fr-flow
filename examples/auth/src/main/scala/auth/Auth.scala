@@ -86,7 +86,7 @@ val inMemorySessions = Node.design(
   why = "One service decides access, and the tables fit in memory. A shared store would only be needed with several instances."
 )("src/main/scala/auth/Server.scala").refines(decisionContract)
 
-val knowledge = KnowledgeBase("Auth", idea = "IDEA.md")(
+val knowledge = FrModel("Auth", idea = "IDEA.md")(
   accessExactly,
   identities,
   grantTable,

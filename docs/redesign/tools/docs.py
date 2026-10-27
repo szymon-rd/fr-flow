@@ -44,7 +44,7 @@ new = {
 'src/project/frflow/project/projection/Contents.scala': None,
 'src/proof/frflow/proof/layout/Layout.scala': "Where each generated module and each authored proof file lives.",
 'src/proof/frflow/proof/lean/lower/Lower.scala': "An expression of the IR as a Lean term: today's `LeanPrinter.expr`, same parentheses and names, on typed values.",
-'src/proof/frflow/proof/lean/lower/LowerEnv.scala': "What lowering reads of the knowledge base.",
+'src/proof/frflow/proof/lean/lower/LowerEnv.scala': "What lowering reads of the FrModel.",
 'src/proof/frflow/proof/lean/lower/LowerProg.scala': "A flow's steps as the lines of a `do` block, as today's `LeanPrinter.block`.",
 'src/proof/frflow/proof/obligation/Prop.scala': "The statement of an obligation in the logic of refinement, before any Lean syntax.",
 'src/proof/frflow/proof/obligation/Tries.scala': "What is tried of a node, in today's order. One-sided: proven, they show something wrong.",

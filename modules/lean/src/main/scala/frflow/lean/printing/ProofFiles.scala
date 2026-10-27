@@ -6,8 +6,8 @@ import frflow.protocol.ObligationName
 import ObligationName.*
 import LeanText.*
 
-/** The files proofs are written in (`Proofs/<KB>/<Node>.lean`), their stubs, and the Lake project. */
-final class ProofFiles(kb: KnowledgeBase, layout: Layout, refinement: Refinement):
+/** The files proofs are written in (`Proofs/<Model>/<Node>.lean`), their stubs, and the Lake project. */
+final class ProofFiles(kb: FrModel, layout: Layout, refinement: Refinement):
   private val K = kb.name
 
   /** For each obligation: the first steps of a proof by hand, what they leave (`state`), then `sorry`. */

@@ -104,7 +104,7 @@ object Errors:
       allows(BigInt(5), at(10).failing(true), Failed(VaultError.Down), at(10, 1), "down, then a rest all the same"),
       forbids(BigInt(5), at(10).failing(true), Failed(VaultError.Down), at(10), "never without the rest"))
 
-  val kb = KnowledgeBase("Errors", idea = "IDEA.md")(vaultKept, clockKept, withdrawContract, safelyContract, depositContract, restContract)
+  val kb = FrModel("Errors", idea = "IDEA.md")(vaultKept, clockKept, withdrawContract, safelyContract, depositContract, restContract)
     .implementProven(withdrawContract)((n: Term[BigInt]) => withdraw(n))
     .implementProven(safelyContract)((n: Term[BigInt]) => safely(n))
     .implementProven(depositContract)((n: Term[BigInt]) => deposit(n))

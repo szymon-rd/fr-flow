@@ -60,7 +60,7 @@ class ReadInputsSuite extends munit.CatsEffectSuite:
       assertEquals(out, Left(Refusal.Rewritten(List(id))))
   }
 
-  test("a proof is lean/Proofs/<KB>/<Node>.lean, directly there and named by an identifier; any other a stray") {
+  test("a proof is lean/Proofs/<Model>/<Node>.lean, directly there and named by an identifier; any other a stray") {
     def at(path: String) = RelPath.fromIdentifiers("lean", s"Proofs/$path")
     val strays = List(at("Rooms/sub/grantWhenFree.lean"), at("Rooms/not-a-node.lean"), at("Other/grantWhenFree.lean"),
       at("Stray.lean"))

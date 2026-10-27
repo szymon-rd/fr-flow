@@ -47,7 +47,7 @@ object CrmModels:
     def tables(st: T[Any], es: T[List[Any]]): T[Any] =
       s.app(s.app(s.construct(Constructor[Any => List[Any] => Any](TypeName("Tables"), CtorName("mk"), a => _ => a)),
         st), es)
-    /** `aboutRecord t id` and `replaceAbout s id r`: defines of the crm knowledge base, called by name. */
+    /** `aboutRecord t id` and `replaceAbout s id r`: defines of the crm FrModel, called by name. */
     def aboutRecord(t: T[Any], id: T[BigInt]): T[Any] = s.app(s.app(s.define(named[Any => BigInt => Any](
       "aboutRecord", List(store, big))), t), id)
     def replaceAbout(st: T[Any], id: T[BigInt], r: T[Any]): T[Any] = s.app(s.app(s.app(s.define(

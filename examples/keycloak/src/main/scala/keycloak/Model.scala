@@ -18,7 +18,7 @@ val httpApi = Node.design("The HTTP API serves Keycloak's token, introspection a
   .refines(serviceWiring, freshTokens)
   .exempt(realmIsolation, "it returns only what Introspect returns, which keeps the rule")
 
-val knowledge = KnowledgeBase("Keycloak", idea = "IDEA.md")(
+val knowledge = FrModel("Keycloak", idea = "IDEA.md")(
   realmAccess, noUnauthorizedAccess, signedInAreAccepted, onlyTheSignedIn, disabledHaveNoAccess, rolesAsGranted,
   identities, accounts, signInHistory, serverRun, referenceTokens,
   realmIsolation, answersNameASession, sessionsMirrorSignIns, accountsAsAdministered, oneSignInPerToken, freshTokens,

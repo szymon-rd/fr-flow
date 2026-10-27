@@ -8,7 +8,7 @@ import frflow.ledger.*
 import frflow.protocol.*
 import java.nio.file.{Files, Path, Paths}
 
-/** Proofs end to end: a knowledge base proven by automation, what root_impl rests on, a proof by hand, and
+/** Proofs end to end: a FrModel proven by automation, what root_impl rests on, a proof by hand, and
   * imports Lean builds together. End to end against Lean (see LeanLab).
   */
 class LeanProofSuite extends LeanLab:

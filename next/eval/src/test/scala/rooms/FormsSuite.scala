@@ -78,13 +78,13 @@ class FormsSuite extends munit.FunSuite:
   }
 
   test("a meaning is given once: proven code is a define or a program, and one written on the spot takes no other") {
-    def faults(kb: KnowledgeBase) = kb.elaborated.fold(_.iterator.map(_.fault).toList, _ => Nil)
+    def faults(kb: FrModel) = kb.elaborated.fold(_.iterator.map(_.fault).toList, _ => Nil)
     val notCode = Definition[Request => Program[Boolean]]("a program nothing gives a meaning")
     assertEquals(faults(rooms.implementProven(book)(notCode)), List(Fault.NotProvenCode("notCode")))
     assertEquals(faults(rooms.implementTested(free)(_ => (_, _) => true)), List(Fault.MeantWhereWritten("free")))
     val runsItself = Node.claim("The program answers.")(
       forall((r: Term[Request], w: Term[World]) => bookIfGranted(r).from(w) { (b, _) => b === b }))
-    assertEquals(faults(KnowledgeBase("R")(runsItself)), List(Fault.ProgramMentioned("bookIfGranted")))
+    assertEquals(faults(FrModel("R")(runsItself)), List(Fault.ProgramMentioned("bookIfGranted")))
   }
 
   test("a Declaration is used only in statements: in a define or a program it does not compile, saying why") {
@@ -126,7 +126,7 @@ class FormsSuite extends munit.FunSuite:
     val connected = Node.claim("The connection is the one given.")(connection === connection)
     assert(connection.codeOnly && !granted.codeOnly)
     assertEquals(Theories.problems(rooms.implementProvided(connection)), Nil)
-    assertEquals(Theories.problems(KnowledgeBase("Wired")(connected).implementProvided(connection)),
+    assertEquals(Theories.problems(FrModel("Wired")(connected).implementProvided(connection)),
       List(Problem.CodeOnlyInStatement(NodeId("connected"), SymbolName("connection"), "Connection")))
     val db = Connection("jdbc:sqlite:rooms.db")
     assertEquals(Values(Map(SymbolName("connection") -> (() => db))).apply(connection), db)
@@ -135,7 +135,7 @@ class FormsSuite extends munit.FunSuite:
   test("a record whose derives LeanType is forgotten: its field selected in a statement names the type, code-only") {
     val wire = Definition[Wire]("the wire the code is given where it runs")
     val wired = Node.claim("The wire goes to the database.")(wire.host === "db")
-    assertEquals(Theories.errors(KnowledgeBase("Wired")(wired).implementProvided(wire)).map(_.fault),
+    assertEquals(Theories.errors(FrModel("Wired")(wired).implementProvided(wire)).map(_.fault),
       List(Fault.CodeOnlyInStatement("Wire")))
   }
 

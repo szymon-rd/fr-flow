@@ -4,7 +4,7 @@ import frflow.core.name.{NodeId, RelPath}
 import frflow.proof.reading.ProofFile
 
 /** What Lean reads beside the modules FrFlow generates: the developer's proof files, each
-  * `lean/Proofs/<KB>/<Node>.lean` (the shared lemmas' as `Lemmas`); any other `.lean` file under `lean/Proofs/`
+  * `lean/Proofs/<Model>/<Node>.lean` (the shared lemmas' as `Lemmas`); any other `.lean` file under `lean/Proofs/`
   * (`strays`: Lake would build one a proof imports, unread by the rules, so no check runs while one is there); and
   * FrFlow's Lean library, by its version.
   */

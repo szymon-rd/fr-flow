@@ -4,7 +4,7 @@ import cats.syntax.all.*
 import frflow.*
 import frflow.core.example.Gen
 
-// The knowledge base: the roots first, then what always holds, the calendar's claims and the world outside; and
+// The FrModel: the roots first, then what always holds, the calendar's claims and the world outside; and
 // what gives each Definition its meaning: `book` the proven program, `granted` the calendar's Scala.
 
 // The tests' cases: rooms, requests, and a room's bookings laid end to end.
@@ -31,7 +31,7 @@ val roomBookings: Gen[RoomBookings] = for
   room <- roomNames; count <- Gen.oneOf(0, 1, 2, 3, 4); bookings <- laidEndToEnd(room, 0, count)
 yield RoomBookings(room, bookings)
 
-val rooms = KnowledgeBase("Rooms")(bookWhenFree, answerWhenFree, neverOverlap, endsAfterStart, bookingsOfTheRoom,
+val rooms = FrModel("Rooms")(bookWhenFree, answerWhenFree, neverOverlap, endsAfterStart, bookingsOfTheRoom,
   roomBookingsApart, grantWhenFree, grantWhenNoOverlap, tableMatchesModel, onlyBookingWrites, oneAtATime,
   startsEmpty, requestsEndAfterStart)
   .implementProven(book)(bookIfGranted)

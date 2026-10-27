@@ -14,6 +14,6 @@ object Shelf:
   val ticks = clock.model("the time now, in seconds")(Ticks(_))
 
   /** The shelf and the clock as their models: what the recorded programs are run on. */
-  val knowledge: KnowledgeBase = KnowledgeBase("Shelves")(
+  val knowledge: FrModel = FrModel("Shelves")(
     Node.assumption("The shelf keeps the numbers put on it.")(shelf.behavesAs(kept)),
     Node.assumption("The clock moves only when a program sleeps.")(clock.behavesAs(ticks)))

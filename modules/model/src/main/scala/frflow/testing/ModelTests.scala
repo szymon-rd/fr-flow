@@ -34,7 +34,7 @@ private[frflow] object ModelTests:
   /** A generated run: the state it starts from, and its calls. */
   private final case class Run(start: Any, calls: List[Call])
 
-  def run(kb: KnowledgeBase, n: Node[?], settings: TestSettings, replay: List[Replay]): Report =
+  def run(kb: FrModel, n: Node[?], settings: TestSettings, replay: List[Replay]): Report =
     val mo = n.modelOf.get
     val model = mo.model
     val ops = mo.boundary.operations.map { m =>
@@ -72,7 +72,7 @@ private[frflow] object ModelTests:
     Report(results.map(_._2).sum, settings.seed, s"the model ${model.lean}", failure, coverage, notes)
 
   /** The states the examples of the flows calling the boundary start from and end in: seeds of the generated ones. */
-  private def worlds(kb: KnowledgeBase, mo: ModelOf): List[World] =
+  private def worlds(kb: FrModel, mo: ModelOf): List[World] =
     kb.nodes.filter(_.isFlow).flatMap(_.cases).flatMap { e =>
       e.inputs.lastOption.toList ++ (e.result match { case (_, w) => List(w); case _ => Nil })
     }.collect { case w: World if w.parts.contains(mo.model) => w }

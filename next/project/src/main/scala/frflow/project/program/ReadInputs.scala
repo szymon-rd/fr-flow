@@ -31,7 +31,7 @@ final class ReadInputs[F[_]: Monad: Parallel: Clock](ports: Ports[F], project: P
   private def committed: F[List[Option[Ledger]]] =
     ports.git.versions(Records.path(LedgerFile.format)).map(_.map(Files.read(LedgerFile.format, _).toOption))
 
-  /** The proof files, each `lean/Proofs/<KB>/<Node>.lean` directly in that directory, named by an identifier; every
+  /** The proof files, each `lean/Proofs/<Model>/<Node>.lean` directly in that directory, named by an identifier; every
     * other `.lean` file under `lean/Proofs/` a stray.
     */
   private def lean(e: Elaborated): F[LeanSources] =

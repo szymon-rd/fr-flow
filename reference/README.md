@@ -17,7 +17,7 @@ replaces its directory here only once all of it is captured: a run that stops (a
 applies, an sbt error, a review that does not finish in 5 minutes) leaves the reference as it was. A re-run with
 nothing changed gives no diff: the seed is fixed, the time zone is UTC, paths are relative and nothing records when
 it ran. rooms takes about 6 minutes (its walk-through compiles three times), all five about 40 minutes, most of it
-Lean and one JVM per command. The seeded bugs' generated cases use each knowledge base's own settings (seed 1), as
+Lean and one JVM per command. The seeded bugs' generated cases use each FrModel's own settings (seed 1), as
 the suites do.
 
 ## What each example's directory holds

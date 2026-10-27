@@ -34,7 +34,7 @@ class NotesSuite extends munit.FunSuite:
   private val fixed = Node.claim("The service answers 42.")(answer === BigInt(42))
 
   test("a claim with no input whose code is given nothing has nothing to vary, and says so") {
-    val kb = KnowledgeBase("Answer")(fixed).implementTested(answer)(_ => BigInt(42))
+    val kb = FrModel("Answer")(fixed).implementTested(answer)(_ => BigInt(42))
     val k = kb.elaborated.fold(es => fail(es.toString), identity)
     val report = PropertyTests(Semantics(k), k.theory).of(NodeId("fixed"), Plan(Settings(3, Seed(1)), Nil),
       Derive.of(k, Nil))

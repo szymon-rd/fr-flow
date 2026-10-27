@@ -26,7 +26,7 @@ def leanTagged: Seq[Setting[?]] = inConfig(LeanTest)(Defaults.testTasks) ++ Seq(
     Tests.Argument(TestFrameworks.MUnit, "--include-tags=Lean"))
 addCommandAlias("leanTest", "Lean/test")
 addCommandAlias("testAll", "; test; Lean/test")
-// A new project: `sbt "frflowInit toy"` (an empty knowledge base and its line below); with an AI agent's layer on top,
+// A new project: `sbt "frflowInit toy"` (an empty FrModel and its line below); with an AI agent's layer on top,
 // `sbt "frflowInitAgent toy"` (the same, its main object passing the layer; the idea is then told in chat).
 addCommandAlias("frflowInit", "cli/runMain frflow.cli.Init")
 addCommandAlias("frflowInitAgent", "agent/runMain frflow.agent.Init")
@@ -133,7 +133,7 @@ lazy val nextApi = nextModule("api", (Seq(cats, catsEffect, munitEffect) ++ fs2)
 
 // FrFlow's core: the modules below up to `web`, usable on their own. `agent` is a layer on top; no core module depends on it.
 
-/** The DSL: terms, flows, nodes, the knowledge base, the runtime checks (package `frflow`). */
+/** The DSL: terms, flows, nodes, the FrModel, the runtime checks (package `frflow`). */
 lazy val model = module("model", cats, catsEffectKernel, catsEffect).dependsOn(protocol)
 
 /** The data crossing modules and files: the snapshot, the review, the ledger and checks, with their JSON codecs; ids and
@@ -141,13 +141,13 @@ lazy val model = module("model", cats, catsEffectKernel, catsEffect).dependsOn(p
   */
 lazy val protocol = module("protocol", circe, circeParser % Test)
 
-/** The Lean of a knowledge base, and reading Lean's output. */
+/** The Lean of a FrModel, and reading Lean's output. */
 lazy val lean = module("lean", cats).dependsOn(model % "compile->compile;test->test", protocol)
 
 /** The developer's decisions: review states, decide, signatures, reports; the ledger's and keys' files. */
 lazy val ledger = module("ledger", cats, catsEffect, circe, circeParser, munitEffect).dependsOn(protocol)
 
-/** Rendering and checking a knowledge base against Lean; the snapshot; git. */
+/** Rendering and checking a FrModel against Lean; the snapshot; git. */
 lazy val check = module("check", (Seq(cats, catsEffect, circe, circeParser, munitEffect) ++ fs2)*)
   .dependsOn(lean % "compile->compile;test->test", ledger)
 
@@ -203,7 +203,7 @@ def example(name: String, layers: Seq[ClasspathDep[ProjectReference]] = Seq(agen
       IO.writeLines(launch, (run / javaOptions).value ++ Seq("-cp", classpath, main))
       launch
     },
-    // The web view runs the project's main object (its knowledge base) in a forked JVM, over the API the CLI uses.
+    // The web view runs the project's main object (its FrModel) in a forked JVM, over the API the CLI uses.
     serve := Def.inputTaskDyn {
       val args = complete.DefaultParsers.spaceDelimited("[--port N] [--as NAME]").parsed
       val main = (Compile / run / mainClass).value.getOrElse(sys.error(s"${Keys.name.value} has no main class"))

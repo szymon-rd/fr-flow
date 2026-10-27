@@ -21,7 +21,7 @@ class LeanRootSuite extends LeanLab:
         allows(List(Book("Long", 300)), 5, List(Book("Long", 300)), "the long book"),
         allows(List(Book("Short", 20)), 5, Nil, "none"),
         forbids(List(Book("Short", 20)), 5, List(Book("Short", 20)), "never a short one"))
-    val w = workflow(KnowledgeBase("Guard", idea = "IDEA.md")(guard, books, picking, c))
+    val w = workflow(FrModel("Guard", idea = "IDEA.md")(guard, books, picking, c))
     val root = of(w.check(), "Guard")
     assertEquals(result(root, "idle").map(_.status.toString), Some("shown"), root)
     val n = node(w, "Guard")
