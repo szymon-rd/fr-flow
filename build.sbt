@@ -52,6 +52,7 @@ def nextModules: Seq[ProjectReference] = Seq(
   // step 2: nextDsl
 
   // step 3: nextProof
+  nextProof,
 
   // step 4: nextEval
 

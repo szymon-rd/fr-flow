@@ -5,5 +5,6 @@ package frflow.core.analysis
   * and tactics. A domain type, value, define or boundary named so would be captured.
   */
 object Reserved:
-  val names: Set[String] = Set("World", "Obl", "StateM", "Except", "pure", "get", "set", "modify", "frflow_defs",
-    "frflow_witness", "frflow_auto", "frflow_intro", "frflow_match_eqns")
+  val names: Set[String] = Set("World", "Obl", "StateM", "Except", "ExceptT", "Id", "Monad", "MonadExceptOf", "pure",
+    "get", "set", "modify", "throwThe", "tryCatchThe", "frflow_defs", "frflow_witness", "frflow_auto", "frflow_intro",
+    "frflow_match_eqns")
