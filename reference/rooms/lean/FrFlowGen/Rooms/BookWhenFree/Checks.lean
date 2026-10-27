@@ -11,13 +11,18 @@ namespace Rooms.BookWhenFree.Checks
 open Rooms.BookWhenFree
 
 set_option maxHeartbeats 4000 in
-theorem needed_GrantWhenFree : Obl.needed_GrantWhenFree := by
-  unfold Obl.needed_GrantWhenFree
+theorem needed_BookedIsStored : Obl.needed_BookedIsStored := by
+  unfold Obl.needed_BookedIsStored
   frflow_auto
 
 set_option maxHeartbeats 4000 in
-theorem needed_RequestsEndAfterStart : Obl.needed_RequestsEndAfterStart := by
-  unfold Obl.needed_RequestsEndAfterStart
+theorem needed_BookedAfterIsStored : Obl.needed_BookedAfterIsStored := by
+  unfold Obl.needed_BookedAfterIsStored
+  frflow_auto
+
+set_option maxHeartbeats 4000 in
+theorem needed_StoreWhenFree : Obl.needed_StoreWhenFree := by
+  unfold Obl.needed_StoreWhenFree
   frflow_auto
 
 set_option maxHeartbeats 4000 in

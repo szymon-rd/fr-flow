@@ -9,6 +9,9 @@ import FrFlowGen.Rooms.Domain.Def_bookingsOfTheRoom
 import FrFlowGen.Rooms.Domain.Def_roomBookingsApart
 import FrFlowGen.Rooms.Domain.Def_startsEmpty
 import FrFlowGen.Rooms.Domain.Def_requestsEndAfterStart
+import FrFlowGen.Rooms.BookedIsStored.Spec
+import FrFlowGen.Rooms.BookedAfterIsStored.Spec
+import FrFlowGen.Rooms.AcceptedIsAnswered.Spec
 import FrFlowGen.Rooms.GrantWhenNoOverlap.Spec
 import FrFlowGen.Rooms.NeverOverlap.Spec
 import FrFlowGen.Rooms.EndsAfterStart.Spec
@@ -24,9 +27,14 @@ open Classical
 namespace Rooms.Consistency
 open Rooms
 
-/-- Some meaning of their terms meets GrantWhenNoOverlap: granted as GrantWhenNoOverlap says. -/
-theorem together_GrantWhenNoOverlap : ∃ (granted : RoomBookings → Booking → Prop), (Rooms.GrantWhenNoOverlap.claim granted) := by
-  refine ⟨fun (held : RoomBookings) (request : Booking) => (∀ b ∈ held.bookings, (Rooms.noOverlap b request)), ?_⟩
+/-- Some meaning of their terms meets BookedIsStored: booked as BookedIsStored says. -/
+theorem together_BookedIsStored : ∃ (booked : World → (List Booking)), (Rooms.BookedIsStored.claim booked) := by
+  refine ⟨fun (now : World) => now.bookingTable, ?_⟩
+  frflow_auto
+
+/-- Some meaning of their terms meets BookedAfterIsStored, AcceptedIsAnswered, GrantWhenNoOverlap: granted as GrantWhenNoOverlap says, bookedAfter as BookedAfterIsStored says, accepted as AcceptedIsAnswered says. -/
+theorem together_BookedAfterIsStored : ∃ (granted : RoomBookings → Booking → Prop) (bookedAfter : Booking → World → (List Booking)) (accepted : Booking → World → Prop), (Rooms.BookedAfterIsStored.claim (Rooms.bookIfGranted_run granted) bookedAfter) ∧ (Rooms.AcceptedIsAnswered.claim (Rooms.bookIfGranted_run granted) accepted) ∧ (Rooms.GrantWhenNoOverlap.claim granted) := by
+  refine ⟨fun (held : RoomBookings) (request : Booking) => (∀ b ∈ held.bookings, (Rooms.noOverlap b request)), fun (request : Booking) (now : World) => (FrFlow.runOn (((Rooms.bookIfGranted_run (fun (held : RoomBookings) (request : Booking) => (∀ b ∈ held.bookings, (Rooms.noOverlap b request))))) (Rooms.asRequest request)) now).2.bookingTable, fun (request : Booking) (now : World) => (FrFlow.runOn (((Rooms.bookIfGranted_run (fun (held : RoomBookings) (request : Booking) => (∀ b ∈ held.bookings, (Rooms.noOverlap b request))))) (Rooms.asRequest request)) now).1, ?_⟩
   frflow_auto
 
 /-- Some value holds what NeverOverlap says always holds: List() or List(Booking("Oak", 6, 9)) or List(Booking("Oak", 1, 3)). -/

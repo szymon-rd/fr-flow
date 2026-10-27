@@ -113,19 +113,24 @@ final class FrModel(val name: String, val idea: String = "", val implementations
     nodes.flatMap(c => implementation(c).filter(i => i.flowDef.exists(_.lifted.boundaries.exists(holding))).map(c -> _))
       .distinctBy((_, i) => i.flowDef.map(_.name)).map(_._1)
   /** What a statement quantifies over: its formula's variables, its call's inputs and result, and the states of the
-    * models a flow runs on.
+    * models in the worlds it is about (a flow's runs, or a world it quantifies over).
     */
   def boundTypes(n: Node[?]): List[LeanType[?]] =
-    val formula = n.formula.toList.flatMap(_.built._2.termTree match
-      case Tree.Quant(true, bs, _) => bs.map(_.tpe)
-      case _                       => Nil)
-    val call = n.post.toList.flatMap(_.built._1.map(_.tpe)).filterNot(_.shape == frflow.types.Shape.WorldT)
-    formula ++ call ++ (if n.isFlow then models.map(_.model.stateType) else Nil)
+    val call = n.post.toList.flatMap(_.built._1.map(_.tpe))
+    (quantified(n) ++ call).filterNot(isWorld) ++ (if inWorlds(n) then models.map(_.model.stateType) else Nil)
+  /** Whether a statement is about worlds: a flow's runs, or a world it quantifies over (`forall((now: Term[World]) =>
+    * …)`). What always holds of a store is a hypothesis on every such world.
+    */
+  def inWorlds(n: Node[?]): Boolean = n.isFlow || quantified(n).exists(isWorld)
+  private def quantified(n: Node[?]): List[LeanType[?]] = n.formula.toList.flatMap(_.built._2.termTree match
+    case Tree.Quant(true, bs, _) => bs.map(_.tpe)
+    case _                       => Nil)
+  private def isWorld(t: LeanType[?]): Boolean = t.shape == frflow.types.Shape.WorldT
   /** The invariants of types a statement assumes: those on what it quantifies over. */
   def invariantsUsedBy(n: Node[?]): List[Node[?]] =
     if !isStatement(n) || n.isAlways then Nil
     else
-      val stores = if n.isFlow then models.flatMap(m => storeRules(m.model).map(_._1)) else Nil
+      val stores = if inWorlds(n) then models.flatMap(m => storeRules(m.model).map(_._1)) else Nil
       (boundTypes(n).flatMap(invariantsOn).map(_._1) ++ stores).distinctBy(_.id)
   /** Nearest first. */
   def ancestors(n: Node[?]): List[Node[?]] = Walk.breadthFirst(parentsOf(n), identity)(parentsOf)

@@ -20,6 +20,27 @@ object Equations:
       ).map(bs.init -> _)
     }
 
+  /** The variables of a claim `forall(xs => p(xs) === e)` (or `e === p(xs)`), and `e`, not mentioning `p`: what `p`
+    * is, for every input, said by a claim on no one operation (`p` is not the only one applied to `xs`).
+    */
+  def definingOf(formula: Lifted[?], p: String): Option[(List[Binder], Tree)] = formula.built._2.termTree match
+    case Tree.Quant(true, bs, Tree.Op(Prim.Eq, List(l, r))) =>
+      def on(t: Tree) = t match
+        case Tree.Apply(Tree.Ref(q), args) => q.name == p && args.map { case Tree.Var(b) => Some(b); case _ => None } ==
+          bs.map(Some(_))
+        case _                              => false
+      if on(l) && !names(r, p) then Some(bs -> r) else if on(r) && !names(l, p) then Some(bs -> l) else None
+    case _ => None
+
+  /** The type of what a function-typed term returns. */
+  def returnType(p: Param[?]): frflow.types.LeanType[?] = p.termType.shape match
+    case frflow.types.Shape.FnOf(_, r) => r
+    case _                             => frflow.types.LeanType.unknown
+
+  private def names(t: Tree, p: String): Boolean = t match
+    case Tree.Ref(q) => q.name == p
+    case _           => Trees.children(t).exists(names(_, p))
+
   /** The variables of a claim `forall(xs => a implies b)`, and `a`. */
   def conditionOf(formula: Lifted[?]): Option[(List[Binder], Tree)] = formula.built._2.termTree match
     case Tree.Quant(true, bs, Tree.Op(Prim.Implies, List(a, _))) => Some((bs, a))

@@ -5,15 +5,11 @@ import FrFlowGen.Rooms.Boundaries
 import FrFlowGen.Rooms.Domain.Def_free
 import FrFlowGen.Rooms.Domain.Def_apart
 import FrFlowGen.Rooms.Domain.Def_covers
-import FrFlowGen.Rooms.Domain.Def_asBooking
-import FrFlowGen.Rooms.Domain.Def_bookIfGranted_run
-import FrFlowGen.Rooms.Domain.Def_bookIfGranted
-import FrFlowGen.Rooms.Domain.Def_requestsEndAfterStart
 import FrFlowGen.Rooms.Domain.Def_endsAfterStart
 import FrFlowGen.Rooms.Domain.Def_neverOverlap
-import FrFlowGen.Rooms.GrantWhenFree.Spec
-import FrFlowGen.Rooms.RequestsEndAfterStart.Spec
-import FrFlowGen.Rooms.GrantWhenNoOverlap.Spec
+import FrFlowGen.Rooms.BookedIsStored.Spec
+import FrFlowGen.Rooms.BookedAfterIsStored.Spec
+import FrFlowGen.Rooms.StoreWhenFree.Spec
 
 set_option autoImplicit false
 set_option linter.unusedVariables false
@@ -22,41 +18,41 @@ open Classical
 
 namespace Rooms.BookWhenFree
 
-@[frflow_defs] def post : Request → Prop → World → World → Prop :=
-  fun (request : Request) (result : Prop) (before : World) (after : World) => (after.bookingTable = (if (Rooms.free before.bookingTable (Rooms.asBooking request)) then (before.bookingTable ++ [(Rooms.asBooking request)]) else before.bookingTable))
+@[frflow_defs] def post (booked : World → (List Booking)) : Booking → World → (List Booking) → Prop :=
+  fun (request : Booking) (now : World) (result : (List Booking)) => (result = (if (Rooms.free (booked now) request) then ((booked now) ++ [request]) else (booked now)))
 
-@[frflow_defs] def claim (book : Request → (World → (Prop × World))) : Prop :=
-  ∀ (x0 : Request) (x1 : World), (Rooms.requestsEndAfterStart x0) → (∀ y ∈ x1.bookingTable, Rooms.endsAfterStart y) → (Rooms.neverOverlap x1.bookingTable) → Rooms.BookWhenFree.post x0 (book x0 x1).1 x1 (book x0 x1).2
+@[frflow_defs] def claim (booked : World → (List Booking)) (bookedAfter : Booking → World → (List Booking)) : Prop :=
+  ∀ (x0 : Booking) (x1 : World), (Rooms.endsAfterStart x0) → (∀ y ∈ x1.bookingTable, Rooms.endsAfterStart y) → (Rooms.neverOverlap x1.bookingTable) → (Rooms.BookWhenFree.post booked) x0 x1 (bookedAfter x0 x1)
 
 namespace Obl
 
-/-- The parts of BookWhenFree (GrantWhenFree, RequestsEndAfterStart) together make it, run as bookIfGranted_run. -/
+/-- The parts of BookWhenFree (BookedIsStored, BookedAfterIsStored, StoreWhenFree) together make it. -/
 @[frflow_defs] def complete : Prop :=
-  ∀ (granted : RoomBookings → Booking → Prop), ∀ (h_GrantWhenFree : (Rooms.GrantWhenFree.claim granted)) (h_RequestsEndAfterStart : Rooms.RequestsEndAfterStart.claim), (Rooms.BookWhenFree.claim (Rooms.bookIfGranted_run granted))
+  ∀ (booked : World → (List Booking)) (bookedAfter : Booking → World → (List Booking)) (granted : RoomBookings → Booking → Prop), ∀ (h_BookedIsStored : (Rooms.BookedIsStored.claim booked)) (h_BookedAfterIsStored : (Rooms.BookedAfterIsStored.claim (Rooms.bookIfGranted_run granted) bookedAfter)) (h_StoreWhenFree : (Rooms.StoreWhenFree.claim (Rooms.bookIfGranted_run granted))), (Rooms.BookWhenFree.claim booked bookedAfter)
 
 end Obl
 
 namespace Obl
 
-/-- Every result of bookIfGranted_run meets BookWhenFree, given what its parts say. -/
-@[frflow_defs] def impl : Prop :=
-  ∀ (granted : RoomBookings → Booking → Prop), ∀ (h_GrantWhenFree : (Rooms.GrantWhenFree.claim granted)) (h_RequestsEndAfterStart : Rooms.RequestsEndAfterStart.claim), (Rooms.BookWhenFree.claim (Rooms.bookIfGranted_run granted))
+/-- BookWhenFree holds without BookedIsStored. -/
+@[frflow_defs] def needed_BookedIsStored : Prop :=
+  ∀ (booked : World → (List Booking)) (bookedAfter : Booking → World → (List Booking)) (granted : RoomBookings → Booking → Prop), ∀ (h_BookedAfterIsStored : (Rooms.BookedAfterIsStored.claim (Rooms.bookIfGranted_run granted) bookedAfter)) (h_StoreWhenFree : (Rooms.StoreWhenFree.claim (Rooms.bookIfGranted_run granted))), (Rooms.BookWhenFree.claim booked bookedAfter)
 
 end Obl
 
 namespace Obl
 
-/-- BookWhenFree holds without GrantWhenFree. -/
-@[frflow_defs] def needed_GrantWhenFree : Prop :=
-  ∀ (granted : RoomBookings → Booking → Prop), ∀ (h_RequestsEndAfterStart : Rooms.RequestsEndAfterStart.claim), (Rooms.BookWhenFree.claim (Rooms.bookIfGranted_run granted))
+/-- BookWhenFree holds without BookedAfterIsStored. -/
+@[frflow_defs] def needed_BookedAfterIsStored : Prop :=
+  ∀ (booked : World → (List Booking)) (bookedAfter : Booking → World → (List Booking)) (granted : RoomBookings → Booking → Prop), ∀ (h_BookedIsStored : (Rooms.BookedIsStored.claim booked)) (h_StoreWhenFree : (Rooms.StoreWhenFree.claim (Rooms.bookIfGranted_run granted))), (Rooms.BookWhenFree.claim booked bookedAfter)
 
 end Obl
 
 namespace Obl
 
-/-- BookWhenFree holds without RequestsEndAfterStart. -/
-@[frflow_defs] def needed_RequestsEndAfterStart : Prop :=
-  ∀ (granted : RoomBookings → Booking → Prop), ∀ (h_GrantWhenFree : (Rooms.GrantWhenFree.claim granted)), (Rooms.BookWhenFree.claim (Rooms.bookIfGranted_run granted))
+/-- BookWhenFree holds without StoreWhenFree. -/
+@[frflow_defs] def needed_StoreWhenFree : Prop :=
+  ∀ (booked : World → (List Booking)) (bookedAfter : Booking → World → (List Booking)) (granted : RoomBookings → Booking → Prop), ∀ (h_BookedIsStored : (Rooms.BookedIsStored.claim booked)) (h_BookedAfterIsStored : (Rooms.BookedAfterIsStored.claim (Rooms.bookIfGranted_run granted) bookedAfter)), (Rooms.BookWhenFree.claim booked bookedAfter)
 
 end Obl
 
@@ -64,7 +60,7 @@ namespace Obl
 
 /-- The parts of BookWhenFree contradict each other. -/
 @[frflow_defs] def clash : Prop :=
-  ∀ (granted : RoomBookings → Booking → Prop), ∀ (h_GrantWhenFree : (Rooms.GrantWhenFree.claim granted)) (h_RequestsEndAfterStart : Rooms.RequestsEndAfterStart.claim), False
+  ∀ (booked : World → (List Booking)) (bookedAfter : Booking → World → (List Booking)) (granted : RoomBookings → Booking → Prop), ∀ (h_BookedIsStored : (Rooms.BookedIsStored.claim booked)) (h_BookedAfterIsStored : (Rooms.BookedAfterIsStored.claim (Rooms.bookIfGranted_run granted) bookedAfter)) (h_StoreWhenFree : (Rooms.StoreWhenFree.claim (Rooms.bookIfGranted_run granted))), False
 
 end Obl
 
@@ -72,15 +68,15 @@ namespace Obl
 
 /-- No world meets BookWhenFree. -/
 @[frflow_defs] def unsat : Prop :=
-  ∀ (book : Request → (World → (Prop × World))), ¬ (Rooms.BookWhenFree.claim book)
+  ∀ (booked : World → (List Booking)) (bookedAfter : Booking → World → (List Booking)), ¬ (Rooms.BookWhenFree.claim booked bookedAfter)
 
 end Obl
 
 namespace Obl
 
-/-- BookWhenFree is met by doing nothing (granted: returning nothing). -/
+/-- BookWhenFree is met by doing nothing (booked, bookedAfter: returning nothing). -/
 @[frflow_defs] def idle : Prop :=
-  (Rooms.BookWhenFree.claim (Rooms.bookIfGranted_run (fun (x0 : RoomBookings) (x1 : Booking) => False)))
+  (Rooms.BookWhenFree.claim (fun (x0 : World) => []) (fun (x0 : Booking) (x1 : World) => []))
 
 end Obl
 

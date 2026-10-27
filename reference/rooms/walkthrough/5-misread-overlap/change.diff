@@ -1,7 +1,7 @@
 # README step 5: touching meetings taken to overlap, in the claim over times, the code and the examples
 --- a/examples/rooms/src/main/scala/rooms/Knowledge.scala
 +++ b/examples/rooms/src/main/scala/rooms/Knowledge.scala
-@@ -90,7 +90,7 @@
+@@ -134,7 +134,7 @@
  
  // Over start and end times.
  val noOverlap = define { (a: Term[Booking], b: Term[Booking]) =>

@@ -9,10 +9,21 @@ import frflow.protocol.ObligationStatus.*
 /** How a node's parts make it (docs/DAG.md §4): `complete`, each part `needed`, and `clash`; none for a node with no parts. */
 object Splits:
   def of(a: Analysis, n: Node[?]): Option[Split] =
-    val parts = a.kb.parts(n)
-    def all(o: Outcome) = Split(o, parts.map(p => Split.Part(NodeId(p.id), o.status, o.detail)), o)
+    val (rules, parts) = a.kb.parts(n).partition(frflow.lean.Refinement.isRule)
+    def all(o: Outcome) =
+      Split(o, parts.map(p => Split.Part(NodeId(p.id), o.status, o.detail)) ++ rules.map(ruled(a, n, _)), o)
     if parts.isEmpty || !a.kb.isStatement(n) || n.isAlways then None
-    else Some(a.current(n).fold(all(notCurrent(a.checks.get(NodeId(n.id)))))(checked(parts, _)))
+    else Some(a.current(n).fold(all(notCurrent(a.checks.get(NodeId(n.id)))))(c =>
+      val s = checked(parts, c)
+      s.copy(needed = s.needed ++ rules.map(ruled(a, n, _)))))
+
+  /** An `always` claim among the parts is not a hypothesis of the step (it says nothing Lean proves of a value): it is
+    * needed exactly when the node's statement takes what it says, of what the node quantifies over.
+    */
+  private def ruled(a: Analysis, n: Node[?], r: Node[?]): Split.Part =
+    if a.kb.invariantsUsedBy(n).exists(_ eq r) then
+      Split.Part(NodeId(r.id), NotShown, s"what it says always holds is a hypothesis of ${n.id}, of what it is about")
+    else Split.Part(NodeId(r.id), Shown, s"${n.id} is about nothing ${r.id} says always holds")
 
   private def notCurrent(c: Option[NodeCheck]): Outcome =
     val why = c.filter(_.status == CheckStatus.Waiting).flatMap(_.messages.headOption)

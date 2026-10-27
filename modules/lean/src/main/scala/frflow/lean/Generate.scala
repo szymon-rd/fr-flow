@@ -42,7 +42,8 @@ final class Generate(kb: FrModel, authored: Set[(String, ObligationName)] = Set.
   def declarationsUsedBy(n: Node[?]): List[String] =
     val rules = formalKeeps(n).flatMap(_._1.rule)
     val defs =
-      Def.closure((n.referenced ++ rules).flatMap(_.defs) ++ provenImpl(n) ++ kb.invariantsUsedBy(n).flatMap(_.holds))
+      Def.closure((n.referenced ++ rules).flatMap(_.defs) ++ provenImpl(n) ++ refinement.mentionedCode(n) ++
+        kb.invariantsUsedBy(n).flatMap(_.holds))
     val ls = n.referenced ++ rules ++ defs.map(_.lifted)
     ls.flatMap(_.types).map(_.body).distinct ++ defs.map(d => vocabulary.resolve(d.lifted.lean)) ++
       kb.definitionsUsed(n, inForce).flatMap(_.substs).map(s => s"${s.name} := ${s.lean}")

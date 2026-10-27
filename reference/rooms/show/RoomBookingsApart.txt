@@ -1,21 +1,22 @@
-+ roomBookingsApart  claim (a root)  accepted
++ roomBookingsApart  claim  accepted
   A room's bookings never overlap.
 
 Formally (as written in Scala)
   formula:
     always[RoomBookings](held => held.bookings.pairwise(apart))
-  proven where code hands one on: in the steps of bookWhenFree and answerWhenFree
+  proven where code hands one on: in the steps of storeWhenFree and answerWhenFree
 
 Where it sits
+  part of    + grantWhenFree  with endsAfterStart, bookingsOfTheRoom, grantWhenNoOverlap: "A request is granted exactly when its room is free for its whole time."
   used by    + grantWhenNoOverlap: "A request is granted exactly when it overlaps no booking of its room."
-  used by    + grantWhenFree: "A request is granted exactly when its room is free for its whole time."
 
 Proofs
-  complete of bookWhenFree: proven: auto
+  complete of storeWhenFree: proven: auto
   complete of answerWhenFree: proven: auto
 
 Decisions
   2026-10-26 22:28  accepted by demo-developer: A room's bookings, as the table gives them, never overlap: the calendar may rely on it, and Lean proves it where booking reads them.
   2026-10-26 23:14  accepted by demo-developer: The same rule over a room's bookings, which now carry the room's name.
   2026-10-27 00:50  accepted by demo-developer: The same rule over a room's bookings, named held.
+  2026-10-27 13:33  accepted by demo-developer: The same claim, now below grantWhenFree: what it says is a hypothesis of what grantWhenFree is about.
 --- exit 0

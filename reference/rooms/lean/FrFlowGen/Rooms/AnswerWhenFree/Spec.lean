@@ -76,14 +76,6 @@ namespace Obl
 
 end Obl
 
-namespace Obl
-
-/-- AnswerWhenFree is met by doing nothing (granted: returning nothing). -/
-@[frflow_defs] def idle : Prop :=
-  (Rooms.AnswerWhenFree.claim (Rooms.bookIfGranted_run (fun (x0 : RoomBookings) (x1 : Booking) => False)))
-
-end Obl
-
 frflow_match_eqns
 
 end Rooms.AnswerWhenFree

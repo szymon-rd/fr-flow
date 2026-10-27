@@ -17,7 +17,8 @@ object Refutation:
   /** `resolve`: Lean's names for the definitions the answer calls (`Vocabulary.resolve`). */
   def candidate(kb: FrModel, n: Node[?], resolve: String => String): Option[Candidate] =
     for
-      c <- kb.parts(n) match { case List(c) => Some(c); case _ => None }
+      // The step's one part (an `always` claim among the parts is a hypothesis of the step, not a part of it).
+      c <- kb.parts(n).filterNot(frflow.lean.Refinement.isRule) match { case List(c) => Some(c); case _ => None }
       op <- c.op
       post <- c.post
       (bs, e) <- Equations.answerOf(post)

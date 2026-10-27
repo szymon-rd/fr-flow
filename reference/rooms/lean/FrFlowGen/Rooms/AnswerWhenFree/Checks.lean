@@ -30,10 +30,6 @@ theorem unsat : Obl.unsat := by
   unfold Obl.unsat
   frflow_auto
 
-theorem idle : Obl.idle := by
-  unfold Obl.idle
-  frflow_auto
-
 #print axioms Rooms.AnswerWhenFree.holds
 
 end Rooms.AnswerWhenFree.Checks

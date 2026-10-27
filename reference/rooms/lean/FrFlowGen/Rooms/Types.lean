@@ -9,12 +9,12 @@ open Classical
 
 namespace Rooms
 
-structure Request where
+structure Booking where
   room : String
   start : Int
   «end» : Int
 
-structure Booking where
+structure Request where
   room : String
   start : Int
   «end» : Int
