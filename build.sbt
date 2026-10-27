@@ -57,7 +57,7 @@ def nextModules: Seq[ProjectReference] = Seq(
 
   // step 5: nextTesting
 
-  // step 6: nextDecision
+  nextDecision,
 
   // step 7: nextWire
 
