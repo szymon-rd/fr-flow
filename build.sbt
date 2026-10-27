@@ -59,6 +59,7 @@ def nextModules: Seq[ProjectReference] = Seq(
   nextEval,
 
   // step 5: nextTesting
+  nextTesting,
 
   nextDecision,
 
@@ -93,6 +94,13 @@ lazy val nextEval = nextModule("eval", cats, catsEffectKernel, catsEffectStd, ca
   .dependsOn(nextDsl, nextProof % "test->test")
 
 // next-testing (step 5)
+/** Generators and what draws them, property tests of plain code against its claims, model tests of implementations,
+  * interleavings, the searches for witnesses and refutations, and the examples' runner (an sbt test framework, so
+  * `sbt test` runs a project's `FrFlowExamples`). Its tests read the examples written in eval's tests. */
+lazy val nextTesting = nextModule("testing", cats, catsEffect, "org.scala-sbt" % "test-interface" % "1.0", munitEffect)
+  .settings(libraryDependencies ++= lawTests :+ "org.typelevel" %% "cats-laws" % "2.13.0" % Test,
+    testFrameworks += TestFramework("frflow.testing.examples.ExamplesFramework"))
+  .dependsOn(nextEval % "compile->compile;test->test")
 
 lazy val nextDecision = nextModule("decision", cats).dependsOn(nextCore)
 
