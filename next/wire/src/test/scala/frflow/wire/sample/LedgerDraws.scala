@@ -1,8 +1,8 @@
-package frflow.wire
+package frflow.wire.sample
 
 import frflow.decision.content.{Chain, CodeFingerprint, Content, FieldValue}
 import frflow.decision.ledger.{Action, Authorship, Bound, Decider, Deciders, Decision, EntryRef, Ledger, Reason, Seal}
-import frflow.wire.Draws.*
+import frflow.wire.sample.Draws.*
 import org.scalacheck.Gen
 
 /** Ledgers and deciders' lists, every field drawn, optional ones present and absent. */
@@ -30,4 +30,4 @@ object LedgerDraws:
   val ledger: Gen[Ledger] = byKey(node, few(decision)).map(Ledger(_))
 
   val decider: Gen[Decider] = Gen.zip(text, hex, text).map(Decider(_, _, _))
-  val deciders: Gen[Deciders] = Gen.zip(few(decider), Gen.option(hex), seal).map(Deciders(_, _, _))
+  val deciders: Gen[Deciders] = Gen.zip(few(decider), Gen.option(hex), Gen.option(seal)).map(Deciders(_, _, _))

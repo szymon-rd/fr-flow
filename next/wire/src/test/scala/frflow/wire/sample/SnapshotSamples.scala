@@ -1,4 +1,4 @@
-package frflow.wire
+package frflow.wire.sample
 
 import frflow.wire.snapshot.*
 
@@ -10,7 +10,7 @@ object SnapshotSamples:
     PlaceRow(List("Root"), Nil, List("StoreBehaves"), List("free"), Nil),
     CheckRow("open", "∀ b, book b", List(ObligationRow("impl", "open", "theorem impl : Obl.impl"))),
     Body.Stated(List("as a call of book"), Some("book"), Some(CodeRow(List("free"), List("plain"), Nil)),
-      Some(TestRow(500, 42L, "claim Book", true))))
+      Some(TestRow(500, "42", "claim Book", true))))
 
   private val store = SnapNode(
     Header("Store", "design", "1a2b3c", List("implementations" -> FieldRow.Record(List("store" -> "Store.scala")))),

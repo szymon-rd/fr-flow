@@ -168,6 +168,6 @@ class DecideSuite extends munit.FunSuite:
   test("an unsigned decision counts for no one") {
     val d = Decision.taken(Action.Accept, by(1), Reason("it states the purpose", Nil), Bound(Content.empty, Chain.empty,
       None))
-    val deciders = Deciders(List(Decider("dev", "k", "p")), None, Seal("k", "s"))
+    val deciders = Deciders(List(Decider("dev", "k", "p")), None, Some(Seal("k", "s")))
     assert(!deciders.counts((_, _) => true)(NodeId("R"), d))
   }

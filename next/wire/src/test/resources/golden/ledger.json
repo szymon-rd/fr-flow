@@ -8,8 +8,8 @@
         "at": "2026-10-01T11:00:00Z",
         "reason": "One store, its model beside it.",
         "rejected": [],
-        "content": "2074d7cf9131abfb",
-        "chain": "96c938af291fdd94",
+        "content": "2074d7cf9131abfbabb65ee1d9f3e3e6af2f5f9fbd2a7023aa965dcf0adc26b7",
+        "chain": "96c938af291fdd9480cf20a1d1ccd9b34a7bd2da8e6842b912e06c7e397d1848",
         "seal": {
           "key": "0123456789abcdef",
           "signature": "c2lnbmF0dXJlIG9mIHRoZSBkZXNpZ24="
@@ -26,7 +26,7 @@
         "rejected": [
           "OldRoot"
         ],
-        "content": "0dddbc800f63d11a",
+        "content": "0dddbc800f63d11a2fffb93c066090dcda966935fe6fe5aa8bc2fdfed55e36cf",
         "chain": "c182d4664cd771bde270bc06bb7b1c02d3cd4587b07e325daa988d872e330b9d",
         "code": "72303c354a89bf8df28b567ff2bcf59b7ca049b961f690e4362d22bee343f311",
         "seal": {
@@ -40,14 +40,14 @@
         "at": "2026-10-02T10:00:00Z",
         "reason": "The store's model moved under it.",
         "rejected": [],
-        "content": "0dddbc800f63d11a",
+        "content": "0dddbc800f63d11a2fffb93c066090dcda966935fe6fe5aa8bc2fdfed55e36cf",
         "chain": "",
-        "after": "6f9c9389fbe749eb"
+        "after": "6f9c9389fbe749eb2d5a1f0c3e7b9d8a4c6e2f1a0b3d5c7e9f8a6b4c2d0e1f3a"
       }
     ]
   },
   "contents": {
-    "2074d7cf9131abfb": {
+    "2074d7cf9131abfbabb65ee1d9f3e3e6af2f5f9fbd2a7023aa965dcf0adc26b7": {
       "kind": "design",
       "parents": [
         "Root"
@@ -58,7 +58,7 @@
         "model": "StoreModel.scala"
       }
     },
-    "0dddbc800f63d11a": {
+    "0dddbc800f63d11a2fffb93c066090dcda966935fe6fe5aa8bc2fdfed55e36cf": {
       "kind": "claim",
       "parents": [],
       "parts": [

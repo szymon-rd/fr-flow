@@ -1,10 +1,10 @@
-package frflow.wire
+package frflow.wire.sample
 
 import frflow.core.name.NodeId
 import frflow.proof.obligation.{ObligationName, TryKind}
 import frflow.proof.reading.{Diagnostic, NotAllowed}
 import frflow.proof.verdict.{CheckKey, CheckStatus, Finding, NodeCheck, ObligationStatus, Result}
-import frflow.wire.Draws.*
+import frflow.wire.sample.Draws.*
 import org.scalacheck.Gen
 
 /** Checks: every obligation name, try, rule and finding. */

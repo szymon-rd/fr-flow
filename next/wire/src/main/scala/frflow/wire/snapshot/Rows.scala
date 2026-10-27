@@ -15,10 +15,12 @@ import frflow.testing.report.{Against, TestReport}
   * move the export.
   */
 object Rows:
-  def content(c: Content): List[(String, FieldRow)] = c.fields.map((k, v) => k -> (v match
+  def content(c: Content): List[(String, FieldRow)] = c.fields.map((k, v) => k -> field(v))
+
+  def field(v: FieldValue): FieldRow = v match
     case FieldValue.Text(t)    => FieldRow.Text(t)
     case FieldValue.Texts(ts)  => FieldRow.Texts(ts)
-    case FieldValue.Record(fs) => FieldRow.Record(fs)))
+    case FieldValue.Record(fs) => FieldRow.Record(fs)
 
   def code(s: Shown): CodeRow = CodeRow(s.proven.map(_.value), s.tested.map(tested), s.assumed.map(assumed))
 
@@ -33,7 +35,7 @@ object Rows:
   def obligation(r: Result, statement: String): ObligationRow =
     ObligationRow(LowerObligation.name(r.name).text, status(r.status), statement)
 
-  def test(t: TestReport): TestRow = TestRow(t.cases, t.seed.value, against(t.against), t.failure.isDefined)
+  def test(t: TestReport): TestRow = TestRow(t.cases, t.seed.value.toString, against(t.against), t.failure.isDefined)
 
   /** A value as today's `Example.show` writes it: `"text"`, `Some(x)`, `List(a, b)`, `Map(k -> v)`, `ctor(a, b)`. */
   def shown(v: Value): String = v match

@@ -1,6 +1,6 @@
-package frflow.wire
+package frflow.wire.sample
 
-import frflow.wire.Draws.*
+import frflow.wire.sample.Draws.*
 import frflow.wire.snapshot.*
 import org.scalacheck.{Arbitrary, Gen}
 
@@ -15,8 +15,9 @@ object SnapshotDraws:
   val place: Gen[PlaceRow] = Gen.zip(texts, texts, texts, texts, texts).map(PlaceRow(_, _, _, _, _))
   val check: Gen[CheckRow] =
     Gen.zip(text, text, few(Gen.zip(text, text, text).map(ObligationRow(_, _, _)))).map(CheckRow(_, _, _))
-  val test: Gen[TestRow] = Gen.zip(Gen.choose(0, 500), Arbitrary.arbitrary[Long], text, Gen.oneOf(true, false))
-    .map(TestRow(_, _, _, _))
+  val test: Gen[TestRow] =
+    Gen.zip(Gen.choose(0, 500), Arbitrary.arbitrary[Long].map(_.toString), text, Gen.oneOf(true, false))
+      .map(TestRow(_, _, _, _))
   val body: Gen[Body] = Gen.oneOf(texts.map(Body.Design(_)), Gen.zip(texts, Gen.option(text),
     Gen.option(Gen.zip(texts, texts, texts).map(CodeRow(_, _, _))), Gen.option(test)).map(Body.Stated(_, _, _, _)))
 

@@ -1,4 +1,4 @@
-package frflow.wire
+package frflow.wire.sample
 
 import frflow.core.example.Given
 import frflow.core.expr.{Side, Value}

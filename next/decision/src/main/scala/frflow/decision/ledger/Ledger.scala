@@ -28,5 +28,5 @@ final case class Ledger(decisions: Map[NodeId, List[Decision]]):
 object Ledger:
   val empty: Ledger = Ledger(Map.empty)
   def entry(d: Decision): EntryRef =
-    EntryRef(Sha.parts(d.action.toString.toLowerCase, d.author.by, d.author.at.toString, d.reason.text,
-      d.bound.content.ref).take(16))
+    EntryRef(Sha.bytes(Framed(List(d.action.toString.toLowerCase, d.author.by, d.author.at.toString, d.reason.text,
+      d.bound.content.ref))))

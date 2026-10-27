@@ -1,4 +1,4 @@
-package frflow.wire
+package frflow.wire.sample
 
 import frflow.core.name.NodeId
 import java.time.Instant

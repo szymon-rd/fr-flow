@@ -75,7 +75,7 @@
           "node": "NoOverlap"
         },
         "from": {
-          "seed": 42,
+          "seed": "42",
           "index": 17,
           "size": 3
         }
@@ -113,7 +113,7 @@
           }
         },
         "from": {
-          "seed": 3,
+          "seed": "3",
           "index": 0,
           "size": 1
         }
@@ -153,7 +153,7 @@
           "model": "List(x)"
         },
         "from": {
-          "seed": -7,
+          "seed": "-7",
           "index": 2,
           "size": 1
         }
@@ -190,7 +190,7 @@
           "message": "closed"
         },
         "from": {
-          "seed": -7,
+          "seed": "-7",
           "index": 2,
           "size": 1
         }

@@ -22,6 +22,8 @@ object Files:
       v <- json.hcursor.downField("version").focus.flatMap(_.asNumber).flatMap(_.toInt)
              .toRight(Unreadable.NoVersion(f.file))
       _ <- Either.cond(v == f.version, (), Unreadable.UnknownVersion(f.file, v, f.version))
+      _ <- Depth.beyond(json).toLeft(()).leftMap(p =>
+             Unreadable.BadField(f.file, v, p, s"nested deeper than ${Depth.limit}"))
       a <- f.decoder.decodeJson(json).leftMap(e => Unreadable.BadField(f.file, v, field(e), problem(e)))
     yield a
 
@@ -37,7 +39,13 @@ object Files:
   /** The field's path in the file, from the document's root. */
   private def field(e: DecodingFailure): String = CursorOp.opsToPath(e.history)
 
+  /** In words: circe names a value of the wrong type by its JSON type or by the Scala type it decodes to. */
   private def problem(e: DecodingFailure): String = e.reason match
-    case DecodingFailure.Reason.CustomReason(message)      => message
+    case DecodingFailure.Reason.CustomReason(message)      => expected.getOrElse(message, message)
     case DecodingFailure.Reason.MissingField               => "missing"
-    case DecodingFailure.Reason.WrongTypeExpectation(t, _) => s"not a $t"
+    case DecodingFailure.Reason.WrongTypeExpectation(t, _) => expected.getOrElse(t, s"not $t")
+
+  private val expected: Map[String, String] = Map("Int" -> "not a whole number", "Long" -> "not a whole number",
+    "BigInt" -> "not a whole number", "Instant" -> "not an instant", "Boolean" -> "not true or false",
+    "string" -> "not a text", "array" -> "not a list", "object" -> "not an object", "number" -> "not a number",
+    "'true' or 'false'" -> "not true or false")

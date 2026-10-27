@@ -1,36 +1,16 @@
 package frflow.wire.check
 
 import frflow.core.name.NodeId
+import frflow.proof.lean.lower.LowerObligation
 import frflow.proof.obligation.{ObligationName, TryKind}
 import io.circe.{Codec, Decoder, Encoder}
 
-/** An obligation, and a try, written as the name of its theorem in Lean (`complete`, `cover_add`, `needed_Grant`,
-  * `restates_2_Visibility`, `satisfiable_1_Book`), and read back from it.
+/** An obligation, and a try, written as the name of its theorem in Lean (`LowerObligation.name`: `complete`,
+  * `cover_add`, `needed_Grant`, `restates_2_Visibility`, `satisfiable_1_Book`), and read back from it.
   */
 object ObligationNames:
-  def text(o: ObligationName): String = o match
-    case ObligationName.Complete          => "complete"
-    case ObligationName.Feasible          => "feasible"
-    case ObligationName.Impl              => "impl"
-    case ObligationName.RootImpl          => "root_impl"
-    case ObligationName.Cover(op)         => s"cover_$op"
-    case ObligationName.Made(m)           => s"made_$m"
-    case ObligationName.Commute(i)        => s"commute_$i"
-    case ObligationName.Consistent(i)     => s"consistent_$i"
-    case ObligationName.Start(n)          => s"start_${n.value}"
-    case ObligationName.Inhabited(n)      => s"inhabited_${n.value}"
-    case ObligationName.Satisfiable(n, i) => s"satisfiable_${i + 1}_${n.value}"
-    case ObligationName.Example(i)        => s"example_$i"
-    case ObligationName.Tried(k)          => text(k)
-
-  def text(k: TryKind): String = k match
-    case TryKind.Needed(p)              => s"needed_${p.value}"
-    case TryKind.Vacuous                => "vacuous"
-    case TryKind.Restates               => "restates"
-    case TryKind.Clash                  => "clash"
-    case TryKind.Unsat                  => "unsat"
-    case TryKind.Idle                   => "idle"
-    case TryKind.RestatesConjunct(p, i) => s"restates_${i}_${p.value}"
+  def text(o: ObligationName): String = LowerObligation.name(o).text
+  def text(k: TryKind): String = text(ObligationName.Tried(k))
 
   private val fixed: Map[String, ObligationName] = List(ObligationName.Complete, ObligationName.Feasible,
     ObligationName.Impl, ObligationName.RootImpl).map(o => text(o) -> o).toMap

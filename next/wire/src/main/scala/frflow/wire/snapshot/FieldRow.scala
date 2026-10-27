@@ -1,7 +1,8 @@
 package frflow.wire.snapshot
 
-import cats.syntax.all.*
-import io.circe.{Codec, Decoder, DecodingFailure, Encoder, HCursor, Json}
+import frflow.decision.content.FieldValue
+import frflow.wire.ledger.ContentCodecs.given
+import io.circe.{Codec, Decoder, Encoder}
 
 /** A content field: a text, texts, or named texts (`sources`). */
 enum FieldRow:
@@ -10,16 +11,10 @@ enum FieldRow:
   case Record(fields: List[(String, String)])
 
 object FieldRow:
-  /** As the ledger writes a content's field: a string, an array of strings, or an object of strings. */
-  given Codec[FieldRow] = Codec.from(
-    Decoder.instance(c => c.value.fold(none(c), _ => none(c), _ => none(c), t => Right(Text(t)),
-      _ => c.as[List[String]].map(Texts(_)),
-      o => o.keys.toList.traverse(k => c.get[String](k).map(k -> _)).map(Record(_)))),
-    Encoder.instance {
-      case Text(t)    => Json.fromString(t)
-      case Texts(ts)  => Json.fromValues(ts.map(Json.fromString))
-      case Record(fs) => Json.fromFields(fs.map((k, v) => k -> Json.fromString(v)))
-    })
+  /** As the ledger writes a content's field, through its codec. */
+  given Codec[FieldRow] = Codec.from(Decoder[FieldValue].map(Rows.field), Encoder[FieldValue].contramap(value))
 
-  private def none(c: HCursor): Decoder.Result[FieldRow] =
-    Left(DecodingFailure("a field is a text, a list of texts or a record of texts", c.history))
+  private def value(r: FieldRow): FieldValue = r match
+    case Text(t)    => FieldValue.Text(t)
+    case Texts(ts)  => FieldValue.Texts(ts)
+    case Record(fs) => FieldValue.Record(fs)

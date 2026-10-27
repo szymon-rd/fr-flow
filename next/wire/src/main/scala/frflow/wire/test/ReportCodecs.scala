@@ -31,11 +31,11 @@ object ReportCodecs:
   given Encoder[Made] = Encoder.instance(m => Json.obj("type" -> m.ty.asJson, "says" -> m.says.asJson))
   given Decoder[Made] = Decoder.instance(c => (c.get[Ty]("type"), c.get[Option[String]]("says")).mapN(Made(_, _)))
 
-  def encode(r: TestReport): JsonObject = JsonObject("cases" -> r.cases.asJson, "seed" -> r.seed.value.asJson,
+  def encode(r: TestReport): JsonObject = JsonObject("cases" -> r.cases.asJson, "seed" -> r.seed.asJson,
     "against" -> r.against.asJson, "failure" -> r.failure.asJson, "unreached" -> r.unreached.map(_.condition).asJson,
     "made" -> r.made.asJson)
 
   def decode(c: ACursor): Decoder.Result[TestReport] =
-    (c.get[Int]("cases"), c.get[Long]("seed").map(Seed(_)), c.get[Against]("against"),
+    (c.get[Int]("cases"), c.get[Seed]("seed"), c.get[Against]("against"),
       c.get[Option[Failure]]("failure"), c.get[List[Int]]("unreached").map(_.map(Position(_))),
       c.get[List[Made]]("made")).mapN(TestReport(_, _, _, _, _, _))

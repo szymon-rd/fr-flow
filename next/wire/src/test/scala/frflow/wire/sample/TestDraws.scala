@@ -1,4 +1,4 @@
-package frflow.wire
+package frflow.wire.sample
 
 import frflow.core.example.Given
 import frflow.core.expr.{Side, Value}
@@ -9,7 +9,7 @@ import frflow.eval.run.Broken
 import frflow.testing.Seed
 import frflow.testing.model.{Difference, Step}
 import frflow.testing.report.{Against, Drawn, Failure, Made, Position, TestReport}
-import frflow.wire.Draws.*
+import frflow.wire.sample.Draws.*
 import org.scalacheck.{Arbitrary, Gen}
 
 /** Test reports and failing cases: every type, value, error and failure. A model test's Scala values are drawn as

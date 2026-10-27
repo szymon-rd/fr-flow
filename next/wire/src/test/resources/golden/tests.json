@@ -4,7 +4,7 @@
     "Book": {
       "key": "a1b2c3",
       "cases": 500,
-      "seed": 42,
+      "seed": "42",
       "against": {
         "kind": "claim",
         "node": "Book"
@@ -82,7 +82,7 @@
           "node": "NoOverlap"
         },
         "from": {
-          "seed": 42,
+          "seed": "42",
           "index": 17,
           "size": 3
         }
@@ -118,7 +118,7 @@
     "Free": {
       "key": "070809",
       "cases": 100,
-      "seed": 1,
+      "seed": "1",
       "against": {
         "kind": "define",
         "define": "free"
@@ -166,7 +166,7 @@
     "Store": {
       "key": "d4e5f6",
       "cases": 200,
-      "seed": -7,
+      "seed": "-7",
       "against": {
         "kind": "model",
         "node": "Store",
@@ -210,7 +210,7 @@
           "model": "List(Booking(Oak,9,10))"
         },
         "from": {
-          "seed": -7,
+          "seed": "-7",
           "index": 2,
           "size": 1
         }

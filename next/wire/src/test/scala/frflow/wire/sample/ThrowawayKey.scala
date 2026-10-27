@@ -1,4 +1,4 @@
-package frflow.wire
+package frflow.wire.sample
 
 import frflow.decision.content.Sha
 import frflow.decision.ledger.{Seal, Seals}

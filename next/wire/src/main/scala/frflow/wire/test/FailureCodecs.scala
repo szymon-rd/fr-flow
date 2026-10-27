@@ -14,7 +14,7 @@ import frflow.wire.file.Tagged
 import frflow.wire.test.BrokenCodecs.given
 import frflow.wire.test.ValueCodecs.given
 import io.circe.syntax.*
-import io.circe.{Decoder, Encoder, HCursor, Json}
+import io.circe.{Codec, Decoder, Encoder, HCursor, Json}
 
 /** A failing case, and where it was drawn (its seed, index and size draw it again). A model test's calls and answers
   * are Scala values, untyped: they are written as Scala prints them and read back as that text.
@@ -23,10 +23,15 @@ object FailureCodecs:
   given Encoder[ScalaValue] = Encoder.encodeString.contramap(v => String.valueOf(v.unwrap))
   given Decoder[ScalaValue] = Decoder.decodeString.map(ScalaValue(_))
 
+  /** A seed as a whole number written as a string: it names a run, and a reader that rounds numbers keeps it. */
+  given Codec[Seed] = Codec.from(
+    Decoder.decodeString.emap(s => s.toLongOption.map(Seed(_)).toRight("not a seed (a whole number, as a string)")),
+    Encoder.encodeString.contramap(_.value.toString))
+
   given Encoder[Drawn] = Encoder.instance(d =>
-    Json.obj("seed" -> d.seed.value.asJson, "index" -> d.index.asJson, "size" -> d.size.asJson))
+    Json.obj("seed" -> d.seed.asJson, "index" -> d.index.asJson, "size" -> d.size.asJson))
   given Decoder[Drawn] = Decoder.instance(c =>
-    (c.get[Long]("seed").map(Seed(_)), c.get[Int]("index"), c.get[Int]("size")).mapN(Drawn(_, _, _)))
+    (c.get[Seed]("seed"), c.get[Int]("index"), c.get[Int]("size")).mapN(Drawn(_, _, _)))
 
   given Encoder[Step] = Encoder.instance(s =>
     Json.obj("boundary" -> s.boundary.asJson, "op" -> s.op.asJson, "args" -> s.args.asJson))

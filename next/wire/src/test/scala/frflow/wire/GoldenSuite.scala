@@ -1,5 +1,6 @@
 package frflow.wire
 
+import frflow.wire.sample.*
 import frflow.wire.check.ChecksFile
 import frflow.wire.file.{FileFormat, Files}
 import frflow.wire.ledger.{DecidersFile, LedgerFile}

@@ -5,7 +5,9 @@ import frflow.decision.content.{Content, FieldValue}
 import io.circe.{Decoder, DecodingFailure, Encoder, HCursor, Json, JsonObject}
 
 /** A content as an object, its fields in their order: a text as a string, texts as an array of strings, a record
-  * as an object of strings.
+  * as an object of strings (the one codec of these shapes; the snapshot's `FieldRow` reads and writes through it).
+  * A JSON object holds each name once, so a content's field names, and a record's, are distinct, as `Contents.of`
+  * makes them: a repeated name would be written once.
   */
 object ContentCodecs:
   given Encoder[FieldValue] = Encoder.instance {

@@ -2,8 +2,8 @@ package frflow.decision.content
 
 import cats.Eq
 
-/** A node as the developer decides it: named fields in a fixed order. `hash` ignores runs of whitespace; `ref` is the
-  * exact recorded form, which a signature covers.
+/** A node as the developer decides it: named fields in a fixed order. `hash` ignores runs of whitespace; `ref` (the
+  * full SHA-256) is of the exact recorded form, which a signature covers.
   */
 final case class Content(fields: List[(String, FieldValue)]):
   def get(name: String): Option[FieldValue] = fields.collectFirst { case (`name`, v) => v }
@@ -12,7 +12,7 @@ final case class Content(fields: List[(String, FieldValue)]):
   def only(keep: String => Boolean): Content = Content(fields.filter((k, _) => keep(k)))
   def without(drop: String => Boolean): Content = only(k => !drop(k))
   def hash: Hash = Hash(Sha(Canonical.print(Canonical.normal(this))))
-  def ref: String = Sha(Canonical.print(this)).take(16)
+  def ref: String = Sha(Canonical.print(this))
 
 object Content:
   val empty: Content = Content(Nil)

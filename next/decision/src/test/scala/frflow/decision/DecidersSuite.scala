@@ -14,8 +14,8 @@ class DecidersSuite extends munit.FunSuite:
   private val verify: Seals.Verifier = (s, bytes) => s.signature == sign(s.key)(bytes).signature
 
   private def version(after: Option[Deciders], signer: String, entries: Decider*): Deciders =
-    val unsigned = Deciders(entries.toList, after.map(_.ref), Seal("", ""))
-    unsigned.copy(seal = sign(signer)(unsigned.payload))
+    val unsigned = Deciders(entries.toList, after.map(_.ref), None)
+    unsigned.copy(seal = Some(sign(signer)(unsigned.payload)))
   private val (ann, agent) = (Decider("ann", "k1", "public-1"), Decider("agent", "k2", "public-2"))
   private val first = version(None, "k1", ann)
   private val node = NodeId("Root")
@@ -40,6 +40,12 @@ class DecidersSuite extends munit.FunSuite:
   test("a first list counts only when signed by its own first entry") {
     assert(Deciders.committed(List(version(None, "k1", ann, agent)), verify).isDefined)
     assertEquals(Deciders.committed(List(version(None, "k2", ann, agent)), verify), None)
+  }
+
+  test("a list with no seal follows none, even after a list it names") {
+    assertEquals(Deciders.committed(List(first.copy(seal = None)), verify), None)
+    val unsealed = version(Some(first), "k1", ann, agent).copy(seal = None)
+    assertEquals(Deciders.committed(List(first, unsealed), verify), None)
   }
 
   test("an earlier list committed again does not restore a decider the list removed") {

@@ -1,10 +1,11 @@
 package frflow.wire
 
+import frflow.wire.sample.*
 import frflow.core.name.NodeId
 import frflow.decision.content.{Chain, Content, FieldValue}
 import frflow.decision.ledger.{Action, Authorship, Bound, Decider, Deciders, Decision, Ledger, Reason, Seals}
 import frflow.wire.file.Files
-import frflow.wire.ledger.{DecidersFile, LedgerFile, SealCodecs}
+import frflow.wire.ledger.{DecidersFile, LedgerFile}
 import io.circe.Json
 import java.time.Instant
 
@@ -18,12 +19,12 @@ class SignatureSuite extends munit.FunSuite:
   private val content = Content(List("kind" -> FieldValue.Text("claim"),
     "statement" -> FieldValue.Text("A room is booked only when free.")))
 
-  private val first = signed(Deciders(List(Decider("ann", ann.id, ann.publicKey)), None, SealCodecs.unsigned), ann)
+  private val first = signed(Deciders(List(Decider("ann", ann.id, ann.publicKey)), None, None), ann)
   private val ledger = Seals.signAdded(Ledger.empty, Ledger.empty.add(root, Decision.taken(Action.Accept,
     Authorship("ann", Instant.parse("2026-10-01T09:30:00.5Z"), Some("abc")), Reason("It states the purpose.", Nil),
     Bound(content, Chain("c1"), None))), ann.sign)
 
-  private def signed(d: Deciders, key: ThrowawayKey): Deciders = d.copy(seal = key.sign(d.payload))
+  private def signed(d: Deciders, key: ThrowawayKey): Deciders = d.copy(seal = Some(key.sign(d.payload)))
   private def counts(l: Ledger): Boolean = l.current(root).exists(first.counts(verify)(root, _))
   private def reread(l: Ledger): Ledger = Files.read(LedgerFile.format, Files.print(LedgerFile.format, l)).toOption.get
   private def edited(l: Ledger)(f: Json => Json): Ledger =
@@ -71,23 +72,24 @@ class SignatureSuite extends munit.FunSuite:
     val text = Files.print(DecidersFile.format, first)
     assertEquals(Files.read(DecidersFile.format, text).map(d => Deciders.committed(List(d), verify)),
       Right(Some(first)))
-    val forged = text.replace(first.seal.signature, signed(first, mallory).seal.signature)
+    val signature = (d: Deciders) => d.seal.fold("")(_.signature)
+    val forged = text.replace(signature(first), signature(signed(first, mallory)))
     assertEquals(Files.read(DecidersFile.format, forged).map(d => Deciders.committed(List(d), verify)), Right(None))
   }
 
-  test("a deciders' list with no seal, or half of one, reads with a seal no key verifies, and is not committed") {
+  test("a deciders' list with no seal, or half of one, reads with no seal, and is not committed") {
     val json = Files.json(DecidersFile.format, first)
     val none = Files.decode(DecidersFile.format, json.mapObject(_.remove("seal")))
     val half = Files.decode(DecidersFile.format,
       json.hcursor.downField("seal").withFocus(_.mapObject(_.remove("signature"))).top.get)
-    assertEquals(none.map(_.seal), Right(SealCodecs.unsigned))
-    assertEquals(half.map(_.seal), Right(SealCodecs.unsigned))
+    assertEquals(none.map(_.seal), Right(None))
+    assertEquals(half.map(_.seal), Right(None))
     List(none, half).foreach(d => assertEquals(d.map(x => Deciders.committed(List(x), verify)), Right(None)))
   }
 
   test("a later list signed by a key the list before held follows it through the files") {
     val next = signed(Deciders(first.entries :+ Decider("bob", mallory.id, mallory.publicKey), Some(first.ref),
-      SealCodecs.unsigned), ann)
+      None), ann)
     val reread = Files.read(DecidersFile.format, Files.print(DecidersFile.format, next))
     assertEquals(reread.map(d => Deciders.committed(List(first, d), verify).map(_.entries.size)), Right(Some(2)))
   }

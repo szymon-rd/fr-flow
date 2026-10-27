@@ -11,8 +11,3 @@ object SealCodecs:
   def encode(s: Seal): Json = Json.obj("key" -> Json.fromString(s.key), "signature" -> Json.fromString(s.signature))
 
   def optional(c: ACursor): Option[Seal] = (c.get[String]("key"), c.get[String]("signature")).mapN(Seal(_, _)).toOption
-
-  /** For the deciders' list, whose seal is not optional: a missing one reads as a seal no key verifies. */
-  def orUnsigned(c: ACursor): Seal = optional(c).getOrElse(unsigned)
-
-  val unsigned: Seal = Seal("", "")

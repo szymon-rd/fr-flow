@@ -1,4 +1,4 @@
-package frflow.wire
+package frflow.wire.sample
 
 import frflow.core.name.NodeId
 import frflow.decision.content.{Chain, CodeFingerprint, Content, FieldValue}
@@ -25,16 +25,19 @@ object LedgerSamples:
       Some(CodeFingerprint("72303c354a89bf8df28b567ff2bcf59b7ca049b961f690e4362d22bee343f311"))),
     None, Some(Seal("b6e216cfdf46a202", "c2lnbmF0dXJlIG9mIHRoZSBmaXJzdA==")))
 
+  private val after = "6f9c9389fbe749eb2d5a1f0c3e7b9d8a4c6e2f1a0b3d5c7e9f8a6b4c2d0e1f3a"
+
   private val revisited = Decision(Action.Revisit, Authorship("ann", Instant.parse("2026-10-02T10:00:00Z"), None),
     Reason("The store's model moved under it.", Nil), Bound(root, Chain.empty, None),
-    Some(EntryRef("6f9c9389fbe749eb")), None)
+    Some(EntryRef(after)), None)
 
   private val design = Decision(Action.Accept, Authorship("bob", Instant.parse("2026-10-01T11:00:00Z"), None),
-    Reason("One store, its model beside it.", Nil), Bound(free, Chain("96c938af291fdd94"), None), None,
+    Reason("One store, its model beside it.", Nil),
+    Bound(free, Chain("96c938af291fdd9480cf20a1d1ccd9b34a7bd2da8e6842b912e06c7e397d1848"), None), None,
     Some(Seal("0123456789abcdef", "c2lnbmF0dXJlIG9mIHRoZSBkZXNpZ24=")))
 
   val ledger: Ledger = Ledger(Map(NodeId("Root") -> List(accepted, revisited), NodeId("Free") -> List(design)))
 
   val deciders: Deciders = Deciders(List(Decider("ann", "b6e216cfdf46a202", "MCowBQYDK2VwAyEAann"),
     Decider("bob", "0123456789abcdef", "MCowBQYDK2VwAyEAbob")), Some("9a0b1c2d3e4f5a6b"),
-    Seal("b6e216cfdf46a202", "c2lnbmF0dXJlIG9mIHRoZSBsaXN0"))
+    Some(Seal("b6e216cfdf46a202", "c2lnbmF0dXJlIG9mIHRoZSBsaXN0")))
