@@ -366,12 +366,21 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
 | `.frflow/kb.json` | `wire.snapshot` rows, made by `Rows` | — | keep, note 4 |
 
 1. `tree`, `show [--full]`, `diff`, `inbox`, `find`, `review`, `render`, `check [NODE]`, `scaffold`, `status`, `ci`,
-   `--json`, `--plain` and the exit codes. `show` and review give the reason from the decision, and `show` how each
-   claim is checked (`Says.checking`); `status` shows the consistency groups and the examples (`WholeView`,
-   `Warning.ConsistencyNotProven`).
+   `--plain` and the exit codes; `--json` on `status` and `check` now prints the snapshot (4). New: `rebase` (the owner
+   accepts the ledger as it reads now as where its committed history starts: after a merge, an unreadable committed
+   ledger or a deletion he accepts; refused unless his key is listed), `deciders` (the first deciders' list, signed by
+   the developer's key) and `export` (the snapshot written and printed). `show` and review give the reason from the
+   decision, and `show` how each claim is checked (`Says.checking`); `status` shows the consistency groups and the
+   examples (`WholeView`, `Warning.ConsistencyNotProven`).
 2. `init` also writes `.frflow/deciders`, signed by the developer's key.
 3. Its proposals carry their rationale in the request or the conversation, not in the node; questions have no numbers.
+   It never decides: its commands and routes read the view and ask, which its `ArchitectureSuite` checks on the compiled
+   classes.
 4. Every fact is kept, regrouped by kind, with the consistency groups (`GroupRow`) and the examples (`ExampleRow`).
+5. Dropped from today's front ends, each with its reason: IDEA.md and every case about it (owner §1: the idea is told
+   in chat, and the root statements come first); rename detection of a gone node (the view carries no rename: a
+   renamed val is a gone node and a new one, 10.1); the agent's "move what rests on a rejected node" (a rejection
+   already sends the nodes below back, so they are the agent's to replace).
 
 ## Summary
 

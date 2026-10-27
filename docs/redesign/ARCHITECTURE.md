@@ -34,9 +34,9 @@ Appendix B lists the seventeen measured problems and where each is addressed.
 
 ### 1.2 What it becomes
 
-1. **The owner's concepts, and no others** (owner §15): three kinds of nodes, two kinds of values, two quantifiers,
-   two edges. How a claim is checked is derived and shown. The theory is proven consistent and not vacuous; examples
-   are tests beside it; the world outside is said by assumptions.
+1. **The owner's concepts, and no others** (owner §15): three kinds of nodes, two kinds of values, two quantifiers, two
+   edges. How a claim is checked is derived and shown. The theory is proven consistent, each store's start included, and
+   shown not vacuous; examples are tests beside it; the world outside is said by assumptions.
 2. **A compiler with a type per stage**: DSL, `Elaborated`, `Valid`, `Resolved`, `Prop`, `LeanModule`, text; every
    phase pure.
 3. **Tagless-final terms**: one printer (Lean) and one evaluator (Scala); the IR read only by analyses; the user
@@ -344,11 +344,11 @@ the Definition): "∀ U, H → claim[d := code]", `H` its parts or, with no part
 step 3b, `impl` takes every part it states as a hypothesis (a design states nothing), the code substituted in it where
 the part mentions that Definition: this is sound, since each part is itself checked against the same code and no proof
 goes round. A leaf's hypotheses are its `reliesOn` as written, the code not put in: the statements about what its code
-calls, leaving out its ancestors and every statement about its own Definitions (proven of the same code, not facts
-about a callee). A circle that remains over what each node is proven from (`Resolve.provenFrom`: stated parts, or a
-leaf's `reliesOn`) is refused (`RestsOnItself`). `PartNotCalled` is dropped (step 3b): narrowed to a part sharing no
-Declaration or Definition with the claim or what its code calls, it would still refuse crm's `sharedCrm` under the
-root's two expectations and 16 of sharing's parts, sound hypotheses all. `complete` is not asked of it.
+calls, leaving out its ancestors, its descendants and every statement about its own Definitions (proven of the same
+code, not facts about a callee). A circle that remains over what each node is proven from (`Resolve.provenFrom`: stated
+parts, or a leaf's `reliesOn`) is refused (`RestsOnItself`). `PartNotCalled` is dropped (step 3b): narrowed to a part
+sharing no Declaration or Definition with the claim or what its code calls, it would still refuse crm's `sharedCrm`
+under the root's two expectations and 16 of sharing's parts, sound hypotheses all. `complete` is not asked of it.
 
 **A claim read as a call.** Where a claim applies one Definition to exactly its leading `forall` variables (alone, or
 one side of its equation) and mentions it nowhere else, `CallForms` reads it as a call; a program's claim
@@ -374,11 +374,13 @@ prints (3.8); `Shown.of` says whether each piece of code is proven, tested or as
 The statements must be proven non-contradictory: some meaning of every open value makes every claim and assumption
 hold (owner §15, §18).
 
-- **Groups** (`Consistency.of`): the bottom statements (stated, over every possible value, no parts) and the
-  assumptions beside them, joined while they share an open value (a Declaration, or a Definition no proof or fixed
-  value gives a meaning). Each group is `consistent_<i>`: for every value provided, some meaning of each open value
-  makes each statement true. Statements above follow by proven steps, so consistency is carried upward. Each `always`
-  about a store gets `start_<node>`.
+- **Groups** (`Consistency.of`): the bottom statements (stated, over every possible value, no parts) and the assumptions
+  beside them, joined while they share an open value (a Declaration, or a Definition no proof or fixed value gives a
+  meaning). Each group is `consistent_<i>`: for every value provided, some meaning of each open value makes each
+  statement true. Statements above follow by proven steps, so consistency is carried upward. Each `always` about a store
+  gets `start_<node>`. `complete`, the CI gate (4.10), requires every `start_` proven (`Warning.StartNotProven` until
+  then); an `always(stored)` with no `initially` assumption has no start to prove it from, so a model holding one is
+  never complete.
 - **Witnesses**, derived where possible, the group solved in substitution order: `∀ xs, s(xs) = e`, `e` mentioning
   nothing still open, gives `fun xs => e`; a bound gives the bound (one past a strict one); a witnessed value then
   stands for itself in the rest. Proven code is its own witness. `Equations.defining` reads the shape off the IR;
@@ -422,7 +424,8 @@ tries the generators' values first, then small values of each type (`Small`, Sma
 evaluator, deterministically, at most 5,000 candidates. A witness found goes to Lean (rooms: `(Booking.mk "" 0 1)`,
 `(RoomBookings.mk [])`); a condition no candidate meets is "not shown". Lean is given each constant typed at its root
 (`(2 : Int)`, `([] : (List Int))`): an untyped numeral defaults to `Nat`, where `0 - 1 = 0`, and an untyped `[]` or
-`none` may not elaborate. Examples may serve as witnesses but are never required.
+`none` may not elaborate. Examples may serve as witnesses but are never required. Vacuity is reported, not gated:
+`status` shows each `inhabited_` and `satisfiable_` shown or not shown, and `complete` does not wait for them.
 
 ### 2.10 Examples as tests
 
@@ -868,10 +871,10 @@ wrong: the graph (`DuplicateId`, `NoRoot`, `AboveItself`, `ParentOutside`, `Desi
 `FailingDiffers`, `NeverFails`, `WorldsEqual`). A model's Lean namespace, its name capitalized (`Stored`), counts among
 the declared names, so a model named as its boundary's class is `DeclaredTwice`.
 
-`Resolve(v: Valid): Resolved` computes once what each node uses, calls and rests on (`Callees`, `reliesOn`). `Scope`
-derives where an `always`, claimed or assumed, applies: the Definitions and store programs whose values can hold a `T`
-(read off `Ty`), its makers, and the programs writing a store. Nothing is exempt: a claim mentions only what it
-constrains.
+`Resolve(v: Valid): Resolved` computes once what each node uses, calls and rests on (`Callees`, `reliesOn`, which leaves
+out a node's ancestors and descendants). `Scope` derives where an `always`, claimed or assumed, applies: the Definitions
+and store programs whose values can hold a `T` (read off `Ty`), its makers, and the programs writing a store. Nothing is
+exempt: a claim mentions only what it constrains.
 
 ### 4.7 Obligations derived from formulas
 
@@ -910,7 +913,13 @@ term, a define's body once as its `def`. Lowering gives only the structure aroun
 `LowerObligation`, `LowerValue`, `LowerModels`, `LowerKeeps` (what `cover_` and `made_` declare), `LowerWitness`.
 `Print` is a fold that decides nothing. `LeanProject` lays out node, root, vocabulary, whole-theory and refutation
 modules. `proof.reading` and `proof.verdict` hold today's proof-file rules one case each, Lean's output and the judges.
-The Lean library gains only `frflow_witness`; examples are tries met by `frflow_auto`.
+The Lean library gains only `frflow_witness`; examples are tries met by `frflow_auto`. FrFlow writes the project's
+`lean/lakefile.toml` and `lean-toolchain`. A proof file is read only at `lean/Proofs/<Model>/<Node>.lean`, directly in
+that directory; any other `.lean` under `lean/Proofs/` is a stray, which `review` lists and `check` refuses to run
+beside (`StrayProofs`), since Lake would build it when imported. Judging fails closed: an obligation is Proven only when
+its theorem's `#print axioms` line is there and within the allowed axioms, else Unchecked or Open, whole obligations
+audited too. A check is current while its key holds, and the key includes FrFlow's Lean library (a hash of what Lean
+reads of it) and the toolchain.
 
 `CrmModulesSuite` prints four of crm's files byte for byte (`Boundaries.lean`, `Def_expireOnce.lean`,
 `Def_expireOnce_run.lean`, `ExpiryJob/Spec.lean`); rooms' four golden files (`next/proof/src/test/resources/rooms/`)
@@ -939,21 +948,47 @@ Property-based testing stays in full and carries every check the running service
 
 Every value drawn by its type meets each `always[T]` of the type and of each value nested in it, an example's seed
 values included (`Respecting`, `DrawnSuite`); a drawn world takes faults where a boundary may fail and races' winners
-where a program races. A run is a function of its seed and the code.
+where a program races. A run is a function of its seed and the code. A report carries notes (`Note`): what a given
+generator made (`Given`), the examples' values it never made (`NeverMade`), and a call with nothing to vary
+(`NothingToVary`).
 
 ### 4.10 Views and the API
 
-`View(nodes, roots, whole, overview, warnings)` is derived once (`Views.of`); front ends never see `Analysis`.
-`WholeView` holds the consistency groups, what is shown possible, and the examples.
-`NodeView(id, says, place, proof, code, review)` has one group per concept (`Says` holds the formula, `checking` and
-the decision's reason); `Overview` is `Tally[K]` fields, a commutative monoid. The API is three algebras in
-`FrFlowApi[F]`:
+`View(nodes, roots, whole, overview, warnings, gone)` is derived once (`api.derive`, `private[api]` as `api.shell` is);
+front ends never see `Analysis`. `WholeView(groups, starts, possible, examples)` (`api.view.whole`) holds the
+consistency groups, each store's start (`StartView`), what is shown possible, and the examples.
+`NodeView(id, says, place, proof, code, review)` has one group per concept: `Says` holds the formula, `checking` and
+the decision's reason; `ProofView(state, results, findings, authored, unproven)`;
+`ReviewView(version, standing, decisions, waitsFor, notMechanical, moves)`. A node's `diff` is a typed `NodeDiff`.
+`api.node.lean` and `api.node.tests` mirror what Lean and the tests found, so front ends depend on no lower module's
+types for them. `Overview` is `Tally[K]` fields, a commutative monoid, and `complete`, the CI gate: there are nodes,
+none is gone, each is accepted with nothing of it unproven, and each store's start is proven. What an operation cannot
+go on from is raised as a `Stop` (`Invalid`, `NoLean`, `NoKey`, a file that does not read); what the developer should
+know is a `Warning` (`NotCounted(node, decision, why)`, `BaseNotCommitted`, `StartNotProven`, `Ungoverned`, …). The
+API is three algebras in `FrFlowApi[F]`:
 
 | Algebra | Operations |
 |---|---|
 | `Reading` | `view`, `diff(node)`, `find(words)`, `modelFingerprint` |
-| `Deciding` | `developer(as)`, `preview(command, by)`, `decide(command, by)` |
-| `Proving` | `render`, `status`, `check(only): Stream[F, CheckEvent]`, `ci`, `scaffold(node)` |
+| `Deciding` | `developer(as)`, `preview(command, by)`, `decide(command, by)`, `rebase(by)` |
+| `Proving` | `render`, `status`, `snapshot`, `check(only): Stream[F, CheckEvent]`, `ci`, `scaffold(node)` |
+
+`Deciding` answers `Decided`, `Rebased` or a `Refusal`; an acceptance is decided on what this process checked and
+tested afresh (6). `scaffold` answers `Scaffolded` (`Written`, `NothingToAdd`, `EndNotFound`). A project is
+`Project(model, examples, adapters, sources, library)`. Its interpreters: `FrFlowApi.make(p, root, env)`, a `Resource`
+holding the ledger's lock and one `lake` build at a time, run as `env` says (`FRFLOW_LAKE`, `FRFLOW_KEY`,
+`FRFLOW_SEED`, `FRFLOW_AS`, and `HOME` for the default key); and `FrFlowApi.inMemory(p, files, decider, lean)`, the one
+the front ends are tested on, its Lean a `Lean.Proving(failing, shown)` or `Lean.Absent`. `FrFlowApi.firstDecider`
+writes the first deciders' list (`Listed`).
+
+A project's main object is a `FrFlowProject`: its project, its directory, and the layers on top (`Extension`). A layer
+sees a `Host(reading, developer, directory, env)`: reading and who the developer is, never deciding or proving. The
+command line (`cli`) has today's commands and adds `rebase` (the owner accepts the ledger as it reads now as where its
+committed history starts), `deciders` (the first list, signed by the developer's key) and `export` (the snapshot);
+`--json` on `status` and `check` prints the snapshot. The web view (`web`) binds `127.0.0.1` only; its `Gate` admits a
+request only with the session's token (in a header, or in the link for the page and its scripts), from no other
+page's origin, a write only as JSON, and refuses deciding once the model's fingerprint moves from what the process
+compiled. The agent layer (`agent`) never decides: its commands and routes read the view and ask.
 
 ## 5. Modules and dependencies
 
@@ -982,10 +1017,15 @@ the decision's reason); `Overview` is `Tally[K]` fields, a commutative monoid. T
 
 Each module has its own top package (`frflow.core`, …), so `private[core]` is a real boundary. The planned code has
 the first nine; `cli`, `web` and `agent` keep their structure and are rebuilt on the new API. Serialization points
-outward: only the shell depends on `wire`. Three edges are between tests only (`test->test`): `next-proof` on
-`next-core`'s fixtures (`next-core % "compile->compile;test->test"`), `next-eval` on `next-proof`'s, and `next-testing`
-on `next-eval`'s; production `eval` never sees `proof`. Front ends see `api.view` and `api.node` values only. Production
-code depends on `eval` (and through it `dsl`, `core`) and never on Lean, the ledger, the tests or the CLI.
+outward: only the shell depends on `wire`. Five edges are between tests only (`test->test`): `next-proof` on
+`next-core`'s fixtures (`next-core % "compile->compile;test->test"`), `next-eval` on `next-proof`'s, `next-testing` on
+`next-eval`'s, `next-project` on `next-testing`'s and `next-api` on `next-project`'s; production `eval` never sees
+`proof`. The agent depends on `cli` and `web`; `web` does not depend on `cli`. Front ends see `api.view` and `api.node`
+values, and the core, dsl, decision and eval values those hold (`NodeId`, `Decision`, `Refusal`, `Command`, `Standing`,
+`Unproven`, `Problem`, `Ty`, `Value`, …), never `project`, `proof`, `testing`, `wire`, `api.derive` or `api.shell`:
+each front end's `ArchitectureSuite` checks it on the sources and on the compiled classes, since depending on `api` puts
+those on the classpath, and the agent's also forbids every deciding call. Production code depends on `eval` (and through
+it `dsl`, `core`) and never on Lean, the ledger, the tests or the CLI.
 
 Planned so far (files / lines): `core` 146 / 3,213, `dsl` 69 / 2,178, `proof` 79 / 2,058, `eval` 26 / 727, `testing`
 22 / 428, `decision` 42 / 694, `wire` 14 / 184, `project` 25 / 621, `api` 27 / 381. With the ports written and `cli`,
@@ -997,9 +1037,11 @@ about 12% more, consistency and vacuity among it, in smaller files, with no type
 **Content.** `Content(fields: List[(String, FieldValue)])` is a node as the developer decides it: named fields in a
 fixed order, a canonical print, `hash` (whitespace runs ignored) and `ref` (the exact form a signature covers, a full
 SHA-256, as a ledger entry's ref is). One form (`Contents.of`): `kind`, `parents`, `parts`, `assumes`, `statement`,
-`formula`, `vocabulary`, `checking`, `governs`, `call`, `replaces`, `reliance`, `failure`, `implementation`, `model`,
-`implementations`. No `why`, source excerpt or `idea`. `Meaning.own` (cause `self`) leaves out `parts` and `parents`,
-but a design keeps its `parents`.
+`formula`, `written`, `vocabulary`, `checking`, `governs`, `call`, `replaces`, `reliance`, `failure`, `implementation`,
+`model`, `implementations`. No `why`, source excerpt or `idea`. `formula` is the meaning: the elaborated formula as Lean
+is given it, variables named by the order they are bound, then each define it calls, so a helper's body that changes
+moves it and wording the Scala differently does not; `written` is the Scala as written, shown only (`Meaning` leaves it
+out). `Meaning.own` (cause `self`) leaves out `parts` and `parents`, but a design keeps its `parents`.
 
 **Ledger and review.** The `Ledger` is append-only; review states are a fold of it over the current graph, parents
 first (`Standings`). A node returns for a cause: `self`, `above` (unless only words moved, `Reworded.only`), `parts`,
@@ -1031,16 +1073,43 @@ each field (its length, a colon, then itself: `Framed`): the node id, action, by
 their count, chain, code fingerprint, commit, after and `content.ref`, so no reason or id can make two decisions' bytes
 the same.
 
+**What the agent can write, and what the key protects.** An agent writes the project's files and commits: the model and
+its code, adapters and layers, the proofs, and every record under `.frflow/` (`checks.json`, `tests.json`,
+`counterexamples.json`, the ledger) and Lake's `lean/.lake`. Only the owner's key makes a decision count, a deciders'
+list follow, or a ledger base take. So the agent's process must not be able to read the key (another OS user or a
+sandbox; `FRFLOW_KEY` not in its environment). FrFlow cannot protect it otherwise: every command and `serve` the owner
+runs executes the project's Scala (the model, adapters, layers), which the agent writes, in the process that holds the
+key; the owner decides in a checkout whose Scala he has read. An acceptance (`Accept`, `Confirm`) is decided on a check
+and test this process makes afresh, never on the records on disk alone; Lake's `.lake` is trusted until step 15, whose
+run starts from a clean `.lake` and runs `lean4checker --fresh`. The anchor is the history as pushed.
+
+**Counting.** `Counted` holds the decisions that count and the others, each with why (`Uncounted`: `NoDeciders`,
+`NotListed`, `NotVerified`, `Rewritten`, `Unreadable`). Each node's history in every committed version of the ledger
+must be where its history in the next version, and in the working ledger, starts; a node whose committed history was
+taken out or changed is `Rewritten`, and a committed version that does not read makes every decision `Unreadable`.
+Deciding is refused while any node is either (`Refusal.Rewritten`). A decision taken stores only what it added
+(`Counted.stored`), the uncounted decisions kept; `.frflow/ledger.lock` serializes writers across processes.
+
+**The ledger base.** An unreadable committed ledger, a committed deletion the owner accepts, or a merge of two branches'
+decisions would lock deciding for good. `.frflow/ledger-base`, committed, is the owner's way out: each version names the
+full SHA-256 of the ledger text it accepts and the version before it (`after`), signed by a key some committed deciders'
+list held, the newest by a key listed now (`LedgerBase.committed`). The history is counted from the commit that made the
+base, when that commit's ledger text has the base's hash (`LedgerBase.from`); every later committed version still
+counts, so a text committed again rewrites nothing unseen. A base over a text never committed does not take, and
+`status` warns (`Warning.BaseNotCommitted`). `rebase` writes it, refused unless the key is listed under the name
+(`Deciding.rebase`). A base never makes an unsigned or unlisted decision count.
+
 **Fingerprints.** `CodeFingerprints.of(files)` hashes a design's governed files, sorted, as the simple lexer reads
 them (owner §2, F): comments blanked, blank lines and trailing spaces dropped, indentation kept, runs of spaces
 collapsed. A change of meaning always moves it; comment and spacing edits do not; a few harmless edits do (`f(/*a*/x)`
 to `f(x)`).
 
 **Exports.** The snapshot (`.frflow/kb.json`) is `wire`'s own rows by kind, made by one mapping (`Rows`), printed by
-`--json` and read by no FrFlow module; `wire` also has the codecs of the ledger, deciders, `checks.json` and
-`tests.json`, and the committed `counterexamples.json`. Each file starts with its `version`; the ledger stores each
-content once, by its ref; a seed is written as a decimal string in every file, so a reader that rounds numbers
-(JavaScript, jq) keeps it.
+`--json` and read by no FrFlow module; `wire` also has the codecs of the ledger, deciders, the ledger base,
+`checks.json` (`{checks, whole}`: each node's check, and the whole theory's) and `tests.json` (each report with its
+notes), and the committed `counterexamples.json`. Each file starts with its `version`; the ledger stores each content
+once, by its ref; a seed is written as a decimal string in every file, so a reader that rounds numbers (JavaScript, jq)
+keeps it.
 
 ## 7. Errors and effects
 
@@ -1081,7 +1150,8 @@ nothing. Each `F[_]` pays for itself:
 | `Git[F]` | decision tests without a repository | in memory |
 | `LedgerStore[F]` (`Resource`, the lock) | the CLI and web view may decide at once | in memory; stores only on `Right`, serialized |
 | `KeyRing[F]` | tests never touch the developer's key | a key in memory; deciders read from `Git` |
-| `ReadInputs`, `RunScala`, `CheckProgram`, `NodeChecker`, `DecideProgram` | programs | ask only `Monad`, `Parallel`, `Clock` |
+| `RunCode[F]` | running the developer's code, which may block or throw | in the effect's own steps; live on the blocking pool |
+| `ReadInputs`, `RunScala`, `CheckProgram`, `NodeChecker`, `DecideProgram` | programs | ask only `Monad`, `Parallel`, `Clock`, `RunCode` |
 | `FrFlowApi[F]` | the CLI, web and agent suites | in memory; `preview` shows what `decide` records |
 | `Flow[F]` | a program read by Lean, run in production | `Recording`, `Running`; agree on the models |
 
@@ -1196,9 +1266,9 @@ gains its `ifM`, and `noCrossTenantRead` becomes a root over two Definitions. In
 program's result, guards inside maps and sets (refused until then, `AlwaysNotReached`), module layouts, a few
 `LowerProg` steps; 3b, a program's error type, `impl` over every part, `PartNotCalled` dropped; 4's (`FlowInterpreter`'s
 loops and errors, `Literals` of maps and sets, `CodeSyntax.code`) and 5's (`ModelTests.of`, derived generators,
-shrinking, the examples' runner) are filled in `next/`, but `StepRefutation.candidate`, which moves to 8; 6, three
-review functions; 8, the port interpreters, `NodeChecker`, the lexer's passes; 9, `FrFlowApi.make`, `Views.tree`,
-`Views.inbox`.
+shrinking, the examples' runner) are filled in `next/`, but `StepRefutation.candidate`, which moves to 8; 6's three
+review functions, 8's (the port interpreters, `NodeChecker`, the lexer's passes, `StepRefutation.candidate`) and 9's
+(`FrFlowApi.make`, `Views.tree`, `Views.inbox`) are filled in `next/` too.
 
 **Seeded bugs after the port.**
 
@@ -1321,7 +1391,7 @@ The code uses a few patterns, each written the same way everywhere; one file sho
 | Capability, two interpreters | `dsl/flow/Flow.scala` |
 | Program | `project/program/DecideProgram.scala` |
 | Rule per command | `decision/rules/Decide.scala` |
-| Derived view | `api/node/NodeViews.scala` |
+| Derived view | `api/derive/NodeViews.scala` |
 | Errors as cases | `decision/rules/Refusal.scala` |
 
 ## Appendix A. The owner's decisions
