@@ -53,7 +53,8 @@ object Required:
         s"Every result of ${c.standsFor.values.map(_.value).mkString(" and ")} meets ${n.value}" + givenWhat(hyps))
     }
 
-  private def hypotheses(r: Resolved, n: NodeId): List[NodeId] = r.theory.refinement.parts(n) match
+  /** What `impl` of a node rests on: its parts, or for a leaf what its code relies on. */
+  def hypotheses(r: Resolved, n: NodeId): List[NodeId] = r.theory.refinement.parts(n) match
     case Nil   => r.reliesOn(n)
     case parts => parts
 

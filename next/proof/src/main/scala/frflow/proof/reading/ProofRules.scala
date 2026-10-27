@@ -15,7 +15,9 @@ object ProofRules:
   val AllowedImports: Regex = List("""FrFlowGen\.\w+\.Domain""", """FrFlowGen\.\w+\.\w+\.Spec""", """FrFlow(\..*)?""",
     """Std(\..*)?""", """Init(\..*)?""", """Proofs\.\w+\.Lemmas""").mkString("|").r
 
-  def theorems(f: ProofFile): List[ObligationName] = ???
+  /** The obligations the file's theorems prove, by name. */
+  def theorems(f: ProofFile): List[ObligationName] =
+    LeanSource.theorems(f.source).flatMap(t => ObligationNames.read(t.name))
 
   def notAllowed(f: ProofFile): List[(Int, NotAllowed)] =
     LeanSource.code(f.source).linesIterator.zipWithIndex.toList.flatMap((l, i) => onLine(l).map(i + 1 -> _))

@@ -11,5 +11,6 @@ import frflow.proof.terms.TermTable
 object LeanProject:
   def of(r: Resolved, table: TermTable, obligations: List[NodeObligations], whole: List[Obligation])
       : List[LeanModule] =
-    VocabularyModules.of(r) ++ obligations.flatMap(NodeModules.of(r, table, _)) ++ RootImplModule.of(r, table).toList ++
-      Option.when(whole.nonEmpty)(WholeModule.of(r, table, whole)).toList
+    val l = Lowering(r, table)
+    VocabularyModules.of(l) ++ obligations.flatMap(NodeModules.of(l, _)) ++ RootImplModule.of(l).toList ++
+      Option.when(whole.nonEmpty)(WholeModule.of(l, whole)).toList ++ WholeModule.checks(l, whole).toList

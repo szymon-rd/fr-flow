@@ -19,6 +19,7 @@ object PrintDecl:
     case Decl.Instance(c, fs)         => s"instance : ${expr(c)} where\n" + fs.map(instanceField).mkString("\n")
     case Decl.Namespace(n, ds)        =>
       s"namespace ${dotted(n)}\n\n${ds.map(apply).mkString("\n\n")}\n\nend ${dotted(n)}"
+    case Decl.Budgeted(h, inner)      => s"set_option maxHeartbeats $h in\n" + apply(inner)
     case Decl.MatchEqns               => "frflow_match_eqns"
     case Decl.PrintAxioms(n)          => s"#print axioms ${dotted(n)}"
 

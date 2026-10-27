@@ -2,7 +2,7 @@ package frflow.proof.reading
 
 import scala.annotation.tailrec
 
-/** Lean source with its comments and strings blanked, lines kept: what the proof rules read. */
+/** Lean source with its comments and strings blanked, lines kept: what the proof rules read; and its theorems. */
 object LeanSource:
   private enum Mode:
     case Code, LineComment, Str
@@ -40,3 +40,20 @@ object LeanSource:
     else if i + 2 < src.length && src(i + 1) != '\\' && src(i + 2) == '\'' then 3
     else if i + 3 < src.length && src(i + 1) == '\\' && src(i + 3) == '\'' then 4
     else 0
+
+  /** Each theorem the source states, with its lines: from its head to the line before the next command. */
+  def theorems(src: String): List[Theorem] =
+    val c = code(src)
+    val starts = Command.findAllMatchIn(c).map(_.start).toList
+    val lineAt = c.scanLeft(1)((l, ch) => if ch == '\n' then l + 1 else l)
+    starts.zip(starts.drop(1).map(Some(_)) :+ None).flatMap { (at, next) =>
+      TheoremHead.findPrefixMatchOf(c.substring(at, next.getOrElse(c.length))).map(m =>
+        Theorem(m.group(1), m.group(2).trim.replaceAll("\\s+", " "), lineAt(at),
+          next.fold(lineAt(c.length))(lineAt(_) - 1)))
+    }
+
+  private val Command = ("""(?m)^(?:@\[[^\]]*\]\s*)?(?:private\s+|protected\s+|noncomputable\s+)*""" +
+    """(theorem|lemma|def|abbrev|instance|example|axiom|structure|inductive|namespace|section|end|open|variable|""" +
+    """set_option|attribute|#\w+)\b""").r
+  private val TheoremHead =
+    """(?s)^\s*(?:@\[[^\]]*\]\s*)?(?:private\s+|protected\s+)?theorem\s+([A-Za-z_][A-Za-z0-9_'.]*)\s*:(.*?):=""".r

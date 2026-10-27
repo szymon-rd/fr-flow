@@ -13,5 +13,7 @@ enum Decl:
   case Namespace(name: List[LeanName], decls: List[Decl])
   /** `frflow_match_eqns`: a match's equations made where it is declared. */
   case MatchEqns
+  /** `set_option maxHeartbeats N in decl`: a try within its budget. */
+  case Budgeted(heartbeats: Int, decl: Decl)
   /** `#print axioms N`: the audit of an authored proof's axioms. */
   case PrintAxioms(name: List[LeanName])

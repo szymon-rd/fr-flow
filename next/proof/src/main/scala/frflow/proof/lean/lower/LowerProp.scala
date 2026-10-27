@@ -38,6 +38,12 @@ final class LowerProp(table: TermTable, env: LowerEnv):
       case Nil => b
       case bs  => q(bs, b)
 
+  /** The open terms a statement binds, in order: what `statement` quantifies over. */
+  def opens(p: Prop): OpenTerms = p match
+    case Prop.Forall(about, body) => (about.traverse(n => prop(Prop.claim(n), Map.empty)) *> withHyps(body)).run._1
+    case Prop.Exists(about, body) => opens(Prop.Forall(about, body))
+    case other                    => prop(other, Map.empty).run._1
+
   /** `∀ (h_A : …) (h_B : …), c` for an implication at the top of a statement. */
   private def withHyps(p: Prop): W[LExpr] = p match
     case Prop.Implies(Nil, c) => prop(c, Map.empty)
@@ -68,7 +74,7 @@ final class LowerProp(table: TermTable, env: LowerEnv):
   /** A statement inside another binding exactly `ss`: the open terms it leaves are the enclosing statement's. */
   private def inner(ss: List[SymbolName], body: Prop, σ: Subst)(q: (List[LBinder], LExpr) => LExpr): W[LExpr] =
     val (opens, b) = prop(body, σ).run
-    val left = OpenTerms(opens.sorts, opens.symbols.filterNot(ss.contains))
+    val left = OpenTerms((opens.sorts ++ ss.flatMap(leaf(_).sorts)).distinct, opens.symbols.filterNot(ss.contains))
     Writer(left, if ss.isEmpty then b else LExpr.Paren(q(binders(OpenTerms(Nil, ss)), b)))
 
   /** A formula printed from its term (`Printed`), its open terms told: the symbols its IR (`Written.value`, made once
@@ -85,6 +91,9 @@ final class LowerProp(table: TermTable, env: LowerEnv):
       .map(args => if args.isEmpty then f else call(f, args))
 
   private def sort(t: TypeName): W[LExpr] = Writer.tell(OpenTerms(List(t), Nil)).as(LExpr.Name(Names.ident(t.value)))
+
+  /** What a symbol is written as under `σ`: its substitute applied to its own open terms, or its name. */
+  def standing(s: SymbolName, σ: Subst): LExpr = symbol(s, σ).value
 
   private def symbol(s: SymbolName, σ: Subst): W[LExpr] = σ.get(s) match
     case Some(Substitute.Code(d)) => applied(define(d), table.defines.getOrElse(d, OpenTerms.empty), σ)
