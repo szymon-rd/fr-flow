@@ -5,6 +5,7 @@ import frflow.api.Opened.id
 import frflow.api.derive.Leans
 import frflow.api.view.{Tally, View, Views}
 import frflow.proof.verdict.{CheckStatus, ObligationStatus}
+import cats.syntax.all.*
 import munit.DisciplineSuite
 import org.scalacheck.{Arbitrary, Gen}
 
@@ -17,8 +18,12 @@ class ViewsSuite extends munit.CatsEffectSuite with DisciplineSuite:
 
   given Arbitrary[Tally[Boolean]] = Arbitrary(Gen.mapOf(Gen.zip(Arbitrary.arbitrary[Boolean], Gen.choose(0, 50)))
     .map(Tally(_)))
-  given cats.Eq[Tally[Boolean]] = cats.Eq.by(t => List(true, false).map(t(_)))
   checkAll("Tally", CommutativeMonoidTests[Tally[Boolean]].commutativeMonoid)
+
+  test("a kind counted zero times is not held: such tallies are equal, as the monoid's identity says") {
+    assertEquals(Tally(Map(true -> 0)), Tally(Map.empty[Boolean, Int]))
+    assertEquals(Tally(Map(true -> 2, false -> 0)), Tally.one(true) |+| Tally.one(true))
+  }
 
   test("the tree: the roots, each node under its first parent, its children in the order of its parts") {
     shelf.map { v =>

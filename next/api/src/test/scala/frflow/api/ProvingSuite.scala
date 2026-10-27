@@ -3,7 +3,7 @@ package frflow.api
 import cats.syntax.all.*
 import frflow.api.Opened.id
 import frflow.api.node.lean.CheckState
-import frflow.api.view.{CheckEvent, Stop}
+import frflow.api.view.{CheckEvent, Scaffolded, Stop}
 import frflow.core.name.RelPath
 
 /** `Proving` over projects in memory, Lean scripted: the Lean written once; `status` writes the snapshot; a check
@@ -74,19 +74,30 @@ class ProvingSuite extends munit.CatsEffectSuite:
         List(List(CheckState.Proven)))
   }
 
+  private val proofFile = RelPath.fromIdentifiers("lean", "Proofs/Shelf/nonNegative.lean")
+
   test("scaffold writes a proof file with a stub for complete before any check, then has nothing to add") {
     for
       ports   <- Opened.ports()
       api      = Opened.over(Opened.before, ports)
       first   <- api.proving.scaffold(nonNegative)
-      text    <- first.flatTraverse(ports.files.read)
+      text    <- ports.files.read(proofFile)
       again   <- api.proving.scaffold(nonNegative)
       unknown <- api.proving.scaffold(id("dragons")).attempt
       view    <- api.reading.view
     yield
-      assertEquals(first, Some(RelPath.fromIdentifiers("lean", "Proofs/Shelf/nonNegative.lean")))
+      assertEquals(first, Scaffolded.Written(proofFile))
       assert(text.exists(t => t.contains("theorem complete : Obl.complete := by") &&
         t.contains("namespace Shelf.nonNegative.Proofs")), text)
-      assertEquals((again, unknown), (None, Left(Stop.UnknownNode(id("dragons")))))
+      assertEquals((again, unknown), (Scaffolded.NothingToAdd, Left(Stop.UnknownNode(id("dragons")))))
       assertEquals(view.node(nonNegative).map(_.proof.authored), Some(true))
+  }
+
+  test("scaffold adds nothing to a proof file whose end it does not find, and says so") {
+    for
+      ports <- Opened.ports(Map(proofFile -> "import FrFlowGen.Shelf.nonNegative.Spec\n"))
+      out   <- Opened.over(Opened.before, ports).proving.scaffold(nonNegative)
+      text  <- ports.files.read(proofFile)
+    yield assertEquals((out, text), (Scaffolded.EndNotFound(proofFile),
+      Some("import FrFlowGen.Shelf.nonNegative.Spec\n")))
   }

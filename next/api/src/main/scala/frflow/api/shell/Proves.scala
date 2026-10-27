@@ -7,8 +7,8 @@ import cats.syntax.all.*
 import fs2.Stream
 import frflow.api.Proving
 import frflow.api.derive.Stubs
-import frflow.api.view.{CheckEvent, Stop, View}
-import frflow.core.name.{NodeId, RelPath}
+import frflow.api.view.{CheckEvent, Scaffolded, Stop, View}
+import frflow.core.name.NodeId
 import frflow.project.check.{CheckProgram, Render}
 import frflow.project.pipeline.Analysis
 import frflow.project.program.{StatusProgram, TestProgram}
@@ -18,7 +18,7 @@ import frflow.project.program.{StatusProgram, TestProgram}
   */
 private[api] final class Proves[F[_]: Async: Parallel](s: Session[F]) extends Proving[F]:
   private val files = s.ports.files
-  private val library = s.project.library
+  private val library = s.library
 
   def render: F[List[String]] =
     s.analysis.flatMap(a => s.guarded(Render(files, library)(a))).map(_.map(_.dotted))
@@ -29,9 +29,10 @@ private[api] final class Proves[F[_]: Async: Parallel](s: Session[F]) extends Pr
 
   def ci: Stream[F, CheckEvent] = checked(None, a => StatusProgram(files, library)(a).void)
 
-  def scaffold(id: NodeId): F[Option[RelPath]] = s.analysis.flatMap { a =>
+  def scaffold(id: NodeId): F[Scaffolded] = s.analysis.flatMap { a =>
     if a.decided.theory.node(id).isEmpty then Async[F].raiseError(Stop.UnknownNode(id))
-    else Stubs.of(a, id).traverse((p, text) => s.guarded(files.writeIfChanged(p, text)).as(p))
+    else Stubs.of(a, id).fold(_.pure[F], (p, text) =>
+      s.guarded(files.writeIfChanged(p, text)).as(Scaffolded.Written(p)))
   }
 
   /** The check's events, `after` run on the analysis it ends with before the view is read. */

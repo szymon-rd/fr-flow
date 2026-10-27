@@ -20,26 +20,31 @@ import frflow.testing.derive.Derive as Draws
 private[api] final class Session[F[_]: Async: Parallel](val project: Project[F], val ports: Ports[F],
     val lean: Analysis => F[Lake[F]], val run: Session.Run):
   val semantics: Semantics = Semantics(project.model)
+  val library: String = Session.library(project)
   lazy val draws: Draws = Draws.of(project.model, project.examples)
-  def models: List[ModelCheck[F]] = project.adapters.flatMap(_.tests.of(semantics, project.model.theory))
+  def models: List[ModelCheck[F]] = project.adapters.flatMap(ModelTests.of(_, semantics, project.model.theory))
 
   def analysis: F[Analysis] =
     Analyse(ports, project.sources, run.tests)(project.model, project.examples).adaptError(Stops.of)
 
   def view(a: Analysis): F[View] = warnings.map(Derive.of(a, _))
 
-  /** What the shell warns of besides the analysis: no key to decide with, and a deciders' list in the working tree
-    * that is not the committed one.
+  /** What the shell warns of besides the analysis: no key to decide with (as found when the project was opened), and
+    * a deciders' list in the working tree that is not the committed one.
     */
   private def warnings: F[List[Warning]] =
-    val noKey = ports.keys.key.attempt.map(k => Option.when(k.isLeft)(Warning.NoKey))
-    val uncommitted = (ports.files.read(KeyRing.path), ports.git.committed(KeyRing.path)).mapN((now, at) =>
-      Option.when(now.isDefined && now != at)(Warning.DecidersUncommitted))
-    (noKey, uncommitted).mapN((a, b) => a.toList ++ b.toList)
+    (ports.files.read(KeyRing.path), ports.git.committed(KeyRing.path)).mapN((now, at) =>
+      Option.unless(run.keyed)(Warning.NoKey).toList ++
+        Option.when(now.isDefined && now != at)(Warning.DecidersUncommitted).toList)
 
   /** Raised in `F`, as a front end sees it. */
   def guarded[A](fa: F[A]): F[A] = fa.adaptError(Stops.of)
 
 private[api] object Session:
-  /** How it runs: the tests' cases and seed, and who decides when no one is named (`FRFLOW_AS`). */
-  final case class Run(tests: Settings, as: Option[String])
+  /** FrFlow's Lean library as `lakefile.toml` names it. */
+  def library(p: Project[?]): String = p.library.toString.replace('\\', '/')
+
+  /** How it runs: the tests' cases and seed, who decides when no one is named (`FRFLOW_AS`), and whether there is a
+    * key to decide with.
+    */
+  final case class Run(tests: Settings, as: Option[String], keyed: Boolean)

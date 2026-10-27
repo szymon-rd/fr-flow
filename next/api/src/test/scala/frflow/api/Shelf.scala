@@ -14,6 +14,11 @@ object Shelf:
       forall((n: Term[BigInt]) => (n > 0) implies (d(n) === n))).refines(nonNegative)
     val kb = KnowledgeBase("Shelf")(nonNegative, sameAbove).implementTested(d)(_ => n => n.abs)
 
+  /** An example of the service, checked against its claims and its code. */
+  class BeforeExamples extends FrFlowExamples(Before.kb):
+    example("one is given itself"):
+      d(1) is 1
+
   /** The same, its code's files governed by a design. */
   object Governed:
     val nonNegative = Node.claim("The service never gives a negative number.")(forall((n: Term[BigInt]) => d(n) >= 0))
