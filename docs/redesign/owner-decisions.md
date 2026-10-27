@@ -204,3 +204,14 @@ what is trusted about it is an assumption with `always` on that type; what the c
 (what is stored) with `always[Booking](b => b.start < b.end)` as a claim, proven from it; `book` takes a `Request`.
 Today's library and the rooms example follow now, not at step 11: a separate change removes `calledOnlyWith` there
 and gives rooms its `Request` and `fromTheForm`.
+
+## 22. crm's roots: the purpose is the root (owner)
+The owner accepted: crm's purpose `sharedCrm` is the root; its two general expectations ("a record a user adds is
+found by their searches", "nothing a user writes changes what another company finds") are root claims of their own,
+proven from their own parts, not statements the purpose refines. A scenario over literal values is an example test.
+
+## 23. README: a short core, and when a snippet passes (owner)
+The owner accepted: the README shows a short core of the rooms example (its words, one root, the calendar's claim,
+the calendar's code, and the bugs FrFlow catches) and links to the complete `examples/rooms`. A snippet passes when no
+cold reader finds a line they cannot parse; preferences about wording do not block. `always` is defined in one
+sentence where it first appears (§19).
