@@ -54,8 +54,9 @@ final class FlowInterpreter[F[_]](semantics: Semantics, world: World[F], schedul
       scheduling.both(prog(l, env), prog(r, env)).map((a, b) => ScalaValue((a.unwrap, b.unwrap)))
     case Prog.ParEach(xs, x, body, limit) =>
       list(xs, env).flatMap(scheduling.each(limit)(_)(v => prog(body, env.bind(x.id, v)))).map(many)
-    case Prog.Race(l, r, _)        =>
-      scheduling.race(prog(l, env), prog(r, env)).map(e => ScalaValue(e.bimap(_.unwrap, _.unwrap)))
+    case Prog.Race(l, r, reading)  =>
+      val read = prog(reading, env).map(v => Fn.as[Either[Any, Any]](v).bimap(ScalaValue(_), ScalaValue(_)))
+      scheduling.race(prog(l, env), prog(r, env), read).map(e => ScalaValue(e.bimap(_.unwrap, _.unwrap)))
     case Prog.Guard(body, _, fin, reading) =>
       scheduling.guard(prog(body, env), prog(fin, env).void, prog(reading, env))
     case Prog.Atomic(body)         => scheduling.atomically(prog(body, env))
