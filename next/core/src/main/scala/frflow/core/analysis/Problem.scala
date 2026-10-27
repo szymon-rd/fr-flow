@@ -14,6 +14,10 @@ enum Problem:
   case UnderDesign(id: NodeId, design: NodeId)
   /** A premise that is neither an assumption nor an `always`: what a proof assumes is trusted or always holds. */
   case PremiseNotAssumed(id: NodeId, premise: NodeId)
+  /** A premise resting, through its parents and the premises it assumes, on the node assuming it (`A.assuming(P)` with
+    * `P.refines(A)`): a node is decided after what it rests on, so the two could never be decided in order.
+    */
+  case PremiseBelow(id: NodeId, premise: NodeId)
   /** A fact about the outside refining a node: it is a premise of the proofs that rest on it (`.assuming`). */
   case OutsideAsPart(fact: NodeId, whole: NodeId)
   /** A fact about the outside claimed: only an assumption can say one, since nothing in FrFlow proves it. */

@@ -23,6 +23,8 @@ object GraphCases:
       partOf("below", "layout")), List(Problem.UnderDesign(id("below"), id("layout")))),
     ProblemCase(Kb.of(root, plain("other")).linking(assumes("root", "other")),
       List(Problem.PremiseNotAssumed(id("root"), id("other")))),
+    ProblemCase(Kb.of(root, assumption("premise")(Lang.truth)).linking(assumes("root", "premise"),
+      partOf("premise", "root")), List(Problem.PremiseBelow(id("root"), id("premise")))),
     ProblemCase(Kb.of(root, fact).linking(partOf("fact", "root")), List(Problem.OutsideAsPart(id("fact"), id("root")))),
     ProblemCase(Kb.of(root, claim("claimedFact")(saysFact)),
       List(Problem.OutsideClaimed(id("claimedFact")))))

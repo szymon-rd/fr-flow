@@ -5,7 +5,7 @@ import cats.syntax.all.*
 import frflow.core.{Elaborated, Failing, Theory}
 import frflow.core.code.Code
 import frflow.core.expr.{Expr, Exprs, PrimOp, Progs}
-import frflow.core.graph.Edge
+import frflow.core.graph.{Edge, Walk}
 import frflow.core.name.{NodeId, SymbolName}
 import frflow.core.spec.{Node, NodeKind, Range}
 import frflow.core.ty.Ty
@@ -30,7 +30,14 @@ object Validate:
       r.nodes.flatMap(n => r.parents(n.id).filterNot(ids.contains).map(Problem.ParentOutside(n.id, _))) ++
       r.nodes.collect { case n if n.statement.kind == NodeKind.Design && r.parents(n.id).isEmpty =>
         Problem.DesignWithoutParent(n.id) } ++
-      underDesign(t) ++ premises(t))
+      underDesign(t) ++ premises(t) ++ below(t))
+
+  /** Each premise resting on the node that assumes it: the parents and premises above it reach the node. */
+  private def below(t: Theory): List[Problem] =
+    val r = t.refinement
+    t.edges.collect { case Edge.Assumes(n, p) if
+        Walk.breadthFirst(List(p), identity)(x => r.parents(x) ++ r.assumed(x)).contains(n) =>
+      Problem.PremiseBelow(n, p) }
 
   /** What a node assumes is an assumption or an `always`; a fact about the outside is assumed, and never a part. */
   private def premises(t: Theory): List[Problem] =
