@@ -6,14 +6,13 @@ import sharing.time.Lifetimes.*
 
 /** Lifetimes's claims: what its code is proven to do, each refining a branch or the purpose. */
 object LifetimesClaims:
-  /** The claims on how long a request lasts and when it is due a reminder, in an object of their own: each named as
-    * its word, it would hide the Definition.
-    */
-  object Lengths:
-    val requestLasts = Node.claim("An access request stays pending for 7 days after it is made.")(
-      Lifetimes.requestLasts === 7 * 86400)
-    val remindAfter = Node.claim("An access request's document's owner is reminded of it after 48 hours.")(
-      Lifetimes.remindAfter === 2 * 86400)
+  /** How long a request lasts: today's `requestLifetime`, its first word. */
+  val requestLifetime = Node.claim("An access request stays pending for 7 days after it is made.")(
+    requestLasts === 7 * 86400)
+
+  /** When a request is due a reminder: today's `requestLifetime`, its second word. */
+  val reminderTime = Node.claim("An access request's document's owner is reminded of it after 48 hours.")(
+    remindAfter === 2 * 86400)
 
   val invitationLifetime = Node.claim("An invitation stays open for 7 days after it is sent.")(
     invitationLasts === 7 * 86400)

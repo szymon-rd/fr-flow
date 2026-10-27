@@ -41,7 +41,7 @@ val domainTypes = Node.design("People, teams, documents, folders, shares, invita
   "src/main/scala/sharing/domain", "src/main/scala/sharing/Demo.scala").refines(accessFollowsShares)
 
 val knowledge = KnowledgeBase("Sharing")(
-  reach, cover, Definitions.mayView, Definitions.mayEdit, Definitions.inTrash, ownersShare, accessFollowsShares,
+  reach, cover, permission, editPermission, Definitions.inTrash, ownersShare, accessFollowsShares,
   sharing.invitationsAreOffers, sharing.trashUntilGone, sharing.housekeepingClearsOnlyTheEnded,
   sharing.accessRequestsAreAsks, sharing.ownersKeepTheirDocuments, sharing.auditTrail, sharing.noticesFollowChanges,
   SharingClaims.accessContract, SharingClaims.canViewContract, SharingClaims.canEditContract,
@@ -52,7 +52,7 @@ val knowledge = KnowledgeBase("Sharing")(
   OwnershipClaims.transferContract, AuditClaims.recordContract, AuditClaims.forgetContract,
   NotificationsClaims.announceContract, NotificationsClaims.warnContract, HousekeepingClaims.tidyContract,
   HousekeepingClaims.housekeepingJob, NotificationsClaims.deliveryJob, LifetimesClaims.invitationLifetime,
-  LifetimesClaims.trashLifetime, LifetimesClaims.Lengths.requestLasts, LifetimesClaims.Lengths.remindAfter,
+  LifetimesClaims.trashLifetime, LifetimesClaims.requestLifetime, LifetimesClaims.reminderTime,
   Run.housekeepingPeriod, LifetimesClaims.inForceContract, LifetimesClaims.isOpenContract,
   LifetimesClaims.goneContract, LifetimesClaims.pendingContract, LifetimesClaims.reminderDueContract,
   Deadlines.trashPurgedOnTime, Deadlines.invitationsLapseOnTime, Deadlines.requestsAnsweredOnTime,

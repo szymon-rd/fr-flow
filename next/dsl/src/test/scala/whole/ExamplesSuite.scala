@@ -57,9 +57,9 @@ class ExamplesSuite extends munit.FunSuite:
   }
 
   test("sharing: today's, with the store's, the mail server's and the clock's runs one at a time, assumptions; the " +
-    "definitions of two words each are a claim per word") {
-    assertEquals(ids(sharing.knowledge), renamed(Today.sharing, Set("permission", "requestLifetime"), Set(
-      "oneTransactionAtATime", "mailOneAtATime", "clockAlone", "mayView", "mayEdit", "requestLasts", "remindAfter")))
+    "definitions of two words each are a claim per word, today's id kept for the first") {
+    assertEquals(ids(sharing.knowledge), renamed(Today.sharing, Set.empty, Set(
+      "oneTransactionAtATime", "mailOneAtATime", "clockAlone", "editPermission", "reminderTime")))
     assertEquals(kinds(sharing.knowledge), Map("claim" -> 52, "assumption" -> 8, "design" -> 3))
   }
 

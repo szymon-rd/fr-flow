@@ -77,24 +77,23 @@ val cover = Node.claim("A share of a document covers that document; a share of a
           g === f || lib.folders.exists(folder => folder.id === g && folder.folders.contains(f))))))
   .refines(accessFollowsShares)
 
-/** The claims on `mayView`, `mayEdit` and `inTrash`, in an object of their own: each named as its word, it would
-  * hide the Definition.
-  */
+/** What a person may view: today's `permission`, its first word. */
+val permission = Node.claim("A person may view a document or folder when a share in force reaches them and covers " +
+    "it.")(
+  forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], x: Term[Target]) =>
+    mayView(lib, t, p, x) === lib.shares.exists(s => inForce(s, t) && reaches(lib, s, p) && covers(lib, s, x))))
+  .refines(accessFollowsShares)
+
+/** What a person may edit: today's `permission`, its second word. */
+val editPermission = Node.claim("A person may edit a document or folder when a share in force that reaches them and " +
+    "covers it is an edit share.")(
+  forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], x: Term[Target]) =>
+    mayEdit(lib, t, p, x) ===
+      lib.shares.exists(s => inForce(s, t) && reaches(lib, s, p) && covers(lib, s, x) && s.level === Level.Edit)))
+  .refines(accessFollowsShares)
+
+/** The claim on `inTrash`, in an object of its own: named as its word, it would hide the Definition. */
 object Definitions:
-  val mayView = Node.claim("A person may view a document or folder when a share in force reaches them and covers " +
-      "it.")(
-    forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], x: Term[Target]) =>
-      sharing.mayView(lib, t, p, x) ===
-        lib.shares.exists(s => inForce(s, t) && reaches(lib, s, p) && covers(lib, s, x))))
-    .refines(accessFollowsShares)
-
-  val mayEdit = Node.claim("A person may edit a document or folder when a share in force that reaches them and " +
-      "covers it is an edit share.")(
-    forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], x: Term[Target]) =>
-      sharing.mayEdit(lib, t, p, x) ===
-        lib.shares.exists(s => inForce(s, t) && reaches(lib, s, p) && covers(lib, s, x) && s.level === Level.Edit)))
-    .refines(accessFollowsShares)
-
   val inTrash = Node.claim("A document is in the trash when it was put there and not restored since.")(
     forall((lib: Term[Library], d: Term[DocumentId]) =>
       sharing.inTrash(lib, d) === lib.documents.exists(doc => doc.id === d && doc.trashed.isDefined)))
