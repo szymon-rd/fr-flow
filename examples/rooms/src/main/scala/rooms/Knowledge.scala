@@ -53,7 +53,7 @@ val apart = define { (a: Term[Booking], b: Term[Booking]) =>
 val free = define { (bookings: Term[List[Booking]], request: Term[Booking]) =>
   bookings.forall(b => apart(b, request)) }
 
-// The purpose's words: what is booked, and whether a request is accepted. Each is a Declaration, known only by what
+// The purpose: what is booked, and whether a request is accepted. Each is a Declaration, known only by what
 // the statements say of it. A request is the booking it asks for; `now` is the world as it stands.
 val booked = Declaration[World => List[Booking]]("the bookings made, as the world stands")
 
@@ -73,7 +73,7 @@ val acceptWhenFree = Node.claim("A request is accepted exactly when its room is 
 /** The request that asks for a booking. */
 val asRequest = define { (b: Term[Booking]) => Request(b.room, b.start, b.end) }
 
-// What each Declaration is, in the code's words: the table, and booking's run.
+// What each Declaration is, in the code: the table, and booking's run.
 val bookedIsStored = Node.claim("What is booked is what the table holds.")(
   forall((now: Term[World]) => booked(now) === storedBookings.in(now)))
   .refines(bookWhenFree, acceptWhenFree)

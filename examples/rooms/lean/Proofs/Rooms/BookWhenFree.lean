@@ -1,6 +1,6 @@
 import FrFlowGen.Rooms.BookWhenFree.Spec
 
-/-! The root over `bookedAfter` and `booked`, from what each is in the code's words: what is booked once a request is
+/-! The root over `bookedAfter` and `booked`, from what each is in the code: what is booked once a request is
 handled is what the table holds after booking the request that asks for it, which holds its booking added exactly
 when the table held nothing it overlaps; and what is booked is what the table holds. The request asking for a booking
 asks for that booking. -/

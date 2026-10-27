@@ -6,7 +6,7 @@ assumptions, `Declaration`s, `Definition`s, `forall` and `always`.
 - `src/main/scala/rooms/Knowledge.scala` holds the roots, the purpose over three `Declaration`s (`booked`, what is
   booked; `bookedAfter`, what is booked once a request is handled; `accepted`, whether a request is accepted): a
   request is booked (`bookWhenFree`), and accepted (`acceptWhenFree`), exactly when its room is free for its whole
-  time. Neither assumes anything. One level down, each Declaration is said in the code's words (`bookedIsStored`:
+  time. Neither assumes anything. One level down, each Declaration is tied to the code (`bookedIsStored`:
   what the table holds; `bookedAfterIsStored`: what it holds after `book` runs on the request; `acceptedIsAnswered`:
   what `book` answers), beside what booking stores and answers, proven of `book` (`storeWhenFree`,
   `answerWhenFree`), and what the table always holds (`neverOverlap`). The assumptions sit on the claims whose proofs

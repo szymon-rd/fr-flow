@@ -1,6 +1,6 @@
 import FrFlowGen.Rooms.AcceptWhenFree.Spec
 
-/-! The root over `accepted` and `booked`, from what each is in the code's words: a request is accepted exactly when
+/-! The root over `accepted` and `booked`, from what each is in the code: a request is accepted exactly when
 booking the request that asks for it answers booked, which it does exactly when the table holds nothing its booking
 overlaps; and what is booked is what the table holds. The request asking for a booking asks for that booking. -/
 
