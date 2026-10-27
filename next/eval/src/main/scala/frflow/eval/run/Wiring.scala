@@ -4,7 +4,7 @@ import frflow.core.analysis.Resolve
 import frflow.core.code.{Code, Impl, Values}
 import frflow.core.example.Given
 import frflow.core.expr.{Exprs, Lambda}
-import frflow.core.name.{NodeId, SymbolName}
+import frflow.core.name.{DefName, NodeId, SymbolName}
 import frflow.core.spec.Written
 import frflow.core.Theory
 import frflow.core.ty.Ty
@@ -33,9 +33,17 @@ final class Wiring(semantics: Semantics, t: Theory):
     val made = meanings(() => Values.none).keySet
     (Resolve.mentions(t, node).symbols ++ own.toList.flatMap(reads)).distinct.filterNot(s => own.contains(s) || made(s))
 
-  /** Each Definition with a meaning wiring can make: plain code, its proven define run by `Semantics`, its value. */
+  /** Each Definition with a meaning wiring can make: plain code, its proven define run by `Semantics`, its value;
+    * and each define plain code says it calls (`implementTested(c, define)`), run by `Semantics`, read as `env(d)`.
+    */
   private def meanings(values: () => Values): Map[SymbolName, () => Any] =
-    t.code.attached.toList.flatMap((d, a) => runs(d, a.code).map(impl => d -> (() => impl.make(values())))).toMap
+    (calledDefines ++ t.code.attached.toList.flatMap((d, a) => runs(d, a.code).map(d -> _)))
+      .map((d, impl) => d -> (() => impl.make(values()))).toMap
+
+  private def calledDefines: List[(SymbolName, Impl)] = t.code.attached.values.toList.flatMap(_.code match
+    case Code.Tested(_, calls) => calls
+    case _                     => Nil).distinct.flatMap(s => t.vocabulary.define(DefName(s.value)).map(x =>
+    s -> proven(x.written)))
 
   /** The code a Definition runs as: its plain code, its proven define, or its fixed value. */
   private def runs(d: SymbolName, code: Code): Option[Impl] = code match

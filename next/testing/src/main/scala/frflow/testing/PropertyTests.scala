@@ -1,6 +1,6 @@
 package frflow.testing
 
-import frflow.core.code.Impl
+import frflow.core.code.{Code, Impl}
 import frflow.core.name.{NodeId, SymbolName}
 import frflow.core.Theory
 import frflow.core.ty.Ty
@@ -38,6 +38,10 @@ final class PropertyTests(semantics: Semantics, t: Theory):
   def firstFailing(check: CallCheck, code: Impl, cases: List[Case]): Option[(Case, Broken)] =
     cases.iterator.flatMap(c => judged(check, code, c).map(c -> _)).nextOption()
 
-  /** What a test of `node`'s code draws beside its inputs: what wiring does not make, by its declared type. */
-  private def givenTypes(node: NodeId): List[(SymbolName, Ty)] = wiring.needed(node).flatMap(s =>
-    t.vocabulary.symbol(s).map(_.ty).collect { case SymbolType.Typed(ty) => s -> ty })
+  /** What a test of `node`'s code draws beside its inputs, by its declared type: what wiring does not make, and every
+    * value provided where the code runs, which plain code may read without its statement mentioning it.
+    */
+  private def givenTypes(node: NodeId): List[(SymbolName, Ty)] =
+    val provided = t.code.attached.collect { case (s, a) if a.code == Code.Provided => s }.toList.sortBy(_.value)
+    (wiring.needed(node) ++ provided).distinct.flatMap(s =>
+      t.vocabulary.symbol(s).map(_.ty).collect { case SymbolType.Typed(ty) => s -> ty })
