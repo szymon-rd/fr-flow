@@ -52,6 +52,7 @@ def nextModules: Seq[ProjectReference] = Seq(
   // step 2: nextDsl
 
   // step 3: nextProof
+  nextProof,
 
   // step 4: nextEval
 
@@ -78,6 +79,8 @@ lazy val nextCore = nextModule("core", cats).settings(libraryDependencies ++= la
 // next-dsl (step 2)
 
 // next-proof (step 3)
+/** Obligations, the Lean AST, the one term printer, lowering, layout, reading Lean's output, the judges. */
+lazy val nextProof = nextModule("proof", cats).dependsOn(nextCore % "compile->compile;test->test")
 
 // next-eval (step 4)
 
