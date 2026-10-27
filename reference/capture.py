@@ -16,11 +16,14 @@ import json
 import os
 import pty
 import re
+import select
 import shutil
+import signal
 import struct
 import subprocess
 import sys
 import termios
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -28,6 +31,9 @@ REF = ROOT / "reference"
 COPY = ROOT / "target" / "reference-copy"
 EXAMPLES = ["rooms", "auth", "keycloak", "crm", "sharing"]
 SEED = "1"
+# How long review may take on its terminal before the capture stops.
+TERMINAL_DEADLINE = 300
+OUT = COPY / "target" / "reference-out"
 # Who the review runs as: a name only. No key exists where FRFLOW_KEY points, and every answer is skip: nothing is
 # decided.
 REVIEWER = "demo-developer"
@@ -96,6 +102,16 @@ def source_files():
     names = git("ls-files", "-co", "--exclude-standard", "-z").split("\0")
     keep = lambda n: n and (not n.startswith("reference/") or n.startswith("reference/capture/"))
     return sorted(n for n in set(names) if keep(n) and (ROOT / n).is_file())
+
+
+def source():
+    """What the capture was taken from: the commit (`-dirty` when a file the capture reads differs from it), Lean."""
+    changed = [l[3:] for l in git("status", "--porcelain", "--untracked-files=all").splitlines()]
+    dirty = any(not p.startswith("reference/") or p.startswith("reference/capture") for p in changed)
+    lake = run(["lake", "--version"], ROOT)
+    return "\n".join([f"commit {git('rev-parse', 'HEAD').strip()}{'-dirty' if dirty else ''}",
+                      f"lean-toolchain {(ROOT / 'lean' / 'lean-toolchain').read_text().strip()}",
+                      f"lake {lake.stdout.strip()}", f"FRFLOW_SEED={SEED}"]) + "\n"
 
 
 def sync():
@@ -191,7 +207,14 @@ def cli_on_terminal(example, *args, answers="s\n" * 200):
     os.close(slave)
     os.write(master, answers.encode())
     out = b""
+    deadline = time.monotonic() + TERMINAL_DEADLINE
     while True:
+        left = deadline - time.monotonic()
+        if left <= 0 or not select.select([master], [], [], left)[0]:
+            os.killpg(p.pid, signal.SIGKILL)
+            p.wait()
+            os.close(master)
+            fail(f"{example} {' '.join(args)} did not finish within {TERMINAL_DEADLINE}s on its terminal")
         try:
             chunk = os.read(master, 65536)
         except OSError:
@@ -210,9 +233,10 @@ def shown(code, out, err=""):
 
 # What is captured of one example.
 
-def standings(example, checked, tree):
-    """Each node's standing as `check` leaves it (proven, tested, assumed, failing, not proven, or nothing to prove
-    when check has no result for it), and its review state."""
+def standings(example, checked, tree, tests):
+    """Each node's standing as `check` leaves it, and its review state: as text, and as fixed columns (tab-separated).
+    Standing: proven, tested, assumed, failing, not proven; nothing to prove for a definition or design check has no
+    result for; not checked for any other node it has none for. Tests: as check recorded them (.frflow/tests.json)."""
     nodes = {}
 
     def walk(entries):
@@ -224,46 +248,52 @@ def standings(example, checked, tree):
     by_id = {c["id"]: c for c in checked}
     lines = [f"# Standings: {example} (FRFLOW_SEED={SEED})", "",
              "node | kind | standing | review | detail", ""]
+    columns = ["node", "kind", "standing", "status", "review", "causes", "cases", "against", "seed"]
+    rows = ["\t".join(columns)]
     for nid in sorted(nodes):
-        n, c = nodes[nid], by_id.get(nid)
+        n, c, t = nodes[nid], by_id.get(nid), tests.get(nid, {}).get("report")
         detail = []
         if c is None:
-            standing = "assumed" if n["kind"] == "assumption" else "nothing to prove"
+            standing = ("assumed" if n["kind"] == "assumption" else
+                        "nothing to prove" if n["kind"] in ("definition", "design") else "not checked")
         elif c.get("testFailure") or c["failing"] or c["status"] == "failed":
             standing = "failing"
         elif n["kind"] == "assumption":
             standing = "assumed"
             detail.append(f"its check: {c['status']}")
         elif not c["ok"]:
-            standing = f"not proven ({c['status']})"
+            standing = "not proven"
+            detail.append(f"its check: {c['status']}")
         elif c.get("codeTested"):
             standing = "tested"
         else:
             standing = "proven"
+        if c is not None and c.get("modelRuns"):
+            m = c["modelRuns"]
+            detail.append(f"{', '.join(m['implementations'])} run against the model on {m['runs']} runs")
+        elif t:
+            detail.append(f"code tested on {t['cases']} cases against {t['against']}, seed {t['seed']}")
         if c is not None:
-            if c.get("codeTested"):
-                t = c["codeTested"]
-                detail.append(f"code tested on {t['cases']} cases against {t['against']}, seed {t['seed']}")
-            if c.get("modelRuns"):
-                m = c["modelRuns"]
-                detail.append(f"{', '.join(m['implementations'])} run against the model on {m['runs']} runs")
             if c["notProven"]:
                 detail.append("not proven: " + ", ".join(c["notProven"]))
             if c["failing"]:
                 detail.append(f"{len(c['failing'])} example(s) failing")
             if c.get("testFailure"):
                 detail.append("a generated case fails")
-        review = n["state"] + (f" ({', '.join(map(str, n['causes']))})" if n.get("causes") else "")
+        causes = [str(x) for x in n.get("causes", [])]
+        review = n["state"] + (f" ({', '.join(causes)})" if causes else "")
         lines.append(f"{nid} | {n['kind']} | {standing} | {review} | {'; '.join(detail)}")
-    return "\n".join(lines) + "\n", sorted(nodes)
+        cells = [nid, n["kind"], standing, c["status"] if c else "", n["state"], ",".join(causes),
+                 str(t["cases"]) if t else "", t["against"] if t else "", str(t["seed"]) if t else ""]
+        rows.append("\t".join(" ".join(x.split()) for x in cells))
+    return "\n".join(lines) + "\n", "\n".join(rows) + "\n", sorted(nodes)
 
 
-def seeds(example):
+def seeds(example, tests):
     """The seeds the reference ran with: each generated test's (as check recorded it in .frflow/tests.json), and those
     written into the example's suites."""
     lines = [f"# Seeds: {example}", "", f"FRFLOW_SEED={SEED} for every check.", "", "Generated tests (node: cases, "
              "against what, seed):"]
-    tests = json.loads((COPY / "examples" / example / ".frflow" / "tests.json").read_text())
     for nid in sorted(tests):
         r = tests[nid]["report"]
         lines.append(f"  {nid}: {r['cases']} against {r['against']}, seed {r['seed']}")
@@ -276,15 +306,26 @@ def seeds(example):
 
 
 def capture_cli(example, out):
-    """check (cold), then status, tree, show of each node and review, as text; standings, seeds and the Lean."""
+    """check --json (cold) for the standings and seeds; check (cold) as text, then status, tree, show of each node and
+    review; and the Lean."""
     cold(example)
-    write(out / "check.txt", shown(*cli(example, "check")))
-    code, checked_json, err = cli(example, "check", "--json")
+    code_json, checked_json, err = cli(example, "check", "--json")
+    try:
+        checked = json.loads(checked_json)["checked"]
+    except (ValueError, KeyError):
+        fail(f"{example}: check --json printed no report (exit {code_json})\n{err}")
+    tests_file = COPY / "examples" / example / ".frflow" / "tests.json"
+    tests = json.loads(tests_file.read_text()) if tests_file.is_file() else {}
     _, tree_json, _ = cli(example, "tree", "--json")
-    checked = json.loads(checked_json)["checked"]
-    text, ids = standings(example, checked, json.loads(tree_json))
+    text, tsv, ids = standings(example, checked, json.loads(tree_json), tests)
     write(out / "standings.txt", text)
-    write(out / "seeds.txt", seeds(example))
+    write(out / "standings.tsv", tsv)
+    write(out / "seeds.txt", seeds(example, tests))
+    cold(example)
+    code, check_text, err = cli(example, "check")
+    if code != code_json:
+        fail(f"{example}: check exits {code}, check --json exited {code_json}")
+    write(out / "check.txt", shown(code, check_text, err))
     write(out / "status.txt", shown(*cli(example, "status")))
     write(out / "tree.txt", shown(*cli(example, "tree")))
     for nid in ids:
@@ -347,15 +388,20 @@ def main(args):
     shutil.rmtree(bug_dir, ignore_errors=True)
     sbt(*[f"{e}/cliLauncher" for e in examples],
         *([f"referenceCapture/runMain frflow.reference.SeededBugs {bug_dir} {' '.join(bugs)}"] if bugs else []))
+    taken_from = source()
     for example in examples:
-        out = REF / example
+        # Captured beside the copy; reference/EXAMPLE is replaced only once the whole example is captured.
+        out = OUT / example
         shutil.rmtree(out, ignore_errors=True)
+        write(out / "SOURCE", taken_from)
         capture_cli(example, out)
         if example == "rooms":
             walkthrough(out)
         else:
             shutil.copy2(bug_dir / f"{example}.txt", out / "seeded-bugs.txt")
         cold(example)
+        shutil.rmtree(REF / example, ignore_errors=True)
+        shutil.move(out, REF / example)
 
 
 if __name__ == "__main__":

@@ -22,9 +22,8 @@ object CrmBugs:
     val kb = knowledge.implementTested(readContract)(leaks)
     Seeded("leaky read", inTable = true, "readContract implemented by (_, _) => every record, another company's too",
       "CrmSuite: an implementation that leaks another company's records is stopped by its check, on every call",
-      Stops.onCall(s"read(ann@acme, Everything), $world") {
-        val d = db(); kb.service(readContract)(reading(d)*)(ann, Search.Everything)
-      } ++
+      Stops.onCall(s"read(ann@acme, Everything), $world")(
+        kb.service(readContract)(reading(db())*)(ann, Search.Everything)) ++
         Stops.examples(kb, readContract) ++ Stops.generated(kb, readContract))
 
   private def relabel: Seeded =
@@ -41,9 +40,8 @@ object CrmBugs:
     Seeded("SQL WHERE dropped", inTable = true,
       "recordsByQuery's SQL beside storedMatching returns every record (its WHERE dropped)",
       "CrmSuite: a seeded SQL bug (the search's WHERE dropped) is stopped by the port's check; the proofs still hold",
-      Stops.onCall(s"read(ann@acme, OfKind(Deal)), $world") {
-        val d = db(); kb.service(readContract)(reading(d)*)(ann, Search.OfKind(Kind.Deal))
-      } ++
+      Stops.onCall(s"read(ann@acme, OfKind(Deal)), $world")(
+        kb.service(readContract)(reading(db())*)(ann, Search.OfKind(Kind.Deal))) ++
         Stops.generated(kb, recordsByQuery) ++ Stops.examples(kb, recordsByQuery))
 
   private def careless: Seeded =
@@ -61,13 +59,13 @@ object CrmBugs:
       "storeEdits' code beside storedAbout stores nothing: (id, t) => CrmStore(Nil, Nil, Nil)",
       "CrmSuite: a database that drops a write is seen on the call: StoreEdits reads the rows back, under the write " +
         "side too",
-      Stops.onCall(s"storeEdits(1, CrmStore(records, Nil, Nil)), $world") {
-        val d = db(); kb.service(storeEdits)(database.bind(d))(BigInt(1), CrmStore(records, Nil, Nil))
-      } ++ Stops.onCall(s"saveWrite(load(), ann@acme: Add(4, acme, Deal)), $world") {
-        val d = db()
-        val add = WriteCmd(ann, Change.Add(CrmRecord(4, acme, Kind.Deal, "New deal")))
-        kb.service(saveWrite)(database.bind(d))(d.load(), add)
-      } ++ Stops.generated(kb, storeEdits) ++ Stops.examples(kb, storeEdits))
+      Stops.onCall(s"storeEdits(1, CrmStore(records, Nil, Nil)), $world")(
+        kb.service(storeEdits)(database.bind(db()))(BigInt(1), CrmStore(records, Nil, Nil))) ++
+        Stops.onCall(s"saveWrite(load(), ann@acme: Add(4, acme, Deal)), $world") {
+          val d = db()
+          val add = WriteCmd(ann, Change.Add(CrmRecord(4, acme, Kind.Deal, "New deal")))
+          kb.service(saveWrite)(database.bind(d))(d.load(), add)
+        } ++ Stops.generated(kb, storeEdits) ++ Stops.examples(kb, storeEdits))
 
   private def limited: Seeded =
     val kb = knowledge.implementProven(recordsByQuery)(storedMatching,

@@ -1,0 +1,4 @@
+commit 6b7549569e027168e44879b7633c9e2052081ea9
+lean-toolchain leanprover/lean4:v4.35.0
+lake Lake version 5.0.0-src+eb6cafb (Lean version 4.35.0)
+FRFLOW_SEED=1
