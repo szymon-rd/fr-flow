@@ -32,7 +32,6 @@ final class PropertyTests(semantics: Semantics, t: Theory):
       found.outcome, found.hits.unreached, draw.generators)
   }
 
-
   /** What one case of a call breaks, if anything (`Judge.call`). */
   def judged(check: CallCheck, code: Impl, c: Case): Option[Broken] = Judge.call(semantics, wiring)(check, code, c)
 

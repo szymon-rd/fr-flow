@@ -2,7 +2,8 @@ package frflow.testing
 
 import frflow.*
 import frflow.eval.run.OnCode
-import frflow.testing.examples.{ExamplesFramework, Verdict, Verdicts}
+import frflow.eval.EvalError
+import frflow.testing.examples.{ExampleEvent, ExamplesFramework, Verdict, Verdicts}
 import sbt.testing.{Event, EventHandler, Logger, Status, SuiteSelector, TaskDef, TestSelector}
 import scala.collection.mutable.ListBuffer
 
@@ -33,6 +34,17 @@ class ExamplesRunnerSuite extends munit.FunSuite:
       example("a short book is picked", Shelf.minPages := BigInt(100)):
         Shelf.picks(List(Shelf.Book("Short", 10)), 1) is List(Shelf.Book("Short", 10))
     assertEquals(verdicts(wrong).map(_._2), List(Verdict.Ran(OnCode.Fails)))
+  }
+
+  test("an example the code cannot evaluate for a fault of its wiring is an error, not skipped") {
+    val unwired = new FrFlowExamples(Shelf.kb):
+      example("the length asked is not given"):
+        Shelf.picks(List(Shelf.Book("Long", 300)), 1) is List(Shelf.Book("Long", 300))
+    assertEquals(verdicts(unwired).map(_._2), List(Verdict.Threw("minPages is not given to this code")))
+    val task = TaskDef("Unwired", ExamplesFramework.Written, false, Array(SuiteSelector()))
+    val noDefine = Verdict.Ran(OnCode.NotEvaluated(EvalError.NoDefine(frflow.core.name.DefName("gone"))))
+    assertEquals(List(verdicts(unwired).head._2, noDefine).map(ExampleEvent(task, "x", _, 0).status()),
+      List(Status.Error, Status.Error))
   }
 
   test("a class that cannot be found or made is an error of the class") {

@@ -31,4 +31,5 @@ object ExampleEvent:
     case Verdict.LeanOnly(OnCode.Abstract(ds)) =>
       s"about ${ds.map(_.value).mkString(", ")}, which have no code: checked against the claims in Lean only"
     case Verdict.LeanOnly(other)               => s"no Scala value ($other): checked against the claims in Lean only"
+    case Verdict.Threw(message)                => s"its code threw: $message"
     case Verdict.NotRead(es)                   => s"not read: ${es.mkString("; ")}"
