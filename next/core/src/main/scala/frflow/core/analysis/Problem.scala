@@ -1,6 +1,7 @@
 package frflow.core.analysis
 
 import frflow.core.name.{DefName, ModelName, NodeId, SymbolName}
+import frflow.core.ty.Ty
 
 /** What keeps a theory from being checked: each case names what is wrong and where. */
 enum Problem:
@@ -32,6 +33,10 @@ enum Problem:
   case PremiseNotNeeded(id: NodeId, premise: NodeId)
   /** A program writing the store that the store's `writtenOnlyBy` does not list. */
   case WriterNotListed(model: ModelName, program: SymbolName)
+  /** An `always` whose type sits, at `at`, inside a map, a set or a function value of type `ty`: no guard reaches it
+    * there yet, so the code making or storing it could not be held to it (owner §16; `Unreached`).
+    */
+  case AlwaysNotReached(always: NodeId, ty: Ty, at: String)
   // The vocabulary
   case ReservedName(name: String)
   /** A name declared twice; a model's Lean namespace (its name capitalized) counts, so one named as its boundary's
