@@ -76,13 +76,22 @@ class ValidateSuite extends munit.FunSuite:
     assert(Premises.of(claimed.theory, NodeId("endsAfterStart")).contains(needs))
     assertEquals(fromOutside(claimed.problems), List(Problem.PremiseMissing(NodeId("endsAfterStart"), needs, None)))
     val assumed = claimed.and(always("fromTheDesk", claimed = false))
-    assertEquals(fromOutside(assumed.problems),
-      List(Problem.PremiseMissing(NodeId("endsAfterStart"), needs, Some(NodeId("fromTheDesk")))))
-    assertEquals(fromOutside(assumed.linking(assumes("endsAfterStart", "fromTheDesk")).problems), Nil)
+    // The store's contents are guarded by it too, so the program's claim rests on it as well.
+    assertEquals(fromOutside(assumed.problems), List("bookRuns", "endsAfterStart").map(id =>
+      Problem.PremiseMissing(NodeId(id), needs, Some(NodeId("fromTheDesk")))))
+    assertEquals(fromOutside(assumed.linking(assumes("endsAfterStart", "fromTheDesk"))
+      .linking(assumes("bookRuns", "fromTheDesk")).problems), Nil)
+  }
+
+  test("an assumption of always is kept where a claim of it is: by the programs storing its values (owner §21)") {
+    val kb = Store.kb.and(always("endsAfterStart", claimed = true), always("fromTheDesk", claimed = false))
+    val scope = List("endsAfterStart", "fromTheDesk").map(id => Scope.of(kb.theory, NodeId(id)))
+    assert(scope.head.nonEmpty, scope)
+    assertEquals(scope.last, scope.head)
   }
 
   test("an assumption of always listed where no check rests on it is not needed") {
     val kb = Store.kb.and(always("fromTheDesk", claimed = false), plain("unrelated"))
-      .linking(assumes("unrelated", "fromTheDesk"))
+      .linking(assumes("unrelated", "fromTheDesk")).linking(assumes("bookRuns", "fromTheDesk"))
     assertEquals(fromOutside(kb.problems), List(Problem.PremiseNotNeeded(NodeId("unrelated"), NodeId("fromTheDesk"))))
   }

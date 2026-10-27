@@ -161,9 +161,10 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
     gets a type of its own, rooms' `Request`, and what is trusted about it is an assumption of `always` on that type:
     `fromTheForm`, "The booking form sends only requests that end after they start", is
     `always[Request](r => r.start < r.end)`. `book` takes a `Request`; `asBooking` makes the `Booking` stored, and
-    `endsAfterStart`, a claim on `Booking`, is proven of it (`cover_book`). A claim of `always[T]` needing `T`s from
-    outside that no assumption speaks of is refused, naming what to say (`PremiseMissing`); one listing such an
-    assumption it does not need, `PremiseNotNeeded` (2.6; `BookSuite`).
+    `endsAfterStart`, a claim on `Booking`, is proven of it (`cover_book`). The assumption is trusted only for what
+    no covered code makes. Each check whose Lean form carries its guard lists it, rooms' two roots included; one that
+    does not is refused, naming it (`PremiseMissing`), as is a claim of `always[T]` needing `T`s from outside that no
+    assumption speaks of; one listing such an assumption it does not need, `PremiseNotNeeded` (2.6; `BookSuite`).
 
 ## The DSL: code
 

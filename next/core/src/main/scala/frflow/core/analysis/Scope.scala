@@ -1,7 +1,7 @@
 package frflow.core.analysis
 
 import frflow.core.name.{BoundaryName, NodeId, SymbolName, TypeName}
-import frflow.core.spec.{NodeKind, Range}
+import frflow.core.spec.Range
 import frflow.core.Theory
 import frflow.core.ty.Ty
 import frflow.core.vocab.{OpSig, StateModel, SymbolType}
@@ -9,12 +9,13 @@ import frflow.core.vocab.{OpSig, StateModel, SymbolType}
 /** Where a claim of `always` must hold, each Definition there keeping it (owner §16: wherever FrFlow covers the
   * code). Of `always[T](…)`: the Definitions whose result can hold a `T` (where a value is made) and the programs
   * calling a store whose state can; of `always(stored)(…)`: the programs calling the store. An assumption of
-  * `always` is about the outside: nothing here keeps it. A type holds a value of another when it names it or a type
-  * whose fields hold it.
+  * `always` is held here as a claim is: it stands only for the values no covered code makes (owner §21: an entry
+  * Definition's inputs, the values provided where the code runs), so the code that makes or stores its values keeps
+  * it (`made_`, `cover_`). A type holds a value of another when it names it or a type whose fields hold it.
   */
 object Scope:
   def of(t: Theory, always: NodeId): List[SymbolName] =
-    t.node(always).filter(_.statement.kind == NodeKind.Claim).flatMap(_.statement.range).collect {
+    t.node(always).flatMap(_.statement.range).collect {
       case r @ (Range.Made(_) | Range.Reached(_)) =>
         val boundaries = models(t, r).map(_.boundary).toSet
         val ops = t.vocabulary.symbols.map(_.name).filter(Constrained.isFunction(t, _))

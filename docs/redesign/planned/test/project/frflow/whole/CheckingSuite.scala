@@ -18,7 +18,8 @@ class CheckingSuite extends munit.FunSuite:
       "proven of book's program, bookIfGranted",
       "assumed by the code calling book",
       "rests on the store behaving as stored: storeModel",
-      "rests on one run at a time on stored: oneAtATime"))
+      "rests on one run at a time on stored: oneAtATime",
+      "rests on what each Request from outside meets: fromTheForm"))
   }
 
   test("the calendar's claim: tested against granted's Scala, consistent by its witness") {
@@ -35,11 +36,17 @@ class CheckingSuite extends munit.FunSuite:
       "rests on one run at a time on stored: oneAtATime",
       "rests on the state stored starts in: startsEmpty",
       "rests on who writes stored: onlyBookingWrites",
+      "rests on what each Request from outside meets: fromTheForm",
       "consistent with neverOverlap: witnessed, for Lean to check"))
-    assertEquals(checking("endsAfterStart").take(2), List(
+    assertEquals(checking("endsAfterStart"), List(
       "met where a Booking is made (book, stored's inRoom); assumed of every Booking in Lean",
-      "rests on what each Request from outside meets: fromTheForm"))
-    assertEquals(checking("endsAfterStart").last, "not vacuous: some Booking meets it")
+      "rests on the store behaving as stored: storeModel",
+      "rests on one run at a time on stored: oneAtATime",
+      "rests on the state stored starts in: startsEmpty",
+      "rests on who writes stored: onlyBookingWrites",
+      "rests on what each Request from outside meets: fromTheForm",
+      "consistent with endsAfterStart: witnessed, for Lean to check",
+      "not vacuous: some Booking meets it"))
   }
 
   test("an assumption about the outside says so") {

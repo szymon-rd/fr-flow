@@ -59,7 +59,7 @@ reproduce; where output differs, the difference is listed and judged. The owner 
 
 ### 1.4 What is already shown
 
-- The planned code (449 main files, 10,380 lines; 57 test files, 148 tests) compiles from clean with
+- The planned code (449 main files, 10,396 lines; 57 test files, 149 tests) compiles from clean with
   `-Werror -Wunused:all -Wnonunit-statement -Wvalue-discard`, and every test passes. 40 `???` in 31 files stand for
   ports of today's code, each assigned a step of the plan, its parts written and tested.
 - `budget.py`: no file over 200 lines, no line over 120 columns, no parameter list over four, one type per file.
@@ -196,7 +196,7 @@ val endsAfterStart = Node.claim("Every booking ends after it starts.")(always[Bo
   .assuming(fromTheForm, storeModel, oneAtATime, startsEmpty, onlyBookingWrites)
 
 val neverOverlap = Node.claim("The bookings held never overlap.")(always(stored)(held => held.pairwise(apart)))
-  .assuming(storeModel, oneAtATime, startsEmpty, onlyBookingWrites)
+  .assuming(storeModel, oneAtATime, startsEmpty, onlyBookingWrites, fromTheForm)
 ```
 
 Checked before production only:
@@ -280,10 +280,10 @@ val fromTheForm = Node.assumption("The booking form sends only requests that end
 
 Checked: which facts a check rests on is derived (`Premises`), only to check the `.assuming` list the source writes. A
 claim about a program's runs on a store rests on `behavesAs` and `changedOneRunAtATime`; an `always(stored)` also on
-`initially` and `writtenOnlyBy`; an `always[T]` on what values from outside meet (below) and on the facts of each
-store holding or making one. A missing fact is refused, naming it and the assumption that says it
-(`PremiseMissing(id, needs, by)`), as is one not needed (`PremiseNotNeeded`) and an unlisted writer
-(`WriterNotListed`). Atomicity is assumed this way (owner §17); asynchrony is future work.
+`initially` and `writtenOnlyBy`; an `always[T]` on the facts of each store holding or making one; and any check on what
+values from outside meet, where its Lean form carries it (below). A missing fact is refused, naming it and the
+assumption that says it (`PremiseMissing(id, needs, by)`), as is one not needed (`PremiseNotNeeded`) and an unlisted
+writer (`WriterNotListed`). Atomicity is assumed this way (owner §17); asynchrony is future work.
 
 **Values from outside** (owner §21). Statements are about values, never about a function's inputs. What comes from
 outside has a type of its own, and what is trusted about it is an assumption of `always` on that type: rooms' booking
@@ -293,15 +293,20 @@ rule:
 - An assumption of `always[T]` says what the values of `T` from outside meet: those no covered code makes, the inputs
   of the entry Definitions (those whose code no covered code calls) and the values provided where the code runs. Lean
   takes it as a hypothesis on every `T` a statement is about, as it takes a claim of `always`.
-- It never stands for what the code makes. Every value covered code makes of a type a claim of `always` is about is
-  still held to `made_<maker>` and `cover_<op>`, proven from the code's inputs and their hypotheses; so an assumption
-  cannot hide a bug in the code. Rooms' `endsAfterStart`, a claim on `Booking`, is proven of every booking `book`
-  stores (`cover_book`), each made from a request by `asBooking`, under `fromTheForm`.
-- A claim of `always[T]` rests on what values from outside meet (`Premise.FromOutside(U)`) for each type `U` its proof
-  needs from outside: `T` itself when an entry Definition's input or a provided value can hold a `T`, since no covered
-  code makes those; and the type of each input from outside of the Definitions it must hold in, when an assumption of
-  `always` on that type exists, since the code makes its `T`s from them. A claim needing values of a type from outside
-  that no assumption speaks of is refused, `PremiseMissing(id, FromOutside(T), None)`, and what to say is
+- It stands for nothing else. Every value covered code makes or stores, of a type any `always` is about, claimed or
+  assumed, is held to `made_<maker>` and `cover_<op>`, proven from the code's inputs and their hypotheses; so an
+  assumption cannot hide a bug in the code. Rooms' `endsAfterStart`, a claim on `Booking`, is proven of every booking
+  `book` stores (`cover_book`), each made from a request by `asBooking`, under `fromTheForm`. Were the rule assumed of
+  `Booking` instead, `book` would owe the same `cover_book`, and code building a booking end first fails it
+  (`AlwaysSuite`).
+- A check rests on what values of `U` from outside meet (`Premise.FromOutside(U)`) for each assumption of `always[U]`
+  whose guard its Lean form or its obligations carry: on a variable it binds, on a world's store it reads, or on the
+  inputs of the makers and programs its `made_` and `cover_` are asked of (`Guards.applies`, `Scope.holds`, as Lean's
+  guards are placed). Rooms' two roots bind a `Request`, and `book`'s runs on one keep the two rules, so all four
+  list `fromTheForm`; a root about `book` without it is refused,
+  `PremiseMissing(id, FromOutside(Request), Some(fromTheForm))`.
+- A claim of `always[T]` whose `T`s can come from outside (an entry Definition's input or a provided value can hold one)
+  with no assumption on `T` is refused, `PremiseMissing(id, FromOutside(T), None)`, and what to say is
   `Node.assumption("…")(always[T](x => …))`; listing such an assumption where the check does not rest on it is
   `PremiseNotNeeded`.
 
@@ -519,12 +524,12 @@ val bookWhenFree = Node.claim("A request is booked exactly when its room is free
     val held = stored.in(before)
     book(request).from(before) { (_, after) =>
       stored.in(after) === when(isFree(held, asBooking(request)))(held :+ asBooking(request)).otherwise(held) }))
-  .assuming(storeModel, oneAtATime)
+  .assuming(storeModel, oneAtATime, fromTheForm)
 
 val answersWhetherBooked = Node.claim("Booking answers whether the request was booked.")(
   forall((request: Term[Request], before: Term[World]) =>
     book(request).from(before) { (booked, after) => booked === (stored.in(after) =!= stored.in(before)) }))
-  .assuming(storeModel, oneAtATime)
+  .assuming(storeModel, oneAtATime, fromTheForm)
 ```
 
 Each is one equation over a request and the store: the booking stored is the one the request asks for,
@@ -597,6 +602,7 @@ bookWhenFree          proven of book's program, bookIfGranted
                       assumed by the code calling book
                       rests on the store behaving as stored: storeModel
                       rests on one run at a time on stored: oneAtATime
+                      rests on what each Request from outside meets: fromTheForm
 grantWhenNoOverlap    tested against granted's Scala on generated cases
                       assumed by the code calling granted
                       consistent with grantWhenNoOverlap: witnessed, for Lean to check
@@ -811,8 +817,9 @@ wrong: the graph (`DuplicateId`, `NoRoot`, `AboveItself`, `ParentOutside`, `Desi
 `DeclarationInCode`, `CodeWithoutClaim`, `PartNotCalled`).
 
 `Resolve(v: Valid): Resolved` computes once what each node uses, calls and rests on (`Callees`, `reliesOn`). `Scope`
-derives where an `always` applies: the Definitions and store programs whose values can hold a `T` (read off `Ty`), its
-makers, and the programs writing a store. Nothing is exempt: a claim mentions only what it constrains.
+derives where an `always`, claimed or assumed, applies: the Definitions and store programs whose values can hold a `T`
+(read off `Ty`), its makers, and the programs writing a store. Nothing is exempt: a claim mentions only what it
+constrains.
 
 ### 4.7 Obligations derived from formulas
 
@@ -918,7 +925,7 @@ the first nine; `cli`, `web` and `agent` keep their structure and are rebuilt on
 outward: only the shell depends on `wire`. Front ends see `api.view` and `api.node` values only. Production code
 depends on `eval` (and through it `dsl`, `core`) and never on Lean, the ledger, the tests or the CLI.
 
-Planned so far (files / lines): `core` 145 / 3,117, `dsl` 69 / 2,178, `proof` 79 / 2,058, `eval` 26 / 719, `testing`
+Planned so far (files / lines): `core` 145 / 3,133, `dsl` 69 / 2,178, `proof` 79 / 2,058, `eval` 26 / 719, `testing`
 22 / 428, `decision` 42 / 694, `wire` 14 / 184, `project` 25 / 621, `api` 27 / 381. With the ports written and `cli`,
 `web` and `agent` rebuilt, the projection is about 13,700 lines in about 570 files, against today's 12,008 in 347:
 about 12% more, consistency and vacuity among it, in smaller files, with no type over six fields.

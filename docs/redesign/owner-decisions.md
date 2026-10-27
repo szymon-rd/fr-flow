@@ -202,3 +202,5 @@ odd one out." `outside.calls(d)` / `d.calledOnlyWith(…)` are removed. What com
 what is trusted about it is an assumption with `always` on that type; what the code makes from it is proven. In rooms:
 `Request` (what the booking form sends) with `always[Request](r => r.start < r.end)` as an assumption, `Booking`
 (what is stored) with `always[Booking](b => b.start < b.end)` as a claim, proven from it; `book` takes a `Request`.
+Today's library and the rooms example follow now, not at step 11: a separate change removes `calledOnlyWith` there
+and gives rooms its `Request` and `fromTheForm`.
