@@ -195,3 +195,10 @@ says so in one sentence where `always` first appears. No third quantifier word.
 
 ## 20. The architecture is approved; the rebuild starts (owner)
 The owner approved this design and asked for the rebuild (section 9 of `ARCHITECTURE.md`) to start, done by agents.
+
+## 21. Statements are about values only; no assumptions on a function's inputs (owner)
+The owner: "The idea of governing input of a function is weird. We make claims on the value so far, params are the
+odd one out." `outside.calls(d)` / `d.calledOnlyWith(…)` are removed. What comes from outside gets its own type, and
+what is trusted about it is an assumption with `always` on that type; what the code makes from it is proven. In rooms:
+`Request` (what the booking form sends) with `always[Request](r => r.start < r.end)` as an assumption, `Booking`
+(what is stored) with `always[Booking](b => b.start < b.end)` as a claim, proven from it; `book` takes a `Request`.
