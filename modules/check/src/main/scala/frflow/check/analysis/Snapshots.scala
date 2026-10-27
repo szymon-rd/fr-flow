@@ -48,8 +48,10 @@ object Snapshots:
       // The root met by doing nothing: it says only what must not happen (see the ledger's `Proofs.unproven`).
       idle = Option.when(kb.isRoot(n))(a.idleOf(n)).flatten,
       status = Option.when(kb.isStatement(n))(check.orElse(a.checks.get(id).filter(_.hash == a.checkHash(n))).fold(CheckStatus.Unchecked)(_.status)),
-      // A claim nothing below proves: no parts, no code, not an `always` (proven kept by the code that writes it).
-      leaf = n.kind == NodeKind.Claim && kb.parts(n).isEmpty && !n.isAlways && kb.implementation(n).isEmpty,
+      // A claim nothing below proves: no parts, no code, not an `always` (proven kept by the code that writes it), and
+      // not what a Declaration is (shown consistent with the rest instead).
+      leaf = n.kind == NodeKind.Claim && kb.parts(n).isEmpty && !n.isAlways && kb.implementation(n).isEmpty &&
+        !g.refinement.isMeaning(n),
       examples = examples, code = a.code(n), split = a.split(n),
       invariants = n.kept.map(kept(a, n, _)),
       expectations = n.expected.zipWithIndex.map { case ((st, l), i) => outcome(Expect(i)).pipe(o => Expectation(st, l.source, o.status, o.detail)) },

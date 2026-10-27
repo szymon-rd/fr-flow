@@ -13,7 +13,11 @@ import frflow.protocol.snapshot.Consistency
   * theorem judged (any of an item's theorems shows it).
   */
 object Consistent:
-  def hash(a: Analysis): Hash = Hash(Sha.parts(a.generate.witnessing.file, analysis.CheckHash.CheckerVersion.toString))
+  def hash(a: Analysis): Hash =
+    val g = a.generate
+    // The statements it is about as Lean states them too: their modules (and what those import) may change alone.
+    val specs = g.witnessing.asked.flatMap(_.about).distinctBy(_.id).filter(g.formal).map(g.spec)
+    Hash(Sha.parts(((g.witnessing.file :: specs) :+ analysis.CheckHash.CheckerVersion.toString)*))
 
   /** The recorded check, if still current. */
   def current(a: Analysis): Option[Consistency] = a.inputs.consistency.filter(_.hash == hash(a))

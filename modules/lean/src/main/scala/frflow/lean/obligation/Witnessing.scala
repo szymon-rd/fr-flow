@@ -44,21 +44,25 @@ final class Witnessing(kb: FrModel, refinement: Refinement, layout: Layout, voca
   // vacuous below), grouped by the open terms they share.
   private def bottom: List[Node[?]] = kb.nodes.filter(n => formal(n) && !n.isAlways && leafy(n))
 
+  // The open terms of a statement; of one saying what a Declaration is, those of the proven code standing for the
+  // Definitions it mentions (`claim`), so it is grouped with what says what that code's open terms are.
+  private def opensOf(n: Node[?]): Ctx = if isMeaning(n) then claim(n)._2 else claimCtx(n)
+
   private def groups: List[List[Node[?]]] =
     bottom.foldLeft(List.empty[List[Node[?]]]) { (gs, n) =>
-      val terms = claimCtx(n).names.toSet
-      val (joined, apart) = gs.partition(g => g.exists(m => claimCtx(m).names.exists(terms)))
+      val terms = opensOf(n).names.toSet
+      val (joined, apart) = gs.partition(g => g.exists(m => opensOf(m).names.exists(terms)))
       apart :+ (joined.flatten :+ n)
     }
 
   private def together: List[Asked] = groups.map { g =>
-    val opens = Ctx.all(g.map(claimCtx))
+    val opens = Ctx.all(g.map(opensOf))
     val claims = g.map(claim(_)._1).mkString(" ∧ ")
     val name = s"together_${g.head.id}"
     if opens.opaques.nonEmpty then
       Asked(Kind.Together, g, Nil, "", Some(s"they leave the types ${opens.opaques.mkString(", ")} open: define them"))
     else
-      val found = opens.params.map(p => p -> witness(p, g))
+      val found = solve(opens.params, g)
       val missing = found.collect { case (p, None) => why(p) }
       val ws = found.collect { case (p, Some(w)) => p -> w }
       val statement = if opens.params.isEmpty then claims else s"∃ ${binders(opens)}, $claims"
@@ -70,18 +74,48 @@ final class Witnessing(kb: FrModel, refinement: Refinement, layout: Layout, voca
         Option.when(missing.nonEmpty)(missing.mkString("; ")))
   }
 
-  /** What an open term is in a witness: what an equation of a statement in the group gives it, or its proven code. */
-  private def witness(p: String, group: List[Node[?]]): Option[(String, String)] =
+  /** The open terms' witnesses, solved in substitution order: one is found once what it mentions is. */
+  private def solve(ps: List[String], group: List[Node[?]]): List[(String, Option[(String, String)])] =
+    @annotation.tailrec
+    def go(solved: Map[String, (String, String)]): Map[String, (String, String)] =
+      val more = ps.filterNot(solved.contains).flatMap(p => witness(p, group, solved).map(p -> _))
+      if more.isEmpty then solved else go(solved ++ more)
+    val solved = go(Map.empty)
+    ps.map(p => p -> solved.get(p))
+
+  /** What an open term is in a witness: what an equation of a statement in the group gives it, or its proven code;
+    * either may mention terms already solved, and Definitions with proven code, which stand in for them.
+    */
+  private def witness(p: String, group: List[Node[?]], solved: Map[String, (String, String)])
+      : Option[(String, String)] =
     val equation = for
       n <- group.find(n => n.op.exists(_.name == p))
       post <- n.post if !n.isFlow
       (bs, e) <- Equations.answerOf(post)
       lifted = Lifted(() => (bs, Term(e, Equations.resultType(n))), null, "")
-      if ctx(lifted).isEmpty
-    yield (resolve(lifted.lean), s"${n.id} says")
-    val code = kb.onOp.getOrElse(p, Nil).flatMap(provenImpl).headOption.filter(d => defCtx(d).isEmpty)
-      .map(d => (s"$K.${d.name}", s"its proven code, ${d.name}"))
-    equation.orElse(code).orElse(value(p))
+      text <- closed(resolve(lifted.lean), ctx(lifted), solved)
+    yield (text, s"${n.id} says")
+    // An equation of a claim on no one operation (it relates a Declaration to code applied to the same inputs).
+    val stated = (for
+      n <- group.filter(_.op.isEmpty)
+      f <- n.formula.toList
+      (bs, e) <- Equations.definingOf(f, p).toList
+      param <- kb.params.find(_.name == p).toList
+      lifted = Lifted(() => (bs, Term(e, Equations.returnType(param))), null, "")
+      text <- closed(resolve(lifted.lean), ctx(lifted), solved).toList
+    yield (text, s"${n.id} says")).headOption
+    val code = kb.onOp.getOrElse(p, Nil).flatMap(provenImpl).headOption
+      .flatMap(d => closed(refinement.code(d)._1, defCtx(d), solved).map(_ -> s"its proven code, ${d.name}"))
+    equation.orElse(stated).orElse(code).orElse(value(p))
+
+  /** `text`, whose open terms are `c`'s, with each one's witness or proven code put in: none while one has neither. */
+  private def closed(text: String, c: Ctx, solved: Map[String, (String, String)]): Option[String] =
+    if c.opaques.nonEmpty then None
+    else c.params.foldLeft(Option(text)) { (t, q) =>
+      val by = solved.get(q).map(_._1).orElse(codeEnv.get(q).flatMap((code, cc) => closed(code, cc, solved)))
+      for { t <- t; w <- by } yield s"(?<![\\w.'])${java.util.regex.Pattern.quote(q)}(?![\\w'])".r
+        .replaceAllIn(t, scala.util.matching.Regex.quoteReplacement(s"($w)"))
+    }
 
   /** A value of a term no statement is about (the data a system is given, `grants`): one the tests draw. */
   private def value(p: String): Option[(String, String)] =

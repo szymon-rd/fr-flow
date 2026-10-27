@@ -16,7 +16,7 @@ final class NodeModules(kb: FrModel, layout: Layout, refinement: Refinement, voc
 
   private def vocabularyOf(n: Node[?]): List[LeanModule] =
     val ls = n.referenced ++ formalKeeps(n).flatMap(_._1.rule)
-    val code = provenImpl(n).toList ++ kb.invariantsUsedBy(n).flatMap(_.holds) ++ n.holds ++
+    val code = provenImpl(n).toList ++ mentionedCode(n) ++ kb.invariantsUsedBy(n).flatMap(_.holds) ++ n.holds ++
       kb.writers(n).flatMap(provenImpl) ++ kb.premisesOf(n).flatMap(_.initially) ++ worldRuleDefs(n)
     vocabularyModules.boundariesFor(ls ++ code.map(_.lifted)) ++
       vocabularyModules.modulesFor(ls.flatMap(_.defs) ++ code, ls.flatMap(ctx(_).names) ++ code.flatMap(defCtx(_).names) ++ n.op.map(_.name))
@@ -89,7 +89,8 @@ final class NodeModules(kb: FrModel, layout: Layout, refinement: Refinement, voc
   def spec(n: Node[?]): String =
     val promised = kb.writers(n).flatMap(calls)
     val uses = (layout.types :: vocabularyOf(n) ++
-      (kb.parts(n).filter(formal) ++ callees(n) ++ keepers(n).map(_._1) ++ promised).map(c => layout.spec(c.id)))
+      (kb.parts(n).filter(formal).filterNot(Refinement.isRule) ++ callees(n) ++ keepers(n).map(_._1) ++ promised)
+        .map(c => layout.spec(c.id)))
       .distinct
     val expected = n.expected.zipWithIndex.map { case ((_, l), i) => lifted(s"expected_$i", l) }
     val obls = (obligations.obligations(n) ++ tries(n).map(_.obligation)).map { o =>
@@ -195,7 +196,10 @@ final class NodeModules(kb: FrModel, layout: Layout, refinement: Refinement, voc
     val proof = s"by\n${introduce(intro)}  exact ${qualified(r, Holds)} ${named(holdsOpens(r), codeEnv)} " +
       leaves(r).map(l => s"(h_${l.id} := ${proofIn(l)})").mkString(" ")
     val uses = (layout.theorems(r.id) :: implemented.map((n, _) => layout.impl(n.id))).distinct
-    val from = if trusted.isEmpty then "nothing" else trusted.map(_.id).mkString(", ")
+    val trusting = trusted.filterNot(isMeaning)
+    val meanings = trusted.filter(isMeaning)
+    val from = (if trusting.isEmpty then "nothing" else trusting.map(_.id).mkString(", ")) +
+      (if meanings.isEmpty then "" else s"; given what its Declarations are: ${meanings.map(_.id).mkString(", ")}")
     (statement, module(uses, s"$K.${r.id}.RootImpl",
       s"/-- The root holds of the code, from what is trusted: $from. -/\n" +
       s"theorem root_impl : $statement :=\n  $proof\n\n#print axioms $K.${r.id}.RootImpl.root_impl\n\n"))

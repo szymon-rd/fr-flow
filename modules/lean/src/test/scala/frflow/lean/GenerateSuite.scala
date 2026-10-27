@@ -122,3 +122,42 @@ class GenerateSuite extends munit.FunSuite:
     assert(!g.witnessed(unrefined))
     assert(!g.witnessed(onlyGood)) // one of its parts has no witness, though the others have proven code
   }
+
+  test("a root over Declarations: each said in the code's words, at the bottom; what always holds of a store, of a world") {
+    import Concepts.*
+    val level = Declaration[World => BigInt]("how far the count has come, as the world stands")
+    val levelAfter = Declaration[(BigInt, World) => BigInt]("how far the count has come once a request is added")
+    val levelGrows: Node[?] = Node.claim("The level grows by each request's step.")(
+      forall((x: Term[BigInt], now: Term[World]) => levelAfter(x, now) === level(now) + step(x)))
+    val levelIsCount = Node.claim("The level is the count.")(
+      forall((now: Term[World]) => level(now) === counted.in(now))).refines(levelGrows)
+    val levelAfterIsCount = Node.claim("The level once a request is added is the count after adding it.")(
+      forall((x: Term[BigInt], now: Term[World]) => levelAfter(x, now) === counted.in(add(x).after(now))))
+      .refines(levelGrows)
+    val counts = Node.claim("Adding a request adds its step to the count.")(
+      forall((x: Term[BigInt], before: Term[World]) => counted.in(add(x).after(before)) === counted.in(before) + step(x)))
+      .refines(levelGrows).assuming(model)
+    val sized = Node.claim("A step adds one more than the request's size.")(
+      forall((x: Term[BigInt]) => step(x) === when(x >= BigInt(0))(x + 1).otherwise(-x + 1))).refines(counts)
+    val positive = Node.claim("The count is never negative.")(always(counted)(c => c >= BigInt(0)))
+      .refines(levelGrows).assuming(writes, oneAtATime, startsAtNothing)
+    val kb = FrModel("Levels")(levelGrows, levelIsCount, levelAfterIsCount, counts, sized, positive, model, writes,
+      oneAtATime, startsAtNothing).implementProven(add)(adding).implementTested(step)(x => x.abs + 1)
+    assertEquals(kb.problems, Nil)
+    assertEquals(kb.roots.map(_.id), List("LevelGrows"))
+    val g = Generate(kb)
+    // a world quantified over holds what always holds of the store, as a flow's world before does
+    assert(g.spec(levelIsCount).contains("(x0 : World), (Levels.positive x0.counter) → "), g.spec(levelIsCount))
+    // the step: what the Declarations are says it of the proven code; the always claim is a hypothesis, not a part
+    val split = g.obligation(levelGrows, ObligationName.Complete).get.statement
+    assert(split.contains("(h_LevelAfterIsCount : (Levels.LevelAfterIsCount.claim levelAfter (Levels.adding_run step)))") &&
+      split.contains("(h_Counts : (Levels.Counts.claim step (Levels.adding_run step)))") && !split.contains("h_Positive"), split)
+    assert(g.spec(levelAfterIsCount).contains("import FrFlowGen.Levels.Domain.Def_adding_run"), g.spec(levelAfterIsCount))
+    // what a Declaration is, nothing implements: not trusted of the code, and witnessed by the consistency check
+    assertEquals(g.trusted.map(_.id), List("Sized"))
+    assert(g.witnessed(levelGrows))
+    // each found in substitution order: the step's equation, then the proven code mentioning it, then the Declarations
+    val consistency = g.witnessing.file
+    assert(consistency.contains("level as LevelIsCount says") && consistency.contains("levelAfter as LevelAfterIsCount says"),
+      consistency)
+  }
