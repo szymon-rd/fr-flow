@@ -220,3 +220,19 @@ sentence where it first appears (§19).
 The owner: "Call it FrModel." The object that lists a project's statements and attaches code to its Definitions is
 `FrModel` (`val rooms = FrModel("Rooms")(…)`), in today's library and in the rebuild; text that said "knowledge base"
 says "FrModel". The README calls the domain types "the domain", not "the words".
+
+## 25. Rooms keeps one type, `Booking` (owner)
+The owner asked: "Can't a Booking be a Request? (So only Booking is kept)", and decided: "Use one type.", for the
+README's simplicity. In rooms, `Request`, `asBooking` and `asRequest` are gone: a `Booking` is what the booking form
+sends and what the table stores, and `book` takes one. What the form sends is the assumption
+`always[Booking](b => b.start < b.end)` (`bookingsEndAfterStart`), which covers every booking; the claim
+`endsAfterStart` is gone. The roots now list it: the purpose holds for bookings that end after they start. The general
+rule of §21 stays. The cost: the assumption would also cover any later source of bookings. The library change it
+needed: an `always` assumption is a rule, as an `always` claim is (a hypothesis of the statements about its type, not a
+part of their step, so listing it brings no import cycle), and code storing values of its type is still proven to keep
+it (`kept_by`). Every statement proven or tested whose Lean takes the rule lists the assumption; a leaf with nothing to
+prove and no code (one tying a Declaration to the code) only carries it. In rooms seven nodes list it.
+
+## 26. `generating` is called `withGenerator` (owner)
+The owner: "Call it withGenerator." The FrModel method that gives a generator for a type is `withGenerator`
+(`.withGenerator(roomNames.describedAs("Oak or Elm"))`), in today's library, the rebuild, the examples and the docs.
