@@ -1139,8 +1139,8 @@ In order of value; none blocks a step.
   rename it or say so. Make the limit a validation message, not only a risk.
 - **Long premise lists (the owner's call).** The store's four facts recur on every claim about the store; an
   assumption could group them, if the owner agrees, still one edge and one kind.
-- **The double reading of `always`** (of a type, of a store) is the owner's to keep or split; asynchrony is out of
-  scope (owner §17).
+- **The double reading of `always`** (of a type, of a store) is kept as one word, read as "every value the covered
+  code can produce" (owner §19); asynchrony is out of scope (owner §17).
 
 ### 10.3 Compile time, measured
 
@@ -1232,6 +1232,8 @@ The decisions are in `owner-decisions.md`; the right column says where this docu
 | 16 | Scope of `always`; outside assumptions; `&&` a style guide | 2.3, 2.6 |
 | 17 | Atomicity assumed; asynchrony out of scope | 2.6 |
 | 18 | Examples as tests; consistency and vacuity | 2.8 to 2.10 |
+| 19 | One word `always` for both forms | 2.3, 10.2 |
+| 20 | The design approved; the rebuild started | 9 |
 
 ## Appendix B. Today's library, and where each problem is addressed
 

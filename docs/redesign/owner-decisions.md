@@ -187,3 +187,11 @@ later.
   list"; the rooms root already says a free room's request is booked and stored) plus two small proofs: every
   `always[T]` admits at least one value, and every claim's condition (`A` in `A implies B`) is satisfiable. Witnesses
   from generators or a search; examples may serve but are not required.
+
+## 19. One word, `always`, for both forms (owner)
+The owner chose to keep one word: `always[T](x => …)` and `always(stored)(s => …)` both read "every value that the
+code FrFlow covers can produce" (a value of `T`, a state of the store); only how each is proven differs. The README
+says so in one sentence where `always` first appears. No third quantifier word.
+
+## 20. The architecture is approved; the rebuild starts (owner)
+The owner approved this design and asked for the rebuild (section 9 of `ARCHITECTURE.md`) to start, done by agents.
