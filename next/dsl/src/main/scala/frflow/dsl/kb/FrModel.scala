@@ -17,7 +17,7 @@ final case class FrModel(name: KbName, nodes: List[Node],
   /** Elaborated once per value (a `lazy val`: the FrModel is immutable), for every check and run of it. */
   lazy val elaborated: ValidatedNec[ElabError, Elaborated] = Elaborate(this)
 
-  def generating[T](g: Gen[T])(using t: LeanType[T]): FrModel =
+  def withGenerator[T](g: Gen[T])(using t: LeanType[T]): FrModel =
     copy(generators = generators :+ Generator(t.ty, g))
   private[dsl] def attach(d: SymbolName, a: Deferred[Attachment]): FrModel =
     copy(meanings = meanings.filterNot(_._1 == d) :+ (d -> a))

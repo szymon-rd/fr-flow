@@ -84,7 +84,7 @@ class TestingSuite extends munit.FunSuite:
   }
 
   test("a given generator is said in the report, with what the developer said it makes") {
-    val narrow = kb.generating(Gen.oneOf(Book("A", 1), Book("B", 2)).describedAs("two short books"))
+    val narrow = kb.withGenerator(Gen.oneOf(Book("A", 1), Book("B", 2)).describedAs("two short books"))
     assertEquals(tested(narrow).map(_.made), Some(List(Made(LeanType[Book].ty, Some("two short books")))))
   }
 

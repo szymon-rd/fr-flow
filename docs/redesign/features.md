@@ -185,7 +185,7 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
 | `kb.service(c)(bindings*)` | `knowledge.code(d)(bindings*)` | 2 / 4 / 10 / 22 | change, note 5 |
 | `kb.run[F](contract)(bound*)` | the program called directly | crm 2, sharing 3 | change, note 6 |
 | `kb.reporting(v => …)`, `Violation`, `ContractViolation` | none | crm, keycloak servers; suites | remove (owner §2) |
-| `kb.generating(gen)`, `Gen.derived`, `.describedAs` | `example.Gen` (data) and `testing.Draw` | crm 1, sharing 12 (rooms 2) | keep |
+| `kb.withGenerator(gen)`, `Gen.derived`, `.describedAs` | `example.Gen` (data) and `testing.Draw` | crm 1, sharing 12 (rooms 2) | keep |
 | `kb.testedWith(TestSettings)` | `testing.Settings` from `project.Config` | tests only | change, note 7 |
 | `FRFLOW_SEED=fresh` | `project.Config` | CI doc | keep |
 

@@ -420,7 +420,7 @@ test pass: a changed contract is a decision you review like any other.</p>
 passes (<code>.frflow/counterexamples.json</code>).</td></tr>
 <tr><td><code>its code's tests never reached a part of the contract: &lt;part&gt;</code></td><td>No generated case made that
 premise, branch or case hold. Add an example that reaches it, or give a generator for the type that makes such
-values: <code>.generating(gen.describedAs("…"))</code>.</td></tr>
+values: <code>.withGenerator(gen.describedAs("…"))</code>.</td></tr>
 <tr><td><code>a generated run differs from the model: on &lt;Impl&gt;, from &lt;state&gt;, after &lt;calls&gt;: &lt;call&gt; returned …</code></td><td>The
 implementation of a boundary does not do what its model says after those calls. Fix the implementation, or, if
 the model is wrong, change it: a decision.</td></tr>
@@ -707,7 +707,7 @@ names what it rests on. The tests are built from what you decided:</p>
   without reaching the contract.</li>
   <li><b>Failures are shrunk</b> to their smallest, kept in <code>.frflow/counterexamples.json</code> and tried first on
   every later run.</li>
-  <li><b>Generators you give</b> (<code>.generating(…)</code>) are described beside the results, and share the
+  <li><b>Generators you give</b> (<code>.withGenerator(…)</code>) are described beside the results, and share the
   cases with the derived ones; the examples' values they never make stay seeds. For an outside system's types, they
   say what the outside can hold, and are all those values are drawn from.</li>
 </ul>

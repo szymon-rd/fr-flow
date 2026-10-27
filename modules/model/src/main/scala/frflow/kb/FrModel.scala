@@ -276,9 +276,9 @@ final class FrModel(val name: String, val idea: String = "", val implementations
     FrModel(name, idea, others :+ i, generators, testing, onViolation, written)(nodes*)
 
   /** Values of `T` for the tests of code against contracts, where the ones derived from the type rarely reach what a
-    * contract is about: `.generating(Gen.oneOf(Path("/a"), Path("/b")))`.
+    * contract is about: `.withGenerator(Gen.oneOf(Path("/a"), Path("/b")))`.
     */
-  def generating[T](g: Gen[T])(using t: LeanType[T]): FrModel =
+  def withGenerator[T](g: Gen[T])(using t: LeanType[T]): FrModel =
     FrModel(name, idea, implementations, generators :+ (t -> g), testing, onViolation, written)(nodes*)
   /** How many cases each contract's code is tested on, from which seed. */
   def testedWith(settings: TestSettings): FrModel =

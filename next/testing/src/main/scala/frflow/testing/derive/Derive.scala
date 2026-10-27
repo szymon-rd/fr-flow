@@ -13,8 +13,8 @@ import frflow.testing.{Draw, Seed}
 import frflow.testing.report
 import java.util.SplittableRandom
 
-/** The derived generators (`Gen.Derived(ty)`, what `kb.generating` does not give), and the interpreter of the rest of
-  * `Gen`. A value is drawn by its type through the vocabulary: numbers small and near the examples', short strings,
+/** The derived generators (`Gen.Derived(ty)`, what `kb.withGenerator` does not give), and the interpreter of the rest
+  * of `Gen`. A value is drawn by its type through the vocabulary: numbers small and near the examples', short strings,
   * lists fewer the deeper, each constructor of a record or an enum; a type with a generator given is drawn from it
   * three times in four; a world, each model's state meeting every `always(stored)` about it, with faults and races'
   * winners. Every value drawn, an example's among them, meets each `always[T]` of every `T` it holds (`Drawing`), so

@@ -177,7 +177,7 @@ Tests are built from what is decided:
   evaluated on each case; for a boundary, the model run beside the implementation, results and states
   (read back) compared after every call;
 - **the cases** come from generators derived from the types, the world included (the parameters the
-  contract reads), seeded with the examples' values; generators given with `.generating(gen)` are
+  contract reads), seeded with the examples' values; generators given with `.withGenerator(gen)` are
   described, checked against the examples (their values they never make stay seeds), and share
   the cases with the derived ones (for an outside system's types, they are all there is);
 - **coverage** is of the formula (each premise, disjunct, branch and match case) and of the model

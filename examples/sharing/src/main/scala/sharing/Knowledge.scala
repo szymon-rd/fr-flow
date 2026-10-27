@@ -78,18 +78,18 @@ val knowledge = FrModel("Sharing", idea = "IDEA.md")(
   .implementProven(SharingHttp.handleContract)(SharingHttp.handleRequest)
   // Names from a small vocabulary, so generated shares meet the generated people, teams, documents and folders; times
   // near the demo's moment, so what is generated ends, lapses and goes within the times generated.
-  .generating(vocabulary.people.describedAs("ann, bob, cat"))
-  .generating(vocabulary.teams.describedAs("eng, ops"))
-  .generating(vocabulary.documents.describedAs("plan, q3-report"))
-  .generating(vocabulary.folders.describedAs("reports, q3"))
-  .generating(vocabulary.times.describedAs("seconds within 40 days of the demo's moment, by hours and days"))
-  .generating(vocabulary.targets.describedAs("the vocabulary's documents and folders"))
-  .generating(vocabulary.grantees.describedAs("the vocabulary's people and teams"))
-  .generating(vocabulary.shares.describedAs("shares over the vocabulary, for good or until a time"))
-  .generating(vocabulary.invitations.describedAs("invitations over the vocabulary, sent at a time"))
-  .generating(vocabulary.accessRequests.describedAs("access requests over the vocabulary, made at a time, reminded or not"))
-  .generating(vocabulary.libraries.describedAs("libraries over the vocabulary: q3 in reports or not, documents anywhere, in the trash or not, owned by anyone, any shares, invitations and requests, a short log and outbox"))
-  .generating(vocabulary.requests.describedAs("requests over the vocabulary: questions and every kind of change"))
+  .withGenerator(vocabulary.people.describedAs("ann, bob, cat"))
+  .withGenerator(vocabulary.teams.describedAs("eng, ops"))
+  .withGenerator(vocabulary.documents.describedAs("plan, q3-report"))
+  .withGenerator(vocabulary.folders.describedAs("reports, q3"))
+  .withGenerator(vocabulary.times.describedAs("seconds within 40 days of the demo's moment, by hours and days"))
+  .withGenerator(vocabulary.targets.describedAs("the vocabulary's documents and folders"))
+  .withGenerator(vocabulary.grantees.describedAs("the vocabulary's people and teams"))
+  .withGenerator(vocabulary.shares.describedAs("shares over the vocabulary, for good or until a time"))
+  .withGenerator(vocabulary.invitations.describedAs("invitations over the vocabulary, sent at a time"))
+  .withGenerator(vocabulary.accessRequests.describedAs("access requests over the vocabulary, made at a time, reminded or not"))
+  .withGenerator(vocabulary.libraries.describedAs("libraries over the vocabulary: q3 in reports or not, documents anywhere, in the trash or not, owned by anyone, any shares, invitations and requests, a short log and outbox"))
+  .withGenerator(vocabulary.requests.describedAs("requests over the vocabulary: questions and every kind of change"))
 
 /** The names and times generated data is drawn from. */
 object vocabulary:

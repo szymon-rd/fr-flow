@@ -436,7 +436,7 @@ test pass.
 - **A coverage finding** (`its code's tests never reached a part of the
   contract: <part>`) means no generated case made that premise, branch or case
   hold. Add an example that reaches it, or give a generator for the type
-  (`.generating(gen.describedAs("…"))`) that makes such values. A generator for
+  (`.withGenerator(gen.describedAs("…"))`) that makes such values. A generator for
   an outside system's type says what the outside can hold (a table: one row per
   key). Say in the `why` or the description what the generator leaves out.
 - **For a boundary's implementation**, a failing run reads `on <Impl>, from

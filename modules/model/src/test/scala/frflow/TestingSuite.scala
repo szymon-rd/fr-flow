@@ -51,8 +51,8 @@ class TestingSuite extends munit.FunSuite:
     // Every book is long: `b.pages >= minPages implies …` never fails to hold its premise, and the other way never holds.
     val lazyGen = FrModel("Shelf", idea = "IDEA.md")((shelfNodes :+ pick)*).testedWith(few)
       .implementTested(pick)((shelf, n) => shelf.filter(_.pages >= minPages.value))
-      .generating(Gen.listOf(Gen.const(Book("Short", 1))).describedAs("only short books"))
-      .generating(Gen.const(100).describedAs("always 100"))
+      .withGenerator(Gen.listOf(Gen.const(Book("Short", 1))).describedAs("only short books"))
+      .withGenerator(Gen.const(100).describedAs("always 100"))
     val r = lazyGen.test(pick).get
     assertEquals(r.failure, None)
     // The given generators make most values; the derived one still makes a quarter, so the parts are reached.
@@ -60,7 +60,7 @@ class TestingSuite extends munit.FunSuite:
   }
 
   test("a given generator that never makes the examples' values is said; they stay seeds") {
-    val narrow = shelfKb.testedWith(few).generating(Gen.oneOf(Book("A", 1), Book("B", 2)))
+    val narrow = shelfKb.testedWith(few).withGenerator(Gen.oneOf(Book("A", 1), Book("B", 2)))
     val r = narrow.test(pick).get
     assert(r.notes.exists(n => n.contains("never come from the given generator") && n.contains("Book(\"Long\", 300)")), r.notes.mkString("; "))
   }

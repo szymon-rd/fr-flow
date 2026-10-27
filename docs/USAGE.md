@@ -224,7 +224,7 @@ contract, or where an outside system holds only some values (a table holds
 one row per key), give a generator for the type:
 
 ```scala
-.generating(
+.withGenerator(
   (for rs <- Gen.derived[List[CrmRecord]]; ss <- Gen.derived[List[Share]]; es <- Gen.derived[List[Expiry]]
   yield CrmStore(rs.distinctBy(_.id), ss.distinctBy(s => (s.record, s.to)), es.distinctBy(e => (e.record, e.to))))
     .describedAs("stores with one row per key, as the tables hold them"))   // examples/crm

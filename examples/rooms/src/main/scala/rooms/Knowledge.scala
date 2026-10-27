@@ -170,9 +170,9 @@ val rooms = FrModel("Rooms")(bookWhenFree, acceptWhenFree, bookedIsStored, booke
   grantWhenNoOverlap, tableMatchesModel, onlyBookingWrites, oneAtATime, startsEmpty, requestsEndAfterStart)
   .implementProven(book)(bookIfGranted)
   .implementTested(granted)((held, request) => Calendar(held).grants(request))
-  .generating(roomNames.describedAs("Oak or Elm"))
-  .generating(requests.describedAs("requests for Oak or Elm that end after they start"))
-  .generating(asked.describedAs("the bookings those requests ask for"))
-  .generating(roomBookings.describedAs("a room's bookings, laid end to end, some back to back"))
+  .withGenerator(roomNames.describedAs("Oak or Elm"))
+  .withGenerator(requests.describedAs("requests for Oak or Elm that end after they start"))
+  .withGenerator(asked.describedAs("the bookings those requests ask for"))
+  .withGenerator(roomBookings.describedAs("a room's bookings, laid end to end, some back to back"))
 
 object roomsCli extends frflow.cli.FrFlowApp(rooms, root = "examples/rooms")

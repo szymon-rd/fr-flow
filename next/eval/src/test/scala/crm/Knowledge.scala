@@ -28,4 +28,4 @@ val knowledge = FrModel("Crm")(sharedCrm, addedIsFound, writesLeaveOthers, compa
   .implementProven(save)(saved)
   .implementProven(expire)(expireCode)
   .implementProven(runExpiry)(expireOnce)
-  .generating(tableStores)
+  .withGenerator(tableStores)
