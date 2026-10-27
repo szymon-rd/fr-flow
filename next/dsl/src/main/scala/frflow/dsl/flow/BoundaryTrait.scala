@@ -13,7 +13,7 @@ object BoundaryTrait:
   def ops[B[_[_], _[_]]: Type](using Quotes): List[Op] =
     import quotes.reflect.*
     val traitSym = TypeRepr.of[B].typeSymbol
-    if !traitSym.flags.is(Flags.Trait) then report.errorAndAbort(s"${traitSym.name} is not a trait")
+    if !traitSym.flags.is(Flags.Trait) then report.errorAndAbort(s"FrFlow: ${traitSym.name} is not a trait")
     val applied = TypeRepr.of[B].appliedTo(List(TypeRepr.of[Recorded], TypeRepr.of[TermOf]))
     traitSym.declaredMethods.filter(_.flags.is(Flags.Deferred)).sortBy(_.pos.fold(0)(_.start))
       .map(m => op(m.name, applied.memberType(m)))
@@ -22,10 +22,10 @@ object BoundaryTrait:
     import quotes.reflect.*
     t match
       case MethodType(names, types, res) => res match
-          case _: MethodType => report.errorAndAbort(s"operation $name: one parameter list")
+          case _: MethodType => report.errorAndAbort(s"FrFlow: operation $name: one parameter list")
           case _             =>
             Op(name, names.zip(types.map(valueOf(name, _))), result(name, res), parameterless = false)
-      case _: PolyType     => report.errorAndAbort(s"operation $name: no type parameters")
+      case _: PolyType     => report.errorAndAbort(s"FrFlow: operation $name: no type parameters")
       case ByNameType(res) => Op(name, Nil, result(name, res), parameterless = true)
       case res             => Op(name, Nil, result(name, res), parameterless = true)
 
@@ -34,12 +34,16 @@ object BoundaryTrait:
     import quotes.reflect.*
     t.dealias match
       case AppliedType(c, List(a)) if c =:= TypeRepr.of[TermOf] => a.asType
-      case other => report.errorAndAbort(s"operation $op: a parameter is a T[…], not ${other.show}")
+      case other => report.errorAndAbort(s"FrFlow: operation $op: a parameter is a T[…], not ${other.show}")
 
   /** `F[T[R]]` is `R`; `F[Unit]` is none. */
   private def result(using Quotes)(op: String, t: quotes.reflect.TypeRepr): Option[Type[?]] =
     import quotes.reflect.*
+    def refused(not: String) =
+      report.errorAndAbort(s"FrFlow: operation $op: its result is an F[T[…]] or an F[Unit], not $not")
     t.dealias match
-      case AppliedType(f, List(r)) if f =:= TypeRepr.of[Recorded] =>
-        if r =:= TypeRepr.of[Unit] then None else Some(valueOf(op, r))
-      case other => report.errorAndAbort(s"operation $op: its result is an F[T[…]] or an F[Unit], not ${other.show}")
+      case AppliedType(f, List(r)) if f =:= TypeRepr.of[Recorded] => r.dealias match
+          case _ if r =:= TypeRepr.of[Unit]                                => None
+          case AppliedType(c, List(a)) if c =:= TypeRepr.of[TermOf]        => Some(a.asType)
+          case other                                                       => refused(s"an F[${other.show}]")
+      case other => refused(other.show)

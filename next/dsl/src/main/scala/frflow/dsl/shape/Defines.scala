@@ -51,6 +51,23 @@ object Defines:
       inline body: (Term[A], Term[B], Term[C]) => Recorded[Term[R]]): Definition[(A, B, C) => Program[R]] =
     recorded[(A, B, C) => Program[R], R](DefName(Source.valName), List(LeanType[A], LeanType[B], LeanType[C]),
       Source.of(body))(xs => body(Term.free(xs(0)), Term.free(xs(1)), Term.free(xs(2))))
+  inline def program[A: LeanType, B: LeanType, C: LeanType, D: LeanType, R: LeanType](
+      inline body: (Term[A], Term[B], Term[C], Term[D]) => Recorded[Term[R]]): Definition[(A, B, C, D) => Program[R]] =
+    recorded[(A, B, C, D) => Program[R], R](DefName(Source.valName),
+      List(LeanType[A], LeanType[B], LeanType[C], LeanType[D]), Source.of(body))(xs =>
+      body(Term.free(xs(0)), Term.free(xs(1)), Term.free(xs(2)), Term.free(xs(3))))
+  inline def program[A: LeanType, B: LeanType, C: LeanType, D: LeanType, E: LeanType, R: LeanType](
+      inline body: (Term[A], Term[B], Term[C], Term[D], Term[E]) => Recorded[Term[R]])
+      : Definition[(A, B, C, D, E) => Program[R]] =
+    recorded[(A, B, C, D, E) => Program[R], R](DefName(Source.valName),
+      List(LeanType[A], LeanType[B], LeanType[C], LeanType[D], LeanType[E]), Source.of(body))(xs =>
+      body(Term.free(xs(0)), Term.free(xs(1)), Term.free(xs(2)), Term.free(xs(3)), Term.free(xs(4))))
+  inline def program[A: LeanType, B: LeanType, C: LeanType, D: LeanType, E: LeanType, G: LeanType, R: LeanType](
+      inline body: (Term[A], Term[B], Term[C], Term[D], Term[E], Term[G]) => Recorded[Term[R]])
+      : Definition[(A, B, C, D, E, G) => Program[R]] =
+    recorded[(A, B, C, D, E, G) => Program[R], R](DefName(Source.valName),
+      List(LeanType[A], LeanType[B], LeanType[C], LeanType[D], LeanType[E], LeanType[G]), Source.of(body))(xs =>
+      body(Term.free(xs(0)), Term.free(xs(1)), Term.free(xs(2)), Term.free(xs(3)), Term.free(xs(4)), Term.free(xs(5))))
 
   /** A program's Definition: its steps recorded on its inputs' variables (`xs`, one per input, in order). */
   private def recorded[F: LeanType, R: LeanType](name: DefName, inputs: List[LeanType[?]], written: AsWritten)(

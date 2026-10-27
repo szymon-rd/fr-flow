@@ -10,9 +10,12 @@ import frflow.core.example.Gen
 // The tests' cases: rooms, requests, and a room's bookings laid end to end.
 val roomNames: Gen[String] = Gen.oneOf("Oak", "Elm")
 
-val requests: Gen[Booking] = for
+val requests: Gen[Request] = for
   room <- roomNames; start <- Gen.oneOf[BigInt](0, 1, 2, 3, 4, 5, 6, 7, 8); length <- Gen.oneOf[BigInt](1, 2, 3)
-yield Booking(room, start, start + length)
+yield Request(room, start, start + length)
+
+/** The bookings requests ask for: what the calendar is asked about. */
+val asked: Gen[Booking] = requests.map(r => Booking(r.room, r.start, r.end))
 
 /** `count` bookings of a room, laid end to end from `from`, each after a gap of 0 or 1. */
 def laidEndToEnd(room: String, from: BigInt, count: Int): Gen[List[Booking]] =
@@ -34,5 +37,6 @@ val rooms = KnowledgeBase("Rooms")(bookWhenFree, answerWhenFree, neverOverlap, e
   .implementProven(book)(bookIfGranted)
   .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
   .generating(roomNames.describedAs("Oak or Elm"))
-  .generating(requests.describedAs("bookings of Oak or Elm that end after they start"))
+  .generating(requests.describedAs("requests for Oak or Elm that end after they start"))
+  .generating(asked.describedAs("the bookings those requests ask for"))
   .generating(roomBookings.describedAs("a room's bookings, laid end to end, some back to back"))

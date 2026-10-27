@@ -27,4 +27,4 @@ object BoundaryInstance:
     iface.typeSymbol.declaredMethod(name) match
       case List(m) => m
       case _       =>
-        report.errorAndAbort(s"${iface.typeSymbol.name}.$name: a boundary's operations are not overloaded")
+        report.errorAndAbort(s"FrFlow: ${iface.typeSymbol.name}.$name: a boundary's operations are not overloaded")

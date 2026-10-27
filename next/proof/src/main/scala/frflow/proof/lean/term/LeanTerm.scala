@@ -12,7 +12,8 @@ import frflow.proof.lean.lower.{Atoms, LExprs, LowerEnv, LowerType, LowerValue}
   * flattened (`(Rooms.covers b t)`); a named definition called by name, its body printed once as its `def`
   * (`Printed.define`); a field of a constructor is its argument, so a match arm's case reads as its fields' names.
   */
-final class LeanTerm(env: LowerEnv, standing: Map[SymbolName, LExpr] = Map.empty) extends Sym[LeanTerm.S]:
+final class LeanTerm(env: LowerEnv, standing: Map[SymbolName, LExpr] = Map.empty) extends Sym[LeanTerm.S],
+    LeanFinite:
   import Atoms.{call, const, name}
   import LExpr.{Infix, Paren}
   private type S[A] = LeanTerm.S[A]
@@ -48,10 +49,15 @@ final class LeanTerm(env: LowerEnv, standing: Map[SymbolName, LExpr] = Map.empty
   def length[A](xs: S[List[A]]): S[BigInt] = s => LExpr.Typed(LExpr.Dot(Paren(xs(s)), "length"), name("Int"))
   def all[A](xs: S[List[A]], x: Bound[A])(p: S[A] => S[Boolean]): S[Boolean] = member(xs, x, p)(LExpr.Forall(_, _))
   def any[A](xs: S[List[A]], x: Bound[A])(p: S[A] => S[Boolean]): S[Boolean] = member(xs, x, p)(LExpr.Exists(_, _))
-  def filter[A](xs: S[List[A]], x: Bound[A])(p: S[A] => S[Boolean]): S[List[A]] = s =>
-    val (n, body) = bound(x, s, p, LExprs.identifiers(xs(s)))
-    call(const("List.filter"), List(Paren(LExpr.Fun(List(LBinder.Bare(n)), LExpr.App(name("decide"), List(body)))),
-      xs(s)))
+  def filter[A](xs: S[List[A]], x: Bound[A])(p: S[A] => S[Boolean]): S[List[A]] =
+    mapped("List.filter", xs, x, p.andThen(_.andThen(decide)))
+  def map[A, B](xs: S[List[A]], x: Bound[A])(f: S[A] => S[B]): S[List[B]] = mapped("List.map", xs, x, f)
+  def flatMap[A, B](xs: S[List[A]], x: Bound[A])(f: S[A] => S[List[B]]): S[List[B]] = mapped("List.flatMap", xs, x, f)
+  def find[A](xs: S[List[A]], x: Bound[A])(p: S[A] => S[Boolean]): S[Option[A]] =
+    mapped("List.find?", xs, x, p.andThen(_.andThen(decide)))
+  def contains[A](xs: S[List[A]], x: S[A]): S[Boolean] = infix(LOp.Mem, x, xs)
+  def zip[A, B](xs: S[List[A]], ys: S[List[B]]): S[List[(A, B)]] = s => call(const("List.zip"), List(xs(s), ys(s)))
+  def isEmpty[A](xs: S[List[A]]): S[Boolean] = infix(LOp.Eq, xs, _ => LExpr.ListLit(Nil))
   def nodup[A](xs: S[List[A]]): S[Boolean] = s => call(const("List.Nodup"), List(xs(s)))
   def pairwise[A](xs: S[List[A]], x: Bound[A], y: Bound[A])(p: (S[A], S[A]) => S[Boolean]): S[Boolean] = s =>
     val (a, inner) = s.bind(x.hint, x.ty)
@@ -69,6 +75,13 @@ final class LeanTerm(env: LowerEnv, standing: Map[SymbolName, LExpr] = Map.empty
   def foldOption[A, R](o: S[Option[A]], ifNone: S[R], x: Bound[A])(ifSome: S[A] => S[R]): S[R] = s =>
     val (n, body) = bound(x, s, ifSome)
     Paren(LExpr.Match(o(s), List(name("none") -> ifNone(s), LExpr.App(name("some"), List(LExpr.Name(n))) -> body)))
+  /** `(∀ (x : T), (o = (some x)) → p)`, as `optionAny` is `(∃ (x : T), (o = (some x)) ∧ p)`. */
+  def optionAll[A](o: S[Option[A]], x: Bound[A])(p: S[A] => S[Boolean]): S[Boolean] =
+    holding(o, x, p, LOp.Arrow)(LExpr.Forall(_, _))
+  def optionAny[A](o: S[Option[A]], x: Bound[A])(p: S[A] => S[Boolean]): S[Boolean] =
+    holding(o, x, p, LOp.And)(LExpr.Exists(_, _))
+  def isDefined[A](o: S[Option[A]]): S[Boolean] = infix(LOp.Ne, o, _ => name("none"))
+  def getOrElse[A](o: S[Option[A]], default: S[A]): S[A] = s => call(const("Option.getD"), List(o(s), default(s)))
   /** `(Except.error e : (Except E A))`: typed by the whole, which one side alone does not say. */
   def left[E, A](e: S[E], ty: Ty): S[Either[E, A]] =
     s => LExpr.Typed(LExpr.App(const("Except.error"), List(e(s))), LowerType(ty))
@@ -121,10 +134,19 @@ final class LeanTerm(env: LowerEnv, standing: Map[SymbolName, LExpr] = Map.empty
     Paren(LExpr.Match(applied(p(s), before(s)), List(failed -> body, name("_") -> name("True"))))
   def noted[A](n: Annotation, t: S[A]): S[A] = t
 
-  /** `f` applied to `a`, flattened onto a call in parentheses (`(Rooms.covers b t)`). */
-  private def applied(f: LExpr, a: LExpr): LExpr = f match
-    case Paren(LExpr.App(g, as)) => Paren(LExpr.App(g, as :+ a))
-    case g                       => call(g, List(a))
+  private def applied(f: LExpr, a: LExpr): LExpr = LeanTerm.applied(f, a)
+  private def decide(body: LExpr): LExpr = LExpr.App(name("decide"), List(body))
+
+  /** `(List.map (fun x => body) xs)`: a list operation of a function of each element. */
+  private def mapped[A, B](op: String, xs: S[List[A]], x: Bound[A], f: S[A] => S[B]): S[List[B]] = s =>
+    val (n, body) = bound(x, s, f, LExprs.identifiers(xs(s)))
+    call(const(op), List(Paren(LExpr.Fun(List(LBinder.Bare(n)), body)), xs(s)))
+
+  private def holding[A](o: S[Option[A]], x: Bound[A], p: S[A] => S[Boolean], op: LOp)(
+      make: (List[LBinder], LExpr) => LExpr): S[Boolean] = s =>
+    val (n, body) = bound(x, s, p, LExprs.identifiers(o(s)))
+    val some = Paren(Infix(LOp.Eq, o(s), call(name("some"), List(LExpr.Name(n)))))
+    Paren(make(List(typed(n, x.ty)), Infix(op, some, body)))
 
   private def outcome[O](o: Bound[O], w: Bound[World], post: (S[O], S[World]) => S[Boolean], s: Scope)
       : (LeanName, LeanName, LExpr) =
@@ -163,3 +185,8 @@ final class LeanTerm(env: LowerEnv, standing: Map[SymbolName, LExpr] = Map.empty
 
 object LeanTerm:
   type S[A] = Scope => LExpr
+
+  /** `f` applied to `a`, flattened onto a call in parentheses (`(Rooms.covers b t)`). */
+  private[term] def applied(f: LExpr, a: LExpr): LExpr = f match
+    case LExpr.Paren(LExpr.App(g, as)) => LExpr.Paren(LExpr.App(g, as :+ a))
+    case g                             => Atoms.call(g, List(a))

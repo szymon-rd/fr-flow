@@ -92,7 +92,7 @@ object Guards:
   /** Component `i` of a tuple of `n`, as Lean projects it from its nested pairs (`p.1`, `p.2.1`, `p.2.2`). */
   private def component(n: Int, i: Int, ty: Ty): Selector[Any, Any] =
     val path = List.fill(i)("2") ++ Option.when(i < n - 1)("1")
-    Selector[Any, Any](path.mkString("."), i, TypeName("Prod"), ty, _ => leanOnly, (_, _) => leanOnly)
+    Selector[Any, Any](path.mkString("."), i, Selector.pair, ty, _ => leanOnly, (_, _) => leanOnly)
 
   private def leanOnly: Nothing = throw IllegalStateException("FrFlow bug: a guard read in Scala (Made checks it)")
 

@@ -27,6 +27,8 @@ class PrinterLeanSuite extends munit.FunSuite:
   private val symbols: List[LBinder] = List(x("p", LowerType.binder(Terms.fnTy)), x("k", int),
     x("xs", LowerType(frflow.core.ty.Ty.ListOf(frflow.core.Lang.big))),
     x("o", LowerType(frflow.core.ty.Ty.OptionOf(frflow.core.Lang.big))), x("slot", LowerType(Booking.ty)),
+    x("s", LowerType(frflow.core.ty.Ty.SetOf(frflow.core.Lang.big))),
+    x("m", LowerType(frflow.core.ty.Ty.MapOf(frflow.core.Lang.big, frflow.core.Lang.big))),
     x("ev", LowerType(MoreTerms.eventTy)), x("outcome", LowerType(MoreTerms.outcomeTy)),
     x("run", LowerType.binder(MoreTerms.runTy)), x("attempt", LExpr.Infix(LOp.Arrow, int, LExpr.Infix(LOp.Arrow,
       LExpr.Name(n("World")), LExpr.Paren(LExpr.Infix(LOp.Times, LExpr.App(LExpr.Name(n("Except")),

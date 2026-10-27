@@ -40,10 +40,30 @@ trait Forward[T[_], U[_]] extends Sym[U]:
     fwd(base.pairwise(bwd(xs), x, y)((a, b) => bwd(p(fwd(a), fwd(b)))))
   def foldLeft[A, B](xs: U[List[A]], z: U[B], acc: Bound[B], x: Bound[A])(f: (U[B], U[A]) => U[B]): U[B] =
     fwd(base.foldLeft(bwd(xs), bwd(z), acc, x)((b, a) => bwd(f(fwd(b), fwd(a)))))
+  def map[A, B](xs: U[List[A]], x: Bound[A])(f: U[A] => U[B]): U[List[B]] = fwd(base.map(bwd(xs), x)(body(f)))
+  def flatMap[A, B](xs: U[List[A]], x: Bound[A])(f: U[A] => U[List[B]]): U[List[B]] =
+    fwd(base.flatMap(bwd(xs), x)(body(f)))
+  def find[A](xs: U[List[A]], x: Bound[A])(p: U[A] => U[Boolean]): U[Option[A]] = fwd(base.find(bwd(xs), x)(body(p)))
+  def contains[A](xs: U[List[A]], x: U[A]): U[Boolean] = fwd(base.contains(bwd(xs), bwd(x)))
+  def zip[A, B](xs: U[List[A]], ys: U[List[B]]): U[List[(A, B)]] = fwd(base.zip(bwd(xs), bwd(ys)))
+  def isEmpty[A](xs: U[List[A]]): U[Boolean] = fwd(base.isEmpty(bwd(xs)))
   def some[A](a: U[A]): U[Option[A]] = fwd(base.some(bwd(a)))
   def none[A](elem: Ty): U[Option[A]] = fwd(base.none(elem))
   def foldOption[A, R](o: U[Option[A]], ifNone: U[R], x: Bound[A])(ifSome: U[A] => U[R]): U[R] =
     fwd(base.foldOption(bwd(o), bwd(ifNone), x)(body(ifSome)))
+  def optionAll[A](o: U[Option[A]], x: Bound[A])(p: U[A] => U[Boolean]): U[Boolean] =
+    fwd(base.optionAll(bwd(o), x)(body(p)))
+  def optionAny[A](o: U[Option[A]], x: Bound[A])(p: U[A] => U[Boolean]): U[Boolean] =
+    fwd(base.optionAny(bwd(o), x)(body(p)))
+  def isDefined[A](o: U[Option[A]]): U[Boolean] = fwd(base.isDefined(bwd(o)))
+  def getOrElse[A](o: U[Option[A]], default: U[A]): U[A] = fwd(base.getOrElse(bwd(o), bwd(default)))
+  def get[K, V](m: U[Map[K, V]], k: U[K]): U[Option[V]] = fwd(base.get(bwd(m), bwd(k)))
+  def getOrElseAt[K, V](m: U[Map[K, V]], k: U[K], default: U[V]): U[V] =
+    fwd(base.getOrElseAt(bwd(m), bwd(k), bwd(default)))
+  def updated[K, V](m: U[Map[K, V]], k: U[K], v: U[V]): U[Map[K, V]] = fwd(base.updated(bwd(m), bwd(k), bwd(v)))
+  def member[A](s: U[Set[A]], x: U[A]): U[Boolean] = fwd(base.member(bwd(s), bwd(x)))
+  def incl[A](s: U[Set[A]], x: U[A]): U[Set[A]] = fwd(base.incl(bwd(s), bwd(x)))
+  def union[A](s: U[Set[A]], t: U[Set[A]]): U[Set[A]] = fwd(base.union(bwd(s), bwd(t)))
   def left[E, A](e: U[E], ty: Ty): U[Either[E, A]] = fwd(base.left(bwd(e), ty))
   def right[E, A](a: U[A], ty: Ty): U[Either[E, A]] = fwd(base.right(bwd(a), ty))
   def foldEither[E, A, R](v: U[Either[E, A]], e: Bound[E], a: Bound[A])(l: U[E] => U[R], r: U[A] => U[R]): U[R] =

@@ -34,11 +34,22 @@ object ToExpr extends Sym[ToExpr.IR]:
     d => Expr.Prim(PrimOp.Append, List(xs(d), ys(d)), typed(xs, d))
   def length[A](xs: IR[List[A]]): IR[BigInt] = prim(PrimOp.Length, big, xs)
   def all[A](xs: IR[List[A]], x: Bound[A])(p: IR[A] => IR[Boolean]): IR[Boolean] =
-    iterate(Iteration.Forall, xs, x, p)
+    iterate(Iteration.Forall, xs, x, p)((_, _) => Ty.Bool)
   def any[A](xs: IR[List[A]], x: Bound[A])(p: IR[A] => IR[Boolean]): IR[Boolean] =
-    iterate(Iteration.Exists, xs, x, p)
+    iterate(Iteration.Exists, xs, x, p)((_, _) => Ty.Bool)
   def filter[A](xs: IR[List[A]], x: Bound[A])(p: IR[A] => IR[Boolean]): IR[List[A]] =
-    iterate(Iteration.Filter, xs, x, p)
+    iterate(Iteration.Filter, xs, x, p)((t, _) => t)
+  def map[A, B](xs: IR[List[A]], x: Bound[A])(f: IR[A] => IR[B]): IR[List[B]] =
+    iterate(Iteration.Map, xs, x, f)((_, b) => Ty.ListOf(b))
+  def flatMap[A, B](xs: IR[List[A]], x: Bound[A])(f: IR[A] => IR[List[B]]): IR[List[B]] =
+    iterate(Iteration.FlatMap, xs, x, f)((_, b) => b)
+  def find[A](xs: IR[List[A]], x: Bound[A])(p: IR[A] => IR[Boolean]): IR[Option[A]] =
+    iterate(Iteration.Find, xs, x, p)((_, _) => Ty.OptionOf(x.ty))
+  def contains[A](xs: IR[List[A]], x: IR[A]): IR[Boolean] = prim(PrimOp.Contains, Ty.Bool, xs, x)
+  def zip[A, B](xs: IR[List[A]], ys: IR[List[B]]): IR[List[(A, B)]] = d =>
+    val (a, b) = (xs(d), ys(d))
+    Expr.Prim(PrimOp.Zip, List(a, b), Ty.ListOf(Ty.TupleOf(List(a, b).map(e => element(Exprs.typeOf(e))))))
+  def isEmpty[A](xs: IR[List[A]]): IR[Boolean] = prim(PrimOp.IsEmpty, Ty.Bool, xs)
   def nodup[A](xs: IR[List[A]]): IR[Boolean] = prim(PrimOp.Nodup, Ty.Bool, xs)
   def pairwise[A](xs: IR[List[A]], x: Bound[A], y: Bound[A])(p: (IR[A], IR[A]) => IR[Boolean]): IR[Boolean] = d =>
     val (a, b) = (binder(x, d), binder(y, d + 1))
@@ -52,6 +63,22 @@ object ToExpr extends Sym[ToExpr.IR]:
     val (y, none) = (binder(x, d), ifNone(d))
     Expr.Match(o(d), List(Arm(Pattern.NoneP, none), Arm(Pattern.SomeP(y), ifSome(variable(y))(d + 1))),
       Exprs.typeOf(none))
+  def optionAll[A](o: IR[Option[A]], x: Bound[A])(p: IR[A] => IR[Boolean]): IR[Boolean] =
+    iterate(Iteration.Forall, o, x, p)((_, _) => Ty.Bool)
+  def optionAny[A](o: IR[Option[A]], x: Bound[A])(p: IR[A] => IR[Boolean]): IR[Boolean] =
+    iterate(Iteration.Exists, o, x, p)((_, _) => Ty.Bool)
+  def isDefined[A](o: IR[Option[A]]): IR[Boolean] = prim(PrimOp.NonEmpty, Ty.Bool, o)
+  def getOrElse[A](o: IR[Option[A]], default: IR[A]): IR[A] =
+    d => Expr.Prim(PrimOp.GetOrElse, List(o(d), default(d)), typed(default, d))
+  def get[K, V](m: IR[Map[K, V]], k: IR[K]): IR[Option[V]] = d =>
+    val at = m(d)
+    Expr.Prim(PrimOp.Get, List(at, k(d)), Ty.OptionOf(valueOf(Exprs.typeOf(at))))
+  def getOrElseAt[K, V](m: IR[Map[K, V]], k: IR[K], default: IR[V]): IR[V] =
+    d => Expr.Prim(PrimOp.GetOrElseAt, List(m(d), k(d), default(d)), typed(default, d))
+  def updated[K, V](m: IR[Map[K, V]], k: IR[K], v: IR[V]): IR[Map[K, V]] = d => alike(PrimOp.Updated, m(d), k(d), v(d))
+  def member[A](s: IR[Set[A]], x: IR[A]): IR[Boolean] = prim(PrimOp.Contains, Ty.Bool, s, x)
+  def incl[A](s: IR[Set[A]], x: IR[A]): IR[Set[A]] = d => alike(PrimOp.Incl, s(d), x(d))
+  def union[A](s: IR[Set[A]], t: IR[Set[A]]): IR[Set[A]] = d => alike(PrimOp.Union, s(d), t(d))
   def left[E, A](e: IR[E], ty: Ty): IR[Either[E, A]] = d => Expr.Inject(Side.Error, e(d), ty)
   def right[E, A](a: IR[A], ty: Ty): IR[Either[E, A]] = d => Expr.Inject(Side.Value, a(d), ty)
   def foldEither[E, A, R](v: IR[Either[E, A]], e: Bound[E], a: Bound[A])(l: IR[E] => IR[R], r: IR[A] => IR[R])
@@ -95,6 +122,13 @@ object ToExpr extends Sym[ToExpr.IR]:
   private val big = Ty.Num(NumKind.Big)
   private def prim[A](op: PrimOp, ty: Ty, args: IR[?]*): IR[A] = d => Expr.Prim(op, args.toList.map(_(d)), ty)
   private def typed(xs: IR[?], d: Int): Ty = Exprs.typeOf(xs(d))
+  private def element(t: Ty): Ty = Ty.elementOf(t).getOrElse(t)
+  private def valueOf(t: Ty): Ty = t match
+    case Ty.MapOf(_, v) => v
+    case other          => other
+  /** An operation typed as its first operand (a map updated is a map of its type). */
+  private def alike(op: PrimOp, first: Expr, rest: Expr*): Expr =
+    Expr.Prim(op, first :: rest.toList, Exprs.typeOf(first))
   private def binder(x: Bound[?], d: Int): Binder = Binder(VarId.level(d), x.hint, x.ty)
   private def variable[A](x: Binder): IR[A] = _ => Expr.Var(x)
 
@@ -109,9 +143,12 @@ object ToExpr extends Sym[ToExpr.IR]:
     val (o, w) = (binder(outcome, d), binder(after, d + 1))
     Expr.Runs(p(d), before(d), failing, o, w, post(variable(o), variable(w))(d + 2))
 
-  private def iterate[A, R](how: Iteration, xs: IR[List[A]], x: Bound[A], p: IR[A] => IR[Boolean]): IR[R] = d =>
-    val y = binder(x, d)
-    Expr.Iterate(how, xs(d), y, p(variable(y))(d + 1), if how == Iteration.Filter then typed(xs, d) else Ty.Bool)
+  /** A body over a list's or an option's elements, typed from the receiver's type and the body's. */
+  private def iterate[A, B, R](how: Iteration, xs: IR[?], x: Bound[A], p: IR[A] => IR[B])(ty: (Ty, Ty) => Ty): IR[R] =
+    d =>
+      val (y, on) = (binder(x, d), xs(d))
+      val body = p(variable(y))(d + 1)
+      Expr.Iterate(how, on, y, body, ty(Exprs.typeOf(on), Exprs.typeOf(body)))
 
   private def quant[A](q: Quantifier, x: Bound[A], p: IR[A] => IR[Boolean]): IR[Boolean] = d =>
     Expr.Quant(q, List(binder(x, d)), p(variable(binder(x, d)))(d + 1))

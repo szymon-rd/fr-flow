@@ -1,6 +1,5 @@
 package crm
 
-import examples.Folds.*
 import frflow.*
 
 // ============================================================================
@@ -21,7 +20,7 @@ val askedStep = define { (a: Term[Asked], e: Term[Event]) =>
       .on[Change.ShareWith]((id, to, until) =>
         when(own(id))(make[Asked](a.records, others(id, to) :+ make[Grant](id, to, until))).otherwise(a))
       .on[Change.Unshare]((id, to) => when(own(id))(make[Asked](a.records, others(id, to))).otherwise(a)))
-    .on[Event.Expired](now => make[Asked](a.records, a.grants.filter(g => g.until.noneOr(t => now < t)))) }
+    .on[Event.Expired](now => make[Asked](a.records, a.grants.filter(g => g.until.forall(t => now < t)))) }
 
 /** What a history asked, from nothing asked, each event in turn. */
 val askedIn = define { (es: Term[List[Event]]) =>
@@ -31,27 +30,11 @@ val askedIn = define { (es: Term[List[Event]]) =>
   * that company still stands, and its time, if it has one, comes after `now`.
   */
 val sharedIn = define { (es: Term[List[Event]], id: Term[BigInt], c: Term[TenantId], now: Term[BigInt]) =>
-  askedIn(es).grants.exists(g => g.record === id && g.to === c && g.until.noneOr(t => now < t)) }
+  askedIn(es).grants.exists(g => g.record === id && g.to === c && g.until.forall(t => now < t)) }
 
 // ============================================================================
 // What the root is expected to give
 // ============================================================================
-
-private val ann = Account("ann@acme", TenantId("acme"))
-private val gil = Account("gil@globex", TenantId("globex"))
-private val annContact = CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact")
-private val gilDeal = CrmRecord(2, TenantId("globex"), Kind.Deal, "Globex deal")
-private val everything = Ask(Screen.Records, Search.Everything)
-
-val sharedUntilATime = Node.claim("When Ann at Acme has added a contact, and Gil at Globex a deal he shared with " +
-    "Acme until 100: at 50 Ann finds both, at 150 only her contact, and Gil never finds Ann's contact.")(
-  (history === List(Event.Wrote(WriteCmd(ann, Change.Add(annContact))), Event.Wrote(WriteCmd(gil, Change.Add(gilDeal))),
-    Event.Wrote(WriteCmd(gil, Change.ShareWith(2, TenantId("acme"), Some(100)))))) implies
-    (((clock === 50) implies
-        (results(ann, everything).contains(annContact) && results(ann, everything).contains(gilDeal))) &&
-      ((clock === 150) implies
-        (results(ann, everything).contains(annContact) && !results(ann, everything).contains(gilDeal))) &&
-      !results(gil, everything).contains(annContact)))
 
 val addedIsFound = Node.claim("A record a user adds to their company, under an id no record added before has, is " +
     "found from then on by each of their searches that asks for it.")(
@@ -75,7 +58,7 @@ val sharedCrm = Node.claim("A user's search finds a record exactly when it asks 
     "record's company added it, and it is of the user's company or currently shared with it by its own.")(
   forall((u: Term[Account], q: Term[Ask], r: Term[CrmRecord]) => finds(u, q, r) ===
     (asksFor(q, r) && added(owner(r), r) && (owner(r) === companyOf(u) || sharedWith(r, companyOf(u))))))
-  .refines(sharedUntilATime, addedIsFound, writesLeaveOthers)
+  .refines(addedIsFound, writesLeaveOthers)
 
 // ============================================================================
 // The purpose's words, each one equation

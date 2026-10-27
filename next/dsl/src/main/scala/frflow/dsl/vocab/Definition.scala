@@ -2,27 +2,46 @@ package frflow.dsl.vocab
 
 import frflow.core.name.SymbolName
 import frflow.core.term.{Final, Sym}
-import frflow.core.vocab.ValueKind
+import frflow.core.ty.Ty
+import frflow.core.vocab.{Symbol, SymbolType, ValueKind}
 import frflow.dsl.build.{Declarations, Fault, Source}
 import frflow.dsl.term.{LeanType, Notes, Term}
 import scala.annotation.publicInBinary
+import scala.compiletime.summonFrom
 
 /** A value code and programs use (owner §15), of any type: a function (`val granted =
   * Definition[(RoomBookings, Booking) => Boolean]("whether …")`), a program (`Booking => Program[Boolean]`), a plain
   * value. Named as its val. It gets its meaning once: from the knowledge base (`implementProven`, `implementTested`,
   * `implementValue`, `implementProvided`), or where it is written: `define { … }` and `program { … }` are
   * Definitions carrying their proven code (`onTheSpot`). Every claim mentioning it constrains it, and its code is
-  * checked against them.
+  * checked against them. Of a type with no `LeanType` (a connection), it is code-only: provided where the code runs
+  * and read there (`env(d)`), never mentioned in a statement (`CodeOnlyInStatement`).
   */
 final class Definition[A] @publicInBinary private[dsl] (val name: SymbolName, val means: String,
     val onTheSpot: Option[OnTheSpot])(using t: LeanType[A])
     extends Term[A](Definition.called[A](name, means, onTheSpot, t)):
   /** The term as a curried function (`F` the curried type of `A`): what `Functions.app` applies. */
   def curried[F: LeanType]: Term[F] = Term(Definition.called[F](name, means, onTheSpot, t))
+  /** Of a type with no `LeanType`: read only by the code it is provided to. */
+  def codeOnly: Boolean = t.isInstanceOf[Definition.NoLeanType[?]]
+  /** What a code-only Definition declares wherever it is given its meaning: no statement mentions it to. */
+  private[dsl] def declares: Declarations =
+    if codeOnly then Declarations.symbol(Symbol(name, means, SymbolType.CodeOnly, ValueKind.Definition))
+    else Declarations.none
 
 object Definition:
-  inline def apply[A: LeanType](means: String): Definition[A] =
-    new Definition[A](SymbolName(Source.valName), means, None)
+  /** A Definition of a domain type; of a type with no `LeanType`, a code-only one, whose term has no type of its own
+    * (one `apply`: two overloads differing only in what they are given are ambiguous to Scala).
+    */
+  inline def apply[A](means: String): Definition[A] = summonFrom {
+    case t: LeanType[A] => new Definition[A](SymbolName(Source.valName), means, None)(using t)
+    case _              => new Definition[A](SymbolName(Source.valName), means, None)(using NoLeanType[A]())
+  }
+
+  /** What a code-only Definition is typed by, made only here: no type has it as its given. */
+  final class NoLeanType[A] @publicInBinary private[dsl] () extends LeanType[A]:
+    val ty: Ty = Ty.Unit
+    val declares: Declarations = Declarations.none
 
   /** A Definition given its meaning where it is written (`define`, `program`). */
   def onTheSpot[A: LeanType](spot: OnTheSpot): Definition[A] = new Definition[A](SymbolName(spot.name.value), "",
@@ -33,11 +52,12 @@ object Definition:
     */
   private def called[F](name: SymbolName, means: String, spot: Option[OnTheSpot], t: LeanType[?]): Final[F] =
     spot match
-      case None                               => Symbols.term[F](name, means, ValueKind.Definition, t)
+      case None if t.isInstanceOf[NoLeanType[?]] => Symbols.codeOnly[F](name, means)
+      case None                                  => Symbols.term[F](name, means, ValueKind.Definition, t)
       case Some(OnTheSpot(n, _, lambda, Some(b))) =>
         [T[_]] => (s: Sym[T]) => s.noted(Notes.of(Declarations.define(n, lambda)),
           s.define(b).asInstanceOf[T[F]]) // `b` was built at the curried type of the `define`'s own `F`
-      case Some(OnTheSpot(n, _, _, None))     =>
+      case Some(OnTheSpot(n, _, _, None))        =>
         [T[_]] => (s: Sym[T]) => s.noted(Notes.fault(Fault.ProgramMentioned(n.value)), s.param[F](name, t.ty))
 
   extension [A, R](d: Definition[A => R])

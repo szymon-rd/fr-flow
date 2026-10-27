@@ -4,3 +4,6 @@ package frflow.dsl.flow
 trait Clock[F[_], T[_]]:
   def now: F[T[BigInt]]
   def sleep(seconds: T[BigInt]): F[Unit]
+
+object Clock:
+  given BoundaryOps[Clock] = ClockOps

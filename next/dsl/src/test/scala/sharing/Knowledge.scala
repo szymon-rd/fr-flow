@@ -2,16 +2,25 @@ package sharing
 
 import frflow.*
 import sharing.audit.Audit
+import sharing.audit.AuditClaims
 import sharing.housekeeping.Housekeeping
+import sharing.housekeeping.HousekeepingClaims
 import sharing.http.SharingHttp
 import sharing.invitations.Invitations
+import sharing.invitations.InvitationsClaims
 import sharing.notifications.Notifications
+import sharing.notifications.NotificationsClaims
 import sharing.ownership.Ownership
+import sharing.ownership.OwnershipClaims
 import sharing.requests.AccessRequests
+import sharing.requests.AccessRequestsClaims
 import sharing.service.Sharing
+import sharing.service.SharingClaims
 import sharing.store.{LibraryStore, Transactions}
+import sharing.time.LifetimesClaims
 import sharing.time.{ClockKept, Deadlines, Lifetimes, Run}
 import sharing.trash.Trash
+import sharing.trash.TrashClaims
 
 val serverWiring = Node.design("The server reads each HTTP request into a request, answers it with handleContract's " +
     "program on the store and the clock, in IO, as many at once as its workers take, and writes the answer as JSON; " +
@@ -32,23 +41,23 @@ val domainTypes = Node.design("People, teams, documents, folders, shares, invita
   "src/main/scala/sharing/domain", "src/main/scala/sharing/Demo.scala").refines(accessFollowsShares)
 
 val knowledge = KnowledgeBase("Sharing")(
-  reach, cover, permission, Definitions.inTrash, ownersShare,
-  accessFollowsShares, Invitations.invitationsAreOffers, Trash.trashUntilGone,
-  Housekeeping.housekeepingClearsOnlyTheEnded, AccessRequests.accessRequestsAreAsks,
-  Ownership.ownersKeepTheirDocuments, Audit.auditTrail, Notifications.noticesFollowChanges,
-  Sharing.accessContract, Sharing.canViewContract, Sharing.canEditContract,
-  Sharing.shareContract, Sharing.unshareContract, Sharing.moveContract,
-  Invitations.inviteContract, Invitations.acceptContract, Invitations.withdrawContract,
-  Trash.trashContract, Trash.restoreContract,
-  AccessRequests.askContract, AccessRequests.approveContract, AccessRequests.declineContract,
-  AccessRequests.chaseContract, Ownership.transferContract, Audit.recordContract, Audit.forgetContract,
-  Notifications.announceContract, Notifications.warnContract,
-  Housekeeping.tidyContract, Housekeeping.housekeepingJob, Notifications.deliveryJob,
-  Lifetimes.invitationLifetime, Lifetimes.trashLifetime, Lifetimes.requestLifetime, Run.housekeepingPeriod,
-  Lifetimes.inForceContract, Lifetimes.isOpenContract, Lifetimes.goneContract, Lifetimes.pendingContract,
-  Lifetimes.reminderDueContract, Deadlines.trashPurgedOnTime, Deadlines.invitationsLapseOnTime,
-  Deadlines.requestsAnsweredOnTime, Deadlines.endedStaysEnded, Run.clockNeverGoesBack, Run.housekeepingOnTime,
-  LibraryStore.libraryKept, LibraryStore.oneTransactionAtATime, Transactions.transactions, Notifications.mailerKept,
+  reach, cover, Definitions.mayView, Definitions.mayEdit, Definitions.inTrash, ownersShare, accessFollowsShares,
+  sharing.invitationsAreOffers, sharing.trashUntilGone, sharing.housekeepingClearsOnlyTheEnded,
+  sharing.accessRequestsAreAsks, sharing.ownersKeepTheirDocuments, sharing.auditTrail, sharing.noticesFollowChanges,
+  SharingClaims.accessContract, SharingClaims.canViewContract, SharingClaims.canEditContract,
+  SharingClaims.shareContract, SharingClaims.unshareContract, SharingClaims.moveContract,
+  InvitationsClaims.inviteContract, InvitationsClaims.acceptContract, InvitationsClaims.withdrawContract,
+  TrashClaims.trashContract, TrashClaims.restoreContract, AccessRequestsClaims.askContract,
+  AccessRequestsClaims.approveContract, AccessRequestsClaims.declineContract, AccessRequestsClaims.chaseContract,
+  OwnershipClaims.transferContract, AuditClaims.recordContract, AuditClaims.forgetContract,
+  NotificationsClaims.announceContract, NotificationsClaims.warnContract, HousekeepingClaims.tidyContract,
+  HousekeepingClaims.housekeepingJob, NotificationsClaims.deliveryJob, LifetimesClaims.invitationLifetime,
+  LifetimesClaims.trashLifetime, LifetimesClaims.Lengths.requestLasts, LifetimesClaims.Lengths.remindAfter,
+  Run.housekeepingPeriod, LifetimesClaims.inForceContract, LifetimesClaims.isOpenContract,
+  LifetimesClaims.goneContract, LifetimesClaims.pendingContract, LifetimesClaims.reminderDueContract,
+  Deadlines.trashPurgedOnTime, Deadlines.invitationsLapseOnTime, Deadlines.requestsAnsweredOnTime,
+  Deadlines.endedStaysEnded, Run.clockNeverGoesBack, Run.housekeepingOnTime, LibraryStore.libraryKept,
+  LibraryStore.oneTransactionAtATime, Transactions.transactions, Notifications.mailerKept,
   Notifications.mailOneAtATime, ClockKept.clockKept, ClockKept.clockAlone, SharingHttp.handleContract, serverWiring,
   domainTypes)
   .implementProven(reaches)(reachesCode)

@@ -13,7 +13,7 @@ enum Change derives LeanType:
 val afterChange = define { (held: Term[List[Booking]], c: Term[Change]) =>
   c.on[Change.Book](b => b :: held)
     .on[Change.Cancel]((room, start) => held.filter(b => !(b.room === room && b.start === start)))
-    .on(Change.Clear)(Nil: Term[List[Booking]]) }
+    .on[Change.Clear.type](Nil: Term[List[Booking]]) }
 
 /** The same match with the case without fields first. */
 val clearedFirst = define { (held: Term[List[Booking]], c: Term[Change]) =>

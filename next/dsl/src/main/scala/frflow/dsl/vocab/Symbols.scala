@@ -3,6 +3,7 @@ package frflow.dsl.vocab
 import cats.syntax.all.*
 import frflow.core.name.SymbolName
 import frflow.core.term.{Final, Sym}
+import frflow.core.ty.Ty
 import frflow.core.vocab.{Symbol, SymbolType, ValueKind}
 import frflow.dsl.build.Declarations
 import frflow.dsl.term.{LeanType, Notes}
@@ -12,6 +13,11 @@ private[vocab] object Symbols:
   def term[A](name: SymbolName, means: String, kind: ValueKind, declared: LeanType[?]): Final[A] =
     [T[_]] => (s: Sym[T]) => s.noted(Notes.of(declared.declares |+| declares(name, means, kind, declared)),
       s.param[A](name, declared.ty))
+
+  /** A code-only Definition: its symbol, declared without a type (its term's own is never read). */
+  def codeOnly[A](name: SymbolName, means: String): Final[A] =
+    [T[_]] => (s: Sym[T]) => s.noted(Notes.of(Declarations.symbol(Symbol(name, means, SymbolType.CodeOnly,
+      ValueKind.Definition))), s.param[A](name, Ty.Unit))
 
   private def declares(name: SymbolName, means: String, kind: ValueKind, t: LeanType[?]): Declarations =
     Declarations.symbol(Symbol(name, means, SymbolType.Typed(t.ty), kind))

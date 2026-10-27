@@ -18,9 +18,9 @@ object Terms:
   def exists[A: LeanType](hint: String, p: Term[A] => Term[Boolean]): Term[Boolean] =
     bound[A, Boolean]([T[_]] => (s: Sym[T]) => s.exists(Bound[A](hint, LeanType[A].ty))(Term.body(s, p)))
 
-  /** An operation over a list's elements with a body (`all`, `any`, `filter`): one shape for each. */
-  def over[A: LeanType, R: LeanType](xs: Term[List[A]], hint: String, p: Term[A] => Term[Boolean])(
-      op: [T[_]] => Sym[T] => (T[List[A]], Bound[A]) => (T[A] => T[Boolean]) => T[R]): Term[R] =
+  /** An operation over a list's or an option's elements with a body (`all`, `map`, `optionAll`): one shape for each. */
+  def over[C, A: LeanType, B, R: LeanType](xs: Term[C], hint: String, p: Term[A] => Term[B])(
+      op: [T[_]] => Sym[T] => (T[C], Bound[A]) => (T[A] => T[B]) => T[R]): Term[R] =
     bound[A, R]([T[_]] => (s: Sym[T]) => op[T](s)(xs.run(s), Bound[A](hint, LeanType[A].ty))(Term.body(s, p)))
 
   def foldLeft[A: LeanType, B](xs: Term[List[A]], z: Term[B], hints: (String, String))(

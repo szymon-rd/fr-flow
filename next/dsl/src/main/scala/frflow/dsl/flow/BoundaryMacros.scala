@@ -105,7 +105,13 @@ object BoundaryMacros:
   private def leanType(t: Type[?])(using Quotes): Expr[LeanType[?]] = t match
     case '[a] => typed[a]
 
-  private def typed[A: Type](using Quotes): Expr[LeanType[A]] = summonOrAbort[LeanType[A]]
+  /** A type's `LeanType`, or the standard refusal: the type is not a domain type yet. */
+  private def typed[A: Type](using Quotes): Expr[LeanType[A]] =
+    import quotes.reflect.*
+    val name = TypeRepr.of[A].show(using Printer.TypeReprShortCode)
+    Expr.summon[LeanType[A]].getOrElse(report.errorAndAbort(
+      s"FrFlow: $name is not a domain type yet: add `derives LeanType` to its declaration"))
 
   private def summonOrAbort[X: Type](using Quotes): Expr[X] =
-    Expr.summon[X].getOrElse(quotes.reflect.report.errorAndAbort(s"no ${Type.show[X]} for a boundary's operation"))
+    Expr.summon[X].getOrElse(quotes.reflect.report.errorAndAbort(s"FrFlow: no ${Type.show[X]} for a boundary's " +
+      "operation"))

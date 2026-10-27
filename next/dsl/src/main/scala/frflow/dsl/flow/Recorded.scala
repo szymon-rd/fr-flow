@@ -26,8 +26,9 @@ enum Recorded[A]:
       ty: LeanType[List[B]]) extends Recorded[Term[List[B]]]
   case Fold[X, B](xs: Term[List[X]], z: Term[B], element: LeanType[X], body: (Term[B], Term[X]) => Recorded[Term[B]])
       extends Recorded[Term[B]]
+  /** At most `limit` at once, when it has one. */
   case ParCollect[X, B](xs: Term[List[X]], element: LeanType[X], body: Term[X] => Recorded[Term[B]],
-      ty: LeanType[List[B]]) extends Recorded[Term[List[B]]]
+      ty: LeanType[List[B]], limit: Option[Int]) extends Recorded[Term[List[B]]]
 
 object Recorded:
   /** The recording `Flow`, found wherever a program is recorded, with no import (`program { … }`). */

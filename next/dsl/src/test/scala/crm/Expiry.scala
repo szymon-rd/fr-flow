@@ -1,6 +1,5 @@
 package crm
 
-import examples.Folds.*
 import frflow.*
 
 // ============================================================================
@@ -23,7 +22,7 @@ val expireCode = define { (s: Term[CrmStore], now: Term[BigInt]) =>
 
 /** The ids of the records a store holds anything about: its records, their shares and their expiries. */
 val idsIn = define { (s: Term[CrmStore]) =>
-  s.records.mapped(r => r.id) ++ s.shares.mapped(sh => sh.record) ++ s.expiries.mapped(e => e.record) }
+  s.records.map(r => r.id) ++ s.shares.map(sh => sh.record) ++ s.expiries.map(e => e.record) }
 
 /** The records whose rows differ between two stores: what storing the second over the first must store. */
 val changedIds = define { (s: Term[CrmStore], t: Term[CrmStore]) =>

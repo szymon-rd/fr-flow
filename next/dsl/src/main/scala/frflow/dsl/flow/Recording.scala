@@ -20,7 +20,9 @@ object Recording:
     def fold[X: LeanType, B](xs: Term[List[X]], z: Term[B])(body: (Term[B], Term[X]) => Recorded[Term[B]])
         : Recorded[Term[B]] = Recorded.Fold(xs, z, LeanType[X], body)
     def parCollect[X: LeanType, B: LeanType](xs: Term[List[X]])(body: Term[X] => Recorded[Term[B]])
-        : Recorded[Term[List[B]]] = Recorded.ParCollect(xs, LeanType[X], body, LeanType[List[B]])
+        : Recorded[Term[List[B]]] = Recorded.ParCollect(xs, LeanType[X], body, LeanType[List[B]], None)
+    def parCollectN[X: LeanType, B: LeanType](n: Int)(xs: Term[List[X]])(body: Term[X] => Recorded[Term[B]])
+        : Recorded[Term[List[B]]] = Recorded.ParCollect(xs, LeanType[X], body, LeanType[List[B]], Some(Flow.atOnce(n)))
     def raise[E, A](error: Term[E]): Recorded[A] = Recorded.Raise(error)
     def handle[E: LeanType, A](fa: Recorded[A])(handler: Term[E] => Recorded[A]): Recorded[A] =
       Recorded.Handle(fa, LeanType[E], handler)

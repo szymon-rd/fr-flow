@@ -42,16 +42,24 @@ class ExamplesSuite extends munit.FunSuite:
     assertEquals(ids(keycloak.knowledge), renamed(Today.keycloak, Set("identities"), Set("accountRoles")))
   }
 
-  test("crm: today's, with the root's three expectations and the read contract's one claims of their own; two " +
-    "definitions of two words each are four claims; runs on the database one at a time, an assumption") {
-    assertEquals(ids(crm.knowledge), renamed(Today.crm, Set.empty, Set("sharedUntilATime", "addedIsFound",
-      "writesLeaveOthers", "acmeNeverSeesGlobex", "ownership", "searchesAsk", "runsOneAtATime")))
+  test("crm: today's, with the root's two general expectations and the read contract's one claims of their own " +
+    "(its scenario an example); two definitions of two words each are four claims; runs on the database one at a " +
+    "time, an assumption") {
+    assertEquals(ids(crm.knowledge), renamed(Today.crm, Set.empty, Set("addedIsFound", "writesLeaveOthers",
+      "acmeNeverSeesGlobex", "ownership", "searchesAsk", "runsOneAtATime")))
   }
 
-  test("sharing: today's, with the store's, the mail server's and the clock's runs one at a time, assumptions") {
-    assertEquals(ids(sharing.knowledge),
-      renamed(Today.sharing, Set.empty, Set("oneTransactionAtATime", "mailOneAtATime", "clockAlone")))
-    assertEquals(kinds(sharing.knowledge), Map("claim" -> 50, "assumption" -> 8, "design" -> 3))
+  test("each example's examples elaborate, with no error") {
+    val written = List(rooms.GrantedExamples(), auth.DecisionExamples(), crm.ExpectationsExamples())
+    assertEquals(written.map(_.elaborated.fold(_.iterator.toList, _ => Nil)), List.fill(written.size)(Nil))
+    assertEquals(written.map(_.examples.size), List(2, 5, 1))
+  }
+
+  test("sharing: today's, with the store's, the mail server's and the clock's runs one at a time, assumptions; the " +
+    "definitions of two words each are a claim per word") {
+    assertEquals(ids(sharing.knowledge), renamed(Today.sharing, Set("permission", "requestLifetime"), Set(
+      "oneTransactionAtATime", "mailOneAtATime", "clockAlone", "mayView", "mayEdit", "requestLasts", "remindAfter")))
+    assertEquals(kinds(sharing.knowledge), Map("claim" -> 52, "assumption" -> 8, "design" -> 3))
   }
 
   test("rooms, auth and keycloak are valid as written") {
@@ -71,8 +79,8 @@ class ExamplesSuite extends munit.FunSuite:
 
   test("crm is valid but for the claims proven from claims on their own code: the root's expectations, and the " +
     "records kept by the expiry job") {
-    assertEquals(notCalled(crm.knowledge), List("sharedUntilATime" -> "sharedCrm", "addedIsFound" -> "sharedCrm",
-      "writesLeaveOthers" -> "sharedCrm", "recordsKept" -> "sharesExpire"))
+    assertEquals(notCalled(crm.knowledge), List("addedIsFound" -> "sharedCrm", "writesLeaveOthers" -> "sharedCrm",
+      "recordsKept" -> "sharesExpire"))
   }
 
   test("sharing is valid but for its branches proven from the claims on their own operations' code") {

@@ -1,11 +1,8 @@
 package sharing.audit
 
-import examples.Folds.*
 import frflow.*
 import sharing.*
 import sharing.domain.*
-import sharing.time.Lifetimes.inForce
-import sharing.time.Run.{after, events}
 
 /** The log: every change the service makes, recorded with the request that made it (who asked, what) and when, in the
   * same save as the change. A function of the library and of the moment.
@@ -39,28 +36,7 @@ object Audit:
 
   /** Whether a log entry is of the request that made a share. */
   val makes = define { (e: Term[Entry], s: Term[Share]) =>
-    e.change.on[Change.Made](r => madeBy(r, s)).on(Change.Housekept)(False).on(Change.Forgotten)(False) }
-
-  /** The branch: what the log is for. */
-  val auditTrail = Node.claim("Every change the service makes is recorded in its log, with the request that made it " +
-      "and when, in the same save as the change; so at every moment, every share the library holds was made by a " +
-      "request in the log. A share is never seen before its entry is there, and every yes of canView rests on shares " +
-      "whose making is logged.")(
-    after(events).library.shares.forall(s => after(events).library.log.exists(e => makes(e, s))) &&
-      forall((p: Term[PersonId], d: Term[DocumentId]) =>
-        mayView(after(events).library, after(events).now, p, make[Target.Doc](d)) implies
-          after(events).library.shares.exists(s => inForce(s, after(events).now) &&
-            reaches(after(events).library, s, p) && covers(after(events).library, s, make[Target.Doc](d)) &&
-            after(events).library.log.exists(e => makes(e, s)))))
-    .refines(accessFollowsShares)
-
-  val recordContract = Node.claim("Recording a change at a moment adds one entry at the end of the log: numbered by " +
-      "its place in it, with the moment and the change. Nothing else changes, and no entry is taken away.")(
-    forall((lib: Term[Library], t: Term[BigInt], c: Term[Change]) =>
-      record(lib, t, c) === lib.updated(_.log, lib.log :+ make[Entry](lib.log.length, t, c))))
-    .refines(auditTrail, sharing.notifications.Notifications.noticesFollowChanges,
-      sharing.time.Deadlines.invitationsLapseOnTime, sharing.time.Deadlines.trashPurgedOnTime,
-      sharing.time.Deadlines.requestsAnsweredOnTime)
+    e.change.on[Change.Made](r => madeBy(r, s)).on[Change.Housekept.type](False).on[Change.Forgotten.type](False) }
 
   val recordCode = define { (lib: Term[Library], t: Term[BigInt], c: Term[Change]) =>
     lib.updated(_.log, lib.log :+ make[Entry](lib.log.length, t, c)) }
@@ -74,14 +50,6 @@ object Audit:
   val explains = define { (lib: Term[Library], e: Term[Entry]) =>
     lib.shares.exists(s => makes(e, s)) || lib.outbox.exists(n => n.about === make[Subject.Logged](e)) }
 
-  val forgetContract = Node.claim("Housekeeping forgets, at a moment, the change of each log entry made more than a " +
-      "year before, unless the entry is the making of a share the library holds or of a change a notice waiting in " +
-      "the outbox tells of: the entry stays in its place, with its number and time, and its change is forgotten. " +
-      "Nothing else changes.")(
-    forall((lib: Term[Library], t: Term[BigInt]) => forget(lib, t) === lib.updated(_.log, lib.log.mapped(e =>
-      when(e.at <= t - year && !explains(lib, e))(e.updated(_.change, Change.Forgotten)).otherwise(e)))))
-    .refines(auditTrail)
-
   val forgetCode = define { (lib: Term[Library], t: Term[BigInt]) =>
-    lib.updated(_.log, lib.log.mapped(e =>
+    lib.updated(_.log, lib.log.map(e =>
       when(e.at <= t - year && !explains(lib, e))(e.updated(_.change, Change.Forgotten)).otherwise(e))) }

@@ -76,11 +76,8 @@ def nextModule(name: String, libraries: ModuleID*) = Project(s"next-$name", file
 /** Names, types, the term algebras and core interpreters, the IR, statements, validation, checking, consistency. */
 lazy val nextCore = nextModule("core", cats).settings(libraryDependencies ++= lawTests)
 
-/** The DSL a model is written in: terms, nodes, programs over boundaries, models, macros; its elaboration. Its suites
-  * run one at a time: the examples' objects name each other's nodes as they are set, and two suites setting them at
-  * once would deadlock.
-  */
-lazy val nextDsl = nextModule("dsl", cats).dependsOn(nextCore).settings(Test / parallelExecution := false)
+/** The DSL a model is written in: terms, nodes, programs over boundaries, models, macros; its elaboration. */
+lazy val nextDsl = nextModule("dsl", cats).dependsOn(nextCore)
 
 // next-proof (step 3)
 /** Obligations, the Lean AST, the one term printer, lowering, layout, reading Lean's output, the judges. */

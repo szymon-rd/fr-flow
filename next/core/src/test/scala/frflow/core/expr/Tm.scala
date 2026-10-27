@@ -2,7 +2,7 @@ package frflow.core.expr
 
 import frflow.core.{Booking, Lang}
 import frflow.core.name.SymbolName
-import frflow.core.term.{Body, Bound, Final, Sym}
+import frflow.core.term.{Body, Bound, Final, Selector, Sym}
 import frflow.core.ty.Ty
 
 /** A term over the number variables bound around it, and the algebras' operations over such terms: what `Terms`
@@ -75,3 +75,40 @@ object Tm:
   def copy(b: Tm[Booking], start: Tm[BigInt]): Tm[Booking] =
     [T[_]] => (s: Sym[T], c: Scope[T]) => s.copy(b(s, c), Booking.start, start(s, c))
   def end(b: Tm[Booking]): Tm[BigInt] = [T[_]] => (s: Sym[T], c: Scope[T]) => s.field(b(s, c), Booking.end)
+
+  def map(xs: Tm[List[BigInt]], f: Tm[BigInt]): Tm[List[BigInt]] =
+    [T[_]] => (s: Sym[T], c: Scope[T]) => s.map(xs(s, c), n("x"))(x => f(s, c.bind(x)))
+  def flatMap(xs: Tm[List[BigInt]], f: Tm[List[BigInt]]): Tm[List[BigInt]] =
+    [T[_]] => (s: Sym[T], c: Scope[T]) => s.flatMap(xs(s, c), n("x"))(x => f(s, c.bind(x)))
+  def find(xs: Tm[List[BigInt]], p: Tm[Boolean]): Tm[Option[BigInt]] =
+    [T[_]] => (s: Sym[T], c: Scope[T]) => s.find(xs(s, c), n("x"))(x => p(s, c.bind(x)))
+  def contains(xs: Tm[List[BigInt]], x: Tm[BigInt]): Tm[Boolean] =
+    [T[_]] => (s: Sym[T], c: Scope[T]) => s.contains(xs(s, c), x(s, c))
+  def isEmpty(xs: Tm[List[BigInt]]): Tm[Boolean] = [T[_]] => (s: Sym[T], c: Scope[T]) => s.isEmpty(xs(s, c))
+  /** The first components of two lists zipped (`xs.zip(ys).map(_._1)`). */
+  def firsts(xs: Tm[List[BigInt]], ys: Tm[List[BigInt]]): Tm[List[BigInt]] = [T[_]] => (s: Sym[T], c: Scope[T]) =>
+    s.map(s.zip(xs(s, c), ys(s, c)), Bound[(BigInt, BigInt)]("p", Ty.TupleOf(List(big, big))))(p =>
+      s.field(p, Selector.first[BigInt, BigInt](big)))
+  def second(a: Tm[BigInt], b: Tm[BigInt]): Tm[BigInt] =
+    [T[_]] => (s: Sym[T], c: Scope[T]) => s.field(s.pair(a(s, c), b(s, c)), Selector.second[BigInt, BigInt](big))
+
+  def optionAll(o: Tm[Option[BigInt]], p: Tm[Boolean]): Tm[Boolean] =
+    [T[_]] => (s: Sym[T], c: Scope[T]) => s.optionAll(o(s, c), n("v"))(x => p(s, c.bind(x)))
+  def optionAny(o: Tm[Option[BigInt]], p: Tm[Boolean]): Tm[Boolean] =
+    [T[_]] => (s: Sym[T], c: Scope[T]) => s.optionAny(o(s, c), n("v"))(x => p(s, c.bind(x)))
+  def isDefined(o: Tm[Option[BigInt]]): Tm[Boolean] = [T[_]] => (s: Sym[T], c: Scope[T]) => s.isDefined(o(s, c))
+  def getOrElse(o: Tm[Option[BigInt]], d: Tm[BigInt]): Tm[BigInt] =
+    [T[_]] => (s: Sym[T], c: Scope[T]) => s.getOrElse(o(s, c), d(s, c))
+
+  def get(m: Tm[Map[BigInt, BigInt]], k: Tm[BigInt]): Tm[Option[BigInt]] =
+    [T[_]] => (s: Sym[T], c: Scope[T]) => s.get(m(s, c), k(s, c))
+  def getOrElseAt(m: Tm[Map[BigInt, BigInt]], k: Tm[BigInt], d: Tm[BigInt]): Tm[BigInt] =
+    [T[_]] => (s: Sym[T], c: Scope[T]) => s.getOrElseAt(m(s, c), k(s, c), d(s, c))
+  def updated(m: Tm[Map[BigInt, BigInt]], k: Tm[BigInt], v: Tm[BigInt]): Tm[Map[BigInt, BigInt]] =
+    [T[_]] => (s: Sym[T], c: Scope[T]) => s.updated(m(s, c), k(s, c), v(s, c))
+  def member(set: Tm[Set[BigInt]], x: Tm[BigInt]): Tm[Boolean] =
+    [T[_]] => (s: Sym[T], c: Scope[T]) => s.member(set(s, c), x(s, c))
+  def incl(set: Tm[Set[BigInt]], x: Tm[BigInt]): Tm[Set[BigInt]] =
+    [T[_]] => (s: Sym[T], c: Scope[T]) => s.incl(set(s, c), x(s, c))
+  def union(a: Tm[Set[BigInt]], b: Tm[Set[BigInt]]): Tm[Set[BigInt]] =
+    [T[_]] => (s: Sym[T], c: Scope[T]) => s.union(a(s, c), b(s, c))

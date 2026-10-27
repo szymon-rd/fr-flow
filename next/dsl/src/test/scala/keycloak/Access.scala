@@ -1,6 +1,5 @@
 package keycloak
 
-import examples.Folds.*
 import frflow.*
 
 // Keycloak's nodes in the three kinds (owner §15), each named as today's. The purpose's words (`accepted`,
@@ -36,7 +35,7 @@ val realmAccess = Node.claim("A realm's application accepts a token as a user's,
 
 val noUnauthorizedAccess = Node.claim("A token is accepted only as a user who signed in to that realm with it, has " +
     "not signed out since and is still enabled, and only with that user's roles.")(
-  forall((r: Term[RealmId], t: Term[String]) => accepted(r, t).noneOr(a =>
+  forall((r: Term[RealmId], t: Term[String]) => accepted(r, t).forall(a =>
     signedIn(r, a.user, t) && enabled(r, a.user) && a.roles === rolesOf(r, a.user))))
   .refines(realmAccess)
 
@@ -52,14 +51,14 @@ val signedInAreAccepted = Node.claim("A user who signed in to a realm and got a 
 
 val onlyTheSignedIn = Node.claim("A token is accepted in a realm only as the user who signed in to that realm with " +
     "it and has not signed out with it since.")(
-  forall((r: Term[RealmId], t: Term[String]) => accepted(r, t).noneOr(a => signedIn(r, a.user, t))))
+  forall((r: Term[RealmId], t: Term[String]) => accepted(r, t).forall(a => signedIn(r, a.user, t))))
   .refines(noUnauthorizedAccess)
 
 val disabledHaveNoAccess = Node.claim("A token is never accepted as a user who is disabled now, whenever they " +
     "signed in.")(
-  forall((r: Term[RealmId], t: Term[String]) => accepted(r, t).noneOr(a => enabled(r, a.user))))
+  forall((r: Term[RealmId], t: Term[String]) => accepted(r, t).forall(a => enabled(r, a.user))))
   .refines(noUnauthorizedAccess)
 
 val rolesAsGranted = Node.claim("A token is accepted only with the roles the realm gives its user now.")(
-  forall((r: Term[RealmId], t: Term[String]) => accepted(r, t).noneOr(a => a.roles === rolesOf(r, a.user))))
+  forall((r: Term[RealmId], t: Term[String]) => accepted(r, t).forall(a => a.roles === rolesOf(r, a.user))))
   .refines(noUnauthorizedAccess)

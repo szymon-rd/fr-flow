@@ -24,7 +24,7 @@ final class Terms(seed: Long):
   def mentioned: Mentions = Mentions(named.toList.distinct, called.toList.distinct, typed.toList.distinct, Nil,
     modelled.toList.distinct)
 
-  def bool(d: Int, k: Int): Tm[Boolean] = if d <= 0 then boolLeaf(k) else r.nextInt(18) match
+  def bool(d: Int, k: Int): Tm[Boolean] = if d <= 0 then boolLeaf(k) else r.nextInt(20) match
     case 0  => and(bool(d - 1, k), bool(d - 1, k))
     case 1  => or(bool(d - 1, k), bool(d - 1, k))
     case 2  => implies(bool(d - 1, k), bool(d - 1, k))
@@ -42,9 +42,19 @@ final class Terms(seed: Long):
     case 14 => app(note(called, positive.name)(define(positive)), num(d - 1, k))
     case 15 => app(symbol[BigInt => Boolean]("p", fnTy), num(d - 1, k))
     case 16 => app(fn(d - 1, k), num(d - 1, k))
+    case 17 => held(d, k)
     case _  => Tm.eq(booking(d - 1, k), booking(d - 1, k))
 
-  def num(d: Int, k: Int): Tm[BigInt] = if d <= 0 then numLeaf(k) else r.nextInt(8) match
+  /** Whether a list, an option or a set holds a value, or one meeting a rule. */
+  def held(d: Int, k: Int): Tm[Boolean] = r.nextInt(6) match
+    case 0 => contains(nums(d - 1, k), num(d - 1, k))
+    case 1 => isEmpty(nums(d - 1, k))
+    case 2 => optionAll(opt(d - 1, k), bool(d - 1, k + 1))
+    case 3 => optionAny(opt(d - 1, k), bool(d - 1, k + 1))
+    case 4 => isDefined(opt(d - 1, k))
+    case _ => member(set(d - 1, k), num(d - 1, k))
+
+  def num(d: Int, k: Int): Tm[BigInt] = if d <= 0 then numLeaf(k) else r.nextInt(11) match
     case 0 => add(num(d - 1, k), num(d - 1, k))
     case 1 => sub(num(d - 1, k), num(d - 1, k))
     case 2 => cond(bool(d - 1, k), num(d - 1, k), num(d - 1, k))
@@ -52,18 +62,36 @@ final class Terms(seed: Long):
     case 4 => end(read(d - 1, k))
     case 5 => foldLeft(nums(d - 1, k), num(d - 1, k), num(d - 1, k + 2))
     case 6 => let(num(d - 1, k), num(d - 1, k + 1))
+    case 7 => getOrElse(opt(d - 1, k), num(d - 1, k))
+    case 8 => getOrElseAt(table(d - 1, k), num(d - 1, k), num(d - 1, k))
+    case 9 => second(num(d - 1, k), num(d - 1, k))
     case _ => foldOption(opt(d - 1, k), num(d - 1, k), num(d - 1, k + 1))
 
-  def nums(d: Int, k: Int): Tm[List[BigInt]] = if d <= 0 then numsLeaf else r.nextInt(4) match
+  def nums(d: Int, k: Int): Tm[List[BigInt]] = if d <= 0 then numsLeaf else r.nextInt(7) match
     case 0 => cons(num(d - 1, k), nums(d - 1, k))
     case 1 => append(nums(d - 1, k), nums(d - 1, k))
     case 2 => filter(nums(d - 1, k), bool(d - 1, k + 1))
+    case 3 => map(nums(d - 1, k), num(d - 1, k + 1))
+    case 4 => flatMap(nums(d - 1, k), nums(d - 1, k + 1))
+    case 5 => firsts(nums(d - 1, k), nums(d - 1, k))
     case _ => numsLeaf
 
-  def opt(d: Int, k: Int): Tm[Option[BigInt]] = r.nextInt(3) match
+  def opt(d: Int, k: Int): Tm[Option[BigInt]] = r.nextInt(5) match
     case 0 => some(num(d - 1, k))
     case 1 => none
+    case 2 => find(nums(d - 1, k), bool(d - 1, k + 1))
+    case 3 => get(table(d - 1, k), num(d - 1, k))
     case _ => symbol("o", Ty.OptionOf(Lang.big))
+
+  def set(d: Int, k: Int): Tm[Set[BigInt]] = if d <= 0 then symbol("s", Ty.SetOf(Lang.big)) else r.nextInt(3) match
+    case 0 => incl(set(d - 1, k), num(d - 1, k))
+    case 1 => union(set(d - 1, k), set(d - 1, k))
+    case _ => symbol("s", Ty.SetOf(Lang.big))
+
+  /** A map of numbers to numbers. */
+  def table(d: Int, k: Int): Tm[Map[BigInt, BigInt]] =
+    if d <= 0 || r.nextBoolean() then symbol("m", Ty.MapOf(Lang.big, Lang.big))
+    else updated(table(d - 1, k), num(d - 1, k), num(d - 1, k))
 
   def booking(d: Int, k: Int): Tm[Booking] =
     if r.nextBoolean() then note(typed, Booking.name)(make(num(d - 1, k), num(d - 1, k))) else read(d, k)

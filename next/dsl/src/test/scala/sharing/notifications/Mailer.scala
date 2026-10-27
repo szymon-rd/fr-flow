@@ -1,6 +1,5 @@
 package sharing.notifications
 
-import examples.Folds.*
 import frflow.*
 import sharing.domain.*
 
@@ -18,7 +17,7 @@ final class Mailboxes[F[_]: Flow](state: Model[F, List[Mailbox]]) extends Mailer
 object Mailer:
   /** A person's mailbox: the notices delivered to them, oldest first. */
   val mailbox = define { (boxes: Term[List[Mailbox]], p: Term[PersonId]) =>
-    boxes.firstWhere(b => b.person === p).fold(Nil: Term[List[Notice]])(b => b.notices) }
+    boxes.find(b => b.person === p).fold(Nil: Term[List[Notice]])(b => b.notices) }
   /** A mailbox after a notice is given to the mail server: the notice at the end, unless it is there already. */
   val taken = define { (ns: Term[List[Notice]], n: Term[Notice]) => when(ns.contains(n))(ns).otherwise(ns :+ n) }
   /** The mailboxes with a person's replaced. */

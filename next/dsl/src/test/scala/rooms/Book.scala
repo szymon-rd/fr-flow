@@ -2,8 +2,8 @@ package rooms
 
 import frflow.*
 
-// The table, its model, and the program `book` is: no node here (they are in `Rooms.scala`), so each val is set
-// before a node names it.
+// The table, its model, and the program `book` is, over the words of `Domain.scala`; the nodes that name them are in
+// `Rooms.scala`.
 
 /** Where the bookings are kept, as proven code sees it. */
 trait BookingTable[F[_], T[_]] derives BoundaryOps:
@@ -24,7 +24,7 @@ val storedBookings = bookingTable.model("every booking stored, oldest first")(St
 final class BookIfGranted[F[_]](table: BookingTable[F, Term])(using f: Flow[F]):
   def run(request: Term[Request]): F[Term[Boolean]] = f.atomically(
     f.flatMap(table.inRoom(request.room)) { held =>
-      val booked = granted(held, asked(request))
-      f.as(f.cond(booked)(table.add(asked(request)), f.unit), booked) })
+      val booked = granted(held, asBooking(request))
+      f.as(f.cond(booked)(table.add(asBooking(request)), f.unit), booked) })
 
 val bookIfGranted = program { (request: Term[Request]) => BookIfGranted(bookingTable.recording).run(request) }

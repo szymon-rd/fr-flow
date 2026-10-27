@@ -20,7 +20,9 @@ class TypeOfSuite extends munit.FunSuite:
     List(ToExpr.of(Tm.closed(g.bool(3, 0))) -> Ty.Bool, ToExpr.of(Tm.closed(g.num(3, 0))) -> Lang.big,
       ToExpr.of(Tm.closed(g.nums(3, 0))) -> Ty.ListOf(Lang.big),
       ToExpr.of(Tm.closed(g.opt(3, 0))) -> Ty.OptionOf(Lang.big),
-      ToExpr.of(Tm.closed(g.booking(3, 0))) -> Booking.ty, ToExpr.of(Tm.closed(g.fn(3, 0))) -> Terms.fnTy)
+      ToExpr.of(Tm.closed(g.booking(3, 0))) -> Booking.ty, ToExpr.of(Tm.closed(g.fn(3, 0))) -> Terms.fnTy,
+      ToExpr.of(Tm.closed(g.set(3, 0))) -> Ty.SetOf(Lang.big),
+      ToExpr.of(Tm.closed(g.table(3, 0))) -> Ty.MapOf(Lang.big, Lang.big))
   }
 
   test("the IR of every term is typed as the term is written") {
@@ -35,7 +37,9 @@ class TypeOfSuite extends munit.FunSuite:
     val printed = terms.map(_._1.toString).mkString
     List("Quant(Forall", "Quant(Exists", "Iterate(Forall", "Iterate(Filter", "Pairwise(", "Fold(", "Let(", "If(",
       "Match(", "SomeP(", "Make(", "Copy(", "Field(", "Call(", "Apply(Sym", "Apply(Fun", "Fun(", "SomeOf(", "Outside(",
-      "Nodup", "Cons", "Append", "Length", "Lit(Many").foreach(c => assert(printed.contains(c), c))
+      "Nodup", "Cons", "Append", "Length", "Lit(Many", "Iterate(Map", "Iterate(FlatMap", "Iterate(Find", "Contains",
+      "IsEmpty", "NonEmpty", "Zip", "Prim(Get,", "GetOrElse,", "GetOrElseAt", "Updated", "Incl", "Union", "Prod")
+      .foreach(c => assert(printed.contains(c), c))
   }
 
   test("a written lambda's result is its body's type, over inputs bound at levels 0 … n-1") {

@@ -1,6 +1,5 @@
 package keycloak
 
-import examples.Folds.*
 import frflow.*
 
 // ============================================================================
@@ -87,7 +86,7 @@ val handleRequest = Node.claim("A request opens the session a sign-in asks for w
   forall((s: Term[ServerState], q: Term[AuthRequest]) => step(s, q).accounts === administer(s.accounts, q) &&
     step(s, q).sessions.forall(x => (s.sessions.contains(x) && !endedBy(q, x)) || opened(s, q) === some(x)) &&
     s.sessions.forall(x => endedBy(q, x) || step(s, q).sessions.contains(x)) &&
-    opened(s, q).noneOr(x => step(s, q).sessions.contains(x))))
+    opened(s, q).forall(x => step(s, q).sessions.contains(x))))
   .refines(sessionsMirrorSignIns, accountsAsAdministered)
 
 /** The state a request leads to: the accounts as an administrator's change sets them; the session a sign-in opens
