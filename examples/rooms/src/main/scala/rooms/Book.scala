@@ -6,9 +6,10 @@ import frflow.*
 def bookIfGranted(request: Term[Request]): Flow[Boolean] =
   Flow.atomically(
     for
-      held  <- bookingTable.inRoom(request.room)
-      booked = granted(held, asBooking(request))
-      _     <- Flow.whenA(booked)(bookingTable.add(asBooking(request)))
+      held   <- bookingTable.inRoom(request.room)
+      booking = asBooking(request)
+      booked  = granted(held, booking)
+      _      <- Flow.whenA(booked)(bookingTable.add(booking))
     yield booked)
 
 /** Booking on SQLite: the flow proven of `book`, deciding with the Calendar. */

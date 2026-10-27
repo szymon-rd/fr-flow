@@ -122,6 +122,20 @@
         "sig": "VTMsdbi3gZw+/epge/pMhptww+29SeLBR5AZYhI/vmugWV4dtrAmaDCGtj44asajQOLhuvh0Bmc8LA2qckckDg==",
         "chain": "96c938af291fdd9480cf20a1d1ccd9b34a7bd2da8e6842b912e06c7e397d1848",
         "content": "20eb9fc7dd29d7ad"
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-27T10:20:20.424223Z",
+        "reason": "The same root; the bookings stored after booking are named storedAfter, apart from those stored before.",
+        "rejected": [],
+        "after": "3e940eb7fc47db91",
+        "code": "356f51e09cb17774ccde369071281159f7aa28361cb66981705367914f495d5c",
+        "commit": "7bb6fbc11d1cea3915ec9cd22b958168a02340f7",
+        "key": "b6e216cfdf46a202",
+        "sig": "7TbjOyySnKBJh8vv9BWjAVMJ8++hJ63gT/MAJ3TVNzUgI1GfPwpFaFjyqEG7/2/9+KVObalimxxtWzk0jAzKAg==",
+        "chain": "96c938af291fdd9480cf20a1d1ccd9b34a7bd2da8e6842b912e06c7e397d1848",
+        "content": "a79092c6e48aad8f"
       }
     ],
     "BookWhenGranted": [
@@ -451,6 +465,19 @@
         "sig": "KWJrB5RmmnjBFwYqoMwnFNmbLM8iiwvgE2mw5wfrIKkXv6nuoPOMHGOO4CfAR/DrjaAFFIORksywNASBeWflCQ==",
         "chain": "d5896518bc2c95a79a1ea24c9f136c63c8b5c0c980943a32cf9a59afdd1cdada",
         "content": "9ad8cd911388a503"
+      },
+      {
+        "action": "confirm",
+        "by": "demo-developer",
+        "at": "2026-10-27T10:20:20.424223Z",
+        "reason": "still holds after BookWhenFree changed: The same root; the bookings stored after booking are named storedAfter, apart from those stored before.",
+        "rejected": [],
+        "after": "95edc4e81360c7ef",
+        "commit": "7bb6fbc11d1cea3915ec9cd22b958168a02340f7",
+        "key": "b6e216cfdf46a202",
+        "sig": "XLTaD4aPVwkO3r482qwHUjmZPjXjjCKINts0djSxtl9FZKxg82XVgS0fjpV4Pr1OgoA/QI+Dk3PedzW8eO6QDw==",
+        "chain": "3100190701f0c3aff17022ceaa5ce370bd727488c2bb20631b5d7e7db3c44c80",
+        "content": "9ad8cd911388a503"
       }
     ],
     "GrantWhenNoOverlap": [
@@ -732,6 +759,20 @@
         "sig": "iAoC1DcGPFHzc48g20GlVRBWwLjGU+FP2dMGH1daFNb49VLogxcJc6GfglW1gJpwPTfBDcpoBLXpdtbTVsWYBQ==",
         "chain": "a103158bf75f797720a37950de4e38f119350189fdc1a71b68e5d1d26f89c111",
         "content": "6f9c8e3f64d114e6"
+      },
+      {
+        "action": "confirm",
+        "by": "demo-developer",
+        "at": "2026-10-27T10:20:30.880143Z",
+        "reason": "The same claim; the calendar's code names its two conditions (endsInTime, startsAfter) and the tests pass.",
+        "rejected": [],
+        "after": "a792e09933bfbf55",
+        "code": "9ce096ef7e8e870fc9b51eadf0b366af4f97039799cbdc4ce9a7b4b87fd47876",
+        "commit": "7bb6fbc11d1cea3915ec9cd22b958168a02340f7",
+        "key": "b6e216cfdf46a202",
+        "sig": "Z27ov3cTvnRCessTzQjz4ouWbJtgJ3YeUPZXXXm0wpT6bOp6gtAR6FAJxzCxB4bM+LWbjOCep5clyp/1EpO6Bw==",
+        "chain": "e25dc9494d8feb6d1ce6b142a0035ec0134a06e42f2e16ad4d4741c91fd5823d",
+        "content": "6f9c8e3f64d114e6"
       }
     ],
     "NeverDoubleBooked": [
@@ -894,6 +935,19 @@
         "sig": "gDvLMwkiiuihAo+TuOhrtWmNcd4TDaXhCD8R9lO7LnzM+O+E5WBvdx7/RifJR00q0XzzXb8U9nBwSVVRZOjoCg==",
         "chain": "3a55d77c631257195bfc0c9e4022d03325411a9473ab98593752a81c112f40fd",
         "content": "3b643290dfd0fe95"
+      },
+      {
+        "action": "confirm",
+        "by": "demo-developer",
+        "at": "2026-10-27T10:20:20.424223Z",
+        "reason": "still holds after BookWhenFree changed: The same root; the bookings stored after booking are named storedAfter, apart from those stored before.",
+        "rejected": [],
+        "after": "79bee11156759fb2",
+        "commit": "7bb6fbc11d1cea3915ec9cd22b958168a02340f7",
+        "key": "b6e216cfdf46a202",
+        "sig": "1zRvlIvKJQP6tBkKe5cYUkny5Rs9CTUyNwpuW7tvPdsPbLelUWRQYIvO7SFHKMHoSn96S3ph8dDByD7rgjUuAg==",
+        "chain": "ccefd0406d70a2231418be14dd817413861792c81acb2de2e5fc3e3654367041",
+        "content": "3b643290dfd0fe95"
       }
     ],
     "OnlyBookingWrites": [
@@ -973,6 +1027,19 @@
         "key": "b6e216cfdf46a202",
         "sig": "nS1R5GBb9k9YtxT4J/w87qcbhhqa98HqBBpmB+VpmFXBeyg7dXwlGS33PCj43a2Y0quFnP9Y9Pg0vxgonMg/BA==",
         "chain": "c1dc6e2acbb863099adc489249ad911daf0090cec40cea0a08e19358ef870eeb",
+        "content": "cf007013e89e4e0f"
+      },
+      {
+        "action": "confirm",
+        "by": "demo-developer",
+        "at": "2026-10-27T10:20:20.424223Z",
+        "reason": "still holds after BookWhenFree changed: The same root; the bookings stored after booking are named storedAfter, apart from those stored before.",
+        "rejected": [],
+        "after": "c60b4ee5123e1704",
+        "commit": "7bb6fbc11d1cea3915ec9cd22b958168a02340f7",
+        "key": "b6e216cfdf46a202",
+        "sig": "6wZNsXRYX5otEYlaAMcs3YYzIAQiqU2sbXQLIOj58M1Kjmn+biYLWIEoVLTIrpc+kVKlQHzylvKEXReI+jMiDg==",
+        "chain": "562becd82561c70da473249330e5436ac7a75dda90a31bd2739f3edc3f5a2d6e",
         "content": "cf007013e89e4e0f"
       }
     ],
@@ -1196,6 +1263,20 @@
         "sig": "Ar7ourdenmMd9G4IkzJcJgTFq7Fm08w1QQqY37NvaUUuVExPfF2NdprR+GZrxTeEVQh/E2Ezn/+B2REu3aEGBg==",
         "chain": "eed8bd986587865fe9c3ddeac2ba359763f21a8c0a231cff31515ea7fd2384fb",
         "content": "cd217460bb77bfee"
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-10-27T10:20:46.951889Z",
+        "reason": "The same model; SqliteBookings is made with SqliteBookings.holding and read back with held, named directly.",
+        "rejected": [],
+        "after": "161a209d959ec226",
+        "code": "31d92afc2a52ff00aecb462f8b1c56c93da58e8e4b42ecbeee6c3c40933c3d48",
+        "commit": "7bb6fbc11d1cea3915ec9cd22b958168a02340f7",
+        "key": "b6e216cfdf46a202",
+        "sig": "tpFS1IKRIi6BA8ZbVAPoJXkcDS26R/+1vTrSepZjt9jhNljdfJD38V6wpIpYc+gwQ6YY4k6CwwzGKz7saJmuBg==",
+        "chain": "214206fff509c4493f2a8779f03276d4aff411b8f3d7f4464c46803c40ed3abe",
+        "content": "866c004eb6535726"
       }
     ],
     "TableModel": [
@@ -1252,6 +1333,7 @@
     "d1778a93255aca0b": {"kind":"f0c4b6b1b355b1eb","parents":[],"parts":["e72512f596f0fa39"],"statement":"3670973bf0c34ecb","why":"12ae32cb1ec02d01","sources":"7368c578e1b06f96","substitutions":[],"examples":[],"vocabulary":["baba82b9a73e1053"],"uses":["a47ee2f71b1ac7c0","abd21bfab553bb63","ee1da66ec0c05500","df67d584972a5787"],"governs":[],"definition":"b5c544b25f81f89f","op":"f10eb448275d33b2","implementation":"8a3b84fd6f902c48","idea":"12ae32cb1ec02d01","notModelled":"12ae32cb1ec02d01"},
     "1a1397f233b8c215": {"kind":"f0c4b6b1b355b1eb","parents":[],"parts":["e72512f596f0fa39"],"statement":"3670973bf0c34ecb","why":"12ae32cb1ec02d01","sources":"d1f0a83dd516fe0f","substitutions":[],"examples":[],"vocabulary":["baba82b9a73e1053"],"uses":["a47ee2f71b1ac7c0","62b060a359db83f9","ee1da66ec0c05500","df67d584972a5787"],"governs":[],"definition":"7f453b9d0a7a79f6","op":"f10eb448275d33b2","implementation":"8a3b84fd6f902c48","idea":"12ae32cb1ec02d01","notModelled":"12ae32cb1ec02d01"},
     "20eb9fc7dd29d7ad": {"kind":"f0c4b6b1b355b1eb","parents":[],"parts":["e72512f596f0fa39","acbda1fe2a82ced0"],"statement":"3670973bf0c34ecb","why":"12ae32cb1ec02d01","sources":"05b48c064047e572","substitutions":[],"examples":[],"vocabulary":["baba82b9a73e1053"],"uses":["cd96f361dab7745c","a47ee2f71b1ac7c0","62b060a359db83f9","ee1da66ec0c05500","df67d584972a5787","42ed8bd63c8f8c73"],"governs":[],"definition":"fceb353fd18c3fec","op":"f10eb448275d33b2","implementation":"2264eda140a92c67","idea":"12ae32cb1ec02d01","notModelled":"12ae32cb1ec02d01"},
+    "a79092c6e48aad8f": {"kind":"f0c4b6b1b355b1eb","parents":[],"parts":["e72512f596f0fa39","acbda1fe2a82ced0"],"statement":"3670973bf0c34ecb","why":"12ae32cb1ec02d01","sources":"a108282c1e520092","substitutions":[],"examples":[],"vocabulary":["baba82b9a73e1053"],"uses":["cd96f361dab7745c","a47ee2f71b1ac7c0","62b060a359db83f9","ee1da66ec0c05500","df67d584972a5787","42ed8bd63c8f8c73"],"governs":[],"definition":"22eac9205aebfd7c","op":"f10eb448275d33b2","implementation":"2264eda140a92c67","idea":"12ae32cb1ec02d01","notModelled":"12ae32cb1ec02d01"},
     "b0f14c28f199e36d": {"kind":"304aeb6aeb928120","parents":[],"parts":[],"statement":"9650d769e46ff70d","why":"12ae32cb1ec02d01","sources":"08abad91b585ccd8","substitutions":[],"examples":["53115e1af16c6d95","9bb38717f9f68218","1c5a1ffbc5a0520f"],"vocabulary":["baba82b9a73e1053","b2e584fea7550590"],"uses":["a47ee2f71b1ac7c0","15f471c9f04720cf","b19152feb947df4a","444005fd2a425d98"],"governs":[],"definition":"fc2922c91dc2653e","op":"f10eb448275d33b2","implementation":"54b0cd7bf6d961df"},
     "5c32b883381523da": {"kind":"f0c4b6b1b355b1eb","parents":[],"parts":[],"statement":"bffaded525c2ce17","why":"12ae32cb1ec02d01","sources":"9d599e34951fbfc4","substitutions":[],"examples":[],"vocabulary":[],"uses":["a47ee2f71b1ac7c0","2360dd821f8cbba4"],"governs":[],"definition":"24d9fd09312534b8","idea":"12ae32cb1ec02d01","notModelled":"12ae32cb1ec02d01"},
     "0733122ce4612e19": {"kind":"f0c4b6b1b355b1eb","parents":[],"parts":[],"statement":"bffaded525c2ce17","why":"12ae32cb1ec02d01","sources":"6683b9f9a0c7e592","substitutions":[],"examples":[],"vocabulary":[],"uses":["a47ee2f71b1ac7c0","1587c4cd1720c22e"],"governs":[],"definition":"0005563e4d7ce093","idea":"12ae32cb1ec02d01","notModelled":"12ae32cb1ec02d01"},
@@ -1313,6 +1395,7 @@
     "93603d9b1575dc05": {"kind":"8eb6bddfbc96acaa","parents":["d5cc8f27a2e5a71e"],"statement":"0ba0735fdca28ed2","why":"4a72dc52dd476cad","sources":"44136fa355b3678a","substitutions":[],"examples":[],"vocabulary":[],"uses":[],"governs":[],"definition":"cbabaaaf3e6cd7d8","model":["e841ad4d58d36012","83f5246eebd4b97d"],"implementations":["48d9ef896211511f"]},
     "4d5828f1049db2f9": {"kind":"8eb6bddfbc96acaa","parents":[],"statement":"70bd0c29482bdeca","why":"12ae32cb1ec02d01","sources":"44136fa355b3678a","substitutions":[],"examples":[],"vocabulary":[],"uses":[],"governs":[],"definition":"689f5bb8ca939efb","model":["e841ad4d58d36012","83f5246eebd4b97d"],"implementations":["48d9ef896211511f"]},
     "cd217460bb77bfee": {"kind":"8eb6bddfbc96acaa","parents":[],"statement":"7fca4dfd409ba504","why":"12ae32cb1ec02d01","sources":"44136fa355b3678a","substitutions":[],"examples":[],"vocabulary":[],"uses":[],"governs":[],"definition":"3fbe53e1e18268ba","model":["a750d892d69244f4","f65e2d5f07861706"],"implementations":["5bcc89d780afef8c"]},
+    "866c004eb6535726": {"kind":"8eb6bddfbc96acaa","parents":[],"statement":"7fca4dfd409ba504","why":"12ae32cb1ec02d01","sources":"44136fa355b3678a","substitutions":[],"examples":[],"vocabulary":[],"uses":[],"governs":[],"definition":"23c2347a9fec6851","model":["a750d892d69244f4","f65e2d5f07861706"],"implementations":["73116f324d0574ed"]},
     "67da15ad796ecc12": {"kind":"8eb6bddfbc96acaa","parents":[],"statement":"7fca4dfd409ba504","why":"12ae32cb1ec02d01","sources":"44136fa355b3678a","substitutions":[],"examples":[],"vocabulary":[],"uses":[],"governs":[],"definition":"e379dee5e00ca8fc","model":["e841ad4d58d36012","c8a8a1a6777bf4e0"],"implementations":["48d9ef896211511f"]},
     "76bab1309fe3f9f6": {"kind":"8eb6bddfbc96acaa","parents":[],"statement":"7fca4dfd409ba504","why":"12ae32cb1ec02d01","sources":"44136fa355b3678a","substitutions":[],"examples":[],"vocabulary":[],"uses":[],"governs":[],"definition":"0b5d346796d3d64f","model":["e841ad4d58d36012","28eed669684e2187"],"implementations":["48d9ef896211511f"]}
   },
@@ -1352,6 +1435,8 @@
     "7f453b9d0a7a79f6": "val bookWhenFree = Node.claim(\"A request is stored exactly when its room is free for its whole time.\")(\n  forall((request: Term[Booking], before: Term[World]) =>\n    val stored = storedBookings.in(before)\n    val after = storedBookings.in(book(request).after(before))\n    after === when(free(stored, request))(stored :+ request).otherwise(stored)))\n  .assuming(tableMatchesModel, oneAtATime)",
     "05b48c064047e572": {"formula":"forall((request: Term[Request], before: Term[World]) =>\n  val stored = storedBookings.in(before)\n  val booking = asBooking(request)\n  val after = storedBookings.in(book(request).after(before))\n  after === when(free(stored, booking))(stored :+ booking).otherwise(stored))"},
     "fceb353fd18c3fec": "val bookWhenFree = Node.claim(\"A request is stored exactly when its room is free for its whole time.\")(\n  forall((request: Term[Request], before: Term[World]) =>\n    val stored = storedBookings.in(before)\n    val booking = asBooking(request)\n    val after = storedBookings.in(book(request).after(before))\n    after === when(free(stored, booking))(stored :+ booking).otherwise(stored)))\n  .assuming(tableMatchesModel, oneAtATime, requestsEndAfterStart)",
+    "a108282c1e520092": {"formula":"forall((request: Term[Request], before: Term[World]) =>\n  val stored = storedBookings.in(before)\n  val booking = asBooking(request)\n  val storedAfter = storedBookings.in(book(request).after(before))\n  storedAfter === when(free(stored, booking))(stored :+ booking).otherwise(stored))"},
+    "22eac9205aebfd7c": "val bookWhenFree = Node.claim(\"A request is stored exactly when its room is free for its whole time.\")(\n  forall((request: Term[Request], before: Term[World]) =>\n    val stored = storedBookings.in(before)\n    val booking = asBooking(request)\n    val storedAfter = storedBookings.in(book(request).after(before))\n    storedAfter === when(free(stored, booking))(stored :+ booking).otherwise(stored)))\n  .assuming(tableMatchesModel, oneAtATime, requestsEndAfterStart)",
     "304aeb6aeb928120": "contract",
     "9650d769e46ff70d": "A request is booked exactly when granted, and stored only then, so bookings never overlap.",
     "08abad91b585ccd8": {"post":"(request, booked, before, after) =>\n  val (held, heldAfter) = (before(Stored), after(Stored))\n  (allEndAfterStart(held, request) && held.pairwise(noOverlap)) implies\n    (booked === granted(held.filter(b => b.room === request.room), request) &&\n      heldAfter === booked.fold(held ++ List(request), held) && heldAfter.pairwise(noOverlap))"},
@@ -1522,6 +1607,8 @@
     "a750d892d69244f4": "add = fun (booking : Booking) => do\n    modify (fun stored => (stored ++ [booking]))",
     "f65e2d5f07861706": "inRoom = fun (room : String) => do\n    let stored ← get\n    pure (RoomBookings.mk room (List.filter (fun b => decide (b.room = room)) stored))",
     "5bcc89d780afef8c": "assumed, checked: stored => SqliteBookings.holding(stored)",
+    "23c2347a9fec6851": "val tableMatchesModel =\n  Node.assumption(\"The table gives a room's bookings in the order they were added, and adds one at the end.\")(\n    bookingTable.behavesAs(storedBookings))\n  .checkedAgainst(implementation = SqliteBookings.holding, stateOf = _.held)",
+    "73116f324d0574ed": "assumed, checked: SqliteBookings.holding",
     "e379dee5e00ca8fc": "val tableModel =\n  Node.assumption(\"The table gives a room's bookings in the order they were added, and adds one at the end.\")(\n    bookingTable.behavesAs(storedBookings))\n  .checkedAgainst(start = held => SqliteBookings.holding(held), observe = sqlite => sqlite.held)",
     "c8a8a1a6777bf4e0": "inRoom = fun (room : String) => do\n    let held ← get\n    pure (RoomBookings.mk (List.filter (fun b => decide (b.room = room)) held))",
     "0b5d346796d3d64f": "val tableModel =\n  Node.assumption(\"The table gives a room's bookings in the order they were added, and adds one at the end.\")(\n    bookingTable.behavesAs(storedBookings))\n  .checkedAgainst(holding = held => SqliteBookings.holding(held), readBack = sqlite => sqlite.held)",

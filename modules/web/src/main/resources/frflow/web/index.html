@@ -187,7 +187,9 @@ async function tick() {
 // --- the graph
 
 const kindOf = r => r.node.kind === "claim" && S.tree.main[0]?.node.node.id === r.node.id ? "root" : r.node.rule ? "invariant" : r.node.kind;
-const trusted = r => S.tree.overview.trusted.includes(r.node.id) || r.node.kind === "assumption";
+// Code tested against a claim is evidence, not proof, and not trusted either.
+const tested = r => (S.tree.overview.tested || []).includes(r.node.id);
+const trusted = r => !tested(r) && (S.tree.overview.trusted.includes(r.node.id) || r.node.kind === "assumption");
 function splitStatus(n) {
   const sp = n.split; if (!sp) return null;
   const c = sp.complete.status;
@@ -203,11 +205,12 @@ function splitLabel(n) {
 }
 function chips(r) {
   const n = r.node, ex = n.examples, bad = ex.filter(e => e.fails || e.codeFails || e.lean?.status === "failed").length;
-  const state = r.review.state === "review" ? reviewWords(r.review.causes)
+  const state = r.review.state === "review" ? reviewWords(r.review.causes, r.node)
     : r.review.state === "proposed" ? "new: decide it" : r.review.state;
   return `<span class="chip s-${r.review.state}">${esc(state)}</span>` +
     each("chip", r).join("") +
     (trusted(r) ? `<span class="chip s-trusted" title="a hypothesis of root_impl: trusted, not proven">trusted</span>` : "") +
+    (tested(r) ? `<span class="chip s-trusted" title="its code is tested against it, not proven">tested, not proven</span>` : "") +
     (n.status && n.status !== "proven" ? `<span class="chip s-${n.status}">${esc(n.status)}</span>` : "") +
     (ex.length ? `<span class="chip ${bad ? "s-bad" : "s-ok"}">examples ${ex.length - bad}/${ex.length}</span>` : "");
 }
@@ -322,9 +325,12 @@ const when = at => new Date(at).toLocaleString();
 const VERB = { accept: "accepted", confirm: "confirmed", reject: "rejected", revisit: "asked to revisit", remove: "agreed gone" };
 const SUBJECT = { self: "it", above: "a node it rests on", parts: "its parts", code: "its code" };
 const CLAUSE = { revisit: "asked to revisit it", merged: "kept from two branches" };
+// An assumption rests on nothing: what moves it from above is a node assuming it.
+const assumers = n => n.uses.length || n.relies.length ? "a node assuming it, or one it uses" : "a node assuming it";
 /** `it and its code changed: review it`, as the CLI says it. */
-function reviewWords(causes) {
-  const subjects = causes.filter(c => SUBJECT[c]).map(c => SUBJECT[c]);
+function reviewWords(causes, n) {
+  const subject = c => c === "above" && n?.kind === "assumption" ? assumers(n) : SUBJECT[c];
+  const subjects = causes.filter(c => SUBJECT[c]).map(subject);
   const changed = subjects.length === 0 ? [] : subjects.length === 1 ? [`${subjects[0]} changed`]
     : [`${subjects.slice(0, -1).join(", ")} and ${subjects[subjects.length - 1]} changed`];
   return [...changed, ...causes.filter(c => CLAUSE[c]).map(c => CLAUSE[c])].join("; ") + ": review it";
@@ -351,7 +357,7 @@ function code(c) {
 }
 function diff(d) {
   if (!d.since) return `<div class="side"><b>New: never decided</b></div>${d.code ? code(d.code) : ""}`;
-  return `<div class="side"><b>What changed since it was ${VERB[d.since.action]} (${esc(d.since.by)}, ${when(d.since.at)})</b></div>` + fields(d.self) +
+  return `<div class="side"><b>What changed since it was ${d.since.action === "confirm" ? "accepted" : VERB[d.since.action]} (${esc(d.since.by)}, ${when(d.since.at)})</b></div>` + fields(d.self) +
     (d.statementStale ? `<div class="warn">What it says formally changed and its statement did not: does the statement still say it?</div>` : "") +
     (d.partsAdded.length ? `<div class="warn">Parts added: ${d.partsAdded.map(go).join(", ")}: do these parts, together, still make it?</div>` : "") +
     (d.partsRemoved.length ? `<div class="warn">Parts removed: ${d.partsRemoved.map(esc).join(", ")}</div>` : "") +
@@ -376,7 +382,7 @@ function decision(d) {
   const below = v.below.length ? `<div class="side"><div class="label">Decisions below it, with their reasons: tick those this change may affect, to review them again. One that moved only with it is confirmed with your reason.</div>
     ${v.below.map(b => `<div class="row"><b>${go(b.id)}</b>${b.kind === "moved" ? ` <span class="muted small">(moved with it)</span>` : ""}<div class="small">${esc(b.statement)}</div>
       <div class="muted small">holds because: ${esc(b.reason)}</div>${b.kind === "accepted" ? `<label><input type="checkbox" class="rev" value="${esc(b.id)}"> revisit ${esc(b.id)}</label>` : ""}</div>`).join("")}</div>` : "";
-  return `<div class="box ${v.state}"><div class="verdict">${proposal ? "Proposed" : `To review: ${v.causes.map(c => CAUSE[c] || c).join("; ")}`}</div>
+  return `<div class="box ${v.state}"><div class="verdict">${proposal ? "Proposed" : `To review: ${v.causes.map(c => c === "above" && d.node.node.kind === "assumption" ? `the meaning of ${assumers(d.node.node)} changed` : CAUSE[c] || c).join("; ")}`}</div>
     ${v.waitsFor ? `<div class="warn">Decide ${go(v.waitsFor)} first: what rests on it is decided after it.</div>` : ""}
     ${v.notMechanical ? "" : `<div class="ok">Mechanical: Lean proves it again and nothing in it is a choice (the Inbox confirms the batch).</div>`}
     ${v.unproven.map(u => `<div class="err">Note: ${esc(u)}</div>`).join("")}

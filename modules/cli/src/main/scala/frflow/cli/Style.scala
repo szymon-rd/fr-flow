@@ -1,6 +1,6 @@
 package frflow.cli
 
-import frflow.protocol.{CheckStatus, ReviewState, Reviewed}
+import frflow.protocol.{CheckStatus, NodeKind, ReviewState, Reviewed}
 
 /** ANSI colors and Unicode on a terminal, plain ASCII otherwise; `width` none: lines as long as they are. */
 final case class Style(color: Boolean, unicode: Boolean, width: Option[Int]):
@@ -37,6 +37,8 @@ final case class Style(color: Boolean, unicode: Boolean, width: Option[Int]):
       case Some(CheckStatus.Open) => open
       case Some(CheckStatus.Waiting | CheckStatus.Timeout) => yellow(pick("…", "."))
       case Some(CheckStatus.Unchecked) => dim("?")
+      // An assumption Lean reads is taken as true, not proven: nothing to prove.
+      case Some(CheckStatus.Proven) if r.node.kind == NodeKind.Assumption => dim(pick("·", "-"))
       case Some(CheckStatus.Proven) => if r.review.unproven.isEmpty then proven else open
 
   def state(s: ReviewState, text: String): String = s match

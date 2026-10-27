@@ -4,7 +4,10 @@ package term
 import scala.compiletime.constValue
 import scala.deriving.Mirror
 
-/** Mixed into a case class's companion: `CrmStore(s.records, …)` builds a term, `CrmStore(…)` on values a value. */
+/** Mixed into a companion: `CrmStore(s.records, …)` builds a term, `CrmStore(…)` on values a value. A case class needs
+  * it only for a companion of its own that hides the one Scala makes (`Construct` builds terms by name without it); an
+  * enum, to build its cases from terms (`Event[Event.Wrote](w)`).
+  */
 trait Data[T]:
   import Tuple.Elem as E
   type F = NamedTuple.DropNames[NamedTuple.From[T]]

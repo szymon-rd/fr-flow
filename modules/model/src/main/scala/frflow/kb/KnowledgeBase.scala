@@ -285,12 +285,13 @@ final class KnowledgeBase(val name: String, val idea: String = "", val implement
 
   /** How a contract's code is checked where `service` runs it: as the developer chose (`checkedAtRunTime`), else on every
     * call, unless the running code is the code Lean proves (a proven define's result needs no second look; the values it
-    * runs with are still checked against the assumptions).
+    * runs with are still checked against the assumptions). The code of a Definition is not checked where it runs: proofs
+    * and tests check it before production (`None`).
     */
   def runTime(n: Node[?]): Option[RunTime] =
     // As this knowledge base holds the node: a choice made on it is the one in force, whichever copy is passed.
     val m = node(n.id).getOrElse(n)
-    implementation(m).filter(i => !i.flow && m.post.isDefined).map { i =>
+    implementation(m).filter(i => !i.flow && i.definition.isEmpty && m.post.isDefined).map { i =>
       val check = m.runCheck.getOrElse(if i.provenCode then RunCheck.Never else RunCheck.EveryCall)
       RunTime(check, if m.local.isDefined then "its check (checkedBy)" else "the contract", m.runCheck.isDefined)
     }

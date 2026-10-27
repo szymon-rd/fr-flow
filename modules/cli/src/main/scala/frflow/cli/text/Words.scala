@@ -33,14 +33,22 @@ object Words:
     Cause.Parts -> "its parts changed", Cause.Code -> "the code it governs changed", Cause.Revisit -> "a change elsewhere may affect it",
     Cause.Merged -> "two branches decided it and both were kept")
 
+  /** Why a node waits, in words: an assumption rests on nothing; what moves it from above is a node assuming it. */
+  def cause(c: Cause, n: SnapNode): String =
+    if c == Cause.Above && n.kind == NodeKind.Assumption then s"the meaning of ${assumers(n)} changed" else causes(c)
+
+  /** What moves an assumption from above: the nodes resting on it, and what it uses, if anything. */
+  private def assumers(n: SnapNode): String =
+    if n.uses.isEmpty && n.relies.isEmpty then "a node assuming it" else "a node assuming it, or one it uses"
+
   /** Why a node waits for review, in a few words: `it and its code changed: review it`. What changed is said as
-    * one subject: it; a node it rests on (a parent, or a claim or definition it uses); its parts; its code. Being
-    * asked to revisit it, or kept from two branches, is a clause of its own.
+    * one subject: it; a node it rests on (a parent, or a claim or definition it uses), for an assumption a node
+    * assuming it; its parts; its code. Being asked to revisit it, or kept from two branches, is a clause of its own.
     */
-  def review(causes: List[Cause]): String =
+  def review(causes: List[Cause], n: Option[SnapNode] = None): String =
     val subjects = causes.collect {
       case Cause.Self  => "it"
-      case Cause.Above => "a node it rests on"
+      case Cause.Above => n.filter(_.kind == NodeKind.Assumption).fold("a node it rests on")(assumers)
       case Cause.Parts => "its parts"
       case Cause.Code  => "its code"
     }

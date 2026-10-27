@@ -23,7 +23,7 @@ object Lines:
 
   /** What the developer is to do with it, in a few words: `it and its code changed: review it`; `new: decide it`. */
   def state(r: Reviewed): String = r.state match
-    case ReviewState.Review   => Words.review(r.review.causes)
+    case ReviewState.Review   => Words.review(r.review.causes, Some(r.node))
     case ReviewState.Proposed => "new: decide it"
     case other                => other.toString
 

@@ -24,7 +24,9 @@ object DiffText:
     d.since match
       case None => st.bold("New: never decided") :: codeLines.map("  " + _)
       case Some(x) =>
-        val since = s"since it was ${Words.verb(x.action)} (${x.by}, ${Words.date(x.at)})"
+        // A confirmation accepts the node with what moved it: said as accepted, as the decision it confirms is.
+        val verb = if x.action == Action.Confirm then Words.verb(Action.Accept) else Words.verb(x.action)
+        val since = s"since it was $verb (${x.by}, ${Words.date(x.at)})"
         if body.isEmpty then List(st.dim(s"Nothing changed $since."))
         else st.bold(s"What changed $since") :: body.map("  " + _)
 
