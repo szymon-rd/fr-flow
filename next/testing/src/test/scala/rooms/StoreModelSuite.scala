@@ -5,10 +5,9 @@ import cats.effect.unsafe.implicits.global
 import cats.Id
 import frflow.core.code.Values
 import frflow.core.name.SymbolName
-import frflow.dsl.flow.BoundaryOps
 import frflow.dsl.model.AdapterCheck
 import frflow.dsl.term.Lift
-import frflow.eval.{Running, Semantics}
+import frflow.eval.{Literals, Running, Semantics}
 import frflow.testing.{Plan, Seed, Settings}
 import frflow.testing.derive.Derive
 import frflow.testing.model.{Difference, ModelRuns}
@@ -74,9 +73,9 @@ class StoreModelSuite extends munit.FunSuite:
     val granting = Values(Map(SymbolName("granted") -> (() => (held: RoomBookings, r: Booking) =>
       Calendar(held).grants(r))))
     val booked = for
-      run    <- Running.make[IO](granting)
+      run    <- Running.make[IO](granting, Literals(elaborated))
       memory <- checked().start(Nil)
-      book    = (r: Request) => BookIfGranted(summon[BoundaryOps[BookingTable]].lifted(memory, run))(using run)
+      book    = (r: Request) => BookIfGranted(bookingTable.lifted(memory, run))(using run)
         .run(Lift.constant(r))
       first  <- book(Request("Oak", 9, 11)).map(run.value)
       clash  <- book(Request("Oak", 10, 12)).map(run.value)

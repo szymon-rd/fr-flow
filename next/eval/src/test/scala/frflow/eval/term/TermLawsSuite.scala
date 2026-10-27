@@ -36,6 +36,14 @@ class TermLawsSuite extends munit.FunSuite:
     }
   }
 
+  test("sets and maps as Scala's: a union holds what either holds, an added value is held, an update replaces") {
+    val (a, b) = (Run.pure(Set(BigInt(1))), Run.pure(Set(BigInt(2), BigInt(3))))
+    assertEquals(Evaluate.union(a, b)(env), Right(Set(BigInt(1), BigInt(2), BigInt(3))))
+    assertEquals(Evaluate.member(Evaluate.incl(a, Run.pure(BigInt(5))), Run.pure(BigInt(5)))(env), Right(true))
+    val m = Evaluate.updated(Run.pure(Map(BigInt(1) -> BigInt(2))), Run.pure(BigInt(1)), Run.pure(BigInt(4)))
+    assertEquals(Evaluate.get(m, Run.pure(BigInt(1)))(env), Right(Some(BigInt(4))))
+  }
+
   test("constant folding keeps every term's value") {
     terms.foreach(t => assertEquals(PartialEval.of(t.run, Evaluate)(env), Evaluate.of(t.run)(env), t.expr))
   }

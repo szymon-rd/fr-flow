@@ -4,6 +4,7 @@ import cats.Id
 import frflow.core.expr.{Binder, Expr, Prog, Progs}
 import frflow.core.name.{BoundaryName, OpName, VarId}
 import frflow.core.term.Stated
+import frflow.core.vocab.Fails
 import frflow.core.term.interpret.ToExpr
 import frflow.dsl.flow.{BoundaryOps, ReadRecording, Terms}
 import frflow.dsl.term.{LeanType, Lift, Term}
@@ -13,6 +14,7 @@ import frflow.dsl.term.{LeanType, Lift, Term}
   * called by name, and the adapter lifted as programs call it in production.
   */
 class BoundaryOpsSuite extends munit.FunSuite:
+  private type Tried[A] = Either[Throwable, A]
   private val derived = summon[BoundaryOps[BookingTable]]
   private val name = BoundaryName("bookingTable")
 
@@ -29,6 +31,7 @@ class BoundaryOpsSuite extends munit.FunSuite:
 
   /** Plain values and the terms made of them, as production's interpreter pairs them. */
   private final class Known extends Terms:
+    def fail(fails: Fails, cause: Throwable): Throwable = cause
     private val known = scala.collection.mutable.Map.empty[Term[?], Any]
     def value[A](t: Term[A]): A = known(t).asInstanceOf[A] // only terms made by `term` below, of type `A`
     def term[A: LeanType](a: A): Term[A] =
@@ -61,10 +64,15 @@ class BoundaryOpsSuite extends munit.FunSuite:
 
   test("the adapter lifted: each argument its term's value, each result its value's term") {
     val (memory, known) = (Memory(List(oak, elm)), Known())
-    val lifted = derived.lifted[Id](memory, known)
-    assertEquals(known.value(lifted.inRoom(known.term("Elm"))), RoomBookings("Elm", List(elm)))
-    lifted.add(known.term(oak))
-    assertEquals(memory.added, List(oak))
+    val tried = new BookingTable[Tried, Id]:
+      def inRoom(room: String): Tried[RoomBookings] = Right(memory.inRoom(room))
+      def add(booking: Booking): Tried[Unit] = Right(memory.add(booking))
+    List(derived, HandWrittenOps).foreach { ops =>
+      val lifted = ops.lifted[Tried](tried, known, None)
+      assertEquals(lifted.inRoom(known.term("Elm")).map(known.value), Right(RoomBookings("Elm", List(elm))))
+      assertEquals(lifted.add(known.term(oak)), Right(()))
+    }
+    assertEquals(memory.added, List(oak, oak))
   }
 
   /** What the derivation says of a trait it refuses. */

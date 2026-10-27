@@ -78,6 +78,10 @@ enum Problem:
     * a handler of its type).
     */
   case NeverFails(id: NodeId, program: SymbolName)
+  /** A program with a transaction inside a transaction (`atomically` within `atomically`): production runs each
+    * under one lock, which is not reentrant, so the inner one would wait on the outer for ever.
+    */
+  case NestedAtomic(program: DefName)
 
 object Problem:
   /** Where a type sits that an `always` would guard (`Unreached`): a variable a statement quantifies over, a store's

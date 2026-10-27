@@ -1,84 +1,65 @@
 package frflow.eval.term
 
-import frflow.core.Booking
 import frflow.core.code.Values
 import frflow.core.name.SymbolName
 import frflow.core.expr.{Expr, Exprs, Terms, Tm}
 import frflow.core.term.Final
 import frflow.core.term.interpret.ToExpr
-import frflow.core.ty.{DataType, Ty}
+import frflow.core.ty.Ty
 import frflow.eval.Env
-import frflow.proof.layout.{LeanTag, LeanWorkspace}
-import frflow.proof.lean.ast.*
-import frflow.proof.lean.laws.{LawsEnv, MoreTerms}
-import frflow.proof.lean.lower.{LowerType, Naming}
-import frflow.proof.lean.term.Printed
+import frflow.proof.layout.LeanTag
+import frflow.proof.lean.laws.MoreTerms
 
 /** Lean decides each generated term as the evaluator does (`sbt leanTest`): the terms the printer's and the IR's laws
-  * use (core's `Terms`, proof's `MoreTerms`), each made closed (`Closed`), evaluated in Scala, and stated in Lean as
-  * that value (the term, or its negation), proven by `decide` or by FrFlow's `frflow_eval`, which decides examples.
-  * A program's runs are from one world (`Closed.before`), of programs Lean and Scala each hold (`LawPrograms`,
-  * `Closed.programs`), a failing one's `Except` arms among them. A term with no Scala value (a quantifier over a
-  * whole type, the world outside) is left out.
+  * use (core's `Terms`, proof's `MoreTerms`), each made closed (`Closed`: its symbols given values, the world outside
+  * assumed), the DSL's (`DslTerms`) and the hand-written `Extras`; evaluated in Scala, and stated in Lean as that
+  * value, proven by `decide` or by FrFlow's `frflow_eval`, which decides examples (`LawModules`). A program's runs are
+  * from one world (`Closed.before`), of programs Lean and Scala each hold (`LawPrograms`, `Closed.programs`), a failing
+  * one's `Except` arms among them. A term with no Scala value (a quantifier over a whole type) is left out. Stated with
+  * the other value, no term is proven: the law fails on any term the two disagree on.
   */
 class LeanDecidesSuite extends munit.FunSuite:
   override val munitTimeout: scala.concurrent.duration.Duration = scala.concurrent.duration.Duration(20, "minutes")
-  private val naming = Naming.over(Set.empty, Set(Booking.name.value, MoreTerms.eventName.value, "World"))
   private val generated: List[Final[Boolean]] =
     (1L to 600L).toList.flatMap(seed => List(Tm.closed(Terms(seed).bool(3, 0)), MoreTerms(seed).formula))
   private val programs = Values(Closed.programs.map((p, f) => SymbolName(p) -> (() => f)))
   /** Each closed term with a Scala value, and that value. */
-  private val decided: List[(Final[Boolean], Boolean)] = generated.map(Closed.of).filterNot(open).flatMap(t =>
-    Evaluate.of(t)(Env.of(programs)).toOption.map(t -> _))
+  private val decided: List[(Final[Boolean], Boolean)] =
+    (generated.map(Closed.of) ++ Extras.terms ++ DslTerms.terms).filterNot(open)
+      .flatMap(t => Evaluate.of(t)(Env.of(programs)).toOption.map(t -> _))
 
   private def open(t: Final[Boolean]): Boolean = Exprs.all(ToExpr.of(t)).exists {
-    case Expr.Quant(_, _, _) | Expr.Outside(_) => true
-    case _                                     => false
+    case Expr.Quant(_, _, _) => true
+    case _                   => false
   }
+  private def all(t: Final[Boolean]): List[Expr] = Exprs.all(ToExpr.of(t))
 
-  private def n(s: String): LeanName = Names.builtin(s)
-  private def x(s: String, t: LExpr): LBinder = LBinder.Explicit(Names.ident(s), t)
-  private def fields(d: DataType): List[(LeanName, LExpr)] = d match
-    case DataType.Product(_, _, fs) => fs.map(f => Names.ident(f.name) -> LowerType(f.ty))
-    case _                          => Nil
-  private val types: List[Decl] = List(
-    Decl.Structure(n("Booking"), fields(Booking.data)),
-    Decl.Inductive(n("Event"), List(n("Booked") -> List(x("at", LExpr.Name(n("Int")))), n("Cleared") -> Nil)),
-    Decl.Structure(n("World"), List(n("stored") -> LExpr.Name(n("Int")))),
-    Decl.Def(List(Attr.FrflowDefs), n("positive"), Nil, LowerType.binder(Terms.fnTy),
-      Printed.formula(LawsEnv.env, naming)(Terms.positive.body))) ++ LawPrograms.decls
-
-  /** The term as its value says: itself when true, its negation when false. */
-  private def theorem(t: Final[Boolean], holds: Boolean, i: Int): Decl =
-    val term = Printed.formula(LawsEnv.env, naming)(t)
-    val statement = if holds then term else LExpr.Prefix(LPrefix.NotSpaced, LExpr.Paren(term))
-    Decl.Theorem(Nil, n(s"t_$i"), Nil, statement, Proof.Tactics(tactics), Break.SameLine)
-  private val tactics = List("first", "  | decide", "  | frflow_eval", "  | simp_all [frflow_defs]")
-
-  /** Lean's verdict on the terms stated with the values given: whether every one is proven, and Lake's output. */
-  private def proven(name: String, values: List[(Final[Boolean], Boolean)]): (Boolean, String) =
-    val m = LeanModule(ModuleName(Names.path("FrFlowGen", "Laws", "Decided")), List(ModuleName(Names.path("FrFlow"))),
-      Preamble.generated, Names.path("Laws"), Nil, types ++ values.zipWithIndex.map { case ((t, v), i) =>
-        theorem(t, v, i) })
-    LeanWorkspace.make(name).build(List(m))
-
-  test("most generated terms have a Scala value, both true and false among them") {
-    assert(decided.size >= 300, decided.size)
+  test("most terms have a Scala value, both true and false among them, every kind of operation reached") {
+    assert(decided.size >= 750, decided.size)
     assert(decided.exists(_._2) && decided.exists(!_._2), decided.map(_._2).distinct)
     assert(decided.forall((t, _) => Exprs.typeOf(ToExpr.of(t)) == Ty.Bool))
-    val runs = decided.flatMap((t, _) => Exprs.all(ToExpr.of(t)).collect { case r: Expr.Runs => r.failing })
+    val runs = decided.flatMap((t, _) => all(t).collect { case r: Expr.Runs => r.failing })
     assert(runs.contains(true) && runs.contains(false), runs.distinct)
+    val ops = decided.flatMap((t, _) => all(t).collect { case Expr.Prim(op, _, _) => op.toString })
+    val few = List("Union", "Incl", "Contains", "Updated", "Get").map(op => op -> ops.count(_ == op)).filter(_._2 < 8)
+    assertEquals(few, Nil)
   }
 
-  test("Lean decides each generated term as the evaluator does".tag(LeanTag)) {
-    val (built, out) = proven("decided", decided)
-    assert(built, out.linesIterator.take(80).mkString("\n"))
+  test("the unchanged worlds compare the models' states, the faults aside") {
+    assertEquals(Extras.terms.map(t => Evaluate.of(t)(Env.of(Values.none))),
+      List(Right(true), Right(true), Right(false), Right(true), Right(false), Right(false)))
   }
 
-  test("a term stated with the other value is not proven: the law can fail".tag(LeanTag)) {
-    val (t, v) = decided.head
-    val (built, out) = proven("undecided", List(t -> !v))
-    assert(!built && out.contains("error: FrFlowGen/Laws/Decided.lean"), out)
+  test("Lean decides each term as the evaluator does".tag(LeanTag)) {
+    val (proven, out) = LawModules.verdicts("Decided", decided)
+    assert(proven.size == decided.size && proven.forall(identity) && !out.contains("error:"),
+      out.linesIterator.take(80).mkString("\n"))
+  }
+
+  test("each term stated with the other value is not proven: the law fails on any disagreement".tag(LeanTag)) {
+    val (proven, out) = LawModules.verdicts("Negated", decided.map((t, v) => t -> !v))
+    assertEquals(proven.size, decided.size, out.linesIterator.take(40).mkString("\n"))
+    assertEquals(proven.zipWithIndex.collect { case (true, i) => i }, Nil)
   }
 
   test("a closed term's symbols are gone: its IR names none the generators give a value") {

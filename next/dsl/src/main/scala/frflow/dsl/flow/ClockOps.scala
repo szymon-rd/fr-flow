@@ -1,11 +1,11 @@
 package frflow.dsl.flow
 
-import cats.{Functor, Id}
+import cats.{Functor, Id, MonadThrow}
 import cats.syntax.all.*
 import frflow.core.expr.Binder
 import frflow.core.name.{BoundaryName, OpName, VarId}
 import frflow.core.ty.{NumKind, Ty}
-import frflow.core.vocab.{ModelOp, OpSig}
+import frflow.core.vocab.{Fails, ModelOp, OpSig}
 import frflow.dsl.build.Declarations
 import frflow.dsl.term.{LeanType, Term}
 
@@ -30,9 +30,11 @@ object ClockOps extends BoundaryOps[Clock]:
     case ("sleep", List(s: BigInt))   => adapter.sleep(s).widen
     case _                            => throw IllegalArgumentException(s"FrFlow: no ${op.value} on Clock")
 
-  def lifted[F[_]: Functor](adapter: Clock[F, Id], values: Terms): Clock[F, Term] = new Clock[F, Term]:
-    def now: F[Term[BigInt]] = adapter.now.map(values.term(_))
-    def sleep(s: Term[BigInt]): F[Unit] = adapter.sleep(values.value(s))
+  def lifted[F[_]](adapter: Clock[F, Id], values: Terms, fails: Option[Fails])(using F: MonadThrow[F])
+      : Clock[F, Term] = new Clock[F, Term]:
+    def now: F[Term[BigInt]] = called(adapter.now).map(values.term(_))
+    def sleep(s: Term[BigInt]): F[Unit] = F.catchNonFatal(values.value(s)).flatMap(t => called(adapter.sleep(t)))
+    private def called[A](fa: => F[A]): F[A] = BoundaryOps.failures(fails, values.fail)(F.unit.flatMap(_ => fa))
 
   def model(instance: Clock[Recorded, Term]): List[ModelOp] =
     val s = Binder(VarId.level(0), "seconds", seconds)

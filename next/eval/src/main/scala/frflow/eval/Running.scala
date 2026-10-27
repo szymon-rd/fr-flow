@@ -4,6 +4,7 @@ import cats.effect.kernel.Async
 import cats.effect.std.Mutex
 import cats.syntax.all.*
 import frflow.core.code.Values
+import frflow.core.vocab.Fails
 import frflow.dsl.flow.{Flow, Terms}
 import frflow.dsl.term.{LeanType, Lift, Term}
 import frflow.eval.term.Evaluate
@@ -14,7 +15,7 @@ import frflow.eval.term.Evaluate
   * proofs and tests before production. Made only by `make`, and reached by the developer as
   * `knowledge.running[F](…)` (`CodeSyntax`), typed `Flow[F] & Terms`.
   */
-final class Running[F[_]] private (values: Values, lock: Mutex[F])(using F: Async[F])
+final class Running[F[_]] private (values: Values, literals: Literals, lock: Mutex[F])(using F: Async[F])
     extends Flow[F], Terms:
   def pure[A](a: A): F[A] = F.pure(a)
   def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B] = F.flatMap(fa)(f)
@@ -51,7 +52,14 @@ final class Running[F[_]] private (values: Values, lock: Mutex[F])(using F: Asyn
 
   def value[A](t: Term[A]): A = Evaluate.of(t.run)(Env.of(values)).fold(e => throw NotEvaluated(e), identity)
   def term[A: LeanType](a: A): Term[A] = Lift.constant(a)
+  /** A failing boundary's error for an adapter's failure; a program's error raised inside the call passes as it is. */
+  def fail(fails: Fails, cause: Throwable): Throwable = cause match
+    case r: Raised => r
+    case other     => new Raised(literals(fails.error, fails.ty), fails.ty, Some(other))
 
 object Running:
-  /** A program's interpreter over the values it is given, with the one lock its transactions take. */
-  def make[F[_]: Async](values: Values): F[Running[F]] = Mutex[F].map(new Running(values, _))
+  /** A program's interpreter over the values it is given, its boundaries' errors made by `literals`, with the one
+    * lock its transactions take.
+    */
+  def make[F[_]: Async](values: Values, literals: Literals): F[Running[F]] =
+    Mutex[F].map(new Running(values, literals, _))

@@ -8,11 +8,12 @@ import frflow.core.expr.Prog
 import frflow.core.name.ModelName
 import frflow.core.term.Stated
 import frflow.dsl.flow.{ReadRecording, Recorded}
-import frflow.eval.{Env, Faults, Fn, Raised, Running, ScalaValue, Semantics}
+import frflow.eval.{Env, Faults, Fn, Literals, Raised, Running, ScalaValue, Semantics}
 
 /** A test program's two runs, each from an empty shelf at time 0 with the program's faults: its recording's `Prog` on
-  * the models (`FlowInterpreter`, as Lean reads it), and the program itself in production (`Running`) on the models'
-  * instances over `Ref`s. Each gives the outcome (`Left` its error), the shelf and the time.
+  * the models (`FlowInterpreter`, as Lean reads it), and the program itself in production (`Running`) on a plain shelf,
+  * lifted (`Boundary.lifted`: its `IOException` the boundary's error), and the clock's model over a `Ref`. Each gives
+  * the outcome (`Left` its error), the shelf and the time.
   */
 object Runs:
   type Seen = (Either[Any, Any], List[BigInt], BigInt)
@@ -36,12 +37,12 @@ object Runs:
 
   def running[R](p: Shelved[R]): IO[Seen] =
     for
-      run    <- Running.make[IO](Values.none)
+      run    <- Running.make[IO](Values.none, Literals(elaborated))
       shelf  <- IO.ref(List.empty[BigInt])
       time   <- IO.ref(BigInt(0))
       faults <- IO.ref(p.faults)
-      kept    = Faulty(Kept[IO](Held(shelf, run))(using run), faults, run)
-      out    <- p.program[IO](kept, Ticks[IO](Held(time, run))(using run), run).map(t => run.value(t): Any).attempt
+      lifted  = Shelf.shelf.lifted(PlainShelf(shelf, faults), run)
+      out    <- p.program[IO](lifted, Ticks[IO](Held(time, run))(using run), run).map(t => run.value(t): Any).attempt
       held   <- shelf.get
       now    <- time.get
     yield (out.leftMap { case r: Raised => r.error.unwrap; case other => throw other }, held, now)

@@ -1,5 +1,6 @@
 package frflow.dsl.flow
 
+import cats.{Id, MonadThrow}
 import frflow.core.name.BoundaryName
 import frflow.core.vocab.{BoundarySig, Fails}
 import frflow.dsl.build.{Declarations, Source}
@@ -15,6 +16,10 @@ final case class Boundary[B[_[_], _[_]]](name: BoundaryName, means: String, ops:
   /** The instance programs are recorded with: each call a `Recorded.Call`. */
   def recording: B[Recorded, Term] = ops.recording(name)
   def sig: BoundarySig = BoundarySig(name, ops.className, means, ops.ops, fails)
+  /** An adapter as programs call it in production (`knowledge.running[F]()` is `run`): each argument the value of
+    * its term, each result the term of its value, and, when this boundary may fail, an adapter's failure its error.
+    */
+  def lifted[F[_]: MonadThrow](adapter: B[F, Id], run: Flow[F] & Terms): B[F, Term] = ops.lifted(adapter, run, fails)
 
 object Boundary:
   inline def apply[B[_[_], _[_]]](means: String)(using ops: BoundaryOps[B]): Boundary[B] =

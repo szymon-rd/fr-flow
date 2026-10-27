@@ -37,6 +37,14 @@ object FailureCases:
     down.declaring(v => v.copy(defines = List(Define(DefName("bookIfFree"),
       Written.steps(List(b), steps, Ty.Unit, SourceText("bookIfFree")), DefineForm.Flow))))
 
+  /** `book`'s program adding the booking in a transaction inside a transaction. */
+  private val nested: Kb =
+    val b = Binder(VarId.level(0), "b", Booking.ty)
+    val add = Prog.Call(Store.boundary, OpName("add"), List(Stated([T[_]] => (s: Sym[T]) => s.free[Booking](b))),
+      Ty.Unit)
+    Store.kb.declaring(v => v.copy(defines = List(Define(DefName("bookIfFree"),
+      Written.steps(List(b), Prog.Atomic(Prog.Atomic(add)), Ty.Unit, SourceText("bookIfFree")), DefineForm.Flow))))
+
   /** `∀ before, before = before`, a claim of worlds equal, where the store may be down. */
   val sameWorld = claim("sameWorld")(Lang.formula([T[_]] => (l: Lang[T]) =>
     l.forall[World]("before", Ty.World)(w => l.s.eq(w, w))))
@@ -50,6 +58,7 @@ object FailureCases:
     ProblemCase(Kb.of(anyProgram), List(Problem.RunOfNoDefinition(NodeId("anyRuns")))),
     ProblemCase(down.and(sameWorld), List(Problem.WorldsEqual(NodeId("sameWorld")))),
     ProblemCase(raising, List(Problem.ErrorsDiffer(DefName("bookIfFree"), List(Lang.big, Ty.Str)))),
+    ProblemCase(nested, List(Problem.NestedAtomic(DefName("bookIfFree")))),
     ProblemCase(claiming(down, Lang.big),
       List(Problem.FailingDiffers(NodeId("bookFails"), Store.book, Lang.big, Ty.Str))),
     ProblemCase(claiming(Store.kb, Ty.Str), List(Problem.NeverFails(NodeId("bookFails"), Store.book))))
