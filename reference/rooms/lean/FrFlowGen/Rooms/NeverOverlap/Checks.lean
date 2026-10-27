@@ -16,6 +16,12 @@ theorem kept_by_book : Obl.kept_by_book := by
 
 #print axioms Rooms.NeverOverlap.Checks.kept_by_book
 
+theorem initially : Obl.initially := by
+  unfold Obl.initially
+  frflow_auto
+
+#print axioms Rooms.NeverOverlap.Checks.initially
+
 #print axioms Rooms.NeverOverlap.holds
 
 end Rooms.NeverOverlap.Checks

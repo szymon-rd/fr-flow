@@ -11,7 +11,7 @@ open Classical
 namespace Rooms
 
 @[frflow_defs] def roomBookingsApart : RoomBookings → Prop :=
-  fun (room : RoomBookings) => (List.Pairwise (fun (a : Booking) (b : Booking) => (Rooms.apart a b)) room.bookings)
+  fun (held : RoomBookings) => (List.Pairwise (fun (a : Booking) (b : Booking) => (Rooms.apart a b)) held.bookings)
 
 frflow_match_eqns
 

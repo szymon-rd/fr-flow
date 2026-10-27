@@ -3,7 +3,7 @@ Decided 0 decision(s).
 Keycloak: 23 nodes, 23 accepted
 Proofs: splits 11/11, claims down to their code 1/2, root_impl proven, consistency not proven, something may be vacuous (3 open: check says which)
 Tests: code against its claims 3/3, examples in Lean 31/31, at run time 3 checked on every call, 1 not checked (proven)
-Trusted: freshTokens, storeKeepsState; tested, not proven: introspect
+Trusted: freshTokens, storeKeepsState, sessionLookup; tested, not proven: introspect
 Nothing waits: every node is accepted and proven, or its code tested.
 marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do
 --- exit 0

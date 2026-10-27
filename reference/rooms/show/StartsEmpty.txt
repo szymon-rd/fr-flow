@@ -1,0 +1,13 @@
+- startsEmpty  assumption  accepted
+  The table starts empty.
+
+Formally (as written in Scala)
+  formula:
+    storedBookings.initially(stored => stored.isEmpty)
+
+Where it sits
+  assumed by + neverOverlap: "The bookings stored never overlap."
+
+Decisions
+  2026-10-27 00:49  accepted by demo-developer: The bookings table is created empty when the service is installed.
+--- exit 0

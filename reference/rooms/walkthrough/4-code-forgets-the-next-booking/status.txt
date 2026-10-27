@@ -1,25 +1,28 @@
 + bookWhenFree: "A request is stored exactly when its room is free for its whole time."
 |- + grantWhenFree: "A request is granted exactly when its room is free for its whole time."
 |  `- ! grantWhenNoOverlap — its code changed: review it: "A request is granted exactly when it overlaps no booking of its room."
-|- - tableModel (assumption): "The table gives a room's bookings in the order they were added, and adds one at the end."
-`- - oneAtATime (assumption): "Bookings are processed one at a time."
+|- - tableMatchesModel (assumption): "The table gives a room's bookings in the order they were added, and adds one at the end."
+|- - oneAtATime (assumption): "Bookings are processed one at a time."
+`- + requestsEndAfterStart (assumption): "The booking form sends only requests that end after they start."
 + answerWhenFree: "A request is answered booked exactly when its room is free for its whole time."
 |- -> grantWhenFree
-|- -> tableModel
-`- -> oneAtATime
+|- -> tableMatchesModel
+|- -> oneAtATime
+`- -> requestsEndAfterStart
 + neverOverlap: "The bookings stored never overlap."
 |- - onlyBookingWrites (assumption): "Only booking writes to the table."
-|- - startsApart (assumption): "The table starts with no two bookings overlapping."
-`- -> oneAtATime
+|- - startsEmpty (assumption): "The table starts empty."
+|- -> oneAtATime
+`- -> requestsEndAfterStart
 + endsAfterStart: "Every booking ends after it starts."
-`- - requestsEndAfterStart (assumption): "The booking form sends only requests that end after they start."
+`- -> requestsEndAfterStart
 + bookingsOfTheRoom: "A room's bookings are all of that room."
 + roomBookingsApart: "A room's bookings never overlap."
 
 Rooms: 13 nodes, 12 accepted, 1 to review
 Proofs: splits 3/3, root_impl proven, consistency proven, nothing vacuous
 Tests: code against its claims 0/1, implementations against their models 1/1, examples in Lean 4/4, at run time 1 checked on every call
-Trusted: tableModel (a model), onlyBookingWrites, oneAtATime, startsApart, requestsEndAfterStart (facts); tested, not proven: grantWhenNoOverlap
+Trusted: requestsEndAfterStart, tableMatchesModel (a model), onlyBookingWrites, oneAtATime, startsEmpty (facts); tested, not proven: grantWhenNoOverlap
 1 with something unproven
 Waiting: 1 for the developer
 marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do

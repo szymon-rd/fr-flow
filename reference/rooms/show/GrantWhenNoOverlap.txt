@@ -3,8 +3,8 @@
 
 Formally (as written in Scala)
   formula:
-    forall((room: Term[RoomBookings], request: Term[Booking]) =>
-      granted(room, request) === room.bookings.forall(b => noOverlap(b, request)))
+    forall((held: Term[RoomBookings], request: Term[Booking]) =>
+      granted(held, request) === held.bookings.forall(b => noOverlap(b, request)))
 
 Where it sits
   part of    + grantWhenFree  its only part: "A request is granted exactly when its room is free for its whole time."
@@ -21,11 +21,12 @@ Examples: 2 of 2 pass; Lean agrees on 2 of 2
 
 Code
   plain code, tested against the claim, not proven
-    (room, request) => Calendar(room).grants(request)
+    (held, request) => Calendar(held).grants(request)
   tested: 1,000 generated cases (seed 1), against grantWhenNoOverlap
     every case meets it, and every part of it was reached
     note: String: Oak or Elm (given; derived values for a quarter of them)
-    note: Booking: bookings of Oak or Elm that end after they start (given; derived values for a quarter of them)
+    note: Request: requests for Oak or Elm that end after they start (given; derived values for a quarter of them)
+    note: Booking: the bookings those requests ask for (given; derived values for a quarter of them)
     note: RoomBookings: a room's bookings, laid end to end, some back to back (given; derived values for a quarter of them)
     note: Booking: the examples' Booking("Oak", 9, 10), Booking("Oak", 10, 11), Booking("Oak", 9, 11) never come from the given generator (kept as seeds)
     note: RoomBookings: the examples' RoomBookings("Oak", List(Booking("Oak", 9, 10))), RoomBookings("Oak", List(Booking("Oak", 9, 11))) never come from the given generator (kept as seeds)
@@ -51,4 +52,6 @@ Decisions
   2026-10-26 21:48  accepted by demo-developer: The same answer over start and end times, the claim the calendar's code is tested against.
   2026-10-26 22:28  accepted by demo-developer: The same answer over start and end times, over a room's bookings: what the calendar's neighbour check is tested against.
   2026-10-26 23:14  accepted by demo-developer: The same claim over a room's bookings: what the calendar, sorted once by start, is tested against.
+  2026-10-27 00:50  accepted by demo-developer: The same claim, what the calendar's neighbour check is tested against.
+  2026-10-27 02:45  confirmed by demo-developer: still holds after bookWhenFree changed: The same root over a Request, the booking it asks for stored; it rests on what the form sends.
 --- exit 0

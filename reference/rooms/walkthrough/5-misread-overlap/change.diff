@@ -1,7 +1,7 @@
 # README step 5: touching meetings taken to overlap, in the claim over times, the code and the examples
 --- a/examples/rooms/src/main/scala/rooms/Knowledge.scala
 +++ b/examples/rooms/src/main/scala/rooms/Knowledge.scala
-@@ -83,7 +83,7 @@
+@@ -92,7 +92,7 @@
  
  // Over start and end times.
  val noOverlap = define { (a: Term[Booking], b: Term[Booking]) =>
@@ -9,15 +9,15 @@
 +  a.room =!= b.room || a.end < b.start || b.end < a.start }
  
  val grantWhenNoOverlap = Node.claim("A request is granted exactly when it overlaps no booking of its room.")(
-   forall((room: Term[RoomBookings], request: Term[Booking]) =>
+   forall((held: Term[RoomBookings], request: Term[Booking]) =>
 --- a/examples/rooms/src/main/scala/rooms/Calendar.scala
 +++ b/examples/rooms/src/main/scala/rooms/Calendar.scala
-@@ -10,4 +10,4 @@
-   def grants(request: Booking): Boolean =
+@@ -12,4 +12,4 @@
      val i = byStart.search(request)(using startOrder).insertionPoint
-     request.room != room.name ||
--      byStart.lift(i - 1).forall(_.end <= request.start) && byStart.lift(i).forall(_.start >= request.end)
-+      byStart.lift(i - 1).forall(_.end < request.start) && byStart.lift(i).forall(_.start > request.end)
+     val before = byStart.lift(i - 1)
+     val after = byStart.lift(i)
+-    (request.room != held.room) || (before.forall(_.end <= request.start) && after.forall(_.start >= request.end))
++    (request.room != held.room) || (before.forall(_.end < request.start) && after.forall(_.start > request.end))
 --- a/examples/rooms/src/test/scala/rooms/GrantedExamples.scala
 +++ b/examples/rooms/src/test/scala/rooms/GrantedExamples.scala
 @@ -3,8 +3,11 @@

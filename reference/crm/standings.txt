@@ -12,7 +12,7 @@ HttpApi | design | nothing to prove | accepted |
 NoCrossTenantRead | invariant | proven | accepted | 
 ReadContract | contract | proven | accepted | 
 ReadSideWiring | design | nothing to prove | accepted | 
-RecordsByQuery | assumption | assumed | accepted | its check: proven
+RecordsByQuery | assumption | assumed | accepted | its check: proven; code tested on 1000 cases against the proven define storedMatching, and RecordsByQuery, seed 1
 RecordsKept | claim | proven | accepted | 
 SaveWrite | contract | proven | accepted | 
 Searches | definition | nothing to prove | accepted | 
@@ -20,7 +20,7 @@ SearchesMatch | claim | proven | accepted |
 SharedCrm | claim | proven | accepted | 
 SharesExpire | contract | proven | accepted | 
 Sharing | definition | nothing to prove | accepted | 
-StoreEdits | assumption | assumed | accepted | its check: proven
+StoreEdits | assumption | assumed | accepted | its check: proven; code tested on 1000 cases against the proven define storedAbout, and StoreEdits, seed 1
 StoreMirrorsRequests | claim | proven | accepted | 
 TablesModel | assumption | assumed | accepted | its check: proven; MemoryDatabase, SqliteDatabase run against the model on 1200 runs
 Visibility | claim | proven | accepted | 

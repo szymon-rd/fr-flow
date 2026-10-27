@@ -1,0 +1,59 @@
+node	kind	standing	status	review	causes	cases	against	seed
+AcceptContract	contract	proven	proven	accepted				
+AccessContract	contract	proven	proven	accepted				
+AccessFollowsShares	claim	proven	proven	accepted				
+AccessRequestsAreAsks	claim	proven	proven	accepted				
+AnnounceContract	contract	proven	proven	accepted				
+ApproveContract	contract	proven	proven	accepted				
+AskContract	contract	proven	proven	accepted				
+AuditTrail	claim	proven	proven	accepted				
+CanEditContract	contract	proven	proven	accepted				
+CanViewContract	contract	proven	proven	accepted				
+ChaseContract	contract	proven	proven	accepted				
+ClockKept	assumption	assumed	proven	accepted		1000	the model ClockModel	1
+ClockNeverGoesBack	assumption	assumed	proven	accepted				
+Cover	definition	nothing to prove		accepted				
+DeclineContract	contract	proven	proven	accepted				
+DeliveryJob	contract	proven	proven	accepted				
+DomainTypes	design	nothing to prove		accepted				
+EndedStaysEnded	claim	proven	proven	accepted				
+ForgetContract	contract	proven	proven	accepted				
+GoneContract	contract	proven	proven	accepted				
+HandleContract	contract	proven	proven	accepted				
+HousekeepingClearsOnlyTheEnded	claim	proven	proven	accepted				
+HousekeepingJob	contract	proven	proven	accepted				
+HousekeepingOnTime	assumption	assumed	proven	accepted				
+HousekeepingPeriod	definition	nothing to prove		accepted				
+InForceContract	contract	proven	proven	accepted				
+InTrash	definition	nothing to prove		accepted				
+InvitationLifetime	definition	nothing to prove		accepted				
+InvitationsAreOffers	claim	proven	proven	accepted				
+InvitationsLapseOnTime	claim	proven	proven	accepted				
+InviteContract	contract	proven	proven	accepted				
+IsOpenContract	contract	proven	proven	accepted				
+LibraryKept	assumption	assumed	proven	accepted		1200	the model LibraryModel	1
+MailerKept	assumption	assumed	proven	accepted		1000	the model MailerModel	1
+MoveContract	contract	proven	proven	accepted				
+NoticesFollowChanges	claim	proven	proven	accepted				
+OwnersKeepTheirDocuments	claim	proven	proven	accepted				
+OwnersShare	definition	nothing to prove		accepted				
+PendingContract	contract	proven	proven	accepted				
+Permission	definition	nothing to prove		accepted				
+Reach	definition	nothing to prove		accepted				
+RecordContract	contract	proven	proven	accepted				
+ReminderDueContract	contract	proven	proven	accepted				
+RequestLifetime	definition	nothing to prove		accepted				
+RequestsAnsweredOnTime	claim	proven	proven	accepted				
+RestoreContract	contract	proven	proven	accepted				
+ServerWiring	design	nothing to prove		accepted				
+ShareContract	contract	proven	proven	accepted				
+TidyContract	contract	proven	proven	accepted				
+Transactions	design	nothing to prove		accepted				
+TransferContract	contract	proven	proven	accepted				
+TrashContract	contract	proven	proven	accepted				
+TrashLifetime	definition	nothing to prove		accepted				
+TrashPurgedOnTime	claim	proven	proven	accepted				
+TrashUntilGone	claim	proven	proven	accepted				
+UnshareContract	contract	proven	proven	accepted				
+WarnContract	contract	proven	proven	accepted				
+WithdrawContract	contract	proven	proven	accepted				

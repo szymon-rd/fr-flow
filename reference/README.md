@@ -42,9 +42,10 @@ the suites do.
   are kept too. For sharing, the fault sweep and interleavings are the examples' runs, each verdict listed, and the
   suite's two scheduler faults (housekeeping not run, seeds 101 to 120 beside the kept runs 1 to 20; late wake-ups,
   `Random(7)`) with what each run measured.
-- `rooms/walkthrough/`: the README's rooms steps 4 to 6 (the code forgetting the next booking, the misread overlap,
-  the misread reaching `covers`), each applied to the committed example on the copy: the change as a diff, then
-  `check`, `status` and `review` after it. Each step starts from the committed example; step 6 includes step 5.
+- `rooms/walkthrough/`: the SQL query of a room's bookings forgetting the room (step 0, not in the README), then
+  the README's rooms steps 4 to 6 (the calendar forgetting the next booking, the misread overlap, the misread
+  reaching `covers`), each applied to the committed example on the copy: the change as a diff, then `check`,
+  `status` and `review` after it. Each step starts from the committed example; step 6 includes step 5.
 
 Every command's file ends with its stderr (when any) and its exit code. The walk-through's changes are written in
 `capture.py` (`WALKTHROUGH`) as exact text to replace: when the rooms example changes so that one no longer applies,

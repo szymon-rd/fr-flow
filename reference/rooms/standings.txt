@@ -11,7 +11,7 @@ GrantWhenNoOverlap | claim | tested | accepted | code tested on 1000 cases again
 NeverOverlap | claim | proven | accepted | 
 OneAtATime | assumption | assumed | accepted | 
 OnlyBookingWrites | assumption | assumed | accepted | 
-RequestsEndAfterStart | assumption | assumed | accepted | 
+RequestsEndAfterStart | assumption | assumed | accepted | its check: proven
 RoomBookingsApart | claim | proven | accepted | 
-StartsApart | assumption | assumed | accepted | 
-TableModel | assumption | assumed | accepted | its check: proven; SqliteBookings run against the model on 200 runs
+StartsEmpty | assumption | assumed | accepted | 
+TableMatchesModel | assumption | assumed | accepted | its check: proven; SqliteBookings run against the model on 200 runs

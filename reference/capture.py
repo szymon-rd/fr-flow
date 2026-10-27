@@ -45,19 +45,21 @@ GENERATED_LEAN = ["lean/FrFlowGen", "lean/FrFlowAudit"]
 NOISE = ("Picked up JAVA_TOOL_OPTIONS", "Your app's responsiveness to a new asynchronous event",
          "cats.effect.warnOnNonMainThreadDetected")
 
-# The README's rooms section, steps 4 to 6, as changes to today's rooms example: (file, old, new), each `old` found
-# exactly once. Steps 5 and 6 start from step 5's changes; each step starts from the example as committed.
+# The rooms walk-through as changes to today's rooms example: (file, old, new), each `old` found exactly once. Each
+# step starts from the example as committed; step 6 includes step 5's changes. Step 0 is not in the README.
 ROOMS = "examples/rooms/src/main/scala/rooms/"
 ROOMS_TEST = "examples/rooms/src/test/scala/rooms/"
-FORGETS_NEXT = [(ROOMS + "Calendar.scala",
-                 "byStart.lift(i - 1).forall(_.end <= request.start) && byStart.lift(i).forall(_.start >= request.end)",
-                 "byStart.lift(i - 1).forall(_.end <= request.start)")]
+FORGETS_ROOM = [(ROOMS + "SqliteBookings.scala",
+                 '"select room, starts, ends from bookings where room = ? order by id")\n'
+                 '    query.setString(1, room)\n',
+                 '"select room, starts, ends from bookings order by id")\n')]
+CALENDAR = "(before.forall(_.end <= request.start) && after.forall(_.start >= request.end))"
+FORGETS_NEXT = [(ROOMS + "Calendar.scala", CALENDAR, "(before.forall(_.end <= request.start))")]
 MISREADS_OVERLAP = [
     (ROOMS + "Knowledge.scala", "a.room =!= b.room || a.end <= b.start || b.end <= a.start",
      "a.room =!= b.room || a.end < b.start || b.end < a.start"),
-    (ROOMS + "Calendar.scala",
-     "byStart.lift(i - 1).forall(_.end <= request.start) && byStart.lift(i).forall(_.start >= request.end)",
-     "byStart.lift(i - 1).forall(_.end < request.start) && byStart.lift(i).forall(_.start > request.end)"),
+    (ROOMS + "Calendar.scala", CALENDAR,
+     "(before.forall(_.end < request.start) && after.forall(_.start > request.end))"),
     (ROOMS_TEST + "GrantedExamples.scala",
      '  example("back to back: granted"):\n'
      '    granted(RoomBookings("Oak", List(Booking("Oak", 9, 10))), Booking("Oak", 10, 11)) is true\n',
@@ -68,6 +70,8 @@ MISREADS_OVERLAP = [
 MISREADS_COVERS = MISREADS_OVERLAP + [
     (ROOMS + "Knowledge.scala", "b.start <= t && t < b.end", "b.start <= t && t <= b.end")]
 WALKTHROUGH = [
+    ("0-sql-forgets-the-room", "not in the README: the SQL query of a room's bookings forgets the room (its WHERE "
+                               "dropped)", FORGETS_ROOM),
     ("4-code-forgets-the-next-booking", "README step 4: Calendar forgets the booking after the request", FORGETS_NEXT),
     ("5-misread-overlap", "README step 5: touching meetings taken to overlap, in the claim over times, the code and "
                           "the examples", MISREADS_OVERLAP),
@@ -360,8 +364,8 @@ def restore(changes):
 
 
 def walkthrough(out):
-    """The README's rooms steps 4 to 6, each applied to the committed example on the copy; check, status and review
-    after each."""
+    """The rooms walk-through (step 0, then the README's steps 4 to 6), each applied to the committed example on the
+    copy; check, status and review after each."""
     for name, what, changes in WALKTHROUGH:
         step = out / "walkthrough" / name
         diff = apply(changes)

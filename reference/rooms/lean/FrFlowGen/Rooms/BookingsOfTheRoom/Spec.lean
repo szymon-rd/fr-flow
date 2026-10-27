@@ -6,6 +6,8 @@ import FrFlowGen.Rooms.Domain.Def_endsAfterStart
 import FrFlowGen.Rooms.Domain.Def_neverOverlap
 import FrFlowGen.Rooms.Domain.Def_apart
 import FrFlowGen.Rooms.Domain.Def_covers
+import FrFlowGen.Rooms.Domain.Def_roomBookingsApart
+import FrFlowGen.Rooms.Domain.Def_requestsEndAfterStart
 
 set_option autoImplicit false
 set_option linter.unusedVariables false

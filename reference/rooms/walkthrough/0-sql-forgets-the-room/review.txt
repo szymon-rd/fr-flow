@@ -1,0 +1,38 @@
+
+--- 1 waiting ---
+x tableMatchesModel  assumption  its code changed: review it
+  The table gives a room's bookings in the order they were added, and adds one at the end.
+
+What changed since it was confirmed (demo-developer, 2026-10-27 02:45)
+  the code it governs changed (src/main/scala/rooms/SqliteBookings.scala)
+    diff --git a/examples/rooms/src/main/scala/rooms/SqliteBookings.scala b/examples/rooms/src/main/scala/rooms/SqliteBookings.scala
+    index 7245cbb..60c50ed 100644
+    --- a/examples/rooms/src/main/scala/rooms/SqliteBookings.scala
+    +++ b/examples/rooms/src/main/scala/rooms/SqliteBookings.scala
+    @@ -16,8 +16,7 @@ final class SqliteBookings private (conn: Connection) extends BookingTable:
+       }
+     
+       private def bookingsIn(room: String): List[Booking] = synchronized {
+    -    val query = conn.prepareStatement("select room, starts, ends from bookings where room = ? order by id")
+    -    query.setString(1, room)
+    +    val query = conn.prepareStatement("select room, starts, ends from bookings order by id")
+         read(query)
+       }
+     
+
+Decision
+  to review: the code it governs changed
+  tableMatchesModel is under review for code: the developer decides
+  note: a generated run differs from the model: on SqliteBookings, from List(Booking("Oak", 1, 3)): inRoom("Elm") returned RoomBookings("Elm", List(Booking("Oak", 1, 3))), where the model returns RoomBookings("Elm", List())
+  note: its implementations' tests never reached a part of the model: add called (add an example, or a generator)
+
+[a]ccept [s]kip [v]iew [q]uit: 
+Decided 0 decision(s).
+Rooms: 13 nodes, 12 accepted, 1 to review
+Proofs: splits 3/3, root_impl proven, consistency proven, nothing vacuous
+Tests: code against its claims 1/1, implementations against their models 0/1, examples in Lean 4/4, at run time 1 checked on every call
+Trusted: requestsEndAfterStart, tableMatchesModel (a model), onlyBookingWrites, oneAtATime, startsEmpty (facts); tested, not proven: grantWhenNoOverlap
+1 with something unproven
+Waiting: 1 for the developer
+marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do
+--- exit 0

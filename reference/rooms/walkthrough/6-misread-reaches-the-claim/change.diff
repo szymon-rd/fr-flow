@@ -1,7 +1,7 @@
 # README step 6: step 5, and covers includes the end moment; the proof of GrantWhenFree is unchanged
 --- a/examples/rooms/src/main/scala/rooms/Knowledge.scala
 +++ b/examples/rooms/src/main/scala/rooms/Knowledge.scala
-@@ -42,7 +42,7 @@
+@@ -50,7 +50,7 @@
  val oneAtATime = Node.assumption("Bookings are processed one at a time.")(storedBookings.changedOneRunAtATime)
  
  // Over moments.
@@ -10,7 +10,7 @@
  
  val apart = define { (a: Term[Booking], b: Term[Booking]) =>
    a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t))) }
-@@ -83,7 +83,7 @@
+@@ -92,7 +92,7 @@
  
  // Over start and end times.
  val noOverlap = define { (a: Term[Booking], b: Term[Booking]) =>
@@ -18,15 +18,15 @@
 +  a.room =!= b.room || a.end < b.start || b.end < a.start }
  
  val grantWhenNoOverlap = Node.claim("A request is granted exactly when it overlaps no booking of its room.")(
-   forall((room: Term[RoomBookings], request: Term[Booking]) =>
+   forall((held: Term[RoomBookings], request: Term[Booking]) =>
 --- a/examples/rooms/src/main/scala/rooms/Calendar.scala
 +++ b/examples/rooms/src/main/scala/rooms/Calendar.scala
-@@ -10,4 +10,4 @@
-   def grants(request: Booking): Boolean =
+@@ -12,4 +12,4 @@
      val i = byStart.search(request)(using startOrder).insertionPoint
-     request.room != room.name ||
--      byStart.lift(i - 1).forall(_.end <= request.start) && byStart.lift(i).forall(_.start >= request.end)
-+      byStart.lift(i - 1).forall(_.end < request.start) && byStart.lift(i).forall(_.start > request.end)
+     val before = byStart.lift(i - 1)
+     val after = byStart.lift(i)
+-    (request.room != held.room) || (before.forall(_.end <= request.start) && after.forall(_.start >= request.end))
++    (request.room != held.room) || (before.forall(_.end < request.start) && after.forall(_.start > request.end))
 --- a/examples/rooms/src/test/scala/rooms/GrantedExamples.scala
 +++ b/examples/rooms/src/test/scala/rooms/GrantedExamples.scala
 @@ -3,8 +3,11 @@

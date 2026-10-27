@@ -9,13 +9,18 @@ open Classical
 
 namespace Rooms
 
+structure Request where
+  room : String
+  start : Int
+  «end» : Int
+
 structure Booking where
   room : String
   start : Int
   «end» : Int
 
 structure RoomBookings where
-  name : String
+  room : String
   bookings : (List Booking)
 
 end Rooms

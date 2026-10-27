@@ -16,12 +16,6 @@ theorem kept_by_book : Obl.kept_by_book := by
 
 #print axioms Rooms.EndsAfterStart.Checks.kept_by_book
 
-theorem called_with_book : Obl.called_with_book := by
-  unfold Obl.called_with_book
-  frflow_auto
-
-#print axioms Rooms.EndsAfterStart.Checks.called_with_book
-
 #print axioms Rooms.EndsAfterStart.holds
 
 end Rooms.EndsAfterStart.Checks

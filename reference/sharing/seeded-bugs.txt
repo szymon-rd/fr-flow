@@ -47,3 +47,107 @@ generated cases of AccessContract: 1000 against AccessContract, seed 1
   why:
     returned Some(View), which AccessContract forbids
 
+## housekeeping not run (also seeded in today's suites)
+
+seeded: 200 generated requests and waits on the fake clock; housekeeping within every 6 hours (kept), or never (not run)
+suite: SharingSuite: runs that keep to the scheduler's assumption meet every deadline; never-before and ended shares hold in every run (not run: a deadline fails in some run, the meaning holds in all)
+
+what each run measured (Measured(neverEarly, trashOnTime, invitesOnTime, endedGiveNothing)):
+  seed 1, kept: Measured(true,true,true,true)
+  seed 2, kept: Measured(true,true,true,true)
+  seed 3, kept: Measured(true,true,true,true)
+  seed 4, kept: Measured(true,true,true,true)
+  seed 5, kept: Measured(true,true,true,true)
+  seed 6, kept: Measured(true,true,true,true)
+  seed 7, kept: Measured(true,true,true,true)
+  seed 8, kept: Measured(true,true,true,true)
+  seed 9, kept: Measured(true,true,true,true)
+  seed 10, kept: Measured(true,true,true,true)
+  seed 11, kept: Measured(true,true,true,true)
+  seed 12, kept: Measured(true,true,true,true)
+  seed 13, kept: Measured(true,true,true,true)
+  seed 14, kept: Measured(true,true,true,true)
+  seed 15, kept: Measured(true,true,true,true)
+  seed 16, kept: Measured(true,true,true,true)
+  seed 17, kept: Measured(true,true,true,true)
+  seed 18, kept: Measured(true,true,true,true)
+  seed 19, kept: Measured(true,true,true,true)
+  seed 20, kept: Measured(true,true,true,true)
+  seed 101, not run: Measured(true,false,false,true)
+  seed 102, not run: Measured(true,false,false,true)
+  seed 103, not run: Measured(true,false,false,true)
+  seed 104, not run: Measured(true,true,false,true)
+  seed 105, not run: Measured(true,false,false,true)
+  seed 106, not run: Measured(true,false,false,true)
+  seed 107, not run: Measured(true,false,false,true)
+  seed 108, not run: Measured(true,false,false,true)
+  seed 109, not run: Measured(true,false,false,true)
+  seed 110, not run: Measured(true,false,false,true)
+  seed 111, not run: Measured(true,false,false,true)
+  seed 112, not run: Measured(true,false,false,true)
+  seed 113, not run: Measured(true,false,false,true)
+  seed 114, not run: Measured(true,false,false,true)
+  seed 115, not run: Measured(true,false,false,true)
+  seed 116, not run: Measured(true,false,false,true)
+  seed 117, not run: Measured(true,true,false,true)
+  seed 118, not run: Measured(true,false,false,true)
+  seed 119, not run: Measured(true,true,false,true)
+  seed 120, not run: Measured(true,true,false,true)
+
+## late wake-ups of the scheduler (also seeded in today's suites)
+
+seeded: Housekeeping.schedule on a fake clock that wakes it 0 to 119 seconds late, 10 times a round, 50 rounds
+suite: SharingSuite: the scheduler on a fake clock with adversarial delays: late wake-ups break HousekeepingOnTime
+
+the gaps between runs (each delay plus the 60 s period); HousekeepingOnTime holds when none is over 120:
+  round 1: delays 76 44 45 4 100 94 88 89 90 54; gaps 136 104 105 64 160 154 148 149 150 114; HousekeepingOnTime broken
+  round 2: delays 0 72 108 31 55 22 81 18 27 39; gaps 60 132 168 91 115 82 141 78 87 99; HousekeepingOnTime broken
+  round 3: delays 82 44 3 91 38 44 39 40 96 11; gaps 142 104 63 151 98 104 99 100 156 71; HousekeepingOnTime broken
+  round 4: delays 3 33 79 51 15 92 58 66 6 74; gaps 63 93 139 111 75 152 118 126 66 134; HousekeepingOnTime broken
+  round 5: delays 5 80 33 87 13 115 112 9 76 12; gaps 65 140 93 147 73 175 172 69 136 72; HousekeepingOnTime broken
+  round 6: delays 12 45 114 50 4 52 48 45 66 117; gaps 72 105 174 110 64 112 108 105 126 177; HousekeepingOnTime broken
+  round 7: delays 34 45 96 109 32 105 20 25 89 107; gaps 94 105 156 169 92 165 80 85 149 167; HousekeepingOnTime broken
+  round 8: delays 94 12 117 40 74 36 60 61 31 38; gaps 154 72 177 100 134 96 120 121 91 98; HousekeepingOnTime broken
+  round 9: delays 16 54 27 106 37 56 88 81 65 38; gaps 76 114 87 166 97 116 148 141 125 98; HousekeepingOnTime broken
+  round 10: delays 46 58 67 57 46 101 60 39 25 55; gaps 106 118 127 117 106 161 120 99 85 115; HousekeepingOnTime broken
+  round 11: delays 108 6 51 52 115 67 95 90 94 3; gaps 168 66 111 112 175 127 155 150 154 63; HousekeepingOnTime broken
+  round 12: delays 112 41 97 114 98 65 47 82 83 45; gaps 172 101 157 174 158 125 107 142 143 105; HousekeepingOnTime broken
+  round 13: delays 51 99 57 67 17 81 48 69 7 116; gaps 111 159 117 127 77 141 108 129 67 176; HousekeepingOnTime broken
+  round 14: delays 56 105 81 56 41 44 70 28 101 30; gaps 116 165 141 116 101 104 130 88 161 90; HousekeepingOnTime broken
+  round 15: delays 61 64 72 87 115 79 30 24 92 92; gaps 121 124 132 147 175 139 90 84 152 152; HousekeepingOnTime broken
+  round 16: delays 1 92 82 9 109 84 87 115 35 81; gaps 61 152 142 69 169 144 147 175 95 141; HousekeepingOnTime broken
+  round 17: delays 84 17 14 37 60 51 29 59 56 72; gaps 144 77 74 97 120 111 89 119 116 132; HousekeepingOnTime broken
+  round 18: delays 5 109 119 79 19 67 81 23 75 65; gaps 65 169 179 139 79 127 141 83 135 125; HousekeepingOnTime broken
+  round 19: delays 88 18 55 58 108 36 48 32 42 97; gaps 148 78 115 118 168 96 108 92 102 157; HousekeepingOnTime broken
+  round 20: delays 2 78 104 77 111 85 31 45 107 82; gaps 62 138 164 137 171 145 91 105 167 142; HousekeepingOnTime broken
+  round 21: delays 109 10 118 48 30 22 107 18 119 39; gaps 169 70 178 108 90 82 167 78 179 99; HousekeepingOnTime broken
+  round 22: delays 53 73 31 96 57 43 43 63 52 13; gaps 113 133 91 156 117 103 103 123 112 73; HousekeepingOnTime broken
+  round 23: delays 84 89 73 7 102 81 55 85 40 88; gaps 144 149 133 67 162 141 115 145 100 148; HousekeepingOnTime broken
+  round 24: delays 37 15 59 31 99 78 0 48 31 78; gaps 97 75 119 91 159 138 60 108 91 138; HousekeepingOnTime broken
+  round 25: delays 99 106 96 27 110 18 10 84 67 62; gaps 159 166 156 87 170 78 70 144 127 122; HousekeepingOnTime broken
+  round 26: delays 102 29 50 30 101 40 75 68 10 3; gaps 162 89 110 90 161 100 135 128 70 63; HousekeepingOnTime broken
+  round 27: delays 89 114 9 13 36 18 104 17 65 16; gaps 149 174 69 73 96 78 164 77 125 76; HousekeepingOnTime broken
+  round 28: delays 80 37 119 100 95 5 0 36 102 72; gaps 140 97 179 160 155 65 60 96 162 132; HousekeepingOnTime broken
+  round 29: delays 2 7 106 69 113 76 105 22 115 72; gaps 62 67 166 129 173 136 165 82 175 132; HousekeepingOnTime broken
+  round 30: delays 43 1 0 62 51 56 52 48 96 63; gaps 103 61 60 122 111 116 112 108 156 123; HousekeepingOnTime broken
+  round 31: delays 51 76 20 58 7 42 56 57 65 10; gaps 111 136 80 118 67 102 116 117 125 70; HousekeepingOnTime broken
+  round 32: delays 98 68 82 11 116 8 20 78 66 76; gaps 158 128 142 71 176 68 80 138 126 136; HousekeepingOnTime broken
+  round 33: delays 34 65 64 53 16 47 38 52 49 85; gaps 94 125 124 113 76 107 98 112 109 145; HousekeepingOnTime broken
+  round 34: delays 105 42 67 79 30 34 25 64 46 52; gaps 165 102 127 139 90 94 85 124 106 112; HousekeepingOnTime broken
+  round 35: delays 85 73 1 98 7 104 8 75 95 26; gaps 145 133 61 158 67 164 68 135 155 86; HousekeepingOnTime broken
+  round 36: delays 59 118 99 28 107 9 109 59 14 118; gaps 119 178 159 88 167 69 169 119 74 178; HousekeepingOnTime broken
+  round 37: delays 69 12 61 6 54 93 83 8 7 97; gaps 129 72 121 66 114 153 143 68 67 157; HousekeepingOnTime broken
+  round 38: delays 52 98 16 43 47 16 95 50 106 11; gaps 112 158 76 103 107 76 155 110 166 71; HousekeepingOnTime broken
+  round 39: delays 46 43 97 104 83 61 114 41 60 37; gaps 106 103 157 164 143 121 174 101 120 97; HousekeepingOnTime broken
+  round 40: delays 40 49 20 97 105 1 63 97 14 96; gaps 100 109 80 157 165 61 123 157 74 156; HousekeepingOnTime broken
+  round 41: delays 45 18 23 63 23 29 97 66 68 44; gaps 105 78 83 123 83 89 157 126 128 104; HousekeepingOnTime broken
+  round 42: delays 94 42 13 77 118 79 101 47 63 3; gaps 154 102 73 137 178 139 161 107 123 63; HousekeepingOnTime broken
+  round 43: delays 79 112 23 74 11 33 89 93 33 9; gaps 139 172 83 134 71 93 149 153 93 69; HousekeepingOnTime broken
+  round 44: delays 108 78 57 102 116 118 60 67 106 114; gaps 168 138 117 162 176 178 120 127 166 174; HousekeepingOnTime broken
+  round 45: delays 34 59 79 100 113 116 65 86 30 70; gaps 94 119 139 160 173 176 125 146 90 130; HousekeepingOnTime broken
+  round 46: delays 87 1 84 10 15 75 94 56 17 47; gaps 147 61 144 70 75 135 154 116 77 107; HousekeepingOnTime broken
+  round 47: delays 42 56 80 87 29 10 93 68 53 34; gaps 102 116 140 147 89 70 153 128 113 94; HousekeepingOnTime broken
+  round 48: delays 47 78 110 91 3 47 45 20 99 89; gaps 107 138 170 151 63 107 105 80 159 149; HousekeepingOnTime broken
+  round 49: delays 2 71 103 16 78 62 109 82 97 41; gaps 62 131 163 76 138 122 169 142 157 101; HousekeepingOnTime broken
+  round 50: delays 21 43 62 34 38 54 21 26 47 45; gaps 81 103 122 94 98 114 81 86 107 105; HousekeepingOnTime broken
+

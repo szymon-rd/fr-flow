@@ -1,0 +1,14 @@
+node	kind	standing	status	review	causes	cases	against	seed
+AnswerWhenFree	claim	proven	proven	accepted				
+BookWhenFree	claim	proven	proven	accepted				
+BookingsOfTheRoom	claim	proven	proven	accepted				
+EndsAfterStart	claim	proven	proven	accepted				
+GrantWhenFree	claim	proven	proven	accepted				
+GrantWhenNoOverlap	claim	tested	proven	accepted		1000	GrantWhenNoOverlap	1
+NeverOverlap	claim	proven	proven	accepted				
+OneAtATime	assumption	assumed		accepted				
+OnlyBookingWrites	assumption	assumed		accepted				
+RequestsEndAfterStart	assumption	assumed	proven	accepted				
+RoomBookingsApart	claim	proven	proven	accepted				
+StartsEmpty	assumption	assumed		accepted				
+TableMatchesModel	assumption	assumed	proven	accepted		200	the model storedBookings	1

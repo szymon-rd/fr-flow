@@ -18,12 +18,12 @@ namespace storedBookings
 
 @[frflow_defs] def add : Booking → StateM (List Booking) Unit :=
   fun (booking : Booking) => do
-    modify (fun held => (held ++ [booking]))
+    modify (fun stored => (stored ++ [booking]))
 
 @[frflow_defs] def inRoom : String → StateM (List Booking) RoomBookings :=
   fun (room : String) => do
-    let held ← get
-    pure (RoomBookings.mk room (List.filter (fun b => decide (b.room = room)) held))
+    let stored ← get
+    pure (RoomBookings.mk room (List.filter (fun b => decide (b.room = room)) stored))
 
 end storedBookings
 
