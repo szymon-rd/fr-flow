@@ -215,3 +215,8 @@ The owner accepted: the README shows a short core of the rooms example (its word
 the calendar's code, and the bugs FrFlow catches) and links to the complete `examples/rooms`. A snippet passes when no
 cold reader finds a line they cannot parse; preferences about wording do not block. `always` is defined in one
 sentence where it first appears (§19).
+
+## 24. `KnowledgeBase` is renamed `FrModel` (owner)
+The owner: "Call it FrModel." The object that lists a project's statements and attaches code to its Definitions is
+`FrModel` (`val rooms = FrModel("Rooms")(…)`), in today's library and in the rebuild; text that said "knowledge base"
+says "FrModel". The README calls the domain types "the domain", not "the words".
