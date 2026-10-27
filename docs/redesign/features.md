@@ -43,8 +43,9 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
    only under `Stating`, so code using one does not compile. A value code uses is a `Definition[A](means)`, given its
    meaning once (`implementProven`, `implementTested`, `implementValue`, `implementProvided`). Each is of any type and
    named from its val; validation reports `Undefined` and `DeclarationInCode` (2.2; `FormsSuite`, `AuthSuite`).
-3. It is provided where the code runs (crm's and sharing's connections); a statement mentioning one is
-   `Problem.CodeOnlyInStatement`.
+3. It is the same word, `Definition[A](means)`, over a type with no `LeanType` (an overload taking
+   `NotGiven[LeanType[A]]`): a code-only symbol, provided where the code runs (crm's and sharing's connections) and read
+   only through `env(d)` in plain code. A statement mentioning one is `Problem.CodeOnlyInStatement`.
 4. `val covers = define { … }` is a `Definition[(Booking, BigInt) => Boolean]` carrying its proven code, its written
    lambda and its `core.term.Body` (a `lam` per input). It is named as its val at compile time, called by
    `Definition.apply`, passed as a function, printed once as its Lean `def` and run by the evaluator. A meaning is
@@ -58,7 +59,8 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
    to the left, does not compile unless its grouping is written in parentheses (4.2).
 8. A Scala `Boolean` is not made a term implicitly.
 9. The body is a host function, its variable named by each interpreter where it binds it; the user never sees an
-   interpreter (4.2).
+   interpreter (4.2). There is no `exists` word (owner §15): today's `exists t` is written `!forall(t => !…)`, which
+   is logically the same; a list's `.exists` stays, a list operation.
 10. Every value of `T` that can be made, and every state the store reaches: a hypothesis everywhere (`Guarded`), kept
     by every writer (`cover_<op>`), met at the start (`start_<node>`), shown to admit a value (`inhabited_<node>`)
     (2.3; `AlwaysSuite`).
@@ -90,7 +92,7 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
 | `Node.assumption(store)(Stored)(statement)` | a model and `store.behavesAs(stored)` | crm, sharing, rooms | change, note 6 |
 | `stored.initially`, `writtenOnlyBy`, `changedOneRunAtATime` | `OutsideFact`, said by assumptions | rooms 3 | new, note 7 |
 | `book.calledOnlyWith(request => …)` | a type for what comes from outside, `always` assumed on it | rooms 1 | change, note 21 |
-| `Boundary[B]("store", means)` | `BoundarySig`, `BoundaryOps[B]` | crm, sharing, rooms | change, note 8 |
+| `Boundary[B]("store", means)` | `BoundarySig`, `BoundaryOps[B]`, `Boundary.failing[B, E]` | crm, sharing, rooms | change, note 8 |
 | `.under(parents*)`, `.replaces(other)` | `Edge.PartOf`, `Edge.Replaces` | all; `.replaces` none | change, note 9 |
 | `.assuming(premise*)` | `Edge.Assumes` | rooms | new, note 10 |
 | `.keeps(invariant)(view)`, `.exempt(invariant, because)` | none | keycloak, crm | remove, note 11 |
@@ -130,7 +132,8 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
    is said by an assumption, reviewed as any node, and listed by each claim resting on it; `Premises` checks the lists
    (`PremiseMissing`, `PremiseNotNeeded`, `WriterNotListed`). Atomicity is assumed, asynchrony future work; `show`
    lists each fact a check rests on (2.6; `BookSuite`, `CheckingSuite`).
-8. `Boundary[B](means)`, named from its val, over `trait B[F[_], T[_]] derives BoundaryOps`.
+8. `Boundary[B](means)`, named from its val, over `trait B[F[_], T[_]] derives BoundaryOps`. A boundary whose calls can
+   fail is `Boundary.failing[B, E](means)`, today's form, setting `BoundarySig.failsWith`.
 9. `.refines(parents*)` replaces `.under`; `.replaces` is kept.
 10. A premise the node's proof assumes, an assumption or a claim of `always`, never a part (`PremiseNotAssumed`,
     `OutsideAsPart`, `OutsideClaimed`). It is the one mechanism for a premise, the outside's included, and its list is
@@ -147,7 +150,8 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
     `ExampleRunSuite`).
 15. `d := value` in an example, `d` a provided Definition; a table is a value of its type.
 16. The consequence is its own claim, refined by the expecting one, so `complete` proves it from its parts; `expect_i`
-    goes.
+    goes. An expectation over literal values (a fixed scenario) is an example, not a claim (owner §18):
+    `example("…"): (… implies …) is true`, checked against the claims in Lean (`example_<i>`).
 17. A cheaper check meant for run time (owner §2); its Lean obligation `check` (post implies check) goes with it (8).
 18. On a claim only; on an assumption it is `Fault.NotAClaim`.
 19. `.failsChangingNothing[E]` sits on the run in the formula (`Ran`). `.onFailure` becomes the failing side of the
@@ -207,11 +211,11 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
 | `traverse_`, `traverse`, `foldM` | `Flow.each`, `collect`, `fold` | crm, sharing | keep, note 6 |
 | `c.foldF`, `whenA`, `unlessA` | `Flow.cond` (`Prog.Branch`) | whenA sharing 3 | keep |
 | `ifM` | `Flow.ifM` | tests only | keep, note 7 |
-| `raiseError`, `handleErrorWith`, `attempt`, `retry(Schedule)` | `Flow.raise`, `handle`, `attempt` | sharing 7 + 1 | keep, note 8 |
+| `raiseError`, `handleErrorWith`, `attempt`, `retry(Schedule)` | `Flow.raise`, `handle`, `attempt`, `retry` | sharing 7 + 1 | keep, note 8 |
 | `guarantee`, `bracket` | `Flow.guarantee` (`Prog.Guard`), `bracket` | tests only | keep, note 7 |
 | `timeout(seconds)` | `Flow.timeout(clock)` | tests only | keep, note 9 |
 | `parTupled` | `Flow.parTupled` (`Prog.Par`, `commute_i`) | tests only | keep, note 7 |
-| `parTraverse`, `parTraverseN` | `Flow.parCollect` (`Prog.ParEach`, `commute_i`) | sharing 3 | keep, note 6 |
+| `parTraverse`, `parTraverseN` | `Flow.parCollect`, `parCollectN` (`Prog.ParEach`, `commute_i`) | sharing 3 | keep, note 6 |
 | `race` and the `Races` boundary | `Flow.race` (`Prog.Race`) | tests only | keep, note 10 |
 | `atomically` | `Flow.atomically` (`Prog.Atomic`) | sharing 5 | keep, note 11 |
 | `Flow.now`, `sleep`, `waitUntil`, `Clock`, `ClockModel`, `FakeClock`, `SystemClock` | `Clock[F, T]` with its model | sharing | keep, note 12 |
@@ -227,13 +231,14 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
 4. A model is an instance of the boundary trait over its state (`Model.recorded`), read into `vocab.StateModel`: the
    same meaning in another form.
 5. From cats, not FrFlow's own; `Prog.Bind`, `Pure`, `Let` in the IR.
-6. `each` is written, with its element's `LeanType`, and recorded (`RecordingSuite`). `collect`, `fold` and
-   `parCollect` are added in step 2 (`Prog.Loop`, `Collect`, `Accumulate`, `ParEach`), each with a `RecordingSuite`
-   test (4.4).
+6. `each` is written, with its element's `LeanType`, and recorded (`RecordingSuite`). `collect`, `fold` and `parCollect`
+   are added in step 2 (`Prog.Loop`, `Collect`, `Accumulate`, `ParEach`), each with a `RecordingSuite` test (4.4).
+   `parCollectN(n)` keeps `parTraverseN`'s limit, recorded as `Prog.ParEach(…, Some(n))`.
 7. Kept by the owner's decision (owner §2), recorded as the step Lean reads with a test in `RecordingSuite`, and
    given a use in an example: `ifM` in crm (step 12); `guarantee`, `bracket` and `parTupled` in sharing (step 13).
-8. `raise` and `handle` are written in `Recording` and `Running` and tested; `attempt` is added in step 2; a retry is
-   a handle and the clock.
+8. `raise` and `handle` are written in `Recording` and `Running` and tested; `attempt` is added in step 2.
+   `retry(clock, waits)` is kept (owner §2), built from `handle` and the clock's `sleep` as today, a fold of the waits;
+   sharing's `Delivery` uses it (step 13).
 9. The clock is read around the program, nothing cancelled, as today; kept by the owner, tested, used in sharing (step
    13).
 10. Read as the scheduler's choice; kept by the owner, tested, used in sharing (step 13).

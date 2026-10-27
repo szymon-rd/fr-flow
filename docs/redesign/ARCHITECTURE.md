@@ -206,10 +206,10 @@ Checked before production only:
   enum's case, and a world's store (`Guarded`, its guards built by `Guards` from the type). A `T` inside a map, a set or
   a function value is not reached yet, and a model holding one where an `always[T]` applies is refused
   (`AlwaysNotReached`); step 3 walks maps and sets. It is met wherever FrFlow covers the code: `made_<maker>` for each
-  proven define and store operation whose result is or holds a `T`; `cover_<op>` for each program writing a store that
-  holds one; at a tested Definition's boundary (inputs drawn meeting it, `Respecting`; result checked, `Made`, through
-  the same shapes); `start_<node>` for the store's start; values from outside by an assumption of `always` on their type
-  (2.6). `inhabited_<node>` shows the rule admits a value.
+  proven define, proven program and store operation whose result is or holds a `T`; `cover_<op>` for each program
+  writing a store that holds one; at a tested Definition's boundary (inputs drawn meeting it, `Respecting`; result
+  checked, `Made`, through the same shapes); `start_<node>` for the store's start; values from outside by an assumption
+  of `always` on their type (2.6). `inhabited_<node>` shows the rule admits a value.
 - **`always(stored)`** is a hypothesis on every world a claim starts from, kept by each program writing the store
   (`cover_<op>`) from every start (`start_<node>`); that this covers every reached state rests on four store facts
   (2.6).
@@ -220,9 +220,11 @@ For an `always` A, each `H` below being every `always`'s guard on the variable:
 |---|---|---|
 | `cover_<op>` | every run from a world meeting every `always`, on inputs meeting theirs, ends in one meeting A | each program writing a store A is about |
 | `made_<maker>` of a define `d` | `∀ x₁ … xₙ, H(x₁) → … → H(xₙ) → A(d x₁ … xₙ)` | each proven define whose result A applies to |
+| `made_<maker>` of a program `p` | `∀ x₁ … xₙ (w : World), H(x₁) → … → H(w) → A (p_run x₁ … xₙ w).1` | each proven program whose run's result A applies to |
 | `made_<maker>` of a store operation | `∀ p (w : World), H(p) → H(w) → A(op_of p w.s)` | each store operation on its model whose result A applies to |
 
-`op_of p s` is `Id.run ((Stored.op p).run' s)`. `made_` is the soundness side of assuming `always[T]` of every value.
+`op_of p s` is `Id.run ((Stored.op p).run' s)`. `made_` is the soundness side of assuming `always[T]` of every value. A
+define is never asked `cover_`: it has no run and no world.
 
 A rule met by generated values needs a Scala value, since draws and the witness search use the evaluator; so rooms
 states `roomBookingsApart` in start and end times and proves its link to `neverOverlap`'s moments in Lean
@@ -329,22 +331,25 @@ obligations follow from its formula and from what gives each Definition its mean
 | mentions a Definition with proven code | `impl`: the code meets it |
 | mentions a Definition with plain Scala | generated cases, per call or the formula whole |
 | mentions a fixed or provided Definition | stated for that value, or for every value provided |
-| is an `always[T]` | a hypothesis; `cover_<op>`, `made_<maker>`, `start_<node>`, `inhabited_<node>` |
+| is an `always[T]` | a hypothesis; `cover_<op>`; `made_<maker>` per define, program, store operation; `start_<node>`, `inhabited_<node>` |
 | is an `always(stored)` | a hypothesis on every world; `cover_<op>` per writer; `start_<node>` |
 | is at the bottom (no parts) | a consistency group with what shares its open values (2.8) |
 | has a condition `A` in `A implies B` | `satisfiable_<i>_<node>` (2.9) |
 | rests on the world outside | its `.assuming` list, checked (2.6) |
 
 `impl` is the step of a node whose code is proven (a define, or a program whose run on the models, `f_run`, stands for
-the Definition): "∀ U, H → claim[d := code]", `H` its parts (each a claim about what the code calls, else
-`PartNotCalled`) or, with no parts, the claims on what its code calls (`Resolved.reliesOn`). `complete` is not asked
-of it.
+the Definition): "∀ U, H → claim[d := code]", `H` its parts or, with no parts, the claims on what its code calls
+(`Resolved.reliesOn`). In the planned code a part must be a claim about what the code calls (else `PartNotCalled`). With
+step 3b, `impl` takes every part as a hypothesis, the code substituted in it: this is sound, since the DAG is acyclic
+and each part is itself checked against the same code. `PartNotCalled` is then dropped, or kept only for a part that
+mentions nothing the claim or its code reaches. `complete` is not asked of it.
 
 **A claim read as a call.** Where a claim applies one Definition to exactly its leading `forall` variables (alone, or
 one side of its equation) and mentions it nowhere else, `CallForms` reads it as a call; a program's claim
 `forall((request, before) => book(request).from(before) { (booked, after) => … })` reads as a run, with a failure
-clause where it states one (`.failing { (error, after) => … }`, `.failsChangingNothing[E]`). Another Definition on
-the same variables is an ordinary mention.
+clause where it states one (`.failing { (error, after) => … }`, `.failsChangingNothing[E]`). Another Definition on the
+same variables is an ordinary mention. A program's error is part of its type from step 3b (`Ty.FlowOf(result, error)`,
+4.4): a run's post is asked of its `Except.ok` results, its failure clause of the others.
 
 ```scala
 enum CallForm:
@@ -409,8 +414,9 @@ enum Vacuity:
 `A implies B`, with what is bound above it (`Conditions`), can hold. The witness search (`testing.search.Witnesses`)
 tries the generators' values first, then small values of each type (`Small`, SmallCheck-style), each judged by the
 evaluator, deterministically, at most 5,000 candidates. A witness found goes to Lean (rooms: `(Booking.mk "" 0 1)`,
-`(RoomBookings.mk [])`); a condition no candidate meets is "not shown". Examples may serve as witnesses but are never
-required.
+`(RoomBookings.mk [])`); a condition no candidate meets is "not shown". Lean is given each constant typed at its root
+(`(2 : Int)`, `([] : (List Int))`): an untyped numeral defaults to `Nat`, where `0 - 1 = 0`, and an untyped `[]` or
+`none` may not elaborate. Examples may serve as witnesses but are never required.
 
 ### 2.10 Examples as tests
 
@@ -427,14 +433,17 @@ class GrantedExamples extends FrFlowExamples(rooms):
 
 An example is a closed fact (`core.example.Example(name, givens, fact)`); `example(name, d := v)` sets provided
 Definitions. Checked against the code (`ExampleRun`: `OnCode.Holds`, `Fails`, `NotEvaluated`, or `Abstract` for a fact
-about Declarations) and against the claims in Lean (`example_<i>`, a try met by `frflow_example`); one that sets
-values is shown "checked in Scala only". Nothing depends on examples: the theory and its Lean are the same without
-them.
+about Declarations) and against the claims in Lean (`example_<i>`, a try met by `frflow_auto`); one that sets values is
+shown "checked in Scala only". Nothing depends on examples: the theory and its Lean are the same without them.
 
 ## 3. How a project reads: rooms end to end
 
 Rooms books meeting rooms, in five files: `Rooms.scala` (the nodes, in the order they are named), `Book.scala` (the
-store, its model, the program), `Calendar.scala`, `Knowledge.scala`, `RoomsExamples.scala`.
+store, its model, the program), `Calendar.scala`, `Knowledge.scala`, `RoomsExamples.scala`. An example's files form a
+DAG, so that no val is read before it is set, whichever file is touched first: the words (types, Declarations,
+Definitions, defines), then the store, its model and the program, then the nodes, then the knowledge base, then the
+examples. The planned code keeps rooms' words in `Rooms.scala` beside the nodes, which `Book.scala` both reads and is
+read by; the port gives the words their own file.
 
 ### 3.1 The domain and its words
 
@@ -501,11 +510,10 @@ final class BookIfGranted[F[_]](store: Bookings[F, Term])(using f: Flow[F]):
 val bookIfGranted = program { (request: Term[Request]) => BookIfGranted(store.recording).run(request) }
 ```
 
-The model is written as a program is, an instance of the boundary's trait over the model's state (`Model[F, S]`:
-`get`, `set`); `store.model(…)(Stored(_))` declares it with its instance, and `stored.in(world)` reads its state in
-a world. Lean prints the boundary as a class, the model's operations as `do` blocks, `World`, and the instance on
-`StateM World` (`planned/test/proof/resources/rooms/Boundaries.decls.lean`). The program's run on the models is
-`bookIfGranted_run`.
+The model is written as a program is, an instance of the boundary's trait over the model's state (`Model[F, S]`: `get`,
+`set`); `store.model(…)(Stored(_))` declares it with its instance, and `stored.in(world)` reads its state in a world.
+Lean prints the boundary as a class, the model's operations as `do` blocks, `World`, and the instance on `StateM World`
+(`next/proof/src/test/resources/rooms/Boundaries.decls.lean`). The program's run on the models is `bookIfGranted_run`.
 
 ### 3.3 The world outside, and what always holds
 
@@ -731,11 +739,12 @@ Run by any other interpreter, the variable fails at once ("FrFlow bug: a bound v
 tested).
 
 **The hard constructs are algebra operations** in all three interpreters (`Changes.scala`): a sum's eliminator,
-`c.on[Change.Book](b => …).on(Change.Clear)(…)`, each arm's type test written by `CaseMacros` (no cast), printed
-as a `match`; records made (`make[Booking](room, t, t + 1)`) and copied (`b.updated(_.start, t)`); the folds and
-`let`; `allDistinct`, `pairwise` and `forall` of a define; a program's runs. A define is one `term.Body` (name,
-curried type, a `lam` per input) applied one argument at a time, so `param`, `define`, `lam` and `app` cover every
-arity.
+`c.on[Change.Book](b => …).on(Change.Clear)(…)` (an arm over a case without fields is also written by its type,
+`.on[Change.Clear.type](…)`, which reads in any position, first or later: one spelling for every arm), each arm's type
+test written by `CaseMacros` (no cast), printed as a `match`; records made (`make[Booking](room, t, t + 1)`) and copied
+(`b.updated(_.start, t)`); the folds and `let`; `allDistinct`, `pairwise` and `forall` of a define; a program's runs. A
+define is one `term.Body` (name, curried type, a `lam` per input) applied one argument at a time, so `param`, `define`,
+`lam` and `app` cover every arity.
 
 **Notes are an interpretation**: what a term declares, and faults, are on the term (`noted`), gathered once by
 `Collect` into a monoid (`Declarations`); there is no registry. A project's own operation is a define, or an algebra
@@ -749,8 +758,9 @@ terms.
 
 **Syntax and laws.** `implies` is alphanumeric, so it binds last; a macro refuses `a implies b implies c` without
 parentheses. On 300 generated terms (`TermLawsSuite`): a written lambda gives the evaluator's value, folding keeps
-values, the IR is typed as the term; the printer's text reads back and prints the same (`PrinterLawsSuite`). With
-`lake` in the suite (step 3), Lean will decide each generated term as the evaluator does.
+values, the IR is typed as the term; the printer's text reads back and prints the same (`PrinterLawsSuite`). Step 3
+shows that each generated term elaborates in Lean; step 4, with the evaluator, adds the law that Lean decides each
+generated term as the evaluator does.
 
 ### 4.3 The IR
 
@@ -780,10 +790,11 @@ trait Flow[F[_]] extends Monad[F]:
 ```
 
 `Flow.scala` also has `guarantee`, `race`, `parTupled` and `atomically`, and `ifM`, `bracket` and `timeout` made of
-them; `RecordingSuite` records each as the step Lean reads (with `each`, `raise` and `handle`). Every combinator is
-kept (owner §2) and given a use in an example. `collect`, `fold`, `parCollect` and `attempt` (today's `traverse`,
-`foldM`, `parTraverse`, `attempt`) are not in the planned code: step 2 adds them, each with a `RecordingSuite` test.
-`F` has three interpreters:
+them; `RecordingSuite` records each as the step Lean reads (with `each`, `raise` and `handle`). Every combinator is kept
+(owner §2) and given a use in an example. `collect`, `fold`, `parCollect` and `attempt` (today's `traverse`, `foldM`,
+`parTraverse`, `attempt`) are not in the planned code: step 2 adds them, each with a `RecordingSuite` test, and keeps
+today's `retry` and `parTraverseN`'s limit as `retry(clock, waits)` (a fold of the waits over `handle` and the clock's
+`sleep`, as today) and `parCollectN(n)` (`Prog.ParEach` with its limit). `F` has three interpreters:
 
 - **Lean's**: `Recording`, a pure `Flow[Recorded]`, with the boundary's recording instance (`store.recording`).
   `program { … }` reads the recording into `Prog[Stated[?]]` (`ReadRecording`, steps numbered in its own `State`);
@@ -796,10 +807,20 @@ kept (owner §2) and given a use in an example. `collect`, `fold`, `parCollect` 
 - **Scala tests'**: the recorded `Prog` run by `eval.flow.FlowInterpreter` against a `World`: the models (examples,
   model tests) or the adapters (interleavings).
 
-`BoundaryOps[B]`, which `derives BoundaryOps` will write (rooms writes it by hand), gives the class Lean declares,
-`recording`, `call`, `model` and `lifted`. `LowerModels` prints boundaries, models, `World` and each program's run on
-them (`f_run`). Step 4 adds the law that a program's recording run on the models gives what `Running` gives on the
-models' instances; no suite states it yet.
+`BoundaryOps[B]`, which `derives BoundaryOps` writes (step 2; the planned rooms writes it by hand), gives the class Lean
+declares, `recording`, `call`, `model` and `lifted`. `LowerModels` prints boundaries, models, `World` and each program's
+run on them (`f_run`). Step 4 adds the law that a program's recording run on the models gives what `Running` gives on
+the models' instances; no suite states it yet.
+
+**A program's error type** (step 3b, before step 4). `Ty.FlowOf(result, error: Option[Ty])`: the error is read from the
+recording (`Progs.failsWith`: the uncaught `Raise` types, and the `failsWith` of each boundary called outside a `Catch`
+of that type, `Boundary.failing[B, E]`). `Validate` refuses two error types (`ErrorsDiffer`), a `.failing` clause of
+another type, and one on a program that cannot fail. In Lean a failing program's run is
+`World → (Except e r × World)`, on the models' instance on `ExceptT e (StateM World)`, a failing boundary call going
+through `FrFlow.failing` on the world's faults; `f_run` is `FrFlow.runOnE`, a run's post matches `Except.ok`, `cover_`
+holds of the world a failed run leaves too (`FrFlow.outcome`), `made_` of ok results, and `commute_` reads the error
+from the type. Until then a raising program's model does not build (`ModelDoesNotBuild`): the gap fails closed. It must
+be in before crm (step 12) and sharing (step 13).
 
 ### 4.5 The front end: nodes, names, errors
 
@@ -819,7 +840,8 @@ declarations merge). An error found before its place is known is a `Fault`, carr
 wrong: the graph (`DuplicateId`, `NoRoot`, `AboveItself`, `ParentOutside`, `DesignWithoutParent`, `UnderDesign`,
 `PremiseNotAssumed`, `OutsideAsPart`, `OutsideClaimed`); the world outside (`PremiseMissing`, `PremiseNotNeeded`,
 `WriterNotListed`, `AlwaysNotReached`); the vocabulary (`ReservedName`, `DeclaredTwice`, `CodeOnlyInStatement`); values
-(`Undefined`, `DeclarationInCode`, `CodeWithoutClaim`, `PartNotCalled`).
+(`Undefined`, `DeclarationInCode`, `CodeWithoutClaim`, `PartNotCalled`). A model's Lean namespace, its name capitalized
+(`Stored`), counts among the declared names, so a model named as its boundary's class is `DeclaredTwice`.
 
 `Resolve(v: Valid): Resolved` computes once what each node uses, calls and rests on (`Callees`, `reliesOn`). `Scope`
 derives where an `always`, claimed or assumed, applies: the Definitions and store programs whose values can hold a `T`
@@ -830,8 +852,9 @@ constrains.
 
 An obligation is a proposition in the logic of refinement before any Lean syntax (`proof.obligation.Prop`): claims
 applied to their open terms, `Implies` with named hypotheses, `Iff`, `Both`, `Not`, `Forall`/`Exists` over open terms,
-`ForEvery`/`ForSome` over named symbols, `Keeps`, `Makes`, `Starts`, `Inhabited`, `Commutes`. A formula is held as
-written (`Prop.Formula(Written[Expr])`); `TermTable`, computed once, says what each declaration is applied to.
+`ForEvery`/`ForSome` over named symbols, `Keeps`, `Makes`, `Starts`, `Inhabited`, `Commutes(c, opens)` (the commutation
+and the open terms it is stated over). A formula is held as written (`Prop.Formula(Written[Expr])`); `TermTable`,
+computed once, says what each declaration is applied to.
 
 ```scala
 enum ObligationName:
@@ -856,17 +879,19 @@ Each obligation carries the sentence its Lean is documented with.
 
 ### 4.8 The Lean back end
 
-The Lean AST (`proof.lean.ast`) says everything FrFlow generates; `LExpr` has no raw-text case. `LeanTerm` prints
-every term, a define's body once as its `def`. Lowering gives only the structure around terms its Lean, handing each
-term to `Printed`: `LowerProg` (a `do` block, names in `State[Naming, _]`), `LowerProp` (a `Writer` of open terms
-met), `LowerObligation`, `LowerValue`, `LowerModels`, `LowerKeeps` (what `cover_` and `made_` declare),
-`LowerWitness`. `Print` is a fold that decides nothing. `LeanProject` lays out node, root, vocabulary, whole-theory
-and refutation modules. `proof.reading` and `proof.verdict` hold today's proof-file rules one case each, Lean's output
-and the judges. The Lean library gains `frflow_witness` and `frflow_example` (14 lines).
+The Lean AST (`proof.lean.ast`) says everything FrFlow generates; `LExpr` has no raw-text case. `LeanTerm` prints every
+term, a define's body once as its `def`. Lowering gives only the structure around terms its Lean, handing each term to
+`Printed`: `LowerProg` (a `do` block, names in `State[Naming, _]`), `LowerProp` (a `Writer` of open terms met),
+`LowerObligation`, `LowerValue`, `LowerModels`, `LowerKeeps` (what `cover_` and `made_` declare), `LowerWitness`.
+`Print` is a fold that decides nothing. `LeanProject` lays out node, root, vocabulary, whole-theory and refutation
+modules. `proof.reading` and `proof.verdict` hold today's proof-file rules one case each, Lean's output and the judges.
+The Lean library gains only `frflow_witness`; examples are tries met by `frflow_auto`.
 
 `CrmModulesSuite` prints four of crm's files byte for byte (`Boundaries.lean`, `Def_expireOnce.lean`,
-`Def_expireOnce_run.lean`, `ExpiryJob/Spec.lean`); rooms' four golden files are in `lean-spike/Dump.lean` verbatim and
-compile. Today's Lean is a reference, not a constraint (owner §2, D).
+`Def_expireOnce_run.lean`, `ExpiryJob/Spec.lean`); rooms' four golden files (`next/proof/src/test/resources/rooms/`)
+state owner §21 and compile. Constants are printed typed at their root (2.9), so the goldens are no longer the spike's
+text verbatim; step 11 regenerates `lean-spike/Dump.lean` and rechecks `Proofs.lean`. Today's Lean is a reference, not a
+constraint (owner §2, D).
 
 ### 4.9 Testing before production
 
@@ -919,7 +944,7 @@ the decision's reason); `Overview` is `Tally[K]` fields, a commutative monoid. T
 | `proof` | core | obligations, the Lean AST, the term printer, lowering, layout, judges |
 | `eval` | dsl, cats-effect-kernel, -std | the term evaluator, `Running`, `CallCheck`, `Wiring`, `ExampleRun`, `FlowInterpreter` |
 | `testing` | eval, cats-effect | `Draw`, `Respecting`, `PropertyTests`, `ModelTests`, `Interleavings`, searches |
-| `decision` | core (names, `graph.Walk`) | content, ledger, deciders, payload, review, rules |
+| `decision` | core (names, `graph.Walk`, `spec.NodeKind`) | content, ledger, deciders, payload, review, rules |
 | `wire` | proof, decision, testing, circe | the snapshot by kind; codecs of ledger, deciders, checks, tests |
 | `project` | proof, testing, decision, wire, cats-effect, fs2 | algebras, programs, `Analysis`, contents, fingerprints |
 | `api` | project | `Reading`, `Deciding`, `Proving`, `FrFlowApi`, views |
@@ -927,8 +952,10 @@ the decision's reason); `Overview` is `Tally[K]` fields, a commutative monoid. T
 
 Each module has its own top package (`frflow.core`, …), so `private[core]` is a real boundary. The planned code has
 the first nine; `cli`, `web` and `agent` keep their structure and are rebuilt on the new API. Serialization points
-outward: only the shell depends on `wire`. Front ends see `api.view` and `api.node` values only. Production code
-depends on `eval` (and through it `dsl`, `core`) and never on Lean, the ledger, the tests or the CLI.
+outward: only the shell depends on `wire`. One edge is between tests: `next-proof` depends on
+`next-core % "compile->compile;test->test"`, for core's test fixtures. Front ends see `api.view` and `api.node` values
+only. Production code depends on `eval` (and through it `dsl`, `core`) and never on Lean, the ledger, the tests or the
+CLI.
 
 Planned so far (files / lines): `core` 146 / 3,213, `dsl` 69 / 2,178, `proof` 79 / 2,058, `eval` 26 / 727, `testing`
 22 / 428, `decision` 42 / 694, `wire` 14 / 184, `project` 25 / 621, `api` 27 / 381. With the ports written and `cli`,
@@ -992,7 +1019,7 @@ to `f(x)`).
 | evaluation | `EvalError` (`Quantified`, `Unbound`, `NoDefine`, `NoCase`, …) | `Either` |
 | a program run in Scala | `FlowError` (`NotEvaluated`, `NoModel`, `NoOperation`) | raised in `F` |
 | decisions | `Refusal`, e.g. `NotADecider(name)` | `Either`; the caller goes on |
-| a check | `Finding` cases in `Judged`, `NodeCheck` | data |
+| a check | `Finding` cases (`Refuted`, `DisallowedAxioms`, …) in `Judged`, `NodeCheck` | data |
 | the theory as a whole | "consistency not proven", "not shown", "not checked" | data: a status |
 | tests | `TestReport`, `Failure(inputs, broke: Broken, …)`, `Difference` | data |
 | plain code, a running program | `NotEvaluated(EvalError)` | thrown |
@@ -1027,10 +1054,10 @@ Concrete `IO` appears only in the web server, the CLI's `main` and the terminal;
 
 State, each piece named: `KnowledgeBase.elaborated` (a `lazy val`), `Running`'s lock, and a recording's reading's
 `State`. Atomics and locks are allowed only in `eval.Running` and `FlowInterpreter.concurrent`, `ThreadLocal` nowhere.
-Casts are in thirteen named places (`Guards`, `Keeping`, `Making`, `Definition.called`, `Term.bound`, `eval.Fn`,
-`ReadRecording`, `Running.handle`, `ValuesSyntax.apply`, `Defining`, `Conditions`, `AtValue`, `Written.term`), each
-typed by what was read before it. No interpreter of terms casts but `Evaluate`, through `Fn.as`, where it reads
-untyped given values; no unchecked type test is left outside `Fn`.
+Casts are in fourteen named places (`Guards`, `Keeping`, `Making`, `Definition.called`, `Term.bound`, `eval.Fn`,
+`ReadRecording`, `Running.handle`, `ValuesSyntax.apply`, `Defining`, `Conditions`, `AtValue`, `Written.term`, and the
+`call` that `BoundaryMacros` generates), each typed by what was read before it. No interpreter of terms casts but
+`Evaluate`, through `Fn.as`, where it reads untyped given values; no unchecked type test is left outside `Fn`.
 
 ## 8. What is removed from today's library, and why
 
@@ -1103,6 +1130,7 @@ listed. `WalkthroughSuite` replays the README's rooms changes (steps 4–6) on a
 | 1 | `next/core`: term algebras and core interpreters, IR, statements, validation, checking, consistency | `typeOf`, `Mentions` laws, every `Problem` by name |
 | 2 | `next/dsl`: `Term[A]`, macros, the user's forms, `Flow`, boundaries, models | `RecordingSuite`, `FormsSuite`, claims suites, ported suites |
 | 3 | `next/proof`: `Prop`, Lean AST, `LeanTerm`, lowering, layout, judges, tactics | `PrinterLawsSuite`, `CrmModulesSuite`, a test per try and rule |
+| 3b | core and proof: a program's error type (4.4); `impl` over every part (2.7) | a failing writer's `cover_`, a `.failing` `impl`, crm's run claim in Lean |
 | 4 | `next/eval`: `Evaluate`, `Running`, `CallCheck`, `Wiring`, `FlowInterpreter` | `TermLawsSuite`, `RunningSuite`, recording agrees with running |
 | 5 | `next/testing`: generators, `PropertyTests`, `ModelTests`, searches, examples' runner | ported suites with seeds, `Gen` laws, `SmallSuite` |
 | 6 | `next/decision`: content, ledger, `Deciders`, review, rules | ported decide and standing suites, `DecidersSuite` |
@@ -1127,9 +1155,10 @@ gains its `ifM`, and `noCrossTenantRead` becomes a root over two Definitions. In
 **Stubs by step** (40 `???`, `review.md` lists the first ones the owner will meet): step 2, `derives BoundaryOps`, and
 `Flow`'s `collect`, `fold`, `parCollect` and `attempt` (not yet written at all); 3, `feasible`, `commutes`, `made_` of a
 program's result, guards inside maps and sets (refused until then, `AlwaysNotReached`), module layouts, a few
-`LowerProg` steps; 4, `FlowInterpreter`'s loops and errors, `Literals` of maps and sets, `CodeSyntax.code`; 5,
-`ModelTests.of`, derived generators, shrinking, the examples' runner; 6, three review functions; 8, the port
-interpreters, `NodeChecker`, the lexer's passes; 9, `FrFlowApi.make`, `Views.tree`, `Views.inbox`.
+`LowerProg` steps; 3b, a program's error type, `impl` over every part, `PartNotCalled` dropped or narrowed; 4,
+`FlowInterpreter`'s loops and errors, `Literals` of maps and sets, `CodeSyntax.code`; 5, `ModelTests.of`, derived
+generators, shrinking, the examples' runner; 6, three review functions; 8, the port interpreters, `NodeChecker`, the
+lexer's passes; 9, `FrFlowApi.make`, `Views.tree`, `Views.inbox`.
 
 **Seeded bugs after the port.**
 
@@ -1190,6 +1219,9 @@ In order of value; none blocks a step.
   assumption could group them, if the owner agrees, still one edge and one kind.
 - **The double reading of `always`** (of a type, of a store) is kept as one word, read as "every value the covered
   code can produce" (owner §19); asynchrony is out of scope (owner §17).
+- **Steps 3b and later: a value handed to a boundary with no model.** A `T` that covered code builds inline and
+  passes to a boundary without a model owes nothing: it is no define's or program's result (`made_`), and it goes to
+  no store FrFlow walks (`cover_`). Decide whether such a call's arguments owe each `always[T]`.
 
 ### 10.3 Compile time, measured
 
@@ -1210,7 +1242,8 @@ Type errors inside a define and `==` on terms give the same messages as today, n
 
 ## 11. Rules that keep it from decaying
 
-1. **The module graph is in `build.sbt` only**; a new module or edge is approved first.
+1. **The module graph is in `build.sbt` only**; a new module or edge is approved first (`next-proof`'s tests on
+   `next-core`'s is one, 5).
 2. **`ArchitectureSuite`** (munit, about 150 lines) scans imports and package clauses and fails on: a package edge not
    in `project/architecture.conf`; a package cycle in a module; `private[frflow]`; `ThreadLocal`; `cats.effect`,
    `io.circe`, `java.nio.file.Files`, `scala.util.Random` or `System.getenv` in `core`, `dsl`, `proof` or `decision`;
@@ -1219,7 +1252,9 @@ Type errors inside a define and `==` on terms give the same messages as today, n
    no `var` in classes, no `throw` (but "FrFlow bug" sites, `Failure(fault)` in `Elab`, `ReadRecording`,
    `Term.select`, and `NotEvaluated` where 7.1 says), no `asInstanceOf` outside 7.3's places, no `isInstanceOf`, no
    `@unchecked` outside `eval.Fn`.
-4. **Size budgets** in CI against a committed baseline: a change may not add a violation.
+4. **Size budgets** in CI against a committed baseline: a change may not add a violation. The five- and six-input
+   `apply` forms of `Declaration` and `Definition` are an accepted exception to the four-parameter limit: Scala cannot
+   shorten them.
 5. **Golden files** for every example's Lean, contents, CLI output and the README walk-through, once ported; a change
    is listed in its commit message and approved.
 6. **Law suites** for every instance (`Gen`, the monoids, `Deferred`) and every algebra against each interpreter;
