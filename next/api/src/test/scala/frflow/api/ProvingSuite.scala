@@ -24,7 +24,7 @@ class ProvingSuite extends munit.CatsEffectSuite:
   test("status writes the Lean and the snapshot, and gives the view") {
     for
       ports <- Opened.ports()
-      view  <- Opened.over(Opened.before, ports).proving.status
+      view  <- Opened.over(Opened.before, ports).flatMap(_.proving.status)
       kb    <- ports.files.read(snapshot)
     yield
       assertEquals(view.nodes.map(_.id), List(nonNegative, sameAbove))
@@ -66,7 +66,7 @@ class ProvingSuite extends munit.CatsEffectSuite:
   test("ci checks everything, writes the snapshot, and ends with the view") {
     for
       ports  <- Opened.ports()
-      events <- Opened.events(Opened.over(Opened.before, ports).proving.ci)
+      events <- Opened.over(Opened.before, ports).flatMap(a => Opened.events(a.proving.ci))
       kb     <- ports.files.read(snapshot)
     yield
       assert(kb.isDefined)
@@ -79,7 +79,7 @@ class ProvingSuite extends munit.CatsEffectSuite:
   test("scaffold writes a proof file with a stub for complete before any check, then has nothing to add") {
     for
       ports   <- Opened.ports()
-      api      = Opened.over(Opened.before, ports)
+      api     <- Opened.over(Opened.before, ports)
       first   <- api.proving.scaffold(nonNegative)
       text    <- ports.files.read(proofFile)
       again   <- api.proving.scaffold(nonNegative)
@@ -96,7 +96,7 @@ class ProvingSuite extends munit.CatsEffectSuite:
   test("scaffold adds nothing to a proof file whose end it does not find, and says so") {
     for
       ports <- Opened.ports(Map(proofFile -> "import FrFlowGen.Shelf.nonNegative.Spec\n"))
-      out   <- Opened.over(Opened.before, ports).proving.scaffold(nonNegative)
+      out   <- Opened.over(Opened.before, ports).flatMap(_.proving.scaffold(nonNegative))
       text  <- ports.files.read(proofFile)
     yield assertEquals((out, text), (Scaffolded.EndNotFound(proofFile),
       Some("import FrFlowGen.Shelf.nonNegative.Spec\n")))

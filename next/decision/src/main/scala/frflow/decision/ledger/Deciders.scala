@@ -1,7 +1,7 @@
 package frflow.decision.ledger
 
 import frflow.core.name.NodeId
-import frflow.decision.content.Sha
+import frflow.decision.content.{Framed, Sha}
 
 /** Who may decide (`.frflow/deciders`): committed, each version naming the one before it (`after`, the hash of its
   * signed bytes) and signed by a key that version listed (the first by its own first entry). A decision counts only

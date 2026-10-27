@@ -42,7 +42,7 @@ class DecidingSuite extends munit.CatsEffectSuite:
       assertEquals(still.nodes.map(_.review.standing.state).distinct, List(ReviewState.Proposed))
       assertEquals(after.nodes.map(_.review.standing.state).distinct, List(ReviewState.Accepted))
       assertEquals(after.node(sameAbove).flatMap(_.says.reason), Some("it says what the service must do"))
-      assertEquals(after.node(sameAbove).flatMap(_.review.decision).map(_.action), Some(Action.Accept))
+      assertEquals(after.node(sameAbove).flatMap(_.review.decisions.binding).map(_.action), Some(Action.Accept))
   }
 
   test("a name the key at hand is not listed under is refused, and nothing is recorded") {
@@ -59,8 +59,8 @@ class DecidingSuite extends munit.CatsEffectSuite:
     for
       listed   <- Opened.ports()
       unlisted <- Opened.ports(decider = None)
-      _        <- Opened.acceptAll(Opened.over(Opened.before, listed))
-      view     <- Opened.over(Opened.before, unlisted.copy(ledger = listed.ledger)).reading.view
+      _        <- Opened.over(Opened.before, listed).flatMap(Opened.acceptAll)
+      view     <- Opened.over(Opened.before, unlisted.copy(ledger = listed.ledger)).flatMap(_.reading.view)
     yield
       val notCounted = view.warnings.collect { case Warning.NotCounted(n, d, why) => (n, d.action, why) }
       assertEquals(notCounted, List((nonNegative, Action.Accept, Uncounted.NoDeciders),
@@ -71,15 +71,15 @@ class DecidingSuite extends munit.CatsEffectSuite:
   test("once the claim's meaning moves: its part is back for what moved above it, and accepting it acts on the part") {
     for
       ports <- Opened.ports()
-      _     <- Opened.acceptAll(Opened.over(Opened.before, ports))
-      after  = Opened.over(Opened.after, ports)
+      _     <- Opened.over(Opened.before, ports).flatMap(Opened.acceptAll)
+      after <- Opened.over(Opened.after, ports)
       view  <- after.reading.view
       diffs <- (after.reading.diff(nonNegative), after.reading.diff(sameAbove)).tupled
     yield
       val part = view.node(sameAbove).getOrElse(fail("no part"))
       assertEquals((part.review.standing.state, part.review.standing.causes), (ReviewState.Review, List(Cause.Above)))
-      assertEquals(part.review.movedAbove, List(nonNegative))
-      assertEquals(view.node(nonNegative).map(_.review.below), Some(List(sameAbove)))
+      assertEquals(part.review.moves.above, List(nonNegative))
+      assertEquals(view.node(nonNegative).map(_.review.moves.below), Some(List(sameAbove)))
       val (claim, below) = diffs
       val formula = claim.toList.flatMap(_.fields).filter(_.field == "formula")
       assert(formula.exists(_.lines.exists { case DiffLine.Added(_) => true; case _ => false }), formula)

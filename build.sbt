@@ -30,6 +30,9 @@ addCommandAlias("testAll", "; test; Lean/test")
 // `sbt "frflowInitAgent toy"` (the same, its main object passing the layer; the idea is then told in chat).
 addCommandAlias("frflowInit", "cli/runMain frflow.cli.Init")
 addCommandAlias("frflowInitAgent", "agent/runMain frflow.agent.Init")
+// The same on the rebuilt modules: `sbt "frflowNextInit toy --as NAME"` (`--as` lists you as the first decider).
+addCommandAlias("frflowNextInit", "next-cli/runMain frflow.cli.Init")
+addCommandAlias("frflowNextInitAgent", "next-agent/runMain frflow.agent.Init")
 
 lazy val root = project.in(file("."))
   .aggregate((Seq[ProjectReference](model, protocol, lean, ledger, check, api, cli, web, testkit, agent, auth, crm,
@@ -73,6 +76,7 @@ def nextModules: Seq[ProjectReference] = Seq(
   nextApi,
 
   // step 10: nextCli, nextWeb, nextAgent
+  nextCli, nextWeb, nextAgent,
 )
 def nextModule(name: String, libraries: ModuleID*) = Project(s"next-$name", file(s"next/$name"))
   .configs(LeanTest).settings(leanTagged)
@@ -130,6 +134,46 @@ lazy val nextApi = nextModule("api", (Seq(cats, catsEffect, munitEffect) ++ fs2)
   .dependsOn(nextProject % "compile->compile;test->test")
 
 // next-cli, next-web, next-agent (step 10)
+/** The command line a project's main object extends (`FrFlowApp`, the composition root): its commands, colors, the
+  * interactive review, and `init`; layers on top add their commands (`CliExtension`). Its tests read the API's.
+  */
+lazy val nextCli = nextModule("cli", cats, catsEffect, decline, munitEffect)
+  .dependsOn(nextApi % "compile->compile;test->test")
+
+/** The web view (`serve`): the page, and routes onto the API, over http4s on localhost; layers on top add routes and
+  * a script (`WebExtension`). The CLI does not depend on it.
+  */
+lazy val nextWeb = nextModule("web", (Seq(catsEffect, circe, munitEffect) ++ http4s)*)
+  .dependsOn(nextApi % "compile->compile;test->test")
+
+/** A layer on top for an AI agent building the system: the conversation a project starts from, the developer's
+  * requests and the agent's answers, its queue, `context`, their commands and web panels. It proposes and asks;
+  * deciding stays the developer's.
+  */
+lazy val nextAgent = nextModule("agent", (Seq(cats, catsEffect, circe, circeParser, decline, munitEffect) ++ http4s)*)
+  .dependsOn(nextCli % "compile->compile;test->test", nextWeb % "compile->compile;test->test")
+
+/** A project on the rebuilt modules, as `init` writes its line (`frflow.cli.Init`): its main object runs the CLI with
+  * its examples' classes on the classpath (`frflow.tests` names where they are), and `serve` its web view; `layers`,
+  * the layers on top it uses (the AI agent's by default).
+  */
+def nextExample(name: String, layers: Seq[ClasspathDep[ProjectReference]] = Seq(nextAgent)) =
+  Project(name, file(s"examples/$name"))
+    .dependsOn((Seq[ClasspathDep[ProjectReference]](nextCli, nextWeb) ++ layers)*)
+    .settings(
+      libraryDependencies += munit, publish / skip := true, run / fork := true, Test / fork := true,
+      run / javaOptions ++= Seq("-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "-Dfile.encoding=UTF-8"),
+      run / javaOptions += "-Dfrflow.tests=" + (Test / classDirectory).value.getAbsolutePath,
+      Compile / run := Defaults.runTask(Test / fullClasspath, Compile / run / mainClass, Compile / run / runner)
+        .evaluated,
+      Compile / runMain := Defaults.runMainTask(Test / fullClasspath, Compile / run / runner).evaluated,
+      run / baseDirectory := (ThisBuild / baseDirectory).value,
+      Test / baseDirectory := (ThisBuild / baseDirectory).value,
+      serve := Def.inputTaskDyn {
+        val args = complete.DefaultParsers.spaceDelimited("[--port N] [--as NAME]").parsed
+        val main = (Compile / run / mainClass).value.getOrElse(sys.error(s"${Keys.name.value} has no main class"))
+        (Compile / runMain).toTask((Seq("frflow.web.Serve", main) ++ args).mkString(" ", " ", ""))
+      }.evaluated)
 
 // FrFlow's core: the modules below up to `web`, usable on their own. `agent` is a layer on top; no core module depends on it.
 

@@ -35,7 +35,8 @@ class ReadingSuite extends munit.CatsEffectSuite:
       assertEquals(v.node(nonNegative).map(_.place(Relation.Part)), Some(List(sameAbove)))
       assertEquals((n.proof.state, n.proof.results, n.proof.authored), (CheckState.Unchecked, Nil, false))
       assert(n.code.exists(c => c.shown.tested.nonEmpty && c.tests.isEmpty), n.code)
-      assertEquals((n.review.standing.state, n.review.decision, n.review.movedAbove), (ReviewState.Proposed, None, Nil))
+      assertEquals((n.review.standing.state, n.review.decisions.binding, n.review.moves.above),
+        (ReviewState.Proposed, None, Nil))
     }
   }
 
@@ -53,7 +54,8 @@ class ReadingSuite extends munit.CatsEffectSuite:
       RelPath.fromIdentifiers("lean", "Proofs/Governed/gone.lean"))
     val files = Map(other -> "// FrModel(\"Other\") is not here", gone -> "",
       RelPath.fromIdentifiers(".frflow", "deciders") -> "{}")
-    Opened.ports(files).flatMap(p => Opened.over(Opened.project(Shelf.Governed.kb), p).reading.view).map { v =>
+    Opened.ports(files).flatMap(p => Opened.over(Opened.project(Shelf.Governed.kb), p).flatMap(_.reading.view))
+      .map { v =>
       assertEquals(v.warnings.collect {
         case w @ (_: Warning.GovernedMissing | _: Warning.Ungoverned | _: Warning.ProofFileOfNoNode) => w
         case Warning.DecidersUncommitted => Warning.DecidersUncommitted
@@ -68,14 +70,14 @@ class ReadingSuite extends munit.CatsEffectSuite:
     val assembled = e.theory.writtenIn.getOrElse(fail("no file recorded"))
     assert(!e.theory.nodes.exists(_.at.file == assembled), assembled)
     Opened.ports(Map(assembled -> "object Assembled")).flatMap(p => Opened.over(Opened.project(Assembled.kb), p)
-      .reading.view).map(v => assertEquals(v.warnings.collect { case w: Warning.Ungoverned => w }, Nil))
+      .flatMap(_.reading.view)).map(v => assertEquals(v.warnings.collect { case w: Warning.Ungoverned => w }, Nil))
   }
 
   test("the model's fingerprint moves when a source file does, and only then") {
     val file = RelPath.fromIdentifiers("src/main", "Calendar.scala")
     for
       ports <- Opened.ports(Map(file -> "object Calendar"))
-      api    = Opened.over(Opened.before, ports)
+      api   <- Opened.over(Opened.before, ports)
       first <- api.reading.modelFingerprint
       again <- api.reading.modelFingerprint
       _     <- ports.files.writeIfChanged(file, "object Calendar { val rooms = 2 }")

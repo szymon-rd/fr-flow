@@ -40,7 +40,7 @@ object Opened:
   def session(p: Project[IO], ports: Ports[IO], lean: Lean = lean): Session[IO] =
     Session(p, ports, ScriptedLean[IO](lean), Memory.run)
 
-  def over(p: Project[IO], ports: Ports[IO]): FrFlowApi[IO] = Memory.api(session(p, ports))
+  def over(p: Project[IO], ports: Ports[IO]): IO[FrFlowApi[IO]] = Memory.api(session(p, ports))
 
   def analysis(p: Project[IO], ports: Ports[IO]): IO[Analysis] = session(p, ports).analysis
 

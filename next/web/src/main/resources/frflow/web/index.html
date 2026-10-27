@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FrFlow</title>
+<style>
+:root { --bg: #fbfaf7; --fg: #1d1d1b; --dim: #6b6a65; --line: #e2dfd7; --card: #ffffff; --accent: #2f5d8a;
+  --ok: #2e7d32; --warn: #a66a00; --bad: #b3261e; --new: #00707a; }
+@media (prefers-color-scheme: dark) { :root { --bg: #161615; --fg: #ecebe6; --dim: #9c9a92; --line: #33322e;
+  --card: #1f1f1d; --accent: #8fb6dd; --ok: #7cc47f; --warn: #e0a84a; --bad: #ef7b72; --new: #6fd0d8; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 system-ui, sans-serif; }
+header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; padding: 12px 16px;
+  border-bottom: 1px solid var(--line); }
+header h1 { font-size: 17px; margin: 0; }
+header .dim, .dim { color: var(--dim); }
+main { display: grid; grid-template-columns: minmax(260px, 2fr) 3fr; gap: 16px; padding: 16px; }
+@media (max-width: 760px) { main { grid-template-columns: 1fr; } }
+nav button, .actions button, header button { font: inherit; padding: 4px 10px; border: 1px solid var(--line);
+  background: var(--card); color: var(--fg); border-radius: 6px; cursor: pointer; }
+nav button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+section.card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px;
+  overflow-wrap: anywhere; }
+ul.nodes { list-style: none; margin: 8px 0 0; padding: 0; }
+ul.nodes li { padding: 4px 6px; border-radius: 6px; cursor: pointer; }
+ul.nodes li:hover, ul.nodes li.on { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.mark { display: inline-block; width: 1.2em; font-weight: 600; }
+.ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); } .new { color: var(--new); }
+h2 { font-size: 15px; margin: 14px 0 4px; }
+pre { white-space: pre-wrap; background: color-mix(in srgb, var(--fg) 5%, transparent); padding: 6px 8px;
+  border-radius: 6px; margin: 4px 0; font-size: 13px; }
+textarea { width: 100%; min-height: 64px; font: inherit; background: var(--bg); color: var(--fg);
+  border: 1px solid var(--line); border-radius: 6px; padding: 6px; }
+.banner { background: color-mix(in srgb, var(--bad) 14%, transparent); padding: 8px 16px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+#said { margin-top: 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>FrFlow</h1>
+  <span id="who" class="dim"></span>
+  <span id="counts" class="dim"></span>
+  <button id="check" type="button">Check</button>
+</header>
+<div id="changed" class="banner" hidden>The model changed since this server started: restart serve to decide.</div>
+<main>
+  <div>
+    <nav>
+      <button type="button" data-tab="inbox" aria-pressed="true">Inbox</button>
+      <button type="button" data-tab="tree" aria-pressed="false">Tree</button>
+      <button type="button" data-tab="status" aria-pressed="false">Status</button>
+    </nav>
+    <section class="card" id="list" style="margin-top: 8px"></section>
+    <div id="panels"></div>
+  </div>
+  <section class="card" id="node"><p class="dim">Pick a node.</p></section>
+</main>
+<script>
+"use strict";
+const token = new URLSearchParams(location.search).get("token") || "";
+const state = { view: null, tab: "inbox", node: null, extensions: [] };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const words = t => String(t).replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
+
+async function call(method, path, body) {
+  const r = await fetch(path, { method, headers: { "X-FrFlow-Token": token, "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body) });
+  const json = await r.json().catch(() => ({}));
+  return { ok: r.ok, status: r.status, json };
+}
+
+const refusals = {
+  NoOneDecides: () => "who decides? serve --as NAME", NoReason: () => "give a reason of at least three words",
+  NoNodes: () => "name the nodes to accept", NothingToConfirm: () => "nothing is mechanical: nothing to confirm",
+  UnknownNode: r => `unknown node ${r.id}`, NotADecider: r => `your key is not listed under ${r.name}`,
+  MovedSinceSeen: r => `${r.id} changed since you saw it: look again`,
+  NotAProposal: r => `${r.id} is not a proposal`, NotDecided: r => `${r.id} is not decided yet`,
+  AlreadyAccepted: r => `${r.id} is accepted already`, AlreadyRevisited: r => `${r.id} is to be revisited already`,
+  AcceptFirst: r => `decide ${r.id} first: what rests on it is decided after it`,
+  CodeFails: r => `${r.id}'s code fails a generated case: the code, or the claim, is wrong`,
+  NotTested: r => `${r.id}'s code is not tested yet: run check`,
+  Rewritten: r => `the ledger no longer holds what was committed of ${r.ids.join(", ")}`,
+  NotBelow: r => `not decisions below ${r.id}: ${r.named.join(", ")}`,
+  StillInModel: r => `${r.id} is still in the model`, Within: r => `${r.id}: ${refusal(r.refusal)}`,
+};
+const refusal = r => (refusals[r.type] || (() => words(r.type)))(r);
+const failure = j => j.refusal ? `refused: ${refusal(j.refusal)}` : j.stop ? `stopped: ${words(j.stop.type)}` :
+  (j.error || "failed");
+
+function mark(n) {
+  const fails = n.proof.state.type === "Failed" || n.proof.state.type === "ModelError" ||
+    (n.code && n.code.tests && n.code.tests.outcome.type === "Failed");
+  const decide = ["Proposed", "Review"].includes(n.review.standing.state.type);
+  if (fails) return '<span class="mark bad">✗</span>';
+  if (decide) return '<span class="mark warn">!</span>';
+  if (n.proof.state.type === "Proven") return n.proof.unproven.length ? '<span class="mark warn">○</span>' :
+    '<span class="mark ok">✓</span>';
+  return '<span class="mark dim">?</span>';
+}
+const stateClass = { Accepted: "ok", Proposed: "new", Review: "warn", Rejected: "bad" };
+const line = n => `${mark(n)}<b>${esc(n.id)}</b> <span class="${stateClass[n.review.standing.state.type]}">` +
+  `${words(n.review.standing.state.type)}</span> ${esc(n.says.statement)}`;
+const node = id => state.view.nodes.find(n => n.id === id);
+const related = (n, rel) => n.place.related.filter(([r]) => r.type === rel).map(([, id]) => id);
+
+function warning(w) {
+  const says = { Ungoverned: `no node governs ${w.file}`, NoKey: "no signing key: nothing can be decided here",
+    ConsistencyNotProven: `consistency not proven: ${(w.statements || []).join(", ")}`,
+    NotChecked: `${w.node} is not checked`, StartNotProven: `${w.statement}: where its store starts is not proven`,
+    NotCounted: `a ${w.decision && w.decision.action} of ${w.node} does not count: ${w.why && words(w.why.type)}` };
+  return says[w.type] || `${words(w.type)} ${esc(JSON.stringify(Object.assign({}, w, { type: undefined })))}`;
+}
+
+async function load() {
+  const [view, serving] = await Promise.all([call("GET", "/api/view"), call("GET", "/api/serving")]);
+  if (!view.ok) { $("list").textContent = failure(view.json); return; }
+  state.view = view.json;
+  $("who").textContent = serving.ok ? `deciding as ${serving.json.developer}` : "";
+  $("changed").hidden = !(serving.ok && serving.json.modelChanged);
+  const o = state.view.overview;
+  $("counts").textContent = `${state.view.nodes.length} nodes` + (o.complete ? " · complete" : "");
+  render();
+}
+
+async function render() {
+  const list = $("list");
+  if (state.tab === "tree") {
+    const tree = await call("GET", "/api/tree");
+    list.innerHTML = '<ul class="nodes">' + tree.json.map(t => `<li data-node="${esc(t.node)}" ` +
+      `style="padding-left:${t.depth * 18 + 6}px">${line(node(t.node))}</li>`).join("") + "</ul>";
+  } else if (state.tab === "inbox") {
+    const inbox = await call("GET", "/api/inbox");
+    const mechanical = state.view.nodes.filter(n => n.review.standing.state.type === "Review" && !n.review.notMechanical);
+    list.innerHTML = (mechanical.length ? `<p>${mechanical.length} mechanical: <button type="button" ` +
+      `id="confirm">Confirm the batch…</button></p>` : "") + (inbox.json.length ? '<ul class="nodes">' +
+      inbox.json.map(id => `<li data-node="${esc(id)}">${line(node(id))}</li>`).join("") + "</ul>" :
+      '<p class="dim">Nothing waits for you.</p>') + (state.view.gone.length ? "<h2>Gone from the model</h2>" +
+      '<ul class="nodes">' + state.view.gone.map(id => `<li data-gone="${esc(id)}">${esc(id)}</li>`).join("") +
+      "</ul>" : "");
+    if ($("confirm")) $("confirm").onclick = () => decideForm({ action: "confirm" }, "Confirm the mechanical batch");
+  } else {
+    const v = state.view;
+    list.innerHTML = "<h2>Warnings</h2>" + (v.warnings.length ? "<ul>" + v.warnings.map(w =>
+      `<li class="bad">${esc(warning(w))}</li>`).join("") + "</ul>" : '<p class="ok">None.</p>') +
+      "<h2>Consistency</h2>" + (v.whole.groups.map(g => `<p>${esc(g.statements.join(", "))}: ` +
+      `${words(g.status.type)}</p>`).join("") || '<p class="dim">Nothing is left open.</p>') +
+      "<h2>Examples</h2>" + (v.whole.examples.map(e => `<p class="${e.passes ? "ok" : "bad"}">${e.passes ? "✓" : "✗"} ` +
+      `${esc(e.name)}</p>`).join("") || '<p class="dim">None.</p>');
+  }
+  list.querySelectorAll("[data-node]").forEach(li => li.onclick = () => show(li.dataset.node));
+  list.querySelectorAll("[data-gone]").forEach(li => li.onclick = () => gone(li.dataset.gone));
+  state.extensions.forEach(x => x.panel && x.panel($("panels"), state.view));
+}
+
+function show(id) {
+  const n = node(id);
+  if (!n) return;
+  state.node = id;
+  const r = n.review, open = ["Proposed", "Review"].includes(r.standing.state.type);
+  const section = (title, body) => body ? `<h2>${title}</h2>${body}` : "";
+  const items = xs => xs.length ? "<ul>" + xs.map(x => `<li>${x}</li>`).join("") + "</ul>" : "";
+  $("node").innerHTML = `<div>${line(n)}</div><div class="dim">${words(n.says.kind.type)}` +
+    `${n.place.root ? " (a root)" : ""}</div>` +
+    section("Decision", items([
+      ...(r.standing.causes.length ? [`to review: ${r.standing.causes.map(c => words(c.type)).join("; ")}`] : []),
+      ...(r.waitsFor ? [`decide ${esc(r.waitsFor)} first`] : []),
+      ...(open && r.standing.state.type === "Review" && !r.notMechanical ? ["mechanical: confirm takes it"] : []),
+      ...n.proof.unproven.map(u => `<span class="bad">not proven: ${words(u.type)}</span>`),
+      ...(r.moves.below.length ? [`decisions below it that accepting it acts on: ${esc(r.moves.below.join(", "))}`] : [])])) +
+    section("Why it holds", r.decisions.binding ? `<p>${esc(r.decisions.binding.reason)} <span class="dim">(${r.decisions.binding.action} by ` +
+      `${esc(r.decisions.binding.by)})</span></p>` : "") +
+    section("Formally", n.says.written ? `<pre>${esc(n.says.written)}</pre>` : "") +
+    section("How it is checked", items(n.says.checking.map(esc))) +
+    section("Parts", items(related(n, "Part").map(p => node(p) ? line(node(p)) : esc(p)))) +
+    section("Part of", items(related(n, "Parent").map(esc))) +
+    section("Proofs", items(n.proof.results.map(o => `${esc(o.theorem)}: ${words(o.state.type)}` +
+      o.messages.map(m => `<pre>${esc(m.file)}:${m.line}: ${esc(m.text)}</pre>`).join("")))) +
+    section("Code", n.code ? items([...n.code.shown.tested.map(() => "plain Scala, tested against it"),
+      ...n.code.shown.proven.map(d => `proven: ${esc(d)}`),
+      n.code.tests ? `tested on ${n.code.tests.cases.tried} cases: ${words(n.code.tests.outcome.type)}` +
+        (n.code.tests.outcome.failure ? `<pre>${esc(JSON.stringify(n.code.tests.outcome.failure))}</pre>` : "")
+        : "not tested yet: check"]) : "") +
+    '<div class="actions" id="acts"></div><div id="said"></div>';
+  const acts = $("acts");
+  const button = (label, f) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label;
+    b.onclick = f; acts.appendChild(b); };
+  if (open && !r.waitsFor) button("Accept…", () => decideForm({ action: "accept", nodes: [id],
+    seen: { [id]: r.version }, revisit: [] }, `Accept ${id}`, r.moves.below));
+  if (r.standing.state.type === "Proposed") button("Reject…", () => decideForm({ action: "reject", node: id,
+    seen: r.version }, `Reject ${id}`));
+  if (r.standing.state.type === "Accepted") button("Revisit…", () => decideForm({ action: "revisit", node: id },
+    `Revisit ${id}`));
+  state.extensions.forEach(x => x.nodeActions && x.nodeActions(n, acts));
+}
+
+function gone(id) {
+  $("node").innerHTML = `<p><b>${esc(id)}</b> <span class="bad">is gone from the model</span>.</p>` +
+    '<div class="actions" id="acts"></div><div id="said"></div>';
+  decideForm({ action: "gone", node: id }, `Agree ${id} is gone`);
+}
+
+function decideForm(command, title, below) {
+  const box = $("said");
+  box.innerHTML = `<h2>${esc(title)}</h2>` + (below && below.length ? "<p>Revisit (decisions below it): " +
+    below.map(b => `<label><input type="checkbox" value="${esc(b)}"> ${esc(b)}</label>`).join(" ") + "</p>" : "") +
+    '<textarea id="why" placeholder="Why (kept as part of the theory)"></textarea>' +
+    '<div class="actions"><button type="button" id="preview">Preview</button>' +
+    '<button type="button" id="record">Record, signed</button></div><div id="out"></div>';
+  const ask = () => Object.assign({}, command, { reason: $("why").value,
+    revisit: [...box.querySelectorAll("input:checked")].map(i => i.value) });
+  const said = (res, done) => $("out").innerHTML = res.ok ? `<p class="${done ? "ok" : ""}">${done ? "Recorded" :
+    "This records"}: ${res.json.recorded.map(x => `${x.decision.action} ${esc(x.node)}`).join(", ")}</p>` :
+    `<p class="bad">${esc(failure(res.json))}</p>`;
+  $("preview").onclick = async () => said(await call("POST", "/api/preview", ask()), false);
+  $("record").onclick = async () => { const res = await call("POST", "/api/decide", ask()); said(res, true);
+    if (res.ok) await load(); };
+}
+
+$("check").onclick = async () => {
+  $("check").disabled = true; $("check").textContent = "Checking…";
+  const res = await call("POST", "/api/check");
+  $("check").disabled = false; $("check").textContent = "Check";
+  if (!res.ok) alert(failure(res.json)); else await load();
+  if (state.node) show(state.node);
+};
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  state.tab = b.dataset.tab;
+  document.querySelectorAll("nav button").forEach(x => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+  render();
+});
+
+window.FrFlow = { call, esc, words, line, show, reload: load,
+  extend: x => { state.extensions.push(x); if (state.view) render(); } };
+const ext = document.createElement("script");
+ext.src = `/ext.js?token=${encodeURIComponent(token)}`;
+document.body.appendChild(ext);
+load();
+</script>
+</body>
+</html>
