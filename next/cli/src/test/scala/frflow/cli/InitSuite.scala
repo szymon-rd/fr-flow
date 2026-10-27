@@ -27,7 +27,7 @@ class InitSuite extends munit.CatsEffectSuite:
       assertEquals(again, Left("examples/toy exists already"))
       assert(build.contains("lazy val toy = nextExample(\"toy\", layers = Nil).dependsOn(nextTesting % Test)"), build)
       assert(build.contains("testFrameworks += TestFramework(\"frflow.testing.examples.ExamplesFramework\")"), build)
-      assert(model.contains("object toyCli extends frflow.cli.FrFlowApp(model, root = \"examples/toy\")"), model)
+      assert(model.contains("object toyCli extends frflow.cli.FrFlowApp(frModel, root = \"examples/toy\")"), model)
       assert(Init.write(d, "Toy", None).left.exists(_.startsWith("Toy is not a lowercase name")))
     }
   }

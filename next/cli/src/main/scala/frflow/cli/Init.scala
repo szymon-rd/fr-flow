@@ -49,9 +49,9 @@ object Init:
          |import frflow.*
          |
          |/** ${name.capitalize}: its root statements come next, each decided by the developer. */
-         |val model = KnowledgeBase("${name.capitalize}")()
+         |val frModel = KnowledgeBase("${name.capitalize}")()
          |
-         |object ${name}Cli extends frflow.cli.FrFlowApp(model, root = "examples/$name"$layers)
+         |object ${name}Cli extends frflow.cli.FrFlowApp(frModel, root = "examples/$name"$layers)
          |""".stripMargin
 
   private def examples(name: String): String =
@@ -60,7 +60,7 @@ object Init:
          |import frflow.*
          |
          |/** The FrModel's examples, ordinary tests (`sbt $name/test`), checked against the claims and the code. */
-         |class ${name.capitalize}Examples extends FrFlowExamples(model)
+         |class ${name.capitalize}Examples extends FrFlowExamples(frModel)
          |""".stripMargin
 
   /** The project's line in build.sbt: the examples' test framework and the Test dependency it runs from; no layer on

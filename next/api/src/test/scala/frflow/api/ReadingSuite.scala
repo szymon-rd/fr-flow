@@ -35,7 +35,8 @@ class ReadingSuite extends munit.CatsEffectSuite:
       assertEquals(v.node(nonNegative).map(_.place(Relation.Part)), Some(List(sameAbove)))
       assertEquals((n.proof.state, n.proof.results, n.proof.authored), (CheckState.Unchecked, Nil, false))
       assert(n.code.exists(c => c.shown.tested.nonEmpty && c.tests.isEmpty), n.code)
-      assertEquals((n.review.standing.state, n.review.decisions.binding, n.review.moves.above), (ReviewState.Proposed, None, Nil))
+      assertEquals((n.review.standing.state, n.review.decisions.binding, n.review.moves.above),
+        (ReviewState.Proposed, None, Nil))
     }
   }
 
