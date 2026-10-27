@@ -3,7 +3,8 @@ package rooms
 import frflow.*
 import frflow.core.example.Gen
 import frflow.testing.Seed
-import frflow.testing.derive.Derive
+import frflow.eval.{ScalaValue, Semantics}
+import frflow.testing.derive.{Always, Derive, Hints, Seeds}
 
 /** Drawn values meet their fields' rules (step 5, section 10.2): a `RoomBookings` drawn by its type, from the derived
   * generators alone, meets `endsAfterStart` for each booking it holds, and the rules on itself.
@@ -28,7 +29,7 @@ class DrawnSuite extends munit.FunSuite:
     assert(all.forall(r => r.bookings.forall(_.room == r.room)), all.find(r => r.bookings.exists(_.room != r.room)))
     def apart(a: Booking, b: Booking) = a.end <= b.start || b.end <= a.start
     assert(all.forall(r => r.bookings.combinations(2).forall { case List(a, b) => apart(a, b); case _ => true }))
-    assert(all.exists(_.bookings.size >= 2), "some room holds two bookings")
+    assert(all.count(_.bookings.size >= 2) >= 10, s"${all.count(_.bookings.size >= 2)} of 300 hold two bookings")
   }
 
   test("every shape Guards walks: an option's value, an either's side, a pair's component, an enum case's field") {
@@ -51,6 +52,31 @@ class DrawnSuite extends munit.FunSuite:
     val d = Derive.of(e, examples)
     val bookings = (0 until 300).flatMap(i => d(Gen.Derived[Booking](LeanType[Booking].ty), 3, Seed(4).forCase(i)))
     assert(bookings.contains(Booking("Oak", 9, 10)), bookings.distinct.take(10))
+  }
+
+  test("an example's value breaking a rule nested in it is never drawn: a booking ending before it starts") {
+    val e = derivedOnly.elaborated.fold(es => fail(es.toString), identity)
+    val semantics = Semantics(e)
+    val ty = LeanType[RoomBookings].ty
+    val bad = semantics.reflect(ScalaValue(RoomBookings("Oak", List(Booking("Oak", 5, 3)))), ty)
+    val d = Derive(semantics, e.theory.vocabulary, Always.of(semantics, e.theory),
+      Hints(Nil, Seeds(Map(ty -> Vector(bad)), Vector.empty)))
+    val bookings = (0 until 300).toList.flatMap(i =>
+      d(Gen.Derived[RoomBookings](ty), Seed.sizeOf(i, 300), Seed(1).forCase(i)).toList.flatMap(_.bookings))
+    assert(bookings.nonEmpty && bookings.forall(b => b.start < b.end), bookings.filterNot(b => b.start < b.end))
+  }
+
+  test("a drawn world's table meets what always holds of the store: no two bookings of a room overlap") {
+    val d = derive(derivedOnly)
+    val worlds = (0 until 300).toList.flatMap(i => d.values(List(frflow.core.ty.Ty.World), Seed.sizeOf(i, 300),
+      Seed(1).forCase(i)).toList.flatten)
+    val semantics = Semantics(derivedOnly.elaborated.fold(es => fail(es.toString), identity))
+    val tables = worlds.collect { case frflow.core.expr.Value.World(states, _) => states.toMap }
+      .flatMap(_.get(storedBookings.name))
+      .map(v => frflow.eval.Fn.as[List[Booking]](semantics.literal(v, LeanType[List[Booking]].ty)))
+    assert(tables.size == 300 && tables.exists(_.size >= 2), tables.take(5))
+    assert(tables.forall(_.combinations(2).forall { case List(a, b) =>
+      a.room != b.room || a.end <= b.start || b.end <= a.start; case _ => true }), tables.take(5))
   }
 
   test("the same seed, case and size draw the same value; another case another") {

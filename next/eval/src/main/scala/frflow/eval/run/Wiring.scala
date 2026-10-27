@@ -47,17 +47,19 @@ final class Wiring(semantics: Semantics, t: Theory, programs: Programs):
   private def calledDefines: List[(SymbolName, Impl)] = t.code.attached.values.toList.flatMap(_.code match
     case Code.Tested(_, calls) => calls
     case _                     => Nil).distinct.flatMap(s => t.vocabulary.define(DefName(s.value)).map(x =>
-    s -> proven(x.written)))
+    s -> written(x.written)))
 
   /** The code a Definition runs as: its plain code, its proven define, or its fixed value. */
   private def runs(d: SymbolName, code: Code): Option[Impl] = code match
     case Code.Valued(v) => typeOf(d).map(ty => Impl(0, _ => Fn.ref(semantics.literal(v, ty))))
     case Code.Provided  => None
     case other          =>
-      other.scala.map(_.impl).orElse(other.proven.flatMap(t.vocabulary.define).map(x => x.written.form match
-        case Form.Steps(steps) if programs == Programs.OnModels =>
-          ProgramRun.impl(semantics, t.vocabulary, x.written, steps)
-        case _                                                  => proven(x.written)))
+      other.scala.map(_.impl).orElse(other.proven.flatMap(t.vocabulary.define).map(x => written(x.written)))
+
+  /** A define's code: run by the evaluator; a program's, its run on the models where `programs` says so. */
+  private def written(w: Written[Lambda]): Impl = w.form match
+    case Form.Steps(steps) if programs == Programs.OnModels => ProgramRun.impl(semantics, t.vocabulary, w, steps)
+    case _                                                  => proven(w)
 
   private def held(g: Given): () => Any =
     val v = semantics.literal(g.value, typeOf(g.symbol).getOrElse(Ty.Unit)).unwrap

@@ -7,8 +7,9 @@ import frflow.core.term.interpret.Forward
 
 /** The witness a defining formula gives (owner §18): of `∀ xs, s(xs) = e` the function `fun xs => e`, of a bound
   * `s(xs) ≤ e` the bound itself, of `s(xs) < e` one less. A transformer that keeps, beside each term, the side
-  * `picked` of its relation, wrapped in a `lam` per leading `forall`. `consistency.Equations` read the shape off the
-  * IR first, so only the leading `forall`s and the relation are met here.
+  * `picked` of its relation, wrapped in a `lam` per leading `forall`, read through an implication to its conclusion
+  * (a refuted step's answer, `testing.search.StepRefutation`). `consistency.Equations` read the shape off the IR
+  * first, so only the leading `forall`s, an implication and the relation are met here.
   */
 final class Defining[T[_]](s: Sym[T], picked: Picked) extends Forward[T, [a] =>> Sided[T, a]]:
   protected def base: Sym[T] = s
@@ -19,6 +20,10 @@ final class Defining[T[_]](s: Sym[T], picked: Picked) extends Forward[T, [a] =>>
 
   override def forall[A](x: Bound[A])(p: Sided[T, A] => Sided[T, Boolean]): Sided[T, Boolean] =
     Sided(s.forall(x)(v => p(fwd(v)).whole), s.lam(x)(v => p(fwd(v)).witness).asInstanceOf[T[Any]])
+
+  /** `A implies s(xs) R e`: the conclusion's witness (where `A` does not hold, any value is one). */
+  override def implies(a: Sided[T, Boolean], b: Sided[T, Boolean]): Sided[T, Boolean] =
+    Sided(s.implies(a.whole, b.whole), b.witness)
 
   override def eq[A](a: Sided[T, A], b: Sided[T, A]): Sided[T, Boolean] = related(s.eq(a.whole, b.whole), a, b)
   override def le(a: Sided[T, BigInt], b: Sided[T, BigInt]): Sided[T, Boolean] = related(s.le(a.whole, b.whole), a, b)

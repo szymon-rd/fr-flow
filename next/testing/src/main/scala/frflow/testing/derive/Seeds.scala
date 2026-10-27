@@ -11,6 +11,10 @@ import frflow.core.vocab.{SymbolType, Vocabulary}
 final case class Seeds(byType: Map[Ty, Vector[Value]], numbers: Vector[BigInt]):
   def of(ty: Ty): Vector[Value] = byType.getOrElse(ty, Vector.empty)
 
+  /** Only the values `keep` keeps, by their types. */
+  def keeping(keep: (Value, Ty) => Boolean): Seeds =
+    Seeds(byType.map((ty, vs) => ty -> vs.filter(keep(_, ty))), numbers)
+
 object Seeds:
   val none: Seeds = Seeds(Map.empty, Vector.empty)
 

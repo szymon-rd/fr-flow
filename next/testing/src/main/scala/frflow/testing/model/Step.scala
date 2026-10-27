@@ -1,7 +1,9 @@
 package frflow.testing.model
 
+import frflow.core.expr.Value
 import frflow.core.name.{BoundaryName, OpName}
-import frflow.eval.ScalaValue
 
-/** One call of a generated run of a boundary's operations. */
-final case class Step(boundary: BoundaryName, op: OpName, args: List[ScalaValue])
+/** One call of a generated run of a boundary's operations: its arguments as data, typed by the operation's
+  * parameters.
+  */
+final case class Step(boundary: BoundaryName, op: OpName, args: List[Value])

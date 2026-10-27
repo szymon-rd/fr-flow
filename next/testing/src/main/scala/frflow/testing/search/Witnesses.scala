@@ -17,7 +17,6 @@ import frflow.eval.{Env, Fn, ScalaValue, Semantics}
   * given (`proof.obligation.Joint`); none found leaves the statement "not shown".
   */
 final class Witnesses(semantics: Semantics, t: Theory, drawn: Ty => List[Value]):
-  val Budget: Int = 5000
   private val small = Small(t.vocabulary)
 
   def of(v: Vacuity): Option[List[(Value, Ty)]] = v match
@@ -26,7 +25,7 @@ final class Witnesses(semantics: Semantics, t: Theory, drawn: Ty => List[Value])
     case Vacuity.Satisfiable(n, i, over) => Consistency.condition(t, n, i).flatMap { c =>
       val opens = Consistency.opens(t, c)
       val types = opens.map(typeOf) ++ over
-      combinations(types.map(candidates)).take(Budget)
+      combinations(types.map(candidates)).take(Witnesses.Budget)
         .find(vs => satisfies(n, i, opens, vs.zip(types).map(semantics.literal))).map(_.zip(types))
     }
 
@@ -53,3 +52,6 @@ final class Witnesses(semantics: Semantics, t: Theory, drawn: Ty => List[Value])
   private def combinations(xss: List[List[Value]]): Iterator[List[Value]] = xss match
     case Nil       => Iterator(Nil)
     case xs :: rest => xs.iterator.flatMap(x => combinations(rest).map(x :: _))
+
+object Witnesses:
+  val Budget: Int = 5000

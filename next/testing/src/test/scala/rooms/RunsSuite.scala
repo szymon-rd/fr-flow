@@ -6,7 +6,8 @@ import frflow.eval.Semantics
 import frflow.eval.run.Broken
 import frflow.testing.{Plan, PropertyTests, Seed, Settings}
 import frflow.testing.derive.Derive
-import frflow.testing.report.Failure
+import frflow.eval.EvalError
+import frflow.testing.report.{Failure, Outcome}
 
 /** A claim about a program's runs evaluated in Scala: the proven program's value is its run on the models
   * (`ProgramRun`), from each generated world, each model's state meeting what always holds of the store.
@@ -45,9 +46,11 @@ class RunsSuite extends munit.FunSuite:
       None, c))
   }
 
-  test("a claim over every moment has no Scala value: rooms' own is not evaluated") {
-    assertEquals(tested(rooms, "bookWhenFree").failure.collect { case Failure.Call(_, _, b, _) => b },
-      Some(Broken.NotEvaluated(frflow.eval.EvalError.Quantified)))
+  test("a claim over every moment has no Scala value: rooms' own are not checked, no case failing or saved") {
+    List("bookWhenFree", "answerWhenFree", "grantWhenFree").foreach { c =>
+      val r = tested(rooms, c)
+      assertEquals((r.outcome, r.failure), (Outcome.NotChecked(EvalError.Quantified), None), c)
+    }
   }
 
   test("a program that books every request breaks what booking stores, on a generated world it clashes in") {

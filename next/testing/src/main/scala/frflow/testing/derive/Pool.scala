@@ -18,6 +18,13 @@ object Pool:
   val empty: Pool = Pool(Map.empty)
   val Kept: Int = 4
 
+  /** How often a case's next value of a type is one it drew before: a string often (a token asked about, one a table
+    * holds); a number or a record less (a list of records, all one, seldom meets a rule over pairs of them).
+    */
+  def reuse(ty: Ty): Double = ty match
+    case Ty.Str => 0.6
+    case _      => 0.25
+
   def recurs(ty: Ty): Boolean = ty match
     case Ty.Str | Ty.Num(_) | Ty.Data(_) => true
     case _                               => false

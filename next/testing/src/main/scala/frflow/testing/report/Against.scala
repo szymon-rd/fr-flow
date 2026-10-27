@@ -1,9 +1,8 @@
 package frflow.testing.report
 
-import frflow.core.name.{DefName, NodeId}
+import frflow.core.name.NodeId
 
-/** What code was tested against: a claim, a define, or a model (its realization). */
+/** What code was tested against: a claim (or an assumption's formula), or a model (its realization). */
 enum Against:
   case Claim(node: NodeId)
-  case Define(name: DefName)
   case Model(node: NodeId, realization: Int)

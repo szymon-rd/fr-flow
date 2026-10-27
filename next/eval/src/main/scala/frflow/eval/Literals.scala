@@ -34,5 +34,6 @@ final class Literals(e: Elaborated):
 
   /** Each model's state at its model's type, and the faults when there are any. */
   private def world(states: List[(ModelName, Value)], faults: List[Boolean]): World =
-    val held = states.map((m, s) => m -> scala(s, e.theory.vocabulary.model(m).fold(Ty.Unit)(_.state))).toMap
+    val held = states.map((m, s) => m -> scala(s, Races.typeOf(m).getOrElse(e.theory.vocabulary.model(m)
+      .fold(Ty.Unit)(_.state)))).toMap
     World.of(if faults.isEmpty then held else held.updated(Faults.model, faults))

@@ -7,7 +7,7 @@ import frflow.core.name.NodeId
 import frflow.eval.Semantics
 import frflow.eval.run.Broken
 import frflow.testing.derive.Derive
-import frflow.testing.report.{Against, Failure, Made, Position, TestReport}
+import frflow.testing.report.{Against, Count, Failure, Made, Outcome, Reach, TestReport}
 import frflow.testing.Shelf.*
 import java.util.SplittableRandom
 
@@ -29,7 +29,8 @@ class TestingSuite extends munit.FunSuite:
     assertEquals((r.failure, r.unreached, r.against, r.cases), (None, Nil, Against.Claim(NodeId("pick")), 300))
     val e = kb.elaborated.fold(es => fail(es.toString), identity)
     val counted = Coverage(Semantics(e), e.theory, NodeId("pick"), List(LeanType[List[Book]].ty, LeanType[BigInt].ty))
-    assertEquals(counted.conditions.map(_._1), List(Position(0)))
+    assertEquals(counted.zero.counts.keySet.map(_.reach), Set(Reach.NonEmpty, Reach.Premise))
+    assertEquals(counted.zero.counts.size, 3)
   }
 
   test("FRFLOW_SEED replaces the seed: a number, or fresh; anything else keeps the settings") {
@@ -68,7 +69,18 @@ class TestingSuite extends munit.FunSuite:
         Some(List(List(Book("Short", 1)), BigInt(random.nextInt(3)), BigInt(100)))
     val e = kb.elaborated.fold(es => fail(es.toString), identity)
     val r = PropertyTests(Semantics(e), e.theory).of(NodeId("pick"), Plan(few, Nil), short)
-    assertEquals(r.map(r => (r.failure, r.unreached)), Some((None, List(Position(0)))))
+    assertEquals(r.map(_.failure), Some(None))
+    // Nothing is picked from a shelf of short books, and no book is long enough.
+    assertEquals(r.toList.flatMap(_.unreached).map(_.reach), List(Reach.NonEmpty, Reach.Premise))
+  }
+
+  test("a run that draws nothing tries nothing, and says so: every part unreached") {
+    val nothing = new Draw:
+      def apply[A](g: Gen[A], size: Int, random: SplittableRandom): Option[A] = None
+    val e = kb.elaborated.fold(es => fail(es.toString), identity)
+    val r = PropertyTests(Semantics(e), e.theory).of(NodeId("pick"), Plan(few, Nil), nothing)
+      .getOrElse(fail("pick is not tested"))
+    assertEquals((r.count, r.count.shortfall, r.outcome, r.unreached.size), (Count(300, 0), 300, Outcome.Passed, 3))
   }
 
   test("a given generator is said in the report, with what the developer said it makes") {

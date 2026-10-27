@@ -27,7 +27,7 @@ class CrmSuite extends munit.FunSuite:
 
   test("the database's plain code is tested against its assumptions: every generated case meets them") {
     assertEquals(Tested.nodes(knowledge).sorted, List("recordsByQuery", "storeEdits"))
-    Tested.nodes(knowledge).foreach(n => assertEquals(Tested.report(knowledge, n).flatMap(_.failure), None, n))
+    Tested.nodes(knowledge).foreach(n => assertEquals(Tested.passes(knowledge, n).count.tried, 1000, n))
   }
 
   test("a seeded SQL bug (the search's WHERE dropped) is found by the generated cases") {

@@ -3,7 +3,9 @@ package frflow.eval.flow
 import cats.MonadThrow
 import cats.effect.kernel.Ref
 import cats.syntax.all.*
+import frflow.core.expr.Prog
 import frflow.core.name.{BoundaryName, ModelName, OpName}
+import frflow.core.term.Stated
 import frflow.core.vocab.{Fails, Vocabulary}
 import frflow.eval.{EvalError, Faults, Races, Raised, ScalaValue, Semantics}
 
@@ -23,7 +25,11 @@ object World:
     * `ModelTests` compares an adapter with.
     */
   def models[F[_]](semantics: Semantics, v: Vocabulary, states: Ref[F, Map[ModelName, ScalaValue]])(
-      using F: MonadThrow[F]): World[F] = new World[F]:
+      using F: MonadThrow[F]): World[F] = watched(semantics, v, states, (_, _, _) => F.unit)
+
+  /** The models, each branch their steps take said to `branched`, with the operation it is in. */
+  def watched[F[_]](semantics: Semantics, v: Vocabulary, states: Ref[F, Map[ModelName, ScalaValue]],
+      branched: (OpName, Prog[Stated[?]], Boolean) => F[Unit])(using F: MonadThrow[F]): World[F] = new World[F]:
     self =>
     def read(m: ModelName): F[ScalaValue] =
       states.get.flatMap(_.get(m).liftTo[F](FlowError.NotEvaluated(EvalError.NoModel(m))))
@@ -35,6 +41,6 @@ object World:
 
     private def ran(b: BoundaryName, op: OpName, args: List[ScalaValue]): F[ScalaValue] =
       v.models.find(_.boundary == b).flatMap(_.ops.find(_.op == op)).liftTo[F](FlowError.NoOperation(b, op))
-        .flatMap(o => FlowInterpreter.sequential(semantics, self).prog(o.steps, FlowInterpreter.arguments(o.params,
-          args)))
+        .flatMap(o => FlowInterpreter.watched(semantics, self, (p, held) => branched(op, p, held))
+          .prog(o.steps, FlowInterpreter.arguments(o.params, args)))
     private def failed(e: Fails): F[ScalaValue] = F.raiseError(Raised(semantics.literal(e.error, e.ty), e.ty))

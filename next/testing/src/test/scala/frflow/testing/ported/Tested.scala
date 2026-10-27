@@ -9,7 +9,7 @@ import frflow.eval.run.OnCode
 import frflow.testing.{Plan, PropertyTests, Settings}
 import frflow.testing.derive.Derive
 import frflow.testing.examples.{Verdict, Verdicts}
-import frflow.testing.report.{Failure, TestReport}
+import frflow.testing.report.{Count, Failure, Outcome, TestReport}
 
 /** An example's generated tests as `check` runs them: the reference's settings (1,000 cases from `FRFLOW_SEED=1`),
   * drawn by the derived generators seeded by its examples.
@@ -20,6 +20,13 @@ object Tested:
     val e = kb.elaborated.fold(es => throw AssertionError(es.iterator.mkString("\n")), identity)
     val written = examples.flatMap(_.elaborated.fold(es => throw AssertionError(es.iterator.mkString), identity))
     PropertyTests(Semantics(e), e.theory).of(NodeId(node), Plan(settings, Nil), Derive.of(e, written))
+
+  /** A node's code passing every case it was asked for (the reference's 1,000, all drawn), each part reached. */
+  def passes(kb: KnowledgeBase, node: String, examples: List[FrFlowExamples] = Nil): TestReport =
+    val r = report(kb, node, examples).getOrElse(throw AssertionError(s"$node is not tested"))
+    if r.outcome != Outcome.Passed || r.count != Count(1000, 1000) || r.unreached.nonEmpty then
+      throw AssertionError(s"$node: ${r.outcome}, ${r.count}, unreached ${r.unreached}")
+    r
 
   /** The nodes whose code is plain Scala, tested: each claim or assumption about a Definition with tested code. */
   def nodes(kb: KnowledgeBase): List[String] =
