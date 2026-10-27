@@ -101,6 +101,16 @@ class ConceptsSuite extends munit.FunSuite:
     assertEquals((sent.isAlways, made(sent).invariantsOn(summon[LeanType[BigInt]]).map(_._1.id)), (true, List("Sent")))
   }
 
+  test("a tested Definition's claim resting on an always assumption is still a leaf its code is tested against") {
+    import Concepts.*
+    val sent = Node.assumption("Requests are sizes.")(always[BigInt](x => x >= BigInt(0)))
+    val listed = stepPositive.assuming(sent)
+    val kb = FrModel("Concepts")(grows, neverNegative, listed, model, writes, oneAtATime, startsAtNothing, sent)
+      .implementProven(add)(adding).implementTested(step)(x => x.abs + 1)
+    assertEquals(kb.problems, Nil)
+    assertEquals(kb.implementation(listed).map(_.contract), Some("StepPositive"))
+  }
+
   test("a claim on one Definition is about every call of it; one on a flow, about every run") {
     import Concepts.*
     assertEquals((stepPositive.op.map(_.name), grows.op.map(_.name)), (Some("step"), Some("add")))

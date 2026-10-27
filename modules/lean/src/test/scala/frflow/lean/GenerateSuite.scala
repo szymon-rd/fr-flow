@@ -114,6 +114,23 @@ class GenerateSuite extends munit.FunSuite:
       kept.endsWith("(Service.notNegative ((Service.sold_run price) x0 x1).2.till)"), kept)
   }
 
+  test("an always assumption is a rule, as an always claim is: a hypothesis, not a part; code storing it still keeps it") {
+    val sent = Node.assumption("No amount is less than nothing.")(always[BigInt](x => x >= BigInt(0)))
+    val positive = Service.pricePositive.assuming(sent)
+    val kb = FrModel("Service", idea = "IDEA.md")(Service.sold, positive, Service.tillKept, sent)
+      .implementProven(Service.sold)(Service.selling)
+      .implementTested(positive)(item => item.abs + 1)
+    assertEquals(kb.problems, Nil)
+    val g = Generate(kb)
+    // the selling flow stores an amount: it is asked to keep the rule, given what the price's contract promises
+    assert(g.obligations(sent).exists(_.name == ObligationName.KeptBy("sell")), g.obligations(sent))
+    assert(g.spec(sent).contains("import FrFlowGen.Service.PricePositive.Spec"), g.spec(sent))
+    // the price's contract lists it, takes its rule as a hypothesis, and has no step from it: no import back
+    val price = g.spec(positive)
+    assert(price.contains("(Service.sent x0) → ") && !price.contains("import FrFlowGen.Service.Sent.Spec"), price)
+    assertEquals(g.obligation(positive, ObligationName.Complete), None)
+  }
+
   test("a node is witnessed by proven code, an assumption, or parts that all are; a part nothing proves witnesses nothing") {
     val unrefined = Node.claim("Some books are kept aside.", why = "A part not refined yet.")(
       forall((l: Term[List[Item.T]], x: Term[Item.T]) => shown(l, x) implies l.contains(x))).refines(onlyGood)

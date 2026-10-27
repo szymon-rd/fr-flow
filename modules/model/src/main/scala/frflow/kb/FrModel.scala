@@ -246,10 +246,11 @@ final class FrModel(val name: String, val idea: String = "", val implementations
   /** The claims stated of one Definition (or Declaration): its operation's. */
   def claimsOn(d: Param[?]): List[Node[?]] = nodes.filter(n => n.onOperation && n.op.exists(_ eq d))
   /** Registers code for `d`: a copy for each claim on it that `check` holds it to (all, or those nothing below
-    * proves).
+    * proves: an `always` assumption below proves nothing).
     */
   private[frflow] def withDefinition(d: Param[?], i: Implementation, leavesOnly: Boolean): FrModel =
-    val held = claimsOn(d).filter(c => !leavesOnly || parts(c).isEmpty)
+    def rule(p: Node[?]) = p.kind == NodeKind.Assumption && p.isAlways
+    val held = claimsOn(d).filter(c => !leavesOnly || parts(c).forall(rule))
     val is =
       if held.isEmpty then List(i.copy(contract = "", definition = Some(d.name)))
       else held.map(c => i.copy(contract = c.id, definition = Some(d.name)))

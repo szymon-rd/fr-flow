@@ -81,6 +81,18 @@ class WorkspaceSuite extends munit.CatsEffectSuite with TempDirs:
     assert(!Governance.warnings(Desk(kb).analysis).exists(_.startsWith("Costs rests on")))
   }
 
+  test("what is proven or tested lists the assumption it rests on; a leaf with nothing to prove and no code need not") {
+    import Concepts.*
+    val sent = Node.assumption("Requests are sizes.")(always[BigInt](x => x >= BigInt(0)))
+    val level = Declaration[World => BigInt]("how far the count has come, as the world stands")
+    val levelIsCount = Node.claim("The level is the count.")(forall((now: Term[World]) => level(now) === counted.in(now)))
+    val kb = FrModel("Concepts", idea = "IDEA.md")(grows, neverNegative, stepPositive, levelIsCount, model, writes,
+      oneAtATime, startsAtNothing, sent).implementProven(add)(adding).implementTested(step)(x => x.abs + 1)
+    val warnings = Governance.warnings(Desk(kb).analysis).filter(_.contains(" rests on Sent:"))
+    // proven by kept_by_add, tested, proven of its code: each takes the rule; what the Declaration is only carries it
+    assertEquals(warnings.map(_.takeWhile(_ != ' ')).sorted, List("Grows", "NeverNegative", "StepPositive"))
+  }
+
   test("source files no node governs are found under src/main and in what the build compiles; tests are not production code") {
     for
       ws <- workspace

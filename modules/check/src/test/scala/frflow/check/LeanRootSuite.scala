@@ -64,6 +64,13 @@ class LeanRootSuite extends LeanLab:
     // kept_by_refund is asked of it, as of a claim, and is not proven: check does not pass the node
     assert(result(assumed, "kept_by_refund").exists(_.status != ObligationStatus.Proven), assumed)
     assert(assumed.obligations.exists(!_.fine), assumed)
+    // listed by what rests on it, it is still asked: listing is no import back, and proves nothing of the code
+    import Refunds.*
+    val listed = FrModel("Refunds", idea = "IDEA.md")(refunded.assuming(noNegativeAmounts),
+      costs.assuming(noNegativeAmounts), tillAdds, noNegativeAmounts)
+      .implementProven(refunded)(refunding).implementTested(costs)(item => item.abs + 1)
+    val stillAsked = of(workflow(listed).check(), "NoNegativeAmounts")
+    assert(result(stillAsked, "kept_by_refund").exists(_.status != ObligationStatus.Proven), stillAsked)
   }
 
   test("an invariant is a claim proven from the contracts that keep it, or left open") {

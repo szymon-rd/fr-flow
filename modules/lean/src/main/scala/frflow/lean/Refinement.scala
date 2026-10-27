@@ -10,7 +10,7 @@ final class Refinement(kb: FrModel, val vocabulary: Vocabulary):
   private val K = kb.name
   def formal(n: Node[?]): Boolean = kb.isStatement(n)
   /** An `always` claim has no step: its premises are what its proofs (`kept_by_…`, `initially`) take, not parts. Nor
-    * is one a part of a step: what it says is a hypothesis of every statement about what it is about (`assumed`),
+    * is one, or an `always` assumption, a part of a step: what it says is a hypothesis of every statement about what it is about (`assumed`),
     * the step's own among them, and it is proven by its own obligations.
     */
   def splitParts(n: Node[?]): Option[List[Node[?]]] =
@@ -172,5 +172,7 @@ final class Refinement(kb: FrModel, val vocabulary: Vocabulary):
   def witnessed(n: Node[?]): Boolean = witness(witnesses, n).getOrElse(n.id, false)
 
 object Refinement:
-  /** An `always` claim: proven by its own obligations, a hypothesis of the statements about what it is about. */
-  def isRule(n: Node[?]): Boolean = n.kind == NodeKind.Claim && n.isAlways
+  /** An `always` claim or assumption: a hypothesis of the statements about what it is about, not a part of their step;
+    * proven by its own obligations (an assumption's `kept_by_…` too: code may not store what breaks it).
+    */
+  def isRule(n: Node[?]): Boolean = (n.kind == NodeKind.Claim || n.kind == NodeKind.Assumption) && n.isAlways
