@@ -123,7 +123,7 @@ class GenerateSuite extends munit.FunSuite:
     assert(!g.witnessed(onlyGood)) // one of its parts has no witness, though the others have proven code
   }
 
-  test("a root over Declarations: each said in the code's words, at the bottom; what always holds of a store, of a world") {
+  test("a root over Declarations: each tied to the code at the bottom; what always holds of a store, of a world") {
     import Concepts.*
     val level = Declaration[World => BigInt]("how far the count has come, as the world stands")
     val levelAfter = Declaration[(BigInt, World) => BigInt]("how far the count has come once a request is added")

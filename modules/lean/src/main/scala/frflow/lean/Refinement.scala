@@ -44,7 +44,7 @@ final class Refinement(kb: FrModel, val vocabulary: Vocabulary):
     case _            => n.formula.fold(Ctx.empty)(ctx(_)))
   def claim(n: Node[?], env: Env = Map.empty): (String, Ctx) =
     app(qualified(n, "claim"), claimCtx(n), mentioned(n) ++ env)
-  /** In a statement saying what a Declaration is in the code's words (`accepted(request, now) ===
+  /** In a statement saying what a Declaration is in terms of the code (`accepted(request, now) ===
     * book(…).answer(now)`), proven code stands for each Definition it mentions: the Declaration is what that code
     * does, and is witnessed by it. Other statements hold for every meaning their parts allow.
     */
