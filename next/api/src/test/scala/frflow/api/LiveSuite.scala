@@ -1,0 +1,28 @@
+package frflow.api
+
+import cats.effect.{IO, Resource}
+import frflow.api.view.{Stop, Warning}
+import frflow.project.Live
+import java.nio.file.{Files, Path}
+
+/** The live API over a project's directory (a fresh one, outside git, with no key there): read and rendered on disk,
+  * Lean not run. Tagged `Lean`: `sbt Lean/test` runs it, plain `sbt test` does not.
+  */
+class LiveSuite extends munit.CatsEffectSuite:
+  private val dir = ResourceFunFixture(Resource.make(IO.blocking(Files.createTempDirectory("frflow-api")))(d =>
+    IO.blocking(Files.walk(d).sorted(java.util.Comparator.reverseOrder()).forEach(p => Files.delete(p)))))
+
+  private def env(d: Path) = Map("HOME" -> d.toString, "FRFLOW_KEY" -> d.resolve("no.key").toString)
+
+  dir.test("on disk: the view warns of no key, render writes the Lean, who decides stops on the key".tag(Live)) {
+    d => FrFlowApi.make(Opened.before, d, env(d)).use { api =>
+      for
+        view     <- api.reading.view
+        rendered <- api.proving.render
+        who      <- api.deciding.developer(None).attempt
+      yield
+        assert(view.warnings.contains(Warning.NoKey), view.warnings)
+        assert(rendered.nonEmpty && Files.isRegularFile(d.resolve("lean/lakefile.toml")))
+        assertEquals(who.left.map(_.getClass), Left(classOf[Stop.NoKey]))
+    }
+  }

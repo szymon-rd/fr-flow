@@ -1,0 +1,58 @@
+package frflow.api.derive
+
+import frflow.api.node.*
+import frflow.core.analysis.{Constrained, Resolve}
+import frflow.core.checking.Shown
+import frflow.core.expr.OutsideFact
+import frflow.core.name.NodeId
+import frflow.core.spec.{Node, NodeKind}
+import frflow.decision.content.FieldValue
+import frflow.decision.ledger.Authorship
+import frflow.decision.review.{ReviewState, Standing}
+import frflow.decision.rules.Below
+import frflow.project.pipeline.{Analysis, Texts}
+
+/** Each group of a node's view, one function each, from the analysis. */
+private[api] final class NodeViews(a: Analysis):
+  private val r = a.decided
+  private val counting = a.inputs.ledger.counting
+  /** `Below`'s queries read the ledger as it counts; who would decide is not read by them. */
+  private val below = Below(a.reading, Authorship("", a.inputs.now, None), "")
+
+  def of(n: Node): NodeView = NodeView(n.id, says(n), placement(n.id), proof(n.id), code(n.id), review(n.id))
+
+  def says(n: Node): Says =
+    val written = a.subjects.get(n.id).flatMap(_.content.get("formula")).collect { case FieldValue.Text(f) => f }
+    Says(n.statement.kind, n.says, written, Texts.checking(r.theory, n.id), Resolve.mentions(r.theory, n.id),
+      counting.binding(n.id).map(_.reason.text))
+
+  def placement(id: NodeId): Placement =
+    val g = r.theory.refinement
+    def inverse(f: NodeId => List[NodeId]) = g.nodes.map(_.id).filter(f(_).contains(id))
+    val related = List(
+      Relation.Parent -> g.parents(id), Relation.Part -> g.parts(id),
+      Relation.Design -> g.children(id).filter(c => g.node(c).exists(_.statement.kind == NodeKind.Design)),
+      Relation.Calls -> r.callsOf(id), Relation.CalledBy -> inverse(r.callsOf),
+      Relation.Assumes -> g.assumed(id), Relation.AssumedBy -> inverse(g.assumed),
+      Relation.Rival -> a.subjects.get(id).toList.flatMap(_.place.rivals))
+    Placement(g.roots.exists(_.id == id), related.flatMap((rel, ns) => ns.map(rel -> _)))
+
+  def proof(id: NodeId): ProofView =
+    val check = a.current(id)
+    ProofView(check.fold(Leans.Unchecked)(c => Leans.state(c.status)), check.toList.flatMap(_.results).map(Leans.of),
+      check.toList.flatMap(_.findings).map(Leans.finding), a.inputs.proofs.contains(id),
+      a.subjects.get(id).toList.flatMap(_.proof.unproven))
+
+  def code(id: NodeId): Option[CodeView] =
+    val coded = Constrained.of(r.theory, id).exists(r.theory.code.attached.contains)
+    val modelled = r.theory.node(id).flatMap(_.statement.outside).exists {
+      case OutsideFact.BehavesAs(b, _) => r.theory.code.realized.contains(b)
+      case _                           => false
+    }
+    Option.when(coded || modelled)(CodeView(Shown.of(r.theory, id), a.tested(id).map(Tests.of)))
+
+  def review(id: NodeId): ReviewView =
+    val subject = a.subjects.get(id)
+    ReviewView(a.standings.getOrElse(id, Standing(ReviewState.Proposed, Nil)), counting.binding(id),
+      subject.flatMap(a.reading.waitsFor), a.reading.notMechanical.get(id).flatten,
+      subject.toList.flatMap(below.movedAbove).map(_._1), subject.toList.flatMap(below.actsOn).map(_.id))

@@ -1356,6 +1356,8 @@ The decisions are in `owner-decisions.md`; the right column says where this docu
 | 19 | One word `always` for both forms | 2.3, 10.2 |
 | 20 | The design approved; the rebuild started | 9 |
 | 21 | Statements about values only; what comes from outside an assumption of `always` on its type | 2.6, 3 |
+| 22 | crm's purpose is the root; its expectations are roots of their own | 2.5 |
+| 23 | The README's short core and its pass rule | outside this design |
 
 ## Appendix B. Today's library, and where each problem is addressed
 
