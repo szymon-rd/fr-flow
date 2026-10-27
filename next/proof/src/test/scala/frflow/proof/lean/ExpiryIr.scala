@@ -30,7 +30,8 @@ object ExpiryIr:
 
   /** `expireOnce` is over `expire` (its open term); the other defines over none. */
   val env: LowerEnv = LowerEnv(KbName("Crm"), d => Option.when(d.value == "expireOnce")(Names.ident("expire")).toList,
-    _ => Names.builtin("database"), _ => Names.builtin("Database"), data.get)
+    _ => Names.builtin("database"), _ => Names.builtin("Database"), data.get,
+    _ => Some(store))
   val reserved: Naming = Naming.over(Set("expire"), Set("CrmStore", "Tables", "Event", "World"))
 
   /** The terms the job's statements and steps are made of, for any interpreter. */

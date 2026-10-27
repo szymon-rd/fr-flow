@@ -60,8 +60,16 @@ final class LowerProp(table: TermTable, env: LowerEnv):
     case Prop.Implies(hs, c)     => (hs.traverse(h => prop(h.prop, σ)), prop(c, σ)).mapN((xs, y) =>
                                       (xs :+ y).reduceRight(LExpr.Infix(LOp.Arrow, _, _)))
     case Prop.Formula(w)         => formula(w)
-    case Prop.Commutes(_, _) | Prop.Forall(_, _) | Prop.Exists(_, _) | Prop.ForEvery(_, _) | Prop.ForSome(_, _) =>
-      ??? // commutation as today's `commute_i`; nested binders
+    case Prop.Commutes(c, opens)  => opens.traverse(s => Writer.tell(leaf(s))).as(LowerCommute(env, closedNaming)(c))
+    case Prop.Forall(_, _) | Prop.Exists(_, _) => Writer.value(LExpr.Paren(statement(p)))
+    case Prop.ForEvery(ss, body) => inner(ss, body, σ)(LExpr.Forall(_, _))
+    case Prop.ForSome(ss, body)  => inner(ss, body, σ)(LExpr.Exists(_, _))
+
+  /** A statement inside another binding exactly `ss`: the open terms it leaves are the enclosing statement's. */
+  private def inner(ss: List[SymbolName], body: Prop, σ: Subst)(q: (List[LBinder], LExpr) => LExpr): W[LExpr] =
+    val (opens, b) = prop(body, σ).run
+    val left = OpenTerms(opens.sorts, opens.symbols.filterNot(ss.contains))
+    Writer(left, if ss.isEmpty then b else LExpr.Paren(q(binders(OpenTerms(Nil, ss)), b)))
 
   /** A formula printed from its term (`Printed`), its open terms told: the symbols its IR (`Written.value`, made once
     * when elaborated) mentions.

@@ -25,7 +25,32 @@ final class LowerValue(env: LowerEnv):
       val (ctor, ty) = if side == Side.Error then ("Except.error", l) else ("Except.ok", r)
       apply(x, ty).map(y => call(Atoms.const(ctor), List(y)))
     case (Value.Tuple(xs), Ty.TupleOf(ts))      => xs.zip(ts).traverse(apply(_, _)).map(LExpr.Tuple(_))
-    case _                                      => ??? // maps and sets (with their helper), worlds
+    case (Value.Pairs(es), Ty.MapOf(k, v))      => map(es, k, v)
+    case (Value.Many(xs), Ty.SetOf(a))          => set(xs, a)
+    case (Value.World(states, _), Ty.World)     =>
+      states.traverse((m, v) => apply(v, env.modelState(m).getOrElse(Ty.Unit))).map(call(Atoms.const("World.mk"), _))
+    case (other, ty)                            =>
+      throw IllegalStateException(s"FrFlow bug: the value $other is not one of type $ty")
+
+  /** `(fun k => if k = k₁ then some v₁ else … none)`: a map as the function Lean's `K → Option V` is. */
+  private def map(es: List[(Value, Value)], k: Ty, v: Ty): L[LExpr] =
+    for
+      pairs <- es.traverse((a, b) => (apply(a, k), apply(b, v)).tupled)
+      x     <- Naming.helper("k", pairs.flatMap((a, b) => LExprs.identifiers(a) ++ LExprs.identifiers(b)).toSet)
+    yield
+      val body = pairs.foldRight(name("none"))((p, rest) =>
+        LExpr.If(LExpr.Infix(LOp.Eq, LExpr.Name(x), p._1), call(name("some"), List(p._2)), rest))
+      LExpr.Paren(LExpr.Fun(List(LBinder.Bare(x)), body))
+
+  /** `(fun x => x = a₁ ∨ …)`, or `(fun x => False)`: a set as the predicate Lean's `A → Prop` is. */
+  private def set(xs: List[Value], a: Ty): L[LExpr] =
+    for
+      elems <- xs.traverse(apply(_, a))
+      x     <- Naming.helper("x", elems.flatMap(LExprs.identifiers).toSet)
+    yield
+      val body = elems.map(e => LExpr.Infix(LOp.Eq, LExpr.Name(x), e): LExpr)
+        .reduceRightOption(LExpr.Infix(LOp.Or, _, _)).getOrElse(name("False"))
+      LExpr.Paren(LExpr.Fun(List(LBinder.Bare(x)), body))
 
   /** A constructor applied to its fields; a case of an enum without fields alone. */
   private def data(d: TypeName, c: CtorName, fs: List[Value]): L[LExpr] =

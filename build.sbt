@@ -58,7 +58,7 @@ lazy val nextCore = nextModule("core", cats)
 
 // next-proof (step 3)
 /** Obligations, the Lean AST, the one term printer, lowering, layout, reading Lean's output, the judges. */
-lazy val nextProof = nextModule("proof", cats).dependsOn(nextCore)
+lazy val nextProof = nextModule("proof", cats).dependsOn(nextCore % "compile->compile;test->test")
 
 // next-eval (step 4)
 

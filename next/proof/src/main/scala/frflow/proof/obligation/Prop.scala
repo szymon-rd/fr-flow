@@ -1,10 +1,9 @@
 package frflow.proof.obligation
 
 import cats.data.NonEmptyList
-import frflow.core.expr.{Expr, Prog}
+import frflow.core.expr.Expr
 import frflow.core.name.{DefName, NodeId, SymbolName}
 import frflow.core.spec.Written
-import frflow.core.term.Stated
 import frflow.core.ty.Ty
 
 /** The statement of an obligation in the logic of refinement, before any Lean syntax. Claims and conjuncts stand
@@ -40,7 +39,8 @@ enum Prop:
   case Starts(rule: DefName, each: Boolean, initially: DefName, state: Ty)
   /** Some value of `ty` meets an `always[T]`'s rule. */
   case Inhabited(rule: DefName, ty: Ty)
-  case Commutes(first: Prog[Stated[?]], second: Prog[Stated[?]])
+  /** A parallel step's two orders give the same run, for every value of the Definitions the program calls. */
+  case Commutes(c: Commutation, opens: List[SymbolName])
 
 object Prop:
   def claim(n: NodeId): Prop = ClaimOf(n, Map.empty)
