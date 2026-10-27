@@ -23,8 +23,8 @@ object Node:
       Source.of(Node.writing(formula)))
 
   /** The same form, trusted: the world outside (`store.behavesAs(stored)`, `stored.initially(held => held === Nil)`,
-    * `stored.writtenOnlyBy(book)`, `stored.changedOneRunAtATime`, `outside.calls(book)`), or an outside system's
-    * promise.
+    * `stored.writtenOnlyBy(book)`, `stored.changedOneRunAtATime`), what values from outside always meet
+    * (`always[Request](r => …)`), or an outside system's promise.
     */
   inline def assumption(statement: String)(inline formula: Stating ?=> Term[Boolean]): Node =
     Nodes.assumption(Head.make(Source.valName, statement, Source.file, Source.offset),

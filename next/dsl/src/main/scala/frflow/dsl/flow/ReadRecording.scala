@@ -39,7 +39,7 @@ object ReadRecording:
       case Recorded.Collect(xs, t, b, ty) => noted(xs) *> collected(xs, t, b, ty)(Prog.Collect(_, _, _))
       case Recorded.ParCollect(xs, t, b, ty) => noted(xs) *> collected(xs, t, b, ty)(Prog.ParEach(_, _, _, None))
       case Recorded.Fold(xs, z, t, body)  => noted(xs) *> noted(z) *> fold(xs, z, t, body)
-      case Recorded.Raise(e)              => noted(e).as((_ => Prog.Raise(expr(e)), ()))
+      case Recorded.Raise(e)              => noted(e) *> raised(e)
       case Recorded.Handle(body, e, h)    => handle(body, e, h)
       case Recorded.Atomic(body)          => whole(body).flatMap((p, ty) => bound(Prog.Atomic(p), ty))
       case Recorded.Read(m, t)            => bound(Prog.Read(m), t)
@@ -47,6 +47,12 @@ object ReadRecording:
       case Recorded.Par(l, r, t)          => par(l, r, t)
       case Recorded.Race(l, r, t)         => race(l, r, t)
       case Recorded.Guard(body, err, fin) => guard(body, err.ty, fin)
+
+    /** A raise: the steps after it never run, so they are dropped; the next step is given a variable of no value
+      * (`Ty.Never`), whatever it expects, so a program raising and then mapping is read.
+      */
+    private def raised(e: Term[?]): Reading =
+      fresh(Ty.Never).map(x => (_ => Prog.Raise(expr(e)), Term.free(x)(using LeanType.of[Nothing](Ty.Never))))
 
     /** A whole sub-program: its steps ending in its result, and the result's type. */
     def whole[A](r: Recorded[A]): State[Seen, (P, LeanType[?])] =

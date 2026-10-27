@@ -39,6 +39,7 @@ object TermSyntax:
     def <(b: Term[BigInt]): Term[Boolean] = Term.both(a, b)([T[_]] => (s: Sym[T]) => s.lt)
     def <=(b: Term[BigInt]): Term[Boolean] = Term.both(a, b)([T[_]] => (s: Sym[T]) => s.le)
     def >(b: Term[BigInt]): Term[Boolean] = b < a
+    def >=(b: Term[BigInt]): Term[Boolean] = b <= a
   extension [A](xs: Term[List[A]])
     def length: Term[BigInt] = Term.one(xs)([T[_]] => (s: Sym[T]) => s.length[A])
     /** Lean's `List.Nodup`: no element twice. */
@@ -87,7 +88,16 @@ object TermSyntax:
     val h = names(Source.of(p).params, 4)
     Terms.forall[A](h(0), w => Terms.forall[B](h(1), x =>
       Terms.forall[C](h(2), y => Terms.forall[D](h(3), z => p(w, x, y, z)))))
-  // … to six variables.
+  inline def forall[A: LeanType, B: LeanType, C: LeanType, D: LeanType, E: LeanType](
+      inline p: (Term[A], Term[B], Term[C], Term[D], Term[E]) => Term[Boolean]): Term[Boolean] =
+    val h = names(Source.of(p).params, 5)
+    Terms.forall[A](h(0), v => Terms.forall[B](h(1), w => Terms.forall[C](h(2), x =>
+      Terms.forall[D](h(3), y => Terms.forall[E](h(4), z => p(v, w, x, y, z))))))
+  inline def forall[A: LeanType, B: LeanType, C: LeanType, D: LeanType, E: LeanType, G: LeanType](
+      inline p: (Term[A], Term[B], Term[C], Term[D], Term[E], Term[G]) => Term[Boolean]): Term[Boolean] =
+    val h = names(Source.of(p).params, 6)
+    Terms.forall[A](h(0), u => Terms.forall[B](h(1), v => Terms.forall[C](h(2), w =>
+      Terms.forall[D](h(3), x => Terms.forall[E](h(4), y => Terms.forall[G](h(5), z => p(u, v, w, x, y, z)))))))
   /** `when(free)(held :+ request).otherwise(held)`: the conditional, each branch named where it is written. */
   def when[A](condition: Term[Boolean])(ifTrue: Term[A]): Conditional[A] = Conditional(condition, ifTrue)
   /** `let(v)(x => body)`: `v` named for the body, computed once (Lean's `let`). */

@@ -52,4 +52,12 @@ object Definition:
     def apply(a: Term[A], b: Term[B], c: Term[C], e: Term[D])(
         using LeanType[A], LeanType[B], LeanType[C], LeanType[D], LeanType[R]): Term[R] =
       Term.app(Term.app(Term.app(Term.app(d.curried[A => B => C => D => R], a), b), c), e)
-  // … to six inputs.
+  extension [A, B, C, D, E, R](d: Definition[(A, B, C, D, E) => R])
+    def apply(a: Term[A], b: Term[B], c: Term[C], e: Term[D], f: Term[E])(
+        using LeanType[A], LeanType[B], LeanType[C], LeanType[D], LeanType[E], LeanType[R]): Term[R] =
+      Term.app(Term.app(Term.app(Term.app(Term.app(d.curried[A => B => C => D => E => R], a), b), c), e), f)
+  extension [A, B, C, D, E, G, R](d: Definition[(A, B, C, D, E, G) => R])
+    def apply(a: Term[A], b: Term[B], c: Term[C], e: Term[D], f: Term[E], g: Term[G])(
+        using LeanType[A], LeanType[B], LeanType[C], LeanType[D], LeanType[E], LeanType[G], LeanType[R]): Term[R] =
+      Term.app(Term.app(Term.app(Term.app(Term.app(Term.app(d.curried[A => B => C => D => E => G => R], a), b), c), e),
+        f), g)

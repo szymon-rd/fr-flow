@@ -23,7 +23,10 @@ object Reify:
       case (Ty.EitherOf(_, r), Right(x))  => value(r, x).map(Value.Inject(Side.Value, _))
       case (Ty.Data(n), x)                =>
         declared.types.get(n).flatMap(_.headOption).fold(Left(Fault.NoType(n.value)))(data(_, x))
-      case _                              => ??? // maps, sets, worlds, as today's
+      case (Ty.MapOf(k, v), m: Map[?, ?]) =>
+        m.toList.traverse((a, b) => (value(k, a), value(v, b)).tupled).map(Value.Pairs(_))
+      case (Ty.SetOf(e), xs: Set[?])      => xs.toList.traverse(value(e, _)).map(Value.Many(_))
+      case (_, other)                     => Left(Fault.NotData(String.valueOf(other)))
 
     /** A value of a domain type taken apart by its `DataRep`, its fields walked by their declared types. */
     private def data(d: Declared, a: Any): Either[Fault, Value] =

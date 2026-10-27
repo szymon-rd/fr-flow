@@ -1,6 +1,7 @@
 package frflow.dsl.flow
 
-import frflow.core.expr.{Expr, Prog, Progs}
+import frflow.core.expr.{Expr, Prog, Progs, Side}
+import frflow.core.ty.{NumKind, Ty}
 import frflow.core.term.interpret.ToExpr
 import frflow.core.term.Stated
 import frflow.dsl.flow.Recording.given
@@ -62,7 +63,49 @@ class RecordingSuite extends munit.FunSuite:
     assert(injectedAtEnd(reading), reading)
   }
 
+  test("collect: the body once per element, its results in a list") {
+    val xs = Lift.constant(List(BigInt(1), BigInt(2)))
+    val collected = F.collect(xs)(x => F.map(store.load)(y => x + y))
+    assertEquals(steps(collected), "collect(load; pure); pure")
+    assertEquals(resultType(ReadRecording(collected)._1), Some(Ty.ListOf(Ty.Num(NumKind.Big))))
+  }
+
+  test("fold: the value carried through the elements by the body") {
+    val xs = Lift.constant(List(BigInt(1), BigInt(2)))
+    val folded = F.fold(xs, n(0))((acc, x) => F.map(store.load)(y => acc + x + y))
+    assertEquals(steps(folded), "fold(load; pure); pure")
+    assertEquals(resultType(ReadRecording(folded)._1), Some(Ty.Num(NumKind.Big)))
+  }
+
+  test("parCollect: the body on every element at once, read one element after another") {
+    val xs = Lift.constant(List(BigInt(1), BigInt(2)))
+    val raced = ReadRecording(F.parCollect(xs)(x => F.map(store.load)(y => x + y)))._1
+    assertEquals(shape(raced), "parCollect(load; pure); pure")
+    assertEquals(shape(Progs.sequential(firstStep(raced))), "collect(load; pure)")
+  }
+
+  test("attempt: a handle of the program, its result on the right and the error on the left") {
+    val failing = F.flatMap(store.load)(_ => F.raise[String, Term[BigInt]](Lift.constant("no")))
+    val attempted = ReadRecording(F.attempt[String, BigInt](failing))._1
+    assertEquals(shape(attempted), "catch(load; raise | pure); pure")
+    assertEquals(resultType(attempted), Some(Ty.EitherOf(Ty.Str, Ty.Num(NumKind.Big))))
+    firstStep(attempted) match
+      case Prog.Catch(_, err, _, Prog.Pure(left)) => assertEquals((err, sideOf(left)), (Ty.Str, Some(Side.Error)))
+      case other                                => fail(other.toString)
+    val fine = ReadRecording(F.attempt[String, BigInt](store.load))._1
+    assertEquals(shape(fine), "catch(load; pure | pure); pure")
+  }
+
   private type P = Prog[Stated[?]]
+
+  /** The type of the first step's result, as the reading binds it. */
+  private def resultType(p: P): Option[Ty] = p match
+    case Prog.Bind(_, x, _) => Some(x.ty)
+    case _                  => None
+
+  private def sideOf(t: Stated[?]): Option[Side] = ToExpr.of(t.run) match
+    case Expr.Inject(side, _, _) => Some(side)
+    case _                       => None
 
   private def injectedAtEnd(p: P): Boolean = p match
     case Prog.Pure(t)                    => injection(ToExpr.of(t.run))
@@ -92,4 +135,7 @@ class RecordingSuite extends munit.FunSuite:
     case Prog.Catch(b, _, _, h) => s"catch(${shape(b)} | ${shape(h)})"
     case Prog.Raise(_)          => "raise"
     case Prog.Loop(_, _, b)     => s"each(${shape(b)})"
+    case Prog.Collect(_, _, b)  => s"collect(${shape(b)})"
+    case Prog.Accumulate(_, _, _, _, b) => s"fold(${shape(b)})"
+    case Prog.ParEach(_, _, b, _) => s"parCollect(${shape(b)})"
     case other                  => other.productPrefix

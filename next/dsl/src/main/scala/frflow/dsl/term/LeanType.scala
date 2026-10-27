@@ -51,4 +51,12 @@ object LeanType:
     of(Ty.FnOf(List(a.ty, b.ty, c.ty), r.ty), a, b, c, r)
   given [A, B, C, D, R](using a: LeanType[A], b: LeanType[B], c: LeanType[C], d: LeanType[D], r: LeanType[R])
       : LeanType[(A, B, C, D) => R] = of(Ty.FnOf(List(a.ty, b.ty, c.ty, d.ty), r.ty), a, b, c, d, r)
-  // … sets, outcomes, tuples to three, functions of 0 to 6 inputs, as today.
+  given [A, B, C, D, E, R](using a: LeanType[A], b: LeanType[B], c: LeanType[C], d: LeanType[D], e: LeanType[E],
+      r: LeanType[R]): LeanType[(A, B, C, D, E) => R] =
+    of(Ty.FnOf(List(a.ty, b.ty, c.ty, d.ty, e.ty), r.ty), a, b, c, d, e, r)
+  given [A, B, C, D, E, G, R](using a: LeanType[A], b: LeanType[B], c: LeanType[C], d: LeanType[D], e: LeanType[E],
+      g: LeanType[G], r: LeanType[R]): LeanType[(A, B, C, D, E, G) => R] =
+    of(Ty.FnOf(List(a.ty, b.ty, c.ty, d.ty, e.ty, g.ty), r.ty), a, b, c, d, e, g, r)
+  given [A](using a: LeanType[A]): LeanType[Set[A]] = of(Ty.SetOf(a.ty), a)
+  given [A, B, C](using a: LeanType[A], b: LeanType[B], c: LeanType[C]): LeanType[(A, B, C)] =
+    of(Ty.TupleOf(List(a.ty, b.ty, c.ty)), a, b, c)

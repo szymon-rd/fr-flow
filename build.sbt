@@ -49,7 +49,7 @@ val lawTests = Seq("org.typelevel" %% "cats-kernel-laws" % "2.13.0" % Test,
 def nextModules: Seq[ProjectReference] = Seq(
   nextCore,
 
-  // step 2: nextDsl
+  nextDsl, // step 2
 
   // step 3: nextProof
 

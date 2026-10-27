@@ -35,7 +35,9 @@ object BoundaryMacros:
     val params = Expr.ofList(o.params.map((n, t) => '{ (${ Expr(n) }, ${ leanType(t) }.ty) }))
     '{ OpSig(OpName(${ Expr(o.name) }), $params, ${ o.result.fold('{ Ty.Unit })(t => '{ ${ leanType(t) }.ty }) }) }
 
-  /** Each operation a recorded call; one giving nothing is the call, its unit result dropped. */
+  /** Each operation a recorded call; one giving nothing is the call, its unit result dropped (the reading hands on
+    * `()` for it, so the function takes any value).
+    */
   private def recorded[B[_[_], _[_]]: Type](ops: List[Op], name: Expr[BoundaryName])(using q: Quotes)
       : Expr[B[Recorded, Term]] =
     import q.reflect.asTerm
@@ -45,7 +47,7 @@ object BoundaryMacros:
       o.result match
         case Some('[r]) => '{ Recorded.Call[r]($name, OpName($op), $terms, ${ typed[r] }) }.asTerm
         case _          => '{ Recorded.Bind(Recorded.Call[Unit]($name, OpName($op), $terms, LeanType[Unit]),
-            (_: Term[Unit]) => Recorded.Pure(())) }.asTerm
+            (_: Any) => Recorded.Pure(())) }.asTerm
     }
 
   /** An adapter's operation called by name on values of its parameters' types. */

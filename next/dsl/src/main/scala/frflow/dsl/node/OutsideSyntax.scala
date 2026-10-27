@@ -13,7 +13,8 @@ import frflow.dsl.vocab.Definition
 
 /** What the world outside the code is assumed to do (owner §16, §17), each a formula of `Node.assumption`: the
   * company's procedures, the outside services and how they are run. FrFlow's rules rest on them (`Premises`); Lean
-  * states none of them as a formula.
+  * states none of them as a formula. What enters from outside is a value of its own type, trusted by an assumption
+  * of `always` on that type (owner §21), not a fact here.
   */
 object OutsideSyntax:
   extension [B[_[_], _[_]]](store: Boundary[B])
@@ -36,11 +37,6 @@ object OutsideSyntax:
   /** The start's rule as a fact, noting its define. */
   def started[B[_[_], _[_]], S](model: StoreModel[B, S], rule: Definition[S => Boolean]): Term[Boolean] =
     fact(model.declares |+| rule.notes.declares, OutsideFact.Initially(model.name, DefName(rule.name.value)))
-
-  /** The world outside the code, as what calls it. */
-  object outside:
-    /** The outside calls `d` only with values that can be made: each meets every `always[T]` of its type. */
-    def calls(d: Definition[?]): Term[Boolean] = fact(d.notes.declares, OutsideFact.Calls(d.name))
 
   private def fact(declares: Declarations, f: OutsideFact): Term[Boolean] =
     Term.noted(Notes.of(declares))([T[_]] => (s: Sym[T]) => s.outside(f))

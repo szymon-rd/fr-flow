@@ -1,23 +1,16 @@
 package frflow.dsl.flow
 
-import cats.syntax.all.*
-import frflow.core.name.{BoundaryName, OpName}
-import frflow.dsl.flow.Recording.given
-import frflow.dsl.term.{LeanType, Term}
+import frflow.dsl.term.Term
 
-/** A boundary of the tests, and FrFlow's clock, with the recording instances `BoundaryOps.derived` will make. */
-trait Store[F[_], T[_]]:
+/** A boundary of the tests, its operations derived (`derives BoundaryOps`). */
+trait Store[F[_], T[_]] derives BoundaryOps:
   def load: F[T[BigInt]]
   def save(n: T[BigInt]): F[Unit]
 
 object Store:
-  private def call[R: LeanType](b: String, op: String, args: Term[?]*): Recorded[Term[R]] =
-    Recorded.Call(BoundaryName(b), OpName(op), args.toList, LeanType[R])
+  val store: Boundary[Store] = Boundary[Store]("a number the tests keep")
+  val recording: Store[Recorded, Term] = store.recording
 
-  val recording: Store[Recorded, Term] = new Store[Recorded, Term]:
-    def load: Recorded[Term[BigInt]] = call("store", "load")
-    def save(n: Term[BigInt]): Recorded[Unit] = call[Unit]("store", "save", n).void
-
-  val clock: Clock[Recorded, Term] = new Clock[Recorded, Term]:
-    def now: Recorded[Term[BigInt]] = call("clock", "now")
-    def sleep(seconds: Term[BigInt]): Recorded[Unit] = call[Unit]("clock", "sleep", seconds).void
+  /** FrFlow's clock, its operations derived here: the DSL's own module cannot expand its macro. */
+  private given BoundaryOps[Clock] = BoundaryOps.derived
+  val clock: Clock[Recorded, Term] = Boundary[Clock]("the time").recording

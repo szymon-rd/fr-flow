@@ -41,7 +41,62 @@ object DefineShape:
         : Definition[(A, B) => R] =
       spot(name, lambda, Body(name, LeanType[A => B => R].ty, [T[_]] => (s: Sym[T]) =>
         s.lam(bound(0, a, hints))(x => s.lam(bound(1, b, hints))(y => f(Term.bound(s, x), Term.bound(s, y)).run(s)))))
-  // … for 0 to 6 inputs.
+  given three[A, B, C, R](using a: LeanType[A], b: LeanType[B], c: LeanType[C], r: LeanType[R])
+      : DefineShape[(A, B, C) => R] with
+    type Lam = (Term[A], Term[B], Term[C]) => Term[R]
+    val types: List[LeanType[?]] = List(a, b, c)
+    def body(f: Lam, hints: List[String]): (List[Binder], Term[?]) =
+      val (x, y, z) = (binder(0, a, hints), binder(1, b, hints), binder(2, c, hints))
+      (List(x, y, z), f(Term.free(x), Term.free(y), Term.free(z)))
+    def made(name: DefName, f: Lam, hints: List[String], lambda: Deferred[Written[Lambda]])
+        : Definition[(A, B, C) => R] =
+      spot(name, lambda, Body(name, LeanType[A => B => C => R].ty, [T[_]] => (s: Sym[T]) =>
+        s.lam(bound(0, a, hints))(x => s.lam(bound(1, b, hints))(y => s.lam(bound(2, c, hints))(z =>
+          f(Term.bound(s, x), Term.bound(s, y), Term.bound(s, z)).run(s))))))
+
+  given four[A, B, C, D, R](using a: LeanType[A], b: LeanType[B], c: LeanType[C], d: LeanType[D], r: LeanType[R])
+      : DefineShape[(A, B, C, D) => R] with
+    type Lam = (Term[A], Term[B], Term[C], Term[D]) => Term[R]
+    val types: List[LeanType[?]] = List(a, b, c, d)
+    def body(f: Lam, hints: List[String]): (List[Binder], Term[?]) =
+      val (w, x, y, z) = (binder(0, a, hints), binder(1, b, hints), binder(2, c, hints), binder(3, d, hints))
+      (List(w, x, y, z), f(Term.free(w), Term.free(x), Term.free(y), Term.free(z)))
+    def made(name: DefName, f: Lam, hints: List[String], lambda: Deferred[Written[Lambda]])
+        : Definition[(A, B, C, D) => R] =
+      spot(name, lambda, Body(name, LeanType[A => B => C => D => R].ty, [T[_]] => (s: Sym[T]) =>
+        s.lam(bound(0, a, hints))(w => s.lam(bound(1, b, hints))(x => s.lam(bound(2, c, hints))(y =>
+          s.lam(bound(3, d, hints))(z => f(Term.bound(s, w), Term.bound(s, x), Term.bound(s, y), Term.bound(s, z))
+            .run(s)))))))
+
+  given five[A, B, C, D, E, R](using a: LeanType[A], b: LeanType[B], c: LeanType[C], d: LeanType[D], e: LeanType[E],
+      r: LeanType[R]): DefineShape[(A, B, C, D, E) => R] with
+    type Lam = (Term[A], Term[B], Term[C], Term[D], Term[E]) => Term[R]
+    val types: List[LeanType[?]] = List(a, b, c, d, e)
+    def body(f: Lam, hints: List[String]): (List[Binder], Term[?]) =
+      val xs = types.zipWithIndex.map((t, i) => binder(i, t, hints))
+      (xs, f(Term.free(xs(0)), Term.free(xs(1)), Term.free(xs(2)), Term.free(xs(3)), Term.free(xs(4))))
+    def made(name: DefName, f: Lam, hints: List[String], lambda: Deferred[Written[Lambda]])
+        : Definition[(A, B, C, D, E) => R] =
+      spot(name, lambda, Body(name, LeanType[A => B => C => D => E => R].ty, [T[_]] => (s: Sym[T]) =>
+        s.lam(bound(0, a, hints))(v => s.lam(bound(1, b, hints))(w => s.lam(bound(2, c, hints))(x =>
+          s.lam(bound(3, d, hints))(y => s.lam(bound(4, e, hints))(z =>
+            f(Term.bound(s, v), Term.bound(s, w), Term.bound(s, x), Term.bound(s, y), Term.bound(s, z)).run(s))))))))
+
+  given six[A, B, C, D, E, G, R](using a: LeanType[A], b: LeanType[B], c: LeanType[C], d: LeanType[D],
+      e: LeanType[E], g: LeanType[G], r: LeanType[R]): DefineShape[(A, B, C, D, E, G) => R] with
+    type Lam = (Term[A], Term[B], Term[C], Term[D], Term[E], Term[G]) => Term[R]
+    val types: List[LeanType[?]] = List(a, b, c, d, e, g)
+    def body(f: Lam, hints: List[String]): (List[Binder], Term[?]) =
+      val xs = types.zipWithIndex.map((t, i) => binder(i, t, hints))
+      (xs, f(Term.free(xs(0)), Term.free(xs(1)), Term.free(xs(2)), Term.free(xs(3)), Term.free(xs(4)),
+        Term.free(xs(5))))
+    def made(name: DefName, f: Lam, hints: List[String], lambda: Deferred[Written[Lambda]])
+        : Definition[(A, B, C, D, E, G) => R] =
+      spot(name, lambda, Body(name, LeanType[A => B => C => D => E => G => R].ty, [T[_]] => (s: Sym[T]) =>
+        s.lam(bound(0, a, hints))(u => s.lam(bound(1, b, hints))(v => s.lam(bound(2, c, hints))(w =>
+          s.lam(bound(3, d, hints))(x => s.lam(bound(4, e, hints))(y => s.lam(bound(5, g, hints))(z =>
+            f(Term.bound(s, u), Term.bound(s, v), Term.bound(s, w), Term.bound(s, x), Term.bound(s, y),
+              Term.bound(s, z)).run(s)))))))))
 
   /** A lambda's `i`th input as the IR binds it: level `i`, named as the developer named it. */
   def binder(i: Int, t: LeanType[?], hints: List[String]): Binder = Binder(VarId.level(i), hint(i, hints), t.ty)

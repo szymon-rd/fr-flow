@@ -28,4 +28,16 @@ object Declaration:
   extension [A, B, C, R](d: Declaration[(A, B, C) => R])
     def apply(a: Term[A], b: Term[B], c: Term[C])(using Stating, LeanType[A], LeanType[B], LeanType[C], LeanType[R])
         : Term[R] = Term.app(Term.app(Term.app(d.curried[A => B => C => R], a), b), c)
-  // … to six inputs.
+  extension [A, B, C, D, R](d: Declaration[(A, B, C, D) => R])
+    def apply(a: Term[A], b: Term[B], c: Term[C], e: Term[D])(
+        using Stating, LeanType[A], LeanType[B], LeanType[C], LeanType[D], LeanType[R]): Term[R] =
+      Term.app(Term.app(Term.app(Term.app(d.curried[A => B => C => D => R], a), b), c), e)
+  extension [A, B, C, D, E, R](d: Declaration[(A, B, C, D, E) => R])
+    def apply(a: Term[A], b: Term[B], c: Term[C], e: Term[D], f: Term[E])(
+        using Stating, LeanType[A], LeanType[B], LeanType[C], LeanType[D], LeanType[E], LeanType[R]): Term[R] =
+      Term.app(Term.app(Term.app(Term.app(Term.app(d.curried[A => B => C => D => E => R], a), b), c), e), f)
+  extension [A, B, C, D, E, G, R](d: Declaration[(A, B, C, D, E, G) => R])
+    def apply(a: Term[A], b: Term[B], c: Term[C], e: Term[D], f: Term[E], g: Term[G])(using Stating, LeanType[A],
+        LeanType[B], LeanType[C], LeanType[D], LeanType[E], LeanType[G], LeanType[R]): Term[R] =
+      Term.app(Term.app(Term.app(Term.app(Term.app(Term.app(d.curried[A => B => C => D => E => G => R], a), b), c), e),
+        f), g)

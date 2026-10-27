@@ -27,13 +27,13 @@ object Elab:
       (t.notes, Written.lambda(xs, t.run, SourceText(written.text)))
     }
 
-  /** A program's lambda: its body the steps recorded on its input's variable. */
-  def program[A, R](at: Site, a: LeanType[A], r: LeanType[R])(body: Term[A] => Recorded[Term[R]], written: AsWritten)
-      : Deferred[Written[Lambda]] =
-    made(at, List(a)) { () =>
-      val x = DefineShape.binder(0, a, written.params)
-      val (prog, notes) = ReadRecording(body(Term.free(x)(using a)))
-      (notes |+| Notes.of(r.declares), Written.steps(List(x), prog, r.ty, SourceText(written.text)))
+  /** A program's lambda: its body the steps recorded on its inputs' variables, bound at levels `0 … n-1`. */
+  def program[R](at: Site, inputs: List[LeanType[?]], r: LeanType[R])(body: Vector[Binder] => Recorded[Term[R]],
+      written: AsWritten): Deferred[Written[Lambda]] =
+    made(at, inputs) { () =>
+      val xs = inputs.zipWithIndex.map((t, i) => DefineShape.binder(i, t, written.params))
+      val (prog, notes) = ReadRecording(body(xs.toVector))
+      (notes |+| Notes.of(r.declares), Written.steps(xs, prog, r.ty, SourceText(written.text)))
     }
 
   private def made[A](at: Site, types: List[LeanType[?]] = Nil)(build: () => (Notes, A)): Deferred[A] =
