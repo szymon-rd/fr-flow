@@ -9,7 +9,9 @@ final class Refinement(kb: KnowledgeBase, val vocabulary: Vocabulary):
   import vocabulary.*
   private val K = kb.name
   def formal(n: Node[?]): Boolean = kb.isStatement(n)
-  def splitParts(n: Node[?]): Option[List[Node[?]]] = Option.when(formal(n))(kb.parts(n)).filter(_.nonEmpty)
+  /** An `always` claim has no step: its premises are what its proofs (`kept_by_…`, `initially`) take, not parts. */
+  def splitParts(n: Node[?]): Option[List[Node[?]]] =
+    Option.when(formal(n) && !n.isAlways)(kb.parts(n)).filter(_.nonEmpty)
   def leafy(n: Node[?]): Boolean = splitParts(n).isEmpty
   def formalKeeps(n: Node[?]): List[(Node[?], Lifted[?])] =
     if n.kind != NodeKind.Contract then Nil else n.kept.collect { case Keep(i, Some(v), _) if i.rule.isDefined => (i, v) }

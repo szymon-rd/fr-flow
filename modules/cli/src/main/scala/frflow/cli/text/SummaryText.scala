@@ -65,7 +65,8 @@ object SummaryText:
   /** What is trusted, not proven: the assumptions the root rests on, the boundaries' models, the facts. */
   private def trusted(s: Overview): List[String] =
     val facts = Option.when(s.facts.nonEmpty)(s"${s.facts.map(_.value).mkString(", ")} (facts)")
-    s.trusted.filterNot(s.tested.contains).map(_.value) ++ s.models.map(m => s"${m.value} (a model)") ++ facts
+    s.trusted.filterNot(s.tested.contains).map(_.value) ++ s.assumed.map(_.value) ++
+      s.models.map(m => s"${m.value} (a model)") ++ facts
 
   /** What the marks before the nodes say, on one line. */
   def legend(st: Style): String =

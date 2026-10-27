@@ -158,9 +158,12 @@ examples still use the older kinds below (contract, invariant, definition), whic
   world, as a store's model (`bookingTable.behavesAs(storedBookings)`) or a fact of how the system is run
   (`storedBookings.writtenOnlyBy(book)`, `storedBookings.changedOneRunAtATime`,
   `storedBookings.startsSatisfying(neverOverlap)`, written after the claim it names and a premise of it, or
-  `storedBookings.initially(held => …)`), or of what comes from outside, with the condition written out
-  (`book.calledOnlyWith(request => request.start < request.end)`: Lean proves it gives the `always` of the
-  input's type). Name the boundary for the real thing (`val bookingTable = Boundary[BookingTable]("the SQLite
+  `storedBookings.initially(held => …)`). What comes from outside gets a type of its own (`Request`, what the
+  booking form sends), and what it meets is an assumption `always` of that type
+  (`Node.assumption("…")(always[Request](r => r.start < r.end))`); what the code makes from it (`Booking`) has
+  its `always` claimed and proven. Statements are about values, never about a function's inputs; a statement
+  whose Lean takes the assumption (a root taking a `Request`) lists it in `.assuming`. Name the
+  boundary for the real thing (`val bookingTable = Boundary[BookingTable]("the SQLite
   table …")`, named from its val) and the model for what the proofs see (`storedBookings`).
   `Node.design(statement, why)(files*)`: a decision about code no proof covers.
 - **Values.** `Declaration[A](means)`: an abstract idea, known only through the claims and assumptions about
@@ -173,7 +176,7 @@ examples still use the older kinds below (contract, invariant, definition), whic
 - **Quantifiers.** `forall(x => …)`: every possible value, proven. `always[T](x => …)`: every value of `T`
   that can be made: a hypothesis in Lean of every statement about such values, and the tests draw only
   values that hold it (no run-time check: values from outside are an assumption's business, and `check` asks
-  for one, `book.calledOnlyWith(request => …)`, for each program given such inputs).
+  for an `always` assumption of a type the programs are given from outside when a claim needs one).
   `always(storedBookings)(held => …)`: every state the store reaches: Lean proves every program writing it
   keeps it (`kept_by_<program>`), and that what it holds when the system starts meets it (`initially`).
 - **A claim constrains every Definition and Declaration it mentions.** `forall((held: Term[RoomBookings],
@@ -183,7 +186,7 @@ examples still use the older kinds below (contract, invariant, definition), whic
   (`always[RoomBookings](held => held.bookings.pairwise(apart))`) rather than a precondition: the claim stays
   one equation, the tests draw only such values, and Lean proves the rule wherever code makes one. A flow's
   runs are read as `book(request).answer(before)` and `storedBookings.in(book(request).after(before))`, over
-  `forall((request: Term[Booking], before: Term[World]) => …)`.
+  `forall((request: Term[Request], before: Term[World]) => …)`.
 - **Edges.** `.refines(parent)`: a part. `.assuming(assumption)`: a premise, trusted, drawn below the node.
 - **Roots.** A knowledge base may have several roots, on any of its Definitions, relating them too; keep the
   set small and each one idea.

@@ -39,9 +39,10 @@ examples, and are described below where they differ.
   about are plain Scala. `Node.assumption(statement)(formula)`: trusted, the developer's decision: the outside
   world, as a store's model (`bookingTable.behavesAs(storedBookings)`) or a fact of how the system is run
   (`storedBookings.writtenOnlyBy(book)`, `storedBookings.changedOneRunAtATime`,
-  `storedBookings.startsSatisfying(neverOverlap)` or `storedBookings.initially(held => …)`, and of what comes
-  from outside, `book.calledOnlyWith(request => request.start < request.end)`); a fact is read by FrFlow, Lean
-  has nothing to say of it.
+  `storedBookings.startsSatisfying(neverOverlap)` or `storedBookings.initially(held => …)`); a fact is read by
+  FrFlow, Lean has nothing to say of it. What comes from outside has a type of its own, and what it meets is
+  an assumption `always` of that type (`always[Request](r => r.start < r.end)`): statements are about values,
+  not about a function's inputs.
   `Node.design(statement, why)(files*)`: a decision about code no proof covers.
 - **Values.** `Declaration[A](means)`: an abstract idea, known only through the claims and assumptions about
   it: no code or flow uses it, nothing implements it. `Definition[A](means)`: of any type, the only kind code
@@ -87,8 +88,12 @@ examples, and are described below where they differ.
   flow runs; every program writing a store that holds such values is proven to keep the rule of the states
   it leaves (`kept_by_<program>`, on the `always` claim); a store's start meets its rule (`initially`, from
   the fact that says what it holds; a fact naming the claim, `startsSatisfying(neverOverlap)`, is a premise
-  of it, and Lean shows only that some state meets it); what a program is called with from outside meets the
-  rule of its input's type (`called_with_<program>`, from `calledOnlyWith`).
+  of it, and Lean shows only that some state meets it). An `always` assumption is what the values of its type
+  from outside meet (the inputs of the programs called from outside): a hypothesis like a claim's, not proven.
+  It stands in only for those: a program that stores such a value still keeps it (`kept_by_<program>`), and a
+  step that hands one it made to a claim proves it. `check` reports an `always` claim about a type such inputs
+  have when no assumption says what they meet, and `status` warns of a statement whose Lean takes what an
+  assumption says of what comes from outside and does not list it (`.assuming`).
 
 Formulas and code are terms (`Term[A]`): a tree that prints as Lean and compiles to Scala, built by
 calling the Scala lambda once on variables. The library's operations are the language (`===`,
@@ -197,7 +202,8 @@ with a `rule`.
 | contract | `Node.contract(statement, why)(forall((a: Term[A], b: Term[B]) => … op(a, b) …))`, `op: Param[(A, B) => R]` (0 to 6 inputs), the same naming its operation (`Node.contract(op)(statement)(forall(…))`), or `Node.contract(op)(statement, why)(post)` when another operation is applied to the same inputs | `∀ a b, post(a, b, op(a, b))`; `impl` when a `define` is attached |
 | contract on a flow | `Node.contract(op)(statement, why)((a, r, before, after) => ...)`, `op: Param[A => Flow[R]]` (0 to 6 inputs) | `∀ a w, post a (op a w).1 w (op a w).2`; `impl` when a flow is attached |
 | assumption | `Node.assumption(op)(statement, why)(post)`, or `Node.assumption(statement, why)(formula)` | a hypothesis of `root_impl`: trusted |
-| fact | `Node.assumption(statement)(storedBookings.writtenOnlyBy(book))`, `….changedOneRunAtATime`, `….startsSatisfying(neverOverlap)` (or `….initially(s => …)`); `book.calledOnlyWith(request => …)` | none: FrFlow reads it (an `always` of the store rests on the three; an `always` of a type, on the last for each program given inputs from outside) |
+| fact | `Node.assumption(statement)(storedBookings.writtenOnlyBy(book))`, `….changedOneRunAtATime`, `….startsSatisfying(neverOverlap)` (or `….initially(s => …)`) | none: FrFlow reads it (an `always` of the store rests on the three) |
+| what comes from outside | `Node.assumption(statement)(always[Request](r => r.start < r.end))` | `claim := True`: a hypothesis of every statement about a `Request`, trusted |
 | model | `Node.assumption(statement)(bookingTable.behavesAs(storedBookings))`, or `Node.assumption(boundary)(Model)(statement, why)` | the boundary's class instance on `StateM World`: trusted |
 | definition | `Node.definition(statement, why)(Opaque := of[T], param := expr, ...)` | an `abbrev` in `Types.lean`, a `def` in its term's module |
 | design | `Node.design(statement, why)(files*)` | none: it governs code no proof covers |

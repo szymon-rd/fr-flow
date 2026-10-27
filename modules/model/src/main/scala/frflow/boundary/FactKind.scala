@@ -1,7 +1,7 @@
 package frflow
 package boundary
 
-/** What a fact says of its store, or of a program's inputs. */
+/** What a fact says of its store. */
 enum FactKind:
   /** What the store holds when the system starts: `rule`, a forall over the state, read as its variable and body. */
   case Initially(rule: Tree)
@@ -11,5 +11,3 @@ enum FactKind:
   case WrittenOnlyBy(programs: List[Param[?]])
   /** One run changes it at a time: runs do not interleave. */
   case OneRunAtATime
-  /** The program is called from outside only on inputs meeting `condition`, a forall over the input. */
-  case CalledOnlyWith(program: Param[?], condition: Tree)

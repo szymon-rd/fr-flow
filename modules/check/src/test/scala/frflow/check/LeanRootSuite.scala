@@ -57,6 +57,15 @@ class LeanRootSuite extends LeanLab:
     assertEquals((kept.status.toString, of(r, "Sold").status.toString), ("proven", "proven"), kept)
   }
 
+  test("an always assumption stands in only for what comes from outside: code that stores a value breaking it fails") {
+    assertEquals(Refunds.kb.problems, Nil)
+    val r = workflow(Refunds.kb).check()
+    val assumed = of(r, "NoNegativeAmounts")
+    // kept_by_refund is asked of it, as of a claim, and is not proven: check does not pass the node
+    assert(result(assumed, "kept_by_refund").exists(_.status != ObligationStatus.Proven), assumed)
+    assert(assumed.obligations.exists(!_.fine), assumed)
+  }
+
   test("an invariant is a claim proven from the contracts that keep it, or left open") {
     val fromShelf = Node.invariant[List[Book], Book]("Only books on the shelf are picked.", "w")((shelf, b) => shelf.contains(b)).refines(onlyGood)
     val atMostN = Node.invariant[Int, Int]("No more books are picked than asked for.", "w")((asked, picked) => picked <= asked).refines(onlyGood)

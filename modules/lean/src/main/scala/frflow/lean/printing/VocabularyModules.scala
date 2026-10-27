@@ -22,6 +22,15 @@ final class VocabularyModules(kb: KnowledgeBase, layout: Layout, vocabulary: Voc
   def boundariesFor(ls: List[Lifted[?]]): List[LeanModule] =
     Option.when(ls.exists(l => l.world || l.boundaries.nonEmpty))(layout.boundaries).toList
 
+  /** A record made of the inputs' fields as they are (`asBooking`: a request's room, start and end): seen through
+    * when Lean matches, as where a branch's condition is computed from it. One that computes (`replaceAbout`) stays
+    * folded, for the proofs that rewrite with it.
+    */
+  private def copies(t: Tree): Boolean = t match
+    case Tree.Make(_, _, args) =>
+      args.forall { case Tree.Field(Tree.Var(_), _, _) | Tree.Var(_) => true; case _ => false }
+    case _                     => false
+
   def files: List[(String, String)] =
     val defs = kb.defs.map { d =>
       // A flow is generic in its monad: any with the boundaries' operations.
@@ -32,7 +41,8 @@ final class VocabularyModules(kb: KnowledgeBase, layout: Layout, vocabulary: Voc
         else ("", d.lifted.leanType)
       val uses = boundariesFor(List(d.lifted)) ++ d.lifted.defs.map(_.name).filter(x => x != d.name && defNames(x)).map(layout.definition)
       layout.definition(d.name).path -> declaring(uses,
-        definition(d.name, List(monad, binders(defCtx(d))).filter(_.nonEmpty).mkString(" "), tpe, resolve(d.lifted.lean)))
+        definition(d.name, List(monad, binders(defCtx(d))).filter(_.nonEmpty).mkString(" "), tpe,
+          resolve(d.lifted.lean), reducible = copies(d.lifted.built._2.termTree)))
     }
     val terms = definedTerms.map { (t, d, l) =>
       layout.term(t).path -> declaring(l.defs.map(_.name).filter(defNames).map(layout.definition),

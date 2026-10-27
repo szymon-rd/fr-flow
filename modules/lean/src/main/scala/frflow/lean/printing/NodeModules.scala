@@ -17,8 +17,7 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
   private def vocabularyOf(n: Node[?]): List[LeanModule] =
     val ls = n.referenced ++ formalKeeps(n).flatMap(_._1.rule)
     val code = provenImpl(n).toList ++ kb.invariantsUsedBy(n).flatMap(_.holds) ++ n.holds ++
-      kb.writers(n).flatMap(provenImpl) ++ kb.premisesOf(n).flatMap(_.initially) ++
-      kb.premisesOf(n).flatMap(_.calledOnlyWith).map(_._2) ++ worldRuleDefs(n)
+      kb.writers(n).flatMap(provenImpl) ++ kb.premisesOf(n).flatMap(_.initially) ++ worldRuleDefs(n)
     vocabularyModules.boundariesFor(ls ++ code.map(_.lifted)) ++
       vocabularyModules.modulesFor(ls.flatMap(_.defs) ++ code, ls.flatMap(ctx(_).names) ++ code.flatMap(defCtx(_).names) ++ n.op.map(_.name))
   private def declared(name: String, c: Ctx, tpe: String, body: String): String = definition(name, binders(c), tpe, body) + "\n\n"
@@ -83,9 +82,9 @@ final class NodeModules(kb: KnowledgeBase, layout: Layout, refinement: Refinemen
   private def keeps(n: Node[?], c: Node[?], view: Lifted[?], rule: String): String =
     s"(${everyCall(c, s"∀ p ∈ ${ref(qualified(n, s"view_${c.id}"), ctx(view))}", s", $rule p.1 p.2")})"
 
-  /** The rules an `always` claim's proof that it is kept assumes of the world before. */
+  /** The rules an `always` claim's proof that it is kept assumes: of the world before, and of the programs' inputs. */
   private def worldRuleDefs(n: Node[?]): List[Def[?]] =
-    if !n.isAlways then Nil else kb.models.flatMap(m => kb.worldRules(m).map(_._2))
+    if !n.isAlways then Nil else kb.models.flatMap(m => kb.worldRules(m).map(_._2)) ++ kb.typeInvariants.map(_._2)
 
   def spec(n: Node[?]): String =
     val promised = kb.writers(n).flatMap(calls)

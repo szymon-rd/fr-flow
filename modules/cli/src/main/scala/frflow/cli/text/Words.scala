@@ -14,7 +14,6 @@ object Words:
     case ObligationName.Check         => "its run-time check"
     case ObligationName.KeptBy(p)     => s"kept by $p"
     case ObligationName.Initially     => "what the store starts with"
-    case ObligationName.CalledWith(p) => s"what $p is called with"
     case ObligationName.Expect(i)     => s"expectation ${i + 1}"
     case other                        => other.lean
 

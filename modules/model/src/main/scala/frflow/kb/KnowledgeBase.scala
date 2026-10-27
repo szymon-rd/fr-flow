@@ -132,7 +132,7 @@ final class KnowledgeBase(val name: String, val idea: String = "", val implement
 
   /** Every node after its parents, the definitions it uses and the contracts its code calls. */
   lazy val ordered: List[Node[?]] =
-    Walk.postorder(nodes, identity)(n => definitionsUsed(n, provisional) ++ parentsOf(n) ++ calledBy(n))
+    Walk.postorder(nodes, identity)(n => usedAbove(n, provisional) ++ parentsOf(n) ++ calledBy(n))
 
   /** Within its scope: the contracts whose result can hold what the rule is about, and the designs below them. */
   def inScope(i: Node[?]): List[Node[?]] =
@@ -180,6 +180,13 @@ final class KnowledgeBase(val name: String, val idea: String = "", val implement
     Walk.preorder(termsOf(n).filterNot(n.defines.contains).flatMap(inForce.get), _.id)(d =>
       termsOf(d).flatMap(inForce.get)) ++
       invariantsUsedBy(n)
+  /** What a node uses that is above it, decided before it. What is below it (a premise it names, `.assuming`, such as
+    * an `always` assumption of what comes from outside, whose rule its Lean takes) is decided after it, as its part:
+    * it is not also what the node uses, or a premise would be both above and below it, each waiting for the other.
+    */
+  def usedAbove(n: Node[?], inForce: Map[String, Node[?]]): List[Node[?]] =
+    val below = Walk.preorder(children(n), System.identityHashCode)(children)
+    definitionsUsed(n, inForce).filterNot(d => below.exists(_ eq d))
 
   /** The data parameters a lambda reads, also through the defines and the definitions it uses. */
   def reads(l: Lifted[?]): List[String] =
@@ -193,7 +200,7 @@ final class KnowledgeBase(val name: String, val idea: String = "", val implement
   lazy val defs: List[Def[?]] = Walk.postorder(defRoots, _.name)(_.lifted.defs)
   private def defRoots: List[Def[?]] =
     nodes.flatMap(_.referenced).flatMap(_.defs) ++
-      nodes.flatMap(n => n.holds ++ n.initially ++ n.calledOnlyWith.map(_._2)) ++
+      nodes.flatMap(n => n.holds ++ n.initially) ++
       implementations.flatMap(_.proven) ++ modelDefs
   /** The defines a model's operations use: Lean's models need them too. */
   private def modelDefs: List[Def[?]] = models.flatMap(mo => mo.boundary.operations.flatMap { m =>

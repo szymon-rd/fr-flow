@@ -48,7 +48,22 @@ object Governance:
         c.obligations.filter(r => r.status == Shown && PartialFunction.cond(r.name) { case ObligationName.Tried(TryKind.RestatesConjunct(_, _)) => true })
     }.map(_.detail))
     missing ++ owners ++ ideaCoverage ++ orphans ++ ungoverned(a).map(f => s"$f is governed by no node: govern it (a design node) or move it") ++
-      uncrossed ++ restated
+      uncrossed ++ restated ++ unlisted(a)
+
+  /** Each statement whose Lean form or obligations carry what an assumption says of values from outside (its rule,
+    * a hypothesis on what the statement is given) rests on that assumption: it lists it in `.assuming`.
+    */
+  private def unlisted(a: Analysis): List[String] =
+    val kb = a.kb
+    val outside = kb.nodes.filter(n => n.kind == NodeKind.Assumption && n.isAlways)
+      .flatMap(n => n.holds.map(d => n -> java.util.regex.Pattern.compile(s"\\b${kb.name}\\.${d.name}\\b")))
+    kb.nodes.filter(n => a.generate.formal(n) && !outside.exists(_._1 eq n)).flatMap { n =>
+      lazy val lean = a.generate.spec(n)
+      outside.collect { case (o, rule) if !kb.premisesOf(n).exists(_ eq o) && rule.matcher(lean).find() =>
+        s"${n.id} rests on ${o.id}: its proof takes what ${o.id} says of what comes from outside; list it: " +
+          s".assuming(${o.id.head.toLower}${o.id.tail})"
+      }
+    }
 
   /** Source files no node governs, other than the model's own: code that can change unnoticed (see `Inputs.projectSources`). */
   def ungoverned(a: Analysis): List[String] =

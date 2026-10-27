@@ -3,7 +3,7 @@ package check
 package analysis
 
 import frflow.protocol.*
-import frflow.protocol.ObligationName.{CalledWith, Cover, Eval, EvalImpl, Expect, Impl, Initially, KeptBy, RootImpl}
+import frflow.protocol.ObligationName.{Cover, Eval, EvalImpl, Expect, Impl, Initially, KeptBy, RootImpl}
 import frflow.protocol.ObligationStatus.*
 import scala.util.chaining.*
 
@@ -43,7 +43,7 @@ object Snapshots:
     }
     SnapNode(id = id, kind = n.kind, content = c, hash = c.hash, parents = ids(kb.parentsOf(n)), parts = ids(kb.children(n)),
       replaces = n.replaced.map(r => NodeId(r.id)), op = n.op.map(_.name), defines = n.defines,
-      uses = ids(kb.definitionsUsed(n, g.inForce)), relies = ids(g.reliedOn(n)),
+      uses = ids(kb.usedAbove(n, g.inForce)), relies = ids(g.reliedOn(n)),
       rule = n.isInvariant,
       // The root met by doing nothing: it says only what must not happen (see the ledger's `Proofs.unproven`).
       idle = Option.when(kb.isRoot(n))(a.idleOf(n)).flatten,
@@ -74,14 +74,12 @@ object Snapshots:
     val kept = kb.writers(n).flatMap(_.op).map(_.name).map(p => AlwaysProof(KeptBy(p).lean, p, outcome(KeptBy(p))))
     val start = kb.premisesOf(n).find(_.initially.isDefined).filter(_ => n.always.exists(_.store.isDefined))
       .map(s => AlwaysProof(Initially.lean, s.id, outcome(Initially)))
-    val outside = kb.premisesOf(n).flatMap(p => p.calledOnlyWith.map(_._1.name).map(prog =>
-      AlwaysProof(CalledWith(prog).lean, p.id, outcome(CalledWith(prog)))))
     def assumes(c: Node[?]) = kb.invariantsUsedBy(c).exists(_ eq n)
     val handed = kb.nodes.filter(p => kb.isStatement(p) && !assumes(p) && kb.parts(p).exists(assumes)).map { p =>
       val o = a.current(p).flatMap(_.result(ObligationName.Complete)).fold(Outcome.unchecked)(Outcome.of)
       AlwaysProof(ObligationName.Complete.lean, p.id, o)
     }
-    if n.isAlways then kept ++ start ++ outside ++ handed else Nil
+    if n.isAlways then kept ++ start ++ handed else Nil
 
   /** An invariant a contract keeps: the view lists all the result holds of it, and the invariant's `complete`, this contract
     * among its parts. Lean showing it holds without the contract leaves it `open`; a try that found no proof proves nothing.

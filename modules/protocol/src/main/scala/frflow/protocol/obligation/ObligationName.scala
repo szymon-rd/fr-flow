@@ -11,8 +11,6 @@ enum ObligationName:
   case KeptBy(program: String)
   /** What a store holds when the system starts holds an `always` claim about it. */
   case Initially
-  /** What a program is called with from outside holds an `always` claim about the type of its input. */
-  case CalledWith(program: String)
   case Expect(i: Int)
   case Tried(kind: TryKind)
   /** Example `i` (probe `j`: an input near the examples'), of the contract and of its proven code. */
@@ -32,7 +30,6 @@ enum ObligationName:
     case Cover(i)     => s"cover_$i"
     case KeptBy(p)    => s"kept_by_$p"
     case Initially    => "initially"
-    case CalledWith(p) => s"called_with_$p"
     case Expect(i)    => s"expect_$i"
     case Tried(k)     => ObligationName.tryName(k)
     case Eval(i)      => s"eval_$i"
@@ -71,7 +68,7 @@ object ObligationName:
     "vacuous_expect" -> (i => Tried(TryKind.VacuousExpect(i))), "evalImpl" -> EvalImpl.apply, "probe" -> Probe.apply, "probeImpl" -> ProbeImpl.apply,
     "commute" -> Commute.apply)
   private val Indexed = s"(${indexed.keys.mkString("|")})_(\\d{1,9})".r
-  private val OfNode = """(cover|kept_by|called_with|needed)_(.+)""".r
+  private val OfNode = """(cover|kept_by|needed)_(.+)""".r
   private val Conjunct = """restates_(\d{1,9})_(.+)""".r
 
   def parse(s: String): Option[ObligationName] = fixed.get(s).orElse(s match
@@ -79,7 +76,6 @@ object ObligationName:
     case Conjunct(i, id)     => Some(Tried(TryKind.RestatesConjunct(id, i.toInt)))
     case OfNode("cover", id) => Some(Cover(id))
     case OfNode("kept_by", p) => Some(KeptBy(p))
-    case OfNode("called_with", p) => Some(CalledWith(p))
     case OfNode(_, id)       => Some(Tried(TryKind.Needed(id)))
     case _                   => None)
 

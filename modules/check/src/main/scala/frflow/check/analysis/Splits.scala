@@ -11,7 +11,7 @@ object Splits:
   def of(a: Analysis, n: Node[?]): Option[Split] =
     val parts = a.kb.parts(n)
     def all(o: Outcome) = Split(o, parts.map(p => Split.Part(NodeId(p.id), o.status, o.detail)), o)
-    if parts.isEmpty || !a.kb.isStatement(n) then None
+    if parts.isEmpty || !a.kb.isStatement(n) || n.isAlways then None
     else Some(a.current(n).fold(all(notCurrent(a.checks.get(NodeId(n.id)))))(checked(parts, _)))
 
   private def notCurrent(c: Option[NodeCheck]): Outcome =

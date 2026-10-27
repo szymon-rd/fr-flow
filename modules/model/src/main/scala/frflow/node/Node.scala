@@ -34,7 +34,7 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (val id: St
   def defines: List[String] = substs.map(_.name)
   def referenced: List[Lifted[?]] = formula.toList ++ post.toList ++ rule.toList ++ local.toList ++ substs.flatMap(_.term) ++
     kept.flatMap(_.view) ++ expected.map(_._2) ++ failure.flatMap(_.post) ++ holds.map(_.lifted) ++
-    initially.map(_.lifted) ++ calledOnlyWith.map(_._2.lifted)
+    initially.map(_.lifted)
   /** What an `always` claim says always holds: its rule, a `define` named as the claim's val, and the store whose
     * states it is about (none: every value of its type that can be made).
     */
@@ -53,12 +53,6 @@ final class Node[M] @scala.annotation.publicInBinary private[frflow] (val id: St
     */
   lazy val initially: Option[Def[?]] = fact.map(_.says).collect {
     case FactKind.Initially(Tree.Quant(true, List(b), body)) => named(b, body)
-  }
-  /** What a fact says a program is called with from outside (`book.calledOnlyWith(request => …)`): the program, and
-    * the condition, a `define` named as its val.
-    */
-  lazy val calledOnlyWith: Option[(Param[?], Def[?])] = fact.map(_.says).collect {
-    case FactKind.CalledOnlyWith(p, Tree.Quant(true, List(b), body)) => p -> named(b, body)
   }
   /** The `always` claims a fact says the store starts satisfying (`storedBookings.startsSatisfying(neverOverlap)`). */
   def startsSatisfying: List[Node[?]] = fact.map(_.says).toList.collect { case FactKind.StartsSatisfying(c) => c }
