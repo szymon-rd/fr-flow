@@ -7,9 +7,9 @@ import frflow.agent.request.{AgentRefusal, RequestId}
 import frflow.agent.work.AgentApi
 import frflow.api.Host
 import frflow.cli.command.Options.{as, node, words}
-import frflow.cli.command.{CliExtension, Command, Commands, Dispatch}
+import frflow.cli.command.{CliExtension, Command, Commands}
 import frflow.cli.term.{Exit, Style, Terminal}
-import frflow.cli.text.Depth
+import frflow.cli.text.{Depth, NodeText}
 import frflow.core.name.NodeId
 import io.circe.syntax.*
 
@@ -27,14 +27,16 @@ final class AgentCommands(open: Host[IO] => IO[AgentApi[IO]], layer: CliExtensio
     r.fold(e => term.err(e.message).as(Exit.Usage), a => term.out(lines(a)).as(Exit.Fine))
 
   private def ask(n: Option[NodeId], text: String, who: Option[String]): Run = run { (a, host, term, _) =>
-    host.api.deciding.developer(who).flatMap(_.fold(_ => term.err("who asks? pass --as NAME").as(Exit.Usage), by =>
+    host.developer(who).flatMap(_.fold(_ => term.err("who asks? pass --as NAME").as(Exit.Usage), by =>
       a.ask(n, text, by).flatMap(done(term)(q => List(s"asked [${q.id.value}] on ${q.node.fold("the idea")(_.value)}" +
         ": the agent sees it in its inbox")))))
   }
 
+  /** `show --full` of the node, with what the layer adds, then what the agent works by. */
   private def context(id: NodeId): Run = (host, term, st) =>
-    Dispatch(host, term, st, List(layer))(Command.Show(id, Depth.Full)).flatTap(code =>
-      term.out("" :: AgentCommands.Footer).whenA(code == Exit.Fine))
+    host.reading.view.flatMap(v => layer.contribute(host, v, st).flatMap(x => v.node(id).fold(
+      term.err(s"unknown node $id").as(Exit.Usage))(n =>
+        term.out(NodeText(v, st, x).lines(n, Depth.Full) ++ ("" :: AgentCommands.Footer)).as(Exit.Fine))))
 
   private val onIdea = Opts.flag("idea", "about the whole idea, not one node").as(Option.empty[NodeId])
     .orElse(node().map(Some(_)))
@@ -46,7 +48,7 @@ final class AgentCommands(open: Host[IO] => IO[AgentApi[IO]], layer: CliExtensio
       Opts.arguments[String]("REQUEST").map(rs => run((a, _, term, _) =>
         a.close(rs.toList.map(RequestId(_))).flatMap(done(term)(_.map(r => s"closed [${r.id.value}]")))))),
     Commands.layer("conversation", "what you told the agent and its questions, with the answers it assumed and yours")(
-      Opts.flag("json", "the record as JSON").orFalse.map(json => run((a, host, term, st) => host.api.reading.view
+      Opts.flag("json", "the record as JSON").orFalse.map(json => run((a, host, term, st) => host.reading.view
         .flatMap(a.read).flatMap(v => term.out(if json then List(v.conversation.asJson.spaces2)
           else AgentText.conversation(v.conversation, st)).as(Exit.Fine))))),
     Commands.layer("said", "record what the developer said in chat, word for word")(words("TEXT").map(t =>

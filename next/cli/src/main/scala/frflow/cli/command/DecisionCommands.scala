@@ -2,12 +2,14 @@ package frflow.cli.command
 
 import cats.effect.{ExitCode, IO}
 import frflow.api.FrFlowApi
-import frflow.api.view.Stop
+import frflow.api.view.{Stop, Warning}
+import frflow.cli.say.{Unprovens, Warnings}
 import frflow.cli.review.Decisions
 import frflow.cli.term.{Exit, Style, Terminal}
 import frflow.cli.text.ReportText
 import frflow.core.name.NodeId
-import frflow.decision.rules.Command as Decide
+import frflow.decision.ledger.Uncounted
+import frflow.decision.rules.{Command as Decide, Refusal}
 
 /** The deciding commands, as the developer types them: the reason given or asked for, who decides, what it records
   * shown and confirmed (or `--yes`); a node gone from the model is said so (rejecting it agrees it is gone); `rebase`
@@ -24,13 +26,28 @@ final class DecisionCommands(api: FrFlowApi[IO], term: Terminal, st: Style):
             decisions.take(c, by, _ => !a.yes).map(d => Exit.of(d.isDefined))))))
     }
 
+  /** What the base accepts listed first (each decision taken out or changed against what was committed, and the
+    * nodes it was of), `--yes` too; nothing to accept is refused.
+    */
   def rebase(as: Option[String], yes: Boolean): IO[ExitCode] =
-    decisions.developer(as).flatMap(_.fold(IO.pure, by => confirmed(yes, by).flatMap {
+    decisions.developer(as).flatMap(_.fold(IO.pure, by => accepted.flatMap(ls =>
+      if ls.isEmpty then decisions.refused(Refusal.NothingToRebase).as(Exit.Refused)
+      else term.out(s"Rebasing accepts the ledger as it reads now, which no longer holds what was committed:" :: ls) >>
+        rebased(yes, by))))
+
+  /** Each decision that does not count because the committed history was rewritten, as a line. */
+  private def accepted: IO[List[String]] = api.reading.view.map(_.warnings.collect {
+    case Warning.NotCounted(id, d, why @ (Uncounted.Rewritten | Uncounted.Unreadable)) =>
+      s"  ${st.bullet} ${Unprovens.verb(d.action)} $id by ${d.author.by} (${d.reason.text}): " +
+        Warnings.uncounted(why, d)
+  })
+
+  private def rebased(yes: Boolean, by: String): IO[ExitCode] = confirmed(yes, by).flatMap {
       case Some(true)  => api.deciding.rebase(by).flatMap(_.fold(r => decisions.refused(r).as(Exit.Refused),
           r => term.out(ReportText.rebased(r)).as(Exit.Fine)))
       case Some(false) => term.out("Nothing written.").as(Exit.Refused)
       case None        => term.err("rebase is confirmed on a terminal; without one, pass --yes").as(Exit.Usage)
-    }))
+    }
 
   /** The reason given, else asked for on a terminal; none without one. */
   private def reason(a: Asked): IO[Option[String]] =

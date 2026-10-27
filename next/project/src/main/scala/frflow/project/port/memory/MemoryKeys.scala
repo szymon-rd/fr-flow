@@ -20,6 +20,7 @@ final class MemoryKeys[F[_]: Monad] private (pair: KeyPair, listed: Ref[F, List[
   def key: F[String] = id.pure[F]
   def verifier: F[Seals.Verifier] = listed.get.map(vs => Keys.verifier(vs.flatMap(_.entries)))
   def deciders: F[Option[Deciders]] = listed.get.map(KeyRing.committed)
+  def lists: F[List[Deciders]] = listed.get
 
   /** This key under `name`. */
   def entry(name: String): Decider = Decider(name, id, publicKey)

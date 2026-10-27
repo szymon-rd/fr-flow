@@ -21,7 +21,7 @@ object AgentWeb:
 
   private def routes(host: Host[IO], developer: String, a: AgentApi[IO]): HttpRoutes[IO] = HttpRoutes.of[IO] {
     case GET -> Root / "api" / "agent" / "state"         =>
-      host.api.reading.view.flatMap(a.read).flatMap(v => Ok(AgentState.of(v).asJson))
+      host.reading.view.flatMap(a.read).flatMap(v => Ok(AgentState.of(v).asJson))
     case req @ POST -> Root / "api" / "agent" / "ask"    =>
       req.as[Asking].flatMap(x => a.ask(x.node, x.text, developer)).flatMap(answer(_))
     case req @ POST -> Root / "api" / "agent" / "close"  =>

@@ -13,8 +13,7 @@ import frflow.core.name.NodeId
   * streams its levels on stderr. `layers`: the layers on top; what they add to a view is shown with it, and a warning
   * of theirs fails `status`, `check` and `ci` as FrFlow's do.
   */
-final class Dispatch(host: Host[IO], term: Terminal, st: Style, layers: List[CliExtension]):
-  private val api: FrFlowApi[IO] = host.api
+final class Dispatch(api: FrFlowApi[IO], host: Host[IO], term: Terminal, st: Style)(layers: List[CliExtension]):
   private def added(v: View): IO[Contribution] = layers.traverse(_.contribute(host, v, st)).map(_.combineAll)
   private def ok(lines: List[String]): IO[ExitCode] = term.out(lines).as(Exit.Fine)
 

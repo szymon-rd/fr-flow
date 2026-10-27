@@ -19,6 +19,12 @@ final class MemoryGit[F[_]: Monad] private (commits: Ref[F, Vector[(String, Map[
     cs.toList.flatMap(_._2.get(p)).foldLeft(List.empty[String])((vs, v) => if vs.lastOption.contains(v) then vs
       else vs :+ v))
 
+  /** Each commit whose tree differs at `paths` from the one before. */
+  def history(paths: List[RelPath]): F[List[(String, Map[RelPath, String])]] = commits.get.map(cs =>
+    cs.toList.map((c, tree) => c -> tree.view.filterKeys(paths.contains).toMap)
+      .foldLeft(List.empty[(String, Map[RelPath, String])])((hs, h) =>
+        if hs.headOption.exists(_._2 == h._2) || (hs.isEmpty && h._2.isEmpty) then hs else h :: hs).reverse)
+
   def diff(since: String, files: List[RelPath]): F[String] = "".pure[F]
 
   def commit(files: Map[RelPath, String]): F[String] = commits.modify { cs =>

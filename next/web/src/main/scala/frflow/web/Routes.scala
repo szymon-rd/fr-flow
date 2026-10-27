@@ -15,23 +15,23 @@ import io.circe.{Encoder, Json}
 import org.http4s.circe.CirceEntityCodec.*
 import org.http4s.dsl.io.*
 import org.http4s.headers.`Content-Type`
-import org.http4s.{EntityEncoder, HttpApp, HttpRoutes, MediaType, MessageFailure, QueryParamDecoder, Response, Status,
-  StaticFile}
+import org.http4s.{EntityEncoder, Header, HttpApp, HttpRoutes, MediaType, MessageFailure, QueryParamDecoder, Response,
+  Status, StaticFile}
 import org.typelevel.ci.CIString
 
-/** One route per operation of the API, its views as JSON, all behind the session's token (`Gate`). Decisions are
-  * `developer`'s, signed by the API as the CLI's are (an acceptance checked and tested afresh first), and refused
-  * once the model's sources moved since `serve` started. `layers`: what the layers on top add (their routes, behind
-  * the same token; their scripts, served as `/ext.js`).
+/** One route per operation of the API, its views as JSON, all behind the session's token (`Gate`); what writes a
+  * file is a `POST`. Decisions are `developer`'s, signed by the API as the CLI's are (an acceptance checked and
+  * tested afresh first), and refused once the model's sources moved since `serve` started. `layers`: what the layers
+  * on top add (their routes, behind the same token; their scripts, served as `/ext.js`).
   */
 final class Routes(api: FrFlowApi[IO], developer: String, gate: Gate, layers: List[WebPart]):
   import Routes.*
 
-  val app: HttpApp[IO] = Kleisli(req =>
-    if !gate.admits(req.headers.get(CIString(TokenHeader)).map(_.head.value).orElse(req.params.get("token"))) then
-      error(Status.Forbidden, NoToken)
-    else layers.map(_.routes).foldLeft(routes)(_ <+> _)(req).getOrElseF(error(Status.NotFound,
-      s"no route ${req.method} ${req.uri.path}")).handleErrorWith(failed))
+  /** Every answer tells the browser to send no `Referer` (the page's link holds the token). */
+  val app: HttpApp[IO] = Kleisli(req => gate.refuses(req).fold(
+    layers.map(_.routes).foldLeft(routes)(_ <+> _)(req).getOrElseF(error(Status.NotFound,
+      s"no route ${req.method} ${req.uri.path}")).handleErrorWith(failed))(error(_, _))
+    .map(_.putHeaders(Header.Raw(CIString("Referrer-Policy"), "no-referrer"))))
 
   private def modelChanged: IO[Boolean] = api.reading.modelFingerprint.map(_ != gate.started)
 
@@ -47,7 +47,7 @@ final class Routes(api: FrFlowApi[IO], developer: String, gate: Gate, layers: Li
     case GET -> Root / "api" / "diff" / id     => api.reading.diff(NodeId(id)).flatMap(_.fold(error(Status.NotFound,
         s"unknown node $id"))(Ok(_)))
     case GET -> Root / "api" / "find" :? Words(q) => api.reading.find(q).flatMap(Ok(_))
-    case GET -> Root / "api" / "status"        => api.proving.status.flatMap(Ok(_))
+    case POST -> Root / "api" / "status"       => api.proving.status.flatMap(Ok(_))
     case POST -> Root / "api" / "render"       => api.proving.render.flatMap(Ok(_))
     case POST -> Root / "api" / "check" :? From(node) => api.proving.check(node).compile.toList.flatMap(events =>
         events.collectFirst { case CheckEvent.Done(ids, v) =>

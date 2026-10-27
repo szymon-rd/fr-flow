@@ -3,7 +3,7 @@ package frflow.agent
 import cats.effect.{ExitCode, IO, Resource}
 import cats.syntax.all.*
 import com.monovore.decline.Command as Sub
-import frflow.api.{Host, Opened}
+import frflow.api.{FrFlowApi, Host, Opened}
 import frflow.cli.command.{Commands, Dispatch}
 import frflow.cli.term.Style
 import frflow.cli.{Launch, Scripted}
@@ -17,22 +17,22 @@ class AgentLiveSuite extends munit.CatsEffectSuite:
   private val temp = ResourceFunFixture(Resource.make(IO.blocking(Files.createTempDirectory("frflow-agent-live")))(d =>
     IO.blocking(Files.walk(d).sorted(java.util.Comparator.reverseOrder()).forEach(p => Files.delete(p)))))
 
-  private def run(host: Host[IO], t: Scripted, args: String*): IO[ExitCode] =
+  private def run(api: FrFlowApi[IO], host: Host[IO], t: Scripted, args: String*): IO[ExitCode] =
     Sub("frflow", "")(Commands.all(List(Agent))).parse(args.toList, Map.empty) match
-      case Right((c, _)) => Dispatch(host, t, Style.plain, List(Agent))(c).handleErrorWith(Launch.failed(t, _))
+      case Right((c, _)) => Dispatch(api, host, t, Style.plain)(List(Agent))(c).handleErrorWith(Launch.failed(t, _))
       case Left(help)    => IO(fail(help.toString))
 
   temp.test("the developer asks; the agent answers the request; a rejected node is the agent's to replace") { d =>
     val reject = Decide.Reject(frflow.core.name.NodeId("nonNegative"), "a bound says more than a sign here", None)
     for
       api   <- Opened.api(Opened.before)
-      host   = Host(api, d, Map.empty)
+      host   = Host.of(api, d, Map.empty)
       t     <- Scripted(Nil, interactive = false)
-      asked <- run(host, t, "ask", "nonNegative", "name the number plainly", "--as", "ann")
+      asked <- run(api, host, t, "ask", "nonNegative", "name the number plainly", "--as", "ann")
       text  <- t.text
       id     = "R[0-9a-z]+".r.findFirstIn(text).getOrElse("R?")
-      codes <- List(run(host, t, "answer", id, "named it plainly"), api.deciding.decide(reject, "ann").as(ExitCode(0)),
-                 run(host, t, "inbox")).sequence
+      codes <- List(run(api, host, t, "answer", id, "named it plainly"),
+                 api.deciding.decide(reject, "ann").as(ExitCode(0)), run(api, host, t, "inbox")).sequence
       out   <- t.text
       file  <- IO.blocking(Files.readString(d.resolve(".frflow/requests.json")))
     yield

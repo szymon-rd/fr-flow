@@ -21,13 +21,14 @@ class AgentCliSuite extends munit.CatsEffectSuite:
 
   /** The API over the shelf, and the agent's layer over records in memory. */
   private def opened: IO[(FrFlowApi[IO], AgentLayer, AgentApi[IO])] =
-    Opened.api(Opened.before).flatMap(api => AgentApi.inMemory[IO](api).map(a => (api, AgentLayer(_ => IO.pure(a)), a)))
+    Opened.api(Opened.before).flatMap(api =>
+      AgentApi.inMemory[IO](api.reading).map(a => (api, AgentLayer(_ => IO.pure(a)), a)))
 
   /** Each command line as typed, on one terminal: the exit codes and all that was written. */
   private def typed(api: FrFlowApi[IO], layer: AgentLayer, lines: List[String]*): IO[(List[ExitCode], String)] =
     Scripted(Nil, interactive = false).flatMap(t => lines.toList.traverse { args =>
       Sub("frflow", "")(Commands.all(List(layer))).parse(args, Map.empty) match
-        case Right((c, _)) => Dispatch(Cli.host(api), t, st, List(layer))(c).handleErrorWith(Launch.failed(t, _))
+        case Right((c, _)) => Dispatch(api, Cli.host(api), t, st)(List(layer))(c).handleErrorWith(Launch.failed(t, _))
         case Left(help)    => IO(fail(help.toString))
     }.flatMap(codes => t.text.map(codes -> _)))
 

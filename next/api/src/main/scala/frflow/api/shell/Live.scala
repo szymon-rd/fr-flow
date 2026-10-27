@@ -14,7 +14,8 @@ import java.nio.file.Path
   * key, and `lake` in its `lean/`, one build at a time, with the version of FrFlow's Lean library the project
   * requires; run as `env` says (`Config`), a fresh seed the time's. The key is `FRFLOW_KEY`, else
   * `.config/frflow/signing.key` under `HOME`, both from `env` only: with neither, there is no key. It is read once when
-  * the project is opened (to say whether there is one), then when a decision is signed.
+  * the project is opened (to say whether there is one), then when a decision is signed. The files the model records
+  * are made relative to the project's directory (`Relocate`).
   */
 private[api] object Live:
   def make[F[_]: Async: Parallel](p: Project[F], root: Path, env: Map[String, String]): Resource[F, FrFlowApi[F]] =
@@ -30,6 +31,8 @@ private[api] object Live:
       lib    <- Resource.eval(LeanLibrary.read[F](root.resolve("lean").resolve(Session.library(p)).normalize,
                   Session.library(p)))
       ports   = Ports(ProjectFiles.make[F](root), ledger, git, keys)
-      api    <- Resource.eval(Memory.api(Session(p, ports, _ => lake.pure[F],
+      built  <- Resource.eval(Async[F].delay(Path.of(sys.props.getOrElse("frflow.sources", ""))))
+      moved   = p.copy(model = Relocate(p.model, built, root))
+      api    <- Resource.eval(Memory.api(Session(moved, ports, _ => lake.pure[F],
                   Session.Run(config.tests, env.get("FRFLOW_AS"), keyed), lib.version)))
     yield api

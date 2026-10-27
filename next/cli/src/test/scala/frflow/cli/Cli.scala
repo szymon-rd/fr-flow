@@ -10,11 +10,11 @@ import java.nio.file.Path
 object Cli:
   val plain: Style = Style.plain
 
-  def host(api: FrFlowApi[IO]): Host[IO] = Host(api, Path.of(".").toAbsolutePath.normalize, Map.empty)
+  def host(api: FrFlowApi[IO]): Host[IO] = Host.of(api, Path.of(".").toAbsolutePath.normalize, Map.empty)
 
   /** What stops it said, with its exit code, as `Launch` does. */
   def run(api: FrFlowApi[IO], term: Scripted, c: Command, st: Style = plain): IO[ExitCode] =
-    Dispatch(host(api), term, st, Nil)(c).handleErrorWith(Launch.failed(term, _))
+    Dispatch(api, host(api), term, st)(Nil)(c).handleErrorWith(Launch.failed(term, _))
 
   /** Each command on a fresh terminal not on a terminal: the exit codes, and all that was written. */
   def all(api: FrFlowApi[IO], cs: Command*): IO[(List[ExitCode], String)] =

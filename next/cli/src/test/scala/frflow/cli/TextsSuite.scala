@@ -30,7 +30,7 @@ class TextsSuite extends munit.FunSuite:
       Refusal.UnknownNode(a), Refusal.NotADecider("bob"), Refusal.MovedSinceSeen(a),
       Refusal.NotAProposal(a, ReviewState.Accepted), Refusal.NotDecided(a), Refusal.AlreadyAccepted(a),
       Refusal.AlreadyRevisited(a), Refusal.AcceptFirst(a), Refusal.CodeFails(a), Refusal.NotTested(a),
-      Refusal.Rewritten(List(a)), Refusal.NotBelow(a, List(b)), Refusal.StillInModel(a),
+      Refusal.Rewritten(List(a)), Refusal.NothingToRebase, Refusal.NotBelow(a, List(b)), Refusal.StillInModel(a),
       Refusal.Within(b, Refusal.NoNodes))
     distinct(all.map(Refusals.text(_, _ => Nil)) :+ Refusals.text(Refusal.CodeFails(a), _ => List(Cause.Self)))
     assert(Refusals.text(Refusal.NotTested(a), _ => Nil).contains("not tested yet"))
@@ -38,7 +38,8 @@ class TextsSuite extends munit.FunSuite:
   }
 
   test("every warning is said, with why a decision does not count") {
-    distinct(List(Warning.NoKey, Warning.DecidersUncommitted, Warning.GovernedTwice(file, List(a, b)),
+    distinct(List(Warning.NoKey, Warning.DecidersUncommitted, Warning.BaseNotCommitted,
+      Warning.GovernedTwice(file, List(a, b)),
       Warning.Ungoverned(file), Warning.GovernedMissing(file, a), Warning.ProofFileOfNoNode(file),
       Warning.ConsistencyNotProven(List(a)), Warning.StartNotProven(a), Warning.NotChecked(a), Warning.Restates(a, b))
       .map(Warnings.text) ++ Uncounted.values.toList.map(u => Warnings.text(Warning.NotCounted(a, decision, u))))

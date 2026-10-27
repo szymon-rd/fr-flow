@@ -138,7 +138,11 @@ lazy val nextApi = nextModule("api", (Seq(cats, catsEffect, munitEffect) ++ fs2)
   * interactive review, and `init`; layers on top add their commands (`CliExtension`). Its tests read the API's.
   */
 lazy val nextCli = nextModule("cli", cats, catsEffect, decline, munitEffect)
+  .settings(forkedAtRoot)
   .dependsOn(nextApi % "compile->compile;test->test")
+
+/** `init` runs forked from the build's directory (`frflowNextInit`), so it exits with its own code. */
+def forkedAtRoot: Seq[Setting[?]] = Seq(run / fork := true, run / baseDirectory := (ThisBuild / baseDirectory).value)
 
 /** The web view (`serve`): the page, and routes onto the API, over http4s on localhost; layers on top add routes and
   * a script (`WebExtension`). The CLI does not depend on it.
@@ -151,6 +155,7 @@ lazy val nextWeb = nextModule("web", (Seq(catsEffect, circe, munitEffect) ++ htt
   * deciding stays the developer's.
   */
 lazy val nextAgent = nextModule("agent", (Seq(cats, catsEffect, circe, circeParser, decline, munitEffect) ++ http4s)*)
+  .settings(forkedAtRoot)
   .dependsOn(nextCli % "compile->compile;test->test", nextWeb % "compile->compile;test->test")
 
 /** A project on the rebuilt modules, as `init` writes its line (`frflow.cli.Init`): its main object runs the CLI with

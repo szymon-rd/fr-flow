@@ -24,10 +24,14 @@ private[api] final class Decides[F[_]: Async](s: Session[F], fresh: Fresh[F]) ex
         ds.flatMap(_.entries.find(_.key == key)).map(_.name).toRight(Refusal.NoOneDecides)))
 
   def preview(c: Command, by: String): F[Either[Refusal, Decided]] =
-    on(c).flatMap(a => s.guarded(program.preview(a.subjects, c, by))).map(_.map(view))
+    listed(by)(on(c).flatMap(a => s.guarded(program.preview(a.subjects, c, by))).map(_.map(view)))
 
   def decide(c: Command, by: String): F[Either[Refusal, Decided]] =
-    on(c).flatMap(a => s.guarded(program(a.subjects, c, by))).map(_.map(view))
+    listed(by)(on(c).flatMap(a => s.guarded(program(a.subjects, c, by))).map(_.map(view)))
+
+  /** Refused before anything is checked unless the key at hand is listed under `by`. */
+  private def listed(by: String)(go: F[Either[Refusal, Decided]]): F[Either[Refusal, Decided]] =
+    s.guarded(program.listed(by)).ifM(go, Refusal.NotADecider(by).asLeft[Decided].pure[F])
 
   def rebase(by: String): F[Either[Refusal, Rebased]] =
     s.guarded(RebaseProgram(s.ports)(by)).map(_.map(b => Rebased(Decides.base, b.ledger)))

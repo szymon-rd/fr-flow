@@ -28,13 +28,20 @@ final class ReviewSession(api: FrFlowApi[IO], term: Terminal, st: Style, added: 
       "decide with accept or reject --yes").as(Exit.Usage)
     else decisions.developer(as).flatMap(_.fold(IO.pure, loop(_, Pass.start)))
 
+  /** The queue, then the gone nodes, then those a layer holds back (asked of the agent, say): shown last, never
+    * dropped, to decide anyway or skip.
+    */
   private def loop(dev: String, p: Pass): IO[ExitCode] = api.reading.view.flatMap(v => added(v).flatMap { x =>
     val queue = InboxText.queue(v, x.aside).filterNot(n => p.skipped(n.id))
+    val held = InboxText.queue(v, Set.empty).filter(n => x.aside(n.id) && !p.skipped(n.id))
+    def shown(n: NodeView, title: String)(d: Depth) = st.dim(s"${st.rule} $title ${st.rule}") ::
+      NodeText(v, st, x).lines(n, d)
     if !p.batchOffered && queue.exists(InboxText.mechanical) then batch(dev, queue.filter(InboxText.mechanical), p)
     else queue.headOption match
-      case Some(n) => one(dev, n, p, d => st.dim(s"${st.rule} ${queue.size} waiting ${st.rule}") ::
-          NodeText(v, st, x).lines(n, d))
-      case None    => v.gone.find(g => !p.skipped(g)).fold(finish(v, x, p))(gone(dev, _, p))
+      case Some(n) => one(dev, n, p, shown(n, s"${queue.size} waiting"))
+      case None    => v.gone.find(g => !p.skipped(g)).fold(held.headOption.fold(finish(v, x, p))(n =>
+          one(dev, n, p, shown(n, "held back by a layer (asked of the agent): decide it anyway, or skip"))))(
+          gone(dev, _, p))
   })
 
   private def quit(p: Pass): IO[ExitCode] =

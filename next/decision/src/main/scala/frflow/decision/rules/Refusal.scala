@@ -23,6 +23,8 @@ enum Refusal:
     * was committed does not read: nothing is decided until the ledger is restored from the last commit.
     */
   case Rewritten(ids: List[NodeId])
+  /** The ledger counts whole against its committed history: there is nothing for a base to accept. */
+  case NothingToRebase
   case NotBelow(id: NodeId, named: List[NodeId])
   case StillInModel(id: NodeId)
   case Within(id: NodeId, refusal: Refusal)

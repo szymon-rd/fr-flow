@@ -28,11 +28,17 @@ final class DecideProgram[F[_]: Monad: Clock](ports: Ports[F]):
       }))(_.asLeft[Decided].pure[F])
     }
 
+  /** What `c` would record: refused, as `apply` refuses it, unless the key at hand is listed under `by`. */
   def preview(subjects: Subjects, c: Command, by: String): F[Either[Refusal, Decided]] =
-    (authorship(by), counting, ports.ledger.load).mapN { (author, count, l) =>
+    (authorship(by), counting, ports.ledger.load, ports.keys.key).mapN { (author, count, l, key) =>
       val r = Reading(subjects, count(l).counting)
-      Decide(r, c, author).map(after => Decided(Decide.added(r, r.ledger, after)))
+      if !count.deciders.exists(_.allows(by, key)) then Left(Refusal.NotADecider(by))
+      else Decide(r, c, author).map(after => Decided(Decide.added(r, r.ledger, after)))
     }
+
+  /** Whether the key at hand is listed under `by` in the committed deciders' list. */
+  def listed(by: String): F[Boolean] =
+    (ports.keys.deciders, ports.keys.key).mapN((ds, key) => ds.exists(_.allows(by, key)))
 
   private def authorship(by: String): F[Authorship] =
     (Clock[F].realTimeInstant, ports.git.head).mapN(Authorship(by, _, _))

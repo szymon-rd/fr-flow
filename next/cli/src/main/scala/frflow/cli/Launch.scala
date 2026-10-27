@@ -23,7 +23,7 @@ final class Launch(p: FrFlowProject, env: Map[String, String], layers: List[CliE
           term.out(ReportText.listed(l))).as(Exit.Fine)
       case _                    => p.project.flatMap(_.fold(
           es => es.traverse_(e => term.err(s"error: ${Faults.text(e)}")).as(Exit.Refused),
-          project => FrFlowApi.make[IO](project, dir, env).use(api => Dispatch(Host(api, dir, env), term, st,
+          project => FrFlowApi.make[IO](project, dir, env).use(api => Dispatch(api, Host.of(api, dir, env), term, st)(
             layers)(c))))
 
 /** A project's command line run once: the arguments parsed (the help on a usage error), the command run, and what

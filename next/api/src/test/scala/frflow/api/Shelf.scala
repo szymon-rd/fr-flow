@@ -47,6 +47,13 @@ object Shelf:
   object Careless:
     val kb = FrModel("Shelf")(Before.nonNegative, Before.sameAbove).implementTested(d)(_ => n => -n.abs - 1)
 
+  /** `Before` with a part added under the claim: its parts moved, its meaning did not (deciding it again is
+    * mechanical once Lean proves its parts make it).
+    */
+  object Grown:
+    val zeroGivesZero = Node.claim("At zero, the service gives zero.")(d(0) === 0).refines(Before.nonNegative)
+    val kb = FrModel("Shelf")(Before.nonNegative, Before.sameAbove, zeroGivesZero).implementTested(d)(_ => n => n.abs)
+
   object After:
     val nonNegative = Node.claim("The service never gives a negative number.")(forall((n: Term[BigInt]) => d(n) > -1))
     val sameAbove = Node.claim("Above zero, the service gives the number itself.")(

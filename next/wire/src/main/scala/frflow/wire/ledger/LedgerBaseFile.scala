@@ -13,8 +13,8 @@ import io.circe.{Decoder, Encoder, JsonObject}
 object LedgerBaseFile:
   val format: FileFormat[LedgerBase] = FileFormat(".frflow/ledger-base", 1, encoder, decoder)
 
-  private def encoder: Encoder.AsObject[LedgerBase] = Encoder.AsObject.instance(b => JsonObject("after" -> b.after.asJson,
-    "ledger" -> b.ledger.asJson, "seal" -> b.seal.map(SealCodecs.encode).asJson))
+  private def encoder: Encoder.AsObject[LedgerBase] = Encoder.AsObject.instance(b => JsonObject(
+    "after" -> b.after.asJson, "ledger" -> b.ledger.asJson, "seal" -> b.seal.map(SealCodecs.encode).asJson))
 
   private def decoder: Decoder[LedgerBase] = Decoder.instance(c =>
     (c.get[String]("ledger"), c.get[Option[String]]("after"))

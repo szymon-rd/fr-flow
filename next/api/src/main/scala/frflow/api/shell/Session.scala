@@ -9,7 +9,7 @@ import frflow.api.view.{View, Warning}
 import frflow.eval.Semantics
 import frflow.project.pipeline.Analysis
 import frflow.project.port.{KeyRing, Lake, LeanLibrary, RunCode}
-import frflow.project.program.{Analyse, ModelCheck, Ports, Project as Sources}
+import frflow.project.program.{Analyse, Committed, ModelCheck, Ports, Project as Sources}
 import frflow.testing.Settings
 
 /** A project open in the shell: its model, the algebras it is read and written through, the Lean each check is run
@@ -35,9 +35,13 @@ private[api] final class Session[F[_]: Async: Parallel](val project: Project[F],
     * a deciders' list in the working tree that is not the committed one.
     */
   private def warnings: F[List[Warning]] =
-    (ports.files.read(KeyRing.path), ports.git.committed(KeyRing.path)).mapN((now, at) =>
-      Option.unless(run.keyed)(Warning.NoKey).toList ++
-        Option.when(now.isDefined && now != at)(Warning.DecidersUncommitted).toList)
+    (uncommitted(KeyRing.path), uncommitted(Committed.basePath), Committed.taken(ports)).mapN((deciders, base, taken) =>
+      Option.unless(run.keyed)(Warning.NoKey).toList ++ Option.when(deciders)(Warning.DecidersUncommitted).toList ++
+        Option.when(base || taken.contains(false))(Warning.BaseNotCommitted).toList)
+
+  /** A file in the working tree that is not as committed. */
+  private def uncommitted(p: frflow.core.name.RelPath): F[Boolean] =
+    (ports.files.read(p), ports.git.committed(p)).mapN((now, at) => now.isDefined && now != at)
 
   /** Raised in `F`, as a front end sees it. */
   def guarded[A](fa: F[A]): F[A] = fa.adaptError(Stops.of)

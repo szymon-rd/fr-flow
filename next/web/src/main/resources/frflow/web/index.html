@@ -60,6 +60,8 @@ textarea { width: 100%; min-height: 64px; font: inherit; background: var(--bg); 
 <script>
 "use strict";
 const token = new URLSearchParams(location.search).get("token") || "";
+// The token leaves the address bar and the history (a reload needs the link serve printed again).
+history.replaceState(null, "", location.pathname);
 const state = { view: null, tab: "inbox", node: null, extensions: [] };
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -83,6 +85,7 @@ const refusals = {
   CodeFails: r => `${r.id}'s code fails a generated case: the code, or the claim, is wrong`,
   NotTested: r => `${r.id}'s code is not tested yet: run check`,
   Rewritten: r => `the ledger no longer holds what was committed of ${r.ids.join(", ")}`,
+  NothingToRebase: () => "the ledger counts whole: there is nothing to rebase",
   NotBelow: r => `not decisions below ${r.id}: ${r.named.join(", ")}`,
   StillInModel: r => `${r.id} is still in the model`, Within: r => `${r.id}: ${refusal(r.refusal)}`,
 };
@@ -107,10 +110,16 @@ const node = id => state.view.nodes.find(n => n.id === id);
 const related = (n, rel) => n.place.related.filter(([r]) => r.type === rel).map(([, id]) => id);
 
 function warning(w) {
-  const says = { Ungoverned: `no node governs ${w.file}`, NoKey: "no signing key: nothing can be decided here",
+  const says = { NoKey: "no signing key: nothing can be decided here",
+    DecidersUncommitted: ".frflow/deciders differs from the committed list, which is the one that counts: commit it",
+    BaseNotCommitted: "the ledger's base does not take: commit .frflow/ledger-base with the ledger rebase wrote",
+    NotCounted: `a ${w.decision && w.decision.action} of ${w.node} does not count: ${w.why && words(w.why.type)}`,
+    GovernedTwice: `${w.file} is governed by ${(w.by || []).join(" and ")}`,
+    Ungoverned: `no node governs ${w.file}`, GovernedMissing: `${w.by} governs ${w.file}, which is no file here`,
+    ProofFileOfNoNode: `${w.file} is no node's proof file: it proves nothing`,
     ConsistencyNotProven: `consistency not proven: ${(w.statements || []).join(", ")}`,
-    NotChecked: `${w.node} is not checked`, StartNotProven: `${w.statement}: where its store starts is not proven`,
-    NotCounted: `a ${w.decision && w.decision.action} of ${w.node} does not count: ${w.why && words(w.why.type)}` };
+    StartNotProven: `${w.statement}: where its store starts is not proven`,
+    NotChecked: `${w.node} is not checked`, Restates: `${w.node} restates ${w.part}: it says nothing of its own` };
   return says[w.type] || `${words(w.type)} ${esc(JSON.stringify(Object.assign({}, w, { type: undefined })))}`;
 }
 

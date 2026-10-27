@@ -26,7 +26,7 @@ import java.nio.file.Path
 abstract class FrFlowApp(model: => FrModel, root: String = ".", adapters: => List[Adapter[IO]] = Nil,
     val extensions: List[Extension] = Nil) extends IOApp with FrFlowProject:
   def sources: List[String] = List("src/main")
-  def library: String = "../../../lean"
+  def library: String = FrFlowApp.Library
   def examples: List[FrFlowExamples] = Nil
 
   private lazy val kb: FrModel = model
@@ -43,3 +43,7 @@ abstract class FrFlowApp(model: => FrModel, root: String = ".", adapters: => Lis
     }
 
   final def run(args: List[String]): IO[ExitCode] = Launch(this, args)
+
+object FrFlowApp:
+  /** FrFlow's Lean library (`next/proof/lean`) from a project's `lean/` under `examples/NAME`, as `init` makes it. */
+  val Library: String = "../../../next/proof/lean"

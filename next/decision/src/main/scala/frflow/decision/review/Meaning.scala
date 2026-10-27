@@ -23,10 +23,12 @@ object Meaning:
   def formal(c: Content): Hash = of(c.without(_ == "statement"))
 
   /** What it says moved since `d` was taken, by today's rule: its own content with the premises it assumes, its
-    * implementation left out once Lean proves its code (tested code stays in). Examples are not content.
+    * implementation left out once Lean proves its code (tested code stays in), and how it is checked left out (it
+    * names the parts, which a change of parts already says). Examples are not content.
     */
   def decisionMoved(d: Decision, s: Subject): Boolean =
-    def decided(c: Content): Hash = own(c).without(k => s.proof.codeProven && k == "implementation").hash
+    def decided(c: Content): Hash =
+      own(c).without(k => k == "checking" || (s.proof.codeProven && k == "implementation")).hash
     decided(d.bound.content) != decided(s.content)
 
   def chain(meaning: Hash, above: Chain): Chain = Chain(Sha.parts(meaning.value, above.value))

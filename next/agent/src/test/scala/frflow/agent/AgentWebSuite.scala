@@ -20,7 +20,7 @@ class AgentWebSuite extends munit.CatsEffectSuite:
     "nodes with it") {
     for
       api     <- Opened.api(Opened.before)
-      a       <- AgentApi.inMemory[IO](api)
+      a       <- AgentApi.inMemory[IO](api.reading)
       part    <- AgentLayer(_ => IO.pure(a)).part(Cli.host(api), "ann")
       app     <- api.reading.modelFingerprint.map(f => Routes(api, "ann", Gate("t", f), List(part)).app)
       asked   <- app.run(req(Method.POST, "/api/agent/ask").withEntity(Json.obj("node" -> "nonNegative".asJson,

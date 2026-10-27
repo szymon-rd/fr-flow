@@ -21,10 +21,10 @@ object Serve extends IOApp:
     IO(sys.env).flatMap(env => p.project.flatMap(_.fold(
       es => es.traverse_(e => Console[IO].errorln(s"error: $e")).as(ExitCode(1)),
       project => FrFlowApi.make[IO](project, p.directory(env), env).use { api =>
-        val host = Host(api, p.directory(env), env)
+        val host = Host.of(api, p.directory(env), env)
         val layers = p.extensions.collect { case w: WebExtension => w }
         api.deciding.developer(as).flatMap(_.fold(r => Console[IO].errorln(s"who decides? $r: pass --as NAME")
-          .as(ExitCode(2)), WebView.serve(host, _, port, layers).as(ExitCode.Success)))
+          .as(ExitCode(2)), WebView.serve(api, host, _, port)(layers).as(ExitCode.Success)))
       })))
 
   private def options(args: List[String], port: Int, as: Option[String]): Either[String, (Int, Option[String])] =

@@ -18,6 +18,8 @@ trait Git[F[_]]:
   def head: F[Option[String]]
   def committed(p: RelPath): F[Option[String]]
   def versions(p: RelPath): F[List[String]]
+  /** Each commit that touched any of `paths`, oldest first, with each of them as committed there (absent: left out). */
+  def history(paths: List[RelPath]): F[List[(String, Map[RelPath, String])]]
   def diff(since: String, files: List[RelPath]): F[String]
 
 object Git:
@@ -44,6 +46,11 @@ object Git:
       run(Map.empty, "log", "--format=%H", "--reverse", "--", p.value).flatMap(_.toList
         .flatMap(_.linesIterator.map(_.trim).filter(_.nonEmpty))
         .traverseFilter(c => run(Map.empty, "show", s"$c:./${p.value}")))
+
+    def history(paths: List[RelPath]): F[List[(String, Map[RelPath, String])]] =
+      run(Map.empty, ("log" :: "--format=%H" :: "--reverse" :: "--" :: paths.map(_.value))*).flatMap(_.toList
+        .flatMap(_.linesIterator.map(_.trim).filter(_.nonEmpty)).traverse(c => paths
+          .traverseFilter(p => run(Map.empty, "show", s"$c:./${p.value}").map(_.map(p -> _))).map(c -> _.toMap)))
 
     /** The working tree against a commit, on an index of its own holding the files as they are, so a file git does
       * not track is compared as it is; the repository's index and working tree are untouched.

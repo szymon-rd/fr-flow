@@ -76,3 +76,12 @@ class MeaningSuite extends munit.FunSuite:
     val moved = standing(replacing(s, d.restated("Shelves are kept in a sorted list.")), acceptAll(s))
     assertEquals(moved("X"), ReviewState.Review -> List(Cause.Above))
   }
+
+  test("a node whose parts changed, its check naming them, is mechanical once its parts are proven to make it") {
+    val l = acceptAll(shelf)
+    val parted = a.said("parts", texts("B", "C")).said("checking", texts("proven from its parts (B, C)"))
+      .copy(proof = ProofStanding(Nil, true, false))
+    val v = Reading(replacing(shelf, parted), l)
+    assertEquals(v.causes(id("A")), List(Cause.Self, Cause.Parts))
+    assertEquals(v.notMechanical(id("A")), None)
+  }

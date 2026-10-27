@@ -16,20 +16,20 @@ class InitSuite extends munit.CatsEffectSuite:
     IO.blocking(Files.walk(d).sorted(java.util.Comparator.reverseOrder()).forEach(p => Files.delete(p)))))
 
   temp.test("a new project: an empty FrModel, its examples' class and its line in build.sbt; nothing twice") { d =>
-    IO.blocking {
-      Files.writeString(d.resolve("build.sbt"), "lazy val other = project\n", UTF_8)
-      val first = Init.write(d, "toy", None)
-      val again = Init.write(d, "toy", None)
-      val build = Files.readString(d.resolve("build.sbt"), UTF_8)
-      (first, again, build, Files.readString(d.resolve("examples/toy/src/main/scala/toy/Model.scala"), UTF_8))
-    }.map { (first, again, build, model) =>
+    for
+      _     <- IO.blocking(Files.writeString(d.resolve("build.sbt"), "lazy val other = project\n", UTF_8))
+      first <- Init.write(d, "toy", None)
+      again <- Init.write(d, "toy", None)
+      upper <- Init.write(d, "Toy", None)
+      build <- IO.blocking(Files.readString(d.resolve("build.sbt"), UTF_8))
+      model <- IO.blocking(Files.readString(d.resolve("examples/toy/src/main/scala/toy/Model.scala"), UTF_8))
+    yield
       assertEquals(first.map(_.size), Right(3))
       assertEquals(again, Left("examples/toy exists already"))
       assert(build.contains("lazy val toy = nextExample(\"toy\", layers = Nil).dependsOn(nextTesting % Test)"), build)
       assert(build.contains("testFrameworks += TestFramework(\"frflow.testing.examples.ExamplesFramework\")"), build)
       assert(model.contains("object toyCli extends frflow.cli.FrFlowApp(frModel, root = \"examples/toy\")"), model)
-      assert(Init.write(d, "Toy", None).left.exists(_.startsWith("Toy is not a lowercase name")))
-    }
+      assert(upper.left.exists(_.startsWith("Toy is not a lowercase name")), upper)
   }
 
   temp.test("deciders --as NAME lists the developer's key as the first decider, signed by it; once") { d =>
@@ -54,6 +54,12 @@ class InitSuite extends munit.CatsEffectSuite:
       assertEquals(codes, List(ExitCode(1)))
       assert(t.contains("FrModel: no nodes yet: propose the root statements first"), t)
     }
+  }
+
+  test("a project under examples/NAME requires FrFlow's Lean library, the one the proof suites build") {
+    val library = frflow.proof.layout.LeanWorkspace.library
+    val root = library.getParent.getParent.getParent
+    assertEquals(root.resolve("examples/toy/lean").resolve(FrFlowApp.Library).normalize, library.normalize)
   }
 
   /** A key made for this test only, in its own directory. */

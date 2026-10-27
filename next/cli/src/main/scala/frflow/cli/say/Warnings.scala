@@ -12,11 +12,14 @@ object Warnings:
       "no signing key (FRFLOW_KEY, or ~/.config/frflow/signing.key): nothing can be decided here"
     case Warning.DecidersUncommitted      =>
       ".frflow/deciders differs from the committed list, which is the one that counts: commit it, or restore it"
+    case Warning.BaseNotCommitted         =>
+      "the ledger's base does not take: commit .frflow/ledger-base together with the .frflow/ledger.json rebase wrote"
     case Warning.NotCounted(id, d, why)   => s"${verb(d.action)} of $id by ${d.author.by} does not count: " +
         uncounted(why, d)
 
   private val code: PartialFunction[Warning, String] =
-    case Warning.GovernedTwice(f, by) => s"$f is governed by ${by.mkString(" and ")}: each would review it as its own"
+    case Warning.GovernedTwice(f, by)     =>
+      s"$f is governed by ${by.mkString(" and ")}: each would review it as its own"
     case Warning.Ungoverned(f)            => s"no node governs $f: code there changes unnoticed " +
         "(give it a home: the claim whose code it is, or a design node)"
     case Warning.GovernedMissing(f, by)   => s"$by governs $f, which names no file of the project"

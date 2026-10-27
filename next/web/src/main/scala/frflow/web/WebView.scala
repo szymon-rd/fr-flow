@@ -3,7 +3,7 @@ package frflow.web
 import cats.effect.{IO, Resource}
 import cats.syntax.all.*
 import com.comcast.ip4s.{Port, ipv4}
-import frflow.api.Host
+import frflow.api.{FrFlowApi, Host}
 import java.net.URI
 import org.http4s.ember.server.EmberServerBuilder
 
@@ -16,20 +16,22 @@ object WebView:
   private val Stopping = scala.concurrent.duration.FiniteDuration(1, "second")
 
   /** The server on `port` (0: any free one), and its link. */
-  def server(host: Host[IO], developer: String, port: Int, layers: List[WebExtension]): Resource[IO, URI] =
+  def server(api: FrFlowApi[IO], host: Host[IO], developer: String, port: Int)(layers: List[WebExtension])
+      : Resource[IO, URI] =
     for
       token   <- Resource.eval(newToken)
-      started <- Resource.eval(host.api.reading.modelFingerprint)
+      started <- Resource.eval(api.reading.modelFingerprint)
       p       <- Resource.eval(IO.fromOption(Port.fromInt(port))(IllegalArgumentException(s"no port $port")))
       parts   <- Resource.eval(layers.traverse(_.part(host, developer)))
       s       <- EmberServerBuilder.default[IO].withHost(ipv4"127.0.0.1").withPort(p).withShutdownTimeout(Stopping)
-                   .withHttpApp(Routes(host.api, developer, Gate(token, started), parts).app).build
+                   .withHttpApp(Routes(api, developer, Gate(token, started), parts).app).build
     yield URI(s"http://127.0.0.1:${s.address.getPort}/?token=$token")
 
   /** Serves until stopped, the link printed. */
-  def serve(host: Host[IO], developer: String, port: Int, layers: List[WebExtension]): IO[Unit] =
-    server(host, developer, port, layers).use(link => IO.println(s"FrFlow web view, deciding as $developer: $link\n" +
-      "(Ctrl-C stops it; after the model's sources change, start it again)") >> IO.never)
+  def serve(api: FrFlowApi[IO], host: Host[IO], developer: String, port: Int)(layers: List[WebExtension]): IO[Unit] =
+    server(api, host, developer, port)(layers).use(link =>
+      IO.println(s"FrFlow web view, deciding as $developer: $link\n" +
+        "(Ctrl-C stops it; after the model's sources change, start it again)") >> IO.never)
 
   private def newToken: IO[String] = IO {
     val b = new Array[Byte](18)

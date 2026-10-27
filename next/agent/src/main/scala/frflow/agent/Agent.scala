@@ -8,4 +8,4 @@ import frflow.agent.work.AgentApi
   * object roomsCli extends frflow.cli.FrFlowApp(rooms, root = "examples/rooms", extensions = List(frflow.agent.Agent))
   * }}}
   */
-object Agent extends AgentLayer(host => AgentApi.make(host.api, host.directory))
+object Agent extends AgentLayer(host => AgentApi.make(host.reading, host.directory))

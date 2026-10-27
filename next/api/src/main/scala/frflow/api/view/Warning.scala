@@ -9,6 +9,10 @@ enum Warning:
   case NoKey
   /** `.frflow/deciders` in the working tree differs from the committed list, which is the one that counts. */
   case DecidersUncommitted
+  /** The ledger's base in the working tree is not the committed one, or the commit that made the committed one does
+    * not hold the ledger text it names: it does not take (commit `.frflow/ledger-base` together with the ledger).
+    */
+  case BaseNotCommitted
   /** A decision in the ledger that does not count, and why: no deciders' list committed, its key not listed under its
     * decider's name (or no seal), its signature not verifying, or the node's committed history rewritten.
     */

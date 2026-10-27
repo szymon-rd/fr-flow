@@ -9,10 +9,13 @@ import io.circe.syntax.*
 import org.http4s.circe.CirceEntityCodec.*
 import org.http4s.dsl.io.*
 import org.http4s.implicits.*
-import org.http4s.{Header, HttpRoutes, Method, Request, Status, Uri}
+import org.http4s.headers.`Content-Type`
+import org.http4s.{Header, HttpRoutes, MediaType, Method, Request, Status, Uri}
 import org.typelevel.ci.CIString
 
-/** The web view's routes over the API in memory, behind the session's token. */
+/** The web view's routes over the API in memory, behind the session's token (in a link only for the page and its
+  * scripts), refusing another page's writes.
+  */
 class RoutesSuite extends munit.CatsEffectSuite:
   private val token = "t0k3n"
   private def routes(api: FrFlowApi[IO], parts: List[WebPart] = Nil) =
@@ -29,10 +32,49 @@ class RoutesSuite extends munit.CatsEffectSuite:
       app   <- Opened.api(Opened.before).flatMap(routes(_))
       codes <- List(get("/", None), get("/api/view", None), get("/api/view", Some("other")), post("/api/decide", accept)
                  .removeHeader(CIString(Routes.TokenHeader))).traverse(app.run(_).map(_.status))
-      query <- app.run(Request[IO](Method.GET, uri"/api/view".withQueryParam("token", token))).map(_.status)
+      linked <- List(uri"/", uri"/ext.js", uri"/api/view").traverse(u =>
+                  app.run(Request[IO](Method.GET, u.withQueryParam("token", token))).map(_.status))
     yield
       assertEquals(codes.distinct, List(Status.Forbidden))
-      assertEquals(query, Status.Ok)
+      assertEquals(linked, List(Status.Ok, Status.Ok, Status.Forbidden))
+  }
+
+  test("another page's write is refused: the token in its link, a foreign Origin, a body not JSON; none is recorded") {
+    val revisit = Json.obj("action" -> "revisit".asJson, "node" -> "nonNegative".asJson,
+      "reason" -> "another page asks it again".asJson)
+    def plain(r: Request[IO]) = r.withEntity(revisit.noSpaces).withContentType(`Content-Type`(MediaType.text.plain))
+    def from(origin: String)(r: Request[IO]) = r.putHeaders(Header.Raw(CIString("Origin"), origin),
+      Header.Raw(CIString("Host"), "127.0.0.1:8080"))
+    val linked = Request[IO](Method.POST, uri"/api/decide".withQueryParam("token", token))
+    for
+      api     <- Opened.api(Opened.before)
+      app     <- routes(api)
+      _       <- app.run(post("/api/decide", accept))
+      evil    <- app.run(from("http://evil.example")(plain(linked))).map(_.status)
+      foreign <- app.run(from("http://evil.example")(post("/api/decide", revisit))).map(_.status)
+      text    <- app.run(plain(post("/api/decide", revisit))).map(_.status)
+      inLink  <- app.run(linked.withEntity(revisit)).map(_.status)
+      own     <- app.run(from("http://127.0.0.1:8080")(post("/api/preview", revisit)))
+      view    <- api.reading.view
+    yield
+      assertEquals((evil, foreign, text, inLink), (Status.Forbidden, Status.Forbidden, Status.UnsupportedMediaType,
+        Status.Forbidden))
+      assertEquals(own.status, Status.Ok)
+      assertEquals(view.node(frflow.core.name.NodeId("nonNegative")).map(_.review.standing.state.toString),
+        Some("Accepted"))
+  }
+
+  test("every answer asks the browser to send no Referer; status, which writes files, is a POST") {
+    for
+      app    <- Opened.api(Opened.before).flatMap(routes(_))
+      shown  <- app.run(get("/api/view"))
+      denied <- app.run(get("/api/view", None))
+      read   <- app.run(get("/api/status")).map(_.status)
+      status <- app.run(post("/api/status", Json.obj())).map(_.status)
+    yield
+      assertEquals(List(shown, denied).map(_.headers.get(CIString("Referrer-Policy")).map(_.head.value)),
+        List(Some("no-referrer"), Some("no-referrer")))
+      assertEquals((read, status), (Status.NotFound, Status.Ok))
   }
 
   test("view, tree, inbox and diff return the views as JSON, each case naming its type") {

@@ -22,6 +22,8 @@ trait KeyRing[F[_]]:
   def key: F[String]
   def verifier: F[Seals.Verifier]
   def deciders: F[Option[Deciders]]
+  /** Every committed version of the deciders' list that reads, oldest first. */
+  def lists: F[List[Deciders]]
 
 object KeyRing:
   /** The key at `keyFile` (`FRFLOW_KEY`, or `~/.config/frflow/signing.key`), read only: none there is raised
@@ -43,6 +45,7 @@ object KeyRing:
     def key: F[String] = read.map((_, pub) => Keys.id(pub))
     def verifier: F[Seals.Verifier] = versions(git).map(vs => Keys.verifier(vs.toList.flatten.flatMap(_.entries)))
     def deciders: F[Option[Deciders]] = versions(git).map(_.flatMap(KeyRing.committed))
+    def lists: F[List[Deciders]] = versions(git).map(_.getOrElse(Nil))
 
   /** The committed versions of the deciders' list, oldest first; none when one does not read. */
   def versions[F[_]: Functor](git: Git[F]): F[Option[List[Deciders]]] =

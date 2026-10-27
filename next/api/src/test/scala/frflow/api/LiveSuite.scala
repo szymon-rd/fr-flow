@@ -2,11 +2,14 @@ package frflow.api
 
 import cats.effect.{IO, Resource}
 import frflow.api.view.{Stop, Warning}
+import frflow.api.node.lean.ObligationState
+import frflow.core.consistency.Vacuity
 import frflow.project.Live
+import frflow.proof.layout.LeanWorkspace
 import java.nio.file.{Files, Path}
 
 /** The live API over a project's directory (a fresh one, outside git, with no key there): read and rendered on disk,
-  * Lean not run. Tagged `Lean`: `sbt Lean/test` runs it, plain `sbt test` does not.
+  * and checked by Lean with FrFlow's library. Tagged `Lean`: `sbt Lean/test` runs it, plain `sbt test` does not.
   */
 class LiveSuite extends munit.CatsEffectSuite:
   private val dir = ResourceFunFixture(Resource.make(IO.blocking(Files.createTempDirectory("frflow-api")))(d =>
@@ -35,5 +38,15 @@ class LiveSuite extends munit.CatsEffectSuite:
       yield
         assert(view.warnings.contains(Warning.NoKey), view.warnings)
         assertEquals(who, Left(Stop.NoKey("FRFLOW_KEY (or HOME) not set")))
+    }
+  }
+
+  dir.test("Lean, with the library a project requires, shows an implication's condition can hold".tag(Live)) { d =>
+    assert(LeanWorkspace.libraryBuilt._1, LeanWorkspace.libraryBuilt._2)
+    FrFlowApi.make(Opened.before.copy(library = LeanWorkspace.library), d, env(d)).use { api =>
+      Opened.checked(api.proving.check(None)).map { v =>
+        val possible = v.whole.possible.collect { case (Vacuity.Satisfiable(n, _, _), o) => n.value -> o.state }
+        assertEquals(possible, List("sameAbove" -> ObligationState.Proven), v.whole.possible.toString)
+      }
     }
   }

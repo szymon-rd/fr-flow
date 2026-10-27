@@ -35,6 +35,7 @@ object Refusals:
     case Refusal.Rewritten(ids)       => s"the ledger no longer holds what was committed of ${ids.mkString(", ")}: " +
         "restore .frflow/ledger.json from the last commit, or have a listed decider accept it as it is (rebase)"
     case Refusal.NotBelow(id, named)  => s"not decisions below $id: ${named.mkString(", ")}"
+    case Refusal.NothingToRebase => "the ledger counts whole against its committed history: there is nothing to rebase"
     case Refusal.StillInModel(id)     => s"$id is still in the model: only a node gone from it is agreed gone"
 
   /** Not tested yet is not failing: a failing case is said apart, as the claim's change when the code did not move. */
