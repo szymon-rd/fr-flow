@@ -18,6 +18,7 @@ final class LeanTerm(env: LowerEnv, standing: Map[SymbolName, LExpr] = Map.empty
   import LExpr.{Infix, Paren}
   private type S[A] = LeanTerm.S[A]
   private val constants = LowerValue(env)
+  private lazy val outcomes = Outcomes(env, standing)
 
   def bool(b: Boolean): S[Boolean] = _ => name(if b then "True" else "False")
   def and(a: S[Boolean], b: S[Boolean]): S[Boolean] = infix(LOp.And, a, b)
@@ -121,20 +122,23 @@ final class LeanTerm(env: LowerEnv, standing: Map[SymbolName, LExpr] = Map.empty
   def define[F](d: Body[F]): S[F] = _ => Atoms.define(env, d.name)
   def free[A](x: Binder): S[A] = s => LExpr.Name(s.named(x))
   def part[V](w: S[World], model: ModelName, ty: Ty): S[V] = s => LExpr.Dot(w(s), env.modelField(model).text)
-  /** `(match (runExpiry now before) with | (result, after) => post)`: the run's pair taken apart. */
+  /** `(match (runExpiry now before) with | (result, after) => post)`: the run's pair taken apart; of a program that
+    * may fail, `| (Except.ok result, after) => post | _ => True`: the post is of the runs that succeed.
+    */
   def runs[R](p: S[Program[R]], before: S[World], result: Bound[R], after: Bound[World])(
       post: (S[R], S[World]) => S[Boolean]): S[Boolean] = s =>
     val (r, w, body) = outcome(result, after, post, s)
-    Paren(LExpr.Match(applied(p(s), before(s)), List(LExpr.Tuple(List(LExpr.Name(r), LExpr.Name(w))) -> body)))
+    val run = applied(p(s), before(s))
+    Paren(LExpr.Match(run, outcomes.succeeded(run, r, w, body)))
   /** A failing run's arm, `| (Except.error e, after) => post`, every other run `True`. */
   def fails[R, E](p: S[Program[R]], before: S[World], error: Bound[E], after: Bound[World])(
       post: (S[E], S[World]) => S[Boolean]): S[Boolean] = s =>
     val (e, w, body) = outcome(error, after, post, s)
-    val failed = LExpr.Tuple(List(LExpr.App(const("Except.error"), List(LExpr.Name(e))), LExpr.Name(w)))
-    Paren(LExpr.Match(applied(p(s), before(s)), List(failed -> body, name("_") -> name("True"))))
+    Paren(LExpr.Match(applied(p(s), before(s)), outcomes.failed(e, w, body)))
   def noted[A](n: Annotation, t: S[A]): S[A] = t
 
   private def applied(f: LExpr, a: LExpr): LExpr = LeanTerm.applied(f, a)
+
   private def decide(body: LExpr): LExpr = LExpr.App(name("decide"), List(body))
 
   /** `(List.map (fun x => body) xs)`: a list operation of a function of each element. */

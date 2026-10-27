@@ -56,7 +56,7 @@ object Programs:
   private def fn(in: Ty, out: Ty) = Ty.FnOf(List(in), out)
   private def runs[I, R](name: String, in: Ty, out: Ty): Final[Boolean] = Lang.formula([T[_]] => (l: Lang[T]) =>
     l.forall[I]("i", in)(i => l.forall[World]("before", Ty.World)(w => l.s.runs(
-      l.call(l.sym[I => Program[R]](name, fn(in, Ty.FlowOf(out))), i), w, Bound[R]("r", out),
+      l.call(l.sym[I => Program[R]](name, fn(in, Ty.FlowOf(out, None))), i), w, Bound[R]("r", out),
       Bound[World]("after", Ty.World))((_, _) => l.truth))))
 
   val endsAfterStart: frflow.core.spec.Node = claim("endsAfterStart")(Lang.formula([T[_]] => (l: Lang[T]) =>
@@ -93,10 +93,11 @@ object Programs:
       flow("both", List(n), both, Ty.TupleOf(List(big, big))) ++
       flow("doubled", List(xs), each, Ty.ListOf(big)) ++
       flow("careful", List(n), careful, big).take(1)))
-    .naming(definition("reschedule", fn(Booking.ty, Booking.ty)), definition("fetch", fn(big, Ty.FlowOf(Booking.ty))),
-      definition("pairUp", fn(big, Ty.FlowOf(Ty.TupleOf(List(big, big))))),
-      definition("eachDoubled", fn(Ty.ListOf(big), Ty.FlowOf(Ty.ListOf(big)))),
-      definition("latest", Ty.FlowOf(Booking.ty)))
+    .naming(definition("reschedule", fn(Booking.ty, Booking.ty)),
+      definition("fetch", fn(big, Ty.FlowOf(Booking.ty, None))),
+      definition("pairUp", fn(big, Ty.FlowOf(Ty.TupleOf(List(big, big)), None))),
+      definition("eachDoubled", fn(Ty.ListOf(big), Ty.FlowOf(Ty.ListOf(big), None))),
+      definition("latest", Ty.FlowOf(Booking.ty, None)))
     .coding(SymbolName("reschedule") -> Code.Proven(DefName("later")),
       SymbolName("fetch") -> Code.ProvenFlow(DefName("fetchOne")),
       SymbolName("pairUp") -> Code.ProvenFlow(DefName("both")),

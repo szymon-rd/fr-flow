@@ -33,12 +33,11 @@ object Making:
       SourceText(s"every result of ${op.value} on ${m.name.value}"))
 
   /** A program's result on its run from a world: `∀ inputs before, guards → match op inputs before with | (result,
-    * after) => rule result`, the program applied to its inputs one at a time.
+    * after) => rule result`, the program applied to its inputs one at a time; of one that may fail, of the runs that
+    * succeed (`Worlds.runs`), since a failed run gives no result.
     */
   def ofProgram(op: SymbolName, ty: Ty, inputs: List[(String, Ty)], kept: Guard, guards: List[Guard]): Written[Expr] =
-    val result = Ty.resultOf(ty) match
-      case Ty.FlowOf(r) => r
-      case other        => other
+    val result = Ty.yields(Ty.resultOf(ty))
     val run: Final[Boolean] = [T[_]] => (s: Sym[T]) =>
       def go(left: List[(String, Ty)], args: List[T[Any]]): T[Boolean] = left match
         case (hint, t) :: rest => s.forall(Bound[Any](hint, t))(x => go(rest, args :+ x))

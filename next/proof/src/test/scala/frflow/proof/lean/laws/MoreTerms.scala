@@ -83,7 +83,7 @@ object MoreTerms:
   val event: DataType = DataType.Sum(eventName, "Event", NonEmptyList.of(
     Ctor(CtorName("Booked"), List(Field("at", Lang.big))), Ctor(CtorName("Cleared"), Nil)))
   val outcomeTy: Ty = Ty.EitherOf(Ty.Str, Lang.big)
-  val runTy: Ty = Ty.FnOf(List(Lang.big), Ty.FlowOf(Lang.big))
+  val runTy: Ty = Ty.FnOf(List(Lang.big), Ty.FlowOf(Lang.big, None))
   val stored: ModelName = ModelName("stored")
   val booked: Constructor[BigInt => Event] = Constructor(eventName, CtorName("Booked"), Event.Booked(_))
   val at: Selector[Event.Booked, BigInt] = Selector("at", 0, eventName, Lang.big, _.at, (b, v) => b.copy(at = v))

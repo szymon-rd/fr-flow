@@ -1,6 +1,6 @@
 package frflow.proof.obligation
 
-import frflow.proof.layout.{Broken, Laid, Lowering, Mini, MiniProject, Programs, ProgramsProject}
+import frflow.proof.layout.{Broken, Failing, Laid, Lowering, Mini, MiniProject, Programs, ProgramsProject}
 import frflow.proof.lean.lower.LowerKeeps
 import frflow.proof.lean.print.PrintDecl
 
@@ -13,7 +13,7 @@ class AlwaysSuite extends munit.FunSuite:
     scala.io.Source.fromResource(path, getClass.getClassLoader)(using scala.io.Codec.UTF8).mkString
 
   /** Every `keeps_`/`makes_` a theory's obligations declare, in the order its nodes ask them. */
-  private def declared(laid: Laid, r: frflow.core.analysis.Resolved): String =
+  def declared(laid: Laid, r: frflow.core.analysis.Resolved): String =
     val l = Lowering(r, laid.table)
     val keeps = LowerKeeps(l.env, l.table, l.naming)
     def stated(p: Prop): List[Prop] = p match
@@ -38,6 +38,11 @@ class AlwaysSuite extends munit.FunSuite:
 
   test("Broken: what misdate makes and what fileBackwards stores is stated of, as of any other") {
     assertEquals(declared(Laid(Broken.resolved, Map.empty, Nil), Broken.resolved), golden("always/Broken.lean"))
+  }
+
+  test("Failing: a run of a program that may fail keeps them whether it succeeds or fails; what it makes is of the " +
+    "runs that succeed") {
+    assertEquals(declared(Laid(Failing.resolved, Map.empty, Nil), Failing.resolved), golden("always/Failing.lean"))
   }
 
   test("the rooms goldens state §21's: requests from the form, meeting fromTheForm") {

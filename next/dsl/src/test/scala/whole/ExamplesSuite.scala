@@ -1,7 +1,8 @@
 package whole
 
-import frflow.core.analysis.Problem
-import frflow.core.name.NodeId
+import frflow.core.analysis.{Callees, Constrained}
+import frflow.core.ty.Ty
+import frflow.core.vocab.{Symbol, SymbolType}
 import frflow.core.spec.Statement
 import frflow.dsl.kb.KnowledgeBase
 
@@ -62,29 +63,46 @@ class ExamplesSuite extends munit.FunSuite:
     assertEquals(kinds(sharing.knowledge), Map("claim" -> 52, "assumption" -> 8, "design" -> 3))
   }
 
-  test("rooms, auth and keycloak are valid as written") {
-    assertEquals(List(rooms.rooms, auth.knowledge, keycloak.knowledge).map(Theories.problems), List.fill(3)(Nil))
+  test("the five examples are valid as written") {
+    assertEquals(List(rooms.rooms, auth.knowledge, keycloak.knowledge, crm.knowledge, sharing.knowledge)
+      .map(Theories.problems), List.fill(5)(Nil))
   }
 
-  /** The parts the analyses refuse: a claim mentioning a Definition with proven code is proven of that code
-    * (`impl`), from parts about what the code calls, never from parts about the Definition itself (`PartNotCalled`).
-    * Today's crm and sharing prove such claims from claims on the same operations (reported, with a proposal).
-    */
-  private def notCalled(kb: KnowledgeBase): List[(String, String)] =
-    val problems = Theories.problems(kb)
-    val parts = problems.collect { case Problem.PartNotCalled(id, part) => (id.value, part.value) }
-    assertEquals(problems.filterNot(_.isInstanceOf[Problem.PartNotCalled]), Nil)
-    assert(parts.forall((id, part) => Theories.theory(kb).refinement.parts(NodeId(id)).contains(NodeId(part))))
-    parts
+  /** Each program Definition's error once resolved: what its code may fail with (`Failing`), read off its steps. */
+  private def errors(kb: KnowledgeBase): Map[String, Option[Ty]] =
+    Theories.resolved(kb).theory.vocabulary.symbols.collect {
+      case Symbol(n, _, SymbolType.Typed(ty), _) if Ty.resultOf(ty).isInstanceOf[Ty.FlowOf] => n.value -> Ty.errorOf(ty)
+    }.toMap
 
-  test("crm is valid but for the claims proven from claims on their own code: the root's expectations, and the " +
-    "records kept by the expiry job") {
-    assertEquals(notCalled(crm.knowledge), List("addedIsFound" -> "sharedCrm", "writesLeaveOthers" -> "sharedCrm",
+  test("each program's type says what it may fail with: sharing's, over the store and the mail server that may be " +
+    "down, their failure; rooms' and crm's nothing") {
+    val failure = frflow.dsl.term.LeanType[sharing.domain.Failure].ty
+    assertEquals(errors(sharing.knowledge), Map("handle" -> Some(failure), "housekeep" -> Some(failure),
+      "deliver" -> Some(failure)))
+    assertEquals((errors(rooms.rooms), errors(crm.knowledge)), (Map("book" -> None), Map("runExpiry" -> None)))
+  }
+
+  /** The parts of a node proven of code (`impl`) that are not about what the code calls: about its own Definitions
+    * or Declarations. `impl` takes every part as a hypothesis, the code put in it (sound: each part is checked against
+    * the same code, and the graph is acyclic), so these are valid as written.
+    */
+  private def notAboutCallees(kb: KnowledgeBase): List[(String, String)] =
+    val t = Theories.theory(kb)
+    for
+      n    <- t.nodes.map(_.node.id)
+      c    <- Callees.of(t, n).toList
+      part <- t.refinement.parts(n)
+      if !Constrained.of(t, part).exists(op => c.calls.symbols.contains(op) && !c.standsFor.contains(op))
+    yield n.value -> part.value
+
+  test("crm: the root's expectations and the records kept by the expiry job rest on parts not about what their " +
+    "code calls") {
+    assertEquals(notAboutCallees(crm.knowledge), List("addedIsFound" -> "sharedCrm", "writesLeaveOthers" -> "sharedCrm",
       "recordsKept" -> "sharesExpire"))
   }
 
-  test("sharing is valid but for its branches proven from the claims on their own operations' code") {
-    val parts = notCalled(sharing.knowledge)
+  test("sharing: its branches rest on the claims on their own operations' code, not on what that code calls") {
+    val parts = notAboutCallees(sharing.knowledge)
     assertEquals(parts.map(_._1).distinct.toSet, Set("accessFollowsShares", "invitationsAreOffers",
       "trashUntilGone", "housekeepingClearsOnlyTheEnded", "accessRequestsAreAsks", "ownersKeepTheirDocuments",
       "auditTrail", "noticesFollowChanges", "trashPurgedOnTime", "invitationsLapseOnTime", "requestsAnsweredOnTime",

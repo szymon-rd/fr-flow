@@ -56,10 +56,10 @@ object Fixture:
   /** Every run of the program `name` from every world, on every input of type `in`, ends. */
   def runs[I, R](name: String, in: Ty, out: Ty): Final[Boolean] = Lang.formula([T[_]] => (l: Lang[T]) =>
     l.forall[I]("i", in)(i => l.forall[World]("before", Ty.World)(w => l.s.runs(
-      l.call(l.sym[I => Program[R]](name, fn(in, Ty.FlowOf(out))), i), w, Bound[R]("r", out),
+      l.call(l.sym[I => Program[R]](name, fn(in, Ty.FlowOf(out, None))), i), w, Bound[R]("r", out),
       Bound[World]("after", Ty.World))((_, _) => l.truth))))
 
   /** The same of a program with no inputs. */
   def runsAlone[R](name: String, out: Ty): Final[Boolean] = Lang.formula([T[_]] => (l: Lang[T]) =>
-    l.forall[World]("before", Ty.World)(w => l.s.runs(l.sym[Program[R]](name, Ty.FlowOf(out)), w,
+    l.forall[World]("before", Ty.World)(w => l.s.runs(l.sym[Program[R]](name, Ty.FlowOf(out, None)), w,
       Bound[R]("r", out), Bound[World]("after", Ty.World))((_, _) => l.truth)))

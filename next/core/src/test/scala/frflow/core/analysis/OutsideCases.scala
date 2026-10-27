@@ -28,4 +28,5 @@ object OutsideCases:
       List(Problem.PremiseNotNeeded(id("unrelated"), id("oneAtATime")))),
     ProblemCase(Store.kb.and(outside("nobodyWrites")(OutsideFact.WrittenOnlyBy(Store.model, Nil))),
       List(Problem.WriterNotListed(Store.model, Store.book))),
-    ProblemCase(unreached, List(Problem.AlwaysNotReached(id("endsAfterStart"), byRoom, "the field byRoom of Shelf"))))
+    ProblemCase(unreached, List(Problem.AlwaysNotReached(id("endsAfterStart"), byRoom,
+      Problem.Place.Field("byRoom", "Shelf")))))

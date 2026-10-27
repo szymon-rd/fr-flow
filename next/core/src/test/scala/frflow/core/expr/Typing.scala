@@ -33,7 +33,9 @@ final class Typing(fields: TypeName => List[Ty], defines: DefName => Option[Ty])
     case _                            => true
 
   /** A branch that only raises, as a value or a program: it takes the other branch's type (`Ty.join`). */
-  private def raises(t: Ty): Boolean = t == Ty.Never || t == Ty.FlowOf(Ty.Never)
+  private def raises(t: Ty): Boolean = t match
+    case Ty.Never | Ty.FlowOf(Ty.Never, _) => true
+    case _                                 => false
 
   /** A function type applied to `as`, one argument at a time, each of its parameter's type, gives `t`. */
   private def applies(f: Ty, as: List[Expr], t: Ty): Boolean = f match

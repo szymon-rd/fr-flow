@@ -5,6 +5,8 @@ import frflow.core.name.{KbName, NodeId}
 import frflow.core.term.interpret.Guard
 import frflow.proof.lean.ast.Names
 import frflow.proof.lean.lower.{LowerEnv, LowerProp, Naming}
+import frflow.core.ty.Ty
+import frflow.core.vocab.SymbolType
 import frflow.proof.terms.TermTable
 
 /** How one knowledge base's Lean is lowered, computed once for every module: its environment (each model's field of
@@ -17,7 +19,11 @@ final class Lowering(val resolved: Resolved, val table: TermTable):
   val layout: Layout = Layout(kb)
   val env: LowerEnv = LowerEnv(kb, d => table.defines.get(d).toList.flatMap(_.symbols.map(s => Names.ident(s.value))),
     m => Names.ident(v.model(m).fold(m.value)(_.boundary.value)),
-    b => Names.builtin(v.boundary(b).fold(b.value)(_.className)), v.dataType, m => v.model(m).map(_.state))
+    b => Names.builtin(v.boundary(b).fold(b.value)(_.className)), v.dataType, m => v.model(m).map(_.state),
+    v.symbols.flatMap(s => s.ty match
+      case SymbolType.Typed(t) => Ty.errorOf(t).map(s.name -> _)
+      case _                   => None).toMap,
+    v.boundaries.exists(_.fails.nonEmpty))
   val naming: Naming = Naming.over(v.symbols.map(_.name.value).toSet,
     (v.types.map(_.typeName.value) ++ v.sorts.map(_.name.value) :+ "World").toSet)
   val guards: List[Guard] = Guards.of(resolved.theory)

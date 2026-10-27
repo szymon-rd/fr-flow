@@ -339,10 +339,12 @@ obligations follow from its formula and from what gives each Definition its mean
 
 `impl` is the step of a node whose code is proven (a define, or a program whose run on the models, `f_run`, stands for
 the Definition): "∀ U, H → claim[d := code]", `H` its parts or, with no parts, the claims on what its code calls
-(`Resolved.reliesOn`). In the planned code a part must be a claim about what the code calls (else `PartNotCalled`). With
-step 3b, `impl` takes every part as a hypothesis, the code substituted in it: this is sound, since the DAG is acyclic
-and each part is itself checked against the same code. `PartNotCalled` is then dropped, or kept only for a part that
-mentions nothing the claim or its code reaches. `complete` is not asked of it.
+(`Resolved.reliesOn`). In the planned code a part must be a claim about what the code calls (else `PartNotCalled`). From
+step 3b, `impl` takes every part it states as a hypothesis (a design states nothing), the code substituted in it where
+the part mentions that Definition: this is sound, since the DAG is acyclic and each part is itself checked against the
+same code. `PartNotCalled` is dropped (step 3b): narrowed to a part sharing no Declaration or Definition with the claim
+or what its code calls, it would still refuse crm's `sharedCrm` under the root's two expectations and 16 of
+sharing's parts, sound hypotheses all, so no narrowing by mentions fits the examples. `complete` is not asked of it.
 
 **A claim read as a call.** Where a claim applies one Definition to exactly its leading `forall` variables (alone, or
 one side of its equation) and mentions it nowhere else, `CallForms` reads it as a call; a program's claim
@@ -813,14 +815,19 @@ run on them (`f_run`). Step 4 adds the law that a program's recording run on the
 the models' instances; no suite states it yet.
 
 **A program's error type** (step 3b, before step 4). `Ty.FlowOf(result, error: Option[Ty])`: the error is read from the
-recording (`Progs.failsWith`: the uncaught `Raise` types, and the `failsWith` of each boundary called outside a `Catch`
-of that type, `Boundary.failing[B, E]`). `Validate` refuses two error types (`ErrorsDiffer`), a `.failing` clause of
-another type, and one on a program that cannot fail. In Lean a failing program's run is
-`World → (Except e r × World)`, on the models' instance on `ExceptT e (StateM World)`, a failing boundary call going
-through `FrFlow.failing` on the world's faults; `f_run` is `FrFlow.runOnE`, a run's post matches `Except.ok`, `cover_`
-holds of the world a failed run leaves too (`FrFlow.outcome`), `made_` of ok results, and `commute_` reads the error
-from the type. Until then a raising program's model does not build (`ModelDoesNotBuild`): the gap fails closed. It must
-be in before crm (step 12) and sharing (step 13).
+recording (`Progs.failsWith`: the uncaught `Raise` types, and the error of each boundary called outside a `Catch`
+of that type, `Boundary.failing[B, E](means, error)`). A boundary that may fail names the error a call fails with
+(`Failure.StoreUnavailable`, `vocab.Fails`), which `FrFlow.failing` needs. The front end cannot type a program's error
+where its Definition is written (its code comes later), so `Resolve` does (`core.Failing.typed`: each program's define
+and the Definition it is the meaning of). `Validate` refuses two error types (`ErrorsDiffer`), a `.failing` clause of
+another type (`FailingDiffers`), and one on a program that cannot fail (`NeverFails`). In Lean a failing program's run
+is `World → (Except e r × World)`, on the models' instance on `ExceptT e (StateM World)` (one per error a program fails
+with; a boundary failing with another error has none there), a failing boundary call going through `FrFlow.failing` on
+the world's `faults : List Bool` (a field when a boundary may fail; `faults` is reserved); `f_run` is
+`FrFlow.runOnE (ε := e)`, a run's post matches `Except.ok` (`| _ => True` for the rest), `cover_` holds of the world a
+failed run leaves too (its keeps states both arms, `runs ∧ fails`, which is `FrFlow.outcome` unfolded), `made_` of ok
+results, and `commute_` reads the error from the type. A program that handles every error it raises or meets cannot
+fail, so it runs on `StateM World`, which has no `MonadExceptOf`: its model still does not build (fails closed).
 
 ### 4.5 The front end: nodes, names, errors
 
@@ -840,7 +847,8 @@ declarations merge). An error found before its place is known is a `Fault`, carr
 wrong: the graph (`DuplicateId`, `NoRoot`, `AboveItself`, `ParentOutside`, `DesignWithoutParent`, `UnderDesign`,
 `PremiseNotAssumed`, `OutsideAsPart`, `OutsideClaimed`); the world outside (`PremiseMissing`, `PremiseNotNeeded`,
 `WriterNotListed`, `AlwaysNotReached`); the vocabulary (`ReservedName`, `DeclaredTwice`, `CodeOnlyInStatement`); values
-(`Undefined`, `DeclarationInCode`, `CodeWithoutClaim`, `PartNotCalled`). A model's Lean namespace, its name capitalized
+(`Undefined`, `DeclarationInCode`, `CodeWithoutClaim`); programs (`ErrorsDiffer`, `FailingDiffers`, `NeverFails`). A
+model's Lean namespace, its name capitalized
 (`Stored`), counts among the declared names, so a model named as its boundary's class is `DeclaredTwice`.
 
 `Resolve(v: Valid): Resolved` computes once what each node uses, calls and rests on (`Callees`, `reliesOn`). `Scope`

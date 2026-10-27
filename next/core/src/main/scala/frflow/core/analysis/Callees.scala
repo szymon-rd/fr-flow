@@ -10,13 +10,7 @@ import frflow.core.Theory
   * code (the define itself, or a program's run on the models, `f_run`; a statement relating two Definitions asks
   * both at once), and what that code calls, through the defines it calls.
   */
-final case class Callees(standsFor: Map[SymbolName, DefName], calls: Mentions):
-  /** A part the code's proof may rest on: a stated node mentioning a Definition the code calls (one the node
-    * itself constrains excepted).
-    */
-  def about(t: Theory, part: NodeId): Boolean =
-    t.node(part).exists(n => n.statement.stated &&
-      Constrained.of(t, part).exists(op => calls.symbols.contains(op) && !standsFor.contains(op)))
+final case class Callees(standsFor: Map[SymbolName, DefName], calls: Mentions)
 
 object Callees:
   def of(t: Theory, id: NodeId): Option[Callees] =

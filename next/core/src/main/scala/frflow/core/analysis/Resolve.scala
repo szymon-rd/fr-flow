@@ -4,14 +4,14 @@ import cats.syntax.all.*
 import frflow.core.expr.{Exprs, Mentions}
 import frflow.core.name.NodeId
 import frflow.core.spec.Reliance
-import frflow.core.Theory
+import frflow.core.{Failing, Theory}
 
-/** A valid theory to its resolved relations. There are no definitions to choose among: a term is fixed by a `define`
-  * (owner §12).
+/** A valid theory to its resolved relations, each program typed with the error it may fail with (`Failing`). There
+  * are no definitions to choose among: a term is fixed by a `define` (owner §12).
   */
 object Resolve:
   def apply(v: Valid): Resolved =
-    val t = v.theory
+    val t = Failing.typed(v.theory)
     val ids = t.nodes.map(_.node.id)
     val calls = ids.map(id => id -> constrainingCalled(t, Callees.of(t, id)).filterNot(_ == id)).toMap
     Resolved(t, calls, ids.map(id => id -> calls(id).filterNot(leftOpenAndNamed(t, id))).toMap)

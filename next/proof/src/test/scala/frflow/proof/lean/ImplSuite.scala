@@ -24,7 +24,7 @@ class ImplSuite extends munit.FunSuite:
   private def sited(id: NodeId, s: Statement) = Sited(Node(id, s"${id.value} holds.", s), here)
   private val holds = [T[_]] => (s: Sym[T]) => s.bool(true)
   private val (runExpiry, expire) = (SymbolName("runExpiry"), SymbolName("expire"))
-  private val (runType, expireType) = (Ty.FnOf(List(big), Ty.FlowOf(store)), Ty.FnOf(List(store, big), store))
+  private val (runType, expireType) = (Ty.FnOf(List(big), Ty.FlowOf(store, None)), Ty.FnOf(List(store, big), store))
   /** A formula mentioning `op` (all `impl` reads of it: the Definition it constrains). */
   private def about(op: SymbolName, ty: Ty) =
     Written.formula([T[_]] => (s: Sym[T]) => s.eq[Any](s.param[Any](op, ty), s.param[Any](op, ty)), SourceText("…"))

@@ -22,10 +22,20 @@ object Written:
     val e = ToExpr.of(body, inputs.size)
     Written(Lambda(inputs, e, Exprs.typeOf(e)), source, Form.Term(Stated(body)))
 
-  /** A program over its inputs: its recorded steps, their terms over the inputs and the steps' results. */
+  /** A program over its inputs: its recorded steps, their terms over the inputs and the steps' results; the error it
+    * may fail with is read off the steps once the boundaries are known (`failing`).
+    */
   def steps(inputs: List[Binder], p: Prog[Stated[?]], result: Ty, source: SourceText): Written[Lambda] =
     val ir = Progs.map(p)(s => ToExpr.of(s.run, inputs.size))
-    Written(Lambda(inputs, Expr.Do(ir, Ty.FlowOf(result)), Ty.FlowOf(result)), source, Form.Steps(p))
+    Written(Lambda(inputs, Expr.Do(ir, Ty.FlowOf(result, None)), Ty.FlowOf(result, None)), source, Form.Steps(p))
+
+  extension (w: Written[Lambda])
+    /** A program's steps typed with the error its runs may fail with (`analysis.Failing`); anything else as it is. */
+    def failing(error: Option[Ty]): Written[Lambda] = w.value.body match
+      case Expr.Do(ir, ty) =>
+        val typed = Ty.failing(ty, error)
+        Written(Lambda(w.value.params, Expr.Do(ir, typed), typed), w.source, w.form)
+      case _               => w
 
   extension (w: Written[Expr])
     /** A formula's term: `formula` made it, so its form is a term of type `Boolean`. */

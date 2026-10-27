@@ -30,7 +30,7 @@ object ValueCases:
   private val connected = claim("connected")(Lang.formula([T[_]] => (l: Lang[T]) =>
     l.s.eq(l.sym[String]("connection", Ty.Str), l.str("db"))))
 
-  /** `top` is proven of `grant`'s code, which calls `free`: a part must be about `free`. */
+  /** `top` is proven of `grant`'s code, which calls `free`, from a part about `free` and one about nothing. */
   val proven: Kb = Kb.of(holdsOf("top", "granted"), holdsOf("aboutFree", "free"), plain("stray"))
     .naming(definition("granted", test), definition("free", test))
     .declaring(_.copy(defines = List(calling("grant", "free"))))
@@ -53,5 +53,4 @@ object ValueCases:
       .coding(name("admitted") -> Code.Proven(DefName("admit"))),
       List(Problem.DeclarationInCode(DefName("admit"), name("allowed")))),
     ProblemCase(Kb.of(root).naming(definition("limit", Lang.big)).coding(name("limit") -> Code.Valued(Value.Num(3))),
-      List(Problem.CodeWithoutClaim(name("limit")))),
-    ProblemCase(proven, List(Problem.PartNotCalled(id("top"), id("stray")))))
+      List(Problem.CodeWithoutClaim(name("limit")))))

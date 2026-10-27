@@ -5,7 +5,7 @@ import frflow.core.name.BoundaryName
 import frflow.core.ty.Ty
 
 /** The essential operations of programs: their sequential reading, their terms, what they mention, whether they may
-  * fail. Over any term representation `E`, but `errors`, which reads the IR's types.
+  * fail. Over any term representation `E`, but `errors` and `failsWith`, which read the IR's types.
   */
 object Progs:
   /** What a concurrent step means one step at a time; the step itself otherwise. */
@@ -61,12 +61,16 @@ object Progs:
 
   def boundaries[E](p: Prog[E]): List[BoundaryName] = mentions(p).boundaries
 
-  /** Whether the steps may end in an error not handled where it happens: a failing boundary's call, or a raise. */
-  def mayFail[E](p: Prog[E], failing: BoundaryName => Boolean): Boolean = p match
-    case Prog.Call(b, _, _, _)  => failing(b)
-    case Prog.Raise(_)          => true
-    case Prog.Catch(_, _, _, h) => mayFail(h, failing)
-    case other                  => children(other).exists(mayFail(_, failing))
+  /** The error types the steps may end in, each once: those raised, and those of the failing boundaries called
+    * (`failing`), outside a handler of that type.
+    */
+  def failsWith(p: Prog[Expr], failing: BoundaryName => Option[Ty]): List[Ty] =
+    def go(q: Prog[Expr], caught: Set[Ty]): List[Ty] = q match
+      case Prog.Call(b, _, _, _)  => failing(b).filterNot(caught).toList
+      case Prog.Raise(e)          => Option(Exprs.typeOf(e)).filterNot(caught).toList
+      case Prog.Catch(a, t, _, h) => go(a, caught + t) ++ go(h, caught)
+      case other                  => children(other).flatMap(go(_, caught))
+    go(p, Set.empty).distinct
 
   /** The parallel steps (`parTupled`, `parTraverse`), in order: each gives a `commute_i` obligation. */
   def parallel[E](p: Prog[E]): List[Prog[E]] = all(p).filter {

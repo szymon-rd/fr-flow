@@ -4,7 +4,8 @@ import frflow.core.ty.Ty
 import frflow.proof.lean.ast.*
 
 /** A type's Lean (`(List Grant)`, `(String → Option UserId)`, `(CrmStore × World)`), as today's `Types.tpe`: every
-  * compound type in parentheses. A declaration's type is its parameters' types and its result's, joined by `→`.
+  * compound type in parentheses; a program's, its run from a world (`(World → ((Except E R) × World))` where it may
+  * fail with `E`). A declaration's type is its parameters' types and its result's, joined by `→`.
   */
 object LowerType:
   import Atoms.{const, name}
@@ -27,8 +28,9 @@ object LowerType:
     case Ty.FnOf(as, r)      => Paren(chain(LOp.Arrow, (as :+ r).map(apply)))
     case Ty.Sort(n)          => const(n.value)
     case Ty.Data(n)          => const(n.value)
-    case Ty.FlowOf(r)        =>
-      Paren(Infix(LOp.Arrow, name("World"), Paren(chain(LOp.Times, List(apply(r), name("World"))))))
+    case Ty.FlowOf(r, e)     =>
+      val outcome = e.fold(r)(Ty.EitherOf(_, r))
+      Paren(Infix(LOp.Arrow, name("World"), Paren(chain(LOp.Times, List(apply(outcome), name("World"))))))
 
   /** A binder's type: a function's arrows unparenthesized at the top (`(expire : CrmStore → Int → CrmStore)`). */
   def binder(t: Ty): LExpr = t match

@@ -22,7 +22,8 @@ final class StoreModel[B[_[_], _[_]], S](val state: ModelState[S], val boundary:
   /** The model as the vocabulary holds it: each operation's steps over the state, read from the instance. */
   lazy val stateModel: StateModel =
     StateModel(state.name, boundary.name, state.leanType.ty, boundary.ops.model(instance(state.recorded)))
-  def declares: Declarations = Declarations.boundary(boundary.sig, stateModel) |+| state.leanType.declares
+  def declares: Declarations =
+    Declarations.boundary(boundary.sig, stateModel) |+| state.leanType.declares |+| boundary.declares
 
   /** An implementation checked against the model: `start` makes it hold a state of the model, `observe` reads its
     * state back.

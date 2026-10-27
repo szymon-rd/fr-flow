@@ -4,7 +4,7 @@ import frflow.core.Lang
 import frflow.core.analysis.{Resolved, Scope}
 import frflow.core.name.NodeId
 import frflow.core.ty.Ty
-import frflow.proof.layout.{Broken, Mini, Programs, ProgramsProject}
+import frflow.proof.layout.{Broken, Failing, Mini, Programs, ProgramsProject}
 import frflow.proof.lean.print.Print
 import frflow.proof.terms.TermTable
 
@@ -103,7 +103,7 @@ class RequiredSuite extends munit.FunSuite:
 
   test("every op with proven code where an always must hold gets its cover_ or its made_") {
     for
-      r  <- List(Mini.resolved, Programs.resolved, Broken.resolved)
+      r  <- List(Mini.resolved, Programs.resolved, Broken.resolved, Failing.resolved)
       n  <- r.theory.nodes.map(_.node.id)
       op <- Scope.of(r.theory, n) if r.theory.code.attached.get(op).exists(_.code.proven.nonEmpty)
     do assert(names(r, n.value).exists((o, _) => o == ObligationName.Cover(op.value) ||

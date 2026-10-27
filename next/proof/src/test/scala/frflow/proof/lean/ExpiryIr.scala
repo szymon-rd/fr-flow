@@ -85,7 +85,7 @@ object ExpiryIr:
     claims = Map(expiryJob -> terms("expire", "runExpiry"), sharesExpire -> terms("expire")),
     posts = Map.empty, defines = Map(expireOnceRun -> terms("expire")),
     types = Map(SymbolName("expire") -> Ty.FnOf(List(store, big), store),
-      SymbolName("runExpiry") -> Ty.FnOf(List(big), Ty.FlowOf(store))))
+      SymbolName("runExpiry") -> Ty.FnOf(List(big), Ty.FlowOf(store, None))))
 
   private def terms(symbols: String*) = OpenTerms(Nil, symbols.toList.map(SymbolName(_)))
 

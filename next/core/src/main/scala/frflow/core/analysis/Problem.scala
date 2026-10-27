@@ -36,7 +36,7 @@ enum Problem:
   /** An `always` whose type sits, at `at`, inside a map, a set or a function value of type `ty`: no guard reaches it
     * there yet, so the code making or storing it could not be held to it (owner §16; `Unreached`).
     */
-  case AlwaysNotReached(always: NodeId, ty: Ty, at: String)
+  case AlwaysNotReached(always: NodeId, ty: Ty, at: Problem.Place)
   // The vocabulary
   case ReservedName(name: String)
   /** A name declared twice; a model's Lean namespace (its name capitalized) counts, so one named as its boundary's
@@ -51,7 +51,34 @@ enum Problem:
   case DeclarationInCode(code: DefName, declaration: SymbolName)
   /** Code for a Definition no statement mentions: there is nothing to check it against. */
   case CodeWithoutClaim(definition: SymbolName)
-  /** A part of a node checked against proven code that is not a statement about what the code calls: the node is
-    * proven by `impl` from its parts, so a part must be one.
+  // Programs and their errors (`Failing`)
+  /** A program whose steps may end in errors of two types or more: a run fails with one. */
+  case ErrorsDiffer(program: DefName, errors: List[Ty])
+  /** A failing run's clause (`.failing { (error: E, after) => … }`) of another type than the program fails with. */
+  case FailingDiffers(id: NodeId, program: SymbolName, clause: Ty, error: Ty)
+  /** A failing run's clause on a program that cannot fail: it raises nothing and calls no failing boundary outside a
+    * handler.
     */
-  case PartNotCalled(id: NodeId, part: NodeId)
+  case NeverFails(id: NodeId, program: SymbolName)
+
+object Problem:
+  /** Where a type sits that an `always` would guard (`Unreached`): a variable a statement quantifies over, a store's
+    * state, a Definition's value, an input or the result of a Definition or a boundary's operation (named by `of`),
+    * a field of a record or of an enum's case (`of`).
+    */
+  enum Place:
+    case Variable(of: NodeId)
+    case State(of: ModelName)
+    case Value(of: String)
+    case Input(of: String)
+    case Result(of: String)
+    case Field(name: String, of: String)
+
+    /** The place in words: `the field byRoom of Shelf`. */
+    def says: String = this match
+      case Variable(n) => s"a variable of ${n.value}"
+      case State(m)    => s"the state of ${m.value}"
+      case Value(s)    => s
+      case Input(s)    => s"an input of $s"
+      case Result(s)   => s"the result of $s"
+      case Field(f, s) => s"the field $f of $s"

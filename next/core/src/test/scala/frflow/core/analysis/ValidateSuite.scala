@@ -11,7 +11,7 @@ import scala.deriving.Mirror
   * made from are valid; and every problem of a theory is reported at once.
   */
 class ValidateSuite extends munit.FunSuite:
-  private val cases = GraphCases.all ++ OutsideCases.all ++ ValueCases.all
+  private val cases = GraphCases.all ++ OutsideCases.all ++ ValueCases.all ++ FailureCases.all
 
   private inline def caseNames[A](using m: Mirror.SumOf[A]): List[String] =
     constValueTuple[m.MirroredElemLabels].toList.map(_.toString)
@@ -27,8 +27,10 @@ class ValidateSuite extends munit.FunSuite:
     }
   }
 
-  test("the theories the cases change are valid: the store's, a root alone, a part about what proven code calls") {
+  test("the theories the cases change are valid: the store's, a root alone, parts of a node proven of code, " +
+    "the store that may be down with a failing run's clause of its type") {
     assertEquals(Store.kb.problems, Nil)
+    assertEquals(FailureCases.claiming(FailureCases.down, frflow.core.ty.Ty.Str).problems, Nil)
     assertEquals(Kb.of(plain("root")).problems, Nil)
     assertEquals(ValueCases.proven.without("stray").problems, Nil)
   }

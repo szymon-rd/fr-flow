@@ -19,7 +19,8 @@ enum Ty:
   case Sort(name: TypeName)
   /** A case class or an enum, declared in the vocabulary. */
   case Data(name: TypeName)
-  case FlowOf(result: Ty)
+  /** A program: what a run that succeeds gives, and the error one may fail with (`Progs.failsWith`). */
+  case FlowOf(result: Ty, error: Option[Ty])
 
 object Ty:
   /** A function type applied to one argument: the rest of its inputs, or its result. */
@@ -33,6 +34,22 @@ object Ty:
     case FnOf(_, r) => r
     case other      => other
 
+  /** What a value of `t` gives: a program's run that succeeds, its result; any other value, itself. */
+  def yields(t: Ty): Ty = t match
+    case FlowOf(r, _) => r
+    case other        => other
+
+  /** The error a program of type `t` (or a function giving one) may fail with. */
+  def errorOf(t: Ty): Option[Ty] = resultOf(t) match
+    case FlowOf(_, e) => e
+    case _            => None
+
+  /** A program type (or a function giving one) given the error its runs may fail with. */
+  def failing(t: Ty, error: Option[Ty]): Ty = t match
+    case FnOf(ps, r)  => FnOf(ps, failing(r, error))
+    case FlowOf(r, _) => FlowOf(r, error)
+    case other        => other
+
   /** The element type of a list, an option or a set. */
   def elementOf(t: Ty): Option[Ty] = t match
     case ListOf(a)   => Some(a)
@@ -45,7 +62,7 @@ object Ty:
     case ListOf(a)       => parts(a)
     case OptionOf(a)     => parts(a)
     case SetOf(a)        => parts(a)
-    case FlowOf(a)       => parts(a)
+    case FlowOf(a, e)    => parts(a) ++ e.toList.flatMap(parts)
     case EitherOf(e, a)  => parts(e) ++ parts(a)
     case MapOf(k, v)     => parts(k) ++ parts(v)
     case TupleOf(as)     => as.flatMap(parts)
@@ -59,5 +76,5 @@ object Ty:
     * other's.
     */
   def join(a: Ty, b: Ty): Ty = (a, b) match
-    case (Never, _) | (FlowOf(Never), FlowOf(_)) => b
-    case _                                       => a
+    case (Never, _) | (FlowOf(Never, _), FlowOf(_, _)) => b
+    case _                                             => a

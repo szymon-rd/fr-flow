@@ -37,7 +37,7 @@ object Store:
       l.s.runs(l.call(l.sym[Booking => Program[Unit]]("book", bookTy), x), w, Bound[Unit]("r", Ty.Unit),
         Bound[World]("after", Ty.World))((_, _) => l.truth)))))
 
-  val bookTy: Ty = Ty.FnOf(List(Booking.ty), Ty.FlowOf(Ty.Unit))
+  val bookTy: Ty = Ty.FnOf(List(Booking.ty), Ty.FlowOf(Ty.Unit, None))
   val storeModel: spec.Node = Nodes.outside("storeModel")(OutsideFact.BehavesAs(boundary, model))
   val oneAtATime: spec.Node = Nodes.outside("oneAtATime")(OutsideFact.OneRunAtATime(model))
 

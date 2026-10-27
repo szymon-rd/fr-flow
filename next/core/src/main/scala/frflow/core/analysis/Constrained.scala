@@ -14,8 +14,8 @@ object Constrained:
 
   /** A function's or a program's: what code calls. */
   def isFunction(t: Theory, s: SymbolName): Boolean = t.vocabulary.symbol(s).map(_.ty).exists {
-    case SymbolType.Typed(Ty.FnOf(_, _) | Ty.FlowOf(_)) => true
-    case _                                              => false
+    case SymbolType.Typed(Ty.FnOf(_, _) | Ty.FlowOf(_, _)) => true
+    case _                                                 => false
   }
 
   /** A value only plain code reads (a connection): it has no Lean type, so no statement can mention it. */

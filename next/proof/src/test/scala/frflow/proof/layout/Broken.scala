@@ -57,9 +57,9 @@ object Broken:
         flow("countTwice", Nil, Prog.Par(count, n1, count, n2), Ty.TupleOf(List(big, big))) ++
         flow("putBoth", List(b), Prog.Par(put(v(b)), u1, put(later), u2), pair)))
     .naming(definition("misdate", fn(Booking.ty, Booking.ty)),
-      definition("fileBackwards", fn(Booking.ty, Ty.FlowOf(Ty.Unit))),
-      definition("countBoth", Ty.FlowOf(Ty.TupleOf(List(big, big)))), definition("putTwo", fn(Booking.ty,
-        Ty.FlowOf(pair))))
+      definition("fileBackwards", fn(Booking.ty, Ty.FlowOf(Ty.Unit, None))),
+      definition("countBoth", Ty.FlowOf(Ty.TupleOf(List(big, big)), None)), definition("putTwo", fn(Booking.ty,
+        Ty.FlowOf(pair, None))))
     .coding(SymbolName("misdate") -> Code.Proven(DefName("swap")),
       SymbolName("fileBackwards") -> Code.ProvenFlow(DefName("fileBack")),
       SymbolName("countBoth") -> Code.ProvenFlow(DefName("countTwice")),

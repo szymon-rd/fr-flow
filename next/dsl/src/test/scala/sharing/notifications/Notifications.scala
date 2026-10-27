@@ -18,7 +18,8 @@ object Notifications:
   val deliver = Definition[Program[Unit]](
     "a run of delivery: the oldest notice of each person in the outbox sent to the mail server")
 
-  val mailer = Boundary.failing[Mailer, Failure]("the mail server the service sends notices to; it may be down")
+  val mailer = Boundary.failing[Mailer, Failure]("the mail server the service sends notices to; it may be down",
+    Failure.MailerUnavailable)
   val mailerModel = mailer.model("each person's mailbox at the mail server")(Mailboxes(_))
 
   val mailerKept = Node.assumption("The mail server delivers a notice it is given into the mailbox of the person it " +

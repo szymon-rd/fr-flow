@@ -23,7 +23,7 @@ class CrmModulesSuite extends munit.FunSuite:
 
   test("Boundaries.lean: the class, the model, World, the instance and its lemmas, from the boundary and its model") {
     val imports = List("Types", "Domain.Def_replaceAbout", "Domain.Def_aboutRecord").map("FrFlowGen.Crm." + _)
-    val decls = LowerModels(ExpiryIr.env, ExpiryIr.reserved).decls(List(CrmModels.boundary -> CrmModels.model))
+    val decls = LowerModels(ExpiryIr.env, ExpiryIr.reserved).decls(List(CrmModels.boundary -> CrmModels.model), Nil)
     val m = module("FrFlowGen.Crm.Boundaries", imports, "Crm", decls*)
     assertEquals(Print.module(m), file("Boundaries.lean"))
   }

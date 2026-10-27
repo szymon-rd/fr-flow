@@ -2,11 +2,13 @@ package frflow.core.analysis
 
 import cats.data.{NonEmptyChain, Validated, ValidatedNec}
 import cats.syntax.all.*
-import frflow.core.{Elaborated, Theory}
+import frflow.core.{Elaborated, Failing, Theory}
 import frflow.core.code.Code
 import frflow.core.graph.Edge
-import frflow.core.name.SymbolName
+import frflow.core.name.{NodeId, SymbolName}
 import frflow.core.spec.{Node, NodeKind, Range}
+import frflow.core.ty.Ty
+import frflow.core.vocab.DefineForm
 
 /** The structure rules (docs/DAG.md §2) as one pure function: every problem at once, or the theory as `Valid`. */
 object Validate:
@@ -76,17 +78,29 @@ object Validate:
       .map(Problem.WriterNotListed(m.name, _)))
     all(missing ++ unneeded ++ unlisted ++ Unreached.of(t))
 
-  /** Code is for a Definition some statement mentions (a provided one with no Lean type is read by plain code only);
-    * a node checked against proven code has as parts only statements about what the code calls (`impl` proves it
-    * from them: docs/DAG.md §3); the models it is proven on are premises, not parts.
+  /** Code is for a Definition some statement mentions (a provided one with no Lean type is read by plain code only).
+    * A program fails with one error type, and a failing run's clause is of that type, on a program that can fail
+    * (`Failing`). Any part of a node checked against proven code is one `impl` may rest on: it takes every stated part
+    * as a hypothesis, the code put in it (sound: the graph is acyclic and each part is checked against the same code).
     */
   private def code(t: Theory): ValidatedNec[Problem, Unit] =
     val unclaimed = t.code.attached.toList.collect {
       case (s, a) if !providedToCode(t, s, a.code) && Constrained.statements(t, s).isEmpty => s
     }
-    all(unclaimed.map(Problem.CodeWithoutClaim(_)) ++ t.nodes.map(_.node.id).flatMap(id =>
-      Callees.of(t, id).toList.flatMap(c => t.refinement.parts(id).filterNot(c.about(t, _))
-        .map(Problem.PartNotCalled(id, _)))))
+    val differing = t.vocabulary.defines.collect {
+      case d if d.form == DefineForm.Flow && Failing.of(t.vocabulary, d).size > 1 =>
+        Problem.ErrorsDiffer(d.name, Failing.of(t.vocabulary, d))
+    }
+    val clauses = t.nodes.map(_.node).flatMap(n => n.statement.said.toList.flatMap(f => Failing.clauses(f.value))
+      .flatMap((op, ty) => failingClause(t, n.id, op, ty)))
+    all(unclaimed.map(Problem.CodeWithoutClaim(_)) ++ differing ++ clauses)
+
+  /** A failing run's clause on a program that cannot fail, or of another type than it fails with. */
+  private def failingClause(t: Theory, id: NodeId, op: SymbolName, clause: Ty): Option[Problem] =
+    Failing.ofDefinition(t, op) match
+      case Nil                               => Some(Problem.NeverFails(id, op))
+      case errors if errors.contains(clause) => None
+      case error :: _                        => Some(Problem.FailingDiffers(id, op, clause, error))
 
   /** A value with no Lean type, provided where the code runs (a connection): no statement can mention it. */
   private def providedToCode(t: Theory, s: SymbolName, c: Code): Boolean =

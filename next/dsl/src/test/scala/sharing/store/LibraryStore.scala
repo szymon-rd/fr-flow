@@ -16,7 +16,7 @@ final class Kept[F[_]](state: Model[F, Library]) extends LibraryStore[F, Term]:
 /** The store's boundary, its model, and what it is decided to do. */
 object LibraryStore:
   val store = Boundary.failing[LibraryStore, Failure](
-    "where the service keeps the library: in memory, or in a SQLite file; it may be down")
+    "where the service keeps the library: in memory, or in a SQLite file; it may be down", Failure.StoreUnavailable)
 
   val libraryModel = store.model("the library the store holds")(Kept(_))
 

@@ -27,15 +27,16 @@ final class LowerValue(env: LowerEnv):
     case (Value.Tuple(xs), Ty.TupleOf(ts))      => xs.zip(ts).traverse(apply(_, _)).map(LExpr.Tuple(_))
     case (Value.Pairs(es), Ty.MapOf(k, v))      => map(es, k, v)
     case (Value.Many(xs), Ty.SetOf(a))          => set(xs, a)
-    case (Value.World(states, _), Ty.World)     => world(states)
+    case (Value.World(states, fs), Ty.World)    => world(states, fs)
     case (other, ty)                            =>
       throw IllegalStateException(s"FrFlow bug: the value $other is not one of type $ty")
 
-  /** `(World.mk s₁ …)`: each model's state, at its type. */
-  private def world(states: List[(ModelName, Value)]): L[LExpr] =
+  /** `(World.mk s₁ …)`: each model's state, at its type, then its faults where a boundary may fail. */
+  private def world(states: List[(ModelName, Value)], faults: List[Boolean]): L[LExpr] =
     states.traverse((m, v) => apply(v, env.modelState(m).getOrElse(
       throw IllegalStateException(s"FrFlow bug: a world's state of ${m.value}, a model the theory has not")))
-    ).map(call(Atoms.const("World.mk"), _))
+    ).map(ss => call(Atoms.const("World.mk"), ss ++ Option.when(env.faulty)(LExpr.Typed(
+      LExpr.ListLit(faults.map(f => name(if f then "true" else "false"))), LowerFaults.listOfBool))))
 
   /** `(fun k => if k = k₁ then some v₁ else … none)`: a map as the function Lean's `K → Option V` is. */
   private def map(es: List[(Value, Value)], k: Ty, v: Ty): L[LExpr] =

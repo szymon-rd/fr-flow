@@ -48,7 +48,8 @@ object VocabularyModules:
     val worlds = v.models.flatMap(m => v.boundary(m.boundary).map(_ -> m))
     val models = LowerModels(l.env, l.naming)
     val results = worlds.flatMap((b, m) => b.ops.filter(_.result != Ty.Unit).map(models.resultOf(m, _)))
-    module(l, l.layout.boundaries, models.decls(worlds) ++ results)
+    val errors = v.defines.filter(_.form == DefineForm.Flow).flatMap(d => Ty.errorOf(d.lambda.result)).distinct
+    module(l, l.layout.boundaries, models.decls(worlds, errors) ++ results)
 
   private def domain(l: Lowering): LeanModule =
     val defines = l.resolved.theory.vocabulary.defines.map(d => l.layout.define(d.name))
@@ -73,9 +74,7 @@ object VocabularyModules:
     */
   private def flow(l: Lowering, d: Define, p: frflow.core.expr.Prog[frflow.core.term.Stated[?]]): Decl =
     val (named, m) = Naming.helper("m", Set.empty).run(l.naming).value
-    val result = d.lambda.result match
-      case Ty.FlowOf(r) => r
-      case other        => other
+    val result = Ty.yields(d.lambda.result)
     val inputs = d.lambda.params
     val (bs, lines) = (inputs.traverse(x => Naming.bind(x).map(LBinder.Explicit(_, LowerType(x.ty)))),
       LowerProg(l.env, inputs.size).block(p)).tupled.runA(named).value

@@ -19,7 +19,7 @@ object Commutation:
   /** Each parallel step of a program's define, in order. */
   def of(v: Vocabulary, d: Define): List[Commutation] = (d.written.form, d.lambda.body) match
     case (Form.Steps(p), Expr.Do(ir, _)) =>
-      val error = (Progs.errors(ir) ++ Progs.boundaries(ir).flatMap(v.boundary).flatMap(_.failsWith)).headOption
+      val error = Ty.errorOf(d.lambda.result)
       val fresh = (-ids(ir).minOption.getOrElse(0L)).max(0L).toInt
       Progs.parallel(p).zip(Progs.parallel(ir)).flatMap((step, read) =>
         orders(v, step, read, fresh).map((apart, first, second, result) =>
