@@ -341,10 +341,13 @@ obligations follow from its formula and from what gives each Definition its mean
 the Definition): "∀ U, H → claim[d := code]", `H` its parts or, with no parts, the claims on what its code calls
 (`Resolved.reliesOn`). In the planned code a part must be a claim about what the code calls (else `PartNotCalled`). From
 step 3b, `impl` takes every part it states as a hypothesis (a design states nothing), the code substituted in it where
-the part mentions that Definition: this is sound, since the DAG is acyclic and each part is itself checked against the
-same code. `PartNotCalled` is dropped (step 3b): narrowed to a part sharing no Declaration or Definition with the claim
-or what its code calls, it would still refuse crm's `sharedCrm` under the root's two expectations and 16 of
-sharing's parts, sound hypotheses all, so no narrowing by mentions fits the examples. `complete` is not asked of it.
+the part mentions that Definition: this is sound, since each part is itself checked against the same code and no proof
+goes round. A leaf's hypotheses are its `reliesOn` as written, the code not put in: the statements about what its code
+calls, leaving out its ancestors and every statement about its own Definitions (proven of the same code, not facts
+about a callee). A circle that remains over what each node is proven from (`Resolve.provenFrom`: stated parts, or a
+leaf's `reliesOn`) is refused (`RestsOnItself`). `PartNotCalled` is dropped (step 3b): narrowed to a part sharing no
+Declaration or Definition with the claim or what its code calls, it would still refuse crm's `sharedCrm` under the
+root's two expectations and 16 of sharing's parts, sound hypotheses all. `complete` is not asked of it.
 
 **A claim read as a call.** Where a claim applies one Definition to exactly its leading `forall` variables (alone, or
 one side of its equation) and mentions it nowhere else, `CallForms` reads it as a call; a program's claim
@@ -814,20 +817,27 @@ declares, `recording`, `call`, `model` and `lifted`. `LowerModels` prints bounda
 run on them (`f_run`). Step 4 adds the law that a program's recording run on the models gives what `Running` gives on
 the models' instances; no suite states it yet.
 
-**A program's error type** (step 3b, before step 4). `Ty.FlowOf(result, error: Option[Ty])`: the error is read from the
-recording (`Progs.failsWith`: the uncaught `Raise` types, and the error of each boundary called outside a `Catch`
-of that type, `Boundary.failing[B, E](means, error)`). A boundary that may fail names the error a call fails with
-(`Failure.StoreUnavailable`, `vocab.Fails`), which `FrFlow.failing` needs. The front end cannot type a program's error
-where its Definition is written (its code comes later), so `Resolve` does (`core.Failing.typed`: each program's define
-and the Definition it is the meaning of). `Validate` refuses two error types (`ErrorsDiffer`), a `.failing` clause of
-another type (`FailingDiffers`), and one on a program that cannot fail (`NeverFails`). In Lean a failing program's run
-is `World → (Except e r × World)`, on the models' instance on `ExceptT e (StateM World)` (one per error a program fails
-with; a boundary failing with another error has none there), a failing boundary call going through `FrFlow.failing` on
-the world's `faults : List Bool` (a field when a boundary may fail; `faults` is reserved); `f_run` is
-`FrFlow.runOnE (ε := e)`, a run's post matches `Except.ok` (`| _ => True` for the rest), `cover_` holds of the world a
-failed run leaves too (its keeps states both arms, `runs ∧ fails`, which is `FrFlow.outcome` unfolded), `made_` of ok
-results, and `commute_` reads the error from the type. A program that handles every error it raises or meets cannot
-fail, so it runs on `StateM World`, which has no `MonadExceptOf`: its model still does not build (fails closed).
+**A program's error type** (step 3b, before step 4). `Ty.FlowOf(result, error: Option[Ty])`. A program's error has
+two senses, both read off its recording (`core.Failing`). The monad's: every error it raises, handles or meets (a
+failing boundary's, `Boundary.failing[B, E](means, error)`), one type, what `FlowOf` says and its run is over. What
+escapes: those outside a `Catch` of their type (`Progs.failsWith`), what a failing run's clause is of. A boundary that
+may fail names the error a call fails with (`Failure.StoreUnavailable`, `vocab.Fails`), which `FrFlow.failing` needs.
+The front end cannot type a program's error where its Definition is written (its code comes later), so `Resolve` does
+(`Failing.typed`): each program's define, the Definition it is the meaning of, and every formula's term and IR
+(`Retyped`), so `Exprs.typeOf` of a program in a formula is its resolved type. Only a proven program has an error; a
+program Definition given plain Scala has the one its type declares (none). `Validate` refuses a program over two error
+types (`ErrorsDiffer`; handling one and failing with another, or calling a boundary failing with another, would need
+two `ExceptT`s), a `.failing` clause of another type than what escapes (`FailingDiffers`), one on a program nothing
+escapes (`NeverFails`), and a run of a program that is no Definition applied to inputs (`RunOfNoDefinition`: Lean
+reads how to match a run off the Definition it applies). In Lean a program with an error runs as
+`World → (Except e r × World)`, on the models' instance on `ExceptT e (StateM World)` (one per error), a failing
+boundary call going through `FrFlow.failing` on the world's `faults : List Bool` (a field when a boundary may fail;
+`faults` is reserved); `f_run` is `FrFlow.runOnE (ε := e)`, a run's post matches `Except.ok` (`| _ => True` for the
+rest, sound when nothing escapes), `cover_` holds of the world a failed run leaves too when an error escapes (both arms,
+`runs ∧ fails`, `FrFlow.outcome` unfolded), `made_` of ok results, and `commute_` reads the error from the type.
+`.failsChangingNothing[E]` says every model's state is as before (`Worlds.unchanged(after, before)`, `Expr.Unchanged`;
+in Lean one equation per model's field, the faults left out), and `===` between worlds is refused where a boundary may
+fail (`WorldsEqual`): it would compare the faults the calls took.
 
 ### 4.5 The front end: nodes, names, errors
 
@@ -847,7 +857,8 @@ declarations merge). An error found before its place is known is a `Fault`, carr
 wrong: the graph (`DuplicateId`, `NoRoot`, `AboveItself`, `ParentOutside`, `DesignWithoutParent`, `UnderDesign`,
 `PremiseNotAssumed`, `OutsideAsPart`, `OutsideClaimed`); the world outside (`PremiseMissing`, `PremiseNotNeeded`,
 `WriterNotListed`, `AlwaysNotReached`); the vocabulary (`ReservedName`, `DeclaredTwice`, `CodeOnlyInStatement`); values
-(`Undefined`, `DeclarationInCode`, `CodeWithoutClaim`); programs (`ErrorsDiffer`, `FailingDiffers`, `NeverFails`). A
+(`Undefined`, `DeclarationInCode`, `CodeWithoutClaim`, `RestsOnItself`); programs (`RunOfNoDefinition`,
+`ErrorsDiffer`, `FailingDiffers`, `NeverFails`, `WorldsEqual`). A
 model's Lean namespace, its name capitalized
 (`Stored`), counts among the declared names, so a model named as its boundary's class is `DeclaredTwice`.
 
@@ -1138,7 +1149,7 @@ listed. `WalkthroughSuite` replays the README's rooms changes (steps 4–6) on a
 | 1 | `next/core`: term algebras and core interpreters, IR, statements, validation, checking, consistency | `typeOf`, `Mentions` laws, every `Problem` by name |
 | 2 | `next/dsl`: `Term[A]`, macros, the user's forms, `Flow`, boundaries, models | `RecordingSuite`, `FormsSuite`, claims suites, ported suites |
 | 3 | `next/proof`: `Prop`, Lean AST, `LeanTerm`, lowering, layout, judges, tactics | `PrinterLawsSuite`, `CrmModulesSuite`, a test per try and rule |
-| 3b | core and proof: a program's error type (4.4); `impl` over every part (2.7) | a failing writer's `cover_`, a `.failing` `impl`, crm's run claim in Lean |
+| 3b | core and proof: a program's error type (4.4); `impl` over every part (2.7) | a failing writer's `cover_`, a `.failing` `impl`, a crm-shaped run claim in Lean (`Failing.file`; crm's own `runExpiry` cannot fail, step 12) |
 | 4 | `next/eval`: `Evaluate`, `Running`, `CallCheck`, `Wiring`, `FlowInterpreter` | `TermLawsSuite`, `RunningSuite`, recording agrees with running |
 | 5 | `next/testing`: generators, `PropertyTests`, `ModelTests`, searches, examples' runner | ported suites with seeds, `Gen` laws, `SmallSuite` |
 | 6 | `next/decision`: content, ledger, `Deciders`, review, rules | ported decide and standing suites, `DecidersSuite` |

@@ -39,3 +39,5 @@ enum Expr:
   case Part(world: Expr, model: ModelName, ty: Ty)
   /** A fact about the world outside the code, as an assumption says it. */
   case Outside(fact: OutsideFact)
+  /** Every model's state in `after` is its state in `before`, the faults aside (`Worlds.unchanged`). */
+  case Unchanged(after: Expr, before: Expr)

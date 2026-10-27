@@ -12,10 +12,12 @@ final class Ran[R](run: Term[Program[R]], before: Term[World], succeeds: Term[Bo
     extends Term[Boolean](succeeds.run):
   inline def failing[E: LeanType](inline post: (Term[E], Term[World]) => Term[Boolean]): Term[Boolean] =
     Ran.both(succeeds, RunFrom.fails(run, before, Source.of(post).params)(post))
-  /** A run that fails with an `E` changes nothing: the world after it is the world before. */
+  /** A run that fails with an `E` changes nothing: every model's state after it is its state before
+    * (`Worlds.unchanged`; the faults the failing call took are no model's).
+    */
   def failsChangingNothing[E: LeanType]: Term[Boolean] =
     Ran.both(succeeds, RunFrom.fails[R, E](run, before, List("_", "after"))((_, after) =>
-      Term.both(after, before)([T[_]] => (s: Sym[T]) => s.eq[World])))
+      Term.both(after, before)([T[_]] => (s: Sym[T]) => s.unchanged)))
 
 object Ran:
   def both(succeeds: Term[Boolean], fails: Term[Boolean]): Term[Boolean] =

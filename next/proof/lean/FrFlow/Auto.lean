@@ -3,7 +3,8 @@ import FrFlow.Faults
 
 /-!
 `frflow_auto`: the tactic tried first on every link obligation. It unfolds the
-generated definitions, simplifies, and closes what remains with `grind` (after splitting
+generated definitions, simplifies (twice: what `simp` makes of a step may be one the
+definitions' lemmas compute), and closes what remains with `grind` (after splitting
 conjunctions under quantifiers, when `grind` alone fails).
 -/
 
@@ -12,6 +13,9 @@ syntax "frflow_auto" : tactic
 macro_rules
   | `(tactic| frflow_auto) => `(tactic| (
       intros
+      try simp_all only [frflow_defs]
+      try simp_all
+      -- what `simp` made of a step (a traverse of a literal list, `pure [...]`) is a run FrFlow's lemmas compute
       try simp_all only [frflow_defs]
       try simp_all
       all_goals first

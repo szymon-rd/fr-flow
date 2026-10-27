@@ -3,6 +3,7 @@ package frflow.proof.obligation
 import cats.data.NonEmptyList
 import cats.syntax.all.*
 import frflow.core.analysis.{Callees, Constrained, Guards, Resolved, Scope}
+import frflow.core.Failing
 import frflow.core.term.interpret.Guard
 import frflow.core.expr.Expr
 import frflow.core.code.Code
@@ -42,26 +43,25 @@ object Required:
 
   /** `∀ U, H → claim[ds := code]`: the statement asked of the proven code of every Definition it mentions at once
     * (each define, or a program's run on the models, `f_run`): "Every result of D meets N, given what … promise"
-    * (today's words). `H` is every part the node states (a design states nothing), each with the same code put in
-    * it: a part about a Definition the code calls, or about the node's own Definitions and Declarations (sound: the
-    * graph is acyclic and each part is checked against the same code). A leaf's is what its code relies on: the
-    * statements mentioning what the code calls (`Resolved.reliesOn`).
+    * (today's words). `H` is every part the node states (a design states nothing), the same code put in each where
+    * it mentions the Definition: a part about a Definition the code calls, or about the node's own Definitions and
+    * Declarations (sound: each part is checked against the same code, and `Validate` refuses a circle). A leaf's is
+    * what its code relies on, as written: the statements about what the code calls (`Resolved.reliesOn`).
     */
   def impl(r: Resolved, n: NodeId): List[Obligation] =
     Callees.of(r.theory, n).toList.map { c =>
       val code = c.standsFor.view.mapValues(Substitute.Code(_)).toMap
       val hyps = hypotheses(r, n)
-      val assumed = hyps.map(h => Hyp(Hyp.of(h).name, Prop.ClaimOf(h, code.filter((s, _) => mentions(r, h, s)))))
+      val parts = r.theory.refinement.parts(n).toSet
+      val assumed = hyps.map(h => if !parts(h) then Hyp.of(h)
+        else Hyp(Hyp.of(h).name, Prop.ClaimOf(h, code.filter((s, _) => mentions(r, h, s)))))
       val goal = Prop.over(Nil, Prop.Implies(assumed, Prop.ClaimOf(n, code)))
       Obligation(ObligationName.Impl, goal, Discharge.Auto,
         s"Every result of ${c.standsFor.values.map(_.value).mkString(" and ")} meets ${n.value}" + givenWhat(hyps))
     }
 
   /** What `impl` of a node rests on: the parts it states, or for a leaf what its code relies on. */
-  def hypotheses(r: Resolved, n: NodeId): List[NodeId] =
-    r.theory.refinement.parts(n).filter(p => r.theory.node(p).exists(_.statement.stated)) match
-      case Nil   => r.reliesOn(n)
-      case parts => parts
+  def hypotheses(r: Resolved, n: NodeId): List[NodeId] = r.provenFrom(n)
 
   private def mentions(r: Resolved, n: NodeId, s: SymbolName): Boolean = Constrained.of(r.theory, n).contains(s)
 
@@ -79,7 +79,8 @@ object Required:
       Callees.ofDefinition(r.theory, op).exists(_.calls.boundaries.exists(stores.contains)))
     (guards.toMap.get(n).toList, writers).tupled.flatMap { (kept, op) =>
       (Callees.ofDefinition(r.theory, op).flatMap(_.standsFor.get(op)), typeOf(r, op)).tupled.map { (code, ty) =>
-        val goal = Prop.Keeps(n, op, Keeping.formula(op, ty, inputs(r, op, ty), kept, guards.map(_._2)),
+        val escapes = Failing.escapingOf(r.theory, op).nonEmpty
+        val goal = Prop.Keeps(n, op, Keeping.formula(op, ty, escapes)(inputs(r, op, ty), kept, guards.map(_._2)),
           Map(op -> Substitute.Code(code)))
         val hyps = r.reliedOnBy(op)
         Obligation(ObligationName.Cover(op.value), Prop.over(Nil, Prop.Implies(Hyp.parts(hyps), goal)),

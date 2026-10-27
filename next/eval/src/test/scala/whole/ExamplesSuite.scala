@@ -1,6 +1,7 @@
 package whole
 
 import frflow.core.analysis.{Callees, Constrained}
+import frflow.core.graph.Walk
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Symbol, SymbolType}
 import frflow.core.spec.Statement
@@ -66,6 +67,16 @@ class ExamplesSuite extends munit.FunSuite:
   test("the five examples are valid as written") {
     assertEquals(List(rooms.rooms, auth.knowledge, keycloak.knowledge, crm.knowledge, sharing.knowledge)
       .map(Theories.problems), List.fill(5)(Nil))
+  }
+
+  test("no example's proofs go round: what each node is proven from, followed down, never reaches it (crm and " +
+    "sharing had circles through what their leaves relied on)") {
+    Today.all.foreach { (name, kb) =>
+      val r = Theories.resolved(kb)
+      val ids = r.theory.nodes.map(_.node.id)
+      assertEquals(ids.filter(id => Walk.breadthFirst(r.provenFrom(id), identity)(r.provenFrom).contains(id)), Nil,
+        name)
+    }
   }
 
   /** Each program Definition's error once resolved: what its code may fail with (`Failing`), read off its steps. */

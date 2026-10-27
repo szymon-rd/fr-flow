@@ -31,6 +31,7 @@ class ValidateSuite extends munit.FunSuite:
     "the store that may be down with a failing run's clause of its type") {
     assertEquals(Store.kb.problems, Nil)
     assertEquals(FailureCases.claiming(FailureCases.down, frflow.core.ty.Ty.Str).problems, Nil)
+    assertEquals(Store.kb.and(FailureCases.sameWorld).problems, Nil)
     assertEquals(Kb.of(plain("root")).problems, Nil)
     assertEquals(ValueCases.proven.without("stray").problems, Nil)
   }
@@ -39,6 +40,22 @@ class ValidateSuite extends munit.FunSuite:
     val clashing = Store.kb.declaring(v => v.copy(models = v.models.map(_.copy(name =
       frflow.core.name.ModelName("bookings")))))
     assert(clashing.problems.contains(Problem.DeclaredTwice("Bookings")), clashing.problems)
+  }
+
+  test("claims about the same code rest on no circle, siblings or part and whole: neither relies on the other") {
+    List(ValueCases.siblings, ValueCases.siblings.linking(partOf("fAboveToo", "fAbove"))).foreach { kb =>
+      assertEquals(kb.problems, Nil)
+      val r = Resolve(Validate(kb.elaborated).toOption.get)
+      assertEquals(List("fAbove", "fAboveToo").map(n => r.reliesOn(NodeId(n))), List(Nil, Nil))
+    }
+  }
+
+  test("a claim on code calling a Definition rests on the claims about it, and what is proven from what has no " +
+    "circle") {
+    val r = Resolve(Validate(ValueCases.proven.elaborated).toOption.get)
+    assertEquals((r.reliesOn(NodeId("aboutFree")), r.provenFrom(NodeId("top"))), (Nil,
+      List(NodeId("aboutFree"), NodeId("stray"))))
+    assertEquals(Resolve.circles(ValueCases.mutual.theory), List(List(NodeId("aboutF"), NodeId("aboutG"))))
   }
 
   test("an empty theory has no root to miss") {

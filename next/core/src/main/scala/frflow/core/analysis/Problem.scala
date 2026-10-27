@@ -31,6 +31,11 @@ enum Problem:
   case PremiseMissing(id: NodeId, needs: Premise, by: Option[NodeId])
   /** A fact about the outside a statement's `.assuming` lists that its check does not rest on. */
   case PremiseNotNeeded(id: NodeId, premise: NodeId)
+  /** Two worlds said equal (`after === before`) where a boundary may fail: the faults its calls take are part of a
+    * world, so a run that only read through it changes the world; that every model's state is as before is
+    * `unchanged` (`.failsChangingNothing`).
+    */
+  case WorldsEqual(id: NodeId)
   /** A program writing the store that the store's `writtenOnlyBy` does not list. */
   case WriterNotListed(model: ModelName, program: SymbolName)
   /** An `always` whose type sits, at `at`, inside a map, a set or a function value of type `ty`: no guard reaches it
@@ -54,13 +59,23 @@ enum Problem:
   case DeclarationInCode(code: DefName, declaration: SymbolName)
   /** Code for a Definition no statement mentions: there is nothing to check it against. */
   case CodeWithoutClaim(definition: SymbolName)
+  /** Nodes each proven, through the others, from itself (`Resolve.circles`): a part, or a statement about what a
+    * node's code calls, resting in turn on the node.
+    */
+  case RestsOnItself(ids: List[NodeId])
   // Programs and their errors (`Failing`)
-  /** A program whose steps may end in errors of two types or more: a run fails with one. */
+  /** A run (`p.from(before)`) of a program that is no Definition applied to inputs (a define's result, a variable):
+    * what it may fail with is read off a Definition's code.
+    */
+  case RunOfNoDefinition(id: NodeId)
+  /** A program whose steps raise, handle or meet errors of two types or more (a failing boundary's among them): its
+    * run is over one error (`ExceptT E`).
+    */
   case ErrorsDiffer(program: DefName, errors: List[Ty])
   /** A failing run's clause (`.failing { (error: E, after) => … }`) of another type than the program fails with. */
   case FailingDiffers(id: NodeId, program: SymbolName, clause: Ty, error: Ty)
-  /** A failing run's clause on a program that cannot fail: it raises nothing and calls no failing boundary outside a
-    * handler.
+  /** A failing run's clause on a program that cannot fail: no error escapes it (nothing it raises or meets is outside
+    * a handler of its type).
     */
   case NeverFails(id: NodeId, program: SymbolName)
 

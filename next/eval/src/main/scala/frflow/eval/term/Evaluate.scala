@@ -37,6 +37,8 @@ class Evaluate extends Sym[Run], RunLists, RunContainers:
   def always[A](x: Bound[A])(p: Run[A] => Run[Boolean]): Run[Boolean] = _ => Left(EvalError.Quantified)
   /** Never run: what the outside does is assumed, and its stores' code is tested against their models. */
   def outside(fact: OutsideFact): Run[Boolean] = _ => Left(EvalError.Quantified)
+  /** Every model's state as before: a term's world holds the models' states only, no faults (`World`). */
+  def unchanged(after: Run[World], before: Run[World]): Run[Boolean] = map2(after, before)(_ == _)
   def construct[F](c: Constructor[F]): Run[F] = pure(c.make)
   def field[R, F](r: Run[R], s: Selector[R, F]): Run[F] = r.andThen(_.map(s.get))
   def copy[R, F](r: Run[R], s: Selector[R, F], v: Run[F]): Run[R] = map2(r, v)(s.set)

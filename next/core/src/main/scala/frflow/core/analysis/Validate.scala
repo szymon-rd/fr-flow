@@ -4,6 +4,7 @@ import cats.data.{NonEmptyChain, Validated, ValidatedNec}
 import cats.syntax.all.*
 import frflow.core.{Elaborated, Failing, Theory}
 import frflow.core.code.Code
+import frflow.core.expr.{Expr, Exprs, PrimOp}
 import frflow.core.graph.Edge
 import frflow.core.name.{NodeId, SymbolName}
 import frflow.core.spec.{Node, NodeKind, Range}
@@ -76,7 +77,15 @@ object Validate:
     val unlisted = t.vocabulary.models.flatMap(m => Outsides.saying(t, Premise.WrittenOnlyBy(m.name)).toList
       .flatMap(_ => Premises.writers(t, m).filterNot(Outsides.writers(t, m.name).contains))
       .map(Problem.WriterNotListed(m.name, _)))
-    all(missing ++ unneeded ++ unlisted ++ Unreached.of(t))
+    all(missing ++ unneeded ++ unlisted ++ worldsEqual(t) ++ Unreached.of(t))
+
+  /** An equation of worlds in a statement, where the worlds hold faults (a boundary may fail). */
+  private def worldsEqual(t: Theory): List[Problem] =
+    if !t.vocabulary.boundaries.exists(_.fails.nonEmpty) then Nil
+    else t.nodes.map(_.node).filter(n => n.statement.exprs.flatMap(Exprs.all).exists {
+      case Expr.Prim(PrimOp.Eq, a :: _, _) => Exprs.typeOf(a) == Ty.World
+      case _                               => false
+    }).map(n => Problem.WorldsEqual(n.id))
 
   /** Code is for a Definition some statement mentions (a provided one with no Lean type is read by plain code only).
     * A program fails with one error type, and a failing run's clause is of that type, on a program that can fail
@@ -93,11 +102,14 @@ object Validate:
     }
     val clauses = t.nodes.map(_.node).flatMap(n => n.statement.said.toList.flatMap(f => Failing.clauses(f.value))
       .flatMap((op, ty) => failingClause(t, n.id, op, ty)))
-    all(unclaimed.map(Problem.CodeWithoutClaim(_)) ++ differing ++ clauses)
+    val runs = t.nodes.map(_.node).filter(_.statement.said.exists(f => Failing.runsNoDefinition(f.value)))
+      .map(n => Problem.RunOfNoDefinition(n.id))
+    all(unclaimed.map(Problem.CodeWithoutClaim(_)) ++ Resolve.circles(t).map(Problem.RestsOnItself(_)) ++ runs ++
+      differing ++ clauses)
 
   /** A failing run's clause on a program that cannot fail, or of another type than it fails with. */
   private def failingClause(t: Theory, id: NodeId, op: SymbolName, clause: Ty): Option[Problem] =
-    Failing.ofDefinition(t, op) match
+    Failing.escapingOf(t, op) match
       case Nil                               => Some(Problem.NeverFails(id, op))
       case errors if errors.contains(clause) => None
       case error :: _                        => Some(Problem.FailingDiffers(id, op, clause, error))

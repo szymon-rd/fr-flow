@@ -37,7 +37,25 @@ object ValueCases:
     .coding(name("granted") -> Code.Proven(DefName("grant")), name("free") -> Code.Provided)
     .linking(partOf("aboutFree", "top"), partOf("stray", "top"))
 
+  /** `f`'s code calls `g` and `g`'s calls `f`: the claim on each rests on the claim on the other. */
+  val mutual: Kb = Kb.of(holdsOf("aboutF", "f"), holdsOf("aboutG", "g"))
+    .naming(definition("f", test), definition("g", test))
+    .declaring(_.copy(defines = List(calling("fCode", "g"), calling("gCode", "f"))))
+    .coding(name("f") -> Code.Proven(DefName("fCode")), name("g") -> Code.Proven(DefName("gCode")))
+
+  /** `∀ x, inc(x) ∧ f(x)`: a claim on `f`, whose code calls `inc`, and on `inc` too. */
+  def above(id: String): frflow.core.spec.Node = claim(id)(Lang.formula([T[_]] => (l: Lang[T]) =>
+    l.forall[BigInt]("x", Lang.big)(x => l.s.and(l.call(l.sym[BigInt => Boolean]("inc", test), x),
+      l.call(l.sym[BigInt => Boolean]("f", test), x)))))
+
+  /** Two such claims about the same code, siblings: neither is a fact about a callee of the other's code. */
+  val siblings: Kb = Kb.of(above("fAbove"), above("fAboveToo"))
+    .naming(definition("f", test), definition("inc", test))
+    .declaring(_.copy(defines = List(calling("fCode", "inc"))))
+    .coding(name("f") -> Code.Proven(DefName("fCode")), name("inc") -> Code.Provided)
+
   val all: List[ProblemCase] = List(
+    ProblemCase(mutual, List(Problem.RestsOnItself(List(id("aboutF"), id("aboutG"))))),
     ProblemCase(Kb.of(root).naming(declaration("get", test))
       .declaring(v => v.copy(sorts = List(Sort(TypeName("World"), "a world")), defines = List(calling("Obl", "get")),
         boundaries = List(Store.sig.copy(className = "StateM")))),

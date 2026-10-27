@@ -80,6 +80,7 @@ class TypeOfSuite extends munit.FunSuite:
       Expr.Part(store, ModelName("stored"), Ty.ListOf(Booking.ty)) -> Ty.ListOf(Booking.ty),
       Expr.Do(Prog.Call(BoundaryName("Bookings"), OpName("add"), Nil, Ty.Unit), Ty.FlowOf(Ty.Unit, None)) ->
         Ty.FlowOf(Ty.Unit, None),
-      Expr.Outside(Terms.stored) -> Ty.Bool
+      Expr.Outside(Terms.stored) -> Ty.Bool,
+      Expr.Unchanged(store, store) -> Ty.Bool
     ).foreach((e, t) => assertEquals(Exprs.typeOf(e), t, e))
   }

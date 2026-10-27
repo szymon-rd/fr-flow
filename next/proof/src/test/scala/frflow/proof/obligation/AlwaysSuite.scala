@@ -1,6 +1,7 @@
 package frflow.proof.obligation
 
-import frflow.proof.layout.{Broken, Failing, Laid, Lowering, Mini, MiniProject, Programs, ProgramsProject}
+import frflow.proof.layout.{Broken, Laid, Lowering, Mini, MiniProject, Programs, ProgramsProject}
+import frflow.proof.layout.failing.Failing
 import frflow.proof.lean.lower.LowerKeeps
 import frflow.proof.lean.print.PrintDecl
 

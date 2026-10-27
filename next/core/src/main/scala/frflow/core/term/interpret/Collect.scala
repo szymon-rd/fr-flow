@@ -81,4 +81,5 @@ object Collect extends Sym[Collect.N]:
   def fails[R, E](p: N[Program[R]], before: N[World], error: Bound[E], after: Bound[World])(
       post: (N[E], N[World]) => N[Boolean]): N[Boolean] = p ++ before ++ post(Nil, Nil)
   def outside(fact: OutsideFact): N[Boolean] = Nil
+  def unchanged(after: N[World], before: N[World]): N[Boolean] = after ++ before
   def noted[A](n: Annotation, t: N[A]): N[A] = n :: t

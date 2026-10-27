@@ -1,4 +1,4 @@
-package frflow.proof.layout
+package frflow.proof.layout.failing
 
 import frflow.core.{Booking, Kb, Lang}
 import frflow.core.Nodes.*
@@ -9,7 +9,7 @@ import frflow.core.name.{BoundaryName, DefName, ModelName, OpName, SymbolName}
 import frflow.core.term.{Bound, Final, Program, Stated, Sym, World}
 import frflow.core.ty.Ty
 import frflow.core.vocab.{BoundarySig, Fails, ModelOp, OpSig, StateModel}
-import Fixture.*
+import frflow.proof.layout.Fixture.*
 
 /** Programs that may fail, on a shelf of bookings any call of which may fail with `"down"`, changing nothing:
   * `file` puts a booking (crm's shape: what a run gives, and what a failed one does, `.failing { (error, after) =>
@@ -17,7 +17,8 @@ import Fixture.*
   * `.failsChangingNothing[String]`), its result a booking (`made_check`, of the runs that succeed); `spoil` puts a
   * booking and, when the shelf is down, puts it backwards and fails: what it leaves when it fails breaks
   * `endsAfterStart`, so its `cover_` must not be proven; `fileTwice` puts the booking twice at once, which commutes
-  * whichever call fails (`commute_0`, through `FrFlow.runOnE`).
+  * whichever call fails (`commute_0`, through `FrFlow.runOnE`). `fileWrong` says a failed run of `file` holds the
+  * booking: false, so its `impl` must not be proven.
   */
 object Failing:
   private val shelf = ModelName("shelved")
@@ -58,16 +59,26 @@ object Failing:
       l.s.fails(run[T, Unit](l, "file", Ty.Unit, x), w, Bound[String]("error", Ty.Str), after)((err, a) =>
         l.s.and(l.s.eq(err, l.str("down")), l.s.eq(shelved(l, a), shelved(l, w))))))))
 
-  /** `check(b).from(before) { (r, after) => r = b && after = before }.failsChangingNothing[String]`. */
+  /** `file(b).from(before) { (_, _) => true }.failing { (_, after) => after.shelved = b :: before.shelved }`. */
+  private val fileWrong: Final[Boolean] = Lang.formula([T[_]] => (l: Lang[T]) => l.forall[Booking]("b", Booking.ty)(x =>
+    l.forall[World]("before", Ty.World)(w => l.s.and(
+      l.s.runs(run[T, Unit](l, "file", Ty.Unit, x), w, Bound[Unit]("r", Ty.Unit), after)((_, _) => l.truth),
+      l.s.fails(run[T, Unit](l, "file", Ty.Unit, x), w, Bound[String]("error", Ty.Str), after)((_, a) =>
+        l.s.eq(shelved(l, a), l.s.cons(x, shelved(l, w))))))))
+
+  /** `check(b).from(before) { (r, after) => r = b && unchanged(after, before) }.failsChangingNothing[String]`: no
+    * model's state changes, whatever the faults.
+    */
   private val checkRuns: Final[Boolean] = Lang.formula([T[_]] => (l: Lang[T]) => l.forall[Booking]("b", Booking.ty)(x =>
     l.forall[World]("before", Ty.World)(w => l.s.and(
       l.s.runs(run[T, Booking](l, "check", Booking.ty, x), w, Bound[Booking]("r", Booking.ty), after)((r, a) =>
-        l.s.and(l.s.eq(r, x), l.s.eq(a, w))),
+        l.s.and(l.s.eq(r, x), l.s.unchanged(a, w))),
       l.s.fails(run[T, Booking](l, "check", Booking.ty, x), w, Bound[String]("error", Ty.Str), after)((_, a) =>
-        l.s.eq(a, w))))))
+        l.s.unchanged(a, w))))))
 
   private val facts = storeFacts(sig.name, shelf, List("file", "spoil", "fileTwice"))
-  private val runClaims = List(claim("fileRuns")(fileRuns), claim("checkRuns")(checkRuns),
+  private val runClaims = List(claim("fileRuns")(fileRuns), claim("fileWrong")(fileWrong),
+    claim("checkRuns")(checkRuns),
     claim("spoilRuns")(runs[Booking, Unit]("spoil", Booking.ty, Ty.Unit)),
     claim("twiceRuns")(runs[Booking, (Unit, Unit)]("fileTwice", Booking.ty, pair)))
 
@@ -84,7 +95,8 @@ object Failing:
       SymbolName("fileTwice") -> Code.ProvenFlow(DefName("fileBoth")))
     .linking(("fromOutside" :: facts.map(_.id.value)).map(assumes("endsAfterStart", _))*)
     .linking(List("shelfModel", "shelfOneRun", "fromOutside").flatMap(f =>
-      List("fileRuns", "spoilRuns", "twiceRuns").map(c => assumes(c, f))) :+ assumes("checkRuns", "fromOutside")*)
+      List("fileRuns", "fileWrong", "spoilRuns", "twiceRuns").map(c => assumes(c, f))) :+
+      assumes("checkRuns", "fromOutside")*)
 
   lazy val resolved: Resolved = Resolve(Validate(kb.elaborated).fold(ps => throw IllegalStateException(ps.toString),
     identity))

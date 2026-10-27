@@ -100,6 +100,7 @@ final class LeanTerm(env: LowerEnv, standing: Map[SymbolName, LExpr] = Map.empty
   def always[A](x: Bound[A])(p: S[A] => S[Boolean]): S[Boolean] = forall(x)(p)
   /** Lean's model of the world is built on it (the models' instances, the runs one at a time), so it states nothing. */
   def outside(fact: OutsideFact): S[Boolean] = _ => name("True")
+  def unchanged(after: S[World], before: S[World]): S[Boolean] = s => Outcomes.unchanged(env, after(s), before(s))
   def construct[F](c: Constructor[F]): S[F] = _ => Atoms.ctor(c.data, c.ctor)
   /** A field of a record made on the spot is its argument; a constant's, typed, as `lit` types a constant. */
   def field[R, F](r: S[R], sel: Selector[R, F]): S[F] = s => r(s) match
@@ -141,7 +142,6 @@ final class LeanTerm(env: LowerEnv, standing: Map[SymbolName, LExpr] = Map.empty
   def noted[A](n: Annotation, t: S[A]): S[A] = t
 
   private def applied(f: LExpr, a: LExpr): LExpr = LeanTerm.applied(f, a)
-
   private def decide(body: LExpr): LExpr = LExpr.App(name("decide"), List(body))
 
   /** `(List.map (fun x => body) xs)`: a list operation of a function of each element. */

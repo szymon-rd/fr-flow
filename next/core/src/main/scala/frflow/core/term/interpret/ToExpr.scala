@@ -113,6 +113,7 @@ object ToExpr extends Sym[ToExpr.IR]:
   def free[A](x: Binder): IR[A] = _ => Expr.Var(x)
   def part[S](w: IR[World], model: ModelName, ty: Ty): IR[S] = d => Expr.Part(w(d), model, ty)
   def outside(fact: OutsideFact): IR[Boolean] = _ => Expr.Outside(fact)
+  def unchanged(after: IR[World], before: IR[World]): IR[Boolean] = d => Expr.Unchanged(after(d), before(d))
   def runs[R](p: IR[Program[R]], before: IR[World], result: Bound[R], after: Bound[World])(
       post: (IR[R], IR[World]) => IR[Boolean]): IR[Boolean] = run(false, result, after)(p, before)(post)
   def fails[R, E](p: IR[Program[R]], before: IR[World], error: Bound[E], after: Bound[World])(

@@ -37,8 +37,19 @@ object FailureCases:
     down.declaring(v => v.copy(defines = List(Define(DefName("bookIfFree"),
       Written.steps(List(b), steps, Ty.Unit, SourceText("bookIfFree")), DefineForm.Flow))))
 
+  /** `∀ before, before = before`, a claim of worlds equal, where the store may be down. */
+  val sameWorld = claim("sameWorld")(Lang.formula([T[_]] => (l: Lang[T]) =>
+    l.forall[World]("before", Ty.World)(w => l.s.eq(w, w))))
+
+  /** `∀ p before, p.from(before) { … }`: a run of a program given as a variable, no Definition. */
+  private val anyProgram = claim("anyRuns")(Lang.formula([T[_]] => (l: Lang[T]) =>
+    l.forall[Program[Unit]]("p", Ty.FlowOf(Ty.Unit, None))(p => l.forall[World]("before", Ty.World)(w =>
+      l.s.runs(p, w, Bound[Unit]("r", Ty.Unit), Bound[World]("after", Ty.World))((_, _) => l.truth)))))
+
   val all: List[ProblemCase] = List(
-    ProblemCase(raising, List(Problem.ErrorsDiffer(DefName("bookIfFree"), List(Ty.Str, Lang.big)))),
+    ProblemCase(Kb.of(anyProgram), List(Problem.RunOfNoDefinition(NodeId("anyRuns")))),
+    ProblemCase(down.and(sameWorld), List(Problem.WorldsEqual(NodeId("sameWorld")))),
+    ProblemCase(raising, List(Problem.ErrorsDiffer(DefName("bookIfFree"), List(Lang.big, Ty.Str)))),
     ProblemCase(claiming(down, Lang.big),
       List(Problem.FailingDiffers(NodeId("bookFails"), Store.book, Lang.big, Ty.Str))),
     ProblemCase(claiming(Store.kb, Ty.Str), List(Problem.NeverFails(NodeId("bookFails"), Store.book))))

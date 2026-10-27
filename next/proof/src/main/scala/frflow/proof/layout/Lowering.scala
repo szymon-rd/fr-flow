@@ -23,7 +23,7 @@ final class Lowering(val resolved: Resolved, val table: TermTable):
     v.symbols.flatMap(s => s.ty match
       case SymbolType.Typed(t) => Ty.errorOf(t).map(s.name -> _)
       case _                   => None).toMap,
-    v.boundaries.exists(_.fails.nonEmpty))
+    v.boundaries.exists(_.fails.nonEmpty), v.models.map(m => Names.ident(m.boundary.value)))
   val naming: Naming = Naming.over(v.symbols.map(_.name.value).toSet,
     (v.types.map(_.typeName.value) ++ v.sorts.map(_.name.value) :+ "World").toSet)
   val guards: List[Guard] = Guards.of(resolved.theory)

@@ -1,7 +1,8 @@
-package frflow.proof.layout
+package frflow.proof.layout.failing
 
 import frflow.core.name.DefName
 import frflow.core.ty.Ty
+import frflow.proof.layout.Laid
 import frflow.proof.lean.ast.LeanModule
 import frflow.proof.lean.print.Print
 import frflow.proof.terms.Commutation
@@ -37,7 +38,8 @@ class FailingRunsSuite extends munit.FunSuite:
     assert(spec.contains("(match (file b before) with | (Except.ok r, after) => (after.Shelf = (b :: before.Shelf))" +
       " | _ => True) ∧ (match (file b before) with | (Except.error error, after) => ((error = \"down\") ∧ " +
       "(after.Shelf = before.Shelf)) | _ => True)"), spec)
-    assert(text(failing, "checkRuns.Spec").contains("| (Except.error error, after) => (after = before) | _ => True"))
+    assert(text(failing, "checkRuns.Spec").contains(
+      "| (Except.error error, after) => (after.Shelf = before.Shelf) | _ => True"), text(failing, "checkRuns.Spec"))
   }
 
   test("commute_ reads the program's error from its type") {

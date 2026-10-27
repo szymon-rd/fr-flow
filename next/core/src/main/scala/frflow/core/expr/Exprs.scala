@@ -29,6 +29,7 @@ object Exprs:
     case Expr.Do(p, _)             => Progs.terms(p)
     case Expr.Runs(r, w, _, _, _, b) => List(r, w, b)
     case Expr.Part(w, _, _)        => List(w)
+    case Expr.Unchanged(a, b)      => List(a, b)
 
   /** Every subexpression, `e` first. */
   def all(e: Expr): List[Expr] = e :: children(e).flatMap(all)
@@ -91,6 +92,7 @@ object Exprs:
     case Expr.Runs(_, _, _, _, _, _) => Ty.Bool
     case Expr.Part(_, _, t)       => t
     case Expr.Outside(_)          => Ty.Bool
+    case Expr.Unchanged(_, _)     => Ty.Bool
 
   /** The top-level conjuncts of a proposition (`a && (b && c)` gives `a`, `b`, `c`); itself when it is not a
     * conjunction.

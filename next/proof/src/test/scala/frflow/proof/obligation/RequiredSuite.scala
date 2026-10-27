@@ -4,7 +4,8 @@ import frflow.core.Lang
 import frflow.core.analysis.{Resolved, Scope}
 import frflow.core.name.NodeId
 import frflow.core.ty.Ty
-import frflow.proof.layout.{Broken, Failing, Mini, Programs, ProgramsProject}
+import frflow.proof.layout.{Broken, Mini, Programs, ProgramsProject}
+import frflow.proof.layout.failing.Failing
 import frflow.proof.lean.print.Print
 import frflow.proof.terms.TermTable
 

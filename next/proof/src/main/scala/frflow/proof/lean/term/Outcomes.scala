@@ -1,7 +1,7 @@
 package frflow.proof.lean.term
 
 import frflow.core.name.SymbolName
-import frflow.proof.lean.ast.{LExpr, LeanName, Names}
+import frflow.proof.lean.ast.{LExpr, LOp, LeanName, Names}
 import frflow.proof.lean.lower.{Atoms, LowerEnv}
 
 /** The arms a run's outcome is matched with (`Worlds.runs`, `Worlds.fails`): a run's pair taken apart, `| (result,
@@ -25,6 +25,16 @@ final class Outcomes(env: LowerEnv, standing: Map[SymbolName, LExpr]):
       name("_") -> name("True"))
 
 object Outcomes:
+  /** `((after.Shelf = before.Shelf) ∧ …)`: one equation per model's field of the world, `True` with none; the faults
+    * are no model's (`Worlds.unchanged`).
+    */
+  def unchanged(env: LowerEnv, after: LExpr, before: LExpr): LExpr =
+    env.models.map(f => LExpr.Paren(LExpr.Infix(LOp.Eq, LExpr.Dot(after, f.text), LExpr.Dot(before, f.text))))
+      match
+        case Nil        => Atoms.name("True")
+        case one :: Nil => one
+        case each       => LExpr.Paren(each.reduceRight(LExpr.Infix(LOp.And, _, _)))
+
   /** What a term applies, through its parentheses: `book` of `(book request before)`. */
   def head(e: LExpr): LExpr = e match
     case LExpr.Paren(inner) => head(inner)

@@ -15,7 +15,8 @@ import frflow.core.vocab.{BoundarySig, Define, DefineForm, ModelOp, OpSig, State
   * one (`made_fetch`, and of one with no inputs, `made_latest`), a store's operation giving one on its model
   * (`made_sample`), a pair of steps at once
   * (`commute_0` of `pairUp`) and a traverse at once (`commute_0` of
-  * `eachDoubled`), and a program raising, handling, collecting and accumulating (`careful`, its define only).
+  * `eachDoubled`), and a program raising, handling, collecting and accumulating (`careful`): every error it raises
+  * it handles, so its run is over that error (`ExceptT String`) and gives `2i + 3` (`carefulRuns`).
   */
 object Programs:
   private val big = Lang.big
@@ -59,6 +60,13 @@ object Programs:
       l.call(l.sym[I => Program[R]](name, fn(in, Ty.FlowOf(out, None))), i), w, Bound[R]("r", out),
       Bound[World]("after", Ty.World))((_, _) => l.truth))))
 
+  /** `∀ i before, guarded(i).from(before) { (r, _) => r = i + i + 3 }`. */
+  private val carefulRuns = claim("carefulRuns")(Lang.formula([T[_]] => (l: Lang[T]) =>
+    l.forall[BigInt]("i", big)(i => l.forall[World]("before", Ty.World)(w => l.s.runs(
+      l.call(l.sym[BigInt => Program[BigInt]]("guarded", fn(big, Ty.FlowOf(big, None))), i), w,
+      Bound[BigInt]("r", big), Bound[World]("after", Ty.World))((r, _) =>
+        l.s.eq(r, l.s.add(l.s.add(i, i), l.num(3))))))))
+
   val endsAfterStart: frflow.core.spec.Node = claim("endsAfterStart")(Lang.formula([T[_]] => (l: Lang[T]) =>
     l.s.always(Bound[Booking]("b", Booking.ty))(x => l.s.lt(l.s.field(x, Booking.start), l.s.field(x, Booking.end)))))
   private val laterSame = claim("laterSame")(Lang.formula([T[_]] => (l: Lang[T]) =>
@@ -82,7 +90,7 @@ object Programs:
   val kb: Kb = Kb.of(endsAfterStart, laterSame, claim("fetchRuns")(runs[BigInt, Booking]("fetch", big, Booking.ty)),
       claim("pairRuns")(runs[BigInt, (BigInt, BigInt)]("pairUp", big, Ty.TupleOf(List(big, big)))),
       claim("eachRuns")(runs[List[BigInt], List[BigInt]]("eachDoubled", Ty.ListOf(big), Ty.ListOf(big))),
-      claim("latestRuns")(Fixture.runsAlone[Booking]("latest", Booking.ty)),
+      claim("latestRuns")(Fixture.runsAlone[Booking]("latest", Booking.ty)), carefulRuns,
       assumption("fromOutside")(Lang.formula([T[_]] => (l: Lang[T]) =>
       l.s.always(Bound[Booking]("b", Booking.ty))(x =>
         l.s.lt(l.s.field(x, Booking.start), l.s.field(x, Booking.end))))))
@@ -92,19 +100,21 @@ object Programs:
       flow("fetchOne", List(n), Prog.Pure(made), Booking.ty) ++ flow("newest", Nil, Prog.Pure(made), Booking.ty) ++
       flow("both", List(n), both, Ty.TupleOf(List(big, big))) ++
       flow("doubled", List(xs), each, Ty.ListOf(big)) ++
-      flow("careful", List(n), careful, big).take(1)))
+      flow("careful", List(n), careful, big)))
     .naming(definition("reschedule", fn(Booking.ty, Booking.ty)),
       definition("fetch", fn(big, Ty.FlowOf(Booking.ty, None))),
       definition("pairUp", fn(big, Ty.FlowOf(Ty.TupleOf(List(big, big)), None))),
       definition("eachDoubled", fn(Ty.ListOf(big), Ty.FlowOf(Ty.ListOf(big), None))),
-      definition("latest", Ty.FlowOf(Booking.ty, None)))
+      definition("latest", Ty.FlowOf(Booking.ty, None)), definition("guarded", fn(big, Ty.FlowOf(big, None))))
     .coding(SymbolName("reschedule") -> Code.Proven(DefName("later")),
       SymbolName("fetch") -> Code.ProvenFlow(DefName("fetchOne")),
       SymbolName("pairUp") -> Code.ProvenFlow(DefName("both")),
       SymbolName("eachDoubled") -> Code.ProvenFlow(DefName("doubled")),
-      SymbolName("latest") -> Code.ProvenFlow(DefName("newest")))
+      SymbolName("latest") -> Code.ProvenFlow(DefName("newest")),
+      SymbolName("guarded") -> Code.ProvenFlow(DefName("careful")))
     .linking(("fromOutside" :: shelfFacts.map(_.id.value)).map(assumes("endsAfterStart", _))*)
-    .linking(List("laterSame", "fetchRuns", "pairRuns", "eachRuns", "latestRuns").map(assumes(_, "fromOutside"))*)
+    .linking(List("laterSame", "fetchRuns", "pairRuns", "eachRuns", "latestRuns", "carefulRuns")
+      .map(assumes(_, "fromOutside"))*)
 
   lazy val resolved: Resolved = Resolve(Validate(kb.elaborated).fold(ps => throw IllegalStateException(ps.toString),
     identity))
