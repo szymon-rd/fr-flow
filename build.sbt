@@ -67,6 +67,7 @@ def nextModules: Seq[ProjectReference] = Seq(
   nextWire,
 
   // step 8: nextProject
+  nextProject,
 
   // step 9: nextApi
 
@@ -113,6 +114,11 @@ lazy val nextWire = nextModule("wire", cats, circe, circeParser)
   .dependsOn(nextProof, nextDecision, nextTesting)
 
 // next-project (step 8)
+/** The imperative shell: the algebras of the project's files, Lean, git, the keys and the ledger's store, each with its
+  * live and in-memory interpreters; the analysis of a project (contents, fingerprints, standings), and the programs
+  * (check, status, decide, export) over them. Its tests read the examples written in eval's tests. */
+lazy val nextProject = nextModule("project", (Seq(cats, catsEffect, munitEffect) ++ fs2)*)
+  .dependsOn(nextProof, nextTesting % "compile->compile;test->test", nextDecision, nextWire)
 
 // next-api (step 9)
 

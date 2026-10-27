@@ -10,8 +10,9 @@ import frflow.proof.terms.{Conjoined, TermTable}
 
 /** The modules of one node, from its obligations: `Spec` (its claim, each conjunct a try names, what `cover_` and
   * `made_` declare, and every obligation's statement), `Auto` (`complete` by automation), `Impl` (`impl`),
-  * `Theorems` (`holds`: its claim from its leaves) and `Checks` (the other obligations, the tries within their
-  * budget, and the axioms audited). An authored obligation's theorem is the proof file's.
+  * `Theorems` (`holds`: its claim from its leaves) and `Checks` (the other obligations and the tries within their
+  * budget), each proof's axioms audited beside it. `Checks` imports no composition, so its obligations and tries are
+  * judged whether or not `complete` goes through. An authored obligation's theorem is the proof file's.
   */
 object NodeModules:
   def of(r: Resolved, table: TermTable, o: NodeObligations): List[LeanModule] = of(Lowering(r, table), o)
@@ -82,7 +83,7 @@ object NodeModules:
       val holds = Decl.Documented(s"${o.node.value} holds of every world meeting what is below it.",
         Decl.Theorem(Nil, Names.builtin("holds"), Nil, l.props.statement(c.holds(o.node)),
           Proof.Below(c.holdsProof(o.node, complete, x.goal)), Break.SameLine))
-      module(l, o.node, NodePart.Theorems, List(holds))
+      module(l, o.node, NodePart.Theorems, List(holds, audit(l, o.node, NodePart.Theorems, "holds")))
     }
 
   private def checks(l: Lowering, o: NodeObligations): Option[LeanModule] =
@@ -92,9 +93,7 @@ object NodeModules:
     val tries = o.tried.map(x => x.discharge match
       case Discharge.Attempt(h) => Decl.Budgeted(h, theorem(l, o.node, x))
       case _                    => theorem(l, o.node, x))
-    val holds = Option.when(Composition(l).composed(o.node) && o.required.exists(_.name == ObligationName.Complete))(
-      Decl.PrintAxioms(Names.path(l.kb.value, o.node.value, "Theorems", "holds")))
-    Option.when(proven.nonEmpty || tries.nonEmpty)(module(l, o.node, NodePart.Checks, proven ++ tries ++ holds))
+    Option.when(proven.nonEmpty || tries.nonEmpty)(module(l, o.node, NodePart.Checks, proven ++ tries))
 
   /** `theorem name : Obl.name`, by FrFlow's automation or by the proof file's theorem of that name. */
   private def theorem(l: Lowering, n: NodeId, x: Obligation): Decl =
