@@ -1,0 +1,48 @@
+package frflow.proof.obligation
+
+import cats.data.NonEmptyList
+import frflow.core.expr.{Expr, Prog}
+import frflow.core.name.{DefName, NodeId, SymbolName}
+import frflow.core.spec.Written
+import frflow.core.term.Stated
+import frflow.core.ty.Ty
+
+/** The statement of an obligation in the logic of refinement, before any Lean syntax. Claims and conjuncts stand
+  * applied to their open terms. `Forall` and `Exists` bind open terms in order: those of the claims of the nodes the
+  * statement is `about`, then its conclusion's, then its hypotheses' (a statement binds the terms of what it is
+  * about, not only of what it says); `ForEvery` and `ForSome` bind exactly the symbols named.
+  */
+enum Prop:
+  case ClaimOf(node: NodeId, substitute: Map[SymbolName, Substitute])
+  /** That every run of `op` keeps an `always` (`Keeping`): its formula, declared in the statement's namespace. */
+  case Keeps(always: NodeId, op: SymbolName, formula: Written[Expr], substitute: Map[SymbolName, Substitute])
+  /** That every result a maker (a proven define, or a store operation on its model) gives meets an `always[T]`:
+    * `always.makes_<maker>` applied to the maker's code (`made_<maker>`).
+    */
+  case Makes(always: NodeId, maker: SymbolName, formula: Written[Expr], substitute: Map[SymbolName, Substitute])
+  case ConjunctOf(node: NodeId, i: Int)
+  /** A formula as written: its term, printed; its IR, for the open terms it mentions. */
+  case Formula(w: Written[Expr])
+  case Implies(hyps: List[Hyp], conclusion: Prop)
+  case Iff(left: Prop, right: Prop)
+  case Both(props: NonEmptyList[Prop])
+  case Not(p: Prop)
+  case False
+  case Forall(about: List[NodeId], body: Prop)
+  case Exists(about: List[NodeId], body: Prop)
+  /** `∀` these values, each provided where code runs. */
+  case ForEvery(symbols: List[SymbolName], body: Prop)
+  /** `∃` these values: the open ones a witness is asked for. */
+  case ForSome(symbols: List[SymbolName], body: Prop)
+  /** An `always`'s rule (its define) at every state a store may start in (`initially`'s rule): of the state, or
+    * of each of its elements.
+    */
+  case Starts(rule: DefName, each: Boolean, initially: DefName, state: Ty)
+  /** Some value of `ty` meets an `always[T]`'s rule. */
+  case Inhabited(rule: DefName, ty: Ty)
+  case Commutes(first: Prog[Stated[?]], second: Prog[Stated[?]])
+
+object Prop:
+  def claim(n: NodeId): Prop = ClaimOf(n, Map.empty)
+  /** `∀` the open terms of the claims of `about` and of `body`: every obligation's statement. */
+  def over(about: List[NodeId], body: Prop): Prop = Forall(about, body)
