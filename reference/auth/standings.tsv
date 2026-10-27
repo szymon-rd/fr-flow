@@ -1,0 +1,11 @@
+node	kind	standing	status	review	causes	cases	against	seed
+AccessExactly	claim	proven	proven	accepted				
+AccessNeedsGrant	claim	proven	proven	accepted				
+DecisionContract	contract	tested	proven	accepted		1000	DecisionContract	1
+GrantLetsIn	claim	proven	proven	accepted				
+GrantTable	definition	nothing to prove		accepted				
+Identities	definition	nothing to prove		accepted				
+InMemorySessions	design	nothing to prove		accepted				
+Requests	definition	nothing to prove		accepted				
+SessionTable	definition	nothing to prove		accepted				
+TokenNamesHolder	claim	proven	proven	accepted				
