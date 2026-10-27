@@ -128,9 +128,9 @@ the models together make `structure World` (one field per boundary), an instance
 assumes the boundary deterministic (unknowns go into the state; the proofs hold for every start
 state), never failing, the flow's alone during a run (a design node governs how), and loops over
 lists. The model's node is an assumption: decided and trusted, a hypothesis of nothing in Lean (the
-instance is the model). Its implementations are run against it (§1b): `.checkedAgainst(holding, readBack)`
+instance is the model). Its implementations are run against it (§1b): `.checkedAgainst(implementation, stateOf)`
 names an outside system (assumed: checked on the flows' examples and on generated runs);
-`.implementedBy(holding, readBack)` names the project's own code (tested on generated runs).
+`.implementedBy(implementation, stateOf)` names the project's own code (tested on generated runs).
 
 A **contract on a flow** is on an operation `Param[A => Flow[R]]` (of 0 to 6 inputs, as any
 operation); its post relates the inputs, the result and the worlds before and after (`Model.in(before)`

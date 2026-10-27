@@ -320,7 +320,7 @@ function renderHeader() {
 const go = id => `<a data-goto="${esc(id)}">${esc(id)}</a>`;
 const when = at => new Date(at).toLocaleString();
 const VERB = { accept: "accepted", confirm: "confirmed", reject: "rejected", revisit: "asked to revisit", remove: "agreed gone" };
-const SUBJECT = { self: "it", above: "what is above it", parts: "its parts", code: "its code" };
+const SUBJECT = { self: "it", above: "a node it rests on", parts: "its parts", code: "its code" };
 const CLAUSE = { revisit: "asked to revisit it", merged: "kept from two branches" };
 /** `it and its code changed: review it`, as the CLI says it. */
 function reviewWords(causes) {

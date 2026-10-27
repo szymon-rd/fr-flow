@@ -1,13 +1,15 @@
 package rooms
 
-/** Whether a request is granted: one for another room is; one for this room overlaps neither of its neighbours by
-  * start. A room's bookings never overlap, so they end in the order they start, and only the neighbours can overlap.
+/** The calendar of one room. It grants a request for another room. For its own room, it sorts the bookings by
+  * start once; a request is granted when the booking before it ends by the time it starts, and the booking after it
+  * starts once it ends. Checking those two neighbours is enough because a room's bookings never overlap.
   */
-final class Calendar(room: RoomBookings):
+final class Calendar(held: RoomBookings):
   private val startOrder: Ordering[Booking] = Ordering.by(_.start)
-  private val byStart = room.bookings.sorted(using startOrder).toVector
+  private val byStart = held.bookings.sorted(using startOrder).toVector
 
   def grants(request: Booking): Boolean =
     val i = byStart.search(request)(using startOrder).insertionPoint
-    request.room != room.name ||
-      byStart.lift(i - 1).forall(_.end <= request.start) && byStart.lift(i).forall(_.start >= request.end)
+    val before = byStart.lift(i - 1)
+    val after = byStart.lift(i)
+    (request.room != held.room) || (before.forall(_.end <= request.start) && after.forall(_.start >= request.end))
