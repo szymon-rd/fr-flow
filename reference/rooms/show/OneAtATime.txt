@@ -14,4 +14,6 @@ Decisions
   2026-10-26 21:48  accepted by demo-developer: One process books, in a transaction, so bookings are made one at a time.
   2026-10-26 22:28  accepted by demo-developer: One process books, in a transaction, so bookings are made one at a time.
   2026-10-26 23:14  confirmed by demo-developer: still holds after bookWhenFree changed: The same root, the state after the call named once, so the equation reads at a glance.
+  2026-10-27 00:50  confirmed by demo-developer: still holds after answerWhenFree changed: The same root, proven of the same code.
+  2026-10-27 02:45  confirmed by demo-developer: still holds after bookWhenFree changed: The same root over a Request, the booking it asks for stored; it rests on what the form sends.
 --- exit 0

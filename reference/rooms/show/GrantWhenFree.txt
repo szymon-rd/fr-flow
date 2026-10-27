@@ -3,8 +3,8 @@
 
 Formally (as written in Scala)
   formula:
-    forall((room: Term[RoomBookings], request: Term[Booking]) =>
-      granted(room, request) === free(room.bookings, request))
+    forall((held: Term[RoomBookings], request: Term[Booking]) =>
+      granted(held, request) === free(held.bookings, request))
 
 Where it sits
   part of    + bookWhenFree  its only part: "A request is stored exactly when its room is free for its whole time."
@@ -45,4 +45,6 @@ Decisions
   2026-10-26 21:48  accepted by demo-developer: The calendar's part over moments, one equation: a request is granted exactly when its room is free.
   2026-10-26 22:28  accepted by demo-developer: The calendar's part over moments, now over a room's bookings, which never overlap: what the system gives it, not every list.
   2026-10-26 23:14  accepted by demo-developer: The same claim over a room's bookings, named room as the code names it.
+  2026-10-27 00:50  accepted by demo-developer: The same claim over a room's bookings, named held.
+  2026-10-27 02:45  confirmed by demo-developer: still holds after bookWhenFree changed: The same root over a Request, the booking it asks for stored; it rests on what the form sends.
 --- exit 0

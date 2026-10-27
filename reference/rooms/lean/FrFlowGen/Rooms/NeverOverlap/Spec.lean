@@ -7,7 +7,13 @@ import FrFlowGen.Rooms.Domain.Def_covers
 import FrFlowGen.Rooms.Domain.Def_neverOverlap
 import FrFlowGen.Rooms.Domain.Def_bookIfGranted_run
 import FrFlowGen.Rooms.Domain.Def_bookIfGranted
+import FrFlowGen.Rooms.Domain.Def_asBooking
+import FrFlowGen.Rooms.Domain.Def_startsEmpty
 import FrFlowGen.Rooms.Domain.Def_endsAfterStart
+import FrFlowGen.Rooms.Domain.Def_bookingsOfTheRoom
+import FrFlowGen.Rooms.Domain.Def_roomBookingsApart
+import FrFlowGen.Rooms.Domain.Def_requestsEndAfterStart
+import FrFlowGen.Rooms.RequestsEndAfterStart.Spec
 import FrFlowGen.Rooms.GrantWhenFree.Spec
 import FrFlowGen.Rooms.GrantWhenNoOverlap.Spec
 
@@ -26,7 +32,15 @@ namespace Obl
 
 /-- book (bookIfGranted_run) keeps NeverOverlap of what storedBookings holds after a run. -/
 @[frflow_defs] def kept_by_book : Prop :=
-  ∀ (granted : RoomBookings → Booking → Prop), ∀ (h_GrantWhenFree : (Rooms.GrantWhenFree.claim granted)) (h_GrantWhenNoOverlap : (Rooms.GrantWhenNoOverlap.claim granted)), ∀ (x0 : Booking) (x1 : World), (Rooms.endsAfterStart x0) → (∀ y ∈ x1.bookingTable, Rooms.endsAfterStart y) → (Rooms.neverOverlap x1.bookingTable) → (Rooms.neverOverlap ((Rooms.bookIfGranted_run granted) x0 x1).2.bookingTable)
+  ∀ (granted : RoomBookings → Booking → Prop), ∀ (h_GrantWhenFree : (Rooms.GrantWhenFree.claim granted)) (h_GrantWhenNoOverlap : (Rooms.GrantWhenNoOverlap.claim granted)), ∀ (x0 : Request) (x1 : World), (Rooms.requestsEndAfterStart x0) → (∀ y ∈ x1.bookingTable, Rooms.endsAfterStart y) → (Rooms.neverOverlap x1.bookingTable) → (Rooms.neverOverlap ((Rooms.bookIfGranted_run granted) x0 x1).2.bookingTable)
+
+end Obl
+
+namespace Obl
+
+/-- What storedBookings holds when the system starts (StartsEmpty) holds NeverOverlap. -/
+@[frflow_defs] def initially : Prop :=
+  ∀ (s : (List Booking)), Rooms.startsEmpty s → Rooms.neverOverlap s
 
 end Obl
 

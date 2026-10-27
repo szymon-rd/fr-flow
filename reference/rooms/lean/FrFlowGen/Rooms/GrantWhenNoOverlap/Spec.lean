@@ -16,7 +16,7 @@ open Classical
 namespace Rooms.GrantWhenNoOverlap
 
 @[frflow_defs] def post : RoomBookings → Booking → Prop → Prop :=
-  fun (room : RoomBookings) (request : Booking) (result : Prop) => (result = (∀ b ∈ room.bookings, (Rooms.noOverlap b request)))
+  fun (held : RoomBookings) (request : Booking) (result : Prop) => (result = (∀ b ∈ held.bookings, (Rooms.noOverlap b request)))
 
 @[frflow_defs] def claim (granted : RoomBookings → Booking → Prop) : Prop :=
   ∀ (x0 : RoomBookings) (x1 : Booking), (Rooms.bookingsOfTheRoom x0) → (Rooms.roomBookingsApart x0) → (∀ y ∈ x0.bookings, Rooms.endsAfterStart y) → (Rooms.endsAfterStart x1) → Rooms.GrantWhenNoOverlap.post x0 x1 (granted x0 x1)

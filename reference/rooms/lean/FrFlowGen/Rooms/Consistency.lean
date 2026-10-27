@@ -7,12 +7,14 @@ import FrFlowGen.Rooms.Domain.Def_covers
 import FrFlowGen.Rooms.Domain.Def_endsAfterStart
 import FrFlowGen.Rooms.Domain.Def_bookingsOfTheRoom
 import FrFlowGen.Rooms.Domain.Def_roomBookingsApart
+import FrFlowGen.Rooms.Domain.Def_startsEmpty
 import FrFlowGen.Rooms.Domain.Def_requestsEndAfterStart
 import FrFlowGen.Rooms.GrantWhenNoOverlap.Spec
 import FrFlowGen.Rooms.NeverOverlap.Spec
 import FrFlowGen.Rooms.EndsAfterStart.Spec
 import FrFlowGen.Rooms.BookingsOfTheRoom.Spec
 import FrFlowGen.Rooms.RoomBookingsApart.Spec
+import FrFlowGen.Rooms.RequestsEndAfterStart.Spec
 
 set_option autoImplicit false
 set_option linter.unusedVariables false
@@ -24,7 +26,7 @@ open Rooms
 
 /-- Some meaning of their terms meets GrantWhenNoOverlap: granted as GrantWhenNoOverlap says. -/
 theorem together_GrantWhenNoOverlap : ∃ (granted : RoomBookings → Booking → Prop), (Rooms.GrantWhenNoOverlap.claim granted) := by
-  refine ⟨fun (room : RoomBookings) (request : Booking) => (∀ b ∈ room.bookings, (Rooms.noOverlap b request)), ?_⟩
+  refine ⟨fun (held : RoomBookings) (request : Booking) => (∀ b ∈ held.bookings, (Rooms.noOverlap b request)), ?_⟩
   frflow_auto
 
 /-- Some value holds what NeverOverlap says always holds: List() or List(Booking("Oak", 6, 9)) or List(Booking("Oak", 1, 3)). -/
@@ -63,22 +65,16 @@ theorem admits_RoomBookingsApart_1 : ∃ (x : RoomBookings), Rooms.roomBookingsA
 /-- Some value holds what RoomBookingsApart says always holds: RoomBookings("Elm", List()) or RoomBookings("Elm", List(Booking("Elm", 1, 4), Booking("Elm", 4, 5))) or RoomBookings("Elm", List(Booking("Elm", 1, 4), Booking("Elm", 4, 7), Booking("Elm", 7, 10), Booking("Elm", 10, 13))). -/
 theorem admits_RoomBookingsApart_2 : ∃ (x : RoomBookings), Rooms.roomBookingsApart x := ⟨(RoomBookings.mk "Elm" [(Booking.mk "Elm" 1 4), (Booking.mk "Elm" 4 7), (Booking.mk "Elm" 7 10), (Booking.mk "Elm" 10 13)]), by frflow_auto⟩
 
-/-- Some value holds what RequestsEndAfterStart says always holds: Booking("Oak", 2, 4) or Booking("Elm", 3, 4) or Booking("Oak", 2, 5). -/
-theorem admits_RequestsEndAfterStart_0 : ∃ (x : Booking), Rooms.requestsEndAfterStart x := ⟨(Booking.mk "Oak" 2 4), by frflow_auto⟩
+/-- Some value holds what RequestsEndAfterStart says always holds: Request("Oak", 2, 4) or Request("Elm", 3, 4) or Request("Oak", 2, 5). -/
+theorem admits_RequestsEndAfterStart_0 : ∃ (x : Request), Rooms.requestsEndAfterStart x := ⟨(Request.mk "Oak" 2 4), by frflow_auto⟩
 
-/-- Some value holds what RequestsEndAfterStart says always holds: Booking("Oak", 2, 4) or Booking("Elm", 3, 4) or Booking("Oak", 2, 5). -/
-theorem admits_RequestsEndAfterStart_1 : ∃ (x : Booking), Rooms.requestsEndAfterStart x := ⟨(Booking.mk "Elm" 3 4), by frflow_auto⟩
+/-- Some value holds what RequestsEndAfterStart says always holds: Request("Oak", 2, 4) or Request("Elm", 3, 4) or Request("Oak", 2, 5). -/
+theorem admits_RequestsEndAfterStart_1 : ∃ (x : Request), Rooms.requestsEndAfterStart x := ⟨(Request.mk "Elm" 3 4), by frflow_auto⟩
 
-/-- Some value holds what RequestsEndAfterStart says always holds: Booking("Oak", 2, 4) or Booking("Elm", 3, 4) or Booking("Oak", 2, 5). -/
-theorem admits_RequestsEndAfterStart_2 : ∃ (x : Booking), Rooms.requestsEndAfterStart x := ⟨(Booking.mk "Oak" 2 5), by frflow_auto⟩
+/-- Some value holds what RequestsEndAfterStart says always holds: Request("Oak", 2, 4) or Request("Elm", 3, 4) or Request("Oak", 2, 5). -/
+theorem admits_RequestsEndAfterStart_2 : ∃ (x : Request), Rooms.requestsEndAfterStart x := ⟨(Request.mk "Oak" 2 5), by frflow_auto⟩
 
-/-- Some state meets what StartsApart says the store starts with: List() or List(Booking("Oak", 6, 9)) or List(Booking("Oak", 1, 3)). -/
-theorem starts_StartsApart_0 : ∃ (x : (List Booking)), (∀ y ∈ x, Rooms.endsAfterStart y) ∧ (Rooms.neverOverlap x) := ⟨[], by frflow_auto⟩
-
-/-- Some state meets what StartsApart says the store starts with: List() or List(Booking("Oak", 6, 9)) or List(Booking("Oak", 1, 3)). -/
-theorem starts_StartsApart_1 : ∃ (x : (List Booking)), (∀ y ∈ x, Rooms.endsAfterStart y) ∧ (Rooms.neverOverlap x) := ⟨[(Booking.mk "Oak" 6 9)], by frflow_auto⟩
-
-/-- Some state meets what StartsApart says the store starts with: List() or List(Booking("Oak", 6, 9)) or List(Booking("Oak", 1, 3)). -/
-theorem starts_StartsApart_2 : ∃ (x : (List Booking)), (∀ y ∈ x, Rooms.endsAfterStart y) ∧ (Rooms.neverOverlap x) := ⟨[(Booking.mk "Oak" 1 3)], by frflow_auto⟩
+/-- Some state meets what StartsEmpty says the store starts with: List(). -/
+theorem starts_StartsEmpty_0 : ∃ (x : (List Booking)), Rooms.startsEmpty x := ⟨[], by frflow_auto⟩
 
 end Rooms.Consistency

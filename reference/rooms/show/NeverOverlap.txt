@@ -3,7 +3,7 @@
 
 Formally (as written in Scala)
   formula:
-    always(storedBookings)(held => held.pairwise(apart))
+    always(storedBookings)(stored => stored.pairwise(apart))
   kept by book
 
 Where it sits
@@ -13,12 +13,16 @@ Where it sits
 Assumes
   - onlyBookingWrites (assumption): "Only booking writes to the table."
   - oneAtATime (assumption): "Bookings are processed one at a time."
-  - startsApart (assumption): "The table starts with no two bookings overlapping."
+  - startsEmpty (assumption): "The table starts empty."
+  + requestsEndAfterStart (assumption): "The booking form sends only requests that end after they start."
 
 Proofs
   kept_by_book: proven: auto
+  initially: proven: auto
 
 Decisions
   2026-10-26 21:47  accepted by demo-developer: What the store always holds, proven kept by booking, the one program writing it, from a start that holds it.
   2026-10-26 22:28  accepted by demo-developer: The same rule over the bookings stored, now named storedBookings, kept by booking from a start that meets it.
+  2026-10-27 00:49  accepted by demo-developer: The same rule over the bookings stored, from a table that starts empty: Lean proves an empty table meets it.
+  2026-10-27 02:18  confirmed by demo-developer: The same rule; its proof that booking keeps it takes what the form sends.
 --- exit 0

@@ -2,6 +2,7 @@
 
 import FrFlowGen.Rooms.Types
 import FrFlowGen.Rooms.Boundaries
+import FrFlowGen.Rooms.Domain.Def_asBooking
 
 set_option autoImplicit false
 set_option linter.unusedVariables false
@@ -10,12 +11,12 @@ open Classical
 
 namespace Rooms
 
-@[frflow_defs] def bookIfGranted {m : Type → Type} [Monad m] [BookingTable m] (granted : RoomBookings → Booking → Prop) : Booking → m Prop :=
-  fun (request : Booking) => do
+@[frflow_defs] def bookIfGranted {m : Type → Type} [Monad m] [BookingTable m] (granted : RoomBookings → Booking → Prop) : Request → m Prop :=
+  fun (request : Request) => do
     let held ← BookingTable.inRoom request.room
-    let booked := (granted held request)
+    let booked := (granted held (Rooms.asBooking request))
     if booked then
-      BookingTable.add request
+      BookingTable.add (Rooms.asBooking request)
       pure ()
     else
       pure ()

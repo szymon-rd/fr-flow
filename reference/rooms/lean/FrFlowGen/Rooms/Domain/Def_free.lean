@@ -11,7 +11,7 @@ open Classical
 namespace Rooms
 
 @[frflow_defs] def free : (List Booking) → Booking → Prop :=
-  fun (held : (List Booking)) (request : Booking) => (∀ b ∈ held, (Rooms.apart b request))
+  fun (bookings : (List Booking)) (request : Booking) => (∀ b ∈ bookings, (Rooms.apart b request))
 
 frflow_match_eqns
 

@@ -3,10 +3,11 @@
 
 Formally (as written in Scala)
   formula:
-    forall((request: Term[Booking], before: Term[World]) =>
-      val held = storedBookings.in(before)
+    forall((request: Term[Request], before: Term[World]) =>
+      val stored = storedBookings.in(before)
+      val booking = asBooking(request)
       val after = storedBookings.in(book(request).after(before))
-      after === when(free(held, request))(held :+ request).otherwise(held))
+      after === when(free(stored, booking))(stored :+ booking).otherwise(stored))
 
 Where it sits
   uses       + endsAfterStart: "Every booking ends after it starts."
@@ -17,8 +18,9 @@ Parts: together they make it (proven: auto)
   clash: Lean found no proof that the parts contradict each other (a try)
 
 Assumes
-  - tableModel (assumption): "The table gives a room's bookings in the order they were added, and adds one at the end."
+  - tableMatchesModel (assumption): "The table gives a room's bookings in the order they were added, and adds one at the end."
   - oneAtATime (assumption): "Bookings are processed one at a time."
+  + requestsEndAfterStart (assumption): "The booking form sends only requests that end after they start."
 
 Vocabulary
   book (operation): booking a request: whether it was booked (open)
@@ -26,19 +28,21 @@ Vocabulary
 Proofs
   complete: proven: auto
   impl (bookIfGranted_run): proven: auto
-  root_impl: proven: the root holds of the code, trusting nothing; and the code of grantWhenNoOverlap, tested, not proven
+  root_impl: proven: the root holds of the code, trusting requestsEndAfterStart; and the code of grantWhenNoOverlap, tested, not proven
 
 Code
   proven define bookIfGranted_run
     bookIfGranted_run = bookIfGranted
-    bookIfGranted = fun (request : Booking) => do
+    bookIfGranted = fun (request : Request) => do
         let held ← BookingTable.inRoom request.room
-        let booked := (granted held request)
-    ... 6 more line(s): context bookWhenFree
+        let booked := (granted held (⟦asBooking⟧ request))
+    ... 7 more line(s): context bookWhenFree
   governs: src/main/scala/rooms/Book.scala
 
 Decisions
   2026-10-26 21:48  accepted by demo-developer: The service's purpose as one equation: after a request the store holds it added exactly when its room is free, and is unchanged otherwise.
   2026-10-26 22:28  accepted by demo-developer: The same root over storedBookings; booking's code now reads a room's bookings as RoomBookings.
   2026-10-26 23:14  accepted by demo-developer: The same root, the state after the call named once, so the equation reads at a glance.
+  2026-10-27 00:50  accepted by demo-developer: The same root, the bookings stored named stored, as the code reads them.
+  2026-10-27 02:45  accepted by demo-developer: The same root over a Request, the booking it asks for stored; it rests on what the form sends.
 --- exit 0

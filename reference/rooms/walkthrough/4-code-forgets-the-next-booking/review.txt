@@ -3,30 +3,30 @@
 ! grantWhenNoOverlap  claim on granted  its code changed: review it  trusted
   A request is granted exactly when it overlaps no booking of its room.
 
-What changed since it was accepted (demo-developer, 2026-10-26 23:14)
+What changed since it was confirmed (demo-developer, 2026-10-27 02:45)
   the code it governs changed (src/main/scala/rooms/Calendar.scala)
     diff --git a/examples/rooms/src/main/scala/rooms/Calendar.scala b/examples/rooms/src/main/scala/rooms/Calendar.scala
-    index 451d052..7528228 100644
+    index 42e8bd1..b2bd2ed 100644
     --- a/examples/rooms/src/main/scala/rooms/Calendar.scala
     +++ b/examples/rooms/src/main/scala/rooms/Calendar.scala
-    @@ -10,4 +10,4 @@ final class Calendar(room: RoomBookings):
-       def grants(request: Booking): Boolean =
+    @@ -12,4 +12,4 @@ final class Calendar(held: RoomBookings):
          val i = byStart.search(request)(using startOrder).insertionPoint
-         request.room != room.name ||
-    -      byStart.lift(i - 1).forall(_.end <= request.start) && byStart.lift(i).forall(_.start >= request.end)
-    +      byStart.lift(i - 1).forall(_.end <= request.start)
+         val before = byStart.lift(i - 1)
+         val after = byStart.lift(i)
+    -    (request.room != held.room) || (before.forall(_.end <= request.start) && after.forall(_.start >= request.end))
+    +    (request.room != held.room) || (before.forall(_.end <= request.start))
 
 Decision
   to review: the code it governs changed
   grantWhenNoOverlap is under review for code: the developer decides
-  note: its code fails a generated case: room = RoomBookings("Oak", List(Booking("Oak", 0, 10))), request = Booking("Oak", 0, 1): returned true, which grantWhenNoOverlap forbids
+  note: its code fails a generated case: held = RoomBookings("Oak", List(Booking("Oak", 0, 10))), request = Booking("Oak", 0, 1): returned true, which grantWhenNoOverlap forbids
 
 [a]ccept [s]kip [v]iew [q]uit: 
 Decided 0 decision(s).
 Rooms: 13 nodes, 12 accepted, 1 to review
 Proofs: splits 3/3, root_impl proven, consistency proven, nothing vacuous
 Tests: code against its claims 0/1, implementations against their models 1/1, examples in Lean 4/4, at run time 1 checked on every call
-Trusted: tableModel (a model), onlyBookingWrites, oneAtATime, startsApart, requestsEndAfterStart (facts); tested, not proven: grantWhenNoOverlap
+Trusted: requestsEndAfterStart, tableMatchesModel (a model), onlyBookingWrites, oneAtATime, startsEmpty (facts); tested, not proven: grantWhenNoOverlap
 1 with something unproven
 Waiting: 1 for the developer
 marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do

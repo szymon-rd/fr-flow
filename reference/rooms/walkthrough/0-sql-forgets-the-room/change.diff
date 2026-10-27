@@ -1,0 +1,13 @@
+# not in the README: the SQL query of a room's bookings forgets the room (its WHERE dropped)
+--- a/examples/rooms/src/main/scala/rooms/SqliteBookings.scala
++++ b/examples/rooms/src/main/scala/rooms/SqliteBookings.scala
+@@ -16,8 +16,7 @@
+   }
+ 
+   private def bookingsIn(room: String): List[Booking] = synchronized {
+-    val query = conn.prepareStatement("select room, starts, ends from bookings where room = ? order by id")
+-    query.setString(1, room)
++    val query = conn.prepareStatement("select room, starts, ends from bookings order by id")
+     read(query)
+   }
+ 

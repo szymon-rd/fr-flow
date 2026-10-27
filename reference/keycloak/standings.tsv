@@ -1,0 +1,24 @@
+node	kind	standing	status	review	causes	cases	against	seed
+Accounts	definition	nothing to prove		accepted				
+AccountsAsAdministered	claim	proven	proven	accepted				
+AnswersNameASession	claim	proven	proven	accepted				
+DisabledHaveNoAccess	claim	proven	proven	accepted				
+FreshTokens	assumption	assumed	proven	accepted				
+HandleRequest	contract	proven	proven	accepted				
+HttpApi	design	nothing to prove		accepted				
+Identities	definition	nothing to prove		accepted				
+Introspect	contract	tested	proven	accepted		1000	Introspect	1
+NoUnauthorizedAccess	claim	proven	proven	accepted				
+OneSignInPerToken	claim	proven	proven	accepted				
+OnlyTheSignedIn	claim	proven	proven	accepted				
+RealmAccess	claim	proven	proven	accepted				
+RealmIsolation	invariant	proven	proven	accepted				
+ReferenceTokens	definition	nothing to prove		accepted				
+RolesAsGranted	claim	proven	proven	accepted				
+ServerRun	definition	nothing to prove		accepted				
+ServiceWiring	design	nothing to prove		accepted				
+SessionLookup	assumption	assumed	proven	accepted		1000	the proven define storedSession, and SessionLookup	1
+SessionsMirrorSignIns	claim	proven	proven	accepted				
+SignInHistory	definition	nothing to prove		accepted				
+SignedInAreAccepted	claim	proven	proven	accepted				
+StoreKeepsState	assumption	assumed	proven	accepted		1000	the proven define storedAs, and StoreKeepsState	1

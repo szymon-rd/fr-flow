@@ -10,9 +10,9 @@ open Classical
 
 namespace Rooms.AnswerWhenFree
 
-/-- AnswerWhenFree holds of every world that meets the leaves below it: GrantWhenNoOverlap. -/
-theorem holds : ∀ (granted : RoomBookings → Booking → Prop), ∀ (h_GrantWhenNoOverlap : (Rooms.GrantWhenNoOverlap.claim granted)), (Rooms.AnswerWhenFree.claim (Rooms.bookIfGranted_run granted)) := by
-  intro granted h_GrantWhenNoOverlap
-  exact Rooms.AnswerWhenFree.Auto.complete (granted := granted) (h_GrantWhenFree := (Rooms.GrantWhenFree.holds (granted := granted) (h_GrantWhenNoOverlap := h_GrantWhenNoOverlap)))
+/-- AnswerWhenFree holds of every world that meets the leaves below it: GrantWhenNoOverlap, RequestsEndAfterStart. -/
+theorem holds : ∀ (granted : RoomBookings → Booking → Prop), ∀ (h_GrantWhenNoOverlap : (Rooms.GrantWhenNoOverlap.claim granted)) (h_RequestsEndAfterStart : Rooms.RequestsEndAfterStart.claim), (Rooms.AnswerWhenFree.claim (Rooms.bookIfGranted_run granted)) := by
+  intro granted h_GrantWhenNoOverlap h_RequestsEndAfterStart
+  exact Rooms.AnswerWhenFree.Auto.complete (granted := granted) (h_GrantWhenFree := (Rooms.GrantWhenFree.holds (granted := granted) (h_GrantWhenNoOverlap := h_GrantWhenNoOverlap))) (h_RequestsEndAfterStart := h_RequestsEndAfterStart)
 
 end Rooms.AnswerWhenFree

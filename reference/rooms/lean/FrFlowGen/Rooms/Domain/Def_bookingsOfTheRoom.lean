@@ -10,7 +10,7 @@ open Classical
 namespace Rooms
 
 @[frflow_defs] def bookingsOfTheRoom : RoomBookings → Prop :=
-  fun (room : RoomBookings) => (∀ b ∈ room.bookings, (b.room = room.name))
+  fun (held : RoomBookings) => (∀ b ∈ held.bookings, (b.room = held.room))
 
 frflow_match_eqns
 

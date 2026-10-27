@@ -11,13 +11,13 @@ namespace Rooms.BookWhenFree.Checks
 open Rooms.BookWhenFree
 
 set_option maxHeartbeats 4000 in
-theorem vacuous : Obl.vacuous := by
-  unfold Obl.vacuous
+theorem needed_GrantWhenFree : Obl.needed_GrantWhenFree := by
+  unfold Obl.needed_GrantWhenFree
   frflow_auto
 
 set_option maxHeartbeats 4000 in
-theorem restates : Obl.restates := by
-  unfold Obl.restates
+theorem needed_RequestsEndAfterStart : Obl.needed_RequestsEndAfterStart := by
+  unfold Obl.needed_RequestsEndAfterStart
   frflow_auto
 
 set_option maxHeartbeats 4000 in

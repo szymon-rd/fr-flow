@@ -17,7 +17,7 @@ open Classical
 namespace Rooms.GrantWhenFree
 
 @[frflow_defs] def post : RoomBookings → Booking → Prop → Prop :=
-  fun (room : RoomBookings) (request : Booking) (result : Prop) => (result = (Rooms.free room.bookings request))
+  fun (held : RoomBookings) (request : Booking) (result : Prop) => (result = (Rooms.free held.bookings request))
 
 @[frflow_defs] def claim (granted : RoomBookings → Booking → Prop) : Prop :=
   ∀ (x0 : RoomBookings) (x1 : Booking), (Rooms.bookingsOfTheRoom x0) → (Rooms.roomBookingsApart x0) → (∀ y ∈ x0.bookings, Rooms.endsAfterStart y) → (Rooms.endsAfterStart x1) → Rooms.GrantWhenFree.post x0 x1 (granted x0 x1)

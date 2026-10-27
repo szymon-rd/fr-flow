@@ -6,25 +6,26 @@
 o answerWhenFree: waiting
   ! waiting for its parts: grantWhenFree
 x grantWhenFree: failed
-  the step from grantWhenNoOverlap does not hold on room = RoomBookings("Elm", List(Booking("Elm", 0, 8))), request = Booking("Elm", 8, 9):
+  the step from grantWhenNoOverlap does not hold on held = RoomBookings("Elm", List(Booking("Elm", 0, 8))), request = Booking("Elm", 8, 9):
     grantWhenNoOverlap has it not granted, and this claim needs it granted; Lean confirms this case
   example "back to back: refused": granted(RoomBookings("Oak", List(Booking("Oak", 9, 10))), Booking("Oak", 10, 11)) is false, which this claim refuses
   ! check the change to noOverlap: with it, grantWhenNoOverlap no longer gives this claim
 o bookWhenFree: waiting
   ! waiting for its parts: grantWhenFree
-+ tableModel: SqliteBookings gives what the model gives on 200 generated runs
++ requestsEndAfterStart: proven
++ tableMatchesModel: SqliteBookings gives what the model gives on 200 generated runs
 + consistency of grantWhenNoOverlap: Lean proves a meaning meets it: granted as grantWhenNoOverlap says
 + neverOverlap admits a value: Lean proves it holds of List()
 + endsAfterStart admits a value: Lean proves it holds of Booking("Oak", 2, 4)
 + bookingsOfTheRoom admits a value: Lean proves it holds of RoomBookings("Elm", List())
 + roomBookingsApart admits a value: Lean proves it holds of RoomBookings("Elm", List())
-+ requestsEndAfterStart admits a value: Lean proves it holds of Booking("Oak", 2, 4)
-+ startsApart: some state meets it: Lean proves List() meets it
++ requestsEndAfterStart admits a value: Lean proves it holds of Request("Oak", 2, 4)
++ startsEmpty: some state meets it: Lean proves List() meets it
 
 Rooms: 13 nodes, 12 accepted, 1 to review
 Proofs: splits 0/3, root_impl unchecked, consistency proven, nothing vacuous
 Tests: code against its claims 1/1, implementations against their models 1/1, examples in Lean 5/6, at run time 1 checked on every call
-Trusted: tableModel (a model), onlyBookingWrites, oneAtATime, startsApart, requestsEndAfterStart (facts); tested, not proven: grantWhenNoOverlap
+Trusted: requestsEndAfterStart, tableMatchesModel (a model), onlyBookingWrites, oneAtATime, startsEmpty (facts); tested, not proven: grantWhenNoOverlap
 3 with something unproven
 Waiting: 1 for the developer
 marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do

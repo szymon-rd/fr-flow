@@ -1,0 +1,27 @@
+node	kind	standing	status	review	causes	cases	against	seed
+Adding	definition	nothing to prove		accepted				
+Companies	definition	nothing to prove		accepted				
+CrmRun	definition	nothing to prove		accepted				
+DealSearch	contract	proven	proven	accepted				
+ExpiryJob	contract	proven	proven	accepted				
+ExpiryJobWiring	design	nothing to prove		accepted				
+HttpApi	design	nothing to prove		accepted				
+NoCrossTenantRead	invariant	proven	proven	accepted				
+ReadContract	contract	proven	proven	accepted				
+ReadSideWiring	design	nothing to prove		accepted				
+RecordsByQuery	assumption	assumed	proven	accepted		1000	the proven define storedMatching, and RecordsByQuery	1
+RecordsKept	claim	proven	proven	accepted				
+SaveWrite	contract	proven	proven	accepted				
+Searches	definition	nothing to prove		accepted				
+SearchesMatch	claim	proven	proven	accepted				
+SharedCrm	claim	proven	proven	accepted				
+SharesExpire	contract	proven	proven	accepted				
+Sharing	definition	nothing to prove		accepted				
+StoreEdits	assumption	assumed	proven	accepted		1000	the proven define storedAbout, and StoreEdits	1
+StoreMirrorsRequests	claim	proven	proven	accepted				
+TablesModel	assumption	assumed	proven	accepted		1200	the model DatabaseModel	1
+Visibility	claim	proven	proven	accepted				
+WriteContract	contract	proven	proven	accepted				
+WriteSideWiring	design	nothing to prove		accepted				
+WritesOnlyAsAsked	claim	proven	proven	accepted				
+WritesTakeEffect	claim	proven	proven	accepted				

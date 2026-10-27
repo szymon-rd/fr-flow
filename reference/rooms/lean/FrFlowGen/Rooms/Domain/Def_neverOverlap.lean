@@ -11,7 +11,7 @@ open Classical
 namespace Rooms
 
 @[frflow_defs] def neverOverlap : (List Booking) → Prop :=
-  fun (held : (List Booking)) => (List.Pairwise (fun (a : Booking) (b : Booking) => (Rooms.apart a b)) held)
+  fun (stored : (List Booking)) => (List.Pairwise (fun (a : Booking) (b : Booking) => (Rooms.apart a b)) stored)
 
 frflow_match_eqns
 

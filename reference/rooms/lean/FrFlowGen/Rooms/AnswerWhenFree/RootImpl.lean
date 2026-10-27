@@ -11,11 +11,11 @@ open Classical
 
 namespace Rooms.AnswerWhenFree.RootImpl
 
-/-- The root holds of the code, from what is trusted: GrantWhenNoOverlap. -/
-theorem root_impl : ∀ (granted : RoomBookings → Booking → Prop), ∀ (h_GrantWhenNoOverlap : (Rooms.GrantWhenNoOverlap.claim granted)), (Rooms.AnswerWhenFree.claim (Rooms.bookIfGranted_run granted)) :=
+/-- The root holds of the code, from what is trusted: GrantWhenNoOverlap, RequestsEndAfterStart. -/
+theorem root_impl : ∀ (granted : RoomBookings → Booking → Prop), ∀ (h_GrantWhenNoOverlap : (Rooms.GrantWhenNoOverlap.claim granted)) (h_RequestsEndAfterStart : Rooms.RequestsEndAfterStart.claim), (Rooms.AnswerWhenFree.claim (Rooms.bookIfGranted_run granted)) :=
   by
-  intro granted h_GrantWhenNoOverlap
-  exact Rooms.AnswerWhenFree.holds (granted := granted) (h_GrantWhenNoOverlap := h_GrantWhenNoOverlap)
+  intro granted h_GrantWhenNoOverlap h_RequestsEndAfterStart
+  exact Rooms.AnswerWhenFree.holds (granted := granted) (h_GrantWhenNoOverlap := h_GrantWhenNoOverlap) (h_RequestsEndAfterStart := h_RequestsEndAfterStart)
 
 #print axioms Rooms.AnswerWhenFree.RootImpl.root_impl
 

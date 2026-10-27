@@ -20,8 +20,8 @@ ReferenceTokens | definition | nothing to prove | accepted |
 RolesAsGranted | claim | proven | accepted | 
 ServerRun | definition | nothing to prove | accepted | 
 ServiceWiring | design | nothing to prove | accepted | 
-SessionLookup | assumption | assumed | accepted | its check: proven
+SessionLookup | assumption | assumed | accepted | its check: proven; code tested on 1000 cases against the proven define storedSession, and SessionLookup, seed 1
 SessionsMirrorSignIns | claim | proven | accepted | 
 SignInHistory | definition | nothing to prove | accepted | 
 SignedInAreAccepted | claim | proven | accepted | 
-StoreKeepsState | assumption | assumed | accepted | its check: proven
+StoreKeepsState | assumption | assumed | accepted | its check: proven; code tested on 1000 cases against the proven define storedAs, and StoreKeepsState, seed 1

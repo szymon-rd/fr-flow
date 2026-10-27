@@ -11,4 +11,5 @@ Where it sits
 Decisions
   2026-10-26 21:47  accepted by demo-developer: Only the booking service writes the bookings table: no other program or person changes it.
   2026-10-26 22:28  accepted by demo-developer: Only the booking service writes the bookings table: no other program or person changes it.
+  2026-10-27 00:49  confirmed by demo-developer: still holds after neverOverlap changed: The same rule over the bookings stored, from a table that starts empty: Lean proves an empty table meets it.
 --- exit 0

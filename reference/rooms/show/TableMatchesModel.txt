@@ -1,29 +1,30 @@
-- tableModel  assumption  accepted
+- tableMatchesModel  assumption  accepted
   The table gives a room's bookings in the order they were added, and adds one at the end.
 
 Formally (as written in Scala)
   model:
     add = fun (booking : Booking) => do
-        modify (fun held => (held ++ [booking]))
+        modify (fun stored => (stored ++ [booking]))
     inRoom = fun (room : String) => do
-        let held ← get
-        pure (RoomBookings.mk room (List.filter (fun b => decide (b.room = room)) held))
+        let stored ← get
+        pure (RoomBookings.mk room (List.filter (fun b => decide (b.room = room)) stored))
 
 Where it sits
   assumed by + bookWhenFree: "A request is stored exactly when its room is free for its whole time."
   assumed by + answerWhenFree: "A request is answered booked exactly when its room is free for its whole time."
 
 Code
-  implemented by: held => SqliteBookings.holding(held) (an outside system, checked against the model; the model stays assumed)
+  implemented by: stored => SqliteBookings.holding(stored) (an outside system, checked against the model; the model stays assumed)
   tested: 200 generated runs of its operations (seed 1), against the model storedBookings
     every run gives what the model gives and leaves what it leaves, and every operation and branch of it was reached
     note: SqliteBookings (an outside system: its model is assumed; these runs check it): 200 runs of 1 to 12 operations each, from generated states
     note: String: Oak or Elm (given)
-    note: Booking: bookings of Oak or Elm that end after they start (given)
+    note: Request: requests for Oak or Elm that end after they start (given)
+    note: Booking: the bookings those requests ask for (given)
     note: RoomBookings: a room's bookings, laid end to end, some back to back (given)
   governs: src/main/scala/rooms/SqliteBookings.scala
 
 Decisions
-  2026-10-26 22:28  accepted by demo-developer: The table's model booking is proven from, its room's bookings given as RoomBookings; SqliteBookings is checked against it.
-  2026-10-26 23:14  accepted by demo-developer: The same model, a room's bookings given with the room's name; SqliteBookings holding a state is run against it.
+  2026-10-27 00:50  accepted by demo-developer: The table's model booking is proven from; SqliteBookings, holding a state, is checked against it.
+  2026-10-27 02:45  confirmed by demo-developer: still holds after bookWhenFree changed: The same root over a Request, the booking it asks for stored; it rests on what the form sends.
 --- exit 0
