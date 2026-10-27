@@ -31,13 +31,46 @@ addCommandAlias("frflowInit", "cli/runMain frflow.cli.Init")
 addCommandAlias("frflowInitAgent", "agent/runMain frflow.agent.Init")
 
 lazy val root = project.in(file("."))
-  .aggregate(model, protocol, lean, ledger, check, api, cli, web, testkit, agent, auth, crm, keycloak, sharing, rooms)
+  .aggregate((Seq[ProjectReference](model, protocol, lean, ledger, check, api, cli, web, testkit, agent, auth, crm,
+    keycloak, sharing, rooms) ++ nextModules)*)
   .configs(LeanTest).settings(leanTagged)
   .settings(publish / skip := true)
 
 def module(name: String, libraries: ModuleID*) = Project(name, file(s"modules/$name"))
   .configs(LeanTest).settings(leanTagged)
   .settings(Keys.name := s"frflow-$name", libraryDependencies ++= munit +: libraries)
+
+// The rebuild (docs/redesign/ARCHITECTURE.md, section 9): each new module is `nextModule(name, libraries*)` under
+// next/<name>/, sbt id `next-<name>`, package `frflow.<name>`, with the planned build's warnings as errors. The root
+// aggregates every directory under next/, so a step adds its directory and its one line below, in its slot.
+val nextFlags = Seq("-Wunused:all", "-Wnonunit-statement", "-Wvalue-discard")
+def nextModules: Seq[ProjectReference] =
+  IO.listFiles(file("next")).filter(_.isDirectory).sorted.map(d => LocalProject(s"next-${d.getName}")).toSeq
+def nextModule(name: String, libraries: ModuleID*) = Project(s"next-$name", file(s"next/$name"))
+  .configs(LeanTest).settings(leanTagged)
+  .settings(Keys.name := s"frflow-next-$name", libraryDependencies ++= munit +: libraries,
+    scalacOptions ++= nextFlags, publish / skip := true)
+
+/** Names, types, the term algebras and core interpreters, the IR, statements, validation, checking, consistency. */
+lazy val nextCore = nextModule("core", cats)
+
+// next-dsl (step 2)
+
+// next-proof (step 3)
+
+// next-eval (step 4)
+
+// next-testing (step 5)
+
+// next-decision (step 6)
+
+// next-wire (step 7)
+
+// next-project (step 8)
+
+// next-api (step 9)
+
+// next-cli, next-web, next-agent (step 10)
 
 // FrFlow's core: the modules below up to `web`, usable on their own. `agent` is a layer on top; no core module depends on it.
 
