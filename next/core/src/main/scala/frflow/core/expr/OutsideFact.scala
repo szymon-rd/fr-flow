@@ -4,7 +4,8 @@ import frflow.core.name.{BoundaryName, DefName, ModelName, SymbolName}
 
 /** What an assumption about the world outside the code says (owner §16: the company's procedures, the outside
   * services and how they are run). Lean's model of the world is built on these, so Lean states none of them as a
-  * formula; each is the premise of the rule it lets FrFlow use (`analysis.Premises`).
+  * formula; each is the premise of the rule it lets FrFlow use (`analysis.Premises`). What values from outside meet
+  * is not one of them: it is an assumption of `always` on their type (owner §21), a hypothesis Lean states.
   */
 enum OutsideFact:
   /** The store does what its model does: code calling it is proven on the model, its code tested against it. */
@@ -19,7 +20,3 @@ enum OutsideFact:
     * define named as the assumption.
     */
   case Initially(model: ModelName, rule: DefName)
-  /** The world outside calls this Definition with values that can be made: each meets every `always[T]` of its type
-    * (values entering from outside, owner §16).
-    */
-  case Calls(definition: SymbolName)

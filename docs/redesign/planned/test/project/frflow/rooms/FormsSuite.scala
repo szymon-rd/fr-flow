@@ -36,7 +36,7 @@ class FormsSuite extends munit.FunSuite:
 
   test("one Definition (R14.2): `define` and `program` make a Definition carrying its meaning; no Def type remains") {
     val d: Definition[(Booking, BigInt) => Boolean] = covers
-    val p: Definition[Booking => Program[Boolean]] = bookIfGranted
+    val p: Definition[Request => Program[Boolean]] = bookIfGranted
     assertEquals((d.onTheSpot.map(_.code), p.onTheSpot.map(_.code)),
       (Some(Code.Proven(DefName("covers"))), Some(Code.ProvenFlow(DefName("bookIfGranted")))))
     assert(compileErrors("val one: Def1[Booking, Boolean] = ???").nonEmpty)
@@ -45,11 +45,11 @@ class FormsSuite extends munit.FunSuite:
 
   test("a meaning is given once: proven code is a define or a program, and one written on the spot takes no other") {
     def faults(kb: KnowledgeBase) = kb.elaborated.fold(_.iterator.map(_.fault).toList, _ => Nil)
-    val notCode = Definition[Booking => Program[Boolean]]("a program nothing gives a meaning")
+    val notCode = Definition[Request => Program[Boolean]]("a program nothing gives a meaning")
     assertEquals(faults(rooms.implementProven(book)(notCode)), List(Fault.NotProvenCode("notCode")))
     assertEquals(faults(rooms.implementTested(isFree)(_ => (_, _) => true)), List(Fault.MeantWhereWritten("isFree")))
     val runsItself = Node.claim("The program answers.")(
-      forall((r: Term[Booking], w: Term[World]) => bookIfGranted(r).from(w) { (b, _) => b === b }))
+      forall((r: Term[Request], w: Term[World]) => bookIfGranted(r).from(w) { (b, _) => b === b }))
     assertEquals(faults(KnowledgeBase("R")(runsItself)), List(Fault.ProgramMentioned("bookIfGranted")))
   }
 

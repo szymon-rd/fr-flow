@@ -60,8 +60,7 @@ object Validate:
     val missing = t.nodes.map(_.node.id).flatMap(id => Premises.of(t, id)
       .filter(Outsides.assumed(t, id, _).isEmpty).map(p => Problem.PremiseMissing(id, p, Outsides.saying(t, p))))
     val unneeded = t.nodes.map(_.node.id).flatMap(id => Outsides.premises(t, id).filter(p =>
-      t.node(p).exists(n => n.statement.outside.nonEmpty &&
-        !n.statement.outside.exists(f => Premises.of(t, id).exists(Outsides.says(f, _)))))
+      t.node(p).exists(n => Outsides.aboutOutside(n) && !Premises.of(t, id).exists(Outsides.saysOf(n, _))))
       .map(Problem.PremiseNotNeeded(id, _)))
     val unlisted = t.vocabulary.models.flatMap(m => Outsides.saying(t, Premise.WrittenOnlyBy(m.name)).toList
       .flatMap(_ => Premises.writers(t, m).filterNot(Outsides.writers(t, m.name).contains))

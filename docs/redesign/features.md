@@ -88,7 +88,8 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
 | `why = "…"` on every node | the signed decision's reason | 10 / 23 / 26 / 58 (rooms 2) | remove, note 5 |
 | `idea = "Section"`, `KnowledgeBase(…, idea = …)` | none | 77, all four | remove (owner §1) |
 | `Node.assumption(store)(Stored)(statement)` | a model and `store.behavesAs(stored)` | crm, sharing, rooms | change, note 6 |
-| `stored.initially`, `writtenOnlyBy`, `changedOneRunAtATime`, `outside.calls` | `OutsideFact`, said by assumptions | rooms 4 | new, note 7 |
+| `stored.initially`, `writtenOnlyBy`, `changedOneRunAtATime` | `OutsideFact`, said by assumptions | rooms 3 | new, note 7 |
+| `book.calledOnlyWith(request => …)` | a type for what comes from outside, `always` assumed on it | rooms 1 | change, note 21 |
 | `Boundary[B]("store", means)` | `BoundarySig`, `BoundaryOps[B]` | crm, sharing, rooms | change, note 8 |
 | `.under(parents*)`, `.replaces(other)` | `Edge.PartOf`, `Edge.Replaces` | all; `.replaces` none | change, note 9 |
 | `.assuming(premise*)` | `Edge.Assumes` | rooms | new, note 10 |
@@ -125,10 +126,10 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
    (owner §16). It is a premise of every check of code calling the store, written `.assuming(storeModel)`, never a
    part; Lean prints it in the `Boundaries` module (`LowerModels`), and Scala runs it through `World.models` (2.6,
    3.2).
-7. The facts the rules about `always` rest on: the start, the only writers, one run at a time, the values the outside
-   calls with (owner §16, §17). Each is said by an assumption, reviewed as any node, and listed by each claim
-   resting on it; `Premises` checks the lists (`PremiseMissing`, `PremiseNotNeeded`, `WriterNotListed`). Atomicity is
-   assumed, asynchrony future work; `show` lists each fact a check rests on (2.6; `BookSuite`, `CheckingSuite`).
+7. The facts the rules about `always` rest on: the start, the only writers, one run at a time (owner §16, §17). Each
+   is said by an assumption, reviewed as any node, and listed by each claim resting on it; `Premises` checks the lists
+   (`PremiseMissing`, `PremiseNotNeeded`, `WriterNotListed`). Atomicity is assumed, asynchrony future work; `show`
+   lists each fact a check rests on (2.6; `BookSuite`, `CheckingSuite`).
 8. `Boundary[B](means)`, named from its val, over `trait B[F[_], T[_]] derives BoundaryOps`.
 9. `.refines(parents*)` replaces `.under`; `.replaces` is kept.
 10. A premise the node's proof assumes, an assumption or a claim of `always`, never a part (`PremiseNotAssumed`,
@@ -156,6 +157,13 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
 20. On the model, with named arguments: `stored.checkedAgainst(start = held => …, observe = adapter => …)`. Runs
     are generated from the boundary's signature (`Runs`), answers then states compared (`CodeTable.realized`). It is
     the only check of an outside system's adapter (3.7; `StoreModelSuite`).
+21. Statements are about values only (owner §21): nothing is assumed of a function's inputs. What comes from outside
+    gets a type of its own, rooms' `Request`, and what is trusted about it is an assumption of `always` on that type:
+    `fromTheForm`, "The booking form sends only requests that end after they start", is
+    `always[Request](r => r.start < r.end)`. `book` takes a `Request`; `asBooking` makes the `Booking` stored, and
+    `endsAfterStart`, a claim on `Booking`, is proven of it (`cover_book`). A claim of `always[T]` needing `T`s from
+    outside that no assumption speaks of is refused, naming what to say (`PremiseMissing`); one listing such an
+    assumption it does not need, `PremiseNotNeeded` (2.6; `BookSuite`).
 
 ## The DSL: code
 
@@ -367,11 +375,12 @@ Changed in the user's source: the owner's concepts and no others (owner §15): t
 `Node.assumption`, `Node.design`), two kinds of values (`Declaration`, `Definition`, given meanings by
 `implementProven`, `implementTested`, `implementValue`, `implementProvided`, or by `define` and `program` on the
 spot), two quantifiers (`forall`, `always`); the world outside said by assumptions (`behavesAs`, `initially`,
-`writtenOnlyBy`, `changedOneRunAtATime`, `outside.calls`), each claim resting on one listing it with `.assuming`;
-examples as tests beside the model (`FrFlowExamples`, `example`, `is`, `:=`); `env(d)` for `p.value`; tagless
-boundaries and programs; names from the val as written; `implies` with chains in parentheses; a program's claim as a
-run from a world; `.refines`; `when(…)(…).otherwise(…)`; `stored.in(world)`; a model declared with its instance
-and checked by `checkedAgainst`; `derives LeanType` on domain types.
+`writtenOnlyBy`, `changedOneRunAtATime`), each claim resting on one listing it with `.assuming`; what comes from
+outside a type of its own, with an assumption of `always` on it, instead of assumptions on what calls a Definition
+(`calledOnlyWith`); examples as tests beside the model (`FrFlowExamples`, `example`, `is`, `:=`); `env(d)` for
+`p.value`; tagless boundaries and programs; names from the val as written; `implies` with chains in parentheses; a
+program's claim as a run from a world; `.refines`; `when(…)(…).otherwise(…)`; `stored.in(world)`; a model
+declared with its instance and checked by `checkedAgainst`; `derives LeanType` on domain types.
 
 Added: consistency and vacuity proven in Lean (`consistent_<i>`, `start_<node>`, `inhabited_<node>`,
 `satisfiable_<i>_<node>`, with derived or searched witnesses, "consistency not proven" a status of its own);

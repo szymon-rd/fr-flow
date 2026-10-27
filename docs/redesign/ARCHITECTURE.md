@@ -59,7 +59,7 @@ reproduce; where output differs, the difference is listed and judged. The owner 
 
 ### 1.4 What is already shown
 
-- The planned code (449 main files, 10,340 lines; 57 test files, 147 tests) compiles from clean with
+- The planned code (449 main files, 10,380 lines; 57 test files, 148 tests) compiles from clean with
   `-Werror -Wunused:all -Wnonunit-statement -Wvalue-discard`, and every test passes. 40 `???` in 31 files stand for
   ports of today's code, each assigned a step of the plan, its parts written and tested.
 - `budget.py`: no file over 200 lines, no line over 120 columns, no parameter list over four, one type per file.
@@ -92,11 +92,12 @@ In this order, under `planned/src/` unless a suite:
 ## 2. The concepts
 
 Each concept: a definition, an example from the planned rooms model, and how FrFlow checks it. Section 3 shows the
-whole model; the names used before it: a `Booking` has a room, a start and an end; `RoomBookings` is a room's bookings
-as the store gives them; `stored` is the store's model, holding every booking; `book` is the booking program and
-`granted` the calendar's decision on a request; `apart` and `noOverlap` say two bookings share no time (over moments,
-and over start and end times); `isFree` says a request is apart from every booking held; `bookWhenFree` is the root
-claim about `book`; `storeModel`, `oneAtATime` and the other premises are the assumptions of 2.6.
+whole model; the names used before it: a `Request` is what the booking form sends (a room, a start and an end), and
+`asBooking` makes the `Booking` it asks for, as the store holds it; `RoomBookings` is a room's bookings as the store
+gives them; `stored` is the store's model, holding every booking; `book` is the booking program, taking a `Request`,
+and `granted` the calendar's decision on a request; `apart` and `noOverlap` say two bookings share no time (over
+moments, and over start and end times); `isFree` says a request is apart from every booking held; `bookWhenFree` is
+the root claim about `book`; `storeModel`, `oneAtATime` and the other premises are the assumptions of 2.6.
 
 ### 2.1 Nodes: claim, assumption, design
 
@@ -204,8 +205,8 @@ Checked before production only:
   fields and a world's store (`Guarded`, its guards built by `Guards` from the type). It is met wherever FrFlow covers
   the code: `made_<maker>` for each proven define and store operation whose result is or holds a `T`; `cover_<op>` for
   each program writing a store that holds one; at a tested Definition's boundary (inputs drawn meeting it,
-  `Respecting`; result checked, `Made`); `start_<node>` for the store's start; values from outside by
-  `outside.calls(d)`. `inhabited_<node>` shows the rule admits a value.
+  `Respecting`; result checked, `Made`); `start_<node>` for the store's start; values from outside by an assumption of
+  `always` on their type (2.6). `inhabited_<node>` shows the rule admits a value.
 - **`always(stored)`** is a hypothesis on every world a claim starts from, kept by each program writing the store
   (`cover_<op>`) from every start (`start_<node>`); that this covers every reached state rests on four store facts
   (2.6).
@@ -250,8 +251,9 @@ two claims and its three claims of `always`.
 ### 2.6 Assumptions about the world outside
 
 What the world outside the code does is expected to be assumed: the company's procedures, the outside services and how
-they are run (owner §16). Each fact is an assumption node, reviewed like any other, written with one of five formulas
-(`core.expr.OutsideFact`). Lean does not state them as formulas: its model of the world is built on them.
+they are run (owner §16). Each fact is an assumption node, reviewed like any other, written with one of four formulas
+(`core.expr.OutsideFact`). Lean does not state them as formulas: its model of the world is built on them. What values
+from outside meet is said differently, with `always` on their type (below).
 
 | Formula | Says | The rule resting on it |
 |---|---|---|
@@ -259,7 +261,6 @@ they are run (owner §16). Each fact is an assumption node, reviewed like any ot
 | `stored.initially(held => …)` | what the store's start meets | `start_<node>`: `∀ s, initially s → A s` |
 | `stored.writtenOnlyBy(book)` | only these programs change it | every reached state is one a listed run leaves |
 | `stored.changedOneRunAtATime` | runs changing it never interleave | each run is one step of the world |
-| `outside.calls(book)` | `book` is called with values that can be made | an entry Definition's inputs meet each `always[T]` |
 
 ```scala
 val storeModel = Node.assumption("The store gives a room's bookings oldest first, and adds one last.")(
@@ -273,16 +274,39 @@ val onlyBookingWrites = Node.assumption("Only booking writes the store: no other
 val oneAtATime = Node.assumption("Bookings are processed one at a time: one server process runs each atomically.")(
   stored.changedOneRunAtATime)
 
-val fromTheForm = Node.assumption("Requests come from the booking form, which refuses one ending before it starts.")(
-  outside.calls(book))
+val fromTheForm = Node.assumption("The booking form sends only requests that end after they start.")(
+  always[Request](r => r.start < r.end))
 ```
 
 Checked: which facts a check rests on is derived (`Premises`), only to check the `.assuming` list the source writes. A
 claim about a program's runs on a store rests on `behavesAs` and `changedOneRunAtATime`; an `always(stored)` also on
-`initially` and `writtenOnlyBy`; an `always[T]` on `outside.calls(d)` for each entry Definition taking a `T` and on
-the facts of each store holding or making one. A missing fact is refused, naming it and the assumption that says it
+`initially` and `writtenOnlyBy`; an `always[T]` on what values from outside meet (below) and on the facts of each
+store holding or making one. A missing fact is refused, naming it and the assumption that says it
 (`PremiseMissing(id, needs, by)`), as is one not needed (`PremiseNotNeeded`) and an unlisted writer
 (`WriterNotListed`). Atomicity is assumed this way (owner §17); asynchrony is future work.
+
+**Values from outside** (owner §21). Statements are about values, never about a function's inputs. What comes from
+outside has a type of its own, and what is trusted about it is an assumption of `always` on that type: rooms' booking
+form sends a `Request`, `fromTheForm` assumes every request ends after it starts, and `book` takes a `Request`. The
+rule:
+
+- An assumption of `always[T]` says what the values of `T` from outside meet: those no covered code makes, the inputs
+  of the entry Definitions (those whose code no covered code calls) and the values provided where the code runs. Lean
+  takes it as a hypothesis on every `T` a statement is about, as it takes a claim of `always`.
+- It never stands for what the code makes. Every value covered code makes of a type a claim of `always` is about is
+  still held to `made_<maker>` and `cover_<op>`, proven from the code's inputs and their hypotheses; so an assumption
+  cannot hide a bug in the code. Rooms' `endsAfterStart`, a claim on `Booking`, is proven of every booking `book`
+  stores (`cover_book`), each made from a request by `asBooking`, under `fromTheForm`.
+- A claim of `always[T]` rests on what values from outside meet (`Premise.FromOutside(U)`) for each type `U` its proof
+  needs from outside: `T` itself when an entry Definition's input or a provided value can hold a `T`, since no covered
+  code makes those; and the type of each input from outside of the Definitions it must hold in, when an assumption of
+  `always` on that type exists, since the code makes its `T`s from them. A claim needing values of a type from outside
+  that no assumption speaks of is refused, `PremiseMissing(id, FromOutside(T), None)`, and what to say is
+  `Node.assumption("…")(always[T](x => …))`; listing such an assumption where the check does not rest on it is
+  `PremiseNotNeeded`.
+
+No new form, word or kind of node is involved: the assumption is an ordinary `Node.assumption` whose formula is
+`always`.
 
 ### 2.7 How a claim is checked
 
@@ -405,12 +429,19 @@ store, its model, the program), `Calendar.scala`, `Knowledge.scala`, `RoomsExamp
 ### 3.1 The domain and its words
 
 ```scala
+/** What the booking form sends. */
+final case class Request(room: String, start: BigInt, end: BigInt) derives LeanType
+
+/** A booking, as the store holds it. */
 final case class Booking(room: String, start: BigInt, end: BigInt) derives LeanType
 
 /** A room's bookings, as the store gives them. */
 final case class RoomBookings(bookings: List[Booking]) derives LeanType
 
-val book = Definition[Booking => Program[Boolean]]("booking a request: whether it was booked")
+val book = Definition[Request => Program[Boolean]]("booking a request: whether it was booked")
+
+/** The booking a request asks for. */
+val asBooking = define { (r: Term[Request]) => make[Booking](r.room, r.start, r.end) }
 
 // The root's words, over moments.
 val covers = define { (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end }
@@ -423,9 +454,10 @@ val noOverlap = define { (a: Term[Booking], b: Term[Booking]) =>
   a.room =!= b.room || a.end <= b.start || b.end <= a.start }
 ```
 
-`granted` (2.2) is given its meaning by plain Scala, `book` by a proven program. A domain type derives its `LeanType`
-once, where it is declared; a use without it says "Plain is not a domain type yet: add derives LeanType to its
-declaration".
+`granted` (2.2) is given its meaning by plain Scala, `book` by a proven program. A `Request` and a `Booking` have the
+same fields but are different types: one is what comes from outside, the other what the code makes and stores. A
+domain type derives its `LeanType` once, where it is declared; a use without it says "Plain is not a domain type yet:
+add derives LeanType to its declaration".
 
 ### 3.2 The store, its model, the program
 
@@ -446,14 +478,17 @@ final class Stored[F[_]: Flow](state: Model[F, List[Booking]]) extends Bookings[
 
 val stored = store.model("every booking the store holds, oldest first")(Stored(_))
 
-/** The program `book` is: the room's bookings read, the request added when granted, in one transaction. */
+/** The program `book` is: the room's bookings read, the booking the request asks for added when granted, in one
+  * transaction.
+  */
 final class BookIfGranted[F[_]](store: Bookings[F, Term])(using f: Flow[F]):
-  def run(request: Term[Booking]): F[Term[Boolean]] = f.atomically(
+  def run(request: Term[Request]): F[Term[Boolean]] = f.atomically(
     f.flatMap(store.inRoom(request.room)) { held =>
-      val booked = granted(held, request)
-      f.as(f.cond(booked)(store.add(request), f.unit), booked) })
+      val booking = asBooking(request)
+      val booked = granted(held, booking)
+      f.as(f.cond(booked)(store.add(booking), f.unit), booked) })
 
-val bookIfGranted = program { (request: Term[Booking]) => BookIfGranted(store.recording).run(request) }
+val bookIfGranted = program { (request: Term[Request]) => BookIfGranted(store.recording).run(request) }
 ```
 
 The model is written as a program is, an instance of the boundary's trait over the model's state (`Model[F, S]`:
@@ -480,19 +515,20 @@ store can give.
 
 ```scala
 val bookWhenFree = Node.claim("A request is booked exactly when its room is free.")(
-  forall((request: Term[Booking], before: Term[World]) =>
+  forall((request: Term[Request], before: Term[World]) =>
     val held = stored.in(before)
     book(request).from(before) { (_, after) =>
-      stored.in(after) === when(isFree(held, request))(held :+ request).otherwise(held) }))
+      stored.in(after) === when(isFree(held, asBooking(request)))(held :+ asBooking(request)).otherwise(held) }))
   .assuming(storeModel, oneAtATime)
 
 val answersWhetherBooked = Node.claim("Booking answers whether the request was booked.")(
-  forall((request: Term[Booking], before: Term[World]) =>
+  forall((request: Term[Request], before: Term[World]) =>
     book(request).from(before) { (booked, after) => booked === (stored.in(after) =!= stored.in(before)) }))
   .assuming(storeModel, oneAtATime)
 ```
 
-Each is one equation: overlaps are `neverOverlap`'s, and the Boolean answer is its own claim.
+Each is one equation over a request and the store: the booking stored is the one the request asks for,
+`asBooking(request)`; overlaps are `neverOverlap`'s, and the Boolean answer is its own claim.
 `when(c)(a).otherwise(b)` is Lean's `if`. Both read as runs of `book` and are proven of `bookIfGranted` by `impl`; a
 run has no "nothing" to give, so neither gets an `idle` try.
 
@@ -581,8 +617,9 @@ proves them: `impl` of both roots; `cover_book` and `made_inRoom` of the rules; 
 ```
 
 The store's model is not a hypothesis: it is inside `bookIfGranted_run`. A program's Boolean result is Lean's `Prop`
-(`Booking → World → (Prop × World)`), decided by Lean's classical `if`. The proofs of `impl` and `cover_book` are
-written by hand: the run's equation, then cases on the answer.
+(`Request → World → (Prop × World)`), decided by Lean's classical `if`; every request comes with `fromTheForm` as
+a hypothesis, from which the proofs show the booking made from it ends after it starts. The proofs of `impl` and
+`cover_book` are written by hand: the run's equation, then cases on the answer.
 
 ### 3.9 Auth: a purpose over Declarations
 
@@ -881,8 +918,8 @@ the first nine; `cli`, `web` and `agent` keep their structure and are rebuilt on
 outward: only the shell depends on `wire`. Front ends see `api.view` and `api.node` values only. Production code
 depends on `eval` (and through it `dsl`, `core`) and never on Lean, the ledger, the tests or the CLI.
 
-Planned so far (files / lines): `core` 145 / 3,072, `dsl` 69 / 2,182, `proof` 79 / 2,058, `eval` 26 / 719, `testing`
-22 / 428, `decision` 42 / 694, `wire` 14 / 184, `project` 25 / 622, `api` 27 / 381. With the ports written and `cli`,
+Planned so far (files / lines): `core` 145 / 3,117, `dsl` 69 / 2,178, `proof` 79 / 2,058, `eval` 26 / 719, `testing`
+22 / 428, `decision` 42 / 694, `wire` 14 / 184, `project` 25 / 621, `api` 27 / 381. With the ports written and `cli`,
 `web` and `agent` rebuilt, the projection is about 13,700 lines in about 570 files, against today's 12,008 in 347:
 about 12% more, consistency and vacuity among it, in smaller files, with no type over six fields.
 
@@ -1020,6 +1057,7 @@ the tests reach.
 | `.examples`, `allows`/`forbids`, `bind`, `eval_i`/`probe_j` | examples as tests (2.10) |
 | two definitions of one term | two claims, one `.replaces` the other |
 | `==>`, the Boolean `fold`, `before(stored)` | `implies`, `when(…)(…).otherwise(…)`, `stored.in(before)` |
+| assumptions on what calls a Definition | a type for what comes from outside, with an assumption of `always` on it (2.6) |
 
 **Everything else**: `why` on nodes (the examples' `why` texts are offered as the reasons of their first decisions);
 `IDEA.md`, idea sections and numbered questions (owner §1: the purpose is stated by the root statements; a README is
@@ -1128,11 +1166,10 @@ In order of value; none blocks a step.
   `RoomBookings`, but `Respecting` applies only the top-level rule; `CalendarSuite` uses a hand-written `Draw`. Step
   5's derived generators must respect every `always[T]` of every `T` inside a drawn value, with a test that a drawn
   `RoomBookings` meets `endsAfterStart` for each booking.
-- **Step 11: the README's forms.** `outside.calls(book)` should name what it guarantees, or `show` spell out the rules
-  it covers (`book.calledOnlyWith(endsAfterStart)` would change the formula: the owner's call); `checkedAgainst`'s
-  parameters could say their roles (`startFrom`, `readBack`); introduce `World` where first used; `Calendar` should
-  filter by the request's room rather than group, or the rule say "of one room"; warn when a node reached by an edge
-  is missing from the `KnowledgeBase` list, or collect the list.
+- **Step 11: the README's forms.** `checkedAgainst`'s parameters could say their roles (`startFrom`, `readBack`);
+  introduce `World` where first used; `Calendar` should filter by the request's room rather than group, or the rule
+  say "of one room"; warn when a node reached by an edge is missing from the `KnowledgeBase` list, or collect the
+  list.
 - **Step 11: names shared with today's library.** Today's library is renaming the store (`bookingTable`,
   `storedBookings`) and `startsMeetingItsRules`; settle `store`, `stored` and `startsEmpty` at step 11.
 - **Steps 1 and 11: rules without a Scala value.** `roomBookingsApart` says "apart" while its rule is `noOverlap`;
@@ -1234,6 +1271,7 @@ The decisions are in `owner-decisions.md`; the right column says where this docu
 | 18 | Examples as tests; consistency and vacuity | 2.8 to 2.10 |
 | 19 | One word `always` for both forms | 2.3, 10.2 |
 | 20 | The design approved; the rebuild started | 9 |
+| 21 | Statements about values only; what comes from outside an assumption of `always` on its type | 2.6, 3 |
 
 ## Appendix B. Today's library, and where each problem is addressed
 

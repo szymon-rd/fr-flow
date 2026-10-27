@@ -38,7 +38,7 @@ class CheckingSuite extends munit.FunSuite:
       "consistent with neverOverlap: witnessed, for Lean to check"))
     assertEquals(checking("endsAfterStart").take(2), List(
       "met where a Booking is made (book, stored's inRoom); assumed of every Booking in Lean",
-      "rests on what the outside calls book with: fromTheForm"))
+      "rests on what each Request from outside meets: fromTheForm"))
     assertEquals(checking("endsAfterStart").last, "not vacuous: some Booking meets it")
   }
 
