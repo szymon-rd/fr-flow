@@ -116,6 +116,12 @@ class TestingSuite extends munit.FunSuite:
     assertEquals((f.inputs, f.givens.map(_.value)), (Nil, List(Value.Num(2))))
   }
 
+  test("the implementation is tested beyond its examples: a case that breaks the contract is found, code that throws too") {
+    val throws = withCode(min => (shelf, _) => if shelf.size > 1 then sys.error("too many") else shelf.filter(_.pages >= min))
+    assertEquals(failing(throws).broke, Broken.Threw("too many"))
+    assertEquals(failing(throws).inputs.headOption.map(shrunkBooks), Some(2))
+  }
+
   /** How many books a shrunk shelf holds. */
   private def shrunkBooks(v: Value): Int = v match
     case Value.Many(xs) => xs.size

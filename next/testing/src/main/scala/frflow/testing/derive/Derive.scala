@@ -7,7 +7,7 @@ import frflow.core.expr.Value
 import frflow.core.ty.Ty
 import frflow.core.vocab.Vocabulary
 import frflow.eval.Semantics
-import frflow.testing.Draw
+import frflow.testing.{Draw, Seed}
 import frflow.testing.report
 import java.util.SplittableRandom
 
@@ -34,6 +34,12 @@ final class Derive(val semantics: Semantics, val vocabulary: Vocabulary, val alw
   def values(types: List[Ty], size: Int, random: SplittableRandom): Option[List[Value]] =
     val drawing = Drawing(this, random, size)
     Drawing.run(types.traverse(drawing.value(_, 0)), Pool.empty).map(_._2)
+
+  /** The values of `ty` the first `n` cases from `seed` draw, each once, as the witness search tries them first
+    * (`search.Witnesses`).
+    */
+  def samples(ty: Ty, seed: Seed, n: Int): List[Value] =
+    (0 until n).toList.flatMap(i => values(List(ty), Seed.sizeOf(i, n), seed.forCase(i)).toList.flatten).distinct
 
   override def generators: List[report.Made] = hints.generators.map(g => report.Made(g.ty, g.gen match
     case Gen.Described(_, says) => Some(says)

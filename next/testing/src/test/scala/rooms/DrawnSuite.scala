@@ -31,6 +31,28 @@ class DrawnSuite extends munit.FunSuite:
     assert(all.exists(_.bookings.size >= 2), "some room holds two bookings")
   }
 
+  test("every shape Guards walks: an option's value, an either's side, a pair's component, an enum case's field") {
+    val changes = Node.claim("Every change is itself.")(forall((c: Term[Change]) => c === c))
+    val d = derive(derivedOnly.copy(nodes = derivedOnly.nodes :+ changes))
+    def all[A: LeanType](holding: A => List[Booking]): List[Booking] = (0 until 300).toList.flatMap(i =>
+      d(Gen.Derived[A](LeanType[A].ty), Seed.sizeOf(i, 300), Seed(2).forCase(i)).toList.flatMap(holding))
+    val held = List(all[Option[Booking]](_.toList), all[Either[String, Booking]](_.toOption.toList),
+      all[(Booking, String)](p => List(p._1)), all[Change] { case Change.Book(b) => List(b); case _ => Nil },
+      all[List[List[Booking]]](_.flatten))
+    held.foreach { bs =>
+      assert(bs.size > 20, s"${bs.size} bookings drawn")
+      assert(bs.forall(b => b.start < b.end), bs.filterNot(b => b.start < b.end).take(3))
+    }
+  }
+
+  test("the examples' values are drawn among the derived ones") {
+    val examples = GrantedExamples().elaborated.fold(es => fail(es.toString), identity)
+    val e = derivedOnly.elaborated.fold(es => fail(es.toString), identity)
+    val d = Derive.of(e, examples)
+    val bookings = (0 until 300).flatMap(i => d(Gen.Derived[Booking](LeanType[Booking].ty), 3, Seed(4).forCase(i)))
+    assert(bookings.contains(Booking("Oak", 9, 10)), bookings.distinct.take(10))
+  }
+
   test("the same seed, case and size draw the same value; another case another") {
     val d = derive(derivedOnly)
     val ty = LeanType[RoomBookings].ty

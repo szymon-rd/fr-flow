@@ -56,5 +56,16 @@ class CalendarSuite extends munit.FunSuite:
         val room = held.bookings.sortBy(_.start).toVector
         val next = room.search(request)(using Ordering.by(_.start)).insertionPoint
         request.room != held.room || room.lift(next - 1).forall(_.end <= request.start))
-    assertEquals(tested(forgets, "grantWhenNoOverlap").failure.collect { case Failure.Call(_, _, b, _) => b }, Some(Broken.Post))
+    assertEquals(tested(forgets, "grantWhenNoOverlap").failure.collect { case Failure.Call(_, _, b, _) => b },
+      Some(Broken.Post))
+  }
+
+  test("a value the code makes breaking what always holds of its type is found: the booking it moves a request to") {
+    val moved = Definition[Request => Booking]("the booking a request is moved to")
+    val sameRoom = Node.claim("A request is moved within its room.")(forall((r: Term[Request]) => moved(r).room === r.room))
+    val endFirst = KnowledgeBase("Rooms")((rooms.nodes :+ sameRoom)*).implementProven(book)(bookIfGranted)
+      .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
+      .implementTested(moved)(_ => r => Booking(r.room, r.end, r.start))
+    assertEquals(tested(endFirst, "sameRoom").failure.collect { case Failure.Call(_, _, b, _) => b },
+      Some(Broken.Always(NodeId("endsAfterStart"))))
   }

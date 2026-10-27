@@ -9,8 +9,9 @@ import keycloak.*
   */
 class KeycloakSuite extends munit.FunSuite:
   /** Keycloak with `introspect` and `record` given other code. */
+  private type Looking = (RealmId, String) => Option[Session]
   private type Introspecting =
-    ((RealmId, String) => Option[Session], (RealmId, String) => Option[UserAccount]) => (RealmId, String) => Option[Claims]
+    (Looking, (RealmId, String) => Option[UserAccount]) => (RealmId, String) => Option[Claims]
 
   private def with_(introspected: Introspecting, recorded: (AuthRequest, ServerState) => ServerState): KnowledgeBase =
     KnowledgeBase("Keycloak")(knowledge.nodes*).implementProvided(seed, history, state)

@@ -35,7 +35,8 @@ object ProgramRun:
       .flatMap(m => before.state(m).map(m -> ScalaValue(_))).toMap
     val interpreter = FlowInterpreter.sequential[S](semantics, Worlds.models[S](semantics, v, StatesRef))
     interpreter.outcome(steps, env).run(held) match
-      case Right((end, out))               => (out.bimap(_.unwrap, _.unwrap), World.of(end.map((m, x) => m -> x.unwrap)))
+      case Right((end, out))               =>
+        (out.bimap(_.unwrap, _.unwrap), World.of(end.map((m, x) => m -> x.unwrap)))
       case Left(FlowError.NotEvaluated(e)) => throw NotEvaluated(e)
       case Left(other)                     => throw other
 

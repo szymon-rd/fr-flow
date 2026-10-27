@@ -22,8 +22,8 @@ object World:
     * nothing else. A race's winner is the next of the races (`Races`). What a program runs on in Scala, and what
     * `ModelTests` compares an adapter with.
     */
-  def models[F[_]](semantics: Semantics, v: Vocabulary, states: Ref[F, Map[ModelName, ScalaValue]])(using F: MonadThrow[F])
-      : World[F] = new World[F]:
+  def models[F[_]](semantics: Semantics, v: Vocabulary, states: Ref[F, Map[ModelName, ScalaValue]])(
+      using F: MonadThrow[F]): World[F] = new World[F]:
     self =>
     def read(m: ModelName): F[ScalaValue] =
       states.get.flatMap(_.get(m).liftTo[F](FlowError.NotEvaluated(EvalError.NoModel(m))))
