@@ -17,9 +17,18 @@ object Source:
 
   private def writtenOf(x: Expr[Any])(using Quotes): Expr[AsWritten] =
     import quotes.reflect.*
+    val here = Position.ofMacroExpansion.sourceFile.path
+    // Through the DSL's own inlining (`Node.writing(formula)`, written in another file, and the context it gives the
+    // formula) down to the argument as the model writes it.
     def written(t: Term): Term = t match
-      case Inlined(None, _, b) => written(b)
-      case other               => other
+      case Inlined(None, _, b)                                     => written(b)
+      case Inlined(Some(_), _, b) if t.pos.sourceFile.path != here => written(b)
+      case Typed(b, _) if t.pos.sourceFile.path != here            => written(b)
+      case Block(ss, b) if ss.nonEmpty && ss.forall(context)       => written(b)
+      case other                                                   => other
+    def context(s: Statement): Boolean = s match
+      case ValDef(name, _, _) => name.startsWith("contextual$")
+      case _                  => false
     val pos = written(x.asTerm).pos
     val text = pos.sourceFile.content.filter(_ => pos.start <= pos.end).flatMap(c =>
       Option.when(pos.end <= c.length)(c.substring(pos.start, pos.end))).getOrElse("").trim

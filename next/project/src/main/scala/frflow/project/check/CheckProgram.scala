@@ -19,19 +19,29 @@ final class CheckProgram[F[_]: MonadThrow: Parallel: Clock](files: ProjectFiles[
 
   /** The nodes checked, in order, and the analysis with every check recorded. */
   def apply(a: Analysis, only: Option[NodeId]): F[(List[NodeCheck], Analysis)] =
+    run(a, only, (_, _, _) => MonadThrow[F].unit)
+
+  /** As `apply`, `started` told of each level before it is checked: its number from one, how many there are, and its
+    * nodes.
+    */
+  def run(a: Analysis, only: Option[NodeId], started: (Int, Int, List[NodeId]) => F[Unit])
+      : F[(List[NodeCheck], Analysis)] =
+    val levels = CheckPlan.levels(a, only)
     for
       _     <- lake.available.ifM(MonadThrow[F].unit, MonadThrow[F].raiseError(FrFlowError.NoLean))
       _     <- only.filterNot(a.decided.theory.node(_).isDefined)
                  .traverse_(id => MonadThrow[F].raiseError[Unit](FrFlowError.UnknownNode(id)))
       _     <- Render(files, library)(a)
-      done  <- CheckPlan.levels(a, only).foldLeftM(Map.empty[NodeId, NodeCheck])((done, level) =>
-                 level.parTraverse(n => kept(a, n, done, only).fold(nodes(a, n, parts(a, n, done)))(_.pure[F]))
-                   .map(done ++ _.map(c => c.node -> c)))
+      done  <- levels.zipWithIndex.foldLeftM(Map.empty[NodeId, NodeCheck]) { case (done, (level, i)) =>
+                 started(i + 1, levels.size, level) >>
+                   level.parTraverse(n => kept(a, n, done, only).fold(nodes(a, n, parts(a, n, done)))(_.pure[F]))
+                     .map(done ++ _.map(c => c.node -> c))
+               }
       whole <- a.wholeCheck.fold(WholeChecker(lake)(a))(w => w.some.pure[F])
       checks = Checks(a.inputs.recorded.checks.nodes.filter((id, _) => a.decided.theory.node(id).isDefined) ++ done,
                  whole)
       _     <- Records.writeChecks(files, checks)
-    yield (CheckPlan.levels(a, only).flatten.flatMap(done.get).filterNot(c => a.current(c.node).contains(c)),
+    yield (levels.flatten.flatMap(done.get).filterNot(c => a.current(c.node).contains(c)),
       a.withRecorded(a.inputs.recorded.copy(checks = checks)))
 
   /** Its current check, kept while its parts are as proven as when it was made. */
