@@ -5,7 +5,7 @@ import frflow.decision.ledger.Decision
 
 /** What a node's content means apart from its wording: what a decision binds, and what moves the nodes below. */
 object Meaning:
-  private val meaningful = Set("statement", "sources", "substitutions", "vocabulary", "uses", "governs", "op")
+  private val meaningful = Set("statement", "formula", "vocabulary", "governs", "call", "failure", "model")
 
   /** Its content without its place, cause `self`; a design keeps its parents, since placing it is what is decided
     * (its chain is empty: docs/DAG.md §5).
@@ -19,11 +19,10 @@ object Meaning:
   def formal(c: Content): Hash = of(c.without(_ == "statement"))
 
   /** What it says moved since `d` was taken, by today's rule: its own content with the premises it assumes, its
-    * implementation left out once Lean proves it (no `Implementation` or `RootImpl` open). Examples are not content.
+    * implementation left out once Lean proves its code (tested code stays in). Examples are not content.
     */
   def decisionMoved(d: Decision, s: Subject): Boolean =
-    val proven = !s.proof.unproven.exists(u => u == Unproven.Implementation || u == Unproven.RootImpl)
-    def decided(c: Content): Hash = own(c).without(k => proven && k == "implementation").hash
+    def decided(c: Content): Hash = own(c).without(k => s.proof.codeProven && k == "implementation").hash
     decided(d.bound.content) != decided(s.content)
 
   def chain(meaning: Hash, above: Chain): Chain = Chain(Sha.parts(meaning.value, above.value))

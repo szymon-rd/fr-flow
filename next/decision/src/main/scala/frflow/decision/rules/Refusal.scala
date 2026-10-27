@@ -15,6 +15,8 @@ enum Refusal:
   case AlreadyAccepted(id: NodeId)
   case AlreadyRevisited(id: NodeId)
   case AcceptFirst(id: NodeId)
+  /** Its code fails a generated case: the code, or the claim, is wrong (the CLI says which, `Cause.movedUnderCode`). */
+  case CodeFails(id: NodeId)
   case NotBelow(id: NodeId, named: List[NodeId])
   case StillInModel(id: NodeId)
   case Within(id: NodeId, refusal: Refusal)

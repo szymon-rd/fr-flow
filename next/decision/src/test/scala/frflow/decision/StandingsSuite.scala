@@ -2,7 +2,7 @@ package frflow.decision
 
 import frflow.core.spec.NodeKind
 import frflow.decision.ledger.{Action, Decision, Ledger, Reason}
-import frflow.decision.review.{Cause, Meaning, Mechanical, ProofStanding, Reading, ReviewState, Subject, Subjects}
+import frflow.decision.review.{Cause, Mechanical, ProofStanding, Reading, ReviewState, Subject, Subjects}
 import frflow.decision.review.Unproven
 import frflow.decision.rules.{Command, Decide}
 import Shelf.*
@@ -109,24 +109,23 @@ class StandingsSuite extends munit.FunSuite:
     assertEquals(Reading(shelf, Ledger.empty).notMechanical(id("R")),
       Some(Mechanical.Not.NotUnderReview(ReviewState.Proposed)))
     // Not proven again: the developer decides.
-    val failing = replacing(s, a.copy(proof = ProofStanding(List(Unproven.Check), false)))
+    val failing = replacing(s, a.copy(proof = unproven(List(Unproven.Check))))
     assertEquals(Reading(failing, after).notMechanical(id("A")), Some(Mechanical.Not.NotProven(List(Unproven.Check))))
     // Its parts changed and Lean does not prove they make it.
     val parted = replacing(shelf, a.said("parts", texts("B", "C")))
     assertEquals(Reading(parted, l).notMechanical(id("A")), Some(Mechanical.Not.PartsNotProven))
-    assertEquals(Reading(replacing(parted, a.said("parts", texts("B", "C")).copy(proof = ProofStanding(Nil, true))), l)
-      .notMechanical(id("A")), None)
+    val made = a.said("parts", texts("B", "C")).copy(proof = ProofStanding(Nil, true, false))
+    assertEquals(Reading(replacing(parted, made), l).notMechanical(id("A")), None)
   }
 
-  test("what a node says moved apart from its proven code: its implementation is left out once Lean proves it") {
-    val coded = r.said("implementation", text("proven: Shelf.find"))
-    val d = Decision.taken(Action.Accept, by(1), Reason("it states the purpose", Nil), Reading(shelf, Ledger.empty)
-      .bound(coded))
-    val recoded = coded.said("implementation", text("proven: Shelf.lookup"))
-    assert(!Meaning.decisionMoved(d, recoded))
-    assert(Meaning.decisionMoved(d, recoded.copy(proof = ProofStanding(List(Unproven.Implementation), false))))
-    assert(Meaning.decisionMoved(d, coded.restated("Readers find every book.")))
-    assert(!Meaning.decisionMoved(d, coded.said("parts", texts("A", "C"))))
+  test("a node waits for a parent rejected, until another is chosen") {
+    val reject = Command.Reject(id("A"), "it says too little to find a book", None)
+    val l = right(Decide(Reading(shelf, acceptAll(Subjects(List(r)))), reject, by(5)))
+    val c = node("C", "Each shelf is labelled.", List("A"), Nil)
+    val s = Subjects(List(r, a, b, c))
+    assertEquals(Reading(s, l).waitsFor(c), Some(id("A")))
+    val reworked = b.restated("Each shelf lists its books by title.")
+    assertEquals(Reading(replacing(s, reworked), l).waitsFor(reworked), Some(id("A")))
   }
 
   test("reading a tree grows linearly with it: each node's state is computed once") {

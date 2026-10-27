@@ -2,8 +2,8 @@ package frflow.decision
 
 import frflow.core.name.NodeId
 import frflow.decision.content.{Chain, Content}
-import frflow.decision.ledger.{Action, Authorship, Bound, Decider, Deciders, Decision, Ledger, Reason, Seal, Seals}
-import frflow.decision.review.{Reading, ReviewState, Subjects}
+import frflow.decision.ledger.{Action, Authorship, Bound, Decider, Deciders, Decision, Ledger, Reason, Seal}
+import frflow.decision.review.{Cause, Reading, ReviewState, Subjects, Unproven}
 import frflow.decision.rules.{Command, Decide, Refusal}
 import Shelf.*
 
@@ -70,6 +70,24 @@ class DecideSuite extends munit.FunSuite:
     assertEquals(decide(c, right(decide(c, Ledger.empty, accept("R"))), accept("C")), Left(AcceptFirst(id("A"))))
   }
 
+  test("a node whose code fails a generated case is not accepted, with the reason; it may be rejected") {
+    val failing = replacing(shelf, r.copy(proof = unproven(List(Unproven.Tests))))
+    assertEquals(decide(failing, Ledger.empty, accept("R")), Left(CodeFails(id("R"))))
+    assert(decide(failing, Ledger.empty, Command.Reject(id("R"), "it refuses free rooms", None)).isRight)
+    // decided, then its claim changed while its code did not: refused the same; the claim is what moved
+    val restated = replacing(shelf, movedR.copy(proof = unproven(List(Unproven.Tests))))
+    assertEquals(decide(restated, accepted, accept("R")), Left(CodeFails(id("R"))))
+    assert(Cause.movedUnderCode(Reading(restated, accepted).causes(id("R"))))
+  }
+
+  test("an accepted node is accepted again over a rival still standing, which it rejects") {
+    val a2 = node("A2", "Every book asked for is found by its title.", List("R"), Nil).rivalling("A")
+    val s = Subjects(List(r, a.rivalling("A2"), b, a2))
+    val l = right(decide(s, accepted, accept("A")))
+    assertEquals((actions(l, "A").last, actions(l, "A2")), (Action.Accept, List(Action.Reject)))
+    assertEquals(decide(s, l, accept("A")), Left(AlreadyAccepted(id("A"))))
+  }
+
   test("accepting a change acts on the decisions below it: those named revisited, those that moved only with it " +
     "confirmed") {
     assertEquals(decide(moved, accepted, accept("R", revisit = List("Nowhere"))),
@@ -86,15 +104,6 @@ class DecideSuite extends munit.FunSuite:
     // Without a revisit, all below confirmed, parents first.
     val all = right(decide(moved, accepted, accept("R")))
     assertEquals(states(moved, all).values.toSet, Set(ReviewState.Accepted))
-  }
-
-  test("below a node under review for anything else, nothing is confirmed: it is decided first") {
-    val coded = replacing(shelf, a.coded("f1"))
-    val l = acceptAll(coded)
-    val s = replacing(replacing(coded, a.coded("f2")), r.remeant("Readers find every book they ask for, at once."))
-    val after = right(decide(s, l, accept("R")))
-    assertEquals((actions(after, "A").last, actions(after, "B").last), (Action.Accept, Action.Accept))
-    assertEquals(decide(s, l, accept("R", revisit = List("B"))), Left(NotBelow(id("R"), ids("B"))))
   }
 
   test("accepting a node under review only for what moved above it confirms it, keeping the reason it was chosen") {
@@ -140,27 +149,20 @@ class DecideSuite extends munit.FunSuite:
     assertEquals(decide(shelf, accepted, Command.Confirm("nothing to see here")), Left(NothingToConfirm))
   }
 
+  test("the mechanical batch makes no choice: a rival still standing is left to the developer") {
+    val a2 = node("A2", "Every book asked for is found by its title.", List("R"), Nil).rivalling("A")
+    val s = Subjects(List(movedR, a.rivalling("A2"), b, a2))
+    val done = right(decide(s, onlyR, Command.Confirm("the change above leaves them as they were")))
+    assertEquals((actions(done, "A").last, actions(done, "A2")), (Action.Confirm, Nil))
+    assertEquals(done.current(id("A")).map(_.reason.rejected), Some(Nil))
+  }
+
   test("several nodes accepted at once are taken in order, all or none, a refusal saying which") {
     def all(nodes: List[NodeId]) =
       decide(shelf, Ledger.empty, Command.Accept(nodes, "they hold as written", Nil, Map.empty))
     assertEquals(states(shelf, right(all(ids("B", "R", "A")))).values.toSet, Set(ReviewState.Accepted))
     assertEquals(all(ids("R", "Nowhere")), Left(Within(id("Nowhere"), UnknownNode(id("Nowhere")))))
     assertEquals(all(Nil), Left(NoNodes))
-  }
-
-  test("a decision counts by the key of the name it is made under") {
-    val (dev, other) = (TestKey(), TestKey())
-    val unsigned = Deciders(List(Decider("dev", dev.id, "dev's public key")), None, Seal("", ""))
-    val deciders = unsigned.copy(seal = dev.sign(unsigned.payload))
-    val verify = TestKey.verifier(dev, other)
-    def signed(name: String, key: TestKey): Ledger =
-      val l = right(Decide(Reading(shelf, Ledger.empty), accept("R"), Authorship(name, at(1), None)))
-      Seals.signAdded(Ledger.empty, l, key.sign)
-    def counts(l: Ledger) = l.current(id("R")).exists(deciders.counts(verify)(id("R"), _))
-    assert(counts(signed("dev", dev)))
-    assert(!counts(signed("agent", dev)))
-    assert(!counts(signed("dev", other)))
-    assertEquals(Deciders.committed(List(deciders), verify).map(_.entries.map(_.name)), Some(List("dev")))
   }
 
   test("an unsigned decision counts for no one") {

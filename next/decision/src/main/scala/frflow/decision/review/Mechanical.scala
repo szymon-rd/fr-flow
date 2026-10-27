@@ -20,7 +20,7 @@ object Mechanical:
 
   /** Why `s` is not mechanical, or none; `others` holds the answer for the nodes it may wait for. */
   def why(r: Reading, s: Subject, others: Map[NodeId, Option[Not]]): Option[Not] =
-    val causes = r.standings.get(s.id).fold(Nil)(_.causes)
+    val causes = r.causes(s.id)
     Option.when(s.place.holdsChoice)(Not.HoldsAChoice)
       .orElse(Option.when(r.state(s.id) != ReviewState.Review)(Not.NotUnderReview(r.state(s.id))))
       .orElse(Option.when(!causes.forall(following))(Not.CausesNeedTheDeveloper(causes)))

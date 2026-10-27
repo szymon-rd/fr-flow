@@ -22,7 +22,7 @@ final class Reading(val subjects: Subjects, val ledger: Ledger):
   /** What a decision about `s` taken now is bound to: its content, its chain, its code's fingerprint. */
   def bound(s: Subject): Bound = Bound(s.content, Chains.above(s, chains), s.code.map(_.fingerprint))
 
-  def children(id: NodeId): List[Subject] = subjects.inOrder.filter(_.place.parents.contains(id))
+  def children(id: NodeId): List[Subject] = subjects.childrenOf(id)
   /** The first node `s` rests on that is not accepted, when it waits for one (docs/DAG.md §5, Order): a parent not
     * chosen; or, for a proposal or a node whose `above` moved, its first parent, then premise or callee, not accepted.
     */
@@ -32,7 +32,7 @@ final class Reading(val subjects: Subjects, val ledger: Ledger):
     def notChosen(id: NodeId) = subjects.get(id).isDefined &&
       (state(id) == ReviewState.Proposed || state(id) == ReviewState.Rejected)
     s.place.parents.find(p => notChosen(p) || (resting && notAccepted(p)))
-      .orElse(Option.when(resting)(s.place.restsOn.filterNot(s.place.parents.contains).find(notAccepted)).flatten)
+      .orElse(s.place.restsOn.filterNot(s.place.parents.contains).find(notAccepted).filter(_ => resting))
   /** Why a node is not mechanical, or none: the batch `confirm` accepts, parents first. */
   lazy val notMechanical: Map[NodeId, Option[Mechanical.Not]] =
     subjects.inOrder.foldLeft(Map.empty[NodeId, Option[Mechanical.Not]])((done, s) =>
