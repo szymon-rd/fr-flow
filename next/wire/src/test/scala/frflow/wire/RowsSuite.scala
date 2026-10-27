@@ -8,7 +8,7 @@ import frflow.eval.run.Broken
 import frflow.proof.obligation.{ObligationName, TryKind}
 import frflow.proof.verdict.{ObligationStatus, Result}
 import frflow.testing.Seed
-import frflow.testing.report.{Against, TestReport}
+import frflow.testing.report.{Against, Count, Outcome, TestReport}
 import frflow.wire.snapshot.{FieldRow, ObligationRow, Rows, TestRow}
 
 /** The one mapping from the domain to the snapshot's rows writes each value as the export says. */
@@ -30,7 +30,7 @@ class RowsSuite extends munit.FunSuite:
   }
 
   test("a test report becomes its row: cases, seed, what was tested, whether one failed") {
-    val report = TestReport(500, Seed(42), Against.Model(NodeId("Store"), 1), None, Nil, Nil)
+    val report = TestReport(Count(500, 500), Seed(42), Against.Model(NodeId("Store"), 1), Outcome.Passed, Nil, Nil)
     assertEquals(Rows.test(report), TestRow(500, "42", "model Store realization 1", false))
   }
 

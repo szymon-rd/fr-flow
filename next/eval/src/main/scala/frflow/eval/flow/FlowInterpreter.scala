@@ -15,8 +15,8 @@ import frflow.eval.{Env, Fn, Raised, ScalaValue, Semantics}
   * A program's error is raised in `F` as `Raised` (its value and type), caught by a handler of its type;
   * `Scheduling` says how concurrent steps run.
   */
-final class FlowInterpreter[F[_]](semantics: Semantics, world: World[F], scheduling: Scheduling[F])(
-    using F: MonadThrow[F]):
+final class FlowInterpreter[F[_]](semantics: Semantics, world: World[F], scheduling: Scheduling[F],
+    branched: (Prog[Stated[?]], Boolean) => F[Unit])(using F: MonadThrow[F]):
   private type P = Prog[Stated[?]]
 
   /** The program's outcome: the error it failed with (`Left`), or its result. */
@@ -27,7 +27,8 @@ final class FlowInterpreter[F[_]](semantics: Semantics, world: World[F], schedul
     case Prog.Pure(t)              => value(t, env)
     case Prog.Bind(first, x, rest) => prog(first, env).flatMap(v => prog(rest, env.bind(x.id, v)))
     case Prog.Let(x, v, rest)      => value(v, env).flatMap(a => prog(rest, env.bind(x.id, a)))
-    case Prog.Branch(c, a, b)      => value(c, env).flatMap(v => if Fn.bool(v) then prog(a, env) else prog(b, env))
+    case br @ Prog.Branch(c, a, b) => value(c, env).flatMap(v =>
+        branched(br, Fn.bool(v)) *> (if Fn.bool(v) then prog(a, env) else prog(b, env)))
     case Prog.Call(b, op, as, _)   => as.traverse(value(_, env)).flatMap(world.call(b, op, _))
     case Prog.Read(m)              => world.read(m)
     case Prog.Write(m, s)          => value(s, env).flatMap(world.write(m, _)).as(unit)
@@ -75,12 +76,18 @@ object FlowInterpreter:
     * `ProgramRun`).
     */
   def sequential[F[_]: MonadThrow](semantics: Semantics, world: World[F]): FlowInterpreter[F] =
-    FlowInterpreter(semantics, world, Scheduling.sequential[F])
+    watched(semantics, world, (_, _) => MonadThrow[F].unit)
+
+  /** The same, each branch taken said to `branched` (what a model test reaches of the model's steps). */
+  def watched[F[_]: MonadThrow](semantics: Semantics, world: World[F], branched: (Prog[Stated[?]], Boolean) => F[Unit])
+      : FlowInterpreter[F] =
+    FlowInterpreter(semantics, world, Scheduling.sequential[F], branched)
 
   /** Branches at once, and `atomically` under one lock (`IO` in the interleavings tests). */
   def concurrent[F[_]: Async](semantics: Semantics, world: World[F]): F[FlowInterpreter[F]] =
     Mutex[F].map(lock =>
-      FlowInterpreter(semantics, world, Scheduling.concurrent[F]([A] => (fa: F[A]) => lock.lock.surround(fa))))
+      FlowInterpreter(semantics, world, Scheduling.concurrent[F]([A] => (fa: F[A]) => lock.lock.surround(fa)),
+        (_, _) => Async[F].unit))
 
   /** The binders a model's operation is given its arguments at. */
   def arguments(params: List[Binder], args: List[ScalaValue]): Env =

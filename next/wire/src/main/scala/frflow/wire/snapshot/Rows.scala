@@ -105,5 +105,4 @@ object Rows:
 
   private def against(a: Against): String = a match
     case Against.Claim(n)    => s"claim ${n.value}"
-    case Against.Define(d)   => s"define ${d.value}"
     case Against.Model(n, i) => s"model ${n.value} realization $i"

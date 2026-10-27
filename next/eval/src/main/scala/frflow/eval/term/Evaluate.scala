@@ -5,7 +5,7 @@ import frflow.core.expr.{Binder, OutsideFact, Value}
 import frflow.core.name.{ModelName, SymbolName}
 import frflow.core.term.*
 import frflow.core.ty.Ty
-import frflow.eval.{EvalError, Faults, Fn, NotEvaluated, ScalaValue}
+import frflow.eval.{EvalError, Faults, Fn, NotEvaluated, Races, ScalaValue}
 import frflow.eval.term.Run.{map2, pure}
 
 /** The evaluator, the one Scala semantics of terms (LNCS 7470 §3.2's `R`, there `R a = a`; here a reader of the values
@@ -37,7 +37,7 @@ class Evaluate extends Sym[Run], RunLists, RunContainers:
   def always[A](x: Bound[A])(p: Run[A] => Run[Boolean]): Run[Boolean] = _ => Left(EvalError.Quantified)
   /** Never run: what the outside does is assumed, and its stores' code is tested against their models. */
   def outside(fact: OutsideFact): Run[Boolean] = _ => Left(EvalError.Quantified)
-  /** Every model's state as before, the faults aside (a world may hold them, `Faults`). */
+  /** Every model's state as before, the faults and the races aside (a world may hold them, `Faults`, `Races`). */
   def unchanged(after: Run[World], before: Run[World]): Run[Boolean] =
     map2(after, before)((a, b) => states(a) == states(b))
   def construct[F](c: Constructor[F]): Run[F] = pure(c.make)
@@ -74,7 +74,8 @@ class Evaluate extends Sym[Run], RunLists, RunContainers:
   private def arm[S, C, R](w: When[Run, S, C, R], v: S, env: frflow.eval.Env): Option[Either[EvalError, R]] =
     w.c.test(v).map(c => w.body(pure(c))(env))
 
-  private def states(w: World): Map[ModelName, Any] = Fn.as[Map[ModelName, Any]](ScalaValue(w)) - Faults.model
+  private def states(w: World): Map[ModelName, Any] =
+    Fn.as[Map[ModelName, Any]](ScalaValue(w)) - Faults.model - Races.model
 
   private def arity(ty: Ty): Int = ty match
     case Ty.FnOf(ps, _) => ps.size

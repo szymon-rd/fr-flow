@@ -10,8 +10,8 @@ import frflow.dsl.term.Lift
 import frflow.eval.{Literals, Running, Semantics}
 import frflow.testing.{Plan, Seed, Settings}
 import frflow.testing.derive.Derive
-import frflow.testing.model.{Difference, ModelRuns}
-import frflow.testing.report.Failure
+import frflow.testing.model.{Difference, ModelRuns, Ran}
+import frflow.testing.report.{Count, Failure}
 
 /** The model-based test the owner asked for (§7), as a developer writes it: an implementation of the table checked
   * against the table's model (`storedBookings.checkedAgainst(start = …, observe = …)`), on generated runs of the
@@ -33,24 +33,40 @@ class StoreModelSuite extends munit.FunSuite:
     start = held => Ref[IO].of(held).map(Memory(_, byRoom, adds)),
     observe = memory => memory.bookings)
 
+  /** The project's own table, made only from a state the store can hold: two bookings of a room overlapping is
+    * refused.
+    */
+  private val own = storedBookings.implementedBy(
+    start = (held: List[Booking]) =>
+      if held.combinations(2).exists { case List(a, b) => a.room == b.room && a.start < b.end && b.start < a.end
+        case _ => false } then IO.raiseError(IllegalArgumentException(s"overlapping: $held"))
+      else Ref[IO].of(held).map(Memory(_, true, true)),
+    observe = (memory: Memory) => memory.bookings)
+
   private val elaborated = rooms.elaborated.fold(e => fail(e.toString), identity)
   private val semantics = Semantics(elaborated)
   private val draw = Derive.of(elaborated, Nil)
   private def tested(c: AdapterCheck[IO, BookingTable, List[Booking], Memory]) =
     ModelRuns(c, semantics, elaborated.theory).of(Plan(Settings.default, Nil), draw).unsafeRunSync()
 
-  test("the table's own implementation agrees with its model on every generated run, 200 for an outside system") {
+  test("an outside system's table agrees with its model on 200 generated runs, every operation called") {
     val report = tested(checked())
-    assertEquals((report.failure, report.cases), (None, 200))
+    assertEquals((report.failure, report.count, report.unreached), (None, Count(200, 200), Nil))
+  }
+
+  test("the project's own table is tested on every case, from states the store can hold; a node's runs are summed") {
+    val report = tested(own)
+    assertEquals((report.failure, report.count), (None, Count(1000, 1000)))
+    assertEquals(ModelRuns.joined(tested(checked()), report).count, Count(1200, 1200))
   }
 
   test("one that forgets to filter by room is found at a call, shrunk to a short run, with the model's answer") {
     val found = tested(checked(byRoom = false)).failure
     found match
-      case Some(Failure.Run(_, steps, Difference.Answer(step, _, _), _)) =>
+      case Some(Failure.Run(_, steps, Difference.Call(step, Ran.Gave(_), Ran.Gave(_)), _)) =>
         assertEquals(step.op.value, "inRoom")
         assert(steps.size <= 3, steps)
-      case other                                                        => fail(s"not found: $other")
+      case other                                                                  => fail(s"not found: $other")
   }
 
   test("one that forgets to add, on a run that never reads back, is found by the state it is read back holding") {

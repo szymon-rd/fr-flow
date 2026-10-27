@@ -7,7 +7,7 @@ import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
 import frflow.eval.Semantics
 import frflow.eval.run.{Broken, CallCheck, Made, Wiring}
-import frflow.testing.report.{Against, Drawn, Failure, TestReport}
+import frflow.testing.report.{Against, Count, Drawn, Failure, TestReport}
 
 /** Plain code tested against the claims about its Definition on generated cases: each case's inputs drawn, the
   * values its code reads made by `Wiring` (what wiring does not make drawn too), the code called through `Fn`, the
@@ -26,10 +26,12 @@ final class PropertyTests(semantics: Semantics, t: Theory):
       val from = Drawn(plan.settings.seed, i, Seed.sizeOf(i, plan.settings.cases))
       cases.drawn(draw, from).map(_ -> from)
     }
-    val (tried, hits, failure) =
-      cases.search(replayed.iterator ++ drawn, Coverage(semantics, t, node, judge.inputs), t.vocabulary)
-    TestReport(tried, plan.settings.seed, Against.Claim(node), failure, hits.unreached, draw.generators)
+    val found = cases.search(replayed.iterator ++ drawn, Coverage(semantics, t, node, judge.inputs),
+      t.vocabulary)(NoValue.of(t, _))
+    TestReport(Count(replayed.size + plan.settings.cases, found.tried), plan.settings.seed, Against.Claim(node),
+      found.outcome, found.hits.unreached, draw.generators)
   }
+
 
   /** What one case of a call breaks, if anything (`Judge.call`). */
   def judged(check: CallCheck, code: Impl, c: Case): Option[Broken] = Judge.call(semantics, wiring)(check, code, c)

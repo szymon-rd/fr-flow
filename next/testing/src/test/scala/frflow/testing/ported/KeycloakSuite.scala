@@ -24,7 +24,7 @@ class KeycloakSuite extends munit.FunSuite:
     assertEquals(Tested.nodes(knowledge).sorted,
       List("answersNameASession", "introspect", "realmIsolation", "sessionLookup", "storeKeepsState"))
     Tested.nodes(knowledge).foreach(n =>
-      assertEquals(Tested.report(knowledge, n).map(r => (r.failure, r.unreached)), Some((None, Nil)), n))
+      assertEquals(Tested.passes(knowledge, n).count.tried, 1000, n))
   }
 
   test("an introspection that forgets the account's state fails a generated case") {

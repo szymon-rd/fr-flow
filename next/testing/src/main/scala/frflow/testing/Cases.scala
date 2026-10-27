@@ -6,10 +6,10 @@ import frflow.core.example.Given
 import frflow.core.name.SymbolName
 import frflow.core.ty.Ty
 import frflow.core.vocab.Vocabulary
-import frflow.eval.{Env, ScalaValue, Semantics}
+import frflow.eval.{Env, EvalError, ScalaValue, Semantics}
 import frflow.eval.run.{Broken, Made}
 import frflow.testing.derive.Shrink
-import frflow.testing.report.{Drawn, Failure, Hits}
+import frflow.testing.report.{Drawn, Failure, Hits, Outcome}
 import scala.annotation.tailrec
 
 /** One node's cases: each drawn by the types of its inputs and of the values its code is given (`needed`), judged
@@ -27,19 +27,23 @@ private[testing] final class Cases(semantics: Semantics, judge: Judge, needed: L
       Case(values.take(judge.inputs.size), needed.zip(values.drop(judge.inputs.size)).map((s, v) => Given(s._1, v)))
     }
 
-  /** The cases tried, what they reached, and the first failing one, shrunk. */
-  def search(cases: Iterator[(Case, Drawn)], coverage: Coverage, v: Vocabulary): (Int, Hits, Option[Failure]) =
+  /** The cases tried, what they reached, and what was found: the first failing case, shrunk; or, at a case the
+    * statement has no Scala value at (`unchecked`), nothing more: the statement is not checked.
+    */
+  def search(cases: Iterator[(Case, Drawn)], coverage: Coverage, v: Vocabulary)(unchecked: EvalError => Boolean)
+      : Searched =
     val shrink = Shrink(v)
-    @tailrec def go(tried: Int, hits: Hits): (Int, Hits, Option[Failure]) = cases.nextOption() match
-      case None            => (tried, hits, None)
+    @tailrec def go(tried: Int, hits: Hits): Searched = cases.nextOption() match
+      case None            => Searched(tried, hits, Outcome.Passed)
       case Some((c, from)) =>
         val reached = hits |+| coverage.of(c)
         judge.broken(c) match
-          case Some(broke) =>
+          case Some(Broken.NotEvaluated(e)) if unchecked(e) => Searched(tried + 1, reached, Outcome.NotChecked(e))
+          case Some(broke)                                  =>
             val (small, why) = smallest(shrink, c, broke, Shrinking.Rounds)
-            (tried + 1, reached, Some(Failure.Call(small.inputs, small.givens, why, from)))
-          case None        => go(tried + 1, reached)
-    go(0, Hits(Map.empty))
+            Searched(tried + 1, reached, Outcome.Failed(Failure.Call(small.inputs, small.givens, why, from)))
+          case None                                         => go(tried + 1, reached)
+    go(0, coverage.zero)
 
   @tailrec private def smallest(shrink: Shrink, c: Case, broke: Broken, rounds: Int): (Case, Broken) =
     smaller(shrink, c).take(Shrinking.Tried).flatMap(s => judge.broken(s).map(s -> _)).headOption match

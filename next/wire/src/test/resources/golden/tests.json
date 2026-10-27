@@ -3,92 +3,113 @@
   "tests": {
     "Book": {
       "key": "a1b2c3",
-      "cases": 500,
+      "asked": 500,
+      "cases": 18,
       "seed": "42",
       "against": {
         "kind": "claim",
         "node": "Book"
       },
-      "failure": {
-        "kind": "call",
-        "inputs": [
-          {
-            "kind": "many",
-            "elems": [
-              {
-                "kind": "data",
-                "ctor": "mk",
-                "fields": [
-                  {
-                    "kind": "str",
-                    "value": "Oak"
-                  },
-                  {
-                    "kind": "num",
-                    "value": 9
-                  },
-                  {
-                    "kind": "num",
-                    "value": 10
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "kind": "data",
-            "ctor": "mk",
-            "fields": [
-              {
-                "kind": "str",
-                "value": "Oak"
-              },
-              {
-                "kind": "num",
-                "value": 9
-              },
-              {
-                "kind": "num",
-                "value": 11
-              }
-            ]
-          }
-        ],
-        "givens": [
-          {
-            "symbol": "rooms",
-            "value": {
-              "kind": "pairs",
-              "entries": [
+      "outcome": {
+        "kind": "failed",
+        "failure": {
+          "kind": "call",
+          "inputs": [
+            {
+              "kind": "many",
+              "elems": [
                 {
-                  "key": {
-                    "kind": "str",
-                    "value": "Oak"
-                  },
-                  "value": {
-                    "kind": "maybe",
-                    "elem": {
+                  "kind": "data",
+                  "ctor": "mk",
+                  "fields": [
+                    {
+                      "kind": "str",
+                      "value": "Oak"
+                    },
+                    {
                       "kind": "num",
-                      "value": 4
+                      "value": 9
+                    },
+                    {
+                      "kind": "num",
+                      "value": 10
                     }
-                  }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "data",
+              "ctor": "mk",
+              "fields": [
+                {
+                  "kind": "str",
+                  "value": "Oak"
+                },
+                {
+                  "kind": "num",
+                  "value": 9
+                },
+                {
+                  "kind": "num",
+                  "value": 11
                 }
               ]
             }
+          ],
+          "givens": [
+            {
+              "symbol": "rooms",
+              "value": {
+                "kind": "pairs",
+                "entries": [
+                  {
+                    "key": {
+                      "kind": "str",
+                      "value": "Oak"
+                    },
+                    "value": {
+                      "kind": "maybe",
+                      "elem": {
+                        "kind": "num",
+                        "value": 4
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "broke": {
+            "kind": "always",
+            "node": "NoOverlap"
+          },
+          "from": {
+            "seed": "42",
+            "index": 17,
+            "size": 3
           }
-        ],
-        "broke": {
-          "kind": "always",
-          "node": "NoOverlap"
-        },
-        "from": {
-          "seed": "42",
-          "index": 17,
-          "size": 3
         }
       },
       "unreached": [
-        1
+        {
+          "path": [
+            1
+          ],
+          "reach": {
+            "kind": "premise"
+          }
+        },
+        {
+          "path": [
+            0,
+            2
+          ],
+          "reach": {
+            "kind": "arm",
+            "index": 1
+          }
+        }
       ],
       "made": [
         {
@@ -117,11 +138,18 @@
     },
     "Free": {
       "key": "070809",
+      "asked": 100,
       "cases": 100,
       "seed": "1",
       "against": {
-        "kind": "define",
-        "define": "free"
+        "kind": "claim",
+        "node": "Free"
+      },
+      "outcome": {
+        "kind": "not-checked",
+        "error": {
+          "kind": "quantified"
+        }
       },
       "unreached": [],
       "made": [
@@ -165,57 +193,119 @@
     },
     "Store": {
       "key": "d4e5f6",
-      "cases": 200,
+      "asked": 200,
+      "cases": 3,
       "seed": "-7",
       "against": {
         "kind": "model",
         "node": "Store",
         "realization": 0
       },
-      "failure": {
-        "kind": "run",
-        "start": {
-          "kind": "world",
-          "states": [
+      "outcome": {
+        "kind": "failed",
+        "failure": {
+          "kind": "run",
+          "start": {
+            "kind": "world",
+            "states": [
+              {
+                "model": "stored",
+                "state": {
+                  "kind": "many",
+                  "elems": []
+                }
+              }
+            ],
+            "faults": [
+              false,
+              true
+            ]
+          },
+          "steps": [
             {
-              "model": "stored",
-              "state": {
+              "boundary": "Bookings",
+              "op": "add",
+              "args": [
+                {
+                  "kind": "data",
+                  "ctor": "mk",
+                  "fields": [
+                    {
+                      "kind": "str",
+                      "value": "Oak"
+                    },
+                    {
+                      "kind": "num",
+                      "value": 9
+                    },
+                    {
+                      "kind": "num",
+                      "value": 10
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "difference": {
+            "kind": "call",
+            "step": {
+              "boundary": "Bookings",
+              "op": "list",
+              "args": []
+            },
+            "implementation": {
+              "kind": "gave",
+              "result": {
                 "kind": "many",
                 "elems": []
               }
+            },
+            "model": {
+              "kind": "gave",
+              "result": {
+                "kind": "many",
+                "elems": [
+                  {
+                    "kind": "data",
+                    "ctor": "mk",
+                    "fields": [
+                      {
+                        "kind": "str",
+                        "value": "Oak"
+                      },
+                      {
+                        "kind": "num",
+                        "value": 9
+                      },
+                      {
+                        "kind": "num",
+                        "value": 10
+                      }
+                    ]
+                  }
+                ]
+              }
             }
-          ],
-          "faults": [
-            false,
-            true
-          ]
-        },
-        "steps": [
-          {
-            "boundary": "Bookings",
-            "op": "add",
-            "args": [
-              "Booking(Oak,9,10)"
-            ]
-          }
-        ],
-        "difference": {
-          "kind": "answer",
-          "step": {
-            "boundary": "Bookings",
-            "op": "list",
-            "args": []
           },
-          "implementation": "List()",
-          "model": "List(Booking(Oak,9,10))"
-        },
-        "from": {
-          "seed": "-7",
-          "index": 2,
-          "size": 1
+          "from": {
+            "seed": "-7",
+            "index": 2,
+            "size": 1
+          }
         }
       },
-      "unreached": [],
+      "unreached": [
+        {
+          "path": [
+            1
+          ],
+          "reach": {
+            "kind": "called",
+            "op": "remove"
+          }
+        }
+      ],
       "made": [
         {
           "type": {

@@ -15,8 +15,7 @@ class AuthSuite extends munit.FunSuite:
     assertEquals(Tested.nodes(knowledge).sorted,
       List("accessNeedsGrant", "decisionContract", "grantLetsIn", "tokenNamesHolder"))
     Tested.nodes(knowledge).foreach { n =>
-      val r = Tested.report(knowledge, n, List(DecisionExamples())).getOrElse(fail(s"$n is not tested"))
-      assertEquals((r.failure, r.unreached, r.cases, r.against), (None, Nil, 1000, Against.Claim(NodeId(n))), n)
+      assertEquals(Tested.passes(knowledge, n, List(DecisionExamples())).against, Against.Claim(NodeId(n)), n)
     }
   }
 

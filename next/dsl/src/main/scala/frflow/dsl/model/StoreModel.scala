@@ -2,6 +2,7 @@ package frflow.dsl.model
 
 import cats.Id
 import cats.syntax.all.*
+import frflow.core.code.Realizes
 import frflow.core.name.ModelName
 import frflow.core.term.World
 import frflow.core.vocab.StateModel
@@ -25,8 +26,12 @@ final class StoreModel[B[_[_], _[_]], S](val state: ModelState[S], val boundary:
   def declares: Declarations =
     Declarations.boundary(boundary.sig, stateModel) |+| state.leanType.declares |+| boundary.declares
 
-  /** An implementation checked against the model: `start` makes it hold a state of the model, `observe` reads its
-    * state back.
+  /** An outside system's implementation checked against the model: `start` makes it hold a state of the model,
+    * `observe` reads its state back.
     */
   def checkedAgainst[F[_], A <: B[F, Id]](start: S => F[A], observe: A => F[S]): AdapterCheck[F, B, S, A] =
-    AdapterCheck(this, start, observe)
+    AdapterCheck(this, start, observe, Realizes.Outside)
+
+  /** The project's own implementation tested against the model, made and read back as `checkedAgainst`'s. */
+  def implementedBy[F[_], A <: B[F, Id]](start: S => F[A], observe: A => F[S]): AdapterCheck[F, B, S, A] =
+    AdapterCheck(this, start, observe, Realizes.Own)

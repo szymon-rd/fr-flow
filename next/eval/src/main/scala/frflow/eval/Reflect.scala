@@ -31,7 +31,10 @@ final class Reflect(e: Elaborated):
 
   private def of(x: Any, t: Ty): Value = apply(ScalaValue(x), t)
 
-  /** Each model's state at its model's type, in the vocabulary's order, and the faults. */
+  /** Each model's state at its model's type, in the vocabulary's order, the races' winners when it holds them, and
+    * the faults.
+    */
   private def world(w: World): Value =
-    val states = e.theory.vocabulary.models.flatMap(m => w.state(m.name).map(s => m.name -> of(s, m.state)))
+    val states = e.theory.vocabulary.models.flatMap(m => w.state(m.name).map(s => m.name -> of(s, m.state))) ++
+      w.state(Races.model).map(r => Races.model -> of(r, Ty.ListOf(Ty.Bool)))
     Value.World(states, w.state(Faults.model).fold(Nil)(fs => Fn.as[List[Boolean]](ScalaValue(fs))))
