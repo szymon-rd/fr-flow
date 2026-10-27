@@ -15,6 +15,8 @@ trait LeanType[A]:
   def ty: Ty
   def declares: Declarations
   def fields: List[LeanType.Field[A, ?]] = Nil
+  /** Of a Scala type with no `LeanType` (a code-only Definition's), that type's name: no statement speaks of it. */
+  def codeOnly: Option[String] = None
 
 object LeanType:
   /** A record's field: its selector, typed by the field's `LeanType`. */

@@ -43,7 +43,10 @@ enum Problem:
     * class is refused rather than named apart.
     */
   case DeclaredTwice(name: String)
-  case CodeOnlyInStatement(id: NodeId, symbol: SymbolName)
+  /** A statement mentioning a value only plain code reads: its Scala type (`scalaType`) has no `LeanType`; one that
+    * derives it can be spoken of, and a connection stays as it is.
+    */
+  case CodeOnlyInStatement(id: NodeId, symbol: SymbolName, scalaType: String)
   // Declarations and Definitions (owner §15)
   /** A Definition nothing gives a meaning: no code, no program, no value fixed or provided where code runs. */
   case Undefined(definition: SymbolName)

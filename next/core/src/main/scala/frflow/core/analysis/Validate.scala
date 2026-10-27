@@ -60,8 +60,8 @@ object Validate:
       v.defines.map(_.name.value) ++ v.boundaries.map(_.className) ++ v.models.map(_.name.value.capitalize)
     all(names.filter(Reserved.names).distinct.map(Problem.ReservedName(_)) ++
       names.diff(names.distinct).distinct.map(Problem.DeclaredTwice(_)) ++
-      t.nodes.map(_.node.id).flatMap(id => Constrained.of(t, id).filter(Constrained.isCodeOnly(t, _))
-        .map(Problem.CodeOnlyInStatement(id, _))))
+      t.nodes.map(_.node.id).flatMap(id => Constrained.of(t, id).flatMap(s =>
+        Constrained.codeOnlyType(t, s).map(Problem.CodeOnlyInStatement(id, s, _)))))
 
   /** A statement's `.assuming` lists exactly the facts about the outside its check rests on (`Premises`: derived,
     * and only checked), every program writing a store is among those the outside lets write it, and every `always[T]`

@@ -46,7 +46,7 @@ object ValueCases:
     ProblemCase(Kb.of(root).naming(declaration("access", test), declaration("access", test)),
       List(Problem.DeclaredTwice("access"))),
     ProblemCase(Kb.of(connected).naming(codeOnly("connection")).coding(name("connection") -> Code.Provided),
-      List(Problem.CodeOnlyInStatement(id("connected"), name("connection")))),
+      List(Problem.CodeOnlyInStatement(id("connected"), name("connection"), "Connection"))),
     ProblemCase(Kb.of(root).naming(definition("granted", test)), List(Problem.Undefined(name("granted")))),
     ProblemCase(Kb.of(holdsOf("admits", "admitted")).naming(declaration("allowed", test), definition("admitted", test))
       .declaring(_.copy(defines = List(calling("admit", "allowed"))))

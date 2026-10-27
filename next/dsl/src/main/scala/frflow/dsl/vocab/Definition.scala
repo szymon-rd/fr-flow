@@ -23,11 +23,11 @@ final class Definition[A] @publicInBinary private[dsl] (val name: SymbolName, va
   /** The term as a curried function (`F` the curried type of `A`): what `Functions.app` applies. */
   def curried[F: LeanType]: Term[F] = Term(Definition.called[F](name, means, onTheSpot, t))
   /** Of a type with no `LeanType`: read only by the code it is provided to. */
-  def codeOnly: Boolean = t.isInstanceOf[Definition.NoLeanType[?]]
+  def codeOnly: Boolean = t.codeOnly.nonEmpty
   /** What a code-only Definition declares wherever it is given its meaning: no statement mentions it to. */
   private[dsl] def declares: Declarations =
-    if codeOnly then Declarations.symbol(Symbol(name, means, SymbolType.CodeOnly, ValueKind.Definition))
-    else Declarations.none
+    t.codeOnly.fold(Declarations.none)(scala =>
+      Declarations.symbol(Symbol(name, means, SymbolType.CodeOnly(scala), ValueKind.Definition)))
 
 object Definition:
   /** A Definition of a domain type; of a type with no `LeanType`, a code-only one, whose term has no type of its own
@@ -35,13 +35,15 @@ object Definition:
     */
   inline def apply[A](means: String): Definition[A] = summonFrom {
     case t: LeanType[A] => new Definition[A](SymbolName(Source.valName), means, None)(using t)
-    case _              => new Definition[A](SymbolName(Source.valName), means, None)(using NoLeanType[A]())
+    case _              =>
+      new Definition[A](SymbolName(Source.valName), means, None)(using NoLeanType[A](Source.typeName[A]))
   }
 
   /** What a code-only Definition is typed by, made only here: no type has it as its given. */
-  final class NoLeanType[A] @publicInBinary private[dsl] () extends LeanType[A]:
+  final class NoLeanType[A] @publicInBinary private[dsl] (scalaType: String) extends LeanType[A]:
     val ty: Ty = Ty.Unit
     val declares: Declarations = Declarations.none
+    override def codeOnly: Option[String] = Some(scalaType)
 
   /** A Definition given its meaning where it is written (`define`, `program`). */
   def onTheSpot[A: LeanType](spot: OnTheSpot): Definition[A] = new Definition[A](SymbolName(spot.name.value), "",
@@ -51,13 +53,13 @@ object Definition:
     * define; a program, a fault (claims speak of the Definition the program is the meaning of).
     */
   private def called[F](name: SymbolName, means: String, spot: Option[OnTheSpot], t: LeanType[?]): Final[F] =
-    spot match
-      case None if t.isInstanceOf[NoLeanType[?]] => Symbols.codeOnly[F](name, means)
-      case None                                  => Symbols.term[F](name, means, ValueKind.Definition, t)
-      case Some(OnTheSpot(n, _, lambda, Some(b))) =>
+    (spot, t.codeOnly) match
+      case (None, Some(scala))                          => Symbols.codeOnly[F](name, means, scala)
+      case (None, None)                                 => Symbols.term[F](name, means, ValueKind.Definition, t)
+      case (Some(OnTheSpot(n, _, lambda, Some(b))), _) =>
         [T[_]] => (s: Sym[T]) => s.noted(Notes.of(Declarations.define(n, lambda)),
           s.define(b).asInstanceOf[T[F]]) // `b` was built at the curried type of the `define`'s own `F`
-      case Some(OnTheSpot(n, _, _, None))        =>
+      case (Some(OnTheSpot(n, _, _, None)), _)         =>
         [T[_]] => (s: Sym[T]) => s.noted(Notes.fault(Fault.ProgramMentioned(n.value)), s.param[F](name, t.ty))
 
   extension [A, R](d: Definition[A => R])

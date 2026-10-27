@@ -19,6 +19,9 @@ final case class Plain(n: BigInt)
 /** What a connection to a database is to the code: no domain type. */
 final case class Connection(url: String)
 
+/** A record whose `derives LeanType` was forgotten. */
+final case class Wire(host: String)
+
 class FormsSuite extends munit.FunSuite:
   private val bookable = Definition[(Boolean, Booking) => Boolean]("whether a booking can be made after another")
   val refused = Definition[(RoomBookings, Booking) => Boolean]("whether a request is refused")
@@ -124,9 +127,16 @@ class FormsSuite extends munit.FunSuite:
     assert(connection.codeOnly && !granted.codeOnly)
     assertEquals(Theories.problems(rooms.implementProvided(connection)), Nil)
     assertEquals(Theories.problems(KnowledgeBase("Wired")(connected).implementProvided(connection)),
-      List(Problem.CodeOnlyInStatement(NodeId("connected"), SymbolName("connection"))))
+      List(Problem.CodeOnlyInStatement(NodeId("connected"), SymbolName("connection"), "Connection")))
     val db = Connection("jdbc:sqlite:rooms.db")
     assertEquals(Values(Map(SymbolName("connection") -> (() => db))).apply(connection), db)
+  }
+
+  test("a record whose derives LeanType is forgotten: its field selected in a statement names the type, code-only") {
+    val wire = Definition[Wire]("the wire the code is given where it runs")
+    val wired = Node.claim("The wire goes to the database.")(wire.host === "db")
+    assertEquals(Theories.errors(KnowledgeBase("Wired")(wired).implementProvided(wire)).map(_.fault),
+      List(Fault.CodeOnlyInStatement("Wire")))
   }
 
   test("a node's id is its val's name as written: renaming the val renames the node") {

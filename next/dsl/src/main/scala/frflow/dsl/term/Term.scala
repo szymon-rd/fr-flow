@@ -71,6 +71,7 @@ object Term:
   private def outside: Nothing = throw IllegalStateException("FrFlow bug: a bound variable used outside its binder")
 
   private def field[A](t: Term[A], name: String): Term[?] =
+    t.leanType.codeOnly.foreach(scala => throw Failure(Fault.CodeOnlyInStatement(scala)))
     t.leanType.fields.find(_.selector.name == name).fold(throw Failure(Fault.NoField(name)))(f => select(t, f))
 
   /** A record's field, as `b.start` reads it: typed by the field's own `LeanType`. */

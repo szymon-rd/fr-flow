@@ -12,6 +12,8 @@ object Source:
   inline def offset: Int = ${ offsetOf }
   /** The name of the `val` the expression is the right-hand side of: `val matches = define { … }` gives `matches`. */
   inline def valName: String = ${ valNameOf }
+  /** A type's name as written in Scala, without its package: `Connection`. */
+  inline def typeName[A]: String = ${ typeNameOf[A] }
 
   private def writtenOf(x: Expr[Any])(using Quotes): Expr[AsWritten] =
     import quotes.reflect.*
@@ -38,6 +40,9 @@ object Source:
     Expr(quotes.reflect.Position.ofMacroExpansion.sourceFile.path)
   private def offsetOf(using Quotes): Expr[Int] =
     Expr(quotes.reflect.Position.ofMacroExpansion.start)
+  private def typeNameOf[A: Type](using Quotes): Expr[String] =
+    import quotes.reflect.*
+    Expr(TypeRepr.of[A].show(using Printer.TypeReprShortCode))
   private def valNameOf(using Quotes): Expr[String] =
     import quotes.reflect.*
     def owner(s: Symbol): Symbol = if s.isValDef && !s.flags.is(Flags.Synthetic) then s else owner(s.owner)

@@ -30,4 +30,4 @@ object Nodes:
   def declaration(name: String, ty: Ty): Symbol =
     Symbol(SymbolName(name), s"what $name is", SymbolType.Typed(ty), ValueKind.Declaration)
   def codeOnly(name: String): Symbol =
-    Symbol(SymbolName(name), s"what $name is", SymbolType.CodeOnly, ValueKind.Definition)
+    Symbol(SymbolName(name), s"what $name is", SymbolType.CodeOnly("Connection"), ValueKind.Definition)
