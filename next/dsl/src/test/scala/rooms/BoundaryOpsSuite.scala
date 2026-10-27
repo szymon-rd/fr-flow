@@ -67,10 +67,37 @@ class BoundaryOpsSuite extends munit.FunSuite:
     assertEquals(memory.added, List(oak))
   }
 
+  /** What the derivation says of a trait it refuses. */
+  private def refusal(errors: String, why: String): Unit = assert(errors.contains(s"FrFlow: $why"), errors)
+
   test("a trait that is not a boundary's is refused, saying why") {
-    val errors = compileErrors("""
-      trait Plain[F[_], T[_]] derives BoundaryOps:
+    refusal(compileErrors("""
+      trait Counts[F[_], T[_]] derives BoundaryOps:
         def count(n: Int): F[Unit]
-      """)
-    assert(errors.contains("operation count: a parameter is a T[…]"), errors)
+      """), "operation count: a parameter is a T[…]")
+    refusal(compileErrors("""
+      abstract class Table[F[_], T[_]] derives BoundaryOps:
+        def add(n: T[BigInt]): F[Unit]
+      """), "Table is not a trait")
+    refusal(compileErrors("""
+      trait Pairs[F[_], T[_]] derives BoundaryOps:
+        def add(a: T[BigInt])(b: T[BigInt]): F[Unit]
+      """), "operation add: one parameter list")
+    refusal(compileErrors("""
+      trait Anything[F[_], T[_]] derives BoundaryOps:
+        def add[X](a: T[X]): F[Unit]
+      """), "operation add: no type parameters")
+    refusal(compileErrors("""
+      trait Bare[F[_], T[_]] derives BoundaryOps:
+        def size: F[BigInt]
+      """), "operation size: its result is an F[T[…]] or an F[Unit]")
+    refusal(compileErrors("""
+      trait Twice[F[_], T[_]] derives BoundaryOps:
+        def add(n: T[BigInt]): F[Unit]
+        def add(a: T[BigInt], b: T[BigInt]): F[Unit]
+      """), "Twice.add: a boundary's operations are not overloaded")
+    refusal(compileErrors("""
+      trait Plains[F[_], T[_]] derives BoundaryOps:
+        def add(p: T[Plain]): F[Unit]
+      """), "Plain is not a domain type yet: add `derives LeanType` to its declaration")
   }

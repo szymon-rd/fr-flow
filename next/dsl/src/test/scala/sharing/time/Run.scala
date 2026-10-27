@@ -1,6 +1,5 @@
 package sharing.time
 
-import examples.Folds.*
 import frflow.*
 import sharing.audit.Audit
 import sharing.domain.*
@@ -73,8 +72,8 @@ object Run:
     */
   val step = define { (m: Term[Moment], e: Term[Event]) =>
     e.on[Event.Asked](r => m.updated(_.library, servedByCode(m.library, m.now, r)))
-      .on(Event.Housekept)(m.updated(_.library, housekept(m.library, m.now)).updated(_.tidied, m.now))
-      .on[Event.Delivered](p => m.library.outbox.firstWhere(x => x.to === p).fold(m)(n =>
+      .on[Event.Housekept.type](m.updated(_.library, housekept(m.library, m.now)).updated(_.tidied, m.now))
+      .on[Event.Delivered](p => m.library.outbox.find(x => x.to === p).fold(m)(n =>
         m.updated(_.library, m.library.updated(_.outbox, m.library.outbox.filter(x => x =!= n)))
           .updated(_.mailbox, when(m.mailbox.contains(n))(m.mailbox).otherwise(m.mailbox :+ n))))
       .on[Event.Waited](d => m.updated(_.now, m.now + d)) }
@@ -90,11 +89,11 @@ object Run:
   val clockNeverGoesBack = Node.assumption("Time never goes back between the service's events: each wait is of no " +
       "time or more.")(
     forall((pre: Term[List[Event]], e: Term[Event], post: Term[List[Event]]) => (events === pre ++ (e :: post)) implies
-      e.on[Event.Asked](_ => True).on(Event.Housekept)(True).on[Event.Delivered](_ => True)
+      e.on[Event.Asked](_ => True).on[Event.Housekept.type](True).on[Event.Delivered](_ => True)
         .on[Event.Waited](d => d >= 0)))
 
   val housekeepingOnTime = Node.assumption("Housekeeping runs often enough: time never moves on more than two " +
       "minutes past its last run.")(
     forall((pre: Term[List[Event]], e: Term[Event], post: Term[List[Event]]) => (events === pre ++ (e :: post)) implies
-      e.on[Event.Asked](_ => True).on(Event.Housekept)(True).on[Event.Delivered](_ => True)
+      e.on[Event.Asked](_ => True).on[Event.Housekept.type](True).on[Event.Delivered](_ => True)
         .on[Event.Waited](d => after(pre).now + d <= after(pre).tidied + housekeepingWithin)))

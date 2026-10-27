@@ -37,7 +37,7 @@ object ReadRecording:
       case Recorded.Cond(c, t, e)         => noted(c) *> cond(c, t(), e())
       case Recorded.Each(xs, t, body)     => noted(xs) *> each(xs, t, body)
       case Recorded.Collect(xs, t, b, ty) => noted(xs) *> collected(xs, t, b, ty)(Prog.Collect(_, _, _))
-      case Recorded.ParCollect(xs, t, b, ty) => noted(xs) *> collected(xs, t, b, ty)(Prog.ParEach(_, _, _, None))
+      case Recorded.ParCollect(xs, t, b, ty, n) => noted(xs) *> collected(xs, t, b, ty)(Prog.ParEach(_, _, _, n))
       case Recorded.Fold(xs, z, t, body)  => noted(xs) *> noted(z) *> fold(xs, z, t, body)
       case Recorded.Raise(e)              => noted(e) *> raised(e)
       case Recorded.Handle(body, e, h)    => handle(body, e, h)

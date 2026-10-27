@@ -1,6 +1,5 @@
 package crm
 
-import examples.Folds.*
 import frflow.*
 
 // ============================================================================
@@ -46,13 +45,14 @@ val writeContract = Node.claim("A write keeps every record, leaves the records o
 
 /** A write: the change, when its author's company may make it; otherwise nothing changes. */
 val applyWrite = define { (s: Term[CrmStore], w: Term[WriteCmd]) =>
+  val noExpiries: Term[List[Expiry]] = Nil
   val othersOf = (id: Term[BigInt], to: Term[TenantId]) => s.expiries.filter(e => !(e.record === id && e.to === to))
   w.change
     .on[Change.Add](r => when(r.tenant === w.by.tenant && !s.records.exists(x => x.id === r.id))(
       make[CrmStore](s.records :+ r, s.shares, s.expiries)).otherwise(s))
     .on[Change.ShareWith]((id, to, until) => when(ownRecord(s, w, id))(make[CrmStore](s.records,
       s.shares.filter(sh => sh =!= make[Share](id, to)) :+ make[Share](id, to),
-      othersOf(id, to) ++ until.fold(Nil: Term[List[Expiry]])(u => one(make[Expiry](id, to, u))))).otherwise(s))
+      othersOf(id, to) ++ until.fold(noExpiries)(u => make[Expiry](id, to, u) :: noExpiries))).otherwise(s))
     .on[Change.Unshare]((id, to) => when(ownRecord(s, w, id))(make[CrmStore](s.records,
       s.shares.filter(sh => sh =!= make[Share](id, to)), othersOf(id, to))).otherwise(s)) }
 

@@ -1,13 +1,12 @@
 package crm
 
-import examples.Folds.*
 import frflow.*
 
 /** Whether a record is one a search asks for. */
 val matches = define { (q: Term[Search], r: Term[CrmRecord]) =>
   q.on[Search.ById](id => r.id === id)
     .on[Search.OfKind](k => r.kind === k)
-    .on(Search.Everything)(True) }
+    .on[Search.Everything.type](True) }
 
 /** Whether the CRM holds a share of the record with that id with the company now, and the share's time, if it was
   * given until one, has not come by the clock.
@@ -23,11 +22,11 @@ val mayRead = define { (reader: Term[Account], r: Term[CrmRecord]) =>
 /** Whether a record is one a search on a screen asks for: the sales screen asks for deals only. */
 val askMatches = define { (q: Term[Ask], r: Term[CrmRecord]) =>
   q.screen.on[Screen.Records.type](matches(q.search, r))
-    .on(Screen.Sales)(r.kind === (Kind.Deal: Kind) && matches(q.search, r)) }
+    .on[Screen.Sales.type](r.kind === (Kind.Deal: Kind) && matches(q.search, r)) }
 
 /** What a search on a screen returns: the records screen's, or the sales screen's. */
 val results = define { (u: Term[Account], q: Term[Ask]) =>
-  q.screen.on[Screen.Records.type](read(u, q.search)).on(Screen.Sales)(deals(u, q.search)) }
+  q.screen.on[Screen.Records.type](read(u, q.search)).on[Screen.Sales.type](deals(u, q.search)) }
 
 /** The record a write is about. */
 val about = define { (w: Term[WriteCmd]) =>

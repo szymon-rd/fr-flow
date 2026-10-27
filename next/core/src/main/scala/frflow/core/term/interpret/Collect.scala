@@ -37,10 +37,26 @@ object Collect extends Sym[Collect.N]:
     xs ++ p(Nil, Nil)
   def foldLeft[A, B](xs: N[List[A]], z: N[B], acc: Bound[B], x: Bound[A])(f: (N[B], N[A]) => N[B]): N[B] =
     xs ++ z ++ f(Nil, Nil)
+  def map[A, B](xs: N[List[A]], x: Bound[A])(f: N[A] => N[B]): N[List[B]] = xs ++ f(Nil)
+  def flatMap[A, B](xs: N[List[A]], x: Bound[A])(f: N[A] => N[List[B]]): N[List[B]] = xs ++ f(Nil)
+  def find[A](xs: N[List[A]], x: Bound[A])(p: N[A] => N[Boolean]): N[Option[A]] = xs ++ p(Nil)
+  def contains[A](xs: N[List[A]], x: N[A]): N[Boolean] = xs ++ x
+  def zip[A, B](xs: N[List[A]], ys: N[List[B]]): N[List[(A, B)]] = xs ++ ys
+  def isEmpty[A](xs: N[List[A]]): N[Boolean] = xs
   def some[A](a: N[A]): N[Option[A]] = a
   def none[A](elem: Ty): N[Option[A]] = Nil
   def foldOption[A, R](o: N[Option[A]], ifNone: N[R], x: Bound[A])(ifSome: N[A] => N[R]): N[R] =
     o ++ ifNone ++ ifSome(Nil)
+  def optionAll[A](o: N[Option[A]], x: Bound[A])(p: N[A] => N[Boolean]): N[Boolean] = o ++ p(Nil)
+  def optionAny[A](o: N[Option[A]], x: Bound[A])(p: N[A] => N[Boolean]): N[Boolean] = o ++ p(Nil)
+  def isDefined[A](o: N[Option[A]]): N[Boolean] = o
+  def getOrElse[A](o: N[Option[A]], default: N[A]): N[A] = o ++ default
+  def get[K, V](m: N[Map[K, V]], k: N[K]): N[Option[V]] = m ++ k
+  def getOrElseAt[K, V](m: N[Map[K, V]], k: N[K], default: N[V]): N[V] = m ++ k ++ default
+  def updated[K, V](m: N[Map[K, V]], k: N[K], v: N[V]): N[Map[K, V]] = m ++ k ++ v
+  def member[A](s: N[Set[A]], x: N[A]): N[Boolean] = s ++ x
+  def incl[A](s: N[Set[A]], x: N[A]): N[Set[A]] = s ++ x
+  def union[A](s: N[Set[A]], t: N[Set[A]]): N[Set[A]] = s ++ t
   def left[E, A](e: N[E], ty: Ty): N[Either[E, A]] = e
   def right[E, A](a: N[A], ty: Ty): N[Either[E, A]] = a
   def foldEither[E, A, R](v: N[Either[E, A]], e: Bound[E], a: Bound[A])(l: N[E] => N[R], r: N[A] => N[R]): N[R] =

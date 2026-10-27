@@ -47,10 +47,10 @@ object Implementing:
       ds.foldLeft(kb)((k, d) =>
         Implementing.attach(k, d, Deferred.pure(Attachment(Code.Provided, Spans.relative(Source.file)))))
 
-  /** The meaning given `d`, unless `d` has its own where it is written. */
+  /** The meaning given `d`, unless `d` has its own where it is written; a code-only `d` declared with it. */
   def attach(kb: KnowledgeBase, d: Definition[?], a: Deferred[Attachment]): KnowledgeBase =
-    kb.attach(d.name, d.onTheSpot.fold(a)(_ => Deferred.failed(Site.Meaning(d.name), Fault.MeantWhereWritten(
-      d.name.value))))
+    kb.attach(d.name, d.onTheSpot.fold(a.andThen(x => Deferred((d.declares, x).validNec)))(_ =>
+      Deferred.failed(Site.Meaning(d.name), Fault.MeantWhereWritten(d.name.value))))
 
   /** How many inputs plain code of this type takes. */
   def arity(ty: Ty): Int = ty match

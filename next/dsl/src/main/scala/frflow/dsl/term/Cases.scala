@@ -1,7 +1,6 @@
 package frflow.dsl.term
 
 import frflow.core.term.{Bound, Sym, When}
-import scala.annotation.unused
 import scala.deriving.Mirror
 
 /** A match so far, `s.on[A](…).on[B](…)`: a term of its result, to which `on` adds an arm. Each arm is a host function
@@ -10,11 +9,9 @@ import scala.deriving.Mirror
   */
 final class Cases[S, R](scrutinee: Term[S], arms: List[Branch[S, ?, R]])(using r: LeanType[R])
     extends Term[R]([T[_]] => (s: Sym[T]) => s.cases(scrutinee.run(s), arms.map(Cases.when(s, _)), r.ty)):
+  /** One more arm, named by its case's type: `.on[Change.Moved](to => …)`, `.on[Change.Clear.type](result)`. */
   inline def on[C <: S](using m: Mirror.ProductOf[C])(inline f: Cases.Fields[m.MirroredElemTypes, R]): Cases[S, R] =
     Cases(scrutinee, arms :+ Cases.branch[S, C, R](f))
-  /** The arm of a case without fields, named by its value: `.on(Change.Clear)(result)`. */
-  inline def on[C <: S & Singleton](@unused c: C)(using Mirror.ProductOf[C])(inline result: Term[R]): Cases[S, R] =
-    Cases(scrutinee, arms :+ Cases.branch[S, C, R](result))
 
 object Cases:
   /** The function an arm takes: of each of the case's fields (the result itself for a case without any). */

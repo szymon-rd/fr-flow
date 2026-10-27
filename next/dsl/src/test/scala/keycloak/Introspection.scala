@@ -1,6 +1,5 @@
 package keycloak
 
-import examples.Folds.*
 import frflow.*
 
 // ============================================================================
@@ -23,13 +22,13 @@ val referenceTokens = Node.claim("A realm's application accepts a token as the s
   .refines(realmAccess)
 
 val realmIsolation = Node.claim("No application is ever shown claims of a realm other than its own.")(
-  forall((asking: Term[RealmId], t: Term[String]) => introspect(asking, t).noneOr(c => c.realm === asking)))
+  forall((asking: Term[RealmId], t: Term[String]) => introspect(asking, t).forall(c => c.realm === asking)))
   .refines(onlyTheSignedIn)
 
 val answersNameASession = Node.claim("An introspection answers only with the realm and user of a session the " +
     "server holds under the token.")(
   forall((r: Term[RealmId], t: Term[String]) =>
-    introspect(r, t).noneOr(c => sessions(c.realm).contains(make[Session](t, c.realm, c.user)))))
+    introspect(r, t).forall(c => sessions(c.realm).contains(make[Session](t, c.realm, c.user)))))
   .refines(onlyTheSignedIn)
 
 /** Whether `x` is the only session the list holds under its token. */
@@ -42,7 +41,7 @@ object Introspection:
       "roles, only for a session that realm holds under the token; and it names that session's user whenever the " +
       "user is enabled and the token names no other session there.")(
     forall((realm: Term[RealmId], token: Term[String]) =>
-      keycloak.introspect(realm, token).noneOr(c => c.realm === realm &&
+      keycloak.introspect(realm, token).forall(c => c.realm === realm &&
         sessions(c.realm).contains(make[Session](token, c.realm, c.user)) &&
         isEnabled(account(realm, c.user)) && c.roles === rolesIn(account(realm, c.user))) &&
       sessions(realm).forall(x =>
@@ -61,7 +60,7 @@ val lookup = Definition[(RealmId, String) => Option[Session]]("the store's answe
 val sessionLookup = Node.assumption("The store's index returns a session it holds under the token in the realm " +
     "asked, if it holds one, and never one of another realm or token.")(
   forall((realm: Term[RealmId], token: Term[String]) =>
-    lookup(realm, token).noneOr(x => sessions(realm).contains(x) && x.token === token && x.realm === realm) &&
+    lookup(realm, token).forall(x => sessions(realm).contains(x) && x.token === token && x.realm === realm) &&
       (sessions(realm).exists(x => x.token === token) implies lookup(realm, token).isDefined)))
 
 /** An introspection: the realm's session the token names, if its user is enabled there, with their roles. */

@@ -18,7 +18,7 @@ class ChangesSuite extends munit.FunSuite:
     assertEquals(patterns(afterChange), List("Book" -> List("b"), "Cancel" -> List("room", "start"), "Clear" -> Nil))
   }
 
-  test("a match whose first arm is a case without fields, named by its type, has the same arms") {
+  test("a case without fields is named by its type in any arm: first or last, the match has the same arms") {
     assertEquals(patterns(clearedFirst).toSet, patterns(afterChange).toSet)
   }
 

@@ -84,6 +84,20 @@ class RecordingSuite extends munit.FunSuite:
     assertEquals(shape(Progs.sequential(firstStep(raced))), "collect(load; pure)")
   }
 
+  test("parCollectN: as parCollect, at most that many at once; at least one") {
+    val xs = Lift.constant(List(BigInt(1), BigInt(2)))
+    ReadRecording(F.parCollectN(4)(xs)(x => F.map(store.load)(y => x + y)))._1 match
+      case Prog.Bind(Prog.ParEach(_, _, body, n), _, _) => assertEquals((shape(body), n), ("load; pure", Some(4)))
+      case other                                        => fail(other.toString)
+    val refused = intercept[IllegalArgumentException](F.parCollectN(0)(xs)(x => F.pure(x)))
+    assert(refused.getMessage.startsWith("FrFlow: parCollectN runs at least one at once"), refused.getMessage)
+  }
+
+  test("retry: the program, and again after each wait on the clock while it fails, each try a handle") {
+    val retried = ReadRecording(F.as(F.retry[String, Unit](Store.clock, List(1, 2))(store.save(n(1))), n(0)))._1
+    assertEquals(shape(retried), "catch(save; pure | sleep; catch(save; pure | sleep; save; pure); pure); pure")
+  }
+
   test("attempt: a handle of the program, its result on the right and the error on the left") {
     val failing = F.flatMap(store.load)(_ => F.raise[String, Term[BigInt]](Lift.constant("no")))
     val attempted = ReadRecording(F.attempt[String, BigInt](failing))._1

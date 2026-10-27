@@ -25,7 +25,7 @@ trait BoundaryOps[B[_[_], _[_]]]:
   def model(instance: B[Recorded, Term]): List[ModelOp]
 
 object BoundaryOps:
-  /** `trait Database[F[_], T[_]] derives BoundaryOps`: a macro, not planned here (`RecordingSuite`'s `Store` and
-    * rooms' `BookingsOps` are written as it will write them).
+  /** `trait Database[F[_], T[_]] derives BoundaryOps`: the macro (`BoundaryMacros`), which reads the trait's
+    * operations and writes the instances; checked against rooms' `HandWrittenOps` and the clock's `ClockOps`.
     */
   inline def derived[B[_[_], _[_]]]: BoundaryOps[B] = ${ BoundaryMacros.derived[B] }

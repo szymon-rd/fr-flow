@@ -7,6 +7,6 @@ import frflow.core.term.algebra.*
   * added outside the core is found by its key (`extension`): an interpreter that implements it says so; any other
   * gives `None`, and the term runs the operation's meaning in this bundle.
   */
-trait Sym[T[_]] extends Logic[T], Equality[T], Arith[T], Constants[T], Lists[T], Options[T], Eithers[T],
-    Quantifiers[T], Records[T], Sums[T], Functions[T], Named[T], Variables[T], Worlds[T], Annotations[T]:
+trait Sym[T[_]] extends Logic[T], Equality[T], Arith[T], Constants[T], Lists[T], Options[T], Maps[T], Sets[T],
+    Eithers[T], Quantifiers[T], Records[T], Sums[T], Functions[T], Named[T], Variables[T], Worlds[T], Annotations[T]:
   def extension[E[_[_]]](key: Ext[E]): Option[E[T]] = None

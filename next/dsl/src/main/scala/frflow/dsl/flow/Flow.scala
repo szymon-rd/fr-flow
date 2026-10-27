@@ -1,7 +1,7 @@
 package frflow.dsl.flow
 
 import cats.Monad
-import frflow.dsl.term.{LeanType, Term}
+import frflow.dsl.term.{LeanType, Lift, Term}
 import frflow.dsl.term.TermSyntax.*
 import scala.annotation.targetName
 
@@ -32,6 +32,9 @@ trait Flow[F[_]] extends Monad[F]:
     * others are cancelled. Lean reads it as `collect`, and asks that any two elements' bodies commute.
     */
   def parCollect[X: LeanType, B: LeanType](xs: Term[List[X]])(body: Term[X] => F[Term[B]]): F[Term[List[B]]]
+  /** The same, at most `n` at once (Cats Effect's `parTraverseN`); `n` is at least one (`atOnce`). */
+  def parCollectN[X: LeanType, B: LeanType](n: Int)(xs: Term[List[X]])(body: Term[X] => F[Term[B]])
+      : F[Term[List[B]]]
 
   /** One of two programs by a condition a program gives (Monad's `ifM`, on a term). */
   @targetName("ifTermM")
@@ -42,6 +45,13 @@ trait Flow[F[_]] extends Monad[F]:
     */
   def attempt[E: LeanType, A: LeanType](fa: F[Term[A]]): F[Term[Either[E, A]]] =
     handle[E, Term[Either[E, A]]](map(fa)(a => right[E, A](a)))(e => pure(left[E, A](e)))
+
+  /** `fa`, tried again after each of `waits` (seconds on `clock`) while it fails with an error of type `E`; the last
+    * try's error when every try failed. Today's `retry`: the tries one inside the other, each a `handle` of the
+    * one before, after its sleep.
+    */
+  def retry[E: LeanType, A](clock: Clock[F, Term], waits: List[BigInt])(fa: F[A]): F[A] =
+    waits.foldRight(fa)((wait, rest) => handle[E, A](fa)(_ => flatMap(clock.sleep(Lift.constant(wait)))(_ => rest)))
 
   /** `use` of what `acquire` gives, then `release` of it, whatever `use` did. */
   def bracket[E: LeanType, R, A](acquire: F[Term[R]])(use: Term[R] => F[A])(release: Term[R] => F[Unit]): F[A] =
@@ -56,3 +66,7 @@ trait Flow[F[_]] extends Monad[F]:
 
 object Flow:
   def apply[F[_]](using f: Flow[F]): Flow[F] = f
+
+  /** A limit on how many run at once: at least one. */
+  def atOnce(n: Int): Int =
+    if n >= 1 then n else throw IllegalArgumentException(s"FrFlow: parCollectN runs at least one at once, not $n")

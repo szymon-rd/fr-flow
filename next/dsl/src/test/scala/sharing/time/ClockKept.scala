@@ -2,12 +2,8 @@ package sharing.time
 
 import frflow.*
 
-/** FrFlow's clock as the service's programs see it: its operations derived here (the DSL's own module cannot expand
-  * its macro), its model a count of seconds only sleeps move.
-  */
+/** FrFlow's clock as the service's programs see it: its model a count of seconds only sleeps move. */
 object ClockKept:
-  given BoundaryOps[Clock] = BoundaryOps.derived
-
   val clock: Boundary[Clock] = Boundary[Clock]("the server's clock, in seconds")
 
   /** The clock as the proofs see it: the time now, moved on by a sleep. */

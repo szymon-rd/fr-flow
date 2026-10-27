@@ -9,7 +9,7 @@ import scala.annotation.implicitNotFound
 /** What a Scala type is in the IR, the domain types it needs declared, and, for a record, its fields: each a
   * selector with the field's own `LeanType`.
   */
-@implicitNotFound("${A} is not a domain type yet: add `derives LeanType` to its declaration " +
+@implicitNotFound("FrFlow: ${A} is not a domain type yet: add `derives LeanType` to its declaration " +
   "(`final case class … derives LeanType`, `enum … derives LeanType`)")
 trait LeanType[A]:
   def ty: Ty

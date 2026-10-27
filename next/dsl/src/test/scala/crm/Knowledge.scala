@@ -14,11 +14,11 @@ private val tableStores = (for
 yield CrmStore(rs.distinctBy(_.id), ss.distinctBy(s => (s.record, s.to)), es.distinctBy(e => (e.record, e.to))))
   .describedAs("stores with one row per key, as the tables hold them")
 
-val knowledge = KnowledgeBase("Crm")(sharedCrm, sharedUntilATime, addedIsFound, writesLeaveOthers, companies,
-  ownership, searches, searchesAsk, adding, sharing, crmRun, storeMirrorsRequests, visibility, noCrossTenantRead,
-  searchesMatch, recordsByQuery, acmeNeverSeesGlobex, readContract, dealSearch, readSideWiring, writesTakeEffect,
-  writesOnlyAsAsked, recordsKept, writeContract, saveWrite, storeEdits, writeSideWiring, sharesExpire, tablesModel,
-  runsOneAtATime, expiryJob, expiryJobWiring, httpApi)
+val knowledge = KnowledgeBase("Crm")(sharedCrm, addedIsFound, writesLeaveOthers, companies, ownership, searches,
+  searchesAsk, adding, sharing, crmRun, storeMirrorsRequests, visibility, noCrossTenantRead, searchesMatch,
+  recordsByQuery, acmeNeverSeesGlobex, readContract, dealSearch, readSideWiring, writesTakeEffect, writesOnlyAsAsked,
+  recordsKept, writeContract, saveWrite, storeEdits, writeSideWiring, sharesExpire, tablesModel, runsOneAtATime,
+  expiryJob, expiryJobWiring, httpApi)
   .implementProvided(history, held, clock)
   .implementTested(fetch)(env => (_, q) => InMemory.recordsMatching(env(held), q))
   .implementTested(storeRows)(_ => (id, t) => InMemory.storeAbout(id, t))

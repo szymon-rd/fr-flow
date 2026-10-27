@@ -42,6 +42,9 @@ final class Conditions[T[_]](s: Sym[T]) extends Forward[T, [a] =>> Found[T, a]]:
     val whole = s.foldOption(o.whole, ifNone.whole, x)(v => ifSome(fwd(v)).whole)
     bound(x, whole, v => s.eq(o.whole, s.some(v)))(v => ifSome(v).asInstanceOf[F[Boolean]]) // conditions: Boolean
 
+  override def optionAll[A](o: F[Option[A]], x: Bound[A])(p: F[A] => F[Boolean]): F[Boolean] =
+    bound(x, s.optionAll(o.whole, x)(v => p(fwd(v)).whole), v => s.eq(o.whole, s.some(v)))(p)
+
   /** The conditions below a binder of `x`, each over `x` too, and saying `x` is where it ranges (`in`). */
   private def bound[A, R](x: Bound[A], whole: T[R], in: T[A] => T[Boolean])(p: F[A] => F[Boolean]): F[R] =
     val shapes = p(fwd(s.free[A](Conditions.placeholder(x)))).conditions

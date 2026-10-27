@@ -1,6 +1,5 @@
 package keycloak
 
-import examples.Folds.*
 import frflow.*
 
 // ============================================================================
@@ -32,7 +31,7 @@ val history = Definition[List[AuthRequest]]("the requests the server has handled
 /** An administrator's change: enabling or disabling a user of a realm; other requests change no account. */
 val administer = define { (as: Term[List[UserAccount]], q: Term[AuthRequest]) =>
   q.on[AuthRequest.SetEnabled]((r, u, on) =>
-    as.mapped(a => when(a.realm === r && a.username === u)(a.updated(_.enabled, on)).otherwise(a)))
+    as.map(a => when(a.realm === r && a.username === u)(a.updated(_.enabled, on)).otherwise(a)))
     .on[AuthRequest.SignIn]((_, _, _, _) => as)
     .on[AuthRequest.SignOut]((_, _) => as) }
 
@@ -42,10 +41,10 @@ val accountsAfter = define { (hs: Term[List[AuthRequest]]) =>
 
 /** The user's account in a realm, if there is one. */
 val accountOf = define { (as: Term[List[UserAccount]], r: Term[RealmId], u: Term[String]) =>
-  as.firstWhere(a => a.realm === r && a.username === u) }
+  as.find(a => a.realm === r && a.username === u) }
 
 /** Whether there is an account, and it is enabled. */
-val isEnabled = define { (a: Term[Option[UserAccount]]) => a.someWith(x => x.enabled) }
+val isEnabled = define { (a: Term[Option[UserAccount]]) => a.exists(x => x.enabled) }
 
 /** The roles an account has (none without an account). */
 val rolesIn = define { (a: Term[Option[UserAccount]]) => a.fold(Nil: Term[List[String]])(x => x.roles) }
@@ -67,7 +66,7 @@ val accountRoles = Node.claim("A user has the roles their account in the realm g
 /** The session a request asks for, when these accounts grant it: a sign-in by an enabled user with their password. */
 val grantedBy = define { (as: Term[List[UserAccount]], q: Term[AuthRequest]) =>
   q.on[AuthRequest.SignIn]((r, u, h, t) =>
-    when(accountOf(as, r, u).someWith(a => a.enabled && a.passwordHash === h))(some(make[Session](t, r, u)))
+    when(accountOf(as, r, u).exists(a => a.enabled && a.passwordHash === h))(some(make[Session](t, r, u)))
       .otherwise(none[Session]))
     .on[AuthRequest.SignOut]((_, _) => none[Session])
     .on[AuthRequest.SetEnabled]((_, _, _) => none[Session]) }
@@ -95,4 +94,4 @@ val tokenOf = define { (q: Term[AuthRequest]) =>
 
 /** Whether a request carries a token no earlier sign-in carried (a request that is no sign-in carries none). */
 val fresh = define { (pre: Term[List[AuthRequest]], q: Term[AuthRequest]) =>
-  tokenOf(q).noneOr(t => !pre.exists(p => tokenOf(p) === some(t))) }
+  tokenOf(q).forall(t => !pre.exists(p => tokenOf(p) === some(t))) }
