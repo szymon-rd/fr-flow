@@ -21,7 +21,7 @@ object Elaborate:
     (kb.nodes.traverse(node), attached).tupled.run.andThen { case (declared, (ns, code)) =>
       vocabulary(declared).map { (all, v) =>
         val theory = Theory(kb.name, v, ns.map(_.sited), ns.flatMap(_.edges),
-          CodeTable(code.toMap, ns.flatMap(realized).toMap))
+          CodeTable(code.toMap, ns.flatMap(realized).toMap), kb.writtenIn)
         Elaborated(theory, all.types.collect { case (n, d :: _) => n -> d.rep }, kb.generators)
       }
     }

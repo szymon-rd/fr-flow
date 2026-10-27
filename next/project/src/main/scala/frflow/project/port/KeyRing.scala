@@ -27,12 +27,18 @@ object KeyRing:
   /** The key at `keyFile` (`FRFLOW_KEY`, or `~/.config/frflow/signing.key`), read only: none there is raised
     * (`FrFlowError.NoKey`), never made here.
     */
-  def make[F[_]: Sync](keyFile: Path, git: Git[F]): KeyRing[F] = new KeyRing[F]:
-    private val read: F[(java.security.PrivateKey, String)] =
-      Sync[F].blocking(Option.when(Files.isRegularFile(keyFile))(Files.readString(keyFile, UTF_8)))
-        .flatMap(_.toRight(FrFlowError.NoKey(keyFile.toString)).liftTo[F])
-        .flatMap(t => Keys.read(t).leftMap(FrFlowError.NotAKey(keyFile.toString, _)).liftTo[F])
+  def make[F[_]: Sync](keyFile: Path, git: Git[F]): KeyRing[F] = Listed(git,
+    Sync[F].blocking(Option.when(Files.isRegularFile(keyFile))(Files.readString(keyFile, UTF_8)))
+      .flatMap(_.toRight(FrFlowError.NoKey(keyFile.toString)).liftTo[F])
+      .flatMap(t => Keys.read(t).leftMap(FrFlowError.NotAKey(keyFile.toString, _)).liftTo[F]))
 
+  /** No key at hand (the environment names none): signing raises `NoKey`; who may decide is still read from git. */
+  def keyless[F[_]: Sync](git: Git[F]): KeyRing[F] =
+    Listed(git, Sync[F].raiseError(FrFlowError.NoKey("FRFLOW_KEY (or HOME) not set")))
+
+  /** The key `read` gives, and the committed deciders' list. */
+  private final class Listed[F[_]: Sync](git: Git[F], read: F[(java.security.PrivateKey, String)])
+      extends KeyRing[F]:
     def signer: F[Seals.Signer] = read.map((k, pub) => Keys.signer(k, Keys.id(pub)))
     def key: F[String] = read.map((_, pub) => Keys.id(pub))
     def verifier: F[Seals.Verifier] = versions(git).map(vs => Keys.verifier(vs.toList.flatten.flatMap(_.entries)))

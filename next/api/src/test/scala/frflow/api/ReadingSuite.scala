@@ -8,6 +8,7 @@ import frflow.api.view.Warning
 import frflow.core.name.RelPath
 import frflow.core.spec.NodeKind
 import frflow.decision.review.ReviewState
+import frflow.project.Projects
 
 /** `Reading` over projects in memory: the view (each node by concept, in decision order, with the roots and the
   * overview), a node's diff, and the model's fingerprint. Where a change belongs is `ReportsSuite`'s.
@@ -60,6 +61,14 @@ class ReadingSuite extends munit.CatsEffectSuite:
         Warning.GovernedMissing(RelPath.fromIdentifiers("src/main", "shelf"), id("inShelf")),
         Warning.ProofFileOfNoNode(gone)))
     }
+  }
+
+  test("the file a knowledge base is assembled in is the model's own, not code nothing governs") {
+    val e = Projects.elaborated(Assembled.kb)
+    val assembled = e.theory.writtenIn.getOrElse(fail("no file recorded"))
+    assert(!e.theory.nodes.exists(_.at.file == assembled), assembled)
+    Opened.ports(Map(assembled -> "object Assembled")).flatMap(p => Opened.over(Opened.project(Assembled.kb), p)
+      .reading.view).map(v => assertEquals(v.warnings.collect { case w: Warning.Ungoverned => w }, Nil))
   }
 
   test("the model's fingerprint moves when a source file does, and only then") {
