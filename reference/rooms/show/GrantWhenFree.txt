@@ -7,13 +7,13 @@ Formally (as written in Scala)
       granted(held, request) === free(held.bookings, request))
 
 Where it sits
-  part of    + bookWhenFree  its only part: "A request is stored exactly when its room is free for its whole time."
+  part of    + storeWhenFree  its only part: "A request is stored exactly when its room is free for its whole time."
   part of    + answerWhenFree  its only part: "A request is answered booked exactly when its room is free for its whole time."
-  uses       + bookingsOfTheRoom: "A room's bookings are all of that room."
-  uses       + roomBookingsApart: "A room's bookings never overlap."
-  uses       + endsAfterStart: "Every booking ends after it starts."
 
 Parts: together they make it (proven: authored)
+  + endsAfterStart  needed: "Every booking ends after it starts."
+  + bookingsOfTheRoom  needed: "A room's bookings are all of that room."
+  + roomBookingsApart  needed: "A room's bookings never overlap."
   + grantWhenNoOverlap  needed: "A request is granted exactly when it overlaps no booking of its room."
   clash: Lean found no proof that the parts contradict each other (a try)
 
@@ -48,4 +48,5 @@ Decisions
   2026-10-27 00:50  accepted by demo-developer: The same claim over a room's bookings, named held.
   2026-10-27 02:45  confirmed by demo-developer: still holds after bookWhenFree changed: The same root over a Request, the booking it asks for stored; it rests on what the form sends.
   2026-10-27 10:20  confirmed by demo-developer: still holds after bookWhenFree changed: The same root; the bookings stored after booking are named storedAfter, apart from those stored before.
+  2026-10-27 13:33  confirmed by demo-developer: The same claim, now a part of storeWhenFree and answerWhenFree; what always holds of what it is about is below it.
 --- exit 0

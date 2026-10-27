@@ -6,7 +6,7 @@ Formally (as written in Scala)
     storedBookings.changedOneRunAtATime
 
 Where it sits
-  assumed by + bookWhenFree: "A request is stored exactly when its room is free for its whole time."
+  assumed by + storeWhenFree: "A request is stored exactly when its room is free for its whole time."
   assumed by + answerWhenFree: "A request is answered booked exactly when its room is free for its whole time."
   assumed by + neverOverlap: "The bookings stored never overlap."
 
@@ -17,4 +17,5 @@ Decisions
   2026-10-27 00:50  confirmed by demo-developer: still holds after answerWhenFree changed: The same root, proven of the same code.
   2026-10-27 02:45  confirmed by demo-developer: still holds after bookWhenFree changed: The same root over a Request, the booking it asks for stored; it rests on what the form sends.
   2026-10-27 10:20  confirmed by demo-developer: still holds after bookWhenFree changed: The same root; the bookings stored after booking are named storedAfter, apart from those stored before.
+  2026-10-27 13:33  confirmed by demo-developer: still holds after answerWhenFree changed: The same claim, now a part of acceptWhenFree; the assumptions its proof needs stay on it.
 --- exit 0

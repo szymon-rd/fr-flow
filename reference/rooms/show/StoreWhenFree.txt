@@ -1,0 +1,43 @@
++ storeWhenFree  claim on book  accepted
+  A request is stored exactly when its room is free for its whole time.
+
+Formally (as written in Scala)
+  formula:
+    forall((request: Term[Request], before: Term[World]) =>
+      val stored = storedBookings.in(before)
+      val booking = asBooking(request)
+      val storedAfter = storedBookings.in(book(request).after(before))
+      storedAfter === when(free(stored, booking))(stored :+ booking).otherwise(stored))
+
+Where it sits
+  part of    + bookWhenFree  with bookedIsStored, bookedAfterIsStored, neverOverlap: "A request is booked exactly when its room is free for its whole time."
+  uses       + neverOverlap: "The bookings stored never overlap."
+
+Parts: together they make it (proven: auto)
+  + grantWhenFree  needed: "A request is granted exactly when its room is free for its whole time."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Assumes
+  - tableMatchesModel (assumption): "The table gives a room's bookings in the order they were added, and adds one at the end."
+  - oneAtATime (assumption): "Bookings are processed one at a time."
+  - requestsEndAfterStart (assumption): "The booking form sends only requests that end after they start."
+
+Vocabulary
+  book (operation): booking a request: whether it was booked (open)
+
+Proofs
+  complete: proven: auto
+  impl (bookIfGranted_run): proven: auto
+
+Code
+  proven define bookIfGranted_run
+    bookIfGranted_run = bookIfGranted
+    bookIfGranted = fun (request : Request) => do
+        let held ← BookingTable.inRoom request.room
+        let booked := (granted held (⟦asBooking⟧ request))
+    ... 7 more line(s): context storeWhenFree
+  governs: src/main/scala/rooms/Book.scala
+
+Decisions
+  2026-10-27 13:33  accepted by demo-developer: The former root bookWhenFree, its formula unchanged: what booking stores, proven of its code; now a part of bookWhenFree, with the assumptions its proof needs.
+--- exit 0

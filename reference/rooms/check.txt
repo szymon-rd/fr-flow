@@ -1,14 +1,20 @@
-+ endsAfterStart: proven
++ bookWhenFree: step proven
++ acceptWhenFree: step proven
 + neverOverlap: proven
 + bookingsOfTheRoom: proven
 + roomBookingsApart: proven
 + grantWhenNoOverlap: code tested on 1,000 cases
++ storeWhenFree: step proven
 + answerWhenFree: step proven
 + grantWhenFree: step proven
-+ bookWhenFree: step proven
++ endsAfterStart: proven
++ bookedIsStored: proven
++ bookedAfterIsStored: proven
++ acceptedIsAnswered: proven
 - requestsEndAfterStart: assumed
 + tableMatchesModel: SqliteBookings gives what the model gives on 200 generated runs
-+ consistency of grantWhenNoOverlap: Lean proves a meaning meets it: granted as grantWhenNoOverlap says
++ consistency of bookedIsStored: Lean proves a meaning meets it: booked as bookedIsStored says
++ consistency of bookedAfterIsStored, acceptedIsAnswered, grantWhenNoOverlap: Lean proves a meaning meets them all: granted as grantWhenNoOverlap says, bookedAfter as bookedAfterIsStored says, accepted as acceptedIsAnswered says
 + neverOverlap admits a value: Lean proves it holds of List()
 + endsAfterStart admits a value: Lean proves it holds of Booking("Oak", 2, 4)
 + bookingsOfTheRoom admits a value: Lean proves it holds of RoomBookings("Elm", List())
@@ -16,8 +22,8 @@
 + requestsEndAfterStart admits a value: Lean proves it holds of Request("Oak", 2, 4)
 + startsEmpty: some state meets it: Lean proves List() meets it
 
-Rooms: 13 nodes, 13 accepted
-Proofs: splits 3/3, root_impl proven, consistency proven, nothing vacuous
+Rooms: 18 nodes, 18 accepted
+Proofs: splits 5/5, root_impl proven, consistency proven, nothing vacuous
 Tests: code against its claims 1/1, implementations against their models 1/1, examples in Lean 4/4
 Trusted: requestsEndAfterStart, tableMatchesModel (a model), onlyBookingWrites, oneAtATime, startsEmpty (facts); tested, not proven: grantWhenNoOverlap
 Nothing waits: every node is accepted and proven, or its code tested.

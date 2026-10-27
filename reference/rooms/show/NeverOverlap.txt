@@ -1,4 +1,4 @@
-+ neverOverlap  claim (a root)  accepted
++ neverOverlap  claim  accepted
   The bookings stored never overlap.
 
 Formally (as written in Scala)
@@ -7,8 +7,13 @@ Formally (as written in Scala)
   kept by book
 
 Where it sits
+  part of    + bookWhenFree  with bookedIsStored, bookedAfterIsStored, storeWhenFree: "A request is booked exactly when its room is free for its whole time."
+  part of    + acceptWhenFree  with bookedIsStored, acceptedIsAnswered, answerWhenFree: "A request is accepted exactly when its room is free for its whole time."
+  used by    + storeWhenFree: "A request is stored exactly when its room is free for its whole time."
   used by    + answerWhenFree: "A request is answered booked exactly when its room is free for its whole time."
-  used by    + bookWhenFree: "A request is stored exactly when its room is free for its whole time."
+  used by    + bookedIsStored: "What is booked is what the table holds."
+  used by    + bookedAfterIsStored: "What is booked once a request is handled is what the table holds after booking it."
+  used by    + acceptedIsAnswered: "A request is accepted exactly when booking it answers booked."
 
 Assumes
   - onlyBookingWrites (assumption): "Only booking writes to the table."
@@ -25,4 +30,5 @@ Decisions
   2026-10-26 22:28  accepted by demo-developer: The same rule over the bookings stored, now named storedBookings, kept by booking from a start that meets it.
   2026-10-27 00:49  accepted by demo-developer: The same rule over the bookings stored, from a table that starts empty: Lean proves an empty table meets it.
   2026-10-27 02:18  confirmed by demo-developer: The same rule; its proof that booking keeps it takes what the form sends.
+  2026-10-27 13:32  accepted by demo-developer: The same claim, now below the roots: what it says is a hypothesis of every world they are about.
 --- exit 0

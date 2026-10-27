@@ -1,26 +1,33 @@
-+ bookWhenFree: "A request is stored exactly when its room is free for its whole time."
-|- + grantWhenFree: "A request is granted exactly when its room is free for its whole time."
-|  `- + grantWhenNoOverlap: "A request is granted exactly when it overlaps no booking of its room."
-|- - tableMatchesModel (assumption): "The table gives a room's bookings in the order they were added, and adds one at the end."
-|- - oneAtATime (assumption): "Bookings are processed one at a time."
-`- - requestsEndAfterStart (assumption): "The booking form sends only requests that end after they start."
-+ answerWhenFree: "A request is answered booked exactly when its room is free for its whole time."
-|- -> grantWhenFree
-|- -> tableMatchesModel
-|- -> oneAtATime
-`- -> requestsEndAfterStart
-+ neverOverlap: "The bookings stored never overlap."
-|- - onlyBookingWrites (assumption): "Only booking writes to the table."
-|- - startsEmpty (assumption): "The table starts empty."
-|- -> oneAtATime
-`- -> requestsEndAfterStart
-+ endsAfterStart: "Every booking ends after it starts."
-`- -> requestsEndAfterStart
-+ bookingsOfTheRoom: "A room's bookings are all of that room."
-+ roomBookingsApart: "A room's bookings never overlap."
++ bookWhenFree: "A request is booked exactly when its room is free for its whole time."
+|- + bookedIsStored: "What is booked is what the table holds."
+|- + bookedAfterIsStored: "What is booked once a request is handled is what the table holds after booking it."
+|- + storeWhenFree: "A request is stored exactly when its room is free for its whole time."
+|  |- + grantWhenFree: "A request is granted exactly when its room is free for its whole time."
+|  |  |- + endsAfterStart: "Every booking ends after it starts."
+|  |  |  `- -> requestsEndAfterStart
+|  |  |- + bookingsOfTheRoom: "A room's bookings are all of that room."
+|  |  |- + roomBookingsApart: "A room's bookings never overlap."
+|  |  `- + grantWhenNoOverlap: "A request is granted exactly when it overlaps no booking of its room."
+|  |- - tableMatchesModel (assumption): "The table gives a room's bookings in the order they were added, and adds one at the end."
+|  |- - oneAtATime (assumption): "Bookings are processed one at a time."
+|  `- - requestsEndAfterStart (assumption): "The booking form sends only requests that end after they start."
+`- + neverOverlap: "The bookings stored never overlap."
+   |- - onlyBookingWrites (assumption): "Only booking writes to the table."
+   |- - startsEmpty (assumption): "The table starts empty."
+   |- -> oneAtATime
+   `- -> requestsEndAfterStart
++ acceptWhenFree: "A request is accepted exactly when its room is free for its whole time."
+|- + acceptedIsAnswered: "A request is accepted exactly when booking it answers booked."
+|- + answerWhenFree: "A request is answered booked exactly when its room is free for its whole time."
+|  |- -> grantWhenFree
+|  |- -> tableMatchesModel
+|  |- -> oneAtATime
+|  `- -> requestsEndAfterStart
+|- -> bookedIsStored
+`- -> neverOverlap
 
-Rooms: 13 nodes, 13 accepted
-Proofs: splits 3/3, root_impl proven, consistency proven, nothing vacuous
+Rooms: 18 nodes, 18 accepted
+Proofs: splits 5/5, root_impl proven, consistency proven, nothing vacuous
 Tests: code against its claims 1/1, implementations against their models 1/1, examples in Lean 4/4
 Trusted: requestsEndAfterStart, tableMatchesModel (a model), onlyBookingWrites, oneAtATime, startsEmpty (facts); tested, not proven: grantWhenNoOverlap
 Nothing waits: every node is accepted and proven, or its code tested.

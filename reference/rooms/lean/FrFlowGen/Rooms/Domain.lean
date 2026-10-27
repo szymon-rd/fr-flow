@@ -4,6 +4,7 @@ import FrFlowGen.Rooms.Types
 import FrFlowGen.Rooms.Domain.Def_covers
 import FrFlowGen.Rooms.Domain.Def_apart
 import FrFlowGen.Rooms.Domain.Def_free
+import FrFlowGen.Rooms.Domain.Def_asRequest
 import FrFlowGen.Rooms.Domain.Def_asBooking
 import FrFlowGen.Rooms.Domain.Def_noOverlap
 import FrFlowGen.Rooms.Domain.Def_neverOverlap

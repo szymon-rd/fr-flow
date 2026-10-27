@@ -1,43 +1,26 @@
-+ bookWhenFree  claim on book (a root)  accepted
-  A request is stored exactly when its room is free for its whole time.
++ bookWhenFree  claim on bookedAfter (a root)  accepted
+  A request is booked exactly when its room is free for its whole time.
 
 Formally (as written in Scala)
   formula:
-    forall((request: Term[Request], before: Term[World]) =>
-      val stored = storedBookings.in(before)
-      val booking = asBooking(request)
-      val storedAfter = storedBookings.in(book(request).after(before))
-      storedAfter === when(free(stored, booking))(stored :+ booking).otherwise(stored))
+    forall((request: Term[Booking], now: Term[World]) =>
+      val bookings = booked(now)
+      bookedAfter(request, now) === when(free(bookings, request))(bookings :+ request).otherwise(bookings))
 
-Where it sits
-  uses       + endsAfterStart: "Every booking ends after it starts."
-  uses       + neverOverlap: "The bookings stored never overlap."
-
-Parts: together they make it (proven: auto)
-  + grantWhenFree  needed: "A request is granted exactly when its room is free for its whole time."
+Parts: together they make it (proven: authored)
+  + bookedIsStored  needed: "What is booked is what the table holds."
+  + bookedAfterIsStored  needed: "What is booked once a request is handled is what the table holds after booking it."
+  + storeWhenFree  needed: "A request is stored exactly when its room is free for its whole time."
+  + neverOverlap  needed: "The bookings stored never overlap."
   clash: Lean found no proof that the parts contradict each other (a try)
 
-Assumes
-  - tableMatchesModel (assumption): "The table gives a room's bookings in the order they were added, and adds one at the end."
-  - oneAtATime (assumption): "Bookings are processed one at a time."
-  - requestsEndAfterStart (assumption): "The booking form sends only requests that end after they start."
-
 Vocabulary
-  book (operation): booking a request: whether it was booked (open)
+  booked (operation): the bookings made, as the world stands (open)
+  bookedAfter (operation): the bookings made once a request is handled (open)
 
 Proofs
-  complete: proven: auto
-  impl (bookIfGranted_run): proven: auto
+  complete: proven: authored
   root_impl: proven: the root holds of the code, trusting requestsEndAfterStart; and the code of grantWhenNoOverlap, tested, not proven
-
-Code
-  proven define bookIfGranted_run
-    bookIfGranted_run = bookIfGranted
-    bookIfGranted = fun (request : Request) => do
-        let held ← BookingTable.inRoom request.room
-        let booked := (granted held (⟦asBooking⟧ request))
-    ... 7 more line(s): context bookWhenFree
-  governs: src/main/scala/rooms/Book.scala
 
 Decisions
   2026-10-26 21:48  accepted by demo-developer: The service's purpose as one equation: after a request the store holds it added exactly when its room is free, and is unchanged otherwise.
@@ -46,4 +29,5 @@ Decisions
   2026-10-27 00:50  accepted by demo-developer: The same root, the bookings stored named stored, as the code reads them.
   2026-10-27 02:45  accepted by demo-developer: The same root over a Request, the booking it asks for stored; it rests on what the form sends.
   2026-10-27 10:20  accepted by demo-developer: The same root; the bookings stored after booking are named storedAfter, apart from those stored before.
+  2026-10-27 13:32  accepted by demo-developer: The purpose over Declarations: what is booked once a request is handled gains it exactly when its room is free for its whole time. It assumes nothing; what its proof rests on is below it.
 --- exit 0

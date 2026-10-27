@@ -1,7 +1,7 @@
 # README step 6: step 5, and covers includes the end moment; the proof of GrantWhenFree is unchanged
 --- a/examples/rooms/src/main/scala/rooms/Knowledge.scala
 +++ b/examples/rooms/src/main/scala/rooms/Knowledge.scala
-@@ -48,7 +48,7 @@
+@@ -45,7 +45,7 @@
  val oneAtATime = Node.assumption("Bookings are processed one at a time.")(storedBookings.changedOneRunAtATime)
  
  // Over moments.
@@ -10,7 +10,7 @@
  
  val apart = define { (a: Term[Booking], b: Term[Booking]) =>
    a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t))) }
-@@ -90,7 +90,7 @@
+@@ -134,7 +134,7 @@
  
  // Over start and end times.
  val noOverlap = define { (a: Term[Booking], b: Term[Booking]) =>

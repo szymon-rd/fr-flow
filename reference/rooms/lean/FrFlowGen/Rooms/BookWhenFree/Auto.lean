@@ -10,16 +10,4 @@ open Classical
 namespace Rooms.BookWhenFree.Auto
 open Rooms.BookWhenFree
 
-set_option linter.unusedSimpArgs false in
-theorem complete : Obl.complete := by
-  unfold Obl.complete
-  first
-    | (intro granted h_GrantWhenFree h_RequestsEndAfterStart
-       simp only [Rooms.BookWhenFree.claim, Rooms.BookWhenFree.post, Rooms.GrantWhenFree.claim, Rooms.GrantWhenFree.post, Rooms.RequestsEndAfterStart.claim, List.forall_mem_map, forall_and] at h_GrantWhenFree h_RequestsEndAfterStart ⊢
-       revert h_GrantWhenFree h_RequestsEndAfterStart
-       try simp only [and_imp]
-       repeat' (first | (with_reducible assumption) | (with_reducible intro _) | (with_reducible apply And.intro))
-       done)
-    | frflow_auto
-
 end Rooms.BookWhenFree.Auto

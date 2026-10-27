@@ -2,8 +2,12 @@
 
 node | kind | standing | review | detail
 
+AcceptWhenFree | claim | proven | accepted | 
+AcceptedIsAnswered | claim | proven | accepted | 
 AnswerWhenFree | claim | proven | accepted | 
 BookWhenFree | claim | proven | accepted | 
+BookedAfterIsStored | claim | proven | accepted | 
+BookedIsStored | claim | proven | accepted | 
 BookingsOfTheRoom | claim | proven | accepted | 
 EndsAfterStart | claim | proven | accepted | 
 GrantWhenFree | claim | proven | accepted | 
@@ -14,4 +18,5 @@ OnlyBookingWrites | assumption | assumed | accepted |
 RequestsEndAfterStart | assumption | assumed | accepted | its check: proven
 RoomBookingsApart | claim | proven | accepted | 
 StartsEmpty | assumption | assumed | accepted | 
+StoreWhenFree | claim | proven | accepted | 
 TableMatchesModel | assumption | assumed | accepted | its check: proven; SqliteBookings run against the model on 200 runs

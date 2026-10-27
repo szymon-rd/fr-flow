@@ -1,0 +1,19 @@
++ bookedIsStored  claim on booked  accepted
+  What is booked is what the table holds.
+
+Formally (as written in Scala)
+  formula:
+    forall((now: Term[World]) => booked(now) === storedBookings.in(now))
+
+Where it sits
+  part of    + bookWhenFree  with bookedAfterIsStored, storeWhenFree, neverOverlap: "A request is booked exactly when its room is free for its whole time."
+  part of    + acceptWhenFree  with acceptedIsAnswered, answerWhenFree, neverOverlap: "A request is accepted exactly when its room is free for its whole time."
+  uses       + endsAfterStart: "Every booking ends after it starts."
+  uses       + neverOverlap: "The bookings stored never overlap."
+
+Vocabulary
+  booked (operation): the bookings made, as the world stands (open)
+
+Decisions
+  2026-10-27 13:34  accepted by demo-developer: What booked is, in the code's words: what the table holds.
+--- exit 0

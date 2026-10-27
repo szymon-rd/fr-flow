@@ -1,6 +1,10 @@
 node	kind	standing	status	review	causes	cases	against	seed
+AcceptWhenFree	claim	proven	proven	accepted				
+AcceptedIsAnswered	claim	proven	proven	accepted				
 AnswerWhenFree	claim	proven	proven	accepted				
 BookWhenFree	claim	proven	proven	accepted				
+BookedAfterIsStored	claim	proven	proven	accepted				
+BookedIsStored	claim	proven	proven	accepted				
 BookingsOfTheRoom	claim	proven	proven	accepted				
 EndsAfterStart	claim	proven	proven	accepted				
 GrantWhenFree	claim	proven	proven	accepted				
@@ -11,4 +15,5 @@ OnlyBookingWrites	assumption	assumed		accepted
 RequestsEndAfterStart	assumption	assumed	proven	accepted				
 RoomBookingsApart	claim	proven	proven	accepted				
 StartsEmpty	assumption	assumed		accepted				
+StoreWhenFree	claim	proven	proven	accepted				
 TableMatchesModel	assumption	assumed	proven	accepted		200	the model storedBookings	1

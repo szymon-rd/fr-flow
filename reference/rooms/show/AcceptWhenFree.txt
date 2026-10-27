@@ -1,0 +1,25 @@
++ acceptWhenFree  claim on accepted (a root)  accepted
+  A request is accepted exactly when its room is free for its whole time.
+
+Formally (as written in Scala)
+  formula:
+    forall((request: Term[Booking], now: Term[World]) => accepted(request, now) === free(booked(now), request))
+
+Parts: together they make it (proven: authored)
+  + bookedIsStored  needed: "What is booked is what the table holds."
+  + acceptedIsAnswered  needed: "A request is accepted exactly when booking it answers booked."
+  + answerWhenFree  needed: "A request is answered booked exactly when its room is free for its whole time."
+  + neverOverlap  needed: "The bookings stored never overlap."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Vocabulary
+  accepted (operation): whether a request is accepted (open)
+  booked (operation): the bookings made, as the world stands (open)
+
+Proofs
+  complete: proven: authored
+  root_impl: proven: the root holds of the code, trusting requestsEndAfterStart; and the code of grantWhenNoOverlap, tested, not proven
+
+Decisions
+  2026-10-27 13:32  accepted by demo-developer: The purpose over Declarations: a request is accepted exactly when its room is free for its whole time. It assumes nothing; what its proof rests on is below it.
+--- exit 0

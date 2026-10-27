@@ -10,4 +10,5 @@ Where it sits
 
 Decisions
   2026-10-27 00:49  accepted by demo-developer: The bookings table is created empty when the service is installed.
+  2026-10-27 13:32  confirmed by demo-developer: still holds after neverOverlap changed: The same claim, now below the roots: what it says is a hypothesis of every world they are about.
 --- exit 0

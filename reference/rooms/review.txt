@@ -1,7 +1,7 @@
 
 Decided 0 decision(s).
-Rooms: 13 nodes, 13 accepted
-Proofs: splits 3/3, root_impl proven, consistency proven, nothing vacuous
+Rooms: 18 nodes, 18 accepted
+Proofs: splits 5/5, root_impl proven, consistency proven, nothing vacuous
 Tests: code against its claims 1/1, implementations against their models 1/1, examples in Lean 4/4
 Trusted: requestsEndAfterStart, tableMatchesModel (a model), onlyBookingWrites, oneAtATime, startsEmpty (facts); tested, not proven: grantWhenNoOverlap
 Nothing waits: every node is accepted and proven, or its code tested.
