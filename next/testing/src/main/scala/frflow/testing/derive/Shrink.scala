@@ -1,6 +1,7 @@
 package frflow.testing.derive
 
-import frflow.core.expr.Value
+import frflow.core.expr.{Side, Value}
+import frflow.core.name.CtorName
 import frflow.core.ty.{DataType, Ty}
 import frflow.core.vocab.Vocabulary
 
@@ -21,7 +22,7 @@ final class Shrink(v: Vocabulary):
       list(es, (a, b) => of(b, w).map(a -> _) #::: of(a, k).map(_ -> b)).map(Value.Pairs(_))
     case (Value.Maybe(Some(y)), Ty.OptionOf(a))  => Value.Maybe(None) #:: of(y, a).map(z => Value.Maybe(Some(z)))
     case (Value.Inject(s, y), Ty.EitherOf(l, r)) =>
-      of(y, if s == frflow.core.expr.Side.Error then l else r).map(Value.Inject(s, _))
+      of(y, if s == Side.Error then l else r).map(Value.Inject(s, _))
     case (Value.Tuple(xs), Ty.TupleOf(ts))       => each(xs, ts).map(Value.Tuple(_))
     case (Value.Data(c, fs), Ty.Data(n))         => v.dataType(n).fold(LazyList.empty)(d =>
         simpler(d, c) #::: each(fs, d.fieldsOf(c)).map(Value.Data(c, _)))
@@ -36,7 +37,7 @@ final class Shrink(v: Vocabulary):
   private def each(xs: List[Value], ts: List[Ty]): LazyList[List[Value]] =
     LazyList.from(xs.indices).flatMap(i => ts.lift(i).fold(LazyList.empty)(t => of(xs(i), t).map(xs.updated(i, _))))
 
-  private def simpler(d: DataType, c: frflow.core.name.CtorName): LazyList[Value] = d match
+  private def simpler(d: DataType, c: CtorName): LazyList[Value] = d match
     case DataType.Sum(_, _, cs) =>
       LazyList.from(cs.toList.takeWhile(_.name != c).filter(_.fields.isEmpty)).map(k => Value.Data(k.name, Nil))
     case DataType.Product(_, _, _) => LazyList.empty

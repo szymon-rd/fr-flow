@@ -62,7 +62,8 @@ class CalendarSuite extends munit.FunSuite:
 
   test("a value the code makes breaking what always holds of its type is found: the booking it moves a request to") {
     val moved = Definition[Request => Booking]("the booking a request is moved to")
-    val sameRoom = Node.claim("A request is moved within its room.")(forall((r: Term[Request]) => moved(r).room === r.room))
+    val sameRoom = Node.claim("A request is moved within its room.")(
+      forall((r: Term[Request]) => moved(r).room === r.room))
     val endFirst = KnowledgeBase("Rooms")((rooms.nodes :+ sameRoom)*).implementProven(book)(bookIfGranted)
       .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
       .implementTested(moved)(_ => r => Booking(r.room, r.end, r.start))
