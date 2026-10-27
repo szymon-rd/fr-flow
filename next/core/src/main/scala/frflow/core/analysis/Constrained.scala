@@ -18,6 +18,9 @@ object Constrained:
     case _                                              => false
   }
 
+  /** A value only plain code reads (a connection): it has no Lean type, so no statement can mention it. */
+  def isCodeOnly(t: Theory, s: SymbolName): Boolean = t.vocabulary.symbol(s).exists(_.ty == SymbolType.CodeOnly)
+
   def isDeclaration(t: Theory, s: SymbolName): Boolean =
     t.vocabulary.symbol(s).exists(_.kind == ValueKind.Declaration)
 

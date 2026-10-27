@@ -46,12 +46,17 @@ object Validate:
       if p.statement.kind == NodeKind.Design && n.statement.kind != NodeKind.Design
     yield Problem.UnderDesign(n.id, p.id)
 
-  /** Each name declared once. */
+  /** Each name declared once, none a name generated Lean binds itself, and no statement mentioning a value with no
+    * Lean type.
+    */
   private def vocabulary(t: Theory): ValidatedNec[Problem, Unit] =
     val v = t.vocabulary
     val names = v.sorts.map(_.name.value) ++ v.types.map(_.typeName.value) ++ v.symbols.map(_.name.value) ++
       v.defines.map(_.name.value)
-    all(names.diff(names.distinct).distinct.map(Problem.DeclaredTwice(_)))
+    all(names.filter(Reserved.names).distinct.map(Problem.ReservedName(_)) ++
+      names.diff(names.distinct).distinct.map(Problem.DeclaredTwice(_)) ++
+      t.nodes.map(_.node.id).flatMap(id => Constrained.of(t, id).filter(Constrained.isCodeOnly(t, _))
+        .map(Problem.CodeOnlyInStatement(id, _))))
 
   /** A statement's `.assuming` lists exactly the facts about the outside its check rests on (`Premises`: derived,
     * and only checked), and every program writing a store is among those the outside lets write it.
@@ -68,12 +73,13 @@ object Validate:
       .map(Problem.WriterNotListed(m.name, _)))
     all(missing ++ unneeded ++ unlisted)
 
-  /** Code is for a Definition some statement mentions; a node checked against proven code has as parts only
-    * statements about what the code calls (`impl` proves it from them: docs/DAG.md §3); the models it is proven on are
-    * premises, not parts.
+  /** Code is for a Definition some statement mentions (one with no Lean type is read by plain code only); a node
+    * checked against proven code has as parts only statements about what the code calls (`impl` proves it from them:
+    * docs/DAG.md §3); the models it is proven on are premises, not parts.
     */
   private def code(t: Theory): ValidatedNec[Problem, Unit] =
-    val unclaimed = t.code.attached.keys.toList.filter(Constrained.statements(t, _).isEmpty)
+    val unclaimed = t.code.attached.keys.toList.filter(s => !Constrained.isCodeOnly(t, s) &&
+      Constrained.statements(t, s).isEmpty)
     all(unclaimed.map(Problem.CodeWithoutClaim(_)) ++ t.nodes.map(_.node.id).flatMap(id =>
       Callees.of(t, id).toList.flatMap(c => t.refinement.parts(id).filterNot(c.about(t, _))
         .map(Problem.PartNotCalled(id, _)))))

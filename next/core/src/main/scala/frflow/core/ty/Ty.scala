@@ -55,5 +55,9 @@ object Ty:
   /** The domain types `t` names, in the order met. */
   def names(t: Ty): List[TypeName] = parts(t).collect { case Sort(n) => n; case Data(n) => n }.distinct
 
-  /** The type both branches of a conditional have: a branch that only raises takes the other's. */
-  def join(a: Ty, b: Ty): Ty = if a == Never then b else a
+  /** The type both branches of a conditional have: a branch that only raises (a value or a program) takes the
+    * other's.
+    */
+  def join(a: Ty, b: Ty): Ty = (a, b) match
+    case (Never, _) | (FlowOf(Never), FlowOf(_)) => b
+    case _                                       => a

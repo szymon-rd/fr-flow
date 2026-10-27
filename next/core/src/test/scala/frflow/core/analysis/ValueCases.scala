@@ -1,0 +1,54 @@
+package frflow.core.analysis
+
+import frflow.core.{Kb, Lang}
+import frflow.core.Nodes.*
+import frflow.core.code.Code
+import frflow.core.expr.{Binder, Value}
+import frflow.core.name.{DefName, NodeId, SourceText, SymbolName, TypeName, VarId}
+import frflow.core.spec.Written
+import frflow.core.term.{Final, Sym}
+import frflow.core.ty.Ty
+import frflow.core.vocab.{Define, DefineForm, Sort}
+
+/** One theory per problem of the vocabulary and of the two kinds of values. */
+object ValueCases:
+  private def id(s: String) = NodeId(s)
+  private def name(s: String) = SymbolName(s)
+  private val root = plain("root")
+  private val test = Ty.FnOf(List(Lang.big), Ty.Bool)
+
+  /** `∀ x, d(x)`. */
+  def holdsOf(id: String, d: String): frflow.core.spec.Node = claim(id)(Lang.formula([T[_]] => (l: Lang[T]) =>
+    l.forall[BigInt]("x", Lang.big)(x => l.call(l.sym[BigInt => Boolean](d, test), x))))
+
+  /** A define over one number calling the symbol `d` on it. */
+  def calling(define: String, d: String): Define =
+    val x = Binder(VarId.level(0), "x", Lang.big)
+    val body: Final[Boolean] = [T[_]] => (s: Sym[T]) => s.app(s.param[BigInt => Boolean](name(d), test), s.free(x))
+    Define(DefName(define), Written.lambda(List(x), body, SourceText(define)), DefineForm.Function)
+
+  private val connected = claim("connected")(Lang.formula([T[_]] => (l: Lang[T]) =>
+    l.s.eq(l.sym[String]("connection", Ty.Str), l.str("db"))))
+
+  /** `top` is proven of `grant`'s code, which calls `free`: a part must be about `free`. */
+  val proven: Kb = Kb.of(holdsOf("top", "granted"), holdsOf("aboutFree", "free"), plain("stray"))
+    .naming(definition("granted", test), definition("free", test))
+    .declaring(_.copy(defines = List(calling("grant", "free"))))
+    .coding(name("granted") -> Code.Proven(DefName("grant")), name("free") -> Code.Provided)
+    .linking(partOf("aboutFree", "top"), partOf("stray", "top"))
+
+  val all: List[ProblemCase] = List(
+    ProblemCase(Kb.of(root).declaring(_.copy(sorts = List(Sort(TypeName("World"), "a world")))),
+      List(Problem.ReservedName("World"))),
+    ProblemCase(Kb.of(root).naming(declaration("access", test), declaration("access", test)),
+      List(Problem.DeclaredTwice("access"))),
+    ProblemCase(Kb.of(connected).naming(codeOnly("connection")).coding(name("connection") -> Code.Provided),
+      List(Problem.CodeOnlyInStatement(id("connected"), name("connection")))),
+    ProblemCase(Kb.of(root).naming(definition("granted", test)), List(Problem.Undefined(name("granted")))),
+    ProblemCase(Kb.of(holdsOf("admits", "admitted")).naming(declaration("allowed", test), definition("admitted", test))
+      .declaring(_.copy(defines = List(calling("admit", "allowed"))))
+      .coding(name("admitted") -> Code.Proven(DefName("admit"))),
+      List(Problem.DeclarationInCode(DefName("admit"), name("allowed")))),
+    ProblemCase(Kb.of(root).naming(definition("limit", Lang.big)).coding(name("limit") -> Code.Valued(Value.Num(3))),
+      List(Problem.CodeWithoutClaim(name("limit")))),
+    ProblemCase(proven, List(Problem.PartNotCalled(id("top"), id("stray")))))
