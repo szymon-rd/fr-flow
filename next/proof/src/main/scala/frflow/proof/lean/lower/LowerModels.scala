@@ -44,7 +44,7 @@ final class LowerModels(env: LowerEnv, naming: Naming):
       LExpr.App(const("Id.run"), List(LExpr.Paren(ran))))))
 
   private def classOf(b: BoundarySig): Decl =
-    val monad = Names.builtin("m")
+    val monad = Naming.helper("m", Set.empty).runA(naming).value
     Decl.Documented(s"The boundary ${b.name.value}: ${b.means}", Decl.Class(Names.builtin(b.className),
       List(LBinder.Explicit(monad, LExpr.Infix(LOp.Arrow, name("Type"), name("Type")))),
       b.ops.map(o => Names.ident(o.name.value) ->

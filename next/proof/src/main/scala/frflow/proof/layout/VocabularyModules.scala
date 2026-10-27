@@ -68,10 +68,10 @@ object VocabularyModules:
       throw IllegalStateException(s"FrFlow bug: ${d.name.value}'s steps are not a program's")
 
   /** A program, generic in its monad: `{m : Type → Type} [Monad m] [MonadExceptOf E m] [Bookings m] (open terms) :
-    * A → m R := fun (a : A) => do …`.
+    * A → m R := fun (a : A) => do …`, the monad's name taken by no symbol (`Naming.helper`).
     */
   private def flow(l: Lowering, d: Define, p: frflow.core.expr.Prog[frflow.core.term.Stated[?]]): Decl =
-    val m = Names.builtin("m")
+    val (named, m) = Naming.helper("m", Set.empty).run(l.naming).value
     val ir = d.lambda.body match
       case Expr.Do(q, _) => q
       case _             => throw IllegalStateException(s"FrFlow bug: ${d.name.value} is a program with no steps")
@@ -87,7 +87,7 @@ object VocabularyModules:
       case other        => other
     val inputs = d.lambda.params
     val (bs, lines) = (inputs.traverse(x => Naming.bind(x).map(LBinder.Explicit(_, LowerType(x.ty)))),
-      LowerProg(l.env, inputs.size).block(p)).tupled.runA(l.naming).value
+      LowerProg(l.env, inputs.size).block(p)).tupled.runA(named).value
     val body = if bs.isEmpty then LExpr.Do(lines, 4) else LExpr.Fun(bs, LExpr.Do(lines, 4))
     Decl.Def(List(Attr.FrflowDefs), Names.builtin(d.name.value), monad ++ openBinders(l, d),
       LowerType.declaration(inputs.map(_.ty), LExpr.App(LExpr.Name(m), List(LowerType(result)))), body)
