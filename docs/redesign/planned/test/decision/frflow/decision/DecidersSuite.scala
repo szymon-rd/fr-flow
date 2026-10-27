@@ -14,8 +14,8 @@ class DecidersSuite extends munit.FunSuite:
   private val verify: Seals.Verifier = (s, bytes) => s.signature == sign(s.key)(bytes).signature
 
   private def version(after: Option[Deciders], signer: String, entries: Decider*): Deciders =
-    val unsigned = Deciders(entries.toList, after.map(_.ref), Seal("", ""))
-    unsigned.copy(seal = sign(signer)(unsigned.payload))
+    val unsigned = Deciders(entries.toList, after.map(_.ref), None)
+    unsigned.copy(seal = Some(sign(signer)(unsigned.payload)))
   private val (ann, agent) = (Decider("ann", "k1", "public-1"), Decider("agent", "k2", "public-2"))
   private val first = version(None, "k1", ann)
   private val node = NodeId("Root")

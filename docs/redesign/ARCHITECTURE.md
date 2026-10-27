@@ -207,9 +207,10 @@ Checked before production only:
   a function value is not reached yet, and a model holding one where an `always[T]` applies is refused
   (`AlwaysNotReached`); step 3 walks maps and sets. It is met wherever FrFlow covers the code: `made_<maker>` for each
   proven define, proven program and store operation whose result is or holds a `T`; `cover_<op>` for each program
-  writing a store that holds one; at a tested Definition's boundary (inputs drawn meeting it, `Respecting`; result
-  checked, `Made`, through the same shapes); `start_<node>` for the store's start; values from outside by an assumption
-  of `always` on their type (2.6). `inhabited_<node>` shows the rule admits a value.
+  writing a store that holds one; at a tested Definition's boundary (inputs drawn meeting it and every `always` nested
+  in them, seeds included, `Respecting`, `DrawnSuite`; result checked, `Made`, through the same shapes); `start_<node>`
+  for the store's start; values from outside by an assumption of `always` on their type (2.6). `inhabited_<node>` shows
+  the rule admits a value.
 - **`always(stored)`** is a hypothesis on every world a claim starts from, kept by each program writing the store
   (`cover_<op>`) from every start (`start_<node>`); that this covers every reached state rests on four store facts
   (2.6).
@@ -603,12 +604,14 @@ The SQLite store is tested against the model, not trusted (`StoreModelSuite`, wi
     observe = memory => memory.bookings)
 ```
 
-`start` makes the implementation holding a model state; `observe` reads its state back. `ModelTests.run` runs
-generated calls (`Runs`, values meeting each `always[T]`) on both and reports the first answer that differs
-(`Difference.Answer`) or a final state that does (`Difference.State`). On 200 runs the stand-in agrees; one that
-forgets the room filter is found at `inRoom`, one that forgets to add by its state. The suite also runs
-`BookIfGranted` in `IO` over `eval.Running` on the store lifted (`BookingsOps.lifted`), as production does: a free
-request is booked, a clash is not.
+`start` makes the implementation holding a model state; `observe` reads its state back. `ModelTests.run` runs generated
+calls (`Runs`, values meeting each `always[T]`) on both and reports the first answer that differs (`Difference.Answer`)
+or a final state that does (`Difference.State`). An outside system's adapter is checked with
+`stored.checkedAgainst(…)`, its model assumed and checked on at most 200 runs; the project's own implementation with
+`stored.implementedBy(start, observe)`, on every case (1,000), a node's count the sum of its checks'. On 200 runs the
+stand-in agrees; one that forgets the room filter is found at `inRoom`, one that forgets to add by its state. The suite
+also runs `BookIfGranted` in `IO` over `eval.Running` on the store lifted (`BookingsOps.lifted`), as production does: a
+free request is booked, a clash is not.
 
 ### 3.8 What check and show say
 
@@ -744,12 +747,12 @@ Run by any other interpreter, the variable fails at once ("FrFlow bug: a bound v
 tested).
 
 **The hard constructs are algebra operations** in all three interpreters (`Changes.scala`): a sum's eliminator,
-`c.on[Change.Book](b => …).on(Change.Clear)(…)` (an arm over a case without fields is also written by its type,
-`.on[Change.Clear.type](…)`, which reads in any position, first or later: one spelling for every arm), each arm's type
-test written by `CaseMacros` (no cast), printed as a `match`; records made (`make[Booking](room, t, t + 1)`) and copied
-(`b.updated(_.start, t)`); the folds and `let`; `allDistinct`, `pairwise` and `forall` of a define; a program's runs. A
-define is one `term.Body` (name, curried type, a `lam` per input) applied one argument at a time, so `param`, `define`,
-`lam` and `app` cover every arity.
+`c.on[Change.Book](b => …).on[Change.Clear.type](…)`, each arm named by its case's type and a case without fields by
+its singleton type, in any position, the only spelling (the planned code still writes `.on(Change.Clear)` after the
+first arm); each arm's type test written by `CaseMacros` (no cast), printed as a `match`; records made
+(`make[Booking](room, t, t + 1)`) and copied (`b.updated(_.start, t)`); the folds and `let`; `allDistinct`, `pairwise`
+and `forall` of a define; a program's runs. A define is one `term.Body` (name, curried type, a `lam` per input) applied
+one argument at a time, so `param`, `define`, `lam` and `app` cover every arity.
 
 **Notes are an interpretation**: what a term declares, and faults, are on the term (`noted`), gathered once by
 `Collect` into a monoid (`Declarations`); there is no registry. A project's own operation is a define, or an algebra
@@ -808,32 +811,36 @@ today's `retry` and `parTraverseN`'s limit as `retry(clock, waits)` (a fold of t
 - **Production's**: `eval.Running` for any `F: Async`, reached through `knowledge.running[F](bindings*)`: a condition
   evaluated by `Evaluate`, `atomically` under one `Mutex`. The adapter is plain Scala over plain values
   (`Bookings[IO, Id]`), lifted into `Bookings[IO, Term]` by `BoundaryOps.lifted`, which evaluates each argument, calls
-  the adapter and makes the result a term again. Nothing is checked.
+  the adapter and makes the result a term again. For a boundary that may fail, `Boundary.lifted` maps an adapter's
+  non-fatal failure to the declared error (`BoundaryOps.failures`, raised as `Raised`, its cause kept); a `Raised`
+  passes through, cancellation is never mapped, and a boundary that cannot fail lets its adapter's exceptions escape as
+  they are. Nothing is checked.
 - **Scala tests'**: the recorded `Prog` run by `eval.flow.FlowInterpreter` against a `World`: the models (examples,
-  model tests) or the adapters (interleavings).
+  model tests) or the adapters (interleavings). A sequential run takes a race's winner from the world (a reserved
+  `races : List Bool`, held like `faults`, read by `races.leftWins`), one of the scheduler's choices Lean leaves open.
 
 `BoundaryOps[B]`, which `derives BoundaryOps` writes (step 2; the planned rooms writes it by hand), gives the class Lean
 declares, `recording`, `call`, `model` and `lifted`. `LowerModels` prints boundaries, models, `World` and each program's
-run on them (`f_run`). Step 4 adds the law that a program's recording run on the models gives what `Running` gives on
-the models' instances; no suite states it yet.
+run on them (`f_run`). `FlowAgreementSuite` (step 4) states the law that a program's recording run on the models gives
+what `Running` gives on the models' instances, a failing boundary's adapter included.
 
-**A program's error type** (step 3b, before step 4). `Ty.FlowOf(result, error: Option[Ty])`. A program's error has
-two senses, both read off its recording (`core.Failing`). The monad's: every error it raises, handles or meets (a
-failing boundary's, `Boundary.failing[B, E](means, error)`), one type, what `FlowOf` says and its run is over. What
-escapes: those outside a `Catch` of their type (`Progs.failsWith`), what a failing run's clause is of. A boundary that
-may fail names the error a call fails with (`Failure.StoreUnavailable`, `vocab.Fails`), which `FrFlow.failing` needs.
-The front end cannot type a program's error where its Definition is written (its code comes later), so `Resolve` does
+**A program's error type** (step 3b, before step 4). `Ty.FlowOf(result, error: Option[Ty])`. A program's error has two
+senses, both read off its recording (`core.Failing`). The monad's: every error it raises, handles or meets (a failing
+boundary's, `Boundary.failing[B, E](means, error)`), one type, what `FlowOf` says and its run is over. What escapes:
+those outside a `Catch` of their type (`Progs.failsWith`), what a failing run's clause is of. A boundary that may fail
+names the error a call fails with (`Failure.StoreUnavailable`, `vocab.Fails`), which `FrFlow.failing` needs. The front
+end cannot type a program's error where its Definition is written (its code comes later), so `Resolve` does
 (`Failing.typed`): each program's define, the Definition it is the meaning of, and every formula's term and IR
 (`Retyped`), so `Exprs.typeOf` of a program in a formula is its resolved type. Only a proven program has an error; a
 program Definition given plain Scala has the one its type declares (none). `Validate` refuses a program over two error
-types (`ErrorsDiffer`; handling one and failing with another, or calling a boundary failing with another, would need
-two `ExceptT`s), a `.failing` clause of another type than what escapes (`FailingDiffers`), one on a program nothing
-escapes (`NeverFails`), and a run of a program that is no Definition applied to inputs (`RunOfNoDefinition`: Lean
-reads how to match a run off the Definition it applies). In Lean a program with an error runs as
-`World → (Except e r × World)`, on the models' instance on `ExceptT e (StateM World)` (one per error), a failing
-boundary call going through `FrFlow.failing` on the world's `faults : List Bool` (a field when a boundary may fail;
-`faults` is reserved); `f_run` is `FrFlow.runOnE (ε := e)`, a run's post matches `Except.ok` (`| _ => True` for the
-rest, sound when nothing escapes), `cover_` holds of the world a failed run leaves too when an error escapes (both arms,
+types (`ErrorsDiffer`; handling one and failing with another, or calling a boundary failing with another, would need two
+`ExceptT`s), a `.failing` clause of another type than what escapes (`FailingDiffers`), one on a program nothing escapes
+(`NeverFails`), and a run of a program that is no Definition applied to inputs (`RunOfNoDefinition`: Lean reads how to
+match a run off the Definition it applies). In Lean a program with an error runs as `World → (Except e r × World)`,
+on the models' instance on `ExceptT e (StateM World)` (one per error), a failing boundary call going through
+`FrFlow.failing` on the world's `faults : List Bool` (a field when a boundary may fail; `faults` and `races` are
+reserved); `f_run` is `FrFlow.runOnE (ε := e)`, a run's post matches `Except.ok` (`| _ => True` for the rest, sound
+when nothing escapes), `cover_` holds of the world a failed run leaves too when an error escapes (both arms,
 `runs ∧ fails`, `FrFlow.outcome` unfolded), `made_` of ok results, and `commute_` reads the error from the type.
 `.failsChangingNothing[E]` says every model's state is as before (`Worlds.unchanged(after, before)`, `Expr.Unchanged`;
 in Lean one equation per model's field, the faults left out), and `===` between worlds is refused where a boundary may
@@ -857,10 +864,9 @@ declarations merge). An error found before its place is known is a `Fault`, carr
 wrong: the graph (`DuplicateId`, `NoRoot`, `AboveItself`, `ParentOutside`, `DesignWithoutParent`, `UnderDesign`,
 `PremiseNotAssumed`, `OutsideAsPart`, `OutsideClaimed`); the world outside (`PremiseMissing`, `PremiseNotNeeded`,
 `WriterNotListed`, `AlwaysNotReached`); the vocabulary (`ReservedName`, `DeclaredTwice`, `CodeOnlyInStatement`); values
-(`Undefined`, `DeclarationInCode`, `CodeWithoutClaim`, `RestsOnItself`); programs (`RunOfNoDefinition`,
-`ErrorsDiffer`, `FailingDiffers`, `NeverFails`, `WorldsEqual`). A
-model's Lean namespace, its name capitalized
-(`Stored`), counts among the declared names, so a model named as its boundary's class is `DeclaredTwice`.
+(`Undefined`, `DeclarationInCode`, `CodeWithoutClaim`, `RestsOnItself`); programs (`RunOfNoDefinition`, `ErrorsDiffer`,
+`FailingDiffers`, `NeverFails`, `WorldsEqual`). A model's Lean namespace, its name capitalized (`Stored`), counts among
+the declared names, so a model named as its boundary's class is `DeclaredTwice`.
 
 `Resolve(v: Valid): Resolved` computes once what each node uses, calls and rests on (`Callees`, `reliesOn`). `Scope`
 derives where an `always`, claimed or assumed, applies: the Definitions and store programs whose values can hold a `T`
@@ -917,9 +923,13 @@ constraint (owner §2, D).
 Property-based testing stays in full and carries every check the running service made:
 
 - **Plain code against every claim mentioning its Definition** (`PropertyTests`): inputs drawn, the values the code
-  reads made by `eval.run.Wiring`, the call judged by `CallCheck` (the post, and each `always[T]` of the call's
-  values, `Made`) or the claim evaluated whole; the first failure shrunk, saved, replayed first; a claim's parts'
-  coverage.
+  reads made by `eval.run.Wiring`, the call judged by `CallCheck` (the post, and each `always[T]` of the call's values,
+  `Made`) or the claim evaluated whole; the first failure shrunk, saved, replayed first; coverage of what each case
+  reaches (each implication's premise holding, each side of an `or`, each condition both ways, each arm of a match, each
+  list or option a quantifier ranges over not empty; in model tests each operation called and each branch of the model's
+  steps), every target starting at zero, so one no case reached is said. A report counts the cases asked and tried
+  (`Count`): a case that cannot be drawn is not tried, and the shortfall is said. A claim with no Scala value is "not
+  checked" (`Outcome.NotChecked`), never a failure, and nothing is shrunk, saved or replayed for it.
 - **`Wiring`** makes a call's values explicitly (defines, the meanings of what it calls, the values given), for
   examples, tests and production's `knowledge.code(d)(bindings*)` alike.
 - **An adapter** against its assumption's formula and its model (`ModelTests`, 3.7).
@@ -927,8 +937,9 @@ Property-based testing stays in full and carries every check the running service
   `TestControl`; production's concurrency on its own (`RunningSuite`).
 - **The step refutation** and **the witness search** (`testing.search`).
 
-Every value drawn by its type meets each `always[T]` of the type (`Respecting`). A run is a function of its seed and
-the code.
+Every value drawn by its type meets each `always[T]` of the type and of each value nested in it, an example's seed
+values included (`Respecting`, `DrawnSuite`); a drawn world takes faults where a boundary may fail and races' winners
+where a program races. A run is a function of its seed and the code.
 
 ### 4.10 Views and the API
 
@@ -962,7 +973,7 @@ the decision's reason); `Overview` is `Tally[K]` fields, a commutative monoid. T
 | `dsl` | core | the user's syntax, elaboration, `Term[A]`, `Flow`, `Boundary`, models, macros |
 | `proof` | core | obligations, the Lean AST, the term printer, lowering, layout, judges |
 | `eval` | dsl, cats-effect-kernel, -std | the term evaluator, `Running`, `CallCheck`, `Wiring`, `ExampleRun`, `FlowInterpreter` |
-| `testing` | eval, cats-effect | `Draw`, `Respecting`, `PropertyTests`, `ModelTests`, `Interleavings`, searches |
+| `testing` | eval, cats-effect, sbt test-interface | `Draw`, `Respecting`, `PropertyTests`, `ModelTests`, `Interleavings`, searches |
 | `decision` | core (names, `graph.Walk`, `spec.NodeKind`) | content, ledger, deciders, payload, review, rules |
 | `wire` | proof, decision, testing, circe | the snapshot by kind; codecs of ledger, deciders, checks, tests |
 | `project` | proof, testing, decision, wire, cats-effect, fs2 | algebras, programs, `Analysis`, contents, fingerprints |
@@ -971,10 +982,10 @@ the decision's reason); `Overview` is `Tally[K]` fields, a commutative monoid. T
 
 Each module has its own top package (`frflow.core`, …), so `private[core]` is a real boundary. The planned code has
 the first nine; `cli`, `web` and `agent` keep their structure and are rebuilt on the new API. Serialization points
-outward: only the shell depends on `wire`. One edge is between tests: `next-proof` depends on
-`next-core % "compile->compile;test->test"`, for core's test fixtures. Front ends see `api.view` and `api.node` values
-only. Production code depends on `eval` (and through it `dsl`, `core`) and never on Lean, the ledger, the tests or the
-CLI.
+outward: only the shell depends on `wire`. Three edges are between tests only (`test->test`): `next-proof` on
+`next-core`'s fixtures (`next-core % "compile->compile;test->test"`), `next-eval` on `next-proof`'s, and `next-testing`
+on `next-eval`'s; production `eval` never sees `proof`. Front ends see `api.view` and `api.node` values only. Production
+code depends on `eval` (and through it `dsl`, `core`) and never on Lean, the ledger, the tests or the CLI.
 
 Planned so far (files / lines): `core` 146 / 3,213, `dsl` 69 / 2,178, `proof` 79 / 2,058, `eval` 26 / 727, `testing`
 22 / 428, `decision` 42 / 694, `wire` 14 / 184, `project` 25 / 621, `api` 27 / 381. With the ports written and `cli`,
@@ -984,10 +995,11 @@ about 12% more, consistency and vacuity among it, in smaller files, with no type
 ## 6. Data: decisions, deciders, ledgers, fingerprints
 
 **Content.** `Content(fields: List[(String, FieldValue)])` is a node as the developer decides it: named fields in a
-fixed order, a canonical print, `hash` (whitespace runs ignored) and `ref` (the exact form a signature covers). One
-form (`Contents.of`): `kind`, `parents`, `parts`, `assumes`, `statement`, `formula`, `vocabulary`, `checking`,
-`governs`, `call`, `replaces`, `reliance`, `failure`, `implementation`, `model`, `implementations`. No `why`, source
-excerpt or `idea`. `Meaning.own` (cause `self`) leaves out `parts` and `parents`, but a design keeps its `parents`.
+fixed order, a canonical print, `hash` (whitespace runs ignored) and `ref` (the exact form a signature covers, a full
+SHA-256, as a ledger entry's ref is). One form (`Contents.of`): `kind`, `parents`, `parts`, `assumes`, `statement`,
+`formula`, `vocabulary`, `checking`, `governs`, `call`, `replaces`, `reliance`, `failure`, `implementation`, `model`,
+`implementations`. No `why`, source excerpt or `idea`. `Meaning.own` (cause `self`) leaves out `parts` and `parents`,
+but a design keeps its `parents`.
 
 **Ledger and review.** The `Ledger` is append-only; review states are a fold of it over the current graph, parents
 first (`Standings`). A node returns for a cause: `self`, `above` (unless only words moved, `Reworded.only`), `parts`,
@@ -1006,7 +1018,7 @@ has added decisions, `Seals.signAdded(before, after, sign)` signs those `after` 
 **Who may decide.** `.frflow/deciders` is committed (`decision/frflow/decision/ledger/Deciders.scala`):
 
 ```scala
-final case class Deciders(entries: List[Decider], after: Option[String], seal: Seal):
+final case class Deciders(entries: List[Decider], after: Option[String], seal: Option[Seal]):
   def allows(name: String, key: String): Boolean = entries.exists(d => d.name == name && d.key == key)
 ```
 
@@ -1014,8 +1026,10 @@ The first version is signed by its first entry, each later one by a key the vers
 (`after`), so replaying an old list breaks the chain and cannot restore a removed decider. FrFlow reads only committed
 versions (`Git`) and takes the last when each follows the one before. A decision counts only when its key is listed
 under its decider's name and the signature verifies; `DecideProgram` refuses an unlisted key before any rule
-(`Refusal.NotADecider`). `init` writes the first list. `Payload.of(id, d)` joins with NUL the node id, action, by, at,
-reason, rejected, chain, code fingerprint, commit, after and `content.ref`.
+(`Refusal.NotADecider`). `init` writes the first list. A version with no seal follows none. `Payload.of(id, d)` frames
+each field (its length, a colon, then itself: `Framed`): the node id, action, by, at, reason, the rejected ids after
+their count, chain, code fingerprint, commit, after and `content.ref`, so no reason or id can make two decisions' bytes
+the same.
 
 **Fingerprints.** `CodeFingerprints.of(files)` hashes a design's governed files, sorted, as the simple lexer reads
 them (owner §2, F): comments blanked, blank lines and trailing spaces dropped, indentation kept, runs of spaces
@@ -1024,7 +1038,9 @@ to `f(x)`).
 
 **Exports.** The snapshot (`.frflow/kb.json`) is `wire`'s own rows by kind, made by one mapping (`Rows`), printed by
 `--json` and read by no FrFlow module; `wire` also has the codecs of the ledger, deciders, `checks.json` and
-`tests.json`.
+`tests.json`, and the committed `counterexamples.json`. Each file starts with its `version`; the ledger stores each
+content once, by its ref; a seed is written as a decimal string in every file, so a reader that rounds numbers
+(JavaScript, jq) keeps it.
 
 ## 7. Errors and effects
 
@@ -1037,18 +1053,21 @@ to `f(x)`).
 | either, at the shell | `Problems.NotElaborated`, `Invalid` | raised in `F` (`NoStackTrace`) |
 | evaluation | `EvalError` (`Quantified`, `Unbound`, `NoDefine`, `NoCase`, …) | `Either` |
 | a program run in Scala | `FlowError` (`NotEvaluated`, `NoModel`, `NoOperation`) | raised in `F` |
+| a program's own error, in production | `Raised(error, ty)`, its cause kept | raised in `F` |
 | decisions | `Refusal`, e.g. `NotADecider(name)` | `Either`; the caller goes on |
 | a check | `Finding` cases (`Refuted`, `DisallowedAxioms`, …) in `Judged`, `NodeCheck` | data |
 | the theory as a whole | "consistency not proven", "not shown", "not checked" | data: a status |
 | tests | `TestReport`, `Failure(inputs, broke: Broken, …)`, `Difference` | data |
 | plain code, a running program | `NotEvaluated(EvalError)` | thrown |
+| `knowledge.code`, `running`: no meaning, or no elaborated base | `IllegalArgumentException` (`CodeSyntax`) | thrown |
 | the shell (no Lean, unknown node) | `FrFlowError` | raised in `F` |
 | FrFlow bugs | `IllegalStateException`, "FrFlow bug" | where types rule the case out |
 
-`Fault` has thirteen cases (`NoType`, `NotData`, `NoField`, `NotAClaim`, `ProgramMentioned`, `MeantWhereWritten`,
-…). `Broken.Always` is an `always[T]` a call's value breaks. Production code has no `Either` to return, so plain
-code evaluating a term with no Scala value throws `NotEvaluated`; inside the evaluator `app` turns it back into
-`Left`. Text for the developer is made only in `cli` and `web`.
+`Fault` has thirteen cases (`NoType`, `NotData`, `NoField`, `NotAClaim`, `ProgramMentioned`, `MeantWhereWritten`, …).
+`Broken.Always` is an `always[T]` a call's value breaks. Production code has no `Either` to return, so plain code
+evaluating a term with no Scala value throws `NotEvaluated`; inside the evaluator `app` turns it back into `Left`. A
+program called as code (`knowledge.code(program)`, `d.fn`) gives `NotEvaluated(Steps)`: a program runs through
+`knowledge.running` and lifted adapters. Text for the developer is made only in `cli` and `web`.
 
 ### 7.2 Effects: where F[_] is used, and why
 
@@ -1149,7 +1168,7 @@ listed. `WalkthroughSuite` replays the README's rooms changes (steps 4–6) on a
 | 1 | `next/core`: term algebras and core interpreters, IR, statements, validation, checking, consistency | `typeOf`, `Mentions` laws, every `Problem` by name |
 | 2 | `next/dsl`: `Term[A]`, macros, the user's forms, `Flow`, boundaries, models | `RecordingSuite`, `FormsSuite`, claims suites, ported suites |
 | 3 | `next/proof`: `Prop`, Lean AST, `LeanTerm`, lowering, layout, judges, tactics | `PrinterLawsSuite`, `CrmModulesSuite`, a test per try and rule |
-| 3b | core and proof: a program's error type (4.4); `impl` over every part (2.7) | a failing writer's `cover_`, a `.failing` `impl`, a crm-shaped run claim in Lean (`Failing.file`; crm's own `runExpiry` cannot fail, step 12) |
+| 3b | core and proof: a program's error type (4.4); `impl` over every part (2.7) | a failing writer's `cover_`, a `.failing` `impl`, a crm-shaped run claim |
 | 4 | `next/eval`: `Evaluate`, `Running`, `CallCheck`, `Wiring`, `FlowInterpreter` | `TermLawsSuite`, `RunningSuite`, recording agrees with running |
 | 5 | `next/testing`: generators, `PropertyTests`, `ModelTests`, searches, examples' runner | ported suites with seeds, `Gen` laws, `SmallSuite` |
 | 6 | `next/decision`: content, ledger, `Deciders`, review, rules | ported decide and standing suites, `DecidersSuite` |
@@ -1163,8 +1182,9 @@ listed. `WalkthroughSuite` replays the README's rooms changes (steps 4–6) on a
 | 14 | today's modules deleted, `next/*` moved, docs and skills rewritten | the architecture test at target, size baseline at zero |
 | 15 | the owner decides each example's ledger with his key | `confirm` for the mechanical nodes; nothing earlier counts |
 
-Step 2 also writes every node of the five examples in the three kinds before any port, and keeps the compile-time
-spike in the build. Step 5 makes drawn values meet their fields' rules (10.2). In step 12, auth's `Param`s become
+Step 2 also writes every node of the five examples in the three kinds before any port, and keeps the compile-time spike
+in the build. Step 3b's run claim in Lean is a crm-shaped fixture (`Failing.file`): crm's own `runExpiry` cannot fail in
+the new DSL. Step 5 makes drawn values meet their fields' rules (`DrawnSuite`). In step 12, auth's `Param`s become
 Declarations and Definitions (`grants`, `sessions` provided, `admit` tested) and `Server` calls
 `knowledge.code(admit)(…)`; keycloak loses its `checkedBy`; crm's `Database[F, T]` becomes tagless, its expiry job
 gains its `ifM`, and `noCrossTenantRead` becomes a root over two Definitions. In step 13, sharing uses `timeout`,
@@ -1174,10 +1194,11 @@ gains its `ifM`, and `noCrossTenantRead` becomes a root over two Definitions. In
 **Stubs by step** (40 `???`, `review.md` lists the first ones the owner will meet): step 2, `derives BoundaryOps`, and
 `Flow`'s `collect`, `fold`, `parCollect` and `attempt` (not yet written at all); 3, `feasible`, `commutes`, `made_` of a
 program's result, guards inside maps and sets (refused until then, `AlwaysNotReached`), module layouts, a few
-`LowerProg` steps; 3b, a program's error type, `impl` over every part, `PartNotCalled` dropped or narrowed; 4,
-`FlowInterpreter`'s loops and errors, `Literals` of maps and sets, `CodeSyntax.code`; 5, `ModelTests.of`, derived
-generators, shrinking, the examples' runner; 6, three review functions; 8, the port interpreters, `NodeChecker`, the
-lexer's passes; 9, `FrFlowApi.make`, `Views.tree`, `Views.inbox`.
+`LowerProg` steps; 3b, a program's error type, `impl` over every part, `PartNotCalled` dropped; 4's (`FlowInterpreter`'s
+loops and errors, `Literals` of maps and sets, `CodeSyntax.code`) and 5's (`ModelTests.of`, derived generators,
+shrinking, the examples' runner) are filled in `next/`, but `StepRefutation.candidate`, which moves to 8; 6, three
+review functions; 8, the port interpreters, `NodeChecker`, the lexer's passes; 9, `FrFlowApi.make`, `Views.tree`,
+`Views.inbox`.
 
 **Seeded bugs after the port.**
 
@@ -1209,7 +1230,8 @@ lexer's passes; 9, `FrFlowApi.make`, `Views.tree`, `Views.inbox`.
 | renaming a val renames its node | certain | `review` shows a gone node and a new one with the same content |
 | a claim meant as a call is tested whole | low | `show` says how each claim is checked |
 | a claim with no Scala value is not tested (rooms' root words) | certain | `show` and `status` say so; rooms proves its one from its parts |
-| an `always[T]` rule with no Scala value cannot be drawn | medium | state it in evaluable words and prove the link |
+| an `always` rule with no Scala value cannot be drawn (rooms' `neverOverlap`) | medium | state it in evaluable words and prove the link |
+| a data type no statement mentions is not drawn | low | it is not in the vocabulary: mention it, or give its generator |
 | no witness derived for a sound group | medium | "consistency not proven" is a status; add an equation, value or proof |
 | the outside facts are many to write (rooms: five) | certain | each is one sentence; a missing one is named with what to say |
 | an outside vocabulary lacks a native interpreter | low | it runs through its meaning in the core, a law tying the two |
@@ -1222,10 +1244,6 @@ lexer's passes; 9, `FrFlowApi.make`, `Views.tree`, `Views.inbox`.
 
 In order of value; none blocks a step.
 
-- **Step 5: drawn values must meet their fields' rules.** Lean assumes `always[Booking]` of every booking inside a
-  `RoomBookings`, but `Respecting` applies only the top-level rule; `CalendarSuite` uses a hand-written `Draw`. Step
-  5's derived generators must respect every `always[T]` of every `T` inside a drawn value, with a test that a drawn
-  `RoomBookings` meets `endsAfterStart` for each booking.
 - **Step 11: the README's forms.** `checkedAgainst`'s parameters could say their roles (`startFrom`, `readBack`);
   introduce `World` where first used; `Calendar` should filter by the request's room rather than group, or the rule
   say "of one room"; warn when a node reached by an edge is missing from the `KnowledgeBase` list, or collect the
@@ -1261,16 +1279,16 @@ Type errors inside a define and `==` on terms give the same messages as today, n
 
 ## 11. Rules that keep it from decaying
 
-1. **The module graph is in `build.sbt` only**; a new module or edge is approved first (`next-proof`'s tests on
-   `next-core`'s is one, 5).
+1. **The module graph is in `build.sbt` only**; a new module or edge is approved first (the test-only edges of 5 among
+   them).
 2. **`ArchitectureSuite`** (munit, about 150 lines) scans imports and package clauses and fails on: a package edge not
    in `project/architecture.conf`; a package cycle in a module; `private[frflow]`; `ThreadLocal`; `cats.effect`,
    `io.circe`, `java.nio.file.Files`, `scala.util.Random` or `System.getenv` in `core`, `dsl`, `proof` or `decision`;
    atomics, `Mutex` or `synchronized` outside `eval.Running` and `FlowInterpreter`.
-3. **scalafix `DisableSyntax`** on `core`, `proof`, `eval`, `decision`, `dsl`: no `null` (but `dsl.node.Parent.of`),
-   no `var` in classes, no `throw` (but "FrFlow bug" sites, `Failure(fault)` in `Elab`, `ReadRecording`,
-   `Term.select`, and `NotEvaluated` where 7.1 says), no `asInstanceOf` outside 7.3's places, no `isInstanceOf`, no
-   `@unchecked` outside `eval.Fn`.
+3. **scalafix `DisableSyntax`** on `core`, `proof`, `eval`, `decision`, `dsl`: no `null` (but `dsl.node.Parent.of`), no
+   `var` in classes, no `throw` (but "FrFlow bug" sites, `Failure(fault)` in `Elab`, `ReadRecording`, `Term.select`,
+   `CodeSyntax`'s refusals, and `NotEvaluated` where 7.1 says), no `asInstanceOf` outside 7.3's places, no
+   `isInstanceOf`, no `@unchecked` outside `eval.Fn`.
 4. **Size budgets** in CI against a committed baseline: a change may not add a violation. The five- and six-input
    `apply` forms of `Declaration` and `Definition` are an accepted exception to the four-parameter limit: Scala cannot
    shorten them.

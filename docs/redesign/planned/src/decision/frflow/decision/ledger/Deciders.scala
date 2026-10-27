@@ -9,7 +9,7 @@ import java.nio.charset.StandardCharsets.UTF_8
   * when its key is listed under its decider's name. FrFlow reads the committed versions only, so filing a new key
   * under a new name, editing the file, or committing an older version again makes no one a decider.
   */
-final case class Deciders(entries: List[Decider], after: Option[String], seal: Seal):
+final case class Deciders(entries: List[Decider], after: Option[String], seal: Option[Seal]):
   def allows(name: String, key: String): Boolean = entries.exists(d => d.name == name && d.key == key)
 
   /** Signed by a decider listed under its name, and the signature verifies. */
@@ -30,7 +30,8 @@ object Deciders:
     */
   def follows(previous: Option[Deciders], next: Deciders, verify: Seals.Verifier): Boolean =
     val signers = previous.fold(next.entries.take(1))(_.entries)
-    next.after == previous.map(_.ref) && signers.exists(_.key == next.seal.key) && verify(next.seal, next.payload)
+    next.after == previous.map(_.ref) &&
+      next.seal.exists(s => signers.exists(_.key == s.key) && verify(s, next.payload))
 
   /** The list that counts: the last committed version, when each version, oldest first, follows the one before. */
   def committed(versions: List[Deciders], verify: Seals.Verifier): Option[Deciders] =

@@ -65,7 +65,9 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
     by every writer (`cover_<op>`), met at the start (`start_<node>`), shown to admit a value (`inhabited_<node>`)
     (2.3; `AlwaysSuite`).
 11. The eliminator is derived per type from `Mirror.SumOf` (`CaseMacros`); each arm is a host function over the case's
-    fields (`When`), the case found by a derived test, with no cast; `Expr.Match` in the IR (`ChangesSuite`).
+    fields (`When`), the case found by a derived test, with no cast; `Expr.Match` in the IR (`ChangesSuite`). An arm is
+    named by its case's type, `.on[Change.Book](b => …)`, and a case without fields by its singleton type,
+    `.on[Change.Clear.type](…)`, in any position: the only spelling.
 12. A Boolean's fold is `when(c)(a).otherwise(b)` (`Conditional`), since a `fold` hid which branch is which; an
     option's and an either's folds stay (`ChangesSuite`, `BookSuite`). In the IR: `Expr.If`, `Expr.Match`.
 13. `foldLeft` appears in crm, keycloak and sharing, in Scala as well as in terms. It has two host-function variables;
@@ -158,9 +160,11 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
     claim's own run, one formula for both outcomes:
     `handle(r).from(before) { (answer, after) => … }.failing { (error: Term[E], after) => … }`
     (`SharingClaimsSuite`).
-20. On the model, with named arguments: `stored.checkedAgainst(start = held => …, observe = adapter => …)`. Runs
-    are generated from the boundary's signature (`Runs`), answers then states compared (`CodeTable.realized`). It is
-    the only check of an outside system's adapter (3.7; `StoreModelSuite`).
+20. On the model, with named arguments: `stored.checkedAgainst(start = held => …, observe = adapter => …)`. Runs are
+    generated from the boundary's signature (`Runs`), answers then states compared (`CodeTable.realized`). It is the
+    only check of an outside system's adapter (3.7; `StoreModelSuite`). The project's own implementation is checked with
+    `stored.implementedBy(start, observe)`, as today. An outside system's is run at most 200 times, the project's own on
+    every case (1,000), and a node's count is the sum of its checks'.
 21. Statements are about values only (owner §21): nothing is assumed of a function's inputs. What comes from outside
     gets a type of its own, rooms' `Request`, and what is trusted about it is an assumption of `always` on that type:
     `fromTheForm`, "The booking form sends only requests that end after they start", is
@@ -266,8 +270,8 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
 | the contradiction search (`unsat`, `clash`) | `TryKind` | — | keep, note 9 |
 | authored proofs, `scaffold`, proof rules | `Discharge.Authored`, `proof.reading` | — | keep |
 
-1. `impl` is the step of a node with proven code from its parts (claims about what the code calls), so `complete` is
-   not asked of it (rooms' root, `BookSuite`; 2.7).
+1. `impl` is the step of a node with proven code from its stated parts, the code put in, or a leaf's `reliesOn`, a proof
+   that goes round refused (`RestsOnItself`); `complete` is not asked of it (rooms' root, `BookSuite`; 2.7).
 2. Several root statements, the claims without parents, on any Definitions and Declarations, a statement relating them
    included; no `SeveralRoots` problem, and keeping them a concise few is the author's. A service's purpose about its
    entry program is one: rooms' `bookWhenFree` and `answersWhetherBooked`, beside its claims of `always` (owner §9,
@@ -301,11 +305,15 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
 
 1. Derived generators seeded by the examples, shrinking, coverage of a claim's parts, counterexamples saved and
    replayed, and the `.frflow/tests.json` cache. Each case draws the inputs, makes the values the code reads with
-   `Wiring`, calls through `Fn` and is judged by `CallCheck`, against every claim mentioning the tested Definition:
-   per call where the claim reads as one, else the claim evaluated whole on its drawn variables. A claim with no Scala
-   value is "not checked" (`Warning.NotChecked`). `PropertyTests.of` is written (`CalendarSuite`: the README's
-   calendar on 500 cases); shrinking and the cache are step 5's. What the running service checked on each call is
-   checked here, before production (4.9).
+   `Wiring`, calls through `Fn` and is judged by `CallCheck`, against every claim mentioning the tested Definition: per
+   call where the claim reads as one, else the claim evaluated whole on its drawn variables. A claim with no Scala value
+   is "not checked" (`Outcome.NotChecked`, shown as `Warning.NotChecked`), never a failure, and nothing is shrunk, saved
+   or replayed for it. Coverage counts what each case reaches: each implication's premise holding, each side of an `or`,
+   each condition both ways, each arm of a match, each list or option a quantifier ranges over not empty; in model tests
+   each operation called and each branch of the model's steps. `cases` is the number tried, a case that cannot be drawn
+   not tried and the shortfall said. `PropertyTests.of` is written (`CalendarSuite`: the README's calendar on 500
+   cases); shrinking is step 5's, the cache step 8's. What the running service checked on each call is checked here,
+   before production (4.9).
 2. crm's `recordsByQuery` and keycloak's `sessionLookup`, tested against their assumptions' formulas; this replaces
    the run-time check of every adapter call (8).
 3. Over two `World`s: the adapter, by `BoundaryOps.call`, and the model, by `World.models`; runs generated by `Runs`
