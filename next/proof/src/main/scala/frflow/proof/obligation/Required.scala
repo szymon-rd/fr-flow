@@ -61,14 +61,18 @@ object Required:
   private def givenWhat(hyps: List[NodeId]): String =
     if hyps.isEmpty then "." else s", given what ${hyps.map(_.value).mkString(", ")} promise."
 
-  /** `cover_<op>` of a claim of `always`, for each program it applies to whose code is proven (`Scope`):
+  /** `cover_<op>` of a claim of `always`, for each program it applies to whose code is proven and calls a store the
+    * `always` is about (`Scope`):
     * every run of the code keeps it, from a world meeting every `always`, on inputs meeting theirs (`Keeping`), given
     * what the code relies on. A Definition making values of an `always[T]`'s type is asked that its result meets it
     * (`covers`).
     */
   def keeps(r: Resolved, n: NodeId): List[Obligation] =
     val guards = Guards.byAlways(r.theory)
-    (guards.toMap.get(n).toList, Scope.of(r.theory, n)).tupled.flatMap { (kept, op) =>
+    val stores = r.theory.node(n).flatMap(_.statement.range).toList.flatMap(Scope.models(r.theory, _)).map(_.boundary)
+    val writers = Scope.of(r.theory, n).filter(op =>
+      Callees.ofDefinition(r.theory, op).exists(_.calls.boundaries.exists(stores.contains)))
+    (guards.toMap.get(n).toList, writers).tupled.flatMap { (kept, op) =>
       (Callees.ofDefinition(r.theory, op).flatMap(_.standsFor.get(op)), typeOf(r, op)).tupled.map { (code, ty) =>
         val goal = Prop.Keeps(n, op, Keeping.formula(op, ty, inputs(r, op, ty), kept, guards.map(_._2)),
           Map(op -> Substitute.Code(code)))

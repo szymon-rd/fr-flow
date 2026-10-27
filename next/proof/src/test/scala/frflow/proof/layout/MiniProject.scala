@@ -1,19 +1,26 @@
 package frflow.proof.layout
 
 import frflow.core.Booking
+import frflow.core.analysis.Resolved
 import frflow.core.consistency.Vacuity
+import frflow.core.example.Example
 import frflow.proof.lean.ast.LeanModule
 import frflow.proof.obligation.{Constant, NodeObligations, Obligation, Obligations}
 import frflow.proof.terms.TermTable
 import frflow.proof.whole.{ExampleGoals, Joint, Possible}
 
-/** Mini's Lean: its obligations, those of the theory as a whole (the witness search's value for `endsAfterStart`
-  * given), and every module `LeanProject` lays out.
+/** A theory's Lean: its nodes' obligations, those of the theory as a whole (with the values a witness search found),
+  * and every module `LeanProject` lays out.
   */
-object MiniProject:
-  lazy val table: TermTable = TermTable.of(Mini.resolved)
-  lazy val nodes: List[NodeObligations] = Obligations.of(Mini.resolved, table, Set.empty)
-  lazy val whole: List[Obligation] = Joint.of(Mini.resolved) ++
-    Possible.of(Mini.resolved, Map(Vacuity.Inhabited(Mini.endsAfterStartId, Booking.ty) ->
-      List(Constant(Mini.booking, Booking.ty)))) ++ ExampleGoals.of(Mini.resolved, Mini.examples)
-  lazy val modules: List[LeanModule] = LeanProject.of(Mini.resolved, table, nodes, whole)
+final class Laid(r: Resolved, found: Map[Vacuity, List[Constant]], examples: List[Example]):
+  lazy val table: TermTable = TermTable.of(r)
+  lazy val nodes: List[NodeObligations] = Obligations.of(r, table, Set.empty)
+  lazy val whole: List[Obligation] = Joint.of(r) ++ Possible.of(r, found) ++ ExampleGoals.of(r, examples)
+  lazy val modules: List[LeanModule] = LeanProject.of(r, table, nodes, whole)
+  def obligations: List[Obligation] = nodes.flatMap(o => o.required ++ o.tried) ++ whole
+
+/** Mini's Lean, the witness search's value for `endsAfterStart` given. */
+val MiniProject: Laid = Laid(Mini.resolved, Map(Vacuity.Inhabited(Mini.endsAfterStartId, Booking.ty) ->
+  List(Constant(Mini.booking, Booking.ty))), Mini.examples)
+
+val ProgramsProject: Laid = Laid(Programs.resolved, Map.empty, Nil)

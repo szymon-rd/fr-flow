@@ -10,7 +10,8 @@ import frflow.proof.lean.lower.{Atoms, LowerModels, LowerProg, LowerType, Naming
 import frflow.proof.lean.term.Printed
 
 /** The modules of the vocabulary: `Types` (the domain's types, each after those its fields name), a `Def_` module per
-  * define (a change to one rebuilds only what uses it), `Boundaries` (the classes, models and world), and `Domain`,
+  * define (a change to one rebuilds only what uses it), `Boundaries` (the classes, models and world: a world with no
+  * model when there is none, what a program's runs are between), and `Domain`,
   * importing every define's.
   */
 object VocabularyModules:
@@ -20,7 +21,7 @@ object VocabularyModules:
 
   def of(l: Lowering): List[LeanModule] =
     val v = l.resolved.theory.vocabulary
-    types(l) :: Option.when(v.models.nonEmpty)(boundaries(l)).toList ++ v.defines.map(define(l, _)) :+ domain(l)
+    (types(l) :: boundaries(l) :: v.defines.map(define(l, _))) :+ domain(l)
 
   private def module(l: Lowering, name: ModuleName, decls: List[Decl]): LeanModule =
     Imports.onto(l, LeanModule(name, Nil, Preamble.generated, Names.path(l.kb.value), Nil, decls))
