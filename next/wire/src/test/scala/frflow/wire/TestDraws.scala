@@ -4,11 +4,11 @@ import frflow.core.example.Given
 import frflow.core.expr.{Side, Value}
 import frflow.core.name.{BoundaryName, CtorName, DefName, ModelName, NodeId, OpName, SymbolName, TypeName}
 import frflow.core.ty.{NumKind, Ty}
-import frflow.eval.{EvalError, ScalaValue}
+import frflow.eval.EvalError
 import frflow.eval.run.Broken
 import frflow.testing.Seed
-import frflow.testing.model.{Difference, Step}
-import frflow.testing.report.{Against, Drawn, Failure, Made, Position, TestReport}
+import frflow.testing.model.{Difference, Ran, Step}
+import frflow.testing.report.{Against, Count, Drawn, Failure, Made, Outcome, Position, Reach, Target, TestReport}
 import frflow.wire.Draws.*
 import org.scalacheck.{Arbitrary, Gen}
 
@@ -46,24 +46,32 @@ object TestDraws:
     node.map(Broken.Assumption(_)), evalError.map(Broken.NotEvaluated(_)), text.map(Broken.Threw(_)))
 
   val drawn: Gen[Drawn] = Gen.zip(Arbitrary.arbitrary[Long].map(Seed(_)), small, small).map(Drawn(_, _, _))
-  private val scala: Gen[ScalaValue] = text.map(ScalaValue(_))
   val step: Gen[Step] =
-    Gen.zip(word, word, few(scala)).map((b, o, args) => Step(BoundaryName(b), OpName(o), args))
+    Gen.zip(word, word, few(value(1))).map((b, o, args) => Step(BoundaryName(b), OpName(o), args))
 
-  val difference: Gen[Difference] = Gen.oneOf(Gen.zip(step, scala, scala).map(Difference.Answer(_, _, _)),
-    Gen.zip(scala, scala).map(Difference.State(_, _)), text.map(Difference.Threw(_)))
+  val ran: Gen[Ran] = Gen.oneOf(value(1).map(Ran.Gave(_)), value(1).map(Ran.Failed(_)), text.map(Ran.Threw(_)))
+
+  val difference: Gen[Difference] = Gen.oneOf(Gen.zip(step, ran, ran).map(Difference.Call(_, _, _)),
+    Gen.zip(value(1), value(1)).map(Difference.State(_, _)), text.map(Difference.NotRun(_)))
 
   val failure: Gen[Failure] = Gen.oneOf(
     Gen.zip(few(value(2)), few(Gen.zip(word.map(SymbolName(_)), value(1)).map(Given(_, _))), broken, drawn)
       .map(Failure.Call(_, _, _, _)),
     Gen.zip(value(2), few(step), difference, drawn).map(Failure.Run(_, _, _, _)))
 
-  val against: Gen[Against] = Gen.oneOf(node.map(Against.Claim(_)), word.map(d => Against.Define(DefName(d))),
-    Gen.zip(node, small).map(Against.Model(_, _)))
+  val against: Gen[Against] = Gen.oneOf(node.map(Against.Claim(_)), Gen.zip(node, small).map(Against.Model(_, _)))
 
-  val report: Gen[TestReport] = Gen.zip(small, Arbitrary.arbitrary[Long].map(Seed(_)), against, Gen.option(failure),
-    few(small.map(Position(_))), few(Gen.zip(ty(2), Gen.option(text)).map(Made(_, _))))
-    .map(TestReport(_, _, _, _, _, _))
+  val outcome: Gen[Outcome] = Gen.oneOf(Gen.const(Outcome.Passed), failure.map(Outcome.Failed(_)),
+    evalError.map(Outcome.NotChecked(_)))
+
+  val reach: Gen[Reach] = Gen.oneOf(Gen.oneOf(Reach.Premise, Reach.NonEmpty), small.map(Reach.Side(_)),
+    Arbitrary.arbitrary[Boolean].map(Reach.Branch(_)), small.map(Reach.Arm(_)), word.map(o => Reach.Called(OpName(o))))
+
+  val target: Gen[Target] = Gen.zip(few(small).map(Position(_)), reach).map(Target(_, _))
+
+  val report: Gen[TestReport] = Gen.zip(Gen.zip(small, small).map(Count(_, _)),
+    Arbitrary.arbitrary[Long].map(Seed(_)), against, outcome, few(target),
+    few(Gen.zip(ty(2), Gen.option(text)).map(Made(_, _)))).map(TestReport(_, _, _, _, _, _))
 
   val tests: Gen[Map[NodeId, (String, TestReport)]] = byKey(node, Gen.zip(hex, report))
   val counterexamples: Gen[Map[NodeId, List[Failure]]] = byKey(node, few(failure))

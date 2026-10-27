@@ -143,14 +143,42 @@
             "boundary": "Bookings",
             "op": "add",
             "args": [
-              "Booking(Oak,9,10)"
+              {
+                "kind": "data",
+                "ctor": "mk",
+                "fields": [
+                  {
+                    "kind": "str",
+                    "value": "Oak"
+                  },
+                  {
+                    "kind": "num",
+                    "value": 9
+                  },
+                  {
+                    "kind": "num",
+                    "value": 10
+                  }
+                ]
+              }
             ]
           }
         ],
         "difference": {
           "kind": "state",
-          "implementation": "Nil",
-          "model": "List(x)"
+          "implementation": {
+            "kind": "many",
+            "elems": []
+          },
+          "model": {
+            "kind": "many",
+            "elems": [
+              {
+                "kind": "str",
+                "value": "x"
+              }
+            ]
+          }
         },
         "from": {
           "seed": -7,
@@ -181,12 +209,98 @@
             "boundary": "Bookings",
             "op": "add",
             "args": [
-              "Booking(Oak,9,10)"
+              {
+                "kind": "data",
+                "ctor": "mk",
+                "fields": [
+                  {
+                    "kind": "str",
+                    "value": "Oak"
+                  },
+                  {
+                    "kind": "num",
+                    "value": 9
+                  },
+                  {
+                    "kind": "num",
+                    "value": 10
+                  }
+                ]
+              }
             ]
           }
         ],
         "difference": {
-          "kind": "threw",
+          "kind": "call",
+          "step": {
+            "boundary": "Bookings",
+            "op": "add",
+            "args": []
+          },
+          "implementation": {
+            "kind": "threw",
+            "message": "closed"
+          },
+          "model": {
+            "kind": "failed",
+            "error": {
+              "kind": "str",
+              "value": "down"
+            }
+          }
+        },
+        "from": {
+          "seed": -7,
+          "index": 2,
+          "size": 1
+        }
+      },
+      {
+        "kind": "run",
+        "start": {
+          "kind": "world",
+          "states": [
+            {
+              "model": "stored",
+              "state": {
+                "kind": "many",
+                "elems": []
+              }
+            }
+          ],
+          "faults": [
+            false,
+            true
+          ]
+        },
+        "steps": [
+          {
+            "boundary": "Bookings",
+            "op": "add",
+            "args": [
+              {
+                "kind": "data",
+                "ctor": "mk",
+                "fields": [
+                  {
+                    "kind": "str",
+                    "value": "Oak"
+                  },
+                  {
+                    "kind": "num",
+                    "value": 9
+                  },
+                  {
+                    "kind": "num",
+                    "value": 10
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "difference": {
+          "kind": "not-run",
           "message": "closed"
         },
         "from": {
