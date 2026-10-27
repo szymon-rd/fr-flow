@@ -33,6 +33,12 @@ class ValidateSuite extends munit.FunSuite:
     assertEquals(ValueCases.proven.without("stray").problems, Nil)
   }
 
+  test("a model named as its boundary's class, its namespace in Lean, is declared twice") {
+    val clashing = Store.kb.declaring(v => v.copy(models = v.models.map(_.copy(name =
+      frflow.core.name.ModelName("bookings")))))
+    assert(clashing.problems.contains(Problem.DeclaredTwice("Bookings")), clashing.problems)
+  }
+
   test("an empty theory has no root to miss") {
     assertEquals(Kb.empty.problems, Nil)
   }
