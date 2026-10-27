@@ -1,4 +1,4 @@
-+ sessionLookup  assumption on lookup  accepted
+- sessionLookup  assumption on lookup  accepted
   The store's index returns a session it holds under the token in the realm asked, if it holds one, and never one of another realm or token.
   why: Sessions live in a store indexed by realm and token (in memory here; a database or cache in a cluster). Introspection is proven from this promise, not from the index; the index is checked against the define it is decided with on its examples, and every session it returns is checked to be of the realm and token asked.
 

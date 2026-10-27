@@ -12,7 +12,7 @@ Where it sits
   used by    + invitationsLapseOnTime: "While housekeeping runs at least every two minutes, no invitation stays pending longer than 7 days and two minutes after it was sent."
   used by    + trashPurgedOnTime: "While housekeeping runs at least every two minutes, no document stays in the trash longer than 30 days and two minutes."
   used by    + requestsAnsweredOnTime: "While housekeeping runs at least every two minutes, no access request stays pending longer than 7 days and two minutes after it was made, and none goes more than 48 hours and two minutes without its reminder."
-  used by    + housekeepingOnTime (assumption): "Housekeeping runs often enough: time never moves on more than two minutes past its last run."
+  used by    - housekeepingOnTime (assumption): "Housekeeping runs often enough: time never moves on more than two minutes past its last run."
 
 Vocabulary
   housekeepingWithin: the longest the service goes without a run of housekeeping, in seconds (defined by housekeepingPeriod)

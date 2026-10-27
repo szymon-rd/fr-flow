@@ -9,11 +9,11 @@
 + sessionsMirrorSignIns: step proven
 + accountsAsAdministered: step proven
 + oneSignInPerToken: step proven
-+ freshTokens: proven
-+ storeKeepsState: proven
+- freshTokens: assumed
+- storeKeepsState: assumed
 + handleRequest: proven
 + introspect: code tested on 1,000 cases
-+ sessionLookup: proven
+- sessionLookup: assumed
 + consistency of freshTokens: Lean proves a meaning meets it: history as the value List()
 o consistency of handleRequest: step: nothing says what it equals, and no proven code gives it; say what it equals (a statement step(…) === …)
 + consistency of storeKeepsState: Lean proves a meaning meets it: record as storeKeepsState says

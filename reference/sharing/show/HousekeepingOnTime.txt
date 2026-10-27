@@ -1,4 +1,4 @@
-+ housekeepingOnTime  assumption  accepted  trusted
+- housekeepingOnTime  assumption  accepted  trusted
   Housekeeping runs often enough: time never moves on more than two minutes past its last run.
   why: The scheduler starts housekeeping every minute (Housekeeping.schedule); this is what the deadlines need of it. A run that fails changes nothing (housekeepingJob) and is tried again at the next minute (Q16), so this asks for a run that succeeds every two minutes: a store down longer breaks it. Not proven: the server checks it as it runs, and the tests show which claims fail without it.
 

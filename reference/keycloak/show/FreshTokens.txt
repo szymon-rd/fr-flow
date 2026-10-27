@@ -1,4 +1,4 @@
-+ freshTokens  assumption  accepted  trusted
+- freshTokens  assumption  accepted  trusted
   Every sign-in carries a token no earlier sign-in carried.
   why: The server draws 256 random bits for each sign-in (httpApi): a repeat does not happen in practice. Trusted, not proven; the server also refuses a token an open session holds.
 

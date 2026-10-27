@@ -1,4 +1,4 @@
-+ storeKeepsState  assumption on record  accepted  trusted
+- storeKeepsState  assumption on record  accepted  trusted
   Storing a request with the state it led to keeps that state: read back, the store holds exactly it.
   why: The state lives in a store (in memory here; a database in a cluster). The handling of a request is proven from this promise, not from the store's code; what is stored is read back on every call, so a write the store dropped or changed is seen at once.
 

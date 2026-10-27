@@ -1,4 +1,4 @@
-+ decisionContract  contract on admit  accepted  trusted
++ decisionContract  contract on admit  accepted  tested, not proven
   A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path.
   why: The three parts, stated for one call, so every result of the running system can be checked.
 

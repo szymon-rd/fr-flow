@@ -15,9 +15,9 @@ Where it sits
   part of    + writesOnlyAsAsked  with writeContract: "A write changes nothing its author did not ask of their company's records: it adds no other record, and changes no other share or share's time."
   part of    + recordsKept  with writeContract, sharesExpire: "No write and no run of the expiry job removes a record: after each, the CRM holds every record it held before."
   design     - writeSideWiring (design): "The write side saves each write through service, on the store loaded from the database, one write at a time, and logs it in the event log."
-  calls      + storeEdits (assumption): "Storing what a store holds about one record replaces what the database holds about it, and nothing else; read back, the rows about it are what the store holds about it."
+  calls      - storeEdits (assumption): "Storing what a store holds about one record replaces what the database holds about it, and nothing else; read back, the rows about it are what the store holds about it."
   calls      + writeContract (contract): "A write keeps every record, leaves the records of other companies as they were, does what its author asked of their company's records, and changes nothing else."
-  called by  + recordsByQuery (assumption): "The database returns exactly the stored records that match a search, of every company."
+  called by  - recordsByQuery (assumption): "The database returns exactly the stored records that match a search, of every company."
   called by  + readContract (contract): "A search on the records screen returns exactly the stored records that match it and the user may read: each of the user's company or shared with it now."
 
 Vocabulary

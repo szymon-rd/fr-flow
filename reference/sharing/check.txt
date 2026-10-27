@@ -38,8 +38,8 @@
 + tidyContract: proven
 + housekeepingJob: proven
 + deliveryJob: proven
-+ clockNeverGoesBack: proven
-+ housekeepingOnTime: proven
+- clockNeverGoesBack: assumed
+- housekeepingOnTime: assumed
 + handleContract: proven
 + libraryKept: MemoryLibraryStore and SqlLibraryStore give what the model gives on 1,200 generated runs
 + mailerKept: MemoryMailer gives what the model gives on 1,000 generated runs
@@ -89,7 +89,7 @@ o consistency of askContract, announceContract, recordContract, forgetContract, 
 
 Sharing: 58 nodes, 58 accepted
 Proofs: splits 12/12, claims down to their code 29/29, root_impl proven, consistency not proven, nothing vacuous (2 open: check says which)
-Tests: implementations against their models 3/3, examples in Lean 119/119, at run time 26 not checked (proven)
+Tests: implementations against their models 3/3, examples in Lean 119/119
 Trusted: clockNeverGoesBack, housekeepingOnTime, libraryKept (a model), mailerKept (a model), clockKept (a model)
 Nothing waits: every node is accepted and proven.
 marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do

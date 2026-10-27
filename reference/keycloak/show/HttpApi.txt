@@ -7,7 +7,7 @@ Formally (as written in Scala)
 
 Where it sits
   part of    - serviceWiring (design)  its only part: "Every request reaches the store through service, one at a time: a sign-in, sign-out or administrator's change runs handleRequest's code on the stored state, which stores its result through storeKeepsState; an introspection runs introspect's code on the state the store holds."
-  part of    + freshTokens (assumption)  its only part: "Every sign-in carries a token no earlier sign-in carried."
+  part of    - freshTokens (assumption)  its only part: "Every sign-in carries a token no earlier sign-in carried."
 
 Code
   governs: src/main/scala/keycloak/Server.scala

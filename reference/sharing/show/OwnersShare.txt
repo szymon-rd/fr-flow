@@ -23,7 +23,7 @@ Where it sits
   used by    + trashPurgedOnTime: "While housekeeping runs at least every two minutes, no document stays in the trash longer than 30 days and two minutes."
   used by    + requestsAnsweredOnTime: "While housekeeping runs at least every two minutes, no access request stays pending longer than 7 days and two minutes after it was made, and none goes more than 48 hours and two minutes without its reminder."
   used by    + approveContract (contract): "Someone who may edit a document or folder approves a person's pending request for it: the person then has a share of it at the level asked, for good, in place of any share of it they had, and the request goes. Otherwise, or when it is the person's own document (their share of it is the owner's), nothing changes."
-  used by    + housekeepingOnTime (assumption): "Housekeeping runs often enough: time never moves on more than two minutes past its last run."
+  used by    - housekeepingOnTime (assumption): "Housekeeping runs often enough: time never moves on more than two minutes past its last run."
   used by    + handleContract (contract): "A request is answered at the time the clock gives, from the library the store holds, and leaves the store holding the library it leads to: a question is answered with the person's access and changes nothing; a change is made as its operation makes it, recorded in the log and announced in the outbox in the same save, and answered done when it may be made and refused otherwise. Handling does not move the clock. A request the store fails changes nothing."
 
 Vocabulary

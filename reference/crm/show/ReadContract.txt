@@ -19,7 +19,7 @@ Where it sits
   part of    + noCrossTenantRead (invariant)  with dealSearch: "No search returns a record of another company unless that company shared it with the reader's, for good or until a time not yet come."
   design     - readSideWiring (design): "The records screen and the sales screen serve searches through service, which checks every result against readContract or dealSearch and the invariant they keep; they read the store, shares and expiries from the database's tables, the history from its event log, and the clock."
   uses       - crmRun (definition): "What the CRM holds now, its records, their shares and the shares' expiries, is what its history led to: from empty, each write saved by the write side, the rows about its record replaced by those it stored, and each run of the expiry job, in turn."
-  calls      + recordsByQuery (assumption): "The database returns exactly the stored records that match a search, of every company."
+  calls      - recordsByQuery (assumption): "The database returns exactly the stored records that match a search, of every company."
   calls      + sharesExpire (contract): "A run of the expiry job at a time removes exactly the shares given until then or earlier, with their times, and keeps every record and every other share's time."
   calls      + saveWrite (contract): "Saving a write stores, and returns as read back, what the store the write leads to holds about the written record."
   called by  + dealSearch (contract): "A deal search returns exactly the stored deals that match it and the user may read."

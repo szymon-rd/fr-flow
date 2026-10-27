@@ -1,4 +1,4 @@
-+ storeEdits  assumption on storeRows  accepted  trusted
+- storeEdits  assumption on storeRows  accepted  trusted
   Storing what a store holds about one record replaces what the database holds about it, and nothing else; read back, the rows about it are what the store holds about it.
   why: The database is outside the proofs: the write side is proven from this promise. The rows are read back after storing, and checked: a write the database dropped or changed is seen on the call. That it changes nothing else is trusted (crmRun).
 

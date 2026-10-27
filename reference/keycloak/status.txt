@@ -20,15 +20,15 @@
 |     `- -> introspect
 `- + signedInAreAccepted: "A user who signed in to a realm and got a token, has not signed out with it since and is still enabled, has it accepted there as theirs, with their roles."
    |- + oneSignInPerToken: "Two sign-ins that still stand never share a token: a token names one session at most."
-   |  `- + freshTokens (assumption): "Every sign-in carries a token no earlier sign-in carried."
+   |  `- - freshTokens (assumption): "Every sign-in carries a token no earlier sign-in carried."
    |     `- -> httpApi
    |- -> sessionsMirrorSignIns
    |- -> accountsAsAdministered
    `- -> introspect
 
 Assumptions, under no parent: trusted (the code calls them)
-+ storeKeepsState (assumption): "Storing a request with the state it led to keeps that state: read back, the store holds exactly it."
-+ sessionLookup (assumption): "The store's index returns a session it holds under the token in the realm asked, if it holds one, and never one of another realm or token."
+- storeKeepsState (assumption): "Storing a request with the state it led to keeps that state: read back, the store holds exactly it."
+- sessionLookup (assumption): "The store's index returns a session it holds under the token in the realm asked, if it holds one, and never one of another realm or token."
 
 Definitions: they fix terms of the vocabulary (decided, not proven)
 - identities (definition): "Realms are named; a user is named by their username in a realm; tokens and roles are strings."

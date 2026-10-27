@@ -21,7 +21,7 @@ Parts: together they make it (proven: authored)
   + inForceContract (contract)  needed: "A share is in force while now is before its end; a share with no end is always in force."
   + isOpenContract (contract)  needed: "An invitation is open from its sending until 7 days after; then it has lapsed."
   + goneContract (contract)  needed: "A document in the trash is gone 30 days after it was put there; a document not in the trash is never gone."
-  + clockNeverGoesBack (assumption)  needed: "Time never goes back between the service's events: each wait is of no time or more."
+  - clockNeverGoesBack (assumption)  needed: "Time never goes back between the service's events: each wait is of no time or more."
   clash: Lean found no proof that the parts contradict each other (a try)
 
 Vocabulary

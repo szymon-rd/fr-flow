@@ -1,4 +1,4 @@
-+ recordsByQuery  assumption on fetch  accepted  trusted
+- recordsByQuery  assumption on fetch  accepted  trusted
   The database returns exactly the stored records that match a search, of every company.
   why: Records live in SQLite. The read side is proven from this promise, not from the SQL; the SQL is checked against the define the port is decided with on its examples and on varied data, and every result it returns is checked to match the search.
 

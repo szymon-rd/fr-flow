@@ -1,4 +1,4 @@
-+ introspect  contract on introspect  accepted  trusted
++ introspect  contract on introspect  accepted  tested, not proven
   An introspection names the realm asking, and a user enabled there with their roles, only for a session that realm holds under the token; and it names that session's user whenever the user is enabled and the token names no other session there.
   why: Keycloak's introspection endpoint, for one request, so each answer of the running server is checked. The claims carry the user's realm roles, which applications use to authorise.
 

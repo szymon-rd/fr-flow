@@ -1,4 +1,4 @@
-+ clockNeverGoesBack  assumption  accepted  trusted
+- clockNeverGoesBack  assumption  accepted  trusted
   Time never goes back between the service's events: each wait is of no time or more.
   why: Q9: the server's clock never goes back. A clock set back (by hand, or by a time server) would break this; the server reads the clock once per request, so it would answer as if earlier.
 

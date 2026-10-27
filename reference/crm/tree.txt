@@ -26,8 +26,8 @@
 `- - expiryJobWiring (design): "The expiry job runs every minute, holding the database's lock during a run so no write interleaves with it; its code is the flow expiryJob is proven of, run on SQLite."
 
 Assumptions, under no parent: trusted (the code calls them)
-+ recordsByQuery (assumption): "The database returns exactly the stored records that match a search, of every company."
-+ storeEdits (assumption): "Storing what a store holds about one record replaces what the database holds about it, and nothing else; read back, the rows about it are what the store holds about it."
+- recordsByQuery (assumption): "The database returns exactly the stored records that match a search, of every company."
+- storeEdits (assumption): "Storing what a store holds about one record replaces what the database holds about it, and nothing else; read back, the rows about it are what the store holds about it."
 - tablesModel (assumption): "The database holds a store and an event log: it gives the store as it holds it, holds the rows a store has about a record in place of those it held about it, leaving the other records' rows, and appends an event to the log."
 
 Definitions: they fix terms of the vocabulary (decided, not proven)

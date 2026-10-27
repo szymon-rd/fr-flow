@@ -10,7 +10,7 @@ Where it sits
   part of    + signedInAreAccepted  with sessionsMirrorSignIns, accountsAsAdministered, introspect: "A user who signed in to a realm and got a token, has not signed out with it since and is still enabled, has it accepted there as theirs, with their roles."
 
 Parts: together they make it (proven: authored)
-  + freshTokens (assumption)  needed: "Every sign-in carries a token no earlier sign-in carried."
+  - freshTokens (assumption)  needed: "Every sign-in carries a token no earlier sign-in carried."
   clash: Lean found no proof that the parts contradict each other (a try)
 
 Vocabulary

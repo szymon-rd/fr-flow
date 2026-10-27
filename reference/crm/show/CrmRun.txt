@@ -12,7 +12,7 @@ Where it sits
   used by    + visibility: "A search, on either screen, returns exactly the stored records it asks for that the user may read now: of their company, or shared with it now."
   used by    + noCrossTenantRead (invariant): "No search returns a record of another company unless that company shared it with the reader's, for good or until a time not yet come."
   used by    + searchesMatch: "A search, on either screen, returns only stored records it asks for, and every stored record it asks for that the user may read."
-  used by    + recordsByQuery (assumption): "The database returns exactly the stored records that match a search, of every company."
+  used by    - recordsByQuery (assumption): "The database returns exactly the stored records that match a search, of every company."
   used by    + readContract (contract): "A search on the records screen returns exactly the stored records that match it and the user may read: each of the user's company or shared with it now."
   used by    + dealSearch (contract): "A deal search returns exactly the stored deals that match it and the user may read."
 

@@ -20,8 +20,8 @@ Parts: together they make it (proven: authored)
   + announceContract (contract)  needed: "Announcing a change adds, at the end of the outbox, a notice of its entry to each person it tells, as the library before the change says who: the person invited; whoever sent an invitation now accepted; the owner of a document asked for; the person whose request was approved or declined; the new owner of a document. Nothing else changes."
   + housekeepingJob (contract)  needed: "A run of housekeeping leaves the store holding the library it held, tidied, its old log entries forgotten, its access requests chased and the shares ending in a day told of, at the time the clock gives, and, when that changed it, recorded in the log; it does not move the clock. A run that fails changes nothing, and the next minute's run tries again."
   + goneContract (contract)  needed: "A document in the trash is gone 30 days after it was put there; a document not in the trash is never gone."
-  + clockNeverGoesBack (assumption)  needed: "Time never goes back between the service's events: each wait is of no time or more."
-  + housekeepingOnTime (assumption)  needed: "Housekeeping runs often enough: time never moves on more than two minutes past its last run."
+  - clockNeverGoesBack (assumption)  needed: "Time never goes back between the service's events: each wait is of no time or more."
+  - housekeepingOnTime (assumption)  needed: "Housekeeping runs often enough: time never moves on more than two minutes past its last run."
   clash: Lean found no proof that the parts contradict each other (a try)
 
 Vocabulary

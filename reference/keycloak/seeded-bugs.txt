@@ -1,7 +1,7 @@
 # Seeded bugs: keycloak
 
 Each bug is seeded as today's suite seeds it; under it, what stops it today. Generated cases use the
-knowledge base's settings (cases and seed shown on each).
+FrModel's settings (cases and seed shown on each).
 
 ## dropping store (in section 9's table)
 

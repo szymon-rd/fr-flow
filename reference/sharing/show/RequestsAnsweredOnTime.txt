@@ -22,8 +22,8 @@ Parts: together they make it (proven: authored)
   + housekeepingJob (contract)  needed: "A run of housekeeping leaves the store holding the library it held, tidied, its old log entries forgotten, its access requests chased and the shares ending in a day told of, at the time the clock gives, and, when that changed it, recorded in the log; it does not move the clock. A run that fails changes nothing, and the next minute's run tries again."
   + pendingContract (contract)  needed: "An access request is pending from when it is made until 7 days after; then it has lapsed."
   + reminderDueContract (contract)  needed: "The owner is due a reminder of an access request from 48 hours after it is made."
-  + clockNeverGoesBack (assumption)  needed: "Time never goes back between the service's events: each wait is of no time or more."
-  + housekeepingOnTime (assumption)  needed: "Housekeeping runs often enough: time never moves on more than two minutes past its last run."
+  - clockNeverGoesBack (assumption)  needed: "Time never goes back between the service's events: each wait is of no time or more."
+  - housekeepingOnTime (assumption)  needed: "Housekeeping runs often enough: time never moves on more than two minutes past its last run."
   clash: Lean found no proof that the parts contradict each other (a try)
 
 Vocabulary

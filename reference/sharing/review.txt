@@ -2,7 +2,7 @@
 Decided 0 decision(s).
 Sharing: 58 nodes, 58 accepted
 Proofs: splits 12/12, claims down to their code 29/29, root_impl proven, consistency not proven, nothing vacuous (2 open: check says which)
-Tests: implementations against their models 3/3, examples in Lean 119/119, at run time 26 not checked (proven)
+Tests: implementations against their models 3/3, examples in Lean 119/119
 Trusted: clockNeverGoesBack, housekeepingOnTime, libraryKept (a model), mailerKept (a model), clockKept (a model)
 Nothing waits: every node is accepted and proven.
 marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do

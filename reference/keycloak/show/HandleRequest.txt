@@ -13,8 +13,8 @@ Where it sits
   part of    + sessionsMirrorSignIns  with freshTokens: "The server holds a session open in a realm exactly when its user is signed in to that realm with its token."
   part of    + accountsAsAdministered  its only part: "The server holds every user's account as loaded at start, with each administrator's change applied in turn."
   design     - serviceWiring (design): "Every request reaches the store through service, one at a time: a sign-in, sign-out or administrator's change runs handleRequest's code on the stored state, which stores its result through storeKeepsState; an introspection runs introspect's code on the state the store holds."
-  calls      + storeKeepsState (assumption): "Storing a request with the state it led to keeps that state: read back, the store holds exactly it."
-  called by  + sessionLookup (assumption): "The store's index returns a session it holds under the token in the realm asked, if it holds one, and never one of another realm or token."
+  calls      - storeKeepsState (assumption): "Storing a request with the state it led to keeps that state: read back, the store holds exactly it."
+  called by  - sessionLookup (assumption): "The store's index returns a session it holds under the token in the realm asked, if it holds one, and never one of another realm or token."
 
 Vocabulary
   step (operation): the server's handling of one request: the state it stores, from the state before it (open)

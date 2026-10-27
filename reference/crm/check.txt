@@ -3,14 +3,14 @@
 + visibility: step proven
 + noCrossTenantRead: step proven
 + searchesMatch: step proven
-+ recordsByQuery: proven
+- recordsByQuery: assumed
 + readContract: proven
 + dealSearch: proven
 + writesTakeEffect: step proven
 + writesOnlyAsAsked: step proven
 + recordsKept: step proven
 + writeContract: proven
-+ storeEdits: proven
+- storeEdits: assumed
 + saveWrite: proven
 + sharesExpire: proven
 + expiryJob: proven

@@ -19,8 +19,8 @@
 |  `- + trashPurgedOnTime: "While housekeeping runs at least every two minutes, no document stays in the trash longer than 30 days and two minutes."
 |     |- + housekeepingJob (contract): "A run of housekeeping leaves the store holding the library it held, tidied, its old log entries forgotten, its access requests chased and the shares ending in a day told of, at the time the clock gives, and, when that changed it, recorded in the log; it does not move the clock. A run that fails changes nothing, and the next minute's run tries again."
 |     |  `- -> transactions
-|     |- + clockNeverGoesBack (assumption): "Time never goes back between the service's events: each wait is of no time or more."
-|     |- + housekeepingOnTime (assumption): "Housekeeping runs often enough: time never moves on more than two minutes past its last run."
+|     |- - clockNeverGoesBack (assumption): "Time never goes back between the service's events: each wait is of no time or more."
+|     |- - housekeepingOnTime (assumption): "Housekeeping runs often enough: time never moves on more than two minutes past its last run."
 |     |- -> recordContract
 |     |- -> announceContract
 |     `- -> goneContract
@@ -89,7 +89,7 @@ Definitions: they fix terms of the vocabulary (decided, not proven)
 
 Sharing: 58 nodes, 58 accepted
 Proofs: splits 12/12, claims down to their code 29/29, root_impl proven, consistency not proven, nothing vacuous (2 open: check says which)
-Tests: implementations against their models 3/3, examples in Lean 119/119, at run time 26 not checked (proven)
+Tests: implementations against their models 3/3, examples in Lean 119/119
 Trusted: clockNeverGoesBack, housekeepingOnTime, libraryKept (a model), mailerKept (a model), clockKept (a model)
 Nothing waits: every node is accepted and proven.
 marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do

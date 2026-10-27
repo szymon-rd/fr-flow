@@ -11,7 +11,7 @@ Where it sits
   used by    + sessionsMirrorSignIns: "The server holds a session open in a realm exactly when its user is signed in to that realm with its token."
   used by    + accountsAsAdministered: "The server holds every user's account as loaded at start, with each administrator's change applied in turn."
   used by    + introspect (contract): "An introspection names the realm asking, and a user enabled there with their roles, only for a session that realm holds under the token; and it names that session's user whenever the user is enabled and the token names no other session there."
-  used by    + sessionLookup (assumption): "The store's index returns a session it holds under the token in the realm asked, if it holds one, and never one of another realm or token."
+  used by    - sessionLookup (assumption): "The store's index returns a session it holds under the token in the realm asked, if it holds one, and never one of another realm or token."
 
 Vocabulary
   account: the user's account in a realm, as the server holds it now (defined by serverRun)

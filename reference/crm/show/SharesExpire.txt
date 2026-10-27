@@ -10,7 +10,7 @@ Formally (as written in Scala)
 Where it sits
   part of    + storeMirrorsRequests  with writesTakeEffect, writesOnlyAsAsked, recordsKept: "The CRM holds exactly the records its users added, and holds a share of a record as current exactly when the record's company shared it so."
   part of    + recordsKept  with writeContract, saveWrite: "No write and no run of the expiry job removes a record: after each, the CRM holds every record it held before."
-  called by  + recordsByQuery (assumption): "The database returns exactly the stored records that match a search, of every company."
+  called by  - recordsByQuery (assumption): "The database returns exactly the stored records that match a search, of every company."
   called by  + readContract (contract): "A search on the records screen returns exactly the stored records that match it and the user may read: each of the user's company or shared with it now."
   called by  + expiryJob (contract): "A run of the expiry job at a time leaves the database holding, about each record, what sharesExpire's run on what it held gives, logs the run at the end of the event log, and returns that store."
 
