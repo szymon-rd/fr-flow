@@ -1,4 +1,4 @@
-package frflow.decision.ledger
+package frflow.decision.content
 
 import java.nio.ByteBuffer
 

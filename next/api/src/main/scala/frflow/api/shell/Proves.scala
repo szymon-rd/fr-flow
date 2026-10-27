@@ -11,7 +11,7 @@ import frflow.api.view.{CheckEvent, Scaffolded, Stop, View}
 import frflow.core.name.NodeId
 import frflow.project.check.{CheckProgram, Render}
 import frflow.project.pipeline.Analysis
-import frflow.project.program.{StatusProgram, TestProgram}
+import frflow.project.program.{ExportProgram, StatusProgram, TestProgram}
 
 /** `Proving` over a session: a check is Lean's (`CheckProgram`, level by level) then the tests before production
   * (`TestProgram`), both recorded; its levels stream as they start.
@@ -24,6 +24,8 @@ private[api] final class Proves[F[_]: Async: Parallel](s: Session[F]) extends Pr
     s.analysis.flatMap(a => s.guarded(Render(files, library)(a))).map(_.map(_.dotted))
 
   def status: F[View] = s.analysis.flatMap(a => s.guarded(StatusProgram(files, library)(a)) >> s.view(a))
+
+  def snapshot: F[String] = s.analysis.flatMap(a => s.guarded(ExportProgram(files)(a)))
 
   def check(only: Option[NodeId]): Stream[F, CheckEvent] = checked(only, _ => Async[F].unit)
 

@@ -1,7 +1,7 @@
 package frflow.decision.ledger
 
 import frflow.core.name.NodeId
-import frflow.decision.content.Sha
+import frflow.decision.content.{Framed, Sha}
 import java.time.Instant
 
 /** The developer's decisions, per node, oldest first: an append-only log the review states are a fold of. */

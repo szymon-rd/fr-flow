@@ -10,8 +10,6 @@ import frflow.project.pipeline.{Inputs, LeanSources}
 import frflow.project.port.Records
 import frflow.proof.layout.Layout
 import frflow.proof.reading.ProofFile
-import frflow.wire.file.Files
-import frflow.wire.ledger.LedgerFile
 
 /** Reading a run's inputs, each once, side by side: the program every operation starts with. The ledger is read as
   * it counts: against the committed deciders' list, and against every committed version of the ledger (a node whose
@@ -27,9 +25,8 @@ final class ReadInputs[F[_]: Monad: Parallel: Clock](ports: Ports[F], project: P
   private def counted: F[Counted] =
     (ports.ledger.load, ports.keys.deciders, ports.keys.verifier, committed).parMapN(Counted.of)
 
-  /** Each committed version of the ledger, oldest first; none for one that does not read. */
-  private def committed: F[List[Option[Ledger]]] =
-    ports.git.versions(Records.path(LedgerFile.format)).map(_.map(Files.read(LedgerFile.format, _).toOption))
+  /** Each committed version of the ledger from its base, oldest first; none for one that does not read. */
+  private def committed: F[List[Option[Ledger]]] = Committed.ledgers(ports)
 
   /** The proof files, each `lean/Proofs/<KB>/<Node>.lean` directly in that directory, named by an identifier; every
     * other `.lean` file under `lean/Proofs/` a stray.

@@ -3,7 +3,7 @@ package frflow.wire
 import frflow.wire.sample.*
 import frflow.wire.check.ChecksFile
 import frflow.wire.file.{FileFormat, Files}
-import frflow.wire.ledger.{DecidersFile, LedgerFile}
+import frflow.wire.ledger.{DecidersFile, LedgerBaseFile, LedgerFile}
 import frflow.wire.snapshot.Snapshot
 import frflow.wire.test.TestsFile
 import org.scalacheck.{Gen, Prop}
@@ -22,6 +22,7 @@ class RoundTripSuite extends munit.ScalaCheckSuite:
 
   property("the ledger")(roundTrip(LedgerFile.format, LedgerDraws.ledger))
   property("the deciders' list")(roundTrip(DecidersFile.format, LedgerDraws.deciders))
+  property("the ledger's base")(roundTrip(LedgerBaseFile.format, LedgerDraws.base))
   property("the checks")(roundTrip(ChecksFile.format, CheckDraws.checks))
   property("the tests")(roundTrip(TestsFile.format, TestDraws.tests))
   property("the counterexamples")(roundTrip(TestsFile.counterexamples, TestDraws.counterexamples))

@@ -4,14 +4,16 @@ import frflow.api.view.{CheckEvent, Scaffolded, View}
 import frflow.core.name.NodeId
 
 /** What a front end proves with: the Lean written (`render`: the modules whose text changed), the Lean and the
-  * snapshot written then the view (`status`), a check (Lean, then the tests before production) whose progress streams
-  * as it goes and ends with the view after it, `ci` (a check of everything, the snapshot written, then the view), and
-  * a proof file's stubs (`scaffold`: the file written, or why not). Laws: a check's stream ends with one `Done`,
-  * after a `Level` for each level of the check, in order.
+  * snapshot written then the view (`status`), the snapshot written and its text (`snapshot`: `export`, and what
+  * `--json` prints), a check (Lean, then the tests before production) whose progress streams as it goes and ends
+  * with the view after it, `ci` (a check of everything, the snapshot written, then the view), and a proof file's
+  * stubs (`scaffold`: the file written, or why not). Laws: a check's stream ends with one `Done`, after a `Level` for
+  * each level of the check, in order.
   */
 trait Proving[F[_]]:
   def render: F[List[String]]
   def status: F[View]
+  def snapshot: F[String]
   def check(only: Option[NodeId]): fs2.Stream[F, CheckEvent]
   def ci: fs2.Stream[F, CheckEvent]
   def scaffold(id: NodeId): F[Scaffolded]
