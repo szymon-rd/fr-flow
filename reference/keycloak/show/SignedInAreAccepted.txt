@@ -1,0 +1,43 @@
++ signedInAreAccepted  claim  accepted
+  A user who signed in to a realm and got a token, has not signed out with it since and is still enabled, has it accepted there as theirs, with their roles.
+  why: The capability half of the purpose: a server that turned everyone away would meet the safety half alone.
+
+Formally (as written in Scala)
+  formula:
+    forall((r: Term[Realm.T], t: Term[Token.T]) => forall((u: Term[User.T]) =>
+      (signedIn(r, u, t) && enabled(r, u)) implies (accepted(r, t) === some((u, rolesOf(r, u))))))
+
+Where it sits
+  part of    + realmAccess  with noUnauthorizedAccess: "A realm's application accepts a token as a user's, with the user's roles, exactly when the user signed in to that realm and got the token, has not signed out with it since, and is still enabled."
+  uses       - identities (definition): "Realms are named; a user is named by their username in a realm; tokens and roles are strings."
+  uses       - signInHistory (definition): "A user is signed in to a realm with a token when a sign-in of theirs to that realm got the token, while they were enabled and with their password, and no sign-out with the token in that realm came after it."
+  uses       - accounts (definition): "A user is enabled, and has the roles, that their account in the realm says, as loaded at start and as administrators have set it since."
+  uses       - referenceTokens (definition): "A realm's application accepts a token as the server's introspection of it answers: a token is a reference to a session the server holds, not a statement the application reads."
+
+Parts: together they make it (proven: authored)
+  + sessionsMirrorSignIns  needed: "The server holds a session open in a realm exactly when its user is signed in to that realm with its token."
+  + accountsAsAdministered  needed: "The server holds every user's account as loaded at start, with each administrator's change applied in turn."
+  + oneSignInPerToken  needed: "Two sign-ins that still stand never share a token: a token names one session at most."
+  + introspect (contract)  needed: "An introspection names the realm asking, and a user enabled there with their roles, only for a session that realm holds under the token; and it names that session's user whenever the user is enabled and the token names no other session there."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Vocabulary
+  Realm: an organisation using the server, with its own users and applications (defined by identities)
+  Role: what a realm lets a user do in its applications, such as admin (defined by identities)
+  Token: what a user gets when signing in, and hands to a realm's applications (defined by identities)
+  User: a person with an account in a realm (defined by identities)
+  accepted: whom a realm's application accepts a token as, now: the user, and the roles it is told they have, if it accepts the token at all (defined by referenceTokens)
+  enabled: whether the user's account in the realm is enabled now (defined by accounts)
+  rolesOf: the roles the realm gives the user now (defined by accounts)
+  signedIn: whether the user signed in to the realm, with their password while enabled, got the token, and has not signed out with it since (defined by signInHistory)
+
+Proofs
+  complete: proven: authored
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: IDEA.md's Signed-in users are let in, the can-do half of realmAccess without which a server turning everyone away would pass. Its parts are how it comes about: sessions mirror sign-ins, accounts are current, a token names one sign-in, and introspection answers for that session.
+  2026-10-23 15:28  accepted by demo-developer: Written with terms in place of the Scala the macro read, and the Lean it gives is the same
+  2026-10-23 15:44  confirmed by demo-developer: still holds after signInHistory changed: Same meaning: the sign-out is now built through the enum's Data companion instead of make[���]
+  2026-10-25 00:48  confirmed by demo-developer: still holds after signInHistory changed: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

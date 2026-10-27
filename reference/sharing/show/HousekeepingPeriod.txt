@@ -1,0 +1,23 @@
+- housekeepingPeriod  definition  accepted
+  Housekeeping is started every minute; the service never goes more than two minutes without a run.
+  why: Q9: jobs run every minute. A run may start late (a sleep wakes late, the run takes time), so the bound the deadlines are stated with leaves a minute for that.
+
+Formally (as written in Scala)
+    housekeepingWithin := 120
+
+Where it sits
+  used by    + invitationsAreOffers: "An invitation is an offer from someone who may edit: only they send it or take it back, it gives nobody access, it is taken up only by the person invited while it is open, and housekeeping clears it away within one of its periods of its lapsing."
+  used by    + trashUntilGone: "Only someone who may edit a document puts it in the trash or takes it out, and only before it is gone; and housekeeping purges it within one of its periods of its being gone."
+  used by    + accessRequestsAreAsks: "An access request is a person's ask for a document or a folder: asking changes nothing shared, offered or kept, so it gives nobody access; only someone who may edit what it is for answers it, and approving it, while it is pending, makes the share asked for; and housekeeping declines it within one of its periods of its lapsing, and reminds the owners of what it is for within one of its periods of its being due a reminder."
+  used by    + invitationsLapseOnTime: "While housekeeping runs at least every two minutes, no invitation stays pending longer than 7 days and two minutes after it was sent."
+  used by    + trashPurgedOnTime: "While housekeeping runs at least every two minutes, no document stays in the trash longer than 30 days and two minutes."
+  used by    + requestsAnsweredOnTime: "While housekeeping runs at least every two minutes, no access request stays pending longer than 7 days and two minutes after it was made, and none goes more than 48 hours and two minutes without its reminder."
+  used by    + housekeepingOnTime (assumption): "Housekeeping runs often enough: time never moves on more than two minutes past its last run."
+
+Vocabulary
+  housekeepingWithin: the longest the service goes without a run of housekeeping, in seconds (defined by housekeepingPeriod)
+
+Decisions
+  2026-10-25 11:41  accepted by demo-developer: Q9: housekeeping every minute; two minutes is the bound the deadlines may assume, leaving a minute for late wake-ups.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

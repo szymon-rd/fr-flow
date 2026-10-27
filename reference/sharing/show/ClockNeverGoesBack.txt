@@ -1,0 +1,28 @@
++ clockNeverGoesBack  assumption  accepted  trusted
+  Time never goes back between the service's events: each wait is of no time or more.
+  why: Q9: the server's clock never goes back. A clock set back (by hand, or by a time server) would break this; the server reads the clock once per request, so it would answer as if earlier.
+
+Formally (as written in Scala)
+  formula:
+    forall((pre: Term[List[Event]], post: Term[List[Event]]) => forall((e: Term[Event]) =>
+        (events === pre ++ (e :: post)) implies
+          e.on[Event.Asked](_ => True).on[Event.Housekept.type](True).on[Event.Delivered](_ => True).on[Event.Waited](d => d >= 0)))
+
+Where it sits
+  part of    + trashPurgedOnTime  with recordContract, announceContract, housekeepingJob, goneContract, housekeepingOnTime: "While housekeeping runs at least every two minutes, no document stays in the trash longer than 30 days and two minutes."
+  part of    + invitationsLapseOnTime  with recordContract, announceContract, housekeepingJob, isOpenContract, housekeepingOnTime: "While housekeeping runs at least every two minutes, no invitation stays pending longer than 7 days and two minutes after it was sent."
+  part of    + endedStaysEnded  with inForceContract, isOpenContract, goneContract: "What has ended stays ended: time in the service never goes back, so a share once ended, an invitation once lapsed and a document once gone stay so for the rest of the run."
+  part of    + requestsAnsweredOnTime  with recordContract, announceContract, housekeepingJob, pendingContract, reminderDueContract, housekeepingOnTime: "While housekeeping runs at least every two minutes, no access request stays pending longer than 7 days and two minutes after it was made, and none goes more than 48 hours and two minutes without its reminder."
+
+Vocabulary
+  events: what has happened to the service since it started, in order: the requests answered, the runs of housekeeping, and time passing (open)
+
+Decisions
+  2026-10-25 11:44  accepted by demo-developer: Q9: the server's clock never goes back; a clock set back by hand would break it, and it is stated so.
+  2026-10-25 12:57  confirmed by demo-developer: still holds after trashPurgedOnTime changed: Q8's bounded response only. Its first half (housekeeping removes only documents 30 days in the trash) restated tidyContract with goneContract; it is now said once, in housekeepingClearsOnlyTheEnded.
+  2026-10-25 14:50  accepted by demo-developer: Unchanged assumption; the run now has delivery events, which wait no time.
+  2026-10-25 15:16  confirmed by demo-developer: still holds after requestsAnsweredOnTime changed: Unchanged statement; Lean proves it again: only shareContract and the ownership branch, which it rests on or sits beside, changed.
+  2026-10-25 19:05  accepted by demo-developer: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-25 19:33  confirmed by demo-developer: still holds after requestsAnsweredOnTime changed: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

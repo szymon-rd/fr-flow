@@ -1,0 +1,46 @@
++ realmAccess: "A realm's application accepts a token as a user's, with the user's roles, exactly when the user signed in to that realm and got the token, has not signed out with it since, and is still enabled."
+|- + noUnauthorizedAccess: "A token is accepted only as a user who signed in to that realm with it, has not signed out since and is still enabled, and only with that user's roles."
+|  |- + onlyTheSignedIn: "A token is accepted in a realm only as the user who signed in to that realm with it and has not signed out with it since."
+|  |  |- + realmIsolation (invariant): "No application is ever shown claims of a realm other than its own."
+|  |  |  `- -> introspect
+|  |  |- + answersNameASession: "An introspection answers only with the realm and user of a session the server holds under the token."
+|  |  |  `- + introspect (contract): "An introspection names the realm asking, and a user enabled there with their roles, only for a session that realm holds under the token; and it names that session's user whenever the user is enabled and the token names no other session there."
+|  |  |     `- -> serviceWiring
+|  |  `- + sessionsMirrorSignIns: "The server holds a session open in a realm exactly when its user is signed in to that realm with its token."
+|  |     |- + handleRequest (contract): "A request opens the session a sign-in asks for when the user is enabled, the password theirs and no session holds the token; ends the sessions its sign-out names in its realm; changes accounts only as an administrator's change sets them; and changes nothing else."
+|  |     |  `- - serviceWiring (design): "Every request reaches the store through service, one at a time: a sign-in, sign-out or administrator's change runs handleRequest's code on the stored state, which stores its result through storeKeepsState; an introspection runs introspect's code on the state the store holds."
+|  |     |     `- - httpApi (design): "The HTTP API serves Keycloak's token, introspection and logout endpoints for each realm, and lets an administrator enable or disable a user; it hashes the password with the user's salt and draws each token from a secure random source before calling the wiring."
+|  |     `- -> freshTokens
+|  |- + disabledHaveNoAccess: "A token is never accepted as a user who is disabled now, whenever they signed in."
+|  |  |- + accountsAsAdministered: "The server holds every user's account as loaded at start, with each administrator's change applied in turn."
+|  |  |  `- -> handleRequest
+|  |  `- -> introspect
+|  `- + rolesAsGranted: "A token is accepted only with the roles the realm gives its user now."
+|     |- -> accountsAsAdministered
+|     `- -> introspect
+`- + signedInAreAccepted: "A user who signed in to a realm and got a token, has not signed out with it since and is still enabled, has it accepted there as theirs, with their roles."
+   |- + oneSignInPerToken: "Two sign-ins that still stand never share a token: a token names one session at most."
+   |  `- + freshTokens (assumption): "Every sign-in carries a token no earlier sign-in carried."
+   |     `- -> httpApi
+   |- -> sessionsMirrorSignIns
+   |- -> accountsAsAdministered
+   `- -> introspect
+
+Assumptions, under no parent: trusted (the code calls them)
++ storeKeepsState (assumption): "Storing a request with the state it led to keeps that state: read back, the store holds exactly it."
++ sessionLookup (assumption): "The store's index returns a session it holds under the token in the realm asked, if it holds one, and never one of another realm or token."
+
+Definitions: they fix terms of the vocabulary (decided, not proven)
+- identities (definition): "Realms are named; a user is named by their username in a realm; tokens and roles are strings."
+- referenceTokens (definition): "A realm's application accepts a token as the server's introspection of it answers: a token is a reference to a session the server holds, not a statement the application reads."
+- accounts (definition): "A user is enabled, and has the roles, that their account in the realm says, as loaded at start and as administrators have set it since."
+- signInHistory (definition): "A user is signed in to a realm with a token when a sign-in of theirs to that realm got the token, while they were enabled and with their password, and no sign-out with the token in that realm came after it."
+- serverRun (definition): "The server's sessions and accounts now are what its requests led to: from the accounts loaded at start and no session, each request handled in turn."
+
+Keycloak: 23 nodes, 23 accepted
+Proofs: splits 11/11, claims down to their code 1/2, root_impl proven, consistency not proven, something may be vacuous (3 open: check says which)
+Tests: code against its claims 3/3, examples in Lean 31/31, at run time 3 checked on every call, 1 not checked (proven)
+Trusted: freshTokens, storeKeepsState; tested, not proven: introspect
+Nothing waits: every node is accepted and proven, or its code tested.
+marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do
+--- exit 0

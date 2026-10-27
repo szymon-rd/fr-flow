@@ -1,0 +1,29 @@
++ oneSignInPerToken  claim  accepted
+  Two sign-ins that still stand never share a token: a token names one session at most.
+  why: A token must say whose it is: if two users could get the same one, an application could be told either of them.
+
+Formally (as written in Scala)
+  formula:
+    forall((x: Term[Session], y: Term[Session]) => (liveIn(history, x) && liveIn(history, y) && x.token === y.token) implies (x === y))
+
+Where it sits
+  part of    + signedInAreAccepted  with sessionsMirrorSignIns, accountsAsAdministered, introspect: "A user who signed in to a realm and got a token, has not signed out with it since and is still enabled, has it accepted there as theirs, with their roles."
+
+Parts: together they make it (proven: authored)
+  + freshTokens (assumption)  needed: "Every sign-in carries a token no earlier sign-in carried."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Vocabulary
+  history: the requests the server has handled since it started, in order: sign-ins, sign-outs and administrators' changes (the server's event log) (open)
+  seed: every realm's accounts as loaded at start: username, salted password hash, whether enabled, realm roles (open)
+
+Proofs
+  complete: proven: authored
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: IDEA.md: a token is a value no other session has. Without it an application could be told either of two users, so a signed-in user would not reliably be accepted as themselves.
+  2026-10-23 15:28  accepted by demo-developer: Written with terms in place of the Scala the macro read, and the Lean it gives is the same
+  2026-10-23 15:45  accepted by demo-developer: Same meaning and the same Lean: AuthRequest's cases are now built through its Data companion
+  2026-10-25 00:49  accepted by demo-developer: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

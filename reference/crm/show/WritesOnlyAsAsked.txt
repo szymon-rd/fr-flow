@@ -1,0 +1,28 @@
++ writesOnlyAsAsked  claim  accepted
+  A write changes nothing its author did not ask of their company's records: it adds no other record, and changes no other share or share's time.
+  why: The other half of a write doing what was asked: a record added beside the one asked, or a share changed beside it, is something no user asked. A write about another company's record, or a record its author's company does not hold, changes nothing; so no write changes another company's records or whom they are shared with.
+
+Formally (as written in Scala)
+  formula:
+    forall((s: Term[CrmStore], w: Term[WriteCmd]) => onlyAsked(s, w, afterSave(s, w)))
+
+Where it sits
+  part of    + storeMirrorsRequests  with writesTakeEffect, recordsKept, sharesExpire: "The CRM holds exactly the records its users added, and holds a share of a record as current exactly when the record's company shared it so."
+
+Parts: together they make it (proven: authored)
+  + writeContract (contract)  needed: "A write keeps every record, leaves the records of other companies as they were, does what its author asked of their company's records, and changes nothing else."
+  + saveWrite (contract)  needed: "Saving a write stores, and returns as read back, what the store the write leads to holds about the written record."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Vocabulary
+  save (operation): the write side: a write applied to the store the database holds, the rows about its record stored; it returns those rows as read back (open)
+
+Proofs
+  complete: proven: authored
+
+Decisions
+  2026-10-23 13:48  accepted by demo-developer: The other half of a write doing what was asked: nothing else changes, so the tables cannot drift from the history.
+  2026-10-23 15:32  accepted by demo-developer: Rewritten with the FrFlow terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.
+  2026-10-25 00:50  confirmed by demo-developer: still holds after storeMirrorsRequests changed: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

@@ -1,0 +1,15 @@
+- startsApart  assumption  accepted
+  The table starts with no two bookings overlapping.
+
+Formally (as written in Scala)
+  formula:
+    storedBookings.startsSatisfying(neverOverlap)
+
+Where it sits
+  assumed by + neverOverlap: "The bookings stored never overlap."
+
+Decisions
+  2026-10-26 21:47  accepted by demo-developer: The bookings table is created empty, and so starts with no two bookings overlapping.
+  2026-10-26 22:28  accepted by demo-developer: The bookings table is created empty, so it starts meeting what always holds of it.
+  2026-10-26 23:15  accepted by demo-developer: The bookings table is created empty, so it starts satisfying neverOverlap, the claim it names.
+--- exit 0

@@ -1,0 +1,96 @@
++ accessFollowsShares: step proven
++ invitationsAreOffers: step proven
++ trashUntilGone: step proven
++ housekeepingClearsOnlyTheEnded: step proven
++ accessRequestsAreAsks: step proven
++ ownersKeepTheirDocuments: step proven
++ auditTrail: step proven
++ noticesFollowChanges: step proven
++ endedStaysEnded: step proven
++ inForceContract: proven
++ accessContract: proven
++ canViewContract: proven
++ canEditContract: proven
++ shareContract: proven
++ unshareContract: proven
++ moveContract: proven
++ inviteContract: proven
++ invitationsLapseOnTime: step proven
++ isOpenContract: proven
++ acceptContract: proven
++ withdrawContract: proven
++ trashContract: proven
++ trashPurgedOnTime: step proven
++ goneContract: proven
++ restoreContract: proven
++ askContract: proven
++ requestsAnsweredOnTime: step proven
++ pendingContract: proven
++ approveContract: proven
++ declineContract: proven
++ reminderDueContract: proven
++ chaseContract: proven
++ transferContract: proven
++ recordContract: proven
++ forgetContract: proven
++ announceContract: proven
++ warnContract: proven
++ tidyContract: proven
++ housekeepingJob: proven
++ deliveryJob: proven
++ clockNeverGoesBack: proven
++ housekeepingOnTime: proven
++ handleContract: proven
++ libraryKept: MemoryLibraryStore and SqlLibraryStore give what the model gives on 1,200 generated runs
++ mailerKept: MemoryMailer gives what the model gives on 1,000 generated runs
++ clockKept: FakeClock gives what the model gives on 1,000 generated runs
+o consistency of deliveryJob: Lean found no proof with deliver as its proven code, deliveryJob_run: frflow_auto found no proof; prove this obligation in the node's proof file
+⊢ ∀ (x0 : World),
+    match
+      match
+        match x0.faults with
+        | true :: fs =>
+          (Except.error Failure.StoreUnavailable,
+            { libraryStore := x0.libraryStore, mailer := x0.mailer, clock := x0.clock, faults := fs })
+        | false :: fs =>
+          (Except.ok x0.libraryStore,
+            { libraryStore := x0.libraryStore, mailer := x0.mailer, clock := x0.clock, faults := fs })
+        | [] =>
+          (Except.ok x0.libraryStore,
+            { libraryStore := x0.libraryStore, mailer := x0.mailer, clock := x0.clock, faults := x0.faults }) with
+      | (Except.ok a, s') =>
+        match
+          FrFlow.runOnE
+            (List.mapM
+              (fun n => do
+                let sent ←
+                  tryCatchThe Failure
+                      (Except.ok <$>
+                        tryCatchThe Failure
+                          (FrFlow.failing (fun w => w.faults)
+                            (fun w fs =>
+                              { libraryStore := w.libraryStore, mailer := w.mailer, clock := w.clock, faults := fs })
+                            Failure.MailerUnavailable
+                            (FrFlow.within (fun w => w.mailer)
+                              (fun w s =>
+                                { libraryStore := w.libraryStore, mailer := s, clock := w.clock, faults := w.faults })
+                              (modify fun boxes k =>
+                                if k = n.to then
+                                  some
+                                    (if n ∈ (boxes n.to).getD [] then (boxes n.to).getD []
+                                    else (boxes n.to).getD [] ++ [n])
+                                else boxes k)))
+                          fun x => do
+                          ExceptT.lift
+                              (FrFlow.within (fun w => w.clock)
+                                (fun w s =>
+                                  { libraryStor
+o consistency of askContract, announceContract, recordContract, forgetContract, warnContract, accessContract, canViewContract, canEditContract, shareContract, unshareContract, moveContract, inviteContract, acceptContract, withdrawContract, trashContract, restoreContract, approveContract, declineContract, chaseContract, transferContract, tidyContract, housekeepingJob, inForceContract, isOpenContract, goneContract, pendingContract, reminderDueContract, clockNeverGoesBack, housekeepingOnTime, handleContract: inTrash: nothing says what it equals, and no proven code gives it; say what it equals (a statement inTrash(…) === …); access: nothing says what it equals, and no proven code gives it; say what it equals (a statement access(…) === …); canView: nothing says what it equals, and no proven code gives it; say what it equals (a statement canView(…) === …); canEdit: nothing says what it equals, and no proven code gives it; say what it equals (a statement canEdit(…) === …); mayEdit: nothing says what it equals, and no proven code gives it; say what it equals (a statement mayEdit(…) === …); ownedBy: nothing says what it equals, and no proven code gives it; say what it equals (a statement ownedBy(…) === …); share: nothing says what it equals, and no proven code gives it; say what it equals (a statement share(…) === …); unshare: nothing says what it equals, and no proven code gives it; say what it equals (a statement unshare(…) === …); move: nothing says what it equals, and no proven code gives it; say what it equals (a statement move(…) === …); invite: nothing says what it equals, and no proven code gives it; say what it equals (a statement invite(…) === …); isOpen: nothing says what it equals, and no proven code gives it; say what it equals (a statement isOpen(…) === …); accept: nothing says what it equals, and no proven code gives it; say what it equals (a statement accept(…) === …); withdraw: nothing says what it equals, and no proven code gives it; say what it equals (a statement withdraw(…) === …); trash: nothing says what it equals, and no proven code gives it; say what it equals (a statement trash(…) === …); gone: nothing says what it equals, and no proven code gives it; say what it equals (a statement gone(…) === …); restore: nothing says what it equals, and no proven code gives it; say what it equals (a statement restore(…) === …); isPending: nothing says what it equals, and no proven code gives it; say what it equals (a statement isPending(…) === …); approve: nothing says what it equals, and no proven code gives it; say what it equals (a statement approve(…) === …); decline: nothing says what it equals, and no proven code gives it; say what it equals (a statement decline(…) === …); reminderDue: nothing says what it equals, and no proven code gives it; say what it equals (a statement reminderDue(…) === …); chase: nothing says what it equals, and no proven code gives it; say what it equals (a statement chase(…) === …); transfer: nothing says what it equals, and no proven code gives it; say what it equals (a statement transfer(…) === …); tidy: nothing says what it equals, and no proven code gives it; say what it equals (a statement tidy(…) === …); housekeep: nothing says what it equals, and no proven code gives it; say what it equals (a statement housekeep(…) === …); handle: nothing says what it equals, and no proven code gives it; say what it equals (a statement handle(…) === …)
+
+Sharing: 58 nodes, 58 accepted
+Proofs: splits 12/12, claims down to their code 29/29, root_impl proven, consistency not proven, nothing vacuous (2 open: check says which)
+Tests: implementations against their models 3/3, examples in Lean 119/119, at run time 26 not checked (proven)
+Trusted: clockNeverGoesBack, housekeepingOnTime, libraryKept (a model), mailerKept (a model), clockKept (a model)
+Nothing waits: every node is accepted and proven.
+marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do
+--- exit 0

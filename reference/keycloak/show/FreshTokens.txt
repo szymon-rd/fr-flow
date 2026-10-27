@@ -1,0 +1,24 @@
++ freshTokens  assumption  accepted  trusted
+  Every sign-in carries a token no earlier sign-in carried.
+  why: The server draws 256 random bits for each sign-in (httpApi): a repeat does not happen in practice. Trusted, not proven; the server also refuses a token an open session holds.
+
+Formally (as written in Scala)
+  formula:
+    forall((pre: Term[List[AuthRequest]], post: Term[List[AuthRequest]]) => forall((q: Term[AuthRequest]) =>
+      (history === pre ++ (q :: post)) implies fresh(pre, q)))
+
+Where it sits
+  part of    + oneSignInPerToken  its only part: "Two sign-ins that still stand never share a token: a token names one session at most."
+  part of    + sessionsMirrorSignIns  with handleRequest: "The server holds a session open in a realm exactly when its user is signed in to that realm with its token."
+  design     - httpApi (design): "The HTTP API serves Keycloak's token, introspection and logout endpoints for each realm, and lets an administrator enable or disable a user; it hashes the password with the user's salt and draws each token from a secure random source before calling the wiring."
+
+Vocabulary
+  history: the requests the server has handled since it started, in order: sign-ins, sign-outs and administrators' changes (the server's event log) (open)
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: Trusted, not proven: IDEA.md's Not modelled says tokens are 256 random bits each, trusted to be new, and a repeat does not happen in practice. It is the one fact about the outside the history needs, for a token naming one sign-in and for sessions mirroring sign-ins.
+  2026-10-23 15:28  accepted by demo-developer: Written with terms in place of the Scala the macro read, and the Lean it gives is the same
+  2026-10-23 15:45  confirmed by demo-developer: still holds after oneSignInPerToken changed: Same meaning and the same Lean: AuthRequest's cases are now built through its Data companion
+  2026-10-25 00:49  confirmed by demo-developer: still holds after oneSignInPerToken changed: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

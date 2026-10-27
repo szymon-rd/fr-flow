@@ -1,0 +1,46 @@
++ declineContract  contract on decline  accepted
+  Someone who may edit a document or folder declines a person's request for it: the request goes. When anyone else asks, nothing changes.
+  why: Q12: an editor may say no; the person may ask again.
+
+Formally (as written in Scala)
+  post (every call of decline):
+    forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], p: Term[PersonId], w: Term[Target]) =>
+        decline(lib, t, by, p, w) === mayEdit(lib, t, by, w).fold(lib.copy((requests = requestsWithout(lib.requests, p, w))), lib))
+
+Where it sits
+  part of    + accessRequestsAreAsks  with askContract, approveContract, chaseContract, pendingContract, reminderDueContract, requestsAnsweredOnTime: "An access request is a person's ask for a document or a folder: asking changes nothing shared, offered or kept, so it gives nobody access; only someone who may edit what it is for answers it, and approving it, while it is pending, makes the share asked for; and housekeeping declines it within one of its periods of its lapsing, and reminds the owners of what it is for within one of its periods of its being due a reminder."
+  uses       - permission (definition): "A person may view a document or folder when a share in force reaches them and covers it; they may edit it when such a share is an edit share."
+  uses       - reach (definition): "A share reaches the person it is with, and everyone in the team it is with."
+  uses       - cover (definition): "A share of a document covers that document; a share of a folder covers the folder, every folder inside it, and every document inside any of them."
+  calls      + inForceContract (contract): "A share is in force while now is before its end; a share with no end is always in force."
+  called by  + handleContract (contract): "A request is answered at the time the clock gives, from the library the store holds, and leaves the store holding the library it leads to: a question is answered with the person's access and changes nothing; a change is made as its operation makes it, recorded in the log and announced in the outbox in the same save, and answered done when it may be made and refused otherwise. Handling does not move the clock. A request the store fails changes nothing."
+
+Vocabulary
+  decline (operation): the library after someone asks to decline a person's request (open)
+  mayEdit: whether a person may edit a document or folder at a moment (defined by permission)
+
+Proofs
+  impl (AccessRequests.declineCode): proven: auto
+
+Examples: 3 of 3 pass; Lean agrees on 3 of 3
+  given nothing
+    + Ann declines Cat's request  allows (Library(List(Document(DocumentId("plan"), "Plan", List(), None, PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(), List(AccessRequest(PersonId("cat"), Doc(DocumentId("plan")), View, 913600, false)), List(), List()), 1000000, PersonId("ann"), PersonId("cat"), Doc(DocumentId("plan"))) ⇒ Library(List(Document(DocumentId("plan"), "Plan", List(), None, PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(), List(), List(), List())
+    + Bob may not edit the plan: the request stays  allows (Library(List(Document(DocumentId("plan"), "Plan", List(), None, PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(), List(AccessRequest(PersonId("cat"), Doc(DocumentId("plan")), View, 913600, false)), List(), List()), 1000000, PersonId("bob"), PersonId("cat"), Doc(DocumentId("plan"))) ⇒ Library(List(Document(DocumentId("plan"), "Plan", List(), None, PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(), List(AccessRequest(PersonId("cat"), Doc(DocumentId("plan")), View, 913600, false)), List(), List())
+    + only an editor declines  forbids (Library(List(Document(DocumentId("plan"), "Plan", List(), None, PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(), List(AccessRequest(PersonId("cat"), Doc(DocumentId("plan")), View, 913600, false)), List(), List()), 1000000, PersonId("bob"), PersonId("cat"), Doc(DocumentId("plan"))) ⇒ Library(List(Document(DocumentId("plan"), "Plan", List(), None, PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(), List(), List(), List())
+
+Code
+  proven define AccessRequests.declineCode
+    AccessRequests.declineCode = (lib: Term[Library], t: Term[BigInt], by: Term[PersonId], p: Term[PersonId], w: Term[Target]) =>
+        mayEdit(lib, t, by, w).fold(lib.copy((requests = requestsWithout(lib.requests, p, w))), lib)
+    AccessRequests.requestsWithout = (rs: Term[List[AccessRequest]], p: Term[PersonId], w: Term[Target]) =>
+        rs.filterNot(r => r.person === p && r.what === w)
+  at run time: not checked, the running code is the code Lean proves
+
+Decisions
+  2026-10-25 14:47  accepted by demo-developer: Q12: an editor declines; the request goes.
+  2026-10-25 15:14  confirmed by demo-developer: still holds after endedStaysEnded changed: Unchanged statement; Lean proves it again: only shareContract and the ownership branch, which it rests on or sits beside, changed.
+  2026-10-25 19:01  accepted by demo-developer: Folder requests: an editor of the document or folder declines.
+  2026-10-25 19:32  confirmed by demo-developer: Folder requests: an editor of the document or folder declines.
+  2026-10-26 14:12  accepted by demo-developer: The same examples: `reject` is now `never`.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

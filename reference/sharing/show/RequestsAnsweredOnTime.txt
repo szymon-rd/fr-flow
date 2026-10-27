@@ -1,0 +1,54 @@
++ requestsAnsweredOnTime  claim  accepted
+  While housekeeping runs at least every two minutes, no access request stays pending longer than 7 days and two minutes after it was made, and none goes more than 48 hours and two minutes without its reminder.
+  why: Q12: a reminder after 48 h and a decline after 7 days, as bounded responses, given the scheduler's period (housekeepingOnTime).
+
+Formally (as written in Scala)
+  formula:
+    after(events).library.requests.forall(r => after(events).now < r.asked + requestLasts + housekeepingWithin &&
+        (r.reminded || after(events).now < r.asked + remindAfter + housekeepingWithin))
+
+Where it sits
+  part of    + accessRequestsAreAsks  with askContract, approveContract, declineContract, chaseContract, pendingContract, reminderDueContract: "An access request is a person's ask for a document or a folder: asking changes nothing shared, offered or kept, so it gives nobody access; only someone who may edit what it is for answers it, and approving it, while it is pending, makes the share asked for; and housekeeping declines it within one of its periods of its lapsing, and reminds the owners of what it is for within one of its periods of its being due a reminder."
+  uses       - requestLifetime (definition): "An access request stays pending for 7 days after it is made; its document's owner is reminded of it after 48 hours."
+  uses       - housekeepingPeriod (definition): "Housekeeping is started every minute; the service never goes more than two minutes without a run."
+  uses       - permission (definition): "A person may view a document or folder when a share in force reaches them and covers it; they may edit it when such a share is an edit share."
+  uses       - reach (definition): "A share reaches the person it is with, and everyone in the team it is with."
+  uses       - cover (definition): "A share of a document covers that document; a share of a folder covers the folder, every folder inside it, and every document inside any of them."
+  uses       - ownersShare (definition): "An owner's share of a document is a share of it with the document's owner in person."
+
+Parts: together they make it (proven: authored)
+  + recordContract (contract)  needed: "Recording a change at a moment adds one entry at the end of the log: numbered by its place in it, with the moment and the change. Nothing else changes, and no entry is taken away."
+  + announceContract (contract)  needed: "Announcing a change adds, at the end of the outbox, a notice of its entry to each person it tells, as the library before the change says who: the person invited; whoever sent an invitation now accepted; the owner of a document asked for; the person whose request was approved or declined; the new owner of a document. Nothing else changes."
+  + housekeepingJob (contract)  needed: "A run of housekeeping leaves the store holding the library it held, tidied, its old log entries forgotten, its access requests chased and the shares ending in a day told of, at the time the clock gives, and, when that changed it, recorded in the log; it does not move the clock. A run that fails changes nothing, and the next minute's run tries again."
+  + pendingContract (contract)  needed: "An access request is pending from when it is made until 7 days after; then it has lapsed."
+  + reminderDueContract (contract)  needed: "The owner is due a reminder of an access request from 48 hours after it is made."
+  + clockNeverGoesBack (assumption)  needed: "Time never goes back between the service's events: each wait is of no time or more."
+  + housekeepingOnTime (assumption)  needed: "Housekeeping runs often enough: time never moves on more than two minutes past its last run."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Vocabulary
+  announce (operation): the library with notices of a change added to its outbox (open)
+  events: what has happened to the service since it started, in order: the requests answered, the runs of housekeeping, and time passing (open)
+  gone (operation): whether a document is gone at a moment: past restoring, purged by the next housekeeping (open)
+  housekeepingWithin: the longest the service goes without a run of housekeeping, in seconds (defined by housekeepingPeriod)
+  inForce (operation): whether a share is in force at a moment: it gives access then (open)
+  isOpen (operation): whether an invitation is open at a moment: it can be accepted then (open)
+  isPending (operation): whether an access request is pending at a moment: it can be approved then (open)
+  mayEdit: whether a person may edit a document or folder at a moment (defined by permission)
+  ownedBy: whether a share of a document or folder with someone is the owner's share of their own document (defined by ownersShare)
+  record (operation): the library with a change recorded in its log (open)
+  remindAfter: how long after an access request is made its document's owner is reminded of it, in seconds (defined by requestLifetime)
+  reminderDue (operation): whether the owner is due a reminder of an access request at a moment (open)
+  requestLasts: how long an access request stays pending after it is made, in seconds (defined by requestLifetime)
+  startedAt: when the service started, in seconds (open)
+
+Proofs
+  complete: proven: authored
+
+Decisions
+  2026-10-25 14:48  accepted by demo-developer: Q12 as bounded responses, under housekeepingOnTime: declined within 7 days and two minutes, reminded within 48 hours and two minutes.
+  2026-10-25 15:16  confirmed by demo-developer: Unchanged statement; Lean proves it again: only shareContract and the ownership branch, which it rests on or sits beside, changed.
+  2026-10-25 19:01  accepted by demo-developer: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-25 19:33  confirmed by demo-developer: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

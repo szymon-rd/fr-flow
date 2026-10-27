@@ -1,0 +1,27 @@
++ tokenNamesHolder  claim  accepted
+  A request is admitted only on behalf of the user its token was issued to.
+  why: A token stands for the user it was issued to: acting for anyone else would let one user in as another.
+
+Formally (as written in Scala)
+  formula:
+    forall((t: Term[String], p: Term[Path]) => admit(t, p).forall(u => sessions(t) === Some(u)))
+
+Where it sits
+  part of    + accessExactly  with accessNeedsGrant, grantLetsIn: "A user gets access to a resource exactly when they are signed in and authorized for it."
+
+Parts: together they make it (proven: auto)
+  + decisionContract (contract)  needed: "A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Vocabulary
+  admit (operation): the system's decision on a request (a token and a path): the user it is admitted on behalf of, if any (open)
+  sessions: the session table as stored when the request is decided: a token to the user it was issued to at login (open)
+
+Proofs
+  complete: proven: auto
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: A request carries a token, not a user: admitting it for anyone but the user the token was issued to would let one user in as another. It is the part of accessExactly that ties access to being signed in, and Lean shows the root fails without it.
+  2026-10-23 15:18  accepted by demo-developer: Rewritten with FrFlow's terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.
+  2026-10-26 15:22  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

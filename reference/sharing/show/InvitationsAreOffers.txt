@@ -1,0 +1,61 @@
++ invitationsAreOffers  claim  accepted
+  An invitation is an offer from someone who may edit: only they send it or take it back, it gives nobody access, it is taken up only by the person invited while it is open, and housekeeping clears it away within one of its periods of its lapsing.
+  why: Q7: an invitation is how someone gets a share they have not asked for; it is a share offered, not given, so until it is accepted access is as before. Whether it is open is left open here (Lifetimes); that a lapsed one does not linger is what invitationsLapseOnTime says with the clock.
+
+Formally (as written in Scala)
+  formula:
+    forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], to: Term[PersonId], what: Term[Target]) =>
+        (withdraw(lib, t, by, to, what) =!= lib implies mayEdit(lib, t, by, what)) &&
+        forall((level: Term[Level]) => (invite(lib, t, by, to, what, level) =!= lib implies mayEdit(lib, t, by, what)) &&
+          forall((p: Term[PersonId], d: Term[DocumentId]) =>
+            Sharing.access(invite(lib, t, by, to, what, level), t, p, d) === Sharing.access(lib, t, p, d)))) &&
+        forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], what: Term[Target]) =>
+          accept(lib, t, p, what) =!= lib implies lib.invitations.exists(i => i.to === p && i.what === what && isOpen(i, t))) &&
+        after(events).library.invitations.forall(i => isOpen(i, after(events).now - housekeepingWithin))
+
+Where it sits
+  part of    + accessFollowsShares  with trashUntilGone, housekeepingClearsOnlyTheEnded, accessRequestsAreAsks, ownersKeepTheirDocuments, auditTrail, noticesFollowChanges, accessContract, canViewContract, canEditContract, shareContract, unshareContract, moveContract, handleContract, domainTypes: "At any moment, a person can view a document exactly when it is not in the trash and a share in force lets them view it, and edit it exactly when that share is an edit share; and what is shared, offered or kept changes only at the hand of someone who may edit it, of a person taking up an open invitation, or of housekeeping clearing away what has ended."
+  uses       - permission (definition): "A person may view a document or folder when a share in force reaches them and covers it; they may edit it when such a share is an edit share."
+  uses       - reach (definition): "A share reaches the person it is with, and everyone in the team it is with."
+  uses       - cover (definition): "A share of a document covers that document; a share of a folder covers the folder, every folder inside it, and every document inside any of them."
+  uses       - housekeepingPeriod (definition): "Housekeeping is started every minute; the service never goes more than two minutes without a run."
+  uses       - ownersShare (definition): "An owner's share of a document is a share of it with the document's owner in person."
+
+Parts: together they make it (proven: authored)
+  + accessContract (contract)  needed: "A person's access to a document not in the trash is worked out from their teams and the document's folders: among the shares in force with them or one of their teams, of the document or one of the folders around it, it is edit if one is an edit share, view if there is any, and none otherwise. A document in the trash gives no access."
+  + inviteContract (contract)  needed: "Someone who may edit a document or folder invites a person to it at a level: the invitation, sent now, takes the place of any earlier invitation of them to it. When anyone else asks, nothing changes."
+  + acceptContract (contract)  needed: "A person accepts their open invitation to a document or folder: they then have a share of it at the invitation's level, in place of any share of it they had, and the invitation goes. Without an open invitation, or when the document is their own (their share of it is the owner's), nothing changes."
+  + withdrawContract (contract)  needed: "Someone who may edit a document or folder withdraws a person's invitation to it: the invitation goes. When anyone else asks, nothing changes."
+  + isOpenContract (contract)  needed: "An invitation is open from its sending until 7 days after; then it has lapsed."
+  + invitationsLapseOnTime  needed: "While housekeeping runs at least every two minutes, no invitation stays pending longer than 7 days and two minutes after it was sent."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Vocabulary
+  accept (operation): the library after a person asks to accept an invitation (open)
+  access (operation): a person's access to a document at a moment, as the service works it out (open)
+  announce (operation): the library with notices of a change added to its outbox (open)
+  events: what has happened to the service since it started, in order: the requests answered, the runs of housekeeping, and time passing (open)
+  gone (operation): whether a document is gone at a moment: past restoring, purged by the next housekeeping (open)
+  housekeepingWithin: the longest the service goes without a run of housekeeping, in seconds (defined by housekeepingPeriod)
+  inForce (operation): whether a share is in force at a moment: it gives access then (open)
+  invite (operation): the library after someone asks to invite a person (open)
+  isOpen (operation): whether an invitation is open at a moment: it can be accepted then (open)
+  isPending (operation): whether an access request is pending at a moment: it can be approved then (open)
+  mayEdit: whether a person may edit a document or folder at a moment (defined by permission)
+  ownedBy: whether a share of a document or folder with someone is the owner's share of their own document (defined by ownersShare)
+  record (operation): the library with a change recorded in its log (open)
+  reminderDue (operation): whether the owner is due a reminder of an access request at a moment (open)
+  startedAt: when the service started, in seconds (open)
+  withdraw (operation): the library after someone asks to withdraw an invitation (open)
+
+Proofs
+  complete: proven: authored
+
+Decisions
+  2026-10-25 12:57  accepted by demo-developer: Q7 as its own branch: an invitation is an offer from someone who may edit, gives no access, is taken up only while open, and is cleared within one housekeeping period of lapsing. Its proof uses invitationsLapseOnTime through isOpenContract, so the deadline is no longer under the root unused.
+  2026-10-25 14:44  accepted by demo-developer: Unchanged statement; proof redone over the run with recording and announcing in each step.
+  2026-10-25 15:13  confirmed by demo-developer: Unchanged statement; Lean proves it again: only shareContract and the ownership branch, which it rests on or sits beside, changed.
+  2026-10-25 18:58  confirmed by demo-developer: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-25 19:29  confirmed by demo-developer: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

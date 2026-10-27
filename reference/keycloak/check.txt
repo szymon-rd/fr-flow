@@ -1,0 +1,29 @@
++ realmAccess: step proven
++ noUnauthorizedAccess: step proven
++ signedInAreAccepted: step proven
++ onlyTheSignedIn: step proven
++ disabledHaveNoAccess: step proven
++ rolesAsGranted: step proven
++ realmIsolation: step proven
++ answersNameASession: step proven
++ sessionsMirrorSignIns: step proven
++ accountsAsAdministered: step proven
++ oneSignInPerToken: step proven
++ freshTokens: proven
++ storeKeepsState: proven
++ handleRequest: proven
++ introspect: code tested on 1,000 cases
++ sessionLookup: proven
++ consistency of freshTokens: Lean proves a meaning meets it: history as the value List()
+o consistency of handleRequest: step: nothing says what it equals, and no proven code gives it; say what it equals (a statement step(…) === …)
++ consistency of storeKeepsState: Lean proves a meaning meets it: record as storeKeepsState says
+o consistency of introspect, sessionLookup: sessions: nothing says what it equals, and no proven code gives it; say what it equals (a statement sessions(…) === …); account: nothing says what it equals, and no proven code gives it; say what it equals (a statement account(…) === …); introspect: its code is tested Scala, evidence and not proof; say what it equals (a statement introspect(…) === …); lookup: nothing says what it equals, and no proven code gives it; say what it equals (a statement lookup(…) === …)
+o oneSignInPerToken: its condition is met: its condition reads history, seed, open terms: no case is drawn of them
+
+Keycloak: 23 nodes, 23 accepted
+Proofs: splits 11/11, claims down to their code 1/2, root_impl proven, consistency not proven, something may be vacuous (3 open: check says which)
+Tests: code against its claims 3/3, examples in Lean 31/31, at run time 3 checked on every call, 1 not checked (proven)
+Trusted: freshTokens, storeKeepsState; tested, not proven: introspect
+Nothing waits: every node is accepted and proven, or its code tested.
+marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do
+--- exit 0

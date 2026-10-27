@@ -1,0 +1,47 @@
++ expiryJob  contract on runExpiry (a root)  accepted
+  A run of the expiry job at a time leaves the database holding, about each record, what sharesExpire's run on what it held gives, logs the run at the end of the event log, and returns that store.
+  why: The job is how sharesExpire's operation reaches the database: it loads what the database holds, runs the operation on it, stores the rows of each record whose rows changed, and logs the run, which is what makes the event log the history crmRun replays. Proven of the code from the database's model (tablesModel), it is no longer only reviewed wiring.
+
+Formally (as written in Scala)
+  post (every call of runExpiry):
+    (now, result, before, after) =>
+      sameRows(after(DatabaseModel).store, expire(before(DatabaseModel).store, now)) &&
+        after(DatabaseModel).events === before(DatabaseModel).events ++ List(Event[Event.Expired](now)) &&
+        result === expire(before(DatabaseModel).store, now)
+  exempt from noCrossTenantRead: it hands the new store to the database and returns nothing to a reader
+
+Where it sits
+  design     - expiryJobWiring (design): "The expiry job runs every minute, holding the database's lock during a run so no write interleaves with it; its code is the flow expiryJob is proven of, run on SQLite."
+  calls      + sharesExpire (contract): "A run of the expiry job at a time removes exactly the shares given until then or earlier, with their times, and keeps every record and every other share's time."
+
+Vocabulary
+  expire (operation): a run of the expiry job at a time (in seconds) on a store: the store it leads to (open)
+  runExpiry (operation): a run of the expiry job at a time (in seconds), on the database: the store it computes; the database holds it after (open)
+
+Proofs
+  impl (expireOnce_run): proven: authored
+  root_impl: proven: the root holds of the code, trusting storeEdits, recordsByQuery
+
+Examples: 11 of 11 pass; Lean agrees on 5 of 5
+  given nothing
+    + Globex's share ended at 100: the database drops it, and the run is logged  allows (150, World(DatabaseModel = Tables(CrmStore(List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")), List(Share(1, TenantId("globex")), Share(1, TenantId("initech"))), List(Expiry(1, TenantId("globex"), 100))), List(Wrote(WriteCmd(Account("ann@acme", TenantId("acme")), Add(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")))))))) ⇒ Tuple2(CrmStore(List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")), List(Share(1, TenantId("initech"))), List()), World(DatabaseModel = Tables(CrmStore(List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")), List(Share(1, TenantId("initech"))), List()), List(Wrote(WriteCmd(Account("ann@acme", TenantId("acme")), Add(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")))), Expired(150)))))
+    + two records: the contact's share with Globex ended; the database stores the contact's rows again  allows (150, World(DatabaseModel = Tables(CrmStore(List(CrmRecord(2, TenantId("acme"), Contact, "Acme contact"), CrmRecord(1, TenantId("acme"), Deal, "Acme deal")), List(Share(2, TenantId("globex")), Share(1, TenantId("initech"))), List(Expiry(2, TenantId("globex"), 100))), List(Wrote(WriteCmd(Account("ann@acme", TenantId("acme")), Add(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")))))))) ⇒ Tuple2(CrmStore(List(CrmRecord(2, TenantId("acme"), Contact, "Acme contact"), CrmRecord(1, TenantId("acme"), Deal, "Acme deal")), List(Share(1, TenantId("initech"))), List()), World(DatabaseModel = Tables(CrmStore(List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal"), CrmRecord(2, TenantId("acme"), Contact, "Acme contact")), List(Share(1, TenantId("initech"))), List()), List(Wrote(WriteCmd(Account("ann@acme", TenantId("acme")), Add(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")))), Expired(150)))))
+    + before 100 nothing ends, and the run is still logged  allows (50, World(DatabaseModel = Tables(CrmStore(List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")), List(Share(1, TenantId("globex")), Share(1, TenantId("initech"))), List(Expiry(1, TenantId("globex"), 100))), List(Wrote(WriteCmd(Account("ann@acme", TenantId("acme")), Add(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")))))))) ⇒ Tuple2(CrmStore(List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")), List(Share(1, TenantId("globex")), Share(1, TenantId("initech"))), List(Expiry(1, TenantId("globex"), 100))), World(DatabaseModel = Tables(CrmStore(List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")), List(Share(1, TenantId("globex")), Share(1, TenantId("initech"))), List(Expiry(1, TenantId("globex"), 100))), List(Wrote(WriteCmd(Account("ann@acme", TenantId("acme")), Add(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")))), Expired(50)))))
+    + a run that stores nothing leaves an ended share in the database  forbids (150, World(DatabaseModel = Tables(CrmStore(List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")), List(Share(1, TenantId("globex")), Share(1, TenantId("initech"))), List(Expiry(1, TenantId("globex"), 100))), List(Wrote(WriteCmd(Account("ann@acme", TenantId("acme")), Add(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")))))))) ⇒ Tuple2(CrmStore(List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")), List(Share(1, TenantId("initech"))), List()), World(DatabaseModel = Tables(CrmStore(List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")), List(Share(1, TenantId("globex")), Share(1, TenantId("initech"))), List(Expiry(1, TenantId("globex"), 100))), List(Wrote(WriteCmd(Account("ann@acme", TenantId("acme")), Add(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")))), Expired(150)))))
+  ... 7 more: context expiryJob
+
+Code
+  proven define expireOnce_run
+    expireOnce_run = expireOnce
+    expireOnce = fun (now : Int) => do
+        let s ← Database.load
+        let t := (expire s now)
+    ... 9 more line(s): context expiryJob
+
+Decisions
+  2026-10-23 16:57  accepted by demo-developer: The expiry job is a flow proven from the database's model
+  2026-10-23 17:40  accepted by demo-developer: Same contract, with an example of two records out of the database order; the code names the new store once
+  2026-10-25 00:50  confirmed by demo-developer: still holds after storeMirrorsRequests changed: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 14:12  accepted by demo-developer: The same examples: `reject` is now `never`.
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

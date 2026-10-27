@@ -1,0 +1,36 @@
++ searchesMatch  claim  accepted
+  A search, on either screen, returns only stored records it asks for, and every stored record it asks for that the user may read.
+  why: Users find records by id, by kind, or by listing everything, on the records screen or on the sales screen, which lists deals only: a search returns what it asks for, all of it that the user may read. That it returns nothing else to read is noCrossTenantRead's.
+
+Formally (as written in Scala)
+  formula:
+    forall((u: Term[Account], q: Term[Ask]) => results(u, q).forall(r => store.contains(r) && askMatches(q, r)) &&
+      store.forall(r => (askMatches(q, r) && mayRead(u, r)) implies results(u, q).contains(r)))
+
+Where it sits
+  part of    + visibility  with noCrossTenantRead: "A search, on either screen, returns exactly the stored records it asks for that the user may read now: of their company, or shared with it now."
+  uses       - crmRun (definition): "What the CRM holds now, its records, their shares and the shares' expiries, is what its history led to: from empty, each write saved by the write side, the rows about its record replaced by those it stored, and each run of the expiry job, in turn."
+
+Parts: together they make it (proven: auto)
+  + readContract (contract)  needed: "A search on the records screen returns exactly the stored records that match it and the user may read: each of the user's company or shared with it now."
+  + dealSearch (contract)  needed: "A deal search returns exactly the stored deals that match it and the user may read."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Vocabulary
+  clock: the time now, in seconds, by the server's clock: when a search runs (open)
+  deals (operation): the sales screen: the deals a user's search returns (open)
+  expiries: the times until which the CRM's shares are given, as it holds them now (defined by crmRun)
+  read (operation): the records screen: the records a user's search returns (open)
+  shares: the shares the CRM holds now (defined by crmRun)
+  store: the records the CRM holds now (defined by crmRun)
+
+Proofs
+  complete: proven: auto
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: Both screens return what the search asks for; one node for both instead of two one-part chains.
+  2026-10-23 13:47  confirmed by demo-developer: still holds after visibility changed: Same formula, now the read half of the split: searches return the stored records the user may read, not a translation of the root.
+  2026-10-23 15:32  accepted by demo-developer: Rewritten with the FrFlow terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.
+  2026-10-25 00:50  confirmed by demo-developer: still holds after sharedCrm changed: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

@@ -1,0 +1,51 @@
++ recordsByQuery  assumption on fetch  accepted  trusted
+  The database returns exactly the stored records that match a search, of every company.
+  why: Records live in SQLite. The read side is proven from this promise, not from the SQL; the SQL is checked against the define the port is decided with on its examples and on varied data, and every result it returns is checked to match the search.
+
+Formally (as written in Scala)
+  post (every call of fetch):
+    (user, query, rs) => rs.forall(r => store.contains(r) && matches(query, r)) && store.forall(r => matches(query, r) implies rs.contains(r))
+  check:
+    (user, query, rs) => rs.forall(r => matches(query, r))
+
+Where it sits
+  uses       - crmRun (definition): "What the CRM holds now, its records, their shares and the shares' expiries, is what its history led to: from empty, each write saved by the write side, the rows about its record replaced by those it stored, and each run of the expiry job, in turn."
+  calls      + sharesExpire (contract): "A run of the expiry job at a time removes exactly the shares given until then or earlier, with their times, and keeps every record and every other share's time."
+  calls      + saveWrite (contract): "Saving a write stores, and returns as read back, what the store the write leads to holds about the written record."
+  called by  + readContract (contract): "A search on the records screen returns exactly the stored records that match it and the user may read: each of the user's company or shared with it now."
+
+Vocabulary
+  fetch (operation): the database's answer to a search: the stored records, of every company, that match it (open)
+  store: the records the CRM holds now (defined by crmRun)
+
+Proofs
+  impl (storedMatching): proven: auto
+
+Examples: 3 of 3 pass; Lean agrees on 3 of 3
+  given history = List(Wrote(WriteCmd(Account("ann@acme", TenantId("acme")), Add(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")))), Wrote(WriteCmd(Account("gil@globex", TenantId("globex")), Add(CrmRecord(2, TenantId("globex"), Contact, "Globex contact")))), Wrote(WriteCmd(Account("ann@acme", TenantId("acme")), Add(CrmRecord(3, TenantId("acme"), Contact, "Acme contact"))))), database.bind(Db.replaying(history.value))
+    + every company's contacts: the database does not filter by company, the read side does  allows (Account("ann@acme", TenantId("acme")), OfKind(Contact)) ⇒ List(CrmRecord(2, TenantId("globex"), Contact, "Globex contact"), CrmRecord(3, TenantId("acme"), Contact, "Acme contact"))
+    + a record by its id  allows (Account("ann@acme", TenantId("acme")), ById(1)) ⇒ List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal"))
+    + a stored record is never left out  forbids (Account("ann@acme", TenantId("acme")), Everything) ⇒ List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal"))
+
+Code
+  proven define storedMatching; running code database.recordsMatching tested against it
+    storedMatching = (user: Term[Account], query: Term[Search]) => store.filter(r => matches(query, r))
+    «matches» = (q: Term[Search], r: Term[CrmRecord]) =>
+      q.on[Search.ById](id => r.id === id)
+        .on[Search.OfKind](k => r.kind === k)
+        .on[Search.Everything.type](True)
+  tested: 1,000 generated cases (seed 1), against the proven define storedMatching, and recordsByQuery
+    every case meets it, and every part of it was reached
+    note: database: the examples' value (no Lean type to generate it from)
+    note: CrmStore: stores with one row per key, as the tables hold them (given: what the outside holds, with the examples' values)
+  at run time: its check (checkedBy), checked on every call (the default for code not proven)
+  governs: src/main/scala/crm/Db.scala
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: Same promise; the examples now come from a history, as the store does.
+  2026-10-23 13:48  confirmed by demo-developer: still holds after saveWrite changed: Same contract; it now serves writesOnlyAsAsked in place of WritesInCompany and StoreConsistent.
+  2026-10-23 15:32  accepted by demo-developer: Rewritten with the FrFlow terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.
+  2026-10-25 00:50  confirmed by demo-developer: still holds after writeContract changed: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 14:12  accepted by demo-developer: The same examples: `reject` is now `never`.
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

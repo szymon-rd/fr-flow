@@ -1,0 +1,9 @@
+# README step 4: Calendar forgets the booking after the request
+--- a/examples/rooms/src/main/scala/rooms/Calendar.scala
++++ b/examples/rooms/src/main/scala/rooms/Calendar.scala
+@@ -10,4 +10,4 @@
+   def grants(request: Booking): Boolean =
+     val i = byStart.search(request)(using startOrder).insertionPoint
+     request.room != room.name ||
+-      byStart.lift(i - 1).forall(_.end <= request.start) && byStart.lift(i).forall(_.start >= request.end)
++      byStart.lift(i - 1).forall(_.end <= request.start)

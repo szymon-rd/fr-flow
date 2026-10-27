@@ -1,0 +1,54 @@
++ introspect  contract on introspect  accepted  trusted
+  An introspection names the realm asking, and a user enabled there with their roles, only for a session that realm holds under the token; and it names that session's user whenever the user is enabled and the token names no other session there.
+  why: Keycloak's introspection endpoint, for one request, so each answer of the running server is checked. The claims carry the user's realm roles, which applications use to authorise.
+
+Formally (as written in Scala)
+  post (every call of introspect):
+    forall((realm: Term[RealmId], token: Term[String]) =>
+        keycloak.introspect(realm, token).forall(c => c.realm === realm && sessions(c.realm).contains(Session(token, c.realm, c.user)) &&
+          isEnabled(account(realm, c.user)) && c.roles === rolesIn(account(realm, c.user))) &&
+        sessions(realm).forall(x => (x.token === token && isEnabled(account(realm, x.user)) && onlyOne(sessions(realm), x)) implies
+          (keycloak.introspect(realm, token) === some(Claims(realm, x.user, rolesIn(account(realm, x.user)))))))
+  keeps realmIsolation (proven), showing the rule:
+    (realm, token, res) => res
+          .fold(List.empty[(RealmId, Claims)])(c => List((realm, c)))
+
+Where it sits
+  part of    + answersNameASession  its only part: "An introspection answers only with the realm and user of a session the server holds under the token."
+  part of    + disabledHaveNoAccess  with accountsAsAdministered: "A token is never accepted as a user who is disabled now, whenever they signed in."
+  part of    + rolesAsGranted  with accountsAsAdministered: "A token is accepted only with the roles the realm gives its user now."
+  part of    + signedInAreAccepted  with sessionsMirrorSignIns, accountsAsAdministered, oneSignInPerToken: "A user who signed in to a realm and got a token, has not signed out with it since and is still enabled, has it accepted there as theirs, with their roles."
+  part of    + realmIsolation (invariant)  its only part: "No application is ever shown claims of a realm other than its own."
+  design     - serviceWiring (design): "Every request reaches the store through service, one at a time: a sign-in, sign-out or administrator's change runs handleRequest's code on the stored state, which stores its result through storeKeepsState; an introspection runs introspect's code on the state the store holds."
+  uses       - serverRun (definition): "The server's sessions and accounts now are what its requests led to: from the accounts loaded at start and no session, each request handled in turn."
+
+Vocabulary
+  account: the user's account in a realm, as the server holds it now (defined by serverRun)
+  introspect (operation): the server's answer to a realm's application asking about a token: the claims it is active with, or none (not active) (open)
+  sessions: the sessions a realm has open, as the server holds them now (defined by serverRun)
+
+Examples: 12 of 12 pass; Lean agrees on 12 of 12
+  given history = List(SignIn(RealmId("acme"), "alice", "h-alice", "t1"), SignIn(RealmId("acme"), "bob", "h-bob", "t2"), SignIn(RealmId("globex"), "carol", "h-carol", "t4"), SetEnabled(RealmId("acme"), "bob", false), SignIn(RealmId("acme"), "alice", "h-alice", "t3"), SignOut(RealmId("acme"), "t3")), seed = List(UserAccount(RealmId("acme"), "alice", "h-alice", true, List("admin", "user")), UserAccount(RealmId("acme"), "bob", "h-bob", true, List("user")), UserAccount(RealmId("globex"), "carol", "h-carol", true, List("viewer"))), sessionDb.bind(SessionDb.replaying(seed.value, history.value))
+    + Alice's token at acme: accepted as hers, with her roles  allows (RealmId("acme"), "t1") ⇒ Some(Claims(RealmId("acme"), "alice", List("admin", "user")))
+    + Carol's token at globex: accepted as hers  allows (RealmId("globex"), "t4") ⇒ Some(Claims(RealmId("globex"), "carol", List("viewer")))
+    + acme's token is not good at globex  allows (RealmId("globex"), "t1") ⇒ None
+    + Bob was disabled after signing in: his token is no longer accepted  allows (RealmId("acme"), "t2") ⇒ None
+  ... 8 more: context introspect
+
+Code
+  plain code, tested against the claim, not proven
+    introspection
+  tested: 1,000 generated cases (seed 1), against introspect
+    every case meets it, and every part of it was reached
+    note: sessionDb: the examples' value (no Lean type to generate it from)
+  at run time: the contract, checked on every call (the default for code not proven)
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: Keycloak's introspection for one call, checked on every answer: the realm asking, an enabled user with their current roles, a session held under the token; and it does answer when the user is enabled and the token is theirs. One call serves its five parents at once and keeps realmIsolation; the define is proven to meet it and the 12 examples pass.
+  2026-10-23 15:28  accepted by demo-developer: Written with terms in place of the Scala the macro read, and the Lean it gives is the same
+  2026-10-23 15:45  confirmed by demo-developer: still holds after sessionsMirrorSignIns changed: Same meaning and the same Lean: AuthRequest's cases are now built through its Data companion
+  2026-10-24 02:36  accepted by demo-developer: Introspection is plain Scala now, tested against this contract on 1,000 generated cases with every part reached; the five parents' proofs rest on the contract, and the define with its proof is gone. The 12 examples pass and Lean evaluates all of them
+  2026-10-25 00:49  accepted by demo-developer: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 14:12  accepted by demo-developer: The same examples: `reject` is now `never`.
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

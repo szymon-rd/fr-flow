@@ -1,0 +1,25 @@
+- signInHistory  definition  accepted
+  A user is signed in to a realm with a token when a sign-in of theirs to that realm got the token, while they were enabled and with their password, and no sign-out with the token in that realm came after it.
+  why: This is what signing in and out means, said of the history of requests alone, whatever the server keeps: the server's sessions are proven to follow it (sessionsMirrorSignIns).
+
+Formally (as written in Scala)
+    signedIn := (r: Term[RealmId], u: Term[String], t: Term[String]) => liveIn(history, Session(t, r, u))
+
+Where it sits
+  used by    + realmAccess: "A realm's application accepts a token as a user's, with the user's roles, exactly when the user signed in to that realm and got the token, has not signed out with it since, and is still enabled."
+  used by    + noUnauthorizedAccess: "A token is accepted only as a user who signed in to that realm with it, has not signed out since and is still enabled, and only with that user's roles."
+  used by    + signedInAreAccepted: "A user who signed in to a realm and got a token, has not signed out with it since and is still enabled, has it accepted there as theirs, with their roles."
+  used by    + onlyTheSignedIn: "A token is accepted in a realm only as the user who signed in to that realm with it and has not signed out with it since."
+
+Vocabulary
+  history: the requests the server has handled since it started, in order: sign-ins, sign-outs and administrators' changes (the server's event log) (open)
+  seed: every realm's accounts as loaded at start: username, salted password hash, whether enabled, realm roles (open)
+  signedIn: whether the user signed in to the realm, with their password while enabled, got the token, and has not signed out with it since (defined by signInHistory)
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: Signing in and out defined on the history of requests alone, in the words of IDEA.md's Signing in and out section, whatever the server stores. That is what lets sessionsMirrorSignIns prove the server's sessions right instead of trusting them.
+  2026-10-23 15:28  accepted by demo-developer: Written with terms in place of the Scala the macro read, and the Lean it gives is the same
+  2026-10-23 15:44  accepted by demo-developer: Same meaning: the sign-out is now built through the enum's Data companion instead of make[���]
+  2026-10-25 00:48  accepted by demo-developer: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

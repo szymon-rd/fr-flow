@@ -1,0 +1,44 @@
++ isOpenContract  contract on isOpen  accepted
+  An invitation is open from its sending until 7 days after; then it has lapsed.
+  why: Q7: an invitation lapses after 7 days. Accepting it removes it, so an accepted invitation is no longer pending at all.
+
+Formally (as written in Scala)
+  post (every call of isOpen):
+    forall((i: Term[Invitation], t: Term[BigInt]) => isOpen(i, t) === (t < i.sent + invitationLasts))
+
+Where it sits
+  part of    + invitationsAreOffers  with accessContract, inviteContract, acceptContract, withdrawContract, invitationsLapseOnTime: "An invitation is an offer from someone who may edit: only they send it or take it back, it gives nobody access, it is taken up only by the person invited while it is open, and housekeeping clears it away within one of its periods of its lapsing."
+  part of    + invitationsLapseOnTime  with recordContract, announceContract, housekeepingJob, clockNeverGoesBack, housekeepingOnTime: "While housekeeping runs at least every two minutes, no invitation stays pending longer than 7 days and two minutes after it was sent."
+  part of    + endedStaysEnded  with inForceContract, goneContract, clockNeverGoesBack: "What has ended stays ended: time in the service never goes back, so a share once ended, an invitation once lapsed and a document once gone stay so for the rest of the run."
+  uses       - invitationLifetime (definition): "An invitation stays open for 7 days after it is sent."
+
+Vocabulary
+  invitationLasts: how long an invitation stays open after it is sent, in seconds (defined by invitationLifetime)
+  isOpen (operation): whether an invitation is open at a moment: it can be accepted then (open)
+
+Proofs
+  impl (Lifetimes.isOpenCode): proven: auto
+
+Examples: 4 of 4 pass; Lean agrees on 4 of 4
+  given nothing
+    + sent a day ago  allows (Invitation(PersonId("cat"), Doc(DocumentId("plan")), View, PersonId("ann"), 913600), 1000000) ⇒ true
+    + a second before seven days have passed  allows (Invitation(PersonId("cat"), Doc(DocumentId("plan")), View, PersonId("ann"), 913600), 1518399) ⇒ true
+    + seven days after it was sent  allows (Invitation(PersonId("cat"), Doc(DocumentId("plan")), View, PersonId("ann"), 913600), 1518400) ⇒ false
+    + a month later it has long lapsed  forbids (Invitation(PersonId("cat"), Doc(DocumentId("plan")), View, PersonId("ann"), 913600), 3592000) ⇒ true
+
+Code
+  proven define Lifetimes.isOpenCode
+    Lifetimes.isOpenCode = (i: Term[Invitation], t: Term[BigInt]) => t < i.sent + invitationLasts
+  at run time: not checked, the running code is the code Lean proves
+
+Decisions
+  2026-10-25 11:43  accepted by demo-developer: Q7: open for 7 days from its sending.
+  2026-10-25 11:56  accepted by demo-developer: Unchanged statement; marked leftOpenAbove: the nodes above that name open do not rest on this contract.
+  2026-10-25 12:57  confirmed by demo-developer: still holds after housekeepingClearsOnlyTheEnded changed: Q6-Q8 as its own branch: tidying removes only what has ended, and ending is for good (endedStaysEnded), so nothing it removes could count again. Proven by automation.
+  2026-10-25 14:45  confirmed by demo-developer: still holds after endedStaysEnded changed: Unchanged statement; comes back with the library's new fields.
+  2026-10-25 15:15  confirmed by demo-developer: still holds after invitationsLapseOnTime changed: Unchanged statement; Lean proves it again: only shareContract and the ownership branch, which it rests on or sits beside, changed.
+  2026-10-25 19:00  confirmed by demo-developer: still holds after endedStaysEnded changed: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-25 19:31  confirmed by demo-developer: still holds after endedStaysEnded changed: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-26 14:12  accepted by demo-developer: The same examples: `reject` is now `never`.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

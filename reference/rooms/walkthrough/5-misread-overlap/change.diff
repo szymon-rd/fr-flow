@@ -1,0 +1,36 @@
+# README step 5: touching meetings taken to overlap, in the claim over times, the code and the examples
+--- a/examples/rooms/src/main/scala/rooms/Knowledge.scala
++++ b/examples/rooms/src/main/scala/rooms/Knowledge.scala
+@@ -83,7 +83,7 @@
+ 
+ // Over start and end times.
+ val noOverlap = define { (a: Term[Booking], b: Term[Booking]) =>
+-  a.room =!= b.room || a.end <= b.start || b.end <= a.start }
++  a.room =!= b.room || a.end < b.start || b.end < a.start }
+ 
+ val grantWhenNoOverlap = Node.claim("A request is granted exactly when it overlaps no booking of its room.")(
+   forall((room: Term[RoomBookings], request: Term[Booking]) =>
+--- a/examples/rooms/src/main/scala/rooms/Calendar.scala
++++ b/examples/rooms/src/main/scala/rooms/Calendar.scala
+@@ -10,4 +10,4 @@
+   def grants(request: Booking): Boolean =
+     val i = byStart.search(request)(using startOrder).insertionPoint
+     request.room != room.name ||
+-      byStart.lift(i - 1).forall(_.end <= request.start) && byStart.lift(i).forall(_.start >= request.end)
++      byStart.lift(i - 1).forall(_.end < request.start) && byStart.lift(i).forall(_.start > request.end)
+--- a/examples/rooms/src/test/scala/rooms/GrantedExamples.scala
++++ b/examples/rooms/src/test/scala/rooms/GrantedExamples.scala
+@@ -3,8 +3,11 @@
+ import frflow.*
+ 
+ class GrantedExamples extends FrFlowExamples(rooms):
+-  example("back to back: granted"):
+-    granted(RoomBookings("Oak", List(Booking("Oak", 9, 10))), Booking("Oak", 10, 11)) is true
++  example("a gap between them: granted"):
++    granted(RoomBookings("Oak", List(Booking("Oak", 9, 10))), Booking("Oak", 11, 12)) is true
++
++  example("back to back: refused"):
++    granted(RoomBookings("Oak", List(Booking("Oak", 9, 10))), Booking("Oak", 10, 11)) is false
+ 
+   example("overlapping: refused"):
+     granted(RoomBookings("Oak", List(Booking("Oak", 9, 11))), Booking("Oak", 10, 12)) is false

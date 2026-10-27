@@ -1,0 +1,31 @@
++ recordsKept  claim  accepted
+  No write and no run of the expiry job removes a record: after each, the CRM holds every record it held before.
+  why: Editing or removing records is not modelled, so a record once added stays: a write changes shares or adds a record, and the job ends shares only. This is what keeps an added record found from then on, not only right after its write.
+
+Formally (as written in Scala)
+  formula:
+    forall((s: Term[CrmStore], e: Term[Event]) => s.records.forall(r => stepOf(s, e).records.contains(r)))
+
+Where it sits
+  part of    + storeMirrorsRequests  with writesTakeEffect, writesOnlyAsAsked, sharesExpire: "The CRM holds exactly the records its users added, and holds a share of a record as current exactly when the record's company shared it so."
+
+Parts: together they make it (proven: auto)
+  + writeContract (contract)  needed: "A write keeps every record, leaves the records of other companies as they were, does what its author asked of their company's records, and changes nothing else."
+  + saveWrite (contract)  needed: "Saving a write stores, and returns as read back, what the store the write leads to holds about the written record."
+  + sharesExpire (contract)  needed: "A run of the expiry job at a time removes exactly the shares given until then or earlier, with their times, and keeps every record and every other share's time."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Vocabulary
+  expire (operation): a run of the expiry job at a time (in seconds) on a store: the store it leads to (open)
+  save (operation): the write side: a write applied to the store the database holds, the rows about its record stored; it returns those rows as read back (open)
+
+Proofs
+  complete: proven: auto
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: No record is ever removed, so an added one stays found.
+  2026-10-23 13:48  accepted by demo-developer: Same statement, now a part of the mirror: a record added stays held, as it stays added in the history.
+  2026-10-23 15:32  accepted by demo-developer: Rewritten with the FrFlow terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.
+  2026-10-25 00:50  confirmed by demo-developer: still holds after storeMirrorsRequests changed: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

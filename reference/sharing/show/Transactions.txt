@@ -1,0 +1,16 @@
+- transactions  design  accepted
+  Each request, each run of housekeeping and each notice's removal from the outbox is one transaction on the store (atomically): no step of another comes between two of its steps, so requests at once leave the store as one after the other leaves it, in the order they take the store; once begun, a transaction runs to its end. Reading the clock is not part of the store's transaction.
+  why: Q18, Q19, Q21: the service is one process with SQLite as its one store, so FrFlow's atomically, a lock on the store held for the transaction, gives what Q18 asked of compare-and-set on a version (a transaction run again on a conflict); with more than one process the store would have to give it. The proofs read each transaction as one step of the run (handleContract, housekeepingJob, deliveryJob, the run's events), and are proofs of the serial orders; that the runtime keeps to them is this decision, tested with many clients at once (SharingSuite).
+
+Where it sits
+  part of    + handleContract (contract)  with serverWiring: "A request is answered at the time the clock gives, from the library the store holds, and leaves the store holding the library it leads to: a question is answered with the person's access and changes nothing; a change is made as its operation makes it, recorded in the log and announced in the outbox in the same save, and answered done when it may be made and refused otherwise. Handling does not move the clock. A request the store fails changes nothing."
+  part of    + housekeepingJob (contract)  its only part: "A run of housekeeping leaves the store holding the library it held, tidied, its old log entries forgotten, its access requests chased and the shares ending in a day told of, at the time the clock gives, and, when that changed it, recorded in the log; it does not move the clock. A run that fails changes nothing, and the next minute's run tries again."
+  part of    + deliveryJob (contract)  its only part: "A run of delivery reads the outbox and sends the oldest notice of each person in it to the mail server, four at once, each tried three times, a second and then two seconds apart. A notice leaves the outbox only once the mail server has it, and only such a notice: one the mail server did not take stays, to be sent at the next run. The mailbox of each person sent to is as it was, or holds that notice too. Nothing else in the library changes. When the outbox cannot be read, nothing changes."
+
+Code
+  governs: src/main/scala/sharing/store/MemoryLibraryStore.scala
+
+Decisions
+  2026-10-25 19:07  accepted by demo-developer: Q18, Q19, Q21: each request, run of housekeeping and removal from the outbox is one transaction; one process, so FrFlow's atomically (a lock held for the transaction) gives what compare-and-set would; tested with many clients at once.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

@@ -1,0 +1,48 @@
++ dealSearch  contract on deals  accepted
+  A deal search returns exactly the stored deals that match it and the user may read.
+  why: The sales screen, stated for one call. Its code calls the records screen and keeps the deals, so it is proven from readContract's promise and shows only what the records screen may show.
+
+Formally (as written in Scala)
+  post (every call of deals):
+    forall((user: Term[Account], query: Term[Search]) => deals(user, query).forall(r => store.contains(r) && r.kind === Kind.Deal && matches(query, r) && mayRead(user, r)) &&
+      store.forall(r => (r.kind === Kind.Deal && matches(query, r) && mayRead(user, r)) implies deals(user, query).contains(r)))
+  keeps noCrossTenantRead (proven), showing the rule:
+    (user, query, result) => result.map(r => (user, r))
+
+Where it sits
+  part of    + searchesMatch  with readContract: "A search, on either screen, returns only stored records it asks for, and every stored record it asks for that the user may read."
+  part of    + noCrossTenantRead (invariant)  with readContract: "No search returns a record of another company unless that company shared it with the reader's, for good or until a time not yet come."
+  design     - readSideWiring (design): "The records screen and the sales screen serve searches through service, which checks every result against readContract or dealSearch and the invariant they keep; they read the store, shares and expiries from the database's tables, the history from its event log, and the clock."
+  uses       - crmRun (definition): "What the CRM holds now, its records, their shares and the shares' expiries, is what its history led to: from empty, each write saved by the write side, the rows about its record replaced by those it stored, and each run of the expiry job, in turn."
+  calls      + readContract (contract): "A search on the records screen returns exactly the stored records that match it and the user may read: each of the user's company or shared with it now."
+
+Vocabulary
+  clock: the time now, in seconds, by the server's clock: when a search runs (open)
+  deals (operation): the sales screen: the deals a user's search returns (open)
+  expiries: the times until which the CRM's shares are given, as it holds them now (defined by crmRun)
+  shares: the shares the CRM holds now (defined by crmRun)
+  store: the records the CRM holds now (defined by crmRun)
+
+Proofs
+  impl (dealsOf): proven: auto
+
+Examples: 4 of 4 pass; Lean agrees on 4 of 4
+  given history = List(Wrote(WriteCmd(Account("ann@acme", TenantId("acme")), Add(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")))), Wrote(WriteCmd(Account("ann@acme", TenantId("acme")), Add(CrmRecord(2, TenantId("acme"), Contact, "Acme contact"))))), clock = 0, database.bind(Db.replaying(history.value))
+    + Ann's deal search lists Acme's deal, not its contact  allows (Account("ann@acme", TenantId("acme")), Everything) ⇒ List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal"))
+    + a search for contacts finds no deal  allows (Account("ann@acme", TenantId("acme")), OfKind(Contact)) ⇒ List()
+    + a contact is never listed as a deal  forbids (Account("ann@acme", TenantId("acme")), Everything) ⇒ List(CrmRecord(2, TenantId("acme"), Contact, "Acme contact"))
+    + a deal Ann may see is never left out  forbids (Account("ann@acme", TenantId("acme")), Everything) ⇒ List()
+
+Code
+  proven define dealsOf
+    dealsOf = (user: Term[Account], query: Term[Search]) => read(user, query).filter(r => r.kind === Kind.Deal)
+  at run time: not checked, the running code is the code Lean proves
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: Same contract; the examples now come from a history.
+  2026-10-23 13:48  confirmed by demo-developer: still holds after saveWrite changed: Same contract; it now serves writesOnlyAsAsked in place of WritesInCompany and StoreConsistent.
+  2026-10-23 15:32  accepted by demo-developer: Rewritten with the FrFlow terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.
+  2026-10-25 00:50  confirmed by demo-developer: still holds after writeContract changed: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 14:12  accepted by demo-developer: The same examples: `reject` is now `never`.
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

@@ -1,0 +1,14 @@
++ accessExactly: step proven
++ tokenNamesHolder: step proven
++ accessNeedsGrant: step proven
++ grantLetsIn: step proven
++ decisionContract: code tested on 1,000 cases
+o consistency of decisionContract: sessions: nothing says what it equals, and no proven code gives it; say what it equals (a statement sessions(…) === …); admit: its code is tested Scala, evidence and not proof; say what it equals (a statement admit(…) === …)
+
+Auth: 10 nodes, 10 accepted
+Proofs: splits 4/4, claims down to their code 0/1, root_impl proven, consistency not proven, nothing vacuous (1 open: check says which)
+Tests: code against its claims 1/1, examples in Lean 5/5, at run time 1 checked on every call
+Trusted: nothing; tested, not proven: decisionContract
+Nothing waits: every node is accepted and proven, or its code tested.
+marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do
+--- exit 0

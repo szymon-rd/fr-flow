@@ -1,0 +1,14 @@
+# Standings: auth (FRFLOW_SEED=1)
+
+node | kind | standing | review | detail
+
+AccessExactly | claim | proven | accepted | 
+AccessNeedsGrant | claim | proven | accepted | 
+DecisionContract | contract | tested | accepted | code tested on 1000 cases against DecisionContract, seed 1
+GrantLetsIn | claim | proven | accepted | 
+GrantTable | definition | nothing to prove | accepted | 
+Identities | definition | nothing to prove | accepted | 
+InMemorySessions | design | nothing to prove | accepted | 
+Requests | definition | nothing to prove | accepted | 
+SessionTable | definition | nothing to prove | accepted | 
+TokenNamesHolder | claim | proven | accepted | 

@@ -1,0 +1,24 @@
+- searches  definition  accepted
+  A user searches by id, by kind or for everything, on the records screen or on the sales screen, which asks for deals only, and finds what the search returns.
+  why: The idea's two ways of finding records: the records screen, and the sales team's screen of deals. What a user finds is what the screen returns, so the screens' code is what the purpose is about.
+
+Formally (as written in Scala)
+    Query := Ask
+    asksFor := (q: Term[Ask], r: Term[CrmRecord]) => askMatches(q, r)
+    finds := (u: Term[Account], q: Term[Ask], r: Term[CrmRecord]) => results(u, q).contains(r)
+
+Where it sits
+  used by    + sharedCrm: "A user's search finds a record exactly when it asks for that record, a user of the record's company added it, and it is of the user's company or currently shared with it by its own."
+
+Vocabulary
+  Query: a search a user runs (defined by searches)
+  asksFor: whether the record is one the search asks for (defined by searches)
+  deals (operation): the sales screen: the deals a user's search returns (open)
+  finds: whether the user's search, run now, returns the record (defined by searches)
+  read (operation): the records screen: the records a user's search returns (open)
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: Same meaning: a user finds what the screen returns; only the words of the terms it uses moved.
+  2026-10-23 15:32  accepted by demo-developer: Rewritten with the FrFlow terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

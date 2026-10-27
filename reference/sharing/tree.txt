@@ -1,0 +1,96 @@
++ accessFollowsShares: "At any moment, a person can view a document exactly when it is not in the trash and a share in force lets them view it, and edit it exactly when that share is an edit share; and what is shared, offered or kept changes only at the hand of someone who may edit it, of a person taking up an open invitation, or of housekeeping clearing away what has ended."
+|- + invitationsAreOffers: "An invitation is an offer from someone who may edit: only they send it or take it back, it gives nobody access, it is taken up only by the person invited while it is open, and housekeeping clears it away within one of its periods of its lapsing."
+|  |- + inviteContract (contract): "Someone who may edit a document or folder invites a person to it at a level: the invitation, sent now, takes the place of any earlier invitation of them to it. When anyone else asks, nothing changes."
+|  |- + acceptContract (contract): "A person accepts their open invitation to a document or folder: they then have a share of it at the invitation's level, in place of any share of it they had, and the invitation goes. Without an open invitation, or when the document is their own (their share of it is the owner's), nothing changes."
+|  |- + withdrawContract (contract): "Someone who may edit a document or folder withdraws a person's invitation to it: the invitation goes. When anyone else asks, nothing changes."
+|  |- + isOpenContract (contract): "An invitation is open from its sending until 7 days after; then it has lapsed."
+|  |- + invitationsLapseOnTime: "While housekeeping runs at least every two minutes, no invitation stays pending longer than 7 days and two minutes after it was sent."
+|  |  |- -> recordContract
+|  |  |- -> announceContract
+|  |  |- -> housekeepingJob
+|  |  |- -> isOpenContract
+|  |  |- -> clockNeverGoesBack
+|  |  `- -> housekeepingOnTime
+|  `- -> accessContract
+|- + trashUntilGone: "Only someone who may edit a document puts it in the trash or takes it out, and only before it is gone; and housekeeping purges it within one of its periods of its being gone."
+|  |- + trashContract (contract): "Someone who may edit a document puts it in the trash: it is in the trash from now on, unless it was already, when it keeps the time it was put there. When anyone else asks, nothing changes."
+|  |- + restoreContract (contract): "Someone who may edit a document restores it from the trash before it is gone: it is out of the trash, and its shares give access again. When anyone else asks, or it is not in the trash, or it is gone, nothing changes."
+|  |- + goneContract (contract): "A document in the trash is gone 30 days after it was put there; a document not in the trash is never gone."
+|  `- + trashPurgedOnTime: "While housekeeping runs at least every two minutes, no document stays in the trash longer than 30 days and two minutes."
+|     |- + housekeepingJob (contract): "A run of housekeeping leaves the store holding the library it held, tidied, its old log entries forgotten, its access requests chased and the shares ending in a day told of, at the time the clock gives, and, when that changed it, recorded in the log; it does not move the clock. A run that fails changes nothing, and the next minute's run tries again."
+|     |  `- -> transactions
+|     |- + clockNeverGoesBack (assumption): "Time never goes back between the service's events: each wait is of no time or more."
+|     |- + housekeepingOnTime (assumption): "Housekeeping runs often enough: time never moves on more than two minutes past its last run."
+|     |- -> recordContract
+|     |- -> announceContract
+|     `- -> goneContract
+|- + housekeepingClearsOnlyTheEnded: "Housekeeping clears away only what has ended: shares no longer in force or of a document gone, invitations no longer open, and documents gone; and what has ended stays ended, so nothing it clears could have counted again."
+|  |- + tidyContract (contract): "Tidying at a moment keeps the shares in force, except those of a document gone; keeps the invitations still open; and keeps the documents not gone. Everything else stays as it was."
+|  `- + endedStaysEnded: "What has ended stays ended: time in the service never goes back, so a share once ended, an invitation once lapsed and a document once gone stay so for the rest of the run."
+|     |- + inForceContract (contract): "A share is in force while now is before its end; a share with no end is always in force."
+|     |- -> isOpenContract
+|     |- -> goneContract
+|     `- -> clockNeverGoesBack
+|- + accessRequestsAreAsks: "An access request is a person's ask for a document or a folder: asking changes nothing shared, offered or kept, so it gives nobody access; only someone who may edit what it is for answers it, and approving it, while it is pending, makes the share asked for; and housekeeping declines it within one of its periods of its lapsing, and reminds the owners of what it is for within one of its periods of its being due a reminder."
+|  |- + askContract (contract): "A person asks for access to a document or a folder at a level: the request, made now, takes the place of any earlier request of theirs for it. Asking for a document or folder that does not exist changes nothing."
+|  |- + approveContract (contract): "Someone who may edit a document or folder approves a person's pending request for it: the person then has a share of it at the level asked, for good, in place of any share of it they had, and the request goes. Otherwise, or when it is the person's own document (their share of it is the owner's), nothing changes."
+|  |- + declineContract (contract): "Someone who may edit a document or folder declines a person's request for it: the request goes. When anyone else asks, nothing changes."
+|  |- + chaseContract (contract): "Housekeeping chases the access requests at a moment: a request no longer pending is declined (it goes, and the person is told); a pending one due a reminder, not reminded yet, is marked reminded and the owner of each document it is for is told. Everything else stays as it was."
+|  |- + pendingContract (contract): "An access request is pending from when it is made until 7 days after; then it has lapsed."
+|  |- + reminderDueContract (contract): "The owner is due a reminder of an access request from 48 hours after it is made."
+|  `- + requestsAnsweredOnTime: "While housekeeping runs at least every two minutes, no access request stays pending longer than 7 days and two minutes after it was made, and none goes more than 48 hours and two minutes without its reminder."
+|     |- -> recordContract
+|     |- -> announceContract
+|     |- -> housekeepingJob
+|     |- -> pendingContract
+|     |- -> reminderDueContract
+|     |- -> clockNeverGoesBack
+|     `- -> housekeepingOnTime
+|- + ownersKeepTheirDocuments: "A document has one owner. Only its owner, while they may edit it, hands it on, and only to someone who may edit it, who then has an edit share of it for good; and nobody unshares or replaces an owner's shares of their own document. An owner's share is with them in person, not through a team, so leaving a team never takes their documents from them."
+|  |- + transferContract (contract): "The owner of a document, while they may edit it, hands it on to someone who may edit it: that person is then its owner, with an edit share of it for good in place of any share of it they had. When anyone else asks, or the new owner may not edit it, nothing changes."
+|  |- -> shareContract
+|  `- -> unshareContract
+|- + auditTrail: "Every change the service makes is recorded in its log, with the request that made it and when, in the same save as the change; so at every moment, every share the library holds was made by a request in the log. A share is never seen before its entry is there, and every yes of canView rests on shares whose making is logged."
+|  |- + recordContract (contract): "Recording a change at a moment adds one entry at the end of the log: numbered by its place in it, with the moment and the change. Nothing else changes, and no entry is taken away."
+|  |- + forgetContract (contract): "Housekeeping forgets, at a moment, the change of each log entry made more than a year before, unless the entry is the making of a share the library holds or of a change a notice waiting in the outbox tells of: the entry stays in its place, with its number and time, and its change is forgotten. Nothing else changes."
+|  `- -> announceContract
+|- + noticesFollowChanges: "A notice is sent only of a change already kept: at every moment, every notice of a logged change waiting in the outbox is of an entry in the log. A notice leaves the outbox only once the mail server has it, and the mail server has each notice once, so a person is told of each event at least once and never twice."
+|  |- + announceContract (contract): "Announcing a change adds, at the end of the outbox, a notice of its entry to each person it tells, as the library before the change says who: the person invited; whoever sent an invitation now accepted; the owner of a document asked for; the person whose request was approved or declined; the new owner of a document. Nothing else changes."
+|  |- + warnContract (contract): "Housekeeping tells of the shares ending within a day: at a moment, it adds at the end of the outbox a notice, to each person a share reaches, of each share whose end comes a day on, within one housekeeping period. Nothing else changes."
+|  |- + deliveryJob (contract): "A run of delivery reads the outbox and sends the oldest notice of each person in it to the mail server, four at once, each tried three times, a second and then two seconds apart. A notice leaves the outbox only once the mail server has it, and only such a notice: one the mail server did not take stays, to be sent at the next run. The mailbox of each person sent to is as it was, or holds that notice too. Nothing else in the library changes. When the outbox cannot be read, nothing changes."
+|  |  `- -> transactions
+|  `- -> recordContract
+|- + accessContract (contract): "A person's access to a document not in the trash is worked out from their teams and the document's folders: among the shares in force with them or one of their teams, of the document or one of the folders around it, it is edit if one is an edit share, view if there is any, and none otherwise. A document in the trash gives no access."
+|- + canViewContract (contract): "A person can view a document exactly when they have some access to it."
+|- + canEditContract (contract): "A person can edit a document exactly when their access to it is edit."
+|- + shareContract (contract): "Someone who may edit a document or folder shares it with a person or a team at a level, for good or until a time: the new share takes the place of any earlier share of it with them, unless it is the owner's share of their own document, which stays. When anyone else asks, nothing changes."
+|- + unshareContract (contract): "Someone who may edit a document or folder unshares it from a person or a team: their share of it goes, unless it is the owner's share of their own document. When anyone else asks, nothing changes."
+|- + moveContract (contract): "Someone who may edit a document moves it into a folder they may edit, or out of every folder: the document is then in that folder and in every folder around it. When anyone else asks, or the folder does not exist, nothing changes."
+|- + handleContract (contract): "A request is answered at the time the clock gives, from the library the store holds, and leaves the store holding the library it leads to: a question is answered with the person's access and changes nothing; a change is made as its operation makes it, recorded in the log and announced in the outbox in the same save, and answered done when it may be made and refused otherwise. Handling does not move the clock. A request the store fails changes nothing."
+|  |- - transactions (design): "Each request, each run of housekeeping and each notice's removal from the outbox is one transaction on the store (atomically): no step of another comes between two of its steps, so requests at once leave the store as one after the other leaves it, in the order they take the store; once begun, a transaction runs to its end. Reading the clock is not part of the store's transaction."
+|  `- - serverWiring (design): "The server reads each HTTP request into a request (an unreadable one is answered 400 with its reason, an unknown route 404), answers it with handleContract's flow on the store and the clock, in IO, as many at once as its workers take, and writes the answer as JSON (a refused change is 403); requests run on a pool of workers with a time limit each (503 past it), a request the store fails is answered 503 and changes nothing, and an internal error is answered 500 and logged. On the computer's clock, housekeeping runs every minute on a thread of its own, each start checked against housekeepingOnTime, and delivery every ten seconds; a run that fails is tried again at its next start; on a fake clock (tests), time moves and housekeeping runs only when a test asks."
+`- - domainTypes (design): "People, teams, documents, folders, shares, invitations, access requests, log entries and notices are plain data: a document and a folder each list the folders around them, outermost first; a document names its owner; a team lists its people; a share may carry its end, a document the time it went to the trash, an invitation the time it was sent, a request the time it was made, all in seconds. The library keeps its log and its outbox with it. The demo library (Demo.scala) is the data the examples are decided on."
+
+Assumptions, under no parent: trusted (the code calls them)
+- libraryKept (assumption): "The store gives the library it holds, and after a save holds the library saved, in place of the one it held; any call may fail because the store is down, and then changes nothing."
+- mailerKept (assumption): "The mail server delivers a notice it is given into the mailbox of the person it is to, after the ones delivered there before, and one it has already delivered is not delivered again; any call may fail because it is down, and then delivers nothing."
+- clockKept (assumption): "The clock gives the time now, in seconds; a sleep moves it on by the time asked and by a delay it may add, never less, and nothing else moves it while a flow runs."
+
+Definitions: they fix terms of the vocabulary (decided, not proven)
+- reach (definition): "A share reaches the person it is with, and everyone in the team it is with."
+- cover (definition): "A share of a document covers that document; a share of a folder covers the folder, every folder inside it, and every document inside any of them."
+- permission (definition): "A person may view a document or folder when a share in force reaches them and covers it; they may edit it when such a share is an edit share."
+- inTrash (definition): "A document is in the trash when it was put there and not restored since."
+- ownersShare (definition): "An owner's share of a document is a share of it with the document's owner in person."
+- housekeepingPeriod (definition): "Housekeeping is started every minute; the service never goes more than two minutes without a run."
+- invitationLifetime (definition): "An invitation stays open for 7 days after it is sent."
+- trashLifetime (definition): "A document stays in the trash for 30 days."
+- requestLifetime (definition): "An access request stays pending for 7 days after it is made; its document's owner is reminded of it after 48 hours."
+
+Sharing: 58 nodes, 58 accepted
+Proofs: splits 12/12, claims down to their code 29/29, root_impl proven, consistency not proven, nothing vacuous (2 open: check says which)
+Tests: implementations against their models 3/3, examples in Lean 119/119, at run time 26 not checked (proven)
+Trusted: clockNeverGoesBack, housekeepingOnTime, libraryKept (a model), mailerKept (a model), clockKept (a model)
+Nothing waits: every node is accepted and proven.
+marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do
+--- exit 0

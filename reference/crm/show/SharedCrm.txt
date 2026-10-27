@@ -1,0 +1,70 @@
++ sharedCrm  claim (a root)  accepted
+  A user's search finds a record exactly when it asks for that record, a user of the record's company added it, and it is of the user's company or currently shared with it by its own.
+  why: The idea in one sentence, stated as exactly over what users asked: what a search finds is fixed by the history of adds, shares and unshares, with their times (adding, sharing), whatever the CRM keeps. Both halves matter: a search must never show a record of another company that did not share it, and must show every record a user added that the searcher may see, so a CRM that stores nothing does not meet it. It splits into what the CRM holds (storeMirrorsRequests) and what searches read of it (visibility).
+
+Formally (as written in Scala)
+  formula:
+    forall((u: Term[User.T], q: Term[Query.T]) => forall((r: Term[Record.T]) =>
+        finds(u, q, r) === (asksFor(q, r) && added(owner(r), r) && (owner(r) === companyOf(u) || sharedWith(r, companyOf(u))))))
+  expects (proven): When Ann at Acme has added a contact, and Gil at Globex a deal he shared with Acme until 100: at 50 Ann finds both, at 150 only her contact, and Gil never finds Ann's contact
+    (history === List(
+      Event.Wrote(WriteCmd(Account("ann@acme", TenantId("acme")), Change.Add(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact")))),
+      Event.Wrote(WriteCmd(Account("gil@globex", TenantId("globex")), Change.Add(CrmRecord(2, TenantId("globex"), Kind.Deal, "Globex deal")))),
+      Event.Wrote(WriteCmd(Account("gil@globex", TenantId("globex")), Change.ShareWith(2, TenantId("acme"), Some(100)))))) implies
+    (((clock === BigInt(50)) implies
+        (results(Account("ann@acme", TenantId("acme")), Ask(Screen.Records, Search.Everything)).contains(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact")) &&
+         results(Account("ann@acme", TenantId("acme")), Ask(Screen.Records, Search.Everything)).contains(CrmRecord(2, TenantId("globex"), Kind.Deal, "Globex deal")))) &&
+     ((clock === BigInt(150)) implies
+        (results(Account("ann@acme", TenantId("acme")), Ask(Screen.Records, Search.Everything)).contains(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact")) &&
+         !results(Account("ann@acme", TenantId("acme")), Ask(Screen.Records, Search.Everything)).contains(CrmRecord(2, TenantId("globex"), Kind.Deal, "Globex deal")))) &&
+     !results(Account("gil@globex", TenantId("globex")), Ask(Screen.Records, Search.Everything)).contains(CrmRecord(1, TenantId("acme"), Kind.Contact, "Acme contact"))
+  expects (proven): A record a user adds to their company, under an id no record added before has, is found from then on by each of their searches that asks for it
+    forall((u: Term[Account], r: Term[CrmRecord]) => forall((pre: Term[List[Event]], post: Term[List[Event]]) =>
+      (history === pre ++ (Event[Event.Wrote](WriteCmd(u, Change[Change.Add](r))) :: post) && r.tenant === u.tenant &&
+        !askedIn(pre).records.exists(x => x.id === r.id)) implies
+        forall((q: Term[Ask]) => askMatches(q, r) implies results(u, q).contains(r))))
+  expects (proven): Nothing a user writes changes what anyone finds of another company's records: after the write, a search finds of them what the history before it entitled it to
+    forall((es: Term[List[Event]], w: Term[WriteCmd]) => forall((u: Term[Account], q: Term[Ask]) => forall((r: Term[CrmRecord]) =>
+      (history === es ++ List(Event[Event.Wrote](w)) && r.tenant =!= w.by.tenant) implies
+        (results(u, q).contains(r) === (askMatches(q, r) && askedIn(es).records.contains(r) &&
+          (r.tenant === u.tenant || sharedIn(es, r.id, u.tenant, clock)))))))
+
+Where it sits
+  design     - httpApi (design): "The HTTP API answers searches through the records screen and the sales screen, and writes through the write side; who calls is the account in the request's headers."
+  uses       - companies (definition): "companies are named by ids; a user is an account of one company; a record, a contact or a deal, belongs to the company stored on it."
+  uses       - searches (definition): "A user searches by id, by kind or for everything, on the records screen or on the sales screen, which asks for deals only, and finds what the search returns."
+  uses       - adding (definition): "A user of a company has added a record when a write of theirs in the CRM's history asked to add it, of their company, under an id no record added before it had."
+  uses       - sharing (definition): "A record is shared with a company now when the last share or unshare of it with that company, by a user of its company once it was added, was a share, and neither the clock now nor a run of the expiry job since has reached that share's time."
+
+Parts: together they make it (proven: authored)
+  + storeMirrorsRequests  needed: "The CRM holds exactly the records its users added, and holds a share of a record as current exactly when the record's company shared it so."
+  + visibility  needed: "A search, on either screen, returns exactly the stored records it asks for that the user may read now: of their company, or shared with it now."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Vocabulary
+  Company: a company that uses the CRM (defined by companies)
+  Query: a search a user runs (defined by searches)
+  Record: a contact or a deal kept in the CRM (defined by companies)
+  User: a person who works for one of the companies that use the CRM (defined by companies)
+  added: whether a user of the company has added the record to the CRM, for that company (defined by adding)
+  asksFor: whether the record is one the search asks for (defined by searches)
+  clock: the time now, in seconds, by the server's clock: when a search runs (open)
+  companyOf: the company a user works for (defined by companies)
+  deals (operation): the sales screen: the deals a user's search returns (open)
+  finds: whether the user's search, run now, returns the record (defined by searches)
+  history: the CRM's history since it started empty: every write the write side saved and every run of the expiry job, in order (its event log) (open)
+  owner: the company a record belongs to (defined by companies)
+  read (operation): the records screen: the records a user's search returns (open)
+  sharedWith: whether the record's company has shared it with the company, and that share holds now (defined by sharing)
+
+Proofs
+  complete: proven: authored
+  root_impl: proven: the root holds of the code, trusting storeEdits, recordsByQuery
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: The sentence, now of one store: finding reads what the writes and job runs led to, an added record is then found, and both expectations show it on Acme and Globex.
+  2026-10-23 13:47  accepted by demo-developer: One relation over what users asked, not a list: doing nothing fails it, and isolation and an added record found are now proven of it.
+  2026-10-23 15:32  accepted by demo-developer: Rewritten with the FrFlow terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.
+  2026-10-25 00:50  accepted by demo-developer: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

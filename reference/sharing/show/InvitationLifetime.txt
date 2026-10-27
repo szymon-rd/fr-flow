@@ -1,0 +1,18 @@
+- invitationLifetime  definition  accepted
+  An invitation stays open for 7 days after it is sent.
+  why: Q7: an invitation lapses after 7 days; a week is long enough to answer, short enough not to leave stale offers.
+
+Formally (as written in Scala)
+    invitationLasts := 7 * 86400
+
+Where it sits
+  used by    + invitationsLapseOnTime: "While housekeeping runs at least every two minutes, no invitation stays pending longer than 7 days and two minutes after it was sent."
+  used by    + isOpenContract (contract): "An invitation is open from its sending until 7 days after; then it has lapsed."
+
+Vocabulary
+  invitationLasts: how long an invitation stays open after it is sent, in seconds (defined by invitationLifetime)
+
+Decisions
+  2026-10-25 11:41  accepted by demo-developer: Q7: invitations lapse after 7 days.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

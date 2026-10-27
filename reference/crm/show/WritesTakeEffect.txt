@@ -1,0 +1,29 @@
++ writesTakeEffect  claim  accepted
+  A user's write about their company's record does what they asked: it adds the record, shares it (until a time, or for good), or unshares it.
+  why: What the idea says users can do with their company's records. It is about what the database holds after the write, not only what the write computes: a write that is not stored has not happened. A share until a time holds that time only, so sharing again replaces the time it had.
+
+Formally (as written in Scala)
+  formula:
+    forall((s: Term[CrmStore], w: Term[WriteCmd]) => takesEffect(s, w, afterSave(s, w)))
+
+Where it sits
+  part of    + storeMirrorsRequests  with writesOnlyAsAsked, recordsKept, sharesExpire: "The CRM holds exactly the records its users added, and holds a share of a record as current exactly when the record's company shared it so."
+
+Parts: together they make it (proven: authored)
+  + writeContract (contract)  needed: "A write keeps every record, leaves the records of other companies as they were, does what its author asked of their company's records, and changes nothing else."
+  + saveWrite (contract)  needed: "Saving a write stores, and returns as read back, what the store the write leads to holds about the written record."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Vocabulary
+  save (operation): the write side: a write applied to the store the database holds, the rows about its record stored; it returns those rows as read back (open)
+
+Proofs
+  complete: proven: authored
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: Same statement; it is now also why an added record is stored right after its write.
+  2026-10-23 13:48  accepted by demo-developer: Same statement, now exact about a share's time: sharing again until a time leaves that time only, as the history says.
+  2026-10-23 15:32  accepted by demo-developer: Rewritten with the FrFlow terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.
+  2026-10-25 00:50  accepted by demo-developer: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

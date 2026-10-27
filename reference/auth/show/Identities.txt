@@ -1,0 +1,19 @@
+- identities  definition  accepted
+  Users are named by ids, and resources are paths.
+  why: The grant table names users by id and resources by path, so these are what the system knows them by.
+
+Formally (as written in Scala)
+    User := UserId
+    Resource := Path
+
+Where it sits
+  used by    + accessExactly: "A user gets access to a resource exactly when they are signed in and authorized for it."
+
+Vocabulary
+  Resource: something a user may want to access (defined by identities)
+  User: a person who uses the system (defined by identities)
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: The grant table names users by id and resources by path, so these are the identities the system can actually check; a richer user record would add nothing any rule reads.
+  2026-10-26 15:22  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

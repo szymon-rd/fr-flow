@@ -1,0 +1,9 @@
+
+Decided 0 decision(s).
+Crm: 26 nodes, 26 accepted
+Proofs: splits 8/8, claims down to their code 6/6, root_impl proven, consistency not proven, nothing vacuous (3 open: check says which)
+Tests: code against its claims 2/2, implementations against their models 1/1, examples in Lean 36/36, at run time 2 checked on every call, 5 not checked (proven)
+Trusted: storeEdits, recordsByQuery, tablesModel (a model)
+Nothing waits: every node is accepted and proven.
+marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do
+--- exit 0

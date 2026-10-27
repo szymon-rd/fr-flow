@@ -1,0 +1,51 @@
++ auditTrail  claim  accepted
+  Every change the service makes is recorded in its log, with the request that made it and when, in the same save as the change; so at every moment, every share the library holds was made by a request in the log. A share is never seen before its entry is there, and every yes of canView rests on shares whose making is logged.
+  why: Q15: every change is logged with who, what and when, and every yes of canView is traceable to the log entries of the shares that gave it. Recording the change in the save that makes it is what puts the entry there first (an ordering of the run, assertion 5 of the time design): no moment of the service shows a share whose entry is not already kept. Nothing removes an entry (libraryKept); housekeeping forgets what an entry tells after a year, but not while it explains a share held (forgetContract).
+
+Formally (as written in Scala)
+  formula:
+    after(events).library.shares.forall(s => after(events).library.log.exists(e => makes(e, s))) &&
+        forall((p: Term[PersonId], d: Term[DocumentId]) =>
+          mayView(after(events).library, after(events).now, p, Target[Target.Doc](d)) implies
+            after(events).library.shares.exists(s => inForce(s, after(events).now) && reaches(after(events).library, s, p) &&
+              covers(after(events).library, s, Target[Target.Doc](d)) && after(events).library.log.exists(e => makes(e, s))))
+
+Where it sits
+  part of    + accessFollowsShares  with invitationsAreOffers, trashUntilGone, housekeepingClearsOnlyTheEnded, accessRequestsAreAsks, ownersKeepTheirDocuments, noticesFollowChanges, accessContract, canViewContract, canEditContract, shareContract, unshareContract, moveContract, handleContract, domainTypes: "At any moment, a person can view a document exactly when it is not in the trash and a share in force lets them view it, and edit it exactly when that share is an edit share; and what is shared, offered or kept changes only at the hand of someone who may edit it, of a person taking up an open invitation, or of housekeeping clearing away what has ended."
+  uses       - permission (definition): "A person may view a document or folder when a share in force reaches them and covers it; they may edit it when such a share is an edit share."
+  uses       - reach (definition): "A share reaches the person it is with, and everyone in the team it is with."
+  uses       - cover (definition): "A share of a document covers that document; a share of a folder covers the folder, every folder inside it, and every document inside any of them."
+  uses       - ownersShare (definition): "An owner's share of a document is a share of it with the document's owner in person."
+
+Parts: together they make it (proven: authored)
+  + recordContract (contract)  needed: "Recording a change at a moment adds one entry at the end of the log: numbered by its place in it, with the moment and the change. Nothing else changes, and no entry is taken away."
+  + forgetContract (contract)  needed: "Housekeeping forgets, at a moment, the change of each log entry made more than a year before, unless the entry is the making of a share the library holds or of a change a notice waiting in the outbox tells of: the entry stays in its place, with its number and time, and its change is forgotten. Nothing else changes."
+  + announceContract (contract)  needed: "Announcing a change adds, at the end of the outbox, a notice of its entry to each person it tells, as the library before the change says who: the person invited; whoever sent an invitation now accepted; the owner of a document asked for; the person whose request was approved or declined; the new owner of a document. Nothing else changes."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Vocabulary
+  announce (operation): the library with notices of a change added to its outbox (open)
+  covers: whether a share covers a document or a folder: it is a share of it, or of a folder around it (defined by cover)
+  events: what has happened to the service since it started, in order: the requests answered, the runs of housekeeping, and time passing (open)
+  gone (operation): whether a document is gone at a moment: past restoring, purged by the next housekeeping (open)
+  inForce (operation): whether a share is in force at a moment: it gives access then (open)
+  isOpen (operation): whether an invitation is open at a moment: it can be accepted then (open)
+  isPending (operation): whether an access request is pending at a moment: it can be approved then (open)
+  mayEdit: whether a person may edit a document or folder at a moment (defined by permission)
+  mayView: whether a person may view a document or folder at a moment (defined by permission)
+  ownedBy: whether a share of a document or folder with someone is the owner's share of their own document (defined by ownersShare)
+  reaches: whether a share reaches a person: it is with them, or with a team they are in (defined by reach)
+  record (operation): the library with a change recorded in its log (open)
+  reminderDue (operation): whether the owner is due a reminder of an access request at a moment (open)
+  startedAt: when the service started, in seconds (open)
+
+Proofs
+  complete: proven: authored
+
+Decisions
+  2026-10-25 14:48  accepted by demo-developer: Q15: every change logged in the same save; every share held, and so every yes of canView, traceable to the entry that made it.
+  2026-10-25 15:14  confirmed by demo-developer: Unchanged statement; Lean proves it again: only shareContract and the ownership branch, which it rests on or sits beside, changed.
+  2026-10-25 19:02  confirmed by demo-developer: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-25 19:33  accepted by demo-developer: Unchanged claim; why updated: entries are never taken away, what they tell is forgotten after a year unless it explains a share held (forgetContract).
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

@@ -1,0 +1,24 @@
++ endsAfterStart  claim (a root)  accepted
+  Every booking ends after it starts.
+
+Formally (as written in Scala)
+  formula:
+    always[Booking](b => b.start < b.end)
+  kept by book
+
+Where it sits
+  used by    + grantWhenNoOverlap: "A request is granted exactly when it overlaps no booking of its room."
+  used by    + answerWhenFree: "A request is answered booked exactly when its room is free for its whole time."
+  used by    + grantWhenFree: "A request is granted exactly when its room is free for its whole time."
+  used by    + bookWhenFree: "A request is stored exactly when its room is free for its whole time."
+
+Assumes
+  - requestsEndAfterStart (assumption): "The booking form sends only requests that end after they start."
+
+Proofs
+  kept_by_book: proven: auto
+  called_with_book: proven: auto
+
+Decisions
+  2026-10-26 21:47  accepted by demo-developer: Every booking that can be made ends after it starts, so no statement has to say it again.
+--- exit 0

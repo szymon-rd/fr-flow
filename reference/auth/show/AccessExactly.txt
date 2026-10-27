@@ -1,0 +1,36 @@
++ accessExactly  claim (a root)  accepted
+  A user gets access to a resource exactly when they are signed in and authorized for it.
+  why: The idea says no one may access what they are not authorized to; and authorization is what lets a signed-in user in, or the system would serve no one. Who is authorized, and how a user signs in, the domain says below.
+
+Formally (as written in Scala)
+  formula:
+    forall((u: Term[User.T], r: Term[Resource.T]) => access(u, r) === (signedIn(u) && authorized(u, r)))
+
+Where it sits
+  uses       - identities (definition): "Users are named by ids, and resources are paths."
+  uses       - requests (definition): "A user has access to a path when some request for it is admitted on their behalf."
+  uses       - sessionTable (definition): "A user is signed in when some session token was issued to them."
+  uses       - grantTable (definition): "A user is authorized for a path when a grant names that user and that path."
+
+Parts: together they make it (proven: auto)
+  + tokenNamesHolder  needed: "A request is admitted only on behalf of the user its token was issued to."
+  + accessNeedsGrant  needed: "A request is admitted on behalf of a user only if a grant names that user and the path."
+  + grantLetsIn  needed: "A request whose token was issued to a user with a grant for the path is admitted on their behalf."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Vocabulary
+  Resource: something a user may want to access (defined by identities)
+  User: a person who uses the system (defined by identities)
+  access: whether the system lets the user access the resource (defined by requests)
+  authorized: whether the user is allowed the resource, by whatever rule the system adopts (defined by grantTable)
+  signedIn: whether the user has signed in, so can present who they are (defined by sessionTable)
+
+Proofs
+  complete: proven: auto
+  root_impl: proven: the root holds of the code, trusting nothing; and the code of decisionContract, tested, not proven
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: IDEA.md's purpose stated as exactly: no access without authorization, and access for whoever is signed in and authorized, so a system that refuses everyone fails it. Its three parts are the three rules of one admit decision (whose token, needs a grant, a grant lets in), and Lean shows each is needed.
+  2026-10-23 15:18  accepted by demo-developer: Rewritten with FrFlow's terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.
+  2026-10-26 15:22  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

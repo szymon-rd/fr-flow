@@ -1,0 +1,39 @@
++ forgetContract  contract on forget  accepted
+  Housekeeping forgets, at a moment, the change of each log entry made more than a year before, unless the entry is the making of a share the library holds or of a change a notice waiting in the outbox tells of: the entry stays in its place, with its number and time, and its change is forgotten. Nothing else changes.
+  why: Q15: the log is kept for a year. An entry keeps its place, so numbers stay unique and no entry is taken away (recordContract); what it told is gone. An entry that explains a share held, or a notice not yet sent, is kept as long as it does (auditTrail, noticesFollowChanges).
+
+Formally (as written in Scala)
+  post (every call of forget):
+    forall((lib: Term[Library], t: Term[BigInt]) => forget(lib, t) === lib.copy((log = lib.log.map(e =>
+        (e.at <= t - year && !explains(lib, e)).fold(Entry(e.id, e.at, Change.Forgotten: Term[Change]), e)))))
+
+Where it sits
+  part of    + auditTrail  with recordContract, announceContract: "Every change the service makes is recorded in its log, with the request that made it and when, in the same save as the change; so at every moment, every share the library holds was made by a request in the log. A share is never seen before its entry is there, and every yes of canView rests on shares whose making is logged."
+  called by  + housekeepingJob (contract): "A run of housekeeping leaves the store holding the library it held, tidied, its old log entries forgotten, its access requests chased and the shares ending in a day told of, at the time the clock gives, and, when that changed it, recorded in the log; it does not move the clock. A run that fails changes nothing, and the next minute's run tries again."
+
+Vocabulary
+  forget (operation): the library with the changes of its old log entries forgotten (open)
+
+Proofs
+  impl (Audit.forgetCode): proven: auto
+
+Examples: 3 of 3 pass; Lean agrees on 3 of 3
+  given nothing
+    + over a year on: the unshare is forgotten; the share it made, still held, keeps its entry  allows (Library(List(Document(DocumentId("plan"), "Plan", List(), None, PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("bob")), View, None), Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(), List(), List(Entry(0, -33560000, Made(Share(PersonId("ann"), Doc(DocumentId("plan")), Person(PersonId("bob")), View, None))), Entry(1, -33560000, Made(Unshare(PersonId("ann"), Doc(DocumentId("plan")), Person(PersonId("bob")))))), List()), 1000000) ⇒ Library(List(Document(DocumentId("plan"), "Plan", List(), None, PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("bob")), View, None), Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(), List(), List(Entry(0, -33560000, Made(Share(PersonId("ann"), Doc(DocumentId("plan")), Person(PersonId("bob")), View, None))), Entry(1, -33560000, Forgotten)), List())
+    + under a year: kept  allows (Library(List(Document(DocumentId("plan"), "Plan", List(), None, PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(), List(), List(Entry(1, -33560000, Made(Unshare(PersonId("ann"), Doc(DocumentId("plan")), Person(PersonId("bob")))))), List()), -7640000) ⇒ Library(List(Document(DocumentId("plan"), "Plan", List(), None, PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(), List(), List(Entry(1, -33560000, Made(Unshare(PersonId("ann"), Doc(DocumentId("plan")), Person(PersonId("bob")))))), List())
+    + an entry is never taken away  forbids (Library(List(Document(DocumentId("plan"), "Plan", List(), None, PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(), List(), List(Entry(1, -33560000, Made(Unshare(PersonId("ann"), Doc(DocumentId("plan")), Person(PersonId("bob")))))), List()), 1000000) ⇒ Library(List(Document(DocumentId("plan"), "Plan", List(), None, PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(), List(), List(), List())
+
+Code
+  proven define Audit.forgetCode
+    Audit.forgetCode = (lib: Term[Library], t: Term[BigInt]) =>
+        lib.copy((log = lib.log.map(e => (e.at <= t - year && !explains(lib, e)).fold(Entry(e.id, e.at, Change.Forgotten: Term[Change]), e))))
+    Audit.explains = (lib: Term[Library], e: Term[Entry]) =>
+        lib.shares.exists(s => makes(e, s)) || lib.outbox.exists(n => n.about === Subject[Subject.Logged](e))
+    ... 18 more line(s): context forgetContract
+  at run time: not checked, the running code is the code Lean proves
+
+Decisions
+  2026-10-25 19:34  accepted by demo-developer: Q15 (stage-3 open item): the log is kept for a year: an entry keeps its place, its change is forgotten after a year unless it explains a share held or a waiting notice.
+  2026-10-26 14:12  accepted by demo-developer: The same examples: `reject` is now `never`.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

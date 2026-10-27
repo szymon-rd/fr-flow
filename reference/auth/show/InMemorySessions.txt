@@ -1,0 +1,14 @@
+- inMemorySessions  design  accepted
+  Sessions and grants are loaded into memory, in one process that decides every request.
+  why: One service decides access, and the tables fit in memory. A shared store would only be needed with several instances.
+
+Where it sits
+  part of    + decisionContract (contract)  its only part: "A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path."
+
+Code
+  governs: src/main/scala/auth/Server.scala
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: Still one process deciding every request from tables held in memory; it governs the server code that runs decisionContract's decision, so it sits under it. Revisit if the service runs as several instances.
+  2026-10-26 15:22  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

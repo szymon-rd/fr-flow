@@ -1,0 +1,17 @@
+# Standings: rooms (FRFLOW_SEED=1)
+
+node | kind | standing | review | detail
+
+AnswerWhenFree | claim | proven | accepted | 
+BookWhenFree | claim | proven | accepted | 
+BookingsOfTheRoom | claim | proven | accepted | 
+EndsAfterStart | claim | proven | accepted | 
+GrantWhenFree | claim | proven | accepted | 
+GrantWhenNoOverlap | claim | tested | accepted | code tested on 1000 cases against GrantWhenNoOverlap, seed 1
+NeverOverlap | claim | proven | accepted | 
+OneAtATime | assumption | assumed | accepted | 
+OnlyBookingWrites | assumption | assumed | accepted | 
+RequestsEndAfterStart | assumption | assumed | accepted | 
+RoomBookingsApart | claim | proven | accepted | 
+StartsApart | assumption | assumed | accepted | 
+TableModel | assumption | assumed | accepted | its check: proven; SqliteBookings run against the model on 200 runs

@@ -1,0 +1,28 @@
+- identities  definition  accepted
+  Realms are named; a user is named by their username in a realm; tokens and roles are strings.
+  why: The same username in two realms is two users: a user is always looked up with the realm. A token is an opaque random string, a role a name the realm's applications know.
+
+Formally (as written in Scala)
+    Realm := RealmId
+    User := String
+    Token := String
+    Role := String
+
+Where it sits
+  used by    + realmAccess: "A realm's application accepts a token as a user's, with the user's roles, exactly when the user signed in to that realm and got the token, has not signed out with it since, and is still enabled."
+  used by    + noUnauthorizedAccess: "A token is accepted only as a user who signed in to that realm with it, has not signed out since and is still enabled, and only with that user's roles."
+  used by    + signedInAreAccepted: "A user who signed in to a realm and got a token, has not signed out with it since and is still enabled, has it accepted there as theirs, with their roles."
+  used by    + onlyTheSignedIn: "A token is accepted in a realm only as the user who signed in to that realm with it and has not signed out with it since."
+  used by    + disabledHaveNoAccess: "A token is never accepted as a user who is disabled now, whenever they signed in."
+  used by    + rolesAsGranted: "A token is accepted only with the roles the realm gives its user now."
+
+Vocabulary
+  Realm: an organisation using the server, with its own users and applications (defined by identities)
+  Role: what a realm lets a user do in its applications, such as admin (defined by identities)
+  Token: what a user gets when signing in, and hands to a realm's applications (defined by identities)
+  User: a person with an account in a realm (defined by identities)
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: IDEA.md: each realm has its own users, so the same username in two realms is two users and a user is always named with their realm. Tokens and roles stay plain strings because the core only compares them.
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

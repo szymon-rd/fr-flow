@@ -1,0 +1,18 @@
+- domainTypes  design  accepted
+  People, teams, documents, folders, shares, invitations, access requests, log entries and notices are plain data: a document and a folder each list the folders around them, outermost first; a document names its owner; a team lists its people; a share may carry its end, a document the time it went to the trash, an invitation the time it was sent, a request the time it was made, all in seconds. The library keeps its log and its outbox with it. The demo library (Demo.scala) is the data the examples are decided on.
+  why: Listing the folders around a document, rather than only its parent, says what is inside a folder without walking the tree: every statement about folders is then a question about a list, with no depth to bound. A move keeps the lists right (moveContract). Times are kept on the things they belong to, so what has ended is read off the data and the clock, never off a job having run. Owning these files makes a change to the types or to the example data a decision.
+
+Where it sits
+  part of    + accessFollowsShares  with invitationsAreOffers, trashUntilGone, housekeepingClearsOnlyTheEnded, accessRequestsAreAsks, ownersKeepTheirDocuments, auditTrail, noticesFollowChanges, accessContract, canViewContract, canEditContract, shareContract, unshareContract, moveContract, handleContract: "At any moment, a person can view a document exactly when it is not in the trash and a share in force lets them view it, and edit it exactly when that share is an edit share; and what is shared, offered or kept changes only at the hand of someone who may edit it, of a person taking up an open invitation, or of housekeeping clearing away what has ended."
+
+Code
+  governs: src/main/scala/sharing/Demo.scala, src/main/scala/sharing/domain/Documents.scala, src/main/scala/sharing/domain/Invitations.scala, src/main/scala/sharing/domain/Library.scala, src/main/scala/sharing/domain/People.scala, src/main/scala/sharing/domain/Records.scala, src/main/scala/sharing/domain/Requests.scala, src/main/scala/sharing/domain/Shares.scala
+
+Decisions
+  2026-10-25 01:32  accepted by demo-developer: Materialized folder paths keep every folder statement a list question with no depth; the demo library is small and covers teams and nesting.
+  2026-10-25 11:42  accepted by demo-developer: Times are kept on what they belong to (a share's end, a document's trash time, an invitation's sending), so what has ended is read off data and clock, never off a job having run.
+  2026-10-25 14:43  accepted by demo-developer: Adds access requests, log entries, notices and a document's owner as plain data; the log and the outbox live in the library, saved with it.
+  2026-10-25 18:50  confirmed by demo-developer: Access requests and requests for a document or folder (Target); notices of the mail server kept per person.
+  2026-10-25 19:27  confirmed by demo-developer: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

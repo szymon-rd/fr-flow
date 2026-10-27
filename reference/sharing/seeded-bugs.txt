@@ -1,0 +1,49 @@
+# Seeded bugs: sharing
+
+Each bug is seeded as today's suite seeds it; under it, what stops it today. Generated cases use the
+knowledge base's settings (cases and seed shown on each).
+
+## fault sweep (in section 9's table)
+
+seeded: each flow's examples, run with the note "failing boundary failing" (no bug: every run must pass)
+suite: the examples' runs that check reads (ExampleRuns), also in SharingSuite: the examples pass
+
+HousekeepingJob: 3 runs
+  an hour on: Bob's share goes, and the run is logged, its call 1 of a failing boundary failing (run on MemoryLibraryStore and FakeClock): contract ok, implementation ok
+  an hour on: Bob's share goes, and the run is logged, its call 2 of a failing boundary failing (run on MemoryLibraryStore and FakeClock): contract ok, implementation ok
+  nothing has ended yet: nothing to log, its call 1 of a failing boundary failing (run on MemoryLibraryStore and FakeClock): contract ok, implementation ok
+DeliveryJob: 3 runs
+  Cat's notice delivered, its call 1 of a failing boundary failing (run on MemoryLibraryStore and MemoryMailer and FakeClock): contract ok, implementation ok
+  Cat's first and Bob's go at once; Cat's second waits for the next run, its call 1 of a failing boundary failing (run on MemoryLibraryStore and MemoryMailer and FakeClock): contract ok, implementation ok
+  sent again after that: not delivered twice, its call 1 of a failing boundary failing (run on MemoryLibraryStore and MemoryMailer and FakeClock): contract ok, implementation ok
+HandleContract: 4 runs
+  Bob's team may view the reports folder: Bob can view the Q3 report, and nothing changes, its call 1 of a failing boundary failing (run on MemoryLibraryStore and FakeClock): contract ok, implementation ok
+  Ann shares the plan with Bob: the store holds the new share, and its entry in the log, its call 1 of a failing boundary failing (run on MemoryLibraryStore and FakeClock): contract ok, implementation ok
+  Ann shares the plan with Bob: the store holds the new share, and its entry in the log, its call 2 of a failing boundary failing (run on MemoryLibraryStore and FakeClock): contract ok, implementation ok
+  Bob may not edit the plan: refused, and the store keeps the library, its call 1 of a failing boundary failing (run on MemoryLibraryStore and FakeClock): contract ok, implementation ok
+
+## interleavings (in section 9's table)
+
+seeded: each flow's examples, run with the note "its branches at once" (no bug: every run must pass)
+suite: the examples' runs that check reads (ExampleRuns), also in SharingSuite: the examples pass
+
+DeliveryJob: 3 runs
+  Cat's notice delivered, its branches at once (8 runs on fibers, interleaved, on MemoryLibraryStore and MemoryMailer and FakeClock): contract ok, implementation ok
+  Cat's first and Bob's go at once; Cat's second waits for the next run, its branches at once (8 runs on fibers, interleaved, on MemoryLibraryStore and MemoryMailer and FakeClock): contract ok, implementation ok
+  sent again after that: not delivered twice, its branches at once (8 runs on fibers, interleaved, on MemoryLibraryStore and MemoryMailer and FakeClock): contract ok, implementation ok
+
+## access that forgets the end of shares (also seeded in today's suites)
+
+seeded: accessContract implemented in plain Scala that ignores when a share ends
+suite: SharingSuite: a seeded bug (plain Scala access that forgets the end of shares) passes some examples; the generated cases find it
+
+the examples of AccessContract: 8 run, 1 failing on the implementation
+  Bob's share of the plan has ended
+    the implementation returned Some(View)
+generated cases of AccessContract: 1000 against AccessContract, seed 1
+  fails at seed 1, index 16, size 1
+  case:
+    lib = Library(List(), List(), List(), List(Share(Doc(DocumentId("plan")), Person(PersonId("bob")), View, Some(1003600))), List(), List(), List(), List()), t = 1003600, p = PersonId("bob"), d = DocumentId("plan")
+  why:
+    returned Some(View), which AccessContract forbids
+
