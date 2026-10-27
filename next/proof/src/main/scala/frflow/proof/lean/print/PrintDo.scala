@@ -23,4 +23,7 @@ object PrintDo:
         block(body, ind + "  ")
 
   private def block(ls: List[DoLine], ind: String): List[String] = ls.flatMap(line(_, ind))
-  private def closed(ls: List[String]): List[String] = ls.init :+ (ls.last + ")")
+  /** The lines, the last closing the parenthesis the block opened (a block has a line at least). */
+  private def closed(ls: List[String]): List[String] = ls.reverse match
+    case last :: before => (s"$last)" :: before).reverse
+    case Nil            => List(")")

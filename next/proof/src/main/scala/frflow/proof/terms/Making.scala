@@ -25,8 +25,10 @@ object Making:
   /** A store operation's result on its model's state (`model`'s, of type `state`) in a world. */
   def ofModel(m: StateModel, sig: OpSig, kept: Guard, guards: List[Guard]): Written[Expr] =
     val (op, ty) = (SymbolName(sig.name.value), Ty.FnOf(sig.params.map(_._2) :+ m.state, sig.result))
-    val made = [T[_]] => (s: Sym[T], args: List[T[Any]]) =>
-      applied(s, s.param[Any](op, ty), args.init :+ s.part[Any](args.last.asInstanceOf[T[World]], m.name, m.state))
+    val made = [T[_]] => (s: Sym[T], args: List[T[Any]]) => args.reverse match
+      case w :: inputs => applied(s, s.param[Any](op, ty),
+          inputs.reverse :+ s.part[Any](w.asInstanceOf[T[World]], m.name, m.state))
+      case Nil         => throw IllegalStateException("FrFlow bug: a store operation's result with no world")
     Written.formula(Guarded.of(over(sig.params :+ ("w" -> Ty.World), sig.result, kept)(made), guards),
       SourceText(s"every result of ${op.value} on ${m.name.value}"))
 

@@ -34,6 +34,9 @@ enum Problem:
   case WriterNotListed(model: ModelName, program: SymbolName)
   // The vocabulary
   case ReservedName(name: String)
+  /** A name declared twice; a model's Lean namespace (its name capitalized) counts, so one named as its boundary's
+    * class is refused rather than named apart.
+    */
   case DeclaredTwice(name: String)
   case CodeOnlyInStatement(id: NodeId, symbol: SymbolName)
   // Declarations and Definitions (owner §15)

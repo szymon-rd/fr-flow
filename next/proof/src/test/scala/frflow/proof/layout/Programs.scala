@@ -12,7 +12,8 @@ import frflow.core.ty.Ty
 import frflow.core.vocab.{BoundarySig, Define, DefineForm, ModelOp, OpSig, StateModel}
 
 /** Proven code of every shape a rule reads: a define making bookings (`made_reschedule`), a program whose result is
-  * one (`made_fetch`), a store's operation giving one on its model (`made_sample`), a pair of steps at once
+  * one (`made_fetch`, and of one with no inputs, `made_latest`), a store's operation giving one on its model
+  * (`made_sample`), a pair of steps at once
   * (`commute_0` of `pairUp`) and a traverse at once (`commute_0` of
   * `eachDoubled`), and a program raising, handling, collecting and accumulating (`careful`, its define only).
   */
@@ -81,25 +82,28 @@ object Programs:
   val kb: Kb = Kb.of(endsAfterStart, laterSame, claim("fetchRuns")(runs[BigInt, Booking]("fetch", big, Booking.ty)),
       claim("pairRuns")(runs[BigInt, (BigInt, BigInt)]("pairUp", big, Ty.TupleOf(List(big, big)))),
       claim("eachRuns")(runs[List[BigInt], List[BigInt]]("eachDoubled", Ty.ListOf(big), Ty.ListOf(big))),
+      claim("latestRuns")(Fixture.runsAlone[Booking]("latest", Booking.ty)),
       assumption("fromOutside")(Lang.formula([T[_]] => (l: Lang[T]) =>
       l.s.always(Bound[Booking]("b", Booking.ty))(x =>
         l.s.lt(l.s.field(x, Booking.start), l.s.field(x, Booking.end))))))
     .and(shelfFacts*)
     .declaring(_.copy(types = List(Booking.data), boundaries = List(shelfSig), models = List(shelfModel),
       defines = List(endsRule, later, emptyRule) ++
-      flow("fetchOne", List(n), Prog.Pure(made), Booking.ty) ++
+      flow("fetchOne", List(n), Prog.Pure(made), Booking.ty) ++ flow("newest", Nil, Prog.Pure(made), Booking.ty) ++
       flow("both", List(n), both, Ty.TupleOf(List(big, big))) ++
       flow("doubled", List(xs), each, Ty.ListOf(big)) ++
       flow("careful", List(n), careful, big).take(1)))
     .naming(definition("reschedule", fn(Booking.ty, Booking.ty)), definition("fetch", fn(big, Ty.FlowOf(Booking.ty))),
       definition("pairUp", fn(big, Ty.FlowOf(Ty.TupleOf(List(big, big))))),
-      definition("eachDoubled", fn(Ty.ListOf(big), Ty.FlowOf(Ty.ListOf(big)))))
+      definition("eachDoubled", fn(Ty.ListOf(big), Ty.FlowOf(Ty.ListOf(big)))),
+      definition("latest", Ty.FlowOf(Booking.ty)))
     .coding(SymbolName("reschedule") -> Code.Proven(DefName("later")),
       SymbolName("fetch") -> Code.ProvenFlow(DefName("fetchOne")),
       SymbolName("pairUp") -> Code.ProvenFlow(DefName("both")),
-      SymbolName("eachDoubled") -> Code.ProvenFlow(DefName("doubled")))
+      SymbolName("eachDoubled") -> Code.ProvenFlow(DefName("doubled")),
+      SymbolName("latest") -> Code.ProvenFlow(DefName("newest")))
     .linking(("fromOutside" :: shelfFacts.map(_.id.value)).map(assumes("endsAfterStart", _))*)
-    .linking(List("laterSame", "fetchRuns", "pairRuns", "eachRuns").map(assumes(_, "fromOutside"))*)
+    .linking(List("laterSame", "fetchRuns", "pairRuns", "eachRuns", "latestRuns").map(assumes(_, "fromOutside"))*)
 
   lazy val resolved: Resolved = Resolve(Validate(kb.elaborated).fold(ps => throw IllegalStateException(ps.toString),
     identity))

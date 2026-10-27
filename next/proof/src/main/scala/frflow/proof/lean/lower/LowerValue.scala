@@ -3,7 +3,7 @@ package frflow.proof.lean.lower
 import cats.data.State
 import cats.syntax.all.*
 import frflow.core.expr.{Side, Value}
-import frflow.core.name.{CtorName, TypeName}
+import frflow.core.name.{CtorName, ModelName, TypeName}
 import frflow.core.ty.Ty
 import frflow.proof.lean.ast.*
 
@@ -27,10 +27,15 @@ final class LowerValue(env: LowerEnv):
     case (Value.Tuple(xs), Ty.TupleOf(ts))      => xs.zip(ts).traverse(apply(_, _)).map(LExpr.Tuple(_))
     case (Value.Pairs(es), Ty.MapOf(k, v))      => map(es, k, v)
     case (Value.Many(xs), Ty.SetOf(a))          => set(xs, a)
-    case (Value.World(states, _), Ty.World)     =>
-      states.traverse((m, v) => apply(v, env.modelState(m).getOrElse(Ty.Unit))).map(call(Atoms.const("World.mk"), _))
+    case (Value.World(states, _), Ty.World)     => world(states)
     case (other, ty)                            =>
       throw IllegalStateException(s"FrFlow bug: the value $other is not one of type $ty")
+
+  /** `(World.mk s₁ …)`: each model's state, at its type. */
+  private def world(states: List[(ModelName, Value)]): L[LExpr] =
+    states.traverse((m, v) => apply(v, env.modelState(m).getOrElse(
+      throw IllegalStateException(s"FrFlow bug: a world's state of ${m.value}, a model the theory has not")))
+    ).map(call(Atoms.const("World.mk"), _))
 
   /** `(fun k => if k = k₁ then some v₁ else … none)`: a map as the function Lean's `K → Option V` is. */
   private def map(es: List[(Value, Value)], k: Ty, v: Ty): L[LExpr] =
@@ -55,6 +60,8 @@ final class LowerValue(env: LowerEnv):
   /** A constructor applied to its fields; a case of an enum without fields alone. */
   private def data(d: TypeName, c: CtorName, fs: List[Value]): L[LExpr] =
     val head = Atoms.ctor(d, c)
-    val decl = env.data(d)
-    if fs.isEmpty && decl.exists(_.isEnum) then State.pure(head)
-    else fs.zip(decl.toList.flatMap(_.fieldsOf(c))).traverse(apply(_, _)).map(call(head, _))
+    val decl = env.data(d).getOrElse(throw IllegalStateException(s"FrFlow bug: a value of ${d.value}, not a type"))
+    val types = decl.fieldsOf(c)
+    if fs.size != types.size then throw IllegalStateException(s"FrFlow bug: ${c.value} given ${fs.size} fields")
+    else if fs.isEmpty && decl.isEnum then State.pure(head)
+    else fs.zip(types).traverse(apply(_, _)).map(call(head, _))

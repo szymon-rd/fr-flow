@@ -8,9 +8,14 @@ final case class Elaboration(source: String, output: String, file: String):
   lazy val diagnostics: List[Diagnostic] = LeanOutput.diagnostics(output).filter(_.file.endsWith(file))
   lazy val axioms: Map[String, List[String]] = LeanOutput.axioms(output)
 
-  /** The axioms of a theorem, by its name or its name in a namespace. */
+  /** The axioms of a theorem this file audits (`#print axioms K.N.Checks.name`), by its name: the output's audits of
+    * other files' theorems of that name are not its.
+    */
   def axiomsOf(name: String): Option[List[String]] =
-    axioms.collectFirst { case (t, as) if t == name || t.endsWith("." + name) => as }
+    Audited.findAllMatchIn(LeanSource.code(source)).map(_.group(1))
+      .find(full => full == name || full.endsWith("." + name)).flatMap(axioms.get)
+
+  private val Audited = """(?m)^#print\s+axioms\s+(\S+)""".r
 
   /** An error before the first theorem (an import that did not build) stops the file: it proves nothing. */
   def header: Option[Diagnostic] = diagnostics.find(d => d.error && theorems.forall(d.line < _.from))
