@@ -33,6 +33,7 @@ class ReadingSuite extends munit.FunSuite:
     |info: FrFlowGen/Crm/N/Checks.lean:14:0: 'Crm.N.Checks.cover_book' depends on axioms: [propext,
     | choice, Quot.sound]
     |error: FrFlowGen/Crm/Other.lean:1:0: unknown identifier
+    |info: FrFlowGen/Crm/M/Checks.lean:9:0: 'Crm.M.Checks.cover_book' depends on axioms: [sorryAx]
     |error: build failed
     |""".stripMargin
   private val e = Elaboration(source, output, "FrFlowGen/Crm/N/Checks.lean")
@@ -40,14 +41,16 @@ class ReadingSuite extends munit.FunSuite:
   test("messages: Lake's and Lean's styles, continuation lines joined, other files' left out") {
     assertEquals(LeanOutput.diagnostics(output).map(d => (d.file, d.line, d.error)), List(
       ("FrFlowGen/Crm/N/Checks.lean", 9, true), ("FrFlowGen/Crm/N/Checks.lean", 11, false),
-      ("FrFlowGen/Crm/N/Checks.lean", 14, false), ("FrFlowGen/Crm/Other.lean", 1, true)))
+      ("FrFlowGen/Crm/N/Checks.lean", 14, false), ("FrFlowGen/Crm/Other.lean", 1, true),
+      ("FrFlowGen/Crm/M/Checks.lean", 9, false)))
     assertEquals(LeanOutput.diagnostics(output).head.message.linesIterator.toList.last, "⊢ False")
     assertEquals(e.diagnostics.size, 3)
     assert(LeanOutput.usesSorry(output))
   }
 
-  test("axioms: a wrapped list, `choice` read as Classical.choice") {
+  test("axioms: a wrapped list, `choice` read as Classical.choice; another file's audit of the name not this one's") {
     assertEquals(e.axiomsOf("cover_book"), Some(List("propext", "Classical.choice", "Quot.sound")))
+    assertEquals(e.verdict("cover_book"), TheoremVerdict.Proven)
   }
 
   test("theorems: each from its head to the line before the next command, with its statement") {

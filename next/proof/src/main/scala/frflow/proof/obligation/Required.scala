@@ -63,11 +63,9 @@ object Required:
   private def givenWhat(hyps: List[NodeId]): String =
     if hyps.isEmpty then "." else s", given what ${hyps.map(_.value).mkString(", ")} promise."
 
-  /** `cover_<op>` of a claim of `always`, for each program it applies to whose code is proven and calls a store the
-    * `always` is about (`Scope`):
-    * every run of the code keeps it, from a world meeting every `always`, on inputs meeting theirs (`Keeping`), given
-    * what the code relies on. A Definition making values of an `always[T]`'s type is asked that its result meets it
-    * (`covers`).
+  /** `cover_<op>` of a statement of `always`, for each program it applies to whose code is proven and calls a store
+    * the `always` is about (`Scope`): every run of the code keeps it, from a world meeting every `always`, on inputs
+    * meeting theirs (`Keeping`), given what the code relies on. What covered code makes is asked of it by `made`.
     */
   def keeps(r: Resolved, n: NodeId): List[Obligation] =
     val guards = Guards.byAlways(r.theory)
@@ -161,6 +159,7 @@ object Required:
     */
   private def programs(r: Resolved, n: NodeId, ty: Ty): List[(SymbolName, DefName, Ty)] =
     Scope.of(r.theory, n).flatMap(op => (r.theory.code.attached.get(op).map(_.code), typeOf(r, op)).tupled.collect {
-      case (Code.ProvenFlow(f), fn @ Ty.FnOf(_, Ty.FlowOf(res))) if Guards.applies(r.theory, ty, res) =>
-        (op, DefName(s"${f.value}_run"), fn)
+      case (Code.ProvenFlow(f), fn) if (Ty.resultOf(fn) match
+            case Ty.FlowOf(res) => Guards.applies(r.theory, ty, res)
+            case _              => false) => (op, DefName(s"${f.value}_run"), fn)
     })

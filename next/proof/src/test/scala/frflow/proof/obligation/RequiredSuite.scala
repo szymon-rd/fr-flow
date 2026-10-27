@@ -1,10 +1,10 @@
 package frflow.proof.obligation
 
 import frflow.core.Lang
-import frflow.core.analysis.Resolved
+import frflow.core.analysis.{Resolved, Scope}
 import frflow.core.name.NodeId
 import frflow.core.ty.Ty
-import frflow.proof.layout.{Mini, Programs, ProgramsProject}
+import frflow.proof.layout.{Broken, Mini, Programs, ProgramsProject}
 import frflow.proof.lean.print.Print
 import frflow.proof.terms.TermTable
 
@@ -46,7 +46,8 @@ class RequiredSuite extends munit.FunSuite:
 
   test("made_: of a define making what the always is about, and of a program whose run gives one") {
     assertEquals(names(Programs.resolved, "endsAfterStart").map(_._1),
-      List(ObligationName.Made("reschedule"), ObligationName.Made("fetch"), ObligationName.Made("sample")))
+      List(ObligationName.Made("reschedule"), ObligationName.Made("fetch"), ObligationName.Made("latest"),
+        ObligationName.Made("sample")))
     val made = Required.made(Programs.resolved, NodeId("endsAfterStart"))
     assertEquals(made.map(_.doc).take(2), List("Every result of later meets endsAfterStart.",
       "Every result of a run of fetchOne_run meets endsAfterStart."))
@@ -76,6 +77,11 @@ class RequiredSuite extends munit.FunSuite:
       (Some(("x_one", "x_two")), Ty.TupleOf(List(Lang.big, Lang.big))))
   }
 
+  test("commute_ of steps at once on a store: reading it twice, adding to it twice") {
+    assertEquals(Required.commutes(Broken.resolved, NodeId("countRuns")).map(_.name), List(ObligationName.Commute(0)))
+    assertEquals(Required.commutes(Broken.resolved, NodeId("putRuns")).map(_.name), List(ObligationName.Commute(0)))
+  }
+
   test("commute_ in Lean: both orders run on the models from every world") {
     val spec = ProgramsProject.modules.find(_.name.dotted == "FrFlowGen.Test.pairRuns.Spec").map(Print.module)
     val expected = """@[frflow_defs] def commute_0 : Prop :=
@@ -87,6 +93,21 @@ class RequiredSuite extends munit.FunSuite:
       |        let a ← pure n
       |        pure (a, c)) : StateM World (Int × Int)) w""".stripMargin
     assert(spec.exists(_.contains(expected)), spec.getOrElse("no module"))
+  }
+
+  test("an assumption of always is kept by the covered code making or storing its values, as a claim is") {
+    assertEquals(names(Programs.resolved, "fromOutside").map(_._1),
+      names(Programs.resolved, "endsAfterStart").map(_._1))
+    assertEquals(names(Mini.resolved, "fromTheForm").map(_._1), List(ObligationName.Cover("book")))
+  }
+
+  test("every op with proven code where an always must hold gets its cover_ or its made_") {
+    for
+      r  <- List(Mini.resolved, Programs.resolved, Broken.resolved)
+      n  <- r.theory.nodes.map(_.node.id)
+      op <- Scope.of(r.theory, n) if r.theory.code.attached.get(op).exists(_.code.proven.nonEmpty)
+    do assert(names(r, n.value).exists((o, _) => o == ObligationName.Cover(op.value) ||
+      o == ObligationName.Made(op.value)), s"${op.value} in the scope of ${n.value}: ${names(r, n.value)}")
   }
 
   test("the table of open terms the rules apply declarations to") {

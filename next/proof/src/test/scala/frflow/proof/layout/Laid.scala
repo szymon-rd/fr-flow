@@ -16,4 +16,9 @@ final class Laid(r: Resolved, found: Map[Vacuity, List[Constant]], examples: Lis
   lazy val nodes: List[NodeObligations] = Obligations.of(r, table, Set.empty)
   lazy val whole: List[Obligation] = Joint.of(r) ++ Possible.of(r, found) ++ ExampleGoals.of(r, examples)
   lazy val modules: List[LeanModule] = LeanProject.of(r, table, nodes, whole)
-  def obligations: List[Obligation] = nodes.flatMap(o => o.required ++ o.tried) ++ whole
+  def obligations: List[Obligation] = owned.map(_._2)
+  def kb: String = r.theory.name.value
+  /** Each obligation with the prefix of the modules it is stated and proven in: its node's, or the whole theory's. */
+  def owned: List[(String, Obligation)] =
+    val kb = s"FrFlowGen.${r.theory.name.value}."
+    nodes.flatMap(o => (o.required ++ o.tried).map(s"$kb${o.node.value}." -> _)) ++ whole.map(s"${kb}Whole" -> _)
