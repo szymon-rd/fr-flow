@@ -70,6 +70,7 @@ def nextModules: Seq[ProjectReference] = Seq(
   nextProject,
 
   // step 9: nextApi
+  nextApi,
 
   // step 10: nextCli, nextWeb, nextAgent
 )
@@ -121,6 +122,12 @@ lazy val nextProject = nextModule("project", (Seq(cats, catsEffect, munitEffect)
   .dependsOn(nextProof, nextTesting % "compile->compile;test->test", nextDecision, nextWire)
 
 // next-api (step 9)
+/** The API front ends call: three algebras (`Reading`, `Deciding`, `Proving`) over a project, the views they return
+  * (`api.view`, `api.node`: front ends see nothing else), and the live and in-memory interpreters. Its tests read the
+  * shell's projects in memory. */
+lazy val nextApi = nextModule("api", (Seq(cats, catsEffect, munitEffect) ++ fs2)*)
+  .settings(libraryDependencies ++= lawTests)
+  .dependsOn(nextProject % "compile->compile;test->test")
 
 // next-cli, next-web, next-agent (step 10)
 
