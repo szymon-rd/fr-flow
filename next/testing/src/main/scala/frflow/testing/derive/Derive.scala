@@ -7,7 +7,6 @@ import frflow.core.expr.Value
 import frflow.core.ty.Ty
 import frflow.core.vocab.Vocabulary
 import frflow.eval.Semantics
-import frflow.eval.run.Made
 import frflow.testing.Draw
 import frflow.testing.report
 import java.util.SplittableRandom
@@ -15,11 +14,12 @@ import java.util.SplittableRandom
 /** The derived generators (`Gen.Derived(ty)`, what `kb.generating` does not give), and the interpreter of the rest of
   * `Gen`. A value is drawn by its type through the vocabulary: numbers small and near the examples', short strings,
   * lists fewer the deeper, each constructor of a record or an enum; a type with a generator given is drawn from it
-  * three times in four. Every value drawn meets each `always[T]` of every `T` it holds (`Drawing`), so a test never
-  * starts from a value the covered code cannot make. Values of one type recur within a case (`Pool`). Pure given its
+  * three times in four; a world, each model's state meeting every `always(stored)` about it. Every value drawn meets
+  * each `always[T]` of every `T` it holds (`Drawing`), so a test never starts from a value the covered code cannot
+  * make. Values of one type recur within a case (`Pool`). Pure given its
   * random stream.
   */
-final class Derive(val semantics: Semantics, val vocabulary: Vocabulary, val rules: List[Made], hints: Hints)
+final class Derive(val semantics: Semantics, val vocabulary: Vocabulary, val always: Always, hints: Hints)
     extends Draw:
   def generatorFor(ty: Ty): Option[Gen[?]] = hints.generatorFor(ty)
   def seeds: Seeds = hints.seeds
@@ -46,5 +46,5 @@ object Derive:
   /** The derived generators of an elaborated knowledge base, seeded by its examples. */
   def of(e: Elaborated, examples: List[Example]): Derive =
     val semantics = Semantics(e)
-    Derive(semantics, e.theory.vocabulary, Made.of(semantics, e.theory),
+    Derive(semantics, e.theory.vocabulary, Always.of(semantics, e.theory),
       Hints(e.generators, Seeds.of(e.theory.vocabulary, examples)))

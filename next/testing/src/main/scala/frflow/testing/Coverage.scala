@@ -20,7 +20,7 @@ import scala.util.Try
   * part of the condition, so an element of the list is found among them.
   */
 final class Coverage(semantics: Semantics, t: Theory, node: NodeId, inputs: List[Ty]):
-  private val wiring = Wiring(semantics, t)
+  private val wiring = Wiring.onModels(semantics, t)
   private val parts = Parts(t.vocabulary)
   private val formula = t.node(node).flatMap(_.statement.said)
 

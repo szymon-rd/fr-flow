@@ -3,15 +3,15 @@ package frflow.testing.model
 import cats.Id
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
-import frflow.core.code.Values
 import frflow.core.example.Gen
 import frflow.core.expr.OutsideFact
-import frflow.core.name.{DefName, NodeId}
-import frflow.core.spec.{NodeKind, Range}
+import frflow.core.name.NodeId
+import frflow.core.spec.NodeKind
 import frflow.core.Theory
 import frflow.dsl.model.AdapterCheck
-import frflow.eval.{Env, Fn, ScalaValue, Semantics}
+import frflow.eval.{Fn, ScalaValue, Semantics}
 import frflow.testing.{Draw, Plan, Seed}
+import frflow.testing.derive.Always
 import frflow.testing.report.{Against, Drawn, Failure, TestReport}
 
 /** A boundary's implementation tested against its model (`stored.checkedAgainst(start = …, observe = …)`): runs of
@@ -26,8 +26,7 @@ final class ModelRuns[F[_]: Sync, B[_[_], _[_]], S, A <: B[F, Id]](check: Adapte
   private val node: Option[NodeId] = t.nodes.map(_.node)
     .find(_.statement.outside.contains(OutsideFact.BehavesAs(model.boundary, model.name))).map(_.id)
   private val outside = node.flatMap(t.node).exists(_.statement.kind == NodeKind.Assumption)
-  private val kept = t.nodes.map(_.node).filter(_.statement.range.contains(Range.Reached(List(model.name))))
-    .flatMap(n => t.vocabulary.define(DefName(n.id.value))).map(d => semantics.lambda(d.written))
+  private val always = Always.of(semantics, t)
 
   def of(plan: Plan, draw: Draw): F[TestReport] =
     val runs = if outside then plan.settings.cases.min(ModelRuns.OutsideRuns) else plan.settings.cases
@@ -59,7 +58,7 @@ final class ModelRuns[F[_]: Sync, B[_[_], _[_]], S, A <: B[F, Id]](check: Adapte
       steps <- Runs(draw).of(sig, from.size + 2, random)
     yield (start, steps)
 
-  private def fits(s: S): Boolean = kept.forall(_.run(Env.of(Values.none), List(ScalaValue(s))).exists(Fn.bool))
+  private def fits(s: S): Boolean = always.keeps(model.name, ScalaValue(s))
 
 object ModelRuns:
   /** An outside system is checked on at most this many runs, as today. */

@@ -40,7 +40,7 @@ final class Witnesses(semantics: Semantics, t: Theory, drawn: Ty => List[Value])
   /** The condition's predicate, the open values bound, applied to the variables' values. */
   private def satisfies(n: NodeId, i: Int, opens: List[SymbolName], literals: List[ScalaValue]): Boolean =
     t.node(n).flatMap(_.statement.said).exists { f =>
-      val env = Env.of(Wiring(semantics, t).values(Values(opens.zip(literals).map((s, v) => s -> (() => v.unwrap))
+      val env = Env.of(Wiring.onModels(semantics, t).values(Values(opens.zip(literals).map((s, v) => s -> (() => v.unwrap))
         .toMap)))
       semantics.term(Stated(Conditions.predicate(f.term, i)))(env)
         .exists(p => Fn.bool(literals.drop(opens.size).foldLeft(p)((g, x) => Fn.call(Fn.ref(g), List(x)))))

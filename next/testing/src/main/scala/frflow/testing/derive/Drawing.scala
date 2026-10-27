@@ -6,7 +6,7 @@ import cats.syntax.all.*
 import frflow.core.code.Values
 import frflow.core.example.Gen
 import frflow.core.expr.{Side, Value}
-import frflow.core.name.CtorName
+import frflow.core.name.{CtorName, ModelName}
 import frflow.core.ty.{DataType, Ty}
 import frflow.eval.{Env, Fn, ScalaValue}
 import java.util.SplittableRandom
@@ -44,11 +44,11 @@ private[derive] final class Drawing(d: Derive, random: SplittableRandom, size: I
   private def givenBy(ty: Ty, g: Gen[?]): D[Value] = gen(g).flatMapF { a =>
     val v = d.semantics.reflect(ScalaValue(a), ty)
     OptionT.fromOption[Eval](
-      Option.when(d.rules.forall(_.broken(List(d.semantics.literal(v, ty)), List(ty), none).isEmpty))(v))
+      Option.when(d.always.made.forall(_.broken(List(d.semantics.literal(v, ty)), List(ty), none).isEmpty))(v))
   }
 
   private def meeting(ty: Ty)(draw: D[Value]): D[Value] =
-    val own = d.rules.filter(_.ty == ty)
+    val own = d.always.made.filter(_.ty == ty)
     if own.isEmpty then draw
     else StateT(pool => OptionT(Eval.always(Iterator.continually(Drawing.run(draw, pool)).take(Derive.Tries)
       .flatten.find((_, v) => own.forall(_.holds(d.semantics.literal(v, ty), none))))))
@@ -68,7 +68,15 @@ private[derive] final class Drawing(d: Derive, random: SplittableRandom, size: I
         value(r, depth + 1).map(Value.Inject(Side.Value, _)))
     case Ty.TupleOf(as)    => as.traverse(value(_, depth + 1)).map(Value.Tuple(_))
     case Ty.Data(n)        => d.vocabulary.dataType(n).fold(nothing)(data(_, depth))
+    case Ty.World          => d.vocabulary.models.traverse(m => kept(m.name, m.state, depth).map(m.name -> _))
+        .map(Value.World(_, Nil))
     case _                 => nothing
+
+  /** A model's state meeting every `always(stored)` about it, drawn again up to `Derive.Tries` times. */
+  private def kept(m: ModelName, state: Ty, depth: Int): D[Value] =
+    val draw = value(state, depth + 1)
+    StateT(pool => OptionT(Eval.always(Iterator.continually(Drawing.run(draw, pool)).take(Derive.Tries).flatten
+      .find((_, v) => d.always.keeps(m, d.semantics.literal(v, state))))))
 
   /** One of its constructors over drawn fields; deep down, a constructor without fields where there is one. */
   private def data(dt: DataType, depth: Int): D[Value] =

@@ -1,6 +1,7 @@
 package frflow.eval.flow
 
-import cats.effect.kernel.{Async, Sync}
+import cats.MonadThrow
+import cats.effect.kernel.Async
 import cats.effect.std.Mutex
 import cats.syntax.all.*
 import frflow.core.expr.{Binder, Exprs, Prog}
@@ -15,7 +16,7 @@ import frflow.eval.{Env, Fn, Raised, ScalaValue, Semantics}
   * `Scheduling` says how concurrent steps run.
   */
 final class FlowInterpreter[F[_]](semantics: Semantics, world: World[F], scheduling: Scheduling[F])(
-    using F: Sync[F]):
+    using F: MonadThrow[F]):
   private type P = Prog[Stated[?]]
 
   /** The program's outcome: the error it failed with (`Left`), or its result. */
@@ -63,15 +64,17 @@ final class FlowInterpreter[F[_]](semantics: Semantics, world: World[F], schedul
     case other                     => prog(other, env)
 
   private def value(t: Stated[?], env: Env): F[ScalaValue] =
-    F.defer(semantics.term(t)(env).leftMap(FlowError.NotEvaluated(_)).liftTo[F])
+    F.unit.flatMap(_ => semantics.term(t)(env).leftMap(FlowError.NotEvaluated(_)).liftTo[F])
   private def list(t: Stated[?], env: Env): F[List[ScalaValue]] = value(t, env).map(v => Fn.list(v).map(ScalaValue(_)))
   private def typeOf(t: Stated[?]): Ty = Exprs.typeOf(ToExpr.of(t.run))
   private def many(vs: List[ScalaValue]): ScalaValue = ScalaValue(vs.map(_.unwrap))
   private val unit: ScalaValue = ScalaValue(())
 
 object FlowInterpreter:
-  /** Steps one after the other, as Lean reads them: the models' reading (`SyncIO` in examples). */
-  def sequential[F[_]: Sync](semantics: Semantics, world: World[F]): FlowInterpreter[F] =
+  /** Steps one after the other, as Lean reads them: the models' reading (a pure state monad in examples and tests,
+    * `ProgramRun`).
+    */
+  def sequential[F[_]: MonadThrow](semantics: Semantics, world: World[F]): FlowInterpreter[F] =
     FlowInterpreter(semantics, world, Scheduling.sequential[F])
 
   /** Branches at once, and `atomically` under one lock (`IO` in the interleavings tests). */

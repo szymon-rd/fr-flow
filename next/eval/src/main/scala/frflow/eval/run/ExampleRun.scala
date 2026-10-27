@@ -17,5 +17,5 @@ final class ExampleRun(semantics: Semantics, t: Theory):
       case abstracts => OnCode.Abstract(abstracts)
 
   private def env(gs: List[Given]): Env =
-    val wiring = Wiring(semantics, t)
+    val wiring = Wiring.onModels(semantics, t)
     Env.of(wiring.values(wiring.supplied(gs)))

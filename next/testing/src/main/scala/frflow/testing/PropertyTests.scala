@@ -16,7 +16,7 @@ import frflow.testing.report.{Against, Drawn, Failure, TestReport}
   * failing case is shrunk (`Cases`). Today's run-time check of a call is this judgement, made before production.
   */
 final class PropertyTests(semantics: Semantics, t: Theory):
-  private val wiring = Wiring(semantics, t)
+  private val wiring = Wiring.onModels(semantics, t)
   private val made = Made.of(semantics, t)
 
   def of(node: NodeId, plan: Plan, draw: Draw): Option[TestReport] = Judge.of(semantics, t, node).map { judge =>

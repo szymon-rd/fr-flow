@@ -17,7 +17,7 @@ final case class Judge(inputs: List[Ty], broken: Case => Option[Broken])
 
 object Judge:
   def of(semantics: Semantics, t: Theory, node: NodeId): Option[Judge] =
-    val wiring = Wiring(semantics, t)
+    val wiring = Wiring.onModels(semantics, t)
     CallCheck.of(semantics, t, node) match
       case Some(check) => code(t, check).map(impl => Judge(check.inputs, c => call(semantics, wiring)(check, impl, c)))
       case None        => t.node(node).flatMap(_.statement.said).map(CallForms.whole).map { w =>
