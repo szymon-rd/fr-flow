@@ -31,7 +31,8 @@ addCommandAlias("frflowInit", "cli/runMain frflow.cli.Init")
 addCommandAlias("frflowInitAgent", "agent/runMain frflow.agent.Init")
 
 lazy val root = project.in(file("."))
-  .aggregate(model, protocol, lean, ledger, check, api, cli, web, testkit, agent, auth, crm, keycloak, sharing, rooms)
+  .aggregate(model, protocol, lean, ledger, check, api, cli, web, testkit, agent, auth, crm, keycloak, sharing, rooms,
+    referenceCapture)
   .configs(LeanTest).settings(leanTagged)
   .settings(publish / skip := true)
 
@@ -143,3 +144,12 @@ lazy val sharing = example("sharing").settings(libraryDependencies += "org.xeria
 
 /** Booking meeting rooms: a request is granted exactly when its room is free; the README's example. */
 lazy val rooms = example("rooms", layers = Nil).settings(libraryDependencies += "org.xerial" % "sqlite-jdbc" % "3.46.1.3")
+
+/** Today's outputs recorded under `reference/` for the rebuild (step 0): `python3 reference/capture.py EXAMPLE` runs
+  * it; this project holds the examples' seeded bugs, run as their suites seed them.
+  */
+lazy val referenceCapture = Project("referenceCapture", file("reference/capture"))
+  .dependsOn(auth, crm, keycloak, sharing)
+  .configs(LeanTest).settings(leanTagged)
+  .settings(publish / skip := true, run / fork := true, run / baseDirectory := (ThisBuild / baseDirectory).value,
+    run / javaOptions ++= Seq("-Dstdout.encoding=UTF-8", "-Dfile.encoding=UTF-8", "-Duser.timezone=UTC"))
