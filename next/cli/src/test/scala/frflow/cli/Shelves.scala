@@ -12,12 +12,12 @@ object Shelves:
     val nonNegative = Node.claim("The service never gives a negative number.")(forall((n: Term[BigInt]) => d(n) > 0))
     val sameAbove = Node.claim(sameAboveSays)(forall((n: Term[BigInt]) => (n > 0) implies (d(n) === n)))
       .refines(nonNegative)
-    val kb = KnowledgeBase("Shelf")(nonNegative, sameAbove).implementTested(d)(_ => n => n.abs)
+    val kb = FrModel("Shelf")(nonNegative, sameAbove).implementTested(d)(_ => n => n.abs)
 
   /** The part taken out of the model. */
   object Fewer:
-    val kb = KnowledgeBase("Shelf")(Before.nonNegative).implementTested(d)(_ => n => n.abs)
+    val kb = FrModel("Shelf")(Before.nonNegative).implementTested(d)(_ => n => n.abs)
 
   /** Nothing yet. */
   object Empty:
-    val kb = KnowledgeBase("Toy")()
+    val kb = FrModel("Toy")()

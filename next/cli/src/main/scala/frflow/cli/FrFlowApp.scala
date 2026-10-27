@@ -7,7 +7,7 @@ import frflow.api.{Adapter, Extension, FrFlowProject, Project}
 import frflow.core.name.RelPath
 import frflow.dsl.build.ElabError
 import frflow.dsl.example.FrFlowExamples
-import frflow.dsl.kb.KnowledgeBase
+import frflow.dsl.kb.FrModel
 import java.nio.file.Path
 
 /** The command line of a FrModel, which a project's main object extends: the composition root, where the project is
@@ -23,13 +23,13 @@ import java.nio.file.Path
   * where the project keeps them elsewhere. A usage error prints the help and exits 2. The web view runs from the same
   * object, through sbt (`sbt "PROJECT/serve --as NAME"`).
   */
-abstract class FrFlowApp(model: => KnowledgeBase, root: String = ".", adapters: => List[Adapter[IO]] = Nil,
+abstract class FrFlowApp(model: => FrModel, root: String = ".", adapters: => List[Adapter[IO]] = Nil,
     val extensions: List[Extension] = Nil) extends IOApp with FrFlowProject:
   def sources: List[String] = List("src/main")
   def library: String = "../../../lean"
   def examples: List[FrFlowExamples] = Nil
 
-  private lazy val kb: KnowledgeBase = model
+  private lazy val kb: FrModel = model
 
   final def directory(env: Map[String, String]): Path =
     Path.of(env.getOrElse("FRFLOW_ROOT", root)).toAbsolutePath.normalize

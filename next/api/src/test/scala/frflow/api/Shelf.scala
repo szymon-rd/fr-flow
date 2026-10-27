@@ -45,7 +45,7 @@ object Shelf:
 
   /** `Before` with code that gives a negative number: the same nodes, its claim broken by a generated case. */
   object Careless:
-    val kb = KnowledgeBase("Shelf")(Before.nonNegative, Before.sameAbove).implementTested(d)(_ => n => -n.abs - 1)
+    val kb = FrModel("Shelf")(Before.nonNegative, Before.sameAbove).implementTested(d)(_ => n => -n.abs - 1)
 
   object After:
     val nonNegative = Node.claim("The service never gives a negative number.")(forall((n: Term[BigInt]) => d(n) > -1))

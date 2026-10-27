@@ -49,7 +49,7 @@ object Init:
          |import frflow.*
          |
          |/** ${name.capitalize}: its root statements come next, each decided by the developer. */
-         |val frModel = KnowledgeBase("${name.capitalize}")()
+         |val frModel = FrModel("${name.capitalize}")()
          |
          |object ${name}Cli extends frflow.cli.FrFlowApp(frModel, root = "examples/$name"$layers)
          |""".stripMargin
