@@ -43,12 +43,14 @@ object Mini:
   val kb: Kb = Store.kb.and(endsAfterStart, allowedPositive, allowsOne,
       outside("startsEmpty")(OutsideFact.Initially(Store.model, DefName("startsEmpty"))),
       outside("onlyBooking")(OutsideFact.WrittenOnlyBy(Store.model, List(Store.book))),
-      outside("fromTheForm")(OutsideFact.Calls(Store.book)))
+      assumption("fromTheForm")(Lang.formula([T[_]] => (l: Lang[T]) =>
+      l.s.always(Bound[Booking]("b", Booking.ty))(x => l.s.lt(l.s.field(x, Booking.start), l.s.field(x, Booking.end))))))
     .declaring(v => v.copy(defines = v.defines ++ List(run, endsRule, emptyRule)))
     .naming(declaration("allowed", test))
     .linking(partOf("allowedPositive", "allowsOne"))
     .linking(List("storeModel", "oneAtATime", "startsEmpty", "onlyBooking", "fromTheForm")
       .map(assumes("endsAfterStart", _))*)
+    .linking(assumes("bookRuns", "fromTheForm"))
 
   lazy val resolved: Resolved = Resolve(Validate(kb.elaborated).fold(ps => throw IllegalStateException(ps.toString),
     identity))

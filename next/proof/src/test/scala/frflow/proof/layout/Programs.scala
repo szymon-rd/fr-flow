@@ -81,7 +81,8 @@ object Programs:
   val kb: Kb = Kb.of(endsAfterStart, laterSame, claim("fetchRuns")(runs[BigInt, Booking]("fetch", big, Booking.ty)),
       claim("pairRuns")(runs[BigInt, (BigInt, BigInt)]("pairUp", big, Ty.TupleOf(List(big, big)))),
       claim("eachRuns")(runs[List[BigInt], List[BigInt]]("eachDoubled", Ty.ListOf(big), Ty.ListOf(big))),
-      outside("fromOutside")(OutsideFact.Calls(SymbolName("reschedule"))))
+      assumption("fromOutside")(Lang.formula([T[_]] => (l: Lang[T]) =>
+      l.s.always(Bound[Booking]("b", Booking.ty))(x => l.s.lt(l.s.field(x, Booking.start), l.s.field(x, Booking.end))))))
     .and(shelfFacts*)
     .declaring(_.copy(types = List(Booking.data), boundaries = List(shelfSig), models = List(shelfModel),
       defines = List(endsRule, later, emptyRule) ++
@@ -97,6 +98,7 @@ object Programs:
       SymbolName("pairUp") -> Code.ProvenFlow(DefName("both")),
       SymbolName("eachDoubled") -> Code.ProvenFlow(DefName("doubled")))
     .linking(("fromOutside" :: shelfFacts.map(_.id.value)).map(assumes("endsAfterStart", _))*)
+    .linking(List("laterSame", "fetchRuns", "pairRuns", "eachRuns").map(assumes(_, "fromOutside"))*)
 
   lazy val resolved: Resolved = Resolve(Validate(kb.elaborated).fold(ps => throw IllegalStateException(ps.toString),
     identity))
