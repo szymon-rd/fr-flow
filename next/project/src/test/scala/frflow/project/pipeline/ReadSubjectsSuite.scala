@@ -37,5 +37,5 @@ class ReadSubjectsSuite extends munit.FunSuite:
     val subjects = Projects.bare(Projects.rooms).subjects
     val book = subjects.get(NodeId("bookWhenFree")).map(_.place.restsOn).getOrElse(fail("no bookWhenFree"))
     assert(!book.contains(NodeId("grantWhenFree")) && !book.contains(NodeId("grantWhenNoOverlap")), book)
-    assert(Projects.bare(Projects.rooms).decided.restsOn(NodeId("bookWhenFree")).contains(NodeId("grantWhenFree")))
+    assert(Projects.bare(Projects.rooms).decided.reliesOn(NodeId("bookWhenFree")).isEmpty)
   }

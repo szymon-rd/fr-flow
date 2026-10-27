@@ -1,11 +1,14 @@
 package frflow.project.program
 
 import cats.effect.IO
+import cats.syntax.all.*
 import frflow.core.name.{NodeId, RelPath}
 import frflow.project.Projects
 import frflow.project.check.{CheckProgram, Render}
 import frflow.project.pipeline.Analysis
-import frflow.project.port.{FrFlowError, Records, ScriptedLake}
+import frflow.project.port.RunCode
+import frflow.project.port.{FrFlowError, Records}
+import frflow.project.port.memory.ScriptedLake
 import frflow.proof.layout.NodePart
 import frflow.proof.lean.ast.ModuleName
 import frflow.proof.obligation.{ObligationName, TryKind}
@@ -23,10 +26,16 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
       p    <- Projects.inMemory(Map.empty)
       a    <- Projects.analysed(p, Projects.rooms, Projects.roomsExamples)
       lake <- ScriptedLake[IO](say(a), installed = true)
-      out  <- CheckProgram(p.files, lake, library)(a, only)
+      out  <- CheckProgram(p.files, lake, library, RunCode.inline[IO])(a, only)
     yield (out._1, out._2, lake, p)
 
   private def proving(a: Analysis): ModuleName => ProverRun = Scripted(a, Set.empty, Set.empty).answer
+  /** Lean's output with no audit (`#print axioms`) in it. */
+  private def unaudited(r: ProverRun): ProverRun = r match
+    case ProverRun.Built(o)  => ProverRun.Built(o.linesIterator.filterNot(_.contains("axioms")).mkString("\n"))
+    case ProverRun.Failed(o) => ProverRun.Failed(o.linesIterator.filterNot(_.contains("axioms")).mkString("\n"))
+    case other               => other
+
   private val stated = List("bookWhenFree", "answerWhenFree", "endsAfterStart", "neverOverlap", "bookingsOfTheRoom",
     "roomBookingsApart", "grantWhenFree", "grantWhenNoOverlap", "requestsEndAfterStart").map(NodeId(_))
 
@@ -54,7 +63,7 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
     for
       (_, a, lake, p) <- checked()(proving)
       before          <- lake.built
-      again           <- CheckProgram(p.files, lake, library)(a, None)
+      again           <- CheckProgram(p.files, lake, library, RunCode.inline[IO])(a, None)
       after           <- lake.built
       read            <- Records.read(p.files)
     yield
@@ -96,6 +105,45 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
     }
   }
 
+  test("a proof whose audit Lean did not print is not checked (fail closed): the node is open") {
+    val node = NodeId("neverOverlap")
+    checked(Some(node))(a => m => if m == a.lowering.layout.ofNode(node, NodePart.Checks) then
+      unaudited(proving(a)(m)) else proving(a)(m)).map { (done, _, _, _) =>
+      val c = done.find(_.node == node).getOrElse(fail("not checked"))
+      assertEquals(c.status, CheckStatus.Open)
+      assert(c.results.exists(r => r.name == ObligationName.Cover("book") && r.status == ObligationStatus.Unchecked),
+        c.results)
+    }
+  }
+
+  test("a composition whose audit Lean did not print does not prove the node") {
+    val node = NodeId("grantWhenFree")
+    checked(Some(node))(a => m => if m == a.lowering.layout.ofNode(node, NodePart.Theorems) then
+      unaudited(proving(a)(m)) else proving(a)(m)).map { (done, _, _, _) =>
+      assertEquals(done.find(_.node == node).map(c => (c.status, c.findings)),
+        Some((CheckStatus.Open, List(Finding.NotProven(Nil)))))
+    }
+  }
+
+  test("the theory's own check proves what Lean audited, and nothing it did not") {
+    val audited = checked()(proving)
+    val not = checked()(a => m => if m == a.lowering.layout.whole then unaudited(proving(a)(m)) else proving(a)(m))
+    (audited, not).mapN((yes, no) => List(yes, no).map(_._2.inputs.recorded.checks.whole.toList.flatMap(_.results)
+      .map(_.status).filterNot(_ == ObligationStatus.NotShown).distinct)).map(statuses =>
+      assertEquals(statuses, List(List(ObligationStatus.Proven), List(ObligationStatus.Unchecked))))
+  }
+
+  test("a .lean file under lean/Proofs/ that is no node's proof: the check is refused") {
+    val stray = RelPath.fromIdentifiers("lean", "Proofs/Rooms/sub/grantWhenFree.lean")
+    for
+      p    <- Projects.inMemory(Map(stray -> "theorem x : True := trivial"))
+      a    <- Projects.analysed(p, Projects.rooms, Nil)
+      lake <- ScriptedLake[IO](proving(a), installed = true)
+      out  <- CheckProgram(p.files, lake, library, RunCode.inline[IO])(a, None).attempt
+      held <- lake.built
+    yield assertEquals((out.left.toOption, held), (Some(FrFlowError.StrayProofs(List(stray))), Nil))
+  }
+
   test("a build that times out ends the check (Timeout); only that node is checked when it is named") {
     val node = NodeId("endsAfterStart")
     checked(Some(node))(a => m => if m.dotted.contains(".endsAfterStart.") then ProverRun.TimedOut("") else
@@ -110,8 +158,8 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
       a    <- Projects.analysed(p, Projects.rooms, Nil)
       none <- ScriptedLake[IO](_ => ProverRun.Built(""), installed = false)
       lake <- ScriptedLake[IO](_ => ProverRun.Built(""), installed = true)
-      no   <- CheckProgram(p.files, none, library)(a, None).attempt
-      gone <- CheckProgram(p.files, lake, library)(a, Some(NodeId("gone"))).attempt
+      no   <- CheckProgram(p.files, none, library, RunCode.inline[IO])(a, None).attempt
+      gone <- CheckProgram(p.files, lake, library, RunCode.inline[IO])(a, Some(NodeId("gone"))).attempt
     yield
       assertEquals(no.left.toOption, Some(FrFlowError.NoLean))
       assertEquals(gone.left.toOption, Some(FrFlowError.UnknownNode(NodeId("gone"))))

@@ -19,10 +19,11 @@ import frflow.proof.verdict.*
   * or the proof file), refuted on a case when it does not go through and its one part fixes an answer; `impl`; the
   * composition `holds`; then the checks module theorem by theorem (each obligation proven or not, each try shown or
   * not: a try Lean does not prove is an error there and shows nothing); and a root's `root_impl`. A module Lake did
-  * not run (one it imports failed) proves nothing and shows nothing. `Judge.node` ends a check that got through, on
-  * the axioms each proof that went through rests on, `parts` the statuses of its parts.
+  * not run (one it imports failed) proves nothing and shows nothing; a proof whose audit (`#print axioms`) Lean did
+  * not print is not checked (fail closed). `Judge.node` ends a check that got through, on the axioms each proof that
+  * went through rests on, `parts` the statuses of its parts.
   */
-final class NodeChecker[F[_]: Monad: Clock](lake: Lake[F], files: ProjectFiles[F]):
+final class NodeChecker[F[_]: Monad: Clock](lake: Lake[F], files: ProjectFiles[F], refutations: Refutations[F]):
   private type Step[A] = EitherT[F, Judged, A]
   /** Outcomes, and the axioms the proven ones rest on. */
   private type Judging = (List[Result], List[String])
@@ -34,7 +35,7 @@ final class NodeChecker[F[_]: Monad: Clock](lake: Lake[F], files: ProjectFiles[F
       for
         _             <- run(lean.module(NodePart.Spec)).flatMap(r => stop(Judge.model(r)))
         _             <- proofFile(lean)
-        (done, found) <- complete(lean)
+        (done, found) <- complete(lean, a)
         impl          <- proven(lean, ObligationName.Impl)
         holds         <- composed(lean, done)
         checks        <- checked(lean)
@@ -62,7 +63,7 @@ final class NodeChecker[F[_]: Monad: Clock](lake: Lake[F], files: ProjectFiles[F
   }
 
   /** `complete`, and when automation does not prove it, a case Lean proves refutes the step. */
-  private def complete(lean: NodeLean): Step[(List[Result], List[Finding])] =
+  private def complete(lean: NodeLean, a: Analysis): Step[(List[Result], List[Finding])] =
     lean.required(ObligationName.Complete).fold(EitherT.pure[F, Judged]((List.empty[Result], List.empty[Finding]))) {
       o =>
         val authored = o.discharge == Discharge.Authored
@@ -70,14 +71,18 @@ final class NodeChecker[F[_]: Monad: Clock](lake: Lake[F], files: ProjectFiles[F
         run(module).flatMap { r =>
           val result = judged(o, if authored then lean.elaboratedProof(r) else lean.elaborated(NodePart.Auto, r))
           if result.status == ObligationStatus.Proven || authored then EitherT.pure((List(result), Nil))
-          else EitherT.liftF(refuted(lean).map(f => (List(result), f.toList)))
+          else EitherT.liftF(refuted(lean, a).map(f => (List(result), f.toList)))
         }
     }
 
-  private def refuted(lean: NodeLean): F[Option[Finding]] = lean.refutes.flatTraverse((m, inputs) =>
-    files.writeIfChanged(m.name.file, Print.module(m)) >> lake.build(NonEmptyList.one(m.name)).map(r =>
-      Option.when(lean.elaborated(m, r).exists(_.verdict("refutes") == TheoremVerdict.Proven))(
-        Finding.StepRefuted(inputs))))
+  /** A case refuting the step, searched for now, which Lean proves refutes it. */
+  private def refuted(lean: NodeLean, a: Analysis): F[Option[Finding]] =
+    refutations.of(a, lean.node).flatMap(_.flatTraverse { found =>
+      val m = lean.refutes(found)
+      files.writeIfChanged(m.name.file, Print.module(m)) >> lake.build(NonEmptyList.one(m.name)).map(r =>
+        Option.when(lean.elaborated(m, r).exists(_.verdict("refutes") == TheoremVerdict.Proven))(
+          Finding.StepRefuted(found.inputs)))
+    })
 
   /** `impl`, in a module of its own, with the axioms its proof rests on when it goes through. */
   private def proven(lean: NodeLean, name: ObligationName): Step[Judging] =
@@ -94,7 +99,9 @@ final class NodeChecker[F[_]: Monad: Clock](lake: Lake[F], files: ProjectFiles[F
       r match
         case ProverRun.Failed(_) => EitherT.leftT(Judged(CheckStatus.Failed, done,
           List(Finding.NotProven(e.toList.flatMap(_.diagnostics.filter(_.error))))))
-        case _                   => EitherT.pure(e.toList.flatMap(_.axiomsOf("holds").toList.flatten))
+        case _                   => e.flatMap(_.axiomsOf("holds")).fold(
+          EitherT.leftT[F, List[String]](Judged(CheckStatus.Open, done, List(Finding.NotProven(Nil)))))(
+          EitherT.pure(_))
     }
 
   /** The checks module, theorem by theorem: each other obligation, each try. */
@@ -117,16 +124,19 @@ final class NodeChecker[F[_]: Monad: Clock](lake: Lake[F], files: ProjectFiles[F
         case TheoremVerdict.Proven     => Result(ObligationName.RootImpl, ObligationStatus.Proven, Nil)
         case TheoremVerdict.Failed(es) => Result(ObligationName.RootImpl, ObligationStatus.Open, es)
         case _                         => Result(ObligationName.RootImpl, ObligationStatus.Open, Nil)
-      (List(result), if verdict == TheoremVerdict.Proven then axioms(e, "root_impl") else Nil)
+      val audit = e.flatMap(_.axiomsOf("root_impl"))
+      if verdict == TheoremVerdict.Proven && audit.isEmpty then (List(result.copy(status = ObligationStatus.Unchecked)),
+        Nil)
+      else (List(result), audit.toList.flatten)
     }
 
   /** An obligation judged where Lean ran on it; not checked where it did not. */
   private def judged(o: Obligation, e: Option[Elaboration]): Result =
     e.fold(Result(o.name, ObligationStatus.Unchecked, Nil))(Judge.required(o.name, _))
 
+  /** Proven only with the axioms its audit lists (fail closed): one Lean says nothing of is not checked. */
   private def audited(lean: NodeLean, o: Obligation, e: Option[Elaboration]): Judging =
     val result = judged(o, e)
-    (List(result), if result.status == ObligationStatus.Proven then axioms(e, lean.named(o)) else Nil)
-
-  private def axioms(e: Option[Elaboration], name: String): List[String] =
-    e.toList.flatMap(_.axiomsOf(name).toList.flatten)
+    val audit = e.flatMap(_.axiomsOf(lean.named(o)))
+    if result.status != ObligationStatus.Proven then (List(result), Nil)
+    else audit.fold((List(result.copy(status = ObligationStatus.Unchecked)), Nil))(as => (List(result), as))

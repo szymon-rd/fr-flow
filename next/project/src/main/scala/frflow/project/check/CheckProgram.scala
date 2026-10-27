@@ -5,17 +5,19 @@ import cats.{MonadThrow, Parallel}
 import cats.syntax.all.*
 import frflow.core.name.NodeId
 import frflow.project.pipeline.Analysis
-import frflow.project.port.{FrFlowError, Lake, ProjectFiles, Records}
+import frflow.project.port.{FrFlowError, Lake, ProjectFiles, Records, RunCode}
 import frflow.proof.verdict.{CheckStatus, Checks, NodeCheck}
 
 /** `check`: the Lean that changed written, then the nodes checked level by level (parts first, a level's nodes side
   * by side), each kept as recorded while its check is current (its key the node's now, its parts as proven as when
   * it was made), then the theory's own check unless current; the checks recorded (`checks.json`). With `only`, that
-  * node is checked whatever its record. Asks only `MonadThrow`, `Parallel` and `Clock`; tested against a scripted
-  * `Lake` and memory.
+  * node is checked whatever its record. Refused while a `.lean` file other than a node's proof sits under
+  * `lean/Proofs/` (`FrFlowError.StrayProofs`). Asks only `MonadThrow`, `Parallel` and `Clock`; tested against a
+  * scripted `Lake` and memory.
   */
-final class CheckProgram[F[_]: MonadThrow: Parallel: Clock](files: ProjectFiles[F], lake: Lake[F], library: String):
-  private val nodes = NodeChecker(lake, files)
+final class CheckProgram[F[_]: MonadThrow: Parallel: Clock](files: ProjectFiles[F], lake: Lake[F], library: String,
+    run: RunCode[F]):
+  private val nodes = NodeChecker(lake, files, Refutations(run))
 
   /** The nodes checked, in order, and the analysis with every check recorded. */
   def apply(a: Analysis, only: Option[NodeId]): F[(List[NodeCheck], Analysis)] =
@@ -23,6 +25,8 @@ final class CheckProgram[F[_]: MonadThrow: Parallel: Clock](files: ProjectFiles[
       _     <- lake.available.ifM(MonadThrow[F].unit, MonadThrow[F].raiseError(FrFlowError.NoLean))
       _     <- only.filterNot(a.decided.theory.node(_).isDefined)
                  .traverse_(id => MonadThrow[F].raiseError[Unit](FrFlowError.UnknownNode(id)))
+      _     <- MonadThrow[F].raiseError[Unit](FrFlowError.StrayProofs(a.inputs.lean.strays))
+                 .whenA(a.inputs.lean.strays.nonEmpty)
       _     <- Render(files, library)(a)
       done  <- CheckPlan.levels(a, only).foldLeftM(Map.empty[NodeId, NodeCheck])((done, level) =>
                  level.parTraverse(n => kept(a, n, done, only).fold(nodes(a, n, parts(a, n, done)))(_.pure[F]))

@@ -53,15 +53,15 @@ object ReadProof:
     Option.when(a.groups.exists((i, ids) => ids.contains(id) && !proven(i)))(Unproven.Consistency).toList
 
   /** Its plain code, or a store's implementations, tested: a current report with no failing case, every case asked
-    * tried, every part reached. A statement with no Scala value is not checked by its tests, which is no failure.
+    * tried, every part reached (none since it moved: not tested yet). A statement with no Scala value is not checked
+    * by its tests, which is no failure.
     */
   private def tests(a: Analysis, id: NodeId): List[Unproven] =
     val tested = Testable.of(a.decided.theory, id) || a.modelled(id)
-    val failing = a.tested(id).fold(true)(r => r.outcome match
+    a.tested(id).fold(Option.when(tested)(Unproven.NotTested).toList)(r => Option.when(tested && (r.outcome match
       case Outcome.NotChecked(_) => false
       case Outcome.Failed(_)     => true
-      case Outcome.Passed        => r.unreached.nonEmpty || r.count.shortfall > 0)
-    Option.when(tested && failing)(Unproven.Tests).toList
+      case Outcome.Passed        => r.unreached.nonEmpty || r.count.shortfall > 0))(Unproven.Tests).toList)
 
   /** `complete` proven, every `needed_C` not shown, no clash shown; and it has parts. */
   private def partsMake(a: Analysis, id: NodeId, rs: List[Result]): Boolean =

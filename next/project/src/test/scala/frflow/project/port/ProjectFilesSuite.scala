@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.syntax.all.*
 import frflow.core.name.RelPath
 import frflow.project.Live
+import frflow.project.port.memory.MemoryFiles
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files
 

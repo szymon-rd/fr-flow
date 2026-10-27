@@ -6,6 +6,7 @@ import frflow.core.name.NodeId
 import frflow.decision.content.{Chain, Content, FieldValue}
 import frflow.decision.ledger.*
 import frflow.project.Live
+import frflow.project.port.memory.MemoryLedger
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files
 import java.time.Instant

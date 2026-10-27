@@ -9,19 +9,23 @@ import frflow.proof.terms.TermTable
 
 /** `Whole.lean`: what is asked of the theory as a whole (`Joint`, `ExampleGoals`), each statement in `namespace
   * Obl`, and the theorem of each one FrFlow's witnesses meet (`frflow_witness`) or its automation proves
-  * (`frflow_auto`). A statement nothing witnesses is stated only: it shows "consistency not proven" (or "not shown")
+  * (`frflow_auto`), each with its axioms audited. A statement nothing witnesses is stated only: it shows "consistency not proven" (or "not shown")
   * until the developer's proof file proves it; an example is a try, in the checks module beside it.
   */
 final class WholeModule(props: LowerProp, witness: LowerWitness):
   def of(kb: KbName, imports: List[ModuleName], obligations: List[Obligation]): LeanModule =
     LeanModule(Layout(kb).whole, imports, Preamble.generated, Names.path(kb.value, "Whole"), Nil,
       obligations.map(LowerObligation(props)(_)) ++ obligations.collect {
-        case o @ Obligation(_, _, Discharge.Witnessed(by), _) => witness(o, by)
-        case Obligation(n, _, Discharge.Auto, _)              =>
+        case o @ Obligation(_, _, Discharge.Witnessed(by), _) => List(witness(o, by), audit(kb, o))
+        case o @ Obligation(n, _, Discharge.Auto, _)          =>
           val name = LowerObligation.name(n)
-          Decl.Theorem(Nil, name, Nil, LExpr.Const(List(Names.builtin("Obl"), name)),
-            Proof.Tactics(List("frflow_auto")), Break.SameLine)
-      })
+          List(Decl.Theorem(Nil, name, Nil, LExpr.Const(List(Names.builtin("Obl"), name)),
+            Proof.Tactics(List("frflow_auto")), Break.SameLine), audit(kb, o))
+      }.flatten)
+
+  /** `#print axioms` of a theorem met here: what its proof rests on, audited as a node's proofs are. */
+  private def audit(kb: KbName, o: Obligation): Decl =
+    Decl.PrintAxioms(Names.path(kb.value, "Whole", LowerObligation.name(o.name).text))
 
 object WholeModule:
   /** Over the knowledge base's lowering environment, importing what its statements name. */

@@ -4,14 +4,15 @@ import cats.effect.Sync
 import cats.syntax.all.*
 import frflow.core.name.RelPath
 import java.nio.charset.StandardCharsets.UTF_8
-import java.nio.file.{FileVisitOption, Files, Path}
+import java.nio.file.{Files, LinkOption, Path}
 import scala.jdk.CollectionConverters.*
 import scala.util.Using
 
 /** The project's files, each named relative to the project and read and written whole, as UTF-8. Interpreters: the
   * disk (`make`) and memory (`MemoryFiles`). Laws, for both: a read after `writeIfChanged(p, t)` gives `t`;
   * `writeIfChanged` writes nothing, and says so, when the file already holds the text; `list(d)` gives every file
-  * under `d`, sorted, and none when there is no such directory; a read after `delete` gives none.
+  * under `d`, sorted, and none when there is no such directory (the disk follows no symbolic link); a read after
+  * `delete` gives none.
   */
 trait ProjectFiles[F[_]]:
   def read(p: RelPath): F[Option[String]]
@@ -29,8 +30,9 @@ object ProjectFiles:
 
     def list(dir: RelPath): F[List[RelPath]] = Sync[F].blocking(
       if !Files.isDirectory(at(dir)) then Nil
-      else Using.resource(Files.walk(at(dir), FileVisitOption.FOLLOW_LINKS))(_.iterator.asScala
-        .filter(Files.isRegularFile(_)).map(f => root.relativize(f).toString.replace('\\', '/')).toList)
+      else Using.resource(Files.walk(at(dir)))(_.iterator.asScala
+        .filter(Files.isRegularFile(_, LinkOption.NOFOLLOW_LINKS))
+        .map(f => root.relativize(f).toString.replace('\\', '/')).toList)
         .flatMap(RelPath.parse(_).toOption).sorted)
 
     def writeIfChanged(p: RelPath, text: String): F[Boolean] = read(p).flatMap(now =>

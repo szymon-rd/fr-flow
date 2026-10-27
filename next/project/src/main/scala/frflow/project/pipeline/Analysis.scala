@@ -31,7 +31,7 @@ final class Analysis(val valid: Valid, val inputs: Inputs, val computed: Compute
   lazy val modules: List[LeanModule] = LeanProject.of(decided, terms, obligations, whole)
   /** The roots `root_impl` is asked of. */
   lazy val rooted: Set[NodeId] = RootImplModule.roots(lowering).toSet
-  lazy val keys: CheckKeys = CheckKeys(decided.theory.name, modules, inputs.proofs, rooted)
+  lazy val keys: CheckKeys = CheckKeys(decided.theory.name, modules, inputs.lean, rooted)
   private lazy val nodeKeys: Map[NodeId, CheckKey] = obligations.map(o => o.node -> keys.node(o.node)).toMap
   /** Each node's governed code now: the files it governs, fingerprinted. */
   lazy val governed: Map[NodeId, CodeNow] = Governance.of(decided.theory, inputs.sources.keys.toList).map((id, fs) =>
@@ -58,4 +58,4 @@ final class Analysis(val valid: Valid, val inputs: Inputs, val computed: Compute
   def withRecorded(r: Recorded): Analysis = Analysis(valid, inputs.copy(recorded = r), computed)
 
   private def authored: Set[(NodeId, ObligationName)] =
-    inputs.proofs.toSet.flatMap((id, f) => ProofRules.theorems(f).map(id -> _))
+    inputs.lean.proofs.toSet.flatMap((id, f) => ProofRules.theorems(f).map(id -> _))

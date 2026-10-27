@@ -4,13 +4,12 @@ import cats.effect.IO
 import cats.syntax.all.*
 import frflow.core.expr.Value
 import frflow.core.name.NodeId
-import frflow.eval.Semantics
 import frflow.eval.run.Broken
-import frflow.project.Projects
+import frflow.project.{Projects, Tables}
 import frflow.project.pipeline.TestKeys
+import frflow.project.port.RunCode
 import frflow.project.port.Records
 import frflow.testing.Seed
-import frflow.testing.derive.Derive
 import frflow.testing.report.*
 import frflow.wire.file.Depth
 
@@ -24,7 +23,7 @@ class TestProgramSuite extends munit.CatsEffectSuite:
   private def tested = for
     p   <- Projects.inMemory(Map.empty)
     a   <- Projects.analysed(p, Projects.rooms, Projects.roomsExamples)
-    run  = TestProgram[IO](p.files, Semantics(Projects.rooms), Derive.of(Projects.rooms, Projects.roomsExamples), Nil)
+    run  = TestProgram[IO](p.files, RunCode.inline[IO], Nil)
     out <- run(a, None)
   yield (out, run, p)
 
@@ -44,6 +43,33 @@ class TestProgramSuite extends munit.CatsEffectSuite:
       (run(a, None), run(a, Some(claim))).tupled.map((again, only) =>
         assertEquals((again._1, only._1.map(_._1)), (Nil, List(claim))))
     }
+  }
+
+  private val model = NodeId("tableMatchesModel")
+
+  /** The table's assumption tested by the implementations given, as the project's checks (`Tables`) give them. */
+  private def modelled(checks: List[ModelCheck[IO]]) = for
+    p   <- Projects.inMemory(Map.empty)
+    a   <- Projects.analysed(p, Projects.rooms, Projects.roomsExamples)
+    out <- TestProgram[IO](p.files, RunCode.inline[IO], checks)(a, Some(model))
+  yield out
+
+  test("a store's implementations are each tested against its model, the reports joined and recorded with the key") {
+    val (outside, own) = (Tables.outside(Projects.rooms).toList, Tables.own(Projects.rooms).toList)
+    (modelled(outside), modelled(own), modelled(outside ++ own)).tupled.map { (o, w, both) =>
+      val reports = List(o, w, both).map(_._1.toMap.getOrElse(model, fail("not tested")))
+      val joined = reports(2)
+      assertEquals(reports.map(r => (r.outcome, r.against)).distinct, List((Outcome.Passed, Against.Model(model, 0))))
+      assertEquals(joined.count, Count(reports(0).count.asked + reports(1).count.asked,
+        reports(0).count.tried + reports(1).count.tried))
+      assertEquals(both._2.inputs.recorded.tests.get(model), Some((TestKeys.of(both._2, model), joined)))
+      assertEquals(both._2.tested(model), Some(joined))
+    }
+  }
+
+  test("a model check is under the assumption that the store behaves as its model; none where no node says it") {
+    assertEquals(Tables.outside(Projects.rooms).map(_.node), Some(model))
+    assertEquals(Tables.outside(Projects.elaborated(Steps.steps)).map(_.node), None)
   }
 
   private def failure(i: Int, deep: Int = 0): Failure =

@@ -1,9 +1,10 @@
-package frflow.project.port
+package frflow.project.port.memory
 
 import cats.Monad
 import cats.effect.Ref
 import cats.syntax.all.*
 import frflow.core.name.RelPath
+import frflow.project.port.ProjectFiles
 
 /** The project's files in memory: the checker and the programs tested without a disk. `all` is what is held now. */
 final class MemoryFiles[F[_]: Monad] private (held: Ref[F, Map[RelPath, String]]) extends ProjectFiles[F]:

@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.syntax.all.*
 import frflow.core.name.RelPath
 import frflow.project.Live
+import frflow.project.port.memory.MemoryGit
 import java.nio.file.{Files, Path}
 
 /** The laws of the repository, on each interpreter: `committed(p)` is the last of `versions(p)`, oldest first, a

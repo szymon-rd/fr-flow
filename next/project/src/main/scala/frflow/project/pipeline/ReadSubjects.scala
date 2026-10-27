@@ -19,13 +19,10 @@ object ReadSubjects:
       Subject(n.id, Contents.of(r, n.id), places(n.id), a.governed.get(n.id), ReadProof.of(a, n))))
 
   /** Its parents are the wholes it is a part of only: a premise rests on nothing that assumes it, so the nodes
-    * assuming it are below it in no order; what it assumes is among what it rests on. Nothing below it is: a node
-    * proven of code relies on the statements about what its code calls, and those its own parts state are decided
-    * after it, as parts are.
+    * assuming it are below it in no order; what it assumes is among what it rests on.
     */
   def place(r: Resolved, n: Node): Place =
-    val below = r.theory.refinement.nodes.map(_.id).filter(r.theory.refinement.ancestors(_).contains(n.id)).toSet
-    Place(r.theory.refinement.parents(n.id), r.restsOn(n.id).filterNot(below), rivals(r, n), n.statement.kind)
+    Place(r.theory.refinement.parents(n.id), r.restsOn(n.id), rivals(r, n), n.statement.kind)
 
   /** The nodes it replaces or that replace it. */
   private def rivals(r: Resolved, n: Node): List[NodeId] =

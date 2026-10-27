@@ -30,14 +30,16 @@ object Resolve:
   }
 
   /** What a node's proof of its code relies on, facts about what the code calls: the statements constraining a
-    * callee, but the node itself, its ancestors (which rest on it), those about the code's own Definitions (proven of
-    * the same code, not facts about a callee) and a callee fixing a word left open above.
+    * callee, but the node itself, its ancestors (which rest on it), its descendants (its own parts, which rest on it
+    * and are decided after it), those about the code's own Definitions (proven of the same code, not facts about a
+    * callee) and a callee fixing a word left open above.
     */
   def reliesOn(t: Theory, id: NodeId): List[NodeId] =
     val code = Callees.of(t, id)
     val own = code.toList.flatMap(_.standsFor.keys).toSet
-    val above = t.refinement.ancestors(id).toSet
-    constrainingCalled(t, code).filterNot(n => n == id || above(n) || Constrained.of(t, n).exists(own) ||
+    val related = t.refinement.ancestors(id).toSet ++ t.refinement.nodes.map(_.id)
+      .filter(t.refinement.ancestors(_).contains(id))
+    constrainingCalled(t, code).filterNot(n => n == id || related(n) || Constrained.of(t, n).exists(own) ||
       leftOpenAndNamed(t, id)(n))
 
   /** What a node is proven from below it: of a node proven of code (`impl`), the parts it states, or with none what

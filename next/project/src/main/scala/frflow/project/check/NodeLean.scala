@@ -1,6 +1,5 @@
 package frflow.project.check
 
-import frflow.core.expr.Value
 import frflow.core.name.NodeId
 import frflow.eval.Races
 import frflow.project.pipeline.Analysis
@@ -11,6 +10,7 @@ import frflow.proof.lean.print.Print
 import frflow.proof.obligation.{Constant, Obligation, ObligationName}
 import frflow.proof.reading.{Elaboration, ProofFile}
 import frflow.proof.verdict.ProverRun
+import frflow.testing.search.Refuted
 
 /** One node's Lean as its check reads it: its modules, its obligations by where each is proven, its proof file and
   * the lemmas it imports, and what Lean said of a module it built.
@@ -31,17 +31,16 @@ final class NodeLean(a: Analysis, val node: NodeId):
   def named(o: Obligation): String = LowerObligation.name(o.name).text
   def rooted: Boolean = a.rooted(node)
 
-  def proof: Option[ProofFile] = a.inputs.proofs.get(node)
+  def proof: Option[ProofFile] = a.inputs.lean.proofs.get(node)
   def proofText: String = proof.fold("")(_.source)
   /** The shared lemmas, when its proof file imports them. */
   def lemmas: Option[ProofFile] = proof.filter(f => s"(?m)^\\s*import\\s+${layout.lemmas.dotted}\\b".r
-    .findFirstIn(f.source).isDefined).flatMap(_ => a.inputs.proofs.get(NodeId("Lemmas")))
+    .findFirstIn(f.source).isDefined).flatMap(_ => a.inputs.lean.proofs.get(NodeId("Lemmas")))
 
-  /** Its step refuted on the case found (`RunScala`), as Lean is given it, with the case's inputs. */
-  def refutes: Option[(LeanModule, List[(String, Value)])] = a.computed.refutations.get(node).map { r =>
+  /** Its step refuted on the case found (`Refutations`), as Lean is given it. */
+  def refutes(r: Refuted): LeanModule =
     val found = Refutation(r.witness, r.ty, r.inputs.zip(r.types).map((x, ty) => Constant(Races.without(x._2), ty)))
-    (RefutesModule.of(a.decided, a.terms, node, found), r.inputs)
-  }
+    RefutesModule.of(a.decided, a.terms, node, found)
 
   def file(m: ModuleName): String = m.file.value.stripPrefix("lean/")
 

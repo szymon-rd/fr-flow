@@ -1,9 +1,10 @@
-package frflow.project.port
+package frflow.project.port.memory
 
 import cats.Monad
 import cats.effect.{Ref, Sync}
 import cats.syntax.all.*
 import frflow.decision.ledger.{Decider, Deciders, Seals}
+import frflow.project.port.{KeyRing, Keys}
 import java.security.{KeyPair, KeyPairGenerator}
 import java.util.Base64
 

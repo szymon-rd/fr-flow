@@ -8,15 +8,16 @@ import frflow.project.pipeline.Analysis
 import frflow.project.port.Lake
 import frflow.proof.layout.Layout
 import frflow.proof.lean.ast.ModuleName
+import frflow.proof.lean.lower.LowerObligation
 import frflow.proof.lean.print.Print
 import frflow.proof.obligation.{Discharge, Obligation}
-import frflow.proof.reading.Elaboration
+import frflow.proof.reading.{Elaboration, ProofRules}
 import frflow.proof.verdict.{Judge, ObligationStatus, ProverRun, Result, WholeCheck}
 
 /** The theory's own check: `Whole.lean` built and each consistency and vacuity obligation judged (proven when its
   * witnesses or FrFlow's automation meet it; one nothing witnesses stays open, "consistency not proven" or "not
   * shown"), then each example tried against the claims beside it (shown or not); a module Lake did not run judges
-  * nothing. None when nothing is asked.
+  * nothing; a proof is proven only with its audit, on the axioms allowed. None when nothing is asked.
   */
 final class WholeChecker[F[_]: Monad: Clock](lake: Lake[F]):
   def apply(a: Analysis): F[Option[WholeCheck]] =
@@ -41,4 +42,11 @@ final class WholeChecker[F[_]: Monad: Clock](lake: Lake[F]):
       case Some((ProverRun.TimedOut(_), _)) => Result(o.name, ObligationStatus.Timeout, Nil)
       case Some((_, None))                 => Result(o.name, if tried then ObligationStatus.NotShown
                                                 else ObligationStatus.Unchecked, Nil)
-      case Some((_, Some(e)))              => if tried then Judge.tried(o.name, e) else Judge.whole(o, e)
+      case Some((_, Some(e)))              => if tried then Judge.tried(o.name, e) else audited(o, e)
+
+  /** Proven only with its audit, every axiom it rests on allowed; without one, not checked (fail closed). */
+  private def audited(o: Obligation, e: Elaboration): Result =
+    val r = Judge.whole(o, e)
+    if r.status != ObligationStatus.Proven then r
+    else e.axiomsOf(LowerObligation.name(o.name).text).fold(r.copy(status = ObligationStatus.Unchecked))(as =>
+      if as.forall(ProofRules.AllowedAxioms) then r else r.copy(status = ObligationStatus.Failed))

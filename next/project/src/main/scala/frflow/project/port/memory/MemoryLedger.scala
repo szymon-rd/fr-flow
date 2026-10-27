@@ -1,9 +1,10 @@
-package frflow.project.port
+package frflow.project.port.memory
 
 import cats.effect.std.Mutex
 import cats.effect.{Concurrent, Ref}
 import cats.syntax.all.*
 import frflow.decision.ledger.Ledger
+import frflow.project.port.LedgerStore
 
 /** The ledger in memory, its updates serialized: the decision programs tested without a file. */
 final class MemoryLedger[F[_]: Concurrent] private (held: Ref[F, Ledger], mutex: Mutex[F]) extends LedgerStore[F]:

@@ -7,9 +7,10 @@ import frflow.core.example.Example
 import frflow.core.name.RelPath
 import frflow.decision.ledger.{Counted, Ledger}
 import frflow.dsl.kb.KnowledgeBase
-import frflow.project.pipeline.{Analysis, Computed, Inputs, Recorded}
-import frflow.project.port.{MemoryFiles, MemoryGit, MemoryKeys, MemoryLedger}
-import frflow.project.program.{Analyse, Ports}
+import frflow.project.pipeline.{Analysis, Computed, Inputs, LeanSources, Recorded}
+import frflow.project.port.memory.{MemoryFiles, MemoryGit, MemoryKeys, MemoryLedger}
+import frflow.project.port.{LeanLibrary, RunCode}
+import frflow.project.program.{Analyse, Ports, Project}
 import frflow.testing.{Seed, Settings}
 import java.time.Instant
 
@@ -20,6 +21,9 @@ object Projects:
   /** Fewer cases than the default, so the suites stay quick; the seed is today's. */
   val settings: Settings = Settings(200, Seed(1))
   val sources: RelPath = RelPath.fromIdentifiers("src", "main")
+  /** FrFlow's Lean library as the suites name it: no Lean runs on it in a unit suite. */
+  val library: LeanLibrary = LeanLibrary("lean", "the library under test")
+  val project: Project = Project(List(sources), settings, library)
 
   def elaborated(kb: KnowledgeBase): Elaborated = kb.elaborated.fold(e => throw AssertionError(e.toString), identity)
   lazy val rooms: Elaborated = elaborated(_root_.rooms.rooms)
@@ -39,10 +43,11 @@ object Projects:
     yield InMemory(Ports(f, ledger, git, keys), f, keys, git)
 
   def analysed(p: InMemory, e: Elaborated, examples: List[Example]): IO[Analysis] =
-    Analyse(p.ports, List(sources), settings)(e, examples)
+    Analyse(p.ports, RunCode.inline[IO], project)(e, examples)
 
   /** An analysis with nothing read: an empty ledger, nothing recorded, no examples run. */
   def bare(e: Elaborated): Analysis =
     Analysis(Validate(e).fold(ps => throw AssertionError(ps.toString), identity),
-      Inputs(Counted(Ledger.empty, Nil), Recorded.none, Map.empty, Map.empty, Instant.EPOCH, settings),
+      Inputs(Counted(Ledger.empty, Nil), Recorded.none, LeanSources(Map.empty, Nil, library.version), Map.empty,
+        Instant.EPOCH, settings),
       Computed.none)

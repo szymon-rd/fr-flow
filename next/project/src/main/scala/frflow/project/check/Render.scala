@@ -3,7 +3,7 @@ package frflow.project.check
 import cats.{Monad, Parallel}
 import cats.syntax.all.*
 import frflow.core.name.{KbName, RelPath}
-import frflow.project.pipeline.Analysis
+import frflow.project.pipeline.{Analysis, LeanSources}
 import frflow.project.port.ProjectFiles
 import frflow.proof.lean.ast.ModuleName
 import frflow.proof.lean.print.Print
@@ -19,7 +19,7 @@ final class Render[F[_]: Monad: Parallel](files: ProjectFiles[F], library: Strin
     val generated = a.modules.map(_.name.file).toSet
     for
       _       <- files.writeIfChanged(Render.lakefile, Render.lakefileOf(kb, library))
-      _       <- files.writeIfChanged(Render.toolchain, Render.Toolchain)
+      _       <- files.writeIfChanged(Render.toolchain, LeanSources.Toolchain)
       written <- a.modules.parTraverseFilter(m =>
                    files.writeIfChanged(m.name.file, Print.module(m)).map(Option.when(_)(m.name)))
       stale   <- files.list(RelPath.fromIdentifiers("lean", s"FrFlowGen/${kb.value}")).map(_.filterNot(generated))
@@ -29,8 +29,6 @@ final class Render[F[_]: Monad: Parallel](files: ProjectFiles[F], library: Strin
 object Render:
   val lakefile: RelPath = RelPath.fromIdentifiers("lean", "lakefile.toml")
   val toolchain: RelPath = RelPath.fromIdentifiers("lean", "lean-toolchain")
-  /** The Lean FrFlow's library is built with (`next/proof/lean/lean-toolchain`). */
-  val Toolchain: String = "leanprover/lean4:v4.35.0\n"
 
   def lakefileOf(kb: KbName, library: String): String =
     s"""name = "${kb.value.toLowerCase}"

@@ -20,36 +20,52 @@ class CountedSuite extends munit.FunSuite:
   private val signed = accepted(Ledger.empty, "R", 1, dev)
 
   test("a decision signed by a listed decider counts; the root is accepted") {
-    val c = Counted.of(signed, Some(deciders), verify, None)
+    val c = Counted.of(signed, Some(deciders), verify, Nil)
     assertEquals((c.counting, c.others), (signed, Nil))
     assertEquals(Reading(shelf, c.counting).state(id("R")), ReviewState.Accepted)
   }
 
   test("signed by a key not listed under the decider's name, it does not count, and is said so") {
-    val c = Counted.of(accepted(Ledger.empty, "R", 1, other), Some(deciders), verify, None)
+    val c = Counted.of(accepted(Ledger.empty, "R", 1, other), Some(deciders), verify, Nil)
     assertEquals((c.counting, c.others.map(x => (x._1, x._3))), (Ledger.empty, List(id("R") -> Uncounted.NotListed)))
     assertEquals(Reading(shelf, c.counting).state(id("R")), ReviewState.Proposed)
   }
 
   test("changed after it was signed, it does not verify; with no deciders' list, nothing counts") {
     val changed = Ledger(signed.decisions.view.mapValues(_.map(d => d.copy(reason = Reason("another", Nil)))).toMap)
-    assertEquals(Counted.of(changed, Some(deciders), verify, None).others.map(_._3), List(Uncounted.NotVerified))
-    assertEquals(Counted.of(signed, None, verify, None).others.map(_._3), List(Uncounted.NoDeciders))
+    assertEquals(Counted.of(changed, Some(deciders), verify, Nil).others.map(_._3), List(Uncounted.NotVerified))
+    assertEquals(Counted.of(signed, None, verify, Nil).others.map(_._3), List(Uncounted.NoDeciders))
   }
 
   test("a node whose last decisions were taken out since the commit counts none of its decisions") {
     val committed = accepted(signed, "R", 2, dev)
-    val c = Counted.of(signed, Some(deciders), verify, Some(committed))
+    val c = Counted.of(signed, Some(deciders), verify, List(Some(committed)))
     assertEquals(c.others.map(x => (x._1, x._3)), List(id("R") -> Uncounted.Rewritten))
-    assertEquals(Counted.of(committed, Some(deciders), verify, Some(signed)).others, Nil)
+    assertEquals(Counted.of(committed, Some(deciders), verify, List(Some(signed))).others, Nil)
+  }
+
+  test("a decision taken out and then committed over is still caught: each version must start the next") {
+    val revisited = accepted(signed, "R", 2, dev)
+    val laundered = accepted(signed, "A", 3, dev)
+    val c = Counted.of(laundered, Some(deciders), verify, List(Some(revisited), Some(laundered)))
+    assertEquals(c.rewritten, List(id("R")))
+    assertEquals(c.counting.history(id("A")).size, 1)
+  }
+
+  test("a node's whole history taken out is reported by what was committed; a version that does not read counts none") {
+    val gone = Counted.of(Ledger.empty, Some(deciders), verify, List(Some(signed)))
+    assertEquals(gone.others.map(x => (x._1, x._3)), List(id("R") -> Uncounted.Rewritten))
+    val unreadable = Counted.of(signed, Some(deciders), verify, List(Some(Ledger.empty), None))
+    assertEquals((unreadable.counting, unreadable.others.map(_._3), unreadable.rewritten),
+      (Ledger.empty, List(Uncounted.Unreadable), List(id("R"))))
   }
 
   test("what a decision on the ledger as it counts adds is stored after every decision kept, those not counting too") {
     val working = accepted(Ledger.empty, "R", 1, other)
-    val counted = Counted.of(working, Some(deciders), verify, None).counting
+    val counted = Counted.of(working, Some(deciders), verify, Nil).counting
     val after = accepted(counted, "R", 2, dev)
     val stored = Counted.stored(working, counted, after)
     assertEquals(stored.history(id("R")).size, 2)
-    assertEquals(Counted.of(stored, Some(deciders), verify, None).counting.history(id("R")),
+    assertEquals(Counted.of(stored, Some(deciders), verify, Nil).counting.history(id("R")),
       after.history(id("R")))
   }

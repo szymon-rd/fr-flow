@@ -3,11 +3,14 @@ package frflow.project.program
 import cats.effect.IO
 import cats.syntax.all.*
 import frflow.core.name.NodeId
-import frflow.decision.ledger.{Action, Payload, Uncounted}
+import frflow.decision.ledger.{Action, Ledger, Payload, Uncounted}
 import frflow.decision.review.ReviewState
 import frflow.decision.rules.{Command, Refusal}
 import frflow.project.Projects
 import frflow.project.pipeline.Analysis
+import frflow.project.port.{Records, RunCode}
+import frflow.wire.file.Files
+import frflow.wire.ledger.LedgerFile
 
 /** `decide` on rooms in memory, with a key made for the run and listed as `ann`'s: refused to a name the key is not
   * listed under, before any rule; recorded, signed and counted for a decider; stored after the decisions the ledger
@@ -64,8 +67,7 @@ class DecideProgramSuite extends munit.CatsEffectSuite:
     for
       p      <- Projects.inMemory(Map.empty)
       a      <- Projects.analysed(p, Projects.rooms, Projects.roomsExamples)
-      tested <- TestProgram[IO](p.files, frflow.eval.Semantics(Projects.rooms),
-                  frflow.testing.derive.Derive.of(Projects.rooms, Projects.roomsExamples), Nil)(a, None)
+      tested <- TestProgram[IO](p.files, RunCode.inline[IO], Nil)(a, None)
       ids     = tested._2.subjects.inOrder.map(_.id)
       out    <- ids.traverse(id => DecideProgram(p.ports)(tested._2.subjects,
                   Command.Accept(List(id), "it says what the service must do", Nil, Map.empty), "ann"))
@@ -84,4 +86,32 @@ class DecideProgramSuite extends munit.CatsEffectSuite:
     yield
       assertEquals(seen.map(_.recorded.map((id, d) => (id, d.action))), Right(List(first(a) -> Action.Accept)))
       assertEquals(stored.decisions, Map.empty)
+  }
+
+  /** The ledger committed as it is now. */
+  private def commit(p: Projects.InMemory): IO[Unit] =
+    p.ports.ledger.load.flatMap(l => p.git.commit(Map(Records.path(LedgerFile.format) ->
+      Files.print(LedgerFile.format, l)))).void
+
+  private def dropLast(x: NodeId)(l: Ledger): Either[String, (Ledger, Unit)] =
+    Right((Ledger(l.decisions.updated(x, l.history(x).init)), ()))
+
+  test("a revisit committed, then taken out of the ledger: no decision is taken, and the node counts none") {
+    for
+      p       <- Projects.inMemory(Map.empty)
+      a       <- Projects.analysed(p, Projects.rooms, Nil)
+      (x, y)   = (first(a), a.subjects.inOrder(1).id)
+      _       <- DecideProgram(p.ports)(a.subjects, accept(a), "ann")
+      revisit <- DecideProgram(p.ports)(a.subjects, Command.Revisit(x, "the form may change"), "ann")
+      _       <- commit(p)
+      _       <- p.ports.ledger.update[String, Unit](dropLast(x))
+      dropped <- Projects.analysed(p, Projects.rooms, Nil)
+      out     <- DecideProgram(p.ports)(dropped.subjects, Command.Accept(List(y), "it is so", Nil, Map.empty), "ann")
+      _       <- commit(p)
+      read    <- Projects.analysed(p, Projects.rooms, Nil)
+    yield
+      assert(revisit.isRight, revisit)
+      assertEquals(out, Left(Refusal.Rewritten(List(x))))
+      assertNotEquals(read.reading.state(x), ReviewState.Accepted)
+      assertEquals(read.inputs.ledger.others.map(o => (o._1, o._3)).distinct, List(x -> Uncounted.Rewritten))
   }

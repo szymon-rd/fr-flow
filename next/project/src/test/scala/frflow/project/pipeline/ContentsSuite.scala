@@ -26,6 +26,11 @@ class ContentsSuite extends munit.FunSuite:
     }
   }
 
+  test("a formula is the text the developer wrote") {
+    assertEquals(Contents.of(resolved(Projects.rooms), NodeId("requestsEndAfterStart")).text("formula"),
+      "always[Request](r => r.start < r.end)")
+  }
+
   test("a claim on a Definition with plain Scala says the Scala; a proven program's claim, its program") {
     val r = resolved(Projects.rooms)
     def implementation(id: String) = Contents.of(r, NodeId(id)).text("implementation")

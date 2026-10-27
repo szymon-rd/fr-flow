@@ -58,6 +58,12 @@ class ValidateSuite extends munit.FunSuite:
     assertEquals(Resolve.circles(ValueCases.mutual.theory), List(List(NodeId("aboutF"), NodeId("aboutG"))))
   }
 
+  test("a node proven of code relies on no part of its own: its parts rest on it and are decided after it") {
+    val r = Resolve(Validate(ValueCases.proven.elaborated).toOption.get)
+    assert(!r.reliesOn(NodeId("top")).contains(NodeId("aboutFree")), r.reliesOn(NodeId("top")))
+    assert(!r.restsOn(NodeId("top")).contains(NodeId("aboutFree")), r.restsOn(NodeId("top")))
+  }
+
   test("an empty theory has no root to miss") {
     assertEquals(Kb.empty.problems, Nil)
   }

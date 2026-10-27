@@ -11,7 +11,7 @@ object Canonical:
 
   def quote(s: String): String = "\"" + s.flatMap {
     case '"' => "\\\""; case '\\' => "\\\\"; case '\n' => "\\n"; case '\r' => "\\r"; case '\t' => "\\t"
-    case c if c < ' ' => f"\\u${c.toInt}%04x"
+    case c if c < ' ' || c.isSurrogate => f"\\u${c.toInt}%04x"
     case c => c.toString
   } + "\""
 

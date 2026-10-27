@@ -17,6 +17,12 @@ enum Refusal:
   case AcceptFirst(id: NodeId)
   /** Its code fails a generated case: the code, or the claim, is wrong (the CLI says which, `Cause.movedUnderCode`). */
   case CodeFails(id: NodeId)
+  /** Its plain code has not been tested since it, or the code, moved: there is no evidence for it yet. */
+  case NotTested(id: NodeId)
+  /** The ledger no longer holds what was committed of these nodes' decisions (one taken out or changed), or what
+    * was committed does not read: nothing is decided until the ledger is restored from the last commit.
+    */
+  case Rewritten(ids: List[NodeId])
   case NotBelow(id: NodeId, named: List[NodeId])
   case StillInModel(id: NodeId)
   case Within(id: NodeId, refusal: Refusal)

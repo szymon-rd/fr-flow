@@ -46,10 +46,10 @@ class ReadProofSuite extends munit.FunSuite:
     assert(standing(stale, book).unproven.contains(Unproven.Check))
   }
 
-  test("a report not checked is no failing test; a checked one short of cases is; one with every case is not") {
+  test("a report not checked is no failing test; a checked one short of cases is; with none, it is not tested yet") {
     def tests(on: Analysis) = standing(on, grant).unproven.contains(Unproven.Tests)
     assert(!tests(reported(Count(200, 4), Outcome.NotChecked(EvalError.Quantified))))
     assert(tests(reported(Count(200, 198), Outcome.Passed)))
     assert(!tests(reported(Count(200, 200), Outcome.Passed)))
-    assert(tests(a))
+    assert(!tests(a) && standing(a, grant).unproven.contains(Unproven.NotTested))
   }

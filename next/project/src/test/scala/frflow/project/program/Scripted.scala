@@ -26,12 +26,17 @@ final case class Scripted(a: Analysis, failing: Set[String], proving: Set[String
     case _                    => false
 
 object Scripted:
-  /** A module's build: Lake's line of its job and an error at each theorem named in `failing` it holds, else built
-    * with no message.
+  /** A module's build: Lake's line of its job, an error at each theorem named in `failing` it holds, and the audit
+    * of each other theorem it audits (`#print axioms`), resting on none; built when nothing failed.
     */
   def run(m: LeanModule, failing: Set[String]): ProverRun =
     val file = m.name.file.value.stripPrefix("lean/")
-    val errors = Elaboration(Print.module(m), "", file).theorems.filter(t => failing(t.name))
+    val source = Print.module(m)
+    val errors = Elaboration(source, "", file).theorems.filter(t => failing(t.name))
       .map(t => s"error: $file:${t.from}:2: unsolved goals")
-    if errors.isEmpty then ProverRun.Built("")
-    else ProverRun.Failed((s"✖ [1/1] Building ${m.name.dotted}" :: errors).mkString("\n"))
+    val audits = Audited.findAllMatchIn(source).map(_.group(1)).filterNot(n => failing(n.split('.').last))
+      .map(n => s"info: $file:1:0: '$n' does not depend on any axioms").toList
+    if errors.isEmpty then ProverRun.Built(audits.mkString("\n"))
+    else ProverRun.Failed((s"✖ [1/1] Building ${m.name.dotted}" :: errors ++ audits).mkString("\n"))
+
+  private val Audited = """(?m)^#print\s+axioms\s+(\S+)""".r

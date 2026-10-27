@@ -3,14 +3,14 @@ package frflow.project.program
 import cats.effect.IO
 import frflow.core.expr.Value
 import frflow.core.name.{ModelName, NodeId}
-import frflow.eval.{Races, Semantics}
+import frflow.eval.Races
 import frflow.eval.run.OnCode
 import frflow.project.Projects
-import frflow.project.check.CheckProgram
+import frflow.project.port.RunCode
+import frflow.project.check.{CheckProgram, Refutations}
 import frflow.proof.obligation.ObligationName
 import frflow.proof.verdict.{CheckStatus, Finding, ProverRun}
-import frflow.project.port.ScriptedLake
-import frflow.testing.derive.Derive
+import frflow.project.port.memory.ScriptedLake
 
 /** Running Scala before the pure phases: an example whose code throws is said so; the witnesses Lean is given hold
   * no races' winners; and a step its one part fixes the answer of is refuted on a case, which Lean proving it
@@ -33,11 +33,11 @@ class RunScalaSuite extends munit.CatsEffectSuite:
   }
 
   test("a step its one part fixes the answer of only above zero is refuted below it") {
-    RunScala[IO](Semantics(steps), Derive.of(steps, Nil))(Projects.bare(steps).decided, Nil, Projects.settings)
-      .map(c => assert(c.refutations.get(NodeId("nonNegative")).exists(_.inputs.forall {
+    Refutations(RunCode.inline[IO]).of(Projects.bare(steps), NodeId("nonNegative")).map(found =>
+      assert(found.exists(_.inputs.forall {
         case (_, Value.Num(n)) => n < 0
         case _                 => false
-      }), c.refutations))
+      }), found))
   }
 
   test("when complete does not go through and Lean proves the case refutes the step, the check says so") {
@@ -45,7 +45,7 @@ class RunScalaSuite extends munit.CatsEffectSuite:
       p    <- Projects.inMemory(Map.empty)
       a    <- Projects.analysed(p, steps, Nil)
       lake <- ScriptedLake[IO](Scripted(a, Set("complete"), Set.empty).answer, installed = true)
-      out  <- CheckProgram(p.files, lake, "lean")(a, Some(NodeId("nonNegative")))
+      out  <- CheckProgram(p.files, lake, "lean", RunCode.inline[IO])(a, Some(NodeId("nonNegative")))
     yield
       val c = out._1.headOption.getOrElse(fail("not checked"))
       assertEquals(c.status, CheckStatus.Open)
@@ -61,6 +61,6 @@ class RunScalaSuite extends munit.CatsEffectSuite:
       lake <- ScriptedLake[IO](m => if m.dotted.endsWith("Refutes") then
                 ProverRun.Failed("error: FrFlowGen/Steps/nonNegative/Refutes.lean:1:0: unknown constant")
                 else Scripted(a, Set("complete"), Set.empty).answer(m), installed = true)
-      out  <- CheckProgram(p.files, lake, "lean")(a, Some(NodeId("nonNegative")))
+      out  <- CheckProgram(p.files, lake, "lean", RunCode.inline[IO])(a, Some(NodeId("nonNegative")))
     yield assertEquals(out._1.flatMap(_.findings), Nil)
   }

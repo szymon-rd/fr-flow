@@ -2,6 +2,7 @@ package frflow.project.port
 
 import cats.effect.IO
 import frflow.decision.ledger.{Decider, Deciders, Seal}
+import frflow.project.port.memory.{MemoryGit, MemoryKeys}
 import frflow.wire.file.Files as Wire
 import frflow.wire.ledger.DecidersFile
 import java.security.KeyPairGenerator

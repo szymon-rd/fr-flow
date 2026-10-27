@@ -1,10 +1,11 @@
-package frflow.project.port
+package frflow.project.port.memory
 
 import cats.Monad
 import cats.effect.Ref
 import cats.syntax.all.*
 import frflow.core.name.RelPath
 import frflow.decision.content.Sha
+import frflow.project.port.Git
 
 /** Commits in memory, each the whole tree as committed: the decision tests run without a repository. `commit`
   * records the files given over the last commit's, under a hash of the commit's order and files.

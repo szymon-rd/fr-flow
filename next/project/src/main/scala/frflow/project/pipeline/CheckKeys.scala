@@ -9,14 +9,15 @@ import frflow.proof.reading.ProofFile
 import frflow.proof.verdict.CheckKey
 
 /** What a check depends on: every Lean file it builds (a root's `root_impl` among them, `rooted`), and every file
-  * those import, however far (the generated modules' text, the proof files'), with the checker's version. A change
+  * those import, however far (the generated modules' text, the proof files'), with the checker's version, Lean's
+  * toolchain and FrFlow's Lean library's version. A change
   * to any of them checks it again; nothing else does (a statement reworded but meaning the same in Lean does not).
   */
-final class CheckKeys(kb: KbName, modules: List[LeanModule], proofs: Map[NodeId, ProofFile], rooted: Set[NodeId]):
+final class CheckKeys(kb: KbName, modules: List[LeanModule], lean: LeanSources, rooted: Set[NodeId]):
   private val layout = Layout(kb)
   private val generated: Map[String, LeanModule] = modules.map(m => m.name.dotted -> m).toMap
   private val authored: Map[String, ProofFile] =
-    proofs.map((id, f) => layout.proofs(id).dotted -> f)
+    lean.proofs.map((id, f) => layout.proofs(id).dotted -> f)
   private lazy val printed: Map[String, String] = generated.map((n, m) => n -> Print.module(m))
 
   /** A node's: its own modules, its proof file, and what they import. */
@@ -32,7 +33,8 @@ final class CheckKeys(kb: KbName, modules: List[LeanModule], proofs: Map[NodeId,
 
   private def key(start: List[String]): CheckKey =
     val read = closure(start.distinct.sorted)
-    CheckKey(Sha.parts((CheckKeys.Version.toString :: read.flatMap(n => List(n, text(n))))*))
+    CheckKey(Sha.parts((CheckKeys.Version.toString :: LeanSources.Toolchain :: lean.library ::
+      read.flatMap(n => List(n, text(n))))*))
 
   /** Each module named, then each it imports not seen yet, sorted. */
   private def closure(start: List[String]): List[String] =

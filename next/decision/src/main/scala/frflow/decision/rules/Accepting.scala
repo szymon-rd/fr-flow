@@ -36,6 +36,7 @@ final class Accepting(r: Reading, by: Authorship, reason: String):
       s <- now.subjects.get(id).toRight(Refusal.UnknownNode(id))
       _ <- now.waitsFor(s).map(Refusal.AcceptFirst(_)).toLeft(())
       _ <- Option.when(s.proof.unproven.contains(Unproven.Tests))(Refusal.CodeFails(id)).toLeft(())
+      _ <- Option.when(s.proof.unproven.contains(Unproven.NotTested))(Refusal.NotTested(id)).toLeft(())
       rivals = if choosing then s.place.rivals.filter(x => now.state(x) != ReviewState.Rejected) else Nil
       _ <- Either.cond(now.state(id) != ReviewState.Accepted || rivals.nonEmpty, (), Refusal.AlreadyAccepted(id))
     yield s -> chosen(now, s, rivals)
