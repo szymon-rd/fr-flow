@@ -1,0 +1,28 @@
+- tablesModel  assumption  accepted
+  The database holds a store and an event log: it gives the store as it holds it, holds the rows a store has about a record in place of those it held about it, leaving the other records' rows, and appends an event to the log.
+  why: Records, shares, expiries and the event log live in SQLite. Proven flows are proven from this model, not from the SQL; the SQLite adapter (SqliteDatabase) does this by deleting and inserting the record's rows in one transaction, and by inserting into the events table. MemoryDatabase, the CRM's own in-memory store for development and tests, is tested against this model; SQLite, an outside system, is checked against it.
+
+Formally (as written in Scala)
+  model:
+    load = do
+        let t ← get
+        pure t.store
+    logEvent = fun (e : Event) => do
+        modify (fun t => (Tables.mk t.store (t.events ++ [e])))
+    storeAbout = fun (id_ : Int) (t : CrmStore) => do
+        modify (fun t_1 => (Tables.mk (Crm.replaceAbout t_1.store id_ (Crm.aboutRecord t id_)) t_1.events))
+
+Code
+  implemented by: t => MemoryDatabase.holding(t) (the project's own code, tested against the model); t => SqliteDatabase.holding(t) (an outside system, checked against the model; the model stays assumed)
+  tested: 1,200 generated runs of its operations (seed 1), against the model DatabaseModel
+    every run gives what the model gives and leaves what it leaves, and every operation and branch of it was reached
+    note: SqliteDatabase (an outside system: its model is assumed; these runs check it): 200 runs of 1 to 12 operations each, from generated states
+    note: MemoryDatabase (the project's own code, tested): 1000 runs of 1 to 12 operations each, from generated states
+    note: CrmStore: stores with one row per key, as the tables hold them (given)
+  governs: src/main/scala/crm/MemoryDatabase.scala
+
+Decisions
+  2026-10-23 16:57  accepted by demo-developer: The expiry job is a flow proven from the database's model
+  2026-10-24 02:59  accepted by demo-developer: The database's model now names its implementations: MemoryDatabase, the CRM's own store, tested against it; SQLite, an outside system, checked against it
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

@@ -1,0 +1,40 @@
++ housekeepingClearsOnlyTheEnded  claim  accepted
+  Housekeeping clears away only what has ended: shares no longer in force or of a document gone, invitations no longer open, and documents gone; and what has ended stays ended, so nothing it clears could have counted again.
+  why: Q6-Q8: tidying keeps the library from growing with what gives nothing; it is safe because ending is for good. Whether something has ended is left open here (Lifetimes); that it stays ended rests on the clock never going back (endedStaysEnded).
+
+Formally (as written in Scala)
+  formula:
+    forall((lib: Term[Library], t: Term[BigInt]) =>
+        lib.shares.forall(s => tidy(lib, t).shares.contains(s) || !inForce(s, t) ||
+          lib.documents.exists(doc => gone(doc, t) && s.what === Target[Target.Doc](doc.id))) &&
+        lib.invitations.forall(i => tidy(lib, t).invitations.contains(i) || !isOpen(i, t)) &&
+        lib.documents.forall(doc => tidy(lib, t).documents.contains(doc) || gone(doc, t))) &&
+        forall((t: Term[BigInt], u: Term[BigInt]) => (t <= u) implies
+          (forall((s: Term[Share]) => !inForce(s, t) implies !inForce(s, u)) &&
+           forall((i: Term[Invitation]) => !isOpen(i, t) implies !isOpen(i, u)) &&
+           forall((doc: Term[Document]) => gone(doc, t) implies gone(doc, u))))
+
+Where it sits
+  part of    + accessFollowsShares  with invitationsAreOffers, trashUntilGone, accessRequestsAreAsks, ownersKeepTheirDocuments, auditTrail, noticesFollowChanges, accessContract, canViewContract, canEditContract, shareContract, unshareContract, moveContract, handleContract, domainTypes: "At any moment, a person can view a document exactly when it is not in the trash and a share in force lets them view it, and edit it exactly when that share is an edit share; and what is shared, offered or kept changes only at the hand of someone who may edit it, of a person taking up an open invitation, or of housekeeping clearing away what has ended."
+
+Parts: together they make it (proven: authored)
+  + tidyContract (contract)  needed: "Tidying at a moment keeps the shares in force, except those of a document gone; keeps the invitations still open; and keeps the documents not gone. Everything else stays as it was."
+  + endedStaysEnded  needed: "What has ended stays ended: time in the service never goes back, so a share once ended, an invitation once lapsed and a document once gone stay so for the rest of the run."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Vocabulary
+  gone (operation): whether a document is gone at a moment: past restoring, purged by the next housekeeping (open)
+  inForce (operation): whether a share is in force at a moment: it gives access then (open)
+  isOpen (operation): whether an invitation is open at a moment: it can be accepted then (open)
+  tidy (operation): the library tidied at a moment (open)
+
+Proofs
+  complete: proven: authored
+
+Decisions
+  2026-10-25 12:57  accepted by demo-developer: Q6-Q8 as its own branch: tidying removes only what has ended, and ending is for good (endedStaysEnded), so nothing it removes could count again. Proven by automation.
+  2026-10-25 14:44  confirmed by demo-developer: Unchanged statement; housekeeping now also chases requests, which removes no share, invitation or document.
+  2026-10-25 19:00  accepted by demo-developer: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-25 19:31  confirmed by demo-developer: Unchanged in words; its split is now proven by hand (automation gave up on the longer run definitions in endedStaysEnded).
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

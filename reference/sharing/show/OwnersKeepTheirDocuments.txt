@@ -1,0 +1,46 @@
++ ownersKeepTheirDocuments  claim  accepted
+  A document has one owner. Only its owner, while they may edit it, hands it on, and only to someone who may edit it, who then has an edit share of it for good; and nobody unshares or replaces an owner's shares of their own document. An owner's share is with them in person, not through a team, so leaving a team never takes their documents from them.
+  why: Q14: every document has exactly one owner, its creator; only the owner transfers it, to someone who may edit it; the owner always may edit; an owner leaving a team keeps their documents; the owner's share cannot be unshared or expire. Exactly one owner is the type: a document names its owner.
+
+Formally (as written in Scala)
+  formula:
+    forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId], to: Term[PersonId]) =>
+        transfer(lib, t, by, d, to) =!= lib implies
+          (owns(lib, by, d) && mayEdit(lib, t, by, Target[Target.Doc](d)) && mayEdit(lib, t, to, Target[Target.Doc](d)) &&
+            owns(transfer(lib, t, by, d, to), to, d) &&
+            transfer(lib, t, by, d, to).shares.contains(Share(Target[Target.Doc](d), Grantee[Grantee.Person](to), Level.Edit, none[BigInt])))) &&
+        forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], what: Term[Target], withWhom: Term[Grantee]) =>
+          ownedBy(lib, what, withWhom) implies (Sharing.unshare(lib, t, by, what, withWhom) === lib)) &&
+        forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], s: Term[Share]) =>
+          ownedBy(lib, s.what, s.withWhom) implies (Sharing.share(lib, t, by, s) === lib))
+
+Where it sits
+  part of    + accessFollowsShares  with invitationsAreOffers, trashUntilGone, housekeepingClearsOnlyTheEnded, accessRequestsAreAsks, auditTrail, noticesFollowChanges, accessContract, canViewContract, canEditContract, shareContract, unshareContract, moveContract, handleContract, domainTypes: "At any moment, a person can view a document exactly when it is not in the trash and a share in force lets them view it, and edit it exactly when that share is an edit share; and what is shared, offered or kept changes only at the hand of someone who may edit it, of a person taking up an open invitation, or of housekeeping clearing away what has ended."
+  uses       - permission (definition): "A person may view a document or folder when a share in force reaches them and covers it; they may edit it when such a share is an edit share."
+  uses       - reach (definition): "A share reaches the person it is with, and everyone in the team it is with."
+  uses       - cover (definition): "A share of a document covers that document; a share of a folder covers the folder, every folder inside it, and every document inside any of them."
+  uses       - ownersShare (definition): "An owner's share of a document is a share of it with the document's owner in person."
+
+Parts: together they make it (proven: authored)
+  + shareContract (contract)  needed: "Someone who may edit a document or folder shares it with a person or a team at a level, for good or until a time: the new share takes the place of any earlier share of it with them, unless it is the owner's share of their own document, which stays. When anyone else asks, nothing changes."
+  + unshareContract (contract)  needed: "Someone who may edit a document or folder unshares it from a person or a team: their share of it goes, unless it is the owner's share of their own document. When anyone else asks, nothing changes."
+  + transferContract (contract)  needed: "The owner of a document, while they may edit it, hands it on to someone who may edit it: that person is then its owner, with an edit share of it for good in place of any share of it they had. When anyone else asks, or the new owner may not edit it, nothing changes."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Vocabulary
+  mayEdit: whether a person may edit a document or folder at a moment (defined by permission)
+  ownedBy: whether a share of a document or folder with someone is the owner's share of their own document (defined by ownersShare)
+  share (operation): the library after someone asks to share a document or folder (open)
+  transfer (operation): the library after someone asks to hand a document on (open)
+  unshare (operation): the library after someone asks to unshare a document or folder (open)
+
+Proofs
+  complete: proven: authored
+
+Decisions
+  2026-10-25 14:48  accepted by demo-developer: Q14: one owner; only the owner hands a document on, to an editor, who gets an edit share in person; nobody unshares the owner's share.
+  2026-10-25 15:09  accepted by demo-developer: Q14: adds that sharing never replaces an owner's share of their own document, so it never becomes a view share or one that ends.
+  2026-10-25 19:02  accepted by demo-developer: Q14: unchanged in words; with acceptContract and approveContract no longer able to replace an owner's share, it holds of every way a share is made.
+  2026-10-25 19:33  confirmed by demo-developer: Q14: unchanged in words; with acceptContract and approveContract no longer able to replace an owner's share, it holds of every way a share is made.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

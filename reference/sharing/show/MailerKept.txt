@@ -1,0 +1,33 @@
+- mailerKept  assumption  accepted
+  The mail server delivers a notice it is given into the mailbox of the person it is to, after the ones delivered there before, and one it has already delivered is not delivered again; any call may fail because it is down, and then delivers nothing.
+  why: Q13: notices are delivered at least once and never twice for one event: the outbox sends again after a failure, and the mail server keeps the notices it has delivered, by their event, so the second is dropped. Q17: each person's notices keep their order, two people's need not, so deliveries to two people at once commute. An outside mail server would be checked against this model; MemoryMailer, the service's own, is tested against it.
+
+Formally (as written in Scala)
+  model:
+    send = fun (notice : Notice) => do
+        modify (fun boxes => (fun k => if k = notice.to then some (Sharing.Notifications.taken (Sharing.Notifications.mailbox boxes notice.to) notice) else boxes k))
+
+Code
+  implemented by: boxes => MemoryMailer(boxes) (the project's own code, tested against the model)
+  tested: 1,000 generated runs of its operations (seed 1), against the model MailerModel
+    every run gives what the model gives and leaves what it leaves, and every operation and branch of it was reached
+    note: MemoryMailer (the project's own code, tested): 1000 runs of 1 to 12 operations each, from generated states
+    note: PersonId: ann, bob, cat (given)
+    note: TeamId: eng, ops (given)
+    note: DocumentId: plan, q3-report (given)
+    note: FolderId: reports, q3 (given)
+    note: BigInt: seconds within 40 days of the demo's moment, by hours and days (given)
+    note: Target: the vocabulary's documents and folders (given)
+    note: Grantee: the vocabulary's people and teams (given)
+    note: Share: shares over the vocabulary, for good or until a time (given)
+    note: Invitation: invitations over the vocabulary, sent at a time (given)
+    note: AccessRequest: access requests over the vocabulary, made at a time, reminded or not (given)
+    note: Library: libraries over the vocabulary: q3 in reports or not, documents anywhere, in the trash or not, owned by anyone, any shares, invitations and requests, a short log and outbox (given)
+    note: Request: requests over the vocabulary: questions and every kind of change (given)
+
+Decisions
+  2026-10-25 14:43  accepted by demo-developer: Q13: the mail server is idempotent by notice id and may be down; assumed of the real one, the memory mailer is tested against it.
+  2026-10-25 18:50  accepted by demo-developer: Q17: the mail server keeps a mailbox per person, order kept per person, not across people; still once per event (Q13).
+  2026-10-25 19:27  accepted by demo-developer: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

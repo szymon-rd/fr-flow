@@ -1,0 +1,44 @@
++ goneContract  contract on gone  accepted
+  A document in the trash is gone 30 days after it was put there; a document not in the trash is never gone.
+  why: Q8: the trash keeps a document for 30 days, during which it can be restored; after that it is purged.
+
+Formally (as written in Scala)
+  post (every call of gone):
+    forall((doc: Term[Document], t: Term[BigInt]) => gone(doc, t) === doc.trashed.fold(False)(at => at + trashKeeps <= t))
+
+Where it sits
+  part of    + trashUntilGone  with trashContract, restoreContract, trashPurgedOnTime: "Only someone who may edit a document puts it in the trash or takes it out, and only before it is gone; and housekeeping purges it within one of its periods of its being gone."
+  part of    + trashPurgedOnTime  with recordContract, announceContract, housekeepingJob, clockNeverGoesBack, housekeepingOnTime: "While housekeeping runs at least every two minutes, no document stays in the trash longer than 30 days and two minutes."
+  part of    + endedStaysEnded  with inForceContract, isOpenContract, clockNeverGoesBack: "What has ended stays ended: time in the service never goes back, so a share once ended, an invitation once lapsed and a document once gone stay so for the rest of the run."
+  uses       - trashLifetime (definition): "A document stays in the trash for 30 days."
+
+Vocabulary
+  gone (operation): whether a document is gone at a moment: past restoring, purged by the next housekeeping (open)
+  trashKeeps: how long a document stays in the trash before it is gone, in seconds (defined by trashLifetime)
+
+Proofs
+  impl (Lifetimes.goneCode): proven: auto
+
+Examples: 4 of 4 pass; Lean agrees on 4 of 4
+  given nothing
+    + trashed a day ago: still restorable  allows (Document(DocumentId("plan"), "Plan", List(), Some(913600), PersonId("ann")), 1000000) ⇒ false
+    + thirty days after it was trashed  allows (Document(DocumentId("plan"), "Plan", List(), Some(913600), PersonId("ann")), 3505600) ⇒ true
+    + not in the trash  allows (Document(DocumentId("plan"), "Plan", List(), None, PersonId("ann")), 9640000) ⇒ false
+    + never before thirty days  forbids (Document(DocumentId("plan"), "Plan", List(), Some(913600), PersonId("ann")), 3419200) ⇒ true
+
+Code
+  proven define Lifetimes.goneCode
+    Lifetimes.goneCode = (doc: Term[Document], t: Term[BigInt]) => doc.trashed.fold(False)(at => at + trashKeeps <= t)
+  at run time: not checked, the running code is the code Lean proves
+
+Decisions
+  2026-10-25 11:43  accepted by demo-developer: Q8: gone 30 days after it was trashed; never when not in the trash.
+  2026-10-25 11:56  accepted by demo-developer: Unchanged statement; marked leftOpenAbove: the nodes above that name gone do not rest on this contract.
+  2026-10-25 12:57  confirmed by demo-developer: still holds after trashPurgedOnTime changed: Q8's bounded response only. Its first half (housekeeping removes only documents 30 days in the trash) restated tidyContract with goneContract; it is now said once, in housekeepingClearsOnlyTheEnded.
+  2026-10-25 14:45  confirmed by demo-developer: Unchanged statement; library's new fields.
+  2026-10-25 15:16  confirmed by demo-developer: still holds after trashPurgedOnTime changed: Unchanged statement; Lean proves it again: only shareContract and the ownership branch, which it rests on or sits beside, changed.
+  2026-10-25 19:00  confirmed by demo-developer: still holds after endedStaysEnded changed: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-25 19:31  confirmed by demo-developer: still holds after endedStaysEnded changed: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-26 14:12  accepted by demo-developer: The same examples: `reject` is now `never`.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

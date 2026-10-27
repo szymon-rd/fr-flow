@@ -1,0 +1,38 @@
++ storeKeepsState  assumption on record  accepted  trusted
+  Storing a request with the state it led to keeps that state: read back, the store holds exactly it.
+  why: The state lives in a store (in memory here; a database in a cluster). The handling of a request is proven from this promise, not from the store's code; what is stored is read back on every call, so a write the store dropped or changed is seen at once.
+
+Formally (as written in Scala)
+  post (every call of record):
+    (q, after, back) => back === after
+
+Where it sits
+  called by  + handleRequest (contract): "A request opens the session a sign-in asks for when the user is enabled, the password theirs and no session holds the token; ends the sessions its sign-out names in its realm; changes accounts only as an administrator's change sets them; and changes nothing else."
+
+Vocabulary
+  record (operation): storing a request in the event log, with the state it led to: what the store holds afterwards, read back (open)
+
+Proofs
+  impl (storedAs): proven: auto
+
+Examples: 3 of 3 pass; Lean agrees on 3 of 3
+  given sessionDb.bind(SessionDb.empty)
+    + Alice's new session is stored, and read back  allows (SignIn(RealmId("acme"), "alice", "h-alice", "t1"), ServerState(List(UserAccount(RealmId("acme"), "alice", "h-alice", true, List("admin", "user")), UserAccount(RealmId("acme"), "bob", "h-bob", false, List("user"))), List(Session("t1", RealmId("acme"), "alice")))) ⇒ ServerState(List(UserAccount(RealmId("acme"), "alice", "h-alice", true, List("admin", "user")), UserAccount(RealmId("acme"), "bob", "h-bob", false, List("user"))), List(Session("t1", RealmId("acme"), "alice")))
+    + after her sign-out, no session is stored  allows (SignOut(RealmId("acme"), "t1"), ServerState(List(UserAccount(RealmId("acme"), "alice", "h-alice", true, List("admin", "user")), UserAccount(RealmId("acme"), "bob", "h-bob", false, List("user"))), List())) ⇒ ServerState(List(UserAccount(RealmId("acme"), "alice", "h-alice", true, List("admin", "user")), UserAccount(RealmId("acme"), "bob", "h-bob", false, List("user"))), List())
+    + a session the store dropped is seen  forbids (SignIn(RealmId("acme"), "alice", "h-alice", "t1"), ServerState(List(UserAccount(RealmId("acme"), "alice", "h-alice", true, List("admin", "user")), UserAccount(RealmId("acme"), "bob", "h-bob", false, List("user"))), List(Session("t1", RealmId("acme"), "alice")))) ⇒ ServerState(List(UserAccount(RealmId("acme"), "alice", "h-alice", true, List("admin", "user")), UserAccount(RealmId("acme"), "bob", "h-bob", false, List("user"))), List())
+
+Code
+  proven define storedAs; running code sessionDb.storeAfter tested against it
+    storedAs = (q: Term[AuthRequest], after: Term[ServerState]) => after
+  tested: 1,000 generated cases (seed 1), against the proven define storedAs, and storeKeepsState
+    every case meets it, and every part of it was reached
+    note: sessionDb: the examples' value (no Lean type to generate it from)
+  at run time: the contract, checked on every call (the default for code not proven)
+  governs: src/main/scala/keycloak/SessionWrites.scala
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: A trusted port: the store keeps the state written with each request, and it is read back on every call, so a dropped or changed write shows at once. It has no parent because handleRequest's wiring calls it and its proof rests on it.
+  2026-10-23 15:28  accepted by demo-developer: Written with terms in place of the Scala the macro read, and the Lean it gives is the same
+  2026-10-26 14:12  accepted by demo-developer: The same examples: `reject` is now `never`.
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

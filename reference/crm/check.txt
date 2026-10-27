@@ -1,0 +1,29 @@
++ sharedCrm: step proven
++ storeMirrorsRequests: step proven
++ visibility: step proven
++ noCrossTenantRead: step proven
++ searchesMatch: step proven
++ recordsByQuery: proven
++ readContract: proven
++ dealSearch: proven
++ writesTakeEffect: step proven
++ writesOnlyAsAsked: step proven
++ recordsKept: step proven
++ writeContract: proven
++ storeEdits: proven
++ saveWrite: proven
++ sharesExpire: proven
++ expiryJob: proven
++ tablesModel: MemoryDatabase and SqliteDatabase give what the model gives on 1,200 generated runs
+o consistency of readContract, dealSearch, recordsByQuery: read: nothing says what it equals, and no proven code gives it; say what it equals (a statement read(…) === …); deals: nothing says what it equals, and no proven code gives it; say what it equals (a statement deals(…) === …); fetch: nothing says what it equals, and no proven code gives it; say what it equals (a statement fetch(…) === …)
+o consistency of writeContract, saveWrite: save: nothing says what it equals, and no proven code gives it; say what it equals (a statement save(…) === …)
++ consistency of storeEdits: Lean proves a meaning meets it: storeRows as storeEdits says
+o consistency of sharesExpire, expiryJob: runExpiry: nothing says what it equals, and no proven code gives it; say what it equals (a statement runExpiry(…) === …)
+
+Crm: 26 nodes, 26 accepted
+Proofs: splits 8/8, claims down to their code 6/6, root_impl proven, consistency not proven, nothing vacuous (3 open: check says which)
+Tests: code against its claims 2/2, implementations against their models 1/1, examples in Lean 36/36, at run time 2 checked on every call, 5 not checked (proven)
+Trusted: storeEdits, recordsByQuery, tablesModel (a model)
+Nothing waits: every node is accepted and proven.
+marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do
+--- exit 0

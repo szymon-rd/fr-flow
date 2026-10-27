@@ -1,0 +1,270 @@
+
+--- 8 waiting ---
+! neverOverlap  claim (a root)  it changed: review it
+  The bookings stored never overlap.
+
+What changed since it was accepted (demo-developer, 2026-10-26 22:28)
+  definitions used
+    ... 2 unchanged line(s)
+        a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))
+    - covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end
+    + covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <= b.end
+
+Decision
+  to review: it changed
+  what neverOverlap says changed: the developer decides
+  decisions below it (accept --revisit NODE reviews one again; one that moved only with it is confirmed):
+    onlyBookingWrites (moved with it): Only booking writes to the table. — holds because: Only the booking service writes the bookings table: no other program or person changes it.
+    startsApart (moved with it): The table starts with no two bookings overlapping. — holds because: The bookings table is created empty, so it starts satisfying neverOverlap, the claim it names.
+
+Assumes
+  ! onlyBookingWrites (assumption) — what is above it changed: review it: "Only booking writes to the table."
+  ! oneAtATime (assumption) — what is above it changed: review it: "Bookings are processed one at a time."
+  ! startsApart (assumption) — what is above it changed: review it: "The table starts with no two bookings overlapping."
+-> onlyBookingWrites moved only with it: accepting neverOverlap confirms it too
+-> startsApart moved only with it: accepting neverOverlap confirms it too
+
+[a]ccept [s]kip [v]iew [q]uit: 
+--- 7 waiting ---
+! roomBookingsApart  claim (a root)  it changed: review it
+  A room's bookings never overlap.
+
+What changed since it was accepted (demo-developer, 2026-10-26 23:14)
+  definitions used
+    ... 3 unchanged line(s)
+        a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))
+    - covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end
+    + covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <= b.end
+
+Decision
+  to review: it changed
+  what roomBookingsApart says changed: the developer decides
+
+[a]ccept [s]kip [v]iew [q]uit: 
+--- 6 waiting ---
+! bookWhenFree  claim on book (a root)  it and what is above it changed: review it
+  A request is stored exactly when its room is free for its whole time.
+
+What changed since it was accepted (demo-developer, 2026-10-26 23:14)
+  definitions used
+    ... 3 unchanged line(s)
+        a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))
+    - covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end
+    + covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <= b.end
+  the meaning of neverOverlap changed (not accepted yet)
+    definitions used
+      ... 2 unchanged line(s)
+          a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))
+      - covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end
+      + covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <= b.end
+
+Decision
+  to review: it changed; the meaning of what it rests on changed
+  decide neverOverlap first: what rests on it is decided after it
+
+Parts: together they make it (proven: auto)
+  ! grantWhenFree — it and what is above it changed: review it  needed: "A request is granted exactly when its room is free for its whole time."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Assumes
+  ! tableModel (assumption) — what is above it changed: review it: "The table gives a room's bookings in the order they were added, and adds one at the end."
+  ! oneAtATime (assumption) — what is above it changed: review it: "Bookings are processed one at a time."
+
+[s]kip [v]iew [q]uit: 
+--- 5 waiting ---
+! answerWhenFree  claim on book (a root)  it and what is above it changed: review it
+  A request is answered booked exactly when its room is free for its whole time.
+
+What changed since it was accepted (demo-developer, 2026-10-26 22:28)
+  definitions used
+    ... 3 unchanged line(s)
+        a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))
+    - covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end
+    + covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <= b.end
+  the meaning of neverOverlap changed (not accepted yet)
+    definitions used
+      ... 2 unchanged line(s)
+          a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))
+      - covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end
+      + covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <= b.end
+
+Decision
+  to review: it changed; the meaning of what it rests on changed
+  decide neverOverlap first: what rests on it is decided after it
+
+Parts: together they make it (proven: auto)
+  ! grantWhenFree — it and what is above it changed: review it  needed: "A request is granted exactly when its room is free for its whole time."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Assumes
+  ! tableModel (assumption) — what is above it changed: review it: "The table gives a room's bookings in the order they were added, and adds one at the end."
+  ! oneAtATime (assumption) — what is above it changed: review it: "Bookings are processed one at a time."
+
+[s]kip [v]iew [q]uit: 
+--- 4 waiting ---
+! grantWhenFree  claim on granted  it and what is above it changed: review it
+  A request is granted exactly when its room is free for its whole time.
+
+What changed since it was accepted (demo-developer, 2026-10-26 23:14)
+  definitions used
+    ... 4 unchanged line(s)
+        a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))
+    - covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end
+    + covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <= b.end
+  the meaning of bookWhenFree changed (not accepted yet)
+    definitions used
+      ... 3 unchanged line(s)
+          a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))
+      - covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end
+      + covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <= b.end
+  the meaning of answerWhenFree changed (not accepted yet)
+    definitions used
+      ... 3 unchanged line(s)
+          a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))
+      - covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end
+      + covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <= b.end
+  the meaning of roomBookingsApart changed (not accepted yet)
+    definitions used
+      ... 3 unchanged line(s)
+          a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))
+      - covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end
+      + covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <= b.end
+  the meaning of neverOverlap changed (not accepted yet)
+    definitions used
+      ... 2 unchanged line(s)
+          a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))
+      - covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end
+      + covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <= b.end
+
+Decision
+  to review: it changed; the meaning of what it rests on changed
+  decide bookWhenFree first: what rests on it is decided after it
+
+Parts: together they make it (proven: authored)
+  ! grantWhenNoOverlap — it, what is above it and its code changed: review it  needed: "A request is granted exactly when it overlaps no booking of its room."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+[s]kip [v]iew [q]uit: 
+--- 3 waiting ---
+! grantWhenNoOverlap  claim on granted  it, what is above it and its code changed: review it  trusted
+  A request is granted exactly when it overlaps no booking of its room.
+
+What changed since it was accepted (demo-developer, 2026-10-26 23:14)
+  definitions used
+    ... 2 unchanged line(s)
+      noOverlap = (a: Term[Booking], b: Term[Booking]) =>
+    -   a.room =!= b.room || a.end <= b.start || b.end <= a.start
+    +   a.room =!= b.room || a.end < b.start || b.end < a.start
+  the meaning of grantWhenFree changed (not accepted yet)
+    definitions used
+      ... 4 unchanged line(s)
+          a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))
+      - covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end
+      + covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <= b.end
+  the meaning of bookWhenFree changed (not accepted yet)
+    definitions used
+      ... 3 unchanged line(s)
+          a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))
+      - covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end
+      + covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <= b.end
+  the meaning of answerWhenFree changed (not accepted yet)
+    definitions used
+      ... 3 unchanged line(s)
+          a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))
+      - covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end
+      + covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <= b.end
+  the meaning of roomBookingsApart changed (not accepted yet)
+    definitions used
+      ... 3 unchanged line(s)
+          a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))
+      - covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end
+      + covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <= b.end
+  the meaning of neverOverlap changed (not accepted yet)
+    definitions used
+      ... 2 unchanged line(s)
+          a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))
+      - covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end
+      + covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <= b.end
+  the code it governs changed (src/main/scala/rooms/Calendar.scala)
+    diff --git a/examples/rooms/src/main/scala/rooms/Calendar.scala b/examples/rooms/src/main/scala/rooms/Calendar.scala
+    index 451d052..fc661bd 100644
+    --- a/examples/rooms/src/main/scala/rooms/Calendar.scala
+    +++ b/examples/rooms/src/main/scala/rooms/Calendar.scala
+    @@ -10,4 +10,4 @@ final class Calendar(room: RoomBookings):
+       def grants(request: Booking): Boolean =
+         val i = byStart.search(request)(using startOrder).insertionPoint
+         request.room != room.name ||
+    -      byStart.lift(i - 1).forall(_.end <= request.start) && byStart.lift(i).forall(_.start >= request.end)
+    +      byStart.lift(i - 1).forall(_.end < request.start) && byStart.lift(i).forall(_.start > request.end)
+
+Decision
+  to review: it changed; the meaning of what it rests on changed; the code it governs changed
+  decide grantWhenFree first: what rests on it is decided after it
+
+[s]kip [v]iew [q]uit: 
+--- 2 waiting ---
+! tableModel  assumption  what is above it changed: review it
+  The table gives a room's bookings in the order they were added, and adds one at the end.
+
+What changed since it was accepted (demo-developer, 2026-10-26 23:14)
+  the meaning of bookWhenFree changed (not accepted yet)
+    definitions used
+      ... 3 unchanged line(s)
+          a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))
+      - covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end
+      + covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <= b.end
+  the meaning of answerWhenFree changed (not accepted yet)
+    definitions used
+      ... 3 unchanged line(s)
+          a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))
+      - covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end
+      + covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <= b.end
+  the meaning of neverOverlap changed (not accepted yet)
+    definitions used
+      ... 2 unchanged line(s)
+          a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))
+      - covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end
+      + covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <= b.end
+
+Decision
+  to review: the meaning of what it rests on changed
+  decide bookWhenFree first: what rests on it is decided after it
+
+[s]kip [v]iew [q]uit: 
+--- 1 waiting ---
+! oneAtATime  assumption  what is above it changed: review it
+  Bookings are processed one at a time.
+
+What changed since it was confirmed (demo-developer, 2026-10-26 23:14)
+  the meaning of bookWhenFree changed (not accepted yet)
+    definitions used
+      ... 3 unchanged line(s)
+          a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))
+      - covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end
+      + covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <= b.end
+  the meaning of answerWhenFree changed (not accepted yet)
+    definitions used
+      ... 3 unchanged line(s)
+          a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))
+      - covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end
+      + covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <= b.end
+  the meaning of neverOverlap changed (not accepted yet)
+    definitions used
+      ... 2 unchanged line(s)
+          a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))
+      - covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end
+      + covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <= b.end
+
+Decision
+  to review: the meaning of what it rests on changed
+  decide bookWhenFree first: what rests on it is decided after it
+
+[s]kip [v]iew [q]uit: 
+Decided 0 decision(s).
+Rooms: 13 nodes, 3 accepted, 10 to review
+Proofs: splits 3/3, root_impl proven, consistency proven, nothing vacuous
+Tests: code against its claims 1/1, implementations against their models 1/1, examples in Lean 6/6, at run time 1 checked on every call
+Trusted: tableModel (a model), onlyBookingWrites, oneAtATime, startsApart, requestsEndAfterStart (facts); tested, not proven: grantWhenNoOverlap
+Waiting: 10 for the developer
+marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do
+--- exit 0

@@ -1,0 +1,54 @@
++ grantWhenNoOverlap  claim on granted  accepted  trusted
+  A request is granted exactly when it overlaps no booking of its room.
+
+Formally (as written in Scala)
+  formula:
+    forall((room: Term[RoomBookings], request: Term[Booking]) =>
+      granted(room, request) === room.bookings.forall(b => noOverlap(b, request)))
+
+Where it sits
+  part of    + grantWhenFree  its only part: "A request is granted exactly when its room is free for its whole time."
+  uses       + bookingsOfTheRoom: "A room's bookings are all of that room."
+  uses       + roomBookingsApart: "A room's bookings never overlap."
+  uses       + endsAfterStart: "Every booking ends after it starts."
+
+Vocabulary
+  granted (operation): whether a request is granted, given its room's bookings (open)
+
+Examples: 2 of 2 pass; Lean agrees on 2 of 2
+    + back to back: granted  granted(RoomBookings("Oak", List(Booking("Oak", 9, 10))), Booking("Oak", 10, 11)) is true
+    + overlapping: refused  granted(RoomBookings("Oak", List(Booking("Oak", 9, 11))), Booking("Oak", 10, 12)) is false
+
+Code
+  plain code, tested against the claim, not proven
+    (room, request) => Calendar(room).grants(request)
+  tested: 1,000 generated cases (seed 1), against grantWhenNoOverlap
+    every case meets it, and every part of it was reached
+    note: String: Oak or Elm (given; derived values for a quarter of them)
+    note: Booking: bookings of Oak or Elm that end after they start (given; derived values for a quarter of them)
+    note: RoomBookings: a room's bookings, laid end to end, some back to back (given; derived values for a quarter of them)
+    note: Booking: the examples' Booking("Oak", 9, 10), Booking("Oak", 10, 11), Booking("Oak", 9, 11) never come from the given generator (kept as seeds)
+    note: RoomBookings: the examples' RoomBookings("Oak", List(Booking("Oak", 9, 10))), RoomBookings("Oak", List(Booking("Oak", 9, 11))) never come from the given generator (kept as seeds)
+  at run time: the contract, checked on every call (the default for code not proven)
+  governs: src/main/scala/rooms/Calendar.scala
+
+Decisions
+  2026-10-26 03:32  accepted by demo-developer: Overlap of start and end times decides it, as Lean proves.
+  2026-10-26 03:53  confirmed by demo-developer: Binary search finds the same neighbours; the tests pass.
+  2026-10-26 04:34  confirmed by demo-developer: still holds after grantWhenFree changed: Its precondition is now its own, in moments: a change to the contract's overlap no longer changes it; the reason says what goes wrong otherwise.
+  2026-10-26 05:01  accepted by demo-developer: Only the examples' list changed form; the cases are the same.
+  2026-10-26 05:31  accepted by demo-developer: The contract rules out a booking held twice too, as the root does.
+  2026-10-26 12:37  accepted by demo-developer: The same precondition, from named definitions; the code still meets it.
+  2026-10-26 13:09  accepted by demo-developer: The same contract, written with disjoint, the start-and-end counterpart of apart, so the step from the claim changes only apart to disjoint.
+  2026-10-26 13:20  accepted by demo-developer: The same contract: a booking held twice is not disjoint from itself, so the precondition no longer needs to say it separately.
+  2026-10-26 13:37  accepted by demo-developer: The same contract in the claim's shape, with noOverlap in place of apart: bookings that end after they start share a moment exactly when they overlap.
+  2026-10-26 14:13  accepted by demo-developer: The same contract with its precondition written out and its answer named result, as in its examples; the overlapping example is now a never.
+  2026-10-26 14:27  accepted by demo-developer: The same contract, written as the claim is with noOverlap in place of apart, so the refinement is that one change.
+  2026-10-26 15:25  accepted by demo-developer: The same contract in the API's new words (refines, implies, allows, forbids); the calendar now groups the bookings by room, then sorts each room.
+  2026-10-26 15:41  accepted by demo-developer: The same contract, its precondition named for what it checks, both sides of implies in parentheses, and its examples saying what the call is returning.
+  2026-10-26 17:28  confirmed by demo-developer: still holds after grantWhenFree changed: The same claim, now a part of the root: it is what booking's code relies on from the calendar.
+  2026-10-26 17:33  confirmed by demo-developer: still holds after NeverDoubleBooked changed: The same root, written with the bookings held before and after named once and its three promises in the order the sentence gives them.
+  2026-10-26 21:48  accepted by demo-developer: The same answer over start and end times, the claim the calendar's code is tested against.
+  2026-10-26 22:28  accepted by demo-developer: The same answer over start and end times, over a room's bookings: what the calendar's neighbour check is tested against.
+  2026-10-26 23:14  accepted by demo-developer: The same claim over a room's bookings: what the calendar, sorted once by start, is tested against.
+--- exit 0

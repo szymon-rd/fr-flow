@@ -1,0 +1,53 @@
++ saveWrite  contract on save  accepted
+  Saving a write stores, and returns as read back, what the store the write leads to holds about the written record.
+  why: A write changes only its own record's rows, so storing those rows stores the write, whatever the size of the store: the database then holds what crmRun says. The rows are read back, so a write the database dropped or changed is seen on the call.
+
+Formally (as written in Scala)
+  post (every call of save):
+    (s, w, back) => back === aboutRecord(write(s, w), about(w))
+  check:
+    (s, w, back) => back.records.forall(r => r.id === about(w)) && back.shares.forall(sh => sh.record === about(w)) &&
+        back.expiries.forall(e => e.record === about(w))
+  exempt from noCrossTenantRead: it returns the rows it stored to the write side, never to a reader
+
+Where it sits
+  part of    + writesTakeEffect  with writeContract: "A user's write about their company's record does what they asked: it adds the record, shares it (until a time, or for good), or unshares it."
+  part of    + writesOnlyAsAsked  with writeContract: "A write changes nothing its author did not ask of their company's records: it adds no other record, and changes no other share or share's time."
+  part of    + recordsKept  with writeContract, sharesExpire: "No write and no run of the expiry job removes a record: after each, the CRM holds every record it held before."
+  design     - writeSideWiring (design): "The write side saves each write through service, on the store loaded from the database, one write at a time, and logs it in the event log."
+  calls      + storeEdits (assumption): "Storing what a store holds about one record replaces what the database holds about it, and nothing else; read back, the rows about it are what the store holds about it."
+  calls      + writeContract (contract): "A write keeps every record, leaves the records of other companies as they were, does what its author asked of their company's records, and changes nothing else."
+  called by  + recordsByQuery (assumption): "The database returns exactly the stored records that match a search, of every company."
+  called by  + readContract (contract): "A search on the records screen returns exactly the stored records that match it and the user may read: each of the user's company or shared with it now."
+
+Vocabulary
+  save (operation): the write side: a write applied to the store the database holds, the rows about its record stored; it returns those rows as read back (open)
+  write (operation): a write applied to a store: the store it leads to (open)
+
+Proofs
+  impl (saved): proven: auto
+
+Examples: 3 of 3 pass; Lean agrees on 3 of 3
+  given database.bind(Db.of(Nil))
+    + Ann's new contact is stored, and only its rows  allows (CrmStore(List(CrmRecord(2, TenantId("globex"), Deal, "Globex deal")), List(Share(2, TenantId("acme"))), List()), WriteCmd(Account("ann@acme", TenantId("acme")), Add(CrmRecord(1, TenantId("acme"), Contact, "Acme contact")))) ⇒ CrmStore(List(CrmRecord(1, TenantId("acme"), Contact, "Acme contact")), List(), List())
+    + sharing until 100 stores the record's share and its expiry  allows (CrmStore(List(CrmRecord(1, TenantId("acme"), Contact, "Acme contact")), List(), List()), WriteCmd(Account("ann@acme", TenantId("acme")), ShareWith(1, TenantId("globex"), Some(100)))) ⇒ CrmStore(List(CrmRecord(1, TenantId("acme"), Contact, "Acme contact")), List(Share(1, TenantId("globex"))), List(Expiry(1, TenantId("globex"), 100)))
+    + a write the database dropped is seen  forbids (CrmStore(List(), List(), List()), WriteCmd(Account("ann@acme", TenantId("acme")), Add(CrmRecord(1, TenantId("acme"), Contact, "Acme contact")))) ⇒ CrmStore(List(), List(), List())
+
+Code
+  proven define saved
+    saved = (s: Term[CrmStore], w: Term[WriteCmd]) => storeRows(about(w), write(s, w))
+    about = (w: Term[WriteCmd]) =>
+      w.change
+        .on[Change.Add](r => r.id)
+        .on[Change.ShareWith]((id, _, _) => id)
+        .on[Change.Unshare]((id, _) => id)
+  at run time: not checked, the running code is the code Lean proves
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: Same contract; it now also serves recordsKept.
+  2026-10-23 13:48  accepted by demo-developer: Same contract; it now serves writesOnlyAsAsked in place of WritesInCompany and StoreConsistent.
+  2026-10-23 15:32  accepted by demo-developer: Rewritten with the FrFlow terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.
+  2026-10-25 00:50  confirmed by demo-developer: still holds after writeContract changed: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 14:12  accepted by demo-developer: The same examples: `reject` is now `never`.
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

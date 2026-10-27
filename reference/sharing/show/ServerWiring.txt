@@ -1,0 +1,18 @@
+- serverWiring  design  accepted
+  The server reads each HTTP request into a request (an unreadable one is answered 400 with its reason, an unknown route 404), answers it with handleContract's flow on the store and the clock, in IO, as many at once as its workers take, and writes the answer as JSON (a refused change is 403); requests run on a pool of workers with a time limit each (503 past it), a request the store fails is answered 503 and changes nothing, and an internal error is answered 500 and logged. On the computer's clock, housekeeping runs every minute on a thread of its own, each start checked against housekeepingOnTime, and delivery every ten seconds; a run that fails is tried again at its next start; on a fake clock (tests), time moves and housekeeping runs only when a test asks.
+  why: What a request is answered with, and what it leaves in the store, is proven (handleContract); what a run of housekeeping or of delivery leaves is proven too (housekeepingJob, deliveryJob). Reading HTTP, the routes, the threads, the schedule and the time limits are decided here and reviewed; the reading and writing of HTTP is tested against the routes this states (SharingSuite). Requests, housekeeping and delivery run at once (Q18-Q20); each reads the library the last transaction left (transactions). The services' plain Scala objects run the same proven code.
+
+Where it sits
+  part of    + handleContract (contract)  with transactions: "A request is answered at the time the clock gives, from the library the store holds, and leaves the store holding the library it leads to: a question is answered with the person's access and changes nothing; a change is made as its operation makes it, recorded in the log and announced in the outbox in the same save, and answered done when it may be made and refused otherwise. Handling does not move the clock. A request the store fails changes nothing."
+
+Code
+  governs: src/main/scala/sharing/housekeeping/HousekeepingService.scala, src/main/scala/sharing/http/HttpCodec.scala, src/main/scala/sharing/http/Server.scala, src/main/scala/sharing/invitations/InvitationsService.scala, src/main/scala/sharing/ownership/OwnershipService.scala, src/main/scala/sharing/requests/AccessRequestsService.scala, src/main/scala/sharing/service/SharingService.scala, src/main/scala/sharing/time/LifetimesService.scala, src/main/scala/sharing/trash/TrashService.scala
+
+Decisions
+  2026-10-25 01:32  accepted by demo-developer: Routes, codes, pool, time limits and 500s as decided for the HTTP layer; the codec is tested and the server checked against an oracle.
+  2026-10-25 01:40  confirmed by demo-developer: Answers are sent without waiting on the client's delayed ACK (TCP no-delay); nothing else in the server changes.
+  2026-10-25 11:41  accepted by demo-developer: Routes for invitations and the trash, the clock read once per request, housekeeping every minute with its gaps checked, and test routes only on a fake clock.
+  2026-10-25 14:44  accepted by demo-developer: Adds the 503 for a store failure (nothing changed), the delivery run every ten seconds, the request and ownership routes, and the test routes for faults, delivery, log, outbox and mailbox.
+  2026-10-25 18:50  accepted by demo-developer: Q18-Q20: requests, housekeeping and delivery run at once in IO; each reads what the last transaction left.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

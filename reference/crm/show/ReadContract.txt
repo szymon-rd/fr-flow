@@ -1,0 +1,60 @@
++ readContract  contract on read  accepted
+  A search on the records screen returns exactly the stored records that match it and the user may read: each of the user's company or shared with it now.
+  why: The records screen, stated for one call. A returned record must be one of the stored records, so code cannot relabel another company's record as the user's; and every such record is returned, since users find records.
+
+Formally (as written in Scala)
+  post (every call of read):
+    forall((user: Term[Account], query: Term[Search]) => read(user, query).forall(r => store.contains(r) && matches(query, r) && mayRead(user, r)) &&
+      store.forall(r => (matches(query, r) && mayRead(user, r)) implies read(user, query).contains(r)))
+  check:
+    (user, query, result) => result.forall(r => matches(query, r) && mayRead(user, r))
+  keeps noCrossTenantRead (proven), showing the rule:
+    (user, query, result) => result.map(r => (user, r))
+  expects (proven): Someone at Acme never sees a Globex record that Globex did not share with Acme, whatever they search for
+    forall((u: Term[Account], q: Term[Search]) => (u.tenant === TenantId("acme")) implies
+      read(u, q).forall(r => (r.tenant === TenantId("globex")) implies shares.contains(Share(r.id, TenantId("acme")))))
+
+Where it sits
+  part of    + searchesMatch  with dealSearch: "A search, on either screen, returns only stored records it asks for, and every stored record it asks for that the user may read."
+  part of    + noCrossTenantRead (invariant)  with dealSearch: "No search returns a record of another company unless that company shared it with the reader's, for good or until a time not yet come."
+  design     - readSideWiring (design): "The records screen and the sales screen serve searches through service, which checks every result against readContract or dealSearch and the invariant they keep; they read the store, shares and expiries from the database's tables, the history from its event log, and the clock."
+  uses       - crmRun (definition): "What the CRM holds now, its records, their shares and the shares' expiries, is what its history led to: from empty, each write saved by the write side, the rows about its record replaced by those it stored, and each run of the expiry job, in turn."
+  calls      + recordsByQuery (assumption): "The database returns exactly the stored records that match a search, of every company."
+  calls      + sharesExpire (contract): "A run of the expiry job at a time removes exactly the shares given until then or earlier, with their times, and keeps every record and every other share's time."
+  calls      + saveWrite (contract): "Saving a write stores, and returns as read back, what the store the write leads to holds about the written record."
+  called by  + dealSearch (contract): "A deal search returns exactly the stored deals that match it and the user may read."
+
+Vocabulary
+  clock: the time now, in seconds, by the server's clock: when a search runs (open)
+  expiries: the times until which the CRM's shares are given, as it holds them now (defined by crmRun)
+  read (operation): the records screen: the records a user's search returns (open)
+  shares: the shares the CRM holds now (defined by crmRun)
+  store: the records the CRM holds now (defined by crmRun)
+
+Proofs
+  impl (search): proven: auto
+
+Examples: 8 of 8 pass; Lean agrees on 8 of 8
+  given history = List(Wrote(WriteCmd(Account("ann@acme", TenantId("acme")), Add(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")))), Wrote(WriteCmd(Account("gil@globex", TenantId("globex")), Add(CrmRecord(2, TenantId("globex"), Contact, "Globex contact"))))), clock = 0, database.bind(Db.replaying(history.value))
+    + Ann lists everything she can see: the deal she added  allows (Account("ann@acme", TenantId("acme")), Everything) ⇒ List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal"))
+    + Globex's contact is not shared with Acme  allows (Account("ann@acme", TenantId("acme")), ById(2)) ⇒ List()
+    + another company's record is never returned  forbids (Account("ann@acme", TenantId("acme")), ById(2)) ⇒ List(CrmRecord(2, TenantId("globex"), Contact, "Globex contact"))
+    + a record relabelled as Acme's is not a stored record  forbids (Account("ann@acme", TenantId("acme")), Everything) ⇒ List(CrmRecord(2, TenantId("acme"), Contact, "Globex contact"))
+  ... 4 more: context readContract
+
+Code
+  proven define search
+    search = (user: Term[Account], query: Term[Search]) => fetch(user, query).filter(r => mayRead(user, r))
+    mayRead = (reader: Term[Account], r: Term[CrmRecord]) => r.tenant === reader.tenant || sharedNow(r.id, reader.tenant)
+    sharedNow = (id: Term[BigInt], c: Term[TenantId]) =>
+      shares.contains(Share(id, c)) && !expiries.exists(e => e.record === id && e.to === c && e.until <= clock)
+  at run time: not checked, the running code is the code Lean proves
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: The records screen per call; the examples show a share ending at its time without the job.
+  2026-10-23 13:48  confirmed by demo-developer: still holds after saveWrite changed: Same contract; it now serves writesOnlyAsAsked in place of WritesInCompany and StoreConsistent.
+  2026-10-23 15:32  accepted by demo-developer: Rewritten with the FrFlow terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.
+  2026-10-25 00:50  confirmed by demo-developer: still holds after writeContract changed: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 14:12  accepted by demo-developer: The same examples: `reject` is now `never`.
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

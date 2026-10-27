@@ -1,0 +1,39 @@
++ pendingContract  contract on isPending  accepted
+  An access request is pending from when it is made until 7 days after; then it has lapsed.
+  why: Q12: a request nobody answers is declined automatically after 7 days.
+
+Formally (as written in Scala)
+  post (every call of isPending):
+    forall((r: Term[AccessRequest], t: Term[BigInt]) => isPending(r, t) === (t < r.asked + requestLasts))
+
+Where it sits
+  part of    + accessRequestsAreAsks  with askContract, approveContract, declineContract, chaseContract, reminderDueContract, requestsAnsweredOnTime: "An access request is a person's ask for a document or a folder: asking changes nothing shared, offered or kept, so it gives nobody access; only someone who may edit what it is for answers it, and approving it, while it is pending, makes the share asked for; and housekeeping declines it within one of its periods of its lapsing, and reminds the owners of what it is for within one of its periods of its being due a reminder."
+  part of    + requestsAnsweredOnTime  with recordContract, announceContract, housekeepingJob, reminderDueContract, clockNeverGoesBack, housekeepingOnTime: "While housekeeping runs at least every two minutes, no access request stays pending longer than 7 days and two minutes after it was made, and none goes more than 48 hours and two minutes without its reminder."
+  uses       - requestLifetime (definition): "An access request stays pending for 7 days after it is made; its document's owner is reminded of it after 48 hours."
+
+Vocabulary
+  isPending (operation): whether an access request is pending at a moment: it can be approved then (open)
+  requestLasts: how long an access request stays pending after it is made, in seconds (defined by requestLifetime)
+
+Proofs
+  impl (Lifetimes.isPendingCode): proven: auto
+
+Examples: 3 of 3 pass; Lean agrees on 3 of 3
+  given nothing
+    + made a day ago  allows (AccessRequest(PersonId("cat"), Doc(DocumentId("plan")), View, 913600, false), 1000000) ⇒ true
+    + seven days after it was made  allows (AccessRequest(PersonId("cat"), Doc(DocumentId("plan")), View, 913600, false), 1518400) ⇒ false
+    + a month later it has long lapsed  forbids (AccessRequest(PersonId("cat"), Doc(DocumentId("plan")), View, 913600, false), 3592000) ⇒ true
+
+Code
+  proven define Lifetimes.isPendingCode
+    Lifetimes.isPendingCode = (r: Term[AccessRequest], t: Term[BigInt]) => t < r.asked + requestLasts
+  at run time: not checked, the running code is the code Lean proves
+
+Decisions
+  2026-10-25 14:50  accepted by demo-developer: Q12: pending for 7 days from when it is made.
+  2026-10-25 15:16  confirmed by demo-developer: still holds after requestsAnsweredOnTime changed: Unchanged statement; Lean proves it again: only shareContract and the ownership branch, which it rests on or sits beside, changed.
+  2026-10-25 19:05  accepted by demo-developer: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-25 19:33  confirmed by demo-developer: still holds after requestsAnsweredOnTime changed: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-26 14:12  accepted by demo-developer: The same examples: `reject` is now `never`.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

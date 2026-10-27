@@ -1,0 +1,21 @@
+- adding  definition  accepted
+  A user of a company has added a record when a write of theirs in the CRM's history asked to add it, of their company, under an id no record added before it had.
+  why: What the idea calls adding a record, said of the history of requests alone, whatever the CRM keeps: the CRM's records are proven to follow it (storeMirrorsRequests). A record of another company, or one with an id already taken, is not added: a share names a record by its id, so no two records have one.
+
+Formally (as written in Scala)
+    added := (c: Term[TenantId], r: Term[CrmRecord]) => r.tenant === c && askedIn(history).records.contains(r)
+
+Where it sits
+  used by    + sharedCrm: "A user's search finds a record exactly when it asks for that record, a user of the record's company added it, and it is of the user's company or currently shared with it by its own."
+
+Vocabulary
+  added: whether a user of the company has added the record to the CRM, for that company (defined by adding)
+  history: the CRM's history since it started empty: every write the write side saved and every run of the expiry job, in order (its event log) (open)
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: adding is a write of the user's for their own company under a fresh id, as the write side accepts it.
+  2026-10-23 13:46  accepted by demo-developer: adding is now per company and said of the history alone, with a fresh id, so the root no longer depends on what the CRM keeps.
+  2026-10-23 15:32  accepted by demo-developer: Rewritten with the FrFlow terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.
+  2026-10-25 00:49  accepted by demo-developer: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

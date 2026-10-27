@@ -1,0 +1,37 @@
+
+--- 1 waiting ---
+! grantWhenNoOverlap  claim on granted  it and its code changed: review it  trusted
+  A request is granted exactly when it overlaps no booking of its room.
+
+What changed since it was accepted (demo-developer, 2026-10-26 23:14)
+  definitions used
+    ... 2 unchanged line(s)
+      noOverlap = (a: Term[Booking], b: Term[Booking]) =>
+    -   a.room =!= b.room || a.end <= b.start || b.end <= a.start
+    +   a.room =!= b.room || a.end < b.start || b.end < a.start
+  the code it governs changed (src/main/scala/rooms/Calendar.scala)
+    diff --git a/examples/rooms/src/main/scala/rooms/Calendar.scala b/examples/rooms/src/main/scala/rooms/Calendar.scala
+    index 451d052..fc661bd 100644
+    --- a/examples/rooms/src/main/scala/rooms/Calendar.scala
+    +++ b/examples/rooms/src/main/scala/rooms/Calendar.scala
+    @@ -10,4 +10,4 @@ final class Calendar(room: RoomBookings):
+       def grants(request: Booking): Boolean =
+         val i = byStart.search(request)(using startOrder).insertionPoint
+         request.room != room.name ||
+    -      byStart.lift(i - 1).forall(_.end <= request.start) && byStart.lift(i).forall(_.start >= request.end)
+    +      byStart.lift(i - 1).forall(_.end < request.start) && byStart.lift(i).forall(_.start > request.end)
+
+Decision
+  to review: it changed; the code it governs changed
+  grantWhenNoOverlap is under review for self, code: the developer decides
+
+[a]ccept [s]kip [v]iew [q]uit: 
+Decided 0 decision(s).
+Rooms: 13 nodes, 12 accepted, 1 to review
+Proofs: splits 0/3, root_impl unchecked, consistency proven, nothing vacuous
+Tests: code against its claims 1/1, implementations against their models 1/1, examples in Lean 5/6, at run time 1 checked on every call
+Trusted: tableModel (a model), onlyBookingWrites, oneAtATime, startsApart, requestsEndAfterStart (facts); tested, not proven: grantWhenNoOverlap
+3 with something unproven
+Waiting: 1 for the developer
+marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do
+--- exit 0

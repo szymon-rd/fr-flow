@@ -1,0 +1,43 @@
++ canEditContract  contract on canEdit  accepted
+  A person can edit a document exactly when their access to it is edit.
+  why: Only an edit share lets someone change a document (Q1).
+
+Formally (as written in Scala)
+  post (every call of canEdit):
+    (lib, t, p, d, result) => result === (access(lib, t, p, d) === some(Level.Edit: Term[Level]))
+
+Where it sits
+  part of    + accessFollowsShares  with invitationsAreOffers, trashUntilGone, housekeepingClearsOnlyTheEnded, accessRequestsAreAsks, ownersKeepTheirDocuments, auditTrail, noticesFollowChanges, accessContract, canViewContract, shareContract, unshareContract, moveContract, handleContract, domainTypes: "At any moment, a person can view a document exactly when it is not in the trash and a share in force lets them view it, and edit it exactly when that share is an edit share; and what is shared, offered or kept changes only at the hand of someone who may edit it, of a person taking up an open invitation, or of housekeeping clearing away what has ended."
+  calls      + accessContract (contract): "A person's access to a document not in the trash is worked out from their teams and the document's folders: among the shares in force with them or one of their teams, of the document or one of the folders around it, it is edit if one is an edit share, view if there is any, and none otherwise. A document in the trash gives no access."
+
+Vocabulary
+  access (operation): a person's access to a document at a moment, as the service works it out (open)
+  canEdit (operation): the service's answer to whether a person can edit a document (open)
+
+Proofs
+  impl (Sharing.canEditCode): proven: auto
+
+Examples: 3 of 3 pass; Lean agrees on 3 of 3
+  given nothing
+    + Ann may edit the reports folder, around the Q3 report  allows (Library(List(Document(DocumentId("plan"), "Plan", List(), None, PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(), List(), List(), List()), 1000000, PersonId("ann"), DocumentId("q3-report")) ⇒ true
+    + Bob's team may only view it  allows (Library(List(Document(DocumentId("plan"), "Plan", List(), None, PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(), List(), List(), List()), 1000000, PersonId("bob"), DocumentId("q3-report")) ⇒ false
+    + a view share never lets anyone edit  forbids (Library(List(Document(DocumentId("plan"), "Plan", List(), None, PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(), List(), List(), List()), 1000000, PersonId("bob"), DocumentId("q3-report")) ⇒ true
+
+Code
+  proven define Sharing.canEditCode
+    Sharing.canEditCode = (lib: Term[Library], t: Term[BigInt], p: Term[PersonId], d: Term[DocumentId]) =>
+        access(lib, t, p, d) === some(Level.Edit: Term[Level])
+  at run time: not checked, the running code is the code Lean proves
+
+Decisions
+  2026-10-25 01:31  accepted by demo-developer: Editing is having edit access (Q1).
+  2026-10-25 11:42  accepted by demo-developer: Unchanged: editing is having edit access (Q1).
+  2026-10-25 11:57  confirmed by demo-developer: Lean proves them again; only what they rest on moved (the lifetimes left open above).
+  2026-10-25 12:57  confirmed by demo-developer: still holds after invitationsAreOffers changed: Q7 as its own branch: an invitation is an offer from someone who may edit, gives no access, is taken up only while open, and is cleared within one housekeeping period of lapsing. Its proof uses invitationsLapseOnTime through isOpenContract, so the deadline is no longer under the root unused.
+  2026-10-25 14:51  confirmed by demo-developer: Unchanged statement: editing is having edit access (Q1).
+  2026-10-25 15:13  confirmed by demo-developer: still holds after invitationsAreOffers changed: Unchanged statement; Lean proves it again: only shareContract and the ownership branch, which it rests on or sits beside, changed.
+  2026-10-25 19:03  confirmed by demo-developer: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-25 19:35  confirmed by demo-developer: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-26 14:12  accepted by demo-developer: The same examples: `reject` is now `never`.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

@@ -1,0 +1,98 @@
++ accessFollowsShares  claim (a root)  accepted
+  At any moment, a person can view a document exactly when it is not in the trash and a share in force lets them view it, and edit it exactly when that share is an edit share; and what is shared, offered or kept changes only at the hand of someone who may edit it, of a person taking up an open invitation, or of housekeeping clearing away what has ended.
+  why: The idea in one statement, in two halves as in stage 1: the shares in force decide who sees and who changes what (Q1, Q2), the trash hides a document (Q8); and nothing changes that but an editor, an invitation an editor sent (Q7), or housekeeping removing what gives nothing any more. How invitations, the trash and housekeeping do their part is said in their own branches below. Whether a share is in force, an invitation open or a document gone is left open here: Lifetimes fixes it with the clock below, and this holds whatever it says.
+
+Formally (as written in Scala)
+  formula:
+    forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], d: Term[DocumentId]) =>
+        Sharing.canView(lib, t, p, d) === (!inTrash(lib, d) && mayView(lib, t, p, Target[Target.Doc](d))) &&
+        Sharing.canEdit(lib, t, p, d) === (!inTrash(lib, d) && mayEdit(lib, t, p, Target[Target.Doc](d)))) &&
+      forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], s: Term[Share]) =>
+        Sharing.share(lib, t, by, s) =!= lib implies mayEdit(lib, t, by, s.what)) &&
+      forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], what: Term[Target], withWhom: Term[Grantee]) =>
+        Sharing.unshare(lib, t, by, what, withWhom) =!= lib implies mayEdit(lib, t, by, what)) &&
+      forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId], into: Term[Option[FolderId]]) =>
+        Sharing.move(lib, t, by, d, into) =!= lib implies
+          (mayEdit(lib, t, by, Target[Target.Doc](d)) && into.fold(True)(f => mayEdit(lib, t, by, Target[Target.InFolder](f))))) &&
+      forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], to: Term[PersonId], what: Term[Target]) =>
+        (Invitations.withdraw(lib, t, by, to, what) =!= lib implies mayEdit(lib, t, by, what)) &&
+        forall((level: Term[Level]) => Invitations.invite(lib, t, by, to, what, level) =!= lib implies mayEdit(lib, t, by, what))) &&
+      forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], what: Term[Target]) =>
+        Invitations.accept(lib, t, p, what) =!= lib implies lib.invitations.exists(i => i.to === p && i.what === what && isOpen(i, t))) &&
+      forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId]) =>
+        (Trash.trash(lib, t, by, d) =!= lib implies mayEdit(lib, t, by, Target[Target.Doc](d))) &&
+        (Trash.restore(lib, t, by, d) =!= lib implies mayEdit(lib, t, by, Target[Target.Doc](d)))) &&
+      forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], w: Term[Target], level: Term[Level]) =>
+        AccessRequests.ask(lib, t, p, w, level).shares === lib.shares && AccessRequests.ask(lib, t, p, w, level).invitations === lib.invitations &&
+          AccessRequests.ask(lib, t, p, w, level).documents === lib.documents) &&
+      forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], p: Term[PersonId], w: Term[Target]) =>
+        (AccessRequests.approve(lib, t, by, p, w) =!= lib implies mayEdit(lib, t, by, w)) &&
+        (AccessRequests.decline(lib, t, by, p, w) =!= lib implies mayEdit(lib, t, by, w))) &&
+      forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId], to: Term[PersonId]) =>
+        Ownership.transfer(lib, t, by, d, to) =!= lib implies mayEdit(lib, t, by, Target[Target.Doc](d))) &&
+      forall((lib: Term[Library], t: Term[BigInt]) =>
+        lib.shares.forall(s => Housekeeping.tidy(lib, t).shares.contains(s) || !inForce(s, t) ||
+          lib.documents.exists(doc => gone(doc, t) && s.what === Target[Target.Doc](doc.id))) &&
+        lib.invitations.forall(i => Housekeeping.tidy(lib, t).invitations.contains(i) || !isOpen(i, t)) &&
+        lib.documents.forall(doc => Housekeeping.tidy(lib, t).documents.contains(doc) || gone(doc, t)))
+
+Where it sits
+  design     - domainTypes (design): "People, teams, documents, folders, shares, invitations, access requests, log entries and notices are plain data: a document and a folder each list the folders around them, outermost first; a document names its owner; a team lists its people; a share may carry its end, a document the time it went to the trash, an invitation the time it was sent, a request the time it was made, all in seconds. The library keeps its log and its outbox with it. The demo library (Demo.scala) is the data the examples are decided on."
+  uses       - inTrash (definition): "A document is in the trash when it was put there and not restored since."
+  uses       - permission (definition): "A person may view a document or folder when a share in force reaches them and covers it; they may edit it when such a share is an edit share."
+  uses       - reach (definition): "A share reaches the person it is with, and everyone in the team it is with."
+  uses       - cover (definition): "A share of a document covers that document; a share of a folder covers the folder, every folder inside it, and every document inside any of them."
+
+Parts: together they make it (proven: authored)
+  + invitationsAreOffers  needed: "An invitation is an offer from someone who may edit: only they send it or take it back, it gives nobody access, it is taken up only by the person invited while it is open, and housekeeping clears it away within one of its periods of its lapsing."
+  + trashUntilGone  needed: "Only someone who may edit a document puts it in the trash or takes it out, and only before it is gone; and housekeeping purges it within one of its periods of its being gone."
+  + housekeepingClearsOnlyTheEnded  needed: "Housekeeping clears away only what has ended: shares no longer in force or of a document gone, invitations no longer open, and documents gone; and what has ended stays ended, so nothing it clears could have counted again."
+  + accessRequestsAreAsks  needed: "An access request is a person's ask for a document or a folder: asking changes nothing shared, offered or kept, so it gives nobody access; only someone who may edit what it is for answers it, and approving it, while it is pending, makes the share asked for; and housekeeping declines it within one of its periods of its lapsing, and reminds the owners of what it is for within one of its periods of its being due a reminder."
+  + ownersKeepTheirDocuments  needed: "A document has one owner. Only its owner, while they may edit it, hands it on, and only to someone who may edit it, who then has an edit share of it for good; and nobody unshares or replaces an owner's shares of their own document. An owner's share is with them in person, not through a team, so leaving a team never takes their documents from them."
+  + auditTrail  needed: "Every change the service makes is recorded in its log, with the request that made it and when, in the same save as the change; so at every moment, every share the library holds was made by a request in the log. A share is never seen before its entry is there, and every yes of canView rests on shares whose making is logged."
+  + noticesFollowChanges  needed: "A notice is sent only of a change already kept: at every moment, every notice of a logged change waiting in the outbox is of an entry in the log. A notice leaves the outbox only once the mail server has it, and the mail server has each notice once, so a person is told of each event at least once and never twice."
+  + accessContract (contract)  needed: "A person's access to a document not in the trash is worked out from their teams and the document's folders: among the shares in force with them or one of their teams, of the document or one of the folders around it, it is edit if one is an edit share, view if there is any, and none otherwise. A document in the trash gives no access."
+  + canViewContract (contract)  needed: "A person can view a document exactly when they have some access to it."
+  + canEditContract (contract)  needed: "A person can edit a document exactly when their access to it is edit."
+  + shareContract (contract)  needed: "Someone who may edit a document or folder shares it with a person or a team at a level, for good or until a time: the new share takes the place of any earlier share of it with them, unless it is the owner's share of their own document, which stays. When anyone else asks, nothing changes."
+  + unshareContract (contract)  needed: "Someone who may edit a document or folder unshares it from a person or a team: their share of it goes, unless it is the owner's share of their own document. When anyone else asks, nothing changes."
+  + moveContract (contract)  needed: "Someone who may edit a document moves it into a folder they may edit, or out of every folder: the document is then in that folder and in every folder around it. When anyone else asks, or the folder does not exist, nothing changes."
+  + handleContract (contract)  needed: "A request is answered at the time the clock gives, from the library the store holds, and leaves the store holding the library it leads to: a question is answered with the person's access and changes nothing; a change is made as its operation makes it, recorded in the log and announced in the outbox in the same save, and answered done when it may be made and refused otherwise. Handling does not move the clock. A request the store fails changes nothing."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Vocabulary
+  accept (operation): the library after a person asks to accept an invitation (open)
+  approve (operation): the library after someone asks to approve a person's request (open)
+  ask (operation): the library after a person asks for access to a document or folder (open)
+  canEdit (operation): the service's answer to whether a person can edit a document (open)
+  canView (operation): the service's answer to whether a person can view a document (open)
+  decline (operation): the library after someone asks to decline a person's request (open)
+  gone (operation): whether a document is gone at a moment: past restoring, purged by the next housekeeping (open)
+  inForce (operation): whether a share is in force at a moment: it gives access then (open)
+  inTrash: whether a document is in the trash (defined by inTrash)
+  invite (operation): the library after someone asks to invite a person (open)
+  isOpen (operation): whether an invitation is open at a moment: it can be accepted then (open)
+  mayEdit: whether a person may edit a document or folder at a moment (defined by permission)
+  mayView: whether a person may view a document or folder at a moment (defined by permission)
+  move (operation): the library after someone asks to move a document (open)
+  restore (operation): the library after someone asks to restore a document from the trash (open)
+  share (operation): the library after someone asks to share a document or folder (open)
+  tidy (operation): the library tidied at a moment (open)
+  transfer (operation): the library after someone asks to hand a document on (open)
+  trash (operation): the library after someone asks to put a document in the trash (open)
+  unshare (operation): the library after someone asks to unshare a document or folder (open)
+  withdraw (operation): the library after someone asks to withdraw an invitation (open)
+
+Proofs
+  complete: proven: authored
+  root_impl: proven: the root holds of the code, trusting clockNeverGoesBack, housekeepingOnTime
+
+Decisions
+  2026-10-25 01:31  accepted by demo-developer: The idea in one statement: the shares decide access exactly, and only editors change shares or move documents (Q1, Q2).
+  2026-10-25 11:42  accepted by demo-developer: The purpose stays timeless: in force, open and gone are open words, proven for whatever they mean; it adds the trash, invitations and housekeeping in those words, and the least it asks of the lifetimes.
+  2026-10-25 12:57  accepted by demo-developer: Stage 2b: the purpose said once, in two halves as the stage-1 root: access exactly from the shares in force and the trash; and changes only by an editor, by an open invitation taken up, or by housekeeping clearing what has ended. Restore only before gone, an invitation giving no access and what the lifetimes must at least allow are no longer in it: the first two are the branches', the last was only there because doing nothing met the root, which the idle try no longer allows once the open words stay open.
+  2026-10-25 14:44  accepted by demo-developer: The purpose unchanged in words; its proof now goes through requests (asks change nothing), transfers (owner's edit share) and the log and outbox carried along.
+  2026-10-25 18:58  accepted by demo-developer: Purpose unchanged in words; its formula now quantifies over a document or folder for access requests (stage-3 open item: folder requests).
+  2026-10-25 19:29  confirmed by demo-developer: Purpose unchanged in words; its formula now quantifies over a document or folder for access requests (stage-3 open item: folder requests).
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

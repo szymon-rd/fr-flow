@@ -1,0 +1,19 @@
+- sessionTable  definition  accepted
+  A user is signed in when some session token was issued to them.
+  why: Users identify themselves with tokens they receive at login; the session table records which token was issued to whom. How tokens are issued is not modelled.
+
+Formally (as written in Scala)
+    signedIn := (u: Term[UserId]) => exists((t: Term[String]) => sessions(t) === Some(u))
+
+Where it sits
+  used by    + accessExactly: "A user gets access to a resource exactly when they are signed in and authorized for it."
+
+Vocabulary
+  sessions: the session table as stored when the request is decided: a token to the user it was issued to at login (open)
+  signedIn: whether the user has signed in, so can present who they are (defined by sessionTable)
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: IDEA.md: users identify themselves with tokens they receive at login. A token-to-user table is what a login leaves behind, so signed in means some token maps to you; issuing and expiry stay out, as Not modelled says.
+  2026-10-23 15:18  accepted by demo-developer: Rewritten with FrFlow's terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.
+  2026-10-26 15:22  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

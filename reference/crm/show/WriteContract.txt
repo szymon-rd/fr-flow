@@ -1,0 +1,50 @@
++ writeContract  contract on write  accepted
+  A write keeps every record, leaves the records of other companies as they were, does what its author asked of their company's records, and changes nothing else.
+  why: The writing rules, stated for one write on a store: what the user asked takes effect, no record is lost, and nothing else changes, of their company or another's. A write the author's company may not make changes nothing.
+
+Formally (as written in Scala)
+  post (every call of write):
+    forall((s: Term[CrmStore], w: Term[WriteCmd]) => s.records.forall(r => write(s, w).records.contains(r)) &&
+      write(s, w).records.filter(r => r.tenant =!= w.by.tenant) === s.records.filter(r => r.tenant =!= w.by.tenant) && takesEffect(s, w, write(s, w)) &&
+      onlyAsked(s, w, write(s, w)))
+  check:
+    (s, w, t) => takesEffect(s, w, t) && t.records.filter(r => r.tenant =!= w.by.tenant) === s.records.filter(r => r.tenant =!= w.by.tenant)
+  exempt from noCrossTenantRead: the store a write returns goes to the write side, never to a reader: reads go through readContract
+
+Where it sits
+  part of    + writesTakeEffect  with saveWrite: "A user's write about their company's record does what they asked: it adds the record, shares it (until a time, or for good), or unshares it."
+  part of    + writesOnlyAsAsked  with saveWrite: "A write changes nothing its author did not ask of their company's records: it adds no other record, and changes no other share or share's time."
+  part of    + recordsKept  with saveWrite, sharesExpire: "No write and no run of the expiry job removes a record: after each, the CRM holds every record it held before."
+  called by  + saveWrite (contract): "Saving a write stores, and returns as read back, what the store the write leads to holds about the written record."
+
+Vocabulary
+  write (operation): a write applied to a store: the store it leads to (open)
+
+Proofs
+  impl (applyWrite): proven: authored
+
+Examples: 6 of 6 pass; Lean agrees on 6 of 6
+  given nothing
+    + Ann adds a contact of Acme's  allows (CrmStore(List(), List(), List()), WriteCmd(Account("ann@acme", TenantId("acme")), Add(CrmRecord(1, TenantId("acme"), Contact, "Acme contact")))) ⇒ CrmStore(List(CrmRecord(1, TenantId("acme"), Contact, "Acme contact")), List(), List())
+    + Ann shares Acme's contact with Globex  allows (CrmStore(List(CrmRecord(1, TenantId("acme"), Contact, "Acme contact"), CrmRecord(2, TenantId("globex"), Deal, "Globex deal")), List(), List()), WriteCmd(Account("ann@acme", TenantId("acme")), ShareWith(1, TenantId("globex"), None))) ⇒ CrmStore(List(CrmRecord(1, TenantId("acme"), Contact, "Acme contact"), CrmRecord(2, TenantId("globex"), Deal, "Globex deal")), List(Share(1, TenantId("globex"))), List())
+    + Ann shares it with Globex until 100  allows (CrmStore(List(CrmRecord(1, TenantId("acme"), Contact, "Acme contact")), List(), List()), WriteCmd(Account("ann@acme", TenantId("acme")), ShareWith(1, TenantId("globex"), Some(100)))) ⇒ CrmStore(List(CrmRecord(1, TenantId("acme"), Contact, "Acme contact")), List(Share(1, TenantId("globex"))), List(Expiry(1, TenantId("globex"), 100)))
+    + Ann cannot share Globex's deal with herself  forbids (CrmStore(List(CrmRecord(1, TenantId("acme"), Contact, "Acme contact"), CrmRecord(2, TenantId("globex"), Deal, "Globex deal")), List(), List()), WriteCmd(Account("ann@acme", TenantId("acme")), ShareWith(2, TenantId("acme"), None))) ⇒ CrmStore(List(CrmRecord(1, TenantId("acme"), Contact, "Acme contact"), CrmRecord(2, TenantId("globex"), Deal, "Globex deal")), List(Share(2, TenantId("acme"))), List())
+  ... 2 more: context writeContract
+
+Code
+  proven define applyWrite
+    applyWrite = (s: Term[CrmStore], w: Term[WriteCmd]) =>
+      w.change
+        .on[Change.Add](r =>
+          (r.tenant === w.by.tenant && !s.records.exists(x => x.id === r.id)).fold(CrmStore(s.records ++ List(r), s.shares, s.expiries), s))
+    ... 10 more line(s): context writeContract
+  at run time: not checked, the running code is the code Lean proves
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: It now also says a write keeps every record, which AddedAreFound needs.
+  2026-10-23 13:48  accepted by demo-developer: The unique-ids clause gives way to changing nothing else, which the mirror needs; the same code is proven against it.
+  2026-10-23 15:32  accepted by demo-developer: Rewritten with the FrFlow terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.
+  2026-10-25 00:50  accepted by demo-developer: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 14:12  accepted by demo-developer: The same examples: `reject` is now `never`.
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

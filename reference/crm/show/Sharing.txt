@@ -1,0 +1,21 @@
+- sharing  definition  accepted
+  A record is shared with a company now when the last share or unshare of it with that company, by a user of its company once it was added, was a share, and neither the clock now nor a run of the expiry job since has reached that share's time.
+  why: What sharing, unsharing and a share's time mean, said of the history alone: the shares the CRM holds are proven to follow it (storeMirrorsRequests). A share given until a time ends then, whether or not the job has run. A run of the job is in the history with its time: a share it ended stays ended, even before a clock set back.
+
+Formally (as written in Scala)
+    sharedWith := (r: Term[CrmRecord], c: Term[TenantId]) => sharedIn(history, r.id, c, clock)
+
+Where it sits
+  used by    + sharedCrm: "A user's search finds a record exactly when it asks for that record, a user of the record's company added it, and it is of the user's company or currently shared with it by its own."
+
+Vocabulary
+  clock: the time now, in seconds, by the server's clock: when a search runs (open)
+  history: the CRM's history since it started empty: every write the write side saved and every run of the expiry job, in order (its event log) (open)
+  sharedWith: whether the record's company has shared it with the company, and that share holds now (defined by sharing)
+
+Decisions
+  2026-10-23 13:47  accepted by demo-developer: A share is what the last share or unshare said, until its time by the clock or by a job run since: of the history alone, as Keycloak's sign-ins are.
+  2026-10-23 15:32  accepted by demo-developer: Rewritten with the FrFlow terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.
+  2026-10-25 00:49  accepted by demo-developer: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

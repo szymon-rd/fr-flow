@@ -1,0 +1,19 @@
++ bookingsOfTheRoom  claim (a root)  accepted
+  A room's bookings are all of that room.
+
+Formally (as written in Scala)
+  formula:
+    always[RoomBookings](room => room.bookings.forall(b => b.room === room.name))
+  proven where code hands one on: in the steps of bookWhenFree and answerWhenFree
+
+Where it sits
+  used by    + grantWhenNoOverlap: "A request is granted exactly when it overlaps no booking of its room."
+  used by    + grantWhenFree: "A request is granted exactly when its room is free for its whole time."
+
+Proofs
+  complete of bookWhenFree: proven: auto
+  complete of answerWhenFree: proven: auto
+
+Decisions
+  2026-10-26 23:14  accepted by demo-developer: A room's bookings, as the table gives them, are all of that room: the calendar need not group them.
+--- exit 0

@@ -1,0 +1,18 @@
+- expiryJobWiring  design  accepted
+  The expiry job runs every minute, holding the database's lock during a run so no write interleaves with it; its code is the flow expiryJob is proven of, run on SQLite.
+  why: What a run does is proven (expiryJob); when it runs, and that no write interleaves with it, is decided here and reviewed: the model assumes a run has the database to itself.
+
+Formally (as written in Scala)
+  exempt from noCrossTenantRead: it hands the new store to storage and returns nothing to a reader
+
+Where it sits
+  part of    + expiryJob (contract)  its only part: "A run of the expiry job at a time leaves the database holding, about each record, what sharesExpire's run on what it held gives, logs the run at the end of the event log, and returns that store."
+
+Code
+  governs: src/main/scala/crm/Job.scala
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: The job logs its run, so the event log holds every event.
+  2026-10-23 16:57  accepted by demo-developer: The expiry job is a flow proven from the database's model
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

@@ -1,0 +1,22 @@
+- inTrash  definition  accepted
+  A document is in the trash when it was put there and not restored since.
+  why: Q8: a document in the trash gives nobody access, whatever its shares say; restoring it brings them back.
+
+Formally (as written in Scala)
+    inTrash := (lib: Term[Library], d: Term[DocumentId]) =>
+    lib.documents.exists(doc => doc.id === d && doc.trashed.isDefined)
+
+Where it sits
+  used by    + accessFollowsShares: "At any moment, a person can view a document exactly when it is not in the trash and a share in force lets them view it, and edit it exactly when that share is an edit share; and what is shared, offered or kept changes only at the hand of someone who may edit it, of a person taking up an open invitation, or of housekeeping clearing away what has ended."
+  used by    + accessContract (contract): "A person's access to a document not in the trash is worked out from their teams and the document's folders: among the shares in force with them or one of their teams, of the document or one of the folders around it, it is edit if one is an edit share, view if there is any, and none otherwise. A document in the trash gives no access."
+
+Vocabulary
+  inTrash: whether a document is in the trash (defined by inTrash)
+
+Decisions
+  2026-10-25 11:41  accepted by demo-developer: Q8: a document in the trash gives no access; in the trash means trashed and not restored, read off the document.
+  2026-10-25 14:43  confirmed by demo-developer: Unchanged statement; comes back with the library's new fields.
+  2026-10-25 18:57  confirmed by demo-developer: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-25 19:28  confirmed by demo-developer: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

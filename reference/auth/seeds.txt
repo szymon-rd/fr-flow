@@ -1,0 +1,9 @@
+# Seeds: auth
+
+FRFLOW_SEED=1 for every check.
+
+Generated tests (node: cases, against what, seed):
+  DecisionContract: 1000 against DecisionContract, seed 1
+
+In the example's suites (fixed in their code):
+  none

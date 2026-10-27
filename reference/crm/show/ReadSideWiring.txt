@@ -1,0 +1,18 @@
+- readSideWiring  design  accepted
+  The records screen and the sales screen serve searches through service, which checks every result against readContract or dealSearch and the invariant they keep; they read the store, shares and expiries from the database's tables, the history from its event log, and the clock.
+  why: Every path to the records must go through service; keeping the wiring in one governed file makes a change to it visible. The tables are bound as they are, not replayed from the event log on every search: they hold what the history led to (crmRun) because only the write side and the expiry job change them, each also logging its event.
+
+Formally (as written in Scala)
+  exempt from noCrossTenantRead: it returns no records itself: every read goes through service, which checks each result against the contract and the invariant
+
+Where it sits
+  part of    + readContract (contract)  its only part: "A search on the records screen returns exactly the stored records that match it and the user may read: each of the user's company or shared with it now."
+  part of    + dealSearch (contract)  its only part: "A deal search returns exactly the stored deals that match it and the user may read."
+
+Code
+  governs: src/main/scala/crm/ReadSide.scala
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: It binds the tables directly and the event log as the history: replaying on every search would cost too much.
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

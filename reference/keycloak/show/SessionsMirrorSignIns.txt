@@ -1,0 +1,33 @@
++ sessionsMirrorSignIns  claim  accepted
+  The server holds a session open in a realm exactly when its user is signed in to that realm with its token.
+  why: Applications learn about tokens from the sessions the server holds, so these must be exactly the sign-ins that still stand: one more would let someone in, one less would turn a user away.
+
+Formally (as written in Scala)
+  formula:
+    forall((r: Term[RealmId], x: Term[Session]) => sessions(r).contains(x) === (x.realm === r && liveIn(history, x)))
+
+Where it sits
+  part of    + onlyTheSignedIn  with realmIsolation, answersNameASession: "A token is accepted in a realm only as the user who signed in to that realm with it and has not signed out with it since."
+  part of    + signedInAreAccepted  with accountsAsAdministered, oneSignInPerToken, introspect: "A user who signed in to a realm and got a token, has not signed out with it since and is still enabled, has it accepted there as theirs, with their roles."
+  uses       - serverRun (definition): "The server's sessions and accounts now are what its requests led to: from the accounts loaded at start and no session, each request handled in turn."
+
+Parts: together they make it (proven: authored)
+  + freshTokens (assumption)  needed: "Every sign-in carries a token no earlier sign-in carried."
+  + handleRequest (contract)  needed: "A request opens the session a sign-in asks for when the user is enabled, the password theirs and no session holds the token; ends the sessions its sign-out names in its realm; changes accounts only as an administrator's change sets them; and changes nothing else."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Vocabulary
+  history: the requests the server has handled since it started, in order: sign-ins, sign-outs and administrators' changes (the server's event log) (open)
+  seed: every realm's accounts as loaded at start: username, salted password hash, whether enabled, realm roles (open)
+  sessions: the sessions a realm has open, as the server holds them now (defined by serverRun)
+
+Proofs
+  complete: proven: authored
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: Shared by both halves of the root: one session too many lets someone in (onlyTheSignedIn), one too few turns a signed-in user away (signedInAreAccepted). Proven by induction over the history from handleRequest and freshTokens.
+  2026-10-23 15:28  accepted by demo-developer: Written with terms in place of the Scala the macro read, and the Lean it gives is the same
+  2026-10-23 15:45  accepted by demo-developer: Same meaning and the same Lean: AuthRequest's cases are now built through its Data companion
+  2026-10-25 00:49  accepted by demo-developer: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

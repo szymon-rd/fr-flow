@@ -1,0 +1,45 @@
++ sharesExpire  contract on expire  accepted
+  A run of the expiry job at a time removes exactly the shares given until then or earlier, with their times, and keeps every record and every other share's time.
+  why: The idea lets a company share a record until a given time. A search already ignores a share past its time (sharing): the job clears such shares from the tables, and it touches nothing else, so it never ends a share early nor keeps one past its time. Keeping the records is what keeps them found (recordsKept).
+
+Formally (as written in Scala)
+  post (every call of expire):
+    forall((s: Term[CrmStore], now: Term[BigInt]) => endsDueAt(s, now, expire(s, now)))
+  exempt from noCrossTenantRead: the store it returns goes to storage, never to a reader
+
+Where it sits
+  part of    + storeMirrorsRequests  with writesTakeEffect, writesOnlyAsAsked, recordsKept: "The CRM holds exactly the records its users added, and holds a share of a record as current exactly when the record's company shared it so."
+  part of    + recordsKept  with writeContract, saveWrite: "No write and no run of the expiry job removes a record: after each, the CRM holds every record it held before."
+  called by  + recordsByQuery (assumption): "The database returns exactly the stored records that match a search, of every company."
+  called by  + readContract (contract): "A search on the records screen returns exactly the stored records that match it and the user may read: each of the user's company or shared with it now."
+  called by  + expiryJob (contract): "A run of the expiry job at a time leaves the database holding, about each record, what sharesExpire's run on what it held gives, logs the run at the end of the event log, and returns that store."
+
+Vocabulary
+  expire (operation): a run of the expiry job at a time (in seconds) on a store: the store it leads to (open)
+
+Proofs
+  impl (expireCode): proven: auto
+
+Examples: 4 of 4 pass; Lean agrees on 4 of 4
+  given nothing
+    + Globex's share ended at 100; Initech's stays  allows (CrmStore(List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")), List(Share(1, TenantId("globex")), Share(1, TenantId("initech"))), List(Expiry(1, TenantId("globex"), 100))), 150) ⇒ CrmStore(List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")), List(Share(1, TenantId("initech"))), List())
+    + before 100 nothing ends  allows (CrmStore(List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")), List(Share(1, TenantId("globex"))), List(Expiry(1, TenantId("globex"), 100))), 50) ⇒ CrmStore(List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")), List(Share(1, TenantId("globex"))), List(Expiry(1, TenantId("globex"), 100)))
+    + a share that has not ended is never removed  forbids (CrmStore(List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")), List(Share(1, TenantId("globex")), Share(1, TenantId("initech"))), List(Expiry(1, TenantId("globex"), 100))), 150) ⇒ CrmStore(List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")), List(), List())
+    + a run never removes a record  forbids (CrmStore(List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")), List(Share(1, TenantId("globex"))), List(Expiry(1, TenantId("globex"), 100))), 150) ⇒ CrmStore(List(), List(), List())
+
+Code
+  proven define expireCode
+    expireCode = (s: Term[CrmStore], now: Term[BigInt]) =>
+      CrmStore(s.records, s.shares.filter(sh => !ended(sh, s, now)), s.expiries.filter(e => !ended(Share(e.record, e.to), s, now)))
+    ended = (sh: Term[Share], s: Term[CrmStore], now: Term[BigInt]) =>
+      s.expiries.exists(e => e.record === sh.record && e.to === sh.to && e.until <= now)
+  at run time: not checked, the running code is the code Lean proves
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: The job only clears shares already past their time; what searches find no longer depends on it.
+  2026-10-23 13:48  accepted by demo-developer: The job now also keeps every other share's time: it never ends a share early nor keeps one past its time.
+  2026-10-23 15:32  accepted by demo-developer: Rewritten with the FrFlow terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.
+  2026-10-25 00:50  confirmed by demo-developer: still holds after storeMirrorsRequests changed: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 14:12  accepted by demo-developer: The same examples: `reject` is now `never`.
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

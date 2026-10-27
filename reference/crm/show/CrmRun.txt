@@ -1,0 +1,33 @@
+- crmRun  definition  accepted
+  What the CRM holds now, its records, their shares and the shares' expiries, is what its history led to: from empty, each write saved by the write side, the rows about its record replaced by those it stored, and each run of the expiry job, in turn.
+  why: Nothing else changes the CRM: users write through the write side, and the job ends shares, one at a time, each on what the last left (writeSideWiring, expiryJob); the database replaces the rows about the written record and nothing else (storeEdits). So the store searches read is the one writes made, and it follows what users asked (storeMirrorsRequests). The running read side reads these tables from the database, and the event log is this history (readSideWiring).
+
+Formally (as written in Scala)
+    store := runOf(history).records
+    shares := runOf(history).shares
+    expiries := runOf(history).expiries
+
+Where it sits
+  used by    + storeMirrorsRequests: "The CRM holds exactly the records its users added, and holds a share of a record as current exactly when the record's company shared it so."
+  used by    + visibility: "A search, on either screen, returns exactly the stored records it asks for that the user may read now: of their company, or shared with it now."
+  used by    + noCrossTenantRead (invariant): "No search returns a record of another company unless that company shared it with the reader's, for good or until a time not yet come."
+  used by    + searchesMatch: "A search, on either screen, returns only stored records it asks for, and every stored record it asks for that the user may read."
+  used by    + recordsByQuery (assumption): "The database returns exactly the stored records that match a search, of every company."
+  used by    + readContract (contract): "A search on the records screen returns exactly the stored records that match it and the user may read: each of the user's company or shared with it now."
+  used by    + dealSearch (contract): "A deal search returns exactly the stored deals that match it and the user may read."
+
+Vocabulary
+  expire (operation): a run of the expiry job at a time (in seconds) on a store: the store it leads to (open)
+  expiries: the times until which the CRM's shares are given, as it holds them now (defined by crmRun)
+  history: the CRM's history since it started empty: every write the write side saved and every run of the expiry job, in order (its event log) (open)
+  save (operation): the write side: a write applied to the store the database holds, the rows about its record stored; it returns those rows as read back (open)
+  shares: the shares the CRM holds now (defined by crmRun)
+  store: the records the CRM holds now (defined by crmRun)
+
+Decisions
+  2026-10-23 00:22  accepted by demo-developer: One store for reads and writes: what searches read is what the saved writes and the job runs led to, as the write side and the job keep the tables.
+  2026-10-23 13:47  accepted by demo-developer: Same tables from the same history; it no longer defines stored, since the root now speaks of what users added.
+  2026-10-23 15:32  accepted by demo-developer: Rewritten with the FrFlow terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.
+  2026-10-23 16:57  accepted by demo-developer: The expiry job is a flow proven from the database's model
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

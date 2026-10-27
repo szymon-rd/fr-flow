@@ -1,0 +1,35 @@
+- clockKept  assumption  accepted
+  The clock gives the time now, in seconds; a sleep moves it on by the time asked and by a delay it may add, never less, and nothing else moves it while a flow runs.
+  why: Q9: the server's clock, in seconds, read once per request and once per run of housekeeping. Steps take no time (the synchronous hypothesis), so a request answers at one moment. The fake clock, used in tests, is tested against this model; the computer's clock (SystemClock) is assumed to keep it.
+
+Formally (as written in Scala)
+  model:
+    now = do
+        let c ← get
+        pure c.now
+    sleep = fun (seconds : Int) => do
+        modify (fun c => (ClockState.mk ((c.now + (max seconds 0)) + (max (Option.getD (List.head? c.delays) 0) 0)) (List.drop (Int.toNat 1) c.delays)))
+
+Code
+  implemented by: c => FakeClock(c) (the project's own code, tested against the model)
+  tested: 1,000 generated runs of its operations (seed 1), against the model ClockModel
+    every run gives what the model gives and leaves what it leaves, and every operation and branch of it was reached
+    note: FakeClock (the project's own code, tested): 1000 runs of 1 to 12 operations each, from generated states
+    note: PersonId: ann, bob, cat (given)
+    note: TeamId: eng, ops (given)
+    note: DocumentId: plan, q3-report (given)
+    note: FolderId: reports, q3 (given)
+    note: BigInt: seconds within 40 days of the demo's moment, by hours and days (given)
+    note: Target: the vocabulary's documents and folders (given)
+    note: Grantee: the vocabulary's people and teams (given)
+    note: Share: shares over the vocabulary, for good or until a time (given)
+    note: Invitation: invitations over the vocabulary, sent at a time (given)
+    note: AccessRequest: access requests over the vocabulary, made at a time, reminded or not (given)
+    note: Library: libraries over the vocabulary: q3 in reports or not, documents anywhere, in the trash or not, owned by anyone, any shares, invitations and requests, a short log and outbox (given)
+    note: Request: requests over the vocabulary: questions and every kind of change (given)
+
+Decisions
+  2026-10-25 11:41  accepted by demo-developer: Q9: the server's clock in seconds; steps take no time and a sleep may wake late, never early. The fake clock is tested against it; the computer's clock is assumed.
+  2026-10-25 18:57  accepted by demo-developer: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

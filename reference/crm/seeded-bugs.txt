@@ -1,0 +1,148 @@
+# Seeded bugs: crm
+
+Each bug is seeded as today's suite seeds it; under it, what stops it today. Generated cases use the
+knowledge base's settings (cases and seed shown on each).
+
+## leaky read (in section 9's table)
+
+seeded: readContract implemented by (_, _) => every record, another company's too
+suite: CrmSuite: an implementation that leaks another company's records is stopped by its check, on every call
+
+on the call: read(ann@acme, Everything), records 1 (acme), 2 and 3 (globex), 3 shared with acme
+  stopped by: ContractViolation
+    ReadContract: result List(CrmRecord(1, TenantId("acme"), Contact, "Ann's contact"), CrmRecord(2, TenantId("globex"), Deal, "Globex deal"), CrmRecord(3, TenantId("globex"), Contact, "Shared contact")) for (Account("ann@acme", TenantId("acme")), Everything) breaks its check
+the examples of ReadContract: 8 run, 8 failing on the implementation
+  Ann lists everything she can see: the deal she added
+    the implementation returned List(CrmRecord(1, TenantId("acme"), Contact, "Ann's contact"), CrmRecord(2, TenantId("globex"), Deal, "Globex deal"), CrmRecord(3, TenantId("globex"), Contact, "Shared contact")), which breaks the invariant NoCrossTenantRead
+  Globex's contact is not shared with Acme
+    the implementation returned List(CrmRecord(1, TenantId("acme"), Contact, "Ann's contact"), CrmRecord(2, TenantId("globex"), Deal, "Globex deal"), CrmRecord(3, TenantId("globex"), Contact, "Shared contact")), which breaks the invariant NoCrossTenantRead
+  another company's record is never returned
+    the implementation returned List(CrmRecord(1, TenantId("acme"), Contact, "Ann's contact"), CrmRecord(2, TenantId("globex"), Deal, "Globex deal"), CrmRecord(3, TenantId("globex"), Contact, "Shared contact")), which breaks the invariant NoCrossTenantRead
+  a record relabelled as Acme's is not a stored record
+    the implementation returned List(CrmRecord(1, TenantId("acme"), Contact, "Ann's contact"), CrmRecord(2, TenantId("globex"), Deal, "Globex deal"), CrmRecord(3, TenantId("globex"), Contact, "Shared contact")), which breaks the invariant NoCrossTenantRead
+  a search for contacts does not return deals
+    the implementation returned List(CrmRecord(1, TenantId("acme"), Contact, "Ann's contact"), CrmRecord(2, TenantId("globex"), Deal, "Globex deal"), CrmRecord(3, TenantId("globex"), Contact, "Shared contact")), which breaks the invariant NoCrossTenantRead
+  Globex shared its contact with Acme until 100: at 50 Ann finds it by kind
+    the implementation returned List(CrmRecord(1, TenantId("acme"), Contact, "Ann's contact"), CrmRecord(2, TenantId("globex"), Deal, "Globex deal"), CrmRecord(3, TenantId("globex"), Contact, "Shared contact")), which breaks the invariant NoCrossTenantRead
+  at 150 the share has ended, though the expiry job has not run: Ann no longer finds the contact
+    the implementation returned List(CrmRecord(1, TenantId("acme"), Contact, "Ann's contact"), CrmRecord(2, TenantId("globex"), Deal, "Globex deal"), CrmRecord(3, TenantId("globex"), Contact, "Shared contact")), which breaks the invariant NoCrossTenantRead
+  a share past its time never shows the record
+    the implementation returned List(CrmRecord(1, TenantId("acme"), Contact, "Ann's contact"), CrmRecord(2, TenantId("globex"), Deal, "Globex deal"), CrmRecord(3, TenantId("globex"), Contact, "Shared contact")), which breaks the invariant NoCrossTenantRead
+generated cases of ReadContract: 1000 against ReadContract, seed 1
+  fails at seed 1, index 0, size 1
+  case:
+    user = Account("", TenantId("")), query = OfKind(Contact), given history = List(), clock = 0
+  why:
+    returned List(CrmRecord(1, TenantId("acme"), Contact, "Ann's contact"), CrmRecord(2, TenantId("globex"), Deal, "Globex deal"), CrmRecord(3, TenantId("globex"), Contact, "Shared contact")), which ReadContract forbids
+
+## relabel read (in section 9's table)
+
+seeded: readContract implemented by every record relabelled as the user's company's
+suite: CrmSuite: an implementation that relabels another company's records fails its examples (the cheap check sees the label only)
+
+the examples of ReadContract: 8 run, 4 failing on the implementation
+  Ann lists everything she can see: the deal she added
+    the implementation returned List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal"), CrmRecord(2, TenantId("acme"), Contact, "Globex contact"))
+  Globex's contact is not shared with Acme
+    the implementation returned List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal"), CrmRecord(2, TenantId("acme"), Contact, "Globex contact"))
+  Globex shared its contact with Acme until 100: at 50 Ann finds it by kind
+    the implementation returned List(CrmRecord(2, TenantId("acme"), Contact, "Globex contact"))
+  at 150 the share has ended, though the expiry job has not run: Ann no longer finds the contact
+    the implementation returned List(CrmRecord(2, TenantId("acme"), Contact, "Globex contact"))
+generated cases of ReadContract: 1000 against ReadContract, seed 1
+  fails at seed 1, index 0, size 1
+  case:
+    user = Account("", TenantId("")), query = OfKind(Contact), given history = List(Wrote(WriteCmd(Account("", TenantId("acme")), Add(CrmRecord(0, TenantId("acme"), Deal, "Acme deal"))))), clock = 0
+  why:
+    returned List(CrmRecord(0, TenantId(""), Deal, "Acme deal")), which ReadContract forbids
+
+## SQL WHERE dropped (in section 9's table)
+
+seeded: recordsByQuery's SQL beside storedMatching returns every record (its WHERE dropped)
+suite: CrmSuite: a seeded SQL bug (the search's WHERE dropped) is stopped by the port's check; the proofs still hold
+
+on the call: read(ann@acme, OfKind(Deal)), records 1 (acme), 2 and 3 (globex), 3 shared with acme
+  stopped by: ContractViolation
+    RecordsByQuery: result List(CrmRecord(1, TenantId("acme"), Contact, "Ann's contact"), CrmRecord(2, TenantId("globex"), Deal, "Globex deal"), CrmRecord(3, TenantId("globex"), Contact, "Shared contact")) for (Account("ann@acme", TenantId("acme")), OfKind(Deal)) breaks its check
+generated cases of RecordsByQuery: 1000 against the proven define storedMatching, and RecordsByQuery, seed 1
+  fails at seed 1, index 6, size 1
+  case:
+    user = Account("", TenantId("")), query = OfKind(Contact), given history = List(Wrote(WriteCmd(Account("", TenantId("acme")), Add(CrmRecord(0, TenantId("acme"), Deal, "Acme deal")))))
+  why:
+    returned List(CrmRecord(0, TenantId("acme"), Deal, "Acme deal")), where the proven define storedMatching returns List()
+the examples of RecordsByQuery: 3 run, 2 failing on the implementation
+  every company's contacts: the database does not filter by company, the read side does
+    the implementation returned List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal"), CrmRecord(2, TenantId("globex"), Contact, "Globex contact"), CrmRecord(3, TenantId("acme"), Contact, "Acme contact"))
+  a record by its id
+    the implementation returned List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal"), CrmRecord(2, TenantId("globex"), Contact, "Globex contact"), CrmRecord(3, TenantId("acme"), Contact, "Acme contact"))
+
+## careless write (in section 9's table)
+
+seeded: writeContract implemented by dropping every record not of acme
+suite: CrmSuite: a write changes only what its author's company may change, and the write side checks it
+
+on the call: write(store, ann@acme: Unshare(1, globex)), records 1 (acme), 2 and 3 (globex), 3 shared with acme
+  stopped by: ContractViolation
+    WriteContract: result CrmStore(List(CrmRecord(1, TenantId("acme"), Contact, "Ann's contact")), List(Share(3, TenantId("acme"))), List()) for (CrmStore(List(CrmRecord(1, TenantId("acme"), Contact, "Ann's contact"), CrmRecord(2, TenantId("globex"), Deal, "Globex deal"), CrmRecord(3, TenantId("globex"), Contact, "Shared contact")), List(Share(3, TenantId("acme"))), List()), WriteCmd(Account("ann@acme", TenantId("acme")), Unshare(1, TenantId("globex")))) breaks its check
+generated cases of WriteContract: 1000 against WriteContract, seed 1
+  fails at seed 1, index 0, size 1
+  case:
+    s = CrmStore(List(), List(), List()), w = WriteCmd(Account("", TenantId("acme")), Add(CrmRecord(0, TenantId("acme"), Contact, ""))), given history = List(), clock = 0
+  why:
+    returned CrmStore(List(), List(), List()), which WriteContract forbids
+the examples of WriteContract: 6 run, 4 failing on the implementation
+  Ann adds a contact of Acme's
+    the implementation returned CrmStore(List(), List(), List())
+  Ann shares Acme's contact with Globex
+    the implementation returned CrmStore(List(CrmRecord(1, TenantId("acme"), Contact, "Acme contact")), List(), List())
+  Ann shares it with Globex until 100
+    the implementation returned CrmStore(List(CrmRecord(1, TenantId("acme"), Contact, "Acme contact")), List(), List())
+  a write never removes another company's record
+    the implementation returned CrmStore(List(), List(), List())
+
+## dropping database (in section 9's table)
+
+seeded: storeEdits' code beside storedAbout stores nothing: (id, t) => CrmStore(Nil, Nil, Nil)
+suite: CrmSuite: a database that drops a write is seen on the call: StoreEdits reads the rows back, under the write side too
+
+on the call: storeEdits(1, CrmStore(records, Nil, Nil)), records 1 (acme), 2 and 3 (globex), 3 shared with acme
+  stopped by: ContractViolation
+    StoreEdits: result CrmStore(List(), List(), List()) for (1, CrmStore(List(CrmRecord(1, TenantId("acme"), Contact, "Ann's contact"), CrmRecord(2, TenantId("globex"), Deal, "Globex deal"), CrmRecord(3, TenantId("globex"), Contact, "Shared contact")), List(), List())) breaks the contract
+on the call: saveWrite(load(), ann@acme: Add(4, acme, Deal)), records 1 (acme), 2 and 3 (globex), 3 shared with acme
+  stopped by: ContractViolation
+    StoreEdits: result CrmStore(List(), List(), List()) for (4, CrmStore(List(CrmRecord(1, TenantId("acme"), Contact, "Ann's contact"), CrmRecord(2, TenantId("globex"), Deal, "Globex deal"), CrmRecord(3, TenantId("globex"), Contact, "Shared contact"), CrmRecord(4, TenantId("acme"), Deal, "New deal")), List(Share(3, TenantId("acme"))), List())) breaks the contract
+generated cases of StoreEdits: 1000 against the proven define storedAbout, and StoreEdits, seed 1
+  fails at seed 1, index 2, size 1
+  case:
+    id = 2, t = CrmStore(List(CrmRecord(2, TenantId(""), Contact, "")), List(Share(2, TenantId("acme"))), List())
+  why:
+    returned CrmStore(List(), List(), List()), where the proven define storedAbout returns CrmStore(List(CrmRecord(2, TenantId(""), Contact, "")), List(Share(2, TenantId("acme"))), List())
+the examples of StoreEdits: 3 run, 1 failing on the implementation
+  the record and its share, not the other record
+    the implementation returned CrmStore(List(), List(), List())
+
+## SQL with LIMIT 2 (also seeded in today's suites)
+
+seeded: recordsByQuery's SQL returns at most two rows: right on the examples
+suite: CrmSuite: SQL that is right on the examples but drops rows on other inputs is found by the generated cases
+
+the examples of RecordsByQuery: 3 run, 0 failing on the implementation
+generated cases of RecordsByQuery: 1000 against the proven define storedMatching, and RecordsByQuery, seed 1
+  fails at seed 1, index 0, size 1
+  case:
+    user = Account("", TenantId("")), query = Everything, given history = List(Wrote(WriteCmd(Account("", TenantId("acme")), Add(CrmRecord(0, TenantId("acme"), Deal, "Acme deal")))), Wrote(WriteCmd(Account("", TenantId("globex")), Add(CrmRecord(2, TenantId("globex"), Contact, "Globex contact")))), Wrote(WriteCmd(Account("", TenantId("acme")), Add(CrmRecord(3, TenantId("acme"), Contact, "Acme contact")))))
+  why:
+    returned List(CrmRecord(0, TenantId("acme"), Deal, "Acme deal"), CrmRecord(2, TenantId("globex"), Contact, "Globex contact")), where the proven define storedMatching returns List(CrmRecord(0, TenantId("acme"), Deal, "Acme deal"), CrmRecord(2, TenantId("globex"), Contact, "Globex contact"), CrmRecord(3, TenantId("acme"), Contact, "Acme contact"))
+
+## in-memory store that keeps a record's old shares (also seeded in today's suites)
+
+seeded: the Database's own in-memory implementation keeps the shares of a record it stores again
+suite: CrmSuite: a seeded bug in an in-memory store (a record's old shares kept) is found by generated runs and shrunk
+
+generated cases of TablesModel: 1000 against the model DatabaseModel, seed 1
+  fails at seed 1, index 29, size 1
+  case:
+    on LeakyDatabase, from Tables(CrmStore(List(), List(Share(0, TenantId(""))), List()), List())
+  why:
+    storeAbout(0, CrmStore(List(), List(), List())) leaves it holding Tables(CrmStore(List(), List(Share(0, TenantId(""))), List()), List()), where the model holds Tables(CrmStore(List(), List(), List()), List())
+

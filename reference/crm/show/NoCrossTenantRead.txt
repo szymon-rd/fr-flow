@@ -1,0 +1,46 @@
++ noCrossTenantRead  invariant  accepted
+  No search returns a record of another company unless that company shared it with the reader's, for good or until a time not yet come.
+  why: The isolation every read path must keep, stated once. Every contract keeps it, listing the records a call shows to whom, or says why it shows none; so a new read path (an export, an admin view) cannot leave it out unnoticed.
+
+Formally (as written in Scala)
+  rule:
+    (reader, r) => mayRead(reader, r)
+  kept by readContract, dealSearch
+  exempt: readSideWiring, writeContract, saveWrite, writeSideWiring, sharesExpire, expiryJob, expiryJobWiring, httpApi
+
+Where it sits
+  part of    + visibility  with searchesMatch: "A search, on either screen, returns exactly the stored records it asks for that the user may read now: of their company, or shared with it now."
+  uses       - crmRun (definition): "What the CRM holds now, its records, their shares and the shares' expiries, is what its history led to: from empty, each write saved by the write side, the rows about its record replaced by those it stored, and each run of the expiry job, in turn."
+
+Parts: together they make it (proven: auto)
+  + readContract (contract)  needed: "A search on the records screen returns exactly the stored records that match it and the user may read: each of the user's company or shared with it now."
+  + dealSearch (contract)  needed: "A deal search returns exactly the stored deals that match it and the user may read."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Kept by
+  readContract (proven), showing: (user, query, result) => result.map(r => (user, r))
+  dealSearch (proven), showing: (user, query, result) => result.map(r => (user, r))
+  readSideWiring is exempt: it returns no records itself: every read goes through service, which checks each result against the contract and the invariant
+  writeContract is exempt: the store a write returns goes to the write side, never to a reader: reads go through readContract
+  saveWrite is exempt: it returns the rows it stored to the write side, never to a reader
+  writeSideWiring is exempt: the write side hands rows to storage and returns them to its caller, never records to a reader
+  sharesExpire is exempt: the store it returns goes to storage, never to a reader
+  expiryJob is exempt: it hands the new store to the database and returns nothing to a reader
+  expiryJobWiring is exempt: it hands the new store to storage and returns nothing to a reader
+  httpApi is exempt: it returns only what the records screen and the sales screen return, which keep the rule
+
+Vocabulary
+  clock: the time now, in seconds, by the server's clock: when a search runs (open)
+  expiries: the times until which the CRM's shares are given, as it holds them now (defined by crmRun)
+  shares: the shares the CRM holds now (defined by crmRun)
+
+Proofs
+  complete: proven: auto
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: The isolation rule, with a share counting only until its time.
+  2026-10-23 13:47  confirmed by demo-developer: still holds after visibility changed: Same formula, now the read half of the split: searches return the stored records the user may read, not a translation of the root.
+  2026-10-23 15:32  accepted by demo-developer: Rewritten with the FrFlow terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.
+  2026-10-25 00:50  confirmed by demo-developer: still holds after sharedCrm changed: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

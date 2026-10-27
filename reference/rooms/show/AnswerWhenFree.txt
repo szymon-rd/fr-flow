@@ -1,0 +1,40 @@
++ answerWhenFree  claim on book (a root)  accepted
+  A request is answered booked exactly when its room is free for its whole time.
+
+Formally (as written in Scala)
+  formula:
+    forall((request: Term[Booking], before: Term[World]) =>
+      book(request).answer(before) === free(storedBookings.in(before), request))
+
+Where it sits
+  uses       + endsAfterStart: "Every booking ends after it starts."
+  uses       + neverOverlap: "The bookings stored never overlap."
+
+Parts: together they make it (proven: auto)
+  + grantWhenFree  needed: "A request is granted exactly when its room is free for its whole time."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Assumes
+  - tableModel (assumption): "The table gives a room's bookings in the order they were added, and adds one at the end."
+  - oneAtATime (assumption): "Bookings are processed one at a time."
+
+Vocabulary
+  book (operation): booking a request: whether it was booked (open)
+
+Proofs
+  complete: proven: auto
+  impl (bookIfGranted_run): proven: auto
+  root_impl: proven: the root holds of the code, trusting nothing; and the code of grantWhenNoOverlap, tested, not proven
+
+Code
+  proven define bookIfGranted_run
+    bookIfGranted_run = bookIfGranted
+    bookIfGranted = fun (request : Booking) => do
+        let held ← BookingTable.inRoom request.room
+        let booked := (granted held request)
+    ... 6 more line(s): context answerWhenFree
+
+Decisions
+  2026-10-26 21:48  accepted by demo-developer: What booking answers, as a root of its own: booked exactly when the room is free.
+  2026-10-26 22:28  accepted by demo-developer: The same root over storedBookings, proven of the same code.
+--- exit 0

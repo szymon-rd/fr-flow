@@ -1,0 +1,22 @@
+- requests  definition  accepted
+  A user has access to a path when some request for it is admitted on their behalf.
+  why: A user reaches a resource only through requests, and a request carries a token, not a user: the system sees tokens.
+
+Formally (as written in Scala)
+    access := (u: Term[UserId], p: Term[Path]) => exists((t: Term[String]) => admit(t, p) === Some(u))
+
+Where it sits
+  used by    + accessExactly: "A user gets access to a resource exactly when they are signed in and authorized for it."
+
+Vocabulary
+  access: whether the system lets the user access the resource (defined by requests)
+  admit (operation): the system's decision on a request (a token and a path): the user it is admitted on behalf of, if any (open)
+
+Decisions
+  2026-10-23 00:22  accepted by demo-developer: The idea says users identify themselves with tokens; a client's own claim about who it is proves nothing. Revisit if requests come only from trusted services.
+  2026-10-23 15:18  accepted by demo-developer: Rewritten with FrFlow's terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.
+  2026-10-26 15:22  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+
+Alternatives rejected for it
+  ClientAsserted: A user has access to a path when a request naming that user is admitted on their behalf.
+--- exit 0

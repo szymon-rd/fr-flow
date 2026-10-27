@@ -1,0 +1,17 @@
+- writeSideWiring  design  accepted
+  The write side saves each write through service, on the store loaded from the database, one write at a time, and logs it in the event log.
+  why: Every write must go through service, which checks what each step returns; one write at a time, so each starts from the store the last one left. The event log is the CRM's history (crmRun): the write side and the expiry job each log their event after storing it. Keeping the wiring in governed files makes a change to it visible.
+
+Formally (as written in Scala)
+  exempt from noCrossTenantRead: the write side hands rows to storage and returns them to its caller, never records to a reader
+
+Where it sits
+  part of    + saveWrite (contract)  its only part: "Saving a write stores, and returns as read back, what the store the write leads to holds about the written record."
+
+Code
+  governs: src/main/scala/crm/EventLog.scala, src/main/scala/crm/WriteSide.scala
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: Each saved write is logged after it is stored: the log is the history crmRun speaks of.
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

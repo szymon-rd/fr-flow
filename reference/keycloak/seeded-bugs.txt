@@ -1,0 +1,64 @@
+# Seeded bugs: keycloak
+
+Each bug is seeded as today's suite seeds it; under it, what stops it today. Generated cases use the
+knowledge base's settings (cases and seed shown on each).
+
+## dropping store (in section 9's table)
+
+seeded: storeKeepsState's code beside storedAs keeps the accounts and drops every session: (q, t) => ServerState(t.accounts, Nil)
+suite: KeycloakSuite: a store that drops a write is seen on the call: StoreKeepsState reads it back
+
+on the call: handleRequest(ServerState(atStart, Nil), SignIn(acme, "alice", "h-alice", "t1"))
+  stopped by: ContractViolation
+    StoreKeepsState: result ServerState(List(UserAccount(RealmId("acme"), "alice", "h-alice", true, List("admin", "user")), UserAccount(RealmId("acme"), "bob", "h-bob", true, List("user")), UserAccount(RealmId("globex"), "carol", "h-carol", true, List("viewer"))), List()) for (SignIn(RealmId("acme"), "alice", "h-alice", "t1"), ServerState(List(UserAccount(RealmId("acme"), "alice", "h-alice", true, List("admin", "user")), UserAccount(RealmId("acme"), "bob", "h-bob", true, List("user")), UserAccount(RealmId("globex"), "carol", "h-carol", true, List("viewer"))), List(Session("t1", RealmId("acme"), "alice")))) breaks the contract
+generated cases of StoreKeepsState: 1000 against the proven define storedAs, and StoreKeepsState, seed 1
+  fails at seed 1, index 1, size 1
+  case:
+    q = SignIn(RealmId(""), "", "", ""), after = ServerState(List(), List(Session("", RealmId(""), "")))
+  why:
+    returned ServerState(List(), List()), where the proven define storedAs returns ServerState(List(), List(Session("", RealmId(""), "")))
+the examples of StoreKeepsState: 3 run, 2 failing on the implementation
+  Alice's new session is stored, and read back
+    the implementation returned ServerState(List(UserAccount(RealmId("acme"), "alice", "h-alice", true, List("admin", "user")), UserAccount(RealmId("acme"), "bob", "h-bob", false, List("user"))), List())
+  a session the store dropped is seen
+    the implementation returned ServerState(List(UserAccount(RealmId("acme"), "alice", "h-alice", true, List("admin", "user")), UserAccount(RealmId("acme"), "bob", "h-bob", false, List("user"))), List())
+
+## leaky introspection (in section 9's table)
+
+seeded: sessionLookup's code beside storedSession answers every lookup with another realm's session (globex, carol)
+suite: KeycloakSuite: an index that answers with another realm's session is seen on the call: SessionLookup checks each answer
+
+on the call: introspect(acme, "t9") on the loaded sessions
+  stopped by: ContractViolation
+    SessionLookup: result Some(Session("t9", RealmId("globex"), "carol")) for (RealmId("acme"), "t9") breaks its check
+generated cases of SessionLookup: 1000 against the proven define storedSession, and SessionLookup, seed 1
+  fails at seed 1, index 0, size 1
+  case:
+    realm = RealmId(""), token = "", given history = List(), seed = List()
+  why:
+    returned Some(Session("", RealmId("globex"), "carol")), where the proven define storedSession returns None
+the examples of SessionLookup: 5 run, 3 failing on the implementation
+  acme's session of t1
+    the implementation returned Some(Session("t1", RealmId("globex"), "carol"))
+  the store keeps sessions per realm: none of globex under t1
+    the implementation returned Some(Session("t1", RealmId("globex"), "carol"))
+  Alice signed out with t3: its session is gone
+    the implementation returned Some(Session("t3", RealmId("globex"), "carol"))
+
+## introspection that forgets the account's state (also seeded in today's suites)
+
+seeded: Introspect implemented without the check that the account is still enabled
+suite: KeycloakSuite: an introspection that forgets the account's state fails a generated case
+
+generated cases of Introspect: 1000 against Introspect, seed 1
+  fails at seed 1, index 60, size 1
+  case:
+    realm = RealmId("acme"), token = "t2", given history = List(SignIn(RealmId("acme"), "bob", "h-bob", "t2"), SetEnabled(RealmId("acme"), "bob", false)), seed = List(UserAccount(RealmId("acme"), "bob", "h-bob", true, List("user")))
+  why:
+    returned Some(Claims(RealmId("acme"), "bob", List("user"))), which Introspect forbids
+the examples of Introspect: 12 run, 2 failing on the implementation
+  Bob was disabled after signing in: his token is no longer accepted
+    the implementation returned Some(Claims(RealmId("acme"), "bob", List("user")))
+  a disabled user's token is never accepted
+    the implementation returned Some(Claims(RealmId("acme"), "bob", List("user")))
+

@@ -1,0 +1,53 @@
++ trashPurgedOnTime  claim  accepted
+  While housekeeping runs at least every two minutes, no document stays in the trash longer than 30 days and two minutes.
+  why: Q8 as a bounded response: every moment the service reaches, given the scheduler's period (housekeepingOnTime). Unbounded "eventually purged" is weaker and could not be tested. That housekeeping never purges before is housekeepingClearsOnlyTheEnded's, with goneContract.
+
+Formally (as written in Scala)
+  formula:
+    after(events).library.documents.forall(doc => doc.trashed.fold(True)(at => after(events).now < at + trashKeeps + housekeepingWithin))
+
+Where it sits
+  part of    + trashUntilGone  with trashContract, restoreContract, goneContract: "Only someone who may edit a document puts it in the trash or takes it out, and only before it is gone; and housekeeping purges it within one of its periods of its being gone."
+  uses       - trashLifetime (definition): "A document stays in the trash for 30 days."
+  uses       - housekeepingPeriod (definition): "Housekeeping is started every minute; the service never goes more than two minutes without a run."
+  uses       - permission (definition): "A person may view a document or folder when a share in force reaches them and covers it; they may edit it when such a share is an edit share."
+  uses       - reach (definition): "A share reaches the person it is with, and everyone in the team it is with."
+  uses       - cover (definition): "A share of a document covers that document; a share of a folder covers the folder, every folder inside it, and every document inside any of them."
+  uses       - ownersShare (definition): "An owner's share of a document is a share of it with the document's owner in person."
+
+Parts: together they make it (proven: authored)
+  + recordContract (contract)  needed: "Recording a change at a moment adds one entry at the end of the log: numbered by its place in it, with the moment and the change. Nothing else changes, and no entry is taken away."
+  + announceContract (contract)  needed: "Announcing a change adds, at the end of the outbox, a notice of its entry to each person it tells, as the library before the change says who: the person invited; whoever sent an invitation now accepted; the owner of a document asked for; the person whose request was approved or declined; the new owner of a document. Nothing else changes."
+  + housekeepingJob (contract)  needed: "A run of housekeeping leaves the store holding the library it held, tidied, its old log entries forgotten, its access requests chased and the shares ending in a day told of, at the time the clock gives, and, when that changed it, recorded in the log; it does not move the clock. A run that fails changes nothing, and the next minute's run tries again."
+  + goneContract (contract)  needed: "A document in the trash is gone 30 days after it was put there; a document not in the trash is never gone."
+  + clockNeverGoesBack (assumption)  needed: "Time never goes back between the service's events: each wait is of no time or more."
+  + housekeepingOnTime (assumption)  needed: "Housekeeping runs often enough: time never moves on more than two minutes past its last run."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Vocabulary
+  announce (operation): the library with notices of a change added to its outbox (open)
+  events: what has happened to the service since it started, in order: the requests answered, the runs of housekeeping, and time passing (open)
+  gone (operation): whether a document is gone at a moment: past restoring, purged by the next housekeeping (open)
+  housekeepingWithin: the longest the service goes without a run of housekeeping, in seconds (defined by housekeepingPeriod)
+  inForce (operation): whether a share is in force at a moment: it gives access then (open)
+  isOpen (operation): whether an invitation is open at a moment: it can be accepted then (open)
+  isPending (operation): whether an access request is pending at a moment: it can be approved then (open)
+  mayEdit: whether a person may edit a document or folder at a moment (defined by permission)
+  ownedBy: whether a share of a document or folder with someone is the owner's share of their own document (defined by ownersShare)
+  record (operation): the library with a change recorded in its log (open)
+  reminderDue (operation): whether the owner is due a reminder of an access request at a moment (open)
+  startedAt: when the service started, in seconds (open)
+  trashKeeps: how long a document stays in the trash before it is gone, in seconds (defined by trashLifetime)
+
+Proofs
+  complete: proven: authored
+
+Decisions
+  2026-10-25 11:43  accepted by demo-developer: Q8: never before 30 days (each run) and within 30 days and the housekeeping bound (every run that keeps housekeepingOnTime).
+  2026-10-25 12:57  accepted by demo-developer: Q8's bounded response only. Its first half (housekeeping removes only documents 30 days in the trash) restated tidyContract with goneContract; it is now said once, in housekeepingClearsOnlyTheEnded.
+  2026-10-25 14:44  accepted by demo-developer: Unchanged statement; proof redone over the run with requests, delivery and the log.
+  2026-10-25 15:16  confirmed by demo-developer: Unchanged statement; Lean proves it again: only shareContract and the ownership branch, which it rests on or sits beside, changed.
+  2026-10-25 18:59  confirmed by demo-developer: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-25 19:30  confirmed by demo-developer: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

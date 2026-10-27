@@ -1,0 +1,37 @@
+- ownersShare  definition  accepted
+  An owner's share of a document is a share of it with the document's owner in person.
+  why: Q14: what nobody may unshare is the owner's own share of their document; a share with a team the owner is in is not theirs in person.
+
+Formally (as written in Scala)
+    ownedBy := (lib: Term[Library], what: Term[Target], withWhom: Term[Grantee]) =>
+  what
+    .on[Target.Doc](d => lib.documents.exists(doc => doc.id === d && withWhom === Grantee[Grantee.Person](doc.owner)))
+    .on[Target.InFolder](_ => False)
+
+Where it sits
+  used by    + invitationsAreOffers: "An invitation is an offer from someone who may edit: only they send it or take it back, it gives nobody access, it is taken up only by the person invited while it is open, and housekeeping clears it away within one of its periods of its lapsing."
+  used by    + trashUntilGone: "Only someone who may edit a document puts it in the trash or takes it out, and only before it is gone; and housekeeping purges it within one of its periods of its being gone."
+  used by    + accessRequestsAreAsks: "An access request is a person's ask for a document or a folder: asking changes nothing shared, offered or kept, so it gives nobody access; only someone who may edit what it is for answers it, and approving it, while it is pending, makes the share asked for; and housekeeping declines it within one of its periods of its lapsing, and reminds the owners of what it is for within one of its periods of its being due a reminder."
+  used by    + ownersKeepTheirDocuments: "A document has one owner. Only its owner, while they may edit it, hands it on, and only to someone who may edit it, who then has an edit share of it for good; and nobody unshares or replaces an owner's shares of their own document. An owner's share is with them in person, not through a team, so leaving a team never takes their documents from them."
+  used by    + auditTrail: "Every change the service makes is recorded in its log, with the request that made it and when, in the same save as the change; so at every moment, every share the library holds was made by a request in the log. A share is never seen before its entry is there, and every yes of canView rests on shares whose making is logged."
+  used by    + noticesFollowChanges: "A notice is sent only of a change already kept: at every moment, every notice of a logged change waiting in the outbox is of an entry in the log. A notice leaves the outbox only once the mail server has it, and the mail server has each notice once, so a person is told of each event at least once and never twice."
+  used by    + endedStaysEnded: "What has ended stays ended: time in the service never goes back, so a share once ended, an invitation once lapsed and a document once gone stay so for the rest of the run."
+  used by    + shareContract (contract): "Someone who may edit a document or folder shares it with a person or a team at a level, for good or until a time: the new share takes the place of any earlier share of it with them, unless it is the owner's share of their own document, which stays. When anyone else asks, nothing changes."
+  used by    + unshareContract (contract): "Someone who may edit a document or folder unshares it from a person or a team: their share of it goes, unless it is the owner's share of their own document. When anyone else asks, nothing changes."
+  used by    + invitationsLapseOnTime: "While housekeeping runs at least every two minutes, no invitation stays pending longer than 7 days and two minutes after it was sent."
+  used by    + acceptContract (contract): "A person accepts their open invitation to a document or folder: they then have a share of it at the invitation's level, in place of any share of it they had, and the invitation goes. Without an open invitation, or when the document is their own (their share of it is the owner's), nothing changes."
+  used by    + trashPurgedOnTime: "While housekeeping runs at least every two minutes, no document stays in the trash longer than 30 days and two minutes."
+  used by    + requestsAnsweredOnTime: "While housekeeping runs at least every two minutes, no access request stays pending longer than 7 days and two minutes after it was made, and none goes more than 48 hours and two minutes without its reminder."
+  used by    + approveContract (contract): "Someone who may edit a document or folder approves a person's pending request for it: the person then has a share of it at the level asked, for good, in place of any share of it they had, and the request goes. Otherwise, or when it is the person's own document (their share of it is the owner's), nothing changes."
+  used by    + housekeepingOnTime (assumption): "Housekeeping runs often enough: time never moves on more than two minutes past its last run."
+  used by    + handleContract (contract): "A request is answered at the time the clock gives, from the library the store holds, and leaves the store holding the library it leads to: a question is answered with the person's access and changes nothing; a change is made as its operation makes it, recorded in the log and announced in the outbox in the same save, and answered done when it may be made and refused otherwise. Handling does not move the clock. A request the store fails changes nothing."
+
+Vocabulary
+  ownedBy: whether a share of a document or folder with someone is the owner's share of their own document (defined by ownersShare)
+
+Decisions
+  2026-10-25 14:43  accepted by demo-developer: Q14: an owner's share is with them in person, never through a team, so leaving a team keeps their documents.
+  2026-10-25 18:57  confirmed by demo-developer: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-25 19:28  confirmed by demo-developer: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

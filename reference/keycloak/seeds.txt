@@ -1,0 +1,11 @@
+# Seeds: keycloak
+
+FRFLOW_SEED=1 for every check.
+
+Generated tests (node: cases, against what, seed):
+  Introspect: 1000 against Introspect, seed 1
+  SessionLookup: 1000 against the proven define storedSession, and SessionLookup, seed 1
+  StoreKeepsState: 1000 against the proven define storedAs, and StoreKeepsState, seed 1
+
+In the example's suites (fixed in their code):
+  none

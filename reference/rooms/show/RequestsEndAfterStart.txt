@@ -1,0 +1,14 @@
+- requestsEndAfterStart  assumption  accepted
+  The booking form sends only requests that end after they start.
+
+Formally (as written in Scala)
+  formula:
+    book.calledOnlyWith(request => request.start < request.end)
+
+Where it sits
+  assumed by + endsAfterStart: "Every booking ends after it starts."
+
+Decisions
+  2026-10-26 22:28  accepted by demo-developer: The booking form only sends a request whose end is after its start.
+  2026-10-26 23:15  accepted by demo-developer: The booking form only sends a request whose end is after its start; Lean proves this gives endsAfterStart.
+--- exit 0

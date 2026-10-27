@@ -1,0 +1,27 @@
+- accounts  definition  accepted
+  A user is enabled, and has the roles, that their account in the realm says, as loaded at start and as administrators have set it since.
+  why: Realms and users are loaded at start (managing them is not modelled); an administrator can enable or disable a user, and the next request sees it.
+
+Formally (as written in Scala)
+    enabled := (r: Term[RealmId], u: Term[String]) => isEnabled(accountOf(accountsAfter(history), r, u))
+    rolesOf := (r: Term[RealmId], u: Term[String]) => rolesIn(accountOf(accountsAfter(history), r, u))
+
+Where it sits
+  used by    + realmAccess: "A realm's application accepts a token as a user's, with the user's roles, exactly when the user signed in to that realm and got the token, has not signed out with it since, and is still enabled."
+  used by    + noUnauthorizedAccess: "A token is accepted only as a user who signed in to that realm with it, has not signed out since and is still enabled, and only with that user's roles."
+  used by    + signedInAreAccepted: "A user who signed in to a realm and got a token, has not signed out with it since and is still enabled, has it accepted there as theirs, with their roles."
+  used by    + disabledHaveNoAccess: "A token is never accepted as a user who is disabled now, whenever they signed in."
+  used by    + rolesAsGranted: "A token is accepted only with the roles the realm gives its user now."
+
+Vocabulary
+  enabled: whether the user's account in the realm is enabled now (defined by accounts)
+  history: the requests the server has handled since it started, in order: sign-ins, sign-outs and administrators' changes (the server's event log) (open)
+  rolesOf: the roles the realm gives the user now (defined by accounts)
+  seed: every realm's accounts as loaded at start: username, salted password hash, whether enabled, realm roles (open)
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: IDEA.md, Administering users: realms and users are loaded at start and only an administrator enables or disables a user, seen by the next request. Reading enabled and roles from the loaded accounts with those changes applied is exactly that; creating users and changing roles stay out, as Not modelled says.
+  2026-10-23 15:28  accepted by demo-developer: Written with terms in place of the Scala the macro read, and the Lean it gives is the same
+  2026-10-25 00:48  accepted by demo-developer: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0
