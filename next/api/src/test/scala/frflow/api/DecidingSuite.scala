@@ -59,8 +59,8 @@ class DecidingSuite extends munit.CatsEffectSuite:
     for
       listed   <- Opened.ports()
       unlisted <- Opened.ports(decider = None)
-      _        <- Opened.acceptAll(Opened.over(Opened.before, listed))
-      view     <- Opened.over(Opened.before, unlisted.copy(ledger = listed.ledger)).reading.view
+      _        <- Opened.over(Opened.before, listed).flatMap(Opened.acceptAll)
+      view     <- Opened.over(Opened.before, unlisted.copy(ledger = listed.ledger)).flatMap(_.reading.view)
     yield
       val notCounted = view.warnings.collect { case Warning.NotCounted(n, d, why) => (n, d.action, why) }
       assertEquals(notCounted, List((nonNegative, Action.Accept, Uncounted.NoDeciders),
@@ -71,8 +71,8 @@ class DecidingSuite extends munit.CatsEffectSuite:
   test("once the claim's meaning moves: its part is back for what moved above it, and accepting it acts on the part") {
     for
       ports <- Opened.ports()
-      _     <- Opened.acceptAll(Opened.over(Opened.before, ports))
-      after  = Opened.over(Opened.after, ports)
+      _     <- Opened.over(Opened.before, ports).flatMap(Opened.acceptAll)
+      after <- Opened.over(Opened.after, ports)
       view  <- after.reading.view
       diffs <- (after.reading.diff(nonNegative), after.reading.diff(sameAbove)).tupled
     yield

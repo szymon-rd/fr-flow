@@ -2,7 +2,9 @@ package frflow.api
 
 import cats.Parallel
 import cats.effect.{Async, Resource}
-import frflow.api.shell.{Live, Memory}
+import cats.effect.Sync
+import frflow.api.shell.{Listing, Live, Memory}
+import frflow.api.view.Listed
 import frflow.core.name.RelPath
 import java.nio.file.Path
 
@@ -23,3 +25,10 @@ object FrFlowApi:
     */
   def inMemory[F[_]: Async: Parallel](p: Project[F], files: Map[RelPath, String], decider: Option[String], lean: Lean)
       : F[FrFlowApi[F]] = Memory.make(p, files, decider, lean)
+
+  /** The first deciders' list of the project at `root`: the developer's key (as `env` names it, as `make` reads it)
+    * listed under `name` and sealed by it, written to `.frflow/deciders` unless a list is there; no key raises
+    * `Stop.NoKey`. The developer's own act (`init --as NAME`): commit the list, since only committed versions count.
+    */
+  def firstDecider[F[_]: Sync](root: Path, name: String, env: Map[String, String]): F[Listed] =
+    Listing.first(root, name, env)

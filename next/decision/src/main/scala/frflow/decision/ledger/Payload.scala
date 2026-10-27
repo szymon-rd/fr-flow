@@ -1,6 +1,7 @@
 package frflow.decision.ledger
 
 import frflow.core.name.NodeId
+import frflow.decision.content.Framed
 
 /** What a signature covers: the node and everything its decision says (the rejected ids after their count), each
   * field framed (`Framed`). The new ledgers' own: no older signature is verified (the examples' ledgers start fresh).

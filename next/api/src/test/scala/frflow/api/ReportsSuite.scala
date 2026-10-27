@@ -40,7 +40,7 @@ class ReportsSuite extends munit.CatsEffectSuite:
     val shelf = RelPath.fromIdentifiers("src/main", "shelf/Shelf.scala")
     for
       ports <- Opened.ports(Map(shelf -> "object Shelf"))
-      api    = Opened.over(Opened.project(Shelf.Governed.kb), ports)
+      api   <- Opened.over(Opened.project(Shelf.Governed.kb), ports)
       found <- List("./src/main/shelf/Shelf.scala", "src/main/", "src/Other.scala", "service NUMBER itself", "dragons")
                  .traverse(api.reading.find)
     yield

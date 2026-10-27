@@ -30,5 +30,6 @@ private[api] object Live:
       lib    <- Resource.eval(LeanLibrary.read[F](root.resolve("lean").resolve(Session.library(p)).normalize,
                   Session.library(p)))
       ports   = Ports(ProjectFiles.make[F](root), ledger, git, keys)
-    yield Memory.api(Session(p, ports, _ => lake.pure[F], Session.Run(config.tests, env.get("FRFLOW_AS"), keyed),
-      lib.version))
+      api    <- Resource.eval(Memory.api(Session(p, ports, _ => lake.pure[F],
+                  Session.Run(config.tests, env.get("FRFLOW_AS"), keyed), lib.version)))
+    yield api

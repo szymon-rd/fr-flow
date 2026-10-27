@@ -1,12 +1,13 @@
 package frflow.api.shell
 
 import cats.Parallel
-import cats.effect.Async
+import cats.effect.{Async, Ref}
 import cats.syntax.all.*
 import frflow.api.{FrFlowApi, Lean, Project}
 import frflow.core.name.RelPath
 import frflow.decision.ledger.{Deciders, Ledger}
 import frflow.project.port.memory.{MemoryFiles, MemoryGit, MemoryKeys, MemoryLedger}
+import frflow.project.pipeline.Recorded
 import frflow.project.program.Ports
 import frflow.testing.{Seed, Settings}
 
@@ -18,7 +19,7 @@ private[api] object Memory:
   val Tests: Settings = Settings(200, Seed(1))
 
   def make[F[_]: Async: Parallel](p: Project[F], files: Map[RelPath, String], decider: Option[String], lean: Lean)
-      : F[FrFlowApi[F]] = ports(files, decider).map(ps => api(Session(p, ps, ScriptedLean[F](lean), run)))
+      : F[FrFlowApi[F]] = ports(files, decider).flatMap(ps => api(Session(p, ps, ScriptedLean[F](lean), run)))
 
   val run: Session.Run = Session.Run(Tests, None, keyed = true)
 
@@ -31,4 +32,6 @@ private[api] object Memory:
       _      <- decider.traverse_(name => keys.list(keys.signed(Deciders(List(keys.entry(name)), None, None))))
     yield Ports(f, ledger, git, keys)
 
-  def api[F[_]: Async: Parallel](s: Session[F]): FrFlowApi[F] = FrFlowApi(Reads(s), Decides(s), Proves(s))
+  /** The algebras over a session, acceptances decided on what this API checked afresh (`Fresh`). */
+  def api[F[_]: Async: Parallel](s: Session[F]): F[FrFlowApi[F]] =
+    Ref.of[F, Option[Recorded]](None).map(found => FrFlowApi(Reads(s), Decides(s, Fresh(s, found)), Proves(s)))

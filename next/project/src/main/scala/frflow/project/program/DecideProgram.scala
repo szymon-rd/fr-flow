@@ -6,9 +6,6 @@ import cats.syntax.all.*
 import frflow.decision.ledger.{Authorship, Counted, Deciders, Ledger, Seals}
 import frflow.decision.review.{Reading, Subjects}
 import frflow.decision.rules.{Command, Decide, Refusal}
-import frflow.project.port.Records
-import frflow.wire.file.Files
-import frflow.wire.ledger.LedgerFile
 
 /** `decide`: refused unless the key at hand is listed under the decider's name in the committed deciders' list, and
   * while the ledger no longer holds what was committed of some node (`Refusal.Rewritten`: restore it from the last
@@ -40,10 +37,11 @@ final class DecideProgram[F[_]: Monad: Clock](ports: Ports[F]):
   private def authorship(by: String): F[Authorship] =
     (Clock[F].realTimeInstant, ports.git.head).mapN(Authorship(by, _, _))
 
-  /** How a ledger counts: against the committed deciders' list, and every committed version of the ledger. */
+  /** How a ledger counts: against the committed deciders' list, and the committed versions of the ledger from its
+    * base.
+    */
   private def counting: F[DecideProgram.Counting] =
-    (ports.keys.deciders, ports.keys.verifier, ports.git.versions(Records.path(LedgerFile.format)))
-      .mapN((ds, verify, vs) => DecideProgram.Counting(ds, verify, vs.map(Files.read(LedgerFile.format, _).toOption)))
+    (ports.keys.deciders, ports.keys.verifier, Committed.ledgers(ports)).mapN(DecideProgram.Counting(_, _, _))
 
 object DecideProgram:
   /** The deciders' list and the committed versions of the ledger a ledger counts against. */
