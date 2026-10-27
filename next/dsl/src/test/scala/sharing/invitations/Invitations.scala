@@ -26,11 +26,13 @@ object Invitations:
       "housekeeping clears it away within one of its periods of its lapsing.")(
     forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], to: Term[PersonId], what: Term[Target]) =>
       (withdraw(lib, t, by, to, what) =!= lib implies mayEdit(lib, t, by, what)) &&
-        forall((level: Term[Level]) => (invite(lib, t, by, to, what, level) =!= lib implies mayEdit(lib, t, by, what)) &&
+        forall((level: Term[Level]) =>
+          (invite(lib, t, by, to, what, level) =!= lib implies mayEdit(lib, t, by, what)) &&
           forall((p: Term[PersonId], d: Term[DocumentId]) =>
             Sharing.access(invite(lib, t, by, to, what, level), t, p, d) === Sharing.access(lib, t, p, d)))) &&
     forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], what: Term[Target]) =>
-      accept(lib, t, p, what) =!= lib implies lib.invitations.exists(i => i.to === p && i.what === what && isOpen(i, t))) &&
+      accept(lib, t, p, what) =!= lib implies
+        lib.invitations.exists(i => i.to === p && i.what === what && isOpen(i, t))) &&
     after(events).library.invitations.forall(i => isOpen(i, after(events).now - housekeepingWithin)))
     .refines(accessFollowsShares)
 

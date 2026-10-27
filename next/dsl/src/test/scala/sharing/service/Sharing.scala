@@ -85,8 +85,8 @@ object Sharing:
   // ---------------------------------------------------------------------------
 
   val shareContract = Node.claim("Someone who may edit a document or folder shares it with a person or a team at a " +
-      "level, for good or until a time: the new share takes the place of any earlier share of it with them, unless it " +
-      "is the owner's share of their own document, which stays. When anyone else asks, nothing changes.")(
+      "level, for good or until a time: the new share takes the place of any earlier share of it with them, unless " +
+      "it is the owner's share of their own document, which stays. When anyone else asks, nothing changes.")(
     forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], s: Term[Share]) => share(lib, t, by, s) ===
       when(mayEdit(lib, t, by, s.what) && !ownedBy(lib, s.what, s.withWhom))(
         lib.updated(_.shares, s :: sharesWithout(lib.shares, s.what, s.withWhom))).otherwise(lib)))

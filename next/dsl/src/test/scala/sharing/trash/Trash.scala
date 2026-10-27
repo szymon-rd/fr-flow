@@ -44,8 +44,8 @@ object Trash:
       lib.documents.exists(doc => doc.id === d && doc.trashed.isDefined && !gone(doc, t)) }
 
   val restoreContract = Node.claim("Someone who may edit a document restores it from the trash before it is gone: " +
-      "it is out of the trash, and its shares give access again. When anyone else asks, or it is not in the trash, or " +
-      "it is gone, nothing changes.")(
+      "it is out of the trash, and its shares give access again. When anyone else asks, or it is not in the trash, " +
+      "or it is gone, nothing changes.")(
     forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId]) => restore(lib, t, by, d) ===
       when(mayRestore(lib, t, by, d))(lib.updated(_.documents, lib.documents.mapped(doc =>
         when(doc.id === d && !gone(doc, t))(doc.updated(_.trashed, none[BigInt])).otherwise(doc)))).otherwise(lib)))

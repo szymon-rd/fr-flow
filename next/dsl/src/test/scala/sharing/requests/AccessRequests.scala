@@ -66,7 +66,8 @@ object AccessRequests:
   /** The library with the request approved: the share asked for, in place of any, and the request gone. */
   val granted = define { (lib: Term[Library], r: Term[AccessRequest]) =>
     val person = make[Grantee.Person](r.person)
-    lib.updated(_.shares, make[Share](r.what, person, r.level, none[BigInt]) :: sharesWithout(lib.shares, r.what, person))
+    lib.updated(_.shares,
+      make[Share](r.what, person, r.level, none[BigInt]) :: sharesWithout(lib.shares, r.what, person))
       .updated(_.requests, requestsWithout(lib.requests, r.person, r.what)) }
 
   val approveContract = Node.claim("Someone who may edit a document or folder approves a person's pending request " +
@@ -108,7 +109,8 @@ object AccessRequests:
   val chaseNotices = define { (lib: Term[Library], t: Term[BigInt]) =>
     lib.requests.filter(r => !isPending(r, t)).mapped(r => make[Notice](r.person, make[Subject.Lapsed](r))) ++
       lib.requests.filter(r => isPending(r, t) && reminderDue(r, t) && !r.reminded).flatMapped(r =>
-        lib.documents.filter(doc => isFor(r.what, doc)).mapped(doc => make[Notice](doc.owner, make[Subject.Reminder](r)))) }
+        lib.documents.filter(doc => isFor(r.what, doc))
+          .mapped(doc => make[Notice](doc.owner, make[Subject.Reminder](r)))) }
 
   val chaseContract = Node.claim("Housekeeping chases the access requests at a moment: a request no longer pending " +
       "is declined (it goes, and the person is told); a pending one due a reminder, not reminded yet, is marked " +

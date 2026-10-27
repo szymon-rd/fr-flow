@@ -26,4 +26,5 @@ object BoundaryInstance:
     import quotes.reflect.*
     iface.typeSymbol.declaredMethod(name) match
       case List(m) => m
-      case _       => report.errorAndAbort(s"${iface.typeSymbol.name}.$name: a boundary's operations are not overloaded")
+      case _       =>
+        report.errorAndAbort(s"${iface.typeSymbol.name}.$name: a boundary's operations are not overloaded")

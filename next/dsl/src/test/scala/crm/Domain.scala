@@ -13,7 +13,8 @@ val matches = define { (q: Term[Search], r: Term[CrmRecord]) =>
   * given until one, has not come by the clock.
   */
 val sharedNow = define { (id: Term[BigInt], c: Term[TenantId]) =>
-  held.shares.contains(make[Share](id, c)) && !held.expiries.exists(e => e.record === id && e.to === c && e.until <= clock) }
+  held.shares.contains(make[Share](id, c)) &&
+    !held.expiries.exists(e => e.record === id && e.to === c && e.until <= clock) }
 
 /** Whether a reader may see a record: it is their company's, or shared with it now. */
 val mayRead = define { (reader: Term[Account], r: Term[CrmRecord]) =>
@@ -57,7 +58,8 @@ val ownRecord = define { (s: Term[CrmStore], w: Term[WriteCmd], id: Term[BigInt]
   */
 val takesEffect = define { (s: Term[CrmStore], w: Term[WriteCmd], t: Term[CrmStore]) =>
   w.change
-    .on[Change.Add](r => (r.tenant === w.by.tenant && !s.records.exists(x => x.id === r.id)) implies t.records.contains(r))
+    .on[Change.Add](r =>
+      (r.tenant === w.by.tenant && !s.records.exists(x => x.id === r.id)) implies t.records.contains(r))
     .on[Change.ShareWith]((id, to, until) => ownRecord(s, w, id) implies (t.shares.contains(make[Share](id, to)) &&
       until.fold(!t.expiries.exists(e => e.record === id && e.to === to))(u =>
         t.expiries.contains(make[Expiry](id, to, u)) &&

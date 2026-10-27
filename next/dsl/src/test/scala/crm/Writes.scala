@@ -52,7 +52,7 @@ val applyWrite = define { (s: Term[CrmStore], w: Term[WriteCmd]) =>
       make[CrmStore](s.records :+ r, s.shares, s.expiries)).otherwise(s))
     .on[Change.ShareWith]((id, to, until) => when(ownRecord(s, w, id))(make[CrmStore](s.records,
       s.shares.filter(sh => sh =!= make[Share](id, to)) :+ make[Share](id, to),
-      othersOf(id, to) ++ until.fold(Nil: Term[List[Expiry]])(u => make[Expiry](id, to, u) :: (Nil: Term[List[Expiry]])))).otherwise(s))
+      othersOf(id, to) ++ until.fold(Nil: Term[List[Expiry]])(u => one(make[Expiry](id, to, u))))).otherwise(s))
     .on[Change.Unshare]((id, to) => when(ownRecord(s, w, id))(make[CrmStore](s.records,
       s.shares.filter(sh => sh =!= make[Share](id, to)), othersOf(id, to))).otherwise(s)) }
 

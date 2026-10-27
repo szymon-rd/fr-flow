@@ -47,7 +47,8 @@ val sharedUntilATime = Node.claim("When Ann at Acme has added a contact, and Gil
     "Acme until 100: at 50 Ann finds both, at 150 only her contact, and Gil never finds Ann's contact.")(
   (history === List(Event.Wrote(WriteCmd(ann, Change.Add(annContact))), Event.Wrote(WriteCmd(gil, Change.Add(gilDeal))),
     Event.Wrote(WriteCmd(gil, Change.ShareWith(2, TenantId("acme"), Some(100)))))) implies
-    (((clock === 50) implies (results(ann, everything).contains(annContact) && results(ann, everything).contains(gilDeal))) &&
+    (((clock === 50) implies
+        (results(ann, everything).contains(annContact) && results(ann, everything).contains(gilDeal))) &&
       ((clock === 150) implies
         (results(ann, everything).contains(annContact) && !results(ann, everything).contains(gilDeal))) &&
       !results(gil, everything).contains(annContact)))
@@ -100,7 +101,8 @@ val searchesAsk = Node.claim("A search on the records screen asks for what it ma
 
 val adding = Node.claim("A user of a company has added a record when a write of theirs in the CRM's history asked " +
     "to add it, of their company, under an id no record added before it had.")(
-  forall((c: Term[TenantId], r: Term[CrmRecord]) => added(c, r) === (r.tenant === c && askedIn(history).records.contains(r))))
+  forall((c: Term[TenantId], r: Term[CrmRecord]) =>
+    added(c, r) === (r.tenant === c && askedIn(history).records.contains(r))))
   .refines(sharedCrm)
 
 val sharing = Node.claim("A record is shared with a company now when the last share or unshare of it with that " +

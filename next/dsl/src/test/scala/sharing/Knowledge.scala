@@ -16,8 +16,8 @@ import sharing.trash.Trash
 val serverWiring = Node.design("The server reads each HTTP request into a request, answers it with handleContract's " +
     "program on the store and the clock, in IO, as many at once as its workers take, and writes the answer as JSON; " +
     "requests run on a pool of workers with a time limit each, a request the store fails is answered 503 and changes " +
-    "nothing. On the computer's clock, housekeeping runs every minute and delivery every ten seconds; a run that fails " +
-    "is tried again at its next start.")(
+    "nothing. On the computer's clock, housekeeping runs every minute and delivery every ten seconds; a run that " +
+    "fails is tried again at its next start.")(
   "src/main/scala/sharing/http/Server.scala", "src/main/scala/sharing/http/HttpCodec.scala",
   "src/main/scala/sharing/service/SharingService.scala", "src/main/scala/sharing/invitations/InvitationsService.scala",
   "src/main/scala/sharing/trash/TrashService.scala", "src/main/scala/sharing/housekeeping/HousekeepingService.scala",
@@ -49,7 +49,8 @@ val knowledge = KnowledgeBase("Sharing")(
   Lifetimes.reminderDueContract, Deadlines.trashPurgedOnTime, Deadlines.invitationsLapseOnTime,
   Deadlines.requestsAnsweredOnTime, Deadlines.endedStaysEnded, Run.clockNeverGoesBack, Run.housekeepingOnTime,
   LibraryStore.libraryKept, LibraryStore.oneTransactionAtATime, Transactions.transactions, Notifications.mailerKept,
-  Notifications.mailOneAtATime, ClockKept.clockKept, ClockKept.clockAlone, SharingHttp.handleContract, serverWiring, domainTypes)
+  Notifications.mailOneAtATime, ClockKept.clockKept, ClockKept.clockAlone, SharingHttp.handleContract, serverWiring,
+  domainTypes)
   .implementProven(reaches)(reachesCode)
   .implementProven(covers)(coversCode)
   .implementProven(mayView)(mayViewCode)

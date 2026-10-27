@@ -57,9 +57,9 @@ object Notifications:
 
   /** The branch: what a notice is. */
   val noticesFollowChanges = Node.claim("A notice is sent only of a change already kept: at every moment, every " +
-      "notice of a logged change waiting in the outbox is of an entry in the log. A notice leaves the outbox only once " +
-      "the mail server has it, and the mail server has each notice once, so a person is told of each event at least " +
-      "once and never twice.")(
+      "notice of a logged change waiting in the outbox is of an entry in the log. A notice leaves the outbox only " +
+      "once the mail server has it, and the mail server has each notice once, so a person is told of each event at " +
+      "least once and never twice.")(
     after(events).library.outbox.forall(n => n.about
       .on[Subject.Logged](e => after(events).library.log.contains(e))
       .on[Subject.Reminder](_ => True)
@@ -100,8 +100,8 @@ object Notifications:
       .flatMapped(s => reachedBy(lib, s).mapped(p => make[Notice](p, make[Subject.Ending](s)))) }
 
   val warnContract = Node.claim("Housekeeping tells of the shares ending within a day: at a moment, it adds at the " +
-      "end of the outbox a notice, to each person a share reaches, of each share whose end comes a day on, within one " +
-      "housekeeping period. Nothing else changes.")(
+      "end of the outbox a notice, to each person a share reaches, of each share whose end comes a day on, within " +
+      "one housekeeping period. Nothing else changes.")(
     forall((lib: Term[Library], t: Term[BigInt]) =>
       warn(lib, t) === lib.updated(_.outbox, lib.outbox ++ endingNotices(lib, t))))
     .refines(noticesFollowChanges)
@@ -120,8 +120,8 @@ object Notifications:
   val deliveryJob = Node.claim("A run of delivery reads the outbox and sends the oldest notice of each person in it " +
       "to the mail server, all at once, each tried three times, a second and then two seconds apart. A notice leaves " +
       "the outbox only once the mail server has it, and only such a notice: one the mail server did not take stays, " +
-      "to be sent at the next run. The mailbox of each person sent to is as it was, or holds that notice too. Nothing " +
-      "else in the library changes. When the outbox cannot be read, nothing changes.")(
+      "to be sent at the next run. The mailbox of each person sent to is as it was, or holds that notice too. " +
+      "Nothing else in the library changes. When the outbox cannot be read, nothing changes.")(
     forall((before: Term[World]) => deliver.from(before) { (_, after) =>
       val (was, is) = (libraryModel.in(before), libraryModel.in(after))
       let(firstOfEach(was.outbox))(heads =>

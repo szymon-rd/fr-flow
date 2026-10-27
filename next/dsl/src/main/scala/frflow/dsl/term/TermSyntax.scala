@@ -2,7 +2,6 @@ package frflow.dsl.term
 
 import frflow.core.term.Sym
 import frflow.dsl.build.Source
-import scala.annotation.unused
 import scala.deriving.Mirror
 
 /** The operations of the term language as models write them, each one operation of `core.term`'s algebras on the
@@ -20,12 +19,12 @@ object TermSyntax:
     /** `b.updated(_.start, t)`: the record with one field replaced, the field checked at compile time. */
     inline def updated[F](inline field: Term[A] => Term[F], v: Term[F]): Term[A] =
       ${ CaseMacros.updated[A, F]('a, 'field, 'v) }
-    /** `s.on[Case](fields => …).on[Other](…)`: a match, one arm per case. */
+    /** `s.on[Case](fields => …).on[Other](…)`: a match, one arm per case. A first arm over a case without fields is
+      * named by its type, `s.on[Change.Clear.type](result)` (a later one by its value, `.on(Change.Clear)(result)`):
+      * an extension overloaded by its value does not resolve.
+      */
     inline def on[C <: A](using m: Mirror.ProductOf[C])[R](inline f: Cases.Fields[m.MirroredElemTypes, R])(
         using LeanType[R]): Cases[A, R] = Cases(a, List(Cases.branch[A, C, R](f)))
-    /** A match whose first arm is a case without fields, named by its value: `s.on(Change.Clear)(result)`. */
-    inline def on[C <: A & Singleton](@unused c: C)(using Mirror.ProductOf[C])[R](inline result: Term[R])(
-        using LeanType[R]): Cases[A, R] = Cases(a, List(Cases.branch[A, C, R](result)))
   extension (a: Term[Boolean])
     def &&(b: Term[Boolean]): Term[Boolean] = Term.both(a, b)([T[_]] => (s: Sym[T]) => s.and)
     def ||(b: Term[Boolean]): Term[Boolean] = Term.both(a, b)([T[_]] => (s: Sym[T]) => s.or)

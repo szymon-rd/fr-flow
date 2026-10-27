@@ -3,7 +3,8 @@ package examples
 import frflow.*
 
 /** Words today's examples use that the term language has no operation for, written as folds over the ones it has:
-  * a list's images, its first element meeting a rule, whether it holds a value, its elements' lists joined; an option empty or meeting a rule,
+  * a list's images, its first element meeting a rule, whether it holds a value, its elements' lists joined; an option
+  * empty or meeting a rule,
   * holding one meeting it, holding one at all. Each prints as its fold in Lean.
   */
 object Folds:

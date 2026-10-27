@@ -23,7 +23,8 @@ object BoundaryTrait:
     t match
       case MethodType(names, types, res) => res match
           case _: MethodType => report.errorAndAbort(s"operation $name: one parameter list")
-          case _             => Op(name, names.zip(types.map(valueOf(name, _))), result(name, res), parameterless = false)
+          case _             =>
+            Op(name, names.zip(types.map(valueOf(name, _))), result(name, res), parameterless = false)
       case _: PolyType     => report.errorAndAbort(s"operation $name: no type parameters")
       case ByNameType(res) => Op(name, Nil, result(name, res), parameterless = true)
       case res             => Op(name, Nil, result(name, res), parameterless = true)

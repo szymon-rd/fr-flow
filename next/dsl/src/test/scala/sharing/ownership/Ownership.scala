@@ -22,15 +22,20 @@ object Ownership:
   val ownersEdit = define { (d: Term[DocumentId], to: Term[PersonId]) =>
     make[Share](make[Target.Doc](d), make[Grantee.Person](to), Level.Edit: Term[Level], none[BigInt]) }
 
+  /** The documents with one handed on to a new owner. */
+  val handedOn = define { (lib: Term[Library], d: Term[DocumentId], to: Term[PersonId]) =>
+    lib.documents.mapped(doc => when(doc.id === d)(doc.updated(_.owner, to)).otherwise(doc)) }
+
   /** The branch: what owning a document means. */
   val ownersKeepTheirDocuments = Node.claim("A document has one owner. Only its owner, while they may edit it, hands " +
       "it on, and only to someone who may edit it, who then has an edit share of it for good; and nobody unshares or " +
-      "replaces an owner's shares of their own document. An owner's share is with them in person, not through a team, " +
-      "so leaving a team never takes their documents from them.")(
+      "replaces an owner's shares of their own document. An owner's share is with them in person, not through a " +
+      "team, so leaving a team never takes their documents from them.")(
     forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId], to: Term[PersonId]) =>
       transfer(lib, t, by, d, to) =!= lib implies
         (owns(lib, by, d) && mayEdit(lib, t, by, make[Target.Doc](d)) && mayEdit(lib, t, to, make[Target.Doc](d)) &&
-          owns(transfer(lib, t, by, d, to), to, d) && transfer(lib, t, by, d, to).shares.contains(ownersEdit(d, to)))) &&
+          owns(transfer(lib, t, by, d, to), to, d) &&
+          transfer(lib, t, by, d, to).shares.contains(ownersEdit(d, to)))) &&
     forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], what: Term[Target], withWhom: Term[Grantee]) =>
       ownedBy(lib, what, withWhom) implies (Sharing.unshare(lib, t, by, what, withWhom) === lib)) &&
     forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], s: Term[Share]) =>
@@ -43,7 +48,7 @@ object Ownership:
     forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId], to: Term[PersonId]) =>
       transfer(lib, t, by, d, to) === when(owns(lib, by, d) && mayEdit(lib, t, by, make[Target.Doc](d)) &&
         mayEdit(lib, t, to, make[Target.Doc](d)))(lib
-          .updated(_.documents, lib.documents.mapped(doc => when(doc.id === d)(doc.updated(_.owner, to)).otherwise(doc)))
+          .updated(_.documents, handedOn(lib, d, to))
           .updated(_.shares, ownersEdit(d, to) ::
             sharesWithout(lib.shares, make[Target.Doc](d), make[Grantee.Person](to)))).otherwise(lib)))
     .refines(ownersKeepTheirDocuments)
@@ -51,6 +56,6 @@ object Ownership:
   val transferCode = define {
     (lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId], to: Term[PersonId]) =>
       when(owns(lib, by, d) && mayEdit(lib, t, by, make[Target.Doc](d)) && mayEdit(lib, t, to, make[Target.Doc](d)))(
-        lib.updated(_.documents, lib.documents.mapped(doc => when(doc.id === d)(doc.updated(_.owner, to)).otherwise(doc)))
+        lib.updated(_.documents, handedOn(lib, d, to))
           .updated(_.shares, ownersEdit(d, to) ::
             sharesWithout(lib.shares, make[Target.Doc](d), make[Grantee.Person](to)))).otherwise(lib) }

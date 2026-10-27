@@ -13,8 +13,8 @@ import sharing.trash.Trash
 
 // Sharing's nodes in the three kinds (owner §15), each named as today's. The words the purpose leaves open are
 // Definitions code uses: each of today's definition nodes is a claim of its equation, proven of the define that
-// gives the Definition its meaning (the same body, as today's contracts and their code). The vocabulary the purpose is stated in: what a share reaches and covers, and what that lets
-// a person do.
+// gives the Definition its meaning (the same body, as today's contracts and their code). The vocabulary the purpose
+// is stated in: what a share reaches and covers, and what that lets a person do.
 
 val reaches = Definition[(Library, Share, PersonId) => Boolean](
   "whether a share reaches a person: it is with them, or with a team they are in")
@@ -99,7 +99,8 @@ val coversCode = define { (lib: Term[Library], s: Term[Share], t: Term[Target]) 
   s.what.on[Target.Doc](d => t === make[Target.Doc](d))
     .on[Target.InFolder](f => t
       .on[Target.Doc](d => lib.documents.exists(doc => doc.id === d && doc.folders.contains(f)))
-      .on[Target.InFolder](g => g === f || lib.folders.exists(folder => folder.id === g && folder.folders.contains(f)))) }
+      .on[Target.InFolder](g =>
+        g === f || lib.folders.exists(folder => folder.id === g && folder.folders.contains(f)))) }
 
 val permission = Node.claim("A person may view a document or folder when a share in force reaches them and covers " +
     "it; they may edit it when such a share is an edit share.")(
