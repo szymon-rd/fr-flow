@@ -10,7 +10,7 @@ val storeMirrorsRequests = Node.claim("The CRM holds exactly the records its use
     "record as current exactly when the record's company shared it so.")(
   forall((r: Term[CrmRecord]) => held.records.contains(r) === askedIn(history).records.contains(r)) &&
     forall((id: Term[BigInt], c: Term[TenantId]) => sharedNow(id, c) === sharedIn(history, id, c, clock)))
-  .refines(sharedCrm)
+  .refines(sharedCrm, addedIsFound, writesLeaveOthers)
   .assuming(crmRun)
 
 // ============================================================================

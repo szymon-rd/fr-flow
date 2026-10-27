@@ -33,7 +33,8 @@ val sharedIn = define { (es: Term[List[Event]], id: Term[BigInt], c: Term[Tenant
   askedIn(es).grants.exists(g => g.record === id && g.to === c && g.until.forall(t => now < t)) }
 
 // ============================================================================
-// What the root is expected to give
+// Two roots of their own (owner §22): what a user can count on, each proven from what a search returns and what
+// the CRM holds (`visibility`, `storeMirrorsRequests`)
 // ============================================================================
 
 val addedIsFound = Node.claim("A record a user adds to their company, under an id no record added before has, is " +
@@ -58,7 +59,6 @@ val sharedCrm = Node.claim("A user's search finds a record exactly when it asks 
     "record's company added it, and it is of the user's company or currently shared with it by its own.")(
   forall((u: Term[Account], q: Term[Ask], r: Term[CrmRecord]) => finds(u, q, r) ===
     (asksFor(q, r) && added(owner(r), r) && (owner(r) === companyOf(u) || sharedWith(r, companyOf(u))))))
-  .refines(addedIsFound, writesLeaveOthers)
 
 // ============================================================================
 // The purpose's words, each one equation

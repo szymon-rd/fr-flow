@@ -2,6 +2,7 @@ package whole
 
 import frflow.core.analysis.{Callees, Constrained}
 import frflow.core.graph.Walk
+import frflow.core.name.NodeId
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Symbol, SymbolType}
 import frflow.core.spec.Statement
@@ -49,6 +50,16 @@ class ExamplesSuite extends munit.FunSuite:
     "time, an assumption") {
     assertEquals(ids(crm.knowledge), renamed(Today.crm, Set.empty, Set("addedIsFound", "writesLeaveOthers",
       "acmeNeverSeesGlobex", "ownership", "searchesAsk", "runsOneAtATime")))
+  }
+
+  test("crm: the purpose and its two general expectations are roots (owner §22), each expectation proven from what " +
+    "a search returns and what the CRM holds") {
+    val refinement = Theories.theory(crm.knowledge).refinement
+    val ids = Theories.theory(crm.knowledge).nodes.map(_.node.id)
+    val roots = Set("sharedCrm", "addedIsFound", "writesLeaveOthers").map(NodeId(_))
+    assertEquals(ids.filter(id => roots(id) && ids.exists(n => refinement.parts(n).contains(id))), Nil)
+    assertEquals(List("addedIsFound", "writesLeaveOthers").map(id => refinement.parts(NodeId(id)).toSet),
+      List.fill(2)(Set(NodeId("visibility"), NodeId("storeMirrorsRequests"))))
   }
 
   test("each example's examples elaborate, with no error") {
@@ -106,10 +117,8 @@ class ExamplesSuite extends munit.FunSuite:
       if !Constrained.of(t, part).exists(op => c.calls.symbols.contains(op) && !c.standsFor.contains(op))
     yield n.value -> part.value
 
-  test("crm: the root's expectations and the records kept by the expiry job rest on parts not about what their " +
-    "code calls") {
-    assertEquals(notAboutCallees(crm.knowledge), List("addedIsFound" -> "sharedCrm", "writesLeaveOthers" -> "sharedCrm",
-      "recordsKept" -> "sharesExpire"))
+  test("crm: only the records kept by the expiry job rest on a part not about what its code calls") {
+    assertEquals(notAboutCallees(crm.knowledge), List("recordsKept" -> "sharesExpire"))
   }
 
   test("sharing: its branches rest on the claims on their own operations' code, not on what that code calls") {
