@@ -4,22 +4,27 @@ import cats.effect.IO
 import fs2.Stream
 import frflow.api.shell.{Memory, ScriptedLean, Session}
 import frflow.api.view.{CheckEvent, View}
+import frflow.core.example.Example
 import frflow.core.name.{NodeId, RelPath}
 import frflow.decision.rules.Command
 import frflow.dsl.kb.KnowledgeBase
 import frflow.project.Projects
 import frflow.project.pipeline.Analysis
 import frflow.project.program.Ports
+import java.nio.file.Path
 
 /** Projects opened in memory for the API's suites: no Lean, git or disk. A session is opened over ports a test holds
   * (so two versions of a model can share one ledger, or a test can read the files written).
   */
 object Opened:
   val sources: RelPath = Projects.sources
-  val lean: Lean = Lean.Proving(Set.empty)
+  val lean: Lean = Lean.Proving(Set.empty, Set.empty)
 
-  def project(kb: KnowledgeBase): Project[IO] =
-    Project(Projects.elaborated(kb), Nil, Nil, List(sources), "../../lean")
+  def project(kb: KnowledgeBase, examples: List[Example] = Nil): Project[IO] =
+    Project(Projects.elaborated(kb), examples, Nil, List(sources), Path.of("../../lean"))
+
+  lazy val rooms: Project[IO] =
+    Project(Projects.rooms, Projects.roomsExamples, Nil, List(sources), Path.of("../../lean"))
 
   lazy val before: Project[IO] = project(Shelf.Before.kb)
   lazy val after: Project[IO] = project(Shelf.After.kb)

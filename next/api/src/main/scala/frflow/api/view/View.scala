@@ -1,6 +1,7 @@
 package frflow.api.view
 
 import frflow.api.node.NodeView
+import frflow.api.view.whole.WholeView
 import frflow.core.name.NodeId
 
 /** Everything a front end shows, derived once from the analysis: each node's view in decision order, the root

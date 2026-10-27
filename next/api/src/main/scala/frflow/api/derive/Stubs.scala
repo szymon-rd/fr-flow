@@ -1,5 +1,6 @@
 package frflow.api.derive
 
+import frflow.api.view.Scaffolded
 import frflow.core.name.{NodeId, RelPath}
 import frflow.project.pipeline.Analysis
 import frflow.proof.layout.{Layout, NodePart}
@@ -10,16 +11,17 @@ import frflow.proof.reading.{ProofFile, ProofRules}
 import frflow.proof.verdict.ObligationStatus
 
 /** A node's proof file with a stub for each obligation its current check left open or failed (`complete` before any
-  * check), less those the file already proves: the file created, or the stubs added before its end. None when there
-  * is nothing to add, or the file's end is not found.
+  * check), less those the file already proves: the file created, or the stubs added before its end; or why not
+  * (nothing to add, or the file's end is not found).
   */
 private[api] object Stubs:
-  def of(a: Analysis, id: NodeId): Option[(RelPath, String)] =
+  def of(a: Analysis, id: NodeId): Either[Scaffolded, (RelPath, String)] =
     val file = Layout(a.decided.theory.name).proofs(id).file
     val existing = a.inputs.lean.proofs.get(id)
     val add = wanted(a, id).filterNot(existing.toList.flatMap(ProofRules.theorems).contains)
-    val text = existing.fold(Some(fresh(a, id, add)))(f => inserted(a, id, f, add))
-    Option.when(add.nonEmpty)(text).flatten.map(file -> _)
+    if add.isEmpty then Left(Scaffolded.NothingToAdd)
+    else existing.fold(Some(fresh(a, id, add)))(f => inserted(a, id, f, add))
+      .toRight(Scaffolded.EndNotFound(file)).map(file -> _)
 
   private def wanted(a: Analysis, id: NodeId): List[ObligationName] =
     val required = a.obligations.find(_.node == id).toList.flatMap(_.required).map(_.name)

@@ -10,8 +10,24 @@ import frflow.proof.verdict.{CheckStatus, Finding, ObligationStatus, Result}
 private[api] object Leans:
   val Unchecked: CheckState = CheckState.Unchecked
 
-  def state(s: CheckStatus): CheckState = CheckState.valueOf(s.toString)
-  def state(s: ObligationStatus): ObligationState = ObligationState.valueOf(s.toString)
+  def state(s: CheckStatus): CheckState = s match
+    case CheckStatus.Proven     => CheckState.Proven
+    case CheckStatus.Open       => CheckState.Open
+    case CheckStatus.Failed     => CheckState.Failed
+    case CheckStatus.ModelError => CheckState.ModelError
+    case CheckStatus.Waiting    => CheckState.Waiting
+    case CheckStatus.Timeout    => CheckState.Timeout
+    case CheckStatus.Unchecked  => CheckState.Unchecked
+
+  def state(s: ObligationStatus): ObligationState = s match
+    case ObligationStatus.Proven      => ObligationState.Proven
+    case ObligationStatus.Open        => ObligationState.Open
+    case ObligationStatus.Failed      => ObligationState.Failed
+    case ObligationStatus.Shown       => ObligationState.Shown
+    case ObligationStatus.NotShown    => ObligationState.NotShown
+    case ObligationStatus.Unevaluated => ObligationState.Unevaluated
+    case ObligationStatus.Unchecked   => ObligationState.Unchecked
+    case ObligationStatus.Timeout     => ObligationState.Timeout
 
   def of(r: Result): ObligationView =
     ObligationView(LowerObligation.name(r.name).text, state(r.status), r.messages.map(message))

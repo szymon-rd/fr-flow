@@ -14,6 +14,8 @@ import scala.util.Using
   */
 class ArchitectureSuite extends munit.FunSuite:
   private val Shell = """frflow\.(project|proof|testing|wire)\b""".r
+  /** In a signature, the API's own derivation and interpreters are the shell too. */
+  private val Hiding = """frflow\.(project|proof|testing|wire|api\.derive|api\.shell)\b""".r
   private val Hidden = Set("derive", "shell")
 
   private val root: Path =
@@ -40,11 +42,12 @@ class ArchitectureSuite extends munit.FunSuite:
     assertEquals(open, Nil)
   }
 
-  test("no public member of a type a front end reaches has a type of project, proof, testing or wire") {
+  test("no public member of a type a front end reaches, its enum cases among them, has a type of the shell's") {
     val classes = files.filterNot(hidden).flatMap(f => types(f)).flatMap(c => c :: c.getClasses.toList)
     val leaks = classes.flatMap(c => c.getMethods.toList.filter(m => Modifier.isPublic(m.getModifiers))
-      .filter(m => Shell.findFirstIn(signature(m)).isDefined).map(m => s"${c.getName}.${m.getName}: ${signature(m)}"))
+      .filter(m => Hiding.findFirstIn(signature(m)).isDefined).map(m => s"${c.getName}.${m.getName}: ${signature(m)}"))
     assert(classes.size > 30, classes)
+    assert(classes.contains(classOf[view.Stop.NoKey]) && classes.contains(classOf[view.Warning.NotCounted]), classes)
     assertEquals(leaks, Nil)
   }
 

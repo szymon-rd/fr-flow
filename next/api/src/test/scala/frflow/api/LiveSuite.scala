@@ -26,3 +26,14 @@ class LiveSuite extends munit.CatsEffectSuite:
         assertEquals(who.left.map(_.getClass), Left(classOf[Stop.NoKey]))
     }
   }
+
+  dir.test("with an empty env there is no key: none is read from the real home; who decides stops".tag(Live)) {
+    d => FrFlowApi.make(Opened.before, d, Map.empty).use { api =>
+      for
+        view <- api.reading.view
+        who  <- api.deciding.developer(None).attempt
+      yield
+        assert(view.warnings.contains(Warning.NoKey), view.warnings)
+        assertEquals(who, Left(Stop.NoKey("FRFLOW_KEY")))
+    }
+  }

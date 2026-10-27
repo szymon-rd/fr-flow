@@ -10,7 +10,7 @@ val visibility = Node.claim("A search, on either screen, returns exactly the sto
     "user may read now: of their company, or shared with it now.")(
   forall((u: Term[Account], q: Term[Ask], r: Term[CrmRecord]) =>
     results(u, q).contains(r) === (held.records.contains(r) && askMatches(q, r) && mayRead(u, r))))
-  .refines(sharedCrm)
+  .refines(sharedCrm, addedIsFound, writesLeaveOthers)
   .assuming(crmRun)
 
 val noCrossTenantRead = Node.claim("No search returns a record of another company unless that company shared it " +

@@ -1,4 +1,4 @@
-package frflow.api.view
+package frflow.api.view.whole
 
 import frflow.core.name.SymbolName
 

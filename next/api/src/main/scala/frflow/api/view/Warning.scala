@@ -25,6 +25,10 @@ enum Warning:
     * status, not a failing proof.
     */
   case ConsistencyNotProven(statements: List[NodeId])
+  /** An `always(stored)` the states its store starts in are not proven to meet (`start_<node>`): what is said to hold
+    * of every state reached is not shown to hold of the first.
+    */
+  case StartNotProven(statement: NodeId)
   /** A claim nothing checks: no parts prove it, no proven code or value is checked against it, and the plain Scala it
     * is about cannot be tested against it (it has no Scala value): "not checked".
     */

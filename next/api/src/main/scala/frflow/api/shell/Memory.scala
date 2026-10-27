@@ -20,7 +20,7 @@ private[api] object Memory:
   def make[F[_]: Async: Parallel](p: Project[F], files: Map[RelPath, String], decider: Option[String], lean: Lean)
       : F[FrFlowApi[F]] = ports(files, decider).map(ps => api(Session(p, ps, ScriptedLean[F](lean), run)))
 
-  val run: Session.Run = Session.Run(Tests, None)
+  val run: Session.Run = Session.Run(Tests, None, keyed = true)
 
   def ports[F[_]: Async](files: Map[RelPath, String], decider: Option[String]): F[Ports[F]] =
     for

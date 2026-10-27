@@ -3,24 +3,24 @@ package frflow.api.view
 import cats.syntax.all.*
 import frflow.api.node.lean.ObligationState
 import frflow.api.node.{CodeView, NodeView, Relation}
+import frflow.api.view.whole.WholeView
 import frflow.core.name.NodeId
 import frflow.decision.review.ReviewState
-import frflow.eval.run.OnCode
 
 /** What front ends print of a view, each a function of it: the overview, the parts beside a node, the DAG drawn as a
   * tree, and the inbox.
   */
 object Views:
-  /** The counts by concept; complete when there are nodes, none is gone from the model, and each is accepted with
-    * nothing of it unproven (its check, its parts, its code, its tests, its consistency).
+  /** The counts by concept; complete when there are nodes, none is gone from the model, each is accepted with nothing
+    * of it unproven (its check, its parts, its code, its tests, its consistency), and each store's starting state is
+    * proven to meet what always holds of it.
     */
   def overview(nodes: List[NodeView], whole: WholeView, gone: List[NodeId]): Overview = Overview(
     nodes.foldMap(n => Tally.one(n.review.standing.state)), nodes.foldMap(n => Tally.one(n.proof.state)),
     nodes.foldMap(_.code.foldMap(pieces)), whole.groups.foldMap(g => Tally.one(g.status)),
-    whole.examples.foldMap(e =>
-      Tally.one(e.onClaims == OnClaims.Lean(ObligationState.Proven) && e.onCode == OnCode.Holds)),
-    nodes.nonEmpty && gone.isEmpty && nodes.forall(n =>
-      n.review.standing.state == ReviewState.Accepted && n.proof.unproven.isEmpty))
+    whole.examples.foldMap(e => Tally.one(e.passes)),
+    nodes.nonEmpty && gone.isEmpty && whole.starts.forall(_.check.state == ObligationState.Proven) &&
+      nodes.forall(n => n.review.standing.state == ReviewState.Accepted && n.proof.unproven.isEmpty))
 
   private def pieces(c: CodeView): Tally[Piece] =
     c.shown.proven.foldMap(_ => Tally.one(Piece.Proven)) |+| c.shown.tested.foldMap(_ => Tally.one(Piece.Tested)) |+|

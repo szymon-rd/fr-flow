@@ -13,13 +13,14 @@ import frflow.proof.obligation.Discharge
 import frflow.proof.verdict.ProverRun
 
 /** Lean in memory, answering by the analysis's modules as Lean would of a model whose proofs go through: every module
-  * built, but an error at each try (none is proven within its budget) and at each theorem named failing, so a module
-  * holding one fails to build; each other theorem's audit printed (`ScriptedLake.building`).
+  * built, but an error at each try not named shown (it is not proven within its budget) and at each theorem named
+  * failing, so a module holding one fails to build; each other theorem's audit printed (`ScriptedLake.building`).
   */
 private[api] object ScriptedLean:
   def apply[F[_]: Monad: Ref.Make](lean: Lean): Analysis => F[Lake[F]] = a => lean match
     case Lean.Absent           => ScriptedLake[F](_ => ProverRun.Built(""), installed = false).widen
-    case Lean.Proving(failing) => ScriptedLake[F](answer(a, tries(a) ++ failing), installed = true).widen
+    case Lean.Proving(failing, shown) =>
+      ScriptedLake[F](answer(a, tries(a) -- shown ++ failing), installed = true).widen
 
   private def tries(a: Analysis): Set[String] =
     (a.obligations.flatMap(_.tried).map(_.name) ++ a.whole.collect { case o if attempt(o.discharge) => o.name })
