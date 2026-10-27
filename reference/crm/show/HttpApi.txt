@@ -1,0 +1,17 @@
+- httpApi  design  accepted
+  The HTTP API answers searches through the records screen and the sales screen, and writes through the write side; who calls is the account in the request's headers.
+  why: Every request must reach the records only through service. Authentication is not modelled: the headers name the account.
+
+Formally (as written in Scala)
+  exempt from noCrossTenantRead: it returns only what the records screen and the sales screen return, which keep the rule
+
+Where it sits
+  part of    + sharedCrm  with storeMirrorsRequests, visibility: "A user's search finds a record exactly when it asks for that record, a user of the record's company added it, and it is of the user's company or currently shared with it by its own."
+
+Code
+  governs: src/main/scala/crm/Server.scala
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: Requests reach records only through the records screen, the sales screen and the write side; the account comes from the headers because authentication is Not modelled in IDEA.md. Revisit when authentication is modelled.
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

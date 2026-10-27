@@ -1,0 +1,51 @@
++ inForceContract  contract on inForce  accepted
+  A share is in force while now is before its end; a share with no end is always in force.
+  why: Q6: a share may be given until a time; from that time on it gives no access, whether or not housekeeping has removed it yet, because access reads the clock.
+
+Formally (as written in Scala)
+  post (every call of inForce):
+    forall((s: Term[Share], t: Term[BigInt]) => inForce(s, t) === s.until.fold(True)(end => t < end))
+
+Where it sits
+  part of    + endedStaysEnded  with isOpenContract, goneContract, clockNeverGoesBack: "What has ended stays ended: time in the service never goes back, so a share once ended, an invitation once lapsed and a document once gone stay so for the rest of the run."
+  called by  + shareContract (contract): "Someone who may edit a document or folder shares it with a person or a team at a level, for good or until a time: the new share takes the place of any earlier share of it with them, unless it is the owner's share of their own document, which stays. When anyone else asks, nothing changes."
+  called by  + unshareContract (contract): "Someone who may edit a document or folder unshares it from a person or a team: their share of it goes, unless it is the owner's share of their own document. When anyone else asks, nothing changes."
+  called by  + moveContract (contract): "Someone who may edit a document moves it into a folder they may edit, or out of every folder: the document is then in that folder and in every folder around it. When anyone else asks, or the folder does not exist, nothing changes."
+  called by  + inviteContract (contract): "Someone who may edit a document or folder invites a person to it at a level: the invitation, sent now, takes the place of any earlier invitation of them to it. When anyone else asks, nothing changes."
+  called by  + withdrawContract (contract): "Someone who may edit a document or folder withdraws a person's invitation to it: the invitation goes. When anyone else asks, nothing changes."
+  called by  + trashContract (contract): "Someone who may edit a document puts it in the trash: it is in the trash from now on, unless it was already, when it keeps the time it was put there. When anyone else asks, nothing changes."
+  called by  + restoreContract (contract): "Someone who may edit a document restores it from the trash before it is gone: it is out of the trash, and its shares give access again. When anyone else asks, or it is not in the trash, or it is gone, nothing changes."
+  called by  + approveContract (contract): "Someone who may edit a document or folder approves a person's pending request for it: the person then has a share of it at the level asked, for good, in place of any share of it they had, and the request goes. Otherwise, or when it is the person's own document (their share of it is the owner's), nothing changes."
+  called by  + declineContract (contract): "Someone who may edit a document or folder declines a person's request for it: the request goes. When anyone else asks, nothing changes."
+  called by  + transferContract (contract): "The owner of a document, while they may edit it, hands it on to someone who may edit it: that person is then its owner, with an edit share of it for good in place of any share of it they had. When anyone else asks, or the new owner may not edit it, nothing changes."
+  called by  + handleContract (contract): "A request is answered at the time the clock gives, from the library the store holds, and leaves the store holding the library it leads to: a question is answered with the person's access and changes nothing; a change is made as its operation makes it, recorded in the log and announced in the outbox in the same save, and answered done when it may be made and refused otherwise. Handling does not move the clock. A request the store fails changes nothing."
+
+Vocabulary
+  inForce (operation): whether a share is in force at a moment: it gives access then (open)
+
+Proofs
+  impl (Lifetimes.inForceCode): proven: auto
+
+Examples: 4 of 4 pass; Lean agrees on 4 of 4
+  given nothing
+    + a share with no end  allows (Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), 1000000) ⇒ true
+    + an hour before its end  allows (Share(Doc(DocumentId("plan")), Person(PersonId("bob")), View, Some(1003600)), 1000000) ⇒ true
+    + at its end it has ended  allows (Share(Doc(DocumentId("plan")), Person(PersonId("bob")), View, Some(1003600)), 1003600) ⇒ false
+    + never after its end  forbids (Share(Doc(DocumentId("plan")), Person(PersonId("bob")), View, Some(1003600)), 1007200) ⇒ true
+
+Code
+  proven define Lifetimes.inForceCode
+    Lifetimes.inForceCode = (s: Term[Share], t: Term[BigInt]) => s.until.fold(True)(end => t < end)
+  at run time: not checked, the running code is the code Lean proves
+
+Decisions
+  2026-10-25 11:42  accepted by demo-developer: Q6: in force while now is before its end; no end, always.
+  2026-10-25 11:56  accepted by demo-developer: Unchanged statement; marked leftOpenAbove: the nodes above that name in force are proven for every meaning of it and do not rest on this contract.
+  2026-10-25 12:57  confirmed by demo-developer: still holds after housekeepingClearsOnlyTheEnded changed: Q6-Q8 as its own branch: tidying removes only what has ended, and ending is for good (endedStaysEnded), so nothing it removes could count again. Proven by automation.
+  2026-10-25 14:45  confirmed by demo-developer: still holds after endedStaysEnded changed: Unchanged statement; comes back with the library's new fields.
+  2026-10-25 15:14  confirmed by demo-developer: still holds after endedStaysEnded changed: Unchanged statement; Lean proves it again: only shareContract and the ownership branch, which it rests on or sits beside, changed.
+  2026-10-25 19:00  confirmed by demo-developer: still holds after endedStaysEnded changed: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-25 19:31  confirmed by demo-developer: still holds after endedStaysEnded changed: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-26 14:12  accepted by demo-developer: The same examples: `reject` is now `never`.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

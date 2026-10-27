@@ -1,0 +1,47 @@
++ sessionLookup  assumption on lookup  accepted
+  The store's index returns a session it holds under the token in the realm asked, if it holds one, and never one of another realm or token.
+  why: Sessions live in a store indexed by realm and token (in memory here; a database or cache in a cluster). Introspection is proven from this promise, not from the index; the index is checked against the define it is decided with on its examples, and every session it returns is checked to be of the realm and token asked.
+
+Formally (as written in Scala)
+  post (every call of lookup):
+    (realm, token, r) => r.forall(x => sessions(realm).contains(x) && x.token === token && x.realm === realm) &&
+      (sessions(realm).exists(x => x.token === token) implies r.isDefined)
+  check:
+    (realm, token, r) => r.forall(x => x.token === token && x.realm === realm)
+
+Where it sits
+  uses       - serverRun (definition): "The server's sessions and accounts now are what its requests led to: from the accounts loaded at start and no session, each request handled in turn."
+  calls      + handleRequest (contract): "A request opens the session a sign-in asks for when the user is enabled, the password theirs and no session holds the token; ends the sessions its sign-out names in its realm; changes accounts only as an administrator's change sets them; and changes nothing else."
+
+Vocabulary
+  lookup (operation): the store's answer to looking up a token's session in a realm, from its index by realm and token (open)
+  sessions: the sessions a realm has open, as the server holds them now (defined by serverRun)
+
+Proofs
+  impl (storedSession): proven: auto
+
+Examples: 5 of 5 pass; Lean agrees on 5 of 5
+  given history = List(SignIn(RealmId("acme"), "alice", "h-alice", "t1"), SignIn(RealmId("acme"), "bob", "h-bob", "t2"), SignIn(RealmId("globex"), "carol", "h-carol", "t4"), SetEnabled(RealmId("acme"), "bob", false), SignIn(RealmId("acme"), "alice", "h-alice", "t3"), SignOut(RealmId("acme"), "t3")), seed = List(UserAccount(RealmId("acme"), "alice", "h-alice", true, List("admin", "user")), UserAccount(RealmId("acme"), "bob", "h-bob", true, List("user")), UserAccount(RealmId("globex"), "carol", "h-carol", true, List("viewer"))), sessionDb.bind(SessionDb.replaying(seed.value, history.value))
+    + acme's session of t1  allows (RealmId("acme"), "t1") ⇒ Some(Session("t1", RealmId("acme"), "alice"))
+    + the store keeps sessions per realm: none of globex under t1  allows (RealmId("globex"), "t1") ⇒ None
+    + Alice signed out with t3: its session is gone  allows (RealmId("acme"), "t3") ⇒ None
+    + a session the store holds is never lost  forbids (RealmId("acme"), "t1") ⇒ None
+  ... 1 more: context sessionLookup
+
+Code
+  proven define storedSession; running code sessionDb.find tested against it
+    storedSession = (realm: Term[RealmId], token: Term[String]) => sessions(realm).find(x => x.token === token && x.realm === realm)
+  tested: 1,000 generated cases (seed 1), against the proven define storedSession, and sessionLookup
+    every case meets it, and every part of it was reached
+    note: sessionDb: the examples' value (no Lean type to generate it from)
+  at run time: its check (checkedBy), checked on every call (the default for code not proven)
+  governs: src/main/scala/keycloak/SessionDb.scala
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: A trusted port: the store's index by realm and token returns only a session it holds for the realm and token asked. introspect is proven from this promise, the index is checked against the define on its examples, and every session it returns is checked on each call.
+  2026-10-23 15:28  accepted by demo-developer: Written with terms in place of the Scala the macro read, and the Lean it gives is the same
+  2026-10-23 15:45  confirmed by demo-developer: still holds after sessionsMirrorSignIns changed: Same meaning and the same Lean: AuthRequest's cases are now built through its Data companion
+  2026-10-25 00:49  confirmed by demo-developer: still holds after handleRequest changed: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 14:12  accepted by demo-developer: The same examples: `reject` is now `never`.
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

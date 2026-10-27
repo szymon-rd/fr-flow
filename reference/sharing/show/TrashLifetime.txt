@@ -1,0 +1,18 @@
+- trashLifetime  definition  accepted
+  A document stays in the trash for 30 days.
+  why: Q8: a document in the trash can be restored for 30 days, then it is deleted for good.
+
+Formally (as written in Scala)
+    trashKeeps := 30 * 86400
+
+Where it sits
+  used by    + trashPurgedOnTime: "While housekeeping runs at least every two minutes, no document stays in the trash longer than 30 days and two minutes."
+  used by    + goneContract (contract): "A document in the trash is gone 30 days after it was put there; a document not in the trash is never gone."
+
+Vocabulary
+  trashKeeps: how long a document stays in the trash before it is gone, in seconds (defined by trashLifetime)
+
+Decisions
+  2026-10-25 11:41  accepted by demo-developer: Q8: the trash keeps a document for 30 days.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

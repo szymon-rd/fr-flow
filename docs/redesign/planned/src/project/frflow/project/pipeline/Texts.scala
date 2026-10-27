@@ -60,14 +60,13 @@ object Texts:
     case Premise.OneRunAtATime(m) => s"one run at a time on ${m.value}"
     case Premise.Initially(m)     => s"the state ${m.value} starts in"
     case Premise.WrittenOnlyBy(m) => s"who writes ${m.value}"
-    case Premise.Calls(d)         => s"what the outside calls ${d.value} with"
+    case Premise.FromOutside(ty)  => s"what each ${typeName(ty)} from outside meets"
 
   private def outside(f: OutsideFact): String = f match
     case OutsideFact.BehavesAs(b, m)      => s"the world outside: ${b.value} behaves as ${m.value}"
     case OutsideFact.WrittenOnlyBy(m, ps) => s"the world outside: only ${names(ps.map(_.value))} write ${m.value}"
     case OutsideFact.OneRunAtATime(m)     => s"the world outside: runs on ${m.value} never interleave"
     case OutsideFact.Initially(m, _)      => s"the world outside: the state ${m.value} starts in"
-    case OutsideFact.Calls(d)             => s"the world outside: ${d.value} is called with values that can be made"
 
   private def standing(s: Standing): String = s match
     case Standing.Witnessed      => "witnessed, for Lean to check"

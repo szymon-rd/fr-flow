@@ -1,0 +1,11 @@
+# Seeds: crm
+
+FRFLOW_SEED=1 for every check.
+
+Generated tests (node: cases, against what, seed):
+  RecordsByQuery: 1000 against the proven define storedMatching, and RecordsByQuery, seed 1
+  StoreEdits: 1000 against the proven define storedAbout, and StoreEdits, seed 1
+  TablesModel: 1200 against the model DatabaseModel, seed 1
+
+In the example's suites (fixed in their code):
+  none

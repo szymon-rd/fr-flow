@@ -1,0 +1,43 @@
++ decisionContract  contract on admit  accepted  trusted
+  A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path.
+  why: The three parts, stated for one call, so every result of the running system can be checked.
+
+Formally (as written in Scala)
+  post (every call of admit):
+    forall((token: Term[String], path: Term[Path]) => admit(token, path).forall(u => sessions(token) === Some(u) && grants.contains(Grant(u, path))) &&
+      sessions(token).forall(u => grants.contains(Grant(u, path)) implies (admit(token, path) === Some(u))))
+
+Where it sits
+  part of    + tokenNamesHolder  its only part: "A request is admitted only on behalf of the user its token was issued to."
+  part of    + accessNeedsGrant  its only part: "A request is admitted on behalf of a user only if a grant names that user and the path."
+  part of    + grantLetsIn  its only part: "A request whose token was issued to a user with a grant for the path is admitted on their behalf."
+  design     - inMemorySessions (design): "Sessions and grants are loaded into memory, in one process that decides every request."
+
+Vocabulary
+  admit (operation): the system's decision on a request (a token and a path): the user it is admitted on behalf of, if any (open)
+  grants: the grant table as stored when the request is decided (open)
+  sessions: the session table as stored when the request is decided: a token to the user it was issued to at login (open)
+
+Examples: 5 of 5 pass; Lean agrees on 5 of 5
+  given grants = List(Grant(UserId("alice"), Path("/a"))), sessions.bindTable(Map("t1" -> UserId("alice")))
+    + Alice's token and a grant for /a: she gets in  allows ("t1", Path("/a")) ⇒ Some(UserId("alice"))
+    + no grant for /b: refused  allows ("t1", Path("/b")) ⇒ None
+    + access without a grant is never given  forbids ("t1", Path("/b")) ⇒ Some(UserId("alice"))
+    + a token that is not Alice's never acts for her  forbids ("t2", Path("/a")) ⇒ Some(UserId("alice"))
+  ... 1 more: context decisionContract
+
+Code
+  plain code, tested against the claim, not proven
+    SessionStore(grants.value.toSet, sessions.value).decide
+  tested: 1,000 generated cases (seed 1), against decisionContract
+    every case meets it, and every part of it was reached
+  at run time: the contract, checked on every call (the default for code not proven)
+  governs: src/main/scala/auth/SessionStore.scala
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: One call of admit meets all three rules at once, so it is a part of each and every running decision is checked against it. The admitted define is proven to meet it, and the five examples are the cases that matter: granted, not granted, someone else's token.
+  2026-10-23 15:18  accepted by demo-developer: Rewritten with FrFlow's terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.
+  2026-10-24 02:36  accepted by demo-developer: The decision is plain Scala now (SessionStore.decide), tested against this contract on 1,000 generated cases with every part reached; the proofs above rest on the contract, and the admitted define is gone
+  2026-10-26 14:12  accepted by demo-developer: The same examples: `reject` is now `never`.
+  2026-10-26 15:22  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

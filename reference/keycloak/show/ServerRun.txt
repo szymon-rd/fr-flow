@@ -1,0 +1,27 @@
+- serverRun  definition  accepted
+  The server's sessions and accounts now are what its requests led to: from the accounts loaded at start and no session, each request handled in turn.
+  why: The server handles one request at a time on the state it stored after the last one (serviceWiring), so its state is the requests of its history applied in turn.
+
+Formally (as written in Scala)
+    sessions := (r: Term[RealmId]) => stateAfter(history).sessions.filter(x => x.realm === r)
+    account := (r: Term[RealmId], u: Term[String]) => accountOf(stateAfter(history).accounts, r, u)
+
+Where it sits
+  used by    + answersNameASession: "An introspection answers only with the realm and user of a session the server holds under the token."
+  used by    + sessionsMirrorSignIns: "The server holds a session open in a realm exactly when its user is signed in to that realm with its token."
+  used by    + accountsAsAdministered: "The server holds every user's account as loaded at start, with each administrator's change applied in turn."
+  used by    + introspect (contract): "An introspection names the realm asking, and a user enabled there with their roles, only for a session that realm holds under the token; and it names that session's user whenever the user is enabled and the token names no other session there."
+  used by    + sessionLookup (assumption): "The store's index returns a session it holds under the token in the realm asked, if it holds one, and never one of another realm or token."
+
+Vocabulary
+  account: the user's account in a realm, as the server holds it now (defined by serverRun)
+  history: the requests the server has handled since it started, in order: sign-ins, sign-outs and administrators' changes (the server's event log) (open)
+  seed: every realm's accounts as loaded at start: username, salted password hash, whether enabled, realm roles (open)
+  sessions: the sessions a realm has open, as the server holds them now (defined by serverRun)
+  step (operation): the server's handling of one request: the state it stores, from the state before it (open)
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: The server handles one request at a time from the accounts loaded at start and no session (serviceWiring), so its sessions and accounts are its history applied in turn; this ties the state the code holds to the history the other definitions speak of.
+  2026-10-23 15:28  accepted by demo-developer: Written with terms in place of the Scala the macro read, and the Lean it gives is the same
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

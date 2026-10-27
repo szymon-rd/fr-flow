@@ -1,0 +1,42 @@
++ storeEdits  assumption on storeRows  accepted  trusted
+  Storing what a store holds about one record replaces what the database holds about it, and nothing else; read back, the rows about it are what the store holds about it.
+  why: The database is outside the proofs: the write side is proven from this promise. The rows are read back after storing, and checked: a write the database dropped or changed is seen on the call. That it changes nothing else is trusted (crmRun).
+
+Formally (as written in Scala)
+  post (every call of storeRows):
+    (id, t, back) => back === aboutRecord(t, id)
+
+Where it sits
+  called by  + saveWrite (contract): "Saving a write stores, and returns as read back, what the store the write leads to holds about the written record."
+
+Vocabulary
+  storeRows (operation): the database storing what a store holds about one record in place of what it held about it; it returns the rows about the record, read back (open)
+
+Proofs
+  impl (storedAbout): proven: auto
+
+Examples: 3 of 3 pass; Lean agrees on 3 of 3
+  given database.bind(Db.of(Nil, Nil))
+    + the record and its share, not the other record  allows (1, CrmStore(List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal"), CrmRecord(2, TenantId("globex"), Deal, "Globex deal")), List(Share(1, TenantId("globex"))), List())) ⇒ CrmStore(List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")), List(Share(1, TenantId("globex"))), List())
+    + nothing is held about record 3  allows (3, CrmStore(List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")), List(), List())) ⇒ CrmStore(List(), List(), List())
+    + a share the database dropped is seen  forbids (1, CrmStore(List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")), List(Share(1, TenantId("globex"))), List())) ⇒ CrmStore(List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")), List(), List())
+
+Code
+  proven define storedAbout; running code database.storeAbout tested against it
+    storedAbout = (id: Term[BigInt], t: Term[CrmStore]) => aboutRecord(t, id)
+    aboutRecord = (s: Term[CrmStore], id: Term[BigInt]) =>
+      CrmStore(s.records.filter(r => r.id === id), s.shares.filter(sh => sh.record === id), s.expiries.filter(e => e.record === id))
+  tested: 1,000 generated cases (seed 1), against the proven define storedAbout, and storeEdits
+    every case meets it, and every part of it was reached
+    note: database: the examples' value (no Lean type to generate it from)
+    note: CrmStore: stores with one row per key, as the tables hold them (given: what the outside holds, with the examples' values)
+    note: CrmStore: the examples' CrmStore(List(CrmRecord(1, TenantId("acme"), Deal, "Acme deal")), List(Share(1, TenantId("globex"))), List()) never come from the given generator (kept as seeds)
+  at run time: the contract, checked on every call (the default for code not proven)
+  governs: src/main/scala/crm/DbWrites.scala
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: Same promise; that the database changes nothing else is now said by crmRun.
+  2026-10-23 15:32  accepted by demo-developer: Rewritten with the FrFlow terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.
+  2026-10-26 14:12  accepted by demo-developer: The same examples: `reject` is now `never`.
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

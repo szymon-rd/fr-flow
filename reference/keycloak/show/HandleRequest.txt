@@ -1,0 +1,49 @@
++ handleRequest  contract on step  accepted
+  A request opens the session a sign-in asks for when the user is enabled, the password theirs and no session holds the token; ends the sessions its sign-out names in its realm; changes accounts only as an administrator's change sets them; and changes nothing else.
+  why: One request at a time, so each result of the running server is checked; the history's meaning (signInHistory, accounts) follows by induction over the requests. Refusing a token an open session holds keeps a token naming one session even if a token were ever drawn twice.
+
+Formally (as written in Scala)
+  post (every call of step):
+    forall((s: Term[ServerState], q: Term[AuthRequest]) => step(s, q).accounts === administer(s.accounts, q) &&
+      step(s, q).sessions.forall(x => (s.sessions.contains(x) && !endedBy(q, x)) || opened(s, q) === some(x)) &&
+      s.sessions.forall(x => endedBy(q, x) || step(s, q).sessions.contains(x)) &&
+      opened(s, q).forall(x => step(s, q).sessions.contains(x)))
+
+Where it sits
+  part of    + sessionsMirrorSignIns  with freshTokens: "The server holds a session open in a realm exactly when its user is signed in to that realm with its token."
+  part of    + accountsAsAdministered  its only part: "The server holds every user's account as loaded at start, with each administrator's change applied in turn."
+  design     - serviceWiring (design): "Every request reaches the store through service, one at a time: a sign-in, sign-out or administrator's change runs handleRequest's code on the stored state, which stores its result through storeKeepsState; an introspection runs introspect's code on the state the store holds."
+  calls      + storeKeepsState (assumption): "Storing a request with the state it led to keeps that state: read back, the store holds exactly it."
+  called by  + sessionLookup (assumption): "The store's index returns a session it holds under the token in the realm asked, if it holds one, and never one of another realm or token."
+
+Vocabulary
+  step (operation): the server's handling of one request: the state it stores, from the state before it (open)
+
+Proofs
+  impl (handle): proven: auto
+
+Examples: 11 of 11 pass; Lean agrees on 11 of 11
+  given sessionDb.bind(SessionDb.empty)
+    + Alice signs in to acme with her password: a session under t1  allows (ServerState(List(UserAccount(RealmId("acme"), "alice", "h-alice", true, List("admin", "user")), UserAccount(RealmId("acme"), "bob", "h-bob", false, List("user"))), List()), SignIn(RealmId("acme"), "alice", "h-alice", "t1")) ⇒ ServerState(List(UserAccount(RealmId("acme"), "alice", "h-alice", true, List("admin", "user")), UserAccount(RealmId("acme"), "bob", "h-bob", false, List("user"))), List(Session("t1", RealmId("acme"), "alice")))
+    + Bob is disabled: no session, even with his password  allows (ServerState(List(UserAccount(RealmId("acme"), "alice", "h-alice", true, List("admin", "user")), UserAccount(RealmId("acme"), "bob", "h-bob", false, List("user"))), List()), SignIn(RealmId("acme"), "bob", "h-bob", "t2")) ⇒ ServerState(List(UserAccount(RealmId("acme"), "alice", "h-alice", true, List("admin", "user")), UserAccount(RealmId("acme"), "bob", "h-bob", false, List("user"))), List())
+    + Alice signs out: her session ends  allows (ServerState(List(UserAccount(RealmId("acme"), "alice", "h-alice", true, List("admin", "user")), UserAccount(RealmId("acme"), "bob", "h-bob", false, List("user"))), List(Session("t1", RealmId("acme"), "alice"))), SignOut(RealmId("acme"), "t1")) ⇒ ServerState(List(UserAccount(RealmId("acme"), "alice", "h-alice", true, List("admin", "user")), UserAccount(RealmId("acme"), "bob", "h-bob", false, List("user"))), List())
+    + an administrator disables Alice; her session stays, and is no longer accepted  allows (ServerState(List(UserAccount(RealmId("acme"), "alice", "h-alice", true, List("admin", "user")), UserAccount(RealmId("acme"), "bob", "h-bob", false, List("user"))), List(Session("t1", RealmId("acme"), "alice"))), SetEnabled(RealmId("acme"), "alice", false)) ⇒ ServerState(List(UserAccount(RealmId("acme"), "alice", "h-alice", false, List("admin", "user")), UserAccount(RealmId("acme"), "bob", "h-bob", false, List("user"))), List(Session("t1", RealmId("acme"), "alice")))
+  ... 7 more: context handleRequest
+
+Code
+  proven define handle
+    handle = (s: Term[ServerState], q: Term[AuthRequest]) => record(q, next(s, q))
+    next = (s: Term[ServerState], q: Term[AuthRequest]) =>
+      ServerState(administer(s.accounts, q), opened(s, q)
+        .fold(s.sessions.filter(y => !endedBy(q, y)))(x => s.sessions ++ List(x)))
+    ... 16 more line(s): context handleRequest
+  at run time: not checked, the running code is the code Lean proves
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: One request at a time: a sign-in opens a session only for an enabled user with their password and a token no open session holds, a sign-out ends its realm's session, an administrator changes accounts only. Induction turns this per-step promise into sessionsMirrorSignIns and accountsAsAdministered.
+  2026-10-23 15:28  accepted by demo-developer: Written with terms in place of the Scala the macro read, and the Lean it gives is the same
+  2026-10-23 15:45  confirmed by demo-developer: still holds after sessionsMirrorSignIns changed: Same meaning and the same Lean: AuthRequest's cases are now built through its Data companion
+  2026-10-25 00:49  accepted by demo-developer: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 14:12  accepted by demo-developer: The same examples: `reject` is now `never`.
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

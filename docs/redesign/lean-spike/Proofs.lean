@@ -12,17 +12,26 @@ namespace Rooms
 abbrev roomOf (store : List Booking) (room : String) : RoomBookings :=
   RoomBookings.mk (store.filter (fun b => decide (b.room = room)))
 
-/-- The run of `bookIfGranted` on the models: the room's bookings read, the answer granted's, the request added
-exactly when granted. -/
-theorem run_eq (granted : RoomBookings → Booking → Prop) (request : Booking) (w : World) :
+/-- The run of `bookIfGranted` on the models: the room's bookings read, the answer granted's, the booking the request
+asks for added exactly when granted. -/
+theorem run_eq (granted : RoomBookings → Booking → Prop) (request : Request) (w : World) :
     bookIfGranted_run granted request w =
-      (granted (roomOf w.store request.room) request,
-       if granted (roomOf w.store request.room) request
-       then { w with store := w.store ++ [request] } else w) := by
-  by_cases h : granted (roomOf w.store request.room) request <;>
+      (granted (roomOf w.store request.room) (asBooking request),
+       if granted (roomOf w.store request.room) (asBooking request)
+       then { w with store := w.store ++ [asBooking request] } else w) := by
+  by_cases h : granted (roomOf w.store request.room) (asBooking request) <;>
     simp [bookIfGranted_run, bookIfGranted, FrFlow.runOn_bind, FrFlow.runOn_pure, FrFlow.runOn_within,
       FrFlow.runOn_get, FrFlow.runOn_set, FrFlow.runOn_map, FrFlow.runOn_ite, Bookings.inRoom_onWorld,
       Bookings.add_onWorld, Stored.inRoom, Stored.add, roomOf, h]
+
+/-- The booking a request asks for is in the request's room. -/
+theorem asBooking_room (r : Request) : (asBooking r).room = r.room := rfl
+
+/-- What the form sends ends after it starts, so the booking made from it does: `endsAfterStart` from `fromTheForm`. -/
+theorem asBooking_ends (r : Request) (h : fromTheForm r) : endsAfterStart (asBooking r) := by
+  unfold fromTheForm at h
+  unfold endsAfterStart asBooking
+  exact h
 
 /-- Bookings that end after they start and share no moment do not overlap, in start and end times. -/
 theorem apart_noOverlap (a b : Booking) (ha : endsAfterStart a) (hb : endsAfterStart b) (h : apart a b) :
@@ -88,43 +97,45 @@ theorem granted_free (granted : RoomBookings → Booking → Prop) (h : grantWhe
 theorem bookWhenFree_impl : bookWhenFree.Obl.impl := by
   intro granted h request hr before hno hv
   rw [run_eq]
-  have hg := granted_free granted h request hr before.store hno hv
-  by_cases hf : isFree before.store request
-  · have hy : granted (roomOf before.store request.room) request := hg ▸ hf
+  have hg := granted_free granted h (asBooking request) (asBooking_ends request hr) before.store hno hv
+  rw [asBooking_room] at hg
+  by_cases hf : isFree before.store (asBooking request)
+  · have hy : granted (roomOf before.store request.room) (asBooking request) := hg ▸ hf
     simp [hy, hf]
-  · have hn : ¬granted (roomOf before.store request.room) request := hg ▸ hf
+  · have hn : ¬granted (roomOf before.store request.room) (asBooking request) := hg ▸ hf
     simp [hn, hf]
 
 theorem neverOverlap_cover_book : neverOverlap.Obl.cover_book := by
   intro granted h _ request hr before hno hv
   rw [run_eq]
-  have hg := granted_free granted h request hr before.store hno hv
-  by_cases hf : isFree before.store request
-  · have hy : granted (roomOf before.store request.room) request := hg ▸ hf
+  have hg := granted_free granted h (asBooking request) (asBooking_ends request hr) before.store hno hv
+  rw [asBooking_room] at hg
+  by_cases hf : isFree before.store (asBooking request)
+  · have hy : granted (roomOf before.store request.room) (asBooking request) := hg ▸ hf
     simp only [hy, ite_true]
     unfold neverOverlap at *
     rw [List.pairwise_append]
     refine ⟨hno, List.pairwise_singleton _ _, fun a ha b hb => ?_⟩
     simp at hb; subst hb; exact hf a ha
-  · have hn : ¬granted (roomOf before.store request.room) request := hg ▸ hf
+  · have hn : ¬granted (roomOf before.store request.room) (asBooking request) := hg ▸ hf
     simp only [hn, ite_false]; exact hno
 
 theorem endsAfterStart_cover_book : endsAfterStart.Obl.cover_book := by
   intro granted _ _ request hr before _ hv
   rw [run_eq]
-  by_cases hy : granted (roomOf before.store request.room) request
+  by_cases hy : granted (roomOf before.store request.room) (asBooking request)
   · simp only [hy, ite_true]
     intro b hb
     rcases List.mem_append.mp hb with hb | hb
     · exact hv b hb
-    · simp at hb; subst hb; exact hr
+    · simp at hb; subst hb; exact asBooking_ends request hr
   · simp only [hy, ite_false]; exact hv
 
 theorem answersWhetherBooked_impl : answersWhetherBooked.Obl.impl := by
   intro granted _ _ request _ before _ _
   rw [run_eq]
-  by_cases hy : granted (roomOf before.store request.room) request
-  · have grown : ¬(before.store ++ [request] = before.store) := fun e => by
+  by_cases hy : granted (roomOf before.store request.room) (asBooking request)
+  · have grown : ¬(before.store ++ [asBooking request] = before.store) := fun e => by
       have := congrArg List.length e; simp at this
     simp [hy, grown]
   · simp [hy]

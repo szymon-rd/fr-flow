@@ -1,0 +1,46 @@
++ sharedCrm: "A user's search finds a record exactly when it asks for that record, a user of the record's company added it, and it is of the user's company or currently shared with it by its own."
+|- + storeMirrorsRequests: "The CRM holds exactly the records its users added, and holds a share of a record as current exactly when the record's company shared it so."
+|  |- + writesTakeEffect: "A user's write about their company's record does what they asked: it adds the record, shares it (until a time, or for good), or unshares it."
+|  |  |- + writeContract (contract): "A write keeps every record, leaves the records of other companies as they were, does what its author asked of their company's records, and changes nothing else."
+|  |  `- + saveWrite (contract): "Saving a write stores, and returns as read back, what the store the write leads to holds about the written record."
+|  |     `- - writeSideWiring (design): "The write side saves each write through service, on the store loaded from the database, one write at a time, and logs it in the event log."
+|  |- + writesOnlyAsAsked: "A write changes nothing its author did not ask of their company's records: it adds no other record, and changes no other share or share's time."
+|  |  |- -> writeContract
+|  |  `- -> saveWrite
+|  |- + recordsKept: "No write and no run of the expiry job removes a record: after each, the CRM holds every record it held before."
+|  |  |- -> writeContract
+|  |  |- -> saveWrite
+|  |  `- -> sharesExpire
+|  `- + sharesExpire (contract): "A run of the expiry job at a time removes exactly the shares given until then or earlier, with their times, and keeps every record and every other share's time."
+|- + visibility: "A search, on either screen, returns exactly the stored records it asks for that the user may read now: of their company, or shared with it now."
+|  |- + noCrossTenantRead (invariant): "No search returns a record of another company unless that company shared it with the reader's, for good or until a time not yet come."
+|  |  |- -> readContract
+|  |  `- -> dealSearch
+|  `- + searchesMatch: "A search, on either screen, returns only stored records it asks for, and every stored record it asks for that the user may read."
+|     |- + readContract (contract): "A search on the records screen returns exactly the stored records that match it and the user may read: each of the user's company or shared with it now."
+|     |  `- - readSideWiring (design): "The records screen and the sales screen serve searches through service, which checks every result against readContract or dealSearch and the invariant they keep; they read the store, shares and expiries from the database's tables, the history from its event log, and the clock."
+|     `- + dealSearch (contract): "A deal search returns exactly the stored deals that match it and the user may read."
+|        `- -> readSideWiring
+`- - httpApi (design): "The HTTP API answers searches through the records screen and the sales screen, and writes through the write side; who calls is the account in the request's headers."
++ expiryJob (contract): "A run of the expiry job at a time leaves the database holding, about each record, what sharesExpire's run on what it held gives, logs the run at the end of the event log, and returns that store."
+`- - expiryJobWiring (design): "The expiry job runs every minute, holding the database's lock during a run so no write interleaves with it; its code is the flow expiryJob is proven of, run on SQLite."
+
+Assumptions, under no parent: trusted (the code calls them)
++ recordsByQuery (assumption): "The database returns exactly the stored records that match a search, of every company."
++ storeEdits (assumption): "Storing what a store holds about one record replaces what the database holds about it, and nothing else; read back, the rows about it are what the store holds about it."
+- tablesModel (assumption): "The database holds a store and an event log: it gives the store as it holds it, holds the rows a store has about a record in place of those it held about it, leaving the other records' rows, and appends an event to the log."
+
+Definitions: they fix terms of the vocabulary (decided, not proven)
+- companies (definition): "companies are named by ids; a user is an account of one company; a record, a contact or a deal, belongs to the company stored on it."
+- searches (definition): "A user searches by id, by kind or for everything, on the records screen or on the sales screen, which asks for deals only, and finds what the search returns."
+- adding (definition): "A user of a company has added a record when a write of theirs in the CRM's history asked to add it, of their company, under an id no record added before it had."
+- sharing (definition): "A record is shared with a company now when the last share or unshare of it with that company, by a user of its company once it was added, was a share, and neither the clock now nor a run of the expiry job since has reached that share's time."
+- crmRun (definition): "What the CRM holds now, its records, their shares and the shares' expiries, is what its history led to: from empty, each write saved by the write side, the rows about its record replaced by those it stored, and each run of the expiry job, in turn."
+
+Crm: 26 nodes, 26 accepted
+Proofs: splits 8/8, claims down to their code 6/6, root_impl proven, consistency not proven, nothing vacuous (3 open: check says which)
+Tests: code against its claims 2/2, implementations against their models 1/1, examples in Lean 36/36, at run time 2 checked on every call, 5 not checked (proven)
+Trusted: storeEdits, recordsByQuery, tablesModel (a model)
+Nothing waits: every node is accepted and proven.
+marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do
+--- exit 0

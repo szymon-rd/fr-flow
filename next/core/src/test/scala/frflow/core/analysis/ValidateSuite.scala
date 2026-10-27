@@ -1,6 +1,6 @@
 package frflow.core.analysis
 
-import frflow.core.{Kb, Store}
+import frflow.core.{Booking, Kb, Lang, Store}
 import frflow.core.Nodes.*
 import frflow.core.code.Code
 import frflow.core.name.{NodeId, SymbolName}
@@ -33,6 +33,12 @@ class ValidateSuite extends munit.FunSuite:
     assertEquals(ValueCases.proven.without("stray").problems, Nil)
   }
 
+  test("a model named as its boundary's class, its namespace in Lean, is declared twice") {
+    val clashing = Store.kb.declaring(v => v.copy(models = v.models.map(_.copy(name =
+      frflow.core.name.ModelName("bookings")))))
+    assert(clashing.problems.contains(Problem.DeclaredTwice("Bookings")), clashing.problems)
+  }
+
   test("an empty theory has no root to miss") {
     assertEquals(Kb.empty.problems, Nil)
   }
@@ -58,4 +64,41 @@ class ValidateSuite extends munit.FunSuite:
     val kb = Kb.of(plain("a"), plain("a"), design("layout")).naming(definition("granted", frflow.core.Lang.big))
     assertEquals(kb.problems, List(Problem.DuplicateId(NodeId("a")), Problem.DesignWithoutParent(NodeId("layout")),
       Problem.Undefined(SymbolName("granted"))))
+  }
+
+  /** `always[Booking]`: every booking ends after it starts, claimed or assumed. */
+  private def always(id: String, claimed: Boolean) =
+    val b = frflow.core.term.Bound[Booking]("b", Booking.ty)
+    val f = Lang.formula([T[_]] => (l: Lang[T]) => l.s.always[Booking](b)(_ => l.truth))
+    if claimed then claim(id)(f) else assumption(id)(f)
+
+  private def fromOutside(ps: List[Problem]) = ps.collect {
+    case p @ Problem.PremiseMissing(_, Premise.FromOutside(_), _) => p
+    case p: Problem.PremiseNotNeeded                             => p
+  }
+
+  test("values of a type from outside (owner §21): an always of it rests on an assumption of always on it") {
+    val claimed = Store.kb.and(always("endsAfterStart", claimed = true))
+    val needs = Premise.FromOutside(Booking.ty)
+    assert(Premises.of(claimed.theory, NodeId("endsAfterStart")).contains(needs))
+    assertEquals(fromOutside(claimed.problems), List(Problem.PremiseMissing(NodeId("endsAfterStart"), needs, None)))
+    val assumed = claimed.and(always("fromTheDesk", claimed = false))
+    // The store's contents are guarded by it too, so the program's claim rests on it as well.
+    assertEquals(fromOutside(assumed.problems), List("bookRuns", "endsAfterStart").map(id =>
+      Problem.PremiseMissing(NodeId(id), needs, Some(NodeId("fromTheDesk")))))
+    assertEquals(fromOutside(assumed.linking(assumes("endsAfterStart", "fromTheDesk"))
+      .linking(assumes("bookRuns", "fromTheDesk")).problems), Nil)
+  }
+
+  test("an assumption of always is kept where a claim of it is: by the programs storing its values (owner §21)") {
+    val kb = Store.kb.and(always("endsAfterStart", claimed = true), always("fromTheDesk", claimed = false))
+    val scope = List("endsAfterStart", "fromTheDesk").map(id => Scope.of(kb.theory, NodeId(id)))
+    assert(scope.head.nonEmpty, scope)
+    assertEquals(scope.last, scope.head)
+  }
+
+  test("an assumption of always listed where no check rests on it is not needed") {
+    val kb = Store.kb.and(always("fromTheDesk", claimed = false), plain("unrelated"))
+      .linking(assumes("unrelated", "fromTheDesk")).linking(assumes("bookRuns", "fromTheDesk"))
+    assertEquals(fromOutside(kb.problems), List(Problem.PremiseNotNeeded(NodeId("unrelated"), NodeId("fromTheDesk"))))
   }

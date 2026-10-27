@@ -1,0 +1,27 @@
++ accessNeedsGrant  claim  accepted
+  A request is admitted on behalf of a user only if a grant names that user and the path.
+  why: No one may access what they are not authorized to, and a grant is what authorizes.
+
+Formally (as written in Scala)
+  formula:
+    forall((t: Term[String], p: Term[Path]) => admit(t, p).forall(u => grants.contains(Grant(u, p))))
+
+Where it sits
+  part of    + accessExactly  with tokenNamesHolder, grantLetsIn: "A user gets access to a resource exactly when they are signed in and authorized for it."
+
+Parts: together they make it (proven: auto)
+  + decisionContract (contract)  needed: "A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Vocabulary
+  admit (operation): the system's decision on a request (a token and a path): the user it is admitted on behalf of, if any (open)
+  grants: the grant table as stored when the request is decided (open)
+
+Proofs
+  complete: proven: auto
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: IDEA.md: no user may ever access a resource they are not authorized to; here in terms of admitted requests and grants. It is the never-happen half of accessExactly, and needed for it.
+  2026-10-23 15:18  accepted by demo-developer: Rewritten with FrFlow's terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.
+  2026-10-26 15:22  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

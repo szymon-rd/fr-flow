@@ -70,7 +70,6 @@ class MentionsSuite extends munit.DisciplineSuite:
     assertEquals(Exprs.mentions(Expr.Outside(OutsideFact.BehavesAs(b, m))), Mentions(Nil, Nil, Nil, List(b), List(m)))
     assertEquals(Exprs.mentions(Expr.Outside(OutsideFact.Initially(m, DefName("empty")))),
       Mentions(Nil, List(DefName("empty")), Nil, Nil, List(m)))
-    assertEquals(Exprs.mentions(Expr.Outside(OutsideFact.Calls(book))), Mentions(List(book), Nil, Nil, Nil, Nil))
   }
 
   test("a binder mentions its variable's type") {

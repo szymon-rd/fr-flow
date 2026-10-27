@@ -1,0 +1,53 @@
++ accessContract  contract on access  accepted
+  A person's access to a document not in the trash is worked out from their teams and the document's folders: among the shares in force with them or one of their teams, of the document or one of the folders around it, it is edit if one is an edit share, view if there is any, and none otherwise. A document in the trash gives no access.
+  why: This is how the service finds the shares that matter without asking every share whether it reaches the person and covers the document: it lists who a share must be with and what it must be of, once each. That this finds exactly the shares the meaning names (reach, cover) is what the purpose's proof shows.
+
+Formally (as written in Scala)
+  post (every call of access):
+    forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], d: Term[DocumentId]) => access(lib, t, p, d) === inTrash(lib, d).fold(none[Level],
+          strongest(lib.shares.filter(s => inForce(s, t) && granteesOf(lib, p).contains(s.withWhom) && placesOf(lib, d).contains(s.what)))))
+
+Where it sits
+  part of    + accessFollowsShares  with invitationsAreOffers, trashUntilGone, housekeepingClearsOnlyTheEnded, accessRequestsAreAsks, ownersKeepTheirDocuments, auditTrail, noticesFollowChanges, canViewContract, canEditContract, shareContract, unshareContract, moveContract, handleContract, domainTypes: "At any moment, a person can view a document exactly when it is not in the trash and a share in force lets them view it, and edit it exactly when that share is an edit share; and what is shared, offered or kept changes only at the hand of someone who may edit it, of a person taking up an open invitation, or of housekeeping clearing away what has ended."
+  part of    + invitationsAreOffers  with inviteContract, acceptContract, withdrawContract, isOpenContract, invitationsLapseOnTime: "An invitation is an offer from someone who may edit: only they send it or take it back, it gives nobody access, it is taken up only by the person invited while it is open, and housekeeping clears it away within one of its periods of its lapsing."
+  uses       - inTrash (definition): "A document is in the trash when it was put there and not restored since."
+  called by  + canViewContract (contract): "A person can view a document exactly when they have some access to it."
+  called by  + canEditContract (contract): "A person can edit a document exactly when their access to it is edit."
+  called by  + handleContract (contract): "A request is answered at the time the clock gives, from the library the store holds, and leaves the store holding the library it leads to: a question is answered with the person's access and changes nothing; a change is made as its operation makes it, recorded in the log and announced in the outbox in the same save, and answered done when it may be made and refused otherwise. Handling does not move the clock. A request the store fails changes nothing."
+
+Vocabulary
+  access (operation): a person's access to a document at a moment, as the service works it out (open)
+  inForce (operation): whether a share is in force at a moment: it gives access then (open)
+  inTrash: whether a document is in the trash (defined by inTrash)
+
+Proofs
+  impl (Sharing.accessCode): proven: auto
+
+Examples: 8 of 8 pass; Lean agrees on 8 of 8
+  given nothing
+    + Bob's team may view the reports folder, which the Q3 report is in  allows (Library(List(Document(DocumentId("plan"), "Plan", List(), None, PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(), List(), List(), List()), 1000000, PersonId("bob"), DocumentId("q3-report")) ⇒ Some(View)
+    + Ann may edit the reports folder  allows (Library(List(Document(DocumentId("plan"), "Plan", List(), None, PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(), List(), List(), List()), 1000000, PersonId("ann"), DocumentId("q3-report")) ⇒ Some(Edit)
+    + nothing is shared with Cat  allows (Library(List(Document(DocumentId("plan"), "Plan", List(), None, PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(), List(), List(), List()), 1000000, PersonId("cat"), DocumentId("plan")) ⇒ None
+    + Bob's share of the plan is in force  allows (Library(List(Document(DocumentId("plan"), "Plan", List(), None, PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("bob")), View, Some(1003600)), Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(), List(), List(), List()), 1000000, PersonId("bob"), DocumentId("plan")) ⇒ Some(View)
+  ... 4 more: context accessContract
+
+Code
+  proven define Sharing.accessCode
+    Sharing.accessCode = (lib: Term[Library], t: Term[BigInt], p: Term[PersonId], d: Term[DocumentId]) =>
+        val (grantees, places) = (granteesOf(lib, p), placesOf(lib, d))
+        inTrash(lib, d).fold(none[Level], strongest(lib.shares.filter(s => inForce(s, t) && grantees.contains(s.withWhom) && places.contains(s.what))))
+    Sharing.strongest = (ss: Term[List[Share]]) =>
+    ... 5 more line(s): context accessContract
+  at run time: not checked, the running code is the code Lean proves
+
+Decisions
+  2026-10-25 01:31  accepted by demo-developer: Computing access from the person's grantees and the document's places is the efficient reading of reach and cover; the root proof shows they agree.
+  2026-10-25 11:42  accepted by demo-developer: As in stage 1, counting only shares in force, and nothing for a document in the trash (Q8).
+  2026-10-25 12:57  confirmed by demo-developer: still holds after invitationsAreOffers changed: Q7 as its own branch: an invitation is an offer from someone who may edit, gives no access, is taken up only while open, and is cleared within one housekeeping period of lapsing. Its proof uses invitationsLapseOnTime through isOpenContract, so the deadline is no longer under the root unused.
+  2026-10-25 14:46  confirmed by demo-developer: Unchanged statement; library's new fields.
+  2026-10-25 15:13  confirmed by demo-developer: still holds after invitationsAreOffers changed: Unchanged statement; Lean proves it again: only shareContract and the ownership branch, which it rests on or sits beside, changed.
+  2026-10-25 19:03  confirmed by demo-developer: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-25 19:35  confirmed by demo-developer: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-26 14:12  accepted by demo-developer: The same examples: `reject` is now `never`.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

@@ -1,0 +1,16 @@
+# Seeds: sharing
+
+FRFLOW_SEED=1 for every check.
+
+Generated tests (node: cases, against what, seed):
+  ClockKept: 1000 against the model ClockModel, seed 1
+  LibraryKept: 1200 against the model LibraryModel, seed 1
+  MailerKept: 1000 against the model MailerModel, seed 1
+
+In the example's suites (fixed in their code):
+  examples/sharing/src/test/scala/sharing/SharingSuite.scala:260: blackBox(MemoryLibraryStore(library), 18731, seed = 1)
+  examples/sharing/src/test/scala/sharing/SharingSuite.scala:264: blackBox(SqlLibraryStore.holding(library), 18732, seed = 2)
+  examples/sharing/src/test/scala/sharing/SharingSuite.scala:291: val rnd = Random(17)
+  examples/sharing/src/test/scala/sharing/SharingSuite.scala:451: val keptRuns = (1 to 20).map(s => run(s, kept = true))
+  examples/sharing/src/test/scala/sharing/SharingSuite.scala:453: val broken = (1 to 20).map(s => run(100 + s, kept = false))
+  examples/sharing/src/test/scala/sharing/SharingSuite.scala:468: val rnd = Random(7)

@@ -1,0 +1,30 @@
++ answersNameASession  claim  accepted
+  An introspection answers only with the realm and user of a session the server holds under the token.
+  why: A token is a reference to a session: what the server says about it must come from that session, not from the token or the request.
+
+Formally (as written in Scala)
+  formula:
+    forall((r: Term[RealmId], t: Term[String]) => introspect(r, t).forall(c => sessions(c.realm).contains(Session(t, c.realm, c.user))))
+
+Where it sits
+  part of    + onlyTheSignedIn  with realmIsolation, sessionsMirrorSignIns: "A token is accepted in a realm only as the user who signed in to that realm with it and has not signed out with it since."
+  uses       - serverRun (definition): "The server's sessions and accounts now are what its requests led to: from the accounts loaded at start and no session, each request handled in turn."
+
+Parts: together they make it (proven: auto)
+  + introspect (contract)  needed: "An introspection names the realm asking, and a user enabled there with their roles, only for a session that realm holds under the token; and it names that session's user whenever the user is enabled and the token names no other session there."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Vocabulary
+  introspect (operation): the server's answer to a realm's application asking about a token: the claims it is active with, or none (not active) (open)
+  sessions: the sessions a realm has open, as the server holds them now (defined by serverRun)
+
+Proofs
+  complete: proven: auto
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: A token is a reference to a session (referenceTokens), so an introspection may only answer with the realm and user of a session the server holds under that token; with sessionsMirrorSignIns this gives only the signed-in.
+  2026-10-23 15:28  accepted by demo-developer: Written with terms in place of the Scala the macro read, and the Lean it gives is the same
+  2026-10-23 15:44  confirmed by demo-developer: still holds after signInHistory changed: Same meaning: the sign-out is now built through the enum's Data companion instead of make[���]
+  2026-10-25 00:48  confirmed by demo-developer: still holds after signInHistory changed: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

@@ -32,7 +32,7 @@ addCommandAlias("frflowInitAgent", "agent/runMain frflow.agent.Init")
 
 lazy val root = project.in(file("."))
   .aggregate((Seq[ProjectReference](model, protocol, lean, ledger, check, api, cli, web, testkit, agent, auth, crm,
-    keycloak, sharing, rooms) ++ nextModules)*)
+    keycloak, sharing, rooms, referenceCapture) ++ nextModules)*)
   .configs(LeanTest).settings(leanTagged)
   .settings(publish / skip := true)
 
@@ -52,12 +52,13 @@ def nextModules: Seq[ProjectReference] = Seq(
   nextDsl, // step 2
 
   // step 3: nextProof
+  nextProof,
 
   // step 4: nextEval
 
   // step 5: nextTesting
 
-  // step 6: nextDecision
+  nextDecision,
 
   // step 7: nextWire
 
@@ -82,12 +83,14 @@ lazy val nextCore = nextModule("core", cats).settings(libraryDependencies ++= la
 lazy val nextDsl = nextModule("dsl", cats).dependsOn(nextCore).settings(Test / parallelExecution := false)
 
 // next-proof (step 3)
+/** Obligations, the Lean AST, the one term printer, lowering, layout, reading Lean's output, the judges. */
+lazy val nextProof = nextModule("proof", cats).dependsOn(nextCore % "compile->compile;test->test")
 
 // next-eval (step 4)
 
 // next-testing (step 5)
 
-// next-decision (step 6)
+lazy val nextDecision = nextModule("decision", cats).dependsOn(nextCore)
 
 // next-wire (step 7)
 
@@ -201,3 +204,12 @@ lazy val sharing = example("sharing").settings(libraryDependencies += "org.xeria
 
 /** Booking meeting rooms: a request is granted exactly when its room is free; the README's example. */
 lazy val rooms = example("rooms", layers = Nil).settings(libraryDependencies += "org.xerial" % "sqlite-jdbc" % "3.46.1.3")
+
+/** Today's outputs recorded under `reference/` for the rebuild (step 0): `python3 reference/capture.py EXAMPLE` runs
+  * it; this project holds the examples' seeded bugs, run as their suites seed them.
+  */
+lazy val referenceCapture = Project("referenceCapture", file("reference/capture"))
+  .dependsOn(auth, crm, keycloak, sharing)
+  .configs(LeanTest).settings(leanTagged)
+  .settings(publish / skip := true, run / fork := true, run / baseDirectory := (ThisBuild / baseDirectory).value,
+    run / javaOptions ++= Seq("-Dstdout.encoding=UTF-8", "-Dfile.encoding=UTF-8", "-Duser.timezone=UTC"))

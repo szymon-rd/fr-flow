@@ -1,0 +1,20 @@
+- serviceWiring  design  accepted
+  Every request reaches the store through service, one at a time: a sign-in, sign-out or administrator's change runs handleRequest's code on the stored state, which stores its result through storeKeepsState; an introspection runs introspect's code on the state the store holds.
+  why: The proofs are about a server whose state is its requests applied in turn (serverRun): every path to the store must go through service, and keeping the wiring in one governed file makes a change to it visible. One process holds the store, so a sign-out or a disabled user is seen by the next introspection at once.
+
+Formally (as written in Scala)
+  exempt from realmIsolation: it returns what introspect returns, which keeps the rule, and stored states, which hold no claims
+
+Where it sits
+  part of    + handleRequest (contract)  its only part: "A request opens the session a sign-in asks for when the user is enabled, the password theirs and no session holds the token; ends the sessions its sign-out names in its realm; changes accounts only as an administrator's change sets them; and changes nothing else."
+  part of    + introspect (contract)  its only part: "An introspection names the realm asking, and a user enabled there with their roles, only for a session that realm holds under the token; and it names that session's user whenever the user is enabled and the token names no other session there."
+  design     - httpApi (design): "The HTTP API serves Keycloak's token, introspection and logout endpoints for each realm, and lets an administrator enable or disable a user; it hashes the password with the user's salt and draws each token from a secure random source before calling the wiring."
+
+Code
+  governs: src/main/scala/keycloak/Wiring.scala
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: One process with one store and every request through service in order: this is what makes serverRun true of the running server, so a sign-out or a disabled user is seen by the next introspection. Governed so any change to the wiring is reviewed.
+  2026-10-23 15:28  confirmed by demo-developer: Written with terms in place of the Scala the macro read, and the Lean it gives is the same
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

@@ -1,0 +1,22 @@
++ accessExactly: "A user gets access to a resource exactly when they are signed in and authorized for it."
+|- + tokenNamesHolder: "A request is admitted only on behalf of the user its token was issued to."
+|  `- + decisionContract (contract): "A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path."
+|     `- - inMemorySessions (design): "Sessions and grants are loaded into memory, in one process that decides every request."
+|- + accessNeedsGrant: "A request is admitted on behalf of a user only if a grant names that user and the path."
+|  `- -> decisionContract
+`- + grantLetsIn: "A request whose token was issued to a user with a grant for the path is admitted on their behalf."
+   `- -> decisionContract
+
+Definitions: they fix terms of the vocabulary (decided, not proven)
+- identities (definition): "Users are named by ids, and resources are paths."
+- requests (definition): "A user has access to a path when some request for it is admitted on their behalf."
+- sessionTable (definition): "A user is signed in when some session token was issued to them."
+- grantTable (definition): "A user is authorized for a path when a grant names that user and that path."
+
+Auth: 10 nodes, 10 accepted
+Proofs: splits 4/4, claims down to their code 0/1, root_impl proven, consistency not proven, nothing vacuous (1 open: check says which)
+Tests: code against its claims 1/1, examples in Lean 5/5, at run time 1 checked on every call
+Trusted: nothing; tested, not proven: decisionContract
+Nothing waits: every node is accepted and proven, or its code tested.
+marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do
+--- exit 0

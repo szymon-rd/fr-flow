@@ -1,0 +1,38 @@
+- libraryKept  assumption  accepted
+  The store gives the library it holds, and after a save holds the library saved, in place of the one it held; any call may fail because the store is down, and then changes nothing.
+  why: Proven flows are proven from this model, not from the store's code, for every pattern of failures. MemoryLibraryStore, the service's own store, is tested against it; SQLite, an outside system, is checked against it: SqlLibraryStore keeps each list's order in its rows and replaces every row in one transaction, so a save that fails changes nothing (Q16). The log and the outbox are saved with the library: a change, its entry and its notices in one transaction, and the log is never cut (Q15).
+
+Formally (as written in Scala)
+  model:
+    load = do
+        get
+    save = fun (library : Library) => do
+        set library
+
+Code
+  implemented by: l => MemoryLibraryStore(l) (the project's own code, tested against the model); l => SqlLibraryStore.holding(l) (an outside system, checked against the model; the model stays assumed)
+  tested: 1,200 generated runs of its operations (seed 1), against the model LibraryModel
+    every run gives what the model gives and leaves what it leaves, and every operation and branch of it was reached
+    note: MemoryLibraryStore (the project's own code, tested): 1000 runs of 1 to 12 operations each, from generated states
+    note: SqlLibraryStore (an outside system: its model is assumed; these runs check it): 200 runs of 1 to 12 operations each, from generated states
+    note: PersonId: ann, bob, cat (given)
+    note: TeamId: eng, ops (given)
+    note: DocumentId: plan, q3-report (given)
+    note: FolderId: reports, q3 (given)
+    note: BigInt: seconds within 40 days of the demo's moment, by hours and days (given)
+    note: Target: the vocabulary's documents and folders (given)
+    note: Grantee: the vocabulary's people and teams (given)
+    note: Share: shares over the vocabulary, for good or until a time (given)
+    note: Invitation: invitations over the vocabulary, sent at a time (given)
+    note: AccessRequest: access requests over the vocabulary, made at a time, reminded or not (given)
+    note: Library: libraries over the vocabulary: q3 in reports or not, documents anywhere, in the trash or not, owned by anyone, any shares, invitations and requests, a short log and outbox (given)
+    note: Request: requests over the vocabulary: questions and every kind of change (given)
+  governs: src/main/scala/sharing/store/SqlLibraryStore.scala
+
+Decisions
+  2026-10-25 01:31  accepted by demo-developer: The store is a boundary with one state; memory is tested and SQLite checked against it, which is what a store should promise.
+  2026-10-25 11:41  accepted by demo-developer: Unchanged promise; the store now also keeps share ends, trash times and invitations (memory tested, SQLite checked).
+  2026-10-25 14:43  accepted by demo-developer: Q16: the store may fail (down) and then changes nothing; one record holds library, log and outbox, so one save per request is one transaction.
+  2026-10-25 18:56  confirmed by demo-developer: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

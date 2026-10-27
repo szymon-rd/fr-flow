@@ -1,0 +1,14 @@
+- onlyBookingWrites  assumption  accepted
+  Only booking writes to the table.
+
+Formally (as written in Scala)
+  formula:
+    storedBookings.writtenOnlyBy(book)
+
+Where it sits
+  assumed by + neverOverlap: "The bookings stored never overlap."
+
+Decisions
+  2026-10-26 21:47  accepted by demo-developer: Only the booking service writes the bookings table: no other program or person changes it.
+  2026-10-26 22:28  accepted by demo-developer: Only the booking service writes the bookings table: no other program or person changes it.
+--- exit 0

@@ -10,6 +10,12 @@ open Classical
 
 namespace Rooms
 
+structure Request where
+  room : String
+  start : Int
+  «end» : Int
+deriving DecidableEq
+
 structure Booking where
   room : String
   start : Int
@@ -19,6 +25,10 @@ deriving DecidableEq
 structure RoomBookings where
   bookings : (List Booking)
 deriving DecidableEq
+
+@[frflow_defs] def fromTheForm (r : Request) : Prop := (r.start < r.«end»)
+
+@[frflow_defs] def asBooking (r : Request) : Booking := (Booking.mk r.room r.start r.«end»)
 
 @[frflow_defs] def endsAfterStart (b : Booking) : Prop := (b.start < b.«end»)
 
@@ -77,20 +87,20 @@ namespace Stored
 
 end Stored
 
-@[frflow_defs] def bookIfGranted {m : Type → Type} [Monad m] [Bookings m] (granted : RoomBookings → Booking → Prop) : Booking → m Prop :=
-  fun (request : Booking) => do
+@[frflow_defs] def bookIfGranted {m : Type → Type} [Monad m] [Bookings m] (granted : RoomBookings → Booking → Prop) : Request → m Prop :=
+  fun (request : Request) => do
     let r ← do
       let r_1 ← Bookings.inRoom request.room
-      if (granted r_1 request) then
-        Bookings.add request
+      if (granted r_1 (Rooms.asBooking request)) then
+        Bookings.add (Rooms.asBooking request)
         pure ()
       else
         pure ()
-      pure (granted r_1 request)
+      pure (granted r_1 (Rooms.asBooking request))
     pure r
 
-@[frflow_defs] def bookIfGranted_run (granted : RoomBookings → Booking → Prop) : Booking → World → (Prop × World) :=
-  fun (request : Booking) (w : World) => (FrFlow.runOn ((Rooms.bookIfGranted granted) request) w)
+@[frflow_defs] def bookIfGranted_run (granted : RoomBookings → Booking → Prop) : Request → World → (Prop × World) :=
+  fun (request : Request) (w : World) => (FrFlow.runOn ((Rooms.bookIfGranted granted) request) w)
 
 namespace grantWhenNoOverlap
 @[frflow_defs] def claim (granted : RoomBookings → Booking → Prop) : Prop := (∀ (held : RoomBookings), ((∀ b ∈ held.bookings, (Rooms.endsAfterStart b)) → ((Rooms.roomBookingsApart held) → (∀ (request : Booking), ((Rooms.endsAfterStart request) → ((granted held request) = (∀ b ∈ held.bookings, (Rooms.noOverlap b request))))))))
@@ -101,26 +111,26 @@ namespace grantWhenFree
 end grantWhenFree
 
 namespace bookWhenFree
-@[frflow_defs] def claim (book : Booking → (World → (Prop × World))) : Prop := (∀ (request : Booking), ((Rooms.endsAfterStart request) → (∀ (before : World), ((Rooms.neverOverlap before.store) → ((∀ b ∈ before.store, (Rooms.endsAfterStart b)) → (match (book request before) with | (result, after) => (after.store = (if (Rooms.isFree before.store request) then (before.store ++ [request]) else before.store))))))))
+@[frflow_defs] def claim (book : Request → (World → (Prop × World))) : Prop := (∀ (request : Request), ((Rooms.fromTheForm request) → (∀ (before : World), ((Rooms.neverOverlap before.store) → ((∀ b ∈ before.store, (Rooms.endsAfterStart b)) → (match (book request before) with | (result, after) => (after.store = (if (Rooms.isFree before.store (Rooms.asBooking request)) then (before.store ++ [(Rooms.asBooking request)]) else before.store))))))))
 end bookWhenFree
 
 namespace answersWhetherBooked
-@[frflow_defs] def claim (book : Booking → (World → (Prop × World))) : Prop := (∀ (request : Booking), ((Rooms.endsAfterStart request) → (∀ (before : World), ((Rooms.neverOverlap before.store) → ((∀ b ∈ before.store, (Rooms.endsAfterStart b)) → (match (book request before) with | (booked, after) => (booked = (¬(after.store = before.store)))))))))
+@[frflow_defs] def claim (book : Request → (World → (Prop × World))) : Prop := (∀ (request : Request), ((Rooms.fromTheForm request) → (∀ (before : World), ((Rooms.neverOverlap before.store) → ((∀ b ∈ before.store, (Rooms.endsAfterStart b)) → (match (book request before) with | (booked, after) => (booked = (¬(after.store = before.store)))))))))
 end answersWhetherBooked
 
 end Rooms
 
 namespace Rooms.neverOverlap
 
-@[frflow_defs] def keeps_book (book : Booking → (World → (Prop × World))) : Prop :=
-  (∀ (request : Booking), ((Rooms.endsAfterStart request) → (∀ (before : World), ((Rooms.neverOverlap before.store) → ((∀ b ∈ before.store, (Rooms.endsAfterStart b)) → (match (book request before) with | (result, after) => (Rooms.neverOverlap after.store)))))))
+@[frflow_defs] def keeps_book (book : Request → (World → (Prop × World))) : Prop :=
+  (∀ (request : Request), ((Rooms.fromTheForm request) → (∀ (before : World), ((Rooms.neverOverlap before.store) → ((∀ b ∈ before.store, (Rooms.endsAfterStart b)) → (match (book request before) with | (result, after) => (Rooms.neverOverlap after.store)))))))
 
 end Rooms.neverOverlap
 
 namespace Rooms.endsAfterStart
 
-@[frflow_defs] def keeps_book (book : Booking → (World → (Prop × World))) : Prop :=
-  (∀ (request : Booking), ((Rooms.endsAfterStart request) → (∀ (before : World), ((Rooms.neverOverlap before.store) → ((∀ b ∈ before.store, (Rooms.endsAfterStart b)) → (match (book request before) with | (result, after) => (∀ b ∈ after.store, (Rooms.endsAfterStart b))))))))
+@[frflow_defs] def keeps_book (book : Request → (World → (Prop × World))) : Prop :=
+  (∀ (request : Request), ((Rooms.fromTheForm request) → (∀ (before : World), ((Rooms.neverOverlap before.store) → ((∀ b ∈ before.store, (Rooms.endsAfterStart b)) → (match (book request before) with | (result, after) => (∀ b ∈ after.store, (Rooms.endsAfterStart b))))))))
 
 end Rooms.endsAfterStart
 

@@ -1,0 +1,51 @@
++ endedStaysEnded  claim  accepted
+  What has ended stays ended: time in the service never goes back, so a share once ended, an invitation once lapsed and a document once gone stay so for the rest of the run.
+  why: Stability in time: these facts change only one way, which is what lets the service cache them and housekeeping remove them for good. It rests on the clock never going back (clockNeverGoesBack).
+
+Formally (as written in Scala)
+  formula:
+    forall((pre: Term[List[Event]], post: Term[List[Event]]) => (events === pre ++ post) implies (after(pre).now <= after(events).now)) &&
+        forall((t: Term[BigInt], u: Term[BigInt]) => (t <= u) implies
+          (forall((s: Term[Share]) => !inForce(s, t) implies !inForce(s, u)) &&
+           forall((i: Term[Invitation]) => !isOpen(i, t) implies !isOpen(i, u)) &&
+           forall((doc: Term[Document]) => gone(doc, t) implies gone(doc, u))))
+
+Where it sits
+  part of    + housekeepingClearsOnlyTheEnded  with tidyContract: "Housekeeping clears away only what has ended: shares no longer in force or of a document gone, invitations no longer open, and documents gone; and what has ended stays ended, so nothing it clears could have counted again."
+  uses       - permission (definition): "A person may view a document or folder when a share in force reaches them and covers it; they may edit it when such a share is an edit share."
+  uses       - reach (definition): "A share reaches the person it is with, and everyone in the team it is with."
+  uses       - cover (definition): "A share of a document covers that document; a share of a folder covers the folder, every folder inside it, and every document inside any of them."
+  uses       - ownersShare (definition): "An owner's share of a document is a share of it with the document's owner in person."
+
+Parts: together they make it (proven: authored)
+  + inForceContract (contract)  needed: "A share is in force while now is before its end; a share with no end is always in force."
+  + isOpenContract (contract)  needed: "An invitation is open from its sending until 7 days after; then it has lapsed."
+  + goneContract (contract)  needed: "A document in the trash is gone 30 days after it was put there; a document not in the trash is never gone."
+  + clockNeverGoesBack (assumption)  needed: "Time never goes back between the service's events: each wait is of no time or more."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Vocabulary
+  announce (operation): the library with notices of a change added to its outbox (open)
+  events: what has happened to the service since it started, in order: the requests answered, the runs of housekeeping, and time passing (open)
+  gone (operation): whether a document is gone at a moment: past restoring, purged by the next housekeeping (open)
+  inForce (operation): whether a share is in force at a moment: it gives access then (open)
+  isOpen (operation): whether an invitation is open at a moment: it can be accepted then (open)
+  isPending (operation): whether an access request is pending at a moment: it can be approved then (open)
+  mayEdit: whether a person may edit a document or folder at a moment (defined by permission)
+  ownedBy: whether a share of a document or folder with someone is the owner's share of their own document (defined by ownersShare)
+  record (operation): the library with a change recorded in its log (open)
+  reminderDue (operation): whether the owner is due a reminder of an access request at a moment (open)
+  startedAt: when the service started, in seconds (open)
+
+Proofs
+  complete: proven: authored
+
+Decisions
+  2026-10-25 11:42  accepted by demo-developer: Stability in time: ended, lapsed and gone are one-way, given clockNeverGoesBack.
+  2026-10-25 12:57  confirmed by demo-developer: still holds after housekeepingClearsOnlyTheEnded changed: Q6-Q8 as its own branch: tidying removes only what has ended, and ending is for good (endedStaysEnded), so nothing it removes could count again. Proven by automation.
+  2026-10-25 14:45  accepted by demo-developer: Unchanged statement; comes back with the library's new fields.
+  2026-10-25 15:14  confirmed by demo-developer: Unchanged statement; Lean proves it again: only shareContract and the ownership branch, which it rests on or sits beside, changed.
+  2026-10-25 19:00  accepted by demo-developer: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-25 19:31  confirmed by demo-developer: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

@@ -51,7 +51,6 @@ object Exprs:
     case OutsideFact.WrittenOnlyBy(m, ps) => Mentions(ps, Nil, Nil, Nil, List(m))
     case OutsideFact.OneRunAtATime(m)     => Mentions.empty.copy(models = List(m))
     case OutsideFact.Initially(m, d)      => Mentions(Nil, List(d), Nil, Nil, List(m))
-    case OutsideFact.Calls(d)             => Mentions.empty.copy(symbols = List(d))
 
   /** The variables `e` binds itself (not those of its subexpressions). */
   def binders(e: Expr): List[Binder] = e match

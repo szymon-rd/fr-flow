@@ -1,0 +1,25 @@
+! bookWhenFree — it and what is above it changed: review it: "A request is stored exactly when its room is free for its whole time."
+|- ! grantWhenFree — it and what is above it changed: review it: "A request is granted exactly when its room is free for its whole time."
+|  `- ! grantWhenNoOverlap — it, what is above it and its code changed: review it: "A request is granted exactly when it overlaps no booking of its room."
+|- ! tableModel (assumption) — what is above it changed: review it: "The table gives a room's bookings in the order they were added, and adds one at the end."
+`- ! oneAtATime (assumption) — what is above it changed: review it: "Bookings are processed one at a time."
+! answerWhenFree — it and what is above it changed: review it: "A request is answered booked exactly when its room is free for its whole time."
+|- -> grantWhenFree
+|- -> tableModel
+`- -> oneAtATime
+! neverOverlap — it changed: review it: "The bookings stored never overlap."
+|- ! onlyBookingWrites (assumption) — what is above it changed: review it: "Only booking writes to the table."
+|- ! startsApart (assumption) — what is above it changed: review it: "The table starts with no two bookings overlapping."
+`- -> oneAtATime
++ endsAfterStart: "Every booking ends after it starts."
+`- - requestsEndAfterStart (assumption): "The booking form sends only requests that end after they start."
++ bookingsOfTheRoom: "A room's bookings are all of that room."
+! roomBookingsApart — it changed: review it: "A room's bookings never overlap."
+
+Rooms: 13 nodes, 3 accepted, 10 to review
+Proofs: splits 3/3, root_impl proven, consistency proven, nothing vacuous
+Tests: code against its claims 1/1, implementations against their models 1/1, examples in Lean 6/6, at run time 1 checked on every call
+Trusted: tableModel (a model), onlyBookingWrites, oneAtATime, startsApart, requestsEndAfterStart (facts); tested, not proven: grantWhenNoOverlap
+Waiting: 10 for the developer
+marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do
+--- exit 1

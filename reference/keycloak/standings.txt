@@ -1,0 +1,27 @@
+# Standings: keycloak (FRFLOW_SEED=1)
+
+node | kind | standing | review | detail
+
+Accounts | definition | nothing to prove | accepted | 
+AccountsAsAdministered | claim | proven | accepted | 
+AnswersNameASession | claim | proven | accepted | 
+DisabledHaveNoAccess | claim | proven | accepted | 
+FreshTokens | assumption | assumed | accepted | its check: proven
+HandleRequest | contract | proven | accepted | 
+HttpApi | design | nothing to prove | accepted | 
+Identities | definition | nothing to prove | accepted | 
+Introspect | contract | tested | accepted | code tested on 1000 cases against Introspect, seed 1
+NoUnauthorizedAccess | claim | proven | accepted | 
+OneSignInPerToken | claim | proven | accepted | 
+OnlyTheSignedIn | claim | proven | accepted | 
+RealmAccess | claim | proven | accepted | 
+RealmIsolation | invariant | proven | accepted | 
+ReferenceTokens | definition | nothing to prove | accepted | 
+RolesAsGranted | claim | proven | accepted | 
+ServerRun | definition | nothing to prove | accepted | 
+ServiceWiring | design | nothing to prove | accepted | 
+SessionLookup | assumption | assumed | accepted | its check: proven
+SessionsMirrorSignIns | claim | proven | accepted | 
+SignInHistory | definition | nothing to prove | accepted | 
+SignedInAreAccepted | claim | proven | accepted | 
+StoreKeepsState | assumption | assumed | accepted | its check: proven

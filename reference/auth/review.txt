@@ -1,0 +1,9 @@
+
+Decided 0 decision(s).
+Auth: 10 nodes, 10 accepted
+Proofs: splits 4/4, claims down to their code 0/1, root_impl proven, consistency not proven, nothing vacuous (1 open: check says which)
+Tests: code against its claims 1/1, examples in Lean 5/5, at run time 1 checked on every call
+Trusted: nothing; tested, not proven: decisionContract
+Nothing waits: every node is accepted and proven, or its code tested.
+marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do
+--- exit 0

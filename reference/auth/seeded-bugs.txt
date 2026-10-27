@@ -1,0 +1,25 @@
+# Seeded bugs: auth
+
+Each bug is seeded as today's suite seeds it; under it, what stops it today. Generated cases use the
+knowledge base's settings (cases and seed shown on each).
+
+## careless decision code (in section 9's table)
+
+seeded: decisionContract implemented by (token, _) => the user the token was issued to: the grant table ignored
+suite: AuthSuite: an implementation that ignores the grant table is stopped by its contract, and fails a generated case
+
+on the call: decide("t-1", Path("/admin")), grants = List(Grant(alice, /reports/q3)), tokens = t-1 -> alice
+  stopped by: ContractViolation
+    DecisionContract: result Some(UserId("alice")) for ("t-1", Path("/admin")) breaks the contract
+generated cases of DecisionContract: 1000 against DecisionContract, seed 1
+  fails at seed 1, index 1, size 1
+  case:
+    token = "aa1", path = Path(""), given sessions = {"aa1" ↦ Some(UserId("")), else None}, grants = List()
+  why:
+    returned Some(UserId("")), which DecisionContract forbids
+the examples of DecisionContract: 5 run, 2 failing on the implementation
+  no grant for /b: refused
+    the implementation returned Some(UserId("alice"))
+  access without a grant is never given
+    the implementation returned Some(UserId("alice"))
+

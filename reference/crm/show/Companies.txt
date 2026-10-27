@@ -1,0 +1,26 @@
+- companies  definition  accepted
+  companies are named by ids; a user is an account of one company; a record, a contact or a deal, belongs to the company stored on it.
+  why: The CRM knows a company by its id, a user by their account, and stores each record with its company. That the account a request comes with is the caller's own is authentication, not modelled.
+
+Formally (as written in Scala)
+    Company := TenantId
+    User := Account
+    Record := CrmRecord
+    companyOf := (a: Term[Account]) => a.tenant
+    owner := (r: Term[CrmRecord]) => r.tenant
+
+Where it sits
+  used by    + sharedCrm: "A user's search finds a record exactly when it asks for that record, a user of the record's company added it, and it is of the user's company or currently shared with it by its own."
+
+Vocabulary
+  Company: a company that uses the CRM (defined by companies)
+  Record: a contact or a deal kept in the CRM (defined by companies)
+  User: a person who works for one of the companies that use the CRM (defined by companies)
+  companyOf: the company a user works for (defined by companies)
+  owner: the company a record belongs to (defined by companies)
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: IDEA.md: many companies use one CRM, each with its users, and records belong to a company. companies by id, a user as an account of one company and the company stored on each record is the least the isolation rules need; that the account is the caller's is authentication, Not modelled.
+  2026-10-23 15:32  accepted by demo-developer: Rewritten with the FrFlow terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

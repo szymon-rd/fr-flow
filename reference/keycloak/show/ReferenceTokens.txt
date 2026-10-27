@@ -1,0 +1,28 @@
+- referenceTokens  definition  accepted
+  A realm's application accepts a token as the server's introspection of it answers: a token is a reference to a session the server holds, not a statement the application reads.
+  why: Sign-out must end a token at once, and a disabled user must lose access at once: a signed token stays good after both until it expires, so applications ask the server about every token. The cost is a lookup per check, which one server answers from memory.
+
+Formally (as written in Scala)
+    accepted := (r: Term[RealmId], t: Term[String]) => claimsOf(introspect(r, t))
+
+Where it sits
+  used by    + realmAccess: "A realm's application accepts a token as a user's, with the user's roles, exactly when the user signed in to that realm and got the token, has not signed out with it since, and is still enabled."
+  used by    + noUnauthorizedAccess: "A token is accepted only as a user who signed in to that realm with it, has not signed out since and is still enabled, and only with that user's roles."
+  used by    + signedInAreAccepted: "A user who signed in to a realm and got a token, has not signed out with it since and is still enabled, has it accepted there as theirs, with their roles."
+  used by    + onlyTheSignedIn: "A token is accepted in a realm only as the user who signed in to that realm with it and has not signed out with it since."
+  used by    + disabledHaveNoAccess: "A token is never accepted as a user who is disabled now, whenever they signed in."
+  used by    + rolesAsGranted: "A token is accepted only with the roles the realm gives its user now."
+
+Vocabulary
+  accepted: whom a realm's application accepts a token as, now: the user, and the roles it is told they have, if it accepts the token at all (defined by referenceTokens)
+  introspect (operation): the server's answer to a realm's application asking about a token: the claims it is active with, or none (not active) (open)
+
+Decisions
+  2026-10-23 00:22  accepted by demo-developer: Sign-out must end a token at once, and a disabled user must lose access at once: a signed token stays good after both until it expires. Revisit if applications must check tokens without calling the server.
+  2026-10-23 15:28  accepted by demo-developer: Written with terms in place of the Scala the macro read, and the Lean it gives is the same
+  2026-10-25 00:48  accepted by demo-developer: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+
+Alternatives rejected for it
+  SignedTokens: A realm's application accepts a token as the token itself says: a token is a signed statement of its user and roles, read without asking the server.
+--- exit 0

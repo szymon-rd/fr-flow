@@ -1,0 +1,36 @@
++ storeMirrorsRequests  claim  accepted
+  The CRM holds exactly the records its users added, and holds a share of a record as current exactly when the record's company shared it so.
+  why: What users asked is said of the history alone (adding, sharing); the CRM keeps tables, and searches read those. This is the link, proven by induction over the history, as Keycloak's sessions follow its sign-ins: each write saved and each run of the job moves the tables as one more event moves what users asked. One record more would show what nobody added, one less would lose a record a user added; a share outliving its time or its unshare would show a record to a company no longer entitled to it.
+
+Formally (as written in Scala)
+  formula:
+    forall((r: Term[CrmRecord]) => store.contains(r) === askedIn(history).records.contains(r)) &&
+      forall((id: Term[BigInt], c: Term[TenantId]) => sharedNow(id, c) === sharedIn(history, id, c, clock))
+
+Where it sits
+  part of    + sharedCrm  with visibility, httpApi: "A user's search finds a record exactly when it asks for that record, a user of the record's company added it, and it is of the user's company or currently shared with it by its own."
+  uses       - crmRun (definition): "What the CRM holds now, its records, their shares and the shares' expiries, is what its history led to: from empty, each write saved by the write side, the rows about its record replaced by those it stored, and each run of the expiry job, in turn."
+
+Parts: together they make it (proven: authored)
+  + writesTakeEffect  needed: "A user's write about their company's record does what they asked: it adds the record, shares it (until a time, or for good), or unshares it."
+  + writesOnlyAsAsked  needed: "A write changes nothing its author did not ask of their company's records: it adds no other record, and changes no other share or share's time."
+  + recordsKept  needed: "No write and no run of the expiry job removes a record: after each, the CRM holds every record it held before."
+  + sharesExpire (contract)  needed: "A run of the expiry job at a time removes exactly the shares given until then or earlier, with their times, and keeps every record and every other share's time."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Vocabulary
+  clock: the time now, in seconds, by the server's clock: when a search runs (open)
+  expiries: the times until which the CRM's shares are given, as it holds them now (defined by crmRun)
+  history: the CRM's history since it started empty: every write the write side saved and every run of the expiry job, in order (its event log) (open)
+  shares: the shares the CRM holds now (defined by crmRun)
+  store: the records the CRM holds now (defined by crmRun)
+
+Proofs
+  complete: proven: authored
+
+Decisions
+  2026-10-23 13:47  accepted by demo-developer: The link from the history to the tables, by induction as in Keycloak: the CRM holds exactly what users added and shared.
+  2026-10-23 15:32  accepted by demo-developer: Rewritten with the FrFlow terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.
+  2026-10-25 00:50  accepted by demo-developer: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

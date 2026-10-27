@@ -1,0 +1,50 @@
++ tidyContract  contract on tidy  accepted
+  Tidying at a moment keeps the shares in force, except those of a document gone; keeps the invitations still open; and keeps the documents not gone. Everything else stays as it was.
+  why: Q6–Q8: ended shares and lapsed invitations give nothing and are removed; a document 30 days in the trash is deleted for good, with its shares (Q8), so they cannot come back to anything. The folders and teams are not touched.
+
+Formally (as written in Scala)
+  post (every call of tidy):
+    forall((lib: Term[Library], t: Term[BigInt]) =>
+        tidy(lib, t) === lib.copy((documents = lib.documents.filterNot(doc => gone(doc, t)),
+          shares = lib.shares.filter(s => inForce(s, t) && !ofGone(lib, t, s)),
+          invitations = lib.invitations.filter(i => isOpen(i, t)))))
+
+Where it sits
+  part of    + housekeepingClearsOnlyTheEnded  with endedStaysEnded: "Housekeeping clears away only what has ended: shares no longer in force or of a document gone, invitations no longer open, and documents gone; and what has ended stays ended, so nothing it clears could have counted again."
+  called by  + housekeepingJob (contract): "A run of housekeeping leaves the store holding the library it held, tidied, its old log entries forgotten, its access requests chased and the shares ending in a day told of, at the time the clock gives, and, when that changed it, recorded in the log; it does not move the clock. A run that fails changes nothing, and the next minute's run tries again."
+
+Vocabulary
+  gone (operation): whether a document is gone at a moment: past restoring, purged by the next housekeeping (open)
+  inForce (operation): whether a share is in force at a moment: it gives access then (open)
+  isOpen (operation): whether an invitation is open at a moment: it can be accepted then (open)
+  tidy (operation): the library tidied at a moment (open)
+
+Proofs
+  impl (Housekeeping.tidyCode): proven: auto
+
+Examples: 4 of 4 pass; Lean agrees on 4 of 4
+  given nothing
+    + nothing has ended yet  allows (Library(List(Document(DocumentId("plan"), "Plan", List(), Some(913600), PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("bob")), View, Some(1003600)), Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(Invitation(PersonId("cat"), Doc(DocumentId("plan")), View, PersonId("ann"), 913600)), List(), List(), List()), 1000000) ⇒ Library(List(Document(DocumentId("plan"), "Plan", List(), Some(913600), PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("bob")), View, Some(1003600)), Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(Invitation(PersonId("cat"), Doc(DocumentId("plan")), View, PersonId("ann"), 913600)), List(), List(), List())
+    + Bob's share of the plan has ended  allows (Library(List(Document(DocumentId("plan"), "Plan", List(), Some(913600), PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("bob")), View, Some(1003600)), Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(Invitation(PersonId("cat"), Doc(DocumentId("plan")), View, PersonId("ann"), 913600)), List(), List(), List()), 1003600) ⇒ Library(List(Document(DocumentId("plan"), "Plan", List(), Some(913600), PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(Invitation(PersonId("cat"), Doc(DocumentId("plan")), View, PersonId("ann"), 913600)), List(), List(), List())
+    + a month on: the invitation has lapsed, and the plan is gone with its shares  allows (Library(List(Document(DocumentId("plan"), "Plan", List(), Some(913600), PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("bob")), View, Some(1003600)), Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(Invitation(PersonId("cat"), Doc(DocumentId("plan")), View, PersonId("ann"), 913600)), List(), List(), List()), 3505600) ⇒ Library(List(Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(), List(), List(), List())
+    + nothing is removed before its time  forbids (Library(List(Document(DocumentId("plan"), "Plan", List(), Some(913600), PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("bob")), View, Some(1003600)), Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(Invitation(PersonId("cat"), Doc(DocumentId("plan")), View, PersonId("ann"), 913600)), List(), List(), List()), 1000000) ⇒ Library(List(Document(DocumentId("plan"), "Plan", List(), None, PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(), List(), List(), List())
+
+Code
+  proven define Housekeeping.tidyCode
+    Housekeeping.tidyCode = (lib: Term[Library], t: Term[BigInt]) =>
+        lib.copy((documents = lib.documents.filterNot(doc => gone(doc, t)),
+          shares = lib.shares.filter(s => inForce(s, t) && !ofGone(lib, t, s)),
+          invitations = lib.invitations.filter(i => isOpen(i, t))))
+    Housekeeping.ofGone = (lib: Term[Library], t: Term[BigInt], s: Term[Share]) =>
+        lib.documents.exists(doc => gone(doc, t) && s.what === Target[Target.Doc](doc.id))
+  at run time: not checked, the running code is the code Lean proves
+
+Decisions
+  2026-10-25 11:44  accepted by demo-developer: Q6-Q8: housekeeping removes ended shares, lapsed invitations, gone documents and their shares, and nothing else.
+  2026-10-25 12:57  confirmed by demo-developer: still holds after housekeepingClearsOnlyTheEnded changed: Q6-Q8 as its own branch: tidying removes only what has ended, and ending is for good (endedStaysEnded), so nothing it removes could count again. Proven by automation.
+  2026-10-25 14:46  confirmed by demo-developer: Unchanged statement; library's new fields.
+  2026-10-25 19:00  accepted by demo-developer: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-25 19:31  confirmed by demo-developer: Unchanged in words; back because a type (requests for a document or folder, per-person mailboxes) or a node above or below changed; Lean proves it again.
+  2026-10-26 14:12  accepted by demo-developer: The same examples: `reject` is now `never`.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

@@ -74,9 +74,9 @@ class StoreModelSuite extends munit.FunSuite:
     val booked = for
       run    <- Running.make[IO](granting)
       memory <- checked().start(Nil)
-      book    = (b: Booking) => BookIfGranted(BookingsOps.lifted(memory, run))(using run).run(Lift.constant(b))
-      first  <- book(Booking("Oak", 9, 11)).map(run.value)
-      clash  <- book(Booking("Oak", 10, 12)).map(run.value)
+      book    = (r: Request) => BookIfGranted(BookingsOps.lifted(memory, run))(using run).run(Lift.constant(r))
+      first  <- book(Request("Oak", 9, 11)).map(run.value)
+      clash  <- book(Request("Oak", 10, 12)).map(run.value)
       held   <- memory.bookings
     yield (first, clash, held)
     assertEquals(booked.unsafeRunSync(), (true, false, List(Booking("Oak", 9, 11))))

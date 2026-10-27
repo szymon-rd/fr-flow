@@ -49,12 +49,13 @@ object Validate:
     yield Problem.UnderDesign(n.id, p.id)
 
   /** Each name declared once, none a name generated Lean binds itself, and no statement mentioning a value with no
-    * Lean type.
+    * Lean type. A model's namespace in Lean is its name capitalized (`Stored`), so it is declared there too: a model
+    * named as its boundary's class (`shelf` of `Shelf`) is declared twice.
     */
   private def vocabulary(t: Theory): ValidatedNec[Problem, Unit] =
     val v = t.vocabulary
     val names = v.sorts.map(_.name.value) ++ v.types.map(_.typeName.value) ++ v.symbols.map(_.name.value) ++
-      v.defines.map(_.name.value) ++ v.boundaries.map(_.className)
+      v.defines.map(_.name.value) ++ v.boundaries.map(_.className) ++ v.models.map(_.name.value.capitalize)
     all(names.filter(Reserved.names).distinct.map(Problem.ReservedName(_)) ++
       names.diff(names.distinct).distinct.map(Problem.DeclaredTwice(_)) ++
       t.nodes.map(_.node.id).flatMap(id => Constrained.of(t, id).filter(Constrained.isCodeOnly(t, _))
@@ -67,8 +68,7 @@ object Validate:
     val missing = t.nodes.map(_.node.id).flatMap(id => Premises.of(t, id)
       .filter(Outsides.assumed(t, id, _).isEmpty).map(p => Problem.PremiseMissing(id, p, Outsides.saying(t, p))))
     val unneeded = t.nodes.map(_.node.id).flatMap(id => Outsides.premises(t, id).filter(p =>
-      t.node(p).exists(n => n.statement.outside.nonEmpty &&
-        !n.statement.outside.exists(f => Premises.of(t, id).exists(Outsides.says(f, _)))))
+      t.node(p).exists(n => Outsides.aboutOutside(n) && !Premises.of(t, id).exists(Outsides.saysOf(n, _))))
       .map(Problem.PremiseNotNeeded(id, _)))
     val unlisted = t.vocabulary.models.flatMap(m => Outsides.saying(t, Premise.WrittenOnlyBy(m.name)).toList
       .flatMap(_ => Premises.writers(t, m).filterNot(Outsides.writers(t, m.name).contains))

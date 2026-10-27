@@ -36,17 +36,28 @@ class BookSuite extends munit.FunSuite:
     forall((held: Term[RoomBookings], request: Term[Booking]) =>
       granted(held, request) === isFree(held.bookings, request)))
   private val bookingAgrees = Node.claim("Booking answers as the calendar grants, on the room's bookings held.")(
-    forall((request: Term[Booking], before: Term[World]) => book(request).from(before) { (booked, _) =>
-      booked === granted(make[RoomBookings](stored.in(before).filter(b => b.room === request.room)), request) }))
-    .assuming(storeModel, oneAtATime)
+    forall((request: Term[Request], before: Term[World]) => book(request).from(before) { (booked, _) =>
+      booked === granted(make[RoomBookings](stored.in(before).filter(b => b.room === request.room)),
+        asBooking(request)) }))
+    .assuming(storeModel, oneAtATime, fromTheForm)
   private val unassumed = Node.claim("Booking answers whether the request was booked, said again.")(
-    forall((request: Term[Booking], before: Term[World]) =>
+    forall((request: Term[Request], before: Term[World]) =>
       book(request).from(before) { (booked, after) => booked === (stored.in(after) =!= stored.in(before)) }))
   private val overAssumed = Node.claim("A request is granted exactly when its room is free, said again.")(
     forall((held: Term[RoomBookings], request: Term[Booking]) =>
       granted(held, request) === isFree(held.bookings, request)))
     .assuming(oneAtATime)
   private val nobodyWrites = Node.assumption("Nothing writes the store.")(stored.writtenOnlyBy())
+  private val formAssumed = Node.claim("A request is granted exactly when its room is free, said a third time.")(
+    forall((held: Term[RoomBookings], request: Term[Booking]) =>
+      granted(held, request) === isFree(held.bookings, request)))
+    .assuming(fromTheForm)
+  // A Definition taking a Booking from outside: its Bookings are made by no covered code (owner §21).
+  private val cancels = Definition[Booking => Boolean]("whether a booking may be cancelled")
+  private val cancelsWhenFuture = Node.claim("A booking may be cancelled exactly when it ends after it starts.")(
+    forall((b: Term[Booking]) => cancels(b) === (b.start < b.end)))
+  private val fromTheDesk = Node.assumption("The front desk passes only bookings that end after they start.")(
+    always[Booking](b => b.start < b.end))
 
   test("the root statements: booking's two (one idea each) and what always holds, none with a parent") {
     val v = valid(rooms).fold(ps => fail(ps.toString), identity)
@@ -61,9 +72,10 @@ class BookSuite extends munit.FunSuite:
   test("each claim of booking is one equation: the store after, by a conditional; the answer, by the store") {
     val posts = List(bookWhenFree, answersWhetherBooked).map(n => RoomsLean.define(RoomsLean.post(n.statement)))
     assertEquals(posts, List(
-      "(request : Booking) (result : Prop) (before : World) (after : World) := (after.database = " +
-        "(if (Rooms.isFree before.database request) then (before.database ++ [request]) else before.database))",
-      "(request : Booking) (booked : Prop) (before : World) (after : World) := " +
+      "(request : Request) (result : Prop) (before : World) (after : World) := (after.database = " +
+        "(if (Rooms.isFree before.database (Rooms.asBooking request)) then " +
+        "(before.database ++ [(Rooms.asBooking request)]) else before.database))",
+      "(request : Request) (booked : Prop) (before : World) (after : World) := " +
         "(booked = (¬(after.database = before.database)))"))
   }
 
@@ -71,18 +83,39 @@ class BookSuite extends munit.FunSuite:
     val premises = Validate(rooms.elaborated.fold(e => fail(e.toString), identity)).fold(ps => fail(ps.toString),
       v => List("bookWhenFree", "neverOverlap", "endsAfterStart", "roomBookingsApart").map(n =>
         Premises.of(v.theory, NodeId(n))))
-    val m = ModelName("stored")
-    assertEquals(premises, List(List(Premise.BehavesAs(m), Premise.OneRunAtATime(m)),
-      List(Premise.BehavesAs(m), Premise.OneRunAtATime(m), Premise.Initially(m), Premise.WrittenOnlyBy(m)),
-      List(Premise.Calls(SymbolName("book")), Premise.BehavesAs(m), Premise.OneRunAtATime(m), Premise.Initially(m),
-        Premise.WrittenOnlyBy(m)), List(Premise.BehavesAs(m))))
+    val (m, form) = (ModelName("stored"), Premise.FromOutside(LeanType[Request].ty))
+    val kept = List(Premise.BehavesAs(m), Premise.OneRunAtATime(m), Premise.Initially(m), Premise.WrittenOnlyBy(m))
+    assertEquals(premises, List(List(Premise.BehavesAs(m), Premise.OneRunAtATime(m), form), kept :+ form,
+      kept :+ form, List(Premise.BehavesAs(m))))
     assertEquals(problems(all :+ unassumed), List(
       Problem.PremiseMissing(NodeId("unassumed"), Premise.BehavesAs(m), Some(NodeId("storeModel"))),
-      Problem.PremiseMissing(NodeId("unassumed"), Premise.OneRunAtATime(m), Some(NodeId("oneAtATime")))))
+      Problem.PremiseMissing(NodeId("unassumed"), Premise.OneRunAtATime(m), Some(NodeId("oneAtATime"))),
+      Problem.PremiseMissing(NodeId("unassumed"), form, Some(NodeId("fromTheForm")))))
     assertEquals(problems(all :+ overAssumed),
       List(Problem.PremiseNotNeeded(NodeId("overAssumed"), NodeId("oneAtATime"))))
     assertEquals(problems(all.filterNot(_ == onlyBookingWrites) :+ nobodyWrites).collect {
       case p: Problem.WriterNotListed => p }, List(Problem.WriterNotListed(m, SymbolName("book"))))
+  }
+
+  test("values from outside (owner §21): an assumption of `always` on their type, listed where a check rests on it") {
+    val (booking, deskId) = (LeanType[Booking].ty, NodeId("fromTheDesk"))
+    val desk = KnowledgeBase("Rooms")((all :+ cancelsWhenFuture)*).implementProven(book)(bookIfGranted)
+      .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
+      .implementTested(cancels)(_ => b => b.start < b.end)
+    def problemsOf(kb: KnowledgeBase) = valid(kb).fold(_.toList, _ => Nil)
+    assertEquals(problemsOf(desk),
+      List(Problem.PremiseMissing(NodeId("endsAfterStart"), Premise.FromOutside(booking), None)))
+    // Every check whose Lean form carries a Booking's guard (a Booking bound, or the store) now rests on the desk.
+    assertEquals(problemsOf(desk.copy(nodes = desk.nodes :+ fromTheDesk)).collect {
+      case Problem.PremiseMissing(id, Premise.FromOutside(`booking`), Some(`deskId`)) => id.value },
+      List("bookWhenFree", "answersWhetherBooked", "grantWhenFree", "grantWhenNoOverlap", "neverOverlap",
+        "endsAfterStart", "roomBookingsApart", "cancelsWhenFuture"))
+    assertEquals(problems(all :+ formAssumed),
+      List(Problem.PremiseNotNeeded(NodeId("formAssumed"), NodeId("fromTheForm"))))
+    val r = Resolve(valid(rooms).fold(ps => fail(ps.toString), identity))
+    assertEquals((Required.keeps(r, NodeId("endsAfterStart")).nonEmpty,
+      Required.made(r, NodeId("endsAfterStart")).map(_.name.toString)), (true, List("Made(inRoom)")))
+    assertEquals(Premises.of(r.theory, NodeId("grantWhenFree")), Nil)
   }
 
   test("a fact about the outside is a premise, never a part; a premise is an assumption or an `always`") {

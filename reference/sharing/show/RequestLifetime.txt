@@ -1,0 +1,21 @@
+- requestLifetime  definition  accepted
+  An access request stays pending for 7 days after it is made; its document's owner is reminded of it after 48 hours.
+  why: Q12: a reminder after 48 h; declined automatically after 7 days.
+
+Formally (as written in Scala)
+    requestLasts := 7 * 86400
+    remindAfter := 2 * 86400
+
+Where it sits
+  used by    + requestsAnsweredOnTime: "While housekeeping runs at least every two minutes, no access request stays pending longer than 7 days and two minutes after it was made, and none goes more than 48 hours and two minutes without its reminder."
+  used by    + pendingContract (contract): "An access request is pending from when it is made until 7 days after; then it has lapsed."
+  used by    + reminderDueContract (contract): "The owner is due a reminder of an access request from 48 hours after it is made."
+
+Vocabulary
+  remindAfter: how long after an access request is made its document's owner is reminded of it, in seconds (defined by requestLifetime)
+  requestLasts: how long an access request stays pending after it is made, in seconds (defined by requestLifetime)
+
+Decisions
+  2026-10-25 14:43  accepted by demo-developer: Q12: requests pending 7 days, the owner reminded after 48 hours.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

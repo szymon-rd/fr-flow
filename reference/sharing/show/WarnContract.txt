@@ -1,0 +1,38 @@
++ warnContract  contract on warn  accepted
+  Housekeeping tells of the shares ending within a day: at a moment, it adds at the end of the outbox a notice, to each person a share reaches, of each share whose end comes a day on, within one housekeeping period. Nothing else changes.
+  why: Q13 as assumed: shares ending within a day are notified. Housekeeping runs every minute and never two minutes apart (housekeepingOnTime), so a share's end falls in the window of one run or two; the mail server keeps a notice once (mailerKept), so each person is told once.
+
+Formally (as written in Scala)
+  post (every call of warn):
+    forall((lib: Term[Library], t: Term[BigInt]) => warn(lib, t) === lib.copy((outbox = lib.outbox ++ endingNotices(lib, t))))
+
+Where it sits
+  part of    + noticesFollowChanges  with recordContract, announceContract, deliveryJob: "A notice is sent only of a change already kept: at every moment, every notice of a logged change waiting in the outbox is of an entry in the log. A notice leaves the outbox only once the mail server has it, and the mail server has each notice once, so a person is told of each event at least once and never twice."
+  called by  + housekeepingJob (contract): "A run of housekeeping leaves the store holding the library it held, tidied, its old log entries forgotten, its access requests chased and the shares ending in a day told of, at the time the clock gives, and, when that changed it, recorded in the log; it does not move the clock. A run that fails changes nothing, and the next minute's run tries again."
+
+Vocabulary
+  warn (operation): the library with notices of the shares ending within a day (open)
+
+Proofs
+  impl (Notifications.warnCode): proven: auto
+
+Examples: 3 of 3 pass; Lean agrees on 3 of 3
+  given nothing
+    + Bob's share ends in a day: he is told  allows (Library(List(Document(DocumentId("plan"), "Plan", List(), None, PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("bob")), View, Some(1086370)), Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(), List(), List(), List()), 1000000) ⇒ Library(List(Document(DocumentId("plan"), "Plan", List(), None, PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("bob")), View, Some(1086370)), Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(), List(), List(), List(Notice(PersonId("bob"), Ending(Share(Doc(DocumentId("plan")), Person(PersonId("bob")), View, Some(1086370))))))
+    + a day and an hour before: not yet  allows (Library(List(Document(DocumentId("plan"), "Plan", List(), None, PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("bob")), View, Some(1086370)), Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(), List(), List(), List()), 996400) ⇒ Library(List(Document(DocumentId("plan"), "Plan", List(), None, PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("bob")), View, Some(1086370)), Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(), List(), List(), List())
+    + a share ending is never left untold  forbids (Library(List(Document(DocumentId("plan"), "Plan", List(), None, PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("bob")), View, Some(1086370)), Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(), List(), List(), List()), 1000000) ⇒ Library(List(Document(DocumentId("plan"), "Plan", List(), None, PersonId("ann")), Document(DocumentId("q3-report"), "Q3 report", List(FolderId("reports"), FolderId("q3")), None, PersonId("ann"))), List(Folder(FolderId("reports"), "Reports", List()), Folder(FolderId("q3"), "Q3", List(FolderId("reports")))), List(Team(TeamId("eng"), List(PersonId("bob")))), List(Share(Doc(DocumentId("plan")), Person(PersonId("bob")), View, Some(1086370)), Share(Doc(DocumentId("plan")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Person(PersonId("ann")), Edit, None), Share(InFolder(FolderId("reports")), Team(TeamId("eng")), View, None)), List(), List(), List(), List())
+
+Code
+  proven define Notifications.warnCode
+    Notifications.warnCode = (lib: Term[Library], t: Term[BigInt]) =>
+        lib.copy((outbox = lib.outbox ++ endingNotices(lib, t)))
+    Notifications.endingNotices = (lib: Term[Library], t: Term[BigInt]) =>
+        lib.shares.filter(s => endsInADay(s, t)).flatMap(s => reachedBy(lib, s).map(p => Notice(p, Subject[Subject.Ending](s))))
+    ... 4 more line(s): context warnContract
+  at run time: not checked, the running code is the code Lean proves
+
+Decisions
+  2026-10-25 19:34  accepted by demo-developer: Q13 as assumed (stage-3 open item): shares ending within a day are told of, to each person they reach, in the housekeeping run nearest a day before their end; once, by the mail server's keeping each notice once.
+  2026-10-26 14:12  accepted by demo-developer: The same examples: `reject` is now `never`.
+  2026-10-26 15:24  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

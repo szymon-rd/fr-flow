@@ -1,12 +1,18 @@
 package rooms
 
+import cats.effect.{IO, Ref}
+import cats.effect.unsafe.implicits.global
+import cats.Id
+import frflow.*
 import frflow.core.analysis.{Guards, Resolve, Validate}
-import frflow.core.name.{DefName, KbName, ModelName, NodeId, TypeName}
+import frflow.core.name.{DefName, KbName, ModelName, NodeId, SymbolName, TypeName}
 import frflow.core.spec.Range
 import frflow.core.ty.Ty
 import frflow.eval.run.{Broken, CallCheck, Made}
 import frflow.eval.{Env, ScalaValue, Semantics}
 import frflow.core.code.Values
+import frflow.dsl.term.Lift
+import frflow.eval.Running
 import frflow.proof.lean.ast.Names
 import frflow.proof.lean.lower.{LowerEnv, LowerKeeps, LowerObligation, LowerProp, Naming}
 import frflow.proof.lean.print.{Print, PrintDecl}
@@ -19,6 +25,8 @@ import frflow.proof.terms.TermTable
   * value is made (at a tested Definition's boundary in Scala), the other kept by every program writing the store.
   */
 class AlwaysSuite extends munit.FunSuite:
+  private def resolved(kb: KnowledgeBase) =
+    Resolve(Validate(kb.elaborated.fold(es => fail(es.toString), identity)).fold(ps => fail(ps.toString), identity))
   private val e = rooms.elaborated.fold(es => fail(es.toString), identity)
   private val r = Resolve(Validate(e).fold(ps => fail(ps.toString), identity))
   private val table = TermTable.of(r)
@@ -93,4 +101,49 @@ class AlwaysSuite extends munit.FunSuite:
       "((Rooms.neverOverlap w.store) → ((∀ b ∈ w.store, (Rooms.endsAfterStart b)) → " +
       "(Rooms.roomBookingsApart (inRoom room w.store))))))\n\nend Rooms.roomBookingsApart"))
     assertEquals(Required.made(r, NodeId("endsAfterStart")).map(_.name.toString), List("Made(inRoom)"))
+  }
+
+  // The rule of bookings assumed of the desk instead of claimed, and code that builds a booking end first: a proven
+  // define, and a program storing what it builds.
+  private val fromTheDesk = Node.assumption("The front desk keys in only bookings that end after they start.")(
+    always[Booking](b => b.start < b.end))
+  private val moved = Definition[Request => Booking]("the booking a request is moved to")
+  private val endFirst = define { (r: Term[Request]) => make[Booking](r.room, r.end, r.start) }
+  private val movedInRoom = Node.claim("A request is moved within its own room.")(
+    forall((r: Term[Request]) => moved(r).room === r.room)).assuming(fromTheForm)
+  private final class BookEndFirst[F[_]](store: Bookings[F, Term])(using f: Flow[F]):
+    def run(request: Term[Request]): F[Term[Boolean]] = f.flatMap(store.inRoom(request.room)) { held =>
+      val booking = make[Booking](request.room, request.end, request.start)
+      f.as(store.add(booking), granted(held, booking)) }
+  private val bookEndFirst = program { (request: Term[Request]) => BookEndFirst(store.recording).run(request) }
+
+  test("an assumption of `always` is kept by the code making or storing its values: covered code breaking it fails") {
+    val guarded = List(bookWhenFree, answersWhetherBooked, neverOverlap, roomBookingsApart, grantWhenFree,
+      grantWhenNoOverlap)
+    val desk = KnowledgeBase("Rooms")((guarded.map(_.assuming(fromTheDesk)) ++ List(storeModel, startsEmpty,
+      onlyBookingWrites, oneAtATime, fromTheForm, fromTheDesk, movedInRoom))*)
+      .implementProven(book)(bookEndFirst).implementProven(moved)(endFirst)
+      .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
+    val r = resolved(desk)
+    assertEquals((Required.made(r, NodeId("fromTheDesk")).map(_.name.toString),
+      Required.keeps(r, NodeId("fromTheDesk")).map(_.name.toString)),
+      (List("Made(moved)", "Made(inRoom)"), List("Cover(book)", "Cover(moved)")))
+    val e = desk.elaborated.fold(es => fail(es.toString), identity)
+    val semantics = Semantics(e)
+    val rule = Made.of(semantics, e.theory).find(_.always.value == "fromTheDesk").getOrElse(fail("fromTheDesk"))
+    val request = Request("Oak", 9, 11)
+    val made = e.theory.vocabulary.define(DefName("endFirst")).toRight("endFirst").flatMap(d =>
+      semantics.lambda(d.written).run(Env.of(Values.none), List(ScalaValue(request))))
+    assertEquals(made.map(rule.holds(_, Env.of(Values.none))), Right(false))
+    final class Memory(held: Ref[IO, List[Booking]]) extends Bookings[IO, Id]:
+      def inRoom(room: String): IO[RoomBookings] = held.get.map(bs => RoomBookings(bs.filter(_.room == room)))
+      def add(booking: Booking): IO[Unit] = held.update(_ :+ booking)
+    val stored = for
+      run  <- Running.make[IO](Values(Map(SymbolName("granted") -> (() => (held: RoomBookings, b: Booking) =>
+        Calendar(held).grants(b)))))
+      held <- Ref[IO].of(List.empty[Booking])
+      _    <- BookEndFirst(BookingsOps.lifted(Memory(held), run))(using run).run(Lift.constant(request))
+      all  <- held.get
+    yield all
+    assertEquals(stored.unsafeRunSync().map(b => rule.holds(ScalaValue(b), Env.of(Values.none))), List(false))
   }

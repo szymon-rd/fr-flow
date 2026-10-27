@@ -1,0 +1,62 @@
+# Standings: sharing (FRFLOW_SEED=1)
+
+node | kind | standing | review | detail
+
+AcceptContract | contract | proven | accepted | 
+AccessContract | contract | proven | accepted | 
+AccessFollowsShares | claim | proven | accepted | 
+AccessRequestsAreAsks | claim | proven | accepted | 
+AnnounceContract | contract | proven | accepted | 
+ApproveContract | contract | proven | accepted | 
+AskContract | contract | proven | accepted | 
+AuditTrail | claim | proven | accepted | 
+CanEditContract | contract | proven | accepted | 
+CanViewContract | contract | proven | accepted | 
+ChaseContract | contract | proven | accepted | 
+ClockKept | assumption | assumed | accepted | its check: proven; FakeClock run against the model on 1000 runs
+ClockNeverGoesBack | assumption | assumed | accepted | its check: proven
+Cover | definition | nothing to prove | accepted | 
+DeclineContract | contract | proven | accepted | 
+DeliveryJob | contract | proven | accepted | 
+DomainTypes | design | nothing to prove | accepted | 
+EndedStaysEnded | claim | proven | accepted | 
+ForgetContract | contract | proven | accepted | 
+GoneContract | contract | proven | accepted | 
+HandleContract | contract | proven | accepted | 
+HousekeepingClearsOnlyTheEnded | claim | proven | accepted | 
+HousekeepingJob | contract | proven | accepted | 
+HousekeepingOnTime | assumption | assumed | accepted | its check: proven
+HousekeepingPeriod | definition | nothing to prove | accepted | 
+InForceContract | contract | proven | accepted | 
+InTrash | definition | nothing to prove | accepted | 
+InvitationLifetime | definition | nothing to prove | accepted | 
+InvitationsAreOffers | claim | proven | accepted | 
+InvitationsLapseOnTime | claim | proven | accepted | 
+InviteContract | contract | proven | accepted | 
+IsOpenContract | contract | proven | accepted | 
+LibraryKept | assumption | assumed | accepted | its check: proven; MemoryLibraryStore, SqlLibraryStore run against the model on 1200 runs
+MailerKept | assumption | assumed | accepted | its check: proven; MemoryMailer run against the model on 1000 runs
+MoveContract | contract | proven | accepted | 
+NoticesFollowChanges | claim | proven | accepted | 
+OwnersKeepTheirDocuments | claim | proven | accepted | 
+OwnersShare | definition | nothing to prove | accepted | 
+PendingContract | contract | proven | accepted | 
+Permission | definition | nothing to prove | accepted | 
+Reach | definition | nothing to prove | accepted | 
+RecordContract | contract | proven | accepted | 
+ReminderDueContract | contract | proven | accepted | 
+RequestLifetime | definition | nothing to prove | accepted | 
+RequestsAnsweredOnTime | claim | proven | accepted | 
+RestoreContract | contract | proven | accepted | 
+ServerWiring | design | nothing to prove | accepted | 
+ShareContract | contract | proven | accepted | 
+TidyContract | contract | proven | accepted | 
+Transactions | design | nothing to prove | accepted | 
+TransferContract | contract | proven | accepted | 
+TrashContract | contract | proven | accepted | 
+TrashLifetime | definition | nothing to prove | accepted | 
+TrashPurgedOnTime | claim | proven | accepted | 
+TrashUntilGone | claim | proven | accepted | 
+UnshareContract | contract | proven | accepted | 
+WarnContract | contract | proven | accepted | 
+WithdrawContract | contract | proven | accepted | 

@@ -1,0 +1,28 @@
++ grantLetsIn  claim  accepted
+  A request whose token was issued to a user with a grant for the path is admitted on their behalf.
+  why: A grant is there to be used: a system that turned a granted user away would meet the rules by serving no one.
+
+Formally (as written in Scala)
+  formula:
+    forall((t: Term[String], p: Term[Path]) => sessions(t).forall(u => grants.contains(Grant(u, p)) implies (admit(t, p) === Some(u))))
+
+Where it sits
+  part of    + accessExactly  with tokenNamesHolder, accessNeedsGrant: "A user gets access to a resource exactly when they are signed in and authorized for it."
+
+Parts: together they make it (proven: auto)
+  + decisionContract (contract)  needed: "A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Vocabulary
+  admit (operation): the system's decision on a request (a token and a path): the user it is admitted on behalf of, if any (open)
+  grants: the grant table as stored when the request is decided (open)
+  sessions: the session table as stored when the request is decided: a token to the user it was issued to at login (open)
+
+Proofs
+  complete: proven: auto
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: The can-do half of accessExactly: a granted, signed-in user must get in, otherwise a server admitting no one would meet the safety rules. Lean shows it is needed.
+  2026-10-23 15:18  accepted by demo-developer: Rewritten with FrFlow's terms in place of the Scala-to-Lean macro: the same statement, and the same Lean, byte for byte.
+  2026-10-26 15:22  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

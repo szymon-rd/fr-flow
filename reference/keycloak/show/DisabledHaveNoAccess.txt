@@ -1,0 +1,37 @@
++ disabledHaveNoAccess  claim  accepted
+  A token is never accepted as a user who is disabled now, whenever they signed in.
+  why: Disabling a user is how an administrator takes access away: it must hold at once, for the sessions the user already has too.
+
+Formally (as written in Scala)
+  formula:
+    forall((r: Term[Realm.T], t: Term[Token.T]) => accepted(r, t).forall(a => enabled(r, a._1)))
+
+Where it sits
+  part of    + noUnauthorizedAccess  with onlyTheSignedIn, rolesAsGranted: "A token is accepted only as a user who signed in to that realm with it, has not signed out since and is still enabled, and only with that user's roles."
+  uses       - identities (definition): "Realms are named; a user is named by their username in a realm; tokens and roles are strings."
+  uses       - referenceTokens (definition): "A realm's application accepts a token as the server's introspection of it answers: a token is a reference to a session the server holds, not a statement the application reads."
+  uses       - accounts (definition): "A user is enabled, and has the roles, that their account in the realm says, as loaded at start and as administrators have set it since."
+
+Parts: together they make it (proven: auto)
+  + accountsAsAdministered  needed: "The server holds every user's account as loaded at start, with each administrator's change applied in turn."
+  + introspect (contract)  needed: "An introspection names the realm asking, and a user enabled there with their roles, only for a session that realm holds under the token; and it names that session's user whenever the user is enabled and the token names no other session there."
+  clash: Lean found no proof that the parts contradict each other (a try)
+
+Vocabulary
+  Realm: an organisation using the server, with its own users and applications (defined by identities)
+  Role: what a realm lets a user do in its applications, such as admin (defined by identities)
+  Token: what a user gets when signing in, and hands to a realm's applications (defined by identities)
+  User: a person with an account in a realm (defined by identities)
+  accepted: whom a realm's application accepts a token as, now: the user, and the roles it is told they have, if it accepts the token at all (defined by referenceTokens)
+  enabled: whether the user's account in the realm is enabled now (defined by accounts)
+
+Proofs
+  complete: proven: auto
+
+Decisions
+  2026-10-23 00:23  accepted by demo-developer: IDEA.md: a disabled user's tokens stop being accepted at once, also for sessions opened before. It is its own part because it holds whenever the sign-in happened, which onlyTheSignedIn does not say.
+  2026-10-23 15:28  accepted by demo-developer: Written with terms in place of the Scala the macro read, and the Lean it gives is the same
+  2026-10-23 15:44  confirmed by demo-developer: still holds after signInHistory changed: Same meaning: the sign-out is now built through the enum's Data companion instead of make[���]
+  2026-10-25 00:48  confirmed by demo-developer: still holds after signInHistory changed: Same meaning and the same Lean: conditionals and option matches are now written as folds (c.fold, o.fold), and the generated Lean is byte-identical
+  2026-10-26 15:23  accepted by demo-developer: The same statement: the API now names nodes from their val, uses refines, implies, allows and forbids.
+--- exit 0

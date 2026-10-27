@@ -21,9 +21,11 @@ enum Problem:
   /** A statement whose check rests on a fact about the outside its `.assuming` does not list (the one mechanism for
     * a premise, owner §15; `Premises` derives what each needs): a claim about a program's runs on a store needs
     * `store.behavesAs(stored)` and `stored.changedOneRunAtATime`; an `always(stored)` those and
-    * `stored.initially(…)` and `stored.writtenOnlyBy(…)`; an `always[T]` the outside facts on the Definitions values
-    * of `T` enter by (`outside.calls(d)`) and the model of each store operation making one. `by` is the assumption
-    * that says it, if one does.
+    * `stored.initially(…)` and `stored.writtenOnlyBy(…)`; an `always[T]` what values from outside meet (owner §21:
+    * an assumption of `always` on `T` when the outside passes `T`s in, and each such assumption on the values from
+    * outside its `T`s are made from), the store facts of each store holding a `T`, and the model of each store
+    * operation making one. `by` is the assumption that says it, if one does; when none does, what to say is
+    * `needs` (for values from outside, `Node.assumption("…")(always[T](x => …))`).
     */
   case PremiseMissing(id: NodeId, needs: Premise, by: Option[NodeId])
   /** A fact about the outside a statement's `.assuming` lists that its check does not rest on. */
