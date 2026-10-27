@@ -4,12 +4,12 @@ import _root_.sharing.knowledge
 import _root_.sharing.domain.*
 import _root_.sharing.service.Sharing
 
-/** sharing's generated runs (the fault sweep and the interleavings over each flow's examples), and the seeded bug of
-  * `SharingSuite`.
+/** sharing's generated runs (the fault sweep and the interleavings over each flow's examples), and the seeded bug and
+  * scheduler faults of `SharingSuite`.
   */
 object SharingRuns:
   def all: List[Seeded] = List(sweep("fault sweep", "failing boundary failing"),
-    sweep("interleavings", "its branches at once"), forgetful)
+    sweep("interleavings", "its branches at once"), forgetful) ++ SchedulerFaults.all
 
   private def sweep(name: String, note: String): Seeded =
     val lines = knowledge.nodes.flatMap { n =>

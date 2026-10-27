@@ -3,7 +3,9 @@ package frflow.reference
 import _root_.crm.*
 import frflow.{Flow, KnowledgeBase, Node, Term}
 
-/** crm's in-memory store that keeps a record's old shares, as `CrmSuite` seeds it: found by the model test. */
+/** crm's in-memory store that keeps a record's old shares, a copy of `CrmSuite`'s (`var` and all): found by the model
+  * test.
+  */
 object ModelBug:
   /** Holds the rows a store has about a record in place of the record's rows, but keeps its old shares. */
   final class LeakyDatabase(start: Tables) extends Database:
