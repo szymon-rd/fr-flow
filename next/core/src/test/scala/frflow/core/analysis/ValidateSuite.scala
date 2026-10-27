@@ -62,7 +62,8 @@ class ValidateSuite extends munit.FunSuite:
 
   /** `always[Booking]`: every booking ends after it starts, claimed or assumed. */
   private def always(id: String, claimed: Boolean) =
-    val f = Lang.formula([T[_]] => (l: Lang[T]) => l.s.always[Booking](frflow.core.term.Bound("b", Booking.ty))(_ => l.truth))
+    val f = Lang.formula([T[_]] => (l: Lang[T]) =>
+      l.s.always[Booking](frflow.core.term.Bound("b", Booking.ty))(_ => l.truth))
     if claimed then claim(id)(f) else assumption(id)(f)
 
   private def fromOutside(ps: List[Problem]) = ps.collect {

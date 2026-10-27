@@ -59,7 +59,7 @@ reproduce; where output differs, the difference is listed and judged. The owner 
 
 ### 1.4 What is already shown
 
-- The planned code (449 main files, 10,396 lines; 57 test files, 149 tests) compiles from clean with
+- The planned code (449 main files, 10,436 lines; 58 test files, 153 tests) compiles from clean with
   `-Werror -Wunused:all -Wnonunit-statement -Wvalue-discard`, and every test passes. 40 `???` in 31 files stand for
   ports of today's code, each assigned a step of the plan, its parts written and tested.
 - `budget.py`: no file over 200 lines, no line over 120 columns, no parameter list over four, one type per file.
@@ -201,12 +201,14 @@ val neverOverlap = Node.claim("The bookings held never overlap.")(always(stored)
 
 Checked before production only:
 
-- **`always[T]`** is a hypothesis in Lean on every value of `T` a statement is about, including list elements, record
-  fields and a world's store (`Guarded`, its guards built by `Guards` from the type). It is met wherever FrFlow covers
-  the code: `made_<maker>` for each proven define and store operation whose result is or holds a `T`; `cover_<op>` for
-  each program writing a store that holds one; at a tested Definition's boundary (inputs drawn meeting it,
-  `Respecting`; result checked, `Made`); `start_<node>` for the store's start; values from outside by an assumption of
-  `always` on their type (2.6). `inhabited_<node>` shows the rule admits a value.
+- **`always[T]`** is a hypothesis in Lean on every value of `T` a statement is about, including each one a value holds:
+  a list's elements, an option's value, either side of an `Either`, a pair's components, the fields of a record or of an
+  enum's case, and a world's store (`Guarded`, its guards built by `Guards` from the type; a map's and a set's are
+  not walked yet). It is met wherever FrFlow covers the code: `made_<maker>` for each proven define and store
+  operation whose result is or holds a `T`; `cover_<op>` for each program writing a store that holds one; at a tested
+  Definition's boundary (inputs drawn meeting it, `Respecting`; result checked, `Made`, through the same shapes);
+  `start_<node>` for the store's start; values from outside by an assumption of `always` on their type (2.6).
+  `inhabited_<node>` shows the rule admits a value.
 - **`always(stored)`** is a hypothesis on every world a claim starts from, kept by each program writing the store
   (`cover_<op>`) from every start (`start_<node>`); that this covers every reached state rests on four store facts
   (2.6).
@@ -304,7 +306,9 @@ rule:
   inputs of the makers and programs its `made_` and `cover_` are asked of (`Guards.applies`, `Scope.holds`, as Lean's
   guards are placed). Rooms' two roots bind a `Request`, and `book`'s runs on one keep the two rules, so all four
   list `fromTheForm`; a root about `book` without it is refused,
-  `PremiseMissing(id, FromOutside(Request), Some(fromTheForm))`.
+  `PremiseMissing(id, FromOutside(Request), Some(fromTheForm))`. An assumption on a type the model uses widely must
+  be listed by every claim it guards; give values from outside a type of their own to keep it to the claims about
+  them.
 - A claim of `always[T]` whose `T`s can come from outside (an entry Definition's input or a provided value can hold one)
   with no assumption on `T` is refused, `PremiseMissing(id, FromOutside(T), None)`, and what to say is
   `Node.assumption("…")(always[T](x => …))`; listing such an assumption where the check does not rest on it is
@@ -925,7 +929,7 @@ the first nine; `cli`, `web` and `agent` keep their structure and are rebuilt on
 outward: only the shell depends on `wire`. Front ends see `api.view` and `api.node` values only. Production code
 depends on `eval` (and through it `dsl`, `core`) and never on Lean, the ledger, the tests or the CLI.
 
-Planned so far (files / lines): `core` 145 / 3,133, `dsl` 69 / 2,178, `proof` 79 / 2,058, `eval` 26 / 719, `testing`
+Planned so far (files / lines): `core` 145 / 3,165, `dsl` 69 / 2,178, `proof` 79 / 2,058, `eval` 26 / 727, `testing`
 22 / 428, `decision` 42 / 694, `wire` 14 / 184, `project` 25 / 621, `api` 27 / 381. With the ports written and `cli`,
 `web` and `agent` rebuilt, the projection is about 13,700 lines in about 570 files, against today's 12,008 in 347:
 about 12% more, consistency and vacuity among it, in smaller files, with no type over six fields.
