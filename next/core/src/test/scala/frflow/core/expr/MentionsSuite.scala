@@ -1,43 +1,34 @@
 package frflow.core.expr
 
-import cats.kernel.Monoid
+import cats.kernel.{Eq, Monoid}
+import cats.kernel.laws.discipline.MonoidTests
 import cats.syntax.all.*
 import frflow.core.{Booking, Lang}
 import frflow.core.name.{BoundaryName, DefName, ModelName, OpName, SymbolName, TypeName, VarId}
 import frflow.core.term.interpret.ToExpr
 import frflow.core.ty.Ty
-import scala.util.Random
+import org.scalacheck.{Arbitrary, Gen}
 
-/** The laws of `Mentions`: a monoid that keeps each name once, in the order first met; and `Exprs.mentions`, which
-  * says exactly what a term names, gathered from its parts.
+/** The laws of `Mentions`: a monoid on values holding each name once, combining keeps the order first met; and
+  * `Exprs.mentions`, which says exactly what a term names, gathered from its parts.
   */
-class MentionsSuite extends munit.FunSuite:
-  private def pick[A](r: Random, pool: List[A]): List[A] = List.fill(r.nextInt(4))(pool(r.nextInt(pool.size)))
-  private def mentions(seed: Long): Mentions =
-    val r = Random(seed)
-    Mentions(pick(r, List("a", "b", "c").map(SymbolName(_))), pick(r, List("d", "e").map(DefName(_))),
-      pick(r, List("T", "U").map(TypeName(_))), pick(r, List("B").map(BoundaryName(_))),
-      pick(r, List("m", "n").map(ModelName(_))))
-  private val values = (1L to 200L).map(mentions).toList
-  private val triples = values.zip(values.drop(1)).zip(values.drop(2)).map { case ((a, b), c) => (a, b, c) }
-  private val empty = Monoid[Mentions].empty
+class MentionsSuite extends munit.DisciplineSuite:
+  private def names[A](pool: String*)(f: String => A): Gen[List[A]] =
+    Gen.listOf(Gen.oneOf(pool)).map(_.distinct.map(f))
+  private given Arbitrary[Mentions] = Arbitrary(for
+    s <- names("a", "b", "c")(SymbolName(_)); d <- names("d", "e")(DefName(_)); t <- names("T", "U")(TypeName(_))
+    b <- names("B", "C")(BoundaryName(_)); m <- names("m", "n")(ModelName(_))
+  yield Mentions(s, d, t, b, m))
+  private given Eq[Mentions] = Eq.fromUniversalEquals
 
-  test("the empty mentions are an identity: on either side, each name once") {
-    values.foreach(m => assertEquals((empty |+| m, m |+| empty), (m |+| m, m |+| m)))
-    values.foreach(m => assertEquals(empty |+| (empty |+| m), empty |+| m))
-  }
+  checkAll("Mentions", MonoidTests[Mentions].monoid)
 
-  test("combining is associative") {
-    triples.foreach((a, b, c) => assertEquals((a |+| b) |+| c, a |+| (b |+| c)))
-  }
-
-  test("combining is idempotent, and keeps each name once, in the order first met") {
-    triples.foreach { (a, b, _) =>
-      val ab = a |+| b
-      assertEquals(ab |+| ab, ab)
-      assertEquals(ab.symbols, (a.symbols ++ b.symbols).distinct)
-      assertEquals(ab.models, (a.models ++ b.models).distinct)
-    }
+  test("combining keeps each name once, in the order first met") {
+    val (a, b) = (Mentions(List(SymbolName("a")), Nil, Nil, Nil, List(ModelName("m"))),
+      Mentions(List(SymbolName("b"), SymbolName("a")), Nil, Nil, Nil, List(ModelName("n"), ModelName("m"))))
+    assertEquals(a |+| b, Mentions(List(SymbolName("a"), SymbolName("b")), Nil, Nil, Nil,
+      List(ModelName("m"), ModelName("n"))))
+    assertEquals(Monoid[Mentions].empty, Mentions.empty)
   }
 
   test("a term mentions exactly the symbols, defines, types and models it is built from, in the order met") {

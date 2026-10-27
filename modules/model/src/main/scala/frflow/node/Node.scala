@@ -244,21 +244,22 @@ object Node:
   extension [T, S](n: Node[Modelled[T, S]])
     /** An outside system implementing the boundary (a database): its model stays assumed. It is checked against the
       * model on the examples of the flows calling it, and on generated runs of its operations from generated states.
-      * `holding` makes one holding a model's state, `readBack` reads its state back; both are compared as it holds a
-      * state (stored and read back), so order it does not keep, such as rows a table returns sorted, is not compared:
-      * `.checkedAgainst(holding = held => SqliteBookings.holding(held), readBack = sqlite => sqlite.held)`.
+      * `implementation` makes one holding a model's state, `stateOf` reads its state back; both are compared as it
+      * holds a state (stored and read back), so order it does not keep, such as rows a table returns sorted, is not
+      * compared: `.checkedAgainst(implementation = held => SqliteBookings.holding(held), stateOf = _.held)`.
       */
-    inline def checkedAgainst[I <: T](inline holding: S => I, inline readBack: I => S): Node[Modelled[T, S]] =
-      n.withImpl(ModelImpl(holding.asInstanceOf[Any => Any], readBack.asInstanceOf[Any => Any], outside = true,
-        Source.text(holding), Source.sourceFiles(holding)))
+    inline def checkedAgainst[I <: T](inline implementation: S => I, inline stateOf: I => S): Node[Modelled[T, S]] =
+      n.withImpl(ModelImpl(implementation.asInstanceOf[Any => Any], stateOf.asInstanceOf[Any => Any], outside = true,
+        Source.text(implementation), Source.sourceFiles(implementation)))
 
     /** The project's own code implementing the boundary (an in-memory store, a cache): tested against the model, not
-      * assumed. Generated runs of its operations, from generated states (`holding`), must give what the model gives,
-      * and leave what the model leaves (read back with `readBack`); a run that does not is shrunk and reported.
+      * assumed. Generated runs of its operations, from generated states (`implementation` makes one holding a state),
+      * must give what the model gives, and leave what the model leaves (read back with `stateOf`); a run that does not
+      * is shrunk and reported.
       */
-    inline def implementedBy[I <: T](inline holding: S => I, inline readBack: I => S): Node[Modelled[T, S]] =
-      n.withImpl(ModelImpl(holding.asInstanceOf[Any => Any], readBack.asInstanceOf[Any => Any], outside = false,
-        Source.text(holding), Source.sourceFiles(holding)))
+    inline def implementedBy[I <: T](inline implementation: S => I, inline stateOf: I => S): Node[Modelled[T, S]] =
+      n.withImpl(ModelImpl(implementation.asInstanceOf[Any => Any], stateOf.asInstanceOf[Any => Any], outside = false,
+        Source.text(implementation), Source.sourceFiles(implementation)))
 
     private[frflow] def withImpl(i: ModelImpl): Node[Modelled[T, S]] = n.copy(modelOf = n.modelOf.map(m => m.copy(impls = m.impls :+ i)))
 

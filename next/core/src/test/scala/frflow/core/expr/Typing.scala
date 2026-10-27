@@ -18,7 +18,7 @@ final class Typing(fields: TypeName => List[Ty], defines: DefName => Option[Ty])
     case Expr.Apply(f, as, t)         => applies(ty(f), as, t)
     case Expr.Fun(l)                  => ty(l.body) == l.result
     case Expr.Quant(_, _, b)          => ty(b) == Ty.Bool
-    case Expr.If(c, a, b)             => ty(c) == Ty.Bool && ty(a) == ty(b)
+    case Expr.If(c, a, b)             => ty(c) == Ty.Bool && (ty(a) == ty(b) || raises(ty(a)) || raises(ty(b)))
     case Expr.Match(_, arms, t)       => arms.forall(a => ty(a.body) == t)
     case Expr.Let(x, v, _)            => x.ty == ty(v)
     case Expr.Field(on, n, i, t)      => ty(on) == Ty.Data(n) && fields(n).lift(i).contains(t)
@@ -31,6 +31,9 @@ final class Typing(fields: TypeName => List[Ty], defines: DefName => Option[Ty])
     case Expr.Pairwise(xs, x, y, b)   => ty(xs) == Ty.ListOf(x.ty) && x.ty == y.ty && ty(b) == Ty.Bool
     case Expr.Prim(op, as, t)         => prim(op, as.map(ty), t)
     case _                            => true
+
+  /** A branch that only raises, as a value or a program: it takes the other branch's type (`Ty.join`). */
+  private def raises(t: Ty): Boolean = t == Ty.Never || t == Ty.FlowOf(Ty.Never)
 
   /** A function type applied to `as`, one argument at a time, each of its parameter's type, gives `t`. */
   private def applies(f: Ty, as: List[Expr], t: Ty): Boolean = f match

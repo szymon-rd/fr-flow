@@ -353,9 +353,9 @@ def expireOnce(now: Term[BigInt]): Flow[CrmStore] =   // the code, in Cats style
   state), never failing, and the flow's alone during a run: a design node says
   how that is ensured (a lock, a transaction). Loops are over lists
   (`traverse_`). Name every implementation of the trait on the model's node:
-  `.checkedAgainst(holding, readBack)` for an outside system (a database; checked on
+  `.checkedAgainst(implementation, stateOf)` for an outside system (a database; checked on
   the examples and on generated runs, the model stays assumed),
-  `.implementedBy(holding, readBack)` for the project's own (an in-memory store, a
+  `.implementedBy(implementation, stateOf)` for the project's own (an in-memory store, a
   cache; tested on generated runs of its operations against the model).
 - **Steps.** `state.get`, `state.set(s)`, `state.update(f)` in models only;
   `Flow.effect(...)` in production implementations only (a proven flow taking

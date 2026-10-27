@@ -41,18 +41,39 @@ def module(name: String, libraries: ModuleID*) = Project(name, file(s"modules/$n
   .settings(Keys.name := s"frflow-$name", libraryDependencies ++= munit +: libraries)
 
 // The rebuild (docs/redesign/ARCHITECTURE.md, section 9): each new module is `nextModule(name, libraries*)` under
-// next/<name>/, sbt id `next-<name>`, package `frflow.<name>`, with the planned build's warnings as errors. The root
-// aggregates every directory under next/, so a step adds its directory and its one line below, in its slot.
+// next/<name>/, sbt id `next-<name>`, package `frflow.<name>`, with the planned build's warnings as errors. A step
+// adds its `lazy val` in its slot below and its name in its slot of `nextModules`, which the root aggregates.
 val nextFlags = Seq("-Wunused:all", "-Wnonunit-statement", "-Wvalue-discard")
-def nextModules: Seq[ProjectReference] =
-  IO.listFiles(file("next")).filter(_.isDirectory).sorted.map(d => LocalProject(s"next-${d.getName}")).toSeq
+val lawTests = Seq("org.typelevel" %% "cats-kernel-laws" % "2.13.0" % Test,
+  "org.typelevel" %% "discipline-munit" % "2.0.0" % Test)
+def nextModules: Seq[ProjectReference] = Seq(
+  nextCore,
+
+  // step 2: nextDsl
+
+  // step 3: nextProof
+
+  // step 4: nextEval
+
+  // step 5: nextTesting
+
+  nextDecision,
+
+  // step 7: nextWire
+
+  // step 8: nextProject
+
+  // step 9: nextApi
+
+  // step 10: nextCli, nextWeb, nextAgent
+)
 def nextModule(name: String, libraries: ModuleID*) = Project(s"next-$name", file(s"next/$name"))
   .configs(LeanTest).settings(leanTagged)
   .settings(Keys.name := s"frflow-next-$name", libraryDependencies ++= munit +: libraries,
     scalacOptions ++= nextFlags, publish / skip := true)
 
 /** Names, types, the term algebras and core interpreters, the IR, statements, validation, checking, consistency. */
-lazy val nextCore = nextModule("core", cats)
+lazy val nextCore = nextModule("core", cats).settings(libraryDependencies ++= lawTests)
 
 // next-dsl (step 2)
 
@@ -64,7 +85,7 @@ lazy val nextProof = nextModule("proof", cats).dependsOn(nextCore % "compile->co
 
 // next-testing (step 5)
 
-// next-decision (step 6)
+lazy val nextDecision = nextModule("decision", cats).dependsOn(nextCore)
 
 // next-wire (step 7)
 

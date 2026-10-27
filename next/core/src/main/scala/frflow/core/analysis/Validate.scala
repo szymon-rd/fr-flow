@@ -3,7 +3,9 @@ package frflow.core.analysis
 import cats.data.{NonEmptyChain, Validated, ValidatedNec}
 import cats.syntax.all.*
 import frflow.core.{Elaborated, Theory}
+import frflow.core.code.Code
 import frflow.core.graph.Edge
+import frflow.core.name.SymbolName
 import frflow.core.spec.{Node, NodeKind, Range}
 
 /** The structure rules (docs/DAG.md §2) as one pure function: every problem at once, or the theory as `Valid`. */
@@ -52,7 +54,7 @@ object Validate:
   private def vocabulary(t: Theory): ValidatedNec[Problem, Unit] =
     val v = t.vocabulary
     val names = v.sorts.map(_.name.value) ++ v.types.map(_.typeName.value) ++ v.symbols.map(_.name.value) ++
-      v.defines.map(_.name.value)
+      v.defines.map(_.name.value) ++ v.boundaries.map(_.className)
     all(names.filter(Reserved.names).distinct.map(Problem.ReservedName(_)) ++
       names.diff(names.distinct).distinct.map(Problem.DeclaredTwice(_)) ++
       t.nodes.map(_.node.id).flatMap(id => Constrained.of(t, id).filter(Constrained.isCodeOnly(t, _))
@@ -73,13 +75,18 @@ object Validate:
       .map(Problem.WriterNotListed(m.name, _)))
     all(missing ++ unneeded ++ unlisted)
 
-  /** Code is for a Definition some statement mentions (one with no Lean type is read by plain code only); a node
-    * checked against proven code has as parts only statements about what the code calls (`impl` proves it from them:
-    * docs/DAG.md §3); the models it is proven on are premises, not parts.
+  /** Code is for a Definition some statement mentions (a provided one with no Lean type is read by plain code only);
+    * a node checked against proven code has as parts only statements about what the code calls (`impl` proves it
+    * from them: docs/DAG.md §3); the models it is proven on are premises, not parts.
     */
   private def code(t: Theory): ValidatedNec[Problem, Unit] =
-    val unclaimed = t.code.attached.keys.toList.filter(s => !Constrained.isCodeOnly(t, s) &&
-      Constrained.statements(t, s).isEmpty)
+    val unclaimed = t.code.attached.toList.collect {
+      case (s, a) if !providedToCode(t, s, a.code) && Constrained.statements(t, s).isEmpty => s
+    }
     all(unclaimed.map(Problem.CodeWithoutClaim(_)) ++ t.nodes.map(_.node.id).flatMap(id =>
       Callees.of(t, id).toList.flatMap(c => t.refinement.parts(id).filterNot(c.about(t, _))
         .map(Problem.PartNotCalled(id, _)))))
+
+  /** A value with no Lean type, provided where the code runs (a connection): no statement can mention it. */
+  private def providedToCode(t: Theory, s: SymbolName, c: Code): Boolean =
+    Constrained.isCodeOnly(t, s) && c == Code.Provided

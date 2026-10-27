@@ -35,13 +35,13 @@ object Words:
     Cause.Merged -> "two branches decided it and both were kept")
 
   /** Why a node waits for review, in a few words: `it and its code changed: review it`. What changed is said as
-    * one subject (it, what is above it, its parts, its code); being asked to revisit it, or kept from two branches,
-    * as a clause of its own.
+    * one subject: it; a node it rests on (a parent, or a claim or definition it uses); its parts; its code. Being
+    * asked to revisit it, or kept from two branches, is a clause of its own.
     */
   def review(causes: List[Cause]): String =
     val subjects = causes.collect {
       case Cause.Self  => "it"
-      case Cause.Above => "what is above it"
+      case Cause.Above => "a node it rests on"
       case Cause.Parts => "its parts"
       case Cause.Code  => "its code"
     }
