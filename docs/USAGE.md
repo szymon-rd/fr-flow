@@ -246,8 +246,8 @@ val tablesModel = Node.assumption(db)(DatabaseModel)(…)
   .implementedBy(t => MemoryDatabase.holding(t), _.tables)     // the project's own code: tested
 ```
 
-`holding` makes an implementation holding a model's state, `readBack` reads its
-state back. FrFlow generates runs (a state, then 1 to 12 calls of the boundary's
+`implementation` makes an implementation holding a model's state, `stateOf`
+reads its state back. FrFlow generates runs (a state, then 1 to 12 calls of the boundary's
 operations with generated arguments), runs each on the implementation and on
 the model, and compares every result and the state read back after every call.
 States are compared as the implementation holds them (stored and read back), so
@@ -446,10 +446,10 @@ Cats', with Cats' names:
 - **Production** binds an implementation of the trait, its operations built
   with `Flow.effect`, and runs the flow in any `cats.effect.Sync`:
   `knowledge.run[SyncIO](expiryJob)(db.bind(SqliteDatabase(d)))(now)`.
-- **Implementations against the model.** `.checkedAgainst(holding, readBack)` on the
+- **Implementations against the model.** `.checkedAgainst(implementation, stateOf)` on the
   model's node names an outside system (SQLite): its model stays assumed, and
   it is checked against the model on the contract's examples and on generated
-  runs of its operations. `.implementedBy(holding, readBack)` names the project's own
+  runs of its operations. `.implementedBy(implementation, stateOf)` names the project's own
   implementation (the CRM's `MemoryDatabase`): it is tested against the model
   on generated runs, as described under "Proven, tested, assumed".
 

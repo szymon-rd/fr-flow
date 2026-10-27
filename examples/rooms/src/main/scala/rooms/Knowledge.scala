@@ -5,7 +5,7 @@ import frflow.*
 final case class Booking(room: String, start: BigInt, end: BigInt)
 
 /** A room's bookings, as the table gives them. */
-final case class RoomBookings(name: String, bookings: List[Booking])
+final case class RoomBookings(room: String, bookings: List[Booking])
 object RoomBookings extends Data[RoomBookings]
 
 val granted = Definition[(RoomBookings, Booking) => Boolean]("whether a request is granted, given its room's bookings")
@@ -28,14 +28,14 @@ val bookingTable = Boundary[BookingTable]("the SQLite table the bookings are kep
 
 /** The bookings stored, as the proofs see them: every booking, oldest first. */
 object storedBookings extends BookingTable, StateModel[List[Booking]]:
-  def inRoom(room: Term[String]) = state.get.map(held => RoomBookings(room, held.filter(b => b.room === room)))
-  def add(booking: Term[Booking]) = state.update(held => held :+ booking)
+  def inRoom(room: Term[String]) = state.get.map(stored => RoomBookings(room, stored.filter(b => b.room === room)))
+  def add(booking: Term[Booking]) = state.update(stored => stored :+ booking)
 
-// SqliteBookings, holding a state, is run against the model; its state read back is compared with the model's.
-val tableModel =
+// Checked: SqliteBookings, made holding a state, runs against the model, and its state read back is compared.
+val tableMatchesModel =
   Node.assumption("The table gives a room's bookings in the order they were added, and adds one at the end.")(
     bookingTable.behavesAs(storedBookings))
-  .checkedAgainst(holding = held => SqliteBookings.holding(held), readBack = sqlite => sqlite.held)
+  .checkedAgainst(implementation = stored => SqliteBookings.holding(stored), stateOf = sqlite => sqlite.held)
 
 val onlyBookingWrites = Node.assumption("Only booking writes to the table.")(storedBookings.writtenOnlyBy(book))
 
@@ -47,38 +47,38 @@ val covers = define { (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <
 val apart = define { (a: Term[Booking], b: Term[Booking]) =>
   a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t))) }
 
-val free = define { (held: Term[List[Booking]], request: Term[Booking]) => held.forall(b => apart(b, request)) }
+val free = define { (bookings: Term[List[Booking]], request: Term[Booking]) =>
+  bookings.forall(b => apart(b, request)) }
 
 // The roots: what booking stores, what it answers, and what the table always holds.
 val bookWhenFree = Node.claim("A request is stored exactly when its room is free for its whole time.")(
   forall((request: Term[Booking], before: Term[World]) =>
-    val held = storedBookings.in(before)
+    val stored = storedBookings.in(before)
     val after = storedBookings.in(book(request).after(before))
-    after === when(free(held, request))(held :+ request).otherwise(held)))
-  .assuming(tableModel, oneAtATime)
+    after === when(free(stored, request))(stored :+ request).otherwise(stored)))
+  .assuming(tableMatchesModel, oneAtATime)
 
 val answerWhenFree = Node.claim("A request is answered booked exactly when its room is free for its whole time.")(
   forall((request: Term[Booking], before: Term[World]) =>
     book(request).answer(before) === free(storedBookings.in(before), request)))
-  .assuming(tableModel, oneAtATime)
+  .assuming(tableMatchesModel, oneAtATime)
+
+val startsEmpty = Node.assumption("The table starts empty.")(storedBookings.initially(stored => stored.isEmpty))
 
 val neverOverlap = Node.claim("The bookings stored never overlap.")(
-  always(storedBookings)(held => held.pairwise(apart)))
-  .assuming(onlyBookingWrites, oneAtATime)
-
-val startsApart = Node.assumption("The table starts with no two bookings overlapping.")(
-  storedBookings.startsSatisfying(neverOverlap))
+  always(storedBookings)(stored => stored.pairwise(apart)))
+  .assuming(onlyBookingWrites, oneAtATime, startsEmpty)
 
 // What booking's code calls: the calendar, given a room's bookings.
 val bookingsOfTheRoom = Node.claim("A room's bookings are all of that room.")(
-  always[RoomBookings](room => room.bookings.forall(b => b.room === room.name)))
+  always[RoomBookings](held => held.bookings.forall(b => b.room === held.room)))
 
 val roomBookingsApart = Node.claim("A room's bookings never overlap.")(
-  always[RoomBookings](room => room.bookings.pairwise(apart)))
+  always[RoomBookings](held => held.bookings.pairwise(apart)))
 
 val grantWhenFree = Node.claim("A request is granted exactly when its room is free for its whole time.")(
-  forall((room: Term[RoomBookings], request: Term[Booking]) =>
-    granted(room, request) === free(room.bookings, request)))
+  forall((held: Term[RoomBookings], request: Term[Booking]) =>
+    granted(held, request) === free(held.bookings, request)))
   .refines(bookWhenFree, answerWhenFree)
 
 // Over start and end times.
@@ -86,8 +86,8 @@ val noOverlap = define { (a: Term[Booking], b: Term[Booking]) =>
   a.room =!= b.room || a.end <= b.start || b.end <= a.start }
 
 val grantWhenNoOverlap = Node.claim("A request is granted exactly when it overlaps no booking of its room.")(
-  forall((room: Term[RoomBookings], request: Term[Booking]) =>
-    granted(room, request) === room.bookings.forall(b => noOverlap(b, request))))
+  forall((held: Term[RoomBookings], request: Term[Booking]) =>
+    granted(held, request) === held.bookings.forall(b => noOverlap(b, request))))
   .refines(grantWhenFree)
 
 // The tests' cases: rooms, requests, and a room's bookings laid end to end.
@@ -112,10 +112,10 @@ val roomBookings = for
 yield RoomBookings(room, bookings)
 
 val rooms = KnowledgeBase("Rooms")(bookWhenFree, answerWhenFree, neverOverlap, endsAfterStart, bookingsOfTheRoom,
-  roomBookingsApart, grantWhenFree, grantWhenNoOverlap, tableModel, onlyBookingWrites, oneAtATime, startsApart,
-  requestsEndAfterStart)
+  roomBookingsApart, grantWhenFree, grantWhenNoOverlap, tableMatchesModel, onlyBookingWrites, oneAtATime,
+  startsEmpty, requestsEndAfterStart)
   .implementProven(book)(bookIfGranted)
-  .implementTested(granted)((room, request) => Calendar(room).grants(request))
+  .implementTested(granted)((held, request) => Calendar(held).grants(request))
   .generating(roomNames.describedAs("Oak or Elm"))
   .generating(requests.describedAs("bookings of Oak or Elm that end after they start"))
   .generating(roomBookings.describedAs("a room's bookings, laid end to end, some back to back"))

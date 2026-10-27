@@ -7,10 +7,10 @@ assumptions, `Definition`s, `forall` and `always`.
   (`answerWhenFree`), what the table always holds (`neverOverlap`), what every booking holds (`endsAfterStart`)
   and what a room's bookings hold (`bookingsOfTheRoom`, `roomBookingsApart`); the calendar's claim over moments
   (`grantWhenFree`) and over start and end times (`grantWhenNoOverlap`), each one equation over a room's
-  bookings; and the assumptions they rest on: the table's model (`tableModel`: `bookingTable` behaves as
-  `storedBookings`), how the table is used (`onlyBookingWrites`, `oneAtATime`, and `startsApart`, which names
-  the claim the table starts satisfying), and what the booking form sends (`requestsEndAfterStart`, its
-  condition written out; Lean proves it gives `endsAfterStart`).
+  bookings; and the assumptions they rest on: that the table matches its model (`tableMatchesModel`:
+  `bookingTable` behaves as `storedBookings`), how the table is used (`onlyBookingWrites`, `oneAtATime`, and
+  `startsEmpty`: Lean proves an empty table meets `neverOverlap`), and what the booking form sends
+  (`requestsEndAfterStart`, its condition written out; Lean proves it gives `endsAfterStart`).
 - `src/main/scala/rooms/Book.scala` is booking's flow, proven of `book`; `src/main/scala/rooms/Calendar.scala` is
   the calendar, plain Scala given to `granted` and tested against its claims on generated cases: given a room's
   bookings, which never overlap, it sorts them once by start and compares a request with its two neighbours.
