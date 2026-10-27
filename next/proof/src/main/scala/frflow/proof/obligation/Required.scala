@@ -3,12 +3,14 @@ package frflow.proof.obligation
 import cats.data.NonEmptyList
 import cats.syntax.all.*
 import frflow.core.analysis.{Callees, Guards, Resolved, Scope}
+import frflow.core.term.interpret.Guard
+import frflow.core.expr.Expr
 import frflow.core.code.Code
 import frflow.core.name.{DefName, NodeId, SymbolName}
-import frflow.core.spec.{CallForm, Range}
+import frflow.core.spec.{CallForm, Range, Written}
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
-import frflow.proof.terms.{Keeping, Making}
+import frflow.proof.terms.{Commutation, Keeping, Making}
 
 /** What must hold of a node, each read off its statement, its place and the code (owner §15), in today's order:
   * `complete` (proven from its parts), `feasible`, `impl` (checked against the proven code of the Definitions it
@@ -115,29 +117,38 @@ object Required:
   def made(r: Resolved, n: NodeId): List[Obligation] =
     val guards = Guards.byAlways(r.theory)
     (guards.toMap.get(n), r.theory.node(n).flatMap(_.statement.range)).tupled.toList.flatMap {
-      case (kept, range @ Range.Made(ty)) => defines(r, n, ty).flatMap { (op, code, fn) =>
-          val goal = Prop.Makes(n, op, Making.ofDefine(op, fn, kept, guards.map(_._2)),
-            Map(op -> Substitute.Code(code)))
-          val hyps = r.reliedOnBy(op)
-          List(Obligation(ObligationName.Made(op.value), Prop.over(Nil, Prop.Implies(Hyp.parts(hyps), goal)),
-            Discharge.Auto, s"Every result of ${code.value} meets ${n.value}" + givenWhat(hyps)))
-        } ++ programs(r, n, ty).map { (op, code, fn) =>
-          val goal = Prop.Makes(n, op, Making.ofProgram(op, fn, inputs(r, op, fn), kept, guards.map(_._2)),
-            Map(op -> Substitute.Code(code)))
-          val hyps = r.reliedOnBy(op)
-          Obligation(ObligationName.Made(op.value), Prop.over(Nil, Prop.Implies(Hyp.parts(hyps), goal)),
-            Discharge.Auto, s"Every result of a run of ${code.value} meets ${n.value}" + givenWhat(hyps))
-        } ++ Scope.modelMakers(r.theory, range).map { (m, sig) =>
-          val maker = SymbolName(sig.name.value)
-          val code = DefName(s"${m.name.value.capitalize}.${sig.name.value}_of")
-          val goal = Prop.Makes(n, maker, Making.ofModel(m, sig, kept, guards.map(_._2)),
-            Map(maker -> Substitute.Code(code)))
-          Obligation(ObligationName.Made(sig.name.value), Prop.over(Nil, goal), Discharge.Auto,
-            s"Every result of ${m.name.value}'s ${sig.name.value} meets ${n.value}, on a world meeting what always " +
-              "holds.")
-        }
+      case (kept, range @ Range.Made(ty)) =>
+        val g = (kept, guards.map(_._2))
+        byDefines(r, n, ty, g) ++ byPrograms(r, n, ty, g) ++ byModels(r, n, range, g)
       case _ => Nil
     }
+
+  private type Guarding = (Guard, List[Guard])
+  private def makes(n: NodeId, op: SymbolName, code: DefName, f: Written[Expr]): Prop.Makes =
+    Prop.Makes(n, op, f, Map(op -> Substitute.Code(code)))
+
+  private def byDefines(r: Resolved, n: NodeId, ty: Ty, g: Guarding): List[Obligation] =
+    defines(r, n, ty).map((op, code, fn) => relying(r, makes(n, op, code, Making.ofDefine(op, fn, g._1, g._2)),
+      s"Every result of ${code.value} meets ${n.value}"))
+
+  private def byPrograms(r: Resolved, n: NodeId, ty: Ty, g: Guarding): List[Obligation] =
+    programs(r, n, ty).map((op, code, fn) => relying(r, makes(n, op, code,
+      Making.ofProgram(op, fn, inputs(r, op, fn), g._1, g._2)),
+      s"Every result of a run of ${code.value} meets ${n.value}"))
+
+  private def byModels(r: Resolved, n: NodeId, range: Range, g: Guarding): List[Obligation] =
+    Scope.modelMakers(r.theory, range).map { (m, sig) =>
+      val code = DefName(s"${m.name.value.capitalize}.${sig.name.value}_of")
+      Obligation(ObligationName.Made(sig.name.value), Prop.over(Nil, makes(n, SymbolName(sig.name.value), code,
+        Making.ofModel(m, sig, g._1, g._2))), Discharge.Auto,
+        s"Every result of ${m.name.value}'s ${sig.name.value} meets ${n.value}, on a world meeting what always holds.")
+    }
+
+  /** `made_<maker>` of a maker's code, given what the code relies on. */
+  private def relying(r: Resolved, goal: Prop.Makes, says: String): Obligation =
+    val hyps = r.reliedOnBy(goal.maker)
+    Obligation(ObligationName.Made(goal.maker.value), Prop.over(Nil, Prop.Implies(Hyp.parts(hyps), goal)),
+      Discharge.Auto, says + givenWhat(hyps))
 
   /** The Definitions in `n`'s scope whose proven code is a define returning a `ty` or a list of them. */
   private def defines(r: Resolved, n: NodeId, ty: Ty): List[(SymbolName, DefName, Ty)] =

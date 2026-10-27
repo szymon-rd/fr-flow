@@ -1,4 +1,4 @@
-package frflow.proof.obligation
+package frflow.proof.terms
 
 import frflow.core.expr.{Binder, Expr, Exprs, Prog, Progs}
 import frflow.core.name.VarId

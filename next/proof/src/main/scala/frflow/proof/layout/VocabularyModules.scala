@@ -73,16 +73,6 @@ object VocabularyModules:
     */
   private def flow(l: Lowering, d: Define, p: frflow.core.expr.Prog[frflow.core.term.Stated[?]]): Decl =
     val (named, m) = Naming.helper("m", Set.empty).run(l.naming).value
-    val ir = d.lambda.body match
-      case Expr.Do(q, _) => q
-      case _             => throw IllegalStateException(s"FrFlow bug: ${d.name.value} is a program with no steps")
-    val v = l.resolved.theory.vocabulary
-    val errors = (Progs.errors(ir) ++ Progs.boundaries(ir).flatMap(v.boundary).flatMap(_.failsWith)).distinct
-    val classes = Progs.boundaries(ir).distinct.flatMap(v.boundary).map(_.className)
-    val monad = LBinder.Implicit(m, LExpr.Infix(LOp.Arrow, name("Type"), name("Type"))) ::
-      LBinder.Instance(LExpr.App(name("Monad"), List(LExpr.Name(m)))) ::
-      errors.map(e => LBinder.Instance(LExpr.App(name("MonadExceptOf"), List(LowerType(e), LExpr.Name(m))))) ++
-      classes.map(c => LBinder.Instance(LExpr.App(name(c), List(LExpr.Name(m)))))
     val result = d.lambda.result match
       case Ty.FlowOf(r) => r
       case other        => other
@@ -90,12 +80,26 @@ object VocabularyModules:
     val (bs, lines) = (inputs.traverse(x => Naming.bind(x).map(LBinder.Explicit(_, LowerType(x.ty)))),
       LowerProg(l.env, inputs.size).block(p)).tupled.runA(named).value
     val body = if bs.isEmpty then LExpr.Do(lines, 4) else LExpr.Fun(bs, LExpr.Do(lines, 4))
-    Decl.Def(List(Attr.FrflowDefs), Names.builtin(d.name.value), monad ++ openBinders(l, d),
+    Decl.Def(List(Attr.FrflowDefs), Names.builtin(d.name.value), monad(l, d, m) ++ openBinders(l, d),
       LowerType.declaration(inputs.map(_.ty), LExpr.App(LExpr.Name(m), List(LowerType(result)))), body)
+
+  /** The monad a program is over: any, with the errors it raises or handles and the boundaries it calls. */
+  private def monad(l: Lowering, d: Define, m: LeanName): List[LBinder] =
+    val ir = d.lambda.body match
+      case Expr.Do(q, _) => q
+      case _             => throw IllegalStateException(s"FrFlow bug: ${d.name.value} is a program with no steps")
+    val v = l.resolved.theory.vocabulary
+    val errors = (Progs.errors(ir) ++ Progs.boundaries(ir).flatMap(v.boundary).flatMap(_.failsWith)).distinct
+    val classes = Progs.boundaries(ir).distinct.flatMap(v.boundary).map(_.className)
+    LBinder.Implicit(m, LExpr.Infix(LOp.Arrow, name("Type"), name("Type"))) ::
+      LBinder.Instance(LExpr.App(name("Monad"), List(LExpr.Name(m)))) ::
+      errors.map(e => LBinder.Instance(LExpr.App(name("MonadExceptOf"), List(LowerType(e), LExpr.Name(m))))) ++
+      classes.map(c => LBinder.Instance(LExpr.App(name(c), List(LExpr.Name(m)))))
 
   private def opens(l: Lowering, d: Define) = l.table.defines.get(d.name).toList.flatMap(_.symbols)
 
   /** The open terms a define is over: its opaque types implicit, its symbols explicit. */
   private def openBinders(l: Lowering, d: Define): List[LBinder] =
-    l.table.defines.get(d.name).toList.flatMap(_.sorts).map(s => LBinder.Implicit(Names.ident(s.value), name("Type"))) ++
+    val sorts = l.table.defines.get(d.name).toList.flatMap(_.sorts)
+    sorts.map(s => LBinder.Implicit(Names.ident(s.value), name("Type"))) ++
       opens(l, d).map(s => LBinder.Explicit(Names.ident(s.value), LowerType.binder(l.table.typeOf(s))))

@@ -32,7 +32,7 @@ object NodeModules:
     val params = claimParams(l, o.node)
     val claim = said.map(f => Decl.Def(defs, Names.builtin("claim"), params, Atoms.name("Prop"),
       Printed.claim(l.env, l.naming, l.guards)(f.term)))
-    val indices = o.tried.collect { case Obligation(ObligationName.Tried(TryKind.RestatesConjunct(_, i)), _, _, _) => i }
+    val indices = o.tried.map(_.name).collect { case ObligationName.Tried(TryKind.RestatesConjunct(_, i)) => i }
     val conjuncts = said.toList.flatMap(f => Conjoined.of(f.term, LeanTerm(l.env)).zipWithIndex.collect {
       case (c, i) if indices.contains(i + 1) =>
         Decl.Def(defs, Names.builtin(s"conjunct_${i + 1}"), params, Atoms.name("Prop"), c(Scope(0, l.naming)))

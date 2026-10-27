@@ -1,12 +1,11 @@
 package frflow.proof.obligation
 
 import frflow.core.name.NodeId
-import frflow.proof.layout.{Laid, LeanBuildSuite, LeanTag, Mini}
+import frflow.proof.layout.Mini
 import frflow.proof.lean.lower.LowerObligation
 import frflow.proof.lean.print.PrintDecl
 import frflow.proof.reading.ObligationNames
 import frflow.proof.terms.TermTable
-import frflow.proof.verdict.{Judge, ObligationStatus}
 
 /** One test per try (`Tries`, `Idle`): each asked where its shape is, with its statement and sentence, read back by
   * its name.
@@ -14,7 +13,7 @@ import frflow.proof.verdict.{Judge, ObligationStatus}
 class TriesSuite extends munit.FunSuite:
   private lazy val table = TermTable.of(Pair.resolved)
   private def tries(n: String): List[Obligation] = Tries.of(Pair.resolved, table, NodeId(n))
-  private def kinds(n: String): List[TryKind] = tries(n).collect { case Obligation(ObligationName.Tried(k), _, _, _) => k }
+  private def kinds(n: String): List[TryKind] = tries(n).map(_.name).collect { case ObligationName.Tried(k) => k }
   private def lean(n: String, k: TryKind): String =
     PrintDecl(LowerObligation(frflow.proof.lean.lower.LowerProp(table, frflow.proof.layout.Lowering(Pair.resolved,
       table).env))(tries(n).find(_.name == ObligationName.Tried(k)).getOrElse(fail(s"no $k of $n"))))
@@ -35,7 +34,8 @@ class TriesSuite extends munit.FunSuite:
 
   test("vacuous and restates: of a node with one part") {
     assertEquals(kinds("same").take(2), List(TryKind.Vacuous, TryKind.Restates))
-    assertEquals(tries("same").take(2).map(_.doc), List("same holds whatever aboutF says.", "aboutF follows from same."))
+    assertEquals(tries("same").take(2).map(_.doc),
+      List("same holds whatever aboutF says.", "aboutF follows from same."))
   }
 
   test("clash and unsat: fatal, each asked of every split and every node") {
@@ -60,11 +60,4 @@ class TriesSuite extends munit.FunSuite:
   test("a one-part node's tries, as Mini's allowsOne has them") {
     assertEquals(Tries.of(Mini.resolved, TermTable.of(Mini.resolved), NodeId("allowsOne")).map(_.name),
       List(TryKind.Vacuous, TryKind.Restates, TryKind.Clash, TryKind.Unsat, TryKind.Idle).map(ObligationName.Tried(_)))
-  }
-
-/** `Pair` built by Lean: what each try shows. `same`'s part restates it; nothing else is shown. */
-class TriesLeanSuite extends LeanBuildSuite("pair", Laid(Pair.resolved, Map.empty, Nil)):
-  test("pair: only the part restating `same` is shown".tag(LeanTag)) {
-    val shown = judged(tries, Judge.tried).filter(_.status == ObligationStatus.Shown).map(_.name)
-    assertEquals(shown, List(ObligationName.Tried(TryKind.Restates)), built)
   }

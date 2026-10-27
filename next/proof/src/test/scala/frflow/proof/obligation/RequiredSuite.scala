@@ -1,8 +1,7 @@
 package frflow.proof.obligation
 
-import frflow.core.{Kb, Lang}
-import frflow.core.Nodes.*
-import frflow.core.analysis.{Resolve, Resolved, Validate}
+import frflow.core.Lang
+import frflow.core.analysis.Resolved
 import frflow.core.name.NodeId
 import frflow.core.ty.Ty
 import frflow.proof.layout.{Mini, Programs, ProgramsProject}
@@ -54,7 +53,8 @@ class RequiredSuite extends munit.FunSuite:
   }
 
   test("made_ of a store's operation: on its model, over a world meeting what always holds") {
-    val made = Required.made(Programs.resolved, NodeId("endsAfterStart")).filter(_.name == ObligationName.Made("sample"))
+    val made = Required.made(Programs.resolved, NodeId("endsAfterStart"))
+      .filter(_.name == ObligationName.Made("sample"))
     assertEquals(made.map(o => (o.goal, o.doc)), List((Prop.over(Nil, Prop.Makes(NodeId("endsAfterStart"),
       frflow.core.name.SymbolName("sample"), made.head.goal match
         case Prop.Forall(_, m: Prop.Makes) => m.formula
@@ -92,15 +92,3 @@ class RequiredSuite extends munit.FunSuite:
   test("the table of open terms the rules apply declarations to") {
     assertEquals(TermTable.of(Mini.resolved).claims(allowsOne).symbols.map(_.value), List("allowed"))
   }
-
-/** `allowsOne` from a part no equation solves: its group of consistency is not witnessed. */
-object Unwitnessed:
-  private val test = Ty.FnOf(List(Lang.big), Ty.Bool)
-  private def allowed[T[_]](l: Lang[T], n: T[BigInt]): T[Boolean] =
-    l.call(l.sym[BigInt => Boolean]("allowed", test), n)
-  val resolved: Resolved = Resolve(Validate(Kb.of(
-    claim("allowsOne")(Lang.formula([T[_]] => (l: Lang[T]) => allowed(l, l.num(1)))),
-    claim("grows")(Lang.formula([T[_]] => (l: Lang[T]) => l.forall[BigInt]("n", Lang.big)(n =>
-      l.s.implies(allowed(l, n), allowed(l, l.s.add(n, l.num(1))))))))
-    .naming(declaration("allowed", test)).linking(partOf("grows", "allowsOne")).elaborated)
-    .fold(ps => throw IllegalStateException(ps.toString), identity))

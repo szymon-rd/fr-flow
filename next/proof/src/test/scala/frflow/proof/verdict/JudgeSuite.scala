@@ -73,10 +73,12 @@ class JudgeSuite extends munit.FunSuite:
     val proven = r(ObligationName.Complete, ObligationStatus.Proven)
     assertEquals(Judge.node(List(proven, r(clash, ObligationStatus.Shown)), Nil, Nil).findings,
       List(Finding.Refuted(List(TryKind.Clash))))
-    assertEquals(Judge.node(List(proven), List("sorryAx"), Nil).findings, List(Finding.DisallowedAxioms(List("sorryAx"))))
+    assertEquals(Judge.node(List(proven), List("sorryAx"), Nil).findings,
+      List(Finding.DisallowedAxioms(List("sorryAx"))))
     assertEquals(Judge.node(List(r(cover, ObligationStatus.Failed)), Nil, Nil).status, CheckStatus.Failed)
     assertEquals(Judge.node(List(proven, r(cover, ObligationStatus.Open)), Nil, Nil).status, CheckStatus.Open)
     assertEquals(Judge.node(List(proven), Nil, List(CheckStatus.Open)).status, CheckStatus.Waiting)
-    assertEquals(Judge.node(List(proven, r(clash, ObligationStatus.NotShown)), List("propext"), List(CheckStatus.Proven))
-      .status, CheckStatus.Proven)
+    val parts = List(CheckStatus.Proven)
+    assertEquals(Judge.node(List(proven, r(clash, ObligationStatus.NotShown)), List("propext"), parts).status,
+      CheckStatus.Proven)
   }

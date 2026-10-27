@@ -17,7 +17,7 @@ object LeanOutput:
         case LeanStyle(f, l, sev, m)                  => (done ++ open, Some(diagnostic(f, l, sev, m)))
         case LakeStyle(sev, f, l, m)                  => (done ++ open, Some(diagnostic(f, l, sev, m)))
         case _ if LakeLine.exists(line.startsWith(_)) => (done ++ open, None)
-        case _                                        => (done, open.map(d => d.copy(message = d.message + "\n" + line)))
+        case _                                        => (done, open.map(d => d.copy(message = s"${d.message}\n$line")))
     }
     (done ++ last).toList
 

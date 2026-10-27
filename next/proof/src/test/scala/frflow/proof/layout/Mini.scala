@@ -37,7 +37,8 @@ object Mini:
   private def allowed[T[_]](l: Lang[T], n: T[BigInt]): T[Boolean] = l.call(l.sym[BigInt => Boolean]("allowed", test), n)
   val allowedPositive: frflow.core.spec.Node = claim("allowedPositive")(Lang.formula([T[_]] => (l: Lang[T]) =>
     l.forall[BigInt]("n", big)(n => l.s.eq(allowed(l, n), l.s.lt(l.num(0), n)))))
-  val allowsOne: frflow.core.spec.Node = claim("allowsOne")(Lang.formula([T[_]] => (l: Lang[T]) => allowed(l, l.num(1))))
+  val allowsOne: frflow.core.spec.Node =
+    claim("allowsOne")(Lang.formula([T[_]] => (l: Lang[T]) => allowed(l, l.num(1))))
 
   val kb: Kb = Store.kb.and(endsAfterStart, allowedPositive, allowsOne,
       outside("startsEmpty")(OutsideFact.Initially(Store.model, DefName("startsEmpty"))),

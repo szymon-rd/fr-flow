@@ -12,7 +12,8 @@ import frflow.core.ty.Ty
 import frflow.core.vocab.{BoundarySig, Define, DefineForm, ModelOp, OpSig, StateModel}
 
 /** Proven code of every shape a rule reads: a define making bookings (`made_reschedule`), a program whose result is
-  * one (`made_fetch`), a store's operation giving one on its model (`made_sample`), a pair of steps at once (`commute_0` of `pairUp`) and a traverse at once (`commute_0` of
+  * one (`made_fetch`), a store's operation giving one on its model (`made_sample`), a pair of steps at once
+  * (`commute_0` of `pairUp`) and a traverse at once (`commute_0` of
   * `eachDoubled`), and a program raising, handling, collecting and accumulating (`careful`, its define only).
   */
 object Programs:
@@ -24,7 +25,8 @@ object Programs:
   private def plus(a: Binder, b: Binder): Stated[BigInt] = term([T[_]] => (s: Sym[T]) => s.add(s.free(a), s.free(b)))
   private def flow(name: String, inputs: List[Binder], p: Prog[Stated[?]], result: Ty): List[Define] = List(
     Define(DefName(name), Written.steps(inputs, p, result, SourceText(name)), DefineForm.Flow),
-    Define(DefName(s"${name}_run"), Written.steps(inputs, p, result, SourceText(name)), DefineForm.RunOf(DefName(name))))
+    Define(DefName(s"${name}_run"), Written.steps(inputs, p, result, SourceText(name)),
+      DefineForm.RunOf(DefName(name))))
 
   private val b = at(0, "b", Booking.ty)
   private val n = at(0, "n", big)

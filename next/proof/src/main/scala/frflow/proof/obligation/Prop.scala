@@ -5,6 +5,7 @@ import frflow.core.expr.Expr
 import frflow.core.name.{DefName, NodeId, SymbolName}
 import frflow.core.spec.Written
 import frflow.core.ty.Ty
+import frflow.proof.terms.Commutation
 
 /** The statement of an obligation in the logic of refinement, before any Lean syntax. Claims and conjuncts stand
   * applied to their open terms. `Forall` and `Exists` bind open terms in order: those of the claims of the nodes the
