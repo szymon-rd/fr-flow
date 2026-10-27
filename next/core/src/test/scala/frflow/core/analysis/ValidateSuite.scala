@@ -47,6 +47,13 @@ class ValidateSuite extends munit.FunSuite:
     assertEquals(Kb.of(plain("root")).naming(codeOnly("connection")).coding(connection -> Code.Provided).problems, Nil)
   }
 
+  test("a value with no Lean type given other code than a provided value is code without a claim") {
+    val connection = SymbolName("connection")
+    assertEquals(Kb.of(plain("root")).naming(codeOnly("connection"))
+      .coding(connection -> Code.Proven(frflow.core.name.DefName("connect"))).problems,
+      List(Problem.CodeWithoutClaim(connection)))
+  }
+
   test("every problem is reported at once, in the order of the rules") {
     val kb = Kb.of(plain("a"), plain("a"), design("layout")).naming(definition("granted", frflow.core.Lang.big))
     assertEquals(kb.problems, List(Problem.DuplicateId(NodeId("a")), Problem.DesignWithoutParent(NodeId("layout")),
