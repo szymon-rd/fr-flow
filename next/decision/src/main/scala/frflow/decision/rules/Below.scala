@@ -2,6 +2,7 @@ package frflow.decision.rules
 
 import frflow.core.graph.Walk
 import frflow.core.name.NodeId
+import frflow.decision.content.Content
 import frflow.decision.ledger.{Action, Authorship, Decision, Ledger, Reason}
 import frflow.decision.review.*
 
@@ -31,13 +32,16 @@ final class Below(r: Reading, by: Authorship, reason: String):
 
   private def listed(s: Subject, c: Subject): Boolean = r.state(c.id) match
     case ReviewState.Accepted => true
-    case ReviewState.Review   =>
-      r.causes(c.id) == List(Cause.Above) && movedAbove(c).forall(m => m == s.id || r.state(m) == ReviewState.Accepted)
+    case ReviewState.Review   => r.causes(c.id) == List(Cause.Above) &&
+      movedAbove(c).forall((m, _) => m == s.id || r.state(m) == ReviewState.Accepted)
     case _ => false
 
-  /** What `c` rests on, however far up, whose meaning moved since `c` was decided. */
-  private def movedAbove(c: Subject): List[NodeId] = r.ledger.binding(c.id).fold(Nil)(d =>
-    r.subjects.ancestry(c).filter(a => r.subjects.get(a).exists(now =>
-      r.ledger.bindingAt(a, d.author.at).exists(t => Meaning.of(t.bound.content) != Meaning.of(now.content)))))
+  /** What `c` rests on, however far up, whose meaning moved since `c` was decided, nearest first, each with its
+    * content as decided then.
+    */
+  def movedAbove(c: Subject): List[(NodeId, Content)] = r.ledger.binding(c.id).fold(Nil)(d =>
+    r.subjects.ancestry(c).flatMap(a => r.subjects.get(a).flatMap(now =>
+      r.ledger.bindingAt(a, d.author.at).map(_.bound.content).filter(was => Meaning.of(was) != Meaning.of(now.content))
+        .map(a -> _))))
 
   private def record(a: Action, c: Subject, why: String) = Decision.taken(a, by, Reason(why, Nil), r.bound(c))

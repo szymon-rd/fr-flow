@@ -37,6 +37,11 @@ class DecidersSuite extends munit.FunSuite:
     assertEquals(Deciders.committed(List(first, version(Some(first), "k2", ann, agent)), verify), None)
   }
 
+  test("a first list counts only when signed by its own first entry") {
+    assert(Deciders.committed(List(version(None, "k1", ann, agent)), verify).isDefined)
+    assertEquals(Deciders.committed(List(version(None, "k2", ann, agent)), verify), None)
+  }
+
   test("an earlier list committed again does not restore a decider the list removed") {
     val withAgent = version(Some(first), "k1", ann, agent)
     val revoked = version(Some(withAgent), "k1", ann)

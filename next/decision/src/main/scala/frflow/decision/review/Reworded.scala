@@ -10,11 +10,14 @@ object Reworded:
     val was = rewordedAbove(all, ledger, s, d)
     was.nonEmpty && chainWith(all, was, s) == d.bound.chain
 
-  /** The nodes `s` rests on whose meaning moved since `d` while their formal meaning did not: their meaning then. */
+  /** The nodes `s` rests on, each with a formula, whose meaning moved since `d` while their formal meaning did not:
+    * their meaning then.
+    */
   private def rewordedAbove(all: Subjects, ledger: Ledger, s: Subject, d: Decision): Map[NodeId, Hash] =
     all.ancestry(s).flatMap(a => all.get(a).flatMap { now =>
       ledger.bindingAt(a, d.author.at).map(_.bound.content)
-        .filter(c => Meaning.of(c) != Meaning.of(now.content) && Meaning.formal(c) == Meaning.formal(now.content))
+        .filter(c => now.content.get("formula").isDefined && Meaning.of(c) != Meaning.of(now.content) &&
+          Meaning.formal(c) == Meaning.formal(now.content))
         .map(c => a -> Meaning.of(c))
     }).toMap
 

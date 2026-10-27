@@ -12,30 +12,36 @@ final class Accepting(r: Reading, by: Authorship, reason: String):
       _ <- Either.cond(ids.nonEmpty, (), Refusal.NoNodes)
       _ <- notBelow(ids, revisit).map(Refusal.NotBelow(ids.head, _)).toLeft(())
       _ <- ids.traverse_(id => r.subjects.get(id).traverse_(s => unmoved(s, seen.get(id))))
-      l <- each(ids, (now, s, l) => Below(now, by, reason).settle(s, revisit, l))
+      l <- each(ids, true, (now, s, l) => Below(now, by, reason).settle(s, revisit, l))
     yield l
 
-  /** The mechanical batch, each node accepted on its own: what is below it is in the batch or decided apart. */
+  /** The mechanical batch, each node accepted on its own, choosing among no rivals: what is below it is in the batch
+    * or decided apart.
+    */
   def mechanical: Either[Refusal, Ledger] =
     val batch = r.subjects.inOrder.map(_.id).filter(id => r.notMechanical.get(id).exists(_.isEmpty))
-    if batch.isEmpty then Left(Refusal.NothingToConfirm) else each(batch, (_, _, l) => l)
+    if batch.isEmpty then Left(Refusal.NothingToConfirm) else each(batch, false, (_, _, l) => l)
 
-  private def each(ids: List[NodeId], after: (Reading, Subject, Ledger) => Ledger): Either[Refusal, Ledger] =
+  /** Each node accepted in order; with `choosing`, over its rivals not yet rejected. */
+  private def each(ids: List[NodeId], choosing: Boolean, after: (Reading, Subject, Ledger) => Ledger)
+      : Either[Refusal, Ledger] =
     r.subjects.ordered(ids).foldLeftM(r.ledger) { (l, id) =>
       val now = Reading(r.subjects, l)
-      one(now, id).map((s, chosen) => after(now, s, chosen)).leftMap(within(ids, id))
+      one(now, id, choosing).map((s, chosen) => after(now, s, chosen)).leftMap(within(ids, id))
     }
 
-  private def one(now: Reading, id: NodeId): Either[Refusal, (Subject, Ledger)] =
+  /** An accepted node is accepted again only over a rival still standing. */
+  private def one(now: Reading, id: NodeId, choosing: Boolean): Either[Refusal, (Subject, Ledger)] =
     for
       s <- now.subjects.get(id).toRight(Refusal.UnknownNode(id))
       _ <- now.waitsFor(s).map(Refusal.AcceptFirst(_)).toLeft(())
-      _ <- Either.cond(now.state(id) != ReviewState.Accepted, (), Refusal.AlreadyAccepted(id))
-    yield s -> chosen(now, s)
+      _ <- Option.when(s.proof.unproven.contains(Unproven.Tests))(Refusal.CodeFails(id)).toLeft(())
+      rivals = if choosing then s.place.rivals.filter(x => now.state(x) != ReviewState.Rejected) else Nil
+      _ <- Either.cond(now.state(id) != ReviewState.Accepted || rivals.nonEmpty, (), Refusal.AlreadyAccepted(id))
+    yield s -> chosen(now, s, rivals)
 
   /** A node under review whose meaning did not move is confirmed, keeping the reason it was chosen for. */
-  private def chosen(now: Reading, s: Subject): Ledger =
-    val rivals = s.place.rivals.filter(x => now.state(x) != ReviewState.Rejected)
+  private def chosen(now: Reading, s: Subject, rivals: List[NodeId]): Ledger =
     val meaningMoved =
       now.causes(s.id).contains(Cause.Self) && now.ledger.binding(s.id).forall(Meaning.decisionMoved(_, s))
     val confirms = now.state(s.id) == ReviewState.Review && !meaningMoved && rivals.isEmpty
