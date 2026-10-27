@@ -62,7 +62,7 @@ lazy val nextCore = nextModule("core", cats)
 
 // next-testing (step 5)
 
-// next-decision (step 6)
+lazy val nextDecision = nextModule("decision", cats).dependsOn(nextCore)
 
 // next-wire (step 7)
 
