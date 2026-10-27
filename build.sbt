@@ -7,6 +7,7 @@ val circeParser = "io.circe" %% "circe-parser" % "0.14.17"
 val cats = "org.typelevel" %% "cats-core" % "2.13.0"
 val catsEffect = "org.typelevel" %% "cats-effect" % "3.6.3"
 val catsEffectKernel = "org.typelevel" %% "cats-effect-kernel" % "3.6.3"
+val catsEffectStd = "org.typelevel" %% "cats-effect-std" % "3.6.3"
 val fs2 = Seq("co.fs2" %% "fs2-core" % "3.12.2", "co.fs2" %% "fs2-io" % "3.12.2")
 val decline = "com.monovore" %% "decline" % "2.5.0"
 val http4s = Seq("http4s-ember-server", "http4s-dsl", "http4s-circe").map("org.http4s" %% _ % "0.23.33") :+
@@ -55,6 +56,7 @@ def nextModules: Seq[ProjectReference] = Seq(
   nextProof,
 
   // step 4: nextEval
+  nextEval,
 
   // step 5: nextTesting
 
@@ -84,6 +86,11 @@ lazy val nextDsl = nextModule("dsl", cats).dependsOn(nextCore)
 lazy val nextProof = nextModule("proof", cats).dependsOn(nextCore % "compile->compile;test->test")
 
 // next-eval (step 4)
+/** The Scala meaning of terms and of plain code: the evaluator, examples, the values a call reads, recorded programs
+  * run on models, production's interpreter of programs; the facade `frflow.*`, and the examples written in it. Its
+  * tests read core's generated terms and proof's printer (Lean decides each term as the evaluator does). */
+lazy val nextEval = nextModule("eval", cats, catsEffectKernel, catsEffectStd, catsEffect % Test)
+  .dependsOn(nextDsl, nextProof % "test->test")
 
 // next-testing (step 5)
 

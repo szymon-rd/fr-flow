@@ -17,7 +17,7 @@ import frflow.dsl.node.{Edges, Node}
   */
 object Elaborate:
   def apply(kb: KnowledgeBase): ValidatedNec[ElabError, Elaborated] =
-    val attached = kb.code.traverse((id, a) => a.map(id -> _))
+    val attached = kb.meanings.traverse((id, a) => a.map(id -> _))
     (kb.nodes.traverse(node), attached).tupled.run.andThen { case (declared, (ns, code)) =>
       vocabulary(declared).map { (all, v) =>
         val theory = Theory(kb.name, v, ns.map(_.sited), ns.flatMap(_.edges),

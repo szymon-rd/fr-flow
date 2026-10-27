@@ -1,6 +1,6 @@
 package frflow.dsl.term
 
-import frflow.*
+import frflow.dsl.term.TermSyntax.*
 import frflow.core.expr.{Expr, Iteration, PrimOp}
 import frflow.core.term.Selector
 import frflow.core.ty.{NumKind, Ty}
