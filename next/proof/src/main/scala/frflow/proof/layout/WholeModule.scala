@@ -9,8 +9,9 @@ import frflow.proof.terms.TermTable
 
 /** `Whole.lean`: what is asked of the theory as a whole (`Joint`, `ExampleGoals`), each statement in `namespace
   * Obl`, and the theorem of each one FrFlow's witnesses meet (`frflow_witness`) or its automation proves
-  * (`frflow_auto`), each with its axioms audited. A statement nothing witnesses is stated only: it shows "consistency not proven" (or "not shown")
-  * until the developer's proof file proves it; an example is a try, in the checks module beside it.
+  * (`frflow_auto`), each with its axioms audited. A statement nothing witnesses is stated only: it shows
+  * "consistency not proven" (or "not shown") until the developer's proof file proves it; an example is a try, in the
+  * checks module beside it.
   */
 final class WholeModule(props: LowerProp, witness: LowerWitness):
   def of(kb: KbName, imports: List[ModuleName], obligations: List[Obligation]): LeanModule =

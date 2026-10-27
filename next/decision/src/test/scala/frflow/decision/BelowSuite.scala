@@ -1,8 +1,8 @@
 package frflow.decision
 
 import frflow.decision.ledger.{Action, Authorship, Ledger}
-import frflow.decision.review.{Reading, ReviewState, Subjects}
-import frflow.decision.rules.{Below, Command, Decide, Refusal}
+import frflow.decision.review.{Moves, Reading, ReviewState, Subjects}
+import frflow.decision.rules.{Command, Decide, Refusal}
 import Shelf.*
 
 /** What accepting a node acts on below it: the decisions that moved only with it, confirmed once all they rest on is
@@ -46,7 +46,7 @@ class BelowSuite extends munit.FunSuite:
 
   test("what moved above a node: each node it rests on whose meaning moved, with its content as decided") {
     val s = replacing(shelf, r.remeant("Readers find every book."))
-    val below = Below(Reading(s, acceptAll(shelf)), by(20), "the formula of R changed")
-    assertEquals(below.movedAbove(b), List(id("R") -> r.content))
-    assertEquals(below.actsOn(r).map(_.id), ids("A", "B"))
+    val reading = Reading(s, acceptAll(shelf))
+    assertEquals(Moves.movedAbove(reading, b), List(id("R") -> r.content))
+    assertEquals(Moves.actsOn(reading, r).map(_.id), ids("A", "B"))
   }

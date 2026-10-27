@@ -7,22 +7,18 @@ import frflow.core.expr.OutsideFact
 import frflow.core.name.NodeId
 import frflow.core.spec.{Node, NodeKind}
 import frflow.decision.content.FieldValue
-import frflow.decision.ledger.Authorship
-import frflow.decision.review.{ReviewState, Standing}
-import frflow.decision.rules.Below
+import frflow.decision.review.{Moves, ReviewState, Standing}
 import frflow.project.pipeline.{Analysis, Texts}
 
 /** Each group of a node's view, one function each, from the analysis. */
 private[api] final class NodeViews(a: Analysis):
   private val r = a.decided
   private val counting = a.inputs.ledger.counting
-  /** `Below`'s queries read the ledger as it counts; who would decide is not read by them. */
-  private val below = Below(a.reading, Authorship("", a.inputs.now, None), "")
 
   def of(n: Node): NodeView = NodeView(n.id, says(n), placement(n.id), proof(n.id), code(n.id), review(n.id))
 
   def says(n: Node): Says =
-    val written = a.subjects.get(n.id).flatMap(_.content.get("formula")).collect { case FieldValue.Text(f) => f }
+    val written = a.subjects.get(n.id).flatMap(_.content.get("written")).collect { case FieldValue.Text(f) => f }
     Says(n.statement.kind, n.says, written, Texts.checking(r.theory, n.id), Resolve.mentions(r.theory, n.id),
       counting.binding(n.id).map(_.reason.text))
 
@@ -40,7 +36,7 @@ private[api] final class NodeViews(a: Analysis):
   def proof(id: NodeId): ProofView =
     val check = a.current(id)
     ProofView(check.fold(Leans.Unchecked)(c => Leans.state(c.status)), check.toList.flatMap(_.results).map(Leans.of),
-      check.toList.flatMap(_.findings).map(Leans.finding), a.inputs.proofs.contains(id),
+      check.toList.flatMap(_.findings).map(Leans.finding), a.inputs.lean.proofs.contains(id),
       a.subjects.get(id).toList.flatMap(_.proof.unproven))
 
   def code(id: NodeId): Option[CodeView] =
@@ -55,4 +51,5 @@ private[api] final class NodeViews(a: Analysis):
     val subject = a.subjects.get(id)
     ReviewView(a.standings.getOrElse(id, Standing(ReviewState.Proposed, Nil)), counting.binding(id),
       subject.flatMap(a.reading.waitsFor), a.reading.notMechanical.get(id).flatten,
-      subject.toList.flatMap(below.movedAbove).map(_._1), subject.toList.flatMap(below.actsOn).map(_.id))
+      subject.toList.flatMap(Moves.movedAbove(a.reading, _)).map(_._1),
+      subject.toList.flatMap(Moves.actsOn(a.reading, _)).map(_.id))

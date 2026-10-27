@@ -3,9 +3,7 @@ package frflow.api.derive
 import frflow.api.view.diff.*
 import frflow.core.name.{NodeId, RelPath}
 import frflow.decision.content.{Content, FieldValue}
-import frflow.decision.ledger.Authorship
-import frflow.decision.review.{Meaning, Subject}
-import frflow.decision.rules.Below
+import frflow.decision.review.{Meaning, Moves, Subject}
 import frflow.project.pipeline.Analysis
 
 /** What moved under a node's decision, from the analysis; its code's diff is read by the shell (`files` and
@@ -35,7 +33,7 @@ private[api] object Diffs:
     }
 
   private def above(a: Analysis, s: Subject): List[Moved] =
-    Below(a.reading, Authorship("", a.inputs.now, None), "").movedAbove(s).map((m, was) =>
+    Moves.movedAbove(a.reading, s).map((m, was) =>
       Moved(m, fields(was, a.subjects.get(m).fold(Content.empty)(_.content))))
 
   private def parts(was: Content, now: Content): Parts =

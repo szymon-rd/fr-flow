@@ -26,9 +26,11 @@ class ReadProofSuite extends munit.FunSuite:
       Against.Claim(grant), outcome, Nil, Nil))), Map.empty))
   private def standing(on: Analysis, id: NodeId) = on.subjects.get(id).map(_.proof).getOrElse(fail(id.value))
 
-  test("what is not proven of a leaf: its check, nothing below it") {
+  test("a leaf its code checks is not one with nothing below it; a leaf nothing checks is") {
     val open = standing(a, grant).unproven
-    assert(open.contains(Unproven.Check) && open.contains(Unproven.NothingBelow), open)
+    assert(open.contains(Unproven.Check) && !open.contains(Unproven.NothingBelow), open)
+    val bare = Projects.bare(Projects.elaborated(ReadProofSuite.unchecked))
+    assert(standing(bare, NodeId("positive")).unproven.contains(Unproven.NothingBelow))
   }
 
   test("its code is proven when its impl is asked and proven; open, it is not, and said so") {
@@ -53,3 +55,21 @@ class ReadProofSuite extends munit.FunSuite:
     assert(!tests(reported(Count(200, 200), Outcome.Passed)))
     assert(!tests(a) && standing(a, grant).unproven.contains(Unproven.NotTested))
   }
+
+  test("what always holds of a store is not consistent until the states it starts in are proven to meet it") {
+    def proving(names: List[ObligationName]) = a.withRecorded(Recorded(Checks(Map.empty, Some(WholeCheck(a.keys.whole,
+      names.map(Result(_, ObligationStatus.Proven, Nil)), Instant.EPOCH))), Map.empty, Map.empty))
+    val all = a.whole.map(_.name)
+    val ids = all.collect { case ObligationName.Start(n) => n }
+    val (every, startsOpen) = (proving(all), proving(all.filterNot(_.isInstanceOf[ObligationName.Start])))
+    assert(ids.nonEmpty)
+    assertEquals(ids.filter(standing(startsOpen, _).unproven.contains(Unproven.Consistency)), ids)
+    assertEquals(ids.filter(standing(every, _).unproven.contains(Unproven.Consistency)), Nil)
+  }
+
+object ReadProofSuite:
+  import frflow.*
+  val positive = Node.claim("A number above zero is not below it.")(
+    forall((n: Term[BigInt]) => (n > 0) implies (n >= 0)))
+  /** A claim with no parts, about no code: nothing checks it. */
+  val unchecked = KnowledgeBase("Unchecked")(positive)

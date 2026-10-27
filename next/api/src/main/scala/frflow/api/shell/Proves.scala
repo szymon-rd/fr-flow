@@ -18,7 +18,7 @@ import frflow.project.program.{StatusProgram, TestProgram}
   */
 private[api] final class Proves[F[_]: Async: Parallel](s: Session[F]) extends Proving[F]:
   private val files = s.ports.files
-  private val library = s.project.library
+  private val library = s.library.path
 
   def render: F[List[String]] =
     s.analysis.flatMap(a => s.guarded(Render(files, library)(a))).map(_.map(_.dotted))
@@ -40,9 +40,9 @@ private[api] final class Proves[F[_]: Async: Parallel](s: Session[F]) extends Pr
       val run = for
         a                <- s.analysis
         lake             <- s.lean(a)
-        (proven, byLean) <- s.guarded(CheckProgram(files, lake, library)
+        (proven, byLean) <- s.guarded(CheckProgram(files, lake, library, s.code)
                               .run(a, only, (i, n, ids) => q.offer(Some(CheckEvent.Level(i, n, ids)))))
-        (tested, byTests) <- s.guarded(TestProgram(files, s.semantics, s.draws, s.models)(byLean, only))
+        (tested, byTests) <- s.guarded(TestProgram(files, s.code, s.models)(byLean, only))
         _                <- s.guarded(after(byTests))
         view             <- s.view(byTests)
         checked           = (proven.map(_.node) ++ tested.map(_._1)).distinct

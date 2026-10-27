@@ -28,6 +28,8 @@ final class Analysis(val valid: Valid, val inputs: Inputs, val computed: Compute
   lazy val groups: List[(Int, List[NodeId])] =
     Consistency.of(decided.theory).zipWithIndex.collect { case (Group.Sharing(ids, _, _, _), i) => i -> ids }
   lazy val lowering: Lowering = Lowering(decided, terms)
+  /** The lowering a node's content prints what its formula means with (`Contents`): variables named by order. */
+  lazy val canonical: Lowering = Lowering(decided, terms, canonical = true)
   lazy val modules: List[LeanModule] = LeanProject.of(decided, terms, obligations, whole)
   /** The roots `root_impl` is asked of. */
   lazy val rooted: Set[NodeId] = RootImplModule.roots(lowering).toSet

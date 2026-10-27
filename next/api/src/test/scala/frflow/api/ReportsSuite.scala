@@ -4,6 +4,7 @@ import cats.syntax.all.*
 import frflow.api.Opened.id
 import frflow.api.view.Found
 import frflow.core.name.RelPath
+import frflow.decision.review.Unproven
 
 /** What the developer reads to know where things stand (today's `ReportsSuite`): whether the project is complete,
   * and where a change belongs.
@@ -23,6 +24,16 @@ class ReportsSuite extends munit.CatsEffectSuite:
       // A leaf nothing below proves is not; nor is a project whose nodes are not accepted yet.
       assert(!leaf.overview.complete)
       assert(!fresh.overview.complete)
+  }
+
+  test("a leaf its code is tested against is not one nothing below proves") {
+    for
+      api  <- Opened.api(Opened.before)
+      _    <- Opened.acceptAll(api)
+      done <- api.reading.view
+    yield
+      val unproven = done.nodes.map(n => n.id -> n.proof.unproven).toMap
+      assert(!unproven.getOrElse(id("sameAbove"), Nil).contains(Unproven.NothingBelow), unproven)
   }
 
   test("find: the nodes governing a file, a file no node governs, or what mentions every word") {

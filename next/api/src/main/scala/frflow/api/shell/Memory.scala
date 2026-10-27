@@ -6,7 +6,7 @@ import cats.syntax.all.*
 import frflow.api.{FrFlowApi, Lean, Project}
 import frflow.core.name.RelPath
 import frflow.decision.ledger.{Deciders, Ledger}
-import frflow.project.port.{MemoryFiles, MemoryGit, MemoryKeys, MemoryLedger}
+import frflow.project.port.memory.{MemoryFiles, MemoryGit, MemoryKeys, MemoryLedger}
 import frflow.project.program.Ports
 import frflow.testing.{Seed, Settings}
 

@@ -8,7 +8,6 @@ import frflow.wire.file.Unreadable
 /** The shell's errors as the front ends see them (`Stop`); any other error is left as it is. */
 private[api] object Stops:
   val of: PartialFunction[Throwable, Throwable] =
-    case Problems.NotElaborated(es)             => Stop.NotElaborated(es)
     case Problems.Invalid(ps)                   => Stop.Invalid(ps)
     case FrFlowError.NoLean                     => Stop.NoLean
     case FrFlowError.UnknownNode(id)            => Stop.UnknownNode(id)

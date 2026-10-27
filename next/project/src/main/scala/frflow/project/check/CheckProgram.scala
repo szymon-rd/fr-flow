@@ -16,8 +16,8 @@ import frflow.proof.verdict.{CheckStatus, Checks, NodeCheck}
   * scripted `Lake` and memory.
   */
 final class CheckProgram[F[_]: MonadThrow: Parallel: Clock](files: ProjectFiles[F], lake: Lake[F], library: String,
-    run: RunCode[F]):
-  private val nodes = NodeChecker(lake, files, Refutations(run))
+    code: RunCode[F]):
+  private val nodes = NodeChecker(lake, files, Refutations(code))
 
   /** The nodes checked, in order, and the analysis with every check recorded. */
   def apply(a: Analysis, only: Option[NodeId]): F[(List[NodeCheck], Analysis)] =

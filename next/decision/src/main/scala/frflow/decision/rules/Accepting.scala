@@ -54,7 +54,7 @@ final class Accepting(r: Reading, by: Authorship, reason: String):
   /** The nodes named to revisit that are not among the decisions below the nodes accepted. */
   private def notBelow(ids: List[NodeId], revisit: List[NodeId]): Option[List[NodeId]] =
     val below = ids.flatMap(r.subjects.get).filter(s => r.state(s.id) != ReviewState.Accepted)
-      .flatMap(Below(r, by, reason).actsOn).map(_.id).toSet
+      .flatMap(Moves.actsOn(r, _)).map(_.id).toSet
     Option(revisit.filterNot(below)).filter(_.nonEmpty)
 
   private def unmoved(s: Subject, seen: Option[String]) =

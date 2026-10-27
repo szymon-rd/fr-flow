@@ -16,7 +16,7 @@ object ReadSubjects:
     val places = r.theory.refinement.nodes.map(n => n.id -> place(r, n)).toMap
     val order = Walk.postorder(r.theory.refinement.nodes.map(_.id), identity)(places.get(_).fold(Nil)(_.restsOn))
     Subjects(order.flatMap(r.theory.node).map(n =>
-      Subject(n.id, Contents.of(r, n.id), places(n.id), a.governed.get(n.id), ReadProof.of(a, n))))
+      Subject(n.id, Contents.of(a.canonical, n.id), places(n.id), a.governed.get(n.id), ReadProof.of(a, n))))
 
   /** Its parents are the wholes it is a part of only: a premise rests on nothing that assumes it, so the nodes
     * assuming it are below it in no order; what it assumes is among what it rests on.

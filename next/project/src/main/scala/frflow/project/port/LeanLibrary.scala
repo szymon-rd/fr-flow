@@ -14,9 +14,11 @@ import scala.util.Using
 final case class LeanLibrary(path: String, version: String)
 
 object LeanLibrary:
-  /** The library at `dir`, required as `path`: its files read, `.lake` (its build) left out. */
+  /** The library at `dir`, required as `path`: its files read, `.lake` (its build) left out; none where there is no
+    * such directory (Lake then says so when a check is asked).
+    */
   def read[F[_]: Sync](dir: Path, path: String): F[LeanLibrary] = Sync[F].blocking {
-    val files = Using.resource(Files.walk(dir))(_.iterator.asScala.toList)
+    val files = (if Files.isDirectory(dir) then Using.resource(Files.walk(dir))(_.iterator.asScala.toList) else Nil)
       .filter(f => Files.isRegularFile(f, LinkOption.NOFOLLOW_LINKS) && !dir.relativize(f).startsWith(".lake"))
       .filter(f => f.toString.endsWith(".lean") || Set("lakefile.toml", "lean-toolchain")(f.getFileName.toString))
       .sortBy(dir.relativize(_).toString)

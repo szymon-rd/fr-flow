@@ -11,9 +11,10 @@ import frflow.proof.terms.TermTable
 
 /** How one knowledge base's Lean is lowered, computed once for every module: its environment (each model's field of
   * the world is its boundary's name, each model's namespace its name capitalized), the names a binder may not take
-  * (every symbol, every domain type, `World`), what always holds, and the lowering of propositions.
+  * (every symbol, every domain type, `World`), what always holds, and the lowering of propositions. `canonical`
+  * names every variable by the order it is bound (`Naming`): the lowering a node's content prints its meaning with.
   */
-final class Lowering(val resolved: Resolved, val table: TermTable):
+final class Lowering(val resolved: Resolved, val table: TermTable, canonical: Boolean = false):
   private val v = resolved.theory.vocabulary
   val kb: KbName = resolved.theory.name
   val layout: Layout = Layout(kb)
@@ -25,7 +26,7 @@ final class Lowering(val resolved: Resolved, val table: TermTable):
       case _                   => None).toMap,
     v.boundaries.exists(_.fails.nonEmpty), v.models.map(m => Names.ident(m.boundary.value)))
   val naming: Naming = Naming.over(v.symbols.map(_.name.value).toSet,
-    (v.types.map(_.typeName.value) ++ v.sorts.map(_.name.value) :+ "World").toSet)
+    (v.types.map(_.typeName.value) ++ v.sorts.map(_.name.value) :+ "World").toSet).copy(canonical = canonical)
   val guards: List[Guard] = Guards.of(resolved.theory)
   val props: LowerProp = LowerProp(table, env)
 

@@ -1,11 +1,12 @@
 package frflow.project.pipeline
 
 import frflow.core.analysis.Scope
+import frflow.core.checking.Checking
 import frflow.core.name.NodeId
 import frflow.core.spec.{Node, NodeKind}
 import frflow.decision.review.{ProofStanding, Unproven}
 import frflow.proof.obligation.ObligationName
-import frflow.proof.obligation.ObligationName.{Complete, Consistent, Cover, Impl, RootImpl, Tried}
+import frflow.proof.obligation.ObligationName.{Complete, Consistent, Cover, Impl, RootImpl, Start, Tried}
 import frflow.proof.obligation.TryKind.{Clash, Idle, Needed}
 import frflow.proof.verdict.{CheckStatus, ObligationStatus, Result}
 import frflow.proof.verdict.ObligationStatus.{NotShown, Proven, Shown}
@@ -38,8 +39,17 @@ object ReadProof:
     case Result(Tried(Idle), Shown, _)              => Unproven.Idle
   }
 
+  /** A claim nothing checks: no parts, and no code proven or tested against it, nor where its values are made or
+    * kept (a hypothesis callers' proofs take, or a test its statement cannot have, checks nothing).
+    */
   private def nothingBelow(a: Analysis, n: Node): List[Unproven] =
-    val leaf = n.statement.kind == NodeKind.Claim && a.decided.theory.refinement.parts(n.id).isEmpty
+    val t = a.decided.theory
+    val checked = Checking.of(t, n.id).exists {
+      case Checking.FromParts(_) | Checking.AgainstCode(_, _) | Checking.TestedAgainst(_, _) | Checking.KeptBy(_) |
+          Checking.WhereMade(_, _, _) => true
+      case _ => false
+    }
+    val leaf = n.statement.kind == NodeKind.Claim && t.refinement.parts(n.id).isEmpty && !checked
     Option.when(leaf)(Unproven.NothingBelow).toList
 
   /** Of an `always`, each program keeping it whose `cover_<op>` is not proven. */
@@ -47,10 +57,15 @@ object ReadProof:
     Option.when(Scope.of(a.decided.theory, id).exists(op => !status(rs, Cover(op.value)).forall(_ == Proven)))(
       Unproven.Kept(id)).toList
 
-  /** At the bottom, the group it shares open values with not proven to hold together. */
+  /** At the bottom, the group it shares open values with not proven to hold together; of what always holds of a
+    * store, the states it starts in not proven to meet it (`start_<node>`): either is its consistency not proven.
+    * Vacuity is warned of, not gated on.
+    */
   private def consistent(a: Analysis, id: NodeId): List[Unproven] =
-    val proven = a.wholeCheck.toList.flatMap(_.results).collect { case Result(Consistent(i), Proven, _) => i }.toSet
-    Option.when(a.groups.exists((i, ids) => ids.contains(id) && !proven(i)))(Unproven.Consistency).toList
+    val proven = a.wholeCheck.toList.flatMap(_.results).collect { case Result(n, Proven, _) => n }.toSet
+    val start = a.whole.exists(_.name == Start(id)) && !proven(Start(id))
+    val group = a.groups.exists((i, ids) => ids.contains(id) && !proven(Consistent(i)))
+    Option.when(group || start)(Unproven.Consistency).toList
 
   /** Its plain code, or a store's implementations, tested: a current report with no failing case, every case asked
     * tried, every part reached (none since it moved: not tested yet). A statement with no Scala value is not checked

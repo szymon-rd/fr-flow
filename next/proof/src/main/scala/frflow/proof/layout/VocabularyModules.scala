@@ -58,7 +58,8 @@ object VocabularyModules:
   private def define(l: Lowering, d: Define): LeanModule =
     module(l, l.layout.define(d.name), List(declared(l, d), Decl.MatchEqns))
 
-  private def declared(l: Lowering, d: Define): Decl = (d.form, d.written.form) match
+  /** A define as Lean is given it: a program generic in its monad, a run of one, or a term's `def`. */
+  def declared(l: Lowering, d: Define): Decl = (d.form, d.written.form) match
     case (DefineForm.RunOf(flow), _)           =>
       LowerModels(l.env, l.naming).run(d, flow, opens(l, d).map(s => s -> l.table.typeOf(s)))
     case (DefineForm.Flow, Form.Steps(p))      => flow(l, d, p)

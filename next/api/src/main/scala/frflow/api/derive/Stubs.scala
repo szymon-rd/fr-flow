@@ -16,7 +16,7 @@ import frflow.proof.verdict.ObligationStatus
 private[api] object Stubs:
   def of(a: Analysis, id: NodeId): Option[(RelPath, String)] =
     val file = Layout(a.decided.theory.name).proofs(id).file
-    val existing = a.inputs.proofs.get(id)
+    val existing = a.inputs.lean.proofs.get(id)
     val add = wanted(a, id).filterNot(existing.toList.flatMap(ProofRules.theorems).contains)
     val text = existing.fold(Some(fresh(a, id, add)))(f => inserted(a, id, f, add))
     Option.when(add.nonEmpty)(text).flatten.map(file -> _)

@@ -3,28 +3,46 @@ package frflow.project.pipeline
 import frflow.core.analysis.Resolved
 import frflow.core.graph.Edge
 import frflow.core.name.NodeId
-import frflow.core.spec.{CallForm, FailureClause, Node, Reliance, Statement}
+import frflow.core.spec.{CallForm, FailureClause, Node, Reliance, Statement, Written}
 import frflow.decision.content.{Content, FieldValue}
 import frflow.proof.lean.lower.LowerType
-import frflow.proof.lean.print.Print
+import frflow.core.expr.{Expr, Exprs}
+import frflow.proof.layout.{Lowering, VocabularyModules}
+import frflow.proof.lean.print.{Print, PrintDecl}
+import frflow.proof.lean.term.Printed
 
 /** A node's decided form: what it says (its sentence and formula; its reason is its decision's), where it sits, and
-  * how it is checked. One form, FrFlow's own: the ledgers start fresh with it, so no older form is read. The rebuilt
+  * how it is checked. Its `formula` is what the formula means: the elaborated term as Lean is given it (FrFlow's
+  * defines by name, a variable by its place), so a helper whose body changes moves it, and wording the Scala
+  * differently does not; `written` is the Scala as the developer wrote it, shown, not part of the meaning
+  * (`Meaning`). One form, FrFlow's own: the ledgers start fresh with it, so no older form is read. The rebuilt
   * examples' goldens pin every node's content.
   */
 object Contents:
-  def of(r: Resolved, id: NodeId): Content =
-    r.theory.node(id).fold(Content.empty)(n => Content(said(r, n) ++ done(r, n)))
+  def of(l: Lowering, id: NodeId): Content =
+    val r = l.resolved
+    r.theory.node(id).fold(Content.empty)(n => Content(said(l, n) ++ done(r, n)))
 
   /** What the node says. */
-  private def said(r: Resolved, n: Node): List[(String, FieldValue)] = List(
-    Some("kind" -> text(n.statement.kind.toString.toLowerCase)),
-    Some("parents" -> texts(r.theory.refinement.parents(n.id).map(_.value))),
-    Option.when(n.statement.stated)("parts" -> texts(r.theory.refinement.parts(n.id).map(_.value))),
-    Some("assumes" -> texts(r.theory.refinement.assumed(n.id).map(_.value))),
-    Some("statement" -> text(n.says)),
-    n.statement.said.map(f => "formula" -> text(f.source.value)),
-    Some("vocabulary" -> texts(Texts.vocabulary(r.theory, n.id)))).flatten
+  private def said(l: Lowering, n: Node): List[(String, FieldValue)] =
+    val r = l.resolved
+    List(
+      Some("kind" -> text(n.statement.kind.toString.toLowerCase)),
+      Some("parents" -> texts(r.theory.refinement.parents(n.id).map(_.value))),
+      Option.when(n.statement.stated)("parts" -> texts(r.theory.refinement.parts(n.id).map(_.value))),
+      Some("assumes" -> texts(r.theory.refinement.assumed(n.id).map(_.value))),
+      Some("statement" -> text(n.says)),
+      n.statement.said.map(f => "formula" -> text(meaning(l, f))),
+      n.statement.said.map(f => "written" -> text(f.source.value)),
+      Some("vocabulary" -> texts(Texts.vocabulary(r.theory, n.id)))).flatten
+
+  /** A formula as Lean is given it, then each define it calls, however far, as Lean is given it: `l` canonical, its
+    * variables named by the order they are bound (`Analysis.canonical`).
+    */
+  private def meaning(l: Lowering, f: Written[Expr]): String =
+    val defines = l.resolved.theory.vocabulary.closure(Exprs.mentions(f.value).defines)
+    (Print.expr(Printed.formula(l.env, l.naming)(f.term)) :: defines.map(d =>
+      PrintDecl(VocabularyModules.declared(l, d)))).mkString("\n\n")
 
   /** How it is checked and how its code stands. */
   private def done(r: Resolved, n: Node): List[(String, FieldValue)] = List(

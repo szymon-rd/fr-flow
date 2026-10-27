@@ -49,7 +49,7 @@ private[api] object Warnings:
 
   private def orphans(a: Analysis): List[Warning] =
     val layout = Layout(a.decided.theory.name)
-    a.inputs.proofs.keys.toList.sortBy(_.value)
+    a.inputs.lean.proofs.keys.toList.sortBy(_.value)
       .filter(id => id.value != "Lemmas" && a.decided.theory.node(id).isEmpty)
       .map(id => Warning.ProofFileOfNoNode(layout.proofs(id).file))
 

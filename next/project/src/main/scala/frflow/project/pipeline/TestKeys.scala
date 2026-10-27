@@ -14,7 +14,7 @@ object TestKeys:
 
   def of(a: Analysis, id: NodeId): String =
     val e = a.valid.elaborated
-    Sha.parts((List(Version.toString, Contents.of(a.decided, id).ref,
+    Sha.parts((List(Version.toString, Contents.of(a.canonical, id).ref,
       a.governed.get(id).fold("")(_.fingerprint.sha), a.inputs.settings.cases.toString,
       a.inputs.settings.seed.value.toString) ++
       e.generators.map(g => s"${g.ty}: ${said(g.gen)}") ++

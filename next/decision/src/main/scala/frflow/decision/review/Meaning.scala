@@ -7,10 +7,14 @@ import frflow.decision.ledger.Decision
 object Meaning:
   private val meaningful = Set("statement", "formula", "vocabulary", "governs", "call", "failure", "model")
 
-  /** Its content without its place, cause `self`; a design keeps its parents, since placing it is what is decided
-    * (its chain is empty: docs/DAG.md §5).
+  /** What is shown and not decided: a formula as the Scala wrote it (its meaning is `formula`). */
+  private val shown = Set("written")
+
+  /** Its content without its place, cause `self`, or what is only shown; a design keeps its parents, since placing
+    * it is what is decided (its chain is empty: docs/DAG.md §5).
     */
-  def own(c: Content): Content = c.without(if c.text("kind") == "design" then Set("parts") else Set("parts", "parents"))
+  def own(c: Content): Content =
+    c.without(shown ++ (if c.text("kind") == "design" then Set("parts") else Set("parts", "parents")))
 
   /** Without its reason, examples or parents' names. */
   def of(c: Content): Hash = c.only(meaningful).hash

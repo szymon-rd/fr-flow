@@ -7,19 +7,21 @@ import frflow.proof.lean.ast.*
 
 /** The names taken in one Lean expression, by owner: a variable's name is unique in it and none of the reserved
   * names or of the domain types (nor a prefix of one). Threaded through the lowering as `State[Naming, _]`.
+  * `canonical`: every variable named `x`, numbered in the order bound, whatever the Scala called it, so a term
+  * prints the same however its variables were named (what a node's content says its formula means).
   */
 final case class Naming(taken: Map[String, NameOwner], variables: Map[VarId, LeanName], reserved: Set[String],
-    types: Set[String], helpers: Int)
+    types: Set[String], helpers: Int, canonical: Boolean = false)
 
 object Naming:
   def over(reserved: Set[String], types: Set[String]): Naming = Naming(Map.empty, Map.empty, reserved, types, 0)
 
-  /** The variable's name: its hint, or the first free `hint_1`, `hint_2`, … */
+  /** The variable's name: its hint (`x` when canonical), or the first free `hint_1`, `hint_2`, … */
   def bind(x: Binder): State[Naming, LeanName] = bindAvoiding(x, Set.empty)
 
   /** As `bind`, and none of `avoid` (`∀ x ∈ r, …` puts `r` in the scope of `x`). */
   def bindAvoiding(x: Binder, avoid: Set[String]): State[Naming, LeanName] = State { n =>
-    val chosen = first(n, Names.ident(x.hint), NameOwner.Variable(x.id), avoid)
+    val chosen = first(n, Names.ident(if n.canonical then "x" else x.hint), NameOwner.Variable(x.id), avoid)
     val taken = n.taken.updated(chosen.text, NameOwner.Variable(x.id))
     (n.copy(taken = taken, variables = n.variables.updated(x.id, chosen)),
       chosen)
