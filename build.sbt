@@ -54,7 +54,8 @@ def nextModule(name: String, libraries: ModuleID*) = Project(s"next-$name", file
 /** Names, types, the term algebras and core interpreters, the IR, statements, validation, checking, consistency. */
 lazy val nextCore = nextModule("core", cats)
 
-// next-dsl (step 2)
+/** The DSL a model is written in: terms, nodes, programs over boundaries, models, macros; its elaboration. */
+lazy val nextDsl = nextModule("dsl", cats).dependsOn(nextCore)
 
 // next-proof (step 3)
 

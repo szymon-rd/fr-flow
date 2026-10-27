@@ -1,0 +1,110 @@
+package frflow.dsl.term
+
+import frflow.core.term.Sym
+import frflow.dsl.build.Source
+import scala.annotation.unused
+import scala.deriving.Mirror
+
+/** The operations of the term language as models write them, each one operation of `core.term`'s algebras on the
+  * operands' terms (`Term.one`, `Term.both`, the binders of `Terms`). Bodies are host functions (higher-order abstract
+  * syntax); their parameters' names are read at compile time, for printing only. `implies` is alphanumeric, so it
+  * binds last: `a && b implies c` is `(a && b) implies c`, as it reads; a chain of them needs its parentheses
+  * (`Implication`).
+  */
+object TermSyntax:
+  extension [A](a: Term[A])
+    def ===(b: Term[A]): Term[Boolean] = Term.both(a, b)([T[_]] => (s: Sym[T]) => s.eq[A])
+    def =!=(b: Term[A]): Term[Boolean] = !(a === b)
+    /** `x :: xs`: Scala reads a right-associative extension with its left operand as the receiver. */
+    def ::(xs: Term[List[A]]): Term[List[A]] = Term.both(a, xs)([T[_]] => (s: Sym[T]) => s.cons[A])(using xs.leanType)
+    /** `b.updated(_.start, t)`: the record with one field replaced, the field checked at compile time. */
+    inline def updated[F](inline field: Term[A] => Term[F], v: Term[F]): Term[A] =
+      ${ CaseMacros.updated[A, F]('a, 'field, 'v) }
+    /** `s.on[Case](fields => …).on[Other](…)`: a match, one arm per case. */
+    inline def on[C <: A](using m: Mirror.ProductOf[C])[R](inline f: Cases.Fields[m.MirroredElemTypes, R])(
+        using LeanType[R]): Cases[A, R] = Cases(a, List(Cases.branch[A, C, R](f)))
+    /** A match whose first arm is a case without fields, named by its value: `s.on(Change.Clear)(result)`. */
+    inline def on[C <: A & Singleton](@unused c: C)(using Mirror.ProductOf[C])[R](inline result: Term[R])(
+        using LeanType[R]): Cases[A, R] = Cases(a, List(Cases.branch[A, C, R](result)))
+  extension (a: Term[Boolean])
+    def &&(b: Term[Boolean]): Term[Boolean] = Term.both(a, b)([T[_]] => (s: Sym[T]) => s.and)
+    def ||(b: Term[Boolean]): Term[Boolean] = Term.both(a, b)([T[_]] => (s: Sym[T]) => s.or)
+    def unary_! : Term[Boolean] = Term.one(a)([T[_]] => (s: Sym[T]) => s.not)
+  extension (inline a: Term[Boolean])
+    /** Refused at compile time as the left operand of another `implies` unless in parentheses (`Implication`). */
+    inline infix def implies(inline b: Term[Boolean]): Term[Boolean] = ${ Implication.checked('a, 'b) }
+  extension (a: Term[BigInt])
+    def +(b: Term[BigInt]): Term[BigInt] = Term.both(a, b)([T[_]] => (s: Sym[T]) => s.add)
+    def -(b: Term[BigInt]): Term[BigInt] = Term.both(a, b)([T[_]] => (s: Sym[T]) => s.sub)
+    def <(b: Term[BigInt]): Term[Boolean] = Term.both(a, b)([T[_]] => (s: Sym[T]) => s.lt)
+    def <=(b: Term[BigInt]): Term[Boolean] = Term.both(a, b)([T[_]] => (s: Sym[T]) => s.le)
+    def >(b: Term[BigInt]): Term[Boolean] = b < a
+  extension [A](xs: Term[List[A]])
+    def length: Term[BigInt] = Term.one(xs)([T[_]] => (s: Sym[T]) => s.length[A])
+    /** Lean's `List.Nodup`: no element twice. */
+    def allDistinct: Term[Boolean] = Term.one(xs)([T[_]] => (s: Sym[T]) => s.nodup[A])
+    def ++(ys: Term[List[A]]): Term[List[A]] =
+      Term.both(xs, ys)([T[_]] => (s: Sym[T]) => s.append[A])(using xs.leanType)
+    /** `xs :+ x`: `x` at the end (Lean's `xs ++ [x]`). */
+    def :+(x: Term[A]): Term[List[A]] =
+      xs ++ (x :: Term[List[A]]([T[_]] => (s: Sym[T]) => s.nil[A](x.leanType.ty))(using xs.leanType))
+  extension [A: LeanType](xs: Term[List[A]])
+    inline def forall(inline p: Term[A] => Term[Boolean]): Term[Boolean] =
+      Terms.over(xs, hint(Source.of(p).params), p)([T[_]] => (s: Sym[T]) => s.all[A])
+    inline def exists(inline p: Term[A] => Term[Boolean]): Term[Boolean] =
+      Terms.over(xs, hint(Source.of(p).params), p)([T[_]] => (s: Sym[T]) => s.any[A])
+    inline def filter(inline p: Term[A] => Term[Boolean]): Term[List[A]] =
+      Terms.over(xs, hint(Source.of(p).params), p)([T[_]] => (s: Sym[T]) => s.filter[A])(using LeanType[A], xs.leanType)
+    inline def foldLeft[B](z: Term[B])(inline f: (Term[B], Term[A]) => Term[B]): Term[B] =
+      Terms.foldLeft(xs, z, hints(Source.of(f).params))(f)
+    /** Lean's `List.Pairwise`: `p` of every element with each later one (`xs.pairwise(apart)`, or a lambda). */
+    inline def pairwise(inline p: (Term[A], Term[A]) => Term[Boolean]): Term[Boolean] =
+      Terms.pairwise(xs, Source.of(p).params match
+        case List(a, b) => (a, b)
+        case _          => ("a", "b"))(p)
+  extension [A: LeanType](o: Term[Option[A]])
+    inline def fold[R](ifNone: Term[R])(inline ifSome: Term[A] => Term[R]): Term[R] =
+      Terms.foldOption(o, ifNone, hint(Source.of(ifSome).params))(ifSome)
+  extension [E: LeanType, A: LeanType](v: Term[Either[E, A]])
+    inline def fold[R: LeanType](inline onLeft: Term[E] => Term[R], inline onRight: Term[A] => Term[R]): Term[R] =
+      Terms.foldEither(v, (hint(Source.of(onLeft).params), hint(Source.of(onRight).params)))(onLeft, onRight)
+
+  /** The Boolean constants: a Scala `Boolean` is not made a term implicitly, so `x === true` cannot be mistaken. */
+  val True: Term[Boolean] = Term([T[_]] => (s: Sym[T]) => s.bool(true))
+  val False: Term[Boolean] = Term([T[_]] => (s: Sym[T]) => s.bool(false))
+
+  inline def forall[A: LeanType](inline p: Term[A] => Term[Boolean]): Term[Boolean] =
+    Terms.forall(hint(Source.of(p).params), p)
+  inline def forall[A: LeanType, B: LeanType](inline p: (Term[A], Term[B]) => Term[Boolean]): Term[Boolean] =
+    val (a, b) = hints(Source.of(p).params)
+    Terms.forall[A](a, x => Terms.forall[B](b, y => p(x, y)))
+  inline def forall[A: LeanType, B: LeanType, C: LeanType](inline p: (Term[A], Term[B], Term[C]) => Term[Boolean])
+      : Term[Boolean] =
+    val h = names(Source.of(p).params, 3)
+    Terms.forall[A](h(0), x => Terms.forall[B](h(1), y => Terms.forall[C](h(2), z => p(x, y, z))))
+  inline def forall[A: LeanType, B: LeanType, C: LeanType, D: LeanType](
+      inline p: (Term[A], Term[B], Term[C], Term[D]) => Term[Boolean]): Term[Boolean] =
+    val h = names(Source.of(p).params, 4)
+    Terms.forall[A](h(0), w => Terms.forall[B](h(1), x =>
+      Terms.forall[C](h(2), y => Terms.forall[D](h(3), z => p(w, x, y, z)))))
+  // … to six variables.
+  /** `when(free)(held :+ request).otherwise(held)`: the conditional, each branch named where it is written. */
+  def when[A](condition: Term[Boolean])(ifTrue: Term[A]): Conditional[A] = Conditional(condition, ifTrue)
+  /** `let(v)(x => body)`: `v` named for the body, computed once (Lean's `let`). */
+  inline def let[A, B: LeanType](v: Term[A])(inline body: Term[A] => Term[B]): Term[B] =
+    Terms.let(v, hint(Source.of(body).params), body)
+  /** `make[Booking](room, start, end)`: a value of a case class or an enum's case from its fields' terms. */
+  transparent inline def make[R](inline args: Term[?]*): Term[?] = ${ CaseMacros.make[R]('args) }
+
+  def some[A](a: Term[A]): Term[Option[A]] =
+    Term.one(a)([T[_]] => (s: Sym[T]) => s.some[A])(using LeanType.option(using a.leanType))
+  def none[A](using a: LeanType[A]): Term[Option[A]] =
+    Term.noted(Notes.of(a.declares))([T[_]] => (s: Sym[T]) => s.none[A](a.ty))
+  def left[E, A](e: Term[E])(using t: LeanType[Either[E, A]]): Term[Either[E, A]] =
+    Term.one(e)([T[_]] => (s: Sym[T]) => (x: T[E]) => s.left[E, A](x, t.ty))
+  def right[E, A](a: Term[A])(using t: LeanType[Either[E, A]]): Term[Either[E, A]] =
+    Term.one(a)([T[_]] => (s: Sym[T]) => (x: T[A]) => s.right[E, A](x, t.ty))
+
+  private def hint(names: List[String]): String = names.headOption.getOrElse("x")
+  private def hints(names: List[String]): (String, String) = (hint(names), hint(names.drop(1)))
+  private def names(ns: List[String], n: Int): Vector[String] = ns.padTo(n, "x").toVector
