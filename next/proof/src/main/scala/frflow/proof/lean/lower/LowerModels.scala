@@ -56,7 +56,8 @@ final class LowerModels(env: LowerEnv, naming: Naming):
       b.ops.map(o => Names.ident(o.name.value) ->
         LowerType.declaration(o.params.map(_._2), LExpr.App(LExpr.Name(monad), List(LowerType(o.result)))))))
 
-  private def model(b: BoundarySig, m: StateModel): Decl =
+  /** `namespace Stored`: each operation of the model, a `do` block on its state. */
+  def model(b: BoundarySig, m: StateModel): Decl =
     Decl.Namespace(List(LowerModels.space(m)), m.ops.flatMap(op => b.ops.find(_.name == op.op).map { sig =>
       val (bs, lines) = (op.params.traverse(x => Naming.bind(x).map(typed(_, x.ty))),
         LowerProg(env, op.params.size).block(op.steps)).tupled.runA(naming).value

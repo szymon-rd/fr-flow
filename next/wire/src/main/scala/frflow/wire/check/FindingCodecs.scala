@@ -1,11 +1,13 @@
 package frflow.wire.check
 
 import cats.syntax.all.*
+import frflow.core.expr.Value
 import frflow.proof.obligation.TryKind
 import frflow.proof.reading.{Diagnostic, NotAllowed}
 import frflow.proof.verdict.Finding
 import frflow.wire.check.ObligationNames.given
 import frflow.wire.file.Tagged
+import frflow.wire.test.ValueCodecs.given
 import io.circe.syntax.*
 import io.circe.{Decoder, Encoder, HCursor, Json}
 
@@ -25,6 +27,8 @@ object FindingCodecs:
     case Finding.NotProven(es)           => Tagged("not-proven", "errors" -> es.asJson)
     case Finding.Refuted(tries)          => Tagged("refuted", "tries" -> tries.asJson)
     case Finding.DisallowedAxioms(axioms) => Tagged("disallowed-axioms", "axioms" -> axioms.asJson)
+    case Finding.StepRefuted(inputs)     => Tagged("step-refuted", "inputs" -> Json.fromValues(inputs.map((n, v) =>
+                                              Json.obj("name" -> n.asJson, "value" -> v.asJson))))
   }
 
   given Decoder[Finding] = Tagged.decoder("finding") {
@@ -36,7 +40,12 @@ object FindingCodecs:
     case "not-proven"           => errors(_).map(Finding.NotProven(_))
     case "refuted"              => _.get[List[TryKind]]("tries").map(Finding.Refuted(_))
     case "disallowed-axioms"    => _.get[List[String]]("axioms").map(Finding.DisallowedAxioms(_))
+    case "step-refuted"         => _.get[List[(String, Value)]]("inputs")(using Decoder.decodeList(using input))
+                                     .map(Finding.StepRefuted(_))
   }
+
+  private val input: Decoder[(String, Value)] = Decoder.instance(c =>
+    (c.get[String]("name"), c.get[Value]("value")).tupled)
 
   private def errors(c: HCursor) = c.get[List[Diagnostic]]("errors")
 

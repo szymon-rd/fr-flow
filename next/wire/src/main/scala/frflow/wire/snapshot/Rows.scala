@@ -65,6 +65,7 @@ object Rows:
     case OnCode.Fails           => "fails"
     case OnCode.NotEvaluated(e) => s"not-evaluated: ${notEvaluated(e)}"
     case OnCode.Abstract(ds)    => s"abstract: ${ds.map(_.value).mkString(", ")}"
+    case OnCode.Threw(m)        => s"threw: $m"
 
   private def witness(w: Witness): String = w match
     case Witness.Equation(s, from, _) => s"${s.value}: the equation of ${from.value}"

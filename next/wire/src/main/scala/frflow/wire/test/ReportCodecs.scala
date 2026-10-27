@@ -2,6 +2,7 @@ package frflow.wire.test
 
 import cats.syntax.all.*
 import frflow.core.name.{NodeId, OpName}
+import frflow.core.expr.Value
 import frflow.core.ty.Ty
 import frflow.eval.EvalError
 import frflow.testing.Seed
@@ -11,12 +12,13 @@ import frflow.wire.file.Tagged
 import frflow.wire.test.BrokenCodecs.given
 import frflow.wire.test.FailureCodecs.given
 import frflow.wire.test.TyCodecs.given
+import frflow.wire.test.ValueCodecs.given
 import io.circe.syntax.*
 import io.circe.{ACursor, Decoder, Encoder, Json, JsonObject}
 
 /** What testing a node's code found: how many cases were asked and tried from which seed, against what, the outcome
-  * (passed, the smallest failing case, or not checked and why), the parts no case reached, and what each given
-  * generator makes.
+  * (passed, the smallest failing case, or not checked and why), the parts no case reached, and the notes (each
+  * given generator and what it makes, the examples' values one never makes, nothing to vary).
   */
 object ReportCodecs:
   given Encoder[Against] = Encoder.instance {
@@ -63,14 +65,24 @@ object ReportCodecs:
   given Decoder[Target] = Decoder.instance(c =>
     (c.get[List[Int]]("path").map(Position(_)), c.get[Reach]("reach")).mapN(Target(_, _)))
 
-  given Encoder[Made] = Encoder.instance(m => Json.obj("type" -> m.ty.asJson, "says" -> m.says.asJson))
-  given Decoder[Made] = Decoder.instance(c => (c.get[Ty]("type"), c.get[Option[String]]("says")).mapN(Made(_, _)))
+  given Encoder[Note] = Encoder.instance {
+    case Note.Given(m)          => Tagged("given", "type" -> m.ty.asJson, "says" -> m.says.asJson)
+    case Note.NeverMade(ty, vs) => Tagged("never-made", "type" -> ty.asJson, "values" -> vs.asJson)
+    case Note.NothingToVary     => Tagged("nothing-to-vary")
+  }
+
+  given Decoder[Note] = Tagged.decoder("note") {
+    case "given"           => c => (c.get[Ty]("type"), c.get[Option[String]]("says"))
+                                .mapN((t, s) => Note.Given(Made(t, s)))
+    case "never-made"      => c => (c.get[Ty]("type"), c.get[List[Value]]("values")).mapN(Note.NeverMade(_, _))
+    case "nothing-to-vary" => _ => Right(Note.NothingToVary)
+  }
 
   def encode(r: TestReport): JsonObject = JsonObject("asked" -> r.count.asked.asJson, "cases" -> r.cases.asJson,
     "seed" -> r.seed.asJson, "against" -> r.against.asJson, "outcome" -> r.outcome.asJson,
-    "unreached" -> r.unreached.asJson, "made" -> r.made.asJson)
+    "unreached" -> r.unreached.asJson, "notes" -> r.notes.asJson)
 
   def decode(c: ACursor): Decoder.Result[TestReport] =
     ((c.get[Int]("asked"), c.get[Int]("cases")).mapN(Count(_, _)), c.get[Seed]("seed"),
       c.get[Against]("against"), c.get[Outcome]("outcome"), c.get[List[Target]]("unreached"),
-      c.get[List[Made]]("made")).mapN(TestReport(_, _, _, _, _, _))
+      c.get[List[Note]]("notes")).mapN(TestReport(_, _, _, _, _, _))

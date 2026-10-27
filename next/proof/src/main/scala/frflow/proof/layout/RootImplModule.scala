@@ -15,14 +15,19 @@ import frflow.proof.terms.TermTable
 object RootImplModule:
   def of(r: Resolved, table: TermTable): Option[LeanModule] = of(Lowering(r, table))
 
+  /** The roots `root_impl` states: each stated over every possible value, resting, through its parts, on proven
+    * code.
+    */
+  def roots(l: Lowering): List[NodeId] =
+    val c = Composition(l)
+    def reaches(n: NodeId): Boolean = c.coded(n) || (c.composed(n) && c.leaves(n).exists(reaches))
+    l.resolved.theory.refinement.roots.filter(n => n.statement.stated && n.statement.range.contains(Range.Possible))
+      .map(_.id).filter(reaches)
+
   def of(l: Lowering): Option[LeanModule] =
-    val t = l.resolved.theory
     val c = Composition(l)
     val σ = code(l)
-    def reaches(n: NodeId): Boolean = c.coded(n) || (c.composed(n) && c.leaves(n).exists(reaches))
-    val roots = t.refinement.roots.filter(n => n.statement.stated && n.statement.range.contains(Range.Possible))
-      .map(_.id).filter(reaches)
-    NonEmptyList.fromList(roots).map { rs =>
+    NonEmptyList.fromList(roots(l)).map { rs =>
       val statements = rs.map(n => n -> statement(l, c, σ, n))
       val proofs = statements.map((n, s) => Params.lambda(Params.of(l.props.statement(s),
         c.trusted(n).map(x => s"h_${x.value}")), c.proven(n, σ)))

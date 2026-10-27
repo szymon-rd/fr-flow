@@ -18,3 +18,4 @@ final class Respecting(draw: Draw, made: List[Made], tries: Int) extends Draw:
     case other           => draw(other, size, random)
 
   override def generators: List[report.Made] = draw.generators
+  override def notes: List[report.Note] = draw.notes

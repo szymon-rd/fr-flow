@@ -3,7 +3,7 @@ package frflow.testing
 import cats.syntax.all.*
 import frflow.core.example.Gen
 import frflow.core.ty.Ty
-import frflow.testing.report.Made
+import frflow.testing.report.{Made, Note}
 import java.util.SplittableRandom
 
 /** The interpreter of `Gen`: a value drawn at a size from a random stream, or none when the type has no value to
@@ -21,3 +21,6 @@ trait Draw:
 
   /** The generators given for the tests, each type with what the developer said it makes. */
   def generators: List[Made] = Nil
+
+  /** What a report says of the generators: each one given, and the examples' values one never makes. */
+  def notes: List[Note] = generators.map(Note.Given(_))

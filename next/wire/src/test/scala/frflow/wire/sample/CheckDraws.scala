@@ -3,7 +3,7 @@ package frflow.wire.sample
 import frflow.core.name.NodeId
 import frflow.proof.obligation.{ObligationName, TryKind}
 import frflow.proof.reading.{Diagnostic, NotAllowed}
-import frflow.proof.verdict.{CheckKey, CheckStatus, Finding, NodeCheck, ObligationStatus, Result}
+import frflow.proof.verdict.{CheckKey, CheckStatus, Checks, Finding, NodeCheck, ObligationStatus, Result, WholeCheck}
 import frflow.wire.sample.Draws.*
 import org.scalacheck.Gen
 
@@ -31,7 +31,8 @@ object CheckDraws:
   val finding: Gen[Finding] = Gen.oneOf(Gen.const(Finding.LeanTimedOut),
     few(diagnostic).map(Finding.ModelDoesNotBuild(_)), few(Gen.zip(small, rule)).map(Finding.ProofNotAllowed(_)),
     few(diagnostic).map(Finding.LemmasDoNotBuild(_)), few(diagnostic).map(Finding.NotProven(_)),
-    few(tryKind).map(Finding.Refuted(_)), few(text).map(Finding.DisallowedAxioms(_)))
+    few(tryKind).map(Finding.Refuted(_)), few(text).map(Finding.DisallowedAxioms(_)),
+    few(Gen.zip(word, TestDraws.value(2))).map(Finding.StepRefuted(_)))
 
   val result: Gen[Result] =
     Gen.zip(obligation, Gen.oneOf(ObligationStatus.values.toList), few(diagnostic)).map(Result(_, _, _))
@@ -40,4 +41,10 @@ object CheckDraws:
     few(finding), instant).map((key, status, rs, fs, at) => NodeCheck(id, CheckKey(key), status, rs, fs, at))
 
   /** Each check under its own node, as the file keys them. */
-  val checks: Gen[Map[NodeId, NodeCheck]] = few(node.flatMap(id => check(id).map(id -> _))).map(_.toMap)
+  val nodes: Gen[Map[NodeId, NodeCheck]] = few(node.flatMap(id => check(id).map(id -> _))).map(_.toMap)
+
+  val whole: Gen[WholeCheck] =
+    Gen.zip(hex, few(result), instant).map((key, rs, at) => WholeCheck(CheckKey(key), rs, at))
+
+  /** The nodes' checks, and the theory's when it has one. */
+  val checks: Gen[Checks] = Gen.zip(nodes, Gen.option(whole)).map(Checks(_, _))

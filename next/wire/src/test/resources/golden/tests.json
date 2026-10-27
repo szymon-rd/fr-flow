@@ -111,8 +111,9 @@
           }
         }
       ],
-      "made": [
+      "notes": [
         {
+          "kind": "given",
           "type": {
             "kind": "list",
             "elem": {
@@ -123,6 +124,7 @@
           "says": "bookings on one day"
         },
         {
+          "kind": "given",
           "type": {
             "kind": "map",
             "key": {
@@ -133,6 +135,33 @@
               "num": "int32"
             }
           }
+        },
+        {
+          "kind": "never-made",
+          "type": {
+            "kind": "data",
+            "name": "Booking"
+          },
+          "values": [
+            {
+              "kind": "data",
+              "ctor": "mk",
+              "fields": [
+                {
+                  "kind": "str",
+                  "value": "Elm"
+                },
+                {
+                  "kind": "num",
+                  "value": 0
+                },
+                {
+                  "kind": "num",
+                  "value": 1
+                }
+              ]
+            }
+          ]
         }
       ]
     },
@@ -152,8 +181,9 @@
         }
       },
       "unreached": [],
-      "made": [
+      "notes": [
         {
+          "kind": "given",
           "type": {
             "kind": "tuple",
             "elems": [
@@ -188,6 +218,9 @@
               }
             ]
           }
+        },
+        {
+          "kind": "nothing-to-vary"
         }
       ]
     },
@@ -306,8 +339,9 @@
           }
         }
       ],
-      "made": [
+      "notes": [
         {
+          "kind": "given",
           "type": {
             "kind": "flow",
             "result": {

@@ -1,5 +1,6 @@
 package frflow.proof.verdict
 
+import frflow.core.expr.Value
 import frflow.proof.obligation.TryKind
 import frflow.proof.reading.{Diagnostic, NotAllowed}
 
@@ -14,3 +15,7 @@ enum Finding:
   case Refuted(tries: List[TryKind])
   /** Axioms a proof rests on beyond `ProofRules.AllowedAxioms`. */
   case DisallowedAxioms(axioms: List[String])
+  /** A step not proven, refuted on a case Lean proves it false at (`layout.RefutesModule`): the claim's inputs, each
+    * named, given an answer its one part allows.
+    */
+  case StepRefuted(inputs: List[(String, Value)])

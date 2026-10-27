@@ -51,7 +51,7 @@ final class ModelRuns[F[_]: MonadThrow: Ref.Make, B[_[_], _[_]], S, A <: B[F, Id
           })
       reached <- hits.get
     yield TestReport(Count(replayed.size + runs, tried._1), plan.settings.seed, Against.Model(node, 0),
-      tried._2.fold(Outcome.Passed)(Outcome.Failed(_)), reached.unreached, draw.generators)
+      tried._2.fold(Outcome.Passed)(Outcome.Failed(_)), reached.unreached, draw.notes)
 
   /** Every operation called, every branch of the model's steps taken each way. */
   private def targets: List[Target] = ops.zipWithIndex.flatMap((op, i) =>
@@ -100,4 +100,4 @@ object ModelRuns:
   def joined(a: TestReport, b: TestReport): TestReport =
     TestReport(Count(a.count.asked + b.count.asked, a.count.tried + b.count.tried), a.seed, a.against,
       if a.outcome == Outcome.Passed then b.outcome else a.outcome, a.unreached.filter(b.unreached.contains),
-      (a.made ++ b.made).distinct)
+      (a.notes ++ b.notes).distinct)

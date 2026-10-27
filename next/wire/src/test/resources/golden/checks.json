@@ -112,6 +112,53 @@
       ],
       "findings": [],
       "at": "2026-10-03T08:00:00Z"
+    },
+    "Small": {
+      "key": "31d7e0",
+      "status": "open",
+      "results": [
+        {
+          "name": "complete",
+          "status": "open",
+          "messages": []
+        }
+      ],
+      "findings": [
+        {
+          "kind": "step-refuted",
+          "inputs": [
+            {
+              "name": "n",
+              "value": {
+                "kind": "num",
+                "value": 4
+              }
+            }
+          ]
+        }
+      ],
+      "at": "2026-10-03T08:00:00Z"
     }
+  },
+  "whole": {
+    "key": "5a6b7c",
+    "results": [
+      {
+        "name": "consistent_0",
+        "status": "proven",
+        "messages": []
+      },
+      {
+        "name": "inhabited_EndsAfterStart",
+        "status": "shown",
+        "messages": []
+      },
+      {
+        "name": "example_0",
+        "status": "not-shown",
+        "messages": []
+      }
+    ],
+    "at": "2026-10-03T08:00:00Z"
   }
 }

@@ -8,7 +8,7 @@ import frflow.core.expr.{Prog, Progs, Value}
 import frflow.core.spec.Form
 import frflow.core.ty.Ty
 import frflow.core.vocab.Vocabulary
-import frflow.eval.{Env, Semantics}
+import frflow.eval.{Env, ScalaValue, Semantics}
 import frflow.testing.{Draw, Seed}
 import frflow.testing.report
 import java.util.SplittableRandom
@@ -61,11 +61,24 @@ final class Derive(val semantics: Semantics, val vocabulary: Vocabulary, val alw
     case Gen.Described(_, says) => Some(says)
     case _                      => None))
 
+  /** Each generator given, then the examples' values of its type it never makes in `NeverMadeTries` draws, which
+    * are drawn anyway as seeds.
+    */
+  override def notes: List[report.Note] =
+    generators.map(report.Note.Given(_)) ++ hints.generators.flatMap { g =>
+      val made = (0 until Derive.NeverMadeTries).toList.flatMap(i =>
+        apply(g.gen, Seed.sizeOf(i, Derive.NeverMadeTries), Seed(7).forCase(i)))
+          .map(x => semantics.reflect(ScalaValue(x), g.ty)).toSet
+      Option(seeds.of(g.ty).filterNot(made).toList).filter(_.nonEmpty).map(report.Note.NeverMade(g.ty, _))
+    }
+
   private def start(random: SplittableRandom): Draws = Draws(Pool.empty, Stream(random.nextLong()))
 
 object Derive:
   /** How many times a value is drawn again before none is found meeting what always holds of its type. */
   val Tries: Int = 50
+  /** How many values a given generator is drawn for, to say which of the examples' values it never makes. */
+  val NeverMadeTries: Int = 200
 
   /** The derived generators of an elaborated knowledge base, seeded by its examples. */
   def of(e: Elaborated, examples: List[Example]): Derive =

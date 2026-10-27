@@ -30,8 +30,8 @@ private[testing] final class Cases(semantics: Semantics, judge: Judge, needed: L
   /** The cases tried, what they reached, and what was found: the first failing case, shrunk; or, at a case the
     * statement has no Scala value at (`unchecked`), nothing more: the statement is not checked.
     */
-  def search(cases: Iterator[(Case, Drawn)], coverage: Coverage, v: Vocabulary)(unchecked: EvalError => Boolean)
-      : Searched =
+  def search(cases: Iterator[(Case, Drawn)], coverage: Coverage, v: Vocabulary, start: Hits)(
+      unchecked: EvalError => Boolean): Searched =
     val shrink = Shrink(v)
     @tailrec def go(tried: Int, hits: Hits): Searched = cases.nextOption() match
       case None            => Searched(tried, hits, Outcome.Passed)
@@ -43,7 +43,7 @@ private[testing] final class Cases(semantics: Semantics, judge: Judge, needed: L
             val (small, why) = smallest(shrink, c, broke, Shrinking.Rounds)
             Searched(tried + 1, reached, Outcome.Failed(Failure.Call(small.inputs, small.givens, why, from)))
           case None                                         => go(tried + 1, reached)
-    go(0, coverage.zero)
+    go(0, start)
 
   @tailrec private def smallest(shrink: Shrink, c: Case, broke: Broken, rounds: Int): (Case, Broken) =
     smaller(shrink, c).take(Shrinking.Tried).flatMap(s => judge.broken(s).map(s -> _)).headOption match

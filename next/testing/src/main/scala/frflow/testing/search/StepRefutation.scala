@@ -7,6 +7,7 @@ import frflow.core.name.{NodeId, SymbolName}
 import frflow.core.spec.{CallForm, CallForms}
 import frflow.core.spec.Written.term
 import frflow.core.term.Stated
+import frflow.core.vocab.SymbolType
 import frflow.eval.{Env, Fn, ScalaValue, Semantics}
 import frflow.eval.run.Wiring
 import frflow.testing.Case
@@ -25,17 +26,18 @@ object StepRefutation:
       (e, picked)  <- fixed(post.value, op)
       rule         <- t.node(part).flatMap(_.statement.said)
       claim        <- t.node(node).flatMap(_.statement.said).map(CallForms.whole)
-      wiring        = Wiring.onModels(semantics, t)
+      ty           <- t.vocabulary.symbol(op).map(_.ty).collect { case SymbolType.Typed(x) => x }
+      (wiring, witness) = (Wiring.onModels(semantics, t), Stated(Defining.of(rule.term, picked)))
       found        <- cases.find { c =>
         val env = Env.of(wiring.values(wiring.supplied(c.givens)))
-        semantics.term(Stated(Defining.of(rule.term, picked)))(env).exists { answer =>
+        semantics.term(witness)(env).exists { answer =>
           val answering = Fn.of[AnyRef](post.value.arity)(args =>
             args.foldLeft(answer)((g, x) => Fn.call(Fn.ref(g), List(x))))
           semantics.lambda(claim).run(env.withSymbol(op, ScalaValue(answering)),
             c.inputs.zip(claim.value.params.map(_.ty)).map(semantics.literal)).exists(v => !Fn.bool(v))
         }
       }
-    yield Refuted(claim.value.params.map(_.hint).zip(found.inputs), e)
+    yield Refuted(claim.value.params.map(_.hint).zip(found.inputs), claim.value.params.map(_.ty), e, witness, ty)
 
   /** `e` of a claim's post `guard implies op(inputs) === e` or `op(inputs) === e` (written as a claim, the post is
     * over the call's inputs), `e` not mentioning the Definition.

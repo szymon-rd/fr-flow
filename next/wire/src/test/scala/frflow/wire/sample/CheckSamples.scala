@@ -3,7 +3,9 @@ package frflow.wire.sample
 import frflow.core.name.NodeId
 import frflow.proof.obligation.{ObligationName, TryKind}
 import frflow.proof.reading.{Diagnostic, NotAllowed}
-import frflow.proof.verdict.{CheckKey, CheckStatus, Finding, NodeCheck, ObligationStatus, Result}
+import frflow.core.expr.Value
+import frflow.proof.verdict.{CheckKey, CheckStatus, Checks, Finding, NodeCheck, ObligationStatus, Result,
+  WholeCheck}
 import java.time.Instant
 
 /** The golden checks: a node proven, one refused for its proof file, one refuted by a try. */
@@ -27,4 +29,14 @@ object CheckSamples:
     Result(ObligationName.Tried(TryKind.RestatesConjunct(NodeId("Root"), 2)), ObligationStatus.NotShown, Nil)),
     List(Finding.Refuted(List(TryKind.Clash)), Finding.NotProven(List(error)), Finding.LeanTimedOut), at)
 
-  val checks: Map[NodeId, NodeCheck] = List(proven, refused, refuted).map(c => c.node -> c).toMap
+  private val stepRefuted = NodeCheck(NodeId("Small"), CheckKey("31d7e0"), CheckStatus.Open, List(
+    Result(ObligationName.Complete, ObligationStatus.Open, Nil)), List(Finding.StepRefuted(List("n" -> Value.Num(4)))),
+    at)
+
+  private val whole = WholeCheck(CheckKey("5a6b7c"), List(
+    Result(ObligationName.Consistent(0), ObligationStatus.Proven, Nil),
+    Result(ObligationName.Inhabited(NodeId("EndsAfterStart")), ObligationStatus.Shown, Nil),
+    Result(ObligationName.Example(0), ObligationStatus.NotShown, Nil)), at)
+
+  val checks: Checks =
+    Checks(List(proven, refused, refuted, stepRefuted).map(c => c.node -> c).toMap, Some(whole))

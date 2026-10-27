@@ -8,7 +8,8 @@ import frflow.eval.EvalError
 import frflow.eval.run.Broken
 import frflow.testing.Seed
 import frflow.testing.model.{Difference, Ran, Step}
-import frflow.testing.report.{Against, Count, Drawn, Failure, Made, Outcome, Position, Reach, Target, TestReport}
+import frflow.testing.report.{Against, Count, Drawn, Failure, Made, Note, Outcome, Position, Reach, Target,
+  TestReport}
 import frflow.wire.sample.Draws.*
 import org.scalacheck.{Arbitrary, Gen}
 
@@ -69,9 +70,12 @@ object TestDraws:
 
   val target: Gen[Target] = Gen.zip(few(small).map(Position(_)), reach).map(Target(_, _))
 
+  val note: Gen[Note] = Gen.oneOf(Gen.zip(ty(2), Gen.option(text)).map((t, s) => Note.Given(Made(t, s))),
+    Gen.zip(ty(2), few(value(2))).map(Note.NeverMade(_, _)), Gen.const(Note.NothingToVary))
+
   val report: Gen[TestReport] = Gen.zip(Gen.zip(small, small).map(Count(_, _)),
     Arbitrary.arbitrary[Long].map(Seed(_)), against, outcome, few(target),
-    few(Gen.zip(ty(2), Gen.option(text)).map(Made(_, _)))).map(TestReport(_, _, _, _, _, _))
+    few(note)).map(TestReport(_, _, _, _, _, _))
 
   val tests: Gen[Map[NodeId, (String, TestReport)]] = byKey(node, Gen.zip(hex, report))
   val counterexamples: Gen[Map[NodeId, List[Failure]]] = byKey(node, few(failure))
