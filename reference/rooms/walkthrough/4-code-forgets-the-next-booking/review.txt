@@ -3,7 +3,7 @@
 ! grantWhenNoOverlap  claim on granted  its code changed: review it  tested, not proven
   A request is granted exactly when it overlaps no booking of its room.
 
-What changed since it was accepted (demo-developer, 2026-10-27 13:34)
+What changed since it was accepted (demo-developer, 2026-10-27 15:32)
   the code it governs changed (src/main/scala/rooms/Calendar.scala)
     diff --git a/examples/rooms/src/main/scala/rooms/Calendar.scala b/examples/rooms/src/main/scala/rooms/Calendar.scala
     index 46b6629..2099773 100644
@@ -20,13 +20,21 @@ Decision
   to review: the code it governs changed
   grantWhenNoOverlap is under review for code: the developer decides
   note: its code fails a generated case: held = RoomBookings("Oak", List(Booking("Oak", 0, 10))), request = Booking("Oak", 0, 1): returned true, which grantWhenNoOverlap forbids
+  decisions below it (accept --revisit NODE reviews one again; one that moved only with it is confirmed):
+    bookingsEndAfterStart: Every booking ends after it starts. — holds because: One type: a booking is what the form sends and what the table stores, and every booking ends after it starts. Trusted of every booking; code storing one is proven to keep it.
+    bookedIsStored: What is booked is what the table holds. — holds because: What booked is, in the code's words: what the table holds. (since confirmed: still holds after bookingsEndAfterStart changed: One type: a booking is what the form sends and what the table stores, and every booking ends after it starts. Trusted of every booking; code storing one is proven to keep it.)
+    bookedAfterIsStored: What is booked once a request is handled is what the table holds after booking it. — holds because: What bookedAfter is, in the code's words: what the table holds after booking runs on the request itself.
+    acceptedIsAnswered: A request is accepted exactly when booking it answers booked. — holds because: What accepted is, in the code's words: what booking answers for the request itself.
+
+Assumes
+  - bookingsEndAfterStart (assumption): "Every booking ends after it starts."
 
 [a]ccept [s]kip [v]iew [q]uit: 
 Decided 0 decision(s).
-Rooms: 18 nodes, 17 accepted, 1 to review
+Rooms: 17 nodes, 16 accepted, 1 to review
 Proofs: splits 5/5, root_impl proven, consistency proven, nothing vacuous
 Tests: code against its claims 0/1, implementations against their models 1/1, examples in Lean 4/4
-Trusted: requestsEndAfterStart, tableMatchesModel (a model), onlyBookingWrites, oneAtATime, startsEmpty (facts); tested, not proven: grantWhenNoOverlap
+Trusted: bookingsEndAfterStart, tableMatchesModel (a model), onlyBookingWrites, oneAtATime, startsEmpty (facts); tested, not proven: grantWhenNoOverlap
 1 with something unproven
 Waiting: 1 for the developer
 marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do

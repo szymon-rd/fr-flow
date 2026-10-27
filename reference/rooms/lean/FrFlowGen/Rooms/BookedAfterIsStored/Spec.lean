@@ -2,11 +2,9 @@
 
 import FrFlowGen.Rooms.Types
 import FrFlowGen.Rooms.Boundaries
-import FrFlowGen.Rooms.Domain.Def_asRequest
 import FrFlowGen.Rooms.Domain.Def_bookIfGranted_run
 import FrFlowGen.Rooms.Domain.Def_bookIfGranted
-import FrFlowGen.Rooms.Domain.Def_asBooking
-import FrFlowGen.Rooms.Domain.Def_endsAfterStart
+import FrFlowGen.Rooms.Domain.Def_bookingsEndAfterStart
 import FrFlowGen.Rooms.Domain.Def_neverOverlap
 import FrFlowGen.Rooms.Domain.Def_apart
 import FrFlowGen.Rooms.Domain.Def_covers
@@ -18,17 +16,14 @@ open Classical
 
 namespace Rooms.BookedAfterIsStored
 
-@[frflow_defs] def post (book : Request → (World → (Prop × World))) : Booking → World → (List Booking) → Prop :=
-  fun (request : Booking) (now : World) (result : (List Booking)) => (result = (FrFlow.runOn (book (Rooms.asRequest request)) now).2.bookingTable)
-
-@[frflow_defs] def claim (book : Request → (World → (Prop × World))) (bookedAfter : Booking → World → (List Booking)) : Prop :=
-  ∀ (x0 : Booking) (x1 : World), (Rooms.endsAfterStart x0) → (∀ y ∈ x1.bookingTable, Rooms.endsAfterStart y) → (Rooms.neverOverlap x1.bookingTable) → (Rooms.BookedAfterIsStored.post book) x0 x1 (bookedAfter x0 x1)
+@[frflow_defs] def claim (bookedAfter : Booking → World → (List Booking)) (book : Booking → (World → (Prop × World))) : Prop :=
+  (∀ (request : Booking) (now : World), (Rooms.bookingsEndAfterStart request) → (∀ y ∈ now.bookingTable, Rooms.bookingsEndAfterStart y) → (Rooms.neverOverlap now.bookingTable) → ((bookedAfter request now) = (FrFlow.runOn (book request) now).2.bookingTable))
 
 namespace Obl
 
 /-- No world meets BookedAfterIsStored. -/
 @[frflow_defs] def unsat : Prop :=
-  ∀ (granted : RoomBookings → Booking → Prop) (bookedAfter : Booking → World → (List Booking)), ¬ (Rooms.BookedAfterIsStored.claim (Rooms.bookIfGranted_run granted) bookedAfter)
+  ∀ (bookedAfter : Booking → World → (List Booking)) (granted : RoomBookings → Booking → Prop), ¬ (Rooms.BookedAfterIsStored.claim bookedAfter (Rooms.bookIfGranted_run granted))
 
 end Obl
 

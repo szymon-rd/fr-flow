@@ -14,11 +14,6 @@ structure Booking where
   start : Int
   «end» : Int
 
-structure Request where
-  room : String
-  start : Int
-  «end» : Int
-
 structure RoomBookings where
   room : String
   bookings : (List Booking)

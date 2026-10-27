@@ -9,8 +9,8 @@ open Classical
 
 namespace Rooms
 
-@[reducible, frflow_defs] def asRequest : Booking → Request :=
-  fun (b : Booking) => (Request.mk b.room b.start b.«end»)
+@[frflow_defs] def bookingsEndAfterStart : Booking → Prop :=
+  fun (b : Booking) => (b.start < b.«end»)
 
 frflow_match_eqns
 

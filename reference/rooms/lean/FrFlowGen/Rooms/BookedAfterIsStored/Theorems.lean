@@ -10,8 +10,8 @@ open Classical
 namespace Rooms.BookedAfterIsStored
 
 /-- BookedAfterIsStored holds of every world that meets the leaves below it: BookedAfterIsStored. -/
-theorem holds : ∀ (granted : RoomBookings → Booking → Prop) (bookedAfter : Booking → World → (List Booking)), ∀ (h_BookedAfterIsStored : (Rooms.BookedAfterIsStored.claim (Rooms.bookIfGranted_run granted) bookedAfter)), (Rooms.BookedAfterIsStored.claim (Rooms.bookIfGranted_run granted) bookedAfter) := by
-  intro granted bookedAfter h_BookedAfterIsStored
+theorem holds : ∀ (bookedAfter : Booking → World → (List Booking)) (granted : RoomBookings → Booking → Prop), ∀ (h_BookedAfterIsStored : (Rooms.BookedAfterIsStored.claim bookedAfter (Rooms.bookIfGranted_run granted))), (Rooms.BookedAfterIsStored.claim bookedAfter (Rooms.bookIfGranted_run granted)) := by
+  intro bookedAfter granted h_BookedAfterIsStored
   exact h_BookedAfterIsStored
 
 end Rooms.BookedAfterIsStored

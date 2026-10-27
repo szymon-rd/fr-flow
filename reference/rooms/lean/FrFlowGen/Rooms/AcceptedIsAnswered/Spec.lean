@@ -2,11 +2,9 @@
 
 import FrFlowGen.Rooms.Types
 import FrFlowGen.Rooms.Boundaries
-import FrFlowGen.Rooms.Domain.Def_asRequest
 import FrFlowGen.Rooms.Domain.Def_bookIfGranted_run
 import FrFlowGen.Rooms.Domain.Def_bookIfGranted
-import FrFlowGen.Rooms.Domain.Def_asBooking
-import FrFlowGen.Rooms.Domain.Def_endsAfterStart
+import FrFlowGen.Rooms.Domain.Def_bookingsEndAfterStart
 import FrFlowGen.Rooms.Domain.Def_neverOverlap
 import FrFlowGen.Rooms.Domain.Def_apart
 import FrFlowGen.Rooms.Domain.Def_covers
@@ -18,17 +16,14 @@ open Classical
 
 namespace Rooms.AcceptedIsAnswered
 
-@[frflow_defs] def post (book : Request → (World → (Prop × World))) : Booking → World → Prop → Prop :=
-  fun (request : Booking) (now : World) (result : Prop) => (result = (FrFlow.runOn (book (Rooms.asRequest request)) now).1)
-
-@[frflow_defs] def claim (book : Request → (World → (Prop × World))) (accepted : Booking → World → Prop) : Prop :=
-  ∀ (x0 : Booking) (x1 : World), (Rooms.endsAfterStart x0) → (∀ y ∈ x1.bookingTable, Rooms.endsAfterStart y) → (Rooms.neverOverlap x1.bookingTable) → (Rooms.AcceptedIsAnswered.post book) x0 x1 (accepted x0 x1)
+@[frflow_defs] def claim (accepted : Booking → World → Prop) (book : Booking → (World → (Prop × World))) : Prop :=
+  (∀ (request : Booking) (now : World), (Rooms.bookingsEndAfterStart request) → (∀ y ∈ now.bookingTable, Rooms.bookingsEndAfterStart y) → (Rooms.neverOverlap now.bookingTable) → ((accepted request now) = (FrFlow.runOn (book request) now).1))
 
 namespace Obl
 
 /-- No world meets AcceptedIsAnswered. -/
 @[frflow_defs] def unsat : Prop :=
-  ∀ (granted : RoomBookings → Booking → Prop) (accepted : Booking → World → Prop), ¬ (Rooms.AcceptedIsAnswered.claim (Rooms.bookIfGranted_run granted) accepted)
+  ∀ (accepted : Booking → World → Prop) (granted : RoomBookings → Booking → Prop), ¬ (Rooms.AcceptedIsAnswered.claim accepted (Rooms.bookIfGranted_run granted))
 
 end Obl
 

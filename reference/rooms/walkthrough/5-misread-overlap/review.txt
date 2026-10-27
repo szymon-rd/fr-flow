@@ -3,7 +3,7 @@
 ! grantWhenNoOverlap  claim on granted  it and its code changed: review it  tested, not proven
   A request is granted exactly when it overlaps no booking of its room.
 
-What changed since it was accepted (demo-developer, 2026-10-27 13:34)
+What changed since it was accepted (demo-developer, 2026-10-27 15:32)
   definitions used
     ... 2 unchanged line(s)
       noOverlap = (a: Term[Booking], b: Term[Booking]) =>
@@ -27,14 +27,26 @@ What changed since it was accepted (demo-developer, 2026-10-27 13:34)
 Decision
   to review: it changed; the code it governs changed
   grantWhenNoOverlap is under review for self, code: the developer decides
+  decisions below it (accept --revisit NODE reviews one again; one that moved only with it is confirmed):
+    bookingsEndAfterStart (moved with it): Every booking ends after it starts. — holds because: One type: a booking is what the form sends and what the table stores, and every booking ends after it starts. Trusted of every booking; code storing one is proven to keep it.
+    bookedIsStored (moved with it): What is booked is what the table holds. — holds because: What booked is, in the code's words: what the table holds. (since confirmed: still holds after bookingsEndAfterStart changed: One type: a booking is what the form sends and what the table stores, and every booking ends after it starts. Trusted of every booking; code storing one is proven to keep it.)
+    bookedAfterIsStored (moved with it): What is booked once a request is handled is what the table holds after booking it. — holds because: What bookedAfter is, in the code's words: what the table holds after booking runs on the request itself.
+    acceptedIsAnswered (moved with it): A request is accepted exactly when booking it answers booked. — holds because: What accepted is, in the code's words: what booking answers for the request itself.
+
+Assumes
+  ! bookingsEndAfterStart (assumption) — a node assuming it changed: review it: "Every booking ends after it starts."
+-> bookingsEndAfterStart moved only with it: accepting grantWhenNoOverlap confirms it too
+-> bookedIsStored moved only with it: accepting grantWhenNoOverlap confirms it too
+-> bookedAfterIsStored moved only with it: accepting grantWhenNoOverlap confirms it too
+-> acceptedIsAnswered moved only with it: accepting grantWhenNoOverlap confirms it too
 
 [a]ccept [s]kip [v]iew [q]uit: 
 Decided 0 decision(s).
-Rooms: 18 nodes, 17 accepted, 1 to review
+Rooms: 17 nodes, 12 accepted, 5 to review
 Proofs: splits 0/5, root_impl unchecked, consistency proven, nothing vacuous
 Tests: code against its claims 1/1, implementations against their models 1/1, examples in Lean 5/6
-Trusted: requestsEndAfterStart, tableMatchesModel (a model), onlyBookingWrites, oneAtATime, startsEmpty (facts); tested, not proven: grantWhenNoOverlap
+Trusted: bookingsEndAfterStart, tableMatchesModel (a model), onlyBookingWrites, oneAtATime, startsEmpty (facts); tested, not proven: grantWhenNoOverlap
 5 with something unproven
-Waiting: 1 for the developer
+Waiting: 5 for the developer
 marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do
 --- exit 0

@@ -6,7 +6,7 @@ import FrFlowGen.Rooms.Domain.Def_bookingsOfTheRoom
 import FrFlowGen.Rooms.Domain.Def_roomBookingsApart
 import FrFlowGen.Rooms.Domain.Def_apart
 import FrFlowGen.Rooms.Domain.Def_covers
-import FrFlowGen.Rooms.Domain.Def_endsAfterStart
+import FrFlowGen.Rooms.Domain.Def_bookingsEndAfterStart
 
 set_option autoImplicit false
 set_option linter.unusedVariables false
@@ -19,7 +19,7 @@ namespace Rooms.GrantWhenNoOverlap
   fun (held : RoomBookings) (request : Booking) (result : Prop) => (result = (∀ b ∈ held.bookings, (Rooms.noOverlap b request)))
 
 @[frflow_defs] def claim (granted : RoomBookings → Booking → Prop) : Prop :=
-  ∀ (x0 : RoomBookings) (x1 : Booking), (Rooms.bookingsOfTheRoom x0) → (Rooms.roomBookingsApart x0) → (∀ y ∈ x0.bookings, Rooms.endsAfterStart y) → (Rooms.endsAfterStart x1) → Rooms.GrantWhenNoOverlap.post x0 x1 (granted x0 x1)
+  ∀ (x0 : RoomBookings) (x1 : Booking), (Rooms.bookingsOfTheRoom x0) → (Rooms.roomBookingsApart x0) → (∀ y ∈ x0.bookings, Rooms.bookingsEndAfterStart y) → (Rooms.bookingsEndAfterStart x1) → Rooms.GrantWhenNoOverlap.post x0 x1 (granted x0 x1)
 
 namespace Obl
 

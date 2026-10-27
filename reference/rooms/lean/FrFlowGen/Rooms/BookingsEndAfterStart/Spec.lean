@@ -2,17 +2,14 @@
 
 import FrFlowGen.Rooms.Types
 import FrFlowGen.Rooms.Boundaries
-import FrFlowGen.Rooms.Domain.Def_endsAfterStart
+import FrFlowGen.Rooms.Domain.Def_bookingsEndAfterStart
 import FrFlowGen.Rooms.Domain.Def_bookIfGranted_run
 import FrFlowGen.Rooms.Domain.Def_bookIfGranted
-import FrFlowGen.Rooms.Domain.Def_asBooking
 import FrFlowGen.Rooms.Domain.Def_neverOverlap
 import FrFlowGen.Rooms.Domain.Def_apart
 import FrFlowGen.Rooms.Domain.Def_covers
 import FrFlowGen.Rooms.Domain.Def_bookingsOfTheRoom
 import FrFlowGen.Rooms.Domain.Def_roomBookingsApart
-import FrFlowGen.Rooms.Domain.Def_requestsEndAfterStart
-import FrFlowGen.Rooms.RequestsEndAfterStart.Spec
 import FrFlowGen.Rooms.GrantWhenFree.Spec
 import FrFlowGen.Rooms.GrantWhenNoOverlap.Spec
 
@@ -21,7 +18,7 @@ set_option linter.unusedVariables false
 noncomputable section
 open Classical
 
-namespace Rooms.EndsAfterStart
+namespace Rooms.BookingsEndAfterStart
 
 /-- Always holds: a hypothesis of every statement about what it is about, proven kept by the code (kept_by_…). -/
 @[frflow_defs] def claim : Prop :=
@@ -29,12 +26,12 @@ namespace Rooms.EndsAfterStart
 
 namespace Obl
 
-/-- book (bookIfGranted_run) keeps EndsAfterStart of what storedBookings holds after a run. -/
+/-- book (bookIfGranted_run) keeps BookingsEndAfterStart of what storedBookings holds after a run. -/
 @[frflow_defs] def kept_by_book : Prop :=
-  ∀ (granted : RoomBookings → Booking → Prop), ∀ (h_GrantWhenFree : (Rooms.GrantWhenFree.claim granted)) (h_GrantWhenNoOverlap : (Rooms.GrantWhenNoOverlap.claim granted)), ∀ (x0 : Request) (x1 : World), (Rooms.requestsEndAfterStart x0) → (∀ y ∈ x1.bookingTable, Rooms.endsAfterStart y) → (Rooms.neverOverlap x1.bookingTable) → (∀ y ∈ ((Rooms.bookIfGranted_run granted) x0 x1).2.bookingTable, Rooms.endsAfterStart y)
+  ∀ (granted : RoomBookings → Booking → Prop), ∀ (h_GrantWhenFree : (Rooms.GrantWhenFree.claim granted)) (h_GrantWhenNoOverlap : (Rooms.GrantWhenNoOverlap.claim granted)), ∀ (x0 : Booking) (x1 : World), (Rooms.bookingsEndAfterStart x0) → (∀ y ∈ x1.bookingTable, Rooms.bookingsEndAfterStart y) → (Rooms.neverOverlap x1.bookingTable) → (∀ y ∈ ((Rooms.bookIfGranted_run granted) x0 x1).2.bookingTable, Rooms.bookingsEndAfterStart y)
 
 end Obl
 
 frflow_match_eqns
 
-end Rooms.EndsAfterStart
+end Rooms.BookingsEndAfterStart

@@ -14,13 +14,16 @@ Parts: together they make it (proven: authored)
   + neverOverlap  needed: "The bookings stored never overlap."
   clash: Lean found no proof that the parts contradict each other (a try)
 
+Assumes
+  - bookingsEndAfterStart (assumption): "Every booking ends after it starts."
+
 Vocabulary
   booked (operation): the bookings made, as the world stands (open)
   bookedAfter (operation): the bookings made once a request is handled (open)
 
 Proofs
   complete: proven: authored
-  root_impl: proven: the root holds of the code, trusting requestsEndAfterStart; and the code of grantWhenNoOverlap, tested, not proven
+  root_impl: proven: the root holds of the code, trusting nothing; and the code of grantWhenNoOverlap, tested, not proven
 
 Decisions
   2026-10-26 21:48  accepted by demo-developer: The service's purpose as one equation: after a request the store holds it added exactly when its room is free, and is unchanged otherwise.
@@ -30,4 +33,5 @@ Decisions
   2026-10-27 02:45  accepted by demo-developer: The same root over a Request, the booking it asks for stored; it rests on what the form sends.
   2026-10-27 10:20  accepted by demo-developer: The same root; the bookings stored after booking are named storedAfter, apart from those stored before.
   2026-10-27 13:32  accepted by demo-developer: The purpose over Declarations: what is booked once a request is handled gains it exactly when its room is free for its whole time. It assumes nothing; what its proof rests on is below it.
+  2026-10-27 15:31  confirmed by demo-developer: The purpose over Declarations, unchanged: a request, a booking asked for, is booked exactly when its room is free for its whole time. It now lists bookingsEndAfterStart: it holds of bookings that end after they start.
 --- exit 0

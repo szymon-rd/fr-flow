@@ -10,9 +10,9 @@ open Classical
 
 namespace Rooms.BookWhenFree
 
-/-- BookWhenFree holds of every world that meets the leaves below it: BookedIsStored, BookedAfterIsStored, GrantWhenNoOverlap, RequestsEndAfterStart. -/
-theorem holds : ∀ (booked : World → (List Booking)) (bookedAfter : Booking → World → (List Booking)) (granted : RoomBookings → Booking → Prop), ∀ (h_BookedIsStored : (Rooms.BookedIsStored.claim booked)) (h_BookedAfterIsStored : (Rooms.BookedAfterIsStored.claim (Rooms.bookIfGranted_run granted) bookedAfter)) (h_GrantWhenNoOverlap : (Rooms.GrantWhenNoOverlap.claim granted)) (h_RequestsEndAfterStart : Rooms.RequestsEndAfterStart.claim), (Rooms.BookWhenFree.claim booked bookedAfter) := by
-  intro booked bookedAfter granted h_BookedIsStored h_BookedAfterIsStored h_GrantWhenNoOverlap h_RequestsEndAfterStart
-  exact Rooms.BookWhenFree.Proofs.complete (booked := booked) (bookedAfter := bookedAfter) (granted := granted) (h_BookedIsStored := h_BookedIsStored) (h_BookedAfterIsStored := h_BookedAfterIsStored) (h_StoreWhenFree := (Rooms.StoreWhenFree.holds (granted := granted) (h_GrantWhenNoOverlap := h_GrantWhenNoOverlap) (h_RequestsEndAfterStart := h_RequestsEndAfterStart)))
+/-- BookWhenFree holds of every world that meets the leaves below it: BookedIsStored, BookedAfterIsStored, GrantWhenNoOverlap. -/
+theorem holds : ∀ (booked : World → (List Booking)) (bookedAfter : Booking → World → (List Booking)) (granted : RoomBookings → Booking → Prop), ∀ (h_BookedIsStored : (Rooms.BookedIsStored.claim booked)) (h_BookedAfterIsStored : (Rooms.BookedAfterIsStored.claim bookedAfter (Rooms.bookIfGranted_run granted))) (h_GrantWhenNoOverlap : (Rooms.GrantWhenNoOverlap.claim granted)), (Rooms.BookWhenFree.claim booked bookedAfter) := by
+  intro booked bookedAfter granted h_BookedIsStored h_BookedAfterIsStored h_GrantWhenNoOverlap
+  exact Rooms.BookWhenFree.Proofs.complete (booked := booked) (bookedAfter := bookedAfter) (granted := granted) (h_BookedIsStored := h_BookedIsStored) (h_BookedAfterIsStored := h_BookedAfterIsStored) (h_StoreWhenFree := (Rooms.StoreWhenFree.holds (granted := granted) (h_GrantWhenNoOverlap := h_GrantWhenNoOverlap)))
 
 end Rooms.BookWhenFree

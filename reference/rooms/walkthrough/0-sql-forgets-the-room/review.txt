@@ -3,7 +3,7 @@
 x tableMatchesModel  assumption  its code changed: review it
   The table gives a room's bookings in the order they were added, and adds one at the end.
 
-What changed since it was accepted (demo-developer, 2026-10-27 13:33)
+What changed since it was accepted (demo-developer, 2026-10-27 15:32)
   the code it governs changed (src/main/scala/rooms/SqliteBookings.scala)
     diff --git a/examples/rooms/src/main/scala/rooms/SqliteBookings.scala b/examples/rooms/src/main/scala/rooms/SqliteBookings.scala
     index 7245cbb..60c50ed 100644
@@ -28,10 +28,10 @@ Decision
 
 [a]ccept [s]kip [v]iew [q]uit: 
 Decided 0 decision(s).
-Rooms: 18 nodes, 17 accepted, 1 to review
+Rooms: 17 nodes, 16 accepted, 1 to review
 Proofs: splits 5/5, root_impl proven, consistency proven, nothing vacuous
 Tests: code against its claims 1/1, implementations against their models 0/1, examples in Lean 4/4
-Trusted: requestsEndAfterStart, tableMatchesModel (a model), onlyBookingWrites, oneAtATime, startsEmpty (facts); tested, not proven: grantWhenNoOverlap
+Trusted: bookingsEndAfterStart, tableMatchesModel (a model), onlyBookingWrites, oneAtATime, startsEmpty (facts); tested, not proven: grantWhenNoOverlap
 1 with something unproven
 Waiting: 1 for the developer
 marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do

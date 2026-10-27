@@ -4,14 +4,11 @@ import FrFlowGen.Rooms.Types
 import FrFlowGen.Rooms.Domain.Def_covers
 import FrFlowGen.Rooms.Domain.Def_apart
 import FrFlowGen.Rooms.Domain.Def_free
-import FrFlowGen.Rooms.Domain.Def_asRequest
-import FrFlowGen.Rooms.Domain.Def_asBooking
 import FrFlowGen.Rooms.Domain.Def_noOverlap
 import FrFlowGen.Rooms.Domain.Def_neverOverlap
-import FrFlowGen.Rooms.Domain.Def_endsAfterStart
 import FrFlowGen.Rooms.Domain.Def_bookingsOfTheRoom
 import FrFlowGen.Rooms.Domain.Def_roomBookingsApart
 import FrFlowGen.Rooms.Domain.Def_startsEmpty
-import FrFlowGen.Rooms.Domain.Def_requestsEndAfterStart
+import FrFlowGen.Rooms.Domain.Def_bookingsEndAfterStart
 import FrFlowGen.Rooms.Domain.Def_bookIfGranted
 import FrFlowGen.Rooms.Domain.Def_bookIfGranted_run

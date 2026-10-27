@@ -8,7 +8,7 @@ Formally (as written in Scala)
 Where it sits
   part of    + bookWhenFree  with bookedAfterIsStored, storeWhenFree, neverOverlap: "A request is booked exactly when its room is free for its whole time."
   part of    + acceptWhenFree  with acceptedIsAnswered, answerWhenFree, neverOverlap: "A request is accepted exactly when its room is free for its whole time."
-  uses       + endsAfterStart: "Every booking ends after it starts."
+  uses       - bookingsEndAfterStart (assumption): "Every booking ends after it starts."
   uses       + neverOverlap: "The bookings stored never overlap."
 
 Vocabulary
@@ -16,4 +16,5 @@ Vocabulary
 
 Decisions
   2026-10-27 13:34  accepted by demo-developer: What booked is, in the code's words: what the table holds.
+  2026-10-27 15:32  confirmed by demo-developer: still holds after bookingsEndAfterStart changed: One type: a booking is what the form sends and what the table stores, and every booking ends after it starts. Trusted of every booking; code storing one is proven to keep it.
 --- exit 0

@@ -14,9 +14,9 @@ set_option linter.unusedSimpArgs false in
 theorem complete : Obl.complete := by
   unfold Obl.complete
   first
-    | (intro granted h_GrantWhenFree h_RequestsEndAfterStart
-       simp only [Rooms.AnswerWhenFree.claim, Rooms.AnswerWhenFree.post, Rooms.GrantWhenFree.claim, Rooms.GrantWhenFree.post, Rooms.RequestsEndAfterStart.claim, List.forall_mem_map, forall_and] at h_GrantWhenFree h_RequestsEndAfterStart ⊢
-       revert h_GrantWhenFree h_RequestsEndAfterStart
+    | (intro granted h_GrantWhenFree
+       simp only [Rooms.AnswerWhenFree.claim, Rooms.AnswerWhenFree.post, Rooms.GrantWhenFree.claim, Rooms.GrantWhenFree.post, List.forall_mem_map, forall_and] at h_GrantWhenFree ⊢
+       revert h_GrantWhenFree
        try simp only [and_imp]
        repeat' (first | (with_reducible assumption) | (with_reducible intro _) | (with_reducible apply And.intro))
        done)

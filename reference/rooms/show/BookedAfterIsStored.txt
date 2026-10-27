@@ -1,14 +1,14 @@
-+ bookedAfterIsStored  claim on bookedAfter  accepted
++ bookedAfterIsStored  claim  accepted
   What is booked once a request is handled is what the table holds after booking it.
 
 Formally (as written in Scala)
   formula:
     forall((request: Term[Booking], now: Term[World]) =>
-      bookedAfter(request, now) === storedBookings.in(book(asRequest(request)).after(now)))
+      bookedAfter(request, now) === storedBookings.in(book(request).after(now)))
 
 Where it sits
   part of    + bookWhenFree  with bookedIsStored, storeWhenFree, neverOverlap: "A request is booked exactly when its room is free for its whole time."
-  uses       + endsAfterStart: "Every booking ends after it starts."
+  uses       - bookingsEndAfterStart (assumption): "Every booking ends after it starts."
   uses       + neverOverlap: "The bookings stored never overlap."
 
 Vocabulary
@@ -17,4 +17,5 @@ Vocabulary
 
 Decisions
   2026-10-27 13:34  accepted by demo-developer: What bookedAfter is, in the code's words: what the table holds after booking runs on the request asking for the booking.
+  2026-10-27 15:32  accepted by demo-developer: What bookedAfter is, in the code's words: what the table holds after booking runs on the request itself.
 --- exit 0

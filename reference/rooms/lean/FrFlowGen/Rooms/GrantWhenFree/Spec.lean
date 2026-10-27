@@ -6,7 +6,7 @@ import FrFlowGen.Rooms.Domain.Def_apart
 import FrFlowGen.Rooms.Domain.Def_covers
 import FrFlowGen.Rooms.Domain.Def_bookingsOfTheRoom
 import FrFlowGen.Rooms.Domain.Def_roomBookingsApart
-import FrFlowGen.Rooms.Domain.Def_endsAfterStart
+import FrFlowGen.Rooms.Domain.Def_bookingsEndAfterStart
 import FrFlowGen.Rooms.GrantWhenNoOverlap.Spec
 
 set_option autoImplicit false
@@ -20,7 +20,7 @@ namespace Rooms.GrantWhenFree
   fun (held : RoomBookings) (request : Booking) (result : Prop) => (result = (Rooms.free held.bookings request))
 
 @[frflow_defs] def claim (granted : RoomBookings → Booking → Prop) : Prop :=
-  ∀ (x0 : RoomBookings) (x1 : Booking), (Rooms.bookingsOfTheRoom x0) → (Rooms.roomBookingsApart x0) → (∀ y ∈ x0.bookings, Rooms.endsAfterStart y) → (Rooms.endsAfterStart x1) → Rooms.GrantWhenFree.post x0 x1 (granted x0 x1)
+  ∀ (x0 : RoomBookings) (x1 : Booking), (Rooms.bookingsOfTheRoom x0) → (Rooms.roomBookingsApart x0) → (∀ y ∈ x0.bookings, Rooms.bookingsEndAfterStart y) → (Rooms.bookingsEndAfterStart x1) → Rooms.GrantWhenFree.post x0 x1 (granted x0 x1)
 
 namespace Obl
 

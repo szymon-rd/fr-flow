@@ -11,11 +11,11 @@ open Classical
 
 namespace Rooms.AcceptWhenFree.RootImpl
 
-/-- The root holds of the code, from what is trusted: GrantWhenNoOverlap, RequestsEndAfterStart; given what its Declarations are: BookedIsStored, AcceptedIsAnswered. -/
-theorem root_impl : ∀ (booked : World → (List Booking)) (accepted : Booking → World → Prop) (granted : RoomBookings → Booking → Prop), ∀ (h_BookedIsStored : (Rooms.BookedIsStored.claim booked)) (h_AcceptedIsAnswered : (Rooms.AcceptedIsAnswered.claim (Rooms.bookIfGranted_run granted) accepted)) (h_GrantWhenNoOverlap : (Rooms.GrantWhenNoOverlap.claim granted)) (h_RequestsEndAfterStart : Rooms.RequestsEndAfterStart.claim), (Rooms.AcceptWhenFree.claim booked accepted) :=
+/-- The root holds of the code, from what is trusted: GrantWhenNoOverlap; given what its Declarations are: BookedIsStored, AcceptedIsAnswered. -/
+theorem root_impl : ∀ (booked : World → (List Booking)) (accepted : Booking → World → Prop) (granted : RoomBookings → Booking → Prop), ∀ (h_BookedIsStored : (Rooms.BookedIsStored.claim booked)) (h_AcceptedIsAnswered : (Rooms.AcceptedIsAnswered.claim accepted (Rooms.bookIfGranted_run granted))) (h_GrantWhenNoOverlap : (Rooms.GrantWhenNoOverlap.claim granted)), (Rooms.AcceptWhenFree.claim booked accepted) :=
   by
-  intro booked accepted granted h_BookedIsStored h_AcceptedIsAnswered h_GrantWhenNoOverlap h_RequestsEndAfterStart
-  exact Rooms.AcceptWhenFree.holds (booked := booked) (accepted := accepted) (granted := granted) (h_BookedIsStored := h_BookedIsStored) (h_AcceptedIsAnswered := h_AcceptedIsAnswered) (h_GrantWhenNoOverlap := h_GrantWhenNoOverlap) (h_RequestsEndAfterStart := h_RequestsEndAfterStart)
+  intro booked accepted granted h_BookedIsStored h_AcceptedIsAnswered h_GrantWhenNoOverlap
+  exact Rooms.AcceptWhenFree.holds (booked := booked) (accepted := accepted) (granted := granted) (h_BookedIsStored := h_BookedIsStored) (h_AcceptedIsAnswered := h_AcceptedIsAnswered) (h_GrantWhenNoOverlap := h_GrantWhenNoOverlap)
 
 #print axioms Rooms.AcceptWhenFree.RootImpl.root_impl
 

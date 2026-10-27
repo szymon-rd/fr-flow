@@ -2,7 +2,7 @@
 
 import FrFlowGen.Rooms.Types
 import FrFlowGen.Rooms.Boundaries
-import FrFlowGen.Rooms.Domain.Def_endsAfterStart
+import FrFlowGen.Rooms.Domain.Def_bookingsEndAfterStart
 import FrFlowGen.Rooms.Domain.Def_neverOverlap
 import FrFlowGen.Rooms.Domain.Def_apart
 import FrFlowGen.Rooms.Domain.Def_covers
@@ -18,7 +18,7 @@ namespace Rooms.BookedIsStored
   fun (now : World) (result : (List Booking)) => (result = now.bookingTable)
 
 @[frflow_defs] def claim (booked : World → (List Booking)) : Prop :=
-  ∀ (x0 : World), (∀ y ∈ x0.bookingTable, Rooms.endsAfterStart y) → (Rooms.neverOverlap x0.bookingTable) → Rooms.BookedIsStored.post x0 (booked x0)
+  ∀ (x0 : World), (∀ y ∈ x0.bookingTable, Rooms.bookingsEndAfterStart y) → (Rooms.neverOverlap x0.bookingTable) → Rooms.BookedIsStored.post x0 (booked x0)
 
 namespace Obl
 

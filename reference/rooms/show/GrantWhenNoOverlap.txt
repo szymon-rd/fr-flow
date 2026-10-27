@@ -7,10 +7,12 @@ Formally (as written in Scala)
       granted(held, request) === held.bookings.forall(b => noOverlap(b, request)))
 
 Where it sits
-  part of    + grantWhenFree  with endsAfterStart, bookingsOfTheRoom, roomBookingsApart: "A request is granted exactly when its room is free for its whole time."
+  part of    + grantWhenFree  with bookingsOfTheRoom, roomBookingsApart: "A request is granted exactly when its room is free for its whole time."
   uses       + bookingsOfTheRoom: "A room's bookings are all of that room."
   uses       + roomBookingsApart: "A room's bookings never overlap."
-  uses       + endsAfterStart: "Every booking ends after it starts."
+
+Assumes
+  - bookingsEndAfterStart (assumption): "Every booking ends after it starts."
 
 Vocabulary
   granted (operation): whether a request is granted, given its room's bookings (open)
@@ -25,8 +27,7 @@ Code
   tested: 1,000 generated cases (seed 1), against grantWhenNoOverlap
     every case meets it, and every part of it was reached
     note: String: Oak or Elm (given; derived values for a quarter of them)
-    note: Request: requests for Oak or Elm that end after they start (given; derived values for a quarter of them)
-    note: Booking: the bookings those requests ask for (given; derived values for a quarter of them)
+    note: Booking: requests for Oak or Elm that end after they start (given; derived values for a quarter of them)
     note: RoomBookings: a room's bookings, laid end to end, some back to back (given; derived values for a quarter of them)
     note: Booking: the examples' Booking("Oak", 9, 10), Booking("Oak", 10, 11), Booking("Oak", 9, 11) never come from the given generator (kept as seeds)
     note: RoomBookings: the examples' RoomBookings("Oak", List(Booking("Oak", 9, 10))), RoomBookings("Oak", List(Booking("Oak", 9, 11))) never come from the given generator (kept as seeds)
@@ -54,5 +55,6 @@ Decisions
   2026-10-27 00:50  accepted by demo-developer: The same claim, what the calendar's neighbour check is tested against.
   2026-10-27 02:45  confirmed by demo-developer: still holds after bookWhenFree changed: The same root over a Request, the booking it asks for stored; it rests on what the form sends.
   2026-10-27 10:20  confirmed by demo-developer: The same claim; the calendar's code names its two conditions (endsInTime, startsAfter) and the tests pass.
-  2026-10-27 13:34  confirmed by demo-developer: still holds after endsAfterStart changed: The same claim, now below grantWhenFree: what it says is a hypothesis of what grantWhenFree is about.
+  2026-10-27 13:34  confirmed by demo-developer: still holds after EndsAfterStart changed: The same claim, now below grantWhenFree: what it says is a hypothesis of what grantWhenFree is about.
+  2026-10-27 15:32  confirmed by demo-developer: The calendar's claim over start and end times, unchanged; its code is tested on bookings that end after they start, so it lists bookingsEndAfterStart.
 --- exit 0

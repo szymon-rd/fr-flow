@@ -5,7 +5,7 @@ import FrFlowGen.Rooms.Boundaries
 import FrFlowGen.Rooms.Domain.Def_free
 import FrFlowGen.Rooms.Domain.Def_apart
 import FrFlowGen.Rooms.Domain.Def_covers
-import FrFlowGen.Rooms.Domain.Def_endsAfterStart
+import FrFlowGen.Rooms.Domain.Def_bookingsEndAfterStart
 import FrFlowGen.Rooms.Domain.Def_neverOverlap
 import FrFlowGen.Rooms.BookedIsStored.Spec
 import FrFlowGen.Rooms.AcceptedIsAnswered.Spec
@@ -22,13 +22,13 @@ namespace Rooms.AcceptWhenFree
   fun (request : Booking) (now : World) (result : Prop) => (result = (Rooms.free (booked now) request))
 
 @[frflow_defs] def claim (booked : World → (List Booking)) (accepted : Booking → World → Prop) : Prop :=
-  ∀ (x0 : Booking) (x1 : World), (Rooms.endsAfterStart x0) → (∀ y ∈ x1.bookingTable, Rooms.endsAfterStart y) → (Rooms.neverOverlap x1.bookingTable) → (Rooms.AcceptWhenFree.post booked) x0 x1 (accepted x0 x1)
+  ∀ (x0 : Booking) (x1 : World), (Rooms.bookingsEndAfterStart x0) → (∀ y ∈ x1.bookingTable, Rooms.bookingsEndAfterStart y) → (Rooms.neverOverlap x1.bookingTable) → (Rooms.AcceptWhenFree.post booked) x0 x1 (accepted x0 x1)
 
 namespace Obl
 
 /-- The parts of AcceptWhenFree (BookedIsStored, AcceptedIsAnswered, AnswerWhenFree) together make it. -/
 @[frflow_defs] def complete : Prop :=
-  ∀ (booked : World → (List Booking)) (accepted : Booking → World → Prop) (granted : RoomBookings → Booking → Prop), ∀ (h_BookedIsStored : (Rooms.BookedIsStored.claim booked)) (h_AcceptedIsAnswered : (Rooms.AcceptedIsAnswered.claim (Rooms.bookIfGranted_run granted) accepted)) (h_AnswerWhenFree : (Rooms.AnswerWhenFree.claim (Rooms.bookIfGranted_run granted))), (Rooms.AcceptWhenFree.claim booked accepted)
+  ∀ (booked : World → (List Booking)) (accepted : Booking → World → Prop) (granted : RoomBookings → Booking → Prop), ∀ (h_BookedIsStored : (Rooms.BookedIsStored.claim booked)) (h_AcceptedIsAnswered : (Rooms.AcceptedIsAnswered.claim accepted (Rooms.bookIfGranted_run granted))) (h_AnswerWhenFree : (Rooms.AnswerWhenFree.claim (Rooms.bookIfGranted_run granted))), (Rooms.AcceptWhenFree.claim booked accepted)
 
 end Obl
 
@@ -36,7 +36,7 @@ namespace Obl
 
 /-- AcceptWhenFree holds without BookedIsStored. -/
 @[frflow_defs] def needed_BookedIsStored : Prop :=
-  ∀ (booked : World → (List Booking)) (accepted : Booking → World → Prop) (granted : RoomBookings → Booking → Prop), ∀ (h_AcceptedIsAnswered : (Rooms.AcceptedIsAnswered.claim (Rooms.bookIfGranted_run granted) accepted)) (h_AnswerWhenFree : (Rooms.AnswerWhenFree.claim (Rooms.bookIfGranted_run granted))), (Rooms.AcceptWhenFree.claim booked accepted)
+  ∀ (booked : World → (List Booking)) (accepted : Booking → World → Prop) (granted : RoomBookings → Booking → Prop), ∀ (h_AcceptedIsAnswered : (Rooms.AcceptedIsAnswered.claim accepted (Rooms.bookIfGranted_run granted))) (h_AnswerWhenFree : (Rooms.AnswerWhenFree.claim (Rooms.bookIfGranted_run granted))), (Rooms.AcceptWhenFree.claim booked accepted)
 
 end Obl
 
@@ -52,7 +52,7 @@ namespace Obl
 
 /-- AcceptWhenFree holds without AnswerWhenFree. -/
 @[frflow_defs] def needed_AnswerWhenFree : Prop :=
-  ∀ (booked : World → (List Booking)) (accepted : Booking → World → Prop) (granted : RoomBookings → Booking → Prop), ∀ (h_BookedIsStored : (Rooms.BookedIsStored.claim booked)) (h_AcceptedIsAnswered : (Rooms.AcceptedIsAnswered.claim (Rooms.bookIfGranted_run granted) accepted)), (Rooms.AcceptWhenFree.claim booked accepted)
+  ∀ (booked : World → (List Booking)) (accepted : Booking → World → Prop) (granted : RoomBookings → Booking → Prop), ∀ (h_BookedIsStored : (Rooms.BookedIsStored.claim booked)) (h_AcceptedIsAnswered : (Rooms.AcceptedIsAnswered.claim accepted (Rooms.bookIfGranted_run granted))), (Rooms.AcceptWhenFree.claim booked accepted)
 
 end Obl
 
@@ -60,7 +60,7 @@ namespace Obl
 
 /-- The parts of AcceptWhenFree contradict each other. -/
 @[frflow_defs] def clash : Prop :=
-  ∀ (booked : World → (List Booking)) (accepted : Booking → World → Prop) (granted : RoomBookings → Booking → Prop), ∀ (h_BookedIsStored : (Rooms.BookedIsStored.claim booked)) (h_AcceptedIsAnswered : (Rooms.AcceptedIsAnswered.claim (Rooms.bookIfGranted_run granted) accepted)) (h_AnswerWhenFree : (Rooms.AnswerWhenFree.claim (Rooms.bookIfGranted_run granted))), False
+  ∀ (booked : World → (List Booking)) (accepted : Booking → World → Prop) (granted : RoomBookings → Booking → Prop), ∀ (h_BookedIsStored : (Rooms.BookedIsStored.claim booked)) (h_AcceptedIsAnswered : (Rooms.AcceptedIsAnswered.claim accepted (Rooms.bookIfGranted_run granted))) (h_AnswerWhenFree : (Rooms.AnswerWhenFree.claim (Rooms.bookIfGranted_run granted))), False
 
 end Obl
 

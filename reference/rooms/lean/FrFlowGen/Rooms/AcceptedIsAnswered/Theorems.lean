@@ -10,8 +10,8 @@ open Classical
 namespace Rooms.AcceptedIsAnswered
 
 /-- AcceptedIsAnswered holds of every world that meets the leaves below it: AcceptedIsAnswered. -/
-theorem holds : ∀ (granted : RoomBookings → Booking → Prop) (accepted : Booking → World → Prop), ∀ (h_AcceptedIsAnswered : (Rooms.AcceptedIsAnswered.claim (Rooms.bookIfGranted_run granted) accepted)), (Rooms.AcceptedIsAnswered.claim (Rooms.bookIfGranted_run granted) accepted) := by
-  intro granted accepted h_AcceptedIsAnswered
+theorem holds : ∀ (accepted : Booking → World → Prop) (granted : RoomBookings → Booking → Prop), ∀ (h_AcceptedIsAnswered : (Rooms.AcceptedIsAnswered.claim accepted (Rooms.bookIfGranted_run granted))), (Rooms.AcceptedIsAnswered.claim accepted (Rooms.bookIfGranted_run granted)) := by
+  intro accepted granted h_AcceptedIsAnswered
   exact h_AcceptedIsAnswered
 
 end Rooms.AcceptedIsAnswered

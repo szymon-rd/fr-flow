@@ -8,14 +8,13 @@ AnswerWhenFree | claim | proven | accepted |
 BookWhenFree | claim | proven | accepted | 
 BookedAfterIsStored | claim | proven | accepted | 
 BookedIsStored | claim | proven | accepted | 
+BookingsEndAfterStart | assumption | assumed | accepted | its check: proven
 BookingsOfTheRoom | claim | proven | accepted | 
-EndsAfterStart | claim | proven | accepted | 
 GrantWhenFree | claim | proven | accepted | 
 GrantWhenNoOverlap | claim | tested | accepted | code tested on 1000 cases against GrantWhenNoOverlap, seed 1
 NeverOverlap | claim | proven | accepted | 
 OneAtATime | assumption | assumed | accepted | 
 OnlyBookingWrites | assumption | assumed | accepted | 
-RequestsEndAfterStart | assumption | assumed | accepted | its check: proven
 RoomBookingsApart | claim | proven | accepted | 
 StartsEmpty | assumption | assumed | accepted | 
 StoreWhenFree | claim | proven | accepted | 

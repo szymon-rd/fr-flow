@@ -4,20 +4,18 @@ import FrFlowGen.Rooms.Types
 import FrFlowGen.Rooms.Domain.Def_neverOverlap
 import FrFlowGen.Rooms.Domain.Def_apart
 import FrFlowGen.Rooms.Domain.Def_covers
-import FrFlowGen.Rooms.Domain.Def_endsAfterStart
 import FrFlowGen.Rooms.Domain.Def_bookingsOfTheRoom
 import FrFlowGen.Rooms.Domain.Def_roomBookingsApart
 import FrFlowGen.Rooms.Domain.Def_startsEmpty
-import FrFlowGen.Rooms.Domain.Def_requestsEndAfterStart
+import FrFlowGen.Rooms.Domain.Def_bookingsEndAfterStart
 import FrFlowGen.Rooms.BookedIsStored.Spec
 import FrFlowGen.Rooms.BookedAfterIsStored.Spec
 import FrFlowGen.Rooms.AcceptedIsAnswered.Spec
 import FrFlowGen.Rooms.GrantWhenNoOverlap.Spec
 import FrFlowGen.Rooms.NeverOverlap.Spec
-import FrFlowGen.Rooms.EndsAfterStart.Spec
 import FrFlowGen.Rooms.BookingsOfTheRoom.Spec
 import FrFlowGen.Rooms.RoomBookingsApart.Spec
-import FrFlowGen.Rooms.RequestsEndAfterStart.Spec
+import FrFlowGen.Rooms.BookingsEndAfterStart.Spec
 
 set_option autoImplicit false
 set_option linter.unusedVariables false
@@ -32,9 +30,9 @@ theorem together_BookedIsStored : ∃ (booked : World → (List Booking)), (Room
   refine ⟨fun (now : World) => now.bookingTable, ?_⟩
   frflow_auto
 
-/-- Some meaning of their terms meets BookedAfterIsStored, AcceptedIsAnswered, GrantWhenNoOverlap: granted as GrantWhenNoOverlap says, bookedAfter as BookedAfterIsStored says, accepted as AcceptedIsAnswered says. -/
-theorem together_BookedAfterIsStored : ∃ (granted : RoomBookings → Booking → Prop) (bookedAfter : Booking → World → (List Booking)) (accepted : Booking → World → Prop), (Rooms.BookedAfterIsStored.claim (Rooms.bookIfGranted_run granted) bookedAfter) ∧ (Rooms.AcceptedIsAnswered.claim (Rooms.bookIfGranted_run granted) accepted) ∧ (Rooms.GrantWhenNoOverlap.claim granted) := by
-  refine ⟨fun (held : RoomBookings) (request : Booking) => (∀ b ∈ held.bookings, (Rooms.noOverlap b request)), fun (request : Booking) (now : World) => (FrFlow.runOn (((Rooms.bookIfGranted_run (fun (held : RoomBookings) (request : Booking) => (∀ b ∈ held.bookings, (Rooms.noOverlap b request))))) (Rooms.asRequest request)) now).2.bookingTable, fun (request : Booking) (now : World) => (FrFlow.runOn (((Rooms.bookIfGranted_run (fun (held : RoomBookings) (request : Booking) => (∀ b ∈ held.bookings, (Rooms.noOverlap b request))))) (Rooms.asRequest request)) now).1, ?_⟩
+/-- Some meaning of their terms meets BookedAfterIsStored, AcceptedIsAnswered, GrantWhenNoOverlap: bookedAfter as BookedAfterIsStored says, granted as GrantWhenNoOverlap says, accepted as AcceptedIsAnswered says. -/
+theorem together_BookedAfterIsStored : ∃ (bookedAfter : Booking → World → (List Booking)) (granted : RoomBookings → Booking → Prop) (accepted : Booking → World → Prop), (Rooms.BookedAfterIsStored.claim bookedAfter (Rooms.bookIfGranted_run granted)) ∧ (Rooms.AcceptedIsAnswered.claim accepted (Rooms.bookIfGranted_run granted)) ∧ (Rooms.GrantWhenNoOverlap.claim granted) := by
+  refine ⟨fun (request : Booking) (now : World) => (FrFlow.runOn (((Rooms.bookIfGranted_run (fun (held : RoomBookings) (request : Booking) => (∀ b ∈ held.bookings, (Rooms.noOverlap b request))))) request) now).2.bookingTable, fun (held : RoomBookings) (request : Booking) => (∀ b ∈ held.bookings, (Rooms.noOverlap b request)), fun (request : Booking) (now : World) => (FrFlow.runOn (((Rooms.bookIfGranted_run (fun (held : RoomBookings) (request : Booking) => (∀ b ∈ held.bookings, (Rooms.noOverlap b request))))) request) now).1, ?_⟩
   frflow_auto
 
 /-- Some value holds what NeverOverlap says always holds: List() or List(Booking("Oak", 6, 9)) or List(Booking("Oak", 1, 3)). -/
@@ -45,15 +43,6 @@ theorem admits_NeverOverlap_1 : ∃ (x : (List Booking)), Rooms.neverOverlap x :
 
 /-- Some value holds what NeverOverlap says always holds: List() or List(Booking("Oak", 6, 9)) or List(Booking("Oak", 1, 3)). -/
 theorem admits_NeverOverlap_2 : ∃ (x : (List Booking)), Rooms.neverOverlap x := ⟨[(Booking.mk "Oak" 1 3)], by frflow_auto⟩
-
-/-- Some value holds what EndsAfterStart says always holds: Booking("Oak", 2, 4) or Booking("Elm", 3, 4) or Booking("Oak", 2, 5). -/
-theorem admits_EndsAfterStart_0 : ∃ (x : Booking), Rooms.endsAfterStart x := ⟨(Booking.mk "Oak" 2 4), by frflow_auto⟩
-
-/-- Some value holds what EndsAfterStart says always holds: Booking("Oak", 2, 4) or Booking("Elm", 3, 4) or Booking("Oak", 2, 5). -/
-theorem admits_EndsAfterStart_1 : ∃ (x : Booking), Rooms.endsAfterStart x := ⟨(Booking.mk "Elm" 3 4), by frflow_auto⟩
-
-/-- Some value holds what EndsAfterStart says always holds: Booking("Oak", 2, 4) or Booking("Elm", 3, 4) or Booking("Oak", 2, 5). -/
-theorem admits_EndsAfterStart_2 : ∃ (x : Booking), Rooms.endsAfterStart x := ⟨(Booking.mk "Oak" 2 5), by frflow_auto⟩
 
 /-- Some value holds what BookingsOfTheRoom says always holds: RoomBookings("Elm", List()) or RoomBookings("Elm", List(Booking("Elm", 1, 4), Booking("Elm", 4, 5))) or RoomBookings("Elm", List(Booking("Elm", 1, 4), Booking("Elm", 4, 7), Booking("Elm", 7, 10), Booking("Elm", 10, 13))). -/
 theorem admits_BookingsOfTheRoom_0 : ∃ (x : RoomBookings), Rooms.bookingsOfTheRoom x := ⟨(RoomBookings.mk "Elm" []), by frflow_auto⟩
@@ -73,14 +62,14 @@ theorem admits_RoomBookingsApart_1 : ∃ (x : RoomBookings), Rooms.roomBookingsA
 /-- Some value holds what RoomBookingsApart says always holds: RoomBookings("Elm", List()) or RoomBookings("Elm", List(Booking("Elm", 1, 4), Booking("Elm", 4, 5))) or RoomBookings("Elm", List(Booking("Elm", 1, 4), Booking("Elm", 4, 7), Booking("Elm", 7, 10), Booking("Elm", 10, 13))). -/
 theorem admits_RoomBookingsApart_2 : ∃ (x : RoomBookings), Rooms.roomBookingsApart x := ⟨(RoomBookings.mk "Elm" [(Booking.mk "Elm" 1 4), (Booking.mk "Elm" 4 7), (Booking.mk "Elm" 7 10), (Booking.mk "Elm" 10 13)]), by frflow_auto⟩
 
-/-- Some value holds what RequestsEndAfterStart says always holds: Request("Oak", 2, 4) or Request("Elm", 3, 4) or Request("Oak", 2, 5). -/
-theorem admits_RequestsEndAfterStart_0 : ∃ (x : Request), Rooms.requestsEndAfterStart x := ⟨(Request.mk "Oak" 2 4), by frflow_auto⟩
+/-- Some value holds what BookingsEndAfterStart says always holds: Booking("Oak", 2, 4) or Booking("Elm", 3, 4) or Booking("Oak", 2, 5). -/
+theorem admits_BookingsEndAfterStart_0 : ∃ (x : Booking), Rooms.bookingsEndAfterStart x := ⟨(Booking.mk "Oak" 2 4), by frflow_auto⟩
 
-/-- Some value holds what RequestsEndAfterStart says always holds: Request("Oak", 2, 4) or Request("Elm", 3, 4) or Request("Oak", 2, 5). -/
-theorem admits_RequestsEndAfterStart_1 : ∃ (x : Request), Rooms.requestsEndAfterStart x := ⟨(Request.mk "Elm" 3 4), by frflow_auto⟩
+/-- Some value holds what BookingsEndAfterStart says always holds: Booking("Oak", 2, 4) or Booking("Elm", 3, 4) or Booking("Oak", 2, 5). -/
+theorem admits_BookingsEndAfterStart_1 : ∃ (x : Booking), Rooms.bookingsEndAfterStart x := ⟨(Booking.mk "Elm" 3 4), by frflow_auto⟩
 
-/-- Some value holds what RequestsEndAfterStart says always holds: Request("Oak", 2, 4) or Request("Elm", 3, 4) or Request("Oak", 2, 5). -/
-theorem admits_RequestsEndAfterStart_2 : ∃ (x : Request), Rooms.requestsEndAfterStart x := ⟨(Request.mk "Oak" 2 5), by frflow_auto⟩
+/-- Some value holds what BookingsEndAfterStart says always holds: Booking("Oak", 2, 4) or Booking("Elm", 3, 4) or Booking("Oak", 2, 5). -/
+theorem admits_BookingsEndAfterStart_2 : ∃ (x : Booking), Rooms.bookingsEndAfterStart x := ⟨(Booking.mk "Oak" 2 5), by frflow_auto⟩
 
 /-- Some state meets what StartsEmpty says the store starts with: List(). -/
 theorem starts_StartsEmpty_0 : ∃ (x : (List Booking)), Rooms.startsEmpty x := ⟨[], by frflow_auto⟩

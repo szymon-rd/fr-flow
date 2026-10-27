@@ -10,9 +10,9 @@ open Classical
 
 namespace Rooms.AcceptWhenFree
 
-/-- AcceptWhenFree holds of every world that meets the leaves below it: BookedIsStored, AcceptedIsAnswered, GrantWhenNoOverlap, RequestsEndAfterStart. -/
-theorem holds : ∀ (booked : World → (List Booking)) (accepted : Booking → World → Prop) (granted : RoomBookings → Booking → Prop), ∀ (h_BookedIsStored : (Rooms.BookedIsStored.claim booked)) (h_AcceptedIsAnswered : (Rooms.AcceptedIsAnswered.claim (Rooms.bookIfGranted_run granted) accepted)) (h_GrantWhenNoOverlap : (Rooms.GrantWhenNoOverlap.claim granted)) (h_RequestsEndAfterStart : Rooms.RequestsEndAfterStart.claim), (Rooms.AcceptWhenFree.claim booked accepted) := by
-  intro booked accepted granted h_BookedIsStored h_AcceptedIsAnswered h_GrantWhenNoOverlap h_RequestsEndAfterStart
-  exact Rooms.AcceptWhenFree.Proofs.complete (booked := booked) (accepted := accepted) (granted := granted) (h_BookedIsStored := h_BookedIsStored) (h_AcceptedIsAnswered := h_AcceptedIsAnswered) (h_AnswerWhenFree := (Rooms.AnswerWhenFree.holds (granted := granted) (h_GrantWhenNoOverlap := h_GrantWhenNoOverlap) (h_RequestsEndAfterStart := h_RequestsEndAfterStart)))
+/-- AcceptWhenFree holds of every world that meets the leaves below it: BookedIsStored, AcceptedIsAnswered, GrantWhenNoOverlap. -/
+theorem holds : ∀ (booked : World → (List Booking)) (accepted : Booking → World → Prop) (granted : RoomBookings → Booking → Prop), ∀ (h_BookedIsStored : (Rooms.BookedIsStored.claim booked)) (h_AcceptedIsAnswered : (Rooms.AcceptedIsAnswered.claim accepted (Rooms.bookIfGranted_run granted))) (h_GrantWhenNoOverlap : (Rooms.GrantWhenNoOverlap.claim granted)), (Rooms.AcceptWhenFree.claim booked accepted) := by
+  intro booked accepted granted h_BookedIsStored h_AcceptedIsAnswered h_GrantWhenNoOverlap
+  exact Rooms.AcceptWhenFree.Proofs.complete (booked := booked) (accepted := accepted) (granted := granted) (h_BookedIsStored := h_BookedIsStored) (h_AcceptedIsAnswered := h_AcceptedIsAnswered) (h_AnswerWhenFree := (Rooms.AnswerWhenFree.holds (granted := granted) (h_GrantWhenNoOverlap := h_GrantWhenNoOverlap)))
 
 end Rooms.AcceptWhenFree

@@ -3,11 +3,10 @@
 
 Formally (as written in Scala)
   formula:
-    forall((request: Term[Request], before: Term[World]) =>
+    forall((request: Term[Booking], before: Term[World]) =>
       val stored = storedBookings.in(before)
-      val booking = asBooking(request)
       val storedAfter = storedBookings.in(book(request).after(before))
-      storedAfter === when(free(stored, booking))(stored :+ booking).otherwise(stored))
+      storedAfter === when(free(stored, request))(stored :+ request).otherwise(stored))
 
 Where it sits
   part of    + bookWhenFree  with bookedIsStored, bookedAfterIsStored, neverOverlap: "A request is booked exactly when its room is free for its whole time."
@@ -20,7 +19,7 @@ Parts: together they make it (proven: auto)
 Assumes
   - tableMatchesModel (assumption): "The table gives a room's bookings in the order they were added, and adds one at the end."
   - oneAtATime (assumption): "Bookings are processed one at a time."
-  - requestsEndAfterStart (assumption): "The booking form sends only requests that end after they start."
+  - bookingsEndAfterStart (assumption): "Every booking ends after it starts."
 
 Vocabulary
   book (operation): booking a request: whether it was booked (open)
@@ -32,12 +31,13 @@ Proofs
 Code
   proven define bookIfGranted_run
     bookIfGranted_run = bookIfGranted
-    bookIfGranted = fun (request : Request) => do
+    bookIfGranted = fun (request : Booking) => do
         let held ← BookingTable.inRoom request.room
-        let booked := (granted held (⟦asBooking⟧ request))
-    ... 7 more line(s): context storeWhenFree
+        let booked := (granted held request)
+    ... 6 more line(s): context storeWhenFree
   governs: src/main/scala/rooms/Book.scala
 
 Decisions
   2026-10-27 13:33  accepted by demo-developer: The former root bookWhenFree, its formula unchanged: what booking stores, proven of its code; now a part of bookWhenFree, with the assumptions its proof needs.
+  2026-10-27 15:32  accepted by demo-developer: What booking stores, proven of its code: it now takes the booking itself, with no request to turn into one; it lists bookingsEndAfterStart.
 --- exit 0

@@ -7,7 +7,7 @@ Formally (as written in Scala)
   proven where code hands one on: in the steps of storeWhenFree and answerWhenFree
 
 Where it sits
-  part of    + grantWhenFree  with endsAfterStart, roomBookingsApart, grantWhenNoOverlap: "A request is granted exactly when its room is free for its whole time."
+  part of    + grantWhenFree  with roomBookingsApart, grantWhenNoOverlap: "A request is granted exactly when its room is free for its whole time."
   used by    + grantWhenNoOverlap: "A request is granted exactly when it overlaps no booking of its room."
 
 Proofs
@@ -18,4 +18,5 @@ Decisions
   2026-10-26 23:14  accepted by demo-developer: A room's bookings, as the table gives them, are all of that room: the calendar need not group them.
   2026-10-27 00:49  accepted by demo-developer: The same rule, a room's bookings named by room as a booking's are.
   2026-10-27 13:34  accepted by demo-developer: The same claim, now below grantWhenFree: what it says is a hypothesis of what grantWhenFree is about.
+  2026-10-27 15:32  confirmed by demo-developer: still holds after grantWhenFree changed: The calendar's claim over moments, unchanged; it lists bookingsEndAfterStart, whose rule its proof takes, in place of the always claim it had as a part.
 --- exit 0

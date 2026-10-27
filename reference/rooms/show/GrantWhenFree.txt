@@ -11,11 +11,13 @@ Where it sits
   part of    + answerWhenFree  its only part: "A request is answered booked exactly when its room is free for its whole time."
 
 Parts: together they make it (proven: authored)
-  + endsAfterStart  needed: "Every booking ends after it starts."
   + bookingsOfTheRoom  needed: "A room's bookings are all of that room."
   + roomBookingsApart  needed: "A room's bookings never overlap."
   + grantWhenNoOverlap  needed: "A request is granted exactly when it overlaps no booking of its room."
   clash: Lean found no proof that the parts contradict each other (a try)
+
+Assumes
+  - bookingsEndAfterStart (assumption): "Every booking ends after it starts."
 
 Vocabulary
   granted (operation): whether a request is granted, given its room's bookings (open)
@@ -49,4 +51,5 @@ Decisions
   2026-10-27 02:45  confirmed by demo-developer: still holds after bookWhenFree changed: The same root over a Request, the booking it asks for stored; it rests on what the form sends.
   2026-10-27 10:20  confirmed by demo-developer: still holds after bookWhenFree changed: The same root; the bookings stored after booking are named storedAfter, apart from those stored before.
   2026-10-27 13:33  confirmed by demo-developer: The same claim, now a part of storeWhenFree and answerWhenFree; what always holds of what it is about is below it.
+  2026-10-27 15:32  confirmed by demo-developer: The calendar's claim over moments, unchanged; it lists bookingsEndAfterStart, whose rule its proof takes, in place of the always claim it had as a part.
 --- exit 0
