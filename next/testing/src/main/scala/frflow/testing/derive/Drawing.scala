@@ -1,6 +1,7 @@
 package frflow.testing.derive
 
-import cats.data.StateT
+import cats.Eval
+import cats.data.{OptionT, StateT}
 import cats.syntax.all.*
 import frflow.core.code.Values
 import frflow.core.example.Gen
@@ -16,7 +17,8 @@ import java.util.SplittableRandom
   * holds of it, so the whole meets what always holds of every type it holds.
   */
 private[derive] final class Drawing(d: Derive, random: SplittableRandom, size: Int):
-  private type D[A] = StateT[Option, Pool, A]
+  private type O[A] = OptionT[Eval, A]
+  private type D[A] = StateT[O, Pool, A]
 
   def gen[A](g: Gen[A]): D[A] = g match
     case Gen.Derived(ty)       => value(ty, 0).map(v => Fn.as[A](d.semantics.literal(v, ty)))
@@ -27,7 +29,7 @@ private[derive] final class Drawing(d: Derive, random: SplittableRandom, size: I
 
   /** A value of `ty` meeting every `always` of each type it holds, kept for the case's next values of `ty`. */
   def value(ty: Ty, depth: Int): D[Value] =
-    meeting(ty)(chosen(ty, depth)).flatMap(v => StateT(pool => Some(pool.kept(ty, v) -> v)))
+    meeting(ty)(chosen(ty, depth)).flatMap(v => StateT(pool => OptionT.some[Eval](pool.kept(ty, v) -> v)))
 
   /** From the generator given for the type (three times in four), an example's value, one drawn before, or fresh. */
   private def chosen(ty: Ty, depth: Int): D[Value] = StateT { pool =>
@@ -41,14 +43,15 @@ private[derive] final class Drawing(d: Derive, random: SplittableRandom, size: I
   /** A given generator's value, as data, when it meets what always holds of every type it holds. */
   private def givenBy(ty: Ty, g: Gen[?]): D[Value] = gen(g).flatMapF { a =>
     val v = d.semantics.reflect(ScalaValue(a), ty)
-    Option.when(d.rules.forall(_.broken(List(d.semantics.literal(v, ty)), List(ty), none).isEmpty))(v)
+    OptionT.fromOption[Eval](
+      Option.when(d.rules.forall(_.broken(List(d.semantics.literal(v, ty)), List(ty), none).isEmpty))(v))
   }
 
   private def meeting(ty: Ty)(draw: D[Value]): D[Value] =
     val own = d.rules.filter(_.ty == ty)
     if own.isEmpty then draw
-    else StateT(pool => Iterator.continually(draw.run(pool)).take(Derive.Tries).flatten
-      .find((_, v) => own.forall(_.holds(d.semantics.literal(v, ty), none))))
+    else StateT(pool => OptionT(Eval.always(Iterator.continually(Drawing.run(draw, pool)).take(Derive.Tries)
+      .flatten.find((_, v) => own.forall(_.holds(d.semantics.literal(v, ty), none))))))
 
   private def fresh(ty: Ty, depth: Int): D[Value] = ty match
     case Ty.Bool           => drawn(Value.Bool(chance(0.5)))
@@ -64,8 +67,8 @@ private[derive] final class Drawing(d: Derive, random: SplittableRandom, size: I
     case Ty.EitherOf(l, r) => either(value(l, depth + 1).map(Value.Inject(Side.Error, _)),
         value(r, depth + 1).map(Value.Inject(Side.Value, _)))
     case Ty.TupleOf(as)    => as.traverse(value(_, depth + 1)).map(Value.Tuple(_))
-    case Ty.Data(n)        => d.vocabulary.dataType(n).fold(StateT.liftF[Option, Pool, Value](None))(data(_, depth))
-    case _                 => StateT.liftF(None)
+    case Ty.Data(n)        => d.vocabulary.dataType(n).fold(nothing)(data(_, depth))
+    case _                 => nothing
 
   /** One of its constructors over drawn fields; deep down, a constructor without fields where there is one. */
   private def data(dt: DataType, depth: Int): D[Value] =
@@ -84,7 +87,8 @@ private[derive] final class Drawing(d: Derive, random: SplittableRandom, size: I
   private def either(first: => D[Value], second: => D[Value]): D[Value] =
     drawn(chance(0.25)).flatMap(f => if f then first else second)
 
-  private def drawn[A](a: => A): D[A] = StateT(pool => Some(pool -> a))
+  private def drawn[A](a: => A): D[A] = StateT(pool => OptionT(Eval.always(Some(pool -> a))))
+  private def nothing: D[Value] = StateT.liftF(OptionT.none[Eval, Value])
   private def pick(xs: Vector[Value]): D[Value] = drawn(xs(below(xs.size)))
   private def below(n: Int): Int = if n <= 1 then 0 else random.nextInt(n)
   private def chance(p: Double): Boolean = random.nextDouble() < p
@@ -96,3 +100,7 @@ private[derive] final class Drawing(d: Derive, random: SplittableRandom, size: I
     else BigInt(below(20 * size + 1) - 10 * size)
 
   private def string: String = if chance(0.2) then "" else List.fill(below(4) + 1)("ab1"(below(3))).mkString
+
+private[derive] object Drawing:
+  /** A draw run from a pool: the pool after it and the value, or none. */
+  def run[A](d: StateT[[x] =>> OptionT[Eval, x], Pool, A], pool: Pool): Option[(Pool, A)] = d.run(pool).value.value

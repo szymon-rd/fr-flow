@@ -25,7 +25,7 @@ final class Derive(val semantics: Semantics, val vocabulary: Vocabulary, val rul
   def seeds: Seeds = hints.seeds
 
   def apply[A](g: Gen[A], size: Int, random: SplittableRandom): Option[A] =
-    Drawing(this, random, size).gen(g).runA(Pool.empty)
+    Drawing.run(Drawing(this, random, size).gen(g), Pool.empty).map(_._2)
 
   override def all(types: List[Ty], size: Int, random: SplittableRandom): Option[List[Any]] =
     values(types, size, random).map(_.zip(types).map((v, ty) => semantics.literal(v, ty).unwrap))
@@ -33,7 +33,7 @@ final class Derive(val semantics: Semantics, val vocabulary: Vocabulary, val rul
   /** A value of each type as data, drawn together. */
   def values(types: List[Ty], size: Int, random: SplittableRandom): Option[List[Value]] =
     val drawing = Drawing(this, random, size)
-    types.traverse(drawing.value(_, 0)).runA(Pool.empty)
+    Drawing.run(types.traverse(drawing.value(_, 0)), Pool.empty).map(_._2)
 
   override def generators: List[report.Made] = hints.generators.map(g => report.Made(g.ty, g.gen match
     case Gen.Described(_, says) => Some(says)
