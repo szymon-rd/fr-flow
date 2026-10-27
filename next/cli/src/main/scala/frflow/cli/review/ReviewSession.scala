@@ -81,7 +81,7 @@ final class ReviewSession(api: FrFlowApi[IO], term: Terminal, st: Style, added: 
 
   /** Which decisions below to revisit, and why; what it records shown first when that is more than the node. */
   private def accept(dev: String, n: NodeView, p: Pass): IO[ExitCode] =
-    ask.revisit(n.id, n.review.below).flatMap(_.fold(loop(dev, p))(revisit =>
+    ask.revisit(n.id, n.review.moves.below).flatMap(_.fold(loop(dev, p))(revisit =>
       ask.reason(s"Why ${n.id}? ").flatMap(_.fold(loop(dev, p)) { why =>
         val c = Decide.Accept(List(n.id), why, revisit, Map(n.id -> n.review.version))
         decisions.take(c, dev, _.recorded.size > 1).flatMap(recorded(dev, p, Some(n.id)))

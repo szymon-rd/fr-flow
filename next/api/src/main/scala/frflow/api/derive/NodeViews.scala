@@ -50,6 +50,6 @@ private[api] final class NodeViews(a: Analysis):
   def review(id: NodeId): ReviewView =
     val subject = a.subjects.get(id)
     ReviewView(subject.fold("")(a.reading.version), a.standings.getOrElse(id, Standing(ReviewState.Proposed, Nil)),
-      counting.binding(id), subject.flatMap(a.reading.waitsFor), a.reading.notMechanical.get(id).flatten,
-      subject.toList.flatMap(Moves.movedAbove(a.reading, _)).map(_._1),
-      subject.toList.flatMap(Moves.actsOn(a.reading, _)).map(_.id))
+      Decisions(counting.binding(id), counting.current(id)), subject.flatMap(a.reading.waitsFor),
+      a.reading.notMechanical.get(id).flatten, Movement(subject.toList.flatMap(Moves.movedAbove(a.reading, _))
+        .map(_._1), subject.toList.flatMap(Moves.actsOn(a.reading, _)).map(_.id)))

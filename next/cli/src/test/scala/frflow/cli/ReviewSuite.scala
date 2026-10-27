@@ -21,7 +21,7 @@ class ReviewSuite extends munit.CatsEffectSuite:
       .flatMap(code => t.text.map(code -> _)))
 
   private def state(api: FrFlowApi[IO], id: NodeId) =
-    api.reading.view.map(_.node(id).map(n => n.review.standing.state -> n.review.decision.map(_.action)))
+    api.reading.view.map(_.node(id).map(n => n.review.standing.state -> n.review.decisions.binding.map(_.action)))
 
   /** Every node accepted; then the model as `p` has it, over the same ledger. */
   private def moved(p: frflow.api.Project[IO]) =

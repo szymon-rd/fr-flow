@@ -55,5 +55,7 @@ object NodeCodecs:
   given Encoder.AsObject[Cause] = ConfiguredEncoder.derived
   given Encoder.AsObject[Standing] = ConfiguredEncoder.derived
   given Encoder.AsObject[Mechanical.Not] = ConfiguredEncoder.derived
+  given Encoder.AsObject[Decisions] = ConfiguredEncoder.derived
+  given Encoder.AsObject[Movement] = ConfiguredEncoder.derived
   given Encoder.AsObject[ReviewView] = ConfiguredEncoder.derived
   given Encoder.AsObject[NodeView] = ConfiguredEncoder.derived

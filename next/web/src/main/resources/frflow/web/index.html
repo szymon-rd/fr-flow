@@ -169,9 +169,9 @@ function show(id) {
       ...(r.waitsFor ? [`decide ${esc(r.waitsFor)} first`] : []),
       ...(open && r.standing.state.type === "Review" && !r.notMechanical ? ["mechanical: confirm takes it"] : []),
       ...n.proof.unproven.map(u => `<span class="bad">not proven: ${words(u.type)}</span>`),
-      ...(r.below.length ? [`decisions below it that accepting it acts on: ${esc(r.below.join(", "))}`] : [])])) +
-    section("Why it holds", r.decision ? `<p>${esc(r.decision.reason)} <span class="dim">(${r.decision.action} by ` +
-      `${esc(r.decision.by)})</span></p>` : "") +
+      ...(r.moves.below.length ? [`decisions below it that accepting it acts on: ${esc(r.moves.below.join(", "))}`] : [])])) +
+    section("Why it holds", r.decisions.binding ? `<p>${esc(r.decisions.binding.reason)} <span class="dim">(${r.decisions.binding.action} by ` +
+      `${esc(r.decisions.binding.by)})</span></p>` : "") +
     section("Formally", n.says.written ? `<pre>${esc(n.says.written)}</pre>` : "") +
     section("How it is checked", items(n.says.checking.map(esc))) +
     section("Parts", items(related(n, "Part").map(p => node(p) ? line(node(p)) : esc(p)))) +
@@ -188,7 +188,7 @@ function show(id) {
   const button = (label, f) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label;
     b.onclick = f; acts.appendChild(b); };
   if (open && !r.waitsFor) button("Accept…", () => decideForm({ action: "accept", nodes: [id],
-    seen: { [id]: r.version }, revisit: [] }, `Accept ${id}`, r.below));
+    seen: { [id]: r.version }, revisit: [] }, `Accept ${id}`, r.moves.below));
   if (r.standing.state.type === "Proposed") button("Reject…", () => decideForm({ action: "reject", node: id,
     seen: r.version }, `Reject ${id}`));
   if (r.standing.state.type === "Accepted") button("Revisit…", () => decideForm({ action: "revisit", node: id },

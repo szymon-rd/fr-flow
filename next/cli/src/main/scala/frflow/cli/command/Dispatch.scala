@@ -32,7 +32,7 @@ final class Dispatch(host: Host[IO], term: Terminal, st: Style, layers: List[Cli
     case Command.Show(id, depth)   => viewed((v, x) => v.node(id).fold(gone(v, id))(n =>
         ok(NodeText(v, st, x).lines(n, depth))))
     case Command.Diff(id)          => viewed((v, _) => v.node(id).fold(gone(v, id))(n => api.reading.diff(id)
-        .flatMap(d => ok(DiffText.lines(id, d, n.review.decision.isDefined, st)))))
+        .flatMap(d => ok(DiffText.lines(id, d, n.review.decisions.binding.isDefined, st)))))
     case Command.Inbox             => viewed((v, x) => ok(InboxText.lines(v, st, x)))
     case Command.Find(q)           => (api.reading.find(q), api.reading.view).flatMapN((f, v) =>
         ok(ReportText.found(q, f, v, st)))

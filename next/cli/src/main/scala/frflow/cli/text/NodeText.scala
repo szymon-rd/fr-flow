@@ -49,8 +49,8 @@ final class NodeText(v: View, style: Style, layers: Contribution):
       r.waitsFor.map(w => st.yellow(s"decide $w first: what rests on it is decided after it")).toList ++
       mechanical(n, st).toList ++ n.proof.unproven.map(u => st.red(s"note: ${Unprovens.text(u)}")) ++
       Option.when(rivals.nonEmpty)(s"accepting it rejects ${rivals.mkString(", ")}, with your reason").toList ++
-      r.movedAbove.map(m => st.dim(s"moved above it since it was decided: $m (diff ${n.id} shows how)")) ++
-      below(r.below)
+      r.moves.above.map(m => st.dim(s"moved above it since it was decided: $m (diff ${n.id} shows how)")) ++
+      below(r.moves.below)
 
   private def mechanical(n: NodeView, st: Style): Option[String] =
     if InboxText.mechanical(n) then
@@ -63,7 +63,7 @@ final class NodeText(v: View, style: Style, layers: Contribution):
     else List("decisions below it that accepting it acts on (accept --revisit NODE reviews one again): " +
       ids.mkString(", "))
 
-  private def reason(n: NodeView): List[String] = n.review.decision.map(d =>
+  private def reason(n: NodeView): List[String] = n.review.decisions.binding.map(d =>
     s"${d.reason.text}  (${Unprovens.verb(d.action)} by ${d.author.by}, ${d.author.at.toString.take(16)
       .replace('T', ' ')})").toList
 

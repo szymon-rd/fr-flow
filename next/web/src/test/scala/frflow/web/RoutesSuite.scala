@@ -70,7 +70,7 @@ class RoutesSuite extends munit.CatsEffectSuite:
       assertEquals(body.hcursor.downField("refusal").get[String]("type"), Right("AcceptFirst"))
       assertEquals(done.status, Status.Ok)
       assertEquals(recorded.hcursor.downField("recorded").downArray.get[String]("node"), Right("nonNegative"))
-      assertEquals(view.node(frflow.core.name.NodeId("nonNegative")).flatMap(_.review.decision).map(_.author.by),
+      assertEquals(view.node(frflow.core.name.NodeId("nonNegative")).flatMap(_.review.decisions.binding).map(_.author.by),
         Some("ann"))
   }
 

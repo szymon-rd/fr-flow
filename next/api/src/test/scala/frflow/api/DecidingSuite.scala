@@ -42,7 +42,7 @@ class DecidingSuite extends munit.CatsEffectSuite:
       assertEquals(still.nodes.map(_.review.standing.state).distinct, List(ReviewState.Proposed))
       assertEquals(after.nodes.map(_.review.standing.state).distinct, List(ReviewState.Accepted))
       assertEquals(after.node(sameAbove).flatMap(_.says.reason), Some("it says what the service must do"))
-      assertEquals(after.node(sameAbove).flatMap(_.review.decision).map(_.action), Some(Action.Accept))
+      assertEquals(after.node(sameAbove).flatMap(_.review.decisions.binding).map(_.action), Some(Action.Accept))
   }
 
   test("a name the key at hand is not listed under is refused, and nothing is recorded") {
@@ -78,8 +78,8 @@ class DecidingSuite extends munit.CatsEffectSuite:
     yield
       val part = view.node(sameAbove).getOrElse(fail("no part"))
       assertEquals((part.review.standing.state, part.review.standing.causes), (ReviewState.Review, List(Cause.Above)))
-      assertEquals(part.review.movedAbove, List(nonNegative))
-      assertEquals(view.node(nonNegative).map(_.review.below), Some(List(sameAbove)))
+      assertEquals(part.review.moves.above, List(nonNegative))
+      assertEquals(view.node(nonNegative).map(_.review.moves.below), Some(List(sameAbove)))
       val (claim, below) = diffs
       val formula = claim.toList.flatMap(_.fields).filter(_.field == "formula")
       assert(formula.exists(_.lines.exists { case DiffLine.Added(_) => true; case _ => false }), formula)
