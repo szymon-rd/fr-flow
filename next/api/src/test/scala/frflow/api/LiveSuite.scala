@@ -34,6 +34,6 @@ class LiveSuite extends munit.CatsEffectSuite:
         who  <- api.deciding.developer(None).attempt
       yield
         assert(view.warnings.contains(Warning.NoKey), view.warnings)
-        assertEquals(who, Left(Stop.NoKey("FRFLOW_KEY")))
+        assertEquals(who, Left(Stop.NoKey("FRFLOW_KEY (or HOME) not set")))
     }
   }
