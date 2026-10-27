@@ -122,6 +122,19 @@ class ConceptsSuite extends munit.FunSuite:
     assertEquals(KnowledgeBase("Idea")(welcome).problems, Nil)
   }
 
+  test("a Definition's code is not checked where it runs: a flow calls it as written, proofs and tests check it before") {
+    import Concepts.*
+    import cats.effect.SyncIO
+    final class Held extends Counter:
+      var count = BigInt(0)
+      def read = Flow.effect(count)
+      def bump(by: Term[BigInt]) = Flow.effect(by)(b => count += b)
+    // The step breaks stepPositive (it subtracts); nothing checks that where the flow runs, and nothing says it is.
+    val careless = kb.implementTested(step)(x => -x)
+    assertEquals(careless.runTime(stepPositive), None)
+    assertEquals(careless.run[SyncIO](add)(counter.bind(Held()))(BigInt(2)).unsafeRunSync(), BigInt(-2))
+  }
+
   test("an example written as a test is a Definition called on values, a case of every claim on it") {
     import Concepts.*
     val w = Written.of("three adds four", step(BigInt(3)) is BigInt(4), "Suite").toOption.get

@@ -81,6 +81,16 @@ class TermSuite extends munit.FunSuite:
     assertEquals(lifted1((l: Term[String]) => Shelf[Shelf.Box](l)).value("x"), Shelf.Box("x"))
   }
 
+  test("a case class is built from terms by its own name, with no companion written for it") {
+    assertEquals(lean2((s: Term[String], n: Term[BigInt]) => Plain(s, n + 1) === Plain("a", 1)),
+      "((Plain.mk s (n + 1)) = (Plain.mk \"a\" 1))")
+    assertEquals(lifted2((s: Term[String], n: Term[BigInt]) => Plain(s, n)).value("a", BigInt(2)), Plain("a", 2))
+    // on values, it is the case class's own apply: a value
+    assertEquals(Plain("a", 1).n, BigInt(1))
+    // a term of the wrong type for a field is refused
+    assert(compileErrors("(n: frflow.Term[BigInt]) => frflow.fixtures.Plain(n, n)").nonEmpty)
+  }
+
   test("what a term mentions: its parameters, types, opaque types and defined functions") {
     val c = lifted1((x: Term[Item.T]) => good(x))
     assertEquals((c.params, c.opaques, c.paramRefs, c.paramObjects.map(_.name)), (List("x" -> "Item"), List("Item"), List("good" -> "(Item → Prop)"), List("good")))

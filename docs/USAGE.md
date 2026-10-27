@@ -124,8 +124,7 @@ examples and the checks at run time. What you can write is what the library
 offers; anything else is a type error.
 
 ```scala
-final case class Claims(realm: RealmId, user: String, roles: List[String])
-object Claims extends Data[Claims]          // builds Claims from terms: Claims(r, u, rs)
+final case class Claims(realm: RealmId, user: String, roles: List[String])   // built from terms: Claims(r, u, rs)
 
 /** The user and roles an answer names, if any. */
 val claimsOf = define { (c: Term[Option[Claims]]) =>
@@ -138,7 +137,7 @@ val claimsOf = define { (c: Term[Option[Claims]]) =>
 | `x === y`, `x =!= y` | equality (`==` between terms does not compile) | `=`, `≠` |
 | `&&`, `\|\|`, `!`, `implies`, `True`, `False` | logic; `implies` is a word, so it binds after `&&` and `\|\|`: `a && b implies c` is `(a && b) implies c` | `∧`, `∨`, `¬`, `→` |
 | `forall((u: Term[User.T]) => ...)`, `exists(...)` | one or two variables; specification only | `∀`, `∃` |
-| `s.records`, `CrmStore(a, b, c)`, `a.copy((enabled = v))` | fields, construction, copy (with `object CrmStore extends Data[CrmStore]`) | fields, `CrmStore.mk`, `{ a with ... }` |
+| `s.records`, `CrmStore(a, b, c)`, `a.copy((enabled = v))` | fields, construction (a case class by its name; no companion needed), copy | fields, `CrmStore.mk`, `{ a with ... }` |
 | `Event[Event.Expired](now)` | an enum case built from terms (with `object Event extends Data[Event]`) | `Event.Expired now` |
 | `q.on[Search.ById](id => ...).on[Search.Everything.type](...)` | a match on an enum (or a list: `.on[::[A]]`, `.on[Nil.type]`), its cases named, in any order; a singleton case is written with `.type` | `match` |
 | `when(c)(a).otherwise(b)`, `c.fold(a, b)` | a conditional on a term (Scala's `if` needs a Boolean, and a term has no truth value while the formula is built; a conversion to one would also capture the terms' `&&` and `\|\|`) | `if c then a else b` |

@@ -27,7 +27,8 @@ object SummaryText:
       Option.when(s.contractsTested > 0)(s"code against its claims ${ratio(s.testsPassing, s.contractsTested)}"),
       Option.when(s.modelsRun > 0)(s"implementations against their models ${ratio(s.modelsPassing, s.modelsRun)}"),
       Option.when(s.examplesInLean > 0)(s"examples in Lean ${ratio(s.examplesAgreeing, s.examplesInLean)}"),
-      Option.when(s.runEveryCall + s.runSampled + s.runNotChecked > 0)("at run time " + List(
+      // Run time is said only where something is checked there: code proven or tested before production is not.
+      Option.when(s.runEveryCall + s.runSampled > 0)("at run time " + List(
         some(s.runEveryCall, "checked on every call", identity), some(s.runSampled, "sampled", identity),
         some(s.runNotChecked, "not checked (proven)", identity)).flatten.mkString(", "))).flatten
     val trust = (trusted(s) match { case Nil => "nothing"; case ts => ts.mkString(", ") }) +

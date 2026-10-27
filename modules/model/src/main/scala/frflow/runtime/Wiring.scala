@@ -37,17 +37,23 @@ private[frflow] object Wiring:
       kb.onViolation(v)
       throw ContractViolation(v)
     }
-    val runTime = kb.runTime(contract).map(_.check).getOrElse(RunCheck.EveryCall)
+    // A Definition's code runs as it is: proofs and tests check it before production.
+    val runTime = kb.runTime(contract).map(_.check)
+      .getOrElse(if i.definition.isDefined then RunCheck.Never else RunCheck.EveryCall)
     // The code is built on each call, under the values in force then.
     val code = Fn.of(contract.op.map(Node.arity).getOrElse(0))(ins => Fn.call(i.factory(), ins)).asInstanceOf[F]
     contract.enforce(code, assumes, runTime, kb.onViolation)(all*)
 
-  /** Each operation some contract's code implements, bound to its service (made when first called). */
+  /** Each operation some contract's code implements, bound to its service (made when first called); a Definition's
+    * code, to that code itself.
+    */
   def calls(kb: KnowledgeBase, bindings: Seq[Binding]): List[Binding] =
-    opBindings(kb) { (c, _) =>
-      lazy val s: AnyRef = service(kb, c.asInstanceOf[Node[AnyRef]], bindings)
-      val g = Fn.of(c.op.map(Node.arity).getOrElse(0))(ins => Fn.call(s, ins))
-      () => g
+    opBindings(kb) { (c, i) =>
+      if i.definition.isDefined then () => i.factory()
+      else
+        lazy val s: AnyRef = service(kb, c.asInstanceOf[Node[AnyRef]], bindings)
+        val g = Fn.of(c.op.map(Node.arity).getOrElse(0))(ins => Fn.call(s, ins))
+        () => g
     }
 
   def definitionBindings(kb: KnowledgeBase): List[Binding] =

@@ -9,12 +9,13 @@ import io.circe.{Codec, Encoder, Json}
   * `codeTested`, the tests of its code when that code is plain code, tested and not proven; `step`, that it is made of
   * parts, so what Lean proves of it is the step from them; `modelRuns`, for a boundary's model, the runs of its
   * implementations against it (Lean has nothing to prove of a model: its `status` is `proven`). `status` is how its check
-  * ended: `proven` with an obligation still open (its `impl`, `root_impl`) is not `ok`.
+  * ended: `proven` with an obligation still open (its `impl`, `root_impl`) is not `ok`. `assumed`: an assumption, taken
+  * as true and not proven; Lean only reads it (its `status` is `proven` when it reads).
   */
 final case class CheckedNode(id: NodeId, status: CheckStatus, notProven: List[ObligationName], problems: List[Result],
     failing: List[FailingExample], idle: Option[String], messages: List[String], hint: Option[String],
     testFailure: Option[TestFailure] = None, contractChanged: Boolean = false, codeTested: Option[TestReport] = None, step: Boolean = false,
-    modelRuns: Option[ModelRuns] = None):
+    modelRuns: Option[ModelRuns] = None, assumed: Boolean = false):
   /** Proven, nothing of it left open, its examples and the tests of its code passing, and (for the root) not met by
     * doing nothing: what `check` exits 0 on.
     */
@@ -36,7 +37,8 @@ object CheckedNode:
     CheckedNode(r.id, c.status, c.obligations.filter(o => !o.isEvaluation && !o.fine).map(_.name), c.obligations.filterNot(_.fine),
       failing, r.node.idle, c.messages,
       // With an example or a generated case failing, the code or the node is wrong: no hint to prove it.
-      c.hint.filter(_ => failing.isEmpty && testFailure.isEmpty), testFailure, contractChanged, codeTested, r.node.split.isDefined)
+      c.hint.filter(_ => failing.isEmpty && testFailure.isEmpty), testFailure, contractChanged, codeTested, r.node.split.isDefined,
+      assumed = r.node.kind == NodeKind.Assumption)
 
   /** A boundary's model whose implementations were run against it. */
   def ofModel(r: Reviewed): Option[CheckedNode] =

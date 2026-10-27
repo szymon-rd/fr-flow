@@ -98,8 +98,8 @@ examples, and are described below where they differ.
 Formulas and code are terms (`Term[A]`): a tree that prints as Lean and compiles to Scala, built by
 calling the Scala lambda once on variables. The library's operations are the language (`===`,
 `&&`, `forall`, `.on[Case]`, `when(c)(a).otherwise(b)` (`c.fold(a, b)`) and `o.fold(z)(x => ...)`, list
-(`xs :+ x` among them), option, map and set operations, a pair's `===`); anything else is a type error. Case classes and enums built from terms have
-`object X extends Data[X]` as companion. Their Lean types are derived (structures and inductive
+(`xs :+ x` among them), option, map and set operations, a pair's `===`); anything else is a type error. A case class is built from terms by its name
+(`Booking(r.room, r.start, r.end)`); an enum built from terms has `object X extends Data[X]` as companion. Their Lean types are derived (structures and inductive
 types); a define's and a lambda's variable names are read from the lambda.
 
 An open term is a Lean binder: what is proven holds for every value of it. Every term is open or has

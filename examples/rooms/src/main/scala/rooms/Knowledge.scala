@@ -7,11 +7,9 @@ final case class Request(room: String, start: BigInt, end: BigInt)
 
 /** What the table stores. */
 final case class Booking(room: String, start: BigInt, end: BigInt)
-object Booking extends Data[Booking]
 
 /** A room's bookings, as the table gives them. */
 final case class RoomBookings(room: String, bookings: List[Booking])
-object RoomBookings extends Data[RoomBookings]
 
 val granted = Definition[(RoomBookings, Booking) => Boolean]("whether a request is granted, given its room's bookings")
 
@@ -43,7 +41,7 @@ object storedBookings extends BookingTable, StateModel[List[Booking]]:
 val tableMatchesModel =
   Node.assumption("The table gives a room's bookings in the order they were added, and adds one at the end.")(
     bookingTable.behavesAs(storedBookings))
-  .checkedAgainst(implementation = stored => SqliteBookings.holding(stored), stateOf = sqlite => sqlite.held)
+  .checkedAgainst(implementation = SqliteBookings.holding, stateOf = _.held)
 
 val onlyBookingWrites = Node.assumption("Only booking writes to the table.")(storedBookings.writtenOnlyBy(book))
 
@@ -63,8 +61,8 @@ val bookWhenFree = Node.claim("A request is stored exactly when its room is free
   forall((request: Term[Request], before: Term[World]) =>
     val stored = storedBookings.in(before)
     val booking = asBooking(request)
-    val after = storedBookings.in(book(request).after(before))
-    after === when(free(stored, booking))(stored :+ booking).otherwise(stored)))
+    val storedAfter = storedBookings.in(book(request).after(before))
+    storedAfter === when(free(stored, booking))(stored :+ booking).otherwise(stored)))
   .assuming(tableMatchesModel, oneAtATime, requestsEndAfterStart)
 
 val answerWhenFree = Node.claim("A request is answered booked exactly when its room is free for its whole time.")(

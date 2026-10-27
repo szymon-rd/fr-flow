@@ -8,7 +8,7 @@ import scala.deriving.Mirror
 import scala.util.NotGiven
 
 /** A value of the domain: a tree that prints as Lean and compiles to Scala. Models and `define`s
-  * are written with terms: `s.records` (a field), `CrmStore(a, b, c)` (with `object CrmStore extends Data[CrmStore]`),
+  * are written with terms: `s.records` (a field), `CrmStore(a, b, c)` (a case class, by its name),
   * `x === y`, `xs.filter(r => …)`, `forall((u: Term[User.T]) => …)`, `c.fold(ifTrue, ifFalse)`, `o.fold(ifEmpty)(x => …)`,
   * `q.on[Search.ById](id => …)`.
   */

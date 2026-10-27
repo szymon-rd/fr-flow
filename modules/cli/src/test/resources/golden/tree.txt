@@ -9,7 +9,7 @@
 `- o Forever — rejected: "A session never ends."
 
 Assumptions, under no parent: trusted (the code calls them)
-+ StoreKeeps (assumption): "The store returns what was last written."
+- StoreKeeps (assumption): "The store returns what was last written."
 
 Definitions: they fix terms of the vocabulary (decided, not proven)
 - Identities (definition): "Users are named by ids, and resources are paths."

@@ -53,7 +53,9 @@ object NodeText:
     val r = d.node
     val n = r.node
     val kind = n.shownKind + n.op.fold("")(o => s" on $o") + (if d.isRoot then " (a root)" else "")
-    val marks = List(Option.when(d.trusted)(st.yellow("trusted")), mark.map(st.magenta),
+    // Code tested against a claim is evidence, not proof, and not trusted either: said as it is.
+    val marks = List(Option.when(d.trusted)(st.yellow("trusted")), Option.when(d.tested)(st.yellow("tested, not proven")),
+      mark.map(st.magenta),
       n.replaces.map(x => st.dim(s"replaces $x"))).flatten
     val room = st.width.fold(Int.MaxValue)(_ - 2)
     s"${st.glyph(r)} ${st.bold(r.id.value)}  ${st.dim(kind)}  ${st.state(r.state, Lines.state(r))}${marks.map("  " + _).mkString}" ::
@@ -66,7 +68,7 @@ object NodeText:
     val open = r.state == ReviewState.Proposed || r.state == ReviewState.Review
     val rivals = d.rivals.filter(_.state != ReviewState.Rejected).map(_.id)
     val lines = if !open then Nil else
-      Option.when(r.state == ReviewState.Review)(st.yellow(s"to review: ${v.causes.flatMap(Words.causes.get).mkString("; ")}")).toList ++
+      Option.when(r.state == ReviewState.Review)(st.yellow(s"to review: ${v.causes.map(Words.cause(_, r.node)).mkString("; ")}")).toList ++
         v.waitsFor.map(w => st.yellow(s"decide $w first: what rests on it is decided after it")).toList ++
         (if v.mechanical then List(st.green("mechanical: Lean proves it again and nothing in it is a choice (confirm decides the batch)"))
          else v.notMechanical.filter(_ => r.state == ReviewState.Review && v.waitsFor.isEmpty).map(st.dim).toList) ++

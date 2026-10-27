@@ -53,13 +53,16 @@ FORGETS_ROOM = [(ROOMS + "SqliteBookings.scala",
                  '"select room, starts, ends from bookings where room = ? order by id")\n'
                  '    query.setString(1, room)\n',
                  '"select room, starts, ends from bookings order by id")\n')]
-CALENDAR = "(before.forall(_.end <= request.start) && after.forall(_.start >= request.end))"
-FORGETS_NEXT = [(ROOMS + "Calendar.scala", CALENDAR, "(before.forall(_.end <= request.start))")]
+CALENDAR = ("    val endsInTime = before.forall(_.end <= request.start)\n"
+            "    val startsAfter = after.forall(_.start >= request.end)\n")
+FORGETS_NEXT = [(ROOMS + "Calendar.scala", "request.room != held.room || (endsInTime && startsAfter)",
+                 "request.room != held.room || endsInTime")]
 MISREADS_OVERLAP = [
     (ROOMS + "Knowledge.scala", "a.room =!= b.room || a.end <= b.start || b.end <= a.start",
      "a.room =!= b.room || a.end < b.start || b.end < a.start"),
     (ROOMS + "Calendar.scala", CALENDAR,
-     "(before.forall(_.end < request.start) && after.forall(_.start > request.end))"),
+     "    val endsInTime = before.forall(_.end < request.start)\n"
+     "    val startsAfter = after.forall(_.start > request.end)\n"),
     (ROOMS_TEST + "GrantedExamples.scala",
      '  example("back to back: granted"):\n'
      '    granted(RoomBookings("Oak", List(Booking("Oak", 9, 10))), Booking("Oak", 10, 11)) is true\n',

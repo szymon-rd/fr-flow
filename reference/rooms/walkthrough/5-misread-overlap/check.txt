@@ -12,7 +12,7 @@ x grantWhenFree: failed
   ! check the change to noOverlap: with it, grantWhenNoOverlap no longer gives this claim
 o bookWhenFree: waiting
   ! waiting for its parts: grantWhenFree
-+ requestsEndAfterStart: proven
+- requestsEndAfterStart: assumed
 + tableMatchesModel: SqliteBookings gives what the model gives on 200 generated runs
 + consistency of grantWhenNoOverlap: Lean proves a meaning meets it: granted as grantWhenNoOverlap says
 + neverOverlap admits a value: Lean proves it holds of List()
@@ -24,7 +24,7 @@ o bookWhenFree: waiting
 
 Rooms: 13 nodes, 12 accepted, 1 to review
 Proofs: splits 0/3, root_impl unchecked, consistency proven, nothing vacuous
-Tests: code against its claims 1/1, implementations against their models 1/1, examples in Lean 5/6, at run time 1 checked on every call
+Tests: code against its claims 1/1, implementations against their models 1/1, examples in Lean 5/6
 Trusted: requestsEndAfterStart, tableMatchesModel (a model), onlyBookingWrites, oneAtATime, startsEmpty (facts); tested, not proven: grantWhenNoOverlap
 3 with something unproven
 Waiting: 1 for the developer

@@ -14,7 +14,7 @@ Assumes
   - onlyBookingWrites (assumption): "Only booking writes to the table."
   - oneAtATime (assumption): "Bookings are processed one at a time."
   - startsEmpty (assumption): "The table starts empty."
-  + requestsEndAfterStart (assumption): "The booking form sends only requests that end after they start."
+  - requestsEndAfterStart (assumption): "The booking form sends only requests that end after they start."
 
 Proofs
   kept_by_book: proven: auto

@@ -11,8 +11,10 @@ export frflow.program.Source
 // How often `service` checks a result: `.checkedAtRunTime(RunCheck.Sampled(100))`.
 export frflow.protocol.RunCheck
 export frflow.runtime.{Assumption, Bindings, ContractViolation, Implementation, Runner, Violation}
-export frflow.term.{AsTerm, CaseOf, Cases, Data, First, NoEquality, On, Term}
+export frflow.term.{AsTerm, CaseOf, Cases, CompanionOf, Data, First, NoEquality, On, Term}
 export frflow.term.Cases.Fields
+// `Booking(r.room, r.start, r.end)`: a case class built from terms by its own name.
+export frflow.term.Construct.*
 export frflow.testing.{Draw, Gen, TestSettings}
 export frflow.types.{CasesOf, FieldsOf, LeanType, TypeDecl}
 export frflow.vocabulary.{Binding, Declaration, Def, Definition, Lifted, NotExecutable, Opaque, Param, Subst}

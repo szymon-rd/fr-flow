@@ -1,17 +1,17 @@
 ! bookWhenFree — it and a node it rests on changed: review it: "A request is stored exactly when its room is free for its whole time."
 |- ! grantWhenFree — it and a node it rests on changed: review it: "A request is granted exactly when its room is free for its whole time."
 |  `- ! grantWhenNoOverlap — it, a node it rests on and its code changed: review it: "A request is granted exactly when it overlaps no booking of its room."
-|- ! tableMatchesModel (assumption) — a node it rests on changed: review it: "The table gives a room's bookings in the order they were added, and adds one at the end."
-|- ! oneAtATime (assumption) — a node it rests on changed: review it: "Bookings are processed one at a time."
-`- ! requestsEndAfterStart (assumption) — a node it rests on changed: review it: "The booking form sends only requests that end after they start."
+|- ! tableMatchesModel (assumption) — a node assuming it changed: review it: "The table gives a room's bookings in the order they were added, and adds one at the end."
+|- ! oneAtATime (assumption) — a node assuming it changed: review it: "Bookings are processed one at a time."
+`- ! requestsEndAfterStart (assumption) — a node assuming it changed: review it: "The booking form sends only requests that end after they start."
 ! answerWhenFree — it and a node it rests on changed: review it: "A request is answered booked exactly when its room is free for its whole time."
 |- -> grantWhenFree
 |- -> tableMatchesModel
 |- -> oneAtATime
 `- -> requestsEndAfterStart
 ! neverOverlap — it changed: review it: "The bookings stored never overlap."
-|- ! onlyBookingWrites (assumption) — a node it rests on changed: review it: "Only booking writes to the table."
-|- ! startsEmpty (assumption) — a node it rests on changed: review it: "The table starts empty."
+|- ! onlyBookingWrites (assumption) — a node assuming it changed: review it: "Only booking writes to the table."
+|- ! startsEmpty (assumption) — a node assuming it changed: review it: "The table starts empty."
 |- -> oneAtATime
 `- -> requestsEndAfterStart
 + endsAfterStart: "Every booking ends after it starts."
@@ -21,7 +21,7 @@
 
 Rooms: 13 nodes, 2 accepted, 11 to review
 Proofs: splits 3/3, root_impl proven, consistency proven, nothing vacuous
-Tests: code against its claims 1/1, implementations against their models 1/1, examples in Lean 6/6, at run time 1 checked on every call
+Tests: code against its claims 1/1, implementations against their models 1/1, examples in Lean 6/6
 Trusted: requestsEndAfterStart, tableMatchesModel (a model), onlyBookingWrites, oneAtATime, startsEmpty (facts); tested, not proven: grantWhenNoOverlap
 Waiting: 11 for the developer
 marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide, or what to do

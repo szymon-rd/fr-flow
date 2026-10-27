@@ -9,11 +9,12 @@ object ReportText:
   def status(v: View, tree: Tree, st: Style, c: Contribution = Contribution.empty): List[String] =
     TreeText.lines(tree, st, c) ++ (v.warnings ++ c.warnings).map(w => st.red(s"warning: $w"))
 
-  private def checked(c: CheckedNode, st: Style): List[String] =
+  private[cli] def checked(c: CheckedNode, st: Style): List[String] =
     // Its status as `check` exits on (`ok`): proven by Lean with an obligation open, or an example failing, is not proven.
     val status = if c.status != CheckStatus.Proven || c.ok then c.status else if c.notProven.isEmpty then CheckStatus.Failed else CheckStatus.Open
     val notProven = if status != c.status && c.notProven.nonEmpty then s" (${c.notProven.mkString(", ")} not proven)" else ""
-    val glyph = if c.ok then st.proven else if status == CheckStatus.Failed || c.failing.nonEmpty then st.failed else st.open
+    // An assumption is taken as true, not proven: nothing to prove, unless its implementations run against it.
+    val glyph = if c.ok && c.assumed && c.modelRuns.isEmpty then st.dim(st.dot) else if c.ok then st.proven else if status == CheckStatus.Failed || c.failing.nonEmpty then st.failed else st.open
     // Examples Lean cannot evaluate are said once, with why; they run in Scala all the same.
     val (unevaluated, rest) = c.problems.partition(r => r.name.isEvaluation && r.status == ObligationStatus.Unevaluated)
     val notEvaluated = Option.when(unevaluated.nonEmpty)(
@@ -26,6 +27,7 @@ object ReportText:
       // Lean checked what it holds of the node; its code, plain code, is tested, not proven: say that, not "proven".
       case Nil if c.ok && c.codeTested.isDefined => (c.codeTested.fold("")(tested), Nil)
       case Nil if c.ok && c.modelRuns.isDefined => (c.modelRuns.fold("")(matches), Nil)
+      case Nil if c.ok && c.assumed => ("assumed", Nil)
       // A node made of parts: what Lean proved is the step from them.
       case Nil if c.ok && c.step => ("step proven", Nil)
       // An example Lean evaluated, or a step whose words say it is one, says what it is; another obligation is named

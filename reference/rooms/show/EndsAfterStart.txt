@@ -13,7 +13,7 @@ Where it sits
   used by    + bookWhenFree: "A request is stored exactly when its room is free for its whole time."
 
 Assumes
-  + requestsEndAfterStart (assumption): "The booking form sends only requests that end after they start."
+  - requestsEndAfterStart (assumption): "The booking form sends only requests that end after they start."
 
 Proofs
   kept_by_book: proven: auto
