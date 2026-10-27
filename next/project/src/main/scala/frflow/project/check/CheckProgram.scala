@@ -30,11 +30,7 @@ final class CheckProgram[F[_]: MonadThrow: Parallel: Clock](files: ProjectFiles[
       : F[(List[NodeCheck], Analysis)] =
     val levels = CheckPlan.levels(a, only)
     for
-      _     <- lake.available.ifM(MonadThrow[F].unit, MonadThrow[F].raiseError(FrFlowError.NoLean))
-      _     <- only.filterNot(a.decided.theory.node(_).isDefined)
-                 .traverse_(id => MonadThrow[F].raiseError[Unit](FrFlowError.UnknownNode(id)))
-      _     <- MonadThrow[F].raiseError[Unit](FrFlowError.StrayProofs(a.inputs.lean.strays))
-                 .whenA(a.inputs.lean.strays.nonEmpty)
+      _     <- refused(a, only)
       _     <- Render(files, library)(a)
       done  <- levels.zipWithIndex.foldLeftM(Map.empty[NodeId, NodeCheck]) { case (done, (level, i)) =>
                  started(i + 1, levels.size, level) >>
@@ -47,6 +43,14 @@ final class CheckProgram[F[_]: MonadThrow: Parallel: Clock](files: ProjectFiles[
       _     <- Records.writeChecks(files, checks)
     yield (levels.flatten.flatMap(done.get).filterNot(c => a.current(c.node).contains(c)),
       a.withRecorded(a.inputs.recorded.copy(checks = checks)))
+
+  /** Why no check runs: no Lean; a node named that the model does not have; a stray proof file. */
+  private def refused(a: Analysis, only: Option[NodeId]): F[Unit] =
+    lake.available.ifM(MonadThrow[F].unit, MonadThrow[F].raiseError(FrFlowError.NoLean)) >>
+      only.filterNot(a.decided.theory.node(_).isDefined)
+        .traverse_(id => MonadThrow[F].raiseError[Unit](FrFlowError.UnknownNode(id))) >>
+      MonadThrow[F].raiseError[Unit](FrFlowError.StrayProofs(a.inputs.lean.strays))
+        .whenA(a.inputs.lean.strays.nonEmpty)
 
   /** Its current check, kept while its parts are as proven as when it was made. */
   private def kept(a: Analysis, n: NodeId, done: Map[NodeId, NodeCheck], only: Option[NodeId]): Option[NodeCheck] =

@@ -22,7 +22,9 @@ trait ProjectFiles[F[_]]:
 
 object ProjectFiles:
   /** Over the project's directory: blocking file I/O. */
-  def make[F[_]: Sync](root: Path): ProjectFiles[F] = new ProjectFiles[F]:
+  def make[F[_]: Sync](root: Path): ProjectFiles[F] = Live(root)
+
+  private final class Live[F[_]: Sync](root: Path) extends ProjectFiles[F]:
     private def at(p: RelPath): Path = root.resolve(p.value)
 
     def read(p: RelPath): F[Option[String]] =
