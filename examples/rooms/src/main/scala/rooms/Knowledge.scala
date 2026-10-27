@@ -2,10 +2,7 @@ package rooms
 
 import frflow.*
 
-/** What the booking form sends. */
-final case class Request(room: String, start: BigInt, end: BigInt)
-
-/** What the table stores. */
+/** What the booking form sends and the table stores. */
 final case class Booking(room: String, start: BigInt, end: BigInt)
 
 /** A room's bookings, as the table gives them. */
@@ -13,14 +10,11 @@ final case class RoomBookings(room: String, bookings: List[Booking])
 
 val granted = Definition[(RoomBookings, Booking) => Boolean]("whether a request is granted, given its room's bookings")
 
-val book = Definition[Request => Flow[Boolean]]("booking a request: whether it was booked")
+val book = Definition[Booking => Flow[Boolean]]("booking a request: whether it was booked")
 
-// Requests come from outside, from the booking form; bookings are made from them.
-val requestsEndAfterStart = Node.assumption("The booking form sends only requests that end after they start.")(
-  always[Request](r => r.start < r.end))
-
-/** The booking a request asks for. */
-val asBooking = define { (r: Term[Request]) => Booking(r.room, r.start, r.end) }
+// Bookings come from outside, from the booking form.
+val bookingsEndAfterStart = Node.assumption("Every booking ends after it starts.")(
+  always[Booking](b => b.start < b.end))
 
 /** Where the bookings are kept, as proven code sees it. */
 trait BookingTable:
@@ -54,7 +48,7 @@ val free = define { (bookings: Term[List[Booking]], request: Term[Booking]) =>
   bookings.forall(b => apart(b, request)) }
 
 // The purpose: what is booked, and whether a request is accepted. Each is a Declaration, known only by what
-// the statements say of it. A request is the booking it asks for; `now` is the world as it stands.
+// the statements say of it. A request is a booking asked for; `now` is the world as it stands.
 val booked = Declaration[World => List[Booking]]("the bookings made, as the world stands")
 
 val bookedAfter = Declaration[(Booking, World) => List[Booking]]("the bookings made once a request is handled")
@@ -66,12 +60,11 @@ val bookWhenFree = Node.claim("A request is booked exactly when its room is free
   forall((request: Term[Booking], now: Term[World]) =>
     val bookings = booked(now)
     bookedAfter(request, now) === when(free(bookings, request))(bookings :+ request).otherwise(bookings)))
+  .assuming(bookingsEndAfterStart)
 
 val acceptWhenFree = Node.claim("A request is accepted exactly when its room is free for its whole time.")(
   forall((request: Term[Booking], now: Term[World]) => accepted(request, now) === free(booked(now), request)))
-
-/** The request that asks for a booking. */
-val asRequest = define { (b: Term[Booking]) => Request(b.room, b.start, b.end) }
+  .assuming(bookingsEndAfterStart)
 
 // What each Declaration is, in the code: the table, and booking's run.
 val bookedIsStored = Node.claim("What is booked is what the table holds.")(
@@ -81,29 +74,28 @@ val bookedIsStored = Node.claim("What is booked is what the table holds.")(
 val bookedAfterIsStored =
   Node.claim("What is booked once a request is handled is what the table holds after booking it.")(
     forall((request: Term[Booking], now: Term[World]) =>
-      bookedAfter(request, now) === storedBookings.in(book(asRequest(request)).after(now))))
+      bookedAfter(request, now) === storedBookings.in(book(request).after(now))))
   .refines(bookWhenFree)
 
 val acceptedIsAnswered = Node.claim("A request is accepted exactly when booking it answers booked.")(
   forall((request: Term[Booking], now: Term[World]) =>
-    accepted(request, now) === book(asRequest(request)).answer(now)))
+    accepted(request, now) === book(request).answer(now)))
   .refines(acceptWhenFree)
 
 // What booking stores and what it answers, proven of its code.
 val storeWhenFree = Node.claim("A request is stored exactly when its room is free for its whole time.")(
-  forall((request: Term[Request], before: Term[World]) =>
+  forall((request: Term[Booking], before: Term[World]) =>
     val stored = storedBookings.in(before)
-    val booking = asBooking(request)
     val storedAfter = storedBookings.in(book(request).after(before))
-    storedAfter === when(free(stored, booking))(stored :+ booking).otherwise(stored)))
+    storedAfter === when(free(stored, request))(stored :+ request).otherwise(stored)))
   .refines(bookWhenFree)
-  .assuming(tableMatchesModel, oneAtATime, requestsEndAfterStart)
+  .assuming(tableMatchesModel, oneAtATime, bookingsEndAfterStart)
 
 val answerWhenFree = Node.claim("A request is answered booked exactly when its room is free for its whole time.")(
-  forall((request: Term[Request], before: Term[World]) =>
-    book(request).answer(before) === free(storedBookings.in(before), asBooking(request))))
+  forall((request: Term[Booking], before: Term[World]) =>
+    book(request).answer(before) === free(storedBookings.in(before), request)))
   .refines(acceptWhenFree)
-  .assuming(tableMatchesModel, oneAtATime, requestsEndAfterStart)
+  .assuming(tableMatchesModel, oneAtATime, bookingsEndAfterStart)
 
 // What the table always holds: a hypothesis of every world the roots are about, proven kept by booking.
 val startsEmpty = Node.assumption("The table starts empty.")(storedBookings.initially(stored => stored.isEmpty))
@@ -111,19 +103,16 @@ val startsEmpty = Node.assumption("The table starts empty.")(storedBookings.init
 val neverOverlap = Node.claim("The bookings stored never overlap.")(
   always(storedBookings)(stored => stored.pairwise(apart)))
   .refines(bookWhenFree, acceptWhenFree)
-  .assuming(onlyBookingWrites, oneAtATime, startsEmpty, requestsEndAfterStart)
+  .assuming(onlyBookingWrites, oneAtATime, startsEmpty, bookingsEndAfterStart)
 
 // What booking's code calls: the calendar, given a room's bookings.
 val grantWhenFree = Node.claim("A request is granted exactly when its room is free for its whole time.")(
   forall((held: Term[RoomBookings], request: Term[Booking]) =>
     granted(held, request) === free(held.bookings, request)))
   .refines(storeWhenFree, answerWhenFree)
+  .assuming(bookingsEndAfterStart)
 
 // What always holds of what the calendar is given: hypotheses of the claims about it.
-val endsAfterStart = Node.claim("Every booking ends after it starts.")(always[Booking](b => b.start < b.end))
-  .refines(grantWhenFree)
-  .assuming(requestsEndAfterStart)
-
 val bookingsOfTheRoom = Node.claim("A room's bookings are all of that room.")(
   always[RoomBookings](held => held.bookings.forall(b => b.room === held.room)))
   .refines(grantWhenFree)
@@ -140,16 +129,14 @@ val grantWhenNoOverlap = Node.claim("A request is granted exactly when it overla
   forall((held: Term[RoomBookings], request: Term[Booking]) =>
     granted(held, request) === held.bookings.forall(b => noOverlap(b, request))))
   .refines(grantWhenFree)
+  .assuming(bookingsEndAfterStart)
 
 // The tests' cases: rooms, requests, and a room's bookings laid end to end.
 val roomNames = Gen.oneOf("Oak", "Elm")
 
 val requests = for
   room <- roomNames; start <- Gen.chooseBig(0, 8); length <- Gen.chooseBig(1, 3)
-yield Request(room, start, start + length)
-
-/** The bookings requests ask for: what the calendar is asked about. */
-val asked = requests.map(r => Booking(r.room, r.start, r.end))
+yield Booking(room, start, start + length)
 
 /** `count` bookings of a room, laid end to end from `from`, each after a gap of 0 or 1. */
 def laidEndToEnd(room: String, from: BigInt, count: Int): Gen[List[Booking]] =
@@ -166,13 +153,12 @@ val roomBookings = for
 yield RoomBookings(room, bookings)
 
 val rooms = FrModel("Rooms")(bookWhenFree, acceptWhenFree, bookedIsStored, bookedAfterIsStored, acceptedIsAnswered,
-  storeWhenFree, answerWhenFree, neverOverlap, grantWhenFree, endsAfterStart, bookingsOfTheRoom, roomBookingsApart,
-  grantWhenNoOverlap, tableMatchesModel, onlyBookingWrites, oneAtATime, startsEmpty, requestsEndAfterStart)
+  storeWhenFree, answerWhenFree, neverOverlap, grantWhenFree, bookingsOfTheRoom, roomBookingsApart, grantWhenNoOverlap,
+  tableMatchesModel, onlyBookingWrites, oneAtATime, startsEmpty, bookingsEndAfterStart)
   .implementProven(book)(bookIfGranted)
   .implementTested(granted)((held, request) => Calendar(held).grants(request))
   .withGenerator(roomNames.describedAs("Oak or Elm"))
   .withGenerator(requests.describedAs("requests for Oak or Elm that end after they start"))
-  .withGenerator(asked.describedAs("the bookings those requests ask for"))
   .withGenerator(roomBookings.describedAs("a room's bookings, laid end to end, some back to back"))
 
 object roomsCli extends frflow.cli.FrFlowApp(rooms, root = "examples/rooms")

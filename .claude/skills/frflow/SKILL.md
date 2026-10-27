@@ -158,11 +158,10 @@ examples still use the older kinds below (contract, invariant, definition), whic
   world, as a store's model (`bookingTable.behavesAs(storedBookings)`) or a fact of how the system is run
   (`storedBookings.writtenOnlyBy(book)`, `storedBookings.changedOneRunAtATime`,
   `storedBookings.startsSatisfying(neverOverlap)`, written after the claim it names and a premise of it, or
-  `storedBookings.initially(held => …)`). What comes from outside gets a type of its own (`Request`, what the
-  booking form sends), and what it meets is an assumption `always` of that type
-  (`Node.assumption("…")(always[Request](r => r.start < r.end))`); what the code makes from it (`Booking`) has
-  its `always` claimed and proven. Statements are about values, never about a function's inputs; a statement
-  whose Lean takes the assumption (a root taking a `Request`) lists it in `.assuming`. Name the
+  `storedBookings.initially(held => …)`). What is trusted of values from outside is an assumption `always` of
+  their type (`Node.assumption("…")(always[T](x => …))`): it covers every value of `T`, and code storing one is
+  still proven to keep it. Statements are about values, never about a function's inputs; every statement proven or
+  tested whose Lean takes the assumption lists it in `.assuming`. Name the
   boundary for the real thing (`val bookingTable = Boundary[BookingTable]("the SQLite
   table …")`, named from its val) and the model for what the proofs see (`storedBookings`).
   `Node.design(statement, why)(files*)`: a decision about code no proof covers.
@@ -186,7 +185,7 @@ examples still use the older kinds below (contract, invariant, definition), whic
   (`always[RoomBookings](held => held.bookings.pairwise(apart))`) rather than a precondition: the claim stays
   one equation, the tests draw only such values, and Lean proves the rule wherever code makes one. A flow's
   runs are read as `book(request).answer(before)` and `storedBookings.in(book(request).after(before))`, over
-  `forall((request: Term[Request], before: Term[World]) => …)`.
+  `forall((request: Term[Booking], before: Term[World]) => …)`.
 - **Edges.** `.refines(parent)`: a part. `.assuming(assumption)`: a premise, trusted, drawn below the node.
 - **Roots.** A FrModel may have several roots, on any of its Definitions, relating them too; keep the
   set small and each one idea.
