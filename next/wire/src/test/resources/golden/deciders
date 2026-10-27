@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "after": "9a0b1c2d3e4f5a6b",
+  "deciders": [
+    {
+      "name": "ann",
+      "key": "b6e216cfdf46a202",
+      "publicKey": "MCowBQYDK2VwAyEAann"
+    },
+    {
+      "name": "bob",
+      "key": "0123456789abcdef",
+      "publicKey": "MCowBQYDK2VwAyEAbob"
+    }
+  ],
+  "seal": {
+    "key": "b6e216cfdf46a202",
+    "signature": "c2lnbmF0dXJlIG9mIHRoZSBsaXN0"
+  }
+}

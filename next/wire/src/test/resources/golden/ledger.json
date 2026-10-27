@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "decisions": {
+    "Free": [
+      {
+        "action": "accept",
+        "by": "bob",
+        "at": "2026-10-01T11:00:00Z",
+        "reason": "One store, its model beside it.",
+        "rejected": [],
+        "content": "2074d7cf9131abfb",
+        "chain": "96c938af291fdd94",
+        "seal": {
+          "key": "0123456789abcdef",
+          "signature": "c2lnbmF0dXJlIG9mIHRoZSBkZXNpZ24="
+        }
+      }
+    ],
+    "Root": [
+      {
+        "action": "accept",
+        "by": "ann",
+        "at": "2026-10-01T09:30:00.123456Z",
+        "commit": "5dfd26d3e3a4e189330405ba025c7b408c8e0d6b",
+        "reason": "What booking answers, as a root of its own.",
+        "rejected": [
+          "OldRoot"
+        ],
+        "content": "0dddbc800f63d11a",
+        "chain": "c182d4664cd771bde270bc06bb7b1c02d3cd4587b07e325daa988d872e330b9d",
+        "code": "72303c354a89bf8df28b567ff2bcf59b7ca049b961f690e4362d22bee343f311",
+        "seal": {
+          "key": "b6e216cfdf46a202",
+          "signature": "c2lnbmF0dXJlIG9mIHRoZSBmaXJzdA=="
+        }
+      },
+      {
+        "action": "revisit",
+        "by": "ann",
+        "at": "2026-10-02T10:00:00Z",
+        "reason": "The store's model moved under it.",
+        "rejected": [],
+        "content": "0dddbc800f63d11a",
+        "chain": "",
+        "after": "6f9c9389fbe749eb"
+      }
+    ]
+  },
+  "contents": {
+    "2074d7cf9131abfb": {
+      "kind": "design",
+      "parents": [
+        "Root"
+      ],
+      "statement": "Bookings are kept in one store.",
+      "implementations": {
+        "store": "Store.scala",
+        "model": "StoreModel.scala"
+      }
+    },
+    "0dddbc800f63d11a": {
+      "kind": "claim",
+      "parents": [],
+      "parts": [
+        "Free"
+      ],
+      "statement": "A room is booked only when free.",
+      "formula": "forall b. booked(b) implies free(b)",
+      "vocabulary": [
+        "booked: a booking was made",
+        "free: no booking overlaps"
+      ]
+    }
+  }
+}

@@ -1,0 +1,200 @@
+{
+  "version": 1,
+  "counterexamples": {
+    "Book": [
+      {
+        "kind": "call",
+        "inputs": [
+          {
+            "kind": "many",
+            "elems": [
+              {
+                "kind": "data",
+                "ctor": "mk",
+                "fields": [
+                  {
+                    "kind": "str",
+                    "value": "Oak"
+                  },
+                  {
+                    "kind": "num",
+                    "value": 9
+                  },
+                  {
+                    "kind": "num",
+                    "value": 10
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "data",
+            "ctor": "mk",
+            "fields": [
+              {
+                "kind": "str",
+                "value": "Oak"
+              },
+              {
+                "kind": "num",
+                "value": 9
+              },
+              {
+                "kind": "num",
+                "value": 11
+              }
+            ]
+          }
+        ],
+        "givens": [
+          {
+            "symbol": "rooms",
+            "value": {
+              "kind": "pairs",
+              "entries": [
+                {
+                  "key": {
+                    "kind": "str",
+                    "value": "Oak"
+                  },
+                  "value": {
+                    "kind": "maybe",
+                    "elem": {
+                      "kind": "num",
+                      "value": 4
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "broke": {
+          "kind": "always",
+          "node": "NoOverlap"
+        },
+        "from": {
+          "seed": 42,
+          "index": 17,
+          "size": 3
+        }
+      },
+      {
+        "kind": "call",
+        "inputs": [
+          {
+            "kind": "tuple",
+            "elems": [
+              {
+                "kind": "unit"
+              },
+              {
+                "kind": "bool",
+                "value": true
+              }
+            ]
+          },
+          {
+            "kind": "inject",
+            "side": "error",
+            "elem": {
+              "kind": "str",
+              "value": "full"
+            }
+          }
+        ],
+        "givens": [],
+        "broke": {
+          "kind": "not-evaluated",
+          "error": {
+            "kind": "unbound",
+            "symbol": "now"
+          }
+        },
+        "from": {
+          "seed": 3,
+          "index": 0,
+          "size": 1
+        }
+      }
+    ],
+    "Store": [
+      {
+        "kind": "run",
+        "start": {
+          "kind": "world",
+          "states": [
+            {
+              "model": "stored",
+              "state": {
+                "kind": "many",
+                "elems": []
+              }
+            }
+          ],
+          "faults": [
+            false,
+            true
+          ]
+        },
+        "steps": [
+          {
+            "boundary": "Bookings",
+            "op": "add",
+            "args": [
+              "Booking(Oak,9,10)"
+            ]
+          }
+        ],
+        "difference": {
+          "kind": "state",
+          "implementation": "Nil",
+          "model": "List(x)"
+        },
+        "from": {
+          "seed": -7,
+          "index": 2,
+          "size": 1
+        }
+      },
+      {
+        "kind": "run",
+        "start": {
+          "kind": "world",
+          "states": [
+            {
+              "model": "stored",
+              "state": {
+                "kind": "many",
+                "elems": []
+              }
+            }
+          ],
+          "faults": [
+            false,
+            true
+          ]
+        },
+        "steps": [
+          {
+            "boundary": "Bookings",
+            "op": "add",
+            "args": [
+              "Booking(Oak,9,10)"
+            ]
+          }
+        ],
+        "difference": {
+          "kind": "threw",
+          "message": "closed"
+        },
+        "from": {
+          "seed": -7,
+          "index": 2,
+          "size": 1
+        }
+      }
+    ]
+  }
+}

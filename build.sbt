@@ -64,6 +64,7 @@ def nextModules: Seq[ProjectReference] = Seq(
   nextDecision,
 
   // step 7: nextWire
+  nextWire,
 
   // step 8: nextProject
 
@@ -105,6 +106,11 @@ lazy val nextTesting = nextModule("testing", cats, catsEffect, "org.scala-sbt" %
 lazy val nextDecision = nextModule("decision", cats).dependsOn(nextCore)
 
 // next-wire (step 7)
+/** The files FrFlow writes under a project's .frflow/ (the ledger, the deciders' list, checks, tests) and the snapshot
+  * the front ends read: rows of its own, and explicit codecs, each file with its version. Only the shell depends on it. */
+lazy val nextWire = nextModule("wire", cats, circe, circeParser)
+  .settings(libraryDependencies += "org.scalameta" %% "munit-scalacheck" % "1.0.0" % Test)
+  .dependsOn(nextProof, nextDecision, nextTesting)
 
 // next-project (step 8)
 
