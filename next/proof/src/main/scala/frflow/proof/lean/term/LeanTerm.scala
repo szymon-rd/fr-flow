@@ -101,9 +101,12 @@ final class LeanTerm(env: LowerEnv, standing: Map[SymbolName, LExpr] = Map.empty
   /** Lean's model of the world is built on it (the models' instances, the runs one at a time), so it states nothing. */
   def outside(fact: OutsideFact): S[Boolean] = _ => name("True")
   def construct[F](c: Constructor[F]): S[F] = _ => Atoms.ctor(c.data, c.ctor)
+  /** A field of a record made on the spot is its argument; a constant's, typed, as `lit` types a constant. */
   def field[R, F](r: S[R], sel: Selector[R, F]): S[F] = s => r(s) match
     case Paren(LExpr.App(LExpr.Const(p), args)) if p.headOption.exists(_.text == sel.record.value) &&
-        sel.index < args.size => args(sel.index)
+        sel.index < args.size => args(sel.index) match
+      case c @ (LExpr.Num(_) | Paren(LExpr.Num(_)) | LExpr.ListLit(_)) => LExpr.Typed(c, LowerType(sel.ty))
+      case arg                                                         => arg
     case other => LExpr.Dot(other, Names.ident(sel.name).text)
   def copy[R, F](r: S[R], sel: Selector[R, F], v: S[F]): S[R] =
     s => LExpr.Update(r(s), List(Names.ident(sel.name) -> v(s)))
