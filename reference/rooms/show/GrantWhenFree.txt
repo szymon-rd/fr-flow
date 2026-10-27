@@ -47,4 +47,5 @@ Decisions
   2026-10-26 23:14  accepted by demo-developer: The same claim over a room's bookings, named room as the code names it.
   2026-10-27 00:50  accepted by demo-developer: The same claim over a room's bookings, named held.
   2026-10-27 02:45  confirmed by demo-developer: still holds after bookWhenFree changed: The same root over a Request, the booking it asks for stored; it rests on what the form sends.
+  2026-10-27 10:20  confirmed by demo-developer: still holds after bookWhenFree changed: The same root; the bookings stored after booking are named storedAfter, apart from those stored before.
 --- exit 0

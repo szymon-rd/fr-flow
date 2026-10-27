@@ -17,7 +17,7 @@ Parts: together they make it (proven: auto)
 Assumes
   - tableMatchesModel (assumption): "The table gives a room's bookings in the order they were added, and adds one at the end."
   - oneAtATime (assumption): "Bookings are processed one at a time."
-  + requestsEndAfterStart (assumption): "The booking form sends only requests that end after they start."
+  - requestsEndAfterStart (assumption): "The booking form sends only requests that end after they start."
 
 Vocabulary
   book (operation): booking a request: whether it was booked (open)

@@ -1,4 +1,4 @@
-+ grantWhenNoOverlap  claim on granted  accepted  trusted
++ grantWhenNoOverlap  claim on granted  accepted  tested, not proven
   A request is granted exactly when it overlaps no booking of its room.
 
 Formally (as written in Scala)
@@ -30,7 +30,6 @@ Code
     note: RoomBookings: a room's bookings, laid end to end, some back to back (given; derived values for a quarter of them)
     note: Booking: the examples' Booking("Oak", 9, 10), Booking("Oak", 10, 11), Booking("Oak", 9, 11) never come from the given generator (kept as seeds)
     note: RoomBookings: the examples' RoomBookings("Oak", List(Booking("Oak", 9, 10))), RoomBookings("Oak", List(Booking("Oak", 9, 11))) never come from the given generator (kept as seeds)
-  at run time: the contract, checked on every call (the default for code not proven)
   governs: src/main/scala/rooms/Calendar.scala
 
 Decisions
@@ -54,4 +53,5 @@ Decisions
   2026-10-26 23:14  accepted by demo-developer: The same claim over a room's bookings: what the calendar, sorted once by start, is tested against.
   2026-10-27 00:50  accepted by demo-developer: The same claim, what the calendar's neighbour check is tested against.
   2026-10-27 02:45  confirmed by demo-developer: still holds after bookWhenFree changed: The same root over a Request, the booking it asks for stored; it rests on what the form sends.
+  2026-10-27 10:20  confirmed by demo-developer: The same claim; the calendar's code names its two conditions (endsInTime, startsAfter) and the tests pass.
 --- exit 0

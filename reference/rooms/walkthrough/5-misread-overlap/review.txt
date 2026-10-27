@@ -1,9 +1,9 @@
 
 --- 1 waiting ---
-! grantWhenNoOverlap  claim on granted  it and its code changed: review it  trusted
+! grantWhenNoOverlap  claim on granted  it and its code changed: review it  tested, not proven
   A request is granted exactly when it overlaps no booking of its room.
 
-What changed since it was confirmed (demo-developer, 2026-10-27 02:45)
+What changed since it was accepted (demo-developer, 2026-10-27 10:20)
   definitions used
     ... 2 unchanged line(s)
       noOverlap = (a: Term[Booking], b: Term[Booking]) =>
@@ -11,15 +11,17 @@ What changed since it was confirmed (demo-developer, 2026-10-27 02:45)
     +   a.room =!= b.room || a.end < b.start || b.end < a.start
   the code it governs changed (src/main/scala/rooms/Calendar.scala)
     diff --git a/examples/rooms/src/main/scala/rooms/Calendar.scala b/examples/rooms/src/main/scala/rooms/Calendar.scala
-    index 42e8bd1..a01bf70 100644
+    index 42e8bd1..9c8a0ea 100644
     --- a/examples/rooms/src/main/scala/rooms/Calendar.scala
     +++ b/examples/rooms/src/main/scala/rooms/Calendar.scala
-    @@ -12,4 +12,4 @@ final class Calendar(held: RoomBookings):
+    @@ -12,4 +12,6 @@ final class Calendar(held: RoomBookings):
          val i = byStart.search(request)(using startOrder).insertionPoint
          val before = byStart.lift(i - 1)
          val after = byStart.lift(i)
     -    (request.room != held.room) || (before.forall(_.end <= request.start) && after.forall(_.start >= request.end))
-    +    (request.room != held.room) || (before.forall(_.end < request.start) && after.forall(_.start > request.end))
+    +    val endsInTime = before.forall(_.end < request.start)
+    +    val startsAfter = after.forall(_.start > request.end)
+    +    request.room != held.room || (endsInTime && startsAfter)
 
 Decision
   to review: it changed; the code it governs changed
@@ -29,7 +31,7 @@ Decision
 Decided 0 decision(s).
 Rooms: 13 nodes, 12 accepted, 1 to review
 Proofs: splits 0/3, root_impl unchecked, consistency proven, nothing vacuous
-Tests: code against its claims 1/1, implementations against their models 1/1, examples in Lean 5/6, at run time 1 checked on every call
+Tests: code against its claims 1/1, implementations against their models 1/1, examples in Lean 5/6
 Trusted: requestsEndAfterStart, tableMatchesModel (a model), onlyBookingWrites, oneAtATime, startsEmpty (facts); tested, not proven: grantWhenNoOverlap
 3 with something unproven
 Waiting: 1 for the developer

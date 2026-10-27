@@ -7,7 +7,7 @@ x grantWhenNoOverlap: failed
 + answerWhenFree: step proven
 + grantWhenFree: step proven
 + bookWhenFree: step proven
-+ requestsEndAfterStart: proven
+- requestsEndAfterStart: assumed
 + tableMatchesModel: SqliteBookings gives what the model gives on 200 generated runs
 + consistency of grantWhenNoOverlap: Lean proves a meaning meets it: granted as grantWhenNoOverlap says
 + neverOverlap admits a value: Lean proves it holds of List()
@@ -19,7 +19,7 @@ x grantWhenNoOverlap: failed
 
 Rooms: 13 nodes, 12 accepted, 1 to review
 Proofs: splits 3/3, root_impl proven, consistency proven, nothing vacuous
-Tests: code against its claims 0/1, implementations against their models 1/1, examples in Lean 4/4, at run time 1 checked on every call
+Tests: code against its claims 0/1, implementations against their models 1/1, examples in Lean 4/4
 Trusted: requestsEndAfterStart, tableMatchesModel (a model), onlyBookingWrites, oneAtATime, startsEmpty (facts); tested, not proven: grantWhenNoOverlap
 1 with something unproven
 Waiting: 1 for the developer

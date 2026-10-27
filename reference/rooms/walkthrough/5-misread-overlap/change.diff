@@ -1,7 +1,7 @@
 # README step 5: touching meetings taken to overlap, in the claim over times, the code and the examples
 --- a/examples/rooms/src/main/scala/rooms/Knowledge.scala
 +++ b/examples/rooms/src/main/scala/rooms/Knowledge.scala
-@@ -92,7 +92,7 @@
+@@ -90,7 +90,7 @@
  
  // Over start and end times.
  val noOverlap = define { (a: Term[Booking], b: Term[Booking]) =>
@@ -12,12 +12,15 @@
    forall((held: Term[RoomBookings], request: Term[Booking]) =>
 --- a/examples/rooms/src/main/scala/rooms/Calendar.scala
 +++ b/examples/rooms/src/main/scala/rooms/Calendar.scala
-@@ -12,4 +12,4 @@
+@@ -12,6 +12,6 @@
      val i = byStart.search(request)(using startOrder).insertionPoint
      val before = byStart.lift(i - 1)
      val after = byStart.lift(i)
--    (request.room != held.room) || (before.forall(_.end <= request.start) && after.forall(_.start >= request.end))
-+    (request.room != held.room) || (before.forall(_.end < request.start) && after.forall(_.start > request.end))
+-    val endsInTime = before.forall(_.end <= request.start)
+-    val startsAfter = after.forall(_.start >= request.end)
++    val endsInTime = before.forall(_.end < request.start)
++    val startsAfter = after.forall(_.start > request.end)
+     request.room != held.room || (endsInTime && startsAfter)
 --- a/examples/rooms/src/test/scala/rooms/GrantedExamples.scala
 +++ b/examples/rooms/src/test/scala/rooms/GrantedExamples.scala
 @@ -3,8 +3,11 @@

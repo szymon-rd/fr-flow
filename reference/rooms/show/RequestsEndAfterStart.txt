@@ -1,4 +1,4 @@
-+ requestsEndAfterStart  assumption  accepted  trusted
+- requestsEndAfterStart  assumption  accepted  trusted
   The booking form sends only requests that end after they start.
 
 Formally (as written in Scala)
@@ -15,4 +15,5 @@ Decisions
   2026-10-26 22:28  accepted by demo-developer: The booking form only sends a request whose end is after its start.
   2026-10-26 23:15  accepted by demo-developer: The booking form only sends a request whose end is after its start; Lean proves this gives endsAfterStart.
   2026-10-27 02:45  accepted by demo-developer: The booking form sends only requests that end after they start: an assumption about what it sends, a Request.
+  2026-10-27 10:20  confirmed by demo-developer: still holds after bookWhenFree changed: The same root; the bookings stored after booking are named storedAfter, apart from those stored before.
 --- exit 0

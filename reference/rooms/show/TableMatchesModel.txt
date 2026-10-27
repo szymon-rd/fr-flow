@@ -14,7 +14,7 @@ Where it sits
   assumed by + answerWhenFree: "A request is answered booked exactly when its room is free for its whole time."
 
 Code
-  implemented by: stored => SqliteBookings.holding(stored) (an outside system, checked against the model; the model stays assumed)
+  implemented by: SqliteBookings.holding (an outside system, checked against the model; the model stays assumed)
   tested: 200 generated runs of its operations (seed 1), against the model storedBookings
     every run gives what the model gives and leaves what it leaves, and every operation and branch of it was reached
     note: SqliteBookings (an outside system: its model is assumed; these runs check it): 200 runs of 1 to 12 operations each, from generated states
@@ -27,4 +27,5 @@ Code
 Decisions
   2026-10-27 00:50  accepted by demo-developer: The table's model booking is proven from; SqliteBookings, holding a state, is checked against it.
   2026-10-27 02:45  confirmed by demo-developer: still holds after bookWhenFree changed: The same root over a Request, the booking it asks for stored; it rests on what the form sends.
+  2026-10-27 10:20  accepted by demo-developer: The same model; SqliteBookings is made with SqliteBookings.holding and read back with held, named directly.
 --- exit 0
