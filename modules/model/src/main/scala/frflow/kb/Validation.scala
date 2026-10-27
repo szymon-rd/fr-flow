@@ -29,7 +29,7 @@ private[frflow] object Validation:
         .map(n => s"${n.id} has parts: its flow makes it from them, so implement it with implementProven(${n.id})(flow)"),
       nodes.filter(n => kb.ancestors(n).exists(_ eq n)).map(n => s"${n.id} is above itself: what it is a part of must not lead back to it"),
       nodes.filter(n => isOperation(n) && parentsOf(n).isEmpty && !n.op.exists(o => called(o.name)) &&
-          n.modelOf.isEmpty &&
+          n.modelOf.isEmpty && !n.isAlways &&
           !kb.implementation(n).exists(_.flow))
         .map(n => s"${n.id} has no parents: a ${n.kind.toString.toLowerCase} is a part of the nodes it helps prove, unless code calls its operation"),
       nodes.filter(n => n.kind == NodeKind.Design && n.parents.isEmpty).map(n => s"${n.id}: a design decision is under the nodes it serves (.refines)"),
@@ -99,19 +99,28 @@ private[frflow] object Validation:
         .map(w => s"${n.id}: $w changes the store, so it keeps ${n.id}: give it proven code (implementProven($w)(…))")
     }.map(Invariants(_))
 
-  /** An `always` claim about a type holds of the values entering from outside: the inputs of the programs with
-    * proven code, as an assumption about who calls them says.
+  /** What comes from outside (the inputs of the programs with proven code) is not made by covered code: what it
+    * meets is an assumption `always` of its type. An `always` claim about a type such values have, with no such
+    * assumption, has nothing to rest on there.
     */
   private def outside(kb: KnowledgeBase): List[Problem] =
     val programs = kb.implementations.filter(_.flow).flatMap(i => kb.node(i.contract).flatMap(_.op)).distinctBy(_.name)
     def inputs(p: Param[?]) = p.termType.shape match
       case frflow.types.Shape.FnOf(as, _) => as
       case _                              => Nil
-    kb.nodes.filter(_.always.exists(_.store.isEmpty)).flatMap { n =>
-      val said = kb.premisesOf(n).flatMap(_.calledOnlyWith).map(_._1.name)
-      programs.filter(p => !said.contains(p.name) && inputs(p).exists(t => kb.invariantsOn(t).exists(_._1 eq n)))
-        .map(p => Invariants(s"${n.id}: ${p.name} is given its inputs from outside: say they meet it, an assumption " +
-          s"it rests on: .assuming(Node.assumption(\"…\")(${p.name}.calledOnlyWith(x => …)))"))
+    def ruleType(n: Node[?]) = n.holds.map(_.lifted.built._1.head.tpe)
+    val assumed = kb.nodes.filter(a => a.kind == NodeKind.Assumption && a.always.exists(_.store.isEmpty))
+      .flatMap(ruleType).map(Types.walk(_).lean).toSet
+    (for
+      p <- programs
+      t <- inputs(p)
+      (n, _, _) <- kb.invariantsOn(t)
+      rt <- ruleType(n) if n.kind == NodeKind.Claim && !assumed(Types.walk(rt).lean)
+    yield (n, p, rt)).distinctBy((n, p, _) => (n.id, p.name)).map { (n, p, rt) =>
+      val v = Types.scala(rt)
+      Invariants(s"${n.id}: ${p.name} is given values of $v from outside, which no covered code makes: say what " +
+        s"the outside sends, Node.assumption(\"…\")(always[$v](x => …)), on a type of its own if covered code " +
+        s"also makes $v")
     }
 
   /** What a store starts satisfying is an `always` claim about that store. */

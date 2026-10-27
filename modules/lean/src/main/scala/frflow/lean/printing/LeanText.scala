@@ -17,8 +17,10 @@ object LeanText:
     Header + imports(uses) + "\n" + Preamble + s"namespace $ns\n" + opens.fold("")(o => s"open $o\n") + "\n" + body + s"end $ns\n"
   // A `-/` in the text would end the comment early.
   def doc(text: String): String = s"/-- ${text.replace("-/", "- /")} -/\n"
-  def definition(name: String, binders: String, tpe: String, body: String): String =
-    s"@[frflow_defs] def $name${if binders.isEmpty then "" else " " + binders} : $tpe :=\n  $body"
+  /** `reducible`: seen through when Lean matches (a record copied from the inputs' fields). */
+  def definition(name: String, binders: String, tpe: String, body: String, reducible: Boolean = false): String =
+    val attrs = if reducible then "reducible, frflow_defs" else "frflow_defs"
+    s"@[$attrs] def $name${if binders.isEmpty then "" else " " + binders} : $tpe :=\n  $body"
 
   def forall(binders: String, hyps: List[(String, String)], conclusion: String): String =
     (if binders.isEmpty then "" else s"∀ $binders, ") +

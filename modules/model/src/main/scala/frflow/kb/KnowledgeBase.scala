@@ -193,7 +193,7 @@ final class KnowledgeBase(val name: String, val idea: String = "", val implement
   lazy val defs: List[Def[?]] = Walk.postorder(defRoots, _.name)(_.lifted.defs)
   private def defRoots: List[Def[?]] =
     nodes.flatMap(_.referenced).flatMap(_.defs) ++
-      nodes.flatMap(n => n.holds ++ n.initially ++ n.calledOnlyWith.map(_._2)) ++
+      nodes.flatMap(n => n.holds ++ n.initially) ++
       implementations.flatMap(_.proven) ++ modelDefs
   /** The defines a model's operations use: Lean's models need them too. */
   private def modelDefs: List[Def[?]] = models.flatMap(mo => mo.boundary.operations.flatMap { m =>

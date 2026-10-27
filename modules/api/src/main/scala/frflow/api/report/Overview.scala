@@ -14,7 +14,7 @@ final case class Overview(name: String, nodes: Int, proposed: Int, review: Int, 
     warnings: Int, complete: Boolean, idea: Option[ReviewState] = None, contractsTested: Int = 0, testsPassing: Int = 0,
     tested: List[NodeId] = Nil, modelsRun: Int = 0, modelsPassing: Int = 0, runEveryCall: Int = 0, runSampled: Int = 0,
     runNotChecked: Int = 0, models: List[NodeId] = Nil, consistency: Option[Consistency] = None,
-    facts: List[NodeId] = Nil)
+    facts: List[NodeId] = Nil, assumed: List[NodeId] = Nil)
     derives Codec.AsObject:
   def unproven: Int = nodes - proven
 
@@ -50,6 +50,9 @@ object Overview:
       consistency = v.snapshot.consistency,
       // The facts of how the system is run, decided: Lean has nothing to say of them.
       facts = a.nodes.filter(r => r.node.kind == NodeKind.Assumption && r.node.status.isEmpty && !model(r.node))
-        .map(_.id))
+        .map(_.id),
+      // What the other assumptions say, trusted though root_impl does not take them (what comes from outside).
+      assumed = a.nodes.filter(r => r.node.kind == NodeKind.Assumption && r.node.status.nonEmpty && !model(r.node) &&
+        !v.snapshot.trusted.contains(r.id)).map(_.id))
 
   private def model(n: SnapNode): Boolean = CodeProof.of(n).exists { case _: CodeProof.Model => true; case _ => false }

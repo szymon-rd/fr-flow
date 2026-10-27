@@ -27,7 +27,7 @@ final class Witnessing(kb: KnowledgeBase, refinement: Refinement, layout: Layout
   /** The module: every theorem asked, each proven by the witness it is given. */
   lazy val file: String =
     val nodes = asked.flatMap(_.about).filter(formal).distinctBy(_.id)
-    val rules = kb.nodes.flatMap(n => n.holds ++ n.initially ++ n.calledOnlyWith.map(_._2))
+    val rules = kb.nodes.flatMap(n => n.holds ++ n.initially)
     val uses = (layout.types :: vocabularyModules.modulesFor(rules, Nil) ++ nodes.map(n => layout.spec(n.id))).distinct
     val body =
       asked.flatMap(a => a.theorems.map((name, text) => s"${LeanText.doc(describe(a))}theorem $name : $text\n\n"))
@@ -96,9 +96,9 @@ final class Witnessing(kb: KnowledgeBase, refinement: Refinement, layout: Layout
     if tested then s"$p: its code is tested Scala, evidence and not proof; say what it equals (a statement $p(…) === …)"
     else s"$p: nothing says what it equals, and no proven code gives it; say what it equals (a statement $p(…) === …)"
 
-  // What always holds of a type, and what a program is called with from outside, admits a value.
+  // What always holds of a type (claimed, or assumed of what comes from outside) admits a value.
   private def admits: List[Asked] =
-    kb.nodes.flatMap(n => (n.holds ++ n.calledOnlyWith.map(_._2)).map(r => n -> r)).map { (n, rule) =>
+    kb.nodes.flatMap(n => n.holds.map(r => n -> r)).map { (n, rule) =>
       valued(Kind.Admits, n, rule, s"admits_${n.id}")
     }
 

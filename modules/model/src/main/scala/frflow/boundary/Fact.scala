@@ -1,14 +1,12 @@
 package frflow
 package boundary
 
-import frflow.types.Shape
-
-/** A fact of how the system is run, stated of a store (or of the inputs a program is called with), as an assumption's
-  * formula: what FrFlow cannot see from the code, so the developer decides it. In Lean it says nothing (`True`);
-  * FrFlow reads it where it matters: an `always` claim about the store holds of its start (`initially`, proven to give
-  * the claim's rule, or `startsSatisfying`, naming the claim), is kept by the programs that write it
-  * (`writtenOnlyBy`), and holds between runs (`changedOneRunAtATime`); an `always` claim about a type holds of the
-  * values entering from outside (`calledOnlyWith`, proven to give the claim's rule).
+/** A fact of how the system is run, stated of a store, as an assumption's formula: what FrFlow cannot see from the
+  * code, so the developer decides it. In Lean it says nothing (`True`); FrFlow reads it where it matters: an `always`
+  * claim about the store holds of its start (`initially`, proven to give the claim's rule, or `startsSatisfying`,
+  * naming the claim), is kept by the programs that write it (`writtenOnlyBy`), and holds between runs
+  * (`changedOneRunAtATime`). What comes from outside is not a fact: it has a type of its own, and what it meets is
+  * an assumption `always` of that type.
   */
 final class Fact private[frflow] (val store: Option[StateModel[?]], val says: FactKind)
     extends frflow.term.Term[Boolean](Tree.Lit(true, summon[LeanType[Boolean]]), summon[LeanType[Boolean]])
@@ -29,13 +27,3 @@ object Fact:
     def writtenOnlyBy(programs: Param[?]*): Term[Boolean] = Fact(Some(store), FactKind.WrittenOnlyBy(programs.toList))
     /** One run changes the store at a time: `storedBookings.changedOneRunAtATime`. */
     def changedOneRunAtATime: Term[Boolean] = Fact(Some(store), FactKind.OneRunAtATime)
-
-  extension [A, R](program: Param[A => R])
-    /** The program is called from outside only on inputs meeting the condition:
-      * `book.calledOnlyWith(request => request.start < request.end)`.
-      */
-    def calledOnlyWith(condition: Term[A] => Term[Boolean]): Term[Boolean] =
-      val input = program.termType.shape match
-        case Shape.FnOf(List(a), _) => a
-        case _ => throw IllegalArgumentException(s"FrFlow: ${program.name}.calledOnlyWith: a program of one input")
-      Fact(None, FactKind.CalledOnlyWith(program, frflow.term.Term.quant(all = true, condition, List(input)).termTree))

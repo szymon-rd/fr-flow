@@ -70,6 +70,17 @@ class WorkspaceSuite extends munit.CatsEffectSuite with TempDirs:
     assert(warnings.exists(_.startsWith("lean/Proofs/Shelf/Gone.lean is the proof file of no node")), warnings)
   }
 
+  test("a statement whose Lean takes what an assumption says of what comes from outside lists that assumption") {
+    val warnings = Governance.warnings(Desk(Refunds.kb).analysis)
+    // both take an amount as given, its rule a hypothesis of their Lean; neither lists the assumption
+    assert(warnings.exists(_.startsWith("Refunded rests on NoNegativeAmounts:")), warnings)
+    assert(warnings.exists(_.startsWith("Costs rests on NoNegativeAmounts:")), warnings)
+    val listed = Refunds.costs.assuming(Refunds.noNegativeAmounts)
+    val kb =
+      KnowledgeBase("Refunds", idea = "IDEA.md")(Refunds.refunded, listed, Refunds.tillAdds, Refunds.noNegativeAmounts)
+    assert(!Governance.warnings(Desk(kb).analysis).exists(_.startsWith("Costs rests on")))
+  }
+
   test("source files no node governs are found under src/main and in what the build compiles; tests are not production code") {
     for
       ws <- workspace

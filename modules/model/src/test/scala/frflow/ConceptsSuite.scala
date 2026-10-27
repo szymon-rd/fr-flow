@@ -80,7 +80,7 @@ class ConceptsSuite extends munit.FunSuite:
     assertEquals(startsAtNothing.initially.map(_.name), Some("startsAtNothing"))
   }
 
-  test("a store starts satisfying the always claim it names; a program given values from outside, on a condition") {
+  test("a store starts satisfying the always claim it names; what comes from outside meets an assumption of its type") {
     import Concepts.*
     def made(ns: Node[?]*) = KnowledgeBase("Concepts")((List(grows, kept, stepPositive, model, writes, oneAtATime,
       startsRight) ++ ns)*).implementProven(add)(adding).implementTested(step)(x => x.abs + 1)
@@ -91,15 +91,14 @@ class ConceptsSuite extends munit.FunSuite:
     val wrong = Node.assumption("The counter starts growing.")(counted.startsSatisfying(grows))
     assert(made(wrong).problems.exists(_.message.startsWith("Wrong: Grows is not an always claim about")),
       made(wrong).problems)
-    // values of a type with an `always` that enter from outside: an assumption about the outside says what they meet
+    // values of a type with an `always` claim that enter from outside: an assumption `always` of the type says
+    // what the outside sends
     val sized = Node.claim("Every amount is a size.")(always[BigInt](x => x >= BigInt(0)))
-    assert(made(sized).problems.exists(_.message.startsWith("Sized: add is given its inputs from outside")),
+    assert(made(sized).problems.exists(_.message.startsWith("Sized: add is given values of BigInt from outside")),
       made(sized).problems)
-    val fromOutside = Node.assumption("Requests are sizes.")(add.calledOnlyWith(x => x >= BigInt(0)))
-    val sizedOutside = Node.claim("Every amount is a size.")(always[BigInt](x => x >= BigInt(0)))
-      .assuming(fromOutside)
-    assertEquals(made(sizedOutside, fromOutside).problems, Nil)
-    assertEquals(fromOutside.calledOnlyWith.map((p, d) => (p.name, d.name)), Some(("add", "fromOutside")))
+    val sent = Node.assumption("Requests are sizes.")(always[BigInt](x => x >= BigInt(0)))
+    assertEquals(made(sent).problems, Nil)
+    assertEquals((sent.isAlways, made(sent).invariantsOn(summon[LeanType[BigInt]]).map(_._1.id)), (true, List("Sent")))
   }
 
   test("a claim on one Definition is about every call of it; one on a flow, about every run") {
