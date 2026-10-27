@@ -54,7 +54,8 @@ object Validate:
     all(names.diff(names.distinct).distinct.map(Problem.DeclaredTwice(_)))
 
   /** A statement's `.assuming` lists exactly the facts about the outside its check rests on (`Premises`: derived,
-    * and only checked), and every program writing a store is among those the outside lets write it.
+    * and only checked), every program writing a store is among those the outside lets write it, and every `always[T]`
+    * reaches each `T` covered code can make (`Unreached`).
     */
   private def outside(t: Theory): ValidatedNec[Problem, Unit] =
     val missing = t.nodes.map(_.node.id).flatMap(id => Premises.of(t, id)
@@ -65,7 +66,7 @@ object Validate:
     val unlisted = t.vocabulary.models.flatMap(m => Outsides.saying(t, Premise.WrittenOnlyBy(m.name)).toList
       .flatMap(_ => Premises.writers(t, m).filterNot(Outsides.writers(t, m.name).contains))
       .map(Problem.WriterNotListed(m.name, _)))
-    all(missing ++ unneeded ++ unlisted)
+    all(missing ++ unneeded ++ unlisted ++ Unreached.of(t))
 
   /** Code is for a Definition some statement mentions; a node checked against proven code has as parts only
     * statements about what the code calls (`impl` proves it from them: docs/DAG.md §3); the models it is proven on are

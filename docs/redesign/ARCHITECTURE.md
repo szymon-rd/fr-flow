@@ -59,7 +59,7 @@ reproduce; where output differs, the difference is listed and judged. The owner 
 
 ### 1.4 What is already shown
 
-- The planned code (449 main files, 10,436 lines; 58 test files, 153 tests) compiles from clean with
+- The planned code (450 main files, 10,484 lines; 58 test files, 154 tests) compiles from clean with
   `-Werror -Wunused:all -Wnonunit-statement -Wvalue-discard`, and every test passes. 40 `???` in 31 files stand for
   ports of today's code, each assigned a step of the plan, its parts written and tested.
 - `budget.py`: no file over 200 lines, no line over 120 columns, no parameter list over four, one type per file.
@@ -203,12 +203,13 @@ Checked before production only:
 
 - **`always[T]`** is a hypothesis in Lean on every value of `T` a statement is about, including each one a value holds:
   a list's elements, an option's value, either side of an `Either`, a pair's components, the fields of a record or of an
-  enum's case, and a world's store (`Guarded`, its guards built by `Guards` from the type; a map's and a set's are
-  not walked yet). It is met wherever FrFlow covers the code: `made_<maker>` for each proven define and store
-  operation whose result is or holds a `T`; `cover_<op>` for each program writing a store that holds one; at a tested
-  Definition's boundary (inputs drawn meeting it, `Respecting`; result checked, `Made`, through the same shapes);
-  `start_<node>` for the store's start; values from outside by an assumption of `always` on their type (2.6).
-  `inhabited_<node>` shows the rule admits a value.
+  enum's case, and a world's store (`Guarded`, its guards built by `Guards` from the type). A `T` inside a map, a set or
+  a function value is not reached yet, and a model holding one where an `always[T]` applies is refused
+  (`AlwaysNotReached`); step 3 walks maps and sets. It is met wherever FrFlow covers the code: `made_<maker>` for each
+  proven define and store operation whose result is or holds a `T`; `cover_<op>` for each program writing a store that
+  holds one; at a tested Definition's boundary (inputs drawn meeting it, `Respecting`; result checked, `Made`, through
+  the same shapes); `start_<node>` for the store's start; values from outside by an assumption of `always` on their type
+  (2.6). `inhabited_<node>` shows the rule admits a value.
 - **`always(stored)`** is a hypothesis on every world a claim starts from, kept by each program writing the store
   (`cover_<op>`) from every start (`start_<node>`); that this covers every reached state rests on four store facts
   (2.6).
@@ -817,8 +818,8 @@ declarations merge). An error found before its place is known is a `Fault`, carr
 `Validate(e: Elaborated): ValidatedNec[Problem, Valid]` returns every problem at once, one `Problem` case per thing
 wrong: the graph (`DuplicateId`, `NoRoot`, `AboveItself`, `ParentOutside`, `DesignWithoutParent`, `UnderDesign`,
 `PremiseNotAssumed`, `OutsideAsPart`, `OutsideClaimed`); the world outside (`PremiseMissing`, `PremiseNotNeeded`,
-`WriterNotListed`); the vocabulary (`ReservedName`, `DeclaredTwice`, `CodeOnlyInStatement`); values (`Undefined`,
-`DeclarationInCode`, `CodeWithoutClaim`, `PartNotCalled`).
+`WriterNotListed`, `AlwaysNotReached`); the vocabulary (`ReservedName`, `DeclaredTwice`, `CodeOnlyInStatement`); values
+(`Undefined`, `DeclarationInCode`, `CodeWithoutClaim`, `PartNotCalled`).
 
 `Resolve(v: Valid): Resolved` computes once what each node uses, calls and rests on (`Callees`, `reliesOn`). `Scope`
 derives where an `always`, claimed or assumed, applies: the Definitions and store programs whose values can hold a `T`
@@ -929,7 +930,7 @@ the first nine; `cli`, `web` and `agent` keep their structure and are rebuilt on
 outward: only the shell depends on `wire`. Front ends see `api.view` and `api.node` values only. Production code
 depends on `eval` (and through it `dsl`, `core`) and never on Lean, the ledger, the tests or the CLI.
 
-Planned so far (files / lines): `core` 145 / 3,165, `dsl` 69 / 2,178, `proof` 79 / 2,058, `eval` 26 / 727, `testing`
+Planned so far (files / lines): `core` 146 / 3,213, `dsl` 69 / 2,178, `proof` 79 / 2,058, `eval` 26 / 727, `testing`
 22 / 428, `decision` 42 / 694, `wire` 14 / 184, `project` 25 / 621, `api` 27 / 381. With the ports written and `cli`,
 `web` and `agent` rebuilt, the projection is about 13,700 lines in about 570 files, against today's 12,008 in 347:
 about 12% more, consistency and vacuity among it, in smaller files, with no type over six fields.
@@ -1124,11 +1125,11 @@ gains its `ifM`, and `noCrossTenantRead` becomes a root over two Definitions. In
 `docs/index.html` and the frflow and scala-fp skills.
 
 **Stubs by step** (40 `???`, `review.md` lists the first ones the owner will meet): step 2, `derives BoundaryOps`, and
-`Flow`'s `collect`, `fold`, `parCollect` and `attempt` (not yet written at all); 3, `feasible`, `commutes`, `made_` of
-a program's result, module layouts, a few `LowerProg` steps; 4, `FlowInterpreter`'s loops and errors, `Literals` of
-maps and sets, `CodeSyntax.code`; 5, `ModelTests.of`, derived generators, shrinking, the examples' runner; 6, three
-review functions; 8, the port interpreters, `NodeChecker`, the lexer's passes; 9, `FrFlowApi.make`, `Views.tree`,
-`Views.inbox`.
+`Flow`'s `collect`, `fold`, `parCollect` and `attempt` (not yet written at all); 3, `feasible`, `commutes`, `made_` of a
+program's result, guards inside maps and sets (refused until then, `AlwaysNotReached`), module layouts, a few
+`LowerProg` steps; 4, `FlowInterpreter`'s loops and errors, `Literals` of maps and sets, `CodeSyntax.code`; 5,
+`ModelTests.of`, derived generators, shrinking, the examples' runner; 6, three review functions; 8, the port
+interpreters, `NodeChecker`, the lexer's passes; 9, `FrFlowApi.make`, `Views.tree`, `Views.inbox`.
 
 **Seeded bugs after the port.**
 

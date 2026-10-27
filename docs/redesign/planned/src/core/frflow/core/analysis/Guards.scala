@@ -13,9 +13,9 @@ import frflow.core.vocab.StateModel
   * claimed or assumed: its rule at the variable (`AtValue`). `always[T]` on each `T` a value holds: the value
   * itself, each element of a list, an option's value, either side of an `Either`, each component of a tuple, each
   * field of a record or of an enum's case (`RoomBookings`' bookings), and each one a world's model holds in its state
-  * (a map's and a set's are not walked yet); `always(stored)` on each world. Each guard is built from the
-  * variable's `Ty`, so its casts are typed by it. Guards are stated in Lean; Scala checks an `always` where a value
-  * is made (`Made`).
+  * (not yet a map's, a set's or a function value's: `Unreached` refuses those); `always(stored)` on each world.
+  * Each guard is built from the variable's `Ty`, so its casts are typed by it. Guards are stated in Lean; Scala
+  * checks an `always` where a value is made (`Made`).
   */
 object Guards:
   def of(t: Theory): List[Guard] = byAlways(t).map(_._2)

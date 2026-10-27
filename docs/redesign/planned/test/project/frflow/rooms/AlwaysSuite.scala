@@ -4,7 +4,7 @@ import cats.effect.{IO, Ref}
 import cats.effect.unsafe.implicits.global
 import cats.Id
 import frflow.*
-import frflow.core.analysis.{Guards, Resolve, Validate}
+import frflow.core.analysis.{Guards, Problem, Resolve, Validate}
 import frflow.core.name.{DefName, KbName, ModelName, NodeId, SymbolName, TypeName}
 import frflow.core.spec.Range
 import frflow.core.ty.Ty
@@ -146,4 +146,11 @@ class AlwaysSuite extends munit.FunSuite:
       all  <- held.get
     yield all
     assertEquals(stored.unsafeRunSync().map(b => rule.holds(ScalaValue(b), Env.of(Values.none))), List(false))
+  }
+
+  test("an `always` whose type sits where no guard reaches yet is refused: the store holding bookings in a map") {
+    val (v, byRoom) = (e.theory.vocabulary, Ty.MapOf(Ty.Str, LeanType[Booking].ty))
+    val mapped = e.copy(theory = e.theory.copy(vocabulary = v.copy(models = v.models.map(_.copy(state = byRoom)))))
+    assertEquals(Validate(mapped).fold(_.toChain.toList, _ => Nil).collect { case p: Problem.AlwaysNotReached => p },
+      List(Problem.AlwaysNotReached(NodeId("endsAfterStart"), byRoom, "the state of stored")))
   }
