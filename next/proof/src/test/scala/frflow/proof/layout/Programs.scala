@@ -82,7 +82,8 @@ object Programs:
       claim("pairRuns")(runs[BigInt, (BigInt, BigInt)]("pairUp", big, Ty.TupleOf(List(big, big)))),
       claim("eachRuns")(runs[List[BigInt], List[BigInt]]("eachDoubled", Ty.ListOf(big), Ty.ListOf(big))),
       assumption("fromOutside")(Lang.formula([T[_]] => (l: Lang[T]) =>
-      l.s.always(Bound[Booking]("b", Booking.ty))(x => l.s.lt(l.s.field(x, Booking.start), l.s.field(x, Booking.end))))))
+      l.s.always(Bound[Booking]("b", Booking.ty))(x =>
+        l.s.lt(l.s.field(x, Booking.start), l.s.field(x, Booking.end))))))
     .and(shelfFacts*)
     .declaring(_.copy(types = List(Booking.data), boundaries = List(shelfSig), models = List(shelfModel),
       defines = List(endsRule, later, emptyRule) ++
