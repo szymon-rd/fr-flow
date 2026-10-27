@@ -43,7 +43,7 @@ object Snapshots:
     }
     SnapNode(id = id, kind = n.kind, content = c, hash = c.hash, parents = ids(kb.parentsOf(n)), parts = ids(kb.children(n)),
       replaces = n.replaced.map(r => NodeId(r.id)), op = n.op.map(_.name), defines = n.defines,
-      uses = ids(kb.definitionsUsed(n, g.inForce)), relies = ids(g.reliedOn(n)),
+      uses = ids(kb.usedAbove(n, g.inForce)), relies = ids(g.reliedOn(n)),
       rule = n.isInvariant,
       // The root met by doing nothing: it says only what must not happen (see the ledger's `Proofs.unproven`).
       idle = Option.when(kb.isRoot(n))(a.idleOf(n)).flatten,

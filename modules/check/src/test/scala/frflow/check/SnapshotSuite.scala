@@ -203,3 +203,18 @@ class SnapshotSuite extends munit.FunSuite:
     val reworded = now.copy(content = c, hash = c.hash)
     assertEquals(Reading(Snapshot("S", List(reworded)), ledger).causes(reworded), List(Cause.Self))
   }
+
+  test("an outside always assumption a root lists is a part of it, decided after it: not also above it") {
+    val sentPositive = Node.assumption("Every amount sent is positive.")(always[BigInt](x => x > BigInt(0)))
+    val atLeastOne = Node.claim("Every amount sent is at least one.", why = "The purpose.")(
+      forall((x: Term[BigInt]) => x >= BigInt(1))).assuming(sentPositive)
+    val d = Desk(kbOf(List(atLeastOne, sentPositive)))
+    val ns = snapOf(d.analysis.snapshot)
+    // its Lean takes the assumption's rule of what it is given; the assumption is still below it only
+    assertEquals((ns("AtLeastOne").parts, ns("AtLeastOne").uses, ns("SentPositive").parents), (ids("SentPositive"), Nil, ids("AtLeastOne")))
+    assertEquals(d.kb.ordered.map(_.id), List("AtLeastOne", "SentPositive"))
+    val idea = ok(d.decide(Decide.Accept(List(IdeaDecision.Id), "it says what the system is for")))
+    assertEquals(idea.accept(sentPositive, "what is sent is positive"), Left("accept AtLeastOne first: what rests on it is decided after it"))
+    val root = ok(idea.accept(atLeastOne, "the purpose, as stated"))
+    assertEquals(ok(root.accept(sentPositive, "what is sent is positive")).notAccepted, Nil)
+  }
