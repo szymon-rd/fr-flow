@@ -22,9 +22,9 @@ class LowerSuite extends munit.FunSuite:
       |        throwThe String "no")
       |      (fun e => do
       |        pure n)
-      |    let ys ← [1, 2].mapM fun y => do
+      |    let ys ← ([1, 2] : (List Int)).mapM fun y => do
       |      pure (y + r)
-      |    ys.foldlM (init := 0) fun acc z => do
+      |    ys.foldlM (init := (0 : Int)) fun acc z => do
       |      pure (acc + z)""".stripMargin
     assert(module("Domain.Def_careful").contains(expected), module("Domain.Def_careful"))
   }

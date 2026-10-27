@@ -29,12 +29,21 @@ final class LeanTerm(env: LowerEnv, standing: Map[SymbolName, LExpr] = Map.empty
   def sub(a: S[BigInt], b: S[BigInt]): S[BigInt] = infix(LOp.Sub, a, b)
   def lt(a: S[BigInt], b: S[BigInt]): S[Boolean] = infix(LOp.Lt, a, b)
   def le(a: S[BigInt], b: S[BigInt]): S[Boolean] = infix(LOp.Le, a, b)
-  def lit[A](a: A, value: Value, ty: Ty): S[A] = s => constants(value, ty).runA(s.naming).value
-  def nil[A](elem: Ty): S[List[A]] = _ => LExpr.ListLit(Nil)
-  /** `x :: xs`; onto a literal list, the literal (`[x]`). */
+  /** A constant, typed (`(2 : Int)`, `([1] : (List Int))`) unless its form says its type (a truth value, a string,
+    * a record or a case): Lean would default a numeral to `Nat`, and an empty list to nothing.
+    */
+  def lit[A](a: A, value: Value, ty: Ty): S[A] = s =>
+    val e = constants(value, ty).runA(s.naming).value
+    value match
+      case Value.Bool(_) | Value.Str(_) | Value.Unit | Value.Data(_, _) => e
+      case _                                                           => LExpr.Typed(e, LowerType(ty))
+  /** `([] : (List T))`: typed, since nothing around an empty list need say what it holds (`([]).length`). */
+  def nil[A](elem: Ty): S[List[A]] = _ => LExpr.Typed(LExpr.ListLit(Nil), LowerType(Ty.ListOf(elem)))
+  /** `x :: xs`; onto a literal list, the literal (`[x]`), the element saying what it holds. */
   def cons[A](x: S[A], xs: S[List[A]]): S[List[A]] = s => xs(s) match
-    case LExpr.ListLit(es) => LExpr.ListLit(x(s) :: es)
-    case other             => Paren(Infix(LOp.Cons, x(s), other))
+    case LExpr.ListLit(es)                   => LExpr.ListLit(x(s) :: es)
+    case LExpr.Typed(LExpr.ListLit(Nil), _) => LExpr.ListLit(List(x(s)))
+    case other                               => Paren(Infix(LOp.Cons, x(s), other))
   def append[A](xs: S[List[A]], ys: S[List[A]]): S[List[A]] = infix(LOp.Append, xs, ys)
   def length[A](xs: S[List[A]]): S[BigInt] = s => LExpr.Typed(LExpr.Dot(Paren(xs(s)), "length"), name("Int"))
   def all[A](xs: S[List[A]], x: Bound[A])(p: S[A] => S[Boolean]): S[Boolean] = member(xs, x, p)(LExpr.Forall(_, _))
@@ -55,12 +64,16 @@ final class LeanTerm(env: LowerEnv, standing: Map[SymbolName, LExpr] = Map.empty
     val fn = LExpr.Fun(List(typed(a, acc.ty), typed(y, x.ty)), f(variable(a), variable(y))(body))
     call(const("List.foldl"), List(Paren(fn), z(s), xs(s)))
   def some[A](a: S[A]): S[Option[A]] = s => call(name("some"), List(a(s)))
-  def none[A](elem: Ty): S[Option[A]] = _ => name("none")
+  /** `(none : (Option T))`, typed as the empty list is. */
+  def none[A](elem: Ty): S[Option[A]] = _ => LExpr.Typed(name("none"), LowerType(Ty.OptionOf(elem)))
   def foldOption[A, R](o: S[Option[A]], ifNone: S[R], x: Bound[A])(ifSome: S[A] => S[R]): S[R] = s =>
     val (n, body) = bound(x, s, ifSome)
     Paren(LExpr.Match(o(s), List(name("none") -> ifNone(s), LExpr.App(name("some"), List(LExpr.Name(n))) -> body)))
-  def left[E, A](e: S[E], ty: Ty): S[Either[E, A]] = s => call(const("Except.error"), List(e(s)))
-  def right[E, A](a: S[A], ty: Ty): S[Either[E, A]] = s => call(const("Except.ok"), List(a(s)))
+  /** `(Except.error e : (Except E A))`: typed by the whole, which one side alone does not say. */
+  def left[E, A](e: S[E], ty: Ty): S[Either[E, A]] =
+    s => LExpr.Typed(LExpr.App(const("Except.error"), List(e(s))), LowerType(ty))
+  def right[E, A](a: S[A], ty: Ty): S[Either[E, A]] =
+    s => LExpr.Typed(LExpr.App(const("Except.ok"), List(a(s))), LowerType(ty))
   def foldEither[E, A, R](v: S[Either[E, A]], e: Bound[E], a: Bound[A])(l: S[E] => S[R], r: S[A] => S[R]): S[R] = s =>
     val ((x, onLeft), (y, onRight)) = (bound(e, s, l), bound(a, s, r))
     Paren(LExpr.Match(v(s), List(LExpr.App(const("Except.error"), List(LExpr.Name(x))) -> onLeft,

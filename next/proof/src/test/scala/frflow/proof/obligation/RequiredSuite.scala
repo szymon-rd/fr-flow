@@ -81,9 +81,9 @@ class RequiredSuite extends munit.FunSuite:
     val expected = """@[frflow_defs] def commute_0 : Prop :=
       |  ∀ (n : Int) (w : World), FrFlow.runOn ((do
       |        let a ← pure n
-      |        let c ← pure (n + 1)
+      |        let c ← pure (n + (1 : Int))
       |        pure (a, c)) : StateM World (Int × Int)) w = FrFlow.runOn ((do
-      |        let c ← pure (n + 1)
+      |        let c ← pure (n + (1 : Int))
       |        let a ← pure n
       |        pure (a, c)) : StateM World (Int × Int)) w""".stripMargin
     assert(spec.exists(_.contains(expected)), spec.getOrElse("no module"))

@@ -61,18 +61,21 @@ final class MoreTerms(seed: Long):
   private def runs(d: Int, k: Int): Tm[Boolean] =
     val (n, post) = (inner.num(d, k), inner.bool(d, k + 1))
     [T[_]] => (s: Sym[T], c: frflow.core.expr.Scope[T]) =>
-      s.forall(Bound[World]("before", Ty.World))(w => s.runs(program(s, n(s, c)), w, Bound[BigInt]("result", Lang.big),
-        Bound[World]("after", Ty.World))((res, after) =>
-        s.and(post(s, c.bind(res)), s.eq(s.part[BigInt](after, stored, Lang.big), s.part[BigInt](w, stored, Lang.big)))))
+      s.forall(Bound[World]("before", Ty.World))(w => s.runs(program(s, n(s, c), "run"), w,
+        Bound[BigInt]("result", Lang.big), Bound[World]("after", Ty.World))((res, after) =>
+        s.and(post(s, c.bind(res)),
+          s.eq(s.part[BigInt](after, stored, Lang.big), s.part[BigInt](w, stored, Lang.big)))))
 
   private def fails(d: Int, k: Int): Tm[Boolean] =
     val (n, post) = (inner.num(d, k), inner.bool(d, k))
     [T[_]] => (s: Sym[T], c: frflow.core.expr.Scope[T]) =>
-      s.forall(Bound[World]("before", Ty.World))(w => s.fails(program(s, n(s, c)), w, Bound[String]("error", Ty.Str),
+      s.forall(Bound[World]("before", Ty.World))(w => s.fails(program(s, n(s, c), "attempt"), w,
+        Bound[String]("error", Ty.Str),
         Bound[World]("after", Ty.World))((_, _) => post(s, c)))
 
-  private def program[T[_]](s: Sym[T], n: T[BigInt]): T[Program[BigInt]] =
-    s.app(s.param[BigInt => Program[BigInt]](SymbolName("run"), runTy), n)
+  /** `run`, a program that never fails; `attempt`, one that may (Lean's `Except String Int × World`). */
+  private def program[T[_]](s: Sym[T], n: T[BigInt], name: String): T[Program[BigInt]] =
+    s.app(s.param[BigInt => Program[BigInt]](SymbolName(name), runTy), n)
 
 object MoreTerms:
   val eventName: TypeName = TypeName("Event")
