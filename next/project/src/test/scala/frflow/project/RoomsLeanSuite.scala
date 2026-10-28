@@ -1,6 +1,7 @@
 package frflow.project
 
 import cats.effect.{IO, Resource}
+import cats.syntax.all.*
 import frflow.core.name.{NodeId, RelPath}
 import frflow.core.spec.NodeKind
 import frflow.decision.ledger.Ledger
@@ -16,8 +17,8 @@ import frflow.testing.report.Outcome
 import java.nio.file.{Files, Path}
 import scala.concurrent.duration.*
 
-/** Rooms end to end (`sbt Lean/test`): its Lean written to a project on disk, with the developer's proof of
-  * `grantWhenFree`'s step (`resources/rooms`), and checked by Lean's `lake`; its calendar's Scala tested with today's
+/** Rooms end to end (`sbt Lean/test`): its Lean written to a project on disk, with the developer's proofs
+  * (`resources/rooms/proofs`), and checked by Lean's `lake`; its calendar's Scala tested with today's
   * settings (1,000 cases from seed 1), and the booking table kept in memory against the table's model (200 runs, an
   * outside system's); each node's standing compared with today's (`reference/rooms/standings.tsv`): what it stands
   * on (proven, tested, assumed), its check's status and its cases. Where they differ, the difference is listed below
@@ -45,19 +46,16 @@ class RoomsLeanSuite extends munit.CatsEffectSuite:
 
   /** Where rooms now stands apart from today, each for a reason the design gives. */
   private val differences: Map[String, List[String]] = Map(
-    // Today's proofs of the code's steps are authored (lean/Proofs); rooms' are ported with the Lean spike's in
-    // step 11 (`book`'s impl for both roots, cover_book, made_inRoom): open until then, root_impl with them.
-    "AnswerWhenFree" -> List("claim", "open", "open", ""),
-    "BookWhenFree" -> List("claim", "open", "open", ""),
-    "NeverOverlap" -> List("claim", "open", "open", ""),
-    "RoomBookingsApart" -> List("claim", "open", "open", ""),
+    // The programs changing a store are derived (owner §31): today's assumption saying who writes the table is gone.
+    "OnlyBookingWrites" -> Nil,
     // An assumption about the outside (a store behaving as its model) has no Lean check of its own; its 200 runs
     // against the model are as today's.
     "TableMatchesModel" -> List("assumption", "assumed", "", "200"))
 
-  private def proof: String =
-    scala.io.Source.fromResource("rooms/grantWhenFree.lean", getClass.getClassLoader)(using scala.io.Codec.UTF8)
-      .mkString
+  /** The developer's proofs (`resources/rooms/proofs`): the code's steps, the calendar's, what the table keeps. */
+  private def proofs: List[(String, String)] = List("Lemmas", "storeWhenFree", "answerWhenFree", "grantWhenFree",
+    "neverOverlap", "roomBookingsApart").map(n => n -> scala.io.Source.fromResource(s"rooms/proofs/$n.lean",
+      getClass.getClassLoader)(using scala.io.Codec.UTF8).mkString)
 
   /** A directory for the project, deleted with everything in it once the test is done. */
   private val directory: Resource[IO, Path] = Resource.make(IO.blocking(Files.createTempDirectory("frflow-rooms")))(
@@ -81,7 +79,8 @@ class RoomsLeanSuite extends munit.CatsEffectSuite:
         git     <- MemoryGit[IO]
         keys    <- MemoryKeys[IO]
         ports    = Ports(files, ledger, git, keys)
-        _       <- files.writeIfChanged(RelPath.fromIdentifiers("lean", "Proofs/Rooms/grantWhenFree.lean"), proof)
+        _       <- proofs.traverse_((n, text) =>
+                     files.writeIfChanged(RelPath.fromIdentifiers("lean", s"Proofs/Rooms/$n.lean"), text))
         a       <- Analyse(ports, run, project)(e, examples)
         (_, c)  <- CheckProgram(files, lake, library.path, run)(a, None)
         (_, t)  <- TestProgram[IO](files, run, models)(c, None)
@@ -89,7 +88,7 @@ class RoomsLeanSuite extends munit.CatsEffectSuite:
         (r, _)  <- CheckProgram(files, lake, library.path, run)(again, None)
       yield
         val now = t.decided.theory.nodes.map(_.node.id).map(id => id.value.capitalize -> row(t, id)).toMap
-        val compared = reference.keys.toList.sorted.filter(k => now.get(k) != reference.get(k))
+        val compared = (reference.keys ++ now.keys).toList.distinct.sorted.filter(k => now.get(k) != reference.get(k))
           .map(k => k -> now.getOrElse(k, Nil))
         val table = now.toList.sortBy(_._1).map((k, v) => (k :: v).mkString("\t")).mkString("\n")
         assertEquals(compared.toMap, differences, s"rooms now:\n$table")

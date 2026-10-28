@@ -19,10 +19,11 @@ import frflow.proof.terms.{Commutation, Keeping, Making}
   * as a whole (consistency, vacuity, the examples) is `Joint`'s.
   */
 object Required:
+  /** Each proven by FrFlow's automation, or by the theorem of its name in the node's proof file (`authored`). */
   def of(r: Resolved, authored: Set[(NodeId, ObligationName)], n: NodeId): List[Obligation] =
-    def how(o: ObligationName) = if authored((n, o)) then Discharge.Authored else Discharge.Auto
-    complete(r, n).map(Obligation(ObligationName.Complete, _, how(ObligationName.Complete), completes(r, n))).toList ++
-      feasible(r, authored, n) ++ impl(r, n) ++ commutes(r, n) ++ keeps(r, n) ++ made(r, n)
+    (complete(r, n).map(Obligation(ObligationName.Complete, _, Discharge.Auto, completes(r, n))).toList ++
+      feasible(r, authored, n) ++ impl(r, n) ++ commutes(r, n) ++ keeps(r, n) ++ made(r, n)).map(o =>
+      if authored((n, o.name)) then o.copy(discharge = Discharge.Authored) else o)
 
   /** `∀ U, C1 → … → Cn → N`, of a node not checked against proven code. */
   def complete(r: Resolved, n: NodeId): Option[Prop] =
