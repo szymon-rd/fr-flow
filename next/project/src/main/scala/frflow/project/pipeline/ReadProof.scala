@@ -1,6 +1,7 @@
 package frflow.project.pipeline
 
-import frflow.core.analysis.Scope
+import frflow.core.analysis.{Constrained, Scope}
+import frflow.core.graph.Walk
 import frflow.core.checking.Checking
 import frflow.core.name.NodeId
 import frflow.core.spec.{Node, NodeKind}
@@ -46,7 +47,7 @@ object ReadProof:
     val t = a.decided.theory
     val checked = Checking.of(t, n.id).exists {
       case Checking.FromParts(_) | Checking.AgainstCode(_, _) | Checking.TestedAgainst(_, _) | Checking.KeptBy(_) |
-          Checking.WhereMade(_, _, _) => true
+          Checking.WhereMade(_, _, _) | Checking.SaysWhatIs(_, _) => true
       case _ => false
     }
     val leaf = n.statement.kind == NodeKind.Claim && t.refinement.parts(n.id).isEmpty && !checked
@@ -58,14 +59,19 @@ object ReadProof:
       Unproven.Kept(id)).toList
 
   /** At the bottom, the group it shares open values with not proven to hold together; of what always holds of a
-    * store, the states it starts in not proven to meet it (`start_<node>`): either is its consistency not proven.
+    * store, the states it starts in not proven to meet it (`start_<node>`); proven from parts, a statement below it
+    * about a Declaration in a group not proven (owner §28: its step takes what the Declarations are as hypotheses,
+    * and only their group shows they can hold together). Each is its consistency not proven, and the proof is red.
     * Vacuity is warned of, not gated on.
     */
   private def consistent(a: Analysis, id: NodeId): List[Unproven] =
+    val t = a.decided.theory
     val proven = a.wholeCheck.toList.flatMap(_.results).collect { case Result(n, Proven, _) => n }.toSet
     val start = a.whole.exists(_.name == Start(id)) && !proven(Start(id))
-    val group = a.groups.exists((i, ids) => ids.contains(id) && !proven(Consistent(i)))
-    Option.when(group || start)(Unproven.Consistency).toList
+    val open = a.groups.filterNot((i, _) => proven(Consistent(i))).flatMap(_._2).toSet
+    val below = Walk.breadthFirst(t.refinement.parts(id), identity)(t.refinement.parts).filter(n =>
+      open(n) && Constrained.of(t, n).exists(Constrained.isDeclaration(t, _)))
+    Option.when(open(id) || start || below.nonEmpty)(Unproven.Consistency).toList
 
   /** Its plain code, or a store's implementations, tested: a current report with no failing case, every case asked
     * tried, every part reached (none since it moved: not tested yet). A statement with no Scala value is not checked

@@ -1,6 +1,6 @@
 package frflow.core.consistency
 
-import frflow.core.analysis.{Constrained, Scope}
+import frflow.core.analysis.{Callees, Constrained, Scope}
 import frflow.core.analysis.Outsides
 import frflow.core.code.Code
 import frflow.core.expr.{Expr, Exprs, OutsideFact}
@@ -17,8 +17,9 @@ import frflow.core.Theory
 object Consistency:
   def of(t: Theory): List[Group] = sharing(t) ++ starts(t)
 
+  /** `inhabited_` of every `always[T]`, claimed or assumed, and `satisfiable_` of every claim's condition. */
   def vacuity(t: Theory): List[Vacuity] = t.nodes.map(_.node).flatMap(n => n.statement.range.toList.flatMap {
-    case Range.Made(ty) if n.statement.kind == NodeKind.Claim => List(Vacuity.Inhabited(n.id, ty))
+    case Range.Made(ty)                                       => List(Vacuity.Inhabited(n.id, ty))
     case Range.Possible if n.statement.kind == NodeKind.Claim =>
       n.statement.said.toList.flatMap(f => Conditions.of(f.term, ToExpr).zipWithIndex.map((c, i) =>
         Vacuity.Satisfiable(n.id, i, c.over.map(_.ty))))
@@ -34,10 +35,18 @@ object Consistency:
   }
 
   /** What a statement leaves open: the Declarations it mentions, and the Definitions no proof or fixed value gives
-    * a meaning (plain Scala, tested; or none).
+    * a meaning (plain Scala, tested; or none), its own and those the proven code standing in it leaves open
+    * (`bookedAfterIsStored` mentions `book`, whose program calls `granted`).
     */
-  def open(t: Theory, id: NodeId): List[SymbolName] = Constrained.of(t, id).filter(s =>
-    Constrained.isDeclaration(t, s) || t.code.attached.get(s).forall(a => a.code.proven.isEmpty && !fixed(a.code)))
+  def open(t: Theory, id: NodeId): List[SymbolName] =
+    (Constrained.of(t, id) ++ Callees.of(t, id).toList.flatMap(_.calls.symbols)).distinct.filter(isOpen(t, _))
+
+  /** What a proven Definition's code leaves open; nothing of any other. */
+  def reach(t: Theory, s: SymbolName): List[SymbolName] =
+    Callees.ofDefinition(t, s).toList.flatMap(_.calls.symbols).filter(isOpen(t, _))
+
+  private def isOpen(t: Theory, s: SymbolName): Boolean = t.vocabulary.symbol(s).nonEmpty &&
+    (Constrained.isDeclaration(t, s) || t.code.attached.get(s).forall(a => a.code.proven.isEmpty && !fixed(a.code)))
 
   /** What a statement takes for every value code is given: the Definitions provided where the code runs. */
   def provided(t: Theory, id: NodeId): List[SymbolName] =
@@ -66,7 +75,7 @@ object Consistency:
   private def witnesses(t: Theory, ids: List[NodeId], opens: List[SymbolName]): List[Witness] =
     def solve(left: List[SymbolName], solved: List[Witness]): List[Witness] =
       left.iterator.flatMap(s => ids.iterator.flatMap(id => t.node(id).flatMap(_.statement.said)
-        .flatMap(f => Equations.defining(id, f.value, s, left)))).nextOption() match
+        .flatMap(f => Equations(left, reach(t, _)).defining(id, f.value, s)))).nextOption() match
         case Some(w) => solve(left.filterNot(_ == w.meaningOf), solved :+ w)
         case None    => solved ++ left.map(s => if tested(t, s) then Witness.Tested(s) else Witness.Missing(s))
     solve(opens, Nil)
@@ -74,11 +83,11 @@ object Consistency:
   private def tested(t: Theory, s: SymbolName): Boolean =
     t.code.attached.get(s).exists(_.code.scala.nonEmpty)
 
-  /** Each `always` about a store's state (of the state, or of the values it holds), with the assumption saying what
-    * the state the store starts in meets.
+  /** Each `always` about a store's state (of the state, or of the values it holds), claimed or assumed, with the
+    * assumption saying what the state the store starts in meets.
     */
   private def starts(t: Theory): List[Group] = t.nodes.map(_.node).flatMap(n =>
-    n.statement.range.filter(_ => n.statement.kind == NodeKind.Claim).toList.flatMap(r =>
+    n.statement.range.filter(_ => n.statement.rule).toList.flatMap(r =>
       Scope.models(t, r).map(m => Group.Start(n.id, Outsides.all(t).collectFirst {
         case (id, OutsideFact.Initially(s, _)) if s == m.name => id
       }))))

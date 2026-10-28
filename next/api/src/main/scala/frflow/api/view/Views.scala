@@ -3,7 +3,7 @@ package frflow.api.view
 import cats.syntax.all.*
 import frflow.api.node.lean.ObligationState
 import frflow.api.node.{CodeView, NodeView, Relation}
-import frflow.api.view.whole.WholeView
+import frflow.api.view.whole.{GroupStatus, WholeView}
 import frflow.core.name.NodeId
 import frflow.decision.review.ReviewState
 
@@ -12,19 +12,25 @@ import frflow.decision.review.ReviewState
   */
 object Views:
   /** The counts by concept; complete when there are nodes, none is gone from the model, each is accepted with nothing
-    * of it unproven (its check, its parts, its code, its tests, its consistency), and each store's starting state is
-    * proven to meet what always holds of it.
+    * of it unproven (its check, its parts, its code, its tests, its consistency), each store's starting state is
+    * proven to meet what always holds of it, and every consistency group is proven (owner §28: tested Scala alone is
+    * evidence, not proof).
     */
   def overview(nodes: List[NodeView], whole: WholeView, gone: List[NodeId]): Overview = Overview(
     nodes.foldMap(n => Tally.one(n.review.standing.state)), nodes.foldMap(n => Tally.one(n.proof.state)),
     nodes.foldMap(_.code.foldMap(pieces)), whole.groups.foldMap(g => Tally.one(g.status)),
     whole.examples.foldMap(e => Tally.one(e.passes)),
     nodes.nonEmpty && gone.isEmpty && whole.starts.forall(_.check.state == ObligationState.Proven) &&
+      whole.groups.forall(_.status == GroupStatus.Proven) &&
       nodes.forall(n => n.review.standing.state == ReviewState.Accepted && n.proof.unproven.isEmpty))
 
   private def pieces(c: CodeView): Tally[Piece] =
     c.shown.proven.foldMap(_ => Tally.one(Piece.Proven)) |+| c.shown.tested.foldMap(_ => Tally.one(Piece.Tested)) |+|
       c.shown.assumed.foldMap(_ => Tally.one(Piece.Assumed))
+
+  /** What sits below a node in the tree: its parts, then the rules placed below it. */
+  def under(n: NodeView): List[NodeId] =
+    n.place(Relation.Part) ++ n.place(Relation.Rule) ++ n.place(Relation.UnusedRule)
 
   /** Under each parent of `id`, the other parts that with it make the parent. */
   def beside(v: View, id: NodeId): List[(NodeId, List[NodeId])] =
@@ -40,7 +46,7 @@ object Views:
     val ids = drawn.toSet
     def firstParent(n: NodeId) = v.node(n).flatMap(_.place(Relation.Parent).find(ids))
     def draw(depth: Int, path: Set[NodeId])(n: NodeId): List[(Int, NodeId)] =
-      val children = v.node(n).toList.flatMap(_.place(Relation.Part))
+      val children = v.node(n).toList.flatMap(under)
         .filter(c => ids(c) && firstParent(c).contains(n) && !path(c))
       (depth, n) :: children.flatMap(draw(depth + 1, path + n))
     val top = if from.isDefined then drawn.take(1)
@@ -52,7 +58,7 @@ object Views:
     def go(todo: List[NodeId], seen: List[NodeId]): List[NodeId] = todo match
       case Nil                           => seen.reverse
       case n :: rest if seen.contains(n) => go(rest, seen)
-      case n :: rest                     => go(v.node(n).toList.flatMap(_.place(Relation.Part)) ++ rest, n :: seen)
+      case n :: rest                     => go(v.node(n).toList.flatMap(under) ++ rest, n :: seen)
     v.node(id).fold(Nil)(_ => go(List(id), Nil))
 
   /** What waits for the developer, in the order decisions are taken: each node proposed or under review whose parents

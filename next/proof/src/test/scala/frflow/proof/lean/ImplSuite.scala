@@ -3,7 +3,7 @@ package frflow.proof.lean
 import frflow.core.analysis.{Resolve, Validate}
 import frflow.core.code.{Attachment, Code, CodeTable}
 import frflow.core.{Elaborated, Sited, Theory}
-import frflow.core.expr.Expr
+import frflow.core.expr.{Expr, OutsideFact}
 import frflow.core.graph.Edge
 import frflow.core.name.*
 import frflow.core.spec.{Node, Reliance, Statement, Written}
@@ -23,6 +23,9 @@ class ImplSuite extends munit.FunSuite:
   private val here = Span(RelPath.parse("Crm.scala").toOption.get, 0)
   private def sited(id: NodeId, s: Statement) = Sited(Node(id, s"${id.value} holds.", s), here)
   private val holds = [T[_]] => (s: Sym[T]) => s.bool(true)
+  /** The database behaves as its model: what the program calls is said (owner §30). */
+  private val kept = [T[_]] => (s: Sym[T]) =>
+    s.outside(OutsideFact.BehavesAs(BoundaryName("database"), ModelName("tables")))
   private val (runExpiry, expire) = (SymbolName("runExpiry"), SymbolName("expire"))
   private val (runType, expireType) = (Ty.FnOf(List(big), Ty.FlowOf(store, None)), Ty.FnOf(List(store, big), store))
   /** A formula mentioning `op` (all `impl` reads of it: the Definition it constrains). */
@@ -37,7 +40,8 @@ class ImplSuite extends munit.FunSuite:
       List(Define(DefName("expireOnce"), ExpiryIr.expireOnce, DefineForm.Flow),
       Define(DefName("expireOnce_run"), ExpiryIr.expireOnce, DefineForm.RunOf(DefName("expireOnce")))), Nil, Nil),
     List(sited(root, claimed(Written.formula(holds, SourceText("…")))),
-      sited(job, claimed(about(runExpiry, runType))), sited(shares, claimed(about(expire, expireType)))),
+      sited(job, claimed(about(runExpiry, runType))), sited(shares, claimed(about(expire, expireType))),
+      sited(NodeId("DatabaseKept"), Statement.Assumption(Written.formula(kept, SourceText("…"))))),
     List(Edge.PartOf(job, root), Edge.PartOf(shares, root)),
     CodeTable(Map(runExpiry -> Attachment(Code.ProvenFlow(DefName("expireOnce")), here.file),
       expire -> Attachment(Code.Provided, here.file)), Map.empty)) // `expire`'s meaning is not this test's

@@ -26,4 +26,4 @@ object LibraryStore:
 
   val oneTransactionAtATime = Node.assumption("Each request, each run of housekeeping and each notice's removal from " +
       "the outbox is one transaction on the store: no step of another comes between two of its steps.")(
-    libraryModel.changedOneRunAtATime)
+    store.atomic)

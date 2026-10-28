@@ -22,9 +22,9 @@ object Node:
     Nodes.claim(Head.make(Source.valName, statement, Source.file, Source.offset), () => formula(using Stating.writing),
       Source.of(Node.writing(formula)))
 
-  /** The same form, trusted: the world outside (`store.behavesAs(stored)`, `stored.initially(held => held === Nil)`,
-    * `stored.writtenOnlyBy(book)`, `stored.changedOneRunAtATime`), what values from outside always meet
-    * (`always[Request](r => …)`), or an outside system's promise.
+  /** The same form, trusted: the world outside (`store.behavesAs(stored)`: the store does what its model does, and
+    * nothing outside the code changes it; `stored.initially(held => held === Nil)`; `store.atomic`), what values from
+    * outside always meet (`always[Booking](b => …)`), or an outside system's promise.
     */
   inline def assumption(statement: String)(inline formula: Stating ?=> Term[Boolean]): Node =
     Nodes.assumption(Head.make(Source.valName, statement, Source.file, Source.offset),

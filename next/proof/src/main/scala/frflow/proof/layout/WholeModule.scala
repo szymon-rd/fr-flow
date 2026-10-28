@@ -34,7 +34,7 @@ object WholeModule:
     of(Lowering(r, table), obligations)
 
   def of(l: Lowering, obligations: List[Obligation]): LeanModule =
-    Imports.onto(l, WholeModule(l.props, LowerWitness(l.env, l.naming)).of(l.kb, Nil, obligations))
+    Imports.onto(l, WholeModule(l.props, LowerWitness(l.env, l.naming, l.props)).of(l.kb, Nil, obligations))
 
   /** `Whole/Checks.lean`: each example tried against the claims within its budget, by FrFlow's automation. */
   def checks(l: Lowering, obligations: List[Obligation]): Option[LeanModule] =

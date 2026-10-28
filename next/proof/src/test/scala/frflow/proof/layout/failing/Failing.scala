@@ -76,7 +76,7 @@ object Failing:
       l.s.fails(run[T, Booking](l, "check", Booking.ty, x), w, Bound[String]("error", Ty.Str), after)((_, a) =>
         l.s.unchanged(a, w))))))
 
-  private val facts = storeFacts(sig.name, shelf, List("file", "spoil", "fileTwice"))
+  private val facts = storeFacts(sig.name, shelf)
   private val runClaims = List(claim("fileRuns")(fileRuns), claim("fileWrong")(fileWrong),
     claim("checkRuns")(checkRuns),
     claim("spoilRuns")(runs[Booking, Unit]("spoil", Booking.ty, Ty.Unit)),

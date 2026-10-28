@@ -3,6 +3,7 @@ package frflow.api
 import cats.syntax.all.*
 import frflow.api.Opened.id
 import frflow.api.view.Found
+import frflow.api.view.whole.GroupStatus
 import frflow.core.name.RelPath
 import frflow.decision.review.Unproven
 
@@ -24,6 +25,22 @@ class ReportsSuite extends munit.CatsEffectSuite:
       // A leaf nothing below proves is not; nor is a project whose nodes are not accepted yet.
       assert(!leaf.overview.complete)
       assert(!fresh.overview.complete)
+  }
+
+  test("consistency gates the proof (owner §28): a group with no witness, or with tested Scala only, is not complete") {
+    for
+      none     <- Opened.api(Opened.project(Shelf.Unwitnessed.kb))
+      _        <- Opened.acceptAll(none)
+      nothing  <- none.reading.view
+      tested   <- Opened.api(Opened.before)
+      _        <- Opened.acceptAll(tested)
+      evidence <- tested.reading.view
+    yield
+      assertEquals(nothing.whole.groups.map(_.status), List(GroupStatus.NotProven))
+      assert(!nothing.overview.complete)
+      assert(nothing.nodes.forall(_.proof.unproven.contains(Unproven.Consistency)))
+      assert(evidence.whole.groups.exists(_.status.isInstanceOf[GroupStatus.Evidence]), evidence.whole.groups)
+      assert(!evidence.overview.complete)
   }
 
   test("a leaf its code is tested against is not one nothing below proves") {

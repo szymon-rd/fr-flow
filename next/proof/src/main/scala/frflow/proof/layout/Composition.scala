@@ -1,6 +1,6 @@
 package frflow.proof.layout
 
-import frflow.core.analysis.Callees
+import frflow.core.analysis.SaysWhat
 import frflow.core.name.{NodeId, SymbolName}
 import frflow.proof.lean.ast.*
 import frflow.proof.obligation.{Hyp, Prop, Required, Substitute}
@@ -15,7 +15,8 @@ final class Composition(l: Lowering):
   private val t = l.resolved.theory
   private def parts(n: NodeId): List[NodeId] = t.refinement.parts(n)
 
-  def coded(n: NodeId): Boolean = Callees.of(t, n).nonEmpty
+  /** Checked against proven code (`impl`); a claim saying what a Declaration is is not: its code only stands in it. */
+  def coded(n: NodeId): Boolean = SaysWhat.checkedAgainst(t, n).nonEmpty
   /** A node with a `holds`: parts, and no proven code (whose `impl` stands in its place). */
   def composed(n: NodeId): Boolean = !coded(n) && parts(n).nonEmpty
 

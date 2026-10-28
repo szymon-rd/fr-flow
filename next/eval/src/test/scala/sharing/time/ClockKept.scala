@@ -17,4 +17,4 @@ object ClockKept:
     clock.behavesAs(clockModel))
 
   val clockAlone = Node.assumption("Nothing but a program's own sleeps moves the clock while it runs.")(
-    clockModel.changedOneRunAtATime)
+    clock.atomic)

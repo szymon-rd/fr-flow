@@ -5,7 +5,8 @@ import frflow.core.analysis.Premise
 import frflow.core.checking.Checking
 import frflow.core.code.Code
 import frflow.core.consistency.Standing
-import frflow.core.name.{DefName, ModelName, NodeId, OpName, SymbolName, TypeName}
+import frflow.core.expr.OutsideFact
+import frflow.core.name.{BoundaryName, DefName, ModelName, NodeId, OpName, SymbolName, TypeName}
 import frflow.core.ty.Ty
 import rooms.{Booking, Calendar, RoomBookings, free, granted}
 
@@ -18,49 +19,69 @@ class CheckingSuite extends munit.FunSuite:
   private def checking(n: String): List[Checking] = Checking.of(t, NodeId(n))
   private val (book, held) = (SymbolName("book"), ModelName("storedBookings"))
 
-  test("the root: proven of book's program, assumed by its callers, resting on the table's model, one run at a " +
-    "time, and on what the booking form sends") {
+  private val (table, booking) = (BoundaryName("bookingTable"), Ty.Data(TypeName("Booking")))
+  private val fromOutside = Checking.RestsOn(Premise.FromOutside(booking), Some(NodeId("bookingsEndAfterStart")))
+  private val modelled = Checking.RestsOn(Premise.BehavesAs(held), Some(NodeId("tableMatchesModel")))
+  private val atomic = Checking.RestsOn(Premise.Atomic(table), Some(NodeId("oneAtATime")))
+  /** The rule an assumption of `always` gives: listed, and taken, by every statement whose check rests on it. */
+  private val rule = Checking.Rules(List(NodeId("bookingsEndAfterStart") -> true))
+
+  test("a root over Declarations: proven from its parts, its rule beside them, resting on what bookings meet") {
     assertEquals(checking("bookWhenFree"), List(
-      Checking.AgainstCode(book, Code.ProvenFlow(DefName("bookIfGranted"))),
-      Checking.AssumedByCallers(List(book)),
-      Checking.RestsOn(Premise.BehavesAs(held), Some(NodeId("tableMatchesModel"))),
-      Checking.RestsOn(Premise.OneRunAtATime(held), Some(NodeId("oneAtATime"))),
-      Checking.RestsOn(Premise.FromOutside(Ty.Data(TypeName("Request"))), Some(NodeId("requestsEndAfterStart")))))
+      Checking.FromParts(List("bookedIsStored", "bookedAfterIsStored", "storeWhenFree").map(NodeId(_))),
+      Checking.Rules(List(NodeId("neverOverlap") -> true, NodeId("bookingsEndAfterStart") -> true)),
+      fromOutside))
   }
 
-  test("the calendar's claim: tested against granted's Scala, call by call, consistent by its witness") {
+  test("what a Declaration is: book's program stands in it, nothing is proven of it, it rests on nothing") {
+    assertEquals(checking("bookedAfterIsStored"), List(
+      Checking.SaysWhatIs(List(SymbolName("bookedAfter")), List(book -> Code.ProvenFlow(DefName("bookIfGranted")))),
+      Checking.Consistent(List("bookedAfterIsStored", "acceptedIsAnswered", "grantWhenNoOverlap").map(NodeId(_)),
+        Standing.Witnessed)))
+    assertEquals(checking("bookedIsStored"), List(Checking.SaysWhatIs(List(SymbolName("booked")), Nil),
+      Checking.Consistent(List(NodeId("bookedIsStored")), Standing.Witnessed)))
+  }
+
+  test("what booking stores: proven of book's program, resting on the table's model, atomic runs, the form") {
+    assertEquals(checking("storeWhenFree"), List(
+      Checking.AgainstCode(book, Code.ProvenFlow(DefName("bookIfGranted"))),
+      Checking.AssumedByCallers(List(book)), rule, modelled, atomic, fromOutside))
+  }
+
+  test("the calendar's claim: tested against granted's Scala, call by call, consistent with what reads it") {
     assertEquals(checking("grantWhenNoOverlap"), List(
       Checking.TestedAgainst(SymbolName("granted"), whole = false),
-      Checking.AssumedByCallers(List(SymbolName("granted"))),
-      Checking.Consistent(List(NodeId("grantWhenNoOverlap")), Standing.Witnessed)))
+      Checking.AssumedByCallers(List(SymbolName("granted"))), rule, fromOutside,
+      Checking.Consistent(List("bookedAfterIsStored", "acceptedIsAnswered", "grantWhenNoOverlap").map(NodeId(_)),
+        Standing.Witnessed)))
   }
 
-  test("what always holds: kept by every run of book, from the start, resting on the four facts about the table") {
+  test("what always holds: kept by every run of book, from the start, resting on the three facts about the table") {
     assertEquals(checking("neverOverlap").take(5), List(
-      Checking.KeptBy(List(book)),
-      Checking.RestsOn(Premise.BehavesAs(held), Some(NodeId("tableMatchesModel"))),
-      Checking.RestsOn(Premise.OneRunAtATime(held), Some(NodeId("oneAtATime"))),
-      Checking.RestsOn(Premise.Initially(held), Some(NodeId("startsEmpty"))),
-      Checking.RestsOn(Premise.WrittenOnlyBy(held), Some(NodeId("onlyBookingWrites")))))
+      Checking.KeptBy(List(book)), rule, modelled, atomic,
+      Checking.RestsOn(Premise.Initially(held), Some(NodeId("startsEmpty")))))
   }
 
-  test("a booking ends after it starts: met where one is made, by book and by the table's inRoom") {
-    assertEquals(checking("endsAfterStart").head, Checking.WhereMade(Ty.Data(TypeName("Booking")), List(book),
+  test("a room's bookings never overlap: met where a room's bookings are made, by the table's inRoom") {
+    assertEquals(checking("roomBookingsApart").head, Checking.WhereMade(Ty.Data(TypeName("RoomBookings")), Nil,
       List(held -> OpName("inRoom"))))
   }
 
-  test("what the booking form sends is trusted: an assumption of always[Request]") {
-    assertEquals(checking("requestsEndAfterStart").head, Checking.Trusted)
+  test("what the booking form sends is trusted, and met where a booking is made: by book, by the table's inRoom") {
+    assertEquals(checking("bookingsEndAfterStart").take(2), List(Checking.Trusted,
+      Checking.WhereMade(booking, List(book), List(held -> OpName("inRoom")))))
   }
 
-  test("an assumption about the outside says so") {
-    assertEquals(checking("oneAtATime"),
-      List(Checking.Outside(frflow.core.expr.OutsideFact.OneRunAtATime(held))))
+  test("an assumption about the outside says so; the table's model lists the programs changing it, derived") {
+    assertEquals(checking("oneAtATime"), List(Checking.Outside(OutsideFact.Atomic(table))))
+    assertEquals(checking("tableMatchesModel").take(2), List(Checking.Outside(OutsideFact.BehavesAs(table, held)),
+      Checking.ChangedBy(List(book))))
   }
 
   test("a claim the calendar's Scala cannot be judged by (it quantifies over moments) is proven from its parts") {
-    assertEquals(checking("grantWhenFree").take(2), List(Checking.FromParts(List(NodeId("grantWhenNoOverlap"))),
-      Checking.NotTested(SymbolName("granted"))))
+    assertEquals(checking("grantWhenFree").take(4), List(Checking.FromParts(List(NodeId("grantWhenNoOverlap"))),
+      Checking.NotTested(SymbolName("granted")), Checking.AssumedByCallers(List(SymbolName("granted"))),
+      Checking.Rules(List("bookingsOfTheRoom", "roomBookingsApart", "bookingsEndAfterStart").map(NodeId(_) -> true))))
     assert(!Checking.unchecked(t, NodeId("grantWhenFree")))
   }
 

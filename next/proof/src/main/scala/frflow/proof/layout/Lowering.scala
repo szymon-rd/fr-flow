@@ -11,7 +11,8 @@ import frflow.proof.terms.TermTable
 
 /** How one FrModel's Lean is lowered, computed once for every module: its environment (each model's field of
   * the world is its boundary's name, each model's namespace its name capitalized), the names a binder may not take
-  * (every symbol, every domain type, `World`), what always holds, and the lowering of propositions. `canonical`
+  * (every symbol, every domain type, `World`), what always holds of what each statement is about, and the lowering of
+  * propositions. `canonical`
   * names every variable by the order it is bound (`Naming`): the lowering a node's content prints its meaning with.
   */
 final class Lowering(val resolved: Resolved, val table: TermTable, canonical: Boolean = false):
@@ -27,7 +28,8 @@ final class Lowering(val resolved: Resolved, val table: TermTable, canonical: Bo
     v.boundaries.exists(_.fails.nonEmpty), v.models.map(m => Names.ident(m.boundary.value)))
   val naming: Naming = Naming.over(v.symbols.map(_.name.value).toSet,
     (v.types.map(_.typeName.value) ++ v.sorts.map(_.name.value) :+ "World").toSet).copy(canonical = canonical)
-  val guards: List[Guard] = Guards.of(resolved.theory)
+  /** What always holds that a statement takes: on a world, the rules of the stores it reads only (owner §33). */
+  def guards(n: NodeId): List[Guard] = Guards.of(resolved.theory, n)
   val props: LowerProp = LowerProp(table, env)
 
   def node(n: NodeId): Boolean = resolved.theory.node(n).nonEmpty

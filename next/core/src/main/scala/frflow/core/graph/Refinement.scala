@@ -3,9 +3,9 @@ package frflow.core.graph
 import frflow.core.name.NodeId
 import frflow.core.spec.{Node, NodeKind}
 
-/** The DAG: a node's parents are the wholes it is a part of; its parts are the stated nodes below it, in the model's
-  * order. A premise a node assumes (`Edge.Assumes`) is beside the order, never a part. `analysis.Validate` makes it
-  * acyclic, with at least one root.
+/** The DAG: a node's parents are the wholes it is below; its parts are the stated nodes below it, in the model's
+  * order, but its rules (the statements of `always` below it). A premise a node assumes (`Edge.Assumes`) is beside
+  * the order, never a part. `analysis.Validate` makes it acyclic, with at least one root.
   */
 final class Refinement(val nodes: List[Node], val edges: List[Edge]):
   private val byId: Map[NodeId, Node] = nodes.map(n => n.id -> n).toMap
@@ -18,8 +18,15 @@ final class Refinement(val nodes: List[Node], val edges: List[Edge]):
   def parents(id: NodeId): List[NodeId] = up.getOrElse(id, Nil)
   /** Its parts and the design decisions below it, in the model's order. */
   def children(id: NodeId): List[NodeId] = down.getOrElse(id, Nil)
-  /** Its parts: the children Lean states. */
-  def parts(id: NodeId): List[NodeId] = children(id).filter(c => byId.get(c).exists(_.statement.stated))
+  /** Its parts: the children Lean states, but its rules. Its parts together, with the assumptions it lists, imply
+    * it; that step is proven (`complete`, `impl`), each part needed.
+    */
+  def parts(id: NodeId): List[NodeId] =
+    children(id).filter(c => byId.get(c).exists(n => n.statement.stated && !n.statement.rule))
+  /** Its rules: the statements of `always` placed below it (`.refines`). Each is a hypothesis Lean has of every value
+    * of its type or store already, proven by its own obligations, so it is no part of the step (2.4).
+    */
+  def rules(id: NodeId): List[NodeId] = children(id).filter(c => byId.get(c).exists(_.statement.rule))
   /** The premises `id` assumes, in the order written. */
   def assumed(id: NodeId): List[NodeId] = edges.collect { case Edge.Assumes(`id`, p) => p }
   /** The root statements: the claims without parents, on any Definitions and Declarations, a claim relating several

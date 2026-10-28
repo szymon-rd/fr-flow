@@ -12,4 +12,6 @@ final class Calendar(held: RoomBookings):
     val i = byStart.search(request)(using startOrder).insertionPoint
     val before = byStart.lift(i - 1)
     val after = byStart.lift(i)
-    (request.room != held.room) || (before.forall(_.end <= request.start) && after.forall(_.start >= request.end))
+    val endsInTime = before.forall(_.end <= request.start)
+    val startsAfter = after.forall(_.start >= request.end)
+    request.room != held.room || (endsInTime && startsAfter)

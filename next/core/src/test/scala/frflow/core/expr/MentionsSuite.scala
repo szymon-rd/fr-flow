@@ -65,8 +65,7 @@ class MentionsSuite extends munit.DisciplineSuite:
       List(m)))
     assertEquals(Exprs.mentions(Expr.Do(Prog.Bind(call, Binder(VarId.step(0), "u", Ty.Unit), Prog.Read(m)),
       Ty.FlowOf(Ty.Unit, None))), Mentions(Nil, Nil, Nil, List(b), List(m)))
-    assertEquals(Exprs.mentions(Expr.Outside(OutsideFact.WrittenOnlyBy(m, List(book)))),
-      Mentions(List(book), Nil, Nil, Nil, List(m)))
+    assertEquals(Exprs.mentions(Expr.Outside(OutsideFact.Atomic(b))), Mentions(Nil, Nil, Nil, List(b), Nil))
     assertEquals(Exprs.mentions(Expr.Outside(OutsideFact.BehavesAs(b, m))), Mentions(Nil, Nil, Nil, List(b), List(m)))
     assertEquals(Exprs.mentions(Expr.Outside(OutsideFact.Initially(m, DefName("empty")))),
       Mentions(Nil, List(DefName("empty")), Nil, Nil, List(m)))

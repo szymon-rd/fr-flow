@@ -24,9 +24,10 @@ object Texts:
   /** How the statement is checked, in words (`show` prints these beside it): read off its formula, its place and
     * what defines the Definitions it mentions (owner §15), since nothing of it is written beside the statement.
     */
-  def checking(t: Theory, id: NodeId): List[String] = Checking.of(t, id).map(said)
+  def checking(t: Theory, id: NodeId): List[String] = Checking.of(t, id).map(c => (proven orElse world(id))(c))
 
-  private def said(c: Checking): String = c match
+  /** How it is proven or tested, and where its rule is met. */
+  private val proven: PartialFunction[Checking, String] =
     case Checking.FromParts(ps)        => s"proven from its parts (${names(ps.map(_.value))})"
     case Checking.AgainstCode(d, code) => against(d.value, code)
     case Checking.TestedAgainst(d, w)  => s"tested against ${d.value}'s Scala on generated cases" +
@@ -39,13 +40,29 @@ object Texts:
       s"met where a ${typeName(ty)} is made" + (if makers.isEmpty then "" else s" (${names(makers)})") +
         s"; assumed of every ${typeName(ty)} in Lean"
     case Checking.KeptBy(ds)           => s"kept by every run of ${names(ds.map(_.value))}, from the state it starts in"
+    case Checking.Unchecked            => "not checked yet: no parts, no code"
+
+  /** What it says of a Declaration, the rules and the world it rests on, and its consistency. */
+  private def world(id: NodeId): PartialFunction[Checking, String] =
+    case Checking.SaysWhatIs(ds, code) => s"says what ${ds.map(_.value).mkString(", ")} " +
+      (if ds.size == 1 then "is" else "are") + code.map((d, c) => s": ${d.value}'s ${kind(c)} stands in it").mkString
+    case Checking.Rules(rs)            => "rules it uses: " + rs.map((r, taken) =>
+      r.value + (if taken then "" else " (not taken)")).mkString(", ")
     case Checking.RestsOn(p, by)       => s"rests on ${premise(p)}: " + by.fold("not assumed")(_.value)
-    case Checking.Consistent(g, s)     => s"consistent with ${names(g.map(_.value))}: ${standing(s)}"
+    case Checking.Consistent(g, s)     => g.filterNot(_ == id) match
+        case Nil    => s"consistent: ${standing(s)}"
+        case others => s"consistent with ${names(others.map(_.value))}: ${standing(s)}"
     case Checking.Possible(vs)         => s"not vacuous: ${vs.map(vacuity).mkString(", ")}"
     case Checking.Trusted              => "trusted"
     case Checking.Outside(f)           => outside(f)
+    case Checking.ChangedBy(ps)        => s"the programs changing it, derived: ${names(ps.map(_.value))}"
     case Checking.StoreCodeTested(n)   => s"the store's code tested against the model ($n implementations)"
-    case Checking.Unchecked            => "not checked yet: no parts, no code"
+
+  /** What proven code is: `program, bookIfGranted`, `code, free`. */
+  private def kind(code: Code): String = code match
+    case Code.ProvenFlow(c) => s"program, ${c.value},"
+    case Code.Proven(c)     => s"code, ${c.value},"
+    case _                  => "value"
 
   private def against(d: String, code: Code): String = code match
     case Code.Proven(c)     => s"proven of $d's code, ${c.value}"
@@ -56,15 +73,14 @@ object Texts:
 
   private def premise(p: Premise): String = p match
     case Premise.BehavesAs(m)     => s"the store behaving as ${m.value}"
-    case Premise.OneRunAtATime(m) => s"one run at a time on ${m.value}"
+    case Premise.Atomic(b)        => s"runs on ${b.value} being atomic"
     case Premise.Initially(m)     => s"the state ${m.value} starts in"
-    case Premise.WrittenOnlyBy(m) => s"who writes ${m.value}"
     case Premise.FromOutside(ty)  => s"what each ${typeName(ty)} from outside meets"
 
   private def outside(f: OutsideFact): String = f match
-    case OutsideFact.BehavesAs(b, m)      => s"the world outside: ${b.value} behaves as ${m.value}"
-    case OutsideFact.WrittenOnlyBy(m, ps) => s"the world outside: only ${names(ps.map(_.value))} write ${m.value}"
-    case OutsideFact.OneRunAtATime(m)     => s"the world outside: runs on ${m.value} never interleave"
+    case OutsideFact.BehavesAs(b, m)      =>
+      s"the world outside: ${b.value} does what ${m.value} does, and nothing outside the code changes it"
+    case OutsideFact.Atomic(b)            => s"the world outside: runs on ${b.value} never interleave"
     case OutsideFact.Initially(m, _)      => s"the world outside: the state ${m.value} starts in"
 
   private def standing(s: Standing): String = s match

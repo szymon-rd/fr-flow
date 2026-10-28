@@ -1,7 +1,7 @@
 package frflow.core.consistency
 
 import frflow.core.expr.Value
-import frflow.core.term.{Annotation, Bound, Final, Sym}
+import frflow.core.term.{Annotation, Bound, Final, Program, Selector, Sym, World}
 import frflow.core.ty.{NumKind, Ty}
 import frflow.core.term.interpret.Forward
 
@@ -24,6 +24,16 @@ final class Defining[T[_]](s: Sym[T], picked: Picked) extends Forward[T, [a] =>>
   /** `A implies s(xs) R e`: the conclusion's witness (where `A` does not hold, any value is one). */
   override def implies(a: Sided[T, Boolean], b: Sided[T, Boolean]): Sided[T, Boolean] =
     Sided(s.implies(a.whole, b.whole), b.witness)
+
+  /** `p(xs).from(now) { (r, after) => s(xs) R e }`: the witness is `e` at the run's outcome, `(p xs now).1` and
+    * `.2` (`Equations` reads only a run that cannot fail, so its outcome is a pair).
+    */
+  override def runs[R](p: Sided[T, Program[R]], before: Sided[T, World], result: Bound[R], after: Bound[World])(
+      post: (Sided[T, R], Sided[T, World]) => Sided[T, Boolean]): Sided[T, Boolean] =
+    val run = s.app(p.whole.asInstanceOf[T[World => (R, World)]], before.whole) // a program is a run from a world
+    val at = post(fwd(s.field(run, Selector.first[R, World](result.ty))),
+      fwd(s.field(run, Selector.second[R, World](Ty.World))))
+    Sided(s.runs(p.whole, before.whole, result, after)((x, y) => post(fwd(x), fwd(y)).whole), at.witness)
 
   override def eq[A](a: Sided[T, A], b: Sided[T, A]): Sided[T, Boolean] = related(s.eq(a.whole, b.whole), a, b)
   override def le(a: Sided[T, BigInt], b: Sided[T, BigInt]): Sided[T, Boolean] = related(s.le(a.whole, b.whole), a, b)

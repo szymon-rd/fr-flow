@@ -1,6 +1,6 @@
 package frflow.core.analysis
 
-import frflow.core.name.{DefName, ModelName, NodeId, SymbolName}
+import frflow.core.name.{BoundaryName, DefName, ModelName, NodeId, SymbolName}
 import frflow.core.ty.Ty
 
 /** What keeps a theory from being checked: each case names what is wrong and where. */
@@ -12,21 +12,25 @@ enum Problem:
   case ParentOutside(id: NodeId, parent: NodeId)
   case DesignWithoutParent(id: NodeId)
   case UnderDesign(id: NodeId, design: NodeId)
-  /** A premise that is neither an assumption nor an `always`: what a proof assumes is trusted or always holds. */
+  /** A premise that is no assumption (2.4): `.assuming` lists what the check trusts; a claim of `always` is placed
+    * below the statement it serves with `.refines`, as a rule.
+    */
   case PremiseNotAssumed(id: NodeId, premise: NodeId)
   /** A premise resting, through its parents and the premises it assumes, on the node assuming it (`A.assuming(P)` with
     * `P.refines(A)`): a node is decided after what it rests on, so the two could never be decided in order.
     */
   case PremiseBelow(id: NodeId, premise: NodeId)
-  /** A fact about the outside refining a node: it is a premise of the proofs that rest on it (`.assuming`). */
+  /** A fact about the outside, or what values from outside meet (an assumption of `always`), refining a node: it is a
+    * premise of the proofs that rest on it (`.assuming`).
+    */
   case OutsideAsPart(fact: NodeId, whole: NodeId)
   /** A fact about the outside claimed: only an assumption can say one, since nothing in FrFlow proves it. */
   case OutsideClaimed(id: NodeId)
   // The world outside (owner §16, §17)
   /** A statement whose check rests on a fact about the outside its `.assuming` does not list (the one mechanism for
     * a premise, owner §15; `Premises` derives what each needs): a claim about a program's runs on a store needs
-    * `store.behavesAs(stored)` and `stored.changedOneRunAtATime`; an `always(stored)` those and
-    * `stored.initially(…)` and `stored.writtenOnlyBy(…)`; an `always[T]` what values from outside meet (owner §21:
+    * `store.behavesAs(stored)` and `store.atomic`; an `always(stored)` those and `stored.initially(…)`; an
+    * `always[T]` what values from outside meet (owner §21:
     * an assumption of `always` on `T` when the outside passes `T`s in, and each such assumption on the values from
     * outside its `T`s are made from), the store facts of each store holding a `T`, and the model of each store
     * operation making one. `by` is the assumption that says it, if one does; when none does, what to say is
@@ -40,8 +44,11 @@ enum Problem:
     * `unchanged` (`.failsChangingNothing`).
     */
   case WorldsEqual(id: NodeId)
-  /** A program writing the store that the store's `writtenOnlyBy` does not list. */
-  case WriterNotListed(model: ModelName, program: SymbolName)
+  /** A boundary covered code calls with neither a model it behaves as nor an assumption about what it gives (owner
+    * §30): what the code hands it and what comes back would be checked by nothing. Say what it does with
+    * `boundary.behavesAs(model)`, or what it promises with an assumption mentioning its operations.
+    */
+  case BoundaryUnchecked(boundary: BoundaryName)
   /** An `always` whose type sits, at `at`, inside a map, a set or a function value of type `ty`: no guard reaches it
     * there yet, so the code making or storing it could not be held to it (owner §16; `Unreached`).
     */

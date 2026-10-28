@@ -1,6 +1,6 @@
 package frflow.project.pipeline
 
-import frflow.core.analysis.Resolved
+import frflow.core.analysis.{Premises, Resolved, Scope}
 import frflow.core.graph.Edge
 import frflow.core.name.NodeId
 import frflow.core.spec.{CallForm, FailureClause, Node, Reliance, Statement, Written}
@@ -47,6 +47,7 @@ object Contents:
   /** How it is checked and how its code stands. */
   private def done(r: Resolved, n: Node): List[(String, FieldValue)] = List(
     Some("checking" -> texts(Texts.checking(r.theory, n.id))),
+    writers(r, n).map("writers" -> texts(_)),
     Some("governs" -> texts(governs(n.statement))),
     n.statement.definition.map(o => "call" -> text(o.value)),
     r.theory.edges.collectFirst { case Edge.Replaces(a, o) if a == n.id => "replaces" -> text(o.value) },
@@ -55,6 +56,11 @@ object Contents:
     CodeTexts.implementation(r, n.id).map("implementation" -> text(_)),
     CodeTexts.model(r, n.id).map("model" -> texts(_)),
     CodeTexts.implementations(r, n.id).map("implementations" -> texts(_))).flatten
+
+  /** Of a rule about a store, the programs changing the store, derived (owner §31): one added brings it back. */
+  private def writers(r: Resolved, n: Node): Option[List[String]] =
+    val models = n.statement.range.filter(_ => n.statement.rule).toList.flatMap(Scope.models(r.theory, _))
+    Option.when(models.nonEmpty)(models.flatMap(Premises.writers(r.theory, _)).map(_.value).distinct)
 
   private def governs(s: Statement): List[String] = s match
     case Statement.Design(gs) => gs.toList.map(_.value)

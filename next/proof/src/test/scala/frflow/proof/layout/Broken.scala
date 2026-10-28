@@ -45,7 +45,7 @@ object Broken:
   private val misdateSame = claim("misdateSame")(Lang.formula([T[_]] => (l: Lang[T]) =>
     l.forall[Booking]("b", Booking.ty)(x => l.s.eq(l.s.field(l.call(l.sym[Booking => Booking]("misdate",
       fn(Booking.ty, Booking.ty)), x), room), l.s.field(x, room)))))
-  private val facts = storeFacts(sig.name, shelf, List("fileBackwards", "putTwo"))
+  private val facts = storeFacts(sig.name, shelf)
   private val runClaims = List(claim("filedRuns")(runs[Booking, Unit]("fileBackwards", Booking.ty, Ty.Unit)),
     claim("countRuns")(runsAlone[(BigInt, BigInt)]("countBoth", Ty.TupleOf(List(big, big)))),
     claim("putRuns")(runs[Booking, (Unit, Unit)]("putTwo", Booking.ty, pair)))

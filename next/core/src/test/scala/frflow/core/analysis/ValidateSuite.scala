@@ -70,7 +70,7 @@ class ValidateSuite extends munit.FunSuite:
 
   test("a premise missing that no assumption says names none") {
     assertEquals(Store.kb.without("oneAtATime").problems,
-      List(Problem.PremiseMissing(NodeId("bookRuns"), Premise.OneRunAtATime(Store.model), None)))
+      List(Problem.PremiseMissing(NodeId("bookRuns"), Premise.Atomic(Store.boundary), None)))
   }
 
   test("a value only plain code reads needs no statement: it is no code without a claim") {

@@ -24,7 +24,8 @@ val clearedFirst = define { (held: Term[List[Booking]], c: Term[Change]) =>
 val moved = define { (b: Term[Booking], t: Term[BigInt]) =>
   b.updated(_.start, t).updated(_.end, t + (b.end - b.start)) }
 
-val booked = define { (held: Term[List[Booking]]) => held.foldLeft(0: Term[BigInt])((n, b) => n + (b.end - b.start)) }
+val bookedTime = define { (held: Term[List[Booking]]) =>
+  held.foldLeft(0: Term[BigInt])((n, b) => n + (b.end - b.start)) }
 
 val hourLong = define { (room: Term[String], t: Term[BigInt]) =>
   let(make[Booking](room, t, t + 1))(b => b.end - b.start) }

@@ -83,9 +83,8 @@ object Programs:
   private val emptyRule = Define(DefName("shelfEmpty"), Written.lambda(List(held), [T[_]] => (s: Sym[T]) =>
     s.eq(s.free[List[Booking]](held), s.nil[Booking](Booking.ty)), SourceText("shelfEmpty")), DefineForm.Function)
   private val shelfFacts = List(outside("shelfModel")(OutsideFact.BehavesAs(shelfSig.name, shelf)),
-    outside("shelfOneRun")(OutsideFact.OneRunAtATime(shelf)),
-    outside("shelfEmpty")(OutsideFact.Initially(shelf, DefName("shelfEmpty"))),
-    outside("shelfUntouched")(OutsideFact.WrittenOnlyBy(shelf, Nil)))
+    outside("shelfOneRun")(OutsideFact.Atomic(shelfSig.name)),
+    outside("shelfEmpty")(OutsideFact.Initially(shelf, DefName("shelfEmpty"))))
 
   val kb: Kb = Kb.of(endsAfterStart, laterSame, claim("fetchRuns")(runs[BigInt, Booking]("fetch", big, Booking.ty)),
       claim("pairRuns")(runs[BigInt, (BigInt, BigInt)]("pairUp", big, Ty.TupleOf(List(big, big)))),
@@ -113,8 +112,9 @@ object Programs:
       SymbolName("latest") -> Code.ProvenFlow(DefName("newest")),
       SymbolName("guarded") -> Code.ProvenFlow(DefName("careful")))
     .linking(("fromOutside" :: shelfFacts.map(_.id.value)).map(assumes("endsAfterStart", _))*)
-    .linking(List("laterSame", "fetchRuns", "pairRuns", "eachRuns", "latestRuns", "carefulRuns")
-      .map(assumes(_, "fromOutside"))*)
+    // The runs read no store, so their worlds carry no rule of the shelf's (owner §33): only `laterSame`, over a
+    // booking, rests on what bookings from outside meet.
+    .linking(assumes("laterSame", "fromOutside"))
 
   lazy val resolved: Resolved = Resolve(Validate(kb.elaborated).fold(ps => throw IllegalStateException(ps.toString),
     identity))

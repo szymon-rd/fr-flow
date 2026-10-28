@@ -20,11 +20,11 @@ final class StoredBookings[F[_]: Flow](state: Model[F, List[Booking]]) extends B
 
 val storedBookings = bookingTable.model("every booking stored, oldest first")(StoredBookings(_))
 
-/** The program `book` is: the room's bookings read, the booking asked for added when granted, in one transaction. */
+/** The program `book` is: the room's bookings read, the request added when granted, in one transaction. */
 final class BookIfGranted[F[_]](table: BookingTable[F, Term])(using f: Flow[F]):
-  def run(request: Term[Request]): F[Term[Boolean]] = f.atomically(
+  def run(request: Term[Booking]): F[Term[Boolean]] = f.atomically(
     f.flatMap(table.inRoom(request.room)) { held =>
-      val booked = granted(held, asBooking(request))
-      f.as(f.cond(booked)(table.add(asBooking(request)), f.unit), booked) })
+      val booked = granted(held, request)
+      f.as(f.cond(booked)(table.add(request), f.unit), booked) })
 
-val bookIfGranted = program { (request: Term[Request]) => BookIfGranted(bookingTable.recording).run(request) }
+val bookIfGranted = program { (request: Term[Booking]) => BookIfGranted(bookingTable.recording).run(request) }

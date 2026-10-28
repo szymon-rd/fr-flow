@@ -21,10 +21,10 @@ object Joint:
     Consistency.of(r.theory).zipWithIndex.flatMap((g, i) => group(r, g, i))
 
   private def group(r: Resolved, g: Group, i: Int): Option[Obligation] = g match
-    case g @ Group.Sharing(ids, open, provided, ws) =>
+    case g @ Group.Sharing(ids, open, provided, _) =>
       NonEmptyList.fromList(ids).map { ns =>
         val goal = Prop.ForEvery(provided, Prop.ForSome(open, Prop.Both(ns.map(Prop.ClaimOf(_, standing(r, ids))))))
-        Obligation(ObligationName.Consistent(i), goal, witnessed(r, g.standing, ws),
+        Obligation(ObligationName.Consistent(i), goal, witnessed(r, g),
           s"${names(ids)} hold together: some meaning of ${symbols(open)} makes each true" +
             (if provided.isEmpty then "." else s", for every ${symbols(provided)} provided."))
       }
@@ -47,9 +47,20 @@ object Joint:
     case SymbolType.Typed(t) => t
   }.getOrElse(Ty.Unit)
 
-  private def witnessed(r: Resolved, standing: Standing, ws: List[Witness]): Discharge = standing match
-    case Standing.Witnessed => Discharge.Witnessed(ws.flatMap(supplied(r, _)))
+  private def witnessed(r: Resolved, g: Group.Sharing): Discharge = g.standing match
+    case Standing.Witnessed => Discharge.Witnessed(ordered(r, g))
     case _                  => Discharge.Unwitnessed
+
+  /** The witnesses in solving order, each proven code the statements mention given as its define just before the
+    * first witness that may mention it: once every value it leaves open is solved.
+    */
+  private def ordered(r: Resolved, g: Group.Sharing): List[Supplied] =
+    val code = standing(r, g.statements).toList.sortBy(_._1.value).collect { case (s, Substitute.Code(d)) => (s, d) }
+    g.witnesses.foldLeft((List.empty[Supplied], List.empty[SymbolName])) { case ((out, solved), w) =>
+      val ready = code.filter((s, d) =>
+        !out.contains(Supplied.Code(s, d)) && Consistency.reach(r.theory, s).forall(solved.contains))
+      (out ++ ready.map(Supplied.Code(_, _)) ++ supplied(r, w), solved :+ w.meaningOf)
+    }._1
 
   private def supplied(r: Resolved, w: Witness): Option[Supplied] = w match
     case Witness.Equation(s, from, picked) => term(r, s, from, picked)

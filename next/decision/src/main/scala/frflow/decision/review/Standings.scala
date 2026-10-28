@@ -20,11 +20,13 @@ final class Standings(subjects: Subjects, ledger: Ledger):
   private def causesOf(s: Subject, d: Decision, above: Chain, done: Map[NodeId, Standing]): List[Cause] =
     val (was, now) = (d.bound.content, s.content)
     val moved = was.hash != now.hash
+    val added = now.texts("writers").filterNot(was.texts("writers").contains)
     List(
       Cause.Self  -> (moved && Meaning.own(was).hash != Meaning.own(now).hash),
       Cause.Above -> (aboveMoved(s, d, above) || parentRejected(s, done)),
       Cause.Parts -> (moved && was.texts("parts").toSet != now.texts("parts").toSet),
-      Cause.Code  -> !sameCode(d, s)
+      Cause.Code  -> !sameCode(d, s),
+      Cause.Writers(added) -> added.nonEmpty
     ).collect { case (c, true) => c }
 
   private def aboveMoved(s: Subject, d: Decision, above: Chain): Boolean =

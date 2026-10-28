@@ -15,23 +15,23 @@ import frflow.testing.report.{Failure, Outcome}
 class RunsSuite extends munit.FunSuite:
   /** A booking program that adds every request, granted or not, and says it booked it. */
   private final class AddsAll[F[_]](table: BookingTable[F, Term])(using f: Flow[F]):
-    def run(request: Term[Request]): F[Term[Boolean]] = f.as(table.add(asBooking(request)), True)
+    def run(request: Term[Booking]): F[Term[Boolean]] = f.as(table.add(request), True)
 
-  private val addsAll = program { (request: Term[Request]) => AddsAll(bookingTable.recording).run(request) }
+  private val addsAll = program { (request: Term[Booking]) => AddsAll(bookingTable.recording).run(request) }
 
   /** What booking answers and stores, in start and end times (rooms' own say "free", over every moment, which has no
     * Scala value).
     */
   private val answerWhenApart = Node.claim("A request is answered booked exactly when it overlaps no booking stored.")(
-    forall((request: Term[Request], before: Term[World]) => book(request).from(before) { (booked, _) =>
-      booked === storedBookings.in(before).forall(b => noOverlap(b, asBooking(request))) }))
+    forall((request: Term[Booking], before: Term[World]) => book(request).from(before) { (booked, _) =>
+      booked === storedBookings.in(before).forall(b => noOverlap(b, request)) }))
   private val storeWhenApart = Node.claim("A request is stored exactly when it overlaps no booking stored.")(
-    forall((request: Term[Request], before: Term[World]) =>
+    forall((request: Term[Booking], before: Term[World]) =>
       val stored = storedBookings.in(before)
       book(request).from(before) { (_, after) => storedBookings.in(after) ===
-        when(stored.forall(b => noOverlap(b, asBooking(request))))(stored :+ asBooking(request)).otherwise(stored) }))
+        when(stored.forall(b => noOverlap(b, request)))(stored :+ request).otherwise(stored) }))
 
-  private def booking(meaning: Definition[Request => Program[Boolean]]) =
+  private def booking(meaning: Definition[Booking => Program[Boolean]]) =
     FrModel("Rooms")((rooms.nodes :+ answerWhenApart :+ storeWhenApart)*).copy(generators = rooms.generators)
       .implementProven(book)(meaning)
       .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
@@ -47,7 +47,7 @@ class RunsSuite extends munit.FunSuite:
   }
 
   test("a claim over every moment has no Scala value: rooms' own are not checked, no case failing or saved") {
-    List("bookWhenFree", "answerWhenFree", "grantWhenFree").foreach { c =>
+    List("storeWhenFree", "answerWhenFree", "grantWhenFree").foreach { c =>
       val r = tested(rooms, c)
       assertEquals((r.outcome, r.failure), (Outcome.NotChecked(EvalError.Quantified), None), c)
     }

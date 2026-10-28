@@ -43,11 +43,12 @@ object Fixture:
   /** What the outside sends meets the same rule (owner §21). */
   def fromOutside(id: String): Node = assumption(id)(ends)
 
-  /** A store's four facts: behaves as its model, one run at a time, starts empty (`emptyRule`), written by these. */
-  def storeFacts(boundary: BoundaryName, m: ModelName, writers: List[String]): List[Node] = List(
-    outside("shelfModel")(OutsideFact.BehavesAs(boundary, m)), outside("shelfOneRun")(OutsideFact.OneRunAtATime(m)),
-    outside("shelfEmpty")(OutsideFact.Initially(m, DefName("shelfEmpty"))),
-    outside("shelfWriters")(OutsideFact.WrittenOnlyBy(m, writers.map(frflow.core.name.SymbolName(_)))))
+  /** A store's three facts: behaves as its model (nothing outside the code changing it), runs on it atomic, starts
+    * empty (`emptyRule`). The programs changing it are derived.
+    */
+  def storeFacts(boundary: BoundaryName, m: ModelName): List[Node] = List(
+    outside("shelfModel")(OutsideFact.BehavesAs(boundary, m)), outside("shelfOneRun")(OutsideFact.Atomic(boundary)),
+    outside("shelfEmpty")(OutsideFact.Initially(m, DefName("shelfEmpty"))))
 
   private val held = at(0, "held", Ty.ListOf(Booking.ty))
   val emptyRule: Define = Define(DefName("shelfEmpty"), Written.lambda(List(held), [T[_]] => (s: Sym[T]) =>

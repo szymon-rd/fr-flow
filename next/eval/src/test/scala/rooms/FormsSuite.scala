@@ -59,12 +59,26 @@ class FormsSuite extends munit.FunSuite:
   test("statements are about values only (owner §21): no assumption on what a Definition is called with") {
     fails(compileErrors("outside.calls(book)"), "Not found: outside")
     fails(compileErrors("book.calledOnlyWith(r => r.start < r.end)"), "value calledOnlyWith is not a member of")
-    assert(compileErrors("Node.assumption(\"s\")(always[Request](r => r.start < r.end))").isEmpty)
+    assert(compileErrors("Node.assumption(\"s\")(always[Booking](b => b.start < b.end))").isEmpty)
+  }
+
+  test("the store's facts (owner §31, §32): the programs changing it are derived, runs are atomic on the boundary") {
+    fails(compileErrors("storedBookings.writtenOnlyBy(book)"), "value writtenOnlyBy is not a member of")
+    fails(compileErrors("storedBookings.changedOneRunAtATime"), "value changedOneRunAtATime is not a member of")
+    assert(compileErrors("""Node.assumption("s")(bookingTable.atomic)""").isEmpty)
+    assert(compileErrors("""Node.assumption("s")(bookingTable.behavesAs(storedBookings))""").isEmpty)
+  }
+
+  test("a run is written one way (owner §34): `.from(world) { (answer, after) => … }`; no `.answer`, no `.after`") {
+    val w = "forall((r: Term[Booking], now: Term[World]) => "
+    fails(compileErrors(w + "book(r).answer(now) === True)"), "value answer is not a member of")
+    fails(compileErrors(w + "storedBookings.in(book(r).after(now)) === Nil)"), "value after is not a member of")
+    assert(compileErrors(w + "book(r).from(now) { (answer, after) => answer === answer })").isEmpty)
   }
 
   test("one Definition: `define` and `program` make a Definition carrying its meaning; no Def type remains") {
     val d: Definition[(Booking, BigInt) => Boolean] = covers
-    val p: Definition[Request => Program[Boolean]] = bookIfGranted
+    val p: Definition[Booking => Program[Boolean]] = bookIfGranted
     assertEquals((d.onTheSpot.map(_.code), p.onTheSpot.map(_.code)),
       (Some(Code.Proven(DefName("covers"))), Some(Code.ProvenFlow(DefName("bookIfGranted")))))
     fails(compileErrors("val one: Def1[Booking, Boolean] = ???"), "Not found: type Def1")
@@ -79,11 +93,11 @@ class FormsSuite extends munit.FunSuite:
 
   test("a meaning is given once: proven code is a define or a program, and one written on the spot takes no other") {
     def faults(kb: FrModel) = kb.elaborated.fold(_.iterator.map(_.fault).toList, _ => Nil)
-    val notCode = Definition[Request => Program[Boolean]]("a program nothing gives a meaning")
+    val notCode = Definition[Booking => Program[Boolean]]("a program nothing gives a meaning")
     assertEquals(faults(rooms.implementProven(book)(notCode)), List(Fault.NotProvenCode("notCode")))
     assertEquals(faults(rooms.implementTested(free)(_ => (_, _) => true)), List(Fault.MeantWhereWritten("free")))
     val runsItself = Node.claim("The program answers.")(
-      forall((r: Term[Request], w: Term[World]) => bookIfGranted(r).from(w) { (b, _) => b === b }))
+      forall((r: Term[Booking], w: Term[World]) => bookIfGranted(r).from(w) { (b, _) => b === b }))
     assertEquals(faults(FrModel("R")(runsItself)), List(Fault.ProgramMentioned("bookIfGranted")))
   }
 

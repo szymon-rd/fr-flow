@@ -20,7 +20,7 @@ class BoundaryOpsSuite extends munit.FunSuite:
 
   private def ir(p: Prog[Stated[?]], depth: Int): Prog[Expr] = Progs.map(p)(s => ToExpr.of(s.run, depth))
   private def booked(ops: BoundaryOps[BookingTable]): Prog[Expr] =
-    val request = Binder(VarId.level(0), "request", LeanType[Request].ty)
+    val request = Binder(VarId.level(0), "request", LeanType[Booking].ty)
     ir(ReadRecording(BookIfGranted(ops.recording(name)).run(Term.free(request)))._1, 1)
 
   /** The table in memory, on plain values. */

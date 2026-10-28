@@ -27,6 +27,11 @@ enum Statement:
   /** What its leading quantifier ranges over; a design ranges over nothing. */
   def range: Option[Range] = said.map(f => Range.of(f.value))
 
+  /** A rule: a statement of `always`, claimed or assumed. Placed below a statement it serves, it is no part of that
+    * statement's step: Lean already has it of every value (2.4).
+    */
+  def rule: Boolean = range.exists(_ != Range.Possible)
+
   /** The fact about the world outside the code it assumes, when it is one. */
   def outside: Option[OutsideFact] = said.map(_.value).collect { case Expr.Outside(f) => f }
 

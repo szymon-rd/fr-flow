@@ -13,7 +13,8 @@ class ContentsSuite extends munit.FunSuite:
   private val examples = List(Projects.rooms, Projects.elaborated(auth.knowledge), Projects.elaborated(crm.knowledge),
     Projects.elaborated(sharing.knowledge))
   private val order = List("kind", "parents", "parts", "assumes", "statement", "formula", "written", "vocabulary",
-    "checking", "governs", "call", "replaces", "reliance", "failure", "implementation", "model", "implementations")
+    "checking", "writers", "governs", "call", "replaces", "reliance", "failure", "implementation", "model",
+    "implementations")
 
   test("every node of the examples has each field once, in the one order") {
     examples.map(lowered).foreach { r =>
@@ -26,9 +27,9 @@ class ContentsSuite extends munit.FunSuite:
   }
 
   test("a formula is what it means, as Lean is given it; what the developer wrote is shown beside it") {
-    val c = Contents.of(lowered(Projects.rooms), NodeId("requestsEndAfterStart"))
-    assertEquals(c.text("written"), "always[Request](r => r.start < r.end)")
-    assert(c.text("formula").startsWith("(∀ (x : Request), (Rooms.requestsEndAfterStart x))") &&
+    val c = Contents.of(lowered(Projects.rooms), NodeId("bookingsEndAfterStart"))
+    assertEquals(c.text("written"), "always[Booking](b => b.start < b.end)")
+    assert(c.text("formula").startsWith("(∀ (x : Booking), (Rooms.bookingsEndAfterStart x))") &&
       c.text("formula").contains("<"), c.text("formula"))
   }
 
@@ -36,7 +37,7 @@ class ContentsSuite extends munit.FunSuite:
     val r = lowered(Projects.rooms)
     def implementation(id: String) = Contents.of(r, NodeId(id)).text("implementation")
     assert(implementation("grantWhenNoOverlap").startsWith("granted: Scala, "), implementation("grantWhenNoOverlap"))
-    assert(implementation("bookWhenFree").contains("book: proven program, "), implementation("bookWhenFree"))
+    assert(implementation("storeWhenFree").contains("book: proven program, "), implementation("storeWhenFree"))
   }
 
   test("the store behaving as its model: the model's operations as Lean is given them") {

@@ -16,7 +16,7 @@ import java.time.Instant
   */
 class ReadProofSuite extends munit.FunSuite:
   private val a = Projects.bare(Projects.rooms)
-  private val (book, grant) = (NodeId("bookWhenFree"), NodeId("grantWhenNoOverlap"))
+  private val (book, grant) = (NodeId("storeWhenFree"), NodeId("grantWhenNoOverlap"))
 
   private def checked(id: NodeId, key: CheckKey, results: Result*): Analysis =
     a.withRecorded(Recorded(Checks(Map(id -> NodeCheck(id, key, CheckStatus.Proven, results.toList, Nil,

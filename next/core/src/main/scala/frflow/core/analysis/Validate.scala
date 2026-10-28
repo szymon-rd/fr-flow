@@ -7,7 +7,7 @@ import frflow.core.code.Code
 import frflow.core.expr.{Expr, Exprs, PrimOp, Progs}
 import frflow.core.graph.{Edge, Walk}
 import frflow.core.name.{NodeId, SymbolName}
-import frflow.core.spec.{Node, NodeKind, Range}
+import frflow.core.spec.NodeKind
 import frflow.core.ty.Ty
 import frflow.core.vocab.DefineForm
 
@@ -39,17 +39,17 @@ object Validate:
         Walk.breadthFirst(List(p), identity)(x => r.parents(x) ++ r.assumed(x)).contains(n) =>
       Problem.PremiseBelow(n, p) }
 
-  /** What a node assumes is an assumption or an `always`; a fact about the outside is assumed, and never a part. */
+  /** What a node assumes is an assumption (2.4); a fact about the outside, or what values from outside meet, is
+    * assumed, and never a part.
+    */
   private def premises(t: Theory): List[Problem] =
     t.edges.collect {
-      case Edge.Assumes(n, p) if !t.node(p).exists(premise) => Problem.PremiseNotAssumed(n, p)
-      case Edge.PartOf(p, w) if t.node(p).flatMap(_.statement.outside).nonEmpty => Problem.OutsideAsPart(p, w)
+      case Edge.Assumes(n, p) if !t.node(p).exists(_.statement.kind == NodeKind.Assumption) =>
+        Problem.PremiseNotAssumed(n, p)
+      case Edge.PartOf(p, w) if t.node(p).exists(Outsides.aboutOutside) => Problem.OutsideAsPart(p, w)
     } ++ t.nodes.map(_.node).collect {
       case n if n.statement.kind == NodeKind.Claim && n.statement.outside.nonEmpty => Problem.OutsideClaimed(n.id)
     }
-
-  private def premise(n: Node): Boolean =
-    n.statement.kind == NodeKind.Assumption || n.statement.range.exists(_ != Range.Possible)
 
   private def underDesign(t: Theory): List[Problem] =
     for
@@ -72,8 +72,8 @@ object Validate:
         Constrained.codeOnlyType(t, s).map(Problem.CodeOnlyInStatement(id, s, _)))))
 
   /** A statement's `.assuming` lists exactly the facts about the outside its check rests on (`Premises`: derived,
-    * and only checked), every program writing a store is among those the outside lets write it, and every `always[T]`
-    * reaches each `T` covered code can make (`Unreached`).
+    * and only checked), every boundary covered code calls has a model or an assumption about it (owner §30), and
+    * every `always[T]` reaches each `T` covered code can make (`Unreached`).
     */
   private def outside(t: Theory): ValidatedNec[Problem, Unit] =
     val missing = t.nodes.map(_.node.id).flatMap(id => Premises.of(t, id)
@@ -81,10 +81,8 @@ object Validate:
     val unneeded = t.nodes.map(_.node.id).flatMap(id => Outsides.premises(t, id).filter(p =>
       t.node(p).exists(n => Outsides.aboutOutside(n) && !Premises.of(t, id).exists(Outsides.saysOf(n, _))))
       .map(Problem.PremiseNotNeeded(id, _)))
-    val unlisted = t.vocabulary.models.flatMap(m => Outsides.saying(t, Premise.WrittenOnlyBy(m.name)).toList
-      .flatMap(_ => Premises.writers(t, m).filterNot(Outsides.writers(t, m.name).contains))
-      .map(Problem.WriterNotListed(m.name, _)))
-    all(missing ++ unneeded ++ unlisted ++ worldsEqual(t) ++ Unreached.of(t))
+    val unchecked = Premises.called(t).filterNot(Outsides.checks(t, _)).map(Problem.BoundaryUnchecked(_))
+    all(missing ++ unneeded ++ unchecked ++ worldsEqual(t) ++ Unreached.of(t))
 
   /** An equation of worlds in a statement, where the worlds hold faults (a boundary may fail). */
   private def worldsEqual(t: Theory): List[Problem] =

@@ -1,6 +1,6 @@
 package frflow.core.checking
 
-import frflow.core.analysis.{Callees, Constrained, Outsides, Premise, Premises, Scope}
+import frflow.core.analysis.{Constrained, Outsides, Premise, Premises, Reads, SaysWhat, Scope}
 import frflow.core.code.Code
 import frflow.core.consistency.{Consistency, Group, Standing, Vacuity}
 import frflow.core.expr.OutsideFact
@@ -28,6 +28,14 @@ enum Checking:
     * every value of a type). Unless its parts prove it, nothing checks it (`status` warns).
     */
   case NotTested(definition: SymbolName)
+  /** Says what these Declarations are (2.7): the proven code of `code` stands in it for its Definitions; nothing is
+    * proven of that code from it.
+    */
+  case SaysWhatIs(declarations: List[SymbolName], code: List[(SymbolName, Code)])
+  /** The rules it uses (2.4): each below it, or an assumption of `always` it lists, with whether it takes it (a
+    * hypothesis on a value or a world it is about). None is a part of its step.
+    */
+  case Rules(rules: List[(NodeId, Boolean)])
   /** Taken as a hypothesis by the proofs of code calling the Definitions it mentions. */
   case AssumedByCallers(definitions: List[SymbolName])
   /** `always[T]`: met where a value of `ty` is made (each of `makers`' results: proven, or tested at its boundary),
@@ -47,6 +55,10 @@ enum Checking:
   case Trusted
   /** A fact about the world outside the code: a rule of FrFlow's rests on it. */
   case Outside(fact: OutsideFact)
+  /** The programs changing a store, derived from the code (owner §31): every program calling an operation that
+    * changes the model's state.
+    */
+  case ChangedBy(programs: List[SymbolName])
   /** A store behaving as its model: the store's code is tested against the model (`checkedAgainst`). */
   case StoreCodeTested(implementations: Int)
   /** Nothing checks it yet: no parts, no code. */
@@ -54,23 +66,40 @@ enum Checking:
 
 object Checking:
   def of(t: Theory, id: NodeId): List[Checking] = t.node(id).map(_.statement).toList.flatMap {
-    case s @ Statement.Assumption(_) => s.outside.fold(Trusted :: callers(t, id))(outside(t, _))
-    case s @ Statement.Claim(_, _)   => claimed(t, id, s) ++ rests(t, id) ++ bottom(t, id) ++ possible(t, id)
+    case s @ Statement.Assumption(_) =>
+      s.outside.fold(Trusted :: ruled(t, id, s) ++ callers(t, id) ++ bottom(t, id) ++ possible(t, id))(outside(t, _))
+    case s @ Statement.Claim(_, _)   =>
+      claimed(t, id, s) ++ rules(t, id) ++ rests(t, id) ++ bottom(t, id) ++ possible(t, id)
     case Statement.Design(_)         => Nil
   }
 
   private def claimed(t: Theory, id: NodeId, s: Statement): List[Checking] = s.range.toList.flatMap {
-    case r @ Range.Made(ty) =>
-      List(WhereMade(ty, Scope.of(t, id), Scope.modelMakers(t, r).map((m, sig) => m.name -> sig.name)))
-    case Range.Reached(_)  => List(KeptBy(Scope.of(t, id)))
-    case Range.Possible    =>
+    case Range.Possible if SaysWhat.is(t, id) =>
+      List(SaysWhatIs(SaysWhat.declarations(t, id), Constrained.of(t, id).flatMap(d =>
+        t.code.attached.get(d).map(_.code).filter(_.proven.nonEmpty).map(d -> _))))
+    case Range.Possible =>
       val code = Constrained.of(t, id).flatMap(d => t.code.attached.get(d).map(a => against(t, s, d, a.code)))
       val parts = t.refinement.parts(id)
-      val fromParts = Option.when(parts.nonEmpty && Callees.of(t, id).isEmpty)(FromParts(parts)).toList
+      val fromParts = Option.when(parts.nonEmpty && SaysWhat.checkedAgainst(t, id).isEmpty)(FromParts(parts)).toList
       fromParts ++ code ++ callers(t, id) match
         case Nil  => List(Unchecked)
         case some => some
+    case _              => ruled(t, id, s)
   }
+
+  /** How a rule is met: where its values are made, or by every run changing its store. */
+  private def ruled(t: Theory, id: NodeId, s: Statement): List[Checking] = s.range.toList.flatMap {
+    case r @ Range.Made(ty) =>
+      List(WhereMade(ty, Scope.of(t, id), Scope.modelMakers(t, r).map((m, sig) => m.name -> sig.name)))
+    case Range.Reached(_)   => List(KeptBy(Scope.of(t, id)))
+    case Range.Possible     => Nil
+  }
+
+  /** The rules below it and the assumptions of `always` it lists, each with whether it takes it. */
+  private def rules(t: Theory, id: NodeId): List[Checking] =
+    val listed = t.refinement.assumed(id).filter(p => t.node(p).exists(_.statement.rule))
+    val rs = (t.refinement.rules(id) ++ listed).distinct
+    Option.when(rs.nonEmpty)(Rules(rs.map(r => r -> Reads.takes(t, id, r)))).toList
 
   /** Plain Scala is tested where the statement (per call, or whole) has a Scala value; other code is proven of. */
   private def against(t: Theory, s: Statement, d: SymbolName, code: Code): Checking = code match
@@ -86,8 +115,9 @@ object Checking:
   def unchecked(t: Theory, id: NodeId): Boolean =
     val cs = of(t, id)
     cs.exists { case Unchecked | NotTested(_) => true; case _ => false } && !cs.exists {
-      case FromParts(_) | AgainstCode(_, _) | TestedAgainst(_, _) | KeptBy(_) | WhereMade(_, _, _) => true
-      case _                                                                                        => false
+      case FromParts(_) | AgainstCode(_, _) | TestedAgainst(_, _) | KeptBy(_) | WhereMade(_, _, _) |
+          SaysWhatIs(_, _) => true
+      case _               => false
     }
 
   private def rests(t: Theory, id: NodeId): List[Checking] =
@@ -106,8 +136,12 @@ object Checking:
     Option.when(shown.nonEmpty)(Possible(shown)).toList
 
   private def outside(t: Theory, fact: OutsideFact): List[Checking] = fact match
-    case OutsideFact.BehavesAs(b, _) => List(Outside(fact), StoreCodeTested(t.code.realized.get(b).fold(0)(_.size)))
+    case OutsideFact.BehavesAs(b, m) => List(Outside(fact),
+        ChangedBy(t.vocabulary.model(m).toList.flatMap(Premises.writers(t, _))),
+        StoreCodeTested(t.code.realized.get(b).fold(0)(_.size)))
     case _                           => List(Outside(fact))
 
+  /** The Definitions it mentions, which code may call (a Declaration is never called). */
   private def callers(t: Theory, id: NodeId): List[Checking] =
-    Option.when(Constrained.of(t, id).nonEmpty)(AssumedByCallers(Constrained.of(t, id))).toList
+    val called = Constrained.of(t, id).filterNot(Constrained.isDeclaration(t, _))
+    Option.when(called.nonEmpty)(AssumedByCallers(called)).toList

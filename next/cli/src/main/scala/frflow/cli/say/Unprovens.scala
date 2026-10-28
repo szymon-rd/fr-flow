@@ -35,6 +35,8 @@ object Unprovens:
     case Cause.Code    => "the code it governs changed"
     case Cause.Revisit => "a change elsewhere may affect it"
     case Cause.Merged  => "two branches decided it and both were kept"
+    case Cause.Writers(ps) => s"${ps.mkString(", ")} now ${if ps.size == 1 then "changes" else "change"} the store " +
+        "it is about"
 
   def verb(a: Action): String = a match
     case Action.Accept  => "accepted"
