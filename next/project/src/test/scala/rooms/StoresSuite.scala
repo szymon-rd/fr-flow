@@ -26,25 +26,37 @@ final class AddAnyway[F[_]](table: BookingTable[F, Term])(using f: Flow[F]):
 
 val addAnyway = Definition[Booking => Program[Unit]]("adding a request, granted or not")
 
+/** A program reading the table and writing the log: the request's room read, the request logged. */
+final class LogRequest[F[_]](table: BookingTable[F, Term], log: RequestLog[F, Term])(using f: Flow[F]):
+  def run(request: Term[Booking]): F[Term[Unit]] =
+    f.flatMap(table.inRoom(request.room))(_ => f.as(log.log(request), (): Term[Unit]))
+
+val logRequest = Definition[Booking => Program[Unit]]("logging a request, once its room is read")
+
+/** The log's nodes beside rooms: what the log does, its two facts, and a rule about it. */
+object Logged:
+  val logMatchesModel = Node.assumption("The log adds each request at the end.")(
+    requestLog.behavesAs(loggedRequests))
+  val logStartsEmpty = Node.assumption("The log starts empty.")(loggedRequests.initially(l => l === Nil))
+  val logOneAtATime = Node.assumption("Requests are logged one at a time.")(requestLog.atomic)
+  val loggedEndAfterStart = Node.claim("Every request logged ends after it starts.")(
+    always(loggedRequests)(logged => logged.forall(b => b.start < b.end)))
+    .assuming(logMatchesModel, logOneAtATime, logStartsEmpty)
+  val log: List[Node] = List(logMatchesModel, logOneAtATime, logStartsEmpty, loggedEndAfterStart)
+
+  /** Rooms with `extra` beside its nodes, its code attached as in `Knowledge.scala`. */
+  def withNodes(extra: Node*): FrModel =
+    FrModel("Rooms")((rooms.nodes ++ extra)*).copy(generators = rooms.generators)
+      .implementProven(book)(bookIfGranted)
+      .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
+
 /** One World, kept local (owner §19, §31): a statement takes only the rules of the stores it reads, so a store added
   * beside rooms brings back no statement that does not read it; and the programs changing a store are derived, so a
   * new one brings back the rules about the store, naming it.
   */
 class StoresSuite extends munit.FunSuite:
-  private val logMatchesModel = Node.assumption("The log adds each request at the end.")(
-    requestLog.behavesAs(loggedRequests))
-  private val logStartsEmpty = Node.assumption("The log starts empty.")(loggedRequests.initially(l => l === Nil))
-  private val logOneAtATime = Node.assumption("Requests are logged one at a time.")(requestLog.atomic)
-  private val loggedEndAfterStart = Node.claim("Every request logged ends after it starts.")(
-    always(loggedRequests)(logged => logged.forall(b => b.start < b.end)))
-    .assuming(logMatchesModel, logOneAtATime, logStartsEmpty)
+  import Logged.*
 
-  private def withNodes(extra: Node*): FrModel =
-    FrModel("Rooms")((rooms.nodes ++ extra)*).copy(generators = rooms.generators)
-      .implementProven(book)(bookIfGranted)
-      .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
-
-  private val log = List(logMatchesModel, logOneAtATime, logStartsEmpty, loggedEndAfterStart)
   private val (was, now) = (Projects.bare(Projects.rooms), Projects.bare(Projects.elaborated(withNodes(log*))))
   // Its rule reaches every Booking, the log's too: it reads the log.
   private val reading = NodeId("bookingsEndAfterStart")
@@ -86,4 +98,27 @@ class StoresSuite extends munit.FunSuite:
     assertEquals(writers(withNodes()), List("neverOverlap" -> List("book"), "bookingsEndAfterStart" -> List("book")))
     assertEquals(writers(adding), List("neverOverlap" -> List("book", "addAnyway"),
       "bookingsEndAfterStart" -> List("book", "addAnyway")))
+  }
+
+  test("a program reading the table and writing the log keeps the log's rule, given both stores' rules") {
+    val logsIt = Node.claim("Logging a request adds it to the log.")(
+      forall((request: Term[Booking], before: Term[World]) =>
+        logRequest(request).from(before) { (_, after) =>
+          loggedRequests.in(after) === loggedRequests.in(before) :+ request }))
+      .assuming(logMatchesModel, logOneAtATime, tableMatchesModel, oneAtATime, bookingsEndAfterStart)
+    // Requests now reach the log from outside: the rule takes what the form sends.
+    val loggedEndAfterStart = Node.claim("Every request logged ends after it starts.")(
+      always(loggedRequests)(logged => logged.forall(b => b.start < b.end)))
+      .assuming(logMatchesModel, logOneAtATime, logStartsEmpty, bookingsEndAfterStart)
+    val nodes = List(logMatchesModel, logOneAtATime, logStartsEmpty, loggedEndAfterStart, logsIt)
+    val m = withNodes(nodes*).implementProven(logRequest)(program { (request: Term[Booking]) =>
+      LogRequest(bookingTable.recording, requestLog.recording).run(request) })
+    assertEquals(whole.Theories.problems(m), Nil)
+    val kept = lean(Projects.bare(Projects.elaborated(m)), NodeId("loggedEndAfterStart"))
+    val keeps = kept.linesIterator.dropWhile(!_.contains("def keeps_logRequest")).take(2).mkString("\n")
+    assert(kept.contains("cover_logRequest"), kept)
+    // Its hypotheses: the table's rule and the log's, of the world before; its goal, the log's of the world after.
+    assert(keeps.contains("(Rooms.neverOverlap before.bookingTable)"), keeps)
+    assert(keeps.contains("(Rooms.loggedEndAfterStart before.requestLog)"), keeps)
+    assert(keeps.contains("(Rooms.loggedEndAfterStart after.requestLog)"), keeps)
   }
