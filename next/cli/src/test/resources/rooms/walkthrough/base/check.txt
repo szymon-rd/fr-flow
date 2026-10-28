@@ -1,0 +1,32 @@
+error: check: level 1 of 4: bookedIsStored, bookedAfterIsStored, acceptedIsAnswered, neverOverlap, bookingsOfTheRoom, roomBookingsApart, grantWhenNoOverlap, bookingsEndAfterStart
+error: check: level 2 of 4: grantWhenFree
+error: check: level 3 of 4: storeWhenFree, answerWhenFree
+error: check: level 4 of 4: bookWhenFree, acceptWhenFree
+
+Consistency: a meaning for what is open under which every statement holds
+  bookedIsStored: proven
+    booked: as bookedIsStored defines it
+  bookedAfterIsStored, acceptedIsAnswered, grantWhenNoOverlap: proven
+    granted: as grantWhenNoOverlap defines it
+    bookedAfter: as bookedAfterIsStored defines it
+    accepted: as acceptedIsAnswered defines it
+
+Where each store starts
+  neverOverlap, from what startsEmpty says: proven
+  bookingsEndAfterStart, from what startsEmpty says: proven
+
+Shown possible
+  bookingsOfTheRoom admits a value of RoomBookings: proven
+  roomBookingsApart admits a value of RoomBookings: proven
+  bookingsEndAfterStart admits a value of Booking: proven
+
+Examples
+  + back to back: granted  Lean: shown
+  + overlapping: refused  Lean: shown
+
+FrModel: 16 nodes, 16 accepted
+Code: 4 proven, 2 tested; consistency proven
+Examples: 2/2 pass
+Nothing waits: every node is accepted and proven, or its code tested.
+marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide
+--- exit 0

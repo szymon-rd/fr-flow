@@ -2,7 +2,7 @@ package frflow.testing.search
 
 import frflow.core.analysis.Resolved
 import frflow.core.consistency.{Defining, Picked}
-import frflow.core.expr.{Expr, Exprs, Lambda, PrimOp}
+import frflow.core.expr.{Expr, Exprs, Lambda, PrimOp, Value}
 import frflow.core.name.{NodeId, SymbolName}
 import frflow.core.spec.{CallForm, CallForms}
 import frflow.core.spec.Written.term
@@ -15,7 +15,8 @@ import frflow.testing.Case
 /** A step whose proof does not go through, searched for a case that refutes it (today's `Refutation`): its one part a
   * claim fixing a Definition's result (`guard implies op(inputs) === e`), so `e` is an answer the claim allows; a
   * case where the claim fails with that answer, the Definition answering `e` everywhere (`consistency.Defining`), is
-  * the candidate Lean is then asked to prove (`proof.layout.Refutes`). The cases are tried in order.
+  * the candidate Lean is then asked to prove (`proof.layout.Refutes`). The cases are tried in order, a quantifier over
+  * numbers ranging over the case's own numbers and their neighbours (today's search): Lean confirms what it finds.
   */
 object StepRefutation:
   def candidate(semantics: Semantics, r: Resolved, node: NodeId, cases: List[Case]): Option[Refuted] =
@@ -29,7 +30,7 @@ object StepRefutation:
       ty           <- t.vocabulary.symbol(op).map(_.ty).collect { case SymbolType.Typed(x) => x }
       (wiring, witness) = (Wiring.onModels(semantics, t), Stated(Defining.of(rule.term, picked)))
       found        <- cases.find { c =>
-        val env = Env.of(wiring.values(wiring.supplied(c.givens)))
+        val env = Env.of(wiring.values(wiring.supplied(c.givens))).watching(numbers(c.inputs))
         semantics.term(witness)(env).exists { answer =>
           val answering = Fn.of[AnyRef](post.value.arity)(args =>
             args.foldLeft(answer)((g, x) => Fn.call(Fn.ref(g), List(x))))
@@ -38,6 +39,12 @@ object StepRefutation:
         }
       }
     yield Refuted(claim.value.params.map(_.hint).zip(found.inputs), claim.value.params.map(_.ty), e, witness, ty)
+
+  /** The case's own numbers and their neighbours: what a quantifier over numbers ranges over in the search (a moment
+    * two bookings share is one of their ends or starts, or next to one).
+    */
+  private def numbers(vs: List[Value]): List[BigInt] =
+    vs.flatMap(Value.numbers).flatMap(n => List(n - 1, n, n + 1)).distinct.sorted
 
   /** `e` of a claim's post `guard implies op(inputs) === e` or `op(inputs) === e` (written as a claim, the post is
     * over the call's inputs), `e` not mentioning the Definition.

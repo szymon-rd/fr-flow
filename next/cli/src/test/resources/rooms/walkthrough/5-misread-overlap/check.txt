@@ -1,0 +1,94 @@
+error: check: level 1 of 4: bookedIsStored, bookedAfterIsStored, acceptedIsAnswered, neverOverlap, bookingsOfTheRoom, roomBookingsApart, grantWhenNoOverlap, bookingsEndAfterStart
+error: check: level 2 of 4: grantWhenFree
+error: check: level 3 of 4: storeWhenFree, answerWhenFree
+error: check: level 4 of 4: bookWhenFree, acceptWhenFree
+x neverOverlap: failed
+  the shared lemmas do not build
+    Proofs/Rooms/Lemmas.lean:38: omega could not prove the goal:
+  not proven: its check is not proven
+x roomBookingsApart: failed
+  the shared lemmas do not build
+    Proofs/Rooms/Lemmas.lean:38: omega could not prove the goal:
+  not proven: its check is not proven
++ grantWhenNoOverlap: proven; its code tested on 1001 cases
+  unsat: not shown
+  note: the generator given for String: Oak or Elm
+  note: the generator given for Booking: requests for Oak or Elm that end after they start
+  note: the generator given for RoomBookings: a room's bookings, laid end to end, some back to back
+  note: the generator of Booking never makes the examples' ("Oak", 9, 10), ("Oak", 11, 12), ("Oak", 10, 11), ("Oak", 9, 11), ("Oak", 10, 12)
+  note: the generator of RoomBookings never makes the examples' ("Oak", List(("Oak", 9, 10))), ("Oak", List(("Oak", 9, 11)))
++ bookingsEndAfterStart: proven
+  unsat: not shown
+x grantWhenFree: failed
+  complete: open
+    Proofs/Rooms/grantWhenFree.lean:19: omega could not prove the goal:
+  vacuous: not shown
+  restates: not shown
+  clash: not shown
+  unsat: not shown
+  a step is refuted on: held = ("Elm", List(("Elm", 0, 3))), request = ("Elm", 3, 5)
+  not proven: its check is not proven
+  not proven: its parts are not proven to make it
+  note: the generator given for String: Oak or Elm
+  note: the generator given for Booking: requests for Oak or Elm that end after they start
+  note: the generator given for RoomBookings: a room's bookings, laid end to end, some back to back
+  note: the generator of Booking never makes the examples' ("Oak", 9, 10), ("Oak", 11, 12), ("Oak", 10, 11), ("Oak", 9, 11), ("Oak", 10, 12)
+  note: the generator of RoomBookings never makes the examples' ("Oak", List(("Oak", 9, 10))), ("Oak", List(("Oak", 9, 11)))
+x storeWhenFree: failed
+  the shared lemmas do not build
+    Proofs/Rooms/Lemmas.lean:38: omega could not prove the goal:
+  not proven: its check is not proven
+x answerWhenFree: failed
+  the shared lemmas do not build
+    Proofs/Rooms/Lemmas.lean:38: omega could not prove the goal:
+  not proven: its check is not proven
+o bookWhenFree: open
+  needed_bookedIsStored: not shown
+  needed_bookedAfterIsStored: not shown
+  needed_storeWhenFree: not shown
+  clash: not shown
+  unsat: not shown
+  idle: not shown
+  root_impl: open
+  not proven: its check is not proven
+  not proven: the roots of the code are not proven (root_impl)
+o acceptWhenFree: open
+  needed_bookedIsStored: not shown
+  needed_acceptedIsAnswered: not shown
+  needed_answerWhenFree: not shown
+  clash: not shown
+  unsat: not shown
+  idle: not shown
+  root_impl: open
+  not proven: its check is not proven
+  not proven: the roots of the code are not proven (root_impl)
++ tableMatchesModel: nothing to prove
+
+Consistency: a meaning for what is open under which every statement holds
+  bookedIsStored: proven
+    booked: as bookedIsStored defines it
+  bookedAfterIsStored, acceptedIsAnswered, grantWhenNoOverlap: proven
+    granted: as grantWhenNoOverlap defines it
+    bookedAfter: as bookedAfterIsStored defines it
+    accepted: as acceptedIsAnswered defines it
+
+Where each store starts
+  neverOverlap, from what startsEmpty says: proven
+  bookingsEndAfterStart, from what startsEmpty says: proven
+
+Shown possible
+  bookingsOfTheRoom admits a value of RoomBookings: proven
+  roomBookingsApart admits a value of RoomBookings: proven
+  bookingsEndAfterStart admits a value of Booking: proven
+
+Examples
+  + a gap between them: granted  Lean: shown
+  + back to back: refused  Lean: shown
+  + overlapping: refused  Lean: shown
+
+FrModel: 16 nodes, 14 accepted, 2 to review
+Code: 4 proven, 2 tested; consistency proven
+Examples: 3/3 pass
+Waiting: 2 for the developer
+marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide
+--- exit 1

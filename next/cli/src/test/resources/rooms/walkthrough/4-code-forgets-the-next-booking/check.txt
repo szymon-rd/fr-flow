@@ -1,0 +1,40 @@
+error: check: level 1 of 4: bookedIsStored, bookedAfterIsStored, acceptedIsAnswered, neverOverlap, bookingsOfTheRoom, roomBookingsApart, grantWhenNoOverlap, bookingsEndAfterStart
+error: check: level 2 of 4: grantWhenFree
+error: check: level 3 of 4: storeWhenFree, answerWhenFree
+error: check: level 4 of 4: bookWhenFree, acceptWhenFree
+x grantWhenNoOverlap: fails a generated case: (("Elm", List(("Elm", 0, 5))), ("Elm", 0, 1)): its result breaks the claim (seed 1, case 11, size 1)
+  unsat: not shown
+  not proven: its code fails a generated case
+  note: the generator given for String: Oak or Elm
+  note: the generator given for Booking: requests for Oak or Elm that end after they start
+  note: the generator given for RoomBookings: a room's bookings, laid end to end, some back to back
+  note: the generator of Booking never makes the examples' ("Oak", 9, 10), ("Oak", 10, 11), ("Oak", 9, 11), ("Oak", 10, 12)
+  note: the generator of RoomBookings never makes the examples' ("Oak", List(("Oak", 9, 10))), ("Oak", List(("Oak", 9, 11)))
+
+Consistency: a meaning for what is open under which every statement holds
+  bookedIsStored: proven
+    booked: as bookedIsStored defines it
+  bookedAfterIsStored, acceptedIsAnswered, grantWhenNoOverlap: proven
+    granted: as grantWhenNoOverlap defines it
+    bookedAfter: as bookedAfterIsStored defines it
+    accepted: as acceptedIsAnswered defines it
+
+Where each store starts
+  neverOverlap, from what startsEmpty says: proven
+  bookingsEndAfterStart, from what startsEmpty says: proven
+
+Shown possible
+  bookingsOfTheRoom admits a value of RoomBookings: proven
+  roomBookingsApart admits a value of RoomBookings: proven
+  bookingsEndAfterStart admits a value of Booking: proven
+
+Examples
+  + back to back: granted  Lean: shown
+  + overlapping: refused  Lean: shown
+
+FrModel: 16 nodes, 15 accepted, 1 to review
+Code: 4 proven, 2 tested; consistency proven
+Examples: 2/2 pass
+Waiting: 1 for the developer
+marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide
+--- exit 1

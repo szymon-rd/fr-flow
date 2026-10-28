@@ -43,7 +43,9 @@ final class NodeChecker[F[_]: Monad: Clock](lake: Lake[F], files: ProjectFiles[F
       yield
         val (results, axioms) = (done ++ impl._1 ++ checks._1 ++ root._1, holds ++ impl._2 ++ checks._2 ++ root._2)
         val j = Judge.node(results, axioms, parts)
-        j.copy(findings = j.findings ++ found)
+        // A step Lean refutes on a case is false, not open.
+        val refuted = found.exists { case Finding.StepRefuted(_) => true; case _ => false }
+        j.copy(status = if refuted then CheckStatus.Failed else j.status, findings = j.findings ++ found)
     steps.merge.flatMap(j => Clock[F].realTimeInstant.map(NodeCheck(n, a.keys.node(n), j.status, j.results,
       j.findings, _)))
 
@@ -62,7 +64,9 @@ final class NodeChecker[F[_]: Monad: Clock](lake: Lake[F], files: ProjectFiles[F
       run(lean.layout.lemmas).flatMap(r => stop(Judge.lemmas(l, r))))
   }
 
-  /** `complete`, and when automation does not prove it, a case Lean proves refutes the step. */
+  /** `complete`, and when neither automation nor the developer's proof proves it, a case Lean proves refutes the
+    * step.
+    */
   private def complete(lean: NodeLean, a: Analysis): Step[(List[Result], List[Finding])] =
     lean.required(ObligationName.Complete).fold(EitherT.pure[F, Judged]((List.empty[Result], List.empty[Finding]))) {
       o =>
@@ -70,7 +74,7 @@ final class NodeChecker[F[_]: Monad: Clock](lake: Lake[F], files: ProjectFiles[F
         val module = if authored then lean.layout.proofs(lean.node) else lean.module(NodePart.Auto)
         run(module).flatMap { r =>
           val result = judged(o, if authored then lean.elaboratedProof(r) else lean.elaborated(NodePart.Auto, r))
-          if result.status == ObligationStatus.Proven || authored then EitherT.pure((List(result), Nil))
+          if result.status == ObligationStatus.Proven then EitherT.pure((List(result), Nil))
           else EitherT.liftF(refuted(lean, a).map(f => (List(result), f.toList)))
         }
     }

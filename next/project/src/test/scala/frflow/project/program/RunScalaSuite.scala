@@ -40,7 +40,7 @@ class RunScalaSuite extends munit.CatsEffectSuite:
       }), found))
   }
 
-  test("when complete does not go through and Lean proves the case refutes the step, the check says so") {
+  test("when complete does not go through and Lean proves the case refutes the step, the check says so: it fails") {
     for
       p    <- Projects.inMemory(Map.empty)
       a    <- Projects.analysed(p, steps, Nil)
@@ -48,7 +48,7 @@ class RunScalaSuite extends munit.CatsEffectSuite:
       out  <- CheckProgram(p.files, lake, "lean", RunCode.inline[IO])(a, Some(NodeId("nonNegative")))
     yield
       val c = out._1.headOption.getOrElse(fail("not checked"))
-      assertEquals(c.status, CheckStatus.Open)
+      assertEquals(c.status, CheckStatus.Failed)
       assert(c.results.exists(r => r.name == ObligationName.Complete), c.results)
       assert(c.findings.exists { case Finding.StepRefuted(List(("n", Value.Num(n)))) => n < 0; case _ => false },
         c.findings)

@@ -31,25 +31,12 @@ theorem apart_noOverlap (a b : Booking) (ha : bookingsEndAfterStart a) (hb : boo
   unfold noOverlap
   rcases h with h | h
   · exact Or.inl (Or.inl h)
-  · by_cases h1 : a.«end» ≤ b.start
-    · exact Or.inl (Or.inr h1)
-    · by_cases h2 : b.«end» ≤ a.start
-      · exact Or.inr h2
-      · exfalso
-        by_cases hs : a.start ≤ b.start
-        · exact h b.start ⟨⟨hs, by omega⟩, ⟨Int.le_refl _, hb⟩⟩
-        · exact h a.start ⟨⟨Int.le_refl _, ha⟩, ⟨by omega, by omega⟩⟩
-
-/-- Bookings that end after they start do not overlap exactly when they share no moment. -/
-theorem apart_iff_noOverlap {a b : Booking} (ha : bookingsEndAfterStart a) (hb : bookingsEndAfterStart b) :
-    apart a b ↔ noOverlap a b := by
-  refine ⟨apart_noOverlap a b ha hb, fun h => ?_⟩
-  unfold bookingsEndAfterStart at ha hb
-  unfold noOverlap at h
-  unfold apart covers
-  rcases h with (h | h) | h
-  · exact Or.inl h
-  all_goals exact Or.inr fun t => by omega
+  · by_cases hr : a.room = b.room
+    · -- the later start is a moment both would cover
+      have k := h (max a.start b.start)
+      simp only [hr, not_true, false_or]
+      omega
+    · exact Or.inl (Or.inl hr)
 
 /-- A room's bookings of a store whose bookings never overlap and end after they start never overlap. -/
 theorem room_apart (store : List Booking) (room : String) (hno : neverOverlap store)

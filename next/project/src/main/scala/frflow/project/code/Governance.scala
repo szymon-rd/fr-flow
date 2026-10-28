@@ -2,7 +2,8 @@ package frflow.project.code
 
 import frflow.core.analysis.Constrained
 import frflow.core.analysis.Outsides
-import frflow.core.name.{NodeId, RelPath}
+import frflow.core.checking.Checking
+import frflow.core.name.{NodeId, RelPath, SymbolName}
 import frflow.core.spec.Statement
 import frflow.core.Theory
 
@@ -25,10 +26,17 @@ object Governance:
     case Statement.Design(gs) => gs.toList
     case _                    => Nil
 
-  /** A Definition's plain code's files, governed by every statement mentioning it. */
+  /** A Definition's plain code's files, governed by each statement its code is tested against: a statement the code
+    * cannot be judged by (it has no Scala value) does not rest on it.
+    */
   private def attachedFiles(t: Theory): List[(NodeId, RelPath)] =
     t.code.attached.toList.flatMap((d, a) => a.code.scala.toList.flatMap(_.files)
-      .flatMap(f => Constrained.statements(t, d).map(_ -> f)))
+      .flatMap(f => Constrained.statements(t, d).filter(tested(t, d, _)).map(_ -> f)))
+
+  private def tested(t: Theory, d: SymbolName, n: NodeId): Boolean = Checking.of(t, n).exists {
+    case Checking.TestedAgainst(`d`, _) => true
+    case _                              => false
+  }
 
   /** A store's implementations' files, governed by the assumption that it behaves as its model. */
   private def realizedFiles(t: Theory): List[(NodeId, RelPath)] =

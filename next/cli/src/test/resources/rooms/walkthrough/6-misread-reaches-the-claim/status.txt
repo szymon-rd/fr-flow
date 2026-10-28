@@ -1,0 +1,23 @@
+! bookWhenFree  claim  to review  A request is booked exactly when its room is free for its whole time.
+  ! bookedIsStored  claim  to review  What is booked is what the table holds.
+  ! bookedAfterIsStored  claim  to review  What is booked once a request is handled is what the table holds after booking it.
+  ! storeWhenFree  claim  to review  A request is stored exactly when its room is free for its whole time.
+    ! grantWhenFree  claim  to review  A request is granted exactly when its room is free for its whole time.
+      ! grantWhenNoOverlap  claim  to review  A request is granted exactly when it overlaps no booking of its room.
+      ! bookingsOfTheRoom  claim  to review  A room's bookings are all of that room.
+      ! roomBookingsApart  claim  to review  A room's bookings never overlap.
+  ! neverOverlap  claim  to review  The bookings stored never overlap.
+! acceptWhenFree  claim  to review  A request is accepted exactly when its room is free for its whole time.
+  ! acceptedIsAnswered  claim  to review  A request is accepted exactly when booking it answers booked.
+  ! answerWhenFree  claim  to review  A request is answered booked exactly when its room is free for its whole time.
++ bookingsEndAfterStart  assumption  accepted  Every booking ends after it starts.
+- tableMatchesModel  assumption  accepted  The table gives a room's bookings in the order they were added, and adds one at the end.
+- oneAtATime  assumption  accepted  Bookings are processed one at a time.
+- startsEmpty  assumption  accepted  The table starts empty.
+
+FrModel: 16 nodes, 4 accepted, 12 to review
+Code: 4 proven, 2 tested; consistency proven
+Examples: 3/3 pass
+Waiting: 12 for the developer
+marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide
+--- exit 1

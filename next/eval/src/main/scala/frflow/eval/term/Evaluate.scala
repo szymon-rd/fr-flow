@@ -5,7 +5,7 @@ import frflow.core.expr.{Binder, OutsideFact, Value}
 import frflow.core.name.{ModelName, SymbolName}
 import frflow.core.term.*
 import frflow.core.ty.Ty
-import frflow.eval.{EvalError, Faults, Fn, NotEvaluated, Races, ScalaValue}
+import frflow.eval.{Env, EvalError, Faults, Fn, NotEvaluated, Races, ScalaValue}
 import frflow.eval.term.Run.{map2, pure}
 
 /** The evaluator, the one Scala semantics of terms (LNCS 7470 §3.2's `R`, there `R a = a`; here a reader of the values
@@ -32,14 +32,21 @@ class Evaluate extends Sym[Run], RunLists, RunContainers:
   def lt(a: Run[BigInt], b: Run[BigInt]): Run[Boolean] = map2(a, b)(_ < _)
   def le(a: Run[BigInt], b: Run[BigInt]): Run[Boolean] = map2(a, b)(_ <= _)
   def lit[A](a: A, value: Value, ty: Ty): Run[A] = pure(a)
-  def forall[A](x: Bound[A])(p: Run[A] => Run[Boolean]): Run[Boolean] = _ => Left(EvalError.Quantified)
-  def exists[A](x: Bound[A])(p: Run[A] => Run[Boolean]): Run[Boolean] = _ => Left(EvalError.Quantified)
+  def forall[A](x: Bound[A])(p: Run[A] => Run[Boolean]): Run[Boolean] = env =>
+    watched(x, env).fold(Left(EvalError.Quantified))(_.traverse(n => p(pure(n))(env)).map(_.forall(identity)))
+  def exists[A](x: Bound[A])(p: Run[A] => Run[Boolean]): Run[Boolean] = env =>
+    watched(x, env).fold(Left(EvalError.Quantified))(_.traverse(n => p(pure(n))(env)).map(_.exists(identity)))
   def always[A](x: Bound[A])(p: Run[A] => Run[Boolean]): Run[Boolean] = _ => Left(EvalError.Quantified)
   /** Never run: what the outside does is assumed, and its stores' code is tested against their models. */
   def outside(fact: OutsideFact): Run[Boolean] = _ => Left(EvalError.Quantified)
   /** Every model's state as before, the faults and the races aside (a world may hold them, `Faults`, `Races`). */
   def unchanged(after: Run[World], before: Run[World]): Run[Boolean] =
     map2(after, before)((a, b) => states(a) == states(b))
+  /** The numbers a quantifier over numbers ranges over in a search (`Env.numbers`); none elsewhere. */
+  private def watched[A](x: Bound[A], env: Env): Option[List[A]] = x.ty match
+    case Ty.Num(_) if env.numbers.nonEmpty => Some(env.numbers.map(_.asInstanceOf[A])) // a number's type is BigInt
+    case _                                => None
+
   def construct[F](c: Constructor[F]): Run[F] = pure(c.make)
   def field[R, F](r: Run[R], s: Selector[R, F]): Run[F] = r.andThen(_.map(s.get))
   def copy[R, F](r: Run[R], s: Selector[R, F], v: Run[F]): Run[R] = map2(r, v)(s.set)
