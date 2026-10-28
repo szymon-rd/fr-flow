@@ -137,9 +137,11 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
 8. `Boundary[B](means)`, named from its val, over `trait B[F[_], T[_]] derives BoundaryOps`. A boundary whose calls can
    fail is `Boundary.failing[B, E](means)`, today's form, setting `BoundarySig.failsWith`.
 9. `.refines(parents*)` replaces `.under`; `.replaces` is kept.
-10. A premise the node's proof assumes, an assumption or a claim of `always`, never a part (`PremiseNotAssumed`,
-    `OutsideAsPart`, `OutsideClaimed`). It is the one mechanism for a premise, the outside's included, and its list is
-    checked against what the check rests on (2.4, 2.6).
+10. A premise the node's proof assumes is an assumption, never a part (`PremiseNotAssumed`, `OutsideAsPart`,
+    `OutsideClaimed`). It is the one mechanism for a premise, the outside's included, and its list is checked against
+    what the check rests on (2.4, 2.6). A claim of `always` is placed with `.refines` below the statement it serves,
+    and an assumption of `always` is listed with `.assuming`: either is a rule, a hypothesis of what is about its type
+    or store, no part of a step and no import, still kept by the code (`cover_`, `made_`) (owner §25; 2.4).
 11. Who keeps an `always` is derived (`Scope`), and a claim mentions only what it constrains, so nothing is exempt; a
     relation of answers is a claim over the Definitions it relates (owner §15).
 12. A Definition has one meaning; alternatives are two claims, one `.replaces` the other (owner §15).
@@ -162,17 +164,18 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
     (`SharingClaimsSuite`).
 20. On the model, with named arguments: `stored.checkedAgainst(start = held => …, observe = adapter => …)`. Runs are
     generated from the boundary's signature (`Runs`), answers then states compared (`CodeTable.realized`). It is the
-    only check of an outside system's adapter (3.7; `StoreModelSuite`). The project's own implementation is checked with
+    only check of an outside system's adapter (3.8; `StoreModelSuite`). The project's own implementation is checked with
     `stored.implementedBy(start, observe)`, as today. An outside system's is run at most 200 times, the project's own on
     every case (1,000), and a node's count is the sum of its checks'.
 21. Statements are about values only (owner §21): nothing is assumed of a function's inputs. What comes from outside
-    gets a type of its own, rooms' `Request`, and what is trusted about it is an assumption of `always` on that type:
-    `fromTheForm`, "The booking form sends only requests that end after they start", is
-    `always[Request](r => r.start < r.end)`. `book` takes a `Request`; `asBooking` makes the `Booking` stored, and
-    `endsAfterStart`, a claim on `Booking`, is proven of it (`cover_book`). The assumption is trusted only for what
-    no covered code makes. Each check whose Lean form carries its guard lists it, rooms' two roots included; one that
-    does not is refused, naming it (`PremiseMissing`), as is a claim of `always[T]` needing `T`s from outside that no
-    assumption speaks of; one listing such an assumption it does not need, `PremiseNotNeeded` (2.6; `BookSuite`).
+    gets a type, and what is trusted about it is an assumption of `always` on that type; the general rule gives it a
+    type of its own. Rooms keeps one type (owner §25): `bookingsEndAfterStart`, "Every booking ends after it starts",
+    is `always[Booking](b => b.start < b.end)`, and `book` takes a `Booking`. The assumption is trusted only for what
+    no covered code makes: `book` still owes `cover_book` and the table's `inRoom` `made_inRoom`. Each check proven or
+    tested whose Lean form carries its guard lists it (rooms: nine nodes); a claim saying what a Declaration is only
+    carries it. One that does not list it is refused, naming it (`PremiseMissing`), as is a claim of `always[T]`
+    needing `T`s from outside that no assumption speaks of; one listing such an assumption it does not need,
+    `PremiseNotNeeded` (2.6; `BookSuite`).
 
 ## The DSL: code
 
@@ -273,17 +276,18 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
 1. `impl` is the step of a node with proven code from its stated parts, the code put in, or a leaf's `reliesOn`, a proof
    that goes round refused (`RestsOnItself`); `complete` is not asked of it (rooms' root, `BookSuite`; 2.7).
 2. Several root statements, the claims without parents, on any Definitions and Declarations, a statement relating them
-   included; no `SeveralRoots` problem, and keeping them a concise few is the author's. A service's purpose about its
-   entry program is one: rooms' `bookWhenFree` and `answersWhetherBooked`, beside its claims of `always` (owner §9,
-   §11; 2.5).
+   included; no `SeveralRoots` problem, and keeping them a concise few is the author's. A service's purpose may be
+   stated over Declarations, each said in terms of the code by a claim at the bottom, with no `impl`:
+   rooms' `bookWhenFree` and `acceptWhenFree`, over `booked`, `bookedAfter` and `accepted` (owner §9, §11, §14; 2.5,
+   2.7).
 3. `cover_<op>` is asked of each program writing a store, for each `always` about it (2.3).
 4. Every state a store may start in (`initially`) meets what always holds of it; every result of a proven define or a
-   store operation on its model meets each `always[T]` its guard applies to (rooms' two `made_inRoom`, proven); each
-   `always[T]` admits a value, its witness found by the search (owner §13, §18; 2.3, 2.9).
+   store operation on its model meets each `always[T]`, claimed or assumed, its guard applies to (rooms' three
+   `made_inRoom`); each `always[T]` admits a value, its witness found by the search (owner §13, §18; 2.3, 2.9).
 5. The bottom statements and the assumptions beside them, grouped by shared open values, jointly satisfiable for every
    value provided, discharged by their witnesses (`LowerWitness`, `frflow_witness`); witnesses come from equations,
-   bounds and proven code, and a group without one is "consistency not proven", a status of its own (owner §18; 2.8;
-   `ConsistencySuite`, `AuthSuite`).
+   bounds and proven code; a group not proven makes the proof red, for the whole model and for every statement
+   proven from parts over a Declaration (owner §18, §28; 2.8; `ConsistencySuite`, `AuthSuite`).
 6. Each condition `A` of `A implies B` can hold: a witness from the search, else stated only, "not shown" (owner §18;
    2.9; `VacuitySuite`).
 7. Each example follows from the claims constraining what it mentions; nothing depends on it (owner §18; 2.10).
@@ -406,7 +410,7 @@ program's claim as a run from a world; `.refines`; `when(…)(…).otherwise(…
 declared with its instance and checked by `checkedAgainst`; `derives LeanType` on domain types.
 
 Added: consistency and vacuity proven in Lean (`consistent_<i>`, `start_<node>`, `inhabited_<node>`,
-`satisfiable_<i>_<node>`, with derived or searched witnesses, "consistency not proven" a status of its own);
+`satisfiable_<i>_<node>`, with derived or searched witnesses, consistency not proven a failure, owner §28);
 `made_<maker>` for every maker of an `always[T]`'s values; each example checked against the claims (`example_<i>`) and
 the code; `show` saying how each claim is checked.
 

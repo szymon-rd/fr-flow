@@ -236,3 +236,32 @@ prove and no code (one tying a Declaration to the code) only carries it. In room
 ## 26. `generating` is called `withGenerator` (owner)
 The owner: "Call it withGenerator." The FrModel method that gives a generator for a type is `withGenerator`
 (`.withGenerator(roomNames.describedAs("Oak or Elm"))`), in today's library, the rebuild, the examples and the docs.
+
+## 27. The design before step 11 (owner)
+The owner approved the three changes today's library made after the design was approved, carried into the design
+before rooms is ported: a claim of `always` may sit below the statement it serves (`.refines`) as a rule, no part of
+the step; an assumption of `always` is a rule as such a claim is; every statement proven or tested whose Lean takes an
+assumption's rule lists it, and a claim saying what a Declaration is only carries it. Rules leaving a statement's
+parts is required: otherwise a rule, which Lean states as true of every value, would be a hypothesis of the step. With
+them, accepted: in the rebuild nine rooms nodes list `bookingsEndAfterStart` and `neverOverlap` also lists
+`tableMatchesModel`; `roomBookingsApart` keeps `noOverlap`; `start_` and `inhabited_` are asked of an `always`
+assumption too (`inhabited_` stays reported); `.assuming` takes only assumptions; `show` and review list a statement's
+rules apart from its parts ("Rules it uses"), so "together they make it" lists only the parts: a statement's parts
+together, with the assumptions it lists, imply it, Lean proves that step and checks each part is needed. Pending: how
+a run is written in a statement (`.from` as the design has it, or today's `.after`/`.answer`); the design keeps
+`.from` until the owner answers.
+
+## 28. Consistency gates the proof (owner)
+The owner: "Consistency is important, lack of it makes the proof red, warning is not enough." A consistency group not
+proven is a failure, not a warning: the whole model's proof is red, and so is every statement proven from parts over
+a Declaration while a group below it is not proven. This is in the rebuild only; today's library does not change
+(§29).
+
+## 29. Today's library is frozen (owner)
+The owner: "Yup. Freeze." Today's library (`modules/*`, `examples/*` and the README's code) is frozen except for bug
+fixes until step 14; every further change goes through `next/*`.
+
+## 30. Every boundary has a model or an assumption (owner)
+The owner: "Boundary must have a model or assumption." A value covered code builds and hands to a boundary is checked
+through the boundary's model or an assumption about it; a boundary covered code calls with neither is refused (a
+`Problem`), so nothing passes unchecked. This settles the open question of a value handed to a boundary with no model.
