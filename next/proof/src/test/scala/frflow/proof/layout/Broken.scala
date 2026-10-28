@@ -52,7 +52,7 @@ object Broken:
 
   val kb: Kb = Kb.of((List(endsAfterStart, fromOutside("fromOutside"), misdateSame) ++ runClaims ++ facts)*)
     .declaring(_.copy(types = List(Booking.data), boundaries = List(sig), models = List(model),
-      defines = List(endsRule, emptyRule, swap) ++
+      defines = List(endsRule, rule("fromOutside"), emptyRule, swap) ++
         flow("fileBack", List(b), put(term([T[_]] => (s: Sym[T]) => swapped(s))), Ty.Unit) ++
         flow("countTwice", Nil, Prog.Par(count, n1, count, n2), Ty.TupleOf(List(big, big))) ++
         flow("putBoth", List(b), Prog.Par(put(v(b)), u1, put(later), u2), pair)))

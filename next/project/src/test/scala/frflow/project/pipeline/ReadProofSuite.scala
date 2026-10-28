@@ -67,6 +67,19 @@ class ReadProofSuite extends munit.FunSuite:
     assertEquals(ids.filter(standing(every, _).unproven.contains(Unproven.Consistency)), Nil)
   }
 
+  test("a root over Declarations is red while the group saying what they are is not proven, and only then") {
+    def proving(names: List[ObligationName]) = a.withRecorded(Recorded(Checks(Map.empty, Some(WholeCheck(a.keys.whole,
+      names.map(Result(_, ObligationStatus.Proven, Nil)), Instant.EPOCH))), Map.empty, Map.empty))
+    val all = a.whole.map(_.name)
+    val groups = all.collect { case c: ObligationName.Consistent => c }
+    def red(on: Analysis) = List("bookWhenFree", "acceptWhenFree").map(NodeId(_))
+      .filter(standing(on, _).unproven.contains(Unproven.Consistency))
+    assert(groups.nonEmpty)
+    assertEquals(red(proving(all)), Nil)
+    // Every other obligation proven, the groups' not: a witness found is not proof, only `consistent_` proven.
+    assertEquals(red(proving(all.filterNot(groups.contains))), List("bookWhenFree", "acceptWhenFree").map(NodeId(_)))
+  }
+
 object ReadProofSuite:
   import frflow.*
   val positive = Node.claim("A number above zero is not below it.")(

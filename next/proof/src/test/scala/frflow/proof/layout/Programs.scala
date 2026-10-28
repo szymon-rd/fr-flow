@@ -95,7 +95,7 @@ object Programs:
         l.s.lt(l.s.field(x, Booking.start), l.s.field(x, Booking.end))))))
     .and(shelfFacts*)
     .declaring(_.copy(types = List(Booking.data), boundaries = List(shelfSig), models = List(shelfModel),
-      defines = List(endsRule, later, emptyRule) ++
+      defines = List(endsRule, Fixture.rule("fromOutside"), later, emptyRule) ++
       flow("fetchOne", List(n), Prog.Pure(made), Booking.ty) ++ flow("newest", Nil, Prog.Pure(made), Booking.ty) ++
       flow("both", List(n), both, Ty.TupleOf(List(big, big))) ++
       flow("doubled", List(xs), each, Ty.ListOf(big)) ++

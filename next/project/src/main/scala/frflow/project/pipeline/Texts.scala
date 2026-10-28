@@ -52,6 +52,8 @@ object Texts:
     case Checking.Consistent(g, s)     => g.filterNot(_ == id) match
         case Nil    => s"consistent: ${standing(s)}"
         case others => s"consistent with ${names(others.map(_.value))}: ${standing(s)}"
+    case Checking.Starts(from, s)      =>
+      s"met where the store starts, from what ${from.fold("nothing")(_.value)} says: ${standing(s)}"
     case Checking.Possible(vs)         => s"not vacuous: ${vs.map(vacuity).mkString(", ")}"
     case Checking.Trusted              => "trusted"
     case Checking.Outside(f)           => outside(f)

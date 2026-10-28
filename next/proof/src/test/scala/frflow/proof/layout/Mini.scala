@@ -45,7 +45,7 @@ object Mini:
       assumption("fromTheForm")(Lang.formula([T[_]] => (l: Lang[T]) =>
       l.s.always(Bound[Booking]("b", Booking.ty))(x =>
         l.s.lt(l.s.field(x, Booking.start), l.s.field(x, Booking.end))))))
-    .declaring(v => v.copy(defines = v.defines ++ List(run, endsRule, emptyRule)))
+    .declaring(v => v.copy(defines = v.defines ++ List(run, endsRule, Fixture.rule("fromTheForm"), emptyRule)))
     .naming(declaration("allowed", test))
     .linking(partOf("allowedPositive", "allowsOne"))
     .linking(List("storeModel", "oneAtATime", "startsEmpty", "fromTheForm")

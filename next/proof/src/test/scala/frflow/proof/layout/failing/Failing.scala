@@ -84,7 +84,7 @@ object Failing:
 
   val kb: Kb = Kb.of((List(endsAfterStart, fromOutside("fromOutside")) ++ runClaims ++ facts)*)
     .declaring(_.copy(types = List(Booking.data), boundaries = List(sig), models = List(model),
-      defines = List(endsRule, emptyRule) ++ flow("fileIt", List(b), put(v(b)), Ty.Unit) ++
+      defines = List(endsRule, rule("fromOutside"), emptyRule) ++ flow("fileIt", List(b), put(v(b)), Ty.Unit) ++
         flow("checkIt", List(b), checking, Booking.ty) ++ flow("spoilIt", List(b), spoiling, Ty.Unit) ++
         flow("fileBoth", List(b), twice, pair)))
     .naming(definition("file", program(Ty.Unit)), definition("check", program(Booking.ty)),

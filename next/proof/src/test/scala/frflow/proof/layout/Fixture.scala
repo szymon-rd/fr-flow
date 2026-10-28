@@ -33,9 +33,11 @@ object Fixture:
 
   private val b = at(0, "b", Booking.ty)
   /** `b.start < b.end`, a define named as the claim of it. */
-  val endsRule: Define = Define(DefName("endsAfterStart"), Written.lambda(List(b), [T[_]] => (s: Sym[T]) =>
+  val endsRule: Define = rule("endsAfterStart")
+  /** The same rule, a define named as another statement of it (an assumption of always has its rule too). */
+  def rule(name: String): Define = Define(DefName(name), Written.lambda(List(b), [T[_]] => (s: Sym[T]) =>
     s.lt(s.field(s.free[Booking](b), Booking.start), s.field(s.free[Booking](b), Booking.end)),
-    SourceText("endsAfterStart")), DefineForm.Function)
+    SourceText(name)), DefineForm.Function)
 
   private val ends: Final[Boolean] = Lang.formula([T[_]] => (l: Lang[T]) =>
     l.s.always(Bound[Booking]("b", Booking.ty))(x => l.s.lt(l.s.field(x, Booking.start), l.s.field(x, Booking.end))))

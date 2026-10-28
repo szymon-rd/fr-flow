@@ -43,14 +43,14 @@ class MeaningsSuite extends munit.FunSuite:
     assertEquals(Theories.problems(kb), List(Problem.PremiseNotNeeded(NodeId("listing"), NodeId("tableMatchesModel"))))
   }
 
-  test("the groups: booked alone; bookedAfter, granted and accepted joined through book's program, which calls granted") {
+  test("the groups: booked alone; bookedAfter, granted and accepted joined through book's program (it calls granted)") {
     val groups = Consistency.of(t).collect { case Group.Sharing(ns, open, _, ws) => (ns, open, ws) }
     assertEquals(groups.map(_._1), List(ids("bookedIsStored"),
       ids("bookedAfterIsStored", "acceptedIsAnswered", "grantWhenNoOverlap")))
     assertEquals(Consistency.open(t, NodeId("bookedAfterIsStored")), List(s("bookedAfter"), s("granted")))
   }
 
-  test("solved in substitution order: granted by its equation first, then bookedAfter and accepted read in book's run") {
+  test("solved in substitution order: granted by its equation, then bookedAfter and accepted read in book's run") {
     val ws = Consistency.of(t).collect { case Group.Sharing(ns, _, _, ws) if ns.size == 3 => ws }.flatten
     assertEquals(ws, List(Witness.Equation(s("granted"), NodeId("grantWhenNoOverlap"), Picked.Right(0)),
       Witness.Equation(s("bookedAfter"), NodeId("bookedAfterIsStored"), Picked.Right(0)),

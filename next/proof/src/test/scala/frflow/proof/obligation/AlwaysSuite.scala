@@ -7,7 +7,8 @@ import frflow.proof.lean.print.PrintDecl
 
 /** What `cover_` and `made_` state, byte for byte (`resources/always`): every run of a program writing a store keeps
   * what always holds of its values (`keeps_<op>`), and every result of a define, a program and a store's operation
-  * meets it (`makes_<maker>`), each over inputs and worlds meeting every `always`. The rooms goldens are §21's.
+  * meets it (`makes_<maker>`), each over inputs and worlds meeting every `always`. Rooms' are pinned where rooms is
+  * (`whole.RoomsGoldensSuite`, owner §25).
   */
 class AlwaysSuite extends munit.FunSuite:
   private def golden(path: String): String =
@@ -44,10 +45,4 @@ class AlwaysSuite extends munit.FunSuite:
   test("Failing: a run of a program that may fail keeps them whether it succeeds or fails; what it makes is of the " +
     "runs that succeed") {
     assertEquals(declared(Laid(Failing.resolved, Map.empty, Nil), Failing.resolved), golden("always/Failing.lean"))
-  }
-
-  test("the rooms goldens state §21's: requests from the form, meeting fromTheForm") {
-    List("Keeps_endsAfterStart.decl.lean", "Keeps_neverOverlap.decl.lean", "Def_bookIfGranted_run.decl.lean")
-      .foreach(f => assert(golden(s"rooms/$f").contains("Request"), f))
-    assert(golden("rooms/Keeps_endsAfterStart.decl.lean").contains("(Rooms.fromTheForm request)"))
   }

@@ -74,14 +74,16 @@ object Required:
     * meeting theirs (`Keeping`), given what the code relies on. What covered code makes is asked of it by `made`.
     */
   def keeps(r: Resolved, n: NodeId): List[Obligation] =
-    val guards = Guards.byAlways(r.theory)
     val stores = r.theory.node(n).flatMap(_.statement.range).toList.flatMap(Scope.models(r.theory, _)).map(_.boundary)
     val writers = Scope.of(r.theory, n).filter(op =>
       Callees.ofDefinition(r.theory, op).exists(_.calls.boundaries.exists(stores.contains)))
-    (guards.toMap.get(n).toList, writers).tupled.flatMap { (kept, op) =>
+    // The rule kept, and every rule taken, on the stores the program reads only (owner §33): another store's part of
+    // the world is the run's frame.
+    def reading(op: SymbolName) = Guards.reading(r.theory, Reads.ofProgram(r.theory, op))
+    writers.flatMap(op => reading(op).toMap.get(n).map(op -> _)).flatMap { (op, kept) =>
       (Callees.ofDefinition(r.theory, op).flatMap(_.standsFor.get(op)), typeOf(r, op)).tupled.map { (code, ty) =>
         val escapes = Failing.escapingOf(r.theory, op).nonEmpty
-        val within = Guards.reading(r.theory, Reads.ofProgram(r.theory, op)).map(_._2)
+        val within = reading(op).map(_._2)
         val goal = Prop.Keeps(n, op, Keeping.formula(op, ty, escapes)(inputs(r, op, ty), kept, within),
           Map(op -> Substitute.Code(code)))
         val hyps = r.reliedOnBy(op)

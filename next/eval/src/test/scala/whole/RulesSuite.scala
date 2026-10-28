@@ -55,7 +55,8 @@ class RulesSuite extends munit.FunSuite:
     val c = Composition(Lowering(r, TermTable.of(r)))
     val trusted = RootImplModule.roots(Lowering(r, TermTable.of(r))).flatMap(c.trusted).toSet
     assertEquals(trusted.intersect(rules), Set.empty[NodeId])
-    assertEquals(trusted, ids("bookedIsStored", "bookedAfterIsStored", "acceptedIsAnswered", "grantWhenNoOverlap").toSet)
+    assertEquals(trusted,
+      ids("bookedIsStored", "bookedAfterIsStored", "acceptedIsAnswered", "grantWhenNoOverlap").toSet)
   }
 
   test("what a node's code relies on leaves the rules out: storeWhenFree's impl rests on grantWhenFree alone") {

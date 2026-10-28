@@ -49,6 +49,9 @@ enum Checking:
   case RestsOn(premise: Premise, assumption: Option[NodeId])
   /** At the bottom: shown consistent with the statements sharing its open values (`consistent`). */
   case Consistent(group: List[NodeId], standing: Standing)
+  /** Of what always holds of a store, met where the store starts, from what the assumption saying so says (`start_`).
+    */
+  case Starts(from: Option[NodeId], standing: Standing)
   /** Shown not vacuous: its `always` admits a value, its conditions can hold. */
   case Possible(shown: List[Vacuity])
   /** Trusted: an outside system's promise, its code tested against it where there is code. */
@@ -125,7 +128,7 @@ object Checking:
 
   private def bottom(t: Theory, id: NodeId): List[Checking] = Consistency.of(t).collect {
     case g @ Group.Sharing(ids, _, _, _) if ids.contains(id) => Consistent(ids, g.standing)
-    case g @ Group.Start(`id`, _)                            => Consistent(List(id), g.standing)
+    case g @ Group.Start(`id`, from)                         => Starts(from, g.standing)
   }
 
   private def possible(t: Theory, id: NodeId): List[Checking] =
