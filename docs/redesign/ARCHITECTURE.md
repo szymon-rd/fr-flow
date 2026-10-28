@@ -588,6 +588,10 @@ its state in a world. Lean prints the boundary as a class, the model's operation
 instance on `StateM World` (`next/proof/src/test/resources/rooms/Boundaries.decls.lean`). The program's run on the
 models is `bookIfGranted_run`.
 
+The World is the application at one moment, as the proofs see it (owner §33): code never sees it, and a statement
+mentions only the stores it reads, taking only their rules as hypotheses. Adding a store adds a field and brings back
+for review no statement that does not read that store (step 11's `PortSuite` tests it).
+
 ### 3.3 The world outside
 
 The four assumptions are those of 2.6: the table behaves as its model and nothing outside the code changes it
@@ -1593,6 +1597,8 @@ The decisions are in `owner-decisions.md`; the right column says where this docu
 | 30 | Every boundary has a model or an assumption | 4.4, 4.6, 10.2 |
 | 31 | `writtenOnlyBy` dropped: the programs changing a store derived; `behavesAs` says nothing outside changes it | 2.3, 2.6, 3, 6, 8 |
 | 32 | `changedOneRunAtATime` is `atomic`, on the boundary | 2.6, 3, 8 |
+| 33 | One World, kept local: a statement takes only the stores it reads; a new store brings nothing unrelated back | 2.3, 3.2, 9 |
+| 34 | A run is written with `.from` (and `.failing`); `.answer`/`.after` not carried | 2.7, 3, 8 |
 
 ## Appendix B. Today's library, and where each problem is addressed
 

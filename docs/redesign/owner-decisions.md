@@ -247,9 +247,8 @@ them, accepted: in the rebuild nine rooms nodes list `bookingsEndAfterStart` and
 `tableMatchesModel`; `roomBookingsApart` keeps `noOverlap`; `start_` and `inhabited_` are asked of an `always`
 assumption too (`inhabited_` stays reported); `.assuming` takes only assumptions; `show` and review list a statement's
 rules apart from its parts ("Rules it uses"), so "together they make it" lists only the parts: a statement's parts
-together, with the assumptions it lists, imply it, Lean proves that step and checks each part is needed. Pending: how
-a run is written in a statement (`.from` as the design has it, or today's `.after`/`.answer`); the design keeps
-`.from` until the owner answers.
+together, with the assumptions it lists, imply it, Lean proves that step and checks each part is needed. How a run is written
+in a statement is decided in §34.
 
 ## 28. Consistency gates the proof (owner)
 The owner: "Consistency is important, lack of it makes the proof red, warning is not enough." A consistency group not
@@ -283,3 +282,17 @@ The owner: "atomic is good", and, asking "maybe we should make it on boundary?",
 `stored.changedOneRunAtATime` becomes `store.atomic` (rooms: `bookingTable.atomic`): runs on the real store never
 interleave; each run is one step of the world. `behavesAs` stays on the boundary; `initially` stays on the model,
 since it needs the state's type.
+
+## 33. One World (owner)
+The owner asked "So a World is a global state. Do we need a global state?" and decided: "Keep one world." A World is
+the application at one moment, as the proofs see it: one field per model's state. Code never sees it; in production
+the real systems are the state. It lets the roots speak of "the world as it stands" without naming a store, lets
+programs and statements span several stores, keeps what an operation does not touch unchanged by construction, and
+gives "every reachable world" its meaning. It stays local: a statement mentions only the stores it reads and takes
+only their rules as hypotheses, and adding a store brings back for review no statement that does not read it (step 11
+tests this). The docs call it the application at one moment, not global state.
+
+## 34. A run is written with `.from` (owner)
+The owner chose option A: `program(inputs).from(world) { (answer, after) => … }`, with
+`.failing { (error, after) => … }` for what holds when it fails. Today's `.answer(world)` and `.after(world)` are not
+carried into the rebuild; the one form covers programs that fail.
