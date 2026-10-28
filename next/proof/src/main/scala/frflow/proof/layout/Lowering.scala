@@ -1,6 +1,6 @@
 package frflow.proof.layout
 
-import frflow.core.analysis.{Guards, Resolved}
+import frflow.core.analysis.Resolved
 import frflow.core.name.{KbName, NodeId}
 import frflow.core.term.interpret.Guard
 import frflow.proof.lean.ast.Names
@@ -8,6 +8,7 @@ import frflow.proof.lean.lower.{LowerEnv, LowerProp, Naming}
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
 import frflow.proof.terms.TermTable
+import frflow.core.analysis.outside.Guards
 
 /** How one FrModel's Lean is lowered, computed once for every module: its environment (each model's field of
   * the world is its boundary's name, each model's namespace its name capitalized), the names a binder may not take

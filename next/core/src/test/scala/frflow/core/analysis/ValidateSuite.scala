@@ -6,6 +6,7 @@ import frflow.core.code.Code
 import frflow.core.name.{NodeId, SymbolName}
 import scala.compiletime.constValueTuple
 import scala.deriving.Mirror
+import frflow.core.analysis.outside.{Premise, Premises}
 
 /** Every problem `Validate` can report, each by name on a theory with that one thing wrong; the theories they are
   * made from are valid; and every problem of a theory is reported at once.
@@ -34,6 +35,12 @@ class ValidateSuite extends munit.FunSuite:
     assertEquals(Store.kb.and(FailureCases.sameWorld).problems, Nil)
     assertEquals(Kb.of(plain("root")).problems, Nil)
     assertEquals(ValueCases.proven.without("stray").problems, Nil)
+  }
+
+  test("a boundary is checked by a model it behaves as; that runs on it are atomic alone checks nothing") {
+    assert(!Store.kb.problems.exists(_.isInstanceOf[Problem.BoundaryUnchecked]), Store.kb.problems)
+    val atomicOnly = Store.kb.without("storeModel").declaring(_.copy(models = Nil))
+    assert(atomicOnly.problems.contains(Problem.BoundaryUnchecked(Store.boundary)), atomicOnly.problems)
   }
 
   test("a model named as its boundary's class, its namespace in Lean, is declared twice") {

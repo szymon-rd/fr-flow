@@ -2,7 +2,7 @@ package frflow.proof.obligation
 
 import cats.data.NonEmptyList
 import cats.syntax.all.*
-import frflow.core.analysis.{Callees, Constrained, Guards, Reads, Resolved, SaysWhat, Scope}
+import frflow.core.analysis.{Callees, Constrained, Resolved, SaysWhat, Scope}
 import frflow.core.Failing
 import frflow.core.term.interpret.Guard
 import frflow.core.expr.Expr
@@ -12,6 +12,7 @@ import frflow.core.spec.{CallForm, Range, Written}
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
 import frflow.proof.terms.{Commutation, Keeping, Making}
+import frflow.core.analysis.outside.{Guards, Reads}
 
 /** What must hold of a node, each read off its statement, its place and the code (owner §15), in today's order:
   * `complete` (proven from its parts), `feasible`, `impl` (checked against the proven code of the Definitions it

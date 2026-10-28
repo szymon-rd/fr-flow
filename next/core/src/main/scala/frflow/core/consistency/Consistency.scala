@@ -1,7 +1,7 @@
 package frflow.core.consistency
 
 import frflow.core.analysis.{Callees, Constrained, Scope}
-import frflow.core.analysis.Outsides
+import frflow.core.analysis.outside.Outsides
 import frflow.core.code.Code
 import frflow.core.expr.{Expr, Exprs, OutsideFact}
 import frflow.core.name.{NodeId, SourceText, SymbolName}

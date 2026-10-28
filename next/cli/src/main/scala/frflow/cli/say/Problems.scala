@@ -1,6 +1,7 @@
 package frflow.cli.say
 
-import frflow.core.analysis.{Premise, Problem}
+import frflow.core.analysis.Problem
+import frflow.core.analysis.outside.Premise
 
 /** What keeps a FrModel from being checked, in words: each problem names what is wrong, where, and what to do. */
 object Problems:

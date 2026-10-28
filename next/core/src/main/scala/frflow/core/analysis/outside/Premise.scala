@@ -1,4 +1,4 @@
-package frflow.core.analysis
+package frflow.core.analysis.outside
 
 import frflow.core.name.{BoundaryName, ModelName}
 import frflow.core.ty.Ty

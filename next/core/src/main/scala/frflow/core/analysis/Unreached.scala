@@ -6,6 +6,7 @@ import frflow.core.Theory
 import frflow.core.ty.{DataType, Ty}
 import frflow.core.vocab.SymbolType
 import Problem.Place
+import frflow.core.analysis.outside.Guards
 
 /** The places a guard of `always[T]` would go but cannot yet (owner §16: an `always` holds wherever FrFlow covers
   * the code): a type holding a `T` (`Scope.holds`) inside a map, a set or a function value, which `Guards` does not

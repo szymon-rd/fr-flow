@@ -8,6 +8,7 @@ import frflow.core.name.{CtorName, TypeName}
 import frflow.core.term.Bound
 import frflow.core.term.interpret.{Guarded, ToExpr}
 import frflow.core.ty.{Ctor, DataType, Field, Ty}
+import frflow.core.analysis.outside.Guards
 
 /** `always[T]`'s guard reaches every `T` a value holds, wherever `Scope.holds` finds one (owner §16): an option's
   * value, an `Either`'s side, a pair's component and an enum case's field, as a list's element and a record's field.

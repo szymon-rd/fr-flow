@@ -1,6 +1,6 @@
 package frflow.core.checking
 
-import frflow.core.analysis.{Constrained, Outsides, Premise, Premises, Reads, SaysWhat, Scope}
+import frflow.core.analysis.{Constrained, SaysWhat, Scope}
 import frflow.core.code.Code
 import frflow.core.consistency.{Consistency, Group, Standing, Vacuity}
 import frflow.core.expr.OutsideFact
@@ -8,6 +8,7 @@ import frflow.core.name.{ModelName, NodeId, OpName, SymbolName}
 import frflow.core.spec.{CallForms, Range, Statement}
 import frflow.core.ty.Ty
 import frflow.core.Theory
+import frflow.core.analysis.outside.{Outsides, Premise, Premises, Reads}
 
 /** How a statement is checked, derived from its formula, its place and what defines each Definition it mentions
   * (owner §15): what `show` lists beside it, so a reader sees every way it is held to account. Several apply to

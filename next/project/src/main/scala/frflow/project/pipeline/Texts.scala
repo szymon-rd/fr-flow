@@ -1,6 +1,6 @@
 package frflow.project.pipeline
 
-import frflow.core.analysis.{Premise, Resolve}
+import frflow.core.analysis.Resolve
 import frflow.core.checking.Checking
 import frflow.core.code.Code
 import frflow.core.consistency.{Standing, Vacuity}
@@ -8,6 +8,7 @@ import frflow.core.expr.OutsideFact
 import frflow.core.name.NodeId
 import frflow.core.Theory
 import frflow.core.ty.Ty
+import frflow.core.analysis.outside.Premise
 
 /** The content fields that render the statement: its vocabulary, and how it is checked. Each one function of the IR,
   * written once for the new ledgers (today's renderings are a reference); the rebuilt examples' goldens pin them.

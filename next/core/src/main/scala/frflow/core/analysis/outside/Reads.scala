@@ -1,4 +1,4 @@
-package frflow.core.analysis
+package frflow.core.analysis.outside
 
 import cats.syntax.all.*
 import frflow.core.expr.{Expr, Exprs, Quantifier}
@@ -6,6 +6,7 @@ import frflow.core.name.{BoundaryName, ModelName, NodeId, SymbolName}
 import frflow.core.spec.{Node, Range}
 import frflow.core.ty.Ty
 import frflow.core.Theory
+import frflow.core.analysis.{Callees, Constrained, Resolve, SaysWhat, Scope}
 
 /** The one World kept local (owner §33): a statement reads only some stores, and takes only their rules as hypotheses
   * on the worlds it is about, so adding a store changes no statement that does not read it. A statement reads the

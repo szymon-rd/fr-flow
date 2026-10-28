@@ -1,4 +1,4 @@
-package frflow.core.analysis
+package frflow.core.analysis.outside
 
 import frflow.core.expr.{Exprs, OutsideFact}
 import frflow.core.graph.Edge

@@ -1,6 +1,6 @@
 package frflow.eval.run
 
-import frflow.core.analysis.Guards
+import frflow.core.analysis.outside.Guards
 import frflow.core.name.{DefName, NodeId}
 import frflow.core.spec.Range
 import frflow.core.Theory

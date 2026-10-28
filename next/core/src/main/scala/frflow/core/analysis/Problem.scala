@@ -2,6 +2,7 @@ package frflow.core.analysis
 
 import frflow.core.name.{BoundaryName, DefName, ModelName, NodeId, SymbolName}
 import frflow.core.ty.Ty
+import frflow.core.analysis.outside.Premise
 
 /** What keeps a theory from being checked: each case names what is wrong and where. */
 enum Problem:

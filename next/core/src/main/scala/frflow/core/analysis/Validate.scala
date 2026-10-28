@@ -10,6 +10,7 @@ import frflow.core.name.{NodeId, SymbolName}
 import frflow.core.spec.NodeKind
 import frflow.core.ty.Ty
 import frflow.core.vocab.DefineForm
+import frflow.core.analysis.outside.{Outsides, Premises}
 
 /** The structure rules (docs/DAG.md §2) as one pure function: every problem at once, or the theory as `Valid`. */
 object Validate:

@@ -4,7 +4,7 @@ import cats.syntax.all.*
 import frflow.api.view.*
 import frflow.api.view.diff.*
 import frflow.api.view.whole.*
-import frflow.core.analysis.{Premise, Problem}
+import frflow.core.analysis.Problem
 import frflow.core.consistency.{Picked, Vacuity, Witness}
 import frflow.decision.ledger.Uncounted
 import frflow.decision.rules.Refusal
@@ -14,6 +14,7 @@ import frflow.web.json.NodeCodecs.given
 import io.circe.derivation.{Configuration, ConfiguredEncoder}
 import io.circe.syntax.*
 import io.circe.{Encoder, Json, JsonObject}
+import frflow.core.analysis.outside.Premise
 
 /** The views as the page reads them: each record an object of its fields, each case of an enum an object naming it
   * (`{"type": "Ungoverned", "file": …}`), the leaves as `Leaves` writes them; an example with whether it passes, and

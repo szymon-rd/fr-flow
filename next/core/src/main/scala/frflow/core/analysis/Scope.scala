@@ -5,6 +5,7 @@ import frflow.core.spec.Range
 import frflow.core.Theory
 import frflow.core.ty.Ty
 import frflow.core.vocab.{OpSig, StateModel, SymbolType}
+import frflow.core.analysis.outside.Guards
 
 /** Where a claim of `always` must hold, each Definition there keeping it (owner §16: wherever FrFlow covers the
   * code). Of `always[T](…)`: the Definitions whose result can hold a `T` (where a value is made) and the programs

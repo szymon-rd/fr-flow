@@ -5,6 +5,7 @@ import frflow.core.Nodes.*
 import frflow.core.name.{NodeId, TypeName}
 import frflow.core.term.Bound
 import frflow.core.ty.{DataType, Field, Ty}
+import frflow.core.analysis.outside.Premise
 
 /** One theory per problem of the world outside, each the store's valid theory with one change. */
 object OutsideCases:

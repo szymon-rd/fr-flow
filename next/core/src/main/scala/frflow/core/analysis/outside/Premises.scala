@@ -1,4 +1,4 @@
-package frflow.core.analysis
+package frflow.core.analysis.outside
 
 import frflow.core.code.Code
 import frflow.core.expr.{Expr, Exprs, Prog, Progs}
@@ -7,6 +7,7 @@ import frflow.core.spec.{Node, NodeKind, Range}
 import frflow.core.ty.Ty
 import frflow.core.vocab.{StateModel, SymbolType}
 import frflow.core.Theory
+import frflow.core.analysis.{Callees, SaysWhat, Scope}
 
 /** What about the world outside a statement's check rests on (owner §16, §17, §21), derived from the statement and
   * the code, each to be listed by the statement's `.assuming` (owner §15: the one mechanism; `Validate` checks the

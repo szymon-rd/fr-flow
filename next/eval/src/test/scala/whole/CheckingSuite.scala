@@ -1,7 +1,7 @@
 package whole
 
 import frflow.*
-import frflow.core.analysis.Premise
+import frflow.core.analysis.outside.Premise
 import frflow.core.checking.Checking
 import frflow.core.code.Code
 import frflow.core.consistency.Standing

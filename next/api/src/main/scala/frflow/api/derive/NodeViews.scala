@@ -1,7 +1,7 @@
 package frflow.api.derive
 
 import frflow.api.node.*
-import frflow.core.analysis.{Constrained, Reads, Resolve}
+import frflow.core.analysis.{Constrained, Resolve}
 import frflow.core.checking.Shown
 import frflow.core.expr.OutsideFact
 import frflow.core.name.NodeId
@@ -9,6 +9,7 @@ import frflow.core.spec.{Node, NodeKind}
 import frflow.decision.content.FieldValue
 import frflow.decision.review.{Moves, ReviewState, Standing}
 import frflow.project.pipeline.{Analysis, Texts}
+import frflow.core.analysis.outside.Reads
 
 /** Each group of a node's view, one function each, from the analysis. */
 private[api] final class NodeViews(a: Analysis):
