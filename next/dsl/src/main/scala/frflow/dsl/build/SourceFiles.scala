@@ -14,29 +14,43 @@ import scala.quoted.*
 object SourceFiles:
   inline def of(inline x: Any): List[String] = ${ filesOf('x) }
 
-  private def filesOf(e: Expr[Any])(using Quotes): Expr[List[String]] =
-    import quotes.reflect.*
-    val files = mutable.LinkedHashSet.empty[String]
-    val defined = mutable.Set.empty[Symbol]
-    def library(s: Symbol): Boolean = s.fullName == "frflow" || s.fullName.startsWith("frflow.")
-    def add(s: Symbol): Unit =
-      if !s.isNoSymbol && !library(s) && !defined(s) then
-        s.pos.map(p => Paths.get(p.sourceFile.path)).filter(Files.isRegularFile(_))
-          .map(_.toAbsolutePath.normalize.toString).filter(_.endsWith(".scala")).foreach(files += _)
+  private def filesOf(e: Expr[Any])(using q: Quotes): Expr[List[String]] =
+    import q.reflect.*
+    val inside = defined(e.asTerm)
+    Expr(referred(e.asTerm, inside).filterNot(inside).flatMap(file).distinct)
+
+  /** What the expression defines itself: its definitions and its patterns' bindings. */
+  private def defined(using q: Quotes)(t: q.reflect.Term): Set[q.reflect.Symbol] =
+    import q.reflect.*
+    val found = mutable.Set.empty[Symbol]
     object Defs extends TreeTraverser:
       override def traverseTree(t: Tree)(owner: Symbol): Unit =
         t match
-          case d: Definition => defined += d.symbol
-          case b: Bind       => defined += b.symbol
+          case d: Definition => found += d.symbol: Unit
+          case b: Bind       => found += b.symbol: Unit
           case _             => ()
         super.traverseTree(t)(owner)
+    Defs.traverseTree(t)(Symbol.spliceOwner)
+    found.toSet
+
+  /** Each symbol defined outside the expression it refers to, with its owner, and each class it makes, in the order
+    * met.
+    */
+  private def referred(using q: Quotes)(t: q.reflect.Term, inside: Set[q.reflect.Symbol]): List[q.reflect.Symbol] =
+    import q.reflect.*
+    val found = mutable.ListBuffer.empty[Symbol]
     object Refs extends TreeTraverser:
       override def traverseTree(t: Tree)(owner: Symbol): Unit =
         t match
-          case r: Ref if !defined(r.symbol) => add(r.symbol); add(r.symbol.owner)
-          case n: New                       => add(n.tpe.typeSymbol)
-          case _                            => ()
+          case r: Ref if !inside(r.symbol) => found ++= List(r.symbol, r.symbol.owner): Unit
+          case n: New                      => found += n.tpe.typeSymbol: Unit
+          case _                           => ()
         super.traverseTree(t)(owner)
-    Defs.traverseTree(e.asTerm)(Symbol.spliceOwner)
-    Refs.traverseTree(e.asTerm)(Symbol.spliceOwner)
-    Expr(files.toList)
+    Refs.traverseTree(t)(Symbol.spliceOwner)
+    found.toList
+
+  /** The Scala file on disk a symbol is written in, but FrFlow's own. */
+  private def file(using q: Quotes)(s: q.reflect.Symbol): Option[String] =
+    val library = s.fullName == "frflow" || s.fullName.startsWith("frflow.")
+    Option.when(!s.isNoSymbol && !library)(s.pos).flatten.map(p => Paths.get(p.sourceFile.path))
+      .filter(Files.isRegularFile(_)).map(_.toAbsolutePath.normalize.toString).filter(_.endsWith(".scala"))
