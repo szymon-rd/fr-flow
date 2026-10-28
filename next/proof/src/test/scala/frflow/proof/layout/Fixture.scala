@@ -33,9 +33,11 @@ object Fixture:
 
   private val b = at(0, "b", Booking.ty)
   /** `b.start < b.end`, a define named as the claim of it. */
-  val endsRule: Define = Define(DefName("endsAfterStart"), Written.lambda(List(b), [T[_]] => (s: Sym[T]) =>
+  val endsRule: Define = rule("endsAfterStart")
+  /** The same rule, a define named as another statement of it (an assumption of always has its rule too). */
+  def rule(name: String): Define = Define(DefName(name), Written.lambda(List(b), [T[_]] => (s: Sym[T]) =>
     s.lt(s.field(s.free[Booking](b), Booking.start), s.field(s.free[Booking](b), Booking.end)),
-    SourceText("endsAfterStart")), DefineForm.Function)
+    SourceText(name)), DefineForm.Function)
 
   private val ends: Final[Boolean] = Lang.formula([T[_]] => (l: Lang[T]) =>
     l.s.always(Bound[Booking]("b", Booking.ty))(x => l.s.lt(l.s.field(x, Booking.start), l.s.field(x, Booking.end))))
@@ -43,11 +45,12 @@ object Fixture:
   /** What the outside sends meets the same rule (owner §21). */
   def fromOutside(id: String): Node = assumption(id)(ends)
 
-  /** A store's four facts: behaves as its model, one run at a time, starts empty (`emptyRule`), written by these. */
-  def storeFacts(boundary: BoundaryName, m: ModelName, writers: List[String]): List[Node] = List(
-    outside("shelfModel")(OutsideFact.BehavesAs(boundary, m)), outside("shelfOneRun")(OutsideFact.OneRunAtATime(m)),
-    outside("shelfEmpty")(OutsideFact.Initially(m, DefName("shelfEmpty"))),
-    outside("shelfWriters")(OutsideFact.WrittenOnlyBy(m, writers.map(frflow.core.name.SymbolName(_)))))
+  /** A store's three facts: behaves as its model (nothing outside the code changing it), runs on it atomic, starts
+    * empty (`emptyRule`). The programs changing it are derived.
+    */
+  def storeFacts(boundary: BoundaryName, m: ModelName): List[Node] = List(
+    outside("shelfModel")(OutsideFact.BehavesAs(boundary, m)), outside("shelfOneRun")(OutsideFact.Atomic(boundary)),
+    outside("shelfEmpty")(OutsideFact.Initially(m, DefName("shelfEmpty"))))
 
   private val held = at(0, "held", Ty.ListOf(Booking.ty))
   val emptyRule: Define = Define(DefName("shelfEmpty"), Written.lambda(List(held), [T[_]] => (s: Sym[T]) =>

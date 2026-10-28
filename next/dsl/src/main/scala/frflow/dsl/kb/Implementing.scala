@@ -4,7 +4,7 @@ import cats.syntax.all.*
 import frflow.core.code.{Attachment, Code, Impl, ScalaCode, Values}
 import frflow.core.name.SourceText
 import frflow.core.ty.Ty
-import frflow.dsl.build.{Declarations, Deferred, Fault, Site, Source}
+import frflow.dsl.build.{Declarations, Deferred, Fault, Site, Source, SourceFiles}
 import frflow.dsl.node.Spans
 import frflow.dsl.term.Reify
 import frflow.dsl.vocab.Definition
@@ -25,12 +25,13 @@ object Implementing:
           Deferred((Declarations.define(spot.name, spot.lambda), Attachment(spot.code, at)).validNec)))
 
     /** `d` is plain Scala, built from the values it is given (`env(e)`), calling the Definitions `calls`: tested
-      * against each claim mentioning `d`.
+      * against each claim mentioning `d`. The files its Scala refers to are the code each such claim governs: a
+      * change to one brings the claim back for review.
       */
     inline def implementTested[F <: AnyRef](d: Definition[F], calls: Definition[?]*)(inline code: Values => F)
         : FrModel =
       val runs = ScalaCode(Impl(Implementing.arity(d.leanType.ty), env => code(env)),
-        SourceText(Source.of(code).text), Nil)
+        SourceText(Source.of(code).text), SourceFiles.of(code).map(Spans.relative))
       Implementing.attach(kb, d, Deferred.pure(Attachment(Code.Tested(runs, calls.toList.map(_.name)),
         Spans.relative(Source.file))))
 

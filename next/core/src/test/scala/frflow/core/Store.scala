@@ -9,7 +9,7 @@ import frflow.core.ty.Ty
 import frflow.core.vocab.{BoundarySig, Define, DefineForm, ModelOp, OpSig, StateModel}
 
 /** A store of bookings, its model (an operation adding one), a program `book` calling it, and a claim about its runs,
-  * resting on the store behaving as its model and on one run at a time: a valid theory.
+  * resting on the store behaving as its model and on runs on it being atomic: a valid theory.
   */
 object Store:
   val boundary: BoundaryName = BoundaryName("Bookings")
@@ -39,7 +39,7 @@ object Store:
 
   val bookTy: Ty = Ty.FnOf(List(Booking.ty), Ty.FlowOf(Ty.Unit, None))
   val storeModel: spec.Node = Nodes.outside("storeModel")(OutsideFact.BehavesAs(boundary, model))
-  val oneAtATime: spec.Node = Nodes.outside("oneAtATime")(OutsideFact.OneRunAtATime(model))
+  val oneAtATime: spec.Node = Nodes.outside("oneAtATime")(OutsideFact.Atomic(boundary))
 
   val kb: Kb = Kb.of(bookRuns, storeModel, oneAtATime)
     .declaring(_.copy(types = List(Booking.data), defines = List(program), boundaries = List(sig),

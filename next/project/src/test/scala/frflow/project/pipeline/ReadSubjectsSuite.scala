@@ -27,15 +27,16 @@ class ReadSubjectsSuite extends munit.FunSuite:
   test("rooms: each claim after the assumptions it rests on and the parts above it") {
     val order = Projects.bare(Projects.rooms).subjects.inOrder.map(_.id.value)
     def before(x: String, y: String) = assert(order.indexOf(x) < order.indexOf(y), order)
-    before("tableMatchesModel", "bookWhenFree")
+    before("tableMatchesModel", "storeWhenFree")
+    before("bookingsEndAfterStart", "bookWhenFree")
     before("bookWhenFree", "grantWhenFree")
     before("grantWhenFree", "grantWhenNoOverlap")
-    before("requestsEndAfterStart", "endsAfterStart")
+    before("bookingsEndAfterStart", "storeWhenFree")
   }
 
   test("a node proven of code rests on what its code calls, but on none of its own parts: those come after it") {
     val subjects = Projects.bare(Projects.rooms).subjects
-    val book = subjects.get(NodeId("bookWhenFree")).map(_.place.restsOn).getOrElse(fail("no bookWhenFree"))
+    val book = subjects.get(NodeId("storeWhenFree")).map(_.place.restsOn).getOrElse(fail("no storeWhenFree"))
     assert(!book.contains(NodeId("grantWhenFree")) && !book.contains(NodeId("grantWhenNoOverlap")), book)
-    assert(Projects.bare(Projects.rooms).decided.reliesOn(NodeId("bookWhenFree")).isEmpty)
+    assert(Projects.bare(Projects.rooms).decided.reliesOn(NodeId("storeWhenFree")).isEmpty)
   }

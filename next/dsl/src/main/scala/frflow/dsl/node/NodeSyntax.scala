@@ -10,7 +10,7 @@ object NodeSyntax:
   extension (n: Node)
     /** The node refines `wholes` (the refinement calculus' word): what it says, with its siblings', gives theirs. */
     def refines(wholes: (Node | Null)*): Node = linked(n)(l => l.copy(refines = l.refines ++ wholes.map(Parent.of)))
-    /** Its proof takes `premises` as hypotheses: assumptions, or statements of what always holds; never parts. */
+    /** Its proof takes `premises` as hypotheses: assumptions only (a rule it uses is found, never listed). */
     def assuming(premises: (Node | Null)*): Node =
       linked(n)(l => l.copy(assumes = l.assumes ++ premises.map(Parent.of)))
     def replaces(other: Node | Null): Node = linked(n)(_.copy(replaces = Some(Parent.of(other))))

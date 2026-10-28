@@ -10,9 +10,11 @@ object Today:
     "auth" -> _root_.auth.knowledge, "keycloak" -> _root_.keycloak.knowledge, "crm" -> _root_.crm.knowledge,
     "sharing" -> _root_.sharing.knowledge)
 
-  val rooms: Set[String] = Set("bookWhenFree", "answerWhenFree", "neverOverlap", "endsAfterStart", "bookingsOfTheRoom",
-    "roomBookingsApart", "grantWhenFree", "grantWhenNoOverlap", "tableMatchesModel", "onlyBookingWrites", "oneAtATime",
-    "startsEmpty", "requestsEndAfterStart")
+  /** Today's rooms as `reference/rooms` captured it (526fe35): seventeen nodes. */
+  val rooms: Set[String] = Set("bookWhenFree", "acceptWhenFree", "bookedIsStored", "bookedAfterIsStored",
+    "acceptedIsAnswered", "storeWhenFree", "answerWhenFree", "neverOverlap", "grantWhenFree", "bookingsOfTheRoom",
+    "roomBookingsApart", "grantWhenNoOverlap", "tableMatchesModel", "onlyBookingWrites", "oneAtATime", "startsEmpty",
+    "bookingsEndAfterStart")
 
   val auth: Set[String] = Set("accessExactly", "identities", "grantTable", "sessionTable", "requests",
     "tokenNamesHolder", "accessNeedsGrant", "grantLetsIn", "decisionContract", "inMemorySessions")

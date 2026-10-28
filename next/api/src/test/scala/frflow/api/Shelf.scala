@@ -43,6 +43,14 @@ object Shelf:
       forall((n: Term[BigInt]) => outside(n) >= 0))
     val kb = FrModel("Lone")(nonNegative)
 
+  /** A claim saying what a Declaration is, its group with no witness (no equation, no bound): its consistency is
+    * not proven, so the proof is red (owner §28), whatever else is accepted.
+    */
+  object Unwitnessed:
+    val oddOnes = Node.claim("The outside service gives an odd number for each number.")(
+      forall((n: Term[BigInt]) => !(outside(n) === n + n)))
+    val kb = FrModel("Unwitnessed")(oddOnes)
+
   /** `Before` with code that gives a negative number: the same nodes, its claim broken by a generated case. */
   object Careless:
     val kb = FrModel("Shelf")(Before.nonNegative, Before.sameAbove).implementTested(d)(_ => n => -n.abs - 1)

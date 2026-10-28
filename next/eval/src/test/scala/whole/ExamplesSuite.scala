@@ -30,9 +30,10 @@ class ExamplesSuite extends munit.FunSuite:
     assertEquals(Today.all.map((name, kb) => name -> Theories.errors(kb)), Today.all.map(_._1 -> Nil))
   }
 
-  test("rooms: today's nodes, named as today's") {
-    assertEquals(ids(rooms.rooms), Today.rooms)
-    assertEquals(kinds(rooms.rooms), Map("claim" -> 8, "assumption" -> 5))
+  test("rooms: today's nodes, named as today's, but onlyBookingWrites: the programs changing a store are derived " +
+    "(owner §31)") {
+    assertEquals(ids(rooms.rooms), renamed(Today.rooms, Set("onlyBookingWrites"), Set.empty))
+    assertEquals(kinds(rooms.rooms), Map("claim" -> 12, "assumption" -> 4))
   }
 
   test("auth: today's, but the definition of two open types, which the types now say; and the session table's one " +

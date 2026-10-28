@@ -36,8 +36,9 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
     case ProverRun.Failed(o) => ProverRun.Failed(o.linesIterator.filterNot(_.contains("axioms")).mkString("\n"))
     case other               => other
 
-  private val stated = List("bookWhenFree", "answerWhenFree", "endsAfterStart", "neverOverlap", "bookingsOfTheRoom",
-    "roomBookingsApart", "grantWhenFree", "grantWhenNoOverlap", "requestsEndAfterStart").map(NodeId(_))
+  private val stated = List("bookWhenFree", "acceptWhenFree", "bookedIsStored", "bookedAfterIsStored",
+    "acceptedIsAnswered", "storeWhenFree", "answerWhenFree", "neverOverlap", "grantWhenFree", "bookingsOfTheRoom",
+    "roomBookingsApart", "grantWhenNoOverlap", "bookingsEndAfterStart").map(NodeId(_))
 
   test("every node Lean is asked of is checked, parts first, proven when Lean proves each obligation") {
     checked()(proving).map { (done, a, _, _) =>
@@ -145,8 +146,8 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
   }
 
   test("a build that times out ends the check (Timeout); only that node is checked when it is named") {
-    val node = NodeId("endsAfterStart")
-    checked(Some(node))(a => m => if m.dotted.contains(".endsAfterStart.") then ProverRun.TimedOut("") else
+    val node = NodeId("roomBookingsApart")
+    checked(Some(node))(a => m => if m.dotted.contains(".roomBookingsApart.") then ProverRun.TimedOut("") else
       proving(a)(m)).map { (done, _, _, _) =>
       assertEquals(done.map(c => c.node -> c.status), List(node -> CheckStatus.Timeout))
     }

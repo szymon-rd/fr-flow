@@ -1,0 +1,289 @@
+
+--- 12 waiting ---
+! bookWhenFree  claim (a root)  to review
+  A request is booked exactly when its room is free for its whole time.
+
+Decision
+  to review: it changed
+  not mechanical: its meaning moved
+  decisions below it that accepting it acts on (accept --revisit NODE reviews one again): bookedAfterIsStored
+
+Why it holds (the reason it was decided with)
+  it says what the service must do  (accepted by ann, <when>)
+
+Formally (as written in Scala)
+  forall((request: Term[Booking], now: Term[World]) =>
+      val bookings = booked(now)
+      bookedAfter(request, now) === when(free(bookings, request))(bookings :+ request).otherwise(bookings))
+
+Parts: together, with the assumptions it lists, they make it
+  ! bookedIsStored  claim  to review  What is booked is what the table holds.
+  ! bookedAfterIsStored  claim  to review  What is booked once a request is handled is what the table holds after booking it.
+  ! storeWhenFree  claim  to review  A request is stored exactly when its room is free for its whole time.
+
+Rules it uses (no part of its step: Lean has each of every value)
+  ! neverOverlap  claim  to review  The bookings stored never overlap.
+  + bookingsEndAfterStart  assumption  accepted  Every booking ends after it starts.
+
+[a]ccept [s]kip [v]iew [q]uit: s
+
+--- 11 waiting ---
+! acceptWhenFree  claim (a root)  to review
+  A request is accepted exactly when its room is free for its whole time.
+
+Decision
+  to review: it changed
+  not mechanical: its meaning moved
+  decisions below it that accepting it acts on (accept --revisit NODE reviews one again): acceptedIsAnswered
+
+Why it holds (the reason it was decided with)
+  it says what the service must do  (accepted by ann, <when>)
+
+Formally (as written in Scala)
+  forall((request: Term[Booking], now: Term[World]) => accepted(request, now) === free(booked(now), request))
+
+Parts: together, with the assumptions it lists, they make it
+  ! bookedIsStored  claim  to review  What is booked is what the table holds.
+  ! acceptedIsAnswered  claim  to review  A request is accepted exactly when booking it answers booked.
+  ! answerWhenFree  claim  to review  A request is answered booked exactly when its room is free for its whole time.
+
+Rules it uses (no part of its step: Lean has each of every value)
+  ! neverOverlap  claim  to review  The bookings stored never overlap.
+  + bookingsEndAfterStart  assumption  accepted  Every booking ends after it starts.
+
+[a]ccept [s]kip [v]iew [q]uit: s
+
+--- 10 waiting ---
+! bookedIsStored  claim  to review
+  What is booked is what the table holds.
+
+Decision
+  to review: the meaning of what it rests on changed
+  decide bookWhenFree first: what rests on it is decided after it
+  moved above it since it was decided: bookWhenFree (diff bookedIsStored shows how)
+  moved above it since it was decided: acceptWhenFree (diff bookedIsStored shows how)
+
+Why it holds (the reason it was decided with)
+  it says what the service must do  (accepted by ann, <when>)
+
+Formally (as written in Scala)
+  forall((now: Term[World]) => booked(now) === storedBookings.in(now))
+
+[s]kip [v]iew [q]uit: s
+
+--- 9 waiting ---
+! bookedAfterIsStored  claim  to review
+  What is booked once a request is handled is what the table holds after booking it.
+
+Decision
+  to review: the meaning of what it rests on changed
+  decide bookWhenFree first: what rests on it is decided after it
+  moved above it since it was decided: bookWhenFree (diff bookedAfterIsStored shows how)
+
+Why it holds (the reason it was decided with)
+  it says what the service must do  (accepted by ann, <when>)
+
+Formally (as written in Scala)
+  forall((request: Term[Booking], now: Term[World]) =>
+        book(request).from(now) { (_, after) => bookedAfter(request, now) === storedBookings.in(after) })
+
+[s]kip [v]iew [q]uit: s
+
+--- 8 waiting ---
+! acceptedIsAnswered  claim  to review
+  A request is accepted exactly when booking it answers booked.
+
+Decision
+  to review: the meaning of what it rests on changed
+  decide acceptWhenFree first: what rests on it is decided after it
+  moved above it since it was decided: acceptWhenFree (diff acceptedIsAnswered shows how)
+
+Why it holds (the reason it was decided with)
+  it says what the service must do  (accepted by ann, <when>)
+
+Formally (as written in Scala)
+  forall((request: Term[Booking], now: Term[World]) =>
+      book(request).from(now) { (answer, _) => accepted(request, now) === answer })
+
+[s]kip [v]iew [q]uit: s
+
+--- 7 waiting ---
+! storeWhenFree  claim  to review
+  A request is stored exactly when its room is free for its whole time.
+
+Decision
+  to review: it changed; the meaning of what it rests on changed
+  decide bookWhenFree first: what rests on it is decided after it
+  moved above it since it was decided: bookWhenFree (diff storeWhenFree shows how)
+
+Why it holds (the reason it was decided with)
+  it says what the service must do  (accepted by ann, <when>)
+
+Formally (as written in Scala)
+  forall((request: Term[Booking], before: Term[World]) =>
+      val stored = storedBookings.in(before)
+      book(request).from(before) { (_, after) =>
+        storedBookings.in(after) === when(free(stored, request))(stored :+ request).otherwise(stored) })
+
+Parts: together, with the assumptions it lists, they make it
+  ! grantWhenFree  claim  to review  A request is granted exactly when its room is free for its whole time.
+
+Rules it uses (no part of its step: Lean has each of every value)
+  + bookingsEndAfterStart  assumption  accepted  Every booking ends after it starts.
+
+[s]kip [v]iew [q]uit: s
+
+--- 6 waiting ---
+! answerWhenFree  claim  to review
+  A request is answered booked exactly when its room is free for its whole time.
+
+Decision
+  to review: it changed; the meaning of what it rests on changed
+  decide acceptWhenFree first: what rests on it is decided after it
+  moved above it since it was decided: acceptWhenFree (diff answerWhenFree shows how)
+
+Why it holds (the reason it was decided with)
+  it says what the service must do  (accepted by ann, <when>)
+
+Formally (as written in Scala)
+  forall((request: Term[Booking], before: Term[World]) =>
+      book(request).from(before) { (answer, _) => answer === free(storedBookings.in(before), request) })
+
+Parts: together, with the assumptions it lists, they make it
+  ! grantWhenFree  claim  to review  A request is granted exactly when its room is free for its whole time.
+
+Rules it uses (no part of its step: Lean has each of every value)
+  + bookingsEndAfterStart  assumption  accepted  Every booking ends after it starts.
+
+[s]kip [v]iew [q]uit: s
+
+--- 5 waiting ---
+! neverOverlap  claim  to review
+  The bookings stored never overlap.
+
+Decision
+  to review: it changed; the meaning of what it rests on changed
+  decide bookWhenFree first: what rests on it is decided after it
+  moved above it since it was decided: bookWhenFree (diff neverOverlap shows how)
+  moved above it since it was decided: acceptWhenFree (diff neverOverlap shows how)
+
+Why it holds (the reason it was decided with)
+  it says what the service must do  (accepted by ann, <when>)
+
+Formally (as written in Scala)
+  always(storedBookings)(stored => stored.pairwise(apart))
+
+Rules it uses (no part of its step: Lean has each of every value)
+  + bookingsEndAfterStart  assumption  accepted  Every booking ends after it starts.
+
+[s]kip [v]iew [q]uit: s
+
+--- 4 waiting ---
+! grantWhenFree  claim  to review
+  A request is granted exactly when its room is free for its whole time.
+
+Decision
+  to review: it changed; the meaning of what it rests on changed
+  decide storeWhenFree first: what rests on it is decided after it
+  moved above it since it was decided: storeWhenFree (diff grantWhenFree shows how)
+  moved above it since it was decided: answerWhenFree (diff grantWhenFree shows how)
+  moved above it since it was decided: bookWhenFree (diff grantWhenFree shows how)
+  moved above it since it was decided: acceptWhenFree (diff grantWhenFree shows how)
+
+Why it holds (the reason it was decided with)
+  it says what the service must do  (accepted by ann, <when>)
+
+Formally (as written in Scala)
+  forall((held: Term[RoomBookings], request: Term[Booking]) =>
+      granted(held, request) === free(held.bookings, request))
+
+Parts: together, with the assumptions it lists, they make it
+  ! grantWhenNoOverlap  claim  to review  A request is granted exactly when it overlaps no booking of its room.
+
+Rules it uses (no part of its step: Lean has each of every value)
+  ! bookingsOfTheRoom  claim  to review  A room's bookings are all of that room.
+  ! roomBookingsApart  claim  to review  A room's bookings never overlap.
+  + bookingsEndAfterStart  assumption  accepted  Every booking ends after it starts.
+
+[s]kip [v]iew [q]uit: s
+
+--- 3 waiting ---
+! bookingsOfTheRoom  claim  to review
+  A room's bookings are all of that room.
+
+Decision
+  to review: the meaning of what it rests on changed
+  decide grantWhenFree first: what rests on it is decided after it
+  moved above it since it was decided: grantWhenFree (diff bookingsOfTheRoom shows how)
+  moved above it since it was decided: storeWhenFree (diff bookingsOfTheRoom shows how)
+  moved above it since it was decided: answerWhenFree (diff bookingsOfTheRoom shows how)
+  moved above it since it was decided: bookWhenFree (diff bookingsOfTheRoom shows how)
+  moved above it since it was decided: acceptWhenFree (diff bookingsOfTheRoom shows how)
+
+Why it holds (the reason it was decided with)
+  it says what the service must do  (accepted by ann, <when>)
+
+Formally (as written in Scala)
+  always[RoomBookings](held => held.bookings.forall(b => b.room === held.room))
+
+Rules it uses (no part of its step: Lean has each of every value)
+  + bookingsEndAfterStart  assumption  accepted  Every booking ends after it starts.
+
+[s]kip [v]iew [q]uit: s
+
+--- 2 waiting ---
+! roomBookingsApart  claim  to review
+  A room's bookings never overlap.
+
+Decision
+  to review: it changed; the meaning of what it rests on changed
+  decide grantWhenFree first: what rests on it is decided after it
+  moved above it since it was decided: grantWhenFree (diff roomBookingsApart shows how)
+  moved above it since it was decided: storeWhenFree (diff roomBookingsApart shows how)
+  moved above it since it was decided: answerWhenFree (diff roomBookingsApart shows how)
+  moved above it since it was decided: bookWhenFree (diff roomBookingsApart shows how)
+  moved above it since it was decided: acceptWhenFree (diff roomBookingsApart shows how)
+
+Why it holds (the reason it was decided with)
+  it says what the service must do  (accepted by ann, <when>)
+
+Formally (as written in Scala)
+  always[RoomBookings](held => held.bookings.pairwise(noOverlap))
+
+Rules it uses (no part of its step: Lean has each of every value)
+  + bookingsEndAfterStart  assumption  accepted  Every booking ends after it starts.
+
+[s]kip [v]iew [q]uit: s
+
+--- 1 waiting ---
+! grantWhenNoOverlap  claim  to review
+  A request is granted exactly when it overlaps no booking of its room.
+
+Decision
+  to review: it changed; the meaning of what it rests on changed; the code it governs changed
+  decide grantWhenFree first: what rests on it is decided after it
+  moved above it since it was decided: grantWhenFree (diff grantWhenNoOverlap shows how)
+  moved above it since it was decided: storeWhenFree (diff grantWhenNoOverlap shows how)
+  moved above it since it was decided: answerWhenFree (diff grantWhenNoOverlap shows how)
+  moved above it since it was decided: bookWhenFree (diff grantWhenNoOverlap shows how)
+  moved above it since it was decided: acceptWhenFree (diff grantWhenNoOverlap shows how)
+
+Why it holds (the reason it was decided with)
+  it says what the service must do  (accepted by ann, <when>)
+
+Formally (as written in Scala)
+  forall((held: Term[RoomBookings], request: Term[Booking]) =>
+      granted(held, request) === held.bookings.forall(b => noOverlap(b, request)))
+
+Rules it uses (no part of its step: Lean has each of every value)
+  + bookingsEndAfterStart  assumption  accepted  Every booking ends after it starts.
+
+[s]kip [v]iew [q]uit: s
+
+Decided 0 decision(s).
+FrModel: 16 nodes, 4 accepted, 12 to review
+Code: 4 proven, 2 tested; consistency proven
+Examples: 3/3 pass
+Waiting: 12 for the developer
+marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide
+--- exit 0

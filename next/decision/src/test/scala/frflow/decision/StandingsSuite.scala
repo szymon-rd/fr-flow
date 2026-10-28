@@ -128,6 +128,15 @@ class StandingsSuite extends munit.FunSuite:
     assertEquals(Reading(replacing(s, reworked), l).waitsFor(reworked), Some(id("A")))
   }
 
+  test("a rule about a store comes back when a program changing the store is added, naming it; not when one goes") {
+    val ruled = replacing(shelf, b.said("writers", texts("book")))
+    val l = acceptAll(ruled)
+    def bs(writers: String*) = standing(replacing(shelf, b.said("writers", texts(writers*))), l)("B")
+    assertEquals(bs("book", "cancel"), ReviewState.Review -> List(Cause.Self, Cause.Writers(List("cancel"))))
+    assertEquals(bs("book"), ReviewState.Accepted -> Nil)
+    assertEquals(bs()._2.contains(Cause.Writers(Nil)), false)
+  }
+
   test("reading a tree grows linearly with it: each node's state is computed once") {
     // The fastest of three runs, so a pause elsewhere in the build does not count; linear is 4, quadratic 16.
     def seconds(n: Int): Double =

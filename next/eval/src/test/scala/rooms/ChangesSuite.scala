@@ -28,7 +28,7 @@ class ChangesSuite extends munit.FunSuite:
   }
 
   test("a fold, a record made and shared by `let`, an option's and an either's fold, as IR") {
-    assert(Exprs.all(body(booked)).exists { case Expr.Fold(_, _, acc, x, _) => (acc.hint, x.hint) == ("n", "b")
+    assert(Exprs.all(body(bookedTime)).exists { case Expr.Fold(_, _, acc, x, _) => (acc.hint, x.hint) == ("n", "b")
       case _ => false })
     assert(Exprs.all(body(hourLong)).exists {
       case Expr.Let(x, Expr.Make(_, c, _), _) => x.hint == "b" && c.value == "mk"
@@ -38,6 +38,6 @@ class ChangesSuite extends munit.FunSuite:
   }
 
   test("each define's IR is typed as its body") {
-    assertEquals(List(afterChange, moved, booked, hourLong, startOr, outcome).map(d => Exprs.typeOf(body(d))),
-      List(afterChange, moved, booked, hourLong, startOr, outcome).map(d => RoomsIr.lambda(d).value.result))
+    assertEquals(List(afterChange, moved, bookedTime, hourLong, startOr, outcome).map(d => Exprs.typeOf(body(d))),
+      List(afterChange, moved, bookedTime, hourLong, startOr, outcome).map(d => RoomsIr.lambda(d).value.result))
   }

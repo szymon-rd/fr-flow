@@ -23,7 +23,7 @@ class WitnessesSuite extends munit.FunSuite:
 
   test("with nothing drawn, the small values give rooms' witnesses, as section 2.9 shows them") {
     val small = search(_ => Nil)
-    assertEquals(small.of(Vacuity.Inhabited(NodeId("endsAfterStart"), booking)),
+    assertEquals(small.of(Vacuity.Inhabited(NodeId("bookingsEndAfterStart"), booking)),
       Some(List(Value.Data(CtorName("mk"), List(Value.Str(""), Value.Num(0), Value.Num(1))) -> booking)))
     assertEquals(small.of(Vacuity.Inhabited(NodeId("roomBookingsApart"), roomBookings)),
       Some(List(Value.Data(CtorName("mk"), List(Value.Str(""), Value.Many(Nil))) -> roomBookings)))
@@ -31,8 +31,8 @@ class WitnessesSuite extends munit.FunSuite:
 
   test("the generators' values are tried first, and the search is deterministic") {
     val drawn = (ty: Ty) => derive.samples(ty, Seed(1), 20)
-    val found = search(drawn).of(Vacuity.Inhabited(NodeId("endsAfterStart"), booking))
-    assertEquals(found, search(drawn).of(Vacuity.Inhabited(NodeId("endsAfterStart"), booking)))
+    val found = search(drawn).of(Vacuity.Inhabited(NodeId("bookingsEndAfterStart"), booking))
+    assertEquals(found, search(drawn).of(Vacuity.Inhabited(NodeId("bookingsEndAfterStart"), booking)))
     assertEquals(found.map(_.map(_._1)), Some(drawn(booking).take(1)))
   }
 

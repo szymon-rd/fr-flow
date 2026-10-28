@@ -9,6 +9,7 @@ import frflow.core.spec.{Node, NodeKind}
 import frflow.decision.content.FieldValue
 import frflow.decision.review.{Moves, ReviewState, Standing}
 import frflow.project.pipeline.{Analysis, Texts}
+import frflow.core.analysis.outside.Reads
 
 /** Each group of a node's view, one function each, from the analysis. */
 private[api] final class NodeViews(a: Analysis):
@@ -25,8 +26,11 @@ private[api] final class NodeViews(a: Analysis):
   def placement(id: NodeId): Placement =
     val g = r.theory.refinement
     def inverse(f: NodeId => List[NodeId]) = g.nodes.map(_.id).filter(f(_).contains(id))
+    val rules = (g.rules(id) ++ g.assumed(id).filter(p => g.node(p).exists(_.statement.rule))).distinct
+    val (taken, unused) = rules.partition(Reads.takes(r.theory, id, _))
     val related = List(
-      Relation.Parent -> g.parents(id), Relation.Part -> g.parts(id),
+      Relation.Parent -> g.parents(id), Relation.Part -> g.parts(id), Relation.Rule -> taken,
+      Relation.UnusedRule -> unused,
       Relation.Design -> g.children(id).filter(c => g.node(c).exists(_.statement.kind == NodeKind.Design)),
       Relation.Calls -> r.callsOf(id), Relation.CalledBy -> inverse(r.callsOf),
       Relation.Assumes -> g.assumed(id), Relation.AssumedBy -> inverse(g.assumed),

@@ -45,14 +45,14 @@ object Broken:
   private val misdateSame = claim("misdateSame")(Lang.formula([T[_]] => (l: Lang[T]) =>
     l.forall[Booking]("b", Booking.ty)(x => l.s.eq(l.s.field(l.call(l.sym[Booking => Booking]("misdate",
       fn(Booking.ty, Booking.ty)), x), room), l.s.field(x, room)))))
-  private val facts = storeFacts(sig.name, shelf, List("fileBackwards", "putTwo"))
+  private val facts = storeFacts(sig.name, shelf)
   private val runClaims = List(claim("filedRuns")(runs[Booking, Unit]("fileBackwards", Booking.ty, Ty.Unit)),
     claim("countRuns")(runsAlone[(BigInt, BigInt)]("countBoth", Ty.TupleOf(List(big, big)))),
     claim("putRuns")(runs[Booking, (Unit, Unit)]("putTwo", Booking.ty, pair)))
 
   val kb: Kb = Kb.of((List(endsAfterStart, fromOutside("fromOutside"), misdateSame) ++ runClaims ++ facts)*)
     .declaring(_.copy(types = List(Booking.data), boundaries = List(sig), models = List(model),
-      defines = List(endsRule, emptyRule, swap) ++
+      defines = List(endsRule, rule("fromOutside"), emptyRule, swap) ++
         flow("fileBack", List(b), put(term([T[_]] => (s: Sym[T]) => swapped(s))), Ty.Unit) ++
         flow("countTwice", Nil, Prog.Par(count, n1, count, n2), Ty.TupleOf(List(big, big))) ++
         flow("putBoth", List(b), Prog.Par(put(v(b)), u1, put(later), u2), pair)))

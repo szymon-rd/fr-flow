@@ -25,8 +25,8 @@ enum Warning:
   case GovernedMissing(file: RelPath, by: NodeId)
   /** A proof file of no node (after a rename or a removal): it proves nothing any more. */
   case ProofFileOfNoNode(file: RelPath)
-  /** A consistency group Lean has not checked witnesses for: "consistency not proven" (or evidence only), its own
-    * status, not a failing proof.
+  /** A consistency group Lean has not proven (evidence only is not proof): a failure, the whole model's proof red
+    * and `complete` false (owner §28); said beside the overview so the developer knows what to add.
     */
   case ConsistencyNotProven(statements: List[NodeId])
   /** An `always(stored)` the states its store starts in are not proven to meet (`start_<node>`): what is said to hold

@@ -2,7 +2,7 @@ package frflow.proof.obligation
 
 import cats.data.NonEmptyList
 import cats.syntax.all.*
-import frflow.core.analysis.{Callees, Constrained, Guards, Resolved, Scope}
+import frflow.core.analysis.{Callees, Constrained, Resolved, SaysWhat, Scope}
 import frflow.core.Failing
 import frflow.core.term.interpret.Guard
 import frflow.core.expr.Expr
@@ -12,6 +12,7 @@ import frflow.core.spec.{CallForm, Range, Written}
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
 import frflow.proof.terms.{Commutation, Keeping, Making}
+import frflow.core.analysis.outside.{Guards, Reads}
 
 /** What must hold of a node, each read off its statement, its place and the code (owner §15), in today's order:
   * `complete` (proven from its parts), `feasible`, `impl` (checked against the proven code of the Definitions it
@@ -19,15 +20,16 @@ import frflow.proof.terms.{Commutation, Keeping, Making}
   * as a whole (consistency, vacuity, the examples) is `Joint`'s.
   */
 object Required:
+  /** Each proven by FrFlow's automation, or by the theorem of its name in the node's proof file (`authored`). */
   def of(r: Resolved, authored: Set[(NodeId, ObligationName)], n: NodeId): List[Obligation] =
-    def how(o: ObligationName) = if authored((n, o)) then Discharge.Authored else Discharge.Auto
-    complete(r, n).map(Obligation(ObligationName.Complete, _, how(ObligationName.Complete), completes(r, n))).toList ++
-      feasible(r, authored, n) ++ impl(r, n) ++ commutes(r, n) ++ keeps(r, n) ++ made(r, n)
+    (complete(r, n).map(Obligation(ObligationName.Complete, _, Discharge.Auto, completes(r, n))).toList ++
+      feasible(r, authored, n) ++ impl(r, n) ++ commutes(r, n) ++ keeps(r, n) ++ made(r, n)).map(o =>
+      if authored((n, o.name)) then o.copy(discharge = Discharge.Authored) else o)
 
   /** `∀ U, C1 → … → Cn → N`, of a node not checked against proven code. */
   def complete(r: Resolved, n: NodeId): Option[Prop] =
-    NonEmptyList.fromList(r.theory.refinement.parts(n)).filter(_ => Callees.of(r.theory, n).isEmpty).map(ps =>
-      Prop.over(List(n), Prop.Implies(Hyp.parts(ps.toList), Prop.claim(n))))
+    NonEmptyList.fromList(r.theory.refinement.parts(n)).filter(_ => SaysWhat.checkedAgainst(r.theory, n).isEmpty)
+      .map(ps => Prop.over(List(n), Prop.Implies(Hyp.parts(ps.toList), Prop.claim(n))))
 
   private def completes(r: Resolved, n: NodeId): String =
     s"The parts of ${n.value} (${r.theory.refinement.parts(n).map(_.value).mkString(", ")}) together make it."
@@ -49,7 +51,7 @@ object Required:
     * what its code relies on, as written: the statements about what the code calls (`Resolved.reliesOn`).
     */
   def impl(r: Resolved, n: NodeId): List[Obligation] =
-    Callees.of(r.theory, n).toList.map { c =>
+    SaysWhat.checkedAgainst(r.theory, n).toList.map { c =>
       val code = c.standsFor.view.mapValues(Substitute.Code(_)).toMap
       val hyps = hypotheses(r, n)
       val parts = r.theory.refinement.parts(n).toSet
@@ -73,14 +75,17 @@ object Required:
     * meeting theirs (`Keeping`), given what the code relies on. What covered code makes is asked of it by `made`.
     */
   def keeps(r: Resolved, n: NodeId): List[Obligation] =
-    val guards = Guards.byAlways(r.theory)
     val stores = r.theory.node(n).flatMap(_.statement.range).toList.flatMap(Scope.models(r.theory, _)).map(_.boundary)
     val writers = Scope.of(r.theory, n).filter(op =>
       Callees.ofDefinition(r.theory, op).exists(_.calls.boundaries.exists(stores.contains)))
-    (guards.toMap.get(n).toList, writers).tupled.flatMap { (kept, op) =>
+    // The rule kept, and every rule taken, on the stores the program reads only (owner §33): another store's part of
+    // the world is the run's frame.
+    def reading(op: SymbolName) = Guards.reading(r.theory, Reads.ofProgram(r.theory, op))
+    writers.flatMap(op => reading(op).toMap.get(n).map(op -> _)).flatMap { (op, kept) =>
       (Callees.ofDefinition(r.theory, op).flatMap(_.standsFor.get(op)), typeOf(r, op)).tupled.map { (code, ty) =>
         val escapes = Failing.escapingOf(r.theory, op).nonEmpty
-        val goal = Prop.Keeps(n, op, Keeping.formula(op, ty, escapes)(inputs(r, op, ty), kept, guards.map(_._2)),
+        val within = reading(op).map(_._2)
+        val goal = Prop.Keeps(n, op, Keeping.formula(op, ty, escapes)(inputs(r, op, ty), kept, within),
           Map(op -> Substitute.Code(code)))
         val hyps = r.reliedOnBy(op)
         Obligation(ObligationName.Cover(op.value), Prop.over(Nil, Prop.Implies(Hyp.parts(hyps), goal)),
@@ -103,7 +108,7 @@ object Required:
     * across them: either order of the branches gives the same result and leaves the same world.
     */
   def commutes(r: Resolved, n: NodeId): List[Obligation] =
-    val flows = Callees.of(r.theory, n).toList.flatMap(_.standsFor.keys).flatMap(op =>
+    val flows = SaysWhat.checkedAgainst(r.theory, n).toList.flatMap(_.standsFor.keys).flatMap(op =>
       r.theory.code.attached.get(op).map(_.code).collect { case Code.ProvenFlow(f) => f })
     flows.distinct.flatMap(r.theory.vocabulary.define).flatMap(d => Commutation.of(r.theory.vocabulary, d).map(c =>
       (d, c))).zipWithIndex.map { case ((d, c), i) =>
@@ -122,8 +127,7 @@ object Required:
     val guards = Guards.byAlways(r.theory)
     (guards.toMap.get(n), r.theory.node(n).flatMap(_.statement.range)).tupled.toList.flatMap {
       case (kept, range @ Range.Made(ty)) =>
-        val g = (kept, guards.map(_._2))
-        byDefines(r, n, ty, g) ++ byPrograms(r, n, ty, g) ++ byModels(r, n, range, g)
+        byDefines(r, n, ty, (kept, guards.map(_._2))) ++ byPrograms(r, n, ty, kept) ++ byModels(r, n, range, kept)
       case _ => Nil
     }
 
@@ -135,16 +139,18 @@ object Required:
     defines(r, n, ty).map((op, code, fn) => relying(r, makes(n, op, code, Making.ofDefine(op, fn, g._1, g._2)),
       s"Every result of ${code.value} meets ${n.value}"))
 
-  private def byPrograms(r: Resolved, n: NodeId, ty: Ty, g: Guarding): List[Obligation] =
+  /** A run's world takes the rules of the stores the program calls only (owner §33). */
+  private def byPrograms(r: Resolved, n: NodeId, ty: Ty, kept: Guard): List[Obligation] =
     programs(r, n, ty).map((op, code, fn) => relying(r, makes(n, op, code,
-      Making.ofProgram(op, fn, inputs(r, op, fn), g._1, g._2)),
-      s"Every result of a run of ${code.value} meets ${n.value}"))
+      Making.ofProgram(op, fn, inputs(r, op, fn), kept, Guards.reading(r.theory, Reads.ofProgram(r.theory, op))
+        .map(_._2))), s"Every result of a run of ${code.value} meets ${n.value}"))
 
-  private def byModels(r: Resolved, n: NodeId, range: Range, g: Guarding): List[Obligation] =
+  private def byModels(r: Resolved, n: NodeId, range: Range, kept: Guard): List[Obligation] =
     Scope.modelMakers(r.theory, range).map { (m, sig) =>
       val code = DefName(s"${m.name.value.capitalize}.${sig.name.value}_of")
+      val within = Guards.reading(r.theory, List(m.name)).map(_._2)
       Obligation(ObligationName.Made(sig.name.value), Prop.over(Nil, makes(n, SymbolName(sig.name.value), code,
-        Making.ofModel(m, sig, g._1, g._2))), Discharge.Auto,
+        Making.ofModel(m, sig, kept, within))), Discharge.Auto,
         s"Every result of ${m.name.value}'s ${sig.name.value} meets ${n.value}, on a world meeting what always holds.")
     }
 

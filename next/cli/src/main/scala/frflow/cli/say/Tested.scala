@@ -12,10 +12,14 @@ object Tested:
   val NotYet: String = "not tested yet: run check"
   val Moved: String = "the claim changed and its code did not: the code fails a case of the changed claim"
 
-  /** `movedUnderCode`: the claim changed and its code did not, so a failing case is the claim's change. */
-  def lines(t: TestView, movedUnderCode: Boolean): List[String] =
-    head(t) :: (outcome(t.outcome, movedUnderCode) :: shortfall(t.cases).toList) ++
-      t.unreached.map(target) ++ t.notes.map(note)
+  /** `movedUnderCode`: the claim changed and its code did not, so a failing case is the claim's change. A statement
+    * with no Scala value is not checked by tests at all: the search stops at its first case by design, so no count,
+    * shortfall or note is said of it.
+    */
+  def lines(t: TestView, movedUnderCode: Boolean): List[String] = t.outcome match
+    case o @ TestOutcome.NotChecked(_) => List(outcome(o, movedUnderCode))
+    case o                             => head(t) :: (outcome(o, movedUnderCode) :: shortfall(t.cases).toList) ++
+        t.unreached.map(target) ++ t.notes.map(note)
 
   def head(t: TestView): String = t.against match
     case Against.Claim(n)    => s"tested on ${t.cases.tried} generated cases (seed ${t.cases.seed}) against $n"

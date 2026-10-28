@@ -28,7 +28,7 @@ object Notifications:
     mailer.behavesAs(mailerModel))
 
   val mailOneAtATime = Node.assumption("The mail server takes one notice at a time: two deliveries never interleave.")(
-    mailerModel.changedOneRunAtATime)
+    mailer.atomic)
 
   /** The notices a change made by a request tells of, logged as `e`, on the library `lib` it was made on: the person
     * invited; the person who sent an invitation now accepted; the owner of a document asked for; the person whose

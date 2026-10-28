@@ -26,8 +26,8 @@ object Warnings:
 
   private val proofs: PartialFunction[Warning, String] =
     case Warning.ProofFileOfNoNode(f)     => s"$f is no node's proof file (renamed or removed?): it proves nothing"
-    case Warning.ConsistencyNotProven(ns) => s"consistency not proven: ${ns.mkString(", ")} " +
-        "(no witness Lean checked for what they leave open)"
+    case Warning.ConsistencyNotProven(ns) => s"consistency not proven: ${ns.mkString(", ")}; the proof is red " +
+        "until Lean proves some meaning meets them all (an equation, a bound, a value, proven code, or a proof)"
     case Warning.StartNotProven(id)       =>
       s"$id: the states its store starts in are not proven to meet it (start_$id; say what it starts with)"
     case Warning.NotChecked(id)           => s"$id is not checked: no parts prove it, no proven code is checked " +

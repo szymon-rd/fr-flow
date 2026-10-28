@@ -8,14 +8,14 @@ end Test.endsAfterStart
 namespace Test.endsAfterStart
 
 @[frflow_defs] def makes_fetch (fetch : Int → (World → (Booking × World))) : Prop :=
-  (∀ (i : Int), (∀ (before : World), ((∀ b ∈ before.Shelf, (b.start < b.«end»)) → ((∀ b ∈ before.Shelf, (b.start < b.«end»)) → (match (fetch i before) with | (result, after) => (result.start < result.«end»))))))
+  (∀ (i : Int), (∀ (before : World), (match (fetch i before) with | (result, after) => (result.start < result.«end»))))
 
 end Test.endsAfterStart
 
 namespace Test.endsAfterStart
 
 @[frflow_defs] def makes_latest (latest : (World → (Booking × World))) : Prop :=
-  (∀ (before : World), ((∀ b ∈ before.Shelf, (b.start < b.«end»)) → ((∀ b ∈ before.Shelf, (b.start < b.«end»)) → (match (latest before) with | (result, after) => (result.start < result.«end»)))))
+  (∀ (before : World), (match (latest before) with | (result, after) => (result.start < result.«end»)))
 
 end Test.endsAfterStart
 
@@ -36,14 +36,14 @@ end Test.fromOutside
 namespace Test.fromOutside
 
 @[frflow_defs] def makes_fetch (fetch : Int → (World → (Booking × World))) : Prop :=
-  (∀ (i : Int), (∀ (before : World), ((∀ b ∈ before.Shelf, (b.start < b.«end»)) → ((∀ b ∈ before.Shelf, (b.start < b.«end»)) → (match (fetch i before) with | (result, after) => (result.start < result.«end»))))))
+  (∀ (i : Int), (∀ (before : World), (match (fetch i before) with | (result, after) => (result.start < result.«end»))))
 
 end Test.fromOutside
 
 namespace Test.fromOutside
 
 @[frflow_defs] def makes_latest (latest : (World → (Booking × World))) : Prop :=
-  (∀ (before : World), ((∀ b ∈ before.Shelf, (b.start < b.«end»)) → ((∀ b ∈ before.Shelf, (b.start < b.«end»)) → (match (latest before) with | (result, after) => (result.start < result.«end»)))))
+  (∀ (before : World), (match (latest before) with | (result, after) => (result.start < result.«end»)))
 
 end Test.fromOutside
 

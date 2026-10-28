@@ -16,7 +16,7 @@ import java.time.Instant
   */
 class ReadProofSuite extends munit.FunSuite:
   private val a = Projects.bare(Projects.rooms)
-  private val (book, grant) = (NodeId("bookWhenFree"), NodeId("grantWhenNoOverlap"))
+  private val (book, grant) = (NodeId("storeWhenFree"), NodeId("grantWhenNoOverlap"))
 
   private def checked(id: NodeId, key: CheckKey, results: Result*): Analysis =
     a.withRecorded(Recorded(Checks(Map(id -> NodeCheck(id, key, CheckStatus.Proven, results.toList, Nil,
@@ -65,6 +65,19 @@ class ReadProofSuite extends munit.FunSuite:
     assert(ids.nonEmpty)
     assertEquals(ids.filter(standing(startsOpen, _).unproven.contains(Unproven.Consistency)), ids)
     assertEquals(ids.filter(standing(every, _).unproven.contains(Unproven.Consistency)), Nil)
+  }
+
+  test("a root over Declarations is red while the group saying what they are is not proven, and only then") {
+    def proving(names: List[ObligationName]) = a.withRecorded(Recorded(Checks(Map.empty, Some(WholeCheck(a.keys.whole,
+      names.map(Result(_, ObligationStatus.Proven, Nil)), Instant.EPOCH))), Map.empty, Map.empty))
+    val all = a.whole.map(_.name)
+    val groups = all.collect { case c: ObligationName.Consistent => c }
+    def red(on: Analysis) = List("bookWhenFree", "acceptWhenFree").map(NodeId(_))
+      .filter(standing(on, _).unproven.contains(Unproven.Consistency))
+    assert(groups.nonEmpty)
+    assertEquals(red(proving(all)), Nil)
+    // Every other obligation proven, the groups' not: a witness found is not proof, only `consistent_` proven.
+    assertEquals(red(proving(all.filterNot(groups.contains))), List("bookWhenFree", "acceptWhenFree").map(NodeId(_)))
   }
 
 object ReadProofSuite:

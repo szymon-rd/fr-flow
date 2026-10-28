@@ -45,7 +45,7 @@ val expireOnce = program { (now: Term[BigInt]) => ExpireOnce(db.recording).run(n
 
 val runsOneAtATime = Node.assumption("Runs on the database never interleave: the expiry job holds the database's " +
     "lock during a run, and the write side saves one write at a time.")(
-  databaseModel.changedOneRunAtATime)
+  db.atomic)
 
 val expiryJob = Node.claim("A run of the expiry job at a time leaves the database holding, about each record, what " +
     "sharesExpire's run on what it held gives, logs the run at the end of the event log, and returns that store.")(

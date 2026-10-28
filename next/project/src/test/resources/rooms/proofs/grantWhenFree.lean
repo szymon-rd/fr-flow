@@ -10,9 +10,9 @@ open Classical
 
 namespace Rooms.grantWhenFree.Proofs
 
-theorem apart_iff_noOverlap {a b : Booking} (ha : endsAfterStart a) (hb : endsAfterStart b) :
+theorem apart_iff_noOverlap {a b : Booking} (ha : bookingsEndAfterStart a) (hb : bookingsEndAfterStart b) :
     apart a b ↔ noOverlap a b := by
-  simp only [apart, noOverlap, covers, endsAfterStart] at *
+  simp only [apart, noOverlap, covers, bookingsEndAfterStart] at *
   constructor
   · rintro (h | h)
     · exact .inl (.inl h)
@@ -25,8 +25,8 @@ theorem complete : Obl.complete := by
   unfold Obl.complete
   intro granted h
   unfold claim
-  intro held hEnds hRoom hApart request hRequest
-  rw [h held hEnds hRoom hApart request hRequest]
+  intro held hRoom hApart hEnds request hRequest
+  rw [h held hRoom hApart hEnds request hRequest]
   simp only [free]
   exact propext (forall₂_congr fun b hb => (apart_iff_noOverlap (hEnds b hb) hRequest).symm)
 

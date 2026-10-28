@@ -17,3 +17,16 @@ enum Value:
   case Inject(side: Side, elem: Value)
   /** The models' states, and the faults a failing boundary's calls take in turn. */
   case World(states: List[(ModelName, Value)], faults: List[Boolean])
+
+object Value:
+  /** Every number a value holds, in order. */
+  def numbers(v: Value): List[BigInt] = v match
+    case Num(n)                  => List(n)
+    case Data(_, fs)             => fs.flatMap(numbers)
+    case Many(es)                => es.flatMap(numbers)
+    case Maybe(e)                => e.toList.flatMap(numbers)
+    case Pairs(es)               => es.flatMap((k, x) => numbers(k) ++ numbers(x))
+    case Tuple(es)               => es.flatMap(numbers)
+    case Inject(_, e)            => numbers(e)
+    case World(ss, _)            => ss.flatMap((_, s) => numbers(s))
+    case Bool(_) | Str(_) | Unit => Nil

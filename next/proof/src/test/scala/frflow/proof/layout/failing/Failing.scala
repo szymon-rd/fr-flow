@@ -76,7 +76,7 @@ object Failing:
       l.s.fails(run[T, Booking](l, "check", Booking.ty, x), w, Bound[String]("error", Ty.Str), after)((_, a) =>
         l.s.unchanged(a, w))))))
 
-  private val facts = storeFacts(sig.name, shelf, List("file", "spoil", "fileTwice"))
+  private val facts = storeFacts(sig.name, shelf)
   private val runClaims = List(claim("fileRuns")(fileRuns), claim("fileWrong")(fileWrong),
     claim("checkRuns")(checkRuns),
     claim("spoilRuns")(runs[Booking, Unit]("spoil", Booking.ty, Ty.Unit)),
@@ -84,7 +84,7 @@ object Failing:
 
   val kb: Kb = Kb.of((List(endsAfterStart, fromOutside("fromOutside")) ++ runClaims ++ facts)*)
     .declaring(_.copy(types = List(Booking.data), boundaries = List(sig), models = List(model),
-      defines = List(endsRule, emptyRule) ++ flow("fileIt", List(b), put(v(b)), Ty.Unit) ++
+      defines = List(endsRule, rule("fromOutside"), emptyRule) ++ flow("fileIt", List(b), put(v(b)), Ty.Unit) ++
         flow("checkIt", List(b), checking, Booking.ty) ++ flow("spoilIt", List(b), spoiling, Ty.Unit) ++
         flow("fileBoth", List(b), twice, pair)))
     .naming(definition("file", program(Ty.Unit)), definition("check", program(Booking.ty)),

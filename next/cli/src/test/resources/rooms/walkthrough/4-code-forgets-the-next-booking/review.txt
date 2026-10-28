@@ -1,0 +1,29 @@
+
+--- 1 waiting ---
+x grantWhenNoOverlap  claim  to review
+  A request is granted exactly when it overlaps no booking of its room.
+
+Decision
+  to review: the code it governs changed
+  not mechanical: what moved needs you: the code it governs changed
+  note: its code fails a generated case
+
+Why it holds (the reason it was decided with)
+  it says what the service must do  (accepted by ann, <when>)
+
+Formally (as written in Scala)
+  forall((held: Term[RoomBookings], request: Term[Booking]) =>
+      granted(held, request) === held.bookings.forall(b => noOverlap(b, request)))
+
+Rules it uses (no part of its step: Lean has each of every value)
+  + bookingsEndAfterStart  assumption  accepted  Every booking ends after it starts.
+
+[a]ccept [s]kip [v]iew [q]uit: s
+
+Decided 0 decision(s).
+FrModel: 16 nodes, 15 accepted, 1 to review
+Code: 4 proven, 2 tested; consistency proven
+Examples: 2/2 pass
+Waiting: 1 for the developer
+marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide
+--- exit 0

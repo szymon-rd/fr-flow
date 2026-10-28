@@ -4,18 +4,16 @@ import cats.syntax.all.*
 import frflow.*
 import frflow.core.example.Gen
 
-// The FrModel: the roots first, then what always holds, the calendar's claims and the world outside; and
-// what gives each Definition its meaning: `book` the proven program, `granted` the calendar's Scala.
+// The FrModel: the roots first, then what each Declaration is, what booking does, what always holds, the calendar's
+// claims and the world outside; and what gives each Definition its meaning: `book` the proven program, `granted`
+// the calendar's Scala.
 
 // The tests' cases: rooms, requests, and a room's bookings laid end to end.
 val roomNames: Gen[String] = Gen.oneOf("Oak", "Elm")
 
-val requests: Gen[Request] = for
+val requests: Gen[Booking] = for
   room <- roomNames; start <- Gen.oneOf[BigInt](0, 1, 2, 3, 4, 5, 6, 7, 8); length <- Gen.oneOf[BigInt](1, 2, 3)
-yield Request(room, start, start + length)
-
-/** The bookings requests ask for: what the calendar is asked about. */
-val asked: Gen[Booking] = requests.map(r => Booking(r.room, r.start, r.end))
+yield Booking(room, start, start + length)
 
 /** `count` bookings of a room, laid end to end from `from`, each after a gap of 0 or 1. */
 def laidEndToEnd(room: String, from: BigInt, count: Int): Gen[List[Booking]] =
@@ -31,12 +29,11 @@ val roomBookings: Gen[RoomBookings] = for
   room <- roomNames; count <- Gen.oneOf(0, 1, 2, 3, 4); bookings <- laidEndToEnd(room, 0, count)
 yield RoomBookings(room, bookings)
 
-val rooms = FrModel("Rooms")(bookWhenFree, answerWhenFree, neverOverlap, endsAfterStart, bookingsOfTheRoom,
-  roomBookingsApart, grantWhenFree, grantWhenNoOverlap, tableMatchesModel, onlyBookingWrites, oneAtATime,
-  startsEmpty, requestsEndAfterStart)
+val rooms = FrModel("Rooms")(bookWhenFree, acceptWhenFree, bookedIsStored, bookedAfterIsStored, acceptedIsAnswered,
+  storeWhenFree, answerWhenFree, neverOverlap, grantWhenFree, bookingsOfTheRoom, roomBookingsApart, grantWhenNoOverlap,
+  tableMatchesModel, oneAtATime, startsEmpty, bookingsEndAfterStart)
   .implementProven(book)(bookIfGranted)
   .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
   .withGenerator(roomNames.describedAs("Oak or Elm"))
   .withGenerator(requests.describedAs("requests for Oak or Elm that end after they start"))
-  .withGenerator(asked.describedAs("the bookings those requests ask for"))
   .withGenerator(roomBookings.describedAs("a room's bookings, laid end to end, some back to back"))

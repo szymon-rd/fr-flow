@@ -22,7 +22,7 @@ end Test.endsAfterStart
 namespace Test.endsAfterStart
 
 @[frflow_defs] def makes_check (check : Booking → (World → ((Except String Booking) × World))) : Prop :=
-  (∀ (b : Booking), ((b.start < b.«end») → ((b.start < b.«end») → (∀ (before : World), ((∀ b_1 ∈ before.Shelf, (b_1.start < b_1.«end»)) → ((∀ b_1 ∈ before.Shelf, (b_1.start < b_1.«end»)) → (match (check b before) with | (Except.ok result, after) => (result.start < result.«end») | _ => True)))))))
+  (∀ (b : Booking), ((b.start < b.«end») → ((b.start < b.«end») → (∀ (before : World), (match (check b before) with | (Except.ok result, after) => (result.start < result.«end») | _ => True)))))
 
 end Test.endsAfterStart
 
@@ -50,6 +50,6 @@ end Test.fromOutside
 namespace Test.fromOutside
 
 @[frflow_defs] def makes_check (check : Booking → (World → ((Except String Booking) × World))) : Prop :=
-  (∀ (b : Booking), ((b.start < b.«end») → ((b.start < b.«end») → (∀ (before : World), ((∀ b_1 ∈ before.Shelf, (b_1.start < b_1.«end»)) → ((∀ b_1 ∈ before.Shelf, (b_1.start < b_1.«end»)) → (match (check b before) with | (Except.ok result, after) => (result.start < result.«end») | _ => True)))))))
+  (∀ (b : Booking), ((b.start < b.«end») → ((b.start < b.«end») → (∀ (before : World), (match (check b before) with | (Except.ok result, after) => (result.start < result.«end») | _ => True)))))
 
 end Test.fromOutside

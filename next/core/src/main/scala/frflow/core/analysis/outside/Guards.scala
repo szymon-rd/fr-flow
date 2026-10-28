@@ -1,13 +1,14 @@
-package frflow.core.analysis
+package frflow.core.analysis.outside
 
 import cats.syntax.all.*
-import frflow.core.name.{NodeId, TypeName}
+import frflow.core.name.{ModelName, NodeId, TypeName}
 import frflow.core.spec.Range
 import frflow.core.term.{Bound, Case, Final, Selector, Sym, When, World}
 import frflow.core.term.interpret.{AtValue, Guard}
 import frflow.core.Theory
 import frflow.core.ty.{DataType, Field, Ty}
 import frflow.core.vocab.StateModel
+import frflow.core.analysis.Scope
 
 /** The hypotheses every variable of a statement comes with (`Guarded`), one guard per statement of `always`,
   * claimed or assumed: its rule at the variable (`AtValue`). `always[T]` on each `T` a value holds: the value
@@ -18,13 +19,20 @@ import frflow.core.vocab.StateModel
   * checks an `always` where a value is made (`Made`).
   */
 object Guards:
+  /** Every guard, a world's on every store. */
   def of(t: Theory): List[Guard] = byAlways(t).map(_._2)
 
+  /** The guards a statement takes: on a world, only the rules of the stores it reads (owner §33, `Reads`). */
+  def of(t: Theory, id: NodeId): List[Guard] = reading(t, Reads.models(t, id)).map(_._2)
+
   /** Each statement of `always`, with its guard. */
-  def byAlways(t: Theory): List[(NodeId, Guard)] = t.nodes.map(_.node).flatMap(n =>
+  def byAlways(t: Theory): List[(NodeId, Guard)] = reading(t, t.vocabulary.models.map(_.name))
+
+  /** Each statement of `always`, with its guard, a world's on the stores of `models` only. */
+  def reading(t: Theory, models: List[ModelName]): List[(NodeId, Guard)] = t.nodes.map(_.node).flatMap(n =>
     (n.statement.said, n.statement.range).tupled.collect {
       case (f, r @ (Range.Made(_) | Range.Reached(_))) =>
-        n.id -> guard(f.term, r, Scope.models(t, r), t.vocabulary.dataType)
+        n.id -> guard(f.term, r, Scope.models(t, r).filter(m => models.contains(m.name)), t.vocabulary.dataType)
     })
 
   /** Whether `always[T]`'s guard applies to a value of `x`: `x` holds a `T` where a guard reaches (above). */
@@ -47,7 +55,7 @@ object Guards:
         case (Range.Made(ty), Ty.World)    =>
           inWorld(s, models.flatMap(m => Within(s, data, ty, at)(m.state, Set.empty).map(m -> _)))
         case (Range.Made(ty), _)           => Within(s, data, ty, at)(x, Set.empty)
-        case (Range.Reached(_), Ty.World)  => Some(at)
+        case (Range.Reached(_), Ty.World)  => Option.when(models.nonEmpty)(at)
         case _                             => None
       g.map(g => (v: T[A]) => g(v.asInstanceOf[T[Any]]))
 

@@ -1,6 +1,6 @@
 package frflow.core.expr
 
-import frflow.core.name.{BoundaryName, DefName, ModelName, SymbolName}
+import frflow.core.name.{BoundaryName, DefName, ModelName}
 
 /** What an assumption about the world outside the code says (owner §16: the company's procedures, the outside
   * services and how they are run). Lean's model of the world is built on these, so Lean states none of them as a
@@ -8,14 +8,15 @@ import frflow.core.name.{BoundaryName, DefName, ModelName, SymbolName}
   * is not one of them: it is an assumption of `always` on their type (owner §21), a hypothesis Lean states.
   */
 enum OutsideFact:
-  /** The store does what its model does: code calling it is proven on the model, its code tested against it. */
-  case BehavesAs(boundary: BoundaryName, model: ModelName)
-  /** Only these programs change the model's state: every state it reaches is one they leave. */
-  case WrittenOnlyBy(model: ModelName, programs: List[SymbolName])
-  /** Runs changing the model's state never interleave: one process with `atomically`, or a store serializing them
-    * (owner §17: each run is one step).
+  /** The store does what its model does, and nothing outside the code changes it (owner §31): code calling it is
+    * proven on the model, its code tested against it, and every state it reaches is one a run of the programs
+    * changing it leaves (those FrFlow derives, `Premises.writers`).
     */
-  case OneRunAtATime(model: ModelName)
+  case BehavesAs(boundary: BoundaryName, model: ModelName)
+  /** Runs on the store never interleave: one process with `atomically`, or a store serializing them (owner §17,
+    * §32: each run is one step of the world).
+    */
+  case Atomic(boundary: BoundaryName)
   /** What the model's state meets when the service starts (`stored.initially(held => held === Nil)`): its rule a
     * define named as the assumption.
     */

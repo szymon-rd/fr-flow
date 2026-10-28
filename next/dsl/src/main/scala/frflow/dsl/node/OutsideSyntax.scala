@@ -18,9 +18,15 @@ import frflow.dsl.vocab.Definition
   */
 object OutsideSyntax:
   extension [B[_[_], _[_]]](store: Boundary[B])
-    /** The store does what its model does. */
+    /** The store does what its model does, and nothing outside the code changes it: which programs change it is
+      * derived from the code (owner §31).
+      */
     def behavesAs[S](model: StoreModel[B, S]): Term[Boolean] =
       fact(model.declares, OutsideFact.BehavesAs(store.name, model.name))
+    /** Runs on the store never interleave: one process running each atomically, or a store serializing them; each
+      * run is one step of the world (owner §17, §32).
+      */
+    def atomic: Term[Boolean] = fact(store.declares, OutsideFact.Atomic(store.name))
 
   extension [B[_[_], _[_]], S](model: StoreModel[B, S])
     /** What the state the store starts in meets (`stored.initially(held => held === Nil)`): the rule a define named
@@ -28,11 +34,6 @@ object OutsideSyntax:
       */
     inline def initially(inline rule: Term[S] => Term[Boolean]): Term[Boolean] =
       started(model, Defines.define(rule)(using model.state.leanType, LeanType[Boolean]))
-    /** Only these programs change its state. */
-    def writtenOnlyBy(programs: Definition[?]*): Term[Boolean] =
-      fact(model.declares, OutsideFact.WrittenOnlyBy(model.name, programs.toList.map(_.name)))
-    /** Runs changing its state never interleave: one process running each atomically, or a store serializing them. */
-    def changedOneRunAtATime: Term[Boolean] = fact(model.declares, OutsideFact.OneRunAtATime(model.name))
 
   /** The start's rule as a fact, noting its define. */
   def started[B[_[_], _[_]], S](model: StoreModel[B, S], rule: Definition[S => Boolean]): Term[Boolean] =

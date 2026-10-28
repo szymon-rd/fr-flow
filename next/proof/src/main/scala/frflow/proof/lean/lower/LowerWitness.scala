@@ -9,7 +9,7 @@ import frflow.proof.obligation.{Obligation, Prop, Supplied}
   * :=\n  fun grants => ⟨w₁, …, by frflow_witness⟩` (the values provided taken first; every witness printed by the one
   * printer of terms, or as a constant), the proof left to FrFlow's own tactic.
   */
-final class LowerWitness(env: LowerEnv, naming: Naming):
+final class LowerWitness(env: LowerEnv, naming: Naming, props: LowerProp):
   def apply(o: Obligation, by: List[Supplied]): Decl =
     val name = LowerObligation.name(o.name)
     val met = LExpr.Anonymous(ordered(o.goal, by) :+ LExpr.By(Names.builtin("frflow_witness")))
@@ -32,6 +32,7 @@ final class LowerWitness(env: LowerEnv, naming: Naming):
         (known + (s -> e), out :+ (Some(s) -> e))
       case ((known, out), Supplied.Value(c))   =>
         (known, out :+ (None -> LowerValue(env)(c.value, c.ty).runA(naming).value))
+      case ((known, out), Supplied.Code(s, d)) => (known + (s -> props.code(d, known)), out)
     }._2
     bound(goal).filter(ss => printed.forall(_._1.isDefined) && ss.toSet == printed.flatMap(_._1).toSet)
       .fold(printed.map(_._2))(ss => ss.flatMap(s => printed.collectFirst { case (Some(`s`), e) => e }))

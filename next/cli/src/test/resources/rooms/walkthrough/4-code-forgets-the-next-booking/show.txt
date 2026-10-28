@@ -1,0 +1,43 @@
++ grantWhenFree  claim  accepted
+  A request is granted exactly when its room is free for its whole time.
+
+Why it holds (the reason it was decided with)
+  it says what the service must do  (accepted by ann, <when>)
+
+Formally (as written in Scala)
+  forall((held: Term[RoomBookings], request: Term[Booking]) =>
+      granted(held, request) === free(held.bookings, request))
+
+How it is checked
+  proven from its parts (grantWhenNoOverlap)
+  not checked against granted's Scala: the statement has no Scala value (it quantifies over every value)
+  assumed by the code calling granted
+  rules it uses: bookingsOfTheRoom, roomBookingsApart, bookingsEndAfterStart
+  rests on what each Booking from outside meets: bookingsEndAfterStart
+
+Where it sits
+  part of    + storeWhenFree  claim  accepted  A request is stored exactly when its room is free for its whole time.
+  part of    + answerWhenFree  claim  accepted  A request is answered booked exactly when its room is free for its whole time.
+  assumes    + bookingsEndAfterStart  assumption  accepted  Every booking ends after it starts.
+  called by  + storeWhenFree  claim  accepted  A request is stored exactly when its room is free for its whole time.
+  called by  + answerWhenFree  claim  accepted  A request is answered booked exactly when its room is free for its whole time.
+
+Parts: together, with the assumptions it lists, they make it
+  x grantWhenNoOverlap  claim  to review  A request is granted exactly when it overlaps no booking of its room.
+
+Rules it uses (no part of its step: Lean has each of every value)
+  + bookingsOfTheRoom  claim  accepted  A room's bookings are all of that room.
+  + roomBookingsApart  claim  accepted  A room's bookings never overlap.
+  + bookingsEndAfterStart  assumption  accepted  Every booking ends after it starts.
+
+Proofs
+  check: proven (with the developer's proof file)
+  complete: proven
+  vacuous: not shown
+  restates: not shown
+  clash: not shown
+  unsat: not shown
+
+Code
+  plain Scala, tested against it on generated cases: tested, not proven
+  not checked: the statement has no Scala value to test against (it quantifies over a type)

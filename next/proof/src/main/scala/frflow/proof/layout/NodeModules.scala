@@ -30,9 +30,12 @@ object NodeModules:
 
   private def spec(l: Lowering, o: NodeObligations): LeanModule =
     val said = l.resolved.theory.node(o.node).flatMap(_.statement.said)
+    val rule = l.resolved.theory.node(o.node).exists(_.statement.rule)
     val params = claimParams(l, o.node)
+    // A rule's claim is `True`: Lean has it of every value already, as a guard, and its `∀` over every value is false
+    // of any rule some value breaks; what is asked of it is `cover_`, `made_`, `start_` and `inhabited_`.
     val claim = said.map(f => Decl.Def(defs, Names.builtin("claim"), params, Atoms.name("Prop"),
-      Printed.claim(l.env, l.naming, l.guards)(f.term)))
+      if rule then Atoms.name("True") else Printed.claim(l.env, l.naming, l.guards(o.node))(f.term)))
     val indices = o.tried.map(_.name).collect { case ObligationName.Tried(TryKind.RestatesConjunct(_, i)) => i }
     val conjuncts = said.toList.flatMap(f => Conjoined.of(f.term, LeanTerm(l.env)).zipWithIndex.collect {
       case (c, i) if indices.contains(i + 1) =>

@@ -92,6 +92,13 @@ final class LowerProp(table: TermTable, env: LowerEnv):
 
   private def sort(t: TypeName): W[LExpr] = Writer.tell(OpenTerms(List(t), Nil)).as(LExpr.Name(Names.ident(t.value)))
 
+  /** A define applied to its open terms, each a value `known` gives it or its name: proven code inside a witness. */
+  def code(d: DefName, known: Map[SymbolName, LExpr]): LExpr =
+    val terms = table.defines.getOrElse(d, OpenTerms.empty)
+    val args = terms.sorts.map(n => LExpr.Name(Names.ident(n.value))) ++
+      terms.symbols.map(s => known.getOrElse(s, LExpr.Name(Names.ident(s.value))))
+    if args.isEmpty then define(d) else call(define(d), args)
+
   /** What a symbol is written as under `σ`: its substitute applied to its own open terms, or its name. */
   def standing(s: SymbolName, σ: Subst): LExpr = symbol(s, σ).value
 

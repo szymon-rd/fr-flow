@@ -1,8 +1,8 @@
-package frflow.core.analysis
+package frflow.core.analysis.outside
 
-import frflow.core.expr.OutsideFact
+import frflow.core.expr.{Exprs, OutsideFact}
 import frflow.core.graph.Edge
-import frflow.core.name.{BoundaryName, ModelName, NodeId, SymbolName}
+import frflow.core.name.{BoundaryName, NodeId}
 import frflow.core.spec.{Node, NodeKind, Range}
 import frflow.core.ty.Ty
 import frflow.core.Theory
@@ -19,10 +19,12 @@ object Outsides:
     case (id, OutsideFact.BehavesAs(`b`, _)) => id
   }
 
-  /** The programs the outside lets write a model's state. */
-  def writers(t: Theory, m: ModelName): List[SymbolName] = all(t).collect {
-    case (_, OutsideFact.WrittenOnlyBy(`m`, ps)) => ps
-  }.flatten
+  /** Whether what a boundary gives back is said: by a model it behaves as, or by an assumption mentioning its
+    * operations (an outside system's promise). That runs on it are atomic says nothing of what it gives.
+    */
+  def checks(t: Theory, b: BoundaryName): Boolean = modelled(t, b).nonEmpty || t.nodes.map(_.node).exists(n =>
+    n.statement.kind == NodeKind.Assumption && n.statement.outside.isEmpty &&
+      n.statement.exprs.exists(e => Exprs.mentions(e).boundaries.contains(b)))
 
   /** The assumptions of `always[T]` on `ty`: what values of it from outside meet. */
   def alwaysOf(t: Theory, ty: Ty): List[NodeId] = t.nodes.map(_.node).filter(assumesAlways(_, ty)).map(_.id)
@@ -54,7 +56,6 @@ object Outsides:
 
   def says(f: OutsideFact, p: Premise): Boolean = (f, p) match
     case (OutsideFact.BehavesAs(_, m), Premise.BehavesAs(n))         => m == n
-    case (OutsideFact.OneRunAtATime(m), Premise.OneRunAtATime(n))    => m == n
+    case (OutsideFact.Atomic(b), Premise.Atomic(c))                  => b == c
     case (OutsideFact.Initially(m, _), Premise.Initially(n))         => m == n
-    case (OutsideFact.WrittenOnlyBy(m, _), Premise.WrittenOnlyBy(n)) => m == n
     case _                                                           => false

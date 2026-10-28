@@ -21,7 +21,9 @@ final class NodeText(v: View, style: Style, layers: Contribution):
       (true, "Formally (as written in Scala)", n.says.written.toList.flatMap(_.linesIterator.map(l => st.dim(l)))),
       (normal, "How it is checked", n.says.checking),
       (normal, "Where it sits", place(v, n, st)),
-      (true, "Parts: together they make it", n.place(Relation.Part).map(Lines.of(v, _, st, 2))),
+      (true, "Parts: together, with the assumptions it lists, they make it",
+        n.place(Relation.Part).map(Lines.of(v, _, st, 2))),
+      (true, "Rules it uses (no part of its step: Lean has each of every value)", rules(n, st)),
       (full, "What it mentions", mentions(n))) ++
       Views.beside(v, n.id).map((p, co) => (full, s"Beside it under $p: together they make $p",
         co.map(Lines.of(v, _, st, 2)))) ++ ProofText.sections(n, st, full).map((t, ls) => (normal, t, ls))
@@ -72,6 +74,11 @@ final class NodeText(v: View, style: Style, layers: Contribution):
       Relation.Design -> "design", Relation.Calls -> "calls", Relation.CalledBy -> "called by",
       Relation.Rival -> "rival")
     rows.flatMap((rel, label) => n.place(rel).map(id => label.padTo(11, ' ') + Lines.of(v, id, st, 13)))
+
+  /** Each rule it uses, said of whether it takes it: a hypothesis on a value or a world it is about. */
+  private def rules(n: NodeView, st: Style): List[String] =
+    n.place(Relation.Rule).map(Lines.of(v, _, st, 2)) ++
+      n.place(Relation.UnusedRule).map(id => Lines.of(v, id, st, 2) + st.dim("  (not taken: it is about nothing here)"))
 
   private def mentions(n: NodeView): List[String] =
     val m = n.says.mentions
