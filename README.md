@@ -280,26 +280,34 @@ Only the developer's signed decisions count, so an agent cannot accept the chang
 
 ## Statements
 
-There are six kinds of statements:
+There are three kinds of statements:
 
 | Kind | What it says | How it is checked |
 |---|---|---|
-| claim | a property of the system, in the words of its domain | Lean proves it from the statements that refine it |
-| definition | what a term of the domain means in this system | decided by the developer |
-| contract | what every call of an operation returns | Lean proves the statements above from it; the code below is proven or tested against it |
-| assumption | what an outside system, such as a database, does | decided by the developer, and checked at run time |
-| invariant | a rule that every operation in its scope keeps | Lean, for every contract in its scope |
+| claim | a property of the system, in the words of its domain | Lean proves it from the statements that refine it or from the code that implements it; a claim on plain Scala code is tested on generated cases |
+| assumption | what is trusted: an outside system, such as a database, or what comes from outside, such as a form | decided by the developer; checked at run time, and against its model on generated runs |
 | design | an architecture decision with no formal content | decided by the developer; a change to the code it covers brings it back |
 
-A statement can refine several others, so the tree is in fact a directed acyclic graph with one root.
+Statements are about two kinds of values:
+
+| Value | What it is |
+|---|---|
+| `Declaration` | a concept known only by what the statements say of it, such as `booked` |
+| `Definition` | what the code provides, such as `book`: proven code, plain Scala tested with property-based testing, or a meaning given with `define { … }` |
+
+They use two quantifiers: `forall` (every possible value) and `always` (every value that can be made, or every state
+a store reaches).
+
+A statement refines the statements it serves (`.refines`) and lists the assumptions it rests on (`.assuming`). A
+statement can refine several others, and there can be several roots, so the statements form a directed acyclic graph.
 
 ## Proven, tested and assumed
 
 The code at the bottom of the tree is in one of three states, and `status` reports which:
 
-- **Proven** code is written in the DSL, and Lean proves that it meets its contract.
-- **Tested** code is plain Scala. It is tested against its contract on generated cases, and checked on every call at
-  run time.
+- **Proven** code is written in the DSL, and Lean proves that it meets its claims.
+- **Tested** code is plain Scala. It is tested against its claim with property-based testing on generated cases, and
+  checked on every call at run time.
 - **Assumed** code is an outside system, such as a database or the clock. Its behaviour is an assumption the developer
   decides, and it is checked at run time and against its model on generated runs.
 
