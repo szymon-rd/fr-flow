@@ -15,13 +15,17 @@ object Judge:
       Some(Judged(CheckStatus.ModelError, Nil, List(Finding.ModelDoesNotBuild(errors(out)))))
     case ProverRun.Built(_)    => None
 
-  /** The shared lemmas: what a proof file may contain, importing no lemmas, built without `sorry`. */
+  /** The shared lemmas: what a proof file may contain, importing no lemmas, built without `sorry`. A lemma that does
+    * not build leaves the node importing them not proven (open), not failed: the error is the shared file's, and
+    * nothing of the node's own was refuted.
+    */
   def lemmas(file: ProofFile, run: ProverRun): Option[Judged] =
     NonEmptyList.fromList(ProofRules.notAllowedInLemmas(file)).map(bad => failed(Finding.ProofNotAllowed(bad.toList)))
       .orElse(run match
         case ProverRun.TimedOut(_) => Some(Judged(CheckStatus.Timeout, Nil, List(Finding.LeanTimedOut)))
-        case ProverRun.Failed(out) => Some(failed(Finding.LemmasDoNotBuild(errors(out))))
-        case ProverRun.Built(out)  => Option.when(LeanOutput.usesSorry(out))(failed(Finding.LemmasDoNotBuild(Nil))))
+        case ProverRun.Failed(out) => Some(Judged(CheckStatus.Open, Nil, List(Finding.LemmasDoNotBuild(errors(out)))))
+        case ProverRun.Built(out)  =>
+          Option.when(LeanOutput.usesSorry(out))(Judged(CheckStatus.Open, Nil, List(Finding.LemmasDoNotBuild(Nil)))))
 
   /** A node's proof file: only what one may contain. */
   def proofFile(file: ProofFile): Option[Judged] =

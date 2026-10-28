@@ -20,25 +20,23 @@ object WalkthroughDifferences:
         "status marks a failing node x before its review state (still to review), as check does",
       ends(1)),
     "5-misread-overlap" -> List(
-      "check answerWhenFree: o -> x" -> sharedLemmas,
       "check bookingsEndAfterStart: - -> +" -> ends.head._2,
-      "check neverOverlap: + -> x" -> sharedLemmas,
-      "check roomBookingsApart: + -> x" ->
+      "check neverOverlap: + -> o" -> sharedLemmas,
+      "check roomBookingsApart: + -> o" ->
         ("the port states the rule in start and end times (noOverlap, 2.3), so the misread reaches it: back-to-back " +
-          "stored bookings, which the table may hold, fail the strict noOverlap, so made_inRoom fails, as it should; " +
-          "today's rule is over moments (apart), which the misread leaves alone"),
-      "check storeWhenFree: o -> x" -> sharedLemmas,
+          "stored bookings, which the table may hold, fail the strict noOverlap, so made_inRoom cannot be proven, as " +
+          "it should not; today's rule is over moments (apart), which the misread leaves alone. " + sharedLemmas),
       "status acceptWhenFree: . -> o" -> rootOpen,
       "status acceptedIsAnswered: ! -> +" -> meaningKept,
-      "status answerWhenFree: . -> x" -> sharedLemmas,
+      "status answerWhenFree: . -> o" -> sharedLemmas,
       "status bookWhenFree: . -> o" -> rootOpen,
       "status bookedAfterIsStored: ! -> +" -> meaningKept,
       "status bookedIsStored: ! -> +" -> meaningKept,
       "status bookingsEndAfterStart: ! -> +" -> (ends.head._2 + "; and it is not back: " + premise),
-      "status neverOverlap: + -> x" -> sharedLemmas,
+      "status neverOverlap: + -> o" -> sharedLemmas,
       ends(1),
-      "status roomBookingsApart: + -> x" -> "made_inRoom fails (above)",
-      "status storeWhenFree: . -> x" -> sharedLemmas,
+      "status roomBookingsApart: + -> !" -> "back for review (below), and not proven (above): ! before o",
+      "status storeWhenFree: . -> o" -> sharedLemmas,
       "review acceptedIsAnswered: back -> kept" -> meaningKept,
       "review bookedAfterIsStored: back -> kept" -> meaningKept,
       "review bookedIsStored: back -> kept" -> meaningKept,
@@ -59,7 +57,8 @@ object WalkthroughDifferences:
       "review tableMatchesModel: back -> kept" -> premise))
 
   private def sharedLemmas = "its proof imports the shared lemmas (Proofs/Rooms/Lemmas.lean), and the lemma relating " +
-    "apart to noOverlap no longer holds once noOverlap is strict: the file fails, so each proof importing it does"
+    "apart to noOverlap no longer holds once noOverlap is strict: the lemmas do not build, so it is not proven (o), " +
+    "said as the lemmas' failure, not its own proof's"
   private def rootOpen = "a root over Declarations is not proven while root_impl is open below a failure: o, where " +
     "today's printed . for a node whose parts fail"
   private def meaningKept = "a claim saying what a Declaration is rests on no part: the calendar's change moves only " +

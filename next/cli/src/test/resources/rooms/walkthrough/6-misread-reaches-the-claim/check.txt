@@ -9,13 +9,9 @@ error: check: level 4 of 4: bookWhenFree, acceptWhenFree
 + acceptedIsAnswered: proven
   unsat: not shown
 + neverOverlap: proven
-  unsat: not shown
 + bookingsOfTheRoom: proven
-  unsat: not shown
 + roomBookingsApart: proven
-  unsat: not shown
 + bookingsEndAfterStart: proven
-  unsat: not shown
 + grantWhenFree: proven
   vacuous: not shown
   restates: not shown

@@ -33,11 +33,14 @@ class JudgeSuite extends munit.FunSuite:
       Some((CheckStatus.ModelError, 1)))
   }
 
-  test("the lemmas: what a proof file may contain, no lemmas imported, built without sorry") {
+  test("the lemmas: what a proof file may contain, no lemmas imported, built without sorry; one that does not build " +
+    "leaves the importer open, not failed") {
     val lemmas = ProofFile(NodeId("Lemmas"), "theorem t : True := trivial\n")
     assertEquals(Judge.lemmas(lemmas, ProverRun.Built("")), None)
     assertEquals(Judge.lemmas(lemmas, ProverRun.Built("declaration uses 'sorry'")).map(_.status),
-      Some(CheckStatus.Failed))
+      Some(CheckStatus.Open))
+    assertEquals(Judge.lemmas(lemmas, ProverRun.Failed(s"error: $file:1:0: omega could not prove the goal"))
+      .map(j => (j.status, j.findings.size)), Some((CheckStatus.Open, 1)))
     val importing = ProofFile(NodeId("Lemmas"), "import Proofs.K.Lemmas\n")
     assertEquals(Judge.lemmas(importing, ProverRun.Built("")).map(_.findings),
       Some(List(Finding.ProofNotAllowed(List(1 -> NotAllowed.LemmaImport("Proofs.K.Lemmas"))))))

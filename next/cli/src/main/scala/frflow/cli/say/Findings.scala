@@ -31,7 +31,9 @@ object Findings:
     case FindingView.ModelDoesNotBuild(es) => "the model does not build in Lean" :: messages(es, full)
     case FindingView.ProofNotAllowed(what) => "the proof file holds what is not allowed:" ::
         what.map((line, x) => s"  line $line: ${forbidden(x)}")
-    case FindingView.LemmasDoNotBuild(es)  => "the shared lemmas do not build" :: messages(es, full)
+    case FindingView.LemmasDoNotBuild(es)  =>
+      "not proven: it imports the shared lemmas, which do not build (the error is the lemmas', not its own proof's)" ::
+        messages(es, full)
     case FindingView.NotProven(es)         => "not proven" :: messages(es, full)
     case FindingView.Refuted(tries)        => tries.map(tried)
     case FindingView.DisallowedAxioms(axs) => List(s"its proof rests on axioms not allowed: ${axs.mkString(", ")}")

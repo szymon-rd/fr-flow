@@ -1,6 +1,6 @@
 
 --- 2 waiting ---
-x roomBookingsApart  claim  to review
+! roomBookingsApart  claim  to review
   A room's bookings never overlap.
 
 Decision

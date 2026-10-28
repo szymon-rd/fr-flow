@@ -2,12 +2,12 @@ error: check: level 1 of 4: bookedIsStored, bookedAfterIsStored, acceptedIsAnswe
 error: check: level 2 of 4: grantWhenFree
 error: check: level 3 of 4: storeWhenFree, answerWhenFree
 error: check: level 4 of 4: bookWhenFree, acceptWhenFree
-x neverOverlap: failed
-  the shared lemmas do not build
+o neverOverlap: open
+  not proven: it imports the shared lemmas, which do not build (the error is the lemmas', not its own proof's)
     Proofs/Rooms/Lemmas.lean:38: omega could not prove the goal:
   not proven: its check is not proven
-x roomBookingsApart: failed
-  the shared lemmas do not build
+o roomBookingsApart: open
+  not proven: it imports the shared lemmas, which do not build (the error is the lemmas', not its own proof's)
     Proofs/Rooms/Lemmas.lean:38: omega could not prove the goal:
   not proven: its check is not proven
 + grantWhenNoOverlap: proven; its code tested on 1001 cases
@@ -18,7 +18,6 @@ x roomBookingsApart: failed
   note: the generator of Booking never makes the examples' ("Oak", 9, 10), ("Oak", 11, 12), ("Oak", 10, 11), ("Oak", 9, 11), ("Oak", 10, 12)
   note: the generator of RoomBookings never makes the examples' ("Oak", List(("Oak", 9, 10))), ("Oak", List(("Oak", 9, 11)))
 + bookingsEndAfterStart: proven
-  unsat: not shown
 x grantWhenFree: failed
   complete: open
     Proofs/Rooms/grantWhenFree.lean:19: omega could not prove the goal:
@@ -34,12 +33,12 @@ x grantWhenFree: failed
   note: the generator given for RoomBookings: a room's bookings, laid end to end, some back to back
   note: the generator of Booking never makes the examples' ("Oak", 9, 10), ("Oak", 11, 12), ("Oak", 10, 11), ("Oak", 9, 11), ("Oak", 10, 12)
   note: the generator of RoomBookings never makes the examples' ("Oak", List(("Oak", 9, 10))), ("Oak", List(("Oak", 9, 11)))
-x storeWhenFree: failed
-  the shared lemmas do not build
+o storeWhenFree: open
+  not proven: it imports the shared lemmas, which do not build (the error is the lemmas', not its own proof's)
     Proofs/Rooms/Lemmas.lean:38: omega could not prove the goal:
   not proven: its check is not proven
-x answerWhenFree: failed
-  the shared lemmas do not build
+o answerWhenFree: open
+  not proven: it imports the shared lemmas, which do not build (the error is the lemmas', not its own proof's)
     Proofs/Rooms/Lemmas.lean:38: omega could not prove the goal:
   not proven: its check is not proven
 o bookWhenFree: open

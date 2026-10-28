@@ -72,3 +72,13 @@ class TextsSuite extends munit.FunSuite:
       .contains("Calendar has no LeanType"))
     assert(Problems.text(Problem.NoRoot).startsWith("no root statement"))
   }
+
+  test("a statement with no Scala value is said not checked, with no count of cases nor a shortfall") {
+    import frflow.api.node.tests.*
+    val cases = Cases(1000, 4, 1)
+    def view(o: TestOutcome) = TestView(cases, Against.Claim(a), o, Nil, List(Note.NothingToVary))
+    assertEquals(Tested.lines(view(TestOutcome.NotChecked(frflow.eval.EvalError.Quantified)), movedUnderCode = false),
+      List("not checked: the statement has no Scala value to test against (it quantifies over a type)"))
+    assert(Tested.lines(view(TestOutcome.Passed), movedUnderCode = false).contains(
+      "only 4 of 1000 cases could be drawn"))
+  }

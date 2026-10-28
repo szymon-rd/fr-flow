@@ -40,11 +40,4 @@ Proofs
 
 Code
   plain Scala, tested against it on generated cases: tested, not proven
-  tested on 4 generated cases (seed 1) against grantWhenFree
   not checked: the statement has no Scala value to test against (it quantifies over a type)
-  only 4 of 1000 cases could be drawn
-  note: the generator given for String: Oak or Elm
-  note: the generator given for Booking: requests for Oak or Elm that end after they start
-  note: the generator given for RoomBookings: a room's bookings, laid end to end, some back to back
-  note: the generator of Booking never makes the examples' ("Oak", 9, 10), ("Oak", 10, 11), ("Oak", 9, 11), ("Oak", 10, 12)
-  note: the generator of RoomBookings never makes the examples' ("Oak", List(("Oak", 9, 10))), ("Oak", List(("Oak", 9, 11)))
