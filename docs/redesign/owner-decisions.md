@@ -253,9 +253,10 @@ a run is written in a statement (`.from` as the design has it, or today's `.afte
 
 ## 28. Consistency gates the proof (owner)
 The owner: "Consistency is important, lack of it makes the proof red, warning is not enough." A consistency group not
-proven is a failure, not a warning: the whole model's proof is red, and so is every statement proven from parts over
-a Declaration while a group below it is not proven. This is in the rebuild only; today's library does not change
-(§29).
+proven is a failure, not a warning: the whole model's proof is red, and so is every statement proven from parts over a
+Declaration while a group below it is not proven. This is in the rebuild only; today's library does not change (§29).
+Confirmed by the owner ("Yes"): consistency counts only when Lean proves it; tested Scala alone (evidence) does not make
+it proven, so auth, crm and sharing must reach proven consistency when they are ported.
 
 ## 29. Today's library is frozen (owner)
 The owner: "Yup. Freeze." Today's library (`modules/*`, `examples/*` and the README's code) is frozen except for bug
@@ -265,3 +266,20 @@ fixes until step 14; every further change goes through `next/*`.
 The owner: "Boundary must have a model or assumption." A value covered code builds and hands to a boundary is checked
 through the boundary's model or an assumption about it; a boundary covered code calls with neither is refused (a
 `Problem`), so nothing passes unchecked. This settles the open question of a value handed to a boundary with no model.
+Confirmed by the owner ("Yes"): the values a program passes to a boundary must meet the `always` rules on their type
+(a `made_` at the call).
+
+## 31. `writtenOnlyBy` is dropped; the programs changing a store are derived (owner)
+The owner asked "Do we need that changedOnlyBy?" and decided: "Yup Drop it". `stored.writtenOnlyBy(…)` and its check
+(`WriterNotListed`) are removed. FrFlow derives the programs that change a store from the code: every program calling
+an operation that changes the model's state; each is asked to keep the store's rules (`cover_`, `made_`) as before.
+"Nothing outside the code changes it" becomes part of what `behavesAs` says: the store does what its model does, and
+nothing outside the code changes it. `show` and review of a `behavesAs` assumption state both meanings and list the
+programs derived to change the store; when a new program starts changing a store, the claims of `always` about it come
+back for review, naming it. Rooms loses `onlyBookingWrites` and has sixteen nodes.
+
+## 32. `atomic`, on the boundary (owner)
+The owner: "atomic is good", and, asking "maybe we should make it on boundary?", agreed to the boundary.
+`stored.changedOneRunAtATime` becomes `store.atomic` (rooms: `bookingTable.atomic`): runs on the real store never
+interleave; each run is one step of the world. `behavesAs` stays on the boundary; `initially` stays on the model,
+since it needs the state's type.

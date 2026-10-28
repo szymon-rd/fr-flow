@@ -198,7 +198,7 @@ It is placed below the statement whose hypotheses it gives, with `.refines` (2.4
 val neverOverlap = Node.claim("The bookings stored never overlap.")(
   always(storedBookings)(stored => stored.pairwise(apart)))
   .refines(bookWhenFree, acceptWhenFree)
-  .assuming(tableMatchesModel, onlyBookingWrites, oneAtATime, startsEmpty, bookingsEndAfterStart)
+  .assuming(tableMatchesModel, oneAtATime, startsEmpty, bookingsEndAfterStart)
 
 val roomBookingsApart = Node.claim("A room's bookings never overlap.")(
   always[RoomBookings](held => held.bookings.pairwise(noOverlap)))
@@ -219,9 +219,10 @@ Checked before production only:
   for the store's start; values from outside by an assumption of `always` on their type (2.6). `inhabited_<node>` shows
   the rule admits a value.
 - **`always(stored)`** is a hypothesis on every world a statement is about, kept by each program writing the store
-  (`cover_<op>`) from every start (`start_<node>`); that this covers every reached state rests on four store facts
-  (2.6). A world is one a run starts from or one the statement quantifies over (`forall((now: Term[World]) => …)`, as
-  rooms' roots do): each comes with what always holds of the stores' states in it.
+  (`cover_<op>`) from every start (`start_<node>`); that this covers every reached state rests on three store facts
+  (2.6): the store behaves as its model and nothing outside the code changes it, it starts as `initially` says, and runs
+  on it are atomic. A world is one a run starts from or one the statement quantifies over
+  (`forall((now: Term[World]) => …)`, as rooms' roots do): each comes with what always holds of the stores' states in it.
 - **An assumption of `always`** is a rule as a claim of `always` is (2.4, 2.6): the same hypothesis, the same `cover_`,
   `made_` and `start_` asked of the code and the start, and `inhabited_`; only its own truth for values from outside is
   trusted, not proven.
@@ -285,16 +286,22 @@ booking's two claims are proven of its program; its claims of `always` are rules
 ### 2.6 Assumptions about the world outside
 
 What the world outside the code does is expected to be assumed: the company's procedures, the outside services and how
-they are run (owner §16). Each fact is an assumption node, reviewed like any other, written with one of four formulas
+they are run (owner §16). Each fact is an assumption node, reviewed like any other, written with one of three formulas
 (`core.expr.OutsideFact`). Lean does not state them as formulas: its model of the world is built on them. What values
 from outside meet is said differently, with `always` on their type (below).
 
 | Formula | Says | The rule resting on it |
 |---|---|---|
-| `store.behavesAs(stored)` | the store does what its model does | code is proven on the model; adapters tested against it |
+| `store.behavesAs(stored)` | the store does what its model does, and nothing outside the code changes it | code is proven on the model; adapters tested against it; every reached state is one a run of the code leaves |
 | `stored.initially(held => …)` | what the store's start meets | `start_<node>`: `∀ s, initially s → A s` |
-| `stored.writtenOnlyBy(book)` | only these programs change it | every reached state is one a listed run leaves |
-| `stored.changedOneRunAtATime` | runs changing it never interleave | each run is one step of the world |
+| `store.atomic` | runs on the store never interleave | each run is one step of the world |
+
+`behavesAs` and `atomic` are said of the boundary, the real store; `initially` of the model, since it needs the state's
+type. Which programs change a store is not written: FrFlow derives it from the code, every program calling an
+operation that changes the model's state (`Premises.writers`), and asks each to keep the store's rules (`cover_`,
+`made_`) (owner §31). `show` and review of a `behavesAs` assumption state both its meanings and list the programs
+derived to change the store; when a new program starts changing it, the claims of `always` about the store come back
+for review, naming it.
 
 ```scala
 val tableMatchesModel =
@@ -303,20 +310,18 @@ val tableMatchesModel =
 
 val startsEmpty = Node.assumption("The table starts empty.")(storedBookings.initially(stored => stored === Nil))
 
-val onlyBookingWrites = Node.assumption("Only booking writes to the table.")(storedBookings.writtenOnlyBy(book))
-
-val oneAtATime = Node.assumption("Bookings are processed one at a time.")(storedBookings.changedOneRunAtATime)
+val oneAtATime = Node.assumption("Bookings are processed one at a time.")(bookingTable.atomic)
 
 val bookingsEndAfterStart = Node.assumption("Every booking ends after it starts.")(
   always[Booking](b => b.start < b.end))
 ```
 
 Checked: which facts a check rests on is derived (`Premises`), only to check the `.assuming` list the source writes. A
-claim about a program's runs on a store rests on `behavesAs` and `changedOneRunAtATime`; an `always(stored)` also on
-`initially` and `writtenOnlyBy`; an `always[T]` on the facts of each store holding or making one; and any check on what
-values from outside meet, where its Lean form carries it (below). A missing fact is refused, naming it and the
-assumption that says it (`PremiseMissing(id, needs, by)`), as is one not needed (`PremiseNotNeeded`) and an unlisted
-writer (`WriterNotListed`). Atomicity is assumed this way (owner §17); asynchrony is future work.
+claim about a program's runs on a store rests on `behavesAs` and `atomic`; an `always(stored)` also on `initially`;
+an `always[T]` on the facts of each store holding or making one; and any check on what values from outside meet,
+where its Lean form carries it (below). A missing fact is refused, naming it and the assumption that says it
+(`PremiseMissing(id, needs, by)`), as is one not needed (`PremiseNotNeeded`). Atomicity is assumed this way (owner
+§17, §32); asynchrony is future work.
 
 **Values from outside** (owner §21, §25). Statements are about values, never about a function's inputs. What comes
 from outside has a type, and what is trusted about it is an assumption of `always` on that type. The general rule
@@ -585,8 +590,9 @@ models is `bookIfGranted_run`.
 
 ### 3.3 The world outside
 
-The five assumptions are those of 2.6: the table behaves as its model (`tableMatchesModel`), starts empty, is written
-only by booking, one run at a time, and every booking ends after it starts (`bookingsEndAfterStart`).
+The four assumptions are those of 2.6: the table behaves as its model and nothing outside the code changes it
+(`tableMatchesModel`), starts empty, runs on it are atomic (`oneAtATime`), and every booking ends after it starts
+(`bookingsEndAfterStart`). FrFlow derives that `book` is the one program changing the table.
 
 ### 3.4 The roots: the purpose, over Declarations
 
@@ -698,13 +704,16 @@ README's step-4 calendar, which forgets the booking after the request, is found 
 ```scala
 val rooms = FrModel("Rooms")(bookWhenFree, acceptWhenFree, bookedIsStored, bookedAfterIsStored, acceptedIsAnswered,
   storeWhenFree, answerWhenFree, neverOverlap, grantWhenFree, bookingsOfTheRoom, roomBookingsApart, grantWhenNoOverlap,
-  tableMatchesModel, onlyBookingWrites, oneAtATime, startsEmpty, bookingsEndAfterStart)
+  tableMatchesModel, oneAtATime, startsEmpty, bookingsEndAfterStart)
   .implementProven(book)(bookIfGranted)
   .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
   .withGenerator(roomNames.describedAs("Oak or Elm"))
   .withGenerator(requests.describedAs("requests for Oak or Elm that end after they start"))
   .withGenerator(roomBookings.describedAs("a room's bookings, laid end to end, some back to back"))
 ```
+
+Sixteen nodes: two roots, three claims saying what the Declarations are, booking's two claims, four claims about the
+calendar and the rules below them, `neverOverlap`, and four assumptions.
 
 `withGenerator` (owner §26) gives a type's generator: `requests` draws bookings that end after they start, and
 `roomBookings` a room's bookings laid end to end; every other type's is derived.
@@ -737,7 +746,7 @@ lines elided):
 storeWhenFree         proven of book's program, bookIfGranted
                       assumed by the code calling book
                       rests on the table behaving as storedBookings: tableMatchesModel
-                      rests on one run at a time on storedBookings: oneAtATime
+                      rests on runs on bookingTable being atomic: oneAtATime
                       rests on what each Booking from outside meets: bookingsEndAfterStart
 bookedAfterIsStored   says what bookedAfter is: book's program, bookIfGranted, stands in it
                       consistent with acceptedIsAnswered, grantWhenNoOverlap: witnessed, for Lean to check
@@ -748,7 +757,9 @@ grantWhenFree         proven from its parts (grantWhenNoOverlap)
                       rules it uses: bookingsOfTheRoom, roomBookingsApart, bookingsEndAfterStart
                       not checked against granted's Scala: the statement has no Scala value (it quantifies over
                       every value)
-oneAtATime            the world outside: runs on storedBookings never interleave
+tableMatchesModel     the world outside: bookingTable does what storedBookings does, and nothing outside the code
+                      changes it; the programs changing it, derived: book
+oneAtATime            the world outside: runs on bookingTable never interleave
 ```
 
 Lean is asked `complete` of the two roots (authored: the two Declarations' claims and booking's claim give each) and
@@ -993,7 +1004,7 @@ declarations merge). An error found before its place is known is a `Fault`, carr
 `Validate(e: Elaborated): ValidatedNec[Problem, Valid]` returns every problem at once, one `Problem` case per thing
 wrong: the graph (`DuplicateId`, `NoRoot`, `AboveItself`, `ParentOutside`, `DesignWithoutParent`, `UnderDesign`,
 `PremiseNotAssumed`, `OutsideAsPart`, `OutsideClaimed`); the world outside (`PremiseMissing`, `PremiseNotNeeded`,
-`WriterNotListed`, `AlwaysNotReached`, `BoundaryUnchecked`); the vocabulary (`ReservedName`, `DeclaredTwice`,
+`AlwaysNotReached`, `BoundaryUnchecked`); the vocabulary (`ReservedName`, `DeclaredTwice`,
 `CodeOnlyInStatement`); values (`Undefined`, `DeclarationInCode`, `CodeWithoutClaim`, `RestsOnItself`); programs
 (`RunOfNoDefinition`, `ErrorsDiffer`, `FailingDiffers`, `NeverFails`, `WorldsEqual`). A model's Lean namespace, its
 name capitalized (`Stored`), counts among the declared names, so a model named as its boundary's class is
@@ -1174,7 +1185,8 @@ out). `Meaning.own` (cause `self`) leaves out `parts` and `parents`, but a desig
 
 **Ledger and review.** The `Ledger` is append-only; review states are a fold of it over the current graph, parents
 first (`Standings`). A node returns for a cause: `self`, `above` (unless only words moved, `Reworded.only`), `parts`,
-`code`, `revisit`, `merged`, a parent rejected; `Cause.movedUnderCode` lets the CLI say a failing case as the claim's
+`code`, `revisit`, `merged`, a parent rejected, and, for a claim of `always` about a store, a program newly derived to
+change the store (`writer`, naming it; owner §31); `Cause.movedUnderCode` lets the CLI say a failing case as the claim's
 change. Rules see a `Subject`, never the IR or Lean; `Decide` refuses a reason under three words, then applies one
 rule class per `Command`. Ledgers start fresh (owner §2, G).
 
@@ -1334,6 +1346,8 @@ the tests reach.
 | two definitions of one term | two claims, one `.replaces` the other |
 | `==>`, the Boolean `fold`, `before(stored)` | `implies`, `when(…)(…).otherwise(…)`, `stored.in(before)` |
 | assumptions on what calls a Definition | a type for what comes from outside, with an assumption of `always` on it (2.6) |
+| `stored.writtenOnlyBy(p)`, `WriterNotListed` | derived: the programs changing a store; `behavesAs` says nothing outside the code changes it (owner §31) |
+| `stored.changedOneRunAtATime` | `store.atomic`, on the boundary (owner §32) |
 
 **Everything else**: `why` on nodes (the examples' `why` texts are offered as the reasons of their first decisions);
 `IDEA.md`, idea sections and numbered questions (owner §1: the purpose is stated by the root statements; a README is
@@ -1394,7 +1408,8 @@ Declaration says what it is, with no `impl` and no premise list, its group joine
 solved in order (2.7, 2.8); `start_` and `inhabited_` asked of an assumption of `always` too (2.3, 2.9); `show` and
 review listing rules apart from parts (2.4); consistency gating the proof: a group not proven is red, for the whole
 model and for every statement proven from parts over a Declaration (2.8, owner §28); and every boundary covered code
-calls having a model or an assumption (4.4, owner §30). None needs a new kind of node or value, a quantifier or a
+calls having a model or an assumption (4.4, owner §30); the programs changing a store derived, `writtenOnlyBy` gone,
+and `atomic` said of the boundary (2.6, owner §31, §32). None needs a new kind of node or value, a quantifier or a
 second name. In step 12, auth's `Param`s become
 Declarations and Definitions (`grants`, `sessions` provided, `admit` tested) and `Server` calls
 `knowledge.code(admit)(…)`; keycloak loses its `checkedBy`; crm's `Database[F, T]` becomes tagless, its expiry job
@@ -1444,7 +1459,7 @@ review functions, 8's (the port interpreters, `NodeChecker`, the lexer's passes,
 | an `always` rule with no Scala value cannot be drawn (rooms' `neverOverlap`) | medium | state it in evaluable words and prove the link |
 | a data type no statement mentions is not drawn | low | it is not in the vocabulary: mention it, or give its generator |
 | no witness derived for a sound group | medium | the proof is red until an equation, value or proof is added (owner §28) |
-| the outside facts are many to write (rooms: five) | certain | each is one sentence; a missing one is named with what to say |
+| the outside facts are many to write (rooms: four) | certain | each is one sentence; a missing one is named with what to say |
 | an outside vocabulary lacks a native interpreter | low | it runs through its meaning in the core, a law tying the two |
 | a bug only production data shows | certain in principle | the owner's decision; seeds include the examples' worlds |
 | the examples' decisions are lost | certain | old `why` texts offered as reasons; `confirm` batches |
@@ -1463,7 +1478,7 @@ In order of value; none blocks a step.
 - **Steps 1 and 11: rules without a Scala value.** Today's rooms states `roomBookingsApart` over moments (`apart`);
   the port keeps `noOverlap`, since drawn values are judged by it (2.3). Make the limit a validation message, not only
   a risk.
-- **Long premise lists (the owner's call).** The store's four facts recur on every claim about the store; an
+- **Long premise lists (the owner's call).** The store's three facts recur on every claim about the store; an
   assumption could group them, if the owner agrees, still one edge and one kind.
 - **The double reading of `always`** (of a type, of a store) is kept as one word, read as "every value the covered
   code can produce" (owner §19); asynchrony is out of scope (owner §17).
@@ -1576,6 +1591,8 @@ The decisions are in `owner-decisions.md`; the right column says where this docu
 | 28 | Consistency gates the proof | 2.8, 4.10, 7.1, 9 |
 | 29 | Today's library frozen but for bug fixes | 9 |
 | 30 | Every boundary has a model or an assumption | 4.4, 4.6, 10.2 |
+| 31 | `writtenOnlyBy` dropped: the programs changing a store derived; `behavesAs` says nothing outside changes it | 2.3, 2.6, 3, 6, 8 |
+| 32 | `changedOneRunAtATime` is `atomic`, on the boundary | 2.6, 3, 8 |
 
 ## Appendix B. Today's library, and where each problem is addressed
 
