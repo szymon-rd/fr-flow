@@ -296,3 +296,14 @@ tests this). The docs call it the application at one moment, not global state.
 The owner chose option A: `program(inputs).from(world) { (answer, after) => … }`, with
 `.failing { (error, after) => … }` for what holds when it fails. Today's `.answer(world)` and `.after(world)` are not
 carried into the rebuild; the one form covers programs that fail.
+
+## 35. A boundary has a Model; `StateModel` and `AssumedModel` are its kinds (owner)
+The owner asked "can we somehow abstract over StateModel and Boundary? Like, we could have any Model for Boundary, one
+kind being StateModel" and chose the name: "AssumedModel is okay". Every boundary has one model (`boundary.model(…)`),
+tied to it by `behavesAs`. A `StateModel[S]` gives its operations as changes to a state, a field of the World; programs
+run on it exactly, and the adapter is tested against it on generated runs. An `AssumedModel` is known only by the
+assumptions about its operations (an outside system's promises): Lean sees its operations as unknown, with those
+assumptions as hypotheses, and the adapter is tested against them where it can be, trusted otherwise. Owner §30 then
+reads "every boundary has a model". No new kind of node, value or quantifier (§15). Built in step 12, where the first
+outside systems are ported; rooms is unchanged.
+

@@ -1599,6 +1599,7 @@ The decisions are in `owner-decisions.md`; the right column says where this docu
 | 32 | `changedOneRunAtATime` is `atomic`, on the boundary | 2.6, 3, 8 |
 | 33 | One World, kept local: a statement takes only the stores it reads; a new store brings nothing unrelated back | 2.3, 3.2, 9 |
 | 34 | A run is written with `.from` (and `.failing`); `.answer`/`.after` not carried | 2.7, 3, 8 |
+| 35 | A boundary has a Model: `StateModel` or `AssumedModel` (step 12) | 2.6, 4.4, 9 |
 
 ## Appendix B. Today's library, and where each problem is addressed
 
