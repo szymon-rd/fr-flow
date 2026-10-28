@@ -2,6 +2,7 @@ package whole
 
 import frflow.*
 import frflow.core.analysis.{Problem, SaysWhat}
+import frflow.core.checking.Checking
 import frflow.core.consistency.{Consistency, Group, Picked, Vacuity, Witness}
 import frflow.core.name.{NodeId, SymbolName}
 import frflow.core.ty.Ty
@@ -23,6 +24,15 @@ class MeaningsSuite extends munit.FunSuite:
     assertEquals(t.nodes.map(_.node.id).filter(SaysWhat.is(t, _)),
       ids("bookedIsStored", "bookedAfterIsStored", "acceptedIsAnswered"))
     assertEquals(SaysWhat.declarations(t, NodeId("bookedAfterIsStored")), List(s("bookedAfter")))
+  }
+
+  test("a lone root over a Declaration says what nothing is: a purpose not refined yet, not checked") {
+    val outside = Declaration[BigInt => BigInt]("what the outside service gives")
+    val lone = Node.claim("The outside service never gives a negative number.")(
+      forall((n: Term[BigInt]) => outside(n) >= 0))
+    val t = Theories.resolved(FrModel("Lone")(lone)).theory
+    assertEquals(SaysWhat.is(t, NodeId("lone")), false)
+    assert(Checking.unchecked(t, NodeId("lone")), Checking.of(t, NodeId("lone")))
   }
 
   test("nothing is proven of the code from what a Declaration is: no impl, no premise, relied on by no code") {

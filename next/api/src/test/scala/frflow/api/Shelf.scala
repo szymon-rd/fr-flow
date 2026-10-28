@@ -39,8 +39,8 @@ object Shelf:
 
   /** A claim nothing below proves, and no code is checked against: never complete. */
   object Lone:
-    val nonNegative = Node.claim("A number above zero is not negative.")(
-      forall((n: Term[BigInt]) => (n > 0) implies (n >= 0)))
+    val nonNegative = Node.claim("The outside service never gives a negative number.")(
+      forall((n: Term[BigInt]) => outside(n) >= 0))
     val kb = FrModel("Lone")(nonNegative)
 
   /** A claim saying what a Declaration is, its group with no witness (no equation, no bound): its consistency is

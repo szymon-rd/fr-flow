@@ -11,8 +11,12 @@ import frflow.proof.terms.TermTable
 object Tries:
   val Heartbeats: Int = 4000
 
+  /** None of a rule: its claim is `True` (it holds of every value as a guard), and that it admits a value is
+    * `inhabited_`.
+    */
   def of(r: Resolved, table: TermTable, n: NodeId): List[Obligation] =
-    (split(r, n) ++ List(unsat(n))).map(tried) ++ Idle.of(r, table, n)
+    if r.theory.node(n).exists(_.statement.rule) then Nil
+    else (split(r, n) ++ List(unsat(n))).map(tried) ++ Idle.of(r, table, n)
 
   private def tried(k: TryKind, p: Prop, doc: String) =
     Obligation(ObligationName.Tried(k), p, Discharge.Attempt(Heartbeats), doc)
