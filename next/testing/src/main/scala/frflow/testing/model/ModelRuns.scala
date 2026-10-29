@@ -46,7 +46,7 @@ final class ModelRuns[F[_]: MonadThrow: Ref.Make](check: ModelTests.Check, seman
             case Some(Some(f)) => (n + 1, Some(f)).asRight
           })
       reached <- hits.get
-    yield TestReport(Count(replayed.size + runs, tried._1), plan.settings.seed, Against.Model(node, 0),
+    yield TestReport(Count(replayed.size + runs, tried._1), plan.settings.seed, Against.Model(node, model.name),
       tried._2.fold(Outcome.Passed)(Outcome.Failed(_)), reached.unreached, draw.notes)
 
   /** Every operation called, every branch of the model's steps taken each way. */

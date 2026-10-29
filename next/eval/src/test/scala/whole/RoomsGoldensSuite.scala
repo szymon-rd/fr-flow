@@ -8,8 +8,8 @@ import frflow.proof.obligation.AlwaysSuite
 import java.nio.file.{Files, Path}
 
 /** Rooms' Lean as the port prints it, byte for byte (`next/proof/src/test/resources/rooms`, owner §25: one type,
-  * `Booking`): the table's model, its class and `World`; booking's run on the models; and every `keeps_` and `makes_` the
-  * obligations declare. With `FRFLOW_GOLDEN` set, they are written there instead.
+  * `Booking`): the table's model, its class and `World`; booking's run on the models; and every `keeps_` and `makes_`
+  * the obligations declare. With `FRFLOW_GOLDEN` set, they are written there instead.
   */
 class RoomsGoldensSuite extends munit.FunSuite:
   private val r = Theories.resolved(rooms.rooms)

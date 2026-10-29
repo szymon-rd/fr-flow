@@ -28,13 +28,13 @@ enum Problem:
   /** A fact about the outside claimed: only an assumption can say one, since nothing in FrFlow proves it. */
   case OutsideClaimed(id: NodeId)
   // The world outside (owner §16, §17)
-  /** A statement whose check rests on a fact about the outside its `.assuming` does not list (the one mechanism for
-    * a premise, owner §15; `Premises` derives what each needs): a claim about a program's runs needs `stored.atomic` of each
-    * model whose operations it calls; an `always(stored)` that, `stored.onlyCodeChanges` and `stored.initially(…)`;
-    * an `always[T]` what values from outside meet (owner §21: an assumption of `always` on `T` when the outside
-    * passes `T`s in, and each such assumption on the values from outside its `T`s are made from) and the facts of
-    * each model whose state holds a `T`. `by` is the assumption that says it, if one does; when none does, what to say is
-    * `needs` (for values from outside, `Node.assumption("…")(always[T](x => …))`).
+  /** A statement whose check rests on a fact about the outside its `.assuming` does not list (the one mechanism for a
+    * premise, owner §15; `Premises` derives what each needs): a claim about a program's runs needs `stored.atomic` of
+    * each model whose operations it calls; an `always(stored)` that, `stored.onlyCodeChanges` and
+    * `stored.initially(…)`; an `always[T]` what values from outside meet (owner §21: an assumption of `always` on `T`
+    * when the outside passes `T`s in, and each such assumption on the values from outside its `T`s are made from) and
+    * the facts of each model whose state holds a `T`. `by` is the assumption that says it, if one does; when none does,
+    * what to say is `needs` (for values from outside, `Node.assumption("…")(always[T](x => …))`).
     */
   case PremiseMissing(id: NodeId, needs: Premise, by: Option[NodeId])
   /** A fact about the outside a statement's `.assuming` lists that its check does not rest on. */

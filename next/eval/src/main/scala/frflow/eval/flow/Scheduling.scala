@@ -5,7 +5,7 @@ import cats.effect.kernel.Async
 import cats.syntax.all.*
 
 /** How a recorded program's concurrent steps run in Scala: one after the other, as Lean reads them (the models), or
-  * at once (the adapters, the interleavings tests).
+  * at once (the operations' Scala, the interleavings tests).
   */
 trait Scheduling[F[_]]:
   def both[A, B](fa: F[A], fb: F[B]): F[(A, B)]

@@ -26,7 +26,7 @@ final case class CallCheck(post: Applied, op: SymbolName, made: List[Made], inpu
     made.iterator.flatMap(_.broken(call, (inputs :+ result).take(call.size), env)).nextOption()
 
 object CallCheck:
-  /** Of a statement read as a call, claimed or assumed (an assumption's: its adapter is tested against it). */
+  /** Of a statement read as a call, claimed or assumed (an assumption's: its Scala is tested against it). */
   def of(semantics: Semantics, t: Theory, node: NodeId): Option[CallCheck] =
     t.node(node).flatMap(_.statement.call).collect { case CallForm.Call(op, post) =>
       val result = t.vocabulary.symbol(op).map(_.ty).collect { case SymbolType.Typed(ty) => Ty.resultOf(ty) }

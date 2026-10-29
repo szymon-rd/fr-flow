@@ -39,8 +39,8 @@ enum Checking:
   case Rules(rules: List[(NodeId, Boolean)])
   /** Taken as a hypothesis by the proofs of code calling the Definitions it mentions. */
   case AssumedByCallers(definitions: List[SymbolName])
-  /** `always[T]`: met where a value of `ty` is made (each of `makers`' results: proven, or tested at its inputs and result,
-    * or each operation's result on its model, `made_<op>`), entering values by the outside facts it rests on; a
+  /** `always[T]`: met where a value of `ty` is made (each of `makers`' results: proven, or tested at its inputs and
+    * result, or each operation's result on its model, `made_<op>`), entering values by the outside facts it rests on; a
     * hypothesis on every value of `ty` in Lean.
     */
   case WhereMade(ty: Ty, makers: List[SymbolName], models: List[(ModelName, SymbolName)])

@@ -64,7 +64,8 @@ class CrmSuite extends munit.FunSuite:
     val memory = ModelTests.of(databaseModel)(start = (t: Tables) => Ref[IO].of(t).map(Memory(_, keepsOthers)),
       observe = (m: Memory) => m.held)(m => (m.load, m.storeAbout, m.logEvent))
     val model = e.theory.vocabulary.model(databaseModel.name).getOrElse(fail("no database model"))
-    ModelRuns[IO](ModelTests.Check(model, memory), Semantics(e), e.theory).of(Plan(Settings.default, Nil), Derive.of(e, Nil)).unsafeRunSync()
+    ModelRuns[IO](ModelTests.Check(model, memory), Semantics(e), e.theory)
+      .of(Plan(Settings.default, Nil), Derive.of(e, Nil)).unsafeRunSync()
 
   test("the database's implementations are run against its model: the CRM's own in-memory store tested") {
     assertEquals(modelRun(keepsOthers = true).failure, None)

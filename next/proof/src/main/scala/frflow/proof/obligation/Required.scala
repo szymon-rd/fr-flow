@@ -71,8 +71,9 @@ object Required:
     if hyps.isEmpty then "." else s", given what ${hyps.map(_.value).mkString(", ")} promise."
 
   /** `cover_<op>` of a statement of `always`, for each program it applies to whose code is proven and calls an
-    * operation of a model the `always` is about (`Scope`): every run of the code keeps it, from a world meeting every `always`, on inputs
-    * meeting theirs (`Keeping`), given what the code relies on. What covered code makes is asked of it by `made`.
+    * operation of a model the `always` is about (`Scope`): every run of the code keeps it, from a world meeting every
+    * `always`, on inputs meeting theirs (`Keeping`), given what the code relies on. What covered code makes is asked of
+    * it by `made`.
     */
   def keeps(r: Resolved, n: NodeId): List[Obligation] =
     val stores = r.theory.node(n).flatMap(_.statement.range).toList.flatMap(Scope.models(r.theory, _))

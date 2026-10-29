@@ -8,11 +8,11 @@ import frflow.core.vocab.SymbolType
 import Problem.Place
 import frflow.core.analysis.outside.Guards
 
-/** The places a guard of `always[T]` would go but cannot yet (owner §16: an `always` holds wherever FrFlow covers
-  * the code): a type holding a `T` (`Scope.holds`) inside a map, a set or a function value, which `Guards` does not
-  * walk. A place is a type a statement quantifies over, a store's state, an input or the result of a Definition or an
-  * operation on a state, and a field of a domain type. A Definition's own function type is not one (its inputs and result
-  * are), nor is a program's result (its `made_` is step 3's).
+/** The places a guard of `always[T]` would go but cannot yet (owner §16: an `always` holds wherever FrFlow covers the
+  * code): a type holding a `T` (`Scope.holds`) inside a map, a set or a function value, which `Guards` does not walk. A
+  * place is a type a statement quantifies over, a store's state, an input or the result of a Definition or an operation
+  * on a state, and a field of a domain type. A Definition's own function type is not one (its inputs and result are),
+  * nor is a program's result (its `made_` is step 3's).
   */
 object Unreached:
   def of(t: Theory): List[Problem] =

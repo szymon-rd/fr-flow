@@ -25,7 +25,7 @@ object Shown:
     case Code.Tested(_, _) => List(Tested.Plain)
     case _                 => Nil
 
-  /** An assumption about a Definition with code: an outside system's promise, its adapter tested against it. */
+  /** An assumption about a Definition with code: an outside system's promise, its Scala tested against it. */
   private def promised(t: Theory, id: NodeId) =
     t.node(id).map(_.statement).filter(s => s.call.isDefined && s.kind == NodeKind.Assumption)
       .map(_ => Assumed.Assumption).toList

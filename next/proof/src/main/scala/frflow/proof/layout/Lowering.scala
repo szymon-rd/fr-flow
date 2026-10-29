@@ -10,11 +10,11 @@ import frflow.core.vocab.SymbolType
 import frflow.proof.terms.TermTable
 import frflow.core.analysis.outside.Guards
 
-/** How one FrModel's Lean is lowered, computed once for every module: its environment (each model's field of
-  * the world is its name, each model's namespace its name capitalized, its class `Space.Ops`), the names a binder may not take
+/** How one FrModel's Lean is lowered, computed once for every module: its environment (each model's field of the world
+  * is its name, each model's namespace its name capitalized, its class `Space.Ops`), the names a binder may not take
   * (every symbol, every domain type, `World`), what always holds of what each statement is about, and the lowering of
-  * propositions. `canonical`
-  * names every variable by the order it is bound (`Naming`): the lowering a node's content prints its meaning with.
+  * propositions. `canonical` names every variable by the order it is bound (`Naming`): the lowering a node's content
+  * prints its meaning with.
   */
 final class Lowering(val resolved: Resolved, val table: TermTable, canonical: Boolean = false):
   private val v = resolved.theory.vocabulary

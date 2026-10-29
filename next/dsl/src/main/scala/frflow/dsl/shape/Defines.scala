@@ -10,10 +10,10 @@ import frflow.dsl.term.{LeanType, Term}
 import frflow.dsl.vocab.{Definition, OnTheSpot}
 
 /** `define { (a: Term[A], …) => body }`: a Definition given its meaning on the spot (owner §15), named as its val,
-  * called by name in terms, its IR built when elaborated; and `program { (a: Term[A]) => ExpireOnce.run[Recorded](a) }`:
-  * a Definition whose meaning is a program, recorded once on its input's variable and read
-  * into a define whose body is its steps (`Expr.Do`), the meaning `implementProven` gives the Definition the claims
-  * speak of.
+  * called by name in terms, its IR built when elaborated; and
+  * `program { (a: Term[A]) => ExpireOnce.run[Recorded](a) }`: a Definition whose meaning is a program, recorded once
+  * on its input's variable and read into a define whose body is its steps (`Expr.Do`), the meaning `implementProven`
+  * gives the Definition the claims speak of.
   */
 object Defines:
   inline def define[A: LeanType, R: LeanType](inline body: Term[A] => Term[R]): Definition[A => R] =

@@ -3,7 +3,7 @@ package frflow.proof.layout
 import frflow.proof.lean.ast.*
 
 /** The names a module's declarations use, read off its AST: the qualified constants (`Rooms.covers`,
-  * `Rooms.grantWhenFree.claim`) and the plain names (`World`, a boundary's class), from which its imports follow.
+  * `Rooms.grantWhenFree.claim`) and the plain names (`World`, a model's class), from which its imports follow.
   */
 object Mentioned:
   def of(ds: List[Decl]): List[List[LeanName]] = ds.flatMap(decl).distinct

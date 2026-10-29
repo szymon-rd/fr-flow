@@ -56,7 +56,10 @@ object ModelTests:
       : F[Option[Difference]] =
     val typing = Typing(semantics, v)
     val scala = check.implementation.scala
-    val ran = for
+    // The casts below are of values in the implementation's effect, checked first to be `F`.
+    val ran = if check.implementation.effect ne MonadThrow[F] then
+      Option[Difference](Difference.NotRun("the operations' Scala runs in another effect than its tests")).pure[F]
+    else for
       made    <- MonadThrow[F].unit.map(_ => scala.start(held.unwrap).asInstanceOf[F[Any]]).flatten
       ops      = Bound.bind[F](check.implementation, made, check.model.fails)
       states  <- Ref.of[F, Map[ModelName, ScalaValue]](Map(check.model.name -> held))

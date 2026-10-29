@@ -35,8 +35,9 @@ class FailingRunsSuite extends munit.FunSuite:
 
   test("a run's post is of the runs that succeed, its failure clause of those that fail") {
     val spec = text(failing, "fileRuns.Spec")
-    assert(spec.contains("(match (file b before) with | (Except.ok r, after) => (after.shelved = (b :: before.shelved))" +
-      " | _ => True) ∧ (match (file b before) with | (Except.error error, after) => ((error = \"down\") ∧ " +
+    assert(spec.contains("(match (file b before) with | (Except.ok r, after) => " +
+      "(after.shelved = (b :: before.shelved)) | _ => True) ∧ " +
+      "(match (file b before) with | (Except.error error, after) => ((error = \"down\") ∧ " +
       "(after.shelved = before.shelved)) | _ => True)"), spec)
     assert(text(failing, "checkRuns.Spec").contains(
       "| (Except.error error, after) => (after.shelved = before.shelved) | _ => True"), text(failing, "checkRuns.Spec"))
