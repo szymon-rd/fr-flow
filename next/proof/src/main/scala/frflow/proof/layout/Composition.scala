@@ -41,7 +41,8 @@ final class Composition(l: Lowering):
   def holdsProof(n: NodeId, complete: LExpr, statement: Prop): LExpr =
     val names = Params.of(l.props.statement(holds(n)), Nil)
     Params.lambda(names, applied(complete, statement, Map.empty,
-      parts(n).map(p => LeanNames.hypothesis(p) -> below(p)) ++ Made.taken(l.resolved, n).map(m => m._3.name -> name(m._3))))
+      parts(n).map(p => LeanNames.hypothesis(p) -> below(p)) ++
+        Made.taken(l.resolved, n).map(m => m._3.name -> name(m._3))))
 
   /** A part's proof inside `holds`: its hypothesis, or its own `holds` applied to its leaves'. */
   private def below(p: NodeId): LExpr =
@@ -88,7 +89,8 @@ final class Composition(l: Lowering):
     if coded(n) then implGoal(n).fold(hypothesis(n))(goal => applied(theorem(n, "Impl", "impl"), goal, σ,
       Required.hypotheses(l.resolved, n).map(h => LeanNames.hypothesis(h) -> proven(h, σ))))
     else if composed(n) then applied(theorem(n, "Theorems", "holds"), holds(n), σ,
-      leaves(n).map(x => LeanNames.hypothesis(x) -> proven(x, σ)) ++ made(n).map(m => m._3.name -> madeProof(m._1, m._2, σ)))
+      leaves(n).map(x => LeanNames.hypothesis(x) -> proven(x, σ)) ++
+        made(n).map(m => m._3.name -> madeProof(m._1, m._2, σ)))
     else hypothesis(n)
 
   private def implGoal(n: NodeId): Option[Prop] = Required.impl(l.resolved, n).headOption.map(_.goal)

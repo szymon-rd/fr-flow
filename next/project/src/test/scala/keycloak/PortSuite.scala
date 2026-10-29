@@ -3,7 +3,7 @@ package keycloak
 import frflow.*
 import frflow.core.name.NodeId
 import frflow.eval.run.{Broken, OnCode}
-import frflow.proof.layout.Completeness
+import frflow.proof.obligation.Completeness
 import frflow.project.{Captured, Live, Ported, Projects}
 import frflow.project.Ported.Lean
 import frflow.proof.obligation.ObligationName

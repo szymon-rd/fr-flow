@@ -92,7 +92,8 @@ final class LowerProp(table: TermTable, env: LowerEnv, naming: Naming, values: L
     case Prop.ClaimOf(n, more)   => applied(decl(n, "claim"), table.claims.getOrElse(n, OpenTerms.empty), σ ++ more)
     case Prop.Keeps(i, op, f, m) => applied(decl(i, LeanNames.keeps(op.value)), LowerProp.opens(f), σ ++ m)
     case Prop.Makes(i, op, f, m) => applied(decl(i, LeanNames.makes(op.value)), LowerProp.opens(f), σ ++ m)
-    case Prop.ConjunctOf(n, i)   => applied(decl(n, LeanNames.conjunct(i)), table.claims.getOrElse(n, OpenTerms.empty), σ)
+    case Prop.ConjunctOf(n, i)   =>
+      applied(decl(n, LeanNames.conjunct(i)), table.claims.getOrElse(n, OpenTerms.empty), σ)
     case Prop.Starts(d, i, ty, w) => Writer.value(starts(d, i, ty, w))
     case Prop.Inhabited(d, ty)   => Writer.value(inhabited(d, ty))
     case Prop.Iff(a, b)          => (prop(a, σ), prop(b, σ)).mapN((x, y) => LExpr.Paren(LExpr.Infix(LOp.Iff, x, y)))

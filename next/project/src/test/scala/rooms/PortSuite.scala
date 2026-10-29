@@ -14,7 +14,8 @@ import frflow.project.port.memory.*
 import frflow.project.process.{Command, Output}
 import frflow.project.program.{Analyse, Ports, Project, TestProgram}
 import frflow.proof.lean.ast.{ModuleName, Names}
-import frflow.proof.layout.{Completeness, LeanWorkspace}
+import frflow.proof.layout.LeanWorkspace
+import frflow.proof.obligation.Completeness
 import frflow.proof.verdict.ProverRun
 import frflow.testing.Settings
 import frflow.testing.report.Outcome

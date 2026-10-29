@@ -2,7 +2,8 @@ package frflow.project
 
 import frflow.core.name.NodeId
 import frflow.dsl.kb.FrModel
-import frflow.proof.layout.{Completeness, Layout, NodePart}
+import frflow.proof.layout.{Layout, NodePart}
+import frflow.proof.obligation.Completeness
 import frflow.proof.lean.ast.Decl
 
 /** Every rule of `always` the ported examples' Lean takes as a hypothesis is discharged, as an oracle reads it apart

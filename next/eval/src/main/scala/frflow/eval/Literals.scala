@@ -14,7 +14,7 @@ final class Literals(e: Elaborated):
 
   /** A number at its kind, or a FrFlow bug where it does not fit: never wrapped around. */
   private def number(n: BigInt, k: NumKind): Any =
-    if !k.holds(n) then throw IllegalStateException(s"FrFlow bug: the number $n read as a Scala $k, which cannot hold it")
+    if !k.holds(n) then throw IllegalStateException(s"FrFlow bug: $n read as a Scala $k, which cannot hold it")
     else k match
       case NumKind.Big   => n
       case NumKind.Int64 => n.toLong

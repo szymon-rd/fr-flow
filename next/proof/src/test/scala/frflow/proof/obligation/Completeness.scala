@@ -1,4 +1,4 @@
-package frflow.proof.layout
+package frflow.proof.obligation
 
 import frflow.core.analysis.Resolved
 import frflow.core.code.Code
@@ -7,6 +7,7 @@ import frflow.core.name.{DefName, LeanNames, ModelName, NodeId, SymbolName, Type
 import frflow.core.spec.Range
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
+import frflow.proof.layout.{Layout, NodePart}
 import frflow.proof.lean.ast.*
 
 /** An oracle of soundness, computed apart from the obligations' own selection (`Required`, `Made`, `Scope`,
@@ -155,7 +156,8 @@ object Completeness:
     case LExpr.Forall(ps, b)                       => ps.flatMap(binder(_, !negative)) ++ assumed(b, negative)
     case LExpr.Exists(ps, b)                       => ps.flatMap(binder(_, negative)) ++ assumed(b, negative)
     case LExpr.Fun(_, b)                           => assumed(b, negative)
-    case LExpr.Match(on, arms)                     => assumed(on, negative) ++ arms.flatMap(a => assumed(a._2, negative))
+    case LExpr.Match(on, arms)                     =>
+      assumed(on, negative) ++ arms.flatMap(a => assumed(a._2, negative))
     case LExpr.If(c, a, b)                         => assumed(c, true) ++ assumed(c, false) ++ assumed(a, negative) ++
         assumed(b, negative)
     case LExpr.Let(_, _, v, b)                     => assumed(v, negative) ++ assumed(b, negative)

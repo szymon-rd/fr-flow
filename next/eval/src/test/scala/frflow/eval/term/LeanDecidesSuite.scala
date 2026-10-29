@@ -56,7 +56,7 @@ class LeanDecidesSuite extends munit.FunSuite:
       out.linesIterator.take(80).mkString("\n"))
   }
 
-  test("each term, its binders named as Lean's keywords, prelude names, the symbols and the FrModel, is decided the same"
+  test("each term, its binders named as Lean's keywords, prelude names, symbols and the FrModel, is decided the same"
     .tag(LeanTag)) {
     val renamed = decided.zipWithIndex.map { case ((t, v), i) => Renamed.binders(t, i.toLong) -> v }
     assert(renamed.forall((t, v) => Evaluate.of(t)(Env.of(programs)) == Right(v)))

@@ -1283,7 +1283,11 @@ it `dsl`, `core`) and never on Lean, the ledger, the tests or the CLI.
 Planned so far (files / lines): `core` 146 / 3,213, `dsl` 69 / 2,178, `proof` 79 / 2,058, `eval` 26 / 727, `testing`
 22 / 428, `decision` 42 / 694, `wire` 14 / 184, `project` 25 / 621, `api` 27 / 381. With the ports written and `cli`,
 `web` and `agent` rebuilt, the projection is about 13,700 lines in about 570 files, against today's 12,008 in 347:
-about 12% more, consistency and vacuity among it, in smaller files, with no type over six fields.
+about 12% more, consistency and vacuity among it, in smaller files, with no type over six fields. Built, after step
+12b (files / non-blank lines): `core` 150 / 3,757, `dsl` 74 / 2,498, `proof` 108 / 3,635, `eval` 35 / 1,078,
+`testing` 58 / 1,449, `decision` 47 / 794, `wire` 38 / 975, `project` 66 / 2,218, `api` 82 / 1,380, `cli` 41 / 1,695,
+`web` 11 / 404, `agent` 26 / 533: 20,416 lines in 736 files, about half again the projection, most of it in what the
+ports needed (the rules' obligations and their selection in `core` and `proof`) and in the shell.
 
 ## 6. Data: decisions, deciders, ledgers, fingerprints
 

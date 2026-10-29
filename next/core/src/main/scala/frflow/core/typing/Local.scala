@@ -22,7 +22,7 @@ final class Local(data: TypeName => Option[DataType], defines: DefName => Option
         matches(a.pattern, ty(on)))
     case Expr.Let(x, v, _)            => x.ty == ty(v)
     case Expr.Field(on, n, i, t)      => field(ty(on), n, i, t)
-    case Expr.Copy(on, n, us)         => ty(on) == Ty.Data(n) && us.forall((i, v) => anyFields(n).lift(i).contains(ty(v)))
+    case Expr.Copy(on, n, us)         => ty(on) == Ty.Data(n) && us.forall((i, v) => record(n).lift(i).contains(ty(v)))
     case Expr.Make(n, c, as)          => fields(n, c).forall(_ == as.map(ty))
     case Expr.Inject(s, a, t)         => t match
         case Ty.EitherOf(l, r) => ty(a) == (if s == Side.Error then l else r)
@@ -52,7 +52,7 @@ final class Local(data: TypeName => Option[DataType], defines: DefName => Option
     data(n).map(d => d.fieldsOf(c))
 
   /** The fields of a record (a copy names a record's, never a case's). */
-  private def anyFields(n: TypeName): List[Ty] = data(n).fold(Nil)(_.fieldTypes)
+  private def record(n: TypeName): List[Ty] = data(n).fold(Nil)(_.fieldTypes)
 
   /** A record's field, an enum's case's (the case's own record), or a pair's component (Lean's `Prod`, `p.1`). */
   private def field(on: Ty, n: TypeName, i: Int, t: Ty): Boolean = on match
