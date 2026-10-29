@@ -4,11 +4,12 @@ import cats.data.State
 import cats.kernel.Monoid
 import cats.syntax.all.*
 import frflow.core.expr.{Binder, Expr, Prog, Side, Value}
-import frflow.core.name.{BoundaryName, OpName, VarId}
+import frflow.core.name.VarId
 import frflow.core.term.{Stated, Sym}
 import frflow.core.ty.Ty
 import frflow.dsl.build.{Failure, Fault}
 import frflow.dsl.term.{LeanType, Notes, Term}
+import frflow.dsl.vocab.Called
 
 /** A recorded program read into the `Prog` Lean proves and production runs, its terms kept as terms (`Stated`), with
   * the notes of every term it met. Each step's result is bound to a variable this reading numbers (`VarId.step`, a
@@ -32,7 +33,7 @@ object ReadRecording:
   private object Reader:
     def read[A](r: Recorded[A]): Reading = r match
       case Recorded.Pure(a)               => noted(a).as((identity, a))
-      case Recorded.Call(b, op, as, t)    => as.traverse_(noted) *> bound(Prog.Call(b, op, as.map(expr), t.ty), t)
+      case Recorded.Call(applied, t)      => noted(applied) *> called(applied, t)
       case b: Recorded.Bind[x, A]         => bind(b)
       case Recorded.Cond(c, t, e)         => noted(c) *> cond(c, t(), e())
       case Recorded.Each(xs, t, body)     => noted(xs) *> each(xs, t, body)
@@ -47,6 +48,11 @@ object ReadRecording:
       case Recorded.Par(l, r, t)          => par(l, r, t)
       case Recorded.Race(l, r, t)         => race(l, r, t)
       case Recorded.Guard(body, err, fin) => guard(body, err.ty, fin)
+
+    /** An operation's call: the Definition the term applies, and its arguments. */
+    private def called(applied: Term[?], t: LeanType[?]): Reading = Called.of(applied).fold(
+      throw Failure(Fault.NotAnOperation(applied.expr.getClass.getSimpleName)))((op, as) =>
+      bound(Prog.Call(op, as.map(expr), t.ty), t))
 
     /** A raise: the steps after it never run, so they are dropped; the next step is given a variable of no value
       * (`Ty.Never`), whatever it expects, so a program raising and then mapping is read.
@@ -132,9 +138,9 @@ object ReadRecording:
       case ()         => unit
       case other      => throw Failure(Fault.NotATerm(other.getClass.getSimpleName))
 
-  /** The scheduler's choice of the winner (the `Races` boundary), then the winner's steps. */
+  /** The scheduler's choice of the winner (`Prog.leftWins`), then the winner's steps. */
   private def raced(left: P, right: P, ty: Ty): State[Seen, P] = fresh(Ty.Bool).map(w =>
-    Prog.Bind(Prog.Call(Races, OpName("leftWins"), Nil, Ty.Bool), w,
+    Prog.Bind(Prog.Call(Prog.leftWins, Nil, Ty.Bool), w,
       Prog.Branch(variable(w), injected(left, Side.Error, ty), injected(right, Side.Value, ty))))
 
   /** The finalizer after a result, and before an error of type `err` is raised again. */
@@ -170,4 +176,3 @@ object ReadRecording:
 
   private def variable(x: Binder): Stated[?] = Stated([T[_]] => (s: Sym[T]) => s.free[Any](x))
   private val unit: Stated[?] = Stated([T[_]] => (s: Sym[T]) => s.lit((), Value.Unit, Ty.Unit))
-  private val Races: BoundaryName = BoundaryName("races")

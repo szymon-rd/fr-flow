@@ -15,15 +15,15 @@ final case class Node(head: Head, statement: Deferred[Statement])
 
 object Node:
   /** A claim: `forall` over every possible value; `always[T](x => …)`, every value of `T` that can be made;
-    * `always(stored)(s => …)`, every state the store reaches. It constrains every Declaration and Definition it
-    * mentions.
+    * `always(stored)(s => …)`, every state the model's state reaches. It constrains every Declaration and Definition
+    * it mentions.
     */
   inline def claim(statement: String)(inline formula: Stating ?=> Term[Boolean]): Node =
     Nodes.claim(Head.make(Source.valName, statement, Source.file, Source.offset), () => formula(using Stating.writing),
       Source.of(Node.writing(formula)))
 
-  /** The same form, trusted: the world outside (`store.behavesAs(stored)`: the store does what its model does, and
-    * nothing outside the code changes it; `stored.initially(held => held === Nil)`; `store.atomic`), what values from
+  /** The same form, trusted: the world outside (`stored.onlyCodeChanges`: nothing outside the code changes the
+    * model's state; `stored.initially(held => held === Nil)`; `stored.atomic`), what values from
     * outside always meet (`always[Booking](b => …)`), or an outside system's promise.
     */
   inline def assumption(statement: String)(inline formula: Stating ?=> Term[Boolean]): Node =

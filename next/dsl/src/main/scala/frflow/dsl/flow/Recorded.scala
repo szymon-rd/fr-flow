@@ -1,6 +1,6 @@
 package frflow.dsl.flow
 
-import frflow.core.name.{BoundaryName, ModelName, OpName}
+import frflow.core.name.ModelName
 import frflow.dsl.term.{LeanType, Term}
 
 /** A program recorded, one case per step, as `Recording`'s `Flow` builds it: what Lean reads once `Recording.read`
@@ -8,7 +8,10 @@ import frflow.dsl.term.{LeanType, Term}
   */
 enum Recorded[A]:
   case Pure(a: A)
-  case Call[R](boundary: BoundaryName, op: OpName, args: List[Term[?]], result: LeanType[R]) extends Recorded[Term[R]]
+  /** An operation on a state applied, as a step (`Flow.step`): the term applying it, read as a call of the Definition
+    * it applies (`vocab.Called`), its notes declaring the operation and its arguments.
+    */
+  case Call[R](applied: Term[?], result: LeanType[R]) extends Recorded[Term[R]]
   case Bind[X, B](first: Recorded[X], next: X => Recorded[B]) extends Recorded[B]
   case Cond(c: Term[Boolean], ifTrue: () => Recorded[A], ifFalse: () => Recorded[A])
   case Each[X](xs: Term[List[X]], element: LeanType[X], body: Term[X] => Recorded[Unit]) extends Recorded[Unit]

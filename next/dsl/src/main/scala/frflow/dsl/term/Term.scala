@@ -1,7 +1,7 @@
 package frflow.dsl.term
 
 import frflow.core.expr.{Binder, Expr}
-import frflow.core.term.{Constructor, Final, Selector, Sym}
+import frflow.core.term.{Constructor, Final, Program, Selector, Sym}
 import frflow.core.term.interpret.ToExpr
 import frflow.dsl.build.{Failure, Fault}
 import scala.annotation.implicitNotFound
@@ -31,12 +31,18 @@ object Term:
     "in plain code, compare values (`d.fn(…)`, `env(p)`)")
   sealed trait NoEquality
 
-  /** The DSL's implicit conversions, all of them, where Scala finds them unimported (the target's companion): a
-    * value where a term is expected is the constant (Booleans are written `True` and `False`), an `Int` literal a
-    * `BigInt` term.
+  /** The DSL's implicit conversions, all of them, where Scala finds them unimported (a term's companion): a value
+    * where a term is expected is the constant (Booleans are written `True` and `False`), an `Int` literal a `BigInt`
+    * term, an operation applied a step.
     */
   given value[A](using t: LeanType[A], notBoolean: NotGiven[A =:= Boolean]): Conversion[A, Term[A]] = Lift.constant(_)
   given int[A <: Int]: Conversion[A, Term[BigInt]] = i => Lift.constant(BigInt(i))
+  /** An operation on a state applied, where a program expects a step (`f.flatMap(inRoom(room))(…)`): the step
+    * (`Steps.step`). One giving nothing is a step giving nothing (`unitStep`), so `f.cond(c)(add(b), f.unit)` reads.
+    */
+  given step[F[_], R](using s: Steps[F], r: LeanType[R], notUnit: NotGiven[R =:= Unit])
+      : Conversion[Term[Program[R]], F[Term[R]]] = s.step(_)
+  given unitStep[F[_]](using s: Steps[F]): Conversion[Term[Program[Unit]], F[Unit]] = s.run(_)
 
   /** A term noted with what it declares (or a fault): the note on the term itself, for `Notes.in`. */
   def noted[R: LeanType](n: Notes)(run: Final[R]): Term[R] = Term([T[_]] => (s: Sym[T]) => s.noted(n, run(s)))

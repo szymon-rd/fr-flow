@@ -10,24 +10,26 @@ import scala.annotation.publicInBinary
 import scala.compiletime.summonFrom
 
 /** A value code and programs use (owner §15), of any type: a function (`val granted =
-  * Definition[(RoomBookings, Booking) => Boolean]("whether …")`), a program (`Booking => Program[Boolean]`), a plain
-  * value. Named as its val. It gets its meaning once: from the FrModel (`implementProven`, `implementTested`,
-  * `implementValue`, `implementProvided`), or where it is written: `define { … }` and `program { … }` are
+  * Definition[(RoomBookings, Booking) => Boolean]("whether …")`), a program (`Booking => Program[Boolean]`), an
+  * operation on a state (`String => Program[RoomBookings]`), a plain value. Named as its val, `described` by its
+  * sentence. It gets its meaning once: from the FrModel (`implementProven`, `implementTested`, `implementValue`,
+  * `implementProvided`), from a model's body (an operation's, `inRoom.means(…)` in a `StateModel`, its Scala tested
+  * against it), or where it is written: `define { … }` and `program { … }` are
   * Definitions carrying their proven code (`onTheSpot`). Every claim mentioning it constrains it, and its code is
   * checked against them. Of a type with no `LeanType` (a connection), it is code-only: provided where the code runs
   * and read there (`env(d)`), never mentioned in a statement (`CodeOnlyInStatement`).
   */
-final class Definition[A] @publicInBinary private[dsl] (val name: SymbolName, val means: String,
+final class Definition[A] @publicInBinary private[dsl] (val name: SymbolName, val described: String,
     val onTheSpot: Option[OnTheSpot])(using t: LeanType[A])
-    extends Term[A](Definition.called[A](name, means, onTheSpot, t)):
+    extends Term[A](Definition.called[A](name, described, onTheSpot, t)):
   /** The term as a curried function (`F` the curried type of `A`): what `Functions.app` applies. */
-  def curried[F: LeanType]: Term[F] = Term(Definition.called[F](name, means, onTheSpot, t))
+  def curried[F: LeanType]: Term[F] = Term(Definition.called[F](name, described, onTheSpot, t))
   /** Of a type with no `LeanType`: read only by the code it is provided to. */
   def codeOnly: Boolean = t.codeOnly.nonEmpty
   /** What a code-only Definition declares wherever it is given its meaning: no statement mentions it to. */
   private[dsl] def declares: Declarations =
     t.codeOnly.fold(Declarations.none)(scala =>
-      Declarations.symbol(Symbol(name, means, SymbolType.CodeOnly(scala), ValueKind.Definition)))
+      Declarations.symbol(Symbol(name, described, SymbolType.CodeOnly(scala), ValueKind.Definition)))
 
 object Definition:
   /** A Definition of a domain type; of a type with no `LeanType`, a code-only one, whose term has no type of its own
@@ -62,24 +64,31 @@ object Definition:
       case (Some(OnTheSpot(n, _, _, None)), _)         =>
         [T[_]] => (s: Sym[T]) => s.noted(Notes.fault(Fault.ProgramMentioned(n.value)), s.param[F](name, t.ty))
 
+  /** The application, saying which Definition it applies and to what (`Called`). */
+  private def called[R](d: Definition[?], args: List[Term[?]], t: Term[R]): Term[R] =
+    Called(d.name, args, t.run)(using t.leanType)
+
   extension [A, R](d: Definition[A => R])
-    def apply(a: Term[A])(using LeanType[R]): Term[R] = Term.app(d.curried[A => R](using d.leanType), a)
+    def apply(a: Term[A])(using LeanType[R]): Term[R] =
+      called(d, List(a), Term.app(d.curried[A => R](using d.leanType), a))
   extension [A, B, R](d: Definition[(A, B) => R])
     def apply(a: Term[A], b: Term[B])(using LeanType[A], LeanType[B], LeanType[R]): Term[R] =
-      Term.app(Term.app(d.curried[A => B => R], a), b)
+      called(d, List(a, b), Term.app(Term.app(d.curried[A => B => R], a), b))
   extension [A, B, C, R](d: Definition[(A, B, C) => R])
     def apply(a: Term[A], b: Term[B], c: Term[C])(using LeanType[A], LeanType[B], LeanType[C], LeanType[R]): Term[R] =
-      Term.app(Term.app(Term.app(d.curried[A => B => C => R], a), b), c)
+      called(d, List(a, b, c), Term.app(Term.app(Term.app(d.curried[A => B => C => R], a), b), c))
   extension [A, B, C, D, R](d: Definition[(A, B, C, D) => R])
     def apply(a: Term[A], b: Term[B], c: Term[C], e: Term[D])(
         using LeanType[A], LeanType[B], LeanType[C], LeanType[D], LeanType[R]): Term[R] =
-      Term.app(Term.app(Term.app(Term.app(d.curried[A => B => C => D => R], a), b), c), e)
+      called(d, List(a, b, c, e),
+        Term.app(Term.app(Term.app(Term.app(d.curried[A => B => C => D => R], a), b), c), e))
   extension [A, B, C, D, E, R](d: Definition[(A, B, C, D, E) => R])
     def apply(a: Term[A], b: Term[B], c: Term[C], e: Term[D], f: Term[E])(
         using LeanType[A], LeanType[B], LeanType[C], LeanType[D], LeanType[E], LeanType[R]): Term[R] =
-      Term.app(Term.app(Term.app(Term.app(Term.app(d.curried[A => B => C => D => E => R], a), b), c), e), f)
+      called(d, List(a, b, c, e, f),
+        Term.app(Term.app(Term.app(Term.app(Term.app(d.curried[A => B => C => D => E => R], a), b), c), e), f))
   extension [A, B, C, D, E, G, R](d: Definition[(A, B, C, D, E, G) => R])
     def apply(a: Term[A], b: Term[B], c: Term[C], e: Term[D], f: Term[E], g: Term[G])(
         using LeanType[A], LeanType[B], LeanType[C], LeanType[D], LeanType[E], LeanType[G], LeanType[R]): Term[R] =
-      Term.app(Term.app(Term.app(Term.app(Term.app(Term.app(d.curried[A => B => C => D => E => G => R], a), b), c), e),
-        f), g)
+      called(d, List(a, b, c, e, f, g), Term.app(Term.app(Term.app(Term.app(Term.app(Term.app(
+        d.curried[A => B => C => D => E => G => R], a), b), c), e), f), g))

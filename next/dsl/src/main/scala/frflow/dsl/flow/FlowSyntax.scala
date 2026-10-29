@@ -2,6 +2,7 @@ package frflow.dsl.flow
 
 import frflow.core.term.{Program, World}
 import frflow.dsl.term.{LeanType, Term}
+import frflow.dsl.vocab.Definition
 
 /** The combinators as programs write them: `a.race(b)`, `(a, b).parTupled`, `fa.guarantee[E](fin)`; and, in a flow
   * claim, a run from a world (`runExpiry(now).from(before) { … }`).
@@ -12,7 +13,8 @@ object FlowSyntax:
 
   extension [F[_], A](fa: F[Term[A]])(using f: Flow[F], a: LeanType[A])
     def race[B: LeanType](fb: F[Term[B]]): F[Term[Either[A, B]]] = f.race(fa, fb)
-    def timeout(clock: Clock[F, Term], seconds: Term[BigInt]): F[Term[Option[A]]] = f.timeout(clock)(fa, seconds)
+    def timeout(now: Definition[Program[BigInt]], seconds: Term[BigInt]): F[Term[Option[A]]] =
+      f.timeout(now)(fa, seconds)
 
   extension [F[_], A](fa: F[A])(using f: Flow[F])
     /** A program's and a model's steps, as `for` reads them. */

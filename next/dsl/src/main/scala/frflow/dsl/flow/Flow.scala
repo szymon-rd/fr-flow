@@ -1,16 +1,22 @@
 package frflow.dsl.flow
 
 import cats.Monad
-import frflow.dsl.term.{LeanType, Lift, Term}
+import frflow.core.term.Program
+import frflow.dsl.term.{LeanType, Lift, Steps, Term}
 import frflow.dsl.term.TermSyntax.*
+import frflow.dsl.vocab.Definition
 import scala.annotation.targetName
 
-/** What a program over boundaries may do besides calling them: the capability its effect `F` gives. A program is
-  * written once, `final class Expiry[F[_]: Flow](db: Database[F, Term])`, its values `Term`s as everywhere in a
-  * model. Lean reads it recorded (`F = Recorded`, `Recording`); production runs it in `IO` (`eval.Running`). Each
-  * combinator is Cats Effect's of the same name, on terms; `ifM`, `bracket` and `timeout` are made of the others.
+/** What a program may do: the capability its effect `F` gives. A program is written once, over any `F` with a
+  * `Flow` (`object BookIfGranted: def run[F[_]](request: Term[Booking])(using f: Flow[F]) = …`), its values `Term`s as
+  * everywhere in a model, calling the operations on a state as any Definition (`inRoom(request.room)` is a step
+  * where one is expected, `Steps`). Lean reads it recorded (`F = Recorded`, `Recording`); production runs it in `IO`
+  * (`eval.Running`). Each combinator is Cats Effect's of the same name, on terms; `ifM`, `bracket`, `retry` and
+  * `timeout` are made of the others, the last two on the clock's Definitions (`Clock`).
   */
-trait Flow[F[_]] extends Monad[F]:
+trait Flow[F[_]] extends Monad[F], Steps[F]:
+  /** An operation giving nothing, run. */
+  def run(op: Term[Program[Unit]]): F[Unit] = map(step(op))(_ => ())
   /** One of two programs by a condition at hand. */
   def cond[A](c: Term[Boolean])(ifTrue: => F[A], ifFalse: => F[A]): F[A]
   def each[X: LeanType](xs: Term[List[X]])(body: Term[X] => F[Unit]): F[Unit]
@@ -46,23 +52,24 @@ trait Flow[F[_]] extends Monad[F]:
   def attempt[E: LeanType, A: LeanType](fa: F[Term[A]]): F[Term[Either[E, A]]] =
     handle[E, Term[Either[E, A]]](map(fa)(a => right[E, A](a)))(e => pure(left[E, A](e)))
 
-  /** `fa`, tried again after each of `waits` (seconds on `clock`) while it fails with an error of type `E`; the last
-    * try's error when every try failed. Today's `retry`: the tries one inside the other, each a `handle` of the
+  /** `fa`, tried again after each of `waits` (seconds, each a `sleep`) while it fails with an error of type `E`; the
+    * last try's error when every try failed. Today's `retry`: the tries one inside the other, each a `handle` of the
     * one before, after its sleep.
     */
-  def retry[E: LeanType, A](clock: Clock[F, Term], waits: List[BigInt])(fa: F[A]): F[A] =
-    waits.foldRight(fa)((wait, rest) => handle[E, A](fa)(_ => flatMap(clock.sleep(Lift.constant(wait)))(_ => rest)))
+  def retry[E: LeanType, A](sleep: Definition[BigInt => Program[Unit]], waits: List[BigInt])(fa: F[A]): F[A] =
+    waits.foldRight(fa)((wait, rest) => handle[E, A](fa)(_ => flatMap(run(sleep(Lift.constant(wait))))(_ => rest)))
 
   /** `use` of what `acquire` gives, then `release` of it, whatever `use` did. */
   def bracket[E: LeanType, R, A](acquire: F[Term[R]])(use: Term[R] => F[A])(release: Term[R] => F[Unit]): F[A] =
     flatMap(acquire)(r => guarantee[E, A](use(r), release(r)))
 
-  /** The result when `fa` took at most `seconds` on `clock`, none when it took longer. It does not cancel: `fa` runs
-    * to its end either way, and only the clock's own sleeps count.
+  /** The result when `fa` took at most `seconds` by the clock (`now`), none when it took longer. It does not cancel:
+    * `fa` runs to its end either way, and only the clock's own sleeps count.
     */
-  def timeout[A: LeanType](clock: Clock[F, Term])(fa: F[Term[A]], seconds: Term[BigInt]): F[Term[Option[A]]] =
-    flatMap(clock.now)(start =>
-      flatMap(fa)(a => map(clock.now)(stop => when(stop - start <= seconds)(some(a)).otherwise(none[A]))))
+  def timeout[A: LeanType](now: Definition[Program[BigInt]])(fa: F[Term[A]], seconds: Term[BigInt])
+      : F[Term[Option[A]]] =
+    flatMap(step(now))(start =>
+      flatMap(fa)(a => map(step(now))(stop => when(stop - start <= seconds)(some(a)).otherwise(none[A]))))
 
 object Flow:
   def apply[F[_]](using f: Flow[F]): Flow[F] = f

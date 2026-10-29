@@ -1,14 +1,20 @@
 package frflow.dsl.flow
 
+import frflow.core.term.Program
+import frflow.dsl.model.StateModel
 import frflow.dsl.term.Term
+import frflow.dsl.vocab.Definition
 
-/** A boundary of the tests, its operations derived (`derives BoundaryOps`). */
-trait Store[F[_], T[_]] derives BoundaryOps:
-  def load: F[T[BigInt]]
-  def save(n: T[BigInt]): F[Unit]
-
+/** Operations on a state of the tests, Definitions, and their model: a number kept, given back and replaced. */
 object Store:
-  val store: Boundary[Store] = Boundary[Store]("a number the tests keep")
-  val recording: Store[Recorded, Term] = store.recording
+  val load = Definition[Program[BigInt]]("the number kept")
+  val save = Definition[BigInt => Program[Unit]]("the number kept replaced")
 
-  val clock: Clock[Recorded, Term] = Boundary[Clock]("the time").recording
+  object kept extends StateModel[BigInt]("the number the tests keep"):
+    load.means(state.get)
+    save.means(n => state.set(n))
+
+  /** The operations as a program calls them, recorded. */
+  object recording:
+    def load: Recorded[Term[BigInt]] = Flow[Recorded].step(Store.load)
+    def save(n: Term[BigInt]): Recorded[Unit] = Flow[Recorded].run(Store.save(n))

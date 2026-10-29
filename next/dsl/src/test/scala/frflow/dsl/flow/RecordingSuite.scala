@@ -5,6 +5,7 @@ import frflow.core.ty.{NumKind, Ty}
 import frflow.core.term.interpret.ToExpr
 import frflow.core.term.Stated
 import frflow.dsl.flow.Recording.given
+import frflow.dsl.model.Clock
 import frflow.dsl.term.{Lift, Term}
 import frflow.dsl.term.TermSyntax.*
 
@@ -27,7 +28,7 @@ class RecordingSuite extends munit.FunSuite:
 
   test("race is read as the scheduler's choice of the winner") {
     val raced = ReadRecording(F.race(store.load, store.load))._1
-    assert(shape(Progs.sequential(firstStep(raced))).startsWith("leftWins; if("))
+    assert(shape(Progs.sequential(firstStep(raced))).startsWith("races.leftWins; if("))
   }
 
   test("guarantee and bracket: the finalizer held with the body") {
@@ -38,7 +39,16 @@ class RecordingSuite extends munit.FunSuite:
   }
 
   test("timeout: the clock read around the program, nothing cancelled") {
-    assertEquals(steps(F.timeout(Store.clock)(store.load, n(5))), "now; load; now; pure")
+    assertEquals(steps(F.timeout(Clock.now)(store.load, n(5))), "now; load; now; pure")
+  }
+
+  test("an operation applied is a step where a program expects one, one giving nothing a step giving nothing") {
+    def program[F[_]](using f: Flow[F]): F[Term[BigInt]] =
+      f.flatMap(Store.load)(x => f.as(f.cond(x > n(0))(Store.save(x), f.unit), x))
+    assertEquals(steps(program[Recorded]), "load; if(save; pure | pure); pure")
+    ReadRecording(program[Recorded])._1 match
+      case Prog.Bind(Prog.Call(op, Nil, ty), _, _) => assertEquals((op, ty), (Store.load.name, Ty.Num(NumKind.Big)))
+      case other                                   => fail(other.toString)
   }
 
   test("a term a program binds is shared, as Lean's let") {
@@ -94,7 +104,7 @@ class RecordingSuite extends munit.FunSuite:
   }
 
   test("retry: the program, and again after each wait on the clock while it fails, each try a handle") {
-    val retried = ReadRecording(F.as(F.retry[String, Unit](Store.clock, List(1, 2))(store.save(n(1))), n(0)))._1
+    val retried = ReadRecording(F.as(F.retry[String, Unit](Clock.sleep, List(1, 2))(store.save(n(1))), n(0)))._1
     assertEquals(shape(retried), "catch(save; pure | sleep; catch(save; pure | sleep; save; pure); pure); pure")
   }
 
@@ -138,7 +148,7 @@ class RecordingSuite extends munit.FunSuite:
 
   private def shape(p: P): String = p match
     case Prog.Pure(_)           => "pure"
-    case Prog.Call(_, op, _, _) => op.value
+    case Prog.Call(op, _, _)    => op.value
     case Prog.Bind(a, _, r)     => s"${shape(a)}; ${shape(r)}"
     case Prog.Branch(_, a, b)   => s"if(${shape(a)} | ${shape(b)})"
     case Prog.Par(l, _, r, _)   => s"par(${shape(l)}, ${shape(r)})"

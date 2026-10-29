@@ -36,6 +36,9 @@ object Elab:
       (notes |+| Notes.of(r.declares), Written.steps(xs, prog, r.ty, SourceText(written.text)))
     }
 
+  /** A part built from recorded steps (a model's meanings), its notes' faults placed at `at`. */
+  def recorded[A](at: Site)(build: () => (Notes, A)): Deferred[A] = made(at)(build)
+
   private def made[A](at: Site, types: List[LeanType[?]] = Nil)(build: () => (Notes, A)): Deferred[A] =
     Deferred(guarded(at) {
       val (notes, a) = build()

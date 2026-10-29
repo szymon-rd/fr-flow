@@ -1,5 +1,6 @@
 package frflow.dsl.flow
 
+import frflow.core.term.Program
 import frflow.dsl.term.{LeanType, Term}
 
 /** The proofs' interpreter of programs: each step recorded, nothing run. A program over `Recorded` is read into the
@@ -8,6 +9,10 @@ import frflow.dsl.term.{LeanType, Term}
 object Recording:
   given Flow[Recorded] with
     def pure[A](a: A): Recorded[A] = Recorded.Pure(a)
+    def step[R: LeanType](op: Term[Program[R]]): Recorded[Term[R]] = Recorded.Call(op, LeanType[R])
+    /** The reading gives a step of no result the unit, not a term: the next function takes it as anything. */
+    override def run(op: Term[Program[Unit]]): Recorded[Unit] =
+      Recorded.Bind(Recorded.Call(op, LeanType[Unit]), (_: Any) => Recorded.Pure(()))
     def flatMap[A, B](fa: Recorded[A])(f: A => Recorded[B]): Recorded[B] = Recorded.Bind(fa, f)
     def tailRecM[A, B](a: A)(f: A => Recorded[Either[A, B]]): Recorded[B] =
       flatMap(f(a))(_.fold(tailRecM(_)(f), pure))
