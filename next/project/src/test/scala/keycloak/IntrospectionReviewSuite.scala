@@ -7,7 +7,7 @@ import frflow.decision.review.{Cause, Reading, ReviewState, Subjects}
 import frflow.project.Projects
 import frflow.project.port.RunCode
 import frflow.project.program.Analyse
-import java.nio.file.{Files, Path}
+import java.nio.file.Files
 import java.time.Instant
 
 /** Code written beside nodes (owner §38): the introspection's Scala, `introspection`, sits in `Introspection.scala`
@@ -19,7 +19,7 @@ class IntrospectionReviewSuite extends munit.CatsEffectSuite:
   private val elaborated = Projects.elaborated(knowledge)
   private val file = elaborated.theory.code.attached(SymbolName("introspect")).code.scala.toList.flatMap(_.files)
     .map(_.path).find(_.value.endsWith("Introspection.scala")).getOrElse(fail("no Introspection.scala"))
-  private val text = Files.readString(Path.of(file.value))
+  private val text = Files.readString(Projects.source(file))
 
   private def analysed(p: Projects.InMemory) =
     val dir = RelPath.parse(file.value.split('/').init.mkString("/")).getOrElse(file)

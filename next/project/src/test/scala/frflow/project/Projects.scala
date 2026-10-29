@@ -12,6 +12,7 @@ import frflow.project.port.memory.{MemoryFiles, MemoryGit, MemoryKeys, MemoryLed
 import frflow.project.port.{LeanLibrary, RunCode}
 import frflow.project.program.{Analyse, Ports, Project}
 import frflow.testing.{Seed, Settings}
+import java.nio.file.{Files, Path}
 import java.time.Instant
 
 /** Projects in memory for the shell's suites: a FrModel elaborated, its ports in memory (the files, the
@@ -24,6 +25,18 @@ object Projects:
   /** FrFlow's Lean library as the suites name it: no Lean runs on it in a unit suite. */
   val library: LeanLibrary = LeanLibrary("lean", "the library under test")
   val project: Project = Project(List(sources), settings, library)
+
+  /** The build's base directory, the one holding `build.sbt` above these tests' classes, wherever the tests run from. */
+  lazy val base: Path = Iterator.iterate(Path.of(getClass.getProtectionDomain.getCodeSource.getLocation.toURI))(
+    _.getParent).takeWhile(_ != null).find(d => Files.exists(d.resolve("build.sbt")))
+    .getOrElse(throw IllegalStateException("no build.sbt above the tests' classes"))
+
+  /** A source file the code table names relative to the build (or, compiled elsewhere, by its name alone). */
+  def source(file: RelPath): Path =
+    val direct = base.resolve(file.value)
+    if Files.isRegularFile(direct) then direct
+    else Files.walk(base.resolve("next")).filter(p => Files.isRegularFile(p) && p.endsWith(file.value)).findFirst
+      .orElseThrow(() => IllegalStateException(s"no ${file.value} under $base"))
 
   def elaborated(kb: FrModel): Elaborated = kb.elaborated.fold(e => throw AssertionError(e.toString), identity)
   lazy val rooms: Elaborated = elaborated(_root_.rooms.rooms)
