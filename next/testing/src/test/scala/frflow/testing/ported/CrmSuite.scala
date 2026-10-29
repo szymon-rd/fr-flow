@@ -29,18 +29,24 @@ class CrmSuite extends munit.FunSuite:
     Tested.nodes(knowledge).foreach(n => assertEquals(Tested.passes(knowledge, n).count.tried, 1000, n))
   }
 
+  private val sql = (store: CrmStore, q: Search) => Db.using(store)(_.recordsMatching(q))
+  private val stores = (id: BigInt, t: CrmStore) => Db.using(CrmStore(Nil, Nil, Nil))(_.storeAbout(id, t))
+
   test("a seeded SQL bug (the search's WHERE dropped) is found by the generated cases") {
-    val whereDropped = with_((store, _) => store.records, InMemory.storeAbout)
+    val whereDropped = with_((store, q) => Db.using(store, _ => ("", Nil))(_.recordsMatching(q)), stores)
     assertEquals(Tested.failure(whereDropped, "recordsByQuery").broke, Broken.Post)
   }
 
   test("SQL that is right on the examples but drops rows on other inputs is found by the generated cases") {
-    val drops = with_((store, q) => InMemory.recordsMatching(store, q).take(1), InMemory.storeAbout)
+    val limit2 = (q: Search) =>
+      val (where, args) = Db.selecting(q)
+      (s"where seq in (select seq from records $where order by seq limit 2)", args)
+    val drops = with_((store, q) => Db.using(store, limit2)(_.recordsMatching(q)), stores)
     assertEquals(Tested.failure(drops, "recordsByQuery").broke, Broken.Post)
   }
 
   test("a seeded bug in an in-memory store (a record's old shares kept) is found by generated cases and shrunk") {
-    val keeps = with_(InMemory.recordsMatching, (id, t) =>
+    val keeps = with_(sql, (id, t) =>
       CrmStore(t.records.filter(_.id == id), t.shares, t.expiries.filter(_.record == id)))
     val f = Tested.failure(keeps, "storeEdits")
     assertEquals(f.broke, Broken.Post)

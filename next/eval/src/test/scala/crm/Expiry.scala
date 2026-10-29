@@ -10,6 +10,7 @@ val sharesExpire = Node.claim("A run of the expiry job at a time removes exactly
     "earlier, with their times, and keeps every record and every other share's time.")(
   forall((s: Term[CrmStore], now: Term[BigInt]) => endsDueAt(s, now, expire(s, now))))
   .refines(storeMirrorsRequests, recordsKept)
+  .assuming(keyedTables)
 
 /** A run: the shares that have not ended, and the expiries of those. */
 val expireCode = define { (s: Term[CrmStore], now: Term[BigInt]) =>
@@ -24,28 +25,21 @@ val expireCode = define { (s: Term[CrmStore], now: Term[BigInt]) =>
 val idsIn = define { (s: Term[CrmStore]) =>
   s.records.map(r => r.id) ++ s.shares.map(sh => sh.record) ++ s.expiries.map(e => e.record) }
 
-/** The records whose rows differ between two stores: what storing the second over the first must store. */
-val changedIds = define { (s: Term[CrmStore], t: Term[CrmStore]) =>
-  (idsIn(s) ++ idsIn(t)).filter(id => aboutRecord(s, id) =!= aboutRecord(t, id)) }
-
 /** Whether two stores hold the same rows about every record, in the same order for each. */
 val sameRows = define { (a: Term[CrmStore], b: Term[CrmStore]) =>
   (idsIn(a) ++ idsIn(b)).forall(id => aboutRecord(a, id) === aboutRecord(b, id)) }
 
-/** One run of the expiry job at `now`: what the database holds, `expire` on it, the rows of each record whose rows it
-  * changed stored, and the run logged.
+/** One run of the expiry job at `now`: what the database holds, `expire` on it, the rows of each record stored again
+  * if it changed them, and the run logged.
   */
 object ExpireOnce:
   def run[F[_]](now: Term[BigInt])(using f: Flow[F]): F[Term[CrmStore]] = f.flatMap(load) { s =>
     val t = expire(s, now)
-    f.flatMap(f.each(changedIds(s, t))(id => storeAbout(id, t)))(_ =>
+    f.flatMap(f.each(idsIn(s) ++ idsIn(t))(id =>
+      f.ifM[Unit](f.pure(aboutRecord(s, id) =!= aboutRecord(t, id)))(storeAbout(id, t), f.pure(()))))(_ =>
       f.as(logEvent(make[Event.Expired](now)), t)) }
 
 val expireOnce = program { (now: Term[BigInt]) => ExpireOnce.run[Recorded](now) }
-
-val runsOneAtATime = Node.assumption("Runs on the database never interleave: the expiry job holds the database's " +
-    "lock during a run, and the write side saves one write at a time.")(
-  databaseModel.atomic)
 
 val expiryJob = Node.claim("A run of the expiry job at a time leaves the database holding, about each record, what " +
     "sharesExpire's run on what it held gives, logs the run at the end of the event log, and returns that store.")(
@@ -54,7 +48,7 @@ val expiryJob = Node.claim("A run of the expiry job at a time leaves the databas
       sameRows(databaseModel.in(after).store, expire(databaseModel.in(before).store, now)) &&
         databaseModel.in(after).events === databaseModel.in(before).events :+ make[Event.Expired](now) &&
         result === expire(databaseModel.in(before).store, now) }))
-  .assuming(runsOneAtATime)
+  .assuming(runsOneAtATime, keyedTables)
 
 val expiryJobWiring = Node.design("The expiry job runs every minute, holding the database's lock during a run so no " +
     "write interleaves with it; its code is the program expiryJob is proven of, run on SQLite.")(

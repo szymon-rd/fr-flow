@@ -18,10 +18,12 @@ val knowledge = FrModel("Crm")(sharedCrm, addedIsFound, writesLeaveOthers, compa
   searchesAsk, adding, sharing, crmRun, storeMirrorsRequests, visibility, noCrossTenantRead, searchesMatch,
   recordsByQuery, readContract, dealSearch, readSideWiring, writesTakeEffect, writesOnlyAsAsked,
   recordsKept, writeContract, saveWrite, storeEdits, writeSideWiring, sharesExpire, tablesModel, runsOneAtATime,
-  expiryJob, expiryJobWiring, httpApi)
+  expiryJob, expiryJobWiring, keyedTables, tablesStartEmpty, oneRowPerKey, httpApi)
   .implementProvided(history, held, clock)
-  .implementTested(fetch)(env => (_, q) => InMemory.recordsMatching(env(held), q))
-  .implementTested(storeRows)(_ => (id, t) => InMemory.storeAbout(id, t))
+  .implementTested(fetch)(env => (_, q) => Db.using(env(held))(_.recordsMatching(q)))
+  .implementTested(storeRows)(_ => (id, t) => Db.using(CrmStore(Nil, Nil, Nil))(_.storeAbout(id, t)))
+  .implementTested(load, storeAbout, logEvent)(start = SqliteDatabase.holding, observe = _.tables)(d =>
+    (d.load, d.storeAbout, d.logEvent))
   .implementProven(read)(search)
   .implementProven(deals)(dealsOf)
   .implementProven(write)(applyWrite)

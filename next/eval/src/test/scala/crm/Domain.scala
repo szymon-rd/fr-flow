@@ -112,3 +112,8 @@ val stepOf = define { (s: Term[CrmStore], e: Term[Event]) =>
 val runOf = define { (es: Term[List[Event]]) =>
   es.foldLeft(make[CrmStore](Nil: Term[List[CrmRecord]], Nil: Term[List[Share]], Nil: Term[List[Expiry]]))(
     (s, e) => stepOf(s, e)) }
+
+/** Whether a store holds one row per key: a record by its id, a share and an expiry by record and company. */
+val onePerKey = define { (s: Term[CrmStore]) =>
+  s.records.pairwise((a, b) => a.id =!= b.id) && s.shares.pairwise((a, b) => a =!= b) &&
+    s.expiries.pairwise((a, b) => !(a.record === b.record && a.to === b.to)) }
