@@ -71,7 +71,7 @@ object Validate:
     all(names.filter(Reserved.names).distinct.map(Problem.ReservedName(_)) ++
       names.diff(names.distinct).distinct.map(Problem.DeclaredTwice(_)) ++
       t.nodes.map(_.node.id).flatMap(id => Constrained.of(t, id).flatMap(s =>
-        Constrained.codeOnlyType(t, s).map(Problem.CodeOnlyInStatement(id, s, _)))))
+        Constrained.codeOnlyType(t, s).map(Problem.CodeOnlyInStatement(id, s, _)))) ++ Bounded.problems(t))
 
   /** A statement's `.assuming` lists exactly the facts about the outside its check rests on (`Premises`: derived,
     * and only checked), and every `always[T]` reaches each `T` covered code can make (`Unreached`).

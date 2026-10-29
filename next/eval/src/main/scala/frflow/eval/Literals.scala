@@ -12,10 +12,13 @@ import frflow.core.ty.{NumKind, Ty}
 final class Literals(e: Elaborated):
   def apply(v: Value, t: Ty): ScalaValue = ScalaValue(scala(v, t))
 
-  private def number(n: BigInt, k: NumKind): Any = k match
-    case NumKind.Big   => n
-    case NumKind.Int64 => n.toLong
-    case NumKind.Int32 => n.toInt
+  /** A number at its kind, or a FrFlow bug where it does not fit: never wrapped around. */
+  private def number(n: BigInt, k: NumKind): Any =
+    if !k.holds(n) then throw IllegalStateException(s"FrFlow bug: the number $n read as a Scala $k, which cannot hold it")
+    else k match
+      case NumKind.Big   => n
+      case NumKind.Int64 => n.toLong
+      case NumKind.Int32 => n.toInt
 
   private def scala(v: Value, t: Ty): Any = (v, t) match
     case (Value.Bool(b), _)                => b

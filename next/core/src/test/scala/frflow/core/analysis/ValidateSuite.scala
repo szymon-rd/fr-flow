@@ -52,6 +52,19 @@ class ValidateSuite extends munit.FunSuite:
     assert(clashing.problems.contains(Problem.DeclaredTwice("Booking")), clashing.problems)
   }
 
+  test("a Scala Int is said to exist only where a forall reads as an exists; every Int compares, none is a BigInt") {
+    val int = frflow.core.ty.Ty.Num(frflow.core.ty.NumKind.Int32)
+    def problems(f: [T[_]] => Lang[T] => T[Boolean]): List[Problem] = Kb.of(claim("c")(Lang.formula(f))).problems
+    val all: [T[_]] => Lang[T] => T[Boolean] = [T[_]] => (l: Lang[T]) => l.forall[Int]("x", int)(x => l.s.eq(x, x))
+    val said = List(Problem.SaidToExist(int, Problem.Place.Variable(NodeId("c"))))
+    assertEquals(problems(all), Nil)
+    assertEquals(problems([T[_]] => (l: Lang[T]) => l.s.implies(all(l), l.truth)), said)
+    assertEquals(problems([T[_]] => (l: Lang[T]) => l.s.and(l.truth, l.s.not(all(l)))), said)
+    assertEquals(problems([T[_]] => (l: Lang[T]) => l.s.not(l.forall[BigInt]("x", Lang.big)(x => l.s.eq(x, x)))), Nil)
+    assertEquals(problems([T[_]] => (l: Lang[T]) => l.s.not(l.s.all(l.sym[List[Int]]("xs", frflow.core.ty.Ty.ListOf(
+      int)), frflow.core.term.Bound[Int]("x", int))(x => l.s.eq(x, x)))).filter(_.productPrefix == "SaidToExist"), Nil)
+  }
+
   test("claims about the same code rest on no circle, siblings or part and whole: neither relies on the other") {
     List(ValueCases.siblings, ValueCases.siblings.linking(partOf("fAboveToo", "fAbove"))).foreach { kb =>
       assertEquals(kb.problems, Nil)

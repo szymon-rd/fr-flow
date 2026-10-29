@@ -6,3 +6,15 @@ package frflow.core.ty
 enum NumKind:
   case Int32, Int64, Big
   def bounded: Boolean = this != Big
+
+  /** Whether a number of this kind can be `n`. */
+  def holds(n: BigInt): Boolean = this match
+    case Int32 => n.isValidInt
+    case Int64 => n.isValidLong
+    case Big   => true
+
+  /** `n` if this kind can hold it, else the nearest number it can. */
+  def nearest(n: BigInt): BigInt = this match
+    case Int32 => n.max(BigInt(Int.MinValue)).min(BigInt(Int.MaxValue))
+    case Int64 => n.max(BigInt(Long.MinValue)).min(BigInt(Long.MaxValue))
+    case Big   => n

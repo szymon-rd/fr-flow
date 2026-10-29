@@ -30,6 +30,14 @@ class LiteralsSuite extends munit.FunSuite:
     Value.Data(CtorName("TooBig"), List(n(3))) -> trouble, Value.Data(CtorName("Down"), Nil) -> trouble,
     world -> Ty.World)
 
+  test("a number is read as a Scala Int or Long only where it fits: one that does not is never wrapped around") {
+    assertEquals(literals(Value.Num(BigInt(Int.MaxValue)), Ty.Num(NumKind.Int32)).unwrap, Int.MaxValue)
+    assertEquals(literals(Value.Num(BigInt(1) << 40), Ty.Num(NumKind.Int64)).unwrap, 1L << 40)
+    List(Value.Num(BigInt(1) << 40) -> NumKind.Int32, Value.Num(BigInt(1) << 70) -> NumKind.Int64).foreach((v, k) =>
+      intercept[IllegalStateException](literals(v, Ty.Num(k))))
+    assertEquals(NumKind.Int32.nearest(BigInt(1) << 40), BigInt(Int.MaxValue))
+  }
+
   test("a constant made Scala's and read back is the constant") {
     constants.foreach((v, t) => assertEquals(reflect(literals(v, t), t), v, t))
   }

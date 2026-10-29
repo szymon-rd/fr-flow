@@ -51,7 +51,7 @@ private[derive] final class Drawing(d: Derive, size: Int):
 
   private def fresh(ty: Ty, depth: Int): D[Value] = ty match
     case Ty.Bool           => chance(0.5).map(Value.Bool(_))
-    case Ty.Num(_)         => number.map(Value.Num(_))
+    case Ty.Num(k)         => number.map(n => Value.Num(k.nearest(n)))
     case Ty.Str            => string.map(Value.Str(_))
     case Ty.Unit           => pure(Value.Unit)
     case Ty.ListOf(a)      => many(a, depth).map(Value.Many(_))

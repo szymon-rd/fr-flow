@@ -54,7 +54,15 @@ object ValueCases:
     .declaring(_.copy(defines = List(calling("fCode", "inc"))))
     .coding(name("f") -> Code.Proven(DefName("fCode")), name("inc") -> Code.Provided)
 
+  private val int = Ty.Num(frflow.core.ty.NumKind.Int32)
+  /** `¬ ∀ (x : Int), x = x`: a Scala `Int` said to exist. */
+  private val notAll = claim("notAll")(Lang.formula([T[_]] => (l: Lang[T]) =>
+    l.s.not(l.forall[Int]("x", int)(x => l.s.eq(x, x)))))
+
   val all: List[ProblemCase] = List(
+    ProblemCase(Kb.of(notAll).naming(declaration("count", Ty.ListOf(int))),
+      List(Problem.SaidToExist(int, Problem.Place.Variable(id("notAll"))),
+        Problem.SaidToExist(Ty.ListOf(int), Problem.Place.Value("count")))),
     ProblemCase(mutual, List(Problem.RestsOnItself(List(id("aboutF"), id("aboutG"))))),
     ProblemCase(Kb.of(root).naming(declaration("get", test))
       .declaring(v => v.copy(sorts = List(Sort(TypeName("World"), "a world")), defines = List(calling("Obl", "get")),
