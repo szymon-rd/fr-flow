@@ -42,7 +42,7 @@ object Made:
             val at = s"${c.code.value}_call_$i"
             val hyps = r.reliedOnBy(c.definition)
             Obligation(ObligationName.Made(at), Prop.over(Nil, Prop.Implies(Hyp.parts(hyps) ++
-              madeBy(r, n, ty, (kept, guards.map(_._2)), c.definition), Prop.Makes(n, SymbolName(at),
+              madeBy(r, n, (kept, guards.map(_._2)), c.definition), Prop.Makes(n, SymbolName(at),
                 c.formula(i, kept), Map.empty))), Discharge.Auto,
               s"What ${c.code.value} hands plain Scala at call ${i + 1} meets ${n.value}" +
                 Required.givenWhat(hyps))
@@ -54,9 +54,10 @@ object Made:
     * `made_<maker>` (`m_<maker>`, each proven of its own code), so a value one of them returns is known to meet it
     * where the code hands it on.
     */
-  private def madeBy(r: Resolved, n: NodeId, ty: Ty, g: Guarding, op: SymbolName): List[Hyp] =
+  private def madeBy(r: Resolved, n: NodeId, g: Guarding, op: SymbolName): List[Hyp] =
     val called = Callees.ofDefinition(r.theory, op).toList.flatMap(_.calls.symbols).toSet - op
-    defines(r, n, ty).filter((callee, _, _) => called(callee)).map((callee, _, fn) =>
+    val ty = r.theory.node(n).flatMap(_.statement.range).collect { case Range.Made(t) => t }
+    ty.toList.flatMap(defines(r, n, _)).filter((callee, _, _) => called(callee)).map((callee, _, fn) =>
       Hyp(s"m_${callee.value}", Prop.Makes(n, callee, Making.ofDefine(callee, fn, g._1, g._2), Map.empty)))
 
   private type Guarding = (Guard, List[Guard])
@@ -65,14 +66,14 @@ object Made:
 
   private def byDefines(r: Resolved, n: NodeId, ty: Ty, g: Guarding): List[Obligation] =
     defines(r, n, ty).map((op, code, fn) => relying(r, makes(n, op, code, Making.ofDefine(op, fn, g._1, g._2)),
-      madeBy(r, n, ty, g, op), s"Every result of ${code.value} meets ${n.value}"))
+      madeBy(r, n, g, op), s"Every result of ${code.value} meets ${n.value}"))
 
   /** A run's world takes the rules of the stores the program calls only (owner §33). */
   private def byPrograms(r: Resolved, n: NodeId, ty: Ty, g: Guarding): List[Obligation] =
     programs(r, n, ty).map((op, code, fn) => relying(r, makes(n, op, code,
       Making.ofProgram(op, fn, Required.inputs(r, op, fn), g._1,
         Guards.reading(r.theory, Reads.ofProgram(r.theory, op))
-        .map(_._2))), madeBy(r, n, ty, g, op), s"Every result of a run of ${code.value} meets ${n.value}"))
+        .map(_._2))), madeBy(r, n, g, op), s"Every result of a run of ${code.value} meets ${n.value}"))
 
   private def byModels(r: Resolved, n: NodeId, range: Range, kept: Guard): List[Obligation] =
     Scope.modelMakers(r.theory, range).map { (m, sig) =>
