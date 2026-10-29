@@ -1,5 +1,5 @@
 # FrFlow's CI: the budgets, `sbt test`, and the suites that run Lean end to end (tagged `Lean`, left out of
-# `sbt test`: build.sbt's `Lean` configuration). Every push and pull request runs them on the laws' usual seeds;
+# `sbt test`: build.sbt's `Lean` configuration, its `leanTest` alias running them in every module). Every push and pull request runs them on the laws' usual seeds;
 # the nightly run draws the laws' terms from seeds no other run uses (`FRFLOW_LAW_SEEDS`, `from:count`).
 name: CI
 
@@ -67,4 +67,4 @@ jobs:
         run: sbt test < /dev/null
 
       - name: The suites that run Lean
-        run: sbt next-proof/Lean/test next-eval/Lean/test next-project/Lean/test next-api/Lean/test next-cli/Lean/test < /dev/null
+        run: sbt leanTest < /dev/null
