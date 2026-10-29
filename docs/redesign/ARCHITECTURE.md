@@ -505,10 +505,13 @@ hold (owner §15, §18).
   code reached only through another's code has its code stand too (`Stands`, `Callees.reaching`), and its open
   values are the group's. A value provided where the code runs that the standing code reaches is the group's too:
   universal, as a mentioned one is, given what the assumptions at the bottom about such values alone say (the
-  group's `premises`, what the world outside is trusted to give: `∀ k, kPositive k → ∃ …`). A consistency statement
-  never binds by `∃` a Definition with a meaning of its own (proven code, a fixed value, a model's operation, an
-  unpinned provided value): one left over is left unbound, and Lean refuses the statement (fail closed), so no proof
-  chooses the code's meaning or the world's value (`SeededSuite`'s `Hidden` and `Through`). A `feasible` statement
+  group's `premises`, what the world outside is trusted to give: `∀ k, kPositive k → ∃ …`), and the premises over the
+  same provided values have a `consistent_<i>` of their own, some value meeting them all (`Group.Premises`, a list
+  none bounds witnessed empty, keycloak's `history`), gating every group taking them (`SeededSuite`'s `Vacuous`).
+  A consistency statement never binds by `∃` a Definition with a meaning of its own (proven code, a fixed value, a
+  model's operation, an unpinned provided value): one left over is left unbound, and Lean refuses the statement
+  (fail closed), so no proof chooses the code's meaning or the world's value (`SeededSuite`'s `Hidden` and
+  `Through`). A `feasible` statement
   (`∃ U, C1 ∧ … ∧ Cn`, 4.7) does bind them by `∃`, soundly: it shows only that an authored `complete`, proven for
   every meaning of `U` (code and provided values among them), does not rest on parts no meaning meets; whether the
   parts hold of the real code is their own checks' (`impl`) and their groups' here.
