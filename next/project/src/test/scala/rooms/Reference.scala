@@ -40,10 +40,13 @@ object Reference:
       .filter(r => r.startsWith("Domain") || r.endsWith("/Spec.lean")).sorted
       .map(r => r -> old(Files.readString(root.resolve(r))))
 
-  /** `Rooms.` named `Old.`, the port's types and boundary imported in place of today's and opened. */
+  /** `Rooms.` named `Old.`, the port's types and table imported in place of today's and opened: today's boundary is
+    * the port's model (`Models`, the class `StoredBookings.Ops`, the World's field `storedBookings`).
+    */
   def old(text: String): String =
     text.replaceAll("""\bRooms\.""", "Old.")
       .replace("import FrFlowGen.Old.Types", "import FrFlowGen.Rooms.Types")
-      .replace("import FrFlowGen.Old.Boundaries", "import FrFlowGen.Rooms.Boundaries")
+      .replace("import FrFlowGen.Old.Boundaries", "import FrFlowGen.Rooms.Models")
+      .replaceAll("""\bBookingTable\b""", "StoredBookings.Ops").replaceAll("""\bbookingTable\b""", "storedBookings")
       .replaceAll("""(?m)^namespace (Rooms|Old)\b(.*)$""", "namespace Old$2\nopen Rooms")
       .replaceAll("""(?m)^end Rooms\b""", "end Old")

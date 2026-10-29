@@ -2,6 +2,7 @@ package rooms
 
 import cats.effect.{IO, Ref}
 import cats.effect.unsafe.implicits.global
+import frflow.*
 import frflow.core.code.Implementation
 import frflow.eval.Semantics
 import frflow.testing.{Plan, Seed, Settings}
@@ -13,7 +14,8 @@ import frflow.testing.report.{Count, Failure}
   * `storedBookings` (`implementTested(inRoom, add)(start, observe)(calls)`), on generated runs of its operations, from
   * states meeting what always holds of the store, whose bookings meet what always holds of them, call by call and then
   * by the state each holds (`ModelRuns`). The rooms FrModel's own Scala is the SQLite table; the variants here are
-  * an in-memory stand-in, two of them with a seeded bug.
+  * an in-memory stand-in, two of them with a seeded bug. In production `BookIfGranted` runs on the table's Scala
+  * bound (`rooms.running[IO](storedBookings := table)`).
   */
 class StoreModelSuite extends munit.FunSuite:
   /** The bookings in memory: `byRoom` false forgets to filter by room, `adds` false forgets to add. */
@@ -73,6 +75,18 @@ class StoreModelSuite extends munit.FunSuite:
     val again = ModelRuns[IO](bug, semantics, elaborated.theory).of(Plan(Settings(200, Seed(9)), List(first)), draw)
       .unsafeRunSync()
     assertEquals((again.cases, again.failure.map(_.from)), (1, Some(first.from)))
+  }
+
+  test("in production the program runs on the table's Scala bound, nothing checked: a free request booked, a clash not") {
+    val booked = for
+      table  <- BookingsTable.holding(Nil)
+      run    <- rooms.running[IO](storedBookings := table)
+      book    = (r: Booking) => BookIfGranted.run[IO](run.term(r))(using run).map(run.value)
+      first  <- book(Booking("Oak", 9, 11))
+      clash  <- book(Booking("Oak", 10, 12))
+      held   <- table.bookings
+    yield (first, clash, held)
+    assertEquals(booked.unsafeRunSync(), (true, false, List(Booking("Oak", 9, 11))))
   }
 
   test("a variant's Scala is the model's operations, in the order its meanings are given") {

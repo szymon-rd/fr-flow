@@ -629,7 +629,7 @@ model gives each its meaning over its state (`Model[F, S]`: `get`, `set`, `updat
 the state in a world. A program calls an operation as any Definition: `inRoom(request.room)` is a step of `F` where a
 step is expected (`Flow.step`, given implicitly). Lean sees what it saw with a boundary: a class with the operations
 named as the Definitions, the model's operations as `do` blocks, `World`, and the instance on `StateM World`
-(`next/proof/src/test/resources/rooms/Boundaries.decls.lean`; step 11b may rename the module `Models`). The program's
+(`next/proof/src/test/resources/rooms/Models.lean`, the module `Models`, each class `<Model>.Ops`). The program's
 run on the models is `bookIfGranted_run`.
 
 The World is the application at one moment, as the proofs see it (owner §33): code never sees it, and a statement
@@ -987,10 +987,10 @@ trait Flow[F[_]] extends Monad[F]:
 them; `RecordingSuite` records each as the step Lean reads (with `each`, `raise` and `handle`). Every combinator is kept
 (owner §2) and given a use in an example. `collect`, `fold`, `parCollect` and `attempt` (today's `traverse`, `foldM`,
 `parTraverse`, `attempt`) are kept as step 2 added them, and today's `retry` and `parTraverseN`'s limit as
-`retry(now, sleep, waits)` (a fold of the waits over `handle` and the clock's `sleep`, as today) and `parCollectN(n)`
+`retry(sleep, waits)` (a fold of the waits over `handle` and the clock's `sleep`, as today) and `parCollectN(n)`
 (`Prog.ParEach` with its limit). The clock is FrFlow's own two Definitions, `now: Program[BigInt]` and
 `sleep: BigInt => Program[Unit]`, with their `StateModel` (`clockModel`: a count of seconds only sleeps move); `timeout`
-and `retry` take them. `F` has three interpreters:
+takes `now`, and `retry` `sleep`. `F` has three interpreters:
 
 - **Lean's**: `Recording`, a pure `Flow[Recorded]`, where an operation applied is a recorded call (`Prog.Call` of the
   model and the operation). `program { … }` reads the recording into `Prog[Stated[?]]` (`ReadRecording`, steps

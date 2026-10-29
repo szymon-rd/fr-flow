@@ -82,7 +82,7 @@ object Texts:
     case Premise.FromOutside(ty)  => s"what each ${typeName(ty)} from outside meets"
 
   private def outside(f: OutsideFact): String = f match
-    case OutsideFact.OnlyCodeChanges(m)   => s"the world outside: nothing outside the code changes ${m.value}"
+    case OutsideFact.OnlyCodeChanges(m)   => s"the world outside: nothing but the code changes ${m.value}"
     case OutsideFact.Atomic(m)            => s"the world outside: runs on ${m.value} never interleave"
     case OutsideFact.Initially(m, _)      => s"the world outside: the state ${m.value} starts in"
 

@@ -41,7 +41,7 @@ class ShowSuite extends munit.FunSuite:
 
   test("the world outside: nothing else writes the table, the programs changing it derived, its runs atomic") {
     assertEquals(says("nothingElseWrites"), List(
-      "the world outside: nothing outside the code changes storedBookings",
+      "the world outside: nothing but the code changes storedBookings",
       "the programs changing it, derived: book"))
     assertEquals(says("oneAtATime"), List("the world outside: runs on storedBookings never interleave"))
   }
