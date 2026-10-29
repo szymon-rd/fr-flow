@@ -81,7 +81,8 @@ object Reuse:
       flow("expireIt", List(key, rows), steps, Ty.Unit)))
     .naming(definition("expire", job))
     .coding(SymbolName("expire") -> Code.ProvenFlow(DefName("expireIt")))
-    .linking(assumes("jobRuns", "tablesOneRun"), assumes("jobRuns", "heldOneRun"), assumes("jobRuns", "rowsFromOutside"),
+    .linking(assumes("jobRuns", "tablesOneRun"), assumes("jobRuns", "heldOneRun"),
+      assumes("jobRuns", "rowsFromOutside"),
       assumes("onePerKey", "rowsFromOutside"), assumes("heldOnce", "heldByCode"), assumes("heldOnce", "heldOneRun"),
       assumes("heldOnce", "heldEmpty"), assumes("heldOnce", "rowsFromOutside"))
 
