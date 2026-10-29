@@ -7,6 +7,7 @@ import frflow.core.expr.Lambda
 import frflow.core.graph.Edge
 import frflow.core.name.{DefName, ModelName}
 import frflow.core.spec.{Form, Node as Spec, Written}
+import frflow.core.typing.IrCheck
 import frflow.core.vocab.{Define, DefineForm, StateModel, Vocabulary}
 import frflow.dsl.build.{Declarations, Deferred, ElabError}
 import frflow.dsl.node.{Edges, Node}
@@ -21,7 +22,7 @@ object Elaborate:
     (kb.nodes.traverse(node), attached).tupled.run.andThen { case (declared, (ns, code)) =>
       vocabulary(declared).andThen { (all, v) =>
         Modelled.table(v, code.toMap, kb.operations, kb.writtenIn).map { table =>
-          val theory = Theory(kb.name, v, ns.map(_._1), ns.flatMap(_._2), table, kb.writtenIn)
+          val theory = IrCheck.checked(Theory(kb.name, v, ns.map(_._1), ns.flatMap(_._2), table, kb.writtenIn))
           Elaborated(theory, all.types.collect { case (n, d :: _) => n -> d.rep }, kb.generators)
         }
       }

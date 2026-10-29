@@ -6,13 +6,14 @@ import frflow.core.graph.Walk
 import frflow.core.name.NodeId
 import frflow.core.spec.Reliance
 import frflow.core.{Failing, Theory}
+import frflow.core.typing.IrCheck
 
 /** A valid theory to its resolved relations, each program typed with the error it may fail with (`Failing`). There
   * are no definitions to choose among: a term is fixed by a `define` (owner §12).
   */
 object Resolve:
   def apply(v: Valid): Resolved =
-    val t = Failing.typed(v.theory)
+    val t = IrCheck.checked(Failing.typed(v.theory))
     val ids = t.nodes.map(_.node.id)
     val relies = ids.map(id => id -> reliesOn(t, id)).toMap
     Resolved(t, ids.map(id => id -> constrainingCalled(t, SaysWhat.checkedAgainst(t, id)).filterNot(_ == id)).toMap,

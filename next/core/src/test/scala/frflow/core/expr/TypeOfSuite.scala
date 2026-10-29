@@ -5,13 +5,16 @@ import frflow.core.name.{ModelName, SourceText, SymbolName, VarId}
 import frflow.core.spec.Written
 import frflow.core.term.interpret.ToExpr
 import frflow.core.ty.Ty
+import frflow.core.typing.{IrCheck, IrError, Local}
 
 /** The laws of `Exprs.typeOf` on generated terms of every sort: the IR of a term is typed as the term is, and every
   * node of it as its parts are; and the type of each case of `Expr`.
   */
 class TypeOfSuite extends munit.FunSuite:
-  private val typing = Typing(n => if n == Booking.name then Booking.data.fieldTypes else Nil,
-    d => Option.when(d == Terms.positive.name)(Terms.fnTy))
+  private val check = IrCheck(Local(n => Option.when(n == Booking.name)(Booking.data),
+    d => Option.when(d == Terms.positive.name)(Terms.fnTy)))
+  private def problems(e: Expr, free: List[Binder] = Nil): List[IrError] = check(e, free).fold(_.iterator.toList,
+    _ => Nil)
   private val seeds = (1L to 300L).toList
 
   /** Each sort's terms from each seed, with the type they are written at. */
@@ -30,7 +33,7 @@ class TypeOfSuite extends munit.FunSuite:
   }
 
   test("every node of every term's IR is typed as its parts are") {
-    terms.foreach((e, _) => assertEquals(typing.mistyped(e), Nil, e))
+    terms.foreach((e, t) => assertEquals(check(e).toEither, Right(t), e))
   }
 
   test("the generated terms reach every operation the laws are about") {
@@ -50,7 +53,7 @@ class TypeOfSuite extends munit.FunSuite:
       val w = Written.lambda(List(x), [T[_]] => (s: frflow.core.term.Sym[T]) =>
         body[T](s, Scope(List(s.free[BigInt](x)))), SourceText("…"))
       assertEquals((w.value.result, Exprs.typeOf(w.value.body)), (Ty.Bool, Ty.Bool))
-      assertEquals(typing.mistyped(w.value.body), Nil)
+      assertEquals(problems(w.value.body, List(x)), Nil)
     }
   }
 
@@ -83,4 +86,25 @@ class TypeOfSuite extends munit.FunSuite:
       Expr.Outside(Terms.stored) -> Ty.Bool,
       Expr.Unchanged(store, store) -> Ty.Bool
     ).foreach((e, t) => assertEquals(Exprs.typeOf(e), t, e))
+  }
+
+  test("the checker refuses an ill-formed IR: a variable unbound or at another type, a level bound twice, a node " +
+    "not typed as its parts") {
+    val (n, b) = (Expr.Lit(Value.Num(1), Lang.big), Expr.Lit(Value.Bool(true), Ty.Bool))
+    val x = Binder(VarId.level(0), "x", Lang.big)
+    assertEquals(problems(Expr.Var(x)), List(IrError.Unbound(x)))
+    assertEquals(problems(Expr.Var(x), List(x.copy(ty = Ty.Bool))), List(IrError.AtAnotherType(x, Ty.Bool)))
+    assertEquals(problems(Expr.Quant(Quantifier.Forall, List(x), Expr.Quant(Quantifier.Forall, List(x), b))),
+      List(IrError.Rebound(x)))
+    val mistyped = List(Expr.Prim(PrimOp.And, List(n, b), Ty.Bool), Expr.If(n, n, n),
+      Expr.Apply(Expr.Sym(SymbolName("p"), Terms.fnTy), List(b), Ty.Bool),
+      Expr.Make(Booking.name, Booking.make.ctor, List(n)), Expr.Let(x, b, b))
+    mistyped.foreach(e => assertEquals(problems(e), List(IrError.Mistyped(e)), e))
+    assert(check(Expr.Quant(Quantifier.Forall, List(x), Expr.Prim(PrimOp.Lt, List(Expr.Var(x), n), Ty.Bool))).isValid)
+  }
+
+  test("applying a value that is no function, or joining branches of two types, is a FrFlow bug, never a guess") {
+    assert(intercept[IllegalStateException](Ty.applied(Ty.Bool)).getMessage.startsWith("FrFlow bug"))
+    assert(intercept[IllegalStateException](Ty.join(Ty.Bool, Lang.big)).getMessage.startsWith("FrFlow bug"))
+    assertEquals((Ty.join(Lang.big, Ty.Never), Ty.join(Ty.Never, Ty.Str)), (Lang.big, Ty.Str))
   }

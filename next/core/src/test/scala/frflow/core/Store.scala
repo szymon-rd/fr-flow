@@ -29,13 +29,14 @@ object Store:
     Written.steps(List(b), Prog.Call(add, List(at[Booking](b)), Ty.Unit), Ty.Unit, SourceText("bookIfFree")),
     DefineForm.Flow)
 
+  val bookTy: Ty = Ty.FnOf(List(Booking.ty), Ty.FlowOf(Ty.Unit, None))
+
   /** Every run of `book` ends. */
   val bookRuns: spec.Node = Nodes.claim("bookRuns")(Lang.formula([T[_]] => (l: Lang[T]) =>
     l.forall[Booking]("b", Booking.ty)(x => l.forall[World]("before", Ty.World)(w =>
       l.s.runs(l.call(l.sym[Booking => Program[Unit]]("book", bookTy), x), w, Bound[Unit]("r", Ty.Unit),
         Bound[World]("after", Ty.World))((_, _) => l.truth)))))
 
-  val bookTy: Ty = Ty.FnOf(List(Booking.ty), Ty.FlowOf(Ty.Unit, None))
   val onlyCode: spec.Node = Nodes.outside("onlyCode")(OutsideFact.OnlyCodeChanges(model))
   val oneAtATime: spec.Node = Nodes.outside("oneAtATime")(OutsideFact.Atomic(model))
 

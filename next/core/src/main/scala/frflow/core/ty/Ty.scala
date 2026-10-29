@@ -23,11 +23,13 @@ enum Ty:
   case FlowOf(result: Ty, error: Option[Ty])
 
 object Ty:
-  /** A function type applied to one argument: the rest of its inputs, or its result. */
+  /** A function type applied to one argument: the rest of its inputs, or its result. Applying anything else is a
+    * FrFlow bug: the DSL applies functions only.
+    */
   def applied(t: Ty): Ty = t match
     case FnOf(_ :: Nil, r)  => r
     case FnOf(_ :: rest, r) => FnOf(rest, r)
-    case other              => other
+    case other              => throw IllegalStateException(s"FrFlow bug: a value of type $other applied")
 
   /** A function type's result; any other type is its own. */
   def resultOf(t: Ty): Ty = t match
@@ -77,4 +79,6 @@ object Ty:
     */
   def join(a: Ty, b: Ty): Ty = (a, b) match
     case (Never, _) | (FlowOf(Never, _), FlowOf(_, _)) => b
-    case _                                             => a
+    case (_, Never) | (FlowOf(_, _), FlowOf(Never, _)) => a
+    case _ if a == b                                   => a
+    case _ => throw IllegalStateException(s"FrFlow bug: branches of types $a and $b")
