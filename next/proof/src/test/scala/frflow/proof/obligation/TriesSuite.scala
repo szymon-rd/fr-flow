@@ -4,6 +4,7 @@ import frflow.core.name.NodeId
 import frflow.proof.layout.Mini
 import frflow.proof.lean.lower.LowerObligation
 import frflow.proof.lean.print.PrintDecl
+import frflow.proof.obligation.tried.{Idle, Tries}
 import frflow.proof.reading.ObligationNames
 import frflow.proof.terms.TermTable
 

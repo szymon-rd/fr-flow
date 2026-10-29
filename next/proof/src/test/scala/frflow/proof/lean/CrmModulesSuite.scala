@@ -7,6 +7,7 @@ import frflow.proof.lean.ast.*
 import frflow.proof.lean.lower.{LowerModels, LowerObligation, LowerProp}
 import frflow.proof.lean.print.*
 import frflow.proof.obligation.*
+import frflow.proof.obligation.tried.Tries
 import L.*
 
 /** Four modules of `examples/crm/lean/FrFlowGen/Crm` (copied into the resources) print byte for byte from their AST;

@@ -2,6 +2,7 @@ package frflow.proof.obligation
 
 import frflow.core.analysis.Resolved
 import frflow.core.name.NodeId
+import frflow.proof.obligation.tried.Tries
 import frflow.proof.terms.TermTable
 
 /** What Lean is asked of each node (docs/DAG.md §3): a function of the resolved theory and of the obligations the
