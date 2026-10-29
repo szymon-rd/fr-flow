@@ -9,7 +9,7 @@ import frflow.*
 import frflow.eval.{Env, ScalaValue, Semantics}
 import frflow.eval.flow.{AtOnce, Runs, Shelf, Shelved, World}
 
-/** A program's concurrent steps run on the adapters at once, each call after a random pause, from a start, `Runs`
+/** A program's concurrent steps run on the models at once, each call after a random pause, from a start, `Runs`
   * times, each on a shelf holding 3: branches that only read give the models' one answer every time; branches that
   * write outside a transaction give different answers, which one order of the steps does not show.
   */
@@ -18,11 +18,11 @@ class InterleavingsSuite extends munit.FunSuite:
   private val semantics = Semantics(elaborated)
 
   private def interleaved(p: Shelved[?], starts: Int): List[Any] =
-    val adapters = Ref.of[IO, Map[ModelName, ScalaValue]](Map(Shelf.kept.name -> ScalaValue(List(BigInt(3))),
-      Shelf.ticks.name -> ScalaValue(BigInt(0)))).map(World.models(semantics, elaborated.theory.vocabulary, _))
+    val worlds = Ref.of[IO, Map[ModelName, ScalaValue]](Map(Shelf.kept.name -> ScalaValue(List(BigInt(3))),
+      Clock.clockModel.name -> ScalaValue(BigInt(0)))).map(World.models(semantics, elaborated.theory.vocabulary, _))
     val run = for
       random <- Random.scalaUtilRandomSeedLong[IO](7)
-      ran    <- Interleavings[IO](semantics, adapters)(using summon, random)
+      ran    <- Interleavings[IO](semantics, worlds)(using summon, random)
         .of(Runs.recorded(p), List.fill(starts)(Env.of(Values.none)))
     yield ran.map(_.unwrap)
     run.unsafeRunSync()
@@ -34,7 +34,7 @@ class InterleavingsSuite extends munit.FunSuite:
 
   test("the interleaved runs catch branches that share state outside a transaction, where one order does not") {
     val sharing = Shelved[(List[BigInt], List[BigInt])]("both put, then read", Nil, (Right(()), Nil, BigInt(0)))(
-      [F[_]] => (s: Shelf[F, Term], _: Clock[F, Term], f: Flow[F]) =>
+      [F[_]] => (s: Shelf.On[F], _: Shelf.Ticking[F], f: Flow[F]) =>
         f.parTupled(f.flatMap(s.put(1))(_ => s.items), f.flatMap(s.put(2))(_ => s.items)))
     assert(interleaved(sharing, 5).distinct.size > 1, "every interleaving gave one answer")
   }

@@ -6,7 +6,7 @@ import frflow.core.vocab.Vocabulary
 
 /** The small values a witness search tries (`Small`), in order, so the search is deterministic. */
 class SmallSuite extends munit.FunSuite:
-  private val small = Small(Vocabulary(Nil, Nil, Nil, Nil, Nil, Nil))
+  private val small = Small(Vocabulary(Nil, Nil, Nil, Nil, Nil))
 
   test("lists of none, one and two small elements, in order; a function has none") {
     val (f, t) = (Value.Bool(false), Value.Bool(true))

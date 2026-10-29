@@ -28,8 +28,8 @@ final class Derive(val semantics: Semantics, val vocabulary: Vocabulary, val alw
   /** The examples' values that meet what always holds of every type they hold: the others are never drawn. */
   val seeds: Seeds = hints.seeds.keeping(meets)
 
-  /** A boundary may fail: drawn worlds hold faults. */
-  val mayFail: Boolean = vocabulary.boundaries.exists(_.fails.isDefined)
+  /** A model's operations may fail: drawn worlds hold faults. */
+  val mayFail: Boolean = vocabulary.models.exists(_.fails.isDefined)
 
   /** A program races: drawn worlds hold the races' winners. */
   val races: Boolean = vocabulary.defines.exists(x => x.written.form match

@@ -14,10 +14,10 @@ import frflow.testing.report.{Failure, Outcome}
   */
 class RunsSuite extends munit.FunSuite:
   /** A booking program that adds every request, granted or not, and says it booked it. */
-  private final class AddsAll[F[_]](table: BookingTable[F, Term])(using f: Flow[F]):
-    def run(request: Term[Booking]): F[Term[Boolean]] = f.as(table.add(request), True)
+  private object AddsAll:
+    def run[F[_]](request: Term[Booking])(using f: Flow[F]): F[Term[Boolean]] = f.as(f.run(add(request)), True)
 
-  private val addsAll = program { (request: Term[Booking]) => AddsAll(bookingTable.recording).run(request) }
+  private val addsAll = program { (request: Term[Booking]) => AddsAll.run[Recorded](request) }
 
   /** What booking answers and stores, in start and end times (rooms' own say "free", over every moment, which has no
     * Scala value).
@@ -32,7 +32,8 @@ class RunsSuite extends munit.FunSuite:
         when(stored.forall(b => noOverlap(b, request)))(stored :+ request).otherwise(stored) }))
 
   private def booking(meaning: Definition[Booking => Program[Boolean]]) =
-    FrModel("Rooms")((rooms.nodes :+ answerWhenApart :+ storeWhenApart)*).copy(generators = rooms.generators)
+    FrModel("Rooms")((rooms.nodes :+ answerWhenApart :+ storeWhenApart)*).copy(generators = rooms.generators,
+      operations = rooms.operations)
       .implementProven(book)(meaning)
       .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
 

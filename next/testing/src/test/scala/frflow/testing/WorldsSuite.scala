@@ -8,24 +8,24 @@ import frflow.eval.flow.{Shelf, Trouble}
 import frflow.testing.derive.Derive
 import frflow.testing.report.Failure
 
-/** Drawn worlds carry the faults a failing boundary's calls take and the races' winners, so a generated test of a
+/** Drawn worlds carry the faults a failing model's operations take and the races' winners, so a generated test of a
   * claim about a run takes a failing call's error path, and lets a race's right side win.
   */
 class WorldsSuite extends munit.FunSuite:
   /** Puts a number on the shelf, saying it did, or that it could not when the shelf is down. */
-  private final class Puts[F[_]](s: Shelf[F, Term])(using f: Flow[F]):
+  private final class Puts[F[_]](s: Shelf.On[F])(using f: Flow[F]):
     def run(n: Term[BigInt]): F[Term[Boolean]] =
       f.handle[Trouble, Term[Boolean]](f.as(s.put(n), True))(_ => f.pure(False))
 
   /** Reads the shelf after putting a number, raced against reading it. */
-  private final class Races_[F[_]](s: Shelf[F, Term])(using f: Flow[F]):
+  private final class Races_[F[_]](s: Shelf.On[F])(using f: Flow[F]):
     def run(n: Term[BigInt]): F[Term[Either[List[BigInt], List[BigInt]]]] =
       f.race(f.flatMap(s.put(n))(_ => s.items), s.items)
 
   private val putting = Definition[BigInt => Program[Boolean]]("putting a number on the shelf")
   private val racing = Definition[BigInt => Program[Either[List[BigInt], List[BigInt]]]]("reading, raced")
-  private val puts = program { (n: Term[BigInt]) => Puts(Shelf.shelf.recording).run(n) }
-  private val races = program { (n: Term[BigInt]) => Races_(Shelf.shelf.recording).run(n) }
+  private val puts = program { (n: Term[BigInt]) => Puts(Shelf.On[Recorded]).run(n) }
+  private val races = program { (n: Term[BigInt]) => Races_(Shelf.On[Recorded]).run(n) }
 
   private val putIsKept = Node.claim("A number put is on the shelf after.")(
     forall((n: Term[BigInt], before: Term[World]) =>
@@ -35,7 +35,7 @@ class WorldsSuite extends munit.FunSuite:
       racing(n).from(before) { (read, _) => read.fold(xs => xs.contains(n), ys => ys.contains(n)) }))
 
   private val kb = FrModel("Shelves")((Shelf.knowledge.nodes ++ List(putIsKept, readSeesPut))*)
-    .implementProven(putting)(puts).implementProven(racing)(races)
+    .copy(operations = Shelf.knowledge.operations).implementProven(putting)(puts).implementProven(racing)(races)
   private val e = kb.elaborated.fold(es => fail(es.toString), identity)
 
   private def failingWorld(claim: String): List[(Value, Option[Value])] =

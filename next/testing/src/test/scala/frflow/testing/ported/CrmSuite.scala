@@ -1,6 +1,5 @@
 package frflow.testing.ported
 
-import cats.Id
 import cats.effect.{IO, Ref}
 import cats.effect.unsafe.implicits.global
 import crm.*
@@ -9,7 +8,7 @@ import frflow.eval.Semantics
 import frflow.eval.run.Broken
 import frflow.testing.{Plan, Settings}
 import frflow.testing.derive.Derive
-import frflow.testing.model.ModelRuns
+import frflow.testing.model.{ModelRuns, ModelTests}
 import frflow.testing.report.Failure
 
 /** Crm's generated tests (today's `CrmSuite`, its testing cases' names kept): the database's plain Scala against its
@@ -49,7 +48,7 @@ class CrmSuite extends munit.FunSuite:
   }
 
   /** The database in memory: `keepsOthers` false forgets the other records' rows on a store. */
-  private final class Memory(tables: Ref[IO, Tables], keepsOthers: Boolean) extends Database[IO, Id]:
+  private final class Memory(tables: Ref[IO, Tables], keepsOthers: Boolean):
     def load: IO[CrmStore] = tables.get.map(_.store)
     def storeAbout(id: BigInt, s: CrmStore): IO[Unit] = tables.update { t =>
       val others = if keepsOthers then t.store else CrmStore(Nil, Nil, Nil)
@@ -62,9 +61,10 @@ class CrmSuite extends munit.FunSuite:
 
   private def modelRun(keepsOthers: Boolean) =
     val e = knowledge.elaborated.fold(es => fail(es.toString), identity)
-    val check = databaseModel.checkedAgainst(start = t => Ref[IO].of(t).map(Memory(_, keepsOthers)),
-      observe = (m: Memory) => m.held)
-    ModelRuns(check, Semantics(e), e.theory).of(Plan(Settings.default, Nil), Derive.of(e, Nil)).unsafeRunSync()
+    val memory = ModelTests.of(databaseModel)(start = (t: Tables) => Ref[IO].of(t).map(Memory(_, keepsOthers)),
+      observe = (m: Memory) => m.held)(m => (m.load, m.storeAbout, m.logEvent))
+    val model = e.theory.vocabulary.model(databaseModel.name).getOrElse(fail("no database model"))
+    ModelRuns[IO](ModelTests.Check(model, memory), Semantics(e), e.theory).of(Plan(Settings.default, Nil), Derive.of(e, Nil)).unsafeRunSync()
 
   test("the database's implementations are run against its model: the CRM's own in-memory store tested") {
     assertEquals(modelRun(keepsOthers = true).failure, None)

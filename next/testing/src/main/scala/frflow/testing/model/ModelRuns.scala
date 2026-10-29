@@ -1,42 +1,38 @@
 package frflow.testing.model
 
-import cats.{Id, MonadThrow}
+import cats.MonadThrow
 import cats.effect.kernel.Ref
 import cats.syntax.all.*
-import frflow.core.code.Realizes
 import frflow.core.example.Gen
 import frflow.core.expr.{OutsideFact, Prog, Progs, Value}
-import frflow.core.name.{NodeId, OpName}
+import frflow.core.name.{NodeId, SymbolName}
 import frflow.core.term.Stated
 import frflow.core.Theory
-import frflow.dsl.model.AdapterCheck
-import frflow.eval.{Fn, ScalaValue, Semantics}
+import frflow.eval.{ScalaValue, Semantics}
 import frflow.testing.{Draw, Plan, Seed}
 import frflow.testing.derive.Always
 import frflow.testing.report.*
 
-/** A boundary's implementation tested against its model (`stored.implementedBy(…)`, the project's own, on every
-  * case; `stored.checkedAgainst(…)`, an outside system's, on at most `OutsideRuns`): runs of its operations (`Runs`),
-  * each from a state of the model drawn by its type and meeting every `always(stored)` about it, on the
-  * implementation and on the model (`ModelTests.run`). Run `i` is drawn from `(seed, i)` at its size; a run that
-  * cannot be drawn is not tried, and the shortfall said. The first run that differs is shrunk (`RunShrink`). What the
-  * runs reach is counted: each operation called, each branch of the model's steps taken both ways.
+/** A model's operations' plain Scala tested against the model (`implementTested(ops*)(start, observe)(calls)`,
+  * whoever wrote it, owner §36): at most `ModelRuns.Runs` runs of its operations (`Runs`), each from a state of the
+  * model drawn by its type and meeting every `always(stored)` about it, on the Scala and on the model
+  * (`ModelTests.run`). Run `i` is drawn from `(seed, i)` at its size; a run that cannot be drawn is not tried, and the
+  * shortfall said. The first run that differs is shrunk (`RunShrink`). What the runs reach is counted: each operation
+  * called, each branch of the model's steps taken both ways. Reported under the assumption that nothing outside the
+  * code changes the model's state, when there is one.
   */
-final class ModelRuns[F[_]: MonadThrow: Ref.Make, B[_[_], _[_]], S, A <: B[F, Id]](check: AdapterCheck[F, B, S, A],
-    semantics: Semantics, t: Theory):
+final class ModelRuns[F[_]: MonadThrow: Ref.Make](check: ModelTests.Check, semantics: Semantics, t: Theory):
   private type Tried = Either[Drawn, (Value, List[Step], Drawn)]
-  private val model = check.model.stateModel
+  private val model = check.model
   private val typing = Typing(semantics, t.vocabulary)
   private val always = Always.of(semantics, t)
-  private val ops: List[OpName] = t.vocabulary.boundary(model.boundary).toList.flatMap(_.ops.map(_.name))
-  private val branches: Map[OpName, List[Prog[Stated[?]]]] = model.ops.map(o => o.op -> Progs.all(o.steps).collect {
-    case b @ Prog.Branch(_, _, _) => b }).toMap
-  private val node: NodeId = t.nodes.map(_.node).find(_.statement.outside
-    .contains(OutsideFact.BehavesAs(model.boundary, model.name))).fold(NodeId(model.name.value))(_.id)
+  private val ops: List[SymbolName] = model.ops.map(_.op)
+  private val branches: Map[SymbolName, List[Prog[Stated[?]]]] = model.ops.map(o =>
+    o.op -> Progs.all(o.steps).collect { case b @ Prog.Branch(_, _, _) => b }).toMap
+  private val node: NodeId = ModelRuns.node(t, check)
 
   def of(plan: Plan, draw: Draw): F[TestReport] =
-    val runs = if check.realizes == Realizes.Outside then plan.settings.cases.min(ModelRuns.OutsideRuns)
-      else plan.settings.cases
+    val runs = plan.settings.cases.min(ModelRuns.Runs)
     val replayed: List[Tried] = plan.replay.collect { case Failure.Run(start, steps, _, from) =>
       Right((start, steps, from)) }
     val drawn: List[Tried] = (0 until runs).toList.map(i => Left(Drawn(plan.settings.seed, i, Seed.sizeOf(i, runs))))
@@ -66,9 +62,9 @@ final class ModelRuns[F[_]: MonadThrow: Ref.Make, B[_[_], _[_]], S, A <: B[F, Id
           .map((small, run, why) => Failure.Run(small, run, why, from)))))
 
   private def differs(hits: Ref[F, Hits])(s: Value, steps: List[Step]): F[Option[Difference]] =
-    ModelTests.run(check, semantics, t.vocabulary, branched(hits))(Fn.as[S](typing.literal(s, model.state)), steps)
+    ModelTests.run(check, semantics, t.vocabulary, branched(hits))(typing.literal(s, model.state), steps)
 
-  private def branched(hits: Ref[F, Hits])(op: OpName, p: Prog[Stated[?]], held: Boolean): F[Unit] =
+  private def branched(hits: Ref[F, Hits])(op: SymbolName, p: Prog[Stated[?]], held: Boolean): F[Unit] =
     val at = (ops.indexOf(op), branches.getOrElse(op, Nil).indexWhere(_ eq p))
     if at._1 < 0 || at._2 < 0 then MonadThrow[F].unit
     else hits.update(_ |+| Hits.of(Target(Position(List(at._1, at._2)), Reach.Branch(held))))
@@ -82,22 +78,28 @@ final class ModelRuns[F[_]: MonadThrow: Ref.Make, B[_[_], _[_]], S, A <: B[F, Id
   private def drawnRun(draw: Draw, from: Drawn): Option[(Value, List[Step])] =
     val random = from.seed.forCase(from.index)
     for
-      start <- Iterator.continually(draw(Gen.Derived[S](model.state), from.size, random)).take(ModelRuns.Tries)
+      start <- Iterator.continually(draw(Gen.Derived[Any](model.state), from.size, random)).take(ModelRuns.Tries)
         .flatten.find(s => always.keeps(model.name, ScalaValue(s)))
-      sig   <- t.vocabulary.boundary(model.boundary)
-      steps <- Runs(draw, typing).of(sig, from.size + 2, random)
+      steps <- Runs(draw, typing).of(model, from.size + 2, random)
     yield (typing.reflect(ScalaValue(start), model.state), steps)
 
 object ModelRuns:
-  /** An outside system is checked on at most this many runs, as today. */
-  val OutsideRuns: Int = 200
+  /** The runs a model's operations' Scala is tested on, at most: 200 by default. */
+  val Runs: Int = 200
   /** How many states are drawn before none is found meeting what always holds of the store. */
   val Tries: Int = 50
 
-  /** A node's runs, of each of its implementations, as one report: the cases summed, the first failure, what none
-    * reached.
+  /** A node's runs, of each model whose Scala is reported under it, as one report: the cases summed, the first
+    * failure, what none reached.
     */
   def joined(a: TestReport, b: TestReport): TestReport =
     TestReport(Count(a.count.asked + b.count.asked, a.count.tried + b.count.tried), a.seed, a.against,
       if a.outcome == Outcome.Passed then b.outcome else a.outcome, a.unreached.filter(b.unreached.contains),
       (a.notes ++ b.notes).distinct)
+
+  /** The node a model's runs are reported under: the assumption that nothing outside the code changes its state, or,
+    * with none, one named as the model.
+    */
+  def node(t: Theory, check: ModelTests.Check): NodeId = t.nodes.map(_.node)
+    .find(_.statement.outside.contains(OutsideFact.OnlyCodeChanges(check.model.name)))
+    .fold(NodeId(check.model.name.value))(_.id)

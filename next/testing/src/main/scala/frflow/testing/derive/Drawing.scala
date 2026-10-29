@@ -68,7 +68,7 @@ private[derive] final class Drawing(d: Derive, size: Int):
     case Ty.World          => world(depth)
     case _                 => nothing
 
-  /** Each model's state meeting every `always(stored)` about it, the faults the failing boundaries' calls take in
+  /** Each model's state meeting every `always(stored)` about it, the faults the failing models' calls take in
     * turn and, when a program races, the races' winners (`Races`).
     */
   private def world(depth: Int): D[Value] =
