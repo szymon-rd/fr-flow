@@ -93,13 +93,13 @@ class RequiredSuite extends munit.FunSuite:
     assertEquals(names(Programs.resolved, "endsAfterStart").map(_._1),
       List(ObligationName.Made("reschedule"), ObligationName.Made("fetch"), ObligationName.Made("latest"),
         ObligationName.Made("sample")))
-    val made = Required.made(Programs.resolved, NodeId("endsAfterStart"))
+    val made = Made.of(Programs.resolved, NodeId("endsAfterStart"))
     assertEquals(made.map(_.doc).take(2), List("Every result of later meets endsAfterStart.",
       "Every result of a run of fetchOne_run meets endsAfterStart."))
   }
 
   test("made_ of a store's operation: on its model, over a world meeting what always holds") {
-    val made = Required.made(Programs.resolved, NodeId("endsAfterStart"))
+    val made = Made.of(Programs.resolved, NodeId("endsAfterStart"))
       .filter(_.name == ObligationName.Made("sample"))
     assertEquals(made.map(o => (o.goal, o.doc)), List((Prop.over(Nil, Prop.Makes(NodeId("endsAfterStart"),
       frflow.core.name.SymbolName("sample"), made.head.goal match
@@ -107,7 +107,7 @@ class RequiredSuite extends munit.FunSuite:
         case _                              => fail("not a maker's statement"),
       Map(frflow.core.name.SymbolName("sample") -> Substitute.Code(frflow.core.name.DefName("Shelved.sample_of"))))),
       "Every result of shelved's sample meets endsAfterStart, on a world meeting what always holds.")))
-    assertEquals(Required.made(Mini.resolved, NodeId("endsAfterStart")), Nil) // `add` gives no booking
+    assertEquals(Made.of(Mini.resolved, NodeId("endsAfterStart")), Nil) // `add` gives no booking
   }
 
   test("commute_: a pair at once and a traverse at once, each in either order") {

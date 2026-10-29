@@ -2,10 +2,12 @@ package frflow.proof.whole
 
 import cats.data.NonEmptyList
 import frflow.core.analysis.{Constrained, Resolved}
+import frflow.core.analysis.outside.Guards
 import frflow.core.consistency.{Consistency, Defining, Group, Picked, Standing, Witness}
-import frflow.core.expr.OutsideFact
-import frflow.core.name.{DefName, NodeId, SymbolName}
-import frflow.core.term.Stated
+import frflow.core.expr.{Binder, OutsideFact}
+import frflow.core.name.{DefName, NodeId, SymbolName, VarId}
+import frflow.core.spec.Range
+import frflow.core.term.{Final, Stated, Sym}
 import frflow.core.ty.Ty
 import frflow.proof.obligation.{Discharge, Obligation, ObligationName, Prop, Substitute, Supplied}
 
@@ -29,7 +31,7 @@ object Joint:
     case Group.Start(n, start) => start.flatMap(r.theory.node).flatMap(_.statement.outside).collect {
       case OutsideFact.Initially(m, rule) =>
         val state = r.theory.vocabulary.model(m).fold(Ty.Unit)(_.state)
-        Obligation(ObligationName.Start(n), Prop.Starts(DefName(n.value), each(r, n, state), rule, state),
+        Obligation(ObligationName.Start(n), Prop.Starts(DefName(n.value), rule, state, within(r, n, state)),
           Discharge.Auto, s"Every state ${m.value} may start in meets ${n.value}.")
     }
 
@@ -60,9 +62,17 @@ object Joint:
   private def term(r: Resolved, s: SymbolName, from: NodeId, picked: Picked): Option[Supplied] =
     r.theory.node(from).flatMap(_.statement.said).map(f => Supplied.Term(Stated(Defining.of(f.term, picked)), s))
 
-  /** Whether the rule is of each element of the state (an `always[T]` of a store holding a list of `T`). */
-  private def each(r: Resolved, n: NodeId, state: Ty): Boolean =
-    r.theory.vocabulary.define(DefName(n.value)).exists(_.lambda.params.headOption.exists(_.ty != state))
+  /** An `always[T]`'s rule at each `T` the state holds (the state itself, each element of a list, a record's
+    * field), as the statement's guard places it on a variable of the state's type (2.6): over the state, level 0.
+    * None for an `always(stored)`, whose rule is of the state.
+    */
+  private def within(r: Resolved, n: NodeId, state: Ty): Option[Final[Boolean]] =
+    val about = r.theory.node(n).flatMap(_.statement.range).collect { case Range.Made(ty) => ty }
+    Guards.byAlways(r.theory).collectFirst { case (`n`, g) => g }
+      .filter(_ => about.exists(ty => Guards.applies(r.theory, ty, state))).map { g =>
+        val s = Binder(VarId.level(0), "s", state)
+        [T[_]] => (sym: Sym[T]) => g.of[T, Any](state, sym).fold(sym.bool(true))(_(sym.free[Any](s)))
+      }
 
   private def names(ids: List[NodeId]): String = ids.map(_.value).mkString(", ")
   private def symbols(ss: List[SymbolName]): String = ss.map(_.value).mkString(", ")

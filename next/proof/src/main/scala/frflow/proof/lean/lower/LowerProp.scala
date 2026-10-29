@@ -2,9 +2,10 @@ package frflow.proof.lean.lower
 
 import cats.data.Writer
 import cats.syntax.all.*
-import frflow.core.expr.{Expr, Exprs}
-import frflow.core.name.{DefName, NodeId, SymbolName, TypeName}
+import frflow.core.expr.{Binder, Expr, Exprs}
+import frflow.core.name.{DefName, NodeId, SymbolName, TypeName, VarId}
 import frflow.core.spec.{Form, Written}
+import frflow.core.term.Final
 import frflow.core.ty.Ty
 import frflow.proof.lean.ast.*
 import frflow.proof.lean.term.Printed
@@ -85,7 +86,7 @@ final class LowerProp(table: TermTable, env: LowerEnv, fromOutside: SymbolName =
     case Prop.Keeps(i, op, f, m) => applied(decl(i, s"keeps_${op.value}"), LowerProp.opens(f), σ ++ m)
     case Prop.Makes(i, op, f, m) => applied(decl(i, s"makes_${op.value}"), LowerProp.opens(f), σ ++ m)
     case Prop.ConjunctOf(n, i)   => applied(decl(n, s"conjunct_$i"), table.claims.getOrElse(n, OpenTerms.empty), σ)
-    case Prop.Starts(d, e, i, ty) => Writer.value(starts(d, e, i, ty))
+    case Prop.Starts(d, i, ty, w) => Writer.value(starts(d, i, ty, w))
     case Prop.Inhabited(d, ty)   => Writer.value(inhabited(d, ty))
     case Prop.Iff(a, b)          => (prop(a, σ), prop(b, σ)).mapN((x, y) => LExpr.Paren(LExpr.Infix(LOp.Iff, x, y)))
     case Prop.Both(ps)           => ps.traverse(prop(_, σ)).map(_.toList.reduceRight(LExpr.Infix(LOp.And, _, _)))
@@ -163,12 +164,11 @@ final class LowerProp(table: TermTable, env: LowerEnv, fromOutside: SymbolName =
 
   /** `(K.rule s)`, or `∀ x ∈ s, (K.rule x)` of each element: an `always` at a store's starting state. */
   /** `∀ (s : S), (K.initially s) → (K.rule s)`, or `→ ∀ x ∈ s, (K.rule x)`. */
-  private def starts(d: DefName, each: Boolean, initially: DefName, ty: Ty): LExpr =
-    val s = name("s")
-    val meets = if !each then call(define(d), List(s))
-      else LExpr.Forall(List(LBinder.Member(Names.builtin("x"), s)), call(define(d), List(name("x"))))
-    LExpr.Forall(List(LBinder.Explicit(Names.builtin("s"), LowerType(ty))),
-      LExpr.Infix(LOp.Arrow, call(define(initially), List(s)), meets))
+  private def starts(rule: DefName, initially: DefName, ty: Ty, within: Option[Final[Boolean]]): LExpr =
+    val (binders, meets) = within.fold((List(LBinder.Explicit(Names.builtin("s"), LowerType(ty))),
+      call(define(rule), List(name("s")))))(Printed.define(env, closedNaming)(List(Binder(VarId.level(0), "s", ty)), _))
+    val named = binders.collect { case LBinder.Explicit(n, _) => LExpr.Const(List(n)) }
+    LExpr.Forall(binders, LExpr.Infix(LOp.Arrow, call(define(initially), named), meets))
 
   /** `∃ (x : T), (K.rule x)`. */
   private def inhabited(d: DefName, ty: Ty): LExpr =

@@ -5,13 +5,12 @@ import cats.syntax.all.*
 import frflow.core.analysis.{Callees, Constrained, Resolved, SaysWhat, Scope}
 import frflow.core.Failing
 import frflow.core.term.interpret.Guard
-import frflow.core.expr.Expr
 import frflow.core.code.Code
 import frflow.core.name.{DefName, NodeId, SymbolName}
-import frflow.core.spec.{CallForm, Range, Written}
+import frflow.core.spec.CallForm
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
-import frflow.proof.terms.{CallingCode, Commutation, Keeping, Making}
+import frflow.proof.terms.{Commutation, Keeping}
 import frflow.core.analysis.outside.{Guards, Reads}
 
 /** What must hold of a node, each read off its statement, its place and the code (owner §15), in today's order:
@@ -23,7 +22,8 @@ object Required:
   /** Each proven by FrFlow's automation, or by the theorem of its name in the node's proof file (`authored`). */
   def of(r: Resolved, authored: Set[(NodeId, ObligationName)], n: NodeId): List[Obligation] =
     (complete(r, n).map(Obligation(ObligationName.Complete, _, Discharge.Auto, completes(r, n))).toList ++
-      feasible(r, authored, n) ++ impl(r, n) ++ commutes(r, n) ++ keeps(r, n) ++ made(r, n) ++ atCalls(r, n))
+      feasible(r, authored, n) ++ impl(r, n) ++ commutes(r, n) ++ keeps(r, n) ++ Made.of(r, n) ++
+      Made.atCalls(r, n))
       .map(o => if authored((n, o.name)) then o.copy(discharge = Discharge.Authored) else o)
 
   /** `∀ U, C1 → … → Cn → N`, of a node not checked against proven code. */
@@ -67,7 +67,7 @@ object Required:
 
   private def mentions(r: Resolved, n: NodeId, s: SymbolName): Boolean = Constrained.of(r.theory, n).contains(s)
 
-  private def givenWhat(hyps: List[NodeId]): String =
+  private[obligation] def givenWhat(hyps: List[NodeId]): String =
     if hyps.isEmpty then "." else s", given what ${hyps.map(_.value).mkString(", ")} promise."
 
   /** `cover_<op>` of a statement of `always`, for each program it applies to whose code is proven and calls an
@@ -95,11 +95,11 @@ object Required:
       }
     }
 
-  private def typeOf(r: Resolved, op: SymbolName): Option[Ty] =
+  private[obligation] def typeOf(r: Resolved, op: SymbolName): Option[Ty] =
     r.theory.vocabulary.symbol(op).map(_.ty).collect { case SymbolType.Typed(t) => t }
 
   /** The run's inputs, named as a statement reading as its run names them, or by position. */
-  private def inputs(r: Resolved, op: SymbolName, ty: Ty): List[(String, Ty)] =
+  private[obligation] def inputs(r: Resolved, op: SymbolName, ty: Ty): List[(String, Ty)] =
     r.theory.refinement.nodes.flatMap(_.statement.call).collectFirst {
       case CallForm.Run(`op`, post, _) => post.value.params.dropRight(3).map(x => x.hint -> x.ty)
     }.getOrElse(ty match
@@ -119,79 +119,3 @@ object Required:
         s"The branches of parallel step ${i + 1} in ${d.name.value} commute: either order gives the same result " +
           "and leaves the same world.")
     }
-
-  /** `made_<maker>` of an `always[T]` (owner §13: the soundness of assuming it of every value), for each maker FrFlow
-    * covers whose result is a `T` or a list of them: a Definition whose proven code is a define, and a store's
-    * operation on its model (`Scope.modelMakers`). Every result meets the rule, the inputs meeting what always holds
-    * of their types and the world every `always` about it (`Making`), given what the code relies on.
-    */
-  def made(r: Resolved, n: NodeId): List[Obligation] =
-    val guards = Guards.byAlways(r.theory)
-    (guards.toMap.get(n), r.theory.node(n).flatMap(_.statement.range)).tupled.toList.flatMap {
-      case (kept, range @ Range.Made(ty)) =>
-        byDefines(r, n, ty, (kept, guards.map(_._2))) ++ byPrograms(r, n, ty, kept) ++ byModels(r, n, range, kept)
-      case _ => Nil
-    }
-
-  /** `made_<code>_call_<i>` of an `always[T]` (owner §37): of each proven define or program calling a Definition given
-    * plain Scala, at call `i` (numbered across its calls of plain Scala), the rule of each argument it reaches, on
-    * every path to the call (`CallingCode`), given what the code relies on. Asked at every call, never left to
-    * `cover_`.
-    */
-  def atCalls(r: Resolved, n: NodeId): List[Obligation] =
-    (Guards.byAlways(r.theory).toMap.get(n), r.theory.node(n).flatMap(_.statement.range)).tupled.toList.flatMap {
-      case (kept, Range.Made(ty)) => CallingCode.of(r.theory).flatMap(c => c.calls.zipWithIndex.collect {
-          case (tys, i) if tys.exists(Guards.applies(r.theory, ty, _)) =>
-            val at = s"${c.code.value}_call_$i"
-            val hyps = r.reliedOnBy(c.definition)
-            Obligation(ObligationName.Made(at), Prop.over(Nil, Prop.Implies(Hyp.parts(hyps),
-              Prop.Makes(n, SymbolName(at), c.formula(i, kept), Map.empty))), Discharge.Auto,
-              s"What ${c.code.value} hands plain Scala at call ${i + 1} meets ${n.value}" + givenWhat(hyps))
-        })
-      case _                      => Nil
-    }
-
-  private type Guarding = (Guard, List[Guard])
-  private def makes(n: NodeId, op: SymbolName, code: DefName, f: Written[Expr]): Prop.Makes =
-    Prop.Makes(n, op, f, Map(op -> Substitute.Code(code)))
-
-  private def byDefines(r: Resolved, n: NodeId, ty: Ty, g: Guarding): List[Obligation] =
-    defines(r, n, ty).map((op, code, fn) => relying(r, makes(n, op, code, Making.ofDefine(op, fn, g._1, g._2)),
-      s"Every result of ${code.value} meets ${n.value}"))
-
-  /** A run's world takes the rules of the stores the program calls only (owner §33). */
-  private def byPrograms(r: Resolved, n: NodeId, ty: Ty, kept: Guard): List[Obligation] =
-    programs(r, n, ty).map((op, code, fn) => relying(r, makes(n, op, code,
-      Making.ofProgram(op, fn, inputs(r, op, fn), kept, Guards.reading(r.theory, Reads.ofProgram(r.theory, op))
-        .map(_._2))), s"Every result of a run of ${code.value} meets ${n.value}"))
-
-  private def byModels(r: Resolved, n: NodeId, range: Range, kept: Guard): List[Obligation] =
-    Scope.modelMakers(r.theory, range).map { (m, sig) =>
-      val code = DefName(s"${m.name.value.capitalize}.${sig.name.value}_of")
-      val within = Guards.reading(r.theory, List(m.name)).map(_._2)
-      Obligation(ObligationName.Made(sig.name.value), Prop.over(Nil, makes(n, SymbolName(sig.name.value), code,
-        Making.ofModel(m, sig, kept, within))), Discharge.Auto,
-        s"Every result of ${m.name.value}'s ${sig.name.value} meets ${n.value}, on a world meeting what always holds.")
-    }
-
-  /** `made_<maker>` of a maker's code, given what the code relies on. */
-  private def relying(r: Resolved, goal: Prop.Makes, says: String): Obligation =
-    val hyps = r.reliedOnBy(goal.maker)
-    Obligation(ObligationName.Made(goal.maker.value), Prop.over(Nil, Prop.Implies(Hyp.parts(hyps), goal)),
-      Discharge.Auto, says + givenWhat(hyps))
-
-  /** The Definitions in `n`'s scope whose proven code is a define returning a `ty` or a list of them. */
-  private def defines(r: Resolved, n: NodeId, ty: Ty): List[(SymbolName, DefName, Ty)] =
-    Scope.of(r.theory, n).flatMap(op => (r.theory.code.attached.get(op).map(_.code), typeOf(r, op)).tupled.collect {
-      case (Code.Proven(d), fn) if Guards.applies(r.theory, ty, Ty.resultOf(fn)) => (op, d, fn)
-    })
-
-  /** The Definitions in `n`'s scope whose proven code is a program whose run gives a `ty` or a list of them: each
-    * with its run on the models (`f_run`).
-    */
-  private def programs(r: Resolved, n: NodeId, ty: Ty): List[(SymbolName, DefName, Ty)] =
-    Scope.of(r.theory, n).flatMap(op => (r.theory.code.attached.get(op).map(_.code), typeOf(r, op)).tupled.collect {
-      case (Code.ProvenFlow(f), fn) if (Ty.resultOf(fn) match
-            case Ty.FlowOf(res, _) => Guards.applies(r.theory, ty, res)
-            case _                 => false) => (op, DefName(s"${f.value}_run"), fn)
-    })

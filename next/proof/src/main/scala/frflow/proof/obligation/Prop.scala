@@ -4,6 +4,7 @@ import cats.data.NonEmptyList
 import frflow.core.expr.Expr
 import frflow.core.name.{DefName, NodeId, SymbolName}
 import frflow.core.spec.Written
+import frflow.core.term.Final
 import frflow.core.ty.Ty
 import frflow.proof.terms.Commutation
 
@@ -36,10 +37,11 @@ enum Prop:
   case ForEvery(symbols: List[SymbolName], body: Prop)
   /** `∃` these values: the open ones a witness is asked for. */
   case ForSome(symbols: List[SymbolName], body: Prop)
-  /** An `always`'s rule (its define) at every state a store may start in (`initially`'s rule): of the state, or
-    * of each of its elements.
+  /** An `always`'s rule at every state a store may start in (`initially`'s rule): an `always(stored)`'s of the
+    * state; an `always[T]`'s at each `T` the state holds (`within`: the state, each element, a field's), as its
+    * guard places it, over the state (level 0).
     */
-  case Starts(rule: DefName, each: Boolean, initially: DefName, state: Ty)
+  case Starts(rule: DefName, initially: DefName, state: Ty, within: Option[Final[Boolean]])
   /** Some value of `ty` meets an `always[T]`'s rule. */
   case Inhabited(rule: DefName, ty: Ty)
   /** A parallel step's two orders give the same run, for every value of the Definitions the program calls. */
