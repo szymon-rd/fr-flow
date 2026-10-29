@@ -267,6 +267,7 @@ through the boundary's model or an assumption about it; a boundary covered code 
 `Problem`), so nothing passes unchecked. This settles the open question of a value handed to a boundary with no model.
 Confirmed by the owner ("Yes"): the values a program passes to a boundary must meet the `always` rules on their type
 (a `made_` at the call).
+Superseded in part by §36: there is no boundary; every Definition has a meaning, and `made_` at the call is §37.
 
 ## 31. `writtenOnlyBy` is dropped; the programs changing a store are derived (owner)
 The owner asked "Do we need that changedOnlyBy?" and decided: "Yup Drop it". `stored.writtenOnlyBy(…)` and its check
@@ -306,4 +307,52 @@ assumptions about its operations (an outside system's promises): Lean sees its o
 assumptions as hypotheses, and the adapter is tested against them where it can be, trusted otherwise. Owner §30 then
 reads "every boundary has a model". No new kind of node, value or quantifier (§15). Built in step 12, where the first
 outside systems are ported; rooms is unchanged.
+Superseded by §36: there is no boundary and no `AssumedModel`; `StateModel` stays, as the meaning of a Definition's
+operations on a state.
 
+## 36. No `Boundary`: what FrFlow cannot see is a Definition (owner)
+The owner: "I think we should just get rid of Boundary then. Custom scala code has the same nature as external app."
+He asked for it to be done first ("1. Yes": step 11b, before step 12), and chose how one system's operations are
+written: "A for now" (each operation its own Definition, not a trait). So:
+- There is no `Boundary`. Everything FrFlow cannot see inside is a Definition given plain Scala, whether the project
+  wrote it or it calls an outside system.
+- An operation on a state (a Definition of type `A => Program[R]`) gets its meaning from a `StateModel[S]`, which says
+  what each operation does to its state (`inRoom.means(…)`, `add.means(…)`). The state is a field of the World.
+  Programs call the operations as any Definition (`inRoom(request.room)`), and the plain Scala is tested against the
+  model on generated sequences of calls.
+- A Definition known only by assumptions is the "assumed" case: tested against them where possible, trusted otherwise.
+- `behavesAs` goes. Its two meanings become the generated-run test and an assumption on the model,
+  `stored.onlyCodeChanges`. `atomic` moves to the model (`storedBookings.atomic`).
+- The clock becomes Definitions with their model. The programs changing a state are those calling an operation whose
+  meaning changes it (derived, §31). Lean sees what it saw: each operation runs on its field of the World.
+- This supersedes the boundary wording of §30 and all of §35. Every Definition must have a meaning, as `check` already
+  requires, so `BoundaryUnchecked` and `AssumedModel` go, and so does a boundary's call written in a statement: an
+  operation is a Definition, run as `add(b).from(now) { … }`.
+
+## 37. `made_` at the call: proven, never checked at run time (owner)
+The owner: "With proof yes, but not at runtime. No runtime checks." Every argument proven code hands to plain Scala (a
+function or an operation on a state) meets the `always` rules on its type, on every path:
+- It is asked at every call, never left to `cover_`.
+- The results of a Definition known only by assumptions are values from outside, covered only by an assumption of
+  `always` on their type (§21).
+- Calls from proven defines count, as calls from programs do.
+It is a Lean obligation only; the rebuild has no run-time checks (§2).
+
+## 38. Fingerprints of code written beside nodes (owner)
+The owner: "Ok". In a file that holds nodes, only the definitions the code refers to are fingerprinted (each to the next
+line at its indentation or less, with the same file's definitions those name), so code written beside nodes is
+governed, and editing a node beside it brings nothing back. Other files are governed whole, as before.
+
+## 39. Hand-written consistency proofs (owner)
+The owner: "Yes, handwritten is okay, agent can write proofs.." A consistency group FrFlow cannot witness (promises that
+are not equations, such as keycloak's `sessionLookup` and crm's `recordsByQuery`) is proven by a hand-written
+`consistent_<i>`; today's `storedSession` and `storedMatching` are the witnesses. An agent may write the proof, Lean
+checks it, and the developer decides the nodes as usual.
+
+## 40. The ports' decisions (owner)
+The owner: "Ok" and "ok".
+- crm's tables hold one row per key: a claim of `always[CrmStore]`, the rule its generator already drew by.
+- `noCrossTenantRead` stays a root.
+- `acmeNeverSeesGlobex` becomes an example test (§22).
+- auth's `tokensIssuedOnce` ("the session table issues each token to one user") is accepted.
+- keycloak's claim on `introspect` is renamed `introspectAnswers`.

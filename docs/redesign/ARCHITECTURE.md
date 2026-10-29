@@ -41,7 +41,8 @@ Appendix B lists the seventeen measured problems and where each is addressed.
    phase pure.
 3. **Tagless-final terms**: one printer (Lean) and one evaluator (Scala); the IR read only by analyses; the user
    writes a closed `Term[A]`.
-4. **Tagless programs over boundaries**, recorded for Lean, run in `IO` in production.
+4. **Tagless programs over Definitions**: what FrFlow cannot see is a Definition given plain Scala, a stateful one given
+   its meaning in Lean by a state model (owner §36); programs are recorded for Lean and run in `IO` in production.
 5. **No run-time checking**: Lean and property-based tests, before production only.
 6. **No ambient state**: plain code is given its values; a variable is named by the interpreter that binds it.
 7. **Decisions as a pure module**, with a committed signed list of who may decide; ledgers start fresh.
@@ -97,7 +98,7 @@ shows the whole model; the names used before it: a `Booking` is what the booking
 is the table's model, holding every booking; `book` is the booking program, taking a `Booking`, and `granted` the
 calendar's decision on a request; `apart` and `noOverlap` say two bookings share no time (over moments, and over start
 and end times); `free` says a request is apart from every booking held; `booked`, `bookedAfter` and `accepted` are the
-Declarations the two roots, `bookWhenFree` and `acceptWhenFree`, are stated over; `tableMatchesModel`, `oneAtATime`,
+Declarations the two roots, `bookWhenFree` and `acceptWhenFree`, are stated over; `nothingElseWrites`, `oneAtATime`,
 `bookingsEndAfterStart` and the other premises are the assumptions of 2.6.
 
 ### 2.1 Nodes: claim, assumption, design
@@ -151,8 +152,8 @@ The message a Declaration in code gets (`dsl/frflow/dsl/vocab/Stating.scala`):
 sealed trait Stating
 ```
 
-A **Definition** is a value code and programs use, of any type (a function, a program over a store, a plain value). It
-is a `Term` and gets its meaning exactly once, in the FrModel or where it is written:
+A **Definition** is a value code and programs use, of any type (a function, a program, an operation on a state, a plain
+value). It is a `Term` and gets its meaning exactly once, in the FrModel or where it is written:
 
 ```scala
 val granted = Definition[(RoomBookings, Booking) => Boolean]("whether a request is granted, given the room's bookings")
@@ -162,6 +163,7 @@ val granted = Definition[(RoomBookings, Booking) => Boolean]("whether a request 
 |---|---|---|
 | `implementProven(d)(p)` | `Proven`, `ProvenFlow` | proven of `p` in Lean (`impl`) |
 | `implementTested(d)(env => code)` | `Tested` | tested on generated cases |
+| `stored` gives `op.means(…)`; `implementTested(ops*)(start, observe)(calls)` | `Modelled` | proven on the model in Lean; the Scala tested against the model on generated runs (3.8) |
 | `implementValue(d)(v)` | `Valued` | stated with `v` substituted |
 | `implementProvided(d*)` | `Provided` | stated for every value provided |
 | `define { … }`, `program { … }` | `Proven`, `ProvenFlow` | proven, the meaning given on the spot |
@@ -177,6 +179,25 @@ Definition with no meaning (`Problem.Undefined`), a Declaration reached from pro
 (`DeclarationInCode`), code no claim mentions (`CodeWithoutClaim`), a statement mentioning a Definition with no Lean
 type (`CodeOnlyInStatement`). In the core, `vocab.ValueKind` is `Declaration` or `Definition`; a define's body is
 `term.Body`.
+
+**What FrFlow cannot see** (owner §36: "Custom scala code has the same nature as external app"). There is no
+boundary: everything FrFlow cannot see inside is a Definition given plain Scala, whether the code is the project's own
+or calls an outside system. Three shapes:
+
+- **A function**, `granted` (`(RoomBookings, Booking) => Boolean`): tested against every claim mentioning it.
+- **An operation on a state**, of type `A => Program[R]` (rooms' `inRoom` and `add`): its meaning in Lean is given by
+  a `StateModel[S]`, `object storedBookings extends StateModel[List[Booking]](…)` with `inRoom.means(room => …)` and
+  `add.means(booking => …)`, each over the model's state, a field of the World; programs call it as any Definition,
+  `inRoom(request.room)`; its plain Scala is tested against the model on generated sequences of calls (3.8). The
+  operations of one system are separate Definitions, not a trait (owner §36: "A for now").
+- **A Definition known only by assumptions**: plain Scala with assumptions saying what is trusted of it (keycloak's
+  `lookup` with `sessionLookup`, crm's `fetch` with `recordsByQuery`). Lean takes it as unknown with the assumptions as
+  hypotheses; its Scala is tested against them where a case can be evaluated, trusted otherwise (`show` says which).
+  An operation on a state with no `StateModel` is the same case: its assumptions are written as runs
+  (`op(x).from(now) { (r, after) => … }`), and Lean takes it as an unknown run that leaves each model's field as it was.
+
+Every Definition must have a meaning (`Problem.Undefined`), so nothing FrFlow cannot see goes unchecked; this replaces
+owner §30's "a boundary must have a model or an assumption".
 
 ### 2.3 Quantifiers: forall and always
 
@@ -198,12 +219,12 @@ It is placed below the statement whose hypotheses it gives, with `.refines` (2.4
 val neverOverlap = Node.claim("The bookings stored never overlap.")(
   always(storedBookings)(stored => stored.pairwise(apart)))
   .refines(bookWhenFree, acceptWhenFree)
-  .assuming(tableMatchesModel, oneAtATime, startsEmpty, bookingsEndAfterStart)
+  .assuming(nothingElseWrites, oneAtATime, startsEmpty, bookingsEndAfterStart)
 
 val roomBookingsApart = Node.claim("A room's bookings never overlap.")(
   always[RoomBookings](held => held.bookings.pairwise(noOverlap)))
   .refines(grantWhenFree)
-  .assuming(tableMatchesModel, bookingsEndAfterStart)
+  .assuming(bookingsEndAfterStart)
 ```
 
 Checked before production only:
@@ -220,8 +241,8 @@ Checked before production only:
   the rule admits a value.
 - **`always(stored)`** is a hypothesis on every world a statement is about, kept by each program writing the store
   (`cover_<op>`) from every start (`start_<node>`); that this covers every reached state rests on three store facts
-  (2.6): the store behaves as its model and nothing outside the code changes it, it starts as `initially` says, and runs
-  on it are atomic. A world is one a run starts from or one the statement quantifies over
+  (2.6): nothing outside the code changes it, it starts as `initially` says, and runs on it are atomic; that its plain
+  Scala does what the model does is tested (3.8). A world is one a run starts from or one the statement quantifies over
   (`forall((now: Term[World]) => …)`, as rooms' roots do): each comes with what always holds of the stores' states in it.
 - **An assumption of `always`** is a rule as a claim of `always` is (2.4, 2.6): the same hypothesis, the same `cover_`,
   `made_` and `start_` asked of the code and the start, and `inhabited_`; only its own truth for values from outside is
@@ -234,10 +255,33 @@ For an `always` A, each `H` below being every `always`'s guard on the variable:
 | `cover_<op>` | every run from a world meeting every `always`, on inputs meeting theirs, ends in one meeting A | each program writing a store A is about |
 | `made_<maker>` of a define `d` | `∀ x₁ … xₙ, H(x₁) → … → H(xₙ) → A(d x₁ … xₙ)` | each proven define whose result A applies to |
 | `made_<maker>` of a program `p` | `∀ x₁ … xₙ (w : World), H(x₁) → … → H(w) → A (p_run x₁ … xₙ w).1` | each proven program whose run's result A applies to |
-| `made_<maker>` of a store operation | `∀ p (w : World), H(p) → H(w) → A(op_of p w.s)` | each store operation on its model whose result A applies to |
+| `made_<maker>` of a store operation | `∀ p (w : World), H(p) → H(w) → A(op_of p w.s)` | each operation on a state whose result A applies to, on its model |
+| `made_<code>_call_<i>` | on every path to the `i`th call, under the inputs' and the read states' guards, A of each argument it applies to | each proven program or define calling a Definition given plain Scala (a function or an operation on a state) |
 
 `op_of p s` is `Id.run ((Stored.op p).run' s)`. `made_` is the soundness side of assuming `always[T]` of every value. A
 define is never asked `cover_`: it has no run and no world.
+
+**`made_` at the call** (owner §37). An argument proven code hands to plain Scala must meet the rules on its type, since
+that Scala is tested only on inputs meeting them (`Respecting`). `Required` walks the steps of each proven program and
+the body of each proven define into one `Prop`:
+
+- a bind of a call: ∀ result, guarded by its type's rules;
+- a `let`: substituted;
+- a branch: `(c → then) ∧ (¬c → else)`;
+- `each`, `collect`, `fold`: ∀ x ∈ over;
+- failure paths (`Raise`, `Catch`, `Guard`): walked too.
+
+At each call it states every rule whose guard reaches an argument's type, of that argument. Its hypotheses are the
+code's inputs with their guards, and the rules of the states the code reads (owner §33).
+
+It is asked at every call, and never left to `cover_` where a model stores the argument, so it is one rule; Lean meets
+it at once where the argument is an input. A result of a Definition known only by assumptions is a value from outside:
+the rules hold of it only through an assumption of `always` on its type, which the code's checks then list
+(`Premise.FromOutside`, 2.6). A modelled operation's result is guarded by its `made_<op>`, a tested function's by the
+test of its result (`Made`).
+
+It is a Lean obligation only: nothing is checked when the code runs (owner §2, §37: "With proof yes, but not at
+runtime").
 
 A rule met by generated values needs a Scala value, since draws and the witness search use the evaluator; so rooms
 states `roomBookingsApart` in start and end times and proves its link to `neverOverlap`'s moments in Lean
@@ -292,36 +336,37 @@ from outside meet is said differently, with `always` on their type (below).
 
 | Formula | Says | The rule resting on it |
 |---|---|---|
-| `store.behavesAs(stored)` | the store does what its model does, and nothing outside the code changes it | code is proven on the model; adapters tested against it; every reached state is one a run of the code leaves |
-| `stored.initially(held => …)` | what the store's start meets | `start_<node>`: `∀ s, initially s → A s` |
-| `store.atomic` | runs on the store never interleave | each run is one step of the world |
+| `stored.onlyCodeChanges` | nothing outside the code changes the model's state | every reached state is one a run of the code leaves |
+| `stored.initially(held => …)` | what the state's start meets | `start_<node>`: `∀ s, initially s → A s` |
+| `stored.atomic` | runs on the state never interleave | each run is one step of the world |
 
-`behavesAs` and `atomic` are said of the boundary, the real store; `initially` of the model, since it needs the state's
-type. Which programs change a store is not written: FrFlow derives it from the code, every program calling an
-operation that changes the model's state (`Premises.writers`), and asks each to keep the store's rules (`cover_`,
-`made_`) (owner §31). `show` and review of a `behavesAs` assumption state both its meanings and list the programs
-derived to change the store; when a new program starts changing it, the claims of `always` about the store come back
+All three are said of the `StateModel` (owner §36: there is no boundary). That the plain Scala does what the model
+says is not assumed: it is tested on generated sequences of calls (3.8), so today's `behavesAs` is gone, its two
+meanings now that test and `onlyCodeChanges`. Which programs change a state is not written: FrFlow derives it from the
+code, every program calling an operation whose meaning changes the state (`Premises.writers`), and asks each to keep
+the model's rules (`cover_`, `made_`) (owner §31). `show` and review of an `onlyCodeChanges` assumption list the
+programs derived to change the state; when a new program starts changing it, the claims of `always` about it come back
 for review, naming it.
 
 ```scala
-val tableMatchesModel =
-  Node.assumption("The table gives a room's bookings in the order they were added, and adds one at the end.")(
-    bookingTable.behavesAs(storedBookings))
+val nothingElseWrites = Node.assumption("Nothing but the booking code changes the table.")(
+  storedBookings.onlyCodeChanges)
 
 val startsEmpty = Node.assumption("The table starts empty.")(storedBookings.initially(stored => stored === Nil))
 
-val oneAtATime = Node.assumption("Bookings are processed one at a time.")(bookingTable.atomic)
+val oneAtATime = Node.assumption("Bookings are processed one at a time.")(storedBookings.atomic)
 
 val bookingsEndAfterStart = Node.assumption("Every booking ends after it starts.")(
   always[Booking](b => b.start < b.end))
 ```
 
 Checked: which facts a check rests on is derived (`Premises`), only to check the `.assuming` list the source writes. A
-claim about a program's runs on a store rests on `behavesAs` and `atomic`; an `always(stored)` also on `initially`;
-an `always[T]` on the facts of each store holding or making one; and any check on what values from outside meet,
-where its Lean form carries it (below). A missing fact is refused, naming it and the assumption that says it
-(`PremiseMissing(id, needs, by)`), as is one not needed (`PremiseNotNeeded`). Atomicity is assumed this way (owner
-§17, §32); asynchrony is future work.
+claim about a program's runs rests on `atomic` of each model whose operations it calls; an `always(stored)` also on
+`onlyCodeChanges` and `initially`; an `always[T]` on the facts of each model whose state holds one; and any check on
+what values from outside meet, where its Lean form carries it (below). A missing fact is refused, naming it and the
+assumption that says it (`PremiseMissing(id, needs, by)`), as is one not needed (`PremiseNotNeeded`). Atomicity is
+assumed this way (owner §17, §32, §36); asynchrony is future work. A claim resting on an operation's plain Scala doing
+what its model does lists nothing: `show` says it rests on that test (3.9).
 
 **Values from outside** (owner §21, §25). Statements are about values, never about a function's inputs. What comes
 from outside has a type, and what is trusted about it is an assumption of `always` on that type. The general rule
@@ -462,7 +507,10 @@ enum Witness:
   saying what each Declaration is as hypotheses, so two that contradict each other
   (`booked(now) === storedBookings.in(now)` beside `booked(now) === Nil`) would prove any root; only their group shows
   they cannot both hold. What makes a group proven is an equation, a bound, a fixed value, proven code, or the
-  developer's proof of `consistent_<i>`; tested Scala alone (`Evidence`) is not.
+  developer's proof of `consistent_<i>`; tested Scala alone (`Evidence`) is not. A hand-written proof is how a group
+  of promises that are not equations is proven (keycloak's `sessionLookup`, crm's `recordsByQuery`, with today's
+  `storedSession` and `storedMatching` as witnesses); an agent may write it, Lean checks it, and the developer decides
+  the nodes as usual (owner §39).
 - **The contradiction search** (`unsat`, `clash`) is an early refuter only; consistency is never inferred from it.
 
 ### 2.9 Vacuity
@@ -554,39 +602,35 @@ val accepted = Declaration[(Booking, World) => Boolean]("whether a request is ac
 outside and what the code stores (owner §25; 2.6). A domain type derives its `LeanType` once, where it is declared; a
 use without it says "Plain is not a domain type yet: add derives LeanType to its declaration".
 
-### 3.2 The table, its model, the program
+### 3.2 The table's operations, its model, the program
 
 ```scala
-/** Where the bookings are kept, as proven code sees it. */
-trait BookingTable[F[_], T[_]] derives BoundaryOps:
-  def inRoom(room: T[String]): F[T[RoomBookings]]
-  def add(booking: T[Booking]): F[Unit]
-
-val bookingTable = Boundary[BookingTable]("the SQLite table the bookings are kept in")
+/** The table's two operations: a room's bookings as it gives them, and a booking added. */
+val inRoom = Definition[String => Program[RoomBookings]]("a room's bookings, as the SQLite table gives them")
+val add = Definition[Booking => Program[Unit]]("a booking added to the SQLite table")
 
 /** The bookings stored, as the proofs see them: every booking, oldest first. */
-final class StoredBookings[F[_]: Flow](state: Model[F, List[Booking]]) extends BookingTable[F, Term]:
-  def inRoom(room: Term[String]) =
-    state.get.map(stored => make[RoomBookings](room, stored.filter(b => b.room === room)))
-  def add(booking: Term[Booking]) = state.get.flatMap(stored => state.set(stored :+ booking))
-
-val storedBookings = bookingTable.model("every booking stored, oldest first")(StoredBookings(_))
+object storedBookings extends StateModel[List[Booking]]("every booking stored, oldest first"):
+  inRoom.means(room => state.get.map(stored => make[RoomBookings](room, stored.filter(b => b.room === room))))
+  add.means(booking => state.update(stored => stored :+ booking))
 
 /** The program `book` is: the room's bookings read, the request added when granted, in one transaction. */
-final class BookIfGranted[F[_]](table: BookingTable[F, Term])(using f: Flow[F]):
-  def run(request: Term[Booking]): F[Term[Boolean]] = f.atomically(
-    f.flatMap(table.inRoom(request.room)) { held =>
+object BookIfGranted:
+  def run[F[_]](request: Term[Booking])(using f: Flow[F]): F[Term[Boolean]] = f.atomically(
+    f.flatMap(inRoom(request.room)) { held =>
       val booked = granted(held, request)
-      f.as(f.cond(booked)(table.add(request), f.unit), booked) })
+      f.as(f.cond(booked)(add(request), f.unit), booked) })
 
-val bookIfGranted = program { (request: Term[Booking]) => BookIfGranted(bookingTable.recording).run(request) }
+val bookIfGranted = program { (request: Term[Booking]) => BookIfGranted.run[Recorded](request) }
 ```
 
-The model is written as a program is, an instance of the boundary's trait over the model's state (`Model[F, S]`: `get`,
-`set`); `bookingTable.model(…)(StoredBookings(_))` declares it with its instance, and `storedBookings.in(world)` reads
-its state in a world. Lean prints the boundary as a class, the model's operations as `do` blocks, `World`, and the
-instance on `StateM World` (`next/proof/src/test/resources/rooms/Boundaries.decls.lean`). The program's run on the
-models is `bookIfGranted_run`.
+There is no boundary (owner §36). `inRoom` and `add` are Definitions, separate ones (owner: "A for now"), and the
+model gives each its meaning over its state (`Model[F, S]`: `get`, `set`, `update`); `storedBookings.in(world)` reads
+the state in a world. A program calls an operation as any Definition: `inRoom(request.room)` is a step of `F` where a
+step is expected (`Flow.step`, given implicitly). Lean sees what it saw with a boundary: a class with the operations
+named as the Definitions, the model's operations as `do` blocks, `World`, and the instance on `StateM World`
+(`next/proof/src/test/resources/rooms/Boundaries.decls.lean`; step 11b may rename the module `Models`). The program's
+run on the models is `bookIfGranted_run`.
 
 The World is the application at one moment, as the proofs see it (owner §33): code never sees it, and a statement
 mentions only the stores it reads, taking only their rules as hypotheses. Adding a store adds a field and brings back
@@ -594,9 +638,10 @@ for review no statement that does not read that store (step 11's `PortSuite` tes
 
 ### 3.3 The world outside
 
-The four assumptions are those of 2.6: the table behaves as its model and nothing outside the code changes it
-(`tableMatchesModel`), starts empty, runs on it are atomic (`oneAtATime`), and every booking ends after it starts
-(`bookingsEndAfterStart`). FrFlow derives that `book` is the one program changing the table.
+The four assumptions are those of 2.6: nothing but the code changes the table (`nothingElseWrites`), it starts empty,
+runs on it are atomic (`oneAtATime`), and every booking ends after it starts (`bookingsEndAfterStart`). FrFlow derives
+that `book` is the one program changing the table; that the table's Scala does what `storedBookings` says is tested
+(3.8).
 
 ### 3.4 The roots: the purpose, over Declarations
 
@@ -642,13 +687,13 @@ val storeWhenFree = Node.claim("A request is stored exactly when its room is fre
     book(request).from(before) { (_, after) =>
       storedBookings.in(after) === when(free(stored, request))(stored :+ request).otherwise(stored) }))
   .refines(bookWhenFree)
-  .assuming(tableMatchesModel, oneAtATime, bookingsEndAfterStart)
+  .assuming(oneAtATime, bookingsEndAfterStart)
 
 val answerWhenFree = Node.claim("A request is answered booked exactly when its room is free for its whole time.")(
   forall((request: Term[Booking], before: Term[World]) =>
     book(request).from(before) { (answer, _) => answer === free(storedBookings.in(before), request) }))
   .refines(acceptWhenFree)
-  .assuming(tableMatchesModel, oneAtATime, bookingsEndAfterStart)
+  .assuming(oneAtATime, bookingsEndAfterStart)
 ```
 
 Both read as runs of `book` and are proven of `bookIfGranted` by `impl`; a run has no "nothing" to give, so neither
@@ -668,7 +713,7 @@ val grantWhenFree = Node.claim("A request is granted exactly when its room is fr
 val bookingsOfTheRoom = Node.claim("A room's bookings are all of that room.")(
   always[RoomBookings](held => held.bookings.forall(b => b.room === held.room)))
   .refines(grantWhenFree)
-  .assuming(tableMatchesModel, bookingsEndAfterStart)
+  .assuming(bookingsEndAfterStart)
 
 val roomBookingsApart = …   // 2.3
 
@@ -708,9 +753,10 @@ README's step-4 calendar, which forgets the booking after the request, is found 
 ```scala
 val rooms = FrModel("Rooms")(bookWhenFree, acceptWhenFree, bookedIsStored, bookedAfterIsStored, acceptedIsAnswered,
   storeWhenFree, answerWhenFree, neverOverlap, grantWhenFree, bookingsOfTheRoom, roomBookingsApart, grantWhenNoOverlap,
-  tableMatchesModel, oneAtATime, startsEmpty, bookingsEndAfterStart)
+  nothingElseWrites, oneAtATime, startsEmpty, bookingsEndAfterStart)
   .implementProven(book)(bookIfGranted)
   .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
+  .implementTested(inRoom, add)(start = BookingsTable.holding, observe = _.bookings)(t => (t.inRoom, t.add))
   .withGenerator(roomNames.describedAs("Oak or Elm"))
   .withGenerator(requests.describedAs("requests for Oak or Elm that end after they start"))
   .withGenerator(roomBookings.describedAs("a room's bookings, laid end to end, some back to back"))
@@ -720,26 +766,26 @@ Sixteen nodes: two roots, three claims saying what the Declarations are, booking
 calendar and the rules below them, `neverOverlap`, and four assumptions.
 
 `withGenerator` (owner §26) gives a type's generator: `requests` draws bookings that end after they start, and
-`roomBookings` a room's bookings laid end to end; every other type's is derived.
+`roomBookings` a room's bookings laid end to end; every other type's is derived. `inRoom` and `add` get their Lean
+meaning from `storedBookings` and their Scala from `BookingsTable`, the SQLite table (3.8).
 
-### 3.8 The table's adapter, tested and run
+### 3.8 The table's Scala, tested and run
 
-The SQLite table is tested against the model, not trusted (`StoreModelSuite`, with an in-memory stand-in):
+The SQLite table is tested against the model, not trusted. The FrModel's line (3.7) says how:
 
 ```scala
-  private def checked(byRoom: Boolean = true, adds: Boolean = true) = storedBookings.checkedAgainst(
-    start = held => Ref[IO].of(held).map(Memory(_, byRoom, adds)),
-    observe = memory => memory.bookings)
+  .implementTested(inRoom, add)(start = BookingsTable.holding, observe = _.bookings)(t => (t.inRoom, t.add))
 ```
 
-`start` makes the implementation holding a model state; `observe` reads its state back. `ModelTests.run` runs generated
-calls (`Runs`, values meeting each `always[T]`) on both and reports the first answer that differs (`Difference.Answer`)
-or a final state that does (`Difference.State`). An outside system's adapter is checked with
-`storedBookings.checkedAgainst(…)`, its model assumed and checked on at most 200 runs; the project's own implementation
-with `storedBookings.implementedBy(start, observe)`, on every case (1,000), a node's count the sum of its checks'. On
+`start` makes the implementation holding a state of the model; `observe` reads its state back; the last gives each
+operation's Scala, in the order the Definitions are listed. `ModelTests.run` runs generated sequences of calls
+(`Runs`, values meeting each `always[T]`) on both and reports the first answer that differs (`Difference.Answer`) or a
+final state that does (`Difference.State`), on 200 runs by default. It is one form whoever wrote the Scala, the project
+or an outside system's vendor (owner §36), so `checkedAgainst` and `implementedBy` are gone. `StoreModelSuite` runs the
+same test on an in-memory stand-in and its seeded variants (`ModelTests.of(storedBookings)(start, observe)(calls)`): on
 200 runs the stand-in agrees; one that forgets the room filter is found at `inRoom`, one that forgets to add by its
-state. The suite also runs `BookIfGranted` in `IO` over `eval.Running` on the table lifted (`BookingTableOps.lifted`),
-as production does: a free request is booked, a clash is not.
+state. The suite also runs `BookIfGranted` in `IO` over `eval.Running` with the table's Scala bound
+(`rooms.running[IO](storedBookings := table)`), as production does: a free request is booked, a clash is not.
 
 ### 3.9 What check and show say
 
@@ -749,8 +795,8 @@ lines elided):
 ```text
 storeWhenFree         proven of book's program, bookIfGranted
                       assumed by the code calling book
-                      rests on the table behaving as storedBookings: tableMatchesModel
-                      rests on runs on bookingTable being atomic: oneAtATime
+                      rests on inRoom and add's Scala, tested against storedBookings
+                      rests on runs on storedBookings being atomic: oneAtATime
                       rests on what each Booking from outside meets: bookingsEndAfterStart
 bookedAfterIsStored   says what bookedAfter is: book's program, bookIfGranted, stands in it
                       consistent with acceptedIsAnswered, grantWhenNoOverlap: witnessed, for Lean to check
@@ -761,9 +807,9 @@ grantWhenFree         proven from its parts (grantWhenNoOverlap)
                       rules it uses: bookingsOfTheRoom, roomBookingsApart, bookingsEndAfterStart
                       not checked against granted's Scala: the statement has no Scala value (it quantifies over
                       every value)
-tableMatchesModel     the world outside: bookingTable does what storedBookings does, and nothing outside the code
-                      changes it; the programs changing it, derived: book
-oneAtATime            the world outside: runs on bookingTable never interleave
+nothingElseWrites     the world outside: nothing but the code changes storedBookings; the programs changing it,
+                      derived: book
+oneAtATime            the world outside: runs on storedBookings never interleave
 ```
 
 Lean is asked `complete` of the two roots (authored: the two Declarations' claims and booking's claim give each) and
@@ -910,24 +956,26 @@ generated term as the evaluator does.
 
 ### 4.3 The IR
 
-`core.expr.Expr`, made only by `ToExpr`, is a simply typed lambda calculus with data, containers and quantifiers;
-every node carries what its type needs (`Exprs.typeOf` is total). A binder's id is its level; a recorded step is
-numbered negative, apart from every level (`VarId`). One operator per meaning (`Contains` of a list, option or set is
-one `PrimOp`); every operation with a body is `Expr.Iterate`. `Mentions`, a monoid, says what an expression mentions.
-`Prog[E]` is a program's steps, first order, generic in what a step holds (`Prog[Stated[?]]` for back ends,
-`Prog[Expr]` for analyses): a free monad over boundary operations and model state, with errors, loops and concurrent
+`core.expr.Expr`, made only by `ToExpr`, is a simply typed lambda calculus with data, containers and quantifiers; every
+node carries what its type needs (`Exprs.typeOf` is total). A binder's id is its level; a recorded step is numbered
+negative, apart from every level (`VarId`). One operator per meaning (`Contains` of a list, option or set is one
+`PrimOp`); every operation with a body is `Expr.Iterate`. `Mentions`, a monoid, says what an expression mentions.
+`Prog[E]` is a program's steps, first order, generic in what a step holds (`Prog[Stated[?]]` for back ends, `Prog[Expr]`
+for analyses): a free monad over the operations on a state and the models' state, with errors, loops and concurrent
 steps (`Par`, `ParEach`, `Race`, `Guard`, `Atomic`). `Written(value, source, form)` keeps the term or steps (what back
 ends read), their IR (what analyses read) and the Scala as written (what the developer decides); only its three makers
 build it, so `value` is always `form`'s IR. The IR is never printed or run.
 
-### 4.4 Programs over boundaries
+### 4.4 Programs over Definitions
 
-A boundary is the developer's trait over an effect and a value form (`Bookings[F[_], T[_]]`); in programs and models
-`T` is `Term`. A program is a class over its effect asking only for `Flow[F]` (`dsl/frflow/dsl/flow/Flow.scala`,
-excerpt):
+There is no boundary (owner §36). A program calls Definitions: functions, defines, and operations on a state
+(`A => Program[R]`), each given its Lean meaning by a `StateModel` (2.2, 3.2). A program is a class or object over its
+effect asking only for `Flow[F]` (`dsl/frflow/dsl/flow/Flow.scala`, excerpt):
 
 ```scala
 trait Flow[F[_]] extends Monad[F]:
+  /** An operation on a state, applied: a step (given implicitly where a step is expected). */
+  def step[R](op: Term[Program[R]]): F[Term[R]]
   /** One of two programs by a condition at hand. */
   def cond[A](c: Term[Boolean])(ifTrue: => F[A], ifFalse: => F[A]): F[A]
   def each[X: LeanType](xs: Term[List[X]])(body: Term[X] => F[Unit]): F[Unit]
@@ -938,66 +986,71 @@ trait Flow[F[_]] extends Monad[F]:
 `Flow.scala` also has `guarantee`, `race`, `parTupled` and `atomically`, and `ifM`, `bracket` and `timeout` made of
 them; `RecordingSuite` records each as the step Lean reads (with `each`, `raise` and `handle`). Every combinator is kept
 (owner §2) and given a use in an example. `collect`, `fold`, `parCollect` and `attempt` (today's `traverse`, `foldM`,
-`parTraverse`, `attempt`) are not in the planned code: step 2 adds them, each with a `RecordingSuite` test, and keeps
-today's `retry` and `parTraverseN`'s limit as `retry(clock, waits)` (a fold of the waits over `handle` and the clock's
-`sleep`, as today) and `parCollectN(n)` (`Prog.ParEach` with its limit). `F` has three interpreters:
+`parTraverse`, `attempt`) are kept as step 2 added them, and today's `retry` and `parTraverseN`'s limit as
+`retry(now, sleep, waits)` (a fold of the waits over `handle` and the clock's `sleep`, as today) and `parCollectN(n)`
+(`Prog.ParEach` with its limit). The clock is FrFlow's own two Definitions, `now: Program[BigInt]` and
+`sleep: BigInt => Program[Unit]`, with their `StateModel` (`clockModel`: a count of seconds only sleeps move); `timeout`
+and `retry` take them. `F` has three interpreters:
 
-- **Lean's**: `Recording`, a pure `Flow[Recorded]`, with the boundary's recording instance (`store.recording`).
-  `program { … }` reads the recording into `Prog[Stated[?]]` (`ReadRecording`, steps numbered in its own `State`);
-  Lean prints a `do` block over `[Monad m] [Bookings m]`, run on the models' instance on `StateM World`. A bound term
-  is shared as Lean's `let`.
-- **Production's**: `eval.Running` for any `F: Async`, reached through `knowledge.running[F](bindings*)`: a condition
-  evaluated by `Evaluate`, `atomically` under one `Mutex`. The adapter is plain Scala over plain values
-  (`Bookings[IO, Id]`), lifted into `Bookings[IO, Term]` by `BoundaryOps.lifted`, which evaluates each argument, calls
-  the adapter and makes the result a term again. For a boundary that may fail, `Boundary.lifted` maps an adapter's
-  non-fatal failure to the declared error (`BoundaryOps.failures`, raised as `Raised`, its cause kept); a `Raised`
-  passes through, cancellation is never mapped, and a boundary that cannot fail lets its adapter's exceptions escape as
-  they are. Nothing is checked.
+- **Lean's**: `Recording`, a pure `Flow[Recorded]`, where an operation applied is a recorded call (`Prog.Call` of the
+  model and the operation). `program { … }` reads the recording into `Prog[Stated[?]]` (`ReadRecording`, steps
+  numbered in its own `State`); Lean prints a `do` block over `[Monad m]` and each model's class, run on the models'
+  instance on `StateM World`. A bound term is shared as Lean's `let`.
+- **Production's**: `eval.Running` for any `F: Async`, reached through `knowledge.running[F](bindings*)`, each model's
+  Scala bound (`storedBookings := table`): a condition evaluated by `Evaluate`, `atomically` under one `Mutex`. An
+  operation's Scala is plain Scala over plain values (`String => IO[RoomBookings]`, from the FrModel's
+  `implementTested(ops*)(start, observe)(calls)`); `Running` evaluates each argument, calls it and makes the result a
+  term again. For a model whose operations may fail (`StateModel.failing[S, E](means, error)`), an implementation's
+  non-fatal failure is mapped to the declared error (raised as `Raised`, its cause kept); a `Raised` passes through,
+  cancellation is never mapped, and a model that cannot fail lets its implementation's exceptions escape as they are.
+  Nothing is checked.
 - **Scala tests'**: the recorded `Prog` run by `eval.flow.FlowInterpreter` against a `World`: the models (examples,
-  model tests) or the adapters (interleavings). A sequential run takes a race's winner from the world (a reserved
-  `races : List Bool`, held like `faults`, read by `races.leftWins`), one of the scheduler's choices Lean leaves open.
+  model tests) or the implementations (interleavings). A sequential run takes a race's winner from the world (a
+  reserved `races : List Bool`, held like `faults`, read by `races.leftWins`), one of the scheduler's choices Lean
+  leaves open.
 
-`BoundaryOps[B]`, which `derives BoundaryOps` writes (step 2; the planned rooms writes it by hand), gives the class Lean
-declares, `recording`, `call`, `model` and `lifted`. `LowerModels` prints boundaries, models, `World` and each program's
-run on them (`f_run`). `FlowAgreementSuite` (step 4) states the law that a program's recording run on the models gives
-what `Running` gives on the models' instances, a failing boundary's adapter included.
+`StateModel` reads each operation's `means` into `vocab.StateModel` (`ModelOp` per operation); `LowerModels` prints the
+models, `World` and each program's run on them (`f_run`). `FlowAgreementSuite` (step 4) states the law that a
+program's recording run on the models gives what `Running` gives on the models' instances, a failing implementation
+included.
 
-**Every boundary is checked** (owner §30: "Boundary must have a model or assumption"). Each boundary that covered
-code calls has a model, assumed by `behavesAs` (2.6), or an assumption about it (one whose formula mentions its
-operations, as an outside system's promise does). One with neither is refused (`Problem.BoundaryUnchecked(boundary)`).
-What covered code hands a boundary is then never unchecked, a value built inline included: a program's call
-arguments owe each `always[T]` whose guard reaches them (`made_<op>` of the arguments, asked of the program as
-`cover_` is), and the model or the assumption says what comes back.
+**Nothing FrFlow cannot see goes unchecked** (owner §36, superseding §30's and §35's boundary wording). Every
+Definition has a meaning (`Problem.Undefined`): proven code, a value, plain Scala tested against its claims, an
+operation's model with its Scala tested against it, or plain Scala known only by its assumptions, tested against them
+where a case can be evaluated. What proven code hands to plain Scala meets the rules on its type
+(`made_<code>_call_<i>`, 2.3), a Lean obligation only (owner §37). `BoundaryUnchecked`, `behavesAs`, `AssumedModel`
+and a boundary's call written in a statement are gone: an operation is a Definition, so a statement runs it as it runs
+a program, `add(b).from(now) { (_, after) => … }`.
 
 **A program's error type** (step 3b, before step 4). `Ty.FlowOf(result, error: Option[Ty])`. A program's error has two
 senses, both read off its recording (`core.Failing`). The monad's: every error it raises, handles or meets (a failing
-boundary's, `Boundary.failing[B, E](means, error)`), one type, what `FlowOf` says and its run is over. What escapes:
-those outside a `Catch` of their type (`Progs.failsWith`), what a failing run's clause is of. A boundary that may fail
-names the error a call fails with (`Failure.StoreUnavailable`, `vocab.Fails`), which `FrFlow.failing` needs. The front
-end cannot type a program's error where its Definition is written (its code comes later), so `Resolve` does
+model's, `StateModel.failing[S, E](means, error)`), one type, what `FlowOf` says and its run is over. What escapes:
+those outside a `Catch` of their type (`Progs.failsWith`), what a failing run's clause is of. A model whose operations
+may fail names the error a call fails with (`Failure.StoreUnavailable`, `vocab.Fails`), which `FrFlow.failing` needs.
+The front end cannot type a program's error where its Definition is written (its code comes later), so `Resolve` does
 (`Failing.typed`): each program's define, the Definition it is the meaning of, and every formula's term and IR
 (`Retyped`), so `Exprs.typeOf` of a program in a formula is its resolved type. Only a proven program has an error; a
 program Definition given plain Scala has the one its type declares (none). `Validate` refuses a program over two error
-types (`ErrorsDiffer`; handling one and failing with another, or calling a boundary failing with another, would need two
-`ExceptT`s), a `.failing` clause of another type than what escapes (`FailingDiffers`), one on a program nothing escapes
-(`NeverFails`), and a run of a program that is no Definition applied to inputs (`RunOfNoDefinition`: Lean reads how to
-match a run off the Definition it applies). In Lean a program with an error runs as `World → (Except e r × World)`,
-on the models' instance on `ExceptT e (StateM World)` (one per error), a failing boundary call going through
-`FrFlow.failing` on the world's `faults : List Bool` (a field when a boundary may fail; `faults` and `races` are
-reserved); `f_run` is `FrFlow.runOnE (ε := e)`, a run's post matches `Except.ok` (`| _ => True` for the rest, sound
-when nothing escapes), `cover_` holds of the world a failed run leaves too when an error escapes (both arms,
-`runs ∧ fails`, `FrFlow.outcome` unfolded), `made_` of ok results, and `commute_` reads the error from the type.
+types (`ErrorsDiffer`; handling one and failing with another, or calling an operation failing with another, would need
+two `ExceptT`s), a `.failing` clause of another type than what escapes (`FailingDiffers`), one on a program nothing
+escapes (`NeverFails`), and a run of a program that is no Definition applied to inputs (`RunOfNoDefinition`: Lean reads
+how to match a run off the Definition it applies). In Lean a program with an error runs as `World → (Except e r ×
+World)`, on the models' instance on `ExceptT e (StateM World)` (one per error), a failing operation's call going through
+`FrFlow.failing` on the world's `faults : List Bool` (a field when an operation may fail; `faults` and `races` are
+reserved); `f_run` is `FrFlow.runOnE (ε := e)`, a run's post matches `Except.ok` (`| _ => True` for the rest, sound when
+nothing escapes), `cover_` holds of the world a failed run leaves too when an error escapes (both arms, `runs ∧ fails`,
+`FrFlow.outcome` unfolded), `made_` of ok results, and `commute_` reads the error from the type.
 `.failsChangingNothing[E]` says every model's state is as before (`Worlds.unchanged(after, before)`, `Expr.Unchanged`;
-in Lean one equation per model's field, the faults left out), and `===` between worlds is refused where a boundary may
+in Lean one equation per model's field, the faults left out), and `===` between worlds is refused where an operation may
 fail (`WorldsEqual`): it would compare the faults the calls took.
 
 ### 4.5 The front end: nodes, names, errors
 
 A DSL node is `Node(head: Head, statement: Deferred[Statement])`: the head as written (id, sentence, position, links),
-the statement built when elaborated. `Source.valName`, read at compile time, names nodes, values, types, boundaries
-and models: one name in code, reports and Lean. Today's `Node` fields each have a place: `why` is the decision's
-reason, parents are edges, `post` and `op` are derived from the formula, `file` and `at` are a
-`Sited(node, at: Span)`; `kept`, `runCheck`, `ideaSection` and `enforce` are gone.
+the statement built when elaborated. `Source.valName`, read at compile time, names nodes, values, types and models: one
+name in code, reports and Lean. Today's `Node` fields each have a place: `why` is the decision's reason, parents are
+edges, `post` and `op` are derived from the formula, `file` and `at` are a `Sited(node, at: Span)`; `kept`, `runCheck`,
+`ideaSection` and `enforce` are gone.
 
 **An error waiting for its place.** A part built later is a `Deferred[A]` (an `Applicative`: errors accumulate,
 declarations merge). An error found before its place is known is a `Fault`, carried in a term's notes or thrown as
@@ -1008,11 +1061,12 @@ declarations merge). An error found before its place is known is a `Fault`, carr
 `Validate(e: Elaborated): ValidatedNec[Problem, Valid]` returns every problem at once, one `Problem` case per thing
 wrong: the graph (`DuplicateId`, `NoRoot`, `AboveItself`, `ParentOutside`, `DesignWithoutParent`, `UnderDesign`,
 `PremiseNotAssumed`, `OutsideAsPart`, `OutsideClaimed`); the world outside (`PremiseMissing`, `PremiseNotNeeded`,
-`AlwaysNotReached`, `BoundaryUnchecked`); the vocabulary (`ReservedName`, `DeclaredTwice`,
+`AlwaysNotReached`); the vocabulary (`ReservedName`, `DeclaredTwice`,
 `CodeOnlyInStatement`); values (`Undefined`, `DeclarationInCode`, `CodeWithoutClaim`, `RestsOnItself`); programs
 (`RunOfNoDefinition`, `ErrorsDiffer`, `FailingDiffers`, `NeverFails`, `WorldsEqual`). A model's Lean namespace, its
-name capitalized (`Stored`), counts among the declared names, so a model named as its boundary's class is
-`DeclaredTwice`.
+name capitalized (`Stored`), counts among the declared names, so a model named as a declared type is
+`DeclaredTwice`. `BoundaryUnchecked` is gone with the boundary (owner §36): a Definition with no meaning is
+`Undefined`.
 
 `Resolve(v: Valid): Resolved` computes once what each node uses, calls and rests on (`Callees`, `reliesOn`, which leaves
 out a node's ancestors and descendants). `Scope` derives where an `always`, claimed or assumed, applies: the Definitions
@@ -1090,7 +1144,7 @@ Property-based testing stays in full and carries every check the running service
 - **The step refutation** and **the witness search** (`testing.search`).
 
 Every value drawn by its type meets each `always[T]` of the type and of each value nested in it, an example's seed
-values included (`Respecting`, `DrawnSuite`); a drawn world takes faults where a boundary may fail and races' winners
+values included (`Respecting`, `DrawnSuite`); a drawn world takes faults where an operation may fail and races' winners
 where a program races. A run is a function of its seed and the code. A report carries notes (`Note`): what a given
 generator made (`Given`), the examples' values it never made (`NeverMade`), and a call with nothing to vary
 (`NothingToVary`).
@@ -1149,7 +1203,7 @@ compiled. The agent layer (`agent`) never decides: its commands and routes read 
 | Module | Depends on | Holds |
 |---|---|---|
 | `core` | cats-core | names, `Ty`, term algebras, `Expr`, `Prog`, statements, analyses, checking, consistency |
-| `dsl` | core | the user's syntax, elaboration, `Term[A]`, `Flow`, `Boundary`, models, macros |
+| `dsl` | core | the user's syntax, elaboration, `Term[A]`, `Flow`, `StateModel`, macros |
 | `proof` | core | obligations, the Lean AST, the term printer, lowering, layout, judges |
 | `eval` | dsl, cats-effect-kernel, -std | the term evaluator, `Running`, `CallCheck`, `Wiring`, `ExampleRun`, `FlowInterpreter` |
 | `testing` | eval, cats-effect, sbt test-interface | `Draw`, `Respecting`, `PropertyTests`, `ModelTests`, `Interleavings`, searches |
@@ -1249,6 +1303,15 @@ them (owner §2, F): comments blanked, blank lines and trailing spaces dropped, 
 collapsed. A change of meaning always moves it; comment and spacing edits do not; a few harmless edits do (`f(/*a*/x)`
 to `f(x)`).
 
+**Code in a file that holds nodes** (owner §38). The expression given to `implementTested` is part of the node's
+content already (its `implementation` line); the definitions it refers to are fingerprinted wherever they are written.
+A file holding no node or attached code is governed whole, as before. A file holding nodes is governed only by the
+spans of the definitions referred to: `SourceFiles` records each referred symbol's file and start, and the lexer takes
+its span, from that line to the next line at the same or a lower indentation, adding the spans of the same file's
+top-level definitions a span names until nothing new is added. So editing a node beside the code brings nothing back,
+and editing the code does: keycloak's `introspection`, written in `Introspection.scala` beside four nodes, brings
+`introspectAnswers` back with `Cause.Code`.
+
 **Exports.** The snapshot (`.frflow/kb.json`) is `wire`'s own rows by kind, made by one mapping (`Rows`), printed by
 `--json` and read by no FrFlow module; `wire` also has the codecs of the ledger, deciders, the ledger base,
 `checks.json` (`{checks, whole}`: each node's check, and the whole theory's) and `tests.json` (each report with its
@@ -1309,7 +1372,7 @@ State, each piece named: `FrModel.elaborated` (a `lazy val`), `Running`'s lock, 
 `State`. Atomics and locks are allowed only in `eval.Running` and `FlowInterpreter.concurrent`, `ThreadLocal` nowhere.
 Casts are in fourteen named places (`Guards`, `Keeping`, `Making`, `Definition.called`, `Term.bound`, `eval.Fn`,
 `ReadRecording`, `Running.handle`, `ValuesSyntax.apply`, `Defining`, `Conditions`, `AtValue`, `Written.term`, and the
-`call` that `BoundaryMacros` generates), each typed by what was read before it. No interpreter of terms casts but
+`call` an operation's Scala is reached by), each typed by what was read before it. No interpreter of terms casts but
 `Evaluate`, through `Fn.as`, where it reads untyped given values; no unchecked type test is left outside `Fn`.
 
 ## 8. What is removed from today's library, and why
@@ -1340,7 +1403,8 @@ the tests reach.
 |---|---|
 | contract on an operation | a claim on a Definition, read as a call (2.7) |
 | invariant of a type / of a store | a claim of `always[T](x => …)` / `always(stored)(s => …)` |
-| a store's model | an assumption, `store.behavesAs(stored)` |
+| a store's model | a `StateModel` giving each operation's meaning; its Scala tested against it (owner §36) |
+| a boundary, its trait, `behavesAs`, `BoundaryUnchecked` | none: operations are Definitions; the generated-run test and `stored.onlyCodeChanges`; `Undefined` (owner §36) |
 | definition node (`authorized := …`) | a claim of one equation, or a `define` |
 | `Param`, `Operation`, `Open` | `Declaration`, `Definition` |
 | `.expects(statement)(consequence)` | a claim the expecting claim refines |
@@ -1350,8 +1414,8 @@ the tests reach.
 | two definitions of one term | two claims, one `.replaces` the other |
 | `==>`, the Boolean `fold`, `before(stored)` | `implies`, `when(…)(…).otherwise(…)`, `stored.in(before)` |
 | assumptions on what calls a Definition | a type for what comes from outside, with an assumption of `always` on it (2.6) |
-| `stored.writtenOnlyBy(p)`, `WriterNotListed` | derived: the programs changing a store; `behavesAs` says nothing outside the code changes it (owner §31) |
-| `stored.changedOneRunAtATime` | `store.atomic`, on the boundary (owner §32) |
+| `stored.writtenOnlyBy(p)`, `WriterNotListed` | derived: the programs calling an operation whose meaning changes the state; `stored.onlyCodeChanges` says nothing outside the code changes it (owner §31, §36) |
+| `stored.changedOneRunAtATime` | `stored.atomic`, on the model (owner §32, §36) |
 
 **Everything else**: `why` on nodes (the examples' `why` texts are offered as the reasons of their first decisions);
 `IDEA.md`, idea sections and numbered questions (owner §1: the purpose is stated by the root statements; a README is
@@ -1398,7 +1462,8 @@ listed. `WalkthroughSuite` replays the README's rooms changes (steps 4–6) on a
 | 9 | `next/api`: the three algebras, views, `FrFlowApi.inMemory` | `api`'s suites |
 | 10 | `next/cli`, `next/web`, `next/agent`; `init` writes the deciders' list | `cli`'s and `agent`'s suites, a web smoke test |
 | 11 | the rules of 2.3 to 2.8 that today's rooms needs (below); rooms ported as section 3 writes it; the README walk-through rewritten | a suite per rule; rooms' suites, the Lean spike, `PortSuite`, `WalkthroughSuite` |
-| 12 | auth, then keycloak, then crm ported | each `PortSuite` and its seeded bugs |
+| 11b | Boundary removed (owner §36); rooms re-ported; README draft redone | rooms' suites, `PortSuite`, `WalkthroughSuite`, the Lean spike; no `Boundary` left in `next/` |
+| 12 | `made_` at the call, the fingerprint of code beside nodes; auth, then keycloak, then crm ported | each `PortSuite` and its seeded bugs |
 | 13 | sharing ported, with the kept combinators' uses | its `PortSuite`, fault sweep and interleavings |
 | 14 | today's modules deleted, `next/*` moved, docs and skills rewritten | the architecture test at target, size baseline at zero |
 | 15 | the owner decides each example's ledger with his key | `confirm` for the mechanical nodes; nothing earlier counts |
@@ -1414,10 +1479,32 @@ review listing rules apart from parts (2.4); consistency gating the proof: a gro
 model and for every statement proven from parts over a Declaration (2.8, owner §28); and every boundary covered code
 calls having a model or an assumption (4.4, owner §30); the programs changing a store derived, `writtenOnlyBy` gone,
 and `atomic` said of the boundary (2.6, owner §31, §32). None needs a new kind of node or value, a quantifier or a
-second name. In step 12, auth's `Param`s become
-Declarations and Definitions (`grants`, `sessions` provided, `admit` tested) and `Server` calls
-`knowledge.code(admit)(…)`; keycloak loses its `checkedBy`; crm's `Database[F, T]` becomes tagless, its expiry job
-gains its `ifM`, and `noCrossTenantRead` becomes a root over two Definitions. In step 13, sharing uses `timeout`,
+second name.
+
+Step 11b removes the boundary (owner §36), before any outside system is ported: `Boundary`, its trait as interface,
+`BoundaryOps`, `behavesAs`, `BoundaryUnchecked`, and today's `Clock` trait go; an operation on a state is a Definition
+given its Lean meaning by a `StateModel` and its Scala by `implementTested(ops*)(start, observe)(calls)`;
+`onlyCodeChanges`, `initially` and `atomic` are said of the model; the clock is two Definitions with their model. Lean
+sees what it saw (each operation runs on its model's field of the World), so rooms' Lean changes only in names. Rooms
+is re-ported as section 3 writes it, its goldens and `WalkthroughSuite` texts follow, and the README's rooms draft is
+redone and goes through its readers again (owner §3). The work list is the step's impact list.
+
+Step 12 builds `made_<code>_call_<i>` (2.3, owner §37) and the fingerprint of code beside nodes (6, owner §38), each
+with its suite: a crm-shaped fixture whose rule "one row per key" a seeded expiry job breaks at its `storeAbout` call,
+and the `Introspection.scala` case. Then auth, keycloak and crm are ported (owner §40):
+- Auth: its `Param`s become Declarations and Definitions (`grants`, `sessions` provided, `admit` tested), `sessions` a
+  list with the assumption `tokensIssuedOnce`, and `Server` calls `knowledge.code(admit)(…)`.
+- Keycloak: it loses its `checkedBy`; its store's `lookup` and `record` are plain Scala known by their assumptions
+  (`sessionLookup`, `storeKeepsState`); the claim on `introspect` is the node `introspectAnswers`.
+- Crm: its database's `load`, `storeAbout` and `logEvent` are Definitions with the model `databaseModel`, its expiry
+  job gains its `ifM`, its tables hold one row per key (`always[CrmStore]`), `noCrossTenantRead` is a root over two
+  Definitions, and `acmeNeverSeesGlobex` is an example test.
+
+The consistency groups of keycloak's store and crm's search are proven by a hand-written `consistent_<i>` each, with
+today's `storedSession` and `storedMatching` as witnesses; an agent may write them, Lean checks them, and the developer
+decides the nodes as usual (2.8, owner §28, §39).
+
+In step 13, sharing uses `timeout`,
 `race`, `bracket` and `parTupled`, each under a proven claim. Step 14 rewrites `docs/USAGE.md`, `docs/DAG.md`,
 `docs/index.html` and the frflow and scala-fp skills.
 
@@ -1467,18 +1554,18 @@ review functions, 8's (the port interpreters, `NodeChecker`, the lexer's passes,
 | an outside vocabulary lacks a native interpreter | low | it runs through its meaning in the core, a law tying the two |
 | a bug only production data shows | certain in principle | the owner's decision; seeds include the examples' worlds |
 | the examples' decisions are lost | certain | old `why` texts offered as reasons; `confirm` batches |
-| the macros meet a case the examples lack | medium | `ElabError`s name the site; `BoundaryOps` tested per example |
+| the macros meet a case the examples lack | medium | `ElabError`s name the site; `StateModel` reading tested per example |
 | rewriting 5,176 lines of tests lets a case slip | medium | ported suites keep case names; a step lists what it drops |
 
 ### 10.2 Open questions
 
 In order of value; none blocks a step.
 
-- **Step 11: the README's forms.** `checkedAgainst`'s parameters could say their roles (`startFrom`, `readBack`);
-  introduce `World` where first used; warn when a node reached by an edge is missing from the `FrModel` list, or
-  collect the list. (Settled by today's rooms: a `RoomBookings` names its room, `bookingsOfTheRoom` says so, and
-  `Calendar` grants a request for another room; the names are `bookingTable`, `storedBookings`, `tableMatchesModel`
-  and `startsEmpty`.)
+- **Step 11: the README's forms.** `implementTested`'s `start` and `observe` could say their roles (`startFrom`,
+  `readBack`); introduce `World` where first used; warn when a node reached by an edge is missing from the `FrModel`
+  list, or collect the list. (Settled by today's rooms: a `RoomBookings` names its room, `bookingsOfTheRoom` says so,
+  and `Calendar` grants a request for another room; the names are `inRoom`, `add`, `storedBookings`, `nothingElseWrites`
+  and `startsEmpty`, step 11b's.)
 - **Steps 1 and 11: rules without a Scala value.** Today's rooms states `roomBookingsApart` over moments (`apart`);
   the port keeps `noOverlap`, since drawn values are judged by it (2.3). Make the limit a validation message, not only
   a risk.
@@ -1486,9 +1573,9 @@ In order of value; none blocks a step.
   assumption could group them, if the owner agrees, still one edge and one kind.
 - **The double reading of `always`** (of a type, of a store) is kept as one word, read as "every value the covered
   code can produce" (owner §19); asynchrony is out of scope (owner §17).
-- **Settled (owner §30): a value handed to a boundary.** Every boundary covered code calls has a model or an
-  assumption about it, else it is refused (`Problem.BoundaryUnchecked`, 4.4), so a value built inline and passed to a
-  boundary never goes unchecked.
+- **Settled (owner §30, §36, §37): a value handed to code FrFlow cannot see.** There is no boundary: every Definition
+  has a meaning (`Undefined` otherwise), and what proven code hands to plain Scala meets the rules on its type
+  (`made_<code>_call_<i>`, 2.3), so a value built inline and passed on never goes unchecked.
 
 ### 10.3 Compile time, measured
 
@@ -1563,7 +1650,7 @@ The decisions are in `owner-decisions.md`; the right column says where this docu
 | 1 | No `IDEA.md` or numbered questions; the README is prose | 8 |
 | 2 A, 5 | Terms concrete for the user, tagless-final inside | 4.2 |
 | 2 B | No ambient state | 2.2, 4.2, 7.3 |
-| 2 C | Tagless boundaries and programs | 4.4 |
+| 2 C | Tagless programs (the boundaries removed by §36) | 4.4 |
 | 2 D | A ground-up rebuild here; today's Lean a reference | 1.3, 9 |
 | 2 E | Twelve modules, without `runtime` | 5 |
 | 2 F | Code fingerprint by the simple lexer | 6 |
@@ -1594,12 +1681,17 @@ The decisions are in `owner-decisions.md`; the right column says where this docu
 | 27 | The design before step 11: rules below a statement, Declarations' meanings, who lists an assumption | 2.3 to 2.9, 3, 9 |
 | 28 | Consistency gates the proof | 2.8, 4.10, 7.1, 9 |
 | 29 | Today's library frozen but for bug fixes | 9 |
-| 30 | Every boundary has a model or an assumption | 4.4, 4.6, 10.2 |
-| 31 | `writtenOnlyBy` dropped: the programs changing a store derived; `behavesAs` says nothing outside changes it | 2.3, 2.6, 3, 6, 8 |
-| 32 | `changedOneRunAtATime` is `atomic`, on the boundary | 2.6, 3, 8 |
+| 30 | Every boundary has a model or an assumption (its boundary wording superseded by §36); `made_` at the call | 2.3, 4.4, 10.2 |
+| 31 | `writtenOnlyBy` dropped: the programs changing a store derived; nothing outside changes it, now `onlyCodeChanges` (§36) | 2.3, 2.6, 3, 6, 8 |
+| 32 | `changedOneRunAtATime` is `atomic`, on the boundary, now on the model (§36) | 2.6, 3, 8 |
 | 33 | One World, kept local: a statement takes only the stores it reads; a new store brings nothing unrelated back | 2.3, 3.2, 9 |
 | 34 | A run is written with `.from` (and `.failing`); `.answer`/`.after` not carried | 2.7, 3, 8 |
-| 35 | A boundary has a Model: `StateModel` or `AssumedModel` (step 12) | 2.6, 4.4, 9 |
+| 35 | A boundary has a Model: `StateModel` or `AssumedModel` (superseded by §36) | 2.2, 4.4 |
+| 36 | No `Boundary`: what FrFlow cannot see is a Definition given plain Scala; a `StateModel` gives a stateful one's meaning; operations are separate Definitions ("A for now") | 2.2, 2.6, 3, 4.4, 8, 9 |
+| 37 | `made_` at the call, every call, a Lean obligation only | 2.3, 4.4, 10.2 |
+| 38 | Only the definitions code refers to are fingerprinted in a file holding nodes | 6 |
+| 39 | Hand-written consistency proofs; agents may write them | 2.8, 9 |
+| 40 | The ports' decisions: crm's row rule, crm's roots, auth's `tokensIssuedOnce`, `introspectAnswers` | 9 |
 
 ## Appendix B. Today's library, and where each problem is addressed
 

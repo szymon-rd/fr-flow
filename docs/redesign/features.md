@@ -91,11 +91,11 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
 | a flow contract's lambda `(input, result, before, after) => …` | a claim read as a run | crm 1, sharing 3 | change, note 4 |
 | `why = "…"` on every node | the signed decision's reason | 10 / 23 / 26 / 58 (rooms 2) | remove, note 5 |
 | `idea = "Section"`, `FrModel(…, idea = …)` | none | 77, all four | remove (owner §1) |
-| `Node.assumption(store)(Stored)(statement)` | a model and `store.behavesAs(stored)` | crm, sharing, rooms | change, note 6 |
-| `stored.initially`, `changedOneRunAtATime` | `OutsideFact`, said by assumptions: `stored.initially`, `store.atomic` | rooms 2 | change, note 7 |
-| `stored.writtenOnlyBy(p)` | none: the programs changing a store are derived; `behavesAs` says nothing outside the code changes it | rooms 1 | remove, note 7 |
+| `Node.assumption(store)(Stored)(statement)` | a `StateModel` giving the operations' meanings, their Scala tested against it | crm, sharing, rooms | change, note 6 |
+| `stored.initially`, `changedOneRunAtATime` | `OutsideFact`, said by assumptions: `stored.initially`, `stored.atomic`, `stored.onlyCodeChanges` | rooms 2 | change, note 7 |
+| `stored.writtenOnlyBy(p)` | none: the programs changing a store are derived; `stored.onlyCodeChanges` says nothing outside the code changes it | rooms 1 | remove, note 7 |
 | `book.calledOnlyWith(request => …)` | a type for what comes from outside, `always` assumed on it | rooms 1 | change, note 21 |
-| `Boundary[B]("store", means)` | `BoundarySig`, `BoundaryOps[B]`, `Boundary.failing[B, E]` | crm, sharing, rooms | change, note 8 |
+| `Boundary[B]("store", means)` | none: each operation a Definition; `StateModel.failing[S, E]` | crm, sharing, rooms | remove, note 8 |
 | `.under(parents*)`, `.replaces(other)` | `Edge.PartOf`, `Edge.Replaces` | all; `.replaces` none | change, note 9 |
 | `.assuming(premise*)` | `Edge.Assumes` | rooms | new, note 10 |
 | `.keeps(invariant)(view)`, `.exempt(invariant, because)` | none | keycloak, crm | remove, note 11 |
@@ -108,7 +108,7 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
 | `.checkedAtRunTime(RunCheck)` | none | tests only | remove (owner §2) |
 | `.leftOpenAbove` | `Claim.reliance = LeftOpen` | sharing 5 | keep, note 18 |
 | `.failsChangingNothing[E]`, `.onFailure[E]` | the run's failure clause | sharing 2 / 1 | change, note 19 |
-| `.checkedAgainst(start, read)`, `.implementedBy(start, read)` | `AdapterCheck`, `ModelTests.run` | crm 1+2, sharing 1+3 | change, note 20 |
+| `.checkedAgainst(start, read)`, `.implementedBy(start, read)` | `implementTested(ops*)(start, observe)(calls)`, `ModelTests.run` | crm 1+2, sharing 1+3 | change, note 20 |
 
 1. Three forms only, `Node.claim(statement)(formula)`, `Node.assumption(statement)(formula)` and
    `Node.design(statement)(paths*)`, without `why` and without an id (the id is the val's name as written).
@@ -125,22 +125,25 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
    `databaseModel.in(before)`. The post is over today's four inputs, so crm's Lean prints byte for byte (`ExpiryJob`).
 5. `show` and review show the reason from the ledger (`Says.reason`); the texts go into each example's first
    decisions' reasons when the owner decides them (owner §2).
-6. The model is an instance of the tagless trait over its state,
-   `final class Stored[F[_]: Flow](state: Model[F, S]) extends Bookings[F, Term]`, declared with its boundary as
-   `val stored = store.model(means)(Stored(_))` and assumed by `Node.assumption(statement)(store.behavesAs(stored))`
-   (owner §16). It is a premise of every check of code calling the store, written `.assuming(storeModel)`, never a
-   part; Lean prints it in the `Boundaries` module (`LowerModels`), and Scala runs it through `World.models` (2.6,
-   3.2).
-7. The facts the rules about `always` rest on: the store behaves as its model and nothing outside the code changes it
-   (`behavesAs`), its start (`initially`, on the model), and runs on it are atomic (`store.atomic`, on the boundary)
-   (owner §16, §17, §31, §32). Each is said by an assumption, reviewed as any node, and listed by each claim resting on
-   it; `Premises` checks the lists (`PremiseMissing`, `PremiseNotNeeded`). The programs changing a store are derived
-   from the code, each asked to keep its rules; `writtenOnlyBy` and `WriterNotListed` are gone, and a program newly
-   changing a store brings the claims of `always` about it back for review. Asynchrony is future work; `show` lists
-   each fact a check rests on, and of a `behavesAs` the programs derived to change the store (2.6; `BookSuite`,
-   `CheckingSuite`).
-8. `Boundary[B](means)`, named from its val, over `trait B[F[_], T[_]] derives BoundaryOps`. A boundary whose calls can
-   fail is `Boundary.failing[B, E](means)`, today's form, setting `BoundarySig.failsWith`.
+6. There is no boundary (owner §36). Each operation on a state is a Definition of type `A => Program[R]` (rooms'
+   `inRoom`, `add`), and the model gives each its meaning over the state:
+   `object storedBookings extends StateModel[List[Booking]](means)` with `inRoom.means(room => …)` and
+   `add.means(booking => …)`. The model is not an assumption: the operations' plain Scala is tested against it (note
+   20). Lean prints each model's class with its operations, its instance on `StateM World` (`LowerModels`), and Scala
+   runs it through `World.models` (2.6, 3.2).
+7. The facts the rules about `always` rest on: nothing outside the code changes the state (`stored.onlyCodeChanges`),
+   its start (`stored.initially`), and runs on it are atomic (`stored.atomic`), all said of the model (owner §16, §17,
+   §31, §32, §36). Each is said by an assumption, reviewed as any node, and listed by each claim resting on it;
+   `Premises` checks the lists (`PremiseMissing`, `PremiseNotNeeded`). The programs changing a state are derived from
+   the code (those calling an operation whose meaning changes it), each asked to keep its rules; `writtenOnlyBy`,
+   `WriterNotListed` and `behavesAs` are gone, and a program newly changing a state brings the claims of `always` about
+   it back for review. Asynchrony is future work; `show` lists each fact a check rests on, and of an `onlyCodeChanges`
+   the programs derived to change the state (2.6; `BookSuite`, `CheckingSuite`).
+8. Removed (owner §36: "Custom scala code has the same nature as external app"): `Boundary`, its trait as interface,
+   `BoundaryOps`, `BoundaryUnchecked` and `AssumedModel` (owner §35, superseded). The operations of one system are
+   separate Definitions, not a trait ("A for now"); a model whose operations may fail is
+   `StateModel.failing[S, E](means, error)`. A Definition known only by assumptions is plain Scala with assumptions
+   (keycloak's `lookup`, crm's `fetch`), tested against them where a case can be evaluated, trusted otherwise.
 9. `.refines(parents*)` replaces `.under`; `.replaces` is kept.
 10. A premise the node's proof assumes is an assumption, never a part (`PremiseNotAssumed`, `OutsideAsPart`,
     `OutsideClaimed`). It is the one mechanism for a premise, the outside's included, and its list is checked against
@@ -167,11 +170,12 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
     claim's own run, one formula for both outcomes:
     `handle(r).from(before) { (answer, after) => … }.failing { (error: Term[E], after) => … }`
     (`SharingClaimsSuite`).
-20. On the model, with named arguments: `stored.checkedAgainst(start = held => …, observe = adapter => …)`. Runs are
-    generated from the boundary's signature (`Runs`), answers then states compared (`CodeTable.realized`). It is the
-    only check of an outside system's adapter (3.8; `StoreModelSuite`). The project's own implementation is checked with
-    `stored.implementedBy(start, observe)`, as today. An outside system's is run at most 200 times, the project's own on
-    every case (1,000), and a node's count is the sum of its checks'.
+20. On the operations, in the FrModel: `implementTested(inRoom, add)(start = BookingsTable.holding,
+    observe = _.bookings)(t => (t.inRoom, t.add))`, `start` making the Scala hold a state of the model, `observe`
+    reading it back, the last giving each operation's Scala. Generated sequences of calls (`Runs`) are run on both,
+    answers then states compared (`CodeTable.realized`), on 200 runs by default. One form whoever wrote the Scala
+    (owner §36); `checkedAgainst` and `implementedBy` are gone, and a suite tests a variant with
+    `ModelTests.of(stored)(start, observe)(calls)` (3.8; `StoreModelSuite`).
 21. Statements are about values only (owner §21): nothing is assumed of a function's inputs. What comes from outside
     gets a type, and what is trusted about it is an assumption of `always` on that type; the general rule gives it a
     type of its own. Rooms keeps one type (owner §25): `bookingsEndAfterStart`, "Every booking ends after it starts",
@@ -211,14 +215,14 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
    lifted, `database.lifted(adapter, running)` (owner §2, C; 4.4).
 7. It moves to the checker's configuration.
 
-## Programs over boundaries
+## Programs over Definitions
 
 | Feature | In the rebuild | Use | Rebuild |
 |---|---|---|---|
-| `trait Database { def load: Flow[CrmStore] }`, `Boundary[T]` | `trait Database[F[_], T[_]]`, `BoundaryOps` | crm 1, sharing 1+2 | change, note 1 |
+| `trait Database { def load: Flow[CrmStore] }`, `Boundary[T]` | one Definition per operation (`load: Program[CrmStore]`) | crm 1, sharing 1+2 | change, note 1 |
 | a program as a `Flow[A]` value | a class over `F[_]: Flow` | crm, sharing | change, note 2 |
-| implementations returning `Flow.effect(x)(f)` | adapters over plain values, `Database[IO, Id]` | crm 9, sharing 5 | change, note 3 |
-| `StateModel[S]`, `state.get/set/update` | the boundary's trait over `Model[F, S]` | crm 1, sharing 2 | change, note 4 |
+| implementations returning `Flow.effect(x)(f)` | plain Scala over plain values, one function per operation | crm 9, sharing 5 | change, note 3 |
+| `StateModel[S]`, `state.get/set/update` | `StateModel[S]`, `op.means(…)` over `Model[F, S]` | crm 1, sharing 2 | keep, note 4 |
 | `for`, `flatMap`, `map`, `pure`, `*>`, `as`, `void`, `<*`, `flatTap`, `tupled`, `sequence` | cats syntax on any `F[_]: Flow` | crm, sharing | keep, note 5 |
 | `traverse_`, `traverse`, `foldM` | `Flow.each`, `collect`, `fold` | crm, sharing | keep, note 6 |
 | `c.foldF`, `whenA`, `unlessA` | `Flow.cond` (`Prog.Branch`) | whenA sharing 3 | keep |
@@ -228,20 +232,21 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
 | `timeout(seconds)` | `Flow.timeout(clock)` | tests only | keep, note 9 |
 | `parTupled` | `Flow.parTupled` (`Prog.Par`, `commute_i`) | tests only | keep, note 7 |
 | `parTraverse`, `parTraverseN` | `Flow.parCollect`, `parCollectN` (`Prog.ParEach`, `commute_i`) | sharing 3 | keep, note 6 |
-| `race` and the `Races` boundary | `Flow.race` (`Prog.Race`) | tests only | keep, note 10 |
+| `race` and the `Races` boundary | `Flow.race` (`Prog.Race`), the winner a reserved field of the World | tests only | keep, note 10 |
 | `atomically` | `Flow.atomically` (`Prog.Atomic`) | sharing 5 | keep, note 11 |
-| `Flow.now`, `sleep`, `waitUntil`, `Clock`, `ClockModel`, `FakeClock`, `SystemClock` | `Clock[F, T]` with its model | sharing | keep, note 12 |
+| `Flow.now`, `sleep`, `waitUntil`, `Clock`, `ClockModel`, `FakeClock`, `SystemClock` | FrFlow's Definitions `now`, `sleep` with their model | sharing | keep, note 12 |
 | `Flow.every(period)(job)` | a scheduler over a program | sharing 2 | keep |
 | `FaultPlan`, `World(…)`, `Failed(…)` in examples | values in an example's fact | crm 10, sharing 3+8 | change, note 13 |
 
-1. `def load: F[T[CrmStore]]`, `Boundary[Database](means)`. `BoundaryOps` is derived: the signatures, a recording
-   instance, a by-name caller for tests, a lifted adapter, the model read. The examples' boundaries are rewritten
-   (owner §2, C; 4.4).
-2. `final class Job[F[_]: Flow](db: Database[F, Term])`: its values are `Term`s and its effect is abstract;
-   `program { (a: Term[A]) => Job(database.recording).run(a) }` records it for Lean (owner §2, C).
-3. `database.lifted(adapter, running)` gives programs their `Database[IO, Term]`; `Flow.effect` goes.
-4. A model is an instance of the boundary trait over its state (`Model.recorded`), read into `vocab.StateModel`: the
-   same meaning in another form.
+1. `val load = Definition[Program[CrmStore]](means)`, `storeAbout`, `logEvent` likewise: one Definition per operation,
+   given its meaning by `databaseModel` (owner §36). The examples' boundaries are rewritten so.
+2. `object ExpireOnce { def run[F[_]](now: Term[BigInt])(using f: Flow[F]) }`: its values are `Term`s and its effect is
+   abstract (owner §2, C); it calls `load`, `storeAbout(id, t)` as any Definition (`Flow.step`), and
+   `program { (now: Term[BigInt]) => ExpireOnce.run[Recorded](now) }` records it for Lean.
+3. Each operation's Scala is a plain function (`(BigInt, CrmStore) => IO[Unit]`), given by the FrModel's
+   `implementTested(ops*)(start, observe)(calls)`; `Running` evaluates the arguments and calls it; `Flow.effect` goes.
+4. A model gives each operation its meaning over its state (`Model.recorded`), read into `vocab.StateModel`: the same
+   meaning in another form.
 5. From cats, not FrFlow's own; `Prog.Bind`, `Pure`, `Let` in the IR.
 6. `each` is written, with its element's `LeanType`, and recorded (`RecordingSuite`). `collect`, `fold` and `parCollect`
    are added in step 2 (`Prog.Loop`, `Collect`, `Accumulate`, `ParEach`), each with a `RecordingSuite` test (4.4).
@@ -255,7 +260,8 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
    13).
 10. Read as the scheduler's choice; kept by the owner, tested, used in sharing (step 13).
 11. A `Mutex` in production.
-12. `Clock[F, T]` is FrFlow's own boundary with its model; `FakeClock` is an instance for tests.
+12. FrFlow's own Definitions `now: Program[BigInt]` and `sleep: BigInt => Program[Unit]`, with their `StateModel`
+    (`clockModel`); `FakeClock` is Scala for tests, `SystemClock` for production (owner §36).
 13. Written in the example's fact (a world made, a run's outcome stated); `RunExample` and `RunEnd` go.
 
 ## Checks Lean makes
@@ -267,7 +273,7 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
 | `needed_C`, `vacuous`, `restates`, `clash`, `unsat` (tries) | `TryKind` | — | keep |
 | `restates_i_C`, `idle`, `feasible`, `cover_X` | as today | — | keep, note 3 |
 | `expect_i` | none | crm 4 | remove, with `.expects` |
-| `start_<node>`, `made_<maker>`, `inhabited_<node>` | `Prop.Starts`, `Prop.Makes`, `Prop.Inhabited` | — | new, note 4 |
+| `start_<node>`, `made_<maker>`, `made_<code>_call_<i>`, `inhabited_<node>` | `Prop.Starts`, `Prop.Makes`, `Prop.Inhabited` | — | new, note 4 |
 | `consistent_<i>` | `Prop.ForEvery`, `Prop.ForSome` (`Joint`) | — | new, note 5 |
 | `satisfiable_<i>_<node>` | `Vacuity.Satisfiable` (`Conditions`, `Possible`) | — | new, note 6 |
 | `example_<i>` | `proof.whole.ExampleGoals`, a try | — | new, note 7 |
@@ -286,7 +292,9 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
    rooms' `bookWhenFree` and `acceptWhenFree`, over `booked`, `bookedAfter` and `accepted` (owner §9, §11, §14; 2.5,
    2.7).
 3. `cover_<op>` is asked of each program writing a store, for each `always` about it (2.3).
-4. Every state a store may start in (`initially`) meets what always holds of it; every result of a proven define or a
+4. `made_<code>_call_<i>` (owner §37): every argument proven code hands to plain Scala meets the rules on its type, on
+   every path, asked at every call, a Lean obligation only (2.3). Every state a store may start in
+   (`initially`) meets what always holds of it; every result of a proven define or a
    store operation on its model meets each `always[T]`, claimed or assumed, its guard applies to (rooms' three
    `made_inRoom`); each `always[T]` admits a value, its witness found by the search (owner §13, §18; 2.3, 2.9).
 5. The bottom statements and the assumptions beside them, grouped by shared open values, jointly satisfiable for every
@@ -306,7 +314,7 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
 |---|---|---|---|
 | property tests of plain code against its contract | `PropertyTests` over `CallCheck` and `Wiring` | — | keep, note 1 |
 | an outside system's adapter against its promise | `PropertyTests` and the examples | crm, keycloak | keep, note 2 |
-| model tests of `implementedBy` and `checkedAgainst` | `ModelTests.run` of an `AdapterCheck` | — | keep, note 3 |
+| model tests of `implementedBy` and `checkedAgainst` | `ModelTests.run` of the operations' Scala against their model | — | keep, note 3 |
 | fault sweep, interleavings | `Interleavings[F[_]: Async: Random]` | sharing | keep, note 4 |
 | the step-refutation search | `testing.search.StepRefutation` | — | keep |
 | the witness search | `testing.search.Witnesses`, `Small` | — | new, note 5 |
@@ -325,8 +333,8 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
    before production (4.9).
 2. crm's `recordsByQuery` and keycloak's `sessionLookup`, tested against their assumptions' formulas; this replaces
    the run-time check of every adapter call (8).
-3. Over two `World`s: the adapter, by `BoundaryOps.call`, and the model, by `World.models`; runs generated by `Runs`
-   through `Respecting` (`StoreModelSuite`: rooms' store against its model).
+3. Over two `World`s: the operations' Scala, called by name, and the model, by `World.models`; runs generated by `Runs`
+   through `Respecting` (`StoreModelSuite`: rooms' table against its model).
 4. Over the recorded program, run on the adapters.
 5. SmallCheck-style small values after the generators' own, at most 5,000 candidates, each judged by the evaluator:
    the witnesses of vacuity, given to Lean (owner §18; 2.9).
@@ -398,7 +406,8 @@ Removed: the `runtime` module and everything only it used (`service`'s checks, `
 ambient scopes (`Param.value`, the fresh-variable counter) and any numbering of variables before an interpreter binds
 them; today's `Flow` values and `Flow.effect`; content forms, `confirm --rebind`, `Retired`, `Text` fingerprints and
 filed keys as authority; `Node.contract`, `Node.invariant`, `Node.definition`, `Param`, `allows`/`forbids` and the
-required `forbids`, `.expects`, `.keeps`/`.exempt`, alternative definitions, `eval_i` and `probe_j`.
+required `forbids`, `.expects`, `.keeps`/`.exempt`, alternative definitions, `eval_i` and `probe_j`; the boundary
+(`Boundary`, its trait, `BoundaryOps`, `behavesAs`, `checkedAgainst`/`implementedBy`; owner §36).
 
 Kept, with a test and an example use each: `race`, `guarantee`/`bracket`, `timeout`, `parTupled`, `ifM`.
 Property-based testing stays in full and carries every check the running service made.
@@ -406,13 +415,14 @@ Property-based testing stays in full and carries every check the running service
 Changed in the user's source: the owner's concepts and no others (owner §15): three kinds of nodes (`Node.claim`,
 `Node.assumption`, `Node.design`), two kinds of values (`Declaration`, `Definition`, given meanings by
 `implementProven`, `implementTested`, `implementValue`, `implementProvided`, or by `define` and `program` on the spot),
-two quantifiers (`forall`, `always`); the world outside said by assumptions (`behavesAs`, `initially`, `atomic`; the
-programs changing a store derived, owner §31, §32), each claim resting on one listing it with `.assuming`; what comes
-from outside a type of its own, with an assumption of `always` on it, instead of assumptions on what calls a Definition
-(`calledOnlyWith`); examples as tests beside the model (`FrFlowExamples`, `example`, `is`, `:=`); `env(d)` for
-`p.value`; tagless boundaries and programs; names from the val as written; `implies` with chains in parentheses; a
-program's claim as a run from a world; `.refines`; `when(…)(…).otherwise(…)`; `stored.in(world)`; a model
-declared with its instance and checked by `checkedAgainst`; `derives LeanType` on domain types.
+two quantifiers (`forall`, `always`); the world outside said by assumptions (`onlyCodeChanges`, `initially`, `atomic`,
+said of a model; the programs changing a store derived, owner §31, §32, §36), each claim resting on one listing it with
+`.assuming`; what comes from outside a type of its own, with an assumption of `always` on it, instead of assumptions on
+what calls a Definition (`calledOnlyWith`); examples as tests beside the model (`FrFlowExamples`, `example`, `is`,
+`:=`); `env(d)` for `p.value`; tagless programs, no boundaries (owner §36); names from the val as written; `implies`
+with chains in parentheses; a program's claim as a run from a world; `.refines`; `when(…)(…).otherwise(…)`;
+`stored.in(world)`; a model giving each operation's meaning, the Scala tested against it by `implementTested`; `derives
+LeanType` on domain types.
 
 Added: consistency and vacuity proven in Lean (`consistent_<i>`, `start_<node>`, `inhabited_<node>`,
 `satisfiable_<i>_<node>`, with derived or searched witnesses, consistency not proven a failure, owner §28);
