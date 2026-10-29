@@ -436,6 +436,15 @@ under the root's two expectations and 16 of sharing's parts, sound hypotheses al
 Neither `impl` nor `complete` takes a rule (an `always`, claimed or assumed) as a hypothesis: Lean has its rule on every
 value already, and its own `claim` is not stated as a fact.
 
+**A step over what makers make.** `complete` takes, for each maker its parts' claims are about, the `made_` of every
+rule kept of it (proven of the maker's code) as an `m_<rule>_<maker>` hypothesis, as a caller's `made_` already takes
+its callee's `m_<callee>` (`Made.taken`); `holds` and `root_impl` thread the same facts through, and a step whose
+`made_` is not proven is unproven (`Unproven.Kept`), so a maker breaking its rule leaves the step red. A `made_` that
+rests on the statement being proven (`Resolve.provenFrom` and parts, from what relies on the maker and its callees)
+is not taken: no circle. crm's `storeMirrorsRequests` is proven so, given `oneRowPerKey` and `keyedTables` of `save`
+and `expire`.
+(step 12 ruling)
+
 **What a Declaration is.** A root may be stated over Declarations alone (owner §14), and the claims at the bottom
 then say what each is in terms of the code: rooms' `bookedAfterIsStored` says what is booked once a request is handled
 is what the table holds after `book` runs. Such a claim (no parts, mentioning a Declaration) is never asked `impl`,
@@ -484,6 +493,11 @@ hold (owner §15, §18).
   witness, the table after `book` runs, waits for `granted`'s, which `grantWhenNoOverlap`'s equation gives. An
   equation read through a run (`book(request).from(now) { (_, after) => bookedAfter(request, now) === … }`) gives its
   witness over the run's outcome. `Equations.defining` reads the shape off the IR; `Defining` builds the term.
+- **Pinned provided values.** A provided value that an assumption of the group equates to a term is solved by that
+  equation, like an open value; the provided values no assumption pins stay universal (asked of every value).
+  keycloak's `state` is solved by `serverRun`, crm's `held` by `crmRun`; auth's session table, which an assumption
+  only bounds, is asked of every value (`PinnedSuite`).
+  (step 12 ruling)
 - **Currency.** The consistency check is current while `Whole.lean` and every module it imports are as checked, the
   specs of the statements it states among them (`CheckKeys.whole`): a statement changed alone checks it again.
 
@@ -534,6 +548,13 @@ evaluator, deterministically, at most 5,000 candidates. A witness found goes to 
 `none` may not elaborate. Examples may serve as witnesses but are never required. Vacuity is reported, not gated:
 `status` shows each `inhabited_` and `satisfiable_` shown or not shown, and `complete` does not wait for them. This is
 vacuity only; consistency gates the proof (2.8).
+
+**The idle try, of the roots together.** `idle` asks whether a root is met by doing nothing; it is asked of the roots
+naming the same Definitions together: the purpose is met by doing nothing only when every root naming those
+Definitions is. A safety root alone met by doing nothing is not a defect: crm's `noCrossTenantRead`, with
+`addedIsFound` and `writesLeaveOthers`, passes the try; a model whose roots are all met by doing nothing still fails
+it. The other roots are stated as their formulas, not imported (no import circle).
+(step 12 ruling)
 
 ### 2.10 Examples as tests
 
