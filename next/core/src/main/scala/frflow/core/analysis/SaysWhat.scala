@@ -1,7 +1,8 @@
 package frflow.core.analysis
 
+import frflow.core.code.Code
 import frflow.core.name.{NodeId, SymbolName}
-import frflow.core.spec.{NodeKind, Range}
+import frflow.core.spec.{Node, NodeKind, Range}
 import frflow.core.Theory
 
 /** The claims saying what a Declaration is (2.5, 2.7): below a statement over it, at the bottom (no parts, its rules
@@ -20,7 +21,22 @@ object SaysWhat:
   def is(t: Theory, id: NodeId): Boolean = declarations(t, id).nonEmpty
 
   /** The proven code a claim is checked against (`impl`): none for a claim saying what a Declaration is, where the
-    * code only stands in it, nor for an assumption, which is trusted with the code standing in it.
+    * code only stands in it, nor for an assumption mentioning a value the code does not give (an open one, or one
+    * provided where the code runs), which is trusted with the code standing in it and held by its group or as a
+    * premise. An assumption every word of which the code gives a meaning is a statement about the code itself, and
+    * proven of it as a claim is: nothing else would check it.
     */
   def checkedAgainst(t: Theory, id: NodeId): Option[Callees] =
-    Option.when(!is(t, id) && t.node(id).exists(_.statement.kind == NodeKind.Claim))(Callees.of(t, id)).flatten
+    Option.when(!is(t, id) && t.node(id).exists(n => n.statement.kind == NodeKind.Claim || ofCode(t, n)))(
+      Callees.of(t, id)).flatten
+
+  /** An assumption over every possible value, each Definition it mentions, and each the code standing in it reaches,
+    * with proven code or a fixed value.
+    */
+  private def ofCode(t: Theory, n: Node): Boolean =
+    val words = Callees.reaching(t, Constrained.of(t, n.id))
+    n.statement.kind == NodeKind.Assumption && n.statement.range.contains(Range.Possible) && !n.statement.rule &&
+      n.statement.said.nonEmpty && words.nonEmpty && words.forall(s => !Constrained.isDeclaration(t, s) &&
+        t.code.attached.get(s).exists(a => a.code.proven.nonEmpty || (a.code match
+          case Code.Valued(_) | Code.Modelled(_) => true
+          case _                                 => false)))

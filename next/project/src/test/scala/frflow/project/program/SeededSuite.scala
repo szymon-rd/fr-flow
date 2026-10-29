@@ -12,7 +12,7 @@ import frflow.proof.lean.print.Print
 import frflow.proof.obligation.ObligationName
 import frflow.proof.verdict.{ObligationStatus, Result}
 import scala.concurrent.duration.*
-import whole.{Makers, Seeded}
+import whole.Seeded
 
 /** The step 12 review's seeded bugs, each kept red: a consistency statement has the code standing for a Definition
   * reached only through other code, so no proof chooses its meaning (B1); statements pinning one provided value
@@ -88,6 +88,13 @@ class SeededSuite extends munit.CatsEffectSuite:
         .filter(_ == ObligationStatus.Proven), None)
       val unproven = Ported.unproven(r.analysis)
       assert(unproven.contains("emptyHoldsIt") && unproven.contains("emptyHoldsNothing"), Ported.table(r.analysis))
+    }
+  }
+
+  test("an assumption false of the code its words mean is not proven of it, and the root over it stays red".tag(Live)) {
+    Ported.run(Projects.elaborated(Seeded.Trusted.knowledge), Nil, Ported.Lean(Nil, Nil, None), Nil).map { r =>
+      val unproven = Ported.unproven(r.analysis)
+      assert(unproven.contains("outerKeeps") && unproven.contains("emptyHoldsNothing"), Ported.table(r.analysis))
     }
   }
 

@@ -4,7 +4,7 @@ import frflow.core.consistency.{Consistency, Group, Witness}
 import frflow.core.name.{DefName, NodeId, SymbolName}
 import frflow.proof.layout.Lowering
 import frflow.proof.lean.print.Print
-import frflow.proof.obligation.{Prop, Substitute}
+import frflow.proof.obligation.{ObligationName, Prop, Required, Substitute}
 import frflow.proof.terms.TermTable
 import frflow.proof.whole.Stands
 
@@ -61,4 +61,11 @@ class SeededSuite extends munit.FunSuite:
     val fresh = Consistency.of(Theories.theory(keycloak.knowledge)).collect { case g: Group.Premises => g }
     assertEquals(fresh.map(g => (g.statements.map(_.value), g.provided, g.witnesses)),
       List((List("freshTokens"), List(s("history")), List(Witness.Empty(s("history"))))))
+  }
+
+  test("an assumption every word of which the code gives a meaning is asked impl: nothing else checks it") {
+    val r = Theories.resolved(Seeded.Trusted.knowledge)
+    assert(Required.of(r, Set.empty, NodeId("outerKeeps")).exists(_.name == ObligationName.Impl))
+    assertEquals(Consistency.of(r.theory).collect { case g: Group.Sharing => g.statements.map(_.value) },
+      List(List("holdsIs")))
   }
