@@ -21,19 +21,20 @@ class CrmModulesSuite extends munit.FunSuite:
   private val world = n("World")
   private val expireType = arrows(crmStore, n("Int"), crmStore)
 
-  test("Boundaries.lean: the class, the model, World, the instance and its lemmas, from the boundary and its model") {
+  test("Models.lean: the class, the model, World, the instance and its lemmas, from the model") {
     val imports = List("Types", "Domain.Def_replaceAbout", "Domain.Def_aboutRecord").map("FrFlowGen.Crm." + _)
-    val decls = LowerModels(ExpiryIr.env, ExpiryIr.reserved).decls(List(CrmModels.boundary -> CrmModels.model), Nil)
-    val m = module("FrFlowGen.Crm.Boundaries", imports, "Crm", decls*)
-    assertEquals(Print.module(m), file("Boundaries.lean"))
+    val decls = LowerModels(ExpiryIr.env, ExpiryIr.reserved).decls(List(CrmModels.model), Nil)
+    val m = module("FrFlowGen.Crm.Models", imports, "Crm", decls*)
+    assertEquals(Print.module(m), file("Models.lean"))
   }
 
   test("Domain/Def_expireOnce.lean: a flow generic in its monad, with implicit and instance binders") {
     val body = ExpiryIr.lowered(ExpiryIr.expireOnce)
     val d = Decl.Def(defs, nm("expireOnce"), List(LBinder.Implicit(nm("m"), arrows(n("Type"), n("Type"))),
-      LBinder.Instance(app(n("Monad"), n("m"))), LBinder.Instance(app(n("Database"), n("m"))), x("expire", expireType)),
+      LBinder.Instance(app(n("Monad"), n("m"))), LBinder.Instance(app(n("DatabaseModel.Ops"), n("m"))),
+      x("expire", expireType)),
       arrows(n("Int"), app(n("m"), crmStore)), body)
-    val imports = List("Types", "Boundaries", "Domain.Def_changedIds").map("FrFlowGen.Crm." + _)
+    val imports = List("Types", "Models", "Domain.Def_changedIds").map("FrFlowGen.Crm." + _)
     val m = module("FrFlowGen.Crm.Domain.Def_expireOnce", imports, "Crm", d, Decl.MatchEqns)
     assertEquals(Print.module(m), file("Domain/Def_expireOnce.lean"))
   }
@@ -42,7 +43,7 @@ class CrmModulesSuite extends munit.FunSuite:
     val run = Define(DefName("expireOnce_run"), ExpiryIr.expireOnce, DefineForm.RunOf(DefName("expireOnce")))
     val d = LowerModels(ExpiryIr.env, ExpiryIr.reserved)
       .run(run, DefName("expireOnce"), List(SymbolName("expire") -> Ty.FnOf(List(store, big), store)))
-    val imports = List("Types", "Boundaries", "Domain.Def_expireOnce").map("FrFlowGen.Crm." + _)
+    val imports = List("Types", "Models", "Domain.Def_expireOnce").map("FrFlowGen.Crm." + _)
     val m = module("FrFlowGen.Crm.Domain.Def_expireOnce_run", imports, "Crm", d, Decl.MatchEqns)
     assertEquals(Print.module(m), file("Domain/Def_expireOnce_run.lean"))
   }
@@ -64,7 +65,7 @@ class CrmModulesSuite extends munit.FunSuite:
     "No world meets ExpiryJob."))
 
   test("ExpiryJob/Spec.lean: a flow contract's post and claim, and two obligations lowered from `Prop`") {
-    val imports = List("Types", "Boundaries", "Domain.Def_sameRows", "Domain.Def_idsIn", "Domain.Def_aboutRecord",
+    val imports = List("Types", "Models", "Domain.Def_sameRows", "Domain.Def_idsIn", "Domain.Def_aboutRecord",
       "Domain.Def_expireOnce_run", "Domain.Def_expireOnce", "Domain.Def_changedIds", "SharesExpire.Spec")
     val m = module("FrFlowGen.Crm.ExpiryJob.Spec", imports.map("FrFlowGen.Crm." + _), "Crm.ExpiryJob",
       post, claim, impl, unsat, Decl.MatchEqns)

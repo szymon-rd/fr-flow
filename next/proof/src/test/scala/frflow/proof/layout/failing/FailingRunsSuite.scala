@@ -8,7 +8,7 @@ import frflow.proof.lean.print.Print
 import frflow.proof.terms.Commutation
 
 /** A program's error as Lean states it (`Failing`): its run on `ExceptT E (StateM World)` from a world holding the
-  * faults, a failing boundary's calls failing on them with its error, a run's post of the runs that succeed and its
+  * faults, a failing model's calls failing on them with its error, a run's post of the runs that succeed and its
   * failure clause of the others; and `impl` resting on a part about its own Definition, the code put in it
   * (`OwnParts`).
   */
@@ -26,20 +26,20 @@ class FailingRunsSuite extends munit.FunSuite:
   }
 
   test("the world holds the faults, and the shelf on ExceptT String fails on them with its error") {
-    val boundaries = text(failing, "Boundaries")
-    assert(boundaries.contains("structure World where\n  Shelf : (List Booking)\n  faults : (List Bool)"), boundaries)
-    assert(boundaries.contains("instance : Shelf (ExceptT String (StateM World)) where\n  put b := FrFlow.failing " +
-      "(fun w => w.faults) (fun w s => { w with faults := s }) \"down\" (FrFlow.within"), boundaries)
-    assert(boundaries.contains("theorem Shelf.put_onWorldE (b : Booking) :"), boundaries)
+    val models = text(failing, "Models")
+    assert(models.contains("structure World where\n  shelved : (List Booking)\n  faults : (List Bool)"), models)
+    assert(models.contains("instance : Shelved.Ops (ExceptT String (StateM World)) where\n  put b := FrFlow.failing " +
+      "(fun w => w.faults) (fun w s => { w with faults := s }) \"down\" (FrFlow.within"), models)
+    assert(models.contains("theorem Shelved.Ops.put_onWorldE (b : Booking) :"), models)
   }
 
   test("a run's post is of the runs that succeed, its failure clause of those that fail") {
     val spec = text(failing, "fileRuns.Spec")
-    assert(spec.contains("(match (file b before) with | (Except.ok r, after) => (after.Shelf = (b :: before.Shelf))" +
+    assert(spec.contains("(match (file b before) with | (Except.ok r, after) => (after.shelved = (b :: before.shelved))" +
       " | _ => True) ∧ (match (file b before) with | (Except.error error, after) => ((error = \"down\") ∧ " +
-      "(after.Shelf = before.Shelf)) | _ => True)"), spec)
+      "(after.shelved = before.shelved)) | _ => True)"), spec)
     assert(text(failing, "checkRuns.Spec").contains(
-      "| (Except.error error, after) => (after.Shelf = before.Shelf) | _ => True"), text(failing, "checkRuns.Spec"))
+      "| (Except.error error, after) => (after.shelved = before.shelved) | _ => True"), text(failing, "checkRuns.Spec"))
   }
 
   test("commute_ reads the program's error from its type") {

@@ -1,34 +1,34 @@
 namespace Rooms.neverOverlap
 
 @[frflow_defs] def keeps_book (book : Booking → (World → (Prop × World))) : Prop :=
-  (∀ (request : Booking), ((Rooms.bookingsEndAfterStart request) → (∀ (before : World), ((Rooms.neverOverlap before.bookingTable) → ((∀ b ∈ before.bookingTable, (Rooms.bookingsEndAfterStart b)) → (match (book request before) with | (result, after) => (Rooms.neverOverlap after.bookingTable)))))))
+  (∀ (request : Booking), ((Rooms.bookingsEndAfterStart request) → (∀ (before : World), ((Rooms.neverOverlap before.storedBookings) → ((∀ b ∈ before.storedBookings, (Rooms.bookingsEndAfterStart b)) → (match (book request before) with | (result, after) => (Rooms.neverOverlap after.storedBookings)))))))
 
 end Rooms.neverOverlap
 
 namespace Rooms.bookingsOfTheRoom
 
 @[frflow_defs] def makes_inRoom (inRoom : String → (List Booking) → RoomBookings) : Prop :=
-  (∀ (room : String), (∀ (w : World), ((Rooms.neverOverlap w.bookingTable) → ((∀ b ∈ w.bookingTable, (Rooms.bookingsEndAfterStart b)) → (Rooms.bookingsOfTheRoom (inRoom room w.bookingTable))))))
+  (∀ (room : String), (∀ (w : World), ((Rooms.neverOverlap w.storedBookings) → ((∀ b ∈ w.storedBookings, (Rooms.bookingsEndAfterStart b)) → (Rooms.bookingsOfTheRoom (inRoom room w.storedBookings))))))
 
 end Rooms.bookingsOfTheRoom
 
 namespace Rooms.roomBookingsApart
 
 @[frflow_defs] def makes_inRoom (inRoom : String → (List Booking) → RoomBookings) : Prop :=
-  (∀ (room : String), (∀ (w : World), ((Rooms.neverOverlap w.bookingTable) → ((∀ b ∈ w.bookingTable, (Rooms.bookingsEndAfterStart b)) → (Rooms.roomBookingsApart (inRoom room w.bookingTable))))))
+  (∀ (room : String), (∀ (w : World), ((Rooms.neverOverlap w.storedBookings) → ((∀ b ∈ w.storedBookings, (Rooms.bookingsEndAfterStart b)) → (Rooms.roomBookingsApart (inRoom room w.storedBookings))))))
 
 end Rooms.roomBookingsApart
 
 namespace Rooms.bookingsEndAfterStart
 
 @[frflow_defs] def keeps_book (book : Booking → (World → (Prop × World))) : Prop :=
-  (∀ (request : Booking), ((Rooms.bookingsEndAfterStart request) → (∀ (before : World), ((Rooms.neverOverlap before.bookingTable) → ((∀ b ∈ before.bookingTable, (Rooms.bookingsEndAfterStart b)) → (match (book request before) with | (result, after) => (∀ b ∈ after.bookingTable, (Rooms.bookingsEndAfterStart b))))))))
+  (∀ (request : Booking), ((Rooms.bookingsEndAfterStart request) → (∀ (before : World), ((Rooms.neverOverlap before.storedBookings) → ((∀ b ∈ before.storedBookings, (Rooms.bookingsEndAfterStart b)) → (match (book request before) with | (result, after) => (∀ b ∈ after.storedBookings, (Rooms.bookingsEndAfterStart b))))))))
 
 end Rooms.bookingsEndAfterStart
 
 namespace Rooms.bookingsEndAfterStart
 
 @[frflow_defs] def makes_inRoom (inRoom : String → (List Booking) → RoomBookings) : Prop :=
-  (∀ (room : String), (∀ (w : World), ((Rooms.neverOverlap w.bookingTable) → ((∀ b ∈ w.bookingTable, (Rooms.bookingsEndAfterStart b)) → (∀ b ∈ (inRoom room w.bookingTable).bookings, (Rooms.bookingsEndAfterStart b))))))
+  (∀ (room : String), (∀ (w : World), ((Rooms.neverOverlap w.storedBookings) → ((∀ b ∈ w.storedBookings, (Rooms.bookingsEndAfterStart b)) → (∀ b ∈ (inRoom room w.storedBookings).bookings, (Rooms.bookingsEndAfterStart b))))))
 
 end Rooms.bookingsEndAfterStart

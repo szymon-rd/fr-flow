@@ -1,21 +1,21 @@
 namespace Test.endsAfterStart
 
 @[frflow_defs] def keeps_fileBackwards (fileBackwards : Booking → (World → (Unit × World))) : Prop :=
-  (∀ (i : Booking), ((i.start < i.«end») → ((i.start < i.«end») → (∀ (before : World), ((∀ b ∈ before.Shelf, (b.start < b.«end»)) → ((∀ b ∈ before.Shelf, (b.start < b.«end»)) → (match (fileBackwards i before) with | (result, after) => (∀ b ∈ after.Shelf, (b.start < b.«end»)))))))))
+  (∀ (i : Booking), ((i.start < i.«end») → ((i.start < i.«end») → (∀ (before : World), ((∀ b ∈ before.shelved, (b.start < b.«end»)) → ((∀ b ∈ before.shelved, (b.start < b.«end»)) → (match (fileBackwards i before) with | (result, after) => (∀ b ∈ after.shelved, (b.start < b.«end»)))))))))
 
 end Test.endsAfterStart
 
 namespace Test.endsAfterStart
 
 @[frflow_defs] def keeps_countBoth (countBoth : (World → ((Int × Int) × World))) : Prop :=
-  (∀ (before : World), ((∀ b ∈ before.Shelf, (b.start < b.«end»)) → ((∀ b ∈ before.Shelf, (b.start < b.«end»)) → (match (countBoth before) with | (result, after) => (∀ b ∈ after.Shelf, (b.start < b.«end»))))))
+  (∀ (before : World), ((∀ b ∈ before.shelved, (b.start < b.«end»)) → ((∀ b ∈ before.shelved, (b.start < b.«end»)) → (match (countBoth before) with | (result, after) => (∀ b ∈ after.shelved, (b.start < b.«end»))))))
 
 end Test.endsAfterStart
 
 namespace Test.endsAfterStart
 
 @[frflow_defs] def keeps_putTwo (putTwo : Booking → (World → ((Unit × Unit) × World))) : Prop :=
-  (∀ (i : Booking), ((i.start < i.«end») → ((i.start < i.«end») → (∀ (before : World), ((∀ b ∈ before.Shelf, (b.start < b.«end»)) → ((∀ b ∈ before.Shelf, (b.start < b.«end»)) → (match (putTwo i before) with | (result, after) => (∀ b ∈ after.Shelf, (b.start < b.«end»)))))))))
+  (∀ (i : Booking), ((i.start < i.«end») → ((i.start < i.«end») → (∀ (before : World), ((∀ b ∈ before.shelved, (b.start < b.«end»)) → ((∀ b ∈ before.shelved, (b.start < b.«end»)) → (match (putTwo i before) with | (result, after) => (∀ b ∈ after.shelved, (b.start < b.«end»)))))))))
 
 end Test.endsAfterStart
 
@@ -29,21 +29,21 @@ end Test.endsAfterStart
 namespace Test.fromOutside
 
 @[frflow_defs] def keeps_fileBackwards (fileBackwards : Booking → (World → (Unit × World))) : Prop :=
-  (∀ (i : Booking), ((i.start < i.«end») → ((i.start < i.«end») → (∀ (before : World), ((∀ b ∈ before.Shelf, (b.start < b.«end»)) → ((∀ b ∈ before.Shelf, (b.start < b.«end»)) → (match (fileBackwards i before) with | (result, after) => (∀ b ∈ after.Shelf, (b.start < b.«end»)))))))))
+  (∀ (i : Booking), ((i.start < i.«end») → ((i.start < i.«end») → (∀ (before : World), ((∀ b ∈ before.shelved, (b.start < b.«end»)) → ((∀ b ∈ before.shelved, (b.start < b.«end»)) → (match (fileBackwards i before) with | (result, after) => (∀ b ∈ after.shelved, (b.start < b.«end»)))))))))
 
 end Test.fromOutside
 
 namespace Test.fromOutside
 
 @[frflow_defs] def keeps_countBoth (countBoth : (World → ((Int × Int) × World))) : Prop :=
-  (∀ (before : World), ((∀ b ∈ before.Shelf, (b.start < b.«end»)) → ((∀ b ∈ before.Shelf, (b.start < b.«end»)) → (match (countBoth before) with | (result, after) => (∀ b ∈ after.Shelf, (b.start < b.«end»))))))
+  (∀ (before : World), ((∀ b ∈ before.shelved, (b.start < b.«end»)) → ((∀ b ∈ before.shelved, (b.start < b.«end»)) → (match (countBoth before) with | (result, after) => (∀ b ∈ after.shelved, (b.start < b.«end»))))))
 
 end Test.fromOutside
 
 namespace Test.fromOutside
 
 @[frflow_defs] def keeps_putTwo (putTwo : Booking → (World → ((Unit × Unit) × World))) : Prop :=
-  (∀ (i : Booking), ((i.start < i.«end») → ((i.start < i.«end») → (∀ (before : World), ((∀ b ∈ before.Shelf, (b.start < b.«end»)) → ((∀ b ∈ before.Shelf, (b.start < b.«end»)) → (match (putTwo i before) with | (result, after) => (∀ b ∈ after.Shelf, (b.start < b.«end»)))))))))
+  (∀ (i : Booking), ((i.start < i.«end») → ((i.start < i.«end») → (∀ (before : World), ((∀ b ∈ before.shelved, (b.start < b.«end»)) → ((∀ b ∈ before.shelved, (b.start < b.«end»)) → (match (putTwo i before) with | (result, after) => (∀ b ∈ after.shelved, (b.start < b.«end»)))))))))
 
 end Test.fromOutside
 

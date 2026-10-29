@@ -3,7 +3,7 @@ package frflow.proof.layout
 import frflow.core.{Booking, Lang}
 import frflow.core.Nodes.*
 import frflow.core.expr.{Binder, OutsideFact, Prog}
-import frflow.core.name.{BoundaryName, DefName, ModelName, SourceText, VarId}
+import frflow.core.name.{DefName, ModelName, SourceText, VarId}
 import frflow.core.spec.{Node, Written}
 import frflow.core.term.{Bound, Final, Program, Selector, Stated, Sym, World}
 import frflow.core.ty.Ty
@@ -45,11 +45,11 @@ object Fixture:
   /** What the outside sends meets the same rule (owner §21). */
   def fromOutside(id: String): Node = assumption(id)(ends)
 
-  /** A store's three facts: behaves as its model (nothing outside the code changing it), runs on it atomic, starts
-    * empty (`emptyRule`). The programs changing it are derived.
+  /** A model's three facts: nothing outside the code changes its state, runs on it are atomic, it starts empty
+    * (`emptyRule`). The programs changing it are derived.
     */
-  def storeFacts(boundary: BoundaryName, m: ModelName): List[Node] = List(
-    outside("shelfModel")(OutsideFact.BehavesAs(boundary, m)), outside("shelfOneRun")(OutsideFact.Atomic(boundary)),
+  def storeFacts(m: ModelName): List[Node] = List(
+    outside("shelfModel")(OutsideFact.OnlyCodeChanges(m)), outside("shelfOneRun")(OutsideFact.Atomic(m)),
     outside("shelfEmpty")(OutsideFact.Initially(m, DefName("shelfEmpty"))))
 
   private val held = at(0, "held", Ty.ListOf(Booking.ty))

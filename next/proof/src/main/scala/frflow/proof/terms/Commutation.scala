@@ -73,7 +73,7 @@ object Commutation:
   /** The type of what the steps give. */
   private def resultOf(v: Vocabulary, p: Prog[Expr]): Ty = p match
     case Prog.Pure(e)                   => Exprs.typeOf(e)
-    case Prog.Call(_, _, _, t)          => t
+    case Prog.Call(_, _, t)             => t
     case Prog.Bind(_, _, r)             => resultOf(v, r)
     case Prog.Let(_, _, r)              => resultOf(v, r)
     case Prog.Collect(_, _, b)          => Ty.ListOf(resultOf(v, b))

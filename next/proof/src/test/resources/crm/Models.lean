@@ -11,8 +11,8 @@ open Classical
 
 namespace Crm
 
-/-- The boundary database: the SQLite database the CRM keeps its records, shares, expiries and event log in. -/
-class Database (m : Type → Type) where
+/-- The operations on databaseModel: the SQLite database the CRM keeps its records, shares, expiries and event log in. -/
+class DatabaseModel.Ops (m : Type → Type) where
   load : m CrmStore
   logEvent : Event → m Unit
   storeAbout : Int → CrmStore → m Unit
@@ -36,20 +36,20 @@ end DatabaseModel
 
 /-- The models' states: what proven flows run on. -/
 structure World where
-  database : Tables
+  databaseModel : Tables
 
-instance : Database (StateM World) where
-  load := FrFlow.within (fun w => w.database) (fun w s => { w with database := s }) (DatabaseModel.load)
-  logEvent e := FrFlow.within (fun w => w.database) (fun w s => { w with database := s }) (DatabaseModel.logEvent e)
-  storeAbout id_ t := FrFlow.within (fun w => w.database) (fun w s => { w with database := s }) (DatabaseModel.storeAbout id_ t)
+instance : DatabaseModel.Ops (StateM World) where
+  load := FrFlow.within (fun w => w.databaseModel) (fun w s => { w with databaseModel := s }) (DatabaseModel.load)
+  logEvent e := FrFlow.within (fun w => w.databaseModel) (fun w s => { w with databaseModel := s }) (DatabaseModel.logEvent e)
+  storeAbout id_ t := FrFlow.within (fun w => w.databaseModel) (fun w s => { w with databaseModel := s }) (DatabaseModel.storeAbout id_ t)
 
-@[frflow_defs] theorem Database.load_onWorld :
-    ((Database.load) : StateM World CrmStore) = FrFlow.within (fun w => w.database) (fun w s => { w with database := s }) (DatabaseModel.load) := rfl
+@[frflow_defs] theorem DatabaseModel.Ops.load_onWorld :
+    ((DatabaseModel.Ops.load) : StateM World CrmStore) = FrFlow.within (fun w => w.databaseModel) (fun w s => { w with databaseModel := s }) (DatabaseModel.load) := rfl
 
-@[frflow_defs] theorem Database.logEvent_onWorld (e : Event) :
-    ((Database.logEvent e) : StateM World Unit) = FrFlow.within (fun w => w.database) (fun w s => { w with database := s }) (DatabaseModel.logEvent e) := rfl
+@[frflow_defs] theorem DatabaseModel.Ops.logEvent_onWorld (e : Event) :
+    ((DatabaseModel.Ops.logEvent e) : StateM World Unit) = FrFlow.within (fun w => w.databaseModel) (fun w s => { w with databaseModel := s }) (DatabaseModel.logEvent e) := rfl
 
-@[frflow_defs] theorem Database.storeAbout_onWorld (id_ : Int) (t : CrmStore) :
-    ((Database.storeAbout id_ t) : StateM World Unit) = FrFlow.within (fun w => w.database) (fun w s => { w with database := s }) (DatabaseModel.storeAbout id_ t) := rfl
+@[frflow_defs] theorem DatabaseModel.Ops.storeAbout_onWorld (id_ : Int) (t : CrmStore) :
+    ((DatabaseModel.Ops.storeAbout id_ t) : StateM World Unit) = FrFlow.within (fun w => w.databaseModel) (fun w s => { w with databaseModel := s }) (DatabaseModel.storeAbout id_ t) := rfl
 
 end Crm

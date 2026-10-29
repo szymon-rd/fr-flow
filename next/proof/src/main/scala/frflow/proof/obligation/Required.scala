@@ -70,14 +70,15 @@ object Required:
   private def givenWhat(hyps: List[NodeId]): String =
     if hyps.isEmpty then "." else s", given what ${hyps.map(_.value).mkString(", ")} promise."
 
-  /** `cover_<op>` of a statement of `always`, for each program it applies to whose code is proven and calls a store
-    * the `always` is about (`Scope`): every run of the code keeps it, from a world meeting every `always`, on inputs
+  /** `cover_<op>` of a statement of `always`, for each program it applies to whose code is proven and calls an
+    * operation of a model the `always` is about (`Scope`): every run of the code keeps it, from a world meeting every `always`, on inputs
     * meeting theirs (`Keeping`), given what the code relies on. What covered code makes is asked of it by `made`.
     */
   def keeps(r: Resolved, n: NodeId): List[Obligation] =
-    val stores = r.theory.node(n).flatMap(_.statement.range).toList.flatMap(Scope.models(r.theory, _)).map(_.boundary)
+    val stores = r.theory.node(n).flatMap(_.statement.range).toList.flatMap(Scope.models(r.theory, _))
+      .flatMap(_.ops.map(_.op))
     val writers = Scope.of(r.theory, n).filter(op =>
-      Callees.ofDefinition(r.theory, op).exists(_.calls.boundaries.exists(stores.contains)))
+      Callees.ofDefinition(r.theory, op).exists(_.calls.operations.exists(stores.contains)))
     // The rule kept, and every rule taken, on the stores the program reads only (owner §33): another store's part of
     // the world is the run's frame.
     def reading(op: SymbolName) = Guards.reading(r.theory, Reads.ofProgram(r.theory, op))

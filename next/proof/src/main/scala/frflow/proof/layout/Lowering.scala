@@ -3,15 +3,15 @@ package frflow.proof.layout
 import frflow.core.analysis.Resolved
 import frflow.core.name.{KbName, NodeId}
 import frflow.core.term.interpret.Guard
-import frflow.proof.lean.ast.Names
-import frflow.proof.lean.lower.{LowerEnv, LowerProp, Naming}
+import frflow.proof.lean.ast.{LExpr, Names}
+import frflow.proof.lean.lower.{LowerEnv, LowerModels, LowerProp, Naming}
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
 import frflow.proof.terms.TermTable
 import frflow.core.analysis.outside.Guards
 
 /** How one FrModel's Lean is lowered, computed once for every module: its environment (each model's field of
-  * the world is its boundary's name, each model's namespace its name capitalized), the names a binder may not take
+  * the world is its name, each model's namespace its name capitalized, its class `Space.Ops`), the names a binder may not take
   * (every symbol, every domain type, `World`), what always holds of what each statement is about, and the lowering of
   * propositions. `canonical`
   * names every variable by the order it is bound (`Naming`): the lowering a node's content prints its meaning with.
@@ -21,12 +21,14 @@ final class Lowering(val resolved: Resolved, val table: TermTable, canonical: Bo
   val kb: KbName = resolved.theory.name
   val layout: Layout = Layout(kb)
   val env: LowerEnv = LowerEnv(kb, d => table.defines.get(d).toList.flatMap(_.symbols.map(s => Names.ident(s.value))),
-    m => Names.ident(v.model(m).fold(m.value)(_.boundary.value)),
-    b => Names.builtin(v.boundary(b).fold(b.value)(_.className)), v.dataType, m => v.model(m).map(_.state),
+    m => Names.ident(m.value),
+    op => LExpr.Const(v.modelOf(op).fold(List(Names.builtin(op.value)))(m =>
+      List(LowerModels.className(m), Names.ident(op.value)))),
+    v.dataType, m => v.model(m).map(_.state),
     v.symbols.flatMap(s => s.ty match
       case SymbolType.Typed(t) => Ty.errorOf(t).map(s.name -> _)
       case _                   => None).toMap,
-    v.boundaries.exists(_.fails.nonEmpty), v.models.map(m => Names.ident(m.boundary.value)))
+    v.models.exists(_.fails.nonEmpty), v.models.map(m => Names.ident(m.name.value)))
   val naming: Naming = Naming.over(v.symbols.map(_.name.value).toSet,
     (v.types.map(_.typeName.value) ++ v.sorts.map(_.name.value) :+ "World").toSet).copy(canonical = canonical)
   /** What always holds that a statement takes: on a world, the rules of the stores it reads only (owner §33). */
@@ -36,4 +38,4 @@ final class Lowering(val resolved: Resolved, val table: TermTable, canonical: Bo
   def node(n: NodeId): Boolean = resolved.theory.node(n).nonEmpty
   def isDefine(name: String): Boolean = v.defines.exists(_.name.value == name)
   def isModelSpace(name: String): Boolean = v.models.exists(_.name.value.capitalize == name)
-  def isBoundaryClass(name: String): Boolean = v.boundaries.exists(_.className == name)
+  def isModelClass(name: String): Boolean = v.models.exists(LowerModels.className(_).text == name)

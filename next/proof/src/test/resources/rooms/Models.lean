@@ -9,8 +9,8 @@ open Classical
 
 namespace Rooms
 
-/-- The boundary bookingTable: the SQLite table the bookings are kept in -/
-class BookingTable (m : Type → Type) where
+/-- The operations on storedBookings: every booking stored, oldest first -/
+class StoredBookings.Ops (m : Type → Type) where
   inRoom : String → m RoomBookings
   add : Booking → m Unit
 
@@ -31,17 +31,17 @@ end StoredBookings
 
 /-- The models' states: what proven flows run on. -/
 structure World where
-  bookingTable : (List Booking)
+  storedBookings : (List Booking)
 
-instance : BookingTable (StateM World) where
-  inRoom room := FrFlow.within (fun w => w.bookingTable) (fun w s => { w with bookingTable := s }) (StoredBookings.inRoom room)
-  add booking := FrFlow.within (fun w => w.bookingTable) (fun w s => { w with bookingTable := s }) (StoredBookings.add booking)
+instance : StoredBookings.Ops (StateM World) where
+  inRoom room := FrFlow.within (fun w => w.storedBookings) (fun w s => { w with storedBookings := s }) (StoredBookings.inRoom room)
+  add booking := FrFlow.within (fun w => w.storedBookings) (fun w s => { w with storedBookings := s }) (StoredBookings.add booking)
 
-@[frflow_defs] theorem BookingTable.inRoom_onWorld (room : String) :
-    ((BookingTable.inRoom room) : StateM World RoomBookings) = FrFlow.within (fun w => w.bookingTable) (fun w s => { w with bookingTable := s }) (StoredBookings.inRoom room) := rfl
+@[frflow_defs] theorem StoredBookings.Ops.inRoom_onWorld (room : String) :
+    ((StoredBookings.Ops.inRoom room) : StateM World RoomBookings) = FrFlow.within (fun w => w.storedBookings) (fun w s => { w with storedBookings := s }) (StoredBookings.inRoom room) := rfl
 
-@[frflow_defs] theorem BookingTable.add_onWorld (booking : Booking) :
-    ((BookingTable.add booking) : StateM World Unit) = FrFlow.within (fun w => w.bookingTable) (fun w s => { w with bookingTable := s }) (StoredBookings.add booking) := rfl
+@[frflow_defs] theorem StoredBookings.Ops.add_onWorld (booking : Booking) :
+    ((StoredBookings.Ops.add booking) : StateM World Unit) = FrFlow.within (fun w => w.storedBookings) (fun w s => { w with storedBookings := s }) (StoredBookings.add booking) := rfl
 
 namespace StoredBookings
 

@@ -31,7 +31,7 @@ final class LowerValue(env: LowerEnv):
     case (other, ty)                            =>
       throw IllegalStateException(s"FrFlow bug: the value $other is not one of type $ty")
 
-  /** `(World.mk s₁ …)`: each model's state, at its type, then its faults where a boundary may fail. */
+  /** `(World.mk s₁ …)`: each model's state, at its type, then its faults where a model's operations may fail. */
   private def world(states: List[(ModelName, Value)], faults: List[Boolean]): L[LExpr] =
     states.traverse((m, v) => apply(v, env.modelState(m).getOrElse(
       throw IllegalStateException(s"FrFlow bug: a world's state of ${m.value}, a model the theory has not")))

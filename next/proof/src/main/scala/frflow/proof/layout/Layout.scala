@@ -10,7 +10,8 @@ final case class Layout(kb: KbName):
   /** Every define's module: what a proof file imports to state things about the domain. */
   def domain: ModuleName = generated("Domain")
   def define(d: DefName): ModuleName = generated("Domain", s"Def_${d.value}")
-  def boundaries: ModuleName = generated("Boundaries")
+  /** The models' classes and meanings, and the World. */
+  def models: ModuleName = generated("Models")
   def rootImpl: ModuleName = generated("RootImpl")
   /** What is asked of the theory as a whole: consistency, vacuity, the examples. */
   def whole: ModuleName = generated("Whole")

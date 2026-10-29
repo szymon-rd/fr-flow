@@ -5,7 +5,7 @@ import frflow.proof.lean.ast.{Decl, LeanModule, LeanName, ModuleName}
 
 /** A module's imports, read off what its declarations use (`Mentioned`): the domain's types always; a define's
   * module for each define it calls; a node's module for each of its declarations or theorems it names; the
-  * boundaries for the world, a model or a boundary's class.
+  * models for the world, a model's namespace or a model's class.
   */
 object Imports:
   def of(l: Lowering, decls: List[Decl], self: ModuleName): List[ModuleName] =
@@ -22,7 +22,7 @@ object Imports:
       case `kb` :: n :: part :: _ :: Nil if l.node(NodeId(n))     =>
         NodePart.values.find(_.toString == part).map(l.layout.ofNode(NodeId(n), _))
       case List(`kb`, n, _) if l.node(NodeId(n))                  => Some(l.layout.ofNode(NodeId(n), NodePart.Spec))
-      case `kb` :: m :: _ if l.isModelSpace(m)                    => Some(l.layout.boundaries)
-      case c :: _ if l.isBoundaryClass(c) || c == "World"         => Some(l.layout.boundaries)
+      case `kb` :: m :: _ if l.isModelSpace(m)                    => Some(l.layout.models)
+      case c :: _ if l.isModelClass(c) || c == "World"            => Some(l.layout.models)
       case `kb` :: "Whole" :: _                                   => Some(l.layout.whole)
       case _                                                      => None

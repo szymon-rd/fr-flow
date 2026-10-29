@@ -5,10 +5,10 @@ import frflow.core.Nodes.*
 import frflow.core.analysis.{Resolve, Resolved, Validate}
 import frflow.core.code.Code
 import frflow.core.expr.{Prog, Value}
-import frflow.core.name.{BoundaryName, DefName, ModelName, OpName, SymbolName}
+import frflow.core.name.{DefName, ModelName, SymbolName}
 import frflow.core.term.{Bound, Final, Program, Stated, Sym, World}
 import frflow.core.ty.Ty
-import frflow.core.vocab.{BoundarySig, Fails, ModelOp, OpSig, StateModel}
+import frflow.core.vocab.{Fails, ModelOp, StateModel}
 import frflow.proof.layout.Fixture.*
 
 /** Programs that may fail, on a shelf of bookings any call of which may fail with `"down"`, changing nothing:
@@ -23,13 +23,11 @@ import frflow.proof.layout.Fixture.*
 object Failing:
   private val shelf = ModelName("shelved")
   private val (b, held, e) = (at(0, "b", Booking.ty), at(1, "held", Ty.ListOf(Booking.ty)), step(1, "e", Ty.Str))
-  private val sig = BoundarySig(BoundaryName("Shelf"), "Shelf", "a shelf of bookings that may be down",
-    List(OpSig(OpName("put"), List("b" -> Booking.ty), Ty.Unit)), Some(Fails(Ty.Str, Value.Str("down"))))
-  private val model = StateModel(shelf, sig.name, Ty.ListOf(Booking.ty), List(
-    ModelOp(OpName("put"), List(b), Prog.Modify(shelf, held, term([T[_]] => (s: Sym[T]) =>
-      s.cons(s.free[Booking](b), s.free[List[Booking]](held)))))))
+  private val model = StateModel(shelf, "a shelf of bookings that may be down", Ty.ListOf(Booking.ty), List(
+    ModelOp(SymbolName("put"), List(b), Ty.Unit, Prog.Modify(shelf, held, term([T[_]] => (s: Sym[T]) =>
+      s.cons(s.free[Booking](b), s.free[List[Booking]](held)))))), Some(Fails(Ty.Str, Value.Str("down"))))
 
-  private def put(x: Stated[Booking]) = Prog.Call(sig.name, OpName("put"), List(x), Ty.Unit)
+  private def put(x: Stated[Booking]) = Prog.Call(SymbolName("put"), List(x), Ty.Unit)
   private def raise(why: String) = Prog.Raise(term([T[_]] => (s: Sym[T]) => Lang(s).str(why)))
   private val backwards = term([T[_]] => (s: Sym[T]) => booking(s, s.field(s.free[Booking](b), room),
     s.field(s.free[Booking](b), Booking.end), s.field(s.free[Booking](b), Booking.start)))
@@ -76,15 +74,15 @@ object Failing:
       l.s.fails(run[T, Booking](l, "check", Booking.ty, x), w, Bound[String]("error", Ty.Str), after)((_, a) =>
         l.s.unchanged(a, w))))))
 
-  private val facts = storeFacts(sig.name, shelf)
+  private val facts = storeFacts(shelf)
   private val runClaims = List(claim("fileRuns")(fileRuns), claim("fileWrong")(fileWrong),
     claim("checkRuns")(checkRuns),
     claim("spoilRuns")(runs[Booking, Unit]("spoil", Booking.ty, Ty.Unit)),
     claim("twiceRuns")(runs[Booking, (Unit, Unit)]("fileTwice", Booking.ty, pair)))
 
   val kb: Kb = Kb.of((List(endsAfterStart, fromOutside("fromOutside")) ++ runClaims ++ facts)*)
-    .declaring(_.copy(types = List(Booking.data), boundaries = List(sig), models = List(model),
-      defines = List(endsRule, rule("fromOutside"), emptyRule) ++ flow("fileIt", List(b), put(v(b)), Ty.Unit) ++
+    .modelling(model)
+    .declaring(_.copy(types = List(Booking.data), defines = List(endsRule, rule("fromOutside"), emptyRule) ++ flow("fileIt", List(b), put(v(b)), Ty.Unit) ++
         flow("checkIt", List(b), checking, Booking.ty) ++ flow("spoilIt", List(b), spoiling, Ty.Unit) ++
         flow("fileBoth", List(b), twice, pair)))
     .naming(definition("file", program(Ty.Unit)), definition("check", program(Booking.ty)),
@@ -94,7 +92,7 @@ object Failing:
       SymbolName("spoil") -> Code.ProvenFlow(DefName("spoilIt")),
       SymbolName("fileTwice") -> Code.ProvenFlow(DefName("fileBoth")))
     .linking(("fromOutside" :: facts.map(_.id.value)).map(assumes("endsAfterStart", _))*)
-    .linking(List("shelfModel", "shelfOneRun", "fromOutside").flatMap(f =>
+    .linking(List("shelfOneRun", "fromOutside").flatMap(f =>
       List("fileRuns", "fileWrong", "spoilRuns", "twiceRuns").map(c => assumes(c, f))) :+
       assumes("checkRuns", "fromOutside")*)
 

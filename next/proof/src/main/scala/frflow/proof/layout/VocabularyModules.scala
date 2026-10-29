@@ -10,7 +10,7 @@ import frflow.proof.lean.lower.{Atoms, LowerModels, LowerProg, LowerType, Naming
 import frflow.proof.lean.term.Printed
 
 /** The modules of the vocabulary: `Types` (the domain's types, each after those its fields name), a `Def_` module per
-  * define (a change to one rebuilds only what uses it), `Boundaries` (the classes, models and world: a world with no
+  * define (a change to one rebuilds only what uses it), `Models` (the classes, models and world: a world with no
   * model when there is none, what a program's runs are between), and `Domain`,
   * importing every define's.
   */
@@ -21,7 +21,7 @@ object VocabularyModules:
 
   def of(l: Lowering): List[LeanModule] =
     val v = l.resolved.theory.vocabulary
-    (types(l) :: boundaries(l) :: v.defines.map(define(l, _))) :+ domain(l)
+    (types(l) :: models(l) :: v.defines.map(define(l, _))) :+ domain(l)
 
   private def module(l: Lowering, name: ModuleName, decls: List[Decl]): LeanModule =
     Imports.onto(l, LeanModule(name, Nil, Preamble.generated, Names.path(l.kb.value), Nil, decls))
@@ -43,13 +43,12 @@ object VocabularyModules:
     case DataType.Sum(n, _, cs)     => Decl.Inductive(Names.ident(n.value), cs.toList.map(c =>
       Names.ident(c.name.value) -> c.fields.map(f => LBinder.Explicit(Names.ident(f.name), LowerType(f.ty)))))
 
-  private def boundaries(l: Lowering): LeanModule =
+  private def models(l: Lowering): LeanModule =
     val v = l.resolved.theory.vocabulary
-    val worlds = v.models.flatMap(m => v.boundary(m.boundary).map(_ -> m))
-    val models = LowerModels(l.env, l.naming)
-    val results = worlds.flatMap((b, m) => b.ops.filter(_.result != Ty.Unit).map(models.resultOf(m, _)))
+    val lowered = LowerModels(l.env, l.naming)
+    val results = v.models.flatMap(m => m.sigs.filter(_.result != Ty.Unit).map(lowered.resultOf(m, _)))
     val errors = v.defines.filter(_.form == DefineForm.Flow).flatMap(d => Ty.errorOf(d.lambda.result)).distinct
-    module(l, l.layout.boundaries, models.decls(worlds, errors) ++ results)
+    module(l, l.layout.models, lowered.decls(v.models, errors) ++ results)
 
   private def domain(l: Lowering): LeanModule =
     val defines = l.resolved.theory.vocabulary.defines.map(d => l.layout.define(d.name))
@@ -83,18 +82,21 @@ object VocabularyModules:
     Decl.Def(List(Attr.FrflowDefs), Names.builtin(d.name.value), monad(l, d, m) ++ openBinders(l, d),
       LowerType.declaration(inputs.map(_.ty), LExpr.App(LExpr.Name(m), List(LowerType(result)))), body)
 
-  /** The monad a program is over: any, with the errors it raises or handles and the boundaries it calls. */
+  /** The monad a program is over: any, with the errors it raises or handles and the classes of the models whose
+    * operations it calls.
+    */
   private def monad(l: Lowering, d: Define, m: LeanName): List[LBinder] =
     val ir = d.lambda.body match
       case Expr.Do(q, _) => q
       case _             => throw IllegalStateException(s"FrFlow bug: ${d.name.value} is a program with no steps")
     val v = l.resolved.theory.vocabulary
-    val errors = (Progs.errors(ir) ++ Progs.boundaries(ir).flatMap(v.boundary).flatMap(_.failsWith)).distinct
-    val classes = Progs.boundaries(ir).distinct.flatMap(v.boundary).map(_.className)
+    val models = Progs.operations(ir).flatMap(v.modelOf).distinct
+    val errors = (Progs.errors(ir) ++ models.flatMap(_.failsWith)).distinct
+    val classes = models.map(LowerModels.className)
     LBinder.Implicit(m, LExpr.Infix(LOp.Arrow, name("Type"), name("Type"))) ::
       LBinder.Instance(LExpr.App(name("Monad"), List(LExpr.Name(m)))) ::
       errors.map(e => LBinder.Instance(LExpr.App(name("MonadExceptOf"), List(LowerType(e), LExpr.Name(m))))) ++
-      classes.map(c => LBinder.Instance(LExpr.App(name(c), List(LExpr.Name(m)))))
+      classes.map(c => LBinder.Instance(LExpr.App(LExpr.Name(c), List(LExpr.Name(m)))))
 
   private def opens(l: Lowering, d: Define) = l.table.defines.get(d.name).toList.flatMap(_.symbols)
 

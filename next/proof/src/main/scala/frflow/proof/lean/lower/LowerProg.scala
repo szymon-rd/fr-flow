@@ -79,8 +79,7 @@ final class LowerProg(env: LowerEnv, depth: Int):
   /** One step, on a line of its own. */
   private def step(p: P): L[LExpr] = p match
     case Prog.Pure(t)              => term(t).map(x => LExpr.App(name("pure"), List(x)))
-    case Prog.Call(b, op, as, _)   =>
-      as.traverse(term).map(LExpr.App(LExpr.Const(List(env.boundaryClass(b), Names.ident(op.value))), _))
+    case Prog.Call(op, as, _)      => as.traverse(term).map(LExpr.App(env.operation(op), _))
     case Prog.Read(_)              => State.pure(name("get"))
     case Prog.Write(_, s)          => term(s).map(x => LExpr.App(name("set"), List(x)))
     case Prog.Modify(_, x, next)   => (Naming.bind(x), term(next)).mapN(modify)

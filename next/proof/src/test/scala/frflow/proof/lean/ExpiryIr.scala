@@ -30,7 +30,8 @@ object ExpiryIr:
 
   /** `expireOnce` is over `expire` (its open term); the other defines over none. */
   val env: LowerEnv = LowerEnv(KbName("Crm"), d => Option.when(d.value == "expireOnce")(Names.ident("expire")).toList,
-    _ => Names.builtin("database"), _ => Names.builtin("Database"), data.get,
+    _ => Names.builtin("databaseModel"),
+    op => LExpr.Const(List(Names.builtin("DatabaseModel.Ops"), Names.ident(op.value))), data.get,
     _ => Some(store))
   val reserved: Naming = Naming.over(Set("expire"), Set("CrmStore", "Tables", "Event", "World"))
 
@@ -60,14 +61,14 @@ object ExpiryIr:
 
   private def term[A](t: [T[_]] => Sym[T] => T[A]): Stated[?] = Stated(t)
   private def call(op: String, args: Stated[?]*) =
-    Prog.Call(BoundaryName("database"), OpName(op), args.toList, Ty.Unit)
+    Prog.Call(SymbolName(op), args.toList, Ty.Unit)
 
   val expireOnce: Written[Lambda] =
     val (n, st, t, id) = (v(0, "now", big), v(11, "s", store), v(12, "t", store), v(13, "id", big))
     val (w1, w2) = (v(14, "_$1", Ty.Unit), v(15, "_$2", Ty.Unit))
     val changed = Body[Any => Any => List[BigInt]](DefName("changedIds"), Ty.FnOf(List(store),
       Ty.FnOf(List(store), Ty.ListOf(big))), [U[_]] => (_: Sym[U]) => sys.error("printed only"))
-    val steps = Prog.Bind(Prog.Call(BoundaryName("database"), OpName("load"), Nil, store), st,
+    val steps = Prog.Bind(Prog.Call(SymbolName("load"), Nil, store), st,
       Prog.Let(t, term([T[_]] => (s: Sym[T]) => Parts(s).expire(s.free(st), s.free(n))),
         Prog.Bind(Prog.Loop(term([T[_]] => (s: Sym[T]) => s.app(s.app(s.define(changed), s.free[Any](st)),
           s.free[Any](t))), id, call("storeAbout", term([T[_]] => (s: Sym[T]) => s.free[BigInt](id)),

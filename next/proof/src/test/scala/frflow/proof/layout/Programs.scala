@@ -5,11 +5,11 @@ import frflow.core.Nodes.*
 import frflow.core.analysis.{Resolve, Resolved, Validate}
 import frflow.core.code.Code
 import frflow.core.expr.{Binder, OutsideFact, Prog, Value}
-import frflow.core.name.{BoundaryName, DefName, OpName, SourceText, SymbolName, VarId}
+import frflow.core.name.{DefName, SourceText, SymbolName, VarId}
 import frflow.core.spec.Written
 import frflow.core.term.{Bound, Final, Program, Stated, Sym, World}
 import frflow.core.ty.Ty
-import frflow.core.vocab.{BoundarySig, Define, DefineForm, ModelOp, OpSig, StateModel}
+import frflow.core.vocab.{Define, DefineForm, ModelOp, StateModel}
 
 /** Proven code of every shape a rule reads: a define making bookings (`made_reschedule`), a program whose result is
   * one (`made_fetch`, and of one with no inputs, `made_latest`), a store's operation giving one on its model
@@ -75,15 +75,13 @@ object Programs:
 
   /** A shelf of bookings whose one operation gives a booking: `made_sample`, on its model. */
   private val shelf = frflow.core.name.ModelName("shelved")
-  private val shelfSig = BoundarySig(BoundaryName("Shelf"), "Shelf", "a shelf of bookings",
-    List(OpSig(OpName("sample"), Nil, Booking.ty)), None)
-  private val shelfModel = StateModel(shelf, shelfSig.name, Ty.ListOf(Booking.ty),
-    List(ModelOp(OpName("sample"), Nil, Prog.Pure(made))))
+  private val shelfModel = StateModel(shelf, "a shelf of bookings", Ty.ListOf(Booking.ty),
+    List(ModelOp(SymbolName("sample"), Nil, Booking.ty, Prog.Pure(made))), None)
   private val held = at(0, "held", Ty.ListOf(Booking.ty))
   private val emptyRule = Define(DefName("shelfEmpty"), Written.lambda(List(held), [T[_]] => (s: Sym[T]) =>
     s.eq(s.free[List[Booking]](held), s.nil[Booking](Booking.ty)), SourceText("shelfEmpty")), DefineForm.Function)
-  private val shelfFacts = List(outside("shelfModel")(OutsideFact.BehavesAs(shelfSig.name, shelf)),
-    outside("shelfOneRun")(OutsideFact.Atomic(shelfSig.name)),
+  private val shelfFacts = List(outside("shelfModel")(OutsideFact.OnlyCodeChanges(shelf)),
+    outside("shelfOneRun")(OutsideFact.Atomic(shelf)),
     outside("shelfEmpty")(OutsideFact.Initially(shelf, DefName("shelfEmpty"))))
 
   val kb: Kb = Kb.of(endsAfterStart, laterSame, claim("fetchRuns")(runs[BigInt, Booking]("fetch", big, Booking.ty)),
@@ -94,8 +92,8 @@ object Programs:
       l.s.always(Bound[Booking]("b", Booking.ty))(x =>
         l.s.lt(l.s.field(x, Booking.start), l.s.field(x, Booking.end))))))
     .and(shelfFacts*)
-    .declaring(_.copy(types = List(Booking.data), boundaries = List(shelfSig), models = List(shelfModel),
-      defines = List(endsRule, Fixture.rule("fromOutside"), later, emptyRule) ++
+    .modelling(shelfModel)
+    .declaring(_.copy(types = List(Booking.data), defines = List(endsRule, Fixture.rule("fromOutside"), later, emptyRule) ++
       flow("fetchOne", List(n), Prog.Pure(made), Booking.ty) ++ flow("newest", Nil, Prog.Pure(made), Booking.ty) ++
       flow("both", List(n), both, Ty.TupleOf(List(big, big))) ++
       flow("doubled", List(xs), each, Ty.ListOf(big)) ++

@@ -1,30 +1,30 @@
 package frflow.proof.lean.lower
 
 import frflow.core.ty.Ty
-import frflow.core.vocab.{BoundarySig, OpSig, StateModel}
+import frflow.core.vocab.{OpSig, StateModel}
 import frflow.proof.lean.ast.*
 
-/** The boundaries' instances where programs may fail with `E` (today's failing `Boundaries.lean`): on
-  * `ExceptT E (StateM World)`, a call of a boundary failing with `E` takes the next of the world's faults and fails
-  * on `true` with the boundary's error, changing nothing else (`FrFlow.failing`); every other call is lifted
-  * (`ExceptT.lift`). A boundary failing with another error has no instance there: a program calling it fails with
-  * that one (`ErrorsDiffer`) or handles it, which this monad cannot run.
+/** The models' instances where programs may fail with `E` (the failing `Models.lean`): on
+  * `ExceptT E (StateM World)`, a call of an operation of a model failing with `E` takes the next of the world's
+  * faults and fails on `true` with the model's error, changing nothing else (`FrFlow.failing`); every other call is
+  * lifted (`ExceptT.lift`). A model failing with another error has no instance there: a program calling it fails
+  * with that one (`ErrorsDiffer`) or handles it, which this monad cannot run.
   */
 final class LowerFaults(env: LowerEnv, naming: Naming):
   import Atoms.{const, name}
 
   /** Each error's instances and lemmas, the first's lemmas `_onWorldE`, the next's `_onWorldE1`, …. */
-  def decls(worlds: List[(BoundarySig, StateModel)], errors: List[Ty]): List[Decl] =
+  def decls(models: List[StateModel], errors: List[Ty]): List[Decl] =
     errors.zipWithIndex.flatMap { (e, i) =>
       val suffix = if i == 0 then "_onWorldE" else s"_onWorldE$i"
-      val over = worlds.filter(_._1.failsWith.forall(_ == e))
-      over.map(instance(e, _, _)) ++ over.flatMap((b, m) => b.ops.map(o =>
-        LowerModels.lemma((b, o), suffix, LExpr.App(monad(e), List(LowerType(o.result))), onWorld(e, b, m, o))))
+      val over = models.filter(_.failsWith.forall(_ == e))
+      over.map(instance(e, _)) ++ over.flatMap(m => m.sigs.map(o =>
+        LowerModels.lemma((m, o), suffix, LExpr.App(monad(e), List(LowerType(o.result))), onWorld(e, m, o))))
     }
 
-  private def instance(e: Ty, b: BoundarySig, m: StateModel): Decl =
-    Decl.Instance(LExpr.App(name(b.className), List(LExpr.Paren(monad(e)))),
-      b.ops.map(o => InstanceField(Names.ident(o.name.value), LowerModels.params(o), onWorld(e, b, m, o))))
+  private def instance(e: Ty, m: StateModel): Decl =
+    Decl.Instance(LExpr.App(LExpr.Name(LowerModels.className(m)), List(LExpr.Paren(monad(e)))),
+      m.sigs.map(o => InstanceField(Names.ident(o.name.value), LowerModels.params(o), onWorld(e, m, o))))
 
   /** `ExceptT E (StateM World)`. */
   private def monad(e: Ty): LExpr =
@@ -33,9 +33,9 @@ final class LowerFaults(env: LowerEnv, naming: Naming):
   /** `FrFlow.failing (fun w => w.faults) (fun w s => { w with faults := s }) error (on the world)`, or
     * `ExceptT.lift (on the world)`.
     */
-  private def onWorld(e: Ty, b: BoundarySig, m: StateModel, o: OpSig): LExpr =
+  private def onWorld(e: Ty, m: StateModel, o: OpSig): LExpr =
     val within = LExpr.Paren(LowerModels.onWorld(env, m, o))
-    b.fails.filter(_.ty == e).fold(LExpr.App(const("ExceptT.lift"), List(within))) { f =>
+    m.fails.filter(_.ty == e).fold(LExpr.App(const("ExceptT.lift"), List(within))) { f =>
       val (w, fs) = (Names.builtin("w"), Names.builtin("s"))
       val get = LExpr.Fun(List(LBinder.Bare(w)), LExpr.Dot(LExpr.Name(w), LowerFaults.field.text))
       val put = LExpr.Fun(List(LBinder.Bare(w), LBinder.Bare(fs)),

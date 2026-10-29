@@ -22,7 +22,7 @@ end Test.endsAfterStart
 namespace Test.endsAfterStart
 
 @[frflow_defs] def makes_sample (sample : (List Booking) → Booking) : Prop :=
-  (∀ (w : World), ((∀ b ∈ w.Shelf, (b.start < b.«end»)) → ((∀ b ∈ w.Shelf, (b.start < b.«end»)) → ((sample w.Shelf).start < (sample w.Shelf).«end»))))
+  (∀ (w : World), ((∀ b ∈ w.shelved, (b.start < b.«end»)) → ((∀ b ∈ w.shelved, (b.start < b.«end»)) → ((sample w.shelved).start < (sample w.shelved).«end»))))
 
 end Test.endsAfterStart
 
@@ -50,6 +50,6 @@ end Test.fromOutside
 namespace Test.fromOutside
 
 @[frflow_defs] def makes_sample (sample : (List Booking) → Booking) : Prop :=
-  (∀ (w : World), ((∀ b ∈ w.Shelf, (b.start < b.«end»)) → ((∀ b ∈ w.Shelf, (b.start < b.«end»)) → ((sample w.Shelf).start < (sample w.Shelf).«end»))))
+  (∀ (w : World), ((∀ b ∈ w.shelved, (b.start < b.«end»)) → ((∀ b ∈ w.shelved, (b.start < b.«end»)) → ((sample w.shelved).start < (sample w.shelved).«end»))))
 
 end Test.fromOutside

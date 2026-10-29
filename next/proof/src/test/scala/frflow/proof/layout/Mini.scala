@@ -48,7 +48,7 @@ object Mini:
     .declaring(v => v.copy(defines = v.defines ++ List(run, endsRule, Fixture.rule("fromTheForm"), emptyRule)))
     .naming(declaration("allowed", test))
     .linking(partOf("allowedPositive", "allowsOne"))
-    .linking(List("storeModel", "oneAtATime", "startsEmpty", "fromTheForm")
+    .linking(List("onlyCode", "oneAtATime", "startsEmpty", "fromTheForm")
       .map(assumes("endsAfterStart", _))*)
     .linking(assumes("bookRuns", "fromTheForm"))
 
