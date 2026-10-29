@@ -73,16 +73,17 @@ object ReadProof:
       open(n) && Constrained.of(t, n).exists(Constrained.isDeclaration(t, _)))
     Option.when(open(id) || start || below.nonEmpty)(Unproven.Consistency).toList
 
-  /** Its plain code, or a store's implementations, tested: a current report with no failing case, every case asked
-    * tried, every part reached (none since it moved: not tested yet). A statement with no Scala value is not checked
-    * by its tests, which is no failure.
+  /** Its plain code tested, and the Scala of each model's operations it rests on (`Analysis.models`, read by the
+    * model): a current report with no failing case, every case asked tried, every part reached (none since it moved:
+    * not tested yet). A statement with no Scala value is not checked by its tests, which is no failure.
     */
   private def tests(a: Analysis, id: NodeId): List[Unproven] =
-    val tested = Testable.of(a.decided.theory, id) || a.modelled(id)
-    a.tested(id).fold(Option.when(tested)(Unproven.NotTested).toList)(r => Option.when(tested && (r.outcome match
-      case Outcome.NotChecked(_) => false
-      case Outcome.Failed(_)     => true
-      case Outcome.Passed        => r.unreached.nonEmpty || r.count.shortfall > 0))(Unproven.Tests).toList)
+    val own = Option.when(Testable.of(a.decided.theory, id))(a.tested(id)).toList
+    (own ++ a.models(id).map(a.testedModel)).flatMap(_.fold(List(Unproven.NotTested))(r =>
+      Option.when(r.outcome match
+        case Outcome.NotChecked(_) => false
+        case Outcome.Failed(_)     => true
+        case Outcome.Passed        => r.unreached.nonEmpty || r.count.shortfall > 0)(Unproven.Tests).toList)).distinct
 
   /** `complete` proven, every `needed_C` not shown, no clash shown; and it has parts. */
   private def partsMake(a: Analysis, id: NodeId, rs: List[Result]): Boolean =

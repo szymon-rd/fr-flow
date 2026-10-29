@@ -4,8 +4,8 @@ import cats.MonadThrow
 import cats.effect.kernel.Ref
 import cats.syntax.all.*
 import frflow.core.example.Gen
-import frflow.core.expr.{OutsideFact, Prog, Progs, Value}
-import frflow.core.name.{NodeId, SymbolName}
+import frflow.core.expr.{Prog, Progs, Value}
+import frflow.core.name.{ModelName, NodeId, SymbolName}
 import frflow.core.term.Stated
 import frflow.core.Theory
 import frflow.eval.{ScalaValue, Semantics}
@@ -18,8 +18,7 @@ import frflow.testing.report.*
   * model drawn by its type and meeting every `always(stored)` about it, on the Scala and on the model
   * (`ModelTests.run`). Run `i` is drawn from `(seed, i)` at its size; a run that cannot be drawn is not tried, and the
   * shortfall said. The first run that differs is shrunk (`RunShrink`). What the runs reach is counted: each operation
-  * called, each branch of the model's steps taken both ways. Reported under the assumption that nothing outside the
-  * code changes the model's state, when there is one.
+  * called, each branch of the model's steps taken both ways. Reported by the model (`reportedUnder`).
   */
 final class ModelRuns[F[_]: MonadThrow: Ref.Make](check: ModelTests.Check, semantics: Semantics, t: Theory):
   private type Tried = Either[Drawn, (Value, List[Step], Drawn)]
@@ -29,7 +28,7 @@ final class ModelRuns[F[_]: MonadThrow: Ref.Make](check: ModelTests.Check, seman
   private val ops: List[SymbolName] = model.ops.map(_.op)
   private val branches: Map[SymbolName, List[Prog[Stated[?]]]] = model.ops.map(o =>
     o.op -> Progs.all(o.steps).collect { case b @ Prog.Branch(_, _, _) => b }).toMap
-  private val node: NodeId = ModelRuns.node(t, check)
+  private val node: NodeId = ModelRuns.reportedUnder(model.name)
 
   def of(plan: Plan, draw: Draw): F[TestReport] =
     val runs = plan.settings.cases.min(ModelRuns.Runs)
@@ -97,9 +96,7 @@ object ModelRuns:
       if a.outcome == Outcome.Passed then b.outcome else a.outcome, a.unreached.filter(b.unreached.contains),
       (a.notes ++ b.notes).distinct)
 
-  /** The node a model's runs are reported under: the assumption that nothing outside the code changes its state, or,
-    * with none, one named as the model.
+  /** What a model's runs are reported under, by the model (`stored.model`): no node can be named so. Each node resting
+    * on the model's operations' Scala reads it there.
     */
-  def node(t: Theory, check: ModelTests.Check): NodeId = t.nodes.map(_.node)
-    .find(_.statement.outside.contains(OutsideFact.OnlyCodeChanges(check.model.name)))
-    .fold(NodeId(check.model.name.value))(_.id)
+  def reportedUnder(m: ModelName): NodeId = NodeId(s"${m.value}.model")

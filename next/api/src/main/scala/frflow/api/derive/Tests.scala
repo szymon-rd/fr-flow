@@ -1,18 +1,21 @@
 package frflow.api.derive
 
 import frflow.api.node.tests.*
+import frflow.core.name.{ModelName, SymbolName}
 import frflow.testing.model.{Difference as Diff, Ran as Did, Step as Called}
 import frflow.testing.report.{Against as On, Drawn as From, Failure, Note as Noted, Outcome, Reach as Reached,
   Target as Aim, TestReport}
 
 /** What testing found, as the front ends see it: each of `testing.report`'s values as its view, case for case. */
 private[api] object Tests:
-  def of(r: TestReport): TestView = TestView(Cases(r.count.asked, r.count.tried, r.seed.value), against(r.against),
+  /** Of a report, a model's runs naming the model's operations (`operations`). */
+  def of(r: TestReport, operations: ModelName => List[SymbolName]): TestView =
+    TestView(Cases(r.count.asked, r.count.tried, r.seed.value), against(r.against, operations),
     outcome(r.outcome), r.unreached.map(target), r.notes.map(note))
 
-  private def against(a: On): Against = a match
+  private def against(a: On, operations: ModelName => List[SymbolName]): Against = a match
     case On.Claim(n)    => Against.Claim(n)
-    case On.Model(n, m) => Against.Model(n, m)
+    case On.Model(n, m) => Against.Model(n, m, operations(m))
 
   private def outcome(o: Outcome): TestOutcome = o match
     case Outcome.Passed        => TestOutcome.Passed

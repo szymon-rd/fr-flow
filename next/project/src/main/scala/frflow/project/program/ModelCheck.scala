@@ -15,11 +15,9 @@ import frflow.testing.report.TestReport
 final case class ModelCheck[F[_]](node: NodeId, run: (Plan, Draw) => F[TestReport])
 
 object ModelCheck:
-  /** One per model whose operations the FrModel gives Scala, reported under the assumption that nothing outside the
-    * code changes its state (or a node named as the model, with none).
-    */
+  /** One per model whose operations the FrModel gives Scala, reported by the model (`ModelRuns.reportedUnder`). */
   def of[F[_]: MonadThrow: Ref.Make](semantics: Semantics, t: Theory): List[ModelCheck[F]] =
     t.code.implemented.toList.sortBy(_._1.value).flatMap((m, impl) => t.vocabulary.model(m).map { model =>
       val check = ModelTests.Check(model, impl)
-      ModelCheck(ModelRuns.node(t, check), ModelRuns[F](check, semantics, t).of(_, _))
+      ModelCheck(ModelRuns.reportedUnder(m), ModelRuns[F](check, semantics, t).of(_, _))
     })

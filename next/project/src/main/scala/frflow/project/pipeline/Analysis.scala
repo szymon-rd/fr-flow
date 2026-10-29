@@ -3,7 +3,8 @@ package frflow.project.pipeline
 import frflow.core.analysis.{Resolve, Resolved, Valid}
 import frflow.core.consistency.{Consistency, Group}
 import frflow.core.expr.OutsideFact
-import frflow.core.name.NodeId
+import frflow.core.checking.Checking
+import frflow.core.name.{ModelName, NodeId}
 import frflow.decision.content.CodeNow
 import frflow.decision.review.{Reading, Standing, Subjects}
 import frflow.project.code.{CodeFingerprints, Governance}
@@ -14,6 +15,7 @@ import frflow.proof.reading.ProofRules
 import frflow.proof.terms.TermTable
 import frflow.proof.verdict.{CheckKey, NodeCheck, WholeCheck}
 import frflow.proof.whole.{ExampleGoals, Joint, Possible}
+import frflow.testing.model.ModelRuns
 import frflow.testing.report.TestReport
 
 /** The pure state of a project: every phase after elaboration, each computed once, on demand. */
@@ -51,14 +53,16 @@ final class Analysis(val valid: Valid, val inputs: Inputs, val computed: Compute
   def tested(id: NodeId): Option[TestReport] = currentTests.get(id)
   private lazy val currentTests: Map[NodeId, TestReport] =
     inputs.recorded.tests.collect { case (id, (k, r)) if k == TestKeys.of(this, id) => id -> r }
-  /** The assumption that only the code changes a model's state, its operations' Scala tested against the model
-    * under it (attached, or tested before).
+  /** The models whose operations' Scala, tested against the model, a node rests on (owner §36): each its checking
+    * says it rests on (`TestedOnModel`), and of the assumption that only the code changes a model's state, that model.
     */
-  def modelled(id: NodeId): Boolean = decided.theory.node(id).flatMap(_.statement.outside).exists {
-    case OutsideFact.OnlyCodeChanges(m) =>
-      decided.theory.code.implemented.contains(m) || inputs.recorded.tests.contains(id)
-    case _                              => false
-  }
+  def models(id: NodeId): List[ModelName] =
+    val t = decided.theory
+    (Checking.of(t, id).collect { case Checking.TestedOnModel(m, _) => m } ++
+      t.node(id).flatMap(_.statement.outside).collect { case OutsideFact.OnlyCodeChanges(m) => m })
+      .filter(t.code.implemented.contains).distinct
+  /** A model's operations' Scala's report, by the model, while current. */
+  def testedModel(m: ModelName): Option[TestReport] = tested(ModelRuns.reportedUnder(m))
 
   def withRecorded(r: Recorded): Analysis = Analysis(valid, inputs.copy(recorded = r), computed)
 

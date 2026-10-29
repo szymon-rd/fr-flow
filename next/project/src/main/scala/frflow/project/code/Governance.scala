@@ -3,7 +3,7 @@ package frflow.project.code
 import frflow.core.analysis.Constrained
 import frflow.core.analysis.outside.Outsides
 import frflow.core.checking.Checking
-import frflow.core.name.{NodeId, RelPath, SymbolName}
+import frflow.core.name.{ModelName, NodeId, RelPath, SymbolName}
 import frflow.core.spec.Statement
 import frflow.core.Theory
 
@@ -38,9 +38,12 @@ object Governance:
     case _                              => false
   }
 
-  /** A model's operations' plain Scala's files, governed by the assumption that only the code changes its state
-    * (what its model tests are reported under).
+  /** A model's operations' plain Scala's files, governed by the assumption that only the code changes its state, or,
+    * with none, by each statement resting on that Scala (`TestedOnModel`).
     */
   private def implementedFiles(t: Theory): List[(NodeId, RelPath)] =
     t.code.implemented.toList.flatMap((m, i) =>
-      Outsides.onlyCodeChanges(t, m).toList.flatMap(n => i.files.map(n -> _)))
+      Outsides.onlyCodeChanges(t, m).fold(resting(t, m))(List(_)).flatMap(n => i.files.map(n -> _)))
+
+  private def resting(t: Theory, m: ModelName): List[NodeId] = t.nodes.map(_.node.id).filter(n =>
+    Checking.of(t, n).exists { case Checking.TestedOnModel(`m`, _) => true; case _ => false })

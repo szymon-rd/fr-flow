@@ -17,7 +17,7 @@ final class Tables(held: Ref[IO, List[Booking]]):
   def bookings: IO[List[Booking]] = held.get
 
 object Tables:
-  /** The FrModel's own: the SQLite table, its runs under the assumption that only the code writes it. */
+  /** The FrModel's own: the SQLite table, its runs reported by the model. */
   def sqlite(e: Elaborated): List[ModelCheck[IO]] = ModelCheck.of[IO](Semantics(e), e.theory)
 
   /** The stand-in, under the same node. */
@@ -26,5 +26,5 @@ object Tables:
       val check = ModelTests.Check(model, ModelTests.of(storedBookings)(
         start = (bs: List[Booking]) => Ref[IO].of(bs).map(Tables(_)), observe = (t: Tables) => t.bookings)(
         t => (t.inRoom, t.add)))
-      ModelCheck(ModelRuns.node(e.theory, check), ModelRuns[IO](check, Semantics(e), e.theory).of(_, _))
+      ModelCheck(ModelRuns.reportedUnder(model.name), ModelRuns[IO](check, Semantics(e), e.theory).of(_, _))
     }

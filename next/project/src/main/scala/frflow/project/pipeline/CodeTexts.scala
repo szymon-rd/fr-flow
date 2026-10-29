@@ -3,7 +3,7 @@ package frflow.project.pipeline
 import frflow.core.analysis.{Constrained, Resolved}
 import frflow.core.code.Code
 import frflow.core.expr.OutsideFact
-import frflow.core.name.NodeId
+import frflow.core.name.{ModelName, NodeId}
 import frflow.core.Theory
 import frflow.proof.layout.Lowering
 import frflow.proof.lean.lower.LowerModels
@@ -25,11 +25,13 @@ object CodeTexts:
       s"${s.value}: ${coded(t, a.code)}"))).filter(_.nonEmpty).map(_.mkString("\n"))
 
   /** Of the assumption that only the code changes a model's state: the model's operations, as Lean is given them. */
-  def model(r: Resolved, id: NodeId): Option[List[String]] = modelled(r.theory, id).flatMap(r.theory.vocabulary.model)
-    .map { model =>
-      val l = Lowering(r, TermTable.of(r))
-      PrintDecl(LowerModels(l.env, l.naming).model(model)).linesIterator.toList
-    }
+  def model(r: Resolved, id: NodeId): Option[List[String]] = modelled(r.theory, id).flatMap(lean(r, _))
+
+  /** A model's operations, as Lean is given them. */
+  def lean(r: Resolved, m: ModelName): Option[List[String]] = r.theory.vocabulary.model(m).map { model =>
+    val l = Lowering(r, TermTable.of(r))
+    PrintDecl(LowerModels(l.env, l.naming).model(model)).linesIterator.toList
+  }
 
   /** Of the same assumption: the Scala of the model's operations tested against it, as written. */
   def implementations(r: Resolved, id: NodeId): Option[List[String]] = modelled(r.theory, id)

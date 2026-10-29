@@ -2,6 +2,7 @@ package frflow.cli.say
 
 import frflow.api.node.tests.*
 import frflow.core.example.Given
+import frflow.core.name.SymbolName
 import frflow.eval.EvalError
 import frflow.eval.run.{Broken, OnCode}
 
@@ -23,8 +24,13 @@ object Tested:
 
   def head(t: TestView): String = t.against match
     case Against.Claim(n)    => s"tested on ${t.cases.tried} generated cases (seed ${t.cases.seed}) against $n"
-    case Against.Model(_, m) => s"tested on ${t.cases.tried} generated runs (seed ${t.cases.seed}) against the model " +
-        s"${m.value}"
+    case Against.Model(_, m, os) => s"${scalaOf(os)} tested on ${t.cases.tried} generated runs (seed " +
+        s"${t.cases.seed}) against ${m.value}"
+
+  /** `inRoom and add's Scala`. */
+  def scalaOf(operations: List[SymbolName]): String = (operations.map(_.value) match
+    case init :+ last if init.nonEmpty => s"${init.mkString(", ")} and $last"
+    case one                           => one.mkString) + "'s Scala"
 
   def outcome(o: TestOutcome, movedUnderCode: Boolean): String = o match
     case TestOutcome.Passed        => "every case meets it"

@@ -2,7 +2,7 @@ package frflow.cli.text
 
 import frflow.api.node.NodeView
 import frflow.api.node.lean.{CheckState, ObligationState}
-import frflow.api.node.tests.TestOutcome
+import frflow.api.node.tests.{Against, TestOutcome}
 import frflow.api.view.View
 import frflow.cli.say.{Findings, Tested, Unprovens}
 import frflow.cli.term.{Marks, Style}
@@ -36,8 +36,9 @@ object CheckText:
       case Some(TestOutcome.Failed(f)) => Tested.failed(f, Cause.movedUnderCode(n.review.standing.causes))
       case _ if !proven(n)             => Findings.check(n.proof.state)
       case Some(TestOutcome.Passed)    =>
-        (if n.proof.state == CheckState.Proven then "proven; its code" else "its code") +
-          s" tested on ${tests.fold(0)(_.cases.tried)} cases"
+        (if n.proof.state == CheckState.Proven then "proven; " else "") + tests.fold("")(t => t.against match
+          case Against.Model(_, m, os) => s"${Tested.scalaOf(os)} tested against ${m.value} on ${t.cases.tried} runs"
+          case Against.Claim(_)        => s"its code tested on ${t.cases.tried} cases")
       case _                           => if n.proof.state == CheckState.Proven then "proven" else "nothing to prove"
 
   private def details(n: NodeView, st: Style): List[String] =

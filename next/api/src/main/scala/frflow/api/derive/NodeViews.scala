@@ -3,8 +3,7 @@ package frflow.api.derive
 import frflow.api.node.*
 import frflow.core.analysis.{Constrained, Resolve}
 import frflow.core.checking.Shown
-import frflow.core.expr.OutsideFact
-import frflow.core.name.NodeId
+import frflow.core.name.{ModelName, NodeId, SymbolName}
 import frflow.core.spec.{Node, NodeKind}
 import frflow.decision.content.FieldValue
 import frflow.decision.review.{Moves, ReviewState, Standing}
@@ -45,11 +44,12 @@ private[api] final class NodeViews(a: Analysis):
 
   def code(id: NodeId): Option[CodeView] =
     val coded = Constrained.of(r.theory, id).exists(r.theory.code.attached.contains)
-    val modelled = r.theory.node(id).flatMap(_.statement.outside).exists {
-      case OutsideFact.OnlyCodeChanges(m) => r.theory.code.implemented.contains(m)
-      case _                              => false
-    }
-    Option.when(coded || modelled)(CodeView(Shown.of(r.theory, id), a.tested(id).map(Tests.of)))
+    val models = a.models(id)
+    val tests = a.tested(id).orElse(models.headOption.flatMap(a.testedModel))
+    Option.when(coded || models.nonEmpty)(CodeView(Shown.of(r.theory, id), tests.map(Tests.of(_, operations))))
+
+  /** A model's operations, in the order its meanings are given. */
+  private def operations(m: ModelName): List[SymbolName] = r.theory.vocabulary.model(m).toList.flatMap(_.ops.map(_.op))
 
   def review(id: NodeId): ReviewView =
     val subject = a.subjects.get(id)

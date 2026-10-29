@@ -12,6 +12,8 @@ import frflow.project.port.Records
 import frflow.testing.Seed
 import frflow.testing.report.*
 import frflow.wire.file.Depth
+import frflow.decision.review.Unproven
+import frflow.eval.Semantics
 import rooms.storedBookings
 
 /** Testing before production on rooms in memory: the calendar's Scala tested against each claim on `granted`, the
@@ -46,7 +48,7 @@ class TestProgramSuite extends munit.CatsEffectSuite:
     }
   }
 
-  private val model = NodeId("nothingElseWrites")
+  private val model = frflow.testing.model.ModelRuns.reportedUnder(storedBookings.name)
 
   /** The table's assumption tested by the Scala given, as the project's checks (`Tables`) give it. */
   private def modelled(checks: List[ModelCheck[IO]]) = for
@@ -69,9 +71,24 @@ class TestProgramSuite extends munit.CatsEffectSuite:
     }
   }
 
-  test("a model check is under the assumption that only the code changes the state; none where no Scala is given") {
+  test("a model check is reported by its model; none where no Scala is given") {
     assertEquals(Tables.sqlite(Projects.rooms).map(_.node), List(model))
     assertEquals(Tables.sqlite(Projects.elaborated(Steps.steps)).map(_.node), Nil)
+  }
+
+  test("a model's Scala breaking the model reddens each node resting on it, with no onlyCodeChanges assumption") {
+    val e = Projects.elaborated(rooms.Forgetting.kb)
+    val store = NodeId("storeWhenFree")
+    for
+      p   <- Projects.inMemory(Map.empty)
+      a   <- Projects.analysed(p, e, Nil)
+      out <- TestProgram[IO](p.files, RunCode.inline[IO], ModelCheck.of[IO](Semantics(e), e.theory))(a, None)
+    yield
+      def unproven(on: frflow.project.pipeline.Analysis) = on.subjects.get(store).toList.flatMap(_.proof.unproven)
+      assert(unproven(a).contains(Unproven.NotTested), unproven(a))
+      val report = out._2.testedModel(storedBookings.name)
+      assert(report.exists(_.failure.nonEmpty), report)
+      assert(unproven(out._2).contains(Unproven.Tests), unproven(out._2))
   }
 
   private def failure(i: Int, deep: Int = 0): Failure =
