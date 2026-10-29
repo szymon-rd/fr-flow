@@ -360,13 +360,21 @@ The owner: "Ok" and "ok".
 ## 41. The World is implicit in statements; a run's world after is `.after` (owner)
 The owner asked whether the World could be used "without making it a param", then: "Change to world is okay, after
 is okay, answer is weird". A statement holds in every reachable world; a value that changes with the world is read in
-the current one without being passed a world (it is marked where it is declared; the marker's name is still open);
+the current one without being passed a world (no marker: see §43);
 a program in a statement runs from the current world, and `.after` is the world it leaves (`storedBookings.in(
-book(request).after)`). What the program returns is named by a word still open (`.answer` refused; `.result`
-proposed); for a program that can fail it is `Either[Error, A]`. This replaces the run form of §34. Built as step 13b.
+book(request).after)`). What the program returns is `.result` (owner: "I accept recommended"; `.answer` refused); for a program that can fail it is `Either[Error, A]`. This replaces the run form of §34. Built as step 13b.
 
 ## 42. One `Flow`; `Program` removed (owner)
 The owner: "Oh I hate Program. We should make it one Flow". A Definition that may read or change state has the type
 `A => Flow[R]`, and its code is written as a plain `Flow[R]` (a `for` comprehension), as today's library writes it; the
 tagless form (`[F[_]]`, `using f: Flow[F]`, `f.flatMap`) stays inside the library. Built as step 13b.
+
+## 43. No marker for values that change; `.isConstant` (owner)
+The owner asked "Why do we need marker for varying though?" and decided: "Let's do as you say but make a .isConstatnt
+assumption". Every Declaration may change with the World (Lean sees a function of the world); a fixed one is the case
+where it is the same in every world. A `define` changes with the World exactly when its body reads state (a model's
+state or a program's `.result`/`.after`), which FrFlow reads off the code. Programs are known by their type
+(`A => Flow[R]`). `d.isConstant` says a Declaration is the same in every world; it is written as an assumption
+(`Node.assumption("The opening hour never changes.")(openingHour.isConstant)`) and, like any formula, may also be
+claimed where the code shows it. Built as step 13b.
 
