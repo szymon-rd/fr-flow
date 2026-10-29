@@ -1,7 +1,7 @@
 
 Decided 0 decision(s).
 FrModel: 16 nodes, 16 accepted
-Code: 4 proven, 2 tested; consistency proven
+Code: 4 proven, 3 tested; consistency proven
 Examples: 2/2 pass
 Nothing waits: every node is accepted and proven, or its code tested.
 marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide

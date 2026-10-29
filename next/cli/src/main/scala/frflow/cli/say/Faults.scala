@@ -14,7 +14,10 @@ object Faults:
     case Site.Model(m)    => s"the model ${m.value}"
     case Site.Example(n)  => s"the example \"$n\""
 
-  def fault(f: Fault): String = f match
+  def fault(f: Fault): String = (written orElse meaning)(f)
+
+  /** A fault in what is written: a value, a type, a path, a step. */
+  private val written: PartialFunction[Fault, String] =
     case Fault.DeclaredLater          => "a value is used before it is declared: declare it above"
     case Fault.NoType(where)          => s"$where has no type FrFlow can read"
     case Fault.FunctionEquality       => "two functions are compared: compare their results on every input instead"
@@ -25,10 +28,9 @@ object Faults:
     case Fault.NotAClaim(what)        => s"$what is not a claim: only a claim is left open above"
     case Fault.OutsideStep            => "a program's step is used outside a program"
     case Fault.NotATerm(what)         => s"a program's step gives $what, which is not a term: Lean cannot read it"
-    case other                        => meaning(other)
 
   /** A fault in what gives a Definition its meaning: its model, its Scala, its proven code. */
-  private def meaning(f: Fault): String = f match
+  private val meaning: PartialFunction[Fault, String] =
     case Fault.NotAnOperation(what)   => s"a program's step $what applies no Definition: a step is an operation on a " +
         "state applied (inRoom(request.room))"
     case Fault.NotOneModel(ds)        => s"implementTested is given ${ds.mkString(", ")}, which are not operations " +

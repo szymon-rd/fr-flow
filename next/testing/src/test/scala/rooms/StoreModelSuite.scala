@@ -77,7 +77,7 @@ class StoreModelSuite extends munit.FunSuite:
     assertEquals((again.cases, again.failure.map(_.from)), (1, Some(first.from)))
   }
 
-  test("in production the program runs on the table's Scala bound, nothing checked: a free request booked, a clash not") {
+  test("in production the program runs on the table's Scala bound, unchecked: a free request booked, a clash not") {
     val booked = for
       table  <- BookingsTable.holding(Nil)
       run    <- rooms.running[IO](storedBookings := table)

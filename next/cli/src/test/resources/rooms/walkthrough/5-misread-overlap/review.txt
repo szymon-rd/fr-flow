@@ -41,7 +41,7 @@ Rules it uses (no part of its step: Lean has each of every value)
 
 Decided 0 decision(s).
 FrModel: 16 nodes, 14 accepted, 2 to review
-Code: 4 proven, 2 tested; consistency proven
+Code: 4 proven, 3 tested; consistency proven
 Examples: 3/3 pass
 Waiting: 2 for the developer
 marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide

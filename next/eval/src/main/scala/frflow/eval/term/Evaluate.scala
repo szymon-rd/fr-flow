@@ -12,7 +12,7 @@ import frflow.eval.term.Run.{map2, pure}
   * given, failing where a term has no Scala value: a quantifier over a whole type). A bound variable is the host value
   * the body is applied to, so nothing is named; a function is a host function (`lam`), a named definition runs its
   * body. Only parameters, free variables, models' states and runs' errors are read from the untyped values given
-  * (`Fn.as`, at that boundary). A function the term builds (`lam`) is a host function: where it has no value for an
+  * (`Fn.as`, where the two meet). A function the term builds (`lam`) is a host function: where it has no value for an
   * argument it throws `NotEvaluated`, the plain-code path's documented edge, and `app` turns that back into `Left`;
   * so a function value that leaves the evaluator fails as `d.fn` does. A class, so an interpreter of a vocabulary
   * added outside the core extends it (`Count` in the tests).

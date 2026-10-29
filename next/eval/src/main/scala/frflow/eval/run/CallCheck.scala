@@ -9,7 +9,7 @@ import frflow.eval.{Applied, Env, EvalError, Fn, ScalaValue, Semantics}
 
 /** What one call of a Definition's plain code is checked against in its generated tests, built once: the post of a
   * claim read as its call (over the call's inputs, the Definition named in it), and the `always[T]`s of the values it
-  * is given and makes (its boundary with the code FrFlow covers, owner §16). A call is its inputs, then its result.
+  * is given and makes (where it meets the code FrFlow covers, owner §16). A call is its inputs, then its result.
   */
 final case class CallCheck(post: Applied, op: SymbolName, made: List[Made], inputs: List[Ty], result: Ty):
   /** The post on a call: its inputs bound, the Definition giving the call's result for them. */

@@ -33,7 +33,7 @@ Examples
   + overlapping: refused  Lean: shown
 
 FrModel: 16 nodes, 15 accepted, 1 to review
-Code: 4 proven, 2 tested; consistency proven
+Code: 4 proven, 3 tested; consistency proven
 Examples: 2/2 pass
 Waiting: 1 for the developer
 marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide

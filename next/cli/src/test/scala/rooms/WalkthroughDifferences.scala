@@ -10,18 +10,21 @@ object WalkthroughDifferences:
     "status bookingsEndAfterStart: - -> +" ->
       ("an assumption of always is a rule: Lean proves book keeps it, inRoom makes it and the store starts meeting " +
         "it (cover_, made_, start_; owner §27), so it is proven, not only assumed"),
+    "status nothingElseWrites: none -> -" -> nothingElse,
     "status onlyBookingWrites: - -> none" ->
-      "gone: the programs changing a store are derived from the code (owner §31)")
+      "gone: the programs changing a store are derived from the code (owner §31)",
+    "status tableMatchesModel: - -> none" -> tableGone)
 
   val judged: Map[String, List[(String, String)]] = Map(
     "base" -> ends,
-    "4-code-forgets-the-next-booking" -> List(ends.head,
-      "status grantWhenNoOverlap: ! -> x" ->
-        "status marks a failing node x before its review state (still to review), as check does",
-      ends(1)),
+    "4-code-forgets-the-next-booking" -> (ends.head :: ("status grantWhenNoOverlap: ! -> x" ->
+        "status marks a failing node x before its review state (still to review), as check does") :: ends.tail),
     "5-misread-overlap" -> List(
       "check bookingsEndAfterStart: - -> +" -> ends.head._2,
       "check neverOverlap: + -> o" -> sharedLemmas,
+      "check nothingElseWrites: none -> +" -> ("the table's Scala tested against storedBookings on 200 generated " +
+        "runs, as today's tableMatchesModel was; it is checked again because the rules the runs' states are drawn " +
+        "meeting changed"),
       "check roomBookingsApart: + -> o" ->
         ("the port states the rule in start and end times (noOverlap, 2.3), so the misread reaches it: back-to-back " +
           "stored bookings, which the table may hold, fail the strict noOverlap, so made_inRoom cannot be proven, as " +
@@ -35,8 +38,10 @@ object WalkthroughDifferences:
       "status bookingsEndAfterStart: ! -> +" -> (ends.head._2 + "; and it is not back: " + premise),
       "status neverOverlap: + -> o" -> sharedLemmas,
       ends(1),
+      ends(2),
       "status roomBookingsApart: + -> !" -> "back for review (below), and not proven (above): ! before o",
       "status storeWhenFree: . -> o" -> sharedLemmas,
+      ends(3),
       "review acceptedIsAnswered: back -> kept" -> meaningKept,
       "review bookedAfterIsStored: back -> kept" -> meaningKept,
       "review bookedIsStored: back -> kept" -> meaningKept,
@@ -46,16 +51,21 @@ object WalkthroughDifferences:
     "6-misread-reaches-the-claim" -> List(
       "check bookingsEndAfterStart: - -> +" -> ends.head._2,
       "status bookingsEndAfterStart: ! -> +" -> (ends.head._2 + "; and it is not back: " + premise),
+      ends(1),
       "status oneAtATime: ! -> -" -> premise,
-      "status onlyBookingWrites: ! -> none" -> ends(1)._2,
+      "status onlyBookingWrites: ! -> none" -> ends(2)._2,
       "status startsEmpty: ! -> -" -> premise,
-      "status tableMatchesModel: ! -> -" -> premise,
+      "status tableMatchesModel: ! -> none" -> tableGone,
       "review bookingsEndAfterStart: back -> kept" -> premise,
       "review oneAtATime: back -> kept" -> premise,
-      "review onlyBookingWrites: back -> kept" -> ends(1)._2,
+      "review onlyBookingWrites: back -> kept" -> ends(2)._2,
       "review startsEmpty: back -> kept" -> premise,
-      "review tableMatchesModel: back -> kept" -> premise))
+      "review tableMatchesModel: back -> kept" -> tableGone))
 
+  private def nothingElse = "new: nothing but the code changes the table, said of the model (owner §36), " +
+    "decided before the claims resting on it, the table's Scala tested against the model under it"
+  private def tableGone = "gone: no store behaves as a model (owner §36); what it said of the world outside is " +
+    "nothingElseWrites, and that the table does what the model does is the test of its Scala"
   private def sharedLemmas = "its proof imports the shared lemmas (Proofs/Rooms/Lemmas.lean), and the lemma relating " +
     "apart to noOverlap no longer holds once noOverlap is strict: the lemmas do not build, so it is not proven (o), " +
     "said as the lemmas' failure, not its own proof's"

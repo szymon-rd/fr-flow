@@ -11,12 +11,12 @@
   + acceptedIsAnswered  claim  accepted  A request is accepted exactly when booking it answers booked.
   + answerWhenFree  claim  accepted  A request is answered booked exactly when its room is free for its whole time.
 + bookingsEndAfterStart  assumption  accepted  Every booking ends after it starts.
-- tableMatchesModel  assumption  accepted  The table gives a room's bookings in the order they were added, and adds one at the end.
 - oneAtATime  assumption  accepted  Bookings are processed one at a time.
+- nothingElseWrites  assumption  accepted  Nothing but the booking code changes the table.
 - startsEmpty  assumption  accepted  The table starts empty.
 
 FrModel: 16 nodes, 16 accepted
-Code: 4 proven, 2 tested; consistency proven
+Code: 4 proven, 3 tested; consistency proven
 Examples: 2/2 pass
 Nothing waits: every node is accepted and proven, or its code tested.
 marks: + proven or tested  x fails  o not proven  ? not checked yet  - nothing to prove  ! to decide
