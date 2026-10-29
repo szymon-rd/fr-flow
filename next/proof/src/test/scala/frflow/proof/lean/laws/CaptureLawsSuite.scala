@@ -66,6 +66,14 @@ class CaptureLawsSuite extends munit.FunSuite:
     terms.foreach(t => assertEquals(check(ToExpr.of(t)).toEither.map(_ => ()), Right(()), ToExpr.of(t)))
   }
 
+  test("a pair's components are Lean's projections (p.1, p.2.1), never escaped as names") {
+    val pair = frflow.core.term.Selector.second[BigInt, BigInt](Lang.big)
+    val t: Final[Boolean] = [T[_]] => (s: Sym[T]) =>
+      s.eq(s.field(s.param[(BigInt, BigInt)](SymbolName("p"), Ty.TupleOf(List(Lang.big, Lang.big))), pair),
+        Lang(s).num(1))
+    assertEquals(printed(LawsEnv.env, naming)(t), "(p.2 = (1 : Int))")
+  }
+
   // The review's probes, each a term the printer once made a tautology of.
 
   private val some = SymbolName("some")

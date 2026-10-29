@@ -108,7 +108,7 @@ final class LeanTerm(env: LowerEnv, standing: Map[SymbolName, LExpr] = Map.empty
       args(sel.index) match
         case typed: LExpr.Typed => typed
         case arg                => LExpr.Typed(arg, LowerType(sel.ty))
-    case other => LExpr.Dot(other, Names.ident(sel.name).text)
+    case other => LExpr.Dot(other, if sel.record == Selector.pair then sel.name else Names.ident(sel.name).text)
   def copy[R, F](r: S[R], sel: Selector[R, F], v: S[F]): S[R] =
     s => LExpr.Update(r(s), List(Names.ident(sel.name) -> v(s)))
   def pair[A, B](a: S[A], b: S[B]): S[(A, B)] = s => LExpr.Tuple(List(a(s), b(s)))

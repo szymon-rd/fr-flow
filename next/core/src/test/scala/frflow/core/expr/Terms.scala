@@ -105,7 +105,7 @@ final class Terms(seed: Long):
 
   private def boolLeaf(k: Int): Tm[Boolean] = r.nextInt(3) match
     case 0 => Tm.bool(r.nextBoolean())
-    case 1 => Tm.bool(r.nextBoolean()) // a fact about the outside is never a part of a formula: a whole assumption
+    case 1 => Tm.forall(Tm.bool(true)) // where a fact about the outside stood (a whole assumption only): no value
     case _ => lt(numLeaf(k), numLeaf(k))
 
   private def numLeaf(k: Int): Tm[BigInt] = r.nextInt(3) match

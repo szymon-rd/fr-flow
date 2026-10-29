@@ -2,7 +2,7 @@ package frflow.eval.term
 
 import frflow.core.code.Values
 import frflow.core.name.SymbolName
-import frflow.core.expr.{Expr, Exprs, LawSeeds, Terms, Tm}
+import frflow.core.expr.{Expr, Exprs, LawSeeds, Renamed, Terms, Tm}
 import frflow.core.term.Final
 import frflow.core.term.interpret.ToExpr
 import frflow.core.ty.Ty
@@ -53,6 +53,15 @@ class LeanDecidesSuite extends munit.FunSuite:
   test("Lean decides each term as the evaluator does".tag(LeanTag)) {
     val (proven, out) = LawModules.verdicts("Decided", decided)
     assert(proven.size == decided.size && proven.forall(identity) && !out.contains("error:"),
+      out.linesIterator.take(80).mkString("\n"))
+  }
+
+  test("each term, its binders named as Lean's keywords, prelude names, the symbols and the FrModel, is decided the same"
+    .tag(LeanTag)) {
+    val renamed = decided.zipWithIndex.map { case ((t, v), i) => Renamed.binders(t, i.toLong) -> v }
+    assert(renamed.forall((t, v) => Evaluate.of(t)(Env.of(programs)) == Right(v)))
+    val (proven, out) = LawModules.verdicts("Renamed", renamed)
+    assert(proven.size == renamed.size && proven.forall(identity) && !out.contains("error:"),
       out.linesIterator.take(80).mkString("\n"))
   }
 

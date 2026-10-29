@@ -18,8 +18,9 @@ object LawModules:
   /** The laws' environment, its world holding the faults beside `stored`, and `Spare` among its types. */
   val env: LowerEnv = LawsEnv.env.copy(faulty = true, models = List(Names.builtin("stored")),
     data = n => (List(Booking.data, MoreTerms.event, Spare.data) ++ DslTerms.types).find(_.typeName == n))
-  private val naming = Naming.over(Set.empty, Set(Booking.name.value, MoreTerms.eventName.value, "World", "Spare") ++
-    DslTerms.types.map(_.typeName.value))
+  /** As a FrModel's: no variable takes the FrModel's namespace, a program's name, or a name Lean writes itself. */
+  private val naming = Naming.over(Set("Laws", "run", "attempt") ++ frflow.core.analysis.Reserved.names,
+    Set(Booking.name.value, MoreTerms.eventName.value, "World", "Spare") ++ DslTerms.types.map(_.typeName.value))
   private val tactics =
     List("first", "  | decide", "  | frflow_eval", "  | (simp only [frflow_defs]; decide)",
       "  | simp_all [frflow_defs]")

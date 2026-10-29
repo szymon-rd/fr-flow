@@ -60,7 +60,11 @@ object Renamed:
   val symbols: Map[String, String] = Map("p" -> "x_1", "k" -> "some", "xs" -> "by", "o" -> "id", "slot" -> "a$b",
     "s" -> "a_b", "m" -> "max", "ev" -> "__x", "outcome" -> "x_x", "run" -> "some_", "attempt" -> "id_")
 
-  def of[A](t: Final[A], seed: Long): Final[A] =
+  def of[A](t: Final[A], seed: Long): Final[A] = renamed(t, seed, s => symbols.get(s.value).fold(s)(SymbolName(_)))
+
+  /** The binders renamed only: a closed term's programs keep the names Lean and Scala hold them by. */
+  def binders[A](t: Final[A], seed: Long): Final[A] = renamed(t, seed, identity)
+
+  private def renamed[A](t: Final[A], seed: Long, symbol: SymbolName => SymbolName): Final[A] =
     val hint = (h: String) => pool(Math.floorMod((h.hashCode.toLong * 31 + seed).hashCode, pool.size))
-    val symbol = (s: SymbolName) => symbols.get(s.value).fold(s)(SymbolName(_))
     [T[_]] => (s: Sym[T]) => t[T](Renamed[T](s, hint, symbol))
