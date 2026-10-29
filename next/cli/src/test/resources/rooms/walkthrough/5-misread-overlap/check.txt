@@ -48,7 +48,6 @@ o bookWhenFree: open
   needed_storeWhenFree: not shown
   clash: not shown
   unsat: not shown
-  idle: not shown
   root_impl: open
   not proven: its check is not proven
   not proven: the roots of the code are not proven (root_impl)
@@ -58,7 +57,6 @@ o acceptWhenFree: open
   needed_answerWhenFree: not shown
   clash: not shown
   unsat: not shown
-  idle: not shown
   root_impl: open
   not proven: its check is not proven
   not proven: the roots of the code are not proven (root_impl)
