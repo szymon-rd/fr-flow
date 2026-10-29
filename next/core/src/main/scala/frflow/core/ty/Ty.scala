@@ -23,12 +23,14 @@ enum Ty:
   case FlowOf(result: Ty, error: Option[Ty])
 
 object Ty:
-  /** A function type applied to one argument: the rest of its inputs, or its result. Applying anything else is a
-    * FrFlow bug: the DSL applies functions only.
+  /** A function type applied to one argument: the rest of its inputs, or its result; a program applied to a world,
+    * its run from it (as Lean types a program: `World → outcome × World`, `Defining.runs`). Applying anything else is
+    * a FrFlow bug: the DSL applies functions only.
     */
   def applied(t: Ty): Ty = t match
     case FnOf(_ :: Nil, r)  => r
     case FnOf(_ :: rest, r) => FnOf(rest, r)
+    case FlowOf(r, e)       => TupleOf(List(e.fold(r)(EitherOf(_, r)), World))
     case other              => throw IllegalStateException(s"FrFlow bug: a value of type $other applied")
 
   /** A function type's result; any other type is its own. */

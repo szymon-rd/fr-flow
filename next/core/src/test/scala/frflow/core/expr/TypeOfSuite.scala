@@ -135,4 +135,7 @@ class TypeOfSuite extends munit.FunSuite:
     assert(intercept[IllegalStateException](Ty.applied(Ty.Bool)).getMessage.startsWith("FrFlow bug"))
     assert(intercept[IllegalStateException](Ty.join(Ty.Bool, Lang.big)).getMessage.startsWith("FrFlow bug"))
     assertEquals((Ty.join(Lang.big, Ty.Never), Ty.join(Ty.Never, Ty.Str)), (Lang.big, Ty.Str))
+    // A program applied to a world is its run, as Lean types it: the outcome and the world after.
+    assertEquals((Ty.applied(Ty.FlowOf(Ty.Bool, None)), Ty.applied(Ty.FlowOf(Ty.Bool, Some(Ty.Str)))),
+      (Ty.TupleOf(List(Ty.Bool, Ty.World)), Ty.TupleOf(List(Ty.EitherOf(Ty.Str, Ty.Bool), Ty.World))))
   }

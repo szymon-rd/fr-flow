@@ -11,13 +11,18 @@ final case class IrContext(data: TypeName => Option[DataType], defines: DefName 
     symbols: (SymbolName, Ty) => Boolean, operations: SymbolName => Option[OpSig], states: ModelName => Option[Ty])
 
 object IrContext:
-  /** A theory's vocabulary: every symbol at its type, every define and operation known. */
+  /** A theory's vocabulary: every symbol at its type (an operation also at its meaning's, from its inputs and its
+    * model's state to its result: what `made_<op>` states, `Making.ofModel`), every define and operation known.
+    */
   def of(v: Vocabulary): IrContext = IrContext(v.dataType, d => v.define(d).map(defined =>
     defined.lambda.params match
       case Nil => defined.lambda.result
       case ps  => Ty.FnOf(ps.map(_.ty), defined.lambda.result)),
-    (n, t) => v.symbol(n).exists(s => s.ty == SymbolType.Typed(t) || codeOnly(s.ty)),
+    (n, t) => v.symbol(n).exists(s => s.ty == SymbolType.Typed(t) || codeOnly(s.ty)) || meaning(v, n).contains(t),
     op => v.modelOf(op).flatMap(_.op(op)).map(_.sig), m => v.model(m).map(_.state))
+
+  private def meaning(v: Vocabulary, op: SymbolName): Option[Ty] =
+    v.modelOf(op).flatMap(m => m.op(op).map(o => Ty.FnOf(o.params.map(_.ty) :+ m.state, o.result)))
 
   /** A value only plain code reads: no Lean type to check it at; a statement mentioning it is refused by `Validate`
     * (`CodeOnlyInStatement`), which runs after this check.

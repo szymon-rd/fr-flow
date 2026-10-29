@@ -88,11 +88,14 @@ final class Local(ctx: IrContext):
     case Ty.Never | Ty.FlowOf(Ty.Never, _) => true
     case _                                 => false
 
-  /** A function type applied to `as`, one argument at a time, each of its parameter's type, gives `t`. */
-  private def applies(f: Ty, as: List[Expr], t: Ty): Boolean = f match
-    case Ty.FnOf(ps, r) if as.size <= ps.size =>
-      ps.take(as.size) == as.map(ty) && (if as.size == ps.size then r else Ty.FnOf(ps.drop(as.size), r)) == t
-    case other                                => as.isEmpty && other == t
+  /** A function type applied to `as`, one argument at a time, each of its parameter's type, gives `t`; a program
+    * applied to a world gives its run (`Ty.applied`).
+    */
+  private def applies(f: Ty, as: List[Expr], t: Ty): Boolean = (f, as) match
+    case (_, Nil)                        => f == t
+    case (Ty.FnOf(p :: _, _), a :: rest) => ty(a) == p && applies(Ty.applied(f), rest, t)
+    case (Ty.FlowOf(_, _), a :: rest)    => ty(a) == Ty.World && applies(Ty.applied(f), rest, t)
+    case _                               => false
 
   private def fields(n: TypeName, c: CtorName): Option[List[Ty]] =
     data(n).map(d => d.fieldsOf(c))
