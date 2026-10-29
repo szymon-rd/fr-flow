@@ -11,6 +11,8 @@ import frflow.core.name.NodeId
   * claim on it, on generated grant and session tables, tokens and paths; and the seeded `careless` decision.
   */
 class AuthSuite extends munit.FunSuite:
+  // A thousand generated cases a claim, the suites beside it running at once: on CI's two cores, minutes, not 30 s.
+  override val munitTimeout: scala.concurrent.duration.Duration = scala.concurrent.duration.Duration(5, "minutes")
   test("the decision is tested against its contract: every generated case meets it, every part of it is reached") {
     assertEquals(Tested.nodes(knowledge).sorted,
       List("accessNeedsGrant", "decisionContract", "grantLetsIn", "tokenNamesHolder"))

@@ -8,6 +8,8 @@ import keycloak.*
   * claims and assumptions on it, and section 9's two seeded bugs, each caught by a failing generated case.
   */
 class KeycloakSuite extends munit.FunSuite:
+  // A thousand generated cases a claim, the suites beside it running at once: on CI's two cores, minutes, not 30 s.
+  override val munitTimeout: scala.concurrent.duration.Duration = scala.concurrent.duration.Duration(5, "minutes")
   /** Keycloak with `introspect` and `record` given other code. */
   private type Looking = (RealmId, String) => Option[Session]
   private type Introspecting =

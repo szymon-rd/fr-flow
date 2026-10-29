@@ -16,6 +16,8 @@ import frflow.testing.report.Failure
   * against its model.
   */
 class CrmSuite extends munit.FunSuite:
+  // A thousand generated cases a claim, the suites beside it running at once: on CI's two cores, minutes, not 30 s.
+  override val munitTimeout: scala.concurrent.duration.Duration = scala.concurrent.duration.Duration(5, "minutes")
   private def with_(fetched: (CrmStore, Search) => List[CrmRecord], stored: (BigInt, CrmStore) => CrmStore) =
     FrModel("Crm")(knowledge.nodes*).copy(generators = knowledge.generators)
       .implementProvided(history, held, clock)
