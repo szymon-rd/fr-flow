@@ -37,6 +37,7 @@ class WorldLeanSuite extends munit.CatsEffectSuite:
 
   test("Lean proves the claim about the define reading state, its world bound below the room".tag(Live)) {
     Ported.run(Projects.elaborated(FrModel("Rooms")(ofTheirRoom)), Nil, Ported.Lean(Nil, Nil, None), Nil).map { r =>
-      assert(!Ported.unproven(r.analysis).contains(NodeId("ofTheirRoom").value), Ported.table(r.analysis))
+      assertEquals(Ported.row(r.analysis, NodeId("ofTheirRoom")).take(3), List("claim", "proven", "proven"),
+        Ported.table(r.analysis))
     }
   }

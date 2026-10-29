@@ -12,9 +12,8 @@ Why it holds (the reason it was decided with)
   it says what the service must do  (accepted by ann, <when>)
 
 Formally (as written in Scala)
-  forall((request: Term[Booking], now: Term[World]) =>
-      val bookings = booked(now)
-      bookedAfter(request, now) === when(free(bookings, request))(bookings :+ request).otherwise(bookings))
+  forall((request: Term[Booking]) =>
+      bookedAfter(request) === when(free(booked, request))(booked :+ request).otherwise(booked))
 
 Parts: together, with the assumptions it lists, they make it
   ! bookedIsStored  claim  to review  What is booked is what the table holds.
@@ -40,7 +39,7 @@ Why it holds (the reason it was decided with)
   it says what the service must do  (accepted by ann, <when>)
 
 Formally (as written in Scala)
-  forall((request: Term[Booking], now: Term[World]) => accepted(request, now) === free(booked(now), request))
+  forall((request: Term[Booking]) => accepted(request) === free(booked, request))
 
 Parts: together, with the assumptions it lists, they make it
   ! bookedIsStored  claim  to review  What is booked is what the table holds.
@@ -67,7 +66,7 @@ Why it holds (the reason it was decided with)
   it says what the service must do  (accepted by ann, <when>)
 
 Formally (as written in Scala)
-  forall((now: Term[World]) => booked(now) === storedBookings.in(now))
+  booked === storedBookings.current
 
 [s]kip [v]iew [q]uit: s
 
@@ -84,8 +83,7 @@ Why it holds (the reason it was decided with)
   it says what the service must do  (accepted by ann, <when>)
 
 Formally (as written in Scala)
-  forall((request: Term[Booking], now: Term[World]) =>
-        book(request).from(now) { (_, after) => bookedAfter(request, now) === storedBookings.in(after) })
+  forall((request: Term[Booking]) => bookedAfter(request) === storedBookings.in(book(request).after))
 
 [s]kip [v]iew [q]uit: s
 
@@ -102,8 +100,7 @@ Why it holds (the reason it was decided with)
   it says what the service must do  (accepted by ann, <when>)
 
 Formally (as written in Scala)
-  forall((request: Term[Booking], now: Term[World]) =>
-      book(request).from(now) { (answer, _) => accepted(request, now) === answer })
+  forall((request: Term[Booking]) => accepted(request) === book(request).result)
 
 [s]kip [v]iew [q]uit: s
 
@@ -120,10 +117,9 @@ Why it holds (the reason it was decided with)
   it says what the service must do  (accepted by ann, <when>)
 
 Formally (as written in Scala)
-  forall((request: Term[Booking], before: Term[World]) =>
-      val stored = storedBookings.in(before)
-      book(request).from(before) { (_, after) =>
-        storedBookings.in(after) === when(free(stored, request))(stored :+ request).otherwise(stored) })
+  forall((request: Term[Booking]) =>
+      val stored = storedBookings.current
+      storedBookings.in(book(request).after) === when(free(stored, request))(stored :+ request).otherwise(stored))
 
 Parts: together, with the assumptions it lists, they make it
   ! grantWhenFree  claim  to review  A request is granted exactly when its room is free for its whole time.
@@ -146,8 +142,7 @@ Why it holds (the reason it was decided with)
   it says what the service must do  (accepted by ann, <when>)
 
 Formally (as written in Scala)
-  forall((request: Term[Booking], before: Term[World]) =>
-      book(request).from(before) { (answer, _) => answer === free(storedBookings.in(before), request) })
+  forall((request: Term[Booking]) => book(request).result === free(storedBookings.current, request))
 
 Parts: together, with the assumptions it lists, they make it
   ! grantWhenFree  claim  to review  A request is granted exactly when its room is free for its whole time.
