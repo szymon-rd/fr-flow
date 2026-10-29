@@ -119,3 +119,8 @@ class PortSuite extends munit.CatsEffectSuite:
       .value).toMap, Map("tokenNamesHolder" -> 1L, "accessNeedsGrant" -> 1L, "grantLetsIn" -> 1L,
       "decisionContract" -> 1L))
   }
+
+  test("the server decides a request by admit's code, given the tables: Alice's token and grant let her in") {
+    val decide = service(List(Grant(UserId("alice"), Path("/a"))), Sessions(List(Session("t1", UserId("alice")))))
+    assertEquals((decide("t1", Path("/a")), decide("t1", Path("/b"))), (Some(UserId("alice")), None))
+  }
