@@ -31,6 +31,10 @@ object Faults:
     case Fault.RunInside(p)           => s"a run of $p is of a variable bound inside the statement: a run is of the " +
         "statement's own variables, from the world it holds in"
     case Fault.WorldRead(where)       => s"$where reads the world: it reads state through its own values and operations"
+    case Fault.ReadTwoWays(p)         => s"a run of $p is read both as failing and plainly: read it as failing " +
+        "everywhere in the statement, or nowhere"
+    case Fault.RuleOverChanging(d, r) => s"the rule $r reads $d: a rule holds of values, not of a moment: say it " +
+        s"never changes with $d.isConstant, an assumption"
 
   /** A fault in what gives a Definition its meaning: its model, its Scala, its proven code. */
   private val meaning: PartialFunction[Fault, String] =

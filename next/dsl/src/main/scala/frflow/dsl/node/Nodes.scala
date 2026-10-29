@@ -4,10 +4,11 @@ import cats.data.NonEmptyList
 import cats.syntax.all.*
 import frflow.core.name.RelPath
 import frflow.core.spec.{Reliance, Statement}
+import frflow.core.term.Sym
 import frflow.dsl.build.{AsWritten, Deferred, Fault, Site}
 import frflow.dsl.shape.Elab
 import frflow.dsl.model.Fact
-import frflow.dsl.term.Term
+import frflow.dsl.term.{Notes, Term}
 import frflow.dsl.vocab.Stating
 
 /** The plain methods the DSL's inline constructors call once they have the source text and position. */
@@ -28,7 +29,12 @@ object Nodes:
     Node(head, _ => statement)
 
   /** The formula over the world it holds in (`Closing`), once what changes with the World is known. */
-  private def closed(st: Stating, t: Term[Boolean]): Term[Boolean] = if st.closing then Closing.of(t) else t
+  private def closed(st: Stating, t: Term[Boolean]): Term[Boolean] =
+    if st.closing then Closing.of(t).fold(refused, identity) else t
+
+  /** A statement refused where it is closed: its fault alone (read open, its leading variables are another's). */
+  private def refused(f: Fault): Term[Boolean] =
+    Term.noted(Notes.fault(f))([T[_]] => (s: Sym[T]) => s.bool(true))
 
   private def path(head: Head, p: String): Deferred[RelPath] =
     RelPath.parse(p).fold(why => Deferred.failed(Site.Node(head.id), Fault.BadPath(p, why)), Deferred.pure)

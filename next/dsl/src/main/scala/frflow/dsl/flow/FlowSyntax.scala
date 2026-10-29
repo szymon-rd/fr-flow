@@ -1,12 +1,12 @@
 package frflow.dsl.flow
 
 import frflow.core.term.{Sym, World}
-import frflow.core.term.interpret.ToExpr
+
 import frflow.dsl.build.Fault
 import frflow.dsl.run.{RunNote, Worlds}
 import frflow.dsl.term.{LeanType, Notes, Term}
 import frflow.dsl.vocab.Called
-import scala.util.control.NonFatal
+
 
 /** The combinators as programs write them on a pair, `(a, b).parTupled`; and, in a statement, a program's run from
   * the world the statement holds in (owner §41): `book(request).result`, what it returns, and `book(request).after`,
@@ -37,10 +37,11 @@ object FlowSyntax:
     * applied to a variable bound inside the statement, a fault.
     */
   private def part[A: LeanType](run: Term[?], error: Option[LeanType[?]], outcome: Boolean): Term[A] =
-    try
-      val note = RunNote(ToExpr.of(run.run), error.map(_.ty), run)
-      val x = if outcome then note.outcome else note.after
-      Term.noted(Notes.of(LeanType[A].declares))([T[_]] => (s: Sym[T]) => s.noted(note, s.free[A](x)))
-    catch case NonFatal(_) =>
+    Term.exprOf(run).fold {
       val fault = Fault.RunInside(Called.of(run).fold("a program")(_._1.value))
       Term.noted(Notes.fault(fault))([T[_]] => (s: Sym[T]) => s.free[A](Worlds.binder))
+    } { key =>
+      val note = RunNote(key, error.map(_.ty), run)
+      val x = if outcome then note.outcome else note.after
+      Term.noted(Notes.of(LeanType[A].declares))([T[_]] => (s: Sym[T]) => s.noted(note, s.free[A](x)))
+    }

@@ -1,7 +1,6 @@
 package frflow.dsl.model
 
 import frflow.core.name.SymbolName
-
 import frflow.core.ty.{NumKind, Ty}
 import frflow.dsl.build.Declarations
 import frflow.dsl.flow.Flow

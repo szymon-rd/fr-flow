@@ -52,4 +52,12 @@ enum Fault:
     * program's step or an operation's meaning, which read state through their own values and operations.
     */
   case WorldRead(where: String)
+  /** One program's run read both as failing (`p.failing[E]`) and plainly in one statement (owner §41): read it as
+    * failing everywhere in the statement, or nowhere.
+    */
+  case ReadTwoWays(program: String)
+  /** A Declaration a rule (`always`) reads, with no assumption that it never changes: a rule holds of values, not of
+    * a moment (owner §43).
+    */
+  case RuleOverChanging(declaration: String, rule: String)
   case Thrown(message: String)

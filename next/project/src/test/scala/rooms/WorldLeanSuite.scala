@@ -41,3 +41,37 @@ class WorldLeanSuite extends munit.CatsEffectSuite:
         Ported.table(r.analysis))
     }
   }
+
+  private def standing(kb: FrModel, id: String) =
+    Ported.run(Projects.elaborated(kb), Nil, Ported.Lean(Nil, Nil, None), Nil).map(r =>
+      (Ported.row(r.analysis, NodeId(id)).take(3), Ported.table(r.analysis)))
+
+  test("a claim that a Declaration never changes, with nothing to prove it from, is not proven".tag(Live)) {
+    val fixed = Node.claim("The opening hour never changes.")(opening.isConstant)
+    standing(FrModel("Rooms")(fixed), "fixed").map((row, table) => assertNotEquals(row.lift(2), Some("proven"), table))
+  }
+
+  val store = Definition[BigInt => Flow[Unit]]("a number stored on the shelf")
+  val storeCode = program { (n: Term[BigInt]) => Flow.step(frflow.eval.flow.Shelf.put(n)) }
+  val oneShelf = Node.assumption("One at a time.")(frflow.eval.flow.Shelf.kept.atomic)
+  val nothingElse = Node.assumption("Nothing but the programs change the shelf.")(
+    frflow.eval.flow.Shelf.kept.onlyCodeChanges)
+  private def failingRun(c: frflow.dsl.node.Node): FrModel =
+    FrModel("Shelves")(c.assuming(oneShelf), nothingElse, oneShelf).implementProven(store)(storeCode)
+
+  test("a run read as failing: Lean proves what a failed run leaves, and not a false one".tag(Live)) {
+    import frflow.eval.flow.{Shelf, Trouble}
+    val kept = Node.claim("A store that fails leaves the shelf as it was.")(
+      forall((n: Term[BigInt]) => store(n).failing[Trouble].result.fold(
+        _ => Shelf.kept.in(store(n).failing[Trouble].after) === Shelf.kept.current, _ => n === n)))
+    val twice = Node.claim("A store that fails leaves the shelf holding the number twice more.")(
+      forall((n: Term[BigInt]) => store(n).failing[Trouble].result.fold(
+        _ => Shelf.kept.in(store(n).failing[Trouble].after) === Shelf.kept.current :+ n :+ n, _ => n === n)))
+    for
+      (k, kt) <- standing(failingRun(kept), "kept")
+      (t, tt) <- standing(failingRun(twice), "twice")
+    yield
+      assertEquals(k.lift(2), Some("proven"), kt)
+      assertNotEquals(t.lift(2), Some("proven"), tt)
+  }
+

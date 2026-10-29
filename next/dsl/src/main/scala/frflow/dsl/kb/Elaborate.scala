@@ -5,7 +5,8 @@ import cats.syntax.all.*
 import frflow.core.{Elaborated, Sited, Theory}
 import frflow.core.expr.Lambda
 import frflow.core.graph.Edge
-import frflow.core.name.{DefName, LeanNames, ModelName}
+import frflow.core.code.Attachment
+import frflow.core.name.{DefName, LeanNames, ModelName, SymbolName}
 import frflow.core.spec.{Form, Node as Spec, Written}
 import frflow.core.typing.IrCheck
 import frflow.core.vocab.{Define, DefineForm, StateModel, Vocabulary}
@@ -21,7 +22,10 @@ import frflow.dsl.vocab.Stating
 object Elaborate:
   def apply(kb: FrModel): ValidatedNec[ElabError, Elaborated] =
     val attached = kb.meanings.traverse((id, a) => a.map(id -> _))
-    val stating = Stating.varying(Varying.of(kb.nodes))
+    Varying.of(kb.nodes).andThen(varying => elaborated(kb, Stating.varying(varying), attached))
+
+  private def elaborated(kb: FrModel, stating: Stating, attached: Deferred[List[(SymbolName, Attachment)]])
+      : ValidatedNec[ElabError, Elaborated] =
     (kb.nodes.traverse(node(stating, _)), attached).tupled.run.andThen { case (declared, (ns, code)) =>
       vocabulary(declared).andThen { (all, v) =>
         Modelled.table(v, code.toMap, kb.operations, kb.writtenIn).map { table =>

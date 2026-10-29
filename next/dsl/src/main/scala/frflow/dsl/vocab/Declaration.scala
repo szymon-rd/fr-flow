@@ -20,9 +20,14 @@ final class Declaration[A] @publicInBinary private (val name: SymbolName, val me
     using val leanType: LeanType[A]):
   /** The value as a term, in a statement. */
   def term(using Stating): Term[A] = Declaration.applied[A](this, Nil)
-  /** That it is the same in every world: of one that changes with the World, `∀ w1 w2, d … w1 = d … w2`. */
+  /** That it is the same in every world: `∀ w1 w2, d … w1 = d … w2`. It reads the World, so it makes the Declaration
+    * one that changes with it (`kb.Varying`); of one a rule reads, assumed, Lean's reading of it as a value rests on
+    * it, and it is `d = d`.
+    */
   def isConstant(using st: Stating): Term[Boolean] =
-    if st.varies(name) then Term(Declaration.constant(this)) else Term.both(term, term)([T[_]] => (s: Sym[T]) => s.eq)
+    if !st.closing then Term(Declaration.constant(this, probed = true))
+    else if st.varies(name) then Term(Declaration.constant(this, probed = false))
+    else Term.both(term, term)([T[_]] => (s: Sym[T]) => s.eq)
 
 object Declaration:
   inline def apply[A: LeanType](means: String): Declaration[A] = new Declaration[A](SymbolName(Source.valName), means)
@@ -49,16 +54,23 @@ object Declaration:
   /** A function's term applied, its type forgotten: what `applied` types again. */
   private def ap[T[_]](s: Sym[T])(f: T[Any], a: T[Any]): T[Any] = s.app[Any, Any](f.asInstanceOf[T[Any => Any]], a)
 
-  /** `∀ w1 w2, ∀ x…, d x… w1 = d x… w2`: the Declaration the same in every two worlds, on every input. */
-  private def constant(d: Declaration[?]): Final[Boolean] = [T[_]] => (s: Sym[T]) =>
+  /** `∀ w1 w2, ∀ x…, d x… w1 = d x… w2`: the Declaration the same in every two worlds, on every input; while what
+    * changes is read off the statements (`probed`), `∀ x…, d x… world = d x… world`, in the current world, which
+    * `kb.Varying` reads as an `isConstant`.
+    */
+  private def constant(d: Declaration[?], probed: Boolean): Final[Boolean] = [T[_]] => (s: Sym[T]) =>
     val (ins, _) = Worldly.parts(d.leanType.ty)
     def at(xs: List[T[Any]], w: T[World]): T[Any] =
       (xs :+ w.asInstanceOf[T[Any]]).foldLeft(symbol[Any](d, worldly = true)(s))(ap(s))
     def over(left: List[(Ty, Int)], xs: List[T[Any]], w1: T[World], w2: T[World]): T[Boolean] = left match
       case (ty, i) :: rest => s.forall(Bound[Any](s"x$i", ty))(x => over(rest, xs :+ x, w1, w2))
       case Nil             => s.eq(at(xs, w1), at(xs, w2))
-    s.forall(Bound[World]("w1", Ty.World))(w1 =>
-      s.forall(Bound[World]("w2", Ty.World))(w2 => over(ins.zipWithIndex, Nil, w1, w2)))
+    if probed then
+      val w = Worlds.current.run(s)
+      over(ins.zipWithIndex, Nil, w, w)
+    else
+      s.forall(Bound[World]("w1", Ty.World))(w1 =>
+        s.forall(Bound[World]("w2", Ty.World))(w2 => over(ins.zipWithIndex, Nil, w1, w2)))
 
   extension [A, R](d: Declaration[A => R])
     def apply(a: Term[A])(using Stating, LeanType[R]): Term[R] = applied(d, List(a))

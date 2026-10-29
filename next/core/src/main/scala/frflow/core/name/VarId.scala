@@ -17,8 +17,8 @@ object VarId:
   val world: VarId = Long.MinValue
   /** The `k`th leading variable of a statement, opened to be read below it. */
   def opened(k: Int): VarId = Long.MinValue + 1 + k
-  /** A run's result (`side` 0) or its world after (`side` 1), by the run's key. */
-  def ran(key: Int, side: Int): VarId = Long.MinValue + (1L << 40) + (key.toLong & 0xffffffffL) * 2 + side
+  /** A run's result (`side` 0) or its world after (`side` 1); which run's, its binder's name says. */
+  def ran(side: Int): VarId = Long.MinValue + (1L << 40) + side
   /** Whether the variable is a run's result or world after (`ran`). */
   def isRan(v: VarId): Boolean = v >= Long.MinValue + (1L << 40) && v < Long.MinValue + (1L << 41)
   extension (v: VarId) def value: Long = v

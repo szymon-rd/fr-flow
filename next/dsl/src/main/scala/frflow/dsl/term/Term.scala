@@ -68,7 +68,17 @@ object Term:
   def bound[T[_], A](owner: Sym[T], x: T[A])(using LeanType[A]): Term[A] =
     Term([U[_]] => (s: Sym[U]) => if s eq owner then x.asInstanceOf[U[A]] else outside)
 
-  private def outside: Nothing = throw IllegalStateException("FrFlow bug: a bound variable used outside its binder")
+  private def outside: Nothing = throw Foreign()
+
+  /** A bound variable run by an interpreter other than its binder's: a term built inside a binder, read outside it. */
+  final class Foreign extends IllegalStateException("FrFlow bug: a bound variable used outside its binder")
+
+  /** The term's IR, or none where it holds a variable bound inside another interpreter's binder (a term built in a
+    * binder's body, read outside it): the one case asked of a term that may be such.
+    */
+  def exprOf(t: Term[?]): Option[Expr] =
+    try Some(t.expr)
+    catch case _: Foreign => None
 
   private def field[A](t: Term[A], name: String): Term[?] =
     t.leanType.codeOnly.foreach(scala => throw Failure(Fault.CodeOnlyInStatement(scala)))

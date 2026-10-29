@@ -26,6 +26,11 @@ object AlwaysSyntax:
     if rule.readsWorld then Term.noted(Notes.fault(Fault.WorldRead(s"the rule ${rule.name.value}")))(rule(x).run)
     else rule(x)
 
-  /** Every world reached: its rule of the model's state in each. */
+  /** Every world reached: its rule of the model's state in each. A rule reading state otherwise is refused, as a
+    * value rule is (`applied`).
+    */
   def reached[S](model: StateModel[S], rule: Definition[S => Boolean]): Term[Boolean] =
-    Terms.always[World]("w", w => rule(model.in(w)))
+    Terms.always[World]("w", w =>
+      if rule.readsWorld then Term.noted(Notes.fault(Fault.WorldRead(s"the rule ${rule.name.value}")))(
+        rule(model.in(w)).run)
+      else rule(model.in(w)))

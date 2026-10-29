@@ -130,7 +130,7 @@ object ReadRecording:
 
     /** A step's term: one reading the world is refused, as a program reads state by its operations (owner §43). */
     private def expr(t: Term[?]): Stated[?] =
-      if Worlds.reads(t.run) then throw Failure(Fault.WorldRead("a program's step")) else Stated(t.run)
+      if Worlds.reads(t).contains(true) then throw Failure(Fault.WorldRead("a program's step")) else Stated(t.run)
 
     private def typeOf(a: Any): LeanType[?] = a match
       case t: Term[?] => t.leanType

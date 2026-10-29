@@ -10,7 +10,8 @@ import frflow.dsl.build.{AsWritten, Site}
 import frflow.dsl.term.{LeanType, Term}
 import frflow.dsl.run.Worlds
 import frflow.dsl.vocab.{Definition, OnTheSpot, Spot}
-import scala.util.control.NonFatal
+import cats.syntax.all.*
+import frflow.dsl.build.Failure
 
 /** A define whose body reads state (owner §43): it changes with the World, so it takes the world as its last input
   * (Lean: `def d (x : A) (world : World) : R`), and every call of it, in a statement or in another define, is read in
@@ -18,11 +19,11 @@ import scala.util.control.NonFatal
   * bodies: no marker.
   */
 object Worldly:
-  /** Whether the body on its inputs' variables reads the current world (a body that cannot be built reads none:
-    * its fault is the define's, found when it is elaborated).
+  /** Whether the body on its inputs' variables reads the current world. A body that cannot be built (its fault, a
+    * `Failure`, is found again when the define is elaborated, and placed there) is read as it is written, reading none.
     */
   def reads(build: () => (List[Binder], Term[?])): Boolean =
-    try Worlds.reads(build()._2.run) catch case NonFatal(_) => false
+    Either.catchOnly[Failure](build()._2).toOption.flatMap(Worlds.reads).contains(true)
 
   /** The define over its inputs and the world last: its lambda, the world bound at the level after its inputs; its
     * body, one `lam` per input and one for the world.
@@ -32,16 +33,16 @@ object Worldly:
     val (xs, t) = build()
     val world = Binder(VarId.level(types.size), Worlds.binder.hint, Ty.World)
     val over: Final[Any] = [T[_]] => (s: Sym[T]) =>
-      t.run(Substituted(s, Map(VarId.world -> s.free[Any](world)))).asInstanceOf[T[Any]]
+      t.run(Substituted(s, Map(Worlds.binder -> s.free[Any](world)))).asInstanceOf[T[Any]]
     val lambda = Elab.lambda(Site.Define(name), types)(
       () => (xs :+ world, Term(over)(using t.leanType.asInstanceOf[LeanType[Any]])), written)
     val curried = (types.map(_.ty) :+ Ty.World).foldRight(t.leanType.ty)((a, r) => Ty.FnOf(List(a), r))
     Definition.onTheSpot[F](OnTheSpot(name, Code.Proven(name), lambda,
-      Spot.Define(Body(name, curried, lams(xs.map(x => x.id -> x) :+ (VarId.world -> world), t)), worldly = true)))
+      Spot.Define(Body(name, curried, lams(xs.map(x => x -> x) :+ (Worlds.binder -> world), t)), worldly = true)))
 
   /** `fun x… world => body`, each input and the world bound to the variable the body was built over. */
-  private def lams(bs: List[(VarId, Binder)], t: Term[?]): Final[Any] = [T[_]] => (s: Sym[T]) =>
-    def over(left: List[(VarId, Binder)], env: Map[VarId, T[Any]]): T[Any] = left match
+  private def lams(bs: List[(Binder, Binder)], t: Term[?]): Final[Any] = [T[_]] => (s: Sym[T]) =>
+    def over(left: List[(Binder, Binder)], env: Map[Binder, T[Any]]): T[Any] = left match
       case (id, b) :: rest =>
         s.lam[Any, Any](Bound[Any](b.hint, b.ty))(v => over(rest, env + (id -> v))).asInstanceOf[T[Any]]
       case Nil             => t.run(Substituted(s, env)).asInstanceOf[T[Any]]
