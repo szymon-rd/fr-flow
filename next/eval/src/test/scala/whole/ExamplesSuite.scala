@@ -43,15 +43,16 @@ class ExamplesSuite extends munit.FunSuite:
   }
 
   test("keycloak: today's, but the definition of four open types; the definition of `enabled` and `rolesOf` is two " +
-    "claims") {
-    assertEquals(ids(keycloak.knowledge), renamed(Today.keycloak, Set("identities"), Set("accountRoles")))
+    "claims; the claim on `introspect` named apart from it (owner §40)") {
+    assertEquals(ids(keycloak.knowledge), renamed(Today.keycloak, Set("identities", "introspect"),
+      Set("accountRoles", "introspectAnswers")))
   }
 
-  test("crm: today's, with the root's two general expectations and the read contract's one claims of their own " +
-    "(its scenario an example); two definitions of two words each are four claims; runs on the database one at a " +
+  test("crm: today's, with the root's two general expectations claims of their own (its scenario an example, and the " +
+    "read contract's, owner §40); two definitions of two words each are four claims; runs on the database one at a " +
     "time, an assumption") {
     assertEquals(ids(crm.knowledge), renamed(Today.crm, Set.empty, Set("addedIsFound", "writesLeaveOthers",
-      "acmeNeverSeesGlobex", "ownership", "searchesAsk", "runsOneAtATime")))
+      "ownership", "searchesAsk", "runsOneAtATime")))
   }
 
   test("crm: the purpose and its two general expectations are roots (owner §22), each expectation proven from what " +

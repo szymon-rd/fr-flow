@@ -7,17 +7,20 @@ import scala.quoted.*
 /** The project's source files plain code is written in, read at compile time: the file of each class, object and
   * method the expression refers to, but FrFlow's own (a library's have no source file on disk) and what the
   * expression defines itself (its lambdas' parameters, its local values: their file is where the code is attached,
-  * the FrModel's, not the code's). A change to one of them is a change to the code a node governs (the code cause).
-  * The files are looked up on disk by the compiler (`Files.isRegularFile`), so a fingerprint names what was there
-  * when the model was compiled.
+  * the FrModel's, not the code's); with each file, the names of what the expression refers to in it (owner §38: in a
+  * file that holds nodes, only those definitions are governed). A change to one of them is a change to the code a
+  * node governs (the code cause). The files are looked up on disk by the compiler (`Files.isRegularFile`), so a
+  * fingerprint names what was there when the model was compiled.
   */
 object SourceFiles:
-  inline def of(inline x: Any): List[String] = ${ filesOf('x) }
+  inline def of(inline x: Any): List[(String, List[String])] = ${ filesOf('x) }
 
-  private def filesOf(e: Expr[Any])(using q: Quotes): Expr[List[String]] =
+  private def filesOf(e: Expr[Any])(using q: Quotes): Expr[List[(String, List[String])]] =
     import q.reflect.*
     val inside = defined(e.asTerm)
-    Expr(referred(e.asTerm, inside).filterNot(inside).flatMap(file).distinct)
+    val named = referred(e.asTerm, inside).filterNot(inside).flatMap(s => file(s).map(_ -> s.name.stripSuffix("$")))
+    // A name the compiler made (a file's package object, `Introspection$package`) is no definition written.
+    Expr(named.groupMap(_._1)(_._2).toList.map((f, ns) => f -> ns.filterNot(_.contains('$')).distinct).sortBy(_._1))
 
   /** What the expression defines itself: its definitions and its patterns' bindings. */
   private def defined(using q: Quotes)(t: q.reflect.Term): Set[q.reflect.Symbol] =

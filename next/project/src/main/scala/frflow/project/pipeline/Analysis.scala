@@ -39,7 +39,7 @@ final class Analysis(val valid: Valid, val inputs: Inputs, val computed: Compute
   private lazy val nodeKeys: Map[NodeId, CheckKey] = obligations.map(o => o.node -> keys.node(o.node)).toMap
   /** Each node's governed code now: the files it governs, fingerprinted. */
   lazy val governed: Map[NodeId, CodeNow] = Governance.of(decided.theory, inputs.sources.keys.toList).map((id, fs) =>
-    id -> CodeFingerprints.of(fs.map(f => f -> inputs.sources.get(f))))
+    id -> CodeFingerprints.of(fs.map(f => f -> inputs.sources.get(f.path))))
   lazy val subjects: Subjects = ReadSubjects(this)
   lazy val reading: Reading = Reading(subjects, inputs.ledger.counting)
   lazy val standings: Map[NodeId, Standing] = reading.standings

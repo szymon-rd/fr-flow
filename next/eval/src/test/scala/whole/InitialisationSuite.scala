@@ -15,7 +15,7 @@ class InitialisationSuite extends munit.FunSuite:
     "rooms" -> List(() => rooms.free, () => rooms.bookIfGranted, () => rooms.bookWhenFree, () => rooms.rooms),
     "auth" -> List(() => auth.knowledge),
     "keycloak" -> List(() => keycloak.history, () => keycloak.state, () => keycloak.realmAccess,
-      () => keycloak.Introspection, () => keycloak.knowledge),
+      () => keycloak.introspectAnswers, () => keycloak.knowledge),
     "crm" -> List(() => crm.history, () => crm.results, () => crm.databaseModel, () => crm.sharedCrm,
       () => crm.visibility, () => crm.recordsKept, () => crm.expiryJob, () => crm.knowledge),
     "sharing" -> List(() => sharing.reaches, () => sharing.time.Lifetimes.inForce, () => sharing.service.Sharing.access,

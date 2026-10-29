@@ -14,7 +14,7 @@ final class Calls[G[_], I, Ss <: Tuple](kb: FrModel, ops: List[Definition[?]], e
   inline def apply(inline calls: I => Shape.Scalas[Ss, G]): FrModel =
     val names = ops.map(_.name)
     val scala = Implementation.Scala(ends.start, ends.observe, (i: Any) => calls(i.asInstanceOf[I]).toList)
-    val files = (ends.files ++ SourceFiles.of(calls)).distinct.map(Spans.relative)
+    val files = Tested.files(ends.files ++ SourceFiles.of(calls))
     kb.implement(Operations(names, Implementation(names, scala, g,
       SourceText(s"(${ends.written})(${Source.of(calls).text})"), files), Spans.relative(Source.file)))
 
@@ -23,4 +23,4 @@ object Calls:
     * plain values of the model's state and of what `start` makes: the casts are of values `start` made or the model
     * holds, by the types `Tested` was typed with.
     */
-  final case class Ends(start: Any => Any, observe: Any => Any, written: String, files: List[String])
+  final case class Ends(start: Any => Any, observe: Any => Any, written: String, files: List[(String, List[String])])

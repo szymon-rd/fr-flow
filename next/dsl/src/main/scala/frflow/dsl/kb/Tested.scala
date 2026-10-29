@@ -1,7 +1,7 @@
 package frflow.dsl.kb
 
 import cats.MonadThrow
-import frflow.core.code.{Attachment, Code, Impl, ScalaCode, Values}
+import frflow.core.code.{Attachment, Code, CodeFile, Impl, ScalaCode, Values}
 import frflow.core.name.SourceText
 import frflow.dsl.build.{Deferred, Source, SourceFiles}
 import frflow.dsl.node.Spans
@@ -19,7 +19,7 @@ final class Tested[F, Ss <: Tuple](kb: FrModel, ds: List[Definition[?]]):
   inline def apply(inline code: Values => F): FrModel =
     val d = ds.head
     val runs = ScalaCode(Impl(Implementing.arity(d.leanType.ty), env => code(env).asInstanceOf[AnyRef]),
-      SourceText(Source.of(code).text), SourceFiles.of(code).map(Spans.relative))
+      SourceText(Source.of(code).text), Tested.files(SourceFiles.of(code)))
     Implementing.attach(kb, d, Deferred.pure(Attachment(Code.Tested(runs, ds.tail.map(_.name)),
       Spans.relative(Source.file))))
 
@@ -32,3 +32,8 @@ final class Tested[F, Ss <: Tuple](kb: FrModel, ds: List[Definition[?]]):
     Calls(kb, ds, Calls.Ends((s: Any) => start(s.asInstanceOf[S]), (i: Any) => observe(i.asInstanceOf[I]),
       s"start = ${Source.of(start).text}, observe = ${Source.of(observe).text}",
       SourceFiles.of(start) ++ SourceFiles.of(observe)), g)
+
+object Tested:
+  /** The files plain Scala refers to, each relative to the project, with what it refers to in each. */
+  def files(found: List[(String, List[String])]): List[CodeFile] =
+    CodeFile.merged(found.map((f, ns) => CodeFile(Spans.relative(f), ns)))

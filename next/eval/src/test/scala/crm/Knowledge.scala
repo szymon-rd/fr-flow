@@ -16,7 +16,7 @@ yield CrmStore(rs.distinctBy(_.id), ss.distinctBy(s => (s.record, s.to)), es.dis
 
 val knowledge = FrModel("Crm")(sharedCrm, addedIsFound, writesLeaveOthers, companies, ownership, searches,
   searchesAsk, adding, sharing, crmRun, storeMirrorsRequests, visibility, noCrossTenantRead, searchesMatch,
-  recordsByQuery, acmeNeverSeesGlobex, readContract, dealSearch, readSideWiring, writesTakeEffect, writesOnlyAsAsked,
+  recordsByQuery, readContract, dealSearch, readSideWiring, writesTakeEffect, writesOnlyAsAsked,
   recordsKept, writeContract, saveWrite, storeEdits, writeSideWiring, sharesExpire, tablesModel, runsOneAtATime,
   expiryJob, expiryJobWiring, httpApi)
   .implementProvided(history, held, clock)

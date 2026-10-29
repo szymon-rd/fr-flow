@@ -38,18 +38,12 @@ val recordsByQuery = Node.assumption("The database returns exactly the stored re
 // The records screen and the sales screen
 // ============================================================================
 
-val acmeNeverSeesGlobex = Node.claim("Someone at Acme never sees a Globex record that Globex did not share with " +
-    "Acme, whatever they search for.")(
-  forall((u: Term[Account], q: Term[Search]) => (u.tenant === TenantId("acme")) implies
-    read(u, q).forall(r => (r.tenant === TenantId("globex")) implies
-      held.shares.contains(make[Share](r.id, make[TenantId]("acme": Term[String]))))))
-
 val readContract = Node.claim("A search on the records screen returns exactly the stored records that match it and " +
     "the user may read: each of the user's company or shared with it now.")(
   forall((user: Term[Account], query: Term[Search]) =>
     read(user, query).forall(r => held.records.contains(r) && matches(query, r) && mayRead(user, r)) &&
       held.records.forall(r => (matches(query, r) && mayRead(user, r)) implies read(user, query).contains(r))))
-  .refines(searchesMatch, noCrossTenantRead, acmeNeverSeesGlobex)
+  .refines(searchesMatch, noCrossTenantRead)
 
 /** A search: what the database returns for it, of the user's company or shared with it now. */
 val search = define { (user: Term[Account], query: Term[Search]) => fetch(user, query).filter(r => mayRead(user, r)) }
